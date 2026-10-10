@@ -52,6 +52,8 @@ pub struct Server {
     /// The folder's id behind each folder key the server opened: the
     /// quotas are the folder's, the writes know its key (ADR 0077).
     pub keys: Mutex<HashMap<String, String>>,
+    /// Files on their way in pieces, for sync (ADR 0079 item 12).
+    pub transfers: crate::sync::Transfers,
     pub rooms: crate::collab::Rooms,
     /// The host's mail server, when it has one (ADR 0074 item 2).
     pub mail: std::sync::OnceLock<crate::mail::Mail>,
@@ -79,6 +81,7 @@ impl Server {
             newer: Mutex::new(None),
             commit,
             keys: Mutex::new(HashMap::new()),
+            transfers: crate::sync::Transfers::default(),
             rooms: crate::collab::Rooms::default(),
             ceremonies: crate::passkeys::Ceremonies::default(),
             mail: std::sync::OnceLock::new(),
@@ -176,6 +179,9 @@ impl verso_service::Events for ServerEvents {
                 let c = changed.clone();
                 rt.spawn_blocking(move || {
                     crate::collab::changed_outside(&server, &c.key, &c.changed, &c.removed);
+                    // And the folder's log for sync (ADR 0079 item 4).
+                    let paths: Vec<String> = c.changed.iter().chain(&c.removed).cloned().collect();
+                    crate::sync::reconcile_key(&server, &c.key, None, &paths);
                 });
             }
             s.push(

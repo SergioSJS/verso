@@ -54,6 +54,7 @@ mod indexing;
 mod notes;
 mod rename;
 mod sidecar;
+mod sync_io;
 mod views;
 use entries::*;
 use rename::*;

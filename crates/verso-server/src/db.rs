@@ -20,7 +20,33 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::crypto;
 
 /// The schema's version, in `PRAGMA user_version`.
-const SCHEMA: i64 = 4;
+const SCHEMA: i64 = 5;
+
+/// Schema 5: each folder's files as sync last saw them, and the log of
+/// their changes a device reads from a cursor (ADR 0079 items 4 and 5).
+const SYNC: &str = r"
+CREATE TABLE manifest (
+  folder TEXT NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
+  path TEXT NOT NULL,
+  hash TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  quick TEXT NOT NULL,
+  seq INTEGER NOT NULL,
+  PRIMARY KEY (folder, path)
+);
+CREATE TABLE changes (
+  folder TEXT NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
+  seq INTEGER NOT NULL,
+  path TEXT NOT NULL,
+  hash TEXT,
+  size INTEGER NOT NULL,
+  deleted INTEGER NOT NULL,
+  renamed_from TEXT,
+  actor TEXT,
+  at INTEGER NOT NULL,
+  PRIMARY KEY (folder, seq)
+);
+";
 
 /// Schema 4: a folder's quota, and the indexes the administration console
 /// pages by (ADR 0077 items 4 and 5).
@@ -387,11 +413,17 @@ impl Db {
             ));
         }
         // Each schema after the one found, in one transaction.
-        let steps: String = [(1, CREATE), (2, PASSKEYS), (3, SETTINGS), (4, CONSOLE)]
-            .iter()
-            .filter(|(at, _)| *at > version)
-            .map(|(_, sql)| *sql)
-            .collect();
+        let steps: String = [
+            (1, CREATE),
+            (2, PASSKEYS),
+            (3, SETTINGS),
+            (4, CONSOLE),
+            (5, SYNC),
+        ]
+        .iter()
+        .filter(|(at, _)| *at > version)
+        .map(|(_, sql)| *sql)
+        .collect();
         if !steps.is_empty() {
             conn.execute_batch(&format!(
                 "BEGIN; {steps} PRAGMA user_version = {SCHEMA}; COMMIT;"
@@ -1296,7 +1328,9 @@ impl Db {
 }
 
 mod console;
+mod sync;
 pub use console::{AccountRow, AuditFilter, FolderRow, Page, PageQuery};
+pub use sync::{Change, Known, Recorded};
 
 #[cfg(test)]
 mod tests;

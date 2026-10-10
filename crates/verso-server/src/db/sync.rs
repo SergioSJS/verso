@@ -1,0 +1,182 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+//! What sync keeps of a folder (ADR 0079): each file as last seen — its
+//! hash, its size, a quick key of size and time to skip the unchanged —
+//! and the log of changes, numbered per folder, that a device reads after
+//! its cursor.
+
+use std::collections::HashMap;
+
+use rusqlite::{OptionalExtension, params};
+use serde::Serialize;
+
+use super::{Db, R, e, now};
+
+/// A file as sync last saw it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Known {
+    pub hash: String,
+    pub size: i64,
+    pub quick: String,
+    pub seq: i64,
+}
+
+/// What a reconciliation records of a path: its bytes now (hash, size,
+/// quick key) or none for a deletion, and the path it was renamed from.
+pub type Recorded = (String, Option<(String, i64, String)>, Option<String>);
+
+/// One change of a folder's log.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Change {
+    pub seq: i64,
+    pub path: String,
+    /// None for a deletion.
+    pub hash: Option<String>,
+    pub size: i64,
+    pub deleted: bool,
+    /// The path this one was, for a rename or a move.
+    pub renamed_from: Option<String>,
+}
+
+impl Db {
+    pub fn manifest(&self, folder: &str) -> R<HashMap<String, Known>> {
+        let conn = self.conn();
+        let mut st = conn
+            .prepare("SELECT path, hash, size, quick, seq FROM manifest WHERE folder = ?1")
+            .map_err(e)?;
+        let rows = st
+            .query_map([folder], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    Known {
+                        hash: r.get(1)?,
+                        size: r.get(2)?,
+                        quick: r.get(3)?,
+                        seq: r.get(4)?,
+                    },
+                ))
+            })
+            .map_err(e)?
+            .collect::<rusqlite::Result<HashMap<_, _>>>()
+            .map_err(e)?;
+        Ok(rows)
+    }
+
+    /// The last change's number, 0 for none.
+    pub fn head(&self, folder: &str) -> R<i64> {
+        self.conn()
+            .query_row(
+                "SELECT COALESCE(MAX(seq), 0) FROM changes WHERE folder = ?1",
+                [folder],
+                |r| r.get(0),
+            )
+            .map_err(e)
+    }
+
+    /// Record what changed, in one transaction: the manifest follows and
+    /// each change gets the next number. `quick` refreshes a file whose
+    /// bytes did not change.
+    pub fn record(
+        &self,
+        folder: &str,
+        actor: Option<&str>,
+        changes: &[Recorded],
+        quick: &[(String, String)],
+    ) -> R<i64> {
+        let mut conn = self.conn();
+        let tx = conn.transaction().map_err(e)?;
+        let mut seq: i64 = tx
+            .query_row(
+                "SELECT COALESCE(MAX(seq), 0) FROM changes WHERE folder = ?1",
+                [folder],
+                |r| r.get(0),
+            )
+            .map_err(e)?;
+        let at = now();
+        for (path, now_is, renamed_from) in changes {
+            seq += 1;
+            match now_is {
+                Some((hash, size, q)) => {
+                    tx.execute(
+                        "INSERT INTO manifest (folder, path, hash, size, quick, seq) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+                         ON CONFLICT (folder, path) DO UPDATE SET hash = ?3, size = ?4, quick = ?5, seq = ?6",
+                        params![folder, path, hash, size, q, seq],
+                    )
+                    .map_err(e)?;
+                    tx.execute(
+                        "INSERT INTO changes (folder, seq, path, hash, size, deleted, renamed_from, actor, at) VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8)",
+                        params![folder, seq, path, hash, size, renamed_from, actor, at],
+                    )
+                    .map_err(e)?;
+                }
+                None => {
+                    tx.execute(
+                        "DELETE FROM manifest WHERE folder = ?1 AND path = ?2",
+                        params![folder, path],
+                    )
+                    .map_err(e)?;
+                    tx.execute(
+                        "INSERT INTO changes (folder, seq, path, hash, size, deleted, renamed_from, actor, at) VALUES (?1, ?2, ?3, NULL, 0, 1, NULL, ?4, ?5)",
+                        params![folder, seq, path, actor, at],
+                    )
+                    .map_err(e)?;
+                }
+            }
+        }
+        for (path, q) in quick {
+            tx.execute(
+                "UPDATE manifest SET quick = ?3 WHERE folder = ?1 AND path = ?2",
+                params![folder, path, q],
+            )
+            .map_err(e)?;
+        }
+        tx.commit().map_err(e)?;
+        Ok(seq)
+    }
+
+    /// The changes after `since`, oldest first, at most `limit`.
+    pub fn changes_since(&self, folder: &str, since: i64, limit: i64) -> R<Vec<Change>> {
+        let conn = self.conn();
+        let mut st = conn
+            .prepare(
+                "SELECT seq, path, hash, size, deleted, renamed_from FROM changes
+                 WHERE folder = ?1 AND seq > ?2 ORDER BY seq LIMIT ?3",
+            )
+            .map_err(e)?;
+        st.query_map(params![folder, since, limit], |r| {
+            Ok(Change {
+                seq: r.get(0)?,
+                path: r.get(1)?,
+                hash: r.get(2)?,
+                size: r.get(3)?,
+                deleted: r.get(4)?,
+                renamed_from: r.get(5)?,
+            })
+        })
+        .map_err(e)?
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(e)
+    }
+
+    /// One file as sync last saw it.
+    pub fn known(&self, folder: &str, path: &str) -> R<Option<Known>> {
+        self.conn()
+            .query_row(
+                "SELECT hash, size, quick, seq FROM manifest WHERE folder = ?1 AND path = ?2",
+                params![folder, path],
+                |r| {
+                    Ok(Known {
+                        hash: r.get(0)?,
+                        size: r.get(1)?,
+                        quick: r.get(2)?,
+                        seq: r.get(3)?,
+                    })
+                },
+            )
+            .optional()
+            .map_err(e)
+    }
+}
