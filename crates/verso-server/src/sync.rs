@@ -240,12 +240,11 @@ fn reconcile_held(
             present.insert(path);
             continue;
         }
-        let p = path.clone();
-        let read = server
-            .service
-            .with_key(key, move |ws| Ok(ws.read_with_revision(&p)?));
-        let bytes = match read {
-            Ok((bytes, _)) => bytes,
+        let bytes = match read_file(server, key, &path) {
+            Ok(Some(bytes)) => bytes,
+            // A folder (a write that made or moved one names it): no
+            // entry of the log, and no file of that name any more.
+            Ok(None) => continue,
             // There but not downloaded (a placeholder, ADR 0043): as it
             // was, never a deletion.
             Err(e) if e.kind == ErrorKind::Unavailable => {
@@ -282,6 +281,20 @@ fn reconcile_held(
         .map(|(p, k)| (p.clone(), k.hash.clone()))
         .collect();
     record_changes(server, folder, actor, &known, &gone, created, &quick_only)
+}
+
+/// The bytes of the file at `path`, for a reconciliation; `None` when
+/// `path` is a folder. The unit of sync is a file and a folder is never an
+/// entry of the log (ADR 0079 item 2), but a write that makes or moves a
+/// folder names it among the paths it changed, and the watcher may too.
+fn read_file(server: &Server, key: &str, path: &str) -> Result<Option<Vec<u8>>, ContractError> {
+    let p = path.to_owned();
+    server.service.with_key(key, move |ws| {
+        if ws.is_folder(&p) {
+            return Ok(None);
+        }
+        Ok(Some(ws.read_with_revision(&p)?.0))
+    })
 }
 
 /// Record what a reconciliation found — the files gone, the files new or
@@ -371,15 +384,13 @@ fn reconcile_paths(
             Now::Gone => continue,
             Now::Written(hash, size) => (hash.clone(), *size),
             Now::Read => {
-                let p = path.clone();
-                let read = server
-                    .service
-                    .with_key(key, move |ws| Ok(ws.read_with_revision(&p)?));
-                match read {
-                    Ok((bytes, _)) => (
+                match read_file(server, key, path) {
+                    Ok(Some(bytes)) => (
                         sha256(&bytes),
                         i64::try_from(bytes.len()).unwrap_or(i64::MAX),
                     ),
+                    // A folder: no entry of the log.
+                    Ok(None) => continue,
                     Err(e) if e.kind == ErrorKind::NotFound => continue,
                     // A placeholder or a file not readable now: as it was.
                     Err(_) => {

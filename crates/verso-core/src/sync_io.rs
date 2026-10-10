@@ -25,6 +25,20 @@ impl Workspace {
         Ok((bytes, revision::encode(&stamp)))
     }
 
+    /// Whether `relative` names a folder on the disk now, a symlink
+    /// followed as a read follows it. Sync's unit is a file (ADR 0079
+    /// item 2): a folder among the paths a change touched is never read
+    /// as one. `false` for a file, for nothing there, and for a path the
+    /// folder refuses — the read that follows says why.
+    pub fn is_folder(&mut self, relative: &str) -> bool {
+        let Ok(key) = self.entry_key(relative) else {
+            return false;
+        };
+        self.root
+            .handle(Path::new(&key))
+            .is_ok_and(|handle| self.root.is_dir(handle))
+    }
+
     /// The folders above `relative` that hold nothing any more, removed,
     /// from the nearest up: a move or a deletion that came from another
     /// device leaves no empty folder behind (ADR 0079). A folder that holds
