@@ -6,6 +6,9 @@
 //! maintainer's answer K): a real `verso serve` on this machine, a device
 //! signed in to it, and the window's commands answered by the server.
 
+// The server is not built for Windows (crates/verso-cli/Cargo.toml).
+#![cfg(not(windows))]
+
 use std::io::Write;
 
 use serde_json::{Value, json};
