@@ -755,6 +755,7 @@ fn of_server(path: &str, e: &Value) -> Refusal {
         // The server answered: that file is not readable there now.
         ErrorKind::Unavailable => Refusal::File(path.to_owned(), "failed".to_owned(), e.message),
         ErrorKind::Changed => Refusal::Again(path.to_owned(), e.message),
+        ErrorKind::Exists => Refusal::File(path.to_owned(), "name_taken".to_owned(), e.message),
         ErrorKind::Quota => Refusal::File(path.to_owned(), "quota".to_owned(), e.message),
         _ => Refusal::File(path.to_owned(), "failed".to_owned(), e.message),
     }
@@ -762,7 +763,9 @@ fn of_server(path: &str, e: &Value) -> Refusal {
 
 fn of_here(path: &str, e: ContractError) -> Refusal {
     match e.kind {
-        ErrorKind::Changed => Refusal::Again(path.to_owned(), e.message),
+        // Changed, or gone (moved or deleted) since the pass listed it:
+        // the next pass sees it as it is now.
+        ErrorKind::Changed | ErrorKind::NotFound => Refusal::Again(path.to_owned(), e.message),
         // Another file here has this name, as this file system compares
         // names (case, accents): listed, never written over.
         ErrorKind::Exists => Refusal::File(

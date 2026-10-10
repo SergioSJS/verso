@@ -317,3 +317,22 @@ async fn remove(r: &crate::tests::Running, path: &str, b: &crate::tests::Browser
         .status()
         .as_u16()
 }
+
+/// On a file system that folds names (APFS, NTFS), a new file whose name
+/// another one holds but for its case is refused as a name taken, said as
+/// such — not as a change of that other file (found in the sync campaign
+/// with a Linux device, 2026-10-10).
+#[cfg(any(target_os = "macos", windows))]
+#[test]
+fn a_name_taken_but_for_its_case_is_said_as_such() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let mut ws = opened(&r, &admin).await;
+        let first = send(&mut ws, 10, "Receita.md", b"# Receita\n", None).await;
+        assert_eq!(first["ok"]["done"], true, "{first}");
+        call(&mut ws, 20, "reindex", json!({})).await;
+        let twin = send(&mut ws, 30, "receita.md", b"# receita\n", None).await;
+        assert_eq!(twin["err"]["kind"], "exists", "{twin}");
+    });
+}

@@ -449,9 +449,31 @@ fn is_now(ws: &mut Workspace, path: &str, base: Option<&str>) -> Result<Option<S
     let found = now(ws, path)?;
     if found.as_ref().map(|(h, _)| h.as_str()) == base {
         Ok(found.map(|(_, r)| r))
+    } else if base.is_none()
+        && found.is_some()
+        && verso_core::sync::FOLDS_NAMES
+        && name_taken(ws, path)
+    {
+        // A new file whose name another one holds as this file system
+        // compares names: said as such, not as a change of that file.
+        Err(ContractError {
+            kind: ErrorKind::Exists,
+            message: "another file on the server has this name, differing only in case or accents"
+                .to_owned(),
+        }
+        .into())
     } else {
         Err(changed(&found.map(|(h, _)| h).unwrap_or_default()).into())
     }
+}
+
+/// Whether a listed file other than `path` has its name as the file system
+/// folds it (case, Unicode normalization).
+fn name_taken(ws: &Workspace, path: &str) -> bool {
+    let folded = verso_core::sync::folded(path);
+    ws.entries()
+        .iter()
+        .any(|e| e.path != path && verso_core::sync::folded(&e.path) == folded)
 }
 
 fn read(server: &Server, client: &str, key: &str, args: &Value) -> Result<Value, ContractError> {
