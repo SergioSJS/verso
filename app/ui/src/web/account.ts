@@ -2,21 +2,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// The person's own page (ADR 0074 items 3, 7, 8 and 9): the profile, the
-// password, the sessions and the access tokens, and for each folder they
-// own its members and what the audit log says about it.
+// The person's account, a section of the window's settings (ADR 0074
+// items 3, 7, 8 and 9): the profile, the password, the passkeys, the
+// sessions, the folders with their members, the access tokens, and the
+// way out. Each group is drawn as the settings draw theirs.
 
-import { ApiError, api, type Account } from "./api";
-import { checkbox, copyable, el, field, form, page, select } from "./form";
+import { ApiError, api, setSignedIn, type Account } from "./api";
+import { act, block, button, choice, controls, el, input, said, snippet, toggle, type Entry, type Item } from "./form";
 import { addPasskey, passkeysHere } from "./passkeys";
-import { bytes, roleName, setLang, w, when } from "./strings";
+import { bytes, roleName, w, when } from "./strings";
 
 function explain(e: unknown): string {
-  return e instanceof ApiError ? e.said : w().failed;
-}
-
-function section(title: string, ...children: Node[]): HTMLElement {
-  return el("section", { class: "web-section" }, el("h2", {}, title), ...children);
+  return e instanceof ApiError ? e.said : e instanceof Error && e.message ? e.message : w().failed;
 }
 
 type Session = { session: { id: string; kind: string; device: string; created: number; last_used: number; address: string }; current: boolean };
@@ -24,6 +21,7 @@ type Token = { id: string; name: string; write: boolean; expires: number | null;
 type Folder = { id: string; name: string; role: string; space: { total: number; notes: number; attachments: number; files: number; index: number } | null };
 type Member = { id: string; email: string; name: string; role: string };
 type AuditEntry = { at: number; actor: string | null; action: string; subject: string | null; address: string | null; ok: boolean };
+type Key = { id: string; name: string; created: number; last_used: number | null };
 
 export function spaceText(space: Folder["space"]): string {
   const s = w();
@@ -31,238 +29,302 @@ export function spaceText(space: Folder["space"]): string {
   return `${bytes(space.total)} — ${s.spaceDetail(bytes(space.notes), bytes(space.attachments), space.files, bytes(space.index))}`;
 }
 
-export async function accountPage(account: Account, admin: boolean): Promise<void> {
-  setLang(account.lang);
+const LANGS: [string, string][] = [["pt", "Português (Brasil)"], ["en", "English"]];
+
+/** The account's groups, for the settings. */
+export function accountEntries(me: Account, item: Item): Entry[] {
   const s = w();
-  const nav = el(
-    "nav",
-    { class: "web-nav" },
-    el("a", { href: "/" }, s.backToNotes),
-    admin ? el("a", { href: "/admin" }, s.admin) : null,
-  );
-  const root = page(s.account, nav);
-  const card = root.querySelector(".web-card") ?? root;
+  return [
+    { group: s.profile, title: s.name, desc: `${s.email} ${s.language}`, node: () => profile(me, item) },
+    { group: s.changePassword, title: s.password, desc: s.passwordHint, node: () => password(item) },
+    { group: s.passkeys, title: s.passkeys, desc: s.passkeysLead, node: () => passkeys(item) },
+    { group: s.sessions, title: s.sessions, desc: s.sessionsLead, node: () => sessions(item) },
+    { group: s.folders, title: s.folders, desc: s.members, node: () => folders(me, item) },
+    { group: s.tokens, title: s.tokens, desc: s.tokensLead, node: () => tokens(item) },
+    { group: s.signOut, title: s.signOut, desc: me.email, node: () => signOut(me, item) },
+  ];
+}
 
-  // Profile.
-  const name = field(s.name, "text", { autocomplete: "name" });
-  name.input.value = account.name;
-  const lang = select(s.language, [["pt", "Português (Brasil)"], ["en", "English"]], account.lang);
-  const profileSaved = el("p", { role: "status" });
-  const profile = form(
-    [name, lang],
-    s.save,
+function profile(me: Account, item: Item): HTMLElement {
+  const s = w();
+  const line = said();
+  const name = input("text", { autocomplete: "name" });
+  name.value = me.name;
+  const lang = choice(LANGS, me.lang);
+  const save = () => {
+    line.classList.remove("web-error");
+    api("PATCH", "/api/me", { name: name.value.trim() || me.name, lang: lang.value })
+      .then(() => {
+        me.name = name.value.trim() || me.name;
+        me.lang = lang.value;
+        setSignedIn(me);
+        line.textContent = s.saved;
+      })
+      .catch((e: unknown) => {
+        line.classList.add("web-error");
+        line.textContent = explain(e);
+      });
+  };
+  name.addEventListener("change", save);
+  lang.addEventListener("change", save);
+  const email = el("span", { class: "setting-value" }, me.email);
+  return el("div", { class: "web-block" }, item(s.email, "", email), item(s.name, s.nameDesc, name), item(s.language, s.langDesc, lang), line);
+}
+
+function password(item: Item): HTMLElement {
+  const s = w();
+  const line = said();
+  const current = input("password", { autocomplete: "current-password" });
+  const next = input("password", { autocomplete: "new-password", minlength: "12" });
+  const go = button(s.changePassword, "save");
+  act(
+    go,
+    line,
     async () => {
-      await api("PATCH", "/api/me", { name: name.input.value, lang: lang.input.value });
-      profileSaved.textContent = s.saved;
+      await api("POST", "/api/me/password", { current: current.value, new: next.value });
+      current.value = "";
+      next.value = "";
+      line.textContent = s.saved;
     },
     explain,
   );
-  card.append(section(s.profile, el("p", {}, account.email), profile.form, profileSaved));
+  return el("div", { class: "web-block" }, item(s.passwordCurrent, "", current), item(s.passwordNew, s.passwordHint, next), item("", s.passwordChangeDesc, controls(go)), line);
+}
 
-  // Password.
-  const current = field(s.passwordCurrent, "password", { autocomplete: "current-password" });
-  const next = field(s.passwordNew, "password", { autocomplete: "new-password", minlength: "12" }, s.passwordHint);
-  const pwSaved = el("p", { role: "status" });
-  const pw = form(
-    [current, next],
-    s.changePassword,
-    async () => {
-      await api("POST", "/api/me/password", { current: current.input.value, new: next.input.value });
-      current.input.value = "";
-      next.input.value = "";
-      pwSaved.textContent = s.saved;
-    },
-    explain,
-  );
-  card.append(section(s.changePassword, pw.form, pwSaved));
-
-  // Passkeys (ADR 0074 item 3).
-  const keys = el("ul", { class: "web-list" });
-  const keyNote = el("p", { role: "status" });
-  type Key = { id: string; name: string; created: number; last_used: number | null };
-  const drawKeys = async () => {
-    const list = await api<Key[]>("GET", "/api/me/passkeys");
-    keys.replaceChildren(
-      ...(list.length === 0
-        ? [el("li", {}, s.passkeyNone)]
-        : list.map((k) => {
-            const remove = el("button", { type: "button" }, s.leave);
-            remove.addEventListener("click", () => void api("DELETE", `/api/me/passkeys/${k.id}`).then(drawKeys));
-            return el("li", {}, el("span", {}, k.name), el("small", {}, `${when(k.created)}${k.last_used ? ` · ${s.lastUsed}: ${when(k.last_used)}` : ""}`), remove);
+function passkeys(item: Item): HTMLElement {
+  const s = w();
+  const list = el("div");
+  const line = said();
+  const draw = async () => {
+    const keys = await api<Key[]>("GET", "/api/me/passkeys");
+    list.replaceChildren(
+      ...(keys.length === 0
+        ? [el("p", { class: "settings-hint" }, s.passkeyNone)]
+        : keys.map((k) => {
+            const remove = button(s.leave, "danger");
+            remove.setAttribute("aria-label", `${s.leave}: ${k.name}`);
+            act(remove, line, async () => {
+              await api("DELETE", `/api/me/passkeys/${k.id}`);
+              await draw();
+            }, explain);
+            return item(k.name, `${when(k.created)}${k.last_used ? ` · ${s.lastUsed}: ${when(k.last_used)}` : ""}`, controls(remove));
           })),
     );
   };
-  const keyName = field(s.passkeyName, "text");
-  const addKey = form(
-    [keyName],
-    s.passkeyAdd,
-    async () => {
-      if (!passkeysHere()) throw new Error(s.passkeyUnavailable);
-      await addPasskey(keyName.input.value);
-      keyName.input.value = "";
-      keyNote.textContent = s.passkeyAdded;
-      await drawKeys();
-    },
-    (e) => (e instanceof ApiError ? e.said : e instanceof Error && e.message ? e.message : s.failed),
-  );
-  card.append(section(s.passkeys, el("p", {}, s.passkeysLead), keys, addKey.form, keyNote));
-  void drawKeys();
-
-  // Sessions.
-  const sessions = el("ul", { class: "web-list" });
-  const drawSessions = async () => {
-    const list = await api<Session[]>("GET", "/api/me/sessions");
-    sessions.replaceChildren(
-      ...list.map(({ session, current }) => {
-        const end = el("button", { type: "button" }, s.end);
-        end.disabled = current;
-        end.addEventListener("click", () => void api("DELETE", `/api/me/sessions/${session.id}`).then(drawSessions));
-        return el(
-          "li",
-          {},
-          el("span", {}, `${session.device} · ${session.kind === "device" ? s.device : s.browser}${current ? ` · ${s.thisSession}` : ""}`),
-          el("small", {}, `${s.lastUsed}: ${when(session.last_used)} · ${session.address}`),
-          end,
-        );
-      }),
-    );
-  };
-  const endOthers = el("button", { type: "button" }, s.endOthers);
-  endOthers.addEventListener("click", () => void api("DELETE", "/api/me/sessions/others").then(drawSessions));
-  card.append(section(s.sessions, el("p", {}, s.sessionsLead), sessions, endOthers));
-  void drawSessions();
-
-  // Folders: the person's own, with their members for an owner.
-  const mine = await api<{ folders: Folder[] }>("GET", "/api/folders");
-  const foldersBox = el("div");
-  for (const f of mine.folders) {
-    const box = el("div", { class: "web-folder-box" }, el("h3", {}, `${f.name} · ${roleName(f.role)}`), el("p", {}, spaceText(f.space)));
-    if (f.role === "owner") box.append(await membersOf(f.id, account.id));
-    foldersBox.append(box);
-  }
-  card.append(section(s.folders, foldersBox));
-
-  // Tokens.
-  const tokens = el("ul", { class: "web-list" });
-  const shown = el("div", { role: "status" });
-  const drawTokens = async () => {
-    const list = await api<Token[]>("GET", "/api/me/tokens");
-    tokens.replaceChildren(
-      ...list.map((t) => {
-        const revoke = el("button", { type: "button" }, s.revoke);
-        revoke.addEventListener("click", () => void api("DELETE", `/api/me/tokens/${t.id}`).then(drawTokens));
-        const names = t.folders.map((id) => mine.folders.find((f) => f.id === id)?.name ?? id).join(", ");
-        return el(
-          "li",
-          {},
-          el("span", {}, `${t.name} · ${t.write ? s.tokenWrite : roleName("reader")}`),
-          el("small", { class: t.expires ? "" : "web-warn" }, `${t.expires ? when(t.expires) : s.tokenNever} · ${names}`),
-          revoke,
-        );
-      }),
-    );
-  };
-  const tName = field(s.tokenName, "text");
-  const tWrite = checkbox(s.tokenWrite, false);
-  const tDays = select(s.tokenExpires, [["30", s.tokenDays(30)], ["90", s.tokenDays(90)], ["365", s.tokenDays(365)], ["never", s.tokenNever]], "30");
-  const neverWarn = el("small", { class: "web-warn", hidden: "" }, s.tokenNeverWarn);
-  tDays.input.addEventListener("change", () => {
-    neverWarn.hidden = tDays.input.value !== "never";
-  });
-  tDays.row.append(neverWarn);
-  const picks = mine.folders.map((f) => ({ f, box: checkbox(f.name, mine.folders.length === 1) }));
-  const fieldset = el("fieldset", { class: "web-fieldset" }, el("legend", {}, s.tokenFolders), ...picks.map((p) => p.box.row));
-  const make = form(
-    [tName, tWrite, tDays],
-    s.tokenCreate,
-    async () => {
-      const folders = picks.filter((p) => (p.box.input as HTMLInputElement).checked).map((p) => p.f.id);
-      const r = await api<{ secret: string }>("POST", "/api/me/tokens", {
-        name: tName.input.value,
-        write: (tWrite.input as HTMLInputElement).checked,
-        days: tDays.input.value === "never" ? null : Number(tDays.input.value),
-        folders,
-      });
-      shown.replaceChildren(el("p", {}, s.tokenShown), copyable(r.secret, s.copy, s.copied));
-      tName.input.value = "";
-      await drawTokens();
-    },
-    explain,
-  );
-  make.form.insertBefore(fieldset, make.error);
-  card.append(section(s.tokens, el("p", {}, s.tokensLead), tokens, make.form, shown));
-  void drawTokens();
-
-  const out = el("button", { type: "button" }, s.signOut);
-  out.addEventListener("click", () => void api("POST", "/api/signout", {}).then(() => (location.href = "/signin")));
-  card.append(el("div", { class: "web-actions" }, out));
+  const name = input("text", { placeholder: s.passkeyName });
+  name.setAttribute("aria-label", s.passkeyName);
+  const add = button(s.passkeyAdd, "save");
+  const here = passkeysHere();
+  add.disabled = name.disabled = !here;
+  act(add, line, async () => {
+    await addPasskey(name.value);
+    name.value = "";
+    line.textContent = s.passkeyAdded;
+    await draw();
+  }, explain);
+  return block(async (box) => {
+    box.append(el("p", { class: "settings-hint" }, here ? s.passkeysLead : s.passkeyUnavailable), list, item(s.passkeyAdd, s.passkeyName, controls(name, add)), line);
+    await draw();
+  }, explain);
 }
 
-async function membersOf(folder: string, me: string): Promise<HTMLElement> {
+function sessions(item: Item): HTMLElement {
   const s = w();
-  const box = el("div", { class: "web-members" });
-  const list = el("ul", { class: "web-list" });
+  const list = el("div");
+  const line = said();
   const draw = async () => {
-    const members = await api<Member[]>("GET", `/api/folders/${folder}/members`);
+    const all = await api<Session[]>("GET", "/api/me/sessions");
     list.replaceChildren(
-      ...members.map((m) => {
-        const role = select(s.inviteRole, [["owner", s.roleOwner], ["editor", s.roleEditor], ["reader", s.roleReader]], m.role);
-        role.input.addEventListener("change", () => {
-          void api("PUT", `/api/folders/${folder}/members/${m.id}`, { role: role.input.value }).catch((e: unknown) => {
-            alertIn(box, explain(e));
-            void draw();
-          });
-        });
-        const remove = el("button", { type: "button" }, s.leave);
-        remove.disabled = m.id === me;
-        remove.addEventListener("click", () => void api("DELETE", `/api/folders/${folder}/members/${m.id}`).then(draw).catch((e: unknown) => alertIn(box, explain(e))));
-        return el("li", {}, el("span", {}, `${m.name} <${m.email}>`), role.row, remove);
+      ...all.map(({ session, current }) => {
+        const end = button(s.end);
+        act(end, line, async () => {
+          await api("DELETE", `/api/me/sessions/${session.id}`);
+          await draw();
+        }, explain);
+        const kind = session.kind === "device" ? s.device : s.browser;
+        const title = `${session.device} · ${kind}${current ? ` · ${s.thisSession}` : ""}`;
+        end.setAttribute("aria-label", `${s.end}: ${title}`);
+        return item(title, `${s.lastUsed}: ${when(session.last_used)} · ${session.address}`, current ? null : controls(end));
       }),
     );
   };
-  const email = field(s.addMember, "email");
-  const role = select(s.inviteRole, [["reader", s.roleReader], ["editor", s.roleEditor], ["owner", s.roleOwner]], "reader");
-  const add = form(
-    [email, role],
-    s.save,
-    async () => {
-      await api("PUT", `/api/folders/${folder}/members/${encodeURIComponent(email.input.value)}`, { role: role.input.value });
-      email.input.value = "";
-      await draw();
-    },
-    explain,
-  );
-  const log = el("details", {}, el("summary", {}, s.audit));
+  const others = button(s.endOthers);
+  act(others, line, async () => {
+    await api("DELETE", "/api/me/sessions/others");
+    await draw();
+  }, explain);
+  return block(async (box) => {
+    box.append(el("p", { class: "settings-hint" }, s.sessionsLead), list, item(s.endOthers, "", controls(others)), line);
+    await draw();
+  }, explain);
+}
+
+function folders(me: Account, item: Item): HTMLElement {
+  const s = w();
+  return block(async (box) => {
+    const mine = await api<{ folders: Folder[] }>("GET", "/api/folders");
+    if (mine.folders.length === 0) box.append(el("p", { class: "settings-hint" }, s.noFolders));
+    for (const f of mine.folders) {
+      box.append(item(f.name, s.folderDesc(roleName(f.role), spaceText(f.space)), null));
+      if (f.role !== "owner") continue;
+      const open = el("details", { class: "web-members" }, el("summary", {}, s.membersOf(f.name)));
+      let drawn = false;
+      open.addEventListener("toggle", () => {
+        if (!open.open || drawn) return;
+        drawn = true;
+        open.append(members(f.id, me.id, item));
+      });
+      box.append(open);
+    }
+  }, explain);
+}
+
+function members(folder: string, me: string, item: Item): HTMLElement {
+  const s = w();
+  const list = el("div");
+  const line = said();
+  const roles: [string, string][] = [["owner", s.roleOwner], ["editor", s.roleEditor], ["reader", s.roleReader]];
+  const draw = async () => {
+    const all = await api<Member[]>("GET", `/api/folders/${folder}/members`);
+    list.replaceChildren(
+      ...all.map((m) => {
+        const role = choice(roles, m.role);
+        role.setAttribute("aria-label", `${s.inviteRole}: ${m.name}`);
+        role.disabled = m.id === me;
+        role.addEventListener("change", () => {
+          api("PUT", `/api/folders/${folder}/members/${m.id}`, { role: role.value })
+            .then(() => (line.textContent = s.saved))
+            .catch((e: unknown) => {
+              line.textContent = explain(e);
+              void draw();
+            });
+        });
+        const remove = button(s.leave, "danger");
+        remove.setAttribute("aria-label", `${s.leave}: ${m.name}`);
+        remove.disabled = m.id === me;
+        act(remove, line, async () => {
+          await api("DELETE", `/api/folders/${folder}/members/${m.id}`);
+          await draw();
+        }, explain);
+        return item(m.name, m.email, controls(role, remove));
+      }),
+    );
+  };
+  const email = input("email", { placeholder: s.email });
+  email.setAttribute("aria-label", s.email);
+  const role = choice([["reader", s.roleReader], ["editor", s.roleEditor], ["owner", s.roleOwner]], "reader");
+  role.setAttribute("aria-label", s.inviteRole);
+  const add = button(s.save, "save");
+  act(add, line, async () => {
+    await api("PUT", `/api/folders/${folder}/members/${encodeURIComponent(email.value)}`, { role: role.value });
+    email.value = "";
+    await draw();
+  }, explain);
+  const log = el("details", { class: "web-audit" }, el("summary", {}, s.audit));
   log.addEventListener("toggle", () => {
     if (!log.open || log.querySelector("table")) return;
     void api<AuditEntry[]>("GET", `/api/folders/${folder}/audit`).then((entries) => log.append(auditTable(entries)));
   });
-  box.append(el("h4", {}, s.members_), list, add.form, log);
-  await draw();
-  return box;
+  return block(async (box) => {
+    box.append(list, item(s.addMember, s.memberAddDesc, controls(email, role, add)), line, log);
+    await draw();
+  }, explain);
 }
 
-function alertIn(box: HTMLElement, text: string): void {
-  box.querySelector(".web-error")?.remove();
-  box.prepend(el("p", { class: "web-error", role: "alert" }, text));
+function tokens(item: Item): HTMLElement {
+  const s = w();
+  const list = el("div");
+  const line = said();
+  const shown = el("div", { role: "status" });
+  let folders: Folder[] = [];
+  const draw = async () => {
+    const all = await api<Token[]>("GET", "/api/me/tokens");
+    list.replaceChildren(
+      ...(all.length === 0
+        ? [el("p", { class: "settings-hint" }, s.noTokens)]
+        : all.map((t) => {
+            const revoke = button(s.revoke, "danger");
+            revoke.setAttribute("aria-label", `${s.revoke}: ${t.name}`);
+            act(revoke, line, async () => {
+              await api("DELETE", `/api/me/tokens/${t.id}`);
+              await draw();
+            }, explain);
+            const names = t.folders.map((id) => folders.find((f) => f.id === id)?.name ?? id).join(", ");
+            const desc = `${t.write ? s.tokenWrite : roleName("reader")} · ${t.expires ? when(t.expires) : s.tokenNever} · ${names}`;
+            return item(t.name, desc, controls(revoke));
+          })),
+    );
+  };
+  return block(async (box) => {
+    folders = (await api<{ folders: Folder[] }>("GET", "/api/folders")).folders;
+    const name = input("text");
+    const write = toggle(false);
+    const days = choice([["30", s.tokenDays(30)], ["90", s.tokenDays(90)], ["365", s.tokenDays(365)], ["never", s.tokenNever]], "30");
+    const neverWarn = el("p", { class: "settings-hint web-warn", hidden: "" }, s.tokenNeverWarn);
+    days.addEventListener("change", () => {
+      neverWarn.hidden = days.value !== "never";
+    });
+    const picks = folders.map((f) => ({ f, box: toggle(folders.length === 1, f.name) }));
+    const create = button(s.tokenCreate, "save");
+    act(create, line, async () => {
+      const r = await api<{ secret: string }>("POST", "/api/me/tokens", {
+        name: name.value,
+        write: write.input.checked,
+        days: days.value === "never" ? null : Number(days.value),
+        folders: picks.filter((p) => p.box.input.checked).map((p) => p.f.id),
+      });
+      shown.replaceChildren(el("p", { class: "settings-hint" }, s.tokenShown), snippet(r.secret, s.copy, s.copied));
+      name.value = "";
+      await draw();
+    }, explain);
+    box.append(
+      el("p", { class: "settings-hint" }, s.tokensLead),
+      list,
+      el("h4", { class: "web-subtitle" }, s.tokenNew),
+      item(s.tokenName, s.tokenNewDesc, name),
+      item(s.tokenWrite, "", write.el),
+      item(s.tokenExpires, "", days),
+      neverWarn,
+      item(s.tokenFolders, "", controls(...picks.map((p) => p.box.el))),
+      item("", "", controls(create)),
+      line,
+      shown,
+    );
+    await draw();
+  }, explain);
+}
+
+function signOut(me: Account, item: Item): HTMLElement {
+  const s = w();
+  const line = said();
+  const out = button(s.signOut);
+  act(out, line, async () => {
+    await api("POST", "/api/signout", {});
+    location.href = "/signin";
+  }, explain);
+  return el("div", { class: "web-block" }, item(s.signOut, s.signOutDesc(me.email), controls(out)), line);
 }
 
 export function auditTable(entries: AuditEntry[]): HTMLElement {
   const s = w();
   return el(
-    "table",
-    { class: "web-table" },
-    el("thead", {}, el("tr", {}, el("th", {}, s.when), el("th", {}, s.who), el("th", {}, s.what))),
+    "div",
+    { class: "web-table-wrap" },
     el(
-      "tbody",
-      {},
-      ...entries.map((e) =>
-        el(
-          "tr",
-          { class: e.ok ? "" : "web-failed" },
-          el("td", {}, when(e.at)),
-          el("td", {}, `${e.actor ?? "—"}${e.address ? ` · ${e.address}` : ""}`),
-          el("td", {}, `${e.action}${e.subject ? ` · ${e.subject}` : ""}`),
+      "table",
+      { class: "web-table" },
+      el("thead", {}, el("tr", {}, el("th", {}, s.when), el("th", {}, s.who), el("th", {}, s.what))),
+      el(
+        "tbody",
+        {},
+        ...entries.map((e) =>
+          el(
+            "tr",
+            { class: e.ok ? "" : "web-failed" },
+            el("td", {}, when(e.at)),
+            el("td", {}, `${e.actor ?? "—"}${e.address ? ` · ${e.address}` : ""}`),
+            el("td", {}, `${e.action}${e.subject ? ` · ${e.subject}` : ""}`),
+          ),
         ),
       ),
     ),

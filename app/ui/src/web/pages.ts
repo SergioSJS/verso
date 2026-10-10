@@ -7,9 +7,10 @@
 // device approved — and the list of folders the person may open.
 
 import { ApiError, api, setCsrf, type Account } from "./api";
-import { el, field, form, page, select } from "./form";
+import { divider, el, field, form, lead, page, select } from "./form";
 import { passkeysHere, signInWithPasskey } from "./passkeys";
 import { roleName, setLang, w } from "./strings";
+import { icon } from "../icons";
 
 function explain(e: unknown): string {
   return e instanceof ApiError ? e.said : w().failed;
@@ -81,10 +82,21 @@ export function signInPage(secure: boolean, mail = false): void {
   };
   const mailLink = el("button", { type: "button", class: "web-secondary" }, s.mailLink);
   mailLink.addEventListener("click", byMail("/api/signin/link"));
-  const forgot = el("button", { type: "button", class: "web-secondary" }, s.forgot);
+  const forgot = el("button", { type: "button", class: "web-link" }, s.forgot);
   forgot.addEventListener("click", byMail("/api/forgot"));
   mailLink.hidden = forgot.hidden = !mail;
-  page(s.signInTitle, el("p", {}, secure ? s.signInLead : s.tlsRequired), f.form, el("div", { class: "web-actions" }, withKey, mailLink, forgot), keyError);
+  // The password's own way back sits under it; the other ways in come
+  // after the button, in the same column.
+  password.row.append(forgot);
+  const others = !withKey.hidden || mail;
+  page(
+    s.signInTitle,
+    lead(secure ? s.signInLead : s.tlsRequired),
+    f.form,
+    others ? divider(s.orDivider) : el("span"),
+    el("div", { class: "web-others" }, withKey, mailLink),
+    keyError,
+  );
   email.input.focus();
 }
 
@@ -92,7 +104,7 @@ export function setupPage(): void {
   const s = w();
   const token = new URLSearchParams(location.search).get("token");
   if (!token) {
-    page(s.setupTitle, el("p", {}, s.setupMissing));
+    page(s.setupTitle, lead(s.setupMissing));
     return;
   }
   const email = field(s.email, "email", { autocomplete: "username" });
@@ -114,7 +126,7 @@ export function setupPage(): void {
     },
     explain,
   );
-  page(s.setupTitle, el("p", {}, s.setupLead), f.form);
+  page(s.setupTitle, lead(s.setupLead), f.form);
   email.input.focus();
 }
 
@@ -124,7 +136,7 @@ export async function invitePage(token: string): Promise<void> {
   try {
     offer = await api("GET", `/api/invite/${encodeURIComponent(token)}`);
   } catch (e) {
-    page(s.inviteTitle, el("p", {}, explain(e)));
+    page(s.inviteTitle, lead(explain(e)));
     return;
   }
   const email = field(s.email, "email", { autocomplete: "username" });
@@ -151,8 +163,8 @@ export async function invitePage(token: string): Promise<void> {
   );
   page(
     s.inviteTitle,
-    el("p", {}, s.inviteLead),
-    offer.folder && offer.role ? el("p", {}, s.inviteFolder(offer.folder, roleName(offer.role))) : el("span"),
+    lead(s.inviteLead),
+    offer.folder && offer.role ? el("p", { class: "web-lead" }, s.inviteFolder(offer.folder, roleName(offer.role))) : el("span"),
     f.form,
   );
 }
@@ -163,7 +175,7 @@ export async function resetPage(token: string): Promise<void> {
   try {
     link = await api("GET", `/api/reset/${encodeURIComponent(token)}`);
   } catch (e) {
-    page(s.resetTitle, el("p", {}, explain(e)));
+    page(s.resetTitle, lead(explain(e)));
     return;
   }
   const password = field(s.passwordNew, "password", { autocomplete: "new-password", minlength: "12" }, s.passwordHint);
@@ -176,7 +188,7 @@ export async function resetPage(token: string): Promise<void> {
     },
     explain,
   );
-  page(s.resetTitle, el("p", {}, s.resetLead(link.email)), f.form);
+  page(s.resetTitle, lead(s.resetLead(link.email)), f.form);
   password.input.focus();
 }
 
@@ -192,7 +204,7 @@ export async function devicePage(account: Account | null): Promise<void> {
   try {
     what = await api("GET", `/api/device/${encodeURIComponent(code)}`);
   } catch (e) {
-    page(s.deviceTitle, el("p", {}, explain(e)));
+    page(s.deviceTitle, lead(explain(e)));
     return;
   }
   const f = form(
@@ -200,13 +212,13 @@ export async function devicePage(account: Account | null): Promise<void> {
     s.deviceApprove,
     async () => {
       await api("POST", `/api/device/${encodeURIComponent(code)}`, {});
-      page(s.deviceTitle, el("p", {}, s.deviceDone));
+      page(s.deviceTitle, lead(s.deviceDone));
     },
     explain,
   );
   page(
     s.deviceTitle,
-    el("p", {}, s.deviceLead(what.device)),
+    lead(s.deviceLead(what.device)),
     el("p", { class: "web-code", "aria-label": s.deviceCode }, code),
     f.form,
   );
@@ -226,18 +238,18 @@ export function chooseFolder(): Promise<string | null> {
       dialog.remove();
       resolve(id);
     };
-    const cancel = el("button", { type: "button" }, s.cancel);
+    const cancel = el("button", { type: "button", class: "ghost web-ghost" }, s.cancel);
     cancel.addEventListener("click", () => close(null));
     dialog.addEventListener("cancel", (e) => {
       e.preventDefault();
       close(null);
     });
-    dialog.append(el("h2", { id: "web-choose-title" }, s.chooseFolder), el("p", {}, s.chooseFolderLead), list);
+    dialog.append(el("h2", { id: "web-choose-title", class: "web-dialog-title" }, s.chooseFolder), el("p", { class: "settings-hint" }, s.chooseFolderLead), list);
     void api<{ folders: FolderRow[]; mayCreate: boolean }>("GET", "/api/folders")
       .then(({ folders, mayCreate }) => {
         if (!folders.length) list.append(el("li", {}, s.noFolders));
         for (const f of folders) {
-          const b = el("button", { type: "button", class: "web-folder" }, el("span", {}, f.name), el("small", {}, roleName(f.role)));
+          const b = el("button", { type: "button", class: "web-folder" }, icon("folder"), el("span", {}, f.name), el("small", {}, roleName(f.role)));
           b.addEventListener("click", () => close(f.id));
           list.append(el("li", {}, b));
         }
@@ -252,7 +264,7 @@ export function chooseFolder(): Promise<string | null> {
             },
             explain,
           );
-          dialog.append(el("details", {}, el("summary", {}, s.newFolder), made.form));
+          dialog.append(el("details", { class: "web-new-folder" }, el("summary", {}, s.newFolder), made.form));
         }
         dialog.append(el("div", { class: "web-actions" }, cancel));
         list.querySelector("button")?.focus();
@@ -269,12 +281,12 @@ export function chooseFolder(): Promise<string | null> {
 /** The link from a sign-in e-mail: used at once, then the window. */
 export async function signInLinkPage(token: string): Promise<void> {
   const s = w();
-  page(s.signInTitle, el("p", { role: "status" }, s.linkSigningIn));
+  page(s.signInTitle, el("p", { class: "web-lead", role: "status" }, s.linkSigningIn));
   try {
     const r = await api<{ csrf: string }>("POST", `/api/signin/link/${encodeURIComponent(token)}`, {});
     setCsrf(r.csrf);
     location.href = "/";
   } catch (e) {
-    page(s.signInTitle, el("p", {}, explain(e)));
+    page(s.signInTitle, lead(explain(e)));
   }
 }

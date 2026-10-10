@@ -21,6 +21,7 @@ versão de teste.
 - **Mais do servidor**: com um servidor de correio (`VERSO_SMTP_URL`) a página de login manda um link por e-mail e uma senha nova para quem esqueceu, e os convites vão para o endereço; a janela pode ser instalada na tela de início do celular ou do tablet; os seus ajustes — tema, idioma, teclas, conteúdo remoto, os sites que você liberou em incorporações — seguem a sua conta em qualquer navegador; uma pasta num NAS é varrida a cada 30 segundos, já que o sistema não avisa da mudança feita por outra máquina; o espaço que uma pasta ocupa aparece em Ajustes › Arquivos e depois do `verso index`; `verso serve --web` serve a janela das notas ao navegador (a imagem e os pacotes o rodam assim), e sem ela só o app desktop chega às notas; o app desktop numa pasta do servidor se reconecta sozinho quando a conexão cai.
 - **Um × no campo de busca de notas** limpa as palavras e traz a árvore de arquivos de volta, para o celular ou o tablet, que não têm Esc.
 - **Numa tela de toque**, um toque longo abre o menu que o clique direito abre, e um toque longo seguido de movimento arrasta uma linha ou uma aba. Os campos escrevem a 16 px, e o iOS não dá mais zoom neles; controles que só apareciam sob o mouse aparecem; botões e linhas ficam maiores; e os ajustes cabem num celular, com um × para fechar. O que foi medido e o que falta: `docs/pt-BR/reference/responsive-review-2026-10-09.md`.
+- **A sua conta e a administração do servidor ficam em Ajustes**, desenhadas como os outros ajustes: o botão da pessoa, ao lado da engrenagem na faixa lateral, abre *Conta* (perfil, senha, passkeys, sessões, pastas e seus membros, tokens de acesso), e um admin também acha *Administração* (o servidor, as pastas, as contas, os convites, o registro); no celular, as duas ficam no pé da barra lateral. A página de entrar é um cartão só, com a passkey e o link por e-mail sob a senha, na mesma coluna.
 
 ### Alterado
 
@@ -29,6 +30,7 @@ versão de teste.
 ### Corrigido
 
 - **Deslizar o dedo na árvore de arquivos não move mais uma nota**: numa tela de toque, rolar a árvore começava um arrasto, e o toque seguinte numa pasta movia a nota para ela. Um menu longo agora rola dentro da tela em vez de passar dela.
+- **Um botão oculto da faixa lateral volta**: Ajustes › Aparência lista os botões da faixa com um switch cada, o botão direito no espaço vazio da faixa mostra de novo os ocultos, a barra de status diz onde quando um é ocultado, e a própria engrenagem não pode mais ser ocultada.
 
 ## 0.6.0-beta.1 — 2026-10-09
 

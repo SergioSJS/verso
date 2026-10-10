@@ -63,7 +63,7 @@ A própria documentação do SQLite avisa que os locks dele não são confiávei
 em sistemas de arquivos de rede (NFS, SMB/CIFS, sshfs), onde um banco pode
 ser corrompido. Mantenha `VERSO_DATA_DIR` no disco da própria máquina. Pela
 0075 item 3 o servidor lê o sistema de arquivos sob ele ao iniciar e diz no
-log e na página de admin quando é um de rede.
+log e em Ajustes › Administração quando é um de rede.
 
 `VERSO_FOLDERS_DIR` pode ser um NAS. Num ponto de montagem de rede nenhum
 evento avisa que outra máquina mudou um arquivo, então o servidor vigia uma
@@ -308,7 +308,7 @@ sudo -u verso -H sh -c 'set -a; . /etc/verso/verso.env; exec verso serve admin r
 
 Ele imprime um link de uso único, encerra as sessões da conta e registra a
 redefinição no registro de auditoria. A senha de um membro é redefinida
-pelo admin, na página de admin.
+pelo admin, em Ajustes › Administração.
 
 ## 11. O registry enquanto o repositório for privado
 
@@ -326,7 +326,7 @@ configurações dele e passa a ser baixado sem login.
 ## 12. Atualizações
 
 O servidor nunca se atualiza sozinho (0075 item 7). Ele consulta o feed de
-releases do projeto e diz na página de admin quando existe uma versão
+releases do projeto e diz em Ajustes › Administração quando existe uma versão
 nova; `VERSO_UPDATE_CHECK=off` desliga a consulta. Para atualizar:
 
 - Docker: `docker pull ghcr.io/sergiosjs/verso:<tag>` e recrie o

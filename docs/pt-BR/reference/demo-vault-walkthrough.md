@@ -644,7 +644,8 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
 1. Um servidor subido com `VERSO_ADMIN_EMAIL` e `VERSO_ADMIN_PASSWORD`: o
    endereço leva a *Entrar*; uma senha errada diz *E-mail ou senha
    errados.*; a certa abre a janela (e2e-server, "the admin signs in").
-2. *Administração* › *Pastas*: a pasta do disco registrada com um dono;
+2. *Ajustes* › *Administração* › *Pastas* (o endereço `/admin` abre a janela
+   com os ajustes ali): a pasta do disco registrada com um dono;
    *Abrir pasta* a lista; uma nota criada no navegador continua lá depois de
    recarregar (o mesmo teste).
 3. *Convites*: um convite para um e-mail, uma pasta e *leitor*; o link em
@@ -653,7 +654,8 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
    não vale mais (e2e-server, "an invited reader").
 4. Uma nota em duas janelas: o que uma digita aparece na outra, e uma
    terceira janela a lê do disco (e2e-server, "two windows edit one note").
-5. *Conta*: uma passkey adicionada, depois *Entrar com passkey* após o
+5. *Ajustes* › *Conta*, pelo botão da pessoa ao lado da engrenagem na faixa
+   lateral (no celular, *Conta* no pé da barra lateral): uma passkey adicionada, depois *Entrar com passkey* após o
    e-mail (à mão, num aparelho com passkey); as sessões listadas e uma
    encerrada; um token para uma pasta, só leitura.
 6. O app desktop: *Ajustes* › *Servidores*, o endereço do servidor,

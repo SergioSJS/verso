@@ -12,7 +12,6 @@
 import { state } from "./web/api";
 import { startBridge } from "./web/bridge";
 import { pullSettings, pushSettings } from "./web/settingsSync";
-import { el, page } from "./web/form";
 import { notice } from "./web/notice";
 import { chooseFolder, devicePage, invitePage, resetPage, setupPage, signInLinkPage, signInPage } from "./web/pages";
 import { setLang, w } from "./web/strings";
@@ -38,23 +37,18 @@ async function start(): Promise<void> {
     location.href = "/";
     return;
   }
-  if (path === "/account") {
-    const { accountPage } = await import("./web/account");
-    return accountPage(s.account, s.account.admin);
-  }
-  if (path === "/admin") {
-    if (!s.account.admin) {
-      location.href = "/";
-      return;
-    }
-    const { adminPage } = await import("./web/admin");
-    return adminPage(s.account);
-  }
-  // The window itself — only when the server serves it (`--web`).
+  // The account and the administration are sections of the window's
+  // settings: their addresses open the window with the settings there.
+  const section = path === "/account" ? "account" : path === "/admin" && s.account.admin ? "admin" : null;
+  // Without the window (`verso serve` without `--web`), the same sections
+  // on a page of their own.
   if (!s.web) {
-    page("Verso", el("p", {}, w().noWeb), el("p", {}, el("a", { href: "/account" }, w().account)));
+    const { settingsPage } = await import("./web/standalone");
+    settingsPage(s.account, section ?? "account", w().noWeb);
+    if (path !== "/account" && path !== "/admin") history.replaceState(null, "", "/account");
     return;
   }
+  if (path === "/account" || path === "/admin") history.replaceState(null, "", "/");
   document.documentElement.dataset.host = "server";
   await pullSettings();
   pushSettings();
@@ -68,20 +62,12 @@ async function start(): Promise<void> {
     document.documentElement.dataset.role = role ?? "";
     if (role === "reader") notice(w().readOnlyBanner);
   });
-  await import("./main");
-  // The way to the account's page and, for an admin, the server's, beside
-  // the window's own status bar.
-  // On a phone the status bar leaves (ADR 0076 item 6): the same links
-  // also end the side bar, which the bottom bar opens.
-  const links = (): HTMLElement => {
-    const box = el("span", { class: "web-links" }, el("a", { href: "/account" }, w().account));
-    if (s.account?.admin) box.append(el("a", { href: "/admin" }, w().admin));
-    return box;
-  };
-  document.querySelector(".status-bar")?.append(links());
-  const side = links();
-  side.classList.add("web-links-side");
-  document.querySelector("aside.side")?.append(side);
+  const window_ = await import("./main");
+  if (section) {
+    const { loadCan } = await import("./can");
+    await loadCan();
+    window_.settingsDialog.show(section);
+  }
 }
 
 void start().catch((e: unknown) => {

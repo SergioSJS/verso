@@ -64,6 +64,22 @@ export class ApiError extends Error {
         return s.failed;
       case "no_passkey":
         return s.noPasskey;
+      case "folder_exists":
+        return s.folderExists;
+      case "bad_name":
+        return s.badName;
+      case "last_admin":
+        return s.lastAdmin;
+      case "last_owner":
+        return s.lastOwner;
+      case "no_account":
+        return s.noAccount;
+      case "no_address":
+        return s.noAddress;
+      case "passkey":
+        return s.passkeyFailed;
+      case "bad_request":
+        return s.badRequest;
       default:
         return this.message || s.failed;
     }
@@ -92,10 +108,23 @@ export async function api<T>(method: string, path: string, body?: unknown): Prom
   return data as T;
 }
 
+let account: Account | null = null;
+
 export async function state(): Promise<State> {
   const s = await api<State>("GET", "/api/state");
   setCsrf(s.csrf);
+  account = s.account;
   return s;
+}
+
+/** Who is signed in, as the last `state()` said: the settings' account
+ *  and administration sections are theirs. */
+export function signedIn(): Account | null {
+  return account;
+}
+
+export function setSignedIn(a: Account): void {
+  account = a;
 }
 
 /** The contract this page was built with (`build-index.mjs --web` writes

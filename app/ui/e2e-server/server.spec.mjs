@@ -31,11 +31,12 @@ async function signedIn(page, email, password) {
   await expect(page).not.toHaveURL(/signin/);
 }
 
-/** The demo folder registered once, owned by the admin. */
+/** The demo folder registered once, owned by the admin: the
+ *  administration is a section of the window's settings. */
 async function demoRegistered(page) {
   await page.goto("/admin");
-  await expect(page.getByRole("heading", { name: "Administração" })).toBeVisible();
-  const adopt = page.getByRole("button", { name: "Registrar" });
+  await expect(page.locator(".settings-body").getByRole("heading", { name: "Administração" })).toBeVisible();
+  const adopt = page.getByRole("button", { name: /^Registrar/ });
   if (await adopt.isVisible()) {
     await adopt.click();
     await expect(adopt).toBeHidden();
@@ -60,8 +61,12 @@ test("the admin signs in, registers a folder and works in it", async ({ page }) 
   await signIn(page, ADMIN.email, "senha errada!!");
   await expect(page.getByRole("alert")).toHaveText("E-mail ou senha errados.");
   await page.getByLabel("Senha", { exact: true }).fill(ADMIN.password);
-  await page.getByRole("button", { name: "Entrar", exact: true }).click();
-  await expect(page).not.toHaveURL(/signin/);
+  // The wrong passwords of the three browsers come from one address: the
+  // limiter may ask for a second's wait, and the person tries again.
+  await expect(async () => {
+    await page.getByRole("button", { name: "Entrar", exact: true }).click();
+    await expect(page).not.toHaveURL(/signin/, { timeout: 1500 });
+  }).toPass({ timeout: 15000 });
   await demoRegistered(page);
   await openDemo(page);
   await expect(page.locator("#folder")).toHaveText("Demo");
@@ -89,11 +94,11 @@ test("an invited reader reads and cannot write", async ({ page, browser }) => {
   await signedIn(page, ADMIN.email, ADMIN.password);
   await demoRegistered(page);
   const email = `leitor-${test.info().project.name}@verso.test`;
-  const invite = page.locator("section", { has: page.getByRole("heading", { name: "Convites" }) });
+  const invite = page.locator(".settings-body");
   await invite.getByLabel("E-mail (opcional)").fill(email);
   await invite.getByLabel("Pasta (opcional)").selectOption({ label: "Demo" });
   await invite.getByRole("button", { name: "Convidar" }).click();
-  const link = await invite.locator(".web-copy-value").inputValue();
+  const link = (await invite.locator(".web-snippet .setting-code").textContent()) ?? "";
   expect(link).toContain("/invite/");
   const other = await browser.newContext({ locale: "pt-BR" });
   const reader = await other.newPage();
@@ -108,8 +113,8 @@ test("an invited reader reads and cannot write", async ({ page, browser }) => {
   await openDemo(reader);
   await expect(reader.locator("html")).toHaveAttribute("data-role", "reader");
   // The invitation is used, by whom.
-  await page.reload();
-  await expect(invite.locator("li", { hasText: email })).toContainText("usado");
+  await page.goto("/admin");
+  await expect(invite.locator(".web-invitation", { hasText: email })).toContainText("usado");
   // Used once: the link is gone.
   const third = await browser.newContext({ locale: "pt-BR" });
   const late = await third.newPage();

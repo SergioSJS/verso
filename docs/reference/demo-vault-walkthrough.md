@@ -629,7 +629,8 @@ rest below and in `manual-checks.md`.
    address sends to *Entrar*; a wrong password says *E-mail ou senha
    errados.*; the right one opens the window (e2e-server, "the admin signs
    in").
-2. *Administração* › *Pastas*: the folder on the disk registered with an
+2. *Ajustes* › *Administração* › *Pastas* (the address `/admin` opens the
+   window with the settings there): the folder on the disk registered with an
    owner; *Abrir pasta* lists it; a note made in the browser is there after
    a reload (same test).
 3. *Convites*: an invitation for an e-mail, a folder and *leitor*; the link
@@ -639,7 +640,8 @@ rest below and in `manual-checks.md`.
 4. One note in two windows: what one types appears in the other, and a
    third window reads it from the disk (e2e-server, "two windows edit one
    note").
-5. *Conta*: a passkey added, then *Entrar com passkey* after the e-mail (by
+5. *Ajustes* › *Conta*, from the person's button beside the gear on the
+   ribbon (on a phone, *Conta* at the foot of the side bar): a passkey added, then *Entrar com passkey* after the e-mail (by
    hand, on a device with a passkey); the sessions listed and one ended; a
    token for one folder, read only.
 6. The desktop app: *Ajustes* › *Servidores*, the server's address,
