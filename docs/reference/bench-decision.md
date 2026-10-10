@@ -41,15 +41,16 @@
   backlinks of the most-linked note in 0.9 s, peak memory under 37 MB, an
   index of 376 MB. The job on `main` is red from now on only for a regression
   past the tolerances of section 6.
-- **Revision, 2026-10-10.** The `ci-linux` baseline is recorded again, with
-  the maintainer's approval, from the run on `main` at the merge of PR #43
-  (`1dad5ec`, 0.7.0-beta.1): 27 entries, the nine operations at the three
-  sizes. The search by file name (verso-index schema 14) made a 1 000-note
-  index 10 % larger (7.6 → 8.4 MB), past the 1.05× tolerance; at 50 000 notes
-  it is inside it. The watcher's two batch operations (roadmap 3.9) had no
-  baseline. From 50 000 notes now: a fresh index in 36.0 s, a common search
-  in 45 ms, backlinks in 0.5 s, a watcher's batch in 0.8 s by its paths
-  against 1.1 s walking the folder, an index of 370 MB.
+- **Revision, 2026-10-10.** The `ci-linux` baseline is revised, with the
+  maintainer's approval: the search by file name (verso-index schema 14)
+  made a 1 000-note index 10 % larger (7.6 → 8.4 MB), past the 1.05×
+  tolerance, and the watcher's two batch operations (roadmap 3.9) had no
+  baseline. The index sizes come from the run on `main` at `1dad5ec`
+  (0.7.0-beta.1); the times of the 21 earlier entries stay those of `95f78dd`;
+  the six new entries take the slower of two runs (`1dad5ec`, `f63c392`). A
+  first try took every time from `1dad5ec`, a runner about 1.7× faster than
+  the next one, and the next run was red on time for unchanged code: one run
+  is no baseline for time on shared runners (section 6).
 - Author: Opus 5 (documents, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Reviewer: Fable 5.1. In the earlier memos the recommendations were Fable
   5.1's, recorded by the author, because Fable was writing the feature's code in
