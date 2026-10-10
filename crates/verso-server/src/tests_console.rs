@@ -151,6 +151,16 @@ fn the_console_pages_searches_and_filters_on_the_server() {
         let (_, made) = get(&r, "/api/admin/audit?action=account_created", Some(&admin)).await;
         assert_eq!(made["total"], 7, "{made}");
         assert_eq!(made["rows"][0]["who"], "admin@casa.lan");
+        // The account it is about, by its name and e-mail, the id kept.
+        let about = &made["rows"][0]["about"];
+        assert_eq!(about["kind"], "account", "{made}");
+        assert!(
+            about["email"]
+                .as_str()
+                .is_some_and(|m| m.ends_with("@casa.lan")),
+            "{made}"
+        );
+        assert!(made["rows"][0]["subject"].is_string());
         let csv = reqwest::Client::new()
             .get(r.url("/api/admin/audit?format=csv"))
             .header("cookie", &admin.cookie)
@@ -165,10 +175,17 @@ fn the_console_pages_searches_and_filters_on_the_server() {
         );
         let text = csv.text().await.unwrap();
         assert!(
-            text.starts_with("at,who,action,subject,folder,address,ok\n"),
+            text.starts_with("at,who,action,subject,folder,address,ok,subject_name\n"),
             "{text}"
         );
         assert!(text.lines().count() > 7);
+        // The subject's name is the last column: an account as name and
+        // e-mail.
+        assert!(
+            text.lines()
+                .any(|l| l.contains(",account_created,") && l.contains("@casa.lan>")),
+            "{text}"
+        );
         // The configuration in effect: a secret only as set or not.
         let (_, config) = get(&r, "/api/admin/config", Some(&admin)).await;
         let smtp = config

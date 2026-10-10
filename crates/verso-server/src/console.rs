@@ -237,6 +237,21 @@ pub async fn audit(ctx: Ctx, Query(list): Query<List>) -> ApiResult<Response> {
             names.insert(id.clone(), f.dir);
         }
     }
+    // Who or what each line is about, said for a person: the raw subject
+    // stays beside it, for the CSV and for the console's title.
+    let mut abouts: HashMap<String, Option<Value>> = HashMap::new();
+    for e in &page.rows {
+        if let Some(subject) = &e.subject
+            && !abouts.contains_key(subject)
+        {
+            abouts.insert(subject.clone(), about(db, subject)?);
+        }
+    }
+    let about_of = |e: &db::AuditEntry| {
+        e.subject
+            .as_ref()
+            .and_then(|s| abouts.get(s).cloned().flatten())
+    };
     let who = |e: &db::AuditEntry| {
         e.actor
             .as_ref()
@@ -248,7 +263,10 @@ pub async fn audit(ctx: Ctx, Query(list): Query<List>) -> ApiResult<Response> {
             .map(|id| names.get(id).cloned().unwrap_or_else(|| id.clone()))
     };
     if csv {
-        let mut out = String::from("at,who,action,subject,folder,address,ok\n");
+        // The first seven columns as they always were; who or what the
+        // subject names comes last, so that a sheet made from an earlier
+        // export still reads its columns where they were.
+        let mut out = String::from("at,who,action,subject,folder,address,ok,subject_name\n");
         for e in &page.rows {
             let cells = [
                 e.at.to_string(),
@@ -258,6 +276,7 @@ pub async fn audit(ctx: Ctx, Query(list): Query<List>) -> ApiResult<Response> {
                 where_(e).unwrap_or_default(),
                 e.address.clone().unwrap_or_default(),
                 e.ok.to_string(),
+                about_of(e).map(|a| about_text(&a)).unwrap_or_default(),
             ];
             out.push_str(
                 &cells
@@ -286,13 +305,52 @@ pub async fn audit(ctx: Ctx, Query(list): Query<List>) -> ApiResult<Response> {
         .map(|e| {
             json!({
                 "at": e.at, "who": who(e), "action": e.action, "subject": e.subject,
-                "folder": where_(e), "address": e.address, "ok": e.ok,
+                "about": about_of(e), "folder": where_(e), "address": e.address, "ok": e.ok,
             })
         })
         .collect();
     Ok(ok(
         json!({ "rows": rows, "total": page.total, "next": page.next }),
     ))
+}
+
+/// What a log line's subject names, when it is an id a person cannot
+/// read: an account (its name and e-mail), an invitation (the e-mail it
+/// was for, and its folder), or a token, a passkey or a session (its
+/// name). None when the subject is already words — an e-mail, a device's
+/// name, a folder's name, a size — or names what is gone.
+fn about(db: &db::Db, subject: &str) -> Result<Option<Value>, String> {
+    if let Some(a) = db.account(subject)? {
+        return Ok(Some(
+            json!({ "kind": "account", "name": a.name, "email": a.email }),
+        ));
+    }
+    if let Some(i) = db.invitation(subject)? {
+        let folder = match &i.folder {
+            Some(id) => db.folder(id)?.map(|f| f.dir),
+            None => None,
+        };
+        return Ok(Some(
+            json!({ "kind": "invitation", "email": i.email, "folder": folder }),
+        ));
+    }
+    Ok(db
+        .subject_name(subject)?
+        .map(|name| json!({ "kind": "named", "name": name })))
+}
+
+/// The same, as one cell of the CSV.
+fn about_text(about: &Value) -> String {
+    let text = |k: &str| about[k].as_str().unwrap_or_default().to_owned();
+    match about["kind"].as_str() {
+        Some("account") => format!("{} <{}>", text("name"), text("email")),
+        Some("invitation") => [text("email"), text("folder")]
+            .into_iter()
+            .filter(|t| !t.is_empty())
+            .collect::<Vec<_>>()
+            .join(" · "),
+        _ => text("name"),
+    }
 }
 
 /// A CSV cell: quoted when it holds a comma, a quote or a line end; a

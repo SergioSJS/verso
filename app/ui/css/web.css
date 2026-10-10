@@ -184,6 +184,7 @@ body.web-mode { display: block; overflow: auto; height: auto; min-height: 100dvh
 
 .console-badge { display: inline-block; margin-left: .4rem; padding: .05rem .45rem; border-radius: 999px; font-size: .72rem; font-weight: 600; background: var(--paper-3); color: var(--ink-2); vertical-align: middle; }
 .console-badge.seal { background: var(--seal-wash); color: var(--seal); }
+.console-muted { color: var(--ink-3); }
 .console-usage { display: inline-flex; align-items: center; gap: .5rem; font-size: .85rem; white-space: nowrap; }
 .console-bar { display: inline-block; width: 5.5rem; height: 6px; border-radius: 999px; background: var(--paper-3); overflow: hidden; }
 .console-bar-fill { display: block; height: 100%; background: var(--brass); }

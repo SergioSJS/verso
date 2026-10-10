@@ -19,7 +19,8 @@ type Ctx = { me: Account; go: (href: string) => void; title: (t: string) => void
 type AccountRow = { id: string; email: string; name: string; admin: boolean; mayCreate: boolean; created: number; password: boolean; folders: number; space: number; lastSeen: number | null };
 type FolderRow = { id: string; name: string; created: number; owners: string[]; members: number; space: number; quota: number | null; changed: number | null };
 type Invitation = { id: string; state: string; email: string | null; folder: string | null; role: string | null; created: number; expires: number; usedBy: string | null };
-type AuditRow = { at: number; who: string | null; action: string; subject: string | null; folder: string | null; address: string | null; ok: boolean };
+type About = { kind: "account"; name: string; email: string } | { kind: "invitation"; email: string | null; folder: string | null } | { kind: "named"; name: string };
+type AuditRow = { at: number; who: string | null; action: string; subject: string | null; about: About | null; folder: string | null; address: string | null; ok: boolean };
 type Space = { total: number; notes: number; attachments: number; files: number; index: number } | null;
 
 const SECTIONS = [
@@ -384,6 +385,40 @@ async function invitations(c: Ctx, body: HTMLElement): Promise<void> {
 
 /* ---------- Audit ---------- */
 
+/** The actions whose subject is a name, never an id. */
+const SUBJECT_IS_WORDS = new Set(["device_approved", "folder_created", "sign_in", "account_deleted"]);
+
+/** An action of the log in words; an action this console does not know
+ *  yet (a newer server's) by its code. */
+export function actionWords(code: string): string {
+  const s = cw();
+  const powers = /^powers_admin_(true|false)_create_(true|false)$/.exec(code);
+  if (powers) return s.powers(powers[1] === "true", powers[2] === "true");
+  return s.actions[code] ?? code;
+}
+
+/** Who or what a line is about, for a person: an account by its name and
+ *  e-mail, an invitation by whom it was for, a quota as a size; an id
+ *  whose thing is gone, said so. The raw subject is the cell's title. */
+function subjectCell(r: AuditRow): Node | string {
+  const s = cw();
+  const raw = r.subject ?? "";
+  const a = r.about;
+  let shown: Node | string;
+  if (a?.kind === "account") shown = el("span", {}, a.name, el("span", { class: "console-muted" }, ` · ${a.email}`));
+  else if (a?.kind === "invitation") shown = el("span", {}, a.email ? s.invitationFor(a.email) : s.invitationOpen, a.folder ? el("span", { class: "console-muted" }, ` · ${a.folder}`) : "");
+  else if (a?.kind === "named") shown = a.name;
+  else if (!raw) return "";
+  else if (r.action === "folder_quota") shown = raw === "none" ? s.noQuota : /^\d+$/.test(raw) ? bytes(Number(raw)) : raw;
+  else if (r.action === "sessions_ended" && /^\d+$/.test(raw)) shown = s.sessionsCount(Number(raw));
+  // An id the server no longer knows (a session ended, a token revoked,
+  // an account removed): not a word to read. A subject that is words
+  // already (a device's name, a folder's, an e-mail) is shown as it is.
+  else if (!SUBJECT_IS_WORDS.has(r.action) && /^[A-Za-z0-9_-]{16,}$/.test(raw)) shown = el("span", { class: "console-muted" }, s.goneSubject);
+  else shown = raw;
+  return el("span", { title: raw }, shown);
+}
+
 function auditTable(c: Ctx, fixed: { folder?: string }, filters?: () => Record<string, string>): ReturnType<typeof table<AuditRow>> {
   const s = cw();
   void c;
@@ -393,9 +428,10 @@ function auditTable(c: Ctx, fixed: { folder?: string }, filters?: () => Record<s
     columns: [
       { key: "at", label: s.when, cell: (r) => when(r.at) },
       { key: "who", label: s.who, cell: (r) => r.who ?? "—" },
-      { key: "what", label: s.what, cell: (r) => el("span", {}, r.action, r.ok ? "" : badge(s.failedRow, "seal")) },
-      { key: "subject", label: s.subject, cell: (r) => r.subject ?? "" },
-      { key: "folder", label: s.folders, cell: (r) => r.folder ?? "" },
+      { key: "what", label: s.what, cell: (r) => el("span", { title: r.action, "data-action": r.action }, actionWords(r.action), r.ok ? "" : badge(s.failedRow, "seal")) },
+      { key: "subject", label: s.subject, cell: subjectCell },
+      // A folder's own log is all of that folder: no column to repeat it.
+      ...(fixed.folder ? [] : [{ key: "folder", label: s.folderPage, cell: (r: AuditRow) => r.folder ?? "" }]),
       { key: "address", label: s.address, cell: (r) => r.address ?? "" },
     ],
   });
@@ -406,7 +442,8 @@ async function audit(c: Ctx, body: HTMLElement): Promise<void> {
   c.title(s.audit);
   const actions = await api<string[]>("GET", "/api/admin/audit/actions");
   const who = input("text", { "aria-label": s.person, placeholder: s.person });
-  const action = el("select", { "aria-label": s.action }, el("option", { value: "" }, s.anyAction), ...actions.map((a) => el("option", { value: a }, a)));
+  const named = actions.map((a) => [a, actionWords(a)] as const).sort(([, x], [, y]) => x.localeCompare(y));
+  const action = el("select", { "aria-label": s.action }, el("option", { value: "" }, s.anyAction), ...named.map(([a, words]) => el("option", { value: a, title: a }, words)));
   const from = input("date", { "aria-label": s.from });
   const to = input("date", { "aria-label": s.to });
   const day = (v: string, end: boolean) => (v ? String(Math.floor(new Date(`${v}T${end ? "23:59:59" : "00:00:00"}`).getTime() / 1000)) : "");
