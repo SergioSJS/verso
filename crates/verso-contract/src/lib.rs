@@ -528,6 +528,9 @@ pub struct ServerFolder {
 /// 13): the status bar's state and the folder settings' section.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct SyncStatus {
+    /// The folder of this computer it is of (`FolderInfo::key`): every
+    /// window hears every folder's, and shows its own.
+    pub key: String,
     /// Whether the folder syncs at all.
     pub on: bool,
     /// The server, as signed in to (Settings › Servers).

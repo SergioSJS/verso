@@ -4,6 +4,7 @@
 
 import { can } from "../can";
 import { serverStrings, serversBody } from "./servers";
+import { syncBody, syncStrings } from "./sync";
 import { type CliState, commands, type McpStatus } from "../bindings";
 import { remoteContentChanged } from "../changes";
 import { ask } from "../dialog";
@@ -117,6 +118,8 @@ export class SettingsDialog {
       // and so is opening a server's folder from it (ADR 0073 item 2).
       ...(can("agents") ? [{ id: "cli", label: t.sCli, icon: "terminal" }] : []),
       ...(can("local_folders") ? [{ id: "servers", label: serverStrings().section, icon: "globe" }] : []),
+      // A folder of this computer syncs with a server's (ADR 0079 item 1).
+      ...(can("local_folders") && currentFolder ? [{ id: "sync", label: syncStrings().section, icon: "refresh" }] : []),
       // On a server: the person's account (ADR 0074 items 7 and 9); the
       // server's administration is a console of its own (ADR 0077).
       ...(can("account") && signedIn() ? [{ id: "account", label: t.sAccount, icon: "user" }] : []),
@@ -534,6 +537,7 @@ export class SettingsDialog {
     const me = signedIn();
     if (can("account") && me) for (const e of accountEntries(me, (a, b, c) => this.item(a, b, c))) out.push({ section: "account", ...e });
     if (can("local_folders")) out.push({ section: "servers", title: serverStrings().connect, desc: serverStrings().connectDesc, node: () => serversBody((a, b, c) => this.item(a, b, c)) });
+    if (can("local_folders") && currentFolder) out.push({ section: "sync", title: syncStrings().title, desc: syncStrings().desc, node: () => syncBody((a, b, c) => this.item(a, b, c)) });
     add("cli", t.cliTitle, WINDOWS ? t.cliDescWindows : LINUX ? t.cliDescLinux : t.cliDesc, () => this.cliControl());
     // One server per folder, or one for all of Verso (ADR 0054, 2026-10-08).
     add("cli", t.mcpModeTitle, t.mcpModeDesc, () => this.select([["folder", t.mcpModeFolder], ["all", t.mcpModeAll]], settings.mcpMode, (v) => { settings.mcpMode = v; saveSettings(); this.paint(); }));

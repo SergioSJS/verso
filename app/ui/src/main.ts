@@ -34,11 +34,12 @@ import { fail } from "./errors";
 import { installFrame } from "./frame";
 import { installLongPress } from "./touch";
 import { installScreen } from "./screen/frame";
-import { can } from "./can";
+import { can, loadCan } from "./can";
 import { copyFilesInto, newUntitled } from "./files";
 import { focusesList, loadFocuses, selectFocus } from "./focuses";
 import { LAST_FOLDER, nameFolderButton, popout, secondary } from "./folder";
 import { hearServers, openServerFolder, parseServerKey } from "./dialogs/servers";
+import { hearSync } from "./dialogs/sync";
 import { icon } from "./icons";
 import { allCommands, keyHint, keyOf, MAC, paintKeyHints, prettyKeys, runHotkey } from "./keys";
 import { clearDropHints, ghost } from "./layout/drag";
@@ -712,6 +713,11 @@ if (!popout && settings.checkUpdates) {
  *  `board.md`, second reading, finding 9). */
 export const started: Promise<void> = (async () => {
   hearServers();
+  // A folder of this computer that syncs with a server says so in the
+  // status bar (ADR 0079 item 13); a server's own folder does not sync.
+  void loadCan().then(() => {
+    if (!popout && can("local_folders")) hearSync((section) => settingsDialog.show(section));
+  });
   await Promise.all([embedOriginsPushed, walkRulesPushed, folderNoteNamePushed]);
   if (popout) return void joinAsPopout();
   // A reload (a language change) finds the host's folder still open: the

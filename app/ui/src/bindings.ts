@@ -1306,6 +1306,11 @@ export type SyncRefused = {
  *  13): the status bar's state and the folder settings' section.
  */
 export type SyncStatus = {
+	/**
+	 *  The folder of this computer it is of (`FolderInfo::key`): every
+	 *  window hears every folder's, and shows its own.
+	 */
+	key: string,
 	/**  Whether the folder syncs at all. */
 	on: boolean,
 	/**  The server, as signed in to (Settings › Servers). */

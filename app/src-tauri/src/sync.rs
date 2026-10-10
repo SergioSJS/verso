@@ -76,6 +76,7 @@ impl Syncer {
             paused: AtomicBool::new(state.paused),
             confirmed: AtomicBool::new(false),
             status: Mutex::new(SyncStatus {
+                key: key.to_owned(),
                 on: true,
                 server: state.server.clone(),
                 folder: state.folder.clone(),

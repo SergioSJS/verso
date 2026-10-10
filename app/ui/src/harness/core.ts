@@ -52,6 +52,7 @@ import type {
   Written,
   Focus,
   FocusesSummary,
+  SyncStatus,
 } from "../bindings";
 import { blocksOf, fitsKind, headingsOf, propertiesOf, propertyList, readableLines, renderMarkdown, schemaBlocksOf } from "./markdown";
 
@@ -305,6 +306,13 @@ export class Core {
   private clock = 1_790_000_000;
   private revision = 1;
   private webViews = new Map<string, string>();
+  /** The folder's sync (ADR 0079), as a test sets it: the harness has no
+   *  server, so what crosses is whatever a test says (`sync-status`). */
+  sync: SyncStatus = Core.syncOff();
+
+  static syncOff(): SyncStatus {
+    return { key: "harness", on: false, server: "", folder: "", folder_name: "", role: "", state: "off", sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], log: [], last: null, message: null };
+  }
 
   constructor(
     seed: readonly Seed[],
@@ -1305,6 +1313,28 @@ export class Core {
     server_sign_out: () => null,
     server_folders: () => [],
     server_open: () => refuse("unavailable", "no server in the harness"),
+    // The folder's sync (ADR 0079): turned on against the server a test
+    // signs in to (`server_accounts`), synced at once — nothing to cross.
+    folder_sync: (): SyncStatus => this.sync,
+    folder_sync_start: (a): SyncStatus => {
+      const folder = (a["folder"] as string | null) ?? "nova";
+      const name = (a["name"] as string | null) ?? folder;
+      this.sync = { ...Core.syncOff(), on: true, server: a["url"] as string, folder, folder_name: name, role: "owner", state: "synced", last: "2026-10-10T12:00:00Z" };
+      return this.sync;
+    },
+    folder_sync_stop: (): SyncStatus => {
+      this.sync = Core.syncOff();
+      return this.sync;
+    },
+    folder_sync_pause: (a) => {
+      this.sync = { ...this.sync, state: a["paused"] ? "paused" : "synced", deletions: null };
+      return null;
+    },
+    folder_sync_confirm: () => {
+      this.sync = { ...this.sync, state: "synced", deletions: null };
+      return null;
+    },
+    folder_sync_now: () => null,
     // The harness stands in for the desktop app (ADR 0058).
     capabilities: (): Capabilities => ({
       host: "desktop",

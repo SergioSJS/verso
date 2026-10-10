@@ -14,8 +14,9 @@ use verso_core::sync as engine;
 use super::sync::{Ctx, Syncer};
 use super::*;
 
-fn off() -> SyncStatus {
+fn off(key: &str) -> SyncStatus {
     SyncStatus {
+        key: key.to_owned(),
         state: "off".to_owned(),
         ..SyncStatus::default()
     }
@@ -30,10 +31,9 @@ fn context<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Arc<Ctx> {
         config: state.service.config().map(Path::to_path_buf),
         device: DEVICE.get_or_init(sync::host_name).clone(),
         pt: Box::new(move || lock(&language.state::<App>().menu_language).as_str() != "en"),
-        shown: Box::new(move |key, status| {
-            for label in shown.state::<App>().service.clients_of(key) {
-                let _ = shown.emit_to(label.as_str(), "sync-status", status);
-            }
+        // Once, to every window: each shows its own folder's.
+        shown: Box::new(move |_, status| {
+            let _ = shown.emit("sync-status", status);
         }),
     })
 }
@@ -129,10 +129,10 @@ pub(crate) fn folder_sync<R: tauri::Runtime>(
     window: tauri::Window<R>,
 ) -> Result<SyncStatus, ContractError> {
     if remote::of(&app, window.label()).is_some() {
-        return Ok(off());
+        return Ok(off(""));
     }
     let key = key_of(&app, &window)?;
-    Ok(running(&app, &key).map_or_else(off, |s| s.status()))
+    Ok(running(&app, &key).map_or_else(|| off(&key), |s| s.status()))
 }
 
 /// Sync the window's folder with a folder of a server the app is signed
@@ -208,7 +208,7 @@ pub(crate) fn folder_sync_stop<R: tauri::Runtime>(
             .map_err(verso_service::convert)?,
     }
     log::write("INFO", "sync", &format!("turned off: folder {key}"));
-    Ok(off())
+    Ok(off(&key))
 }
 
 /// Pause the sync, or resume it.
