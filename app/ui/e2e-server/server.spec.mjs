@@ -118,6 +118,7 @@ test("an invited reader reads and cannot write", async ({ page, browser }) => {
   // The invitation is used, by whom.
   await page.goto("/admin/invitations");
   await expect(invite.locator(".console-table tr", { hasText: email })).toContainText("usado");
+  await expect(invite.locator(".console-table th")).toContainText(["E-mail", "Pasta", "Estado", "Criada", "Expira", "Usado por"]);
   // The log says it in words, and whom it was for — the code kept in the
   // line's title.
   await page.goto("/admin/audit");
@@ -214,6 +215,18 @@ test("the administration console pages its lists and sets a folder's quota", asy
   const errors = watch(page);
   await signedIn(page, ADMIN.email, ADMIN.password);
   await demoRegistered(page);
+  // The overview counts in words, never "conta(s)".
+  await page.goto("/admin");
+  const totals = page.locator(".console-card", { hasText: "Totais" }).locator(".console-big");
+  await expect(totals).toHaveText(/^\d+ contas? · \d+ pastas? · /);
+  await expect(page.locator(".console-cards")).not.toContainText("(s)");
+  // The connection said for a person: on loopback, what that means and
+  // what to do.
+  await expect(page.locator(".console-card", { hasText: "Conexão segura" })).toContainText("só escuta nesta máquina (localhost)");
+  // A new invitation's folder is its own labelled choice, "none" first.
+  await page.goto("/admin/invitations");
+  const folderChoice = page.getByLabel("Pasta (opcional)");
+  await expect(folderChoice.locator("option").first()).toHaveText("— nenhuma —");
   await page.goto("/admin/folders");
   await page.locator(".console-table a", { hasText: "Demo" }).click();
   await expect(page.getByRole("heading", { name: "Demo", level: 1 })).toBeVisible();

@@ -332,8 +332,11 @@ async function invitations(c: Ctx, body: HTMLElement): Promise<void> {
   const said = el("div", { role: "status" });
   const fail = line();
   const email = input("email", { "aria-label": s.inviteEmail, placeholder: s.inviteEmail });
-  const folder = el("select", { "aria-label": s.inviteFolder }, el("option", { value: "" }, `${s.inviteFolder}: —`), ...all.rows.map((f) => el("option", { value: f.id }, f.name)));
-  const role = el("select", { "aria-label": s.inviteRole }, el("option", { value: "reader" }, s.roleReader), el("option", { value: "editor" }, s.roleEditor), el("option", { value: "owner" }, s.roleOwner));
+  // Each choice under its own visible name: the empty folder is a choice
+  // of its own, "none", not a label inside the list.
+  const folder = el("select", {}, el("option", { value: "" }, s.noFolderChoice), ...all.rows.map((f) => el("option", { value: f.id }, f.name)));
+  const role = el("select", {}, el("option", { value: "reader" }, s.roleReader), el("option", { value: "editor" }, s.roleEditor), el("option", { value: "owner" }, s.roleOwner));
+  const labelled = (text: string, control: HTMLElement) => el("label", { class: "console-field" }, el("span", {}, text), control);
   role.disabled = true;
   folder.addEventListener("change", () => {
     role.disabled = folder.value === "";
@@ -351,7 +354,7 @@ async function invitations(c: Ctx, body: HTMLElement): Promise<void> {
       { key: "folder", label: s.inviteFolder.replace(/ \(.*\)/, ""), cell: (r) => (r.folder ? `${r.folder} (${roleName(r.role)})` : "—") },
       { key: "state", label: s.state, cell: (r) => badge(stateName(r.state), r.state === "pending" ? "seal" : "") },
       { key: "created", label: s.created, cell: (r) => when(r.created) },
-      { key: "expires", label: s.expires, cell: (r) => when(r.expires) },
+      { key: "expires", label: s.expiresColumn, cell: (r) => when(r.expires) },
       { key: "usedBy", label: s.usedBy, cell: (r) => r.usedBy ?? "—" },
       {
         key: "end",
@@ -380,7 +383,7 @@ async function invitations(c: Ctx, body: HTMLElement): Promise<void> {
       })
       .catch((e: unknown) => (fail.textContent = explain(e)));
   });
-  body.replaceChildren(el("section", { class: "console-panel" }, el("h2", {}, s.newInvitation), el("div", { class: "console-form-row" }, email, folder, role, go), fail, said), t.el);
+  body.replaceChildren(el("section", { class: "console-panel" }, el("h2", {}, s.newInvitation), el("div", { class: "console-form-row" }, email, labelled(s.inviteFolder, folder), labelled(s.inviteRole, role), go), fail, said), t.el);
 }
 
 /* ---------- Audit ---------- */
