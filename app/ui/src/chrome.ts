@@ -8,6 +8,7 @@ import { refreshFrame } from "./frame";
 import { icon } from "./icons";
 import { keyOf, prettyKeys } from "./keys";
 import { ribbon } from "./main";
+import { openFolderDialog } from "./open";
 import { page } from "./settings";
 import { t } from "./strings";
 
@@ -71,6 +72,22 @@ export function lesson(): void {
   importBtn.type = "button";
   importBtn.prepend(icon("template"));
   importBtn.addEventListener("click", () => void importDemoVault());
+  // In a browser the folders are the server's: the page says where they
+  // are chosen, and offers the choice; the desktop's keys and its folders
+  // of this computer mean nothing there. The example still imports — into
+  // a server folder the person may write to, chosen first.
+  if (document.documentElement.dataset["host"] === "server") {
+    const choose = h("button", "lesson-import", t.lessonServerOpen);
+    choose.type = "button";
+    choose.prepend(icon("folder"));
+    choose.addEventListener("click", () => void openFolderDialog());
+    importBtn.classList.add("lesson-secondary");
+    const actions = h("div", "lesson-actions");
+    actions.append(choose, importBtn);
+    box.append(h("h1", "", t.lessonServerTitle), h("p", "", t.lessonServerBody), actions);
+    ui.panes.replaceChildren(box);
+    return;
+  }
   box.append(
     h("h1", "", t.lessonTitle),
     h("p", "", t.lessonBody),
