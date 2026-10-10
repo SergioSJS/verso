@@ -72,7 +72,13 @@ base64 = "0.22"
 # verso-index (MIT OR Apache-2.0).
 unicode-normalization = "0.1"
 
-[target.'cfg(target_env = "musl")'.dependencies]
+# webauthn-rs speaks OpenSSL: built into the binary on every Unix, so the
+# `verso` a package or the app carries never looks for a system or
+# Homebrew libssl that a user's machine may not have (the release
+# rehearsal of 2026-10-10 found the macOS one linked to
+# /opt/homebrew/opt/openssl@3). Windows has no server (ADR 0075 item 2):
+# verso-cli leaves this crate out there.
+[target.'cfg(unix)'.dependencies]
 openssl = { version = "0.10", features = ["vendored"] }
 
 [dev-dependencies]

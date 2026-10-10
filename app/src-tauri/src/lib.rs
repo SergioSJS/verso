@@ -976,5 +976,6 @@ fn ask_windows_to_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
 
 #[cfg(test)]
 mod tests;
-#[cfg(test)]
+// The server is not built for Windows (crates/verso-cli/Cargo.toml).
+#[cfg(all(test, not(windows)))]
 mod tests_remote;
