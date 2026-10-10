@@ -252,10 +252,18 @@ export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, p
   const metaLine = h("p", "sync-meta", meta);
   const problem = st.state === "error" ? problemText(st) : null;
   const actions = h("div", "sync-buttons");
+  // The row never contradicts the state. Paused by the person: Resume is
+  // what to do — a pass now would find it paused. Paused before many
+  // deletions: the red box's two buttons decide; the row only compares
+  // again (a drive mounted meanwhile ends the pause) and turns off.
+  // Offline: Sync now is a try, not the thing to do.
   const userPaused = st.state === "paused" && !st.deletions;
+  const deletionsPaused = st.state === "paused" && Boolean(st.deletions);
+  const syncNow = () => button(s.syncNow, st.state === "offline" || deletionsPaused ? "" : "primary", () => void commands.folderSyncNow().then(() => refresh()));
+  if (userPaused) actions.append(button(s.resume, "primary", () => void commands.folderSyncPause(false).then(() => refresh())));
+  else if (deletionsPaused) actions.append(syncNow());
+  else actions.append(syncNow(), button(s.pause, "", () => void commands.folderSyncPause(true).then(() => refresh())));
   actions.append(
-    button(s.syncNow, "primary", () => void commands.folderSyncNow().then(() => refresh())),
-    button(userPaused ? s.resume : s.pause, "", () => void commands.folderSyncPause(!userPaused).then(() => refresh())),
     button(s.turnOff, "quiet", () => {
       void ask(s.turnOffAsk, { yes: s.turnOffYes, no: s.no }).then((yes) => {
         if (!yes) return;
