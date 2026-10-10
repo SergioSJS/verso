@@ -115,7 +115,7 @@ end-to-end tests cover the rest.
 - [ ] **CasaOS or ZimaOS**: the compose file installed from its app store
   screen, the admin's variables filled, the folders on the NAS.
 - [ ] **A `.deb` on a small machine without Docker**: installed, the
-  environment file edited, `systemctl enable --now verso`.
+  environment file edited, `systemctl enable --now universo`.
 - [ ] **The account in Settings and the administration console**, in the
   browser on the Mac and on the iPhone: the person's button beside the gear
   opens *Ajustes* › *Conta*, which leads an admin to `/admin`; the console's
@@ -125,6 +125,15 @@ end-to-end tests cover the rest.
 - [ ] **A folder near its quota**: a note added past 90 % shows the warning
   in the window; a file past the quota is refused with the sentence, and
   deleting a file is allowed.
+- [ ] **Sync between two computers** (ADR 0079), with the installed app
+  on the Mac and on another computer (the Windows VM), both signed in to
+  the same Universo: a folder synced from the Mac to a new folder there,
+  then the same server folder synced into an empty folder on the other
+  computer; an edit on one arrives on the other within seconds; a note
+  edited on both while one is offline comes back as the server's version
+  and a copy *(conflito, …)*, its difference in *Ajustes* › *Sincronizar*;
+  a large video crosses whole; Obsidian, on the Mac's folder, sees the
+  changes; the log says what crossed and has no `ERROR`.
 - [ ] **A ribbon button hidden and brought back** in the installed app:
   right click › *Ocultar este botão*, the status bar says where; *Ajustes* ›
   *Aparência* › its switch brings it back; the gear has no *Ocultar*.

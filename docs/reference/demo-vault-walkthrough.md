@@ -654,6 +654,17 @@ rest below and in `manual-checks.md`.
    *Conectar*; the browser asks to allow this computer; after *Permitir*, a
    folder of the server opens in the window (the host's test; by hand in
    the installed app).
+7. Sync ([ADR 0079](../adr/0079-sync-a-local-folder-with-a-server.md)): with
+   a folder of this computer open, *Ajustes* › *Sincronizar*; signed in to
+   no server it says *Conecte a um servidor em Servidores primeiro*; signed
+   in, the space is shown, *Sincronizar esta pasta* turns it on, and the
+   status bar says *Sincronizada*; a pass paused for many deletions asks
+   before *Apagar*; a conflict shows the difference between the server's
+   version and the copy; *Desligar* asks, and the bar's state goes (e2e,
+   `sync.spec.mjs`). What crosses — first sync, two devices, a deletion, a
+   rename, a conflict, a mass deletion, a 9 MiB file, a reader, offline —
+   the host's Rust tests against a real server (`tests_sync.rs`); two
+   real computers, by hand (`manual-checks.md`).
 
 ## 14. The end
 
