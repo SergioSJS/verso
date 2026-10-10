@@ -32,6 +32,7 @@ versão de teste.
 
 - **Deslizar o dedo na árvore de arquivos não move mais uma nota**: numa tela de toque, rolar a árvore começava um arrasto, e o toque seguinte numa pasta movia a nota para ela. Um menu longo agora rola dentro da tela em vez de passar dela.
 - **Um botão oculto da faixa lateral volta**: Ajustes › Aparência lista os botões da faixa com um switch cada, o botão direito no espaço vazio da faixa mostra de novo os ocultos, a barra de status diz onde quando um é ocultado, e a própria engrenagem não pode mais ser ocultada.
+- **⌘N numa pasta compartilhada sempre cria a nota**: quando outro membro tinha acabado de criar "Sem título" e esta janela ainda não sabia, a nota nova falhava com "já existe"; agora ela pega o próximo nome livre.
 
 ## 0.6.0-beta.1 — 2026-10-09
 
