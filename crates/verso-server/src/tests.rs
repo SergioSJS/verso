@@ -669,6 +669,62 @@ fn a_token_reaches_its_folders_only() {
 }
 
 #[test]
+fn a_write_token_never_manages_the_account_or_the_members() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &admin).await;
+        let (_, made) = post(
+            &r,
+            "/api/me/tokens",
+            json!({ "name": "agente", "write": true, "days": 30, "folders": [id] }),
+            Some(&admin),
+        )
+        .await;
+        let secret = made["secret"].as_str().unwrap();
+        let client = reqwest::Client::new();
+        let bearer = format!("Bearer {secret}");
+        // What a leaked token must not do: members, sessions, keys,
+        // settings, the profile, the other tokens.
+        for (method, path, body) in [
+            (
+                "PUT",
+                format!("/api/folders/{id}/members/admin@casa.lan"),
+                json!({ "role": "owner" }),
+            ),
+            ("GET", format!("/api/folders/{id}/members"), Value::Null),
+            ("GET", format!("/api/folders/{id}/audit"), Value::Null),
+            ("DELETE", "/api/me/sessions/others".to_owned(), Value::Null),
+            ("GET", "/api/me/sessions".to_owned(), Value::Null),
+            ("GET", "/api/me/tokens".to_owned(), Value::Null),
+            ("GET", "/api/me/passkeys".to_owned(), Value::Null),
+            (
+                "PUT",
+                "/api/me/settings".to_owned(),
+                json!({ "settings": "{\"theme\":\"dark\"}" }),
+            ),
+            (
+                "PATCH",
+                "/api/me".to_owned(),
+                json!({ "name": "Outro", "lang": "en" }),
+            ),
+        ] {
+            let mut req = client
+                .request(method.parse().unwrap(), r.url(&path))
+                .header("authorization", &bearer);
+            if !body.is_null() {
+                req = req.json(&body);
+            }
+            let status = req.send().await.unwrap().status().as_u16();
+            assert_eq!(status, 403, "{method} {path}");
+        }
+        // The browser still does all of it.
+        let (status, _) = get(&r, &format!("/api/folders/{id}/members"), Some(&admin)).await;
+        assert_eq!(status, 200);
+    });
+}
+
+#[test]
 fn the_server_serves_its_own_tls() {
     block_on(async {
         use std::io::Write;

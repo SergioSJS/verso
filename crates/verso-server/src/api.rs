@@ -404,7 +404,7 @@ pub struct Profile {
 
 pub async fn profile(ctx: Ctx, Json(body): Json<Profile>) -> ApiResult<Response> {
     ctx.changes()?;
-    let who = ctx.who()?;
+    let who = ctx.person()?;
     if body.name.trim().is_empty() {
         return Err(ApiError::bad("bad_request", "a name"));
     }
@@ -424,7 +424,7 @@ pub struct Password {
 /// (ADR 0074 item 7).
 pub async fn password(ctx: Ctx, Json(body): Json<Password>) -> ApiResult<Response> {
     ctx.changes()?;
-    let who = ctx.who()?.clone();
+    let who = ctx.person()?.clone();
     let key = format!("in:{}", db::fold_email(&who.account.email));
     limited(&ctx, &[&key])?;
     let right = who
@@ -449,7 +449,7 @@ pub async fn password(ctx: Ctx, Json(body): Json<Password>) -> ApiResult<Respons
 }
 
 pub async fn sessions(ctx: Ctx) -> ApiResult<Response> {
-    let who = ctx.who()?;
+    let who = ctx.person()?;
     let current = who.session().map(str::to_owned);
     let list: Vec<_> = ctx
         .server
@@ -466,7 +466,7 @@ pub async fn sessions(ctx: Ctx) -> ApiResult<Response> {
 
 pub async fn end_session(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
     ctx.changes()?;
-    let who = ctx.who()?;
+    let who = ctx.person()?;
     if !ctx.server.db.end_session(&who.account.id, &id)? {
         return Err(ApiError::not_found());
     }
@@ -477,14 +477,14 @@ pub async fn end_session(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response
 /// "Sign out everywhere else."
 pub async fn end_others(ctx: Ctx) -> ApiResult<Response> {
     ctx.changes()?;
-    let who = ctx.who()?;
+    let who = ctx.person()?;
     let n = ctx.server.db.end_sessions(&who.account.id, who.session())?;
     ctx.audit("sessions_ended", Some(&n.to_string()), None, true);
     Ok(ok(json!({ "ended": n })))
 }
 
 pub async fn tokens(ctx: Ctx) -> ApiResult<Response> {
-    let who = ctx.who()?;
+    let who = ctx.person()?;
     Ok(ok(ctx.server.db.tokens_of(&who.account.id)?))
 }
 
@@ -535,7 +535,7 @@ pub async fn create_token(ctx: Ctx, Json(body): Json<NewToken>) -> ApiResult<Res
 
 pub async fn revoke_token(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
     ctx.changes()?;
-    let who = ctx.who()?;
+    let who = ctx.person()?;
     if !ctx.server.db.revoke_token(&who.account.id, &id)? {
         return Err(ApiError::not_found());
     }
@@ -546,7 +546,7 @@ pub async fn revoke_token(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Respons
 /// The person's settings as the window keeps them, with the account
 /// (ADR 0073 item 5): read before the window starts in another browser.
 pub async fn settings(ctx: Ctx) -> ApiResult<Response> {
-    let who = ctx.who()?;
+    let who = ctx.person()?;
     Ok(ok(
         json!({ "settings": ctx.server.db.person_settings(&who.account.id)? }),
     ))
@@ -563,7 +563,7 @@ const SETTINGS_MOST: usize = 256 * 1024;
 
 pub async fn set_settings(ctx: Ctx, Json(body): Json<Settings>) -> ApiResult<Response> {
     ctx.changes()?;
-    let who = ctx.who()?;
+    let who = ctx.person()?;
     if body.settings.len() > SETTINGS_MOST
         || serde_json::from_str::<serde_json::Value>(&body.settings)
             .map_or(true, |v| !v.is_object())

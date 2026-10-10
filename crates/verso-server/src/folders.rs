@@ -89,7 +89,7 @@ pub async fn create(ctx: Ctx, Json(body): Json<NewFolder>) -> ApiResult<Response
 }
 
 pub async fn members(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
-    let who = ctx.who()?;
+    let who = ctx.person()?;
     crate::access::at_least(&ctx.server, who, &id, Role::Owner)?;
     let list: Vec<_> = ctx
         .server
@@ -114,7 +114,7 @@ pub async fn set_member(
     Json(body): Json<SetRole>,
 ) -> ApiResult<Response> {
     ctx.changes()?;
-    let who = ctx.who()?;
+    let who = ctx.person()?;
     crate::access::at_least(&ctx.server, who, &id, Role::Owner)?;
     let target = match ctx.server.db.account(&account)? {
         Some(a) => a,
@@ -141,7 +141,7 @@ pub async fn remove_member(
     Path((id, account)): Path<(String, String)>,
 ) -> ApiResult<Response> {
     ctx.changes()?;
-    let who = ctx.who()?;
+    let who = ctx.person()?;
     // An owner removes anyone; a member may leave.
     if account != who.account.id {
         crate::access::at_least(&ctx.server, who, &id, Role::Owner)?;
@@ -172,7 +172,7 @@ fn last_owner(ctx: &Ctx, folder: &str, account: &str) -> ApiResult<bool> {
 
 /// What the audit log says about a folder, for its owner (ADR 0074 item 9).
 pub async fn audit(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
-    let who = ctx.who()?;
+    let who = ctx.person()?;
     crate::access::at_least(&ctx.server, who, &id, Role::Owner)?;
     Ok(ok(ctx.server.db.audit_log(Some(&id), 200)?))
 }
