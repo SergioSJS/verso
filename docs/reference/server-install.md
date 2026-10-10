@@ -17,7 +17,9 @@
 
 ## 1. What is installed
 
-One program, `verso serve`, a subcommand of the `verso` command line, built
+**Universo**, the Verso server ([ADR 0078](../adr/0078-universo-the-name-of-verso-as-a-server.md)):
+one program — the `verso` binary started as `universo`, which is `verso
+serve`, a subcommand of the `verso` command line — built
 static for Linux x64 and ARM64. It serves the contract over a WebSocket
 and, with `--web` (as the image, the compose file and the packages run
 it), the window to a browser — a computer, a phone, an iPad; without it
@@ -27,7 +29,7 @@ item 6), writes its log to standard error, and stops cleanly on `SIGTERM`.
 
 | Form | For | Section |
 |---|---|---|
-| Docker image `ghcr.io/sergiosjs/verso` (amd64, arm64) | any machine with Docker, any cloud | 3 |
+| Docker image `ghcr.io/sergiosjs/universo` (amd64, arm64) | any machine with Docker, any cloud | 3 |
 | `docker-compose.yml` with CasaOS metadata | CasaOS, ZimaOS, any compose host | 4 |
 | `.deb` and `.rpm` with a systemd unit | a machine without Docker | 5 |
 | archive `.tar.gz` | anything else, by hand | 6 |
@@ -68,10 +70,10 @@ scanning it every 30 seconds instead (0075 item 3).
 
 ## 3. Docker
 
-The image runs `verso serve` as the user `verso` (uid and gid 1000), never
+The image runs `verso serve` as the user `universo` (uid and gid 1000), never
 root, with `/data` and `/folders` as volumes. Its defaults:
 `VERSO_DATA_DIR=/data`, `VERSO_FOLDERS_DIR=/folders`,
-`VERSO_UI_DIR=/usr/share/verso/ui`, `VERSO_LISTEN=0.0.0.0:7340`. Because it
+`VERSO_UI_DIR=/usr/share/universo/ui`, `VERSO_LISTEN=0.0.0.0:7340`. Because it
 listens beyond loopback, **`VERSO_PUBLIC_URL` is required**: without it the
 server refuses to start.
 
@@ -80,7 +82,7 @@ writable by uid 1000. Docker creates a missing one owned by root, which the
 server cannot write:
 
 ```sh
-sudo install -d -o 1000 -g 1000 /srv/verso/data /srv/verso/folders
+sudo install -d -o 1000 -g 1000 /srv/universo/data /srv/universo/folders
 ```
 
 Folders that already belong to another user — a NAS share — need no
@@ -94,15 +96,15 @@ Then (while the repository is private, sign in to the registry first,
 section 11):
 
 ```sh
-docker run -d --name verso --restart unless-stopped \
+docker run -d --name universo --restart unless-stopped \
   -p 127.0.0.1:7340:7340 \
-  -v /srv/verso/data:/data \
-  -v /srv/verso/folders:/folders \
+  -v /srv/universo/data:/data \
+  -v /srv/universo/folders:/folders \
   -e VERSO_PUBLIC_URL=https://notes.example.com \
   -e VERSO_ADMIN_EMAIL=you@example.com \
-  -e VERSO_ADMIN_PASSWORD_FILE=/run/secrets/verso-admin \
-  -v /srv/verso/admin-password:/run/secrets/verso-admin:ro \
-  ghcr.io/sergiosjs/verso:beta
+  -e VERSO_ADMIN_PASSWORD_FILE=/run/secrets/universo-admin \
+  -v /srv/universo/admin-password:/run/secrets/universo-admin:ro \
+  ghcr.io/sergiosjs/universo:beta
 ```
 
 Tags: the version (`0.7.0`, `0.7.0-beta.1`), `latest` for the newest
@@ -110,7 +112,7 @@ production version and `beta` for the newest test version. While only test
 versions exist, `latest` does not exist: use `beta` or a version.
 
 The port is published on `127.0.0.1` because TLS goes in front (section 8).
-`docker logs verso` shows the log, including the setup link of section 9.
+`docker logs universo` shows the log, including the setup link of section 9.
 
 ## 4. CasaOS and ZimaOS
 
@@ -124,7 +126,7 @@ and serves any host that takes a compose file:
   starting it.
 - Elsewhere: `docker compose up -d` in the directory of the file.
 
-It binds `/DATA/AppData/verso/data` (the app data path CasaOS uses) to
+It binds `/DATA/AppData/universo/data` (the app data path CasaOS uses) to
 `/data`, and `/DATA/Documents/Verso` to `/folders` — change the second to
 wherever the notes should live, a NAS included. Both must be writable by
 uid 1000, as in section 3. The image is pulled from GitHub's registry,
@@ -136,53 +138,53 @@ repositories, made once the server is announced (0075, Consequences).
 
 ## 5. The .deb and the .rpm, with systemd
 
-The release carries `verso-server-<version>-amd64.deb`,
-`verso-server-<version>-arm64.deb`, `verso-server-<version>-x86_64.rpm`
-and `verso-server-<version>-aarch64.rpm`:
+The release carries `universo-<version>-amd64.deb`,
+`universo-<version>-arm64.deb`, `universo-<version>-x86_64.rpm`
+and `universo-<version>-aarch64.rpm`:
 
 ```sh
-sudo apt install ./verso-server-0.7.0-amd64.deb      # Debian, Ubuntu
-sudo dnf install ./verso-server-0.7.0-x86_64.rpm     # Fedora, RHEL
+sudo apt install ./universo-0.7.0-amd64.deb      # Debian, Ubuntu
+sudo dnf install ./universo-0.7.0-x86_64.rpm     # Fedora, RHEL
 ```
 
-The package installs `/usr/bin/verso`, the window in
-`/usr/share/verso/ui`, the unit `/usr/lib/systemd/system/verso.service`
-and the settings in `/etc/verso/verso.env` (readable by root and the
-`verso` group only: it may hold the first admin's password). It creates
-the system user `verso` and `/var/lib/verso/data` and
-`/var/lib/verso/folders`, owned by it. **It does not start the service**:
+The package installs `/usr/bin/universo`, the window in
+`/usr/share/universo/ui`, the unit `/usr/lib/systemd/system/universo.service`
+and the settings in `/etc/universo/universo.env` (readable by root and the
+`universo` group only: it may hold the first admin's password). It creates
+the system user `universo` and `/var/lib/universo/data` and
+`/var/lib/universo/folders`, owned by it. **It does not start the service**:
 
 ```sh
-sudoedit /etc/verso/verso.env       # at least VERSO_PUBLIC_URL
-sudo systemctl enable --now verso
-journalctl -u verso -f
+sudoedit /etc/universo/universo.env       # at least VERSO_PUBLIC_URL
+sudo systemctl enable --now universo
+journalctl -u universo -f
 ```
 
 The package listens on `127.0.0.1:7340` by default: TLS goes in front
 (section 8). The unit is hardened (`ProtectSystem=strict`, writes only under
-`/var/lib/verso`, `ProtectHome=read-only`). A folders directory elsewhere
+`/var/lib/universo`, `ProtectHome=read-only`). A folders directory elsewhere
 needs a drop-in, which an upgrade keeps:
 
 ```sh
-sudo systemctl edit verso
+sudo systemctl edit universo
 # [Service]
 # ReadWritePaths=/srv/notes
 ```
 
-An upgrade keeps an edited `/etc/verso/verso.env` and restarts a running
-service. A removal stops and disables it and leaves `/var/lib/verso` and
-the `verso` user in place: they are the host's data.
+An upgrade keeps an edited `/etc/universo/universo.env` and restarts a running
+service. A removal stops and disables it and leaves `/var/lib/universo` and
+the `universo` user in place: they are the host's data.
 
 ## 6. The archive
 
-`verso-server-<version>-x86_64.tar.gz` and `-aarch64.tar.gz` hold
-`bin/verso`, the window in `share/verso/ui` — where `verso serve` finds it
+`universo-<version>-x86_64.tar.gz` and `-aarch64.tar.gz` hold
+`bin/universo`, the window in `share/universo/ui` — where `verso serve` finds it
 with no `VERSO_UI_DIR` — the licence, the unit and the settings' template:
 
 ```sh
-tar -xzf verso-server-0.7.0-x86_64.tar.gz
-cd verso-server-0.7.0-x86_64
-VERSO_DATA_DIR=$HOME/verso/data VERSO_FOLDERS_DIR=$HOME/verso/folders ./bin/verso serve
+tar -xzf universo-0.7.0-x86_64.tar.gz
+cd universo-0.7.0-x86_64
+VERSO_DATA_DIR=$HOME/verso/data VERSO_FOLDERS_DIR=$HOME/verso/folders ./bin/universo
 ```
 
 With no variable it listens on `127.0.0.1:7340` and keeps its directories
@@ -194,9 +196,9 @@ A file's signature can be checked with minisign and Verso's public key,
 the one the app carries (`app/src-tauri/src/update.rs`):
 
 ```sh
-base64 -d < verso-server-0.7.0-x86_64.tar.gz.sig > file.minisig
+base64 -d < universo-0.7.0-x86_64.tar.gz.sig > file.minisig
 minisign -V -P RWS1zv2nvs/ng1hA0YspwOg7wGda98zkXjVfx8m9CtT5obRW5zabNHaT \
-  -m verso-server-0.7.0-x86_64.tar.gz -x file.minisig
+  -m universo-0.7.0-x86_64.tar.gz -x file.minisig
 ```
 
 ## 7. The variables
@@ -209,9 +211,9 @@ value counts as not set.
 |---|---|---|
 | `VERSO_LISTEN` | `127.0.0.1:7340` (image: `0.0.0.0:7340`) | address and port; beyond loopback it requires `VERSO_PUBLIC_URL` |
 | `VERSO_PUBLIC_URL` | none | the address people use (`https://…`): the `Origin` and `Host` checks, the links in invitations and resets |
-| `VERSO_DATA_DIR` | image `/data`, packages `/var/lib/verso/data` | accounts, sessions, audit log, indexes; a local disk |
-| `VERSO_FOLDERS_DIR` | image `/folders`, packages `/var/lib/verso/folders` | the folders of notes; may be a NAS |
-| `VERSO_UI_DIR` | `<binary's directory>/../share/verso/ui` | the window's files |
+| `VERSO_DATA_DIR` | image `/data`, packages `/var/lib/universo/data` | accounts, sessions, audit log, indexes; a local disk |
+| `VERSO_FOLDERS_DIR` | image `/folders`, packages `/var/lib/universo/folders` | the folders of notes; may be a NAS |
+| `VERSO_UI_DIR` | `<binary's directory>/../share/universo/ui` | the window's files |
 | `VERSO_ADMIN_EMAIL` | none | the first admin, on the first start only |
 | `VERSO_ADMIN_PASSWORD` or `VERSO_ADMIN_PASSWORD_FILE` | none | the first admin's password, 12 characters at least |
 | `VERSO_TRUSTED_PROXY` | none | the IP address of the reverse proxy whose `X-Forwarded-For` and `X-Forwarded-Proto` are believed (one address) |
@@ -287,21 +289,21 @@ made in one of two ways (0074 item 1):
   first start.
 - **From the setup link**: with neither variable set, the server prints
   once in its log a link valid for one hour, whose page creates the admin.
-  Whoever can read the log is whoever runs the server: `docker logs verso`,
-  the container's log in CasaOS or ZimaOS, or `journalctl -u verso`.
+  Whoever can read the log is whoever runs the server: `docker logs universo`,
+  the container's log in CasaOS or ZimaOS, or `journalctl -u universo`.
 
 ## 10. A lost admin password
 
 Whoever runs the server recovers the admin's account (0074 item 5):
 
 ```sh
-docker exec verso verso serve admin reset you@example.com
+docker exec universo universo admin reset you@example.com
 ```
 
 (CasaOS and ZimaOS offer a terminal for the container.) With the packages:
 
 ```sh
-sudo -u verso -H sh -c 'set -a; . /etc/verso/verso.env; exec verso serve admin reset you@example.com'
+sudo -u universo -H sh -c 'set -a; . /etc/universo/universo.env; exec universo admin reset you@example.com'
 ```
 
 It prints a link to use once, ends the account's sessions and records the
@@ -327,15 +329,32 @@ The server never updates itself (0075 item 7). It checks the project's
 release feed and says in Settings › Administration when a new version exists;
 `VERSO_UPDATE_CHECK=off` stops the check. To update:
 
-- Docker: `docker pull ghcr.io/sergiosjs/verso:<tag>` and recreate the
+- Docker: `docker pull ghcr.io/sergiosjs/universo:<tag>` and recreate the
   container; with compose, `docker compose pull && docker compose up -d`.
   CasaOS and ZimaOS have an update button for the app.
-- Packages: `sudo apt install ./verso-server-<new>-amd64.deb` or
-  `sudo dnf install ./verso-server-<new>-x86_64.rpm`; a running service is
+- Packages: `sudo apt install ./universo-<new>-amd64.deb` or
+  `sudo dnf install ./universo-<new>-x86_64.rpm`; a running service is
   restarted.
-- Archive: replace `bin/verso` and `share/verso/ui` and restart.
+- Archive: replace `bin/universo` and `share/universo/ui` and restart.
 
 Back up both directories (section 2) before an update.
+
+**From 0.7.0-beta.1**, the last version before the server was named
+Universo ([ADR 0078](../adr/0078-universo-the-name-of-verso-as-a-server.md)):
+the image `ghcr.io/sergiosjs/verso` and the `verso-server` packages end
+there. With Docker, point the compose file or `docker run` at
+`ghcr.io/sergiosjs/universo` and keep the same two directories bound to
+`/data` and `/folders`. With a package, install `universo`, then move the
+data before starting it:
+
+```sh
+sudo systemctl disable --now verso
+sudo mv /var/lib/verso/data /var/lib/verso/folders /var/lib/universo/
+sudo chown -R universo:universo /var/lib/universo
+sudo cp /etc/verso/verso.env /etc/universo/universo.env   # then fix its paths
+sudo apt remove verso-server        # or: sudo dnf remove verso-server
+sudo systemctl enable --now universo
+```
 
 ## 13. Whoever hosts sees the notes
 

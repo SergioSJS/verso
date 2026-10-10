@@ -153,6 +153,7 @@ uso: verso <comando> <pasta> [...]
   verso mcp --all                      um servidor para as pastas visíveis para agentes
   verso serve [--web]                  o servidor (variáveis VERSO_*); --web serve também a janela ao navegador
   verso serve admin reset <e-mail>     um link para criar senha nova numa conta, aqui na máquina
+  universo [--web]                     o mesmo servidor, pelo nome dele (o Universo); universo admin reset <e-mail>
   verso <pasta>                        abre a pasta no aplicativo (verso . = esta pasta)
   verso open <pasta>                   o mesmo, para uma pasta chamada como um comando
   verso help                           esta ajuda
@@ -252,6 +253,7 @@ usage: verso <command> <folder> [...]
   verso mcp --all                      one server for the folders visible to agents
   verso serve [--web]                  the server (VERSO_* variables); --web serves the window to a browser too
   verso serve admin reset <e-mail>     a link to set a new password for an account, on this machine
+  universo [--web]                     the same server, by its name (Universo); universo admin reset <e-mail>
   verso <folder>                       open the folder in the app (verso . = this one)
   verso open <folder>                  the same, for a folder named like a command
   verso help                           this help

@@ -1,6 +1,6 @@
 # O modelo de ameaças do servidor (2026-10-09)
 
-O que o `verso serve` protege, de quem e como, como construído no ramo
+O que o Universo — o `verso serve` — protege, de quem e como, como construído no ramo
 `feat/web` em 2026-10-09. O [ADR 0073](../adr/0073-self-hosted-server-first.md)
 item 6 o pede antes de o servidor ser anunciado a qualquer pessoa além do
 mantenedor; o [ADR 0074](../adr/0074-accounts-and-access-on-the-server.md)
@@ -63,7 +63,7 @@ não decide nada — onde uma lacuna pede decisão, diz `[ABERTO]`.
 | Requisições de outro site | Toda requisição que muda algo confere o `Origin` contra o do servidor e leva o token CSRF da sessão; o WebSocket confere o `Origin` antes de aceitar o cookie. |
 | Um token vazado de um script | Tokens de acesso pessoal limitados a pastas e a ler ou escrever, nunca mais que o papel do membro; nunca admin; com o prefixo `verso_pat_` para os detectores de segredos; guardados como SHA-256; revogáveis. |
 | O primeiro admin tomado por quem chegar primeiro | Nenhuma página de configuração aberta a qualquer um: o admin vem do ambiente na primeira subida, ou de um link de configuração de uso único, válido por uma hora, escrito uma vez no log — quem lê o log é quem roda o servidor. |
-| Um admin perdido | `verso serve admin reset <e-mail>` na máquina: o acesso à máquina é o último fator; a redefinição fica no registro de auditoria e encerra as sessões da conta. |
+| Um admin perdido | `universo admin reset <e-mail>` (ou `verso serve admin reset`) na máquina: o acesso à máquina é o último fator; a redefinição fica no registro de auditoria e encerra as sessões da conta. |
 | Um link de convite ou de senha nova repassado ou adivinhado | 256 bits, uso único, validade (7 dias, 24 horas), o uso registrado (por quem, quando), encerrável pelo admin antes do uso; tentativas desaceleradas por endereço. |
 | Um aparelho aprovado por engano | A página de aprovação mostra o nome do aparelho e o código que o app mostra, pede uma pessoa já dentro no navegador, e a sessão do aparelho é listada e revogável. |
 | Passkeys | WebAuthn com verificação do usuário exigida (webauthn-rs); o estado da cerimônia vive cinco minutos na memória; contadores guardados. |

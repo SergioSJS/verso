@@ -12,7 +12,9 @@ versão de teste.
 
 ## Não lançado
 
-Nada ainda.
+### Alterado
+
+- **O servidor se chama Universo** ([ADR 0078](adr/0078-universo-the-name-of-verso-as-a-server.md)): a imagem é `ghcr.io/sergiosjs/universo`, os pacotes e arquivos `universo-<versão>-<arq>`, que instalam `/usr/bin/universo`, o serviço e o usuário `universo`, `/etc/universo` e `/var/lib/universo`; o binário `verso` iniciado como `universo` é o `verso serve`, e `universo admin reset <e-mail>` redefine uma senha. Os pacotes de produção do app desktop e o Universo agora se instalam na mesma máquina. A partir da 0.7.0-beta.1: `docs/reference/server-install.md`, seção 12.
 
 ## 0.7.0-beta.1 — 2026-10-10
 

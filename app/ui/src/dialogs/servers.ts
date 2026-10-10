@@ -18,7 +18,7 @@ import { openFolderBy } from "../open";
 const pt = {
   section: "Servidores",
   connect: "Conectar a um servidor",
-  connectDesc: "O endereço de um servidor Verso onde você tem conta (https://…). O navegador abre a página dele: você entra, confere o código e permite este computador.",
+  connectDesc: "O endereço de um Universo — um servidor Verso — onde você tem conta (https://…). O navegador abre a página dele: você entra, confere o código e permite este computador.",
   connectButton: "Conectar",
   waiting: (code: string) => `No navegador, confira o código ${code} e permita. Esperando…`,
   signedIn: (who: string) => `Conectado como ${who}.`,
@@ -33,7 +33,7 @@ const pt = {
 const en: typeof pt = {
   section: "Servers",
   connect: "Connect to a server",
-  connectDesc: "The address of a Verso server where you have an account (https://…). The browser opens its page: you sign in, check the code and allow this computer.",
+  connectDesc: "The address of a Universo — a Verso server — where you have an account (https://…). The browser opens its page: you sign in, check the code and allow this computer.",
   connectButton: "Connect",
   waiting: (code: string) => `In the browser, check the code ${code} and allow it. Waiting…`,
   signedIn: (who: string) => `Connected as ${who}.`,

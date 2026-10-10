@@ -19,7 +19,9 @@
 
 ## 1. O que é instalado
 
-Um programa, `verso serve`, subcomando da linha de comando `verso`,
+O **Universo**, o servidor do Verso ([ADR 0078](../adr/0078-universo-the-name-of-verso-as-a-server.md)):
+um programa — o binário `verso` iniciado como `universo`, que é o `verso
+serve`, subcomando da linha de comando `verso` —
 compilado estático para Linux x64 e ARM64. Ele serve o contrato por um
 WebSocket e, com `--web` (como a imagem, o compose e os pacotes o rodam),
 a janela para um navegador — um computador, um celular, um iPad; sem ela,
@@ -29,7 +31,7 @@ limpa com `SIGTERM`.
 
 | Forma | Para | Seção |
 |---|---|---|
-| Imagem Docker `ghcr.io/sergiosjs/verso` (amd64, arm64) | qualquer máquina com Docker, qualquer nuvem | 3 |
+| Imagem Docker `ghcr.io/sergiosjs/universo` (amd64, arm64) | qualquer máquina com Docker, qualquer nuvem | 3 |
 | `docker-compose.yml` com os metadados do CasaOS | CasaOS, ZimaOS, qualquer host com compose | 4 |
 | `.deb` e `.rpm` com uma unit do systemd | uma máquina sem Docker | 5 |
 | arquivo `.tar.gz` | qualquer outro caso, à mão | 6 |
@@ -71,10 +73,10 @@ pasta assim varrendo-a a cada 30 segundos (0075 item 3).
 
 ## 3. Docker
 
-A imagem roda `verso serve` como o usuário `verso` (uid e gid 1000), nunca
+A imagem roda `verso serve` como o usuário `universo` (uid e gid 1000), nunca
 root, com `/data` e `/folders` como volumes. Os padrões dela:
 `VERSO_DATA_DIR=/data`, `VERSO_FOLDERS_DIR=/folders`,
-`VERSO_UI_DIR=/usr/share/verso/ui`, `VERSO_LISTEN=0.0.0.0:7340`. Como ela
+`VERSO_UI_DIR=/usr/share/universo/ui`, `VERSO_LISTEN=0.0.0.0:7340`. Como ela
 escuta além do loopback, **`VERSO_PUBLIC_URL` é obrigatória**: sem ela o
 servidor se recusa a iniciar.
 
@@ -83,7 +85,7 @@ escrita ao uid 1000. O Docker cria um diretório que falta como root, e o
 servidor não consegue escrever nele:
 
 ```sh
-sudo install -d -o 1000 -g 1000 /srv/verso/data /srv/verso/folders
+sudo install -d -o 1000 -g 1000 /srv/universo/data /srv/universo/folders
 ```
 
 Pastas que já pertencem a outro usuário — um compartilhamento do NAS — não
@@ -97,15 +99,15 @@ Depois (enquanto o repositório for privado, entre no registry antes,
 seção 11):
 
 ```sh
-docker run -d --name verso --restart unless-stopped \
+docker run -d --name universo --restart unless-stopped \
   -p 127.0.0.1:7340:7340 \
-  -v /srv/verso/data:/data \
-  -v /srv/verso/folders:/folders \
+  -v /srv/universo/data:/data \
+  -v /srv/universo/folders:/folders \
   -e VERSO_PUBLIC_URL=https://notas.exemplo.com \
   -e VERSO_ADMIN_EMAIL=voce@exemplo.com \
-  -e VERSO_ADMIN_PASSWORD_FILE=/run/secrets/verso-admin \
-  -v /srv/verso/admin-password:/run/secrets/verso-admin:ro \
-  ghcr.io/sergiosjs/verso:beta
+  -e VERSO_ADMIN_PASSWORD_FILE=/run/secrets/universo-admin \
+  -v /srv/universo/admin-password:/run/secrets/universo-admin:ro \
+  ghcr.io/sergiosjs/universo:beta
 ```
 
 Tags: a versão (`0.7.0`, `0.7.0-beta.1`), `latest` para a versão de
@@ -113,7 +115,7 @@ produção mais nova e `beta` para a versão de teste mais nova. Enquanto só
 existirem versões de teste, `latest` não existe: use `beta` ou uma versão.
 
 A porta é publicada em `127.0.0.1` porque o TLS fica na frente (seção 8).
-`docker logs verso` mostra o log, incluindo o link de configuração da
+`docker logs universo` mostra o log, incluindo o link de configuração da
 seção 9.
 
 ## 4. CasaOS e ZimaOS
@@ -128,7 +130,7 @@ para qualquer host que aceite um arquivo compose:
   antes de iniciá-lo.
 - Em outro lugar: `docker compose up -d` no diretório do arquivo.
 
-Ele monta `/DATA/AppData/verso/data` (o caminho de dados de app que o
+Ele monta `/DATA/AppData/universo/data` (o caminho de dados de app que o
 CasaOS usa) em `/data`, e `/DATA/Documents/Verso` em `/folders` — troque o
 segundo para onde as notas devem ficar, inclusive um NAS. Os dois precisam
 permitir escrita ao uid 1000, como na seção 3. A imagem vem do registry do
@@ -141,54 +143,54 @@ Consequências).
 
 ## 5. O .deb e o .rpm, com systemd
 
-A release traz `verso-server-<versão>-amd64.deb`,
-`verso-server-<versão>-arm64.deb`, `verso-server-<versão>-x86_64.rpm` e
-`verso-server-<versão>-aarch64.rpm`:
+A release traz `universo-<versão>-amd64.deb`,
+`universo-<versão>-arm64.deb`, `universo-<versão>-x86_64.rpm` e
+`universo-<versão>-aarch64.rpm`:
 
 ```sh
-sudo apt install ./verso-server-0.7.0-amd64.deb      # Debian, Ubuntu
-sudo dnf install ./verso-server-0.7.0-x86_64.rpm     # Fedora, RHEL
+sudo apt install ./universo-0.7.0-amd64.deb      # Debian, Ubuntu
+sudo dnf install ./universo-0.7.0-x86_64.rpm     # Fedora, RHEL
 ```
 
-O pacote instala `/usr/bin/verso`, a janela em `/usr/share/verso/ui`, a
-unit `/usr/lib/systemd/system/verso.service` e a configuração em
-`/etc/verso/verso.env` (legível só pelo root e pelo grupo `verso`: pode
-conter a senha do primeiro admin). Ele cria o usuário de sistema `verso` e
-`/var/lib/verso/data` e `/var/lib/verso/folders`, de posse dele. **Ele não
+O pacote instala `/usr/bin/universo`, a janela em `/usr/share/universo/ui`, a
+unit `/usr/lib/systemd/system/universo.service` e a configuração em
+`/etc/universo/universo.env` (legível só pelo root e pelo grupo `universo`: pode
+conter a senha do primeiro admin). Ele cria o usuário de sistema `universo` e
+`/var/lib/universo/data` e `/var/lib/universo/folders`, de posse dele. **Ele não
 inicia o serviço**:
 
 ```sh
-sudoedit /etc/verso/verso.env       # no mínimo VERSO_PUBLIC_URL
-sudo systemctl enable --now verso
-journalctl -u verso -f
+sudoedit /etc/universo/universo.env       # no mínimo VERSO_PUBLIC_URL
+sudo systemctl enable --now universo
+journalctl -u universo -f
 ```
 
 O pacote escuta em `127.0.0.1:7340` por padrão: o TLS fica na frente
 (seção 8). A unit é endurecida (`ProtectSystem=strict`, escreve só sob
-`/var/lib/verso`, `ProtectHome=read-only`). Um diretório de pastas em
+`/var/lib/universo`, `ProtectHome=read-only`). Um diretório de pastas em
 outro lugar precisa de um drop-in, que uma atualização mantém:
 
 ```sh
-sudo systemctl edit verso
+sudo systemctl edit universo
 # [Service]
 # ReadWritePaths=/srv/notas
 ```
 
-Uma atualização mantém o `/etc/verso/verso.env` editado e reinicia um
+Uma atualização mantém o `/etc/universo/universo.env` editado e reinicia um
 serviço em execução. Uma remoção para e desabilita o serviço e deixa
-`/var/lib/verso` e o usuário `verso` onde estão: são dados do host.
+`/var/lib/universo` e o usuário `universo` onde estão: são dados do host.
 
 ## 6. O arquivo
 
-`verso-server-<versão>-x86_64.tar.gz` e `-aarch64.tar.gz` trazem
-`bin/verso`, a janela em `share/verso/ui` — onde o `verso serve` a
+`universo-<versão>-x86_64.tar.gz` e `-aarch64.tar.gz` trazem
+`bin/universo`, a janela em `share/universo/ui` — onde o `verso serve` a
 encontra sem `VERSO_UI_DIR` —, a licença, a unit e o modelo de
 configuração:
 
 ```sh
-tar -xzf verso-server-0.7.0-x86_64.tar.gz
-cd verso-server-0.7.0-x86_64
-VERSO_DATA_DIR=$HOME/verso/data VERSO_FOLDERS_DIR=$HOME/verso/folders ./bin/verso serve
+tar -xzf universo-0.7.0-x86_64.tar.gz
+cd universo-0.7.0-x86_64
+VERSO_DATA_DIR=$HOME/verso/data VERSO_FOLDERS_DIR=$HOME/verso/folders ./bin/universo
 ```
 
 Sem nenhuma variável ele escuta em `127.0.0.1:7340` e guarda os diretórios
@@ -201,9 +203,9 @@ pública do Verso, a mesma que o app carrega
 (`app/src-tauri/src/update.rs`):
 
 ```sh
-base64 -d < verso-server-0.7.0-x86_64.tar.gz.sig > file.minisig
+base64 -d < universo-0.7.0-x86_64.tar.gz.sig > file.minisig
 minisign -V -P RWS1zv2nvs/ng1hA0YspwOg7wGda98zkXjVfx8m9CtT5obRW5zabNHaT \
-  -m verso-server-0.7.0-x86_64.tar.gz -x file.minisig
+  -m universo-0.7.0-x86_64.tar.gz -x file.minisig
 ```
 
 ## 7. As variáveis
@@ -216,9 +218,9 @@ vazio conta como não definido.
 |---|---|---|
 | `VERSO_LISTEN` | `127.0.0.1:7340` (imagem: `0.0.0.0:7340`) | endereço e porta; além do loopback exige `VERSO_PUBLIC_URL` |
 | `VERSO_PUBLIC_URL` | nenhum | o endereço que as pessoas usam (`https://…`): as checagens de `Origin` e `Host`, os links de convites e de redefinição |
-| `VERSO_DATA_DIR` | imagem `/data`, pacotes `/var/lib/verso/data` | contas, sessões, registro de auditoria, índices; um disco local |
-| `VERSO_FOLDERS_DIR` | imagem `/folders`, pacotes `/var/lib/verso/folders` | as pastas de notas; pode ser um NAS |
-| `VERSO_UI_DIR` | `<diretório do binário>/../share/verso/ui` | os arquivos da janela |
+| `VERSO_DATA_DIR` | imagem `/data`, pacotes `/var/lib/universo/data` | contas, sessões, registro de auditoria, índices; um disco local |
+| `VERSO_FOLDERS_DIR` | imagem `/folders`, pacotes `/var/lib/universo/folders` | as pastas de notas; pode ser um NAS |
+| `VERSO_UI_DIR` | `<diretório do binário>/../share/universo/ui` | os arquivos da janela |
 | `VERSO_ADMIN_EMAIL` | nenhum | o primeiro admin, só na primeira inicialização |
 | `VERSO_ADMIN_PASSWORD` ou `VERSO_ADMIN_PASSWORD_FILE` | nenhum | a senha do primeiro admin, 12 caracteres ou mais |
 | `VERSO_TRUSTED_PROXY` | nenhum | o endereço IP do proxy reverso cujos `X-Forwarded-For` e `X-Forwarded-Proto` são aceitos (um endereço) |
@@ -295,22 +297,22 @@ criada de um de dois jeitos (0074 item 1):
 - **Pelo link de configuração**: sem nenhuma das duas variáveis, o
   servidor imprime uma vez no log um link válido por uma hora, cuja página
   cria o admin. Quem consegue ler o log é quem roda o servidor:
-  `docker logs verso`, o log do contêiner no CasaOS ou no ZimaOS, ou
-  `journalctl -u verso`.
+  `docker logs universo`, o log do contêiner no CasaOS ou no ZimaOS, ou
+  `journalctl -u universo`.
 
 ## 10. Senha do admin perdida
 
 Quem roda o servidor recupera a conta do admin (0074 item 5):
 
 ```sh
-docker exec verso verso serve admin reset voce@exemplo.com
+docker exec universo universo admin reset voce@exemplo.com
 ```
 
 (O CasaOS e o ZimaOS oferecem um terminal para o contêiner.) Com os
 pacotes:
 
 ```sh
-sudo -u verso -H sh -c 'set -a; . /etc/verso/verso.env; exec verso serve admin reset voce@exemplo.com'
+sudo -u universo -H sh -c 'set -a; . /etc/universo/universo.env; exec universo admin reset voce@exemplo.com'
 ```
 
 Ele imprime um link de uso único, encerra as sessões da conta e registra a
@@ -336,15 +338,32 @@ O servidor nunca se atualiza sozinho (0075 item 7). Ele consulta o feed de
 releases do projeto e diz em Ajustes › Administração quando existe uma versão
 nova; `VERSO_UPDATE_CHECK=off` desliga a consulta. Para atualizar:
 
-- Docker: `docker pull ghcr.io/sergiosjs/verso:<tag>` e recrie o
+- Docker: `docker pull ghcr.io/sergiosjs/universo:<tag>` e recrie o
   contêiner; com compose, `docker compose pull && docker compose up -d`.
   O CasaOS e o ZimaOS têm um botão de atualizar o app.
-- Pacotes: `sudo apt install ./verso-server-<nova>-amd64.deb` ou
-  `sudo dnf install ./verso-server-<nova>-x86_64.rpm`; um serviço em
+- Pacotes: `sudo apt install ./universo-<nova>-amd64.deb` ou
+  `sudo dnf install ./universo-<nova>-x86_64.rpm`; um serviço em
   execução é reiniciado.
-- Arquivo: substitua `bin/verso` e `share/verso/ui` e reinicie.
+- Arquivo: substitua `bin/universo` e `share/universo/ui` e reinicie.
 
 Faça backup dos dois diretórios (seção 2) antes de uma atualização.
+
+**A partir da 0.7.0-beta.1**, a última versão antes de o servidor se
+chamar Universo ([ADR 0078](../adr/0078-universo-the-name-of-verso-as-a-server.md)):
+a imagem `ghcr.io/sergiosjs/verso` e os pacotes `verso-server` param ali.
+Com Docker, aponte o compose ou o `docker run` para
+`ghcr.io/sergiosjs/universo` e mantenha os mesmos dois diretórios em
+`/data` e `/folders`. Com um pacote, instale o `universo` e mova os dados
+antes de iniciá-lo:
+
+```sh
+sudo systemctl disable --now verso
+sudo mv /var/lib/verso/data /var/lib/verso/folders /var/lib/universo/
+sudo chown -R universo:universo /var/lib/universo
+sudo cp /etc/verso/verso.env /etc/universo/universo.env   # depois corrija os caminhos
+sudo apt remove verso-server        # ou: sudo dnf remove verso-server
+sudo systemctl enable --now universo
+```
 
 ## 13. Quem hospeda vê as notas
 

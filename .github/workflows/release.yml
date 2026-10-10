@@ -33,7 +33,8 @@
 # The server (ADR 0075): `verso serve`, static for x64 and ARM64 (ARM64
 # cross-compiled, ADR 0075 item 2), as an archive, a `.deb` and an `.rpm`
 # with a systemd unit, signed like the apps; and an image for amd64 and
-# arm64 on GitHub's registry (ghcr.io/sergiosjs/verso), pushed after the
+# arm64 on GitHub's registry (ghcr.io/sergiosjs/universo; Universo is the
+# server's name, ADR 0078), pushed after the
 # release is published (packaging/server/).
 #
 # Cost: one macOS job, about ten minutes, each billed as ten Linux ones; one
@@ -470,7 +471,7 @@ jobs:
   # pushed by `server-image` once the release is published. The window's
   # files (app/ui/dist) go without their *.map files.
   #
-  # The files are named `verso-server-<version>-<arch>.<ext>`, with no OS
+  # The files are named `universo-<version>-<arch>.<ext>`, with no OS
   # word in the name: the desktop app's updater picks a release file by OS,
   # architecture and extension (app/src-tauri/src/update.rs, pick_asset),
   # and a `linux` in a server .deb's name would let the Linux app take the
@@ -587,33 +588,33 @@ jobs:
             done
             one target/server-pkg/*.deb
             one target/server-pkg/*.rpm
-            cp target/server-pkg/*.deb "verso-server-$VERSION-$goarch.deb"
-            cp target/server-pkg/*.rpm "verso-server-$VERSION-$arch.rpm"
-            dir="verso-server-$VERSION-$arch"
+            cp target/server-pkg/*.deb "universo-$VERSION-$goarch.deb"
+            cp target/server-pkg/*.rpm "universo-$VERSION-$arch.rpm"
+            dir="universo-$VERSION-$arch"
             rm -rf "target/$dir"
-            mkdir -p "target/$dir/bin" "target/$dir/share/verso"
-            cp "$bin" "target/$dir/bin/verso"
-            cp -R target/server-ui "target/$dir/share/verso/ui"
-            cp LICENSE packaging/server/verso.service packaging/server/verso.env "target/$dir/"
+            mkdir -p "target/$dir/bin" "target/$dir/share/universo"
+            cp "$bin" "target/$dir/bin/universo"
+            cp -R target/server-ui "target/$dir/share/universo/ui"
+            cp LICENSE packaging/server/universo.service packaging/server/universo.env "target/$dir/"
             printf '%s\n' \
-              "Verso server $VERSION ($arch, static)." \
+              "Universo $VERSION, the Verso server ($arch, static)." \
               "" \
-              "  bin/verso serve        starts it; settings by environment (verso.env lists them)" \
-              "  share/verso/ui         the window, found by bin/verso with no VERSO_UI_DIR" \
-              "  verso.service          a systemd unit (it expects /usr/bin/verso and /etc/verso/verso.env)" \
+              "  bin/universo           starts it; settings by environment (universo.env lists them)" \
+              "  share/universo/ui      the window, found by bin/universo with no VERSO_UI_DIR" \
+              "  universo.service       a systemd unit (it expects /usr/bin/universo and /etc/universo/universo.env)" \
               "" \
               "Installing, TLS, backups and updates: docs/reference/server-install.md" \
               "in https://github.com/SergioSJS/verso" > "target/$dir/README.txt"
             tar -czf "$dir.tar.gz" -C target "$dir"
           done
           cp -R target/server-ui target/server-image/ui
-          ls -la verso-server-*
+          ls -la universo-*
       - name: sign the release's files
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          for f in ./verso-server-*.tar.gz ./verso-server-*.deb ./verso-server-*.rpm; do
+          for f in ./universo-*.tar.gz ./universo-*.deb ./universo-*.rpm; do
             npm --prefix app/ui exec -- tauri signer sign "$f"
             test -s "$f.sig"
           done
@@ -627,7 +628,7 @@ jobs:
           key="$(sed -n 's/^pub(crate) const UPDATE_PUBLIC_KEY: &str = "\(.*\)";$/\1/p' app/src-tauri/src/update.rs)"
           if [ -z "$key" ]; then echo "::error::UPDATE_PUBLIC_KEY not found in update.rs"; exit 1; fi
           printf '%s' "$key" | base64 -d > "$RUNNER_TEMP/verso.pub"
-          for f in ./verso-server-*.tar.gz ./verso-server-*.deb ./verso-server-*.rpm; do
+          for f in ./universo-*.tar.gz ./universo-*.deb ./universo-*.rpm; do
             base64 -d < "$f.sig" > "$RUNNER_TEMP/file.minisig"
             comment="$(minisign -V -Q -p "$RUNNER_TEMP/verso.pub" -m "$f" -x "$RUNNER_TEMP/file.minisig")"
             case "$comment" in
@@ -641,12 +642,12 @@ jobs:
           name: release-server
           if-no-files-found: error
           path: |
-            ./verso-server-*.tar.gz
-            ./verso-server-*.tar.gz.sig
-            ./verso-server-*.deb
-            ./verso-server-*.deb.sig
-            ./verso-server-*.rpm
-            ./verso-server-*.rpm.sig
+            ./universo-*.tar.gz
+            ./universo-*.tar.gz.sig
+            ./universo-*.deb
+            ./universo-*.deb.sig
+            ./universo-*.rpm
+            ./universo-*.rpm.sig
       # Not `release-*`: the image's context is not a release file.
       - name: keep the image's context for the image job
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -727,7 +728,7 @@ jobs:
       contents: read
       packages: write
     env:
-      IMAGE: ghcr.io/sergiosjs/verso
+      IMAGE: ghcr.io/sergiosjs/universo
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -774,6 +775,6 @@ jobs:
         continue-on-error: true
         uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5
         with:
-          package-name: verso
+          package-name: universo
           package-type: container
           min-versions-to-keep: 15

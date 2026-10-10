@@ -8,7 +8,7 @@ tags:
 
 # Verso num Servidor
 
-O `verso serve` é o Verso sem janela, numa máquina sua — um servidor em casa, um NAS, uma nuvem qualquer. As notas continuam **pastas comuns de arquivos Markdown** no disco dele; você as abre num navegador, no computador, no celular ou no tablet, e várias pessoas podem trabalhar na mesma pasta.
+O **Universo** é o Verso sem janela, numa máquina sua — um servidor em casa, um NAS, uma nuvem qualquer. As notas continuam **pastas comuns de arquivos Markdown** no disco dele; você as abre num navegador, no computador, no celular ou no tablet, e várias pessoas podem trabalhar na mesma pasta.
 
 > [!NOTE] Quem hospeda vê as notas
 > O servidor lê os arquivos para buscar e para editar junto: não há criptografia de ponta a ponta. Quem roda a máquina vê o que está nela, como num Notion seu.
@@ -34,7 +34,7 @@ Entrar pede **HTTPS**: um proxy reverso, o `tailscale serve` (o caminho mais sim
 - O admin vem das variáveis `VERSO_ADMIN_EMAIL` e `VERSO_ADMIN_PASSWORD`, **só na primeira subida**. Sem elas, o log mostra um link de configuração que vale uma hora.
 - **Ninguém se cadastra sozinho**: o admin **convida**, com um link de uso único que vale sete dias, e vê quem o usou.
 - Cada pasta tem um **dono**, **editores** e **leitores**. O admin não entra numa pasta sem dar acesso a si mesmo — e isso fica no registro que o dono lê.
-- Senha esquecida: o admin gera um link de senha nova. Admin perdido: `verso serve admin reset <e-mail>` na própria máquina.
+- Senha esquecida: o admin gera um link de senha nova. Admin perdido: `universo admin reset <e-mail>` na própria máquina.
 - Tudo isso fica em **Ajustes › Administração**, que só o admin vê: o servidor, as pastas, as contas, os convites e o registro.
 
 ---

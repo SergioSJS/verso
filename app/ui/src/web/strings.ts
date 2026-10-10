@@ -9,6 +9,8 @@ export type Lang = "pt" | "en";
 
 const pt = {
   appName: "Verso",
+  serverName: "Universo",
+  serverOf: "um servidor Verso",
   signInTitle: "Entrar",
   signInLead: "Entre com o e-mail e a senha da sua conta neste servidor.",
   email: "E-mail",
@@ -191,6 +193,8 @@ export type WebStrings = typeof pt;
 
 const en: WebStrings = {
   appName: "Verso",
+  serverName: "Universo",
+  serverOf: "a Verso server",
   signInTitle: "Sign in",
   signInLead: "Sign in with the e-mail and password of your account on this server.",
   email: "E-mail",

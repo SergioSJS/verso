@@ -1,6 +1,6 @@
 # The server's threat model (2026-10-09)
 
-What `verso serve` protects, from whom, and how, as built on the branch
+What Universo — `verso serve` — protects, from whom, and how, as built on the branch
 `feat/web` on 2026-10-09. [ADR 0073](../adr/0073-self-hosted-server-first.md)
 item 6 asks for it before the server is announced to anyone but the
 maintainer; [ADR 0074](../adr/0074-accounts-and-access-on-the-server.md)
@@ -63,7 +63,7 @@ decides nothing — where a gap needs a decision it says `[OPEN]`.
 | Cross-site requests | Every request that changes something checks `Origin` against the server's and carries the session's CSRF token; the WebSocket checks `Origin` before it accepts the cookie. |
 | A token leaked from a script | Personal access tokens are scoped to folders and to reading or writing, never more than the member's role; never an admin; prefixed `verso_pat_` for secret scanners; kept as SHA-256; revocable. |
 | The first admin taken by whoever arrives first | No setup page open to anyone: the admin comes from the environment on the first start, or from a single-use setup link valid one hour, printed once in the log — whoever reads the log is whoever runs the server. |
-| A lost admin | `verso serve admin reset <e-mail>` on the machine: access to the machine is the last factor; the reset is in the audit log and ends the account's sessions. |
+| A lost admin | `universo admin reset <e-mail>` (or `verso serve admin reset`) on the machine: access to the machine is the last factor; the reset is in the audit log and ends the account's sessions. |
 | An invitation or a reset link forwarded or guessed | 256 bits, single use, an expiry (7 days, 24 hours), its use recorded (by whom, when), ended by the admin before use; attempts slowed by address. |
 | A device approved by mistake | The approval page shows the device's name and the code the app shows, asks a signed-in person in the browser, and the device's session is listed and revocable. |
 | Passkeys | WebAuthn with user verification required (webauthn-rs); the ceremony's state lives five minutes in memory; counters stored. |

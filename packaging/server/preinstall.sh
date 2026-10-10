@@ -1,17 +1,17 @@
 #!/bin/sh
-# verso-server, before its files are unpacked (.deb preinst, .rpm %pre):
-# the `verso` system user and group, so that /etc/verso/verso.env can be
+# universo, before its files are unpacked (.deb preinst, .rpm %pre):
+# the `verso` system user and group, so that /etc/universo/universo.env can be
 # installed readable by that group (ADR 0075 item 2). Never removed: the
-# data under /var/lib/verso stays owned by them after an uninstall.
+# data under /var/lib/universo stays owned by them after an uninstall.
 set -e
 
-if ! getent group verso >/dev/null 2>&1; then
-  groupadd --system verso
+if ! getent group universo >/dev/null 2>&1; then
+  groupadd --system universo
 fi
-if ! getent passwd verso >/dev/null 2>&1; then
+if ! getent passwd universo >/dev/null 2>&1; then
   nologin=/usr/sbin/nologin
   [ -x "$nologin" ] || nologin=/sbin/nologin
-  useradd --system --gid verso --home-dir /var/lib/verso --no-create-home \
-    --shell "$nologin" --comment "Verso server" verso
+  useradd --system --gid universo --home-dir /var/lib/universo --no-create-home \
+    --shell "$nologin" --comment "Universo, the Verso server" universo
 fi
 exit 0

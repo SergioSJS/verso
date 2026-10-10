@@ -20,11 +20,11 @@
 # dropped by the store's build, but apps in the store still carry it and
 # older CasaOS releases read it for the install form, so it stays.
 
-name: verso
+name: universo
 services:
-  verso:
-    image: ghcr.io/sergiosjs/verso:beta
-    container_name: verso
+  universo:
+    image: ghcr.io/sergiosjs/universo:beta
+    container_name: universo
     restart: unless-stopped
     # The user the server runs as: uid and gid 1000 by default. A NAS whose
     # folders belong to another user names it here (its numbers, from
@@ -38,7 +38,7 @@ services:
       # The accounts, sessions, audit log and indexes. A local disk, never
       # a network share: SQLite can be corrupted on NFS or SMB.
       - type: bind
-        source: /DATA/AppData/verso/data
+        source: /DATA/AppData/universo/data
         target: /data
       # The folders of notes. Pick the path; this one may be on a NAS.
       - type: bind
@@ -61,8 +61,8 @@ services:
       envs:
         - container: VERSO_PUBLIC_URL
           description:
-            en_US: The address people use, with https (for example https://verso.your-tailnet.ts.net). Required.
-            pt_BR: O endereço que as pessoas usam, com https (por exemplo https://verso.sua-tailnet.ts.net). Obrigatório.
+            en_US: The address people use, with https (for example https://universo.your-tailnet.ts.net). Required.
+            pt_BR: O endereço que as pessoas usam, com https (por exemplo https://universo.sua-tailnet.ts.net). Obrigatório.
         - container: VERSO_ADMIN_EMAIL
           description:
             en_US: The first admin's e-mail. Read on the first start only.
@@ -91,11 +91,11 @@ services:
             pt_BR: As pastas de notas. Pode ser um NAS. Faça backup.
 
 x-casaos:
-  id: com.versomd.verso
+  id: com.versomd.universo
   # The key older CasaOS releases read for the app's identity; the v2
   # format uses `id` above. Not checked against the v2 store's validation.
-  store_app_id: verso
-  main: verso
+  store_app_id: universo
+  main: universo
   index: /
   port_map: "7340"
   scheme: http
@@ -111,22 +111,22 @@ x-casaos:
   # Consequences) brings an icon.svg of its own.
   icon: https://raw.githubusercontent.com/SergioSJS/verso/main/app/src-tauri/icons/128x128@2x.png
   title:
-    en_US: Verso
-    pt_BR: Verso
+    en_US: Universo
+    pt_BR: Universo
   tagline:
-    en_US: Markdown notes, Obsidian-compatible, on your own server
-    pt_BR: Notas em Markdown, compatíveis com o Obsidian, no seu próprio servidor
+    en_US: The Verso server: Markdown notes, Obsidian-compatible, on your own server
+    pt_BR: O servidor do Verso: notas em Markdown, compatíveis com o Obsidian, no seu próprio servidor
   description:
     en_US: |
       Verso is a Markdown notes app compatible with Obsidian's folders. This is
-      its self-hosted server: open your folders of notes in a browser, on a
+      its self-hosted server, Universo: open your folders of notes in a browser, on a
       phone or an iPad, and share a folder with other people.
 
       The notes stay plain files in the folders directory. Whoever hosts the
       server can read them: there is no end-to-end encryption.
     pt_BR: |
       O Verso é um app de notas em Markdown compatível com as pastas do
-      Obsidian. Este é o servidor dele, auto-hospedado: abra suas pastas de
+      Obsidian. Este é o servidor dele, auto-hospedado, o Universo: abra suas pastas de
       notas no navegador, no celular ou no iPad, e compartilhe uma pasta com
       outras pessoas.
 
@@ -137,12 +137,12 @@ x-casaos:
       en_US: |
         Fill VERSO_PUBLIC_URL with the https address people will use; the server does not start without it.
         VERSO_ADMIN_EMAIL and VERSO_ADMIN_PASSWORD are read on the first start only; left empty, the container's log prints a one-hour setup link.
-        A lost admin password: run `verso serve admin reset <e-mail>` in the container's terminal.
+        A lost admin password: run `universo admin reset <e-mail>` in the container's terminal.
         Both directories must be writable by uid 1000.
         Back up both directories: the database in /data is not a cache, and the notes are in /folders. Keep /data on a local disk, never on a network share.
       pt_BR: |
         Preencha VERSO_PUBLIC_URL com o endereço https que as pessoas vão usar; o servidor não inicia sem ele.
         VERSO_ADMIN_EMAIL e VERSO_ADMIN_PASSWORD são lidos só na primeira inicialização; vazios, o log do contêiner mostra um link de configuração válido por uma hora.
-        Senha do admin perdida: rode `verso serve admin reset <e-mail>` no terminal do contêiner.
+        Senha do admin perdida: rode `universo admin reset <e-mail>` no terminal do contêiner.
         Os dois diretórios precisam permitir escrita ao uid 1000.
         Faça backup dos dois diretórios: o banco em /data não é cache, e as notas estão em /folders. Mantenha /data num disco local, nunca num compartilhamento de rede.

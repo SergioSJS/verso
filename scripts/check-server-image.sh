@@ -56,7 +56,7 @@ cp "$dir/out/verso" "$ctx/bin/$arch/verso"
 rsync -a --exclude '*.map' app/ui/dist/ "$ctx/ui/"
 
 printf '\n== the image (%s)\n' "$arch"
-docker build -q -f packaging/server/Dockerfile -t verso-server:check "$ctx"
+docker build -q -f packaging/server/Dockerfile -t universo:check "$ctx"
 
 printf '\n== the image running, over its own TLS\n'
 certs="$dir/certs" && rm -rf "$certs" && mkdir -p "$certs"
@@ -65,7 +65,7 @@ openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -days 
   -keyout "$certs/key.pem" -out "$certs/cert.pem" 2>/dev/null
 chmod 644 "$certs"/*.pem
 port="${PORT:-17340}"
-name=verso-server-check
+name=universo-check
 docker rm -f "$name" >/dev/null 2>&1 || true
 trap 'docker rm -f "$name" >/dev/null 2>&1 || true; [ "${KEEP:-}" = 1 ] || docker volume rm verso-musl-target >/dev/null 2>&1 || true' EXIT
 docker run -d --name "$name" -p "127.0.0.1:$port:7340" \
@@ -74,7 +74,7 @@ docker run -d --name "$name" -p "127.0.0.1:$port:7340" \
   -e VERSO_TLS_CERT_FILE=/certs/cert.pem -e VERSO_TLS_KEY_FILE=/certs/key.pem \
   -e VERSO_ADMIN_EMAIL=admin@verso.test -e VERSO_ADMIN_PASSWORD='uma senha bem longa' \
   -e VERSO_UPDATE_CHECK=off \
-  verso-server:check >/dev/null
+  universo:check >/dev/null
 for _ in $(seq 1 30); do
   curl -sk "https://localhost:$port/api/state" >/dev/null 2>&1 && break
   sleep 1
@@ -94,8 +94,8 @@ echo "$made" | grep -q '"role":"owner"' || { echo "no folder made: $made"; docke
 page="$(curl -sk -o /dev/null -w '%{http_code} %{content_type}' "$base/")"
 echo "page: $page"
 case "$page" in 200\ text/html*) ;; *) echo "the window's page is not served"; exit 1 ;; esac
-docker exec "$name" verso serve admin reset admin@verso.test | grep -q "/reset/" || { echo "admin reset failed"; exit 1; }
+docker exec "$name" universo admin reset admin@verso.test | grep -q "/reset/" || { echo "admin reset failed"; exit 1; }
 printf '\n== the log\n'
 docker logs "$name" 2>&1 | tail -8
-docker image ls verso-server:check --format 'image: {{.Repository}}:{{.Tag}} {{.Size}}'
+docker image ls universo:check --format 'image: {{.Repository}}:{{.Tag}} {{.Size}}'
 printf '\nthe server image builds, runs and answers\n'

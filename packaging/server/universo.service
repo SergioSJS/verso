@@ -1,40 +1,40 @@
 # The Verso server as a systemd service (ADR 0075 item 2): installed by the
-# verso-server .deb and .rpm at /usr/lib/systemd/system/verso.service, or
-# copied there from the archive. Its settings are in /etc/verso/verso.env;
+# universo .deb and .rpm at /usr/lib/systemd/system/universo.service, or
+# copied there from the archive. Its settings are in /etc/universo/universo.env;
 # docs/reference/server-install.md explains each one.
 #
-# Not started on install: edit /etc/verso/verso.env first, then
-#   sudo systemctl enable --now verso
+# Not started on install: edit /etc/universo/universo.env first, then
+#   sudo systemctl enable --now universo
 #
-# Changes of your own go in a drop-in (`sudo systemctl edit verso`), which
+# Changes of your own go in a drop-in (`sudo systemctl edit universo`), which
 # an upgrade does not overwrite — for example a folders directory outside
-# /var/lib/verso:
+# /var/lib/universo:
 #   [Service]
 #   ReadWritePaths=/srv/notes
 # (and, on a network mount, RequiresMountsFor=/srv/notes in [Unit]).
 
 [Unit]
-Description=Verso server (verso serve)
+Description=Universo, the Verso server
 Documentation=https://github.com/SergioSJS/verso/blob/main/docs/reference/server-install.md
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=verso
-Group=verso
-EnvironmentFile=/etc/verso/verso.env
-ExecStart=/usr/bin/verso serve --web
+User=universo
+Group=universo
+EnvironmentFile=/etc/universo/universo.env
+ExecStart=/usr/bin/universo --web
 # SIGTERM, systemd's default, stops the server cleanly.
 TimeoutStopSec=30
 Restart=on-failure
 RestartSec=5
 
-# Hardening. The server writes only under /var/lib/verso (the two
-# directories of verso.env); everything else is read-only to it.
+# Hardening. The server writes only under /var/lib/universo (the two
+# directories of universo.env); everything else is read-only to it.
 NoNewPrivileges=yes
 ProtectSystem=strict
-ReadWritePaths=/var/lib/verso
+ReadWritePaths=/var/lib/universo
 # A folders directory under /home needs ProtectHome=no or a ReadWritePaths
 # of its own in a drop-in (above): read-only here.
 ProtectHome=read-only
