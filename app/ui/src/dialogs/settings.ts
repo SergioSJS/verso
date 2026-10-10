@@ -761,6 +761,17 @@ export class SettingsDialog {
     wrap.append(shown, change, reset);
     return wrap;
   }
+  /** On a phone the sections are a row scrolled sideways, and drawing it
+   *  again starts it at the first: the open section's tab is brought into
+   *  view — the row alone scrolls, never the page. */
+  private revealCurrent(): void {
+    const current = this.nav.querySelector<HTMLElement>('[aria-current="true"]');
+    if (!current || this.nav.scrollWidth <= this.nav.clientWidth) return;
+    const row = this.nav.getBoundingClientRect();
+    const tab = current.getBoundingClientRect();
+    if (tab.left < row.left) this.nav.scrollLeft -= row.left - tab.left;
+    else if (tab.right > row.right) this.nav.scrollLeft += tab.right - row.right;
+  }
   paint(): void {
     const q = this.search.value.trim().toLowerCase();
     this.nav.replaceChildren(...this.sections().map((sec) => {
@@ -771,6 +782,7 @@ export class SettingsDialog {
       b.addEventListener("click", () => { this.section = sec.id; this.search.value = ""; this.paint(); });
       return b;
     }));
+    this.revealCurrent();
     const items = this.items().filter((it) => (q ? `${it.group ?? ""} ${it.title} ${it.desc}`.toLowerCase().includes(q) : it.section === this.section));
     const frag = document.createDocumentFragment();
     let lastSection = "";
