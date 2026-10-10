@@ -151,13 +151,31 @@ pub fn reconcile(
     actor: Option<&str>,
     paths: &[String],
 ) -> Result<i64, ContractError> {
-    let fail = |e: String| verso_service::failed(e);
-    let one = Arc::clone(
+    let one = one_at_a_time(server, folder);
+    let _only = lock(&one);
+    reconcile_held(server, folder, key, actor, paths)
+}
+
+/// The folder's lock: one reconciliation at a time, and a device's change
+/// with its own reconciliation as one step, so that another device's
+/// question cannot log the change first without its author.
+fn one_at_a_time(server: &Server, folder: &str) -> Arc<Mutex<()>> {
+    Arc::clone(
         lock(&server.transfers.folders)
             .entry(folder.to_owned())
             .or_default(),
-    );
-    let _only = lock(&one);
+    )
+}
+
+/// [`reconcile`], the folder's lock already held.
+fn reconcile_held(
+    server: &Server,
+    folder: &str,
+    key: &str,
+    actor: Option<&str>,
+    paths: &[String],
+) -> Result<i64, ContractError> {
+    let fail = |e: String| verso_service::failed(e);
     let known = server.db.manifest(folder).map_err(fail)?;
     let files = listed(server, key)?;
     let forced: HashSet<&str> = paths.iter().map(String::as_str).collect();
@@ -332,9 +350,19 @@ pub async fn command(
     let s = Arc::clone(server);
     let c = client.to_owned();
     let actor = who.account.id.clone();
+    // What is said in the server's log when a device's change is refused.
+    let said_as = (
+        cmd.to_owned(),
+        args.get("path")
+            .or_else(|| args.get("from"))
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_owned(),
+        who.account.email.clone(),
+    );
     let cmd = cmd.to_owned();
     let args = args.clone();
-    blocking(move || match cmd.as_str() {
+    let answer = blocking(move || match cmd.as_str() {
         "sync_state" => {
             walk_if_due(&s, &folder, &c);
             let head = reconcile(&s, &folder, &key, None, &[])?;
@@ -362,15 +390,20 @@ pub async fn command(
             let path: String = arg(&args, "path")?;
             let base: String = arg(&args, "base")?;
             let p = path.clone();
-            s.service.with_key(&key, move |ws| {
-                is_now(ws, &p, Some(&base))?;
-                ws.delete_entry(&p)?;
-                // No empty folder left behind on the server either.
-                ws.prune_empty_parents(&p);
-                Ok(())
-            })?;
+            let head = {
+                let one = one_at_a_time(&s, &folder);
+                let _only = lock(&one);
+                s.service.with_key(&key, move |ws| {
+                    is_now(ws, &p, Some(&base))?;
+                    ws.delete_entry(&p)?;
+                    // No empty folder left behind on the server either.
+                    ws.prune_empty_parents(&p);
+                    Ok(())
+                })?;
+                reconcile_held(&s, &folder, &key, Some(&actor), std::slice::from_ref(&path))?
+            };
+            // Outside the folder's lock: a room takes its own lock first.
             told(&s, &key, &[], std::slice::from_ref(&path));
-            let head = reconcile(&s, &folder, &key, Some(&actor), &[path])?;
             Ok(json!({ "head": head }))
         }
         "sync_rename" => {
@@ -378,6 +411,8 @@ pub async fn command(
             let to: String = arg(&args, "to")?;
             let base: String = arg(&args, "base")?;
             let (f, t) = (from.clone(), to.clone());
+            let one = one_at_a_time(&s, &folder);
+            let only = lock(&one);
             s.service.with_key(&key, move |ws| {
                 is_now(ws, &f, Some(&base))?;
                 // Only the case or the accents' form changing: the target
@@ -391,18 +426,33 @@ pub async fn command(
                 ws.prune_empty_parents(&f);
                 Ok(())
             })?;
+            let head =
+                reconcile_held(&s, &folder, &key, Some(&actor), &[from.clone(), to.clone()])?;
+            drop(only);
             told(
                 &s,
                 &key,
                 std::slice::from_ref(&to),
                 std::slice::from_ref(&from),
             );
-            let head = reconcile(&s, &folder, &key, Some(&actor), &[from, to])?;
             Ok(json!({ "head": head }))
         }
         _ => Err(refused("no such command")),
     })
-    .await
+    .await;
+    // Nothing a device was refused goes unsaid on the server: an admin asked
+    // why a file does not arrive finds it here. Another device having
+    // changed the file first is sync's ordinary contention, not said.
+    if let Err(e) = &answer
+        && e.kind != ErrorKind::Changed
+    {
+        let (cmd, path, email) = said_as;
+        crate::log::warn(&format!(
+            "sync: {cmd} of \"{path}\" by {email} refused ({:?}): {}",
+            e.kind, e.message
+        ));
+    }
+    answer
 }
 
 /// A device's change, told to whoever has the folder open as a change from
@@ -587,13 +637,23 @@ fn put(
     }
     crate::quota::check(server, key, &path, size)?;
     let p = path.clone();
-    server.service.with_key(key, move |ws| {
-        let revision = is_now(ws, &p, base.as_deref())?;
-        Ok(ws
-            .write_bytes(&p, &bytes, revision.as_deref())
-            .map(|_| ())?)
-    })?;
+    let head = {
+        let one = one_at_a_time(server, folder);
+        let _only = lock(&one);
+        server.service.with_key(key, move |ws| {
+            let revision = is_now(ws, &p, base.as_deref())?;
+            Ok(ws
+                .write_bytes(&p, &bytes, revision.as_deref())
+                .map(|_| ())?)
+        })?;
+        reconcile_held(
+            server,
+            folder,
+            key,
+            Some(actor),
+            std::slice::from_ref(&path),
+        )?
+    };
     told(server, key, std::slice::from_ref(&path), &[]);
-    let head = reconcile(server, folder, key, Some(actor), &[path])?;
     Ok(json!({ "done": true, "head": head }))
 }
