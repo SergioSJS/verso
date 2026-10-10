@@ -492,8 +492,14 @@ async fn open(
         .ok_or_else(|| verso_service::failed("not a folder name"))?;
     let service = Arc::clone(&server.service);
     let c = client.to_owned();
+    let gate = Arc::clone(
+        lock(&server.opening)
+            .entry(verso_core::folder_key(&path))
+            .or_default(),
+    );
     let info = blocking(move || {
         let key = verso_core::folder_key(&path);
+        let _one = lock(&gate);
         if service.join(&c, &key) {
             return service
                 .current_folder(&c)

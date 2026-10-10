@@ -243,8 +243,10 @@ impl Workspace {
                 }
                 Err(e) => warnings.push(format!("the index could not forget {key}: {e}")),
             }
+            self.refresh(&mut warnings);
+        } else {
+            self.forget_file(&key);
         }
-        self.refresh(&mut warnings);
         Ok(Trashed {
             path: gone.to_string_lossy().into_owned(),
             warnings,

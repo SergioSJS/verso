@@ -379,8 +379,18 @@ pub struct Audit<'a> {
 /// The database, one connection behind a lock: the server writes little,
 /// and each statement is short.
 pub struct Db {
+    /// The one connection that writes.
     conn: Mutex<Connection>,
+    /// Connections that only read (WAL lets them read while the writer
+    /// writes): the questions every device asks often — the change log,
+    /// the manifest, a file as sync knows it — do not wait for another
+    /// folder's write. Empty for a database in memory.
+    readers: Vec<Mutex<Connection>>,
+    next_reader: std::sync::atomic::AtomicUsize,
 }
+
+/// How many reading connections a server keeps.
+const READERS: usize = 4;
 
 type R<T> = Result<T, String>;
 
@@ -391,7 +401,21 @@ fn e(err: rusqlite::Error) -> String {
 impl Db {
     /// Open the database in `dir`, creating it at the first start.
     pub fn open(dir: &Path) -> R<Self> {
-        Self::from(Connection::open(dir.join("server.sqlite")).map_err(e)?)
+        let path = dir.join("server.sqlite");
+        let mut db = Self::from(Connection::open(&path).map_err(e)?)?;
+        for _ in 0..READERS {
+            let reader = Connection::open_with_flags(
+                &path,
+                rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY
+                    | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+            )
+            .map_err(e)?;
+            reader
+                .execute_batch("PRAGMA busy_timeout = 5000; PRAGMA query_only = ON;")
+                .map_err(e)?;
+            db.readers.push(Mutex::new(reader));
+        }
+        Ok(db)
     }
 
     /// A database in memory, for tests.
@@ -400,8 +424,14 @@ impl Db {
     }
 
     fn from(conn: Connection) -> R<Self> {
+        // NORMAL in WAL: a crash or a power cut never corrupts the
+        // database, and may lose the last commits before it — what a
+        // reconciliation finds again on the disk for sync's log, and a
+        // moment of sessions and audit lines; FULL would sync the disk on
+        // every commit, the cost of each device's write (measured, sync
+        // lab, 2026-10-10).
         conn.execute_batch(
-            "PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;",
+            "PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;",
         )
         .map_err(e)?;
         let version: i64 = conn
@@ -432,11 +462,31 @@ impl Db {
         }
         Ok(Self {
             conn: Mutex::new(conn),
+            readers: Vec::new(),
+            next_reader: std::sync::atomic::AtomicUsize::new(0),
         })
     }
 
     fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
         verso_service::lock(&self.conn)
+    }
+
+    /// A connection to read with: a free reader, else the next one in
+    /// turn; the writer when there are none (in memory).
+    fn reader(&self) -> std::sync::MutexGuard<'_, Connection> {
+        if self.readers.is_empty() {
+            return self.conn();
+        }
+        for r in &self.readers {
+            if let Ok(free) = r.try_lock() {
+                return free;
+            }
+        }
+        let at = self
+            .next_reader
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            % self.readers.len();
+        verso_service::lock(&self.readers[at])
     }
 
     /* ---------- accounts ---------- */

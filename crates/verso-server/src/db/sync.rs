@@ -43,7 +43,7 @@ pub struct Change {
 
 impl Db {
     pub fn manifest(&self, folder: &str) -> R<HashMap<String, Known>> {
-        let conn = self.conn();
+        let conn = self.reader();
         let mut st = conn
             .prepare("SELECT path, hash, size, quick, seq FROM manifest WHERE folder = ?1")
             .map_err(e)?;
@@ -67,7 +67,7 @@ impl Db {
 
     /// The last change's number, 0 for none.
     pub fn head(&self, folder: &str) -> R<i64> {
-        self.conn()
+        self.reader()
             .query_row(
                 "SELECT COALESCE(MAX(seq), 0) FROM changes WHERE folder = ?1",
                 [folder],
@@ -139,7 +139,7 @@ impl Db {
 
     /// The changes after `since`, oldest first, at most `limit`.
     pub fn changes_since(&self, folder: &str, since: i64, limit: i64) -> R<Vec<Change>> {
-        let conn = self.conn();
+        let conn = self.reader();
         let mut st = conn
             .prepare(
                 "SELECT seq, path, hash, size, deleted, renamed_from FROM changes
@@ -163,7 +163,7 @@ impl Db {
 
     /// One file as sync last saw it.
     pub fn known(&self, folder: &str, path: &str) -> R<Option<Known>> {
-        self.conn()
+        self.reader()
             .query_row(
                 "SELECT hash, size, quick, seq FROM manifest WHERE folder = ?1 AND path = ?2",
                 params![folder, path],
@@ -185,7 +185,7 @@ impl Db {
     /// size of `path` (or `path.md`) among them; `None` before the folder
     /// was ever reconciled.
     pub fn space(&self, folder: &str, path: &str) -> R<Option<(i64, i64)>> {
-        let conn = self.conn();
+        let conn = self.reader();
         let (count, total): (i64, i64) = conn
             .query_row(
                 "SELECT COUNT(*), COALESCE(SUM(size), 0) FROM manifest WHERE folder = ?1",

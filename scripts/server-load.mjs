@@ -219,7 +219,12 @@ async function main() {
   for (let k = 0; k < browsers.length; k++) tokens.push(await deviceToken(browsers[k], `Carga ${k}`));
   const devices = Array.from({ length: DEVICES }, (_, i) => new Device(i, tokens[i % tokens.length]));
   await Promise.all(devices.map((d) => d.connect()));
-  await Promise.all(devices.map((d) => d.call("open_server_folder", { id: FOLDER })));
+  const opened = await Promise.all(devices.map((d) => d.call("open_server_folder", { id: FOLDER })));
+  const refused = opened.filter((m) => m.err).map((m) => `${m.err.kind}: ${m.err.message}`);
+  if (refused.length) {
+    console.error(`${refused.length} of ${DEVICES} devices could not open the folder: ${[...new Set(refused)].join("; ")}`);
+    process.exit(2);
+  }
   console.log(`${DEVICES} devices in the folder; ${SECONDS} s`);
   const started = performance.now();
   const until = started + SECONDS * 1000;
