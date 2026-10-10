@@ -11,6 +11,9 @@ const NESTED = "Sessao (conflito, Mac, 2026-10-10 15.34) (conflict, VERSO-WIN, 2
 const IMAGE = "Mapa (conflito, Mac, 2026-10-10 15.34).png";
 const BYTES = "dados (conflito, Mac, 2026-10-10 15.34).bin";
 
+/** The texts of the Sync section's top row of buttons. */
+const row = (app) => app.page.locator(".sync-top .sync-buttons button");
+
 async function openSync(app) {
   await app.key("Mod+,");
   await app.page.locator(".settings-nav-item", { hasText: "Sincronizar" }).click();
@@ -61,6 +64,10 @@ test("a folder syncs with a server, says its state, asks before deleting and sho
   await expect(bar).toHaveText("Pausada · 12 a apagar · 4 conflitos");
   await expect(app.page.locator(".sync-sentence")).toHaveText("Parada antes de apagar 12 arquivos.");
   await expect(app.page.getByRole("alert")).toContainText("12 arquivos seriam apagados");
+  // Paused before deleting: the red box decides; the row only compares
+  // again or turns off — no pause or resume beside a pause.
+  await expect(row(app)).toHaveText(["Sincronizar agora", "Desligar…"]);
+  await expect(row(app).first()).not.toHaveClass(/primary/);
   // The conflict is under its note, with who made the copy and when.
   const conflict = app.page.locator(".sync-item", { has: app.page.locator(".sync-item-title", { hasText: /^Sessao\.md$/ }) });
   await expect(conflict).toContainText("Cópia de Mac");
@@ -95,6 +102,25 @@ test("a folder syncs with a server, says its state, asks before deleting and sho
   await app.page.getByRole("alertdialog").getByRole("button", { name: "Apagar os 12" }).click();
   await expect.poll(() => app.calls("folder_sync_confirm").then((c) => c.length)).toBe(1);
   await expect(bar).toHaveText("Sincronizada");
+
+  // Running: sync now is the thing to do, and it may be paused.
+  await expect(row(app)).toHaveText(["Sincronizar agora", "Pausar", "Desligar…"]);
+  await expect(row(app).first()).toHaveClass(/primary/);
+  // Paused by the person: Resume, nothing that would find it paused.
+  await app.page.getByRole("button", { name: "Pausar" }).click();
+  await expect(app.page.locator(".sync-sentence")).toHaveText("Pausada. Nada cruza até você retomar.");
+  await expect(row(app)).toHaveText(["Retomar", "Desligar…"]);
+  await expect(row(app).first()).toHaveClass(/primary/);
+  await app.page.getByRole("button", { name: "Retomar" }).click();
+  await expect(row(app)).toHaveText(["Sincronizar agora", "Pausar", "Desligar…"]);
+  expect((await app.calls("folder_sync_pause")).map((c) => c.paused)).toEqual([true, false]);
+  // Offline: sync now is a try, not the thing to do.
+  const running = await app.page.evaluate(() => window.__harness.core.sync);
+  await app.emit("sync-status", { ...running, state: "offline" });
+  await expect(app.page.locator(".sync-sentence")).toHaveText(/^Sem conexão\./);
+  await expect(row(app).first()).toHaveText("Sincronizar agora");
+  await expect(row(app).first()).not.toHaveClass(/primary/);
+  await app.emit("sync-status", running);
 
   // The bar opens the section; turning sync off asks, then the bar goes.
   await app.key("Escape");
