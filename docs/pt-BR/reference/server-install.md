@@ -65,7 +65,7 @@ A própria documentação do SQLite avisa que os locks dele não são confiávei
 em sistemas de arquivos de rede (NFS, SMB/CIFS, sshfs), onde um banco pode
 ser corrompido. Mantenha `VERSO_DATA_DIR` no disco da própria máquina. Pela
 0075 item 3 o servidor lê o sistema de arquivos sob ele ao iniciar e diz no
-log e em Ajustes › Administração quando é um de rede.
+log e no console de administração (`/admin`) quando é um de rede.
 
 `VERSO_FOLDERS_DIR` pode ser um NAS. Num ponto de montagem de rede nenhum
 evento avisa que outra máquina mudou um arquivo, então o servidor vigia uma
@@ -229,6 +229,7 @@ vazio conta como não definido.
 | `VERSO_UPDATE_TOKEN` | não | um token que lê as releases do projeto, necessário para a checagem enquanto o repositório é privado (um token do GitHub com leitura dele); sem ele o log avisa uma vez |
 | `VERSO_SMTP_URL` | não | o servidor de correio do host (`smtps://usuario:senha@host:465`, ou `smtp://…:587?tls=required`): links de login, "esqueci a senha" e convites enviados por e-mail |
 | `VERSO_MAIL_FROM` | não | o remetente desses e-mails; `Verso <verso@` o host do endereço público `>` por padrão |
+| `VERSO_FOLDER_QUOTA` | não | a cota que uma pasta nova recebe: bytes, ou um tamanho como `500MB` ou `10GB`; nenhuma quando não definida. O console (`/admin`, Pastas) muda a de cada pasta ([ADR 0077](../adr/0077-the-server-administration-console-and-folder-quotas.md)) |
 
 Sem `VERSO_SMTP_URL` nada é enviado: o admin copia os links de convite e de senha nova à mão.
 
@@ -317,7 +318,7 @@ sudo -u universo -H sh -c 'set -a; . /etc/universo/universo.env; exec universo a
 
 Ele imprime um link de uso único, encerra as sessões da conta e registra a
 redefinição no registro de auditoria. A senha de um membro é redefinida
-pelo admin, em Ajustes › Administração.
+pelo admin, no console de administração (`/admin`).
 
 ## 11. O registry enquanto o repositório for privado
 
@@ -335,7 +336,7 @@ configurações dele e passa a ser baixado sem login.
 ## 12. Atualizações
 
 O servidor nunca se atualiza sozinho (0075 item 7). Ele consulta o feed de
-releases do projeto e diz em Ajustes › Administração quando existe uma versão
+releases do projeto e diz no console de administração (`/admin`) quando existe uma versão
 nova; `VERSO_UPDATE_CHECK=off` desliga a consulta. Para atualizar:
 
 - Docker: `docker pull ghcr.io/sergiosjs/universo:<tag>` e recrie o

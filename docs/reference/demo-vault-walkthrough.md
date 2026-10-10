@@ -634,9 +634,10 @@ rest below and in `manual-checks.md`.
    address sends to *Entrar*; a wrong password says *E-mail ou senha
    errados.*; the right one opens the window (e2e-server, "the admin signs
    in").
-2. *Ajustes* › *Administração* › *Pastas* (the address `/admin` opens the
-   window with the settings there): the folder on the disk registered with an
-   owner; *Abrir pasta* lists it; a note made in the browser is there after
+2. The administration console, `/admin` › *Pastas* (Settings › Account ›
+   *Administrar este servidor* leads there): the folder on the disk registered
+   with an owner; its page sets a quota (*Definir*, *Sem limite*), which the
+   log lists (e2e-server, "the administration console"); *Abrir pasta* lists it; a note made in the browser is there after
    a reload (same test).
 3. *Convites*: an invitation for an e-mail, a folder and *leitor*; the link
    in another browser creates the account, opens the folder, and the window

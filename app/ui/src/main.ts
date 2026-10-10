@@ -12,6 +12,7 @@
 // a workspace is a tree of splits; a split holds panes; a pane holds
 // tabs; a tab is a leaf — a note, an image, a text file or a folder.
 
+import { bytes } from "./web/strings";
 import { redo, selectAll, undo } from "@codemirror/commands";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -693,6 +694,16 @@ void listen<[string, string]>("menu-edit", (e) => {
 const TEXT_INPUTS = new Set(["text", "search", "url", "email", "tel", "password", "number"]);
 void listen<FolderChanged>("folder-changed", (e) => void changedOutside(e.payload));
 void listen<IndexProgress>("index-progress", (e) => handleIndexProgress(e.payload));
+// On a server, a folder at 90 % of its quota or more (ADR 0077 item 5):
+// said after a write, at most once every ten minutes.
+let quotaSaid = 0;
+void listen<{ used: number; quota: number }>("folder-quota", (e) => {
+  if (Date.now() - quotaSaid < 600_000) return;
+  quotaSaid = Date.now();
+  const said = t.quotaNear.replace("{used}", bytes(e.payload.used)).replace("{quota}", bytes(e.payload.quota));
+  ui.status.textContent = said;
+  dispatchEvent(new CustomEvent("verso:failed", { detail: said }));
+});
 if (!popout && settings.checkUpdates) {
   setTimeout(() => void updateController.check(true), 2500);
 }

@@ -649,8 +649,10 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
 1. Um servidor subido com `VERSO_ADMIN_EMAIL` e `VERSO_ADMIN_PASSWORD`: o
    endereço leva a *Entrar*; uma senha errada diz *E-mail ou senha
    errados.*; a certa abre a janela (e2e-server, "the admin signs in").
-2. *Ajustes* › *Administração* › *Pastas* (o endereço `/admin` abre a janela
-   com os ajustes ali): a pasta do disco registrada com um dono;
+2. O console de administração, `/admin` › *Pastas* (Ajustes › Conta ›
+   *Administrar este servidor* leva até lá): a pasta do disco registrada com
+   um dono; a página dela define uma cota (*Definir*, *Sem limite*), que o
+   registro lista (e2e-server, "the administration console");
    *Abrir pasta* a lista; uma nota criada no navegador continua lá depois de
    recarregar (o mesmo teste).
 3. *Convites*: um convite para um e-mail, uma pasta e *leitor*; o link em

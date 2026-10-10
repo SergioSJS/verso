@@ -12,6 +12,11 @@ versão de teste.
 
 ## Não lançado
 
+### Acrescentado
+
+- **O console de administração do servidor** ([ADR 0077](adr/0077-the-server-administration-console-and-folder-quotas.md)), em `/admin`, fora de Ajustes: uma visão geral (versão e atualização, armazenamento, e-mail, TLS, totais, o que pede atenção), contas, pastas, convites e o registro como tabelas buscadas, ordenadas e paginadas no servidor, cada conta e pasta com uma página própria, o registro filtrado e exportado como CSV, e a configuração do servidor só para leitura. Ajustes › Conta leva um admin até lá.
+- **Cotas por pasta**: o admin define o tamanho máximo de uma pasta (ou `VERSO_FOLDER_QUOTA` para as novas); uma escrita que passaria dele é recusada e nada é gravado, diminuir a pasta sempre funciona, e a 90 % a janela avisa.
+
 ### Alterado
 
 - **O servidor se chama Universo** ([ADR 0078](adr/0078-universo-the-name-of-verso-as-a-server.md)): a imagem é `ghcr.io/sergiosjs/universo`, os pacotes e arquivos `universo-<versão>-<arq>`, que instalam `/usr/bin/universo`, o serviço e o usuário `universo`, `/etc/universo` e `/var/lib/universo`; o binário `verso` iniciado como `universo` é o `verso serve`, e `universo admin reset <e-mail>` redefine uma senha. Os pacotes de produção do app desktop e o Universo agora se instalam na mesma máquina. A partir da 0.7.0-beta.1: `docs/reference/server-install.md`, seção 12.

@@ -31,16 +31,18 @@ async function signedIn(page, email, password) {
   await expect(page).not.toHaveURL(/signin/);
 }
 
-/** The demo folder registered once, owned by the admin: the
- *  administration is a section of the window's settings. */
+/** The demo folder registered once, owned by the admin, from the
+ *  administration console's folders (ADR 0077). */
 async function demoRegistered(page) {
-  await page.goto("/admin");
-  await expect(page.locator(".settings-body").getByRole("heading", { name: "Administração" })).toBeVisible();
-  const adopt = page.getByRole("button", { name: /^Registrar/ });
-  if (await adopt.isVisible()) {
-    await adopt.click();
-    await expect(adopt).toBeHidden();
-  }
+  await page.goto("/admin/folders");
+  await expect(page.getByRole("heading", { name: "Pastas", level: 1 })).toBeVisible();
+  const adopt = page.getByRole("button", { name: "Registrar: Demo" });
+  const listed = page.locator(".console-table a", { hasText: "Demo" });
+  // Either still on the disk with no owner, or registered already (another
+  // test of the same server).
+  await expect(adopt.or(listed)).toBeVisible();
+  if (await adopt.isVisible()) await adopt.click();
+  await expect(listed).toBeVisible();
 }
 
 async function openDemo(page) {
@@ -94,7 +96,8 @@ test("an invited reader reads and cannot write", async ({ page, browser }) => {
   await signedIn(page, ADMIN.email, ADMIN.password);
   await demoRegistered(page);
   const email = `leitor-${test.info().project.name}@verso.test`;
-  const invite = page.locator(".settings-body");
+  await page.goto("/admin/invitations");
+  const invite = page.locator(".console-content");
   await invite.getByLabel("E-mail (opcional)").fill(email);
   await invite.getByLabel("Pasta (opcional)").selectOption({ label: "Demo" });
   await invite.getByRole("button", { name: "Convidar" }).click();
@@ -113,8 +116,8 @@ test("an invited reader reads and cannot write", async ({ page, browser }) => {
   await openDemo(reader);
   await expect(reader.locator("html")).toHaveAttribute("data-role", "reader");
   // The invitation is used, by whom.
-  await page.goto("/admin");
-  await expect(invite.locator(".web-invitation", { hasText: email })).toContainText("usado");
+  await page.goto("/admin/invitations");
+  await expect(invite.locator(".console-table tr", { hasText: email })).toContainText("usado");
   // Used once: the link is gone.
   const third = await browser.newContext({ locale: "pt-BR" });
   const late = await third.newPage();
@@ -198,4 +201,28 @@ test("signing in follows only this server's own paths", async ({ page }) => {
     await expect(page).not.toHaveURL(/signin/, { timeout: 1500 });
   }).toPass({ timeout: 15000 });
   expect(new URL(page.url()).host).toBe(new URL(test.info().project.use.baseURL ?? page.url()).host);
+});
+
+test("the administration console pages its lists and sets a folder's quota", async ({ page }) => {
+  const errors = watch(page);
+  await signedIn(page, ADMIN.email, ADMIN.password);
+  await demoRegistered(page);
+  await page.goto("/admin/folders");
+  await page.locator(".console-table a", { hasText: "Demo" }).click();
+  await expect(page.getByRole("heading", { name: "Demo", level: 1 })).toBeVisible();
+  await page.getByLabel("Cota").fill("1GB");
+  await page.getByRole("button", { name: "Definir" }).click();
+  await expect(page.getByRole("meter")).toHaveAttribute("aria-label", /de 1 GB/);
+  await page.getByRole("button", { name: "Sem limite" }).click();
+  await expect(page.getByRole("meter")).toHaveCount(0);
+  // The log has it, filtered by action.
+  await page.goto("/admin/audit");
+  await page.getByLabel("Ação", { exact: true }).selectOption("folder_quota");
+  await page.getByRole("button", { name: "Filtrar" }).click();
+  await expect(page.locator(".console-table tbody tr").first()).toContainText("folder_quota");
+  // Settings › Account shows the way here; Settings has no administration.
+  await page.goto("/account");
+  await expect(page.locator(".settings-body a[href='/admin']")).toBeVisible();
+  await expect(page.locator(".settings-nav-item", { hasText: "Administração" })).toHaveCount(0);
+  expect(errors).toEqual([]);
 });

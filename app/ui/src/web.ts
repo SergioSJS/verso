@@ -37,18 +37,29 @@ async function start(): Promise<void> {
     location.href = "/";
     return;
   }
-  // The account and the administration are sections of the window's
-  // settings: their addresses open the window with the settings there.
-  const section = path === "/account" ? "account" : path === "/admin" && s.account.admin ? "admin" : null;
-  // Without the window (`verso serve` without `--web`), the same sections
-  // on a page of their own.
-  if (!s.web) {
-    const { settingsPage } = await import("./web/standalone");
-    settingsPage(s.account, section ?? "account", w().noWeb);
-    if (path !== "/account" && path !== "/admin") history.replaceState(null, "", "/account");
+  // The administration is a console of its own (ADR 0077), served with or
+  // without the window.
+  if (path === "/admin" || path.startsWith("/admin/")) {
+    if (!s.account.admin) {
+      location.href = "/";
+      return;
+    }
+    const { consolePage } = await import("./web/console");
+    consolePage(s.account);
     return;
   }
-  if (path === "/account" || path === "/admin") history.replaceState(null, "", "/");
+  // The account is a section of the window's settings: its address opens
+  // the window with the settings there.
+  const section = path === "/account" ? "account" : null;
+  // Without the window (`verso serve` without `--web`), the account on a
+  // page of its own.
+  if (!s.web) {
+    const { settingsPage } = await import("./web/standalone");
+    settingsPage(s.account, "account", w().noWeb);
+    if (path !== "/account") history.replaceState(null, "", "/account");
+    return;
+  }
+  if (path === "/account") history.replaceState(null, "", "/");
   document.documentElement.dataset.host = "server";
   await pullSettings();
   pushSettings();

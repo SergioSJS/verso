@@ -62,7 +62,7 @@ SQLite's own documentation warns that its locks are unreliable on network
 file systems (NFS, SMB/CIFS, sshfs), where a database can be corrupted. Keep
 `VERSO_DATA_DIR` on the machine's own disk. By 0075 item 3 the server reads
 the file system under it at start and says in its log and in Settings ›
-Administration when it is a network one.
+the administration console (`/admin`) when it is a network one.
 
 `VERSO_FOLDERS_DIR` may be a NAS. On a network mount no event says that
 another machine changed a file, so the server watches such a folder by
@@ -222,6 +222,7 @@ value counts as not set.
 | `VERSO_UPDATE_TOKEN` | no | a token that reads the project's releases, needed for the check while the repository is private (a GitHub token with read access to it); without one the log says so once |
 | `VERSO_SMTP_URL` | no | the host's mail server (`smtps://user:password@host:465`, or `smtp://…:587?tls=required`): sign-in links, "forgot the password" and invitations sent by e-mail |
 | `VERSO_MAIL_FROM` | no | the sender of those e-mails; `Verso <verso@` the public address's host `>` by default |
+| `VERSO_FOLDER_QUOTA` | no | the quota a new folder gets: bytes, or a size such as `500MB` or `10GB`; none when unset. The console (`/admin`, Folders) changes each folder's ([ADR 0077](../adr/0077-the-server-administration-console-and-folder-quotas.md)) |
 
 Without `VERSO_SMTP_URL` nothing is sent: the admin copies the invitation and reset links by hand.
 
@@ -308,7 +309,7 @@ sudo -u universo -H sh -c 'set -a; . /etc/universo/universo.env; exec universo a
 
 It prints a link to use once, ends the account's sessions and records the
 reset in the audit log. A member's password is reset by the admin, in
-Settings › Administration.
+the administration console (`/admin`).
 
 ## 11. The registry while the repository is private
 
@@ -326,7 +327,7 @@ and is pulled with no sign-in.
 ## 12. Updates
 
 The server never updates itself (0075 item 7). It checks the project's
-release feed and says in Settings › Administration when a new version exists;
+release feed and says in the administration console (`/admin`) when a new version exists;
 `VERSO_UPDATE_CHECK=off` stops the check. To update:
 
 - Docker: `docker pull ghcr.io/sergiosjs/universo:<tag>` and recreate the

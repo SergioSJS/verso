@@ -12,6 +12,11 @@ test release.
 
 ## Unreleased
 
+### Added
+
+- **The server's administration console** ([ADR 0077](docs/adr/0077-the-server-administration-console-and-folder-quotas.md)), at `/admin`, out of Settings: an overview (version and update, storage, mail, TLS, totals, what needs a look), accounts, folders, invitations and the audit log as tables searched, sorted and paged on the server, each account and folder with a page of its own, the log filtered and exported as CSV, and the server's configuration read-only. Settings › Account leads an admin there.
+- **Quotas per folder**: the admin sets a folder's largest size (or `VERSO_FOLDER_QUOTA` for new ones); a write that would pass it is refused and nothing is written, making the folder smaller always works, and at 90 % the window warns.
+
 ### Changed
 
 - **The server is named Universo** ([ADR 0078](docs/adr/0078-universo-the-name-of-verso-as-a-server.md)): the image is `ghcr.io/sergiosjs/universo`, the packages and archives `universo-<version>-<arch>`, installing `/usr/bin/universo`, the `universo` service and user, `/etc/universo` and `/var/lib/universo`; the `verso` binary started as `universo` is `verso serve`, and `universo admin reset <e-mail>` resets a password. The desktop app's production packages and Universo now install on the same machine. From 0.7.0-beta.1: `docs/reference/server-install.md`, section 12.

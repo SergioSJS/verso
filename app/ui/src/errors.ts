@@ -22,7 +22,7 @@ export function fail(e: ContractError | unknown): void {
 }
 /** Kinds that answer what the user asked for, not a fault: a name already
  *  taken. The status bar says it; the log keeps ERROR for what went wrong. */
-const ANSWERS = new Set(["exists"]);
+const ANSWERS = new Set(["exists", "quota"]);
 /** A name already taken, said in the status bar as `text`: an answer, so
  *  the log has it as INFO. */
 export function nameTaken(text: string): void {
@@ -38,7 +38,7 @@ export function errorParts(e: ContractError | unknown): { kind: string; message:
 /** An error of the core said in the interface's language. */
 export function errorSentence(e: ContractError | unknown): string {
   const { kind, message } = errorParts(e);
-  const sentence: Record<string, string> = { no_folder: t.errNoFolder, refused: t.errRefused, not_found: t.errNotFound, unavailable: t.errUnavailable, not_text: t.errNotText, not_canvas: boardText.notABoard, changed: t.errChanged, exists: t.exists, failed: t.errFailed };
+  const sentence: Record<string, string> = { no_folder: t.errNoFolder, refused: t.errRefused, not_found: t.errNotFound, unavailable: t.errUnavailable, not_text: t.errNotText, not_canvas: boardText.notABoard, changed: t.errChanged, exists: t.exists, quota: t.errQuota, failed: t.errFailed };
   const said = sentence[kind];
   return said ? `${t.error}: ${said}${message ? ` (${message})` : ""}` : `${t.error}: ${message}`;
 }
