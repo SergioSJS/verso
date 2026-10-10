@@ -39,7 +39,7 @@ ignore = [
   # An "unmaintained" notice (not a vulnerability) through yrs, the Yjs CRDT
   # of simultaneous editing (ADR 0073 item 7, crates/verso-server,
   # 2026-10-09): yrs 0.28, the latest, still uses smallstr. Revisit when yrs
-  # drops it. Awaits the maintainer's ratification, as the seven above had.
+  # drops it. Ratified by the maintainer on 2026-10-10.
   { id = "RUSTSEC-2026-0215", reason = "smallstr: unmaintained, via yrs; https://rustsec.org/advisories/RUSTSEC-2026-0215; expires 2026-12-31" },
 ]
 
@@ -57,8 +57,8 @@ allow = [
   "CC0-1.0",
   # Zero-clause BSD: permission to use for any purpose, no notice required —
   # more permissive than MIT. quoted_printable, through lettre, the e-mail
-  # of the server (ADR 0074 item 2, 2026-10-09). Awaits the maintainer's
-  # ratification.
+  # of the server (ADR 0074 item 2, 2026-10-09). Ratified by the
+  # maintainer on 2026-10-10.
   "0BSD",
   # Apache-2.0 whose only addition removes a GPL-style linking concern;
   # target-lexicon, in the Tauri v2 tree (2026-09-22). Ratified by the

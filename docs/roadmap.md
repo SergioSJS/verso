@@ -299,10 +299,11 @@ release of the server is in "After Phase 2", below.
 
 ### Exit criterion
 
-`[OPEN]`: not set. ADR 0073 asks for security in full before the first
-user who is not the maintainer, and for the threat model before the server
-is announced (item 6); those are conditions on the work, not a verifiable
-exit criterion of the phase.
+Decided by the maintainer on 2026-10-10: the phase ends when no task of
+it is pending and the maintainer declares it ended. ADR 0073's conditions
+on the work stand meanwhile: security in full before the first user who is
+not the maintainer, and the threat model before the server is announced
+(item 6).
 
 ---
 

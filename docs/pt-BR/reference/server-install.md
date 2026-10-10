@@ -86,6 +86,13 @@ servidor não consegue escrever nele:
 sudo install -d -o 1000 -g 1000 /srv/verso/data /srv/verso/folders
 ```
 
+Pastas que já pertencem a outro usuário — um compartilhamento do NAS — não
+precisam mudar de dono: rode o contêiner como esse usuário, com
+`--user 1026:100` (ou `user: "1026:100"` no arquivo compose; os números vêm
+de `id` no host). O servidor só escreve em `/data` e `/folders`, então
+serve qualquer usuário que escreva nos dois (decidido pelo mantenedor em
+2026-10-10).
+
 Depois (enquanto o repositório for privado, entre no registry antes,
 seção 11):
 
