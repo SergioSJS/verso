@@ -10,7 +10,7 @@
 // person signed in, starts the window over the bridge (`web/bridge.ts`).
 
 import { state } from "./web/api";
-import { startBridge } from "./web/bridge";
+import { currentFolderId, startBridge } from "./web/bridge";
 import { pullSettings, pushSettings } from "./web/settingsSync";
 import { notice } from "./web/notice";
 import { chooseFolder, devicePage, invitePage, resetPage, setupPage, signInLinkPage, signInPage } from "./web/pages";
@@ -68,10 +68,25 @@ async function start(): Promise<void> {
   // refusal changes nothing today, when nothing is kept offline.
   void navigator.storage?.persist?.().catch(() => false);
   startBridge(chooseFolder);
+  // "You only read this folder" is said of a folder on screen: when one
+  // is shown with the reader's role, or the role of the one shown becomes
+  // the reader's — never over the start page, before a folder is there.
+  let role: string | null = null;
+  let shown = false;
+  const sayReader = () => {
+    if (shown && role === "reader" && currentFolderId()) notice(w().readOnlyBanner);
+  };
   addEventListener("verso:role", (e) => {
-    const role = (e as CustomEvent<string | null>).detail;
+    const next = currentFolderId() ? (e as CustomEvent<string | null>).detail : null;
+    const changed = next !== role;
+    role = next;
+    if (!next) shown = false;
     document.documentElement.dataset.role = role ?? "";
-    if (role === "reader") notice(w().readOnlyBanner);
+    if (changed) sayReader();
+  });
+  addEventListener("verso:folder-shown", () => {
+    shown = true;
+    sayReader();
   });
   const window_ = await import("./main");
   if (section) {

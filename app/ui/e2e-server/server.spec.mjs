@@ -72,6 +72,8 @@ test("the admin signs in, registers a folder and works in it", async ({ page }) 
   await demoRegistered(page);
   await openDemo(page);
   await expect(page.locator("#folder")).toHaveText("Demo");
+  // The owner writes: no reader's line.
+  await expect(page.locator(".read-only-line")).toBeHidden();
   // A reload comes back to the same folder.
   await page.reload();
   await expect(page.locator("#folder")).toHaveText("Demo");
@@ -113,8 +115,16 @@ test("an invited reader reads and cannot write", async ({ page, browser }) => {
   await reader.getByLabel("Senha nova").fill("a senha do leitor");
   await reader.getByRole("button", { name: "Criar conta" }).click();
   await expect(reader).not.toHaveURL(/invite/);
+  // No folder yet: the start page says to choose one of the server's
+  // folders, not the desktop's keys, and no role is said.
+  await expect(reader.locator(".web-notice", { hasText: "Você só lê" })).toHaveCount(0);
+  await expect(reader.locator(".read-only-line")).toBeHidden();
+  await expect(reader.locator("html")).not.toHaveAttribute("data-role", "reader");
   await openDemo(reader);
   await expect(reader.locator("html")).toHaveAttribute("data-role", "reader");
+  // With the folder on screen, the reader is told once.
+  await expect(reader.locator(".web-notice")).toHaveText("Você só lê esta pasta.");
+  await expect(reader.locator(".read-only-line")).toBeVisible();
   // The invitation is used, by whom.
   await page.goto("/admin/invitations");
   await expect(invite.locator(".console-table tr", { hasText: email })).toContainText("usado");
