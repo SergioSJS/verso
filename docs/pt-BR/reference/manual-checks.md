@@ -123,6 +123,14 @@ testes de ponta a ponta cobrem o resto.
   as variáveis do admin preenchidas, as pastas no NAS.
 - [ ] **Um `.deb` numa máquina pequena sem Docker**: instalado, o arquivo
   de ambiente editado, `systemctl enable --now verso`.
+- [ ] **A conta e a administração em Ajustes**, no navegador do Mac e do
+  iPhone: o botão da pessoa ao lado da engrenagem abre *Ajustes* › *Conta*;
+  um admin também tem *Administração*; no celular, *Ajustes* e *Conta* no pé
+  da gaveta lateral; o cartão de entrar nos dois temas.
+- [ ] **Um botão da faixa oculto e trazido de volta** no app instalado:
+  botão direito › *Ocultar este botão*, a barra de status diz onde;
+  *Ajustes* › *Aparência* › o switch dele o traz de volta; a engrenagem não
+  tem *Ocultar*.
 
 ### A janela em toda tela (ADR 0076)
 
