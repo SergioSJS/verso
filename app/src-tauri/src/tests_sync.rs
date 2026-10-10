@@ -650,6 +650,41 @@ fn a_respelling_there_and_an_edit_here_are_both_kept() {
     assert_eq!(text(&b, "bem-vindo.md").as_deref(), Some("# v2\n"));
 }
 
+/// A file gone between the listing and its read (F22): not "failed", and
+/// not a deletion on that pass — the next pass sees it as it is.
+#[test]
+fn a_file_gone_while_the_pass_lists_it_is_read_again_not_failed() {
+    let (_r, a, b) = two_in_step();
+    // Made by another program and listed; dropped, the file goes from the
+    // disk while the listing still has it.
+    let mut outside = tempfile::Builder::new()
+        .prefix("Fugaz.md")
+        .rand_bytes(0)
+        .tempfile_in(a._dirs.1.path())
+        .unwrap();
+    outside.write_all(b"# Fugaz\n").unwrap();
+    changed(&a, &["Fugaz.md"]);
+    sync(&a);
+    changed(&b, &[]);
+    sync(&b);
+    assert_eq!(text(&b, "Fugaz.md").as_deref(), Some("# Fugaz\n"));
+    drop(outside);
+    a.s.touched(["Fugaz.md".to_owned()]);
+    sync(&a);
+    let status = lock(&a.shown).last().cloned().unwrap();
+    assert!(
+        !status.refused.iter().any(|f| f.reason == "failed"),
+        "{status:?}"
+    );
+    // The listing catches up: the deletion crosses.
+    changed(&a, &["Fugaz.md"]);
+    sync(&a);
+    changed(&b, &[]);
+    sync(&b);
+    assert_eq!(text(&b, "Fugaz.md"), None);
+    quiet(&a, &b);
+}
+
 /// A folder moved on one device: on the other, its notes arrive at the new
 /// place and the old folders, emptied, go too — nothing empty is left
 /// behind (found with two installed apps, 2026-10-10).
