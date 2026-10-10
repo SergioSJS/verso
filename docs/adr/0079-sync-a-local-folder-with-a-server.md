@@ -42,7 +42,7 @@ sync, at a mass deletion, under a quota.
 
 ## Decision
 
-Proposed.
+Accepted (2026-10-10, Status).
 
 1. **A local folder syncs with one folder on one server.** In the desktop
    app, a folder's settings offer "Sync with a server": the person picks a
@@ -107,9 +107,11 @@ Proposed.
     with different hashes it is a conflict (item 8). The space is shown
     before it starts (0075 item 5), and it can be cancelled.
 12. **Limits**: the server's quota (0077) applies — a file refused is
-    listed and the rest syncs; a file larger than the server's message
-    limit is listed and not synced. `[OPEN]`: files larger than that, in
-    pieces. Recommended: later, when a folder needs it.
+    listed and the rest syncs. A file larger than the server's message limit
+    is sent and fetched **in pieces** (decided on 2026-10-10, Status): each
+    piece under the limit, the file written only when every piece has
+    arrived and its hash matches, so a broken transfer leaves nothing
+    half-written.
 13. **What a person sees**: the folder's sync state in the status bar —
     synced, sending or receiving *n*, offline, paused, *n* conflicts,
     errors — and in the folder's settings a log of what crossed, pause and
@@ -146,5 +148,9 @@ Proposed.
 
 ## Status
 
-Proposed. `[OPEN]`: which side keeps the name in a conflict (item 8);
-files larger than the server's message limit (item 12).
+**Accepted on 2026-10-10** by the maintainer, in session: *"com exceção do 6, pode seguir o recomendado, o 6 pode já implementar"*. Item
+8: the server's version keeps the name, the local one is the copy, as
+recommended. Item 12, **not** as recommended: files larger than the
+server's message limit are sent and fetched **in pieces now**, in this
+round, so that no file is left out for its size. To be read by Fable 5.1
+with the round's code.

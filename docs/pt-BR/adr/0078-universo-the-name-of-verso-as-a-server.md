@@ -31,7 +31,7 @@ os aparelhos de uma pessoa se encontram.
 
 ## Decisão
 
-Proposta.
+Aceita (2026-10-10, Status).
 
 1. **Universo é o nome do Verso como servidor.** O app continua Verso; o
    servidor auto-hospedado — hoje o `verso serve`, amanhã o centro por onde
@@ -90,6 +90,7 @@ Proposta.
 
 ## Status
 
-Proposta. `[ABERTO]`: renomear as variáveis (item 4, recomendado não);
-o nome de Ajustes › Servidores no app desktop (item 5, recomendado manter
-"Servidores").
+**Aceita em 2026-10-10** pelo mantenedor, com todas as recomendações, em
+sessão: *"com exceção do 6, pode seguir o recomendado, o 6 pode já implementar"*. Item 4: as variáveis continuam `VERSO_*`. Item 5:
+Ajustes › Servidores mantém o nome, com Universo na descrição. A ser lida
+por Fable 5.1 com o código da rodada.
