@@ -138,10 +138,11 @@ export class SettingsDialog {
     if (control) {
       // The control is named by the item's title and described by its line
       // (a hotkey row names its own buttons).
-      const field = control.matches("input, select") ? control : control.querySelector<HTMLElement>("input, select");
+      const field = control.matches("input, select, textarea") ? control : control.querySelector<HTMLElement>("input, select, textarea");
       // A control that names itself (one of several in the row) keeps it.
       if (title && !field?.hasAttribute("aria-label")) field?.setAttribute("aria-labelledby", titleEl.id);
-      if (field && desc) field.setAttribute("aria-describedby", descEl.id);
+      // A control with a note of its own is described by both.
+      if (field && desc) field.setAttribute("aria-describedby", [descEl.id, field.getAttribute("aria-describedby")].filter(Boolean).join(" "));
       row.append(control);
     }
     return row;
@@ -349,7 +350,14 @@ export class SettingsDialog {
         allowEmbedOrigins(settings.embedOrigins);
         void pushEmbedOrigins();
       });
-      return box;
+      // The long part — how to write a line, and what * lets in — under
+      // the box as a note, not squeezed into the column beside it.
+      const wrap = h("div", "setting-block");
+      const note = h("p", "setting-note", t.embedAllowedNote);
+      note.id = `embed-allowed-note-${++this.ids}`;
+      box.setAttribute("aria-describedby", note.id);
+      wrap.append(box, note);
+      return wrap;
     });
     // The space the open folder takes (ADR 0075 item 4), from the walk the
     // index already made.
@@ -514,14 +522,17 @@ export class SettingsDialog {
     }));
     add("editor", t.defaultMode, t.defaultModeDesc, () => this.select([["preview", t.reading], ["live", t.edit]], settings.defaultMode, (v) => { settings.defaultMode = v; saveSettings(); }));
     add("editor", t.spellcheck, t.spellcheckDesc, () => this.toggle(settings.spellcheck, (v) => { settings.spellcheck = v; saveSettings(); }));
+    add("editor", t.blocks.handles, t.blocks.handlesDesc, () => this.toggle(settings.blockHandles, (v) => { settings.blockHandles = v; saveSettings(); }));
+    add("editor", t.blocks.enterNewBlock, t.blocks.enterNewBlockDesc, () => this.toggle(settings.enterNewBlock, (v) => { settings.enterNewBlock = v; saveSettings(); }));
     // Sub-division for Line Numbers, in the exact order of the mode buttons on screen:
     // 1. Reading mode (Leitura)
     // 2. Edit mode (Editar)
     // 3. Source mode (Fonte)
+    // The three together and last of the section, under one heading: an
+    // item between them drew the heading twice, and an item after them
+    // would read as one of them.
     add("editor", t.lineNumbersPreview, t.lineNumbersPreviewDesc, () => this.toggle(settings.lineNumbersPreview, (v) => { settings.lineNumbersPreview = v; saveSettings(); }), t.lineNumbers);
     add("editor", t.lineNumbersEdit, t.lineNumbersEditDesc, () => this.toggle(settings.lineNumbersEdit, (v) => { settings.lineNumbersEdit = v; saveSettings(); }), t.lineNumbers);
-    add("editor", t.blocks.handles, t.blocks.handlesDesc, () => this.toggle(settings.blockHandles, (v) => { settings.blockHandles = v; saveSettings(); }));
-    add("editor", t.blocks.enterNewBlock, t.blocks.enterNewBlockDesc, () => this.toggle(settings.enterNewBlock, (v) => { settings.enterNewBlock = v; saveSettings(); }));
     add("editor", t.lineNumbersSource, t.lineNumbersSourceDesc, () => this.toggle(settings.lineNumbersSource, (v) => { settings.lineNumbersSource = v; saveSettings(); }), t.lineNumbers);
     add("files", t.linkFormat, t.linkFormatDesc, () => this.select([["shortest", t.linkShortest], ["relative", t.linkRelative], ["root", t.linkRoot]], settings.linkFormat, (v) => { settings.linkFormat = v; saveSettings(); }));
     add("files", t.attachments, t.attachmentsDesc, () => this.text(settings.attachments, (v) => { settings.attachments = v; saveSettings(); }));

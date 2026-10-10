@@ -16,6 +16,36 @@ test("the settings have the sections the tutorial names", async ({ app }) => {
   }
 });
 
+// The Editor's line numbers under one heading, the three together (the
+// source mode's toggle came later and drew the heading a second time);
+// the allowed sites' long explanation under the box, not beside it.
+test("each settings group has one heading, and a long note goes under its control", async ({ app }) => {
+  await app.open();
+  await app.key("Mod+,");
+  await app.page.locator(".settings-nav-item", { hasText: "Editor" }).click();
+  const heading = app.page.locator(".settings-body .settings-subheading", { hasText: "Números de linha" });
+  await expect(heading).toHaveCount(1);
+  const after = await heading.evaluate((h) => {
+    const out = [];
+    for (let n = h.nextElementSibling; n && n.classList.contains("setting"); n = n.nextElementSibling) out.push(n.querySelector(".setting-title")?.textContent ?? "");
+    return out;
+  });
+  expect(after).toHaveLength(3);
+  await app.page.locator(".settings-nav-item", { hasText: "Geral" }).click();
+  const sites = app.page.getByLabel("Sites permitidos nas notas");
+  await expect(sites).toBeVisible();
+  const row = app.page.locator(".setting", { has: sites });
+  await expect(row.locator(".setting-desc")).not.toContainText("*");
+  const note = row.locator(".setting-note");
+  await expect(note).toContainText("*");
+  // Under the box, as wide as the row, not in the column beside it.
+  const [box, said] = await Promise.all([sites.boundingBox(), note.boundingBox()]);
+  expect(said.y).toBeGreaterThan(box.y + box.height - 1);
+  expect(said.width).toBeGreaterThan(box.width * 0.5);
+  await app.page.locator(".settings-nav-item", { hasText: "Organização" }).click();
+  await expect(app.page.getByText("Manter os focos iguais aos do make.md", { exact: true })).toBeVisible();
+});
+
 test("the bug report opens with no error of the session", async ({ app }) => {
   await app.open();
   await app.page.locator("#report-bug").click();
