@@ -109,7 +109,7 @@ fn first_admin(config: &Config, db: &Db) -> Result<(), String> {
         }
         (Some(_), _) => {
             log::info(
-                "VERSO_ADMIN_EMAIL and VERSO_ADMIN_PASSWORD are ignored: the server has accounts (a lost password: `verso serve admin reset <e-mail>`)",
+                "VERSO_ADMIN_EMAIL and VERSO_ADMIN_PASSWORD are ignored: the server has accounts (a lost password: `universo admin reset <e-mail>`, or `verso serve admin reset`)",
             );
         }
         (None, 0) => {
@@ -220,7 +220,7 @@ where
         ));
     }
     log::info(&format!(
-        "verso serve {} (contract {}) on {listen}, folders in {}",
+        "Universo {} (verso serve; contract {}) on {listen}, folders in {}",
         env!("CARGO_PKG_VERSION"),
         server.contract,
         server.config.folders_dir.display()

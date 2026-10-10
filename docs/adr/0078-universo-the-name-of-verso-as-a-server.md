@@ -44,8 +44,8 @@ Accepted (2026-10-10, Status).
    does; `universo --web`, `universo --help`, `universo --version` as
    expected. `verso serve` keeps working, unchanged.
 3. **The server's artifacts carry the name**:
-   - packages `universo_<version>_<arch>.deb` and
-     `universo-<version>.<arch>.rpm`, installing the binary as
+   - packages `universo-<version>-<arch>.deb` and
+     `universo-<version>-<arch>.rpm` (the release's own naming), installing the binary as
      `/usr/bin/universo`, the unit `universo.service`, the environment
      file `/etc/universo/universo.env`, the user `universo`, the data in
      `/var/lib/universo` — no path the desktop app's package installs;

@@ -1,4 +1,5 @@
-# The Verso server's image (ADR 0075 item 2): `verso serve`, nothing else.
+# Universo's image, the Verso server (ADR 0075 item 2, ADR 0078): the
+# binary started as `universo` — `verso serve` — nothing else.
 #
 # Nothing is compiled here. The release workflow (.github/workflows/release.yml,
 # jobs `server` and `server-image`) builds the static `verso` binary for each
@@ -27,10 +28,10 @@
 # Runs on the build machine's platform: the user's lines and the two
 # directories, made where a RUN needs no emulator, then copied.
 FROM --platform=$BUILDPLATFORM alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6 AS prep
-RUN mkdir -p /out/etc /out/data /out/folders /out/home/verso \
+RUN mkdir -p /out/etc /out/data /out/folders /out/home/universo \
  && cp /etc/passwd /etc/group /out/etc/ \
- && echo 'verso:x:1000:1000:Verso:/home/verso:/sbin/nologin' >> /out/etc/passwd \
- && echo 'verso:x:1000:' >> /out/etc/group
+ && echo 'universo:x:1000:1000:Universo:/home/universo:/sbin/nologin' >> /out/etc/passwd \
+ && echo 'universo:x:1000:' >> /out/etc/group
 
 FROM alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
 
@@ -38,23 +39,23 @@ FROM alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4c
 ARG TARGETARCH
 
 LABEL org.opencontainers.image.title="Verso server" \
-      org.opencontainers.image.description="verso serve: the Verso core without a window, served to a browser (self-hosted)" \
+      org.opencontainers.image.description="Universo: the Verso server — the Verso core without a window, served to a browser (self-hosted)" \
       org.opencontainers.image.source="https://github.com/SergioSJS/verso" \
       org.opencontainers.image.url="https://versomd.com" \
       org.opencontainers.image.licenses="MPL-2.0" \
       org.opencontainers.image.vendor="Verso"
 
 # Same base version in both stages, so these are Alpine's own lines plus
-# the verso user's.
+# the universo user's.
 COPY --from=prep /out/etc/passwd /out/etc/group /etc/
-COPY --from=prep --chown=1000:1000 /out/home/verso /home/verso
+COPY --from=prep --chown=1000:1000 /out/home/universo /home/universo
 COPY --from=prep --chown=1000:1000 /out/data /data
 COPY --from=prep --chown=1000:1000 /out/folders /folders
 
 # The window's files first: the same bytes for both architectures, so the
 # registry stores that layer once (the free quota is 500 MB, ADR 0075).
-COPY ui/ /usr/share/verso/ui/
-COPY --chmod=0755 bin/${TARGETARCH}/verso /usr/bin/verso
+COPY ui/ /usr/share/universo/ui/
+COPY --chmod=0755 bin/${TARGETARCH}/verso /usr/bin/universo
 
 # The two directories of ADR 0075 item 3. /data: the accounts, sessions,
 # audit log and indexes, on a local disk (SQLite is not safe on NFS or
@@ -67,20 +68,20 @@ VOLUME ["/data", "/folders"]
 # to start without it, by design (ADR 0073 item 6). The host sets it.
 ENV VERSO_DATA_DIR=/data \
     VERSO_FOLDERS_DIR=/folders \
-    VERSO_UI_DIR=/usr/share/verso/ui \
+    VERSO_UI_DIR=/usr/share/universo/ui \
     VERSO_LISTEN=0.0.0.0:7340 \
-    HOME=/home/verso
+    HOME=/home/universo
 
 EXPOSE 7340
 
 # Never root (ADR 0075 item 2).
 USER 1000:1000
-WORKDIR /home/verso
+WORKDIR /home/universo
 
 # No HEALTHCHECK: the address it would ask depends on VERSO_LISTEN and on
 # TLS (VERSO_TLS_CERT_FILE), which only the host knows. A host that wants
 # one can use the base's busybox `wget` against its own address.
 
 # SIGTERM (docker stop) ends the server cleanly. `docker exec <container>
-# verso serve admin reset <e-mail>` prints a reset link (ADR 0074 item 5).
-ENTRYPOINT ["verso", "serve", "--web"]
+# universo admin reset <e-mail>` prints a reset link (ADR 0074 item 5).
+ENTRYPOINT ["universo", "--web"]

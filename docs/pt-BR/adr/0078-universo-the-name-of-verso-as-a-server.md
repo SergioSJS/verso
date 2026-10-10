@@ -43,8 +43,9 @@ Aceita (2026-10-10, Status).
    `universo --web`, `universo --help`, `universo --version` como se espera.
    O `verso serve` continua funcionando, sem mudança.
 3. **Os artefatos do servidor levam o nome**:
-   - os pacotes `universo_<versão>_<arq>.deb` e
-     `universo-<versão>.<arq>.rpm`, que instalam o binário como
+   - os pacotes `universo-<versão>-<arq>.deb` e
+     `universo-<versão>-<arq>.rpm` (o padrão de nomes da release), que
+     instalam o binário como
      `/usr/bin/universo`, a unidade `universo.service`, o arquivo de
      ambiente `/etc/universo/universo.env`, o usuário `universo`, os dados
      em `/var/lib/universo` — nenhum caminho que o pacote do app desktop

@@ -12,7 +12,9 @@ test release.
 
 ## Unreleased
 
-Nothing yet.
+### Changed
+
+- **The server is named Universo** ([ADR 0078](docs/adr/0078-universo-the-name-of-verso-as-a-server.md)): the image is `ghcr.io/sergiosjs/universo`, the packages and archives `universo-<version>-<arch>`, installing `/usr/bin/universo`, the `universo` service and user, `/etc/universo` and `/var/lib/universo`; the `verso` binary started as `universo` is `verso serve`, and `universo admin reset <e-mail>` resets a password. The desktop app's production packages and Universo now install on the same machine. From 0.7.0-beta.1: `docs/reference/server-install.md`, section 12.
 
 ## 0.7.0-beta.1 — 2026-10-10
 
