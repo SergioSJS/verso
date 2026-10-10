@@ -765,3 +765,50 @@ fn a_name_not_every_system_keeps_is_said_here_not_sent() {
         "{status:?}"
     );
 }
+
+/// A file of the base whose name a folder now holds is gone here, never
+/// read as a file and listed as failed: the unit of sync is a file (ADR
+/// 0079 item 2; the server's side of it found 2026-10-10).
+#[test]
+fn a_folder_where_a_file_was_is_that_file_gone_not_failed() {
+    let r = serve(&[]);
+    let a = device(
+        &r,
+        &r.owner,
+        &[
+            ("Anexos", "anexos\n"),
+            ("Um.md", "# Um\n"),
+            ("Dois.md", "# Dois\n"),
+            ("Tres.md", "# Tres\n"),
+            ("Quatro.md", "# Quatro\n"),
+        ],
+    );
+    sync(&a);
+    let b = device(&r, &r.owner, &[]);
+    sync(&b);
+    assert_eq!(text(&b, "Anexos").as_deref(), Some("anexos\n"));
+    a.ctx
+        .service
+        .with_key(&a.key, |ws| {
+            ws.delete_entry("Anexos")?;
+            ws.create_folder("Anexos")?;
+            Ok(())
+        })
+        .unwrap();
+    write(&a, "Anexos/mapa.md", b"# Mapa\n");
+    changed(&a, &["Anexos", "Anexos/mapa.md"]);
+    sync(&a);
+    let status = lock(&a.shown).last().cloned().unwrap();
+    assert!(
+        !status.refused.iter().any(|f| f.reason == "failed"),
+        "{status:?}"
+    );
+    // The file's deletion and the new note both cross.
+    for _ in 0..2 {
+        changed(&a, &[]);
+        sync(&a);
+        changed(&b, &[]);
+        sync(&b);
+    }
+    assert_eq!(text(&b, "Anexos/mapa.md").as_deref(), Some("# Mapa\n"));
+}

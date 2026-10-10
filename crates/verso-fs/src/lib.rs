@@ -353,6 +353,16 @@ impl Root {
         Ok((meta.len(), meta.modified().ok()))
     }
 
+    /// Whether `handle` names a directory, a symlink followed as
+    /// [`Root::read`] follows it: a caller whose unit is a file asks before
+    /// reading a path it was only told changed. `false` for a file, for
+    /// nothing there, and for what cannot be asked about.
+    #[must_use]
+    pub fn is_dir(&self, handle: Handle) -> bool {
+        self.path_of(handle)
+            .is_some_and(|path| std::fs::metadata(path).is_ok_and(|m| m.is_dir()))
+    }
+
     /// Read a file's content and its [`Stamp`]. A placeholder — a dataless
     /// file, a `.Name.ext.icloud` entry, or `Name.ext` whose `.icloud`
     /// sibling stands in for it — is [`ReadError::Unavailable`] and is never

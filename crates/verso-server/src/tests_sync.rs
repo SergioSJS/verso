@@ -391,3 +391,52 @@ fn a_write_through_another_spelling_keeps_one_entry_in_the_log() {
         );
     });
 }
+
+/// The unit of sync is a file (ADR 0079 item 2): a folder the window makes
+/// — as the window in a browser and the demo's import do, the folder
+/// first, then the files in it — is never read as a file nor said as one
+/// kept as it was, and the folder's log holds the file in it, never the
+/// folder (found 2026-10-10: a WARN "Is a directory" per new folder).
+#[test]
+fn a_folder_made_in_the_window_is_no_entry_of_the_log() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let mut ws = opened(&r, &admin).await;
+        call(&mut ws, 2, "sync_state", json!({})).await;
+        for (n, path) in [(3, "Pasta-de-anexos"), (4, "Pasta-de-anexos-vazia")] {
+            let made = call(&mut ws, n, "create_folder", json!({ "path": path })).await;
+            assert!(made.get("ok").is_some(), "{made}");
+        }
+        let file = call(
+            &mut ws,
+            5,
+            "create_file",
+            json!({ "path": "Pasta-de-anexos/mapa.png", "base64": b64(b"png") }),
+        )
+        .await;
+        assert_eq!(file["ok"], "Pasta-de-anexos/mapa.png", "{file}");
+        // The folder named again: a folder is the path the write names.
+        let renamed = call(
+            &mut ws,
+            6,
+            "rename_entry",
+            json!({ "from": "Pasta-de-anexos", "to": "Pasta-de-anexos-2" }),
+        )
+        .await;
+        assert!(renamed.get("ok").is_some(), "{renamed}");
+        // And the whole folder walked again.
+        call(&mut ws, 7, "reindex", json!({})).await;
+        let state = call(&mut ws, 8, "sync_state", json!({})).await;
+        let ours: Vec<&str> = state["ok"]["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|f| f["path"].as_str())
+            .filter(|p| p.starts_with("Pasta-de-anexos"))
+            .collect();
+        assert_eq!(ours, vec!["Pasta-de-anexos-2/mapa.png"], "{state}");
+        let said = crate::log::said("Pasta-de-anexos");
+        assert!(said.is_empty(), "{said:?}");
+    });
+}

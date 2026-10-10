@@ -391,13 +391,17 @@ fn here(
         .filter(|p| !(engine::FOLDS_NAMES && listed_folded.contains(&engine::folded(p))))
         .cloned()
         .collect();
+    // A folder where a file of the base was is not that file: the unit of
+    // sync is a file (ADR 0079 item 2), so it is gone, never read as one.
     for path in unlisted {
         let p = path.clone();
-        match ctx
-            .service
-            .with_key(&s.key, move |ws| Ok(ws.read_with_revision(&p)?.0))
-        {
-            Ok(bytes) => {
+        match ctx.service.with_key(&s.key, move |ws| {
+            if ws.is_folder(&p) {
+                return Ok(None);
+            }
+            Ok(Some(ws.read_with_revision(&p)?.0))
+        }) {
+            Ok(Some(bytes)) => {
                 files.insert(
                     path,
                     FileState {
@@ -406,6 +410,7 @@ fn here(
                     },
                 );
             }
+            Ok(None) => {}
             Err(e) if e.kind == ErrorKind::NotFound => {}
             Err(e) if e.kind == ErrorKind::Unavailable => held(
                 &path,
