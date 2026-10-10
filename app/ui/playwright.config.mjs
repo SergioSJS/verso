@@ -37,6 +37,26 @@ export default defineConfig({
       name: "chromium",
       use: { ...devices["Desktop Chrome"], browserName: "chromium", viewport: { width: 1500, height: 1000 }, deviceScaleFactor: 1 },
     },
+    // The window on every screen (ADR 0076 item 13): the tests of the
+    // window's layout or touch, tagged `@layout` in their titles, also run
+    // at a phone's and a tablet's size — not the whole suite three times.
+    // Playwright moves a finger only in Chromium.
+    {
+      name: "phone-webkit",
+      grep: /@layout/,
+      use: { browserName: "webkit", viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 1 },
+    },
+    {
+      name: "phone-chromium",
+      grep: /@layout/,
+      // Desktop Chrome's agent: the keys a test presses are the Mac's, as the window reads its platform.
+      use: { ...devices["Desktop Chrome"], browserName: "chromium", viewport: { width: 412, height: 915 }, hasTouch: true, isMobile: true, deviceScaleFactor: 1 },
+    },
+    {
+      name: "tablet-webkit",
+      grep: /@layout/,
+      use: { browserName: "webkit", viewport: { width: 820, height: 1180 }, hasTouch: true, isMobile: true, deviceScaleFactor: 1 },
+    },
   ],
   webServer: {
     command: "node e2e/build.mjs && node e2e/serve.mjs",

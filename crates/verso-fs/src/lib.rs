@@ -38,6 +38,7 @@ mod confine;
 mod ops;
 mod os;
 mod placeholder;
+pub mod server;
 mod walk;
 mod watch;
 mod write;
@@ -170,6 +171,12 @@ pub struct Root {
     /// What else the walk leaves out; the user's setting, handed in from
     /// outside the tree like `ignored`.
     rules: WalkRules,
+    /// Whether a symlink is followed only when what it reaches stays inside
+    /// the folder: off for one person's folder, where symlinks are the
+    /// user's and followed wherever they point (ADR 0044); on for a server
+    /// with members other than the owner (the maintainer's answer H of
+    /// 2026-10-09).
+    links_inside: bool,
     /// Handle index → path relative to the root, and the reverse.
     table: Vec<PathBuf>,
     by_path: HashMap<PathBuf, u32>,
@@ -208,6 +215,7 @@ impl Root {
             path,
             ignored,
             rules: WalkRules::default(),
+            links_inside: false,
             table: Vec::new(),
             by_path: HashMap::new(),
         })
@@ -217,6 +225,45 @@ impl Root {
     /// walk; the caller reindexes after changing them.
     pub fn set_rules(&mut self, rules: WalkRules) {
         self.rules = rules;
+    }
+
+    /// Follow a symlink only when it leads to a place inside the folder: a
+    /// path through one that leaves is refused, and the walk lists it as a
+    /// problem instead of following it. Checked on the path as it is when
+    /// asked; a link changed between the check and the use is the host's
+    /// (the server's folder is written by its members through Verso only).
+    pub fn set_links_inside(&mut self, on: bool) {
+        self.links_inside = on;
+    }
+
+    #[must_use]
+    pub fn links_inside(&self) -> bool {
+        self.links_inside
+    }
+
+    /// Whether `relative`, resolved through every symlink on its way, stays
+    /// in the folder. What does not exist yet is judged by the deepest
+    /// part that does: a new file inside a linked directory that leaves is
+    /// outside too.
+    pub(crate) fn resolves_inside(&self, relative: &Path) -> bool {
+        let Ok(root) = std::fs::canonicalize(&self.path) else {
+            return false;
+        };
+        let mut probe = self.path.join(relative);
+        loop {
+            match std::fs::canonicalize(&probe) {
+                Ok(real) => return real.starts_with(&root),
+                Err(_) => {
+                    // A broken link is a link: refused, not looked past.
+                    if std::fs::symlink_metadata(&probe).is_ok() {
+                        return false;
+                    }
+                    if !probe.pop() {
+                        return false;
+                    }
+                }
+            }
+        }
     }
 
     /// The rules the walk runs under.
@@ -262,6 +309,9 @@ impl Root {
         if self.is_ignored(&relative) {
             return Err(ConfinementError::Ignored);
         }
+        if self.links_inside && !self.resolves_inside(&relative) {
+            return Err(ConfinementError::LeavesFolder);
+        }
         #[cfg(windows)]
         confine::short_name(&self.path, &relative)?;
         Ok(relative)
@@ -272,6 +322,23 @@ impl Root {
     /// way. Symlinks are followed (ADR 0044).
     pub fn walk(&mut self) -> Walk {
         walk::walk(self)
+    }
+
+    /// The length and modified time of the file `handle` names, following
+    /// a symlink, without reading it: what a narrowed index run updates for
+    /// a file that is not a note (ADR 0073 item 12).
+    pub fn length_and_time(&self, handle: Handle) -> std::io::Result<(u64, Option<SystemTime>)> {
+        let path = self.path_of(handle).ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::NotFound, "a handle of another root")
+        })?;
+        let meta = std::fs::metadata(path)?;
+        if !meta.is_file() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "not a file",
+            ));
+        }
+        Ok((meta.len(), meta.modified().ok()))
     }
 
     /// Read a file's content and its [`Stamp`]. A placeholder — a dataless

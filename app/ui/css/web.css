@@ -1,0 +1,125 @@
+/* The server's own pages and what the window gains in a browser
+   (ADR 0073, ADR 0074). The pages before the window — sign-in, the
+   first admin, an invitation, a reset, a device — are one card in the
+   middle of the paper, as the window's dialogs are; the account and the
+   administration are sections of the settings (dialogs/settings.ts), and
+   without the window a page drawn as the settings are. The window's
+   tokens throughout, so both themes and the palettes follow. */
+
+body.web-mode > :not(.web-page):not(.web-notice):not(dialog):not(.menu) { display: none !important; }
+body.web-mode { display: block; overflow: auto; height: auto; min-height: 100dvh; background: var(--paper-2); }
+
+/* ---------- The card of the pages before the window ---------- */
+.web-auth { min-height: 100dvh; box-sizing: border-box; display: grid; place-items: center; padding: max(24px, env(safe-area-inset-top)) 16px max(32px, env(safe-area-inset-bottom)); }
+.web-auth .web-card { width: min(25rem, 100%); box-sizing: border-box; padding: 2rem 2rem 1.6rem; background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-radius: 12px; box-shadow: 0 30px 80px -30px oklch(0% 0 0 / .35); }
+.web-brand { display: flex; align-items: center; gap: .55rem; font-family: var(--display); font-weight: 600; font-size: 1.15rem; color: var(--ink); }
+.web-brand img { border-radius: 7px; }
+.web-auth .web-brand { margin-bottom: 1.4rem; }
+.web-title { font-family: var(--display); font-weight: 600; font-size: 1.55rem; line-height: 1.2; margin: 0 0 .4rem; color: var(--ink); }
+.web-lead { margin: 0 0 1.2rem; font-size: .9rem; line-height: 1.5; color: var(--ink-2); }
+
+.web-form { display: flex; flex-direction: column; gap: .9rem; margin: 0; }
+.web-field { display: flex; flex-direction: column; gap: .3rem; }
+.web-field label, .web-fieldset legend { font-size: .82rem; font-weight: 600; color: var(--ink-2); }
+.web-field small { font-size: .78rem; color: var(--ink-3); }
+.web-field input, .web-field select {
+  font: inherit; font-size: max(16px, .95rem); width: 100%; box-sizing: border-box; min-height: 42px; padding: .5rem .7rem;
+  color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 8px;
+}
+.web-field input:focus, .web-field select:focus { outline: none; border-color: var(--brass-ink); box-shadow: 0 0 0 3px var(--brass-wash); }
+.web-field input[readonly] { background: var(--paper-2); color: var(--ink-2); }
+.web-check { display: flex; align-items: center; gap: .5rem; min-height: 32px; font-size: .9rem; }
+.web-check input { width: 18px; height: 18px; accent-color: var(--seal); }
+.web-fieldset { border: 1px solid var(--hair); border-radius: 8px; padding: .4rem .8rem .6rem; }
+
+.web-primary, .web-secondary {
+  font: inherit; font-size: .93rem; width: 100%; min-height: 42px; padding: .5rem 1rem; border-radius: 8px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+}
+.web-primary { font-weight: 600; color: var(--seal-ink); background: var(--seal); border: 1px solid var(--seal); margin-top: .2rem; }
+.web-primary:hover:not(:disabled) { filter: brightness(1.08); }
+.web-secondary { color: var(--ink); background: var(--paper); border: 1px solid var(--hair); }
+.web-secondary:hover:not(:disabled) { background: var(--paper-3); }
+.web-primary:disabled, .web-secondary:disabled { opacity: .55; cursor: default; }
+.web-primary:focus-visible, .web-secondary:focus-visible, .web-link:focus-visible { outline: 2px solid var(--brass-ink); outline-offset: 2px; }
+.web-link { align-self: flex-end; font-size: .8rem; color: var(--seal); padding: .1rem 0; }
+.web-link:hover { text-decoration: underline; }
+.web-others { display: flex; flex-direction: column; gap: .55rem; }
+.web-others:not(:has(> :not([hidden]))) { display: none; }
+.web-or { display: flex; align-items: center; gap: .8rem; margin: 1.1rem 0 .9rem; font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.web-or::before, .web-or::after { content: ""; flex: 1; height: 1px; background: var(--hair); }
+
+.web-error { margin: 0; font-size: .85rem; line-height: 1.45; color: var(--seal); }
+.web-error:empty { display: none; }
+.web-auth .web-card > .web-error { margin-top: .8rem; }
+.web-warn { color: var(--brass-ink); }
+.web-code { font: 600 1.6rem/1.2 var(--mono); letter-spacing: .18em; text-align: center; padding: .8rem; margin: 0 0 1.2rem; background: var(--paper-2); border: 1px solid var(--hair); border-radius: 8px; }
+
+/* ---------- The account and the administration, in the settings ---------- */
+.settings-body .setting-actions:has(input, select) { flex-wrap: wrap; }
+.setting input[type="email"], .setting input[type="password"], .setting input[type="url"] {
+  font: inherit; font-size: .88rem; padding: .3rem .55rem; background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-radius: 6px; width: 14rem; max-width: 40vw;
+}
+.setting input:focus, .setting select:focus { outline: none; border-color: var(--brass-ink); }
+.setting-text:has(> .setting-title:empty) .setting-title { display: none; }
+.web-ghost { border: 1px solid var(--hair); }
+.web-danger:not(:disabled) { color: var(--seal); }
+.web-switch { display: inline-flex; align-items: center; gap: .4rem; font-size: .8rem; color: var(--ink-2); white-space: nowrap; }
+.web-said { margin: .4rem 0 0; }
+.web-said:empty { display: none; }
+.web-subtitle { font-family: var(--ui); font-size: .82rem; font-weight: 600; color: var(--ink); margin: 1.2rem 0 0; }
+.web-snippet { max-width: none; margin: .3rem 0 .6rem; }
+.web-snippet .setting-code { white-space: pre-wrap; overflow-wrap: anywhere; }
+.web-members, .web-audit { margin: 0 0 .4rem; padding: .1rem 0 .1rem 1rem; border-left: 2px solid var(--hair); }
+.web-members > summary, .web-audit > summary { cursor: pointer; padding: .45rem 0; font-size: .85rem; color: var(--seal); }
+.web-table-wrap { overflow-x: auto; margin: .5rem 0; border: 1px solid var(--hair); border-radius: 8px; }
+.web-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+.web-table th { text-align: left; font-weight: 600; color: var(--ink-2); background: var(--paper-2); }
+.web-table th, .web-table td { padding: .4rem .65rem; border-bottom: 1px solid var(--hair); white-space: nowrap; }
+.web-table tr:last-child td { border-bottom: 0; }
+.web-table tr.web-failed td { color: var(--seal); }
+
+/* Without the window: the settings' box is the page. */
+.web-settings { min-height: 100dvh; box-sizing: border-box; display: grid; place-items: center; padding: 24px 16px; }
+.web-settings .settings-box { height: min(48rem, calc(100dvh - 48px)); }
+.web-settings .web-brand { padding: .2rem .7rem .6rem; }
+@media (max-width: 760px) {
+  .web-settings { padding: 0; }
+  .web-settings .settings-box { height: 100dvh; }
+  .web-settings .web-brand { display: none; }
+}
+
+/* ---------- The folder chooser, over the window ---------- */
+.web-dialog { width: min(30rem, calc(100vw - 32px)); max-height: calc(100dvh - 32px); box-sizing: border-box; padding: 1.2rem 1.3rem 1rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 12px; box-shadow: 0 30px 80px -24px oklch(0% 0 0 / .45); }
+.web-dialog::backdrop { background: color-mix(in oklch, var(--paper) 60%, transparent); }
+.web-dialog-title { font-family: var(--display); font-weight: 600; font-size: 1.25rem; margin: 0 0 .3rem; }
+.web-folders { list-style: none; padding: 0; margin: .6rem 0; display: flex; flex-direction: column; gap: .1rem; }
+.web-folders > li:not(:has(button)) { padding: .4rem .2rem; font-size: .88rem; color: var(--ink-3); }
+.web-folder { width: 100%; display: flex; align-items: center; gap: .6rem; text-align: left; padding: .55rem .7rem; border-radius: 7px; font-size: .93rem; color: var(--ink); }
+.web-folder .icon { width: 15px; height: 15px; color: var(--ink-3); flex: none; }
+.web-folder span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.web-folder small { font-size: .78rem; color: var(--ink-3); }
+.web-folder:hover, .web-folder:focus-visible { background: var(--paper-3); outline: none; }
+.web-new-folder { margin: .4rem 0; border-top: 1px solid var(--hair); padding-top: .5rem; }
+.web-new-folder > summary { cursor: pointer; font-size: .88rem; color: var(--seal); padding: .3rem 0; }
+.web-new-folder .web-form { margin-top: .5rem; }
+.web-actions { display: flex; justify-content: flex-end; gap: .5rem; margin-top: .8rem; }
+.web-actions button { min-height: 32px; padding: .3rem .8rem; }
+
+/* ---------- What the bridge says for a moment ---------- */
+.web-notice { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 1000; max-width: calc(100vw - 32px);
+  font-size: .88rem; background: var(--ink); color: var(--paper); padding: .55rem 1rem; border-radius: 8px; box-shadow: 0 8px 24px -8px oklch(0% 0 0 / .35); }
+.web-notice[data-kind="error"] { background: var(--seal); color: var(--seal-ink); }
+
+/* ---------- The foot of the side bar, on a phone ---------- */
+.side-foot { display: none; }
+@media (max-width: 760px) {
+  .side-foot { display: flex; gap: .3rem; padding: .5rem .6rem max(.5rem, env(safe-area-inset-bottom)); border-top: 1px solid var(--hair); }
+  .side-foot-item { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: .45rem; min-height: 44px; font-size: .88rem; }
+  .side-foot-item .icon { width: 16px; height: 16px; }
+}
+
+@media (forced-colors: active) {
+  .web-primary { border: 2px solid ButtonText; }
+  .web-notice, .web-auth .web-card { border: 2px solid CanvasText; }
+}

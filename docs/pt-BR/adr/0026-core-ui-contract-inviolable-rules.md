@@ -14,6 +14,21 @@
   nota cada: a emenda aconteceu, e o grupo dos handles do
   [0044](0044-verso-fs-semantics.md) foi decidido em 2026-09-24, como
   construído para a Fase 2 (`docs/reference/handles-decision.md`).
+  2026-10-09 — a regra 4 esclarecida para um servidor, a regra inalterada,
+  com a aceitação do [0073](0073-self-hosted-server-first.md) pelo
+  mantenedor naquele dia e o grupo dos handles do
+  [0044](0044-verso-fs-semantics.md) decidido para o `verso serve`: num
+  servidor a capacidade de acesso é a sessão autenticada e o papel dela na
+  pasta, conferidos pelo core em todo comando e todo pedido de arquivo
+  antes de o `verso-fs` agir; uma nota continua nomeada pelo caminho
+  relativo à pasta; nada mais cruza — nenhuma capacidade por arquivo. A
+  URL pré-assinada de um bucket segue `[ABERTO]` (0073 item 4). O escopo
+  da regra 5 ganha o banco do próprio servidor, ao lado do arquivo do
+  índice ([0028](0028-crate-structure.md), revisto no mesmo dia). A
+  Consequência que deixava a identidade de sessão para o
+  [0045](0045-server-and-mcp-security.md) é respondida pelo item 11 do
+  [0074](0074-accounts-and-access-on-the-server.md). Cada um é uma nota ao
+  lado do texto a que se refere.
 
 ## Contexto
 
@@ -74,12 +89,19 @@ elas valem é esta:
   caminhos, válido só neste processo, sem nenhuma capacidade cruzando o
   contrato; reaberto antes que qualquer coisa fora das views do próprio app
   ganhe acesso a arquivos.)*
+  *(Num servidor, decidido em 2026-10-09: a capacidade de acesso é a
+  sessão autenticada e o papel dela na pasta, e nada mais cruza —
+  Revisões.)*
 - **Regra 5** vale para **os arquivos da pasta aberta** (e de cada raiz de um
   workspace). Só `verso-fs` lê, grava, renomeia, apaga ou observa esses
   arquivos. Ficam fora da regra, por serem arquivos do app e não do usuário: o
   arquivo do índice, aberto por `verso-index`; o diretório de configuração,
   lido e gravado por `verso-core`; a entrada e saída da CLI. Nenhum deles toca
-  a pasta aberta. `verso-dialect` continua sem IO nenhum.
+  a pasta aberta. `verso-dialect` continua sem IO nenhum. *(Desde
+  2026-10-09 também fora da regra: o banco do próprio servidor em
+  `VERSO_DATA_DIR`, aberto pelo `verso-server`, que só alcança os arquivos
+  de uma pasta pelo `verso-service`, pelo `verso-core` e pelo `verso-fs`;
+  [0028](0028-crate-structure.md).)*
 
 ## Consequências
 
@@ -101,7 +123,10 @@ elas valem é esta:
   Fase 2; até lá, a única exigência aqui é que a forma do contrato não impeça
   acrescentá-las. (Redação suavizada em 2026-09-21 após a leitura independente
   da revisão da Fase 0: o texto anterior afirmava a exigência como decidida
-  enquanto o 0045 a mantém aberta.)
+  enquanto o 0045 a mantém aberta.) *(Respondido em 2026-10-09 pelo item 11
+  do [0074](0074-accounts-and-access-on-the-server.md), aceito com o
+  [0073](0073-self-hosted-server-first.md): todo comando carrega a sessão
+  que o transporte autenticou.)*
 - A API pública do Obsidian tem leituras síncronas e o contrato é assíncrono;
   a mitigação registrada é uma projeção somente-leitura do índice no lado JS,
   alimentada por eventos (§10.3).

@@ -8,9 +8,10 @@ import { bracketMatching, defaultHighlightStyle, foldGutter, foldKeymap, indentO
 import { lintKeymap } from "@codemirror/lint";
 import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
 import { EditorState, type Extension } from "@codemirror/state";
-import { crosshairCursor, drawSelection, dropCursor, highlightActiveLine, highlightActiveLineGutter, highlightSpecialChars, keymap, rectangularSelection } from "@codemirror/view";
+import { crosshairCursor, drawSelection, dropCursor, highlightActiveLine, highlightActiveLineGutter, highlightSpecialChars, keymap, rectangularSelection, tooltips } from "@codemirror/view";
 import { EditorView } from "codemirror";
 import { icon } from "../icons";
+import { editorKeepsInView, tooltipSpace } from "../screen/keyboard";
 import { CustomSearchPanel, searchStrings } from "../searchPanel";
 import { settings } from "../settings";
 
@@ -35,6 +36,10 @@ export const baseEditorExtensions: Extension = [
   bracketMatching(),
   closeBrackets(),
   autocompletion(),
+  // The suggestions inside what the screen shows, and the cursor above
+  // the on-screen keyboard (ADR 0076 item 7).
+  tooltips({ tooltipSpace }),
+  editorKeepsInView,
   EditorView.inputHandler.of((view, from, to, text) => {
     if (text === ":" && settings.emojiTrigger) {
       setTimeout(() => startCompletion(view), 0);

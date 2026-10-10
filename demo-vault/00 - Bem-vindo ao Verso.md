@@ -21,7 +21,7 @@ O **Verso** é um ambiente de anotações e gestão de conhecimento focado em si
 > [!TIP] Comece pelo tour
 > Abra o [[Tour do Verso.canvas|Tour do Verso]]: um board com as funções do Verso, parada por parada, com as notas deste cofre dentro dos cartões. Para aprender a desenhar nos boards, siga o [[Treino do Board.canvas|Treino do Board]].
 >
-> Para seguir um link: um clique no modo **Leitura**, ou `⌘` + clique no modo **Editar**.
+> Para seguir um link: um clique no modo **Leitura**, ou `⌘` + clique no modo **Editar** — no celular, um toque no link e **Abrir** ([[22 - Verso no Celular e no Tablet]]).
 
 ---
 
@@ -70,6 +70,8 @@ Explore os módulos organizados abaixo para conferir cada funcionalidade em deta
 19. [[19 - Organizando com figurinhas, capas e páginas]] — Figurinhas, cores, capas com reposicionamento, páginas de pasta, ordenação manual, itens ocultos e edição de notas incorporadas.
 20. [[20 - Blocos como no Notion]] — Arrastar parágrafos e itens pela alça ⋮⋮, o + que abre o menu `/`, o menu de cada bloco e as teclas do Notion.
 21. [[21 - Notas Tipadas]] — `type:` e um schema: o formulário de um tipo, o que não cabe marcado, nada escrito sem você, e `type:` na busca.
+22. [[22 - Verso no Celular e no Tablet]] — A barra de baixo, uma área por vez, segurar como clique direito, o cartão de um link, a barra do teclado e os leitores de tela.
+23. [[23 - Verso num Servidor]] — O `verso serve`: instalar, contas por convite, dono, editores e leitores, editar junto e o app desktop conectado.
 
 ---
 

@@ -13,6 +13,9 @@ export type BoardHost = {
   /** The canvas as the board holds it, to be saved (the core lays it over
    *  the file as read). */
   save: (json: string) => Promise<void> | void;
+  /** The person only reads the folder (a reader on a server, ADR 0076
+   *  item 11): the board is shown and never written. */
+  readOnly?: () => boolean;
   /** The user changed the board: the tab has unsaved work from now on,
    *  before the save's delay runs out. */
   changed?: () => void;

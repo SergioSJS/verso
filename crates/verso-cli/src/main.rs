@@ -62,6 +62,15 @@ enum Command {
     Open {
         folder: PathBuf,
     },
+    /// The server (ADR 0073): configured by its `VERSO_*` variables; with
+    /// `--web`, the window served to a browser too (ADR 0073 item 2).
+    Serve {
+        web: bool,
+    },
+    /// `verso serve admin reset <e-mail>` (ADR 0074 item 5).
+    ServeAdminReset {
+        email: String,
+    },
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -72,8 +81,9 @@ struct Options {
 
 /// The first argument when it is not a folder. A folder named like one of
 /// these is reached through `verso open <folder>`.
-const SUBCOMMANDS: [&str; 10] = [
+const SUBCOMMANDS: [&str; 11] = [
     "index",
+    "serve",
     "search",
     "backlinks",
     "mcp",
@@ -112,6 +122,7 @@ fn parse_with(
     let mut unresolved = false;
     let mut key: Option<String> = None;
     let mut all = false;
+    let mut web = false;
     let mut positional: Vec<OsString> = Vec::new();
     let mut error: Option<Msg> = None;
     let mut iter = args.iter();
@@ -139,6 +150,7 @@ fn parse_with(
                 }
             },
             "--all" => all = true,
+            "--web" => web = true,
             "--limit" => match iter.next().and_then(|v| v.to_string_lossy().parse().ok()) {
                 Some(n) => limit = n,
                 None => {
@@ -158,7 +170,11 @@ fn parse_with(
     let command = match error {
         Some(msg) => Err(msg),
         None if all => all_of(positional, unresolved, key.as_ref()),
-        None => command_of(positional, limit, unresolved, key, is_dir),
+        None => command_of(positional, limit, unresolved, key, is_dir).and_then(|c| match c {
+            Command::Serve { .. } => Ok(Command::Serve { web }),
+            _ if web => Err(Msg::ExtraArgument("--web".to_owned())),
+            other => Ok(other),
+        }),
     };
     (options, command)
 }
@@ -294,6 +310,28 @@ fn command_of(
             extra(&mut rest)?;
             Command::Open {
                 folder: folder.ok_or(Msg::MissingFolder)?,
+            }
+        }
+        "serve" => {
+            if unresolved {
+                return Err(Msg::ExtraArgument("--unresolved".to_owned()));
+            }
+            let mut words: Vec<String> = folder
+                .map(|f| f.to_string_lossy().into_owned())
+                .into_iter()
+                .chain(rest)
+                .collect();
+            match words.as_slice() {
+                [] => Command::Serve { web: false },
+                [admin, reset, _] if admin == "admin" && reset == "reset" => {
+                    Command::ServeAdminReset {
+                        email: words.pop().unwrap_or_default(),
+                    }
+                }
+                [admin, reset] if admin == "admin" && reset == "reset" => {
+                    return Err(Msg::BadOptionValue("admin reset <e-mail>".to_owned()));
+                }
+                [.., last] => return Err(Msg::ExtraArgument(last.clone())),
             }
         }
         "help" | "--help" | "-h" => Command::Help,
@@ -485,6 +523,9 @@ fn run(args: &[OsString]) -> Output {
         | Command::Mcp { folder } => Some(folder.clone()),
         Command::McpKey { .. } => None,
         Command::Help | Command::Version => return out,
+        Command::Serve { .. } | Command::ServeAdminReset { .. } => {
+            return serve(&command, lang, out);
+        }
         Command::McpAll => {
             // Nothing is opened before the first call that names a folder.
             out.stderr.push(text(&Msg::McpServingAll, lang));
@@ -553,7 +594,12 @@ fn run(args: &[OsString]) -> Output {
     };
     out.code = match command {
         // Answered above, before any folder is opened.
-        Command::Help | Command::Version | Command::Open { .. } | Command::McpAll => 0,
+        Command::Help
+        | Command::Version
+        | Command::Open { .. }
+        | Command::McpAll
+        | Command::Serve { .. }
+        | Command::ServeAdminReset { .. } => 0,
         Command::Mcp { .. } | Command::McpKey { .. } => {
             // One incremental pass before the first answer (memo §6.3);
             // its report goes to stderr, stdout is the protocol.
@@ -592,8 +638,9 @@ fn run(args: &[OsString]) -> Output {
         }
         Command::Index { .. } => match ws.index() {
             Ok(r) => {
+                let space = space_of(&ws);
                 if options.json {
-                    out.stdout.push(json_index(&r));
+                    out.stdout.push(json_index(&r, &space));
                 } else {
                     out.stdout.push(text(
                         &Msg::IndexSummary {
@@ -601,6 +648,16 @@ fn run(args: &[OsString]) -> Output {
                             unchanged: r.unchanged,
                             removed: r.removed,
                             placeholders: r.placeholders,
+                        },
+                        lang,
+                    ));
+                    out.stdout.push(text(
+                        &Msg::Space {
+                            total: human_bytes(space.total),
+                            notes: human_bytes(space.notes),
+                            attachments: human_bytes(space.attachments),
+                            files: space.files,
+                            index: human_bytes(space.index),
                         },
                         lang,
                     ));
@@ -774,9 +831,57 @@ fn json_problem(p: &WalkProblem) -> String {
     }
 }
 
-fn json_index(r: &verso_core::IndexReport) -> String {
+/// The space a folder takes (ADR 0075 item 4), from the walk the index
+/// just made — the count the server and the app show.
+struct Space {
+    total: u64,
+    notes: u64,
+    attachments: u64,
+    files: usize,
+    index: u64,
+}
+
+fn space_of(ws: &Workspace) -> Space {
+    let mut s = Space {
+        total: 0,
+        notes: 0,
+        attachments: 0,
+        files: 0,
+        index: ws.index_bytes().unwrap_or(0),
+    };
+    for e in ws.entries() {
+        match e.kind {
+            verso_core::FileKind::Note => s.notes += e.len,
+            verso_core::FileKind::File | verso_core::FileKind::Placeholder => {
+                s.attachments += e.len
+            }
+            verso_core::FileKind::Folder => continue,
+        }
+        s.total += e.len;
+        s.files += 1;
+    }
+    s
+}
+
+/// Bytes as a person reads them, the same in both languages.
+fn human_bytes(n: u64) -> String {
+    let units = ["B", "KB", "MB", "GB", "TB"];
+    let mut v = n as f64;
+    let mut i = 0;
+    while v >= 1024.0 && i < units.len() - 1 {
+        v /= 1024.0;
+        i += 1;
+    }
+    if i == 0 {
+        format!("{n} B")
+    } else {
+        format!("{v:.1} {}", units[i])
+    }
+}
+
+fn json_index(r: &verso_core::IndexReport, space: &Space) -> String {
     format!(
-        "{{\"indexed\":{},\"unchanged\":{},\"removed\":{},\"placeholders\":{},\"unreadable\":{},\"problems\":{}}}",
+        "{{\"indexed\":{},\"unchanged\":{},\"removed\":{},\"placeholders\":{},\"unreadable\":{},\"problems\":{},\"space\":{{\"total\":{},\"notes\":{},\"attachments\":{},\"files\":{},\"index\":{}}}}}",
         r.indexed,
         r.unchanged,
         r.removed,
@@ -786,7 +891,12 @@ fn json_index(r: &verso_core::IndexReport) -> String {
             json_str(p),
             json_str(e)
         ))),
-        json_array(r.problems.iter().map(json_problem))
+        json_array(r.problems.iter().map(json_problem)),
+        space.total,
+        space.notes,
+        space.attachments,
+        space.files,
+        space.index
     )
 }
 
@@ -821,6 +931,78 @@ fn json_str(s: &str) -> String {
 
 /// Write the lines; a closed pipe (`head -1`) is the reader's choice, not
 /// a failure, so it ends the output quietly instead of panicking.
+/// `verso serve` and `verso serve admin reset` (ADR 0073, 0074, 0075): the
+/// configuration from the `VERSO_*` variables; the directories, when none
+/// names them, under the user's configuration directory, and the window's
+/// files where the packages put them, beside the binary.
+/// Windows is no server platform (ADR 0075 item 2): said in the person's
+/// language.
+#[cfg(windows)]
+fn serve(_: &Command, lang: Lang, mut out: Output) -> Output {
+    let why = match lang {
+        Lang::PtBr => {
+            "não roda no Windows; use a imagem Docker do servidor, ou um Linux ou macOS (docs/reference/server-install.md)"
+        }
+        Lang::En => {
+            "it does not run on Windows; use the server's Docker image, or Linux or macOS (docs/reference/server-install.md)"
+        }
+    };
+    out.stderr
+        .push(text(&Msg::ServeFailed(why.to_owned()), lang));
+    with_code(out, 2)
+}
+
+#[cfg(not(windows))]
+fn serve(command: &Command, lang: Lang, mut out: Output) -> Output {
+    let base = match verso_core::config_dir() {
+        Ok(dir) => dir,
+        Err(e) => {
+            out.stderr.push(text(&open_error(&e), lang));
+            return with_code(out, 3);
+        }
+    };
+    let ui = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|bin| bin.join("../share/verso/ui")))
+        .unwrap_or_else(|| PathBuf::from("ui"));
+    let defaults = verso_server::config::Defaults {
+        data_dir: base.join("server"),
+        folders_dir: base.join("server-folders"),
+        ui_dir: ui,
+    };
+    let config = match verso_server::config::Config::from_env(
+        &verso_server::config::ProcessEnv,
+        &defaults,
+    ) {
+        // `--web` is the command line's, not the environment's.
+        Ok(c) => verso_server::config::Config {
+            web: matches!(command, Command::Serve { web: true }),
+            ..c
+        },
+        Err(e) => {
+            out.stderr
+                .push(text(&Msg::ServeFailed(e.to_string()), lang));
+            return with_code(out, 2);
+        }
+    };
+    match command {
+        Command::ServeAdminReset { email } => match verso_server::admin_reset(&config, email) {
+            Ok(link) => out.stdout.push(text(&Msg::ResetLink(link), lang)),
+            Err(e) => {
+                out.stderr.push(text(&Msg::ServeFailed(e), lang));
+                out.code = 3;
+            }
+        },
+        _ => {
+            if let Err(e) = verso_server::serve(config, env!("VERSO_COMMIT")) {
+                out.stderr.push(text(&Msg::ServeFailed(e), lang));
+                out.code = 3;
+            }
+        }
+    }
+    out
+}
+
 fn emit(mut sink: impl Write, lines: &[String]) {
     for line in lines {
         if writeln!(sink, "{line}").is_err() {
@@ -1061,5 +1243,16 @@ mod tests {
     fn json_strings_are_escaped() {
         assert_eq!(json_str("a\"b\\c\nd"), "\"a\\\"b\\\\c\\nd\"");
         assert_eq!(json_object("hits", std::iter::empty()), "{\"hits\":[]}");
+    }
+
+    #[test]
+    fn serve_takes_web_and_nothing_else_does() {
+        let is_dir = |_: &Path| false;
+        let (_, c) = parse_with(&args(&["serve", "--web"]), is_dir);
+        assert_eq!(c, Ok(Command::Serve { web: true }));
+        let (_, c) = parse_with(&args(&["serve"]), is_dir);
+        assert_eq!(c, Ok(Command::Serve { web: false }));
+        let (_, c) = parse_with(&args(&["index", "x", "--web"]), is_dir);
+        assert_eq!(c, Err(Msg::ExtraArgument("--web".to_owned())));
     }
 }

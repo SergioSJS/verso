@@ -14,6 +14,30 @@ versão de teste.
 
 Nada ainda.
 
+## 0.7.0-beta.1 — 2026-10-10
+
+### Acrescentado
+
+- **O Verso como servidor, `verso serve`** ([ADR 0073](adr/0073-self-hosted-server-first.md), [0074](adr/0074-accounts-and-access-on-the-server.md), [0075](adr/0075-server-packaging-and-storage.md)): as suas notas numa máquina sua — um servidor em casa, um NAS, qualquer nuvem — abertas num navegador no computador, no celular ou no tablet. As pastas continuam pastas comuns de arquivos Markdown no disco do servidor (`VERSO_FOLDERS_DIR`, que pode ser um NAS); as contas e os índices ficam à parte (`VERSO_DATA_DIR`, um disco local). Instalado como imagem Docker para amd64 e arm64 (o registro do GitHub), um compose para o CasaOS e o ZimaOS, ou um `.deb`/`.rpm` com um serviço do systemd: `docs/pt-BR/reference/server-install.md`. Entrar pede HTTPS — o certificado do próprio servidor, um proxy reverso ou o `tailscale serve`. Ajustes › Administração avisa quando sai uma versão nova; o servidor nunca se atualiza sozinho.
+- **Contas e acesso no servidor**: o primeiro admin vem do ambiente da imagem, só na primeira subida (ou de um link de configuração de uma hora no log); ninguém se cadastra sozinho — o admin convida, com um link de uso único que vale sete dias, e vê quem o usou; em cada pasta, um dono, editores e leitores; o admin não entra numa pasta sem dar acesso a si mesmo, no registro que o dono lê. Senhas, passkeys, sessões que você vê e encerra, tokens de acesso pessoal para scripts limitados a pastas e a ler ou escrever, e senha nova pelo admin, ou na máquina (`verso serve admin reset <e-mail>`) para um admin perdido. O espaço que cada pasta ocupa aparece em Ajustes › Administração.
+- **Várias pessoas numa nota ao mesmo tempo**, num servidor: as edições de cada um aparecem nas janelas dos outros enquanto digitam, com os cursores e os nomes; o servidor grava o arquivo quando as edições assentam, nunca por cima de uma mudança feita em outro lugar — essa mostra a diferença para as pessoas na nota escolherem.
+- **O app desktop abre as pastas de um servidor**: Ajustes › Servidores conecta pelo navegador (a página do servidor pede para você permitir este computador; ninguém cola token), e então uma janela mostra uma das pastas do servidor como se estivesse aqui, inclusive editando com outras pessoas.
+- **Mais do servidor**: com um servidor de correio (`VERSO_SMTP_URL`) a página de login manda um link por e-mail e uma senha nova para quem esqueceu, e os convites vão para o endereço; a janela pode ser instalada na tela de início do celular ou do tablet; os seus ajustes — tema, idioma, teclas, conteúdo remoto, os sites que você liberou em incorporações — seguem a sua conta em qualquer navegador; uma pasta num NAS é varrida a cada 30 segundos, já que o sistema não avisa da mudança feita por outra máquina; o espaço que uma pasta ocupa aparece em Ajustes › Arquivos e depois do `verso index`; `verso serve --web` serve a janela das notas ao navegador (a imagem e os pacotes o rodam assim), e sem ela só o app desktop chega às notas; o app desktop numa pasta do servidor se reconecta sozinho quando a conexão cai.
+- **Um × no campo de busca de notas** limpa as palavras e traz a árvore de arquivos de volta, para o celular ou o tablet, que não têm Esc.
+- **Numa tela de toque**, um toque longo abre o menu que o clique direito abre, e um toque longo seguido de movimento arrasta uma linha ou uma aba. Os campos escrevem a 16 px, e o iOS não dá mais zoom neles; controles que só apareciam sob o mouse aparecem; botões e linhas ficam maiores; e os ajustes cabem num celular, com um × para fechar. O que foi medido e o que falta: `docs/pt-BR/reference/responsive-review-2026-10-09.md`.
+- **A sua conta e a administração do servidor ficam em Ajustes**, desenhadas como os outros ajustes: o botão da pessoa, ao lado da engrenagem na faixa lateral, abre *Conta* (perfil, senha, passkeys, sessões, pastas e seus membros, tokens de acesso), e um admin também acha *Administração* (o servidor, as pastas, as contas, os convites, o registro); no celular, as duas ficam no pé da barra lateral. A página de entrar é um cartão só, com a passkey e o link por e-mail sob a senha, na mesma coluna.
+
+### Alterado
+
+- **A busca acha uma nota pelo nome do arquivo primeiro**, depois pelo que as notas dizem: uma nota cujo primeiro título a chama de outro jeito também é achada pelo nome do arquivo, antes das notas que só mencionam as palavras. Acentos e maiúsculas não importam, como no conteúdo. A mesma ordem no `verso search` e na busca dos agentes.
+- **O tema escuro ficou mais confortável de ler**: o papel um pouco mais claro e o texto um pouco mais suave — cerca de 11:1 em vez de 13,7:1, a faixa dos apps de leitura — e o texto desenhado mais fino sobre o papel escuro. Ajustes › Aparência › *Tom do escuro* guarda o quase preto como *Profundo* e acrescenta uma *Penumbra* mais clara; em toda paleta e tom o texto secundário fica em 4,5:1 ou mais (o da paleta Ardósia ficava logo abaixo).
+
+### Corrigido
+
+- **Deslizar o dedo na árvore de arquivos não move mais uma nota**: numa tela de toque, rolar a árvore começava um arrasto, e o toque seguinte numa pasta movia a nota para ela. Um menu longo agora rola dentro da tela em vez de passar dela.
+- **Um botão oculto da faixa lateral volta**: Ajustes › Aparência lista os botões da faixa com um switch cada, o botão direito no espaço vazio da faixa mostra de novo os ocultos, a barra de status diz onde quando um é ocultado, e a própria engrenagem não pode mais ser ocultada.
+- **⌘N numa pasta compartilhada sempre cria a nota**: quando outro membro tinha acabado de criar "Sem título" e esta janela ainda não sabia, a nota nova falhava com "já existe"; agora ela pega o próximo nome livre.
+
 ## 0.6.0-beta.1 — 2026-10-09
 
 ### Acrescentado

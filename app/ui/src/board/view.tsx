@@ -134,7 +134,8 @@ function Board({
   /** A board of a later Verso (`verso.version` above the one this build
    *  writes) is shown and never written (review `board.md`, reading 2,
    *  finding 8). */
-  const readOnly = typeof initial.verso?.version === "number" && initial.verso.version > BOARD_VERSION;
+  // Nor by a reader on a server (ADR 0076 item 11).
+  const readOnly = (typeof initial.verso?.version === "number" && initial.verso.version > BOARD_VERSION) || Boolean(host.readOnly?.());
   /** The board opened where it was left (the setting): the pane's size no
    *  longer brings the whole board back into view. */
   const restoredView = useRef(false);

@@ -6,12 +6,13 @@ import { indentWithTab } from "@codemirror/commands";
 import { markdown, markdownKeymap } from "@codemirror/lang-markdown";
 import { syntaxHighlighting } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
-import { EditorState, Prec, Transaction } from "@codemirror/state";
+import { EditorState, type Extension, Prec, Transaction } from "@codemirror/state";
 import { type KeyBinding, keymap, lineNumbers } from "@codemirror/view";
 import { classHighlighter } from "@lezer/highlight";
 import { Strikethrough, Table, TaskList } from "@lezer/markdown";
 import { EditorView } from "codemirror";
 import { commands } from "../../bindings";
+import { ySyncAnnotation } from "../../collab";
 import { type Block, type Edit as BlockEdit, type TurnKind, blockLink, blocksOfSelection, deleteBlocks, duplicateBlocks, moveBy, randomBlockId, turnInto, turnTargets } from "../../blocks/model";
 import { blocksOf } from "../../blocks/view";
 import { afterFileChange } from "../../changes";
@@ -26,6 +27,7 @@ import { listKeymap } from "../../listKeymap";
 import { MenuItem, showMenu } from "../../menu";
 import { dirOf, name } from "../../paths";
 import { linkText } from "../../resolve";
+import { visibleBox } from "../../screen/viewport";
 import { settings } from "../../settings";
 import { slashKeymap } from "../../slash";
 import { t } from "../../strings";
@@ -47,7 +49,7 @@ export function modeButton(this: NoteLeaf, mode: Mode, ic: string, label: string
   return b;
 }
 
-export function editorState(this: NoteLeaf, doc: string): EditorState {
+export function editorState(this: NoteLeaf, doc: string, shared: Extension = []): EditorState {
   // CommonMark plus the GFM parts the reader's parser has on (tables,
   // task lists, strikethrough), so Live Preview finds what reading shows.
   const md = markdown({ codeLanguages: languages, extensions: [Table, TaskList, Strikethrough] });
@@ -81,6 +83,8 @@ export function editorState(this: NoteLeaf, doc: string): EditorState {
       EditorView.lineWrapping,
       this.liveCompartment.of(this.mode === "live" ? [this.live, this.blockExt] : []),
       this.readOnly ? readOnlyText : [],
+      // Several people in the note (ADR 0073 item 7): the room's binding.
+      shared,
       // Above basicSetup's defaults, which bind ⌘I (select the parent
       // node) and ⌘⇧K (delete the line) and come first in this list.
       Prec.high(keymap.of(noteKeys)),
@@ -95,9 +99,13 @@ export function editorState(this: NoteLeaf, doc: string): EditorState {
         // says; an edit of a key that differs from it is refused.
         if (this.note && u.transactions.some((tr) => tr.isUserEvent("undo") || tr.isUserEvent("redo"))) this.props.render(this.note.properties, this.note.text, this.readOnly, this.note.note_type);
         if (u.docChanged) {
-          if (!u.transactions.some((tr) => tr.annotation(fromDisk))) {
+          // Another person's edit, from the room: not this tab's to save.
+          const remote = this.collab !== null && u.transactions.every((tr) => !tr.docChanged || tr.annotation(ySyncAnnotation) !== undefined);
+          if (!remote && !u.transactions.some((tr) => tr.annotation(fromDisk))) {
             this.setDirty(true);
-            this.scheduleSave();
+            // In a shared note the server writes the file once the edits
+            // settle; the tab hears it (`collab-saved`).
+            if (!this.collab) this.scheduleSave();
           }
           this.updateWords();
         }
@@ -316,7 +324,10 @@ export function deleteBlock(this: NoteLeaf, blocks = this.selectedBlocks()): voi
 /** Where a menu about the caret opens: under it. */
 export function caretPoint(this: NoteLeaf): [number, number] {
   const at = this.editor.coordsAtPos(this.editor.state.selection.main.head);
-  return at ? [at.left, at.bottom + 4] : [window.innerWidth / 2, window.innerHeight / 3];
+  if (at) return [at.left, at.bottom + 4];
+  // No caret on screen: a third of the way down what the screen shows.
+  const box = visibleBox();
+  return [box.left + box.width / 2, box.top + box.height / 3];
 }
 
 /** "Turn into": the kinds that keep the block's text, as a menu. */

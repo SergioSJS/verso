@@ -24,23 +24,20 @@
 //! `app/ui/src/bindings.ts` (`verso-app --export-bindings`; ADR 0038,
 //! decided 2026-09-22) and checked in CI, so rule 3 stays a rule.
 
-use std::panic::AssertUnwindSafe;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Mutex};
 
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use verso_contract::{
-    AppInfo, Backlink, BaseCell, BaseColumn, BaseErrorKind, BaseGroup, BaseProblem,
-    BaseProblemKind, BaseQuery, BaseResult, BaseRow, BaseView, Block, CliState, ContractError,
-    Edge, EntryLabel, ErrorKind, FileEntry, FileKind, Focus, FocusesSummary, FolderChanged,
-    FolderInfo, Heading, Hit, IndexProgress, IndexSummary, Label, Link, LinkRewrite, McpAdded,
-    McpClientState, McpStatus, MovedEntries, NoteText, NoteType, Property, PropertyValue,
-    RefusedEntry, Renamed, SchemaNotice, SkipReason, Skipped, Tag, TextFile, Trashed, TypeState,
-    TypedProperty, UpdateProgress, WebNote, Written,
+    AppInfo, Backlink, BaseQuery, BaseResult, Can, Capabilities, CliState, CollabJoin, CollabState,
+    CollabUpdate, ContractError, Edge, ErrorKind, FileEntry, Focus, FocusesSummary, FolderChanged,
+    FolderInfo, FolderSpace, Hit, Host, IndexProgress, IndexSummary, Link, McpAdded,
+    McpClientState, McpStatus, MovedEntries, NoteText, Renamed, ServerAccount, Tag, TextFile,
+    Trashed, UpdateProgress, WebNote, Written,
 };
-use verso_core::{CoreError, ReadError, Workspace, WriteError};
+use verso_core::{CoreError, Workspace};
+use verso_service::{OpError, Service, lock, no_folder, ops, refused};
 
 mod boards;
 mod cli;
@@ -50,6 +47,7 @@ mod log;
 mod menu;
 mod notes;
 mod protocol;
+mod remote;
 mod update;
 mod version;
 mod web;
@@ -61,80 +59,10 @@ use focuses::*;
 use menu::*;
 use notes::*;
 use protocol::*;
+use remote::*;
 use update::*;
 use web::*;
 use windows::*;
-
-fn to_progress(p: verso_core::IndexProgress) -> IndexProgress {
-    IndexProgress {
-        phase: p.phase,
-        current: p.current as u32,
-        total: p.total as u32,
-        file: p.file,
-    }
-}
-
-/// An open folder: its workspace, what the UI was told about it, and
-/// the watch that keeps both current while the folder changes outside the
-/// app — dropped, and so stopped, with the session.
-struct Session {
-    workspace: Workspace,
-    info: FolderInfo,
-    /// Why the folder is not watched, when it is not: said with every
-    /// summary of the session, since each index run replaces the problems.
-    unwatched: Option<String>,
-    _watch: Option<verso_core::Watch>,
-}
-
-/// An index run's summary for this session: the run's own problems, and
-/// the reason the folder is not watched, if it is not.
-fn session_summary(session: &Session, report: &verso_core::IndexReport) -> IndexSummary {
-    IndexSummary {
-        unwatched: session.unwatched.clone(),
-        ..summary(report)
-    }
-}
-
-/// The open folders, and which one each window shows (ADR 0065): a window
-/// of the app shows a folder of its own; two windows on one folder share
-/// its session; a folder no window shows is closed. One mutex for all of
-/// them: two commands never interleave on an index.
-#[derive(Default)]
-struct Sessions {
-    /// Folder key → its session.
-    by_key: std::collections::HashMap<String, Session>,
-    /// Window label → the key of the folder it shows: a folder's window
-    /// (`main`, `window-N`) and a note popped out of one (`note-N`).
-    windows: std::collections::HashMap<String, String>,
-}
-
-impl Sessions {
-    /// The windows that show folder `key` — its windows and its notes
-    /// popped out — for what only they should hear.
-    fn windows_of(&self, key: &str) -> Vec<String> {
-        self.windows
-            .iter()
-            .filter(|(_, k)| k.as_str() == key)
-            .map(|(label, _)| label.clone())
-            .collect()
-    }
-
-    /// The session of the folder a window shows.
-    fn of(&mut self, label: &str) -> Option<&mut Session> {
-        let key = self.windows.get(label)?;
-        self.by_key.get_mut(key)
-    }
-
-    /// The window shows no folder any more; its folder closes when no
-    /// other window shows it.
-    fn release(&mut self, label: &str) {
-        if let Some(key) = self.windows.remove(label)
-            && !self.windows.values().any(|k| *k == key)
-        {
-            self.by_key.remove(&key);
-        }
-    }
-}
 
 pub struct App {
     /// Notes popped out to windows of their own: window label → note.
@@ -150,23 +78,19 @@ pub struct App {
     /// Windows told a folder (`folder_handed`) and not done opening it:
     /// one is not handed another while it installs the first.
     opening: Mutex<std::collections::HashSet<String>>,
-    /// Where the indexes of the folders it opens go: `None` for the
-    /// configuration directory (`verso_core::config_dir`). The tests give
-    /// a temporary one, so that a test run never writes into the user's.
-    config: Option<PathBuf>,
-    sessions: Mutex<Sessions>,
+    /// The open folders and which window shows each (ADR 0065), apart
+    /// from Tauri: the same service `verso serve` holds (ADR 0073 item 2).
+    /// The tests give it a temporary index directory, so that a test run
+    /// never writes into the user's.
+    pub(crate) service: Arc<Service>,
+    /// The windows that show a folder of a server: label → connection.
+    pub(crate) remotes: Mutex<std::collections::HashMap<String, Arc<remote::Remote>>>,
     /// Origins (`scheme://host[:port]`) of embedded pages the user
     /// approved by hand, mirrored from the window's settings. An embed
     /// renders in a child web view (`web_open`), so the app view itself
     /// never navigates to the web; the gate in the window is what asks,
     /// and this list is its record on this side (ADR 0056, revised).
     embed_origins: Mutex<std::collections::HashSet<String>>,
-    /// The walk's rules — the user's setting, pushed by the UI before a
-    /// folder opens and applied to the session on change.
-    walk_rules: Mutex<verso_core::WalkRules>,
-    /// The folder note name setting (ADR 0060 D12), pushed by the UI as the
-    /// walk rules are and applied to the session on change.
-    folder_note_name: Mutex<String>,
     /// The folders behind the menu's "Open Recent" items, in the order
     /// the menu shows: item `verso-recent-<i>` opens `menu_recents[i]`.
     /// Paths at the edge, on this side; they never cross to the UI. The
@@ -187,46 +111,13 @@ impl App {
             web_views: Mutex::new(std::collections::HashMap::new()),
             initial_folder: Mutex::new(initial.into_iter().collect()),
             opening: Mutex::new(std::collections::HashSet::new()),
-            config: None,
-            sessions: Mutex::new(Sessions::default()),
+            service: Service::new(None),
+            remotes: Mutex::new(std::collections::HashMap::new()),
             embed_origins: Mutex::new(std::collections::HashSet::new()),
-            walk_rules: Mutex::new(verso_core::WalkRules::default()),
-            folder_note_name: Mutex::new(String::new()),
             #[cfg(target_os = "macos")]
             menu_recents: Mutex::new(Vec::new()),
             menu_language: Mutex::new("pt".to_owned()),
         }
-    }
-}
-
-/// Lock a mutex, poisoned or not: a panic in an earlier command must not
-/// make every later one fail until restart. What the panicking command
-/// left half done is the same either way; refusing to look at it helps
-/// nobody.
-fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
-    m.lock().unwrap_or_else(PoisonError::into_inner)
-}
-
-fn convert(e: CoreError) -> ContractError {
-    let kind = match &e {
-        CoreError::Confined(_) | CoreError::InvalidKey => ErrorKind::Refused,
-        CoreError::Write(WriteError::Confined(_)) => ErrorKind::Refused,
-        CoreError::Read(ReadError::Unavailable) => ErrorKind::Unavailable,
-        CoreError::Read(ReadError::Io(io)) if io.kind() == std::io::ErrorKind::NotFound => {
-            ErrorKind::NotFound
-        }
-        CoreError::Folder(io) if io.kind() == std::io::ErrorKind::NotFound => ErrorKind::NotFound,
-        CoreError::UnknownFolder => ErrorKind::NotFound,
-        CoreError::NotText => ErrorKind::NotText,
-        CoreError::NotCanvas => ErrorKind::NotCanvas,
-        CoreError::Write(WriteError::Changed { .. }) => ErrorKind::Changed,
-        CoreError::Write(WriteError::Exists) => ErrorKind::Exists,
-        CoreError::Write(WriteError::Placeholder) => ErrorKind::Unavailable,
-        _ => ErrorKind::Failed,
-    };
-    ContractError {
-        kind,
-        message: e.to_string(),
     }
 }
 
@@ -235,85 +126,50 @@ fn failed(message: impl Into<String>) -> ContractError {
     // The funnel for the host's own failures: what the window is about
     // to show for a moment, the log keeps (`log.rs`).
     log::write("ERROR", "host", &message);
-    ContractError {
-        kind: ErrorKind::Failed,
-        message,
+    verso_service::failed(message)
+}
+
+/// The service's events as Tauri's: progress to the windows of its
+/// folder, `folder-changed` once — every window listens to it, whatever
+/// its label; `emit_to` a label also reaches every listener that listens
+/// to all, so a loop over the windows delivered each batch once per
+/// window to each of them. Web pages' views cannot listen
+/// (capabilities/default.json).
+struct TauriEvents<R: tauri::Runtime> {
+    app: tauri::AppHandle<R>,
+}
+
+impl<R: tauri::Runtime> verso_service::Events for TauriEvents<R> {
+    fn progress(&self, windows: &[String], progress: &IndexProgress) {
+        for label in windows {
+            let _ = self.app.emit_to(label.as_str(), "index-progress", progress);
+        }
+    }
+
+    fn folder_changed(&self, _: &[String], changed: &FolderChanged) {
+        let _ = self.app.emit("folder-changed", changed);
+    }
+
+    fn log(&self, level: &str, message: &str) {
+        log::write(level, "host", message);
     }
 }
 
-fn refused(message: impl Into<String>) -> ContractError {
-    ContractError {
-        kind: ErrorKind::Refused,
-        message: message.into(),
-    }
+/// The service hears this app from now on.
+fn hear<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    app.state::<App>()
+        .service
+        .set_events(Arc::new(TauriEvents { app: app.clone() }));
 }
 
-fn no_folder() -> ContractError {
-    ContractError {
-        kind: ErrorKind::NoFolder,
-        message: "no folder is open".to_owned(),
-    }
-}
-
-fn count(n: usize) -> u32 {
-    u32::try_from(n).unwrap_or(u32::MAX)
-}
-
-/// The run's numbers, and one readable line per problem the walk met or
-/// per thing the run could not do besides indexing (the sidecar).
-fn summary(r: &verso_core::IndexReport) -> IndexSummary {
-    IndexSummary {
-        indexed: count(r.indexed),
-        unchanged: count(r.unchanged),
-        removed: count(r.removed),
-        placeholders: count(r.placeholders),
-        problems: r
-            .problems
-            .iter()
-            .map(ToString::to_string)
-            .chain(r.warnings.iter().cloned())
-            .collect(),
-        unwatched: None,
-        unindexed: None,
-    }
-}
-
-fn folder_info(ws: &Workspace, report: &verso_core::IndexReport) -> FolderInfo {
-    FolderInfo {
-        name: ws.name(),
-        key: ws.key(),
-        index: summary(report),
-    }
-}
-
-/// What a panic inside the core said, for the message the UI shows.
-fn panic_text(payload: &(dyn std::any::Any + Send)) -> String {
-    payload
-        .downcast_ref::<String>()
-        .cloned()
-        .or_else(|| payload.downcast_ref::<&str>().map(|s| (*s).to_owned()))
-        .unwrap_or_else(|| "unknown panic".to_owned())
-}
-
-/// Run `f` on the open workspace. A panic inside the core is answered as
-/// `failed`, not propagated: propagated, it would poison the mutex and
-/// every later command would fail until restart, with the user's notes
-/// open (the reading of the Phase 2 host reproduced it with a render
-/// panic).
+/// Run `f` on the folder this window shows (`Service::with`): a panic
+/// inside the core is answered as `failed`, not propagated.
 fn with<T, R: tauri::Runtime>(
     state: &State<'_, App>,
     window: &tauri::Window<R>,
-    f: impl FnOnce(&mut Workspace) -> Result<T, CoreError>,
+    f: impl FnOnce(&mut Workspace) -> Result<T, OpError>,
 ) -> Result<T, ContractError> {
-    let mut guard = lock(&state.sessions);
-    let session = guard.of(window.label()).ok_or_else(no_folder)?;
-    match std::panic::catch_unwind(AssertUnwindSafe(|| f(&mut session.workspace))) {
-        Ok(result) => result.map_err(convert),
-        Err(payload) => Err(failed(format!(
-            "the core failed: {}",
-            panic_text(payload.as_ref())
-        ))),
-    }
+    state.service.with(window.label(), f)
 }
 
 /// Whether this window may open or switch its folder (ADR 0065): a window
@@ -328,16 +184,14 @@ fn may_switch<R: tauri::Runtime>(
     if me != "main" && !me.starts_with("window-") {
         return Err(refused("only a window of the folder opens a folder"));
     }
-    let state = app.state::<App>();
-    let sessions = lock(&state.sessions);
-    let Some(mine) = sessions.windows.get(me) else {
+    let clients = app.state::<App>().service.clients();
+    let Some(mine) = clients.iter().find(|(l, _)| l == me).map(|(_, k)| k) else {
         return Ok(());
     };
-    let shown_elsewhere = sessions
-        .windows
+    let shown_elsewhere = clients
         .iter()
         .any(|(label, key)| label != me && key == mine && !label.starts_with("note-"));
-    let notes_open = sessions.windows.iter().any(|(label, key)| {
+    let notes_open = clients.iter().any(|(label, key)| {
         key == mine && label.starts_with("note-") && app.get_window(label).is_some()
     });
     if notes_open && !shown_elsewhere {
@@ -361,184 +215,27 @@ async fn install<R: tauri::Runtime>(
     // it yet — whatever opens it: the command line's folder, the picker, a
     // reopened one. Unmarked on every way out.
     let _opening = Opening::mark(app, window.label());
-    let config = app.state::<App>().config.clone();
-    let rules = *lock(&app.state::<App>().walk_rules);
-    let folder_note_name = lock(&app.state::<App>().folder_note_name).clone();
-    let handle = app.clone();
-    let missed = Arc::new(AtomicBool::new(false));
-    let seen = Arc::clone(&missed);
-    // The folder's first index is heard by the window that opens it only:
-    // another window shows another folder (ADR 0065).
-    let opener = vec![window.label().to_owned()];
-    let opened = tauri::async_runtime::spawn_blocking(move || -> Result<Session, CoreError> {
-        let mut workspace = open(config.as_deref())?;
-        // The user's walk rules, before the watch and the first index:
-        // both honor them from the start.
-        workspace.set_walk_rules(rules);
-        workspace.set_folder_note_name(&folder_note_name);
-        // Watched before the first index run, so that a change made while
-        // it runs — seconds on a large folder — is not missed.
-        let (watch, unwatched) = watch_folder(&handle, &workspace, seen);
-        let report = workspace.index_with_progress(progress_to(handle.clone(), opener))?;
-        let mut info = folder_info(&workspace, &report);
-        info.index.unwatched.clone_from(&unwatched);
-        Ok(Session {
-            workspace,
-            info,
-            unwatched,
-            _watch: watch,
-        })
-    })
-    .await
-    .map_err(|e| failed(e.to_string()))?
-    .map_err(convert)?;
+    let service = Arc::clone(&app.state::<App>().service);
+    let opener = window.label().to_owned();
+    let opened = tauri::async_runtime::spawn_blocking(move || service.open(&opener, open))
+        .await
+        .map_err(|e| failed(e.to_string()))??;
     may_switch(app, window)?;
-    let info = opened.info.clone();
-    {
-        let state = app.state::<App>();
-        let mut sessions = lock(&state.sessions);
-        // This window leaves its folder (closed if no other window shows
-        // it); a folder another window has open already keeps its session,
-        // and this one joins it.
-        sessions.release(window.label());
-        sessions.by_key.entry(info.key.clone()).or_insert(opened);
-        sessions
-            .windows
-            .insert(window.label().to_owned(), info.key.clone());
-    }
+    // A window that showed a server's folder shows this computer's now.
+    remote::release(app, window.label());
+    let service = Arc::clone(&app.state::<App>().service);
+    let (info, catch_up) = service.attach(window.label(), opened);
     // A window is named after its folder (ADR 0065).
     let _ = window.set_title(&format!("{} — Verso", info.name));
     // A batch that came while the folder was being opened found no session
     // to bring up to date; it runs now.
-    if missed.swap(false, Ordering::SeqCst) {
-        let app = app.clone();
-        let key = info.key.clone();
-        tauri::async_runtime::spawn_blocking(move || changed_outside(&app, &key, &missed));
+    if let Some(catch_up) = catch_up {
+        tauri::async_runtime::spawn_blocking(move || service.catch_up(&catch_up));
     }
     // The folder just opened is the freshest recent: the menu learns.
     #[cfg(target_os = "macos")]
     refresh_menu(app);
     Ok(info)
-}
-
-/// Watch the open folder for changes made outside the app (provisional:
-/// `docs/reference/watcher-decision.md`): each batch indexes the folder
-/// again and tells the app's windows. A folder that cannot be watched
-/// opens all the same, and the reason comes back, to go with every
-/// summary of the session: changes made outside then show up on
-/// "reindex". The reason is the operating system's, with no path (rule 4);
-/// the window says what it means, in the user's language (ADR 0035).
-/// A batch that finds no session for the folder yet sets `missed`.
-fn watch_folder<R: tauri::Runtime>(
-    app: &tauri::AppHandle<R>,
-    workspace: &Workspace,
-    missed: Arc<AtomicBool>,
-) -> (Option<verso_core::Watch>, Option<String>) {
-    let app = app.clone();
-    let key = workspace.key();
-    match workspace.watch(move |_| changed_outside(&app, &key, &missed)) {
-        Ok(watch) => (Some(watch), None),
-        Err(CoreError::Watch(os)) => (None, Some(os.to_string())),
-        Err(e) => (None, Some(e.to_string())),
-    }
-}
-
-/// An index run's progress, to the windows of its folder only: a window on
-/// another folder showed this one's "Indexando" as its own (ADR 0065).
-fn emit_progress<R: tauri::Runtime>(
-    app: &tauri::AppHandle<R>,
-    windows: &[String],
-    progress: &verso_contract::IndexProgress,
-) {
-    for label in windows {
-        let _ = app.emit_to(label.as_str(), "index-progress", progress);
-    }
-}
-
-/// An index run's progress for `windows`, at most one event every
-/// [`PROGRESS_EVERY`] — and always a phase's first and the run's last. One
-/// event per note, unchanged notes included, cost the window more CPU than
-/// the index itself on 5,000 notes (measured on Windows, 2026-10-08).
-fn progress_to<R: tauri::Runtime>(
-    app: tauri::AppHandle<R>,
-    windows: Vec<String>,
-) -> impl FnMut(verso_core::IndexProgress) {
-    let mut last: Option<(std::time::Instant, String)> = None;
-    move |p| {
-        let now = std::time::Instant::now();
-        let due = p.current >= p.total
-            || last.as_ref().is_none_or(|(at, phase)| {
-                *phase != p.phase || now.duration_since(*at) >= PROGRESS_EVERY
-            });
-        if due {
-            last = Some((now, p.phase.clone()));
-            emit_progress(&app, &windows, &to_progress(p));
-        }
-    }
-}
-
-/// The least time between two progress events of one index run.
-const PROGRESS_EVERY: std::time::Duration = std::time::Duration::from_millis(100);
-
-/// A batch from the watch, on its thread: index the folder again and send
-/// the app's windows `folder-changed`, once — every window listens to it,
-/// whatever its label. The payload names what this run found changed (a
-/// note Verso itself just wrote is current already and is not named), and
-/// the windows check their open notes against the disk anyway: another
-/// index run — "reindex", the command line — may have found a change
-/// first. A batch that finds no session for its folder does nothing and
-/// sets `missed`: the folder is still being opened, or another one is.
-fn changed_outside<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str, missed: &AtomicBool) {
-    let state = app.state::<App>();
-    let payload = {
-        let mut guard = lock(&state.sessions);
-        // Taken before the run: the lock is held through it.
-        let shown_in = guard.windows_of(key);
-        let Some(session) = guard.by_key.get_mut(key) else {
-            missed.store(true, Ordering::SeqCst);
-            return;
-        };
-        let progress = progress_to(app.clone(), shown_in);
-        let outcome = std::panic::catch_unwind(AssertUnwindSafe(|| {
-            session.workspace.index_with_progress(progress)
-        }));
-        let report = match outcome {
-            Ok(Ok(report)) => Ok(report),
-            Ok(Err(e)) => Err(e.to_string()),
-            Err(payload) => Err(format!("the core failed: {}", panic_text(payload.as_ref()))),
-        };
-        match report {
-            Ok(report) => {
-                session.info.index = session_summary(session, &report);
-                FolderChanged {
-                    key: key.to_owned(),
-                    changed: report.changed,
-                    removed: report.gone,
-                    listing: report.listing_changed,
-                    index: session.info.index.clone(),
-                }
-            }
-            // The index could not be brought up to date: the windows are
-            // told, with the reason among the problems, and keep what
-            // they show.
-            Err(reason) => {
-                let mut index = session.info.index.clone();
-                index.unindexed = Some(reason);
-                FolderChanged {
-                    key: key.to_owned(),
-                    changed: Vec::new(),
-                    removed: Vec::new(),
-                    listing: false,
-                    index,
-                }
-            }
-        }
-    };
-    // Once: `emit_to` a label also reaches every listener that listens to
-    // all, which is how the windows listen, so a loop over the windows
-    // delivered each batch once per window to each of them. Web pages'
-    // views cannot listen (capabilities/default.json).
-    let _ = app.emit("folder-changed", payload);
 }
 
 /// Run the native folder picker and open what the user chose: the entry
@@ -638,9 +335,7 @@ fn current_folder<R: tauri::Runtime>(
     window: tauri::Window<R>,
     state: State<'_, App>,
 ) -> Result<Option<FolderInfo>, ContractError> {
-    Ok(lock(&state.sessions)
-        .of(window.label())
-        .map(|s| s.info.clone()))
+    Ok(state.service.current_folder(window.label()))
 }
 
 /// The origins of embedded pages the user approved, replacing the list
@@ -715,10 +410,7 @@ fn log_read() -> Result<String, ContractError> {
 #[tauri::command]
 #[specta::specta]
 fn set_folder_note_name(state: State<'_, App>, name: String) -> Result<(), ContractError> {
-    lock(&state.folder_note_name).clone_from(&name);
-    for session in lock(&state.sessions).by_key.values_mut() {
-        session.workspace.set_folder_note_name(&name);
-    }
+    state.service.set_folder_note_name(&name);
     Ok(())
 }
 
@@ -737,10 +429,7 @@ fn set_walk_rules(
         builtin_ignores,
         gitignore,
     };
-    *lock(&state.walk_rules) = rules;
-    for session in lock(&state.sessions).by_key.values_mut() {
-        session.workspace.set_walk_rules(rules);
-    }
+    state.service.set_walk_rules(rules);
     Ok(())
 }
 
@@ -748,33 +437,97 @@ fn set_walk_rules(
 #[tauri::command]
 #[specta::specta]
 fn reindex<R: tauri::Runtime>(
-    app: tauri::AppHandle<R>,
     window: tauri::Window<R>,
     state: State<'_, App>,
 ) -> Result<IndexSummary, ContractError> {
-    // One hold of the lock for the run and the summary: a folder switched
-    // in between would otherwise get the other folder's summary.
-    let mut guard = lock(&state.sessions);
-    let shown_in = guard
-        .windows
-        .get(window.label())
-        .map(|key| guard.windows_of(key))
-        .unwrap_or_default();
-    let session = guard.of(window.label()).ok_or_else(no_folder)?;
-    let progress = progress_to(app.clone(), shown_in);
-    let report = match std::panic::catch_unwind(AssertUnwindSafe(|| {
-        session.workspace.index_with_progress(progress)
-    })) {
-        Ok(result) => result.map_err(convert)?,
-        Err(payload) => {
-            return Err(failed(format!(
-                "the core failed: {}",
-                panic_text(payload.as_ref())
-            )));
-        }
-    };
-    session.info.index = session_summary(session, &report);
-    Ok(session.info.index.clone())
+    state.service.reindex(window.label())
+}
+
+/// What this side can do (ADR 0027; ADR 0076 item 11): the desktop app,
+/// with a folder on this computer, does everything the window offers.
+#[tauri::command]
+#[specta::specta]
+fn capabilities() -> Result<Capabilities, ContractError> {
+    Ok(Capabilities {
+        host: Host::Desktop,
+        can: vec![
+            Can::Write,
+            Can::Reveal,
+            Can::CopyPath,
+            Can::Windows,
+            Can::WebViews,
+            Can::Agents,
+            Can::Updates,
+            Can::Devtools,
+            Can::LocalFolders,
+        ],
+        latency_ms: None,
+    })
+}
+
+/// The space the open folder takes (ADR 0075 item 4).
+#[tauri::command]
+#[specta::specta]
+fn folder_space<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+) -> Result<FolderSpace, ContractError> {
+    with(&state, &window, ops::folder_space)
+}
+
+/* ---------- Simultaneous editing: the server's (ADR 0073 item 7) ---------- */
+
+fn not_here() -> ContractError {
+    refused("simultaneous editing is a server's; this app writes its notes itself")
+}
+
+/// Join a note for editing with others: on a server only.
+#[tauri::command]
+#[specta::specta]
+fn collab_join(path: String) -> Result<CollabJoin, ContractError> {
+    let _ = path;
+    Err(not_here())
+}
+
+/// An edit made in this window, for the others.
+#[tauri::command]
+#[specta::specta]
+fn collab_update(path: String, update: String) -> Result<(), ContractError> {
+    let _ = (path, update);
+    Err(not_here())
+}
+
+/// Where this window's cursor is, for the others.
+#[tauri::command]
+#[specta::specta]
+fn collab_awareness(path: String, update: String) -> Result<(), ContractError> {
+    let _ = (path, update);
+    Err(not_here())
+}
+
+/// This window leaves the note.
+#[tauri::command]
+#[specta::specta]
+fn collab_leave(path: String) -> Result<(), ContractError> {
+    let _ = path;
+    Err(not_here())
+}
+
+/// Write the shared note now (⌘S): its revision on disk.
+#[tauri::command]
+#[specta::specta]
+fn collab_save(path: String) -> Result<String, ContractError> {
+    let _ = path;
+    Err(not_here())
+}
+
+/// A shared note that changed on disk while edits waited: keep the disk's
+/// text (`disk`) or write the shared one over it (`mine`).
+#[tauri::command]
+#[specta::specta]
+fn collab_resolve(path: String, keep: String) -> Result<String, ContractError> {
+    let _ = (path, keep);
+    Err(not_here())
 }
 
 /* ---------- The command line and MCP, from the settings (ADR 0054) ---------- */
@@ -845,6 +598,19 @@ macro_rules! commands_for {
                 log_read,
                 set_menu_language::<$runtime>,
                 reindex::<$runtime>,
+                capabilities,
+                folder_space::<$runtime>,
+                collab_join,
+                collab_update,
+                collab_awareness,
+                collab_leave,
+                collab_save,
+                collab_resolve,
+                server_sign_in::<$runtime>,
+                server_accounts,
+                server_sign_out::<$runtime>,
+                server_folders::<$runtime>,
+                server_open::<$runtime>,
                 query_base::<$runtime>,
                 new_window::<$runtime>,
                 cli_status,
@@ -863,6 +629,9 @@ macro_rules! commands_for {
             .typ::<FolderChanged>()
             .typ::<UpdateProgress>()
             .typ::<IndexProgress>()
+            .typ::<CollabUpdate>()
+            .typ::<CollabState>()
+            .typ::<ServerAccount>()
     };
 }
 
@@ -1040,6 +809,7 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             // The window's data under the former identifier comes along,
             // before any window opens (ADR 0004, decided 2026-10-07).
             migrate_web_data(&app.config().identifier);
+            hear(app.handle());
             // The main window is made here, not from the configuration
             // alone: it needs the download hook every window of the app
             // has (`on_download`).
@@ -1055,7 +825,15 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
         .plugin(navigation_guard())
         .register_asynchronous_uri_scheme_protocol("verso", serve_file)
         .manage(App::new(initial_folder))
-        .invoke_handler(commands.invoke_handler())
+        .invoke_handler({
+            // A window on a server's folder sends the folder's commands to
+            // the server (remote.rs); every other goes to this app.
+            let handler = commands.invoke_handler();
+            move |invoke| match remote::forward(invoke) {
+                None => true,
+                Some(invoke) => handler(invoke),
+            }
+        })
         .build(context())?
         .run(on_event);
     Ok(())
@@ -1087,7 +865,8 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
         } => {
             log::write("INFO", "host", &format!("window closed: {label}"));
             // Its folder closes when no other window shows it (ADR 0065).
-            lock(&app.state::<App>().sessions).release(label);
+            app.state::<App>().service.release(label);
+            remote::release(app, label);
             lock(&app.state::<App>().opening).remove(label);
         }
         tauri::RunEvent::Exit => log::write("INFO", "host", "exiting"),
@@ -1137,14 +916,13 @@ fn folder_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, folder: PathBuf) 
         None
     } else {
         let state = app.state::<App>();
-        let sessions = lock(&state.sessions);
         let opening = lock(&state.opening);
         let mut labels: Vec<String> = app
             .windows()
             .into_keys()
             .filter(|l| {
                 (l == "main" || l.starts_with("window-"))
-                    && !sessions.windows.contains_key(l)
+                    && state.service.folder_of(l).is_none()
                     && !opening.contains(l)
             })
             .collect();
@@ -1198,3 +976,5 @@ fn ask_windows_to_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_remote;

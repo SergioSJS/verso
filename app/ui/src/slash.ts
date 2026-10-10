@@ -15,6 +15,7 @@ import { ViewPlugin, keymap, type EditorView, type ViewUpdate } from "@codemirro
 import type { SyntaxNode } from "@lezer/common";
 import { icon } from "./icons";
 import { frontmatterEnd } from "./live";
+import { placeInView } from "./screen/viewport";
 
 export type SlashItem = {
   icon: string;
@@ -171,12 +172,10 @@ export class SlashMenu {
     if (!view) return;
     const at = view.coordsAtPos(this.from);
     if (!at) return;
-    const w = this.el.offsetWidth;
-    const hgt = this.el.offsetHeight;
-    let left = at.left;
-    let top = at.bottom + 6;
-    if (left + w > window.innerWidth - 8) left = Math.max(8, window.innerWidth - 8 - w);
-    if (top + hgt > window.innerHeight - 8) top = Math.max(8, at.top - hgt - 6);
+    // Inside what the screen shows: on a phone, above the on-screen
+    // keyboard, which covers the window without shrinking it (ADR 0076
+    // item 7).
+    const { left, top } = placeInView(at.left, at.bottom + 6, this.el.offsetWidth, this.el.offsetHeight, at.top);
     this.el.style.left = `${left}px`;
     this.el.style.top = `${top}px`;
   }

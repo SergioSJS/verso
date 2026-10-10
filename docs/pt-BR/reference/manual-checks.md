@@ -103,6 +103,73 @@ app real.
   nova na hora, sem tela antiga; o leitor de PDF e um board continuam
   abrindo.
 
+### O servidor (ADR 0073, 0074, 0075)
+
+Nas máquinas do mantenedor, com o servidor alcançado por HTTPS
+(`tailscale serve` ou um proxy); o `scripts/check-server-image.sh` e os
+testes de ponta a ponta cobrem o resto.
+
+- [ ] **Passkeys** num aparelho de verdade: adicionada em *Conta* no Mac
+  (Touch ID) e no iPhone; *Entrar com passkey* depois do e-mail, no Safari
+  e no Chrome.
+- [ ] **O celular e o iPad** no navegador, pelo `tailscale serve`: entrar,
+  abrir uma pasta, editar uma nota, ver chegarem as edições do outro
+  aparelho.
+- [ ] **O app desktop numa pasta do servidor** (o app instalado):
+  *Ajustes* › *Servidores*, *Conectar*, *Permitir* no navegador, abrir uma
+  pasta, editar, uma imagem da pasta aparece; sair e abrir o app de novo: a
+  pasta do servidor volta.
+- [ ] **CasaOS ou ZimaOS**: o compose instalado pela tela da loja de apps,
+  as variáveis do admin preenchidas, as pastas no NAS.
+- [ ] **Um `.deb` numa máquina pequena sem Docker**: instalado, o arquivo
+  de ambiente editado, `systemctl enable --now verso`.
+- [ ] **A conta e a administração em Ajustes**, no navegador do Mac e do
+  iPhone: o botão da pessoa ao lado da engrenagem abre *Ajustes* › *Conta*;
+  um admin também tem *Administração*; no celular, *Ajustes* e *Conta* no pé
+  da gaveta lateral; o cartão de entrar nos dois temas.
+- [ ] **Um botão da faixa oculto e trazido de volta** no app instalado:
+  botão direito › *Ocultar este botão*, a barra de status diz onde;
+  *Ajustes* › *Aparência* › o switch dele o traz de volta; a engrenagem não
+  tem *Ocultar*.
+
+### A janela em toda tela (ADR 0076)
+
+No celular e no iPad do mantenedor, a janela do servidor no navegador
+(feat/web). O Playwright não move dedo no WebKit nem abre o teclado do
+sistema, e uma página não sabe se um leitor de tela está ligado: isto só
+se vê aqui. Antes de o servidor ser anunciado (ADR 0073 item 6).
+
+- [ ] **VoiceOver no iPhone** (ADR 0076 item 9; ADR 0035 item 2): deslize
+  pela barra de baixo — cinco botões, cada um com nome (Arquivos, Buscar,
+  Nova nota, Voltar, Comandos); abra a gaveta e chegue a uma linha, depois
+  ao "…" dela ("Mais ações: …"); tocar duas vezes e segurar numa linha
+  abre o menu; no Editar, um toque duplo num link e o cartão depois do
+  texto ("Link: …") com Abrir e Editar link; a barra do teclado chamada
+  "Ferramentas de escrita"; numa pasta de quem só lê, "Você só lê esta
+  pasta" lido em voz alta.
+- [ ] **VoiceOver no iPad**, em pé e deitado: o mesmo; acima de 760 px a
+  fita e as áreas divididas ficam; os controles do grafo ao lado dele
+  deitado, atrás de "Ajustes do grafo" numa área abaixo de 520 px.
+- [ ] **TalkBack no Android** (Chrome): os mesmos passos; o tocar duas
+  vezes e segurar do TalkBack abre o menu de uma linha (o `contextmenu` do
+  próprio Android).
+- [ ] **Segurar no iOS**: uma linha segurada e solta abre o menu; segurada
+  e movida, arrasta para uma pasta; deslizar rola a árvore e não move
+  nada. Um cartão do kanban segurado: o menu, com "Mover para a coluna…";
+  deslizar no quadro passa uma coluna por vez.
+- [ ] **O teclado na tela** no iPhone e no Android: no Editar, o menu `/`,
+  as sugestões de link depois de `[[`, o seletor de figurinhas e o menu de
+  uma aba abrem acima do teclado; o cursor fica acima dele, também na
+  última linha da nota; a barra do teclado fica sobre o teclado, e os
+  botões dela não fecham o teclado (menos "Esconder o teclado").
+- [ ] **O entalhe e os cantos**: um iPhone com entalhe, em pé e deitado —
+  nada sob o entalhe nem nos cantos arredondados; a barra de baixo acima
+  do indicador de início.
+- [ ] **A pinça**: sobre o texto a página inteira amplia (e volta); sobre o
+  grafo, um board e um PDF, só eles ampliam.
+- [ ] **Números de linha**: no celular, uma nota no Fonte não tem; ligados
+  em Ajustes › Editor, aparecem.
+
 ## Para reproduzir
 
 Relatados no backlog, mudados desde então, mas sem teste que os cubra; se
@@ -113,6 +180,11 @@ ainda acontecem, um passo que os faça acontecer basta.
   mostra.
 
 ## Conferido
+
+- [x] A busca de notas acha uma nota pelo nome exato do arquivo quando o
+  primeiro título a chama de outro jeito, em primeiro na lista; o × limpa
+  a busca (feat/web-groundwork, o beta instalado em 0a38c65, conferido
+  pelo mantenedor em 2026-10-09).
 
 - [x] O menu de uma imagem: Baixar imagem, Abrir em nova janela; Abrir
   pasta numa segunda janela; uma nota destacada devolvida à janela

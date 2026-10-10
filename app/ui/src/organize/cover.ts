@@ -19,5 +19,5 @@ export function bannerPercent(fraction: number): string {
 }
 /** The sticker picker's words, in the interface's language. */
 export function pickerStrings(): PickerStrings {
-  return { emojis: t.stickerTabEmoji, icons: t.stickerTabIcons, colors: t.hue, search: t.search, removeSticker: t.removeSticker, removeColor: t.removeColor, label: t.stickerPickerLabel, grid: t.stickerGridLabel };
+  return { emojis: t.stickerTabEmoji, icons: t.stickerTabIcons, colors: t.hue, search: t.stickerSearch, removeSticker: t.removeSticker, removeColor: t.removeColor, label: t.stickerPickerLabel, grid: t.stickerGridLabel };
 }

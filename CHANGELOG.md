@@ -14,6 +14,30 @@ test release.
 
 Nothing yet.
 
+## 0.7.0-beta.1 — 2026-10-10
+
+### Added
+
+- **Verso as a server, `verso serve`** ([ADR 0073](docs/adr/0073-self-hosted-server-first.md), [0074](docs/adr/0074-accounts-and-access-on-the-server.md), [0075](docs/adr/0075-server-packaging-and-storage.md)): your notes on a machine of your own — a home server, a NAS, any cloud — opened in a browser on a computer, a phone or a tablet. The folders stay ordinary folders of Markdown files on the server's disk (`VERSO_FOLDERS_DIR`, which may be a NAS); the accounts and the indexes live apart (`VERSO_DATA_DIR`, a local disk). Installed as a Docker image for amd64 and arm64 (GitHub's registry), a compose file for CasaOS and ZimaOS, or a `.deb`/`.rpm` with a systemd service: `docs/reference/server-install.md`. Sign-in needs HTTPS — the server's own certificate, a reverse proxy or `tailscale serve`. Settings › Administration says when a newer version is out; the server never updates itself.
+- **Accounts and access on the server**: the first admin from the image's environment, on the first start only (or a one-hour setup link in the log); nobody signs themselves up — the admin invites, with a link used once that expires in seven days, and sees who used it; per folder an owner, editors and readers; the admin enters no folder without granting it to themselves, in the log the owner reads. Passwords, passkeys, sessions you can see and end, personal access tokens for scripts limited to folders and to reading or writing, and a password reset by the admin, or on the machine (`verso serve admin reset <e-mail>`) for a lost admin. The space each folder takes is shown in Settings › Administration.
+- **Several people in one note at once**, on a server: each one's edits appear in the others' windows as they type, with their cursors and names; the server writes the file when the edits settle, never over a change made elsewhere — that shows the difference for the people in the note to choose.
+- **The desktop app opens a server's folders**: Settings › Servers connects through the browser (the server's page asks you to allow this computer; nobody pastes a token), then a window shows one of the server's folders as if it were here, including editing with others.
+- **More of the server**: with a mail server (`VERSO_SMTP_URL`) the sign-in page sends a link by e-mail and a reset for a forgotten password, and invitations go to their address; the window installs on a phone's or a tablet's home screen; your settings — theme, language, keys, remote content, the sites you allowed in embeds — follow your account to every browser; a folder on a NAS is scanned every 30 seconds, since the system tells no one of another machine's change; the space a folder takes shows in Settings › Files and after `verso index`; `verso serve --web` serves the notes' window to a browser (the image and the packages run it so), and without it only the desktop app reaches the notes; the desktop app on a server's folder connects again by itself after a dropped connection.
+- **A × in the notes search field** clears the words and brings the file tree back, for a phone or tablet, which has no Esc.
+- **On a touch screen**, a long press opens the menu a right click opens, and a long press then a move drags a row or a tab. Fields write at 16 px so iOS no longer zooms into them, controls that showed only under the mouse are shown, buttons and rows are larger, and the settings fit a phone, with a × to close them. What was measured and what is left: `docs/reference/responsive-review-2026-10-09.md`.
+- **Your account and the server's administration live in Settings**, drawn as the other settings are: the person's button beside the gear on the ribbon opens *Account* (profile, password, passkeys, sessions, folders and their members, access tokens), and an admin also finds *Administration* (the server, folders, accounts, invitations, the audit log); on a phone both are at the foot of the side bar. The sign-in page is one card, with the passkey and the e-mail link under the password, in the same column.
+
+### Changed
+
+- **The search finds a note by its file name first**, then by what the notes say: a note whose first heading names it otherwise is found by its file name too, before the notes that only mention the words. Accents and case do not matter, as in the content. The same order in `verso search` and in the agents' search.
+- **The dark theme reads more comfortably**: its paper is a little lighter and its text a little softer — about 11:1 instead of 13.7:1, the range of reading apps — and the text is drawn thinner on a dark paper. Settings › Appearance › *Dark tone* keeps the near-black as *Deep*, and adds a lighter *Dusk*; in every palette and tone the secondary text keeps 4.5:1 (the Slate palette's fell just under it before).
+
+### Fixed
+
+- **A swipe on the file tree no longer moves a note**: on a touch screen, scrolling the tree started a drag, and the next tap on a folder moved the note into it. A long menu now scrolls inside the screen instead of running past it.
+- **A button hidden from the ribbon comes back**: Settings › Appearance lists the ribbon's buttons with a switch each, a right click on the ribbon's empty room shows the hidden ones again, the status bar says where when one is hidden, and the gear itself can no longer be hidden.
+- **⌘N on a shared folder always makes a note**: when another member had just made "Untitled" and this window did not know it yet, the new note failed with "already exists"; it now takes the next free name.
+
 ## 0.6.0-beta.1 — 2026-10-09
 
 ### Added

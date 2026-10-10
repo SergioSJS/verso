@@ -3,6 +3,22 @@
 - Data: 2026-09-21
 - Fonte: `docs/BRIEFING.md` §8, §15
 - Status no briefing: `DECIDIDO`
+- Revisões: 2026-10-09 — revisto pelo [0073](0073-self-hosted-server-first.md),
+  aceito pelo mantenedor naquele dia; o texto abaixo fica como foi
+  decidido em 2026-09-21. **A ordem**: o servidor auto-hospedado é
+  construído primeiro, e o sync entre dispositivos vem depois dele e por
+  ele (0073 itens 1 e 10). **Item 1**: o sync nativo continua essencial e
+  passa pelo servidor próprio do Verso; as integrações com Google Drive e
+  OneDrive por API não são essenciais — o caminho da pasta é suportado e
+  documentado (cópias de conflito detectadas, placeholders tratados),
+  WebDAV é o primeiro transporte externo, Drive e OneDrive por API vêm se
+  pedirem, iCloud nunca por API, o rclone não é embutido. **Item 3**:
+  transportes moram no core, não como plugins, até plugins existirem e
+  enquanto guardarem credenciais (0073 item 4). **Item 4**: o sync sai de
+  "fora de escopo até o fim da Fase 2" para a Fase 3, depois da primeira
+  versão do servidor ([0034](0034-roadmap-in-phases.md), revisto no mesmo
+  dia). O item 2 fica; merge por bloco vem depois de conflitos terem sido
+  vistos em uso (0073 item 10).
 
 ## Contexto
 
@@ -40,4 +56,5 @@ bytes (transporte).
 
 ## Status
 
-Aceito.
+Aceito. Revisto em 2026-10-09 pelo [0073](0073-self-hosted-server-first.md)
+(Revisões).

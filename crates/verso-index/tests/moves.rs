@@ -80,7 +80,11 @@ fn rekey_renames_a_title_that_was_the_file_name_and_replaces_a_stale_row() {
         index.search("escrito", 10).unwrap()[0].path,
         "Outro Nome.md"
     );
-    assert!(index.search("outro", 10).unwrap().is_empty());
+    // Found by its new file name, with no excerpt: the content's title is
+    // still the heading (the file name first, the maintainer, 2026-10-09).
+    let hits = index.search("outro", 10).unwrap();
+    assert_eq!(hits.len(), 1, "{hits:?}");
+    assert_eq!(hits[0].snippet, "");
     index.check().unwrap();
 }
 

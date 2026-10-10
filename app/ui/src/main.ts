@@ -31,9 +31,13 @@ import { hotkeyRecorder, SettingsDialog } from "./dialogs/settings";
 import { button, el, h, ui } from "./dom";
 import { fail } from "./errors";
 import { installFrame } from "./frame";
+import { installLongPress } from "./touch";
+import { installScreen } from "./screen/frame";
+import { can } from "./can";
 import { copyFilesInto, newUntitled } from "./files";
 import { focusesList, loadFocuses, selectFocus } from "./focuses";
 import { LAST_FOLDER, nameFolderButton, popout, secondary } from "./folder";
+import { hearServers, openServerFolder, parseServerKey } from "./dialogs/servers";
 import { icon } from "./icons";
 import { allCommands, keyHint, keyOf, MAC, paintKeyHints, prettyKeys, runHotkey } from "./keys";
 import { clearDropHints, ghost } from "./layout/drag";
@@ -93,7 +97,10 @@ ui.ribbon.setAttribute("aria-label", t.commands);
 document.querySelector(".side")?.setAttribute("aria-label", t.folderView);
 ui.collapse.replaceChildren(icon("collapse", t.collapseAll));
 ui.collapse.title = t.collapseAll;
+installLongPress();
 ui.search.placeholder = t.search;
+ui.searchClear.title = t.clearSearch;
+ui.searchClear.setAttribute("aria-label", t.clearSearch);
 ui.searchLabel.textContent = t.search;
 // The tree's order, from its heading: one button, its icon the mode in use
 // — A→Z alphabetical, the grip custom (the maintainer, 2026-10-02).
@@ -247,7 +254,7 @@ ui.spaces.addEventListener("contextmenu", (e) => {
   e.preventDefault();
   showMenu(e.clientX, e.clientY, [
     [t.newSpace, () => newSpace(), "plus"],
-    ...(!popout ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
+    ...(!popout && can("windows") ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
   ]);
 });
 export const panel = new Panel();
@@ -337,7 +344,9 @@ narrow.addEventListener("change", () => {
 document.addEventListener("mousedown", (e) => {
   if (!narrow.matches) return;
   const at = e.target as HTMLElement;
-  if (document.body.classList.contains("side-open") && !at.closest(".side, #toggle-side")) document.body.classList.remove("side-open");
+  // A menu a row of the drawer opened, and the phone's own toggle (ADR
+  // 0076 item 6), leave it open.
+  if (document.body.classList.contains("side-open") && !at.closest(".side, #toggle-side, .bar-files, .menu")) document.body.classList.remove("side-open");
   if (document.body.classList.contains("right-open") && !at.closest(".right, #toggle-right")) document.body.classList.remove("right-open");
   paintExpanded();
 });
@@ -367,6 +376,9 @@ keyHint(newSpaceButton, t.newSpace, "new-space");
 keyHint(toggleSideButton, t.toggleSide, "toggle-side");
 keyHint(toggleRightButton, t.toggleRight, "toggle-right");
 paintKeyHints();
+// The phone's frame, the keyboard's bar and what the side cannot do
+// (ADR 0076).
+installScreen();
 
 ui.open.addEventListener("click", () => void openFolderDialog());
 ui.collapse.addEventListener("click", collapseAll);
@@ -389,6 +401,14 @@ let pending: number | undefined;
 ui.search.addEventListener("input", () => {
   window.clearTimeout(pending);
   pending = window.setTimeout(() => void searchNotes(ui.search.value), 150);
+});
+// A phone has no Esc: the × beside the words clears them, and the tree
+// comes back. The field keeps the focus, for the next words.
+ui.searchClear.addEventListener("click", () => {
+  window.clearTimeout(pending);
+  ui.search.value = "";
+  ui.search.focus();
+  void searchNotes("");
 });
 ui.search.addEventListener("keydown", (e) => {
   if (e.key === "Enter") ui.notes.querySelector<HTMLButtonElement>("li[data-path] button")?.click();
@@ -533,7 +553,7 @@ document.addEventListener(
     const items: MenuItem[] = [];
     if (file) {
       items.push([t.openInNewTab, () => openNote(file, false, true), "tab"]);
-      if (!popout) items.push([t.openInWindow, () => void commands.openWindow(file).then((r) => r.status !== "ok" && fail(r.error)), "maximize"]);
+      if (!popout && can("windows")) items.push([t.openInWindow, () => void commands.openWindow(file).then((r) => r.status !== "ok" && fail(r.error)), "maximize"]);
       items.push(["—", () => {}]);
       items.push([
         imageText.download,
@@ -566,7 +586,7 @@ document.addEventListener(
       items.push([imageText.openInBrowser, () => void commands.openUrl(src), "globe"]);
       items.push([imageText.copyAddress, () => void navigator.clipboard.writeText(src), "link"]);
     }
-    if (file) items.push(["—", () => {}], [t.reveal, () => void commands.reveal(file), "folderOpen"]);
+    if (file && can("reveal")) items.push(["—", () => {}], [t.reveal, () => void commands.reveal(file), "folderOpen"]);
     showMenu(e.clientX, e.clientY, items);
   },
   true,
@@ -680,6 +700,7 @@ if (!popout && settings.checkUpdates) {
  *  The browser harness waits for it before a test types (review
  *  `board.md`, second reading, finding 9). */
 export const started: Promise<void> = (async () => {
+  hearServers();
   await Promise.all([embedOriginsPushed, walkRulesPushed, folderNoteNamePushed]);
   if (popout) return void joinAsPopout();
   // A reload (a language change) finds the host's folder still open: the
@@ -699,6 +720,9 @@ export const started: Promise<void> = (async () => {
   }
   // A key. Until 2026-09-23 this held the folder's path, which no longer
   // crosses: such a folder is picked again, once.
+  // A folder of a server this app signed in to (ADR 0073 item 2).
+  const server = last ? parseServerKey(last) : null;
+  if (server) return void openServerFolder(server.url, server.folder, true);
   if (last && !last.includes("/")) void openFolderBy(() => commands.reopenFolder(last), true);
 })();
 

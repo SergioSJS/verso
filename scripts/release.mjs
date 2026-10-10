@@ -6,8 +6,8 @@
 //   node scripts/release.mjs prepare 0.3.0-beta.4
 //     On the branch of the pull request that releases (never main): sets
 //     the version (the workspace's Cargo.toml, which every crate and the
-//     app read, app/ui's package.json and lockfile, and both Cargo.lock
-//     files), moves the changelog's "Unreleased" entries under the version
+//     app read, app/ui's package.json and lockfile, both Cargo.lock files
+//     and the server compose file's CasaOS card), moves the changelog's "Unreleased" entries under the version
 //     in both languages, and commits with a sign-off. Nothing is pushed:
 //     the commit travels in that pull request. Everything is checked before
 //     anything is written, so a refusal leaves the checkout as it was.
@@ -159,8 +159,15 @@ function prepare(v) {
   lock.version = v;
   if (lock.packages?.[""]) lock.packages[""].version = v;
 
+  // The server's compose file names the version in its CasaOS block (the
+  // app store's card): it follows.
+  const compose = readHere("packaging/server/docker-compose.yml");
+  const newCompose = compose.replace(/(\n  version: ")[^"]+(")/, `$1${v}$2`);
+  if (newCompose === compose && !compose.includes(`version: "${v}"`)) fail("packaging/server/docker-compose.yml: no x-casaos version to set");
+
   const writes = [
     ["Cargo.toml", `${newCargo.trimEnd()}\n`],
+    ["packaging/server/docker-compose.yml", newCompose],
     ["app/ui/package.json", `${JSON.stringify(pkg, null, 2)}\n`],
     ["app/ui/package-lock.json", `${JSON.stringify(lock, null, 2)}\n`],
     ...CHANGELOGS.map(({ file }, i) => [file, changed[i]]),
@@ -182,7 +189,7 @@ function prepare(v) {
     console.error("release: the fuzz lockfile was left as it was (its dependencies are not in the local cache)");
   }
 
-  run("git", ["add", "Cargo.toml", "Cargo.lock", fuzz[1], "app/ui/package.json", "app/ui/package-lock.json", ...CHANGELOGS.map((c) => c.file)]);
+  run("git", ["add", "Cargo.toml", "Cargo.lock", fuzz[1], "app/ui/package.json", "app/ui/package-lock.json", "packaging/server/docker-compose.yml", ...CHANGELOGS.map((c) => c.file)]);
   run("git", ["commit", "--quiet", "-s", "-m", `release: v${v}`,
     "-m", `Sets the version to ${v} and moves the changelog's unreleased\nentries under it (ADR 0051).`,
     "-m", "Merging this commit into main releases it: the release workflow\nbuilds the app, publishes the release and creates the tag."]);

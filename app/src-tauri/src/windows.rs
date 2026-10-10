@@ -21,15 +21,11 @@ pub(crate) async fn open_window<R: tauri::Runtime>(
     let n = POPOUTS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let label = format!("note-{n}");
     // The note belongs to the folder of the window it came from (ADR 0065).
-    {
-        let mut sessions = lock(&state.sessions);
-        let key = sessions
-            .windows
-            .get(window.label())
-            .cloned()
-            .ok_or_else(no_folder)?;
-        sessions.windows.insert(label.clone(), key);
-    }
+    let key = state
+        .service
+        .folder_of(window.label())
+        .ok_or_else(no_folder)?;
+    state.service.bind(&label, &key);
     let title = path
         .rsplit('/')
         .next()
@@ -67,10 +63,9 @@ pub(crate) async fn new_window<R: tauri::Runtime>(
     // start page, to open one (ADR 0065).
     let key = if same_folder {
         Some(
-            lock(&state.sessions)
-                .windows
-                .get(window.label())
-                .cloned()
+            state
+                .service
+                .folder_of(window.label())
                 .ok_or_else(no_folder)?,
         )
     } else {
@@ -88,9 +83,7 @@ pub(crate) fn open_folder_window<R: tauri::Runtime>(
     let n = WINDOWS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let label = format!("window-{n}");
     if let Some(key) = key {
-        lock(&app.state::<App>().sessions)
-            .windows
-            .insert(label.clone(), key);
+        app.state::<App>().service.bind(&label, &key);
     }
     // From the main window's configuration, under its own label: the same
     // size, and on macOS the same title bar, whose buttons only a window's
@@ -207,18 +200,18 @@ pub(crate) fn return_to_main<R: tauri::Runtime>(
     // Back to a window of its folder: the main one if it shows it, else
     // the first other that does (ADR 0065).
     let home = {
-        let sessions = lock(&state.sessions);
-        let key = sessions.windows.get(window.label()).cloned();
-        let mut folder_windows: Vec<&String> = sessions
-            .windows
-            .iter()
-            .filter(|(l, k)| Some(*k) == key.as_ref() && (*l == "main" || l.starts_with("window-")))
+        let key = state.service.folder_of(window.label());
+        let mut folder_windows: Vec<String> = state
+            .service
+            .clients()
+            .into_iter()
+            .filter(|(l, k)| Some(k) == key.as_ref() && (l == "main" || l.starts_with("window-")))
             .map(|(l, _)| l)
             .collect();
-        folder_windows.sort_by_key(|l| (*l != "main", (*l).clone()));
+        folder_windows.sort_by_key(|l| (l != "main", l.clone()));
         folder_windows
-            .first()
-            .map(|l| (*l).clone())
+            .into_iter()
+            .next()
             .unwrap_or_else(|| "main".to_owned())
     };
     app.emit("open-note", (home.clone(), path))

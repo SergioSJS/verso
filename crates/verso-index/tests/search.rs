@@ -147,16 +147,62 @@ fn a_note_is_found_by_its_name_even_when_the_body_never_says_it() {
     assert_eq!(hits[0].path, "RPG/A Coroa Afogada.md");
     assert!(hits[0].snippet.contains("[Coroa]"), "{}", hits[0].snippet);
     assert_eq!(index.search("título próprio", 10).unwrap().len(), 1);
-    // Replacing and removing keep the FTS in step with the title column.
+    // Replacing and removing keep the FTS in step with the title column;
+    // a first heading that names the note otherwise does not hide its file
+    // name (the maintainer, 2026-10-09: the file name first).
     put(
         &mut index,
         "RPG/A Coroa Afogada.md",
         "# Renomeada\n\ncorpo\n",
     );
-    assert!(index.search("coroa", 10).unwrap().is_empty());
+    let hits = index.search("coroa", 10).unwrap();
+    assert_eq!(hits.len(), 1, "{hits:?}");
+    assert_eq!(hits[0].snippet, "", "found by its name alone");
     assert_eq!(index.search("renomeada", 10).unwrap().len(), 1);
     assert!(index.remove("RPG/A Coroa Afogada.md").unwrap());
     index.check().unwrap();
+}
+
+#[test]
+fn the_file_name_comes_first_then_the_content() {
+    // The maintainer, 2026-10-09: a note was found by its exact name only
+    // when another note linked to it; the name comes first, the content
+    // after.
+    let mut index = Index::in_memory().unwrap();
+    put(
+        &mut index,
+        "Sessões/Mapa do Porto.md",
+        "# Porto de Vex\n\nruas e docas\n",
+    );
+    put(
+        &mut index,
+        "Diário.md",
+        "Vimos o mapa do porto ontem, e de novo o mapa do porto.\n",
+    );
+    put(&mut index, "Mapa.md", "nada a ver\n");
+    put(&mut index, "Porto.md", "um mapa antigo\n");
+    put(&mut index, "Velho Mapa do Porto Sul.md", "rascunho\n");
+    let paths: Vec<String> = index
+        .search("mapa do porto", 10)
+        .unwrap()
+        .into_iter()
+        .map(|h| h.path)
+        .collect();
+    assert_eq!(
+        paths,
+        [
+            "Sessões/Mapa do Porto.md",
+            "Velho Mapa do Porto Sul.md",
+            "Diário.md"
+        ]
+    );
+    // Accents and case, as in the content; a canvas by its name too.
+    put(&mut index, "Tour do Verso.canvas", "");
+    let hits = index.search("TOUR", 10).unwrap();
+    assert_eq!(hits[0].path, "Tour do Verso.canvas", "{hits:?}");
+    assert_eq!(index.search("diario", 10).unwrap()[0].path, "Diário.md");
+    // The limit counts both kinds.
+    assert_eq!(index.search("mapa", 2).unwrap().len(), 2);
 }
 
 #[test]
@@ -193,4 +239,59 @@ fn tags_ignore_links_code_and_frontmatter_comments() {
     let tags = index.tags().unwrap();
     let names: Vec<&str> = tags.iter().map(|(n, _)| n.as_str()).collect();
     assert_eq!(names, ["corpo", "real"], "{tags:?}");
+}
+
+#[test]
+fn a_name_is_found_by_any_part_and_stays_in_step_with_moves_and_removals() {
+    let mut index = Index::in_memory().unwrap();
+    put(&mut index, "Capitão Ruy.md", "# Outro\n");
+    put(&mut index, "a.md", "x\n");
+    let paths = |index: &Index, q: &str| -> Vec<String> {
+        index
+            .search(q, 10)
+            .unwrap()
+            .into_iter()
+            .map(|h| h.path)
+            .collect()
+    };
+    // Through the trigrams (three letters or more), and through the scan
+    // (shorter words only), the same answer.
+    assert_eq!(paths(&index, "pitã"), ["Capitão Ruy.md"]);
+    assert_eq!(paths(&index, "ru"), ["Capitão Ruy.md"]);
+    assert_eq!(paths(&index, "ca ruy"), ["Capitão Ruy.md"]);
+    assert_eq!(paths(&index, "\"pit"), Vec::<String>::new());
+    assert!(index.rekey("Capitão Ruy.md", "npcs/Barão Vex.md").unwrap());
+    assert!(paths(&index, "capitao").is_empty());
+    assert_eq!(paths(&index, "barao"), ["npcs/Barão Vex.md"]);
+    assert!(index.remove("npcs/Barão Vex.md").unwrap());
+    assert!(paths(&index, "barao").is_empty());
+    index.check().unwrap();
+}
+
+#[test]
+fn a_word_most_names_hold_gives_the_same_order_as_a_rare_one() {
+    // Past 512 names the trigrams give way to a scan: the answer is the same.
+    let mut index = Index::in_memory().unwrap();
+    for i in 0..600 {
+        put(&mut index, &format!("Sessões/Sessão {i:03}.md"), "x\n");
+    }
+    put(&mut index, "Sessão.md", "x\n");
+    let paths = |q: &str, limit: usize| -> Vec<String> {
+        index
+            .search(q, limit)
+            .unwrap()
+            .into_iter()
+            .map(|h| h.path)
+            .collect()
+    };
+    assert_eq!(
+        paths("sessao", 3),
+        [
+            "Sessão.md",
+            "Sessões/Sessão 000.md",
+            "Sessões/Sessão 001.md"
+        ]
+    );
+    assert_eq!(paths("sessão 599", 3), ["Sessões/Sessão 599.md"]);
+    assert_eq!(paths("sessao", 1000).len(), 601);
 }

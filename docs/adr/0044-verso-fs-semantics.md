@@ -30,6 +30,14 @@
   `ignore` crate, the built-in list and the `.gitignore` each behind a switch,
   on by default. Recorded as a section of its own after the ignored-paths
   group; the lines of 2026-09-22 it revises are kept, each with a note.
+  2026-10-09 — **the handles group answered for `verso serve`, and the
+  symlinks on a server, decided by the maintainer** with the acceptance of
+  [0073](0073-self-hosted-server-first.md) that day: a note stays named by
+  its relative path and the access capability is the session and its role
+  in the folder; a symlink that leaves the folder is refused on a server.
+  Recorded as a section of its own, "On a server", after the handles
+  group; the desktop's local folder is unchanged, and the lines this
+  revises are kept, each with a note.
 
 ## Context
 
@@ -44,7 +52,8 @@ answer before `verso-fs` exists.
 The three groups are decided: symlinks and ignored paths on 2026-09-22, the
 opaque handles on 2026-09-24, as built for Phase 2 and with the moment to
 re-open them; ignored paths were revised on 2026-09-29. The watcher, which came after feature 2, was decided on
-2026-09-24 as well.
+2026-09-24 as well. The handles and the symlinks were decided for a server
+on 2026-10-09 ("On a server", below).
 
 ### Symlinks and loops — decided on 2026-09-22
 
@@ -55,6 +64,9 @@ Decided by the maintainer on 2026-09-22, on the memo
   folder that points outside is traversed, and what it reaches is read like any
   other entry: no test of whether the target stays inside the root, no refusal.
   A symlink inside the folder is the user's, and following it is the point.
+  *(On a server with members, since 2026-10-09: a symlink is followed only
+  when its target stays inside the folder — "On a server", below. The
+  desktop's local folder keeps this rule.)*
 - **Maximum depth 64.** Reaching the cap is a **recorded error naming the
   path**, never silence; the walk carries on with the rest of the folder. The
   same principle as the network-filesystem row of
@@ -328,6 +340,8 @@ option (a), in the same answer as the watcher's:
   mobile client ([0025](0025-own-server-and-mobile-pwa.md)), `verso serve`.
   That is when a capability has to cross: an iOS security-scoped bookmark, an
   Android SAF URI.
+  *(For `verso serve`, answered on 2026-10-09 — "On a server", below. A
+  plugin and a native mobile client still re-open the group.)*
 
 The questions as they were first recorded, before feature 6 of Phase 1 and
 item 2.1 of Phase 2:
@@ -341,6 +355,32 @@ item 2.1 of Phase 2:
   identifier is the same handle as in the contract.
 - If the stable identifier ends up being the path relative to the root, rule 4
   has to say so, instead of pretending it is not.
+
+### On a server — decided on 2026-10-09
+
+**Decided on 2026-10-09 by the maintainer**, with the acceptance of
+[0073](0073-self-hosted-server-first.md) (its items 3 and 6), in the answer
+to the plan of that night: *"… vc segue o recomendado"*. The handles group
+was re-opened for the day `verso serve` reaches files; this is its answer
+for the server, option (a) of that plan:
+
+- **A note stays named by its path relative to the folder.** On a server
+  the access capability is **the session and its role in the folder**
+  ([0074](0074-accounts-and-access-on-the-server.md) item 6), checked on
+  every command and every file request before `verso-fs` acts.
+  Attachments are served at `/f/<folder-id>/<relative path>` behind that
+  check ([0075](0075-server-packaging-and-storage.md) item 3, the
+  folder's id). **No per-file capability crosses.** Rule 4 of
+  [0026](0026-core-ui-contract-inviolable-rules.md) is unchanged, with a
+  dated clarification there.
+- **The pre-signed URL** of a bucket ([0073](0073-self-hosted-server-first.md)
+  item 4) stays `[OPEN]`, with the bucket mode.
+- **Symlinks on a server**: a symlink is followed only when its target
+  stays inside the folder; one that leaves the folder is refused. This is
+  option (b) of the symlinks memo, discarded for one person's folder
+  (Discarded alternatives) and taken for a server with members, with the
+  costs named there. The desktop's local folder is unchanged: every
+  symlink is followed, as decided on 2026-09-22.
 
 ## Consequences
 
@@ -453,7 +493,9 @@ Symlinks, loops and ignored paths: decided on 2026-09-22 by the maintainer,
 Accepted; ignored paths revised on 2026-09-29 by the maintainer — the
 built-in list and `.gitignore`, behind settings — Accepted. Opaque handles:
 decided on 2026-09-24 by the maintainer, as built for Phase 2, Accepted;
-re-opened before anything outside the app's own views gets access to files. The watcher: built after feature 2 and decided on
+re-opened before anything outside the app's own views gets access to files;
+answered for `verso serve` on 2026-10-09 ("On a server"), Accepted. Symlinks
+on a server: decided on 2026-10-09 by the maintainer, Accepted. The watcher: built after feature 2 and decided on
 2026-09-24 by the maintainer, Accepted. The items marked **provisional** inside
 the two groups decided on 2026-09-22 are not decided: they are what the
 feature 2 code does, recorded so that nothing is settled by silence, and they

@@ -5,7 +5,7 @@ import { test, expect } from "./fixtures.mjs";
 test("the settings have the sections the tutorial names", async ({ app }) => {
   await app.open();
   await app.key("Mod+,");
-  await expect(app.page.locator(".settings-nav-item")).toHaveText(["Geral", "Aparência", "Editor", "Organização", "Arquivos e links", "Board", "Atalhos", "Terminal e agentes"]);
+  await expect(app.page.locator(".settings-nav-item")).toHaveText(["Geral", "Aparência", "Editor", "Organização", "Arquivos e links", "Board", "Atalhos", "Terminal e agentes", "Servidores"]);
   await app.page.locator(".settings-nav-item", { hasText: "Aparência" }).click();
   for (const label of ["Tema", "Paleta de cores", "Tamanho da fonte", "Fonte dos títulos", "Fonte do texto", "Cor de destaque dos títulos", "Largura do texto"]) {
     await expect(app.page.getByText(label, { exact: true }).first()).toBeVisible();

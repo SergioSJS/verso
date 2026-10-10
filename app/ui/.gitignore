@@ -4,3 +4,4 @@ e2e/results/
 playwright-report/
 e2e/.site/
 test/.bundles/
+e2e-server/results/

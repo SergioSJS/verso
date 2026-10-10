@@ -93,7 +93,7 @@
 .lesson-import .icon { width: 14px; height: 14px; }
 
 /* Menu at the pointer */
-.menu { position: fixed; z-index: 20; list-style: none; margin: 0; padding: .3rem; min-width: 14rem; background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; box-shadow: 0 10px 30px -10px oklch(0% 0 0 / .35); font-size: .88rem; }
+.menu { position: fixed; z-index: 20; list-style: none; margin: 0; padding: .3rem; min-width: 14rem; max-width: calc(100vw - 16px); overflow-y: auto; overscroll-behavior: contain; background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; box-shadow: 0 10px 30px -10px oklch(0% 0 0 / .35); font-size: .88rem; }
 .menu li > button { display: flex; align-items: center; gap: .55rem; width: 100%; text-align: left; padding: .35rem .6rem; border-radius: 5px; }
 .menu li > button .icon { width: 14px; height: 14px; color: var(--ink-3); flex: none; }
 .menu li > button:hover, .menu li > button:focus-visible { background: var(--seal-wash); color: var(--seal); outline: none; }
@@ -105,8 +105,11 @@
 /* Rename in place, new note */
 input.rename, .new-note-row input { width: 100%; font: inherit; font-size: .93rem; padding: .25rem .5rem; background: var(--paper); color: var(--ink); border: 1px solid var(--brass); border-radius: 5px; }
 input.rename:focus, .new-note-row input:focus { outline: none; }
-.new-note-row { display: flex; align-items: center; gap: .3rem; margin: .2rem .5rem .5rem; }
-.new-note-where { font-size: .78rem; color: var(--ink-3); white-space: nowrap; }
+.new-note-row { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; margin: .2rem .5rem .5rem; }
+/* Where the note goes, on a line of its own when the row is narrow: the
+   field keeps room to type (a phone's side bar). */
+.new-note-where { font-size: .78rem; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.new-note-row input { flex: 1 1 10rem; min-width: 0; }
 
 /* The rewrite plan */
 .plan { position: fixed; inset: 0; z-index: 15; display: grid; place-content: center; background: color-mix(in oklch, var(--paper) 60%, transparent); }

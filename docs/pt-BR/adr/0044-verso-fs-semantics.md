@@ -31,7 +31,15 @@
   próprio git para o `.gitignore`, pelo crate `ignore`, e a lista embutida e
   o `.gitignore` cada um atrás de uma chave, ligados por padrão. Registrado
   numa seção própria depois do grupo dos caminhos ignorados; as linhas de
-  2026-09-22 que ela revê ficam, cada uma com uma nota.
+  2026-09-22 que ela revê ficam, cada uma com uma nota. 2026-10-09 — **o
+  grupo dos handles respondido para o `verso serve`, e os symlinks num
+  servidor, decididos pelo mantenedor** com a aceitação do
+  [0073](0073-self-hosted-server-first.md) naquele dia: uma nota continua
+  nomeada pelo caminho relativo e a capacidade de acesso é a sessão e o
+  papel dela na pasta; um symlink que sai da pasta é recusado num servidor.
+  Registrado numa seção própria, "Num servidor", depois do grupo dos
+  handles; a pasta local do desktop não muda, e as linhas que isso revê
+  ficam, cada uma com uma nota.
 
 ## Contexto
 
@@ -46,7 +54,8 @@ que precisam de resposta antes de `verso-fs` existir.
 Os três grupos estão decididos: symlinks e caminhos ignorados em 2026-09-22,
 os handles opacos em 2026-09-24, como construídos para a Fase 2 e com o
 momento de reabri-los; os caminhos ignorados foram revistos em 2026-09-29. O watcher, que veio depois da feature 2, foi decidido
-em 2026-09-24 também.
+em 2026-09-24 também. Os handles e os symlinks foram decididos para um
+servidor em 2026-10-09 ("Num servidor", abaixo).
 
 ### Symlinks e laços — decidido em 2026-09-22
 
@@ -57,6 +66,9 @@ Decidido pelo mantenedor em 2026-09-22, sobre o memo
   apontando para fora é atravessado, e o que ele alcança é lido como qualquer
   outra entrada: sem teste de o alvo continuar dentro da raiz, sem recusa. Um
   symlink dentro da pasta é do usuário, e segui-lo é justamente o ponto.
+  *(Num servidor com membros, desde 2026-10-09: um symlink é seguido só
+  quando o alvo fica dentro da pasta — "Num servidor", abaixo. A pasta
+  local do desktop mantém esta regra.)*
 - **Profundidade máxima 64.** Bater no limite é **erro registrado, nomeando o
   caminho**, nunca silêncio; a varredura segue com o resto da pasta. É o mesmo
   princípio da linha de sistemas de arquivos de rede do
@@ -338,6 +350,8 @@ opção (a), na mesma resposta do watcher:
   ([0025](0025-own-server-and-mobile-pwa.md)), o `verso serve`. É quando uma
   capacidade precisa cruzar: um bookmark com escopo de segurança do iOS, uma
   URI SAF do Android.
+  *(Para o `verso serve`, respondido em 2026-10-09 — "Num servidor",
+  abaixo. Um plugin e um cliente mobile nativo ainda reabrem o grupo.)*
 
 As perguntas como foram registradas primeiro, antes da feature 6 da Fase 1 e
 do item 2.1 da Fase 2:
@@ -351,6 +365,33 @@ do item 2.1 da Fase 2:
   identificador é o mesmo handle do contrato.
 - Se o identificador estável acabar sendo o caminho relativo à raiz, a regra 4
   precisa dizer isso, em vez de fingir que não é.
+
+### Num servidor — decidido em 2026-10-09
+
+**Decidido em 2026-10-09 pelo mantenedor**, com a aceitação do
+[0073](0073-self-hosted-server-first.md) (itens 3 e 6 dele), na resposta ao
+plano daquela noite: *"… vc segue o recomendado"*. O grupo dos handles foi
+reaberto para o dia em que o `verso serve` alcançasse arquivos; esta é a
+resposta dele para o servidor, a opção (a) daquele plano:
+
+- **Uma nota continua nomeada pelo caminho relativo à pasta.** Num
+  servidor a capacidade de acesso é **a sessão e o papel dela na pasta**
+  ([0074](0074-accounts-and-access-on-the-server.md) item 6), conferidos em
+  todo comando e todo pedido de arquivo antes de o `verso-fs` agir. Anexos
+  são servidos em `/f/<id-da-pasta>/<caminho relativo>` atrás dessa
+  checagem ([0075](0075-server-packaging-and-storage.md) item 3, o id da
+  pasta). **Nenhuma capacidade por arquivo cruza.** A regra 4 do
+  [0026](0026-core-ui-contract-inviolable-rules.md) fica inalterada, com um
+  esclarecimento datado lá.
+- **A URL pré-assinada** de um bucket
+  ([0073](0073-self-hosted-server-first.md) item 4) segue `[ABERTO]`, com o
+  modo bucket.
+- **Symlinks num servidor**: um symlink é seguido só quando o alvo fica
+  dentro da pasta; um que sai da pasta é recusado. É a opção (b) do memo
+  dos symlinks, descartada para a pasta de uma pessoa (Alternativas
+  descartadas) e tomada para um servidor com membros, com os custos
+  nomeados lá. A pasta local do desktop não muda: todo symlink é seguido,
+  como decidido em 2026-09-22.
 
 ## Consequências
 
@@ -466,7 +507,9 @@ Aceito; caminhos ignorados revistos em 2026-09-29 pelo mantenedor — a lista
 embutida e o `.gitignore`, atrás de ajustes — Aceito. Handles opacos:
 decididos em 2026-09-24 pelo mantenedor, como construídos para a Fase 2,
 Aceito; reabertos antes que qualquer coisa fora das views do próprio app ganhe
-acesso a arquivos. O watcher: construído depois da
+acesso a arquivos; respondidos para o `verso serve` em 2026-10-09 ("Num
+servidor"), Aceito. Symlinks num servidor: decididos em 2026-10-09 pelo
+mantenedor, Aceito. O watcher: construído depois da
 feature 2 e decidido em 2026-09-24 pelo mantenedor, Aceito. Os itens marcados
 como **provisórios** dentro dos dois grupos decididos em 2026-09-22 não estão
 decididos: são o que o código da feature 2 faz, registrados para que nada seja

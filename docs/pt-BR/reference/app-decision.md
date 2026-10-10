@@ -222,7 +222,16 @@ resto da máquina:
   2026-09-23). Os dois que não precisam de clique seguem o ajuste "carregar
   conteúdo remoto", ligado por padrão: desligado, uma imagem remota vira um
   link para ela, um estilo inline perde o que buscaria, e uma nota web usa um
-  globo.
+  globo. *(Revisto em 2026-10-09 com o
+  [ADR 0050](../adr/0050-outbound-network-access.md), pela aceitação do
+  [ADR 0073](../adr/0073-self-hosted-server-first.md) pelo mantenedor: o
+  core continua sem acessar a rede; um servidor do Verso recebe conexões de
+  entrada e na saída alcança só endereços escritos numa configuração — um
+  bucket, o servidor a que uma janela se conecta, mDNS na rede local, um
+  servidor de e-mail — e o feed de versões do projeto, para avisar o admin
+  de uma versão nova
+  ([ADR 0075](../adr/0075-server-packaging-and-storage.md) item 7). Esta
+  seção descreve a janela desktop da Fase 2, que não muda.)*
 - **Caminhos.** A janela nunca guarda o caminho absoluto da pasta; um caminho
   que ela manda é confinado pelo `verso-fs` (caminhos absolutos, com `..`,
   ocultos e ignorados são recusados), seja qual for o comando.

@@ -35,7 +35,9 @@ use std::time::UNIX_EPOCH;
 
 use verso_fs::{EntryKind, Problem, Root, Stamp};
 // The two error types `CoreError` carries, so a caller can match on them.
-pub use verso_fs::{Changes, ConfinementError, ReadError, WalkRules, Watch, WriteError};
+pub use verso_fs::{
+    Changes, ConfinementError, Placeholder, ReadError, WalkRules, Watch, WriteError,
+};
 use verso_index::{Backlink, Block, Heading, Hit, Index, Link, NoteStamp, Unresolved};
 
 pub mod agents;
@@ -44,6 +46,7 @@ pub mod board;
 pub mod canvas;
 pub mod clients;
 pub mod focuses;
+pub mod servers;
 pub mod typed;
 pub use focuses::{Focus, FocusesSummary, ReadOnlyReasonCode};
 mod entries;
@@ -357,6 +360,10 @@ pub struct IndexReport {
     /// and times alone do not count: every save changes them, and a note
     /// whose content changed is in `changed` already.
     pub listing_changed: bool,
+    /// Only the batch's paths were read again, not the whole folder walked
+    /// (`Workspace::index_changes`): the problems the last walk met still
+    /// stand.
+    pub narrowed: bool,
 }
 
 /// Progress reported while indexing a folder.
@@ -647,6 +654,14 @@ fn key_for(folder: &Path) -> String {
     file.strip_suffix(".sqlite").unwrap_or(&file).to_owned()
 }
 
+/// The key a folder at `folder` is opened under ([`Workspace::key`]),
+/// without opening it: how the server finds which of a member's folders a
+/// key the window kept names (ADR 0073 item 2).
+#[must_use]
+pub fn folder_key(folder: &Path) -> String {
+    key_for(folder)
+}
+
 /// Whether `key` has the shape [`key_for`] produces: a name part of up to
 /// 32 letters, digits or `-`, a `-`, and 16 lower-case hex digits.
 /// Anything else — a path, an empty string — is refused before it is
@@ -806,6 +821,11 @@ impl Workspace {
         key_for(&self.folder)
     }
 
+    /// The index's size in bytes (ADR 0075 item 4).
+    pub fn index_bytes(&self) -> Result<u64, CoreError> {
+        self.index.bytes().map_err(CoreError::Index)
+    }
+
     /// Where the index file is.
     #[must_use]
     pub fn index_path(&self) -> &Path {
@@ -825,6 +845,12 @@ impl Workspace {
     /// Takes effect on the next index run; the caller reindexes.
     pub fn set_walk_rules(&mut self, rules: WalkRules) {
         self.root.set_rules(rules);
+    }
+
+    /// Follow symlinks only inside the folder: a server's folder, shared by
+    /// several people (ADR 0044, revised 2026-10-09).
+    pub fn set_links_inside(&mut self, on: bool) {
+        self.root.set_links_inside(on);
     }
 
     /// The folder note name setting (ADR 0060 D12), from the window. A

@@ -15,6 +15,7 @@
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import { DEMO_VAULT_FILES } from "./demoVault";
+import type { Capabilities } from "./bindings";
 import { Core, UNUSED_ARGS, type Seed } from "./harness/core";
 
 const vault = new URLSearchParams(location.search).get("vault");
@@ -29,6 +30,22 @@ const core =
     : vault === "big"
       ? new Core(big(), "pasta-grande")
       : new Core(DEMO_VAULT_FILES, "demo-vault");
+
+// The side the window talks to (ADR 0076 item 11): the desktop app by
+// default; `?side=server` stands for a browser served by `verso serve`,
+// with `&role=reader` for a person who only reads the folder. The role can
+// change while the window is open (`setRole`), as the server says it does.
+const params = new URLSearchParams(location.search);
+const onServer = params.get("side") === "server";
+let role = params.get("role") ?? "owner";
+const serverCan = (): Capabilities => ({ host: "server", can: role === "reader" ? ["account", "collab"] : ["write", "account", "collab"], latency_ms: null });
+if (onServer) {
+  // No room for simultaneous editing in the harness: the server's `collab`
+  // is left out, so a note opens as the desktop's does.
+  core.handlers["capabilities"] = () => ({ ...serverCan(), can: serverCan().can.filter((c) => c !== "collab") });
+  document.documentElement.dataset["host"] = "server";
+  document.documentElement.dataset["role"] = role;
+}
 
 mockWindows("main");
 // Answered in a task of its own, as the app's IPC answers: never within the
@@ -70,6 +87,12 @@ const harness = {
   unusedArgs: UNUSED_ARGS,
   writeOutside: (path: string, text: string) => core.writeOutside(path, text),
   emit: (event: string, payload: unknown) => emit(event, payload),
+  /** The server says the person's role in the folder changed (web.ts). */
+  setRole: (next: string) => {
+    role = next;
+    document.documentElement.dataset["role"] = next;
+    dispatchEvent(new CustomEvent("verso:role", { detail: next }));
+  },
 };
 Object.assign(window as unknown as Record<string, unknown>, { __harness: harness, __VERSO_TEST__: {} });
 

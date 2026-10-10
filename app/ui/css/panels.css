@@ -490,6 +490,9 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .settings-search { font: inherit; font-size: .88rem; padding: .4rem .7rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); color: var(--ink); }
 .settings-search:focus { outline: none; border-color: var(--brass-ink); }
 .settings-nav { display: flex; flex-direction: column; gap: .1rem; }
+.settings-top { display: flex; align-items: center; gap: .4rem; }
+.settings-top .settings-search { flex: 1; min-width: 0; }
+.settings-close { flex: none; }
 .settings-nav-item { display: flex; align-items: center; gap: .55rem; text-align: left; padding: .4rem .7rem; border-radius: 6px; font-size: .9rem; color: var(--ink-2); }
 .settings-nav-item .icon { width: 15px; height: 15px; color: var(--ink-3); }
 .settings-nav-item[aria-current="true"] .icon { color: var(--seal); }
@@ -545,3 +548,11 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .prop.fixed .prop-input:disabled { color: var(--ink-2); background: none; cursor: default; }
 .prop.fixed .pill-label { cursor: default; }
 
+/* A phone: the sections become a row above the page, scrolled sideways. */
+@media (max-width: 760px) {
+  .settings-box { flex-direction: column; width: 100vw; height: 100dvh; border-radius: 0; border: 0; }
+  .settings-side { width: auto; padding: .6rem .6rem .4rem; border-right: 0; border-bottom: 1px solid var(--hair); }
+  .settings-nav { flex-direction: row; overflow-x: auto; scrollbar-width: none; }
+  .settings-nav-item { flex: none; white-space: nowrap; }
+  .settings-body { padding: 1rem 1rem 2rem; }
+}

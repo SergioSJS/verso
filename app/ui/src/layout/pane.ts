@@ -3,7 +3,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { commands } from "../bindings";
+import { can, canWrite, host, noteAddress } from "../can";
 import { stopped } from "../changes";
+import { narrow } from "../chrome";
 import { button, h, ui } from "../dom";
 import { fail } from "../errors";
 import { movePrompt, newUntitled } from "../files";
@@ -23,6 +25,7 @@ import { PdfLeaf } from "../leaves/pdf";
 import { TextLeaf } from "../leaves/textfile";
 import { MenuItem, showMenu } from "../menu";
 import { Kind, kindOf } from "../paths";
+import { st } from "../screen/strings";
 import { settings } from "../settings";
 import { t } from "../strings";
 import { markCurrent, revealInTree, showOutline } from "../tree/tree";
@@ -55,6 +58,11 @@ export class Pane {
   private navigating = false;
   private readonly backButton = button("ghost iconic", t.navBack, "chevronLeft");
   private readonly forwardButton = button("ghost iconic", t.navForward, "chevron");
+  /** On a phone a split layout shows one pane at a time: this names which,
+   *  and switches (ADR 0076 item 2). */
+  readonly switcher = button("ghost pane-switch", st.paneSwitch(1, 1));
+  /** A pane under 520 px folds its tools into this one (ADR 0076 item 2). */
+  readonly fold = button("ghost iconic pane-fold", st.paneTools, "more");
 
   constructor() {
     // The tabs are the tablist; the pane's tools sit beside it, outside.
@@ -103,7 +111,7 @@ export class Pane {
     });
     const orient = button("ghost iconic", t.verticalTabs, "vtabs");
     orient.addEventListener("click", () => this.setVertical(!this.vertical));
-    const plus = button("ghost iconic", t.newNote, "plus");
+    const plus = button("ghost iconic pane-new", t.newNote, "plus");
     keyHint(plus, t.newNote, "new-note");
     plus.addEventListener("click", () => void newUntitled(this));
     const max = button("ghost iconic", t.maximize, "maximize");
@@ -113,8 +121,16 @@ export class Pane {
     this.backButton.addEventListener("click", () => this.go(-1));
     this.forwardButton.addEventListener("click", () => this.go(1));
     this.refreshNav();
-    this.tools.append(this.backButton, this.forwardButton, all, orient, plus, max, close);
-    this.tabs.append(this.tabList, this.tools);
+    this.switcher.setAttribute("aria-haspopup", "menu");
+    this.switcher.addEventListener("click", () => this.switchMenu());
+    this.fold.setAttribute("aria-haspopup", "menu");
+    this.fold.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const r = this.fold.getBoundingClientRect();
+      this.foldMenu(r.left, r.bottom + 4);
+    });
+    this.tools.append(this.backButton, this.forwardButton, all, orient, plus, max, close, this.fold);
+    this.tabs.append(this.switcher, this.tabList, this.tools);
     this.tabs.addEventListener("dblclick", (e) => {
       // Without the system's title bar the bar's empty space is the title
       // bar: a double click maximizes the window there (ADR 0072).
@@ -125,8 +141,8 @@ export class Pane {
       if ((e.target as HTMLElement).closest(".tab")) return;
       e.preventDefault();
       showMenu(e.clientX, e.clientY, [
-        [t.newNote, () => void newUntitled(this), "plus"],
-        ...(!popout ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
+        ...(canWrite() ? [[t.newNote, () => void newUntitled(this), "plus"] as MenuItem] : []),
+        ...(!popout && can("windows") ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
         ["—", () => {}],
         [this.vertical ? t.horizontalTabs : t.verticalTabs, () => this.setVertical(!this.vertical), "vtabs"],
         [t.hideTabs, () => this.setTabsHidden(true), "collapse"],
@@ -227,19 +243,30 @@ export class Pane {
       ...(layout().paneCount() > 1 ? [[t.moveTabNextPane, () => moveTabToPane(leaf, 1), "panelRight"] as MenuItem, [t.moveTabPrevPane, () => moveTabToPane(leaf, -1), "sidebar"] as MenuItem] : []),
       ...(popout ? [] : spaces.filter((s) => s !== current).map((s): MenuItem => [`${t.moveTo}: ${s.label}`, () => moveTabToSpace(leaf, s), "sidebar"])),
     ];
+    // What means nothing on the side the window talks to is absent, by its
+    // capabilities; a browser opens another tab where the app opens a
+    // window, and copies the note's address where the app copies its path
+    // (ADR 0076 item 11). On a phone a split is absent (item 2).
+    const server = host() === "server";
+    const write = canWrite();
+    const splits = !narrow.matches;
     showMenu(x, y, [
       // 1. Window & Split actions
-      ...(!popout && leaf.path ? [[t.openInWindow, () => void (async () => {
+      ...(leaf.transient ? [[st.keepOpen, () => leaf.keep(), "pin"] as MenuItem] : []),
+      ...(!popout && leaf.path && can("windows") ? [[t.openInWindow, () => void (async () => {
         if (!(await leaf.flush())) return stopped([leaf]);
         const opened = await commands.openWindow(leaf.path);
         if (opened.status !== "ok") return fail(opened.error);
         await leaf.close(true);
       })(), "maximize"] as MenuItem] : []),
-      ...(!popout ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
+      ...(leaf.path && !can("windows") && server ? [[st.openInBrowserTab, () => void commands.openWindow(leaf.path).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
+      ...(!popout && can("windows") ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
       [t.openInNewTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }, "tab"],
       [t.duplicateTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }, "copy"],
-      [t.splitRight, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "row"))), "split"],
-      [t.splitDownTab, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "col"))), "splitDown"],
+      ...(splits ? [
+        [t.splitRight, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "row"))), "split"] as MenuItem,
+        [t.splitDownTab, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "col"))), "splitDown"] as MenuItem,
+      ] : []),
       sep,
       // 2. Pin / Unpin
       [leaf.pinned ? t.unpinTab : t.pinTab, () => leaf.setPinned(!leaf.pinned), "pin"],
@@ -249,11 +276,12 @@ export class Pane {
       ...(file ? [
         sep,
         [t.revealInTree, () => void revealInTree(leaf.path), "folder"] as MenuItem,
-        ...(leaf instanceof NoteLeaf ? [[t.rename, () => leaf.renameHere(), "edit"] as MenuItem] : []),
-        [`${t.moveTo}…`, () => movePrompt(leaf.path), "folderPlus"] as MenuItem,
+        ...(leaf instanceof NoteLeaf && write ? [[t.rename, () => leaf.renameHere(), "edit"] as MenuItem] : []),
+        ...(write ? [[`${t.moveTo}…`, () => movePrompt(leaf.path), "folderPlus"] as MenuItem] : []),
         [t.copyRelativePath, () => void navigator.clipboard.writeText(leaf.path).then(() => (ui.status.textContent = t.copied)), "link"] as MenuItem,
-        [t.copyFullPath, () => void commands.copyFullPath(leaf.path).then((r) => r.status === "ok" ? (ui.status.textContent = t.copied) : fail(r.error)), "copy"] as MenuItem,
-        [t.reveal, () => void commands.reveal(leaf.path), "folderOpen"] as MenuItem,
+        ...(can("copy_path") ? [[t.copyFullPath, () => void commands.copyFullPath(leaf.path).then((r) => r.status === "ok" ? (ui.status.textContent = t.copied) : fail(r.error)), "copy"] as MenuItem] : []),
+        ...(!can("copy_path") && server ? [[st.copyLink, () => void navigator.clipboard.writeText(noteAddress(leaf.path)).then(() => (ui.status.textContent = st.linkCopied)), "copy"] as MenuItem] : []),
+        ...(can("reveal") ? [[t.reveal, () => void commands.reveal(leaf.path), "folderOpen"] as MenuItem] : []),
       ] : []),
       ...(leaf.kind === "note" ? [[t.graph, () => this.openGraph(leaf.path), "graph"] as MenuItem] : []),
       // 5. Close actions
@@ -263,6 +291,55 @@ export class Pane {
       [t.closeRight, () => void this.closeExcept((l) => this.leaves.indexOf(l) <= i || l.pinned), "close"],
       [t.closeAll, () => void this.closeExcept((l) => l.pinned), "close"],
     ]);
+  }
+  /** The pane's tools folded into one menu, for a pane under 520 px: the
+   *  same verbs as its buttons, and the front tab's own menu — what a long
+   *  press on the tab opens, reached without the gesture (ADR 0076 items 2
+   *  and 9). */
+  foldMenu(x: number, y: number): void {
+    const many = layout().paneCount() > 1;
+    const sep: MenuItem = ["—", () => {}];
+    const active = this.active;
+    showMenu(x, y, [
+      ...(this.canGo(-1) ? [[t.navBack, () => this.go(-1), "chevronLeft"] as MenuItem] : []),
+      ...(this.canGo(1) ? [[t.navForward, () => this.go(1), "chevron"] as MenuItem] : []),
+      ...(canWrite() ? [[t.newNote, () => void newUntitled(this), "plus"] as MenuItem] : []),
+      ...(active ? [[st.tabActions, () => {
+        const r = active.tab.getBoundingClientRect();
+        this.tabMenu(active, r.left + 12, r.bottom);
+      }, "tab"] as MenuItem] : []),
+      sep,
+      ...this.leaves.map((l): MenuItem => [`${l.tabName.textContent ?? ""}${l.dirty ? ` (${t.unsaved})` : ""}`, () => this.activate(l, true), l === active ? "check" : undefined]),
+      sep,
+      [this.vertical ? t.horizontalTabs : t.verticalTabs, () => this.setVertical(!this.vertical), "vtabs"],
+      [t.hideTabs, () => this.setTabsHidden(true), "collapse"],
+      ...(many && !narrow.matches ? [[layout().maximized === this ? t.restore : t.maximize, () => layout().toggleMaximize(this), "maximize"] as MenuItem] : []),
+      [t.closePane, () => void this.closeAll(), "close"],
+    ]);
+  }
+  /** On a phone, the panes of a split layout one at a time: the menu of
+   *  them, each by the tab in front (ADR 0076 item 2). */
+  private switchMenu(): void {
+    const panes = layout().panes();
+    const r = this.switcher.getBoundingClientRect();
+    showMenu(r.left, r.bottom + 4, panes.map((p, i): MenuItem => [
+      st.paneItem(i + 1, p.active?.tabName.textContent || st.paneEmpty),
+      () => {
+        layout().focus(p);
+        if (p.active) p.activate(p.active, true);
+        else p.switcher.focus();
+      },
+      p === this ? "check" : undefined,
+    ]));
+  }
+  /** The switcher names this pane's place among `n`. */
+  paintSwitch(i: number, n: number): void {
+    // Only when it changes: a press on the switcher focuses its pane, and
+    // WebKit drops the click whose text was replaced under the pointer.
+    if (this.switcher.textContent === `${i}/${n}`) return;
+    this.switcher.textContent = `${i}/${n}`;
+    this.switcher.setAttribute("aria-label", st.paneSwitch(i, n));
+    this.switcher.title = st.paneSwitch(i, n);
   }
   async closeExcept(keep: (l: Leaf) => boolean): Promise<void> {
     for (const l of this.leaves.slice()) {
@@ -354,6 +431,8 @@ export class Pane {
   private refreshNav(): void {
     this.backButton.disabled = !this.canGo(-1);
     this.forwardButton.disabled = !this.canGo(1);
+    // The phone's bottom bar has a back of its own (screen/frame.ts).
+    document.dispatchEvent(new Event("verso:nav"));
   }
   /** Whether there is a step back (`-1`) or forward (`1`) to take. */
   canGo(d: -1 | 1): boolean {

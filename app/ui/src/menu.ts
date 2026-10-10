@@ -4,6 +4,8 @@
 
 import { newBase } from "./bases";
 import { commands } from "./bindings";
+import { can, canWrite, host, noteAddress } from "./can";
+import { narrow } from "./chrome";
 import { importDemoVault } from "./demo";
 import { h, ui } from "./dom";
 import { fail } from "./errors";
@@ -21,26 +23,35 @@ import { updateEntryProperties } from "./organize/frontmatter";
 import { isItemPinned, moveTreeItemOrder, orderMenuItems, pinItemToFolder, unpinItemFromFolder } from "./organize/order";
 import { dirOf, Kind, name } from "./paths";
 import { getHiddenFromTree, setHiddenFromTree, settings } from "./settings";
+import { st } from "./screen/strings";
+import { placeInView, visibleBox } from "./screen/viewport";
 import { giveBack } from "./side";
 import { boardText, LOCALE, t } from "./strings";
 import { newFolderPrompt, newNotePrompt, newWebPagePrompt } from "./tree/prompts";
 import { listAll } from "./tree/tree";
-import { clearSelection } from "./tree/selection";
+import { clearSelection, enterSelectMode } from "./tree/selection";
 
 export function entryMenu(x: number, y: number, path: string, kind: Kind, rename: () => void): void {
   const folder = kind === "folder";
   const here = folder ? path : dirOf(path);
   const sep: MenuItem = ["—", () => {}];
+  // What the side cannot do is absent, a browser's tab stands for a
+  // window and the note's address for its path (ADR 0076 item 11); a
+  // phone shows one pane at a time (item 2); "Open" opens without the
+  // preview a single tap gives (item 8).
+  const server = host() === "server";
+  const write = canWrite();
   const items: MenuItem[] = folder
     ? [[t.openFolder, () => openFolder(path), "folderOpen"]]
     : [
-        [t.openTab, () => openNote(path, false), "note"],
+        [st.open, () => openNote(path, false), "note"],
         [t.openInNewTab, () => openNote(path, false, true), "tab"],
-        [t.openPane, () => openNote(path, true), "split"],
-        ...(!popout ? [[t.openInWindow, () => void (async () => {
+        ...(!narrow.matches ? [[t.openPane, () => openNote(path, true), "split"] as MenuItem] : []),
+        ...(!popout && can("windows") ? [[t.openInWindow, () => void (async () => {
           const opened = await commands.openWindow(path);
           if (opened.status !== "ok") return fail(opened.error);
         })(), "maximize"] as MenuItem] : []),
+        ...(!can("windows") && server ? [[st.openInBrowserTab, () => void commands.openWindow(path).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
       ];
   if (kind === "note") items.push([t.graph, () => (layout().focused ?? layout().panes()[0])?.openGraph(path), "graph"]);
   if (kind === "note" && /\.excalidraw\.md$/i.test(path)) items.push([boardText.convert, () => void convertToBoard(path), "board"]);
@@ -86,6 +97,10 @@ export function entryMenu(x: number, y: number, path: string, kind: Kind, rename
 
   items.push(
     sep,
+    [st.select, () => enterSelectMode(path), "check"],
+  );
+  if (write) items.push(
+    sep,
     [t.changeSticker, openPicker, "star"],
     [t.changeColor, openPicker, "palette"],
     ...(currentSticker ? [[t.removeSticker, () => void updateEntryProperties(path, kind, { sticker: null }), "close"] as MenuItem] : []),
@@ -104,14 +119,17 @@ export function entryMenu(x: number, y: number, path: string, kind: Kind, rename
     [t.rename, rename, "edit"],
     [`${t.moveTo}…`, () => movePrompt(path), "sidebar"],
     ...(folder ? [] : [[t.duplicate, () => void duplicateEntry(path, kind), "template"] as MenuItem]),
+  );
+  items.push(
     sep,
-    [t.reveal, () => void commands.reveal(path), "search"],
+    ...(can("reveal") ? [[t.reveal, () => void commands.reveal(path), "search"] as MenuItem] : []),
     [t.copyRelativePath, () => void navigator.clipboard.writeText(path).then(() => (ui.status.textContent = t.copied)), "link"],
-    [t.copyFullPath, () => void commands.copyFullPath(path).then((r) => r.status === "ok" ? (ui.status.textContent = t.copied) : fail(r.error)), "copy"],
+    ...(can("copy_path") ? [[t.copyFullPath, () => void commands.copyFullPath(path).then((r) => r.status === "ok" ? (ui.status.textContent = t.copied) : fail(r.error)), "copy"] as MenuItem] : []),
+    ...(!can("copy_path") && server && !folder ? [[st.copyLink, () => void navigator.clipboard.writeText(noteAddress(path)).then(() => (ui.status.textContent = st.linkCopied)), "copy"] as MenuItem] : []),
     sep,
     ...createMenuItems(here),
     sep,
-    [t.deleteEntry, () => void deleteEntry(path, kind), "close"],
+    ...(write ? [[t.deleteEntry, () => void deleteEntry(path, kind), "close"] as MenuItem] : []),
   );
   showMenu(x, y, items);
 }
@@ -119,13 +137,14 @@ export function entryMenu(x: number, y: number, path: string, kind: Kind, rename
 /** The menu of a selection of the tree (ADR 0048, revised 2026-10-07):
  *  what acts on all of it at once. */
 export function selectionMenu(x: number, y: number, paths: string[]): void {
+  const write = canWrite();
   showMenu(x, y, [
-    [`${t.moveTo}…`, () => movePrompt(paths), "sidebar"],
+    ...(write ? [[`${t.moveTo}…`, () => movePrompt(paths), "sidebar"] as MenuItem] : []),
     [t.selection.copyPaths, () => void navigator.clipboard.writeText(paths.join("\n")).then(() => (ui.status.textContent = t.copied)), "link"],
     ["—", () => {}],
     [t.selection.clear, () => clearSelection(), "close"],
     ["—", () => {}],
-    [t.deleteEntry, () => void deleteEntries(paths), "close"],
+    ...(write ? [[t.deleteEntry, () => void deleteEntries(paths), "close"] as MenuItem] : []),
   ]);
 }
 
@@ -134,6 +153,8 @@ export const menu = h("ul", "menu");
 export let menuOpener: Element | null = null;
 export type MenuItem = [label: string, run: () => void, iconName?: string];
 export function createMenuItems(folder = ""): MenuItem[] {
+  // A reader on a server makes nothing (ADR 0076 item 11).
+  if (!canWrite()) return [];
   const items: MenuItem[] = [
     [t.newHere, () => newNotePrompt(folder), "plus"],
     [t.newFolder, () => newFolderPrompt(folder), "folderPlus"],
@@ -190,8 +211,13 @@ export function showMenu(x: number, y: number, items: MenuItem[]): void {
     }),
   );
   menu.hidden = false;
-  menu.style.left = `${Math.min(x, window.innerWidth - menu.offsetWidth - 8)}px`;
-  menu.style.top = `${Math.min(y, window.innerHeight - menu.offsetHeight - 8)}px`;
+  // Inside what the screen shows — on a phone, above the keyboard — and
+  // never above its top: a menu taller than that scrolls (the CSS).
+  const box = visibleBox();
+  menu.style.maxHeight = `${box.height - 16}px`;
+  const { left, top } = placeInView(x, y, menu.offsetWidth, menu.offsetHeight, y);
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
   menu.querySelector("button")?.focus();
 }
 

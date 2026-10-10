@@ -97,6 +97,71 @@ in the real app.
   after updating, the window shows the new version's interface at once,
   with no stale screen; the PDF reader and a board still open.
 
+### The server (ADR 0073, 0074, 0075)
+
+On the maintainer's machines, with the server reached over HTTPS
+(`tailscale serve` or a proxy); `scripts/check-server-image.sh` and the
+end-to-end tests cover the rest.
+
+- [ ] **Passkeys** on a real device: added from *Conta* on the Mac
+  (Touch ID) and on the iPhone; *Entrar com passkey* after the e-mail, in
+  Safari and Chrome.
+- [ ] **The phone and the iPad** in the browser, through `tailscale serve`:
+  sign in, open a folder, edit a note, see the other device's edits arrive.
+- [ ] **The desktop app on a server's folder** (the installed app):
+  *Ajustes* › *Servidores*, *Conectar*, *Permitir* in the browser, open a
+  folder, edit, a picture of the folder shows; quit and open the app again:
+  the server's folder comes back.
+- [ ] **CasaOS or ZimaOS**: the compose file installed from its app store
+  screen, the admin's variables filled, the folders on the NAS.
+- [ ] **A `.deb` on a small machine without Docker**: installed, the
+  environment file edited, `systemctl enable --now verso`.
+- [ ] **The account and the administration in Settings**, in the browser on
+  the Mac and on the iPhone: the person's button beside the gear opens
+  *Ajustes* › *Conta*; an admin also has *Administração*; on the phone,
+  *Ajustes* and *Conta* at the foot of the side drawer; the sign-in card
+  in both themes.
+- [ ] **A ribbon button hidden and brought back** in the installed app:
+  right click › *Ocultar este botão*, the status bar says where; *Ajustes* ›
+  *Aparência* › its switch brings it back; the gear has no *Ocultar*.
+
+### The window on every screen (ADR 0076)
+
+On the maintainer's phone and iPad, the server's window in the browser
+(feat/web). Playwright moves no finger in WebKit and opens no system
+keyboard, and a page cannot tell that a screen reader is on: these are
+seen only here. Before the server is announced (ADR 0073 item 6).
+
+- [ ] **VoiceOver on the iPhone** (ADR 0076 item 9; ADR 0035 item 2):
+  swipe through the bottom bar — five buttons, each named (Arquivos,
+  Buscar, Nova nota, Voltar, Comandos); open the drawer and reach a row,
+  then its "…" ("Mais ações: …"); a double-tap-and-hold on a row opens its
+  menu; in Editar, a double tap on a link and the card after the text
+  ("Link: …") with Abrir and Editar link; the keyboard's bar named
+  "Ferramentas de escrita"; on a reader's folder, "Você só lê esta pasta"
+  read out.
+- [ ] **VoiceOver on the iPad**, portrait and landscape: the same; over
+  760 px the ribbon and the split panes stay; the graph's controls beside
+  it in landscape, behind "Ajustes do grafo" in a pane under 520 px.
+- [ ] **TalkBack on Android** (Chrome): the same steps; TalkBack's
+  double-tap-and-hold opens a row's menu (Android's own `contextmenu`).
+- [ ] **A long press on iOS**: a row held and lifted opens its menu; held
+  and moved, it drags into a folder; a swipe scrolls the tree and moves
+  nothing. A kanban card held: its menu, with "Mover para a coluna…"; a
+  swipe on the board goes a column at a time.
+- [ ] **The on-screen keyboard** on the iPhone and Android: in Editar, the
+  `/` menu, the link suggestions after `[[`, the sticker picker and a
+  tab's menu open above the keyboard; the cursor stays above it, also on
+  the note's last line; the keyboard's bar sits on the keyboard, and its
+  buttons leave the keyboard up (but "Esconder o teclado").
+- [ ] **The notch and the corners**: an iPhone with a notch, in portrait
+  and landscape — nothing under the notch or the rounded corners; the
+  bottom bar above the home indicator.
+- [ ] **The pinch**: over text the whole page zooms (and back); over the
+  graph, a board and a PDF, only they zoom.
+- [ ] **Line numbers**: on the phone, a note in Fonte has none; turned on in
+  Ajustes › Editor, they show.
+
 ## To reproduce
 
 Reported in the backlog, changed since, but with no test that covers
@@ -106,6 +171,11 @@ them; if they still happen, a step that makes them happen is enough.
   a window of the system, which the browser harness cannot show.
 
 ## Checked
+
+- [x] The notes search finds a note by its exact file name when its first
+  heading names it otherwise, first in the list; the × clears the search
+  (feat/web-groundwork, the installed beta at 0a38c65, checked by the
+  maintainer on 2026-10-09).
 
 - [x] The picture menu's Download image, Open in new window; Open Folder in
   a second window; a popped-out note returned to the main window

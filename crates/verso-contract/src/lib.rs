@@ -392,6 +392,138 @@ pub struct AppInfo {
     pub commit: String,
 }
 
+/// The space a folder takes (ADR 0075 item 4): counted from the walk the
+/// index already makes, never by a walk of its own. Bytes, as numbers the
+/// window can show.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct FolderSpace {
+    /// Every file of the folder, notes and attachments.
+    pub total: f64,
+    /// The notes (`.md`).
+    pub notes: f64,
+    /// Everything else: pictures, PDFs, boards, other files.
+    pub attachments: f64,
+    /// How many files.
+    pub files: u32,
+    /// The folder's index, kept beside the configuration (not inside the
+    /// folder).
+    pub index: f64,
+}
+
+/// Which side the window talks to (ADR 0027, ADR 0073 item 2): the app on
+/// this computer, or a server.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum Host {
+    Desktop,
+    Server,
+}
+
+/// What the side the window talks to can do (ADR 0027; ADR 0076 item 11):
+/// the window hides what is absent instead of showing it and failing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum Can {
+    /// Change the open folder (a reader on a server cannot).
+    Write,
+    /// Show a file in the system's file manager.
+    Reveal,
+    /// Copy a file's full path.
+    CopyPath,
+    /// Open windows of the app: a note in one of its own, a new window.
+    Windows,
+    /// Show web pages inside the window (child web views).
+    WebViews,
+    /// The command line and the agents of the settings (ADR 0054).
+    Agents,
+    /// The app's own updates (ADR 0055).
+    Updates,
+    /// The window's console.
+    Devtools,
+    /// Open folders from this computer's disk.
+    LocalFolders,
+    /// An account signed in on a server: the account's page.
+    Account,
+    /// The account is the server's admin: the admin page.
+    Admin,
+    /// Several people editing one note at once (ADR 0073 item 7).
+    Collab,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct Capabilities {
+    pub host: Host,
+    pub can: Vec<Can>,
+    /// The round trip to the side, in milliseconds, when it is across a
+    /// network (the desktop app on a server's folder, ADR 0073 item 2): the
+    /// window learns how far the core is (ADR 0026 rule 2).
+    pub latency_ms: Option<u32>,
+}
+
+/// A note joined for editing by several people at once (ADR 0073 item 7):
+/// the shared state as a Yjs update (base64) to apply to an empty
+/// document, the revision on disk it stands on, and how the file is
+/// written — its text in the shared state has `\n` line ends; a file
+/// that mixes them is shown read-only and joins nothing.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct CollabJoin {
+    pub update: String,
+    pub revision: String,
+    pub read_only: bool,
+    /// Whether the file's lines end in CRLF.
+    pub crlf: bool,
+    /// The name the others see for this person.
+    pub user: String,
+    /// Which room this is: a window that comes back after its connection
+    /// dropped sends what it typed meanwhile only into the room it left,
+    /// never into one made again from the disk.
+    pub epoch: String,
+}
+
+/// An edit or a presence of another person in a note (events
+/// `collab-update` and `collab-awareness`): a Yjs update, base64.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct CollabUpdate {
+    pub path: String,
+    pub update: String,
+}
+
+/// What became of a shared note (events `collab-saved`, `collab-conflict`,
+/// `collab-closed`): written at `revision`; changed on disk while edits
+/// waited, so the people in it see the difference; or no longer shared
+/// (renamed, deleted, its line ends mixed), so the window reads it again.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct CollabState {
+    pub path: String,
+    pub revision: Option<String>,
+}
+
+/// A server this app signed in to (ADR 0074 item 8; the maintainer's
+/// answer K of 2026-10-09): its address and whose account it is. The
+/// device's token stays on this side.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct ServerAccount {
+    pub url: String,
+    pub email: String,
+    pub name: String,
+}
+
+/// A sign-in under way: the code the server's page shows, to compare, and
+/// the page the app opened in the browser.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct ServerSignIn {
+    pub code: String,
+    pub page: String,
+}
+
+/// A folder of a server the account may open, and the role in it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct ServerFolder {
+    pub id: String,
+    pub name: String,
+    pub role: String,
+}
+
 /// Information about an application update.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 pub struct UpdateInfo {

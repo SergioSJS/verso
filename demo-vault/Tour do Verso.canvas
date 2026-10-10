@@ -16,6 +16,8 @@
 		{"id":"g-ajuda","type":"group","x":1650,"y":5200,"width":1400,"height":1000,"label":"⑭ Atalhos e ajuda","color":"1"},
 		{"id":"g-organizacao","type":"group","x":3300,"y":5200,"width":1400,"height":1000,"label":"⑮ Figurinhas e ordem","color":"3"},
 		{"id":"g-focos","type":"group","x":0,"y":6500,"width":1400,"height":1000,"label":"⑯ Focos","color":"5"},
+		{"id":"g-celular","type":"group","x":1650,"y":6500,"width":1400,"height":1000,"label":"⑰ No celular","color":"5"},
+		{"id":"g-servidor","type":"group","x":3300,"y":6500,"width":1400,"height":1000,"label":"⑱ Num servidor","color":"5"},
 		{"id":"n-markdown","type":"file","file":"01 - Guia de Markdown e Sintaxe.md","x":40,"y":130,"width":420,"height":560},
 		{"id":"n-editor","type":"file","file":"11 - Escrevendo no Editor.md","x":490,"y":130,"width":420,"height":560},
 		{"id":"n-mermaid","type":"file","file":"08 - Diagramas Mermaid.md","x":940,"y":130,"width":420,"height":560},
@@ -45,7 +47,9 @@
 		{"id":"n-ajuda","type":"file","file":"18 - Ajuda, Atualizações e Diagnóstico.md","x":2370,"y":5330,"width":640,"height":400},
 		{"id":"n-inicio","type":"file","file":"00 - Bem-vindo ao Verso.md","x":2370,"y":5760,"width":640,"height":400},
 		{"id":"n-organizando","type":"file","file":"19 - Organizando com figurinhas, capas e páginas.md","x":3340,"y":5330,"width":640,"height":560},
-		{"id":"n-focos","type":"file","file":"19 - Organizando com figurinhas, capas e páginas.md","x":40,"y":6630,"width":640,"height":560,"subpath":"#8. Focos (raízes nomeadas)"}
+		{"id":"n-focos","type":"file","file":"19 - Organizando com figurinhas, capas e páginas.md","x":40,"y":6630,"width":640,"height":560,"subpath":"#8. Focos (raízes nomeadas)"},
+		{"id":"n-celular","type":"file","file":"22 - Verso no Celular e no Tablet.md","x":1690,"y":6630,"width":640,"height":560},
+		{"id":"n-servidor","type":"file","file":"23 - Verso num Servidor.md","x":3340,"y":6630,"width":640,"height":560}
 	],
 	"edges":[
 		{"id":"e-links-grafo","fromNode":"n-links","fromSide":"right","toNode":"n-grafo","toSide":"left","color":"5","label":"viram o grafo"},
@@ -70,6 +74,8 @@
 			{"id":"d-ajuda-titulo","type":"text","x":1690,"y":5230,"width":554.4,"height":70,"strokeColor":"#c2255c","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-ajuda","text":"⌨️ Atalhos e ajuda","originalText":"⌨️ Atalhos e ajuda","fontSize":56,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
 			{"id":"d-organizacao-titulo","type":"text","x":3340,"y":5230,"width":831.6,"height":70,"strokeColor":"#e67700","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-organizacao","text":"🎨 Figurinhas, capas e ordem","originalText":"🎨 Figurinhas, capas e ordem","fontSize":56,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
 			{"id":"d-focos-titulo","type":"text","x":40,"y":6530,"width":215.6,"height":70,"strokeColor":"#0c8599","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-focos","text":"🧭 Focos","originalText":"🧭 Focos","fontSize":56,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
+			{"id":"d-celular-titulo","type":"text","x":1690,"y":6530,"width":739.2,"height":70,"strokeColor":"#0c8599","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-celular","text":"📱 No celular e no tablet","originalText":"📱 No celular e no tablet","fontSize":56,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
+			{"id":"d-servidor-titulo","type":"text","x":3340,"y":6530,"width":462,"height":70,"strokeColor":"#0c8599","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-servidor","text":"🖥️ Num servidor","originalText":"🖥️ Num servidor","fontSize":56,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
 			{"id":"d-escrever-dica","type":"text","x":40,"y":730,"width":1320,"height":140.4,"strokeColor":"#343a40","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-escrever","text":"Markdown puro, compatível com o Obsidian: títulos que recolhem, tabelas (a largura de uma coluna se arrasta no cabeçalho), tarefas, destaques, fórmulas em KaTeX e diagramas Mermaid. Leitura, Editar e Fonte: ⌘E alterna entre os dois primeiros. Um / no começo da linha insere blocos, e o Verso salva sozinho.","originalText":"Markdown puro, compatível com o Obsidian: títulos que recolhem, tabelas (a largura de uma coluna se arrasta no cabeçalho), tarefas, destaques, fórmulas em KaTeX e diagramas Mermaid. Leitura, Editar e Fonte: ⌘E alterna entre os dois primeiros. Um / no começo da linha insere blocos, e o Verso salva sozinho.","fontSize":26,"fontFamily":6,"textAlign":"left","verticalAlign":"top","lineHeight":1.35,"autoResize":false},
 			{"id":"d-blocos-dica","type":"text","x":1690,"y":730,"width":1320,"height":105.3,"strokeColor":"#343a40","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-blocos","text":"No modo Editar, cada parágrafo, item de lista ou título é um bloco: passe o mouse e arraste a ⋮⋮ da margem para movê-lo, ou clique nela para transformar, duplicar, copiar o link ou excluir. O + abre o menu / num bloco novo. O arquivo continua Markdown puro.","originalText":"No modo Editar, cada parágrafo, item de lista ou título é um bloco: passe o mouse e arraste a ⋮⋮ da margem para movê-lo, ou clique nela para transformar, duplicar, copiar o link ou excluir. O + abre o menu / num bloco novo. O arquivo continua Markdown puro.","fontSize":26,"fontFamily":6,"textAlign":"left","verticalAlign":"top","lineHeight":1.35,"autoResize":false},
 			{"id":"d-blocos-titulo","type":"text","x":2390,"y":150,"width":281.6,"height":40,"strokeColor":"#868e96","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-blocos","text":"teclas do Notion","originalText":"teclas do Notion","fontSize":32,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
@@ -1294,8 +1300,10 @@
 			},
 			{"id":"d-focos-k30-t","type":"text","x":755,"y":7043.5,"width":106,"height":35,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":0,"opacity":100,"frameId":"g-focos","text":"painel","originalText":"painel","fontSize":28,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"d-focos-k30","lineHeight":1.25},
 			{"id":"d-focos-w3","type":"text","x":900,"y":7045,"width":528,"height":37.5,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-focos","text":"Aba Focos (ao lado de Favoritos)","originalText":"Aba Focos (ao lado de Favoritos)","fontSize":30,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
+			{"id":"d-celular-dica","type":"text","x":1690,"y":7230,"width":1320,"height":140.4,"strokeColor":"#343a40","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-celular","text":"No navegador do celular, a barra de baixo traz Arquivos, Buscar, Nova nota, Voltar e Comandos; um layout dividido mostra uma área por vez. Segurar e soltar abre o menu, segurar e arrastar move, e o … ao lado da linha faz o mesmo sem gesto. No Editar, o toque num link mostra Abrir e Editar link.","originalText":"No navegador do celular, a barra de baixo traz Arquivos, Buscar, Nova nota, Voltar e Comandos; um layout dividido mostra uma área por vez. Segurar e soltar abre o menu, segurar e arrastar move, e o … ao lado da linha faz o mesmo sem gesto. No Editar, o toque num link mostra Abrir e Editar link.","fontSize":26,"fontFamily":6,"textAlign":"left","verticalAlign":"top","lineHeight":1.35,"autoResize":false},
+			{"id":"d-servidor-dica","type":"text","x":3340,"y":7230,"width":1320,"height":105.3,"strokeColor":"#343a40","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"g-servidor","text":"O verso serve guarda as pastas num servidor seu e as abre no navegador: contas por convite, dono, editores e leitores, várias pessoas na mesma nota. No app desktop, Ajustes › Servidores conecta pelo navegador e abre uma pasta do servidor numa janela.","originalText":"O verso serve guarda as pastas num servidor seu e as abre no navegador: contas por convite, dono, editores e leitores, várias pessoas na mesma nota. No app desktop, Ajustes › Servidores conecta pelo navegador e abre uma pasta do servidor numa janela.","fontSize":26,"fontFamily":6,"textAlign":"left","verticalAlign":"top","lineHeight":1.35,"autoResize":false},
 			{"id":"d-titulo","type":"text","x":0,"y":-820,"width":858,"height":150,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"Tour do Verso","originalText":"Tour do Verso","fontSize":120,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
-			{"id":"d-sub","type":"text","x":6,"y":-650,"width":902,"height":50,"strokeColor":"#868e96","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"um passeio em 16 paradas: siga os números","originalText":"um passeio em 16 paradas: siga os números","fontSize":40,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
+			{"id":"d-sub","type":"text","x":6,"y":-650,"width":902,"height":50,"strokeColor":"#868e96","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"um passeio em 18 paradas: siga os números","originalText":"um passeio em 18 paradas: siga os números","fontSize":40,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
 			{"id":"d-como","type":"text","x":6,"y":-560,"width":1500,"height":113.4,"strokeColor":"#343a40","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"Dois dedos no trackpad, ou a roda do mouse, movem o board; a pinça ou ⌘ + roda aproximam, e ⇧1 mostra tudo. Dê duplo clique num cartão para ler a nota aqui mesmo; mais um clique edita, e Esc sai. ↗ abre a nota numa aba. O Sumário, no alto à direita do board, leva a cada parada.","originalText":"Dois dedos no trackpad, ou a roda do mouse, movem o board; a pinça ou ⌘ + roda aproximam, e ⇧1 mostra tudo. Dê duplo clique num cartão para ler a nota aqui mesmo; mais um clique edita, e Esc sai. ↗ abre a nota numa aba. O Sumário, no alto à direita do board, leva a cada parada.","fontSize":28,"fontFamily":6,"textAlign":"left","verticalAlign":"top","lineHeight":1.35,"autoResize":false},
 			{"id":"d-comece","type":"text","x":180,"y":-330,"width":290.4,"height":55,"strokeColor":"#e03131","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"comece aqui!","originalText":"comece aqui!","fontSize":44,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
 			{
@@ -1642,6 +1650,46 @@
 			},
 			{"id":"d-num-16-t","type":"text","x":1355,"y":6460,"width":80,"height":70,"strokeColor":"#e8590c","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"16","originalText":"16","fontSize":56,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"d-num-16","lineHeight":1.25},
 			{
+				"id":"d-num-17",
+				"type":"ellipse",
+				"x":2990,
+				"y":6440,
+				"width":110,
+				"height":110,
+				"strokeColor":"#e8590c",
+				"backgroundColor":"#fff4e6",
+				"fillStyle":"solid",
+				"strokeWidth":3,
+				"strokeStyle":"solid",
+				"roughness":1,
+				"opacity":100,
+				"roundness":{"type":2},
+				"boundElements":[
+					{"id":"d-num-17-t","type":"text"}
+				]
+			},
+			{"id":"d-num-17-t","type":"text","x":3005,"y":6460,"width":80,"height":70,"strokeColor":"#e8590c","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"17","originalText":"17","fontSize":56,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"d-num-17","lineHeight":1.25},
+			{
+				"id":"d-num-18",
+				"type":"ellipse",
+				"x":4640,
+				"y":6440,
+				"width":110,
+				"height":110,
+				"strokeColor":"#e8590c",
+				"backgroundColor":"#fff4e6",
+				"fillStyle":"solid",
+				"strokeWidth":3,
+				"strokeStyle":"solid",
+				"roughness":1,
+				"opacity":100,
+				"roundness":{"type":2},
+				"boundElements":[
+					{"id":"d-num-18-t","type":"text"}
+				]
+			},
+			{"id":"d-num-18-t","type":"text","x":4655,"y":6460,"width":80,"height":70,"strokeColor":"#e8590c","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"18","originalText":"18","fontSize":56,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"d-num-18","lineHeight":1.25},
+			{
 				"id":"d-trilha-1",
 				"type":"arrow",
 				"x":1425,
@@ -1982,6 +2030,52 @@
 					[0,65],
 					[-3300,65],
 					[-3300,250]
+				],
+				"startArrowhead":null,
+				"endArrowhead":"arrow"
+			},
+			{
+				"id":"d-trilha-16",
+				"type":"arrow",
+				"x":1425,
+				"y":7000,
+				"width":200,
+				"height":30,
+				"strokeColor":"#e8590c",
+				"backgroundColor":"transparent",
+				"fillStyle":"solid",
+				"strokeWidth":4,
+				"strokeStyle":"dashed",
+				"roughness":1,
+				"opacity":100,
+				"roundness":{"type":2},
+				"points":[
+					[0,0],
+					[100,-30],
+					[200,0]
+				],
+				"startArrowhead":null,
+				"endArrowhead":"arrow"
+			},
+			{
+				"id":"d-trilha-17",
+				"type":"arrow",
+				"x":3075,
+				"y":7000,
+				"width":200,
+				"height":30,
+				"strokeColor":"#e8590c",
+				"backgroundColor":"transparent",
+				"fillStyle":"solid",
+				"strokeWidth":4,
+				"strokeStyle":"dashed",
+				"roughness":1,
+				"opacity":100,
+				"roundness":{"type":2},
+				"points":[
+					[0,0],
+					[100,-30],
+					[200,0]
 				],
 				"startArrowhead":null,
 				"endArrowhead":"arrow"

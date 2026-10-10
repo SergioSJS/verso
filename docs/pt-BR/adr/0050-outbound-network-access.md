@@ -13,7 +13,21 @@
   que a Decisão enumera: uma página web embutida numa nota, buscada pelo
   proxy do host. *(A 0056 foi revista no mesmo dia: a página carrega sozinha
   no frame dela, de uma origem que o usuário aprovou, e o host não busca
-  nada.)*
+  nada.)* 2026-10-09 — revisado pelo [0073](0073-self-hosted-server-first.md),
+  aceito pelo mantenedor naquele dia, e pela checagem de atualização do
+  servidor ([0075](0075-server-packaging-and-storage.md) item 7, decidida
+  na mesma noite); o texto abaixo fica como foi decidido. O item 1 da
+  Decisão e a primeira Consequência ("o core nunca alcança a rede"): o core
+  continua sem alcançar a rede. Um servidor do Verso — o `verso serve`, e
+  "este app é um servidor" — recebe conexões de entrada, e na saída
+  alcança só endereços que o usuário ou quem hospeda escreveu numa
+  configuração: um bucket, o servidor a que uma janela se conecta, mDNS na
+  rede local, um servidor de e-mail
+  ([0074](0074-accounts-and-access-on-the-server.md)). Além desses, e só
+  para esta checagem, o servidor pergunta ao feed de versões do projeto se
+  existe versão nova, para avisar o admin; nunca se atualiza sozinho, e a
+  checagem pode ser desligada. O `docs/reference/app-decision.md` §7 diz o
+  mesmo.
 
 ## Contexto
 
@@ -86,4 +100,7 @@ Decidido em 2026-09-23 pelo mantenedor, sobre a recomendação do autor
 Aceito em 2026-09-23. O padrão do ajuste: provisório (Consequências).
 Revisado em 2026-09-29 pela [0055](0055-in-app-updater.md) (a checagem de
 atualização) e pela [0056](0056-embedded-web-pages.md) (páginas web
-embutidas).
+embutidas). Revisado em 2026-10-09 pelo
+[0073](0073-self-hosted-server-first.md) e pelo item 7 do
+[0075](0075-server-packaging-and-storage.md) (o tráfego de um servidor, e
+a checagem de atualização dele).

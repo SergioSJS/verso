@@ -1,0 +1,26 @@
+[package]
+name = "verso-service"
+description = "The open folders and the contract's commands over them, apart from any transport: the desktop host and the server call the same code (ADR 0073 item 2)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+# No network and no async runtime (ADR 0073, decided 2026-10-09): the
+# session table and the dispatch of the contract's commands, which the
+# Tauri host (app/src-tauri) and `verso serve` (crates/verso-server) both
+# call. It never touches a file: the folder is verso-core's, through
+# verso-fs (ADR 0026, rule 5).
+[dependencies]
+verso-core = { path = "../verso-core" }
+verso-contract = { path = "../verso-contract" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+tempfile = "3.27"
+
+[lints]
+workspace = true

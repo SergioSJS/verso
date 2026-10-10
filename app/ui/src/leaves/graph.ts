@@ -5,10 +5,12 @@
 import { commands, type NoteText } from "../bindings";
 import { button, h } from "../dom";
 import { allNotes } from "../folder";
+import { icon } from "../icons";
 import { calm } from "../format";
 import { Pane } from "../layout/pane";
 import { openNote, persistSoon } from "../layout/spaces";
 import { Kind, name } from "../paths";
+import { st } from "../screen/strings";
 import { t } from "../strings";
 import { markCurrent } from "../tree/tree";
 import { Leaf } from "./leaf";
@@ -51,11 +53,30 @@ export class GraphLeaf extends Leaf {
     this.svg.setAttribute("aria-labelledby", this.title.id);
     this.svg.append(this.world);
     const head = h("div", "graph-head");
-    head.append(this.title, this.count);
+    // On a phone, or in a pane under 520 px, the controls are a panel
+    // closed by default, opened by this button over the graph (ADR 0076
+    // item 3; `css/screen.css` says when it shows).
+    this.controls.id = `verso-graph-controls-${this.tab.id}`;
+    const toggle = h("button", "ghost graph-controls-toggle");
+    toggle.type = "button";
+    toggle.append(icon("filter"), h("span", "", st.graphControls));
+    toggle.setAttribute("aria-controls", this.controls.id);
+    toggle.setAttribute("aria-expanded", "false");
+    const body = h("div", "graph-body");
+    toggle.addEventListener("click", () => {
+      const open = body.classList.toggle("controls-open");
+      toggle.setAttribute("aria-expanded", String(open));
+    });
+    head.append(this.title, this.count, toggle);
     // How many notes and links the filters leave, announced as they change.
     this.count.setAttribute("role", "status");
-    stage.append(head, this.svg, h("p", "graph-hint", t.graphHint));
-    const body = h("div", "graph-body");
+    // The help for the input the screen has: a finger, or a mouse and keys.
+    const hint = h("p", "graph-hint");
+    const coarse = window.matchMedia("(pointer: coarse)");
+    const paintHint = (): void => void (hint.textContent = coarse.matches ? st.graphHintTouch : t.graphHint);
+    paintHint();
+    coarse.addEventListener("change", paintHint);
+    stage.append(head, this.svg, hint);
     body.append(stage, this.controls);
     this.el.append(top, body);
     this.buildControls();
@@ -171,19 +192,60 @@ export class GraphLeaf extends Leaf {
       this.zoom = next;
       this.applyView();
     }, { passive: false });
-    // WebKit's pinch: a gesture, not a wheel.
+    // A trackpad's pinch in WebKit: a gesture, not a wheel. Two fingers on
+    // a touch screen are the pointers' (below), which every engine sends:
+    // the gesture is left to them then.
     let pinchStart = 1;
     svg.addEventListener("gesturestart", (e) => { e.preventDefault(); pinchStart = this.zoom; });
     svg.addEventListener("gesturechange", (e) => {
       e.preventDefault();
+      if (fingers.size > 1) return;
       const scale = (e as Event & { scale: number }).scale;
       this.zoomTo(Math.max(0.15, Math.min(6, pinchStart * scale)));
     });
+    // Two fingers pinch and pan by pointer events (ADR 0076 item 3): the
+    // zoom follows the distance between them, about their middle, and the
+    // graph follows the middle.
+    const fingers = new Map<number, { x: number; y: number }>();
+    let two: { d: number; mx: number; my: number; zoom: number; px: number; py: number } | null = null;
+    const pair = (): { d: number; mx: number; my: number } | null => {
+      const [a, b] = [...fingers.values()];
+      if (!a || !b) return null;
+      const r = svg.getBoundingClientRect();
+      return { d: Math.hypot(a.x - b.x, a.y - b.y), mx: (a.x + b.x) / 2 - r.left - r.width / 2, my: (a.y + b.y) / 2 - r.top - r.height / 2 };
+    };
+    svg.addEventListener("pointerdown", (e) => {
+      if (e.pointerType !== "touch") return;
+      fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const p = fingers.size === 2 ? pair() : null;
+      if (p) two = { ...p, zoom: this.zoom, px: this.pan.x, py: this.pan.y };
+    }, true);
+    svg.addEventListener("pointermove", (e) => {
+      if (!fingers.has(e.pointerId)) return;
+      fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const p = two ? pair() : null;
+      if (!two || !p || two.d === 0) return;
+      const next = Math.max(0.15, Math.min(6, (two.zoom * p.d) / two.d));
+      const k = next / two.zoom;
+      // The point under the fingers' first middle stays under their middle.
+      this.pan.x = p.mx - (two.mx - two.px) * k;
+      this.pan.y = p.my - (two.my - two.py) * k;
+      this.zoom = next;
+      this.applyView();
+    }, true);
+    const lift = (e: PointerEvent): void => {
+      fingers.delete(e.pointerId);
+      if (fingers.size < 2) two = null;
+    };
+    svg.addEventListener("pointerup", lift, true);
+    svg.addEventListener("pointercancel", lift, true);
     svg.addEventListener("pointerdown", (e) => {
       if (e.button !== 0 || (e.target as Element).closest(".node")) return;
       const start = { x: e.clientX, y: e.clientY, px: this.pan.x, py: this.pan.y };
       svg.setPointerCapture(e.pointerId);
       const move = (ev: PointerEvent) => {
+        // A second finger came: the pinch moves the graph now.
+        if (two || ev.pointerId !== e.pointerId) return;
         this.pan.x = start.px + (ev.clientX - start.x);
         this.pan.y = start.py + (ev.clientY - start.y);
         this.applyView();

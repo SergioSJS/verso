@@ -2,6 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { can } from "../can";
+import { serverStrings, serversBody } from "./servers";
 import { type CliState, commands, type McpStatus } from "../bindings";
 import { remoteContentChanged } from "../changes";
 import { ask } from "../dialog";
@@ -13,7 +15,7 @@ import { allCommands, comboOf, DEFAULT_KEYS, keyOf, MAC, paintKeyHints, prettyKe
 import { LINUX, WINDOWS } from "../platform";
 import { spaces } from "../layout/spaces";
 import { NoteLeaf } from "../leaves/note";
-import { panel, updateController } from "../main";
+import { panel, ribbon, updateController } from "../main";
 import { walkRulesChanged } from "../open";
 import { pushFolderNoteName } from "../organize/folderNotes";
 import { orderModeChanged } from "../organize/order";
@@ -22,6 +24,9 @@ import { getHiddenFromTree, pushEmbedOrigins, pushMenuLanguage, saveSettings, se
 import { boardText, t } from "../strings";
 import { listAll } from "../tree/tree";
 import { asDialog, closed, opened } from "./a11y";
+import { accountEntries } from "../web/account";
+import { adminEntries } from "../web/admin";
+import { signedIn } from "../web/api";
 
 /** A settings page is a list of items: a title, a line about it, a control. */
 export let hotkeyRecorder: ((e: KeyboardEvent) => void) | null = null;
@@ -56,7 +61,17 @@ export class SettingsDialog {
       if (e.key === "Escape") this.hide();
     });
     const side = h("div", "settings-side");
-    side.append(this.search, this.nav);
+    // A phone has no Esc, and a tap beside the page may find no room: the
+    // page closes by its own button too.
+    const close = h("button", "ghost iconic settings-close");
+    close.type = "button";
+    close.title = t.done;
+    close.setAttribute("aria-label", t.done);
+    close.append(icon("close"));
+    close.addEventListener("click", () => this.hide());
+    const top = h("div", "settings-top");
+    top.append(this.search, close);
+    side.append(top, this.nav);
     this.box.append(side, this.body);
     this.el.append(this.box);
     document.body.append(this.el);
@@ -98,7 +113,15 @@ export class SettingsDialog {
       { id: "files", label: t.sFiles, icon: "folder" },
       { id: "board", label: boardText.sBoard, icon: "board" },
       { id: "hotkeys", label: t.sHotkeys, icon: "keyboard" },
-      { id: "cli", label: t.sCli, icon: "terminal" },
+      // What the side the window talks to cannot do is absent (ADR 0076
+      // item 11): the command line and the agents are the desktop app's,
+      // and so is opening a server's folder from it (ADR 0073 item 2).
+      ...(can("agents") ? [{ id: "cli", label: t.sCli, icon: "terminal" }] : []),
+      ...(can("local_folders") ? [{ id: "servers", label: serverStrings().section, icon: "globe" }] : []),
+      // On a server: the person's account, and the server's administration
+      // for an admin (ADR 0074 items 7 and 9).
+      ...(can("account") && signedIn() ? [{ id: "account", label: t.sAccount, icon: "user" }] : []),
+      ...(can("admin") && signedIn()?.admin ? [{ id: "admin", label: t.sAdmin, icon: "shield" }] : []),
     ];
   }
   private item(title: string, desc: string, control: HTMLElement | null): HTMLElement {
@@ -115,7 +138,8 @@ export class SettingsDialog {
       // The control is named by the item's title and described by its line
       // (a hotkey row names its own buttons).
       const field = control.matches("input, select") ? control : control.querySelector<HTMLElement>("input, select");
-      field?.setAttribute("aria-labelledby", titleEl.id);
+      // A control that names itself (one of several in the row) keeps it.
+      if (title && !field?.hasAttribute("aria-label")) field?.setAttribute("aria-labelledby", titleEl.id);
       if (field && desc) field.setAttribute("aria-describedby", descEl.id);
       row.append(control);
     }
@@ -155,8 +179,8 @@ export class SettingsDialog {
     const out: { section: string; title: string; desc: string; node: () => HTMLElement; group?: string }[] = [];
     const add = (section: string, title: string, desc: string, control: () => HTMLElement | null, group?: string) =>
       out.push({ section, title, desc, node: () => this.item(title, desc, control()), group });
-    add("general", t.devtools, t.devtoolsDesc, () => this.toggle(settings.devtools, (v) => { settings.devtools = v; saveSettings(); }));
-    add("general", t.checkUpdates, t.checkUpdatesDesc, () => this.toggle(settings.checkUpdates, (v) => { settings.checkUpdates = v; saveSettings(); }));
+    if (can("devtools")) add("general", t.devtools, t.devtoolsDesc, () => this.toggle(settings.devtools, (v) => { settings.devtools = v; saveSettings(); }));
+    if (can("updates")) add("general", t.checkUpdates, t.checkUpdatesDesc, () => this.toggle(settings.checkUpdates, (v) => { settings.checkUpdates = v; saveSettings(); }));
     add("general", t.appVersion, t.appVersionDesc, () => {
       const wrap = h("div", "setting-version-wrap");
       const topRow = h("div", "setting-version-row");
@@ -326,6 +350,29 @@ export class SettingsDialog {
       });
       return box;
     });
+    // The space the open folder takes (ADR 0075 item 4), from the walk the
+    // index already made.
+    if (currentFolder) {
+      const pt = document.documentElement.lang.startsWith("pt");
+      add("files", pt ? "Espaço desta pasta" : "This folder's space", pt ? "Notas, anexos e o índice, contados na última leitura da pasta." : "Notes, attachments and the index, counted at the folder's last walk.", () => {
+        const v = h("span", "setting-value", "…");
+        const size = (bytes: number | null) => {
+          let n = bytes ?? 0;
+          const units = ["B", "KB", "MB", "GB", "TB"];
+          let i = 0;
+          while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+          return `${n.toLocaleString(pt ? "pt-BR" : "en", { maximumFractionDigits: i ? 1 : 0 })} ${units[i]}`;
+        };
+        void commands.folderSpace().then((r) => {
+          if (r.status !== "ok") return void (v.textContent = "?");
+          const s = r.data;
+          v.textContent = pt
+            ? `${size(s.total)} — notas ${size(s.notes)}, anexos ${size(s.attachments)}, ${s.files} arquivos; índice ${size(s.index)}`
+            : `${size(s.total)} — notes ${size(s.notes)}, attachments ${size(s.attachments)}, ${s.files} files; index ${size(s.index)}`;
+        });
+        return v;
+      });
+    }
     add("files", t.ignoreBuildDirs, t.ignoreBuildDirsDesc, () => this.toggle(settings.ignoreBuildDirs, (v) => { settings.ignoreBuildDirs = v; saveSettings(); void walkRulesChanged(); }));
     add("files", t.respectGitignore, t.respectGitignoreDesc, () => this.toggle(settings.respectGitignore, (v) => { settings.respectGitignore = v; saveSettings(); void walkRulesChanged(); }));
     add("general", t.autosaveDelay, t.autosaveDesc, () => {
@@ -336,6 +383,7 @@ export class SettingsDialog {
     });
     add("appearance", t.theme, t.themeDesc, () => this.select([["auto", t.themeAuto], ["light", t.themeLight], ["dark", t.themeDark]], settings.theme, (v) => { settings.theme = v; saveSettings(); }));
     add("appearance", t.hue, t.hueDesc, () => this.select([["paper", t.huePaper], ["sepia", t.hueSepia], ["slate", t.hueSlate], ["moss", t.hueMoss]], settings.palette, (v) => { settings.palette = v; saveSettings(); }));
+    add("appearance", t.darkTone, t.darkToneDesc, () => this.select([["soft", t.darkSoft], ["deep", t.darkDeep], ["dusk", t.darkDusk]], settings.darkTone ?? "soft", (v) => { settings.darkTone = v; saveSettings(); }));
     add("appearance", t.fontSize, t.fontSizeDesc, () => {
       // Up to twice the default (15 px): the window has no page zoom, so
       // this is how text reaches 200% (WCAG 1.4.4). Said in pixels.
@@ -368,6 +416,15 @@ export class SettingsDialog {
       ["amethyst", t.colorAmethyst],
     ], settings.headingColor || "brass", (v) => { settings.headingColor = v as any; saveSettings(); }));
     add("appearance", t.measure, t.measureDesc, () => this.select([["normal", t.measureNormal], ["wide", t.measureWide]], settings.measure, (v) => { settings.measure = v; saveSettings(); }));
+    // The ribbon's buttons, each shown or hidden here as from its menu;
+    // the gear stays, so the way back is never hidden with the others.
+    for (const b of ribbon?.buttons() ?? []) {
+      add("appearance", b.label, b.kept ? t.ribbonButtonsDesc : "", () => {
+        if (b.kept) return null;
+        const sw = this.toggle(b.shown, (v) => ribbon?.setShown(b.id, v));
+        return sw;
+      }, t.ribbonButtons);
+    }
     add("organizing", t.stickers, t.stickersDesc, () => this.toggle(settings.stickers, (v) => { settings.stickers = v; saveSettings(); void listAll(); }));
     add("organizing", t.stickerInLinks, t.stickerInLinksDesc, () => this.toggle(settings.stickerInLinks, (v) => { settings.stickerInLinks = v; saveSettings(); }));
     add("organizing", t.covers, t.coversDesc, () => this.toggle(settings.covers, (v) => { settings.covers = v; saveSettings(); for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) if (l instanceof NoteLeaf && l.note) void l.load(l.path, true); }));
@@ -476,6 +533,10 @@ export class SettingsDialog {
     for (const c of allCommands(true)) add("hotkeys", c.label, "", () => this.hotkeyControl(c.id, c.label));
     // The command line and MCP (ADR 0054). The folder is named by its key
     // in what a client starts: its path crosses nowhere (ADR 0026 rule 4).
+    const me = signedIn();
+    if (can("account") && me) for (const e of accountEntries(me, (a, b, c) => this.item(a, b, c))) out.push({ section: "account", ...e });
+    if (can("admin") && me?.admin) for (const e of adminEntries(me, (a, b, c) => this.item(a, b, c))) out.push({ section: "admin", ...e });
+    if (can("local_folders")) out.push({ section: "servers", title: serverStrings().connect, desc: serverStrings().connectDesc, node: () => serversBody((a, b, c) => this.item(a, b, c)) });
     add("cli", t.cliTitle, WINDOWS ? t.cliDescWindows : LINUX ? t.cliDescLinux : t.cliDesc, () => this.cliControl());
     // One server per folder, or one for all of Verso (ADR 0054, 2026-10-08).
     add("cli", t.mcpModeTitle, t.mcpModeDesc, () => this.select([["folder", t.mcpModeFolder], ["all", t.mcpModeAll]], settings.mcpMode, (v) => { settings.mcpMode = v; saveSettings(); this.paint(); }));
@@ -494,7 +555,8 @@ export class SettingsDialog {
       add("cli", t.mcpCodeTitle, t.mcpCodeDesc, () => this.snippet(code("verso", guess), (st) => code(st.command, st.server)));
       add("cli", t.mcpOtherTitle, t.mcpOtherDesc, () => this.snippet(other("/usr/local/bin/verso", guess), (st) => other(st.command, st.server)));
     }
-    return out;
+    // The command line and the agents only where the side has them.
+    return can("agents") ? out : out.filter((o) => o.section !== "cli");
   }
   /** Where the command line stands, and the button that changes it. */
   private cliControl(): HTMLElement {

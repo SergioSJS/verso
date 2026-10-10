@@ -371,8 +371,8 @@ pub(crate) fn mcp_status<R: tauri::Runtime>(
     let (server, claude) = match claude_dir() {
         None => (names[0].clone(), McpClientState::NoClient),
         Some(dir) => {
-            let (server, found) =
-                verso_core::clients::pick_server(&dir, &names, &entry).map_err(convert)?;
+            let (server, found) = verso_core::clients::pick_server(&dir, &names, &entry)
+                .map_err(verso_service::convert)?;
             (server, client_state(found))
         }
     };
@@ -415,7 +415,7 @@ pub(crate) fn agent_visible<R: tauri::Runtime>(
     state: State<'_, App>,
 ) -> Result<bool, ContractError> {
     let key = with(&state, &window, |ws| Ok(ws.key()))?;
-    verso_core::agents::is_visible(state.config.as_deref(), &key).map_err(convert)
+    verso_core::agents::is_visible(state.service.config(), &key).map_err(verso_service::convert)
 }
 
 /// Mark the open folder visible to agents, or hidden again.
@@ -427,7 +427,8 @@ pub(crate) fn set_agent_visible<R: tauri::Runtime>(
     visible: bool,
 ) -> Result<bool, ContractError> {
     let key = with(&state, &window, |ws| Ok(ws.key()))?;
-    verso_core::agents::set_visible(state.config.as_deref(), &key, visible).map_err(convert)?;
+    verso_core::agents::set_visible(state.service.config(), &key, visible)
+        .map_err(verso_service::convert)?;
     Ok(visible)
 }
 
@@ -472,8 +473,10 @@ pub(crate) fn mcp_add_claude<R: tauri::Runtime>(
         folder.as_ref().map(|(k, p)| (k.as_str(), p.as_deref())),
     );
     let dir = claude_dir().ok_or_else(|| refused("Claude Desktop is not installed"))?;
-    let (server, _) = verso_core::clients::pick_server(&dir, &names, &entry).map_err(convert)?;
-    let added = verso_core::clients::add_to_claude(&dir, &server, entry).map_err(convert)?;
+    let (server, _) =
+        verso_core::clients::pick_server(&dir, &names, &entry).map_err(verso_service::convert)?;
+    let added =
+        verso_core::clients::add_to_claude(&dir, &server, entry).map_err(verso_service::convert)?;
     Ok(McpAdded {
         server,
         replaced: added.replaced,

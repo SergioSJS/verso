@@ -20,6 +20,16 @@
   revision line), the [roadmap](../roadmap.md)'s two rows on handles and the
   [ADR index](../adr/README.md)'s row for 0044. No code follows this memo:
   it asked to record what the code already does, or not.
+- Re-opening answered on 2026-10-09 for `verso serve`, by the
+  maintainer's acceptance of
+  [ADR 0073](../adr/0073-self-hosted-server-first.md): a note stays named
+  by its relative path; on a server the access capability is the session
+  and its role in the folder, checked before `verso-fs` acts; attachments
+  are served at `/f/<folder-id>/<relative path>` behind that check; no
+  per-file capability crosses. Recorded in
+  [ADR 0044](../adr/0044-verso-fs-semantics.md), "On a server". A plugin
+  and a native mobile client still re-open the group; the pre-signed URL
+  of a bucket stays `[OPEN]` in ADR 0073 item 4.
 - Written by Opus 5.5 overnight, the author
   [ADR 0032](../adr/0032-author-and-reviewer-roles.md) gives documents ("Opus
   5"); read by a fresh Opus 5.5 session standing in for Fable 5.1, the reader
