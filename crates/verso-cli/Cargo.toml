@@ -30,9 +30,6 @@ verso-fs = { path = "../verso-fs" }
 # Protocol, server side over stdio only (docs/reference/mcp-decision.md,
 # provisional). `default-features = false`: no HTTP, no auth, no client.
 rmcp = { version = "3.4", default-features = false, features = ["server", "transport-io", "macros"] }
-# `verso serve` (ADR 0073 item 2; the maintainer's answer C of 2026-10-09:
-# a subcommand of this binary, not a binary of its own).
-verso-server = { path = "../verso-server" }
 tokio = { version = "1", default-features = false, features = ["rt", "macros", "io-std"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -42,3 +39,10 @@ tempfile = "3.27"
 
 [lints]
 workspace = true
+
+# `verso serve` (ADR 0073 item 2; the maintainer's answer C of 2026-10-09:
+# a subcommand of this binary, not a binary of its own), on Linux and macOS. Windows is no server platform
+# (ADR 0075 item 2: Docker, CasaOS, .deb/.rpm), and webauthn-rs's OpenSSL
+# would need a build of its own there: `verso serve` says so instead.
+[target.'cfg(not(windows))'.dependencies]
+verso-server = { path = "../verso-server" }

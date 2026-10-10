@@ -935,6 +935,24 @@ fn json_str(s: &str) -> String {
 /// configuration from the `VERSO_*` variables; the directories, when none
 /// names them, under the user's configuration directory, and the window's
 /// files where the packages put them, beside the binary.
+/// Windows is no server platform (ADR 0075 item 2): said in the person's
+/// language.
+#[cfg(windows)]
+fn serve(_: &Command, lang: Lang, mut out: Output) -> Output {
+    let why = match lang {
+        Lang::PtBr => {
+            "não roda no Windows; use a imagem Docker do servidor, ou um Linux ou macOS (docs/reference/server-install.md)"
+        }
+        Lang::En => {
+            "it does not run on Windows; use the server's Docker image, or Linux or macOS (docs/reference/server-install.md)"
+        }
+    };
+    out.stderr
+        .push(text(&Msg::ServeFailed(why.to_owned()), lang));
+    with_code(out, 2)
+}
+
+#[cfg(not(windows))]
 fn serve(command: &Command, lang: Lang, mut out: Output) -> Output {
     let base = match verso_core::config_dir() {
         Ok(dir) => dir,

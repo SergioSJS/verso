@@ -65,9 +65,12 @@ base64 = "0.22"
 # update, without shelling out to `xattr` (ADR 0029, the subprocess rule).
 xattr = "1.6"
 
-[dev-dependencies]
-# A real `verso serve` for the tests of a window on a server's folder.
+[target.'cfg(not(windows))'.dev-dependencies]
+# A real `verso serve` for the tests of a window on a server's folder; the
+# server is not built for Windows (crates/verso-cli/Cargo.toml).
 verso-server = { path = "../../crates/verso-server" }
+
+[dev-dependencies]
 # The commands exercised through Tauri's mock runtime, as the UI calls
 # them (ADR 0029: the contract's guardrail runs without a window).
 tauri = { version = "2", features = ["unstable", "test"] }
