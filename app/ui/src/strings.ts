@@ -124,7 +124,14 @@ export const pt: Strings = {
   newFolder: "Nova pasta", newFolderName: "Nome da pasta (Enter cria, Esc cancela)", folderCreated: "Pasta criada.", graph: "Relações", graphOf: "Relações de", reopen: "Reabrir aba fechada", recent: "Recentes", sidebarResize: "Arraste para redimensionar", openSplit: "Abrir em área nova",
   outgoing: "Links de saída", linksTab: "Links", tags: "Tags", bookmarks: "Favoritos", bookmark: "Favoritar", unbookmark: "Remover dos favoritos", noBookmarks: "Nenhum favorito. Marque uma nota pela estrela.", noTags: "Nenhuma tag.", noOutline: "Sem títulos nesta nota.", hideTabs: "Ocultar barra de abas", showTabs: "Mostrar barra de abas", toggleSide: "Mostrar/ocultar arquivos", toggleRight: "Mostrar/ocultar painel", palette: "Paleta de comandos", settings: "Ajustes",
   theme: "Tema", themeAuto: "Sistema", themeLight: "Claro", themeDark: "Escuro", fontSize: "Tamanho da fonte", attachments: "Pasta de anexos (ao lado da nota)", autosaveDelay: "Autosave (segundos após parar)", daily: "Nota de hoje", dailyFolder: "Pasta das notas diárias", templates: "Pasta de templates", insertTemplate: "Inserir template…", noTemplates: "Nenhum template. Crie notas na pasta de templates.", done: "Fechar", commands: "Comandos", noLinks: "Nenhum link nesta nota.",
-  indexed: (n, u, p) => `${n} indexadas, ${u} sem mudança, ${p} placeholders`,
+  // The index's last walk, for a person: how many notes, whether any was
+  // read again, and how many are still only in the cloud (ADR 0043).
+  indexed: (n, u, p) => {
+    const all = n + u;
+    const notes = all === 1 ? "1 nota" : `${all} notas`;
+    const main = all === 0 ? "Nenhuma nota" : n === 0 ? `${notes} em dia` : u === 0 ? `${notes} ${all === 1 ? "lida" : "lidas"}` : `${notes}, ${n} ${n === 1 ? "lida" : "lidas"} de novo`;
+    return p ? `${main} · ${p} ainda na nuvem` : main;
+  },
   readOutside: (names) => `Mudou fora do Verso e foi lida de novo: ${names}.`,
   backOutside: (names) => `Voltou para a pasta: ${names}.`,
   notWatched: (why) => `Mudanças feitas fora do Verso só aparecem no Reindexar: a pasta não pôde ser vigiada (${why}).`,
@@ -262,7 +269,12 @@ export const en: Strings = {
   newFolder: "New folder", newFolderName: "Folder name (Enter creates, Esc cancels)", folderCreated: "Folder created.", graph: "Relations", graphOf: "Relations of", reopen: "Reopen closed tab", recent: "Recent", sidebarResize: "Drag to resize", openSplit: "Open in a new pane",
   outgoing: "Outgoing links", linksTab: "Links", tags: "Tags", bookmarks: "Bookmarks", bookmark: "Bookmark", unbookmark: "Remove bookmark", noBookmarks: "No bookmarks. Star a note to keep it here.", noTags: "No tags.", noOutline: "No headings in this note.", hideTabs: "Hide tab bar", showTabs: "Show tab bar", toggleSide: "Show/hide files", toggleRight: "Show/hide panel", palette: "Command palette", settings: "Settings",
   theme: "Theme", themeAuto: "System", themeLight: "Light", themeDark: "Dark", fontSize: "Font size", attachments: "Attachments folder (beside the note)", autosaveDelay: "Autosave (seconds after typing stops)", daily: "Today's note", dailyFolder: "Daily notes folder", templates: "Templates folder", insertTemplate: "Insert template…", noTemplates: "No templates. Create notes in the templates folder.", done: "Close", commands: "Commands", noLinks: "No links in this note.",
-  indexed: (n, u, p) => `${n} indexed, ${u} unchanged, ${p} placeholders`,
+  indexed: (n, u, p) => {
+    const all = n + u;
+    const notes = all === 1 ? "1 note" : `${all} notes`;
+    const main = all === 0 ? "No notes" : n === 0 ? `${notes} up to date` : u === 0 ? `${notes} read` : `${notes}, ${n} read again`;
+    return p ? `${main} · ${p} still in the cloud` : main;
+  },
   readOutside: (names) => `Changed outside Verso and read again: ${names}.`,
   backOutside: (names) => `Back in the folder: ${names}.`,
   notWatched: (why) => `Changes made outside Verso show up on Reindex only: the folder could not be watched (${why}).`,
