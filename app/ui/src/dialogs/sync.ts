@@ -411,8 +411,14 @@ async function drawOff(box: HTMLElement, item: Item): Promise<void> {
 }
 
 function drawOn(box: HTMLElement, st: SyncStatus): void {
-  drawSyncOn(box, st, refresh, (status) => {
-    const s = syncStrings();
-    return (status.problem && s.problems[status.problem]) || status.message;
-  });
+  drawSyncOn(
+    box,
+    st,
+    refresh,
+    (status) => {
+      const s = syncStrings();
+      return (status.problem && s.problems[status.problem]) || status.message;
+    },
+    () => openSection("servers"),
+  );
 }

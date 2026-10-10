@@ -36,6 +36,7 @@ const pt = {
   minutes: (n: number) => `há ${n} min`,
   hours: (n: number) => `há ${n} h`,
   syncNow: "Sincronizar agora",
+  openServers: "Abrir Servidores",
   pause: "Pausar",
   resume: "Retomar",
   turnOff: "Desligar…",
@@ -116,6 +117,7 @@ const en: typeof pt = {
   minutes: (n) => `${n} min ago`,
   hours: (n) => `${n} h ago`,
   syncNow: "Sync now",
+  openServers: "Open Servers",
   pause: "Pause",
   resume: "Resume",
   turnOff: "Turn off…",
@@ -227,8 +229,17 @@ function headline(st: SyncStatus, waiting: number): { text: string; tone: "ok" |
 export type Refresh = () => Promise<void>;
 export type ProblemText = (st: SyncStatus) => string | null;
 
-/** Draw the section for a folder that syncs. */
-export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, problemText: ProblemText): void {
+/** The problems only signing in again mends, in Settings › Servers. */
+const SIGNED_OUT = new Set(["signed_out", "not_signed_in"]);
+
+/** A sentence shown on its own starts with a capital. */
+function capitalized(text: string): string {
+  return text ? `${text[0]!.toUpperCase()}${text.slice(1)}` : text;
+}
+
+/** Draw the section for a folder that syncs. `openServers` opens the
+ *  Servers section, where a computer signs in again. */
+export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, problemText: ProblemText, openServers: () => void): void {
   const s = words();
   // Conflicts by the note they are of; files left out by why.
   const byNote = new Map<string, string[]>();
@@ -257,10 +268,14 @@ export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, p
   // deletions: the red box's two buttons decide; the row only compares
   // again (a drive mounted meanwhile ends the pause) and turns off.
   // Offline: Sync now is a try, not the thing to do.
+  // Signed out of the server: a pass now cannot work; signing in again,
+  // in Servers, is the thing to do, and Sync now only a try after it.
   const userPaused = st.state === "paused" && !st.deletions;
   const deletionsPaused = st.state === "paused" && Boolean(st.deletions);
-  const syncNow = () => button(s.syncNow, st.state === "offline" || deletionsPaused ? "" : "primary", () => void commands.folderSyncNow().then(() => refresh()));
-  if (userPaused) actions.append(button(s.resume, "primary", () => void commands.folderSyncPause(false).then(() => refresh())));
+  const signedOut = st.state === "error" && Boolean(st.problem && SIGNED_OUT.has(st.problem));
+  const syncNow = () => button(s.syncNow, st.state === "offline" || deletionsPaused || signedOut ? "" : "primary", () => void commands.folderSyncNow().then(() => refresh()));
+  if (signedOut) actions.append(button(s.openServers, "primary", openServers), syncNow());
+  else if (userPaused) actions.append(button(s.resume, "primary", () => void commands.folderSyncPause(false).then(() => refresh())));
   else if (deletionsPaused) actions.append(syncNow());
   else actions.append(syncNow(), button(s.pause, "", () => void commands.folderSyncPause(true).then(() => refresh())));
   actions.append(
@@ -272,7 +287,7 @@ export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, p
     }),
   );
   top.append(sentence, metaLine);
-  if (problem) top.append(h("p", "sync-problem", problem));
+  if (problem) top.append(h("p", "sync-problem", capitalized(problem)));
   top.append(actions);
 
   // 2. What needs the person, or the calm that nothing does.
