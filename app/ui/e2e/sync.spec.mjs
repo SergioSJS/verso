@@ -120,6 +120,16 @@ test("a folder syncs with a server, says its state, asks before deleting and sho
   await expect(app.page.locator(".sync-sentence")).toHaveText(/^Sem conexão\./);
   await expect(row(app).first()).toHaveText("Sincronizar agora");
   await expect(row(app).first()).not.toHaveClass(/primary/);
+  // Signed out of the server: a pass cannot work; signing in again, in
+  // Servers, is the thing to do — said as a sentence, and the first button.
+  await app.emit("sync-status", { ...running, state: "error", problem: "signed_out", message: null });
+  await expect(app.page.locator(".sync-problem")).toHaveText(/^O servidor encerrou a sessão deste computador/);
+  await expect(row(app)).toHaveText(["Abrir Servidores", "Sincronizar agora", "Desligar…"]);
+  await expect(row(app).first()).toHaveClass(/primary/);
+  await expect(row(app).nth(1)).not.toHaveClass(/primary/);
+  await row(app).first().click();
+  await expect(app.page.locator('.settings-nav-item[aria-current="true"]', { hasText: "Servidores" })).toBeVisible();
+  await app.page.locator(".settings-nav-item", { hasText: "Sincronizar" }).click();
   await app.emit("sync-status", running);
 
   // The bar opens the section; turning sync off asks, then the bar goes.
