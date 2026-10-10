@@ -94,6 +94,9 @@ test("the toolbar shows the table's tools while a cell has the focus", async ({ 
   await expect.poll(() => focused(page)).toBe("1,1");
   await tools.locator('[data-table="colLeft"]').click();
   await expect.poll(() => text(page)).toContain("| a   |     | b   |\n| --- | --- | :-: |\n");
+  // The table is drawn anew and the cell takes the focus back on the next
+  // frame: Esc leaves the cell the cursor is in.
+  await expect.poll(() => focused(page)).toBe("1,1");
   await page.keyboard.press("Escape");
   await expect(tools).toBeHidden();
 });
