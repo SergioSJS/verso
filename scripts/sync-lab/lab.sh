@@ -4,7 +4,9 @@
 # between runs so that campaigns and load tests reuse it.
 #
 #   scripts/sync-lab/lab.sh up       build verso if needed, seed the vault once, start the
-#                                    server on VERSO_LAB_PORT (7351), make the people and folders
+#                                    server on VERSO_LAB_PORT (7351), make the people and folders;
+#                                    the window in a browser needs app/ui built first
+#                                    (npm run build in app/ui), else the address answers 404
 #   scripts/sync-lab/lab.sh down     stop the server
 #   scripts/sync-lab/lab.sh status   whether it runs, and lab.json
 #   scripts/sync-lab/lab.sh reset    stop it and delete target/sync-lab (asks first)
@@ -34,10 +36,18 @@ case "${1:-}" in
       node scripts/sync-lab/seed.mjs "$LAB/folders/Caderno"
     fi
     [ -f "$LAB/admin.password" ] || { head -c 18 /dev/urandom | base64 | tr -d '/+=' > "$LAB/admin.password"; chmod 600 "$LAB/admin.password"; }
+    # The window in a browser: the build of app/ui, when there is one.
+    UI=""
+    if [ -f app/ui/dist/web.html ]; then
+      UI="$PWD/app/ui/dist"
+    else
+      echo "app/ui is not built: the server runs, its address answers 404 (npm run build in app/ui, then down and up)"
+    fi
     if running; then
       echo "the lab's server runs already (pid $(cat "$LAB/server.pid"))"
     else
-      env VERSO_DATA_DIR="$LAB/data" VERSO_FOLDERS_DIR="$LAB/folders" VERSO_LISTEN="127.0.0.1:$PORT" \
+      env ${UI:+"VERSO_UI_DIR=$UI"} \
+        VERSO_DATA_DIR="$LAB/data" VERSO_FOLDERS_DIR="$LAB/folders" VERSO_LISTEN="127.0.0.1:$PORT" \
         VERSO_ADMIN_EMAIL="$ADMIN" VERSO_ADMIN_PASSWORD="$(cat "$LAB/admin.password")" \
         VERSO_UPDATE_CHECK=false \
         nohup target/release/verso serve --web >> "$LAB/server.log" 2>&1 &
@@ -71,7 +81,7 @@ case "${1:-}" in
     node scripts/server-load.mjs --url "$URL" --folder "$folder" --disk "$LAB/folders/Carga" --accounts "$accounts" "$@"
     ;;
   *)
-    sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
     exit 2
     ;;
 esac
