@@ -17,6 +17,9 @@ import { currentFolder, folderName, LAST_FOLDER } from "../folder";
 import { currentSync, openSettingsSection, preselectSync } from "./sync";
 import { openFolderBy } from "../open";
 
+/** A sentence whose names stand out: a name is `[name]`. */
+type Said = (string | [string])[];
+
 const pt = {
   section: "Servidores",
   connect: "Conectar a um servidor",
@@ -36,7 +39,12 @@ const pt = {
   role: (r: string): string => (r === "owner" ? "dona" : r === "editor" ? "edita" : "só lê"),
   openHere: "Abrir aqui",
   openHereNamed: (name: string) => `Abrir ${name} nesta janela, online`,
-  syncWithThis: (local: string) => `Sincronizar com ${local}`,
+  // The two actions of a folder's row, said once above the rows (the
+  // names in `[ ]` stand out); each row's button is short, its accessible
+  // name whole.
+  pair: (local: string): Said => [["Abrir aqui"], " troca a pasta desta janela pela do servidor, online. ", ["Sincronizar"], " mantém ", [local], ", a pasta deste computador aberta agora, igual à do servidor."],
+  sync: "Sincronizar",
+  syncNamed: (local: string, there: string) => `Sincronizar ${local} com ${there}`,
   syncedWithThis: (local: string) => `sincronizada com ${local}`,
   openFolder: "Abrir uma pasta",
   signOut: "Sair",
@@ -63,7 +71,9 @@ const en: typeof pt = {
   role: (r: string): string => (r === "owner" ? "owner" : r === "editor" ? "edits" : "reads only"),
   openHere: "Open here",
   openHereNamed: (name: string) => `Open ${name} in this window, online`,
-  syncWithThis: (local: string) => `Sync with ${local}`,
+  pair: (local: string): Said => [["Open here"], " swaps this window's folder for the server's, online. ", ["Sync"], " keeps ", [local], ", this computer's folder open now, the same as the server's."],
+  sync: "Sync",
+  syncNamed: (local: string, there: string) => `Sync ${local} with ${there}`,
   syncedWithThis: (local: string) => `synced with ${local}`,
   openFolder: "Open a folder",
   signOut: "Sign out",
@@ -192,6 +202,13 @@ function serverBlock(a: ServerAccount, redraw: () => Promise<void>): HTMLElement
   head.append(names, out);
   const folders = h("ul", "srv-folders");
   folders.setAttribute("aria-label", s.foldersOf(host));
+  // What the two buttons of a row do, said once for all of them.
+  const pair = pairable() ? h("p", "srv-pair") : null;
+  if (pair) {
+    pair.id = `${title.id}-pair`;
+    pair.append(...s.pair(folderName).map((part) => (typeof part === "string" ? part : h("strong", "", part[0]))));
+    folders.setAttribute("aria-describedby", pair.id);
+  }
   const loading = h("li", "srv-empty", s.loading);
   folders.append(loading);
   void commands.serverFolders(a.url).then((r) => {
@@ -205,8 +222,14 @@ function serverBlock(a: ServerAccount, redraw: () => Promise<void>): HTMLElement
     }
     folders.replaceChildren(...(r.data as ServerFolder[]).map((f) => folderRow(a, f)));
   });
-  block.append(head, folders);
+  block.append(head, ...(pair ? [pair] : []), folders);
   return block;
+}
+
+/** A folder of this computer open, not syncing: it may sync with one of
+ *  a server's. */
+function pairable(): boolean {
+  return Boolean(currentFolder && can("local_folders") && !currentSync()?.on);
 }
 
 function folderRow(a: ServerAccount, f: ServerFolder): HTMLElement {
@@ -226,10 +249,10 @@ function folderRow(a: ServerAccount, f: ServerFolder): HTMLElement {
   open.setAttribute("aria-label", s.openHereNamed(f.name));
   open.addEventListener("click", () => void openServerFolder(a.url, f.id));
   actions.append(open);
-  // A folder of this computer open, not syncing: it may sync with this one.
-  if (currentFolder && can("local_folders") && !sync?.on) {
-    const pair = h("button", "btn quiet", s.syncWithThis(folderName));
+  if (pairable()) {
+    const pair = h("button", "btn quiet", s.sync);
     pair.type = "button";
+    pair.setAttribute("aria-label", s.syncNamed(folderName, f.name));
     pair.addEventListener("click", () => {
       preselectSync(a.url, f.id);
       openSettingsSection("sync");

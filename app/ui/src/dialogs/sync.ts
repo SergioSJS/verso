@@ -29,7 +29,14 @@ const pt = {
   newFolder: (name: string) => `Uma pasta nova: ${name}`,
   newName: "Nome da pasta nova",
   role: (r: string): string => (r === "owner" ? "dona" : r === "editor" ? "edita" : "só lê"),
-  space: (files: number, size: string) => `Esta pasta tem ${files} arquivos, ${size}. Na primeira vez, nada é apagado: o que só um lado tem vai para o outro, e um arquivo diferente nos dois fica duas vezes — a versão do servidor com o nome, a deste computador ao lado.`,
+  // The form while off, read in three seconds: where the folder is now,
+  // what syncing gives, where it goes, what the first pass does.
+  onlyHere: (name: string) => `${name} está só neste computador.`,
+  lede: "Com um Universo, os mesmos arquivos ficam nos seus outros aparelhos, no navegador e com quem divide a pasta com você. Ela continua aqui também: abre sem rede, o Obsidian lê, o backup copia.",
+  account: (host: string, name: string) => `${host} · ${name}`,
+  space: (files: number, size: string) => `Esta pasta tem ${files} arquivos, ${size}.`,
+  firstSafe: "Na primeira vez, nada é apagado.",
+  firstHow: "O que só um lado tem vai para o outro; um arquivo diferente nos dois fica duas vezes — a versão do servidor com o nome, a deste computador ao lado.",
   start: "Sincronizar esta pasta",
   state: "Estado",
   states: {
@@ -106,7 +113,12 @@ const en: typeof pt = {
   newFolder: (name: string) => `A new folder: ${name}`,
   newName: "The new folder's name",
   role: (r: string) => (r === "owner" ? "owner" : r === "editor" ? "edits" : "reads only"),
-  space: (files: number, size: string) => `This folder has ${files} files, ${size}. The first time, nothing is deleted: what one side alone has goes to the other, and a file that differs on both is kept twice — the server's version under the name, this computer's beside it.`,
+  onlyHere: (name: string) => `${name} is only on this computer.`,
+  lede: "With a Universo, the same files are on your other devices, in the browser and with whoever shares the folder with you. It stays here too: it opens offline, Obsidian reads it, the backup copies it.",
+  account: (host: string, name: string) => `${host} · ${name}`,
+  space: (files: number, size: string) => `This folder has ${files} files, ${size}.`,
+  firstSafe: "The first time, nothing is deleted.",
+  firstHow: "What one side alone has goes to the other; a file that differs on both is kept twice — the server's version under the name, this computer's beside it.",
   start: "Sync this folder",
   state: "State",
   states: {
@@ -305,7 +317,13 @@ export function syncBody(item: Item): HTMLElement {
 
 async function drawOff(box: HTMLElement, item: Item): Promise<void> {
   const s = syncStrings();
-  box.replaceChildren(item(s.title, s.desc, null));
+  // Where the folder is now, in the sentence the section says once on
+  // ("Tudo em dia."), and what syncing would give it.
+  const top = h("header", "sync-top sync-off");
+  const sentence = h("p", "sync-sentence", s.onlyHere(folderName));
+  sentence.dataset["tone"] = "quiet";
+  top.append(sentence, h("p", "sync-lede", s.lede));
+  box.replaceChildren(top);
   const accounts = await commands.serverAccounts();
   if (accounts.status !== "ok") return fail(accounts.error);
   if (accounts.data.length === 0) {
@@ -315,14 +333,28 @@ async function drawOff(box: HTMLElement, item: Item): Promise<void> {
     box.append(item(s.noServer, "", go));
     return;
   }
-  const server = h("select");
-  for (const a of accounts.data as ServerAccount[]) {
-    const o = h("option", "", `${a.url} — ${a.name}`);
-    o.value = a.url;
-    server.append(o);
+  // One server: said, not a choice of one. Several: chosen.
+  const list = accounts.data as ServerAccount[];
+  const host = (a: ServerAccount) => a.url.replace(/^https?:\/\//, "");
+  let server: HTMLSelectElement | null = null;
+  let serverControl: HTMLElement;
+  if (list.length === 1) {
+    serverControl = h("span", "sync-fixed", s.account(host(list[0]!), list[0]!.name));
+  } else {
+    server = h("select");
+    for (const a of list) {
+      const o = h("option", "", s.account(host(a), a.name));
+      o.value = a.url;
+      server.append(o);
+    }
+    serverControl = server;
   }
+  const serverUrl = () => server?.value ?? list[0]!.url;
   const where = h("select");
   const name = h("input");
+  name.type = "text";
+  name.autocomplete = "off";
+  name.spellcheck = false;
   name.value = folderName;
   name.addEventListener("keydown", (e) => e.stopPropagation());
   const nameRow = item(s.newName, "", name);
@@ -331,7 +363,7 @@ async function drawOff(box: HTMLElement, item: Item): Promise<void> {
     const fresh = h("option", "", s.newFolder(name.value || folderName));
     fresh.value = "";
     where.append(fresh);
-    const r = await commands.serverFolders(server.value);
+    const r = await commands.serverFolders(serverUrl());
     if (r.status === "ok") {
       for (const f of r.data as ServerFolder[]) {
         const o = h("option", "", `${f.name} · ${s.role(f.role)}`);
@@ -341,30 +373,35 @@ async function drawOff(box: HTMLElement, item: Item): Promise<void> {
     }
     nameRow.hidden = where.value !== "";
   };
-  server.addEventListener("change", () => void fill());
-  if (preselected && [...server.options].some((o) => o.value === preselected!.url)) server.value = preselected.url;
+  server?.addEventListener("change", () => void fill());
+  if (server && preselected && [...server.options].some((o) => o.value === preselected!.url)) server.value = preselected.url;
   where.addEventListener("change", () => (nameRow.hidden = where.value !== ""));
   name.addEventListener("input", () => {
     const first = where.options[0];
     if (first) first.textContent = s.newFolder(name.value || folderName);
   });
-  const space = h("p", "setting-desc sync-space");
+  // What the first pass does, right above the button that starts it.
+  const space = h("p", "sync-space");
   void commands.folderSpace().then((r) => {
     if (r.status === "ok") space.textContent = s.space(r.data.files, size(r.data.total));
   });
+  const first = h("p", "sync-first");
+  first.append(h("strong", "", s.firstSafe), ` ${s.firstHow}`);
   const start = h("button", "btn primary", s.start);
   start.type = "button";
   start.addEventListener("click", () => {
     start.disabled = true;
     const folder = where.value || null;
-    void commands.folderSyncStart(server.value, folder, folder ? null : name.value.trim() || folderName).then((r) => {
+    void commands.folderSyncStart(serverUrl(), folder, folder ? null : name.value.trim() || folderName).then((r) => {
       start.disabled = false;
       if (r.status !== "ok") return fail(r.error);
       status = r.data;
       paint();
     });
   });
-  box.append(item(s.server, "", server), item(s.where, s.whereDesc, where), nameRow, space, start);
+  const go = h("div", "sync-go");
+  go.append(space, first, start);
+  box.append(item(s.server, "", serverControl), item(s.where, s.whereDesc, where), nameRow, go);
   await fill();
   if (preselected && [...where.options].some((o) => o.value === preselected!.folder)) {
     where.value = preselected.folder;

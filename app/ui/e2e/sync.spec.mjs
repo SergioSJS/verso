@@ -105,8 +105,13 @@ test("Servers lists each server with its folders, the role in each, and what to 
   await expect(folders.getByRole("listitem").first()).toContainText("Campanha");
   await expect(folders.getByRole("listitem").first()).toContainText("dona");
   await expect(folders.getByRole("listitem").nth(1)).toContainText("só lê");
-  // This computer's folder may sync with one: the Sync section opens on it.
-  await folders.getByRole("listitem").first().getByRole("button", { name: /^Sincronizar com / }).click();
+  // This computer's folder may sync with one, said once above the rows;
+  // each row's button is short, its name whole for a screen reader. The
+  // Sync section opens on the folder chosen.
+  await expect(server.locator(".srv-pair")).toHaveCount(1);
+  const pair = folders.getByRole("listitem").first().getByRole("button", { name: /^Sincronizar .+ com Campanha$/ });
+  await expect(pair).toHaveText("Sincronizar");
+  await pair.click();
   await expect(app.page.locator('.settings-nav-item[aria-current="true"]', { hasText: "Sincronizar" })).toBeVisible();
   const where = app.page.locator(".setting", { hasText: "Pasta no servidor" }).locator("select");
   await expect(where).toHaveValue("f1");
