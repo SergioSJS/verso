@@ -43,7 +43,7 @@ offline, no primeiro sync, num apagamento em massa, sob uma cota.
 
 ## Decisão
 
-Proposta.
+Aceita (2026-10-10, Status).
 
 1. **Uma pasta local sincroniza com uma pasta num servidor.** No app
    desktop, os ajustes de uma pasta oferecem "Sincronizar com um servidor":
@@ -112,9 +112,11 @@ Proposta.
     acordado; com hashes diferentes é um conflito (item 8). O espaço é
     mostrado antes de começar (item 5 da 0075), e dá para cancelar.
 12. **Limites**: a cota do servidor (0077) vale — um arquivo recusado é
-    listado e o resto sincroniza; um arquivo maior que o limite de mensagem
-    do servidor é listado e não sincroniza. `[ABERTO]`: arquivos maiores
-    que isso, em pedaços. Recomendado: depois, quando uma pasta precisar.
+    listado e o resto sincroniza. Um arquivo maior que o limite de mensagem
+    do servidor é enviado e buscado **em pedaços** (decidido em 2026-10-10,
+    Status): cada pedaço abaixo do limite, o arquivo escrito só quando todos
+    os pedaços chegaram e o hash confere, para que uma transferência
+    quebrada não deixe nada escrito pela metade.
 13. **O que uma pessoa vê**: o estado do sync da pasta na barra de status —
     sincronizado, enviando ou recebendo *n*, offline, pausado, *n*
     conflitos, erros — e, nos ajustes da pasta, um registro do que
@@ -153,5 +155,9 @@ Proposta.
 
 ## Status
 
-Proposta. `[ABERTO]`: qual lado fica com o nome num conflito (item 8);
-arquivos maiores que o limite de mensagem do servidor (item 12).
+**Aceita em 2026-10-10** pelo mantenedor, em sessão: *"com exceção do 6, pode seguir o recomendado, o 6 pode já implementar"*. Item 8: a
+versão do servidor fica com o nome, a local é a cópia, como recomendado.
+Item 12, **não** como recomendado: arquivos maiores que o limite de
+mensagem do servidor são enviados e buscados **em pedaços já**, nesta
+rodada, para que nenhum arquivo fique de fora pelo tamanho. A ser lida por
+Fable 5.1 com o código da rodada.

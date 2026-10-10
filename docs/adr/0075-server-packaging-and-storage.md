@@ -25,6 +25,11 @@
   [0051](0051-development-flow-and-releases.md) (the release workflow),
   [0055](0055-in-app-updater.md) (signed updates).
 - Status in the briefing: not present; on acceptance, together with 0073.
+- Revisions: 2026-10-10 — item 4's "limits come later" superseded by
+  [0077](0077-the-server-administration-console-and-folder-quotas.md)
+  (quotas per folder now); the server's package, image and paths renamed
+  Universo by [0078](0078-universo-the-name-of-verso-as-a-server.md);
+  both accepted by the maintainer that day.
 - Revisions: 2026-10-09 (night) — accepted by the maintainer together with
   [0073](0073-self-hosted-server-first.md), in the answer quoted there;
   its two `[OPEN]` answered — the update path (item 7, the maintainer's

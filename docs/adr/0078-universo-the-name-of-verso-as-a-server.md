@@ -32,7 +32,7 @@ person's devices meet.
 
 ## Decision
 
-Proposed.
+Accepted (2026-10-10, Status).
 
 1. **Universo names Verso as a server.** The app stays Verso; the
    self-hosted server — today `verso serve`, tomorrow the hub sync goes
@@ -90,6 +90,7 @@ Proposed.
 
 ## Status
 
-Proposed. `[OPEN]`: renaming the variables (item 4, recommended not to);
-the name of Settings › Servers in the desktop app (item 5, recommended to
-keep "Servers").
+**Accepted on 2026-10-10** by the maintainer, with every recommendation,
+in session: *"com exceção do 6, pode seguir o recomendado, o 6 pode já implementar"*. Item 4: the variables stay `VERSO_*`. Item 5:
+Settings › Servers keeps its name, with Universo in its description. To be
+read by Fable 5.1 with the round's code.

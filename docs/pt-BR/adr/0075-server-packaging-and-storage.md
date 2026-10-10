@@ -25,6 +25,11 @@
   [0051](0051-development-flow-and-releases.md) (o workflow de release),
   [0055](0055-in-app-updater.md) (atualizações assinadas).
 - Status no briefing: ausente; na aceitação, junto com o 0073.
+- Revisões: 2026-10-10 — o "limites depois" do item 4 substituído pela
+  [0077](0077-the-server-administration-console-and-folder-quotas.md)
+  (cotas por pasta agora); o pacote, a imagem e os caminhos do servidor
+  renomeados Universo pela [0078](0078-universo-the-name-of-verso-as-a-server.md);
+  as duas aceitas pelo mantenedor naquele dia.
 - Revisões: 2026-10-09 (noite) — aceito pelo mantenedor junto com o
   [0073](0073-self-hosted-server-first.md), na resposta citada lá; os dois
   `[ABERTO]` dele respondidos — o caminho de atualização (item 7, a opção

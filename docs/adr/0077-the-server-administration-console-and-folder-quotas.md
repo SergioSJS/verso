@@ -41,7 +41,7 @@ things do not hold as a server grows:
 
 ## Decision
 
-Proposed.
+Accepted (2026-10-10, Status).
 
 1. **The account stays in Settings; the administration leaves.** Settings
    › Account keeps what is the person's: profile, password, passkeys,
@@ -128,5 +128,8 @@ Proposed.
 
 ## Status
 
-Proposed. `[OPEN]`: a quota per account as well (item 5); editing the
-server's configuration from the console (item 6).
+**Accepted on 2026-10-10** by the maintainer, with every recommendation,
+in session: *"com exceção do 6, pode seguir o recomendado, o 6 pode já implementar"*. Item 5: quotas per folder only; a quota per account
+when a server has members who create folders. Item 6: the configuration
+read-only in the console, edited in the environment. To be read by Fable
+5.1 with the round's code.

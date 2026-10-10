@@ -41,7 +41,7 @@ coisas não se sustentam quando um servidor cresce:
 
 ## Decisão
 
-Proposta.
+Aceita (2026-10-10, Status).
 
 1. **A conta fica em Ajustes; a administração sai.** Ajustes › Conta
    mantém o que é da pessoa: perfil, senha, passkeys, sessões, as pastas e
@@ -132,5 +132,8 @@ Proposta.
 
 ## Status
 
-Proposta. `[ABERTO]`: uma cota por conta também (item 5); editar a
-configuração do servidor pelo console (item 6).
+**Aceita em 2026-10-10** pelo mantenedor, com todas as recomendações, em
+sessão: *"com exceção do 6, pode seguir o recomendado, o 6 pode já implementar"*. Item 5: cotas só por pasta; uma cota por conta quando
+um servidor tiver membros que criam pastas. Item 6: a configuração só para
+leitura no console, editada no ambiente. A ser lida por Fable 5.1 com o
+código da rodada.
