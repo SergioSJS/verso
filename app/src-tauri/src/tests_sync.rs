@@ -498,3 +498,51 @@ fn a_kept_connection_follows_the_servers_log() {
     changed(&b, &[]);
     assert_eq!(on(&mut l).actions, 0);
 }
+
+/// A rename that changes only the case of a name (ADR 0079 item 10), on a
+/// file system that folds names (APFS): it crosses as a rename, and the old
+/// name, which a read through the folding still opens, is not taken for a
+/// second file.
+#[cfg(target_os = "macos")]
+#[test]
+fn a_rename_of_the_case_alone_crosses() {
+    let r = serve(&[]);
+    let a = device(
+        &r,
+        &r.owner,
+        &[
+            ("Nota.md", "# Nota\n"),
+            ("Outra.md", "# Outra\n"),
+            ("Mais.md", "# Mais\n"),
+            ("Ainda.md", "# Ainda\n"),
+            ("Fim.md", "# Fim\n"),
+        ],
+    );
+    sync(&a);
+    let b = device(&r, &r.owner, &[]);
+    sync(&b);
+    a.ctx
+        .service
+        .with_key(&a.key, |ws| {
+            Ok(ws.rename_entry("Nota.md", "nota.md").map(|_| ())?)
+        })
+        .unwrap();
+    changed(&a, &["Nota.md", "nota.md"]);
+    let passed = sync(&a);
+    assert_eq!(passed.actions, 1, "{passed:?}");
+    changed(&b, &[]);
+    sync(&b);
+    assert!(files(&b).contains(&"nota.md".to_owned()), "{:?}", files(&b));
+    assert!(
+        !files(&b).contains(&"Nota.md".to_owned()),
+        "{:?}",
+        files(&b)
+    );
+    // Nothing more to do on either side, and nothing refused.
+    changed(&a, &[]);
+    assert_eq!(sync(&a).actions, 0);
+    changed(&b, &[]);
+    assert_eq!(sync(&b).actions, 0);
+    let status = lock(&b.shown).last().cloned().unwrap();
+    assert!(status.refused.is_empty(), "{status:?}");
+}

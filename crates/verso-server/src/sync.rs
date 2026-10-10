@@ -172,10 +172,20 @@ pub fn reconcile(
     // Read whatever the listing does not vouch for: a path just written,
     // and a known file the listing lacks — written since its last walk, or
     // gone; only a read tells which.
+    // A path whose name folds onto a listed one (only its case or its
+    // accents' form differ) is that file renamed on a file system that
+    // folds names: gone, whatever a read through the folding says.
+    let listed_folded: HashSet<String> = listed_paths
+        .iter()
+        .map(|p| verso_core::sync::folded(p))
+        .collect();
     let unlisted = paths
         .iter()
         .chain(known.keys())
         .filter(|p| !listed_paths.contains(*p))
+        .filter(|p| {
+            !(verso_core::sync::FOLDS_NAMES && listed_folded.contains(&verso_core::sync::folded(p)))
+        })
         .cloned()
         .collect::<HashSet<String>>();
     for p in unlisted {
@@ -366,7 +376,13 @@ pub async fn command(
             let (f, t) = (from.clone(), to.clone());
             s.service.with_key(&key, move |ws| {
                 is_now(ws, &f, Some(&base))?;
-                is_now(ws, &t, None)?;
+                // Only the case or the accents' form changing: the target
+                // is the file itself on a file system that folds names.
+                if !verso_core::sync::FOLDS_NAMES
+                    || verso_core::sync::folded(&f) != verso_core::sync::folded(&t)
+                {
+                    is_now(ws, &t, None)?;
+                }
                 Ok(ws.rename_entry(&f, &t).map(|_| ())?)
             })?;
             let head = reconcile(&s, &folder, &key, Some(&actor), &[from, to])?;

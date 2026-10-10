@@ -340,10 +340,15 @@ fn here(
     // The listing is as of the watcher's last batch: a file of the base it
     // lacks — written by this sync a moment ago, or gone — is read; only a
     // file that is not there is a deletion.
+    // A base path whose name the file system folds onto a listed one is
+    // that file renamed (only its case or its accents' form changed): it
+    // is not there any more, whatever a read through the folding says.
+    let listed_folded: HashSet<String> = files.keys().map(|p| engine::folded(p)).collect();
     let unlisted: Vec<String> = state
         .base
         .keys()
         .filter(|p| !files.contains_key(*p) && !apart.contains_key(*p))
+        .filter(|p| !(engine::FOLDS_NAMES && listed_folded.contains(&engine::folded(p))))
         .cloned()
         .collect();
     for path in unlisted {
@@ -611,6 +616,11 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
                 return Err(e);
             }
             Err(Refusal::File(path, reason, message)) => {
+                log::write(
+                    "WARN",
+                    "sync",
+                    &format!("not synced: {path} ({reason}: {message})"),
+                );
                 apart.insert(
                     path.clone(),
                     SyncRefused {
@@ -634,6 +644,11 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
                     lock(&s.dirty).insert(path);
                     s.poke();
                 } else {
+                    log::write(
+                        "WARN",
+                        "sync",
+                        &format!("not synced: {path} (changed: {message})"),
+                    );
                     apart.insert(
                         path.clone(),
                         SyncRefused {
@@ -733,7 +748,14 @@ fn of_server(path: &str, e: &Value) -> Refusal {
 
 fn of_here(path: &str, e: ContractError) -> Refusal {
     match e.kind {
-        ErrorKind::Changed | ErrorKind::Exists => Refusal::Again(path.to_owned(), e.message),
+        ErrorKind::Changed => Refusal::Again(path.to_owned(), e.message),
+        // Another file here has this name, as this file system compares
+        // names (case, accents): listed, never written over.
+        ErrorKind::Exists => Refusal::File(
+            path.to_owned(),
+            "name_taken".to_owned(),
+            "another file here has this name, differing only in case or accents".to_owned(),
+        ),
         ErrorKind::Unavailable => Refusal::File(
             path.to_owned(),
             "placeholder".to_owned(),
