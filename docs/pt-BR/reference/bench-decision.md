@@ -43,16 +43,17 @@
   mais linkada em 0,9 s, pico de memória abaixo de 37 MB, índice de 376 MB. O
   job na `main` fica vermelho de agora em diante só por uma regressão além das
   tolerâncias da seção 6.
-- **Revisão, 2026-10-10.** A linha de base `ci-linux` é registrada de novo,
-  com a aprovação do mantenedor, a partir da execução na `main` no merge do
-  PR #43 (`1dad5ec`, 0.7.0-beta.1): 27 entradas, as nove operações nos três
-  tamanhos. A busca por nome de arquivo (schema 14 do verso-index) deixou o
-  índice de 1 000 notas 10 % maior (7,6 → 8,4 MB), além da tolerância de
-  1,05×; com 50 000 notas fica dentro dela. As duas operações de lote do
-  watcher (roadmap 3.9) não tinham linha de base. Com 50 000 notas agora:
-  índice do zero em 36,0 s, busca comum em 45 ms, backlinks em 0,5 s, um lote
-  do watcher em 0,8 s pelos seus caminhos contra 1,1 s percorrendo a pasta,
-  índice de 370 MB.
+- **Revisão, 2026-10-10.** A linha de base `ci-linux` é revista, com a
+  aprovação do mantenedor: a busca por nome de arquivo (schema 14 do
+  verso-index) deixou o índice de 1 000 notas 10 % maior (7,6 → 8,4 MB), além
+  da tolerância de 1,05×, e as duas operações de lote do watcher (roadmap 3.9)
+  não tinham linha de base. Os tamanhos de índice vêm da execução na `main` em
+  `1dad5ec` (0.7.0-beta.1); os tempos das 21 entradas anteriores ficam os de
+  `95f78dd`; as seis entradas novas tomam a mais lenta de duas execuções
+  (`1dad5ec`, `f63c392`). Uma primeira tentativa tirou todos os tempos de
+  `1dad5ec`, uma máquina cerca de 1,7× mais rápida que a seguinte, e a
+  execução seguinte ficou vermelha por tempo com o código igual: uma execução
+  não é linha de base de tempo em máquinas compartilhadas (seção 6).
 - Autor: Opus 5 (documentos,
   [ADR 0032](../adr/0032-author-and-reviewer-roles.md)). Revisor: Fable 5.1.
   Nos memorandos anteriores as recomendações eram da Fable 5.1, registradas
