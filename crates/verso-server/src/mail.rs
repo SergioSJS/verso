@@ -17,8 +17,10 @@ use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 /// Where a message goes.
 pub enum Mail {
     /// The host's mail server.
+    /// Boxed: the transport is some 240 bytes on Linux, the test variant
+    /// a few dozen (clippy's `large_enum_variant`).
     Smtp {
-        transport: AsyncSmtpTransport<Tokio1Executor>,
+        transport: Box<AsyncSmtpTransport<Tokio1Executor>>,
         from: Mailbox,
     },
     /// Kept in memory, for the tests.
@@ -33,7 +35,10 @@ pub fn from_config(url: &str, from: &str) -> Result<Mail, String> {
         .map_err(|e| format!("VERSO_SMTP_URL: {e}"))?
         .build();
     let from: Mailbox = from.parse().map_err(|e| format!("VERSO_MAIL_FROM: {e}"))?;
-    Ok(Mail::Smtp { transport, from })
+    Ok(Mail::Smtp {
+        transport: Box::new(transport),
+        from,
+    })
 }
 
 impl Mail {
