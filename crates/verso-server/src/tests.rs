@@ -17,7 +17,7 @@ use super::*;
 
 /// The test's runtime, built by hand: `#[tokio::test]` expands to an
 /// `expect` the workspace forbids (`CLAUDE.md` §3).
-fn block_on<F: std::future::Future>(f: F) -> F::Output {
+pub(crate) fn block_on<F: std::future::Future>(f: F) -> F::Output {
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -25,19 +25,19 @@ fn block_on<F: std::future::Future>(f: F) -> F::Output {
         .block_on(f)
 }
 
-struct Running {
-    server: Arc<state::Server>,
+pub(crate) struct Running {
+    pub(crate) server: Arc<state::Server>,
     addr: SocketAddr,
     _dirs: (tempfile::TempDir, tempfile::TempDir),
     _stop: tokio::sync::oneshot::Sender<()>,
 }
 
 impl Running {
-    fn url(&self, path: &str) -> String {
+    pub(crate) fn url(&self, path: &str) -> String {
         format!("http://localhost:{}{path}", self.addr.port())
     }
 
-    fn origin(&self) -> String {
+    pub(crate) fn origin(&self) -> String {
         format!("http://localhost:{}", self.addr.port())
     }
 }
@@ -61,7 +61,7 @@ fn config(data: &std::path::Path, folders: &std::path::Path) -> Config {
 }
 
 /// A server with an admin and one folder, "Campanha", owned by the admin.
-async fn start() -> Running {
+pub(crate) async fn start() -> Running {
     let data = tempfile::tempdir().unwrap();
     let folders = tempfile::tempdir().unwrap();
     verso_fs::server::make_folder(folders.path(), "Campanha").unwrap();
@@ -112,12 +112,17 @@ async fn start() -> Running {
 }
 
 /// A browser signed in: its cookie and its CSRF token.
-struct Browser {
-    cookie: String,
-    csrf: String,
+pub(crate) struct Browser {
+    pub(crate) cookie: String,
+    pub(crate) csrf: String,
 }
 
-async fn post(r: &Running, path: &str, body: Value, b: Option<&Browser>) -> (u16, Value) {
+pub(crate) async fn post(
+    r: &Running,
+    path: &str,
+    body: Value,
+    b: Option<&Browser>,
+) -> (u16, Value) {
     let client = reqwest::Client::new();
     let mut req = client
         .post(r.url(path))
@@ -133,7 +138,7 @@ async fn post(r: &Running, path: &str, body: Value, b: Option<&Browser>) -> (u16
     (status, res.json().await.unwrap_or(Value::Null))
 }
 
-async fn get(r: &Running, path: &str, b: Option<&Browser>) -> (u16, Value) {
+pub(crate) async fn get(r: &Running, path: &str, b: Option<&Browser>) -> (u16, Value) {
     let mut req = reqwest::Client::new().get(r.url(path));
     if let Some(b) = b {
         req = req.header("cookie", &b.cookie);
@@ -143,7 +148,7 @@ async fn get(r: &Running, path: &str, b: Option<&Browser>) -> (u16, Value) {
     (status, res.json().await.unwrap_or(Value::Null))
 }
 
-async fn sign_in(r: &Running, email: &str, password: &str) -> Browser {
+pub(crate) async fn sign_in(r: &Running, email: &str, password: &str) -> Browser {
     let res = reqwest::Client::new()
         .post(r.url("/api/signin"))
         .header("origin", r.origin())
@@ -169,10 +174,10 @@ async fn sign_in(r: &Running, email: &str, password: &str) -> Browser {
     }
 }
 
-type Socket =
+pub(crate) type Socket =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
-async fn connect(
+pub(crate) async fn connect(
     r: &Running,
     cookie: Option<&str>,
     origin: Option<&str>,
@@ -199,7 +204,7 @@ async fn connect(
 }
 
 /// The next message that is not an event.
-async fn next(ws: &mut Socket) -> Value {
+pub(crate) async fn next(ws: &mut Socket) -> Value {
     loop {
         let m = tokio::time::timeout(std::time::Duration::from_secs(10), ws.next())
             .await
@@ -215,7 +220,7 @@ async fn next(ws: &mut Socket) -> Value {
     }
 }
 
-async fn call(ws: &mut Socket, id: u64, cmd: &str, args: Value) -> Value {
+pub(crate) async fn call(ws: &mut Socket, id: u64, cmd: &str, args: Value) -> Value {
     ws.send(Message::Text(
         json!({ "id": id, "cmd": cmd, "args": args })
             .to_string()
@@ -231,7 +236,7 @@ async fn call(ws: &mut Socket, id: u64, cmd: &str, args: Value) -> Value {
     }
 }
 
-async fn folder_id(r: &Running, b: &Browser) -> String {
+pub(crate) async fn folder_id(r: &Running, b: &Browser) -> String {
     let (_, me) = get(r, "/api/folders", Some(b)).await;
     me["folders"][0]["id"].as_str().unwrap().to_owned()
 }
@@ -396,8 +401,8 @@ fn an_invited_reader_reads_and_cannot_write() {
         .await;
         assert_eq!(again, 404);
         let (_, list) = get(&r, "/api/admin/invitations", Some(&admin)).await;
-        assert_eq!(list[0]["state"], "used");
-        assert_eq!(list[0]["usedBy"], "leitor@casa.lan");
+        assert_eq!(list["rows"][0]["state"], "used");
+        assert_eq!(list["rows"][0]["usedBy"], "leitor@casa.lan");
         let reader = sign_in(&r, "leitor@casa.lan", "outra senha longa").await;
         let mut ws = connect(&r, Some(&reader.cookie), Some(&r.origin()), None)
             .await
@@ -473,7 +478,7 @@ fn an_invited_reader_reads_and_cannot_write() {
     });
 }
 
-async fn put(r: &Running, path: &str, body: Value, b: &Browser) -> (u16, Value) {
+pub(crate) async fn put(r: &Running, path: &str, body: Value, b: &Browser) -> (u16, Value) {
     let res = reqwest::Client::new()
         .put(r.url(path))
         .header("origin", r.origin())
@@ -504,11 +509,11 @@ fn a_stranger_sees_no_folder_and_wrong_passwords_slow_down() {
         // An account that owns no folder takes 0 bytes — a whole 0, not
         // the -0.0 a sum of no float is, which a page shows as "-0 B".
         let (_, list) = get(&r, "/api/admin/accounts", Some(&admin)).await;
-        let new = list
+        let new = list["rows"]
             .as_array()
             .unwrap()
             .iter()
-            .find(|a| a["account"]["email"] == "outro@casa.lan")
+            .find(|a| a["email"] == "outro@casa.lan")
             .unwrap();
         assert_eq!(new["space"].as_u64(), Some(0), "{new}");
         let token = link.rsplit('/').next().unwrap();
@@ -771,7 +776,7 @@ fn the_server_serves_its_own_tls() {
 }
 
 /// The next event of `name` the socket hears.
-async fn event_named(ws: &mut Socket, name: &str) -> Value {
+pub(crate) async fn event_named(ws: &mut Socket, name: &str) -> Value {
     loop {
         let m = tokio::time::timeout(std::time::Duration::from_secs(10), ws.next())
             .await

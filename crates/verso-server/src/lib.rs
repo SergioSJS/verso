@@ -14,6 +14,7 @@ pub mod api;
 pub mod auth;
 pub mod collab;
 pub mod config;
+pub mod console;
 pub mod crypto;
 pub mod data;
 pub mod db;
@@ -25,6 +26,7 @@ pub mod limit;
 pub mod log;
 pub mod mail;
 pub mod passkeys;
+pub mod quota;
 pub mod rpc;
 pub mod state;
 pub mod tls;
@@ -287,3 +289,5 @@ pub fn admin_reset(config: &Config, email: &str) -> Result<String, String> {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_console;

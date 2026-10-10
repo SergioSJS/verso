@@ -399,6 +399,13 @@ async fn folder_command(
         .service
         .folder_of(client)
         .ok_or_else(verso_service::no_folder)?;
+    // A write that would pass the folder's quota is refused before
+    // anything is written (ADR 0077 item 5).
+    if let Some((path, len)) = crate::quota::written(name, &args) {
+        let s = Arc::clone(server);
+        let k = key.clone();
+        blocking(move || crate::quota::check(&s, &k, &path, len)).await?;
+    }
     // A write to a note being edited together goes through its room
     // (ADR 0073 item 7).
     if name == "write_note" {
@@ -479,6 +486,7 @@ async fn open(
         Ok(info)
     })
     .await?;
+    lock(&server.keys).insert(info.key.clone(), folder.id.clone());
     if let Some(c) = lock(&server.clients).get_mut(client) {
         c.folder = Some((folder.id.clone(), role));
         let _ =
@@ -497,12 +505,19 @@ async fn record_space(server: &Arc<Server>, client: &str) {
     let s = Arc::clone(server);
     let c = client.to_owned();
     let _ = tokio::task::spawn_blocking(move || {
-        if let Ok(space) = s.service.with(&c, ops::folder_space)
-            && let Ok(text) = serde_json::to_string(&space)
-            && let Err(e) = s.db.set_setting(&format!("space:{folder}"), &text)
+        let Ok(space) = s.service.with(&c, ops::folder_space) else {
+            return;
+        };
+        // With when it was counted: the console's "last change" (ADR 0077).
+        let mut kept = serde_json::to_value(&space).unwrap_or_else(|_| json!({}));
+        kept["at"] = json!(crate::db::now());
+        if let Err(e) =
+            s.db.set_setting(&format!("space:{folder}"), &kept.to_string())
         {
             crate::log::error(&format!("keeping a folder's space: {e}"));
         }
+        // Whole bytes: the space is counted in f64 by the contract.
+        crate::quota::warn(&s, &folder, space.total as u64);
     })
     .await;
 }

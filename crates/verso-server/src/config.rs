@@ -51,6 +51,32 @@ pub struct Config {
     /// sender's address (`VERSO_MAIL_FROM`).
     pub smtp_url: Option<String>,
     pub mail_from: Option<String>,
+    /// The quota a new folder gets, in bytes (`VERSO_FOLDER_QUOTA`, ADR
+    /// 0077 item 5): none when unset; the console changes it per folder.
+    pub folder_quota: Option<i64>,
+}
+
+/// A size as a person writes it: bytes, or a number with KB, MB, GB or TB
+/// (powers of 1024, as the console shows them); `None` when it is none.
+#[must_use]
+pub fn size(text: &str) -> Option<i64> {
+    let t = text.trim().to_ascii_uppercase();
+    let (number, unit) = t
+        .find(|c: char| c.is_ascii_alphabetic())
+        .map_or((t.as_str(), ""), |at| (t[..at].trim(), t[at..].trim()));
+    let factor: i64 = match unit {
+        "" | "B" => 1,
+        "K" | "KB" => 1 << 10,
+        "M" | "MB" => 1 << 20,
+        "G" | "GB" => 1 << 30,
+        "T" | "TB" => 1 << 40,
+        _ => return None,
+    };
+    let value: f64 = number.replace(',', ".").parse().ok()?;
+    if !value.is_finite() || value <= 0.0 {
+        return None;
+    }
+    Some((value * factor as f64).round() as i64)
 }
 
 /// What went wrong reading the environment, naming the variable.
@@ -179,6 +205,15 @@ impl Config {
             update_token: value(env, "VERSO_UPDATE_TOKEN")?,
             smtp_url: value(env, "VERSO_SMTP_URL")?,
             mail_from: value(env, "VERSO_MAIL_FROM")?,
+            folder_quota: value(env, "VERSO_FOLDER_QUOTA")?
+                .map(|v| {
+                    size(&v).ok_or_else(|| {
+                        ConfigError(format!(
+                            "VERSO_FOLDER_QUOTA: a size such as 500MB, 10GB or 1073741824, not {v}"
+                        ))
+                    })
+                })
+                .transpose()?,
         })
     }
 

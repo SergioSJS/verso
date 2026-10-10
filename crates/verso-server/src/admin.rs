@@ -24,41 +24,6 @@ pub fn link(ctx: &Ctx, path: &str, token: &str) -> String {
     format!("{base}/{path}/{token}")
 }
 
-/// Bytes, counted whole: a sum of `f64` over no folder is `-0.0`, which
-/// a page shows as "-0 B".
-fn space_bytes(space: &serde_json::Value) -> u64 {
-    space
-        .get("total")
-        .and_then(serde_json::Value::as_u64)
-        .unwrap_or(0)
-}
-
-pub async fn accounts(ctx: Ctx) -> ApiResult<Response> {
-    ctx.admin()?;
-    let mut list = Vec::new();
-    for a in ctx.server.db.accounts()? {
-        let owned: Vec<_> = ctx
-            .server
-            .db
-            .folders_of(&a.id)?
-            .into_iter()
-            .filter(|(_, r)| *r == Role::Owner)
-            .collect();
-        let total: u64 = owned
-            .iter()
-            .map(|(f, _)| space_bytes(&crate::folders::space(&ctx, &f.id)))
-            .sum();
-        list.push(json!({
-            "account": crate::api::account_json(&a),
-            "created": a.created,
-            "folders": owned.len(),
-            "space": total,
-            "password": a.password.is_some(),
-        }));
-    }
-    Ok(ok(list))
-}
-
 #[derive(Deserialize)]
 pub struct NewAccount {
     email: String,
@@ -212,34 +177,6 @@ pub async fn reset_link(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response>
     Ok(ok(json!({ "link": address, "mailed": mailed })))
 }
 
-pub async fn invitations(ctx: Ctx) -> ApiResult<Response> {
-    ctx.admin()?;
-    let now = db::now();
-    let mut list = Vec::new();
-    for i in ctx.server.db.invitations()? {
-        let used_by = match &i.used_by {
-            Some(id) => ctx.server.db.account(id)?.map(|a| a.email),
-            None => None,
-        };
-        let folder = match &i.folder {
-            Some(id) => ctx.server.db.folder(id)?.map(|f| f.dir),
-            None => None,
-        };
-        list.push(json!({
-            "id": i.id,
-            "state": i.state(now),
-            "email": i.email,
-            "folder": folder,
-            "role": i.role,
-            "created": i.created,
-            "expires": i.expires,
-            "used": i.used,
-            "usedBy": used_by,
-        }));
-    }
-    Ok(ok(list))
-}
-
 #[derive(Deserialize)]
 pub struct Invite {
     email: Option<String>,
@@ -318,46 +255,6 @@ pub async fn end_invitation(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Respo
     Ok(ok(json!(null)))
 }
 
-/// The folders registered and the directories under the root not yet
-/// registered, which the admin may adopt (an existing folder on a NAS,
-/// the maintainer's answer J).
-pub async fn folders(ctx: Ctx) -> ApiResult<Response> {
-    ctx.admin()?;
-    let mut registered = Vec::new();
-    for f in ctx.server.db.folders()? {
-        let owners: Vec<_> = ctx
-            .server
-            .db
-            .members(&f.id)?
-            .into_iter()
-            .filter(|(_, r)| *r == Role::Owner)
-            .map(|(a, _)| a.email)
-            .collect();
-        let members = ctx.server.db.members(&f.id)?.len();
-        registered.push(json!({
-            "id": f.id,
-            "name": f.dir,
-            "owners": owners,
-            "members": members,
-            "space": crate::folders::space(&ctx, &f.id),
-        }));
-    }
-    let root = ctx.server.config.folders_dir.clone();
-    let dirs = tokio::task::spawn_blocking(move || verso_fs::server::folders_under(&root))
-        .await
-        .map_err(|e| e.to_string())?
-        .map_err(|e| format!("listing VERSO_FOLDERS_DIR: {e}"))?;
-    let known: std::collections::HashSet<String> = ctx
-        .server
-        .db
-        .folders()?
-        .into_iter()
-        .map(|f| f.dir)
-        .collect();
-    let loose: Vec<_> = dirs.into_iter().filter(|d| !known.contains(d)).collect();
-    Ok(ok(json!({ "folders": registered, "unregistered": loose })))
-}
-
 #[derive(Deserialize)]
 pub struct Adopt {
     name: String,
@@ -394,6 +291,7 @@ pub async fn adopt(ctx: Ctx, Json(body): Json<Adopt>) -> ApiResult<Response> {
         Err(_) if ctx.server.db.folder_by_dir(&body.name)?.is_some() => return Err(registered()),
         Err(e) => return Err(e.into()),
     };
+    crate::quota::set_default(&ctx.server, &folder.id)?;
     ctx.audit("folder_adopted", Some(&owner.id), Some(&folder.id), true);
     Ok(ok(json!({ "id": folder.id, "name": folder.dir })))
 }
@@ -422,37 +320,4 @@ pub async fn enter(
         true,
     );
     Ok(ok(json!(null)))
-}
-
-pub async fn audit(ctx: Ctx) -> ApiResult<Response> {
-    ctx.admin()?;
-    Ok(ok(ctx.server.db.audit_log(None, 500)?))
-}
-
-/// The server's own state for its admin: version, a newer one if the check
-/// found it (answer E), where the data and the folders live and whether
-/// either is on a network file system (ADR 0075 item 3).
-pub async fn server_info(ctx: Ctx) -> ApiResult<Response> {
-    ctx.admin()?;
-    let data = ctx.server.config.data_dir.clone();
-    let folders = ctx.server.config.folders_dir.clone();
-    let (data_net, folders_net) = tokio::task::spawn_blocking(move || {
-        (
-            verso_fs::server::network_file_system(&data),
-            verso_fs::server::network_file_system(&folders),
-        )
-    })
-    .await
-    .map_err(|e| e.to_string())?;
-    let newer = verso_service::lock(&ctx.server.newer).clone();
-    Ok(ok(json!({
-        "version": env!("CARGO_PKG_VERSION"),
-        "newer": newer,
-        "updateCheck": ctx.server.config.update_check,
-        "dataOnNetwork": data_net,
-        "foldersOnNetwork": folders_net,
-        "publicUrl": ctx.server.config.public_url,
-        "tls": ctx.server.config.tls.is_some(),
-        "proxy": ctx.server.config.trusted_proxy.map(|a| a.to_string()),
-    })))
 }
