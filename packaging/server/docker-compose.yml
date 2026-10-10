@@ -26,6 +26,10 @@ services:
     image: ghcr.io/sergiosjs/verso:beta
     container_name: verso
     restart: unless-stopped
+    # The user the server runs as: uid and gid 1000 by default. A NAS whose
+    # folders belong to another user names it here (its numbers, from
+    # `id`); the two directories below must be writable by it.
+    # user: "1000:1000"
     ports:
       - target: 7340
         published: "7340"

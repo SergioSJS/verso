@@ -23,9 +23,9 @@ version_schema: semver
 release: 1
 section: net
 priority: optional
-# No person's address in a public package (the maintainer, 2026-10-09:
-# never their e-mail anywhere); the project's own, [OPEN] for the maintainer.
-maintainer: Verso <noreply@versomd.com>
+# The maintainer's address, as their GitHub profile already shows it
+# (decided by the maintainer on 2026-10-10).
+maintainer: Sérgio J. Sousa <sergiosjs@pm.me>
 description: |-
   Verso server (verso serve)
   The Verso core without a window, served to a browser: Markdown notes

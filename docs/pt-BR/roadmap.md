@@ -298,10 +298,11 @@ depois da primeira versão do servidor está em "Depois da Fase 2", abaixo.
 
 ### Critério de saída
 
-`[ABERTO]`: não definido. O ADR 0073 pede segurança por inteiro antes do
+Decidido pelo mantenedor em 2026-10-10: a fase acaba quando nenhuma tarefa
+dela estiver pendente e o mantenedor declarar o fim. As condições do ADR
+0073 sobre o trabalho valem enquanto isso: segurança por inteiro antes do
 primeiro usuário que não seja o mantenedor, e o modelo de ameaças antes de
-o servidor ser anunciado (item 6); são condições do trabalho, não um
-critério de saída verificável da fase.
+o servidor ser anunciado (item 6).
 
 ---
 

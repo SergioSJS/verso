@@ -83,6 +83,13 @@ server cannot write:
 sudo install -d -o 1000 -g 1000 /srv/verso/data /srv/verso/folders
 ```
 
+Folders that already belong to another user — a NAS share — need no
+change of owner: run the container as that user instead, with
+`--user 1026:100` (or `user: "1026:100"` in the compose file; the numbers
+come from `id` on the host). The server writes only to `/data` and
+`/folders`, so any user that can write both will do (decided by the
+maintainer on 2026-10-10).
+
 Then (while the repository is private, sign in to the registry first,
 section 11):
 
