@@ -189,6 +189,18 @@ pub(crate) fn off(config: Option<&Path>, key: &str) -> Result<(), ContractError>
     engine::save(config, key, &state).map_err(verso_service::convert)
 }
 
+/// What a sync error is, for the window to say in its language
+/// (`SyncStatus::problem`); the message stays for the log.
+fn problem_of(e: &ContractError) -> &'static str {
+    match e.kind {
+        ErrorKind::NotFound => "folder_gone",
+        ErrorKind::Refused if e.message.starts_with("not signed in") => "not_signed_in",
+        ErrorKind::Refused if e.message.contains("update the one that is behind") => "version",
+        ErrorKind::Refused => "signed_out",
+        _ => "failed",
+    }
+}
+
 /// The sync-related outcome of a command, as the contract's error.
 fn said(e: &Value) -> ContractError {
     serde_json::from_value::<ContractError>(e.clone())
@@ -274,6 +286,17 @@ fn here(
         );
     };
     for (path, size, modified, placeholder) in listed {
+        // A name the server would refuse is said here, not sent (F19).
+        if !engine::portable(&path) {
+            held(
+                &path,
+                "name_invalid",
+                "a name not every system can keep: a trailing dot or space, one of < > : \" | ? * \\, or a device name such as CON".to_owned(),
+                &mut files,
+                &mut apart,
+            );
+            continue;
+        }
         if placeholder {
             held(
                 &path,
@@ -524,6 +547,7 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
         st.role.clone_from(&l.role);
         st.folder_name.clone_from(&l.name);
         st.message = None;
+        st.problem = None;
     });
     let remote = Arc::clone(&l.remote);
     there(&remote, &mut l.known).await.map_err(|e| said(&e))?;
@@ -1114,6 +1138,7 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
                 s.set(&ctx, |st| {
                     st.state = if offline { "offline" } else { "error" }.to_owned();
                     st.message = Some(e.message.clone());
+                    st.problem = Some(problem_of(&e).to_owned());
                 });
                 let pause = if offline {
                     Duration::from_secs(wait)
@@ -1147,6 +1172,7 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
                     s.set(&ctx, |st| {
                         st.state = "error".to_owned();
                         st.message = Some(e.message.clone());
+                        st.problem = Some(problem_of(&e).to_owned());
                     });
                 }
             }

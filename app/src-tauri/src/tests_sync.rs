@@ -600,3 +600,30 @@ fn a_moved_folder_leaves_no_empty_folder_behind() {
         "{folders:?}"
     );
 }
+
+/// A file made outside Verso with a name not every system can keep is
+/// listed here with its reason and never sent: the server would refuse it
+/// (ADR 0070 item 3; found in the four-device campaign, 2026-10-10).
+#[cfg(not(windows))]
+#[test]
+fn a_name_not_every_system_keeps_is_said_here_not_sent() {
+    let r = serve(&[]);
+    let a = device(&r, &r.owner, &[("Uma.md", "# Uma\n")]);
+    sync(&a);
+    let mut outside = tempfile::Builder::new()
+        .prefix("hora 10:30.md")
+        .rand_bytes(0)
+        .tempfile_in(a._dirs.1.path())
+        .unwrap();
+    outside.write_all(b"# hora\n").unwrap();
+    changed(&a, &["hora 10:30.md"]);
+    assert_eq!(sync(&a).actions, 0);
+    let status = lock(&a.shown).last().cloned().unwrap();
+    assert!(
+        status
+            .refused
+            .iter()
+            .any(|f| f.path == "hora 10:30.md" && f.reason == "name_invalid"),
+        "{status:?}"
+    );
+}

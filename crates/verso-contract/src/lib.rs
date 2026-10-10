@@ -557,8 +557,11 @@ pub struct SyncStatus {
     pub log: Vec<SyncLogEntry>,
     /// When the last pass ended, `YYYY-MM-DDTHH:MM:SSZ`.
     pub last: Option<String>,
-    /// The last error, said.
+    /// The last error, said (in English, for the log).
     pub message: Option<String>,
+    /// What the last error was, for the window to say in its language:
+    /// `not_signed_in`, `signed_out`, `version`, `folder_gone`, `failed`.
+    pub problem: Option<String>,
 }
 
 /// A file sync left out, and why.
@@ -566,7 +569,7 @@ pub struct SyncStatus {
 pub struct SyncRefused {
     pub path: String,
     /// `reader`, `quota`, `placeholder`, `too_large`, `name_taken`,
-    /// `changed` or `failed`.
+    /// `name_invalid`, `changed` or `failed`.
     pub reason: String,
     pub message: String,
 }

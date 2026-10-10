@@ -49,6 +49,18 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::SystemTime;
 
 pub use confine::ConfinementError;
+
+/// Whether every name of `relative` is one every OS can keep (ADR 0070
+/// item 3): no trailing dot or space, none of `< > : " | ? * \`, no
+/// device name such as `CON`. A create or a rename refuses the others; sync
+/// says so before it sends one (ADR 0079).
+#[must_use]
+pub fn is_portable(relative: &std::path::Path) -> bool {
+    relative.components().all(|c| match c {
+        std::path::Component::Normal(part) => !confine::unportable(part),
+        _ => true,
+    })
+}
 pub use ops::OpReport;
 pub use placeholder::Placeholder;
 pub use walk::{Entry, EntryKind, Problem, Walk};
