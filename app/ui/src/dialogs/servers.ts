@@ -12,19 +12,33 @@ import { listen } from "@tauri-apps/api/event";
 import { commands, type ServerAccount, type ServerFolder } from "../bindings";
 import { h, ui } from "../dom";
 import { fail } from "../errors";
-import { LAST_FOLDER } from "../folder";
+import { can } from "../can";
+import { currentFolder, folderName, LAST_FOLDER } from "../folder";
+import { currentSync, openSettingsSection, preselectSync } from "./sync";
 import { openFolderBy } from "../open";
 
 const pt = {
   section: "Servidores",
   connect: "Conectar a um servidor",
-  connectDesc: "O endereço de um Universo — um servidor Verso — onde você tem conta (https://…). O navegador abre a página dele: você entra, confere o código e permite este computador.",
+  connectDesc: "Um Universo — um servidor Verso — onde você tem conta. O navegador abre a página dele para você entrar e permitir este computador; ninguém cola senha aqui.",
+  addressLabel: "Endereço do servidor",
   connectButton: "Conectar",
-  waiting: (code: string) => `No navegador, confira o código ${code} e permita. Esperando…`,
+  waitingBefore: "No navegador, confira o código ",
+  waitingAfter: " e permita. Esperando…",
   signedIn: (who: string) => `Conectado como ${who}.`,
   account: (a: ServerAccount) => `${a.name} <${a.email}>`,
+  as: (name: string, email: string) => `Você entra como ${name} · ${email}`,
+  foldersOf: (host: string) => `Pastas em ${host}`,
+  loading: "Carregando as pastas…",
+  unreachable: "O servidor não respondeu agora; as pastas aparecem quando ele voltar.",
+  noFolders: "Nenhuma pasta para você neste servidor ainda. Peça um convite a quem o administra.",
+  noneYet: "Nenhum servidor ainda. Com um Universo, suas pastas ficam no navegador, no celular e em outros computadores.",
+  role: (r: string): string => (r === "owner" ? "dona" : r === "editor" ? "edita" : "só lê"),
+  openHere: "Abrir aqui",
+  openHereNamed: (name: string) => `Abrir ${name} nesta janela, online`,
+  syncWithThis: (local: string) => `Sincronizar com ${local}`,
+  syncedWithThis: (local: string) => `sincronizada com ${local}`,
   openFolder: "Abrir uma pasta",
-  noFolders: "Nenhuma pasta deste servidor para você.",
   signOut: "Sair",
   gone: "A conexão com o servidor caiu; tentando de novo…",
   back: "Conectado ao servidor de novo.",
@@ -33,13 +47,25 @@ const pt = {
 const en: typeof pt = {
   section: "Servers",
   connect: "Connect to a server",
-  connectDesc: "The address of a Universo — a Verso server — where you have an account (https://…). The browser opens its page: you sign in, check the code and allow this computer.",
+  connectDesc: "A Universo — a Verso server — where you have an account. The browser opens its page for you to sign in and allow this computer; no password is pasted here.",
+  addressLabel: "Server address",
   connectButton: "Connect",
-  waiting: (code: string) => `In the browser, check the code ${code} and allow it. Waiting…`,
+  waitingBefore: "In the browser, check the code ",
+  waitingAfter: " and allow it. Waiting…",
   signedIn: (who: string) => `Connected as ${who}.`,
   account: (a: ServerAccount) => `${a.name} <${a.email}>`,
+  as: (name: string, email: string) => `You sign in as ${name} · ${email}`,
+  foldersOf: (host: string) => `Folders on ${host}`,
+  loading: "Loading the folders…",
+  unreachable: "The server did not answer now; its folders show when it is back.",
+  noFolders: "No folder for you on this server yet. Ask whoever runs it for an invitation.",
+  noneYet: "No server yet. With a Universo, your folders are in the browser, on the phone and on other computers.",
+  role: (r: string): string => (r === "owner" ? "owner" : r === "editor" ? "edits" : "reads only"),
+  openHere: "Open here",
+  openHereNamed: (name: string) => `Open ${name} in this window, online`,
+  syncWithThis: (local: string) => `Sync with ${local}`,
+  syncedWithThis: (local: string) => `synced with ${local}`,
   openFolder: "Open a folder",
-  noFolders: "No folder of this server for you.",
   signOut: "Sign out",
   gone: "The connection to the server dropped; trying again…",
   back: "Connected to the server again.",
@@ -94,69 +120,122 @@ export function hearServers(): void {
   });
 }
 
-/** The section's body: connect, and each server signed in to. */
-export function serversBody(item: (title: string, desc: string, control: HTMLElement | null) => HTMLElement): HTMLElement {
+/** The section's body: connect, and each server signed in to — its
+ *  account, its folders with the role in each and what can be done with
+ *  them here: open one in this window, or sync this computer's folder with
+ *  it (ADR 0079 item 1). */
+export function serversBody(_item: (title: string, desc: string, control: HTMLElement | null) => HTMLElement): HTMLElement {
   const s = serverStrings();
   const box = h("div", "servers");
-  const list = h("div", "servers-list");
-  const said = h("p", "setting-desc");
-  said.setAttribute("role", "status");
+  const list = h("div", "srv-list");
   const draw = async () => {
     const r = await commands.serverAccounts();
-    list.replaceChildren();
     if (r.status !== "ok") return fail(r.error);
-    for (const a of r.data) list.append(accountRow(a, item, draw));
+    list.replaceChildren(...r.data.map((a) => serverBlock(a, draw)));
+    if (r.data.length === 0) list.append(h("p", "srv-empty", s.noneYet));
   };
+
+  // Connect: an address, a button, and what to do in the browser.
+  const form = h("form", "srv-connect");
+  const label = h("label", "srv-label", s.addressLabel);
   const url = h("input");
   url.type = "url";
+  url.id = "srv-address";
+  url.required = true;
   url.placeholder = "https://notas.exemplo";
+  url.setAttribute("autocomplete", "url");
   url.addEventListener("keydown", (e) => e.stopPropagation());
-  const go = h("button", "", s.connectButton);
-  go.type = "button";
-  go.addEventListener("click", () => {
+  label.htmlFor = url.id;
+  const go = h("button", "btn primary", s.connectButton);
+  go.type = "submit";
+  const said = h("p", "srv-said");
+  said.setAttribute("role", "status");
+  const help = h("p", "srv-help", s.connectDesc);
+  const field = h("div", "srv-field");
+  field.append(url, go);
+  form.append(label, field, help, said);
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    go.disabled = true;
     void commands.serverSignIn(url.value).then((r) => {
+      go.disabled = false;
       if (r.status !== "ok") return fail(r.error);
-      said.textContent = s.waiting(r.data.code);
+      said.replaceChildren(s.waitingBefore, h("strong", "srv-code", r.data.code), s.waitingAfter);
     });
   });
   void listen<ServerAccount>("server-signed-in", (e) => {
     said.textContent = s.signedIn(s.account(e.payload));
+    url.value = "";
     void draw();
   });
-  const control = h("div", "servers-connect");
-  control.append(url, go);
-  box.append(item(s.connect, s.connectDesc, control), said, list);
+
+  box.append(form, list);
   void draw();
   return box;
 }
 
-function accountRow(
-  a: ServerAccount,
-  item: (title: string, desc: string, control: HTMLElement | null) => HTMLElement,
-  redraw: () => Promise<void>,
-): HTMLElement {
+/** One server signed in to: who, its folders, sign out. */
+function serverBlock(a: ServerAccount, redraw: () => Promise<void>): HTMLElement {
   const s = serverStrings();
-  const actions = h("div", "servers-actions");
-  const pick = h("select");
-  pick.setAttribute("aria-label", s.openFolder);
-  const first = h("option", "", s.openFolder);
-  first.value = "";
-  pick.append(first);
-  void commands.serverFolders(a.url).then((r) => {
-    if (r.status !== "ok") return;
-    if (r.data.length === 0) first.textContent = s.noFolders;
-    for (const f of r.data as ServerFolder[]) {
-      const o = h("option", "", `${f.name} · ${f.role}`);
-      o.value = f.id;
-      pick.append(o);
-    }
-  });
-  pick.addEventListener("change", () => {
-    if (pick.value) void openServerFolder(a.url, pick.value);
-  });
-  const out = h("button", "", s.signOut);
+  const block = h("section", "srv");
+  const host = a.url.replace(/^https?:\/\//, "");
+  const title = h("h3", "srv-host", host);
+  title.id = `srv-${host.replace(/[^a-z0-9]/gi, "-")}`;
+  block.setAttribute("aria-labelledby", title.id);
+  const who = h("p", "srv-who", s.as(a.name, a.email));
+  const out = h("button", "btn quiet", s.signOut);
   out.type = "button";
   out.addEventListener("click", () => void commands.serverSignOut(a.url).then(redraw));
-  actions.append(pick, out);
-  return item(s.account(a), a.url, actions);
+  const head = h("header", "srv-head");
+  const names = h("div", "");
+  names.append(title, who);
+  head.append(names, out);
+  const folders = h("ul", "srv-folders");
+  folders.setAttribute("aria-label", s.foldersOf(host));
+  const loading = h("li", "srv-empty", s.loading);
+  folders.append(loading);
+  void commands.serverFolders(a.url).then((r) => {
+    if (r.status !== "ok") {
+      loading.textContent = s.unreachable;
+      return;
+    }
+    if (r.data.length === 0) {
+      loading.textContent = s.noFolders;
+      return;
+    }
+    folders.replaceChildren(...(r.data as ServerFolder[]).map((f) => folderRow(a, f)));
+  });
+  block.append(head, folders);
+  return block;
+}
+
+function folderRow(a: ServerAccount, f: ServerFolder): HTMLElement {
+  const s = serverStrings();
+  const li = h("li", "srv-folder");
+  const name = h("span", "srv-folder-name", f.name);
+  const role = h("span", "srv-role", s.role(f.role));
+  role.dataset["role"] = f.role;
+  const text = h("div", "srv-folder-text");
+  text.append(name, role);
+  const sync = currentSync();
+  const synced = sync?.on && sync.server === a.url && sync.folder === f.id;
+  if (synced) text.append(h("span", "srv-note", s.syncedWithThis(folderName)));
+  const actions = h("div", "srv-folder-actions");
+  const open = h("button", "btn", s.openHere);
+  open.type = "button";
+  open.setAttribute("aria-label", s.openHereNamed(f.name));
+  open.addEventListener("click", () => void openServerFolder(a.url, f.id));
+  actions.append(open);
+  // A folder of this computer open, not syncing: it may sync with this one.
+  if (currentFolder && can("local_folders") && !sync?.on) {
+    const pair = h("button", "btn quiet", s.syncWithThis(folderName));
+    pair.type = "button";
+    pair.addEventListener("click", () => {
+      preselectSync(a.url, f.id);
+      openSettingsSection("sync");
+    });
+    actions.append(pair);
+  }
+  li.append(text, actions);
+  return li;
 }

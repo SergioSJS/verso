@@ -11,13 +11,11 @@
 // click on it opens the section. Nothing is silent (item 13).
 
 import { listen } from "@tauri-apps/api/event";
-import { commands, type ServerAccount, type ServerFolder, type SyncLogEntry, type SyncStatus } from "../bindings";
-import { ask } from "../dialog";
-import { diffNode } from "../diff";
+import { commands, type ServerAccount, type ServerFolder, type SyncStatus } from "../bindings";
 import { h, ui } from "../dom";
 import { fail } from "../errors";
 import { currentFolder, folderName } from "../folder";
-import { openNote } from "../layout/spaces";
+import { drawSyncOn } from "./syncView";
 
 const pt = {
   section: "Sincronizar",
@@ -45,6 +43,7 @@ const pt = {
   } as Record<string, string>,
   moving: (up: number, down: number) => [up ? `enviando ${up}` : "", down ? `recebendo ${down}` : ""].filter(Boolean).join(", "),
   conflictsShort: (n: number) => (n === 1 ? "1 conflito" : `${n} conflitos`),
+  toDelete: (n: number) => `${n} a apagar`,
   last: (when: string) => `Última vez: ${when}`,
   readerNote: "Você só lê esta pasta no servidor: as mudanças de lá chegam; as feitas aqui ficam aqui, listadas abaixo.",
   pause: "Pausar",
@@ -121,6 +120,7 @@ const en: typeof pt = {
   },
   moving: (up: number, down: number) => [up ? `sending ${up}` : "", down ? `receiving ${down}` : ""].filter(Boolean).join(", "),
   conflictsShort: (n: number) => (n === 1 ? "1 conflict" : `${n} conflicts`),
+  toDelete: (n: number) => `${n} to delete`,
   last: (when: string) => `Last time: ${when}`,
   readerNote: "You only read this folder on the server: its changes arrive; those made here stay here, listed below.",
   pause: "Pause",
@@ -179,6 +179,24 @@ export function syncStrings(): typeof pt {
 let status: SyncStatus | null = null;
 const painters = new Set<() => void>();
 let openSection: (section: string) => void = () => {};
+/** A server's folder chosen in Servers to sync this folder with: the form
+ *  opens on it. */
+let preselected: { url: string; folder: string } | null = null;
+
+/** The window's folder's sync, as last heard. */
+export function currentSync(): SyncStatus | null {
+  return status;
+}
+
+/** Open a section of the settings (the window's own opener). */
+export function openSettingsSection(section: string): void {
+  openSection(section);
+}
+
+/** The form to turn sync on starts with this server and folder chosen. */
+export function preselectSync(url: string, folder: string): void {
+  preselected = { url, folder };
+}
 
 function size(bytes: number | null): string {
   let n = bytes ?? 0;
@@ -203,7 +221,7 @@ export function stateText(st: SyncStatus): string {
   const s = syncStrings();
   let text = s.states[st.state] ?? st.state;
   if (st.state === "syncing" && (st.sending || st.receiving)) text = s.moving(st.sending, st.receiving);
-  if (st.state === "paused" && st.deletions) text = `${s.states["paused"]}: ${st.deletions}`;
+  if (st.state === "paused" && st.deletions) text = `${s.states["paused"]} · ${s.toDelete(st.deletions)}`;
   if (st.state === "error") {
     const said = (st.problem && s.problems[st.problem]) || st.message;
     if (said) text = `${s.states["error"]}: ${said}`;
@@ -275,7 +293,7 @@ export function syncBody(item: Item): HTMLElement {
       return;
     }
     const on = status?.on ?? false;
-    if (on) drawOn(box, item, status as SyncStatus);
+    if (on) drawOn(box, status as SyncStatus);
     else if (wasOn !== false) void drawOff(box, item);
     wasOn = on;
   };
@@ -291,7 +309,7 @@ async function drawOff(box: HTMLElement, item: Item): Promise<void> {
   const accounts = await commands.serverAccounts();
   if (accounts.status !== "ok") return fail(accounts.error);
   if (accounts.data.length === 0) {
-    const go = h("button", "", s.toServers);
+    const go = h("button", "btn", s.toServers);
     go.type = "button";
     go.addEventListener("click", () => openSection("servers"));
     box.append(item(s.noServer, "", go));
@@ -324,6 +342,7 @@ async function drawOff(box: HTMLElement, item: Item): Promise<void> {
     nameRow.hidden = where.value !== "";
   };
   server.addEventListener("change", () => void fill());
+  if (preselected && [...server.options].some((o) => o.value === preselected!.url)) server.value = preselected.url;
   where.addEventListener("change", () => (nameRow.hidden = where.value !== ""));
   name.addEventListener("input", () => {
     const first = where.options[0];
@@ -333,7 +352,7 @@ async function drawOff(box: HTMLElement, item: Item): Promise<void> {
   void commands.folderSpace().then((r) => {
     if (r.status === "ok") space.textContent = s.space(r.data.files, size(r.data.total));
   });
-  const start = h("button", "mod-cta", s.start);
+  const start = h("button", "btn primary", s.start);
   start.type = "button";
   start.addEventListener("click", () => {
     start.disabled = true;
@@ -347,137 +366,16 @@ async function drawOff(box: HTMLElement, item: Item): Promise<void> {
   });
   box.append(item(s.server, "", server), item(s.where, s.whereDesc, where), nameRow, space, start);
   await fill();
+  if (preselected && [...where.options].some((o) => o.value === preselected!.folder)) {
+    where.value = preselected.folder;
+    nameRow.hidden = true;
+  }
+  preselected = null;
 }
 
-function drawOn(box: HTMLElement, item: Item, st: SyncStatus): void {
-  const s = syncStrings();
-  const said = h("p", "sync-state", stateText(st));
-  said.setAttribute("role", "status");
-  const where = `${st.server} · ${st.folder_name || st.folder}${st.role ? ` (${s.role(st.role)})` : ""}`;
-  const head = item(s.title, where, said);
-  const actions = h("div", "sync-actions");
-  const button = (label: string, run: () => void) => {
-    const b = h("button", "", label);
-    b.type = "button";
-    b.addEventListener("click", run);
-    actions.append(b);
-    return b;
-  };
-  const userPaused = st.state === "paused" && !st.deletions;
-  button(userPaused ? s.resume : s.pause, () => void commands.folderSyncPause(!userPaused).then(() => refresh()));
-  button(s.now, () => void commands.folderSyncNow().then(() => refresh()));
-  button(s.stop, () => {
-    void ask(s.stopAsk, { yes: s.stopYes, no: s.no }).then((yes) => {
-      if (!yes) return;
-      void commands.folderSyncStop().then((r) => {
-        if (r.status !== "ok") return fail(r.error);
-        status = r.data;
-        paint();
-      });
-    });
+function drawOn(box: HTMLElement, st: SyncStatus): void {
+  drawSyncOn(box, st, refresh, (status) => {
+    const s = syncStrings();
+    return (status.problem && s.problems[status.problem]) || status.message;
   });
-  const parts: HTMLElement[] = [head, actions];
-  if (st.last) parts.push(h("p", "setting-desc", s.last(when(st.last))));
-  if (st.role === "reader") parts.push(h("p", "setting-desc", s.readerNote));
-  if (st.deletions) {
-    const n = st.deletions;
-    const warn = h("div", "sync-deletions");
-    warn.setAttribute("role", "alert");
-    const yes = h("button", "mod-warning", s.deleteYes(n));
-    yes.type = "button";
-    yes.addEventListener("click", () => {
-      void ask(s.deleteAsk(n), { yes: s.deleteYes(n), no: s.no }).then((ok) => {
-        if (ok) void commands.folderSyncConfirm().then(() => refresh());
-      });
-    });
-    warn.append(h("p", "", s.deletions(n)), yes);
-    parts.push(warn);
-  }
-  if (st.conflicts.length) {
-    const list = h("div", "sync-conflicts");
-    list.append(h("h3", "", `${s.conflicts} (${st.conflicts.length})`), h("p", "setting-desc", s.conflictsDesc));
-    for (const copy of st.conflicts) list.append(conflictRow(copy));
-    parts.push(list);
-  }
-  if (st.refused.length) {
-    const list = h("div", "sync-refused");
-    list.append(h("h3", "", `${s.refused} (${st.refused.length})`));
-    const ul = h("ul");
-    for (const f of st.refused) ul.append(h("li", "", `${f.path} — ${s.reasons[f.reason] ?? f.reason}${f.reason === "failed" ? `: ${f.message}` : ""}`));
-    list.append(ul);
-    parts.push(list);
-  }
-  const log = h("div", "sync-log");
-  log.append(h("h3", "", s.log));
-  if (st.log.length === 0) log.append(h("p", "setting-desc", s.logEmpty));
-  else {
-    const ul = h("ul");
-    for (const e of st.log.slice(0, 50)) ul.append(logLine(e));
-    log.append(ul);
-  }
-  parts.push(log);
-  box.replaceChildren(...parts);
-}
-
-function logLine(e: SyncLogEntry): HTMLElement {
-  const s = syncStrings();
-  const li = h("li");
-  const time = h("time", "", when(e.at));
-  time.dateTime = e.at;
-  li.append(time, ` ${s.what[e.what] ?? e.what}: ${e.path}${e.other ? ` (${e.other})` : ""}`);
-  return li;
-}
-
-/** The file a conflict's copy is of: its name without the parenthesis. */
-export function originalOf(copy: string): string {
-  return copy.replace(/ \((conflict|conflito), [^)]*\)(?=\.[^./]*$|$)/, "");
-}
-
-/** The conflicts the person has open: a status redraws the section, and
- *  must not close the difference being read. */
-const openConflicts = new Set<string>();
-
-function conflictRow(copy: string): HTMLElement {
-  const s = syncStrings();
-  const original = originalOf(copy);
-  const d = h("details", "sync-conflict");
-  d.append(h("summary", "", copy));
-  const body = h("div", "sync-conflict-body");
-  const actions = h("div", "sync-actions");
-  const both = h("button", "", s.openBoth);
-  both.type = "button";
-  both.addEventListener("click", () => {
-    openNote(original, false);
-    openNote(copy, true);
-  });
-  const del = h("button", "", s.deleteCopy);
-  del.type = "button";
-  del.addEventListener("click", () => {
-    void ask(s.deleteCopyAsk(copy), { yes: s.deleteCopy, no: s.no }).then((yes) => {
-      if (!yes) return;
-      void commands.deleteEntry(copy).then((r) => {
-        if (r.status !== "ok") return fail(r.error);
-        void commands.folderSyncNow().then(() => refresh());
-      });
-    });
-  });
-  actions.append(both, del);
-  // The difference is read the first time the row opens.
-  const diff = h("div", "sync-conflict-diff");
-  let read = false;
-  d.addEventListener("toggle", () => {
-    if (d.open) openConflicts.add(copy);
-    else openConflicts.delete(copy);
-    if (!d.open || read) return;
-    read = true;
-    void Promise.all([commands.readFileText(original), commands.readFileText(copy)]).then(([a, b]) => {
-      if (a.status === "ok" && b.status === "ok") diff.replaceChildren(h("p", "setting-desc", s.compare), diffNode(a.data, b.data, true));
-      else diff.replaceChildren(h("p", "setting-desc", s.notText));
-    });
-  });
-  body.append(diff);
-  body.append(actions);
-  d.append(body);
-  d.open = openConflicts.has(copy);
-  return d;
 }
