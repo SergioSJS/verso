@@ -118,6 +118,13 @@ test("an invited reader reads and cannot write", async ({ page, browser }) => {
   // The invitation is used, by whom.
   await page.goto("/admin/invitations");
   await expect(invite.locator(".console-table tr", { hasText: email })).toContainText("usado");
+  // The log says it in words, and whom it was for — the code kept in the
+  // line's title.
+  await page.goto("/admin/audit");
+  const used = page.locator(".console-table tbody tr", { hasText: `convite para ${email}` }).first();
+  await expect(used).toContainText("usou o convite");
+  await expect(used.locator("[data-action]")).toHaveAttribute("title", "invitation_used");
+  await expect(page.locator(".console-table tbody")).not.toContainText("invitation_used");
   // Used once: the link is gone.
   const third = await browser.newContext({ locale: "pt-BR" });
   const late = await third.newPage();
@@ -215,11 +222,26 @@ test("the administration console pages its lists and sets a folder's quota", asy
   await expect(page.getByRole("meter")).toHaveAttribute("aria-label", /de 1 GB/);
   await page.getByRole("button", { name: "Sem limite" }).click();
   await expect(page.getByRole("meter")).toHaveCount(0);
-  // The log has it, filtered by action.
+  // The folder's own log, read again, has it in words, and no column
+  // repeating the folder.
+  await page.reload();
+  const folderLog = page.locator(".console-table").last();
+  await expect(folderLog.locator("tbody tr").first()).toContainText("definiu a cota");
+  await expect(folderLog.locator("th", { hasText: "Quem" })).toHaveCount(1);
+  await expect(folderLog.locator("th").filter({ hasText: /^Pastas?$/ })).toHaveCount(0);
+  // The log has it, filtered by action — the filter lists the actions by
+  // their words.
   await page.goto("/admin/audit");
-  await page.getByLabel("Ação", { exact: true }).selectOption("folder_quota");
+  const action = page.getByLabel("Ação", { exact: true });
+  await expect(action.locator("option", { hasText: "definiu a cota" })).toHaveAttribute("value", "folder_quota");
+  await action.selectOption({ label: "definiu a cota" });
   await page.getByRole("button", { name: "Filtrar" }).click();
-  await expect(page.locator(".console-table tbody tr").first()).toContainText("folder_quota");
+  const first = page.locator(".console-table tbody tr").first();
+  await expect(first).toContainText("definiu a cota");
+  await expect(first).toContainText("sem limite");
+  await expect(first.locator("[data-action]")).toHaveAttribute("title", "folder_quota");
+  // The whole log names the folder of each line.
+  await expect(page.locator(".console-table th").filter({ hasText: /^Pasta$/ })).toHaveCount(1);
   // Settings › Account shows the way here; Settings has no administration.
   await page.goto("/account");
   await expect(page.locator(".settings-body a[href='/admin']")).toBeVisible();

@@ -308,6 +308,23 @@ impl Db {
         Ok(page(rows, total, q))
     }
 
+    /// The name of what a log line's subject names when it is a token, a
+    /// passkey or a session still kept: the name it was given, or the
+    /// device's. None once it is gone.
+    pub fn subject_name(&self, id: &str) -> R<Option<String>> {
+        self.conn()
+            .query_row(
+                "SELECT name FROM tokens WHERE id = ?1
+                 UNION ALL SELECT name FROM passkeys WHERE id = ?1
+                 UNION ALL SELECT device FROM sessions WHERE id = ?1
+                 LIMIT 1",
+                [id],
+                |r| r.get(0),
+            )
+            .optional()
+            .map_err(e)
+    }
+
     /// The actions the log holds, for the console's filter.
     pub fn audit_actions(&self) -> R<Vec<String>> {
         let conn = self.conn();
