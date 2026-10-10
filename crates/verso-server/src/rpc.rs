@@ -424,7 +424,7 @@ async fn folder_command(
     let answer = blocking(move || {
         // Nothing typed is left behind a rename or a bin.
         if moves {
-            crate::collab::write_all(&s, &key);
+            crate::collab::write_all(&s, &key)?;
         }
         let answer = service
             .dispatch(&c, &n, args)
