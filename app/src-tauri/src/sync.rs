@@ -545,6 +545,15 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
         plan.pause = None;
     }
     if let Some(n) = plan.pause {
+        let shown = u32::try_from(n).unwrap_or(u32::MAX);
+        // Said once, not on every pass that finds the same deletions.
+        if lock(&s.status).deletions != Some(shown) {
+            log::write(
+                "WARN",
+                "sync",
+                &format!("paused: the pass would delete {n} files; the person is asked"),
+            );
+        }
         s.set(ctx, |st| {
             st.state = "paused".to_owned();
             st.deletions = Some(u32::try_from(n).unwrap_or(u32::MAX));
@@ -1105,13 +1114,10 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
         log::write("INFO", "sync", &format!("connected: folder {}", s.key));
         while !gone(&s) {
             match pass(&ctx, &s, &mut l).await {
+                // Waiting for the person; the pass said so.
                 Ok(Passed {
-                    paused: Some(n), ..
-                }) => log::write(
-                    "WARN",
-                    "sync",
-                    &format!("paused: the pass would delete {n} files; the person is asked"),
-                ),
+                    paused: Some(_), ..
+                }) => {}
                 Ok(p) if p.actions > 0 => log::write(
                     "INFO",
                     "sync",
