@@ -103,10 +103,14 @@ pub(crate) async fn open_url<R: tauri::Runtime>(
 ) -> Result<(), ContractError> {
     let parsed = http_url(&url)?;
     let title = parsed.host_str().unwrap_or("web").to_owned();
-    tauri::WebviewWindowBuilder::new(&app, next_web_label(), tauri::WebviewUrl::External(parsed))
-        .user_agent(WEB_USER_AGENT)
-        .title(title)
-        .inner_size(1100.0, 800.0)
+    let builder = tauri::WebviewWindowBuilder::new(
+        &app,
+        next_web_label(),
+        tauri::WebviewUrl::External(parsed),
+    )
+    .user_agent(WEB_USER_AGENT)
+    .title(title);
+    sized(&app, builder, (1100.0, 800.0), (0.0, 0.0))
         .on_navigation(web_only)
         .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny)
         .build()
