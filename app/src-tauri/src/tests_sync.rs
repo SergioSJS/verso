@@ -687,6 +687,51 @@ fn a_file_gone_while_the_pass_lists_it_is_read_again_not_failed() {
     quiet(&a, &b);
 }
 
+/// A file deleted here while another device, offline, renamed it (C17,
+/// the live campaign, 2026-10-10): the rename the server then pushes
+/// finds no file here to move. Not "failed": the next pass sees the folder
+/// as it is now, and the file arrives under its new name.
+#[test]
+fn a_file_deleted_here_while_renamed_there_arrives_under_its_new_name() {
+    let (_r, a, b) = two_in_step();
+    let (old, new) = ("com espaços  duplos.md", "espaços.md");
+    // Made by another program, old enough that a pass trusts its size and
+    // time without reading it — as any file listed long ago.
+    let mut outside = tempfile::Builder::new()
+        .prefix(old)
+        .rand_bytes(0)
+        .tempfile_in(a._dirs.1.path())
+        .unwrap();
+    outside.write_all(b"# Duplos\n").unwrap();
+    outside
+        .as_file()
+        .set_modified(std::time::SystemTime::now() - std::time::Duration::from_secs(3600))
+        .unwrap();
+    changed(&a, &[old]);
+    sync(&a);
+    changed(&b, &[]);
+    sync(&b);
+    assert_eq!(text(&b, old).as_deref(), Some("# Duplos\n"));
+    b.ctx
+        .service
+        .with_key(&b.key, move |ws| {
+            Ok(ws.rename_entry(old, new).map(|_| ())?)
+        })
+        .unwrap();
+    changed(&b, &[old, new]);
+    sync(&b);
+    // Deleted here; the listing has not caught up yet.
+    drop(outside);
+    sync(&a);
+    let status = lock(&a.shown).last().cloned().unwrap();
+    assert!(status.refused.is_empty(), "{status:?}");
+    // The pass the refusal asked for, before any watcher or scan.
+    sync(&a);
+    assert_eq!(text(&a, new).as_deref(), Some("# Duplos\n"));
+    assert_eq!(text(&a, old), None);
+    quiet(&a, &b);
+}
+
 /// A folder moved on one device: on the other, its notes arrive at the new
 /// place and the old folders, emptied, go too — nothing empty is left
 /// behind (found with two installed apps, 2026-10-10).

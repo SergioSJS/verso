@@ -130,7 +130,12 @@ pub fn convert(e: CoreError) -> ContractError {
         CoreError::Confined(_) | CoreError::InvalidKey => ErrorKind::Refused,
         CoreError::Write(WriteError::Confined(_)) => ErrorKind::Refused,
         CoreError::Read(ReadError::Unavailable) => ErrorKind::Unavailable,
-        CoreError::Read(ReadError::Io(io)) if io.kind() == std::io::ErrorKind::NotFound => {
+        // A file gone, read or written to: a rename or a deletion whose
+        // entry (or its folder) is not there any more is not found, as a
+        // read of it is — never a failure of the disk.
+        CoreError::Read(ReadError::Io(io)) | CoreError::Write(WriteError::Io(io))
+            if io.kind() == std::io::ErrorKind::NotFound =>
+        {
             ErrorKind::NotFound
         }
         CoreError::Folder(io) if io.kind() == std::io::ErrorKind::NotFound => ErrorKind::NotFound,
