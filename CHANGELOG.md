@@ -12,6 +12,10 @@ test release.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.7.0-beta.1 — 2026-10-10
+
 ### Added
 
 - **Verso as a server, `verso serve`** ([ADR 0073](docs/adr/0073-self-hosted-server-first.md), [0074](docs/adr/0074-accounts-and-access-on-the-server.md), [0075](docs/adr/0075-server-packaging-and-storage.md)): your notes on a machine of your own — a home server, a NAS, any cloud — opened in a browser on a computer, a phone or a tablet. The folders stay ordinary folders of Markdown files on the server's disk (`VERSO_FOLDERS_DIR`, which may be a NAS); the accounts and the indexes live apart (`VERSO_DATA_DIR`, a local disk). Installed as a Docker image for amd64 and arm64 (GitHub's registry), a compose file for CasaOS and ZimaOS, or a `.deb`/`.rpm` with a systemd service: `docs/reference/server-install.md`. Sign-in needs HTTPS — the server's own certificate, a reverse proxy or `tailscale serve`. Settings › Administration says when a newer version is out; the server never updates itself.
