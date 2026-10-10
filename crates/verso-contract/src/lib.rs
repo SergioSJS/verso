@@ -524,6 +524,62 @@ pub struct ServerFolder {
     pub role: String,
 }
 
+/// A folder's sync with a server, as its window shows it (ADR 0079 item
+/// 13): the status bar's state and the folder settings' section.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct SyncStatus {
+    /// Whether the folder syncs at all.
+    pub on: bool,
+    /// The server, as signed in to (Settings › Servers).
+    pub server: String,
+    /// The server's folder: its id and its name there.
+    pub folder: String,
+    pub folder_name: String,
+    /// The role there: `owner`, `editor` or `reader` (a reader only
+    /// receives, item 1).
+    pub role: String,
+    /// `off`, `starting`, `synced`, `syncing`, `offline`, `paused` or
+    /// `error`.
+    pub state: String,
+    /// Files on their way in this pass.
+    pub sending: u32,
+    pub receiving: u32,
+    /// When paused for deletions, how many it would delete (item 9).
+    pub deletions: Option<u32>,
+    /// The conflict copies in the folder (item 8), by path.
+    pub conflicts: Vec<String>,
+    /// Files not synced, each with its reason (item 13).
+    pub refused: Vec<SyncRefused>,
+    /// What crossed lately, newest first.
+    pub log: Vec<SyncLogEntry>,
+    /// When the last pass ended, `YYYY-MM-DDTHH:MM:SSZ`.
+    pub last: Option<String>,
+    /// The last error, said.
+    pub message: Option<String>,
+}
+
+/// A file sync left out, and why.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct SyncRefused {
+    pub path: String,
+    /// `reader`, `quota`, `placeholder`, `too_large`, `changed` or `failed`.
+    pub reason: String,
+    pub message: String,
+}
+
+/// One thing that crossed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct SyncLogEntry {
+    /// `YYYY-MM-DDTHH:MM:SSZ`.
+    pub at: String,
+    /// `sent`, `received`, `deleted_there`, `deleted_here`,
+    /// `renamed_there`, `renamed_here` or `conflict`.
+    pub what: String,
+    pub path: String,
+    /// The other path of a rename, or a conflict's copy.
+    pub other: Option<String>,
+}
+
 /// Information about an application update.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 pub struct UpdateInfo {

@@ -363,6 +363,22 @@ export const commands = {
 	 *  folder, connects, and from now on sends the folder's commands there.
 	 */
 	serverOpen: (url: string, folder: string) => typedError<FolderInfo, ContractError>(__TAURI_INVOKE("server_open", { url, folder })),
+	/**  The window's folder's sync: off, or its state. */
+	folderSync: () => typedError<SyncStatus, ContractError>(__TAURI_INVOKE("folder_sync")),
+	/**
+	 *  Sync the window's folder with a folder of a server the app is signed
+	 *  in to: `folder`, one there by id, or a new one named `name` (item 1).
+	 *  The first sync deletes nothing (item 11).
+	 */
+	folderSyncStart: (url: string, folder: string | null, name: string | null) => typedError<SyncStatus, ContractError>(__TAURI_INVOKE("folder_sync_start", { url, folder, name })),
+	/**  Turn the window's folder's sync off: both sides stay as they are. */
+	folderSyncStop: () => typedError<SyncStatus, ContractError>(__TAURI_INVOKE("folder_sync_stop")),
+	/**  Pause the sync, or resume it. */
+	folderSyncPause: (paused: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("folder_sync_pause", { paused })),
+	/**  The deletions a pass paused for go ahead (item 9). */
+	folderSyncConfirm: () => typedError<null, ContractError>(__TAURI_INVOKE("folder_sync_confirm")),
+	/**  Compare now, without waiting for a change or the scan. */
+	folderSyncNow: () => typedError<null, ContractError>(__TAURI_INVOKE("folder_sync_now")),
 	/**
 	 *  A base evaluated over the folder (ADR 0053): the rows of the view the
 	 *  window draws, as a table, cards, a list, a kanban or a calendar.
@@ -1261,6 +1277,67 @@ export type SkipReason =
 export type Skipped = {
 	path: string,
 	reason: SkipReason,
+};
+
+/**  One thing that crossed. */
+export type SyncLogEntry = {
+	/**  `YYYY-MM-DDTHH:MM:SSZ`. */
+	at: string,
+	/**
+	 *  `sent`, `received`, `deleted_there`, `deleted_here`,
+	 *  `renamed_there`, `renamed_here` or `conflict`.
+	 */
+	what: string,
+	path: string,
+	/**  The other path of a rename, or a conflict's copy. */
+	other: string | null,
+};
+
+/**  A file sync left out, and why. */
+export type SyncRefused = {
+	path: string,
+	/**  `reader`, `quota`, `placeholder`, `too_large`, `changed` or `failed`. */
+	reason: string,
+	message: string,
+};
+
+/**
+ *  A folder's sync with a server, as its window shows it (ADR 0079 item
+ *  13): the status bar's state and the folder settings' section.
+ */
+export type SyncStatus = {
+	/**  Whether the folder syncs at all. */
+	on: boolean,
+	/**  The server, as signed in to (Settings › Servers). */
+	server: string,
+	/**  The server's folder: its id and its name there. */
+	folder: string,
+	folder_name: string,
+	/**
+	 *  The role there: `owner`, `editor` or `reader` (a reader only
+	 *  receives, item 1).
+	 */
+	role: string,
+	/**
+	 *  `off`, `starting`, `synced`, `syncing`, `offline`, `paused` or
+	 *  `error`.
+	 */
+	state: string,
+	/**  Files on their way in this pass. */
+	sending: number,
+	receiving: number,
+	/**  When paused for deletions, how many it would delete (item 9). */
+	deletions: number | null,
+	/**  The conflict copies in the folder (item 8), by path. */
+	conflicts: string[],
+	/**  Files not synced, each with its reason (item 13). */
+	refused: SyncRefused[],
+	/**  What crossed lately, newest first. */
+	log: SyncLogEntry[],
+	/**  When the last pass ended, `YYYY-MM-DDTHH:MM:SSZ`. */
+	last: string | null,
+	/**  The last error, said. */
+	message: string | null,
 };
 
 /**  A tag and the notes that carry it. */

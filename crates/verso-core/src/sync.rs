@@ -47,6 +47,21 @@ pub struct State {
     /// Path → the hash both sides last agreed on.
     pub base: BTreeMap<String, String>,
     pub paused: bool,
+    /// Path → the size and time a file of this computer had when its hash
+    /// was read, and that hash: a file unchanged since is not read again.
+    /// Kept only for files older than the moment they were read by a
+    /// margin, so an edit in the same second is never taken for the same
+    /// file.
+    #[serde(default)]
+    pub seen: BTreeMap<String, Seen>,
+}
+
+/// A file of this computer as last hashed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Seen {
+    pub size: u64,
+    pub modified: i64,
+    pub hash: String,
 }
 
 /// One step of a plan.
