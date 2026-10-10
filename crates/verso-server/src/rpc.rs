@@ -324,8 +324,17 @@ async fn handle(
         "fetch_file" => Ok(Value::Bool(false)),
         "collab_join" | "collab_update" | "collab_awareness" | "collab_leave" | "collab_save"
         | "collab_resolve" => collab_command(server, who, client, &r.cmd, &args).await,
-        "sync_state" | "sync_changes" | "sync_read" | "sync_put" | "sync_delete"
-        | "sync_rename" => crate::sync::command(server, who, client, &r.cmd, &args).await,
+        "sync_state" | "sync_changes" | "sync_read" => {
+            crate::sync::command(server, who, client, &r.cmd, &args).await
+        }
+        // A device's change: the folder's space follows it (ADR 0077).
+        "sync_put" | "sync_delete" | "sync_rename" => {
+            let done = crate::sync::command(server, who, client, &r.cmd, &args).await?;
+            if r.cmd != "sync_put" || done["done"] == true {
+                record_space(server, client).await;
+            }
+            Ok(done)
+        }
         _ => Err(refused("not on a server")),
     }
 }
@@ -534,6 +543,24 @@ async fn record_space(server: &Arc<Server>, client: &str) {
         };
         // With when it was counted: the console's "last change" (ADR 0077).
         let mut kept = serde_json::to_value(&space).unwrap_or_else(|_| json!({}));
+        // Sync's record of the files follows every write as it happens;
+        // the listing the count above walks only the watcher's batches.
+        if let Ok(files) = s.db.manifest(&folder)
+            && !files.is_empty()
+        {
+            let (mut notes, mut attachments) = (0_i64, 0_i64);
+            for (path, k) in &files {
+                if path.ends_with(".md") {
+                    notes += k.size;
+                } else {
+                    attachments += k.size;
+                }
+            }
+            kept["notes"] = json!(notes);
+            kept["attachments"] = json!(attachments);
+            kept["total"] = json!(notes + attachments);
+            kept["files"] = json!(files.len());
+        }
         kept["at"] = json!(crate::db::now());
         if let Err(e) =
             s.db.set_setting(&format!("space:{folder}"), &kept.to_string())
@@ -541,7 +568,11 @@ async fn record_space(server: &Arc<Server>, client: &str) {
             crate::log::error(&format!("keeping a folder's space: {e}"));
         }
         // Whole bytes: the space is counted in f64 by the contract.
-        crate::quota::warn(&s, &folder, space.total as u64);
+        crate::quota::warn(
+            &s,
+            &folder,
+            kept["total"].as_u64().unwrap_or(space.total as u64),
+        );
     })
     .await;
 }
