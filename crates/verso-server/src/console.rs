@@ -296,10 +296,10 @@ pub async fn audit(ctx: Ctx, Query(list): Query<List>) -> ApiResult<Response> {
 }
 
 /// A CSV cell: quoted when it holds a comma, a quote or a line end; a
-/// leading `=`, `+`, `-` or `@` is kept as text, never a spreadsheet's
-/// formula.
+/// leading `=`, `+`, `-`, `@`, tab or carriage return is kept as text,
+/// never a spreadsheet's formula (OWASP's list).
 fn csv_cell(text: &str) -> String {
-    let text = if text.starts_with(['=', '+', '-', '@']) {
+    let text = if text.starts_with(['=', '+', '-', '@', '\t', '\r']) {
         format!("'{text}")
     } else {
         text.to_owned()

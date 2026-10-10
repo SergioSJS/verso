@@ -47,6 +47,11 @@ pub struct State {
     /// Path → the hash both sides last agreed on.
     pub base: BTreeMap<String, String>,
     pub paused: bool,
+    /// Turned off by the person (item 1): kept with its base, so that
+    /// turning it on again with the same folder of the server goes on
+    /// from where it stopped instead of a first sync.
+    #[serde(default)]
+    pub off: bool,
     /// Path → the size and time a file of this computer had when its hash
     /// was read, and that hash: a file unchanged since is not read again.
     /// Kept only for files older than the moment they were read by a

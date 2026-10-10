@@ -38,7 +38,7 @@ FROM alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4c
 # Set by buildx for each platform it builds (amd64, arm64).
 ARG TARGETARCH
 
-LABEL org.opencontainers.image.title="Verso server" \
+LABEL org.opencontainers.image.title="Universo" \
       org.opencontainers.image.description="Universo: the Verso server — the Verso core without a window, served to a browser (self-hosted)" \
       org.opencontainers.image.source="https://github.com/SergioSJS/verso" \
       org.opencontainers.image.url="https://versomd.com" \

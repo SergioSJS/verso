@@ -11,8 +11,9 @@
 //! here through `verso-fs`, there through the server's sync commands, in
 //! pieces. The window hears `sync-status`.
 
+use std::collections::HashMap;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
 
 use serde_json::{Value, json};
@@ -55,8 +56,12 @@ pub(crate) struct Syncer {
     wake: tokio::sync::Notify,
     stopped: AtomicBool,
     paused: AtomicBool,
-    /// The person said yes to the deletions a pass paused for (item 9).
-    confirmed: AtomicBool,
+    /// How many deletions the person said yes to, as the pause showed them
+    /// (item 9): a later plan that deletes more asks again.
+    confirmed: AtomicUsize,
+    /// Paths refused as changed meanwhile, and how many passes in a row:
+    /// tried again once, then listed instead of retried forever.
+    again: Mutex<HashMap<String, u32>>,
     status: Mutex<SyncStatus>,
     /// Paths the watcher saw change since the last pass: read again
     /// whatever their size and time say.
@@ -74,7 +79,8 @@ impl Syncer {
             wake: tokio::sync::Notify::new(),
             stopped: AtomicBool::new(false),
             paused: AtomicBool::new(state.paused),
-            confirmed: AtomicBool::new(false),
+            confirmed: AtomicUsize::new(0),
+            again: Mutex::new(HashMap::new()),
             status: Mutex::new(SyncStatus {
                 key: key.to_owned(),
                 on: true,
@@ -110,7 +116,7 @@ impl Syncer {
     pub(crate) fn turn_off(&self, config: Option<&Path>) -> Result<(), ContractError> {
         let _one = lock(&self.disk);
         self.stop();
-        engine::save(config, &self.key, &engine::State::default()).map_err(verso_service::convert)
+        off(config, &self.key)
     }
 
     pub(crate) fn pause(&self, paused: bool) {
@@ -120,7 +126,9 @@ impl Syncer {
 
     /// The deletions a pass paused for may go ahead (item 9).
     pub(crate) fn confirm(&self) {
-        self.confirmed.store(true, Ordering::Relaxed);
+        let shown = lock(&self.status).deletions.unwrap_or(0);
+        self.confirmed
+            .store(usize::try_from(shown).unwrap_or(0), Ordering::Relaxed);
         self.wake.notify_one();
     }
 
@@ -168,7 +176,17 @@ pub(crate) fn synced(config: Option<&Path>, key: &str) -> Option<engine::State> 
     engine::load(config, key)
         .ok()
         .flatten()
-        .filter(|s| !s.server.is_empty())
+        .filter(|s| !s.server.is_empty() && !s.off)
+}
+
+/// The folder's sync marked off, its base kept for turning it on again.
+pub(crate) fn off(config: Option<&Path>, key: &str) -> Result<(), ContractError> {
+    let mut state = engine::load(config, key)
+        .map_err(verso_service::convert)?
+        .unwrap_or_default();
+    state.off = true;
+    state.paused = false;
+    engine::save(config, key, &state).map_err(verso_service::convert)
 }
 
 /// The sync-related outcome of a command, as the contract's error.
@@ -395,7 +413,7 @@ async fn there(remote: &remote::Remote, known: &mut Option<(Files, i64)>) -> Res
             let Some(path) = c["path"].as_str() else {
                 continue;
             };
-            if let Some(from) = c["renamed_from"].as_str() {
+            if let Some(from) = c["renamedFrom"].as_str() {
                 files.remove(from);
             }
             match c["hash"].as_str() {
@@ -515,8 +533,12 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
     let when = chrono::Local::now().format("%Y-%m-%d %H.%M").to_string();
     let copy_name =
         |p: &str, taken: &BTreeSet<String>| engine::conflict_name(p, &ctx.device, &when, pt, taken);
-    let confirmed = s.confirmed.load(Ordering::Relaxed);
-    let plan = engine::plan(&local, remote_files, &state, confirmed, &copy_name);
+    // A yes counts for the deletions the person saw, no more, and once.
+    let mut plan = engine::plan(&local, remote_files, &state, false, &copy_name);
+    let yes = s.confirmed.swap(0, Ordering::Relaxed);
+    if plan.pause.is_some_and(|n| n <= yes) {
+        plan.pause = None;
+    }
     if let Some(n) = plan.pause {
         s.set(ctx, |st| {
             st.state = "paused".to_owned();
@@ -527,7 +549,6 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
             paused: Some(n),
         });
     }
-    s.confirmed.store(false, Ordering::Relaxed);
     let reader = l.role == "reader";
     let on = Side {
         ctx,
@@ -578,7 +599,13 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
             continue;
         }
         match on.carry_out(remote_files, &mut state, &action).await {
-            Ok(()) => done += 1,
+            Ok(()) => {
+                done += 1;
+                let mut again = lock(&s.again);
+                for p in &touches {
+                    again.remove(*p);
+                }
+            }
             Err(Refusal::Connection(e)) => {
                 save(ctx, s, &mut state, *head);
                 return Err(e);
@@ -593,10 +620,29 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
                     },
                 );
             }
-            // Changed meanwhile: the next pass sees it as it is now.
-            Err(Refusal::Again(path)) => {
-                lock(&s.dirty).insert(path);
-                s.poke();
+            // Changed meanwhile: the next pass sees it as it is now —
+            // once; a refusal that comes back is listed, not retried
+            // forever.
+            Err(Refusal::Again(path, message)) => {
+                let times = {
+                    let mut again = lock(&s.again);
+                    let n = again.entry(path.clone()).or_insert(0);
+                    *n += 1;
+                    *n
+                };
+                if times < 2 {
+                    lock(&s.dirty).insert(path);
+                    s.poke();
+                } else {
+                    apart.insert(
+                        path.clone(),
+                        SyncRefused {
+                            path,
+                            reason: "changed".to_owned(),
+                            message,
+                        },
+                    );
+                }
             }
         }
         match &action {
@@ -669,14 +715,17 @@ enum Refusal {
     /// This file: listed with its reason, the rest goes on.
     File(String, String, String),
     /// The file changed while the pass ran: the next one sees it.
-    Again(String),
+    Again(String, String),
 }
 
 fn of_server(path: &str, e: &Value) -> Refusal {
+    let transport = e["transport"] == true;
     let e = said(e);
     match e.kind {
-        ErrorKind::Unavailable => Refusal::Connection(e),
-        ErrorKind::Changed => Refusal::Again(path.to_owned()),
+        ErrorKind::Unavailable if transport => Refusal::Connection(e),
+        // The server answered: that file is not readable there now.
+        ErrorKind::Unavailable => Refusal::File(path.to_owned(), "failed".to_owned(), e.message),
+        ErrorKind::Changed => Refusal::Again(path.to_owned(), e.message),
         ErrorKind::Quota => Refusal::File(path.to_owned(), "quota".to_owned(), e.message),
         _ => Refusal::File(path.to_owned(), "failed".to_owned(), e.message),
     }
@@ -684,7 +733,7 @@ fn of_server(path: &str, e: &Value) -> Refusal {
 
 fn of_here(path: &str, e: ContractError) -> Refusal {
     match e.kind {
-        ErrorKind::Changed | ErrorKind::Exists => Refusal::Again(path.to_owned()),
+        ErrorKind::Changed | ErrorKind::Exists => Refusal::Again(path.to_owned(), e.message),
         ErrorKind::Unavailable => Refusal::File(
             path.to_owned(),
             "placeholder".to_owned(),
@@ -746,7 +795,10 @@ async fn upload(
             return Ok((hash, size));
         }
         if end >= bytes.len() {
-            return Err(Refusal::Again(path.to_owned()));
+            return Err(Refusal::Again(
+                path.to_owned(),
+                "changed while it crossed".to_owned(),
+            ));
         }
         offset = end;
     }
@@ -768,18 +820,24 @@ async fn download(remote: &remote::Remote, path: &str) -> Result<(Vec<u8>, Strin
             &base64::engine::general_purpose::STANDARD,
             a["data"].as_str().unwrap_or_default(),
         )
-        .map_err(|_| Refusal::Again(path.to_owned()))?;
+        .map_err(|_| Refusal::Again(path.to_owned(), "changed while it crossed".to_owned()))?;
         out.extend_from_slice(&piece);
         if a["done"] == true {
             break;
         }
         if piece.is_empty() {
-            return Err(Refusal::Again(path.to_owned()));
+            return Err(Refusal::Again(
+                path.to_owned(),
+                "changed while it crossed".to_owned(),
+            ));
         }
     }
     // A broken transfer leaves nothing half-written (item 12).
     if sha256(&out) != hash {
-        return Err(Refusal::Again(path.to_owned()));
+        return Err(Refusal::Again(
+            path.to_owned(),
+            "changed while it crossed".to_owned(),
+        ));
     }
     Ok((out, hash))
 }

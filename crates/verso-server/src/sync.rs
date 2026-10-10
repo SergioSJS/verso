@@ -19,7 +19,9 @@ use base64::Engine;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use verso_contract::{ContractError, ErrorKind};
-use verso_core::FileKind;
+use verso_core::{CoreError, FileKind, Workspace};
+use verso_fs::ReadError;
+use verso_service::OpError;
 use verso_service::lock;
 
 use crate::auth::Who;
@@ -33,7 +35,33 @@ pub const PIECE: usize = 4 << 20;
 /// the atomic write takes the whole file.
 pub const LARGEST: u64 = 1 << 30;
 /// A transfer nobody continued for this long is dropped.
-const IDLE: Duration = Duration::from_secs(600);
+const IDLE: Duration = Duration::from_secs(120);
+/// Transfers a client holds at once, each way: a device sends and fetches
+/// one file at a time, so a third drops its oldest — what one session can
+/// keep in the server's memory is bounded (two files of `LARGEST`).
+const PER_CLIENT: usize = 2;
+
+/// Make room for one more transfer of `client`: its oldest go.
+fn room<T>(map: &mut HashMap<(String, String), T>, client: &str, at: impl Fn(&T) -> Instant) {
+    loop {
+        let mine: Vec<(&(String, String), Instant)> = map
+            .iter()
+            .filter(|((c, _), _)| c == client)
+            .map(|(k, v)| (k, at(v)))
+            .collect();
+        if mine.len() < PER_CLIENT {
+            return;
+        }
+        let Some(oldest) = mine
+            .iter()
+            .min_by_key(|(_, t)| *t)
+            .map(|(k, _)| (*k).clone())
+        else {
+            return;
+        };
+        map.remove(&oldest);
+    }
+}
 
 /// Files on their way, in pieces: those sent by a device and those read
 /// by one, per client and path.
@@ -154,7 +182,18 @@ pub fn reconcile(
                 continue;
             }
             // Not there any more: gone, if it was known.
-            Err(_) => continue,
+            Err(e) if e.kind == ErrorKind::NotFound => continue,
+            // Not readable now (a network file system's hiccup, a
+            // permission): as it was, never a deletion every device
+            // would carry out.
+            Err(e) => {
+                crate::log::warn(&format!(
+                    "sync: {path} could not be read, kept as it was: {}",
+                    e.message
+                ));
+                present.insert(path);
+                continue;
+            }
         };
         present.insert(path.clone());
         let hash = sha256(&bytes);
@@ -286,10 +325,11 @@ pub async fn command(
         "sync_delete" => {
             let path: String = arg(&args, "path")?;
             let base: String = arg(&args, "base")?;
-            current_is(&s, &folder, &key, &path, Some(&base))?;
             let p = path.clone();
-            s.service
-                .with_key(&key, move |ws| Ok(ws.delete_entry(&p).map(|_| ())?))?;
+            s.service.with_key(&key, move |ws| {
+                is_now(ws, &p, Some(&base))?;
+                Ok(ws.delete_entry(&p).map(|_| ())?)
+            })?;
             let head = reconcile(&s, &folder, &key, Some(&actor), &[path])?;
             Ok(json!({ "head": head }))
         }
@@ -297,10 +337,12 @@ pub async fn command(
             let from: String = arg(&args, "from")?;
             let to: String = arg(&args, "to")?;
             let base: String = arg(&args, "base")?;
-            current_is(&s, &folder, &key, &from, Some(&base))?;
             let (f, t) = (from.clone(), to.clone());
-            s.service
-                .with_key(&key, move |ws| Ok(ws.rename_entry(&f, &t).map(|_| ())?))?;
+            s.service.with_key(&key, move |ws| {
+                is_now(ws, &f, Some(&base))?;
+                is_now(ws, &t, None)?;
+                Ok(ws.rename_entry(&f, &t).map(|_| ())?)
+            })?;
             let head = reconcile(&s, &folder, &key, Some(&actor), &[from, to])?;
             Ok(json!({ "head": head }))
         }
@@ -309,25 +351,29 @@ pub async fn command(
     .await
 }
 
+/// The file at `path` on the disk now: its hash and the revision it was
+/// read at; `None` when there is none.
+fn now(ws: &mut Workspace, path: &str) -> Result<Option<(String, String)>, OpError> {
+    match ws.read_with_revision(path) {
+        Ok((bytes, revision)) => Ok(Some((sha256(&bytes), revision))),
+        Err(CoreError::Read(ReadError::Io(e))) if e.kind() == std::io::ErrorKind::NotFound => {
+            Ok(None)
+        }
+        Err(e) => Err(e.into()),
+    }
+}
+
 /// Refused with `changed` (and the file's hash now) unless the file at
-/// `path` is the one `base` names; `None` names no file at all.
-fn current_is(
-    server: &Server,
-    folder: &str,
-    key: &str,
-    path: &str,
-    base: Option<&str>,
-) -> Result<(), ContractError> {
-    reconcile(server, folder, key, None, &[path.to_owned()])?;
-    let now = server
-        .db
-        .known(folder, path)
-        .map_err(verso_service::failed)?
-        .map(|k| k.hash);
-    if now.as_deref() == base {
-        Ok(())
+/// `path` is the one `base` names — `None` names no file at all — read in
+/// the same step as what the caller then does to it (invariant 11): no
+/// write can land between the check and the change. Returns the revision
+/// read.
+fn is_now(ws: &mut Workspace, path: &str, base: Option<&str>) -> Result<Option<String>, OpError> {
+    let found = now(ws, path)?;
+    if found.as_ref().map(|(h, _)| h.as_str()) == base {
+        Ok(found.map(|(_, r)| r))
     } else {
-        Err(changed(&now.unwrap_or_default()))
+        Err(changed(&found.map(|(h, _)| h).unwrap_or_default()).into())
     }
 }
 
@@ -350,6 +396,9 @@ fn read(server: &Server, client: &str, key: &str, args: &Value) -> Result<Value,
             let (b, _) = server
                 .service
                 .with_key(key, move |ws| Ok(ws.read_with_revision(&p)?))?;
+            if b.len() as u64 > LARGEST {
+                return Err(refused("a file of more than 1 GiB is not synced"));
+            }
             Arc::new(b)
         }
     };
@@ -363,6 +412,9 @@ fn read(server: &Server, client: &str, key: &str, args: &Value) -> Result<Value,
     if done {
         down.remove(&place);
     } else {
+        if !down.contains_key(&place) {
+            room(&mut down, client, |(_, at)| *at);
+        }
         down.insert(place, (bytes, Instant::now()));
     }
     Ok(json!({ "data": piece, "size": size, "done": done, "hash": hash }))
@@ -393,10 +445,14 @@ fn put(
         let mut up = lock(&server.transfers.up);
         up.retain(|_, u| u.at.elapsed() < IDLE);
         if offset == 0 {
+            up.remove(&place);
+            room(&mut up, client, |u| u.at);
+            // Grown as the pieces come, never reserved up front: a size
+            // claimed is not memory taken.
             up.insert(
                 place.clone(),
                 Upload {
-                    bytes: Vec::with_capacity(usize::try_from(size).unwrap_or(0)),
+                    bytes: Vec::new(),
                     size,
                     hash: hash.clone(),
                     base: base.clone(),
@@ -407,7 +463,12 @@ fn put(
         let u = up
             .get_mut(&place)
             .ok_or_else(|| refused("no transfer of this file: start again"))?;
-        if u.bytes.len() as u64 != offset || u.hash != hash || u.size != size || u.base != base {
+        if u.bytes.len() as u64 != offset
+            || u.hash != hash
+            || u.size != size
+            || u.base != base
+            || offset + piece.len() as u64 > size
+        {
             up.remove(&place);
             return Err(refused("a piece out of order: start again"));
         }
@@ -425,16 +486,10 @@ fn put(
     if bytes.len() as u64 != size || sha256(&bytes) != hash {
         return Err(refused("the file arrived damaged: its hash does not match"));
     }
-    current_is(server, folder, key, &path, base.as_deref())?;
     crate::quota::check(server, key, &path, size)?;
     let p = path.clone();
-    let existed = base.is_some();
     server.service.with_key(key, move |ws| {
-        let revision = if existed {
-            Some(ws.read_with_revision(&p)?.1)
-        } else {
-            None
-        };
+        let revision = is_now(ws, &p, base.as_deref())?;
         Ok(ws
             .write_bytes(&p, &bytes, revision.as_deref())
             .map(|_| ())?)
