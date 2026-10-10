@@ -64,7 +64,7 @@ pub async fn create(ctx: Ctx, Json(body): Json<NewFolder>) -> ApiResult<Response
     if ctx.server.db.folder_by_dir(&name)?.is_some() {
         return Err(ApiError::new(
             axum::http::StatusCode::CONFLICT,
-            "exists",
+            "folder_exists",
             "a folder has that name",
         ));
     }
@@ -76,7 +76,7 @@ pub async fn create(ctx: Ctx, Json(body): Json<NewFolder>) -> ApiResult<Response
         .map_err(|e| match e.kind() {
             std::io::ErrorKind::AlreadyExists => ApiError::new(
                 axum::http::StatusCode::CONFLICT,
-                "exists",
+                "folder_exists",
                 "a folder has that name",
             ),
             _ => ApiError::from(format!("making the folder: {e}")),
