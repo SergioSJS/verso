@@ -124,10 +124,17 @@ export let untitledN = 0;
 export async function newUntitled(pane: Pane): Promise<void> {
   if (!readable()) return;
   const folder = pane.active?.path ? dirOf(pane.active.path) : "";
-  let candidate = t.untitled;
   const taken = new Set(allNotes.map((p) => p.toLowerCase()));
-  while (taken.has(`${folder ? folder + "/" : ""}${candidate}.md`.toLowerCase())) candidate = `${t.untitled} ${++untitledN + 1}`;
-  await createNote(folder, candidate, pane, true);
+  // On a server another member may take the same name a moment before
+  // (the list here is not yet told): a name nobody chose moves on to the
+  // next one instead of failing.
+  for (let tries = 0; tries < 8; tries++) {
+    let candidate = t.untitled;
+    while (taken.has(`${folder ? folder + "/" : ""}${candidate}.md`.toLowerCase())) candidate = `${t.untitled} ${++untitledN + 1}`;
+    if ((await createNote(folder, candidate, pane, true, true)) !== "exists") return;
+    taken.add(`${folder ? folder + "/" : ""}${candidate}.md`.toLowerCase());
+  }
+  nameTaken(t.exists);
 }
 /** `#` and `^` open a heading or a block, `|` an alias, `[` and `]` end the
  *  link: no `[[…]]` can name a file whose name holds one. The window does
@@ -155,7 +162,9 @@ export function unportable(typed: string): boolean {
   nameTaken(t.unportableName);
   return true;
 }
-export async function createNote(folder: string, nameTyped: string, pane?: Pane, renameNow = false): Promise<void> {
+/** `quietTaken`: a name already taken is answered "exists", unsaid, for
+ *  the caller to try another. */
+export async function createNote(folder: string, nameTyped: string, pane?: Pane, renameNow = false, quietTaken = false): Promise<"exists" | void> {
   const clean = nameTyped.trim().replace(/\.md$/i, "");
   // A note's file name ends in `.md`: a dot before it is kept by Windows.
   if (!clean || unlinkable(clean) || unportable(`${clean}.md`)) return;
@@ -191,7 +200,11 @@ export async function createNote(folder: string, nameTyped: string, pane?: Pane,
     } catch {}
   }
   const r = await commands.createNote(path, initialText);
-  if (r.status !== "ok") return r.error.kind === "exists" ? nameTaken(t.exists) : fail(r.error);
+  if (r.status !== "ok") {
+    if (r.error.kind !== "exists") return fail(r.error);
+    if (quietTaken) return "exists";
+    return nameTaken(t.exists);
+  }
   await afterFileChange();
   const target = pane ?? paneToOpenIn();
   const leaf = target.open(r.data.path, false);

@@ -32,6 +32,7 @@ test release.
 
 - **A swipe on the file tree no longer moves a note**: on a touch screen, scrolling the tree started a drag, and the next tap on a folder moved the note into it. A long menu now scrolls inside the screen instead of running past it.
 - **A button hidden from the ribbon comes back**: Settings › Appearance lists the ribbon's buttons with a switch each, a right click on the ribbon's empty room shows the hidden ones again, the status bar says where when one is hidden, and the gear itself can no longer be hidden.
+- **⌘N on a shared folder always makes a note**: when another member had just made "Untitled" and this window did not know it yet, the new note failed with "already exists"; it now takes the next free name.
 
 ## 0.6.0-beta.1 — 2026-10-09
 
