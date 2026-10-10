@@ -166,6 +166,18 @@ impl Ctx {
         self.who.as_ref().ok_or_else(ApiError::unauthorized)
     }
 
+    /// The person themselves — a browser or the desktop app signed in as
+    /// them — or 403: an access token reaches its folders' notes and
+    /// files, never the account, its sessions, keys, settings or the
+    /// folders' members (ADR 0074 item 8; threat-model.md).
+    pub fn person(&self) -> ApiResult<&Who> {
+        let who = self.who()?;
+        if matches!(who.via, auth::Via::Token { .. }) {
+            return Err(ApiError::forbidden("not with an access token"));
+        }
+        Ok(who)
+    }
+
     /// An admin, or 403 (ADR 0074 item 6).
     pub fn admin(&self) -> ApiResult<&Who> {
         let who = self.who()?;

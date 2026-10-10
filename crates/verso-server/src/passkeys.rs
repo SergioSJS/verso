@@ -71,14 +71,14 @@ fn credentials(rows: &[db::PasskeyRow]) -> Vec<(String, Passkey)> {
 }
 
 pub async fn list(ctx: Ctx) -> ApiResult<Response> {
-    let who = ctx.who()?;
+    let who = ctx.person()?;
     Ok(ok(ctx.server.db.passkeys(&who.account.id)?))
 }
 
 /// Start adding a passkey: the options for `navigator.credentials.create`.
 pub async fn register_start(ctx: Ctx) -> ApiResult<Response> {
     ctx.changes()?;
-    let who = ctx.who()?.clone();
+    let who = ctx.person()?.clone();
     if !matches!(who.via, crate::auth::Via::Browser { .. }) {
         return Err(ApiError::forbidden("passkeys are added in the browser"));
     }
@@ -110,7 +110,7 @@ pub struct Registered {
 /// The device answered: the passkey kept.
 pub async fn register_finish(ctx: Ctx, Json(body): Json<Registered>) -> ApiResult<Response> {
     ctx.changes()?;
-    let who = ctx.who()?.clone();
+    let who = ctx.person()?.clone();
     let (_, account, state) = lock(&ctx.server.ceremonies.registering)
         .remove(&body.ceremony)
         .filter(|(at, account, _)| at.elapsed() < LIFE && *account == who.account.id)
@@ -132,7 +132,7 @@ pub async fn register_finish(ctx: Ctx, Json(body): Json<Registered>) -> ApiResul
 
 pub async fn remove(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
     ctx.changes()?;
-    let who = ctx.who()?;
+    let who = ctx.person()?;
     if !ctx.server.db.remove_passkey(&who.account.id, &id)? {
         return Err(ApiError::not_found());
     }
