@@ -14,7 +14,7 @@
   configuração); são construídos e publicados pelos jobs `server` e
   `server-image` do `.github/workflows/release.yml`.
 - Situação: escrito junto com o empacotamento, antes da primeira execução
-  de release. Nada aqui foi executado de ponta a ponta ainda: a seção 14
+  de release. Nada aqui foi executado de ponta a ponta ainda: a seção 15
   lista o que não foi verificado.
 
 ## 1. O que é instalado
@@ -375,7 +375,37 @@ todas as pastas nele. Criptografia em repouso é o disco do host. Uma oferta
 hospedada não é prometida: auto-hospedado quer dizer que o host guarda o
 disco, faz os backups e atualiza o serviço.
 
-## 14. O que ainda não foi verificado
+## 14. Do que ele precisa
+
+Medido na bancada de sincronização ([sync-lab.md](sync-lab.md), seção 3)
+em 2026-10-10, com os números em `scripts/sync-lab/results.jsonl`:
+
+- **Memória**: cerca de 20 MB com alguns aparelhos conectados e uma pasta
+  de 150 arquivos; 460 MB com 200 conexões gravando ao mesmo tempo
+  (macOS), 1 GB numa VM Linux. Um arquivo grande em trânsito fica inteiro
+  na memória: cada transferência até o tamanho do arquivo, duas por
+  aparelho em cada sentido (arquivos acima de 1 GiB não sincronizam).
+- **Quem limita a escrita é o disco.** Todo arquivo que um aparelho grava
+  é gravado de forma atômica e descarregado no disco (fsync, invariante 9);
+  uma pasta grava um arquivo por vez, então o tempo de descarga do disco é
+  o piso de cada gravação: 13–15 ms no SSD de um Mac, cerca de 100 ms no
+  disco virtual de uma VM pequena no Proxmox. Pastas diferentes gravam em
+  paralelo.
+- **CPU**: o hash de cada arquivo gravado (SHA-256), a indexação das notas
+  para a busca, e o TLS quando é o próprio servidor que o faz.
+
+| | Mínimo | Recomendado |
+|---|---|---|
+| Para | 1 a 3 pessoas, notas e anexos pequenos | uma família ou equipe de até ~10 pessoas, vários aparelhos cada |
+| CPU | 1 núcleo, x64 ou ARM64 | 2 núcleos |
+| Memória | 512 MB | 2 GB, ou mais que o dobro do maior arquivo que vocês sincronizam |
+| Disco | um SSD; o tamanho das notas × 2 + 1 GB (a lixeira, `.trash`, guarda o que foi apagado) | um SSD local para o `VERSO_DATA_DIR`; as notas num SSD ou num NAS |
+| Exemplos | um Raspberry Pi 4 de 2 GB, a VPS mais barata | um mini PC, um NAS com Docker, uma VPS de 2 GB |
+
+Um Raspberry Pi e um NAS ainda não foram medidos. `scripts/sync-lab/lab.sh
+load --devices 1` na própria máquina diz o quão rápido o disco dela grava.
+
+## 15. O que ainda não foi verificado
 
 Escrito em 2026-10-09 sem rodar uma release, um contêiner ou um pacote numa
 máquina real:
