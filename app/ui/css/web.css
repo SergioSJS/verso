@@ -163,6 +163,7 @@ body.web-mode { display: block; overflow: auto; height: auto; min-height: 100dvh
 }
 .console-form-row input:focus, .console-form-row select:focus, .console-search:focus { outline: none; border-color: var(--brass-ink); box-shadow: 0 0 0 3px var(--brass-wash); }
 .console-form-row input[type="email"], .console-form-row input[type="text"] { min-width: 13rem; }
+.console-field { display: inline-flex; align-items: center; gap: .45rem; margin-inline-start: .4rem; font-size: .85rem; color: var(--ink-2); }
 .console-link-button, .web-link-button { display: inline-flex; align-items: center; text-decoration: none; }
 
 .console-table-box { display: flex; flex-direction: column; gap: .6rem; }
