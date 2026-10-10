@@ -12,6 +12,10 @@ versão de teste.
 
 ## Não lançado
 
+Nada ainda.
+
+## 0.7.0-beta.1 — 2026-10-10
+
 ### Acrescentado
 
 - **O Verso como servidor, `verso serve`** ([ADR 0073](adr/0073-self-hosted-server-first.md), [0074](adr/0074-accounts-and-access-on-the-server.md), [0075](adr/0075-server-packaging-and-storage.md)): as suas notas numa máquina sua — um servidor em casa, um NAS, qualquer nuvem — abertas num navegador no computador, no celular ou no tablet. As pastas continuam pastas comuns de arquivos Markdown no disco do servidor (`VERSO_FOLDERS_DIR`, que pode ser um NAS); as contas e os índices ficam à parte (`VERSO_DATA_DIR`, um disco local). Instalado como imagem Docker para amd64 e arm64 (o registro do GitHub), um compose para o CasaOS e o ZimaOS, ou um `.deb`/`.rpm` com um serviço do systemd: `docs/pt-BR/reference/server-install.md`. Entrar pede HTTPS — o certificado do próprio servidor, um proxy reverso ou o `tailscale serve`. Ajustes › Administração avisa quando sai uma versão nova; o servidor nunca se atualiza sozinho.
