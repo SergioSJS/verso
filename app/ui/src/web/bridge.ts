@@ -62,8 +62,12 @@ function remember(id: string | null): void {
   history.replaceState(history.state, "", url);
 }
 
+/** While the folder is opened again after a reconnection, what the
+ *  window asks waits behind it. */
+let reopening = false;
+
 function send(text: string): void {
-  if (socket && open) socket.send(text);
+  if (socket && open && !reopening) socket.send(text);
   else waiting.push(text);
 }
 
@@ -149,10 +153,21 @@ function connect(): void {
     const back = retry > 0;
     retry = 0;
     if (back && folderId && openedOnce) {
-      // The folder again, then what waited; and the window told the folder
-      // may have changed while it was away: it checks its open notes.
-      void request("open_server_folder", { id: folderId })
+      // The folder again first: a new connection shows no folder, and a
+      // save queued while offline would be answered "no folder" if it went
+      // before. Then what waited, and the window told the folder may have
+      // changed while it was away: it checks its open notes.
+      reopening = true;
+      const id = nextId++;
+      const reopened = new Promise((resolve, reject) => pending.set(id, { resolve, reject }));
+      ws.send(JSON.stringify({ id, cmd: "open_server_folder", args: { id: folderId } }));
+      void reopened
+        .catch(() => undefined)
         .then(() => {
+          reopening = false;
+          // Dropped again meanwhile: what waits goes with the next one.
+          if (socket !== ws || !open) return Promise.reject(new Error("dropped"));
+          for (const text of waiting.splice(0)) ws.send(text);
           // The notes being edited together join their rooms again and
           // send what was typed meanwhile (collab.ts).
           dispatchEvent(new Event("verso:reconnected"));
@@ -161,12 +176,14 @@ function connect(): void {
         .then((index) => emit("folder-changed", { key: "", changed: [], removed: [], listing: true, index }))
         .then(() => notice(w().reconnected))
         .catch(() => undefined);
+      return;
     }
     for (const text of waiting.splice(0)) ws.send(text);
   });
   ws.addEventListener("message", (e) => onMessage(String(e.data)));
   ws.addEventListener("close", () => {
     open = false;
+    reopening = false;
     // What was asked and not answered may or may not have happened: it is
     // refused as unavailable, never sent again (a write twice is worse).
     for (const [id, p] of pending) {

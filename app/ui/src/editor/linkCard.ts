@@ -96,7 +96,7 @@ export function linkCard(opts: LinkCardOptions) {
                   make(opts.strings.open, () => {
                     view.dispatch({ effects: setCard.of(null) });
                     if (link.url) opts.openUrl(link.target);
-                    else opts.navigate(decodeURI(link.target));
+                    else opts.navigate(decoded(link.target));
                   }),
                   make(opts.strings.edit, () => {
                     view.dispatch({ selection: { anchor: link.editFrom, head: link.editTo }, effects: setCard.of(null), scrollIntoView: true });
@@ -126,4 +126,14 @@ export function linkCard(opts: LinkCardOptions) {
     },
   });
   return [card, taps];
+}
+
+/** A link's target as the note names it: a malformed `%xx` is kept as
+ *  typed instead of throwing in the click. */
+function decoded(target: string): string {
+  try {
+    return decodeURI(target);
+  } catch {
+    return target;
+  }
 }

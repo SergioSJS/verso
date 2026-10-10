@@ -89,7 +89,15 @@ export class CollabSession {
     this.awareness.setLocalStateField("user", { name: joined.user, color, colorLight: `${color}33` });
     this.doc.on("update", (update: Uint8Array, origin: unknown) => {
       if (origin === REMOTE || this.closedLocally) return;
-      void commands.collabUpdate(this.path, toB64(update));
+      void commands.collabUpdate(this.path, toB64(update)).then(
+        (r) => {
+          // Refused — the person reads only now, the room is gone: what is
+          // typed here would never be written. Out of the room, and the
+          // tab says it (offline is not this: the rejoin sends it all).
+          if (r.status !== "ok" && r.error.kind !== "unavailable") this.lost();
+        },
+        () => undefined,
+      );
     });
     this.awareness.on("update", ({ added, updated, removed }: { added: number[]; updated: number[]; removed: number[] }, origin: unknown) => {
       if (origin === REMOTE || this.closedLocally) return;
@@ -142,6 +150,13 @@ export class CollabSession {
     fresh.destroy();
     this.leave();
     this.handlers.closed(same ? undefined : "lost");
+  }
+
+  /** An edit the room refused: closed here, the tab told what did not go. */
+  private lost(): void {
+    if (this.closedLocally) return;
+    this.leave();
+    this.handlers.closed("lost");
   }
 
   /** The tab goes, or reads another note: out of the room. */

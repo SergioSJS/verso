@@ -24,8 +24,15 @@ function langField(): ReturnType<typeof select> {
 /** Where to go once signed in: the `next` of the address, when it is a
  *  path of this server. */
 function next(): string {
+  // Resolved as the browser will: `/\host` and the like are another
+  // origin, and only this one's paths are followed.
   const n = new URLSearchParams(location.search).get("next") ?? "/";
-  return n.startsWith("/") && !n.startsWith("//") ? n : "/";
+  try {
+    const u = new URL(n, location.origin);
+    return u.origin === location.origin ? `${u.pathname}${u.search}${u.hash}` : "/";
+  } catch {
+    return "/";
+  }
 }
 
 type SignedIn = { account: Account; csrf: string };
