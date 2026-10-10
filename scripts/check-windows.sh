@@ -106,10 +106,12 @@ fi
 # app's About and log say "unknown" (app/src-tauri/build.rs).
 commit=$(git rev-parse --short=7 HEAD 2>/dev/null || echo unknown)
 cargo_env="Set-Location '$base/src'; \$env:CARGO_TARGET_DIR='$base/target'; \$env:VERSO_COMMIT='$commit'"
+# Without the server, which is not built for Windows (ADR 0075 item 2;
+# crates/verso-cli/Cargo.toml).
 step "cargo clippy -D warnings (Windows)" on_host \
-  "$cargo_env; cargo clippy --workspace --all-targets --all-features --locked -- -D warnings"
+  "$cargo_env; cargo clippy --workspace --exclude verso-server --all-targets --all-features --locked -- -D warnings"
 step "cargo test (Windows)" on_host \
-  "$cargo_env; cargo test --workspace --all-features --locked --no-fail-fast"
+  "$cargo_env; cargo test --workspace --exclude verso-server --all-features --locked --no-fail-fast"
 
 if [ "$bundle" = 1 ]; then
   # The bundle's settings as a file (a JSON argument would not survive

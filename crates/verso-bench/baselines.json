@@ -258,11 +258,11 @@
       "generator": 1,
       "size": 1000,
       "operation": "fresh_index",
-      "median_ms": 752.529928,
-      "peak_rss_bytes": 8523776,
-      "index_bytes": 7561216,
-      "commit": "95f78dd",
-      "recorded_at": 1790213595
+      "median_ms": 292.511951,
+      "peak_rss_bytes": 9281536,
+      "index_bytes": 7872512,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
     },
     {
       "machine": "ci-linux",
@@ -270,11 +270,11 @@
       "generator": 1,
       "size": 1000,
       "operation": "index_unchanged",
-      "median_ms": 39.45582,
-      "peak_rss_bytes": 7135232,
-      "index_bytes": 7561216,
-      "commit": "95f78dd",
-      "recorded_at": 1790213595
+      "median_ms": 22.633032,
+      "peak_rss_bytes": 6574080,
+      "index_bytes": 7872512,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
     },
     {
       "machine": "ci-linux",
@@ -282,11 +282,35 @@
       "generator": 1,
       "size": 1000,
       "operation": "index_changed",
-      "median_ms": 50.785545,
-      "peak_rss_bytes": 8265728,
-      "index_bytes": 7639040,
-      "commit": "95f78dd",
-      "recorded_at": 1790213595
+      "median_ms": 27.913288,
+      "peak_rss_bytes": 8101888,
+      "index_bytes": 7946240,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
+    },
+    {
+      "machine": "ci-linux",
+      "os": "linux",
+      "generator": 1,
+      "size": 1000,
+      "operation": "watch_batch_walk",
+      "median_ms": 30.949018,
+      "peak_rss_bytes": 9351168,
+      "index_bytes": 8433664,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
+    },
+    {
+      "machine": "ci-linux",
+      "os": "linux",
+      "generator": 1,
+      "size": 1000,
+      "operation": "watch_batch",
+      "median_ms": 5.026413,
+      "peak_rss_bytes": 7708672,
+      "index_bytes": 8433664,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
     },
     {
       "machine": "ci-linux",
@@ -294,11 +318,11 @@
       "generator": 1,
       "size": 1000,
       "operation": "search_common",
-      "median_ms": 2.99268,
-      "peak_rss_bytes": 5873664,
-      "index_bytes": 7639040,
-      "commit": "95f78dd",
-      "recorded_at": 1790213595
+      "median_ms": 2.433251,
+      "peak_rss_bytes": 6615040,
+      "index_bytes": 8433664,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
     },
     {
       "machine": "ci-linux",
@@ -306,11 +330,11 @@
       "generator": 1,
       "size": 1000,
       "operation": "search_rare",
-      "median_ms": 0.796159,
-      "peak_rss_bytes": 5586944,
-      "index_bytes": 7639040,
-      "commit": "95f78dd",
-      "recorded_at": 1790213595
+      "median_ms": 0.6962,
+      "peak_rss_bytes": 6184960,
+      "index_bytes": 8433664,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
     },
     {
       "machine": "ci-linux",
@@ -318,11 +342,11 @@
       "generator": 1,
       "size": 1000,
       "operation": "backlinks",
-      "median_ms": 10.743459,
-      "peak_rss_bytes": 6836224,
-      "index_bytes": 7639040,
-      "commit": "95f78dd",
-      "recorded_at": 1790213595
+      "median_ms": 6.346864,
+      "peak_rss_bytes": 7213056,
+      "index_bytes": 8433664,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
     },
     {
       "machine": "ci-linux",
@@ -330,11 +354,11 @@
       "generator": 1,
       "size": 1000,
       "operation": "unresolved",
-      "median_ms": 11.383829,
-      "peak_rss_bytes": 6860800,
-      "index_bytes": 7639040,
-      "commit": "95f78dd",
-      "recorded_at": 1790213595
+      "median_ms": 6.518313,
+      "peak_rss_bytes": 7208960,
+      "index_bytes": 8433664,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
     },
     {
       "machine": "ci-linux",
@@ -342,11 +366,11 @@
       "generator": 1,
       "size": 10000,
       "operation": "fresh_index",
-      "median_ms": 8219.291816,
-      "peak_rss_bytes": 13754368,
-      "index_bytes": 74723328,
-      "commit": "95f78dd",
-      "recorded_at": 1790213634
+      "median_ms": 4770.938861,
+      "peak_rss_bytes": 15671296,
+      "index_bytes": 77111296,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
     },
     {
       "machine": "ci-linux",
@@ -354,11 +378,11 @@
       "generator": 1,
       "size": 10000,
       "operation": "index_unchanged",
-      "median_ms": 379.408458,
-      "peak_rss_bytes": 13221888,
-      "index_bytes": 74723328,
-      "commit": "95f78dd",
-      "recorded_at": 1790213634
+      "median_ms": 206.276709,
+      "peak_rss_bytes": 13066240,
+      "index_bytes": 77111296,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
     },
     {
       "machine": "ci-linux",
@@ -366,11 +390,35 @@
       "generator": 1,
       "size": 10000,
       "operation": "index_changed",
-      "median_ms": 489.589975,
-      "peak_rss_bytes": 13959168,
-      "index_bytes": 74838016,
-      "commit": "95f78dd",
-      "recorded_at": 1790213634
+      "median_ms": 254.847656,
+      "peak_rss_bytes": 14614528,
+      "index_bytes": 77238272,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
+    },
+    {
+      "machine": "ci-linux",
+      "os": "linux",
+      "generator": 1,
+      "size": 10000,
+      "operation": "watch_batch_walk",
+      "median_ms": 189.506509,
+      "peak_rss_bytes": 14794752,
+      "index_bytes": 78458880,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
+    },
+    {
+      "machine": "ci-linux",
+      "os": "linux",
+      "generator": 1,
+      "size": 10000,
+      "operation": "watch_batch",
+      "median_ms": 114.558848,
+      "peak_rss_bytes": 13025280,
+      "index_bytes": 78458880,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
     },
     {
       "machine": "ci-linux",
@@ -378,11 +426,11 @@
       "generator": 1,
       "size": 10000,
       "operation": "search_common",
-      "median_ms": 14.163369,
-      "peak_rss_bytes": 6627328,
-      "index_bytes": 74838016,
-      "commit": "95f78dd",
-      "recorded_at": 1790213634
+      "median_ms": 9.946368,
+      "peak_rss_bytes": 7786496,
+      "index_bytes": 78458880,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
     },
     {
       "machine": "ci-linux",
@@ -390,11 +438,11 @@
       "generator": 1,
       "size": 10000,
       "operation": "search_rare",
-      "median_ms": 0.823491,
-      "peak_rss_bytes": 5775360,
-      "index_bytes": 74838016,
-      "commit": "95f78dd",
-      "recorded_at": 1790213634
+      "median_ms": 0.730312,
+      "peak_rss_bytes": 6303744,
+      "index_bytes": 78458880,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
     },
     {
       "machine": "ci-linux",
@@ -402,11 +450,11 @@
       "generator": 1,
       "size": 10000,
       "operation": "backlinks",
-      "median_ms": 139.889936,
-      "peak_rss_bytes": 7172096,
-      "index_bytes": 74838016,
-      "commit": "95f78dd",
-      "recorded_at": 1790213634
+      "median_ms": 79.914103,
+      "peak_rss_bytes": 7786496,
+      "index_bytes": 78458880,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
     },
     {
       "machine": "ci-linux",
@@ -414,11 +462,11 @@
       "generator": 1,
       "size": 10000,
       "operation": "unresolved",
-      "median_ms": 146.38245,
-      "peak_rss_bytes": 8777728,
-      "index_bytes": 74838016,
-      "commit": "95f78dd",
-      "recorded_at": 1790213634
+      "median_ms": 82.211692,
+      "peak_rss_bytes": 8982528,
+      "index_bytes": 78458880,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
     },
     {
       "machine": "ci-linux",
@@ -426,11 +474,11 @@
       "generator": 1,
       "size": 50000,
       "operation": "fresh_index",
-      "median_ms": 50188.824145,
-      "peak_rss_bytes": 35803136,
-      "index_bytes": 373854208,
-      "commit": "95f78dd",
-      "recorded_at": 1790213884
+      "median_ms": 35956.804191,
+      "peak_rss_bytes": 41639936,
+      "index_bytes": 385548288,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
     },
     {
       "machine": "ci-linux",
@@ -438,11 +486,11 @@
       "generator": 1,
       "size": 50000,
       "operation": "index_unchanged",
-      "median_ms": 1910.914109,
-      "peak_rss_bytes": 35151872,
-      "index_bytes": 373854208,
-      "commit": "95f78dd",
-      "recorded_at": 1790213884
+      "median_ms": 1123.200834,
+      "peak_rss_bytes": 37281792,
+      "index_bytes": 385548288,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
     },
     {
       "machine": "ci-linux",
@@ -450,11 +498,35 @@
       "generator": 1,
       "size": 50000,
       "operation": "index_changed",
-      "median_ms": 2579.318153,
-      "peak_rss_bytes": 36655104,
-      "index_bytes": 376016896,
-      "commit": "95f78dd",
-      "recorded_at": 1790213884
+      "median_ms": 1881.609201,
+      "peak_rss_bytes": 37351424,
+      "index_bytes": 386732032,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
+    },
+    {
+      "machine": "ci-linux",
+      "os": "linux",
+      "generator": 1,
+      "size": 50000,
+      "operation": "watch_batch_walk",
+      "median_ms": 1146.972919,
+      "peak_rss_bytes": 40525824,
+      "index_bytes": 387297280,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
+    },
+    {
+      "machine": "ci-linux",
+      "os": "linux",
+      "generator": 1,
+      "size": 50000,
+      "operation": "watch_batch",
+      "median_ms": 812.836763,
+      "peak_rss_bytes": 37937152,
+      "index_bytes": 388296704,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
     },
     {
       "machine": "ci-linux",
@@ -462,11 +534,11 @@
       "generator": 1,
       "size": 50000,
       "operation": "search_common",
-      "median_ms": 65.354717,
-      "peak_rss_bytes": 9515008,
-      "index_bytes": 376016896,
-      "commit": "95f78dd",
-      "recorded_at": 1790213884
+      "median_ms": 45.158485,
+      "peak_rss_bytes": 10276864,
+      "index_bytes": 388296704,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
     },
     {
       "machine": "ci-linux",
@@ -474,11 +546,11 @@
       "generator": 1,
       "size": 50000,
       "operation": "search_rare",
-      "median_ms": 0.957089,
-      "peak_rss_bytes": 5808128,
-      "index_bytes": 376016896,
-      "commit": "95f78dd",
-      "recorded_at": 1790213884
+      "median_ms": 0.767679,
+      "peak_rss_bytes": 6352896,
+      "index_bytes": 388296704,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
     },
     {
       "machine": "ci-linux",
@@ -486,11 +558,11 @@
       "generator": 1,
       "size": 50000,
       "operation": "backlinks",
-      "median_ms": 906.15324,
-      "peak_rss_bytes": 7331840,
-      "index_bytes": 376016896,
-      "commit": "95f78dd",
-      "recorded_at": 1790213884
+      "median_ms": 510.340092,
+      "peak_rss_bytes": 7847936,
+      "index_bytes": 388296704,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
     },
     {
       "machine": "ci-linux",
@@ -498,11 +570,11 @@
       "generator": 1,
       "size": 50000,
       "operation": "unresolved",
-      "median_ms": 939.764363,
-      "peak_rss_bytes": 13225984,
-      "index_bytes": 376016896,
-      "commit": "95f78dd",
-      "recorded_at": 1790213884
+      "median_ms": 538.265744,
+      "peak_rss_bytes": 13611008,
+      "index_bytes": 388296704,
+      "commit": "1dad5ec",
+      "recorded_at": 1791630341
     }
   ]
 }
