@@ -148,13 +148,10 @@ jobs:
       # links against WebKitGTK on Linux; macOS has WebKit built in.
       - name: WebKitGTK for the Tauri shell
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
-      # The server is not built for Windows (ADR 0075 item 2: Docker,
-      # CasaOS, .deb/.rpm), and its passkeys' OpenSSL has no build there:
-      # the workspace without it, as verso-cli leaves it out on Windows.
       - name: cargo clippy -D warnings
-        run: cargo clippy --workspace --exclude verso-server --all-targets --all-features --locked -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
       - name: cargo test
-        run: cargo test --workspace --exclude verso-server --all-features --locked
+        run: cargo test --workspace --all-features --locked
       # Phase 2 guardrail: the TypeScript bindings committed in
       # app/ui/src/bindings.ts must be exactly what the Rust contract and
       # commands generate; otherwise rule 3 (ADR 0026) is a convention. The
@@ -215,10 +212,13 @@ jobs:
       # As on macOS: an empty page stands in for the UI bundle.
       - name: a stand-in for the UI bundle
         run: mkdir -p app/ui/dist && printf '<!doctype html><title>Verso</title>\n' > app/ui/dist/index.html
+      # The server is not built for Windows (ADR 0075 item 2: Docker,
+      # CasaOS, .deb/.rpm), and its passkeys' OpenSSL has no build there:
+      # the workspace without it, as verso-cli leaves it out on Windows.
       - name: cargo clippy -D warnings
-        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+        run: cargo clippy --workspace --exclude verso-server --all-targets --all-features --locked -- -D warnings
       - name: cargo test
-        run: cargo test --workspace --all-features --locked
+        run: cargo test --workspace --exclude verso-server --all-features --locked
 
   fuzz:
     # Feature guardrail of Phase 1, feature 1 (ADR 0029). After each merge,
