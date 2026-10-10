@@ -88,6 +88,8 @@ export async function showFolder(info: FolderInfo): Promise<void> {
   }
   ui.folder.textContent = info.name;
   nameFolderButton();
+  // What follows the window's folder hears it changed (its sync's state).
+  dispatchEvent(new Event("verso:folder-shown"));
   const i = info.index ?? { indexed: 0, unchanged: 0, placeholders: 0, removed: 0, problems: [], unwatched: null, unindexed: null };
   ui.status.textContent = t.indexed(i.indexed, i.unchanged, i.placeholders);
   setShownProblems("");

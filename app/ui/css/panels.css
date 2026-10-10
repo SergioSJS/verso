@@ -548,6 +548,19 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .prop.fixed .prop-input:disabled { color: var(--ink-2); background: none; cursor: default; }
 .prop.fixed .pill-label { cursor: default; }
 
+/* ---------- A folder's sync with a server (dialogs/sync.ts, ADR 0079) ---------- */
+.sync-state { margin: 0; font-size: .85rem; color: var(--ink-2); }
+.sync-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin: .4rem 0 .8rem; }
+.sync-space { margin: .2rem 0 .8rem; }
+.sync-deletions { margin: .6rem 0 1rem; padding: .7rem .9rem; border-radius: 6px; background: var(--seal-wash); }
+.sync-deletions p { margin: 0 0 .6rem; font-size: .85rem; line-height: 1.5; }
+.sync h3 { margin: 1.1rem 0 .3rem; font-size: .8rem; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
+.sync ul { margin: .2rem 0; padding-left: 1.1rem; font-size: .82rem; line-height: 1.55; overflow-wrap: anywhere; }
+.sync time { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.sync-conflict { margin: .3rem 0; }
+.sync-conflict summary { cursor: pointer; font-size: .85rem; overflow-wrap: anywhere; }
+.sync-conflict-body { padding: .4rem 0 .2rem 1rem; }
+
 /* A phone: the sections become a row above the page, scrolled sideways. */
 @media (max-width: 760px) {
   .settings-box { flex-direction: column; width: 100vw; height: 100dvh; border-radius: 0; border: 0; }
