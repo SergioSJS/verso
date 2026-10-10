@@ -547,6 +547,109 @@ fn a_rename_of_the_case_alone_crosses() {
     assert!(status.refused.is_empty(), "{status:?}");
 }
 
+/// Five notes, one of them `Bem-vindo.md`, on two devices of this computer
+/// in step with the server.
+fn two_in_step() -> (Running, Device, Device) {
+    let r = serve(&[]);
+    let a = device(
+        &r,
+        &r.owner,
+        &[
+            ("Bem-vindo.md", "# v1\n"),
+            ("Outra.md", "# Outra\n"),
+            ("Mais.md", "# Mais\n"),
+            ("Ainda.md", "# Ainda\n"),
+            ("Fim.md", "# Fim\n"),
+        ],
+    );
+    sync(&a);
+    let b = device(&r, &r.owner, &[]);
+    sync(&b);
+    (r, a, b)
+}
+
+/// The listing as a fresh walk spells it.
+fn spelled(d: &Device) -> Vec<String> {
+    changed(d, &[]);
+    files(d)
+}
+
+/// Nothing more to do on either device, and nothing refused.
+fn quiet(a: &Device, b: &Device) {
+    for d in [a, b] {
+        changed(d, &[]);
+        assert_eq!(sync(d).actions, 0);
+        let status = lock(&d.shown).last().cloned().unwrap();
+        assert!(status.refused.is_empty(), "{status:?}");
+        assert!(status.conflicts.is_empty(), "{status:?}");
+    }
+}
+
+/// A name respelled on one device while the file was edited on the other
+/// (found by the test plan's reading, 2026-10-10): where names fold, the
+/// two spellings are one file; the edit wins, and every side ends with one
+/// file of one spelling — never a fetch and a send refused on every pass.
+#[cfg(target_os = "macos")]
+#[test]
+fn a_respelling_here_yields_to_an_edit_there() {
+    let (_r, a, b) = two_in_step();
+    a.ctx
+        .service
+        .with_key(&a.key, |ws| {
+            Ok(ws
+                .rename_entry("Bem-vindo.md", "bem-vindo.md")
+                .map(|_| ())?)
+        })
+        .unwrap();
+    write(&b, "Bem-vindo.md", b"# v2\n");
+    sync(&b);
+    changed(&a, &["Bem-vindo.md", "bem-vindo.md"]);
+    sync(&a);
+    assert_eq!(text(&a, "Bem-vindo.md").as_deref(), Some("# v2\n"));
+    assert!(
+        spelled(&a).contains(&"Bem-vindo.md".to_owned()),
+        "{:?}",
+        files(&a)
+    );
+    quiet(&a, &b);
+    assert!(
+        spelled(&b).contains(&"Bem-vindo.md".to_owned()),
+        "{:?}",
+        files(&b)
+    );
+}
+
+/// The reversed order: the respelling reached the server first, and the
+/// other device, its base still the old spelling, had edited the file —
+/// both the new spelling and the edit are kept.
+#[cfg(target_os = "macos")]
+#[test]
+fn a_respelling_there_and_an_edit_here_are_both_kept() {
+    let (_r, a, b) = two_in_step();
+    a.ctx
+        .service
+        .with_key(&a.key, |ws| {
+            Ok(ws
+                .rename_entry("Bem-vindo.md", "bem-vindo.md")
+                .map(|_| ())?)
+        })
+        .unwrap();
+    changed(&a, &["Bem-vindo.md", "bem-vindo.md"]);
+    sync(&a);
+    write(&b, "Bem-vindo.md", b"# v2\n");
+    sync(&b);
+    assert!(
+        spelled(&b).contains(&"bem-vindo.md".to_owned()),
+        "{:?}",
+        files(&b)
+    );
+    changed(&a, &[]);
+    sync(&a);
+    assert_eq!(text(&a, "bem-vindo.md").as_deref(), Some("# v2\n"));
+    quiet(&a, &b);
+    assert_eq!(text(&b, "bem-vindo.md").as_deref(), Some("# v2\n"));
+}
+
 /// A folder moved on one device: on the other, its notes arrive at the new
 /// place and the old folders, emptied, go too — nothing empty is left
 /// behind (found with two installed apps, 2026-10-10).

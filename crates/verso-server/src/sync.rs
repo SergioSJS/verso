@@ -336,6 +336,7 @@ fn record_changes(
 /// lock is held by the caller.
 /// What the caller knows of a path it changed: nothing (it is read), the
 /// bytes it wrote (their hash and size), or that it is gone.
+#[derive(Clone)]
 enum Now {
     Read,
     Written(String, i64),
@@ -349,6 +350,13 @@ fn reconcile_paths(
     actor: Option<&str>,
     paths: &[(String, Now)],
 ) -> Result<i64, ContractError> {
+    let spelled;
+    let paths = if verso_core::sync::FOLDS_NAMES {
+        spelled = as_spelled(server, key, paths)?;
+        spelled.as_slice()
+    } else {
+        paths
+    };
     let mut known: HashMap<String, crate::db::Known> = HashMap::new();
     for (p, _) in paths {
         if let Some(k) = server.db.known(folder, p).map_err(verso_service::failed)? {
@@ -395,6 +403,55 @@ fn reconcile_paths(
         .map(|(p, k)| (p.clone(), k.hash.clone()))
         .collect();
     record_changes(server, folder, actor, &known, &gone, created, &quick_only)
+}
+
+/// Where the server's file system folds names: a path written or read
+/// through another spelling of a listed file's name reached that file,
+/// whose name the disk keeps (a write over a file keeps its name) — the log
+/// follows the disk's spelling, and the other spelling, if the log knew
+/// it, is gone. A device that had not yet heard of a respelling sends its
+/// edit under the old one; without this the manifest would hold both.
+fn as_spelled(
+    server: &Server,
+    key: &str,
+    paths: &[(String, Now)],
+) -> Result<Vec<(String, Now)>, ContractError> {
+    let named: Vec<(String, bool)> = paths
+        .iter()
+        .map(|(p, now)| (p.clone(), matches!(now, Now::Gone)))
+        .collect();
+    let gone: HashSet<String> = named
+        .iter()
+        .filter(|(_, g)| *g)
+        .map(|(p, _)| p.clone())
+        .collect();
+    let disk: Vec<Option<String>> = server.service.with_key(key, move |ws| {
+        let entries = ws.entries();
+        Ok(named
+            .iter()
+            .map(|(p, is_gone)| {
+                if *is_gone || entries.iter().any(|e| &e.path == p) {
+                    return None;
+                }
+                let k = verso_core::sync::folded(p);
+                entries
+                    .iter()
+                    .find(|e| verso_core::sync::folded(&e.path) == k && !gone.contains(&e.path))
+                    .map(|e| e.path.clone())
+            })
+            .collect())
+    })?;
+    let mut out = Vec::with_capacity(paths.len());
+    for ((path, now), on_disk) in paths.iter().zip(disk) {
+        match on_disk {
+            Some(d) => {
+                out.push((d, now.clone()));
+                out.push((path.clone(), Now::Gone));
+            }
+            None => out.push((path.clone(), now.clone())),
+        }
+    }
+    Ok(out)
 }
 
 /// [`reconcile_written`] for the folder behind a key the server opened: a

@@ -336,3 +336,58 @@ fn a_name_taken_but_for_its_case_is_said_as_such() {
         assert_eq!(twin["err"]["kind"], "exists", "{twin}");
     });
 }
+
+/// On a file system that folds names, a device that has not yet heard of a
+/// respelling sends its edit under the old spelling: the write lands on
+/// the file the disk keeps under the new one, and the log follows the
+/// disk's spelling — one file, never two spellings of it in the manifest.
+#[cfg(any(target_os = "macos", windows))]
+#[test]
+fn a_write_through_another_spelling_keeps_one_entry_in_the_log() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let mut ws = opened(&r, &admin).await;
+        // The folder walked now: the next walk is a minute away, and the
+        // log is as the writes keep it.
+        call(&mut ws, 5, "sync_state", json!({})).await;
+        let first = send(&mut ws, 10, "Receita.md", b"# v1\n", None).await;
+        assert_eq!(first["ok"]["done"], true, "{first}");
+        call(&mut ws, 20, "reindex", json!({})).await;
+        let renamed = call(
+            &mut ws,
+            21,
+            "sync_rename",
+            json!({ "from": "Receita.md", "to": "receita.md", "base": sha256(b"# v1\n") }),
+        )
+        .await;
+        assert!(renamed.get("ok").is_some(), "{renamed}");
+        let late = send(
+            &mut ws,
+            30,
+            "Receita.md",
+            b"# v2\n",
+            Some(&sha256(b"# v1\n")),
+        )
+        .await;
+        assert_eq!(late["ok"]["done"], true, "{late}");
+        let state = call(&mut ws, 40, "sync_state", json!({})).await;
+        let spellings: Vec<(String, String)> = state["ok"]["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|f| f["path"].as_str().unwrap().to_lowercase() == "receita.md")
+            .map(|f| {
+                (
+                    f["path"].as_str().unwrap().to_owned(),
+                    f["hash"].as_str().unwrap().to_owned(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            spellings,
+            vec![("receita.md".to_owned(), sha256(b"# v2\n"))],
+            "{state}"
+        );
+    });
+}
