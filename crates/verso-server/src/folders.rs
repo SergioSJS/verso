@@ -143,12 +143,28 @@ pub async fn remove_member(
 ) -> ApiResult<Response> {
     ctx.changes()?;
     let who = ctx.person()?;
+    // Named by id or by e-mail, as granting is.
+    let named = match ctx.server.db.account(&account)? {
+        Some(a) => Some(a.id),
+        None => ctx.server.db.account_by_email(&account)?.map(|a| a.id),
+    };
     // An owner removes anyone; a member may leave.
-    if account != who.account.id {
+    if named.as_deref() != Some(who.account.id.as_str()) {
         crate::access::at_least(&ctx.server, who, &id, Role::Owner)?;
     } else {
         crate::access::role(&ctx.server, who, &id)?;
     }
+    // One that is not a member is said, never answered as done.
+    let account = match named {
+        Some(a) if ctx.server.db.role(&id, &a)?.is_some() => a,
+        _ => {
+            return Err(ApiError::new(
+                axum::http::StatusCode::NOT_FOUND,
+                "not_member",
+                "that account is not a member of this folder",
+            ));
+        }
+    };
     if last_owner(&ctx, &id, &account)? {
         return Err(ApiError::bad("last_owner", "a folder keeps an owner"));
     }

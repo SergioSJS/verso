@@ -273,6 +273,24 @@ fn a_reader_syncs_to_read_and_the_quota_holds_for_sync() {
         assert!(state.get("ok").is_some(), "{state}");
         let refused = send(&mut ws, 3, "x.md", b"x", None).await;
         assert_eq!(refused["err"]["kind"], "refused", "{refused}");
+        // Removed by e-mail, as granted: their connection is told the
+        // folder is gone, and removing them again is said, not done.
+        let gone = remove(
+            &r,
+            &format!("/api/folders/{id}/members/leitor@casa.lan"),
+            &admin,
+        )
+        .await;
+        assert_eq!(gone, 200);
+        let told = next(&mut ws).await;
+        assert_eq!(told["gone"], "folder", "{told}");
+        let again = remove(
+            &r,
+            &format!("/api/folders/{id}/members/leitor@casa.lan"),
+            &admin,
+        )
+        .await;
+        assert_eq!(again, 404);
         // The admin's device under a quota.
         put(
             &r,
@@ -285,4 +303,17 @@ fn a_reader_syncs_to_read_and_the_quota_holds_for_sync() {
         let over = send(&mut mine, 10, "grande.md", &[b'a'; 500], None).await;
         assert_eq!(over["err"]["kind"], "quota", "{over}");
     });
+}
+
+async fn remove(r: &crate::tests::Running, path: &str, b: &crate::tests::Browser) -> u16 {
+    reqwest::Client::new()
+        .delete(r.url(path))
+        .header("origin", r.origin())
+        .header("cookie", &b.cookie)
+        .header("x-verso-csrf", &b.csrf)
+        .send()
+        .await
+        .unwrap()
+        .status()
+        .as_u16()
 }
