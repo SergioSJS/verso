@@ -15,6 +15,34 @@ use tauri::webview::InvokeRequest;
 use super::*;
 use crate::version::ParsedVersion;
 
+/// A window keeps its size on a large screen, and on a small one fits the
+/// work area, centred, never under its minimum: 1180×760 on a 1280×800
+/// screen at 125% (a work area of 1024×592 under the task bar) was taller
+/// than the screen.
+#[test]
+fn a_window_fits_the_screens_work_area() {
+    let main = (1180.0, 760.0);
+    let min = (360.0, 480.0);
+    assert_eq!(fit_to_area(main, min, (0.0, 25.0, 1920.0, 1055.0)), None);
+    assert_eq!(
+        fit_to_area(main, min, (0.0, 0.0, 1024.0, 592.0)),
+        Some((1024.0, 592.0, 0.0, 0.0))
+    );
+    // Only the side that does not fit shrinks, and the window is centred
+    // in what is left: 1280×752 at 100% under a 48 px task bar.
+    assert_eq!(
+        fit_to_area(main, min, (0.0, 0.0, 1280.0, 752.0)),
+        Some((1180.0, 752.0, 50.0, 0.0))
+    );
+    // A work area below the minimum keeps the minimum.
+    assert_eq!(
+        fit_to_area(main, min, (0.0, 0.0, 800.0, 400.0)),
+        Some((800.0, 480.0, 0.0, 0.0))
+    );
+    // A screen that says nothing changes nothing.
+    assert_eq!(fit_to_area(main, min, (0.0, 0.0, 0.0, 0.0)), None);
+}
+
 /// What the install hands the shell and AppleScript stays one word and
 /// one string, whatever the app's path holds — a space in "Verso Beta",
 /// a quote someone put in a folder's name.
