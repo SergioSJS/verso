@@ -443,6 +443,8 @@ pub(crate) enum Heard {
     Event(String, Value),
     /// The server ended something (`gone`): the session, the folder.
     Gone(Value),
+    /// The account's role in the folder changed: `owner`, `editor`, `reader`.
+    Role(String),
     /// The connection closed.
     Closed,
 }
@@ -516,6 +518,8 @@ pub(crate) async fn dial(
                 }
             } else if m.get("gone").is_some() {
                 let _ = heard_tx.send(Heard::Gone(m["gone"].clone()));
+            } else if let Some(role) = m["role"].as_str() {
+                let _ = heard_tx.send(Heard::Role(role.to_owned()));
             }
         }
         // The connection closed: every question waiting is unanswered.
@@ -572,6 +576,10 @@ async fn connect<R: tauri::Runtime>(
                         json!({ "url": url_r, "what": what }),
                     );
                 }
+                // A window on a server's folder asks its capabilities
+                // again when it reconnects; the role is the server's to
+                // enforce meanwhile.
+                Heard::Role(_) => {}
                 Heard::Closed => break,
             }
         }
