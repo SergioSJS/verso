@@ -616,11 +616,6 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
                 return Err(e);
             }
             Err(Refusal::File(path, reason, message)) => {
-                log::write(
-                    "WARN",
-                    "sync",
-                    &format!("not synced: {path} ({reason}: {message})"),
-                );
                 apart.insert(
                     path.clone(),
                     SyncRefused {
@@ -644,11 +639,6 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
                     lock(&s.dirty).insert(path);
                     s.poke();
                 } else {
-                    log::write(
-                        "WARN",
-                        "sync",
-                        &format!("not synced: {path} (changed: {message})"),
-                    );
                     apart.insert(
                         path.clone(),
                         SyncRefused {
@@ -695,6 +685,21 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
         st.sending = 0;
         st.receiving = 0;
         st.conflicts = conflicts;
+        // Each file left out goes to the log once, when it first is.
+        let before: HashSet<(String, String)> = st
+            .refused
+            .iter()
+            .map(|f| (f.path.clone(), f.reason.clone()))
+            .collect();
+        for f in apart.values() {
+            if !before.contains(&(f.path.clone(), f.reason.clone())) {
+                log::write(
+                    "WARN",
+                    "sync",
+                    &format!("not synced: {} ({}: {})", f.path, f.reason, f.message),
+                );
+            }
+        }
         st.refused = apart.into_values().collect();
         st.last = Some(log::now());
     });
@@ -1129,6 +1134,13 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
                     () = tokio::time::sleep_until(deadline) => break false,
                     h = l.heard.recv() => match h {
                         Some(remote::Heard::Event(e, _)) if e == "sync-changed" => break false,
+                        // Promoted or made a reader: what may cross changes now.
+                        Some(remote::Heard::Role(role)) => {
+                            log::write("INFO", "sync", &format!("role in the server's folder: {role}"));
+                            s.set(&ctx, |st| st.role.clone_from(&role));
+                            l.role = role;
+                            break false;
+                        }
                         Some(remote::Heard::Event(..)) => {}
                         _ => break true,
                     },
