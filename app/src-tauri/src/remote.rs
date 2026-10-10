@@ -225,15 +225,10 @@ fn open_in_browser(page: &str) -> Result<(), ContractError> {
 }
 
 /// This computer's name, for the server's list of sessions.
+/// The same name a conflict's copy carries, so that a person matches the
+/// two (`sync::host_name`).
 pub(crate) fn device_name() -> String {
-    let host = std::env::var("HOSTNAME")
-        .or_else(|_| std::env::var("COMPUTERNAME"))
-        .unwrap_or_default();
-    if host.is_empty() {
-        format!("Verso · {}", std::env::consts::OS)
-    } else {
-        format!("Verso · {host}")
-    }
+    format!("Verso · {}", super::sync::host_name())
 }
 
 /// Sign in to a server through the browser: the server's page opens for the

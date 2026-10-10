@@ -117,6 +117,12 @@ async fn ask(token: Option<&str>) -> Result<Vec<Release>, String> {
         return Err(if status.as_u16() == 404 && token.is_none() {
             "the release feed answered 404: a private repository needs VERSO_UPDATE_TOKEN"
                 .to_owned()
+        } else if matches!(status.as_u16(), 403 | 429) && token.is_none() {
+            // GitHub limits questions without a token by address: a
+            // server restarted often, or behind a shared address, meets it.
+            format!(
+                "the release feed answered {status}: too many checks without a token from this address; it is asked again later, or set VERSO_UPDATE_TOKEN"
+            )
         } else {
             format!("the release feed answered {status}")
         });

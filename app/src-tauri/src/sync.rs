@@ -1098,6 +1098,16 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
             }
             Err(e) => {
                 let offline = e.kind == ErrorKind::Unavailable;
+                // Said once per state, not on every try.
+                let was = lock(&s.status).state.clone();
+                let now = if offline { "offline" } else { "error" };
+                if was != now {
+                    log::write(
+                        if offline { "WARN" } else { "ERROR" },
+                        "sync",
+                        &format!("{now}: folder {}: {}", s.key, e.message),
+                    );
+                }
                 s.set(&ctx, |st| {
                     st.state = if offline { "offline" } else { "error" }.to_owned();
                     st.message = Some(e.message.clone());
@@ -1163,6 +1173,11 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
             tokio::time::sleep(Duration::from_millis(500)).await;
         }
         if !gone(&s) {
+            log::write(
+                "WARN",
+                "sync",
+                &format!("offline: folder {}: the connection closed", s.key),
+            );
             s.set(&ctx, |st| st.state = "offline".to_owned());
         }
     }
