@@ -52,6 +52,10 @@ pub struct Server {
     /// The folder's id behind each folder key the server opened: the
     /// quotas are the folder's, the writes know its key (ADR 0077).
     pub keys: Mutex<HashMap<String, String>>,
+    /// One opening at a time per folder key: clients that open a folder
+    /// nobody has open yet, at once, wait for the first and join it,
+    /// instead of each walking the folder and opening its index.
+    pub opening: Mutex<HashMap<String, Arc<Mutex<()>>>>,
     /// Files on their way in pieces, for sync (ADR 0079 item 12).
     pub transfers: crate::sync::Transfers,
     pub rooms: crate::collab::Rooms,
@@ -81,6 +85,7 @@ impl Server {
             newer: Mutex::new(None),
             commit,
             keys: Mutex::new(HashMap::new()),
+            opening: Mutex::new(HashMap::new()),
             transfers: crate::sync::Transfers::default(),
             rooms: crate::collab::Rooms::default(),
             ceremonies: crate::passkeys::Ceremonies::default(),

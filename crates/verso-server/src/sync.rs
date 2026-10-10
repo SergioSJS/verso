@@ -84,7 +84,7 @@ const WALK_EVERY: Duration = Duration::from_secs(60);
 /// wrote, then deleted on its disk, has been seen to go unreported on
 /// macOS — is found by the device's next question, its five-minute scan
 /// at the latest (ADR 0079 item 6).
-fn walk_if_due(server: &Server, folder: &str, client: &str) {
+fn walk_if_due(server: &Server, folder: &str, client: &str) -> bool {
     let due = {
         let mut walked = lock(&server.transfers.walked);
         let due = walked.get(folder).is_none_or(|t| t.elapsed() >= WALK_EVERY);
@@ -95,6 +95,25 @@ fn walk_if_due(server: &Server, folder: &str, client: &str) {
     };
     if due && let Err(e) = server.service.reindex(client) {
         crate::log::warn(&format!("sync: walking a folder again: {}", e.message));
+    }
+    due
+}
+
+/// The folder's head for a device's question: reconciled with the whole
+/// folder when it was just walked (at most once a minute, and the first
+/// question after the server started), else the log as every write path
+/// keeps it — each change through the server reconciles its own paths,
+/// and the watcher's batches the rest.
+fn head_for_question(
+    server: &Server,
+    folder: &str,
+    key: &str,
+    client: &str,
+) -> Result<i64, ContractError> {
+    if walk_if_due(server, folder, client) {
+        reconcile(server, folder, key, None, &[])
+    } else {
+        server.db.head(folder).map_err(verso_service::failed)
     }
 }
 
@@ -262,11 +281,26 @@ fn reconcile_held(
         .filter(|(p, _)| !present.contains(p.as_str()))
         .map(|(p, k)| (p.clone(), k.hash.clone()))
         .collect();
+    record_changes(server, folder, actor, &known, &gone, created, &quick_only)
+}
+
+/// Record what a reconciliation found — the files gone, the files new or
+/// changed (a new one of the same bytes as one gone is a rename), the
+/// quick keys refreshed — and tell the devices on the folder the new head.
+fn record_changes(
+    server: &Server,
+    folder: &str,
+    actor: Option<&str>,
+    known: &HashMap<String, crate::db::Known>,
+    gone: &[(String, String)],
+    created: Vec<(String, String, i64, String)>,
+    quick_only: &[(String, String)],
+) -> Result<i64, ContractError> {
     // A file gone and one new of the same bytes: a rename, kept as the
     // deletion then the new file naming the old path.
     let mut changes: Vec<crate::db::Recorded> = Vec::new();
     let mut taken: HashSet<String> = HashSet::new();
-    for (path, _) in &gone {
+    for (path, _) in gone {
         changes.push((path.clone(), None, None));
     }
     for (path, hash, size, quick) in created {
@@ -284,8 +318,8 @@ fn reconcile_held(
     }
     let head = server
         .db
-        .record(folder, actor, &changes, &quick_only)
-        .map_err(fail)?;
+        .record(folder, actor, &changes, quick_only)
+        .map_err(verso_service::failed)?;
     if !changes.is_empty() {
         server.push_folder(
             folder,
@@ -293,6 +327,103 @@ fn reconcile_held(
         );
     }
     Ok(head)
+}
+
+/// Bring the folder's log up to date with `paths` alone — the files a
+/// change through the server just wrote, deleted or renamed, which the
+/// caller knows — without walking the rest of the folder: a device's
+/// write costs the paths it touched, not the folder's size. The folder's
+/// lock is held by the caller.
+/// What the caller knows of a path it changed: nothing (it is read), the
+/// bytes it wrote (their hash and size), or that it is gone.
+enum Now {
+    Read,
+    Written(String, i64),
+    Gone,
+}
+
+fn reconcile_paths(
+    server: &Server,
+    folder: &str,
+    key: &str,
+    actor: Option<&str>,
+    paths: &[(String, Now)],
+) -> Result<i64, ContractError> {
+    let mut known: HashMap<String, crate::db::Known> = HashMap::new();
+    for (p, _) in paths {
+        if let Some(k) = server.db.known(folder, p).map_err(verso_service::failed)? {
+            known.insert(p.clone(), k);
+        }
+    }
+    let mut present: HashSet<String> = HashSet::new();
+    let mut created = Vec::new();
+    let mut quick_only = Vec::new();
+    for (path, now) in paths {
+        let (hash, size) = match now {
+            Now::Gone => continue,
+            Now::Written(hash, size) => (hash.clone(), *size),
+            Now::Read => {
+                let p = path.clone();
+                let read = server
+                    .service
+                    .with_key(key, move |ws| Ok(ws.read_with_revision(&p)?));
+                match read {
+                    Ok((bytes, _)) => (
+                        sha256(&bytes),
+                        i64::try_from(bytes.len()).unwrap_or(i64::MAX),
+                    ),
+                    Err(e) if e.kind == ErrorKind::NotFound => continue,
+                    // A placeholder or a file not readable now: as it was.
+                    Err(_) => {
+                        present.insert(path.clone());
+                        continue;
+                    }
+                }
+            }
+        };
+        present.insert(path.clone());
+        let quick = format!("{size}:0");
+        if known.get(path).is_some_and(|k| k.hash == hash) {
+            quick_only.push((path.clone(), quick));
+        } else {
+            created.push((path.clone(), hash, size, quick));
+        }
+    }
+    let gone: Vec<(String, String)> = known
+        .iter()
+        .filter(|(p, _)| !present.contains(p.as_str()))
+        .map(|(p, k)| (p.clone(), k.hash.clone()))
+        .collect();
+    record_changes(server, folder, actor, &known, &gone, created, &quick_only)
+}
+
+/// [`reconcile_written`] for the folder behind a key the server opened: a
+/// room's save, whose one path is known.
+pub fn reconcile_saved(server: &Server, key: &str, path: &str) {
+    let folder = lock(&server.keys).get(key).cloned();
+    if let Some(folder) = folder
+        && let Err(e) = reconcile_written(server, &folder, key, None, &[path.to_owned()])
+    {
+        crate::log::warn(&format!(
+            "keeping a folder's changes for sync: {}",
+            e.message
+        ));
+    }
+}
+
+/// The same, for the paths of a change made through the server, under the
+/// folder's lock.
+pub fn reconcile_written(
+    server: &Server,
+    folder: &str,
+    key: &str,
+    actor: Option<&str>,
+    paths: &[String],
+) -> Result<i64, ContractError> {
+    let one = one_at_a_time(server, folder);
+    let _only = lock(&one);
+    let read: Vec<(String, Now)> = paths.iter().map(|p| (p.clone(), Now::Read)).collect();
+    reconcile_paths(server, folder, key, actor, &read)
 }
 
 /// The same, for the folder behind a key the server opened.
@@ -364,8 +495,7 @@ pub async fn command(
     let args = args.clone();
     let answer = blocking(move || match cmd.as_str() {
         "sync_state" => {
-            walk_if_due(&s, &folder, &c);
-            let head = reconcile(&s, &folder, &key, None, &[])?;
+            let head = head_for_question(&s, &folder, &key, &c)?;
             let files: Vec<Value> =
                 s.db.manifest(&folder)
                     .map_err(verso_service::failed)?
@@ -376,8 +506,7 @@ pub async fn command(
         }
         "sync_changes" => {
             let since: i64 = arg(&args, "since")?;
-            walk_if_due(&s, &folder, &c);
-            let head = reconcile(&s, &folder, &key, None, &[])?;
+            let head = head_for_question(&s, &folder, &key, &c)?;
             let changes =
                 s.db.changes_since(&folder, since, 1000)
                     .map_err(verso_service::failed)?;
@@ -400,7 +529,13 @@ pub async fn command(
                     ws.prune_empty_parents(&p);
                     Ok(())
                 })?;
-                reconcile_held(&s, &folder, &key, Some(&actor), std::slice::from_ref(&path))?
+                reconcile_paths(
+                    &s,
+                    &folder,
+                    &key,
+                    Some(&actor),
+                    &[(path.clone(), Now::Gone)],
+                )?
             };
             // Outside the folder's lock: a room takes its own lock first.
             told(&s, &key, &[], std::slice::from_ref(&path));
@@ -426,8 +561,13 @@ pub async fn command(
                 ws.prune_empty_parents(&f);
                 Ok(())
             })?;
-            let head =
-                reconcile_held(&s, &folder, &key, Some(&actor), &[from.clone(), to.clone()])?;
+            let head = reconcile_paths(
+                &s,
+                &folder,
+                &key,
+                Some(&actor),
+                &[(from.clone(), Now::Gone), (to.clone(), Now::Read)],
+            )?;
             drop(only);
             told(
                 &s,
@@ -646,12 +786,15 @@ fn put(
                 .write_bytes(&p, &bytes, revision.as_deref())
                 .map(|_| ())?)
         })?;
-        reconcile_held(
+        reconcile_paths(
             server,
             folder,
             key,
             Some(actor),
-            std::slice::from_ref(&path),
+            &[(
+                path.clone(),
+                Now::Written(hash.clone(), i64::try_from(size).unwrap_or(i64::MAX)),
+            )],
         )?
     };
     told(server, key, std::slice::from_ref(&path), &[]);
