@@ -557,13 +557,20 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
     let mut state = synced(ctx.config.as_deref(), &s.key).unwrap_or_default();
     state.server.clone_from(&s.url);
     state.folder.clone_from(&s.folder);
-    let (local, mut apart) = tokio::task::block_in_place(|| here(ctx, s, &mut state))?;
+    let (mut local, mut apart) = tokio::task::block_in_place(|| here(ctx, s, &mut state))?;
     let pt = (ctx.pt)();
     let when = chrono::Local::now().format("%Y-%m-%d %H.%M").to_string();
     let copy_name =
         |p: &str, taken: &BTreeSet<String>| engine::conflict_name(p, &ctx.device, &when, pt, taken);
     // A yes counts for the deletions the person saw, no more, and once.
-    let mut plan = engine::plan(&local, remote_files, &state, false, &copy_name);
+    let mut plan = engine::plan(
+        &local,
+        remote_files,
+        &state,
+        false,
+        engine::FOLDS_NAMES,
+        &copy_name,
+    );
     let yes = s.confirmed.swap(0, Ordering::Relaxed);
     if plan.pause.is_some_and(|n| n <= yes) {
         plan.pause = None;
@@ -593,7 +600,6 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
         s,
         remote: &remote,
         reader,
-        local: &local,
     };
     let (mut sending, mut receiving) = (0_u32, 0_u32);
     for a in &plan.actions {
@@ -617,6 +623,10 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
         st.deletions = None;
     });
     let mut done = 0;
+    // Paths a step of this pass could not carry out: a later step on the
+    // same file — a fetch after the respelling it needed — waits for the
+    // next pass.
+    let mut stuck: HashSet<String> = HashSet::new();
     for action in plan.actions {
         if s.stopped() || s.paused.load(Ordering::Relaxed) {
             break;
@@ -633,10 +643,19 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
             Action::Conflict { path, copy, .. } => vec![path, copy],
         };
         // Nothing is done to a file held apart (a placeholder, unreadable).
-        if touches.iter().any(|p| apart.contains_key(*p)) {
+        if touches
+            .iter()
+            .any(|p| apart.contains_key(*p) || stuck.contains(*p))
+        {
             continue;
         }
-        match on.carry_out(remote_files, &mut state, &action).await {
+        let result = on
+            .carry_out(remote_files, &mut local, &mut state, &action)
+            .await;
+        if result.is_err() {
+            stuck.extend(touches.iter().map(|p| (*p).to_owned()));
+        }
+        match result {
             Ok(()) => {
                 done += 1;
                 let mut again = lock(&s.again);
@@ -944,14 +963,16 @@ struct Side<'a> {
     s: &'a Syncer,
     remote: &'a remote::Remote,
     reader: bool,
-    /// The files here as the pass hashed them.
-    local: &'a Files,
 }
 
 impl Side<'_> {
+    /// One step carried out. `local` is the files here as the pass hashed
+    /// them, kept in step with the pass's own renames: a step after a
+    /// respelling finds the file under its new name.
     async fn carry_out(
         &self,
         remote_files: &mut Files,
+        local: &mut Files,
         state: &mut engine::State,
         action: &Action,
     ) -> Result<(), Refusal> {
@@ -960,9 +981,8 @@ impl Side<'_> {
             s,
             remote,
             reader,
-            local,
         } = *self;
-        let hash_here = |p: &str| local.get(p).map(|f| f.hash.clone());
+        let hash_here = |local: &Files, p: &str| local.get(p).map(|f| f.hash.clone());
         match action {
             Action::Agree { path, hash } => {
                 match hash {
@@ -988,7 +1008,7 @@ impl Side<'_> {
             Action::Download { path, .. } => {
                 let (bytes, hash) = download(remote, path).await?;
                 let size = bytes.len() as u64;
-                write_here(ctx, s, path, bytes, hash_here(path).as_deref())?;
+                write_here(ctx, s, path, bytes, hash_here(local, path).as_deref())?;
                 remote_files.insert(
                     path.clone(),
                     FileState {
@@ -1013,7 +1033,7 @@ impl Side<'_> {
             }
             Action::DeleteLocal { path } => {
                 let p = path.clone();
-                let planned = hash_here(path);
+                let planned = hash_here(local, path);
                 tokio::task::block_in_place(|| {
                     ctx.service.with_key(&s.key, move |ws| {
                         // Only the file the pass saw goes to the bin.
@@ -1065,6 +1085,9 @@ impl Side<'_> {
                 if let Some(b) = state.base.remove(from) {
                     state.base.insert(to.clone(), b);
                 }
+                if let Some(f) = local.remove(from) {
+                    local.insert(to.clone(), f);
+                }
                 state.seen.remove(from);
                 s.crossed(ctx, "renamed_here", to, Some(from));
             }
@@ -1078,6 +1101,9 @@ impl Side<'_> {
                 .map_err(|e| of_here(path, e))?;
                 state.base.remove(path);
                 state.seen.remove(path);
+                if let Some(f) = local.remove(path) {
+                    local.insert(copy.clone(), f);
+                }
                 // …the server's takes the name…
                 let (bytes, hash) = download(remote, path).await?;
                 let size = bytes.len() as u64;

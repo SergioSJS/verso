@@ -21,7 +21,13 @@
 //! - a plan that would delete more than a fifth of the folder's files, or
 //!   more than 50, pauses and asks (item 9);
 //! - a file gone here and a new one of the same bytes since the base, on
-//!   one side, is a rename (item 10).
+//!   one side, is a rename (item 10);
+//! - where this computer's file system folds names (APFS, NTFS), a path
+//!   here and a path there that differ only in case or in their accents'
+//!   form are one file: a respelling here crosses as a rename when the
+//!   server's file is as the base left it; otherwise the server's spelling
+//!   is taken here first and the file is planned as one — its edit wins
+//!   over a respelling, two edits are a conflict.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -109,10 +115,6 @@ pub struct Plan {
     pub pause: Option<usize>,
 }
 
-/// A path as a file system that ignores case and Unicode normalization
-/// compares it — APFS, NTFS: `Nota.md`, `nota.md` and `Nota.md` written in
-/// decomposed form are one file there. A path the listing lacks whose
-/// folded form is a listed path's is that file renamed, not a second one.
 /// Whether a path can cross to every system (ADR 0070 item 3): one that
 /// cannot is listed by sync instead of sent, since the server would refuse
 /// it.
@@ -125,6 +127,10 @@ pub fn portable(path: &str) -> bool {
 /// where they do not (Linux), two names differing in case are two files.
 pub const FOLDS_NAMES: bool = cfg!(any(target_os = "macos", windows));
 
+/// A path as a file system that ignores case and Unicode normalization
+/// compares it — APFS, NTFS: `Nota.md`, `nota.md` and `Nota.md` written in
+/// decomposed form are one file there. A path the listing lacks whose
+/// folded form is a listed path's is that file renamed, not a second one.
 #[must_use]
 pub fn folded(path: &str) -> String {
     use unicode_normalization::UnicodeNormalization;
@@ -133,7 +139,8 @@ pub fn folded(path: &str) -> String {
 
 /// The name a conflict's copy takes (item 8): `<stem> (conflict, <device>,
 /// <when>).<ext>`, in the person's language, with characters every system
-/// keeps (ADR 0070 item 3), not one of `taken`.
+/// keeps (ADR 0070 item 3), not one of `taken` — compared as a file system
+/// that folds names compares them, so that every device can hold it.
 #[must_use]
 pub fn conflict_name(
     path: &str,
@@ -175,20 +182,24 @@ pub fn conflict_name(
             format!("{dir}/{name}")
         }
     };
+    let taken: BTreeSet<String> = taken.iter().map(|t| folded(t)).collect();
     let mut n = 1;
-    while taken.contains(&at(n)) {
+    while taken.contains(&folded(&at(n))) {
         n += 1;
     }
     at(n)
 }
 
-/// What the files and the base say to do.
+/// What the files and the base say to do. `folds`: whether this
+/// computer's file system takes two names differing only in case or in
+/// their accents' form for one ([`FOLDS_NAMES`]).
 #[must_use]
 pub fn plan(
     local: &Files,
     remote: &Files,
     state: &State,
     confirmed: bool,
+    folds: bool,
     copy_name: &dyn Fn(&str, &BTreeSet<String>) -> String,
 ) -> Plan {
     let base = &state.base;
@@ -196,11 +207,27 @@ pub fn plan(
     let mut actions = Vec::new();
     let mut done: BTreeSet<String> = BTreeSet::new();
     let hash = |files: &Files, p: &str| files.get(p).map(|f| f.hash.clone());
+    let mut taken: BTreeSet<String> = local.keys().chain(remote.keys()).cloned().collect();
+
+    if folds {
+        respelled(
+            local,
+            remote,
+            state,
+            &mut done,
+            &mut taken,
+            copy_name,
+            &mut actions,
+        );
+    }
 
     // Renames first: a base path gone on one side, a new path there with
     // its bytes, the other side unchanged at the old path.
     if !first {
         for (old, b) in base {
+            if done.contains(old) {
+                continue;
+            }
             let (l, r) = (hash(local, old), hash(remote, old));
             // Renamed here: gone here, unchanged there.
             if l.is_none()
@@ -246,100 +273,16 @@ pub fn plan(
         .chain(remote.keys())
         .chain(base.keys())
         .collect();
-    let mut taken: BTreeSet<String> = local.keys().chain(remote.keys()).cloned().collect();
     for path in paths {
         if done.contains(path) {
             continue;
         }
-        let (l, r, b) = (
+        let hashes = (
             hash(local, path),
             hash(remote, path),
             base.get(path).cloned(),
         );
-        if l == r {
-            if b != l {
-                actions.push(Action::Agree {
-                    path: path.clone(),
-                    hash: l,
-                });
-            }
-            continue;
-        }
-        if first {
-            // No base: copy what one side alone has, conflict on both.
-            match (l, r) {
-                (Some(_), None) => actions.push(Action::Upload {
-                    path: path.clone(),
-                    base: None,
-                }),
-                (None, Some(h)) => actions.push(Action::Download {
-                    path: path.clone(),
-                    hash: h,
-                }),
-                (Some(_), Some(h)) => {
-                    let copy = copy_name(path, &taken);
-                    taken.insert(copy.clone());
-                    actions.push(Action::Conflict {
-                        path: path.clone(),
-                        copy,
-                        hash: h,
-                    });
-                }
-                (None, None) => {}
-            }
-            continue;
-        }
-        let local_changed = l != b;
-        let remote_changed = r != b;
-        match (local_changed, remote_changed) {
-            (false, true) => match r {
-                Some(h) => actions.push(Action::Download {
-                    path: path.clone(),
-                    hash: h,
-                }),
-                None => {
-                    if l.is_some() {
-                        actions.push(Action::DeleteLocal { path: path.clone() });
-                    }
-                }
-            },
-            (true, false) => match (l, r) {
-                (Some(_), r) => actions.push(Action::Upload {
-                    path: path.clone(),
-                    base: r,
-                }),
-                (None, Some(h)) => actions.push(Action::DeleteRemote {
-                    path: path.clone(),
-                    base: h,
-                }),
-                (None, None) => {}
-            },
-            _ => match (l, r) {
-                // Deleted here, edited there: the edit wins.
-                (None, Some(h)) => actions.push(Action::Download {
-                    path: path.clone(),
-                    hash: h,
-                }),
-                // Edited here, deleted there: the file comes back.
-                (Some(_), None) => actions.push(Action::Upload {
-                    path: path.clone(),
-                    base: None,
-                }),
-                (Some(_), Some(h)) => {
-                    let copy = copy_name(path, &taken);
-                    taken.insert(copy.clone());
-                    actions.push(Action::Conflict {
-                        path: path.clone(),
-                        copy,
-                        hash: h,
-                    });
-                }
-                (None, None) => actions.push(Action::Agree {
-                    path: path.clone(),
-                    hash: None,
-                }),
-            },
-        }
+        decide(path, hashes, first, &mut taken, copy_name, &mut actions);
     }
 
     let deletions = actions
@@ -351,6 +294,138 @@ pub fn plan(
     Plan {
         pause: (many && !confirmed).then_some(deletions),
         actions,
+    }
+}
+
+/// One path's hashes here, there and in the base.
+type Hashes = (Option<String>, Option<String>, Option<String>);
+
+/// What one path's hashes — here, there, in the base — say to do, renames
+/// set aside.
+fn decide(
+    path: &str,
+    (l, r, b): Hashes,
+    first: bool,
+    taken: &mut BTreeSet<String>,
+    copy_name: &dyn Fn(&str, &BTreeSet<String>) -> String,
+    actions: &mut Vec<Action>,
+) {
+    let path = path.to_owned();
+    let mut conflict = |path: String, hash: String, actions: &mut Vec<Action>| {
+        let copy = copy_name(&path, taken);
+        taken.insert(copy.clone());
+        actions.push(Action::Conflict { path, copy, hash });
+    };
+    if l == r {
+        if b != l {
+            actions.push(Action::Agree { path, hash: l });
+        }
+        return;
+    }
+    if first {
+        // No base: copy what one side alone has, conflict on both.
+        match (l, r) {
+            (Some(_), None) => actions.push(Action::Upload { path, base: None }),
+            (None, Some(hash)) => actions.push(Action::Download { path, hash }),
+            (Some(_), Some(hash)) => conflict(path, hash, actions),
+            (None, None) => {}
+        }
+        return;
+    }
+    let local_changed = l != b;
+    let remote_changed = r != b;
+    match (local_changed, remote_changed) {
+        (false, true) => match r {
+            Some(hash) => actions.push(Action::Download { path, hash }),
+            None => {
+                if l.is_some() {
+                    actions.push(Action::DeleteLocal { path });
+                }
+            }
+        },
+        (true, false) => match (l, r) {
+            (Some(_), base) => actions.push(Action::Upload { path, base }),
+            (None, Some(base)) => actions.push(Action::DeleteRemote { path, base }),
+            (None, None) => {}
+        },
+        _ => match (l, r) {
+            // Deleted here, edited there: the edit wins.
+            (None, Some(hash)) => actions.push(Action::Download { path, hash }),
+            // Edited here, deleted there: the file comes back.
+            (Some(_), None) => actions.push(Action::Upload { path, base: None }),
+            (Some(_), Some(hash)) => conflict(path, hash, actions),
+            (None, None) => actions.push(Action::Agree { path, hash: None }),
+        },
+    }
+}
+
+/// Where this computer's file system folds names: a path here and a path
+/// there that differ only in case or in their accents' form are one file
+/// (this computer cannot hold both), whichever side spelled it anew.
+/// - Respelled here, the server's file as the base left it: the new
+///   spelling crosses as a rename, then this computer's edit if any.
+/// - Otherwise — respelled there, made on both sides apart, or respelled
+///   here while the server's file changed — the server's spelling is taken
+///   here first, and the file is planned as one under it: an edit wins
+///   over a respelling (item 9), two edits are a conflict (item 8).
+///
+/// Without this, the two spellings would each be a file of one side only:
+/// fetching the server's would find this computer's in its place, sending
+/// this computer's would find the server's — refused on every pass, the
+/// server's edit never arriving.
+fn respelled(
+    local: &Files,
+    remote: &Files,
+    state: &State,
+    done: &mut BTreeSet<String>,
+    taken: &mut BTreeSet<String>,
+    copy_name: &dyn Fn(&str, &BTreeSet<String>) -> String,
+    actions: &mut Vec<Action>,
+) {
+    let base = &state.base;
+    for (here, mine) in local {
+        if remote.contains_key(here) || done.contains(here) {
+            continue;
+        }
+        let key = folded(here);
+        let Some((there, theirs)) = remote
+            .iter()
+            .find(|(p, _)| !local.contains_key(*p) && !done.contains(*p) && folded(p) == key)
+        else {
+            continue;
+        };
+        match (base.get(here), base.get(there)) {
+            // Both spellings in the base: not one respelling; left to the
+            // rules by path.
+            (Some(_), Some(_)) => continue,
+            (None, Some(b)) if &theirs.hash == b => {
+                actions.push(Action::RenameRemote {
+                    from: there.clone(),
+                    to: here.clone(),
+                    base: b.clone(),
+                });
+                if &mine.hash != b {
+                    actions.push(Action::Upload {
+                        path: here.clone(),
+                        base: Some(b.clone()),
+                    });
+                }
+            }
+            (b_here, b_there) => {
+                actions.push(Action::RenameLocal {
+                    from: here.clone(),
+                    to: there.clone(),
+                });
+                let hashes = (
+                    Some(mine.hash.clone()),
+                    Some(theirs.hash.clone()),
+                    b_there.or(b_here).cloned(),
+                );
+                decide(there, hashes, base.is_empty(), taken, copy_name, actions);
+            }
+        }
+        done.insert(here.clone());
+        done.insert(there.clone());
     }
 }
 
