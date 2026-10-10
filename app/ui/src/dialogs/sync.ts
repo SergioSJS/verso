@@ -412,6 +412,10 @@ export function originalOf(copy: string): string {
   return copy.replace(/ \((conflict|conflito), [^)]*\)(?=\.[^./]*$|$)/, "");
 }
 
+/** The conflicts the person has open: a status redraws the section, and
+ *  must not close the difference being read. */
+const openConflicts = new Set<string>();
+
 function conflictRow(copy: string): HTMLElement {
   const s = syncStrings();
   const original = originalOf(copy);
@@ -441,6 +445,8 @@ function conflictRow(copy: string): HTMLElement {
   const diff = h("div", "sync-conflict-diff");
   let read = false;
   d.addEventListener("toggle", () => {
+    if (d.open) openConflicts.add(copy);
+    else openConflicts.delete(copy);
     if (!d.open || read) return;
     read = true;
     void Promise.all([commands.readFileText(original), commands.readFileText(copy)]).then(([a, b]) => {
@@ -451,5 +457,6 @@ function conflictRow(copy: string): HTMLElement {
   body.append(diff);
   body.append(actions);
   d.append(body);
+  d.open = openConflicts.has(copy);
   return d;
 }

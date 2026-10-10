@@ -175,12 +175,21 @@ pub(crate) async fn folder_sync_start<R: tauri::Runtime>(
         }
         (None, None) => return Err(refused("name a folder of the server, or a new one")),
     };
-    let state = engine::State {
-        server: login.url,
-        folder: id,
-        ..engine::State::default()
-    };
     let config = app.state::<App>().service.config().map(Path::to_path_buf);
+    // The same folder of the same server as before it was turned off: it
+    // goes on from its base; anything else is a first sync (item 11).
+    let state = match engine::load(config.as_deref(), &key).ok().flatten() {
+        Some(kept) if kept.server == login.url && kept.folder == id => engine::State {
+            off: false,
+            paused: false,
+            ..kept
+        },
+        _ => engine::State {
+            server: login.url,
+            folder: id,
+            ..engine::State::default()
+        },
+    };
     engine::save(config.as_deref(), &key, &state).map_err(verso_service::convert)?;
     log::write(
         "INFO",
@@ -204,8 +213,7 @@ pub(crate) fn folder_sync_stop<R: tauri::Runtime>(
     let config = app.state::<App>().service.config().map(Path::to_path_buf);
     match lock(&app.state::<App>().syncs).remove(&key) {
         Some(s) => s.turn_off(config.as_deref())?,
-        None => engine::save(config.as_deref(), &key, &engine::State::default())
-            .map_err(verso_service::convert)?,
+        None => sync::off(config.as_deref(), &key)?,
     }
     log::write("INFO", "sync", &format!("turned off: folder {key}"));
     Ok(off(&key))

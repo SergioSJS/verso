@@ -1,6 +1,6 @@
 #!/bin/sh
 # universo, before its files are unpacked (.deb preinst, .rpm %pre):
-# the `verso` system user and group, so that /etc/universo/universo.env can be
+# the `universo` system user and group, so that /etc/universo/universo.env can be
 # installed readable by that group (ADR 0075 item 2). Never removed: the
 # data under /var/lib/universo stays owned by them after an uninstall.
 set -e

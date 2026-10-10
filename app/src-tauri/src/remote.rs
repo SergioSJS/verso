@@ -77,8 +77,11 @@ pub(crate) struct Remote {
     tx: mpsc::UnboundedSender<String>,
 }
 
+/// The connection's own failure, told from a server's answer of the same
+/// kind by `transport`: sync reconnects on the first, and lists the file on
+/// the second.
 fn unavailable(message: &str) -> Value {
-    json!({ "kind": "unavailable", "message": message })
+    json!({ "kind": "unavailable", "message": message, "transport": true })
 }
 
 impl Remote {

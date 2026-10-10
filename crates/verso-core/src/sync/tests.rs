@@ -209,20 +209,36 @@ fn picture(disk: &Disk) -> Files {
     disk.iter().map(|(p, c)| (p.clone(), f(c))).collect()
 }
 
+/// How a sync goes: whether the person said yes to deletions, and the
+/// chance in a hundred that the server refuses a change (another write
+/// landed first) — the host then plans it again on the next pass.
+struct Go<'a> {
+    confirmed: bool,
+    refuse: u64,
+    rng: &'a mut Rng,
+}
+
 /// One device's sync against the server, as the host carries a plan out:
 /// a change the server refuses (its base moved) leaves the base as it was,
-/// to be planned again.
-fn sync(d: &mut Device, server: &mut Disk, seen: &mut BTreeSet<String>) {
-    // What this device holds is not "seen" by anyone else until it crosses:
-    // an edit only it has, overwritten here, is an edit lost.
+/// to be planned again; a plan that pauses for deletions does nothing.
+/// What a device downloads is not "seen" by a person: only an edit or a
+/// deletion made on a device marks what it replaced as seen.
+fn sync(d: &mut Device, server: &mut Disk, go: &mut Go<'_>) {
     let p = plan(
         &picture(&d.disk),
         &picture(server),
         &d.state,
-        true,
+        go.confirmed,
         &|p: &str, t: &BTreeSet<String>| conflict_name(p, d.name, "t", true, t),
     );
+    if p.pause.is_some() {
+        return;
+    }
     for a in p.actions {
+        // The server refuses this one: nothing of it happens.
+        if go.rng.below(100) < go.refuse {
+            continue;
+        }
         match a {
             Action::Upload { path, base } => {
                 if server.get(&path) == base.as_ref() {
@@ -233,7 +249,6 @@ fn sync(d: &mut Device, server: &mut Disk, seen: &mut BTreeSet<String>) {
             }
             Action::Download { path, hash } => {
                 if server.get(&path) == Some(&hash) {
-                    seen.insert(hash.clone());
                     d.disk.insert(path.clone(), hash.clone());
                     d.state.base.insert(path, hash);
                 }
@@ -269,7 +284,6 @@ fn sync(d: &mut Device, server: &mut Disk, seen: &mut BTreeSet<String>) {
                     d.disk.insert(copy.clone(), mine.clone());
                     server.insert(copy.clone(), mine.clone());
                     d.state.base.insert(copy, mine);
-                    seen.insert(hash.clone());
                     d.disk.insert(path.clone(), hash.clone());
                     d.state.base.insert(path, hash);
                 }
@@ -349,14 +363,52 @@ fn two_devices_and_a_server_end_alike_and_lose_no_edit() {
                         }
                     }
                 }
-                // Sync.
-                _ => sync(d, &mut server, &mut seen),
+                // Sync: now and then without a yes to deletions, now and
+                // then with the server refusing some changes.
+                _ => {
+                    let confirmed = rng.below(3) != 0;
+                    let refuse = if rng.below(2) == 0 { 0 } else { 30 };
+                    let before = (d.disk.clone(), server.clone());
+                    let paused = plan(
+                        &picture(&d.disk),
+                        &picture(&server),
+                        &d.state,
+                        confirmed,
+                        &|p: &str, t: &BTreeSet<String>| conflict_name(p, d.name, "t", true, t),
+                    )
+                    .pause
+                    .is_some();
+                    sync(
+                        d,
+                        &mut server,
+                        &mut Go {
+                            confirmed,
+                            refuse,
+                            rng: &mut rng,
+                        },
+                    );
+                    if paused {
+                        assert_eq!(
+                            (d.disk.clone(), server.clone()),
+                            before,
+                            "seed {seed}: a paused plan changed files"
+                        );
+                    }
+                }
             }
         }
         // Quiet: sync until nothing moves.
         for _ in 0..6 {
             for d in &mut devices {
-                sync(d, &mut server, &mut seen);
+                sync(
+                    d,
+                    &mut server,
+                    &mut Go {
+                        confirmed: true,
+                        refuse: 0,
+                        rng: &mut rng,
+                    },
+                );
             }
         }
         for d in &devices {

@@ -449,3 +449,52 @@ fn offline_is_said_and_the_folder_is_compared_from_its_base_when_back() {
     assert_eq!(text(&b, "A.md").as_deref(), Some("# A\n\nsem rede\n"));
     assert_eq!(text(&b, "B.md").as_deref(), Some("# B\n"));
 }
+
+/// One connection kept across passes, as the app keeps it: after the first
+/// pass, the server's files come from its log of changes.
+#[test]
+fn a_kept_connection_follows_the_servers_log() {
+    let r = serve(&[]);
+    let a = device(
+        &r,
+        &r.owner,
+        // Enough files that one deletion is not a mass deletion (item 9).
+        &[
+            ("Uma.md", "# Uma\n"),
+            ("Duas.md", "# Duas\n"),
+            ("Quatro.md", "# Quatro\n"),
+            ("Cinco.md", "# Cinco\n"),
+            ("Seis.md", "# Seis\n"),
+        ],
+    );
+    sync(&a);
+    let b = device(&r, &r.owner, &[]);
+    let mut l = tauri::async_runtime::block_on(link(&b.ctx, &b.s)).unwrap();
+    let on =
+        |l: &mut super::sync::Link| tauri::async_runtime::block_on(pass(&b.ctx, &b.s, l)).unwrap();
+    on(&mut l);
+    assert_eq!(text(&b, "Uma.md").as_deref(), Some("# Uma\n"));
+    // A renames one, deletes the other and writes a third.
+    a.ctx
+        .service
+        .with_key(&a.key, |ws| {
+            Ok(ws.rename_entry("Uma.md", "Pasta/Uma.md").map(|_| ())?)
+        })
+        .unwrap();
+    a.ctx
+        .service
+        .with_key(&a.key, |ws| Ok(ws.delete_entry("Duas.md").map(|_| ())?))
+        .unwrap();
+    write(&a, "Tres.md", b"# Tres\n");
+    changed(&a, &["Uma.md", "Pasta/Uma.md", "Duas.md"]);
+    sync(&a);
+    changed(&b, &[]);
+    on(&mut l);
+    assert_eq!(text(&b, "Uma.md"), None);
+    assert_eq!(text(&b, "Pasta/Uma.md").as_deref(), Some("# Uma\n"));
+    assert_eq!(text(&b, "Duas.md"), None);
+    assert_eq!(text(&b, "Tres.md").as_deref(), Some("# Tres\n"));
+    // And nothing more to do on the same connection.
+    changed(&b, &[]);
+    assert_eq!(on(&mut l).actions, 0);
+}

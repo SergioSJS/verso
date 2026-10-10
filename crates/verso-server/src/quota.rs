@@ -28,10 +28,25 @@ pub fn check(server: &Server, key: &str, path: &str, len: u64) -> Result<(), Con
     let Some(quota) = quota.and_then(|q| u64::try_from(q).ok()) else {
         return Ok(());
     };
-    let path = path.to_owned();
-    let (used, delta) = server
-        .service
-        .with_key(key, move |ws| Ok(verso_service::growth(ws, &path, len)))?;
+    // Sync's record of the folder follows each write as it happens; the
+    // index's listing only its walks, so a burst of writes would each see
+    // the total before the others (ADR 0077 item 5).
+    let (used, delta) = match server
+        .db
+        .space(&folder, path)
+        .map_err(verso_service::failed)?
+    {
+        Some((total, old)) => (
+            u64::try_from(total).unwrap_or(0),
+            i64::try_from(len).unwrap_or(i64::MAX).saturating_sub(old),
+        ),
+        None => {
+            let path = path.to_owned();
+            server
+                .service
+                .with_key(key, move |ws| Ok(verso_service::growth(ws, &path, len)))?
+        }
+    };
     if delta <= 0 {
         return Ok(());
     }

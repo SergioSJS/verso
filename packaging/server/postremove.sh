@@ -1,7 +1,7 @@
 #!/bin/sh
 # universo, after its files are removed (.deb postrm, .rpm %postun):
 # systemd forgets the unit. What it does NOT remove, even on a purge: the
-# verso user and group, and /var/lib/universo — the accounts database and the
+# universo user and group, and /var/lib/universo — the accounts database and the
 # folders of notes are the host's data, not the package's.
 set -e
 

@@ -179,4 +179,30 @@ impl Db {
             .optional()
             .map_err(e)
     }
+
+    /// The bytes a folder's files take as sync last saw them — kept by
+    /// every write and deletion, between the index's walks — and the
+    /// size of `path` (or `path.md`) among them; `None` before the folder
+    /// was ever reconciled.
+    pub fn space(&self, folder: &str, path: &str) -> R<Option<(i64, i64)>> {
+        let conn = self.conn();
+        let (count, total): (i64, i64) = conn
+            .query_row(
+                "SELECT COUNT(*), COALESCE(SUM(size), 0) FROM manifest WHERE folder = ?1",
+                params![folder],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .map_err(e)?;
+        if count == 0 {
+            return Ok(None);
+        }
+        let old: i64 = conn
+            .query_row(
+                "SELECT COALESCE(MAX(size), 0) FROM manifest WHERE folder = ?1 AND path IN (?2, ?3)",
+                params![folder, path, format!("{path}.md")],
+                |r| r.get(0),
+            )
+            .map_err(e)?;
+        Ok(Some((total, old)))
+    }
 }
