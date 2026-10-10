@@ -59,8 +59,8 @@ of 0073, Consequences).
 SQLite's own documentation warns that its locks are unreliable on network
 file systems (NFS, SMB/CIFS, sshfs), where a database can be corrupted. Keep
 `VERSO_DATA_DIR` on the machine's own disk. By 0075 item 3 the server reads
-the file system under it at start and says in its log and on the admin page
-when it is a network one.
+the file system under it at start and says in its log and in Settings ›
+Administration when it is a network one.
 
 `VERSO_FOLDERS_DIR` may be a NAS. On a network mount no event says that
 another machine changed a file, so the server watches such a folder by
@@ -298,8 +298,8 @@ sudo -u verso -H sh -c 'set -a; . /etc/verso/verso.env; exec verso serve admin r
 ```
 
 It prints a link to use once, ends the account's sessions and records the
-reset in the audit log. A member's password is reset by the admin, from the
-admin page.
+reset in the audit log. A member's password is reset by the admin, in
+Settings › Administration.
 
 ## 11. The registry while the repository is private
 
@@ -317,7 +317,7 @@ and is pulled with no sign-in.
 ## 12. Updates
 
 The server never updates itself (0075 item 7). It checks the project's
-release feed and says on the admin page when a new version exists;
+release feed and says in Settings › Administration when a new version exists;
 `VERSO_UPDATE_CHECK=off` stops the check. To update:
 
 - Docker: `docker pull ghcr.io/sergiosjs/verso:<tag>` and recreate the

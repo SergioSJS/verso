@@ -15,7 +15,7 @@ import { allCommands, comboOf, DEFAULT_KEYS, keyOf, MAC, paintKeyHints, prettyKe
 import { LINUX, WINDOWS } from "../platform";
 import { spaces } from "../layout/spaces";
 import { NoteLeaf } from "../leaves/note";
-import { panel, updateController } from "../main";
+import { panel, ribbon, updateController } from "../main";
 import { walkRulesChanged } from "../open";
 import { pushFolderNoteName } from "../organize/folderNotes";
 import { orderModeChanged } from "../organize/order";
@@ -24,6 +24,9 @@ import { getHiddenFromTree, pushEmbedOrigins, pushMenuLanguage, saveSettings, se
 import { boardText, t } from "../strings";
 import { listAll } from "../tree/tree";
 import { asDialog, closed, opened } from "./a11y";
+import { accountEntries } from "../web/account";
+import { adminEntries } from "../web/admin";
+import { signedIn } from "../web/api";
 
 /** A settings page is a list of items: a title, a line about it, a control. */
 export let hotkeyRecorder: ((e: KeyboardEvent) => void) | null = null;
@@ -115,6 +118,10 @@ export class SettingsDialog {
       // and so is opening a server's folder from it (ADR 0073 item 2).
       ...(can("agents") ? [{ id: "cli", label: t.sCli, icon: "terminal" }] : []),
       ...(can("local_folders") ? [{ id: "servers", label: serverStrings().section, icon: "globe" }] : []),
+      // On a server: the person's account, and the server's administration
+      // for an admin (ADR 0074 items 7 and 9).
+      ...(can("account") && signedIn() ? [{ id: "account", label: t.sAccount, icon: "user" }] : []),
+      ...(can("admin") && signedIn()?.admin ? [{ id: "admin", label: t.sAdmin, icon: "shield" }] : []),
     ];
   }
   private item(title: string, desc: string, control: HTMLElement | null): HTMLElement {
@@ -131,7 +138,8 @@ export class SettingsDialog {
       // The control is named by the item's title and described by its line
       // (a hotkey row names its own buttons).
       const field = control.matches("input, select") ? control : control.querySelector<HTMLElement>("input, select");
-      field?.setAttribute("aria-labelledby", titleEl.id);
+      // A control that names itself (one of several in the row) keeps it.
+      if (title && !field?.hasAttribute("aria-label")) field?.setAttribute("aria-labelledby", titleEl.id);
       if (field && desc) field.setAttribute("aria-describedby", descEl.id);
       row.append(control);
     }
@@ -407,6 +415,15 @@ export class SettingsDialog {
       ["amethyst", t.colorAmethyst],
     ], settings.headingColor || "brass", (v) => { settings.headingColor = v as any; saveSettings(); }));
     add("appearance", t.measure, t.measureDesc, () => this.select([["normal", t.measureNormal], ["wide", t.measureWide]], settings.measure, (v) => { settings.measure = v; saveSettings(); }));
+    // The ribbon's buttons, each shown or hidden here as from its menu;
+    // the gear stays, so the way back is never hidden with the others.
+    for (const b of ribbon?.buttons() ?? []) {
+      add("appearance", b.label, b.kept ? t.ribbonButtonsDesc : "", () => {
+        if (b.kept) return null;
+        const sw = this.toggle(b.shown, (v) => ribbon?.setShown(b.id, v));
+        return sw;
+      }, t.ribbonButtons);
+    }
     add("organizing", t.stickers, t.stickersDesc, () => this.toggle(settings.stickers, (v) => { settings.stickers = v; saveSettings(); void listAll(); }));
     add("organizing", t.stickerInLinks, t.stickerInLinksDesc, () => this.toggle(settings.stickerInLinks, (v) => { settings.stickerInLinks = v; saveSettings(); }));
     add("organizing", t.covers, t.coversDesc, () => this.toggle(settings.covers, (v) => { settings.covers = v; saveSettings(); for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) if (l instanceof NoteLeaf && l.note) void l.load(l.path, true); }));
@@ -515,6 +532,9 @@ export class SettingsDialog {
     for (const c of allCommands(true)) add("hotkeys", c.label, "", () => this.hotkeyControl(c.id, c.label));
     // The command line and MCP (ADR 0054). The folder is named by its key
     // in what a client starts: its path crosses nowhere (ADR 0026 rule 4).
+    const me = signedIn();
+    if (can("account") && me) for (const e of accountEntries(me, (a, b, c) => this.item(a, b, c))) out.push({ section: "account", ...e });
+    if (can("admin") && me?.admin) for (const e of adminEntries(me, (a, b, c) => this.item(a, b, c))) out.push({ section: "admin", ...e });
     if (can("local_folders")) out.push({ section: "servers", title: serverStrings().connect, desc: serverStrings().connectDesc, node: () => serversBody((a, b, c) => this.item(a, b, c)) });
     add("cli", t.cliTitle, WINDOWS ? t.cliDescWindows : LINUX ? t.cliDescLinux : t.cliDesc, () => this.cliControl());
     // One server per folder, or one for all of Verso (ADR 0054, 2026-10-08).

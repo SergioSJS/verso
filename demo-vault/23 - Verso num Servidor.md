@@ -35,12 +35,13 @@ Entrar pede **HTTPS**: um proxy reverso, o `tailscale serve` (o caminho mais sim
 - **Ninguém se cadastra sozinho**: o admin **convida**, com um link de uso único que vale sete dias, e vê quem o usou.
 - Cada pasta tem um **dono**, **editores** e **leitores**. O admin não entra numa pasta sem dar acesso a si mesmo — e isso fica no registro que o dono lê.
 - Senha esquecida: o admin gera um link de senha nova. Admin perdido: `verso serve admin reset <e-mail>` na própria máquina.
+- Tudo isso fica em **Ajustes › Administração**, que só o admin vê: o servidor, as pastas, as contas, os convites e o registro.
 
 ---
 
 ## A sua conta
 
-Na página **Conta** (ao lado da barra de status, ou no fim da barra lateral no celular):
+Em **Ajustes › Conta** — o botão da pessoa, ao lado da engrenagem na faixa lateral, ou **Conta** no fim da barra lateral no celular:
 
 - **passkeys** — entrar com a digital, o rosto ou o PIN, sem senha;
 - as **sessões** abertas, e um botão para sair de todas as outras;

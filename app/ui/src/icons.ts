@@ -104,6 +104,8 @@ const PATHS: Record<string, string> = {
   outdent: "M2.5 3.5h11M7 6.5h6.5M7 9.5h6.5M2.5 12.5h11M5 6 2.5 8 5 10",
   keyboardOff: "M2 3.5h12v6.5H2zM4.5 5.5h.01M7 5.5h.01M9.5 5.5h.01M12 5.5h.01M5 8h6M6 12l2 2 2-2",
   arrowLeft: "M13 8H3M7 4 3 8l4 4",
+  user: "M8 8a2.75 2.75 0 1 0 0-5.5A2.75 2.75 0 0 0 8 8zM2.75 13.5c.6-2.6 2.75-4 5.25-4s4.65 1.4 5.25 4",
+  shield: "M8 1.75 13 3.5v4c0 3.2-2.1 5.6-5 6.75-2.9-1.15-5-3.55-5-6.75v-4zM5.75 8l1.6 1.6L10.5 6.5",
 };
 
 /** A decorative line icon drawn by CSS — a mask over the text color — not

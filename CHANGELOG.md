@@ -21,6 +21,7 @@ test release.
 - **More of the server**: with a mail server (`VERSO_SMTP_URL`) the sign-in page sends a link by e-mail and a reset for a forgotten password, and invitations go to their address; the window installs on a phone's or a tablet's home screen; your settings — theme, language, keys, remote content, the sites you allowed in embeds — follow your account to every browser; a folder on a NAS is scanned every 30 seconds, since the system tells no one of another machine's change; the space a folder takes shows in Settings › Files and after `verso index`; `verso serve --web` serves the notes' window to a browser (the image and the packages run it so), and without it only the desktop app reaches the notes; the desktop app on a server's folder connects again by itself after a dropped connection.
 - **A × in the notes search field** clears the words and brings the file tree back, for a phone or tablet, which has no Esc.
 - **On a touch screen**, a long press opens the menu a right click opens, and a long press then a move drags a row or a tab. Fields write at 16 px so iOS no longer zooms into them, controls that showed only under the mouse are shown, buttons and rows are larger, and the settings fit a phone, with a × to close them. What was measured and what is left: `docs/reference/responsive-review-2026-10-09.md`.
+- **Your account and the server's administration live in Settings**, drawn as the other settings are: the person's button beside the gear on the ribbon opens *Account* (profile, password, passkeys, sessions, folders and their members, access tokens), and an admin also finds *Administration* (the server, folders, accounts, invitations, the audit log); on a phone both are at the foot of the side bar. The sign-in page is one card, with the passkey and the e-mail link under the password, in the same column.
 
 ### Changed
 
@@ -29,6 +30,7 @@ test release.
 ### Fixed
 
 - **A swipe on the file tree no longer moves a note**: on a touch screen, scrolling the tree started a drag, and the next tap on a folder moved the note into it. A long menu now scrolls inside the screen instead of running past it.
+- **A button hidden from the ribbon comes back**: Settings › Appearance lists the ribbon's buttons with a switch each, a right click on the ribbon's empty room shows the hidden ones again, the status bar says where when one is hidden, and the gear itself can no longer be hidden.
 
 ## 0.6.0-beta.1 — 2026-10-09
 

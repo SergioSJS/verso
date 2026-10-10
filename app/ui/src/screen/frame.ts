@@ -18,9 +18,10 @@ import { icon } from "../icons";
 import { layout, paneToOpenIn, spaces } from "../layout/spaces";
 import { NoteLeaf } from "../leaves/note";
 import { TextLeaf } from "../leaves/textfile";
-import { paletteDialog, ribbon } from "../main";
+import { paletteDialog, ribbon, settingsDialog } from "../main";
 import { showSide } from "../side";
 import { t } from "../strings";
+import { signedIn } from "../web/api";
 import { installSelectBar } from "../tree/selectBar";
 import { installKeyboard } from "./keyboard";
 import { installRowMore } from "./rowMore";
@@ -98,7 +99,31 @@ function buildNotices(): void {
 /** The answer drawn: the reader's line, and every open tab read again so
  *  that its editor takes or drops its read-only state. */
 let wrote = true;
+/* ---------- The foot of the side bar (item 6) ----------
+   The ribbon leaves on a phone: the gear, and on a server the account,
+   end the side bar the bottom bar opens — where the ribbon has them. */
+const sideFoot = h("div", "side-foot");
+const footAccount = footButton(t.sAccount, "user", () => settingsDialog.show("account"));
+
+function footButton(label: string, iconName: string, run: () => void): HTMLButtonElement {
+  const b = h("button", "ghost side-foot-item");
+  b.type = "button";
+  b.append(icon(iconName), h("span", "", label));
+  b.addEventListener("click", () => {
+    document.body.classList.remove("side-open");
+    run();
+  });
+  return b;
+}
+
+function buildSideFoot(): void {
+  sideFoot.append(footButton(t.settings, "gear", () => settingsDialog.show()), footAccount);
+  footAccount.hidden = true;
+  document.querySelector("aside.side")?.append(sideFoot);
+}
+
 function applyCan(): void {
+  footAccount.hidden = !can("account") || signedIn() === null;
   readOnlyLine.hidden = canWrite();
   paintBar();
   ribbon?.paint();
@@ -122,6 +147,7 @@ function lineNumbersFollow(): void {
 
 export function installScreen(): void {
   buildBar();
+  buildSideFoot();
   buildNotices();
   installRowMore();
   installSelectBar();
