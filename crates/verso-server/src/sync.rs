@@ -72,6 +72,30 @@ pub struct Transfers {
     /// One reconciliation at a time per folder: two from the same state
     /// would log the same change twice.
     folders: Mutex<HashMap<String, Arc<Mutex<()>>>>,
+    /// When each folder was last walked for a device.
+    walked: Mutex<HashMap<String, Instant>>,
+}
+
+/// How often a device's question walks the folder again.
+const WALK_EVERY: Duration = Duration::from_secs(60);
+
+/// The folder walked again, at most once a minute, before a device reads
+/// its files or changes: what the watcher missed — a file the server
+/// wrote, then deleted on its disk, has been seen to go unreported on
+/// macOS — is found by the device's next question, its five-minute scan
+/// at the latest (ADR 0079 item 6).
+fn walk_if_due(server: &Server, folder: &str, client: &str) {
+    let due = {
+        let mut walked = lock(&server.transfers.walked);
+        let due = walked.get(folder).is_none_or(|t| t.elapsed() >= WALK_EVERY);
+        if due {
+            walked.insert(folder.to_owned(), Instant::now());
+        }
+        due
+    };
+    if due && let Err(e) = server.service.reindex(client) {
+        crate::log::warn(&format!("sync: walking a folder again: {}", e.message));
+    }
 }
 
 /// A file being read in pieces, kept between them.
@@ -302,6 +326,7 @@ pub async fn command(
     let args = args.clone();
     blocking(move || match cmd.as_str() {
         "sync_state" => {
+            walk_if_due(&s, &folder, &c);
             let head = reconcile(&s, &folder, &key, None, &[])?;
             let files: Vec<Value> =
                 s.db.manifest(&folder)
@@ -313,6 +338,7 @@ pub async fn command(
         }
         "sync_changes" => {
             let since: i64 = arg(&args, "since")?;
+            walk_if_due(&s, &folder, &c);
             let head = reconcile(&s, &folder, &key, None, &[])?;
             let changes =
                 s.db.changes_since(&folder, since, 1000)
