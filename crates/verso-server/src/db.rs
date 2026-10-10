@@ -1028,14 +1028,25 @@ impl Db {
             .optional()
             .map_err(e)?;
         let at = now();
-        Ok(row.is_some_and(|(kind, created, last)| {
+        let alive = row.as_ref().is_some_and(|(kind, created, last)| {
             let max = if kind == "device" {
                 DEVICE_MAX
             } else {
                 SESSION_MAX
             };
             at - last <= SESSION_IDLE && at - created <= max
-        }))
+        });
+        // A window that only speaks over its WebSocket is in use too: its
+        // session is touched as a request's is, at most once a minute.
+        if alive && row.is_some_and(|(_, _, last)| at - last > 60) {
+            self.conn()
+                .execute(
+                    "UPDATE sessions SET last_used = ?2 WHERE id = ?1",
+                    params![id, at],
+                )
+                .map_err(e)?;
+        }
+        Ok(alive)
     }
 
     /// Whether token `id` still stands.

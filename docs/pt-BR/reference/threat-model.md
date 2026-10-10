@@ -58,7 +58,7 @@ não decide nada — onde uma lacuna pede decisão, diz `[ABERTO]`.
 | Ameaça | Resposta como construída |
 |---|---|
 | Adivinhar senhas | Argon2id (os primeiros parâmetros do OWASP); uma espera que cresce por endereço e por conta, nunca um bloqueio que um estranho possa usar; 12 caracteres no mínimo. |
-| Descobrir quem tem conta | Uma senha errada e um e-mail desconhecido são respondidos igual, em tempo parecido (um hash é calculado nos dois casos); o início de uma passkey também responde igual. |
+| Descobrir quem tem conta | Uma senha errada e um e-mail desconhecido são respondidos igual, em tempo parecido (um hash é calculado nos dois casos); o início de uma passkey responde igual a um e-mail desconhecido e a uma conta sem passkey, e dá o desafio a uma conta com passkeys — o que diz que o endereço tem passkeys, nunca que existe uma conta sem elas. |
 | Um cookie de sessão roubado | `HttpOnly`, `SameSite=Lax`, `Secure` e `__Host-` em HTTPS; 14 dias parado, 90 no máximo; listado nos Ajustes e encerrado ali; trocar a senha encerra as outras; conferido de novo antes de cada comando de um WebSocket aberto. |
 | Requisições de outro site | Toda requisição que muda algo confere o `Origin` contra o do servidor e leva o token CSRF da sessão; o WebSocket confere o `Origin` antes de aceitar o cookie. |
 | Um token vazado de um script | Tokens de acesso pessoal limitados a pastas e a ler ou escrever, nunca mais que o papel do membro; nunca admin; com o prefixo `verso_pat_` para os detectores de segredos; guardados como SHA-256; revogáveis. |

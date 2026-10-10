@@ -276,7 +276,13 @@ async fn handle(
                 "PANIC" | "ERROR" | "WARN" | "INFO" => level,
                 _ => "ERROR".to_owned(),
             };
-            let message: String = message.chars().take(2000).collect();
+            // One line of the log per message: a window's newlines and
+            // control characters cannot forge another line.
+            let message: String = message
+                .chars()
+                .take(2000)
+                .map(|c| if c.is_control() { ' ' } else { c })
+                .collect();
             crate::log::line(
                 &level,
                 &format!("window {client} ({}): {message}", who.account.id),

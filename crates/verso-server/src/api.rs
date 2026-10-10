@@ -50,6 +50,19 @@ pub fn account_json(a: &db::Account) -> serde_json::Value {
     })
 }
 
+/// A person's or a token's name: something, and not a page of it.
+pub fn check_name(name: &str) -> ApiResult<()> {
+    if name.chars().count() > NAME_MOST {
+        return Err(ApiError::bad(
+            "bad_request",
+            "a name of 200 characters at most",
+        ));
+    }
+    Ok(())
+}
+
+const NAME_MOST: usize = 200;
+
 /// A password the server takes: long enough, not all spaces.
 fn check_password(password: &str) -> ApiResult<()> {
     if password.chars().count() < MIN_PASSWORD || password.trim().is_empty() {
@@ -195,6 +208,7 @@ pub async fn setup(ctx: Ctx, Json(body): Json<Setup>) -> ApiResult<Response> {
         return Err(ApiError::bad("not_email", "not an e-mail address"));
     }
     check_password(&body.password)?;
+    check_name(&body.name)?;
     let account = ctx.server.db.create_account(
         &body.email,
         &body.name,
@@ -265,6 +279,7 @@ pub async fn accept(
         return Err(ApiError::bad("not_email", "not an e-mail address"));
     }
     check_password(&body.password)?;
+    check_name(&body.name)?;
     let account = match ctx.server.db.create_account(
         &email,
         &body.name,
@@ -408,6 +423,7 @@ pub async fn profile(ctx: Ctx, Json(body): Json<Profile>) -> ApiResult<Response>
     if body.name.trim().is_empty() {
         return Err(ApiError::bad("bad_request", "a name"));
     }
+    check_name(&body.name)?;
     ctx.server
         .db
         .set_profile(&who.account.id, &body.name, check_lang(&body.lang))?;
@@ -506,6 +522,7 @@ pub async fn create_token(ctx: Ctx, Json(body): Json<NewToken>) -> ApiResult<Res
     if !matches!(who.via, Via::Browser { .. }) {
         return Err(ApiError::forbidden("tokens are made in the browser"));
     }
+    check_name(&body.name)?;
     if body.name.trim().is_empty() || body.folders.is_empty() {
         return Err(ApiError::bad(
             "bad_request",

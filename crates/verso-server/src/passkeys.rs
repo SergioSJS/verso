@@ -146,9 +146,10 @@ pub struct SignInStart {
 }
 
 /// Sign in with a passkey: the account's passkeys, as options for
-/// `navigator.credentials.get`. An address with none is answered the
-/// same way, after the same checks: the answer says nothing of who has an
-/// account.
+/// `navigator.credentials.get`. An unknown address and an account with
+/// no passkey are answered the same way, after the same checks: the
+/// answer says that an address has passkeys, never who has an account
+/// (threat-model.md).
 pub async fn sign_in_start(ctx: Ctx, Json(body): Json<SignInStart>) -> ApiResult<Response> {
     ctx.changes()?;
     let key = format!("pk:{}", ctx.peer.addr);
