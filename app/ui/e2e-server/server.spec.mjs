@@ -187,3 +187,15 @@ test("the window installs on a phone's home screen", async ({ request }) => {
   const page = await (await request.get("/")).text();
   expect(page).toContain('rel="manifest"');
 });
+
+test("signing in follows only this server's own paths", async ({ page }) => {
+  // `/\host` is another origin to the browser's URL parser.
+  await page.goto("/signin?next=" + encodeURIComponent("/\\evil.example/x"));
+  await page.getByLabel("E-mail").fill(ADMIN.email);
+  await page.getByLabel("Senha", { exact: true }).fill(ADMIN.password);
+  await expect(async () => {
+    await page.getByRole("button", { name: "Entrar", exact: true }).click();
+    await expect(page).not.toHaveURL(/signin/, { timeout: 1500 });
+  }).toPass({ timeout: 15000 });
+  expect(new URL(page.url()).host).toBe(new URL(test.info().project.use.baseURL ?? page.url()).host);
+});
