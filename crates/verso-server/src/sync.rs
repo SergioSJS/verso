@@ -364,7 +364,10 @@ pub async fn command(
             let p = path.clone();
             s.service.with_key(&key, move |ws| {
                 is_now(ws, &p, Some(&base))?;
-                Ok(ws.delete_entry(&p).map(|_| ())?)
+                ws.delete_entry(&p)?;
+                // No empty folder left behind on the server either.
+                ws.prune_empty_parents(&p);
+                Ok(())
             })?;
             let head = reconcile(&s, &folder, &key, Some(&actor), &[path])?;
             Ok(json!({ "head": head }))
@@ -383,7 +386,9 @@ pub async fn command(
                 {
                     is_now(ws, &t, None)?;
                 }
-                Ok(ws.rename_entry(&f, &t).map(|_| ())?)
+                ws.rename_entry(&f, &t)?;
+                ws.prune_empty_parents(&f);
+                Ok(())
             })?;
             let head = reconcile(&s, &folder, &key, Some(&actor), &[from, to])?;
             Ok(json!({ "head": head }))

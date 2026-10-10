@@ -546,3 +546,57 @@ fn a_rename_of_the_case_alone_crosses() {
     let status = lock(&b.shown).last().cloned().unwrap();
     assert!(status.refused.is_empty(), "{status:?}");
 }
+
+/// A folder moved on one device: on the other, its notes arrive at the new
+/// place and the old folders, emptied, go too — nothing empty is left
+/// behind (found with two installed apps, 2026-10-10).
+#[test]
+fn a_moved_folder_leaves_no_empty_folder_behind() {
+    let r = serve(&[]);
+    let a = device(
+        &r,
+        &r.owner,
+        &[
+            ("Pasta/Sub/Funda.md", "# Funda\n"),
+            ("Um.md", "# Um\n"),
+            ("Dois.md", "# Dois\n"),
+            ("Tres.md", "# Tres\n"),
+            ("Quatro.md", "# Quatro\n"),
+        ],
+    );
+    sync(&a);
+    let b = device(&r, &r.owner, &[]);
+    sync(&b);
+    a.ctx
+        .service
+        .with_key(&a.key, |ws| {
+            Ok(ws
+                .rename_entry("Pasta/Sub/Funda.md", "Outra/Funda.md")
+                .map(|_| ())?)
+        })
+        .unwrap();
+    a.ctx
+        .service
+        .with_key(&a.key, |ws| {
+            ws.prune_empty_parents("Pasta/Sub/Funda.md");
+            Ok(())
+        })
+        .unwrap();
+    changed(&a, &["Pasta/Sub/Funda.md", "Outra/Funda.md"]);
+    sync(&a);
+    changed(&b, &[]);
+    sync(&b);
+    assert_eq!(text(&b, "Outra/Funda.md").as_deref(), Some("# Funda\n"));
+    let folders = b
+        .ctx
+        .service
+        .with_key(&b.key, |ws| {
+            ws.index_with_progress(|_| {})?;
+            Ok(ws.folders())
+        })
+        .unwrap();
+    assert!(
+        !folders.iter().any(|f| f.starts_with("Pasta")),
+        "{folders:?}"
+    );
+}

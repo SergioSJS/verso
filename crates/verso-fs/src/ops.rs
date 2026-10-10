@@ -260,6 +260,29 @@ pub(crate) fn create_atomically(path: &Path, content: &[u8]) -> Result<OpReport,
 }
 
 /// Create the directory `dir` (and its parents), synced into its parent.
+/// `rmdir`: only an empty directory goes, and a symlink is never followed.
+/// `Ok(false)` when it is not an empty directory.
+pub(crate) fn remove_empty_directory(dir: &Path) -> Result<bool, WriteError> {
+    match std::fs::symlink_metadata(dir) {
+        Ok(m) if m.is_dir() => {}
+        Ok(_) => return Ok(false),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(e) => return Err(WriteError::Io(e)),
+    }
+    match std::fs::remove_dir(dir) {
+        Ok(()) => Ok(true),
+        Err(e)
+            if matches!(
+                e.kind(),
+                std::io::ErrorKind::DirectoryNotEmpty | std::io::ErrorKind::NotFound
+            ) =>
+        {
+            Ok(false)
+        }
+        Err(e) => Err(WriteError::Io(e)),
+    }
+}
+
 pub(crate) fn create_directory(dir: &Path) -> Result<OpReport, WriteError> {
     let created = create_dirs(dir).map_err(WriteError::Io)?;
     let mut report = OpReport::default();
