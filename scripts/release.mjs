@@ -189,7 +189,7 @@ function prepare(v) {
     console.error("release: the fuzz lockfile was left as it was (its dependencies are not in the local cache)");
   }
 
-  run("git", ["add", "Cargo.toml", "Cargo.lock", fuzz[1], "app/ui/package.json", "app/ui/package-lock.json", ...CHANGELOGS.map((c) => c.file)]);
+  run("git", ["add", "Cargo.toml", "Cargo.lock", fuzz[1], "app/ui/package.json", "app/ui/package-lock.json", "packaging/server/docker-compose.yml", ...CHANGELOGS.map((c) => c.file)]);
   run("git", ["commit", "--quiet", "-s", "-m", `release: v${v}`,
     "-m", `Sets the version to ${v} and moves the changelog's unreleased\nentries under it (ADR 0051).`,
     "-m", "Merging this commit into main releases it: the release workflow\nbuilds the app, publishes the release and creates the tag."]);
