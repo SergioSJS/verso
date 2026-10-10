@@ -79,6 +79,7 @@ pub async fn create_account(ctx: Ctx, Json(body): Json<NewAccount>) -> ApiResult
     } else {
         "pt"
     };
+    crate::api::check_name(&body.name)?;
     let account = match ctx
         .server
         .db

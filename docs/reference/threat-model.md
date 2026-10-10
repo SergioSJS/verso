@@ -58,7 +58,7 @@ decides nothing — where a gap needs a decision it says `[OPEN]`.
 | Threat | Answer as built |
 |---|---|
 | Guessing passwords | Argon2id (OWASP's first parameters); a growing delay by address and by account, never a lock a stranger can use; 12 characters at least. |
-| Learning who has an account | A wrong password and an unknown e-mail are answered alike, in about the same time (a hash is computed either way); a passkey's start answers alike too. |
+| Learning who has an account | A wrong password and an unknown e-mail are answered alike, in about the same time (a hash is computed either way); a passkey's start answers an unknown e-mail and an account without passkeys alike, and gives an account with passkeys its challenge — which says that the address has passkeys, never that an account without them exists. |
 | A stolen session cookie | `HttpOnly`, `SameSite=Lax`, `Secure` and `__Host-` over HTTPS; 14 days idle, 90 at most; listed in Settings and ended there; a password change ends the others; checked again before every command of an open WebSocket. |
 | Cross-site requests | Every request that changes something checks `Origin` against the server's and carries the session's CSRF token; the WebSocket checks `Origin` before it accepts the cookie. |
 | A token leaked from a script | Personal access tokens are scoped to folders and to reading or writing, never more than the member's role; never an admin; prefixed `verso_pat_` for secret scanners; kept as SHA-256; revocable. |

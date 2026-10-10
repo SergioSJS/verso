@@ -385,11 +385,15 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/signin-link/{token}", page())
         .fallback_service(static_files)
         .layer(middleware::from_fn_with_state(Arc::clone(&server), guard))
-        .layer(axum::extract::DefaultBodyLimit::max(
-            crate::rpc::MAX_MESSAGE,
-        ))
+        // A request's body: a form, a setting, a passkey — never a file,
+        // which goes over the WebSocket under its own limit
+        // (rpc::MAX_MESSAGE).
+        .layer(axum::extract::DefaultBodyLimit::max(API_BODY))
         .with_state(server)
 }
+
+/// The most a request's body takes: settings are 256 KB at most.
+const API_BODY: usize = 1024 * 1024;
 
 /// The window's own policy, sent as a header and narrower than the
 /// desktop's (ADR 0073 item 6): scripts, styles and connections from this
