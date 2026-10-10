@@ -1298,7 +1298,7 @@ export type SyncRefused = {
 	path: string,
 	/**
 	 *  `reader`, `quota`, `placeholder`, `too_large`, `name_taken`,
-	 *  `changed` or `failed`.
+	 *  `name_invalid`, `changed` or `failed`.
 	 */
 	reason: string,
 	message: string,
@@ -1344,8 +1344,13 @@ export type SyncStatus = {
 	log: SyncLogEntry[],
 	/**  When the last pass ended, `YYYY-MM-DDTHH:MM:SSZ`. */
 	last: string | null,
-	/**  The last error, said. */
+	/**  The last error, said (in English, for the log). */
 	message: string | null,
+	/**
+	 *  What the last error was, for the window to say in its language:
+	 *  `not_signed_in`, `signed_out`, `version`, `folder_gone`, `failed`.
+	 */
+	problem: string | null,
 };
 
 /**  A tag and the notes that carry it. */

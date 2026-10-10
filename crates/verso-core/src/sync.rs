@@ -113,6 +113,14 @@ pub struct Plan {
 /// compares it — APFS, NTFS: `Nota.md`, `nota.md` and `Nota.md` written in
 /// decomposed form are one file there. A path the listing lacks whose
 /// folded form is a listed path's is that file renamed, not a second one.
+/// Whether a path can cross to every system (ADR 0070 item 3): one that
+/// cannot is listed by sync instead of sent, since the server would refuse
+/// it.
+#[must_use]
+pub fn portable(path: &str) -> bool {
+    verso_fs::is_portable(std::path::Path::new(path))
+}
+
 /// Whether this system's file systems fold names by default (APFS, NTFS):
 /// where they do not (Linux), two names differing in case are two files.
 pub const FOLDS_NAMES: bool = cfg!(any(target_os = "macos", windows));
