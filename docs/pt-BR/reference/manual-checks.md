@@ -123,10 +123,14 @@ testes de ponta a ponta cobrem o resto.
   as variáveis do admin preenchidas, as pastas no NAS.
 - [ ] **Um `.deb` numa máquina pequena sem Docker**: instalado, o arquivo
   de ambiente editado, `systemctl enable --now verso`.
-- [ ] **A conta e a administração em Ajustes**, no navegador do Mac e do
-  iPhone: o botão da pessoa ao lado da engrenagem abre *Ajustes* › *Conta*;
-  um admin também tem *Administração*; no celular, *Ajustes* e *Conta* no pé
-  da gaveta lateral; o cartão de entrar nos dois temas.
+- [ ] **A conta em Ajustes e o console de administração**, no navegador do
+  Mac e do iPhone: o botão da pessoa ao lado da engrenagem abre *Ajustes* ›
+  *Conta*, que leva um admin ao `/admin`; as seções do console, a cota de uma
+  pasta, o menu no celular; no celular, *Ajustes* e *Conta* no pé da gaveta
+  lateral; o cartão de entrar nos dois temas.
+- [ ] **Uma pasta perto da cota**: uma nota acrescentada além de 90 % mostra
+  o aviso na janela; um arquivo além da cota é recusado com a frase, e
+  apagar um arquivo é permitido.
 - [ ] **Um botão da faixa oculto e trazido de volta** no app instalado:
   botão direito › *Ocultar este botão*, a barra de status diz onde;
   *Ajustes* › *Aparência* › o switch dele o traz de volta; a engrenagem não

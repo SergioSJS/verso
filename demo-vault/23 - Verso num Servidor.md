@@ -35,7 +35,8 @@ Entrar pede **HTTPS**: um proxy reverso, o `tailscale serve` (o caminho mais sim
 - **Ninguém se cadastra sozinho**: o admin **convida**, com um link de uso único que vale sete dias, e vê quem o usou.
 - Cada pasta tem um **dono**, **editores** e **leitores**. O admin não entra numa pasta sem dar acesso a si mesmo — e isso fica no registro que o dono lê.
 - Senha esquecida: o admin gera um link de senha nova. Admin perdido: `universo admin reset <e-mail>` na própria máquina.
-- Tudo isso fica em **Ajustes › Administração**, que só o admin vê: o servidor, as pastas, as contas, os convites e o registro.
+- Tudo isso fica no **console de administração** (o endereço `/admin`, ou Ajustes › Conta › *Administrar este servidor*), que só o admin vê: uma visão geral, as contas, as pastas com a **cota** de cada uma, os convites, o registro e a configuração do servidor.
+- **Cota por pasta**: o admin limita o espaço de uma pasta; uma escrita que passaria do limite é recusada, e diminuir a pasta sempre é possível. Perto do limite, a janela avisa.
 
 ---
 

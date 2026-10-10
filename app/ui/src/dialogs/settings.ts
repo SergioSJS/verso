@@ -25,7 +25,6 @@ import { boardText, t } from "../strings";
 import { listAll } from "../tree/tree";
 import { asDialog, closed, opened } from "./a11y";
 import { accountEntries } from "../web/account";
-import { adminEntries } from "../web/admin";
 import { signedIn } from "../web/api";
 
 /** A settings page is a list of items: a title, a line about it, a control. */
@@ -118,10 +117,9 @@ export class SettingsDialog {
       // and so is opening a server's folder from it (ADR 0073 item 2).
       ...(can("agents") ? [{ id: "cli", label: t.sCli, icon: "terminal" }] : []),
       ...(can("local_folders") ? [{ id: "servers", label: serverStrings().section, icon: "globe" }] : []),
-      // On a server: the person's account, and the server's administration
-      // for an admin (ADR 0074 items 7 and 9).
+      // On a server: the person's account (ADR 0074 items 7 and 9); the
+      // server's administration is a console of its own (ADR 0077).
       ...(can("account") && signedIn() ? [{ id: "account", label: t.sAccount, icon: "user" }] : []),
-      ...(can("admin") && signedIn()?.admin ? [{ id: "admin", label: t.sAdmin, icon: "shield" }] : []),
     ];
   }
   private item(title: string, desc: string, control: HTMLElement | null): HTMLElement {
@@ -535,7 +533,6 @@ export class SettingsDialog {
     // in what a client starts: its path crosses nowhere (ADR 0026 rule 4).
     const me = signedIn();
     if (can("account") && me) for (const e of accountEntries(me, (a, b, c) => this.item(a, b, c))) out.push({ section: "account", ...e });
-    if (can("admin") && me?.admin) for (const e of adminEntries(me, (a, b, c) => this.item(a, b, c))) out.push({ section: "admin", ...e });
     if (can("local_folders")) out.push({ section: "servers", title: serverStrings().connect, desc: serverStrings().connectDesc, node: () => serversBody((a, b, c) => this.item(a, b, c)) });
     add("cli", t.cliTitle, WINDOWS ? t.cliDescWindows : LINUX ? t.cliDescLinux : t.cliDesc, () => this.cliControl());
     // One server per folder, or one for all of Verso (ADR 0054, 2026-10-08).

@@ -35,6 +35,9 @@ const LANGS: [string, string][] = [["pt", "Português (Brasil)"], ["en", "Englis
 export function accountEntries(me: Account, item: Item): Entry[] {
   const s = w();
   return [
+    // An admin's way to the console, which is not part of Settings (ADR
+    // 0077 item 1).
+    ...(me.admin ? [{ group: s.admin, title: s.administer, desc: s.administerDesc, node: () => administer(item) }] : []),
     { group: s.profile, title: s.name, desc: `${s.email} ${s.language}`, node: () => profile(me, item) },
     { group: s.changePassword, title: s.password, desc: s.passwordHint, node: () => password(item) },
     { group: s.passkeys, title: s.passkeys, desc: s.passkeysLead, node: () => passkeys(item) },
@@ -43,6 +46,12 @@ export function accountEntries(me: Account, item: Item): Entry[] {
     { group: s.tokens, title: s.tokens, desc: s.tokensLead, node: () => tokens(item) },
     { group: s.signOut, title: s.signOut, desc: me.email, node: () => signOut(me, item) },
   ];
+}
+
+function administer(item: Item): HTMLElement {
+  const s = w();
+  const open = el("a", { class: "save web-link-button", href: "/admin" }, s.administer);
+  return el("div", { class: "web-block" }, item(s.administer, s.administerDesc, controls(open)));
 }
 
 function profile(me: Account, item: Item): HTMLElement {

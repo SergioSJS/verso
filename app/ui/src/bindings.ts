@@ -773,6 +773,12 @@ export type ErrorKind =
 "changed" | 
 /**  Something already stands where a note would be created or moved. */
 "exists" | 
+/**
+ *  The folder's quota on its server would be passed: nothing was
+ *  written; a write that shrinks the folder is always allowed (ADR
+ *  0077 item 5).
+ */
+"quota" | 
 /**  The core could not answer. */
 "failed";
 

@@ -1,0 +1,519 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+// The server's administration console (ADR 0077): a page of its own at
+// /admin, not a section of the window's Settings, drawn with the window's
+// pieces. A side navigation (a menu on a phone), a page per section, and
+// an account's and a folder's own page, each at an address of its own.
+
+import { ApiError, api, type Account } from "./api";
+import { cw } from "./consoleStrings";
+import { brand, button, controls, el, input, snippet } from "./form";
+import { bytes, setLang, when } from "./strings";
+import { table, type Page } from "./table";
+import { icon } from "../icons";
+
+type Ctx = { me: Account; go: (href: string) => void; title: (t: string) => void };
+
+type AccountRow = { id: string; email: string; name: string; admin: boolean; mayCreate: boolean; created: number; password: boolean; folders: number; space: number; lastSeen: number | null };
+type FolderRow = { id: string; name: string; created: number; owners: string[]; members: number; space: number; quota: number | null; changed: number | null };
+type Invitation = { id: string; state: string; email: string | null; folder: string | null; role: string | null; created: number; expires: number; usedBy: string | null };
+type AuditRow = { at: number; who: string | null; action: string; subject: string | null; folder: string | null; address: string | null; ok: boolean };
+type Space = { total: number; notes: number; attachments: number; files: number; index: number } | null;
+
+const SECTIONS = [
+  ["", "overview", "grid"],
+  ["accounts", "accounts", "user"],
+  ["folders", "folders", "folder"],
+  ["invitations", "invitations", "link"],
+  ["audit", "audit", "list"],
+  ["server", "server", "gear"],
+] as const;
+
+function explain(e: unknown): string {
+  return e instanceof ApiError ? e.said : cw().failed;
+}
+
+function qs(params: Record<string, string | number | boolean | null | undefined>): string {
+  const u = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v !== null && v !== undefined && v !== "") u.set(k, String(v));
+  const s = u.toString();
+  return s ? `?${s}` : "";
+}
+
+function roleName(role: string | null): string {
+  const s = cw();
+  return role === "owner" ? s.roleOwner : role === "editor" ? s.roleEditor : role === "reader" ? s.roleReader : "—";
+}
+
+function stateName(state: string): string {
+  const s = cw();
+  return ({ pending: s.pending, used: s.used, expired: s.expired, ended: s.ended } as Record<string, string>)[state] ?? state;
+}
+
+function badge(text: string, kind = ""): HTMLElement {
+  return el("span", { class: `console-badge ${kind}`.trim() }, text);
+}
+
+/** A labelled row of a console page: a title, a line, a control. */
+function row(title: string, desc: string, control: Node | null): HTMLElement {
+  return el("div", { class: "setting" }, el("div", { class: "setting-text" }, el("div", { class: "setting-title" }, title), el("div", { class: "setting-desc" }, desc)), control ?? el("span"));
+}
+
+function line(): HTMLElement {
+  return el("p", { class: "settings-hint web-said", role: "status" });
+}
+
+/** Space against a quota, as a bar a screen reader reads as a value. */
+function usage(space: number, quota: number | null): HTMLElement {
+  const s = cw();
+  if (quota === null) return el("span", {}, `${bytes(space)} · ${s.noQuota}`);
+  const share = Math.min(100, Math.round((space / Math.max(1, quota)) * 100));
+  const bar = el("span", { class: `console-bar ${share >= 90 ? "near" : ""}`.trim(), role: "meter", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(share), "aria-label": s.of(bytes(space), bytes(quota)) }, el("span", { class: "console-bar-fill", style: `width:${share}%` }));
+  return el("span", { class: "console-usage" }, bar, el("span", {}, s.of(bytes(space), bytes(quota))));
+}
+
+/* ---------- Overview ---------- */
+
+async function overview(c: Ctx, body: HTMLElement): Promise<void> {
+  const s = cw();
+  c.title(s.overview);
+  type Info = { version: string; newer: string | null; updateCheck: boolean; dataDir: string; foldersDir: string; dataOnNetwork: string | null; foldersOnNetwork: string | null; mail: boolean; tls: string; accounts: number; folders: number; space: number; nearQuota: { id: string; name: string; space: number; quota: number }[]; defaultQuota: number | null };
+  const o = await api<Info>("GET", "/api/admin/overview");
+  const card = (title: string, ...content: (Node | string)[]) => el("section", { class: "console-card" }, el("h2", {}, title), ...content);
+  const attention: Node[] = [];
+  if (o.newer) attention.push(el("li", {}, s.newer(o.newer)));
+  if (o.dataOnNetwork) attention.push(el("li", { class: "web-warn" }, s.dataOnNetwork));
+  for (const f of o.nearQuota) {
+    const a = el("a", { href: `/admin/folders/${f.id}` }, s.nearQuota(f.name, bytes(f.space), bytes(f.quota)));
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      c.go(`/admin/folders/${f.id}`);
+    });
+    attention.push(el("li", {}, a));
+  }
+  const tls = ({ own: s.tlsOwn, proxy: s.tlsProxy, loopback: s.tlsLoopback } as Record<string, string>)[o.tls] ?? s.tlsNone;
+  body.replaceChildren(
+    el(
+      "div",
+      { class: "console-cards" },
+      card(s.attention, attention.length ? el("ul", { class: "console-list" }, ...attention) : el("p", { class: "settings-hint" }, s.allGood)),
+      card(s.totals, el("p", { class: "console-big" }, s.totalsLine(o.accounts, o.folders, bytes(o.space))), el("p", { class: "settings-hint" }, `${s.defaultQuota}: ${o.defaultQuota ? bytes(o.defaultQuota) : s.noQuota}`)),
+      card(s.version, el("p", { class: "console-big" }, o.version), el("p", { class: "settings-hint" }, o.newer ? s.newer(o.newer) : o.updateCheck ? s.upToDate : s.checkOff)),
+      card(
+        s.storage,
+        el("p", {}, el("strong", {}, s.dataDir), el("br"), el("code", {}, o.dataDir), o.dataOnNetwork ? el("span", { class: "web-warn" }, ` — ${s.onNetwork(o.dataOnNetwork)}`) : ""),
+        el("p", {}, el("strong", {}, s.foldersDir), el("br"), el("code", {}, o.foldersDir), o.foldersOnNetwork ? el("span", {}, ` — ${s.onNetwork(o.foldersOnNetwork)}`) : ""),
+      ),
+      card(s.mail, el("p", {}, o.mail ? s.mailOn : s.mailOff)),
+      card(s.tls, el("p", {}, tls)),
+    ),
+  );
+}
+
+/* ---------- Accounts ---------- */
+
+function accounts(c: Ctx, body: HTMLElement): void {
+  const s = cw();
+  c.title(s.accounts);
+  const said = el("div", { role: "status" });
+  const form = el("div", { class: "console-panel", hidden: "" });
+  const email = input("email", { placeholder: s.email, "aria-label": s.email });
+  const name = input("text", { placeholder: s.name, "aria-label": s.name });
+  const lang = el("select", { "aria-label": s.language }, el("option", { value: "pt" }, "Português (Brasil)"), el("option", { value: "en" }, "English"));
+  const make = button(s.create, "save");
+  const cancel = button(s.cancel);
+  const fail = line();
+  form.append(el("h2", {}, s.newAccount), el("div", { class: "console-form-row" }, email, name, lang, make, cancel), fail);
+  const t = table<AccountRow>({
+    caption: s.accounts,
+    search: s.searchAccounts,
+    sort: "name",
+    link: (r) => `/admin/accounts/${r.id}`,
+    go: c.go,
+    fetch: (a) => api<Page<AccountRow>>("GET", `/api/admin/accounts${qs({ q: a.q, sort: a.sort, desc: a.desc, offset: a.offset })}`),
+    columns: [
+      { key: "name", label: s.name, sort: "name", cell: (r) => el("span", {}, r.name, r.admin ? badge(s.admin, "seal") : "", r.mayCreate && !r.admin ? badge(s.mayCreate) : "") },
+      { key: "email", label: s.email, sort: "email", cell: (r) => r.email },
+      { key: "folders", label: s.folders, sort: "folders", numeric: true, cell: (r) => String(r.folders) },
+      { key: "space", label: s.space, sort: "space", numeric: true, cell: (r) => bytes(r.space) },
+      { key: "seen", label: s.lastSeen, sort: "seen", cell: (r) => (r.lastSeen ? when(r.lastSeen) : s.never) },
+      { key: "created", label: s.created, sort: "created", cell: (r) => when(r.created) },
+    ],
+    tools: [(() => {
+      const b = button(s.newAccount, "save");
+      b.addEventListener("click", () => {
+        form.hidden = false;
+        email.focus();
+      });
+      return b;
+    })()],
+  });
+  cancel.addEventListener("click", () => {
+    form.hidden = true;
+  });
+  make.addEventListener("click", () => {
+    fail.textContent = "";
+    void api<{ link: string }>("POST", "/api/admin/accounts", { email: email.value, name: name.value || email.value.split("@")[0], lang: lang.value })
+      .then((r) => {
+        said.replaceChildren(el("p", { class: "settings-hint" }, s.linkFor(email.value)), snippet(r.link, s.copy, s.copied));
+        email.value = "";
+        name.value = "";
+        form.hidden = true;
+        return t.reload();
+      })
+      .catch((e: unknown) => {
+        fail.textContent = explain(e);
+      });
+  });
+  body.replaceChildren(form, said, t.el);
+}
+
+async function accountPage(c: Ctx, body: HTMLElement, id: string): Promise<void> {
+  const s = cw();
+  type Detail = { account: Account; created: number; password: boolean; folders: { id: string; name: string; role: string; space: Space }[]; sessions: { id: string; kind: string; device: string; last_used: number; address: string }[]; tokens: { id: string; name: string; write: boolean; expires: number | null; folders: string[] }[] };
+  const d = await api<Detail>("GET", `/api/admin/accounts/${id}`);
+  const a = d.account;
+  c.title(a.name);
+  const said = line();
+  const isAdmin = el("input", { type: "checkbox", "aria-label": s.makeAdmin });
+  isAdmin.checked = a.admin;
+  isAdmin.disabled = a.id === c.me.id;
+  const mayCreate = el("input", { type: "checkbox", "aria-label": s.mayCreate });
+  mayCreate.checked = a.mayCreate;
+  const powers = () =>
+    void api("PATCH", `/api/admin/accounts/${a.id}`, { admin: isAdmin.checked, mayCreate: mayCreate.checked })
+      .then(() => (said.textContent = s.saved))
+      .catch((e: unknown) => (said.textContent = explain(e)));
+  isAdmin.addEventListener("change", powers);
+  mayCreate.addEventListener("change", powers);
+  const sw = (box: HTMLInputElement) => el("label", { class: "switch" }, box, el("span", { class: "switch-track" }));
+  const shown = el("div", { role: "status" });
+  const reset = button(s.resetLink);
+  reset.addEventListener("click", () => {
+    void api<{ link: string }>("POST", `/api/admin/accounts/${a.id}/reset`, {})
+      .then((r) => shown.replaceChildren(el("p", { class: "settings-hint" }, s.linkFor(a.email)), snippet(r.link, s.copy, s.copied)))
+      .catch((e: unknown) => (said.textContent = explain(e)));
+  });
+  const remove = button(s.remove, "danger");
+  remove.disabled = a.id === c.me.id;
+  remove.addEventListener("click", () => {
+    if (!confirm(s.removeAsk(a.email))) return;
+    void api("DELETE", `/api/admin/accounts/${a.id}`)
+      .then(() => c.go("/admin/accounts"))
+      .catch((e: unknown) => (said.textContent = explain(e)));
+  });
+  const list = (items: Node[]) => (items.length ? el("ul", { class: "console-list" }, ...items) : el("p", { class: "settings-hint" }, s.none));
+  body.replaceChildren(
+    el("p", { class: "console-sub" }, a.email, " · ", `${s.created} ${when(d.created)}`),
+    row(s.makeAdmin, s.makeAdminDesc, sw(isAdmin)),
+    row(s.mayCreate, s.mayCreateDesc, sw(mayCreate)),
+    row(s.resetLink, s.resetLinkDesc, controls(reset)),
+    shown,
+    row(s.remove, s.removeDesc, controls(remove)),
+    said,
+    el("h2", { class: "settings-subheading" }, s.itsFolders),
+    list(d.folders.map((f) => el("li", {}, el("a", { href: `/admin/folders/${f.id}` }, f.name), ` · ${roleName(f.role)} · ${bytes(f.space?.total ?? 0)}`))),
+    el("h2", { class: "settings-subheading" }, s.sessions),
+    list(d.sessions.map((x) => el("li", {}, `${x.device} · ${x.kind === "device" ? s.device : s.browser} · ${s.lastSeen} ${when(x.last_used)} · ${x.address}`))),
+    el("h2", { class: "settings-subheading" }, s.tokens),
+    list(d.tokens.map((x) => el("li", {}, `${x.name} · ${x.write ? s.write : s.read} · ${x.folders.length} ${s.folders.toLowerCase()} · ${x.expires ? `${s.expires} ${when(x.expires)}` : s.never}`))),
+  );
+  for (const link of body.querySelectorAll<HTMLAnchorElement>("a[href^='/admin/']")) {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      c.go(link.getAttribute("href") ?? "/admin");
+    });
+  }
+}
+
+/* ---------- Folders ---------- */
+
+function folders(c: Ctx, body: HTMLElement): void {
+  const s = cw();
+  c.title(s.folders);
+  const loose = el("div");
+  const t = table<FolderRow>({
+    caption: s.folders,
+    search: s.searchFolders,
+    sort: "name",
+    link: (r) => `/admin/folders/${r.id}`,
+    go: c.go,
+    fetch: (a) => api<Page<FolderRow>>("GET", `/api/admin/folders${qs({ q: a.q, sort: a.sort, desc: a.desc, offset: a.offset })}`),
+    columns: [
+      { key: "name", label: s.name, sort: "name", cell: (r) => r.name },
+      { key: "owners", label: s.owners, cell: (r) => r.owners.join(", ") || "—" },
+      { key: "members", label: s.members, sort: "members", numeric: true, cell: (r) => String(r.members) },
+      { key: "space", label: s.space, sort: "space", cell: (r) => usage(r.space, r.quota) },
+      { key: "changed", label: s.changed, sort: "changed", cell: (r) => (r.changed ? when(r.changed) : "—") },
+    ],
+  });
+  const drawLoose = async () => {
+    const dirs = await api<string[]>("GET", "/api/admin/folders/unregistered");
+    if (!dirs.length) {
+      loose.replaceChildren();
+      return;
+    }
+    const said = line();
+    loose.replaceChildren(
+      el("section", { class: "console-panel" }, el("h2", {}, s.unregistered), el("p", { class: "settings-hint" }, s.unregisteredDesc),
+        ...dirs.map((dir) => {
+          const owner = input("email", { "aria-label": `${s.owner}: ${dir}` });
+          owner.value = c.me.email;
+          const go = button(s.register, "save");
+          go.setAttribute("aria-label", `${s.register}: ${dir}`);
+          go.addEventListener("click", () => {
+            void api("POST", "/api/admin/folders/adopt", { name: dir, owner: owner.value })
+              .catch((e: unknown) => (said.textContent = explain(e)))
+              .finally(() => {
+                void drawLoose();
+                void t.reload();
+              });
+          });
+          return row(dir, s.owner, controls(owner, go));
+        }), said),
+    );
+  };
+  void drawLoose();
+  body.replaceChildren(loose, t.el);
+}
+
+async function folderPage(c: Ctx, body: HTMLElement, id: string): Promise<void> {
+  const s = cw();
+  type Detail = { id: string; name: string; created: number; members: { id: string; name: string; email: string; role: string }[]; space: Space; quota: number | null };
+  const f = await api<Detail>("GET", `/api/admin/folders/${id}`);
+  c.title(f.name);
+  const said = line();
+  const used = f.space?.total ?? 0;
+  const meter = el("div", {}, usage(used, f.quota));
+  const size = input("text", { placeholder: s.quotaPlaceholder, "aria-label": s.quotaTitle });
+  if (f.quota) size.value = bytes(f.quota).replace(/\s/g, "");
+  const setQ = (value: string | null) =>
+    void api<{ quota: number | null }>("PUT", `/api/admin/folders/${f.id}/quota`, { quota: value })
+      .then((r) => {
+        said.textContent = s.saved;
+        meter.replaceChildren(usage(used, r.quota));
+        size.value = r.quota ? bytes(r.quota).replace(/\s/g, "") : "";
+      })
+      .catch((e: unknown) => (said.textContent = explain(e)));
+  const set = button(s.setQuota, "save");
+  set.addEventListener("click", () => setQ(size.value));
+  const clear = button(s.clearQuota);
+  clear.addEventListener("click", () => setQ(null));
+  const enter = button(s.enter);
+  enter.addEventListener("click", () => {
+    if (!confirm(s.enterAsk)) return;
+    void api("POST", `/api/admin/folders/${f.id}/enter`, { role: "editor" })
+      .then(() => (location.href = `/?folder=${f.id}`))
+      .catch((e: unknown) => (said.textContent = explain(e)));
+  });
+  const sp = f.space;
+  body.replaceChildren(
+    el("p", { class: "console-sub" }, `${s.created} ${when(f.created)}`),
+    row(s.space, sp ? s.spaceDetail(bytes(sp.notes), bytes(sp.attachments), sp.files, bytes(sp.index)) : "—", meter),
+    row(s.quotaTitle, s.quotaDesc, controls(size, set, clear)),
+    row(s.enter, s.enterDesc, controls(enter)),
+    said,
+    el("h2", { class: "settings-subheading" }, s.members),
+    f.members.length ? el("ul", { class: "console-list" }, ...f.members.map((m) => el("li", {}, `${m.name} · ${m.email} · ${roleName(m.role)}`))) : el("p", { class: "settings-hint" }, s.none),
+    el("h2", { class: "settings-subheading" }, s.folderAudit),
+    auditTable(c, { folder: f.id }).el,
+  );
+}
+
+/* ---------- Invitations ---------- */
+
+async function invitations(c: Ctx, body: HTMLElement): Promise<void> {
+  const s = cw();
+  c.title(s.invitations);
+  const all = await api<Page<FolderRow>>("GET", "/api/admin/folders?limit=200&sort=name");
+  const said = el("div", { role: "status" });
+  const fail = line();
+  const email = input("email", { "aria-label": s.inviteEmail, placeholder: s.inviteEmail });
+  const folder = el("select", { "aria-label": s.inviteFolder }, el("option", { value: "" }, `${s.inviteFolder}: —`), ...all.rows.map((f) => el("option", { value: f.id }, f.name)));
+  const role = el("select", { "aria-label": s.inviteRole }, el("option", { value: "reader" }, s.roleReader), el("option", { value: "editor" }, s.roleEditor), el("option", { value: "owner" }, s.roleOwner));
+  role.disabled = true;
+  folder.addEventListener("change", () => {
+    role.disabled = folder.value === "";
+  });
+  const go = button(s.invite, "save");
+  let state = "";
+  const filter = el("select", { "aria-label": s.state }, ...[["", s.all], ["pending", s.pending], ["used", s.used], ["expired", s.expired], ["ended", s.ended]].map(([v, l]) => el("option", { value: v ?? "" }, l ?? "")));
+  const t = table<Invitation>({
+    caption: s.invitations,
+    search: s.searchInvitations,
+    fetch: (a) => api<Page<Invitation>>("GET", `/api/admin/invitations${qs({ q: a.q, offset: a.offset, state })}`),
+    tools: [filter],
+    columns: [
+      { key: "email", label: s.email, cell: (r) => r.email ?? "—" },
+      { key: "folder", label: s.inviteFolder.replace(/ \(.*\)/, ""), cell: (r) => (r.folder ? `${r.folder} (${roleName(r.role)})` : "—") },
+      { key: "state", label: s.state, cell: (r) => badge(stateName(r.state), r.state === "pending" ? "seal" : "") },
+      { key: "created", label: s.created, cell: (r) => when(r.created) },
+      { key: "expires", label: s.expires, cell: (r) => when(r.expires) },
+      { key: "usedBy", label: s.usedBy, cell: (r) => r.usedBy ?? "—" },
+      {
+        key: "end",
+        label: "",
+        cell: (r) => {
+          if (r.state !== "pending") return "";
+          const b = button(s.end);
+          b.setAttribute("aria-label", `${s.end}: ${r.email ?? r.id}`);
+          b.addEventListener("click", () => void api("DELETE", `/api/admin/invitations/${r.id}`).then(() => t.reload()));
+          return b;
+        },
+      },
+    ],
+  });
+  filter.addEventListener("change", () => {
+    state = filter.value;
+    void t.reload();
+  });
+  go.addEventListener("click", () => {
+    fail.textContent = "";
+    void api<{ link: string }>("POST", "/api/admin/invitations", { email: email.value || null, folder: folder.value || null, role: folder.value ? role.value : null })
+      .then((r) => {
+        said.replaceChildren(el("p", { class: "settings-hint" }, s.inviteLink), snippet(r.link, s.copy, s.copied));
+        email.value = "";
+        return t.reload();
+      })
+      .catch((e: unknown) => (fail.textContent = explain(e)));
+  });
+  body.replaceChildren(el("section", { class: "console-panel" }, el("h2", {}, s.newInvitation), el("div", { class: "console-form-row" }, email, folder, role, go), fail, said), t.el);
+}
+
+/* ---------- Audit ---------- */
+
+function auditTable(c: Ctx, fixed: { folder?: string }, filters?: () => Record<string, string>): ReturnType<typeof table<AuditRow>> {
+  const s = cw();
+  void c;
+  return table<AuditRow>({
+    caption: s.audit,
+    fetch: (a) => api<Page<AuditRow>>("GET", `/api/admin/audit${qs({ offset: a.offset, ...fixed, ...(filters ? filters() : {}) })}`),
+    columns: [
+      { key: "at", label: s.when, cell: (r) => when(r.at) },
+      { key: "who", label: s.who, cell: (r) => r.who ?? "—" },
+      { key: "what", label: s.what, cell: (r) => el("span", {}, r.action, r.ok ? "" : badge(s.failedRow, "seal")) },
+      { key: "subject", label: s.subject, cell: (r) => r.subject ?? "" },
+      { key: "folder", label: s.folders, cell: (r) => r.folder ?? "" },
+      { key: "address", label: s.address, cell: (r) => r.address ?? "" },
+    ],
+  });
+}
+
+async function audit(c: Ctx, body: HTMLElement): Promise<void> {
+  const s = cw();
+  c.title(s.audit);
+  const actions = await api<string[]>("GET", "/api/admin/audit/actions");
+  const who = input("text", { "aria-label": s.person, placeholder: s.person });
+  const action = el("select", { "aria-label": s.action }, el("option", { value: "" }, s.anyAction), ...actions.map((a) => el("option", { value: a }, a)));
+  const from = input("date", { "aria-label": s.from });
+  const to = input("date", { "aria-label": s.to });
+  const day = (v: string, end: boolean) => (v ? String(Math.floor(new Date(`${v}T${end ? "23:59:59" : "00:00:00"}`).getTime() / 1000)) : "");
+  const values = () => ({ actor: who.value.trim(), action: action.value, from: day(from.value, false), to: day(to.value, true) });
+  const t = auditTable(c, {}, values);
+  const apply = button(s.filter, "save");
+  apply.addEventListener("click", () => void t.reload());
+  const csv = el("a", { class: "ghost web-ghost console-link-button", href: "/api/admin/audit?format=csv", download: "audit.csv" }, s.exportCsv);
+  const refreshCsv = () => csv.setAttribute("href", `/api/admin/audit${qs({ format: "csv", ...values() })}`);
+  for (const f of [who, action, from, to]) f.addEventListener("change", refreshCsv);
+  body.replaceChildren(el("div", { class: "console-panel" }, el("div", { class: "console-form-row" }, who, action, from, to, apply, csv)), t.el);
+}
+
+/* ---------- Server ---------- */
+
+async function server(c: Ctx, body: HTMLElement): Promise<void> {
+  const s = cw();
+  c.title(s.server);
+  const rows = await api<{ name: string; set: boolean; secret: boolean; value: string | null }[]>("GET", "/api/admin/config");
+  body.replaceChildren(
+    el("p", { class: "settings-hint" }, s.serverLead),
+    el(
+      "div",
+      { class: "web-table-wrap" },
+      el(
+        "table",
+        { class: "web-table console-table" },
+        el("caption", { class: "sr-only" }, s.server),
+        el("thead", {}, el("tr", {}, el("th", { scope: "col" }, s.variable), el("th", { scope: "col" }, s.value))),
+        el(
+          "tbody",
+          {},
+          ...rows.map((r) =>
+            el(
+              "tr",
+              {},
+              el("td", {}, el("code", {}, r.name)),
+              el("td", {}, r.secret ? el("span", { title: s.secret }, r.set ? s.set : s.unset) : r.value ? el("code", {}, r.value) : el("span", { class: "settings-hint" }, s.unset)),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/* ---------- The page ---------- */
+
+export function consolePage(me: Account): void {
+  setLang(me.lang);
+  const s = cw();
+  document.body.classList.add("web-mode");
+  document.querySelector(".web-page")?.remove();
+  const nav = el("nav", { class: "console-nav settings-nav", "aria-label": s.console });
+  const heading = el("h1", { class: "console-title", tabindex: "-1" });
+  const body = el("div", { class: "console-content" });
+  const menu = el("button", { type: "button", class: "ghost web-ghost console-menu", "aria-expanded": "false", "aria-controls": "console-side" }, icon("sidebar"), el("span", {}, s.menu));
+  const back = el("a", { class: "console-back", href: "/" }, icon("arrowLeft"), el("span", {}, s.backToNotes));
+  const side = el("aside", { class: "console-side", id: "console-side" }, brand(28), nav, el("div", { class: "console-side-foot" }, el("span", { class: "settings-hint" }, me.email), back));
+  const main = el("main", { class: "web-page console" }, side, el("section", { class: "console-main" }, el("header", { class: "console-head" }, menu, heading), body));
+  document.body.append(main);
+  menu.addEventListener("click", () => {
+    const open = main.classList.toggle("console-open");
+    menu.setAttribute("aria-expanded", String(open));
+  });
+  const ctx: Ctx = {
+    me,
+    go: (href) => {
+      history.pushState(null, "", href);
+      void draw();
+    },
+    title: (t) => {
+      heading.textContent = t;
+      document.title = `${t} — ${s.console} — Universo`;
+    },
+  };
+  const draw = async () => {
+    main.classList.remove("console-open");
+    menu.setAttribute("aria-expanded", "false");
+    const parts = location.pathname.replace(/^\/admin\/?/, "").split("/").filter(Boolean);
+    const [section = "", id] = parts;
+    nav.replaceChildren(
+      ...SECTIONS.map(([path, key, ic]) => {
+        const href = path ? `/admin/${path}` : "/admin";
+        const a = el("a", { class: "settings-nav-item", href, "aria-current": section === path ? "page" : "false" }, icon(ic), el("span", {}, s[key]));
+        a.addEventListener("click", (e) => {
+          e.preventDefault();
+          ctx.go(href);
+        });
+        return a;
+      }),
+    );
+    body.replaceChildren(el("p", { class: "settings-hint" }, s.loading));
+    try {
+      if (section === "accounts" && id) await accountPage(ctx, body, id);
+      else if (section === "accounts") accounts(ctx, body);
+      else if (section === "folders" && id) await folderPage(ctx, body, id);
+      else if (section === "folders") folders(ctx, body);
+      else if (section === "invitations") await invitations(ctx, body);
+      else if (section === "audit") await audit(ctx, body);
+      else if (section === "server") await server(ctx, body);
+      else await overview(ctx, body);
+    } catch (e) {
+      body.replaceChildren(el("p", { class: "web-error", role: "alert" }, explain(e)));
+    }
+    heading.focus({ preventScroll: true });
+  };
+  addEventListener("popstate", () => void draw());
+  void draw();
+}

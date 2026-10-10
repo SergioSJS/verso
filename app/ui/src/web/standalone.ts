@@ -9,7 +9,6 @@
 
 import { type Account } from "./api";
 import { accountEntries } from "./account";
-import { adminEntries } from "./admin";
 import { brand, el, type Entry, type Item } from "./form";
 import { setLang, w } from "./strings";
 import { icon } from "../icons";
@@ -36,7 +35,6 @@ export function settingsPage(me: Account, first: "account" | "admin", lead?: str
   const s = w();
   const sections: { id: "account" | "admin"; label: string; icon: string; entries: () => Entry[] }[] = [
     { id: "account", label: s.account, icon: "user", entries: () => accountEntries(me, item) },
-    ...(me.admin ? [{ id: "admin" as const, label: s.admin, icon: "shield", entries: () => adminEntries(me, item) }] : []),
   ];
   let current = sections.some((x) => x.id === first) ? first : "account";
   document.body.classList.add("web-mode");

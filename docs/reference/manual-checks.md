@@ -116,11 +116,15 @@ end-to-end tests cover the rest.
   screen, the admin's variables filled, the folders on the NAS.
 - [ ] **A `.deb` on a small machine without Docker**: installed, the
   environment file edited, `systemctl enable --now verso`.
-- [ ] **The account and the administration in Settings**, in the browser on
-  the Mac and on the iPhone: the person's button beside the gear opens
-  *Ajustes* › *Conta*; an admin also has *Administração*; on the phone,
-  *Ajustes* and *Conta* at the foot of the side drawer; the sign-in card
-  in both themes.
+- [ ] **The account in Settings and the administration console**, in the
+  browser on the Mac and on the iPhone: the person's button beside the gear
+  opens *Ajustes* › *Conta*, which leads an admin to `/admin`; the console's
+  sections, a folder's quota, the menu on the phone; on the phone, *Ajustes*
+  and *Conta* at the foot of the side drawer; the sign-in card in both
+  themes.
+- [ ] **A folder near its quota**: a note added past 90 % shows the warning
+  in the window; a file past the quota is refused with the sentence, and
+  deleting a file is allowed.
 - [ ] **A ribbon button hidden and brought back** in the installed app:
   right click › *Ocultar este botão*, the status bar says where; *Ajustes* ›
   *Aparência* › its switch brings it back; the gear has no *Ocultar*.

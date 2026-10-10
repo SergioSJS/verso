@@ -125,3 +125,80 @@ body.web-mode { display: block; overflow: auto; height: auto; min-height: 100dvh
   .web-primary { border: 2px solid ButtonText; }
   .web-notice, .web-auth .web-card { border: 2px solid CanvasText; }
 }
+
+/* ---------- The administration console (ADR 0077) ----------
+   A page of its own: the settings' side navigation at the left, the
+   section at the right; on a phone the navigation is a menu. */
+.console { display: grid; grid-template-columns: 15rem minmax(0, 1fr); min-height: 100dvh; padding: 0; background: var(--paper); }
+.console-side { display: flex; flex-direction: column; gap: .9rem; padding: 1.1rem .8rem; background: var(--paper-2); border-right: 1px solid var(--hair); position: sticky; top: 0; height: 100dvh; box-sizing: border-box; }
+.console-side .web-brand { padding: 0 .5rem .4rem; }
+.console-nav .settings-nav-item { text-decoration: none; }
+.console-nav .settings-nav-item[aria-current="page"] { background: var(--seal-wash); color: var(--seal); }
+.console-nav .settings-nav-item[aria-current="page"] .icon { color: var(--seal); }
+.console-side-foot { margin-top: auto; display: flex; flex-direction: column; gap: .4rem; padding: 0 .5rem; overflow-wrap: anywhere; }
+.console-back { display: inline-flex; align-items: center; gap: .45rem; font-size: .88rem; color: var(--seal); text-decoration: none; }
+.console-back .icon { width: 14px; height: 14px; }
+.console-main { min-width: 0; padding: 1.4rem 2.2rem 3rem; }
+.console-head { display: flex; align-items: center; gap: .8rem; margin-bottom: 1rem; }
+.console-title { font-family: var(--display); font-weight: 600; font-size: 1.5rem; margin: 0; outline: none; }
+.console-menu { display: none; align-items: center; gap: .4rem; }
+.console-sub { color: var(--ink-3); font-size: .88rem; margin: -.4rem 0 1rem; }
+.console-content h2.settings-subheading { margin-top: 1.8rem; }
+
+.console-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: 1rem; }
+.console-card { background: var(--paper); border: 1px solid var(--hair); border-radius: 10px; padding: 1rem 1.1rem; }
+.console-card h2 { font-family: var(--ui); font-size: .74rem; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 .5rem; font-weight: 600; }
+.console-card p { margin: .3rem 0; font-size: .9rem; line-height: 1.45; }
+.console-card code { font-size: .8rem; overflow-wrap: anywhere; }
+.console-big { font-family: var(--display); font-size: 1.15rem !important; }
+.console-list { margin: .3rem 0; padding-left: 1.1rem; font-size: .9rem; line-height: 1.6; }
+.console-list a { color: var(--seal); }
+
+.console-panel { border: 1px solid var(--hair); border-radius: 10px; padding: .9rem 1.1rem; margin-bottom: 1rem; background: var(--paper-2); }
+.console-panel h2 { font-family: var(--ui); font-size: .93rem; font-weight: 600; margin: 0 0 .6rem; }
+.console-form-row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.console-form-row input, .console-form-row select, .console-search, .console-table-tools select {
+  font: inherit; font-size: .88rem; padding: .35rem .6rem; min-height: 32px; box-sizing: border-box;
+  color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 6px;
+}
+.console-form-row input:focus, .console-form-row select:focus, .console-search:focus { outline: none; border-color: var(--brass-ink); box-shadow: 0 0 0 3px var(--brass-wash); }
+.console-form-row input[type="email"], .console-form-row input[type="text"] { min-width: 13rem; }
+.console-link-button, .web-link-button { display: inline-flex; align-items: center; text-decoration: none; }
+
+.console-table-box { display: flex; flex-direction: column; gap: .6rem; }
+.console-table-top { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.console-search { flex: 1 1 16rem; max-width: 26rem; }
+.console-table-tools { display: flex; gap: .5rem; margin-left: auto; }
+.console-table td, .console-table th { white-space: normal; vertical-align: middle; }
+.console-table td.num, .console-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.console-table tbody tr:hover { background: var(--paper-2); }
+.console-table a { color: var(--ink); font-weight: 600; text-decoration: none; }
+.console-table a:hover, .console-table a:focus-visible { color: var(--seal); text-decoration: underline; }
+.console-sort { font: inherit; font-weight: 600; color: inherit; display: inline-flex; align-items: center; gap: .25rem; padding: 0; }
+.console-sort:hover { color: var(--ink); }
+.console-sort-mark { color: var(--seal); min-width: .7em; }
+.console-table-status { margin: 0; font-size: .85rem; color: var(--ink-3); }
+.console-table-status:empty { display: none; }
+.console-pager { display: flex; align-items: center; justify-content: flex-end; gap: .5rem; font-size: .85rem; color: var(--ink-3); }
+.console-range { margin-right: .4rem; font-variant-numeric: tabular-nums; }
+
+.console-badge { display: inline-block; margin-left: .4rem; padding: .05rem .45rem; border-radius: 999px; font-size: .72rem; font-weight: 600; background: var(--paper-3); color: var(--ink-2); vertical-align: middle; }
+.console-badge.seal { background: var(--seal-wash); color: var(--seal); }
+.console-usage { display: inline-flex; align-items: center; gap: .5rem; font-size: .85rem; white-space: nowrap; }
+.console-bar { display: inline-block; width: 5.5rem; height: 6px; border-radius: 999px; background: var(--paper-3); overflow: hidden; }
+.console-bar-fill { display: block; height: 100%; background: var(--brass); }
+.console-bar.near .console-bar-fill { background: var(--seal); }
+
+@media (max-width: 760px) {
+  .console { grid-template-columns: minmax(0, 1fr); }
+  .console-side { display: none; position: fixed; inset: 0 auto 0 0; width: min(18rem, 85vw); z-index: 20; height: 100dvh; box-shadow: 0 20px 60px -20px oklch(0% 0 0 / .4); }
+  .console.console-open .console-side { display: flex; }
+  .console-menu { display: inline-flex; min-height: 44px; }
+  .console-main { padding: max(.8rem, env(safe-area-inset-top)) 16px 3rem; }
+  .console-table-tools { margin-left: 0; }
+  .console-search { max-width: none; }
+}
+@media (forced-colors: active) {
+  .console-bar { border: 1px solid CanvasText; }
+  .console-badge { border: 1px solid CanvasText; }
+}
