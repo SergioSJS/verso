@@ -70,7 +70,14 @@ async function start(): Promise<void> {
   }
 }
 
+// A page left while it still loads (a link followed, a reload) has its
+// module imports cut short: that is not a failure to report.
+let leaving = false;
+addEventListener("pagehide", () => (leaving = true));
+addEventListener("beforeunload", () => (leaving = true));
+
 void start().catch((e: unknown) => {
+  if (leaving) return;
   console.error(e);
   notice(w().failed, "error");
 });
