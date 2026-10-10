@@ -109,6 +109,20 @@ pub struct Plan {
     pub pause: Option<usize>,
 }
 
+/// A path as a file system that ignores case and Unicode normalization
+/// compares it — APFS, NTFS: `Nota.md`, `nota.md` and `Nota.md` written in
+/// decomposed form are one file there. A path the listing lacks whose
+/// folded form is a listed path's is that file renamed, not a second one.
+/// Whether this system's file systems fold names by default (APFS, NTFS):
+/// where they do not (Linux), two names differing in case are two files.
+pub const FOLDS_NAMES: bool = cfg!(any(target_os = "macos", windows));
+
+#[must_use]
+pub fn folded(path: &str) -> String {
+    use unicode_normalization::UnicodeNormalization;
+    path.nfc().collect::<String>().to_lowercase()
+}
+
 /// The name a conflict's copy takes (item 8): `<stem> (conflict, <device>,
 /// <when>).<ext>`, in the person's language, with characters every system
 /// keeps (ADR 0070 item 3), not one of `taken`.

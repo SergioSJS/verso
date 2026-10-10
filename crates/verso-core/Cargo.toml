@@ -20,6 +20,10 @@ verso-index = { path = "../verso-index" }
 # verso-cli: no new crate, no new licence.
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Sync compares names as macOS and Windows do, ignoring case and Unicode
+# normalization (ADR 0079): already in the tree through verso-index, same
+# licence (MIT OR Apache-2.0).
+unicode-normalization = "0.1"
 
 [dev-dependencies]
 tempfile = "3.27"

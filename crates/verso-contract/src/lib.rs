@@ -565,7 +565,8 @@ pub struct SyncStatus {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct SyncRefused {
     pub path: String,
-    /// `reader`, `quota`, `placeholder`, `too_large`, `changed` or `failed`.
+    /// `reader`, `quota`, `placeholder`, `too_large`, `name_taken`,
+    /// `changed` or `failed`.
     pub reason: String,
     pub message: String,
 }

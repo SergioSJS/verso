@@ -1296,7 +1296,10 @@ export type SyncLogEntry = {
 /**  A file sync left out, and why. */
 export type SyncRefused = {
 	path: string,
-	/**  `reader`, `quota`, `placeholder`, `too_large`, `changed` or `failed`. */
+	/**
+	 *  `reader`, `quota`, `placeholder`, `too_large`, `name_taken`,
+	 *  `changed` or `failed`.
+	 */
 	reason: string,
 	message: string,
 };
