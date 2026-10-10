@@ -39,23 +39,36 @@ test("a folder syncs with a server, says its state, asks before deleting and sho
   expect(started[0].folder).toBeNull();
   expect(started[0].name).toBeTruthy();
 
-  // A pass paused for many deletions, with a conflict in the folder.
+  // At a glance: all is well, and nothing waits for the person.
+  await expect(app.page.locator(".sync-sentence")).toHaveText("Tudo em dia.");
+  await expect(app.page.locator(".sync-calm").first()).toContainText("Nada esperando por você");
+
+  // A pass paused for many deletions, with a conflict and a file left out.
   await app.writeOutside("Sessao.md", "# Sessao\n\nversão do servidor\n");
   await app.writeOutside(COPY, "# Sessao\n\nversão deste computador\n");
   const status = await app.page.evaluate(() => window.__harness.core.sync);
   await app.emit("sync-status", { ...status, state: "paused", deletions: 12, conflicts: [COPY], refused: [{ path: "video.mov", reason: "quota", message: "" }] });
-  await expect(bar).toHaveText("Pausada: 12 · 1 conflito");
-  await expect(app.page.getByRole("alert")).toContainText("apagaria 12 arquivos");
-  await expect(app.page.locator(".sync-refused")).toContainText("video.mov — a pasta chegou à cota do servidor");
+  await expect(bar).toHaveText("Pausada · 12 a apagar · 1 conflito");
+  await expect(app.page.locator(".sync-sentence")).toHaveText("Parada antes de apagar 12 arquivos.");
+  await expect(app.page.getByRole("alert")).toContainText("12 arquivos seriam apagados");
+  // The conflict is under its note, with who made the copy and when.
+  const conflict = app.page.locator(".sync-item", { hasText: "Sessao.md" });
+  await expect(conflict).toContainText("Cópia de Mac");
+  // The file left out says why and what to do.
+  const quota = app.page.locator(".sync-item", { hasText: "video.mov" });
+  await expect(quota).toContainText("não cabe na cota da pasta");
+  await expect(quota).toContainText("Libere espaço");
+  // History is folded, apart from what needs the person.
+  await expect(app.page.locator(".sync-history")).not.toHaveAttribute("open", "");
 
   // The conflict's difference: the server's version, then the copy.
-  await app.page.locator(".sync-conflict summary").click();
-  await expect(app.page.locator(".sync-conflict .diff .del")).toContainText("versão do servidor");
-  await expect(app.page.locator(".sync-conflict .diff .add")).toContainText("versão deste computador");
+  await conflict.getByRole("button", { name: "Comparar" }).click();
+  await expect(conflict.locator(".diff .del")).toContainText("versão do servidor");
+  await expect(conflict.locator(".diff .add")).toContainText("versão deste computador");
 
   // The deletions go ahead only on an explicit yes.
-  await app.page.getByRole("button", { name: "Apagar 12 arquivos" }).click();
-  await app.page.getByRole("alertdialog").getByRole("button", { name: "Apagar 12 arquivos" }).click();
+  await app.page.getByRole("alert").getByRole("button", { name: "Apagar os 12" }).click();
+  await app.page.getByRole("alertdialog").getByRole("button", { name: "Apagar os 12" }).click();
   await expect.poll(() => app.calls("folder_sync_confirm").then((c) => c.length)).toBe(1);
   await expect(bar).toHaveText("Sincronizada");
 
@@ -63,8 +76,38 @@ test("a folder syncs with a server, says its state, asks before deleting and sho
   await app.key("Escape");
   await bar.click();
   await expect(app.page.locator('.settings-nav-item[aria-current="true"]', { hasText: "Sincronizar" })).toBeVisible();
-  await app.page.getByRole("button", { name: "Desligar" }).click();
+  await app.page.getByRole("button", { name: "Desligar…" }).click();
   await app.page.getByRole("alertdialog").getByRole("button", { name: "Desligar" }).click();
   await expect(bar).toBeHidden();
   await expect(app.page.getByRole("button", { name: "Sincronizar esta pasta" })).toBeVisible();
+});
+
+test("Servers lists each server with its folders, the role in each, and what to do with them", async ({ app }) => {
+  await app.open();
+  await app.page.evaluate(() => {
+    const h = window.__harness.core.handlers;
+    h.server_accounts = () => [{ url: "https://notas.casa", email: "ana@casa.lan", name: "Ana" }];
+    h.server_folders = () => [
+      { id: "f1", name: "Campanha", role: "owner" },
+      { id: "f2", name: "Regras", role: "reader" },
+    ];
+  });
+  await app.key("Mod+,");
+  await app.page.locator(".settings-nav-item", { hasText: "Servidores" }).click();
+  // Connecting: a labelled field and a button.
+  await expect(app.page.getByLabel("Endereço do servidor")).toBeVisible();
+  await expect(app.page.getByRole("button", { name: "Conectar" })).toBeVisible();
+  // The server: who signs in, and its folders with their roles.
+  const server = app.page.getByRole("region", { name: "notas.casa" });
+  await expect(server).toContainText("Você entra como Ana · ana@casa.lan");
+  const folders = server.getByRole("list", { name: "Pastas em notas.casa" });
+  await expect(folders.getByRole("listitem")).toHaveCount(2);
+  await expect(folders.getByRole("listitem").first()).toContainText("Campanha");
+  await expect(folders.getByRole("listitem").first()).toContainText("dona");
+  await expect(folders.getByRole("listitem").nth(1)).toContainText("só lê");
+  // This computer's folder may sync with one: the Sync section opens on it.
+  await folders.getByRole("listitem").first().getByRole("button", { name: /^Sincronizar com / }).click();
+  await expect(app.page.locator('.settings-nav-item[aria-current="true"]', { hasText: "Sincronizar" })).toBeVisible();
+  const where = app.page.locator(".setting", { hasText: "Pasta no servidor" }).locator("select");
+  await expect(where).toHaveValue("f1");
 });
