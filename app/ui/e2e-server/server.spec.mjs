@@ -117,6 +117,9 @@ test("an invited reader reads and cannot write", async ({ page, browser }) => {
   await expect(reader).not.toHaveURL(/invite/);
   // No folder yet: the start page says to choose one of the server's
   // folders, not the desktop's keys, and no role is said.
+  await expect(reader.getByRole("heading", { name: "Escolha uma pasta deste servidor." })).toBeVisible();
+  await expect(reader.getByRole("button", { name: "Escolher uma pasta" })).toBeVisible();
+  await expect(reader.locator(".lesson .keys")).toHaveCount(0);
   await expect(reader.locator(".web-notice", { hasText: "Você só lê" })).toHaveCount(0);
   await expect(reader.locator(".read-only-line")).toBeHidden();
   await expect(reader.locator("html")).not.toHaveAttribute("data-role", "reader");

@@ -11,7 +11,7 @@ export type Strings = Record<
   | "open" | "reindex" | "search" | "clearSearch" | "stickerSearch" | "notes" | "backlinks" | "outline" | "noFolder" | "stale" | "unverified" | "noNotes"
   | "line" | "error" | "reading" | "edit" | "source" | "save" | "saved" | "conflict" | "reload" | "overwrite" | "discard"
   | "cancel" | "discardYes" | "conflictPending" | "taskMoved" | "notSaved" | "closeUnsaved" | "closeAnyway" | "mixedEol" | "propChanged" | "propFixed" | "propExists" | "planLeftOut"
-  | "lessonTitle" | "lessonBody" | "lessonKeys" | "split" | "splitDown" | "emptyPane" | "quick" | "close" | "closePane"
+  | "lessonTitle" | "lessonBody" | "lessonKeys" | "lessonServerTitle" | "lessonServerBody" | "lessonServerOpen" | "split" | "splitDown" | "emptyPane" | "quick" | "close" | "closePane"
   | "frameControls" | "frameMinimize" | "frameMaximize" | "frameRestore" | "frameClose"
   | "maximize" | "restore" | "newNote" | "newNoteName" | "rename" | "deleteNote" | "openTab" | "openPane" | "newHere"
   | "planApply" | "planSkip" | "exists" | "unlinkableName" | "unportableName" | "collapseAll" | "expandAll" | "newSpace" | "space" | "closeSpace" | "untitled"
@@ -109,6 +109,7 @@ export const pt: Strings = {
   reload: "Descartar o meu e recarregar", overwrite: "Gravar o meu por cima", discard: "Há mudanças não salvas nesta nota. Descartar?",
   lessonTitle: "Abra uma pasta de notas.", lessonBody: "Tudo fica nos seus arquivos Markdown, como no Obsidian. Nada é reescrito sem você pedir.",
   lessonKeys: "{open-folder} abre uma pasta · {new-note} nova nota · {quick} abre pelo nome · {search} busca · {split-right} divide · {new-space} nova área",
+  lessonServerTitle: "Escolha uma pasta deste servidor.", lessonServerBody: "As notas ficam nas pastas do servidor. O botão de pasta, no alto da barra lateral — «Nenhuma pasta» enquanto nada está aberto —, lista as que você pode abrir.", lessonServerOpen: "Escolher uma pasta",
   split: "Dividir à direita", splitDown: "Dividir abaixo", emptyPane: "Escolha um arquivo na lista, ou arraste uma aba para cá.",
   frameControls: "Controles da janela", frameMinimize: "Minimizar", frameMaximize: "Maximizar", frameRestore: "Restaurar", frameClose: "Fechar",
   quick: "Abrir…", close: "Fechar aba", closePane: "Fechar área", maximize: "Maximizar área", restore: "Restaurar áreas",
@@ -246,6 +247,7 @@ export const en: Strings = {
   reload: "Discard mine and reload", overwrite: "Write mine over it", discard: "This note has unsaved changes. Discard them?",
   lessonTitle: "Open a folder of notes.", lessonBody: "Everything stays in your Markdown files, as in Obsidian. Nothing is rewritten unless you ask.",
   lessonKeys: "{open-folder} opens a folder · {new-note} new note · {quick} opens by name · {search} searches · {split-right} splits · {new-space} new workspace",
+  lessonServerTitle: "Choose a folder of this server.", lessonServerBody: "The notes live in the server's folders. The folder button at the top of the side bar — “No folder” while none is open — lists the ones you may open.", lessonServerOpen: "Choose a folder",
   split: "Split right", splitDown: "Split down", emptyPane: "Pick a file from the list, or drag a tab here.",
   frameControls: "Window controls", frameMinimize: "Minimize", frameMaximize: "Maximize", frameRestore: "Restore", frameClose: "Close",
   quick: "Open…", close: "Close tab", closePane: "Close pane", maximize: "Maximize pane", restore: "Restore panes",
