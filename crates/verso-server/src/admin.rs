@@ -24,11 +24,13 @@ pub fn link(ctx: &Ctx, path: &str, token: &str) -> String {
     format!("{base}/{path}/{token}")
 }
 
-fn space_bytes(space: &serde_json::Value) -> f64 {
+/// Bytes, counted whole: a sum of `f64` over no folder is `-0.0`, which
+/// a page shows as "-0 B".
+fn space_bytes(space: &serde_json::Value) -> u64 {
     space
         .get("total")
-        .and_then(serde_json::Value::as_f64)
-        .unwrap_or(0.0)
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(0)
 }
 
 pub async fn accounts(ctx: Ctx) -> ApiResult<Response> {
@@ -42,7 +44,7 @@ pub async fn accounts(ctx: Ctx) -> ApiResult<Response> {
             .into_iter()
             .filter(|(_, r)| *r == Role::Owner)
             .collect();
-        let total: f64 = owned
+        let total: u64 = owned
             .iter()
             .map(|(f, _)| space_bytes(&crate::folders::space(&ctx, &f.id)))
             .sum();
@@ -381,14 +383,16 @@ pub async fn adopt(ctx: Ctx, Json(body): Json<Adopt>) -> ApiResult<Response> {
     if !dirs.contains(&body.name) {
         return Err(ApiError::not_found());
     }
+    let registered = || ApiError::new(StatusCode::CONFLICT, "folder_exists", "already registered");
     if ctx.server.db.folder_by_dir(&body.name)?.is_some() {
-        return Err(ApiError::new(
-            StatusCode::CONFLICT,
-            "exists",
-            "already registered",
-        ));
+        return Err(registered());
     }
-    let folder = ctx.server.db.create_folder(&body.name, &owner.id)?;
+    let folder = match ctx.server.db.create_folder(&body.name, &owner.id) {
+        Ok(f) => f,
+        // Two admins at once: the second finds it registered, not a 500.
+        Err(_) if ctx.server.db.folder_by_dir(&body.name)?.is_some() => return Err(registered()),
+        Err(e) => return Err(e.into()),
+    };
     ctx.audit("folder_adopted", Some(&owner.id), Some(&folder.id), true);
     Ok(ok(json!({ "id": folder.id, "name": folder.dir })))
 }

@@ -501,6 +501,16 @@ fn a_stranger_sees_no_folder_and_wrong_passwords_slow_down() {
         )
         .await;
         let link = made["link"].as_str().unwrap();
+        // An account that owns no folder takes 0 bytes — a whole 0, not
+        // the -0.0 a sum of no float is, which a page shows as "-0 B".
+        let (_, list) = get(&r, "/api/admin/accounts", Some(&admin)).await;
+        let new = list
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| a["account"]["email"] == "outro@casa.lan")
+            .unwrap();
+        assert_eq!(new["space"].as_u64(), Some(0), "{new}");
         let token = link.rsplit('/').next().unwrap();
         let (status, _) = post(
             &r,
@@ -1036,5 +1046,41 @@ fn with_a_mail_server_links_go_by_mail_and_say_nothing_of_strangers() {
         .await;
         assert_eq!(inv["mailed"], true);
         assert_eq!(sent().last().unwrap().0, "novo@casa.lan");
+    });
+}
+
+#[test]
+fn a_folder_name_taken_twice_says_so_in_its_own_words() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let (status, _) = post(
+            &r,
+            "/api/folders",
+            json!({ "name": "Diário de bordo" }),
+            Some(&admin),
+        )
+        .await;
+        assert_eq!(status, 200);
+        // Made again: the folder's own code, not the account's "exists".
+        let (status, again) = post(
+            &r,
+            "/api/folders",
+            json!({ "name": "Diário de bordo" }),
+            Some(&admin),
+        )
+        .await;
+        assert_eq!(status, 409);
+        assert_eq!(again["error"], "folder_exists", "{again}");
+        // Registered again by an admin: the same answer.
+        let (status, adopted) = post(
+            &r,
+            "/api/admin/folders/adopt",
+            json!({ "name": "Diário de bordo", "owner": "admin@casa.lan" }),
+            Some(&admin),
+        )
+        .await;
+        assert_eq!(status, 409);
+        assert_eq!(adopted["error"], "folder_exists", "{adopted}");
     });
 }
