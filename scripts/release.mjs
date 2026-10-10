@@ -6,8 +6,8 @@
 //   node scripts/release.mjs prepare 0.3.0-beta.4
 //     On the branch of the pull request that releases (never main): sets
 //     the version (the workspace's Cargo.toml, which every crate and the
-//     app read, app/ui's package.json and lockfile, and both Cargo.lock
-//     files), moves the changelog's "Unreleased" entries under the version
+//     app read, app/ui's package.json and lockfile, both Cargo.lock files
+//     and the server compose file's CasaOS card), moves the changelog's "Unreleased" entries under the version
 //     in both languages, and commits with a sign-off. Nothing is pushed:
 //     the commit travels in that pull request. Everything is checked before
 //     anything is written, so a refusal leaves the checkout as it was.
@@ -159,8 +159,15 @@ function prepare(v) {
   lock.version = v;
   if (lock.packages?.[""]) lock.packages[""].version = v;
 
+  // The server's compose file names the version in its CasaOS block (the
+  // app store's card): it follows.
+  const compose = readHere("packaging/server/docker-compose.yml");
+  const newCompose = compose.replace(/(\n  version: ")[^"]+(")/, `$1${v}$2`);
+  if (newCompose === compose && !compose.includes(`version: "${v}"`)) fail("packaging/server/docker-compose.yml: no x-casaos version to set");
+
   const writes = [
     ["Cargo.toml", `${newCargo.trimEnd()}\n`],
+    ["packaging/server/docker-compose.yml", newCompose],
     ["app/ui/package.json", `${JSON.stringify(pkg, null, 2)}\n`],
     ["app/ui/package-lock.json", `${JSON.stringify(lock, null, 2)}\n`],
     ...CHANGELOGS.map(({ file }, i) => [file, changed[i]]),
