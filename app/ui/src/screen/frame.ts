@@ -89,6 +89,9 @@ function buildNotices(): void {
   failedLine.append(failedText, dismiss);
   notices.append(readOnlyLine, failedLine);
   document.querySelector("main.work")?.prepend(notices);
+  // A folder opened or closed enables the search field: the reader's line
+  // follows, as the bar does.
+  new MutationObserver(paintReadOnly).observe(ui.search, { attributes: true, attributeFilter: ["disabled"] });
   addEventListener("verso:failed", (e) => {
     failedText.textContent = (e as CustomEvent<string>).detail;
     failedLine.hidden = false;
@@ -122,9 +125,16 @@ function buildSideFoot(): void {
   document.querySelector("aside.side")?.append(sideFoot);
 }
 
+/** "You only read this folder" of a folder on screen: with none open, a
+ *  server answers no write — not a reader's role, and not a line to show
+ *  over the start page. */
+function paintReadOnly(): void {
+  readOnlyLine.hidden = canWrite() || ui.search.disabled;
+}
+
 function applyCan(): void {
   footAccount.hidden = !can("account") || signedIn() === null;
-  readOnlyLine.hidden = canWrite();
+  paintReadOnly();
   paintBar();
   ribbon?.paint();
   if (canWrite() === wrote) return;

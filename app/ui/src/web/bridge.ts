@@ -140,6 +140,8 @@ function onMessage(data: string): void {
     notice(w().folderGone, "error");
     folderId = null;
     remember(null);
+    // No folder, no role in it.
+    setRole(null);
     location.reload();
   }
 }
@@ -208,9 +210,11 @@ async function local(cmd: string, a: Record<string, unknown>): Promise<{ answere
     case "open_initial": {
       if (!folderId || openedOnce) return done(null);
       return done(await openFolder(folderId).catch(() => {
-        // A folder of the address one may no longer enter: the start page.
+        // A folder of the address one may no longer enter: the start page,
+        // with no role.
         folderId = null;
         remember(null);
+        setRole(null);
         return null;
       }));
     }
