@@ -357,6 +357,23 @@ fn here(
                 &mut files,
                 &mut apart,
             ),
+            // Gone since the listing (F22): as a change refused meanwhile,
+            // read again on the next pass — held at its base, so no
+            // deletion on this one; listed as changed only if it comes
+            // back, never as failed.
+            Err(e) if e.kind == ErrorKind::NotFound => {
+                if again(s, &path) {
+                    held(&path, "changed", e.message, &mut files, &mut apart);
+                } else if let Some(b) = base.get(&path) {
+                    files.insert(
+                        path,
+                        FileState {
+                            hash: b.clone(),
+                            size: 0,
+                        },
+                    );
+                }
+            }
             Err(e) => held(&path, "failed", e.message, &mut files, &mut apart),
         }
     }
@@ -681,16 +698,7 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
             // once; a refusal that comes back is listed, not retried
             // forever.
             Err(Refusal::Again(path, message)) => {
-                let times = {
-                    let mut again = lock(&s.again);
-                    let n = again.entry(path.clone()).or_insert(0);
-                    *n += 1;
-                    *n
-                };
-                if times < 2 {
-                    lock(&s.dirty).insert(path);
-                    s.poke();
-                } else {
+                if again(s, &path) {
                     apart.insert(
                         path.clone(),
                         SyncRefused {
@@ -759,6 +767,25 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
         actions: done,
         paused: None,
     })
+}
+
+/// A file that changed or went while a pass ran: the first time, read
+/// again on a pass right after (`false`); when it comes back on the next
+/// pass too, `true` — listed instead of retried forever.
+fn again(s: &Syncer, path: &str) -> bool {
+    let times = {
+        let mut again = lock(&s.again);
+        let n = again.entry(path.to_owned()).or_insert(0);
+        *n += 1;
+        *n
+    };
+    if times < 2 {
+        lock(&s.dirty).insert(path.to_owned());
+        s.poke();
+        false
+    } else {
+        true
+    }
 }
 
 /// A conflict's copy, by its name (item 8), in either language.
