@@ -369,6 +369,7 @@ pub async fn command(
                 ws.prune_empty_parents(&p);
                 Ok(())
             })?;
+            told(&s, &key, &[], std::slice::from_ref(&path));
             let head = reconcile(&s, &folder, &key, Some(&actor), &[path])?;
             Ok(json!({ "head": head }))
         }
@@ -390,12 +391,41 @@ pub async fn command(
                 ws.prune_empty_parents(&f);
                 Ok(())
             })?;
+            told(
+                &s,
+                &key,
+                std::slice::from_ref(&to),
+                std::slice::from_ref(&from),
+            );
             let head = reconcile(&s, &folder, &key, Some(&actor), &[from, to])?;
             Ok(json!({ "head": head }))
         }
         _ => Err(refused("no such command")),
     })
     .await
+}
+
+/// A device's change, told to whoever has the folder open as a change from
+/// outside: a shared note open in a room takes it (or stops for the people
+/// in it to choose, ADR 0073 item 7), and the windows hear the folder
+/// changed. The watcher does not report what the server wrote itself.
+fn told(server: &Server, key: &str, changed: &[String], removed: &[String]) {
+    crate::collab::changed_outside(server, key, changed, removed);
+    let clients = server.service.clients_of(key);
+    let index = clients
+        .first()
+        .and_then(|c| server.service.current_folder(c))
+        .map(|f| f.index);
+    server.push(
+        &clients,
+        &json!({ "event": "folder-changed", "payload": {
+            "key": key,
+            "changed": changed,
+            "removed": removed,
+            "listing": true,
+            "index": index,
+        } }),
+    );
 }
 
 /// The file at `path` on the disk now: its hash and the revision it was
@@ -541,6 +571,7 @@ fn put(
             .write_bytes(&p, &bytes, revision.as_deref())
             .map(|_| ())?)
     })?;
+    told(server, key, std::slice::from_ref(&path), &[]);
     let head = reconcile(server, folder, key, Some(actor), &[path])?;
     Ok(json!({ "done": true, "head": head }))
 }
