@@ -39,6 +39,10 @@ pub enum ConfinementError {
     /// a device name, a trailing dot or space, a colon, or a character it
     /// does not allow (ADR 0069, ADR 0070).
     UnportableName,
+    /// Through a symlink, a place outside the folder — refused only where
+    /// the caller asked for it: a server shared by several people
+    /// ([`crate::Root::set_links_inside`]; ADR 0044, revised 2026-10-09).
+    LeavesFolder,
     /// On Windows, the short (8.3) name of an entry listed under another
     /// name — `OBSIDI~1` for `.obsidian`: a second spelling that would get
     /// past the hidden and ignored rules (ADR 0069, item 9).
@@ -58,6 +62,7 @@ impl std::fmt::Display for ConfinementError {
                 "a name not every system can keep (a device name such as CON or NUL, a trailing dot or space, a colon, or one of < > \" | ? * \\)"
             }
             Self::ShortName => "a short (8.3) name of another entry",
+            Self::LeavesFolder => "a link that leads out of the folder",
         };
         write!(
             f,

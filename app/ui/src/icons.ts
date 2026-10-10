@@ -97,6 +97,15 @@ const PATHS: Record<string, string> = {
   sparkles: "M8 2l1.2 3.8L13 7l-3.8 1.2L8 12l-1.2-3.8L3 7l3.8-1.2zM12.5 1.5l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5z",
   tab: "M2.5 4A1.5 1.5 0 0 1 4 2.5h8A1.5 1.5 0 0 1 13.5 4v8a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 12zM2.5 6h11",
   compass: "M8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12zM10.5 5.5l-1.8 4.2-4.2 1.8 1.8-4.2z",
+  // The keyboard's bar on a touch screen (ADR 0076 item 7).
+  undo: "M5.5 3.5 2.5 6.5l3 3M2.5 6.5h7a3.25 3.25 0 0 1 0 6.5H6",
+  redo: "M10.5 3.5l3 3-3 3M13.5 6.5h-7a3.25 3.25 0 0 0 0 6.5H10",
+  indent: "M2.5 3.5h11M7 6.5h6.5M7 9.5h6.5M2.5 12.5h11M2.5 6l2.5 2-2.5 2",
+  outdent: "M2.5 3.5h11M7 6.5h6.5M7 9.5h6.5M2.5 12.5h11M5 6 2.5 8 5 10",
+  keyboardOff: "M2 3.5h12v6.5H2zM4.5 5.5h.01M7 5.5h.01M9.5 5.5h.01M12 5.5h.01M5 8h6M6 12l2 2 2-2",
+  arrowLeft: "M13 8H3M7 4 3 8l4 4",
+  user: "M8 8a2.75 2.75 0 1 0 0-5.5A2.75 2.75 0 0 0 8 8zM2.75 13.5c.6-2.6 2.75-4 5.25-4s4.65 1.4 5.25 4",
+  shield: "M8 1.75 13 3.5v4c0 3.2-2.1 5.6-5 6.75-2.9-1.15-5-3.55-5-6.75v-4zM5.75 8l1.6 1.6L10.5 6.5",
 };
 
 /** A decorative line icon drawn by CSS — a mask over the text color — not

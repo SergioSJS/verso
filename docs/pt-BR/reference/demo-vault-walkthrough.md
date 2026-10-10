@@ -262,6 +262,10 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    Nível: A.
 3. "Grafo do cofre": o grafo e os controles como a nota 05 os nomeia.
    Nível: H.
+4. ⌘K `busca navegação`: a nota 12 vem primeiro, achada pelo nome do
+   arquivo, antes das notas que só dizem as palavras; o × no fim do campo
+   limpa as palavras e a árvore volta, como o Esc faz. Nível: A (a busca do
+   core); E: `search.spec.mjs`.
 
 ## 6. Arquivos
 
@@ -320,6 +324,10 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    árvore: o anel de foco aparece nos quatro lados de uma linha, por dentro
    (a olho, nos dois motores; pegou em 2026-10-08: a contenção das pastas o
    cortava).
+10. Nota 14, "Arrastar e Soltar", numa tela de toque: deslizar o dedo na
+   árvore a rola e não move nada; um dedo segurado numa linha e solto abre
+   o menu dela; segurado e depois movido, arrasta a linha para uma pasta.
+   Nível: H (o toque só se move no Chromium); E: `touch.spec.mjs`.
 
 ## 7. A web
 
@@ -450,8 +458,13 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    e agentes: o botão do comando (Instalar ou Substituir; no Windows nenhum
    botão — o verso.exe vem com o app) e os trechos do MCP, que mostram o
    comando que o host gravaria; sem o Claude Desktop, "Baixar o Claude
-   Desktop" abre a página de download no navegador.
-   Nível: H; E: `settings.spec.mjs`, as seções e a Aparência.
+   Desktop" abre a página de download no navegador; o *Tom do escuro* da
+   Aparência muda o papel do tema escuro (Suave, Profundo, Penumbra), e os
+   botões da faixa lateral têm cada um o seu interruptor, a engrenagem
+   nenhum.
+   Nível: H; E: `settings.spec.mjs`, as seções e a Aparência;
+   `dark-tone.spec.mjs`, toda paleta e tom em 4,5:1 ou mais;
+   `ribbon.spec.mjs`, um botão oculto trazido de volta.
 2. "Relatar problema", na barra de status: o relato, "Erros desta sessão:
    nenhum". Nível: H; E: `settings.spec.mjs`.
 3. A linha de comando na pasta: `verso search <pasta> reunião`;
@@ -573,7 +586,89 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     focos permanecem somente leitura ou nos ajustes do Verso. Nível: H; E:
     `focuses.spec.mjs`.
 
-## 12. O fim
+## 12. No celular e no tablet
+
+Da parada ⑰ "No celular" do tour e da nota 22 ([ADR
+0076](../adr/0076-the-window-on-every-screen.md)). Por máquina, os testes
+marcados `@layout` rodam em 390 × 844 (WebKit), 412 × 915 (Chromium, toque)
+e 820 × 1180 (WebKit) além do tamanho do computador (`playwright.config.mjs`);
+à mão, num celular e num iPad, a janela do servidor no navegador.
+
+1. Abaixo de 760 px: sem fita, sem barra de status; uma barra de cinco
+   verbos embaixo — Arquivos, Buscar, Nova nota, Voltar, Comandos — cada
+   palavra inteira em português, cada alvo de 44 px; Arquivos abre a gaveta,
+   Buscar a gaveta com o campo de busca, Comandos a paleta; Voltar volta na
+   área. Nível: H; E: `responsive.spec.mjs`, "the frame follows the screen"
+   e "the phone's bar".
+2. Um layout dividido numa janela larga, depois estreitada: uma área por vez
+   e um seletor "2/2" na barra de abas; as áreas são listadas e escolhidas
+   nele; os comandos de dividir somem da paleta e do menu de uma aba;
+   alargada de novo, as duas áreas voltam. Uma área abaixo de 520 px dobra
+   as ferramentas em "…", que alcança "Ações da aba…". Nível: H; E:
+   `responsive.spec.mjs`, "a split layout on a phone" e "a pane under 520
+   px".
+3. O grafo no celular: os controles fechados atrás de "Ajustes do grafo"; a
+   ajuda fala da pinça; dois dedos o ampliam. Nível: H; E:
+   `responsive.spec.mjs`, "the graph" (dois testes).
+4. A nota 02 no Editar, por toque: um toque num link põe o cursor e um
+   cartão oferece Abrir e Editar link; Abrir abre a nota. Nível: H; E:
+   `responsive.spec.mjs`, "Edit mode on a touch screen".
+5. Projetos.base, "Por Status": uma coluna por tela com a beirada da
+   próxima; segurar um cartão abre o menu com "Mover para a coluna…"; deslizar
+   rola e não move nada. Nível: H; E: `responsive.spec.mjs`, "the kanban by
+   touch".
+6. Uma nota no Editar numa tela de toque: a barra do teclado acima do
+   teclado; `[[` sugere notas, Desfazer volta, "Esconder o teclado" o
+   fecha; o menu `/`, o menu de uma aba e o cursor ficam acima do teclado.
+   Nível: H; E: `responsive.spec.mjs`, "the keyboard's bar" e "the
+   on-screen keyboard" (o teclado do sistema simulado: à mão no celular).
+7. "Selecionar" no menu de uma linha: uma caixa em cada linha, uma barra
+   com Mover para…, Copiar caminhos, Apagar e Concluir; "Manter aberta"
+   guarda uma aba de pré-visualização; "Abrir" abre uma nota sem
+   pré-visualização; numa tela de toque, um "…" ao lado da linha da frente
+   abre o menu dela. Nível: H; E: `responsive.spec.mjs`, "the tree by touch"
+   e "no action only by a gesture"; `touch.spec.mjs`.
+8. Num servidor (`?side=server` no harness): sem "Mostrar no Finder", sem
+   janela nova; "Copiar link" e "Abrir numa nova aba do navegador"; a página
+   de uma nota web numa moldura; a janela de quem só lê só lê, e diz isso.
+   Nível: H; E: `capabilities.spec.mjs`.
+9. VoiceOver no iPhone e no iPad, TalkBack no Android: as passadas de
+   `manual-checks.md`. Nível: A.
+
+## 13. Num servidor
+
+Da parada "Num servidor" do tour e da nota 23 ([ADR
+0073](../adr/0073-self-hosted-server-first.md), [0074](../adr/0074-accounts-and-access-on-the-server.md),
+[0075](../adr/0075-server-packaging-and-storage.md)). Por máquina, os testes
+de ponta a ponta do servidor guiam um `verso serve` de verdade
+(`npm run e2e:server`, no `scripts/check.sh`), os testes Rust do servidor
+guiam a API e o WebSocket, o teste do host guia uma janela do desktop numa
+pasta do servidor, e o `scripts/check-server-image.sh` monta e roda a
+imagem; à mão, o resto abaixo e no `manual-checks.md`.
+
+1. Um servidor subido com `VERSO_ADMIN_EMAIL` e `VERSO_ADMIN_PASSWORD`: o
+   endereço leva a *Entrar*; uma senha errada diz *E-mail ou senha
+   errados.*; a certa abre a janela (e2e-server, "the admin signs in").
+2. *Ajustes* › *Administração* › *Pastas* (o endereço `/admin` abre a janela
+   com os ajustes ali): a pasta do disco registrada com um dono;
+   *Abrir pasta* a lista; uma nota criada no navegador continua lá depois de
+   recarregar (o mesmo teste).
+3. *Convites*: um convite para um e-mail, uma pasta e *leitor*; o link em
+   outro navegador cria a conta, abre a pasta, e a janela diz *Você só lê
+   esta pasta*; o convite aparece *usado* e por quem; o link uma segunda vez
+   não vale mais (e2e-server, "an invited reader").
+4. Uma nota em duas janelas: o que uma digita aparece na outra, e uma
+   terceira janela a lê do disco (e2e-server, "two windows edit one note").
+5. *Ajustes* › *Conta*, pelo botão da pessoa ao lado da engrenagem na faixa
+   lateral (no celular, *Conta* no pé da barra lateral): uma passkey adicionada, depois *Entrar com passkey* após o
+   e-mail (à mão, num aparelho com passkey); as sessões listadas e uma
+   encerrada; um token para uma pasta, só leitura.
+6. O app desktop: *Ajustes* › *Servidores*, o endereço do servidor,
+   *Conectar*; o navegador pede para permitir este computador; depois de
+   *Permitir*, uma pasta do servidor abre na janela (o teste do host; à mão
+   no app instalado).
+
+## 14. O fim
 
 1. O log depois da linha anotada: nenhum `ERROR`. O stderr do app: vazio. O
    console: nada vermelho. Nível: A; E: todo teste, no harness.

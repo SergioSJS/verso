@@ -22,7 +22,7 @@ import { kindOf, name } from "../paths";
 import { getHiddenFromTree, settings } from "../settings";
 import { LOCALE, t } from "../strings";
 import { renameInline } from "./prompts";
-import { isSelected, selectionClick, selectionOf, shownRow } from "./selection";
+import { isSelected, selectionClick, selectionOf, selectMode, shownRow } from "./selection";
 import type { Drag } from "../layout/drag";
 
 export let allFolders: string[] = [];
@@ -100,6 +100,7 @@ export function fileRow(path: string, extra?: (b: HTMLButtonElement) => void): H
   // Drawn after the open note was marked (a folder opened later): marked here.
   if (current?.layout.activeLeaf?.path === path) b.setAttribute("aria-current", "true");
   if (isSelected(path)) b.classList.add("selected");
+  if (selectMode()) b.setAttribute("aria-pressed", String(isSelected(path)));
   // ⌘- and ⇧-click select (ADR 0048, revised 2026-10-07); a plain click opens.
   // A row a mouse click focused: the arrows walk the tree from it, but F2
   // and Delete stay the window's (F2 renames the open note, main.ts), as
@@ -304,6 +305,7 @@ export function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListE
         openFolder(full);
       });
       if (isSelected(full)) s.classList.add("selected");
+      if (selectMode()) s.setAttribute("aria-pressed", String(isSelected(full)));
       // ⌘- and ⇧-click select the folder, before it opens or toggles.
       s.addEventListener(
         "click",

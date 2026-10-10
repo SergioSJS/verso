@@ -384,3 +384,10 @@ tfoot .base-summary td { border-top: 1px solid var(--hair); border-bottom: 0; }
   border-radius: 2px;
 }
 
+/* A narrow screen: each column keeps room for a word, and the table
+   scrolls sideways in its wrap instead of breaking words letter by letter.
+   A wide window keeps the table at its pane's width, as before. */
+@media (max-width: 760px) {
+  .base-table { min-width: calc(var(--cols, 1) * 7rem); }
+  .base-table td { overflow-wrap: break-word; }
+}

@@ -256,6 +256,10 @@ point 13).
    nothing. Level: A.
 3. "Grafo do cofre": the graph and its controls as note 05 names them.
    Level: H.
+4. ⌘K `busca navegação`: note 12 comes first, found by its file name,
+   before the notes that only say the words; the × at the end of the field
+   clears the words and the tree comes back, as Esc does. Level: A (the
+   core's search); E: `search.spec.mjs`.
 
 ## 6. Files
 
@@ -310,6 +314,10 @@ point 13).
    "…" inside its row. Tab into the tree: the focus ring shows on all four
    sides of a row, inside it (by eye, both engines; caught 2026-10-08: the
    folders' containment cut it).
+10. Note 14, "Arrastar e Soltar", on a touch screen: a swipe over the tree
+   scrolls it and moves nothing; a finger held on a row and lifted opens
+   its menu; held and then moved, it drags the row into a folder. Level: H
+   (touch moves only in Chromium); E: `touch.spec.mjs`.
 
 ## 7. The web
 
@@ -439,7 +447,12 @@ point 13).
    agentes: the command's button (Instalar or Substituir; on Windows no
    button — verso.exe comes with the app) and the MCP snippets, which show
    the command the host would write; without Claude Desktop, "Baixar o
-   Claude Desktop" opens its download page in the browser. Level: H; E: `settings.spec.mjs`, the sections and Aparência.
+   Claude Desktop" opens its download page in the browser; Aparência's
+   *Tom do escuro* changes the dark theme's paper (Suave, Profundo,
+   Penumbra), and the ribbon's buttons each have a switch, the gear none.
+   Level: H; E: `settings.spec.mjs`, the sections and Aparência;
+   `dark-tone.spec.mjs`, every palette and tone at 4.5:1 or more;
+   `ribbon.spec.mjs`, a hidden button brought back.
 2. "Relatar problema", in the status bar: the report, "Erros desta sessão:
    nenhum". Level: H; E: `settings.spec.mjs`.
 3. The command line on the folder: `verso search <folder> reunião`;
@@ -558,7 +571,90 @@ point 13).
     or unknown format, focuses stay read-only or in Verso settings. Level: H; E:
     `focuses.spec.mjs`.
 
-## 12. The end
+## 12. On a phone and a tablet
+
+From the tour's stop ⑰ "No celular" and note 22 ([ADR
+0076](../adr/0076-the-window-on-every-screen.md)). By machine, the tests
+tagged `@layout` run at 390 × 844 (WebKit), 412 × 915 (Chromium, touch) and
+820 × 1180 (WebKit) besides the desktop's size (`playwright.config.mjs`); by
+hand, on a phone and an iPad, the server's window in the browser.
+
+1. Under 760 px: no ribbon, no status bar; a bar of five verbs at the bottom
+   — Arquivos, Buscar, Nova nota, Voltar, Comandos — every word whole in
+   Portuguese, each a target of 44 px; Arquivos opens the drawer, Buscar the
+   drawer with the search field, Comandos the palette; Voltar steps back in
+   the pane. Level: H; E: `responsive.spec.mjs`, "the frame follows the
+   screen" and "the phone's bar".
+2. A layout split on a wide window, then narrowed: one pane at a time and a
+   switcher "2/2" in the tab bar; the panes are listed and chosen from it; the
+   split commands are absent from the palette and from a tab's menu; widened
+   again, both panes are back. A pane under 520 px folds its tools into "…",
+   which reaches "Ações da aba…". Level: H; E: `responsive.spec.mjs`, "a
+   split layout on a phone" and "a pane under 520 px".
+3. The graph on a phone: the controls closed behind "Ajustes do grafo"; the
+   help speaks of the pinch; two fingers zoom it. Level: H; E:
+   `responsive.spec.mjs`, "the graph" (two tests).
+4. Note 02 in Editar, by touch: a tap on a link places the cursor and a card
+   offers Abrir and Editar link; Abrir opens the note. Level: H; E:
+   `responsive.spec.mjs`, "Edit mode on a touch screen".
+5. Projetos.base, "Por Status": a column per screen with the next one's edge
+   showing; a long press on a card opens its menu with "Mover para a
+   coluna…"; a swipe scrolls and moves nothing. Level: H; E:
+   `responsive.spec.mjs`, "the kanban by touch".
+6. A note in Editar on a touch screen: the keyboard's bar above the
+   keyboard; `[[` suggests notes, Desfazer takes it back, "Esconder o
+   teclado" closes it; the `/` menu, a tab's menu and the cursor stay above
+   the keyboard. Level: H; E: `responsive.spec.mjs`, "the keyboard's bar"
+   and "the on-screen keyboard" (the system's keyboard stood in for: by
+   hand on the phone).
+7. "Selecionar" in a row's menu: a box on each row, a bar with Mover para…,
+   Copiar caminhos, Apagar and Concluir; "Manter aberta" keeps a preview
+   tab; "Abrir" opens a note without preview; on a touch screen, a "…" beside
+   the row in front opens the row's menu. Level: H; E: `responsive.spec.mjs`,
+   "the tree by touch" and "no action only by a gesture"; `touch.spec.mjs`.
+8. On a server (`?side=server` in the harness): no "Mostrar no Finder", no
+   new window; "Copiar link" and "Abrir numa nova aba do navegador"; a web
+   note's page in a frame; a reader's window reads only, and says so. Level:
+   H; E: `capabilities.spec.mjs`.
+9. VoiceOver on the iPhone and the iPad, TalkBack on Android: the passes of
+   `manual-checks.md`. Level: A.
+
+## 13. On a server
+
+From the tour's stop "Num servidor" and note 23 ([ADR
+0073](../adr/0073-self-hosted-server-first.md), [0074](../adr/0074-accounts-and-access-on-the-server.md),
+[0075](../adr/0075-server-packaging-and-storage.md)). By machine, the
+server's end-to-end tests drive a real `verso serve` (`npm run e2e:server`,
+in `scripts/check.sh`), the server's Rust tests drive its API and
+WebSocket, the host's test drives a desktop window on a server's folder,
+and `scripts/check-server-image.sh` builds and runs the image; by hand, the
+rest below and in `manual-checks.md`.
+
+1. A server started with `VERSO_ADMIN_EMAIL` and `VERSO_ADMIN_PASSWORD`: the
+   address sends to *Entrar*; a wrong password says *E-mail ou senha
+   errados.*; the right one opens the window (e2e-server, "the admin signs
+   in").
+2. *Ajustes* › *Administração* › *Pastas* (the address `/admin` opens the
+   window with the settings there): the folder on the disk registered with an
+   owner; *Abrir pasta* lists it; a note made in the browser is there after
+   a reload (same test).
+3. *Convites*: an invitation for an e-mail, a folder and *leitor*; the link
+   in another browser creates the account, opens the folder, and the window
+   says *Você só lê esta pasta*; the invitation shows *usado* and by whom; the
+   link a second time is gone (e2e-server, "an invited reader").
+4. One note in two windows: what one types appears in the other, and a
+   third window reads it from the disk (e2e-server, "two windows edit one
+   note").
+5. *Ajustes* › *Conta*, from the person's button beside the gear on the
+   ribbon (on a phone, *Conta* at the foot of the side bar): a passkey added, then *Entrar com passkey* after the e-mail (by
+   hand, on a device with a passkey); the sessions listed and one ended; a
+   token for one folder, read only.
+6. The desktop app: *Ajustes* › *Servidores*, the server's address,
+   *Conectar*; the browser asks to allow this computer; after *Permitir*, a
+   folder of the server opens in the window (the host's test; by hand in
+   the installed app).
+
+## 14. The end
 
 1. The log after the line noted: no `ERROR`. The app's stderr: empty. The
    console: nothing red. Level: A; E: every test, in the harness.

@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { commands } from "../bindings";
+import { can } from "../can";
 import { button, h, ui } from "../dom";
 import { fail } from "../errors";
 import { currentFolder, folderName, popout, secondary } from "../folder";
@@ -84,7 +85,7 @@ export class Space {
       e.preventDefault();
       showMenu(e.clientX, e.clientY, [
         [t.rename, () => this.rename(n), "edit"],
-        ...(!popout ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
+        ...(!popout && can("windows") ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
         [t.closeSpace, () => closeSpace(this), "close"],
       ]);
     });

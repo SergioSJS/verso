@@ -2,6 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { canWrite } from "../can";
+import { narrow } from "../chrome";
 import { h, ui } from "../dom";
 import { moveFile, moveEntries } from "../files";
 import { BoardLeaf } from "../leaves/board";
@@ -10,6 +12,7 @@ import { NoteLeaf } from "../leaves/note";
 import { pinItemToFolder, reorderInFolder } from "../organize/order";
 import { dirOf } from "../paths";
 import { settings } from "../settings";
+import { HOLD_MS, STILL_PX } from "../touch";
 import { allFolders, markCurrent, showOutline } from "../tree/tree";
 import { landIn, Pane } from "./pane";
 import { current, layout, openIn, Space, spaces } from "./spaces";
@@ -33,15 +36,32 @@ export function clearDropHints(): void {
   }
 }
 export function armDrag(handle: HTMLElement, payload: () => Drag, label: () => string): void {
+  // The browser chooses at the touch's start whether it may scroll without
+  // asking the page: a listener that can stop the scroll is there from the
+  // start, and stops it only once the finger has held (`holding`).
+  let holding = false;
+  handle.addEventListener("touchmove", (e) => { if (holding) e.preventDefault(); }, { passive: false });
   handle.addEventListener("pointerdown", (down) => {
     // ⌃-click is the Mac's right click: it opens a menu, never a drag.
     if (down.button !== 0 || down.ctrlKey) return;
     const x0 = down.clientX;
     const y0 = down.clientY;
     let started = false;
+    // A finger drags only after a long press (touch.ts): moved at once, it
+    // scrolls the list. Once held, the page stops scrolling under it, or
+    // the browser would take the move for a scroll and cancel the drag.
+    const finger = down.pointerType === "touch";
+    let held = !finger;
+    const hold = finger ? window.setTimeout(() => { held = holding = true; }, HOLD_MS) : 0;
     const move = (e: PointerEvent) => {
+      if (e.pointerId !== down.pointerId) return;
       if (!started) {
-        if (Math.hypot(e.clientX - x0, e.clientY - y0) < 5) return;
+        const far = Math.hypot(e.clientX - x0, e.clientY - y0);
+        if (!held) {
+          if (far >= STILL_PX) cancel();
+          return;
+        }
+        if (far < 5) return;
         started = true;
         drag = payload();
         ghost.textContent = label();
@@ -54,9 +74,8 @@ export function armDrag(handle: HTMLElement, payload: () => Drag, label: () => s
       if (target) hint(target, e.clientX, e.clientY, e.shiftKey);
     };
     const up = (e: PointerEvent) => {
-      document.removeEventListener("pointermove", move);
-      document.removeEventListener("pointerup", up);
-      document.removeEventListener("contextmenu", cancel, true);
+      if (e.pointerId !== down.pointerId) return;
+      release();
       if (!started) return;
       const target = dropTargetAt(e.clientX, e.clientY);
       const d = drag;
@@ -66,11 +85,20 @@ export function armDrag(handle: HTMLElement, payload: () => Drag, label: () => s
       clearDropHints();
       if (d && target) drop(d, target, e.clientX, e.clientY, e.shiftKey);
     };
-    // A menu opened meanwhile takes the release: the drag is dropped,
-    // or the next click, on the menu, would drop the tab where it lands.
-    const cancel = (): void => {
+    const release = (): void => {
+      window.clearTimeout(hold);
+      holding = false;
       document.removeEventListener("pointermove", move);
       document.removeEventListener("pointerup", up);
+      document.removeEventListener("pointercancel", cancel);
+      document.removeEventListener("contextmenu", cancel, true);
+    };
+    // A menu opened meanwhile takes the release: the drag is dropped, or
+    // the next click, on the menu, would drop the tab where it lands. So
+    // does a pointer the browser takes back (a scroll, a system gesture):
+    // what was being dragged lands nowhere.
+    const cancel = (): void => {
+      release();
       if (started) {
         drag = null;
         ghost.hidden = true;
@@ -80,7 +108,8 @@ export function armDrag(handle: HTMLElement, payload: () => Drag, label: () => s
     };
     document.addEventListener("pointermove", move);
     document.addEventListener("pointerup", up);
-    document.addEventListener("contextmenu", cancel, { once: true, capture: true });
+    document.addEventListener("pointercancel", cancel);
+    document.addEventListener("contextmenu", cancel, { capture: true });
   });
 }
 export type DropTarget =
@@ -169,6 +198,9 @@ export function dropTargetAt(x: number, y: number): DropTarget | null {
   return null;
 }
 export function zoneOf(body: HTMLElement, x: number, y: number): "left" | "right" | "top" | "bottom" | "center" {
+  // A phone shows one pane at a time: a tab dropped on a pane never
+  // splits it (ADR 0076 item 2).
+  if (narrow.matches) return "center";
   const r = body.getBoundingClientRect();
   const fx = Math.max(0, Math.min(1, (x - r.left) / r.width));
   const fy = Math.max(0, Math.min(1, (y - r.top) / r.height));
@@ -236,6 +268,9 @@ export function drop(d: Drag, target: DropTarget, x: number, y: number, shiftKey
     }
     return;
   }
+  // A row of the tree moves a file: not for a reader on a server (ADR 0076
+  // item 11).
+  if (!canWrite()) return;
   // A file from the tree — or several, a selection: into a folder they
   // move together, with one plan of link rewrites; anywhere else, each
   // goes where one would.

@@ -17,6 +17,7 @@ import { renderList } from "./list";
 import { stringsFor, type BaseStrings } from "./strings";
 import { renderTable } from "./table";
 import * as Y from "./yaml";
+import { placeInView } from "../screen/viewport";
 import { fold } from "../text";
 
 /** What a base needs from the window. */
@@ -32,6 +33,9 @@ export type BaseHost = CellHost & {
   copy(text: string): Promise<void>;
   /** A new Markdown note named `name` holding `text`, opened. */
   saveNote(name: string, text: string): Promise<void>;
+  /** The person only reads the folder (a reader on a server, ADR 0076
+   *  item 11): the base and its notes change nothing. */
+  readOnly?: () => boolean;
 };
 
 /** Where a base comes from. */
@@ -136,10 +140,12 @@ class Popover {
     Popover.current?.close();
     Popover.current = this;
     document.body.append(this.el);
+    // Inside what the screen shows: on a phone, above the on-screen
+    // keyboard its fields bring up (ADR 0076 item 7).
     const r = this.anchor.getBoundingClientRect();
-    this.el.style.top = `${Math.round(r.bottom + 4)}px`;
-    const left = Math.min(r.left, window.innerWidth - this.el.offsetWidth - 12);
-    this.el.style.left = `${Math.max(8, Math.round(left))}px`;
+    const { left, top } = placeInView(r.left, r.bottom + 4, this.el.offsetWidth, this.el.offsetHeight, r.top);
+    this.el.style.top = `${Math.round(top)}px`;
+    this.el.style.left = `${Math.round(left)}px`;
     this.anchor.setAttribute("aria-expanded", "true");
     document.addEventListener("mousedown", this.onDoc, true);
     this.el.querySelector<HTMLElement>("input, select, button, textarea")?.focus();
@@ -369,7 +375,8 @@ export class BaseView {
   }
 
   private get editable(): boolean {
-    return this.src.edit !== null && Y.editable(this.src.text());
+    // A reader on a server changes no base (ADR 0076 item 11).
+    return this.src.edit !== null && !this.host.readOnly?.() && Y.editable(this.src.text());
   }
 
   /** Apply `edit` to the base's text for the current view. */

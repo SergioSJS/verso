@@ -46,6 +46,11 @@ xattr = "1.6"
 # nothing (`None`: not detected).
 nix = { version = "0.31", default-features = false, features = ["fs", "mount"] }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+# The same `statfs`, for the server's folders on Linux: a root on NFS or SMB
+# is scanned, since the watcher hears nothing there (ADR 0075 item 3).
+nix = { version = "0.31", default-features = false, features = ["fs"] }
+
 [dev-dependencies]
 # Every test builds a throwaway folder and walks or writes into it.
 tempfile = "3.27"

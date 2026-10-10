@@ -5,6 +5,7 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { commands, type PropertyValue } from "./bindings";
 import { bookmarks, saveBookmarks, setBookmarks } from "./bookmarks";
+import { canWrite } from "./can";
 import { afterFileChange, flushed, stopped } from "./changes";
 import { templateText, today } from "./daily";
 import { ask } from "./dialog";
@@ -24,6 +25,7 @@ import { opening } from "./opening";
 import { folderNoteOf } from "./organize/folderNotes";
 import { setFrontmatterProp, withProperty } from "./organize/frontmatter";
 import { dirOf, ext, Kind, kindOf, name } from "./paths";
+import { st } from "./screen/strings";
 import { getHiddenFromTree, setHiddenFromTree } from "./settings";
 import { keyboardIn, returnFromSide, showSide } from "./side";
 import { t } from "./strings";
@@ -34,6 +36,14 @@ import { selectionMoved } from "./tree/selection";
 import { offerTemplates } from "./templatePicker";
 
 /** A file's bytes as base64, for `create_file`. */
+/** A reader on a server changes nothing: the window's ways to make, move
+ *  or bin a file stop here, whatever reached them — a menu, a key, a drop
+ *  (ADR 0076 item 11). Says why, once. */
+function readable(): boolean {
+  if (canWrite()) return true;
+  ui.status.textContent = st.readOnly;
+  return false;
+}
 export function fileBase64(f: File): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const r = new FileReader();
@@ -44,6 +54,7 @@ export function fileBase64(f: File): Promise<string> {
 }
 /** Files dropped on the tree: copied into the folder under the pointer. */
 export async function copyFilesInto(folder: string, files: FileList): Promise<void> {
+  if (!readable()) return;
   let copied = 0;
   for (const f of Array.from(files)) {
     const r = await commands.createFile(`${folder ? folder + "/" : ""}${f.name}`, await fileBase64(f));
@@ -111,11 +122,19 @@ export function forgetFiles(): void {
 }
 export let untitledN = 0;
 export async function newUntitled(pane: Pane): Promise<void> {
+  if (!readable()) return;
   const folder = pane.active?.path ? dirOf(pane.active.path) : "";
-  let candidate = t.untitled;
   const taken = new Set(allNotes.map((p) => p.toLowerCase()));
-  while (taken.has(`${folder ? folder + "/" : ""}${candidate}.md`.toLowerCase())) candidate = `${t.untitled} ${++untitledN + 1}`;
-  await createNote(folder, candidate, pane, true);
+  // On a server another member may take the same name a moment before
+  // (the list here is not yet told): a name nobody chose moves on to the
+  // next one instead of failing.
+  for (let tries = 0; tries < 8; tries++) {
+    let candidate = t.untitled;
+    while (taken.has(`${folder ? folder + "/" : ""}${candidate}.md`.toLowerCase())) candidate = `${t.untitled} ${++untitledN + 1}`;
+    if ((await createNote(folder, candidate, pane, true, true)) !== "exists") return;
+    taken.add(`${folder ? folder + "/" : ""}${candidate}.md`.toLowerCase());
+  }
+  nameTaken(t.exists);
 }
 /** `#` and `^` open a heading or a block, `|` an alias, `[` and `]` end the
  *  link: no `[[…]]` can name a file whose name holds one. The window does
@@ -143,7 +162,9 @@ export function unportable(typed: string): boolean {
   nameTaken(t.unportableName);
   return true;
 }
-export async function createNote(folder: string, nameTyped: string, pane?: Pane, renameNow = false): Promise<void> {
+/** `quietTaken`: a name already taken is answered "exists", unsaid, for
+ *  the caller to try another. */
+export async function createNote(folder: string, nameTyped: string, pane?: Pane, renameNow = false, quietTaken = false): Promise<"exists" | void> {
   const clean = nameTyped.trim().replace(/\.md$/i, "");
   // A note's file name ends in `.md`: a dot before it is kept by Windows.
   if (!clean || unlinkable(clean) || unportable(`${clean}.md`)) return;
@@ -179,7 +200,11 @@ export async function createNote(folder: string, nameTyped: string, pane?: Pane,
     } catch {}
   }
   const r = await commands.createNote(path, initialText);
-  if (r.status !== "ok") return r.error.kind === "exists" ? nameTaken(t.exists) : fail(r.error);
+  if (r.status !== "ok") {
+    if (r.error.kind !== "exists") return fail(r.error);
+    if (quietTaken) return "exists";
+    return nameTaken(t.exists);
+  }
   await afterFileChange();
   const target = pane ?? paneToOpenIn();
   const leaf = target.open(r.data.path, false);
@@ -246,6 +271,7 @@ export async function deleteNote(path: string): Promise<void> {
 }
 /** Anything to the bin: a note, another file, or a folder with what it holds. */
 export async function deleteEntry(path: string, kind: Kind): Promise<void> {
+  if (!readable()) return;
   const label = kind === "folder" ? path.split("/").pop() ?? path : name(path);
   if (!(await ask(kind === "folder" ? t.confirmDeleteFolder(label) : t.confirmDelete(label), { yes: t.deleteEntry, no: t.cancel }))) return;
   // What goes to the bin goes with its last words: saved first, or not moved.
@@ -361,6 +387,7 @@ export async function moveEntries(paths: string[], folder: string): Promise<bool
 }
 /** Several entries to the bin, asked once. */
 export async function deleteEntries(paths: string[]): Promise<void> {
+  if (!readable()) return;
   if (!(await ask(t.selection.confirmDelete(paths.length), { yes: t.deleteEntry, no: t.cancel }))) return;
   // Inside a folder also given: it goes with the folder.
   const top = paths.filter((p) => !paths.some((q) => q !== p && p.startsWith(`${q}/`)));
@@ -388,6 +415,7 @@ export async function deleteEntries(paths: string[]): Promise<void> {
 }
 /** The context menu of anything in the folder: the same everywhere it is listed. */
 export async function turnNoteIntoFolder(path: string): Promise<void> {
+  if (!readable()) return;
   const dir = dirOf(path);
   const stem = name(path);
   const targetFolder = dir ? `${dir}/${stem}` : stem;
@@ -403,6 +431,7 @@ export async function turnNoteIntoFolder(path: string): Promise<void> {
 /** A destination folder, typed with completion over the vault's folders,
  *  for one entry or for the tree's selection. */
 export function movePrompt(path: string | string[]): void {
+  if (!readable()) return;
   const many = Array.isArray(path) ? path : [path];
   const label = many.length > 1 ? t.selection.count(many.length) : (many[0] ?? "").split("/").pop() ?? "";
   const back = document.activeElement;
@@ -445,6 +474,7 @@ export function movePrompt(path: string | string[]): void {
 }
 /** A copy beside the original: "Name copy.ext", then "Name copy 2.ext"… */
 export async function duplicateEntry(path: string, kind: Kind): Promise<void> {
+  if (!readable()) return;
   if (kind === "folder") return;
   const base = path.split("/").pop() ?? path;
   const dot = base.lastIndexOf(".");

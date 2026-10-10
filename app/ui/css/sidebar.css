@@ -18,6 +18,12 @@
 .search input::placeholder { color: var(--ink-3); }
 .search input:disabled { opacity: .5; }
 .search input::-webkit-search-cancel-button { -webkit-appearance: none; }
+/* The × shows while there are words to clear: an empty field shows its
+   placeholder, whoever emptied it (the ×, Esc, a folder opened). */
+.search-clear { flex: none; width: 1.6rem; height: 1.6rem; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; }
+.search input:placeholder-shown ~ .search-clear, .search input:disabled ~ .search-clear { display: none; }
+.search input:not(:placeholder-shown) ~ kbd { display: none; }
+@media (pointer: coarse) { .search-clear { width: 2.75rem; height: 2.75rem; margin: -.6rem -.5rem -.6rem 0; } }
 
 .side-body { flex: 1; overflow: auto; padding: 0 .6rem 2rem; }
 .side-title { font-size: .68rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); margin: .4rem .5rem .5rem; }
@@ -55,3 +61,7 @@
    transition of the window, not only the tree's, ends at once. */
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; transition-delay: 0s !important; scroll-behavior: auto !important; } }
 
+
+/* A long press on a row or a tab is the right click (touch.ts): no system
+   callout or text selection over it. */
+@media (pointer: coarse) { #notes, .tabs, .ribbon, .space-tabs, .folder-cols { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; } }

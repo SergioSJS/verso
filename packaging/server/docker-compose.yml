@@ -1,0 +1,148 @@
+# The Verso server for CasaOS, ZimaOS and any host that takes a compose
+# file (ADR 0075 item 2). docs/reference/server-install.md explains each
+# value; the image is described in packaging/server/Dockerfile.
+#
+# While the repository is private the image is a private package of
+# GitHub's registry: before the first pull the host runs
+#   docker login ghcr.io -u <github-user>
+# with a token that can read packages (a classic token with read:packages)
+# as the password (ADR 0075, Consequences). On CasaOS and ZimaOS that is a
+# command in the system's terminal; their panel then pulls as usual.
+#
+# `beta` is the newest test version (vX.Y.Z-beta.N), the only kind there
+# is so far; once a production version exists, `latest` names it and this
+# line moves to it.
+#
+# The x-casaos block follows the CasaOS AppStore's v2 format as its
+# repository documents it on 2026-10-09 (docs/specs/compose-and-x-casaos.md
+# in IceWhaleTech/CasaOS-AppStore): locale keys `en_US`, `pt_BR`; the
+# service-level `x-casaos` (envs, ports, volumes) is called legacy there and
+# dropped by the store's build, but apps in the store still carry it and
+# older CasaOS releases read it for the install form, so it stays.
+
+name: verso
+services:
+  verso:
+    image: ghcr.io/sergiosjs/verso:beta
+    container_name: verso
+    restart: unless-stopped
+    # The user the server runs as: uid and gid 1000 by default. A NAS whose
+    # folders belong to another user names it here (its numbers, from
+    # `id`); the two directories below must be writable by it.
+    # user: "1000:1000"
+    ports:
+      - target: 7340
+        published: "7340"
+        protocol: tcp
+    volumes:
+      # The accounts, sessions, audit log and indexes. A local disk, never
+      # a network share: SQLite can be corrupted on NFS or SMB.
+      - type: bind
+        source: /DATA/AppData/verso/data
+        target: /data
+      # The folders of notes. Pick the path; this one may be on a NAS.
+      - type: bind
+        source: /DATA/Documents/Verso
+        target: /folders
+    environment:
+      # Fill before the first start. The address people type in the
+      # browser, with https (a reverse proxy or `tailscale serve` in front;
+      # see the documentation). Left empty, the server refuses to start:
+      # it listens beyond loopback only with a public address.
+      VERSO_PUBLIC_URL: ""
+      # The first admin, read on the first start only and ignored after
+      # (ADR 0074 item 1). Left empty, the log prints a setup link instead.
+      # The password: 12 characters at least.
+      VERSO_ADMIN_EMAIL: ""
+      VERSO_ADMIN_PASSWORD: ""
+      # The reverse proxy's IP address, when one terminates TLS in front.
+      VERSO_TRUSTED_PROXY: ""
+    x-casaos:
+      envs:
+        - container: VERSO_PUBLIC_URL
+          description:
+            en_US: The address people use, with https (for example https://verso.your-tailnet.ts.net). Required.
+            pt_BR: O endereço que as pessoas usam, com https (por exemplo https://verso.sua-tailnet.ts.net). Obrigatório.
+        - container: VERSO_ADMIN_EMAIL
+          description:
+            en_US: The first admin's e-mail. Read on the first start only.
+            pt_BR: O e-mail do primeiro admin. Lido só na primeira inicialização.
+        - container: VERSO_ADMIN_PASSWORD
+          description:
+            en_US: The first admin's password, 12 characters at least. Read on the first start only.
+            pt_BR: A senha do primeiro admin, com 12 caracteres ou mais. Lida só na primeira inicialização.
+        - container: VERSO_TRUSTED_PROXY
+          description:
+            en_US: The IP address of the reverse proxy in front of Verso, if any.
+            pt_BR: O endereço IP do proxy reverso na frente do Verso, se houver.
+      ports:
+        - container: "7340"
+          description:
+            en_US: Web UI (HTTP; put TLS in front)
+            pt_BR: Interface web (HTTP; coloque TLS na frente)
+      volumes:
+        - container: /data
+          description:
+            en_US: Accounts, sessions, audit log and indexes. A local disk, not a network share. Back it up.
+            pt_BR: Contas, sessões, registro de auditoria e índices. Disco local, não um compartilhamento de rede. Faça backup.
+        - container: /folders
+          description:
+            en_US: The folders of notes. May be a NAS. Back it up.
+            pt_BR: As pastas de notas. Pode ser um NAS. Faça backup.
+
+x-casaos:
+  id: com.versomd.verso
+  # The key older CasaOS releases read for the app's identity; the v2
+  # format uses `id` above. Not checked against the v2 store's validation.
+  store_app_id: verso
+  main: verso
+  index: /
+  port_map: "7340"
+  scheme: http
+  architectures:
+    - amd64
+    - arm64
+  category: Productivity
+  author: Verso
+  developer: Sérgio J. Sousa
+  version: "0.7.0-beta.1"
+  # A placeholder: the repository is private, so this address answers
+  # nothing until it is public; the store submission (ADR 0075,
+  # Consequences) brings an icon.svg of its own.
+  icon: https://raw.githubusercontent.com/SergioSJS/verso/main/app/src-tauri/icons/128x128@2x.png
+  title:
+    en_US: Verso
+    pt_BR: Verso
+  tagline:
+    en_US: Markdown notes, Obsidian-compatible, on your own server
+    pt_BR: Notas em Markdown, compatíveis com o Obsidian, no seu próprio servidor
+  description:
+    en_US: |
+      Verso is a Markdown notes app compatible with Obsidian's folders. This is
+      its self-hosted server: open your folders of notes in a browser, on a
+      phone or an iPad, and share a folder with other people.
+
+      The notes stay plain files in the folders directory. Whoever hosts the
+      server can read them: there is no end-to-end encryption.
+    pt_BR: |
+      O Verso é um app de notas em Markdown compatível com as pastas do
+      Obsidian. Este é o servidor dele, auto-hospedado: abra suas pastas de
+      notas no navegador, no celular ou no iPad, e compartilhe uma pasta com
+      outras pessoas.
+
+      As notas continuam arquivos comuns no diretório das pastas. Quem
+      hospeda o servidor consegue lê-las: não há criptografia de ponta a ponta.
+  tips:
+    before_install:
+      en_US: |
+        Fill VERSO_PUBLIC_URL with the https address people will use; the server does not start without it.
+        VERSO_ADMIN_EMAIL and VERSO_ADMIN_PASSWORD are read on the first start only; left empty, the container's log prints a one-hour setup link.
+        A lost admin password: run `verso serve admin reset <e-mail>` in the container's terminal.
+        Both directories must be writable by uid 1000.
+        Back up both directories: the database in /data is not a cache, and the notes are in /folders. Keep /data on a local disk, never on a network share.
+      pt_BR: |
+        Preencha VERSO_PUBLIC_URL com o endereço https que as pessoas vão usar; o servidor não inicia sem ele.
+        VERSO_ADMIN_EMAIL e VERSO_ADMIN_PASSWORD são lidos só na primeira inicialização; vazios, o log do contêiner mostra um link de configuração válido por uma hora.
+        Senha do admin perdida: rode `verso serve admin reset <e-mail>` no terminal do contêiner.
+        Os dois diretórios precisam permitir escrita ao uid 1000.
+        Faça backup dos dois diretórios: o banco em /data não é cache, e as notas estão em /folders. Mantenha /data num disco local, nunca num compartilhamento de rede.

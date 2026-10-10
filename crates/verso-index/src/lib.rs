@@ -258,6 +258,15 @@ impl Index {
         &self.path
     }
 
+    /// The index's size in bytes, as SQLite counts its pages: the space a
+    /// folder's index takes (ADR 0075 item 4), without asking the file
+    /// system.
+    pub fn bytes(&self) -> Result<u64, IndexError> {
+        let pages: i64 = self.conn.query_row("PRAGMA page_count", [], |r| r.get(0))?;
+        let size: i64 = self.conn.query_row("PRAGMA page_size", [], |r| r.get(0))?;
+        Ok(u64::try_from(pages.saturating_mul(size)).unwrap_or(0))
+    }
+
     /// The file name for a folder's index under the configuration
     /// directory: a readable prefix from the folder's name plus a hash of
     /// its absolute path, so two folders never share a file and the name

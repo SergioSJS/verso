@@ -322,6 +322,48 @@ export const commands = {
 	/**  Refresh the index from the folder: only what changed is re-read. */
 	reindex: () => typedError<IndexSummary, ContractError>(__TAURI_INVOKE("reindex")),
 	/**
+	 *  What this side can do (ADR 0027; ADR 0076 item 11): the desktop app,
+	 *  with a folder on this computer, does everything the window offers.
+	 */
+	capabilities: () => typedError<Capabilities, ContractError>(__TAURI_INVOKE("capabilities")),
+	/**  The space the open folder takes (ADR 0075 item 4). */
+	folderSpace: () => typedError<FolderSpace, ContractError>(__TAURI_INVOKE("folder_space")),
+	/**  Join a note for editing with others: on a server only. */
+	collabJoin: (path: string) => typedError<CollabJoin, ContractError>(__TAURI_INVOKE("collab_join", { path })),
+	/**  An edit made in this window, for the others. */
+	collabUpdate: (path: string, update: string) => typedError<null, ContractError>(__TAURI_INVOKE("collab_update", { path, update })),
+	/**  Where this window's cursor is, for the others. */
+	collabAwareness: (path: string, update: string) => typedError<null, ContractError>(__TAURI_INVOKE("collab_awareness", { path, update })),
+	/**  This window leaves the note. */
+	collabLeave: (path: string) => typedError<null, ContractError>(__TAURI_INVOKE("collab_leave", { path })),
+	/**  Write the shared note now (⌘S): its revision on disk. */
+	collabSave: (path: string) => typedError<string, ContractError>(__TAURI_INVOKE("collab_save", { path })),
+	/**
+	 *  A shared note that changed on disk while edits waited: keep the disk's
+	 *  text (`disk`) or write the shared one over it (`mine`).
+	 */
+	collabResolve: (path: string, keep: string) => typedError<string, ContractError>(__TAURI_INVOKE("collab_resolve", { path, keep })),
+	/**
+	 *  Sign in to a server through the browser: the server's page opens for the
+	 *  person to approve this device; the app asks meanwhile, keeps the token
+	 *  when it comes, and says so (`server-signed-in`).
+	 */
+	serverSignIn: (url: string) => typedError<ServerSignIn, ContractError>(__TAURI_INVOKE("server_sign_in", { url })),
+	/**  The servers this app is signed in to. */
+	serverAccounts: () => typedError<ServerAccount[], ContractError>(__TAURI_INVOKE("server_accounts")),
+	/**
+	 *  Sign out of a server: the device's session ends there when the server
+	 *  can be reached, and the token is forgotten here either way.
+	 */
+	serverSignOut: (url: string) => typedError<null, ContractError>(__TAURI_INVOKE("server_sign_out", { url })),
+	/**  The folders of a server the account may open. */
+	serverFolders: (url: string) => typedError<ServerFolder[], ContractError>(__TAURI_INVOKE("server_folders", { url })),
+	/**
+	 *  Open a folder of a server in this window: the window leaves its own
+	 *  folder, connects, and from now on sends the folder's commands there.
+	 */
+	serverOpen: (url: string, folder: string) => typedError<FolderInfo, ContractError>(__TAURI_INVOKE("server_open", { url, folder })),
+	/**
 	 *  A base evaluated over the folder (ADR 0053): the rows of the view the
 	 *  window draws, as a table, cards, a list, a kanban or a calendar.
 	 */
@@ -549,6 +591,47 @@ export type Block = {
 };
 
 /**
+ *  What the side the window talks to can do (ADR 0027; ADR 0076 item 11):
+ *  the window hides what is absent instead of showing it and failing.
+ */
+export type Can = 
+/**  Change the open folder (a reader on a server cannot). */
+"write" | 
+/**  Show a file in the system's file manager. */
+"reveal" | 
+/**  Copy a file's full path. */
+"copy_path" | 
+/**  Open windows of the app: a note in one of its own, a new window. */
+"windows" | 
+/**  Show web pages inside the window (child web views). */
+"web_views" | 
+/**  The command line and the agents of the settings (ADR 0054). */
+"agents" | 
+/**  The app's own updates (ADR 0055). */
+"updates" | 
+/**  The window's console. */
+"devtools" | 
+/**  Open folders from this computer's disk. */
+"local_folders" | 
+/**  An account signed in on a server: the account's page. */
+"account" | 
+/**  The account is the server's admin: the admin page. */
+"admin" | 
+/**  Several people editing one note at once (ADR 0073 item 7). */
+"collab";
+
+export type Capabilities = {
+	host: Host,
+	can: Can[],
+	/**
+	 *  The round trip to the side, in milliseconds, when it is across a
+	 *  network (the desktop app on a server's folder, ADR 0073 item 2): the
+	 *  window learns how far the core is (ADR 0026 rule 2).
+	 */
+	latency_ms: number | null,
+};
+
+/**
  *  What stands where the app installs its command line (ADR 0054):
  *  `/usr/local/bin/verso`, on the PATH every shell has.
  */
@@ -569,6 +652,49 @@ export type CliState =
  *  it, and nothing is linked onto a PATH (ADR 0069, item 9).
  */
 "bundled";
+
+/**
+ *  A note joined for editing by several people at once (ADR 0073 item 7):
+ *  the shared state as a Yjs update (base64) to apply to an empty
+ *  document, the revision on disk it stands on, and how the file is
+ *  written — its text in the shared state has `\n` line ends; a file
+ *  that mixes them is shown read-only and joins nothing.
+ */
+export type CollabJoin = {
+	update: string,
+	revision: string,
+	read_only: boolean,
+	/**  Whether the file's lines end in CRLF. */
+	crlf: boolean,
+	/**  The name the others see for this person. */
+	user: string,
+	/**
+	 *  Which room this is: a window that comes back after its connection
+	 *  dropped sends what it typed meanwhile only into the room it left,
+	 *  never into one made again from the disk.
+	 */
+	epoch: string,
+};
+
+/**
+ *  What became of a shared note (events `collab-saved`, `collab-conflict`,
+ *  `collab-closed`): written at `revision`; changed on disk while edits
+ *  waited, so the people in it see the difference; or no longer shared
+ *  (renamed, deleted, its line ends mixed), so the window reads it again.
+ */
+export type CollabState = {
+	path: string,
+	revision: string | null,
+};
+
+/**
+ *  An edit or a presence of another person in a note (events
+ *  `collab-update` and `collab-awareness`): a Yjs update, base64.
+ */
+export type CollabUpdate = {
+	path: string,
+	update: string,
+};
 
 /**
  *  An error as the UI receives it. `message` is the core's text, in
@@ -788,6 +914,27 @@ export type FolderInfo = {
 	index: IndexSummary,
 };
 
+/**
+ *  The space a folder takes (ADR 0075 item 4): counted from the walk the
+ *  index already makes, never by a walk of its own. Bytes, as numbers the
+ *  window can show.
+ */
+export type FolderSpace = {
+	/**  Every file of the folder, notes and attachments. */
+	total: number | null,
+	/**  The notes (`.md`). */
+	notes: number | null,
+	/**  Everything else: pictures, PDFs, boards, other files. */
+	attachments: number | null,
+	/**  How many files. */
+	files: number,
+	/**
+	 *  The folder's index, kept beside the configuration (not inside the
+	 *  folder).
+	 */
+	index: number | null,
+};
+
 /**  A heading of a note, for citing and for the outline. */
 export type Heading = {
 	level: number,
@@ -801,6 +948,12 @@ export type Hit = {
 	path: string,
 	snippet: string,
 };
+
+/**
+ *  Which side the window talks to (ADR 0027, ADR 0073 item 2): the app on
+ *  this computer, or a server.
+ */
+export type Host = "desktop" | "server";
 
 /**  Progress payload emitted during vault indexing. */
 export type IndexProgress = {
@@ -1056,6 +1209,33 @@ export type SchemaNotice = {
 	nested: boolean,
 	/**  Why a block at the top level types nothing (`unknown_kind`, …). */
 	error: string | null,
+};
+
+/**
+ *  A server this app signed in to (ADR 0074 item 8; the maintainer's
+ *  answer K of 2026-10-09): its address and whose account it is. The
+ *  device's token stays on this side.
+ */
+export type ServerAccount = {
+	url: string,
+	email: string,
+	name: string,
+};
+
+/**  A folder of a server the account may open, and the role in it. */
+export type ServerFolder = {
+	id: string,
+	name: string,
+	role: string,
+};
+
+/**
+ *  A sign-in under way: the code the server's page shows, to compare, and
+ *  the page the app opened in the browser.
+ */
+export type ServerSignIn = {
+	code: string,
+	page: string,
 };
 
 /**  Why a note that links to what moved got no rewrite. */

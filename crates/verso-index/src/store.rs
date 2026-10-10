@@ -290,8 +290,8 @@ impl Index {
         let tx = self.conn.savepoint()?;
         forget(&tx, relative)?;
         tx.execute(
-            "INSERT INTO notes (path, path_key, name_key, dir, title, modified, len, hash, tags, aliases, frontmatter_ok, unverified, content, url, sticker, color, banner, banner_y, order_items, pinned_items, type, type_key, indexed_at)
-             VALUES (?1, ?2, ?3, ?12, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)",
+            "INSERT INTO notes (path, path_key, name_key, dir, title, modified, len, hash, tags, aliases, frontmatter_ok, unverified, content, url, sticker, color, banner, banner_y, order_items, pinned_items, type, type_key, indexed_at, name_fold)
+             VALUES (?1, ?2, ?3, ?12, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)",
             params![
                 relative,
                 path_key,
@@ -317,6 +317,7 @@ impl Index {
                 note_type,
                 note_type_key,
                 self.run_started.unwrap_or(0),
+                crate::search::name_fold(relative),
             ],
         )?;
         let note = tx.last_insert_rowid();
@@ -460,8 +461,8 @@ impl Index {
         let tx = self.conn.savepoint()?;
         forget(&tx, relative)?;
         tx.execute(
-            "INSERT INTO notes (path, kind, path_key, name_key, dir, title, modified, len, hash, unverified, content)
-             VALUES (?1, 'canvas', ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, ?9)",
+            "INSERT INTO notes (path, kind, path_key, name_key, dir, title, modified, len, hash, unverified, content, name_fold)
+             VALUES (?1, 'canvas', ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, ?9, ?10)",
             params![
                 relative,
                 path_key,
@@ -472,6 +473,7 @@ impl Index {
                 i64::try_from(stamp.len).unwrap_or(i64::MAX),
                 i64::from_le_bytes(stamp.hash.to_le_bytes()),
                 content,
+                crate::search::name_fold(relative),
             ],
         )?;
         let source = tx.last_insert_rowid();
@@ -534,9 +536,16 @@ impl Index {
             .trim_end_matches(".md")
             .to_owned();
         tx.execute(
-            "INSERT INTO notes (path, path_key, name_key, dir, title, modified, len, hash, unverified)
-             VALUES (?1, ?2, ?3, ?5, ?4, 0, 0, 0, 1)",
-            params![relative, path_key, name_key, title, dir_of(relative)],
+            "INSERT INTO notes (path, path_key, name_key, dir, title, modified, len, hash, unverified, name_fold)
+             VALUES (?1, ?2, ?3, ?5, ?4, 0, 0, 0, 1, ?6)",
+            params![
+                relative,
+                path_key,
+                name_key,
+                title,
+                dir_of(relative),
+                crate::search::name_fold(relative)
+            ],
         )?;
         // External content: `notes_fts` only knows the rows it was told
         // about, and the next `forget` will tell it to delete this one.
@@ -675,18 +684,24 @@ impl Index {
     /// is the corruption a placeholder once caused (ADR 0043): harmless
     /// until the next `forget`, fatal then (`SQLITE_CORRUPT_VTAB`).
     pub fn check(&self) -> Result<(), IndexError> {
-        self.conn.execute(
-            "INSERT INTO notes_fts (notes_fts) VALUES ('integrity-check')",
-            [],
+        self.conn.execute_batch(
+            "INSERT INTO notes_fts (notes_fts) VALUES ('integrity-check');
+             INSERT INTO names_fts (names_fts) VALUES ('integrity-check');",
         )?;
-        let (notes, documents): (i64, i64) = self.conn.query_row(
-            "SELECT (SELECT count(*) FROM notes), (SELECT count(*) FROM notes_fts_docsize)",
+        let (notes, documents, names): (i64, i64, i64) = self.conn.query_row(
+            "SELECT (SELECT count(*) FROM notes), (SELECT count(*) FROM notes_fts_docsize),
+                    (SELECT count(*) FROM names_fts)",
             [],
-            |r| Ok((r.get(0)?, r.get(1)?)),
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
         )?;
         if notes != documents {
             return Err(IndexError::Corrupt(format!(
                 "{notes} notes but {documents} full-text documents"
+            )));
+        }
+        if notes != names {
+            return Err(IndexError::Corrupt(format!(
+                "{notes} notes but {names} searched names"
             )));
         }
         Ok(())

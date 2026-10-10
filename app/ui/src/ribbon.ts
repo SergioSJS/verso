@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { commands } from "./bindings";
+import { can, canWrite } from "./can";
 import { narrow, rightShown, sideShown, toggleRight, toggleSide } from "./chrome";
 import { dailyNote, insertTemplate } from "./daily";
 import { h, ui } from "./dom";
@@ -16,6 +17,7 @@ import { createMenuItems, showMenu } from "./menu";
 import { reindex } from "./open";
 import { dirOf } from "./paths";
 import { t } from "./strings";
+import { signedIn } from "./web/api";
 
 /* ---------- The ribbon: one column of what the app does, reordered by drag ---------- */
 /** `keys`: the command whose hotkey the tooltip shows. */
@@ -37,8 +39,23 @@ export const RIBBON: RibbonItem[] = [
   { id: "reindex", icon: "refresh", label: () => t.reindex, needsFolder: true, run: () => void reindex() },
   { id: "new-window", icon: "maximize", label: () => t.newWindow, needsFolder: false, run: () => void commands.newWindow(false).then((r) => r.status === "ok" || fail(r.error)) },
   { id: "right", icon: "panelRight", label: () => t.toggleRight, keys: "toggle-right", bottom: true, run: () => toggleRight() },
+  // On a server, the person's account and, for an admin, the server's
+  // administration are sections of the settings (ADR 0074 items 7 and 9):
+  // their button stands beside the gear.
+  { id: "account", icon: "user", label: () => t.sAccount, bottom: true, run: () => settingsDialog.show("account") },
   { id: "settings", icon: "gear", label: () => t.settings, keys: "settings", bottom: true, run: () => settingsDialog.show() },
 ];
+/** The button that is never hidden: the settings, where the others come
+ *  back from. */
+const KEPT = "settings";
+/** What the side cannot do leaves the ribbon (ADR 0076 item 11): a reader
+ *  on a server makes and changes nothing; a browser opens no window. */
+function possible(id: string): boolean {
+  if (id === "new" || id === "daily" || id === "template" || id === "replace") return canWrite();
+  if (id === "new-window") return can("windows");
+  if (id === "account") return can("account") && signedIn() !== null;
+  return true;
+}
 export class Ribbon {
   private order: string[] = RIBBON.map((i) => i.id);
   private hidden = new Set<string>();
@@ -47,12 +64,54 @@ export class Ribbon {
       const raw = localStorage.getItem("verso.ribbon");
       if (raw) {
         const saved = JSON.parse(raw) as { order?: unknown; hidden?: unknown };
-        if (Array.isArray(saved.order)) this.order = [...saved.order.filter((x): x is string => typeof x === "string" && RIBBON.some((i) => i.id === x)), ...RIBBON.map((i) => i.id).filter((id) => !(saved.order as unknown[]).includes(id))];
-        if (Array.isArray(saved.hidden)) this.hidden = new Set(saved.hidden.filter((x): x is string => typeof x === "string"));
+        if (Array.isArray(saved.order)) {
+          this.order = saved.order.filter((x): x is string => typeof x === "string" && RIBBON.some((i) => i.id === x));
+          // A button newer than the saved order goes where it stands among
+          // the defaults: before the one that follows it there.
+          RIBBON.forEach((it, n) => {
+            if (this.order.includes(it.id)) return;
+            const after = RIBBON.slice(n + 1).find((x) => this.order.includes(x.id));
+            this.order.splice(after ? this.order.indexOf(after.id) : this.order.length, 0, it.id);
+          });
+        }
+        if (Array.isArray(saved.hidden)) this.hidden = new Set(saved.hidden.filter((x): x is string => typeof x === "string" && x !== KEPT));
       }
     } catch { /* no storage */ }
     this.el.title = t.ribbonDragHint;
+    // The column's empty room has the menu too: with every button but the
+    // gear hidden, it is where they come back from.
+    this.el.addEventListener("contextmenu", (e) => {
+      if ((e.target as HTMLElement).closest(".ribbon-item")) return;
+      e.preventDefault();
+      showMenu(e.clientX, e.clientY, this.backItems());
+    });
     this.paint();
+  }
+  /** The buttons this side can show, in their order, for the settings. */
+  buttons(): { id: string; label: string; icon: string; shown: boolean; kept: boolean }[] {
+    return this.order
+      .map((id) => RIBBON.find((i) => i.id === id))
+      .filter((it): it is RibbonItem => it !== undefined && possible(it.id))
+      .map((it) => ({ id: it.id, label: it.label(), icon: it.icon, shown: !this.hidden.has(it.id), kept: it.id === KEPT }));
+  }
+  setShown(id: string, shown: boolean): void {
+    if (id === KEPT) return;
+    if (shown) this.hidden.delete(id);
+    else this.hidden.add(id);
+    this.save();
+    this.paint();
+  }
+  private hide(id: string): void {
+    this.setShown(id, false);
+    ui.status.textContent = t.ribbonHidden;
+  }
+  private backItems(): [string, () => void][] {
+    const hiddenCount = this.hidden.size;
+    return [
+      ...(hiddenCount > 0 ? [[`${t.ribbonShowAll} (${hiddenCount})`, () => { this.hidden.clear(); this.save(); this.paint(); }] as [string, () => void]] : []),
+      [t.ribbonReset, () => { this.order = RIBBON.map((i) => i.id); this.hidden.clear(); this.save(); this.paint(); }],
+      [t.ribbonButtons, () => settingsDialog.show("appearance")],
+    ];
   }
   private save(): void {
     try { localStorage.setItem("verso.ribbon", JSON.stringify({ order: this.order, hidden: Array.from(this.hidden) })); } catch { /* no storage */ }
@@ -66,7 +125,7 @@ export class Ribbon {
     const bottom = h("div", "ribbon-group ribbon-bottom");
     for (const id of this.order) {
       const it = RIBBON.find((i) => i.id === id);
-      if (!it || this.hidden.has(id)) continue;
+      if (!it || this.hidden.has(id) || !possible(id)) continue;
       const b = h("button", "ribbon-item");
       b.type = "button";
       b.dataset["id"] = id;
@@ -83,14 +142,13 @@ export class Ribbon {
       b.addEventListener("click", () => { if (!this.dragged) it.run(b); this.dragged = false; });
       b.addEventListener("contextmenu", (e) => {
         e.preventDefault();
-        const hiddenCount = this.hidden.size;
+        e.stopPropagation();
         showMenu(e.clientX, e.clientY, [
           // What dragging a button along the column does, from the menu.
           [t.ribbonUp, () => this.move(id, -1), "chevronUp"],
           [t.ribbonDown, () => this.move(id, 1), "chevronDown"],
-          [t.ribbonHide, () => { this.hidden.add(id); this.save(); this.paint(); }, "close"],
-          ...(hiddenCount > 0 ? [[`${t.ribbonShowAll} (${hiddenCount})`, () => { this.hidden.clear(); this.save(); this.paint(); }] as [string, () => void]] : []),
-          [t.ribbonReset, () => { this.order = RIBBON.map((i) => i.id); this.hidden.clear(); this.save(); this.paint(); }],
+          ...(id === KEPT ? [] : [[t.ribbonHide, () => this.hide(id), "close"] as [string, () => void, string]]),
+          ...this.backItems(),
         ]);
       });
       // The menu from the keyboard, as the tree's rows and the tabs have it.

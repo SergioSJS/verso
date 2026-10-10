@@ -74,4 +74,6 @@ O que o Verso **nunca** faz: escrever ao abrir, acrescentar chaves sozinho, reor
 
 ---
 
+Próxima: [[22 - Verso no Celular e no Tablet]] — o Verso com um dedo no lugar do mouse.
+
 Volte para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].

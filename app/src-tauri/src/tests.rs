@@ -4,6 +4,8 @@
 
 use std::io::Write;
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use serde_json::{Value, json};
 use tauri::ipc::{CallbackFn, InvokeBody};
 use tauri::test::{INVOKE_KEY, MockRuntime, get_ipc_response, mock_builder};
@@ -55,7 +57,7 @@ fn app_with(
     let app = mock_builder()
         .plugin(navigation_guard())
         .manage(App {
-            config: Some(config.path().to_path_buf()),
+            service: Service::new(Some(config.path().to_path_buf())),
             ..App::new(initial)
         })
         .manage(TestConfig { _dir: config })
@@ -63,6 +65,7 @@ fn app_with(
         // The app's own context: its capabilities decide what a window may call.
         .build(context())
         .unwrap();
+    hear(app.handle());
     let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
         .build()
         .unwrap();
@@ -268,12 +271,13 @@ fn one_batch_is_told_once_whatever_the_windows() {
         seen.fetch_add(1, Ordering::SeqCst);
     });
     let missed = AtomicBool::new(false);
-    changed_outside(app.handle(), info["key"].as_str().unwrap(), &missed);
+    let service = &app.state::<App>().service;
+    service.changed_outside(info["key"].as_str().unwrap(), &missed);
     assert_eq!(told.load(Ordering::SeqCst), 1);
     assert!(!missed.load(Ordering::SeqCst));
     // A batch for a folder that is not the open one tells nobody, and
     // says it missed.
-    changed_outside(app.handle(), "outra-0123456789abcdef", &missed);
+    service.changed_outside("outra-0123456789abcdef", &missed);
     assert_eq!(told.load(Ordering::SeqCst), 1);
     assert!(missed.load(Ordering::SeqCst));
 }
@@ -375,7 +379,7 @@ fn the_commands_answer_through_the_contract() {
     // Its index went to the app's configuration directory — here the
     // test's temporary one, never the user's: the key opens the folder
     // again from there.
-    let config = app.state::<App>().config.clone().unwrap();
+    let config = app.state::<App>().service.config().unwrap().to_path_buf();
     let reopened = Workspace::reopen(&key, Some(&config));
     assert!(reopened.is_ok(), "{:?}", reopened.err());
     assert!(call(&webview, "open_initial", json!({})).unwrap().is_null());
@@ -502,9 +506,7 @@ fn switching_folders_is_refused_from_a_note_window_and_while_its_folder_has_one(
         .as_str()
         .unwrap()
         .to_owned();
-    lock(&app.state::<App>().sessions)
-        .windows
-        .insert("note-0".to_owned(), key.clone());
+    app.state::<App>().service.bind("note-0", &key);
     let while_open = may_switch(app.handle(), &main.as_ref().window()).unwrap_err();
     assert_eq!(while_open.kind, ErrorKind::Refused);
     assert!(
@@ -517,9 +519,7 @@ fn switching_folders_is_refused_from_a_note_window_and_while_its_folder_has_one(
     let other = tauri::WebviewWindowBuilder::new(&app, "window-7", Default::default())
         .build()
         .unwrap();
-    lock(&app.state::<App>().sessions)
-        .windows
-        .insert("window-7".to_owned(), key);
+    app.state::<App>().service.bind("window-7", &key);
     assert!(may_switch(app.handle(), &main.as_ref().window()).is_ok());
     assert!(call(&other, "current_folder", json!({})).unwrap()["key"].is_string());
 }
@@ -556,10 +556,11 @@ fn each_window_answers_from_its_own_folder() {
         call(&other, "list_notes", json!({})).unwrap(),
         json!(["Duas.md"])
     );
-    assert_eq!(lock(&app.state::<App>().sessions).by_key.len(), 2);
+    let service = &app.state::<App>().service;
+    assert_eq!(service.open_folders(), 2);
     // The other window goes: its folder closes; the main window's stays.
-    lock(&app.state::<App>().sessions).release("window-3");
-    assert_eq!(lock(&app.state::<App>().sessions).by_key.len(), 1);
+    service.release("window-3");
+    assert_eq!(service.open_folders(), 1);
     assert_eq!(
         call(&main, "list_notes", json!({})).unwrap(),
         json!(["Uma.md"])
@@ -665,25 +666,13 @@ fn a_panic_in_the_core_does_not_take_the_session_down() {
     call(&main, "open_initial", json!({})).unwrap();
     let state = app.state::<App>();
     let window = main.as_ref().window();
-    let boom = with(&state, &window, |_| -> Result<(), CoreError> {
+    let boom = with(&state, &window, |_| -> Result<(), OpError> {
         panic!("boom in the core")
     });
     let err = boom.unwrap_err();
     assert_eq!(err.kind, ErrorKind::Failed);
     assert!(err.message.contains("boom in the core"), "{}", err.message);
     assert!(call(&main, "list_notes", json!({})).is_ok());
-    // A panic while holding the lock, elsewhere: the lock is poisoned
-    // and still answers.
-    let app_ref = &state;
-    let poisoned = std::thread::scope(|s| {
-        s.spawn(|| {
-            let _guard = app_ref.sessions.lock().unwrap();
-            panic!("poison");
-        })
-        .join()
-    });
-    assert!(poisoned.is_err());
-    assert!(state.sessions.is_poisoned());
     let notes = call(&main, "list_notes", json!({})).unwrap();
     assert_eq!(notes, json!(["Uma.md"]));
 }
@@ -746,7 +735,7 @@ fn navigation_stays_within_each_views_own_world() {
     assert!(!may_navigate("other", &url("tauri://localhost/"), None));
 }
 
-fn header<'a>(served: &'a Served, name: &str) -> Option<&'a str> {
+fn header<'a>(served: &'a verso_service::files::Served, name: &str) -> Option<&'a str> {
     served
         .headers
         .iter()

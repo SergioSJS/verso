@@ -3,8 +3,9 @@
 # production, `vX.Y.Z-beta.N` for a test release. A version reaches main in
 # the pull request that carries it (`node scripts/release.mjs prepare` on
 # its branch); on that push to main, `decide` sees a version with no tag
-# yet, the macOS and Windows jobs build it, and `publish` publishes the
-# release with both, which creates the tag on the merge. A version is
+# yet, the macOS, Windows, Linux and server jobs build it, and `publish`
+# publishes the release with all of them, which creates the tag on the
+# merge; then `server-image` pushes the server's image. A version is
 # published whole or not at all: when one platform fails, nothing is
 # published, and a run again (Actions → Re-run failed jobs) finishes it.
 # Every other push to main stops at `decide`, a few
@@ -29,10 +30,17 @@
 # macOS asks once, on first open, to allow it (README.md); a Developer ID is
 # a decision for before public distribution.
 #
+# The server (ADR 0075): `verso serve`, static for x64 and ARM64 (ARM64
+# cross-compiled, ADR 0075 item 2), as an archive, a `.deb` and an `.rpm`
+# with a systemd unit, signed like the apps; and an image for amd64 and
+# arm64 on GitHub's registry (ghcr.io/sergiosjs/verso), pushed after the
+# release is published (packaging/server/).
+#
 # Cost: one macOS job, about ten minutes, each billed as ten Linux ones; one
 # Windows job, about fifteen, each billed as about two; one Linux job, x64,
-# about twenty minutes (estimated: not run yet); a minute of Linux to
-# publish.
+# about twenty minutes (estimated: not run yet); the server, two Linux
+# jobs, about twenty-five minutes and five (estimated: not run yet); a
+# minute of Linux to publish.
 
 name: release
 
@@ -322,7 +330,7 @@ jobs:
   # never comes would hold every platform's publish (the maintainer,
   # 2026-10-09). Its matrix entry, when it comes back: arch aarch64, runner
   # ubuntu-22.04-arm, triple aarch64-unknown-linux-gnu, deb arm64; and the
-  # publish job's count goes back to 24. A beta installs beside the release:
+  # publish job's count grows by 8. A beta installs beside the release:
   # its binary is `verso-app-beta` and its command line `verso-beta`, or the
   # two packages would fight over /usr/bin.
   linux:
@@ -452,11 +460,206 @@ jobs:
             ./verso-cli-*-linux-*.tar.gz
             ./verso-cli-*-linux-*.tar.gz.sig
 
+  # The server (ADR 0075 item 2): `verso serve` is a subcommand of the
+  # `verso` binary, built here without the window, static (musl), for x64
+  # and ARM64 — ARM64 cross-compiled on this x86-64 runner with
+  # cargo-zigbuild, since the repository is private and has no ARM runner
+  # (decided: the server's ARM64 now, ADR 0075 item 2). Three forms from
+  # that binary: an archive and a .deb and .rpm per architecture, published
+  # with the release and signed as the apps are (ADR 0055); and the image,
+  # pushed by `server-image` once the release is published. The window's
+  # files (app/ui/dist) go without their *.map files.
+  #
+  # The files are named `verso-server-<version>-<arch>.<ext>`, with no OS
+  # word in the name: the desktop app's updater picks a release file by OS,
+  # architecture and extension (app/src-tauri/src/update.rs, pick_asset),
+  # and a `linux` in a server .deb's name would let the Linux app take the
+  # server for its own update.
+  server:
+    name: Verso server (${{ needs.decide.outputs.tag }})
+    needs: decide
+    if: needs.decide.outputs.tag != ''
+    # 24.04 for minisign, in its archive since 24.04; the binaries are
+    # static, so the runner's C library does not matter.
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      # The same checks as the other platforms', before any build.
+      - name: what is released
+        id: version
+        env:
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ needs.decide.outputs.tag }}
+        run: |
+          if [ "$EVENT" = push ]; then
+            node scripts/release.mjs verify "$TAG"
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+              echo "::error::$TAG is not on main"
+              exit 1
+            fi
+            version="${TAG#v}"
+          else
+            version="$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml)"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          case "$EVENT:$version" in
+            push:*-beta.*|workflow_dispatch:*) echo "name=Verso Beta" >> "$GITHUB_OUTPUT" ;;
+            *) echo "name=Verso" >> "$GITHUB_OUTPUT" ;;
+          esac
+      - name: toolchain from rust-toolchain.toml, and the two musl targets
+        run: |
+          rustup show
+          rustup target add x86_64-unknown-linux-musl aarch64-unknown-linux-musl
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      # Zig as the C compiler and linker for both targets (SQLite and ring
+      # have C), from PyPI with cargo-zigbuild; versions pinned.
+      - name: zig and cargo-zigbuild
+        run: |
+          python3 -m venv "$RUNNER_TEMP/zig"
+          "$RUNNER_TEMP/zig/bin/pip" install --disable-pip-version-check cargo-zigbuild==0.23.4 ziglang==0.15.2
+          echo "$RUNNER_TEMP/zig/bin" >> "$GITHUB_PATH"
+          echo "CARGO_ZIGBUILD_PYTHON_PATH=$RUNNER_TEMP/zig/bin/python3" >> "$GITHUB_ENV"
+      # nfpm (Apache-2.0) for the .deb and the .rpm, pinned by version and
+      # checksum.
+      - name: nfpm
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/nfpm.tar.gz" https://github.com/goreleaser/nfpm/releases/download/v2.47.0/nfpm_2.47.0_Linux_x86_64.tar.gz
+          echo "0660ca602b2d2d2ae4781a06c692b3eeb9d437ffea05b831d76e41f4a3188783  $RUNNER_TEMP/nfpm.tar.gz" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/nfpm"
+          tar -xzf "$RUNNER_TEMP/nfpm.tar.gz" -C "$RUNNER_TEMP/nfpm" nfpm
+          echo "$RUNNER_TEMP/nfpm" >> "$GITHUB_PATH"
+      - name: minisign, to check the signatures
+        run: sudo apt-get update && sudo apt-get install -y minisign
+      - name: the UI bundle
+        working-directory: app/ui
+        run: npm ci && npm run build
+      - name: the server's binaries
+        env:
+          VERSO_APP_NAME: ${{ steps.version.outputs.name }}
+        run: |
+          for triple in x86_64-unknown-linux-musl aarch64-unknown-linux-musl; do
+            cargo zigbuild --release --locked -p verso-cli --target "$triple"
+            info="$(file "target/$triple/release/verso")"
+            echo "$info"
+            case "$info" in
+              *"statically linked"*|*"static-pie linked"*) ;;
+              *) echo "::error::$triple: not a static binary"; exit 1 ;;
+            esac
+          done
+      # Per architecture: the archive (bin/verso and share/verso/ui, where
+      # `verso serve` finds the window with no VERSO_UI_DIR, beside the
+      # licence, the unit and the settings' template), the .deb and the
+      # .rpm. Then the image's build context, laid out as
+      # packaging/server/Dockerfile expects it. Each package is found by its
+      # extension, one per format, as the Linux job does.
+      - name: the release's files
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          shopt -s nullglob
+          one() { if [ "$#" -ne 1 ]; then echo "::error::expected one package, found: $*"; exit 1; fi; }
+          rm -rf target/server-ui target/server-image
+          mkdir -p target/server-ui
+          cp -R app/ui/dist/. target/server-ui/
+          find target/server-ui -name '*.map' -delete
+          test -f target/server-ui/web.html
+          for entry in x86_64:amd64:x86_64-unknown-linux-musl aarch64:arm64:aarch64-unknown-linux-musl; do
+            IFS=: read -r arch goarch triple <<< "$entry"
+            bin="target/$triple/release/verso"
+            rm -rf target/server-stage target/server-pkg
+            mkdir -p target/server-stage target/server-pkg target/server-image/bin/"$goarch"
+            cp "$bin" target/server-stage/verso
+            cp -R target/server-ui target/server-stage/ui
+            cp "$bin" target/server-image/bin/"$goarch"/verso
+            for packager in deb rpm; do
+              VERSO_ARCH="$goarch" VERSO_VERSION="$VERSION" \
+                nfpm package --config packaging/server/nfpm.yaml --packager "$packager" --target target/server-pkg/
+            done
+            one target/server-pkg/*.deb
+            one target/server-pkg/*.rpm
+            cp target/server-pkg/*.deb "verso-server-$VERSION-$goarch.deb"
+            cp target/server-pkg/*.rpm "verso-server-$VERSION-$arch.rpm"
+            dir="verso-server-$VERSION-$arch"
+            rm -rf "target/$dir"
+            mkdir -p "target/$dir/bin" "target/$dir/share/verso"
+            cp "$bin" "target/$dir/bin/verso"
+            cp -R target/server-ui "target/$dir/share/verso/ui"
+            cp LICENSE packaging/server/verso.service packaging/server/verso.env "target/$dir/"
+            printf '%s\n' \
+              "Verso server $VERSION ($arch, static)." \
+              "" \
+              "  bin/verso serve        starts it; settings by environment (verso.env lists them)" \
+              "  share/verso/ui         the window, found by bin/verso with no VERSO_UI_DIR" \
+              "  verso.service          a systemd unit (it expects /usr/bin/verso and /etc/verso/verso.env)" \
+              "" \
+              "Installing, TLS, backups and updates: docs/reference/server-install.md" \
+              "in https://github.com/SergioSJS/verso" > "target/$dir/README.txt"
+            tar -czf "$dir.tar.gz" -C target "$dir"
+          done
+          cp -R target/server-ui target/server-image/ui
+          ls -la verso-server-*
+      - name: sign the release's files
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          for f in ./verso-server-*.tar.gz ./verso-server-*.deb ./verso-server-*.rpm; do
+            npm --prefix app/ui exec -- tauri signer sign "$f"
+            test -s "$f.sig"
+          done
+      # Checked with the key the app carries, as the other jobs check with
+      # `verso-app --verify-signature` — which this job does not build (the
+      # window needs WebKit): minisign verifies the same signature, and the
+      # signed comment must name the file, as the app requires
+      # (update.rs, verify_signature).
+      - name: verify the signatures with the app's key
+        run: |
+          key="$(sed -n 's/^pub(crate) const UPDATE_PUBLIC_KEY: &str = "\(.*\)";$/\1/p' app/src-tauri/src/update.rs)"
+          if [ -z "$key" ]; then echo "::error::UPDATE_PUBLIC_KEY not found in update.rs"; exit 1; fi
+          printf '%s' "$key" | base64 -d > "$RUNNER_TEMP/verso.pub"
+          for f in ./verso-server-*.tar.gz ./verso-server-*.deb ./verso-server-*.rpm; do
+            base64 -d < "$f.sig" > "$RUNNER_TEMP/file.minisig"
+            comment="$(minisign -V -Q -p "$RUNNER_TEMP/verso.pub" -m "$f" -x "$RUNNER_TEMP/file.minisig")"
+            case "$comment" in
+              *"file:$(basename "$f")"*) echo "verified: $f" ;;
+              *) echo "::error::$f: the signed comment does not name the file: $comment"; exit 1 ;;
+            esac
+          done
+      - name: keep the files for the publish job
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-server
+          if-no-files-found: error
+          path: |
+            ./verso-server-*.tar.gz
+            ./verso-server-*.tar.gz.sig
+            ./verso-server-*.deb
+            ./verso-server-*.deb.sig
+            ./verso-server-*.rpm
+            ./verso-server-*.rpm.sig
+      # Not `release-*`: the image's context is not a release file.
+      - name: keep the image's context for the image job
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: server-image-context
+          if-no-files-found: error
+          path: target/server-image/
+
   # Every platform built: the release is published with their files. On a
   # rehearsal nothing is published; the files stay as the run's artifacts.
   publish:
     name: publish ${{ needs.decide.outputs.tag }}
-    needs: [decide, macos, windows, linux]
+    needs: [decide, macos, windows, linux, server]
     if: github.event_name == 'push' && needs.decide.outputs.tag != ''
     runs-on: ubuntu-latest
     steps:
@@ -489,11 +692,88 @@ jobs:
           node scripts/release.mjs notes "$version" > notes.md
           files=(files/*)
           # macOS 2, Windows 2, Linux 4 (x64; ARM64 waits for a public
-          # repository); each with its signature.
-          if [ "${#files[@]}" -ne 16 ]; then echo "::error::expected eight files and their signatures, found: ${files[*]}"; exit 1; fi
+          # repository), the server 6 (an archive, a .deb and an .rpm for
+          # x64 and for ARM64); each with its signature.
+          if [ "${#files[@]}" -ne 28 ]; then echo "::error::expected fourteen files and their signatures, found: ${files[*]}"; exit 1; fi
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "${files[@]}" --clobber
             gh release edit "$TAG" --notes-file notes.md
           else
             gh release create "$TAG" --target "$GITHUB_SHA" --title "$name $version" --notes-file notes.md "${pre[@]}" "${files[@]}"
           fi
+
+  # The server's image (ADR 0075 item 2 and Consequences), for amd64 and
+  # arm64, assembled from the binaries `server` built — no emulator — and
+  # pushed to GitHub's registry with the workflow's own token, only once
+  # the release is published: a version is published whole or not at all,
+  # and the image is part of it. A re-run of this job alone finishes it.
+  # On a rehearsal the image is built and not pushed.
+  #
+  # Tags: the version, and `latest` for a production version or `beta` for
+  # a test one. Then the old versions are pruned: the free plan stores
+  # 500 MB of private packages. Each push makes three package versions —
+  # the multi-platform index and one manifest per architecture (provenance
+  # and SBOM attestations are off, or there would be more) — so keeping 15
+  # keeps the last five releases.
+  #
+  # While the repository is private the package is private: a host pulls it
+  # after `docker login ghcr.io` (docs/reference/server-install.md).
+  server-image:
+    name: Verso server image (${{ needs.decide.outputs.tag }})
+    needs: [decide, server, publish]
+    if: ${{ !cancelled() && needs.decide.outputs.tag != '' && needs.server.result == 'success' && (needs.publish.result == 'success' || github.event_name == 'workflow_dispatch') }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/sergiosjs/verso
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: server-image-context
+          path: server-image
+      - name: the image's tags
+        id: tags
+        env:
+          EVENT: ${{ github.event_name }}
+          VERSION: ${{ needs.server.outputs.version }}
+        run: |
+          tags="$IMAGE:$VERSION"
+          case "$EVENT:$VERSION" in
+            push:*-beta.*) tags="$tags,$IMAGE:beta" ;;
+            push:*) tags="$tags,$IMAGE:latest" ;;
+          esac
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+          echo "$tags"
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - name: sign in to GitHub's registry
+        if: github.event_name == 'push'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: the image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: server-image
+          file: packaging/server/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.tags.outputs.tags }}
+          provenance: false
+          sbom: false
+      - name: prune the old versions
+        if: github.event_name == 'push'
+        # The release is complete by now: a token that may not delete a
+        # user's package versions leaves them, it does not fail the run.
+        continue-on-error: true
+        uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5
+        with:
+          package-name: verso
+          package-type: container
+          min-versions-to-keep: 15

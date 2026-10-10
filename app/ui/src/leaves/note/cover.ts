@@ -12,6 +12,7 @@ import { icon } from "../../icons";
 import { renderSticker, resolveColor, showStickerPicker } from "../../labels";
 import { bannerFraction, bannerPercent, pickerStrings } from "../../organize/cover";
 import { setFrontmatterProp } from "../../organize/frontmatter";
+import { st } from "../../screen/strings";
 import { heldImage } from "../../sanitize";
 import { settings } from "../../settings";
 import { LOCALE, t, typedText } from "../../strings";
@@ -240,7 +241,8 @@ export function paintFlags(this: NoteLeaf): void {
   const flags: string[] = [];
   if (note?.stale) flags.push(t.stale);
   if (note?.unverified) flags.push(t.unverified);
-  if (this.readOnly) flags.push(t.mixedEol);
+  if (this.mixedEol) flags.push(t.mixedEol);
+  else if (this.readOnly) flags.push(st.readOnly);
   if (this.gone) flags.push(t.goneOutside);
   // A schema block of this note that types nothing says so here (ADR
   // 0052 points 3 and 5).

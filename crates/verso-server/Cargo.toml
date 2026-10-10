@@ -1,0 +1,95 @@
+[package]
+name = "verso-server"
+description = "`verso serve`: the contract over HTTP and WebSocket, the window served to a browser, accounts and access (ADR 0073, 0074, 0075)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+# The server (ADR 0073 item 2; the maintainer's answer B of 2026-10-09).
+# It reaches the folders only through verso-service and verso-core, and so
+# verso-fs (ADR 0026 rule 5). Files of its own: the database in
+# VERSO_DATA_DIR (opened by rusqlite, as verso-index opens the index), the
+# data directory made at start, and a secret read from a file
+# (`NAME_FILE`, ADR 0075 item 6) — the exceptions its clippy.toml declares.
+[dependencies]
+verso-service = { path = "../verso-service" }
+verso-core = { path = "../verso-core" }
+verso-contract = { path = "../verso-contract" }
+verso-fs = { path = "../verso-fs" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# The async runtime under the HTTP server; already in the tree through
+# Tauri, rmcp and reqwest (MIT).
+tokio = { version = "1", default-features = false, features = ["rt-multi-thread", "net", "macros", "signal", "sync", "time"] }
+# HTTP and WebSocket routing (MIT), over hyper and tower, both already in
+# the tree through reqwest. Nothing of ours did this; std has no HTTP.
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "ws", "query", "json"] }
+# The window's files served from VERSO_UI_DIR, with ranges and validators
+# (MIT); already in the tree through reqwest.
+tower-http = { version = "0.6", default-features = false, features = ["fs"] }
+# TLS served by the server itself, from the host's certificate and key
+# files (VERSO_TLS_CERT_FILE, VERSO_TLS_KEY_FILE; the maintainer's answer F
+# of 2026-10-09). rustls on ring (Apache-2.0 AND ISC), both already in the
+# tree through reqwest; no OpenSSL to cross-compile for ARM.
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12", "logging"] }
+rustls-pki-types = { version = "1", features = ["std"] }
+# The update check (the maintainer's answer E of 2026-10-09): one HTTPS
+# request a day to the project's release feed, the only place the server
+# reaches (ADR 0050 as revised that day). Already in the tree through the
+# desktop app; without its own crypto provider, so ring (above) serves it
+# and the static build carries no aws-lc.
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "json"] }
+# The accounts, sessions, invitations, tokens, grants and the audit log
+# (ADR 0074 item 10): SQLite, as the index (MIT, public domain).
+rusqlite = { version = "0.40", default-features = false, features = ["bundled"] }
+# Passwords hashed with Argon2id (ADR 0074 item 3; MIT OR Apache-2.0).
+argon2 = { version = "0.5", default-features = false, features = ["alloc", "password-hash", "std"] }
+# Simultaneous editing of notes (ADR 0073 item 7; the maintainer's answer
+# L of 2026-10-09): the Rust implementation of the Yjs CRDT the window's
+# y-codemirror.next speaks (MIT); and a three-way merge of lines for a
+# write that reaches a shared note from elsewhere — the properties panel,
+# a quote from a PDF — over the edits still unsaved (MIT OR Apache-2.0).
+yrs = "0.28"
+diffy = "0.5"
+# Passkeys (WebAuthn; ADR 0074 item 3, MPL-2.0), the implementation the ADR
+# names. It verifies through OpenSSL: on the static musl builds of the
+# release, OpenSSL is compiled from its sources (vendored, Apache-2.0) so
+# the binary still needs no library of the system.
+webauthn-rs = "0.5"
+# E-mail through the host's mail server when VERSO_SMTP_URL is set
+# (ADR 0074 items 2 to 5): sign-in links, password resets and invitations
+# sent by mail (MIT OR Apache-2.0); rustls on ring, as the server's TLS.
+lettre = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "tokio1", "tokio1-rustls", "ring", "rustls-native-certs"] }
+# Random tokens and their SHA-256 at rest (ADR 0074 items 7 and 8);
+# both already in the tree (MIT OR Apache-2.0).
+getrandom = "0.3"
+sha2 = "0.10"
+base64 = "0.22"
+# An account's e-mail compared in NFC (ADR 0074 item 2); already used by
+# verso-index (MIT OR Apache-2.0).
+unicode-normalization = "0.1"
+
+# webauthn-rs speaks OpenSSL: built into the binary on every Unix, so the
+# `verso` a package or the app carries never looks for a system or
+# Homebrew libssl that a user's machine may not have (the release
+# rehearsal of 2026-10-10 found the macOS one linked to
+# /opt/homebrew/opt/openssl@3). Windows has no server (ADR 0075 item 2):
+# verso-cli leaves this crate out there.
+[target.'cfg(unix)'.dependencies]
+openssl = { version = "0.10", features = ["vendored"] }
+
+[dev-dependencies]
+tempfile = "3.27"
+# The server driven as a window drives it: HTTP and the contract's
+# WebSocket, in tests only; both already in the tree.
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
+# A certificate made for the TLS test (MIT OR Apache-2.0).
+rcgen = { version = "0.14", default-features = false, features = ["ring", "pem"] }
+tokio-tungstenite = "0.29"
+futures-util = { version = "0.3", default-features = false, features = ["sink"] }
+
+[lints]
+workspace = true

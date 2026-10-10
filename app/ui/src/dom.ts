@@ -32,6 +32,7 @@ export const ui = {
   ribbon: el<HTMLElement>("ribbon"),
   search: el<HTMLInputElement>("search"),
   searchLabel: el<HTMLSpanElement>("search-label"),
+  searchClear: el<HTMLButtonElement>("search-clear"),
   status: el<HTMLSpanElement>("status"),
   reportBug: el<HTMLButtonElement>("report-bug"),
   words: el<HTMLSpanElement>("words"),

@@ -7,6 +7,7 @@ import { EditorState, type Extension, Prec } from "@codemirror/state";
 import { EditorView } from "codemirror";
 import { insertBase, newBase } from "./bases";
 import { commands } from "./bindings";
+import { can, canWrite } from "./can";
 import { bookmarks, toggleBookmark } from "./bookmarks";
 import { narrow, toggleRight, toggleSide } from "./chrome";
 import { dailyNote, insertTemplate, saveAsTemplate } from "./daily";
@@ -274,7 +275,23 @@ export function allCommands(all = false): Command[] {
     { id: "delete", label: t.deleteNote, need: Boolean(note), run: () => note && void deleteNote(note.path) },
     { id: "switch-focus", label: t.switchFocus, need: hasFolder, run: () => focusSwitcher.show() },
   ];
-  return cmds.filter((c) => all || c.need !== false).map((c) => ({ id: c.id, label: c.label, keys: prettyKeys(keyOf(c.id)) || undefined, run: c.run, editorOnly: c.editorOnly }));
+  return cmds.filter((c) => all || (c.need !== false && possible(c.id))).map((c) => ({ id: c.id, label: c.label, keys: prettyKeys(keyOf(c.id)) || undefined, run: c.run, editorOnly: c.editorOnly }));
+}
+/** The commands that change the folder: absent for a reader on a server. */
+const WRITES = new Set([
+  "new-note", "new-note-named", "new-folder", "new-board", "new-base", "insert-base", "daily", "insert-template", "save-template",
+  "import-demo-vault", "replace", "new-web-page", "move-file", "rename", "delete",
+  "block-move-up", "block-move-down", "block-duplicate", "block-turn-into", "block-delete",
+]);
+/** Whether a command means something here (ADR 0076 items 2 and 11): the
+ *  side can do it, and a phone shows more than one pane at a time. */
+function possible(id: string): boolean {
+  if (WRITES.has(id)) return canWrite();
+  if (id === "split-right" || id === "split-down" || id === "maximize") return !narrow.matches;
+  if (id === "new-window" || id === "new-window-here") return can("windows");
+  if (id === "open-console") return can("devtools");
+  if (id === "check-updates") return can("updates");
+  return true;
 }
 export function cycleTab(pane: Pane, dir: 1 | -1): void {
   const active = pane.active;

@@ -11,10 +11,13 @@ import { t } from "./strings";
 
 export const page = document.querySelector<HTMLElement>(".work");
 export type Hue = "paper" | "sepia" | "slate" | "moss";
+/** How dark the dark theme is (css/base.css, `--dk-lift`). */
+export type DarkTone = "soft" | "deep" | "dusk";
 export type Settings = {
   lang: "auto" | "pt-BR" | "en";
   theme: "auto" | "light" | "dark";
   palette: Hue;
+  darkTone: DarkTone;
   fontSize: number;
   attachments: string;
   autosave: number;
@@ -25,6 +28,9 @@ export type Settings = {
   lineNumbers?: boolean;
   lineNumbersEdit: boolean;
   lineNumbersSource: boolean;
+  /** The person changed `lineNumbersSource` themselves: a phone shows the
+   *  numbers only then (ADR 0076 item 6). */
+  lineNumbersSourceChosen?: boolean;
   lineNumbersPreview: boolean;
   /** Edit mode's block handles (ADR 0061 D10). */
   blockHandles: boolean;
@@ -80,6 +86,7 @@ export const DEFAULTS: Settings = {
   lang: "auto",
   theme: "auto",
   palette: "paper",
+  darkTone: "soft",
   fontSize: 15,
   attachments: "assets",
   autosave: 1.5,
@@ -148,15 +155,31 @@ export function loadSettings(): void {
   } catch {
     settings = { ...DEFAULTS };
   }
+  sourceNumbersWere = settings.lineNumbersSource;
   applySettings();
 }
+/** Line numbers in Source mode: on a phone (under 760 px) only when the
+ *  person turned them on — the default's numbers take a phone's width
+ *  for nothing (ADR 0076 item 6). */
+export function sourceLineNumbers(): boolean {
+  if (!settings.lineNumbersSource) return false;
+  return !window.matchMedia("(max-width: 760px)").matches || Boolean(settings.lineNumbersSourceChosen);
+}
+/** `lineNumbersSource` as last loaded or saved: a save that changes it is
+ *  the person's choice. */
+let sourceNumbersWere: boolean | null = null;
 export function saveSettings(): void {
+  if (sourceNumbersWere !== null && settings.lineNumbersSource !== sourceNumbersWere) settings.lineNumbersSourceChosen = true;
+  sourceNumbersWere = settings.lineNumbersSource;
   try {
     localStorage.setItem("verso.settings", JSON.stringify(settings));
   } catch {
     // No storage.
   }
   applySettings();
+  // On a server the person's settings live with the account (ADR 0073
+  // item 5; web/settingsSync.ts keeps them there).
+  dispatchEvent(new Event("verso:settings-saved"));
 }
 export function getHiddenFromTree(): string[] {
   if (!settings.hiddenFromTree || Array.isArray(settings.hiddenFromTree)) {
@@ -174,6 +197,7 @@ export function setHiddenFromTree(list: string[]): void {
 export function applySettings(): void {
   document.documentElement.dataset["theme"] = settings.theme;
   document.documentElement.dataset["palette"] = settings.palette;
+  document.documentElement.dataset["dark"] = settings.darkTone ?? "soft";
   document.documentElement.dataset["measure"] = settings.measure;
   document.documentElement.style.fontSize = `${settings.fontSize}px`;
   document.documentElement.classList.toggle("show-line-numbers-edit", Boolean(settings.lineNumbersEdit));

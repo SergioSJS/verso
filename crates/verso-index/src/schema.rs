@@ -12,13 +12,32 @@
 
 use rusqlite::Connection;
 
-pub(crate) const VERSION: i64 = 13;
+pub(crate) const VERSION: i64 = 14;
 
 /// FTS5 tokenizer (provisional, ADR 0046): `unicode61` with diacritics
 /// removed on both the indexed text and the query, so `Café`, `cafe` and
 /// `CAFÉ` match; no stemming, since pt-BR and EN would need two.
 pub(crate) const TOKENIZER: &str = "unicode61 remove_diacritics 2";
 
+/// The file names, searched by any part of them: an FTS5 index of their
+/// trigrams (version 14), holding the path and the folded name itself —
+/// read from `notes`, the name sits after the note's text in the row, and
+/// each hit would walk through that text. Kept in step with `notes` by
+/// triggers, so that no write of a row can forget it.
+const NAMES: &str = "
+CREATE VIRTUAL TABLE IF NOT EXISTS names_fts USING fts5(path UNINDEXED, name_fold,
+    tokenize = 'trigram');
+CREATE TRIGGER IF NOT EXISTS notes_names_insert AFTER INSERT ON notes BEGIN
+    INSERT INTO names_fts (rowid, path, name_fold) VALUES (new.id, new.path, new.name_fold);
+END;
+CREATE TRIGGER IF NOT EXISTS notes_names_delete AFTER DELETE ON notes BEGIN
+    DELETE FROM names_fts WHERE rowid = old.id;
+END;
+CREATE TRIGGER IF NOT EXISTS notes_names_update AFTER UPDATE OF path, name_fold ON notes BEGIN
+    DELETE FROM names_fts WHERE rowid = old.id;
+    INSERT INTO names_fts (rowid, path, name_fold) VALUES (new.id, new.path, new.name_fold);
+END;
+";
 const CREATE: &str = "
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE notes (
@@ -51,11 +70,15 @@ CREATE TABLE notes (
     -- The start of the index run that last read the note (seconds), 0 when
     -- written outside a run. Trust by stat goes by `meta.verified_from`,
     -- one date for the whole index (version 13), not by this column.
-    indexed_at INTEGER NOT NULL DEFAULT 0
+    indexed_at INTEGER NOT NULL DEFAULT 0,
+    -- The file name as the search compares it, without folder, extension,
+    -- accents or case (version 14, `search::name_fold`).
+    name_fold TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX notes_path_key ON notes(path_key);
 CREATE INDEX notes_name_key ON notes(name_key);
 CREATE INDEX notes_stat ON notes(path, modified, len, hash, unverified);
+CREATE INDEX notes_name_fold ON notes(name_fold, path);
 CREATE TABLE headings (
     note  INTEGER NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
     level INTEGER NOT NULL,
@@ -126,11 +149,13 @@ pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
     // was last known to match the disk —
     // and every note read from disk is read
     // again on the next walk, for what the new columns hold; a placeholder
-    // keeps what it had. 13 adds an index and reads nothing again.
+    // keeps what it had. 13 adds an index and reads nothing again; 14 the
+    // file name as the search compares it, computed from the path, and
+    // reads nothing again either.
     if has_meta
         && matches!(
             meta("schema").and_then(|v| v.parse::<i64>().ok()),
-            Some(6..=12)
+            Some(6..=13)
         )
         && meta("tokenizer").as_deref() == Some(TOKENIZER)
     {
@@ -150,7 +175,7 @@ pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
     // ours: rebuild. `notes_fts` goes first, while `notes` still exists
     // for its external content; `IF EXISTS` covers a foreign file.
     conn.execute_batch(
-        "DROP TABLE IF EXISTS notes_fts; DROP TABLE IF EXISTS links; DROP TABLE IF EXISTS schemas;
+        "DROP TABLE IF EXISTS notes_fts; DROP TABLE IF EXISTS names_fts; DROP TABLE IF EXISTS links; DROP TABLE IF EXISTS schemas;
          DROP TABLE IF EXISTS blocks; DROP TABLE IF EXISTS headings;
          DROP TABLE IF EXISTS notes; DROP TABLE IF EXISTS meta;",
     )?;
@@ -159,6 +184,7 @@ pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
         "CREATE VIRTUAL TABLE notes_fts USING fts5(path UNINDEXED, title, content,
              content = 'notes', content_rowid = 'id', tokenize = '{TOKENIZER}');"
     ))?;
+    conn.execute_batch(NAMES)?;
     conn.execute(
         "INSERT INTO meta (key, value) VALUES ('schema', ?1), ('tokenizer', ?2)",
         [VERSION.to_string(), TOKENIZER.to_owned()],
@@ -192,6 +218,7 @@ fn carry_over(conn: &Connection, from: i64) -> Result<(), rusqlite::Error> {
         ("blocks", "first_line", "INTEGER"),
         ("blocks", "last_line", "INTEGER"),
         ("notes", "indexed_at", "INTEGER NOT NULL DEFAULT 0"),
+        ("notes", "name_fold", "TEXT NOT NULL DEFAULT ''"),
     ] {
         if !has_column(table, col)? {
             conn.execute_batch(&format!("ALTER TABLE {table} ADD COLUMN {col} {decl};"))?;
@@ -215,6 +242,28 @@ fn carry_over(conn: &Connection, from: i64) -> Result<(), rusqlite::Error> {
     conn.execute_batch(
         "CREATE INDEX IF NOT EXISTS notes_stat ON notes(path, modified, len, hash, unverified);",
     )?;
+    // Version 14: the searched name, from each row's path — the index
+    // holds the name and the path, so a search reads neither the table nor
+    // the text of a note.
+    if from < 14 {
+        let rows: Vec<(i64, String)> = {
+            let mut st = conn.prepare("SELECT id, path FROM notes")?;
+            st.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+                .collect::<Result<_, _>>()?
+        };
+        let mut set = conn.prepare("UPDATE notes SET name_fold = ?1 WHERE id = ?2")?;
+        for (id, path) in rows {
+            set.execute(rusqlite::params![crate::search::name_fold(&path), id])?;
+        }
+        conn.execute_batch(
+            "CREATE INDEX IF NOT EXISTS notes_name_fold ON notes(name_fold, path);",
+        )?;
+        conn.execute_batch(NAMES)?;
+        conn.execute_batch(
+            "DELETE FROM names_fts;
+             INSERT INTO names_fts (rowid, path, name_fold) SELECT id, path, name_fold FROM notes;",
+        )?;
+    }
     if from < 12 {
         conn.execute_batch("UPDATE notes SET modified = -1, len = -1 WHERE unverified = 0;")?;
     }

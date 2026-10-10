@@ -66,8 +66,16 @@ impl Index {
         )?;
         let (path_key, name_key) = note_keys(to);
         tx.execute(
-            "UPDATE notes SET path = ?1, path_key = ?2, name_key = ?3, dir = ?4, title = ?5 WHERE id = ?6",
-            params![to, path_key, name_key, dir_of(to), new_title, id],
+            "UPDATE notes SET path = ?1, path_key = ?2, name_key = ?3, dir = ?4, title = ?5, name_fold = ?7 WHERE id = ?6",
+            params![
+                to,
+                path_key,
+                name_key,
+                dir_of(to),
+                new_title,
+                id,
+                crate::search::name_fold(to)
+            ],
         )?;
         tx.execute(
             "INSERT INTO notes_fts (rowid, path, title, content) VALUES (?1, ?2, ?3, ?4)",
