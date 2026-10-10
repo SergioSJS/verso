@@ -48,6 +48,8 @@ mod menu;
 mod notes;
 mod protocol;
 mod remote;
+mod sync;
+mod sync_commands;
 mod update;
 mod version;
 mod web;
@@ -60,6 +62,7 @@ use menu::*;
 use notes::*;
 use protocol::*;
 use remote::*;
+use sync_commands::*;
 use update::*;
 use web::*;
 use windows::*;
@@ -85,6 +88,8 @@ pub struct App {
     pub(crate) service: Arc<Service>,
     /// The windows that show a folder of a server: label → connection.
     pub(crate) remotes: Mutex<std::collections::HashMap<String, Arc<remote::Remote>>>,
+    /// The folders that sync with a server, by key: their tasks (ADR 0079).
+    pub(crate) syncs: Mutex<std::collections::HashMap<String, Arc<sync::Syncer>>>,
     /// Origins (`scheme://host[:port]`) of embedded pages the user
     /// approved by hand, mirrored from the window's settings. An embed
     /// renders in a child web view (`web_open`), so the app view itself
@@ -113,6 +118,7 @@ impl App {
             opening: Mutex::new(std::collections::HashSet::new()),
             service: Service::new(None),
             remotes: Mutex::new(std::collections::HashMap::new()),
+            syncs: Mutex::new(std::collections::HashMap::new()),
             embed_origins: Mutex::new(std::collections::HashSet::new()),
             #[cfg(target_os = "macos")]
             menu_recents: Mutex::new(Vec::new()),
@@ -148,6 +154,12 @@ impl<R: tauri::Runtime> verso_service::Events for TauriEvents<R> {
 
     fn folder_changed(&self, _: &[String], changed: &FolderChanged) {
         let _ = self.app.emit("folder-changed", changed);
+        // A synced folder's changes cross on this batch (ADR 0079 item 6).
+        touched(
+            &self.app,
+            &changed.key,
+            changed.changed.iter().chain(&changed.removed).cloned(),
+        );
     }
 
     fn log(&self, level: &str, message: &str) {
@@ -225,6 +237,10 @@ async fn install<R: tauri::Runtime>(
     remote::release(app, window.label());
     let service = Arc::clone(&app.state::<App>().service);
     let (info, catch_up) = service.attach(window.label(), opened);
+    // The folder it showed may be shown by no window now; the one it
+    // shows syncs if it is set to (ADR 0079).
+    settle(app);
+    resume(app, &info.key);
     // A window is named after its folder (ADR 0065).
     let _ = window.set_title(&format!("{} — Verso", info.name));
     // A batch that came while the folder was being opened found no session
@@ -611,6 +627,12 @@ macro_rules! commands_for {
                 server_sign_out::<$runtime>,
                 server_folders::<$runtime>,
                 server_open::<$runtime>,
+                folder_sync::<$runtime>,
+                folder_sync_start::<$runtime>,
+                folder_sync_stop::<$runtime>,
+                folder_sync_pause::<$runtime>,
+                folder_sync_confirm::<$runtime>,
+                folder_sync_now::<$runtime>,
                 query_base::<$runtime>,
                 new_window::<$runtime>,
                 cli_status,
@@ -867,6 +889,7 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
             // Its folder closes when no other window shows it (ADR 0065).
             app.state::<App>().service.release(label);
             remote::release(app, label);
+            settle(app);
             lock(&app.state::<App>().opening).remove(label);
         }
         tauri::RunEvent::Exit => log::write("INFO", "host", "exiting"),
@@ -978,3 +1001,5 @@ fn ask_windows_to_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
 mod tests;
 #[cfg(test)]
 mod tests_remote;
+#[cfg(test)]
+mod tests_sync;

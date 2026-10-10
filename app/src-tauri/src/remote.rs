@@ -178,7 +178,7 @@ fn server_url(url: &str) -> Result<String, ContractError> {
     Ok(format!("{}://{host}{port}", parsed.scheme()))
 }
 
-fn http() -> Result<reqwest::blocking::Client, ContractError> {
+pub(crate) fn http() -> Result<reqwest::blocking::Client, ContractError> {
     reqwest::blocking::Client::builder()
         .user_agent(concat!("Verso/", env!("CARGO_PKG_VERSION")))
         .timeout(std::time::Duration::from_secs(20))
@@ -187,7 +187,7 @@ fn http() -> Result<reqwest::blocking::Client, ContractError> {
 }
 
 /// The server's answer as JSON, or its error said.
-fn answer(response: reqwest::blocking::Response) -> Result<Value, ContractError> {
+pub(crate) fn answer(response: reqwest::blocking::Response) -> Result<Value, ContractError> {
     let status = response.status();
     let body: Value = response.json().unwrap_or(Value::Null);
     if status.is_success() {
@@ -222,7 +222,7 @@ fn open_in_browser(page: &str) -> Result<(), ContractError> {
 }
 
 /// This computer's name, for the server's list of sessions.
-fn device_name() -> String {
+pub(crate) fn device_name() -> String {
     let host = std::env::var("HOSTNAME")
         .or_else(|_| std::env::var("COMPUTERNAME"))
         .unwrap_or_default();
@@ -330,7 +330,7 @@ pub(crate) fn server_accounts(state: State<'_, App>) -> Result<Vec<ServerAccount
         .collect())
 }
 
-fn login_for(state: &State<'_, App>, url: &str) -> Result<ServerLogin, ContractError> {
+pub(crate) fn login_for(state: &State<'_, App>, url: &str) -> Result<ServerLogin, ContractError> {
     servers::find(state.service.config(), url)
         .map_err(verso_service::convert)?
         .ok_or_else(|| refused("not signed in to that server"))
@@ -434,12 +434,22 @@ pub(crate) fn release<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &str)
     lock(&app.state::<App>().remotes).remove(label);
 }
 
-async fn connect<R: tauri::Runtime>(
-    app: &tauri::AppHandle<R>,
-    label: &str,
-    login: ServerLogin,
+/// What a connection hears besides the answers to its questions.
+pub(crate) enum Heard {
+    /// An event the server pushed: its name and payload.
+    Event(String, Value),
+    /// The server ended something (`gone`): the session, the folder.
+    Gone(Value),
+    /// The connection closed.
+    Closed,
+}
+
+/// A connection to a server with the device's token, its contract checked:
+/// the connection, and what it hears besides answers.
+pub(crate) async fn dial(
+    login: &ServerLogin,
     folder: String,
-) -> Result<Arc<Remote>, ContractError> {
+) -> Result<(Arc<Remote>, mpsc::UnboundedReceiver<Heard>), ContractError> {
     let ws_url = format!(
         "{}/api/ws",
         login
@@ -467,6 +477,7 @@ async fn connect<R: tauri::Runtime>(
         })?;
     let (mut write, mut read) = socket.split();
     let (tx, mut rx) = mpsc::unbounded_channel::<String>();
+    let (heard_tx, heard_rx) = mpsc::unbounded_channel::<Heard>();
     let pending: Pending = Arc::new(Mutex::new(HashMap::new()));
     let (hello_tx, hello_rx) = oneshot::channel::<Value>();
     tauri::async_runtime::spawn(async move {
@@ -477,9 +488,6 @@ async fn connect<R: tauri::Runtime>(
         }
     });
     let reading = Arc::clone(&pending);
-    let app_r = app.clone();
-    let label_r = label.to_owned();
-    let url_r = login.url.clone();
     tauri::async_runtime::spawn(async move {
         let mut hello = Some(hello_tx);
         while let Some(Ok(message)) = read.next().await {
@@ -498,22 +506,71 @@ async fn connect<R: tauri::Runtime>(
                     });
                 }
             } else if let Some(event) = m["event"].as_str() {
-                let _ = app_r.emit_to(label_r.as_str(), event, m["payload"].clone());
+                let _ = heard_tx.send(Heard::Event(event.to_owned(), m["payload"].clone()));
             } else if m.get("hello").is_some() {
                 if let Some(h) = hello.take() {
                     let _ = h.send(m["hello"].clone());
                 }
             } else if m.get("gone").is_some() {
-                let _ = app_r.emit_to(
-                    label_r.as_str(),
-                    "server-gone",
-                    json!({ "url": url_r, "what": m["gone"] }),
-                );
+                let _ = heard_tx.send(Heard::Gone(m["gone"].clone()));
             }
         }
         // The connection closed: every question waiting is unanswered.
         for (_, p) in lock(&reading).drain() {
             let _ = p.send(Err(unavailable("the server's connection closed")));
+        }
+        let _ = heard_tx.send(Heard::Closed);
+    });
+    let hello = tokio::time::timeout(std::time::Duration::from_secs(10), hello_rx)
+        .await
+        .map_err(|_| failed("the server did not answer"))?
+        .map_err(|_| failed("the server closed the connection"))?;
+    if hello["contract"].as_str() != Some(contract_version().as_str()) {
+        return Err(refused(format!(
+            "the server runs Verso {}, another version than this app's {}: update the one that is behind",
+            hello["version"].as_str().unwrap_or("?"),
+            env!("CARGO_PKG_VERSION")
+        )));
+    }
+    let remote = Arc::new(Remote {
+        url: login.url.clone(),
+        folder,
+        token: login.token.clone(),
+        next: AtomicU64::new(1),
+        latency: std::sync::atomic::AtomicU32::new(0),
+        pending,
+        tx,
+    });
+    Ok((remote, heard_rx))
+}
+
+/// A window's connection: what it hears goes to the window, and a closed
+/// connection is tried again while the window still shows the folder.
+async fn connect<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    label: &str,
+    login: ServerLogin,
+    folder: String,
+) -> Result<Arc<Remote>, ContractError> {
+    let (remote, mut heard) = dial(&login, folder).await?;
+    let app_r = app.clone();
+    let label_r = label.to_owned();
+    let url_r = login.url;
+    tauri::async_runtime::spawn(async move {
+        while let Some(h) = heard.recv().await {
+            match h {
+                Heard::Event(event, payload) => {
+                    let _ = app_r.emit_to(label_r.as_str(), &event, payload);
+                }
+                Heard::Gone(what) => {
+                    let _ = app_r.emit_to(
+                        label_r.as_str(),
+                        "server-gone",
+                        json!({ "url": url_r, "what": what }),
+                    );
+                }
+                Heard::Closed => break,
+            }
         }
         let still = lock(&app_r.state::<App>().remotes)
             .get(&label_r)
@@ -535,26 +592,7 @@ async fn connect<R: tauri::Runtime>(
             ));
         }
     });
-    let hello = tokio::time::timeout(std::time::Duration::from_secs(10), hello_rx)
-        .await
-        .map_err(|_| failed("the server did not answer"))?
-        .map_err(|_| failed("the server closed the connection"))?;
-    if hello["contract"].as_str() != Some(contract_version().as_str()) {
-        return Err(refused(format!(
-            "the server runs Verso {}, another version than this app's {}: update the one that is behind",
-            hello["version"].as_str().unwrap_or("?"),
-            env!("CARGO_PKG_VERSION")
-        )));
-    }
-    Ok(Arc::new(Remote {
-        url: login.url,
-        folder,
-        token: login.token,
-        next: AtomicU64::new(1),
-        latency: std::sync::atomic::AtomicU32::new(0),
-        pending,
-        tx,
-    }))
+    Ok(remote)
 }
 
 /// Connect again after the connection dropped, with a growing wait, for as
