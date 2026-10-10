@@ -49,6 +49,9 @@ pub struct Server {
     /// The commit the server was built from (ADR 0051).
     pub commit: String,
     /// The notes being edited by several windows at once (ADR 0073 item 7).
+    /// The folder's id behind each folder key the server opened: the
+    /// quotas are the folder's, the writes know its key (ADR 0077).
+    pub keys: Mutex<HashMap<String, String>>,
     pub rooms: crate::collab::Rooms,
     /// The host's mail server, when it has one (ADR 0074 item 2).
     pub mail: std::sync::OnceLock<crate::mail::Mail>,
@@ -75,6 +78,7 @@ impl Server {
             devices: Mutex::new(HashMap::new()),
             newer: Mutex::new(None),
             commit,
+            keys: Mutex::new(HashMap::new()),
             rooms: crate::collab::Rooms::default(),
             ceremonies: crate::passkeys::Ceremonies::default(),
             mail: std::sync::OnceLock::new(),

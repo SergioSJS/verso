@@ -340,11 +340,13 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/api/folders/{id}/audit", get(crate::folders::audit))
         .route(
             "/api/admin/accounts",
-            get(crate::admin::accounts).post(crate::admin::create_account),
+            get(crate::console::accounts).post(crate::admin::create_account),
         )
         .route(
             "/api/admin/accounts/{id}",
-            axum::routing::patch(crate::admin::set_powers).delete(crate::admin::delete_account),
+            get(crate::console::account)
+                .patch(crate::admin::set_powers)
+                .delete(crate::admin::delete_account),
         )
         .route(
             "/api/admin/accounts/{id}/reset",
@@ -352,17 +354,28 @@ pub fn router(server: Arc<Server>) -> Router {
         )
         .route(
             "/api/admin/invitations",
-            get(crate::admin::invitations).post(crate::admin::invite),
+            get(crate::console::invitations).post(crate::admin::invite),
         )
         .route(
             "/api/admin/invitations/{id}",
             delete(crate::admin::end_invitation),
         )
-        .route("/api/admin/folders", get(crate::admin::folders))
+        .route("/api/admin/folders", get(crate::console::folders))
+        .route(
+            "/api/admin/folders/unregistered",
+            get(crate::console::unregistered),
+        )
         .route("/api/admin/folders/adopt", post(crate::admin::adopt))
+        .route("/api/admin/folders/{id}", get(crate::console::folder))
+        .route(
+            "/api/admin/folders/{id}/quota",
+            axum::routing::put(crate::console::set_quota),
+        )
         .route("/api/admin/folders/{id}/enter", post(crate::admin::enter))
-        .route("/api/admin/audit", get(crate::admin::audit))
-        .route("/api/admin/server", get(crate::admin::server_info))
+        .route("/api/admin/audit", get(crate::console::audit))
+        .route("/api/admin/audit/actions", get(crate::console::actions))
+        .route("/api/admin/overview", get(crate::console::overview))
+        .route("/api/admin/config", get(crate::console::config))
         .route("/api/device/start", post(crate::device::start))
         .route("/api/device/poll", post(crate::device::poll))
         .route(
@@ -379,6 +392,7 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/setup", page())
         .route("/account", page())
         .route("/admin", page())
+        .route("/admin/{*rest}", page())
         .route("/device", page())
         .route("/invite/{token}", page())
         .route("/reset/{token}", page())

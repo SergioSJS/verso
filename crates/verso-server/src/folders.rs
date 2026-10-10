@@ -82,6 +82,7 @@ pub async fn create(ctx: Ctx, Json(body): Json<NewFolder>) -> ApiResult<Response
             _ => ApiError::from(format!("making the folder: {e}")),
         })?;
     let folder = ctx.server.db.create_folder(&name, &who.account.id)?;
+    crate::quota::set_default(&ctx.server, &folder.id)?;
     ctx.audit("folder_created", Some(&folder.dir), Some(&folder.id), true);
     Ok(ok(
         json!({ "id": folder.id, "name": folder.dir, "role": Role::Owner }),

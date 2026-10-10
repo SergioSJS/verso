@@ -20,7 +20,18 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::crypto;
 
 /// The schema's version, in `PRAGMA user_version`.
-const SCHEMA: i64 = 3;
+const SCHEMA: i64 = 4;
+
+/// Schema 4: a folder's quota, and the indexes the administration console
+/// pages by (ADR 0077 items 4 and 5).
+const CONSOLE: &str = r"
+ALTER TABLE folders ADD COLUMN quota INTEGER;
+CREATE INDEX sessions_account ON sessions(account, last_used);
+CREATE INDEX grants_account ON grants(account, role);
+CREATE INDEX audit_actor ON audit(actor, at);
+CREATE INDEX audit_action ON audit(action, at);
+CREATE INDEX invitations_created ON invitations(kind, created);
+";
 
 /// Schema 3: the person's settings, with the account (ADR 0073 item 5).
 const SETTINGS: &str = r"
@@ -370,25 +381,22 @@ impl Db {
         let version: i64 = conn
             .query_row("PRAGMA user_version", [], |r| r.get(0))
             .map_err(e)?;
-        if version == 0 {
-            conn.execute_batch(&format!(
-                "BEGIN; {CREATE} {PASSKEYS} {SETTINGS} PRAGMA user_version = {SCHEMA}; COMMIT;"
-            ))
-            .map_err(e)?;
-        } else if version == 1 {
-            conn.execute_batch(&format!(
-                "BEGIN; {PASSKEYS} {SETTINGS} PRAGMA user_version = {SCHEMA}; COMMIT;"
-            ))
-            .map_err(e)?;
-        } else if version == 2 {
-            conn.execute_batch(&format!(
-                "BEGIN; {SETTINGS} PRAGMA user_version = {SCHEMA}; COMMIT;"
-            ))
-            .map_err(e)?;
-        } else if version > SCHEMA {
+        if version > SCHEMA {
             return Err(format!(
                 "the database is of a newer Verso (schema {version}, this one knows {SCHEMA})"
             ));
+        }
+        // Each schema after the one found, in one transaction.
+        let steps: String = [(1, CREATE), (2, PASSKEYS), (3, SETTINGS), (4, CONSOLE)]
+            .iter()
+            .filter(|(at, _)| *at > version)
+            .map(|(_, sql)| *sql)
+            .collect();
+        if !steps.is_empty() {
+            conn.execute_batch(&format!(
+                "BEGIN; {steps} PRAGMA user_version = {SCHEMA}; COMMIT;"
+            ))
+            .map_err(e)?;
         }
         Ok(Self {
             conn: Mutex::new(conn),
@@ -1286,6 +1294,9 @@ impl Db {
         Ok(())
     }
 }
+
+mod console;
+pub use console::{AccountRow, AuditFilter, FolderRow, Page, PageQuery};
 
 #[cfg(test)]
 mod tests;

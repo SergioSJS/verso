@@ -164,6 +164,37 @@ pub fn refused(message: impl Into<String>) -> ContractError {
     }
 }
 
+/// The folder's quota on its server would be passed (ADR 0077 item 5):
+/// nothing was written.
+#[must_use]
+pub fn over_quota(used: u64, quota: u64) -> ContractError {
+    ContractError {
+        kind: ErrorKind::Quota,
+        message: format!("the folder takes {used} bytes of its quota of {quota}"),
+    }
+}
+
+/// The bytes the folder's files take now, and how much writing `len`
+/// bytes at `path` would change that (negative when the file shrinks).
+/// A note may be named without its `.md`.
+#[must_use]
+pub fn growth(ws: &Workspace, path: &str, len: u64) -> (u64, i64) {
+    let mut total = 0u64;
+    let mut old = 0u64;
+    let as_note = format!("{path}.md");
+    for e in ws.entries() {
+        if matches!(e.kind, verso_core::FileKind::Folder) {
+            continue;
+        }
+        total = total.saturating_add(e.len);
+        if e.path == path || e.path == as_note {
+            old = e.len;
+        }
+    }
+    let delta = i64::try_from(len).unwrap_or(i64::MAX) - i64::try_from(old).unwrap_or(i64::MAX);
+    (total, delta)
+}
+
 #[must_use]
 pub fn no_folder() -> ContractError {
     ContractError {

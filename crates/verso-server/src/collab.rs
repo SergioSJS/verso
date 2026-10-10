@@ -381,6 +381,14 @@ pub fn write(server: &Server, room: &Arc<Mutex<Room>>) -> Result<String, Contrac
         return Ok(r.revision.clone());
     }
     let bytes = on_disk(&text, r.crlf);
+    // The room's text passes the folder's quota like any write (ADR 0077):
+    // refused, the room keeps it (as a failed write always does).
+    crate::quota::check(
+        server,
+        &r.key,
+        &r.path,
+        u64::try_from(bytes.len()).unwrap_or(u64::MAX),
+    )?;
     let (path, revision) = (r.path.clone(), r.revision.clone());
     let written = server
         .service

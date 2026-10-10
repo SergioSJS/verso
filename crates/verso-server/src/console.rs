@@ -1,0 +1,423 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+//! The administration console's API (ADR 0077): every list searched,
+//! sorted and paged here; an account's and a folder's own page; a folder's
+//! quota; the overview; the configuration in effect, read only. Admins
+//! only, never through a token (`Ctx::admin`).
+
+use std::collections::HashMap;
+
+use axum::Json;
+use axum::extract::{Path, Query};
+use axum::http::header;
+use axum::response::{IntoResponse, Response};
+use serde::Deserialize;
+use serde_json::{Value, json};
+
+use crate::db::{self, AuditFilter, PageQuery};
+use crate::http::{ApiError, ApiResult, Ctx, ok};
+
+/// What a list is asked with.
+#[derive(Debug, Default, Deserialize)]
+pub struct List {
+    q: Option<String>,
+    sort: Option<String>,
+    desc: Option<bool>,
+    offset: Option<i64>,
+    limit: Option<i64>,
+    state: Option<String>,
+    actor: Option<String>,
+    action: Option<String>,
+    folder: Option<String>,
+    from: Option<i64>,
+    to: Option<i64>,
+    format: Option<String>,
+}
+
+impl List {
+    fn page(&self) -> PageQuery {
+        PageQuery {
+            q: self.q.clone().unwrap_or_default(),
+            sort: self.sort.clone().unwrap_or_default(),
+            desc: self.desc.unwrap_or(false),
+            offset: self.offset.unwrap_or(0).max(0),
+            limit: self.limit.unwrap_or(0),
+        }
+    }
+}
+
+pub async fn accounts(ctx: Ctx, Query(list): Query<List>) -> ApiResult<Response> {
+    ctx.admin()?;
+    Ok(ok(ctx.server.db.page_accounts(&list.page())?))
+}
+
+/// One account: what it owns and belongs to, its sessions and its tokens.
+pub async fn account(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
+    ctx.admin()?;
+    let db = &ctx.server.db;
+    let account = db.account(&id)?.ok_or_else(ApiError::not_found)?;
+    let folders: Vec<Value> = db
+        .folders_of(&id)?
+        .into_iter()
+        .map(|(f, role)| {
+            json!({ "id": f.id, "name": f.dir, "role": role, "space": crate::folders::space(&ctx, &f.id) })
+        })
+        .collect();
+    Ok(ok(json!({
+        "account": crate::api::account_json(&account),
+        "created": account.created,
+        "password": account.password.is_some(),
+        "folders": folders,
+        "sessions": db.sessions_of(&id)?,
+        "tokens": db.tokens_of(&id)?,
+    })))
+}
+
+pub async fn folders(ctx: Ctx, Query(list): Query<List>) -> ApiResult<Response> {
+    ctx.admin()?;
+    Ok(ok(ctx.server.db.page_folders(&list.page())?))
+}
+
+/// Directories under the folders root that no folder is registered for.
+pub async fn unregistered(ctx: Ctx) -> ApiResult<Response> {
+    ctx.admin()?;
+    let root = ctx.server.config.folders_dir.clone();
+    let dirs = tokio::task::spawn_blocking(move || verso_fs::server::folders_under(&root))
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| format!("listing VERSO_FOLDERS_DIR: {e}"))?;
+    let known: std::collections::HashSet<String> = ctx
+        .server
+        .db
+        .folders()?
+        .into_iter()
+        .map(|f| f.dir)
+        .collect();
+    let loose: Vec<String> = dirs.into_iter().filter(|d| !known.contains(d)).collect();
+    Ok(ok(loose))
+}
+
+/// One folder: its members, what it takes, its quota.
+pub async fn folder(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
+    ctx.admin()?;
+    let db = &ctx.server.db;
+    let folder = db.folder(&id)?.ok_or_else(ApiError::not_found)?;
+    let members: Vec<Value> = db
+        .members(&id)?
+        .into_iter()
+        .map(|(a, role)| json!({ "id": a.id, "name": a.name, "email": a.email, "role": role }))
+        .collect();
+    Ok(ok(json!({
+        "id": folder.id,
+        "name": folder.dir,
+        "created": folder.created,
+        "members": members,
+        "space": crate::folders::space(&ctx, &id),
+        "quota": db.quota(&id)?,
+    })))
+}
+
+#[derive(Deserialize)]
+pub struct SetQuota {
+    /// Bytes, a size such as "10GB", or null for none.
+    quota: Value,
+}
+
+/// A folder's quota, set by an admin (ADR 0077 item 5), in the log.
+pub async fn set_quota(
+    ctx: Ctx,
+    Path(id): Path<String>,
+    Json(body): Json<SetQuota>,
+) -> ApiResult<Response> {
+    ctx.changes()?;
+    ctx.admin()?;
+    let db = &ctx.server.db;
+    db.folder(&id)?.ok_or_else(ApiError::not_found)?;
+    let bytes = match &body.quota {
+        Value::Null => None,
+        Value::Number(n) => Some(n.as_i64().filter(|b| *b > 0).ok_or_else(bad_size)?),
+        Value::String(s) if s.trim().is_empty() => None,
+        Value::String(s) => Some(crate::config::size(s).ok_or_else(bad_size)?),
+        _ => return Err(bad_size()),
+    };
+    db.set_quota(&id, bytes)?;
+    ctx.audit(
+        "folder_quota",
+        Some(&bytes.map_or_else(|| "none".to_owned(), |b| b.to_string())),
+        Some(&id),
+        true,
+    );
+    Ok(ok(json!({ "quota": bytes })))
+}
+
+fn bad_size() -> ApiError {
+    ApiError::bad("bad_size", "a size such as 500MB or 10GB, or none")
+}
+
+pub async fn invitations(ctx: Ctx, Query(list): Query<List>) -> ApiResult<Response> {
+    ctx.admin()?;
+    let db = &ctx.server.db;
+    let page = db.page_invitations(&list.page(), list.state.as_deref().unwrap_or(""))?;
+    let now = db::now();
+    let mut rows = Vec::new();
+    for i in &page.rows {
+        let used_by = match &i.used_by {
+            Some(id) => db.account(id)?.map(|a| a.email),
+            None => None,
+        };
+        let folder = match &i.folder {
+            Some(id) => db.folder(id)?.map(|f| f.dir),
+            None => None,
+        };
+        rows.push(json!({
+            "id": i.id, "state": i.state(now), "email": i.email, "folder": folder, "role": i.role,
+            "created": i.created, "expires": i.expires, "used": i.used, "usedBy": used_by,
+        }));
+    }
+    Ok(ok(
+        json!({ "rows": rows, "total": page.total, "next": page.next }),
+    ))
+}
+
+/// The audit log, filtered and paged; `format=csv` gives the whole filtered
+/// log as a file.
+pub async fn audit(ctx: Ctx, Query(list): Query<List>) -> ApiResult<Response> {
+    ctx.admin()?;
+    let db = &ctx.server.db;
+    let filter = AuditFilter {
+        actor: list.actor.clone(),
+        action: list.action.clone().filter(|a| !a.is_empty()),
+        folder: list.folder.clone().filter(|f| !f.is_empty()),
+        from: list.from,
+        to: list.to,
+    };
+    let csv = list.format.as_deref() == Some("csv");
+    // The CSV has no page: every row the filter finds, read a page at a
+    // time.
+    let page = if csv {
+        let mut all = db.page_audit(
+            &PageQuery {
+                offset: 0,
+                limit: 200,
+                ..list.page()
+            },
+            &filter,
+        )?;
+        while let Some(next) = all.next {
+            let more = db.page_audit(
+                &PageQuery {
+                    offset: next,
+                    limit: 200,
+                    ..list.page()
+                },
+                &filter,
+            )?;
+            all.rows.extend(more.rows);
+            all.next = more.next;
+        }
+        all
+    } else {
+        db.page_audit(&list.page(), &filter)?
+    };
+    let mut emails: HashMap<String, String> = HashMap::new();
+    let mut names: HashMap<String, String> = HashMap::new();
+    for e in &page.rows {
+        if let Some(id) = &e.actor
+            && !emails.contains_key(id)
+            && let Some(a) = db.account(id)?
+        {
+            emails.insert(id.clone(), a.email);
+        }
+        if let Some(id) = &e.folder
+            && !names.contains_key(id)
+            && let Some(f) = db.folder(id)?
+        {
+            names.insert(id.clone(), f.dir);
+        }
+    }
+    let who = |e: &db::AuditEntry| {
+        e.actor
+            .as_ref()
+            .map(|id| emails.get(id).cloned().unwrap_or_else(|| id.clone()))
+    };
+    let where_ = |e: &db::AuditEntry| {
+        e.folder
+            .as_ref()
+            .map(|id| names.get(id).cloned().unwrap_or_else(|| id.clone()))
+    };
+    if csv {
+        let mut out = String::from("at,who,action,subject,folder,address,ok\n");
+        for e in &page.rows {
+            let cells = [
+                e.at.to_string(),
+                who(e).unwrap_or_default(),
+                e.action.clone(),
+                e.subject.clone().unwrap_or_default(),
+                where_(e).unwrap_or_default(),
+                e.address.clone().unwrap_or_default(),
+                e.ok.to_string(),
+            ];
+            out.push_str(
+                &cells
+                    .iter()
+                    .map(|c| csv_cell(c))
+                    .collect::<Vec<_>>()
+                    .join(","),
+            );
+            out.push('\n');
+        }
+        return Ok((
+            [
+                (header::CONTENT_TYPE, "text/csv; charset=utf-8"),
+                (
+                    header::CONTENT_DISPOSITION,
+                    "attachment; filename=\"audit.csv\"",
+                ),
+            ],
+            out,
+        )
+            .into_response());
+    }
+    let rows: Vec<Value> = page
+        .rows
+        .iter()
+        .map(|e| {
+            json!({
+                "at": e.at, "who": who(e), "action": e.action, "subject": e.subject,
+                "folder": where_(e), "address": e.address, "ok": e.ok,
+            })
+        })
+        .collect();
+    Ok(ok(
+        json!({ "rows": rows, "total": page.total, "next": page.next }),
+    ))
+}
+
+/// A CSV cell: quoted when it holds a comma, a quote or a line end; a
+/// leading `=`, `+`, `-` or `@` is kept as text, never a spreadsheet's
+/// formula.
+fn csv_cell(text: &str) -> String {
+    let text = if text.starts_with(['=', '+', '-', '@']) {
+        format!("'{text}")
+    } else {
+        text.to_owned()
+    };
+    if text.contains([',', '"', '\n', '\r']) {
+        format!("\"{}\"", text.replace('"', "\"\""))
+    } else {
+        text
+    }
+}
+
+/// The actions the log holds, for the console's filter.
+pub async fn actions(ctx: Ctx) -> ApiResult<Response> {
+    ctx.admin()?;
+    Ok(ok(ctx.server.db.audit_actions()?))
+}
+
+/// The server at a glance: its version and update, where its data lives,
+/// mail and TLS, totals, and what needs a look.
+pub async fn overview(ctx: Ctx) -> ApiResult<Response> {
+    ctx.admin()?;
+    let config = &ctx.server.config;
+    let data = config.data_dir.clone();
+    let folders = config.folders_dir.clone();
+    let (data_net, folders_net) = tokio::task::spawn_blocking(move || {
+        (
+            verso_fs::server::network_file_system(&data),
+            verso_fs::server::network_file_system(&folders),
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    let (accounts, folder_count, space) = ctx.server.db.totals()?;
+    let near: Vec<Value> = ctx
+        .server
+        .db
+        .folders_near_quota()?
+        .into_iter()
+        .map(|(id, name, space, quota)| json!({ "id": id, "name": name, "space": space, "quota": quota }))
+        .collect();
+    let tls = if config.tls.is_some() {
+        "own"
+    } else if config.trusted_proxy.is_some() {
+        "proxy"
+    } else if config.loopback_only() {
+        "loopback"
+    } else {
+        "none"
+    };
+    Ok(ok(json!({
+        "version": env!("CARGO_PKG_VERSION"),
+        "newer": verso_service::lock(&ctx.server.newer).clone(),
+        "updateCheck": config.update_check,
+        "publicUrl": config.public_url,
+        "dataDir": config.data_dir,
+        "foldersDir": config.folders_dir,
+        "dataOnNetwork": data_net,
+        "foldersOnNetwork": folders_net,
+        "mail": ctx.server.mail.get().is_some_and(crate::mail::Mail::sends),
+        "tls": tls,
+        "accounts": accounts,
+        "folders": folder_count,
+        "space": space,
+        "nearQuota": near,
+        "defaultQuota": config.folder_quota,
+    })))
+}
+
+/// The configuration in effect, read only (ADR 0077 item 6): each
+/// variable and its value; a secret only as set or not.
+pub async fn config(ctx: Ctx) -> ApiResult<Response> {
+    ctx.admin()?;
+    let c = &ctx.server.config;
+    let path = |p: &std::path::Path| Some(p.display().to_string());
+    let rows: Vec<Value> = [
+        ("VERSO_LISTEN", Some(c.listen.to_string()), false),
+        ("VERSO_PUBLIC_URL", c.public_url.clone(), false),
+        ("VERSO_DATA_DIR", path(&c.data_dir), false),
+        ("VERSO_FOLDERS_DIR", path(&c.folders_dir), false),
+        ("VERSO_UI_DIR", path(&c.ui_dir), false),
+        (
+            "VERSO_TRUSTED_PROXY",
+            c.trusted_proxy.map(|a| a.to_string()),
+            false,
+        ),
+        (
+            "VERSO_TLS_CERT_FILE",
+            c.tls.as_ref().map(|(cert, _)| cert.display().to_string()),
+            false,
+        ),
+        (
+            "VERSO_TLS_KEY_FILE",
+            c.tls.as_ref().map(|(_, key)| key.display().to_string()),
+            false,
+        ),
+        (
+            "VERSO_UPDATE_CHECK",
+            Some(if c.update_check { "on" } else { "off" }.to_owned()),
+            false,
+        ),
+        ("VERSO_UPDATE_TOKEN", c.update_token.clone(), true),
+        ("VERSO_SMTP_URL", c.smtp_url.clone(), true),
+        ("VERSO_MAIL_FROM", c.mail_from.clone(), false),
+        (
+            "VERSO_FOLDER_QUOTA",
+            c.folder_quota.map(|q| q.to_string()),
+            false,
+        ),
+    ]
+    .into_iter()
+    .map(|(name, value, secret)| {
+        json!({
+            "name": name,
+            "set": value.is_some(),
+            "secret": secret,
+            "value": if secret { None } else { value },
+        })
+    })
+    .collect();
+    Ok(ok(rows))
+}

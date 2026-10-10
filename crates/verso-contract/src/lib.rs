@@ -683,6 +683,10 @@ pub enum ErrorKind {
     Changed,
     /// Something already stands where a note would be created or moved.
     Exists,
+    /// The folder's quota on its server would be passed: nothing was
+    /// written; a write that shrinks the folder is always allowed (ADR
+    /// 0077 item 5).
+    Quota,
     /// The core could not answer.
     Failed,
 }
