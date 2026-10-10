@@ -21,7 +21,10 @@ scripts/sync-lab/lab.sh reset     # pergunta, depois apaga target/sync-lab
 
 O servidor escuta em `http://localhost:7351` (`VERSO_LAB_PORT`), com os
 dados em `target/sync-lab/data`, as pastas em `target/sync-lab/folders` e o
-log em `target/sync-lab/server.log`. O `up` cria:
+log em `target/sync-lab/server.log`. Ele serve a janela no navegador a partir
+de `app/ui/dist` (`VERSO_UI_DIR`) quando o `app/ui` está compilado — `npm
+run build` no `app/ui` antes do `up`; sem isso o endereço responde 404, e o
+`up` avisa. O `up` cria:
 
 - o admin `admin@lab.test`, e **Ana** e **Bia**, editoras das duas pastas,
   com senhas geradas;

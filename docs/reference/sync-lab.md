@@ -20,7 +20,10 @@ scripts/sync-lab/lab.sh reset     # asks, then deletes target/sync-lab
 
 The server listens on `http://localhost:7351` (`VERSO_LAB_PORT`), its data in
 `target/sync-lab/data`, its folders in `target/sync-lab/folders`, its log in
-`target/sync-lab/server.log`. `up` makes:
+`target/sync-lab/server.log`. It serves the window in a browser from
+`app/ui/dist` (`VERSO_UI_DIR`) when `app/ui` is built — `npm run build` in
+`app/ui` before `up`; without it the address answers 404 and `up` says so.
+`up` makes:
 
 - the admin `admin@lab.test`, and **Ana** and **Bia**, editors of both
   folders, with generated passwords;
