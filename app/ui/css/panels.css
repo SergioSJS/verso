@@ -512,6 +512,12 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .setting-actions .setting-value { white-space: normal; overflow-wrap: anywhere; text-align: right; }
 .setting-title { font-size: .93rem; color: var(--ink); }
 .setting-desc { font-size: .8rem; color: var(--ink-3); margin-top: .15rem; }
+/* A control that needs the row's width (a list to write in), with a note
+   under it: the title and its line above, the box and the note below. */
+.setting:has(> .setting-block) { flex-direction: column; align-items: stretch; gap: .55rem; }
+.setting:has(> .setting-block) .setting-text { flex: none; }
+.setting-block { display: flex; flex-direction: column; gap: .45rem; min-width: 0; }
+.setting-note { margin: 0; font-size: .78rem; line-height: 1.5; color: var(--ink-3); max-width: 62ch; }
 /* A value to read, not to change: the version and its commit. */
 .setting-value { font-family: var(--mono); font-size: .82rem; color: var(--ink-2); user-select: text; white-space: nowrap; }
 .setting input[type="text"], .setting input[type="number"], .setting select { font: inherit; font-size: .88rem; padding: .3rem .55rem; background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-radius: 6px; width: 14rem; max-width: 40vw; }

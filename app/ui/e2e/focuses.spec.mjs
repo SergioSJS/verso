@@ -197,7 +197,7 @@ test("settings organizing toggle for syncing focuses shows one-time warning", as
   await app.page.locator('.settings-nav-item', { hasText: "Organização" }).click();
 
   // Find sync focuses toggle
-  const syncRow = app.page.locator(".setting", { hasText: "Sincronizar focos com o make.md" });
+  const syncRow = app.page.locator(".setting", { hasText: "Manter os focos iguais aos do make.md" });
   await expect(syncRow).toBeVisible();
   const toggle = syncRow.locator('input[type="checkbox"]');
 
@@ -208,7 +208,7 @@ test("settings organizing toggle for syncing focuses shows one-time warning", as
   await expect(confirmBox).toContainText("waypoints.json");
 
   // Confirm sync
-  await confirmBox.locator("button.save", { hasText: "Sincronizar" }).click();
+  await confirmBox.locator("button.save", { hasText: "Manter iguais" }).click();
   await expect(confirmBox).toHaveCount(0);
   await expect(toggle).toBeChecked();
 });
@@ -362,8 +362,8 @@ test("Início is untouchable and non-Home focus containing / renders root tree a
   // Enable sync so focuses from waypoints.json are editable/deletable
   await app.key("Mod+,");
   await app.page.locator('.settings-nav-item', { hasText: "Organização" }).click();
-  await app.page.locator(".setting", { hasText: "Sincronizar focos com o make.md" }).locator('input[type="checkbox"]').click();
-  await app.page.locator(".confirm-box button.save", { hasText: "Sincronizar" }).click();
+  await app.page.locator(".setting", { hasText: "Manter os focos iguais aos do make.md" }).locator('input[type="checkbox"]').click();
+  await app.page.locator(".confirm-box button.save", { hasText: "Manter iguais" }).click();
   await app.key("Escape");
 
   await app.key("Mod+Alt+ArrowRight");
@@ -414,10 +414,10 @@ test("concurrent merge preserves both make.md and Verso additions without data l
   const settingsModal = app.page.locator(".settings:not([hidden])");
   await expect(settingsModal).toBeVisible();
   await app.page.locator('.settings-nav-item', { hasText: "Organização" }).click();
-  const syncRow = app.page.locator(".setting", { hasText: "Sincronizar focos com o make.md" });
+  const syncRow = app.page.locator(".setting", { hasText: "Manter os focos iguais aos do make.md" });
   await syncRow.locator('input[type="checkbox"]').click();
   const confirmBox = app.page.locator(".confirm-box");
-  await confirmBox.locator("button.save", { hasText: "Sincronizar" }).click();
+  await confirmBox.locator("button.save", { hasText: "Manter iguais" }).click();
   await app.key("Escape");
 
   // Verso has loaded focuses. Now make.md concurrently writes to .space/waypoints.json
@@ -456,8 +456,8 @@ test("byte and key order preservation in .space/waypoints.json", async ({ app })
   await app.page.locator('#right-tabs button[data-tab="focuses"]').click();
   await app.key("Mod+,");
   await app.page.locator('.settings-nav-item', { hasText: "Organização" }).click();
-  await app.page.locator(".setting", { hasText: "Sincronizar focos com o make.md" }).locator('input[type="checkbox"]').click();
-  await app.page.locator(".confirm-box button.save", { hasText: "Sincronizar" }).click();
+  await app.page.locator(".setting", { hasText: "Manter os focos iguais aos do make.md" }).locator('input[type="checkbox"]').click();
+  await app.page.locator(".confirm-box button.save", { hasText: "Manter iguais" }).click();
   await app.key("Escape");
 
   // Add focus in Verso
@@ -516,13 +516,13 @@ test("local focuses survive enabling sync with make.md when choosing Manter loca
   const settingsModal = app.page.locator(".settings:not([hidden])");
   await expect(settingsModal).toBeVisible();
   await app.page.locator('.settings-nav-item', { hasText: "Organização" }).click();
-  const syncRow = app.page.locator(".setting", { hasText: "Sincronizar focos com o make.md" });
+  const syncRow = app.page.locator(".setting", { hasText: "Manter os focos iguais aos do make.md" });
   await syncRow.locator('input[type="checkbox"]').click();
 
   // Dialog 1: Warning about make.md format
   const confirmBox1 = app.page.locator(".confirm-box");
   await expect(confirmBox1).toBeVisible();
-  await confirmBox1.locator("button.save", { hasText: "Sincronizar" }).click();
+  await confirmBox1.locator("button.save", { hasText: "Manter iguais" }).click();
 
   // Dialog 2: Migration prompt - choose "Manter local"
   const confirmBox2 = app.page.locator(".confirm-box");
@@ -546,7 +546,7 @@ test("local focuses survive enabling sync with make.md when choosing Manter loca
   expect(settingsJson).toContain("Areas");
 });
 
-test("local focuses migrate to waypoints.json when choosing Sincronizar", async ({ app }) => {
+test("local focuses migrate to waypoints.json when choosing Manter iguais", async ({ app }) => {
   await app.open();
 
   // 1. Create a focus "Areas" without make.md
@@ -572,18 +572,18 @@ test("local focuses migrate to waypoints.json when choosing Sincronizar", async 
   const settingsModal = app.page.locator(".settings:not([hidden])");
   await expect(settingsModal).toBeVisible();
   await app.page.locator('.settings-nav-item', { hasText: "Organização" }).click();
-  const syncRow = app.page.locator(".setting", { hasText: "Sincronizar focos com o make.md" });
+  const syncRow = app.page.locator(".setting", { hasText: "Manter os focos iguais aos do make.md" });
   await syncRow.locator('input[type="checkbox"]').click();
 
   // Dialog 1: Warning about make.md format
   const confirmBox1 = app.page.locator(".confirm-box");
   await expect(confirmBox1).toBeVisible();
-  await confirmBox1.locator("button.save", { hasText: "Sincronizar" }).click();
+  await confirmBox1.locator("button.save", { hasText: "Manter iguais" }).click();
 
-  // Dialog 2: Migration prompt - choose "Sincronizar"
+  // Dialog 2: Migration prompt - choose "Manter iguais"
   const confirmBox2 = app.page.locator(".confirm-box");
   await expect(confirmBox2).toBeVisible();
-  await confirmBox2.locator("button.save", { hasText: "Sincronizar" }).click();
+  await confirmBox2.locator("button.save", { hasText: "Manter iguais" }).click();
   await app.key("Escape");
 
   // 4. Verify in Focos tab and on disk:
@@ -648,11 +648,11 @@ test("deleting second duplicate focus deletes the second focus, not the first", 
   const settingsModal = app.page.locator(".settings:not([hidden])");
   await expect(settingsModal).toBeVisible();
   await app.page.locator('.settings-nav-item', { hasText: "Organização" }).click();
-  const syncRow = app.page.locator(".setting", { hasText: "Sincronizar focos com o make.md" });
+  const syncRow = app.page.locator(".setting", { hasText: "Manter os focos iguais aos do make.md" });
   await syncRow.locator('input[type="checkbox"]').click();
   const confirmBox = app.page.locator(".confirm-box");
   if (await confirmBox.isVisible()) {
-    await confirmBox.locator("button.save", { hasText: "Sincronizar" }).click();
+    await confirmBox.locator("button.save", { hasText: "Manter iguais" }).click();
   }
   await app.key("Escape");
 
@@ -707,7 +707,7 @@ test("create focus here prompts to sync and writes new focus directly to waypoin
   // Dialog appears asking if user wants to sync with make.md format
   const confirmBox = app.page.locator(".confirm-box");
   await expect(confirmBox).toBeVisible();
-  await confirmBox.locator("button.save", { hasText: "Sincronizar" }).click();
+  await confirmBox.locator("button.save", { hasText: "Manter iguais" }).click();
 
   // The new focus is written to .space/waypoints.json once the answer is
   // handled — not in the same tick as the click.
@@ -736,7 +736,7 @@ test("a focus created in sync mode becomes the active one", async ({ app }) => {
   const folder = app.page.locator('#notes summary[data-folder="Areas"]');
   await folder.click({ button: "right" });
   await app.page.locator('.menu button[role="menuitem"]', { hasText: "Criar foco aqui" }).click();
-  await app.page.locator(".confirm-box button.save", { hasText: "Sincronizar" }).click();
+  await app.page.locator(".confirm-box button.save", { hasText: "Manter iguais" }).click();
 
   // The tree shows the new focus, not Início: the focus written to the file
   // is the one selected.
@@ -756,7 +756,7 @@ test("adding a path to a focus created from the menu keeps the path in sync mode
   await app.page.locator('.menu button[role="menuitem"]', { hasText: "Adicionar ao foco" }).click();
   await app.page.locator(".prompt-box input").fill("Saude");
   await app.page.locator(".confirm-actions button.save").click();
-  await app.page.locator(".confirm-box button.save", { hasText: "Sincronizar" }).click();
+  await app.page.locator(".confirm-box button.save", { hasText: "Manter iguais" }).click();
 
   await expect
     .poll(async () => JSON.parse(await app.file(".space/waypoints.json")).find((f) => f.name === "Saude")?.paths)
