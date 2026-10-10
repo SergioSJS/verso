@@ -442,3 +442,24 @@ test("line numbers in Source: a desktop's default, off on a phone unless the per
   await app.command("Fonte");
   await expect(gutter.first()).toBeVisible();
 });
+
+test("the settings' sections on a phone: opened straight to one, its tab is in view, not Geral's @layout", async ({ app, page }) => {
+  await app.open();
+  // A folder that syncs: its state, wherever the window shows it, opens
+  // the settings straight to Sincronizar — the last of the row.
+  const off = await page.evaluate(() => window.__harness.core.sync);
+  await app.emit("sync-status", { ...off, on: true, server: "https://notas.casa", folder: "f1", folder_name: "Campanha", role: "owner", state: "synced" });
+  await page.locator("#sync-state").evaluate((b) => b.click());
+  await expect(page.locator('.settings-nav-item[aria-current="true"]')).toHaveText("Sincronizar");
+  const inView = () =>
+    page.locator(".settings-nav").evaluate((n) => {
+      const tab = n.querySelector('[aria-current="true"]');
+      if (!tab) return false;
+      const row = n.getBoundingClientRect();
+      const box = tab.getBoundingClientRect();
+      return box.left >= row.left - 1 && box.right <= row.right + 1;
+    });
+  await expect.poll(inView).toBe(true);
+  // The page itself never scrolls sideways for it.
+  expect(await page.evaluate(() => document.scrollingElement.scrollLeft)).toBe(0);
+});
