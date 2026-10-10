@@ -187,7 +187,7 @@ fn still_signed_in(server: &Server, who: &Who) -> Result<bool, String> {
     }
 }
 
-async fn blocking<T: Send + 'static>(
+pub(crate) async fn blocking<T: Send + 'static>(
     f: impl FnOnce() -> Result<T, ContractError> + Send + 'static,
 ) -> Result<T, ContractError> {
     tokio::task::spawn_blocking(f)
@@ -195,11 +195,14 @@ async fn blocking<T: Send + 'static>(
         .map_err(|e| verso_service::failed(e.to_string()))?
 }
 
-fn to_value<T: serde::Serialize>(v: T) -> Result<Value, ContractError> {
+pub(crate) fn to_value<T: serde::Serialize>(v: T) -> Result<Value, ContractError> {
     serde_json::to_value(v).map_err(|e| verso_service::failed(e.to_string()))
 }
 
-fn arg<T: serde::de::DeserializeOwned>(args: &Value, name: &str) -> Result<T, ContractError> {
+pub(crate) fn arg<T: serde::de::DeserializeOwned>(
+    args: &Value,
+    name: &str,
+) -> Result<T, ContractError> {
     serde_json::from_value(args.get(name).cloned().unwrap_or(Value::Null))
         .map_err(|e| refused(&format!("{name}: {e}")))
 }
@@ -321,6 +324,8 @@ async fn handle(
         "fetch_file" => Ok(Value::Bool(false)),
         "collab_join" | "collab_update" | "collab_awareness" | "collab_leave" | "collab_save"
         | "collab_resolve" => collab_command(server, who, client, &r.cmd, &args).await,
+        "sync_state" | "sync_changes" | "sync_read" | "sync_put" | "sync_delete"
+        | "sync_rename" => crate::sync::command(server, who, client, &r.cmd, &args).await,
         _ => Err(refused("not on a server")),
     }
 }
@@ -375,7 +380,7 @@ async fn collab_command(
 }
 
 /// The role of the window's folder, or `no_folder`.
-fn role_here(server: &Server, client: &str) -> Result<(String, Role), ContractError> {
+pub(crate) fn role_here(server: &Server, client: &str) -> Result<(String, Role), ContractError> {
     lock(&server.clients)
         .get(client)
         .and_then(|c| c.folder.clone())
@@ -399,6 +404,8 @@ async fn folder_command(
         .service
         .folder_of(client)
         .ok_or_else(verso_service::no_folder)?;
+    let key_for_log = key.clone();
+    let args_for_log = args.clone();
     // A write that would pass the folder's quota is refused before
     // anything is written (ADR 0077 item 5).
     if let Some((path, len)) = crate::quota::written(name, &args) {
@@ -450,6 +457,16 @@ async fn folder_command(
     .await?;
     if access == Access::Write {
         record_space(server, client).await;
+        // The folder's log for sync follows every write before the answer
+        // (ADR 0079 item 4): a device asking next sees it.
+        let s = Arc::clone(server);
+        let actor = who.account.id.clone();
+        let paths = crate::sync::paths_of(&args_for_log);
+        let _ = blocking(move || {
+            crate::sync::reconcile_key(&s, &key_for_log, Some(&actor), &paths);
+            Ok(())
+        })
+        .await;
     }
     Ok(answer)
 }
@@ -487,6 +504,13 @@ async fn open(
     })
     .await?;
     lock(&server.keys).insert(info.key.clone(), folder.id.clone());
+    // What changed on the disk while nobody had it open joins the folder's
+    // log for sync, in the background (ADR 0079 item 4).
+    {
+        let s = Arc::clone(server);
+        let key = info.key.clone();
+        tokio::task::spawn_blocking(move || crate::sync::reconcile_key(&s, &key, None, &[]));
+    }
     if let Some(c) = lock(&server.clients).get_mut(client) {
         c.folder = Some((folder.id.clone(), role));
         let _ =

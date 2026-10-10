@@ -405,6 +405,8 @@ pub fn write(server: &Server, room: &Arc<Mutex<Room>>) -> Result<String, Contrac
                 None,
                 &event("collab-saved", &path, "revision", &json!(r.revision)),
             );
+            // The folder's log for sync follows the save (ADR 0079 item 4).
+            crate::sync::reconcile_key(server, &r.key, None, &[path]);
             Ok(r.revision.clone())
         }
         Err(e) if e.kind == ErrorKind::Changed => {
