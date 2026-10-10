@@ -857,6 +857,20 @@ fn of_here(path: &str, e: ContractError) -> Refusal {
     }
 }
 
+/// A step here whose entry is gone since the listing — moved or deleted
+/// on this computer while the pass ran, before the watcher's batch (C17):
+/// the listing is brought up to date now, as that batch would, so the pass
+/// [`again`] asks for at once sees the folder as it is, not the file once
+/// more (F22). Anything else is [`of_here`]'s.
+fn gone_here(ctx: &Ctx, s: &Syncer, path: &str, e: ContractError) -> Refusal {
+    if e.kind == ErrorKind::NotFound {
+        tokio::task::block_in_place(|| {
+            ctx.service.changed_outside(&s.key, &AtomicBool::new(false));
+        });
+    }
+    of_here(path, e)
+}
+
 fn reader_refusal(path: &str) -> Refusal {
     Refusal::File(
         path.to_owned(),
@@ -1081,7 +1095,7 @@ impl Side<'_> {
                         Ok(())
                     })
                 })
-                .map_err(|e| of_here(path, e))?;
+                .map_err(|e| gone_here(ctx, s, path, e))?;
                 state.base.remove(path);
                 state.seen.remove(path);
                 s.crossed(ctx, "deleted_here", path, None);
@@ -1113,7 +1127,7 @@ impl Side<'_> {
                         Ok(())
                     })
                 })
-                .map_err(|e| of_here(from, e))?;
+                .map_err(|e| gone_here(ctx, s, from, e))?;
                 if let Some(b) = state.base.remove(from) {
                     state.base.insert(to.clone(), b);
                 }
@@ -1130,7 +1144,7 @@ impl Side<'_> {
                     ctx.service
                         .with_key(&s.key, move |ws| Ok(ws.rename_entry(&f, &t).map(|_| ())?))
                 })
-                .map_err(|e| of_here(path, e))?;
+                .map_err(|e| gone_here(ctx, s, path, e))?;
                 state.base.remove(path);
                 state.seen.remove(path);
                 if let Some(f) = local.remove(path) {
