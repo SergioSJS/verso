@@ -433,6 +433,18 @@ impl Root {
         Ok((relative, report))
     }
 
+    /// Remove the folder at `relative` when it is empty, confined: `false`
+    /// when it holds anything — nothing in it is ever removed — or is the
+    /// root itself. Sync leaves no empty folder behind a move or a deletion
+    /// that came from another device (ADR 0079).
+    pub fn remove_empty_dir(&self, relative: &Path) -> Result<bool, WriteError> {
+        let relative = self.confine(relative).map_err(WriteError::Confined)?;
+        if relative.as_os_str().is_empty() {
+            return Ok(false);
+        }
+        ops::remove_empty_directory(&on_disk(&self.path, &relative))
+    }
+
     /// Move an entry to another path of the folder, both confined; refuses
     /// an occupied destination, unless it is the entry itself under another
     /// spelling of its name (a case-only rename on APFS); creates the

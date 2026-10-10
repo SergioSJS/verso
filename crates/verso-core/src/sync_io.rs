@@ -25,6 +25,23 @@ impl Workspace {
         Ok((bytes, revision::encode(&stamp)))
     }
 
+    /// The folders above `relative` that hold nothing any more, removed,
+    /// from the nearest up: a move or a deletion that came from another
+    /// device leaves no empty folder behind (ADR 0079). A folder that holds
+    /// anything stays, and so does every one above it.
+    pub fn prune_empty_parents(&mut self, relative: &str) {
+        let mut dir = super::entries::parent_of(relative).to_owned();
+        while !dir.is_empty() {
+            match self.root.remove_empty_dir(Path::new(&dir)) {
+                Ok(true) => {
+                    self.dirs.remove(&dir);
+                    dir = super::entries::parent_of(&dir).to_owned();
+                }
+                _ => break,
+            }
+        }
+    }
+
     /// Write `bytes` at `relative`: a new file when `revision` is `None`
     /// (refused when something stands there), else over the file the
     /// revision describes (refused, with nothing written, when it is no

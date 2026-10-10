@@ -998,6 +998,7 @@ impl Side<'_> {
                             }));
                         }
                         ws.delete_entry(&p)?;
+                        ws.prune_empty_parents(&p);
                         Ok(())
                     })
                 })
@@ -1027,8 +1028,11 @@ impl Side<'_> {
             Action::RenameLocal { from, to } => {
                 let (f, t) = (from.clone(), to.clone());
                 tokio::task::block_in_place(|| {
-                    ctx.service
-                        .with_key(&s.key, move |ws| Ok(ws.rename_entry(&f, &t).map(|_| ())?))
+                    ctx.service.with_key(&s.key, move |ws| {
+                        ws.rename_entry(&f, &t)?;
+                        ws.prune_empty_parents(&f);
+                        Ok(())
+                    })
                 })
                 .map_err(|e| of_here(from, e))?;
                 if let Some(b) = state.base.remove(from) {
