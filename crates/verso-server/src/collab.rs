@@ -415,7 +415,9 @@ pub fn write(server: &Server, room: &Arc<Mutex<Room>>) -> Result<String, Contrac
 }
 
 /// `client` leaves; the last one out writes what is left and closes the
-/// room.
+/// room. A room whose write fails — the file changed on disk, the disk
+/// refused — is kept, with what was typed, for whoever opens the note
+/// next to see the difference and choose (ADR 0073 item 7): never dropped.
 pub fn leave(server: &Server, client: &str, key: &str, path: &str) {
     let Some(room) = server.rooms.get(key, path) else {
         return;
@@ -425,9 +427,24 @@ pub fn leave(server: &Server, client: &str, key: &str, path: &str) {
         r.clients.remove(client);
         r.clients.is_empty()
     };
-    if empty {
-        let _ = write(server, &room);
+    if empty && settled(server, &room) {
         lock(&server.rooms.map).remove(&(key.to_owned(), path.to_owned()));
+    }
+}
+
+/// The room written, or kept: false, said in the log, when what was typed
+/// could not reach the file.
+fn settled(server: &Server, room: &Arc<Mutex<Room>>) -> bool {
+    match write(server, room) {
+        Ok(_) => true,
+        Err(e) => {
+            let path = lock(room).path.clone();
+            crate::log::warn(&format!(
+                "a shared note keeps edits it could not write ({}): {path} stays open on the server until someone opens it and chooses",
+                e.message
+            ));
+            false
+        }
     }
 }
 
@@ -448,7 +465,11 @@ pub fn gone(server: &Arc<Server>, client: &str) {
         if !empty {
             continue;
         }
-        let _ = write(server, &room);
+        // Written now, while the folder is still open; a room that could
+        // not be is kept past the grace, for the next window on the note.
+        if !settled(server, &room) {
+            continue;
+        }
         let (key, path, epoch) = {
             let r = lock(&room);
             (r.key.clone(), r.path.clone(), r.epoch.clone())
@@ -463,9 +484,14 @@ pub fn gone(server: &Arc<Server>, client: &str) {
                     let r = lock(r);
                     r.clients.is_empty() && r.epoch == epoch
                 });
-                if still_empty && let Some(room) = map.remove(&place) {
-                    drop(map);
-                    let _ = write(&server, &room);
+                // Nothing was typed since it was written: no window was in
+                // it. Closed only when that write held.
+                let clean = map.get(&place).is_some_and(|r| {
+                    let r = lock(r);
+                    !r.conflict && text_of(&r.doc) == r.saved
+                });
+                if still_empty && clean {
+                    map.remove(&place);
                 }
             });
         }
@@ -554,10 +580,20 @@ pub fn close(server: &Server, key: &str, path: &str) {
 
 /// Before a command that moves or removes files of the folder: every room
 /// of it written, so nothing typed is left behind a rename.
-pub fn write_all(server: &Server, key: &str) {
+/// Before a rename, a move or a bin: every room of the folder written.
+/// One that cannot be stops the command — its typed text would follow
+/// nothing, or be closed with the note.
+pub fn write_all(server: &Server, key: &str) -> Result<(), ContractError> {
     for room in server.rooms.of_folder(key) {
-        let _ = write(server, &room);
+        if let Err(e) = write(server, &room) {
+            let path = lock(&room).path.clone();
+            return Err(changed(&format!(
+                "{path} has edits not written yet ({}): open it and choose first",
+                e.message
+            )));
+        }
     }
+    Ok(())
 }
 
 /// After such a command: the rooms whose note is gone are closed.
