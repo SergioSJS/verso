@@ -24,7 +24,7 @@ export type Strings = Record<
   | "addProperty" | "keyPlaceholder" | "emptyValue" | "addItem" | "remove" | "mentions" | "propertiesTitle"
   | "replaceTitle" | "find" | "findInNote" | "replaceWith" | "matchCase" | "regex" | "previewChanges" | "noMatches" | "badRegex" | "applyChanges"
   | "pinTab" | "unpinTab" | "pinnedTab" | "splitRight" | "splitDownTab" | "duplicateTab" | "revealInTree"
-  | "hue" | "huePaper" | "hueSepia" | "hueSlate" | "hueMoss"
+  | "hue" | "huePaper" | "hueSepia" | "hueSlate" | "hueMoss" | "darkTone" | "darkToneDesc" | "darkSoft" | "darkDeep" | "darkDusk"
   | "headingFont" | "headingFontDesc" | "bodyFont" | "bodyFontDesc" | "headingColor" | "headingColorDesc"
   | "fontSerif" | "fontSans" | "fontEditorial" | "fontMono" | "fontSystem"
   | "colorDefault" | "colorBrass" | "colorSeal" | "colorMoss" | "colorSlate" | "colorRoyal" | "colorAmethyst"
@@ -172,7 +172,7 @@ export const pt: Strings = {
   ribbonFiles: "Arquivos", ribbonHide: "Ocultar este botão", ribbonShowAll: "Mostrar botões ocultos", ribbonReset: "Restaurar ordem", ribbonDragHint: "Arraste para reordenar · botão direito para opções", ribbonButtons: "Botões da faixa lateral", ribbonButtonsDesc: "Os que aparecem na coluna à esquerda. Ajustes fica sempre, para que haja volta.", ribbonHidden: "Botão oculto. Para trazê-lo de volta: Ajustes › Aparência, ou botão direito na faixa.", sAccount: "Conta", sAdmin: "Administração",
   replaceTitle: "Localizar e substituir no cofre", find: "Localizar", findInNote: "Localizar na nota", replaceWith: "Substituir por", matchCase: "Diferenciar maiúsculas", regex: "Expressão regular", previewChanges: "Ver mudanças", noMatches: "Nada encontrado.", badRegex: "Expressão regular inválida.", applyChanges: "Aplicar",
   pinTab: "Fixar aba", unpinTab: "Desafixar aba", pinnedTab: "Aba fixada: desafixe para fechar.", splitRight: "Dividir à direita", splitDownTab: "Dividir abaixo", duplicateTab: "Duplicar aba", revealInTree: "Mostrar na árvore",
-  hue: "Paleta de cores", huePaper: "Papel (padrão)", hueSepia: "Sépia", hueSlate: "Ardósia", hueMoss: "Musgo",
+  hue: "Paleta de cores", huePaper: "Papel (padrão)", hueSepia: "Sépia", hueSlate: "Ardósia", hueMoss: "Musgo", darkTone: "Tom do escuro", darkToneDesc: "No tema escuro: suave para ler e escrever por horas, profundo quase preto para um quarto escuro, penumbra mais claro.", darkSoft: "Suave (padrão)", darkDeep: "Profundo", darkDusk: "Penumbra",
   headingFont: "Fonte dos títulos", headingFontDesc: "Família tipográfica aplicada aos títulos e cabeçalhos.",
   bodyFont: "Fonte do texto", bodyFontDesc: "Família tipográfica aplicada ao texto das notas e interface.",
   headingColor: "Cor de destaque dos títulos", headingColorDesc: "Tonalidade aplicada aos títulos e cabeçalhos.",
@@ -309,7 +309,7 @@ export const en: Strings = {
   ribbonFiles: "Files", ribbonHide: "Hide this button", ribbonShowAll: "Show hidden buttons", ribbonReset: "Restore order", ribbonDragHint: "Drag to reorder · right-click for options", ribbonButtons: "Side ribbon buttons", ribbonButtonsDesc: "The ones shown in the column on the left. Settings always stays, so there is a way back.", ribbonHidden: "Button hidden. To bring it back: Settings › Appearance, or right-click the ribbon.", sAccount: "Account", sAdmin: "Administration",
   replaceTitle: "Find and replace in the vault", find: "Find", findInNote: "Find in note", replaceWith: "Replace with", matchCase: "Match case", regex: "Regular expression", previewChanges: "Preview changes", noMatches: "Nothing found.", badRegex: "Invalid regular expression.", applyChanges: "Apply",
   pinTab: "Pin tab", unpinTab: "Unpin tab", pinnedTab: "Pinned tab: unpin it to close.", splitRight: "Split right", splitDownTab: "Split down", duplicateTab: "Duplicate tab", revealInTree: "Reveal in file tree",
-  hue: "Color palette", huePaper: "Paper (default)", hueSepia: "Sepia", hueSlate: "Slate", hueMoss: "Moss",
+  hue: "Color palette", huePaper: "Paper (default)", hueSepia: "Sepia", hueSlate: "Slate", hueMoss: "Moss", darkTone: "Dark tone", darkToneDesc: "In the dark theme: soft for reading and writing for hours, deep near-black for a dark room, dusk lighter.", darkSoft: "Soft (default)", darkDeep: "Deep", darkDusk: "Dusk",
   headingFont: "Heading font", headingFontDesc: "Typeface applied to headings and titles.",
   bodyFont: "Body font", bodyFontDesc: "Typeface applied to note body and interface text.",
   headingColor: "Heading accent color", headingColorDesc: "Color tone applied to headings and sections.",

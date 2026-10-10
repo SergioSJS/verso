@@ -30,12 +30,14 @@ status: ativo
 
 - **Tema**: **Sistema**, **Claro** ou **Escuro**.
 - **Paleta de cores**: **Papel** (a padrão), **Sépia**, **Ardósia** e **Musgo**.
+- **Tom do escuro**, no tema escuro: **Suave** (o padrão, para ler e escrever por horas), **Profundo** (quase preto, para um quarto escuro ou uma tela OLED) e **Penumbra** (mais claro).
+- **Botões da faixa lateral**: cada um com o seu interruptor; a engrenagem de Ajustes fica sempre, para que haja volta.
 - **Tamanho da fonte**: de 12 a 30 pixels.
 - **Fonte dos títulos** e **Fonte do texto**: serifada clássica, sem serifa moderna, editorial literária, monoespaçada ou a do sistema.
 - **Cor de destaque dos títulos**: de âmbar a ametista.
 - **Largura do texto**: confortável (100 caracteres) ou toda a área.
 
-Experimente agora: troque a paleta para **Sépia** e o tema para **Escuro**, e volte.
+Experimente agora: troque a paleta para **Sépia** e o tema para **Escuro**, compare os três tons do escuro, e volte.
 
 ---
 

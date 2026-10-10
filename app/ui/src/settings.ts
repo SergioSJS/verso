@@ -11,10 +11,13 @@ import { t } from "./strings";
 
 export const page = document.querySelector<HTMLElement>(".work");
 export type Hue = "paper" | "sepia" | "slate" | "moss";
+/** How dark the dark theme is (css/base.css, `--dk-lift`). */
+export type DarkTone = "soft" | "deep" | "dusk";
 export type Settings = {
   lang: "auto" | "pt-BR" | "en";
   theme: "auto" | "light" | "dark";
   palette: Hue;
+  darkTone: DarkTone;
   fontSize: number;
   attachments: string;
   autosave: number;
@@ -83,6 +86,7 @@ export const DEFAULTS: Settings = {
   lang: "auto",
   theme: "auto",
   palette: "paper",
+  darkTone: "soft",
   fontSize: 15,
   attachments: "assets",
   autosave: 1.5,
@@ -193,6 +197,7 @@ export function setHiddenFromTree(list: string[]): void {
 export function applySettings(): void {
   document.documentElement.dataset["theme"] = settings.theme;
   document.documentElement.dataset["palette"] = settings.palette;
+  document.documentElement.dataset["dark"] = settings.darkTone ?? "soft";
   document.documentElement.dataset["measure"] = settings.measure;
   document.documentElement.style.fontSize = `${settings.fontSize}px`;
   document.documentElement.classList.toggle("show-line-numbers-edit", Boolean(settings.lineNumbersEdit));
