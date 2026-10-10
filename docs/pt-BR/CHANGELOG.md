@@ -26,6 +26,7 @@ versão de teste.
 ### Alterado
 
 - **A busca acha uma nota pelo nome do arquivo primeiro**, depois pelo que as notas dizem: uma nota cujo primeiro título a chama de outro jeito também é achada pelo nome do arquivo, antes das notas que só mencionam as palavras. Acentos e maiúsculas não importam, como no conteúdo. A mesma ordem no `verso search` e na busca dos agentes.
+- **O tema escuro ficou mais confortável de ler**: o papel um pouco mais claro e o texto um pouco mais suave — cerca de 11:1 em vez de 13,7:1, a faixa dos apps de leitura — e o texto desenhado mais fino sobre o papel escuro. Ajustes › Aparência › *Tom do escuro* guarda o quase preto como *Profundo* e acrescenta uma *Penumbra* mais clara; em toda paleta e tom o texto secundário fica em 4,5:1 ou mais (o da paleta Ardósia ficava logo abaixo).
 
 ### Corrigido
 

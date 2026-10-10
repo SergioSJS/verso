@@ -458,8 +458,13 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    e agentes: o botão do comando (Instalar ou Substituir; no Windows nenhum
    botão — o verso.exe vem com o app) e os trechos do MCP, que mostram o
    comando que o host gravaria; sem o Claude Desktop, "Baixar o Claude
-   Desktop" abre a página de download no navegador.
-   Nível: H; E: `settings.spec.mjs`, as seções e a Aparência.
+   Desktop" abre a página de download no navegador; o *Tom do escuro* da
+   Aparência muda o papel do tema escuro (Suave, Profundo, Penumbra), e os
+   botões da faixa lateral têm cada um o seu interruptor, a engrenagem
+   nenhum.
+   Nível: H; E: `settings.spec.mjs`, as seções e a Aparência;
+   `dark-tone.spec.mjs`, toda paleta e tom em 4,5:1 ou mais;
+   `ribbon.spec.mjs`, um botão oculto trazido de volta.
 2. "Relatar problema", na barra de status: o relato, "Erros desta sessão:
    nenhum". Nível: H; E: `settings.spec.mjs`.
 3. A linha de comando na pasta: `verso search <pasta> reunião`;

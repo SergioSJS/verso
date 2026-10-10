@@ -26,6 +26,7 @@ test release.
 ### Changed
 
 - **The search finds a note by its file name first**, then by what the notes say: a note whose first heading names it otherwise is found by its file name too, before the notes that only mention the words. Accents and case do not matter, as in the content. The same order in `verso search` and in the agents' search.
+- **The dark theme reads more comfortably**: its paper is a little lighter and its text a little softer — about 11:1 instead of 13.7:1, the range of reading apps — and the text is drawn thinner on a dark paper. Settings › Appearance › *Dark tone* keeps the near-black as *Deep*, and adds a lighter *Dusk*; in every palette and tone the secondary text keeps 4.5:1 (the Slate palette's fell just under it before).
 
 ### Fixed
 
