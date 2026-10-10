@@ -167,6 +167,28 @@ pub(crate) fn write_servers(config: &Path, servers: &Servers) -> std::io::Result
     std::fs::rename(&temporary, config.join("servers.json"))
 }
 
+/// A synced folder's state (ADR 0079 item 3): `<config>/sync-<key>.json`,
+/// `0600` as the index, beside the folder's index and never in the folder.
+/// None when the file is missing or does not read: the folder then syncs
+/// as if for the first time, which never deletes (item 11).
+pub(crate) fn read_sync(config: &Path, key: &str) -> Option<crate::sync::State> {
+    std::fs::read_to_string(config.join(format!("sync-{key}.json")))
+        .ok()
+        .and_then(|text| serde_json::from_str(&text).ok())
+}
+
+pub(crate) fn write_sync(
+    config: &Path,
+    key: &str,
+    state: &crate::sync::State,
+) -> std::io::Result<()> {
+    let name = format!("sync-{key}.json");
+    let temporary = temporary(config, &name);
+    std::fs::write(&temporary, serde_json::to_vec(state)?)?;
+    private(&temporary)?;
+    std::fs::rename(&temporary, config.join(name))
+}
+
 /// The calls agents made, newest last: `<config>/agents.log` (ADR 0054).
 /// Each call appends its line in one write, so two processes logging at
 /// once both keep theirs (allowed 2026-10-09, the crate's clippy.toml). Past
