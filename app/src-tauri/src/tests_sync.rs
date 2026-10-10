@@ -568,7 +568,9 @@ fn two_in_step() -> (Running, Device, Device) {
     (r, a, b)
 }
 
-/// The listing as a fresh walk spells it.
+/// The listing as a fresh walk spells it. Only the tests on a file system
+/// that folds names read the spelling back.
+#[cfg(target_os = "macos")]
 fn spelled(d: &Device) -> Vec<String> {
     changed(d, &[]);
     files(d)
