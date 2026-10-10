@@ -5,6 +5,11 @@
 import { test, expect } from "./fixtures.mjs";
 
 const COPY = "Sessao (conflito, Mac, 2026-10-10 15.34).md";
+// A copy of a copy: named after the first copy, its own group last.
+const NESTED = "Sessao (conflito, Mac, 2026-10-10 15.34) (conflict, VERSO-WIN, 2026-10-10 16.42).md";
+// Copies that are not text: by their kind, and by their bytes alone.
+const IMAGE = "Mapa (conflito, Mac, 2026-10-10 15.34).png";
+const BYTES = "dados (conflito, Mac, 2026-10-10 15.34).bin";
 
 async function openSync(app) {
   await app.key("Mod+,");
@@ -46,14 +51,33 @@ test("a folder syncs with a server, says its state, asks before deleting and sho
   // A pass paused for many deletions, with a conflict and a file left out.
   await app.writeOutside("Sessao.md", "# Sessao\n\nversão do servidor\n");
   await app.writeOutside(COPY, "# Sessao\n\nversão deste computador\n");
+  await app.writeOutside(NESTED, "# Sessao\n\nversão do Windows\n");
+  await app.writeOutside("Mapa.png", "\u0089PNG\r\n\u001a\n\u0000\u0000\u0000\rIHDR servidor");
+  await app.writeOutside(IMAGE, "\u0089PNG\r\n\u001a\n\u0000\u0000\u0000\rIHDR aqui");
+  await app.writeOutside("dados.bin", "\u0000\u0001servidor");
+  await app.writeOutside(BYTES, "\u0000\u0002aqui");
   const status = await app.page.evaluate(() => window.__harness.core.sync);
-  await app.emit("sync-status", { ...status, state: "paused", deletions: 12, conflicts: [COPY], refused: [{ path: "video.mov", reason: "quota", message: "" }] });
-  await expect(bar).toHaveText("Pausada · 12 a apagar · 1 conflito");
+  await app.emit("sync-status", { ...status, state: "paused", deletions: 12, conflicts: [COPY, NESTED, IMAGE, BYTES], refused: [{ path: "video.mov", reason: "quota", message: "" }] });
+  await expect(bar).toHaveText("Pausada · 12 a apagar · 4 conflitos");
   await expect(app.page.locator(".sync-sentence")).toHaveText("Parada antes de apagar 12 arquivos.");
   await expect(app.page.getByRole("alert")).toContainText("12 arquivos seriam apagados");
   // The conflict is under its note, with who made the copy and when.
-  const conflict = app.page.locator(".sync-item", { hasText: "Sessao.md" });
+  const conflict = app.page.locator(".sync-item", { has: app.page.locator(".sync-item-title", { hasText: /^Sessao\.md$/ }) });
   await expect(conflict).toContainText("Cópia de Mac");
+  // A copy of that copy is under the first copy, said as the other
+  // device's.
+  const nested = app.page.locator(".sync-item", { has: app.page.locator(".sync-item-title", { hasText: COPY }) });
+  await expect(nested.locator(".sync-copy-label")).toHaveText(/^Cópia de VERSO-WIN, /);
+  // A copy that is not text is not compared line by line: said, and the
+  // two opened instead — by its kind, and by its bytes.
+  for (const [note, copy] of [["Mapa.png", IMAGE], ["dados.bin", BYTES]]) {
+    const item = app.page.locator(".sync-item", { has: app.page.locator(".sync-item-title", { hasText: note }) });
+    await expect(item.getByText("Não é texto: abra as duas para comparar.")).toBeVisible();
+    await expect(item.getByRole("button", { name: "Comparar" })).toHaveCount(0);
+    await expect(item.getByRole("button", { name: "Abrir as duas" })).toBeVisible();
+    await expect(item.getByRole("button", { name: "Descartar cópia" })).toBeVisible();
+    await expect(item.locator(".sync-copy-label")).toHaveAttribute("title", copy);
+  }
   // The file left out says why and what to do.
   const quota = app.page.locator(".sync-item", { hasText: "video.mov" });
   await expect(quota).toContainText("não cabe na cota da pasta");

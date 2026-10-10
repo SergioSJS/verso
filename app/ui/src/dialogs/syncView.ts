@@ -15,6 +15,7 @@ import { diffNode } from "../diff";
 import { h } from "../dom";
 import { fail } from "../errors";
 import { openNote } from "../layout/spaces";
+import { copyParts, looksBinary, originalOf, textByName } from "./conflictNames";
 
 const pt = {
   allGood: "Tudo em dia.",
@@ -203,18 +204,11 @@ function button(label: string, kind: "" | "primary" | "quiet" | "danger", run: (
   return b;
 }
 
-/** The file a conflict's copy is of: its name without the parenthesis. */
-export function originalOf(copy: string): string {
-  return copy.replace(/ \((conflict|conflito), [^)]*\)(?=\.[^./]*$|$)/, "");
-}
-
 /** Who made a copy and when, from its name (ADR 0079 item 8). */
 function copyOrigin(copy: string): { device: string; date: string } {
-  const m = / \((?:conflict|conflito), (.+), (\d{4})-(\d{2})-(\d{2}) (\d{2})\.(\d{2})(?: \d+)?\)(?:\.[^./]*)?$/.exec(copy);
-  if (!m) return { device: "?", date: "" };
-  const [, device, y, mo, d, hh, mm] = m;
-  const date = new Date(Number(y), Number(mo) - 1, Number(d), Number(hh), Number(mm));
-  return { device: device!, date: date.toLocaleString(locale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) };
+  const parts = copyParts(copy);
+  if (!parts) return { device: "?", date: "" };
+  return { device: parts.device, date: parts.date.toLocaleString(locale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) };
 }
 
 /** The sentence that says the folder's state, and its tone. */
@@ -347,6 +341,11 @@ function conflictItem(note: string, copies: string[], refresh: Refresh): HTMLEle
     const one = h("div", "sync-copy");
     const label = h("p", "sync-copy-label", s.copyFrom(device, date));
     label.title = copy;
+    // Not text (an image, a PDF, bytes that are not UTF-8): no line
+    // comparison, which would show garbage — the two are opened instead.
+    const byName = textByName(copy);
+    const notText = h("p", "sync-item-why sync-not-text", s.notText);
+    notText.hidden = byName !== false;
     const diff = h("div", "sync-diff");
     const open = comparing.has(copy);
     diff.hidden = !open;
@@ -365,7 +364,6 @@ function conflictItem(note: string, copies: string[], refresh: Refresh): HTMLEle
       void showDiff(diff, note, copy);
     });
     compare.setAttribute("aria-expanded", String(open));
-    if (open) void showDiff(diff, note, copy);
     const actions = row(
       compare,
       button(s.openBoth, "quiet", () => {
@@ -373,6 +371,20 @@ function conflictItem(note: string, copies: string[], refresh: Refresh): HTMLEle
         openNote(copy, true);
       }),
     );
+    const binary = () => {
+      compare.remove();
+      diff.hidden = true;
+      notText.hidden = false;
+      comparing.delete(copy);
+    };
+    if (byName === false) binary();
+    else if (byName === null) {
+      // Neither a text kind nor a binary one by its name: its bytes say.
+      void commands.readFileText(copy).then((r) => {
+        if (r.status !== "ok" || looksBinary(r.data)) binary();
+      });
+    }
+    if (open && byName !== false) void showDiff(diff, note, copy);
     if (note.endsWith(".md")) {
       actions.append(
         button(s.keepCopy, "quiet", () => {
@@ -394,7 +406,7 @@ function conflictItem(note: string, copies: string[], refresh: Refresh): HTMLEle
         });
       }),
     );
-    one.append(label, actions, diff);
+    one.append(label, notText, actions, diff);
     item.append(one);
   }
   return item;
@@ -403,7 +415,7 @@ function conflictItem(note: string, copies: string[], refresh: Refresh): HTMLEle
 async function showDiff(box: HTMLElement, note: string, copy: string): Promise<void> {
   const s = words();
   const [a, b] = await Promise.all([commands.readFileText(note), commands.readFileText(copy)]);
-  if (a.status === "ok" && b.status === "ok") box.replaceChildren(h("p", "sync-item-why", s.compareSaid), diffNode(a.data, b.data, true));
+  if (a.status === "ok" && b.status === "ok" && !looksBinary(a.data) && !looksBinary(b.data)) box.replaceChildren(h("p", "sync-item-why", s.compareSaid), diffNode(a.data, b.data, true));
   else box.replaceChildren(h("p", "sync-item-why", s.notText));
 }
 
