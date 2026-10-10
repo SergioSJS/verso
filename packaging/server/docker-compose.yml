@@ -9,8 +9,9 @@
 # as the password (ADR 0075, Consequences). On CasaOS and ZimaOS that is a
 # command in the system's terminal; their panel then pulls as usual.
 #
-# `latest` is the newest production version. While only test versions
-# (vX.Y.Z-beta.N) exist, `latest` does not exist yet: use `beta` instead.
+# `beta` is the newest test version (vX.Y.Z-beta.N), the only kind there
+# is so far; once a production version exists, `latest` names it and this
+# line moves to it.
 #
 # The x-casaos block follows the CasaOS AppStore's v2 format as its
 # repository documents it on 2026-10-09 (docs/specs/compose-and-x-casaos.md
@@ -22,7 +23,7 @@
 name: verso
 services:
   verso:
-    image: ghcr.io/sergiosjs/verso:latest
+    image: ghcr.io/sergiosjs/verso:beta
     container_name: verso
     restart: unless-stopped
     ports:
