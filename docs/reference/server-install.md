@@ -13,7 +13,7 @@
   they are built and published by the `server` and `server-image` jobs of
   `.github/workflows/release.yml`.
 - Status: written with the packaging, before its first release run. Nothing
-  here has been run end to end yet: section 14 lists what is unverified.
+  here has been run end to end yet: section 15 lists what is unverified.
 
 ## 1. What is installed
 
@@ -366,7 +366,35 @@ it. Encryption at rest is the host's disk. A hosted offering is not
 promised: self-hosted means the host keeps the disk, makes the backups and
 updates the service.
 
-## 14. What is not verified yet
+## 14. What it needs
+
+Measured in the sync lab ([sync-lab.md](sync-lab.md), section 3) on
+2026-10-10, numbers kept in `scripts/sync-lab/results.jsonl`:
+
+- **Memory**: about 20 MB with a few devices connected and a folder of 150
+  files; 460 MB with 200 connections writing at once (macOS), 1 GB on a
+  Linux VM. A large file in transit is held whole: each transfer up to the
+  file's size, two per device each way (files over 1 GiB do not sync).
+- **The disk is what bounds writing.** Every file a device writes is
+  written atomically and flushed to the disk (fsync, invariant 9); one
+  folder writes one file at a time, so the disk's flush time is each
+  write's floor: 13–15 ms on a Mac's SSD, about 100 ms on the virtual disk
+  of a small Proxmox VM. Folders write in parallel with each other.
+- **CPU**: hashing each file written (SHA-256), indexing notes for search,
+  and TLS when the server does its own.
+
+| | Minimum | Recommended |
+|---|---|---|
+| For | 1–3 people, notes and small attachments | a family or a team of up to ~10 people, several devices each |
+| CPU | 1 core, x64 or ARM64 | 2 cores |
+| Memory | 512 MB | 2 GB, or more than twice the largest file you sync |
+| Disk | an SSD; the notes' size × 2 + 1 GB (the bin, `.trash`, keeps what was deleted) | a local SSD for `VERSO_DATA_DIR`; the notes on an SSD or a NAS |
+| Examples | a Raspberry Pi 4 with 2 GB, the smallest VPS | a mini PC, a NAS with Docker, a 2 GB VPS |
+
+A Raspberry Pi and a NAS have not been measured yet. `scripts/sync-lab/lab.sh
+load --devices 1` on the machine itself says how fast its disk writes.
+
+## 15. What is not verified yet
 
 Written on 2026-10-09 without running a release, a container or a package
 on a real machine:

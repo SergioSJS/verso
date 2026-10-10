@@ -81,6 +81,17 @@ importam ficam resumidas abaixo.
 
 | Data | Commit | Máquina | Aparelhos × s | ops/s | put_new p50 / p90 / p99 ms | changes p50 / p99 ms | Integridade | Nota |
 |---|---|---|---|---|---|---|---|---|
+| 2026-10-10 | 6a15d94 | Apple M3 Max, 48 GB | 50 × 60 | 102 | 527 / 816 / 1 233 | 504 / 1 102 | 0 problemas | antes: reconciliação da pasta inteira a cada gravação e pergunta |
+| 2026-10-10 | 6a15d94 | Apple M3 Max, 48 GB | 100 × 60 | 74 | 1 437 / 2 261 / 2 688 | 1 423 / 2 648 | 0 problemas | antes |
+| 2026-10-10 | 6a15d94 | Apple M3 Max, 48 GB | 200 × 60 | — | — | — | 0 problemas | antes: a maioria não conseguiu abrir a pasta |
+| 2026-10-10 | 5ee552c | Apple M3 Max, 48 GB | 1 × 30 | 84 | 15 / 18 / 149 | 0.2 / 0.7 | 0 problemas | depois: reconciliação por caminho, conexões de leitura, NORMAL |
+| 2026-10-10 | 5ee552c | Apple M3 Max, 48 GB | 10 × 30 | 124 | 95 / 241 / 368 | 0.3 / 2.2 | 0 problemas | depois |
+| 2026-10-10 | 5ee552c | Apple M3 Max, 48 GB | 50 × 60 | 123 | 637 / 894 / 1 328 | 0.4 / 3.9 | 0 problemas | depois; uma pasta grava um arquivo por vez |
+| 2026-10-10 | 5ee552c | Apple M3 Max, 48 GB | 100 × 60 | 117 | 1 317 / 1 802 / 2 641 | 0.6 / 26 | 0 problemas | depois |
+| 2026-10-10 | 5ee552c | Apple M3 Max, 48 GB | 200 × 60 | 99 | 3 051 / 4 251 / 5 565 | 1.1 / 133 | 0 problemas | depois; 460 MB residentes |
+| 2026-10-10 | 5ee552c | Linux VM, Proxmox, 4 vCPU, 5.4 GB, disco virtual | 1 × 30 | 10 | 99 / 1 212 / 1 561 | 2.3 / 43 | 0 problemas | o fsync do disco limita cada gravação |
+| 2026-10-10 | 5ee552c | mesma VM | 50 × 60 | 19 | 3 878 / 5 524 / 6 783 | 5.1 / 185 | 0 problemas | |
+| 2026-10-10 | 5ee552c | mesma VM | 200 × 60 | 16 | 16 419 / 21 329 / 23 547 | 20 / 1 378 | 0 problemas | 1 GB residente |
 
 ## 4. Os cenários da campanha
 
