@@ -669,6 +669,18 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
    *Conectar*; o navegador pede para permitir este computador; depois de
    *Permitir*, uma pasta do servidor abre na janela (o teste do host; à mão
    no app instalado).
+7. Sincronização ([ADR 0079](../adr/0079-sync-a-local-folder-with-a-server.md)):
+   com uma pasta deste computador aberta, *Ajustes* › *Sincronizar*; sem
+   servidor conectado, diz *Conecte a um servidor em Servidores primeiro*;
+   conectado, o espaço aparece, *Sincronizar esta pasta* liga, e a barra de
+   status diz *Sincronizada*; uma passada pausada por muitas exclusões
+   pergunta antes de *Apagar*; um conflito mostra a diferença entre a
+   versão do servidor e a cópia; *Desligar* pergunta, e o estado some da
+   barra (e2e, `sync.spec.mjs`). O que cruza — primeira sincronização, dois
+   aparelhos, uma exclusão, uma renomeação, um conflito, uma exclusão em
+   massa, um arquivo de 9 MiB, um leitor, sem rede — os testes Rust do host
+   contra um servidor de verdade (`tests_sync.rs`); dois computadores de
+   verdade, à mão (`manual-checks.md`).
 
 ## 14. O fim
 

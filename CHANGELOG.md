@@ -15,6 +15,7 @@ test release.
 ### Added
 
 - **The server's administration console** ([ADR 0077](docs/adr/0077-the-server-administration-console-and-folder-quotas.md)), at `/admin`, out of Settings: an overview (version and update, storage, mail, TLS, totals, what needs a look), accounts, folders, invitations and the audit log as tables searched, sorted and paged on the server, each account and folder with a page of its own, the log filtered and exported as CSV, and the server's configuration read-only. Settings › Account leads an admin there.
+- **Sync** ([ADR 0079](docs/adr/0079-sync-a-local-folder-with-a-server.md)): a folder of this computer kept in step with a folder of a Universo, in *Settings › Sync* — a new folder there or one you reach, the space shown first. Changes cross when saved, when the server says so, on reconnecting and every five minutes; large files go in pieces and are written only whole; the first sync deletes nothing; a file changed on both sides keeps the server's version under its name and this computer's beside it, `(conflict, <computer>, <date>)`, with the difference shown; a pass that would delete many files stops and asks; what is left out says why. The status bar shows the state. A reader receives only.
 - **Quotas per folder**: the admin sets a folder's largest size (or `VERSO_FOLDER_QUOTA` for new ones); a write that would pass it is refused and nothing is written, making the folder smaller always works, and at 90 % the window warns.
 
 ### Changed

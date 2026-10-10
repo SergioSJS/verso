@@ -122,7 +122,7 @@ testes de ponta a ponta cobrem o resto.
 - [ ] **CasaOS ou ZimaOS**: o compose instalado pela tela da loja de apps,
   as variáveis do admin preenchidas, as pastas no NAS.
 - [ ] **Um `.deb` numa máquina pequena sem Docker**: instalado, o arquivo
-  de ambiente editado, `systemctl enable --now verso`.
+  de ambiente editado, `systemctl enable --now universo`.
 - [ ] **A conta em Ajustes e o console de administração**, no navegador do
   Mac e do iPhone: o botão da pessoa ao lado da engrenagem abre *Ajustes* ›
   *Conta*, que leva um admin ao `/admin`; as seções do console, a cota de uma
@@ -131,6 +131,15 @@ testes de ponta a ponta cobrem o resto.
 - [ ] **Uma pasta perto da cota**: uma nota acrescentada além de 90 % mostra
   o aviso na janela; um arquivo além da cota é recusado com a frase, e
   apagar um arquivo é permitido.
+- [ ] **Sincronização entre dois computadores** (ADR 0079), com o app
+  instalado no Mac e em outro computador (a VM Windows), os dois
+  conectados ao mesmo Universo: uma pasta sincronizada do Mac para uma
+  pasta nova lá, depois a mesma pasta do servidor sincronizada numa pasta
+  vazia do outro computador; uma edição num chega no outro em segundos; uma
+  nota editada nos dois com um sem rede volta como a versão do servidor e
+  uma cópia *(conflito, …)*, com a diferença em *Ajustes* ›
+  *Sincronizar*; um vídeo grande cruza inteiro; o Obsidian, na pasta do
+  Mac, vê as mudanças; o log diz o que cruzou e não tem `ERROR`.
 - [ ] **Um botão da faixa oculto e trazido de volta** no app instalado:
   botão direito › *Ocultar este botão*, a barra de status diz onde;
   *Ajustes* › *Aparência* › o switch dele o traz de volta; a engrenagem não

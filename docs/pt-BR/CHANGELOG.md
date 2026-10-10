@@ -15,6 +15,7 @@ versão de teste.
 ### Acrescentado
 
 - **O console de administração do servidor** ([ADR 0077](adr/0077-the-server-administration-console-and-folder-quotas.md)), em `/admin`, fora de Ajustes: uma visão geral (versão e atualização, armazenamento, e-mail, TLS, totais, o que pede atenção), contas, pastas, convites e o registro como tabelas buscadas, ordenadas e paginadas no servidor, cada conta e pasta com uma página própria, o registro filtrado e exportado como CSV, e a configuração do servidor só para leitura. Ajustes › Conta leva um admin até lá.
+- **Sincronização** ([ADR 0079](adr/0079-sync-a-local-folder-with-a-server.md)): uma pasta deste computador mantida igual a uma pasta de um Universo, em *Ajustes › Sincronizar* — uma pasta nova lá ou uma que você alcança, o espaço mostrado antes. As mudanças cruzam ao salvar, quando o servidor avisa, ao reconectar e a cada cinco minutos; arquivos grandes vão em pedaços e só são gravados inteiros; a primeira sincronização não apaga nada; um arquivo mudado nos dois lados deixa a versão do servidor com o nome e a deste computador ao lado, `(conflito, <computador>, <data>)`, com a diferença mostrada; uma passada que apagaria muitos arquivos para e pergunta; o que fica de fora diz por quê. A barra de status mostra o estado. Quem só lê, só recebe.
 - **Cotas por pasta**: o admin define o tamanho máximo de uma pasta (ou `VERSO_FOLDER_QUOTA` para as novas); uma escrita que passaria dele é recusada e nada é gravado, diminuir a pasta sempre funciona, e a 90 % a janela avisa.
 
 ### Alterado

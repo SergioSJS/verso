@@ -345,8 +345,8 @@ const STOPS = [
     canvasColor: "5",
     cards: [["n-servidor", "23 - Verso num Servidor.md", 640]],
     tip:
-      "O verso serve guarda as pastas num servidor seu e as abre no navegador: contas por convite, dono, editores e leitores, várias pessoas na mesma nota. " +
-      "No app desktop, Ajustes › Servidores conecta pelo navegador e abre uma pasta do servidor numa janela.",
+      "O Universo, o Verso num servidor seu, guarda as pastas e as abre no navegador: contas por convite, dono, editores e leitores, várias pessoas na mesma nota. " +
+      "No app desktop, Ajustes › Servidores conecta pelo navegador; Ajustes › Sincronizar mantém uma pasta deste computador igual a uma do servidor.",
   },
 ];
 
