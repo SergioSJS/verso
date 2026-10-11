@@ -72,7 +72,7 @@ Com a pasta aberta, em **Ajustes › Sincronizar**, escolha o servidor e **uma p
 - arquivos grandes vão **em pedaços**, e só são gravados quando chegam inteiros;
 - **na primeira vez nada é apagado**: o que só um lado tem vai para o outro;
 - se os dois lados mudaram o mesmo arquivo, é um **conflito**: a versão do servidor fica com o nome, e a deste computador fica ao lado, como `Nota (conflito, Mac, 2026-10-10 15.34).md`. Em Ajustes › Sincronizar, a lista de conflitos mostra **a diferença**; junte à mão e apague a cópia;
-- se a sincronização fosse apagar **muitos arquivos** de uma vez — mais de um quinto da pasta, ou mais de 50 —, ela **para e pergunta**: uma pasta movida ou um disco que não montou parecem exclusões;
+- se a sincronização fosse apagar **muitos arquivos** de uma vez — mais de um quinto da pasta, ou mais de 50, e ao menos 3 —, ela **para e pergunta**: uma pasta movida ou um disco que não montou parecem exclusões;
 - o que fica de fora (a cota do servidor, um arquivo que não está no computador) aparece com o motivo, e **O que cruzou** lista o que foi e veio.
 
 A barra de status mostra o estado — *Sincronizada*, *enviando 3*, *Sem conexão*, *Pausada*, *1 conflito* — e um clique nela abre a seção. Quem só **lê** a pasta no servidor recebe as mudanças; as feitas aqui ficam aqui. Desligar deixa os dois lados como estão.

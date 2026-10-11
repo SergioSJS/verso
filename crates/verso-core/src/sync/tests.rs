@@ -132,6 +132,31 @@ fn many_deletions_pause_until_confirmed() {
     assert_eq!(p.pause, None);
 }
 
+/// A folder of `size` files, `gone` of them deleted here since the base:
+/// whether the plan pauses for them.
+fn pauses(size: usize, gone: usize) -> Option<usize> {
+    let all: Vec<(String, String)> = (0..size)
+        .map(|n| (format!("n{n}.md"), "1".to_owned()))
+        .collect();
+    let base: Vec<(&str, &str)> = all.iter().map(|(p, h)| (p.as_str(), h.as_str())).collect();
+    let local = files(&base[gone..]);
+    plan(&local, &files(&base), &state(&base), false, false, &copy).pause
+}
+
+/// The pause needs at least 3 deletions in one pass (item 9, revised
+/// 2026-10-10): in a small folder, where a fifth is one or two files, one
+/// or two deletions do not pause; past the floor, more than a fifth or
+/// more than 50 still do.
+#[test]
+fn the_pause_needs_at_least_three_deletions() {
+    assert_eq!(pauses(4, 1), None);
+    assert_eq!(pauses(4, 2), None);
+    assert_eq!(pauses(4, 3), Some(3));
+    assert_eq!(pauses(1000, 3), None);
+    assert_eq!(pauses(1000, 50), None);
+    assert_eq!(pauses(1000, 51), Some(51));
+}
+
 #[test]
 fn a_rename_on_one_side_is_a_rename_on_the_other() {
     let s = state(&[("velho.md", "1")]);
