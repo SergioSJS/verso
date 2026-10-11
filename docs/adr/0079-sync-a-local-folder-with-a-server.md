@@ -19,6 +19,18 @@
   (the device session, roles), [0077](0077-the-server-administration-console-and-folder-quotas.md)
   (quotas), [0078](0078-universo-the-name-of-verso-as-a-server.md) (Universo).
 - Status in the briefing: not present; on acceptance.
+- Revisions: 2026-10-10 — after the review and the sync campaign of the
+  same day, the maintainer took the recommended answer to each question
+  put to them: *"Gostei das recomendações, pode seguir"*. Item 9: the pause
+  needs at least 3 deletions in one pass — a floor, so that in a small
+  folder one or two deletions do not pause (the review's M1); and "the
+  system's bin" corrected to the folder's `.trash/`, which is what the
+  code does ([0080](0080-the-trash-with-expiry-and-restore.md) item 9).
+  Items 2 and 8: the two Unicode forms of one name are one file
+  everywhere (spec Q7, decided the same day from the campaign's finding
+  F20). Item 8: which side keeps the name, decided earlier the same day
+  (Status), marked so. Consequences: a known limit, the campaign's
+  finding F18.
 
 ## Context
 
@@ -55,7 +67,11 @@ Accepted (2026-10-10, Status).
    boards, the folder's own settings that travel with it (0070) — and none
    of the paths the walk ignores (0044). A file is its path relative to
    the folder, its bytes' hash (SHA-256), its size and its modification
-   time.
+   time. **One name is one file everywhere** (spec Q7, decided
+   2026-10-10): two paths that differ only in the Unicode form of their
+   accents (NFC, NFD) are the same file — the server compares names in
+   NFC, and each device keeps the spelling its own file system gave the
+   name.
 3. **The state lives outside the folder** (0011): per synced folder, in the
    configuration directory, the server, the folder's id, a cursor into the
    server's changes, and per path the **base** — the hash and size both
@@ -87,17 +103,24 @@ Accepted (2026-10-10, Status).
    person's language, with characters every OS can keep (0070 item 3) —
    and that copy syncs too, so the other devices see it. The window lists
    the folder's conflicts, shows each difference, and the person merges by
-   hand and deletes the copy. `[OPEN]`: which side keeps the name.
-   Recommended: the server's, the copy shared with the others being the
-   one that diverged.
+   hand and deletes the copy. A file changed on both sides under the two
+   Unicode forms of one name (item 2) is such a conflict: a copy beside
+   it (spec Q7, decided 2026-10-10). `[OPEN]` until 2026-10-10: which
+   side keeps the name. Recommended: the server's, the copy shared with
+   the others being the one that diverged — decided 2026-10-10 as
+   recommended (Status).
 9. **Deletions**: a file deleted on one side and unchanged on the other is
-   deleted there (to the system's bin on the computer, as Verso deletes);
+   deleted there (into the folder's `.trash/` on the computer, as every
+   deletion in Verso goes — [0080](0080-the-trash-with-expiry-and-restore.md)
+   item 9; "the system's bin" corrected on 2026-10-10);
    deleted on one side and edited on the other, the edit wins and the file
    comes back. A placeholder of on-demand storage is never a deletion
    (0043). A batch that would delete more than a fifth of the folder's
    files, or more than 50, **pauses sync** and asks the person — a folder
    moved, a drive not mounted, a cloud folder evicted all look like
-   deletions.
+   deletions. The pause needs **at least 3 deletions** in one pass
+   (decided 2026-10-10, Revisions): in a small folder, where a fifth is
+   one or two files, one or two deletions do not pause.
 10. **Renames and moves**: a delete and a create of the same hash in one
     local batch are sent as a rename, which the server applies as one;
     otherwise they are a delete and a create. The links a rename in Verso
@@ -140,6 +163,15 @@ Accepted (2026-10-10, Status).
   test that two devices and a server, editing at random and syncing in
   random orders, end with the same files and lose no edit (each lost
   version present as a conflict copy).
+- **A known limit** (the sync campaign of 2026-10-10, its finding F18): a
+  program outside Verso that holds a whole file in memory and saves that
+  stale buffer after sync has downloaded a newer version overwrites the
+  newer version — to sync it is an ordinary change on one side (item 7),
+  and no sync of whole files can tell it from an edit. Verso's own editor
+  checks the revision (invariant 11) and does not do this. The
+  mitigation is [0080](0080-the-trash-with-expiry-and-restore.md)'s: the
+  server keeps the version a device's write replaced, in the folder's
+  trash, restorable — in a later round.
 
 ## Discarded alternatives
 

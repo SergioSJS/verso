@@ -98,7 +98,7 @@ Two ways to build a shared sub-folder were weighed:
 ## Decision
 
 Proposed (2026-10-10). Each `[OPEN]` carries a recommendation; the
-maintainer decides.
+maintainer decides. Open items answered 2026-10-10 (Status).
 
 1. **A share is a grant on a path.** A grant becomes *folder, account,
    path, role*: the path is `""` for the whole folder — every grant of
@@ -128,17 +128,20 @@ maintainer decides.
 3. **What a share is named**, for the receiver: the shared folder's name
    and the owner's — "Campanha (Sérgio)". Only the last component crosses:
    the owner's path above it is theirs. `[OPEN]`: whether the owner may
-   give a share a name of its own. Recommended: no, in the first version.
+   give a share a name of its own. Recommended: no, in the first version
+   — decided 2026-10-10: no name of its own in the first version.
 4. **Who shares, with whom.** The **owner** of the folder shares; an
    editor does not, and a receiver does not re-share (`[OPEN]`;
-   recommended so, as the audit log then has one author per share). The
+   recommended so, as the audit log then has one author per share —
+   decided 2026-10-10: only the owner shares; a receiver does not
+   re-share). The
    receiver is an account on the same Universo, named by e-mail, or a
    person invited: [0074](0074-accounts-and-access-on-the-server.md) item
    4's invitation, which already carries a folder and a role, carries a
    path too, so "invite a player to the campaign's folder" is one link.
    Links that anyone holding them may open are not in this ADR
    (`[OPEN]`, for when asked; a server of private notes starts without
-   them).
+   them — decided 2026-10-10: not now).
 5. **Where it appears.** A section **"Shared with me"** — *Compartilhados
    comigo* — in every place that lists a person's folders: the browser's
    folder picker and Settings › Account › Folders; the desktop app's
@@ -148,6 +151,11 @@ maintainer decides.
    reader, moves into that section too: "my folders" are the ones I own.
    The owner has **"Shared by me"** in the same places: each share with
    its path, the people and their roles.
+   **The folder switcher** — decided 2026-10-10, built with this ADR: in
+   the desktop app and in the browser, the folder switcher at the top of
+   the side bar groups the folders under "On this computer", "Mine" and
+   "Shared with me" — *Neste computador*, *Meus*, *Compartilhados
+   comigo*.
 6. **How the receiver uses it.** Online, in the browser or in the desktop
    app connected to the server, as any folder of the server; and
    **synced**, in the desktop app, as a local folder of its own
@@ -165,7 +173,9 @@ maintainer decides.
    by the receiver would be a deletion in the owner's folder. Seeing
    one's vault and a share side by side in one window is 0041's, when it
    comes; until then a focus ([0062](0062-focuses.md)) stays inside one
-   folder, and a share is a window.
+   folder, and a share is a window — decided 2026-10-10: a share never
+   appears inside the receiver's vault; synced, it is a local folder of
+   its own ([0079](0079-sync-a-local-folder-with-a-server.md) item 1).
 7. **What the owner sees.** In the file tree, a shared folder carries a
    mark (people), and its menu has **"Share…"** — *Compartilhar…* —
    which opens the share: who has access, in which role, add a person,
@@ -207,7 +217,10 @@ maintainer decides.
     attachments folder to the share, read-only**: a share may then hold a
     second path, and the model of item 1 already allows it (one grant per
     path, same share id). Not in the first version if it costs the
-    round; said in the dialog either way.
+    round; said in the dialog either way — decided 2026-10-10, as
+    recommended: when sharing, the owner is told which attachments lie
+    outside the shared folder and may add the attachments folder to the
+    share, read-only.
 12. **Rooms** ([0073](0073-self-hosted-server-first.md) item 7). A note
     open through a share and through the owner's folder is **one room**:
     the room's place is the owner's folder key and the full path, which
@@ -247,7 +260,8 @@ maintainer decides.
     on every link out. The maintainer said optional and only if cheap; the
     server's part is cheap and the window's is not. `[OPEN]`; recommended:
     **not in the first version**, the model leaving the door open, and a
-    read-only share of one note first if it is asked for.
+    read-only share of one note first if it is asked for — decided
+    2026-10-10: not in the first version.
 18. **Both languages, accessibility** ([0035](0035-cross-cutting-requirements.md)):
     the share dialog is a form with labelled fields and a list of people
     whose role controls are reachable by keyboard and named for a screen
@@ -300,9 +314,10 @@ maintainer decides.
   sync; the owner's tree crossing so that a prefix could be shown.
 - **The share appearing inside the receiver's own vault** (raised by the
   author, from Google Drive's shortcuts): item 6 says why not, and leaves
-  the question to the maintainer.
+  the question to the maintainer, who decided against it on 2026-10-10.
 - **Editors sharing** (raised by the author, from Notion's settings):
-  item 4 keeps sharing with the owner, open to the maintainer.
+  item 4 keeps sharing with the owner, open to the maintainer, who kept
+  it with the owner on 2026-10-10.
 - **Per-note permissions now** (raised by the maintainer as "optional, if
   cheap"): item 17 says what is cheap and what is not.
 
@@ -317,3 +332,10 @@ outside the shared folder (item 11; a second, read-only path, offered
 when sharing); a single document (item 17; not in the first version, the
 model allowing it later); and, for its own ADR, the history of a file's
 changes (Consequences).
+
+Open items answered 2026-10-10; acceptance pending. The maintainer, in
+session, to the recommendations above: *"Gostei das recomendações, pode seguir"* —
+each `[OPEN]` of items 3, 4, 6, 11 and 17 decided as recommended, in
+place, and item 5 gaining the folder switcher, built with this ADR. The
+history of a file's changes stays `[OPEN]`, for its own ADR. Whether this
+ADR is Accepted is the maintainer's to say.

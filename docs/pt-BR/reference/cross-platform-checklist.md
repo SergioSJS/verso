@@ -79,3 +79,4 @@
 | `check-windows.sh` enquanto o `check.sh` roda | o pacote da interface era refeito debaixo da cópia: "Cannot stat", nada rodou no Windows | rode um depois do outro |
 | um `?` num pathspec do git | lido como curinga | `':(literal)caminho'` |
 | `cmd /C echo {linha}>arquivo` | uma linha terminando em dígito faz do `1>` um redirecionamento | `(echo {linha})>arquivo` |
+| um teste que limita um tempo por um valor absoluto (o `pathological_inputs_stay_linear` do `verso-dialect`, 5 s) | a VM Windows sob carga passou de 5 s | limitar a linearidade por uma razão, tempo(2N)/tempo(N) ≤ 2,5, não por um tempo absoluto (decidido em 2026-10-10; a mudança de código é um commit próprio) |

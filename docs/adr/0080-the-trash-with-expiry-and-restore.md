@@ -63,12 +63,13 @@ One contradiction to record, not settle here: [0079](0079-sync-a-local-folder-wi
 item 9 says a deletion that sync carries out on the computer goes "to the
 system's bin"; the code and the dialog send it to the folder's `.trash/`,
 as every other deletion in Verso. Item 9 of this ADR recommends one of
-the two and asks the maintainer to say.
+the two and asks the maintainer to say. *(Settled on 2026-10-10: the
+folder's `.trash/`, item 9; 0079 revised the same day.)*
 
 ## Decision
 
 Proposed (2026-10-10). Each `[OPEN]` carries a recommendation; the
-maintainer decides.
+maintainer decides. Open items answered 2026-10-10 (Status).
 
 1. **The trash stays `.trash/` at the folder's root**, on the computer and
    on the server, with [0048](0048-file-operations-in-ui.md)'s rules
@@ -99,14 +100,16 @@ maintainer decides.
    server rule); empty directories left under `.trash/` are pruned; each
    removal is one line of the log and, on the server, of the audit log.
    `[OPEN]`: the default. Recommended: **30 days**, as Notion, Google
-   Drive and the Finder keep. Configurable:
+   Drive and the Finder keep — decided 2026-10-10: 30 days. Configurable:
    - on the server, `VERSO_TRASH_DAYS` is the default for every folder
      (30 when unset; `0` means never expire), and the console's folder
      page sets a folder's own value, as it sets the quota
      ([0077](0077-the-server-administration-console-and-folder-quotas.md)
      item 5); `[OPEN]` whether a folder's owner may change it from the
      window too — recommended: the owner may **shorten** it, only the
-     admin lengthens it or turns expiry off, since space is the host's;
+     admin lengthens it or turns expiry off, since space is the host's —
+     decided 2026-10-10: the owner may shorten it from the window; only
+     the admin lengthens it or turns expiry off;
    - on the desktop, a setting of each local folder, "Keep deleted files
      for", with 30 days as the default and "forever" as a choice — the
      disk is the person's own; the setting is the person's layer of
@@ -123,7 +126,8 @@ maintainer decides.
    item 4). `[OPEN]`: whether the tree also shows a *Trash* row at its
    foot, as Notion's sidebar does. Recommended: **no row in the tree** in
    the first version — the tree is the folder's files, and the trash is
-   not one of them — the menu, the palette and the settings reaching it.
+   not one of them — the menu, the palette and the settings reaching it
+   — decided 2026-10-10: no Trash row in the tree.
    In the console, the folder's page shows the trash's size, count and
    retention, with "Empty the trash" for the admin; Overview adds the
    server's trash total to its totals.
@@ -172,14 +176,19 @@ maintainer decides.
    **shown, not counted, bounded by expiry**, with one guard: when a
    folder's trash alone exceeds the folder's quota, its oldest entries
    expire early until it does not — said in the folder's page, never
-   silent. A server with no quotas has no guard beyond the retention.
+   silent. A server with no quotas has no guard beyond the retention —
+   decided 2026-10-10: shown, not counted against the quota, with the
+   guard: when a folder's trash alone exceeds its quota, the oldest
+   entries expire early, said in the folder's page.
 9. **A deletion carried out by sync on the computer goes to the folder's
    `.trash/`**, as the code does today and as every deletion in Verso
    does, so that it is seen and restored in the same view and the two
    trashes of item 6 mirror each other. This contradicts the wording of
    [0079](0079-sync-a-local-folder-with-a-server.md) item 9 ("the
    system's bin"); `[OPEN]`, the maintainer's to settle. Recommended: the
-   folder's bin, with a Revisions line in 0079 and no change of code.
+   folder's bin, with a Revisions line in 0079 and no change of code —
+   decided 2026-10-10: a deletion carried out by sync goes to the
+   folder's `.trash/`; 0079 item 9 revised the same day.
 10. **Agents.** A deletion through the MCP ([0066](0066-mcp-sees-boards-relations-properties-bases.md))
     goes to the trash as it already does; restoring is not exposed to the
     MCP in this ADR.
@@ -193,6 +202,14 @@ maintainer decides.
     e2e tests in the harness for the view, the restore beside a taken
     name and the expiry, and the server's suite for the roles and the
     console.
+12. **A version a device's write replaced is kept** — decided 2026-10-10.
+    When a device's write replaces a file on the server, the server keeps
+    the version it replaced in the folder's trash, named `replaced by <device>`, and it restores as any entry does (item 5). It is the
+    mitigation for an outside program's stale save, the known limit
+    [0079](0079-sync-a-local-folder-with-a-server.md) records
+    (Consequences; the sync campaign's finding F18): a program that saves
+    a whole-file buffer older than what sync downloaded overwrites the
+    newer version, and no file sync can tell.
 
 ## Consequences
 
@@ -231,7 +248,7 @@ maintainer decides.
   item 9's wording, and by [0048](0048-file-operations-in-ui.md) as an
   option): outside Verso's reach, so no view, no restore, no expiry of
   Verso's own; and not one bin per folder. Item 9 leaves the choice to
-  the maintainer.
+  the maintainer, who chose the folder's bin on 2026-10-10.
 - **Permanent deletion with an undo in the window** (raised by the
   author): an undo lives in one window's memory; a deletion by another
   member, by sync or by an agent has no window to undo it in.
@@ -246,3 +263,9 @@ no); whether the trash counts against the quota (item 8; shown, not
 counted, the oldest expiring early when the trash alone passes the
 quota); and where a deletion carried out by sync goes on the computer
 (item 9; the folder's bin, a Revisions line in 0079).
+
+Open items answered 2026-10-10; acceptance pending. The maintainer, in
+session, to the recommendations above: *"Gostei das recomendações, pode seguir"* —
+each `[OPEN]` decided as recommended, in place (items 3, 4, 8 and 9), and
+item 12 added, the mitigation of 0079's known limit. Whether this ADR is
+Accepted is the maintainer's to say.

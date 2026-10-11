@@ -105,7 +105,7 @@ conflicts out of nothing.
 ## Decision
 
 Proposed (2026-10-10). Each `[OPEN]` carries a recommendation; the
-maintainer decides.
+maintainer decides. Open items answered 2026-10-10 (Status).
 
 1. **A note of a synced folder is live while the server is reachable.**
    When a local folder syncs with a Universo ([0079](0079-sync-a-local-folder-with-a-server.md)
@@ -172,7 +172,8 @@ maintainer decides.
    Joining on open puts the hard case at open time, when the text is at
    rest; the server already makes a room from the disk on the first join,
    one Yjs document per open note; and a room with one member costs one
-   write per settled burst, as the local autosave does.
+   write per settled burst, as the local autosave does — decided
+   2026-10-10: a note joins its room on open.
 6. **Who writes the local file while the note is in a room: sync, and no
    one else in Verso.** The room's saves land on the server, the change
    log records them, the server pushes `sync-changed`, the sync's pass
@@ -268,7 +269,8 @@ maintainer decides.
     the later work of Consequences.
 12. **Rooms are for notes.** A `.md` file with one kind of line end joins;
     nothing else does. The board's co-editing stays `[OPEN]` in
-    [0073](0073-self-hosted-server-first.md) item 7; boards, bases,
+    [0073](0073-self-hosted-server-first.md) item 7 (left open on
+    2026-10-10); boards, bases,
     canvases, attachments and the folder's settings cross by sync as
     files, and two people on one board in two synced folders end as
     [0079](0079-sync-a-local-folder-with-a-server.md) item 8 says.
@@ -299,7 +301,9 @@ maintainer decides.
     alone: local editing, conflicts as copies. It is the person's layer
     ([0070](0070-what-travels-with-the-folder.md)), not written into the
     folder. On by default because it is the point of syncing a folder
-    with people, and because the fallback is the behaviour of today.
+    with people, and because the fallback is the behaviour of today —
+    decided 2026-10-10: on by default, with the per-folder setting "Edit
+    notes together while online" — *Editar notas junto enquanto online*.
 16. **Tests.** Rust, against a real server as `tests_sync.rs` does, with
     no window: two synced devices and a third client playing the browser
     in one room, each seeing the others' edits and the two local files
@@ -352,7 +356,8 @@ maintainer decides.
   room (item 11), both needing the base's bytes kept, not only its hash.
   [0073](0073-self-hosted-server-first.md) item 10 puts it after
   conflicts have been seen in use; `[OPEN]`, recorded here so that it is
-  not forgotten.
+  not forgotten. On 2026-10-10 the maintainer kept it for later: it needs
+  the base's bytes.
 
 ## Discarded alternatives
 
@@ -370,7 +375,7 @@ maintainer decides.
   file; nothing is discarded.
 - **Joining only when someone else is in the note** (raised in the
   session's brief; item 5): kept open for the maintainer, with the
-  reasons against it.
+  reasons against it; the maintainer chose joining on open on 2026-10-10.
 - **Merge by block now** (raised by the maintainer's question, as the
   gap this ADR narrows): [0073](0073-self-hosted-server-first.md) item 10
   puts it after conflicts have been seen in use; Consequences.
@@ -384,3 +389,11 @@ open or only when someone else is in it (item 5; on open); whether live
 co-editing is on by default for synced folders (item 15; on, with a
 setting per folder to keep it local-only); and, for its own ADR, merge by
 block of offline edits (Consequences).
+
+Open items answered 2026-10-10; acceptance pending. The maintainer, in
+session, to the recommendations above: *"Gostei das recomendações, pode seguir"* —
+item 5 and item 15 decided as recommended, in place; the board's
+co-editing stays `[OPEN]` (item 12, [0073](0073-self-hosted-server-first.md)
+item 7); merge by block of offline edits stays later, for its own ADR, as
+it needs the base's bytes (Consequences). Whether this ADR is Accepted is
+the maintainer's to say.

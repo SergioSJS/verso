@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.35
+# Verso dialect spec — v0.36
 
-- Version: v0.35 · 2026-10-09
+- Version: v0.36 · 2026-10-10
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -421,8 +421,9 @@ links:
 
 Unicode normalization in name comparison (NFC × NFD: files coming from HFS+,
 from other platforms and from sync mix the two forms; APFS preserves the form it
-receives and does a normalization-insensitive lookup) and case sensitivity:
-`[OPEN]` (section 9, Q7 and Q8).
+receives and does a normalization-insensitive lookup): `DECIDED` on 2026-10-10 —
+one name is one file everywhere, the server comparing names in NFC (section 9,
+Q7). Case sensitivity: `[OPEN]` (section 9, Q8).
 
 ### 5.11 `.canvas` (JSON Canvas)
 
@@ -908,7 +909,7 @@ Raised while writing this spec. All of them need an answer before
   help shows `<iframe>` in a note; no public page shows `<video>` or `<audio>`
   in a note's raw HTML — audio and video are documented as `![[…]]` embeds.
   The question stays `[OPEN]`, and that memo lays out the options.)*
-- **Q7. Unicode normalization in name comparison.** `[OPEN]`
+- **Q7. Unicode normalization in name comparison.** `DECIDED` on 2026-10-10.
   NFC × NFD. APFS (macOS, the initial platform) preserves the form it receives
   and does a normalization-insensitive lookup; HFS+ forced NFD; Linux compares
   bytes. A vault that went through sync or through HFS+ mixes the two forms
@@ -920,7 +921,18 @@ Raised while writing this spec. All of them need an answer before
   are one name. This was **not** observed in Obsidian: it follows from the
   definition of the two forms, and APFS being normalization-insensitive hides
   the difference on the initial platform. The maintainer decides; this line
-  only records what the code does in the meantime.
+  only records what the code does in the meantime. *(Kept as the history that
+  led to the decision below.)*
+
+  **Decided on 2026-10-10 by the maintainer**, in session, taking the
+  recommended answer: *"Gostei das recomendações, pode seguir"*. The question
+  came back from the sync campaign of 2026-10-10, its finding F20: two devices
+  on Windows and Linux kept a name in both forms, and one of them never
+  uploaded its file. **One name is one file everywhere**: the server compares
+  names in NFC; each device keeps the spelling its own file system gave the
+  name; a file changed on both sides under the two forms is a conflict copy
+  ([ADR 0079](../adr/0079-sync-a-local-folder-with-a-server.md) item 8). No
+  fixture: the maintainer did not ask for one.
 - **Q8. Case sensitivity in name resolution.** `[OPEN]`
   It interacts with case-insensitive file systems (macOS by default — APFS can
   be case-sensitive per volume —, Windows) and case-sensitive ones (Linux) — the
@@ -1309,3 +1321,4 @@ the parser was chosen.
 | v0.33 | 2026-10-07 | After the second Opus reading: §5.7 says the decided rule (the top-level section, or the innermost list item) in place of the "own text" sentence, lists the three new fixtures and says what a `^id` that names nothing looks like; Q3's two decision paragraphs are one, in two steps; **two `^id`s alone in a row** is `[OPEN]` (the extension or Obsidian's last-only), with the frontmatter and footnote cases recorded as unobserved; the 28 observed inputs are in `docs/reference/obsidian-blocks-2026-10-07.md`. |
 | v0.34 | 2026-10-09 | **Two `^id`s alone in a row** `DECIDED` by the maintainer: only the last names the block before them, as in Obsidian; the fixture `fixtures/block/two-alone` drafted, awaiting the maintainer's approval. |
 | v0.35 | 2026-10-09 | The fixture `fixtures/block/two-alone` approved by the maintainer in session ("aprovado"). |
+| v0.36 | 2026-10-10 | **Q7 `DECIDED`** by the maintainer in session, as recommended, from finding F20 of the sync campaign of 2026-10-10 (two devices on Windows and Linux kept both forms of a name, and one never uploaded): one name is one file everywhere — the server compares names in NFC, each device keeps the spelling its own file system gave the name, a file changed on both sides under the two forms is a conflict copy (ADR 0079 item 8). §5.10 says so; the provisional fact of v0.10 kept as history. No fixture: the maintainer did not ask for one. |
