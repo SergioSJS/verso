@@ -37,6 +37,8 @@ Entrar pede **HTTPS**: um proxy reverso, o `tailscale serve` (o caminho mais sim
 - Senha esquecida: o admin gera um link de senha nova. Admin perdido: `universo admin reset <e-mail>` na própria máquina.
 - Tudo isso fica no **console de administração** (o endereço `/admin`, ou Ajustes › Conta › *Administrar este servidor*), que só o admin vê: uma visão geral, as contas, as pastas com a **cota** de cada uma, os convites, o registro e a configuração do servidor.
 - **Cota por pasta**: o admin limita o espaço de uma pasta; uma escrita que passaria do limite é recusada, e diminuir a pasta sempre é possível. Perto do limite, a janela avisa.
+- Na página de uma pasta, **Últimas mudanças nos arquivos** diz quando, quem e o quê — com o **nome do aparelho** entre parênteses ao lado da conta, quando a mudança veio da sincronização de um aparelho. O registro do servidor também nomeia o aparelho quando recusa uma mudança.
+- **Pede atenção**, na mesma página, aponta um nome guardado em **dois arquivos** no disco do servidor (o acento nas duas formas, de antes de um nome ser um arquivo só): só um sincroniza, e a linha diz qual remover ou renomear.
 
 ---
 
@@ -45,7 +47,7 @@ Entrar pede **HTTPS**: um proxy reverso, o `tailscale serve` (o caminho mais sim
 Em **Ajustes › Conta** — o botão da pessoa, ao lado da engrenagem na faixa lateral, ou **Conta** no fim da barra lateral no celular:
 
 - **passkeys** — entrar com a digital, o rosto ou o PIN, sem senha;
-- as **sessões** abertas, e um botão para sair de todas as outras;
+- as **sessões** abertas, e um botão para sair de todas as outras — encerrar a sessão de um aparelho o **desconecta na hora**, e a sincronização dele pede para conectar de novo em Ajustes › Servidores;
 - **tokens de acesso** para scripts, presos a pastas e a ler ou escrever.
 
 ---
@@ -53,6 +55,8 @@ Em **Ajustes › Conta** — o botão da pessoa, ao lado da engrenagem na faixa 
 ## Editar junto
 
 Abra a mesma nota em duas janelas, ou com outra pessoa: o que um digita aparece no outro enquanto digita, com o cursor e o nome. O servidor grava o arquivo quando as edições assentam, e **nunca grava por cima** de uma mudança feita fora — essa mostra a diferença para vocês escolherem, como o Verso sempre fez.
+
+Numa nota, num board ou num arquivo de texto que mudou em disco enquanto você digitava, são três saídas: **Descartar o meu e recarregar**, **Gravar o meu por cima** ou **Guardar os dois** — a versão do disco fica com o nome, e o seu texto vai para uma cópia ao lado, com o nome que a sincronização dá a um conflito.
 
 ---
 

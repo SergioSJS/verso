@@ -167,8 +167,10 @@ point 13).
    percent-encodes the address, and the window asked the core for
    `gr%C3%A1fico` (2026-10-01).
 6. A note changed on disk while text typed in its tab is unsaved: both
-   versions are shown, and the disk's stays (invariant 11). Level: H; E:
-   `notes.spec.mjs`.
+   versions are shown, and the disk's stays (invariant 11); *Guardar os
+   dois* keeps the disk's under the name and the tab's text in a copy
+   beside it, named as sync names a conflict's copy. Level: H; E:
+   `notes.spec.mjs` (a text file's, `tabs.spec.mjs`).
 7. A note embedded with `![[Note]]`, in Editar, looks as it does in Leitura:
    its headings, its paragraphs one step apart, its pictures within the
    pane, and the text around it wrapped at the pane. Level: H; E:
@@ -360,7 +362,8 @@ point 13).
    was dropped with the tab (2026-10-01).
 5. The board's file changed on disk (by Obsidian) while nothing is unsaved:
    the board is drawn again from it; changed here too, both versions are
-   shown and nothing is written over the disk. Level: H; E:
+   shown and nothing is written over the disk; *Guardar os dois* puts this
+   board in a copy beside it. Level: H; E:
    `board-file.spec.mjs`. Caught: an open board never followed its file
    (2026-10-01).
 6. A canvas written in another layout (one line, or Windows line endings):
@@ -665,6 +668,19 @@ rest below and in `manual-checks.md`.
    rename, a conflict, a mass deletion, a 9 MiB file, a reader, offline —
    the host's Rust tests against a real server (`tests_sync.rs`); two
    real computers, by hand (`manual-checks.md`).
+8. Who changed what, and what needs a look: on the console's page of a
+   folder, *Últimas mudanças nos arquivos* shows a device's change with the
+   device's name in parentheses beside the account, and the server's log
+   names the device in a refused change (`tests_sync.rs`,
+   `a_devices_change_and_its_refusal_name_the_device`); a name held in two
+   files on the server's disk is listed under *Pede atenção*
+   (`tests_console.rs`,
+   `a_file_held_as_anothers_name_is_said_on_the_console`; the disk itself,
+   Linux only); a device's session ended in *Ajustes* › *Conta* closes that
+   device's connection at once, and its *Sincronizar* says to connect again
+   in *Servidores* (`tests_sync.rs`,
+   `an_ended_sessions_connection_is_closed_at_once`); two real computers,
+   by hand.
 
 ## 14. The end
 

@@ -71,7 +71,7 @@ O Verso salva sozinho um instante depois que você para de escrever — o tempo 
 Se outro programa (o Obsidian, o Git, um editor) muda uma nota aberta:
 
 - sem nada seu por salvar, o Verso lê a nota de novo e avisa na barra de status;
-- com texto seu por salvar, ele não grava por cima: mostra as duas versões, a diferença entre elas, e os botões **Descartar o meu e recarregar** e **Gravar o meu por cima**.
+- com texto seu por salvar, ele não grava por cima: mostra as duas versões, a diferença entre elas, e os botões **Descartar o meu e recarregar**, **Gravar o meu por cima** e **Guardar os dois** — este deixa a versão do disco com o nome e põe o seu texto numa cópia ao lado, como `Nota (conflito, Mac, 2026-10-10 15.34).md`.
 
 ---
 
