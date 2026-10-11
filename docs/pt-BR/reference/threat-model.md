@@ -8,6 +8,14 @@ nomeia o que ele precisa cobrir do que é seu; o [ADR 0045](../adr/0045-server-a
 nomeia o risco de injeção de prompt que ele retoma. Escrito pela Opus 5.5;
 não decide nada — onde uma lacuna pede decisão, diz `[ABERTO]`.
 
+Linhas acrescentadas em 2026-10-11 para o que foi construído ou aceito
+desde então: cotas por pasta (ADR 0077, construídas), as escritas do sync
+pelos aparelhos (ADR 0079, construídas) e as concessões num caminho do
+compartilhamento (ADR 0081, aceito, **não construído**). Esta não é a
+atualização do modelo inteiro, que o mantenedor pôs em 2026-10-11 depois
+do ADR 0082 e do ADR 0080 e antes do ADR 0081 (`docs/roadmap.md`, revisão
+6); os `[ABERTO]` do próprio modelo continuam abertos.
+
 ## O que é protegido
 
 | Bem | Onde | Por que importa |
@@ -79,7 +87,30 @@ não decide nada — onde uma lacuna pede decisão, diz `[ABERTO]`.
 | Conteúdo remoto revelando quem lê | Imagens remotas e páginas incorporadas seguem o ajuste do próprio leitor, nunca o do autor (a resposta I do mantenedor). |
 | Symlinks levando para fora de uma pasta compartilhada | Num servidor, um link só é seguido quando leva para dentro da pasta; um que sai é recusado e listado como problema. |
 | Uma edição que apaga o texto de outro | A edição simultânea mescla; uma escrita vinda de fora é mesclada linha a linha ou recusada como mudada; uma mudança feita fora enquanto há edições esperando para a sala para as pessoas escolherem. `[ABERTO]`: histórico, atribuição e recuperação da mudança de outro membro (ADR 0073). |
-| Uma mensagem enorme para esgotar a memória | Uma mensagem de WebSocket tem 48 MB no máximo; uma atualização Yjs malformada é recusada. `[ABERTO]`: cotas por pasta (o ADR 0075 item 4 diz que os limites vêm depois) e um limite global de comandos. |
+| Uma mensagem enorme para esgotar a memória | Uma mensagem de WebSocket tem 48 MB no máximo; uma atualização Yjs malformada é recusada. O espaço de uma pasta é limitado pela cota dela (ADR 0077 item 5, aceito e construído em 2026-10-10): uma escrita que a passaria é recusada e nada é escrito. `[ABERTO]`: um limite global de comandos. |
+
+### Um aparelho que sincroniza
+
+| Ameaça | Resposta como construída |
+|---|---|
+| Um aparelho escrevendo onde a conta dele não pode | Um aparelho sincroniza pela sessão de aparelho dele (ADR 0074 item 8): cada escrita, apagamento e mudança de nome que ele envia é conferido contra o papel da conta na pasta antes de o core agir — o aparelho de um leitor recebe, as mudanças locais dele recusadas (ADR 0079 item 1) — e uma escrita contra a cota da pasta (ADR 0077 item 5). |
+| A escrita de um aparelho sobre uma versão mais nova | Toda mudança que um aparelho envia nomeia o hash em que se baseou e é recusada quando o arquivo no servidor não é mais aquele (invariante 11); o aparelho então guarda os dois, o seu como cópia de conflito (ADR 0079 item 8). Decidido em 2026-10-11, não construído: dois acréscimos puros ao fim de uma nota juntados em vez disso, ditos "juntado" no registro do sync. Um limite conhecido: um programa fora do Verso salvando um buffer velho é uma mudança comum (ADR 0079, achado F18); guardar a versão que ele substituiu é o item 12 do ADR 0080, aceito, não construído. |
+| Um aparelho apagando os arquivos de uma pasta | Um apagamento que um aparelho envia é conferido contra a base dele como uma escrita e vai para o `.trash/` da pasta no servidor; no computador, uma passada que apagaria mais de um quinto dos arquivos ou mais de 50 (pelo menos 3) pausa e pergunta (ADR 0079 item 9), e um placeholder nunca é um apagamento (ADR 0043). Ver e restaurar a lixeira na janela é o ADR 0080, aceito, não construído. |
+| Um token de aparelho roubado | Guardado `0600` no computador (acima), listado entre as sessões da conta e revogável ali; o registro de mudanças nomeia o aparelho ao lado da conta (ADR 0079 item 4). Decidido em 2026-10-11, não construído: um admin pode encerrar as sessões de outra conta e revogar os tokens dela pelo console, com uma linha de auditoria (ADR 0077 item 3). |
+| Um arquivo enorme para esgotar a memória | O sync move um arquivo em pedaços abaixo do limite de mensagem, duas transferências por vez em cada sentido por sessão, descartadas depois de dois minutos paradas, e nenhum arquivo maior que 1 GiB (ADR 0079 item 12). |
+
+### Compartilhar uma pasta dentro de uma pasta
+
+ADR 0081, aceito em 2026-10-11 e **não construído**: estas linhas dizem o
+que ele decide, não o que roda.
+
+| Ameaça | Resposta como decidida |
+|---|---|
+| Quem recebe alcançando além do caminho compartilhado | Um compartilhamento é uma concessão num caminho; a sessão que o abre guarda o caminho, os caminhos de todo comando são juntados a ele e confinados (`..` recusado antes de o `verso-fs` agir), e toda resposta — a árvore, uma busca, backlinks, o grafo, as linhas de uma base, o registro de mudanças — é filtrada ao caminho e re-enraizada nele (itens 1 e 2). |
+| Saber das notas fora do compartilhamento | Um link para uma nota de fora resolve para "fora do que foi compartilhado com você": nem se existe, nem o caminho, nem o conteúdo (item 11). |
+| Um compartilhamento repassado, ou mantido depois de acabar | Só o dono da pasta compartilha, e quem recebe não recompartilha (item 4); uma revogação chega às janelas abertas de quem recebe na hora, e uma cópia sincronizada fica no computador dele com o sync desligado — dito ao dono ao compartilhar (item 8). |
+| Um compartilhamento apontando para outro lugar | Uma mudança de nome feita pelo servidor leva as concessões junto; uma que o servidor só acha depois deixa o compartilhamento num caminho que sumiu — uma pasta vazia para quem recebe, o dono avisado (item 13). |
+| Um compartilhamento feito sem ninguém ver | Um compartilhamento criado, mudado e removido é uma entrada do registro de auditoria com o caminho, lida pelo dono e pelo admin (item 9). |
 
 ### O alcance do próprio servidor
 
@@ -102,7 +133,8 @@ A documentação diz isso onde os agentes são configurados.
 
 - `[ABERTO]` Uma revisão do sanitizador do HTML das notas contra membros hostis.
 - `[ABERTO]` Histórico e recuperação da mudança ou da remoção feita por outro membro.
-- `[ABERTO]` Cotas e um limite de taxa além dos logins.
+- `[ABERTO]` Um limite de taxa além dos logins. *(Cotas por pasta: ADR 0077
+  item 5, aceito e construído em 2026-10-10.)*
 - `[ABERTO]` O token de aparelho do desktop no chaveiro do sistema em vez de
   um arquivo `0600`.
 - `[ABERTO]` O transporte do MCP e sua autorização pela rede.

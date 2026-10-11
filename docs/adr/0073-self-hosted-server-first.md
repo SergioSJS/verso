@@ -96,7 +96,15 @@
   server, the rule unchanged) and [0028](0028-crate-structure.md) (two
   crates). Accepted with this ADR: [0074](0074-accounts-and-access-on-the-server.md),
   [0075](0075-server-packaging-and-storage.md) and
-  [0076](0076-the-window-on-every-screen.md).
+  [0076](0076-the-window-on-every-screen.md). 2026-10-11 (evening) —
+  item 10: conflicts have been seen in use (the sync campaign's soak of
+  2026-10-11 made 42 copies of one note edited from two devices every
+  30 s), and the first step of merge by block is decided — two appends
+  to a note's end joined instead of a copy,
+  [0079](0079-sync-a-local-folder-with-a-server.md) item 8; with it, a
+  sync protocol version in the hello (0079 item 5). The maintainer,
+  answering a memo of recommendations: *"Sim para todos"* (yes to all).
+  What follows the round is in `docs/roadmap.md`, revision 6.
 
 ## Context
 
@@ -361,7 +369,9 @@ the date; what stays `[OPEN]` is listed in the Status.
     and stamp, conflicts kept as a copy beside the file — named as
     [0070](0070-what-travels-with-the-folder.md) item 3 allows on every OS —
     with the diff shown (invariant 11), nothing silent; merge by block comes
-    after conflicts have been seen in use, never before.
+    after conflicts have been seen in use, never before. *(Its first step
+    decided on 2026-10-11, Revisions: the append-merge of
+    [0079](0079-sync-a-local-folder-with-a-server.md) item 8.)*
     [0020](0020-sync-merge-in-core-transports-as-plugins.md) item 1 is
     proposed to be revised (revised so on 2026-10-09, a Revisions line
     there): the Drive and OneDrive integrations

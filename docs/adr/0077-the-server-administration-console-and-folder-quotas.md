@@ -19,6 +19,11 @@
   [0035](0035-cross-cutting-requirements.md) (both languages,
   accessibility).
 - Status in the briefing: not present; on acceptance.
+- Revisions: 2026-10-11 (evening) — item 3, Accounts: an admin may **end
+  another account's sessions and revoke its tokens** from the console,
+  each with an entry in the audit log. The maintainer, answering a memo of
+  recommendations (kept outside the repository; its §6 is the list):
+  *"Sim para todos"* (yes to all).
 
 ## Context
 
@@ -65,7 +70,11 @@ Accepted (2026-10-10, Status).
    - **Accounts**: a table — name, e-mail, role, folders, space, last
      sign-in, created — with search, sort and pages; an account opens a
      page of its own (its folders, sessions, tokens, the link to set a new
-     password, admin, may create folders, remove).
+     password, admin, may create folders, remove). On that page an admin
+     **ends any of the account's sessions and revokes its tokens** — a
+     lost phone cut off without changing the password — each an entry of
+     the audit log ([0074](0074-accounts-and-access-on-the-server.md) item
+     9) (decided 2026-10-11, *"Sim para todos"*, Revisions).
    - **Folders**: a table — name, owners, members, space and quota, last
      change — with search, sort and pages; a folder opens a page (members,
      quota, space detail, enter as admin, the audit of that folder);
