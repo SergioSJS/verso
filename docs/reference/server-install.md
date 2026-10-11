@@ -404,13 +404,19 @@ one LAN hop away. The numbers are in the campaign's log
 - **Every day**: a 20-minute soak, four devices editing and one note edited
   from two sides each round: RSS steady at 151 MB, CPU under 2 %, 33
   rounds, the five sides byte-equal at every checkpoint and at the end.
-- **One core under load**: one device writing alone sees the disk's floor,
-  `put_edit` p50 137 ms, p99 about 205 ms. Fifty devices writing for 60 s
-  queue on the disk: `put_edit` p50 6.5 s, p99 9.1 s, max 12.9 s; peak RSS
-  325 MB, CPU 60 %; no integrity problem (the `put_hot:changed` errors are
-  the revision check refusing a stale write, as it should). The same load
-  on a 16-CPU Mac: p50 about 530 ms, 132.9 operations per second (the row
-  "round 2 final build 3fb8c3b" of `results.jsonl`).
+- **One core under load** (the rows "cloud 1 GB, 1 device" and "cloud 1 GB,
+  50 devices" of `results.jsonl`): one device writing alone for 20 s sees
+  the disk's floor, 240 operations, 12 per second, `put_edit` p50 98 ms,
+  p99 0.8 s, `put_new` p50 105 ms, p99 1.6 s, `read` p50 3.8 ms; RSS up to
+  91 MB. Fifty devices writing for 60 s queue on the disk: 1001 operations,
+  15.4 per second, `put_edit` p50 4.5 s, p99 9.9 s, `put_new` p50 4.4 s,
+  p99 10.1 s, `read` p50 72 ms; RSS 304 MB, CPU peak 66 %. No integrity
+  problem in either, and the only errors are `put_hot:changed` (108), the
+  revision check refusing a stale write, as it should. The campaign's first
+  run, whose output was cut, read 137 ms for one writer and p50 6.5 s for
+  fifty: the same picture. The same load on a 16-CPU Mac: p50 about 530 ms,
+  132.9 operations per second (the row "round 2 final build 3fb8c3b" of
+  `results.jsonl`).
 - **Large files**: a file in transit is held whole once for each device
   that fetches it, and its base64 encoding adds a third, so the server
   holds about 2.3 × the file's size × the devices fetching it at once. A
@@ -447,7 +453,7 @@ one LAN hop away. The numbers are in the campaign's log
 | | Minimum | Recommended |
 |---|---|---|
 | For | 1–3 people, notes and small attachments | a family or a team of up to ~10 people, several devices each |
-| CPU | 1 core, x64 or ARM64 (measured: one writer about 140 ms a write; a burst of 50 writers queues on the disk, p50 6.5 s) | 2 cores |
+| CPU | 1 core, x64 or ARM64 (measured, rows "cloud 1 GB" of `results.jsonl`: one writer about 100 ms a write; a burst of 50 writers queues on the disk, p50 4.5 s) | 2 cores |
 | Memory | 512 MB, measured for a few people with small attachments; memory held after a burst can get the process killed, and the unit brings it back in 5 s with nothing lost | 1 GB, measured for a small team (four devices, bursts of 50 writers, no kill); 2 GB with large attachments, or about 2.3 × the largest file × the devices that fetch it at once |
 | Disk | an SSD; the notes' size × 2 + 1 GB (the bin, `.trash`, keeps what was deleted) | a local SSD for `VERSO_DATA_DIR`; the notes on an SSD or a NAS |
 | Examples | a Raspberry Pi 4 with 2 GB, the smallest VPS | a mini PC, a NAS with Docker, a 2 GB VPS |

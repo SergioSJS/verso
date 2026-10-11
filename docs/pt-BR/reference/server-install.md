@@ -416,14 +416,20 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
   editada dos dois lados a cada rodada: RSS estável em 151 MB, CPU abaixo
   de 2 %, 33 rodadas, os cinco lados iguais byte a byte em todo ponto de
   verificação e no fim.
-- **Um núcleo sob carga**: um aparelho gravando sozinho vê o piso do disco,
-  `put_edit` p50 137 ms, p99 cerca de 205 ms. Cinquenta aparelhos gravando
-  por 60 s fazem fila no disco: `put_edit` p50 6,5 s, p99 9,1 s, máximo
-  12,9 s; pico de RSS 325 MB, CPU 60 %; nenhum problema de integridade (os
-  erros `put_hot:changed` são a checagem de revisão recusando uma gravação
-  defasada, como deve). A mesma carga num Mac de 16 CPUs: p50 cerca de
-  530 ms, 132,9 operações por segundo (a linha "round 2 final build
-  3fb8c3b" do `results.jsonl`).
+- **Um núcleo sob carga** (as linhas "cloud 1 GB, 1 device" e "cloud 1 GB,
+  50 devices" do `results.jsonl`): um aparelho gravando sozinho por 20 s vê
+  o piso do disco, 240 operações, 12 por segundo, `put_edit` p50 98 ms,
+  p99 0,8 s, `put_new` p50 105 ms, p99 1,6 s, `read` p50 3,8 ms; RSS até
+  91 MB. Cinquenta aparelhos gravando por 60 s fazem fila no disco: 1001
+  operações, 15,4 por segundo, `put_edit` p50 4,5 s, p99 9,9 s, `put_new`
+  p50 4,4 s, p99 10,1 s, `read` p50 72 ms; RSS 304 MB, pico de CPU 66 %.
+  Nenhum problema de integridade nas duas, e os únicos erros são
+  `put_hot:changed` (108), a checagem de revisão recusando uma gravação
+  defasada, como deve. A primeira execução da campanha, cuja saída foi
+  cortada, leu 137 ms para um aparelho e p50 6,5 s para cinquenta: o mesmo
+  quadro. A mesma carga num Mac de 16 CPUs: p50 cerca de 530 ms, 132,9
+  operações por segundo (a linha "round 2 final build 3fb8c3b" do
+  `results.jsonl`).
 - **Arquivos grandes**: um arquivo em trânsito fica inteiro na memória uma
   vez para cada aparelho que o busca, e a codificação base64 soma um terço,
   então o servidor segura cerca de 2,3 × o tamanho do arquivo × os
@@ -463,7 +469,7 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
 | | Mínimo | Recomendado |
 |---|---|---|
 | Para | 1 a 3 pessoas, notas e anexos pequenos | uma família ou equipe de até ~10 pessoas, vários aparelhos cada |
-| CPU | 1 núcleo, x64 ou ARM64 (medido: um aparelho gravando, cerca de 140 ms por gravação; um pico de 50 faz fila no disco, p50 6,5 s) | 2 núcleos |
+| CPU | 1 núcleo, x64 ou ARM64 (medido, linhas "cloud 1 GB" do `results.jsonl`: um aparelho gravando, cerca de 100 ms por gravação; um pico de 50 faz fila no disco, p50 4,5 s) | 2 núcleos |
 | Memória | 512 MB, medido para poucas pessoas com anexos pequenos; a memória guardada depois de um pico pode fazer o processo ser morto, e a unit o traz de volta em 5 s sem perder nada | 1 GB, medido para uma equipe pequena (quatro aparelhos, picos de 50 gravando, sem ser morto); 2 GB com anexos grandes, ou cerca de 2,3 × o maior arquivo × os aparelhos que o buscam ao mesmo tempo |
 | Disco | um SSD; o tamanho das notas × 2 + 1 GB (a lixeira, `.trash`, guarda o que foi apagado) | um SSD local para o `VERSO_DATA_DIR`; as notas num SSD ou num NAS |
 | Exemplos | um Raspberry Pi 4 de 2 GB, a VPS mais barata | um mini PC, um NAS com Docker, uma VPS de 2 GB |
