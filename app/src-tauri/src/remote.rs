@@ -639,19 +639,21 @@ fn reconnect<R: tauri::Runtime>(
                 }
                 Err(_) => continue,
             };
-            if remote
+            // The folder's key, from the answer: the window hears a change
+            // of its own folder only.
+            let Ok(info) = remote
                 .call("open_server_folder", json!({ "id": folder }))
                 .await
-                .is_err()
-            {
+            else {
                 continue;
-            }
+            };
+            let key = info.get("key").cloned().unwrap_or(json!(""));
             lock(&app.state::<App>().remotes).insert(label.clone(), Arc::clone(&remote));
             if let Ok(index) = remote.call("reindex", json!({})).await {
                 let _ = app.emit_to(
                     label.as_str(),
                     "folder-changed",
-                    json!({ "key": "", "changed": [], "removed": [], "listing": true, "index": index }),
+                    json!({ "key": key, "changed": [], "removed": [], "listing": true, "index": index }),
                 );
             }
             let _ = app.emit_to(label.as_str(), "server-back", json!({ "url": url }));

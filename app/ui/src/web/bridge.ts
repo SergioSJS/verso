@@ -163,7 +163,13 @@ function connect(): void {
       const id = nextId++;
       const reopened = new Promise((resolve, reject) => pending.set(id, { resolve, reject }));
       ws.send(JSON.stringify({ id, cmd: "open_server_folder", args: { id: folderId } }));
+      // The folder's key, from the answer: the window hears a change of
+      // its own folder only (changes.ts).
+      let key = "";
       void reopened
+        .then((info) => {
+          key = (info as { key?: string } | null)?.key ?? "";
+        })
         .catch(() => undefined)
         .then(() => {
           reopening = false;
@@ -175,7 +181,7 @@ function connect(): void {
           dispatchEvent(new Event("verso:reconnected"));
           return request("reindex", {});
         })
-        .then((index) => emit("folder-changed", { key: "", changed: [], removed: [], listing: true, index }))
+        .then((index) => emit("folder-changed", { key, changed: [], removed: [], listing: true, index }))
         .then(() => notice(w().reconnected))
         .catch(() => undefined);
       return;
