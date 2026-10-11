@@ -46,9 +46,16 @@ fn call(
 
 struct Loopback;
 
+/// A test server listens on the loopback and never runs the update check:
+/// `VERSO_UPDATE_CHECK=off` through this table, not the process's
+/// environment, so no test reaches GitHub's release feed.
 impl verso_server::config::Env for Loopback {
     fn var(&self, name: &str) -> Option<String> {
-        (name == "VERSO_LISTEN").then(|| "127.0.0.1:0".to_owned())
+        match name {
+            "VERSO_LISTEN" => Some("127.0.0.1:0".to_owned()),
+            "VERSO_UPDATE_CHECK" => Some("off".to_owned()),
+            _ => None,
+        }
     }
 }
 
@@ -77,6 +84,10 @@ fn a_window_on_a_servers_folder_is_answered_by_the_server() {
         },
     )
     .unwrap();
+    assert!(
+        !config.update_check,
+        "a test server never asks the release feed"
+    );
     let db = verso_server::db::Db::open(data.path()).unwrap();
     let account = db
         .create_account("ana@casa.lan", "Ana", "pt", Some("uma senha longa"), true)
