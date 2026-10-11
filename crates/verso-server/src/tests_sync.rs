@@ -975,3 +975,39 @@ fn a_transfer_half_done_goes_with_its_connection() {
         assert_eq!(r.server.transfers.kept(), (0, 0));
     });
 }
+
+/// Two devices reading one large file at once share one copy of it in the
+/// server's memory, and each receives it whole, with its hash.
+#[test]
+fn two_readers_of_one_file_share_one_copy() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let mut one = opened(&r, &admin).await;
+        let mut two = opened(&r, &admin).await;
+        let bytes: Vec<u8> = (0..PIECE + 10).map(|i| (i % 251) as u8).collect();
+        let sent = send(&mut one, 2, "Partilhado.bin", &bytes, None).await;
+        assert_eq!(sent["ok"]["done"], true, "{sent}");
+        let start = json!({ "path": "Partilhado.bin", "offset": 0 });
+        let a = call(&mut one, 10, "sync_read", start.clone()).await;
+        let b = call(&mut two, 10, "sync_read", start).await;
+        assert_eq!(a["ok"]["hash"], sha256(&bytes), "{a}");
+        assert_eq!(b["ok"]["hash"], sha256(&bytes));
+        assert_eq!(r.server.transfers.copies(), 1);
+        for ws in [&mut one, &mut two] {
+            let rest = call(
+                ws,
+                11,
+                "sync_read",
+                json!({ "path": "Partilhado.bin", "offset": PIECE }),
+            )
+            .await;
+            assert_eq!(rest["ok"]["done"], true, "{rest}");
+            let tail = base64::engine::general_purpose::STANDARD
+                .decode(rest["ok"]["data"].as_str().unwrap())
+                .unwrap();
+            assert_eq!(tail, bytes[PIECE..]);
+        }
+        assert_eq!(r.server.transfers.copies(), 0);
+    });
+}

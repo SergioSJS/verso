@@ -111,12 +111,13 @@ async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket) {
             }
             incoming = socket.recv() => {
                 let Some(Ok(message)) = incoming else { break };
-                let text = match message {
-                    Message::Text(t) => t.to_string(),
+                // Parsed where it arrived: a piece of a file is megabytes.
+                let parsed = match message {
+                    Message::Text(t) => serde_json::from_str::<Request>(t.as_str()),
                     Message::Close(_) => break,
                     _ => continue,
                 };
-                let Ok(request) = serde_json::from_str::<Request>(&text) else {
+                let Ok(request) = parsed else {
                     let _ = tx.send(json!({ "err": refused("not a request") }));
                     continue;
                 };
@@ -330,11 +331,11 @@ async fn handle(
         "collab_join" | "collab_update" | "collab_awareness" | "collab_leave" | "collab_save"
         | "collab_resolve" => collab_command(server, who, client, &r.cmd, &args).await,
         "sync_state" | "sync_changes" | "sync_read" => {
-            crate::sync::command(server, who, client, &r.cmd, &args).await
+            crate::sync::command(server, who, client, &r.cmd, args).await
         }
         // A device's change: the folder's space follows it (ADR 0077).
         "sync_put" | "sync_delete" | "sync_rename" => {
-            let done = crate::sync::command(server, who, client, &r.cmd, &args).await?;
+            let done = crate::sync::command(server, who, client, &r.cmd, args).await?;
             if r.cmd != "sync_put" || done["done"] == true {
                 record_space(server, client).await;
             }
