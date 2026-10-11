@@ -47,9 +47,10 @@
   [0073](0073-self-hosted-server-first.md). O `<aparelho>` do item 8: o
   **nome do aparelho pode ser definido pela pessoa**, por padrão o nome do
   sistema (com o item 8 do [0074](0074-accounts-and-access-on-the-server.md),
-  a sessão de aparelho). Item 5: uma **versão do protocolo de sync** vai no
-  hello. Item 12: o **limite de 1 GiB** que o código mantém (`LARGEST`)
-  registrado como decidido, e o "para que nenhum arquivo fique de fora
+  a sessão de aparelho). Item 5: uma **versão do protocolo de sync**, a do
+  aparelho no seu pedido de WebSocket e a do servidor no hello. Item 12:
+  o **limite de 1 GiB** que o código mantém (`LARGEST`) registrado como
+  decidido, e o "para que nenhum arquivo fique de fora
   pelo tamanho" do Status emendado para "nenhum arquivo abaixo de 1 GiB" —
   as palavras antigas guardadas lá.
 
@@ -112,8 +113,15 @@ Aceita (2026-10-10, Status).
    rota de arquivos do servidor e escritos pelos comandos de escrita do
    serviço, com a revisão base (invariante 11). Nenhum transporte próprio,
    nenhuma porta nova. **Uma versão do protocolo de sync** (decidida em
-   2026-10-11, *"Sim para todos"*, Revisões): um inteiro vai no hello; o
-   servidor aceita a versão atual e a anterior. A versão do contrato (o
+   2026-10-11, *"Sim para todos"*, Revisões): um inteiro; o servidor
+   aceita a versão atual e a anterior. O aparelho diz a sua no cabeçalho
+   `x-verso-sync` do seu pedido de WebSocket — o servidor manda o hello
+   antes de ler qualquer coisa, então um aparelho não pode dizê-la num
+   hello — e o servidor responde a sua como `sync` no hello, com
+   `syncRefused` e uma mensagem quando a do aparelho é mais velha que a
+   anterior; o aparelho julga o `sync` do servidor pela mesma regra. Uma
+   conexão que não diz versão — uma janela, um programa, um app mais
+   antigo — nunca é recusada. A versão do contrato (o
    hash dos bindings gerados) não cobre o fio do sync — os comandos do
    sync não estão nos bindings — então esse número é definido antes de
    qualquer mudança nesse fio.
@@ -185,9 +193,10 @@ Aceita (2026-10-10, Status).
     Status): cada pedaço abaixo do limite, o arquivo escrito só quando todos
     os pedaços chegaram e o hash confere, para que uma transferência
     quebrada não deixe nada escrito pela metade. **Um arquivo maior que
-    1 GiB não sincroniza** (decidido em 2026-10-11, Revisões): é listado
-    com o seu motivo (item 13) — o `LARGEST` do código. Os pedaços ficam
-    como estão.
+    1 GiB não sincroniza** (decidido em 2026-10-11, Revisões; confirmado
+    pelo mantenedor naquela noite: *"Pode ter esse limite de 1gb"*): é
+    listado com o seu motivo (item 13) — o `LARGEST` do código. Os pedaços
+    ficam como estão.
 13. **O que uma pessoa vê**: o estado do sync da pasta na barra de status —
     sincronizado, enviando ou recebendo *n*, offline, pausado, *n*
     conflitos, erros — e, nos ajustes da pasta, um registro do que

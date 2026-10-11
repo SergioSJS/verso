@@ -47,7 +47,8 @@
   10's merge by block. Item 8's `<device>`: the **device's name may be set
   by the person**, the system's name by default (with
   [0074](0074-accounts-and-access-on-the-server.md) item 8, the device
-  session). Item 5: a **sync protocol version** travels in the hello.
+  session). Item 5: a **sync protocol version**, the device's in its
+  WebSocket request and the server's in its hello.
   Item 12: the **1 GiB limit** the code keeps (`LARGEST`) recorded as
   decided, and the Status's "so that no file is left out for its size"
   amended to "no file under 1 GiB" — the old words kept there.
@@ -108,11 +109,17 @@ Accepted (2026-10-10, Status).
    server's file route and written through the service's write commands,
    with the base revision (invariant 11). No transport of its own, no new
    port. **A sync protocol version** (decided 2026-10-11, *"Sim para
-   todos"*, Revisions): an integer travels in the hello; the server accepts
-   the current version and the previous one. The contract's version (the
-   hash of the generated bindings) does not cover the sync's wire — the
-   sync's commands are not in the bindings — so this number is set before
-   any change to that wire.
+   todos"*, Revisions): an integer; the server accepts the current version
+   and the previous one. The device says its own as the `x-verso-sync`
+   header of its WebSocket request — the server sends its hello before it
+   reads anything, so a device cannot say it in a hello — and the server
+   answers its own as `sync` in the hello, with `syncRefused` and a
+   message when the device's is older than the previous one; the device
+   holds the server's `sync` to the same rule. A connection that says no
+   version — a window, a program, an older app — is never refused. The
+   contract's version (the hash of the generated bindings) does not cover
+   the sync's wire — the sync's commands are not in the bindings — so this
+   number is set before any change to that wire.
 6. **When**: on the local watcher's batches (debounced), on the server's
    pushes, at start and on reconnecting, and by a scan every five minutes
    as a net. Offline, nothing queues but the state's difference: when the
@@ -176,8 +183,9 @@ Accepted (2026-10-10, Status).
     piece under the limit, the file written only when every piece has
     arrived and its hash matches, so a broken transfer leaves nothing
     half-written. **A file larger than 1 GiB is not synced** (decided
-    2026-10-11, Revisions): it is listed with its reason (item 13) — the
-    code's `LARGEST`. The pieces stay as they are.
+    2026-10-11, Revisions; confirmed by the maintainer that evening:
+    *"Pode ter esse limite de 1gb"*): it is listed with its reason (item
+    13) — the code's `LARGEST`. The pieces stay as they are.
 13. **What a person sees**: the folder's sync state in the status bar —
     synced, sending or receiving *n*, offline, paused, *n* conflicts,
     errors — and in the folder's settings a log of what crossed, pause and
