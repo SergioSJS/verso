@@ -381,9 +381,30 @@ impl Service {
         self.changed(key, missed, None);
     }
 
+    /// The folder walked again as [`Service::changed_outside`] walks it,
+    /// without the progress the windows show for a walk: what a folder's
+    /// sync asks for itself — on reconnecting and on its five-minute scan
+    /// — so that a change the watcher's batches never brought (a deletion
+    /// while the server was out of reach, C15 of the live campaign) is in
+    /// the listing it compares (ADR 0079 item 6).
+    pub fn walk_quietly(&self, key: &str) {
+        self.changed_as(key, &AtomicBool::new(false), None, false);
+    }
+
     /// The same, with the batch's paths when the watch gave them: only
     /// those are read again when they can be (ADR 0073 item 12).
     fn changed(&self, key: &str, missed: &AtomicBool, changes: Option<&verso_core::Changes>) {
+        self.changed_as(key, missed, changes, true);
+    }
+
+    /// [`Service::changed`], its progress shown to the windows or not.
+    fn changed_as(
+        &self,
+        key: &str,
+        missed: &AtomicBool,
+        changes: Option<&verso_core::Changes>,
+        shown: bool,
+    ) {
         let (clients, session) = {
             let sessions = lock(&self.sessions);
             let Some(session) = sessions.by_key.get(key).map(Arc::clone) else {
@@ -393,7 +414,12 @@ impl Service {
             (sessions.clients_of(key), session)
         };
         let mut session = lock(&session);
-        let progress = self.progress_to(clients.clone());
+        let mut said = self.progress_to(clients.clone());
+        let progress = move |p| {
+            if shown {
+                said(p);
+            }
+        };
         let outcome = std::panic::catch_unwind(AssertUnwindSafe(|| match changes {
             Some(changes) => session.workspace.index_changes(changes, progress),
             None => session.workspace.index_with_progress(progress),

@@ -179,6 +179,17 @@ fn sync(d: &Device) -> Passed {
     })
 }
 
+/// A connection kept across passes, as the app keeps one: only its first
+/// pass walks the folder again (and the scan's, which these tests do not
+/// wait for) — a later one compares the listing as the last batch left it.
+fn kept(d: &Device) -> super::sync::Link {
+    tauri::async_runtime::block_on(link(&d.ctx, &d.s)).unwrap()
+}
+
+fn on(d: &Device, l: &mut super::sync::Link) -> Passed {
+    tauri::async_runtime::block_on(pass(&d.ctx, &d.s, l)).unwrap()
+}
+
 fn read(d: &Device, path: &str) -> Option<Vec<u8>> {
     let p = path.to_owned();
     match d
@@ -670,9 +681,13 @@ fn a_file_gone_while_the_pass_lists_it_is_read_again_not_failed() {
     changed(&b, &[]);
     sync(&b);
     assert_eq!(text(&b, "Fugaz.md").as_deref(), Some("# Fugaz\n"));
+    // On a connection kept since before: its passes after the first trust
+    // the listing.
+    let mut la = kept(&a);
+    on(&a, &mut la);
     drop(outside);
     a.s.touched(["Fugaz.md".to_owned()]);
-    sync(&a);
+    on(&a, &mut la);
     let status = lock(&a.shown).last().cloned().unwrap();
     assert!(
         !status.refused.iter().any(|f| f.reason == "failed"),
@@ -680,7 +695,7 @@ fn a_file_gone_while_the_pass_lists_it_is_read_again_not_failed() {
     );
     // The listing catches up: the deletion crosses.
     changed(&a, &["Fugaz.md"]);
-    sync(&a);
+    on(&a, &mut la);
     changed(&b, &[]);
     sync(&b);
     assert_eq!(text(&b, "Fugaz.md"), None);
@@ -712,6 +727,10 @@ fn a_file_deleted_here_while_renamed_there_arrives_under_its_new_name() {
     changed(&b, &[]);
     sync(&b);
     assert_eq!(text(&b, old).as_deref(), Some("# Duplos\n"));
+    // A's connection is kept from before the rename: its passes after the
+    // first trust the listing.
+    let mut la = kept(&a);
+    on(&a, &mut la);
     b.ctx
         .service
         .with_key(&b.key, move |ws| {
@@ -722,13 +741,67 @@ fn a_file_deleted_here_while_renamed_there_arrives_under_its_new_name() {
     sync(&b);
     // Deleted here; the listing has not caught up yet.
     drop(outside);
-    sync(&a);
+    on(&a, &mut la);
     let status = lock(&a.shown).last().cloned().unwrap();
     assert!(status.refused.is_empty(), "{status:?}");
     // The pass the refusal asked for, before any watcher or scan.
-    sync(&a);
+    on(&a, &mut la);
     assert_eq!(text(&a, new).as_deref(), Some("# Duplos\n"));
     assert_eq!(text(&a, old), None);
+    quiet(&a, &b);
+}
+
+/// A note made in the app and synced, then deleted on this computer's disk
+/// while its tab, holding unsaved text, stayed open — the tab's autosave
+/// failing on the file gone — with the server out of reach meanwhile and
+/// the watcher's batch for the deletion never reaching the listing (C15 of
+/// the live campaign, 2026-10-11: the first pass after the reconnection
+/// carried no deletion, and the next reconnection's did, twelve minutes
+/// later). The listing still had the file at the size and time the last
+/// pass remembered, so the pass took its hash without reading it. The
+/// first pass of a new connection walks the folder first: the deletion
+/// crosses then, and a failed write of a window holds nothing apart.
+#[test]
+fn a_deletion_the_listing_missed_crosses_on_the_first_pass_after_reconnecting() {
+    let (_r, a, b) = two_in_step();
+    let path = "Ideia nova.md";
+    // Old enough that a pass trusts its size and time without reading it.
+    let mut made = tempfile::Builder::new()
+        .prefix(path)
+        .rand_bytes(0)
+        .tempfile_in(a._dirs.1.path())
+        .unwrap();
+    made.write_all(b"# Ideia nova\n").unwrap();
+    made.as_file()
+        .set_modified(std::time::SystemTime::now() - std::time::Duration::from_secs(3600))
+        .unwrap();
+    changed(&a, &[path]);
+    sync(&a);
+    changed(&b, &[]);
+    sync(&b);
+    assert_eq!(text(&b, path).as_deref(), Some("# Ideia nova\n"));
+    // The tab read the note; then the file goes from the disk, and no
+    // batch of the watcher reaches the listing.
+    let revision = a
+        .ctx
+        .service
+        .with_key(&a.key, move |ws| Ok(ws.read_note(path)?.revision))
+        .unwrap();
+    drop(made);
+    // The tab's autosave: refused, the file is gone.
+    let failed = a.ctx.service.with_key(&a.key, move |ws| {
+        Ok(ws
+            .write_note(path, "# Ideia nova\n\ndigitado\n", &revision)
+            .map(|_| ())?)
+    });
+    assert!(failed.is_err(), "{failed:?}");
+    // The server back: a new connection, and its first pass.
+    sync(&a);
+    let status = lock(&a.shown).last().cloned().unwrap();
+    assert!(status.refused.is_empty(), "{status:?}");
+    changed(&b, &[]);
+    sync(&b);
+    assert_eq!(text(&b, path), None);
     quiet(&a, &b);
 }
 
