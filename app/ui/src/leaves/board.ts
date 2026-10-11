@@ -46,7 +46,7 @@ import { searchNotes } from "../search";
 import { settings } from "../settings";
 import { boardText, LANG, t } from "../strings";
 import { tableKeymap } from "../table";
-import { ConflictBanner } from "./conflict";
+import { ConflictBanner, fileMade, keepCopy } from "./conflict";
 import { pdfStrings, quoteIntoNotes } from "./pdf";
 import { fromDisk, lineSeparator, readOnlyText } from "./text";
 import { TextLeaf } from "./textfile";
@@ -238,7 +238,7 @@ export class BoardLeaf extends TextLeaf {
       const mine = this.pendingBoard;
       if (mine === null) return;
       if (this.conflict.up) {
-        ui.status.textContent = t.conflictPending;
+        ui.status.textContent = t.conflictPendingBoth;
         return;
       }
       if (!this.layoutKept && !(await this.agreeRelayout(mine))) {
@@ -283,6 +283,18 @@ export class BoardLeaf extends TextLeaf {
     if (fresh.status !== "ok") return fail(fresh.error);
     const laid = await commands.boardPreview(this.path, mine);
     this.conflict.show({ text: fresh.data.text, revision: fresh.data.revision }, laid.status === "ok" ? laid.data : mine);
+  }
+  /** The copy "keep both" makes: the board's canvas laid as the banner
+   *  showed it against the disk's, when the board was refused; the text
+   *  face's text otherwise. */
+  protected override async copyText(): Promise<string> {
+    const board = this.pendingBoard;
+    if (board === null) return this.text();
+    const laid = await commands.boardPreview(this.path, board);
+    return laid.status === "ok" ? laid.data : board;
+  }
+  protected override keptCopy(): void {
+    this.pendingBoard = null;
   }
   /** Over the disk's version the banner shows: the board's canvas when the
    *  board was refused, the editor's text otherwise. */
@@ -384,7 +396,11 @@ export class BoardLeaf extends TextLeaf {
 export type KeptCard = { json: unknown; revision: string; eol: string };
 export function cardEditor(host: HTMLElement, path: string, onExit: () => void, kept: Map<string, KeptCard>, onEdit?: () => void, autoFocus = false): CardEditing {
   const editorHost = h("div", "editor card-editor");
-  const conflict = new ConflictBanner(() => void reload(), () => void overwrite());
+  const conflict = new ConflictBanner(
+    () => void reload(),
+    () => void overwrite(),
+    () => void keepBoth(),
+  );
   host.replaceChildren(conflict.el, editorHost);
   for (const type of ["keyup", "keypress", "paste", "copy", "cut"]) host.addEventListener(type, (e) => e.stopPropagation());
   host.addEventListener("keydown", (e) => {
@@ -500,7 +516,7 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
     const run = saving.then(async () => {
       if (!view || !dirty) return;
       if (conflict.up) {
-        ui.status.textContent = t.conflictPending;
+        ui.status.textContent = t.conflictPendingBoth;
         return;
       }
       const mine = text();
@@ -529,6 +545,27 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
     const r = await opening.readNote(path);
     if (r.status !== "ok") return fail(r.error);
     show(r.data);
+  };
+  // "Keep both", as a note's tab offers it: the card's text goes beside
+  // the note in a copy named as sync names one (ADR 0079 item 8), and the
+  // card takes the disk's version — the card stays on its note.
+  const keepBoth = (): Promise<void> => {
+    const run = saving.then(async () => {
+      if (!view || !conflict.up) return;
+      const mine = text();
+      const copy = await keepCopy(path, async (at) => {
+        const r = await commands.createNote(at, mine);
+        return r.status === "ok" ? { status: "ok", data: r.data.path } : r;
+      });
+      if (!copy) return;
+      await fileMade();
+      const r = await opening.readNote(path);
+      if (r.status !== "ok") return fail(r.error);
+      show(r.data);
+      ui.status.textContent = t.keptBoth(name(path), name(copy));
+    });
+    saving = run.catch(() => undefined);
+    return run;
   };
   return {
     isDirty: () => dirty,
