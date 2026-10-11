@@ -23,6 +23,13 @@ use std::process::ExitCode;
 use messages::{Lang, Msg, text};
 use verso_core::{CoreError, WalkProblem, Workspace};
 
+/// The allocator of the `verso` binary (server and command line): mimalloc
+/// is faster under many writers than musl's and gives most memory back
+/// after a burst, which glibc's does not (`docs/reference/server-install.md`
+/// section 14; adopted by the maintainer 2026-10-11).
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 /// What the arguments asked for.
 #[derive(Debug, PartialEq, Eq)]
 enum Command {
