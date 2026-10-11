@@ -8,7 +8,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::{Action, FileState, Files, Held, State, conflict_name, plan};
+use super::{Action, FileState, Files, Held, State, conflict_name, follows, plan};
 
 fn f(hash: &str) -> FileState {
     FileState {
@@ -1217,4 +1217,18 @@ fn where_names_fold_a_refused_respelling_never_leaves_a_device_working() {
             },
         );
     }
+}
+
+/// The sync protocol's versions (item 5): the newer side takes its own
+/// and the one before, and refuses an older one.
+#[test]
+fn a_side_follows_its_own_sync_and_the_one_before_not_older() {
+    assert!(follows(1, 1));
+    assert!(follows(1, 0));
+    assert!(follows(3, 3));
+    assert!(follows(3, 2));
+    assert!(!follows(3, 1));
+    assert!(!follows(3, 0));
+    // Newer than this side: the newer side's to judge.
+    assert!(follows(1, 2));
 }

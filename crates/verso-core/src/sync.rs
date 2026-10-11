@@ -138,6 +138,26 @@ pub struct Held {
 /// 2026-10-10).
 pub const PAUSE_FLOOR: usize = 3;
 
+/// The sync protocol's version (item 5, decided 2026-10-11): an integer
+/// each side says as the WebSocket opens — a device in its request's
+/// [`PROTOCOL_HEADER`], the server in its hello. The sync's commands are
+/// not in the generated bindings, so the contract's version does not
+/// cover their wire: this number is raised before any change to it.
+pub const PROTOCOL: u32 = 1;
+
+/// The header of the WebSocket's request a device says its [`PROTOCOL`]
+/// in.
+pub const PROTOCOL_HEADER: &str = "x-verso-sync";
+
+/// Whether a side that speaks sync `ours` follows one that speaks
+/// `theirs`: the newer side decides, and takes its own version and the
+/// one before (item 5); one older than that is refused. A side newer than
+/// `ours` is not this side's to judge.
+#[must_use]
+pub const fn follows(ours: u32, theirs: u32) -> bool {
+    theirs.saturating_add(1) >= ours
+}
+
 /// Whether a path can cross to every system (ADR 0070 item 3): one that
 /// cannot is listed by sync instead of sent, since the server would refuse
 /// it.

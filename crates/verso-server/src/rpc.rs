@@ -78,10 +78,32 @@ pub async fn upgrade(ctx: Ctx, ws: WebSocketUpgrade) -> ApiResult<Response> {
             "this server serves no window in a browser (verso serve --web)",
         ));
     }
+    // The sync a device speaks (ADR 0079 item 5): a window, a program, or
+    // an app from before the version says none and is not refused.
+    let sync = ctx
+        .headers
+        .get(verso_core::sync::PROTOCOL_HEADER)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.trim().parse::<u32>().ok());
+    let sync_refused = sync_refusal(sync, verso_core::sync::PROTOCOL);
     let server = Arc::clone(&ctx.server);
     Ok(ws
         .max_message_size(MAX_MESSAGE)
-        .on_upgrade(move |socket| run(server, who, socket)))
+        .on_upgrade(move |socket| run(server, who, socket, sync_refused)))
+}
+
+/// Why a device that speaks sync `theirs` is refused by a server that
+/// speaks `ours`, in English for the log and the device's words: older
+/// than the version before `ours` (ADR 0079 item 5). `None` when it
+/// follows, and when it said no version.
+pub(crate) fn sync_refusal(theirs: Option<u32>, ours: u32) -> Option<String> {
+    let theirs = theirs?;
+    (!verso_core::sync::follows(ours, theirs)).then(|| {
+        format!(
+            "this app speaks sync {theirs}, the server sync {ours} and {}: update the one that is behind",
+            ours.saturating_sub(1)
+        )
+    })
 }
 
 #[derive(Deserialize)]
@@ -92,7 +114,7 @@ struct Request {
     args: Value,
 }
 
-async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket) {
+async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket, sync_refused: Option<String>) {
     let client = server.client_id();
     let (tx, mut rx, slow) = Outbox::new(QUEUE);
     lock(&server.clients).insert(
@@ -104,12 +126,22 @@ async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket) {
             tx: tx.clone(),
         },
     );
-    let hello = json!({ "hello": {
+    let mut hello = json!({ "hello": {
         "version": env!("CARGO_PKG_VERSION"),
         "commit": server.commit,
         "contract": server.contract,
+        "sync": verso_core::sync::PROTOCOL,
         "account": crate::api::account_json(&who.account),
     }});
+    // A device older than the sync this server follows is told so in the
+    // hello, and its sync's commands are refused with the same words.
+    if let Some(why) = &sync_refused {
+        hello["hello"]["syncRefused"] = json!(why);
+        crate::log::info(&format!(
+            "connection {client} ({}): sync refused: {why}",
+            who.account.id
+        ));
+    }
     let _ = socket.send(Message::Text(hello.to_string().into())).await;
     let who = Arc::new(who);
     let mut log_budget = (std::time::Instant::now(), 0_u32);
@@ -174,6 +206,12 @@ async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket) {
                     tx.send(&json!({ "err": refused("not a request") }));
                     continue;
                 };
+                if let Some(why) = &sync_refused
+                    && request.cmd.starts_with("sync_")
+                {
+                    tx.send(&json!({ "id": request.id, "err": refused(why) }));
+                    continue;
+                }
                 if request.cmd == "log_write" {
                     if log_budget.0.elapsed().as_secs() >= 60 {
                         log_budget = (std::time::Instant::now(), 0);
