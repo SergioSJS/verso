@@ -25,11 +25,30 @@ pub(crate) fn block_on<F: std::future::Future>(f: F) -> F::Output {
         .block_on(f)
 }
 
+/// How many test servers may be alive at once. Each one's folder, once a
+/// test opens it, registers a native watcher, and on macOS that is an
+/// FSEvents stream started (and, when the folder closes, stopped) through
+/// `fseventsd`, which serves the registrations one after another: with a
+/// server per test thread (16 on the maintainer's Mac) the last ones queued
+/// past the 10 s wait of [`next`] and the tests failed for no fault of the
+/// code under test. Not a number to raise to make the suite faster: it is
+/// bounded by `fseventsd`. Measured on 2026-10-10 at the default 16 threads:
+/// 6 still left a folder's second open waiting past 10 s in 4 runs of 5; 4
+/// passed 6 runs of 6. The tests stay independent and parallel; only the
+/// number of them holding a server at once is capped.
+static SERVERS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(4);
+
 pub(crate) struct Running {
     pub(crate) server: Arc<state::Server>,
     addr: SocketAddr,
     _dirs: (tempfile::TempDir, tempfile::TempDir),
     _stop: tokio::sync::oneshot::Sender<()>,
+    /// One of [`SERVERS`], given back when the test drops its server; last,
+    /// so it is released after the server has been told to stop. `None` only
+    /// for a handle a test builds around a second server that opens no
+    /// folder, while its own [`start`] already holds a permit: a test that
+    /// waited for two could leave every permit held and every test waiting.
+    _permit: Option<tokio::sync::SemaphorePermit<'static>>,
 }
 
 impl Running {
@@ -75,6 +94,7 @@ fn config(data: &std::path::Path, folders: &std::path::Path) -> Config {
 
 /// A server with an admin and one folder, "Campanha", owned by the admin.
 pub(crate) async fn start() -> Running {
+    let permit = SERVERS.acquire().await.unwrap();
     let data = tempfile::tempdir().unwrap();
     let folders = tempfile::tempdir().unwrap();
     verso_fs::server::make_folder(folders.path(), "Campanha").unwrap();
@@ -121,6 +141,7 @@ pub(crate) async fn start() -> Running {
         addr,
         _dirs: (data, folders),
         _stop: tx,
+        _permit: Some(permit),
     }
 }
 
@@ -1062,6 +1083,7 @@ fn without_web_a_browser_gets_no_window_and_the_app_still_connects() {
             addr: SocketAddr::from(([127, 0, 0, 1], port)),
             _dirs: (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()),
             _stop: tokio::sync::oneshot::channel().0,
+            _permit: None,
         };
         let (_, st) = get(&probe, "/api/state", None).await;
         assert_eq!(st["web"], false);
