@@ -39,6 +39,7 @@ mod ops;
 mod os;
 mod placeholder;
 pub mod server;
+mod single;
 mod walk;
 mod watch;
 mod write;
@@ -63,6 +64,7 @@ pub fn is_portable(relative: &std::path::Path) -> bool {
 }
 pub use ops::OpReport;
 pub use placeholder::Placeholder;
+pub use single::Single;
 pub use walk::{Entry, EntryKind, Problem, Walk};
 pub use watch::{Changes, MAX_WAIT, Watch};
 pub use write::{WriteError, WriteReport};
