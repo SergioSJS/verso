@@ -484,9 +484,11 @@ one LAN hop away. The numbers are in the campaign's log
   over burst; mimalloc sits in between, holding about 70 MB, and was a
   little faster, about 20–35 % more operations per second — a soft figure:
   two bursts of one binary differ by up to 20 %, the folder grew across the
-  runs, and a stray process held one of the load VM's cores. `[OPEN]`
-  Whether to adopt mimalloc is not decided; the recommendation sent to the
-  maintainer was not to adopt it.
+  runs, and a stray process held one of the load VM's cores. Decided
+  2026-10-11, in the evening: the maintainer adopted mimalloc as the
+  allocator of the `verso` binary (*"pode implementar, deixa isso
+  pronto"*), overruling the recommendation sent to them, which was not to
+  adopt it.
 - **Stops**: the service stopped for 15 s while five notes changed (one on
   two sides): on start everything crossed, with one conflict copy for the
   two-sided note. The VM rebooted with edits pending on two devices: back
