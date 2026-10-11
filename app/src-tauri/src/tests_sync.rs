@@ -1061,3 +1061,48 @@ fn both_forms_as_two_files_here_send_one_and_say_the_other() {
     assert_eq!(text(&b, COMPOSED).as_deref(), Some("# composto\n"));
     assert_eq!(cafes(&b), vec![COMPOSED.to_owned()]);
 }
+
+/// A file larger than sync carries, here (R1 of 2026-10-11, the device's
+/// side): known by the listing's size and never read — a file of
+/// gigabytes read and hashed at every pass takes the computer's memory —
+/// listed with its reason on every pass, and never sent.
+#[test]
+fn a_file_larger_than_sync_carries_is_listed_here_never_read() {
+    const NAME: &str = "Grande-demais.bin";
+    let r = serve(&[]);
+    let a = device(&r, &r.owner, &[("Uma.md", "# Uma\n")]);
+    sync(&a);
+    // Sparse: its size says more than 1 GiB, and it takes no disk. An
+    // hour old, so that a read of it would be remembered by its size and
+    // time (`seen`).
+    let f = tempfile::Builder::new()
+        .prefix(NAME)
+        .rand_bytes(0)
+        .tempfile_in(a._dirs.1.path())
+        .unwrap();
+    f.as_file().set_len((1 << 30) + 1).unwrap();
+    f.as_file()
+        .set_modified(std::time::SystemTime::now() - std::time::Duration::from_secs(3600))
+        .unwrap();
+    f.keep().unwrap();
+    changed(&a, &[NAME]);
+    for _ in 0..2 {
+        assert_eq!(sync(&a).actions, 0);
+        let status = lock(&a.shown).last().cloned().unwrap();
+        assert!(
+            status
+                .refused
+                .iter()
+                .any(|f| f.path == NAME && f.reason == "too_large"),
+            "{status:?}"
+        );
+    }
+    let state = engine::load(a.ctx.config.as_deref(), &a.key)
+        .unwrap()
+        .unwrap();
+    assert!(!state.seen.contains_key(NAME), "read: {:?}", state.seen);
+    let b = device(&r, &r.owner, &[]);
+    sync(&b);
+    assert_eq!(text(&b, "Uma.md").as_deref(), Some("# Uma\n"));
+    assert!(read(&b, NAME).is_none());
+}
