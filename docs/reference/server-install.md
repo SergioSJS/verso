@@ -384,16 +384,19 @@ on 2026-10-10, numbers kept in `scripts/sync-lab/results.jsonl`:
   and TLS when the server does its own.
 
 And a VM sized like the smallest VPS, on 2026-10-11: 1 vCPU, 1 GB of
-memory (ballooned down to 512, 384 and 256 MB during the test), a 10 GB
-virtual disk on Proxmox, the Ubuntu 26.04 server cloud image with no
-desktop, and Universo installed from the `.deb` exactly as in section 5
-(with `VERSO_UPDATE_CHECK=off`). Four desktop devices (two Macs, Windows,
+memory (the guest's `free -m` showed 956 MB in total), a 10 GB virtual disk
+on Proxmox, the Ubuntu 26.04 server cloud image with no desktop, and
+Universo, the build b8ebc5f (server code 552f0f6), installed from the
+`.deb` exactly as in section 5 (with `VERSO_UPDATE_CHECK=off`). During the
+test the Proxmox balloon was asked for 512, 384 and 256 MB, and the guest's
+`free -m` then showed 705, 767 and 393 MB in total; the sizes below are
+what the guest had, with what was asked in parentheses. Four desktop devices (two Macs, Windows,
 Linux) synced a folder of 133 files and 62 MB with it, through SSH tunnels
 (the app takes `http` only on localhost, so TLS was not part of it). A
 sampler on the VM read the process's RSS, the unit's cgroup memory, the CPU
 and `MemAvailable` every 5 s; `scripts/server-load.mjs` ran from another VM
 one LAN hop away. The numbers are in the campaign's log
-(`verso-sync-campaign/cloud/run.txt`, kept outside the repository).
+(`verso-sync-campaign/logs/cloud/run.txt`, kept outside the repository).
 "The five sides" below are the four devices and the server's copy:
 
 - **At rest and after a burst**: a fresh process holds 17–18 MB. Serving
@@ -410,7 +413,10 @@ one LAN hop away. The numbers are in the campaign's log
   p99 0.8 s, `put_new` p50 105 ms, p99 1.6 s, `read` p50 3.8 ms; RSS up to
   91 MB. Fifty devices writing for 60 s queue on the disk: 1001 operations,
   15.4 per second, `put_edit` p50 4.5 s, p99 9.9 s, `put_new` p50 4.4 s,
-  p99 10.1 s, `read` p50 72 ms; RSS 304 MB, CPU peak 66 %. No integrity
+  p99 10.1 s, `read` p50 72 ms; RSS 304 MB, CPU peak 66 % (the RSS and
+  CPU figures of both rows come from the VM's sampler file,
+  `verso-sync-campaign/logs/cloud/sample-final.csv`, kept outside the
+  repository). No integrity
   problem in either, and the only errors are `put_hot:changed` (108), the
   revision check refusing a stale write, as it should. The campaign's first
   run, whose output was cut, read 137 ms for one writer and p50 6.5 s for
@@ -421,21 +427,24 @@ one LAN hop away. The numbers are in the campaign's log
   that fetches it, and its base64 encoding adds a third, so the server
   holds about 2.3 × the file's size × the devices fetching it at once. A
   new 60 MB file written on one device and fetched by the other three at
-  once took the process to 550 MB (cgroup 679 MB), with no kill at 512 MB;
-  the five sides were equal in 56 s. "Twice the largest file", the earlier
-  estimate in the table, is too little when several devices fetch at once.
-- **Squeezed memory**: squeezing the VM to 512 MB right after the 50-device
-  burst made the kernel's OOM killer kill the process (anon RSS 318 MB),
-  because the memory it held after the burst did not fit. The unit's
-  `Restart=on-failure` brought it back in 5 s, the devices reconnected and
-  nothing was lost. Afterwards, still at 512 MB, a 10-minute soak (RSS
-  18 MB), a 50-device load (RSS 352 MB) and the 60 MB file above ran
-  without a kill. At 384 MB a 30-device load ran (RSS 379 MB). Squeezing to
-  256 MB, with that memory still held, killed the process once more (anon
-  RSS 376 MB), back in 5 s; a 30-device load then ran with no integrity
-  problem, and the 60 MB file took 122 s to reach five equal sides (the
-  guest's balloon gave memory back under pressure, so that is not a clean
-  256 MB).
+  once took the process to 550 MB (cgroup 679 MB) on the VM squeezed to
+  what the guest saw as 705 MB (asked 512), with no kill; the five sides
+  were equal in 56 s. "Twice the largest file" alone is too little when
+  several devices fetch at once.
+- **Squeezed memory**: the balloon was inflated towards 512 MB right after
+  the 50-device burst, leaving the guest 705 MB, and the kernel's OOM
+  killer killed the process (anon RSS 318 MB), because the memory it held
+  after the burst did not fit. The unit's `Restart=on-failure` brought it
+  back in 5 s, the devices reconnected and nothing was lost. Afterwards, on
+  that 705 MB guest (asked 512), a 10-minute soak (RSS 18 MB), a 50-device
+  load (RSS 352 MB) and the 60 MB file above ran without a kill. On a guest
+  of 767 MB (asked 384) a 30-device load ran (RSS 379 MB). Squeezing to
+  what the guest saw as 393 MB (asked 256), with that memory still held,
+  killed the process once more (anon RSS 376 MB), back in 5 s; a 30-device
+  load then ran with no integrity problem, and the 60 MB file took 122 s
+  to reach five equal sides. None of the three is a clean limit: the
+  guest's balloon gave memory back under pressure, and the guest never had
+  512, 384 or 256 MB.
 - **Stops**: the service stopped for 15 s while five notes changed (one on
   two sides): on start everything crossed, with one conflict copy for the
   two-sided note. The VM rebooted with edits pending on two devices: back
@@ -452,11 +461,16 @@ one LAN hop away. The numbers are in the campaign's log
 
 | | Minimum | Recommended |
 |---|---|---|
-| For | 1–3 people, notes and small attachments | a family or a team of up to ~10 people, several devices each |
+| For | 1–3 people, notes and small attachments | a family or a team of up to ~10 people, several devices each (an estimate, not measured) |
 | CPU | 1 core, x64 or ARM64 (measured, rows "cloud 1 GB" of `results.jsonl`: one writer about 100 ms a write; a burst of 50 writers queues on the disk, p50 4.5 s) | 2 cores |
-| Memory | 512 MB, measured for a few people with small attachments; memory held after a burst can get the process killed, and the unit brings it back in 5 s with nothing lost | 1 GB, measured for a small team (four devices, bursts of 50 writers, no kill); 2 GB with large attachments, or about 2.3 × the largest file × the devices that fetch it at once |
+| Memory | 512 MB — not measured yet: the smallest guest measured had 393 MB after the balloon took the rest, and it ran a 30-device load and a 60 MB file after one kill-and-restart; memory held after a burst can get the process killed on a small machine, and the unit brings it back in 5 s with nothing lost | 2 GB, or more than twice the largest file you sync; when several devices fetch a large file at once, about 2.3 × the largest file × the devices fetching it (measured) |
 | Disk | an SSD; the notes' size × 2 + 1 GB (the bin, `.trash`, keeps what was deleted) | a local SSD for `VERSO_DATA_DIR`; the notes on an SSD or a NAS |
 | Examples | a Raspberry Pi 4 with 2 GB, the smallest VPS | a mini PC, a NAS with Docker, a 2 GB VPS |
+
+`[OPEN]` Whether 1 GB is enough for a small team: a 1 GB guest served four
+devices, a 20-minute soak, bursts of 50 writers and a 60 MB file to three
+devices at once (peak 550 MB); the table's "up to ~10 people" was not
+measured.
 
 `[OPEN]` Whether the server should send a large file's pieces from disk
 instead of holding it whole for each device, and whether it should give

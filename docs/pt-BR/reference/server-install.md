@@ -395,16 +395,20 @@ seção 3) em 2026-10-10, com os números em `scripts/sync-lab/results.jsonl`:
   para a busca, e o TLS quando é o próprio servidor que o faz.
 
 E uma VM do tamanho da VPS mais barata, em 2026-10-11: 1 vCPU, 1 GB de
-memória (reduzida pelo balloon a 512, 384 e 256 MB durante o teste), um
-disco virtual de 10 GB no Proxmox, a imagem cloud do Ubuntu 26.04 server
-sem desktop, e o Universo instalado pelo `.deb` exatamente como na seção 5
-(com `VERSO_UPDATE_CHECK=off`). Quatro aparelhos desktop (dois Macs,
+memória (o `free -m` do convidado mostrava 956 MB no total), um disco
+virtual de 10 GB no Proxmox, a imagem cloud do Ubuntu 26.04 server sem
+desktop, e o Universo, o build b8ebc5f (código do servidor 552f0f6),
+instalado pelo `.deb` exatamente como na seção 5 (com
+`VERSO_UPDATE_CHECK=off`). Durante o teste o balloon do Proxmox foi pedido
+em 512, 384 e 256 MB, e o `free -m` do convidado mostrou então 705, 767 e
+393 MB no total; os tamanhos abaixo são os que o convidado tinha, com o
+pedido entre parênteses. Quatro aparelhos desktop (dois Macs,
 Windows, Linux) sincronizaram com ele uma pasta de 133 arquivos e 62 MB,
 por túneis SSH (o app só aceita `http` em localhost, então o TLS ficou de
 fora). Um amostrador na VM leu a cada 5 s o RSS do processo, a memória do
 cgroup da unit, a CPU e o `MemAvailable`; o `scripts/server-load.mjs` rodou
 de outra VM a um salto de LAN. Os números estão no log da campanha
-(`verso-sync-campaign/cloud/run.txt`, guardado fora do repositório).
+(`verso-sync-campaign/logs/cloud/run.txt`, guardado fora do repositório).
 "Os cinco lados" abaixo são os quatro aparelhos e a cópia do servidor:
 
 - **Em repouso e depois de um pico**: um processo recém-iniciado ocupa
@@ -422,7 +426,10 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
   p99 0,8 s, `put_new` p50 105 ms, p99 1,6 s, `read` p50 3,8 ms; RSS até
   91 MB. Cinquenta aparelhos gravando por 60 s fazem fila no disco: 1001
   operações, 15,4 por segundo, `put_edit` p50 4,5 s, p99 9,9 s, `put_new`
-  p50 4,4 s, p99 10,1 s, `read` p50 72 ms; RSS 304 MB, pico de CPU 66 %.
+  p50 4,4 s, p99 10,1 s, `read` p50 72 ms; RSS 304 MB, pico de CPU 66 %
+  (os números de RSS e de CPU das duas linhas vêm do arquivo do amostrador
+  da VM, `verso-sync-campaign/logs/cloud/sample-final.csv`, guardado fora
+  do repositório).
   Nenhum problema de integridade nas duas, e os únicos erros são
   `put_hot:changed` (108), a checagem de revisão recusando uma gravação
   defasada, como deve. A primeira execução da campanha, cuja saída foi
@@ -435,22 +442,25 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
   então o servidor segura cerca de 2,3 × o tamanho do arquivo × os
   aparelhos que o buscam ao mesmo tempo. Um arquivo novo de 60 MB gravado
   num aparelho e buscado pelos outros três ao mesmo tempo levou o processo a
-  550 MB (cgroup 679 MB), sem ser morto a 512 MB; os cinco lados ficaram
-  iguais em 56 s. "O dobro do maior arquivo", a estimativa anterior da
-  tabela, é pouco quando vários aparelhos buscam ao mesmo tempo.
-- **Memória apertada**: apertar a VM para 512 MB logo depois do pico de 50
-  aparelhos fez o OOM killer do kernel matar o processo (anon RSS 318 MB),
-  porque a memória que ele guardava depois do pico não cabia. O
-  `Restart=on-failure` da unit o trouxe de volta em 5 s, os aparelhos
-  reconectaram e nada se perdeu. Depois, ainda a 512 MB, um soak de 10
-  minutos (RSS 18 MB), uma carga de 50 aparelhos (RSS 352 MB) e o arquivo
-  de 60 MB acima rodaram sem ele ser morto. A 384 MB uma carga de 30
-  aparelhos rodou (RSS 379 MB). Apertar para 256 MB, com essa memória ainda
-  guardada, matou o processo mais uma vez (anon RSS 376 MB), de volta em
-  5 s; uma carga de 30 aparelhos rodou depois sem problema de integridade,
-  e o arquivo de 60 MB levou 122 s até os cinco lados ficarem iguais (o
-  balloon do convidado devolveu memória sob pressão, então não é um
-  256 MB limpo).
+  550 MB (cgroup 679 MB) na VM apertada ao que o convidado via como 705 MB
+  (pedido 512), sem ser morto; os cinco lados ficaram iguais em 56 s. "O
+  dobro do maior arquivo" sozinho é pouco quando vários aparelhos buscam ao
+  mesmo tempo.
+- **Memória apertada**: o balloon foi inflado rumo a 512 MB logo depois do
+  pico de 50 aparelhos, deixando o convidado com 705 MB, e o OOM killer do
+  kernel matou o processo (anon RSS 318 MB), porque a memória que ele
+  guardava depois do pico não cabia. O `Restart=on-failure` da unit o
+  trouxe de volta em 5 s, os aparelhos reconectaram e nada se perdeu.
+  Depois, nesse convidado de 705 MB (pedido 512), um soak de 10 minutos
+  (RSS 18 MB), uma carga de 50 aparelhos (RSS 352 MB) e o arquivo de 60 MB
+  acima rodaram sem ele ser morto. Num convidado de 767 MB (pedido 384) uma
+  carga de 30 aparelhos rodou (RSS 379 MB). Apertar ao que o convidado via
+  como 393 MB (pedido 256), com essa memória ainda guardada, matou o
+  processo mais uma vez (anon RSS 376 MB), de volta em 5 s; uma carga de 30
+  aparelhos rodou depois sem problema de integridade, e o arquivo de 60 MB
+  levou 122 s até os cinco lados ficarem iguais. Nenhum dos três é um
+  limite limpo: o balloon do convidado devolveu memória sob pressão, e o
+  convidado nunca teve 512, 384 nem 256 MB.
 - **Paradas**: o serviço parou por 15 s enquanto cinco notas mudavam (uma
   dos dois lados): ao subir, tudo atravessou, com uma cópia de conflito
   para a nota editada dos dois lados. A VM reiniciou com edições pendentes
@@ -468,11 +478,16 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
 
 | | Mínimo | Recomendado |
 |---|---|---|
-| Para | 1 a 3 pessoas, notas e anexos pequenos | uma família ou equipe de até ~10 pessoas, vários aparelhos cada |
+| Para | 1 a 3 pessoas, notas e anexos pequenos | uma família ou equipe de até ~10 pessoas, vários aparelhos cada (uma estimativa, não medida) |
 | CPU | 1 núcleo, x64 ou ARM64 (medido, linhas "cloud 1 GB" do `results.jsonl`: um aparelho gravando, cerca de 100 ms por gravação; um pico de 50 faz fila no disco, p50 4,5 s) | 2 núcleos |
-| Memória | 512 MB, medido para poucas pessoas com anexos pequenos; a memória guardada depois de um pico pode fazer o processo ser morto, e a unit o traz de volta em 5 s sem perder nada | 1 GB, medido para uma equipe pequena (quatro aparelhos, picos de 50 gravando, sem ser morto); 2 GB com anexos grandes, ou cerca de 2,3 × o maior arquivo × os aparelhos que o buscam ao mesmo tempo |
+| Memória | 512 MB — ainda não medido: o menor convidado medido tinha 393 MB depois de o balloon tomar o resto, e rodou uma carga de 30 aparelhos e um arquivo de 60 MB depois de ser morto e reiniciado uma vez; a memória guardada depois de um pico pode fazer o processo ser morto numa máquina pequena, e a unit o traz de volta em 5 s sem perder nada | 2 GB, ou mais que o dobro do maior arquivo que vocês sincronizam; quando vários aparelhos buscam um arquivo grande ao mesmo tempo, cerca de 2,3 × o maior arquivo × os aparelhos que o buscam (medido) |
 | Disco | um SSD; o tamanho das notas × 2 + 1 GB (a lixeira, `.trash`, guarda o que foi apagado) | um SSD local para o `VERSO_DATA_DIR`; as notas num SSD ou num NAS |
 | Exemplos | um Raspberry Pi 4 de 2 GB, a VPS mais barata | um mini PC, um NAS com Docker, uma VPS de 2 GB |
+
+`[OPEN]` Se 1 GB basta para uma equipe pequena: um convidado de 1 GB serviu
+quatro aparelhos, um soak de 20 minutos, picos de 50 gravando e um arquivo
+de 60 MB para três aparelhos ao mesmo tempo (pico de 550 MB); o "até ~10
+pessoas" da tabela não foi medido.
 
 `[OPEN]` Se o servidor deve mandar os pedaços de um arquivo grande a partir
 do disco em vez de segurá-lo inteiro para cada aparelho, e se deve devolver
