@@ -19,6 +19,28 @@ in the real app.
 
 ## Not yet checked
 
+### Sync and Universo (feat/universo, 2026-10-11)
+
+- [ ] **"Guardar os dois" in the editor's conflict** (`18da5c7`): with a
+  synced folder, keep a note open in Editar with unsaved text while another
+  device changes it; the view "O arquivo mudou em disco…" offers a third
+  button, "Guardar os dois" — the disk's version keeps the name, your text
+  goes to `<nota> (conflito, <este computador>, <data>).md`, the tab shows
+  the copy.
+- [ ] **A note deleted outside while its tab is dirty** (`e5b3ee0`): delete
+  the file in the Finder while typing in it; the tab says "Esta nota foi
+  apagada ou movida fora do Verso. O seu texto continua aqui." with "Salvar
+  de novo" and "Fechar sem salvar"; no ERROR in the app's log.
+- [ ] **Links a rename could not update** (`da6ac8e`): rename a note while
+  another program edits a note that links to it; the notice names the note
+  skipped, and "Tentar de novo" applies the change over the new text.
+- [ ] **One name in two accent forms** (spec Q7, `0cb6dd5`): on a Linux or
+  Windows device create `Café.md` beside a `Café.md` the server already has
+  in the other Unicode form; the second is listed under "nome de outro, só
+  mudando…" and never sent; the first keeps syncing.
+- [ ] **Window on a small screen** (`068215e`): on a 1280×800 display the
+  first window opens inside the screen, status bar visible.
+
 ### Version 0.5 (feat/windows-fs, feat/signed-updates)
 
 - [ ] **Verso for Linux** (ADR 0071, 2026-10-09), on the machines of
