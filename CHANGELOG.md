@@ -28,6 +28,7 @@ test release.
 - **A new window fits the screen**: on a small screen (1280×800) the first window no longer opens taller than the screen with its status bar hidden under the task bar.
 - **The status bar says the index in a person's words** ("130 notas em dia", "3 ainda na nuvem") and gives itself back after a background index; in a browser with no folder open, the "you only read this folder" line no longer shows, and the start page says to choose one of the server's folders.
 - **Settings**: the Editor's line-number switches sit under one heading; the allowed sites' explanation sits under its box; the make.md setting no longer says "sync".
+- **A name in two files on the server's disk** (its accents in the two Unicode forms, left from before one name was one file): sync keeps one and holds the other, and now says so — a warning in the server's log at each walk, and a line under "Needs a look" on the folder's page of the console, counted on the overview, naming the file to remove or rename.
 
 ## 0.7.0-beta.1 — 2026-10-10
 

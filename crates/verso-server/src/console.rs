@@ -99,7 +99,8 @@ pub async fn unregistered(ctx: Ctx) -> ApiResult<Response> {
     Ok(ok(loose))
 }
 
-/// One folder: its members, what it takes, its quota.
+/// One folder: its members, what it takes, its quota, and the files its
+/// last walk held as another's name in another form (`crate::twins`).
 pub async fn folder(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
     ctx.admin()?;
     let db = &ctx.server.db;
@@ -116,6 +117,7 @@ pub async fn folder(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
         "members": members,
         "space": crate::folders::space(&ctx, &id),
         "quota": db.quota(&id)?,
+        "twins": crate::twins::of_folder(&ctx.server, &id),
     })))
 }
 
@@ -398,6 +400,14 @@ pub async fn overview(ctx: Ctx) -> ApiResult<Response> {
         .into_iter()
         .map(|(id, name, space, quota)| json!({ "id": id, "name": name, "space": space, "quota": quota }))
         .collect();
+    // The folders whose last walk held a file as another's name in another
+    // form: each a line of what needs a look.
+    let mut twins: Vec<Value> = Vec::new();
+    for (id, count) in crate::twins::counts(&ctx.server) {
+        if let Some(f) = ctx.server.db.folder(&id)? {
+            twins.push(json!({ "id": id, "name": f.dir, "count": count }));
+        }
+    }
     let tls = if config.tls.is_some() {
         "own"
     } else if config.trusted_proxy.is_some() {
@@ -422,6 +432,7 @@ pub async fn overview(ctx: Ctx) -> ApiResult<Response> {
         "folders": folder_count,
         "space": space,
         "nearQuota": near,
+        "twins": twins,
         "defaultQuota": config.folder_quota,
     })))
 }

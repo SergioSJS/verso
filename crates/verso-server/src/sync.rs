@@ -74,10 +74,13 @@ pub struct Transfers {
     folders: Mutex<HashMap<String, Arc<Mutex<()>>>>,
     /// When each folder was last walked for a device.
     walked: Mutex<HashMap<String, Instant>>,
+    /// Per folder, the files of one name in two forms its last walk found,
+    /// and when they were last said (`crate::twins`).
+    pub(crate) twins: Mutex<HashMap<String, (Vec<crate::twins::Twin>, Instant)>>,
 }
 
 /// How often a device's question walks the folder again.
-const WALK_EVERY: Duration = Duration::from_secs(60);
+pub(crate) const WALK_EVERY: Duration = Duration::from_secs(60);
 
 /// The folder walked again, at most once a minute, before a device reads
 /// its files or changes: what the watcher missed — a file the server
@@ -197,7 +200,24 @@ fn reconcile_held(
     let fail = |e: String| verso_service::failed(e);
     let known = server.db.manifest(folder).map_err(fail)?;
     let files = listed(server, key)?;
-    let forced: HashSet<&str> = paths.iter().map(String::as_str).collect();
+    let listed_paths: HashSet<String> = files.iter().map(|(p, _, _)| p.clone()).collect();
+    // One name in two files (spec Q7): one is kept, the other held — no
+    // entry of the log, said in the server's log and on the console.
+    let twins = crate::twins::twins(
+        &files.iter().map(|(p, _, _)| p.clone()).collect::<Vec<_>>(),
+        &known,
+    );
+    let held: HashSet<String> = twins.iter().map(|t| t.held.clone()).collect();
+    crate::twins::found(server, folder, twins);
+    let files: Vec<(String, u64, i64)> = files
+        .into_iter()
+        .filter(|(p, _, _)| !held.contains(p))
+        .collect();
+    let forced: HashSet<&str> = paths
+        .iter()
+        .map(String::as_str)
+        .filter(|p| !held.contains(*p))
+        .collect();
     // The index's listing is as of its last walk: a path just written is
     // read whatever the listing says, and a listed path that can no longer
     // be read is gone.
@@ -205,7 +225,6 @@ fn reconcile_held(
         .iter()
         .map(|(p, len, modified)| (p.clone(), Some(format!("{len}:{modified}"))))
         .collect();
-    let listed_paths: HashSet<String> = files.iter().map(|(p, _, _)| p.clone()).collect();
     // Read whatever the listing does not vouch for: a path just written,
     // and a known file the listing lacks — written since its last walk, or
     // gone; only a read tells which.
@@ -363,6 +382,20 @@ fn reconcile_paths(
     actor: Option<&str>,
     paths: &[(String, Now)],
 ) -> Result<i64, ContractError> {
+    // A file held as the twin of another (`crate::twins`) never enters the
+    // log through a write that names it: the walk keeps it out too.
+    let held = crate::twins::held(server, folder);
+    let unheld: Vec<(String, Now)>;
+    let paths = if held.is_empty() {
+        paths
+    } else {
+        unheld = paths
+            .iter()
+            .filter(|(p, _)| !held.contains(p))
+            .cloned()
+            .collect();
+        unheld.as_slice()
+    };
     let spelled;
     let paths = if verso_core::sync::FOLDS_NAMES {
         spelled = as_spelled(server, key, paths)?;

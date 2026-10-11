@@ -474,6 +474,69 @@ fn the_other_form_of_a_name_addresses_the_file_the_server_keeps() {
     });
 }
 
+/// A name in two files on the server's disk, its accents in two Unicode
+/// forms, from before one name was one file (spec Q7; C8b of the live
+/// campaign, 2026-10-11, on an ext4 server): the walk keeps one in the log
+/// and holds the other — said, never synced, and never entered by a write
+/// that names it. Only a file system that tells the forms apart can hold
+/// both (ext4; APFS cannot).
+#[cfg(target_os = "linux")]
+#[test]
+fn a_name_in_two_files_on_the_servers_disk_syncs_one_and_holds_the_other() {
+    const COMPOSED: &str = "Caf\u{e9}.md";
+    const DECOMPOSED: &str = "Cafe\u{301}.md";
+    block_on(async {
+        let r = start().await;
+        let dir = r.server.folder_path("Campanha").unwrap();
+        for (name, text) in [(COMPOSED, "# composto\n"), (DECOMPOSED, "# decomposto\n")] {
+            use std::io::Write;
+            let mut f = tempfile::NamedTempFile::new_in(&dir).unwrap();
+            f.write_all(text.as_bytes()).unwrap();
+            f.persist(dir.join(name)).unwrap();
+        }
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &admin).await;
+        let mut ws = opened(&r, &admin).await;
+        let cafes = |state: &Value| -> Vec<(String, String)> {
+            state["ok"]["files"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|f| {
+                    (
+                        f["path"].as_str().unwrap().to_owned(),
+                        f["hash"].as_str().unwrap().to_owned(),
+                    )
+                })
+                .filter(|(p, _)| p.starts_with("Caf"))
+                .collect()
+        };
+        let state = call(&mut ws, 5, "sync_state", json!({})).await;
+        assert_eq!(
+            cafes(&state),
+            vec![(COMPOSED.to_owned(), sha256(b"# composto\n"))],
+            "{state}"
+        );
+        assert_eq!(
+            crate::twins::of_folder(&r.server, &id),
+            vec![crate::twins::Twin {
+                kept: COMPOSED.to_owned(),
+                held: DECOMPOSED.to_owned(),
+            }]
+        );
+        // A write the server knows names the held one: still not in the log.
+        let key = verso_service::lock(&r.server.keys)
+            .iter()
+            .find(|(_, f)| **f == id)
+            .map(|(k, _)| k.clone())
+            .unwrap();
+        crate::sync::reconcile_written(&r.server, &id, &key, None, &[DECOMPOSED.to_owned()])
+            .unwrap();
+        let state = call(&mut ws, 6, "sync_state", json!({})).await;
+        assert_eq!(cafes(&state).len(), 1, "{state}");
+    });
+}
+
 /// The unit of sync is a file (ADR 0079 item 2): a folder the window makes
 /// — as the window in a browser and the demo's import do, the folder
 /// first, then the files in it — is never read as a file nor said as one
