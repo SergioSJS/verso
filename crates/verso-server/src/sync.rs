@@ -12,7 +12,7 @@
 //! no longer that one (invariant 11).
 
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, Weak};
 use std::time::{Duration, Instant};
 
 use base64::Engine;
@@ -69,6 +69,11 @@ fn room<T>(map: &mut HashMap<(String, String), T>, client: &str, at: impl Fn(&T)
 pub struct Transfers {
     up: Mutex<HashMap<(String, String), Upload>>,
     down: Mutex<HashMap<(String, String), Reading>>,
+    /// Per folder and path, the bytes being read and their hash, shared by
+    /// the clients reading the same file at the same hash: one copy in
+    /// memory however many devices fetch it. Held by the readings above,
+    /// gone with the last of them.
+    shared: Mutex<HashMap<(String, String), Shared>>,
     /// One reconciliation at a time per folder: two from the same state
     /// would log the same change twice.
     folders: Mutex<HashMap<String, Arc<Mutex<()>>>>,
@@ -95,6 +100,15 @@ impl Transfers {
     #[cfg(test)]
     pub(crate) fn kept(&self) -> (usize, usize) {
         (lock(&self.up).len(), lock(&self.down).len())
+    }
+
+    /// How many files being read are in memory, however many read them.
+    #[cfg(test)]
+    pub(crate) fn copies(&self) -> usize {
+        lock(&self.shared)
+            .values()
+            .filter(|(b, _)| b.strong_count() > 0)
+            .count()
     }
 }
 
@@ -138,6 +152,10 @@ fn head_for_question(
         server.db.head(folder).map_err(verso_service::failed)
     }
 }
+
+/// A file being read by one client or more: its bytes, while a reading
+/// holds them, and their hash.
+type Shared = (Weak<Vec<u8>>, String);
 
 /// A file being read in pieces, kept between them.
 type Reading = (Arc<Vec<u8>>, Instant);
@@ -697,7 +715,7 @@ pub async fn command(
     who: &Who,
     client: &str,
     cmd: &str,
-    args: &Value,
+    args: Value,
 ) -> Result<Value, ContractError> {
     let (folder, role) = role_here(server, client)?;
     let writes = role.writes() && who.reaches(&folder).1;
@@ -741,7 +759,7 @@ pub async fn command(
         },
     );
     let cmd = cmd.to_owned();
-    let args = args.clone();
+    // Moved, never copied: a piece of a file is megabytes of base64.
     let answer = blocking(move || match cmd.as_str() {
         "sync_state" => {
             let head = head_for_question(&s, &folder, &key, &c)?;
@@ -771,7 +789,7 @@ pub async fn command(
                 account: Some(&actor),
                 device: device.as_deref(),
             },
-            &args,
+            args,
         ),
         "sync_delete" => {
             let named: String = arg(&args, "path")?;
@@ -1030,6 +1048,10 @@ fn form_taken() -> OpError {
     .into()
 }
 
+fn too_large() -> ContractError {
+    refused("a file of more than 1 GiB is not synced")
+}
+
 fn read(
     server: &Server,
     client: &str,
@@ -1040,7 +1062,7 @@ fn read(
     let path: String = arg(args, "path")?;
     let offset: u64 = arg(args, "offset")?;
     let place = (client.to_owned(), path.clone());
-    let bytes = {
+    let kept = {
         let mut down = lock(&server.transfers.down);
         down.retain(|_, (_, at)| at.elapsed() < IDLE);
         if offset == 0 {
@@ -1048,17 +1070,11 @@ fn read(
         }
         down.get(&place).map(|(b, _)| Arc::clone(b))
     };
-    let bytes = match bytes {
-        Some(b) => b,
+    let (bytes, hash) = match kept {
+        Some(b) => (b, None),
         None => {
-            let (p, _) = as_kept(server, folder, &path)?;
-            let (b, _) = server
-                .service
-                .with_key(key, move |ws| Ok(ws.read_with_revision(&p)?))?;
-            if b.len() as u64 > LARGEST {
-                return Err(refused("a file of more than 1 GiB is not synced"));
-            }
-            Arc::new(b)
+            let (b, h) = load(server, folder, key, &path)?;
+            (b, Some(h))
         }
     };
     let size = bytes.len() as u64;
@@ -1066,7 +1082,7 @@ fn read(
     let end = start.saturating_add(PIECE).min(bytes.len());
     let piece = base64::engine::general_purpose::STANDARD.encode(&bytes[start..end]);
     let done = end >= bytes.len();
-    let hash = (offset == 0).then(|| sha256(&bytes));
+    let hash = hash.filter(|_| offset == 0);
     let mut down = lock(&server.transfers.down);
     if done {
         down.remove(&place);
@@ -1079,21 +1095,67 @@ fn read(
     Ok(json!({ "data": piece, "size": size, "done": done, "hash": hash }))
 }
 
+/// The bytes of the file at `path` a device starts to read, and their
+/// hash: those another client is reading at the hash the folder's log
+/// gives the file, else read — once the listing's size says the file is
+/// not larger than sync carries.
+fn load(
+    server: &Server,
+    folder: &str,
+    key: &str,
+    path: &str,
+) -> Result<(Arc<Vec<u8>>, String), ContractError> {
+    let (p, _) = as_kept(server, folder, path)?;
+    let logged = server
+        .db
+        .known(folder, &p)
+        .map_err(verso_service::failed)?
+        .map(|k| k.hash);
+    let place = (folder.to_owned(), p.clone());
+    {
+        let mut shared = lock(&server.transfers.shared);
+        shared.retain(|_, (b, _)| b.strong_count() > 0);
+        if let Some((b, h)) = shared.get(&place)
+            && logged.as_ref() == Some(h)
+            && let Some(b) = b.upgrade()
+        {
+            return Ok((b, h.clone()));
+        }
+    }
+    let bytes = server.service.with_key(key, move |ws| {
+        let listed = ws.entries().iter().find(|e| e.path == p).map(|e| e.len);
+        if listed.is_some_and(|len| len > LARGEST) {
+            return Err(too_large().into());
+        }
+        Ok(ws.read_with_revision(&p)?.0)
+    })?;
+    if bytes.len() as u64 > LARGEST {
+        return Err(too_large());
+    }
+    let hash = sha256(&bytes);
+    let bytes = Arc::new(bytes);
+    lock(&server.transfers.shared).insert(place, (Arc::downgrade(&bytes), hash.clone()));
+    Ok((bytes, hash))
+}
+
 fn put(
     server: &Server,
     client: &str,
     (folder, key): (&str, &str),
     by: Author<'_>,
-    args: &Value,
+    mut args: Value,
 ) -> Result<Value, ContractError> {
-    let path: String = arg(args, "path")?;
-    let offset: u64 = arg(args, "offset")?;
-    let size: u64 = arg(args, "size")?;
-    let hash: String = arg(args, "hash")?;
-    let base: Option<String> = arg(args, "base")?;
-    let data: String = arg(args, "data")?;
+    let path: String = arg(&args, "path")?;
+    let offset: u64 = arg(&args, "offset")?;
+    let size: u64 = arg(&args, "size")?;
+    let hash: String = arg(&args, "hash")?;
+    let base: Option<String> = arg(&args, "base")?;
+    // Taken out of the request, not copied.
+    let Some(Value::String(data)) = args.get_mut("data").map(Value::take) else {
+        return Err(refused("data: a string of base64"));
+    };
     if size > LARGEST {
-        return Err(refused("a file of more than 1 GiB is not synced"));
+        return Err(too_large());
     }
     let piece = base64::engine::general_purpose::STANDARD
         .decode(data.as_bytes())
