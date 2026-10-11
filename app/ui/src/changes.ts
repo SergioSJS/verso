@@ -4,11 +4,12 @@
 
 import { refreshBases } from "./bases";
 import { commands, type FolderChanged, type IndexSummary } from "./bindings";
+import { host } from "./can";
 import { ui } from "./dom";
 import { fail } from "./errors";
-import { forgetFiles } from "./files";
+import { followMoved, forgetFiles } from "./files";
 import { currentFolder } from "./folder";
-import { spaces } from "./layout/spaces";
+import { leavesUnder, spaces } from "./layout/spaces";
 import { BoardLeaf } from "./leaves/board";
 import { FolderLeaf } from "./leaves/folderView";
 import { Leaf } from "./leaves/leaf";
@@ -57,6 +58,18 @@ export async function afterFileChange(): Promise<void> {
  * tags, links and embeds when notes did. */
 export async function changedOutside(change: FolderChanged): Promise<void> {
   if (change.key !== currentFolder) return;
+  // Renamed by the side — a device's rename on a server (ADR 0079): the
+  // tabs and what remembers paths follow, as after a rename made here,
+  // and each tab has read its note at the new name before the others are
+  // checked against the disk (else the old name would be found gone).
+  const moved = change.moved ?? [];
+  if (moved.length > 0) {
+    const following = moved.flatMap((m) => leavesUnder(m.from));
+    followMoved(moved, []);
+    await Promise.all(following.map((l) => l.loading));
+    if (change.key !== currentFolder) return;
+    ui.status.textContent = t.movedElsewhere(moved.map((m) => `${name(m.from)} → ${name(m.to)}`).join(", "));
+  }
   const changed = new Set([...change.changed, ...change.removed]);
   if (change.listing) refreshLists();
   else if (changed.size > 0 && ui.search.value.trim() !== "") whenNotRenaming(ui.notes, () => void searchNotes(ui.search.value));
@@ -110,9 +123,12 @@ export function tellOutcomes(outcomes: Outcome[]): void {
   const gone = names("gone");
   const back = names("back");
   const said: string[] = [];
-  if (conflict.length > 0) said.push(t.conflictOutside(conflict.join(", ")));
-  if (gone.length > 0) said.push(t.goneNamed(gone.join(", ")));
-  if (read.length > 0) said.push(t.readOutside(read.join(", ")));
+  // On a server a note also changes on another device that syncs the
+  // folder (ADR 0079): said so.
+  const server = host() === "server";
+  if (conflict.length > 0) said.push((server ? t.conflictElsewhere : t.conflictOutside)(conflict.join(", ")));
+  if (gone.length > 0) said.push((server ? t.goneNamedElsewhere : t.goneNamed)(gone.join(", ")));
+  if (read.length > 0) said.push((server ? t.readElsewhere : t.readOutside)(read.join(", ")));
   if (back.length > 0) said.push(t.backOutside(back.join(", ")));
   if (said.length > 0) ui.status.textContent = said.join(" ");
 }

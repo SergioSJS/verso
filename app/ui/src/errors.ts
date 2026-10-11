@@ -18,7 +18,21 @@ export function fail(e: ContractError | unknown): void {
   // A phone has no status bar: the failure is said at the top of its
   // pane instead (ADR 0076 item 6, screen/frame.ts).
   if (!ANSWERS.has(kind)) dispatchEvent(new CustomEvent("verso:failed", { detail: said }));
-  note(ANSWERS.has(kind) ? "INFO" : "ERROR", kind ? `${kind}: ${message}` : message);
+  note(ANSWERS.has(kind) || STATE.has(kind) ? "INFO" : "ERROR", kind ? `${kind}: ${message}` : message);
+}
+/** Kinds that tell the window's own state, not a fault: a file it named
+ *  is no longer there — deleted or moved elsewhere, on a server possibly
+ *  on another device. Said all the same; INFO in the log. */
+const STATE = new Set(["not_found"]);
+/** A failure said in `words` of the window's own, not the core's
+ *  sentence (a file no longer there, without the system's text of the
+ *  failed read); the log keeps the core's text, at the level `fail` would
+ *  give it. */
+export function failSaid(words: string, e: ContractError | unknown): void {
+  const { kind, message } = errorParts(e);
+  ui.status.textContent = words;
+  if (!ANSWERS.has(kind)) dispatchEvent(new CustomEvent("verso:failed", { detail: words }));
+  note(ANSWERS.has(kind) || STATE.has(kind) ? "INFO" : "ERROR", kind ? `${kind}: ${message}` : message);
 }
 /** Kinds that answer what the user asked for, not a fault: a name already
  *  taken. The status bar says it; the log keeps ERROR for what went wrong. */

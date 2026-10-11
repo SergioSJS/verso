@@ -12,6 +12,7 @@ import { icon } from "../../icons";
 import { renderSticker, resolveColor, showStickerPicker } from "../../labels";
 import { bannerFraction, bannerPercent, pickerStrings } from "../../organize/cover";
 import { setFrontmatterProp } from "../../organize/frontmatter";
+import { host } from "../../can";
 import { st } from "../../screen/strings";
 import { heldImage } from "../../sanitize";
 import { settings } from "../../settings";
@@ -243,7 +244,8 @@ export function paintFlags(this: NoteLeaf): void {
   if (note?.unverified) flags.push(t.unverified);
   if (this.mixedEol) flags.push(t.mixedEol);
   else if (this.readOnly) flags.push(st.readOnly);
-  if (this.gone) flags.push(t.goneOutside);
+  // On a server a note also goes on another device that syncs the folder.
+  if (this.gone) flags.push(host() === "server" ? t.goneElsewhere : t.goneOutside);
   // A schema block of this note that types nothing says so here (ADR
   // 0052 points 3 and 5).
   for (const b of note?.schema_blocks ?? []) {

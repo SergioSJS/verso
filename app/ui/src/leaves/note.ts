@@ -21,7 +21,7 @@ import { button, h, ui } from "../dom";
 import { minimalEdit } from "../edit";
 import { slashSections } from "../editor/complete";
 import { linkCard } from "../editor/linkCard";
-import { fail } from "../errors";
+import { fail, failSaid } from "../errors";
 import { createNote, renameNote } from "../files";
 import { calm } from "../format";
 import { icon } from "../icons";
@@ -753,7 +753,8 @@ export class NoteLeaf extends Leaf {
       this.path = path;
       this.setTitle(name(path));
       // A tab brought back with its file in the cloud waits to be shown.
-      if (note.error.kind !== "unavailable" || this.pane.active === this) fail(note.error);
+      if (note.error.kind === "not_found") failSaid(this.failureLine(path, note.error), note.error);
+      else if (note.error.kind !== "unavailable" || this.pane.active === this) fail(note.error);
       return this.showFailure(path, note.error, () => void this.load(path, true));
     }
     this.clearFailure();
@@ -780,14 +781,37 @@ export class NoteLeaf extends Leaf {
       conflict: () => void this.collabConflict(),
       closed: (why) => {
         this.collab = null;
-        void this.load(this.path, true).then(() => {
-          if (why === "lost") ui.status.textContent = lostLine();
-        });
+        void this.roomClosed(why);
       },
       remote: () => {
         this.previewStale = true;
       },
     };
+  }
+  /** The room closed: the note read again from the disk, on its own. One
+   *  that followed a rename meanwhile (a device's, ADR 0079) is read at its
+   *  new name by that load. One gone from the disk — deleted or moved on
+   *  another device — keeps its text, out of the room, and says it is gone
+   *  in words, as after a change seen outside: never the system's text of
+   *  a failed read. */
+  private async roomClosed(why?: "lost"): Promise<void> {
+    const path = this.path;
+    await this.loading;
+    if (this.destroyed || path !== this.path) return;
+    const load = this.loads;
+    const note = await commands.readNote(path);
+    if (this.destroyed || load !== this.loads || path !== this.path) return;
+    if (note.status !== "ok" && note.error.kind === "not_found") {
+      this.editor.setState(this.editorState(this.editor.state.doc.toString()));
+      this.applyMode();
+      if (!this.gone) {
+        this.markGone();
+        tellOutcomes([{ leaf: this, outcome: "gone" }]);
+      }
+      return;
+    }
+    await this.load(path, true);
+    if (why === "lost") ui.status.textContent = lostLine();
   }
   private async collabConflict(): Promise<void> {
     const fresh = await opening.readNote(this.path);
