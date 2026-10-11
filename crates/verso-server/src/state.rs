@@ -11,7 +11,9 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-use tokio::sync::mpsc;
+use axum::extract::ws::Utf8Bytes;
+use tokio::sync::mpsc::error::TrySendError;
+use tokio::sync::{Notify, OwnedSemaphorePermit, mpsc};
 use verso_contract::{FolderChanged, IndexProgress};
 use verso_service::{Service, lock};
 
@@ -23,6 +25,113 @@ use crate::limit::Limiter;
 /// says about the connection itself.
 pub type Push = serde_json::Value;
 
+/// The messages a connection's queue holds, at most, besides the answers
+/// to its requests (those wait for room, and are bounded by the requests
+/// it may have under way, `crate::rpc`). A window that reads as the server
+/// writes never has more than a few waiting: the connection's loop writes
+/// each one as it comes. Events are small (a folder changed, a shared
+/// note's update, an index's progress at most every so often), so a full
+/// queue is at most a few megabytes, and means the client stopped reading:
+/// it is closed rather than the queue grown without end.
+pub const QUEUE: usize = 1024;
+
+/// A message on its way to one connection, already in its frame's text —
+/// a message pushed to many is written once and shared — with whether the
+/// connection closes after it, and, for an answer, the permit of the
+/// request it answers, given back once it is written.
+pub struct Out {
+    pub text: Utf8Bytes,
+    pub close: bool,
+    pub permit: Option<OwnedSemaphorePermit>,
+}
+
+/// A message in its frame's text, to send to one connection or more.
+#[derive(Clone)]
+pub struct Frame {
+    text: Utf8Bytes,
+    close: bool,
+}
+
+impl Frame {
+    #[must_use]
+    pub fn of(message: &Push) -> Self {
+        Self {
+            text: message.to_string().into(),
+            // A session ended: the connection is told, then closed.
+            close: message.get("gone").is_some_and(|g| g == "session"),
+        }
+    }
+}
+
+/// Where a connection's messages go: a bounded queue, read by the
+/// connection's loop.
+#[derive(Clone)]
+pub struct Outbox {
+    tx: mpsc::Sender<Out>,
+    /// Told when the queue was found full: the loop closes the connection.
+    slow: Arc<Notify>,
+}
+
+impl Outbox {
+    /// A queue of `capacity` messages, its reading end, and what tells its
+    /// loop that the client is too slow.
+    #[must_use]
+    pub fn new(capacity: usize) -> (Self, mpsc::Receiver<Out>, Arc<Notify>) {
+        let (tx, rx) = mpsc::channel(capacity);
+        let slow = Arc::new(Notify::new());
+        (
+            Self {
+                tx,
+                slow: Arc::clone(&slow),
+            },
+            rx,
+            slow,
+        )
+    }
+
+    /// Queue `message` without waiting. Returns whether it was queued: a
+    /// connection gone takes nothing, and one whose queue is full is too
+    /// slow — its loop is told to close it.
+    pub fn send(&self, message: &Push) -> bool {
+        self.send_frame(&Frame::of(message))
+    }
+
+    /// [`Outbox::send`], for a message already in its frame.
+    pub fn send_frame(&self, frame: &Frame) -> bool {
+        let out = Out {
+            text: frame.text.clone(),
+            close: frame.close,
+            permit: None,
+        };
+        match self.tx.try_send(out) {
+            Ok(()) => true,
+            Err(TrySendError::Full(_)) => {
+                self.slow.notify_one();
+                false
+            }
+            Err(TrySendError::Closed(_)) => false,
+        }
+    }
+
+    /// Queue the answer to a request, waiting for room: the request's
+    /// permit goes with it and is given back once the answer is written,
+    /// so the answers waiting are bounded by the requests a connection may
+    /// have under way.
+    pub async fn answer(&self, message: Push, permit: OwnedSemaphorePermit) {
+        let frame = Frame::of(&message);
+        // Only the frame waits for room: one copy of the answer, not two.
+        drop(message);
+        let _ = self
+            .tx
+            .send(Out {
+                text: frame.text,
+                close: frame.close,
+                permit: Some(permit),
+            })
+            .await;
+    }
+}
+
 /// A connected window: whose it is, which folder it shows and in which
 /// role, and where its pushes go.
 pub struct Client {
@@ -30,7 +139,7 @@ pub struct Client {
     /// The session the connection was opened with; none for a token's.
     pub session: Option<String>,
     pub folder: Option<(String, Role)>,
-    pub tx: mpsc::UnboundedSender<Push>,
+    pub tx: Outbox,
 }
 
 pub struct Server {
@@ -114,29 +223,32 @@ impl Server {
 
     /// Push `message` to each of `clients` still connected.
     pub fn push(&self, clients: &[String], message: &Push) {
+        let frame = Frame::of(message);
         let table = lock(&self.clients);
         for id in clients {
             if let Some(c) = table.get(id) {
-                let _ = c.tx.send(message.clone());
+                c.tx.send_frame(&frame);
             }
         }
     }
 
     /// Push to every window that shows folder `folder` (by its id).
     pub fn push_folder(&self, folder: &str, message: &Push) {
+        let frame = Frame::of(message);
         let table = lock(&self.clients);
         for c in table.values() {
             if c.folder.as_ref().is_some_and(|(f, _)| f == folder) {
-                let _ = c.tx.send(message.clone());
+                c.tx.send_frame(&frame);
             }
         }
     }
 
     /// Every window of `account`: told to go when its sessions end.
     pub fn push_account(&self, account: &str, message: &Push) {
+        let frame = Frame::of(message);
         let table = lock(&self.clients);
         for c in table.values().filter(|c| c.account == account) {
-            let _ = c.tx.send(message.clone());
+            c.tx.send_frame(&frame);
         }
     }
 
@@ -155,7 +267,7 @@ impl Server {
             if keep == Some(session) || only.is_some_and(|o| o != session) {
                 continue;
             }
-            let _ = c.tx.send(serde_json::json!({ "gone": "session" }));
+            c.tx.send(&serde_json::json!({ "gone": "session" }));
         }
     }
 
@@ -169,11 +281,11 @@ impl Server {
                 match role {
                     Some(r) => {
                         c.folder = Some((folder.to_owned(), r));
-                        let _ = c.tx.send(serde_json::json!({ "role": r }));
+                        c.tx.send(&serde_json::json!({ "role": r }));
                     }
                     None => {
                         c.folder = None;
-                        let _ = c.tx.send(serde_json::json!({ "gone": "folder" }));
+                        c.tx.send(&serde_json::json!({ "gone": "folder" }));
                     }
                 }
             }
@@ -219,5 +331,39 @@ impl verso_service::Events for ServerEvents {
 
     fn log(&self, level: &str, message: &str) {
         crate::log::line(level, message);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use serde_json::json;
+
+    use super::Outbox;
+
+    /// A connection's queue is bounded (R5 of 2026-10-11): a message that
+    /// finds it full is not queued, and the connection's loop is told the
+    /// client reads too slowly; a session's end closes after it is written.
+    #[test]
+    fn a_full_queue_says_the_client_reads_too_slowly() {
+        crate::tests::block_on(async {
+            let (out, mut rx, slow) = Outbox::new(2);
+            assert!(out.send(&json!({ "event": "um" })));
+            assert!(out.send(&json!({ "gone": "session" })));
+            assert!(!out.send(&json!({ "event": "três" })));
+            tokio::time::timeout(Duration::from_secs(5), slow.notified())
+                .await
+                .unwrap();
+            let first = rx.recv().await.unwrap();
+            assert_eq!(first.text.as_str(), r#"{"event":"um"}"#);
+            assert!(!first.close);
+            assert!(rx.recv().await.unwrap().close);
+            // Room again: queued.
+            assert!(out.send(&json!({ "event": "quatro" })));
+            // The connection gone: nothing queued, nothing said.
+            drop(rx);
+            assert!(!out.send(&json!({ "event": "cinco" })));
+        });
     }
 }

@@ -17,20 +17,21 @@
 //! refused; the window hides it, told by `capabilities`.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use axum::extract::WebSocketUpgrade;
 use axum::extract::ws::{Message, WebSocket};
 use axum::response::Response;
 use serde::Deserialize;
 use serde_json::{Value, json};
-use tokio::sync::mpsc;
+use tokio::sync::Semaphore;
 use verso_contract::{Can, Capabilities, ContractError, ErrorKind, Host};
 use verso_service::{Access, lock, ops};
 
 use crate::auth::{Via, Who};
 use crate::db::{Folder, Role};
 use crate::http::{ApiError, ApiResult, Ctx};
-use crate::state::{Client, Server};
+use crate::state::{Client, Outbox, QUEUE, Server};
 
 /// The largest message: a picture pasted into a note crosses as base64 in
 /// `create_file` (ADR 0073 item 6: upload limits).
@@ -41,6 +42,22 @@ const SIGNED_OUT: &str = "signed out";
 
 /// Lines a window may write to the server's log a minute.
 const LOG_LINES: u32 = 60;
+
+/// Requests a connection may have under way at once. A window asks a few
+/// things at a time (more while it opens a folder), a device one piece of
+/// a file at a time; past this, the connection's next requests wait to be
+/// read — none is refused — so one connection cannot hold the server's
+/// threads and memory with requests it sent all at once.
+const REQUESTS: usize = 8;
+
+/// How often the server pings a connection: a connection whose other end
+/// went away without closing it (a laptop's lid shut, a network dropped)
+/// is noticed by the pings it does not answer. The other end's WebSocket
+/// answers on its own; nothing of the window or the device takes part.
+const PING_EVERY: Duration = Duration::from_secs(30);
+
+/// Pings in a row left unanswered before the connection is closed.
+const MISSED: u8 = 2;
 
 pub async fn upgrade(ctx: Ctx, ws: WebSocketUpgrade) -> ApiResult<Response> {
     ctx.secure()?;
@@ -77,7 +94,7 @@ struct Request {
 
 async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket) {
     let client = server.client_id();
-    let (tx, mut rx) = mpsc::unbounded_channel::<Value>();
+    let (tx, mut rx, slow) = Outbox::new(QUEUE);
     lock(&server.clients).insert(
         client.clone(),
         Client {
@@ -96,21 +113,57 @@ async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket) {
     let _ = socket.send(Message::Text(hello.to_string().into())).await;
     let who = Arc::new(who);
     let mut log_budget = (std::time::Instant::now(), 0_u32);
+    let requests = Arc::new(Semaphore::new(REQUESTS));
+    let mut ping = tokio::time::interval_at(tokio::time::Instant::now() + PING_EVERY, PING_EVERY);
+    ping.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    let mut unanswered: u8 = 0;
     loop {
         tokio::select! {
             pushed = rx.recv() => {
-                let Some(message) = pushed else { break };
-                let gone = message.get("gone").is_some_and(|g| g == "session");
-                if socket.send(Message::Text(message.to_string().into())).await.is_err() {
+                let Some(out) = pushed else { break };
+                if socket.send(Message::Text(out.text)).await.is_err() {
                     break;
                 }
-                if gone {
+                // Written: the request it answered gives its place back.
+                drop(out.permit);
+                if out.close {
                     let _ = socket.send(Message::Close(None)).await;
                     break;
                 }
             }
-            incoming = socket.recv() => {
+            () = slow.notified() => {
+                crate::log::warn(&format!(
+                    "connection {client} ({}) closed: {QUEUE} messages waited for it, it reads too slowly",
+                    who.account.id
+                ));
+                break;
+            }
+            _ = ping.tick() => {
+                // Every request's place taken: the connection is not read
+                // until one is answered, so a pong could not be heard.
+                if requests.available_permits() == 0 {
+                    unanswered = 0;
+                    continue;
+                }
+                if unanswered >= MISSED {
+                    crate::log::info(&format!(
+                        "connection {client} ({}) closed: {MISSED} pings unanswered",
+                        who.account.id
+                    ));
+                    break;
+                }
+                if socket.send(Message::Ping(Default::default())).await.is_err() {
+                    break;
+                }
+                unanswered += 1;
+            }
+            // Read only while a request may start: past [`REQUESTS`] under
+            // way, the next waits in the connection, not in memory here.
+            incoming = socket.recv(), if requests.available_permits() > 0 => {
                 let Some(Ok(message)) = incoming else { break };
+                // Anything heard, a pong or a request, says the other end
+                // is there.
+                unanswered = 0;
                 // Parsed where it arrived: a piece of a file is megabytes.
                 let parsed = match message {
                     Message::Text(t) => serde_json::from_str::<Request>(t.as_str()),
@@ -118,7 +171,7 @@ async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket) {
                     _ => continue,
                 };
                 let Ok(request) = parsed else {
-                    let _ = tx.send(json!({ "err": refused("not a request") }));
+                    tx.send(&json!({ "err": refused("not a request") }));
                     continue;
                 };
                 if request.cmd == "log_write" {
@@ -127,10 +180,16 @@ async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket) {
                     }
                     log_budget.1 += 1;
                     if log_budget.1 > LOG_LINES {
-                        let _ = tx.send(json!({ "id": request.id, "ok": null }));
+                        tx.send(&json!({ "id": request.id, "ok": null }));
                         continue;
                     }
                 }
+                // Free: this loop alone takes places, and read only with
+                // one free.
+                let Ok(permit) = Arc::clone(&requests).try_acquire_owned() else {
+                    tx.send(&json!({ "id": request.id, "err": refused("too many requests at once") }));
+                    continue;
+                };
                 let server = Arc::clone(&server);
                 let who = Arc::clone(&who);
                 let client = client.clone();
@@ -145,10 +204,10 @@ async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket) {
                         Ok(value) => json!({ "id": id, "ok": value }),
                         Err(e) => json!({ "id": id, "err": e }),
                     };
-                    let _ = tx.send(reply);
+                    tx.answer(reply, permit).await;
                     // The answer first, then the connection told and closed.
                     if signed_out {
-                        let _ = tx.send(json!({ "gone": "session" }));
+                        tx.send(&json!({ "gone": "session" }));
                     }
                 });
             }
@@ -537,7 +596,7 @@ async fn open(
     if let Some(c) = lock(&server.clients).get_mut(client) {
         c.folder = Some((folder.id.clone(), role));
         let _ =
-            c.tx.send(json!({ "folder": { "id": folder.id, "name": folder.dir, "role": role } }));
+            c.tx.send(&json!({ "folder": { "id": folder.id, "name": folder.dir, "role": role } }));
     }
     record_space(server, client).await;
     to_value(info)

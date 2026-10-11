@@ -42,6 +42,7 @@ versão de teste.
 - **A sincronização de uma pasta não fica mais "sincronizando" para sempre** quando a conexão com o servidor cai no momento em que uma mudança é feita aqui: diz que está offline e conecta de novo, e a mudança cruza então.
 - **Um arquivo maior que 1 GiB numa pasta do servidor** não derruba mais um servidor pequeno na varredura seguinte: a sincronização o deixa de fora sem lê-lo e diz isso uma vez no log do servidor, como grande demais para sincronizar.
 - **Menos disco e CPU num servidor que sincroniza**: um arquivo que um aparelho envia, ou uma mudança que o servidor lê, não é mais lido e resumido (hash) de novo pela varredura seguinte.
+- **Uma conexão com o servidor que caiu sem se fechar** (a tampa de um notebook fechada, uma rede que sumiu) é percebida pelo servidor em até um minuto e meio, e o que ela ocupava lá é liberado.
 
 ## 0.7.0-beta.1 — 2026-10-10
 
