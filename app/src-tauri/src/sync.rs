@@ -505,6 +505,14 @@ pub(crate) struct Link {
     pub(crate) name: String,
     /// The server's files and the head they are at.
     known: Option<(Files, i64)>,
+    /// The next pass walks the folder first: the connection's first (a
+    /// reconnection), and the scan's. The listing a pass compares is as of
+    /// the watcher's last batch, and a file whose size and time are as the
+    /// last pass saw them is not read again: a change no batch brought — a
+    /// deletion while the server was out of reach (C15 of the live
+    /// campaign, 2026-10-11) — would be skipped by every pass until a
+    /// later walk.
+    pub(crate) walk: bool,
 }
 
 /// Connect for `s`: the device's session, the folder opened, its role.
@@ -551,6 +559,7 @@ pub(crate) async fn link(ctx: &Ctx, s: &Syncer) -> Result<Link, ContractError> {
         role,
         name,
         known: None,
+        walk: true,
     })
 }
 
@@ -583,6 +592,10 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
     let Some((remote_files, head)) = l.known.as_mut() else {
         return Ok(Passed::default());
     };
+    if l.walk {
+        tokio::task::block_in_place(|| ctx.service.walk_quietly(&s.key));
+        l.walk = false;
+    }
     let mut state = synced(ctx.config.as_deref(), &s.key).unwrap_or_default();
     state.server.clone_from(&s.url);
     state.folder.clone_from(&s.folder);
@@ -1281,7 +1294,11 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
             let lost = loop {
                 tokio::select! {
                     () = s.wake.notified() => break false,
-                    () = tokio::time::sleep_until(deadline) => break false,
+                    // The scan: the folder walked, as on reconnecting.
+                    () = tokio::time::sleep_until(deadline) => {
+                        l.walk = true;
+                        break false;
+                    }
                     h = l.heard.recv() => match h {
                         Some(remote::Heard::Event(e, _)) if e == "sync-changed" => break false,
                         // Promoted or made a reader: what may cross changes now.
