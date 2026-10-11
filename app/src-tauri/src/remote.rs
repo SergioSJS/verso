@@ -63,7 +63,41 @@ pub(crate) fn forwards(cmd: &str) -> bool {
         )
 }
 
-type Pending = Arc<Mutex<HashMap<u64, oneshot::Sender<Result<Value, Value>>>>>;
+/// The questions sent and not yet answered, and whether the connection is
+/// known closed: one lock for both, so a question is never registered
+/// after the last one was answered unavailable.
+#[derive(Default)]
+struct Questions {
+    waiting: HashMap<u64, oneshot::Sender<Result<Value, Value>>>,
+    closed: bool,
+}
+
+type Pending = Arc<Mutex<Questions>>;
+
+/// The connection closed, seen by the task that reads or the one that
+/// writes: no question is registered from now on, and every one waiting is
+/// answered unavailable. True for the first to see it. Either task may end
+/// first — the live campaign (2026-10-11) had the reader end while idle,
+/// then a question sent through a writer that failed on it, left waiting
+/// forever with no one to answer it.
+fn close(pending: &Pending) -> bool {
+    let (first, waiting) = {
+        let mut q = lock(pending);
+        let first = !q.closed;
+        q.closed = true;
+        (first, std::mem::take(&mut q.waiting))
+    };
+    for (_, p) in waiting {
+        let _ = p.send(Err(unavailable("the server's connection closed")));
+    }
+    first
+}
+
+/// How long a question waits for its answer: a net under [`close`], for a
+/// connection dead without either task seeing it. One question carries at
+/// most one piece of a file — 4 MiB, some 5.6 MB as base64 — so the bound
+/// is one a slow link (150 kbit/s) does not reach for one piece.
+const ANSWER_WITHIN: std::time::Duration = std::time::Duration::from_secs(300);
 
 /// A window's connection to a server, on one of its folders.
 pub(crate) struct Remote {
@@ -89,16 +123,27 @@ impl Remote {
     pub(crate) async fn call(&self, cmd: &str, args: Value) -> Result<Value, Value> {
         let id = self.next.fetch_add(1, Ordering::Relaxed);
         let (tx, rx) = oneshot::channel();
-        lock(&self.pending).insert(id, tx);
+        {
+            let mut q = lock(&self.pending);
+            if q.closed {
+                return Err(unavailable("the server's connection is closed"));
+            }
+            q.waiting.insert(id, tx);
+        }
         let text = json!({ "id": id, "cmd": cmd, "args": args }).to_string();
         if self.tx.send(text).is_err() {
-            lock(&self.pending).remove(&id);
+            lock(&self.pending).waiting.remove(&id);
             return Err(unavailable("the server's connection is closed"));
         }
         let sent = std::time::Instant::now();
-        let answer = rx
-            .await
-            .unwrap_or_else(|_| Err(unavailable("the server's connection closed")));
+        let answer = match tokio::time::timeout(ANSWER_WITHIN, rx).await {
+            Ok(Ok(answer)) => answer,
+            Ok(Err(_)) => Err(unavailable("the server's connection closed")),
+            Err(_) => {
+                lock(&self.pending).waiting.remove(&id);
+                Err(unavailable("the server did not answer"))
+            }
+        };
         let ms = u32::try_from(sent.elapsed().as_millis()).unwrap_or(u32::MAX);
         self.latency.store(ms, Ordering::Relaxed);
         // What the window learns of the side includes how far it is
@@ -532,14 +577,23 @@ pub(crate) async fn dial_hello(
     let (mut write, mut read) = socket.split();
     let (tx, mut rx) = mpsc::unbounded_channel::<String>();
     let (heard_tx, heard_rx) = mpsc::unbounded_channel::<Heard>();
-    let pending: Pending = Arc::new(Mutex::new(HashMap::new()));
+    let pending: Pending = Arc::default();
     let (hello_tx, hello_rx) = oneshot::channel::<Value>();
+    let writing = Arc::clone(&pending);
+    let heard_w = heard_tx.clone();
     tauri::async_runtime::spawn(async move {
         while let Some(text) = rx.recv().await {
             if write.send(Message::Text(text.into())).await.is_err() {
-                break;
+                // The question just sent, and any after it, is answered
+                // here: the reader may have ended already.
+                if close(&writing) {
+                    let _ = heard_w.send(Heard::Closed);
+                }
+                return;
             }
         }
+        // The connection was let go: nothing can be asked on it any more.
+        close(&writing);
     });
     let reading = Arc::clone(&pending);
     tauri::async_runtime::spawn(async move {
@@ -552,7 +606,7 @@ pub(crate) async fn dial_hello(
                 continue;
             };
             if let Some(id) = m["id"].as_u64() {
-                if let Some(p) = lock(&reading).remove(&id) {
+                if let Some(p) = lock(&reading).waiting.remove(&id) {
                     let _ = p.send(if m.get("err").is_some() {
                         Err(m["err"].clone())
                     } else {
@@ -572,9 +626,7 @@ pub(crate) async fn dial_hello(
             }
         }
         // The connection closed: every question waiting is unanswered.
-        for (_, p) in lock(&reading).drain() {
-            let _ = p.send(Err(unavailable("the server's connection closed")));
-        }
+        close(&reading);
         let _ = heard_tx.send(Heard::Closed);
     });
     let hello = tokio::time::timeout(std::time::Duration::from_secs(10), hello_rx)
