@@ -501,9 +501,10 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
   70 MB, e foi um pouco mais rápido, cerca de 20–35 % mais operações por
   segundo — um número frouxo: dois picos de um mesmo binário diferem em até
   20 %, a pasta cresceu de uma execução para a outra, e um processo perdido
-  ocupava um dos núcleos da VM de carga. `[OPEN]` Se o mimalloc será
-  adotado não está decidido; a recomendação enviada ao mantenedor foi não
-  adotá-lo.
+  ocupava um dos núcleos da VM de carga. Decidido em 2026-10-11, à noite:
+  o mantenedor adotou o mimalloc como alocador do binário `verso` (*"pode
+  implementar, deixa isso pronto"*), contra a recomendação enviada a ele,
+  que era não adotá-lo.
 - **Paradas**: o serviço parou por 15 s enquanto cinco notas mudavam (uma
   dos dois lados): ao subir, tudo atravessou, com uma cópia de conflito
   para a nota editada dos dois lados. A VM reiniciou com edições pendentes
