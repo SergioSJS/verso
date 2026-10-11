@@ -201,3 +201,56 @@ fn the_console_pages_searches_and_filters_on_the_server() {
         assert_eq!(overview["folders"], 1);
     });
 }
+
+/// A name in two files on the server's disk, its accents in two Unicode
+/// forms (spec Q7; C8b of the live campaign, 2026-10-11): the folder's page
+/// says which one syncs and which is held, and the overview counts it among
+/// what needs a look — until a walk finds it gone.
+#[test]
+fn a_file_held_as_anothers_name_is_said_on_the_console() {
+    use crate::twins::Twin;
+    const COMPOSED: &str = "Caf\u{e9}.md";
+    const DECOMPOSED: &str = "Cafe\u{301}.md";
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &admin).await;
+        let page = format!("/api/admin/folders/{id}");
+        let (_, folder) = get(&r, &page, Some(&admin)).await;
+        assert_eq!(folder["twins"], json!([]), "{folder}");
+        // What a walk of the folder on an ext4 disk finds (the walk itself:
+        // tests_sync, on Linux).
+        crate::twins::found(
+            &r.server,
+            &id,
+            vec![Twin {
+                kept: COMPOSED.to_owned(),
+                held: DECOMPOSED.to_owned(),
+            }],
+        );
+        // Said in the server's log, naming the folder and both files.
+        assert!(crate::log::said(DECOMPOSED).iter().any(|l| {
+            l.starts_with("WARN sync: Campanha: two files hold one name")
+                && l.contains(&format!("kept \"{COMPOSED}\""))
+        }));
+        let (_, folder) = get(&r, &page, Some(&admin)).await;
+        assert_eq!(
+            folder["twins"],
+            json!([{ "kept": COMPOSED, "held": DECOMPOSED }]),
+            "{folder}"
+        );
+        let (_, overview) = get(&r, "/api/admin/overview", Some(&admin)).await;
+        assert_eq!(
+            overview["twins"],
+            json!([{ "id": id, "name": "Campanha", "count": 1 }]),
+            "{overview}"
+        );
+        // Removed on the disk: the next walk finds one file, and nothing is
+        // said any more.
+        crate::twins::found(&r.server, &id, Vec::new());
+        let (_, folder) = get(&r, &page, Some(&admin)).await;
+        assert_eq!(folder["twins"], json!([]), "{folder}");
+        let (_, overview) = get(&r, "/api/admin/overview", Some(&admin)).await;
+        assert_eq!(overview["twins"], json!([]), "{overview}");
+    });
+}

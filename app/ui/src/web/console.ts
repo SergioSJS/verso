@@ -80,20 +80,23 @@ function usage(space: number, quota: number | null): HTMLElement {
 async function overview(c: Ctx, body: HTMLElement): Promise<void> {
   const s = cw();
   c.title(s.overview);
-  type Info = { version: string; newer: string | null; updateCheck: boolean; dataDir: string; foldersDir: string; dataOnNetwork: string | null; foldersOnNetwork: string | null; mail: boolean; tls: string; accounts: number; folders: number; space: number; nearQuota: { id: string; name: string; space: number; quota: number }[]; defaultQuota: number | null };
+  type Info = { version: string; newer: string | null; updateCheck: boolean; dataDir: string; foldersDir: string; dataOnNetwork: string | null; foldersOnNetwork: string | null; mail: boolean; tls: string; accounts: number; folders: number; space: number; nearQuota: { id: string; name: string; space: number; quota: number }[]; twins: { id: string; name: string; count: number }[]; defaultQuota: number | null };
   const o = await api<Info>("GET", "/api/admin/overview");
   const card = (title: string, ...content: (Node | string)[]) => el("section", { class: "console-card" }, el("h2", {}, title), ...content);
   const attention: Node[] = [];
   if (o.newer) attention.push(el("li", {}, s.newer(o.newer)));
   if (o.dataOnNetwork) attention.push(el("li", { class: "web-warn" }, s.dataOnNetwork));
-  for (const f of o.nearQuota) {
-    const a = el("a", { href: `/admin/folders/${f.id}` }, s.nearQuota(f.name, bytes(f.space), bytes(f.quota)));
+  const toFolder = (id: string, text: string): HTMLElement => {
+    const a = el("a", { href: `/admin/folders/${id}` }, text);
     a.addEventListener("click", (e) => {
       e.preventDefault();
-      c.go(`/admin/folders/${f.id}`);
+      c.go(`/admin/folders/${id}`);
     });
-    attention.push(el("li", {}, a));
-  }
+    return el("li", {}, a);
+  };
+  for (const f of o.nearQuota) attention.push(toFolder(f.id, s.nearQuota(f.name, bytes(f.space), bytes(f.quota))));
+  // A name in two files on the server's disk: one of them does not sync.
+  for (const f of o.twins ?? []) attention.push(toFolder(f.id, s.twinsIn(f.name, f.count)));
   const tls = ({ own: s.tlsOwn, proxy: s.tlsProxy, loopback: s.tlsLoopback } as Record<string, string>)[o.tls] ?? s.tlsNone;
   body.replaceChildren(
     el(
@@ -282,7 +285,7 @@ function folders(c: Ctx, body: HTMLElement): void {
 
 async function folderPage(c: Ctx, body: HTMLElement, id: string): Promise<void> {
   const s = cw();
-  type Detail = { id: string; name: string; created: number; members: { id: string; name: string; email: string; role: string }[]; space: Space; quota: number | null };
+  type Detail = { id: string; name: string; created: number; members: { id: string; name: string; email: string; role: string }[]; space: Space; quota: number | null; twins?: { kept: string; held: string }[] };
   const f = await api<Detail>("GET", `/api/admin/folders/${id}`);
   c.title(f.name);
   const said = line();
@@ -316,6 +319,8 @@ async function folderPage(c: Ctx, body: HTMLElement, id: string): Promise<void> 
     row(s.quotaTitle, s.quotaDesc, controls(size, set, clear)),
     row(s.enter, s.enterDesc, controls(enter)),
     said,
+    // Files its last walk held: another's name in another form.
+    ...(f.twins?.length ? [el("h2", { class: "settings-subheading" }, s.attention), el("ul", { class: "console-list", "data-twins": "" }, ...f.twins.map((tw) => el("li", { class: "web-warn" }, s.twin(tw.kept, tw.held))))] : []),
     el("h2", { class: "settings-subheading" }, s.members),
     f.members.length ? el("ul", { class: "console-list" }, ...f.members.map((m) => el("li", {}, `${m.name} · ${m.email} · ${roleName(m.role)}`))) : el("p", { class: "settings-hint" }, s.none),
     el("h2", { class: "settings-subheading" }, s.folderAudit),

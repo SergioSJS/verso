@@ -72,6 +72,8 @@ const pt = {
   totalsLine: (a: number, f: number, sp: string) => `${a} ${a === 1 ? "conta" : "contas"} · ${f} ${f === 1 ? "pasta" : "pastas"} · ${sp}`,
   attention: "Pede atenção",
   nearQuota: (name: string, used: string, quota: string) => `${name}: ${used} de ${quota}`,
+  twin: (kept: string, held: string) => `Dois arquivos com o mesmo nome em formas diferentes: só ${kept} sincroniza; remova ou renomeie ${held} no disco do servidor.`,
+  twinsIn: (name: string, n: number) => `${name}: ${n === 1 ? "um arquivo não sincroniza" : `${n} arquivos não sincronizam`} — o mesmo nome de outro, em outra forma`,
   allGood: "Nada pede atenção agora.",
   defaultQuota: "Cota padrão de pastas novas",
   // Accounts
@@ -261,6 +263,8 @@ const en: typeof pt = {
   totalsLine: (a: number, f: number, sp: string) => `${a} ${a === 1 ? "account" : "accounts"} · ${f} ${f === 1 ? "folder" : "folders"} · ${sp}`,
   attention: "Needs a look",
   nearQuota: (name: string, used: string, quota: string) => `${name}: ${used} of ${quota}`,
+  twin: (kept: string, held: string) => `Two files with one name in different forms: only ${kept} syncs; remove or rename ${held} on the server's disk.`,
+  twinsIn: (name: string, n: number) => `${name}: ${n === 1 ? "one file does not sync" : `${n} files do not sync`} — another's name, in another form`,
   allGood: "Nothing needs a look now.",
   defaultQuota: "Default quota of new folders",
   accountPage: "Account",

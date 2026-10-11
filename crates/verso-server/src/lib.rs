@@ -31,6 +31,7 @@ pub mod rpc;
 pub mod state;
 pub mod sync;
 pub mod tls;
+pub mod twins;
 pub mod update;
 
 use std::net::SocketAddr;
