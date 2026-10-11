@@ -155,6 +155,16 @@ export const commands = {
 	 *  settings. Host-only, like `open_url`: nothing of the folder.
 	 */
 	appInfo: () => typedError<AppInfo, ContractError>(__TAURI_INVOKE("app_info")),
+	/**  This computer's name, for Settings › Servers. */
+	deviceName: () => typedError<DeviceName, ContractError>(__TAURI_INVOKE("device_name")),
+	/**
+	 *  Name this computer: kept here, and told to every server it is signed in
+	 *  to, whose session of this device takes the new name at once. A server
+	 *  that cannot be reached now — or one older than this — keeps the old
+	 *  name until the next sign-in there, and is listed so. A name with
+	 *  nothing in it, or the system's own, goes back to following the system.
+	 */
+	setDeviceName: (name: string) => typedError<DeviceRenamed, ContractError>(__TAURI_INVOKE("set_device_name", { name })),
 	/**
 	 *  A note in a window of its own: the same UI, which asks which note
 	 *  by its window's label.
@@ -726,6 +736,32 @@ export type CollabUpdate = {
 export type ContractError = {
 	kind: ErrorKind,
 	message: string,
+};
+
+/**
+ *  This computer's name (ADR 0079 item 8, ADR 0074 item 8; decided
+ *  2026-10-11): the one the person set in Settings › Servers, or the
+ *  system's. A conflict's copy carries it, and a server's list of sessions
+ *  and its change log show it.
+ */
+export type DeviceName = {
+	/**  The name in use: the person's when set, the system's otherwise. */
+	name: string,
+	/**  The system's name, the default. */
+	system: string,
+	/**  Whether the person set the name. */
+	custom: boolean,
+};
+
+/**
+ *  The name set, and the servers this computer is signed in to that could
+ *  not be told: their list of sessions keeps the old name until the next
+ *  sign-in there.
+ */
+export type DeviceRenamed = {
+	device: DeviceName,
+	/**  The addresses of the servers not reached. */
+	unreached: string[],
 };
 
 /**  One resolved link of the vault, for the graph. */

@@ -313,13 +313,6 @@ fn open_in_browser(page: &str) -> Result<(), ContractError> {
         .map_err(|e| failed(e.to_string()))
 }
 
-/// This computer's name, for the server's list of sessions.
-/// The same name a conflict's copy carries, so that a person matches the
-/// two (`sync::host_name`).
-pub(crate) fn device_name() -> String {
-    format!("Verso · {}", super::sync::host_name())
-}
-
 /// Sign in to a server through the browser: the server's page opens for the
 /// person to approve this device; the app asks meanwhile, keeps the token
 /// when it comes, and says so (`server-signed-in`).
@@ -331,11 +324,14 @@ pub(crate) async fn server_sign_in<R: tauri::Runtime>(
 ) -> Result<ServerSignIn, ContractError> {
     let url = server_url(&url)?;
     let start_url = url.clone();
+    let config = app.state::<App>().service.config().map(Path::to_path_buf);
+    // The name the session keeps: the person's, when set (device.rs).
+    let session = device::session_name(config.as_deref());
     let started = tauri::async_runtime::spawn_blocking(move || {
         answer(
             http()?
                 .post(format!("{start_url}/api/device/start"))
-                .json(&json!({ "device": device_name() }))
+                .json(&json!({ "device": session }))
                 .send()
                 .map_err(|e| failed(e.to_string()))?,
         )
@@ -350,7 +346,6 @@ pub(crate) async fn server_sign_in<R: tauri::Runtime>(
         return Err(refused("the server named a page elsewhere"));
     }
     open_in_browser(&page)?;
-    let config = app.state::<App>().service.config().map(Path::to_path_buf);
     let (poll_code, poll_url) = (code.clone(), url.clone());
     tauri::async_runtime::spawn(async move {
         for _ in 0..(600 / interval) {

@@ -80,6 +80,8 @@ fn main() {
         "server_sign_in",
         "server_accounts",
         "server_sign_out",
+        "device_name",
+        "set_device_name",
         "server_folders",
         "server_open",
         "folder_sync",

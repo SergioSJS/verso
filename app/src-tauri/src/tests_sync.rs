@@ -168,7 +168,7 @@ fn device_at(url: &str, folder: &str, token: &str, files: &[(&str, &str)]) -> De
         ctx: Arc::new(Ctx {
             service,
             config: Some(config.path().to_path_buf()),
-            device: "Mac".into(),
+            device: Box::new(|| "Mac".into()),
             pt: Box::new(|| true),
             shown: Box::new(move |_, s| lock(&heard).push(s.clone())),
         }),

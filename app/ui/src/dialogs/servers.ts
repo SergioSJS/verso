@@ -6,7 +6,8 @@
 // answer K of 2026-10-09): the settings' "Servers" section signs in
 // through the browser — the server's page approves this device, nobody
 // pastes a token (ADR 0074 item 8) — lists the servers signed in to, opens
-// one of their folders in this window, and signs out.
+// one of their folders in this window, and signs out. It also names this
+// computer (ADR 0079 item 8, decided 2026-10-11).
 
 import { listen } from "@tauri-apps/api/event";
 import { commands, type ServerAccount, type ServerFolder } from "../bindings";
@@ -51,6 +52,12 @@ const pt = {
   gone: "A conexão com o servidor caiu; tentando de novo…",
   back: "Conectado ao servidor de novo.",
   goneSession: "O servidor encerrou a sessão deste computador: conecte de novo.",
+  deviceLabel: "Nome deste aparelho",
+  deviceDesc: "Aparece no nome das cópias de conflito e na lista de sessões de cada servidor. Vazio, vale o nome do sistema.",
+  deviceSave: "Salvar nome",
+  deviceSaved: "Salvo.",
+  deviceToldAll: "Salvo; os servidores já mostram o nome novo.",
+  deviceUnreached: (hosts: string[]) => `Salvo. ${hosts.join(", ")} não ${hosts.length === 1 ? "respondeu" : "responderam"} agora: lá, o nome antigo fica até você conectar de novo.`,
 };
 const en: typeof pt = {
   section: "Servers",
@@ -80,6 +87,12 @@ const en: typeof pt = {
   gone: "The connection to the server dropped; trying again…",
   back: "Connected to the server again.",
   goneSession: "The server ended this computer's session: connect again.",
+  deviceLabel: "This device's name",
+  deviceDesc: "It names the conflict copies and shows in each server's list of sessions. Empty, the system's name is used.",
+  deviceSave: "Save name",
+  deviceSaved: "Saved.",
+  deviceToldAll: "Saved; the servers show the new name already.",
+  deviceUnreached: (hosts: string[]) => `Saved. ${hosts.join(", ")} did not answer now: there, the old name stays until you connect again.`,
 };
 
 export function serverStrings(): typeof pt {
@@ -179,9 +192,51 @@ export function serversBody(_item: (title: string, desc: string, control: HTMLEl
     void draw();
   });
 
-  box.append(form, list);
+  box.append(form, deviceForm(), list);
   void draw();
   return box;
+}
+
+/** This computer's name (ADR 0079 item 8, ADR 0074 item 8): the system's
+ *  by default; the person's, when set, names the conflict copies and is
+ *  told to the servers this computer is signed in to. */
+function deviceForm(): HTMLElement {
+  const s = serverStrings();
+  const form = h("form", "srv-connect srv-device");
+  const label = h("label", "srv-label", s.deviceLabel);
+  const name = h("input");
+  name.type = "text";
+  name.id = "srv-device";
+  name.maxLength = 60;
+  name.setAttribute("autocomplete", "off");
+  name.addEventListener("keydown", (e) => e.stopPropagation());
+  label.htmlFor = name.id;
+  const save = h("button", "btn", s.deviceSave);
+  save.type = "submit";
+  const said = h("p", "srv-said");
+  said.setAttribute("role", "status");
+  const help = h("p", "srv-help", s.deviceDesc);
+  const field = h("div", "srv-field");
+  field.append(name, save);
+  form.append(label, field, help, said);
+  void commands.deviceName().then((r) => {
+    if (r.status !== "ok") return fail(r.error);
+    name.placeholder = r.data.system;
+    name.value = r.data.custom ? r.data.name : "";
+  });
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    save.disabled = true;
+    void Promise.all([commands.setDeviceName(name.value), commands.serverAccounts()]).then(([r, accounts]) => {
+      save.disabled = false;
+      if (r.status !== "ok") return fail(r.error);
+      name.value = r.data.device.custom ? r.data.device.name : "";
+      const hosts = r.data.unreached.map((u) => u.replace(/^https?:\/\//, ""));
+      const signedIn = accounts.status === "ok" && accounts.data.length > 0;
+      said.textContent = hosts.length ? s.deviceUnreached(hosts) : signedIn ? s.deviceToldAll : s.deviceSaved;
+    });
+  });
+  return form;
 }
 
 /** One server signed in to: who, its folders, sign out. */

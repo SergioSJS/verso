@@ -306,6 +306,7 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/api/me", get(crate::api::me).patch(crate::api::profile))
         .route("/api/me/password", post(crate::api::password))
         .route("/api/me/sessions", get(crate::api::sessions))
+        .route("/api/me/device", axum::routing::put(crate::device::rename))
         .route("/api/me/sessions/others", delete(crate::api::end_others))
         .route("/api/me/sessions/{id}", delete(crate::api::end_session))
         .route(

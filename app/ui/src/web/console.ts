@@ -410,7 +410,7 @@ async function invitations(c: Ctx, body: HTMLElement): Promise<void> {
 /* ---------- Audit ---------- */
 
 /** The actions whose subject is a name, never an id. */
-const SUBJECT_IS_WORDS = new Set(["device_approved", "folder_created", "sign_in", "account_deleted"]);
+const SUBJECT_IS_WORDS = new Set(["device_approved", "device_renamed", "folder_created", "sign_in", "account_deleted"]);
 
 /** An action of the log in words; an action this console does not know
  *  yet (a newer server's) by its code. */

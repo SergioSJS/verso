@@ -1124,6 +1124,19 @@ impl Db {
             .map_err(e)
     }
 
+    /// Name the device behind session `id` again; false when it is no
+    /// device's session.
+    pub fn rename_device(&self, id: &str, device: &str) -> R<bool> {
+        Ok(self
+            .conn()
+            .execute(
+                "UPDATE sessions SET device = ?2 WHERE id = ?1 AND kind = 'device'",
+                params![id, device],
+            )
+            .map_err(e)?
+            > 0)
+    }
+
     /// Whether session `id` still stands (not ended, not expired by the
     /// last look at it).
     pub fn session_alive(&self, id: &str) -> R<bool> {

@@ -84,6 +84,8 @@
     "allow-server-sign-in",
     "allow-server-accounts",
     "allow-server-sign-out",
+    "allow-device-name",
+    "allow-set-device-name",
     "allow-server-folders",
     "allow-server-open",
     "allow-folder-sync",

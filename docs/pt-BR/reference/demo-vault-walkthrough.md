@@ -671,7 +671,11 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
 6. O app desktop: *Ajustes* › *Servidores*, o endereço do servidor,
    *Conectar*; o navegador pede para permitir este computador; depois de
    *Permitir*, uma pasta do servidor abre na janela (o teste do host; à mão
-   no app instalado).
+   no app instalado). Na mesma seção, *Nome deste aparelho*: um nome salvo
+   ali é o das cópias de conflito e o da sessão deste aparelho em cada
+   servidor, e esvaziado volta o do sistema (e2e, `sync.spec.mjs`, "Servers
+   names this computer"; o teste do host,
+   `a_window_on_a_servers_folder_is_answered_by_the_server`).
 7. Sincronização ([ADR 0079](../adr/0079-sync-a-local-folder-with-a-server.md)):
    com uma pasta deste computador aberta, *Ajustes* › *Sincronizar*; sem
    servidor conectado, diz *Conecte a um servidor em Servidores primeiro*;

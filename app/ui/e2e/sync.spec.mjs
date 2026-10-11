@@ -207,6 +207,34 @@ test("Servers lists each server with its folders, the role in each, and what to 
   await expect(where).toHaveValue("f1");
 });
 
+test("Servers names this computer: the system's name by default, the person's when set", async ({ app }) => {
+  await app.open();
+  await app.key("Mod+,");
+  await app.page.locator(".settings-nav-item", { hasText: "Servidores" }).click();
+  const name = app.page.getByLabel("Nome deste aparelho");
+  await expect(name).toHaveValue("");
+  await expect(name).toHaveAttribute("placeholder", "Mac de Teste");
+  await name.fill("Estúdio da Ana");
+  await app.page.getByRole("button", { name: "Salvar nome" }).click();
+  await expect(app.page.locator(".srv-device [role=status]")).toHaveText("Salvo.");
+  // The name a conflict's copy and the servers take now.
+  const info = await app.page.evaluate(() => window.__harness.core.handlers.app_info({}));
+  expect(info.device).toBe("Estúdio da Ana");
+  // A server that did not answer is said, with what that means.
+  await app.page.evaluate(() => {
+    const h = window.__harness.core.handlers;
+    const own = h.set_device_name;
+    h.set_device_name = (a) => ({ ...own(a), unreached: ["https://notas.casa"] });
+  });
+  await app.page.getByRole("button", { name: "Salvar nome" }).click();
+  await expect(app.page.locator(".srv-device [role=status]")).toHaveText("Salvo. notas.casa não respondeu agora: lá, o nome antigo fica até você conectar de novo.");
+  // Emptied: the system's again.
+  await name.fill("");
+  await app.page.getByRole("button", { name: "Salvar nome" }).click();
+  await expect.poll(() => app.page.evaluate(() => window.__harness.core.handlers.device_name({}))).toEqual({ name: "Mac de Teste", system: "Mac de Teste", custom: false });
+  await expect(name).toHaveValue("");
+});
+
 test("a conflict's copy whose note was renamed or deleted says so, and offers only to open or discard it", async ({ app }) => {
   await app.open();
   // `Lista.md` was renamed to `Lista nova.md` by the person after the copy

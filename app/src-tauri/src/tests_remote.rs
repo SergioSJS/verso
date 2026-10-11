@@ -102,6 +102,7 @@ fn a_window_on_a_servers_folder_is_answered_by_the_server() {
         verso_server::contract_version(),
         "test".into(),
     );
+    let kept = std::sync::Arc::clone(&server);
     let (addr_tx, addr_rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_multi_thread()
@@ -186,6 +187,41 @@ fn a_window_on_a_servers_folder_is_answered_by_the_server() {
     assert_eq!(refused["kind"], "refused", "{refused}");
     // The app's own commands stay the app's.
     assert!(call(&main, "app_info", json!({})).is_ok());
+    // The person names this computer (ADR 0079 item 8, ADR 0074 item 8):
+    // the name wins over the system's here, and the server's session of
+    // this device takes it at once.
+    let named = call(
+        &main,
+        "set_device_name",
+        json!({ "name": " Estúdio da Ana " }),
+    )
+    .unwrap();
+    assert_eq!(named["device"]["name"], "Estúdio da Ana", "{named}");
+    assert_eq!(named["device"]["custom"], true);
+    assert_eq!(named["unreached"], json!([]), "{named}");
+    assert_eq!(
+        call(&main, "app_info", json!({})).unwrap()["device"],
+        "Estúdio da Ana"
+    );
+    assert_eq!(device::name(Some(app_config.path())), "Estúdio da Ana");
+    assert_eq!(
+        device::session_name(Some(app_config.path())),
+        "Verso · Estúdio da Ana"
+    );
+    let sessions = kept.db.sessions_of(&account.id).unwrap();
+    assert_eq!(sessions[0].device, "Verso · Estúdio da Ana");
+    // Nothing in it: the system's name again, told to the server too.
+    let back = call(&main, "set_device_name", json!({ "name": "" })).unwrap();
+    assert_eq!(back["device"]["custom"], false);
+    assert_eq!(back["device"]["name"], back["device"]["system"]);
+    assert_eq!(
+        call(&main, "device_name", json!({})).unwrap(),
+        back["device"]
+    );
+    assert_eq!(
+        kept.db.sessions_of(&account.id).unwrap()[0].device,
+        format!("Verso · {}", device::system())
+    );
     // A folder of this computer again: the window leaves the server.
     remote::release(app.handle(), "main");
     assert_eq!(
