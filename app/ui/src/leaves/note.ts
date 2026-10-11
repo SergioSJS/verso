@@ -15,7 +15,7 @@ import { blockKeys } from "../blocks/keys";
 import { blockHandles } from "../blocks/view";
 import { type CardEditing } from "../board/types";
 import { bookmarks, toggleBookmark } from "../bookmarks";
-import { tellOutcomes } from "../changes";
+import { afterFileChange, tellOutcomes } from "../changes";
 import { narrow, toggleSide } from "../chrome";
 import { button, h, ui } from "../dom";
 import { minimalEdit } from "../edit";
@@ -47,6 +47,7 @@ import { boardText, LOCALE, t, typedText } from "../strings";
 import { markCurrent } from "../tree/tree";
 import { KeptCard } from "./board";
 import { ConflictBanner } from "./conflict";
+import { conflictName } from "../dialogs/conflictNames";
 import { askDiscard, Leaf } from "./leaf";
 import * as cover from "./note/cover";
 import * as editing from "./note/editing";
@@ -94,7 +95,7 @@ export class NoteLeaf extends Leaf {
     },
     onLink: (url) => void commands.openUrl(url),
   });
-  readonly conflict = new ConflictBanner(() => void this.keepDisk(), () => void this.overwrite());
+  readonly conflict = new ConflictBanner(() => void this.keepDisk(), () => void this.overwrite(), () => void this.keepBoth());
   readonly preview = h("div", "preview");
   readonly toolbar = h("div", "toolbar");
   readonly editorHost = h("div", "editor");
@@ -928,7 +929,7 @@ export class NoteLeaf extends Leaf {
     const run = this.saving.then(async () => {
       if (!this.note || !this.dirty) return;
       if (this.conflict.up) {
-        ui.status.textContent = t.conflictPending;
+        ui.status.textContent = t.conflictPendingBoth;
         return;
       }
       if (this.collab) {
@@ -991,6 +992,45 @@ export class NoteLeaf extends Leaf {
     const fresh = await opening.readNote(this.path);
     if (fresh.status !== "ok") return fail(fresh.error);
     this.conflict.show({ text: fresh.data.text, revision: fresh.data.revision }, this.editorText());
+  }
+  /** "Keep both": the disk's version stays under the name, and this tab's
+   *  text is written beside it as a conflict's copy, named as sync names
+   *  one (ADR 0079 item 8) — a new file, so nothing is written over
+   *  anything. The tab then shows the copy. */
+  private async keepBoth(): Promise<void> {
+    const note = this.path;
+    const run = this.saving.then(async (): Promise<string | null> => {
+      if (!this.note || !this.conflict.up) return null;
+      const mine = this.editorText();
+      const info = await commands.appInfo();
+      const device = (info.status === "ok" && info.data.device) || t.thisComputer;
+      const when = new Date();
+      for (let n = 1; n <= 99; n++) {
+        const r = await commands.createNote(conflictName(note, device, when, LOCALE === "pt-BR", n), mine);
+        if (r.status === "ok") {
+          // In a shared note, the room goes back to the disk's text for
+          // everyone in it.
+          if (this.collab) {
+            const back = await commands.collabResolve(note, "disk");
+            if (back.status !== "ok") fail(back.error);
+          }
+          this.conflict.hide();
+          this.setDirty(false);
+          return r.data.path;
+        }
+        if (r.error.kind !== "exists") {
+          fail(r.error);
+          return null;
+        }
+      }
+      return null;
+    });
+    this.saving = run.then(() => undefined, () => undefined);
+    const copy = await run;
+    if (!copy || this.destroyed) return;
+    await afterFileChange();
+    await this.load(copy, true);
+    ui.status.textContent = t.keptBoth(name(note), name(copy));
   }
   editAtEnd(): void {
     this.setMode("live");

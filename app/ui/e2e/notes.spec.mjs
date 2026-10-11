@@ -355,3 +355,33 @@ test("a name already taken is said, and logged as an answer, not an error", asyn
   const info = await page.evaluate(() => window.__harness.log.filter((l) => l.level === "INFO").map((l) => l.message));
   expect(info).toContain("Já existe um arquivo com esse nome.");
 });
+
+test("a conflict in the editor keeps both: the disk's under the name, mine in a copy beside it, and the tab shows the copy", async ({ app, page }) => {
+  await app.open();
+  await app.quickOpen("11 - Escrevendo");
+  const note = "11 - Escrevendo no Editor.md";
+  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await page.locator(".cm-content").first().click();
+  await app.key("Mod+End");
+  await page.keyboard.type(" digitado aqui");
+  const outside = (await app.file(note)) + "\nescrito lá fora\n";
+  await app.writeOutside(note, outside);
+  await app.folderChanged([note]);
+  const conflict = page.locator(".conflict:visible");
+  await expect(conflict).toBeVisible();
+  // Three ways out, each labelled by what it does.
+  await expect(conflict.getByRole("button")).toHaveText(["Descartar o meu e recarregar", "Gravar o meu por cima", "Guardar os dois"]);
+  await conflict.getByRole("button", { name: "Guardar os dois" }).click();
+  // Named as sync names a copy: this computer's name (the host's) and the minute.
+  const named = /^11 - Escrevendo no Editor \(conflito, Mac de Teste, \d{4}-\d{2}-\d{2} \d{2}\.\d{2}\)\.md$/;
+  await expect.poll(async () => (await app.files()).filter((f) => named.test(f)).length).toBe(1);
+  const copy = (await app.files()).find((f) => named.test(f));
+  // The disk's version kept its name; mine is in the copy, a new file.
+  expect(await app.file(note)).toBe(outside);
+  expect(await app.file(copy)).toContain("digitado aqui");
+  expect(await app.file(copy)).not.toContain("escrito lá fora");
+  // The tab shows the copy, with nothing left to save and no conflict.
+  await expect(page.locator(".note-title:visible")).toHaveText(copy.replace(/\.md$/, ""));
+  await expect(page.locator(".conflict:visible")).toHaveCount(0);
+  await expect(page.locator("#status")).toContainText("Os dois ficaram: a versão do disco em 11 - Escrevendo no Editor, o seu texto em 11 - Escrevendo no Editor (conflito");
+});

@@ -263,7 +263,9 @@ async fn handle(
             to_value(summary)
         }
         "capabilities" => to_value(capabilities(server, who, client)),
-        "app_info" => Ok(json!({ "version": env!("CARGO_PKG_VERSION"), "commit": server.commit })),
+        "app_info" => Ok(
+            json!({ "version": env!("CARGO_PKG_VERSION"), "commit": server.commit, "device": null }),
+        ),
         "render_markdown" => {
             let text: String = arg(&args, "text")?;
             Ok(Value::String(verso_core::render_markdown(&text)))

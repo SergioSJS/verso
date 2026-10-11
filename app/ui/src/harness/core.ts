@@ -1037,7 +1037,7 @@ export class Core {
       }
       return out;
     },
-    app_info: (): AppInfo => ({ version: "0.0.0-harness", commit: "harness" }),
+    app_info: (): AppInfo => ({ version: "0.0.0-harness", commit: "harness", device: "Mac de Teste" }),
     open_window: () => null,
     popout_target: () => null,
     return_to_main: () => null,

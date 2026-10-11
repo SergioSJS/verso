@@ -5,8 +5,6 @@
 //! The window's commands for its folder's sync (ADR 0079 items 1, 9 and
 //! 13), and the sync's tasks started and ended with the folder's windows.
 
-use std::sync::OnceLock;
-
 use serde_json::json;
 use verso_contract::SyncStatus;
 use verso_core::sync as engine;
@@ -23,13 +21,12 @@ fn off(key: &str) -> SyncStatus {
 }
 
 fn context<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Arc<Ctx> {
-    static DEVICE: OnceLock<String> = OnceLock::new();
     let state = app.state::<App>();
     let (language, shown) = (app.clone(), app.clone());
     Arc::new(Ctx {
         service: Arc::clone(&state.service),
         config: state.service.config().map(Path::to_path_buf),
-        device: DEVICE.get_or_init(sync::host_name).clone(),
+        device: sync::device().to_owned(),
         pt: Box::new(move || lock(&language.state::<App>().menu_language).as_str() != "en"),
         // Once, to every window: each shows its own folder's.
         shown: Box::new(move |_, status| {

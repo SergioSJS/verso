@@ -328,6 +328,7 @@ fn app_info() -> Result<AppInfo, ContractError> {
     Ok(AppInfo {
         version: env!("CARGO_PKG_VERSION").to_owned(),
         commit: env!("VERSO_COMMIT").to_owned(),
+        device: Some(sync::device().to_owned()),
     })
 }
 

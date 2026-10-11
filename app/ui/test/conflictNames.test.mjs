@@ -4,7 +4,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
-const { originalOf, copyParts, textByName, looksBinary } = await import("../src/dialogs/conflictNames.js").catch(async () => {
+const { originalOf, copyParts, textByName, looksBinary, conflictName } = await import("../src/dialogs/conflictNames.js").catch(async () => {
   const esbuild = await import("esbuild");
   await esbuild.build({
     entryPoints: ["src/dialogs/conflictNames.ts"],
@@ -58,5 +58,22 @@ describe("Whether a copy compares as text", () => {
     assert.equal(looksBinary("�PNG\r\n"), true);
     assert.equal(looksBinary("abc\u0000def"), true);
     assert.equal(looksBinary("\u001b[0m"), true);
+  });
+});
+
+describe("The name the editor's \"keep both\" gives its copy", () => {
+  const when = new Date(2026, 9, 10, 20, 59);
+
+  test("named as sync names a copy, beside the note, in the person's language", () => {
+    assert.equal(conflictName("Lista.md", "MacBook Pro de Sérgio", when, true), "Lista (conflito, MacBook Pro de Sérgio, 2026-10-10 20.59).md");
+    assert.equal(conflictName("Ideias/Lista.md", "VERSO-WIN", when, false, 2), "Ideias/Lista (conflict, VERSO-WIN, 2026-10-10 20.59 2).md");
+  });
+
+  test("read back as a copy of the note, by the device and the minute it names", () => {
+    const copy = conflictName("Ideias/Lista.md", "Mac (casa), 2", when, true);
+    assert.equal(originalOf(copy), "Ideias/Lista.md");
+    const parts = copyParts(copy);
+    assert.equal(parts.device, "Mac -casa-- 2");
+    assert.equal(parts.date.getTime(), when.getTime());
   });
 });

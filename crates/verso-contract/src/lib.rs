@@ -397,6 +397,10 @@ pub struct Trashed {
 pub struct AppInfo {
     pub version: String,
     pub commit: String,
+    /// This computer's name, as the copy of a conflict names it (ADR 0079
+    /// item 8): the editor's "keep both" names its copy as sync does.
+    /// None where the window runs on no computer of its own (a server).
+    pub device: Option<String>,
 }
 
 /// The space a folder takes (ADR 0075 item 4): counted from the walk the
