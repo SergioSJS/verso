@@ -467,19 +467,50 @@ mod callouts_and_raw_html {
     }
 
     /// Finding 13: a `> [!` without `]` and a `^[` without `]` each rescanned
-    /// the rest of the document, so many of them took quadratic time.
+    /// the rest of the document, so many of them took quadratic time — a
+    /// malformed note could hang the parser.
+    ///
+    /// Bounded by how the time grows, not by a time (decided 2026-10-10,
+    /// `docs/reference/cross-platform-checklist.md` §5): an absolute limit
+    /// of 5 s failed on a loaded Windows machine while the parser was as
+    /// linear as ever. Doubling the input doubles a linear render's time
+    /// and quadruples a quadratic one's, so `time(2N) / time(N) ≤ 2.5`
+    /// tells them apart on any machine, fast or slow, loaded or idle. Each
+    /// size is the best of three runs, so a pause of the scheduler does not
+    /// count; a doubled render under `FLOOR` is too short to measure apart
+    /// from noise, and passes.
     #[test]
     fn pathological_inputs_stay_linear() {
-        let started = std::time::Instant::now();
-        let _ = to_html(&"^[".repeat(60_000));
-        let _ = to_html(&"> [!\n\n".repeat(40_000));
-        let _ = to_html(&"%%".repeat(60_000));
-        let _ = to_html(&"a %%\n\n".repeat(40_000));
-        assert!(
-            started.elapsed() < std::time::Duration::from_secs(5),
-            "{:?}",
-            started.elapsed()
-        );
+        use std::time::{Duration, Instant};
+        const FLOOR: Duration = Duration::from_millis(20);
+        let best = |source: &str| {
+            (0..3)
+                .map(|_| {
+                    let started = Instant::now();
+                    let _ = to_html(source);
+                    started.elapsed()
+                })
+                .min()
+                .unwrap_or_default()
+        };
+        for (unit, n) in [
+            ("^[", 30_000),
+            ("> [!\n\n", 20_000),
+            ("%%", 60_000),
+            ("a %%\n\n", 20_000),
+        ] {
+            let once = best(&unit.repeat(n));
+            let twice = best(&unit.repeat(2 * n));
+            if twice < FLOOR {
+                continue;
+            }
+            let ratio = twice.as_secs_f64() / once.as_secs_f64().max(1e-9);
+            assert!(
+                ratio <= 2.5,
+                "{unit:?}: {n} in {once:?}, {} in {twice:?} — x{ratio:.2}, not linear",
+                2 * n
+            );
+        }
     }
 }
 
