@@ -149,6 +149,31 @@ pub async fn delete_account(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Respo
     Ok(ok(json!(null)))
 }
 
+/// End every session of an account — browsers and devices — and revoke
+/// its personal access tokens (ADR 0077 item 3, decided 2026-10-11: a lost
+/// phone cut off without changing the password). Its open connections are
+/// told `gone: session` and closed at once, a token's too. The admin's own
+/// account ends from Settings › Account ("sign out everywhere else"), not
+/// here: this would end the very session asking.
+pub async fn end_sessions(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
+    ctx.changes()?;
+    let me = ctx.admin()?.account.id.clone();
+    if id == me {
+        return Err(ApiError::bad(
+            "own_account",
+            "your own sessions end in your account's page",
+        ));
+    }
+    ctx.server
+        .db
+        .account(&id)?
+        .ok_or_else(ApiError::not_found)?;
+    let (sessions, tokens) = ctx.server.db.end_all_of(&id)?;
+    ctx.server.push_account(&id, &json!({ "gone": "session" }));
+    ctx.audit("account_sessions_ended", Some(&id), None, true);
+    Ok(ok(json!({ "sessions": sessions, "tokens": tokens })))
+}
+
 /// A reset link for a member who lost their password (ADR 0074 item 5): it
 /// replaces any earlier one; the admin sends it however they like.
 pub async fn reset_link(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {

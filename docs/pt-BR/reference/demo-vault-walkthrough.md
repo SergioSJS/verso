@@ -657,7 +657,12 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
    um dono; a página dela define uma cota (*Definir*, *Sem limite*), que o
    registro lista (e2e-server, "the administration console");
    *Abrir pasta* a lista; uma nota criada no navegador continua lá depois de
-   recarregar (o mesmo teste).
+   recarregar (o mesmo teste). A página de uma conta encerra as sessões e
+   os tokens dela: *Encerrar sessões e tokens*, depois de confirmar, diz
+   quantas foram, e o navegador dessa conta sai (e2e-server, "an admin ends
+   another account's sessions"; um aparelho avisado na hora,
+   `tests_console.rs`,
+   `an_admin_ends_another_accounts_sessions_and_tokens`).
 3. *Convites*: um convite para um e-mail, uma pasta e *leitor*; o link em
    outro navegador cria a conta, abre a pasta, e a janela diz *Você só lê
    esta pasta*; o convite aparece *usado* e por quem; o link uma segunda vez

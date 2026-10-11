@@ -641,7 +641,11 @@ rest below and in `manual-checks.md`.
    *Administrar este servidor* leads there): the folder on the disk registered
    with an owner; its page sets a quota (*Definir*, *Sem limite*), which the
    log lists (e2e-server, "the administration console"); *Abrir pasta* lists it; a note made in the browser is there after
-   a reload (same test).
+   a reload (same test). An account's page ends its sessions and tokens:
+   *Encerrar sessões e tokens*, after a confirm, says how many went, and
+   that account's browser is signed out (e2e-server, "an admin ends
+   another account's sessions"; a device told at once, `tests_console.rs`,
+   `an_admin_ends_another_accounts_sessions_and_tokens`).
 3. *Convites*: an invitation for an e-mail, a folder and *leitor*; the link
    in another browser creates the account, opens the folder, and the window
    says *Você só lê esta pasta*; the invitation shows *usado* and by whom; the

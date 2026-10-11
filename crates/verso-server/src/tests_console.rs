@@ -254,3 +254,99 @@ fn a_file_held_as_anothers_name_is_said_on_the_console() {
         assert_eq!(overview["twins"], json!([]), "{overview}");
     });
 }
+
+/// A DELETE as the browser `b` sends it; the status.
+async fn delete(r: &crate::tests::Running, path: &str, b: &crate::tests::Browser) -> u16 {
+    reqwest::Client::new()
+        .delete(r.url(path))
+        .header("origin", r.origin())
+        .header("cookie", &b.cookie)
+        .header("x-verso-csrf", &b.csrf)
+        .send()
+        .await
+        .unwrap()
+        .status()
+        .as_u16()
+}
+
+/// An admin ends another account's sessions and revokes its tokens from
+/// the console (ADR 0077 item 3, decided 2026-10-11): the device's open
+/// connection is told `gone: session` at once, the browser's session and
+/// the token stop opening anything, and the log has it. Anyone else is
+/// refused, and the admin's own account ends elsewhere.
+#[test]
+fn an_admin_ends_another_accounts_sessions_and_tokens() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let me = r
+            .server
+            .db
+            .account_by_email("admin@casa.lan")
+            .unwrap()
+            .unwrap();
+        let bia = r
+            .server
+            .db
+            .create_account("bia@casa.lan", "Bia", "pt", Some("a senha da bia"), false)
+            .unwrap();
+        let browser = sign_in(&r, "bia@casa.lan", "a senha da bia").await;
+        let (device, _) = r
+            .server
+            .db
+            .create_session(&bia.id, "device", "Verso · Celular", "127.0.0.1")
+            .unwrap();
+        let (secret, _) = r
+            .server
+            .db
+            .create_token(&bia.id, "script", false, None, &[])
+            .unwrap();
+        // Not an admin: refused, and nothing ends.
+        let path = |id: &str| format!("/api/admin/accounts/{id}/sessions");
+        assert_eq!(delete(&r, &path(&me.id), &browser).await, 403);
+        assert_eq!(r.server.db.sessions_of(&me.id).unwrap().len(), 1);
+        // The admin's own: not here.
+        assert_eq!(delete(&r, &path(&me.id), &admin).await, 400);
+        let mut on_device = connect(&r, None, None, Some(&device)).await.unwrap();
+        next(&mut on_device).await;
+        let mut on_token = connect(&r, None, None, Some(&secret)).await.unwrap();
+        next(&mut on_token).await;
+        let res = reqwest::Client::new()
+            .delete(r.url(&path(&bia.id)))
+            .header("origin", r.origin())
+            .header("cookie", &admin.cookie)
+            .header("x-verso-csrf", &admin.csrf)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(res.status().as_u16(), 200);
+        let ended: Value = res.json().await.unwrap();
+        assert_eq!(ended, json!({ "sessions": 2, "tokens": 1 }));
+        // Told at once, the token's connection too.
+        assert_eq!(next(&mut on_device).await["gone"], "session");
+        assert_eq!(next(&mut on_token).await["gone"], "session");
+        // Nothing of Bia's opens anything now.
+        assert!(r.server.db.sessions_of(&bia.id).unwrap().is_empty());
+        assert!(r.server.db.tokens_of(&bia.id).unwrap().is_empty());
+        assert_eq!(get(&r, "/api/me", Some(&browser)).await.0, 401);
+        assert_eq!(
+            connect(&r, None, None, Some(&device)).await.err(),
+            Some(401)
+        );
+        assert_eq!(
+            connect(&r, None, None, Some(&secret)).await.err(),
+            Some(401)
+        );
+        // The admin's session stays, and the log has it, about Bia.
+        assert_eq!(get(&r, "/api/me", Some(&admin)).await.0, 200);
+        let (_, log) = get(
+            &r,
+            "/api/admin/audit?action=account_sessions_ended",
+            Some(&admin),
+        )
+        .await;
+        assert_eq!(log["total"], 1, "{log}");
+        assert_eq!(log["rows"][0]["subject"], bia.id, "{log}");
+        assert_eq!(log["rows"][0]["about"]["email"], "bia@casa.lan", "{log}");
+    });
+}

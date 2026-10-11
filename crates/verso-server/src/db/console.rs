@@ -402,3 +402,22 @@ pub struct AuditFilter {
     pub from: Option<i64>,
     pub to: Option<i64>,
 }
+
+impl Db {
+    /// Every session of `account` ended and every one of its personal
+    /// access tokens revoked, in one step — the admin's cut of a lost
+    /// phone without changing the password (ADR 0077 item 3, decided
+    /// 2026-10-11). How many of each.
+    pub fn end_all_of(&self, account: &str) -> R<(usize, usize)> {
+        let mut conn = self.conn();
+        let tx = conn.transaction().map_err(e)?;
+        let sessions = tx
+            .execute("DELETE FROM sessions WHERE account = ?1", [account])
+            .map_err(e)?;
+        let tokens = tx
+            .execute("DELETE FROM tokens WHERE account = ?1", [account])
+            .map_err(e)?;
+        tx.commit().map_err(e)?;
+        Ok((sessions, tokens))
+    }
+}
