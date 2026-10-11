@@ -440,3 +440,81 @@ fn a_folder_made_in_the_window_is_no_entry_of_the_log() {
         assert!(said.is_empty(), "{said:?}");
     });
 }
+
+/// The next `folder-changed` the window hears that `wanted` accepts; the
+/// others (the watcher's own batches) are passed over.
+async fn heard(ws: &mut Socket, wanted: impl Fn(&Value) -> bool) -> Value {
+    loop {
+        let payload = crate::tests::event_named(ws, "folder-changed").await;
+        if wanted(&payload) {
+            return payload;
+        }
+    }
+}
+
+/// A device's rename and deletion reach the windows open on the folder as
+/// the watcher's change does on the desktop (ADR 0073 item 7, ADR 0079
+/// items 7 and 13; found 2026-10-10, scenario C1): the tree is drawn again,
+/// a tab of the renamed note follows it to its new name, and one of the
+/// deleted note is told it is gone.
+#[test]
+fn a_devices_rename_and_deletion_reach_the_folders_windows() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let mut window = opened(&r, &admin).await;
+        let mut device = opened(&r, &admin).await;
+        let state = call(&mut device, 2, "sync_state", json!({})).await;
+        let base = state["ok"]["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|f| f["path"] == "Sessao.md")
+            .map(|f| f["hash"].as_str().unwrap().to_owned())
+            .unwrap();
+        let renamed = call(
+            &mut device,
+            3,
+            "sync_rename",
+            json!({ "from": "Sessao.md", "to": "Compras.md", "base": base }),
+        )
+        .await;
+        assert!(renamed.get("ok").is_some(), "{renamed}");
+        let told = heard(&mut window, |p| {
+            p["moved"].as_array().is_some_and(|m| !m.is_empty())
+        })
+        .await;
+        assert_eq!(
+            told["moved"],
+            json!([{ "from": "Sessao.md", "to": "Compras.md" }]),
+            "{told}"
+        );
+        assert_eq!(told["removed"], json!(["Sessao.md"]), "{told}");
+        assert_eq!(told["changed"], json!(["Compras.md"]), "{told}");
+        assert_eq!(told["listing"], true, "{told}");
+        assert!(told["key"].as_str().is_some_and(|k| !k.is_empty()));
+        // What the tree draws, asked when told: the new name, not the old.
+        let notes = call(&mut window, 4, "list_notes", json!({})).await;
+        let listed = notes["ok"].to_string();
+        assert!(listed.contains("Compras.md"), "{notes}");
+        assert!(!listed.contains("Sessao.md"), "{notes}");
+        // Deleted on the device: the window hears it gone.
+        let gone = call(
+            &mut device,
+            5,
+            "sync_delete",
+            json!({ "path": "Compras.md", "base": base }),
+        )
+        .await;
+        assert!(gone.get("ok").is_some(), "{gone}");
+        let told = heard(&mut window, |p| {
+            p["removed"]
+                .as_array()
+                .is_some_and(|m| m.iter().any(|x| x == "Compras.md"))
+        })
+        .await;
+        assert_eq!(told["moved"], json!([]), "{told}");
+        let notes = call(&mut window, 6, "list_notes", json!({})).await;
+        assert!(!notes["ok"].to_string().contains("Compras.md"), "{notes}");
+    });
+}

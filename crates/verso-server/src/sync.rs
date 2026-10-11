@@ -18,7 +18,7 @@ use std::time::{Duration, Instant};
 use base64::Engine;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use verso_contract::{ContractError, ErrorKind};
+use verso_contract::{ContractError, ErrorKind, FolderChanged, Moved};
 use verso_core::{CoreError, FileKind, Workspace};
 use verso_fs::ReadError;
 use verso_service::OpError;
@@ -606,7 +606,7 @@ pub async fn command(
                 )?
             };
             // Outside the folder's lock: a room takes its own lock first.
-            told(&s, &key, &[], std::slice::from_ref(&path));
+            told(&s, &key, &[], std::slice::from_ref(&path), &[]);
             Ok(json!({ "head": head }))
         }
         "sync_rename" => {
@@ -616,7 +616,7 @@ pub async fn command(
             let (f, t) = (from.clone(), to.clone());
             let one = one_at_a_time(&s, &folder);
             let only = lock(&one);
-            s.service.with_key(&key, move |ws| {
+            let landed = s.service.with_key(&key, move |ws| {
                 is_now(ws, &f, Some(&base))?;
                 // Only the case or the accents' form changing: the target
                 // is the file itself on a file system that folds names.
@@ -625,9 +625,9 @@ pub async fn command(
                 {
                     is_now(ws, &t, None)?;
                 }
-                ws.rename_entry(&f, &t)?;
+                let done = ws.rename_entry(&f, &t)?;
                 ws.prune_empty_parents(&f);
-                Ok(())
+                Ok(done.path)
             })?;
             let head = reconcile_paths(
                 &s,
@@ -640,8 +640,12 @@ pub async fn command(
             told(
                 &s,
                 &key,
-                std::slice::from_ref(&to),
+                std::slice::from_ref(&landed),
                 std::slice::from_ref(&from),
+                &[Moved {
+                    from: from.clone(),
+                    to: landed.clone(),
+                }],
             );
             Ok(json!({ "head": head }))
         }
@@ -664,26 +668,35 @@ pub async fn command(
 }
 
 /// A device's change, told to whoever has the folder open as a change from
-/// outside: a shared note open in a room takes it (or stops for the people
-/// in it to choose, ADR 0073 item 7), and the windows hear the folder
-/// changed. The watcher does not report what the server wrote itself.
-fn told(server: &Server, key: &str, changed: &[String], removed: &[String]) {
-    crate::collab::changed_outside(server, key, changed, removed);
+/// outside: the windows hear the folder changed — what was written, what
+/// is gone, and what was renamed, so that a tab follows its note to the
+/// new name as after a rename made in the window — and then a shared note
+/// open in a room takes the change (or stops for the people in it to
+/// choose, ADR 0073 item 7), or its room closes when the note is gone.
+/// The windows first: a tab that hears its room close knows by then
+/// where its note went. The watcher does not report what the server
+/// wrote itself.
+fn told(server: &Server, key: &str, changed: &[String], removed: &[String], moved: &[Moved]) {
     let clients = server.service.clients_of(key);
-    let index = clients
+    if let Some(index) = clients
         .first()
         .and_then(|c| server.service.current_folder(c))
-        .map(|f| f.index);
-    server.push(
-        &clients,
-        &json!({ "event": "folder-changed", "payload": {
-            "key": key,
-            "changed": changed,
-            "removed": removed,
-            "listing": true,
-            "index": index,
-        } }),
-    );
+        .map(|f| f.index)
+    {
+        let payload = FolderChanged {
+            key: key.to_owned(),
+            changed: changed.to_vec(),
+            removed: removed.to_vec(),
+            moved: moved.to_vec(),
+            listing: true,
+            index,
+        };
+        server.push(
+            &clients,
+            &json!({ "event": "folder-changed", "payload": payload }),
+        );
+    }
+    crate::collab::changed_outside(server, key, changed, removed);
 }
 
 /// The file at `path` on the disk now: its hash and the revision it was
@@ -865,6 +878,6 @@ fn put(
             )],
         )?
     };
-    told(server, key, std::slice::from_ref(&path), &[]);
+    told(server, key, std::slice::from_ref(&path), &[], &[]);
     Ok(json!({ "done": true, "head": head }))
 }

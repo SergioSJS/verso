@@ -414,6 +414,7 @@ impl Service {
                     key: key.to_owned(),
                     changed: report.changed,
                     removed: report.gone,
+                    moved: Vec::new(),
                     listing: report.listing_changed,
                     index: session.info.index.clone(),
                 }
@@ -428,6 +429,7 @@ impl Service {
                     key: key.to_owned(),
                     changed: Vec::new(),
                     removed: Vec::new(),
+                    moved: Vec::new(),
                     listing: false,
                     index,
                 }

@@ -49,6 +49,13 @@ pub struct FolderChanged {
     pub changed: Vec<String>,
     /// Notes this run found gone from disk.
     pub removed: Vec<String>,
+    /// Entries renamed or moved, when the side knows it moved them: a
+    /// device's rename on a server (ADR 0079). A window's tab of `from`
+    /// follows it to `to`, as after a rename made in the window. The
+    /// watcher never knows a rename, and leaves this empty: the old path
+    /// is among `removed`, the new one among `changed`, as here too.
+    #[serde(default)]
+    pub moved: Vec<Moved>,
     /// Whether which entries there are, or of which kind, changed: a tree
     /// or a folder view is drawn again only then.
     pub listing: bool,
