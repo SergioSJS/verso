@@ -449,3 +449,38 @@ test("a note deleted outside while its tab holds unsaved text closes without sav
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
   expect(await app.file("Descartada.md")).toBeNull();
 });
+
+test("after a rename, a linking note that changed meanwhile is named in a notice, and tried again over its new text", async ({ app, page }) => {
+  await app.open();
+  await app.writeOutside("Lista.md", "# Lista\n");
+  await app.writeOutside("Indice.md", "# Indice\n\nVer [[Lista]].\n");
+  await app.writeOutside("Outra.md", "# Outra\n\nTambém [[Lista]].\n");
+  await app.folderChanged(["Lista.md", "Indice.md", "Outra.md"], true);
+  await app.quickOpen("Lista");
+  await page.locator(".note-title:visible").first().click();
+  const field = page.locator("input.title-input");
+  await field.fill("Lista nova");
+  await field.press("Enter");
+  await expect(page.locator(".plan:visible")).toBeVisible();
+  // Another program writes one of the linking notes while the plan is on
+  // screen: its rewrite is refused (invariant 11).
+  await app.writeOutside("Indice.md", "# Indice\n\nUma linha nova.\n\nVer [[Lista]].\n");
+  await page.locator(".plan:visible button.save").click();
+  await expect.poll(() => app.file("Outra.md")).toContain("[[Lista nova]]");
+  // The status line fits; the notice names the note, and stays.
+  await expect(page.locator("#status")).toHaveText("1 atualizada, 1 não.");
+  const notice = page.locator(".plan-notice");
+  await expect(notice).toHaveText(/Não atualizada: Indice\. Mudou em disco enquanto isso\./);
+  await page.keyboard.type("x");
+  await expect(notice).toBeVisible();
+  // Tried again: the same change over the text on disk now, shown first.
+  await notice.getByRole("button", { name: "Tentar de novo" }).click();
+  await expect(notice).toHaveCount(0);
+  const plan = page.locator(".plan:visible");
+  await expect(plan.locator("h2")).toHaveText("De novo, sobre o que está no disco agora: 1 nota. Aplicar?");
+  expect(await app.file("Indice.md")).toContain("Ver [[Lista]].");
+  await plan.getByRole("button", { name: "Aplicar", exact: true }).click();
+  await expect.poll(() => app.file("Indice.md")).toBe("# Indice\n\nUma linha nova.\n\nVer [[Lista nova]].\n");
+  await expect(page.locator("#status")).toHaveText("1 atualizada.");
+  await expect(page.locator(".plan-notice")).toHaveCount(0);
+});
