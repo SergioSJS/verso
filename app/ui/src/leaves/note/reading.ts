@@ -794,10 +794,11 @@ export function insertReference(this: NoteLeaf, path: string, x: number, y: numb
  *  the save that follows draws it again. */
 export function toggleTask(this: NoteLeaf, line: number, box: HTMLInputElement): void {
   // While the conflict banner waits, its diff was drawn before this
-  // click: nothing changes until the user has chosen.
+  // click: nothing changes until the user has chosen — among its three
+  // ways, "keep both" too.
   if (this.conflict.up) {
     box.checked = !box.checked;
-    ui.status.textContent = t.conflictPending;
+    ui.status.textContent = t.conflictPendingBoth;
     return;
   }
   const doc = this.editor.state.doc;

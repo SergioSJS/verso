@@ -138,7 +138,7 @@ test("undo stays per file between parent and embed", async ({ app, page }) => {
   await expect(parentContent).toContainText("Prefix Start A");
 });
 
-test("conflict on the embedded file shows two versions", async ({ app, page }) => {
+test("conflict on the embedded file shows two versions, and keeps both on a third choice", async ({ app, page }) => {
   await app.open();
   const parentFile = "ConflictParent.md";
   const childFile = "ConflictChild.md";
@@ -169,6 +169,21 @@ test("conflict on the embedded file shows two versions", async ({ app, page }) =
   // Conflict banner should appear in the embed
   const banner = embed.locator(".conflict");
   await expect(banner).toBeVisible();
+
+  // The embed's view offers the note's three ways; "Guardar os dois" keeps
+  // the disk's under the name and the embed's text in a copy beside it.
+  await expect(banner.getByRole("button")).toHaveText(["Descartar o meu e recarregar", "Gravar o meu por cima", "Guardar os dois"]);
+  await banner.getByRole("button", { name: "Guardar os dois" }).click();
+  const named = /^ConflictChild \(conflito, Mac de Teste, \d{4}-\d{2}-\d{2} \d{2}\.\d{2}\)\.md$/;
+  await expect.poll(async () => (await app.files()).filter((f) => named.test(f)).length).toBe(1);
+  const copy = (await app.files()).find((f) => named.test(f));
+  expect(await app.file(childFile)).toBe("# Conflict Child\nExternal remote change\n");
+  expect(await app.file(copy)).toContain("Local change");
+  expect(await app.file(copy)).not.toContain("External remote change");
+  // The embed stays on its note, now the disk's version, with no conflict left.
+  await expect(banner).toBeHidden();
+  await expect(cardEditor).toContainText("External remote change");
+  await expect(page.locator("#status")).toContainText("Os dois ficaram: a versão do disco em ConflictChild, o seu texto em ConflictChild (conflito");
 });
 
 test("emoji trigger with : opens completion and inserts emoji (ADR 0060 E4)", async ({ app, page }) => {
