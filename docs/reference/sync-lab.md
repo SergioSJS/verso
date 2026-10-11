@@ -92,6 +92,7 @@ summarized below.
 | 2026-10-10 | 5ee552c | Linux VM, Proxmox, 4 vCPU, 5.4 GB, virtual disk | 1 × 30 | 10 | 99 / 1 212 / 1 561 | 2.3 / 43 | 0 problems | the disk's fsync bounds every write |
 | 2026-10-10 | 5ee552c | same VM | 50 × 60 | 19 | 3 878 / 5 524 / 6 783 | 5.1 / 185 | 0 problems | |
 | 2026-10-10 | 5ee552c | same VM | 200 × 60 | 16 | 16 419 / 21 329 / 23 547 | 20 / 1 378 | 0 problems | 1 GB resident |
+| 2026-10-11 | 40b0016 | Apple M3 Max, 48 GB | 50 × 60 | 133 | 533 / 827 / 1 467 | 0.4 / 22 | 0 problems | round 2 of the campaign, the final build: NFC name resolution and `one_name` without allocation in the put |
 
 ## 4. The campaign's scenarios
 
