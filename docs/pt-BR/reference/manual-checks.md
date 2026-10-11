@@ -18,6 +18,29 @@ app real.
 
 ## Ainda não conferido
 
+### Sincronização e Universo (feat/universo, 2026-10-11)
+
+- [ ] **"Guardar os dois" no conflito do editor** (`18da5c7`): numa pasta
+  sincronizada, mantenha uma nota aberta em Editar com texto não salvo
+  enquanto outro aparelho a muda; a tela "O arquivo mudou em disco…" oferece
+  um terceiro botão, "Guardar os dois" — a versão do disco fica com o nome,
+  o seu texto vai para `<nota> (conflito, <este computador>, <data>).md`, a
+  aba mostra a cópia.
+- [ ] **Uma nota apagada fora enquanto a aba está suja** (`e5b3ee0`): apague
+  o arquivo no Finder enquanto digita nele; a aba diz "Esta nota foi apagada
+  ou movida fora do Verso. O seu texto continua aqui." com "Salvar de novo" e
+  "Fechar sem salvar"; sem ERROR no log do app.
+- [ ] **Links que um rename não conseguiu atualizar** (`da6ac8e`): renomeie
+  uma nota enquanto outro programa edita uma nota que linka para ela; o
+  aviso nomeia a nota pulada, e "Tentar de novo" aplica a mudança sobre o
+  texto novo.
+- [ ] **Um nome em duas formas de acento** (spec Q7, `0cb6dd5`): num
+  aparelho Linux ou Windows crie `Café.md` ao lado de um `Café.md` que o
+  servidor já tem na outra forma Unicode; o segundo é listado em "nome de
+  outro, só mudando…" e nunca enviado; o primeiro continua sincronizando.
+- [ ] **Janela numa tela pequena** (`068215e`): numa tela 1280×800 a
+  primeira janela abre dentro da tela, barra de status visível.
+
 ### Versão 0.5 (feat/windows-fs, feat/signed-updates)
 
 - [ ] **Verso para Linux** (ADR 0071, 2026-10-09), nas máquinas do
