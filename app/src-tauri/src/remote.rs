@@ -14,7 +14,7 @@
 //! `capabilities`, which the server answers.
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU8, AtomicU64, Ordering};
 
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
@@ -99,6 +99,28 @@ fn close(pending: &Pending) -> bool {
 /// is one a slow link (150 kbit/s) does not reach for one piece.
 const ANSWER_WITHIN: std::time::Duration = std::time::Duration::from_secs(300);
 
+/// How often a connection pings the server, as the server pings it (R5
+/// of 2026-10-11): a server gone without closing the connection — its
+/// machine off, a network dropped — is noticed by the pings it leaves
+/// unanswered, not at the next question. The server's WebSocket answers
+/// on its own. A second in the tests, so that one sees it in a few.
+#[cfg(not(test))]
+const PING_EVERY: std::time::Duration = std::time::Duration::from_secs(30);
+#[cfg(test)]
+const PING_EVERY: std::time::Duration = std::time::Duration::from_secs(1);
+
+/// Pings in a row left unanswered before the connection is taken as
+/// closed: within a minute and a half of the server going silent.
+const MISSED: u8 = 2;
+
+/// Messages a connection holds unwritten. A sync sends one piece of a
+/// file and waits for its answer before the next; a window asks a few
+/// questions at once, a few dozen while it opens a folder, each written
+/// in a moment. So many waiting means the connection no longer writes: a
+/// question past them fails as the connection's own failure, as a write
+/// that failed does, instead of the queue growing with pieces of files.
+const QUEUE: usize = 64;
+
 /// A window's connection to a server, on one of its folders.
 pub(crate) struct Remote {
     pub(crate) url: String,
@@ -108,7 +130,10 @@ pub(crate) struct Remote {
     /// The last command's round trip, in milliseconds.
     latency: std::sync::atomic::AtomicU32,
     pending: Pending,
-    tx: mpsc::UnboundedSender<String>,
+    tx: mpsc::Sender<String>,
+    /// Told when the connection is taken as closed without either task
+    /// seeing it close: the reader ends, as on a close.
+    dead: Arc<tokio::sync::Notify>,
 }
 
 /// The connection's own failure, told from a server's answer of the same
@@ -131,9 +156,28 @@ impl Remote {
             q.waiting.insert(id, tx);
         }
         let text = json!({ "id": id, "cmd": cmd, "args": args }).to_string();
-        if self.tx.send(text).is_err() {
-            lock(&self.pending).waiting.remove(&id);
-            return Err(unavailable("the server's connection is closed"));
+        match self.tx.try_send(text) {
+            Ok(()) => {}
+            Err(mpsc::error::TrySendError::Full(_)) => {
+                lock(&self.pending).waiting.remove(&id);
+                log::write(
+                    "WARN",
+                    "host",
+                    &format!(
+                        "the connection to {} is taken as closed: {QUEUE} messages wait unwritten",
+                        self.url
+                    ),
+                );
+                // Every question waiting is answered, the reader ends and
+                // says the connection closed: sync connects again.
+                close(&self.pending);
+                self.dead.notify_one();
+                return Err(unavailable("the server's connection does not write"));
+            }
+            Err(mpsc::error::TrySendError::Closed(_)) => {
+                lock(&self.pending).waiting.remove(&id);
+                return Err(unavailable("the server's connection is closed"));
+            }
         }
         let sent = std::time::Instant::now();
         let answer = match tokio::time::timeout(ANSWER_WITHIN, rx).await {
@@ -543,6 +587,12 @@ pub(crate) fn mismatch_refused(v: &SyncVersions) -> ContractError {
     })
 }
 
+/// A field of a message, taken out of it rather than copied: an answer may
+/// be a piece of a file, megabytes.
+fn take(m: &mut Value, field: &str) -> Value {
+    m.get_mut(field).map(Value::take).unwrap_or_default()
+}
+
 /// [`dial`] without the contract's check: the connection, what it hears,
 /// and the server's hello.
 pub(crate) async fn dial_hello(
@@ -575,15 +625,57 @@ pub(crate) async fn dial_hello(
             },
         })?;
     let (mut write, mut read) = socket.split();
-    let (tx, mut rx) = mpsc::unbounded_channel::<String>();
+    let (tx, mut rx) = mpsc::channel::<String>(QUEUE);
     let (heard_tx, heard_rx) = mpsc::unbounded_channel::<Heard>();
     let pending: Pending = Arc::default();
     let (hello_tx, hello_rx) = oneshot::channel::<Value>();
+    let dead = Arc::new(tokio::sync::Notify::new());
+    // Pings sent since the server was last heard.
+    let unanswered = Arc::new(AtomicU8::new(0));
     let writing = Arc::clone(&pending);
     let heard_w = heard_tx.clone();
+    let (dead_w, unanswered_w) = (Arc::clone(&dead), Arc::clone(&unanswered));
+    let url = login.url.clone();
     tauri::async_runtime::spawn(async move {
-        while let Some(text) = rx.recv().await {
-            if write.send(Message::Text(text.into())).await.is_err() {
+        let mut ping =
+            tokio::time::interval_at(tokio::time::Instant::now() + PING_EVERY, PING_EVERY);
+        ping.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+        loop {
+            let sent = tokio::select! {
+                text = rx.recv() => {
+                    // The connection was let go: nothing can be asked on
+                    // it any more.
+                    let Some(text) = text else {
+                        close(&writing);
+                        return;
+                    };
+                    write.send(Message::Text(text.into())).await
+                }
+                _ = ping.tick() => {
+                    // A question waiting: its answer may be a piece of a
+                    // file still on its way over a slow link, and nothing
+                    // is heard until it is whole — `ANSWER_WITHIN` is the
+                    // net then.
+                    if !lock(&writing).waiting.is_empty() {
+                        unanswered_w.store(0, Ordering::Relaxed);
+                        continue;
+                    }
+                    if unanswered_w.load(Ordering::Relaxed) >= MISSED {
+                        log::write(
+                            "WARN",
+                            "host",
+                            &format!("the server at {url} answered none of {MISSED} pings: its connection is taken as closed"),
+                        );
+                        dead_w.notify_one();
+                        return;
+                    }
+                    // Counted before it is written: its pong may be heard
+                    // before this task runs again.
+                    unanswered_w.fetch_add(1, Ordering::Relaxed);
+                    write.send(Message::Ping(Default::default())).await
+                }
+            };
+            if sent.is_err() {
                 // The question just sent, and any after it, is answered
                 // here: the reader may have ended already.
                 if close(&writing) {
@@ -592,35 +684,44 @@ pub(crate) async fn dial_hello(
                 return;
             }
         }
-        // The connection was let go: nothing can be asked on it any more.
-        close(&writing);
     });
     let reading = Arc::clone(&pending);
+    let dead_r = Arc::clone(&dead);
     tauri::async_runtime::spawn(async move {
         let mut hello = Some(hello_tx);
-        while let Some(Ok(message)) = read.next().await {
+        loop {
+            let message = tokio::select! {
+                message = read.next() => message,
+                () = dead_r.notified() => break,
+            };
+            let Some(Ok(message)) = message else {
+                break;
+            };
+            // Anything heard, a pong or any other message, says the server
+            // is there.
+            unanswered.store(0, Ordering::Relaxed);
             let Message::Text(text) = message else {
                 continue;
             };
-            let Ok(m) = serde_json::from_str::<Value>(&text) else {
+            let Ok(mut m) = serde_json::from_str::<Value>(&text) else {
                 continue;
             };
             if let Some(id) = m["id"].as_u64() {
                 if let Some(p) = lock(&reading).waiting.remove(&id) {
                     let _ = p.send(if m.get("err").is_some() {
-                        Err(m["err"].clone())
+                        Err(take(&mut m, "err"))
                     } else {
-                        Ok(m["ok"].clone())
+                        Ok(take(&mut m, "ok"))
                     });
                 }
-            } else if let Some(event) = m["event"].as_str() {
-                let _ = heard_tx.send(Heard::Event(event.to_owned(), m["payload"].clone()));
+            } else if let Some(event) = m["event"].as_str().map(str::to_owned) {
+                let _ = heard_tx.send(Heard::Event(event, take(&mut m, "payload")));
             } else if m.get("hello").is_some() {
                 if let Some(h) = hello.take() {
-                    let _ = h.send(m["hello"].clone());
+                    let _ = h.send(take(&mut m, "hello"));
                 }
             } else if m.get("gone").is_some() {
-                let _ = heard_tx.send(Heard::Gone(m["gone"].clone()));
+                let _ = heard_tx.send(Heard::Gone(take(&mut m, "gone")));
             } else if let Some(role) = m["role"].as_str() {
                 let _ = heard_tx.send(Heard::Role(role.to_owned()));
             }
@@ -641,6 +742,7 @@ pub(crate) async fn dial_hello(
         latency: std::sync::atomic::AtomicU32::new(0),
         pending,
         tx,
+        dead,
     });
     Ok((remote, heard_rx, hello))
 }

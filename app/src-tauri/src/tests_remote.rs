@@ -291,3 +291,69 @@ fn a_question_on_a_connection_closed_between_questions_fails_at_once() {
     });
     stopped.join().unwrap();
 }
+
+/// A WebSocket server on the loopback that says a hello and then either
+/// answers pings — it reads, and its WebSocket answers on its own — or
+/// reads nothing more, as a server whose machine went away without
+/// closing the connection.
+fn a_server_that(answers: bool) -> verso_core::servers::ServerLogin {
+    use futures_util::{SinkExt, StreamExt};
+    use tokio_tungstenite::tungstenite::Message;
+
+    let listener =
+        tauri::async_runtime::block_on(tokio::net::TcpListener::bind("127.0.0.1:0")).unwrap();
+    let port = listener.local_addr().unwrap().port();
+    tauri::async_runtime::spawn(async move {
+        let (stream, _) = listener.accept().await.unwrap();
+        let mut ws = tokio_tungstenite::accept_async(stream).await.unwrap();
+        ws.send(Message::Text(json!({ "hello": {} }).to_string().into()))
+            .await
+            .unwrap();
+        if answers {
+            while let Some(Ok(_)) = ws.next().await {}
+        } else {
+            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+        }
+        drop(ws);
+    });
+    verso_core::servers::ServerLogin {
+        url: format!("http://127.0.0.1:{port}"),
+        token: "um token".into(),
+        email: "ana@casa.lan".into(),
+        name: "Ana".into(),
+    }
+}
+
+/// A server gone silent without closing the connection is noticed by the
+/// pings it leaves unanswered (R5 of 2026-10-11, the device's side): the
+/// connection is heard closed — sync says offline and connects again —
+/// and a question on it fails at once. One that answers its pings stays.
+/// Pings go every second in the tests, every 30 in the app.
+#[test]
+fn a_server_that_answers_no_ping_is_heard_closed_and_one_that_does_stays() {
+    use std::time::Duration;
+
+    let silent = a_server_that(false);
+    let alive = a_server_that(true);
+    tauri::async_runtime::block_on(async move {
+        let (remote, mut heard, _) = remote::dial_hello(&silent, "f".into()).await.unwrap();
+        let (_kept, mut heard_alive, _) = remote::dial_hello(&alive, "f".into()).await.unwrap();
+        tokio::time::timeout(Duration::from_secs(10), async {
+            while let Some(h) = heard.recv().await {
+                if matches!(h, remote::Heard::Closed) {
+                    return;
+                }
+            }
+        })
+        .await
+        .expect("a server that answers no ping is heard closed");
+        let e = remote.call("sync_state", json!({})).await.unwrap_err();
+        assert_eq!(e["kind"], "unavailable", "{e}");
+        assert_eq!(e["transport"], true, "{e}");
+        // Past the same pings, the one that answers them is still there.
+        assert!(
+            !matches!(heard_alive.try_recv(), Ok(remote::Heard::Closed)),
+            "a server that answers its pings is kept"
+        );
+    });
+}

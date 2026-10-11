@@ -44,6 +44,7 @@ test release.
 - **Less disk and CPU on a server that syncs**: a file a device sends, or a change the server reads, is no longer read and hashed once more by the walk that follows it.
 - **A connection to the server that dropped without closing** (a laptop's lid shut, a network gone) is noticed by the server within a minute and a half, and what it held there is let go.
 - **A file larger than 1 GiB in a folder of this computer that syncs** is no longer read and hashed at every pass: sync leaves it unread and lists it in *Settings › Sync* as too large to sync, saying so once in the app's log.
+- **A server that went silent without closing the connection** (its machine off, a network gone) is noticed by this app within a minute and a half: the folder's sync says offline and connects again, instead of waiting for its next question to go unanswered.
 
 ## 0.7.0-beta.1 — 2026-10-10
 

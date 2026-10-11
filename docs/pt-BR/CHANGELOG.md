@@ -44,6 +44,7 @@ versão de teste.
 - **Menos disco e CPU num servidor que sincroniza**: um arquivo que um aparelho envia, ou uma mudança que o servidor lê, não é mais lido e resumido (hash) de novo pela varredura seguinte.
 - **Uma conexão com o servidor que caiu sem se fechar** (a tampa de um notebook fechada, uma rede que sumiu) é percebida pelo servidor em até um minuto e meio, e o que ela ocupava lá é liberado.
 - **Um arquivo maior que 1 GiB numa pasta deste computador que sincroniza** não é mais lido e resumido (hash) a cada passada: a sincronização o deixa sem ler e o lista em *Ajustes › Sincronizar* como grande demais para sincronizar, dizendo isso uma vez no log do app.
+- **Um servidor que ficou em silêncio sem fechar a conexão** (a máquina dele desligada, uma rede que sumiu) é percebido por este app em até um minuto e meio: a sincronização da pasta diz que está offline e conecta de novo, em vez de esperar que a próxima pergunta fique sem resposta.
 
 ## 0.7.0-beta.1 — 2026-10-10
 
