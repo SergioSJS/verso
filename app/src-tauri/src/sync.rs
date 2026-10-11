@@ -27,6 +27,8 @@ use super::*;
 const PIECE: usize = 4 << 20;
 /// The largest file sync carries, as the server.
 const LARGEST: u64 = 1 << 30;
+/// Why a file above [`LARGEST`] is held apart, in the window's list.
+const TOO_LARGE: &str = "a file of more than 1 GiB is not synced";
 /// How often a folder is compared with nothing else asking (item 6).
 const SCAN: Duration = Duration::from_secs(300);
 /// How many lines of what crossed the window is shown.
@@ -343,6 +345,20 @@ fn listed_here(
             );
             continue;
         }
+        // Larger than sync carries, by the listing's size: never read — a
+        // file of gigabytes read and hashed at every pass takes the
+        // computer's memory — held at its base, never a deletion, and
+        // listed (said in the log once, as any file held apart).
+        if size > LARGEST {
+            held(
+                &path,
+                "too_large",
+                TOO_LARGE.to_owned(),
+                &mut files,
+                &mut apart,
+            );
+            continue;
+        }
         if let Some(seen) = state.seen.get(&path)
             && seen.size == size
             && seen.modified == modified
@@ -428,9 +444,20 @@ fn listed_here(
             if ws.is_folder(&p) {
                 return Ok(None);
             }
-            Ok(Some(ws.read_with_revision(&p)?.0))
+            // Larger than sync carries, by its size on the disk: not read.
+            if ws.file_len(&p).is_some_and(|len| len > LARGEST) {
+                return Ok(Some(None));
+            }
+            Ok(Some(Some(ws.read_with_revision(&p)?.0)))
         }) {
-            Ok(Some(bytes)) => {
+            Ok(Some(None)) => held(
+                &path,
+                "too_large",
+                TOO_LARGE.to_owned(),
+                &mut files,
+                &mut apart,
+            ),
+            Ok(Some(Some(bytes))) => {
                 files.insert(
                     path,
                     FileState {
@@ -981,18 +1008,30 @@ async fn upload(
     base: Option<&str>,
 ) -> Result<(String, u64, String), Refusal> {
     let p = path.to_owned();
+    // Larger than sync carries — grown since the pass listed it — is
+    // refused by its size on the disk, before a read.
     let bytes = tokio::task::block_in_place(|| {
-        ctx.service
-            .with_key(&s.key, move |ws| Ok(ws.read_with_revision(&p)?.0))
+        ctx.service.with_key(&s.key, move |ws| {
+            if ws.file_len(&p).is_some_and(|len| len > LARGEST) {
+                return Ok(None);
+            }
+            Ok(Some(ws.read_with_revision(&p)?.0))
+        })
     })
     .map_err(|e| of_here(ctx, s, path, e))?;
-    let size = bytes.len() as u64;
-    if size > LARGEST {
-        return Err(Refusal::File(
+    let too_large = || {
+        Refusal::File(
             path.to_owned(),
             "too_large".to_owned(),
-            "a file of more than 1 GiB is not synced".to_owned(),
-        ));
+            TOO_LARGE.to_owned(),
+        )
+    };
+    let Some(bytes) = bytes else {
+        return Err(too_large());
+    };
+    let size = bytes.len() as u64;
+    if size > LARGEST {
+        return Err(too_large());
     }
     let hash = sha256(&bytes);
     let mut offset = 0_usize;

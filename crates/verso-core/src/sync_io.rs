@@ -39,6 +39,16 @@ impl Workspace {
             .is_ok_and(|handle| self.root.is_dir(handle))
     }
 
+    /// The length of the file `relative` names, from the disk without
+    /// reading it: sync leaves a file larger than it carries unread (ADR
+    /// 0079 item 12). `None` for nothing there, a folder, and a path the
+    /// folder refuses — the read that follows says why.
+    pub fn file_len(&mut self, relative: &str) -> Option<u64> {
+        let key = self.entry_key(relative).ok()?;
+        let handle = self.root.handle(Path::new(&key)).ok()?;
+        self.root.length_and_time(handle).ok().map(|(len, _)| len)
+    }
+
     /// The folders above `relative` that hold nothing any more, removed,
     /// from the nearest up: a move or a deletion that came from another
     /// device leaves no empty folder behind (ADR 0079). A folder that holds

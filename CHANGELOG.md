@@ -43,6 +43,7 @@ test release.
 - **A file larger than 1 GiB in a server folder** no longer takes a small server down at its next walk: sync leaves it out without reading it and says so once in the server's log, naming it as too large to sync.
 - **Less disk and CPU on a server that syncs**: a file a device sends, or a change the server reads, is no longer read and hashed once more by the walk that follows it.
 - **A connection to the server that dropped without closing** (a laptop's lid shut, a network gone) is noticed by the server within a minute and a half, and what it held there is let go.
+- **A file larger than 1 GiB in a folder of this computer that syncs** is no longer read and hashed at every pass: sync leaves it unread and lists it in *Settings › Sync* as too large to sync, saying so once in the app's log.
 
 ## 0.7.0-beta.1 — 2026-10-10
 
