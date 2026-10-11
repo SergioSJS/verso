@@ -33,8 +33,10 @@
   ao `link`. Linux e Windows sem mudança: o inotify e o
   `ReadDirectoryChangesW` informam essa remoção. Pelo `rustix` (sem
   `unsafe`); a guarda contra substituir um arquivo e o `fsync` do diretório
-  depois ficam como antes. A confirmação do mantenedor está pendente
-  ("decisão 8").
+  depois ficam como antes. A revisão de como o macOS coloca um arquivo foi
+  confirmada pelo mantenedor em 2026-10-11, em sessão: *"Mas eu tinha confirmado"* —
+  o *"Gostei das recomendações, pode seguir"* dele de 2026-10-10 cobre
+  toda opção recomendada, esta revisão entre elas.
 
 ## Contexto
 

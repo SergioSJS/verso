@@ -97,8 +97,9 @@ Two ways to build a shared sub-folder were weighed:
 
 ## Decision
 
-Proposed (2026-10-10). Each `[OPEN]` carries a recommendation; the
-maintainer decides. Open items answered 2026-10-10 (Status).
+Proposed (2026-10-10); accepted 2026-10-11 (Status). Each `[OPEN]`
+carried a recommendation; the maintainer decided. Open items answered
+2026-10-10 (Status).
 
 1. **A share is a grant on a path.** A grant becomes *folder, account,
    path, role*: the path is `""` for the whole folder — every grant of
@@ -323,6 +324,12 @@ maintainer decides. Open items answered 2026-10-10 (Status).
 
 ## Status
 
+**Accepted (2026-10-11).** Open items answered 2026-10-10 as recommended;
+read by Opus 5.5 (the handoff of 2026-10-10 and the answers' reading);
+accepted by the maintainer on 2026-10-11 (*"Mas eu tinha confirmado"* to
+the recommendations). The history of a file's changes stays `[OPEN]` on
+purpose, for its own ADR.
+
 Proposed on 2026-10-10. To be read by Opus 5.5 before it is accepted. For
 the maintainer, each with a recommendation: a share's own name (item 3;
 no); who shares, and re-sharing (item 4; the owner only, no re-sharing);
@@ -333,9 +340,7 @@ when sharing); a single document (item 17; not in the first version, the
 model allowing it later); and, for its own ADR, the history of a file's
 changes (Consequences).
 
-Open items answered 2026-10-10; acceptance pending. The maintainer, in
-session, to the recommendations above: *"Gostei das recomendações, pode seguir"* —
+Open items answered 2026-10-10. The maintainer, in session, to the recommendations above: *"Gostei das recomendações, pode seguir"* —
 each `[OPEN]` of items 3, 4, 6, 11 and 17 decided as recommended, in
 place, and item 5 gaining the folder switcher, built with this ADR. The
-history of a file's changes stays `[OPEN]`, for its own ADR. Whether this
-ADR is Accepted is the maintainer's to say.
+history of a file's changes stays `[OPEN]`, for its own ADR.
