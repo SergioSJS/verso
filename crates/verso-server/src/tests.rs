@@ -240,7 +240,8 @@ pub(crate) async fn connect(
 /// The next message that is not an event.
 pub(crate) async fn next(ws: &mut Socket) -> Value {
     loop {
-        let m = tokio::time::timeout(std::time::Duration::from_secs(10), ws.next())
+        // 30 s, not a product timeout: opening a folder waits on fseventsd, which queues under machine load.
+        let m = tokio::time::timeout(std::time::Duration::from_secs(30), ws.next())
             .await
             .expect("an answer in time")
             .unwrap()
@@ -828,7 +829,8 @@ fn the_server_serves_its_own_tls() {
 /// The next event of `name` the socket hears.
 pub(crate) async fn event_named(ws: &mut Socket, name: &str) -> Value {
     loop {
-        let m = tokio::time::timeout(std::time::Duration::from_secs(10), ws.next())
+        // 30 s, not a product timeout: opening a folder waits on fseventsd, which queues under machine load.
+        let m = tokio::time::timeout(std::time::Duration::from_secs(30), ws.next())
             .await
             .expect("an event in time")
             .unwrap()
