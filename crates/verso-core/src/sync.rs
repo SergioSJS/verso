@@ -19,7 +19,7 @@
 //!   syncs too (item 8);
 //! - the first sync of a folder (no base) never deletes (item 11);
 //! - a plan that would delete more than a fifth of the folder's files, or
-//!   more than 50, pauses and asks (item 9);
+//!   more than 50, pauses and asks — never for fewer than 3 (item 9);
 //! - a file gone here and a new one of the same bytes since the base, on
 //!   one side, is a rename (item 10);
 //! - where this computer's file system folds names (APFS, NTFS), a path
@@ -114,6 +114,10 @@ pub struct Plan {
     /// ask first (item 9): nothing is carried out until the person says.
     pub pause: Option<usize>,
 }
+
+/// The fewest deletions in one pass that pause it (item 9, revised
+/// 2026-10-10).
+pub const PAUSE_FLOOR: usize = 3;
 
 /// Whether a path can cross to every system (ADR 0070 item 3): one that
 /// cannot is listed by sync instead of sent, since the server would refuse
@@ -290,7 +294,9 @@ pub fn plan(
         .filter(|a| matches!(a, Action::DeleteLocal { .. } | Action::DeleteRemote { .. }))
         .count();
     let size = local.len().max(remote.len()).max(base.len());
-    let many = deletions > 50 || (deletions > 0 && deletions * 5 > size);
+    // At least 3 (item 9, revised 2026-10-10): in a small folder a fifth
+    // is one or two files, and one or two deletions are no folder gone.
+    let many = deletions >= PAUSE_FLOOR && (deletions > 50 || deletions * 5 > size);
     Plan {
         pause: (many && !confirmed).then_some(deletions),
         actions,
