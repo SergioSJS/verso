@@ -737,3 +737,70 @@ fn a_devices_change_and_its_refusal_name_the_device() {
         assert_eq!(change["device"], Value::Null, "{change}");
     });
 }
+
+/// A device's session ended by its person (the live campaign, R2,
+/// 2026-10-10: the device learned it only at its next exchange, minutes
+/// later): its open connection is told and closed at once; another
+/// session's stays.
+#[test]
+fn an_ended_sessions_connection_is_closed_at_once() {
+    use futures_util::StreamExt;
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let account = r
+            .server
+            .db
+            .account_by_email("admin@casa.lan")
+            .unwrap()
+            .unwrap();
+        let device = |name: &str| {
+            let (token, _) = r
+                .server
+                .db
+                .create_session(&account.id, "device", name, "127.0.0.1")
+                .unwrap();
+            let id = r.server.db.session(&token).unwrap().unwrap().id;
+            (token, id)
+        };
+        let (win, win_id) = device("VERSO-WIN");
+        let (mac, _) = device("MacBook");
+        let mut on_win = connect(&r, None, None, Some(&win)).await.unwrap();
+        next(&mut on_win).await;
+        let mut on_mac = connect(&r, None, None, Some(&mac)).await.unwrap();
+        next(&mut on_mac).await;
+        assert_eq!(
+            remove(&r, &format!("/api/me/sessions/{win_id}"), &admin).await,
+            200
+        );
+        // Told, then closed — with no question asked.
+        let told = next(&mut on_win).await;
+        assert_eq!(told["gone"], "session", "{told}");
+        let closed = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            loop {
+                match on_win.next().await {
+                    None | Some(Err(_)) => break,
+                    Some(Ok(m)) if m.is_close() => break,
+                    Some(Ok(_)) => {}
+                }
+            }
+        })
+        .await;
+        assert!(closed.is_ok(), "the ended session's connection stayed open");
+        // The other device's connection still answers.
+        let answered = call(&mut on_mac, 1, "sync_state", json!({})).await;
+        assert!(answered.get("id").is_some(), "{answered}");
+        // "Sign out everywhere else": the rest go too.
+        let others = reqwest::Client::new()
+            .delete(r.url("/api/me/sessions/others"))
+            .header("origin", r.origin())
+            .header("cookie", &admin.cookie)
+            .header("x-verso-csrf", &admin.csrf)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(others.status().as_u16(), 200);
+        let told = next(&mut on_mac).await;
+        assert_eq!(told["gone"], "session", "{told}");
+    });
+}

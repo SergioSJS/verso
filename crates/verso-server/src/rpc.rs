@@ -82,6 +82,7 @@ async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket) {
         client.clone(),
         Client {
             account: who.account.id.clone(),
+            session: who.session().map(str::to_owned),
             folder: None,
             tx: tx.clone(),
         },

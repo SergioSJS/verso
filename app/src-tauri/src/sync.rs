@@ -1284,6 +1284,9 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
             }
         };
         log::write("INFO", "sync", &format!("connected: folder {}", s.key));
+        // The server ended this device's session: said now, as it closes
+        // the connection, not as a connection lost.
+        let mut ended = false;
         while !gone(&s) {
             match pass(&ctx, &s, &mut l).await {
                 // Waiting for the person; the pass said so.
@@ -1325,6 +1328,11 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
                             break false;
                         }
                         Some(remote::Heard::Event(..)) => {}
+                        Some(remote::Heard::Gone(what)) if what == "session" => {
+                            log::write("INFO", "sync", "signed out: the server ended this device's session");
+                            ended = true;
+                            break true;
+                        }
                         _ => break true,
                     },
                 }
@@ -1335,7 +1343,7 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
             // A burst of changes settles before the next pass.
             tokio::time::sleep(Duration::from_millis(500)).await;
         }
-        if !gone(&s) {
+        if !gone(&s) && !ended {
             log::write(
                 "WARN",
                 "sync",

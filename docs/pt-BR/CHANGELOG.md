@@ -31,6 +31,7 @@ versão de teste.
 - **Um nome em dois arquivos no disco do servidor** (os acentos nas duas formas Unicode, de antes de um nome ser um arquivo só): a sincronização fica com um e segura o outro, e agora diz isso — um aviso no log do servidor a cada varredura, e uma linha em "Pede atenção" na página da pasta no console, contada na visão geral, com o arquivo a remover ou renomear.
 - **Sincronizar com um servidor de outro build da mesma versão** agora diz qual: "o servidor roda o Verso 0.7.0-beta.1 (build 1dac246, contrato …), este app 0.7.0-beta.1 (build efa6f12, contrato …): os contratos diferem — atualize o que estiver atrás", em vez de dizer a mesma versão duas vezes.
 - **Abrir uma pasta com o app fechado** (`open -a Verso <pasta>`, `verso <pasta>` no macOS) abre só a janela dessa pasta, sem uma janela "Verso" vazia ao lado.
+- **Uma sessão encerrada no servidor** (Ajustes › Conta › Sessões, "Sair de todas as outras", uma senha trocada) fecha as conexões dessa sessão na hora: um computador que sincroniza diz que saiu da conta naquele momento, não na próxima troca com o servidor.
 
 ## 0.7.0-beta.1 — 2026-10-10
 

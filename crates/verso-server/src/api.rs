@@ -165,6 +165,8 @@ pub async fn sign_out(ctx: Ctx) -> ApiResult<Response> {
         && let Some(session) = who.session()
     {
         ctx.server.db.end_session(&who.account.id, session)?;
+        ctx.server
+            .sessions_ended(&who.account.id, Some(session), None);
         ctx.audit("sign_out", None, None, true);
     }
     let mut response = ok(json!(null));
@@ -460,6 +462,8 @@ pub async fn password(ctx: Ctx, Json(body): Json<Password>) -> ApiResult<Respons
     check_password(&body.new)?;
     ctx.server.db.set_password(&who.account.id, &body.new)?;
     ctx.server.db.end_sessions(&who.account.id, who.session())?;
+    ctx.server
+        .sessions_ended(&who.account.id, None, who.session());
     ctx.audit("password_change", None, None, true);
     Ok(ok(json!(null)))
 }
@@ -486,6 +490,8 @@ pub async fn end_session(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response
     if !ctx.server.db.end_session(&who.account.id, &id)? {
         return Err(ApiError::not_found());
     }
+    // Its connections close now: a device hears it at once.
+    ctx.server.sessions_ended(&who.account.id, Some(&id), None);
     ctx.audit("session_ended", Some(&id), None, true);
     Ok(ok(json!(null)))
 }
@@ -495,6 +501,8 @@ pub async fn end_others(ctx: Ctx) -> ApiResult<Response> {
     ctx.changes()?;
     let who = ctx.person()?;
     let n = ctx.server.db.end_sessions(&who.account.id, who.session())?;
+    ctx.server
+        .sessions_ended(&who.account.id, None, who.session());
     ctx.audit("sessions_ended", Some(&n.to_string()), None, true);
     Ok(ok(json!({ "ended": n })))
 }

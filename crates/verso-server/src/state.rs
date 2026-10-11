@@ -27,6 +27,8 @@ pub type Push = serde_json::Value;
 /// role, and where its pushes go.
 pub struct Client {
     pub account: String,
+    /// The session the connection was opened with; none for a token's.
+    pub session: Option<String>,
     pub folder: Option<(String, Role)>,
     pub tx: mpsc::UnboundedSender<Push>,
 }
@@ -135,6 +137,25 @@ impl Server {
         let table = lock(&self.clients);
         for c in table.values().filter(|c| c.account == account) {
             let _ = c.tx.send(message.clone());
+        }
+    }
+
+    /// Sessions of `account` ended: the connections opened with them are
+    /// told and closed at once (the WebSocket's loop closes on `gone`), so
+    /// that a device hears it then, not at its next exchange (the live
+    /// campaign, 2026-10-10). `only` names the one session ended; without
+    /// it, every one of the account's but `keep`. A token's connection is
+    /// no session's and stays.
+    pub fn sessions_ended(&self, account: &str, only: Option<&str>, keep: Option<&str>) {
+        let table = lock(&self.clients);
+        for c in table.values().filter(|c| c.account == account) {
+            let Some(session) = c.session.as_deref() else {
+                continue;
+            };
+            if keep == Some(session) || only.is_some_and(|o| o != session) {
+                continue;
+            }
+            let _ = c.tx.send(serde_json::json!({ "gone": "session" }));
         }
     }
 
