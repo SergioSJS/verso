@@ -901,3 +901,38 @@ fn a_file_larger_than_sync_carries_is_listed_never_read() {
         );
     });
 }
+
+/// A file a device sent is recorded with the quick key the next walk's
+/// listing gives it — its length and its time on the disk — so that walk
+/// skips it instead of reading and hashing it again (R3 of 2026-10-11: the
+/// time was recorded as 0, and every file sent was read once more).
+#[test]
+fn a_file_sent_is_not_read_again_by_the_next_walk() {
+    const NAME: &str = "Enviado-r3.md";
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &admin).await;
+        let mut ws = opened(&r, &admin).await;
+        let sent = send(&mut ws, 2, NAME, b"# enviado\n", None).await;
+        assert_eq!(sent["ok"]["done"], true, "{sent}");
+        let recorded = r.server.db.known(&id, NAME).unwrap().unwrap().quick;
+        assert!(!recorded.ends_with(":0"), "{recorded}");
+        // The walk's listing of the file, as the next walk compares it.
+        let walked = call(&mut ws, 10, "reindex", json!({})).await;
+        assert!(walked.get("ok").is_some(), "{walked}");
+        let key = key_of(&r, &id);
+        let listed = r
+            .server
+            .service
+            .with_key(&key, |ws| {
+                Ok(ws
+                    .entries()
+                    .iter()
+                    .find(|e| e.path == NAME)
+                    .map(|e| format!("{}:{}", e.len, e.modified)))
+            })
+            .unwrap();
+        assert_eq!(listed.as_deref(), Some(recorded.as_str()));
+    });
+}

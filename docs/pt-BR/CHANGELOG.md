@@ -41,6 +41,7 @@ versão de teste.
 - **Um arquivo criado ou renomeado no Verso e depois apagado fora dele no macOS** (Finder, `rm`, outro programa) sai da árvore na hora, e a sincronização manda a exclusão logo em vez de na varredura de cinco minutos.
 - **A sincronização de uma pasta não fica mais "sincronizando" para sempre** quando a conexão com o servidor cai no momento em que uma mudança é feita aqui: diz que está offline e conecta de novo, e a mudança cruza então.
 - **Um arquivo maior que 1 GiB numa pasta do servidor** não derruba mais um servidor pequeno na varredura seguinte: a sincronização o deixa de fora sem lê-lo e diz isso uma vez no log do servidor, como grande demais para sincronizar.
+- **Menos disco e CPU num servidor que sincroniza**: um arquivo que um aparelho envia, ou uma mudança que o servidor lê, não é mais lido e resumido (hash) de novo pela varredura seguinte.
 
 ## 0.7.0-beta.1 — 2026-10-10
 

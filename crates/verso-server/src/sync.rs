@@ -300,9 +300,9 @@ fn reconcile_held(
             present.insert(path);
             continue;
         }
-        let quick = listed.map(|(_, q)| q);
-        let bytes = match read_file(server, key, &path) {
-            Ok(Some(bytes)) => bytes,
+        let listed_quick = listed.map(|(_, q)| q);
+        let (bytes, revision) = match read_file(server, key, &path) {
+            Ok(Some(read)) => read,
             // A folder (a write that made or moved one names it): no
             // entry of the log, and no file of that name any more.
             Ok(None) => continue,
@@ -329,7 +329,11 @@ fn reconcile_held(
         present.insert(path.clone());
         let hash = sha256(&bytes);
         let size = i64::try_from(bytes.len()).unwrap_or(i64::MAX);
-        let quick = quick.unwrap_or_else(|| format!("{}:0", bytes.len()));
+        // The quick key of the bytes read, as the next walk's listing will
+        // say it: the file is skipped while it stays as it is.
+        let quick = quick_of(&revision, bytes.len())
+            .or(listed_quick)
+            .unwrap_or_else(|| format!("{}:0", bytes.len()));
         if old.is_some_and(|k| k.hash == hash) {
             quick_only.push((path, quick));
         } else {
@@ -353,18 +357,37 @@ fn reconcile_held(
     )
 }
 
-/// The bytes of the file at `path`, for a reconciliation; `None` when
-/// `path` is a folder. The unit of sync is a file and a folder is never an
-/// entry of the log (ADR 0079 item 2), but a write that makes or moves a
-/// folder names it among the paths it changed, and the watcher may too.
-fn read_file(server: &Server, key: &str, path: &str) -> Result<Option<Vec<u8>>, ContractError> {
+/// The bytes of the file at `path` and the revision they were read at, for
+/// a reconciliation; `None` when `path` is a folder. The unit of sync is a
+/// file and a folder is never an entry of the log (ADR 0079 item 2), but a
+/// write that makes or moves a folder names it among the paths it changed,
+/// and the watcher may too.
+fn read_file(
+    server: &Server,
+    key: &str,
+    path: &str,
+) -> Result<Option<(Vec<u8>, String)>, ContractError> {
     let p = path.to_owned();
     server.service.with_key(key, move |ws| {
         if ws.is_folder(&p) {
             return Ok(None);
         }
-        Ok(Some(ws.read_with_revision(&p)?.0))
+        Ok(Some(ws.read_with_revision(&p)?))
     })
+}
+
+/// The quick key of `len` bytes read or written at `revision`: their length
+/// and time in whole seconds, as a walk's listing says them, so that the
+/// next walk skips the file while it stays as it is. A revision is
+/// `<nanoseconds since the epoch>:<length>:<hash>` (verso-core's
+/// `revision::encode`); `None` when it is not, or names another length (a
+/// write whose stamp could not be confirmed) — the next walk then reads the
+/// file once more.
+fn quick_of(revision: &str, len: usize) -> Option<String> {
+    let mut parts = revision.split(':');
+    let nanos: u128 = parts.next()?.parse().ok()?;
+    let length: u64 = parts.next()?.parse().ok()?;
+    (u64::try_from(len).ok()? == length).then(|| format!("{len}:{}", nanos / 1_000_000_000))
 }
 
 /// The listing's size of each of `paths` it lists: checked against
@@ -439,11 +462,11 @@ fn record_changes(
 /// write costs the paths it touched, not the folder's size. The folder's
 /// lock is held by the caller.
 /// What the caller knows of a path it changed: nothing (it is read), the
-/// bytes it wrote (their hash and size), or that it is gone.
+/// bytes it wrote (their hash, size and quick key), or that it is gone.
 #[derive(Clone)]
 enum Now {
     Read,
-    Written(String, i64),
+    Written(String, i64, String),
     Gone,
 }
 
@@ -491,9 +514,9 @@ fn reconcile_paths(
     let mut created = Vec::new();
     let mut quick_only = Vec::new();
     for (path, now) in paths {
-        let (hash, size) = match now {
+        let (hash, size, quick) = match now {
             Now::Gone => continue,
-            Now::Written(hash, size) => (hash.clone(), *size),
+            Now::Written(hash, size, quick) => (hash.clone(), *size, quick.clone()),
             // Larger than sync carries: never read, kept as it was.
             Now::Read if sizes.get(path).is_some_and(|len| *len > LARGEST) => {
                 let len = sizes.get(path).copied().unwrap_or_default();
@@ -503,11 +526,13 @@ fn reconcile_paths(
             }
             Now::Read => {
                 match read_file(server, key, path) {
-                    Ok(Some(bytes)) => {
+                    Ok(Some((bytes, revision))) => {
                         server.transfers.large.remove(folder, path);
                         (
                             sha256(&bytes),
                             i64::try_from(bytes.len()).unwrap_or(i64::MAX),
+                            quick_of(&revision, bytes.len())
+                                .unwrap_or_else(|| format!("{}:0", bytes.len())),
                         )
                     }
                     // A folder: no entry of the log.
@@ -522,7 +547,6 @@ fn reconcile_paths(
             }
         };
         present.insert(path.clone());
-        let quick = format!("{size}:0");
         if known.get(path).is_some_and(|k| k.hash == hash) {
             quick_only.push((path.clone(), quick));
         } else {
@@ -1109,14 +1133,17 @@ fn put(
     crate::quota::check(server, key, &path, size)?;
     let p = path.clone();
     let (head, landed) = {
-        let landed = server.service.with_key(key, move |ws| {
+        let (landed, quick) = server.service.with_key(key, move |ws| {
             // New, under the other form of a name a file holds: taken.
             if other && base.is_none() && now(ws, &p)?.is_some() {
                 return Err(form_taken());
             }
             let revision = is_now(ws, &p, base.as_deref())?;
-            ws.write_bytes(&p, &bytes, revision.as_deref())?;
-            Ok(on_disk(ws, &p))
+            let written = ws.write_bytes(&p, &bytes, revision.as_deref())?;
+            // The written file's own time: the next walk skips it.
+            let quick =
+                quick_of(&written, bytes.len()).unwrap_or_else(|| format!("{}:0", bytes.len()));
+            Ok((on_disk(ws, &p), quick))
         })?;
         let head = reconcile_paths(
             server,
@@ -1125,7 +1152,7 @@ fn put(
             by,
             &[(
                 path.clone(),
-                Now::Written(hash.clone(), i64::try_from(size).unwrap_or(i64::MAX)),
+                Now::Written(hash.clone(), i64::try_from(size).unwrap_or(i64::MAX), quick),
             )],
         )?;
         (head, landed)
