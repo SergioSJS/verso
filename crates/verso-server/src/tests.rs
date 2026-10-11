@@ -1296,3 +1296,39 @@ fn requests_past_the_bound_wait_and_are_all_answered() {
         assert_eq!(answered, (1..=40).collect());
     });
 }
+
+/// The sync protocol's version (ADR 0079 item 5): a device says its own
+/// in the WebSocket's request, the hello says the server's, and a device
+/// older than the version before the server's is refused, in words that
+/// say what to do — its sync's commands too.
+#[test]
+fn the_hello_says_the_sync_the_server_speaks() {
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let mut req = format!("ws://localhost:{}/api/ws", r.addr.port())
+            .into_client_request()
+            .unwrap();
+        let headers = req.headers_mut();
+        headers.insert("cookie", b.cookie.parse().unwrap());
+        headers.insert("origin", r.origin().parse().unwrap());
+        headers.insert(
+            verso_core::sync::PROTOCOL_HEADER,
+            verso_core::sync::PROTOCOL.to_string().parse().unwrap(),
+        );
+        let (mut ws, _) = tokio_tungstenite::connect_async(req).await.unwrap();
+        let hello = next(&mut ws).await;
+        assert_eq!(
+            hello["hello"]["sync"],
+            verso_core::sync::PROTOCOL,
+            "{hello}"
+        );
+        assert!(hello["hello"].get("syncRefused").is_none(), "{hello}");
+    });
+    // A server two versions ahead of a device.
+    let why = crate::rpc::sync_refusal(Some(1), 3).unwrap();
+    assert!(why.contains("sync 1") && why.contains("sync 3"), "{why}");
+    assert!(why.ends_with("update the one that is behind"), "{why}");
+    assert_eq!(crate::rpc::sync_refusal(Some(2), 3), None);
+    assert_eq!(crate::rpc::sync_refusal(None, 3), None);
+}

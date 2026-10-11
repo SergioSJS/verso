@@ -603,6 +603,13 @@ pub(crate) async fn link(ctx: &Ctx, s: &Syncer) -> Result<Link, ContractError> {
         *lock(&s.versions) = Some(v);
         return Err(refused);
     }
+    // One contract, and a sync one side cannot follow (ADR 0079 item 5):
+    // said as a version problem, naming both versions when they differ.
+    if let Some(why) = remote::sync_refused(&hello) {
+        let v = remote::versions(&hello);
+        *lock(&s.versions) = (v.server_version != v.app_version).then_some(v);
+        return Err(refused(why));
+    }
     remote
         .call("open_server_folder", json!({ "id": s.folder }))
         .await

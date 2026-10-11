@@ -548,18 +548,39 @@ pub(crate) async fn dial(
 
 /// What each side runs, when the server's contract is not this app's.
 pub(crate) fn mismatch(hello: &Value) -> Option<SyncVersions> {
-    let contract = contract_version();
-    if hello["contract"].as_str() == Some(contract.as_str()) {
+    if hello["contract"].as_str() == Some(contract_version().as_str()) {
         return None;
     }
+    Some(versions(hello))
+}
+
+/// What each side runs, as the server's hello says it and this app knows.
+pub(crate) fn versions(hello: &Value) -> SyncVersions {
     let said = |field: &str| hello[field].as_str().unwrap_or("?").to_owned();
-    Some(SyncVersions {
+    SyncVersions {
         server_version: said("version"),
         server_build: said("commit"),
         server_contract: said("contract"),
         app_version: env!("CARGO_PKG_VERSION").to_owned(),
         app_build: env!("VERSO_COMMIT").to_owned(),
-        app_contract: contract,
+        app_contract: contract_version(),
+    }
+}
+
+/// Why this app's sync and the server's do not follow each other, in
+/// English for the log (ADR 0079 item 5): the server said this app's is
+/// older than it takes, or the server's is older than the version before
+/// this app's. A server that says no version speaks the one before the
+/// first.
+pub(crate) fn sync_refused(hello: &Value) -> Option<String> {
+    use verso_core::sync::{PROTOCOL, follows};
+    let theirs = hello["sync"]
+        .as_u64()
+        .map_or(0, |v| u32::try_from(v).unwrap_or(u32::MAX));
+    (hello.get("syncRefused").is_some() || !follows(PROTOCOL, theirs)).then(|| {
+        format!(
+            "the server speaks sync {theirs}, this app sync {PROTOCOL}: update the one that is behind"
+        )
     })
 }
 
@@ -613,6 +634,15 @@ pub(crate) async fn dial_hello(
         .parse()
         .map_err(|_| failed("a token that is no header"))?;
     request.headers_mut().insert("authorization", bearer);
+    // The sync this app speaks (ADR 0079 item 5): the server answers its
+    // own in the hello, and whether it follows this one.
+    let sync = verso_core::sync::PROTOCOL
+        .to_string()
+        .parse()
+        .map_err(|_| failed("a sync version that is no header"))?;
+    request
+        .headers_mut()
+        .insert(verso_core::sync::PROTOCOL_HEADER, sync);
     let (socket, _) = tokio_tungstenite::connect_async(request)
         .await
         .map_err(|e| match e {

@@ -1106,3 +1106,110 @@ fn a_file_larger_than_sync_carries_is_listed_here_never_read() {
     assert_eq!(text(&b, "Uma.md").as_deref(), Some("# Uma\n"));
     assert!(read(&b, NAME).is_none());
 }
+
+/// A server whose sync this app cannot follow (ADR 0079 item 5): this
+/// app says its own sync as it connects, and a server that answers it
+/// takes it no longer is said in words — the folder's state is an error,
+/// a version problem naming both Verso versions — as a contract that
+/// differs is, never a connection lost. The server here is a stand-in: a
+/// real one two sync versions ahead does not exist yet.
+#[test]
+fn a_server_that_does_not_follow_this_apps_sync_is_said_in_words() {
+    use futures_util::SinkExt;
+    use serde_json::json;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio_tungstenite::tungstenite::Message;
+    use tokio_tungstenite::tungstenite::handshake::server::{
+        Callback, ErrorResponse, Request, Response,
+    };
+
+    /// What the device said of its sync as it connected.
+    struct Said(Arc<Mutex<Option<String>>>);
+
+    impl Callback for Said {
+        fn on_request(self, r: &Request, a: Response) -> Result<Response, ErrorResponse> {
+            *lock(&self.0) = r
+                .headers()
+                .get(engine::PROTOCOL_HEADER)
+                .and_then(|v| v.to_str().ok())
+                .map(str::to_owned);
+            Ok(a)
+        }
+    }
+
+    let listener =
+        tauri::async_runtime::block_on(tokio::net::TcpListener::bind("127.0.0.1:0")).unwrap();
+    let url = format!("http://127.0.0.1:{}", listener.local_addr().unwrap().port());
+    let said: Arc<Mutex<Option<String>>> = Arc::default();
+    let heard = Arc::clone(&said);
+    tauri::async_runtime::spawn(async move {
+        while let Ok((mut stream, _)) = listener.accept().await {
+            let heard = Arc::clone(&heard);
+            tauri::async_runtime::spawn(async move {
+                let mut head = [0_u8; 32];
+                let n = stream.peek(&mut head).await.unwrap();
+                // The folders the account reaches, over HTTP.
+                if head[..n].starts_with(b"GET /api/folders") {
+                    let mut request = Vec::new();
+                    let mut buf = [0_u8; 1024];
+                    while !request.windows(4).any(|w| w == b"\r\n\r\n") {
+                        let n = stream.read(&mut buf).await.unwrap();
+                        request.extend_from_slice(&buf[..n]);
+                    }
+                    let body =
+                        json!({ "folders": [{ "id": "f", "name": "Campanha", "role": "owner" }] })
+                            .to_string();
+                    let answer = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                        body.len()
+                    );
+                    stream.write_all(answer.as_bytes()).await.unwrap();
+                    return;
+                }
+                let mut ws = tokio_tungstenite::accept_hdr_async(stream, Said(heard))
+                    .await
+                    .unwrap();
+                let hello = json!({ "hello": {
+                    "version": "9.0.0",
+                    "commit": "abc1234",
+                    "contract": super::remote::contract_version(),
+                    "sync": 3,
+                    "syncRefused": "this app speaks sync 1, the server sync 3 and 2: update the one that is behind",
+                }});
+                ws.send(Message::Text(hello.to_string().into()))
+                    .await
+                    .unwrap();
+                tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+            });
+        }
+    });
+    let d = device_at(&url, "f", "um token", &[]);
+    tauri::async_runtime::spawn(super::sync::run(Arc::clone(&d.ctx), Arc::clone(&d.s)));
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+    let status = loop {
+        let last = lock(&d.shown).last().cloned();
+        if let Some(s) = last.filter(|s| s.state != "starting" && s.state != "syncing") {
+            break s;
+        }
+        assert!(std::time::Instant::now() < deadline, "no state said");
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    };
+    d.s.stop();
+    assert_eq!(status.state, "error", "{status:?}");
+    assert_eq!(status.problem.as_deref(), Some("version"), "{status:?}");
+    let message = status.message.clone().unwrap_or_default();
+    assert!(message.contains("sync 3"), "{message}");
+    assert!(
+        message.ends_with("update the one that is behind"),
+        "{message}"
+    );
+    assert_eq!(
+        status.versions.as_ref().map(|v| v.server_version.as_str()),
+        Some("9.0.0"),
+        "{status:?}"
+    );
+    assert_eq!(
+        lock(&said).as_deref(),
+        Some(engine::PROTOCOL.to_string().as_str())
+    );
+}
