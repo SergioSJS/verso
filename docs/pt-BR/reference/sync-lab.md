@@ -95,6 +95,7 @@ importam ficam resumidas abaixo.
 | 2026-10-10 | 5ee552c | Linux VM, Proxmox, 4 vCPU, 5.4 GB, disco virtual | 1 × 30 | 10 | 99 / 1 212 / 1 561 | 2.3 / 43 | 0 problemas | o fsync do disco limita cada gravação |
 | 2026-10-10 | 5ee552c | mesma VM | 50 × 60 | 19 | 3 878 / 5 524 / 6 783 | 5.1 / 185 | 0 problemas | |
 | 2026-10-10 | 5ee552c | mesma VM | 200 × 60 | 16 | 16 419 / 21 329 / 23 547 | 20 / 1 378 | 0 problemas | 1 GB residente |
+| 2026-10-11 | 40b0016 | Apple M3 Max, 48 GB | 50 × 60 | 133 | 533 / 827 / 1 467 | 0,4 / 22 | 0 problemas | rodada 2 da campanha, o build final: resolução NFC de nomes e `one_name` sem alocação no put |
 
 ## 4. Os cenários da campanha
 
