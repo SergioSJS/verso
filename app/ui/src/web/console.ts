@@ -288,7 +288,7 @@ function folders(c: Ctx, body: HTMLElement): void {
 
 async function folderPage(c: Ctx, body: HTMLElement, id: string): Promise<void> {
   const s = cw();
-  type Detail = { id: string; name: string; created: number; members: { id: string; name: string; email: string; role: string }[]; space: Space; quota: number | null; twins?: { kept: string; held: string }[]; changes?: Change[] };
+  type Detail = { id: string; name: string; created: number; members: { id: string; name: string; email: string; role: string }[]; space: Space; quota: number | null; twins?: { kept: string; held: string }[]; tooLarge?: { path: string; size: number }[]; changes?: Change[] };
   const f = await api<Detail>("GET", `/api/admin/folders/${id}`);
   c.title(f.name);
   const said = line();
@@ -324,6 +324,15 @@ async function folderPage(c: Ctx, body: HTMLElement, id: string): Promise<void> 
     said,
     // Files its last walk held: another's name in another form.
     ...(f.twins?.length ? [el("h2", { class: "settings-subheading" }, s.attention), el("ul", { class: "console-list", "data-twins": "" }, ...f.twins.map((tw) => el("li", { class: "web-warn" }, s.twin(tw.kept, tw.held))))] : []),
+    // Files sync leaves out for their size (above 1 GiB), as the server's
+    // last walk found them.
+    ...(f.tooLarge?.length
+      ? [
+          el("h2", { class: "settings-subheading" }, s.tooLarge),
+          el("p", { class: "settings-hint" }, s.tooLargeDesc),
+          el("ul", { class: "console-list", "data-too-large": "" }, ...f.tooLarge.map((t) => el("li", {}, `${t.path} · ${bytes(t.size)}`))),
+        ]
+      : []),
     el("h2", { class: "settings-subheading" }, s.members),
     f.members.length ? el("ul", { class: "console-list" }, ...f.members.map((m) => el("li", {}, `${m.name} · ${m.email} · ${roleName(m.role)}`))) : el("p", { class: "settings-hint" }, s.none),
     el("h2", { class: "settings-subheading" }, s.latestChanges),
