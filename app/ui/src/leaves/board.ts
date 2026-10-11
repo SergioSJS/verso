@@ -548,24 +548,29 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
   };
   // "Keep both", as a note's tab offers it: the card's text goes beside
   // the note in a copy named as sync names one (ADR 0079 item 8), and the
-  // card takes the disk's version — the card stays on its note.
-  const keepBoth = (): Promise<void> => {
-    const run = saving.then(async () => {
-      if (!view || !conflict.up) return;
+  // card takes the disk's version — the card stays on its note. The lists
+  // are read again after the chain of saves, not in it: that reading
+  // rechecks this card, which waits for the chain (an embed's keep both
+  // hung there, its banner left up).
+  const keepBoth = async (): Promise<void> => {
+    const run = saving.then(async (): Promise<string | null> => {
+      if (!view || !conflict.up) return null;
       const mine = text();
       const copy = await keepCopy(path, async (at) => {
         const r = await commands.createNote(at, mine);
         return r.status === "ok" ? { status: "ok", data: r.data.path } : r;
       });
-      if (!copy) return;
-      await fileMade();
+      if (!copy) return null;
       const r = await opening.readNote(path);
-      if (r.status !== "ok") return fail(r.error);
-      show(r.data);
-      ui.status.textContent = t.keptBoth(name(path), name(copy));
+      if (r.status !== "ok") fail(r.error);
+      else show(r.data);
+      return copy;
     });
-    saving = run.catch(() => undefined);
-    return run;
+    saving = run.then(() => undefined, () => undefined);
+    const copy = await run;
+    if (!copy) return;
+    await fileMade();
+    ui.status.textContent = t.keptBoth(name(path), name(copy));
   };
   return {
     isDirty: () => dirty,
