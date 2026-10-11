@@ -23,7 +23,9 @@
   dia, o mantenedor ficou com a resposta recomendada a cada questão que
   lhe foi posta: *"Gostei das recomendações, pode seguir"*. Item 9: a pausa
   precisa de pelo menos 3 apagamentos numa passada — um piso, para que
-  numa pasta pequena um ou dois apagamentos não pausem (o M1 da revisão);
+  numa pasta pequena um ou dois apagamentos não pausem (o M1 da revisão; lido
+  como piso a partir do "pode seguir" à recomendação "pausar a partir de 3" —
+  essa leitura aguarda a confirmação do mantenedor);
   e "a lixeira do sistema" corrigida para o `.trash/` da pasta, que é o
   que o código faz ([0080](0080-the-trash-with-expiry-and-restore.md)
   item 9). Itens 2 e 8: as duas formas Unicode de um nome são um arquivo
