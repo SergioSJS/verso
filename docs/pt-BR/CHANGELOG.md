@@ -33,6 +33,7 @@ versão de teste.
 - **Abrir uma pasta com o app fechado** (`open -a Verso <pasta>`, `verso <pasta>` no macOS) abre só a janela dessa pasta, sem uma janela "Verso" vazia ao lado.
 - **Uma sessão encerrada no servidor** (Ajustes › Conta › Sessões, "Sair de todas as outras", uma senha trocada) fecha as conexões dessa sessão na hora: um computador que sincroniza diz que saiu da conta naquele momento, não na próxima troca com o servidor.
 - **"Guardar os dois" também no board e num arquivo de texto**: quando um board, uma nota num cartão do board ou um arquivo de texto (`.txt`, `.json`, …) mudou em disco com mudanças ainda não salvas aqui, uma terceira escolha ao lado de "Descartar o meu" e "Gravar o meu por cima" deixa a versão do disco com o nome e grava esta ao lado, com o nome que a sincronização dá à cópia de um conflito.
+- **Um arquivo criado ou renomeado no Verso e depois apagado fora dele no macOS** (Finder, `rm`, outro programa) sai da árvore na hora, e a sincronização manda a exclusão logo em vez de na varredura de cinco minutos.
 
 ## 0.7.0-beta.1 — 2026-10-10
 

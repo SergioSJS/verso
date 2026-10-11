@@ -7,7 +7,9 @@
 //! putting a temporary file in place of its target. The Unix half reads
 //! `Metadata`; the Windows half opens the path for its attributes and asks
 //! the file system through `winapi-util`, whose safe API wraps
-//! `GetFileInformationByHandle` (the workspace forbids `unsafe`).
+//! `GetFileInformationByHandle` (the workspace forbids `unsafe`). On macOS
+//! a new or moved file takes its name by an exclusive rename (`rustix`),
+//! which FSEvents follows to its removal; elsewhere by `link`.
 
 use std::fs::Metadata;
 use std::path::Path;
@@ -145,6 +147,23 @@ pub(crate) fn rename_unless_changed(
 #[cfg(windows)]
 const RENAME_ATTEMPTS: u32 = 10;
 
+/// Give `from` the name `to` in one step that fails with `AlreadyExists`
+/// rather than replace whatever stands at `to`: `renamex_np` with
+/// `RENAME_EXCL`, reached through `rustix`, whose safe call takes the
+/// place of the `unsafe` FFI the workspace forbids. macOS places a new or
+/// moved file this way and not by `link` and `unlink`, because FSEvents
+/// never reports the removal of a file whose name was given by `link`
+/// (ADR 0069, revised 2026-10-11). A volume that does not offer it — the
+/// flag is optional for a file system (`VOL_CAP_INT_RENAME_EXCL`) —
+/// answers `Unsupported` or `InvalidInput`, and the caller links instead.
+/// Paths are resolved as `rename` resolves them: from the working
+/// directory when relative, which a path of the folder never is.
+#[cfg(target_os = "macos")]
+pub(crate) fn rename_exclusive(from: &Path, to: &Path) -> std::io::Result<()> {
+    use rustix::fs::{CWD, RenameFlags, renameat_with};
+    renameat_with(CWD, from, CWD, to, RenameFlags::NOREPLACE).map_err(std::io::Error::from)
+}
+
 #[cfg(windows)]
 mod windows {
     use std::fs::{File, OpenOptions};
@@ -248,6 +267,25 @@ mod tests {
         rename(&from, &to).unwrap();
         assert_eq!(std::fs::read_to_string(&to).unwrap(), "new");
         assert!(!from.exists());
+    }
+
+    /// The exclusive rename moves a file to a free name, and refuses an
+    /// occupied one with `AlreadyExists`, leaving both files as they were.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn an_exclusive_rename_never_replaces() {
+        let dir = temp_dir();
+        let (from, to) = (dir.path().join(".tmp"), dir.path().join("n.md"));
+        std::fs::write(&from, "new").unwrap();
+        rename_exclusive(&from, &to).unwrap();
+        assert_eq!(std::fs::read_to_string(&to).unwrap(), "new");
+        assert!(!from.exists());
+
+        std::fs::write(&from, "newer").unwrap();
+        let refused = rename_exclusive(&from, &to).unwrap_err();
+        assert_eq!(refused.kind(), std::io::ErrorKind::AlreadyExists);
+        assert_eq!(std::fs::read_to_string(&to).unwrap(), "new");
+        assert_eq!(std::fs::read_to_string(&from).unwrap(), "newer");
     }
 
     /// On Windows a name is found whatever its case: one entry.

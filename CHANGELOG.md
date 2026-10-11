@@ -33,6 +33,7 @@ test release.
 - **Opening a folder with the app closed** (`open -a Verso <folder>`, `verso <folder>` on macOS) opens that folder's window alone, without an empty "Verso" window beside it.
 - **A session ended on the server** (Settings › Account › Sessions, "Sign out everywhere else", a password changed) closes that session's connections at once: a computer that syncs says it was signed out right then, not at its next exchange with the server.
 - **"Keep both" on a board and on a text file too**: when a board, a note in a board's card or a text file (`.txt`, `.json`, …) changed on disk while it had unsaved changes here, a third choice beside "Discard mine" and "Write mine over it" keeps the disk's version under the name and writes this one beside it, named as sync names a conflict's copy.
+- **A file made or renamed in Verso, then deleted outside it on macOS** (Finder, `rm`, another program) leaves the tree at once, and sync sends the deletion right away instead of at its five-minute scan.
 
 ## 0.7.0-beta.1 — 2026-10-10
 

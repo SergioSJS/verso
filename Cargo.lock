@@ -5920,6 +5920,7 @@ dependencies = [
  "ignore",
  "nix",
  "notify",
+ "rustix",
  "tempfile",
  "winapi-util",
  "xattr",

@@ -431,8 +431,9 @@ impl Root {
 
     /// Create a file that does not exist yet, confined like every path,
     /// with `content`, atomically (ADR 0048): written under a temporary
-    /// name, synced, then linked to its name, which fails rather than
-    /// replacing what appeared there meanwhile. `WriteError::Exists` when
+    /// name, synced, then given its name by a step that fails rather than
+    /// replacing what appeared there meanwhile — an exclusive rename on
+    /// macOS, `link` elsewhere (ADR 0069, revised 2026-10-11). `WriteError::Exists` when
     /// something already stands there. The report carries the new file's
     /// stamp and what could not be confirmed once the file was in place.
     pub fn create(
@@ -470,9 +471,10 @@ impl Root {
     /// Move an entry to another path of the folder, both confined; refuses
     /// an occupied destination, unless it is the entry itself under another
     /// spelling of its name (a case-only rename on APFS); creates the
-    /// destination's folders. A regular file is moved by `link` and
-    /// `unlink`, so nothing that appears at the destination meanwhile is
-    /// replaced; a directory or a symlink is renamed.
+    /// destination's folders. A regular file is moved by an exclusive
+    /// rename on macOS and by `link` and `unlink` elsewhere, so nothing
+    /// that appears at the destination meanwhile is replaced; a directory
+    /// or a symlink is renamed.
     pub fn rename(&mut self, from: &Path, to: &Path) -> Result<(Handle, OpReport), WriteError> {
         let from = self.confine(from).map_err(WriteError::Confined)?;
         let to = self.confine(to).map_err(WriteError::Confined)?;
