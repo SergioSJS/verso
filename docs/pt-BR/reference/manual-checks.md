@@ -47,6 +47,13 @@ app real.
   Conta do servidor lista a sessão como "Verso · Estúdio"; um conflito feito
   depois é `<nota> (conflito, Estúdio, <data>).md`; esvaziado e salvo, o
   nome do sistema volta nos dois.
+- [ ] **Um admin encerra as sessões de outra conta** (ADR 0077 item 3,
+  2026-10-11): no console, a página de uma conta com um aparelho conectado
+  e sincronizando e um token — "Encerrar sessões e tokens", confirme; a
+  página diz quantas foram; a sincronização do aparelho diz que foi
+  desconectada na hora (não na próxima varredura), o navegador dessa conta
+  cai na página de entrar, o token dela para de responder, e o registro
+  lista "encerrou as sessões e os tokens da conta" sobre essa conta.
 
 ### Versão 0.5 (feat/windows-fs, feat/signed-updates)
 

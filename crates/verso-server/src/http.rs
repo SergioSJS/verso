@@ -354,6 +354,10 @@ pub fn router(server: Arc<Server>) -> Router {
             post(crate::admin::reset_link),
         )
         .route(
+            "/api/admin/accounts/{id}/sessions",
+            delete(crate::admin::end_sessions),
+        )
+        .route(
             "/api/admin/invitations",
             get(crate::console::invitations).post(crate::admin::invite),
         )

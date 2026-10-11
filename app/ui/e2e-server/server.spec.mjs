@@ -297,6 +297,45 @@ test("signing in follows only this server's own paths", async ({ page }) => {
   expect(new URL(page.url()).host).toBe(new URL(test.info().project.use.baseURL ?? page.url()).host);
 });
 
+test("an admin ends another account's sessions and tokens from its page", async ({ page, browser }) => {
+  const errors = watch(page);
+  await signedIn(page, ADMIN.email, ADMIN.password);
+  // An account signed in in a browser of its own, as a lost phone's.
+  const project = test.info().project.name;
+  const email = `perdido-${project}@verso.test`;
+  await page.goto("/admin/invitations");
+  const invite = page.locator(".console-content");
+  await invite.getByLabel("E-mail (opcional)").fill(email);
+  await invite.getByRole("button", { name: "Convidar" }).click();
+  const link = (await invite.locator(".web-snippet .setting-code").textContent()) ?? "";
+  const other = await browser.newContext({ locale: "pt-BR" });
+  const lost = await other.newPage();
+  await lost.goto(link);
+  await lost.getByLabel("Nome").fill(`Perdido ${project}`);
+  await lost.getByLabel("Senha nova").fill("a senha do perdido");
+  await lost.getByRole("button", { name: "Criar conta" }).click();
+  await expect(lost).not.toHaveURL(/invite/);
+  // Its page in the console: the session listed, ended with a confirm.
+  await page.goto("/admin/accounts");
+  await page.locator(".console-table a", { hasText: `Perdido ${project}` }).click();
+  await expect(page.getByRole("heading", { name: `Perdido ${project}`, level: 1 })).toBeVisible();
+  await expect(page.locator(".console-list li")).toHaveCount(1);
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "Encerrar sessões e tokens" }).click();
+  await expect(page.locator(".web-said")).toHaveText("1 sessão encerrada · 0 tokens revogados.");
+  await expect(page.getByRole("button", { name: "Encerrar sessões e tokens" })).toBeDisabled();
+  // The lost browser is signed out; the admin's own session stays.
+  await lost.goto("/");
+  await expect(lost).toHaveURL(/\/signin/);
+  await other.close();
+  // The log says it, about whom.
+  await page.goto("/admin/audit");
+  const ended = page.locator(".console-table tbody tr", { hasText: "encerrou as sessões e os tokens da conta" }).first();
+  await expect(ended).toContainText(email);
+  await expect(ended.locator("[data-action]")).toHaveAttribute("title", "account_sessions_ended");
+  expect(errors).toEqual([]);
+});
+
 test("the administration console pages its lists and sets a folder's quota", async ({ page }) => {
   const errors = watch(page);
   await signedIn(page, ADMIN.email, ADMIN.password);

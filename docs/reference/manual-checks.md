@@ -47,6 +47,13 @@ in the real app.
   server's Ajustes › Conta lists the session as "Verso · Estúdio"; a
   conflict made afterwards is `<nota> (conflito, Estúdio, <data>).md`;
   emptied and saved, the system's name is back on both.
+- [ ] **An admin ends another account's sessions** (ADR 0077 item 3,
+  2026-10-11): in the console, the page of an account with a device
+  signed in and syncing and a token — "Encerrar sessões e tokens", confirm;
+  the page says how many went; the device's sync says it was signed out at
+  once (not at its next scan), that account's browser lands on the sign-in
+  page, its token stops answering, and the log lists "encerrou as sessões e
+  os tokens da conta" about that account.
 
 ### Version 0.5 (feat/windows-fs, feat/signed-updates)
 

@@ -177,7 +177,7 @@ function accounts(c: Ctx, body: HTMLElement): void {
   body.replaceChildren(form, said, t.el);
 }
 
-async function accountPage(c: Ctx, body: HTMLElement, id: string): Promise<void> {
+async function accountPage(c: Ctx, body: HTMLElement, id: string, note = ""): Promise<void> {
   const s = cw();
   type Detail = { account: Account; created: number; password: boolean; folders: { id: string; name: string; role: string; space: Space }[]; sessions: { id: string; kind: string; device: string; last_used: number; address: string }[]; tokens: { id: string; name: string; write: boolean; expires: number | null; folders: string[] }[] };
   const d = await api<Detail>("GET", `/api/admin/accounts/${id}`);
@@ -211,6 +211,17 @@ async function accountPage(c: Ctx, body: HTMLElement, id: string): Promise<void>
       .then(() => c.go("/admin/accounts"))
       .catch((e: unknown) => (said.textContent = explain(e)));
   });
+  // Every session and token of the account, ended at once (ADR 0077 item
+  // 3, decided 2026-10-11); the page drawn again says what went.
+  const endAll = button(s.endSessions, "danger");
+  endAll.disabled = a.id === c.me.id || (d.sessions.length === 0 && d.tokens.length === 0);
+  endAll.addEventListener("click", () => {
+    if (!confirm(s.endSessionsAsk(a.email))) return;
+    void api<{ sessions: number; tokens: number }>("DELETE", `/api/admin/accounts/${a.id}/sessions`)
+      .then((r) => accountPage(c, body, id, s.sessionsEnded(r.sessions, r.tokens)))
+      .catch((e: unknown) => (said.textContent = explain(e)));
+  });
+  said.textContent = note;
   const list = (items: Node[]) => (items.length ? el("ul", { class: "console-list" }, ...items) : el("p", { class: "settings-hint" }, s.none));
   body.replaceChildren(
     el("p", { class: "console-sub" }, a.email, " · ", `${s.created} ${when(d.created)}`),
@@ -218,6 +229,7 @@ async function accountPage(c: Ctx, body: HTMLElement, id: string): Promise<void>
     row(s.mayCreate, s.mayCreateDesc, sw(mayCreate)),
     row(s.resetLink, s.resetLinkDesc, controls(reset)),
     shown,
+    row(s.endSessions, s.endSessionsDesc, controls(endAll)),
     row(s.remove, s.removeDesc, controls(remove)),
     said,
     el("h2", { class: "settings-subheading" }, s.itsFolders),
