@@ -97,7 +97,15 @@
   (duas crates). Aceitos com este ADR: o
   [0074](0074-accounts-and-access-on-the-server.md), o
   [0075](0075-server-packaging-and-storage.md) e o
-  [0076](0076-the-window-on-every-screen.md).
+  [0076](0076-the-window-on-every-screen.md). 2026-10-11 (noite) — item
+  10: os conflitos foram vistos em uso (o soak da campanha de sync de
+  2026-10-11 fez 42 cópias de uma nota editada de dois aparelhos a cada
+  30 s), e o primeiro passo do merge por bloco está decidido — dois
+  acréscimos ao fim de uma nota juntados em vez de uma cópia, item 8 do
+  [0079](0079-sync-a-local-folder-with-a-server.md); com ele, uma versão
+  do protocolo de sync no hello (item 5 do 0079). O mantenedor,
+  respondendo a um memorando de recomendações: *"Sim para todos"*. O que
+  vem depois da rodada está no `docs/roadmap.md`, revisão 6.
 
 ## Contexto
 
@@ -371,6 +379,8 @@ que segue `[ABERTO]` está listado no Status.
     nome que o item 3 do [0070](0070-what-travels-with-the-folder.md) permite
     em todo SO — com o diff mostrado (invariante 11), nada silencioso; merge
     por bloco vem depois de conflitos terem sido vistos em uso, nunca antes.
+    *(O primeiro passo dele decidido em 2026-10-11, Revisões: o merge de
+    acréscimos do item 8 do [0079](0079-sync-a-local-folder-with-a-server.md).)*
     Propõe-se revisar o item 1 do
     [0020](0020-sync-merge-in-core-transports-as-plugins.md) (revisto assim
     em 2026-10-09, uma linha de Revisões lá): as integrações

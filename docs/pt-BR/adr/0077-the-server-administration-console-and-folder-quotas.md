@@ -19,6 +19,11 @@
   [0035](0035-cross-cutting-requirements.md) (os dois idiomas,
   acessibilidade).
 - Status no briefing: ausente; ao ser aceito.
+- Revisões: 2026-10-11 (noite) — item 3, Contas: um admin pode **encerrar
+  as sessões de outra conta e revogar os tokens dela** pelo console, cada
+  um com uma entrada no registro de auditoria. O mantenedor, respondendo
+  a um memorando de recomendações (guardado fora do repositório; o §6 dele
+  é a lista): *"Sim para todos"*.
 
 ## Contexto
 
@@ -66,7 +71,12 @@ Aceita (2026-10-10, Status).
    - **Contas**: uma tabela — nome, e-mail, papel, pastas, espaço, último
      acesso, criação — com busca, ordenação e páginas; uma conta abre uma
      página própria (as pastas, as sessões, os tokens, o link de senha
-     nova, admin, pode criar pastas, remover).
+     nova, admin, pode criar pastas, remover). Nessa página um admin
+     **encerra qualquer sessão da conta e revoga os tokens dela** — um
+     celular perdido cortado sem trocar a senha — cada um uma entrada do
+     registro de auditoria (item 9 do
+     [0074](0074-accounts-and-access-on-the-server.md)) (decidido em
+     2026-10-11, *"Sim para todos"*, Revisões).
    - **Pastas**: uma tabela — nome, donos, membros, espaço e cota, última
      mudança — com busca, ordenação e páginas; uma pasta abre uma página
      (membros, cota, detalhe do espaço, entrar como admin, a auditoria

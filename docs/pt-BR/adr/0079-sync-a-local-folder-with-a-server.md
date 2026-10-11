@@ -38,7 +38,20 @@
   o nome do aparelho confirmados pelo mantenedor em 2026-10-11, em sessão:
   *"Mas eu tinha confirmado"* — o
   *"Gostei das recomendações, pode seguir"* de 2026-10-10 cobre toda
-  opção recomendada.
+  opção recomendada. 2026-10-11 (noite, ~18:10 BRT) — o mantenedor
+  respondeu a um memorando de recomendações escrito depois da campanha de
+  sync (guardado fora do repositório; o §6 dele é a lista) com *"Sim para
+  todos"*. Item 8: dois acréscimos ao fim de uma nota são juntados em vez
+  de uma cópia de conflito — o **merge de acréscimos**, que emenda o item
+  e é o primeiro passo do merge por bloco do item 10 do
+  [0073](0073-self-hosted-server-first.md). O `<aparelho>` do item 8: o
+  **nome do aparelho pode ser definido pela pessoa**, por padrão o nome do
+  sistema (com o item 8 do [0074](0074-accounts-and-access-on-the-server.md),
+  a sessão de aparelho). Item 5: uma **versão do protocolo de sync** vai no
+  hello. Item 12: o **limite de 1 GiB** que o código mantém (`LARGEST`)
+  registrado como decidido, e o "para que nenhum arquivo fique de fora
+  pelo tamanho" do Status emendado para "nenhum arquivo abaixo de 1 GiB" —
+  as palavras antigas guardadas lá.
 
 ## Contexto
 
@@ -98,7 +111,12 @@ Aceita (2026-10-10, Status).
    da 0074) pelo WebSocket que ele já usa; os bytes de um arquivo lidos pela
    rota de arquivos do servidor e escritos pelos comandos de escrita do
    serviço, com a revisão base (invariante 11). Nenhum transporte próprio,
-   nenhuma porta nova.
+   nenhuma porta nova. **Uma versão do protocolo de sync** (decidida em
+   2026-10-11, *"Sim para todos"*, Revisões): um inteiro vai no hello; o
+   servidor aceita a versão atual e a anterior. A versão do contrato (o
+   hash dos bindings gerados) não cobre o fio do sync — os comandos do
+   sync não estão nos bindings — então esse número é definido antes de
+   qualquer mudança nesse fio.
 6. **Quando**: nos lotes do watcher local (com espera), nos avisos do
    servidor, ao iniciar e ao reconectar, e por uma varredura a cada cinco
    minutos como rede de segurança. Offline, nada fica numa fila além da
@@ -114,13 +132,31 @@ Aceita (2026-10-10, Status).
    como `<nome> (conflito, <aparelho>, <aaaa-mm-dd hh.mm>).<ext>` — no
    idioma da pessoa, com caracteres que todo sistema guarda (item 3 da
    0070) — e essa cópia também sincroniza, para os outros aparelhos a
-   verem. A janela lista os conflitos da pasta, mostra cada diferença, e a
+   verem. O `<aparelho>` é o nome do aparelho, que **a pessoa pode
+   definir** em Ajustes › Servidores, por padrão o nome do sistema
+   (decidido em 2026-10-11, *"Sim para todos"*, Revisões): vindo só do
+   sistema, dois computadores com o mesmo nome de host colidem nos nomes
+   das cópias e na lista de sessões. A janela lista os conflitos da pasta, mostra cada diferença, e a
    pessoa junta à mão e apaga a cópia. Um arquivo mudado dos dois lados
    sob as duas formas Unicode de um nome (item 2) é um conflito assim: uma
    cópia ao lado dele (Q7 da spec, decidida em 2026-10-10). `[ABERTO]` até
    2026-10-10: qual lado fica com o nome. Recomendado: o do servidor, já
    que a cópia compartilhada com os outros é a que divergiu — decidido em
    2026-10-10 como recomendado (Status).
+   **Acréscimos dos dois lados são juntados** (decidido em 2026-10-11,
+   *"Sim para todos"*, Revisões; emenda este item): quando uma nota (só
+   `.md`) mudou dos dois lados desde a base e as duas mudanças são
+   acréscimos puros ao fim dela — os bytes da base um prefixo das duas
+   versões, numa fronteira de linha — as duas caudas são juntadas em vez
+   de uma cópia de conflito: a cauda do servidor primeiro, depois a deste
+   computador. O resultado é escrito aqui (invariante 11) e enviado, e o
+   registro do sync diz "juntado" (item 13: nada silencioso). Qualquer
+   outra mudança dos dois lados continua uma cópia de conflito. É o
+   primeiro passo do merge por bloco do item 10 do
+   [0073](0073-self-hosted-server-first.md), que vem depois de os
+   conflitos terem sido vistos em uso: foram — o soak da campanha de
+   2026-10-11 fez 42 cópias de uma nota editada de dois aparelhos a cada
+   30 s.
 9. **Apagamentos**: um arquivo apagado de um lado e sem mudança do outro é
    apagado lá (para o `.trash/` da pasta no computador, para onde vai
    todo apagamento no Verso — item 9 da
@@ -148,7 +184,10 @@ Aceita (2026-10-10, Status).
     do servidor é enviado e buscado **em pedaços** (decidido em 2026-10-10,
     Status): cada pedaço abaixo do limite, o arquivo escrito só quando todos
     os pedaços chegaram e o hash confere, para que uma transferência
-    quebrada não deixe nada escrito pela metade.
+    quebrada não deixe nada escrito pela metade. **Um arquivo maior que
+    1 GiB não sincroniza** (decidido em 2026-10-11, Revisões): é listado
+    com o seu motivo (item 13) — o `LARGEST` do código. Os pedaços ficam
+    como estão.
 13. **O que uma pessoa vê**: o estado do sync da pasta na barra de status —
     sincronizado, enviando ou recebendo *n*, offline, pausado, *n*
     conflitos, erros — e, nos ajustes da pasta, um registro do que
@@ -193,7 +232,8 @@ Aceita (2026-10-10, Status).
 ## Alternativas descartadas
 
 - **Merge por bloco agora**: o item 10 da 0073 o põe depois de os conflitos
-  terem sido vistos em uso.
+  terem sido vistos em uso. *(O primeiro passo dele, o merge de acréscimos
+  do item 8, decidido em 2026-10-11, Revisões.)*
 
 ## Status
 
@@ -201,5 +241,8 @@ Aceita (2026-10-10, Status).
 versão do servidor fica com o nome, a local é a cópia, como recomendado.
 Item 12, **não** como recomendado: arquivos maiores que o limite de
 mensagem do servidor são enviados e buscados **em pedaços já**, nesta
-rodada, para que nenhum arquivo fique de fora pelo tamanho. A ser lida por
-Fable 5.1 com o código da rodada.
+rodada, para que nenhum arquivo abaixo de 1 GiB fique de fora pelo tamanho
+*(emendado em 2026-10-11, Revisões; as palavras eram "para que nenhum
+arquivo fique de fora pelo tamanho": o limite de 1 GiB, aceito pelo
+mantenedor nesse dia, é do item 12)*. A ser lida por Fable 5.1 com o
+código da rodada.

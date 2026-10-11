@@ -38,7 +38,19 @@
   device's name confirmed by the maintainer on 2026-10-11, in session:
   *"Mas eu tinha confirmado"* (but I had confirmed) — the
   *"Gostei das recomendações, pode seguir"* of 2026-10-10 covers every
-  recommended option.
+  recommended option. 2026-10-11 (evening, ~18:10 BRT) — the maintainer
+  answered a memo of recommendations written after the sync campaign
+  (kept outside the repository; its §6 is the list) with *"Sim para
+  todos"* (yes to all). Item 8: two appends to a note's end are joined
+  instead of a conflict copy — the **append-merge**, which amends the item
+  and is the first step of [0073](0073-self-hosted-server-first.md) item
+  10's merge by block. Item 8's `<device>`: the **device's name may be set
+  by the person**, the system's name by default (with
+  [0074](0074-accounts-and-access-on-the-server.md) item 8, the device
+  session). Item 5: a **sync protocol version** travels in the hello.
+  Item 12: the **1 GiB limit** the code keeps (`LARGEST`) recorded as
+  decided, and the Status's "so that no file is left out for its size"
+  amended to "no file under 1 GiB" — the old words kept there.
 
 ## Context
 
@@ -95,7 +107,12 @@ Accepted (2026-10-10, Status).
    8) over the WebSocket it already uses; a file's bytes read through the
    server's file route and written through the service's write commands,
    with the base revision (invariant 11). No transport of its own, no new
-   port.
+   port. **A sync protocol version** (decided 2026-10-11, *"Sim para
+   todos"*, Revisions): an integer travels in the hello; the server accepts
+   the current version and the previous one. The contract's version (the
+   hash of the generated bindings) does not cover the sync's wire — the
+   sync's commands are not in the bindings — so this number is set before
+   any change to that wire.
 6. **When**: on the local watcher's batches (debounced), on the server's
    pushes, at start and on reconnecting, and by a scan every five minutes
    as a net. Offline, nothing queues but the state's difference: when the
@@ -109,7 +126,11 @@ Accepted (2026-10-10, Status).
    version keeps the file's name; the local version is kept beside it as
    `<name> (conflict, <device>, <yyyy-mm-dd hh.mm>).<ext>` — in the
    person's language, with characters every OS can keep (0070 item 3) —
-   and that copy syncs too, so the other devices see it. The window lists
+   and that copy syncs too, so the other devices see it. `<device>` is
+   the device's name, which **the person may set** in Settings › Servers,
+   the system's name by default (decided 2026-10-11, *"Sim para todos"*,
+   Revisions): taken from the system only, two computers with one host
+   name collide in the copies' names and in the sessions list. The window lists
    the folder's conflicts, shows each difference, and the person merges by
    hand and deletes the copy. A file changed on both sides under the two
    Unicode forms of one name (item 2) is such a conflict: a copy beside
@@ -117,6 +138,18 @@ Accepted (2026-10-10, Status).
    side keeps the name. Recommended: the server's, the copy shared with
    the others being the one that diverged — decided 2026-10-10 as
    recommended (Status).
+   **Appends on both sides are joined** (decided 2026-10-11, *"Sim para
+   todos"*, Revisions; it amends this item): when a note (`.md` only)
+   changed on both sides since the base and both changes are pure appends
+   to its end — the base's bytes a prefix of both versions, at a line
+   boundary — the two tails are joined instead of a conflict copy: the
+   server's tail first, then this computer's. The result is written here
+   (invariant 11) and sent, and the sync's log says "merged" (item 13:
+   nothing silent). Any other change on both sides stays a conflict copy.
+   This is the first step of [0073](0073-self-hosted-server-first.md) item
+   10's merge by block, which comes after conflicts have been seen in use:
+   they were — the campaign's soak of 2026-10-11 made 42 copies of one
+   note edited from two devices every 30 s.
 9. **Deletions**: a file deleted on one side and unchanged on the other is
    deleted there (into the folder's `.trash/` on the computer, as every
    deletion in Verso goes — [0080](0080-the-trash-with-expiry-and-restore.md)
@@ -142,7 +175,9 @@ Accepted (2026-10-10, Status).
     is sent and fetched **in pieces** (decided on 2026-10-10, Status): each
     piece under the limit, the file written only when every piece has
     arrived and its hash matches, so a broken transfer leaves nothing
-    half-written.
+    half-written. **A file larger than 1 GiB is not synced** (decided
+    2026-10-11, Revisions): it is listed with its reason (item 13) — the
+    code's `LARGEST`. The pieces stay as they are.
 13. **What a person sees**: the folder's sync state in the status bar —
     synced, sending or receiving *n*, offline, paused, *n* conflicts,
     errors — and in the folder's settings a log of what crossed, pause and
@@ -184,7 +219,8 @@ Accepted (2026-10-10, Status).
 ## Discarded alternatives
 
 - **Merge by block now**: 0073 item 10 puts it after conflicts have been
-  seen in use.
+  seen in use. *(Its first step, the append-merge of item 8, decided on
+  2026-10-11, Revisions.)*
 
 ## Status
 
@@ -192,5 +228,7 @@ Accepted (2026-10-10, Status).
 8: the server's version keeps the name, the local one is the copy, as
 recommended. Item 12, **not** as recommended: files larger than the
 server's message limit are sent and fetched **in pieces now**, in this
-round, so that no file is left out for its size. To be read by Fable 5.1
-with the round's code.
+round, so that no file under 1 GiB is left out for its size *(amended on
+2026-10-11, Revisions; the words were "so that no file is left out for
+its size": the 1 GiB limit, accepted by the maintainer that day, is item
+12's)*. To be read by Fable 5.1 with the round's code.

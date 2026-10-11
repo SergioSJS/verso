@@ -1,6 +1,6 @@
 # Roadmap do Verso
 
-- Versão: 2026-10-09, revisão 5 (a Fase 3 escrita, a partir do [ADR 0073](adr/0073-self-hosted-server-first.md) aceito pelo mantenedor com o 0074, o 0075 e o 0076; a identidade de sessão do contrato e os handles para o `verso serve` riscados como decididos). Revisão 4, 2026-09-24 (as decisões do mantenedor de 2026-09-24 riscadas: os handles nas duas fases, e as duas linhas da nota tipada, com o item 2.6 sem esperar mais por elas). Revisão 3, 2026-09-23: a Fase 2 como construída; as decisões da Fase 1 tomadas em 2026-09-22 riscadas
+- Versão: 2026-10-11, revisão 6 (a tabela da Fase 3 ganha o que foi construído desde a revisão 5 — [0077](adr/0077-the-server-administration-console-and-folder-quotas.md), [0078](adr/0078-universo-the-name-of-verso-as-a-server.md), [0079](adr/0079-sync-a-local-folder-with-a-server.md) — e os aceitos [0080](adr/0080-the-trash-with-expiry-and-restore.md), [0081](adr/0081-sharing-between-people-on-one-universo.md) e [0082](adr/0082-live-co-editing-of-a-synced-folder.md) na ordem que o mantenedor definiu em 2026-10-11, *"Sim para todos"*; as permissões mais finas riscadas como aceitas com o 0081; "Depois da Fase 2" posto em dia quanto ao sync). Revisão 5, 2026-10-09 (a Fase 3 escrita, a partir do [ADR 0073](adr/0073-self-hosted-server-first.md) aceito pelo mantenedor com o 0074, o 0075 e o 0076; a identidade de sessão do contrato e os handles para o `verso serve` riscados como decididos). Revisão 4, 2026-09-24 (as decisões do mantenedor de 2026-09-24 riscadas: os handles nas duas fases, e as duas linhas da nota tipada, com o item 2.6 sem esperar mais por elas). Revisão 3, 2026-09-23: a Fase 2 como construída; as decisões da Fase 1 tomadas em 2026-09-22 riscadas
 - Fonte: `docs/BRIEFING.md` §15
 - ADR: [0034](adr/0034-roadmap-in-phases.md)
 
@@ -274,6 +274,13 @@ anterior fechar", acima, é `[ABERTO]`, para o mantenedor dizer.
 | 3.7 | A janela em toda tela, e a janela servida com `--web` | [0076](adr/0076-the-window-on-every-screen.md), [0073](adr/0073-self-hosted-server-first.md) item 9 |
 | 3.8 | Edição simultânea de notas | [0073](adr/0073-self-hosted-server-first.md) item 7 |
 | 3.9 | A reindexação por lote do watcher estreitada aos caminhos do lote, medida com o benchmark | [0073](adr/0073-self-hosted-server-first.md) item 12 |
+| 3.10 | O console de administração do servidor em `/admin`, e cotas por pasta — construídos em 2026-10-10; um admin encerrando as sessões de outra conta e revogando os tokens dela, com uma linha de auditoria, decidido em 2026-10-11, a construir | [0077](adr/0077-the-server-administration-console-and-folder-quotas.md) |
+| 3.11 | Universo, o nome do Verso como servidor — construído em 2026-10-10 | [0078](adr/0078-universo-the-name-of-verso-as-a-server.md) |
+| 3.12 | Sync de uma pasta local do desktop com uma pasta num servidor — construído em 2026-10-10 e posto em campanha em 2026-10-10 e 2026-10-11; o merge de acréscimos, o nome do aparelho definido pela pessoa, a versão do protocolo de sync e o limite de 1 GiB decididos em 2026-10-11 | [0079](adr/0079-sync-a-local-folder-with-a-server.md), [0074](adr/0074-accounts-and-access-on-the-server.md) item 8 |
+| 3.13 | Coedição ao vivo de uma pasta sincronizada — aceita em 2026-10-11; a primeira na ordem depois desta rodada | [0082](adr/0082-live-co-editing-of-a-synced-folder.md) |
+| 3.14 | A lixeira com expiração e restauração, com o item 12 dela: a versão que a escrita de um aparelho substituiu, guardada e restaurável (o achado F18 da campanha) — aceita em 2026-10-11; a segunda | [0080](adr/0080-the-trash-with-expiry-and-restore.md), [0079](adr/0079-sync-a-local-folder-with-a-server.md) Consequências |
+| 3.15 | O modelo de ameaças atualizado (`docs/reference/threat-model.md`), com os `[ABERTO]` dele — o terceiro, antes do compartilhamento | [0073](adr/0073-self-hosted-server-first.md) item 6 |
+| 3.16 | Compartilhamento entre pessoas num Universo: uma concessão num caminho, leitura ou escrita — aceito em 2026-10-11; o quarto | [0081](adr/0081-sharing-between-people-on-one-universo.md) |
 
 Os itens 3.2 a 3.9 saem juntos, na primeira versão do servidor (item 12
 do ADR 0073, revisto em 2026-10-09). A janela em toda tela é construída
@@ -281,14 +288,26 @@ antes de a janela do servidor sair; as chaves de acesso vêm depois do
 login por senha, quando o pipeline de empacotamento funcionar. O que vem
 depois da primeira versão do servidor está em "Depois da Fase 2", abaixo.
 
+Os itens 3.10 a 3.12 foram construídos na rodada que seguiu a primeira
+versão do servidor (0.7.0-beta.1, 2026-10-10), aberta pelo mantenedor no
+mesmo dia (*"quero sincronização funcionando também"*, [0079](adr/0079-sync-a-local-folder-with-a-server.md) Fonte e
+Status), e ainda não foram lançados. A ordem depois desta rodada, definida
+pelo mantenedor em 2026-10-11 respondendo a um memorando de recomendações
+com *"Sim para todos"*: 3.13 → 3.14 → 3.15 → 3.16 — a coedição ao vivo, a
+lixeira com a versão substituída, o modelo de ameaças atualizado, o
+compartilhamento. O modelo de ameaças antes do compartilhamento é a razão
+do memorando para a ordem: o item 6 do
+[0073](adr/0073-self-hosted-server-first.md) pede segurança por inteiro
+antes do primeiro usuário que não seja o mantenedor.
+
 ### Decisões que precisam sair durante a fase
 
 | Decisão | ADR |
 |---|---|
 | Se o celular no navegador, só online, atende à necessidade de mobile, ou se o offline no celular vem mais cedo | [0073](adr/0073-self-hosted-server-first.md) |
-| Permissões mais finas que a pasta; histórico, atribuição e recuperação de uma mudança de outro membro | [0073](adr/0073-self-hosted-server-first.md), Q9 da spec |
+| ~~Permissões mais finas que a pasta~~ (aceitas em 2026-10-11: uma concessão num caminho dentro de uma pasta, [0081](adr/0081-sharing-between-people-on-one-universo.md)); histórico, atribuição e recuperação de uma mudança de outro membro — ainda aberto, para um ADR próprio (Status do 0081) | [0073](adr/0073-self-hosted-server-first.md), Q9 da spec, [0081](adr/0081-sharing-between-people-on-one-universo.md) |
 | Criptografia ponta a ponta, depois, como opção para um servidor de uma pessoa só | [0073](adr/0073-self-hosted-server-first.md) |
-| A coedição do board | [0073](adr/0073-self-hosted-server-first.md) item 7 |
+| A coedição do board | [0073](adr/0073-self-hosted-server-first.md) item 7, [0082](adr/0082-live-co-editing-of-a-synced-folder.md) item 12 |
 | O transporte e a autorização do MCP pela rede | [0073](adr/0073-self-hosted-server-first.md) item 11, [0045](adr/0045-server-and-mcp-security.md) |
 | A URL pré-assinada de um bucket | [0073](adr/0073-self-hosted-server-first.md) item 4 |
 | Os critérios que mandariam o iPad do navegador para um app nativo | [0073](adr/0073-self-hosted-server-first.md) |
@@ -337,8 +356,10 @@ e o sync depois do servidor e por ele, estão propostos no
 2026-10-09, acima, com o 0073 aceito.)*
 
 O que fica para depois, desde 2026-10-09: depois da primeira versão do
-servidor, na ordem do item 12 do 0073 — sync para as pastas locais do
-desktop, a PWA offline, o bucket do usuário
+servidor, na ordem do item 12 do 0073 — ~~sync para as pastas locais do
+desktop~~ *(construído na rodada logo depois dessa versão, pela palavra do
+mantenedor de 2026-10-10, [0079](adr/0079-sync-a-local-folder-with-a-server.md) Fonte e Status; item 3.12 da Fase 3,
+acima)*, a PWA offline, o bucket do usuário
 ([0073](adr/0073-self-hosted-server-first.md) item 4) e um app mobile
 nativo se os limites do navegador morderem; e, sem ordem, plugins, o shim
 de compatibilidade, as primitivas ainda propostas e a escrita por agente

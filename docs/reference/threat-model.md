@@ -8,6 +8,13 @@ names what of its own it must cover; [ADR 0045](../adr/0045-server-and-mcp-secur
 names the prompt-injection risk it takes up. Written by Opus 5.5; it
 decides nothing — where a gap needs a decision it says `[OPEN]`.
 
+Rows added on 2026-10-11 for what was built or accepted since: quotas per
+folder (ADR 0077, built), the sync's device writes (ADR 0079, built) and
+sharing's grants on a path (ADR 0081, accepted, **not built**). This is
+not the refresh of the whole model, which the maintainer put on
+2026-10-11 after ADR 0082 and ADR 0080 and before ADR 0081
+(`docs/roadmap.md`, revision 6); the model's own `[OPEN]` items stay open.
+
 ## What is protected
 
 | Asset | Where | Why it matters |
@@ -79,7 +86,30 @@ decides nothing — where a gap needs a decision it says `[OPEN]`.
 | Remote content leaking who reads | Remote pictures and embedded pages follow the reader's own setting, never the author's (the maintainer's answer I). |
 | Symlinks leading out of a shared folder | On a server a link is followed only when it leads inside the folder; one that leaves is refused and listed as a problem. |
 | An edit that erases another's text | Simultaneous editing merges; a write from elsewhere is merged line by line or refused as changed; a change made outside while edits wait stops the room for people to choose. `[OPEN]`: history, attribution and recovery of another member's change (ADR 0073). |
-| A huge message to exhaust memory | A WebSocket message is 48 MB at most; a malformed Yjs update is refused. `[OPEN]`: quotas per folder (ADR 0075 item 4 says limits come later) and a global rate limit on commands. |
+| A huge message to exhaust memory | A WebSocket message is 48 MB at most; a malformed Yjs update is refused. A folder's space is bounded by its quota (ADR 0077 item 5, accepted and built on 2026-10-10): a write that would pass it is refused and nothing is written. `[OPEN]`: a global rate limit on commands. |
+
+### A device that syncs
+
+| Threat | Answer as built |
+|---|---|
+| A device writing where its account may not | A device syncs over its device session (ADR 0074 item 8): each write, deletion and rename it sends is checked against the account's role in the folder before the core acts — a reader's device receives, its local changes refused (ADR 0079 item 1) — and a write against the folder's quota (ADR 0077 item 5). |
+| A device's write over a newer version | Every change a device sends names the hash it was based on and is refused when the file on the server is no longer that one (invariant 11); the device then keeps both, its own as a conflict copy (ADR 0079 item 8). Decided on 2026-10-11, not built: two pure appends to a note's end joined instead, said "merged" in the sync's log. A known limit: a program outside Verso saving a stale buffer is an ordinary change (ADR 0079, finding F18); keeping the version it replaced is ADR 0080 item 12, accepted, not built. |
+| A device deleting a folder's files | A deletion a device sends is checked against its base like a write and goes to the folder's `.trash/` on the server; on the computer, a pass that would delete more than a fifth of the files or more than 50 (3 at least) pauses and asks (ADR 0079 item 9), and a placeholder is never a deletion (ADR 0043). Seeing and restoring the trash in the window is ADR 0080, accepted, not built. |
+| A device token stolen | Kept `0600` on the computer (above), listed among the account's sessions and revocable there; the change log names the device beside the account (ADR 0079 item 4). Decided on 2026-10-11, not built: an admin may end another account's sessions and revoke its tokens from the console, with an audit line (ADR 0077 item 3). |
+| A huge file to exhaust memory | Sync moves a file in pieces under the message limit, two transfers at a time each way per session, dropped after two idle minutes, and no file larger than 1 GiB (ADR 0079 item 12). |
+
+### Sharing a folder inside a folder
+
+ADR 0081, accepted on 2026-10-11 and **not built**: these rows say what it
+decides, not what runs.
+
+| Threat | Answer as decided |
+|---|---|
+| A receiver reaching beyond the shared path | A share is a grant on a path; the session that opens it holds the path, every command's paths are joined to it and confined (`..` refused before `verso-fs` acts), and every answer — the tree, a search, backlinks, the graph, a base's rows, the change log — is filtered to the path and re-rooted at it (items 1 and 2). |
+| Learning of the notes outside the share | A link to a note outside resolves to "not in what was shared with you": not whether it exists, not its path, not its content (item 11). |
+| A share passed on, or kept after it ends | Only the folder's owner shares, and a receiver does not re-share (item 4); a revocation reaches the receiver's open windows at once, and a synced copy stays on their computer with its sync off — said to the owner when sharing (item 8). |
+| A share left pointing elsewhere | A rename made through the server carries the grants with it; one the server only finds afterwards leaves the share on a path that is gone — an empty folder for the receiver, the owner told (item 13). |
+| A share made unseen | A share created, changed and removed is an entry of the audit log with its path, read by the owner and the admin (item 9). |
 
 ### The server's own reach
 
@@ -102,7 +132,8 @@ says so where agents are set up.
 
 - `[OPEN]` A review of the note HTML sanitizer against hostile members.
 - `[OPEN]` History and recovery of another member's change or deletion.
-- `[OPEN]` Quotas and a rate limit beyond sign-ins.
+- `[OPEN]` A rate limit beyond sign-ins. *(Quotas per folder: ADR 0077
+  item 5, accepted and built on 2026-10-10.)*
 - `[OPEN]` The desktop's device token in the system's keychain instead of a
   `0600` file.
 - `[OPEN]` The MCP transport and its authorization over the network.
