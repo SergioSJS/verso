@@ -8,7 +8,9 @@ use base64::Engine;
 use serde_json::{Value, json};
 
 use crate::sync::{PIECE, sha256};
-use crate::tests::{Socket, block_on, call, connect, folder_id, next, post, put, sign_in, start};
+use crate::tests::{
+    Socket, block_on, call, connect, folder_id, get, next, post, put, sign_in, start,
+};
 
 fn b64(bytes: &[u8]) -> String {
     base64::engine::general_purpose::STANDARD.encode(bytes)
@@ -661,5 +663,77 @@ fn a_devices_rename_and_deletion_reach_the_folders_windows() {
         assert_eq!(told["moved"], json!([]), "{told}");
         let notes = call(&mut window, 6, "list_notes", json!({})).await;
         assert!(!notes["ok"].to_string().contains("Compras.md"), "{notes}");
+    });
+}
+
+/// Two devices of one account told apart (the live campaign, R5,
+/// 2026-10-10): a device's change keeps the device's name in the folder's
+/// log, read back on the console's folder page, and a refusal of its
+/// change names it in the server's log.
+#[test]
+fn a_devices_change_and_its_refusal_name_the_device() {
+    const COMPOSED: &str = "Caf\u{e9} do Ubuntu.md";
+    const DECOMPOSED: &str = "Cafe\u{301} do Ubuntu.md";
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &admin).await;
+        let account = r
+            .server
+            .db
+            .account_by_email("admin@casa.lan")
+            .unwrap()
+            .unwrap();
+        let (token, _) = r
+            .server
+            .db
+            .create_session(&account.id, "device", "verso-ubuntu", "127.0.0.1")
+            .unwrap();
+        let mut ws = connect(&r, None, None, Some(&token)).await.unwrap();
+        next(&mut ws).await;
+        call(&mut ws, 1, "open_server_folder", json!({ "id": id })).await;
+        call(&mut ws, 2, "sync_state", json!({})).await;
+        let sent = send(&mut ws, 10, COMPOSED, b"# ubuntu\n", None).await;
+        assert_eq!(sent["ok"]["done"], true, "{sent}");
+        // A new file under the other form of that name: refused, and said.
+        let twin = send(&mut ws, 20, DECOMPOSED, b"# outro\n", None).await;
+        assert_eq!(twin["err"]["kind"], "exists", "{twin}");
+        let said = crate::log::said("do Ubuntu.md");
+        assert!(
+            said.iter()
+                .any(|l| l.contains("by admin@casa.lan (verso-ubuntu) refused")),
+            "{said:?}"
+        );
+        // The console's folder page: who made the change, and on which device.
+        let (_, folder) = get(&r, &format!("/api/admin/folders/{id}"), Some(&admin)).await;
+        let change = folder["changes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["path"] == COMPOSED)
+            .cloned()
+            .unwrap_or_else(|| panic!("{folder}"));
+        assert_eq!(change["who"], "admin@casa.lan", "{change}");
+        assert_eq!(change["device"], "verso-ubuntu", "{change}");
+        // A change made in a browser names the account, and no device.
+        let mut browser = opened(&r, &admin).await;
+        let made = call(
+            &mut browser,
+            30,
+            "create_note",
+            json!({ "name": "Do navegador", "text": "# n\n" }),
+        )
+        .await;
+        assert!(made.get("ok").is_some(), "{made}");
+        let (_, folder) = get(&r, &format!("/api/admin/folders/{id}"), Some(&admin)).await;
+        let change = folder["changes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["path"] == "Do navegador.md")
+            .cloned()
+            .unwrap_or_else(|| panic!("{folder}"));
+        assert_eq!(change["who"], "admin@casa.lan", "{change}");
+        assert_eq!(change["device"], Value::Null, "{change}");
     });
 }

@@ -20,7 +20,13 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::crypto;
 
 /// The schema's version, in `PRAGMA user_version`.
-const SCHEMA: i64 = 5;
+const SCHEMA: i64 = 6;
+
+/// Schema 6: the device that made a change of a folder's log, by its name
+/// (ADR 0079 item 4, "who made it"): two devices of one account told apart.
+const DEVICES: &str = r"
+ALTER TABLE changes ADD COLUMN device TEXT;
+";
 
 /// Schema 5: each folder's files as sync last saw them, and the log of
 /// their changes a device reads from a cursor (ADR 0079 items 4 and 5).
@@ -449,6 +455,7 @@ impl Db {
             (3, SETTINGS),
             (4, CONSOLE),
             (5, SYNC),
+            (6, DEVICES),
         ]
         .iter()
         .filter(|(at, _)| *at > version)
@@ -1105,6 +1112,18 @@ impl Db {
         ))
     }
 
+    /// The name of the device behind session `id`, when it is a device's.
+    pub fn session_device(&self, id: &str) -> R<Option<String>> {
+        self.reader()
+            .query_row(
+                "SELECT device FROM sessions WHERE id = ?1 AND kind = 'device'",
+                [id],
+                |r| r.get(0),
+            )
+            .optional()
+            .map_err(e)
+    }
+
     /// Whether session `id` still stands (not ended, not expired by the
     /// last look at it).
     pub fn session_alive(&self, id: &str) -> R<bool> {
@@ -1380,7 +1399,7 @@ impl Db {
 mod console;
 mod sync;
 pub use console::{AccountRow, AuditFilter, FolderRow, Page, PageQuery};
-pub use sync::{Change, Known, Recorded};
+pub use sync::{Change, Known, Made, Recorded};
 
 #[cfg(test)]
 mod tests;

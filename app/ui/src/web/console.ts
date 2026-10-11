@@ -21,6 +21,9 @@ type FolderRow = { id: string; name: string; created: number; owners: string[]; 
 type Invitation = { id: string; state: string; email: string | null; folder: string | null; role: string | null; created: number; expires: number; usedBy: string | null };
 type About = { kind: "account"; name: string; email: string } | { kind: "invitation"; email: string | null; folder: string | null } | { kind: "named"; name: string };
 type AuditRow = { at: number; who: string | null; action: string; subject: string | null; about: About | null; folder: string | null; address: string | null; ok: boolean };
+/** A change of a folder's files, with who made it: the account and, for a
+ *  device's sync, the device (ADR 0079 item 4). */
+type Change = { seq: number; at: number; path: string; deleted: boolean; renamedFrom: string | null; who: string | null; device: string | null };
 type Space = { total: number; notes: number; attachments: number; files: number; index: number } | null;
 
 const SECTIONS = [
@@ -285,7 +288,7 @@ function folders(c: Ctx, body: HTMLElement): void {
 
 async function folderPage(c: Ctx, body: HTMLElement, id: string): Promise<void> {
   const s = cw();
-  type Detail = { id: string; name: string; created: number; members: { id: string; name: string; email: string; role: string }[]; space: Space; quota: number | null; twins?: { kept: string; held: string }[] };
+  type Detail = { id: string; name: string; created: number; members: { id: string; name: string; email: string; role: string }[]; space: Space; quota: number | null; twins?: { kept: string; held: string }[]; changes?: Change[] };
   const f = await api<Detail>("GET", `/api/admin/folders/${id}`);
   c.title(f.name);
   const said = line();
@@ -323,6 +326,10 @@ async function folderPage(c: Ctx, body: HTMLElement, id: string): Promise<void> 
     ...(f.twins?.length ? [el("h2", { class: "settings-subheading" }, s.attention), el("ul", { class: "console-list", "data-twins": "" }, ...f.twins.map((tw) => el("li", { class: "web-warn" }, s.twin(tw.kept, tw.held))))] : []),
     el("h2", { class: "settings-subheading" }, s.members),
     f.members.length ? el("ul", { class: "console-list" }, ...f.members.map((m) => el("li", {}, `${m.name} · ${m.email} · ${roleName(m.role)}`))) : el("p", { class: "settings-hint" }, s.none),
+    el("h2", { class: "settings-subheading" }, s.latestChanges),
+    f.changes?.length
+      ? el("ul", { class: "console-list", "data-changes": "" }, ...f.changes.map((ch) => el("li", {}, `${when(ch.at)} · ${ch.who ?? s.onServerDisk}${ch.device ? ` (${ch.device})` : ""} — ${s.changeWhat(ch.deleted, ch.renamedFrom, ch.path)}`)))
+      : el("p", { class: "settings-hint" }, s.none),
     el("h2", { class: "settings-subheading" }, s.folderAudit),
     auditTable(c, { folder: f.id }).el,
   );
