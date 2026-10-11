@@ -23,6 +23,18 @@
   de código no Windows adiada), [0055](0055-in-app-updater.md) (o caminho
   do atualizador no Windows, nunca exercitado).
 - Status no briefing: não presente
+- Revisões: 2026-10-11 — no macOS um arquivo novo ou renomeado agora
+  recebe o nome por `renamex_np` com `RENAME_EXCL`, um rename atômico que
+  falha com `EEXIST` em vez de substituir, e não mais por `link` e
+  `unlink`: o FSEvents nunca informa a remoção de um arquivo cujo nome foi
+  dado por `link`, então um arquivo que o Verso criou ou renomeou, depois
+  apagado fora do app (Finder, `rm`), ficava na árvore e só chegava ao sync
+  na varredura seguinte (visto em 2026-10-11). Um volume sem a flag volta
+  ao `link`. Linux e Windows sem mudança: o inotify e o
+  `ReadDirectoryChangesW` informam essa remoção. Pelo `rustix` (sem
+  `unsafe`); a guarda contra substituir um arquivo e o `fsync` do diretório
+  depois ficam como antes. A confirmação do mantenedor está pendente
+  ("decisão 8").
 
 ## Contexto
 
@@ -103,7 +115,8 @@ harness de teste do host desktop morria na partida
 (`STATUS_ENTRYPOINT_NOT_FOUND`) sem o manifesto de aplicação que o
 tauri-build embute só no app. Uma nota é renomeada por `link` e `unlink`
 lá também (o NTFS tem hard links), e o Windows recusa renomear uma pasta
-enquanto algum arquivo dentro dela está aberto.
+enquanto algum arquivo dentro dela está aberto. (No macOS, desde
+2026-10-11, por um rename exclusivo: ver Revisões.)
 
 ## Decisão
 

@@ -39,6 +39,7 @@
 | a Windows cloud file read like any other | reading a OneDrive Files On-Demand file downloads it: a first index would pull the whole folder | `placeholder::is_dataless` reads its attributes (`RECALL_ON_DATA_ACCESS`, `RECALL_ON_OPEN`, `OFFLINE`); test with `attrib +O` |
 | checking a name's characters only | `OBSIDI~1`, the 8.3 short name of `.obsidian`, got past the hidden rule | `confine::short_name` looks such a name up in its folder (`ShortName`) |
 | a test writing through `Workspace::open(dir, None)` | 1167 indexes left in the user's real config folder | always pass a config folder in tests |
+| the other way round, right on Linux and Windows, wrong on the Mac: a new or moved file given its name by `link` and `unlink` | FSEvents never reported that file's later removal outside the app (Finder, `rm`): the tree stayed stale and sync sent the deletion only at its 5-minute scan (2026-10-11) | `ops::claim`: `renamex_np` with `RENAME_EXCL` on macOS (`os::rename_exclusive`, through `rustix`), `link` elsewhere; `tests/watch.rs` removes such a file and waits for its event ([ADR 0069](../adr/0069-windows-port.md), revised 2026-10-11) |
 
 ## 3. Processes, configuration, executables
 
