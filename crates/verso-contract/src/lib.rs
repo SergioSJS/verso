@@ -573,6 +573,21 @@ pub struct SyncStatus {
     /// What the last error was, for the window to say in its language:
     /// `not_signed_in`, `signed_out`, `version`, `folder_gone`, `failed`.
     pub problem: Option<String>,
+    /// With the problem `version`: what each side runs — two builds of one
+    /// version can differ in their contracts, and the window names both.
+    pub versions: Option<SyncVersions>,
+}
+
+/// What the server and this app run, when their contracts differ: the
+/// version, the commit it was built from, and the contract's hash.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct SyncVersions {
+    pub server_version: String,
+    pub server_build: String,
+    pub server_contract: String,
+    pub app_version: String,
+    pub app_build: String,
+    pub app_contract: String,
 }
 
 /// A file sync left out, and why.

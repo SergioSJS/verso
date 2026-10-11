@@ -1365,6 +1365,24 @@ export type SyncStatus = {
 	 *  `not_signed_in`, `signed_out`, `version`, `folder_gone`, `failed`.
 	 */
 	problem: string | null,
+	/**
+	 *  With the problem `version`: what each side runs — two builds of one
+	 *  version can differ in their contracts, and the window names both.
+	 */
+	versions: SyncVersions | null,
+};
+
+/**
+ *  What the server and this app run, when their contracts differ: the
+ *  version, the commit it was built from, and the contract's hash.
+ */
+export type SyncVersions = {
+	server_version: string,
+	server_build: string,
+	server_contract: string,
+	app_version: string,
+	app_build: string,
+	app_contract: string,
 };
 
 /**  A tag and the notes that carry it. */

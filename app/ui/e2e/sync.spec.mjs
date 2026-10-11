@@ -131,6 +131,12 @@ test("a folder syncs with a server, says its state, asks before deleting and sho
   await expect(app.page.locator('.settings-nav-item[aria-current="true"]', { hasText: "Servidores" })).toBeVisible();
   await app.page.locator(".settings-nav-item", { hasText: "Sincronizar" }).click();
   await app.emit("sync-status", running);
+  // Another build of the same version on the server: both builds and
+  // contracts are named, in the window's language.
+  const versions = { server_version: "0.7.0-beta.1", server_build: "1dac246", server_contract: "0589761", app_version: "0.7.0-beta.1", app_build: "efa6f12", app_contract: "3f2a9c1" };
+  await app.emit("sync-status", { ...running, state: "error", problem: "version", message: "the server runs Verso 0.7.0-beta.1 (build 1dac246, …)", versions });
+  await expect(app.page.locator(".sync-problem")).toHaveText(/o servidor roda o Verso 0\.7\.0-beta\.1 \(build 1dac246, contrato 0589761\), este app 0\.7\.0-beta\.1 \(build efa6f12, contrato 3f2a9c1\): os contratos diferem — atualize o que estiver atrás/i);
+  await app.emit("sync-status", running);
 
   // The bar opens the section; turning sync off asks, then the bar goes.
   await app.key("Escape");

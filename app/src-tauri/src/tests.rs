@@ -1029,3 +1029,41 @@ fn every_command_of_the_bindings_is_allowed() {
     }
     assert!(missing.is_empty(), "{missing:#?}");
 }
+
+/// A server whose contract is not this app's (the live campaign,
+/// 2026-10-11, read "the server runs Verso 0.7.0-beta.1, another version
+/// than this app's 0.7.0-beta.1"): with one version on both sides, the
+/// refusal names the build and the contract of each, and the window gets
+/// them to say in its language; still the `version` problem.
+#[test]
+fn a_contract_of_another_build_names_both_builds() {
+    let ours = json!({ "version": env!("CARGO_PKG_VERSION"), "commit": "1dac246", "contract": remote::contract_version() });
+    assert_eq!(remote::mismatch(&ours), None);
+    let other = json!({ "version": env!("CARGO_PKG_VERSION"), "commit": "1dac246", "contract": "0123456789abcdef" });
+    let v = remote::mismatch(&other).unwrap();
+    assert_eq!(
+        (v.server_build.as_str(), v.server_contract.as_str()),
+        ("1dac246", "0123456789abcdef")
+    );
+    assert_eq!(v.app_build, env!("VERSO_COMMIT"));
+    let said = remote::mismatch_refused(&v).message;
+    assert_eq!(
+        said,
+        format!(
+            "the server runs Verso {0} (build 1dac246, contract 0123456789abcdef), this app {0} (build {1}, contract {2}): their contracts differ — update the one that is behind",
+            env!("CARGO_PKG_VERSION"),
+            env!("VERSO_COMMIT"),
+            remote::contract_version()
+        )
+    );
+    // Another version: the two versions say it.
+    let older =
+        remote::mismatch(&json!({ "version": "0.6.0", "contract": "0123456789abcdef" })).unwrap();
+    assert_eq!(
+        remote::mismatch_refused(&older).message,
+        format!(
+            "the server runs Verso 0.6.0, this app {}: update the one that is behind",
+            env!("CARGO_PKG_VERSION")
+        )
+    );
+}

@@ -29,6 +29,7 @@ test release.
 - **The status bar says the index in a person's words** ("130 notas em dia", "3 ainda na nuvem") and gives itself back after a background index; in a browser with no folder open, the "you only read this folder" line no longer shows, and the start page says to choose one of the server's folders.
 - **Settings**: the Editor's line-number switches sit under one heading; the allowed sites' explanation sits under its box; the make.md setting no longer says "sync".
 - **A name in two files on the server's disk** (its accents in the two Unicode forms, left from before one name was one file): sync keeps one and holds the other, and now says so — a warning in the server's log at each walk, and a line under "Needs a look" on the folder's page of the console, counted on the overview, naming the file to remove or rename.
+- **Sync with a server of another build of the same version** now says which: "the server runs Verso 0.7.0-beta.1 (build 1dac246, contract …), this app 0.7.0-beta.1 (build efa6f12, contract …): their contracts differ — update the one that is behind", instead of naming one version twice.
 
 ## 0.7.0-beta.1 — 2026-10-10
 
