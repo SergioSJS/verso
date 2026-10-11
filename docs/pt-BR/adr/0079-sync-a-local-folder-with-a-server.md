@@ -19,6 +19,18 @@
   (a sessão de aparelho, os papéis), [0077](0077-the-server-administration-console-and-folder-quotas.md)
   (cotas), [0078](0078-universo-the-name-of-verso-as-a-server.md) (Universo).
 - Status no briefing: ausente; ao ser aceito.
+- Revisões: 2026-10-10 — depois da revisão e da campanha de sync do mesmo
+  dia, o mantenedor ficou com a resposta recomendada a cada questão que
+  lhe foi posta: *"Gostei das recomendações, pode seguir"*. Item 9: a pausa
+  precisa de pelo menos 3 apagamentos numa passada — um piso, para que
+  numa pasta pequena um ou dois apagamentos não pausem (o M1 da revisão);
+  e "a lixeira do sistema" corrigida para o `.trash/` da pasta, que é o
+  que o código faz ([0080](0080-the-trash-with-expiry-and-restore.md)
+  item 9). Itens 2 e 8: as duas formas Unicode de um nome são um arquivo
+  só em todo lugar (Q7 da spec, decidida no mesmo dia a partir do achado
+  F20 da campanha). Item 8: qual lado fica com o nome, decidido antes no
+  mesmo dia (Status), marcado assim. Consequências: um limite conhecido,
+  o achado F18 da campanha.
 
 ## Contexto
 
@@ -57,7 +69,11 @@ Aceita (2026-10-10, Status).
    anexos, boards, os ajustes da própria pasta que viajam com ela (0070) —
    e nenhum dos caminhos que a varredura ignora (0044). Um arquivo é o seu
    caminho relativo à pasta, o hash dos seus bytes (SHA-256), o tamanho e a
-   hora de modificação.
+   hora de modificação. **Um nome é um arquivo só em todo lugar** (Q7 da
+   spec, decidida em 2026-10-10): dois caminhos que diferem só na forma
+   Unicode dos acentos (NFC, NFD) são o mesmo arquivo — o servidor compara
+   nomes em NFC, e cada aparelho guarda a grafia que o próprio sistema de
+   arquivos deu ao nome.
 3. **O estado mora fora da pasta** (0011): por pasta sincronizada, no
    diretório de configuração, o servidor, o id da pasta, um cursor nas
    mudanças do servidor e, por caminho, a **base** — o hash e o tamanho em
@@ -91,17 +107,25 @@ Aceita (2026-10-10, Status).
    idioma da pessoa, com caracteres que todo sistema guarda (item 3 da
    0070) — e essa cópia também sincroniza, para os outros aparelhos a
    verem. A janela lista os conflitos da pasta, mostra cada diferença, e a
-   pessoa junta à mão e apaga a cópia. `[ABERTO]`: qual lado fica com o
-   nome. Recomendado: o do servidor, já que a cópia compartilhada com os
-   outros é a que divergiu.
+   pessoa junta à mão e apaga a cópia. Um arquivo mudado dos dois lados
+   sob as duas formas Unicode de um nome (item 2) é um conflito assim: uma
+   cópia ao lado dele (Q7 da spec, decidida em 2026-10-10). `[ABERTO]` até
+   2026-10-10: qual lado fica com o nome. Recomendado: o do servidor, já
+   que a cópia compartilhada com os outros é a que divergiu — decidido em
+   2026-10-10 como recomendado (Status).
 9. **Apagamentos**: um arquivo apagado de um lado e sem mudança do outro é
-   apagado lá (para a lixeira do sistema no computador, como o Verso
-   apaga); apagado de um lado e editado do outro, a edição vence e o
+   apagado lá (para o `.trash/` da pasta no computador, para onde vai
+   todo apagamento no Verso — item 9 da
+   [0080](0080-the-trash-with-expiry-and-restore.md); "a lixeira do
+   sistema" corrigida em 2026-10-10); apagado de um lado e editado do outro, a edição vence e o
    arquivo volta. Um placeholder de armazenamento sob demanda nunca é um
    apagamento (0043). Um lote que apagaria mais de um quinto dos arquivos
    da pasta, ou mais de 50, **pausa o sync** e pergunta à pessoa — uma
    pasta movida, um disco não montado, uma pasta de nuvem esvaziada,
-   todos parecem apagamentos.
+   todos parecem apagamentos. A pausa precisa de **pelo menos 3
+   apagamentos** numa passada (decidido em 2026-10-10, Revisões): numa
+   pasta pequena, em que um quinto é um ou dois arquivos, um ou dois
+   apagamentos não pausam.
 10. **Mudanças de nome e de lugar**: um apagamento e uma criação do mesmo
     hash num lote local são enviados como mudança de nome, que o servidor
     aplica como uma; senão são um apagamento e uma criação. Os links que
@@ -147,6 +171,16 @@ Aceita (2026-10-10, Status).
   sincronizando em ordens ao acaso, terminam com os mesmos arquivos e não
   perdem nenhuma edição (cada versão perdida presente como cópia de
   conflito).
+- **Um limite conhecido** (a campanha de sync de 2026-10-10, o achado
+  F18 dela): um programa fora do Verso que guarda um arquivo inteiro na
+  memória e salva esse buffer velho depois de o sync ter baixado uma
+  versão mais nova sobrescreve a versão mais nova — para o sync é uma
+  mudança comum de um lado só (item 7), e nenhum sync de arquivos
+  inteiros consegue distingui-la de uma edição. O editor do próprio Verso
+  confere a revisão (invariante 11) e não faz isso. A mitigação é a da
+  [0080](0080-the-trash-with-expiry-and-restore.md): o servidor guarda a
+  versão que a escrita de um aparelho substituiu, na lixeira da pasta,
+  restaurável — numa rodada posterior.
 
 ## Alternativas descartadas
 

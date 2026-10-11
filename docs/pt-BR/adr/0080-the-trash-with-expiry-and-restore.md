@@ -65,12 +65,13 @@ Uma contradição a registrar, não a resolver aqui: o item 9 da
 que o sync faz no computador vai "para a lixeira do sistema"; o código e o
 diálogo mandam para o `.trash/` da pasta, como todo outro apagamento no
 Verso. O item 9 desta ADR recomenda um dos dois e pede que o mantenedor
-diga.
+diga. *(Resolvido em 2026-10-10: o `.trash/` da pasta, item 9; a 0079
+revista no mesmo dia.)*
 
 ## Decisão
 
 Proposta (2026-10-10). Cada `[ABERTO]` traz uma recomendação; o mantenedor
-decide.
+decide. Itens abertos respondidos em 2026-10-10 (Status).
 
 1. **A lixeira continua sendo `.trash/` na raiz da pasta**, no computador e
    no servidor, com as regras da [0048](0048-file-operations-in-ui.md)
@@ -102,15 +103,17 @@ decide.
    [0044](0044-verso-fs-semantics.md)); diretórios vazios que sobram sob
    `.trash/` são podados; cada remoção é uma linha do log e, no servidor,
    do registro de auditoria. `[ABERTO]`: o padrão. Recomendado: **30
-   dias**, como o Notion, o Google Drive e o Finder guardam.
-   Configurável:
+   dias**, como o Notion, o Google Drive e o Finder guardam — decidido em
+   2026-10-10: 30 dias. Configurável:
    - no servidor, `VERSO_TRASH_DAYS` é o padrão de toda pasta (30 quando
      não definido; `0` quer dizer nunca expirar), e a página da pasta no
      console define o valor da própria pasta, como define a cota
      ([0077](0077-the-server-administration-console-and-folder-quotas.md)
      item 5); `[ABERTO]` se o dono de uma pasta também pode mudá-lo pela
      janela — recomendado: o dono pode **encurtar**, só o admin alonga ou
-     desliga a expiração, já que o espaço é de quem hospeda;
+     desliga a expiração, já que o espaço é de quem hospeda — decidido
+     em 2026-10-10: o dono pode encurtá-la pela janela; só o admin a
+     alonga ou desliga a expiração;
    - no desktop, um ajuste de cada pasta local, "Guardar arquivos apagados
      por", com 30 dias como padrão e "para sempre" como opção — o disco é
      da própria pessoa; o ajuste é a camada da pessoa da
@@ -127,7 +130,7 @@ decide.
    pé, como a barra lateral do Notion. Recomendado: **sem linha na
    árvore** na primeira versão — a árvore são os arquivos da pasta, e a
    lixeira não é um deles — com o menu, a paleta e os ajustes chegando a
-   ela. No console, a página da pasta mostra o tamanho, a contagem e a
+   ela — decidido em 2026-10-10: sem linha Lixeira na árvore. No console, a página da pasta mostra o tamanho, a contagem e a
    retenção da lixeira, com "Esvaziar a lixeira" para o admin; a Visão
    geral soma a lixeira do servidor aos totais.
 5. **Restaurar.** Uma entrada volta ao caminho original, com os pais
@@ -177,7 +180,9 @@ decide.
    lixeira de uma pasta passa da cota da pasta, as entradas mais antigas
    expiram antes da hora até ela não passar mais — dito na página da
    pasta, nunca em silêncio. Um servidor sem cotas não tem trava além da
-   retenção.
+   retenção — decidido em 2026-10-10: mostrada, não contada na cota, com a
+   trava: quando só a lixeira de uma pasta passa da cota dela, as entradas
+   mais antigas expiram antes da hora, dito na página da pasta.
 9. **Um apagamento feito pelo sync no computador vai para o `.trash/` da
    pasta**, como o código faz hoje e como todo apagamento no Verso faz,
    para que seja visto e restaurado na mesma visão e as duas lixeiras do
@@ -185,7 +190,8 @@ decide.
    [0079](0079-sync-a-local-folder-with-a-server.md) ("a lixeira do
    sistema"); `[ABERTO]`, do mantenedor resolver. Recomendado: a lixeira
    da pasta, com uma linha de Revisões na 0079 e nenhuma mudança de
-   código.
+   código — decidido em 2026-10-10: um apagamento feito pelo sync vai para
+   o `.trash/` da pasta; o item 9 da 0079 revisto no mesmo dia.
 10. **Agentes.** Um apagamento pelo MCP ([0066](0066-mcp-sees-boards-relations-properties-bases.md))
     vai para a lixeira como já vai; restaurar não é exposto ao MCP nesta
     ADR.
@@ -199,6 +205,17 @@ decide.
     dias"). pt-BR e inglês em tudo; testes de ponta a ponta no harness
     para a visão, o restaurar ao lado de um nome ocupado e a expiração, e
     a suíte do servidor para os papéis e o console.
+12. **Uma versão que a escrita de um aparelho substituiu é guardada** —
+    decidido em 2026-10-10. Quando a escrita de um aparelho substitui um
+    arquivo no servidor, o servidor guarda a versão substituída na
+    lixeira da pasta, com o nome `substituída por <aparelho>`, e ela se
+    restaura como qualquer entrada (item 5). É a mitigação para o
+    salvamento velho de um programa de fora, o limite conhecido que a
+    [0079](0079-sync-a-local-folder-with-a-server.md) registra
+    (Consequências; o achado F18 da campanha de sync): um programa que
+    salva um buffer do arquivo inteiro mais velho do que o que o sync
+    baixou sobrescreve a versão mais nova, e nenhum sync de arquivos
+    consegue saber.
 
 ## Consequências
 
@@ -239,7 +256,8 @@ decide.
   item 9 da [0079](0079-sync-a-local-folder-with-a-server.md), e pela
   [0048](0048-file-operations-in-ui.md) como opção): fora do alcance do
   Verso, então sem visão, sem restaurar, sem expiração próprias do Verso;
-  e não uma lixeira por pasta. O item 9 deixa a escolha ao mantenedor.
+  e não uma lixeira por pasta. O item 9 deixa a escolha ao mantenedor,
+  que escolheu a lixeira da pasta em 2026-10-10.
 - **Apagamento definitivo com um desfazer na janela** (levantada pelo
   autor): um desfazer mora na memória de uma janela; um apagamento de
   outro membro, do sync ou de um agente não tem janela em que ser
@@ -255,3 +273,9 @@ lixeira conta na cota (item 8; mostrada, não contada, as mais antigas
 expirando antes quando só a lixeira passa da cota); e para onde vai um
 apagamento feito pelo sync no computador (item 9; a lixeira da pasta, uma
 linha de Revisões na 0079).
+
+Itens abertos respondidos em 2026-10-10; aceitação pendente. O
+mantenedor, em sessão, às recomendações acima: *"Gostei das recomendações, pode seguir"* —
+cada `[ABERTO]` decidido como recomendado, no lugar (itens 3, 4, 8 e 9),
+e o item 12 acrescentado, a mitigação do limite conhecido da 0079. Se
+esta ADR é Aceita, quem diz é o mantenedor.

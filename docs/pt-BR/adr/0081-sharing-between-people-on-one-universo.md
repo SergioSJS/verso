@@ -99,7 +99,7 @@ Dois jeitos de construir uma subpasta compartilhada foram pesados:
 ## Decisão
 
 Proposta (2026-10-10). Cada `[ABERTO]` traz uma recomendação; o mantenedor
-decide.
+decide. Itens abertos respondidos em 2026-10-10 (Status).
 
 1. **Um compartilhamento é uma concessão num caminho.** Uma concessão
    passa a ser *pasta, conta, caminho, papel*: o caminho é `""` para a
@@ -132,17 +132,20 @@ decide.
    pasta compartilhada e o do dono — "Campanha (Sérgio)". Só o último
    componente cruza: o caminho do dono acima dele é dele. `[ABERTO]`: se o
    dono pode dar a um compartilhamento um nome próprio. Recomendado: não,
-   na primeira versão.
+   na primeira versão — decidido em 2026-10-10: sem nome próprio na
+   primeira versão.
 4. **Quem compartilha, com quem.** O **dono** da pasta compartilha; um
    editor não, e quem recebe não recompartilha (`[ABERTO]`; recomendado
    assim, pois o registro de auditoria fica com um autor por
-   compartilhamento). Quem recebe é uma conta no mesmo Universo, nomeada
+   compartilhamento — decidido em 2026-10-10: só o dono compartilha;
+   quem recebe não recompartilha). Quem recebe é uma conta no mesmo Universo, nomeada
    por e-mail, ou uma pessoa convidada: o convite do item 4 da
    [0074](0074-accounts-and-access-on-the-server.md), que já carrega uma
    pasta e um papel, carrega um caminho também, então "convidar um jogador
    para a pasta da campanha" é um link só. Links que qualquer um que os
    tenha pode abrir não estão nesta ADR (`[ABERTO]`, para quando pedirem;
-   um servidor de notas privadas começa sem eles).
+   um servidor de notas privadas começa sem eles — decidido em
+   2026-10-10: agora não).
 5. **Onde aparece.** Uma seção **"Compartilhados comigo"** — *Shared with
    me* — em todo lugar que lista as pastas de uma pessoa: o seletor de
    pastas do navegador e Ajustes › Conta › Pastas; Ajustes › Servidores do
@@ -152,6 +155,11 @@ decide.
    seção também: "minhas pastas" são as de que sou dono. O dono tem
    **"Compartilhados por mim"** nos mesmos lugares: cada compartilhamento
    com o caminho, as pessoas e os papéis.
+   **O seletor de pastas** — decidido em 2026-10-10, construído com esta
+   ADR: no app desktop e no navegador, o seletor de pastas no topo da
+   barra lateral agrupa as pastas em "Neste computador", "Meus" e
+   "Compartilhados comigo" — *On this computer*, *Mine*, *Shared with
+   me*.
 6. **Como quem recebe usa.** Online, no navegador ou no app desktop
    conectado ao servidor, como qualquer pasta do servidor; e
    **sincronizado**, no app desktop, como uma pasta local própria (o item
@@ -169,7 +177,10 @@ decide.
    seria um apagamento na pasta do dono. Ver o próprio vault e um
    compartilhamento lado a lado numa janela é da 0041, quando vier; até
    lá um foco ([0062](0062-focuses.md)) fica dentro de uma pasta só, e um
-   compartilhamento é uma janela.
+   compartilhamento é uma janela — decidido em 2026-10-10: um
+   compartilhamento nunca aparece dentro do vault de quem recebe;
+   sincronizado, é uma pasta local própria (item 1 da
+   [0079](0079-sync-a-local-folder-with-a-server.md)).
 7. **O que o dono vê.** Na árvore de arquivos, uma pasta compartilhada
    leva uma marca (pessoas), e o menu dela tem **"Compartilhar…"** —
    *Share…* — que abre o compartilhamento: quem tem acesso, em qual
@@ -216,7 +227,10 @@ decide.
     compartilhamento, só leitura**: um compartilhamento pode então ter um
     segundo caminho, e o modelo do item 1 já permite (uma concessão por
     caminho, mesmo id de compartilhamento). Fora da primeira versão se
-    custar a rodada; dito no diálogo de qualquer jeito.
+    custar a rodada; dito no diálogo de qualquer jeito — decidido em
+    2026-10-10, como recomendado: ao compartilhar, o dono é avisado de
+    quais anexos ficam fora da pasta compartilhada e pode acrescentar a
+    pasta de anexos ao compartilhamento, só leitura.
 12. **Salas** ([0073](0073-self-hosted-server-first.md) item 7). Uma nota
     aberta por um compartilhamento e pela pasta do dono é **uma sala só**:
     o lugar da sala é a chave da pasta do dono e o caminho completo, para
@@ -261,7 +275,8 @@ decide.
     todo link para fora. O mantenedor disse opcional e só se for barato; a
     parte do servidor é barata e a da janela não. `[ABERTO]`; recomendado:
     **fora da primeira versão**, o modelo deixando a porta aberta, e um
-    compartilhamento só de leitura de uma nota primeiro, se for pedido.
+    compartilhamento só de leitura de uma nota primeiro, se for pedido —
+    decidido em 2026-10-10: fora da primeira versão.
 18. **Os dois idiomas, acessibilidade** ([0035](0035-cross-cutting-requirements.md)):
     o diálogo de compartilhar é um formulário com campos rotulados e uma
     lista de pessoas cujos controles de papel se alcançam pelo teclado e
@@ -319,10 +334,11 @@ decide.
   mostrado.
 - **O compartilhamento aparecendo dentro do vault de quem recebe**
   (levantada pelo autor, dos atalhos do Google Drive): o item 6 diz por
-  que não, e deixa a pergunta ao mantenedor.
+  que não, e deixa a pergunta ao mantenedor, que decidiu contra em
+  2026-10-10.
 - **Editores compartilhando** (levantada pelo autor, dos ajustes do
   Notion): o item 4 mantém o compartilhar com o dono, aberto ao
-  mantenedor.
+  mantenedor, que o manteve com o dono em 2026-10-10.
 - **Permissões por nota agora** (levantada pelo mantenedor como "opcional,
   se for barato"): o item 17 diz o que é barato e o que não é.
 
@@ -338,3 +354,10 @@ compartilhada (item 11; um segundo caminho, só leitura, oferecido ao
 compartilhar); um documento só (item 17; fora da primeira versão, o
 modelo permitindo depois); e, para uma ADR própria, o histórico das
 mudanças de um arquivo (Consequências).
+
+Itens abertos respondidos em 2026-10-10; aceitação pendente. O
+mantenedor, em sessão, às recomendações acima: *"Gostei das recomendações, pode seguir"* —
+cada `[ABERTO]` dos itens 3, 4, 6, 11 e 17 decidido como recomendado, no
+lugar, e o item 5 ganhando o seletor de pastas, construído com esta ADR.
+O histórico das mudanças de um arquivo segue `[ABERTO]`, para uma ADR
+própria. Se esta ADR é Aceita, quem diz é o mantenedor.

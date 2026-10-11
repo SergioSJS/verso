@@ -107,7 +107,7 @@ fariam conflitos do nada.
 ## Decisão
 
 Proposta (2026-10-10). Cada `[ABERTO]` traz uma recomendação; o mantenedor
-decide.
+decide. Itens abertos respondidos em 2026-10-10 (Status).
 
 1. **Uma nota de uma pasta sincronizada está ao vivo enquanto o servidor
    está ao alcance.** Quando uma pasta local sincroniza com um Universo
@@ -176,7 +176,8 @@ decide.
    ao abrir põe o caso difícil na hora de abrir, com o texto em repouso;
    o servidor já faz uma sala a partir do disco na primeira entrada, um
    documento Yjs por nota aberta; e uma sala com um membro só custa uma
-   escrita por rajada assentada, como o salvamento automático local custa.
+   escrita por rajada assentada, como o salvamento automático local custa
+   — decidido em 2026-10-10: uma nota entra na sala dela ao abrir.
 6. **Quem escreve o arquivo local enquanto a nota está numa sala: o sync,
    e mais ninguém no Verso.** Os salvamentos da sala caem no servidor, o
    registro de mudanças os anota, o servidor empurra `sync-changed`, a
@@ -276,7 +277,8 @@ decide.
     das Consequências.
 12. **Salas são para notas.** Um arquivo `.md` com um só tipo de fim de
     linha entra; nada mais entra. A coedição do board continua `[ABERTO]`
-    na [0073](0073-self-hosted-server-first.md) item 7; boards, bases,
+    na [0073](0073-self-hosted-server-first.md) item 7 (deixada aberta em
+    2026-10-10); boards, bases,
     canvases, anexos e os ajustes da pasta cruzam pelo sync como arquivos,
     e duas pessoas num mesmo board em duas pastas sincronizadas terminam
     como a [0079](0079-sync-a-local-folder-with-a-server.md) item 8 diz.
@@ -309,7 +311,9 @@ decide.
     sozinha: edição local, conflitos como cópias. É a camada da pessoa
     ([0070](0070-what-travels-with-the-folder.md)), não escrita na pasta.
     Ligada por padrão porque é o sentido de sincronizar uma pasta com
-    pessoas, e porque o recuo é o comportamento de hoje.
+    pessoas, e porque o recuo é o comportamento de hoje — decidido em
+    2026-10-10: ligada por padrão, com o ajuste por pasta "Editar notas
+    junto enquanto online" — *Edit notes together while online*.
 16. **Testes.** Rust, contra um servidor real como o `tests_sync.rs` faz,
     sem janela: dois aparelhos sincronizados e um terceiro cliente
     fazendo as vezes do navegador numa sala só, cada um vendo as edições
@@ -365,7 +369,8 @@ decide.
   fora numa sala ao vivo (item 11), as duas precisando dos bytes da base
   guardados, não só do hash. A [0073](0073-self-hosted-server-first.md)
   item 10 a põe depois de conflitos vistos em uso; `[ABERTO]`, registrado
-  aqui para não ser esquecido.
+  aqui para não ser esquecido. Em 2026-10-10 o mantenedor a deixou para
+  depois: ela precisa dos bytes da base.
 
 ## Alternativas descartadas
 
@@ -382,7 +387,7 @@ decide.
   arquivo; nada é descartado.
 - **Entrar só quando alguém está na nota** (levantada no briefing da
   sessão; item 5): deixada aberta para o mantenedor, com as razões
-  contra.
+  contra; o mantenedor escolheu entrar ao abrir em 2026-10-10.
 - **Fusão por bloco agora** (levantada pela pergunta do mantenedor, como a
   lacuna que esta ADR estreita): a [0073](0073-self-hosted-server-first.md)
   item 10 a põe depois de conflitos vistos em uso; Consequências.
@@ -396,3 +401,11 @@ quando alguém está nela (item 5; ao abrir); se a coedição ao vivo fica
 ligada por padrão para pastas sincronizadas (item 15; ligada, com um
 ajuste por pasta para mantê-la só local); e, em ADR própria, a fusão por
 bloco de edições offline (Consequências).
+
+Itens abertos respondidos em 2026-10-10; aceitação pendente. O
+mantenedor, em sessão, às recomendações acima: *"Gostei das recomendações, pode seguir"* —
+os itens 5 e 15 decididos como recomendado, no lugar; a coedição do board
+segue `[ABERTO]` (item 12, item 7 da [0073](0073-self-hosted-server-first.md));
+a fusão por bloco de edições offline fica para depois, em ADR própria,
+pois precisa dos bytes da base (Consequências). Se esta ADR é Aceita,
+quem diz é o mantenedor.
