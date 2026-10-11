@@ -64,6 +64,8 @@ Numa nota, num board ou num arquivo de texto que mudou em disco enquanto você d
 
 Em **Ajustes › Servidores**, escreva o endereço do servidor e conecte: o navegador abre a página do servidor para você **permitir este computador** — ninguém cola token. Depois, escolha uma pasta do servidor, e a janela a mostra como se estivesse aqui.
 
+Ali também fica o **nome deste aparelho** — por padrão, o nome do sistema. Dê um nome seu (dois computadores com o mesmo nome de sistema deixam de se confundir): ele vai no nome das cópias de conflito, na lista de sessões do servidor e nas últimas mudanças de cada pasta.
+
 ---
 
 ## Sincronizar uma pasta deste computador

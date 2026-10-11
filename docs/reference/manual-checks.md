@@ -40,6 +40,13 @@ in the real app.
   mudando…" and never sent; the first keeps syncing.
 - [ ] **Window on a small screen** (`068215e`): on a 1280×800 display the
   first window opens inside the screen, status bar visible.
+- [ ] **This device's name** (ADR 0079 item 8, 2026-10-11): in the
+  installed app, Ajustes › Servidores › "Nome deste aparelho" — empty, the
+  system's name as its placeholder; set "Estúdio", "Salvar nome": signed in
+  to a server, it says "os servidores já mostram o nome novo", and the
+  server's Ajustes › Conta lists the session as "Verso · Estúdio"; a
+  conflict made afterwards is `<nota> (conflito, Estúdio, <data>).md`;
+  emptied and saved, the system's name is back on both.
 
 ### Version 0.5 (feat/windows-fs, feat/signed-updates)
 

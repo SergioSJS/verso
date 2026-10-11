@@ -149,6 +149,11 @@ pub(crate) fn write_agents(config: &Path, visible: &[String]) -> std::io::Result
 pub(crate) struct Servers {
     #[serde(default)]
     pub(crate) servers: Vec<crate::servers::ServerLogin>,
+    /// This computer's name as the person set it in Settings › Servers
+    /// (ADR 0079 item 8, ADR 0074 item 8, decided 2026-10-11); none, the
+    /// system's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) device: Option<String>,
 }
 
 /// The servers signed in to: none when the file is missing or does not

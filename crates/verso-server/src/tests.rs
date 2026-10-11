@@ -661,6 +661,59 @@ fn the_desktop_signs_in_through_the_browser() {
     });
 }
 
+/// The person names this computer again in the app (ADR 0079 item 8, ADR
+/// 0074 item 8; decided 2026-10-11): its session takes the name, said in
+/// the list of sessions; only a device's own session names itself.
+#[test]
+fn a_device_names_its_session_again() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let account = r
+            .server
+            .db
+            .account_by_email("admin@casa.lan")
+            .unwrap()
+            .unwrap();
+        let (token, _) = r
+            .server
+            .db
+            .create_session(&account.id, "device", "Verso · MacBook", "127.0.0.1")
+            .unwrap();
+        let rename = |bearer: Option<String>, cookie: Option<&Browser>, name: &str| {
+            let mut req = reqwest::Client::new()
+                .put(r.url("/api/me/device"))
+                .header("origin", r.origin())
+                .json(&json!({ "device": name }));
+            if let Some(t) = bearer {
+                req = req.bearer_auth(t);
+            }
+            if let Some(b) = cookie {
+                req = req
+                    .header("cookie", &b.cookie)
+                    .header("x-verso-csrf", &b.csrf);
+            }
+            async move { req.send().await.unwrap().status().as_u16() }
+        };
+        assert_eq!(
+            rename(Some(token.clone()), None, "Verso · Estúdio").await,
+            200
+        );
+        let (_, sessions) = get(&r, "/api/me/sessions", Some(&admin)).await;
+        let devices: Vec<&Value> = sessions
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|s| s["session"]["kind"] == "device")
+            .collect();
+        assert_eq!(devices.len(), 1, "{sessions}");
+        assert_eq!(devices[0]["session"]["device"], "Verso · Estúdio");
+        // A browser's session has no device to name; nothing is no name.
+        assert_eq!(rename(None, Some(&admin), "Outro").await, 403);
+        assert_eq!(rename(Some(token), None, "  ").await, 400);
+    });
+}
+
 #[test]
 fn the_lost_admin_comes_back_from_the_machine() {
     block_on(async {

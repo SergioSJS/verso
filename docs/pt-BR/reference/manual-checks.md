@@ -40,6 +40,13 @@ app real.
   outro, só mudando…" e nunca enviado; o primeiro continua sincronizando.
 - [ ] **Janela numa tela pequena** (`068215e`): numa tela 1280×800 a
   primeira janela abre dentro da tela, barra de status visível.
+- [ ] **O nome deste aparelho** (ADR 0079 item 8, 2026-10-11): no app
+  instalado, Ajustes › Servidores › "Nome deste aparelho" — vazio, com o
+  nome do sistema de placeholder; dê "Estúdio", "Salvar nome": conectado a
+  um servidor, diz "os servidores já mostram o nome novo", e o Ajustes ›
+  Conta do servidor lista a sessão como "Verso · Estúdio"; um conflito feito
+  depois é `<nota> (conflito, Estúdio, <data>).md`; esvaziado e salvo, o
+  nome do sistema volta nos dois.
 
 ### Versão 0.5 (feat/windows-fs, feat/signed-updates)
 

@@ -20,6 +20,8 @@ import type {
   Capabilities,
   FolderSpace,
   AppInfo,
+  DeviceName,
+  DeviceRenamed,
   Backlink,
   BaseCell,
   BaseColumn,
@@ -309,6 +311,9 @@ export class Core {
   /** The folder's sync (ADR 0079), as a test sets it: the harness has no
    *  server, so what crosses is whatever a test says (`sync-status`). */
   sync: SyncStatus = Core.syncOff();
+  /** This computer's name as the person set it in Settings › Servers;
+   *  null, the system's ("Mac de Teste"). */
+  deviceName: string | null = null;
 
   static syncOff(): SyncStatus {
     return { key: "harness", on: false, server: "", folder: "", folder_name: "", role: "", state: "off", sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], log: [], last: null, message: null, problem: null, versions: null };
@@ -1037,7 +1042,14 @@ export class Core {
       }
       return out;
     },
-    app_info: (): AppInfo => ({ version: "0.0.0-harness", commit: "harness", device: "Mac de Teste" }),
+    app_info: (): AppInfo => ({ version: "0.0.0-harness", commit: "harness", device: this.deviceName ?? "Mac de Teste" }),
+    // This computer's name (ADR 0079 item 8): no server to tell here.
+    device_name: (): DeviceName => ({ name: this.deviceName ?? "Mac de Teste", system: "Mac de Teste", custom: this.deviceName !== null }),
+    set_device_name: (a): DeviceRenamed => {
+      const name = String(a["name"] ?? "").replace(/\p{Cc}/gu, " ").trim().slice(0, 60).trim();
+      this.deviceName = name && name !== "Mac de Teste" ? name : null;
+      return { device: { name: this.deviceName ?? "Mac de Teste", system: "Mac de Teste", custom: this.deviceName !== null }, unreached: [] };
+    },
     open_window: () => null,
     popout_target: () => null,
     return_to_main: () => null,

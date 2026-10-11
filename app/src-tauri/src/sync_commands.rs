@@ -23,10 +23,12 @@ fn off(key: &str) -> SyncStatus {
 fn context<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Arc<Ctx> {
     let state = app.state::<App>();
     let (language, shown) = (app.clone(), app.clone());
+    let config = state.service.config().map(Path::to_path_buf);
+    let named = config.clone();
     Arc::new(Ctx {
         service: Arc::clone(&state.service),
-        config: state.service.config().map(Path::to_path_buf),
-        device: sync::device().to_owned(),
+        config,
+        device: Box::new(move || device::name(named.as_deref())),
         pt: Box::new(move || lock(&language.state::<App>().menu_language).as_str() != "en"),
         // Once, to every window: each shows its own folder's.
         shown: Box::new(move |_, status| {

@@ -20,6 +20,7 @@ test release.
 - **The console lists the files too large for sync**: on a folder's page, under "Too large to sync", each file of the folder above 1 GiB that sync leaves out, with its size.
 - **Sync says when this app and the server speak sync versions too far apart** ([ADR 0079](docs/adr/0079-sync-a-local-folder-with-a-server.md) item 5): each side says the version of sync it speaks as it connects, a server takes its own and the one before, and a folder whose server cannot follow this app — or that this app cannot follow — shows an error naming both versions, "update the one that is behind", instead of syncing wrong.
 - **Two people who add lines to the end of the same note while apart get one note with both lines**, the server's first, not a conflict copy ([ADR 0079](docs/adr/0079-sync-a-local-folder-with-a-server.md) item 8); the sync's log says "merged". Anything else edited on both sides still makes the copy.
+- **Name this computer** in *Settings › Servers* ([ADR 0079](docs/adr/0079-sync-a-local-folder-with-a-server.md) item 8, [ADR 0074](docs/adr/0074-accounts-and-access-on-the-server.md) item 8): the system's name by default; the one you set names the conflict copies, and the servers this computer is signed in to show it at once in their list of sessions and in each folder's latest changes — a server that does not answer keeps the old name until you connect again, and the setting says so.
 
 ### Changed
 

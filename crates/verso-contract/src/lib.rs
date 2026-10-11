@@ -403,6 +403,30 @@ pub struct AppInfo {
     pub device: Option<String>,
 }
 
+/// This computer's name (ADR 0079 item 8, ADR 0074 item 8; decided
+/// 2026-10-11): the one the person set in Settings › Servers, or the
+/// system's. A conflict's copy carries it, and a server's list of sessions
+/// and its change log show it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct DeviceName {
+    /// The name in use: the person's when set, the system's otherwise.
+    pub name: String,
+    /// The system's name, the default.
+    pub system: String,
+    /// Whether the person set the name.
+    pub custom: bool,
+}
+
+/// The name set, and the servers this computer is signed in to that could
+/// not be told: their list of sessions keeps the old name until the next
+/// sign-in there.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct DeviceRenamed {
+    pub device: DeviceName,
+    /// The addresses of the servers not reached.
+    pub unreached: Vec<String>,
+}
+
 /// The space a folder takes (ADR 0075 item 4): counted from the walk the
 /// index already makes, never by a walk of its own. Bytes, as numbers the
 /// window can show.

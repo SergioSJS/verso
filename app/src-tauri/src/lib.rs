@@ -41,6 +41,7 @@ use verso_service::{OpError, Service, lock, no_folder, ops, refused};
 
 mod boards;
 mod cli;
+mod device;
 mod files;
 mod focuses;
 mod log;
@@ -56,6 +57,7 @@ mod web;
 mod windows;
 use boards::*;
 use cli::*;
+use device::*;
 use files::*;
 use focuses::*;
 use menu::*;
@@ -331,11 +333,11 @@ async fn open_initial<R: tauri::Runtime>(
 /// settings. Host-only, like `open_url`: nothing of the folder.
 #[tauri::command]
 #[specta::specta]
-fn app_info() -> Result<AppInfo, ContractError> {
+fn app_info(state: State<'_, App>) -> Result<AppInfo, ContractError> {
     Ok(AppInfo {
         version: env!("CARGO_PKG_VERSION").to_owned(),
         commit: env!("VERSO_COMMIT").to_owned(),
-        device: Some(sync::device().to_owned()),
+        device: Some(device::name(state.service.config())),
     })
 }
 
@@ -589,6 +591,8 @@ macro_rules! commands_for {
                 graph::<$runtime>,
                 current_folder::<$runtime>,
                 app_info,
+                device_name,
+                set_device_name::<$runtime>,
                 open_window::<$runtime>,
                 popout_target::<$runtime>,
                 return_to_main::<$runtime>,

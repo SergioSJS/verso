@@ -45,6 +45,18 @@ fn code() -> Result<String, String> {
     Ok(format!("{}-{}", &letters[..4], &letters[4..]))
 }
 
+/// A device's name as a session keeps it: on one line, trimmed, at most
+/// 80 characters; none when nothing is left.
+fn kept_name(name: &str) -> Option<String> {
+    let one_line: String = name
+        .chars()
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .collect();
+    let kept: String = one_line.trim().chars().take(80).collect();
+    let kept = kept.trim_end().to_owned();
+    (!kept.is_empty()).then_some(kept)
+}
+
 #[derive(Deserialize)]
 pub struct Start {
     device: String,
@@ -61,7 +73,7 @@ pub async fn start(ctx: Ctx, Json(body): Json<Start>) -> ApiResult<Response> {
     // Each start counts: a flood of codes is slowed like a flood of
     // sign-ins.
     ctx.server.limiter.failed(&key);
-    let device: String = body.device.trim().chars().take(80).collect();
+    let device = kept_name(&body.device);
     let code = code()?;
     let poll = crate::crypto::token()?;
     let mut devices = lock(&ctx.server.devices);
@@ -69,11 +81,7 @@ pub async fn start(ctx: Ctx, Json(body): Json<Start>) -> ApiResult<Response> {
     devices.insert(
         code.clone(),
         Pending {
-            device: if device.is_empty() {
-                "Verso".to_owned()
-            } else {
-                device
-            },
+            device: device.unwrap_or_else(|| "Verso".to_owned()),
             poll: crate::crypto::hash(&poll),
             made: Instant::now(),
             approved: None,
@@ -185,4 +193,32 @@ pub async fn poll(ctx: Ctx, Json(body): Json<Poll>) -> ApiResult<Response> {
     Ok(ok(
         json!({ "token": token, "account": crate::api::account_json(&account) }),
     ))
+}
+
+#[derive(Deserialize)]
+pub struct Rename {
+    device: String,
+}
+
+/// The device names itself again (ADR 0079 item 8, ADR 0074 item 8;
+/// decided 2026-10-11): the person set this computer's name in the app's
+/// Settings › Servers, and the session the device signed in with takes it
+/// — the list of sessions and the folders' change log say it from now on.
+/// Only a device's own session, with its own token.
+pub async fn rename(ctx: Ctx, Json(body): Json<Rename>) -> ApiResult<Response> {
+    ctx.changes()?;
+    let who = ctx.who()?;
+    let crate::auth::Via::Device { session } = &who.via else {
+        return Err(ApiError::forbidden(
+            "a device names itself, with its own session",
+        ));
+    };
+    let Some(device) = kept_name(&body.device) else {
+        return Err(ApiError::bad("bad_request", "a name"));
+    };
+    if !ctx.server.db.rename_device(session, &device)? {
+        return Err(ApiError::not_found());
+    }
+    ctx.audit("device_renamed", Some(&device), None, true);
+    Ok(ok(json!({ "device": device })))
 }

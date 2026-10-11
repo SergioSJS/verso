@@ -656,7 +656,11 @@ rest below and in `manual-checks.md`.
 6. The desktop app: *Ajustes* › *Servidores*, the server's address,
    *Conectar*; the browser asks to allow this computer; after *Permitir*, a
    folder of the server opens in the window (the host's test; by hand in
-   the installed app).
+   the installed app). In the same section, *Nome deste aparelho*: a name
+   saved there is the conflict copies' and this device's session's on each
+   server, and emptied the system's is back (e2e, `sync.spec.mjs`, "Servers
+   names this computer"; the host's test,
+   `a_window_on_a_servers_folder_is_answered_by_the_server`).
 7. Sync ([ADR 0079](../adr/0079-sync-a-local-folder-with-a-server.md)): with
    a folder of this computer open, *Ajustes* › *Sincronizar*; signed in to
    no server it says *Conecte a um servidor em Servidores primeiro*; signed

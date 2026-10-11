@@ -42,8 +42,9 @@ const LOG_LINES: usize = 200;
 pub(crate) struct Ctx {
     pub(crate) service: Arc<Service>,
     pub(crate) config: Option<PathBuf>,
-    /// This computer's name, for a conflict's copy.
-    pub(crate) device: String,
+    /// This computer's name, for a conflict's copy: asked at each pass,
+    /// so that a name the person sets meanwhile is the next copy's.
+    pub(crate) device: Box<dyn Fn() -> String + Send + Sync>,
     /// Whether the person reads Portuguese, for a conflict's copy.
     pub(crate) pt: Box<dyn Fn() -> bool + Send + Sync>,
     /// The status changed: the windows of the folder `key` hear it.
@@ -214,36 +215,6 @@ fn problem_of(e: &ContractError) -> &'static str {
 fn said(e: &Value) -> ContractError {
     serde_json::from_value::<ContractError>(e.clone())
         .unwrap_or_else(|_| verso_service::failed("the server refused"))
-}
-
-/// This computer's name, asked of the system once: what a conflict's
-/// copy carries, made by sync or by the editor's "keep both".
-pub(crate) fn device() -> &'static str {
-    static DEVICE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    DEVICE.get_or_init(host_name)
-}
-
-/// This computer's name as a person knows it.
-pub(crate) fn host_name() -> String {
-    for var in ["COMPUTERNAME", "HOSTNAME"] {
-        if let Ok(v) = std::env::var(var)
-            && !v.trim().is_empty()
-        {
-            return v.trim().to_owned();
-        }
-    }
-    #[cfg(target_os = "macos")]
-    let asked = std::process::Command::new("scutil")
-        .args(["--get", "ComputerName"])
-        .output();
-    #[cfg(not(target_os = "macos"))]
-    let asked = std::process::Command::new("hostname").output();
-    asked
-        .ok()
-        .filter(|o| o.status.success())
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_owned())
-        .filter(|n| !n.is_empty())
-        .unwrap_or_else(|| std::env::consts::OS.to_owned())
 }
 
 /// The files here as a pass compares them, and those held apart.
@@ -666,9 +637,10 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
     state.folder.clone_from(&s.folder);
     let (mut local, mut apart) = tokio::task::block_in_place(|| here(ctx, s, &mut state))?;
     let pt = (ctx.pt)();
+    let device = (ctx.device)();
     let when = chrono::Local::now().format("%Y-%m-%d %H.%M").to_string();
     let copy_name =
-        |p: &str, taken: &BTreeSet<String>| engine::conflict_name(p, &ctx.device, &when, pt, taken);
+        |p: &str, taken: &BTreeSet<String>| engine::conflict_name(p, &device, &when, pt, taken);
     // A yes counts for the deletions the person saw, no more, and once.
     let mut plan = engine::plan(
         &local,
