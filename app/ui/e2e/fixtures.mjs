@@ -82,6 +82,11 @@ export class App {
     return this.page.evaluate(([p, t]) => window.__harness.writeOutside(p, t), [path, text]);
   }
 
+  /** Delete a file of the folder as another app would: no event. */
+  removeOutside(path) {
+    return this.page.evaluate((p) => window.__harness.removeOutside(p), path);
+  }
+
   // ---- The board ---------------------------------------------------------
 
   /** Wait for a board's scene, and its view laid out. */

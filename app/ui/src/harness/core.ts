@@ -1384,4 +1384,10 @@ export class Core {
   writeOutside(path: string, text: string): void {
     this.put(path, encoder.encode(text));
   }
+
+  /** Delete a file as another program would — or sync, for another
+   *  device. */
+  removeOutside(path: string): void {
+    this.files.delete(path);
+  }
 }

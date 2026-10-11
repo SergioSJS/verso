@@ -53,3 +53,34 @@ export class ConflictBanner {
     this.el.hidden = true;
   }
 }
+
+/* What a write refused because the file is gone leaves above the text:
+ * deleted or moved outside Verso (by another program, or by sync from
+ * another device) while this tab held text not saved yet. The text stays;
+ * nothing writes — not the autosave, not ⌘S — until the person saves it
+ * again at its name or closes the tab without it. */
+export class GoneBanner {
+  readonly el = h("div", "conflict gone-banner");
+  private readonly said = h("p", "");
+  up = false;
+  constructor(onSaveAgain: () => void, onClose: () => void) {
+    const again = button("ghost", t.saveAgain);
+    again.addEventListener("click", onSaveAgain);
+    const close = button("ghost danger", t.closeWithoutSaving);
+    close.addEventListener("click", onClose);
+    const actions = h("div", "conflict-actions");
+    actions.append(again, close);
+    this.el.append(this.said, actions);
+    this.el.hidden = true;
+  }
+  show(sentence: string): void {
+    this.up = true;
+    this.said.textContent = sentence;
+    this.el.hidden = false;
+    this.el.scrollIntoView({ block: "start" });
+  }
+  hide(): void {
+    this.up = false;
+    this.el.hidden = true;
+  }
+}
