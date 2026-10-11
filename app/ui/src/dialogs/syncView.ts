@@ -13,7 +13,7 @@ import { commands, type SyncLogEntry, type SyncRefused, type SyncStatus } from "
 import { ask } from "../dialog";
 import { diffNode } from "../diff";
 import { h } from "../dom";
-import { fail } from "../errors";
+import { errorSentence, fail } from "../errors";
 import { openNote } from "../layout/spaces";
 import { copyParts, looksBinary, originalOf, textByName } from "./conflictNames";
 
@@ -66,6 +66,12 @@ const pt = {
   discard: "Descartar cópia",
   discardAsk: (copy: string) => `Descartar ${copy}? Ela vai para a lixeira da pasta e some dos outros aparelhos.`,
   notText: "Não é texto: abra as duas para comparar.",
+  orphanWhy: (n: number, note: boolean) => {
+    const what = note ? "A nota" : "O arquivo";
+    const gone = note ? "renomeada ou apagada" : "renomeado ou apagado";
+    return n === 1 ? `${what} desta cópia não existe mais (${gone}). Abra a cópia, ou descarte-a.` : `${what} destas cópias não existe mais (${gone}). Abra as cópias, ou descarte-as.`;
+  },
+  open: "Abrir",
   reasonTitle: {
     name_invalid: (n: number) => (n === 1 ? "Um arquivo com um nome que nem todo sistema aceita" : `${n} arquivos com nomes que nem todo sistema aceita`),
     name_taken: (n: number) => (n === 1 ? "Um arquivo com o nome de outro, só mudando maiúscula ou acento" : `${n} arquivos com o nome de outros, só mudando maiúscula ou acento`),
@@ -147,6 +153,11 @@ const en: typeof pt = {
   discard: "Discard copy",
   discardAsk: (copy) => `Discard ${copy}? It goes to the folder's bin and leaves the other devices.`,
   notText: "Not text: open both to compare.",
+  orphanWhy: (n, note) => {
+    const what = note ? "note" : "file";
+    return n === 1 ? `The ${what} this copy is of no longer exists (renamed or deleted). Open the copy, or discard it.` : `The ${what} these copies are of no longer exists (renamed or deleted). Open the copies, or discard them.`;
+  },
+  open: "Open",
   reasonTitle: {
     name_invalid: (n) => (n === 1 ? "A file whose name not every system keeps" : `${n} files whose names not every system keeps`),
     name_taken: (n) => (n === 1 ? "A file named as another but for its case or accents" : `${n} files named as others but for their case or accents`),
@@ -355,10 +366,31 @@ function row(...children: HTMLElement[]): HTMLElement {
   return r;
 }
 
+/** The notes whose original is known to be gone (renamed or deleted
+ *  meanwhile): a status redraws the section, and must not show the
+ *  comparison again for a moment before the read says so. */
+const orphans = new Set<string>();
+
 function conflictItem(note: string, copies: string[], refresh: Refresh): HTMLElement {
   const s = words();
   const item = h("article", "sync-item");
-  item.append(h("h4", "sync-item-title", s.conflictTitle(note)), h("p", "sync-item-why", s.conflictWhy(copies.length)));
+  const why = h("p", "sync-item-why", s.conflictWhy(copies.length));
+  item.append(h("h4", "sync-item-title", s.conflictTitle(note)), why);
+  /** What each copy does once its original is found gone. */
+  const onOrphan: (() => void)[] = [];
+  let orphaned = false;
+  // The copy's original is gone — renamed or deleted after the copy was
+  // made: there is nothing to compare with, nor to keep the copy over.
+  // Said as that, never as content that is not text (a failed read is
+  // not binary content).
+  const orphan = () => {
+    orphans.add(note);
+    if (orphaned) return;
+    orphaned = true;
+    why.textContent = s.orphanWhy(copies.length, note.endsWith(".md"));
+    item.classList.add("orphan");
+    for (const f of onOrphan) f();
+  };
   for (const copy of copies) {
     const { device, date } = copyOrigin(copy);
     const one = h("div", "sync-copy");
@@ -384,38 +416,38 @@ function conflictItem(note: string, copies: string[], refresh: Refresh): HTMLEle
       diff.hidden = false;
       compare.textContent = s.hideCompare;
       compare.setAttribute("aria-expanded", "true");
-      void showDiff(diff, note, copy);
+      void showDiff(diff, note, copy, orphan);
     });
     compare.setAttribute("aria-expanded", String(open));
-    const actions = row(
-      compare,
-      button(s.openBoth, "quiet", () => {
-        openNote(note, false);
-        openNote(copy, true);
-      }),
-    );
+    const openBoth = button(s.openBoth, "quiet", () => {
+      if (orphaned) return openNote(copy, false);
+      openNote(note, false);
+      openNote(copy, true);
+    });
+    const actions = row(compare, openBoth);
     const binary = () => {
       compare.remove();
       diff.hidden = true;
-      notText.hidden = false;
+      if (!orphaned) notText.hidden = false;
       comparing.delete(copy);
     };
     if (byName === false) binary();
     else if (byName === null) {
       // Neither a text kind nor a binary one by its name: its bytes say.
+      // A read that fails says nothing of the bytes.
       void commands.readFileText(copy).then((r) => {
-        if (r.status !== "ok" || looksBinary(r.data)) binary();
+        if (r.status === "ok" && looksBinary(r.data)) binary();
       });
     }
-    if (open && byName !== false) void showDiff(diff, note, copy);
+    if (open && byName !== false && !orphans.has(note)) void showDiff(diff, note, copy, orphan);
+    let keep: HTMLButtonElement | null = null;
     if (note.endsWith(".md")) {
-      actions.append(
-        button(s.keepCopy, "quiet", () => {
-          void ask(s.keepCopyAsk(note), { yes: s.keepCopy, no: s.no }).then((yes) => {
-            if (yes) void keepCopy(note, copy).then(() => refresh());
-          });
-        }),
-      );
+      keep = button(s.keepCopy, "quiet", () => {
+        void ask(s.keepCopyAsk(note), { yes: s.keepCopy, no: s.no }).then((yes) => {
+          if (yes) void keepCopy(note, copy).then(() => refresh());
+        });
+      });
+      actions.append(keep);
     }
     actions.append(
       button(s.discard, "quiet", () => {
@@ -429,16 +461,34 @@ function conflictItem(note: string, copies: string[], refresh: Refresh): HTMLEle
         });
       }),
     );
+    onOrphan.push(() => {
+      compare.remove();
+      keep?.remove();
+      diff.hidden = true;
+      notText.hidden = true;
+      comparing.delete(copy);
+      openBoth.textContent = s.open;
+    });
     one.append(label, notText, actions, diff);
     item.append(one);
   }
+  // Known gone from an earlier draw: said at once. Asked of the disk
+  // either way, for a note that is back.
+  if (orphans.has(note)) orphan();
+  void commands.readFileText(note).then((r) => {
+    if (r.status !== "ok" && r.error.kind === "not_found") orphan();
+    else orphans.delete(note);
+  });
   return item;
 }
 
-async function showDiff(box: HTMLElement, note: string, copy: string): Promise<void> {
+async function showDiff(box: HTMLElement, note: string, copy: string, orphan: () => void): Promise<void> {
   const s = words();
   const [a, b] = await Promise.all([commands.readFileText(note), commands.readFileText(copy)]);
-  if (a.status === "ok" && b.status === "ok" && !looksBinary(a.data) && !looksBinary(b.data)) box.replaceChildren(h("p", "sync-item-why", s.compareSaid), diffNode(a.data, b.data, true));
+  if (a.status !== "ok" && a.error.kind === "not_found") return orphan();
+  if (a.status !== "ok") return void box.replaceChildren(h("p", "sync-item-why", errorSentence(a.error)));
+  if (b.status !== "ok") return void box.replaceChildren(h("p", "sync-item-why", errorSentence(b.error)));
+  if (!looksBinary(a.data) && !looksBinary(b.data)) box.replaceChildren(h("p", "sync-item-why", s.compareSaid), diffNode(a.data, b.data, true));
   else box.replaceChildren(h("p", "sync-item-why", s.notText));
 }
 

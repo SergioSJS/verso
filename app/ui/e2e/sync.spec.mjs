@@ -176,3 +176,26 @@ test("Servers lists each server with its folders, the role in each, and what to 
   const where = app.page.locator(".setting", { hasText: "Pasta no servidor" }).locator("select");
   await expect(where).toHaveValue("f1");
 });
+
+test("a conflict's copy whose note was renamed or deleted says so, and offers only to open or discard it", async ({ app }) => {
+  await app.open();
+  // `Lista.md` was renamed to `Lista nova.md` by the person after the copy
+  // was made: the copy has no note to be compared with or kept over.
+  const orphan = "Lista (conflito, MacBook Pro de Sérgio, 2026-10-10 20.59).md";
+  await app.writeOutside("Lista nova.md", "# Lista\n\nrenomeada\n");
+  await app.writeOutside(orphan, "# Lista\n\nversão deste computador\n");
+  await app.page.evaluate((copy) => {
+    const core = window.__harness.core;
+    core.sync = { ...core.sync, on: true, server: "https://notas.casa", folder: "f1", folder_name: "Campanha", role: "editor", state: "idle", conflicts: [copy] };
+  }, orphan);
+  await openSync(app);
+  const item = app.page.locator(".sync-item", { has: app.page.locator(".sync-item-title", { hasText: /^Lista\.md$/ }) });
+  await expect(item.locator(".sync-item-why").first()).toHaveText("A nota desta cópia não existe mais (renomeada ou apagada). Abra a cópia, ou descarte-a.");
+  // Never said as content that is not text: a failed read is not bytes.
+  await expect(item.getByText("Não é texto")).toBeHidden();
+  await expect(item.getByRole("button")).toHaveText(["Abrir", "Descartar cópia"]);
+  // Open: the copy alone, no read of the note that is not there.
+  await item.getByRole("button", { name: "Abrir", exact: true }).click();
+  await expect.poll(() => app.calls("read_note").then((c) => c.map((a) => a.path))).toContain(orphan);
+  expect((await app.calls("read_note")).map((a) => a.path)).not.toContain("Lista.md");
+});
