@@ -368,8 +368,8 @@ updates the service.
 
 ## 14. What it needs
 
-Measured in the sync lab ([sync-lab.md](sync-lab.md), section 3) on
-2026-10-10, numbers kept in `scripts/sync-lab/results.jsonl`:
+Two measured sources. The sync lab ([sync-lab.md](sync-lab.md), section 3)
+on 2026-10-10, numbers kept in `scripts/sync-lab/results.jsonl`:
 
 - **Memory**: about 20 MB with a few devices connected and a folder of 150
   files; 460 MB with 200 connections writing at once (macOS), 1 GB on a
@@ -383,26 +383,104 @@ Measured in the sync lab ([sync-lab.md](sync-lab.md), section 3) on
 - **CPU**: hashing each file written (SHA-256), indexing notes for search,
   and TLS when the server does its own.
 
+And a VM sized like the smallest VPS, on 2026-10-11: 1 vCPU, 1 GB of
+memory (ballooned down to 512, 384 and 256 MB during the test), a 10 GB
+virtual disk on Proxmox, the Ubuntu 26.04 server cloud image with no
+desktop, and Universo installed from the `.deb` exactly as in section 5
+(with `VERSO_UPDATE_CHECK=off`). Four desktop devices (two Macs, Windows,
+Linux) synced a folder of 133 files and 62 MB with it, through SSH tunnels
+(the app takes `http` only on localhost, so TLS was not part of it). A
+sampler on the VM read the process's RSS, the unit's cgroup memory, the CPU
+and `MemAvailable` every 5 s; `scripts/server-load.mjs` ran from another VM
+one LAN hop away. The numbers are in the campaign's log
+(`verso-sync-campaign/cloud/run.txt`, kept outside the repository).
+"The five sides" below are the four devices and the server's copy:
+
+- **At rest and after a burst**: a fresh process holds 17–18 MB. Serving
+  the first sync of the 62 MB folder to the four devices at once (69 s)
+  peaked at 200 MB, and the process kept about 151 MB resident afterwards:
+  memory taken in a burst is not returned to the system (the allocator
+  keeps it).
+- **Every day**: a 20-minute soak, four devices editing and one note edited
+  from two sides each round: RSS steady at 151 MB, CPU under 2 %, 33
+  rounds, the five sides byte-equal at every checkpoint and at the end.
+- **One core under load**: one device writing alone sees the disk's floor,
+  `put_edit` p50 137 ms, p99 about 205 ms. Fifty devices writing for 60 s
+  queue on the disk: `put_edit` p50 6.5 s, p99 9.1 s, max 12.9 s; peak RSS
+  325 MB, CPU 60 %; no integrity problem (the `put_hot:changed` errors are
+  the revision check refusing a stale write, as it should). The same load
+  on a 16-CPU Mac: p50 about 530 ms, 132.9 operations per second (the row
+  "round 2 final build 3fb8c3b" of `results.jsonl`).
+- **Large files**: a file in transit is held whole once for each device
+  that fetches it, and its base64 encoding adds a third, so the server
+  holds about 2.3 × the file's size × the devices fetching it at once. A
+  new 60 MB file written on one device and fetched by the other three at
+  once took the process to 550 MB (cgroup 679 MB), with no kill at 512 MB;
+  the five sides were equal in 56 s. "Twice the largest file", the earlier
+  estimate in the table, is too little when several devices fetch at once.
+- **Squeezed memory**: squeezing the VM to 512 MB right after the 50-device
+  burst made the kernel's OOM killer kill the process (anon RSS 318 MB),
+  because the memory it held after the burst did not fit. The unit's
+  `Restart=on-failure` brought it back in 5 s, the devices reconnected and
+  nothing was lost. Afterwards, still at 512 MB, a 10-minute soak (RSS
+  18 MB), a 50-device load (RSS 352 MB) and the 60 MB file above ran
+  without a kill. At 384 MB a 30-device load ran (RSS 379 MB). Squeezing to
+  256 MB, with that memory still held, killed the process once more (anon
+  RSS 376 MB), back in 5 s; a 30-device load then ran with no integrity
+  problem, and the 60 MB file took 122 s to reach five equal sides (the
+  guest's balloon gave memory back under pressure, so that is not a clean
+  256 MB).
+- **Stops**: the service stopped for 15 s while five notes changed (one on
+  two sides): on start everything crossed, with one conflict copy for the
+  two-sided note. The VM rebooted with edits pending on two devices: back
+  in 58 s, the service up by itself (it is enabled), the devices
+  reconnected, the pending edits crossed, the five sides equal.
+- **A far cloud**: 150 ms ± 30 ms of delay and 1 % loss on the server's
+  interface (netem): an 8-minute soak, 13 rounds, equal at every
+  checkpoint.
+- **Disk after the campaign**: `/var/lib/universo/data` 151 MB (the
+  database, holding the load runs' change log, and the indexes),
+  `/var/lib/universo/folders` 272 MB.
+- **Logs**: no ERROR in the journal; the only WARN lines on the devices
+  were the expected `offline:` ones at each stop, reboot and removal.
+
 | | Minimum | Recommended |
 |---|---|---|
 | For | 1–3 people, notes and small attachments | a family or a team of up to ~10 people, several devices each |
-| CPU | 1 core, x64 or ARM64 | 2 cores |
-| Memory | 512 MB | 2 GB, or more than twice the largest file you sync |
+| CPU | 1 core, x64 or ARM64 (measured: one writer about 140 ms a write; a burst of 50 writers queues on the disk, p50 6.5 s) | 2 cores |
+| Memory | 512 MB, measured for a few people with small attachments; memory held after a burst can get the process killed, and the unit brings it back in 5 s with nothing lost | 1 GB, measured for a small team (four devices, bursts of 50 writers, no kill); 2 GB with large attachments, or about 2.3 × the largest file × the devices that fetch it at once |
 | Disk | an SSD; the notes' size × 2 + 1 GB (the bin, `.trash`, keeps what was deleted) | a local SSD for `VERSO_DATA_DIR`; the notes on an SSD or a NAS |
 | Examples | a Raspberry Pi 4 with 2 GB, the smallest VPS | a mini PC, a NAS with Docker, a 2 GB VPS |
 
-A Raspberry Pi and a NAS have not been measured yet. `scripts/sync-lab/lab.sh
+`[OPEN]` Whether the server should send a large file's pieces from disk
+instead of holding it whole for each device, and whether it should give
+memory back to the system after a burst, are not decided; the numbers above
+are the current build's.
+
+A Raspberry Pi and a NAS have not been measured yet, nor a VPS at a
+provider (the 2026-10-11 VM was on the LAN). `scripts/sync-lab/lab.sh
 load --devices 1` on the machine itself says how fast its disk writes.
 
 ## 15. What is not verified yet
 
 Written on 2026-10-09 without running a release, a container or a package
-on a real machine:
+on a real machine. Verified since:
+
+- 2026-10-11: the `.deb` (amd64, built with nfpm from
+  `packaging/server/nfpm.yaml` around a glibc binary) on Ubuntu 26.04:
+  installed and started as in section 5; reinstalled over itself, the path
+  an upgrade takes, which restarted the service; removed, which stopped the
+  service, removed `/usr/bin/universo` and left `/var/lib/universo`,
+  `/etc/universo/universo.env` and the `universo` user; installed again,
+  which started from the same data, the five sides equal (section 14).
+
+Not verified yet:
 
 - the image built and run on amd64 and arm64, and the static binaries
   built with cargo-zigbuild;
-- the `.deb` and `.rpm` installed, upgraded and removed (the files were
-  built with nfpm on a Mac, with a stand-in binary);
+- the `.deb` on arm64, an upgrade from one version to a newer one, and the
+  `.rpm` installed, upgraded and removed (built with nfpm on a Mac, with a
+  stand-in binary);
 - the compose file in CasaOS and ZimaOS (it passes `docker compose config`;
   its `x-casaos` block follows the CasaOS AppStore's v2 description of
   2026-10-09, not checked by their validator);

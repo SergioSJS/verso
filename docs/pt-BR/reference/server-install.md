@@ -377,8 +377,8 @@ disco, faz os backups e atualiza o serviço.
 
 ## 14. Do que ele precisa
 
-Medido na bancada de sincronização ([sync-lab.md](sync-lab.md), seção 3)
-em 2026-10-10, com os números em `scripts/sync-lab/results.jsonl`:
+Duas fontes medidas. A bancada de sincronização ([sync-lab.md](sync-lab.md),
+seção 3) em 2026-10-10, com os números em `scripts/sync-lab/results.jsonl`:
 
 - **Memória**: cerca de 20 MB com alguns aparelhos conectados e uma pasta
   de 150 arquivos; 460 MB com 200 conexões gravando ao mesmo tempo
@@ -394,26 +394,110 @@ em 2026-10-10, com os números em `scripts/sync-lab/results.jsonl`:
 - **CPU**: o hash de cada arquivo gravado (SHA-256), a indexação das notas
   para a busca, e o TLS quando é o próprio servidor que o faz.
 
+E uma VM do tamanho da VPS mais barata, em 2026-10-11: 1 vCPU, 1 GB de
+memória (reduzida pelo balloon a 512, 384 e 256 MB durante o teste), um
+disco virtual de 10 GB no Proxmox, a imagem cloud do Ubuntu 26.04 server
+sem desktop, e o Universo instalado pelo `.deb` exatamente como na seção 5
+(com `VERSO_UPDATE_CHECK=off`). Quatro aparelhos desktop (dois Macs,
+Windows, Linux) sincronizaram com ele uma pasta de 133 arquivos e 62 MB,
+por túneis SSH (o app só aceita `http` em localhost, então o TLS ficou de
+fora). Um amostrador na VM leu a cada 5 s o RSS do processo, a memória do
+cgroup da unit, a CPU e o `MemAvailable`; o `scripts/server-load.mjs` rodou
+de outra VM a um salto de LAN. Os números estão no log da campanha
+(`verso-sync-campaign/cloud/run.txt`, guardado fora do repositório).
+"Os cinco lados" abaixo são os quatro aparelhos e a cópia do servidor:
+
+- **Em repouso e depois de um pico**: um processo recém-iniciado ocupa
+  17–18 MB. Servir a primeira sincronização da pasta de 62 MB aos quatro
+  aparelhos ao mesmo tempo (69 s) chegou a 200 MB, e o processo manteve
+  cerca de 151 MB residentes depois: a memória tomada num pico não volta
+  para o sistema (o alocador a guarda).
+- **O dia a dia**: 20 minutos de soak, quatro aparelhos editando e uma nota
+  editada dos dois lados a cada rodada: RSS estável em 151 MB, CPU abaixo
+  de 2 %, 33 rodadas, os cinco lados iguais byte a byte em todo ponto de
+  verificação e no fim.
+- **Um núcleo sob carga**: um aparelho gravando sozinho vê o piso do disco,
+  `put_edit` p50 137 ms, p99 cerca de 205 ms. Cinquenta aparelhos gravando
+  por 60 s fazem fila no disco: `put_edit` p50 6,5 s, p99 9,1 s, máximo
+  12,9 s; pico de RSS 325 MB, CPU 60 %; nenhum problema de integridade (os
+  erros `put_hot:changed` são a checagem de revisão recusando uma gravação
+  defasada, como deve). A mesma carga num Mac de 16 CPUs: p50 cerca de
+  530 ms, 132,9 operações por segundo (a linha "round 2 final build
+  3fb8c3b" do `results.jsonl`).
+- **Arquivos grandes**: um arquivo em trânsito fica inteiro na memória uma
+  vez para cada aparelho que o busca, e a codificação base64 soma um terço,
+  então o servidor segura cerca de 2,3 × o tamanho do arquivo × os
+  aparelhos que o buscam ao mesmo tempo. Um arquivo novo de 60 MB gravado
+  num aparelho e buscado pelos outros três ao mesmo tempo levou o processo a
+  550 MB (cgroup 679 MB), sem ser morto a 512 MB; os cinco lados ficaram
+  iguais em 56 s. "O dobro do maior arquivo", a estimativa anterior da
+  tabela, é pouco quando vários aparelhos buscam ao mesmo tempo.
+- **Memória apertada**: apertar a VM para 512 MB logo depois do pico de 50
+  aparelhos fez o OOM killer do kernel matar o processo (anon RSS 318 MB),
+  porque a memória que ele guardava depois do pico não cabia. O
+  `Restart=on-failure` da unit o trouxe de volta em 5 s, os aparelhos
+  reconectaram e nada se perdeu. Depois, ainda a 512 MB, um soak de 10
+  minutos (RSS 18 MB), uma carga de 50 aparelhos (RSS 352 MB) e o arquivo
+  de 60 MB acima rodaram sem ele ser morto. A 384 MB uma carga de 30
+  aparelhos rodou (RSS 379 MB). Apertar para 256 MB, com essa memória ainda
+  guardada, matou o processo mais uma vez (anon RSS 376 MB), de volta em
+  5 s; uma carga de 30 aparelhos rodou depois sem problema de integridade,
+  e o arquivo de 60 MB levou 122 s até os cinco lados ficarem iguais (o
+  balloon do convidado devolveu memória sob pressão, então não é um
+  256 MB limpo).
+- **Paradas**: o serviço parou por 15 s enquanto cinco notas mudavam (uma
+  dos dois lados): ao subir, tudo atravessou, com uma cópia de conflito
+  para a nota editada dos dois lados. A VM reiniciou com edições pendentes
+  em dois aparelhos: de volta em 58 s, o serviço no ar sozinho (está
+  habilitado), os aparelhos reconectados, as edições pendentes
+  atravessaram, os cinco lados iguais.
+- **Uma nuvem distante**: 150 ms ± 30 ms de atraso e 1 % de perda na
+  interface do servidor (netem): 8 minutos de soak, 13 rodadas, iguais em
+  todo ponto de verificação.
+- **Disco depois da campanha**: `/var/lib/universo/data` 151 MB (o banco,
+  com o log de mudanças das cargas, e os índices),
+  `/var/lib/universo/folders` 272 MB.
+- **Logs**: nenhum ERROR no journal; as únicas linhas WARN nos aparelhos
+  foram as `offline:` esperadas a cada parada, reinício e remoção.
+
 | | Mínimo | Recomendado |
 |---|---|---|
 | Para | 1 a 3 pessoas, notas e anexos pequenos | uma família ou equipe de até ~10 pessoas, vários aparelhos cada |
-| CPU | 1 núcleo, x64 ou ARM64 | 2 núcleos |
-| Memória | 512 MB | 2 GB, ou mais que o dobro do maior arquivo que vocês sincronizam |
+| CPU | 1 núcleo, x64 ou ARM64 (medido: um aparelho gravando, cerca de 140 ms por gravação; um pico de 50 faz fila no disco, p50 6,5 s) | 2 núcleos |
+| Memória | 512 MB, medido para poucas pessoas com anexos pequenos; a memória guardada depois de um pico pode fazer o processo ser morto, e a unit o traz de volta em 5 s sem perder nada | 1 GB, medido para uma equipe pequena (quatro aparelhos, picos de 50 gravando, sem ser morto); 2 GB com anexos grandes, ou cerca de 2,3 × o maior arquivo × os aparelhos que o buscam ao mesmo tempo |
 | Disco | um SSD; o tamanho das notas × 2 + 1 GB (a lixeira, `.trash`, guarda o que foi apagado) | um SSD local para o `VERSO_DATA_DIR`; as notas num SSD ou num NAS |
 | Exemplos | um Raspberry Pi 4 de 2 GB, a VPS mais barata | um mini PC, um NAS com Docker, uma VPS de 2 GB |
 
-Um Raspberry Pi e um NAS ainda não foram medidos. `scripts/sync-lab/lab.sh
-load --devices 1` na própria máquina diz o quão rápido o disco dela grava.
+`[OPEN]` Se o servidor deve mandar os pedaços de um arquivo grande a partir
+do disco em vez de segurá-lo inteiro para cada aparelho, e se deve devolver
+memória ao sistema depois de um pico, não está decidido; os números acima
+são os do build atual.
+
+Um Raspberry Pi e um NAS ainda não foram medidos, nem uma VPS num provedor
+(a VM de 2026-10-11 estava na LAN). `scripts/sync-lab/lab.sh load
+--devices 1` na própria máquina diz o quão rápido o disco dela grava.
 
 ## 15. O que ainda não foi verificado
 
 Escrito em 2026-10-09 sem rodar uma release, um contêiner ou um pacote numa
-máquina real:
+máquina real. Verificado desde então:
+
+- 2026-10-11: o `.deb` (amd64, gerado com o nfpm a partir de
+  `packaging/server/nfpm.yaml` em volta de um binário glibc) no Ubuntu
+  26.04: instalado e iniciado como na seção 5; reinstalado por cima de si
+  mesmo, o caminho de uma atualização, o que reiniciou o serviço; removido,
+  o que parou o serviço, removeu `/usr/bin/universo` e deixou
+  `/var/lib/universo`, `/etc/universo/universo.env` e o usuário `universo`;
+  instalado de novo, o que partiu dos mesmos dados, os cinco lados iguais
+  (seção 14).
+
+Ainda não verificado:
 
 - a imagem construída e executada em amd64 e arm64, e os binários
   estáticos compilados com cargo-zigbuild;
-- o `.deb` e o `.rpm` instalados, atualizados e removidos (os arquivos
-  foram gerados com o nfpm num Mac, com um binário de mentira);
+- o `.deb` em arm64, uma atualização de uma versão para outra mais nova, e
+  o `.rpm` instalado, atualizado e removido (gerado com o nfpm num Mac, com
+  um binário de mentira);
 - o arquivo compose no CasaOS e no ZimaOS (passa no
   `docker compose config`; o bloco `x-casaos` segue a descrição v2 da
   CasaOS AppStore de 2026-10-09, sem passar pelo validador deles);
