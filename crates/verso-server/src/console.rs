@@ -19,6 +19,9 @@ use serde_json::{Value, json};
 use crate::db::{self, AuditFilter, PageQuery};
 use crate::http::{ApiError, ApiResult, Ctx, ok};
 
+/// How many of a folder's latest changes its page shows.
+const LATEST_CHANGES: i64 = 50;
+
 /// What a list is asked with.
 #[derive(Debug, Default, Deserialize)]
 pub struct List {
@@ -99,8 +102,10 @@ pub async fn unregistered(ctx: Ctx) -> ApiResult<Response> {
     Ok(ok(loose))
 }
 
-/// One folder: its members, what it takes, its quota, and the files its
-/// last walk held as another's name in another form (`crate::twins`).
+/// One folder: its members, what it takes, its quota, the files its last
+/// walk held as another's name in another form (`crate::twins`), and its
+/// latest changes with who made each — the account and, for a device's
+/// sync, the device (ADR 0079 item 4).
 pub async fn folder(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
     ctx.admin()?;
     let db = &ctx.server.db;
@@ -110,6 +115,25 @@ pub async fn folder(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
         .into_iter()
         .map(|(a, role)| json!({ "id": a.id, "name": a.name, "email": a.email, "role": role }))
         .collect();
+    let mut emails: HashMap<String, String> = HashMap::new();
+    let mut changes: Vec<Value> = Vec::new();
+    for c in db.latest_changes(&id, LATEST_CHANGES)? {
+        let who = match &c.actor {
+            Some(actor) => {
+                if !emails.contains_key(actor)
+                    && let Some(a) = db.account(actor)?
+                {
+                    emails.insert(actor.clone(), a.email);
+                }
+                Some(emails.get(actor).cloned().unwrap_or_else(|| actor.clone()))
+            }
+            None => None,
+        };
+        changes.push(json!({
+            "seq": c.seq, "at": c.at, "path": c.path, "deleted": c.deleted,
+            "renamedFrom": c.renamed_from, "who": who, "device": c.device,
+        }));
+    }
     Ok(ok(json!({
         "id": folder.id,
         "name": folder.dir,
@@ -118,6 +142,7 @@ pub async fn folder(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
         "space": crate::folders::space(&ctx, &id),
         "quota": db.quota(&id)?,
         "twins": crate::twins::of_folder(&ctx.server, &id),
+        "changes": changes,
     })))
 }
 

@@ -23,6 +23,20 @@ pub struct Known {
     pub seq: i64,
 }
 
+/// One change of a folder's log as the console shows it: who made it.
+#[derive(Debug, Clone)]
+pub struct Made {
+    pub seq: i64,
+    pub at: i64,
+    pub path: String,
+    pub deleted: bool,
+    pub renamed_from: Option<String>,
+    /// The account; none for a change found on the server's disk.
+    pub actor: Option<String>,
+    /// The device's name, for a change a device's sync made.
+    pub device: Option<String>,
+}
+
 /// What a reconciliation records of a path: its bytes now (hash, size,
 /// quick key) or none for a deletion, and the path it was renamed from.
 pub type Recorded = (String, Option<(String, i64, String)>, Option<String>);
@@ -95,6 +109,7 @@ impl Db {
         &self,
         folder: &str,
         actor: Option<&str>,
+        device: Option<&str>,
         changes: &[Recorded],
         quick: &[(String, String)],
     ) -> R<i64> {
@@ -119,8 +134,8 @@ impl Db {
                     )
                     .map_err(e)?;
                     tx.execute(
-                        "INSERT INTO changes (folder, seq, path, hash, size, deleted, renamed_from, actor, at) VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8)",
-                        params![folder, seq, path, hash, size, renamed_from, actor, at],
+                        "INSERT INTO changes (folder, seq, path, hash, size, deleted, renamed_from, actor, at, device) VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, ?9)",
+                        params![folder, seq, path, hash, size, renamed_from, actor, at, device],
                     )
                     .map_err(e)?;
                 }
@@ -131,8 +146,8 @@ impl Db {
                     )
                     .map_err(e)?;
                     tx.execute(
-                        "INSERT INTO changes (folder, seq, path, hash, size, deleted, renamed_from, actor, at) VALUES (?1, ?2, ?3, NULL, 0, 1, NULL, ?4, ?5)",
-                        params![folder, seq, path, actor, at],
+                        "INSERT INTO changes (folder, seq, path, hash, size, deleted, renamed_from, actor, at, device) VALUES (?1, ?2, ?3, NULL, 0, 1, NULL, ?4, ?5, ?6)",
+                        params![folder, seq, path, actor, at, device],
                     )
                     .map_err(e)?;
                 }
@@ -166,6 +181,32 @@ impl Db {
                 size: r.get(3)?,
                 deleted: r.get(4)?,
                 renamed_from: r.get(5)?,
+            })
+        })
+        .map_err(e)?
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(e)
+    }
+
+    /// The folder's last `limit` changes, newest first, with who made each
+    /// — the account and the device — for the console's folder page.
+    pub fn latest_changes(&self, folder: &str, limit: i64) -> R<Vec<Made>> {
+        let conn = self.reader();
+        let mut st = conn
+            .prepare(
+                "SELECT seq, at, path, deleted, renamed_from, actor, device FROM changes
+                 WHERE folder = ?1 ORDER BY seq DESC LIMIT ?2",
+            )
+            .map_err(e)?;
+        st.query_map(params![folder, limit], |r| {
+            Ok(Made {
+                seq: r.get(0)?,
+                at: r.get(1)?,
+                path: r.get(2)?,
+                deleted: r.get(3)?,
+                renamed_from: r.get(4)?,
+                actor: r.get(5)?,
+                device: r.get(6)?,
             })
         })
         .map_err(e)?

@@ -24,7 +24,7 @@ use verso_fs::ReadError;
 use verso_service::OpError;
 use verso_service::lock;
 
-use crate::auth::Who;
+use crate::auth::{Via, Who};
 use crate::rpc::{arg, blocking, role_here};
 use crate::state::Server;
 
@@ -146,6 +146,24 @@ fn changed(message: &str) -> ContractError {
 
 fn refused(message: &str) -> ContractError {
     verso_service::refused(message)
+}
+
+/// Who made a change, as the folder's log keeps it (ADR 0079 item 4): the
+/// account, and the device's name when a device's sync made it — two
+/// devices of one account told apart.
+#[derive(Clone, Copy, Default)]
+pub struct Author<'a> {
+    pub account: Option<&'a str>,
+    pub device: Option<&'a str>,
+}
+
+impl<'a> Author<'a> {
+    fn of(account: Option<&'a str>) -> Self {
+        Self {
+            account,
+            device: None,
+        }
+    }
 }
 
 /// The folder's files as the index lists them: path, length, time.
@@ -299,7 +317,15 @@ fn reconcile_held(
         .filter(|(p, _)| !present.contains(p.as_str()))
         .map(|(p, k)| (p.clone(), k.hash.clone()))
         .collect();
-    record_changes(server, folder, actor, &known, &gone, created, &quick_only)
+    record_changes(
+        server,
+        folder,
+        Author::of(actor),
+        &known,
+        &gone,
+        created,
+        &quick_only,
+    )
 }
 
 /// The bytes of the file at `path`, for a reconciliation; `None` when
@@ -322,7 +348,7 @@ fn read_file(server: &Server, key: &str, path: &str) -> Result<Option<Vec<u8>>, 
 fn record_changes(
     server: &Server,
     folder: &str,
-    actor: Option<&str>,
+    by: Author<'_>,
     known: &HashMap<String, crate::db::Known>,
     gone: &[(String, String)],
     created: Vec<(String, String, i64, String)>,
@@ -350,7 +376,7 @@ fn record_changes(
     }
     let head = server
         .db
-        .record(folder, actor, &changes, quick_only)
+        .record(folder, by.account, by.device, &changes, quick_only)
         .map_err(verso_service::failed)?;
     if !changes.is_empty() {
         server.push_folder(
@@ -379,7 +405,7 @@ fn reconcile_paths(
     server: &Server,
     folder: &str,
     key: &str,
-    actor: Option<&str>,
+    by: Author<'_>,
     paths: &[(String, Now)],
 ) -> Result<i64, ContractError> {
     // A file held as the twin of another (`crate::twins`) never enters the
@@ -446,7 +472,7 @@ fn reconcile_paths(
         .filter(|(p, _)| !present.contains(p.as_str()))
         .map(|(p, k)| (p.clone(), k.hash.clone()))
         .collect();
-    record_changes(server, folder, actor, &known, &gone, created, &quick_only)
+    record_changes(server, folder, by, &known, &gone, created, &quick_only)
 }
 
 /// Where the server's file system folds names: a path written or read
@@ -524,7 +550,7 @@ pub fn reconcile_written(
     let one = one_at_a_time(server, folder);
     let _only = lock(&one);
     let read: Vec<(String, Now)> = paths.iter().map(|p| (p.clone(), Now::Read)).collect();
-    reconcile_paths(server, folder, key, actor, &read)
+    reconcile_paths(server, folder, key, Author::of(actor), &read)
 }
 
 /// The same, for the folder behind a key the server opened.
@@ -582,6 +608,22 @@ pub async fn command(
     let s = Arc::clone(server);
     let c = client.to_owned();
     let actor = who.account.id.clone();
+    // The device's name, as its session keeps it: two devices of one
+    // account told apart in the log and in the folder's change log.
+    let device = match &who.via {
+        Via::Device { session } => {
+            let server = Arc::clone(server);
+            let session = session.clone();
+            blocking(move || {
+                server
+                    .db
+                    .session_device(&session)
+                    .map_err(verso_service::failed)
+            })
+            .await?
+        }
+        _ => None,
+    };
     // What is said in the server's log when a device's change is refused.
     let said_as = (
         cmd.to_owned(),
@@ -590,7 +632,10 @@ pub async fn command(
             .and_then(Value::as_str)
             .unwrap_or_default()
             .to_owned(),
-        who.account.email.clone(),
+        match &device {
+            Some(d) => format!("{} ({d})", who.account.email),
+            None => who.account.email.clone(),
+        },
     );
     let cmd = cmd.to_owned();
     let args = args.clone();
@@ -615,7 +660,16 @@ pub async fn command(
             Ok(json!({ "head": head, "changes": changes, "more": more }))
         }
         "sync_read" => read(&s, &c, &folder, &key, &args),
-        "sync_put" => put(&s, &c, &folder, &key, &actor, &args),
+        "sync_put" => put(
+            &s,
+            &c,
+            (&folder, &key),
+            Author {
+                account: Some(&actor),
+                device: device.as_deref(),
+            },
+            &args,
+        ),
         "sync_delete" => {
             let named: String = arg(&args, "path")?;
             let base: String = arg(&args, "base")?;
@@ -635,7 +689,10 @@ pub async fn command(
                     &s,
                     &folder,
                     &key,
-                    Some(&actor),
+                    Author {
+                        account: Some(&actor),
+                        device: device.as_deref(),
+                    },
                     &[(path.clone(), Now::Gone)],
                 )?;
                 (head, path)
@@ -684,7 +741,10 @@ pub async fn command(
                 &s,
                 &folder,
                 &key,
-                Some(&actor),
+                Author {
+                    account: Some(&actor),
+                    device: device.as_deref(),
+                },
                 &[(from.clone(), Now::Gone), (to.clone(), Now::Read)],
             )?;
             drop(only);
@@ -907,9 +967,8 @@ fn read(
 fn put(
     server: &Server,
     client: &str,
-    folder: &str,
-    key: &str,
-    actor: &str,
+    (folder, key): (&str, &str),
+    by: Author<'_>,
     args: &Value,
 ) -> Result<Value, ContractError> {
     let path: String = arg(args, "path")?;
@@ -989,7 +1048,7 @@ fn put(
             server,
             folder,
             key,
-            Some(actor),
+            by,
             &[(
                 path.clone(),
                 Now::Written(hash.clone(), i64::try_from(size).unwrap_or(i64::MAX)),
