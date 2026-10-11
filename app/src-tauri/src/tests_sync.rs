@@ -859,3 +859,82 @@ fn a_folder_where_a_file_was_is_that_file_gone_not_failed() {
     }
     assert_eq!(text(&b, "Anexos/mapa.md").as_deref(), Some("# Mapa\n"));
 }
+
+/// `Café.md` with its accent composed (NFC) and decomposed (NFD).
+const COMPOSED: &str = "Caf\u{e9}.md";
+const DECOMPOSED: &str = "Cafe\u{301}.md";
+
+/// The names of `d`'s files that are `Café.md` in either form.
+fn cafes(d: &Device) -> Vec<String> {
+    changed(d, &[]);
+    files(d)
+        .into_iter()
+        .filter(|p| verso_core::sync::folded_form(p) == COMPOSED)
+        .collect()
+}
+
+/// One name is one file everywhere (spec Q7, decided 2026-10-10; finding
+/// F20 of the sync campaign): a device that keeps `Café.md` decomposed and
+/// the server that keeps it composed hold one file — on ext4 too, where
+/// the two forms would be two files — and the device keeps its spelling
+/// while the edits cross both ways.
+#[test]
+fn the_two_forms_of_a_name_are_one_file_and_each_device_keeps_its_own() {
+    let r = serve(&[]);
+    let a = device(
+        &r,
+        &r.owner,
+        &[(COMPOSED, "# v1\n"), ("Outra.md", "# Outra\n")],
+    );
+    sync(&a);
+    let b = device(&r, &r.owner, &[(DECOMPOSED, "# v1\n")]);
+    sync(&b);
+    assert_eq!(cafes(&b), vec![DECOMPOSED.to_owned()]);
+    // Edited on the device that keeps it composed: arrives under the
+    // other's spelling.
+    write(&a, COMPOSED, b"# v2\n");
+    sync(&a);
+    changed(&b, &[]);
+    sync(&b);
+    assert_eq!(text(&b, DECOMPOSED).as_deref(), Some("# v2\n"));
+    assert_eq!(cafes(&b), vec![DECOMPOSED.to_owned()]);
+    // And back.
+    write(&b, DECOMPOSED, b"# v3\n");
+    sync(&b);
+    changed(&a, &[]);
+    sync(&a);
+    assert_eq!(text(&a, COMPOSED).as_deref(), Some("# v3\n"));
+    assert_eq!(cafes(&a), vec![COMPOSED.to_owned()]);
+    quiet(&a, &b);
+}
+
+/// A device on ext4 holding both forms as two files — the state the
+/// campaign left (F20): one is sent, the other is listed as a name taken,
+/// the same on every pass, and nothing loops.
+#[cfg(target_os = "linux")]
+#[test]
+fn both_forms_as_two_files_here_send_one_and_say_the_other() {
+    let r = serve(&[]);
+    let a = device(
+        &r,
+        &r.owner,
+        &[(COMPOSED, "# composto\n"), (DECOMPOSED, "# decomposto\n")],
+    );
+    sync(&a);
+    for _ in 0..2 {
+        changed(&a, &[]);
+        assert_eq!(sync(&a).actions, 0);
+        let status = lock(&a.shown).last().cloned().unwrap();
+        assert!(
+            status
+                .refused
+                .iter()
+                .any(|f| f.path == DECOMPOSED && f.reason == "name_taken"),
+            "{status:?}"
+        );
+    }
+    let b = device(&r, &r.owner, &[]);
+    sync(&b);
+    assert_eq!(text(&b, COMPOSED).as_deref(), Some("# composto\n"));
+    assert_eq!(cafes(&b), vec![COMPOSED.to_owned()]);
+}

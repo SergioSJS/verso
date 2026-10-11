@@ -65,6 +65,18 @@ impl Db {
         Ok(rows)
     }
 
+    /// The paths the folder's log keeps, nothing else of them.
+    pub fn manifest_paths(&self, folder: &str) -> R<Vec<String>> {
+        let conn = self.reader();
+        let mut st = conn
+            .prepare("SELECT path FROM manifest WHERE folder = ?1")
+            .map_err(e)?;
+        st.query_map([folder], |r| r.get::<_, String>(0))
+            .map_err(e)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(e)
+    }
+
     /// The last change's number, 0 for none.
     pub fn head(&self, folder: &str) -> R<i64> {
         self.reader()

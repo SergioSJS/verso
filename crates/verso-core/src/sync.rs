@@ -22,12 +22,17 @@
 //!   more than 50, pauses and asks — never for fewer than 3 (item 9);
 //! - a file gone here and a new one of the same bytes since the base, on
 //!   one side, is a rename (item 10);
+//! - one name is one file everywhere (spec Q7): a path here and a path
+//!   there that differ only in their accents' Unicode form (NFC, NFD) are
+//!   one file on every system, planned under this computer's spelling —
+//!   the server writes to the file it keeps; two such files here (ext4
+//!   keeps both) are one synced and the other held, said;
 //! - where this computer's file system folds names (APFS, NTFS), a path
-//!   here and a path there that differ only in case or in their accents'
-//!   form are one file: a respelling here crosses as a rename when the
-//!   server's file is as the base left it; otherwise the server's spelling
-//!   is taken here first and the file is planned as one — its edit wins
-//!   over a respelling, two edits are a conflict.
+//!   here and a path there that differ only in case are one file: a
+//!   respelling here crosses as a rename when the server's file is as the
+//!   base left it; otherwise the server's spelling is taken here first and
+//!   the file is planned as one — its edit wins over a respelling, two
+//!   edits are a conflict.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -113,6 +118,18 @@ pub struct Plan {
     /// How many files the plan would delete, when that is many enough to
     /// ask first (item 9): nothing is carried out until the person says.
     pub pause: Option<usize>,
+    /// Paths sync leaves alone on this pass: another file has the same
+    /// name in the other Unicode form (spec Q7).
+    pub held: Vec<Held>,
+}
+
+/// A path sync leaves alone: another file holds its name in the other
+/// Unicode form — two files here on a file system that tells the forms
+/// apart (`here`), or two on the server from before the decision.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Held {
+    pub path: String,
+    pub here: bool,
 }
 
 /// The fewest deletions in one pass that pause it (item 9, revised
@@ -131,14 +148,46 @@ pub fn portable(path: &str) -> bool {
 /// where they do not (Linux), two names differing in case are two files.
 pub const FOLDS_NAMES: bool = cfg!(any(target_os = "macos", windows));
 
+/// A path as every device and the server compare names (spec Q7, decided
+/// 2026-10-10): its accents in one Unicode form, the composed one (NFC).
+/// Two paths of one `folded_form` are one file everywhere, whatever the
+/// file system — ext4 tells `Café.md` composed and decomposed apart, sync
+/// does not. Case is not folded here, only where the file system folds it
+/// ([`folded`], [`FOLDS_NAMES`]; spec Q8 is open).
+#[must_use]
+pub fn folded_form(path: &str) -> String {
+    use unicode_normalization::UnicodeNormalization;
+    path.nfc().collect()
+}
+
 /// A path as a file system that ignores case and Unicode normalization
 /// compares it — APFS, NTFS: `Nota.md`, `nota.md` and `Nota.md` written in
 /// decomposed form are one file there. A path the listing lacks whose
 /// folded form is a listed path's is that file renamed, not a second one.
 #[must_use]
 pub fn folded(path: &str) -> String {
-    use unicode_normalization::UnicodeNormalization;
-    path.nfc().collect::<String>().to_lowercase()
+    folded_form(path).to_lowercase()
+}
+
+/// The key under which a picture of the server's files holds the file
+/// `path` names: `path` itself, or the spelling in the other Unicode form
+/// the server keeps for that name. A plan names a file by this computer's
+/// spelling and the server writes to the file it keeps; a host that
+/// updates its picture of the server after a step updates this entry, so
+/// the picture keeps one entry per file, as the server does.
+#[must_use]
+pub fn spelled_there(files: &Files, path: &str) -> String {
+    if files.contains_key(path) {
+        return path.to_owned();
+    }
+    let name = folded_form(path);
+    // A name all ASCII is its own composed form: only another spelling
+    // with an accent (or a sign NFC turns into a letter) can match.
+    files
+        .keys()
+        .find(|p| !p.is_ascii() && folded_form(p) == name)
+        .cloned()
+        .unwrap_or_else(|| path.to_owned())
 }
 
 /// The name a conflict's copy takes (item 8): `<stem> (conflict, <device>,
@@ -206,18 +255,41 @@ pub fn plan(
     folds: bool,
     copy_name: &dyn Fn(&str, &BTreeSet<String>) -> String,
 ) -> Plan {
-    let base = &state.base;
-    let first = base.is_empty();
-    let mut actions = Vec::new();
-    let mut done: BTreeSet<String> = BTreeSet::new();
-    let hash = |files: &Files, p: &str| files.get(p).map(|f| f.hash.clone());
+    let first = state.base.is_empty();
+    let size = local.len().max(remote.len()).max(state.base.len());
     let mut taken: BTreeSet<String> = local.keys().chain(remote.keys()).cloned().collect();
+    // One name, one file (spec Q7): the three pictures under this
+    // computer's spelling of each name.
+    let Named {
+        local,
+        remote,
+        base,
+        rebased,
+        held,
+    } = one_name_one_file(local, remote, &state.base);
+    let (local, remote, base) = (&local, &remote, &base);
+    let mut actions = Vec::new();
+    let mut done: BTreeSet<String> = held.iter().map(|h| h.path.clone()).collect();
+    // A base kept under another form of the name moves to this
+    // computer's spelling first, so that a step refused below leaves it
+    // there.
+    for (from, to, hash) in rebased {
+        actions.push(Action::Agree {
+            path: to,
+            hash: Some(hash),
+        });
+        actions.push(Action::Agree {
+            path: from,
+            hash: None,
+        });
+    }
+    let hash = |files: &Files, p: &str| files.get(p).map(|f| f.hash.clone());
 
     if folds {
         respelled(
             local,
             remote,
-            state,
+            base,
             &mut done,
             &mut taken,
             copy_name,
@@ -293,14 +365,107 @@ pub fn plan(
         .iter()
         .filter(|a| matches!(a, Action::DeleteLocal { .. } | Action::DeleteRemote { .. }))
         .count();
-    let size = local.len().max(remote.len()).max(base.len());
     // At least 3 (item 9, revised 2026-10-10): in a small folder a fifth
     // is one or two files, and one or two deletions are no folder gone.
     let many = deletions >= PAUSE_FLOOR && (deletions > 50 || deletions * 5 > size);
     Plan {
         pause: (many && !confirmed).then_some(deletions),
         actions,
+        held,
     }
+}
+
+/// The three pictures with one entry per name (spec Q7), each under this
+/// computer's spelling of it, and what that took.
+#[derive(Default)]
+struct Named {
+    local: Files,
+    remote: Files,
+    base: BTreeMap<String, String>,
+    /// Base entries moved to this computer's spelling: from, to, hash.
+    rebased: Vec<(String, String, String)>,
+    held: Vec<Held>,
+}
+
+/// One name, one file (spec Q7, decided 2026-10-10): two paths that differ
+/// only in their accents' Unicode form are one file, here, there and in the
+/// base, whatever the file systems. Each name is planned under the
+/// spelling this computer's file system gave it — the server writes to the
+/// file it keeps, under its own — or under the server's when this
+/// computer has no such file.
+///
+/// Where this computer holds both forms as two files (ext4 tells them
+/// apart; the state the campaign of 2026-10-10 left, finding F20), one
+/// syncs — the one the base knows, else the one on the server, else the
+/// composed spelling — and the other is held, the same one on every pass:
+/// never sent to be refused again and again, never taken for a deletion.
+/// Two forms on the server, from before the decision, the same.
+fn one_name_one_file(local: &Files, remote: &Files, base: &BTreeMap<String, String>) -> Named {
+    let mut named = Named::default();
+    let by_name = |files: &Files| {
+        let mut out: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        for p in files.keys() {
+            out.entry(folded_form(p)).or_default().push(p.clone());
+        }
+        out
+    };
+    // Which of a name's spellings is planned; the others are held.
+    let pick = |name: &str, paths: &[String], first: Option<&String>, other: &Files| {
+        first
+            .filter(|f| paths.contains(f))
+            .or_else(|| paths.iter().find(|p| base.contains_key(*p)))
+            .or_else(|| paths.iter().find(|p| other.contains_key(*p)))
+            .or_else(|| paths.iter().find(|p| p.as_str() == name))
+            .or_else(|| paths.first())
+            .cloned()
+    };
+    // Name → the spelling it is planned under.
+    let mut spelling: BTreeMap<String, String> = BTreeMap::new();
+    for (name, paths) in by_name(local) {
+        let Some(kept) = pick(&name, &paths, None, remote) else {
+            continue;
+        };
+        for p in paths.iter().filter(|p| **p != kept) {
+            named.held.push(Held {
+                path: p.clone(),
+                here: true,
+            });
+        }
+        if let Some(f) = local.get(&kept) {
+            named.local.insert(kept.clone(), f.clone());
+        }
+        spelling.insert(name, kept);
+    }
+    for (name, paths) in by_name(remote) {
+        let mine = spelling.get(&name).cloned();
+        let Some(chosen) = pick(&name, &paths, mine.as_ref(), local) else {
+            continue;
+        };
+        for p in paths.iter().filter(|p| **p != chosen) {
+            named.held.push(Held {
+                path: p.clone(),
+                here: false,
+            });
+        }
+        let at = mine.unwrap_or_else(|| chosen.clone());
+        if let Some(f) = remote.get(&chosen) {
+            named.remote.insert(at.clone(), f.clone());
+        }
+        spelling.entry(name).or_insert(at);
+    }
+    for (p, h) in base {
+        let to = spelling.get(&folded_form(p)).unwrap_or(p);
+        if to == p || base.contains_key(to) || named.base.contains_key(to) {
+            // Its own spelling, or another entry has the name's: kept as
+            // it is, and dropped by the rules by path (nothing on either
+            // side under it).
+            named.base.insert(p.clone(), h.clone());
+        } else {
+            named.base.insert(to.clone(), h.clone());
+            named.rebased.push((p.clone(), to.clone(), h.clone()));
+        }
+    }
+    named
 }
 
 /// One path's hashes here, there and in the base.
@@ -366,8 +531,9 @@ fn decide(
 }
 
 /// Where this computer's file system folds names: a path here and a path
-/// there that differ only in case or in their accents' form are one file
-/// (this computer cannot hold both), whichever side spelled it anew.
+/// there that differ only in case are one file (this computer cannot hold
+/// both), whichever side spelled it anew. (Their accents' form alone is
+/// one file everywhere, and paired before: [`one_name_one_file`].)
 /// - Respelled here, the server's file as the base left it: the new
 ///   spelling crosses as a rename, then this computer's edit if any.
 /// - Otherwise — respelled there, made on both sides apart, or respelled
@@ -382,13 +548,12 @@ fn decide(
 fn respelled(
     local: &Files,
     remote: &Files,
-    state: &State,
+    base: &BTreeMap<String, String>,
     done: &mut BTreeSet<String>,
     taken: &mut BTreeSet<String>,
     copy_name: &dyn Fn(&str, &BTreeSet<String>) -> String,
     actions: &mut Vec<Action>,
 ) {
-    let base = &state.base;
     for (here, mine) in local {
         if remote.contains_key(here) || done.contains(here) {
             continue;

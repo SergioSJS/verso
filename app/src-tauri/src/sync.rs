@@ -593,6 +593,20 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
         engine::FOLDS_NAMES,
         &copy_name,
     );
+    // A name's other Unicode form held by another file (spec Q7): listed,
+    // the same one on every pass, never sent to be refused again.
+    for h in &plan.held {
+        let message = if h.here {
+            "another file here has this name, its accents in another Unicode form: one name is one file everywhere"
+        } else {
+            "another file on the server has this name, its accents in another Unicode form"
+        };
+        apart.entry(h.path.clone()).or_insert_with(|| SyncRefused {
+            path: h.path.clone(),
+            reason: "name_taken".to_owned(),
+            message: message.to_owned(),
+        });
+    }
     let yes = s.confirmed.swap(0, Ordering::Relaxed);
     if plan.pause.is_some_and(|n| n <= yes) {
         plan.pause = None;
@@ -879,14 +893,17 @@ fn reader_refusal(path: &str) -> Refusal {
     )
 }
 
-/// Send this computer's file at `path`, in pieces; the hash sent.
+/// Send this computer's file at `path`, in pieces; the hash sent, its
+/// size, and the path it landed at — the spelling the server keeps for
+/// the name, which may be this computer's in another Unicode form (spec
+/// Q7).
 async fn upload(
     ctx: &Ctx,
     s: &Syncer,
     remote: &remote::Remote,
     path: &str,
     base: Option<&str>,
-) -> Result<(String, u64), Refusal> {
+) -> Result<(String, u64, String), Refusal> {
     let p = path.to_owned();
     let bytes = tokio::task::block_in_place(|| {
         ctx.service
@@ -920,7 +937,8 @@ async fn upload(
             .await
             .map_err(|e| of_server(path, &e))?;
         if answer["done"] == true {
-            return Ok((hash, size));
+            let landed = answer["path"].as_str().unwrap_or(path).to_owned();
+            return Ok((hash, size, landed));
         }
         if end >= bytes.len() {
             return Err(Refusal::Again(
@@ -1040,9 +1058,12 @@ impl Side<'_> {
                 if reader {
                     return Err(reader_refusal(path));
                 }
-                let (hash, size) = upload(ctx, s, remote, path, base.as_deref()).await?;
+                let (hash, size, landed) = upload(ctx, s, remote, path, base.as_deref()).await?;
+                // Under the spelling the server keeps for the name (spec
+                // Q7), which may be this computer's in another form.
+                remote_files.remove(&engine::spelled_there(remote_files, path));
                 remote_files.insert(
-                    path.clone(),
+                    landed,
                     FileState {
                         hash: hash.clone(),
                         size,
@@ -1056,7 +1077,7 @@ impl Side<'_> {
                 let size = bytes.len() as u64;
                 write_here(ctx, s, path, bytes, hash_here(local, path).as_deref())?;
                 remote_files.insert(
-                    path.clone(),
+                    engine::spelled_there(remote_files, path),
                     FileState {
                         hash: hash.clone(),
                         size,
@@ -1073,7 +1094,7 @@ impl Side<'_> {
                     .call("sync_delete", json!({ "path": path, "base": base }))
                     .await
                     .map_err(|e| of_server(path, &e))?;
-                remote_files.remove(path);
+                remote_files.remove(&engine::spelled_there(remote_files, path));
                 state.base.remove(path);
                 s.crossed(ctx, "deleted_there", path, None);
             }
@@ -1104,15 +1125,16 @@ impl Side<'_> {
                 if reader {
                     return Err(reader_refusal(to));
                 }
-                remote
+                let answer = remote
                     .call(
                         "sync_rename",
                         json!({ "from": from, "to": to, "base": base }),
                     )
                     .await
                     .map_err(|e| of_server(from, &e))?;
-                if let Some(f) = remote_files.remove(from) {
-                    remote_files.insert(to.clone(), f);
+                if let Some(f) = remote_files.remove(&engine::spelled_there(remote_files, from)) {
+                    let landed = answer["path"].as_str().unwrap_or(to).to_owned();
+                    remote_files.insert(landed, f);
                 }
                 state.base.remove(from);
                 state.base.insert(to.clone(), base.clone());
@@ -1155,7 +1177,7 @@ impl Side<'_> {
                 let size = bytes.len() as u64;
                 write_here(ctx, s, path, bytes, None)?;
                 remote_files.insert(
-                    path.clone(),
+                    engine::spelled_there(remote_files, path),
                     FileState {
                         hash: hash.clone(),
                         size,
@@ -1167,9 +1189,9 @@ impl Side<'_> {
                 if reader {
                     return Err(reader_refusal(copy));
                 }
-                let (hash, size) = upload(ctx, s, remote, copy, None).await?;
+                let (hash, size, landed) = upload(ctx, s, remote, copy, None).await?;
                 remote_files.insert(
-                    copy.clone(),
+                    landed,
                     FileState {
                         hash: hash.clone(),
                         size,

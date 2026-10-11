@@ -581,15 +581,16 @@ pub async fn command(
             let more = changes.last().is_some_and(|last| last.seq < head);
             Ok(json!({ "head": head, "changes": changes, "more": more }))
         }
-        "sync_read" => read(&s, &c, &key, &args),
+        "sync_read" => read(&s, &c, &folder, &key, &args),
         "sync_put" => put(&s, &c, &folder, &key, &actor, &args),
         "sync_delete" => {
-            let path: String = arg(&args, "path")?;
+            let named: String = arg(&args, "path")?;
             let base: String = arg(&args, "base")?;
-            let p = path.clone();
-            let head = {
+            let (head, path) = {
                 let one = one_at_a_time(&s, &folder);
                 let _only = lock(&one);
+                let (path, _) = as_kept(&s, &folder, &named)?;
+                let p = path.clone();
                 s.service.with_key(&key, move |ws| {
                     is_now(ws, &p, Some(&base))?;
                     ws.delete_entry(&p)?;
@@ -597,13 +598,14 @@ pub async fn command(
                     ws.prune_empty_parents(&p);
                     Ok(())
                 })?;
-                reconcile_paths(
+                let head = reconcile_paths(
                     &s,
                     &folder,
                     &key,
                     Some(&actor),
                     &[(path.clone(), Now::Gone)],
-                )?
+                )?;
+                (head, path)
             };
             // Outside the folder's lock: a room takes its own lock first.
             told(&s, &key, &[], std::slice::from_ref(&path), &[]);
@@ -613,13 +615,24 @@ pub async fn command(
             let from: String = arg(&args, "from")?;
             let to: String = arg(&args, "to")?;
             let base: String = arg(&args, "base")?;
-            let (f, t) = (from.clone(), to.clone());
             let one = one_at_a_time(&s, &folder);
             let only = lock(&one);
+            let (from, _) = as_kept(&s, &folder, &from)?;
+            // Only the accents' form changing: the same name, the same
+            // file (spec Q7) — nothing to move.
+            let same = verso_core::sync::folded_form(&from) == verso_core::sync::folded_form(&to);
+            let (to, other) = as_kept(&s, &folder, &to)?;
+            let (f, t) = (from.clone(), to.clone());
             let landed = s.service.with_key(&key, move |ws| {
                 is_now(ws, &f, Some(&base))?;
-                // Only the case or the accents' form changing: the target
-                // is the file itself on a file system that folds names.
+                if same {
+                    return Ok(None);
+                }
+                if other {
+                    return Err(form_taken());
+                }
+                // Only the case changing: the target is the file itself on
+                // a file system that folds names.
                 if !verso_core::sync::FOLDS_NAMES
                     || verso_core::sync::folded(&f) != verso_core::sync::folded(&t)
                 {
@@ -627,8 +640,13 @@ pub async fn command(
                 }
                 let done = ws.rename_entry(&f, &t)?;
                 ws.prune_empty_parents(&f);
-                Ok(done.path)
+                Ok(Some(done.path))
             })?;
+            let Some(landed) = landed else {
+                drop(only);
+                let head = s.db.head(&folder).map_err(verso_service::failed)?;
+                return Ok(json!({ "head": head, "path": from }));
+            };
             let head = reconcile_paths(
                 &s,
                 &folder,
@@ -647,7 +665,7 @@ pub async fn command(
                     to: landed.clone(),
                 }],
             );
-            Ok(json!({ "head": head }))
+            Ok(json!({ "head": head, "path": landed }))
         }
         _ => Err(refused("no such command")),
     })
@@ -747,7 +765,70 @@ fn name_taken(ws: &Workspace, path: &str) -> bool {
         .any(|e| e.path != path && verso_core::sync::folded(&e.path) == folded)
 }
 
-fn read(server: &Server, client: &str, key: &str, args: &Value) -> Result<Value, ContractError> {
+/// The file a path a device names addresses (spec Q7, decided
+/// 2026-10-10): one name is one file on the server, whatever its file
+/// system — ext4 would keep `Café.md` composed and decomposed as two. A
+/// path whose accents are in the other Unicode form than a file the
+/// folder's log keeps names that file, spelled as the log (and the disk)
+/// keeps it; a new file in a folder the log knows under the other form
+/// goes into that folder. Returns the spelling, and whether it is another
+/// file's that the path named under the other form.
+fn as_kept(server: &Server, folder: &str, path: &str) -> Result<(String, bool), ContractError> {
+    let fail = verso_service::failed;
+    if server.db.known(folder, path).map_err(fail)?.is_some() {
+        return Ok((path.to_owned(), false));
+    }
+    let name = verso_core::sync::folded_form(path);
+    // An ASCII path is its own composed form: compared as it is.
+    let same = |p: &str| {
+        if p.is_ascii() {
+            p == name
+        } else {
+            verso_core::sync::folded_form(p) == name
+        }
+    };
+    let kept = server.db.manifest_paths(folder).map_err(fail)?;
+    if let Some(p) = kept.iter().find(|p| same(p)) {
+        return Ok((p.clone(), true));
+    }
+    // The folders above the log's files, by their composed name.
+    let mut folders: HashMap<String, &str> = HashMap::new();
+    for p in &kept {
+        let mut at = p.as_str();
+        while let Some((parent, _)) = at.rsplit_once('/') {
+            folders
+                .entry(verso_core::sync::folded_form(parent))
+                .or_insert(parent);
+            at = parent;
+        }
+    }
+    let mut at = path;
+    while let Some((parent, _)) = at.rsplit_once('/') {
+        if let Some(spelled) = folders.get(&verso_core::sync::folded_form(parent)) {
+            return Ok((format!("{spelled}{}", &path[parent.len()..]), false));
+        }
+        at = parent;
+    }
+    Ok((path.to_owned(), false))
+}
+
+/// A new file whose name another one holds in the other Unicode form.
+fn form_taken() -> OpError {
+    ContractError {
+        kind: ErrorKind::Exists,
+        message: "another file on the server has this name, its accents in another Unicode form"
+            .to_owned(),
+    }
+    .into()
+}
+
+fn read(
+    server: &Server,
+    client: &str,
+    folder: &str,
+    key: &str,
+    args: &Value,
+) -> Result<Value, ContractError> {
     let path: String = arg(args, "path")?;
     let offset: u64 = arg(args, "offset")?;
     let place = (client.to_owned(), path.clone());
@@ -762,7 +843,7 @@ fn read(server: &Server, client: &str, key: &str, args: &Value) -> Result<Value,
     let bytes = match bytes {
         Some(b) => b,
         None => {
-            let p = path.clone();
+            let (p, _) = as_kept(server, folder, &path)?;
             let (b, _) = server
                 .service
                 .with_key(key, move |ws| Ok(ws.read_with_revision(&p)?))?;
@@ -856,12 +937,17 @@ fn put(
     if bytes.len() as u64 != size || sha256(&bytes) != hash {
         return Err(refused("the file arrived damaged: its hash does not match"));
     }
+    let one = one_at_a_time(server, folder);
+    let only = lock(&one);
+    let (path, other) = as_kept(server, folder, &path)?;
     crate::quota::check(server, key, &path, size)?;
     let p = path.clone();
     let head = {
-        let one = one_at_a_time(server, folder);
-        let _only = lock(&one);
         server.service.with_key(key, move |ws| {
+            // New, under the other form of a name a file holds: taken.
+            if other && base.is_none() && now(ws, &p)?.is_some() {
+                return Err(form_taken());
+            }
             let revision = is_now(ws, &p, base.as_deref())?;
             Ok(ws
                 .write_bytes(&p, &bytes, revision.as_deref())
@@ -878,6 +964,8 @@ fn put(
             )],
         )?
     };
+    drop(only);
     told(server, key, std::slice::from_ref(&path), &[], &[]);
-    Ok(json!({ "done": true, "head": head }))
+    // Where it landed: the spelling the server keeps for the name.
+    Ok(json!({ "done": true, "head": head, "path": path }))
 }
