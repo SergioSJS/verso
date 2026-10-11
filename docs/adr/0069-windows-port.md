@@ -27,6 +27,17 @@
   (releases, and Windows code signing deferred),
   [0055](0055-in-app-updater.md) (the updater's Windows path, unexercised).
 - Status in the briefing: not present
+- Revisions: 2026-10-11 — on macOS a new or renamed file now takes its
+  name by `renamex_np` with `RENAME_EXCL`, an atomic rename that fails
+  with `EEXIST` instead of replacing, and no longer by `link` and `unlink`:
+  FSEvents never reports the removal of a file whose name was given by
+  `link`, so a file Verso created or renamed, then deleted outside the app
+  (Finder, `rm`), stayed in the tree and reached sync only at its next scan
+  (seen on 2026-10-11). A volume without the flag falls back to `link`.
+  Linux and Windows unchanged: inotify and `ReadDirectoryChangesW` report
+  that removal. Through `rustix` (no `unsafe`); the guard against replacing
+  a file and the directory `fsync` after it are as before. The
+  maintainer's confirmation is pending ("decision 8").
 
 ## Context
 
@@ -103,7 +114,8 @@ would have made every pass of the index start the next. The desktop host's
 test harness died at start (`STATUS_ENTRYPOINT_NOT_FOUND`) without the
 application manifest tauri-build embeds in the app alone. A note is
 renamed by `link` and `unlink` there too (NTFS has hard links), and Windows
-refuses to rename a folder while any file in it is open.
+refuses to rename a folder while any file in it is open. (On macOS, since
+2026-10-11, by an exclusive rename instead: see Revisions.)
 
 ## Decision
 

@@ -41,6 +41,7 @@
 | um arquivo de nuvem do Windows lido como qualquer outro | ler um arquivo dos Arquivos Sob Demanda do OneDrive o baixa: um primeiro índice puxaria a pasta inteira | `placeholder::is_dataless` lê os atributos dele (`RECALL_ON_DATA_ACCESS`, `RECALL_ON_OPEN`, `OFFLINE`); teste com `attrib +O` |
 | checar só os caracteres de um nome | `OBSIDI~1`, o nome curto 8.3 de `.obsidian`, passava pela regra de oculto | `confine::short_name` procura esse nome na sua pasta (`ShortName`) |
 | um teste escrevendo por `Workspace::open(dir, None)` | 1167 índices deixados na pasta de configuração real do usuário | sempre passe uma pasta de configuração nos testes |
+| o contrário, certo no Linux e no Windows, errado no Mac: um arquivo novo ou movido que recebe o nome por `link` e `unlink` | o FSEvents nunca informava a remoção posterior desse arquivo fora do app (Finder, `rm`): a árvore ficava velha e o sync só mandava a exclusão na varredura de 5 minutos (2026-10-11) | `ops::claim`: `renamex_np` com `RENAME_EXCL` no macOS (`os::rename_exclusive`, pelo `rustix`), `link` nos outros; `tests/watch.rs` remove um arquivo assim e espera o evento dele ([ADR 0069](../adr/0069-windows-port.md), revisado em 2026-10-11) |
 
 ## 3. Processos, configuração, executáveis
 
