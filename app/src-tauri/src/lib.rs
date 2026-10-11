@@ -104,6 +104,12 @@ pub struct App {
     menu_recents: Mutex<Vec<PathBuf>>,
     /// The menu's language, pushed by the UI with its own ("pt" or "en").
     menu_language: Mutex<String>,
+    /// Set once the setup made the main window. On macOS the folder of
+    /// `open -a Verso <folder>` arrives as an open event before the setup
+    /// runs (tao hands `application:openURLs:` over before the launch
+    /// ends): the main window, made next, opens it — no other window is
+    /// made for it (`folder_handed`).
+    started: std::sync::atomic::AtomicBool,
 }
 
 impl App {
@@ -123,6 +129,7 @@ impl App {
             #[cfg(target_os = "macos")]
             menu_recents: Mutex::new(Vec::new()),
             menu_language: Mutex::new("pt".to_owned()),
+            started: std::sync::atomic::AtomicBool::new(false),
         }
     }
 }
@@ -846,6 +853,9 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
                         .on_download(on_download),
                 )?;
             }
+            app.state::<App>()
+                .started
+                .store(true, std::sync::atomic::Ordering::SeqCst);
             Ok(())
         })
         .plugin(tauri_plugin_dialog::init())
@@ -937,6 +947,22 @@ fn folder_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, folder: PathBuf) 
         queue.push_back(folder);
         waiting
     };
+    // Handed before the setup made the main window (macOS's open event
+    // at launch): the main window, made next, opens it at start-up — a
+    // window made here as well left an empty "Verso" beside the folder's.
+    if !app
+        .state::<App>()
+        .started
+        .load(std::sync::atomic::Ordering::SeqCst)
+        && app.get_window("main").is_none()
+    {
+        log::write(
+            "INFO",
+            "host",
+            "a folder handed at launch: the main window opens it",
+        );
+        return;
+    }
     // A window of the app that shows no folder takes it; with none — or
     // when that window has a folder waiting for it already — a new window
     // does, which opens it as it starts (ADR 0065).

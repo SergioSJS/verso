@@ -81,6 +81,15 @@ struct TestConfig {
 fn app_with(
     initial: Option<PathBuf>,
 ) -> (tauri::App<MockRuntime>, tauri::WebviewWindow<MockRuntime>) {
+    let app = app_alone(initial);
+    let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
+        .build()
+        .unwrap();
+    (app, webview)
+}
+
+/// The app as it stands before its setup made the main window.
+fn app_alone(initial: Option<PathBuf>) -> tauri::App<MockRuntime> {
     let config = tempfile::tempdir().unwrap();
     let app = mock_builder()
         .plugin(navigation_guard())
@@ -94,10 +103,7 @@ fn app_with(
         .build(context())
         .unwrap();
     hear(app.handle());
-    let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
-        .build()
-        .unwrap();
-    (app, webview)
+    app
 }
 
 fn app() -> (tauri::App<MockRuntime>, tauri::WebviewWindow<MockRuntime>) {
@@ -130,6 +136,28 @@ fn a_folder_handed_to_the_running_app_is_opened_once_by_the_main_window() {
     );
     assert!(!info.to_string().contains(vault.path().to_str().unwrap()));
     assert!(call(&webview, "open_initial", json!({})).unwrap().is_null());
+}
+
+/// macOS hands `open -a Verso <folder>` to an app that is launching before
+/// its setup has made the main window (the live campaign, 2026-10-11: after
+/// a quit, the folder's window opened and an empty "Verso" one beside it):
+/// no window is made for the folder; the main window, made next, opens it.
+#[test]
+fn a_folder_handed_before_the_main_window_is_opened_by_it_alone() {
+    let vault = tempfile::tempdir().unwrap();
+    let _nota = note(vault.path(), "Nota.md", "# Nota\n");
+    let app = app_alone(None);
+    folder_handed(app.handle(), vault.path().to_path_buf());
+    assert!(app.webview_windows().is_empty());
+    let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
+        .build()
+        .unwrap();
+    let info = call(&webview, "open_initial", json!({})).unwrap();
+    assert_eq!(
+        info["name"],
+        vault.path().file_name().unwrap().to_str().unwrap()
+    );
+    assert_eq!(app.webview_windows().len(), 1);
 }
 
 /// The app launched again (`verso <folder>`, any system): the second
