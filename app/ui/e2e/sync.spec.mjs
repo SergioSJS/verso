@@ -14,6 +14,28 @@ const BYTES = "dados (conflito, Mac, 2026-10-10 15.34).bin";
 /** The texts of the Sync section's top row of buttons. */
 const row = (app) => app.page.locator(".sync-top .sync-buttons button");
 
+/** Say a status as the sync would: the event, and the same status as the
+ *  answer to `folder_sync`. The section asks for the status whenever it is
+ *  drawn and after each of its buttons; the harness's own answer (the
+ *  status before the event) landing after the event would undo it. */
+async function say(app, status) {
+  await app.page.evaluate((st) => {
+    const h = window.__harness.core.handlers;
+    window.__ownFolderSync ??= h.folder_sync;
+    h.folder_sync = () => st;
+  }, status);
+  await app.emit("sync-status", status);
+}
+
+/** The harness answers `folder_sync` with its own status again. */
+async function unsay(app) {
+  await app.page.evaluate(() => {
+    if (!window.__ownFolderSync) return;
+    window.__harness.core.handlers.folder_sync = window.__ownFolderSync;
+    delete window.__ownFolderSync;
+  });
+}
+
 async function openSync(app) {
   await app.key("Mod+,");
   await app.page.locator(".settings-nav-item", { hasText: "Sincronizar" }).click();
@@ -60,7 +82,7 @@ test("a folder syncs with a server, says its state, asks before deleting and sho
   await app.writeOutside("dados.bin", "\u0000\u0001servidor");
   await app.writeOutside(BYTES, "\u0000\u0002aqui");
   const status = await app.page.evaluate(() => window.__harness.core.sync);
-  await app.emit("sync-status", { ...status, state: "paused", deletions: 12, conflicts: [COPY, NESTED, IMAGE, BYTES], refused: [{ path: "video.mov", reason: "quota", message: "" }] });
+  await say(app, { ...status, state: "paused", deletions: 12, conflicts: [COPY, NESTED, IMAGE, BYTES], refused: [{ path: "video.mov", reason: "quota", message: "" }] });
   await expect(bar).toHaveText("Pausada · 12 a apagar · 4 conflitos");
   await expect(app.page.locator(".sync-sentence")).toHaveText("Parada antes de apagar 12 arquivos.");
   await expect(app.page.getByRole("alert")).toContainText("12 arquivos seriam apagados");
@@ -96,6 +118,7 @@ test("a folder syncs with a server, says its state, asks before deleting and sho
   await conflict.getByRole("button", { name: "Comparar" }).click();
   await expect(conflict.locator(".diff .del")).toContainText("versão do servidor");
   await expect(conflict.locator(".diff .add")).toContainText("versão deste computador");
+  await unsay(app);
 
   // The deletions go ahead only on an explicit yes.
   await app.page.getByRole("alert").getByRole("button", { name: "Apagar os 12" }).click();
@@ -116,13 +139,13 @@ test("a folder syncs with a server, says its state, asks before deleting and sho
   expect((await app.calls("folder_sync_pause")).map((c) => c.paused)).toEqual([true, false]);
   // Offline: sync now is a try, not the thing to do.
   const running = await app.page.evaluate(() => window.__harness.core.sync);
-  await app.emit("sync-status", { ...running, state: "offline" });
+  await say(app, { ...running, state: "offline" });
   await expect(app.page.locator(".sync-sentence")).toHaveText(/^Sem conexão\./);
   await expect(row(app).first()).toHaveText("Sincronizar agora");
   await expect(row(app).first()).not.toHaveClass(/primary/);
   // Signed out of the server: a pass cannot work; signing in again, in
   // Servers, is the thing to do — said as a sentence, and the first button.
-  await app.emit("sync-status", { ...running, state: "error", problem: "signed_out", message: null });
+  await say(app, { ...running, state: "error", problem: "signed_out", message: null });
   await expect(app.page.locator(".sync-problem")).toHaveText(/^O servidor encerrou a sessão deste computador/);
   await expect(row(app)).toHaveText(["Abrir Servidores", "Sincronizar agora", "Desligar…"]);
   await expect(row(app).first()).toHaveClass(/primary/);
@@ -130,13 +153,14 @@ test("a folder syncs with a server, says its state, asks before deleting and sho
   await row(app).first().click();
   await expect(app.page.locator('.settings-nav-item[aria-current="true"]', { hasText: "Servidores" })).toBeVisible();
   await app.page.locator(".settings-nav-item", { hasText: "Sincronizar" }).click();
-  await app.emit("sync-status", running);
+  await say(app, running);
   // Another build of the same version on the server: both builds and
   // contracts are named, in the window's language.
   const versions = { server_version: "0.7.0-beta.1", server_build: "1dac246", server_contract: "0589761", app_version: "0.7.0-beta.1", app_build: "efa6f12", app_contract: "3f2a9c1" };
-  await app.emit("sync-status", { ...running, state: "error", problem: "version", message: "the server runs Verso 0.7.0-beta.1 (build 1dac246, …)", versions });
+  await say(app, { ...running, state: "error", problem: "version", message: "the server runs Verso 0.7.0-beta.1 (build 1dac246, …)", versions });
   await expect(app.page.locator(".sync-problem")).toHaveText(/o servidor roda o Verso 0\.7\.0-beta\.1 \(build 1dac246, contrato 0589761\), este app 0\.7\.0-beta\.1 \(build efa6f12, contrato 3f2a9c1\): os contratos diferem — atualize o que estiver atrás/i);
-  await app.emit("sync-status", running);
+  await say(app, running);
+  await unsay(app);
 
   // The bar opens the section; turning sync off asks, then the bar goes.
   await app.key("Escape");
