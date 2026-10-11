@@ -154,6 +154,7 @@ async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket) {
         }
     }
     lock(&server.clients).remove(&client);
+    server.transfers.forget(&client);
     let s = Arc::clone(&server);
     let _ = tokio::task::spawn_blocking(move || {
         crate::collab::gone(&s, &client);
@@ -494,6 +495,8 @@ async fn open(
     let path = server
         .folder_path(&folder.dir)
         .ok_or_else(|| verso_service::failed("not a folder name"))?;
+    // A transfer of the folder shown before goes with it.
+    server.transfers.forget(client);
     let service = Arc::clone(&server.service);
     let c = client.to_owned();
     let gate = Arc::clone(

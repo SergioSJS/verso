@@ -81,6 +81,23 @@ pub struct Transfers {
     pub(crate) large: crate::large::Large,
 }
 
+impl Transfers {
+    /// The transfers of `client`, gone: its connection ended, or it opened
+    /// another folder. Without this they stayed until another transfer's
+    /// next piece found them idle — up to two files of [`LARGEST`] each way
+    /// per departed client.
+    pub fn forget(&self, client: &str) {
+        lock(&self.up).retain(|(c, _), _| c != client);
+        lock(&self.down).retain(|(c, _), _| c != client);
+    }
+
+    /// How many transfers are kept, each way.
+    #[cfg(test)]
+    pub(crate) fn kept(&self) -> (usize, usize) {
+        (lock(&self.up).len(), lock(&self.down).len())
+    }
+}
+
 /// How often a device's question walks the folder again.
 pub(crate) const WALK_EVERY: Duration = Duration::from_secs(60);
 

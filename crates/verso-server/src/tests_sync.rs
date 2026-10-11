@@ -936,3 +936,42 @@ fn a_file_sent_is_not_read_again_by_the_next_walk() {
         assert_eq!(listed.as_deref(), Some(recorded.as_str()));
     });
 }
+
+/// A transfer left half done goes with its connection (R2 of 2026-10-11):
+/// the pieces a device sent or was reading are not kept for a client that
+/// is gone.
+#[test]
+fn a_transfer_half_done_goes_with_its_connection() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let mut ws = opened(&r, &admin).await;
+        // A file of two pieces: its first sent, and its first read.
+        let bytes = vec![b'a'; PIECE + 10];
+        let first = call(
+            &mut ws,
+            2,
+            "sync_put",
+            json!({ "path": "Metade.bin", "offset": 0, "size": bytes.len(), "hash": sha256(&bytes), "base": null, "data": b64(&bytes[..PIECE]) }),
+        )
+        .await;
+        assert_eq!(first["ok"]["done"], false, "{first}");
+        let whole = send(&mut ws, 3, "Inteiro.bin", &bytes, None).await;
+        assert_eq!(whole["ok"]["done"], true, "{whole}");
+        let read = call(
+            &mut ws,
+            10,
+            "sync_read",
+            json!({ "path": "Inteiro.bin", "offset": 0 }),
+        )
+        .await;
+        assert_eq!(read["ok"]["done"], false, "{read}");
+        assert_eq!(r.server.transfers.kept(), (1, 1));
+        drop(ws);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while r.server.transfers.kept() != (0, 0) && std::time::Instant::now() < deadline {
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+        assert_eq!(r.server.transfers.kept(), (0, 0));
+    });
+}
