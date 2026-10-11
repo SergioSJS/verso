@@ -1265,3 +1265,34 @@ fn a_folder_name_taken_twice_says_so_in_its_own_words() {
         assert_eq!(adopted["error"], "folder_exists", "{adopted}");
     });
 }
+
+/// Many requests sent at once, more than a connection may have under way
+/// (R5 of 2026-10-11): the ones past the bound wait to be read, and every
+/// one is answered — none refused, none lost.
+#[test]
+fn requests_past_the_bound_wait_and_are_all_answered() {
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let mut ws = connect(&r, Some(&b.cookie), Some(&r.origin()), None)
+            .await
+            .unwrap();
+        next(&mut ws).await;
+        for id in 1..=40_u64 {
+            ws.send(Message::Text(
+                json!({ "id": id, "cmd": "app_info", "args": {} })
+                    .to_string()
+                    .into(),
+            ))
+            .await
+            .unwrap();
+        }
+        let mut answered = std::collections::BTreeSet::new();
+        while answered.len() < 40 {
+            let v = next(&mut ws).await;
+            assert!(v.get("ok").is_some(), "{v}");
+            answered.insert(v["id"].as_u64().unwrap());
+        }
+        assert_eq!(answered, (1..=40).collect());
+    });
+}

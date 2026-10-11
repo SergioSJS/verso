@@ -42,6 +42,7 @@ test release.
 - **A folder's sync no longer stays "syncing" forever** when the connection to the server drops at the moment a change is made here: it says offline and connects again, and the change crosses then.
 - **A file larger than 1 GiB in a server folder** no longer takes a small server down at its next walk: sync leaves it out without reading it and says so once in the server's log, naming it as too large to sync.
 - **Less disk and CPU on a server that syncs**: a file a device sends, or a change the server reads, is no longer read and hashed once more by the walk that follows it.
+- **A connection to the server that dropped without closing** (a laptop's lid shut, a network gone) is noticed by the server within a minute and a half, and what it held there is let go.
 
 ## 0.7.0-beta.1 — 2026-10-10
 
