@@ -392,6 +392,86 @@ fn a_write_through_another_spelling_keeps_one_entry_in_the_log() {
     });
 }
 
+/// One name is one file on the server (spec Q7, decided 2026-10-10;
+/// finding F20 of the sync campaign): a device whose file system keeps
+/// `Café.md` decomposed sends, fetches and deletes the file the server
+/// keeps composed — on every server, ext4 included, where the two forms
+/// would be two files. The log keeps one entry, spelled as the disk keeps
+/// it; a new file under the other form is a name taken, said as such.
+#[test]
+fn the_other_form_of_a_name_addresses_the_file_the_server_keeps() {
+    const COMPOSED: &str = "Caf\u{e9}.md";
+    const DECOMPOSED: &str = "Cafe\u{301}.md";
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let mut ws = opened(&r, &admin).await;
+        // The folder walked now: the next walk is a minute away, and the
+        // log is as the writes keep it.
+        call(&mut ws, 5, "sync_state", json!({})).await;
+        let first = send(&mut ws, 10, COMPOSED, b"# v1\n", None).await;
+        assert_eq!(first["ok"]["done"], true, "{first}");
+        // The edit of a device that keeps the name decomposed.
+        let edit = send(&mut ws, 20, DECOMPOSED, b"# v2\n", Some(&sha256(b"# v1\n"))).await;
+        assert_eq!(edit["ok"]["done"], true, "{edit}");
+        let entries = |state: &Value| -> Vec<(String, String)> {
+            state["ok"]["files"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|f| {
+                    (
+                        f["path"].as_str().unwrap().to_owned(),
+                        f["hash"].as_str().unwrap().to_owned(),
+                    )
+                })
+                .filter(|(p, _)| p.starts_with("Caf"))
+                .collect()
+        };
+        let state = call(&mut ws, 30, "sync_state", json!({})).await;
+        assert_eq!(
+            entries(&state),
+            vec![(COMPOSED.to_owned(), sha256(b"# v2\n"))],
+            "{state}"
+        );
+        // Fetched through the other form: the same file.
+        let (bytes, hash) = fetch(&mut ws, 40, DECOMPOSED).await;
+        assert_eq!(bytes, b"# v2\n");
+        assert_eq!(hash, sha256(b"# v2\n"));
+        // A new file under the other form: the name is taken.
+        let twin = send(&mut ws, 50, DECOMPOSED, b"# outro\n", None).await;
+        assert_eq!(twin["err"]["kind"], "exists", "{twin}");
+        // A new file in a folder named in the other form goes into that
+        // folder, never a second one beside it.
+        let a = send(&mut ws, 60, "C\u{e9}u/a.md", b"a", None).await;
+        assert_eq!(a["ok"]["done"], true, "{a}");
+        let b = send(&mut ws, 70, "Ce\u{301}u/b.md", b"b", None).await;
+        assert_eq!(b["ok"]["done"], true, "{b}");
+        let state = call(&mut ws, 80, "sync_state", json!({})).await;
+        let in_folder: Vec<String> = state["ok"]["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|f| f["path"].as_str())
+            .filter(|p| p.starts_with("C"))
+            .map(str::to_owned)
+            .collect();
+        assert!(in_folder.contains(&"C\u{e9}u/a.md".to_owned()), "{state}");
+        assert!(in_folder.contains(&"C\u{e9}u/b.md".to_owned()), "{state}");
+        // Deleted through the other form: gone, one entry less.
+        let gone = call(
+            &mut ws,
+            90,
+            "sync_delete",
+            json!({ "path": DECOMPOSED, "base": sha256(b"# v2\n") }),
+        )
+        .await;
+        assert!(gone.get("ok").is_some(), "{gone}");
+        let state = call(&mut ws, 100, "sync_state", json!({})).await;
+        assert_eq!(entries(&state), vec![], "{state}");
+    });
+}
+
 /// The unit of sync is a file (ADR 0079 item 2): a folder the window makes
 /// — as the window in a browser and the demo's import do, the folder
 /// first, then the files in it — is never read as a file nor said as one

@@ -8,7 +8,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::{Action, FileState, Files, State, conflict_name, plan};
+use super::{Action, FileState, Files, Held, State, conflict_name, plan};
 
 fn f(hash: &str) -> FileState {
     FileState {
@@ -249,7 +249,9 @@ fn a_respelling_here_yields_to_an_edit_there_where_names_fold() {
         path: "bem-vindo.md".into(),
         base: None
     }));
-    // The accents' form alone (decomposed here, composed there): the same.
+    // The accents' form alone (decomposed here, composed there) is no
+    // respelling: one name, one file everywhere (spec Q7), and this
+    // computer keeps the spelling its file system gave the name.
     let s = state(&[("A\u{e7}\u{e3}o.md", "1")]);
     assert_eq!(
         plan_on(
@@ -259,12 +261,17 @@ fn a_respelling_here_yields_to_an_edit_there_where_names_fold() {
             true
         ),
         vec![
-            Action::RenameLocal {
-                from: "Ac\u{327}a\u{303}o.md".into(),
-                to: "A\u{e7}\u{e3}o.md".into()
+            // The base moves to this computer's spelling first.
+            Action::Agree {
+                path: "Ac\u{327}a\u{303}o.md".into(),
+                hash: Some("1".into())
+            },
+            Action::Agree {
+                path: "A\u{e7}\u{e3}o.md".into(),
+                hash: None
             },
             Action::Download {
-                path: "A\u{e7}\u{e3}o.md".into(),
+                path: "Ac\u{327}a\u{303}o.md".into(),
                 hash: "2".into()
             },
         ]
@@ -407,6 +414,237 @@ fn two_spellings_made_apart_are_one_file_where_names_fold() {
     assert!(matches!(&p[1], Action::Conflict { path, .. } if path == "Nota.md"));
 }
 
+/* ---------- One name is one file everywhere: the accents' two forms ---------- */
+
+/// `Café.md` with its `é` composed (NFC), as Windows, Linux and the
+/// server mostly write it…
+const COMPOSED: &str = "Caf\u{e9}.md";
+/// …and decomposed (NFD), `e` and a combining accent, as HFS+ wrote it and
+/// as a file copied from a Mac may keep it.
+const DECOMPOSED: &str = "Cafe\u{301}.md";
+
+/// A device whose file system does not fold names (ext4) holding the
+/// decomposed spelling, the server the composed one: one file (spec Q7,
+/// decided 2026-10-10), on a device that folds names as on one that does
+/// not — never a second file, never a rename for the form alone.
+#[test]
+fn the_two_forms_of_a_name_are_one_file_on_every_device() {
+    for folds in [false, true] {
+        // The first sync: the same bytes agree under this device's
+        // spelling.
+        assert_eq!(
+            plan_on(
+                &files(&[(DECOMPOSED, "1")]),
+                &files(&[(COMPOSED, "1")]),
+                &State::default(),
+                folds
+            ),
+            vec![Action::Agree {
+                path: DECOMPOSED.into(),
+                hash: Some("1".into())
+            }],
+            "folds {folds}"
+        );
+        // Edited there: fetched under this device's spelling.
+        let s = state(&[(DECOMPOSED, "1")]);
+        assert_eq!(
+            plan_on(
+                &files(&[(DECOMPOSED, "1")]),
+                &files(&[(COMPOSED, "2")]),
+                &s,
+                folds
+            ),
+            vec![Action::Download {
+                path: DECOMPOSED.into(),
+                hash: "2".into()
+            }],
+            "folds {folds}"
+        );
+        // Edited here: sent under this device's spelling, based on the
+        // server's bytes; the server writes it to the file it keeps.
+        assert_eq!(
+            plan_on(
+                &files(&[(DECOMPOSED, "3")]),
+                &files(&[(COMPOSED, "1")]),
+                &s,
+                folds
+            ),
+            vec![Action::Upload {
+                path: DECOMPOSED.into(),
+                base: Some("1".into())
+            }],
+            "folds {folds}"
+        );
+        // Deleted here: deleted there — its base under the spelling the
+        // file has left, the server's, first.
+        assert_eq!(
+            plan_on(&Files::new(), &files(&[(COMPOSED, "1")]), &s, folds),
+            vec![
+                Action::Agree {
+                    path: COMPOSED.into(),
+                    hash: Some("1".into())
+                },
+                Action::Agree {
+                    path: DECOMPOSED.into(),
+                    hash: None
+                },
+                Action::DeleteRemote {
+                    path: COMPOSED.into(),
+                    base: "1".into()
+                },
+            ],
+            "folds {folds}"
+        );
+    }
+}
+
+/// A base the device kept under the server's spelling before the decision
+/// — a device that fetched `Café.md` composed, then had its file
+/// respelled decomposed by a copy — is the same file's base: the device's
+/// spelling stays, and nothing crosses for the form.
+#[test]
+fn a_base_under_the_other_form_is_the_files_base() {
+    let s = state(&[(COMPOSED, "1")]);
+    let p = plan(
+        &files(&[(DECOMPOSED, "1")]),
+        &files(&[(COMPOSED, "1")]),
+        &s,
+        false,
+        false,
+        &copy,
+    );
+    assert_eq!(
+        p.actions,
+        vec![
+            Action::Agree {
+                path: DECOMPOSED.into(),
+                hash: Some("1".into())
+            },
+            Action::Agree {
+                path: COMPOSED.into(),
+                hash: None
+            },
+        ]
+    );
+    assert_eq!(p.pause, None);
+}
+
+/// Changed on both sides under the two forms: a conflict (ADR 0079 item
+/// 8) — the server's version under this device's spelling, this device's
+/// beside it as a copy.
+#[test]
+fn both_forms_changed_is_a_conflict() {
+    let s = state(&[(DECOMPOSED, "1")]);
+    assert_eq!(
+        plan_on(
+            &files(&[(DECOMPOSED, "2")]),
+            &files(&[(COMPOSED, "3")]),
+            &s,
+            false
+        ),
+        vec![Action::Conflict {
+            path: DECOMPOSED.into(),
+            copy: "Cafe\u{301} (conflito, Mac, 2026-10-10 15.34).md".into(),
+            hash: "3".into()
+        }]
+    );
+    // Made apart on each side, different bytes: the same.
+    assert!(matches!(
+        plan_on(
+            &files(&[(DECOMPOSED, "2")]),
+            &files(&[(COMPOSED, "3")]),
+            &State::default(),
+            false
+        )
+        .as_slice(),
+        [Action::Conflict { path, hash, .. }] if path == DECOMPOSED && hash == "3"
+    ));
+}
+
+/// A device on ext4 that holds both forms as two files — the state the
+/// sync campaign of 2026-10-10 left on its Linux and Windows devices
+/// (finding F20): one of them syncs, the other is held and said, the same
+/// one on every pass — never sent to be refused, never looping.
+#[test]
+fn both_forms_as_two_files_here_send_one_and_hold_the_other() {
+    let local = files(&[(COMPOSED, "1"), (DECOMPOSED, "2")]);
+    // Neither known: the composed spelling, the server's, syncs.
+    let p = plan(
+        &local,
+        &Files::new(),
+        &State::default(),
+        false,
+        false,
+        &copy,
+    );
+    assert_eq!(
+        p.actions,
+        vec![Action::Upload {
+            path: COMPOSED.into(),
+            base: None
+        }]
+    );
+    assert_eq!(
+        p.held,
+        vec![Held {
+            path: DECOMPOSED.into(),
+            here: true
+        }]
+    );
+    // The next pass: the same one held, nothing else to do.
+    let p = plan(
+        &local,
+        &files(&[(COMPOSED, "1")]),
+        &state(&[(COMPOSED, "1")]),
+        false,
+        false,
+        &copy,
+    );
+    assert_eq!(p.actions, vec![]);
+    assert_eq!(
+        p.held,
+        vec![Held {
+            path: DECOMPOSED.into(),
+            here: true
+        }]
+    );
+    // The one the base knows syncs, whichever its form; the other is held
+    // and never taken for a deletion of the first.
+    let p = plan(
+        &local,
+        &files(&[(COMPOSED, "2")]),
+        &state(&[(DECOMPOSED, "2")]),
+        false,
+        false,
+        &copy,
+    );
+    assert_eq!(p.actions, vec![]);
+    assert_eq!(
+        p.held,
+        vec![Held {
+            path: COMPOSED.into(),
+            here: true
+        }]
+    );
+    // The held one deleted by the person: the other syncs as before.
+    let p = plan(
+        &files(&[(DECOMPOSED, "4")]),
+        &files(&[(COMPOSED, "2")]),
+        &state(&[(DECOMPOSED, "2")]),
+        false,
+        false,
+        &copy,
+    );
+    assert_eq!(
+        p.actions,
+        vec![Action::Upload {
+            path: DECOMPOSED.into(),
+            base: Some("2".into())
+        }]
+    );
+    assert_eq!(p.held, vec![]);
+}
+
 /* ---------- The guardrail: two devices, a server, random orders ---------- */
 
 /// A small deterministic generator: the same seed, the same run.
@@ -445,6 +683,23 @@ fn twin(disk: &Disk, path: &str, folds: bool) -> Option<String> {
         .cloned()
 }
 
+/// The file the server's disk keeps for a path a device names: the path,
+/// or the spelling of its name in the other Unicode form — on every
+/// server (spec Q7), as `verso-server` resolves a device's path. Case is
+/// left to each step, as before: a server that folds names refuses a new
+/// file whose name another holds but for its case.
+fn on_server(server: &Disk, path: &str) -> String {
+    if server.contains_key(path) {
+        return path.to_owned();
+    }
+    let form = super::folded_form(path);
+    server
+        .keys()
+        .find(|p| super::folded_form(p) == form)
+        .cloned()
+        .unwrap_or_else(|| path.to_owned())
+}
+
 /// How a sync goes: whether the person said yes to deletions, and the
 /// chance in a hundred that the server refuses a change (another write
 /// landed first) — the host then plans it again on the next pass. And
@@ -463,7 +718,9 @@ struct Go<'a> {
 /// What a device downloads is not "seen" by a person: only an edit or a
 /// deletion made on a device marks what it replaced as seen. Where names
 /// fold, a new file whose name another holds is refused on either side,
-/// as `verso-fs` and the server refuse it.
+/// as `verso-fs` and the server refuse it. The server addresses a path by
+/// the file it keeps for the name ([`on_server`]); a device writes under
+/// the path the plan names, its own spelling.
 fn sync(d: &mut Device, server: &mut Disk, go: &mut Go<'_>) {
     let p = plan(
         &picture(&d.disk),
@@ -477,6 +734,7 @@ fn sync(d: &mut Device, server: &mut Disk, go: &mut Go<'_>) {
         return;
     }
     let (folds, server_folds) = (go.folds, go.server_folds);
+    let at = |server: &Disk, p: &str| on_server(server, p);
     for a in p.actions {
         // The server refuses this one: nothing of it happens.
         if go.rng.below(100) < go.refuse {
@@ -484,16 +742,17 @@ fn sync(d: &mut Device, server: &mut Disk, go: &mut Go<'_>) {
         }
         match a {
             Action::Upload { path, base } => {
-                if server.get(&path) == base.as_ref()
-                    && (base.is_some() || twin(server, &path, server_folds).is_none())
+                let there = at(server, &path);
+                if server.get(&there) == base.as_ref()
+                    && (base.is_some() || twin(server, &there, server_folds).is_none())
                     && let Some(c) = d.disk.get(&path).cloned()
                 {
-                    server.insert(path.clone(), c.clone());
+                    server.insert(there, c.clone());
                     d.state.base.insert(path, c);
                 }
             }
             Action::Download { path, hash } => {
-                if server.get(&path) == Some(&hash)
+                if server.get(&at(server, &path)) == Some(&hash)
                     && (d.disk.contains_key(&path) || twin(&d.disk, &path, folds).is_none())
                 {
                     d.disk.insert(path.clone(), hash.clone());
@@ -501,8 +760,9 @@ fn sync(d: &mut Device, server: &mut Disk, go: &mut Go<'_>) {
                 }
             }
             Action::DeleteRemote { path, base } => {
-                if server.get(&path) == Some(&base) {
-                    server.remove(&path);
+                let there = at(server, &path);
+                if server.get(&there) == Some(&base) {
+                    server.remove(&there);
                     d.state.base.remove(&path);
                 }
             }
@@ -511,14 +771,19 @@ fn sync(d: &mut Device, server: &mut Disk, go: &mut Go<'_>) {
                 d.state.base.remove(&path);
             }
             Action::RenameRemote { from, to, base } => {
-                if server.get(&from) == Some(&base)
-                    && !server.contains_key(&to)
-                    && twin(server, &to, server_folds).is_none_or(|t| t == from)
+                let (old, new) = (at(server, &from), at(server, &to));
+                if server.get(&old) == Some(&base)
+                    && (!server.contains_key(&new) || new == old)
+                    && twin(server, &to, server_folds).is_none_or(|t| t == old)
                 {
-                    let c = server.remove(&from).unwrap_or_default();
-                    server.insert(to.clone(), c.clone());
+                    // The accents' form alone: the same name, nothing to
+                    // move on the server.
+                    if super::folded_form(&from) != super::folded_form(&to) {
+                        let c = server.remove(&old).unwrap_or_default();
+                        server.insert(to.clone(), c);
+                    }
                     d.state.base.remove(&from);
-                    d.state.base.insert(to, c);
+                    d.state.base.insert(to, base);
                 }
             }
             // As the host: the file moves, and its base with it.
@@ -534,8 +799,8 @@ fn sync(d: &mut Device, server: &mut Disk, go: &mut Go<'_>) {
                 }
             }
             Action::Conflict { path, copy, hash } => {
-                if server.get(&path) == Some(&hash)
-                    && !server.contains_key(&copy)
+                if server.get(&at(server, &path)) == Some(&hash)
+                    && !server.contains_key(&at(server, &copy))
                     && let Some(mine) = d.disk.remove(&path)
                 {
                     d.disk.insert(copy.clone(), mine.clone());
@@ -557,11 +822,46 @@ fn sync(d: &mut Device, server: &mut Disk, go: &mut Go<'_>) {
     }
 }
 
+/// A path with its accents in the other Unicode form, if it has any.
+fn other_form(path: &str) -> Option<String> {
+    if path.contains('\u{e9}') {
+        Some(path.replace('\u{e9}', "e\u{301}"))
+    } else if path.contains("e\u{301}") {
+        Some(path.replace("e\u{301}", "\u{e9}"))
+    } else {
+        None
+    }
+}
+
+/// Files by name as sync compares them (spec Q7): one name, one file.
+fn by_name(disk: &Disk) -> BTreeMap<String, String> {
+    disk.iter()
+        .map(|(p, c)| (super::folded_form(p), c.clone()))
+        .collect()
+}
+
+/// Where a run happens: whether the devices' file systems fold names, the
+/// server's, and whether names differing in case are in play — not
+/// against a server that folds names from devices that do not (spec Q8
+/// is open: two files there, one here).
+#[derive(Clone, Copy)]
+struct Systems {
+    folds: bool,
+    server_folds: bool,
+    cases: bool,
+}
+
 /// Two devices and a server, 40 random steps from a seed, then syncs
-/// until quiet: the devices end with the server's files, and no edit is
-/// lost that nobody saw. `folds`: the devices' file systems fold names;
-/// `server_folds`: the server's does.
-fn run(seed: u64, folds: bool, server_folds: bool) {
+/// until quiet: the devices end with the server's files, name by name —
+/// each keeps its own spelling of an accent's form, and a file a device
+/// holds apart (both forms of a name, as two files) stays apart —, the
+/// server holds one file per name, and no edit is lost that nobody saw.
+fn run(seed: u64, on: Systems) {
+    let Systems {
+        folds,
+        server_folds,
+        cases,
+    } = on;
     let mut rng = Rng(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1);
     let mut server: Disk = BTreeMap::new();
     let mut devices = [
@@ -581,18 +881,26 @@ fn run(seed: u64, folds: bool, server_folds: bool) {
     let mut written: BTreeSet<String> = BTreeSet::new();
     let mut seen: BTreeSet<String> = BTreeSet::new();
     let mut counter = 0u64;
-    // Two of them one file where names fold.
-    let names = ["a.md", "A.md", "b.md", "pasta/d.md", "e.png"];
+    // Two of them one file where names fold; two of them one name, its
+    // accent composed and decomposed, everywhere.
+    let mut names = vec!["a.md", "b.md", "pasta/d.md", "e.png", COMPOSED, DECOMPOSED];
+    if cases {
+        names.push("A.md");
+    }
+    let what = if cases { "case, accents" } else { "accents" };
+    let said = format!("seed {seed} (folds {folds}, server {server_folds}, {what})");
     for _ in 0..40 {
         let who = usize::try_from(rng.below(2)).unwrap_or(0);
         let d = &mut devices[who];
         match rng.below(6) {
             // Edit or create: where names fold, a name another file holds
-            // is that file.
+            // is that file. Where they do not, both forms of a name can be
+            // two files.
             0 | 1 => {
                 counter += 1;
                 let content = format!("v{counter}");
-                let named = names[usize::try_from(rng.below(5)).unwrap_or(0)].to_owned();
+                let named =
+                    names[usize::try_from(rng.below(names.len() as u64)).unwrap_or(0)].to_owned();
                 let path = twin(&d.disk, &named, folds).unwrap_or(named);
                 if let Some(old) = d.disk.get(&path) {
                     seen.insert(old.clone());
@@ -610,15 +918,16 @@ fn run(seed: u64, folds: bool, server_folds: bool) {
                     }
                 }
             }
-            // Rename: to another name, or the same name respelled (its
-            // first letter's case swapped).
+            // Rename: to another name, or the same name respelled — its
+            // first letter's case swapped, or its accent's form.
             3 => {
                 let list: Vec<String> = d.disk.keys().cloned().collect();
                 if !list.is_empty() {
                     let from =
                         list[usize::try_from(rng.below(list.len() as u64)).unwrap_or(0)].clone();
                     let to = match rng.below(4) {
-                        3 => {
+                        3 if other_form(&from).is_some() => other_form(&from).unwrap_or_default(),
+                        3 if cases => {
                             let mut chars = from.chars();
                             let first = chars.next().unwrap_or('x');
                             let swapped: String = if first.is_uppercase() {
@@ -669,7 +978,7 @@ fn run(seed: u64, folds: bool, server_folds: bool) {
                     assert_eq!(
                         (d.disk.clone(), server.clone()),
                         before,
-                        "seed {seed}: a paused plan changed files"
+                        "{said}: a paused plan changed files"
                     );
                 }
             }
@@ -691,18 +1000,45 @@ fn run(seed: u64, folds: bool, server_folds: bool) {
             );
         }
     }
+    // One name, one file on the server (spec Q7).
+    assert_eq!(by_name(&server).len(), server.len(), "{said}: {server:?}");
     for d in &devices {
+        let last = plan(
+            &picture(&d.disk),
+            &picture(&server),
+            &d.state,
+            true,
+            folds,
+            &copy,
+        );
+        assert!(
+            last.actions
+                .iter()
+                .all(|a| matches!(a, Action::Agree { .. })),
+            "{said}: {} still has work: {:?}",
+            d.name,
+            last.actions
+        );
+        let mut synced = d.disk.clone();
+        for h in &last.held {
+            assert!(h.here, "{said}: the server holds both forms: {server:?}");
+            synced.remove(&h.path);
+        }
         assert_eq!(
-            d.disk, server,
-            "seed {seed} (folds {folds}, server {server_folds}): {} differs from the server",
+            by_name(&synced),
+            by_name(&server),
+            "{said}: {} differs from the server",
             d.name
         );
     }
-    let present: BTreeSet<&String> = server.values().collect();
+    let present: BTreeSet<&String> = server
+        .values()
+        .chain(devices.iter().flat_map(|d| d.disk.values()))
+        .collect();
     for c in &written {
         assert!(
             present.contains(c) || seen.contains(c),
-            "seed {seed} (folds {folds}, server {server_folds}): the edit {c} was lost unseen"
+            "{said}: the edit {c} was lost unseen"
         );
     }
 }
@@ -710,7 +1046,14 @@ fn run(seed: u64, folds: bool, server_folds: bool) {
 #[test]
 fn two_devices_and_a_server_end_alike_and_lose_no_edit() {
     for seed in 1..=300u64 {
-        run(seed, false, false);
+        run(
+            seed,
+            Systems {
+                folds: false,
+                server_folds: false,
+                cases: true,
+            },
+        );
     }
 }
 
@@ -721,7 +1064,34 @@ fn two_devices_and_a_server_end_alike_and_lose_no_edit() {
 #[test]
 fn where_names_fold_two_devices_and_a_server_end_alike_and_lose_no_edit() {
     for seed in 1..=300u64 {
-        run(seed, true, false);
-        run(seed, true, true);
+        for server_folds in [false, true] {
+            run(
+                seed,
+                Systems {
+                    folds: true,
+                    server_folds,
+                    cases: true,
+                },
+            );
+        }
+    }
+}
+
+/// Devices on ext4, which keep a name's two Unicode forms as two files,
+/// against a server on a Mac (APFS, which folds them) — the other pairing
+/// runs above: one name is one file everywhere (spec Q7). Case stays out:
+/// against a server that folds it, two names differing in case on ext4
+/// are spec Q8, open.
+#[test]
+fn the_two_forms_of_a_name_end_as_one_file_against_a_server_that_folds_names() {
+    for seed in 1..=300u64 {
+        run(
+            seed,
+            Systems {
+                folds: false,
+                server_folds: true,
+                cases: false,
+            },
+        );
     }
 }
