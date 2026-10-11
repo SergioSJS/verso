@@ -106,3 +106,29 @@ test("back follows a note renamed meanwhile", async ({ app }) => {
   await expect(app.page.locator(".tab.preview")).toContainText("01 - Guia");
   await expect(app.page.locator(".load-failure")).toHaveCount(0);
 });
+
+test("a text file changed here and on disk keeps both on a third choice: the disk's under the name, mine in a copy", async ({ app, page }) => {
+  await app.open();
+  await app.writeOutside("Lista.txt", "um\ndois\n");
+  await app.folderChanged(["Lista.txt"], true);
+  await row(app, "Lista.txt").dblclick();
+  await page.locator(".cm-content:visible").first().click();
+  await app.key("Mod+End");
+  await page.keyboard.type("três aqui");
+  // Before the autosave: another program wrote the file meanwhile.
+  const outside = "um\ndois\nlá fora\n";
+  await app.writeOutside("Lista.txt", outside);
+  const conflict = page.locator(".conflict:visible");
+  await expect(conflict).toBeVisible();
+  await expect(conflict.getByRole("button")).toHaveText(["Descartar o meu e recarregar", "Gravar o meu por cima", "Guardar os dois"]);
+  await conflict.getByRole("button", { name: "Guardar os dois" }).click();
+  const named = /^Lista \(conflito, Mac de Teste, \d{4}-\d{2}-\d{2} \d{2}\.\d{2}\)\.txt$/;
+  await expect.poll(async () => (await app.files()).filter((f) => named.test(f)).length).toBe(1);
+  const copy = (await app.files()).find((f) => named.test(f));
+  expect(await app.file("Lista.txt")).toBe(outside);
+  expect(await app.file(copy)).toBe("um\ndois\ntrês aqui");
+  // The tab shows the copy, with nothing left to save and no conflict.
+  await expect(page.locator(".conflict:visible")).toHaveCount(0);
+  await expect(page.locator(".tab.active, .tab[aria-selected='true']").first()).toContainText("conflito, Mac de Teste");
+  await expect(page.locator("#status")).toContainText("Os dois ficaram");
+});

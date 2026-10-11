@@ -11,6 +11,7 @@ import { followMoved, forgetFiles } from "./files";
 import { currentFolder } from "./folder";
 import { leavesUnder, spaces } from "./layout/spaces";
 import { BoardLeaf } from "./leaves/board";
+import { onFileMade } from "./leaves/conflict";
 import { FolderLeaf } from "./leaves/folderView";
 import { Leaf } from "./leaves/leaf";
 import { NoteLeaf } from "./leaves/note";
@@ -49,6 +50,9 @@ export async function afterFileChange(): Promise<void> {
   tellOutcomes(await recheckAll("all"));
   refreshBases();
 }
+// The leaves that make a file of their own (a conflict's "keep both") read
+// the lists again through this, without importing this module.
+onFileMade(afterFileChange);
 /* The folder changed on disk — another editor, a sync client, git
  * (the watcher, provisional: docs/reference/watcher-decision.md). The
  * host sends this after every batch, with what its index run found; since

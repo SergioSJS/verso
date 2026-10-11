@@ -20,9 +20,10 @@ import { opening } from "../opening";
 import { Kind, kindOf } from "../paths";
 import { st } from "../screen/strings";
 import { settings, sourceLineNumbers } from "../settings";
+import { name } from "../paths";
 import { t } from "../strings";
 import { markCurrent } from "../tree/tree";
-import { ConflictBanner } from "./conflict";
+import { ConflictBanner, fileMade, keepCopy } from "./conflict";
 import { htmlModes } from "./frame";
 import { askDiscard, Leaf } from "./leaf";
 import { lineSeparator, readOnlyText } from "./text";
@@ -38,7 +39,11 @@ export class TextLeaf extends Leaf {
   readonly crumbs = crumbsNav();
   /** For an HTML file, the way back to its page. */
   readonly modes = htmlModes(this, "source");
-  readonly conflict = new ConflictBanner(() => void this.load(this.path, true), () => void this.overwrite());
+  readonly conflict = new ConflictBanner(
+    () => void this.load(this.path, true),
+    () => void this.overwrite(),
+    () => void this.keepBoth(),
+  );
   readonly editor: EditorView;
   revision = "";
   eol = "\n";
@@ -147,7 +152,7 @@ export class TextLeaf extends Leaf {
     const run = this.saving.then(async () => {
       if (!this.dirty) return;
       if (this.conflict.up) {
-        ui.status.textContent = t.conflictPending;
+        ui.status.textContent = t.conflictPendingBoth;
         return;
       }
       const mine = this.text();
@@ -171,6 +176,40 @@ export class TextLeaf extends Leaf {
     });
     this.saving = run.catch(() => undefined);
     return run;
+  }
+  /** What "keep both" puts in the copy: the editor's text (a board, the
+   *  canvas the banner showed against the disk's). */
+  protected async copyText(): Promise<string> {
+    return this.text();
+  }
+  /** The copy is made: what the tab held is in it (a board forgets the
+   *  canvas it was saving). */
+  protected keptCopy(): void {}
+  /** "Keep both", as a note's tab offers it: the disk's version stays
+   *  under the name, and this tab's text is written beside it as a new
+   *  file named as sync names a conflict's copy (ADR 0079 item 8) —
+   *  nothing is written over anything. The tab then shows the copy. */
+  protected async keepBoth(): Promise<void> {
+    const file = this.path;
+    const run = this.saving.then(async (): Promise<string | null> => {
+      if (!this.conflict.up) return null;
+      const mine = await this.copyText();
+      const copy = await keepCopy(file, (at) => commands.createFile(at, base64(mine)));
+      if (!copy) return null;
+      this.conflict.hide();
+      this.keptCopy();
+      this.setDirty(false);
+      return copy;
+    });
+    this.saving = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    const copy = await run;
+    if (!copy) return;
+    await fileMade();
+    await this.load(copy, true);
+    ui.status.textContent = t.keptBoth(name(file), name(copy));
   }
   protected written(f: TextFile, mine: string): void {
     this.revision = f.revision;
@@ -198,4 +237,11 @@ export class TextLeaf extends Leaf {
     window.clearTimeout(this.saveTimer);
     this.editor.destroy();
   }
+}
+
+/** A text's UTF-8 bytes in base64, as `createFile` takes them. */
+function base64(text: string): string {
+  let bin = "";
+  for (const b of new TextEncoder().encode(text)) bin += String.fromCharCode(b);
+  return btoa(bin);
 }

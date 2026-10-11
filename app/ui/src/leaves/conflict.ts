@@ -2,9 +2,46 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { commands, type ContractError } from "../bindings";
+import { conflictName } from "../dialogs/conflictNames";
 import { diffNode } from "../diff";
 import { button, h, ui } from "../dom";
-import { t } from "../strings";
+import { fail } from "../errors";
+import { LOCALE, t } from "../strings";
+
+/** What the window does after a file is made here — the lists read again
+ *  (`afterFileChange`, which `changes` hands over: that module imports the
+ *  leaves, and a leaf importing it would load them in a cycle). */
+let afterMade: () => Promise<void> = async () => {};
+export function onFileMade(f: () => Promise<void>): void {
+  afterMade = f;
+}
+export function fileMade(): Promise<void> {
+  return afterMade();
+}
+
+/** What a create answers: the new file's path, or why not. */
+type Created = { status: "ok"; data: string } | { status: "error"; error: ContractError };
+
+/** "Keep both" (ADR 0079 item 8): this tab's text written beside `path`
+ *  as a new file, named as sync names a conflict's copy — `create` makes
+ *  it, never over anything — the next free name when the minute's is
+ *  taken. The copy's path, or null when it could not be made (said). The
+ *  note's tab, the text file's and the board's share it. */
+export async function keepCopy(path: string, create: (name: string) => Promise<Created>): Promise<string | null> {
+  const info = await commands.appInfo();
+  const device = (info.status === "ok" && info.data.device) || t.thisComputer;
+  const when = new Date();
+  for (let n = 1; n <= 99; n++) {
+    const r = await create(conflictName(path, device, when, LOCALE === "pt-BR", n));
+    if (r.status === "ok") return r.data;
+    if (r.error.kind !== "exists") {
+      fail(r.error);
+      return null;
+    }
+  }
+  return null;
+}
 
 /* What a refused write leaves above the text (invariant 11): the disk's
  * version against the editor's, and the ways out — the disk's, mine over

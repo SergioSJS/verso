@@ -46,8 +46,7 @@ import { SlashMenu } from "../slash";
 import { boardText, LOCALE, t, typedText } from "../strings";
 import { markCurrent } from "../tree/tree";
 import { KeptCard } from "./board";
-import { ConflictBanner, GoneBanner } from "./conflict";
-import { conflictName } from "../dialogs/conflictNames";
+import { ConflictBanner, GoneBanner, keepCopy } from "./conflict";
 import { askDiscard, Leaf } from "./leaf";
 import * as cover from "./note/cover";
 import * as editing from "./note/editing";
@@ -1060,28 +1059,20 @@ export class NoteLeaf extends Leaf {
     const run = this.saving.then(async (): Promise<string | null> => {
       if (!this.note || !this.conflict.up) return null;
       const mine = this.editorText();
-      const info = await commands.appInfo();
-      const device = (info.status === "ok" && info.data.device) || t.thisComputer;
-      const when = new Date();
-      for (let n = 1; n <= 99; n++) {
-        const r = await commands.createNote(conflictName(note, device, when, LOCALE === "pt-BR", n), mine);
-        if (r.status === "ok") {
-          // In a shared note, the room goes back to the disk's text for
-          // everyone in it.
-          if (this.collab) {
-            const back = await commands.collabResolve(note, "disk");
-            if (back.status !== "ok") fail(back.error);
-          }
-          this.conflict.hide();
-          this.setDirty(false);
-          return r.data.path;
-        }
-        if (r.error.kind !== "exists") {
-          fail(r.error);
-          return null;
-        }
+      const copy = await keepCopy(note, async (at) => {
+        const r = await commands.createNote(at, mine);
+        return r.status === "ok" ? { status: "ok", data: r.data.path } : r;
+      });
+      if (!copy) return null;
+      // In a shared note, the room goes back to the disk's text for
+      // everyone in it.
+      if (this.collab) {
+        const back = await commands.collabResolve(note, "disk");
+        if (back.status !== "ok") fail(back.error);
       }
-      return null;
+      this.conflict.hide();
+      this.setDirty(false);
+      return copy;
     });
     this.saving = run.then(() => undefined, () => undefined);
     const copy = await run;

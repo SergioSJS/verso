@@ -32,6 +32,7 @@ test release.
 - **Sync with a server of another build of the same version** now says which: "the server runs Verso 0.7.0-beta.1 (build 1dac246, contract …), this app 0.7.0-beta.1 (build efa6f12, contract …): their contracts differ — update the one that is behind", instead of naming one version twice.
 - **Opening a folder with the app closed** (`open -a Verso <folder>`, `verso <folder>` on macOS) opens that folder's window alone, without an empty "Verso" window beside it.
 - **A session ended on the server** (Settings › Account › Sessions, "Sign out everywhere else", a password changed) closes that session's connections at once: a computer that syncs says it was signed out right then, not at its next exchange with the server.
+- **"Keep both" on a board and on a text file too**: when a board, a note in a board's card or a text file (`.txt`, `.json`, …) changed on disk while it had unsaved changes here, a third choice beside "Discard mine" and "Write mine over it" keeps the disk's version under the name and writes this one beside it, named as sync names a conflict's copy.
 
 ## 0.7.0-beta.1 — 2026-10-10
 
