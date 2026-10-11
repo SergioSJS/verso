@@ -98,8 +98,9 @@ Dois jeitos de construir uma subpasta compartilhada foram pesados:
 
 ## Decisão
 
-Proposta (2026-10-10). Cada `[ABERTO]` traz uma recomendação; o mantenedor
-decide. Itens abertos respondidos em 2026-10-10 (Status).
+Proposta (2026-10-10); aceita em 2026-10-11 (Status). Cada `[ABERTO]`
+trouxe uma recomendação; o mantenedor decidiu. Itens abertos respondidos
+em 2026-10-10 (Status).
 
 1. **Um compartilhamento é uma concessão num caminho.** Uma concessão
    passa a ser *pasta, conta, caminho, papel*: o caminho é `""` para a
@@ -344,6 +345,12 @@ decide. Itens abertos respondidos em 2026-10-10 (Status).
 
 ## Status
 
+**Aceita (2026-10-11).** Itens abertos respondidos em 2026-10-10 como
+recomendado; lida por Opus 5.5 (o handoff de 2026-10-10 e a leitura das
+respostas); aceita pelo mantenedor em 2026-10-11 (*"Mas eu tinha
+confirmado"* às recomendações). O histórico das mudanças de um arquivo
+segue `[ABERTO]` de propósito, para uma ADR própria.
+
 Proposta em 2026-10-10. A ser lida por Opus 5.5 antes de ser aceita. Para
 o mantenedor, cada um com uma recomendação: um nome próprio para um
 compartilhamento (item 3; não); quem compartilha, e recompartilhar (item
@@ -355,9 +362,8 @@ compartilhar); um documento só (item 17; fora da primeira versão, o
 modelo permitindo depois); e, para uma ADR própria, o histórico das
 mudanças de um arquivo (Consequências).
 
-Itens abertos respondidos em 2026-10-10; aceitação pendente. O
-mantenedor, em sessão, às recomendações acima: *"Gostei das recomendações, pode seguir"* —
+Itens abertos respondidos em 2026-10-10. O mantenedor, em sessão, às recomendações acima: *"Gostei das recomendações, pode seguir"* —
 cada `[ABERTO]` dos itens 3, 4, 6, 11 e 17 decidido como recomendado, no
 lugar, e o item 5 ganhando o seletor de pastas, construído com esta ADR.
 O histórico das mudanças de um arquivo segue `[ABERTO]`, para uma ADR
-própria. Se esta ADR é Aceita, quem diz é o mantenedor.
+própria.

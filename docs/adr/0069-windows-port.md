@@ -36,8 +36,11 @@
   (seen on 2026-10-11). A volume without the flag falls back to `link`.
   Linux and Windows unchanged: inotify and `ReadDirectoryChangesW` report
   that removal. Through `rustix` (no `unsafe`); the guard against replacing
-  a file and the directory `fsync` after it are as before. The
-  maintainer's confirmation is pending ("decision 8").
+  a file and the directory `fsync` after it are as before. The macOS
+  placing revision was confirmed by the maintainer on 2026-10-11, in
+  session: *"Mas eu tinha confirmado"* (but I had confirmed) — their
+  *"Gostei das recomendações, pode seguir"* of 2026-10-10 covers every
+  recommended option, this revision among them.
 
 ## Context
 

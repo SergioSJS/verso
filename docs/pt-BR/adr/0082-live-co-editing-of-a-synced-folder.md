@@ -106,8 +106,9 @@ fariam conflitos do nada.
 
 ## Decisão
 
-Proposta (2026-10-10). Cada `[ABERTO]` traz uma recomendação; o mantenedor
-decide. Itens abertos respondidos em 2026-10-10 (Status).
+Proposta (2026-10-10); aceita em 2026-10-11 (Status). Cada `[ABERTO]`
+trouxe uma recomendação; o mantenedor decidiu. Itens abertos respondidos
+em 2026-10-10 (Status).
 
 1. **Uma nota de uma pasta sincronizada está ao vivo enquanto o servidor
    está ao alcance.** Quando uma pasta local sincroniza com um Universo
@@ -394,6 +395,13 @@ decide. Itens abertos respondidos em 2026-10-10 (Status).
 
 ## Status
 
+**Aceita (2026-10-11).** Itens abertos respondidos em 2026-10-10 como
+recomendado; lida por Opus 5.5 (o handoff de 2026-10-10 e a leitura das
+respostas); aceita pelo mantenedor em 2026-10-11 (*"Mas eu tinha
+confirmado"* às recomendações). A coedição do board segue `[ABERTO]` de
+propósito (item 12); a fusão por bloco de edições offline fica para
+depois, em ADR própria.
+
 Proposta em 2026-10-10. O mantenedor aprovou a direção em sessão; os itens
 são do autor. A ser lida por Opus 5.5 antes de ser aceita. Para o
 mantenedor, cada um com uma recomendação: se uma nota entra ao abrir ou só
@@ -402,10 +410,8 @@ ligada por padrão para pastas sincronizadas (item 15; ligada, com um
 ajuste por pasta para mantê-la só local); e, em ADR própria, a fusão por
 bloco de edições offline (Consequências).
 
-Itens abertos respondidos em 2026-10-10; aceitação pendente. O
-mantenedor, em sessão, às recomendações acima: *"Gostei das recomendações, pode seguir"* —
+Itens abertos respondidos em 2026-10-10. O mantenedor, em sessão, às recomendações acima: *"Gostei das recomendações, pode seguir"* —
 os itens 5 e 15 decididos como recomendado, no lugar; a coedição do board
 segue `[ABERTO]` (item 12, item 7 da [0073](0073-self-hosted-server-first.md));
 a fusão por bloco de edições offline fica para depois, em ADR própria,
-pois precisa dos bytes da base (Consequências). Se esta ADR é Aceita,
-quem diz é o mantenedor.
+pois precisa dos bytes da base (Consequências).

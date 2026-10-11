@@ -24,15 +24,21 @@
   put to them: *"Gostei das recomendações, pode seguir"*. Item 9: the pause
   needs at least 3 deletions in one pass — a floor, so that in a small
   folder one or two deletions do not pause (the review's M1; read as a floor
-  from the "pode seguir" to the recommendation "pausar a partir de 3" — that
-  reading awaits the maintainer's confirmation); and "the
+  from the "pode seguir" to the recommendation "pausar a partir de 3" —
+  confirmed by the maintainer on 2026-10-11); and "the
   system's bin" corrected to the folder's `.trash/`, which is what the
   code does ([0080](0080-the-trash-with-expiry-and-restore.md) item 9).
   Items 2 and 8: the two Unicode forms of one name are one file
   everywhere (spec Q7, decided the same day from the campaign's finding
   F20). Item 8: which side keeps the name, decided earlier the same day
   (Status), marked so. Consequences: a known limit, the campaign's
-  finding F18.
+  finding F18. Item 4: the change log gains the device's name
+  (`changes.device`, server schema 6, commit 08e746e) — "who made it" now
+  names the device beside the account. The floor of item 9 and the
+  device's name confirmed by the maintainer on 2026-10-11, in session:
+  *"Mas eu tinha confirmado"* (but I had confirmed) — the
+  *"Gostei das recomendações, pode seguir"* of 2026-10-10 covers every
+  recommended option.
 
 ## Context
 

@@ -68,8 +68,9 @@ folder's `.trash/`, item 9; 0079 revised the same day.)*
 
 ## Decision
 
-Proposed (2026-10-10). Each `[OPEN]` carries a recommendation; the
-maintainer decides. Open items answered 2026-10-10 (Status).
+Proposed (2026-10-10); accepted 2026-10-11 (Status). Each `[OPEN]`
+carried a recommendation; the maintainer decided. Open items answered
+2026-10-10 (Status).
 
 1. **The trash stays `.trash/` at the folder's root**, on the computer and
    on the server, with [0048](0048-file-operations-in-ui.md)'s rules
@@ -255,6 +256,11 @@ maintainer decides. Open items answered 2026-10-10 (Status).
 
 ## Status
 
+**Accepted (2026-10-11).** Open items answered 2026-10-10 as recommended;
+read by Opus 5.5 (the handoff of 2026-10-10 and the answers' reading);
+accepted by the maintainer on 2026-10-11 (*"Mas eu tinha confirmado"* to
+the recommendations). No `[OPEN]` item stays open.
+
 Proposed on 2026-10-10. To be read by Opus 5.5 before it is accepted. For
 the maintainer, each with a recommendation: the retention's default
 (item 3; 30 days); whether the owner changes a folder's retention from the
@@ -264,8 +270,6 @@ counted, the oldest expiring early when the trash alone passes the
 quota); and where a deletion carried out by sync goes on the computer
 (item 9; the folder's bin, a Revisions line in 0079).
 
-Open items answered 2026-10-10; acceptance pending. The maintainer, in
-session, to the recommendations above: *"Gostei das recomendações, pode seguir"* —
+Open items answered 2026-10-10. The maintainer, in session, to the recommendations above: *"Gostei das recomendações, pode seguir"* —
 each `[OPEN]` decided as recommended, in place (items 3, 4, 8 and 9), and
-item 12 added, the mitigation of 0079's known limit. Whether this ADR is
-Accepted is the maintainer's to say.
+item 12 added, the mitigation of 0079's known limit.

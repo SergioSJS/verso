@@ -104,8 +104,9 @@ conflicts out of nothing.
 
 ## Decision
 
-Proposed (2026-10-10). Each `[OPEN]` carries a recommendation; the
-maintainer decides. Open items answered 2026-10-10 (Status).
+Proposed (2026-10-10); accepted 2026-10-11 (Status). Each `[OPEN]`
+carried a recommendation; the maintainer decided. Open items answered
+2026-10-10 (Status).
 
 1. **A note of a synced folder is live while the server is reachable.**
    When a local folder syncs with a Universo ([0079](0079-sync-a-local-folder-with-a-server.md)
@@ -382,6 +383,12 @@ maintainer decides. Open items answered 2026-10-10 (Status).
 
 ## Status
 
+**Accepted (2026-10-11).** Open items answered 2026-10-10 as recommended;
+read by Opus 5.5 (the handoff of 2026-10-10 and the answers' reading);
+accepted by the maintainer on 2026-10-11 (*"Mas eu tinha confirmado"* to
+the recommendations). The board's co-editing stays `[OPEN]` on purpose
+(item 12); merge by block of offline edits stays later, for its own ADR.
+
 Proposed on 2026-10-10. The maintainer approved the direction in session;
 the items are the author's. To be read by Opus 5.5 before it is accepted.
 For the maintainer, each with a recommendation: whether a note joins on
@@ -390,10 +397,8 @@ co-editing is on by default for synced folders (item 15; on, with a
 setting per folder to keep it local-only); and, for its own ADR, merge by
 block of offline edits (Consequences).
 
-Open items answered 2026-10-10; acceptance pending. The maintainer, in
-session, to the recommendations above: *"Gostei das recomendações, pode seguir"* —
+Open items answered 2026-10-10. The maintainer, in session, to the recommendations above: *"Gostei das recomendações, pode seguir"* —
 item 5 and item 15 decided as recommended, in place; the board's
 co-editing stays `[OPEN]` (item 12, [0073](0073-self-hosted-server-first.md)
 item 7); merge by block of offline edits stays later, for its own ADR, as
-it needs the base's bytes (Consequences). Whether this ADR is Accepted is
-the maintainer's to say.
+it needs the base's bytes (Consequences).

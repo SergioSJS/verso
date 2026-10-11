@@ -25,14 +25,20 @@
   precisa de pelo menos 3 apagamentos numa passada — um piso, para que
   numa pasta pequena um ou dois apagamentos não pausem (o M1 da revisão; lido
   como piso a partir do "pode seguir" à recomendação "pausar a partir de 3" —
-  essa leitura aguarda a confirmação do mantenedor);
+  confirmado pelo mantenedor em 2026-10-11);
   e "a lixeira do sistema" corrigida para o `.trash/` da pasta, que é o
   que o código faz ([0080](0080-the-trash-with-expiry-and-restore.md)
   item 9). Itens 2 e 8: as duas formas Unicode de um nome são um arquivo
   só em todo lugar (Q7 da spec, decidida no mesmo dia a partir do achado
   F20 da campanha). Item 8: qual lado fica com o nome, decidido antes no
   mesmo dia (Status), marcado assim. Consequências: um limite conhecido,
-  o achado F18 da campanha.
+  o achado F18 da campanha. Item 4: o registro de mudanças ganha o nome do
+  aparelho (`changes.device`, esquema 6 do servidor, commit 08e746e) —
+  "quem fez" agora nomeia o aparelho ao lado da conta. O piso do item 9 e
+  o nome do aparelho confirmados pelo mantenedor em 2026-10-11, em sessão:
+  *"Mas eu tinha confirmado"* — o
+  *"Gostei das recomendações, pode seguir"* de 2026-10-10 cobre toda
+  opção recomendada.
 
 ## Contexto
 
