@@ -169,8 +169,10 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    codifica o endereço em porcentagem, e a janela pedia ao core
    `gr%C3%A1fico` (2026-10-01).
 6. Uma nota mudada em disco enquanto o texto digitado na aba dela não foi
-   salvo: as duas versões aparecem, e a do disco fica (invariante 11).
-   Nível: H; E: `notes.spec.mjs`.
+   salvo: as duas versões aparecem, e a do disco fica (invariante 11);
+   *Guardar os dois* deixa a do disco com o nome e o texto da aba numa
+   cópia ao lado, com o nome que a sincronização dá à cópia de um conflito.
+   Nível: H; E: `notes.spec.mjs` (a de um arquivo de texto, `tabs.spec.mjs`).
 7. Uma nota embutida com `![[Nota]]`, no Editar, fica como no Leitura: os
    títulos, os parágrafos a um passo um do outro, as imagens dentro do
    painel, e o texto em volta quebrado na largura do painel. Nível: H; E:
@@ -369,7 +371,8 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    esperava o seu atraso era descartado com a aba (2026-10-01).
 5. O arquivo do board mudado em disco (pelo Obsidian) sem nada não salvo:
    o board é desenhado de novo a partir dele; mudado aqui também, as duas
-   versões aparecem e nada é gravado por cima do disco. Nível: H; E:
+   versões aparecem e nada é gravado por cima do disco; *Guardar os dois*
+   põe este board numa cópia ao lado. Nível: H; E:
    `board-file.spec.mjs`. Pegou: um board aberto nunca seguia o seu arquivo
    (2026-10-01).
 6. Um canvas escrito em outro layout (uma linha só, ou fins de linha do
@@ -681,6 +684,19 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
    massa, um arquivo de 9 MiB, um leitor, sem rede — os testes Rust do host
    contra um servidor de verdade (`tests_sync.rs`); dois computadores de
    verdade, à mão (`manual-checks.md`).
+8. Quem mudou o quê, e o que pede atenção: na página de uma pasta no
+   console, *Últimas mudanças nos arquivos* mostra a mudança de um aparelho
+   com o nome do aparelho entre parênteses ao lado da conta, e o registro
+   do servidor nomeia o aparelho numa mudança recusada (`tests_sync.rs`,
+   `a_devices_change_and_its_refusal_name_the_device`); um nome guardado em
+   dois arquivos no disco do servidor aparece em *Pede atenção*
+   (`tests_console.rs`,
+   `a_file_held_as_anothers_name_is_said_on_the_console`; o próprio disco,
+   só no Linux); a sessão de um aparelho encerrada em *Ajustes* › *Conta*
+   fecha a conexão desse aparelho na hora, e o *Sincronizar* dele pede para
+   conectar de novo em *Servidores* (`tests_sync.rs`,
+   `an_ended_sessions_connection_is_closed_at_once`); dois computadores de
+   verdade, à mão.
 
 ## 14. O fim
 
