@@ -52,6 +52,7 @@ pub mod typed;
 pub use focuses::{Focus, FocusesSummary, ReadOnlyReasonCode};
 mod entries;
 mod indexing;
+mod narrow;
 mod notes;
 mod rename;
 mod sidecar;

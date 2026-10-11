@@ -250,12 +250,13 @@ impl Workspace {
     }
 
     /// The index brought up to date with the paths of one batch of the
-    /// watch only, not a walk of the whole folder (ADR 0073 item 12): each
-    /// path an existing note or file whose content changed is read again,
-    /// and nothing else is touched. Anything else — a path created, removed
-    /// or renamed, a directory, a placeholder, a batch the system said to
-    /// scan whole, a batch too large — runs [`Workspace::index_with_progress`]
-    /// as before, so the listing and what is gone stay exactly what a walk
+    /// watch only, not a walk of the whole folder (ADR 0073 item 12): a
+    /// note or a board whose content changed is read again, a file created
+    /// enters the listing and a file removed leaves it (`narrow.rs`), and
+    /// nothing else is touched. Anything else — a directory, a
+    /// placeholder, a `.gitignore`, a batch the system said to scan whole,
+    /// a batch too large — runs [`Workspace::index_with_progress`] as
+    /// before, so the listing and what is gone stay exactly what a walk
     /// finds.
     pub fn index_changes<F>(
         &mut self,
@@ -282,7 +283,7 @@ impl Workspace {
                 self.entries
                     .iter()
                     .find(|e| e.path == *p)
-                    .is_some_and(|e| matches!(e.kind, FileKind::Note | FileKind::File))
+                    .is_none_or(|e| matches!(e.kind, FileKind::Note | FileKind::File))
             });
         if !narrowable {
             return self.index_with_progress(on_progress);
@@ -298,57 +299,9 @@ impl Workspace {
         committed?;
         match report {
             Some(report) => Ok(report),
-            // A path that turned out gone or no longer a file: a walk.
+            // A path only a walk answers for.
             None => self.index_with_progress(on_progress),
         }
-    }
-
-    /// The narrowed run itself; `None` when a path is not what the listing
-    /// said (gone, a directory now): the caller walks instead.
-    fn narrow_run(&mut self, paths: &[String]) -> Result<Option<IndexReport>, CoreError> {
-        let mut report = IndexReport {
-            narrowed: true,
-            ..IndexReport::default()
-        };
-        for relative in paths {
-            let handle = self
-                .root
-                .handle(Path::new(relative))
-                .map_err(CoreError::Confined)?;
-            let Ok((len, modified)) = self.root.length_and_time(handle) else {
-                return Ok(None);
-            };
-            let modified = modified.map_or(0, seconds_since_epoch);
-            let is_note = relative.ends_with(".md");
-            if is_note || is_canvas(relative) {
-                match self.root.read(handle) {
-                    Ok((bytes, stamp)) => {
-                        let stamp = note_stamp(&stamp);
-                        if self.index.stamp_of(relative).map_err(CoreError::Index)? == Some(stamp) {
-                            report.unchanged += 1;
-                        } else if is_note {
-                            let content = String::from_utf8_lossy(&bytes);
-                            let parsed = verso_dialect::parse(&content);
-                            self.index
-                                .upsert(relative, stamp, &content, &parsed)
-                                .map_err(CoreError::Index)?;
-                            report.indexed += 1;
-                            report.changed.push(relative.clone());
-                        } else {
-                            self.index_canvas(relative, &bytes, stamp)?;
-                            report.changed.push(relative.clone());
-                        }
-                    }
-                    Err(verso_fs::ReadError::Unavailable) => return Ok(None),
-                    Err(e) => report.unreadable.push((relative.clone(), e.to_string())),
-                }
-            }
-            if let Some(entry) = self.entries.iter_mut().find(|e| e.path == *relative) {
-                entry.len = len;
-                entry.modified = modified;
-            }
-        }
-        Ok(Some(report))
     }
 
     /// Watch the folder for changes made outside the app — by another
