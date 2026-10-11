@@ -40,6 +40,7 @@ versão de teste.
 - **"Guardar os dois" também no board e num arquivo de texto**: quando um board, uma nota num cartão do board ou um arquivo de texto (`.txt`, `.json`, …) mudou em disco com mudanças ainda não salvas aqui, uma terceira escolha ao lado de "Descartar o meu" e "Gravar o meu por cima" deixa a versão do disco com o nome e grava esta ao lado, com o nome que a sincronização dá à cópia de um conflito.
 - **Um arquivo criado ou renomeado no Verso e depois apagado fora dele no macOS** (Finder, `rm`, outro programa) sai da árvore na hora, e a sincronização manda a exclusão logo em vez de na varredura de cinco minutos.
 - **A sincronização de uma pasta não fica mais "sincronizando" para sempre** quando a conexão com o servidor cai no momento em que uma mudança é feita aqui: diz que está offline e conecta de novo, e a mudança cruza então.
+- **Um arquivo maior que 1 GiB numa pasta do servidor** não derruba mais um servidor pequeno na varredura seguinte: a sincronização o deixa de fora sem lê-lo e diz isso uma vez no log do servidor, como grande demais para sincronizar.
 
 ## 0.7.0-beta.1 — 2026-10-10
 

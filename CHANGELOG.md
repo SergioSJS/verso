@@ -40,6 +40,7 @@ test release.
 - **"Keep both" on a board and on a text file too**: when a board, a note in a board's card or a text file (`.txt`, `.json`, …) changed on disk while it had unsaved changes here, a third choice beside "Discard mine" and "Write mine over it" keeps the disk's version under the name and writes this one beside it, named as sync names a conflict's copy.
 - **A file made or renamed in Verso, then deleted outside it on macOS** (Finder, `rm`, another program) leaves the tree at once, and sync sends the deletion right away instead of at its five-minute scan.
 - **A folder's sync no longer stays "syncing" forever** when the connection to the server drops at the moment a change is made here: it says offline and connects again, and the change crosses then.
+- **A file larger than 1 GiB in a server folder** no longer takes a small server down at its next walk: sync leaves it out without reading it and says so once in the server's log, naming it as too large to sync.
 
 ## 0.7.0-beta.1 — 2026-10-10
 
