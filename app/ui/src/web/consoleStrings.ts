@@ -115,6 +115,8 @@ const pt = {
   enterAsk: "Dar a si mesmo acesso a esta pasta? Fica no registro, e o dono vê.",
   folderAudit: "Registro desta pasta",
   latestChanges: "Últimas mudanças nos arquivos",
+  tooLarge: "Grandes demais para sincronizar",
+  tooLargeDesc: "Estes arquivos têm mais de 1 GiB e não sincronizam.",
   onServerDisk: "no disco do servidor",
   changeWhat: (deleted: boolean, from: string | null, path: string) => (deleted ? `apagou ${path}` : from ? `renomeou ${from} para ${path}` : `gravou ${path}`),
   // Invitations
@@ -307,6 +309,8 @@ const en: typeof pt = {
   enterAsk: "Give yourself access to this folder? It is in the log, and the owner sees it.",
   folderAudit: "This folder's log",
   latestChanges: "Latest changes to the files",
+  tooLarge: "Too large to sync",
+  tooLargeDesc: "These files are larger than 1 GiB and do not sync.",
   onServerDisk: "on the server's disk",
   changeWhat: (deleted: boolean, from: string | null, path: string) => (deleted ? `deleted ${path}` : from ? `renamed ${from} to ${path}` : `wrote ${path}`),
   newInvitation: "New invitation",
