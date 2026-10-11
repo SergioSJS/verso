@@ -33,6 +33,16 @@ rmcp = { version = "3.4", default-features = false, features = ["server", "trans
 tokio = { version = "1", default-features = false, features = ["rt", "macros", "io-std"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# The binary's allocator, for `verso serve` and the command line alike (not
+# the desktop app, which is another binary). Measured on 2026-10-11 on a
+# 1-core, 1 GB VM (docs/reference/server-install.md section 14, "The
+# allocator"): after a burst of 50 writers mimalloc 0.1.52 held about 70 MB
+# where glibc's held 300 MB and more (musl's own, 12-23 MB), and served
+# about 20-35 % more operations per second than musl's. The recommendation
+# was not to adopt it; the maintainer adopted it that evening. MIT; it
+# builds its C sources with the target's C compiler, which the musl image
+# build already has.
+mimalloc = "0.1"
 
 [dev-dependencies]
 tempfile = "3.27"
