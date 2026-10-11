@@ -103,6 +103,7 @@ const pt = {
     renamed_there: "renomeado no servidor",
     renamed_here: "renomeado aqui",
     conflict: "conflito",
+    merged: "juntado",
   } as Record<string, string>,
   bar: "Sincronização",
 };
@@ -189,6 +190,7 @@ const en: typeof pt = {
     renamed_there: "renamed on the server",
     renamed_here: "renamed here",
     conflict: "conflict",
+    merged: "merged",
   },
   bar: "Sync",
 };

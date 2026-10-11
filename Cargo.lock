@@ -5896,6 +5896,7 @@ dependencies = [
  "proptest",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "unicode-normalization",
  "verso-dialect",

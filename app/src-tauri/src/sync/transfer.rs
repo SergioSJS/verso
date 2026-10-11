@@ -355,6 +355,24 @@ impl Side<'_> {
                 s.crossed(ctx, "renamed_here", to, Some(from));
             }
             Action::Conflict { path, copy, .. } => {
+                // The server's version first: it takes the name, or, when
+                // both sides appended to a note, its tail joins this
+                // computer's (item 8, decided 2026-10-11).
+                let (bytes, hash) = download(remote, path).await?;
+                if !reader
+                    && engine::merges_by_append(path)
+                    && let Some(base) = state.base.get(path).cloned()
+                    && let Some(planned) = hash_here(local, path)
+                    && let Some(joined) = appended(ctx, s, path, &base, &planned, &bytes)?
+                {
+                    let there = FileState {
+                        hash,
+                        size: bytes.len() as u64,
+                    };
+                    return self
+                        .join(remote_files, local, state, path, joined, there)
+                        .await;
+                }
                 // This computer's version steps aside under the copy's name…
                 let (f, t) = (path.clone(), copy.clone());
                 tokio::task::block_in_place(|| {
@@ -368,7 +386,6 @@ impl Side<'_> {
                     local.insert(copy.clone(), f);
                 }
                 // …the server's takes the name…
-                let (bytes, hash) = download(remote, path).await?;
                 let size = bytes.len() as u64;
                 write_here(ctx, s, path, bytes, None)?;
                 remote_files.insert(
@@ -397,4 +414,78 @@ impl Side<'_> {
         }
         Ok(())
     }
+
+    /// Two appends joined (item 8): `joined` written here over the file
+    /// the pass hashed (invariant 11), then sent over the server's
+    /// version, `there`. Once written here, the server's version is this
+    /// file's base — its tail is here, this computer's after it — so a
+    /// send refused meanwhile is a change of this side alone on the next
+    /// pass, or two appends again, never the server's tail twice.
+    async fn join(
+        &self,
+        remote_files: &mut Files,
+        local: &mut Files,
+        state: &mut engine::State,
+        path: &str,
+        joined: Vec<u8>,
+        there: FileState,
+    ) -> Result<(), Refusal> {
+        let Self { ctx, s, remote, .. } = *self;
+        let here = FileState {
+            hash: sha256(&joined),
+            size: joined.len() as u64,
+        };
+        // Only over the file the pass read: never as a new file.
+        let Some(planned) = local.get(path).map(|f| f.hash.clone()) else {
+            return Err(Refusal::Again(
+                path.to_owned(),
+                "changed since it was read".to_owned(),
+            ));
+        };
+        write_here(ctx, s, path, joined, Some(&planned))?;
+        let base = there.hash.clone();
+        remote_files.insert(engine::spelled_there(remote_files, path), there);
+        state.base.insert(path.to_owned(), base.clone());
+        state.seen.remove(path);
+        local.insert(path.to_owned(), here);
+        s.crossed(ctx, "merged", path, None);
+        let (hash, size, landed) = upload(ctx, s, remote, path, Some(&base)).await?;
+        remote_files.remove(&engine::spelled_there(remote_files, path));
+        remote_files.insert(
+            landed,
+            FileState {
+                hash: hash.clone(),
+                size,
+            },
+        );
+        state.base.insert(path.to_owned(), hash);
+        Ok(())
+    }
+}
+
+/// This computer's note and the server's `theirs` joined, when each only
+/// appended to the end of the `base` (item 8): read here as the pass
+/// hashed it, `planned` — refused when it changed since (invariant 11).
+/// `None`: any other change on both sides, a conflict's copy.
+fn appended(
+    ctx: &Ctx,
+    s: &Syncer,
+    path: &str,
+    base: &str,
+    planned: &str,
+    theirs: &[u8],
+) -> Result<Option<Vec<u8>>, Refusal> {
+    let p = path.to_owned();
+    let mine = tokio::task::block_in_place(|| {
+        ctx.service
+            .with_key(&s.key, move |ws| Ok(ws.read_with_revision(&p)?.0))
+    })
+    .map_err(|e| of_here(ctx, s, path, e))?;
+    if sha256(&mine) != planned {
+        return Err(Refusal::Again(
+            path.to_owned(),
+            "changed since it was read".to_owned(),
+        ));
+    }
+    Ok(engine::append_merge(base, &mine, theirs))
 }

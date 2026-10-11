@@ -19,6 +19,7 @@ test release.
 - **Quotas per folder**: the admin sets a folder's largest size (or `VERSO_FOLDER_QUOTA` for new ones); a write that would pass it is refused and nothing is written, making the folder smaller always works, and at 90 % the window warns.
 - **The console lists the files too large for sync**: on a folder's page, under "Too large to sync", each file of the folder above 1 GiB that sync leaves out, with its size.
 - **Sync says when this app and the server speak sync versions too far apart** ([ADR 0079](docs/adr/0079-sync-a-local-folder-with-a-server.md) item 5): each side says the version of sync it speaks as it connects, a server takes its own and the one before, and a folder whose server cannot follow this app — or that this app cannot follow — shows an error naming both versions, "update the one that is behind", instead of syncing wrong.
+- **Two people who add lines to the end of the same note while apart get one note with both lines**, the server's first, not a conflict copy ([ADR 0079](docs/adr/0079-sync-a-local-folder-with-a-server.md) item 8); the sync's log says "merged". Anything else edited on both sides still makes the copy.
 
 ### Changed
 

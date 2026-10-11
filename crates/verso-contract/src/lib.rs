@@ -606,7 +606,8 @@ pub struct SyncLogEntry {
     /// `YYYY-MM-DDTHH:MM:SSZ`.
     pub at: String,
     /// `sent`, `received`, `deleted_there`, `deleted_here`,
-    /// `renamed_there`, `renamed_here` or `conflict`.
+    /// `renamed_there`, `renamed_here`, `conflict` or `merged` (two
+    /// appends to a note joined, ADR 0079 item 8).
     pub what: String,
     pub path: String,
     /// The other path of a rename, or a conflict's copy.

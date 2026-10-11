@@ -19,6 +19,7 @@ versão de teste.
 - **Cotas por pasta**: o admin define o tamanho máximo de uma pasta (ou `VERSO_FOLDER_QUOTA` para as novas); uma escrita que passaria dele é recusada e nada é gravado, diminuir a pasta sempre funciona, e a 90 % a janela avisa.
 - **O console lista os arquivos grandes demais para sincronizar**: na página de uma pasta, sob "Grandes demais para sincronizar", cada arquivo da pasta com mais de 1 GiB que a sincronização deixa de fora, com o seu tamanho.
 - **A sincronização diz quando este app e o servidor falam versões de sincronização distantes demais** ([ADR 0079](adr/0079-sync-a-local-folder-with-a-server.md) item 5): cada lado diz a versão da sincronização que fala ao conectar, um servidor aceita a sua e a anterior, e uma pasta cujo servidor não acompanha este app — ou que este app não acompanha — mostra um erro com as duas versões, "atualize o que estiver atrás", em vez de sincronizar errado.
+- **Duas pessoas que acrescentam linhas ao fim da mesma nota enquanto separadas ficam com uma nota só, com as linhas das duas**, as do servidor primeiro, e não com uma cópia de conflito ([ADR 0079](adr/0079-sync-a-local-folder-with-a-server.md) item 8); o registro da sincronização diz "juntado". Qualquer outra edição nos dois lados ainda faz a cópia.
 
 ### Alterado
 
