@@ -816,6 +816,45 @@ fn a_deletion_the_listing_missed_crosses_on_the_first_pass_after_reconnecting() 
     quiet(&a, &b);
 }
 
+/// A file sync made here, deleted on this computer's disk by another
+/// program, with no batch of the watcher to say so — on macOS FSEvents
+/// never reports the removal of a file whose name was given by `link`, as
+/// `verso-fs` gives every file it creates — while another device edits it
+/// (C13 of the live campaign, 2026-10-11: the pass planned a fetch over the
+/// file the listing still held, its read answered "No such file", and the
+/// file was listed as changed until a later pass). The step that finds it
+/// gone walks the folder and asks for a pass at once: that pass fetches
+/// the edit, and nothing is listed as changed.
+#[test]
+fn a_file_gone_here_unseen_by_the_watcher_takes_the_edit_on_the_pass_right_after() {
+    let (_r, a, b) = two_in_step();
+    let path = "vazio.md";
+    write(&b, path, b"");
+    sync(&b);
+    let mut la = kept(&a);
+    on(&a, &mut la);
+    assert_eq!(text(&a, path).as_deref(), Some(""));
+    // Listed, and old enough that a pass trusts its size and time without
+    // reading it, as in the campaign (received 90 s before).
+    std::thread::sleep(std::time::Duration::from_millis(3100));
+    changed(&a, &[path]);
+    on(&a, &mut la);
+    write(&b, path, b"# agora com texto\n");
+    sync(&b);
+    // Gone from the disk; the listing still has it.
+    let on_disk = a._dirs.1.path().join(path);
+    drop(tempfile::TempPath::try_from_path(on_disk).unwrap());
+    on(&a, &mut la);
+    let status = lock(&a.shown).last().cloned().unwrap();
+    assert!(status.refused.is_empty(), "{status:?}");
+    // The pass the step asked for, before any watcher or scan.
+    on(&a, &mut la);
+    let status = lock(&a.shown).last().cloned().unwrap();
+    assert!(status.refused.is_empty(), "{status:?}");
+    assert_eq!(text(&a, path).as_deref(), Some("# agora com texto\n"));
+    quiet(&a, &b);
+}
+
 /// A folder moved on one device: on the other, its notes arrive at the new
 /// place and the old folders, emptied, go too — nothing empty is left
 /// behind (found with two installed apps, 2026-10-10).
