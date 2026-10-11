@@ -804,3 +804,28 @@ fn an_ended_sessions_connection_is_closed_at_once() {
         assert_eq!(told["gone"], "session", "{told}");
     });
 }
+
+/// Two names compared as a file system that folds names compares them,
+/// the ASCII ones without folding (finding 7 of the live campaign's batch):
+/// the same answer as folding both, the Kelvin sign included.
+#[test]
+fn one_name_answers_as_folding_both_would() {
+    let pairs = [
+        ("Nota.md", "nota.md"),
+        ("Nota.md", "Nota.md"),
+        ("Nota.md", "Notas.md"),
+        ("Pasta/A.md", "pasta/a.md"),
+        ("Caf\u{e9}.md", "cafe\u{301}.md"),
+        ("Caf\u{e9}.md", "Cafe.md"),
+        ("k.md", "\u{212a}.md"),
+        ("\u{212a}.md", "K.md"),
+    ];
+    for (a, b) in pairs {
+        let folded = verso_core::sync::folded(a);
+        assert_eq!(
+            crate::sync::one_name(a, &folded, b),
+            folded == verso_core::sync::folded(b),
+            "{a} {b}"
+        );
+    }
+}

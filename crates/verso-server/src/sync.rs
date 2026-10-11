@@ -249,14 +249,24 @@ fn reconcile_held(
     // A path whose name folds onto a listed one (only its case or its
     // accents' form differ) is that file renamed on a file system that
     // folds names: gone, whatever a read through the folding says.
-    let listed_folded: HashSet<String> = listed_paths
-        .iter()
-        .map(|p| verso_core::sync::folded(p))
-        .collect();
-    let unlisted = paths
+    let not_listed: Vec<&String> = paths
         .iter()
         .chain(known.keys())
         .filter(|p| !listed_paths.contains(*p))
+        .collect();
+    // The listing folded only where names fold, and only when some path is
+    // not in it as it is: not a string made per file on every walk.
+    let listed_folded: HashSet<String> = if verso_core::sync::FOLDS_NAMES && !not_listed.is_empty()
+    {
+        listed_paths
+            .iter()
+            .map(|p| verso_core::sync::folded(p))
+            .collect()
+    } else {
+        HashSet::new()
+    };
+    let unlisted = not_listed
+        .into_iter()
         .filter(|p| {
             !(verso_core::sync::FOLDS_NAMES && listed_folded.contains(&verso_core::sync::folded(p)))
         })
@@ -506,7 +516,7 @@ fn as_spelled(
                 let k = verso_core::sync::folded(p);
                 entries
                     .iter()
-                    .find(|e| verso_core::sync::folded(&e.path) == k && !gone.contains(&e.path))
+                    .find(|e| one_name(p, &k, &e.path) && !gone.contains(&e.path))
                     .map(|e| e.path.clone())
             })
             .collect())
@@ -855,7 +865,19 @@ fn name_taken(ws: &Workspace, path: &str) -> bool {
     let folded = verso_core::sync::folded(path);
     ws.entries()
         .iter()
-        .any(|e| e.path != path && verso_core::sync::folded(&e.path) == folded)
+        .any(|e| e.path != path && one_name(path, &folded, &e.path))
+}
+
+/// Whether `other` is `path`'s name as a file system that folds names
+/// compares them, `folded` being `path` folded: two ASCII paths compared
+/// without folding either. A new file's write looks through the whole
+/// listing for another spelling of its name ([`as_spelled`], [`on_disk`]):
+/// folding each listed path made a string per file, twice per new file.
+pub(crate) fn one_name(path: &str, folded: &str, other: &str) -> bool {
+    if path.is_ascii() && other.is_ascii() {
+        return path.eq_ignore_ascii_case(other);
+    }
+    verso_core::sync::folded(other) == folded
 }
 
 /// The file a path a device names addresses (spec Q7, decided
@@ -1078,6 +1100,6 @@ fn on_disk(ws: &Workspace, path: &str) -> String {
     let name = verso_core::sync::folded(path);
     entries
         .iter()
-        .find(|e| verso_core::sync::folded(&e.path) == name)
+        .find(|e| one_name(path, &name, &e.path))
         .map_or_else(|| path.to_owned(), |e| e.path.clone())
 }
