@@ -475,23 +475,25 @@ mod callouts_and_raw_html {
     /// of 5 s failed on a loaded Windows machine while the parser was as
     /// linear as ever. Doubling the input doubles a linear render's time
     /// and quadruples a quadratic one's, so `time(2N) / time(N) ≤ 2.5`
-    /// tells them apart on any machine, fast or slow, loaded or idle. Each
-    /// size is the best of three runs, so a pause of the scheduler does not
-    /// count; a doubled render under `FLOOR` is too short to measure apart
-    /// from noise, and passes.
+    /// tells them apart on any machine, fast or slow, loaded or idle.
+    ///
+    /// Each size is the least of `ROUNDS` runs, the least disturbed one, and
+    /// the runs of the two sizes alternate: a burst of load then falls on
+    /// both sizes, not on the larger only. Three runs of N followed by three
+    /// of 2N failed once on the Windows machine while another machine on
+    /// the same host compiled (2026-10-11: 36 ms against 353 ms, x9.83) and
+    /// passed right after. A doubled render under `FLOOR` is too short to
+    /// measure apart from noise, and passes; above it, the clock's grain
+    /// (well under a microsecond on the three systems) does not count.
     #[test]
     fn pathological_inputs_stay_linear() {
         use std::time::{Duration, Instant};
         const FLOOR: Duration = Duration::from_millis(20);
-        let best = |source: &str| {
-            (0..3)
-                .map(|_| {
-                    let started = Instant::now();
-                    let _ = to_html(source);
-                    started.elapsed()
-                })
-                .min()
-                .unwrap_or_default()
+        const ROUNDS: usize = 5;
+        let time = |source: &str| {
+            let started = Instant::now();
+            let _ = to_html(source);
+            started.elapsed()
         };
         for (unit, n) in [
             ("^[", 30_000),
@@ -499,15 +501,19 @@ mod callouts_and_raw_html {
             ("%%", 60_000),
             ("a %%\n\n", 20_000),
         ] {
-            let once = best(&unit.repeat(n));
-            let twice = best(&unit.repeat(2 * n));
+            let (single, double) = (unit.repeat(n), unit.repeat(2 * n));
+            let (mut once, mut twice) = (Duration::MAX, Duration::MAX);
+            for _ in 0..ROUNDS {
+                once = once.min(time(&single));
+                twice = twice.min(time(&double));
+            }
             if twice < FLOOR {
                 continue;
             }
             let ratio = twice.as_secs_f64() / once.as_secs_f64().max(1e-9);
             assert!(
                 ratio <= 2.5,
-                "{unit:?}: {n} in {once:?}, {} in {twice:?} — x{ratio:.2}, not linear",
+                "{unit:?}: {n} in {once:?}, {} in {twice:?} (least of {ROUNDS} each) — x{ratio:.2}, not linear",
                 2 * n
             );
         }
