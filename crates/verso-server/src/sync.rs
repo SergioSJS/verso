@@ -942,18 +942,17 @@ fn put(
     let (path, other) = as_kept(server, folder, &path)?;
     crate::quota::check(server, key, &path, size)?;
     let p = path.clone();
-    let head = {
-        server.service.with_key(key, move |ws| {
+    let (head, landed) = {
+        let landed = server.service.with_key(key, move |ws| {
             // New, under the other form of a name a file holds: taken.
             if other && base.is_none() && now(ws, &p)?.is_some() {
                 return Err(form_taken());
             }
             let revision = is_now(ws, &p, base.as_deref())?;
-            Ok(ws
-                .write_bytes(&p, &bytes, revision.as_deref())
-                .map(|_| ())?)
+            ws.write_bytes(&p, &bytes, revision.as_deref())?;
+            Ok(on_disk(ws, &p))
         })?;
-        reconcile_paths(
+        let head = reconcile_paths(
             server,
             folder,
             key,
@@ -962,10 +961,31 @@ fn put(
                 path.clone(),
                 Now::Written(hash.clone(), i64::try_from(size).unwrap_or(i64::MAX)),
             )],
-        )?
+        )?;
+        (head, landed)
     };
     drop(only);
-    told(server, key, std::slice::from_ref(&path), &[], &[]);
-    // Where it landed: the spelling the server keeps for the name.
-    Ok(json!({ "done": true, "head": head, "path": path }))
+    told(server, key, std::slice::from_ref(&landed), &[], &[]);
+    // Where it landed: the spelling the server keeps for the name — in
+    // another case too, where the disk folds names ([`as_spelled`]): a
+    // device's picture of the server then keeps one entry for the file.
+    Ok(json!({ "done": true, "head": head, "path": landed }))
+}
+
+/// The spelling the disk keeps for the file just written at `path`: where
+/// the file system folds names, a write through another case reached the
+/// file listed under its own spelling, which it kept.
+fn on_disk(ws: &Workspace, path: &str) -> String {
+    if !verso_core::sync::FOLDS_NAMES {
+        return path.to_owned();
+    }
+    let entries = ws.entries();
+    if entries.iter().any(|e| e.path == path) {
+        return path.to_owned();
+    }
+    let name = verso_core::sync::folded(path);
+    entries
+        .iter()
+        .find(|e| verso_core::sync::folded(&e.path) == name)
+        .map_or_else(|| path.to_owned(), |e| e.path.clone())
 }

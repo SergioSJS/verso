@@ -371,6 +371,8 @@ fn a_write_through_another_spelling_keeps_one_entry_in_the_log() {
         )
         .await;
         assert_eq!(late["ok"]["done"], true, "{late}");
+        // Said where it landed: a device's picture keeps one entry.
+        assert_eq!(late["ok"]["path"], "receita.md", "{late}");
         let state = call(&mut ws, 40, "sync_state", json!({})).await;
         let spellings: Vec<(String, String)> = state["ok"]["files"]
             .as_array()

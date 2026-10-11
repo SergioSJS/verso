@@ -645,6 +645,69 @@ fn both_forms_as_two_files_here_send_one_and_hold_the_other() {
     assert_eq!(p.held, vec![]);
 }
 
+/// Where names fold, a base holding two spellings of one name (a
+/// respelling refused, the edit after it sent through the new spelling)
+/// is one entry again before anything is planned: under the server's
+/// spelling, with the hash the server's file still has — so the
+/// respelling and the edit cross, instead of an upload and a fetch
+/// refused on every pass.
+#[test]
+fn two_spellings_in_the_base_are_one_entry_where_names_fold() {
+    let s = state(&[("a.md", "3"), ("A.md", "6")]);
+    let local = files(&[("A.md", "19")]);
+    let remote = files(&[("a.md", "6")]);
+    assert_eq!(
+        plan_on(&local, &remote, &s, true),
+        vec![
+            Action::Agree {
+                path: "A.md".into(),
+                hash: None
+            },
+            Action::Agree {
+                path: "a.md".into(),
+                hash: Some("6".into())
+            },
+            Action::RenameRemote {
+                from: "a.md".into(),
+                to: "A.md".into(),
+                base: "6".into()
+            },
+            Action::Upload {
+                path: "A.md".into(),
+                base: Some("6".into())
+            },
+        ]
+    );
+    // Each side still has one of the base's hashes, apart: neither is
+    // taken as unchanged — a conflict, nothing written over.
+    let local = files(&[("A.md", "6")]);
+    let remote = files(&[("a.md", "3")]);
+    let p = plan_on(&local, &remote, &s, true);
+    assert_eq!(
+        p[..2],
+        [
+            Action::Agree {
+                path: "A.md".into(),
+                hash: None
+            },
+            Action::Agree {
+                path: "a.md".into(),
+                hash: None
+            },
+        ]
+    );
+    assert!(
+        p.iter()
+            .any(|a| matches!(a, Action::Conflict { path, .. } if path == "a.md")),
+        "{p:?}"
+    );
+    assert!(
+        !p.iter()
+            .any(|a| matches!(a, Action::Upload { .. } | Action::Download { .. })),
+        "{p:?}"
+    );
+}
+
 /* ---------- The guardrail: two devices, a server, random orders ---------- */
 
 /// A small deterministic generator: the same seed, the same run.
@@ -685,28 +748,38 @@ fn twin(disk: &Disk, path: &str, folds: bool) -> Option<String> {
 
 /// The file the server's disk keeps for a path a device names: the path,
 /// or the spelling of its name in the other Unicode form — on every
-/// server (spec Q7), as `verso-server` resolves a device's path. Case is
-/// left to each step, as before: a server that folds names refuses a new
-/// file whose name another holds but for its case.
-fn on_server(server: &Disk, path: &str) -> String {
+/// server (spec Q7), as `verso-server` resolves a device's path — and, on
+/// a server whose file system folds names (`folds`), the spelling of its
+/// name in another case: a write, read, deletion or rename through any
+/// spelling reaches the one file the server keeps, under its own spelling
+/// (`as_spelled` in `verso-server`).
+fn on_server(server: &Disk, path: &str, folds: bool) -> String {
     if server.contains_key(path) {
         return path.to_owned();
     }
-    let form = super::folded_form(path);
+    let same = |p: &str| {
+        if folds {
+            super::folded(p) == super::folded(path)
+        } else {
+            super::folded_form(p) == super::folded_form(path)
+        }
+    };
     server
         .keys()
-        .find(|p| super::folded_form(p) == form)
+        .find(|p| same(p))
         .cloned()
         .unwrap_or_else(|| path.to_owned())
 }
 
 /// How a sync goes: whether the person said yes to deletions, and the
 /// chance in a hundred that the server refuses a change (another write
-/// landed first) — the host then plans it again on the next pass. And
-/// whether the devices' file systems fold names, and the server's.
+/// landed first) — the host then plans it again on the next pass — and
+/// that it refuses a rename in particular. And whether the devices' file
+/// systems fold names, and the server's.
 struct Go<'a> {
     confirmed: bool,
     refuse: u64,
+    refuse_renames: u64,
     rng: &'a mut Rng,
     folds: bool,
     server_folds: bool,
@@ -734,17 +807,22 @@ fn sync(d: &mut Device, server: &mut Disk, go: &mut Go<'_>) {
         return;
     }
     let (folds, server_folds) = (go.folds, go.server_folds);
-    let at = |server: &Disk, p: &str| on_server(server, p);
+    let at = |server: &Disk, p: &str| on_server(server, p, server_folds);
     for a in p.actions {
-        // The server refuses this one: nothing of it happens.
-        if go.rng.below(100) < go.refuse {
+        // The server refuses this one: nothing of it happens. The steps
+        // after it go on, even on the same file — harsher than the host,
+        // which leaves those to the next pass.
+        if go.rng.below(100) < go.refuse
+            || (go.refuse_renames > 0
+                && matches!(a, Action::RenameRemote { .. })
+                && go.rng.below(100) < go.refuse_renames)
+        {
             continue;
         }
         match a {
             Action::Upload { path, base } => {
                 let there = at(server, &path);
                 if server.get(&there) == base.as_ref()
-                    && (base.is_some() || twin(server, &there, server_folds).is_none())
                     && let Some(c) = d.disk.get(&path).cloned()
                 {
                     server.insert(there, c.clone());
@@ -772,12 +850,10 @@ fn sync(d: &mut Device, server: &mut Disk, go: &mut Go<'_>) {
             }
             Action::RenameRemote { from, to, base } => {
                 let (old, new) = (at(server, &from), at(server, &to));
-                if server.get(&old) == Some(&base)
-                    && (!server.contains_key(&new) || new == old)
-                    && twin(server, &to, server_folds).is_none_or(|t| t == old)
-                {
+                if server.get(&old) == Some(&base) && (!server.contains_key(&new) || new == old) {
                     // The accents' form alone: the same name, nothing to
-                    // move on the server.
+                    // move on the server. Its case alone, where the server
+                    // folds names: the file itself takes the new spelling.
                     if super::folded_form(&from) != super::folded_form(&to) {
                         let c = server.remove(&old).unwrap_or_default();
                         server.insert(to.clone(), c);
@@ -843,12 +919,15 @@ fn by_name(disk: &Disk) -> BTreeMap<String, String> {
 /// Where a run happens: whether the devices' file systems fold names, the
 /// server's, and whether names differing in case are in play — not
 /// against a server that folds names from devices that do not (spec Q8
-/// is open: two files there, one here).
+/// is open: two files there, one here). And the chance in a hundred
+/// that the server refuses a rename while the person works, on top of
+/// any change refused.
 #[derive(Clone, Copy)]
 struct Systems {
     folds: bool,
     server_folds: bool,
     cases: bool,
+    refuse_renames: u64,
 }
 
 /// Two devices and a server, 40 random steps from a seed, then syncs
@@ -861,6 +940,7 @@ fn run(seed: u64, on: Systems) {
         folds,
         server_folds,
         cases,
+        refuse_renames,
     } = on;
     let mut rng = Rng(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1);
     let mut server: Disk = BTreeMap::new();
@@ -969,6 +1049,7 @@ fn run(seed: u64, on: Systems) {
                     &mut Go {
                         confirmed,
                         refuse,
+                        refuse_renames,
                         rng: &mut rng,
                         folds,
                         server_folds,
@@ -993,6 +1074,7 @@ fn run(seed: u64, on: Systems) {
                 &mut Go {
                     confirmed: true,
                     refuse: 0,
+                    refuse_renames: 0,
                     rng: &mut rng,
                     folds,
                     server_folds,
@@ -1000,8 +1082,13 @@ fn run(seed: u64, on: Systems) {
             );
         }
     }
-    // One name, one file on the server (spec Q7).
+    // One name, one file on the server (spec Q7) — and, where its file
+    // system folds names, one file per name whatever its case.
     assert_eq!(by_name(&server).len(), server.len(), "{said}: {server:?}");
+    if server_folds {
+        let folded: BTreeSet<String> = server.keys().map(|p| super::folded(p)).collect();
+        assert_eq!(folded.len(), server.len(), "{said}: {server:?}");
+    }
     for d in &devices {
         let last = plan(
             &picture(&d.disk),
@@ -1019,6 +1106,17 @@ fn run(seed: u64, on: Systems) {
             d.name,
             last.actions
         );
+        // Where names fold, one base entry per name, as one file.
+        if folds {
+            let named: BTreeSet<String> = d.state.base.keys().map(|p| super::folded(p)).collect();
+            assert_eq!(
+                named.len(),
+                d.state.base.len(),
+                "{said}: {} keeps two spellings of a name: {:?}",
+                d.name,
+                d.state.base
+            );
+        }
         let mut synced = d.disk.clone();
         for h in &last.held {
             assert!(h.here, "{said}: the server holds both forms: {server:?}");
@@ -1052,6 +1150,7 @@ fn two_devices_and_a_server_end_alike_and_lose_no_edit() {
                 folds: false,
                 server_folds: false,
                 cases: true,
+                refuse_renames: 0,
             },
         );
     }
@@ -1071,6 +1170,7 @@ fn where_names_fold_two_devices_and_a_server_end_alike_and_lose_no_edit() {
                     folds: true,
                     server_folds,
                     cases: true,
+                    refuse_renames: 0,
                 },
             );
         }
@@ -1091,6 +1191,29 @@ fn the_two_forms_of_a_name_end_as_one_file_against_a_server_that_folds_names() {
                 folds: false,
                 server_folds: true,
                 cases: false,
+                refuse_renames: 0,
+            },
+        );
+    }
+}
+
+/// Devices that fold names against a server that folds them, names
+/// respelled in case and the server refusing half the renames: a respelling
+/// refused and the edit after it sent through the new spelling — which
+/// the server writes to the file it keeps — once left both spellings in a
+/// device's base, and the device sent and fetched the file forever. No
+/// device has work left after the quiet passes, and none keeps two
+/// spellings of a name in its base.
+#[test]
+fn where_names_fold_a_refused_respelling_never_leaves_a_device_working() {
+    for seed in 1..=500u64 {
+        run(
+            seed,
+            Systems {
+                folds: true,
+                server_folds: true,
+                cases: true,
+                refuse_renames: 50,
             },
         );
     }
