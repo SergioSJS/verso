@@ -10,7 +10,7 @@ import { EditorView } from "codemirror";
 import { liveBases } from "../bases";
 import { BaseView } from "../bases/view";
 import { commands, type ContractError, type NoteText, type Written } from "../bindings";
-import { canWrite } from "../can";
+import { canWrite, host } from "../can";
 import { blockKeys } from "../blocks/keys";
 import { blockHandles } from "../blocks/view";
 import { type CardEditing } from "../board/types";
@@ -46,7 +46,7 @@ import { SlashMenu } from "../slash";
 import { boardText, LOCALE, t, typedText } from "../strings";
 import { markCurrent } from "../tree/tree";
 import { KeptCard } from "./board";
-import { ConflictBanner } from "./conflict";
+import { ConflictBanner, GoneBanner } from "./conflict";
 import { conflictName } from "../dialogs/conflictNames";
 import { askDiscard, Leaf } from "./leaf";
 import * as cover from "./note/cover";
@@ -96,6 +96,9 @@ export class NoteLeaf extends Leaf {
     onLink: (url) => void commands.openUrl(url),
   });
   readonly conflict = new ConflictBanner(() => void this.keepDisk(), () => void this.overwrite(), () => void this.keepBoth());
+  /** A save that found the note gone from disk: the text stays until the
+   *  person saves it again or closes the tab without it. */
+  readonly goneBanner = new GoneBanner(() => void this.saveAgain(), () => void this.closeWithoutSaving());
   readonly preview = h("div", "preview");
   readonly toolbar = h("div", "toolbar");
   readonly editorHost = h("div", "editor");
@@ -242,7 +245,7 @@ export class NoteLeaf extends Leaf {
     titleRow.append(this.stickerBtn, this.title, this.dirtyMark, this.saveButton, this.star);
     this.buildToolbar();
     const sheet = this.sheet;
-    sheet.append(this.coverBox, this.addCoverBtn, titleRow, this.flags, this.props.el, this.conflict.el, this.preview, this.editorHost);
+    sheet.append(this.coverBox, this.addCoverBtn, titleRow, this.flags, this.props.el, this.conflict.el, this.goneBanner.el, this.preview, this.editorHost);
     this.readingSearch = new ReadingSearch(this.sheet, this.preview, searchStrings());
     this.buildWebBar();
     this.webBar.hidden = true;
@@ -340,12 +343,12 @@ export class NoteLeaf extends Leaf {
   }
   declare modeButton: typeof editing.modeButton;
   declare editorState: typeof editing.editorState;
-  /** Autosave: a moment after the last keystroke, unless a conflict is
-   *  on screen waiting for a decision. */
+  /** Autosave: a moment after the last keystroke, unless a conflict, or
+   *  the note found gone, is on screen waiting for a decision. */
   scheduleSave(): void {
     window.clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => {
-      if (this.dirty && !this.conflict.up) void this.save();
+      if (this.dirty && !this.conflict.up && !this.goneBanner.up) void this.save();
     }, Math.max(0.3, settings.autosave) * 1000);
   }
   /** Save now if there is anything to save; true when clean afterwards. */
@@ -353,7 +356,7 @@ export class NoteLeaf extends Leaf {
     window.clearTimeout(this.saveTimer);
     const cards = await Promise.all([...this.cards].map((c) => c.flush()));
     if (!cards.every(Boolean)) return false;
-    if (this.conflict.up) return false;
+    if (this.conflict.up || this.goneBanner.up) return false;
     if (this.dirty) await this.save();
     return !this.dirty && !this.conflict.up;
   }
@@ -700,6 +703,9 @@ export class NoteLeaf extends Leaf {
     }
     const back = this.gone;
     if (back) this.setGone(false);
+    // Back at its name: a save goes over what stands there now — or shows
+    // both, if it changed (invariant 11).
+    if (back) this.goneBanner.hide();
     if (note.data.revision === this.revision) return back ? "back" : "same";
     // A shared note: its room brings the change in, for everyone at once.
     if (this.collab) return back ? "back" : "same";
@@ -841,6 +847,7 @@ export class NoteLeaf extends Leaf {
     this.readOnly = this.mixedEol || !canWrite();
     this.editor.setState(this.collab ? this.editorState(this.collab.initial(), this.collab.extension()) : this.editorState(note.text));
     this.conflict.hide();
+    this.goneBanner.hide();
     this.gone = false;
     super.setGone(false);
     this.refresh(note);
@@ -932,6 +939,10 @@ export class NoteLeaf extends Leaf {
         ui.status.textContent = t.conflictPendingBoth;
         return;
       }
+      if (this.goneBanner.up) {
+        ui.status.textContent = t.gonePending;
+        return;
+      }
       if (this.collab) {
         // A shared note: the server writes it now (⌘S, a closing tab).
         const r = await commands.collabSave(this.path);
@@ -940,6 +951,7 @@ export class NoteLeaf extends Leaf {
           this.setDirty(false);
           ui.status.textContent = t.saved;
         } else if (r.error.kind === "changed") await this.collabConflict();
+        else if (r.error.kind === "not_found") this.goneOnSave(r.error);
         else fail(r.error);
         return;
       }
@@ -985,13 +997,59 @@ export class NoteLeaf extends Leaf {
   }
   /** A write refused. `changed`: the file moved on since it was read
    *  (invariant 11) — nothing was written, and both versions go on screen
-   *  until the user decides. */
+   *  until the user decides. `not_found`: the note is gone from disk —
+   *  said in words, the text kept, and nothing written until the user
+   *  decides. */
   private async refused(e: ContractError): Promise<void> {
+    if (e.kind === "not_found") return this.goneOnSave(e);
     if (e.kind !== "changed") return fail(e);
     ui.status.textContent = "";
     const fresh = await opening.readNote(this.path);
     if (fresh.status !== "ok") return fail(fresh.error);
     this.conflict.show({ text: fresh.data.text, revision: fresh.data.revision }, this.editorText());
+  }
+  /** The note was deleted or moved outside the app — by another program,
+   *  or by sync from another device — while this tab held text not saved
+   *  yet: the tab says so in words (never the system's text of the failed
+   *  write, which the log keeps as INFO: the window's state, not a fault),
+   *  and the autosave waits for a choice. */
+  private goneOnSave(e: ContractError): void {
+    const said = host() === "server" ? t.goneUnsavedElsewhere : t.goneUnsaved;
+    this.conflict.hide();
+    if (!this.gone) this.markGone();
+    this.goneBanner.show(said);
+    this.paintFlags();
+    failSaid(said, e);
+  }
+  /** "Save again": the file made anew at its name with this tab's text. A
+   *  file there again meanwhile is not written over: both versions go on
+   *  screen (invariant 11). */
+  private saveAgain(): Promise<void> {
+    const run = this.saving.then(async () => {
+      if (!this.note || !this.goneBanner.up) return;
+      const mine = this.editorText();
+      const r = await commands.createNote(this.path, mine);
+      if (r.status !== "ok") {
+        if (r.error.kind !== "exists") return fail(r.error);
+        const fresh = await opening.readNote(this.path);
+        if (fresh.status !== "ok") return fail(fresh.error);
+        this.goneBanner.hide();
+        this.setGone(false);
+        this.conflict.show({ text: fresh.data.text, revision: fresh.data.revision }, mine);
+        return;
+      }
+      this.goneBanner.hide();
+      this.written({ note: r.data, warnings: [] }, mine);
+      await afterFileChange();
+    });
+    this.saving = run.catch(() => undefined);
+    return run;
+  }
+  /** "Close without saving": the person chose to let the text go. */
+  private async closeWithoutSaving(): Promise<void> {
+    this.goneBanner.hide();
+    this.setDirty(false);
+    await this.close(true);
   }
   /** "Keep both": the disk's version stays under the name, and this tab's
    *  text is written beside it as a conflict's copy, named as sync names

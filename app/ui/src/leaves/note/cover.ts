@@ -245,7 +245,8 @@ export function paintFlags(this: NoteLeaf): void {
   if (this.mixedEol) flags.push(t.mixedEol);
   else if (this.readOnly) flags.push(st.readOnly);
   // On a server a note also goes on another device that syncs the folder.
-  if (this.gone) flags.push(host() === "server" ? t.goneElsewhere : t.goneOutside);
+  // A save that found it gone says so above the text, with what to do.
+  if (this.gone && !this.goneBanner.up) flags.push(host() === "server" ? t.goneElsewhere : t.goneOutside);
   // A schema block of this note that types nothing says so here (ADR
   // 0052 points 3 and 5).
   for (const b of note?.schema_blocks ?? []) {

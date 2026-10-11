@@ -385,3 +385,67 @@ test("a conflict in the editor keeps both: the disk's under the name, mine in a 
   await expect(page.locator(".conflict:visible")).toHaveCount(0);
   await expect(page.locator("#status")).toContainText("Os dois ficaram: a versão do disco em 11 - Escrevendo no Editor, o seu texto em 11 - Escrevendo no Editor (conflito");
 });
+
+/** A note of its own, opened in Editar with text typed at its end. */
+async function typeIn(app, page, file, typed) {
+  await app.writeOutside(file, `# ${file.replace(/\.md$/, "")}\n\ntexto\n`);
+  await app.folderChanged([file], true);
+  await app.quickOpen(file.replace(/\.md$/, ""));
+  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await page.locator(".cm-content").first().click();
+  await app.key("Mod+End");
+  await page.keyboard.type(typed);
+}
+
+test("a note deleted outside while its tab holds unsaved text says so, stops saving, and saves it again on a click", async ({ app, page }) => {
+  await app.open();
+  // Deleted by another program, or by sync for another device, before the
+  // autosave wrote what was typed: no event, the save finds it gone.
+  await app.writeOutside("Apagada.md", "# Apagada\n\ntexto\n");
+  await app.folderChanged(["Apagada.md"], true);
+  await app.quickOpen("Apagada");
+  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await page.locator(".cm-content").first().click();
+  await app.key("Mod+End");
+  await app.removeOutside("Apagada.md");
+  await page.keyboard.type(" digitado aqui");
+  const gone = page.locator(".gone-banner:visible");
+  await expect(gone).toContainText("Esta nota foi apagada ou movida fora do Verso. O seu texto continua aqui.");
+  await expect(gone.getByRole("button")).toHaveText(["Salvar de novo", "Fechar sem salvar"]);
+  // The tab says it too, and the text stays.
+  await expect(page.locator(".tab.gone")).toHaveCount(1);
+  await expect(page.locator(".cm-content").first()).toContainText("digitado aqui");
+  // Nothing more is written until the person chooses: not ⌘S, not the
+  // autosave after more typing.
+  const writes = async () => (await app.calls("write_note")).length;
+  const tried = await writes();
+  await page.keyboard.type(" e mais");
+  await app.key("Mod+s");
+  await expect(page.locator("#status")).toHaveText("Nada gravado: a nota não está mais na pasta — escolha acima entre salvar de novo e fechar sem salvar.");
+  await page.waitForTimeout(2000);
+  expect(await writes()).toBe(tried);
+  // A note no longer there is the window's state, not a fault: INFO in the
+  // log, once (the fixture fails on any ERROR).
+  const info = await page.evaluate(() => window.__harness.log.filter((l) => l.level === "INFO" && l.message.startsWith("not_found")).length);
+  expect(info).toBe(1);
+  // Save again: the file made anew at its name, with the tab's text.
+  await gone.getByRole("button", { name: "Salvar de novo" }).click();
+  await expect.poll(() => app.file("Apagada.md")).toContain("digitado aqui e mais");
+  await expect(page.locator(".gone-banner:visible")).toHaveCount(0);
+  await expect(page.locator(".tab.gone")).toHaveCount(0);
+  await expect(page.locator(".dirty-mark:visible")).toHaveCount(0);
+});
+
+test("a note deleted outside while its tab holds unsaved text closes without saving when asked", async ({ app, page }) => {
+  await app.open();
+  await typeIn(app, page, "Descartada.md", "");
+  await app.removeOutside("Descartada.md");
+  await page.keyboard.type(" digitado aqui");
+  const gone = page.locator(".gone-banner:visible");
+  await expect(gone).toBeVisible();
+  await gone.getByRole("button", { name: "Fechar sem salvar" }).click();
+  // Closed at once — the person chose — and nothing made again.
+  await expect(page.locator(".tab", { hasText: "Descartada" })).toHaveCount(0);
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  expect(await app.file("Descartada.md")).toBeNull();
+});

@@ -86,6 +86,7 @@ const harness = {
   commands: Object.keys(core.handlers),
   unusedArgs: UNUSED_ARGS,
   writeOutside: (path: string, text: string) => core.writeOutside(path, text),
+  removeOutside: (path: string) => core.removeOutside(path),
   emit: (event: string, payload: unknown) => emit(event, payload),
   /** The server says the person's role in the folder changed (web.ts). */
   setRole: (next: string) => {

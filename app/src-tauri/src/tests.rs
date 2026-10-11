@@ -369,7 +369,7 @@ fn the_commands_answer_through_the_contract() {
         "Taverna.md",
         "# Taverna\n\nO [[Barão]] bebe aqui.\n",
     );
-    let _barao = note(
+    let barao_file = note(
         vault.path(),
         "Barão.md",
         "---\ntags: [npc]\nurl: https://example.org\nmeta: {a: 1}\n---\n",
@@ -466,6 +466,19 @@ fn the_commands_answer_through_the_contract() {
     assert_eq!(web[0]["url"], "https://example.org", "{web}");
     let graph = call(&webview, "graph", json!({})).unwrap();
     assert_eq!(graph.as_array().unwrap().len(), 0, "{graph}");
+
+    // Deleted outside the app while a tab still holds it: the tab's save
+    // finds it not found, as a read of it would — the window's state,
+    // which it says in words, never a failure of the disk.
+    let held = barao["revision"].as_str().unwrap().to_owned();
+    drop(barao_file);
+    let late = call(
+        &webview,
+        "write_note",
+        json!({ "path": "Barão", "text": "x", "revision": held }),
+    )
+    .unwrap_err();
+    assert_eq!(late["kind"], "not_found", "{late}");
 
     // A deletion answers where the note went, and any warning.
     let gone = call(&webview, "delete_note", json!({ "path": "Taverna" })).unwrap();
