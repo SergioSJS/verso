@@ -399,7 +399,14 @@ memória (o `free -m` do convidado mostrava 956 MB no total), um disco
 virtual de 10 GB no Proxmox, a imagem cloud do Ubuntu 26.04 server sem
 desktop, e o Universo, o build b8ebc5f (código do servidor 552f0f6),
 instalado pelo `.deb` exatamente como na seção 5 (com
-`VERSO_UPDATE_CHECK=off`). Durante o teste o balloon do Proxmox foi pedido
+`VERSO_UPDATE_CHECK=off`). O binário dentro desse `.deb` não era o da
+release: era um build glibc ligado dinamicamente, compilado numa VM de build
+Ubuntu (`verso 0.7.0-beta.1 (b8ebc5f)`), com o `.deb` montado à mão em volta
+dele, enquanto a release compila o servidor estático contra a musl
+(`cargo zigbuild` para `*-unknown-linux-musl`) e os `.deb`, `.rpm` e imagem
+publicados levam esse build. Isso importa para a memória: os dois usam
+alocadores diferentes, e todo número de memória abaixo (RSS, cgroup, as
+mortes) é do build glibc; ver **O alocador**. Durante o teste o balloon do Proxmox foi pedido
 em 512, 384 e 256 MB, e o `free -m` do convidado mostrou então 705, 767 e
 393 MB no total; os tamanhos abaixo são os que o convidado tinha, com o
 pedido entre parênteses. Quatro aparelhos desktop (dois Macs,
@@ -411,11 +418,12 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
 (`verso-sync-campaign/logs/cloud/run.txt`, guardado fora do repositório).
 "Os cinco lados" abaixo são os quatro aparelhos e a cópia do servidor:
 
-- **Em repouso e depois de um pico**: um processo recém-iniciado ocupa
-  17–18 MB. Servir a primeira sincronização da pasta de 62 MB aos quatro
-  aparelhos ao mesmo tempo (69 s) chegou a 200 MB, e o processo manteve
-  cerca de 151 MB residentes depois: a memória tomada num pico não volta
-  para o sistema (o alocador a guarda).
+- **Em repouso e depois de um pico** (o build glibc): um processo
+  recém-iniciado ocupa 17–18 MB. Servir a primeira sincronização da pasta
+  de 62 MB aos quatro aparelhos ao mesmo tempo (69 s) chegou a 200 MB, e o
+  processo manteve cerca de 151 MB residentes depois: o alocador da glibc
+  guardou a memória tomada no pico em vez de devolvê-la ao sistema. O
+  build musl da release a devolve (**O alocador**, abaixo).
 - **O dia a dia**: 20 minutos de soak, quatro aparelhos editando e uma nota
   editada dos dois lados a cada rodada: RSS estável em 151 MB, CPU abaixo
   de 2 %, 33 rodadas, os cinco lados iguais byte a byte em todo ponto de
@@ -446,7 +454,8 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
   (pedido 512), sem ser morto; os cinco lados ficaram iguais em 56 s. "O
   dobro do maior arquivo" sozinho é pouco quando vários aparelhos buscam ao
   mesmo tempo.
-- **Memória apertada**: o balloon foi inflado rumo a 512 MB logo depois do
+- **Memória apertada** (o build glibc): o balloon foi inflado rumo a
+  512 MB logo depois do
   pico de 50 aparelhos, deixando o convidado com 705 MB, e o OOM killer do
   kernel matou o processo (anon RSS 318 MB), porque a memória que ele
   guardava depois do pico não cabia. O `Restart=on-failure` da unit o
@@ -460,7 +469,41 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
   aparelhos rodou depois sem problema de integridade, e o arquivo de 60 MB
   levou 122 s até os cinco lados ficarem iguais. Nenhum dos três é um
   limite limpo: o balloon do convidado devolveu memória sob pressão, e o
-  convidado nunca teve 512, 384 nem 256 MB.
+  convidado nunca teve 512, 384 nem 256 MB. As mortes vieram da memória
+  que o build glibc guardava depois de um pico; com o build musl da
+  release, que a devolve (**O alocador**), elas não são esperadas, mas o
+  aperto não foi rodado de novo com esse build.
+- **O alocador** (medido em 2026-10-11, por volta de 19:00–19:40 BRT, na
+  mesma VM): três builds do mesmo código de servidor, cada um com dois picos
+  do `scripts/server-load.mjs` com 50 aparelhos por 60 s a partir da VM a
+  um salto de LAN, cada pico seguido de 120 s de amostras (RSS a cada 10 s,
+  `Anonymous` do `/proc/<pid>/smaps_rollup` em +120 s), na mesma pasta Carga
+  crescendo de uma execução para a outra, na ordem musl, mimalloc, glibc
+  (as linhas "alloc … burst1" e "alloc … burst2" do `results.jsonl`; os
+  logs do amostrador estão em `verso-sync-campaign/logs/alloc/`, guardado
+  fora do repositório). Dois números numa célula são os dois picos:
+
+  | Build | RSS recém-iniciado | Pico de RSS (VmHWM) | RSS em +10 / +60 / +120 s | Anonymous em +120 s | Operações por segundo | `put_new` p50 |
+  |---|---|---|---|---|---|---|
+  | musl, estático (mallocng), o tipo de build da release | 19,6 MB | 108; 121 MB | 23/23/23; 22/12/12 MB | 5 MB | 14,0; 12,7 | 5,5 s; 4,8 s |
+  | musl + mimalloc 0.1.52 (um teste, `#[global_allocator]`, +132 KB) | 18,0 MB | 291 MB | 70/70/70; 74/74/74 MB | 65–67 MB | 15,4; 18,5 | 4,9 s; 3,5 s |
+  | glibc, dinâmico (o binário da campanha) | 18,7 MB | 340; 365 MB | 307/307/307; 340/340/340 MB | 289; 322 MB | 11,8; 14,0 | 6,3 s; 5,7 s |
+
+  Nenhuma execução teve problema de integridade, e os únicos erros foram os
+  `put_hot:changed` esperados. Em cada execução inteira o amostrador, a
+  cada 10 s, leu: musl RSS no máximo 99 MB (12 MB no fim), cgroup no
+  máximo 219 MB; mimalloc RSS no máximo 278 MB (74 MB no fim), cgroup no
+  máximo 339 MB; glibc RSS no máximo 365 MB (340 MB no fim), cgroup no
+  máximo 446 MB. Lido sem rodeio: o build musl da release devolve a memória
+  depois de um pico (12–23 MB parado, pico de cerca de 100–120 MB com 50
+  gravando); o build glibc medido na campanha guardou 300 MB ou mais, e
+  cresceu de pico em pico; o mimalloc fica no meio, guardando cerca de
+  70 MB, e foi um pouco mais rápido, cerca de 20–35 % mais operações por
+  segundo — um número frouxo: dois picos de um mesmo binário diferem em até
+  20 %, a pasta cresceu de uma execução para a outra, e um processo perdido
+  ocupava um dos núcleos da VM de carga. `[OPEN]` Se o mimalloc será
+  adotado não está decidido; a recomendação enviada ao mantenedor foi não
+  adotá-lo.
 - **Paradas**: o serviço parou por 15 s enquanto cinco notas mudavam (uma
   dos dois lados): ao subir, tudo atravessou, com uma cópia de conflito
   para a nota editada dos dois lados. A VM reiniciou com edições pendentes
@@ -480,7 +523,7 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
 |---|---|---|
 | Para | 1 a 3 pessoas, notas e anexos pequenos | uma família ou equipe de até ~10 pessoas, vários aparelhos cada (uma estimativa, não medida) |
 | CPU | 1 núcleo, x64 ou ARM64 (medido, linhas "cloud 1 GB" do `results.jsonl`: um aparelho gravando, cerca de 100 ms por gravação; um pico de 50 faz fila no disco, p50 4,5 s) | 2 núcleos |
-| Memória | 512 MB — ainda não medido: o menor convidado medido tinha 393 MB depois de o balloon tomar o resto, e rodou uma carga de 30 aparelhos e um arquivo de 60 MB depois de ser morto e reiniciado uma vez; a memória guardada depois de um pico pode fazer o processo ser morto numa máquina pequena, e a unit o traz de volta em 5 s sem perder nada | 2 GB, ou mais que o dobro do maior arquivo que vocês sincronizam; quando vários aparelhos buscam um arquivo grande ao mesmo tempo, cerca de 2,3 × o maior arquivo × os aparelhos que o buscam (medido) |
+| Memória | 512 MB — ainda não medido: um convidado de 512 MB ainda não foi medido (o menor medido tinha 393 MB depois de o balloon tomar o resto, e rodou uma carga de 30 aparelhos e um arquivo de 60 MB depois de ser morto e reiniciado uma vez); a memória guardada depois de um pico que fez o processo ser morto era a do build glibc da campanha, e o build musl da release a devolve (12–23 MB parado, pico de cerca de 100–120 MB com 50 gravando); se o processo for morto, a unit o traz de volta em 5 s sem perder nada | 2 GB, ou mais que o dobro do maior arquivo que vocês sincronizam; quando vários aparelhos buscam um arquivo grande ao mesmo tempo, cerca de 2,3 × o maior arquivo × os aparelhos que o buscam (medido) |
 | Disco | um SSD; o tamanho das notas × 2 + 1 GB (a lixeira, `.trash`, guarda o que foi apagado) | um SSD local para o `VERSO_DATA_DIR`; as notas num SSD ou num NAS |
 | Exemplos | um Raspberry Pi 4 de 2 GB, a VPS mais barata | um mini PC, um NAS com Docker, uma VPS de 2 GB |
 
@@ -490,9 +533,10 @@ de 60 MB para três aparelhos ao mesmo tempo (pico de 550 MB); o "até ~10
 pessoas" da tabela não foi medido.
 
 `[OPEN]` Se o servidor deve mandar os pedaços de um arquivo grande a partir
-do disco em vez de segurá-lo inteiro para cada aparelho, e se deve devolver
-memória ao sistema depois de um pico, não está decidido; os números acima
-são os do build atual.
+do disco em vez de segurá-lo inteiro para cada aparelho não está decidido;
+os números acima são os do build atual. Se ele deve devolver memória ao
+sistema depois de um pico está respondido pela medição do alocador acima: o
+build musl da release já devolve, e nada foi mudado.
 
 Um Raspberry Pi e um NAS ainda não foram medidos, nem uma VPS num provedor
 (a VM de 2026-10-11 estava na LAN). `scripts/sync-lab/lab.sh load
@@ -503,8 +547,11 @@ Um Raspberry Pi e um NAS ainda não foram medidos, nem uma VPS num provedor
 Escrito em 2026-10-09 sem rodar uma release, um contêiner ou um pacote numa
 máquina real. Verificado desde então:
 
-- 2026-10-11: o `.deb` (amd64, gerado com o nfpm a partir de
-  `packaging/server/nfpm.yaml` em volta de um binário glibc) no Ubuntu
+- 2026-10-11: o `.deb` (amd64, gerado à mão com o nfpm a partir de
+  `packaging/server/nfpm.yaml` em volta de um binário glibc ligado
+  dinamicamente, compilado numa VM de build Ubuntu para o teste, não o
+  binário musl estático da release; os caminhos de instalação, atualização
+  e remoção do pacote são os da release, o binário não) no Ubuntu
   26.04: instalado e iniciado como na seção 5; reinstalado por cima de si
   mesmo, o caminho de uma atualização, o que reiniciou o serviço; removido,
   o que parou o serviço, removeu `/usr/bin/universo` e deixou

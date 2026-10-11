@@ -387,7 +387,14 @@ And a VM sized like the smallest VPS, on 2026-10-11: 1 vCPU, 1 GB of
 memory (the guest's `free -m` showed 956 MB in total), a 10 GB virtual disk
 on Proxmox, the Ubuntu 26.04 server cloud image with no desktop, and
 Universo, the build b8ebc5f (server code 552f0f6), installed from the
-`.deb` exactly as in section 5 (with `VERSO_UPDATE_CHECK=off`). During the
+`.deb` exactly as in section 5 (with `VERSO_UPDATE_CHECK=off`). The binary
+inside that `.deb` was not the release's: it was a dynamically linked glibc
+build compiled on an Ubuntu build VM (`verso 0.7.0-beta.1 (b8ebc5f)`), with
+the `.deb` built by hand around it, while the release builds the server
+statically against musl (`cargo zigbuild` for `*-unknown-linux-musl`) and the
+published `.deb`, `.rpm` and image carry that build. This matters for
+memory: the two use different allocators, and every memory figure below
+(RSS, cgroup, the kills) is the glibc build's; see **The allocator**. During the
 test the Proxmox balloon was asked for 512, 384 and 256 MB, and the guest's
 `free -m` then showed 705, 767 and 393 MB in total; the sizes below are
 what the guest had, with what was asked in parentheses. Four desktop devices (two Macs, Windows,
@@ -399,11 +406,12 @@ one LAN hop away. The numbers are in the campaign's log
 (`verso-sync-campaign/logs/cloud/run.txt`, kept outside the repository).
 "The five sides" below are the four devices and the server's copy:
 
-- **At rest and after a burst**: a fresh process holds 17–18 MB. Serving
-  the first sync of the 62 MB folder to the four devices at once (69 s)
-  peaked at 200 MB, and the process kept about 151 MB resident afterwards:
-  memory taken in a burst is not returned to the system (the allocator
-  keeps it).
+- **At rest and after a burst** (the glibc build): a fresh process holds
+  17–18 MB. Serving the first sync of the 62 MB folder to the four devices
+  at once (69 s) peaked at 200 MB, and the process kept about 151 MB
+  resident afterwards: glibc's allocator kept the memory taken in the burst
+  instead of returning it to the system. The release's musl build returns
+  it (**The allocator**, below).
 - **Every day**: a 20-minute soak, four devices editing and one note edited
   from two sides each round: RSS steady at 151 MB, CPU under 2 %, 33
   rounds, the five sides byte-equal at every checkpoint and at the end.
@@ -431,7 +439,8 @@ one LAN hop away. The numbers are in the campaign's log
   what the guest saw as 705 MB (asked 512), with no kill; the five sides
   were equal in 56 s. "Twice the largest file" alone is too little when
   several devices fetch at once.
-- **Squeezed memory**: the balloon was inflated towards 512 MB right after
+- **Squeezed memory** (the glibc build): the balloon was inflated towards
+  512 MB right after
   the 50-device burst, leaving the guest 705 MB, and the kernel's OOM
   killer killed the process (anon RSS 318 MB), because the memory it held
   after the burst did not fit. The unit's `Restart=on-failure` brought it
@@ -444,7 +453,40 @@ one LAN hop away. The numbers are in the campaign's log
   load then ran with no integrity problem, and the 60 MB file took 122 s
   to reach five equal sides. None of the three is a clean limit: the
   guest's balloon gave memory back under pressure, and the guest never had
-  512, 384 or 256 MB.
+  512, 384 or 256 MB. The kills came from memory the glibc build held
+  after a burst; with the release's musl build, which gives it back (**The
+  allocator**), they are not expected, but the squeeze was not run again
+  with that build.
+- **The allocator** (measured 2026-10-11, about 19:00–19:40 BRT, on the same
+  VM): three builds of the same server code, each given two bursts of
+  `scripts/server-load.mjs` with 50 devices for 60 s from the VM one LAN hop
+  away, each burst followed by 120 s of samples (RSS every 10 s, `Anonymous`
+  from `/proc/<pid>/smaps_rollup` at +120 s), on the same Carga folder
+  growing across the runs, run in the order musl, mimalloc, glibc (the rows
+  "alloc … burst1" and "alloc … burst2" of `results.jsonl`; the sampler's
+  logs are in `verso-sync-campaign/logs/alloc/`, kept outside the
+  repository). Two figures per cell are the two bursts:
+
+  | Build | Fresh RSS | Peak RSS (VmHWM) | RSS at +10 / +60 / +120 s | Anonymous at +120 s | Operations per second | `put_new` p50 |
+  |---|---|---|---|---|---|---|
+  | musl, static (mallocng), the release's kind of build | 19.6 MB | 108; 121 MB | 23/23/23; 22/12/12 MB | 5 MB | 14.0; 12.7 | 5.5 s; 4.8 s |
+  | musl + mimalloc 0.1.52 (a trial, `#[global_allocator]`, +132 KB) | 18.0 MB | 291 MB | 70/70/70; 74/74/74 MB | 65–67 MB | 15.4; 18.5 | 4.9 s; 3.5 s |
+  | glibc, dynamic (the campaign's binary) | 18.7 MB | 340; 365 MB | 307/307/307; 340/340/340 MB | 289; 322 MB | 11.8; 14.0 | 6.3 s; 5.7 s |
+
+  No run had an integrity problem, and the only errors were the expected
+  `put_hot:changed`. Over each whole run the sampler, every 10 s, read:
+  musl RSS at most 99 MB (12 MB at the end), cgroup at most 219 MB;
+  mimalloc RSS at most 278 MB (74 MB at the end), cgroup at most 339 MB;
+  glibc RSS at most 365 MB (340 MB at the end), cgroup at most 446 MB.
+  Read plainly: the release's musl build gives memory back after a burst
+  (12–23 MB idle, a peak of about 100–120 MB under 50 writers); the glibc
+  build measured during the campaign held 300 MB and more, and grew burst
+  over burst; mimalloc sits in between, holding about 70 MB, and was a
+  little faster, about 20–35 % more operations per second — a soft figure:
+  two bursts of one binary differ by up to 20 %, the folder grew across the
+  runs, and a stray process held one of the load VM's cores. `[OPEN]`
+  Whether to adopt mimalloc is not decided; the recommendation sent to the
+  maintainer was not to adopt it.
 - **Stops**: the service stopped for 15 s while five notes changed (one on
   two sides): on start everything crossed, with one conflict copy for the
   two-sided note. The VM rebooted with edits pending on two devices: back
@@ -463,7 +505,7 @@ one LAN hop away. The numbers are in the campaign's log
 |---|---|---|
 | For | 1–3 people, notes and small attachments | a family or a team of up to ~10 people, several devices each (an estimate, not measured) |
 | CPU | 1 core, x64 or ARM64 (measured, rows "cloud 1 GB" of `results.jsonl`: one writer about 100 ms a write; a burst of 50 writers queues on the disk, p50 4.5 s) | 2 cores |
-| Memory | 512 MB — not measured yet: the smallest guest measured had 393 MB after the balloon took the rest, and it ran a 30-device load and a 60 MB file after one kill-and-restart; memory held after a burst can get the process killed on a small machine, and the unit brings it back in 5 s with nothing lost | 2 GB, or more than twice the largest file you sync; when several devices fetch a large file at once, about 2.3 × the largest file × the devices fetching it (measured) |
+| Memory | 512 MB — not measured yet: a 512 MB guest has still not been measured (the smallest measured had 393 MB after the balloon took the rest, and ran a 30-device load and a 60 MB file after one kill-and-restart); the memory held after a burst that got the process killed was the campaign's glibc build's, and the release's musl build gives it back (idle 12–23 MB, a peak of about 100–120 MB under 50 writers); if the process is killed, the unit brings it back in 5 s with nothing lost | 2 GB, or more than twice the largest file you sync; when several devices fetch a large file at once, about 2.3 × the largest file × the devices fetching it (measured) |
 | Disk | an SSD; the notes' size × 2 + 1 GB (the bin, `.trash`, keeps what was deleted) | a local SSD for `VERSO_DATA_DIR`; the notes on an SSD or a NAS |
 | Examples | a Raspberry Pi 4 with 2 GB, the smallest VPS | a mini PC, a NAS with Docker, a 2 GB VPS |
 
@@ -473,9 +515,10 @@ devices at once (peak 550 MB); the table's "up to ~10 people" was not
 measured.
 
 `[OPEN]` Whether the server should send a large file's pieces from disk
-instead of holding it whole for each device, and whether it should give
-memory back to the system after a burst, are not decided; the numbers above
-are the current build's.
+instead of holding it whole for each device is not decided; the numbers
+above are the current build's. Whether it should give memory back to the
+system after a burst is answered by the allocator measurement above: the
+release's musl build already does, and nothing was changed.
 
 A Raspberry Pi and a NAS have not been measured yet, nor a VPS at a
 provider (the 2026-10-11 VM was on the LAN). `scripts/sync-lab/lab.sh
@@ -486,8 +529,11 @@ load --devices 1` on the machine itself says how fast its disk writes.
 Written on 2026-10-09 without running a release, a container or a package
 on a real machine. Verified since:
 
-- 2026-10-11: the `.deb` (amd64, built with nfpm from
-  `packaging/server/nfpm.yaml` around a glibc binary) on Ubuntu 26.04:
+- 2026-10-11: the `.deb` (amd64, built by hand with nfpm from
+  `packaging/server/nfpm.yaml` around a dynamically linked glibc binary
+  compiled on an Ubuntu build VM for the test, not the release's static
+  musl binary; the package's install, upgrade and remove paths are the
+  release's, the binary is not) on Ubuntu 26.04:
   installed and started as in section 5; reinstalled over itself, the path
   an upgrade takes, which restarted the service; removed, which stopped the
   service, removed `/usr/bin/universo` and left `/var/lib/universo`,
