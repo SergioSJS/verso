@@ -32,7 +32,9 @@
 //!   respelling here crosses as a rename when the server's file is as the
 //!   base left it; otherwise the server's spelling is taken here first and
 //!   the file is planned as one — its edit wins over a respelling, two
-//!   edits are a conflict.
+//!   edits are a conflict. The base, too, keeps one entry per name: two
+//!   spellings a step left in it are one again before anything is
+//!   planned.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -267,7 +269,7 @@ pub fn plan(
         rebased,
         held,
     } = one_name_one_file(local, remote, &state.base);
-    let (local, remote, base) = (&local, &remote, &base);
+    let mut base = base;
     let mut actions = Vec::new();
     let mut done: BTreeSet<String> = held.iter().map(|h| h.path.clone()).collect();
     // A base kept under another form of the name moves to this
@@ -283,6 +285,13 @@ pub fn plan(
             hash: None,
         });
     }
+    // Where names fold, one base entry per name too: a step that recorded
+    // a second spelling beside the first is undone here, before anything
+    // is planned from it.
+    if folds {
+        one_base_per_name(&local, &remote, &mut base, &mut actions);
+    }
+    let (local, remote, base) = (&local, &remote, &base);
     let hash = |files: &Files, p: &str| files.get(p).map(|f| f.hash.clone());
 
     if folds {
@@ -566,9 +575,6 @@ fn respelled(
             continue;
         };
         match (base.get(here), base.get(there)) {
-            // Both spellings in the base: not one respelling; left to the
-            // rules by path.
-            (Some(_), Some(_)) => continue,
             (None, Some(b)) if &theirs.hash == b => {
                 actions.push(Action::RenameRemote {
                     from: there.clone(),
@@ -582,6 +588,10 @@ fn respelled(
                     });
                 }
             }
+            // Both spellings in the base too (one_base_per_name leaves
+            // them where the server holds the name more than once): still
+            // one file, planned from the base `agreed` picks — never two
+            // files of one side each, refused on every pass.
             (b_here, b_there) => {
                 actions.push(Action::RenameLocal {
                     from: here.clone(),
@@ -590,13 +600,99 @@ fn respelled(
                 let hashes = (
                     Some(mine.hash.clone()),
                     Some(theirs.hash.clone()),
-                    b_there.or(b_here).cloned(),
+                    agreed(
+                        Some(&mine.hash),
+                        Some(&theirs.hash),
+                        b_there.into_iter().chain(b_here),
+                    ),
                 );
                 decide(there, hashes, base.is_empty(), taken, copy_name, actions);
             }
         }
         done.insert(here.clone());
         done.insert(there.clone());
+    }
+}
+
+/// Where this computer's file system folds names, two base entries whose
+/// names differ only in case are one file's: a step recorded its new
+/// spelling while the old one stayed — a respelling refused on the server
+/// and the edit after it sent through the new spelling, which a server
+/// that folds names writes to the file it keeps. Planned as two, each
+/// would be a file of one side only, the upload refused there and the
+/// fetch here, on every pass: a device working forever. They become one
+/// entry, under the spelling the server keeps (else this computer's),
+/// with the hash [`agreed`] picks; the others go. A name with two files
+/// on the server (one that tells case apart) is left as it is (spec Q8).
+fn one_base_per_name(
+    local: &Files,
+    remote: &Files,
+    base: &mut BTreeMap<String, String>,
+    actions: &mut Vec<Action>,
+) {
+    let mut by_name: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for p in base.keys() {
+        by_name.entry(folded(p)).or_default().push(p.clone());
+    }
+    let spellings = |files: &Files, name: &str| -> Vec<String> {
+        files
+            .keys()
+            .filter(|p| folded(p) == name)
+            .cloned()
+            .collect()
+    };
+    for (name, paths) in by_name.into_iter().filter(|(_, p)| p.len() > 1) {
+        let (here, there) = (spellings(local, &name), spellings(remote, &name));
+        if here.len() > 1 || there.len() > 1 {
+            continue;
+        }
+        // On neither side: the rules by path drop every entry.
+        let Some(kept) = there.first().or(here.first()).cloned() else {
+            continue;
+        };
+        let l = here.first().and_then(|p| local.get(p)).map(|f| &f.hash);
+        let r = there.first().and_then(|p| remote.get(p)).map(|f| &f.hash);
+        let hash = agreed(l, r, paths.iter().filter_map(|p| base.get(p)));
+        for p in &paths {
+            base.remove(p);
+            if *p != kept {
+                actions.push(Action::Agree {
+                    path: p.clone(),
+                    hash: None,
+                });
+            }
+        }
+        if let Some(h) = &hash {
+            base.insert(kept.clone(), h.clone());
+        }
+        actions.push(Action::Agree { path: kept, hash });
+    }
+}
+
+/// Which of a file's base hashes to plan from when it has more than one
+/// (two spellings of its name): one alone is itself; of several, the one
+/// this computer's file still has, or the server's — the side unchanged
+/// since — when only one side has one of them. When both sides have one,
+/// apart, or neither, nothing is taken as unchanged: two edits are a
+/// conflict, an edit against a deletion keeps the edit. No base is ever
+/// picked that would let one side's file be written over unseen.
+fn agreed<'a>(
+    l: Option<&String>,
+    r: Option<&String>,
+    hashes: impl Iterator<Item = &'a String>,
+) -> Option<String> {
+    let hashes: BTreeSet<&String> = hashes.collect();
+    if hashes.len() < 2 {
+        return hashes.first().map(|h| (*h).clone());
+    }
+    let has = |h: Option<&String>| h.is_some_and(|h| hashes.contains(h));
+    match (has(l), has(r)) {
+        (true, false) => l.cloned(),
+        (false, true) => r.cloned(),
+        (true, true) if l == r => l.cloned(),
+        (true, true) => None,
+        // Both changed since any of them: whichever, the same outcome.
+        (false, false) => hashes.first().map(|h| (*h).clone()),
     }
 }
 
