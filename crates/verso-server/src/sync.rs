@@ -77,6 +77,8 @@ pub struct Transfers {
     /// Per folder, the files of one name in two forms its last walk found,
     /// and when they were last said (`crate::twins`).
     pub(crate) twins: Mutex<HashMap<String, (Vec<crate::twins::Twin>, Instant)>>,
+    /// Per folder, the files too large for sync (`crate::large`).
+    pub(crate) large: crate::large::Large,
 }
 
 /// How often a device's question walks the folder again.
@@ -239,9 +241,9 @@ fn reconcile_held(
     // The index's listing is as of its last walk: a path just written is
     // read whatever the listing says, and a listed path that can no longer
     // be read is gone.
-    let mut candidates: Vec<(String, Option<String>)> = files
+    let mut candidates: Vec<(String, Option<(u64, String)>)> = files
         .iter()
-        .map(|(p, len, modified)| (p.clone(), Some(format!("{len}:{modified}"))))
+        .map(|(p, len, modified)| (p.clone(), Some((*len, format!("{len}:{modified}")))))
         .collect();
     // Read whatever the listing does not vouch for: a path just written,
     // and a known file the listing lacks — written since its last walk, or
@@ -278,15 +280,27 @@ fn reconcile_held(
     let mut present: HashSet<String> = HashSet::new();
     let mut created: Vec<(String, String, i64, String)> = Vec::new();
     let mut quick_only: Vec<(String, String)> = Vec::new();
-    for (path, quick) in candidates {
+    let mut too_large: Vec<(String, u64)> = Vec::new();
+    for (path, listed) in candidates {
         let old = known.get(&path);
-        if let Some(q) = &quick
+        if let Some((_, q)) = &listed
             && old.is_some_and(|k| &k.quick == q)
             && !forced.contains(path.as_str())
         {
             present.insert(path);
             continue;
         }
+        // Larger than sync carries, by the listing's size: never read
+        // (`crate::large`); one the log knew stays as it was, never a
+        // deletion.
+        if let Some((len, _)) = &listed
+            && *len > LARGEST
+        {
+            too_large.push((path.clone(), *len));
+            present.insert(path);
+            continue;
+        }
+        let quick = listed.map(|(_, q)| q);
         let bytes = match read_file(server, key, &path) {
             Ok(Some(bytes)) => bytes,
             // A folder (a write that made or moved one names it): no
@@ -322,6 +336,7 @@ fn reconcile_held(
             created.push((path, hash, size, quick));
         }
     }
+    server.transfers.large.found(server, folder, too_large);
     let gone: Vec<(String, String)> = known
         .iter()
         .filter(|(p, _)| !present.contains(p.as_str()))
@@ -349,6 +364,27 @@ fn read_file(server: &Server, key: &str, path: &str) -> Result<Option<Vec<u8>>, 
             return Ok(None);
         }
         Ok(Some(ws.read_with_revision(&p)?.0))
+    })
+}
+
+/// The listing's size of each of `paths` it lists: checked against
+/// [`LARGEST`] before a read.
+fn listed_sizes(
+    server: &Server,
+    key: &str,
+    paths: &[&str],
+) -> Result<HashMap<String, u64>, ContractError> {
+    if paths.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let wanted: HashSet<String> = paths.iter().map(|p| (*p).to_owned()).collect();
+    server.service.with_key(key, move |ws| {
+        Ok(ws
+            .entries()
+            .iter()
+            .filter(|e| wanted.contains(&e.path))
+            .map(|e| (e.path.clone(), e.len))
+            .collect())
     })
 }
 
@@ -445,6 +481,12 @@ fn reconcile_paths(
             known.insert(p.clone(), k);
         }
     }
+    let to_read: Vec<&str> = paths
+        .iter()
+        .filter(|(_, now)| matches!(now, Now::Read))
+        .map(|(p, _)| p.as_str())
+        .collect();
+    let sizes = listed_sizes(server, key, &to_read)?;
     let mut present: HashSet<String> = HashSet::new();
     let mut created = Vec::new();
     let mut quick_only = Vec::new();
@@ -452,12 +494,22 @@ fn reconcile_paths(
         let (hash, size) = match now {
             Now::Gone => continue,
             Now::Written(hash, size) => (hash.clone(), *size),
+            // Larger than sync carries: never read, kept as it was.
+            Now::Read if sizes.get(path).is_some_and(|len| *len > LARGEST) => {
+                let len = sizes.get(path).copied().unwrap_or_default();
+                server.transfers.large.add(server, folder, path, len);
+                present.insert(path.clone());
+                continue;
+            }
             Now::Read => {
                 match read_file(server, key, path) {
-                    Ok(Some(bytes)) => (
-                        sha256(&bytes),
-                        i64::try_from(bytes.len()).unwrap_or(i64::MAX),
-                    ),
+                    Ok(Some(bytes)) => {
+                        server.transfers.large.remove(folder, path);
+                        (
+                            sha256(&bytes),
+                            i64::try_from(bytes.len()).unwrap_or(i64::MAX),
+                        )
+                    }
                     // A folder: no entry of the log.
                     Ok(None) => continue,
                     Err(e) if e.kind == ErrorKind::NotFound => continue,

@@ -829,3 +829,75 @@ fn one_name_answers_as_folding_both_would() {
         );
     }
 }
+
+/// The key the server opened folder `id` under.
+fn key_of(r: &crate::tests::Running, id: &str) -> String {
+    verso_service::lock(&r.server.keys)
+        .iter()
+        .find(|(_, f)| *f == id)
+        .map(|(k, _)| k.clone())
+        .unwrap()
+}
+
+/// A file larger than sync carries, dropped into a server folder (R1 of
+/// 2026-10-11): the walk knows it by the listing's size and never reads it
+/// — a file of gigabytes read and hashed at every walk takes a 1 GB server
+/// down — keeps it out of the log, lists it on the folder's page of the
+/// console, says it once in the server's log however many walks find it,
+/// and a device's read of it is refused before the file is read.
+#[test]
+fn a_file_larger_than_sync_carries_is_listed_never_read() {
+    const NAME: &str = "Grande-demais.bin";
+    block_on(async {
+        let r = start().await;
+        let dir = r.server.folder_path("Campanha").unwrap();
+        let size = crate::sync::LARGEST + 1;
+        // Sparse: its size says more than 1 GiB, and it takes no disk.
+        let f = tempfile::NamedTempFile::new_in(&dir).unwrap();
+        f.as_file().set_len(size).unwrap();
+        f.persist(dir.join(NAME)).unwrap();
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &admin).await;
+        let mut ws = opened(&r, &admin).await;
+        let state = call(&mut ws, 2, "sync_state", json!({})).await;
+        assert!(state.get("ok").is_some(), "{state}");
+        assert!(!state.to_string().contains(NAME), "{state}");
+        assert_eq!(
+            r.server.transfers.large.of_folder(&id),
+            vec![crate::large::TooLarge {
+                path: NAME.to_owned(),
+                size,
+            }]
+        );
+        // Walked again, and named by a change: still out, said once.
+        let key = key_of(&r, &id);
+        crate::sync::reconcile(&r.server, &id, &key, None, &[]).unwrap();
+        crate::sync::reconcile_written(&r.server, &id, &key, None, &[NAME.to_owned()]).unwrap();
+        assert_eq!(
+            crate::log::said(NAME).len(),
+            1,
+            "{:?}",
+            crate::log::said(NAME)
+        );
+        assert!(r.server.db.known(&id, NAME).unwrap().is_none());
+        let (_, page) = get(&r, &format!("/api/admin/folders/{id}"), Some(&admin)).await;
+        assert_eq!(
+            page["tooLarge"],
+            json!([{ "path": NAME, "size": size }]),
+            "{page}"
+        );
+        let read = call(
+            &mut ws,
+            3,
+            "sync_read",
+            json!({ "path": NAME, "offset": 0 }),
+        )
+        .await;
+        assert!(
+            read["err"]["message"]
+                .as_str()
+                .is_some_and(|m| m.contains("1 GiB")),
+            "{read}"
+        );
+    });
+}

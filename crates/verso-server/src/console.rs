@@ -103,7 +103,8 @@ pub async fn unregistered(ctx: Ctx) -> ApiResult<Response> {
 }
 
 /// One folder: its members, what it takes, its quota, the files its last
-/// walk held as another's name in another form (`crate::twins`), and its
+/// walk held as another's name in another form (`crate::twins`) or left out
+/// for their size (`crate::large`), and its
 /// latest changes with who made each — the account and, for a device's
 /// sync, the device (ADR 0079 item 4).
 pub async fn folder(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
@@ -142,6 +143,7 @@ pub async fn folder(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
         "space": crate::folders::space(&ctx, &id),
         "quota": db.quota(&id)?,
         "twins": crate::twins::of_folder(&ctx.server, &id),
+        "tooLarge": ctx.server.transfers.large.of_folder(&id),
         "changes": changes,
     })))
 }
