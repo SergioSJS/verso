@@ -453,6 +453,12 @@ export const commands = {
 export type AppInfo = {
 	version: string,
 	commit: string,
+	/**
+	 *  This computer's name, as the copy of a conflict names it (ADR 0079
+	 *  item 8): the editor's "keep both" names its copy as sync does.
+	 *  None where the window runs on no computer of its own (a server).
+	 */
+	device: string | null,
 };
 
 /**  A link into a note, from another. */

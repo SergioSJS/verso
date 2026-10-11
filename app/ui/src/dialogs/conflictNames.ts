@@ -48,3 +48,23 @@ export function textByName(path: string): boolean | null {
 export function looksBinary(text: string): boolean {
   return /[�\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(text);
 }
+
+/** The name a conflict's copy takes (ADR 0079 item 8), as sync names one
+ *  (`verso_core::sync::conflict_name`): `<stem> (conflito|conflict,
+ *  <device>, <yyyy-mm-dd hh.mm>[ n]).<ext>` beside the file, the device's
+ *  name in characters every system keeps (at most 40), `n` from 2 on when
+ *  the name is taken. For the editor's "keep both", whose copy the Sync
+ *  section and every device then read as sync's own. */
+export function conflictName(path: string, device: string, when: Date, pt: boolean, n = 1): string {
+  const slash = path.lastIndexOf("/");
+  const dir = slash >= 0 ? path.slice(0, slash + 1) : "";
+  const file = path.slice(slash + 1);
+  const dot = file.lastIndexOf(".");
+  const [stem, ext] = dot > 0 ? [file.slice(0, dot), file.slice(dot)] : [file, ""];
+  const safe = Array.from(Array.from(device, (c) => (/[\p{Alphabetic}\p{N} _-]/u.test(c) ? c : "-")).join("").trim())
+    .slice(0, 40)
+    .join("");
+  const two = (v: number) => String(v).padStart(2, "0");
+  const at = `${when.getFullYear()}-${two(when.getMonth() + 1)}-${two(when.getDate())} ${two(when.getHours())}.${two(when.getMinutes())}`;
+  return `${dir}${stem} (${pt ? "conflito" : "conflict"}, ${safe}, ${at}${n > 1 ? ` ${n}` : ""})${ext}`;
+}

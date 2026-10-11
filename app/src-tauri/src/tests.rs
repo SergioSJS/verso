@@ -381,6 +381,9 @@ fn the_commands_answer_through_the_contract() {
     let info = call(&webview, "app_info", json!({})).unwrap();
     assert_eq!(info["version"], env!("CARGO_PKG_VERSION"), "{info}");
     assert!(!info["commit"].as_str().unwrap().is_empty(), "{info}");
+    // This computer's name, as a conflict's copy carries it (ADR 0079
+    // item 8): the editor's "keep both" names its copy with it.
+    assert!(!info["device"].as_str().unwrap().is_empty(), "{info}");
 
     // Nothing open yet: every command says so, in the contract's words.
     let err = call(&webview, "list_notes", json!({})).unwrap_err();

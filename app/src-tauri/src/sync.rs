@@ -207,6 +207,13 @@ fn said(e: &Value) -> ContractError {
         .unwrap_or_else(|_| verso_service::failed("the server refused"))
 }
 
+/// This computer's name, asked of the system once: what a conflict's
+/// copy carries, made by sync or by the editor's "keep both".
+pub(crate) fn device() -> &'static str {
+    static DEVICE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    DEVICE.get_or_init(host_name)
+}
+
 /// This computer's name as a person knows it.
 pub(crate) fn host_name() -> String {
     for var in ["COMPUTERNAME", "HOSTNAME"] {

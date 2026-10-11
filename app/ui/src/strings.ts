@@ -11,6 +11,7 @@ export type Strings = Record<
   | "open" | "reindex" | "search" | "clearSearch" | "stickerSearch" | "notes" | "backlinks" | "outline" | "noFolder" | "stale" | "unverified" | "noNotes"
   | "line" | "error" | "reading" | "edit" | "source" | "save" | "saved" | "conflict" | "reload" | "overwrite" | "discard"
   | "cancel" | "discardYes" | "conflictPending" | "taskMoved" | "notSaved" | "closeUnsaved" | "closeAnyway" | "mixedEol" | "propChanged" | "propFixed" | "propExists" | "planLeftOut"
+  | "keepBoth" | "conflictPendingBoth" | "thisComputer"
   | "lessonTitle" | "lessonBody" | "lessonKeys" | "lessonServerTitle" | "lessonServerBody" | "lessonServerOpen" | "split" | "splitDown" | "emptyPane" | "quick" | "close" | "closePane"
   | "frameControls" | "frameMinimize" | "frameMaximize" | "frameRestore" | "frameClose"
   | "maximize" | "restore" | "newNote" | "newNoteName" | "rename" | "deleteNote" | "openTab" | "openPane" | "newHere"
@@ -68,6 +69,8 @@ export type Strings = Record<
   deleted: (where: string) => string;
   planTitle: (n: number) => string;
   planDone: (ok: number, failed: number) => string;
+  /** "Keep both" in the editor: where each version went. */
+  keptBoth: (note: string, copy: string) => string;
   counts: (notes: number, files: number, folders: number) => string;
   confirmDeleteFolder: (n: string) => string;
   /** The same `^id` more than once in a note (spec Q4). */
@@ -111,6 +114,7 @@ export const pt: Strings = {
   openingFolder: "Abrindo pasta e escaneando arquivos…",
   demoVaultNew: (n) => (n === 1 ? "1 novo" : `${n} novos`),
   cancel: "Cancelar", discardYes: "Descartar", conflictPending: "Nada gravado: o arquivo mudou em disco — escolha acima entre recarregar e gravar o seu por cima.", taskMoved: "Essa tarefa mudou desde que a leitura foi desenhada; nada foi marcado.", notSaved: "Nada feito: há mudanças que não puderam ser salvas em", closeUnsaved: "Estas abas têm mudanças que não puderam ser salvas e se perdem se a janela fechar:", closeAnyway: "Fechar mesmo assim", mixedEol: "Só leitura: este arquivo mistura finais de linha (CRLF e LF, ou CR sozinho); editá-lo aqui converteria todos sem você ver.", propChanged: "Essa propriedade mudou no texto desde que o painel foi desenhado; nada foi alterado — o painel se atualiza ao salvar, repita a edição.", propFixed: "Edite no modo Fonte: este valor tem comentário, várias linhas ou uma forma que o painel não reescreve sem perda.", propExists: "Essa propriedade já está no texto.", planLeftOut: "Deixadas de fora (mudanças que não puderam ser salvas):",
+  keepBoth: "Guardar os dois", conflictPendingBoth: "Nada gravado: o arquivo mudou em disco — escolha acima entre recarregar, gravar o seu por cima e guardar os dois.", thisComputer: "este computador",
   reading: "Leitura", edit: "Editar", source: "Fonte", save: "Salvar", saved: "Salvo.",
   conflict: "O arquivo mudou em disco desde que foi aberto. Nada foi gravado. Diferença entre o disco (−) e o seu texto (+):",
   reload: "Descartar o meu e recarregar", overwrite: "Gravar o meu por cima", discard: "Há mudanças não salvas nesta nota. Descartar?",
@@ -158,6 +162,7 @@ export const pt: Strings = {
   deleted: (where) => `Movida para ${where}.`,
   planTitle: (n) => `${n} nota${n === 1 ? "" : "s"} aponta${n === 1 ? "" : "m"} para o nome antigo. Atualizar os links?`,
   planDone: (ok, failed) => `${ok} atualizada${ok === 1 ? "" : "s"}${failed ? `, ${failed} não (mudou em disco — abra e veja)` : ""}.`,
+  keptBoth: (note, copy) => `Os dois ficaram: a versão do disco em ${note}, o seu texto em ${copy}.`,
   counts: (notes, files, folders) => `${notes} nota${notes === 1 ? "" : "s"} · ${files} arquivo${files === 1 ? "" : "s"} · ${folders} pasta${folders === 1 ? "" : "s"}`,
   confirmDeleteFolder: (n) => `Mover a pasta "${n}" e tudo dentro dela para a lixeira (.trash)?`,
   blockRepeated: (id, lines) => `^${id} aparece ${lines.length} vezes (linhas ${lines.join(", ")}): vale a última, como no Obsidian.`,
@@ -260,6 +265,7 @@ export const en: Strings = {
   openingFolder: "Opening folder and scanning files…",
   demoVaultNew: (n) => (n === 1 ? "1 new" : `${n} new`),
   cancel: "Cancel", discardYes: "Discard", conflictPending: "Nothing written: the file changed on disk — choose above between reloading and writing yours over it.", taskMoved: "That task changed since the reading view was drawn; nothing was checked.", notSaved: "Nothing done: there are changes that could not be saved in", closeUnsaved: "These tabs have changes that could not be saved; they are lost if the window closes:", closeAnyway: "Close anyway", mixedEol: "Read-only: this file mixes line endings (CRLF and LF, or a lone CR); editing it here would convert them all without you seeing it.", propChanged: "That property changed in the text since the panel was drawn; nothing was changed — the panel updates on saving, make the edit again.", propFixed: "Edit it in Source mode: this value has a comment, several lines or a shape the panel cannot rewrite without loss.", propExists: "That property is already in the text.", planLeftOut: "Left out (changes that could not be saved):",
+  keepBoth: "Keep both", conflictPendingBoth: "Nothing written: the file changed on disk — choose above between reloading, writing yours over it and keeping both.", thisComputer: "this computer",
   reading: "Reading", edit: "Edit", source: "Source", save: "Save", saved: "Saved.",
   conflict: "The file changed on disk since it was opened. Nothing was written. Difference between the disk (−) and your text (+):",
   reload: "Discard mine and reload", overwrite: "Write mine over it", discard: "This note has unsaved changes. Discard them?",
@@ -305,6 +311,7 @@ export const en: Strings = {
   deleted: (where) => `Moved to ${where}.`,
   planTitle: (n) => `${n} note${n === 1 ? "" : "s"} link${n === 1 ? "s" : ""} to the old name. Update the links?`,
   planDone: (ok, failed) => `${ok} updated${failed ? `, ${failed} not (changed on disk — open and see)` : ""}.`,
+  keptBoth: (note, copy) => `Both kept: the disk's version in ${note}, your text in ${copy}.`,
   counts: (notes, files, folders) => `${notes} note${notes === 1 ? "" : "s"} · ${files} file${files === 1 ? "" : "s"} · ${folders} folder${folders === 1 ? "" : "s"}`,
   confirmDeleteFolder: (n) => `Move the folder "${n}" and everything in it to the Trash (.trash)?`,
   blockRepeated: (id, lines) => `^${id} appears ${lines.length} times (lines ${lines.join(", ")}): the last one counts, as in Obsidian.`,
