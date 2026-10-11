@@ -14,13 +14,20 @@ test release.
 
 ### Added
 
-- **The server's administration console** ([ADR 0077](docs/adr/0077-the-server-administration-console-and-folder-quotas.md)), at `/admin`, out of Settings: an overview (version and update, storage, mail, TLS, totals, what needs a look), accounts, folders, invitations and the audit log as tables searched, sorted and paged on the server, each account and folder with a page of its own, the log filtered and exported as CSV, and the server's configuration read-only. Settings › Account leads an admin there.
-- **Sync** ([ADR 0079](docs/adr/0079-sync-a-local-folder-with-a-server.md)): a folder of this computer kept in step with a folder of a Universo, in *Settings › Sync* — a new folder there or one you reach, the space shown first. Changes cross when saved, when the server says so, on reconnecting and every five minutes; large files go in pieces and are written only whole; the first sync deletes nothing; a file changed on both sides keeps the server's version under its name and this computer's beside it, `(conflict, <computer>, <date>)`, with the difference shown; a pass that would delete many files stops and asks; what is left out says why. The status bar shows the state. A reader receives only.
+- **The server's administration console** ([ADR 0077](docs/adr/0077-the-server-administration-console-and-folder-quotas.md)), at `/admin`, out of Settings: an overview (version and update, storage, mail, TLS, totals, what needs a look), accounts, folders, invitations and the audit log as tables searched, sorted and paged on the server, each account and folder with a page of its own, the log filtered and exported as CSV — each action said in words, with the account's name — and the server's configuration read-only. Settings › Account leads an admin there.
+- **Sync** ([ADR 0079](docs/adr/0079-sync-a-local-folder-with-a-server.md)): a folder of this computer kept in step with a folder of a Universo, in *Settings › Sync* — a new folder there or one you reach, the space shown first. Changes cross when saved, when the server says so, on reconnecting and every five minutes; large files go in pieces and are written only whole; the first sync deletes nothing; a file changed on both sides keeps the server's version under its name and this computer's beside it, `(conflict, <computer>, <date>)`, with the difference shown; a pass that would delete many files stops and asks; what is left out says why. The status bar shows the state. A reader receives only. A name in either Unicode form of its accents is one file on every device (spec Q7, decided 2026-10-10); the pause before many deletions needs at least 3 of them.
 - **Quotas per folder**: the admin sets a folder's largest size (or `VERSO_FOLDER_QUOTA` for new ones); a write that would pass it is refused and nothing is written, making the folder smaller always works, and at 90 % the window warns.
 
 ### Changed
 
 - **The server is named Universo** ([ADR 0078](docs/adr/0078-universo-the-name-of-verso-as-a-server.md)): the image is `ghcr.io/sergiosjs/universo`, the packages and archives `universo-<version>-<arch>`, installing `/usr/bin/universo`, the `universo` service and user, `/etc/universo` and `/var/lib/universo`; the `verso` binary started as `universo` is `verso serve`, and `universo admin reset <e-mail>` resets a password. The desktop app's production packages and Universo now install on the same machine. From 0.7.0-beta.1: `docs/reference/server-install.md`, section 12.
+
+### Fixed
+
+- **A note renamed or deleted on another device, seen in a browser**: the tree follows, an open tab follows the renamed note, and a deleted one says so in words instead of showing a file-system error.
+- **A new window fits the screen**: on a small screen (1280×800) the first window no longer opens taller than the screen with its status bar hidden under the task bar.
+- **The status bar says the index in a person's words** ("130 notas em dia", "3 ainda na nuvem") and gives itself back after a background index; in a browser with no folder open, the "you only read this folder" line no longer shows, and the start page says to choose one of the server's folders.
+- **Settings**: the Editor's line-number switches sit under one heading; the allowed sites' explanation sits under its box; the make.md setting no longer says "sync".
 
 ## 0.7.0-beta.1 — 2026-10-10
 

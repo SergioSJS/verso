@@ -14,13 +14,20 @@ versão de teste.
 
 ### Acrescentado
 
-- **O console de administração do servidor** ([ADR 0077](adr/0077-the-server-administration-console-and-folder-quotas.md)), em `/admin`, fora de Ajustes: uma visão geral (versão e atualização, armazenamento, e-mail, TLS, totais, o que pede atenção), contas, pastas, convites e o registro como tabelas buscadas, ordenadas e paginadas no servidor, cada conta e pasta com uma página própria, o registro filtrado e exportado como CSV, e a configuração do servidor só para leitura. Ajustes › Conta leva um admin até lá.
-- **Sincronização** ([ADR 0079](adr/0079-sync-a-local-folder-with-a-server.md)): uma pasta deste computador mantida igual a uma pasta de um Universo, em *Ajustes › Sincronizar* — uma pasta nova lá ou uma que você alcança, o espaço mostrado antes. As mudanças cruzam ao salvar, quando o servidor avisa, ao reconectar e a cada cinco minutos; arquivos grandes vão em pedaços e só são gravados inteiros; a primeira sincronização não apaga nada; um arquivo mudado nos dois lados deixa a versão do servidor com o nome e a deste computador ao lado, `(conflito, <computador>, <data>)`, com a diferença mostrada; uma passada que apagaria muitos arquivos para e pergunta; o que fica de fora diz por quê. A barra de status mostra o estado. Quem só lê, só recebe.
+- **O console de administração do servidor** ([ADR 0077](adr/0077-the-server-administration-console-and-folder-quotas.md)), em `/admin`, fora de Ajustes: uma visão geral (versão e atualização, armazenamento, e-mail, TLS, totais, o que pede atenção), contas, pastas, convites e o registro como tabelas buscadas, ordenadas e paginadas no servidor, cada conta e pasta com uma página própria, o registro filtrado e exportado como CSV — cada ação dita em palavras, com o nome da conta — e a configuração do servidor só para leitura. Ajustes › Conta leva um admin até lá.
+- **Sincronização** ([ADR 0079](adr/0079-sync-a-local-folder-with-a-server.md)): uma pasta deste computador mantida igual a uma pasta de um Universo, em *Ajustes › Sincronizar* — uma pasta nova lá ou uma que você alcança, o espaço mostrado antes. As mudanças cruzam ao salvar, quando o servidor avisa, ao reconectar e a cada cinco minutos; arquivos grandes vão em pedaços e só são gravados inteiros; a primeira sincronização não apaga nada; um arquivo mudado nos dois lados deixa a versão do servidor com o nome e a deste computador ao lado, `(conflito, <computador>, <data>)`, com a diferença mostrada; uma passada que apagaria muitos arquivos para e pergunta; o que fica de fora diz por quê. A barra de status mostra o estado. Quem só lê, só recebe. Um nome em qualquer das duas formas Unicode dos seus acentos é um arquivo só em todo aparelho (spec Q7, decidido em 2026-10-10); a pausa antes de muitas exclusões exige ao menos 3 delas.
 - **Cotas por pasta**: o admin define o tamanho máximo de uma pasta (ou `VERSO_FOLDER_QUOTA` para as novas); uma escrita que passaria dele é recusada e nada é gravado, diminuir a pasta sempre funciona, e a 90 % a janela avisa.
 
 ### Alterado
 
 - **O servidor se chama Universo** ([ADR 0078](adr/0078-universo-the-name-of-verso-as-a-server.md)): a imagem é `ghcr.io/sergiosjs/universo`, os pacotes e arquivos `universo-<versão>-<arq>`, que instalam `/usr/bin/universo`, o serviço e o usuário `universo`, `/etc/universo` e `/var/lib/universo`; o binário `verso` iniciado como `universo` é o `verso serve`, e `universo admin reset <e-mail>` redefine uma senha. Os pacotes de produção do app desktop e o Universo agora se instalam na mesma máquina. A partir da 0.7.0-beta.1: `docs/reference/server-install.md`, seção 12.
+
+### Corrigido
+
+- **Uma nota renomeada ou apagada em outro aparelho, vista no navegador**: a árvore acompanha, uma aba aberta segue a nota renomeada, e uma apagada diz isso em palavras em vez de mostrar um erro do sistema de arquivos.
+- **Uma janela nova cabe na tela**: numa tela pequena (1280×800) a primeira janela não abre mais maior que a tela, com a barra de status escondida sob a barra de tarefas.
+- **A barra de status diz o índice em palavras de gente** ("130 notas em dia", "3 ainda na nuvem") e volta ao normal depois de um índice em segundo plano; no navegador sem pasta aberta, a linha "você só lê esta pasta" não aparece mais, e a página inicial diz para escolher uma pasta do servidor.
+- **Ajustes**: as chaves de número de linha do Editor ficam sob um título só; a explicação dos sites permitidos fica sob a caixa; o ajuste do make.md não diz mais "sincronizar".
 
 ## 0.7.0-beta.1 — 2026-10-10
 
