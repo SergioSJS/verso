@@ -4,10 +4,14 @@
 
 //! Creating, renaming and trashing a file of the folder (ADR 0048, Phase
 //! 2 item 2.3). The same care as the atomic write: a new file is written
-//! under a temporary name, synced, and given its final name by `link`,
-//! which fails instead of replacing whatever appeared there meanwhile; a
-//! regular file is moved the same way, so a rename never replaces a file
-//! either; a deletion is a move into `.trash/` at the root, as Obsidian
+//! under a temporary name, synced, and given its final name by a step that
+//! fails instead of replacing whatever appeared there meanwhile — on macOS
+//! an exclusive rename (`renamex_np` with `RENAME_EXCL`), elsewhere `link`
+//! then removing the old name; a regular file is moved the same way, so a
+//! rename never replaces a file either. macOS does not link because
+//! FSEvents never reports the removal of a file named by `link`: deleted
+//! later by another program, it would stay in the tree (ADR 0069, revised
+//! 2026-10-11). A deletion is a move into `.trash/` at the root, as Obsidian
 //! does, so a folder shared with it shows the same bin — nothing is
 //! unlinked here. Parent directories are created as needed and every
 //! directory touched or created is synced, so the operation survives a
@@ -80,11 +84,12 @@ impl OpReport {
     }
 }
 
-/// How [`place`] gave a file its new name.
+/// How [`claim`] or [`place`] gave a file its new name.
 enum Placed {
-    /// By `link`, then removing the old name; `removal` is the error that
-    /// left the old name behind, if any.
-    Linked { removal: Option<std::io::Error> },
+    /// In a step that refuses an existing name — an exclusive rename on
+    /// macOS, `link` then removing the old name elsewhere; `removal` is the
+    /// error that left the old name behind after a `link`, if any.
+    Claimed { removal: Option<std::io::Error> },
     /// By a last-moment check and `rename`: the volume has no hard links.
     Renamed,
 }
@@ -115,7 +120,7 @@ fn place(
     link: impl Fn(&Path, &Path) -> std::io::Result<()>,
 ) -> Result<Placed, WriteError> {
     match link(from, to) {
-        Ok(()) => Ok(Placed::Linked {
+        Ok(()) => Ok(Placed::Claimed {
             removal: std::fs::remove_file(from).err(),
         }),
         Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Err(WriteError::Exists),
@@ -133,6 +138,33 @@ fn place(
         }
         Err(e) => Err(WriteError::Io(e)),
     }
+}
+
+/// Give the regular file `from` the name `to` without replacing whatever
+/// stands there. On macOS, an exclusive rename: one step, nothing left to
+/// remove, and FSEvents reports the file's later removal, which it never
+/// does for a name given by `link` (ADR 0069, revised 2026-10-11); a
+/// volume without that rename falls back to [`place`]. Elsewhere,
+/// [`place`]: inotify and `ReadDirectoryChangesW` report the removal of a
+/// linked file.
+fn claim(from: &Path, to: &Path) -> Result<Placed, WriteError> {
+    #[cfg(target_os = "macos")]
+    match crate::os::rename_exclusive(from, to) {
+        Ok(()) => return Ok(Placed::Claimed { removal: None }),
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+            return Err(WriteError::Exists);
+        }
+        Err(e)
+            if !matches!(
+                e.kind(),
+                std::io::ErrorKind::Unsupported | std::io::ErrorKind::InvalidInput
+            ) =>
+        {
+            return Err(WriteError::Io(e));
+        }
+        Err(_) => {}
+    }
+    place(from, to, |a, b| std::fs::hard_link(a, b))
 }
 
 use crate::os::sync_dir;
@@ -216,10 +248,10 @@ pub(crate) fn create_atomically(path: &Path, content: &[u8]) -> Result<OpReport,
         let _ = std::fs::remove_file(&temp);
         return Err(WriteError::Io(e));
     }
-    // `link` gives the content its final name and fails if anything
-    // appeared there since the check above: no window in which a file
-    // created by someone else is replaced (a `rename` would replace it).
-    let placed = match place(&temp, path, |a, b| std::fs::hard_link(a, b)) {
+    // The final name is claimed in a step that fails if anything appeared
+    // there since the check above: no window in which a file created by
+    // someone else is replaced (a plain `rename` would replace it).
+    let placed = match claim(&temp, path) {
         Ok(placed) => placed,
         Err(e) => {
             let _ = std::fs::remove_file(&temp);
@@ -232,7 +264,7 @@ pub(crate) fn create_atomically(path: &Path, content: &[u8]) -> Result<OpReport,
         ..OpReport::default()
     };
     match placed {
-        Placed::Linked { removal: Some(e) } => {
+        Placed::Claimed { removal: Some(e) } => {
             report.leftover = Some(format!(
                 "a temporary file was left behind ({}): {e}",
                 temp.file_name()
@@ -240,7 +272,7 @@ pub(crate) fn create_atomically(path: &Path, content: &[u8]) -> Result<OpReport,
                     .unwrap_or_default()
             ));
         }
-        Placed::Linked { removal: None } => {}
+        Placed::Claimed { removal: None } => {}
         Placed::Renamed => report.no_hard_links = true,
     }
     let after = (|| {
@@ -355,17 +387,17 @@ pub(crate) fn rename_path(from: &Path, to: &Path) -> Result<OpReport, WriteError
     let mut leftover = None;
     let mut unguarded = false;
     if from_meta.is_file() {
-        // A regular file is given its new name by `link`, which fails
+        // A regular file is given its new name by a step that fails
         // rather than replacing a file that appeared at `to` after the
-        // check above; then the old name is removed. Same inode: mode,
-        // owner, attributes and modification time travel with it.
-        match place(from, to, |a, b| std::fs::hard_link(a, b))? {
-            Placed::Linked { removal: Some(e) } => {
+        // check above ([`claim`]). Same inode: mode, owner, attributes and
+        // modification time travel with it.
+        match claim(from, to)? {
+            Placed::Claimed { removal: Some(e) } => {
                 leftover = Some(format!(
                     "moved, but the old name could not be removed and still points at the same content: {e}"
                 ));
             }
-            Placed::Linked { removal: None } => {}
+            Placed::Claimed { removal: None } => {}
             Placed::Renamed => unguarded = true,
         }
     } else {

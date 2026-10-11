@@ -47,7 +47,12 @@ mod support {
 
     /// Batches until one names `path`, or `PATIENCE` runs out.
     pub fn reported(rx: &Receiver<Changes>, path: &str) -> bool {
-        let deadline = Instant::now() + PATIENCE;
+        reported_within(rx, path, PATIENCE)
+    }
+
+    /// Batches until one names `path`, or `patience` runs out.
+    pub fn reported_within(rx: &Receiver<Changes>, path: &str, patience: Duration) -> bool {
+        let deadline = Instant::now() + patience;
         while let Some(left) = deadline.checked_duration_since(Instant::now()) {
             match rx.recv_timeout(left) {
                 Ok(changes) if changes.paths.contains(&PathBuf::from(path)) => return true,
@@ -178,4 +183,52 @@ fn the_callers_own_directory_is_not_reported() {
         seen.iter().all(|p| !p.starts_with("Library")),
         "the index's own writes reported: {seen:?}"
     );
+}
+
+/// A file Verso itself created, or moved, then removed by another program
+/// — Finder, `rm`, a sync client — is reported gone like any other. On
+/// macOS FSEvents never reported the removal of a file whose name had been
+/// given by `link` (seen on 2026-10-11: the tree stayed stale, and sync
+/// sent the deletion only at its next scan), so there a new or moved file
+/// takes its name by an exclusive rename instead (ADR 0069, revised
+/// 2026-10-11). Five seconds: far longer than the watch's quiet, far
+/// shorter than any scan.
+#[cfg(target_os = "macos")]
+mod placed_by_verso {
+    use super::*;
+
+    const GONE: Duration = Duration::from_secs(5);
+
+    #[test]
+    fn a_created_file_removed_outside_is_reported() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut root = Root::open(dir.path(), Vec::new()).unwrap();
+        let (_watch, rx) = settled(&root);
+        let _ = root.create(Path::new("Criada.md"), b"# Criada\n").unwrap();
+        let _ = everything_until_quiet(&rx, Duration::from_millis(700));
+
+        fs::remove_file(dir.path().join("Criada.md")).unwrap();
+        assert!(
+            reported_within(&rx, "Criada.md", GONE),
+            "a file made by Root::create, removed outside, was not reported"
+        );
+    }
+
+    #[test]
+    fn a_renamed_file_removed_outside_is_reported() {
+        let dir = tempfile::tempdir().unwrap();
+        touch(&dir.path().join("Antes.md"), "# Antes\n");
+        let mut root = Root::open(dir.path(), Vec::new()).unwrap();
+        let (_watch, rx) = settled(&root);
+        let _ = root
+            .rename(Path::new("Antes.md"), Path::new("Lugares/Depois.md"))
+            .unwrap();
+        let _ = everything_until_quiet(&rx, Duration::from_millis(700));
+
+        fs::remove_file(dir.path().join("Lugares/Depois.md")).unwrap();
+        assert!(
+            reported_within(&rx, "Lugares/Depois.md", GONE),
+            "a file moved by Root::rename, removed outside, was not reported"
+        );
+    }
 }
