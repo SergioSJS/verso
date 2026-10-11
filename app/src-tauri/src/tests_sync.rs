@@ -348,16 +348,17 @@ fn edits_deletions_renames_and_conflicts_cross_between_two_devices() {
 
     // Both edit one note: the first to sync keeps the name on the
     // server; the other's is kept beside it, and reaches the first.
-    write(&a, "Quatro.md", b"# Quatro\n\nde A\n");
-    write(&b, "Quatro.md", b"# Quatro\n\nde B\n");
+    // (Each rewrites its line: two appends would be joined instead.)
+    write(&a, "Quatro.md", b"# Quatro de A\n");
+    write(&b, "Quatro.md", b"# Quatro de B\n");
     sync(&a);
     sync(&b);
-    assert_eq!(text(&b, "Quatro.md").as_deref(), Some("# Quatro\n\nde A\n"));
+    assert_eq!(text(&b, "Quatro.md").as_deref(), Some("# Quatro de A\n"));
     let copy = copy_of(&b, "Quatro.md");
-    assert_eq!(text(&b, &copy).as_deref(), Some("# Quatro\n\nde B\n"));
+    assert_eq!(text(&b, &copy).as_deref(), Some("# Quatro de B\n"));
     changed(&a, &[]);
     sync(&a);
-    assert_eq!(text(&a, &copy).as_deref(), Some("# Quatro\n\nde B\n"));
+    assert_eq!(text(&a, &copy).as_deref(), Some("# Quatro de B\n"));
 
     // An edit against a deletion: the edit wins, the file comes back.
     a.ctx
@@ -369,6 +370,85 @@ fn edits_deletions_renames_and_conflicts_cross_between_two_devices() {
     sync(&b);
     sync(&a);
     assert_eq!(text(&a, "Cinco.md").as_deref(), Some("# Cinco\n\nmudou\n"));
+}
+
+/// Two appends to one note's end, made apart, are joined (item 8, decided
+/// 2026-10-11): the server's tail first, then this computer's — on both
+/// devices and on the server, with no copy, and the log says "merged".
+/// The middle edited on one side still makes the copy; so do two appends
+/// to a file that is not a note.
+#[test]
+fn two_appends_to_a_notes_end_are_joined_not_a_copy() {
+    let r = serve(&[]);
+    let a = device(
+        &r,
+        &r.owner,
+        &[
+            ("Diario.md", "# Diario\n\nsegunda\n"),
+            ("Plano.md", "# Plano\n\nfazer\n"),
+            ("Lista.txt", "um\n"),
+        ],
+    );
+    sync(&a);
+    let b = device(&r, &r.owner, &[]);
+    sync(&b);
+
+    write(&a, "Diario.md", b"# Diario\n\nsegunda\nterca, de A\n");
+    write(&b, "Diario.md", b"# Diario\n\nsegunda\nterca, de B\n");
+    sync(&a);
+    sync(&b);
+    let both = "# Diario\n\nsegunda\nterca, de A\nterca, de B\n";
+    assert_eq!(text(&b, "Diario.md").as_deref(), Some(both));
+    changed(&a, &[]);
+    sync(&a);
+    assert_eq!(text(&a, "Diario.md").as_deref(), Some(both));
+    // The server holds it too: a device that arrives now receives it.
+    let c = device(&r, &r.owner, &[]);
+    sync(&c);
+    assert_eq!(text(&c, "Diario.md").as_deref(), Some(both));
+    for d in [&a, &b, &c] {
+        let names = files(d);
+        assert!(
+            !names.iter().any(|p| super::sync::is_conflict_copy(p)),
+            "{names:?}"
+        );
+    }
+    let log = lock(&b.shown).last().cloned().unwrap().log;
+    assert!(
+        log.iter()
+            .any(|e| e.what == "merged" && e.path == "Diario.md"),
+        "{log:?}"
+    );
+    assert!(!log.iter().any(|e| e.what == "conflict"), "{log:?}");
+    quiet(&a, &b);
+
+    // The middle edited on one side: the copy, as before.
+    write(&a, "Plano.md", b"# Plano\n\nfazer\nde A\n");
+    write(&b, "Plano.md", b"# Plano\n\nrefazer\nde B\n");
+    sync(&a);
+    sync(&b);
+    assert_eq!(
+        text(&b, "Plano.md").as_deref(),
+        Some("# Plano\n\nfazer\nde A\n")
+    );
+    let copy = copy_of(&b, "Plano.md");
+    assert_eq!(
+        text(&b, &copy).as_deref(),
+        Some("# Plano\n\nrefazer\nde B\n")
+    );
+
+    // Not a note: two appends are a copy too.
+    write(&a, "Lista.txt", b"um\ndois\n");
+    write(&b, "Lista.txt", b"um\ntres\n");
+    sync(&a);
+    sync(&b);
+    assert_eq!(text(&b, "Lista.txt").as_deref(), Some("um\ndois\n"));
+    let names = files(&b);
+    let copy = names
+        .iter()
+        .find(|p| p.starts_with("Lista (conflito, Mac, "))
+        .unwrap_or_else(|| panic!("no copy of Lista.txt in {names:?}"));
+    assert_eq!(text(&b, copy).as_deref(), Some("um\ntres\n"));
 }
 
 #[test]

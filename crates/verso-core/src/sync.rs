@@ -40,6 +40,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
+mod append;
+pub use append::{append_merge, merges_by_append};
+
 /// A file as one side holds it: its bytes' SHA-256 and size.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FileState {
