@@ -241,16 +241,42 @@ pub(crate) fn host_name() -> String {
         .unwrap_or_else(|| std::env::consts::OS.to_owned())
 }
 
+/// The files here as a pass compares them, and those held apart.
+type Here = (Files, BTreeMap<String, SyncRefused>);
+
 /// The folder's files here: the listing's, each with its hash — read
 /// again only when its size or time moved, or the watcher named it. A
 /// placeholder of on-demand storage (ADR 0043) and a file that cannot be
 /// read are held at the base's hash, so they are never deletions, and
 /// returned apart: nothing is done to them.
-fn here(
+///
+/// A listed file that is not on the disk any more is gone since the
+/// listing, and the watcher may never say so — on macOS FSEvents does not
+/// report the removal of a file whose name `link` gave, as `verso-fs`
+/// gives every file it creates (C13 of the live campaign, 2026-10-11):
+/// the folder is walked at once and listed again, so this pass compares
+/// it as it is — the deletion, or the server's newer version, carried out
+/// now — and the file is never held as changed.
+fn here(ctx: &Ctx, s: &Syncer, state: &mut engine::State) -> Result<Here, ContractError> {
+    let dirty: HashSet<String> = std::mem::take(&mut *lock(&s.dirty));
+    if let Some(found) = listed_here(ctx, s, state, &dirty, false)? {
+        return Ok(found);
+    }
+    ctx.service.walk_quietly(&s.key);
+    listed_here(ctx, s, state, &dirty, true)?
+        .ok_or_else(|| verso_service::failed("the folder's listing did not settle"))
+}
+
+/// [`here`] on the listing as it stands: `None` when a listed file is gone
+/// from the disk, unless the folder was `walked` just now — then a listed
+/// file the disk lacks is held apart as failed, never a deletion.
+fn listed_here(
     ctx: &Ctx,
     s: &Syncer,
     state: &mut engine::State,
-) -> Result<(Files, BTreeMap<String, SyncRefused>), ContractError> {
+    dirty: &HashSet<String>,
+    walked: bool,
+) -> Result<Option<Here>, ContractError> {
     let listed: Vec<(String, u64, i64, bool)> = ctx.service.with_key(&s.key, |ws| {
         Ok(ws
             .entries()
@@ -266,7 +292,6 @@ fn here(
             })
             .collect())
     })?;
-    let dirty: HashSet<String> = std::mem::take(&mut *lock(&s.dirty));
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX));
@@ -368,22 +393,15 @@ fn here(
                 &mut files,
                 &mut apart,
             ),
-            // Gone since the listing (F22): as a change refused meanwhile,
-            // read again on the next pass — held at its base, so no
-            // deletion on this one; listed as changed only if it comes
-            // back, never as failed.
+            // Gone since the listing (F22, C13): the folder is walked and
+            // listed again; held at its base meanwhile, never a deletion
+            // on a listing that is out of date.
             Err(e) if e.kind == ErrorKind::NotFound => {
-                if again(s, &path) {
-                    held(&path, "changed", e.message, &mut files, &mut apart);
-                } else if let Some(b) = base.get(&path) {
-                    files.insert(
-                        path,
-                        FileState {
-                            hash: b.clone(),
-                            size: 0,
-                        },
-                    );
+                if !walked {
+                    gone_line(&path, "this pass, once listed again");
+                    return Ok(None);
                 }
+                held(&path, "failed", e.message, &mut files, &mut apart);
             }
             Err(e) => held(&path, "failed", e.message, &mut files, &mut apart),
         }
@@ -434,7 +452,7 @@ fn here(
         }
     }
     state.seen.retain(|p, _| files.contains_key(p));
-    Ok((files, apart))
+    Ok(Some((files, apart)))
 }
 
 #[must_use]
@@ -743,6 +761,22 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
                     },
                 );
             }
+            // Gone here: the folder was walked; the pass right after
+            // reads it again and carries out what the folder now says. A
+            // step that finds it gone on that pass too is listed, not
+            // retried forever: what is missing is not the file.
+            Err(Refusal::Gone(path)) => {
+                if again(s, &path) {
+                    apart.insert(
+                        path.clone(),
+                        SyncRefused {
+                            path,
+                            reason: "failed".to_owned(),
+                            message: "not found here, though the folder lists it".to_owned(),
+                        },
+                    );
+                }
+            }
             // Changed meanwhile: the next pass sees it as it is now —
             // once; a refusal that comes back is listed, not retried
             // forever.
@@ -864,6 +898,10 @@ enum Refusal {
     File(String, String, String),
     /// The file changed while the pass ran: the next one sees it.
     Again(String, String),
+    /// The file is gone here since the pass listed it: the folder was
+    /// walked, and the pass right after carries out its deletion, or
+    /// fetches the server's newer version — never listed.
+    Gone(String),
 }
 
 fn of_server(path: &str, e: &Value) -> Refusal {
@@ -880,11 +918,21 @@ fn of_server(path: &str, e: &Value) -> Refusal {
     }
 }
 
-fn of_here(path: &str, e: ContractError) -> Refusal {
+/// A step here that failed. One whose file is gone since the listing —
+/// moved or deleted on this computer while the pass ran, or long before
+/// with no batch of the watcher to say so (C13, C17) — brings the listing
+/// up to date now, as that batch would, so the pass asked for at once
+/// sees the folder as it is, not the file once more (F22).
+fn of_here(ctx: &Ctx, s: &Syncer, path: &str, e: ContractError) -> Refusal {
     match e.kind {
-        // Changed, or gone (moved or deleted) since the pass listed it:
-        // the next pass sees it as it is now.
-        ErrorKind::Changed | ErrorKind::NotFound => Refusal::Again(path.to_owned(), e.message),
+        ErrorKind::NotFound => {
+            gone_line(path, "the pass that follows");
+            tokio::task::block_in_place(|| ctx.service.walk_quietly(&s.key));
+            Refusal::Gone(path.to_owned())
+        }
+        // Changed since the pass read it: the next pass sees it as it is
+        // now.
+        ErrorKind::Changed => Refusal::Again(path.to_owned(), e.message),
         // Another file here has this name, as this file system compares
         // names (case, accents): listed, never written over.
         ErrorKind::Exists => Refusal::File(
@@ -901,18 +949,16 @@ fn of_here(path: &str, e: ContractError) -> Refusal {
     }
 }
 
-/// A step here whose entry is gone since the listing — moved or deleted
-/// on this computer while the pass ran, before the watcher's batch (C17):
-/// the listing is brought up to date now, as that batch would, so the pass
-/// [`again`] asks for at once sees the folder as it is, not the file once
-/// more (F22). Anything else is [`of_here`]'s.
-fn gone_here(ctx: &Ctx, s: &Syncer, path: &str, e: ContractError) -> Refusal {
-    if e.kind == ErrorKind::NotFound {
-        tokio::task::block_in_place(|| {
-            ctx.service.changed_outside(&s.key, &AtomicBool::new(false));
-        });
-    }
-    of_here(path, e)
+/// The log's line for a file found gone here since the listing: its
+/// deletion, or the server's newer version, is carried out `on` that pass.
+fn gone_line(path: &str, on: &str) {
+    log::write(
+        "INFO",
+        "sync",
+        &format!(
+            "gone here since the folder was listed: {path} (the folder is walked again; its deletion, or the server's newer version, is carried out on {on})"
+        ),
+    );
 }
 
 fn reader_refusal(path: &str) -> Refusal {
@@ -939,7 +985,7 @@ async fn upload(
         ctx.service
             .with_key(&s.key, move |ws| Ok(ws.read_with_revision(&p)?.0))
     })
-    .map_err(|e| of_here(path, e))?;
+    .map_err(|e| of_here(ctx, s, path, e))?;
     let size = bytes.len() as u64;
     if size > LARGEST {
         return Err(Refusal::File(
@@ -1048,7 +1094,7 @@ fn write_here(
             Ok(())
         })
     })
-    .map_err(|e| of_here(path, e))
+    .map_err(|e| of_here(ctx, s, path, e))
 }
 
 /// What a pass carries its plan out with.
@@ -1146,7 +1192,7 @@ impl Side<'_> {
                         Ok(())
                     })
                 })
-                .map_err(|e| gone_here(ctx, s, path, e))?;
+                .map_err(|e| of_here(ctx, s, path, e))?;
                 state.base.remove(path);
                 state.seen.remove(path);
                 s.crossed(ctx, "deleted_here", path, None);
@@ -1179,7 +1225,7 @@ impl Side<'_> {
                         Ok(())
                     })
                 })
-                .map_err(|e| gone_here(ctx, s, from, e))?;
+                .map_err(|e| of_here(ctx, s, from, e))?;
                 if let Some(b) = state.base.remove(from) {
                     state.base.insert(to.clone(), b);
                 }
@@ -1196,7 +1242,7 @@ impl Side<'_> {
                     ctx.service
                         .with_key(&s.key, move |ws| Ok(ws.rename_entry(&f, &t).map(|_| ())?))
                 })
-                .map_err(|e| gone_here(ctx, s, path, e))?;
+                .map_err(|e| of_here(ctx, s, path, e))?;
                 state.base.remove(path);
                 state.seen.remove(path);
                 if let Some(f) = local.remove(path) {
