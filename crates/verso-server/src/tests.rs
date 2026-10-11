@@ -384,16 +384,32 @@ fn the_websocket_wants_a_session_and_this_servers_origin() {
             connect(&r, Some(&b.cookie), None, None).await.err(),
             Some(403)
         );
-        // A session ended elsewhere: the next command is refused and the
+        // A session gone without a word to its connections (ended on the
+        // machine, expired): the next command is refused and the
         // connection told.
+        let other = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let mut ws = connect(&r, Some(&other.cookie), Some(&r.origin()), None)
+            .await
+            .unwrap();
+        next(&mut ws).await;
+        let token = other.cookie.split_once('=').unwrap().1;
+        let session = r.server.db.session(token).unwrap().unwrap();
+        r.server
+            .db
+            .end_session(&session.account, &session.id)
+            .unwrap();
+        let after = call(&mut ws, 1, "list_notes", json!({})).await;
+        assert_eq!(after["err"]["message"], "signed out", "{after}");
+        // A session ended through the server (signing out): its connection
+        // is told at once, before any command.
         let mut ws = connect(&r, Some(&b.cookie), Some(&r.origin()), None)
             .await
             .unwrap();
         next(&mut ws).await;
         let (status, _) = post(&r, "/api/signout", json!({}), Some(&b)).await;
         assert_eq!(status, 200);
-        let after = call(&mut ws, 1, "list_notes", json!({})).await;
-        assert_eq!(after["err"]["message"], "signed out", "{after}");
+        let told = next(&mut ws).await;
+        assert_eq!(told["gone"], "session", "{told}");
     });
 }
 
