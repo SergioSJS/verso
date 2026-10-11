@@ -193,3 +193,101 @@ fn a_window_on_a_servers_folder_is_answered_by_the_server() {
         "no_folder"
     );
 }
+
+/// A question asked on a connection that closed between two questions —
+/// the reader ended, the writer still waiting for something to send —
+/// fails at once as unavailable, so sync says offline and connects again.
+/// Before, it was sent through the writer and waited for an answer no one
+/// would give: the live campaign's Linux device stayed "syncing" for 40
+/// minutes (2026-10-11).
+#[test]
+fn a_question_on_a_connection_closed_between_questions_fails_at_once() {
+    use std::time::Duration;
+
+    let data = tempfile::tempdir().unwrap();
+    let folders = tempfile::tempdir().unwrap();
+    let _campanha = tempfile::Builder::new()
+        .prefix("Campanha")
+        .rand_bytes(0)
+        .tempdir_in(folders.path())
+        .unwrap();
+    let config = verso_server::config::Config::from_env(
+        &Loopback,
+        &verso_server::config::Defaults {
+            data_dir: data.path().to_owned(),
+            folders_dir: folders.path().to_owned(),
+            ui_dir: data.path().join("ui"),
+        },
+    )
+    .unwrap();
+    let db = verso_server::db::Db::open(data.path()).unwrap();
+    let account = db
+        .create_account("ana@casa.lan", "Ana", "pt", Some("uma senha longa"), true)
+        .unwrap();
+    let folder = db.create_folder("Campanha", &account.id).unwrap();
+    let (token, _) = db
+        .create_session(&account.id, "device", "Verso · teste", "127.0.0.1")
+        .unwrap();
+    let server = verso_server::state::Server::new(
+        config,
+        db,
+        verso_server::contract_version(),
+        "test".into(),
+    );
+    // A server that can be stopped: its runtime dropped, every connection
+    // with it.
+    let (addr_tx, addr_rx) = std::sync::mpsc::channel();
+    let (stop_tx, stop_rx) = tokio::sync::oneshot::channel::<()>();
+    let stopped = std::thread::spawn(move || {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        rt.block_on(async move {
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            addr_tx.send(listener.local_addr().unwrap()).unwrap();
+            tokio::select! {
+                _ = verso_server::run(server, listener, std::future::pending()) => {}
+                _ = stop_rx => {}
+            }
+        });
+        rt.shutdown_timeout(Duration::from_secs(2));
+    });
+    let addr = addr_rx.recv().unwrap();
+    let login = verso_core::servers::ServerLogin {
+        url: format!("http://localhost:{}", addr.port()),
+        token,
+        email: "ana@casa.lan".into(),
+        name: "Ana".into(),
+    };
+
+    tauri::async_runtime::block_on(async move {
+        let (remote, mut heard, _) = remote::dial_hello(&login, folder.id.clone()).await.unwrap();
+        remote
+            .call("open_server_folder", json!({ "id": folder.id }))
+            .await
+            .unwrap();
+        // The server goes away while nothing is asked: the reader ends.
+        stop_tx.send(()).unwrap();
+        tokio::time::timeout(Duration::from_secs(10), async {
+            while let Some(h) = heard.recv().await {
+                if matches!(h, remote::Heard::Closed) {
+                    return;
+                }
+            }
+        })
+        .await
+        .expect("the closed connection is heard");
+        // The next pass's first question.
+        let answer = tokio::time::timeout(
+            Duration::from_secs(10),
+            remote.call("sync_state", json!({})),
+        )
+        .await
+        .expect("a question on a closed connection does not wait forever");
+        let e = answer.unwrap_err();
+        assert_eq!(e["kind"], "unavailable", "{e}");
+        assert_eq!(e["transport"], true, "{e}");
+    });
+    stopped.join().unwrap();
+}

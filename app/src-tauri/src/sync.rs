@@ -1357,13 +1357,12 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
             }
             let deadline = tokio::time::Instant::now() + SCAN;
             let lost = loop {
+                // What the connection heard first: a connection closed
+                // while a change arrived here is seen closed, not used for
+                // a pass (the live campaign, 2026-10-11). A wake waits as
+                // a stored permit.
                 tokio::select! {
-                    () = s.wake.notified() => break false,
-                    // The scan: the folder walked, as on reconnecting.
-                    () = tokio::time::sleep_until(deadline) => {
-                        l.walk = true;
-                        break false;
-                    }
+                    biased;
                     h = l.heard.recv() => match h {
                         Some(remote::Heard::Event(e, _)) if e == "sync-changed" => break false,
                         // Promoted or made a reader: what may cross changes now.
@@ -1381,6 +1380,12 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
                         }
                         _ => break true,
                     },
+                    () = s.wake.notified() => break false,
+                    // The scan: the folder walked, as on reconnecting.
+                    () = tokio::time::sleep_until(deadline) => {
+                        l.walk = true;
+                        break false;
+                    }
                 }
             };
             if lost {
