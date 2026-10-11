@@ -23,7 +23,9 @@
   same day, the maintainer took the recommended answer to each question
   put to them: *"Gostei das recomendações, pode seguir"*. Item 9: the pause
   needs at least 3 deletions in one pass — a floor, so that in a small
-  folder one or two deletions do not pause (the review's M1); and "the
+  folder one or two deletions do not pause (the review's M1; read as a floor
+  from the "pode seguir" to the recommendation "pausar a partir de 3" — that
+  reading awaits the maintainer's confirmation); and "the
   system's bin" corrected to the folder's `.trash/`, which is what the
   code does ([0080](0080-the-trash-with-expiry-and-restore.md) item 9).
   Items 2 and 8: the two Unicode forms of one name are one file

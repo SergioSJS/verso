@@ -24,6 +24,11 @@ test release.
 
 ### Fixed
 
+- **"Keep both" when a note changed on disk while you typed**: the editor's conflict view offers a third choice beside "discard mine" and "save mine over": the disk's version keeps the name and your text goes to a copy beside it, named as sync names one; the same on a board, a text file and a note embedded in a board.
+- **A note deleted outside while its tab held unsaved text** now says so in words — "This note was deleted or moved outside Verso. Your text is still here." — with "Save again" and "Close without saving"; it no longer fails each autosave with an error in the log.
+- **Links a rename could not update** are named in a notice with "Try again", instead of a line in the status bar cut short.
+- **On a phone, Settings opened straight to a section** scrolls that section's tab into view.
+- **A device's name beside the account** in the server's log of a refused change and in the folder's "Latest changes to the files" on the console, so two devices of one person are told apart.
 - **A note renamed or deleted on another device, seen in a browser**: the tree follows, an open tab follows the renamed note, and a deleted one says so in words instead of showing a file-system error.
 - **A new window fits the screen**: on a small screen (1280×800) the first window no longer opens taller than the screen with its status bar hidden under the task bar.
 - **The status bar says the index in a person's words** ("130 notas em dia", "3 ainda na nuvem") and gives itself back after a background index; in a browser with no folder open, the "you only read this folder" line no longer shows, and the start page says to choose one of the server's folders.

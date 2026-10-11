@@ -24,6 +24,11 @@ versão de teste.
 
 ### Corrigido
 
+- **"Guardar os dois" quando a nota mudou em disco enquanto você digitava**: a tela de conflito do editor oferece uma terceira escolha além de "descartar o meu" e "gravar o meu por cima": a versão do disco fica com o nome e o seu texto vai para uma cópia ao lado, nomeada como o sync nomeia; o mesmo num board, num arquivo de texto e numa nota embutida num board.
+- **Uma nota apagada fora enquanto a aba tinha texto não salvo** agora diz isso em palavras — "Esta nota foi apagada ou movida fora do Verso. O seu texto continua aqui." — com "Salvar de novo" e "Fechar sem salvar"; não falha mais a cada autosave com erro no log.
+- **Links que um rename não conseguiu atualizar** são nomeados num aviso com "Tentar de novo", em vez de uma linha cortada na barra de status.
+- **No celular, Ajustes aberto direto numa seção** rola a aba dessa seção para a vista.
+- **O nome do aparelho ao lado da conta** no log do servidor de uma mudança recusada e em "Últimas mudanças nos arquivos" da pasta no console, para distinguir dois aparelhos de uma pessoa.
 - **Uma nota renomeada ou apagada em outro aparelho, vista no navegador**: a árvore acompanha, uma aba aberta segue a nota renomeada, e uma apagada diz isso em palavras em vez de mostrar um erro do sistema de arquivos.
 - **Uma janela nova cabe na tela**: numa tela pequena (1280×800) a primeira janela não abre mais maior que a tela, com a barra de status escondida sob a barra de tarefas.
 - **A barra de status diz o índice em palavras de gente** ("130 notas em dia", "3 ainda na nuvem") e volta ao normal depois de um índice em segundo plano; no navegador sem pasta aberta, a linha "você só lê esta pasta" não aparece mais, e a página inicial diz para escolher uma pasta do servidor.
