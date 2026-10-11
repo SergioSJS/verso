@@ -482,14 +482,24 @@ mod callouts_and_raw_html {
     /// both sizes, not on the larger only. Three runs of N followed by three
     /// of 2N failed once on the Windows machine while another machine on
     /// the same host compiled (2026-10-11: 36 ms against 353 ms, x9.83) and
-    /// passed right after. A doubled render under `FLOOR` is too short to
+    /// passed right after. Interleaved runs still failed once on the Linux
+    /// machine while the desktop app synced on it (2026-10-11: 204 ms
+    /// against 779 ms, x3.82), a sustained, uneven load that no single
+    /// minimum escapes. So a unit over the bound is measured again from
+    /// scratch, up to `ATTEMPTS` in all, and fails only if every attempt is
+    /// over: a quadratic parser is over every time, a loaded machine rarely
+    /// three times in a row. A doubled render under `FLOOR` is too short to
     /// measure apart from noise, and passes; above it, the clock's grain
     /// (well under a microsecond on the three systems) does not count.
+    /// `VERSO_TIMING_VERBOSE=1` prints every attempt to stderr.
     #[test]
     fn pathological_inputs_stay_linear() {
         use std::time::{Duration, Instant};
         const FLOOR: Duration = Duration::from_millis(20);
         const ROUNDS: usize = 5;
+        const ATTEMPTS: usize = 3;
+        const BOUND: f64 = 2.5;
+        let verbose = std::env::var_os("VERSO_TIMING_VERBOSE").is_some_and(|v| v == "1");
         let time = |source: &str| {
             let started = Instant::now();
             let _ = to_html(source);
@@ -502,19 +512,33 @@ mod callouts_and_raw_html {
             ("a %%\n\n", 20_000),
         ] {
             let (single, double) = (unit.repeat(n), unit.repeat(2 * n));
-            let (mut once, mut twice) = (Duration::MAX, Duration::MAX);
-            for _ in 0..ROUNDS {
-                once = once.min(time(&single));
-                twice = twice.min(time(&double));
+            let mut over = Vec::new();
+            for attempt in 1..=ATTEMPTS {
+                let (mut once, mut twice) = (Duration::MAX, Duration::MAX);
+                for _ in 0..ROUNDS {
+                    once = once.min(time(&single));
+                    twice = twice.min(time(&double));
+                }
+                let ratio = twice.as_secs_f64() / once.as_secs_f64().max(1e-9);
+                if verbose {
+                    eprintln!(
+                        "{unit:?} attempt {attempt}: {n} in {once:?}, {} in {twice:?} (least of {ROUNDS} each) — x{ratio:.2}",
+                        2 * n
+                    );
+                }
+                if twice < FLOOR || ratio <= BOUND {
+                    over.clear();
+                    break;
+                }
+                over.push(format!(
+                    "attempt {attempt}: {n} in {once:?}, {} in {twice:?} — x{ratio:.2}",
+                    2 * n
+                ));
             }
-            if twice < FLOOR {
-                continue;
-            }
-            let ratio = twice.as_secs_f64() / once.as_secs_f64().max(1e-9);
             assert!(
-                ratio <= 2.5,
-                "{unit:?}: {n} in {once:?}, {} in {twice:?} (least of {ROUNDS} each) — x{ratio:.2}, not linear",
-                2 * n
+                over.is_empty(),
+                "{unit:?}: over x{BOUND} in all {ATTEMPTS} attempts (least of {ROUNDS} runs each), not linear; {}",
+                over.join("; ")
             );
         }
     }
