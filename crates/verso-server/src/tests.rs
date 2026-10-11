@@ -42,14 +42,22 @@ impl Running {
     }
 }
 
+/// Every test server's configuration. The update check is off, as
+/// `VERSO_UPDATE_CHECK=off` turns it off but through this table rather than
+/// the process's environment: a test server never reaches the network
+/// (dozens of them asking the release feed at once were limited by GitHub).
 fn config(data: &std::path::Path, folders: &std::path::Path) -> Config {
     struct Loopback;
     impl config::Env for Loopback {
         fn var(&self, name: &str) -> Option<String> {
-            (name == "VERSO_LISTEN").then(|| "127.0.0.1:0".to_owned())
+            match name {
+                "VERSO_LISTEN" => Some("127.0.0.1:0".to_owned()),
+                "VERSO_UPDATE_CHECK" => Some("off".to_owned()),
+                _ => None,
+            }
         }
     }
-    Config::from_env(
+    let config = Config::from_env(
         &Loopback,
         &config::Defaults {
             data_dir: data.to_owned(),
@@ -57,7 +65,12 @@ fn config(data: &std::path::Path, folders: &std::path::Path) -> Config {
             ui_dir: data.join("ui"),
         },
     )
-    .unwrap()
+    .unwrap();
+    assert!(
+        !config.update_check,
+        "a test server never asks the release feed"
+    );
+    config
 }
 
 /// A server with an admin and one folder, "Campanha", owned by the admin.
