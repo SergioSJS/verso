@@ -29,6 +29,7 @@ versão de teste.
 - **A barra de status diz o índice em palavras de gente** ("130 notas em dia", "3 ainda na nuvem") e volta ao normal depois de um índice em segundo plano; no navegador sem pasta aberta, a linha "você só lê esta pasta" não aparece mais, e a página inicial diz para escolher uma pasta do servidor.
 - **Ajustes**: as chaves de número de linha do Editor ficam sob um título só; a explicação dos sites permitidos fica sob a caixa; o ajuste do make.md não diz mais "sincronizar".
 - **Um nome em dois arquivos no disco do servidor** (os acentos nas duas formas Unicode, de antes de um nome ser um arquivo só): a sincronização fica com um e segura o outro, e agora diz isso — um aviso no log do servidor a cada varredura, e uma linha em "Pede atenção" na página da pasta no console, contada na visão geral, com o arquivo a remover ou renomear.
+- **Sincronizar com um servidor de outro build da mesma versão** agora diz qual: "o servidor roda o Verso 0.7.0-beta.1 (build 1dac246, contrato …), este app 0.7.0-beta.1 (build efa6f12, contrato …): os contratos diferem — atualize o que estiver atrás", em vez de dizer a mesma versão duas vezes.
 
 ## 0.7.0-beta.1 — 2026-10-10
 

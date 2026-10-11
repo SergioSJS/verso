@@ -11,7 +11,7 @@
 // click on it opens the section. Nothing is silent (item 13).
 
 import { listen } from "@tauri-apps/api/event";
-import { commands, type ServerAccount, type ServerFolder, type SyncStatus } from "../bindings";
+import { commands, type ServerAccount, type ServerFolder, type SyncStatus, type SyncVersions } from "../bindings";
 import { h, ui } from "../dom";
 import { fail } from "../errors";
 import { currentFolder, folderName } from "../folder";
@@ -88,6 +88,11 @@ const pt = {
     folder_gone: "a pasta do servidor sumiu, ou esta conta não tem mais acesso a ela",
     failed: "algo deu errado; o log do app diz o quê",
   } as Record<string, string>,
+  /** The `version` problem with what each side runs. */
+  versions: (v: SyncVersions): string =>
+    v.server_version === v.app_version
+      ? `o servidor roda o Verso ${v.server_version} (build ${v.server_build}, contrato ${v.server_contract}), este app ${v.app_version} (build ${v.app_build}, contrato ${v.app_contract}): os contratos diferem — atualize o que estiver atrás`
+      : `o servidor roda o Verso ${v.server_version}, este app ${v.app_version}: atualize o que estiver atrás`,
   log: "O que cruzou",
   logEmpty: "Nada ainda.",
   what: {
@@ -170,6 +175,10 @@ const en: typeof pt = {
     folder_gone: "the server's folder is gone, or this account no longer reaches it",
     failed: "something went wrong; the app's log says what",
   },
+  versions: (v: SyncVersions): string =>
+    v.server_version === v.app_version
+      ? `the server runs Verso ${v.server_version} (build ${v.server_build}, contract ${v.server_contract}), this app ${v.app_version} (build ${v.app_build}, contract ${v.app_contract}): their contracts differ — update the one that is behind`
+      : `the server runs Verso ${v.server_version}, this app ${v.app_version}: update the one that is behind`,
   log: "What crossed",
   logEmpty: "Nothing yet.",
   what: {
@@ -228,6 +237,14 @@ function when(stamp: string): string {
   return d.toLocaleString(document.documentElement.lang.startsWith("pt") ? "pt-BR" : "en", { dateStyle: "short", timeStyle: "short" });
 }
 
+/** What went wrong, in the window's language: the `version` problem names
+ *  what each side runs. */
+function problemText(st: SyncStatus): string | null {
+  const s = syncStrings();
+  if (st.problem === "version" && st.versions) return s.versions(st.versions);
+  return (st.problem && s.problems[st.problem]) || st.message;
+}
+
 /** The state in a few words, as the status bar and the section say it. */
 export function stateText(st: SyncStatus): string {
   const s = syncStrings();
@@ -235,7 +252,7 @@ export function stateText(st: SyncStatus): string {
   if (st.state === "syncing" && (st.sending || st.receiving)) text = s.moving(st.sending, st.receiving);
   if (st.state === "paused" && st.deletions) text = `${s.states["paused"]} · ${s.toDelete(st.deletions)}`;
   if (st.state === "error") {
-    const said = (st.problem && s.problems[st.problem]) || st.message;
+    const said = problemText(st);
     if (said) text = `${s.states["error"]}: ${said}`;
   }
   if (st.conflicts.length) text += ` · ${s.conflictsShort(st.conflicts.length)}`;
@@ -415,10 +432,7 @@ function drawOn(box: HTMLElement, st: SyncStatus): void {
     box,
     st,
     refresh,
-    (status) => {
-      const s = syncStrings();
-      return (status.problem && s.problems[status.problem]) || status.message;
-    },
+    problemText,
     () => openSection("servers"),
   );
 }

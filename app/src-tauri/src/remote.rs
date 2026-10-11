@@ -21,7 +21,7 @@ use serde_json::{Value, json};
 use tokio::sync::{mpsc, oneshot};
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
-use verso_contract::{ServerAccount, ServerFolder, ServerSignIn};
+use verso_contract::{ServerAccount, ServerFolder, ServerSignIn, SyncVersions};
 use verso_core::servers::{self, ServerLogin};
 use verso_service::files::Served;
 
@@ -31,7 +31,7 @@ use super::*;
 /// contract's version, which the server's must equal (answer D).
 const BINDINGS: &str = include_str!("../../ui/src/bindings.ts");
 
-fn contract_version() -> String {
+pub(crate) fn contract_version() -> String {
     use sha2::{Digest, Sha256};
     Sha256::digest(BINDINGS.as_bytes())
         .iter()
@@ -450,6 +450,60 @@ pub(crate) async fn dial(
     login: &ServerLogin,
     folder: String,
 ) -> Result<(Arc<Remote>, mpsc::UnboundedReceiver<Heard>), ContractError> {
+    let (remote, heard, hello) = dial_hello(login, folder).await?;
+    if let Some(v) = mismatch(&hello) {
+        return Err(mismatch_refused(&v));
+    }
+    Ok((remote, heard))
+}
+
+/// What each side runs, when the server's contract is not this app's.
+pub(crate) fn mismatch(hello: &Value) -> Option<SyncVersions> {
+    let contract = contract_version();
+    if hello["contract"].as_str() == Some(contract.as_str()) {
+        return None;
+    }
+    let said = |field: &str| hello[field].as_str().unwrap_or("?").to_owned();
+    Some(SyncVersions {
+        server_version: said("version"),
+        server_build: said("commit"),
+        server_contract: said("contract"),
+        app_version: env!("CARGO_PKG_VERSION").to_owned(),
+        app_build: env!("VERSO_COMMIT").to_owned(),
+        app_contract: contract,
+    })
+}
+
+/// The refusal of a server whose contract is not this app's, in English
+/// for the log: with one version on both sides — two builds of it — the
+/// build and the contract of each (the live campaign, 2026-10-11, read "the
+/// server runs Verso 0.7.0-beta.1, another version than this app's
+/// 0.7.0-beta.1").
+pub(crate) fn mismatch_refused(v: &SyncVersions) -> ContractError {
+    refused(if v.server_version == v.app_version {
+        format!(
+            "the server runs Verso {} (build {}, contract {}), this app {} (build {}, contract {}): their contracts differ — update the one that is behind",
+            v.server_version,
+            v.server_build,
+            v.server_contract,
+            v.app_version,
+            v.app_build,
+            v.app_contract
+        )
+    } else {
+        format!(
+            "the server runs Verso {}, this app {}: update the one that is behind",
+            v.server_version, v.app_version
+        )
+    })
+}
+
+/// [`dial`] without the contract's check: the connection, what it hears,
+/// and the server's hello.
+pub(crate) async fn dial_hello(
+    login: &ServerLogin,
+    folder: String,
+) -> Result<(Arc<Remote>, mpsc::UnboundedReceiver<Heard>, Value), ContractError> {
     let ws_url = format!(
         "{}/api/ws",
         login
@@ -527,13 +581,6 @@ pub(crate) async fn dial(
         .await
         .map_err(|_| failed("the server did not answer"))?
         .map_err(|_| failed("the server closed the connection"))?;
-    if hello["contract"].as_str() != Some(contract_version().as_str()) {
-        return Err(refused(format!(
-            "the server runs Verso {}, another version than this app's {}: update the one that is behind",
-            hello["version"].as_str().unwrap_or("?"),
-            env!("CARGO_PKG_VERSION")
-        )));
-    }
     let remote = Arc::new(Remote {
         url: login.url.clone(),
         folder,
@@ -543,7 +590,7 @@ pub(crate) async fn dial(
         pending,
         tx,
     });
-    Ok((remote, heard_rx))
+    Ok((remote, heard_rx, hello))
 }
 
 /// A window's connection: what it hears goes to the window, and a closed

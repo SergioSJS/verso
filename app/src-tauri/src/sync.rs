@@ -17,7 +17,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
 
 use serde_json::{Value, json};
-use verso_contract::{SyncLogEntry, SyncRefused, SyncStatus};
+use verso_contract::{SyncLogEntry, SyncRefused, SyncStatus, SyncVersions};
 use verso_core::servers;
 use verso_core::sync::{self as engine, Action, FileState, Files, Seen};
 
@@ -68,6 +68,9 @@ pub(crate) struct Syncer {
     dirty: Mutex<HashSet<String>>,
     /// The state file is written by one at a time: a pass, or a stop.
     disk: Mutex<()>,
+    /// What each side ran when the server's contract was not this app's:
+    /// the window names both builds (`SyncStatus::versions`).
+    versions: Mutex<Option<SyncVersions>>,
 }
 
 impl Syncer {
@@ -91,6 +94,7 @@ impl Syncer {
             }),
             dirty: Mutex::new(HashSet::new()),
             disk: Mutex::new(()),
+            versions: Mutex::new(None),
         })
     }
 
@@ -548,7 +552,12 @@ pub(crate) async fn link(ctx: &Ctx, s: &Syncer) -> Result<Link, ContractError> {
         })?;
     let role = mine["role"].as_str().unwrap_or("reader").to_owned();
     let name = mine["name"].as_str().unwrap_or_default().to_owned();
-    let (remote, heard) = remote::dial(&login, s.folder.clone()).await?;
+    let (remote, heard, hello) = remote::dial_hello(&login, s.folder.clone()).await?;
+    if let Some(v) = remote::mismatch(&hello) {
+        let refused = remote::mismatch_refused(&v);
+        *lock(&s.versions) = Some(v);
+        return Err(refused);
+    }
     remote
         .call("open_server_folder", json!({ "id": s.folder }))
         .await
@@ -586,6 +595,7 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
         st.folder_name.clone_from(&l.name);
         st.message = None;
         st.problem = None;
+        st.versions = None;
     });
     let remote = Arc::clone(&l.remote);
     there(&remote, &mut l.known).await.map_err(|e| said(&e))?;
@@ -1252,7 +1262,13 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
                 s.set(&ctx, |st| {
                     st.state = if offline { "offline" } else { "error" }.to_owned();
                     st.message = Some(e.message.clone());
-                    st.problem = Some(problem_of(&e).to_owned());
+                    let problem = problem_of(&e);
+                    st.versions = if problem == "version" {
+                        lock(&s.versions).clone()
+                    } else {
+                        None
+                    };
+                    st.problem = Some(problem.to_owned());
                 });
                 let pause = if offline {
                     Duration::from_secs(wait)

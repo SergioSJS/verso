@@ -88,6 +88,7 @@ async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket) {
     );
     let hello = json!({ "hello": {
         "version": env!("CARGO_PKG_VERSION"),
+        "commit": server.commit,
         "contract": server.contract,
         "account": crate::api::account_json(&who.account),
     }});
