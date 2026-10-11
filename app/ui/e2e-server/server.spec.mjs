@@ -201,6 +201,79 @@ test("two windows edit one note at once and the file follows", async ({ page, br
   expect(otherErrors).toEqual([]);
 });
 
+/** A device of the same person, as the app that syncs a local folder
+ *  speaks to the server (ADR 0079): its own connection, the folder
+ *  opened, the file's hash as the server lists it for the base, then the
+ *  command. Answers the command's answer. */
+async function asDevice(page, folder, cmd, args) {
+  return page.evaluate(
+    async ({ folder, cmd, args }) => {
+      const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/ws`);
+      const waiting = new Map();
+      let id = 0;
+      ws.addEventListener("message", (e) => {
+        const m = JSON.parse(String(e.data));
+        if (typeof m.id === "number") waiting.get(m.id)?.(m);
+      });
+      await new Promise((resolve, reject) => {
+        ws.addEventListener("open", resolve);
+        ws.addEventListener("error", reject);
+      });
+      const call = (c, a) => new Promise((resolve) => {
+        const n = ++id;
+        waiting.set(n, resolve);
+        ws.send(JSON.stringify({ id: n, cmd: c, args: a }));
+      });
+      await call("open_server_folder", { id: folder });
+      const state = await call("sync_state", {});
+      const path = args.from ?? args.path;
+      const base = state.ok.files.find((f) => f.path === path)?.hash;
+      // Left open, as a device's is: closed with the page (WebKit says a
+      // connection closed under it on the console).
+      return call(cmd, { ...args, base });
+    },
+    { folder, cmd, args },
+  );
+}
+
+test("a device's rename and deletion reach the window's tree and tab", async ({ page }) => {
+  const errors = watch(page);
+  await signedIn(page, ADMIN.email, ADMIN.password);
+  await demoRegistered(page);
+  await openDemo(page);
+  const folder = new URL(page.url()).searchParams.get("folder");
+  const project = test.info().project.name;
+  const name = `Lista ${project}`;
+  const renamed = `Compras ${project}`;
+  // The note, made and open in a tab of the window.
+  await page.keyboard.press("ControlOrMeta+n");
+  await expect(page.locator("input.title-input")).toBeFocused();
+  await page.keyboard.type(name);
+  await page.keyboard.press("Enter");
+  await page.locator(".template-picker").getByRole("button", { name: "Em branco", exact: true }).click();
+  await expect(page.locator("#notes")).toContainText(`${name}.md`);
+  await expect(page.locator(".tab", { hasText: name })).toHaveCount(1);
+  // Renamed on a device: the tree has the new name, not the old, and the
+  // tab followed the note — no failure, no system text.
+  const moved = await asDevice(page, folder, "sync_rename", { from: `${name}.md`, to: `${renamed}.md` });
+  expect(moved.ok, JSON.stringify(moved)).toBeTruthy();
+  await expect(page.locator("#notes")).toContainText(`${renamed}.md`);
+  await expect(page.locator("#notes")).not.toContainText(`${name}.md`);
+  await expect(page.locator(".tab", { hasText: renamed })).toHaveCount(1);
+  await expect(page.locator(".tab", { hasText: name })).toHaveCount(0);
+  await expect(page.locator(".load-failure")).toHaveCount(0);
+  // Deleted on a device: gone from the tree; the tab keeps its text and
+  // says, in words, where it may have gone.
+  const gone = await asDevice(page, folder, "sync_delete", { path: `${renamed}.md` });
+  expect(gone.ok !== undefined, JSON.stringify(gone)).toBe(true);
+  await expect(page.locator("#notes")).not.toContainText(`${renamed}.md`);
+  const leaf = page.locator(".leaf", { has: page.locator(".flags", { hasText: "Apagada ou movida em outro aparelho" }) });
+  await expect(leaf).toHaveCount(1);
+  await expect(page.locator(".load-failure")).toHaveCount(0);
+  await expect(page.locator("body")).not.toContainText("os error");
+  expect(errors).toEqual([]);
+});
+
 test("the window installs on a phone's home screen", async ({ request }) => {
   const manifest = await request.get("/manifest.webmanifest");
   expect(manifest.ok()).toBe(true);

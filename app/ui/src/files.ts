@@ -345,7 +345,7 @@ export async function renameTo(from: string, to: string, done = ""): Promise<boo
  *  What moved with them by a rule of its own — a folder's note taking the
  *  folder's new name — goes where the core put it, not where the prefix
  *  says. */
-function followMoved(moved: { from: string; to: string }[], alsoMoved: { from: string; to: string }[]): void {
+export function followMoved(moved: { from: string; to: string }[], alsoMoved: { from: string; to: string }[]): void {
   const also = new Map(alsoMoved.map((m) => [m.from, m.to] as const));
   for (const [a, b] of also) pathsMoved(a, b);
   for (const { from, to } of moved) {
