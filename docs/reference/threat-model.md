@@ -27,6 +27,11 @@ sanitizer (`app/ui/src/sanitize.ts`), the packaging
 0082 are accepted and **not built** at this HEAD; their rows say what they
 decide, not what runs.
 
+**Gaps closed on 2026-10-11** on `feat/universo-sec` (from 4c09fc9), each
+by the commit its entry names: 1, 2, 3, 4, 6, 7, 8 and 13 to 16. The
+attack surface and the threats below say the bounds as built there; 5, 9,
+10, 11, 12 and 17 stay open, each with its reason.
+
 ## What is protected
 
 | Asset | Where | Why it matters |
@@ -72,11 +77,21 @@ decide, not what runs.
 
 ## The attack surface at HEAD
 
-Every request passes the `Host` check first (421 otherwise) and gets the
-server's headers after: `nosniff`, `no-referrer`, `SAMEORIGIN`,
-`Cross-Origin-Opener-Policy`, a `Permissions-Policy`, HSTS over HTTPS and,
-except under `/f/`, the window's own policy. A body of the REST API is
-1 MB at most. A secret sent over plain HTTP from another machine is never
+Every connection first takes a place — 512 on the server, 128 per address
+(an IPv6 /64 as one; this machine and the trusted proxy are not counted) —
+before a TLS handshake or a byte of HTTP is read, and holds it to its end,
+a WebSocket's included. A request's headers have 30 s, the wait for the
+next request on a kept-alive connection included; a request has 60 s, its
+body's arrival included (408 past it). Every request passes the `Host`
+check first (421 otherwise) and gets the server's headers after:
+`nosniff`, `no-referrer`, `SAMEORIGIN`, `Cross-Origin-Opener-Policy`, a
+`Permissions-Policy`, HSTS over HTTPS and, except under `/f/`, the
+window's own policy (under `/f/`, `Cross-Origin-Resource-Policy:
+same-origin`). A body of the REST API is 1 MB at most. Every delay "by
+address" below keys an IPv4 address whole and an IPv6 address by its
+/64; the maps strangers fill are bounded — the delays' 100 000 keys, and
+10 000 each of device codes, sign-in links and passkey ceremonies — the
+oldest tenth going first. A secret sent over plain HTTP from another machine is never
 read. "Origin" below is `Ctx::changes()`: a browser's change carries a
 matching `Origin` and the session's CSRF token; a bearer (a token or a
 device) carries neither; with no session, `Origin` alone. "The person" is
@@ -86,21 +101,21 @@ token.
 
 | Surface | Who may call it | What checks it | What limits it | What logs it |
 |---|---|---|---|---|
-| `GET /api/state`, the pages, the window's files | anyone | `Host` | the page is never cached | nothing |
+| `GET /api/state`, the pages, the window's files | anyone; the server's version and the contract's only to someone signed in | `Host` | the page is never cached | nothing |
 | `POST /api/signin` | anyone, over TLS | Origin | a growing delay by address and by account (`in:`): 3 free, then 1 s doubling to 60 s, forgotten after an hour | audit `sign_in`, failed or not |
 | `POST /api/passkey/start`, `/finish` | anyone, over TLS | Origin; WebAuthn with user verification; the ceremony 5 minutes in memory | a delay by address (`pk:`), every start counted | audit `sign_in_passkey` |
-| `POST /api/signin/link`, `POST /api/forgot` | anyone, only when the server has a mail server | Origin | a delay by address (`mail:`), every request counted; a sign-in link lives 15 minutes, in memory | audit `signin_link_sent`, `reset_link_mailed` when the address has an account |
+| `POST /api/signin/link`, `POST /api/forgot` | anyone, only when the server has a mail server | Origin | a delay by address (`mail:`), every request counted; answered before the address is looked up — the link, the mail and the audit line follow the answer; a sign-in link lives 15 minutes, in memory | audit `signin_link_sent`, `reset_link_mailed` when the address has an account |
 | `POST /api/signin/link/{token}`, `GET`/`POST /api/invite/{token}`, `GET`/`POST /api/reset/{token}`, `POST /api/setup` | whoever holds the link | Origin on `POST`; the link's hash, single use, expiry (setup 1 hour, invitation 7 days, reset 24 hours); setup only while there is no account | a delay by address on a wrong link (`link:`) | audit `sign_in_link`, `invitation_used`, `password_reset`, `setup` |
 | `POST /api/device/start` | anyone, over TLS | nothing more | every start counted by address (`device:`), the same delay; a code lives 10 minutes | nothing |
 | `POST /api/device/poll` | whoever holds the poll secret (256 bits) | the secret's hash, compared in constant time | none of its own | nothing |
 | `GET`/`POST /api/device/{code}` | signed in; approving only from a browser session | Origin (approve) | the code: 10 minutes, once | audit `device_approved` |
-| `/api/me`, `/api/me/*` | the person (profile, password, sessions, settings, passkeys); a token is made only from a browser; a device renames only itself | Origin; the current password for a new one | the password change by account (`in:`); settings 256 KB; names 200 characters | audit `password_change`, `session_ended`, `sessions_ended`, `token_created`, `token_revoked`, `passkey_added`, `passkey_removed`, `device_renamed`; a profile or settings change is not audited |
+| `/api/me`, `/api/me/*` | the person (profile, password, sessions, settings, passkeys); a token is made only from a browser; a device renames only itself | Origin; the current password for a new one | the password change by account (`in:`), its Argon2id on the blocking pool; settings 256 KB; names 200 characters | audit `password_change`, `session_ended`, `sessions_ended`, `token_created`, `token_revoked`, `passkey_added`, `passkey_removed`, `device_renamed`; a profile or settings change is not audited |
 | `/api/folders`, `/api/folders/{id}/*` | signed in; creating: an account allowed to, never a token; members and the folder's audit: the folder's owner | Origin; the role in the folder, 404 when none | — | audit `folder_created`, grants, `revoke` |
 | `/api/admin/*` | admin | Origin on changes | every list paged on the server (50 rows) | audit for every change (`account_created`, `powers_*`, `account_deleted`, `account_sessions_ended`, `reset_link`, invitations, `folder_adopted`, `admin_self_grant_*`, `folder_quota`); reads are not audited |
-| `GET /f/{folder}/{*path}` | a reader of the folder or more; a token within its folders | TLS; the role, on every request; the core's path confinement | `Content-Security-Policy: sandbox`, `nosniff` | nothing |
-| `GET /api/ws`, the contract | a browser (only with `--web`, `Origin` checked before the cookie is accepted), a device, a token | TLS; the session or token alive before every command; the role in the folder before the core acts; a token's folders and write flag; a sync version older than the previous one refused for `sync_*` | 48 MB a message; 8 requests under way, past which the connection is not read; a queue of 1024 messages, full = closed; a ping every 30 s, closed after 2 unanswered; a window's log lines 60 a minute | the server's log: a sync change refused, a slow or silent connection closed, a sync version refused; each folder's change log names the account and the device of every write |
+| `GET /f/{folder}/{*path}` | a reader of the folder or more; a token within its folders | TLS; the role, on every request; the core's path confinement | `Content-Security-Policy: sandbox`, `nosniff`, `Cross-Origin-Resource-Policy: same-origin` | nothing |
+| `GET /api/ws`, the contract | a browser (only with `--web`, `Origin` checked before the cookie is accepted), a device, a token | TLS; the session or token alive before every command; the role in the folder before the core acts; a token's folders and write flag; a sync version older than the previous one refused for `sync_*` | 48 MB a message; 8 requests under way, past which the connection is not read; a queue of 1024 messages and 64 MiB of pushes, full = closed; each write within 30 s plus its size at 32 KiB/s, else closed; a ping every 30 s, closed after 2 unanswered; 32 connections per account and 64 per address, 429 past them; each command at its account's pace (100 a second, 400 at once) and the server's (1 000, 2 000), waiting its turn past it; a window's log lines 60 a minute | the server's log: a sync change refused, a slow or silent connection closed, a sync version refused; each folder's change log names the account and the device of every write |
 | — folder commands | the window's folder, opened by `open_server_folder` or `reopen_folder` | a write command needs editor or owner and a writing credential; a write's bytes checked against the quota first | the quota (ADR 0077 item 5) | the change log |
-| — `collab_*` (shared notes) | members of the folder | `collab_update`, `_save`, `_resolve` need a writer; a malformed Yjs update refused | none beyond the message limit; presence (`collab_awareness`) is relayed as sent | nothing |
+| — `collab_*` (shared notes) | members of the folder | `collab_update`, `_save`, `_resolve` need a writer; a malformed Yjs update refused | presence (`collab_awareness`) 16 KB at most, relayed as sent; what is relayed counts in each receiver's 64 MiB of pushes | nothing |
 | — `sync_*` | a device (any credential may ask) | a write, deletion or rename needs a writer, names its base hash and is refused when the file changed; a deletion goes to `.trash/`; the quota on the whole file | pieces of 4 MiB; 2 transfers each way per connection, dropped after 120 s idle and when the connection ends; 1 GiB per file; a walk at most once a minute | the server's log for a refusal other than "changed" |
 | — `render_markdown`, `board_text`, `log_write`, `capabilities` | signed in | — | the parser is fuzzed and checked for linear time; log lines one line each, 2000 characters | the server's log (`log_write`) |
 | The release feed | the server, outbound | — | once a day; the version alone in the `User-Agent`; `VERSO_UPDATE_TOKEN` when the repository is private; `VERSO_UPDATE_CHECK=off` | a line when it fails |
@@ -116,7 +131,7 @@ token.
 | Forwarded headers forged to look secure | Believed only from `VERSO_TRUSTED_PROXY`'s address; the client's address is the last one of `X-Forwarded-For`, the one that proxy added. |
 | DNS rebinding: a site resolving its own name to the server | The `Host` header must be the public address's or a loopback name; else 421. The links the server mails and prints are built from `VERSO_PUBLIC_URL`, never from a request's `Host`. |
 | Listening beyond loopback by accident | Refused at start without `VERSO_PUBLIC_URL`; the default is `127.0.0.1`. |
-| A connection held open to tie up the server | The server's own TLS gives a handshake 10 seconds. A WebSocket is pinged every 30 seconds and closed after two pings unanswered. See the gaps for what is not bounded. |
+| A connection held open to tie up the server | Every connection takes a place first — 512 on the server, 128 per address — before its TLS handshake (10 seconds) or a byte of HTTP; a request's headers have 30 seconds, a request 60. A WebSocket is pinged every 30 seconds and closed after two pings unanswered, and closed when a write is not taken in time; an account holds 32 of them, an address 64 (gaps 2, 4 and 8, closed). |
 | The process taking the host | The container runs as user 1000; the systemd unit runs as `universo` with `NoNewPrivileges`, `ProtectSystem=strict`, no capabilities and a narrow system-call and address-family set (ADR 0075). |
 
 ### Signing in and staying signed in
@@ -124,7 +139,7 @@ token.
 | Threat | Answer as built |
 |---|---|
 | Guessing passwords | Argon2id (OWASP's first parameters); a growing delay by address and by account, never a lock a stranger can use; 12 characters at least. |
-| Learning who has an account | A wrong password and an unknown e-mail are answered alike, in about the same time (a hash is computed either way); a passkey's start answers an unknown e-mail and an account without passkeys alike, and gives an account with passkeys its challenge — which says that the address has passkeys, never that an account without them exists. A sign-in link and "forgot the password" answer alike in their words; not in their time (see the gaps). |
+| Learning who has an account | A wrong password and an unknown e-mail are answered alike, in about the same time (a hash is computed either way); a passkey's start answers an unknown e-mail and an account without passkeys alike, and gives an account with passkeys its challenge — which says that the address has passkeys, never that an account without them exists. A sign-in link and "forgot the password" answer alike in their words and in their time: the answer leaves before the address is looked up (gap 6, closed). |
 | A stolen session cookie | `HttpOnly`, `SameSite=Lax`, `Secure` and `__Host-` over HTTPS; 14 days idle, 90 at most; listed in Settings and ended there; a password change ends the others; checked again before every command of an open WebSocket, and an ended session's connections are told and closed at once. |
 | Cross-site requests | Every request that changes something checks `Origin` against the server's and carries the session's CSRF token; the WebSocket checks `Origin` before it accepts the cookie. |
 | A token leaked from a script | Personal access tokens are scoped to folders and to reading or writing, never more than the member's role; never an admin, never the account's own pages; made only from a browser; prefixed `verso_pat_` for secret scanners; kept as SHA-256; an expiry of a year at most, or none said in red; revocable. |
@@ -142,13 +157,43 @@ token.
 | Reaching a folder one was not given | Every command and every file request checks the member's role in the folder before the core acts; a folder one may not see answers 404. The admin is no exception: entering a folder is a grant to oneself, in the log the owner reads. |
 | A reader writing | Write commands, a shared note's update, save and resolve, a device's put, delete and rename, and the folder's settings are refused below the editor's role; the window hides what the role cannot do. A role changed or removed reaches the member's open windows at once. |
 | Stored XSS through an attachment (HTML, SVG) | Files are served from `/f/` with `Content-Security-Policy: sandbox` and `nosniff`: a document made of them runs no script. |
-| Stored XSS through a note's HTML | The window's sanitizer, `app/ui/src/sanitize.ts`, is the boundary between members (ADR 0073 item 6): an allowlist of elements, attributes and the renderer's classes, parsed in an inert document; scripts, styles, forms and foreign content dropped; links to the web, mail and the page only; an embedded page behind the reader's approval of its origin; inline style kept but never fixed or absolute. The window's own policy, sent as a header, allows scripts from the server only. Mermaid runs at `securityLevel: "strict"`; KaTeX with its defaults. `[OPEN]`: a dedicated review of the sanitizer against hostile notes. |
+| Stored XSS through a note's HTML | The window's sanitizer, `app/ui/src/sanitize.ts`, is the boundary between members (ADR 0073 item 6): an allowlist of elements, attributes and the renderer's classes, parsed in an inert document; scripts, styles, forms and foreign content dropped; links to the web, mail and the page only; an embedded page behind the reader's approval of its origin; inline style kept but never fixed or absolute. The window's own policy, sent as a header, allows scripts from the server only. Mermaid runs at `securityLevel: "strict"`; KaTeX with its defaults. What the sanitizer guarantees, and the suite that holds it to that: below (gap 1, closed). `[OPEN]`: the review by the model that did not write it (the gaps before the announcement). |
 | Remote content leaking who reads | Remote pictures and embedded pages follow the reader's own setting, never the author's (the maintainer's answer I). |
 | Symlinks leading out of a shared folder | On a server a link is followed only when it leads inside the folder; one that leaves is refused and listed as a problem. |
 | An edit that erases another's text | Simultaneous editing merges; a write from elsewhere is merged line by line or refused as changed; a change made outside while edits wait stops the room for people to choose. `[OPEN]`: history, attribution and recovery of another member's change (ADR 0073). |
 | A deletion of another's file | A deletion goes to the folder's `.trash/`, from the window and from a device alike; seeing and restoring it in the window, and its retention, are ADR 0080, accepted, being built. |
-| A huge message or many requests to exhaust memory | A WebSocket message is 48 MB at most; a malformed Yjs update is refused; a connection has 8 requests under way at most, and a queue of 1024 messages, closed when it fills. A folder's space is bounded by its quota (ADR 0077 item 5): a write that would pass it is refused and nothing is written. `[OPEN]`: a global rate limit on commands (see the gaps). |
+| A huge message or many requests to exhaust memory | A WebSocket message is 48 MB at most; a malformed Yjs update is refused; a connection has 8 requests under way at most, and a queue of 1024 messages and 64 MiB of pushes, closed when it fills; a presence is 16 KB at most. Commands keep a pace per account and on the server, and connections are counted per account and per address (gaps 3 and 4, closed). A folder's space is bounded by its quota (ADR 0077 item 5): a write that would pass it is refused and nothing is written. |
 | Presence that lies | A member's presence in a shared note is relayed as their window sent it; the server does not stamp it with the account (see the gaps). |
+
+### What the sanitizer guarantees
+
+`app/ui/src/sanitize.ts` is written by hand, with no library. Reviewed line
+by line on 2026-10-11 against what reaches it — the dialect's `to_html`
+with a note's raw HTML, embedded notes and blocks, callouts, links, and a
+table's cells in Live Preview, which reached the page uncleaned until then
+— it parses the HTML in an inert document and keeps an allowlist: the
+renderer's elements and plain formatting; the attributes `class`, `id`,
+`title`, `lang`, `dir`, `style`, `align` and the renderer's `data-*` on any
+of them, and each element's own (a link's `href`, a picture's `src`, `alt`,
+`width`, `height`…); the renderer's classes only. What runs, loads, styles
+the page or is raw text — `script`, `style`, `object`, `embed`, `base`,
+`meta`, form controls, `template`, `noscript`, `svg`, `math`, any element
+outside HTML's namespace — goes with all it holds; comments go; every
+`on*` attribute goes. A link reaches http(s), mail or the page; a picture
+the web, data (`data:image/`) or a file beside the note; each address as
+the URL parser reads it, so `java&#9;script:` and its kind go. Every id and
+every `#` link moves under `note-`: a note names none of the window's ids
+and no global (`isTauri`). An inline style is kept as the CSSOM reads it,
+never `fixed` or `absolute`, its `url()` only to the web (remote content
+on) or a picture in data. An `<iframe>` is a box until the reader approves
+its origin, and never one for an address off the web. What it gives back
+parses to itself and cleans to itself: no mutation XSS on the way through
+`cleanHtmlText`. `app/ui/test/sanitize.test.mjs` prints this policy,
+checks it against the module's, and runs 76 hostile inputs — the OWASP
+cheat sheet's staples, the known mXSS payloads, encoding tricks,
+clobbering — in `npm test`. It runs in happy-dom, whose parser is not
+WebKit's: the guarantees are structural and hold for either, and a run of
+the same table in the browser harness is still to add.
 
 ### A device that syncs
 
@@ -217,7 +262,11 @@ recommendation for the maintainer to confirm.
    and no test of its own.** It is the boundary between members (ADR 0073
    item 6) and is written by hand (`app/ui/src/sanitize.ts`); no unit test
    in `app/ui/test/` and no end-to-end test feeds it hostile HTML. The
-   model's own `[OPEN]` below.
+   model's own `[OPEN]` below. **Closed: c7f8c8d** — reviewed and fixed (a
+   table's cells reached the page uncleaned; ids and `#` links, a style's
+   addresses, `svg` and `math` by name, an embedded page off the web), with
+   a suite of its own: "What the sanitizer guarantees", above. The review
+   by another model stays `[OPEN]` below.
 
 **IMPORTANT**
 
@@ -226,67 +275,106 @@ recommendation for the maintainer to confirm.
    there, so neither the full-queue notice nor the ping can close it, until
    the operating system gives up on the socket. A ping is also skipped
    while the connection's 8 requests are all under way.
+   **Closed: e4b679c** — every write, at both ends, within 30 s plus its
+   size at 32 KiB/s (about 3 minutes for a piece of a file, 25 for a
+   message at the limit), else the connection closes. A ping is still not
+   sent while the 8 requests are under way: the connection is not read
+   then, and the write's bound answers a peer that stopped reading.
 3. **The connection's queue is bounded in messages, not bytes.** The
    1024-message bound assumes small events, but `collab-update` and
    `collab-awareness` are relayed as their sender wrote them, up to the
    48 MB message limit; a member — a reader too, through presence — can
    make a slow peer's queue hold up to 1024 such frames. Each connection
    may also hold 8 parsed requests of up to 48 MB at once.
+   **Closed: fd75ff9** — 64 MiB of pushes per connection beside the 1024
+   messages, a presence 16 KB at most. The 8 parsed requests stay, bounded
+   by the message limit and now by the connections below.
 4. **No cap on connections and no global rate on commands.** Nothing
    bounds the connections of one account, of one address or of the
    server; each takes up to 8 commands on the blocking pool. One member's
    program can starve every other member. The model's own `[OPEN]` on a
    rate limit beyond sign-ins.
+   **Closed: aa7fea0 and e3360e1** — 32 WebSockets per account, 64 per
+   address; 512 connections on the server, 128 per address; commands at
+   100 a second per account (400 at once) and 1 000 on the server (2 000),
+   waiting their turn past it, said in the log once a minute. Reasoned,
+   not measured on the 1-core host yet.
 5. **An upload is held in memory until its last piece, and the quota is
    checked only then.** Up to two uploads of 1 GiB per connection, times
    the connections above; the declared size is known at the first piece
-   and could be checked against the quota there.
+   and could be checked against the quota there. **Still open:** pending
+   the `[OPEN]` on keeping the pieces on disk; the connections are now
+   bounded (gap 4).
 6. **The mail routes answer later when the address has an account.**
    `signin_link` and `forgot` await the mail server only for an existing
    account; the comment says "after the same delay", the code adds none.
    The time tells who has an account, which the password route avoids.
+   **Closed: 98ce00b** — both answer once the address's delay is passed;
+   looking the address up, the link, the mail and the audit line follow
+   the answer, the same for every address.
 7. **The per-address delays key on the whole address.** Over IPv6 one
    host has a /64 to rotate through: the delays of device start, mail,
    links and passkeys are passed, the in-memory maps (the limiter, the
    pending device codes) grow until pruned (one hour, ten minutes), and a
    person's mailbox can be flooded with sign-in and reset mails, limited
-   only by sender address.
+   only by sender address. **Closed: 33878fb** — keyed by /64 (an IPv4
+   address whole); the delays keep 100 000 keys, the device codes, sign-in
+   links and passkey ceremonies 10 000 each, the oldest tenth going first.
+   A mailbox is still bounded only by the senders' /64s: a delay by the
+   address mailed to is not built.
 8. **No HTTP timeouts or connection limit on the listener** (unverified:
    none is configured in `lib.rs`; whether the defaults of `axum::serve`
    time out a slow header was not checked). Behind Caddy or `tailscale
    serve` the proxy answers this; a server on its own TLS faces it.
+   **Closed: e3360e1** — checked: `axum::serve` sets no timer, so hyper
+   applied no deadline. Each connection is now served by hyper's HTTP/1
+   builder with one: headers 30 s, a request 60 s; 512 connections, 128
+   per address, counted before the TLS handshake.
 9. **The trash is unbounded until ADR 0080 is built.** Deletions go to
    `.trash/`, which the walk and the quota do not count, with no
    retention yet: a writer can write and delete in a loop and fill the
    host's disk past the quota. ADR 0080 item 8 decided the guard.
+   **Still open:** ADR 0080 is being built by another author.
 10. **An external review of this model**, as the model asked on
-    2026-10-09; ADR 0073 asks for security "in full".
+    2026-10-09; ADR 0073 asks for security "in full". **Still open:**
+    after the gaps above.
 
 **MINOR**
 
 11. **Presence can claim another name.** `collab_awareness` is relayed
     opaque; the server does not stamp the sender's account, so a member's
-    cursor can wear another member's name and colour.
+    cursor can wear another member's name and colour. **Still open:** a
+    product decision — whether the server stamps presence with the
+    account, and what the window shows of it.
 12. **Device-code phishing.** Whoever starts a code chooses the device's
     name the approval page shows; a person sent a link can approve a
     stranger's device into their own account. The page shows no address
-    or time of the request.
+    or time of the request. **Still open:** a product decision — what the
+    approval page shows and asks.
 13. **The server's database is created with the process's umask.** The
     desktop's index and `servers.json` are `0600`; `server.sqlite` and
     `VERSO_DATA_DIR` get no mode from the server (unverified per package:
     the container runs as its own user; the systemd unit sets no
     `UMask` or `StateDirectoryMode`). Another local user of the host could
-    read the hashes.
+    read the hashes. **Closed: b8badc7** — `server.sqlite` and its journal
+    files `0600` at every open (`verso_fs::server::owner_only`); the
+    directory keeps the mode its host gave it.
 14. **`/f/` sends no `Cross-Origin-Resource-Policy`.** `SameSite=Lax`
     already keeps the cookie off another site's subresource request;
-    `same-origin` would say so twice.
+    `same-origin` would say so twice. **Closed: b8badc7.**
 15. **`/api/state` tells anyone the exact version.** Useful to the window
     before sign-in; also to someone matching a version to an advisory.
+    **Closed: b8badc7** — told only to someone signed in; the sign-in page
+    used neither the version nor the contract.
 16. **A password change checks the current password on the async
     runtime's thread**, where sign-in moves Argon2id to the blocking pool.
+    **Closed: b8badc7.**
 17. **On Windows the device token's file gets no restriction of its own**
     (`private()` sets nothing off Unix); the profile's permissions are
-    what keeps it.
+    what keeps it. **Still open:** no restriction is cheap — a file's ACL
+    is set through the system's API, which needs `unsafe` (forbidden,
+    CLAUDE.md §2), or through `icacls` in a subprocess; the profile's own
+    permissions (the person, SYSTEM, the administrators) keep it meanwhile.
 
 ## Gaps before the announcement
 
@@ -301,7 +389,11 @@ answer — a recommendation, not a decision; the maintainer decides.
   globals, the `data-*` attributes the window acts on (`data-target`,
   `data-task-line`), inline style laid over the window, the embed gate,
   and the other renderers of a note's content (Mermaid, KaTeX, PDF.js, the
-  board's Excalidraw).
+  board's Excalidraw). *Done on 2026-10-11 (c7f8c8d), by Opus 5.5:* the
+  review line by line and the suite, which stays as a guardrail in
+  `npm test`; left `[OPEN]` for the maintainer: the review by the model
+  that did not write `sanitize.ts`, the other renderers, and the gate and
+  the suite run in a browser.
 - `[OPEN]` History and recovery of another member's change or deletion.
   *Recommendation:* ADR 0080 (the trash, and the version a device's write
   replaced) answers deletions and devices for the first outside user; a
@@ -314,7 +406,9 @@ answer — a recommendation, not a decision; the maintainer decides.
   the first outside user, gaps 2 to 5: a send timeout, the queue bounded in
   bytes, a cap on connections per account and on the server, the quota
   checked at an upload's first piece; the numbers measured on the 1-core,
-  1 GB host of the server's installation notes.
+  1 GB host of the server's installation notes. *Built on 2026-10-11:*
+  gaps 2, 3, 4 and 8 (their commits above); gap 5 stays; the numbers are
+  reasoned, not measured on that host. Left `[OPEN]` for the maintainer.
 - `[OPEN]` The desktop's device token in the system's keychain instead of a
   `0600` file. *Recommendation:* after the first outside user, recorded as
   deferred: the token is revocable from Settings and the console, and the
