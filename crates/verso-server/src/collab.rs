@@ -47,9 +47,11 @@ pub struct Room {
     crlf: bool,
     /// The revision on disk of what was last written or read.
     revision: String,
-    /// That text, with `\n` line ends.
+    /// That text, with `\n` line ends. The room holds edits not yet
+    /// written exactly when its text differs from this one: an edit that
+    /// changed nothing, as a window's whole state sent back on its return,
+    /// leaves nothing waiting.
     saved: String,
-    dirty: bool,
     /// The file changed on disk while edits waited: nothing is written
     /// until the people in the note choose.
     conflict: bool,
@@ -271,7 +273,6 @@ pub fn join(
                 crlf,
                 revision: note.revision,
                 saved: text,
-                dirty: false,
                 conflict: false,
                 edited: Instant::now(),
                 scheduled: false,
@@ -329,7 +330,6 @@ pub fn update(
         Some(client),
         &event("collab-update", path, "update", &json!(update)),
     );
-    r.dirty = true;
     r.edited = Instant::now();
     if !r.scheduled && !r.conflict {
         r.scheduled = true;
@@ -411,7 +411,6 @@ pub fn write(server: &Server, room: &Arc<Mutex<Room>>) -> Result<String, Contrac
     }
     let text = text_of(&r.doc);
     if text == r.saved {
-        r.dirty = false;
         return Ok(r.revision.clone());
     }
     let bytes = on_disk(&text, r.crlf);
@@ -431,16 +430,17 @@ pub fn write(server: &Server, room: &Arc<Mutex<Room>>) -> Result<String, Contrac
         Ok(w) => {
             r.revision = w.note.revision.clone();
             r.saved = text;
-            r.dirty = false;
             let path = r.path.clone();
+            // The folder's log for sync follows the save (ADR 0079 item 4),
+            // before the windows hear it: a save heard is one a device's
+            // next question finds.
+            crate::sync::reconcile_saved(server, &r.key, &path);
             tell(
                 server,
                 &r,
                 None,
                 &event("collab-saved", &path, "revision", &json!(r.revision)),
             );
-            // The folder's log for sync follows the save (ADR 0079 item 4).
-            crate::sync::reconcile_saved(server, &r.key, &path);
             Ok(r.revision.clone())
         }
         Err(e) if e.kind == ErrorKind::Changed => {
@@ -615,7 +615,6 @@ pub fn resolve(
             r.crlf = crlf;
             r.saved = text;
             r.revision = note.revision;
-            r.dirty = false;
             r.conflict = false;
             tell(
                 server,
@@ -698,10 +697,13 @@ pub fn changed_outside(server: &Server, key: &str, changed: &[String], removed: 
         let Some(room) = server.rooms.get(key, path) else {
             continue;
         };
+        // Read under the room's lock: a read taken before a save of the
+        // room that lands meanwhile would be taken for a change from
+        // outside, and its older text put back over the save.
+        let mut r = lock(&room);
         let Ok(note) = read(server, key, path) else {
             continue;
         };
-        let mut r = lock(&room);
         if note.revision == r.revision {
             continue;
         }
@@ -710,7 +712,11 @@ pub fn changed_outside(server: &Server, key: &str, changed: &[String], removed: 
             close(server, key, path);
             continue;
         };
-        if r.dirty || text_of(&r.doc) != r.saved {
+        // Edits not yet written: the text differs from the one last
+        // written or read. One the room took in and that changed nothing —
+        // a window's whole state sent back on its return — waits for
+        // nothing, and must not stop the room.
+        if text_of(&r.doc) != r.saved {
             r.conflict = true;
             tell(
                 server,
