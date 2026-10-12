@@ -178,6 +178,23 @@ exatamente esses, a regra que o item 3 adota.
   sincronização em camadas ([0021](0021-sync-automerge-layered-config.md)).
 - Se o Obsidian lista um diretório oculto do Verso no explorador de arquivos
   dele é algo a observar antes de escolher o nome (ADR 0009).
+  *Observado em 2026-10-12, de fora (ADR 0009), não é uma decisão:* o
+  Obsidian 1.14.4 (instalador 1.11.5) no macOS não inclui `.verso/` no seu
+  cofre. Com `.verso/settings.json` (`{}`) e um controle visível
+  `verso-probe/control.md` criados na raiz do cofre de teste `Sandbox`, o
+  `eval` da CLI deu: `app.vault.getAllLoadedFiles()` contém `verso-probe`
+  e `verso-probe/control.md` e nenhum caminho começando com `.`;
+  `app.vault.getAbstractFileByPath('.verso')` e
+  `('.verso/settings.json')` são `null`;
+  `app.metadataCache.getCache('.verso/settings.json')` é `null`; os
+  comandos `files` e `folders` da CLI listam o controle e não `.verso`. O
+  adaptador de disco o enxerga: `app.vault.adapter.exists('.verso/settings.json')`
+  é `true` e `app.vault.adapter.list('/')` cita `.verso` ao lado de
+  `.obsidian`. O mesmo depois de recarregar a janela
+  (`command id=app:reload`). O explorador de arquivos em si não foi lido:
+  nesse cofre o painel dele é a visão de um plugin (make.md), então o que
+  fica registrado é a lista de arquivos do próprio cofre, que deixa
+  `.verso/` de fora. As duas sondas foram removidas em seguida.
 - Um nome que o Obsidian aceita no macOS pode ser recusado pelo Verso: mais
   estrito, nunca contrário — nenhum nome existente muda de sentido
   (invariante 12).
