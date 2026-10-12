@@ -6,7 +6,7 @@ import { sharedUnder } from "./shares";
 import { sh } from "./shareStrings";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { commands, type PropertyValue } from "./bindings";
-import { bookmarks, saveBookmarks, setBookmarks } from "./bookmarks";
+import { changeBookmarks } from "./bookmarks";
 import { canWrite } from "./can";
 import { afterFileChange, flushed, stopped } from "./changes";
 import { templateText, today } from "./daily";
@@ -77,8 +77,7 @@ export function pathsMoved(from: string, to: string): void {
   tableWidthsMoved(currentFolder, from, to);
   selectionMoved(from, to);
   const follow = (p: string) => (p === from ? to : p.startsWith(`${from}/`) ? to + p.slice(from.length) : p);
-  setBookmarks(bookmarks.map(follow));
-  saveBookmarks();
+  changeBookmarks((list) => list.map(follow));
   let focusPathsChanged = false;
   for (const f of focusesList) {
     const updated = f.paths.map(follow);
@@ -98,8 +97,7 @@ export function pathsMoved(from: string, to: string): void {
 export function pathsRemoved(path: string): void {
   selectionMoved(path, null);
   const gone = (p: string) => p === path || p.startsWith(`${path}/`);
-  setBookmarks(bookmarks.filter((p) => !gone(p)));
-  saveBookmarks();
+  changeBookmarks((list) => list.filter((p) => !gone(p)));
   let focusPathsChanged = false;
   for (const f of focusesList) {
     const updated = f.paths.filter((p) => !gone(p));
