@@ -160,7 +160,11 @@ pub const PAUSE_FLOOR: usize = 3;
 /// [`PROTOCOL_HEADER`], the server in its hello. The sync's commands are
 /// not in the generated bindings, so the contract's version does not
 /// cover their wire: this number is raised before any change to it.
-pub const PROTOCOL: u32 = 1;
+///
+/// 2: each change `sync_changes` answers may carry `device`, the name of
+/// the device whose sync made it (2026-10-12) — a field a device of sync 1
+/// ignores.
+pub const PROTOCOL: u32 = 2;
 
 /// The header of the WebSocket's request a device says its [`PROTOCOL`]
 /// in.

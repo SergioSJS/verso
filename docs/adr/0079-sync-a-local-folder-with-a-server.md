@@ -135,7 +135,11 @@ Accepted (2026-10-10, Status).
    version — a window, a program, an older app — is never refused. The
    contract's version (the hash of the generated bindings) does not cover
    the sync's wire — the sync's commands are not in the bindings — so this
-   number is set before any change to that wire.
+   number is set before any change to that wire. *(Sync 2, 2026-10-12:
+   each change `sync_changes` answers may carry `device`, the name of
+   the device whose sync made it, as the person set it in Settings ›
+   Servers — item 4's "who made it" told to the devices; a device of
+   sync 1 ignores the field, and through a share it is left out.)*
 6. **When**: on the local watcher's batches (debounced), on the server's
    pushes, at start and on reconnecting, and by a scan every five minutes
    as a net. Offline, nothing queues but the state's difference: when the
