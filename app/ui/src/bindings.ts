@@ -1566,7 +1566,9 @@ export type SyncRefused = {
 	path: string,
 	/**
 	 *  `reader`, `quota`, `placeholder`, `too_large`, `name_taken`,
-	 *  `name_invalid`, `changed` or `failed`.
+	 *  `case_twin_there` (two names on the server that differ only in
+	 *  case: this computer keeps one, spec Q8), `name_invalid`, `changed`
+	 *  or `failed`.
 	 */
 	reason: string,
 	message: string,
