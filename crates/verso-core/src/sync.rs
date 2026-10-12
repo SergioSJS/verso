@@ -172,7 +172,12 @@ pub const PAUSE_FLOOR: usize = 3;
 /// file crosses as a binary WebSocket message ([`frame`]) instead of
 /// base64 inside the JSON text, both ways (item 12 revised) — a side that
 /// speaks 1, or says no version, is still sent and taken base64, as the
-/// version before is followed (item 5).
+/// version before is followed (item 5). Also in 2, still unreleased when
+/// added: a change the server refuses because its new name differs only
+/// in case from a sibling (spec Q8) answers with the error kind
+/// `case_twin`, which a device of 2 lists as a name taken; a device of 1
+/// does not know the kind, cannot read the error, and lists the file as
+/// failed ("the server refused") — as it lists any refusal it cannot read.
 pub const PROTOCOL: u32 = 2;
 
 /// The first sync whose pieces cross as binary messages.
