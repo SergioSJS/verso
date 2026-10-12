@@ -97,3 +97,45 @@ fn a_presence_past_its_bound_is_refused() {
         assert!(refused.get("err").is_some(), "{refused}");
     });
 }
+
+/// The mail routes answer an address with an account as fast as one
+/// without (gap 6): with a mail server that never answers, the answer
+/// still leaves at once.
+#[test]
+fn the_mail_routes_answer_alike_whether_the_address_has_an_account() {
+    block_on(async {
+        let r = start().await;
+        // A mail server that takes the connection and never says a word.
+        let silent = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = silent.local_addr().unwrap().port();
+        tokio::spawn(async move {
+            let mut held = Vec::new();
+            while let Ok((stream, _)) = silent.accept().await {
+                held.push(stream);
+            }
+        });
+        let mail =
+            crate::mail::from_config(&format!("smtp://127.0.0.1:{port}"), "Verso <v@casa.lan>")
+                .unwrap();
+        let _ = r.server.mail.set(mail);
+        for route in ["/api/signin/link", "/api/forgot"] {
+            for email in ["admin@casa.lan", "ninguem@casa.lan"] {
+                // Each request is counted by address; not this test's subject.
+                r.server.limiter.succeeded("mail:127.0.0.1");
+                let started = Instant::now();
+                let (status, _) = tokio::time::timeout(
+                    Duration::from_secs(10),
+                    crate::tests::post(&r, route, json!({ "email": email }), None),
+                )
+                .await
+                .unwrap_or((0, json!(null)));
+                assert_eq!(status, 200, "{route} {email}");
+                assert!(
+                    started.elapsed() < Duration::from_secs(2),
+                    "{route} {email}: {:?}",
+                    started.elapsed()
+                );
+            }
+        }
+    });
+}

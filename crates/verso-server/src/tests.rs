@@ -1229,6 +1229,16 @@ fn with_a_mail_server_links_go_by_mail_and_say_nothing_of_strangers() {
         )
         .await;
         assert_eq!((s1, s2), (200, 200));
+        // Sent after the answer (threat-model.md, gap 6): waited for.
+        let mut mails = sent();
+        for _ in 0..100 {
+            if !mails.is_empty() {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            mails = sent();
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
         let mails = sent();
         assert_eq!(mails.len(), 1);
         assert_eq!(mails[0].0, "admin@casa.lan");
@@ -1268,6 +1278,12 @@ fn with_a_mail_server_links_go_by_mail_and_say_nothing_of_strangers() {
             .0,
             200
         );
+        for _ in 0..100 {
+            if sent().len() > 1 {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
         assert!(sent().last().unwrap().2.contains("/reset/"));
         // An invitation to an address goes there too.
         let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
