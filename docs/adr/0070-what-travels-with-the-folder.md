@@ -169,6 +169,23 @@ those, the rule item 3 takes.
   is layered sync's work ([0021](0021-sync-automerge-layered-config.md)).
 - Whether Obsidian lists a hidden directory of Verso's in its file explorer
   is to be observed before the name is chosen (ADR 0009).
+  *Observed on 2026-10-12, from outside (ADR 0009), not a decision:*
+  Obsidian 1.14.4 (installer 1.11.5) on macOS does not take `.verso/` into
+  its vault. With `.verso/settings.json` (`{}`) and a visible control
+  `verso-probe/control.md` created at the root of the `Sandbox` test vault,
+  the CLI's `eval` gave: `app.vault.getAllLoadedFiles()` holds
+  `verso-probe` and `verso-probe/control.md` and no path starting with
+  `.`; `app.vault.getAbstractFileByPath('.verso')` and
+  `('.verso/settings.json')` are `null`;
+  `app.metadataCache.getCache('.verso/settings.json')` is `null`; the CLI's
+  `files` and `folders` list the control and not `.verso`. The disk
+  adapter does see it: `app.vault.adapter.exists('.verso/settings.json')`
+  is `true` and `app.vault.adapter.list('/')` names `.verso` beside
+  `.obsidian`. The same after reloading the window
+  (`command id=app:reload`). The file explorer itself was not read: in
+  that vault its pane is a plugin's view (make.md), so what is recorded is
+  the vault's own file list, which leaves `.verso/` out. Both probes were
+  removed afterwards.
 - A name Obsidian accepts on macOS may be refused by Verso: stricter, never
   contrary — no existing name changes meaning (invariant 12).
 - The UI's new-note and rename fields say why a name is refused.
