@@ -27,7 +27,13 @@ async fn opened(r: &crate::tests::Running, b: &crate::tests::Browser) -> Socket 
 }
 
 /// Send a file in pieces, as a device does.
-async fn send(ws: &mut Socket, id: u64, path: &str, bytes: &[u8], base: Option<&str>) -> Value {
+pub(crate) async fn send(
+    ws: &mut Socket,
+    id: u64,
+    path: &str,
+    bytes: &[u8],
+    base: Option<&str>,
+) -> Value {
     let hash = sha256(bytes);
     let mut offset = 0usize;
     let mut n = id;
@@ -49,7 +55,7 @@ async fn send(ws: &mut Socket, id: u64, path: &str, bytes: &[u8], base: Option<&
 }
 
 /// Read a file in pieces, as a device does.
-async fn fetch(ws: &mut Socket, id: u64, path: &str) -> (Vec<u8>, String) {
+pub(crate) async fn fetch(ws: &mut Socket, id: u64, path: &str) -> (Vec<u8>, String) {
     let mut out = Vec::new();
     let mut hash = String::new();
     let mut n = id;

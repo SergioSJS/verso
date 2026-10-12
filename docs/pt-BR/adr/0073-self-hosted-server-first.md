@@ -112,6 +112,13 @@
   mantenedor naquele dia: uma exclusão vai para a lixeira da pasta, vista
   por quem pode escrever nela, e qualquer um deles a restaura. Histórico e
   atribuição de uma **mudança** continuam abertos.
+  2026-10-11 — o `[ABERTO]` do Status sobre permissões mais finas que a
+  pasta fica respondido para uma pasta dentro de uma pasta pelo
+  [0081](0081-sharing-between-people-on-one-universo.md) (aceito nesse
+  dia): um compartilhamento é uma concessão num caminho de uma pasta, com
+  um id próprio que quem recebe abre e sincroniza como pasta; por nota e
+  por bloco (Q9 da spec) continuam abertos. A redação antiga do Status
+  fica.
 
 ## Contexto
 

@@ -619,6 +619,51 @@ pub struct ServerFolder {
     pub id: String,
     pub name: String,
     pub role: String,
+    /// Whose it is, when it is someone else's — a whole folder or a share
+    /// (ADR 0081 item 5): it is listed under "Shared with me".
+    #[serde(default)]
+    pub owner: Option<String>,
+    /// A folder inside someone's folder, shared with this account (ADR
+    /// 0081 item 2).
+    #[serde(default)]
+    pub share: bool,
+    /// The shared folder is no longer where the share points (item 13).
+    #[serde(default)]
+    pub missing: bool,
+}
+
+/// A folder of this computer opened before, for the folder switcher's
+/// "On this computer" (ADR 0081 item 5): its name and the key
+/// `reopen_folder` takes — never its path (ADR 0026 rule 4).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct RecentFolder {
+    pub key: String,
+    pub name: String,
+}
+
+/// A person who has access to a shared folder, and in which role (ADR
+/// 0081 item 7).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct SharePerson {
+    pub id: String,
+    pub name: String,
+    pub email: String,
+    /// `owner`, `editor` (writes) or `reader` (reads only).
+    pub role: String,
+}
+
+/// A folder of the open folder as its owner shares it (ADR 0081 item 7):
+/// the path inside the open folder — `""` for the whole folder, whose
+/// people are its members — who has access and in which role, and the
+/// attachments folder shown with it, read-only (item 11).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct FolderShare {
+    pub id: Option<String>,
+    pub path: String,
+    pub people: Vec<SharePerson>,
+    pub attachments: Option<String>,
+    /// The share points at a folder that is gone (item 13).
+    pub missing: bool,
 }
 
 /// A folder's sync with a server, as its window shows it (ADR 0079 item
@@ -822,6 +867,11 @@ pub struct Link {
     pub alias: Option<String>,
     pub line: u32,
     pub col: u32,
+    /// The note or file it resolves to is not in what was shared with the
+    /// person (ADR 0081 item 11): shown like an unresolved link, and never
+    /// made into a note. Nothing else of it crosses.
+    #[serde(default)]
+    pub outside: bool,
 }
 
 /// A link into a note, from another.

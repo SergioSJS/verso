@@ -49,6 +49,7 @@ mod menu;
 mod notes;
 mod protocol;
 mod remote;
+mod shares;
 mod sync;
 mod sync_commands;
 mod trash;
@@ -65,6 +66,7 @@ use menu::*;
 use notes::*;
 use protocol::*;
 use remote::*;
+use shares::*;
 use sync_commands::*;
 use trash::*;
 use update::*;
@@ -647,6 +649,11 @@ macro_rules! commands_for {
                 server_sign_out::<$runtime>,
                 server_folders::<$runtime>,
                 server_open::<$runtime>,
+                share_list::<$runtime>,
+                share_grant::<$runtime>,
+                share_revoke::<$runtime>,
+                share_attachments::<$runtime>,
+                recent_folders,
                 folder_sync::<$runtime>,
                 folder_sync_start::<$runtime>,
                 folder_sync_stop::<$runtime>,

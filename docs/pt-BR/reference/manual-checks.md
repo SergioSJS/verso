@@ -20,6 +20,25 @@ app real.
 
 ### Sincronização e Universo (feat/universo, 2026-10-11)
 
+- [ ] **Duas pessoas compartilham pastas num Universo** (ADR 0081,
+  2026-10-11): duas contas, dois navegadores (e o app desktop). Sérgio
+  clica com o botão direito numa pasta do vault dele, *Compartilhar…*, o
+  e-mail da Ana, *edita*; o botão da pasta da Ana a lista em
+  *Compartilhados comigo* como "Pasta (Sérgio)", ela abre numa janela
+  própria, uma nota criada ali aparece na pasta do Sérgio, um link para
+  uma nota dele de fora diz *Não está no que foi compartilhado com você.*;
+  Ana compartilha uma de volta com Sérgio, *lê*. No app desktop a Ana
+  sincroniza o compartilhamento com uma pasta vazia do computador dela
+  (Ajustes › Servidores › *Sincronizar*), nunca dentro do vault dela.
+  Sérgio renomeia a pasta compartilhada na janela dele: a janela e o sync
+  da Ana continuam. Notas que incorporam imagens da pasta de anexos do
+  vault: o diálogo oferece *Incluir “…”, só leitura*, e a Ana passa a ver
+  as imagens sem poder mudá-las. Sérgio tira a Ana: a janela dela fecha a
+  pasta na hora, a cópia sincronizada fica e o sync dela diz que a pasta
+  sumiu. Também na largura de um celular. A página da pasta no console
+  lista o compartilhamento com as pessoas; o log de auditoria tem cada
+  passo com o caminho.
+
 - [ ] **"Guardar os dois" no conflito do editor** (`18da5c7`): numa pasta
   sincronizada, mantenha uma nota aberta em Editar com texto não salvo
   enquanto outro aparelho a muda; a tela "O arquivo mudou em disco…" oferece

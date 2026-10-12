@@ -517,6 +517,38 @@ pub fn gone(server: &Arc<Server>, client: &str) {
     }
 }
 
+/// A window that may no longer see its folder — its share revoked, its
+/// role gone (ADR 0081 item 8): out of every room at once, so that nothing
+/// typed there reaches it any more. A room left empty is written and
+/// closed.
+pub fn gone_now(server: &Server, client: &str) {
+    let rooms: Vec<Arc<Mutex<Room>>> = lock(&server.rooms.map)
+        .values()
+        .filter(|r| lock(r).clients.contains(client))
+        .map(Arc::clone)
+        .collect();
+    for room in rooms {
+        let empty = {
+            let mut r = lock(&room);
+            r.clients.remove(client);
+            r.clients.is_empty()
+        };
+        if empty && settled(server, &room) {
+            let place = {
+                let r = lock(&room);
+                (r.key.clone(), r.path.clone())
+            };
+            let mut map = lock(&server.rooms.map);
+            if map
+                .get(&place)
+                .is_some_and(|r| Arc::ptr_eq(r, &room) && lock(r).clients.is_empty())
+            {
+                map.remove(&place);
+            }
+        }
+    }
+}
+
 /// ⌘S in a shared note: written now.
 pub fn save(server: &Server, key: &str, path: &str) -> Result<String, ContractError> {
     let room = server

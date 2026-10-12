@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { shareMark } from "../shares";
 import { commands } from "../bindings";
 import { narrow, paintToggles } from "../chrome";
 import { h, ui } from "../dom";
@@ -297,6 +298,8 @@ export function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListE
       if (stickerNode) s.append(stickerNode);
       s.append(label);
       if (folderNoteOf(full)) s.classList.add("has-note");
+      const shareMarkNode = shareMark(full);
+      if (shareMarkNode) s.append(shareMarkNode);
       if (isItemPinned(full, prefix, pinnedList)) {
         s.append(pinBadge());
       }

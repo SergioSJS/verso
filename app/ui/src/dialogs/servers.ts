@@ -17,6 +17,7 @@ import { can } from "../can";
 import { currentFolder, folderName, LAST_FOLDER } from "../folder";
 import { currentSync, openSettingsSection, preselectSync } from "./sync";
 import { openFolderBy } from "../open";
+import { sh } from "../shareStrings";
 
 /** A sentence whose names stand out: a name is `[name]`. */
 type Said = (string | [string])[];
@@ -275,7 +276,23 @@ function serverBlock(a: ServerAccount, redraw: () => Promise<void>): HTMLElement
       loading.textContent = s.noFolders;
       return;
     }
-    folders.replaceChildren(...(r.data as ServerFolder[]).map((f) => folderRow(a, f)));
+    // Mine, then shared with me (ADR 0081 item 5): a folder someone else
+    // owns, or a folder inside one — synced, a share is a folder of this
+    // computer of its own (item 6).
+    const all = r.data as ServerFolder[];
+    const mine = all.filter((f) => !f.owner);
+    const theirs = all.filter((f) => f.owner);
+    const head = (text: string) => {
+      const li = h("li", "srv-group", text);
+      li.setAttribute("role", "presentation");
+      return li;
+    };
+    folders.replaceChildren(
+      ...(mine.length && theirs.length ? [head(sh.mine)] : []),
+      ...mine.map((f) => folderRow(a, f)),
+      ...(theirs.length ? [head(sh.sharedWithMe)] : []),
+      ...theirs.map((f) => folderRow(a, f)),
+    );
   });
   block.append(head, ...(pair ? [pair] : []), folders);
   return block;
@@ -291,7 +308,7 @@ function folderRow(a: ServerAccount, f: ServerFolder): HTMLElement {
   const s = serverStrings();
   const li = h("li", "srv-folder");
   const name = h("span", "srv-folder-name", f.name);
-  const role = h("span", "srv-role", s.role(f.role));
+  const role = h("span", "srv-role", f.owner ? `${s.role(f.role)} · ${sh.ownerIs(f.owner)}${f.missing ? ` · ${sh.gone}` : ""}` : s.role(f.role));
   role.dataset["role"] = f.role;
   const text = h("div", "srv-folder-text");
   text.append(name, role);
