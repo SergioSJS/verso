@@ -32,6 +32,7 @@ pub mod rpc;
 pub mod state;
 pub mod sync;
 pub mod tls;
+pub mod trash;
 pub mod twins;
 pub mod update;
 
@@ -224,6 +225,8 @@ where
             server.config.update_token.clone(),
         ));
     }
+    // Every folder's bin swept now and once a day (ADR 0080 item 3).
+    tokio::spawn(trash::daily(Arc::clone(&server)));
     log::info(&format!(
         "Universo {} (verso serve; contract {}) on {listen}, folders in {}",
         env!("CARGO_PKG_VERSION"),
@@ -296,3 +299,5 @@ mod tests;
 mod tests_console;
 #[cfg(test)]
 mod tests_sync;
+#[cfg(test)]
+mod tests_trash;
