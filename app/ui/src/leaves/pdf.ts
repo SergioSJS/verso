@@ -13,7 +13,8 @@ import { fetchFirst, opening } from "../opening";
 import { dirOf, Kind } from "../paths";
 import { PdfView } from "../pdf";
 import { linkText } from "../resolve";
-import { appendLines, throughRoom } from "../roomWrites";
+import { roomSide } from "../collab";
+import { appendLines, writeLive } from "../roomWrites";
 import { t } from "../strings";
 import { markCurrent } from "../tree/tree";
 import { Leaf } from "./leaf";
@@ -95,10 +96,10 @@ export async function quoteIntoNotes(pdf: string, fragment: string, page: number
   const link = linkText(notePath, pdf);
   const quote = [`> [!quote] [[${link}#${fragment}|${stem}, ${t.pdfPage.toLowerCase()} ${page}]]`, ...text.split(/\n/).map((l) => `> ${l}`)];
   const block = `\n${quote.join("\n")}\n`;
-  // The companion live in its room here: the quote goes in as typing
-  // goes, the others see it come, and the room writes the file (ADR
-  // 0082, decided 2026-10-12).
-  const live = throughRoom(liveHolder(notePath), (was) => appendLines(was, quote));
+  // The companion live in its room — here, or only elsewhere, which this
+  // window joins for the quote: it goes in as typing goes, the others see
+  // it come, and the room writes the file (ADR 0082, decided 2026-10-12).
+  const live = await writeLive(notePath, liveHolder(notePath), (was) => appendLines(was, quote), roomSide);
   if (live === "room" || live === "same") {
     ui.status.textContent = t.quoted;
     return;

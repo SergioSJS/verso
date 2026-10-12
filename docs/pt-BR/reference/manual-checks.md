@@ -300,6 +300,14 @@ testes de ponta a ponta cobrem o resto.
   digitar numa nunca aparece na outra (uma janela ouve só os eventos da
   sua sala). O VoiceOver diz quem entra e sai, e a nota ficando local e
   ao vivo. O log não tem `ERROR`.
+- [ ] **Uma gravação numa nota ao vivo só em outro lugar** (ADR 0082, as
+  gravações que não são teclas): a nota aberta em Editar só no navegador;
+  na pasta sincronizada do Mac, com a nota em nenhuma aba, citar nela um
+  trecho de PDF (é a nota de anotações dele), definir uma célula de base
+  dela e dar a ela um adesivo na árvore. Cada uma chega ao texto do
+  navegador como uma edição enquanto se digita lá, o arquivo segue em
+  segundos, e nenhuma cópia *(conflito, …)* aparece em nenhum computador.
+  Fechada no navegador, as mesmas gravações vão para o arquivo como antes.
 - [ ] **Um botão da faixa oculto e trazido de volta** no app instalado:
   botão direito › *Ocultar este botão*, a barra de status diz onde;
   *Ajustes* › *Aparência* › o switch dele o traz de volta; a engrenagem não

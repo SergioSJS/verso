@@ -394,6 +394,13 @@ export const commands = {
 	 */
 	collabResolve: (path: string, keep: string) => typedError<string, ContractError>(__TAURI_INVOKE("collab_resolve", { path, keep })),
 	/**
+	 *  Whether someone is in the note's room now (ADR 0082): a write that is
+	 *  not a keystroke — a base's cell, a PDF's quote, the tree's label —
+	 *  joins the room to be made there. On a server, or a synced folder's
+	 *  link, only.
+	 */
+	collabPresent: (path: string) => typedError<boolean, ContractError>(__TAURI_INVOKE("collab_present", { path })),
+	/**
 	 *  Sign in to a server through the browser: the server's page opens for the
 	 *  person to approve this device; the app asks meanwhile, keeps the token
 	 *  when it comes, and says so (`server-signed-in`).
@@ -915,6 +922,13 @@ export type ErrorKind =
 "changed" | 
 /**  Something already stands where a note would be created or moved. */
 "exists" | 
+/**
+ *  A new name differs only in case from an entry its folder already
+ *  lists — `nota.md` beside `Nota.md`: a Mac or Windows keeps the two
+ *  as one file, so nothing was made (spec Q8, decided 2026-10-12). An
+ *  answer, a name to choose again — not a fault.
+ */
+"case_twin" | 
 /**
  *  The folder's quota on its server would be passed: nothing was
  *  written; a write that shrinks the folder is always allowed (ADR

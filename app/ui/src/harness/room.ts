@@ -29,6 +29,8 @@ export class Rooms {
   private epochs = 0;
   /** The others' documents and presences, by name. */
   private readonly people = new Map<string, { doc: Y.Doc; awareness: Awareness }>();
+  /** Who is in each note, by path. */
+  private readonly inside = new Map<string, Set<string>>();
 
   constructor(private readonly core: Core) {
     const h = core.handlers;
@@ -62,6 +64,11 @@ export class Rooms {
     h["collab_resolve"] = (a) => {
       if (!this.up) unavailable();
       return this.save(String(a["path"]));
+    };
+    // Someone else is in the note: those `present` named and not `absent`.
+    h["collab_present"] = (a) => {
+      if (!this.up) unavailable();
+      return (this.inside.get(String(a["path"]))?.size ?? 0) > 0;
     };
   }
 
@@ -112,11 +119,15 @@ export class Rooms {
   /** `name` is in the note: their presence told to the window. */
   present(path: string, name: string): void {
     const p = this.person(name, path);
+    const names = this.inside.get(path) ?? new Set<string>();
+    names.add(name);
+    this.inside.set(path, names);
     void emit("collab-awareness", { path, update: toBase64(encodeAwarenessUpdate(p.awareness, [p.doc.clientID])) });
   }
 
   /** `name` leaves the note. */
   absent(path: string, name: string): void {
+    this.inside.get(path)?.delete(name);
     const p = this.people.get(name);
     if (!p) return;
     p.awareness.setLocalState(null);

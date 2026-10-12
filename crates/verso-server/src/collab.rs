@@ -191,6 +191,16 @@ impl Rooms {
         self.get(key, path).is_some()
     }
 
+    /// Whether someone is in the note's room now: a window, a person, a
+    /// synced device's link. A room kept for the grace after its last
+    /// window dropped has no one in it — a write there goes by the file,
+    /// as `write_note`'s through the room (ADR 0082, the writes that are
+    /// not keystrokes).
+    pub fn occupied(&self, key: &str, path: &str) -> bool {
+        self.get(key, path)
+            .is_some_and(|room| !lock(&room).clients.is_empty())
+    }
+
     /// Every room of a folder.
     fn of_folder(&self, key: &str) -> Vec<Arc<Mutex<Room>>> {
         lock(&self.map)

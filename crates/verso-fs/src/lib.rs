@@ -45,6 +45,7 @@ pub mod server;
 mod settings;
 mod single;
 mod staged;
+mod sweep;
 pub mod trashbin;
 mod walk;
 mod watch;
