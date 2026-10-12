@@ -486,6 +486,9 @@ pub(crate) async fn server_folders<R: tauri::Runtime>(
                     id: f["id"].as_str().unwrap_or_default().to_owned(),
                     name: f["name"].as_str().unwrap_or_default().to_owned(),
                     role: f["role"].as_str().unwrap_or_default().to_owned(),
+                    owner: f["owner"]["name"].as_str().map(str::to_owned),
+                    share: f["share"] == true,
+                    missing: f["missing"] == true,
                 })
                 .collect()
         })

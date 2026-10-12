@@ -729,6 +729,23 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
    console define e esvazia; a varredura expira o que passou dos dias e os
    mais antigos enquanto a lixeira sozinha passa da cota
    (`tests_trash.rs`).
+10. Compartilhar entre pessoas ([ADR 0081](../adr/0081-sharing-between-people-on-one-universo.md)),
+   a partir de "Compartilhar com outra pessoa" da nota 23 e da parada do
+   tour: o vault de demonstração tem uma conta só, então o outro lado se
+   segue com dois navegadores num Universo. O botão da pasta no topo da
+   barra lateral abre o seletor, *Neste computador*, *Meus*,
+   *Compartilhados comigo*; um compartilhamento abre por ele (e2e,
+   `shares.spec.mjs`, "the folder switcher"). Como dona, o menu de uma
+   pasta › *Compartilhar…*: o diálogo acrescenta uma pessoa pelo e-mail,
+   muda o papel pelo teclado e pergunta antes de *Tirar*; a árvore marca a
+   pasta "compartilhada com 1 pessoa" (e2e, "the owner shares a folder").
+   Um link de uma nota compartilhada para uma nota de fora diz *Não está no
+   que foi compartilhado com você.* e não cria nota (e2e, "a link out of
+   what was shared"). O que quem recebe alcança — nunca acima do
+   compartilhamento, por `..`, uma irmã, uma renomeação, a listagem do
+   sync, leituras e escritas, `/f/`, os eventos — os testes em Rust do
+   servidor (`tests_shares.rs`); duas pessoas e a pasta de anexos, à mão
+   (`manual-checks.md`).
 
 ## 14. O fim
 

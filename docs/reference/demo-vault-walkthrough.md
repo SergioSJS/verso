@@ -711,6 +711,21 @@ rest below and in `manual-checks.md`.
    sees no trash, the owner shortens the days under the admin's, and the
    console sets and empties it; the sweep expires what is past its days and
    the oldest while a trash alone passes the quota (`tests_trash.rs`).
+10. Sharing between people ([ADR 0081](../adr/0081-sharing-between-people-on-one-universo.md)),
+   from note 23's "Compartilhar com outra pessoa" and the tour's stop: the
+   demo vault has one account, so the other side is followed with two
+   browsers on a Universo. The folder button at the top of the side bar
+   opens the switcher, *Neste computador*, *Meus*, *Compartilhados comigo*;
+   a share opens from it (e2e, `shares.spec.mjs`, "the folder switcher").
+   As the owner, a folder's menu › *Compartilhar…*: the dialog adds a person
+   by e-mail, changes the role by keyboard, and asks before *Tirar*; the
+   tree marks the folder "compartilhada com 1 pessoa" (e2e, "the owner
+   shares a folder"). A link of a shared note to a note outside reads *Não
+   está no que foi compartilhado com você.* and makes no note (e2e, "a link
+   out of what was shared"). What the receiver may reach — never above the
+   share, by `..`, a sibling, a rename, sync's listing, reads and writes,
+   `/f/`, the events — the server's Rust tests (`tests_shares.rs`); two
+   people and the attachments folder, by hand (`manual-checks.md`).
 
 ## 14. The end
 

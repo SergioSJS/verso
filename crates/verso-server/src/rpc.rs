@@ -240,6 +240,8 @@ async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket, sync_refused:
             account: who.account.id.clone(),
             session: who.session().map(str::to_owned),
             folder: None,
+            scope: None,
+            token_write: !matches!(who.via, Via::Token { write: false, .. }),
             tx: tx.clone(),
         },
     );
@@ -428,14 +430,23 @@ async fn handle(
         });
     }
     let args = r.args;
+    // A window on a share: the share looked at again first (ADR 0081
+    // item 8).
+    crate::shares::check(server, who, client)?;
     if let Some(access) = ops::access(&r.cmd) {
         return folder_command(server, who, client, &r.cmd, access, args).await;
     }
     match r.cmd.as_str() {
         "open_server_folder" => {
             let id: String = arg(&args, "id")?;
-            let (folder, role) = crate::access::role(server, who, &id).map_err(|e| contract(&e))?;
-            open(server, client, folder, role).await
+            match crate::shares::opening(server, who, &id).map_err(|e| contract(&e))? {
+                crate::shares::Opening::Folder(folder, role) => {
+                    open(server, client, folder, role, None).await
+                }
+                crate::shares::Opening::Share(folder, scope, role) => {
+                    open(server, client, folder, role, Some(scope)).await
+                }
+            }
         }
         "reopen_folder" => {
             let key: String = arg(&args, "key")?;
@@ -451,24 +462,50 @@ async fn handle(
                     found = Some(f.id);
                 }
             }
+            // A share's key names it (ADR 0081 item 2).
+            for (share, _, _) in server
+                .db
+                .shares_with(&who.account.id)
+                .map_err(verso_service::failed)?
+            {
+                if crate::scope::share_key(&share.id) == key {
+                    found = Some(share.id);
+                }
+            }
             let id = found.ok_or_else(|| ContractError {
                 kind: ErrorKind::NotFound,
                 message: "no folder of yours has that key".to_owned(),
             })?;
-            let (folder, role) = crate::access::role(server, who, &id).map_err(|e| contract(&e))?;
-            open(server, client, folder, role).await
+            match crate::shares::opening(server, who, &id).map_err(|e| contract(&e))? {
+                crate::shares::Opening::Folder(folder, role) => {
+                    open(server, client, folder, role, None).await
+                }
+                crate::shares::Opening::Share(folder, scope, role) => {
+                    open(server, client, folder, role, Some(scope)).await
+                }
+            }
         }
         // The window's own: the browser's shim chooses among the
         // account's folders, and a URL names the folder to open.
         "pick_folder" | "open_initial" => Ok(Value::Null),
-        "current_folder" => to_value(server.service.current_folder(client)),
+        "current_folder" => {
+            let info = to_value(server.service.current_folder(client))?;
+            Ok(match crate::shares::scope_here(server, client) {
+                Some(scope) if !info.is_null() => scope.info(info),
+                _ => info,
+            })
+        }
         "reindex" => {
             role_here(server, client)?;
             let service = Arc::clone(&server.service);
             let c = client.to_owned();
             let summary = blocking(move || service.reindex(&c)).await?;
             record_space(server, client).await;
-            to_value(summary)
+            let mut summary = to_value(summary)?;
+            if let Some(scope) = crate::shares::scope_here(server, client) {
+                scope.summary(&mut summary);
+            }
+            Ok(summary)
         }
         "capabilities" => to_value(capabilities(server, who, client)),
         "app_info" => Ok(
@@ -535,7 +572,13 @@ async fn handle(
         "collab_join" | "collab_update" | "collab_awareness" | "collab_leave" | "collab_save"
         | "collab_resolve" => collab_command(server, who, client, &r.cmd, &args).await,
         "trash_list" | "trash_restore" | "trash_delete" | "trash_empty" | "trash_set_days" => {
-            crate::trash::command(server, who, client, &r.cmd, args).await
+            // Through a share, its part of the bin only (ADR 0081 item 16).
+            match crate::shares::scope_here(server, client) {
+                Some(scope) => {
+                    crate::share_sync::trash(server, who, client, &r.cmd, args, &scope).await
+                }
+                None => crate::trash::command(server, who, client, &r.cmd, args).await,
+            }
         }
         "sync_state" | "sync_changes" | "sync_read" => {
             crate::sync::command(server, who, client, &r.cmd, args).await
@@ -562,8 +605,11 @@ async fn collab_command(
     args: &Value,
 ) -> Result<Value, ContractError> {
     let (folder, role) = role_here(server, client)?;
-    let writes = role.writes() && who.reaches(&folder).1;
-    if matches!(cmd, "collab_update" | "collab_save" | "collab_resolve") && !writes {
+    let scope = crate::shares::scope_here(server, client);
+    let visible = scope.as_ref().map_or(folder, |s| s.share.clone());
+    let writes = role.writes() && who.reaches(&visible).1;
+    let typing = matches!(cmd, "collab_update" | "collab_save" | "collab_resolve");
+    if typing && !writes {
         return Err(refused("you may only read this folder"));
     }
     let key = server
@@ -571,12 +617,19 @@ async fn collab_command(
         .folder_of(client)
         .ok_or_else(verso_service::no_folder)?;
     let path: String = arg(args, "path")?;
+    // A share's path joined to the shared folder's (ADR 0081 item 12): one
+    // room for the note, whoever opens it through what.
+    let path = match &scope {
+        Some(s) if typing => s.to_full_write(&path)?,
+        Some(s) => s.to_full(&path)?,
+        None => path,
+    };
     let s = Arc::clone(server);
     let c = client.to_owned();
     let cmd = cmd.to_owned();
     let args = args.clone();
     let user = who.account.name.clone();
-    blocking(move || match cmd.as_str() {
+    let answer = blocking(move || match cmd.as_str() {
         "collab_join" => to_value(crate::collab::join(&s, &c, &key, &path, &user)?),
         "collab_update" => {
             let update: String = arg(&args, "update")?;
@@ -598,7 +651,12 @@ async fn collab_command(
             to_value(crate::collab::resolve(&s, &key, &path, &keep)?)
         }
     })
-    .await
+    .await;
+    // A share's error in the share's paths.
+    match &scope {
+        Some(s) => answer.map_err(|e| s.error(e)),
+        None => answer,
+    }
 }
 
 /// The role of the window's folder, or `no_folder`.
@@ -618,7 +676,11 @@ async fn folder_command(
     args: Value,
 ) -> Result<Value, ContractError> {
     let (folder, role) = role_here(server, client)?;
-    let (_, token_writes) = who.reaches(&folder);
+    let scope = crate::shares::scope_here(server, client);
+    let visible = scope
+        .as_ref()
+        .map_or_else(|| folder.clone(), |s| s.share.clone());
+    let (_, token_writes) = who.reaches(&visible);
     if access == Access::Write && !(role.writes() && token_writes) {
         return Err(refused("you may only read this folder"));
     }
@@ -626,6 +688,54 @@ async fn folder_command(
         .service
         .folder_of(client)
         .ok_or_else(verso_service::no_folder)?;
+    // A window on a share (ADR 0081 item 2): its paths joined to the
+    // shared folder's and confined there before the core acts; the answer
+    // filtered to the share and re-rooted at it.
+    let Some(scope) = scope else {
+        return folder_run(server, who, client, (name, access), (&folder, &key), args).await;
+    };
+    let limit = args["limit"]
+        .as_u64()
+        .and_then(|l| usize::try_from(l.clamp(1, 200)).ok())
+        .unwrap_or(20);
+    let s = Arc::clone(server);
+    match name {
+        "get_focuses" => {
+            return to_value(verso_contract::FocusesSummary {
+                focuses: Vec::new(),
+                has_file: false,
+                format_known: true,
+                read_only_reason: None,
+                read_only_code: None,
+                stamp: None,
+            });
+        }
+        "can_sync_focuses" => return Ok(Value::Bool(false)),
+        "folder_space" => {
+            let k = key.clone();
+            let sc = scope.clone();
+            let space = blocking(move || s.service.with_key(&k, |ws| Ok(sc.space(ws)))).await?;
+            return to_value(space);
+        }
+        _ => {}
+    }
+    let args = scope.args_in(name, args)?;
+    let answer = folder_run(server, who, client, (name, access), (&folder, &key), args)
+        .await
+        .map_err(|e| scope.error(e))?;
+    Ok(scope.answer_out(name, answer, limit))
+}
+
+/// A command of the folder, its paths the folder's own.
+async fn folder_run(
+    server: &Arc<Server>,
+    who: &Who,
+    client: &str,
+    (name, access): (&str, Access),
+    (folder, key): (&str, &str),
+    args: Value,
+) -> Result<Value, ContractError> {
+    let key = key.to_owned();
     let key_for_log = key.clone();
     let args_for_log = args.clone();
     // A write that would pass the folder's quota is refused before
@@ -663,7 +773,7 @@ async fn folder_command(
     let s = Arc::clone(server);
     let c = client.to_owned();
     let n = name.to_owned();
-    let folder_id = folder.clone();
+    let folder_id = folder.to_owned();
     let by = crate::trash::by_name(who, None);
     let answer = blocking(move || {
         // Nothing typed is left behind a rename or a bin.
@@ -697,6 +807,22 @@ async fn folder_command(
     })
     .await?;
     if access == Access::Write {
+        // A share follows its folder's rename and goes with its deletion
+        // (ADR 0081 item 13).
+        {
+            let s = Arc::clone(server);
+            let (f, n, a, ans) = (
+                folder.to_owned(),
+                name.to_owned(),
+                args_for_log.clone(),
+                answer.clone(),
+            );
+            let _ = blocking(move || {
+                crate::shares::after_write(&s, &f, &n, &a, &ans);
+                Ok(())
+            })
+            .await;
+        }
         record_space(server, client).await;
         // The folder's log for sync follows every write before the answer
         // (ADR 0079 item 4): a device asking next sees it.
@@ -718,6 +844,7 @@ async fn open(
     client: &str,
     folder: Folder,
     role: Role,
+    scope: Option<crate::scope::Scope>,
 ) -> Result<Value, ContractError> {
     let path = server
         .folder_path(&folder.dir)
@@ -760,13 +887,23 @@ async fn open(
         let key = info.key.clone();
         tokio::task::spawn_blocking(move || crate::sync::reconcile_key(&s, &key, None, &[]));
     }
+    let said = match &scope {
+        Some(s) => {
+            json!({ "folder": { "id": s.share, "name": s.name, "role": role, "share": true } })
+        }
+        None => json!({ "folder": { "id": folder.id, "name": folder.dir, "role": role } }),
+    };
     if let Some(c) = lock(&server.clients).get_mut(client) {
         c.folder = Some((folder.id.clone(), role));
-        let _ =
-            c.tx.send(&json!({ "folder": { "id": folder.id, "name": folder.dir, "role": role } }));
+        c.scope.clone_from(&scope);
+        let _ = c.tx.send(&said);
     }
     record_space(server, client).await;
-    to_value(info)
+    let info = to_value(info)?;
+    Ok(match &scope {
+        Some(s) => s.info(info),
+        None => info,
+    })
 }
 
 /// Count the space of the window's folder and keep it for the pages that
@@ -819,9 +956,10 @@ async fn record_space(server: &Arc<Server>, client: &str) {
 
 fn capabilities(server: &Server, who: &Who, client: &str) -> Capabilities {
     let mut can = vec![Can::Account, Can::Collab];
+    let visible = crate::shares::scope_here(server, client).map(|s| s.share);
     if let Ok((folder, role)) = role_here(server, client)
         && role.writes()
-        && who.reaches(&folder).1
+        && who.reaches(visible.as_deref().unwrap_or(&folder)).1
     {
         can.push(Can::Write);
     }

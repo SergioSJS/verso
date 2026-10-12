@@ -1,0 +1,662 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+//! A window that opened a share (ADR 0081 item 2): to it the share is a
+//! folder of its own, and the server keeps one folder. Every path the
+//! window sends is relative to the shared folder: it is checked — no `..`,
+//! no `.`, no empty part, nothing absolute — and joined to the share's
+//! path before `verso-fs` acts (ADR 0026 rule 4, ADR 0073 item 3); every
+//! answer, and every event pushed to the window, is filtered to the share
+//! and re-rooted at it, so that nothing above or beside the share crosses
+//! (item 11): not a path, not a name, not whether a note exists. A command
+//! this module does not know is refused: the boundary fails closed.
+//!
+//! The share's attachments folder, when the owner added it (item 11), is
+//! shown read-only at the share's root under its own name.
+
+use serde_json::{Value, json};
+use verso_contract::ContractError;
+
+use crate::db::covers;
+
+/// What a window that opened a share sees.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Scope {
+    /// The share's id: the folder id the window knows.
+    pub share: String,
+    /// The key the window keeps its state under.
+    pub key: String,
+    /// "Campanha (Sérgio)" (item 3).
+    pub name: String,
+    /// The shared folder's path in the owner's folder; never `""`.
+    pub root: String,
+    /// The attachments folder shown read-only: the name it has at the
+    /// share's root, and its path in the owner's folder.
+    pub mount: Option<(String, String)>,
+}
+
+fn refused(message: &str) -> ContractError {
+    verso_service::refused(message)
+}
+
+/// The key a share is opened under: an opaque name of letters, digits and
+/// `-`, never the owner's.
+#[must_use]
+pub fn share_key(share: &str) -> String {
+    let id: String = share
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
+        .collect();
+    format!("share-{id}")
+}
+
+/// The last part of a path.
+#[must_use]
+pub fn last(path: &str) -> &str {
+    path.rsplit('/').next().unwrap_or(path)
+}
+
+/// A path the window sent, relative to the shared folder: `""` is its
+/// root; no part empty, `.` or `..`, nothing absolute, no backslash or
+/// NUL.
+pub fn checked(rel: &str) -> Result<(), ContractError> {
+    if rel.is_empty() {
+        return Ok(());
+    }
+    if rel.starts_with('/') || rel.contains(['\\', '\0']) {
+        return Err(refused("not a path inside the shared folder"));
+    }
+    if rel
+        .split('/')
+        .any(|p| p.is_empty() || p == "." || p == "..")
+    {
+        return Err(refused("not a path inside the shared folder"));
+    }
+    Ok(())
+}
+
+/// What a command may do at a path.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Use {
+    Read,
+    Write,
+    /// A write that may not be the shared folder itself (a rename, a
+    /// deletion).
+    Below,
+}
+
+impl Scope {
+    /// The path in the owner's folder of `rel`, for `how`.
+    fn full(&self, rel: &str, how: Use) -> Result<String, ContractError> {
+        checked(rel)?;
+        if let Some((name, path)) = &self.mount {
+            let first = rel.split('/').next().unwrap_or(rel);
+            if first == name {
+                if how != Use::Read {
+                    return Err(refused("the attachments folder is shared to be read only"));
+                }
+                return Ok(format!("{path}{}", &rel[name.len()..]));
+            }
+        }
+        if rel.is_empty() {
+            if how == Use::Below {
+                return Err(refused("the shared folder itself is its owner's"));
+            }
+            return Ok(self.root.clone());
+        }
+        Ok(format!("{}/{rel}", self.root))
+    }
+
+    /// The path in the owner's folder of a path the window sent, to read.
+    pub fn to_full(&self, rel: &str) -> Result<String, ContractError> {
+        self.full(rel, Use::Read)
+    }
+
+    /// The same, to write.
+    pub fn to_full_write(&self, rel: &str) -> Result<String, ContractError> {
+        self.full(rel, Use::Below)
+    }
+
+    /// The path the window knows of a path of the owner's folder; `None`
+    /// when it is not in the share.
+    #[must_use]
+    pub fn to_rel(&self, full: &str) -> Option<String> {
+        if covers(&self.root, full) {
+            return Some(full[self.root.len()..].trim_start_matches('/').to_owned());
+        }
+        if let Some((name, path)) = &self.mount
+            && covers(path, full)
+        {
+            return Some(format!("{name}{}", &full[path.len()..]));
+        }
+        None
+    }
+
+    fn rel_value(&self, v: &Value) -> Option<Value> {
+        v.as_str().and_then(|p| self.to_rel(p)).map(Value::String)
+    }
+
+    /// A message of the core said to the window: the owner's paths written
+    /// as the window knows them.
+    #[must_use]
+    pub fn said(&self, message: &str) -> String {
+        let mut out = message.replace(&format!("{}/", self.root), "");
+        if let Some((name, path)) = &self.mount {
+            out = out.replace(&format!("{path}/"), &format!("{name}/"));
+        }
+        out
+    }
+
+    /// An error answered to the window, in its own paths.
+    #[must_use]
+    pub fn error(&self, mut e: ContractError) -> ContractError {
+        e.message = self.said(&e.message);
+        e
+    }
+
+    /// A warning of the core kept only when it concerns the share; one
+    /// that names another path is dropped.
+    fn warning(&self, w: &str) -> Option<String> {
+        if let Some(rest) = w.strip_prefix(&format!("{}/", self.root)) {
+            return Some(rest.to_owned());
+        }
+        (!w.contains('/')).then(|| w.to_owned())
+    }
+
+    fn warnings(&self, v: &mut Value) {
+        if let Some(list) = v.as_array_mut() {
+            *list = list
+                .iter()
+                .filter_map(|w| w.as_str().and_then(|w| self.warning(w)))
+                .map(Value::String)
+                .collect();
+        }
+    }
+
+    /// Rewrite the field `field` of `v` in place; false when it is not in
+    /// the share.
+    fn field(&self, v: &mut Value, field: &str) -> bool {
+        match self.rel_value(&v[field]) {
+            Some(rel) => {
+                v[field] = rel;
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Keep the objects of the list `v` whose `field` is in the share,
+    /// re-rooted.
+    fn keep(&self, v: &mut Value, field: &str) {
+        if let Some(list) = v.as_array_mut() {
+            list.retain_mut(|item| self.field(item, field));
+        }
+    }
+
+    fn keep_strings(&self, v: &mut Value) {
+        if let Some(list) = v.as_array_mut() {
+            *list = list.iter().filter_map(|p| self.rel_value(p)).collect();
+        }
+    }
+
+    /// Moves: kept when both ends are in the share.
+    fn moves(&self, v: &mut Value) {
+        if let Some(list) = v.as_array_mut() {
+            list.retain_mut(|m| {
+                let (Some(from), Some(to)) = (self.rel_value(&m["from"]), self.rel_value(&m["to"]))
+                else {
+                    return false;
+                };
+                m["from"] = from;
+                m["to"] = to;
+                true
+            });
+        }
+    }
+
+    /// The arguments of a command of the folder, with its paths joined to
+    /// the share's. A command not known here is refused.
+    pub fn args_in(&self, cmd: &str, mut args: Value) -> Result<Value, ContractError> {
+        if args.is_null() {
+            args = json!({});
+        }
+        let set = |args: &mut Value, field: &str, how: Use| -> Result<(), ContractError> {
+            let rel = args[field]
+                .as_str()
+                .ok_or_else(|| refused(&format!("{field}: a path")))?
+                .to_owned();
+            args[field] = Value::String(self.full(&rel, how)?);
+            Ok(())
+        };
+        match cmd {
+            "list_notes" | "list_files" | "list_tags" | "list_web_notes" | "graph"
+            | "list_folders" | "list_entries" | "notes_of_type" => {}
+            "search" => args["limit"] = json!(200),
+            "read_note" | "links" | "backlinks" | "read_file_text" | "read_text"
+            | "board_preview" => set(&mut args, "path", Use::Read)?,
+            "resolve_attachment" => set(&mut args, "source", Use::Read)?,
+            "write_note" | "create_file" | "create_folder" | "write_text" | "write_board" => {
+                set(&mut args, "path", Use::Below)?;
+            }
+            "create_note" => set(&mut args, "name", Use::Below)?,
+            "delete_note" | "delete_entry" => set(&mut args, "path", Use::Below)?,
+            "rename_note" | "rename_entry" => {
+                set(&mut args, "from", Use::Below)?;
+                set(&mut args, "to", Use::Below)?;
+            }
+            "move_entries" => {
+                set(&mut args, "folder", Use::Write)?;
+                let paths: Vec<String> = args["paths"]
+                    .as_array()
+                    .ok_or_else(|| refused("paths: a list"))?
+                    .iter()
+                    .map(|p| {
+                        p.as_str()
+                            .ok_or_else(|| refused("paths: a list of paths"))
+                            .and_then(|p| self.full(p, Use::Below))
+                    })
+                    .collect::<Result<_, _>>()?;
+                args["paths"] = json!(paths);
+            }
+            "query_base" => {
+                for field in ["path", "this"] {
+                    if args["query"][field].is_string() {
+                        set(&mut args["query"], field, Use::Read)?;
+                    }
+                }
+            }
+            _ => return Err(refused("not in a shared folder")),
+        }
+        Ok(args)
+    }
+
+    /// The answer of a command of the folder, filtered to the share and
+    /// re-rooted at it. `limit` is what a search asked for.
+    #[must_use]
+    pub fn answer_out(&self, cmd: &str, mut v: Value, limit: usize) -> Value {
+        match cmd {
+            "list_notes" | "list_files" | "notes_of_type" => self.keep_strings(&mut v),
+            "list_folders" => {
+                self.keep_strings(&mut v);
+                if let Some(list) = v.as_array_mut() {
+                    list.retain(|p| p != "");
+                }
+            }
+            "list_entries" => {
+                self.keep(&mut v, "path");
+                if let Some(list) = v.as_array_mut() {
+                    list.retain(|e| e["path"] != "");
+                }
+            }
+            "search" => {
+                self.keep(&mut v, "path");
+                if let Some(list) = v.as_array_mut() {
+                    list.truncate(limit);
+                }
+            }
+            "list_web_notes" => self.keep(&mut v, "path"),
+            "backlinks" => self.keep(&mut v, "from"),
+            "graph" => {
+                if let Some(list) = v.as_array_mut() {
+                    list.retain_mut(|e| self.field(e, "from") && self.field(e, "to"));
+                }
+            }
+            "list_tags" => {
+                if let Some(list) = v.as_array_mut() {
+                    list.retain_mut(|t| {
+                        self.keep_strings(&mut t["notes"]);
+                        t["notes"].as_array().is_some_and(|n| !n.is_empty())
+                    });
+                }
+            }
+            "links" => {
+                if let Some(list) = v.as_array_mut() {
+                    for l in list {
+                        if l["resolved"].is_string() && !self.field(l, "resolved") {
+                            l["resolved"] = Value::Null;
+                            l["outside"] = json!(true);
+                        }
+                    }
+                }
+            }
+            "read_note" | "create_note" | "read_text" | "write_text" | "write_board" => {
+                self.field(&mut v, "path");
+            }
+            "write_note" => {
+                self.field(&mut v["note"], "path");
+                self.warnings(&mut v["warnings"]);
+            }
+            "resolve_attachment" | "create_file" | "create_folder" => {
+                v = self.rel_value(&v).unwrap_or(Value::Null);
+            }
+            "delete_note" | "delete_entry" => {
+                // Where in the owner's folder the bin put it is the owner's.
+                v["path"] = json!(".trash");
+                self.warnings(&mut v["warnings"]);
+            }
+            "rename_note" | "rename_entry" | "move_entries" => {
+                self.field(&mut v, "path");
+                self.keep(&mut v["rewrites"], "path");
+                self.keep(&mut v["skipped"], "path");
+                self.keep(&mut v["refused"], "path");
+                self.moves(&mut v["moved"]);
+                self.moves(&mut v["also"]);
+                self.warnings(&mut v["warnings"]);
+            }
+            "query_base" => self.base(&mut v),
+            _ => {}
+        }
+        v
+    }
+
+    /// A base's answer: rows outside the share gone, the summaries of a
+    /// group that lost rows unsaid, the folder's property names unsaid.
+    fn base(&self, v: &mut Value) {
+        let mut removed = 0_u64;
+        if let Some(groups) = v["groups"].as_array_mut() {
+            groups.retain_mut(|g| {
+                let Some(rows) = g["rows"].as_array_mut() else {
+                    return true;
+                };
+                let before = rows.len();
+                rows.retain_mut(|r| self.field(r, "path"));
+                for r in rows.iter_mut() {
+                    if let Some(cells) = r["cells"].as_array_mut() {
+                        for c in cells {
+                            self.cell(c);
+                        }
+                    }
+                }
+                let lost = before - rows.len();
+                removed += lost as u64;
+                if lost > 0
+                    && let Some(s) = g["summaries"].as_array_mut()
+                {
+                    s.iter_mut().for_each(|x| *x = Value::Null);
+                }
+                if let Some(k) = g.get_mut("key") {
+                    self.cell(k);
+                }
+                before == 0 || !g["rows"].as_array().is_some_and(Vec::is_empty)
+            });
+        }
+        let total = v["total"].as_u64().unwrap_or(0).saturating_sub(removed);
+        v["total"] = json!(total);
+        v["properties"] = json!([]);
+    }
+
+    /// A value of a base: a link or a file outside the share says nothing
+    /// of where it leads.
+    fn cell(&self, c: &mut Value) {
+        match c["kind"].as_str() {
+            Some("link") => {
+                if c["value"]["path"].is_string() && !self.field(&mut c["value"], "path") {
+                    c["value"]["path"] = Value::Null;
+                }
+            }
+            Some("file") => match self.rel_value(&c["value"]) {
+                Some(rel) => c["value"] = rel,
+                None => *c = json!({ "kind": "empty" }),
+            },
+            Some("image") => {
+                let url = c["value"]
+                    .as_str()
+                    .is_some_and(|p| p.contains("://") || p.starts_with("data:"));
+                if !url {
+                    match self.rel_value(&c["value"]) {
+                        Some(rel) => c["value"] = rel,
+                        None => *c = json!({ "kind": "empty" }),
+                    }
+                }
+            }
+            Some("list") => {
+                if let Some(items) = c["value"].as_array_mut() {
+                    items.iter_mut().for_each(|x| self.cell(x));
+                }
+            }
+            Some("object") => {
+                if let Some(items) = c["value"].as_array_mut() {
+                    for pair in items {
+                        if let Some(x) = pair.get_mut(1) {
+                            self.cell(x);
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// The space the share's files take (ADR 0075 item 4): the shared
+    /// folder's, never the owner's whole folder's.
+    #[must_use]
+    pub fn space(&self, ws: &verso_core::Workspace) -> verso_contract::FolderSpace {
+        let mut space = verso_contract::FolderSpace {
+            total: 0.0,
+            notes: 0.0,
+            attachments: 0.0,
+            files: 0,
+            index: 0.0,
+        };
+        for e in ws.entries() {
+            if !covers(&self.root, &e.path) {
+                continue;
+            }
+            let len = e.len as f64;
+            match e.kind {
+                verso_core::FileKind::Note => space.notes += len,
+                verso_core::FileKind::File | verso_core::FileKind::Placeholder => {
+                    space.attachments += len;
+                }
+                verso_core::FileKind::Folder => continue,
+            }
+            space.total += len;
+            space.files = space.files.saturating_add(1);
+        }
+        space
+    }
+
+    /// The folder as the window knows it: the share's name and key, the
+    /// index's problems of the share only.
+    #[must_use]
+    pub fn info(&self, mut info: Value) -> Value {
+        info["name"] = json!(self.name);
+        info["key"] = json!(self.key);
+        self.summary(&mut info["index"]);
+        info
+    }
+
+    /// An index run's summary: its problems in the share only.
+    pub fn summary(&self, index: &mut Value) {
+        self.warnings(&mut index["problems"]);
+    }
+
+    /// A message pushed to the window, in its paths; `None` when nothing of
+    /// it is the share's. An event not known here is not sent.
+    #[must_use]
+    pub fn push(&self, message: &Value) -> Option<Value> {
+        let Some(event) = message["event"].as_str() else {
+            // What the server says of the connection itself.
+            return Some(message.clone());
+        };
+        let mut m = message.clone();
+        match event {
+            "folder-changed" => {
+                let p = &mut m["payload"];
+                p["key"] = json!(self.key);
+                let mut changed: Vec<Value> = Vec::new();
+                let mut removed: Vec<Value> = Vec::new();
+                let mut moved: Vec<Value> = Vec::new();
+                for c in p["changed"].as_array().into_iter().flatten() {
+                    changed.extend(self.rel_value(c));
+                }
+                for c in p["removed"].as_array().into_iter().flatten() {
+                    removed.extend(self.rel_value(c));
+                }
+                for mv in p["moved"].as_array().into_iter().flatten() {
+                    match (self.rel_value(&mv["from"]), self.rel_value(&mv["to"])) {
+                        (Some(from), Some(to)) => moved.push(json!({ "from": from, "to": to })),
+                        // Moved out of the share: gone, to the window.
+                        (Some(from), None) => removed.push(from),
+                        // Moved in: new, to the window.
+                        (None, Some(to)) => changed.push(to),
+                        (None, None) => {}
+                    }
+                }
+                if changed.is_empty() && removed.is_empty() && moved.is_empty() {
+                    return None;
+                }
+                p["changed"] = json!(changed);
+                p["removed"] = json!(removed);
+                p["moved"] = json!(moved);
+                self.summary(&mut p["index"]);
+            }
+            "index-progress" => {
+                let file = self.rel_value(&m["payload"]["file"]).unwrap_or(Value::Null);
+                m["payload"]["file"] = file;
+            }
+            "collab-update" | "collab-awareness" | "collab-saved" | "collab-conflict"
+            | "collab-closed" => {
+                if !self.field(&mut m["payload"], "path") {
+                    return None;
+                }
+            }
+            "sync-changed" | "folder-quota" => {}
+            _ => return None,
+        }
+        Some(m)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn scope() -> Scope {
+        Scope {
+            share: "s1".into(),
+            key: share_key("s1"),
+            name: "Campanha (Sérgio)".into(),
+            root: "Mesa/Campanha".into(),
+            mount: Some(("Anexos".into(), "Anexos".into())),
+        }
+    }
+
+    #[test]
+    fn a_path_from_the_window_never_leaves_the_share() {
+        let s = scope();
+        assert_eq!(s.to_full("a.md").unwrap(), "Mesa/Campanha/a.md");
+        assert_eq!(s.to_full("").unwrap(), "Mesa/Campanha");
+        assert_eq!(s.to_full("Anexos/p.png").unwrap(), "Anexos/p.png");
+        for bad in [
+            "..",
+            "../x.md",
+            "a/../../x.md",
+            "a/./b.md",
+            "/etc/passwd",
+            "a//b.md",
+            "a/",
+            "a\\..\\b",
+            "a\0b",
+            ".",
+        ] {
+            assert!(s.to_full(bad).is_err(), "{bad:?}");
+        }
+        // The share's root and the attachments are not written.
+        assert!(s.to_full_write("").is_err());
+        assert!(s.to_full_write("Anexos/p.png").is_err());
+        assert!(s.args_in("delete_entry", json!({ "path": "" })).is_err());
+        assert!(
+            s.args_in("rename_entry", json!({ "from": "a.md", "to": "../a.md" }))
+                .is_err()
+        );
+        assert!(
+            s.args_in("move_entries", json!({ "paths": ["a.md"], "folder": ".." }))
+                .is_err()
+        );
+        // A command this module does not know is refused.
+        assert!(s.args_in("set_focuses", json!({})).is_err());
+        assert!(s.args_in("anything_new", json!({})).is_err());
+    }
+
+    #[test]
+    fn an_answer_says_nothing_outside_the_share() {
+        let s = scope();
+        assert_eq!(s.to_rel("Mesa/Campanha/x.md").as_deref(), Some("x.md"));
+        assert_eq!(s.to_rel("Mesa/Campanha2/x.md"), None);
+        assert_eq!(s.to_rel("Mesa"), None);
+        assert_eq!(s.to_rel("Mesa/x.md"), None);
+        assert_eq!(s.to_rel("Anexos/p.png").as_deref(), Some("Anexos/p.png"));
+        let notes = s.answer_out(
+            "list_notes",
+            json!(["Mesa/Campanha/a.md", "Mesa/Segredo.md", "Diario/b.md"]),
+            0,
+        );
+        assert_eq!(notes, json!(["a.md"]));
+        let links = s.answer_out(
+            "links",
+            json!([
+                { "target": "a", "resolved": "Mesa/Campanha/a.md" },
+                { "target": "Segredo", "resolved": "Mesa/Segredo.md" },
+                { "target": "nada", "resolved": null }
+            ]),
+            0,
+        );
+        assert_eq!(links[0]["resolved"], "a.md");
+        assert_eq!(links[1]["resolved"], Value::Null);
+        assert_eq!(links[1]["outside"], true);
+        assert!(links[2].get("outside").is_none());
+        let graph = s.answer_out(
+            "graph",
+            json!([
+                { "from": "Mesa/Campanha/a.md", "to": "Mesa/Segredo.md" },
+                { "from": "Mesa/Campanha/a.md", "to": "Mesa/Campanha/b.md" }
+            ]),
+            0,
+        );
+        assert_eq!(graph, json!([{ "from": "a.md", "to": "b.md" }]));
+        let tags = s.answer_out(
+            "list_tags",
+            json!([{ "name": "x", "notes": ["Mesa/Segredo.md"] }]),
+            0,
+        );
+        assert_eq!(tags, json!([]));
+        let renamed = s.answer_out(
+            "rename_entry",
+            json!({ "path": "Mesa/Campanha/b.md", "rewrites": [{ "path": "Mesa/Segredo.md" }],
+                    "skipped": [], "warnings": ["Mesa/Segredo.md: x", "Mesa/Campanha/c.md: y"],
+                    "also": [] }),
+            0,
+        );
+        assert_eq!(renamed["path"], "b.md");
+        assert_eq!(renamed["rewrites"], json!([]));
+        assert_eq!(renamed["warnings"], json!(["c.md: y"]));
+        assert_eq!(s.said("not found: Mesa/Campanha/x.md"), "not found: x.md");
+    }
+
+    #[test]
+    fn an_event_reaches_the_window_only_with_the_share_in_it() {
+        let s = scope();
+        let outside = json!({ "event": "folder-changed", "payload": {
+            "key": "owner", "changed": ["Mesa/Segredo.md"], "removed": [], "moved": [],
+            "listing": true, "index": { "problems": ["Mesa/Segredo.md: bad"] } } });
+        assert_eq!(s.push(&outside), None);
+        let mixed = json!({ "event": "folder-changed", "payload": {
+            "key": "owner", "changed": ["Mesa/Segredo.md", "Mesa/Campanha/a.md"], "removed": [],
+            "moved": [{ "from": "Mesa/Campanha/b.md", "to": "Mesa/Segredo2.md" }],
+            "listing": false, "index": { "problems": ["Mesa/Segredo.md: bad"] } } });
+        let seen = s.push(&mixed).unwrap();
+        assert_eq!(seen["payload"]["key"], s.key);
+        assert_eq!(seen["payload"]["changed"], json!(["a.md"]));
+        assert_eq!(seen["payload"]["removed"], json!(["b.md"]));
+        assert_eq!(seen["payload"]["index"]["problems"], json!([]));
+        let room = json!({ "event": "collab-update", "payload": { "path": "Mesa/Segredo.md" } });
+        assert_eq!(s.push(&room), None);
+        assert_eq!(
+            s.push(&json!({ "event": "something-new", "payload": { "path": "x" } })),
+            None
+        );
+        assert!(s.push(&json!({ "gone": "folder" })).is_some());
+    }
+}

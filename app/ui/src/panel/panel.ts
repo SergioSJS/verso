@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { sh } from "../shareStrings";
 import { DailyCalendar } from "../bases/daily";
 import { commands } from "../bindings";
 import { bookmarks } from "../bookmarks";
@@ -332,8 +333,9 @@ export class Panel {
             "links-out",
             t.outgoing,
             out.map((l) => {
-              const li = this.row(l.target, l.resolved ? dirOf(l.resolved) : "?", () => (l.resolved ? openNote(l.resolved, false) : undefined), l.resolved ? "note" : "link");
+              const li = this.row(l.target, l.resolved ? dirOf(l.resolved) : l.outside ? sh.notShared : "?", () => (l.resolved ? openNote(l.resolved, false) : undefined), l.resolved ? "note" : "link");
               if (!l.resolved) li.classList.add("unresolved");
+              if (l.outside) li.classList.add("outside");
               return li;
             }),
           ),

@@ -110,6 +110,12 @@
   items 5 and 7, accepted by the maintainer that day: a deletion goes to
   the folder's trash, seen by those who may write in it, any of whom
   restores it. History and attribution of a **change** stay open.
+  2026-10-11 — the Status's `[OPEN]` on permissions finer than the folder
+  is answered for a folder inside a folder by
+  [0081](0081-sharing-between-people-on-one-universo.md) (accepted that
+  day): a share is a grant on a path of one folder, with an id of its own
+  the receiver opens and syncs as a folder; per note and per block (spec
+  Q9) stay open. The old wording of the Status is kept.
 
 ## Context
 

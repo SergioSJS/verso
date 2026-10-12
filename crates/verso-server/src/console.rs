@@ -116,6 +116,17 @@ pub async fn folder(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
         .into_iter()
         .map(|(a, role)| json!({ "id": a.id, "name": a.name, "email": a.email, "role": role }))
         .collect();
+    let mut shares: Vec<Value> = Vec::new();
+    for share in db.shares_of(&id)? {
+        let people: Vec<Value> = db
+            .share_people(&share.id)?
+            .into_iter()
+            .map(|(a, role)| json!({ "id": a.id, "name": a.name, "email": a.email, "role": role }))
+            .collect();
+        shares.push(json!({
+            "id": share.id, "path": share.path, "attachments": share.attachments, "people": people,
+        }));
+    }
     let mut emails: HashMap<String, String> = HashMap::new();
     let mut changes: Vec<Value> = Vec::new();
     for c in db.latest_changes(&id, LATEST_CHANGES)? {
@@ -149,6 +160,8 @@ pub async fn folder(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
         "created": folder.created,
         "trash": trash,
         "members": members,
+        // Its shares by path, with their people (ADR 0081 item 7).
+        "shares": shares,
         "space": crate::folders::space(&ctx, &id),
         "quota": db.quota(&id)?,
         "twins": crate::twins::of_folder(&ctx.server, &id),

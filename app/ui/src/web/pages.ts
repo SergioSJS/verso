@@ -231,7 +231,7 @@ export async function devicePage(account: Account | null): Promise<void> {
   );
 }
 
-type FolderRow = { id: string; name: string; role: string };
+type FolderRow = { id: string; name: string; role: string; owner?: { name: string } | null; share?: boolean; missing?: boolean };
 
 /** The folders the person may open, over the window, as the desktop's
  *  folder picker is: the id chosen, or null. */
@@ -255,11 +255,20 @@ export function chooseFolder(): Promise<string | null> {
     void api<{ folders: FolderRow[]; mayCreate: boolean }>("GET", "/api/folders")
       .then(({ folders, mayCreate }) => {
         if (!folders.length) list.append(el("li", {}, s.noFolders));
-        for (const f of folders) {
-          const b = el("button", { type: "button", class: "web-folder" }, icon("folder"), el("span", {}, f.name), el("small", {}, roleName(f.role)));
+        // Mine, then shared with me (ADR 0081 item 5): a folder someone
+        // else owns, or a folder inside one, with its owner.
+        const row = (f: FolderRow) => {
+          const note = f.owner ? `${roleName(f.role)} · ${s.ofOwner(f.owner.name)}${f.missing ? ` · ${s.shareGone}` : ""}` : roleName(f.role);
+          const b = el("button", { type: "button", class: "web-folder" }, icon(f.share ? "user" : "folder"), el("span", {}, f.name), el("small", {}, note));
           b.addEventListener("click", () => close(f.id));
-          list.append(el("li", {}, b));
-        }
+          return el("li", {}, b);
+        };
+        const mine = folders.filter((f) => !f.owner);
+        const theirs = folders.filter((f) => f.owner);
+        if (mine.length && theirs.length) list.append(el("li", { class: "web-folders-head", role: "presentation" }, s.mine));
+        for (const f of mine) list.append(row(f));
+        if (theirs.length) list.append(el("li", { class: "web-folders-head", role: "presentation" }, s.sharedWithMe));
+        for (const f of theirs) list.append(row(f));
         if (mayCreate) {
           const name = field(s.newFolderName, "text");
           const made = form(
