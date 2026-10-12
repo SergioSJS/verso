@@ -10,6 +10,7 @@
 
 import type { BaseCell, BaseColumn, BaseRow, PropertyValue } from "../bindings";
 import { cellText, columnLabel, h, isoDay, isoDateTime, noteKey, propertyValue, renderCell } from "./cells";
+import { cellKey, shownAfterEdit } from "./edited";
 import type { RenderCtx } from "./view";
 import * as Y from "./yaml";
 
@@ -180,7 +181,8 @@ function header(ctx: RenderCtx, c: BaseColumn, k: number, col: HTMLTableColEleme
 function rowEl(ctx: RenderCtx, row: BaseRow): HTMLTableRowElement {
   const tr = h("tr");
   ctx.result.columns.forEach((c, k) => {
-    const cell = row.cells[k] ?? null;
+    const key = noteKey(c.id);
+    const cell = key && row.note ? shownCell(ctx, row.path, key, row.cells[k] ?? null) : (row.cells[k] ?? null);
     const td = h("td");
     if (c.id === "file.name" || c.id === "file.basename" || c.id === "file.path") {
       // A note is named without its `.md`, as the tree and the tabs name it.
@@ -195,11 +197,24 @@ function rowEl(ctx: RenderCtx, row: BaseRow): HTMLTableRowElement {
     } else {
       td.append(renderCell(cell, ctx.host, row.path));
     }
-    const key = noteKey(c.id);
     if (key && row.note) editable(ctx, td, row, key, cell);
     tr.append(td);
   });
   return tr;
+}
+
+/** What a note property's cell shows: the core's answer, or the value
+ *  committed in it that the answer does not hold yet (`RenderCtx.pending`);
+ *  an answer that agrees ends the wait. */
+function shownCell(ctx: RenderCtx, path: string, key: string, cell: BaseCell | null): BaseCell | null {
+  const k = cellKey(path, key);
+  const pending = ctx.pending.get(k);
+  if (!pending) return cell;
+  if (cellText(cell, ctx.host) === cellText(pending, ctx.host)) {
+    ctx.pending.delete(k);
+    return cell;
+  }
+  return pending;
 }
 
 /** A note property's cell: a checkbox toggles, anything else opens a
@@ -217,6 +232,7 @@ function editable(ctx: RenderCtx, td: HTMLTableCellElement, row: BaseRow, key: s
   }
   if (propertyValue(cell) === null) return;
   td.tabIndex = 0;
+  td.dataset.cell = cellKey(row.path, key);
   td.classList.add("base-editable");
   td.title = s.editCell;
   const open = () => {
@@ -257,12 +273,20 @@ function editable(ctx: RenderCtx, td: HTMLTableCellElement, row: BaseRow, key: s
             : input.type === "datetime-local"
               ? { kind: "text", value: v.length === 16 ? `${v}:00` : v }
               : { kind: "text", value: v };
+      // Shown at once, as typed, until the core's answer holds it: the
+      // field goes with it, so nothing holds the view back.
+      const shown = shownAfterEdit(input.type, v);
+      ctx.pending.set(cellKey(row.path, key), shown);
+      td.replaceChildren(renderCell(shown, host, row.path));
       void write(ctx, row.path, key, value);
     };
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
+        // Committed and shown; the focus goes back to the cell, as Escape
+        // leaves it, where Enter opens the field again.
         e.preventDefault();
         commit(true);
+        td.focus();
       } else if (e.key === "Escape") {
         e.preventDefault();
         commit(false);
@@ -282,6 +306,7 @@ function editable(ctx: RenderCtx, td: HTMLTableCellElement, row: BaseRow, key: s
 
 async function write(ctx: RenderCtx, path: string, key: string, value: PropertyValue): Promise<void> {
   const ok = await ctx.host.setProperty(path, key, value);
+  // Refused or failed: the cell shows what the note holds again.
+  if (!ok) ctx.pending.delete(cellKey(path, key));
   ctx.refresh();
-  if (!ok) return;
 }

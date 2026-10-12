@@ -157,8 +157,7 @@ const PROJECT = "projetos/Projeto Alpha.md";
 
 /** The status cell of Projeto Alpha in the base's table (the base's order
  *  is name, status, …), its field opened by a double click, a new value
- *  typed, Enter, and Tab out of the field (the view is not drawn over a
- *  field that holds the focus). */
+ *  typed and Enter: the cell shows it at once and keeps the focus. */
 async function setStatus(app, value) {
   const row = app.page.locator(".base tr", { has: app.page.locator("a.base-file", { hasText: /^Projeto Alpha$/ }) });
   const cell = row.locator("td").nth(1);
@@ -167,7 +166,8 @@ async function setStatus(app, value) {
   const field = cell.locator("input.base-cell-input");
   await field.fill(value);
   await field.press("Enter");
-  await field.press("Tab");
+  await expect(cell).toHaveText(value);
+  await expect(cell).toBeFocused();
 }
 
 test("a base's cell written to a note held live here goes into its room, beside what Bia types", async ({ app, page }) => {
