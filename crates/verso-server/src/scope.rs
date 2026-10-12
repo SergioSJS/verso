@@ -648,7 +648,15 @@ impl Scope {
                     return None;
                 }
             }
-            "sync-changed" | "folder-quota" => {}
+            // The folder's head is not the share's (3.18): a device asks
+            // the share for its own. (`push_sync_changed` already sends
+            // the share's windows only its own changes, without it.)
+            "sync-changed" => {
+                if let Some(p) = m["payload"].as_object_mut() {
+                    p.remove("head");
+                }
+            }
+            "folder-quota" => {}
             _ => return None,
         }
         Some(m)

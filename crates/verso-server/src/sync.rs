@@ -406,10 +406,11 @@ fn record_changes(
         .record(folder, by.account, by.device, &changes, quick_only)
         .map_err(verso_service::failed)?;
     if !changes.is_empty() {
-        server.push_folder(
-            folder,
-            &json!({ "event": "sync-changed", "payload": { "head": head } }),
-        );
+        let paths: Vec<&str> = changes
+            .iter()
+            .flat_map(|(path, _, from)| std::iter::once(path.as_str()).chain(from.as_deref()))
+            .collect();
+        server.push_sync_changed(folder, head, &paths);
     }
     Ok(head)
 }

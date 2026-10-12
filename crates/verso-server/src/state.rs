@@ -350,6 +350,34 @@ impl Server {
         }
     }
 
+    /// The folder's log moved on to `head` with changes at `paths`: every
+    /// window that shows the folder hears it. One that opened a share
+    /// hears it only when a change is the share's, and without the head —
+    /// the folder's number counts its changes outside the share too, which
+    /// are not the receiver's to know (3.18); a device asks the share for
+    /// its own.
+    pub fn push_sync_changed(&self, folder: &str, head: i64, paths: &[&str]) {
+        let whole = serde_json::json!({ "event": "sync-changed", "payload": { "head": head } });
+        let frame = Frame::of(&whole);
+        let bare = serde_json::json!({ "event": "sync-changed", "payload": {} });
+        let table = lock(&self.clients);
+        for c in table.values() {
+            if !c.folder.as_ref().is_some_and(|(f, _)| f == folder) {
+                continue;
+            }
+            match &c.scope {
+                None => {
+                    c.tx.send_frame(&frame);
+                }
+                Some(scope) => {
+                    if paths.iter().any(|p| scope.to_rel(p).is_some()) {
+                        c.tx.send(&bare);
+                    }
+                }
+            }
+        }
+    }
+
     /// Every window of `account`: told to go when its sessions end.
     pub fn push_account(&self, account: &str, message: &Push) {
         let frame = Frame::of(message);

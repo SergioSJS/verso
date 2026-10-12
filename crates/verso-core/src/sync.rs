@@ -178,6 +178,9 @@ pub const PAUSE_FLOOR: usize = 3;
 /// `case_twin`, which a device of 2 lists as a name taken; a device of 1
 /// does not know the kind, cannot read the error, and lists the file as
 /// failed ("the server refused") — as it lists any refusal it cannot read.
+/// And through a share, `head` and each change's `seq` count the share's
+/// own changes, never the folder's (3.18); the cursor is opaque to the
+/// device, which keeps it only while connected.
 pub const PROTOCOL: u32 = 2;
 
 /// The first sync whose pieces cross as binary messages.

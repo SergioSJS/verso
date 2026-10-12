@@ -172,7 +172,13 @@ Aceita (2026-10-10, Status).
    (spec Q8) responde com o tipo de erro `case_twin`, que um aparelho do
    sync 2 lista como nome ocupado; um aparelho do sync 1 não conhece o tipo
    e já lista o arquivo como falha ("the server refused") — nada quebra,
-   só o motivo fica menos preciso.)*
+   só o motivo fica menos preciso. E por um compartilhamento (item 6 da
+   ADR 0081), `head` e o `seq` de cada mudança contam as mudanças do
+   próprio compartilhamento, não as da pasta, e o aviso de que o registro
+   andou não traz cabeça: os números da pasta diziam a quem recebe quanto
+   acontece fora do compartilhamento (3.18). O cursor é opaco para o
+   aparelho, e ele só o guarda enquanto está conectado, então nada do
+   sync 1 precisa ser lido de novo.)*
 6. **Quando**: nos lotes do watcher local (com espera), nos avisos do
    servidor, ao iniciar e ao reconectar, e por uma varredura a cada cinco
    minutos como rede de segurança. Offline, nada fica numa fila além da
