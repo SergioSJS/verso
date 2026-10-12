@@ -873,7 +873,9 @@ fn the_server_serves_its_own_tls() {
             .json()
             .await
             .unwrap();
-        assert_eq!(state["contract"], contract_version());
+        assert_eq!(state["secure"], true);
+        // A stranger is not told the version (threat-model.md, gap 15).
+        assert!(state["version"].is_null() && state["contract"].is_null());
         // Plain HTTP to the TLS port gets nothing.
         assert!(
             reqwest::get(format!("http://localhost:{port}/api/state"))

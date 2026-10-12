@@ -236,3 +236,33 @@ fn past_the_servers_connections_the_next_is_closed() {
         );
     });
 }
+
+/// The minor ones of 2026-10-11: a folder's file is for this server's pages (gap 14),
+/// and a stranger is not told the version (gap 15).
+#[test]
+fn the_database_the_files_and_the_version_say_no_more_than_they_must() {
+    block_on(async {
+        let r = start().await;
+        // The database's mode: verso-fs's own test (owner_only), the one
+        // crate that reads a file's mode; here, that opening still works.
+        assert!(crate::db::Db::open(tempfile::tempdir().unwrap().path()).is_ok());
+        let (_, state) = crate::tests::get(&r, "/api/state", None).await;
+        assert!(state["version"].is_null(), "{state}");
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let (_, state) = crate::tests::get(&r, "/api/state", Some(&b)).await;
+        assert_eq!(state["version"], env!("CARGO_PKG_VERSION"));
+        let id = folder_id(&r, &b).await;
+        let res = reqwest::Client::new()
+            .get(r.url(&format!("/f/{id}/mapa.svg")))
+            .header("cookie", &b.cookie)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(
+            res.headers()
+                .get("cross-origin-resource-policy")
+                .and_then(|v| v.to_str().ok()),
+            Some("same-origin")
+        );
+    });
+}

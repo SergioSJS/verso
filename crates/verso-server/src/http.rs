@@ -462,7 +462,13 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
         "permissions-policy",
         "camera=(), microphone=(), geolocation=(), payment=()",
     );
-    if !is_file {
+    if is_file {
+        // A folder's file is for this server's pages alone: another
+        // site's page may not embed or fetch it with the reader's cookie
+        // (threat-model.md, gap 14; SameSite=Lax already keeps the cookie
+        // off such a request — said twice).
+        set(h, "cross-origin-resource-policy", "same-origin");
+    } else {
         set(h, "content-security-policy", &page_policy(&ws_origin));
     }
     // The page is never cached: a new version of the server is a new
