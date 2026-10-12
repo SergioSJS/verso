@@ -15,6 +15,47 @@
 - Status: written with the packaging, before its first release run. Nothing
   here has been run end to end yet: section 15 lists what is unverified.
 
+## The installer script
+
+`packaging/server/universo.sh` runs the steps of section 5 for you on a
+machine with systemd and apt or dnf, and says each one as it goes
+(decided by the maintainer on 2026-10-12, [ADR 0075](../adr/0075-server-packaging-and-storage.md),
+Revisions). It is one POSIX `sh` file, in English or in Brazilian
+Portuguese by `LANG`, also served at `https://versomd.com/universo.sh` —
+a copy of the repository's file, which is the source. Download it, read it
+if you like, then run it (piping it straight into `sh` is not the
+recommended path):
+
+```sh
+curl -fsSLO https://versomd.com/universo.sh
+sh universo.sh install --url https://notes.example.com
+```
+
+| Command | What it does |
+|---|---|
+| `install [--version X] [--package FILE] [--url URL]` | downloads this machine's package (x64 or ARM64, `.deb` or `.rpm`) from the latest release or from `X`, checks it, installs it, writes `VERSO_PUBLIC_URL` into `/etc/universo/universo.env` (asked when not given; every other line left as it was), runs `systemctl enable --now universo`, waits for the server to answer and prints the next steps: the first admin (section 9, the setup link from the log), HTTPS (section 8), the ports |
+| `update [--version X] [--package FILE]` | the same download and check, installed over the running one; settings and data kept; restarts it and prints the old and the new version |
+| `uninstall [--purge]` | removes the package and says what it left: `/var/lib/universo`, `/etc/universo`, the `universo` user. `--purge` removes them too, after you type `/var/lib/universo` back |
+| `status` | the service's state, the version, the address it listens on, the size of the two directories, the last 5 lines of the log |
+| `logs [-f]` | `journalctl -u universo` |
+| `backup [DIR]` | stops the service, packs `/var/lib/universo` and `/etc/universo` into `universo-backup-<date>-<time>.tar.gz` in `DIR` (`/var/backups/universo` by default), starts it again; refuses when `DIR` has less free space than the two directories take |
+| `reset-admin [E-MAIL]` | the command of section 10 |
+| `firewall` | opens 80 and 443 with ufw, firewalld or iptables (kept across reboots with `netfilter-persistent` when present), and reminds that a cloud's own firewall (Oracle's VCN security list) is opened in its console. Only when asked: `install` never touches the firewall |
+
+How a download is checked: with `minisign` installed, the release's `.sig`
+against Verso's release key (section 6), the signed comment naming the
+file; without it, the `sha256` GitHub publishes for each release file;
+with neither, it refuses unless given `--insecure-no-verify`, which says
+loudly that nothing was checked. A package from `--package FILE` is
+checked with `FILE.sig` beside it. While the repository is private,
+downloading needs a GitHub token in `GITHUB_TOKEN` (fine-grained,
+Contents: Read-only on the repository); without one the script says how to
+make it, or takes `--package`. A machine with neither apt nor dnf is told
+to use the archive (section 6). Sections 5 and 6 stay the manual paths.
+
+A walk-through on a free cloud machine, from creating it to the app
+connected: [UniVerso on Oracle Cloud's Always Free tier](universo-on-oracle-free.md).
+
 ## 1. What is installed
 
 **UniVerso**, the Verso server ([ADR 0078](../adr/0078-universo-the-name-of-verso-as-a-server.md)):
@@ -723,6 +764,22 @@ on a real machine. Verified since:
   server started from the same data; see the note in section 5).
 - 2026-10-12: the static musl build of the server (x86_64), made with
   musl-gcc.
+- 2026-10-12: the arm64 `.deb`, its static binary built the release's
+  way but on a Mac (Apple silicon): `cargo zigbuild --release --locked -p
+  verso-cli --target aarch64-unknown-linux-musl` with cargo-zigbuild
+  0.23.4 and ziglang 0.15.2 (`file`: statically linked), the window from
+  `npm run build`, nfpm 2.47.0 with `packaging/server/nfpm.yaml`, unsigned;
+  installed by `universo.sh install --package … --insecure-no-verify` on a
+  fresh Ubuntu 24.04 arm64 VM (Lima, Apple's virtualization): installed,
+  enabled and answering `curl /` with 200, the setup link printed; the first
+  admin made through it; `status`; `backup` (the service stopped and started
+  again, the archive holding the database, a note and `universo.env`;
+  refused on a 64 KB file system); `update --package` with the same file
+  (reinstalled, the service restarted, `universo.env` byte-equal, the note
+  and the admin's sign-in kept); `uninstall` (the binary gone, the data,
+  the settings and the user left); `uninstall --purge` (refused on a wrong
+  answer; on `/var/lib/universo`: the package purged, both directories,
+  the user and the group gone).
 - 2026-10-12: the release's path for the static binary on x86_64:
   `cargo zigbuild --release --locked -p verso-cli --target
   x86_64-unknown-linux-musl` with cargo-zigbuild 0.23.4 and ziglang 0.15.2
@@ -737,9 +794,12 @@ on a real machine. Verified since:
 Not verified yet:
 
 - the image built and run on amd64 and arm64, and the arm64 static
-  binary built with cargo-zigbuild (the x86_64 one is verified, above);
-- the `.deb` and the `.rpm` on arm64, and an upgrade from one version to a
-  newer one;
+  binary built with cargo-zigbuild on the release's Linux runner (on a Mac
+  it is verified, above);
+- the `.rpm` on arm64, and an upgrade from one version to a newer one;
+- `universo.sh` downloading from a release (no release carries the
+  `universo` packages yet) and checking a real `.sig` with minisign, and
+  its `firewall` and `reset-admin` commands;
 - the not-running message `postinstall.sh` prints when an install leaves
   the service disabled (added after the 2026-10-12 verification);
 - the compose file in CasaOS and ZimaOS (it passes `docker compose config`;
