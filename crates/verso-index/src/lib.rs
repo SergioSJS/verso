@@ -27,6 +27,7 @@ mod moves;
 mod schema;
 mod search;
 mod store;
+mod trash;
 
 use std::path::{Path, PathBuf};
 
@@ -38,6 +39,7 @@ pub use store::{
     Backlink, Block, EntryLabel, Heading, Link, NoteStamp, SchemaRow, SourceLink, Unresolved,
     VaultLink,
 };
+pub use trash::TrashRow;
 
 /// The schema version this build writes. The sidecar beside the index
 /// records it (`docs/reference/index-decision.md` §2.4); a different
@@ -143,6 +145,7 @@ impl Index {
         // for its lock rather than fail at once.
         conn.busy_timeout(BUSY_TIMEOUT)?;
         schema::ensure(&conn)?;
+        trash::ensure(&conn)?;
         Ok(Self {
             conn,
             path,
@@ -243,6 +246,7 @@ impl Index {
         let conn = Connection::open_in_memory()?;
         conn.pragma_update(None, "foreign_keys", "ON")?;
         schema::ensure(&conn)?;
+        trash::ensure(&conn)?;
         Ok(Self {
             conn,
             path: PathBuf::from(":memory:"),

@@ -1,0 +1,249 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+//! The bin's rules (ADR 0080): entries grouped from a walk and the
+//! records, expiry, the quota's guard, the sweep's guardrail, a restore
+//! beside a taken name, and the copy a write keeps.
+
+use std::collections::BTreeMap;
+use std::path::Path;
+
+use verso_core::Workspace;
+use verso_core::trash::*;
+use verso_fs::trashbin::{self, Binned};
+
+/// A book in memory.
+#[derive(Default)]
+struct Book(BTreeMap<String, TrashRecord>);
+
+impl TrashBook for Book {
+    fn records(&mut self) -> Result<Vec<TrashRecord>, String> {
+        Ok(self.0.values().cloned().collect())
+    }
+    fn put(&mut self, r: &TrashRecord) -> Result<(), String> {
+        self.0.insert(r.path.clone(), r.clone());
+        Ok(())
+    }
+    fn forget(&mut self, path: &str) -> Result<(), String> {
+        self.0.remove(path);
+        Ok(())
+    }
+}
+
+fn binned(path: &str, dir: bool, len: u64) -> Binned {
+    Binned {
+        path: path.into(),
+        dir,
+        len,
+    }
+}
+
+#[test]
+fn the_walk_is_grouped_by_what_was_recorded() {
+    let mut book = Book::default();
+    book.put(&record(
+        ".trash/Projetos",
+        "Projetos",
+        100,
+        Some("Ana"),
+        false,
+    ))
+    .unwrap();
+    book.put(&record(".trash/a/b.md", "a/b.md", 200, None, false))
+        .unwrap();
+    // Gone by hand: forgotten.
+    book.put(&record(".trash/sumiu.md", "sumiu.md", 50, None, false))
+        .unwrap();
+    let found = vec![
+        binned(".trash/Projetos", true, 0),
+        binned(".trash/Projetos/x.md", false, 3),
+        binned(".trash/Projetos/sub", true, 0),
+        binned(".trash/Projetos/sub/y.png", false, 7),
+        binned(".trash/a", true, 0),
+        binned(".trash/a/b.md", false, 5),
+        binned(".trash/a/c.md", false, 2),
+        binned(".trash/Velha", true, 0),
+        binned(".trash/Velha/z.md", false, 4),
+        binned(".trash/vazia", true, 0),
+    ];
+    let items = reconcile(&found, &mut book, 1000).unwrap();
+    let got: Vec<(&str, bool, u64, Option<i64>)> = items
+        .iter()
+        .map(|i| (i.record.path.as_str(), i.dir, i.size, i.record.deleted))
+        .collect();
+    // Newest first; an unknown date counts from now.
+    assert_eq!(
+        got,
+        vec![
+            (".trash/Velha", true, 4, None),
+            (".trash/a/c.md", false, 2, None),
+            (".trash/a/b.md", false, 5, Some(200)),
+            (".trash/Projetos", true, 10, Some(100)),
+        ]
+    );
+    assert!(!book.0.contains_key(".trash/sumiu.md"));
+    // What was found is recorded, its clock started now.
+    assert_eq!(book.0[".trash/Velha"].seen, 1000);
+    assert_eq!(book.0[".trash/Velha"].original, "Velha");
+    // The next listing keeps that first sight.
+    let again = reconcile(&found, &mut book, 5000).unwrap();
+    assert_eq!(again[0].since(), 1000);
+}
+
+fn item(path: &str, since: i64, size: u64) -> TrashItem {
+    TrashItem {
+        record: record(path, path, since, None, false),
+        dir: false,
+        size,
+    }
+}
+
+#[test]
+fn an_entry_goes_after_its_time_and_never_before() {
+    let items = vec![item(".trash/a", 0, 1), item(".trash/b", 10 * DAY, 1)];
+    let at = |days: i64| days * DAY;
+    assert!(due(&items, at(29), 30, None).is_empty());
+    assert_eq!(
+        due(&items, at(30), 30, None),
+        vec![(".trash/a".to_owned(), Why::Expired)]
+    );
+    // Forever keeps everything.
+    assert!(due(&items, at(10_000), 0, None).is_empty());
+}
+
+#[test]
+fn the_oldest_go_early_while_the_bin_alone_passes_the_quota() {
+    let items = vec![
+        item(".trash/nova", 3 * DAY, 40),
+        item(".trash/media", 2 * DAY, 40),
+        item(".trash/velha", DAY, 40),
+    ];
+    assert!(over_quota(&items, Some(100)));
+    assert_eq!(
+        due(&items, 4 * DAY, 30, Some(100)),
+        vec![(".trash/velha".to_owned(), Why::OverQuota)]
+    );
+    assert!(due(&items, 4 * DAY, 30, Some(120)).is_empty());
+    assert!(!over_quota(&items, None));
+}
+
+#[test]
+fn a_restored_name_beside_says_when_in_the_persons_language() {
+    assert_eq!(
+        beside_name("pasta/Nota.md", false, "2026-10-11", true, 1),
+        "pasta/Nota (restaurado 2026-10-11).md"
+    );
+    assert_eq!(
+        beside_name("Nota.md", false, "2026-10-11", false, 2),
+        "Nota (restored 2026-10-11 2).md"
+    );
+    assert_eq!(
+        beside_name("Projetos.v2", true, "2026-10-11", false, 1),
+        "Projetos.v2 (restored 2026-10-11)"
+    );
+}
+
+#[cfg(test)]
+mod disk {
+    use super::*;
+
+    /// A directory named `name` under `parent`: this crate's tests may not
+    /// call `std::fs` to make one (ADR 0026 rule 5, ADR 0029).
+    pub fn make_dir(parent: &Path, name: &str) -> std::path::PathBuf {
+        tempfile::Builder::new()
+            .prefix(name)
+            .rand_bytes(0)
+            .tempdir_in(parent)
+            .unwrap()
+            .keep()
+    }
+
+    /// What the folder's bin holds, through verso-fs.
+    pub fn in_bin(root: &Path) -> Vec<String> {
+        trashbin::walk(root)
+            .unwrap()
+            .into_iter()
+            .map(|b| b.path)
+            .collect()
+    }
+}
+use disk::*;
+
+/// The feature's guardrail (ADR 0080, Consequences; ADR 0029): the sweep
+/// removes nothing outside `.trash/` and nothing before its time; that it
+/// follows no symlink is `verso-fs`'s test of the removal it calls
+/// (`trashbin/tests.rs`).
+#[test]
+fn the_sweep_removes_only_what_is_due_and_only_in_the_bin() {
+    let folder = tempfile::tempdir().unwrap();
+    let root = folder.path();
+    let bin = make_dir(root, ".trash");
+    let old = make_dir(&bin, "velha");
+    std::fs::write(old.join("a.md"), "a").unwrap();
+    std::fs::write(bin.join("nova.md"), "n").unwrap();
+    std::fs::write(root.join("viva.md"), "v").unwrap();
+    let empty = make_dir(&bin, "vazia");
+    make_dir(&empty, "funda");
+    let mut book = Book::default();
+    book.put(&record(".trash/velha", "velha", 0, None, false))
+        .unwrap();
+    book.put(&record(".trash/nova.md", "nova.md", 20 * DAY, None, false))
+        .unwrap();
+    let swept = sweep(root, &mut book, 31 * DAY, 30, None).unwrap();
+    let gone: Vec<&str> = swept
+        .removed
+        .iter()
+        .map(|(i, _)| i.record.path.as_str())
+        .collect();
+    assert_eq!(gone, vec![".trash/velha"]);
+    // The empty folders the bin held are pruned; the rest stays.
+    assert_eq!(in_bin(root), vec![".trash/nova.md"]);
+    assert_eq!(std::fs::read_to_string(root.join("viva.md")).unwrap(), "v");
+    assert_eq!((swept.count, swept.size), (1, 1));
+    // Later, its time come.
+    let swept = sweep(root, &mut book, 50 * DAY, 30, None).unwrap();
+    assert!(swept.failed.is_empty(), "{:?}", swept.failed);
+    assert!(in_bin(root).is_empty());
+    assert_eq!(std::fs::read_to_string(root.join("viva.md")).unwrap(), "v");
+    // The bin itself stays: walked, it is there and empty.
+    assert!(std::fs::read_dir(&bin).unwrap().next().is_none());
+}
+
+#[test]
+fn a_restore_beside_a_taken_name_and_a_copy_before_a_write() {
+    let folder = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    std::fs::write(folder.path().join("Nota.md"), "primeira").unwrap();
+    let mut ws = Workspace::open(folder.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    let gone = ws.delete_entry("Nota.md").unwrap();
+    assert_eq!(gone.path, ".trash/Nota.md");
+    ws.create_note("Nota.md", "segunda").unwrap();
+    let back = ws
+        .restore_from_trash(&gone.path, "Nota.md", false, "2026-10-11", true)
+        .unwrap();
+    assert_eq!(back.path, "Nota (restaurado 2026-10-11).md");
+    assert!(back.beside);
+    assert!(ws.notes().unwrap().contains(&back.path));
+    assert_eq!(
+        std::fs::read_to_string(folder.path().join("Nota.md")).unwrap(),
+        "segunda"
+    );
+    // The version a write is about to replace, kept.
+    let kept = ws.keep_replaced("Nota.md").unwrap();
+    assert_eq!(kept, ".trash/Nota.md");
+    assert_eq!(
+        std::fs::read_to_string(folder.path().join(".trash/Nota.md")).unwrap(),
+        "segunda"
+    );
+    // A path outside the bin is never restored from.
+    assert!(
+        ws.restore_from_trash("Nota.md", "Outra.md", false, "2026-10-11", true)
+            .is_err()
+    );
+    assert!(
+        ws.restore_from_trash(&kept, "Nota.md", false, "../x", true)
+            .is_err()
+    );
+}

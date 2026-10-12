@@ -48,6 +48,7 @@ pub mod clients;
 pub mod focuses;
 pub mod servers;
 pub mod sync;
+pub mod trash;
 pub mod typed;
 pub use focuses::{Focus, FocusesSummary, ReadOnlyReasonCode};
 mod entries;
@@ -443,6 +444,9 @@ pub struct MovedEntries {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Trashed {
     pub path: String,
+    /// Where it was, relative to the folder: what the bin's record keeps
+    /// (ADR 0080 item 2).
+    pub original: String,
     pub warnings: Vec<String>,
 }
 
