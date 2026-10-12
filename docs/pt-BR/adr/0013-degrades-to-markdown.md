@@ -36,6 +36,7 @@ tipadas e schemas agora, relações e views quando vierem.
   ([0014](0014-primitives-catalog.md)).
 - A sintaxe de relação tipada, ainda `[ABERTO]`, fica restringida por esta
   proposta: precisa ser legível fora do Verso (`docs/spec/dialect.md`).
+  *(Decidida em 2026-09-30: Q10 da spec, ADR 0057 ponto 4.)*
 - O custo é redundância: o mesmo dado aparece no arquivo e no índice, e os dois
   precisam concordar.
 - "Markdown legível" é lido como **texto legível em qualquer editor, no formato

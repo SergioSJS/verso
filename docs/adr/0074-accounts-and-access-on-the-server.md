@@ -274,8 +274,12 @@ The environment of `verso serve`, together:
 
 ## Status
 
-Proposed, decided in its parts by the maintainer on 2026-10-09; to be
-read by Fable 5.1 and accepted together with
+**Accepted on 2026-10-09** with [0073](0073-self-hosted-server-first.md);
+the acceptance's words are in the paragraph after the list below.
+
+*(History, the status before the acceptance:)* Proposed, decided in its
+parts by the maintainer on 2026-10-09; to be read by Fable 5.1 and
+accepted together with
 [0073](0073-self-hosted-server-first.md). The maintainer raised the three
 things in the Source, then answered each question:
 

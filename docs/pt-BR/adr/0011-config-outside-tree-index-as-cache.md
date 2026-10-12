@@ -39,7 +39,7 @@ precisam morar em outro lugar e ser reconstruíveis.
   pasta é sensível, com que permissões, e o que acontece com o índice órfão
   quando a pasta some, é `[ABERTO]` em
   [0046](0046-index-location-lifecycle-tokenizer.md), a decidir antes
-  da feature 3 da Fase 1.
+  da feature 3 da Fase 1. *(Decidido: o 0046 aceito em 2026-09-22.)*
 
 **Onde fica o diretório de configuração, e o que chaveia uma pasta. Registrado
 em 2026-09-22 a partir do código da feature 4 — provisório, o mantenedor decide

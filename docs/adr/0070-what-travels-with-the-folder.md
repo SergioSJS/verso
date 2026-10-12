@@ -14,7 +14,8 @@
   tree, the index a cache), [0021](0021-sync-automerge-layered-config.md)
   (layered config, Proposed), [0052](0052-typed-note.md) (schemas in the
   folder), [0062](0062-focuses.md) (focuses in `.space/waypoints.json`),
-  [0069](0069-windows-port.md) (the Windows port, its separator `[OPEN]`).
+  [0069](0069-windows-port.md) (the Windows port, its separator `[OPEN]` — decided `/` on
+  2026-10-09).
 - Status in the briefing: not present
 - Revisions: 2026-10-09 — with the acceptance of
   [0073](0073-self-hosted-server-first.md) by the maintainer that day: on
@@ -87,7 +88,8 @@ those, the rule item 3 takes.
 4. **The separator**: what Verso writes uses `/`, which Obsidian resolves on
    every OS (ADR 0069, item 9). A `\` inside a link is part of the name, as
    Obsidian reads it on macOS: never turned into `/`. The maintainer's words
-   above point to `/`; closing ADR 0069's `[OPEN]` is theirs.
+   above point to `/`; closing ADR 0069's `[OPEN]` is theirs. *(Closed by
+   the maintainer on 2026-10-09: `/`, definitive — ADR 0069 item 9.)*
 
 ## Consequences
 
@@ -119,13 +121,19 @@ those, the rule item 3 takes.
 
 ## Status
 
-Proposed. Decided by the maintainer on 2026-10-08: item 3 (names every OS
-can keep, for what Verso makes or renames). Proposed: items 1, 2 and 4.
+Decided in parts: item 3 (2026-10-08); item 4's separator, `/`, and the
+hidden directory's name, `.verso/` (2026-10-09). Proposed: items 1 and 2.
+
+*(History, the lead until 2026-10-12:)* Proposed. Decided by the
+maintainer on 2026-10-08: item 3 (names every OS can keep, for what Verso
+makes or renames). Proposed: items 1, 2 and 4 *(item 4's separator decided
+the next day, below)*.
 Decided by the maintainer on 2026-10-09: the hidden directory is
 **`.verso/`**, as Obsidian's is `.obsidian/` ("Se inspire no obsidian");
 ADR 0069's separator is `/`, definitive. `[OPEN]`: whether the approved
 embed origins are the folder's or the person's (a permission granted to a
-site, not a property of the notes). Closed on 2026-10-08: `\` joins item 3's refused
+site, not a property of the notes) *(closed on 2026-10-09, below)*.
+Closed on 2026-10-08: `\` joins item 3's refused
 characters on every OS (raised by the review of that day).
 
 Closed on 2026-10-09, with the acceptance of

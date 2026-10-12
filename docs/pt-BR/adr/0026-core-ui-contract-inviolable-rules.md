@@ -112,6 +112,7 @@ elas valem é esta:
   ([0009](0009-external-constraints.md)).
 - "Contrato primeiro" define a ordem de trabalho da Fase 2 e depende da escolha
   de geração de tipos TS ([0038](0038-ts-type-generation.md), `[ABERTO]`).
+  *(Decidida: o 0038 aceito em 2026-09-22.)*
 - A regra 5 é verificável mecanicamente em duas camadas: dependências de IO de
   arquivo (`walkdir`, `notify`, `tempfile` e afins) só em `verso-fs`, e chamadas
   a `std::fs` negadas por lint fora de `verso-fs`, com exceção declarada para o

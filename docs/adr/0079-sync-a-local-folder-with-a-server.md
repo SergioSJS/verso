@@ -261,4 +261,7 @@ server's message limit are sent and fetched **in pieces now**, in this
 round, so that no file under 1 GiB is left out for its size *(amended on
 2026-10-11, Revisions; the words were "so that no file is left out for
 its size": the 1 GiB limit, accepted by the maintainer that day, is item
-12's)*. To be read by Fable 5.1 with the round's code.
+12's)*. To be read by Fable 5.1 with the round's code *(history: read by
+Fable 5.1 on 2026-10-10/11, in the sync campaign's session; its final
+report, `verso-sync-campaign/relatorio-final.md`, is outside the
+repository)*.

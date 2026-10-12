@@ -104,11 +104,13 @@ Accepted (2026-10-10, Status).
      date by each write and delete between walks;
    - `[OPEN]`: a quota per account (all the folders it owns) as well, or
      only per folder. Recommended: per folder now, per account when a
-     server has members who create folders.
+     server has members who create folders. *(Decided on 2026-10-10 as
+     recommended — Status.)*
 6. **No setting of the server is edited in the console** in this ADR:
    configuration stays in the environment (0075 item 6), shown read-only.
    Editing it from the console — mail, the default quota — is `[OPEN]`,
-   for when an admin asks.
+   for when an admin asks. *(Decided on 2026-10-10: read-only in the
+   console, edited in the environment — Status.)*
 7. **Both languages, accessibility**: every page in pt-BR and English,
    tables with headers and captions, keyboard sorting and paging, and the
    console's own e2e tests in the server's suite (`e2e-server`), at
@@ -141,4 +143,6 @@ Accepted (2026-10-10, Status).
 in session: *"com exceção do 6, pode seguir o recomendado, o 6 pode já implementar"*. Item 5: quotas per folder only; a quota per account
 when a server has members who create folders. Item 6: the configuration
 read-only in the console, edited in the environment. To be read by Fable
-5.1 with the round's code.
+5.1 with the round's code *(history: read by Fable 5.1 on 2026-10-10/11, in
+the sync campaign's session; its final report,
+`verso-sync-campaign/relatorio-final.md`, is outside the repository)*.

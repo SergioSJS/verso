@@ -404,7 +404,8 @@ PDF's quote make to a live note will go through the room — decided, not
 built yet, the next round; and the board's co-editing stays `[OPEN]`
 (item 12).
 
-Proposed on 2026-10-10. The maintainer approved the direction in session;
+*(History, before the acceptance above:)* Proposed on 2026-10-10. The
+maintainer approved the direction in session;
 the items are the author's. To be read by Opus 5.5 before it is accepted.
 For the maintainer, each with a recommendation: whether a note joins on
 open or only when someone else is in it (item 5; on open); whether live

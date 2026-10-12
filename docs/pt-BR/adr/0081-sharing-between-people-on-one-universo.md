@@ -205,7 +205,8 @@ em 2026-10-10 (Status).
    compartilhado, e o diálogo diz isso ao dono na hora de compartilhar,
    numa linha. *(Decidido em 2026-10-12, Revisões: o sync do
    compartilhamento revogado se desliga no aparelho de quem recebe, com
-   um aviso; sendo construído naquela noite, no `feat/universo-small`.)*
+   um aviso; sendo construído naquela noite, no `feat/universo-small`;
+   construído em 6c7800e, mesclado por d2a72b0.)*
 9. **Auditoria.** Um compartilhamento criado, mudado e removido, e um
    convite que carrega um, são entradas do registro de auditoria com o
    caminho ([0074](0074-accounts-and-access-on-the-server.md) item 9),
@@ -388,11 +389,13 @@ tem esse limite (item 11); os agregados que quem recebe vê, as contagens
 do índice e as fórmulas de uma base, vão ser zerados — decidido, a
 próxima rodada (item 11); o sync de um compartilhamento revogado se
 desliga com um aviso — decidido, sendo construído naquela noite no
-`feat/universo-small` (item 8). Cada uma está registrada no item dela
+`feat/universo-small` (item 8) *(construído em 6c7800e, mesclado no
+`feat/universo` por d2a72b0 em 2026-10-12; no `CHANGELOG.md` em
+Unreleased)*. Cada uma está registrada no item dela
 (Revisões).
 
-Proposta em 2026-10-10. A ser lida por Opus 5.5 antes de ser aceita. Para
-o mantenedor, cada um com uma recomendação: um nome próprio para um
+*(Histórico, antes da aceitação acima:)* Proposta em 2026-10-10. A ser
+lida por Opus 5.5 antes de ser aceita. Para o mantenedor, cada um com uma recomendação: um nome próprio para um
 compartilhamento (item 3; não); quem compartilha, e recompartilhar (item
 4; só o dono, sem recompartilhar); links que qualquer um pode abrir (item
 4; agora não); um compartilhamento dentro do próprio vault de quem recebe

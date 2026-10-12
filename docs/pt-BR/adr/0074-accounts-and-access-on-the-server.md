@@ -280,8 +280,12 @@ O ambiente do `verso serve`, junto:
 
 ## Status
 
-Proposto, decidido em suas partes pelo mantenedor em 2026-10-09; a ser lido
-pela Fable 5.1 e aceito junto com o
+**Aceito em 2026-10-09** com o [0073](0073-self-hosted-server-first.md);
+as palavras da aceitação estão no parágrafo depois da lista abaixo.
+
+*(Histórico, o status antes da aceitação:)* Proposto, decidido em suas
+partes pelo mantenedor em 2026-10-09; a ser lido pela Fable 5.1 e aceito
+junto com o
 [0073](0073-self-hosted-server-first.md). O mantenedor levantou as três
 coisas da Fonte, depois respondeu cada questão:
 

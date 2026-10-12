@@ -20,7 +20,9 @@ Workspace com múltiplas raízes, com links resolvendo entre elas.
 - A resolução de link deixa de ser local a uma pasta: `[[nota]]` passa a poder
   apontar para outra raiz, o que torna a regra de resolução e o comportamento
   com nome ambíguo questões de dialeto ainda sem resposta
-  (`docs/spec/dialect.md`, Q12, `[ABERTO]`).
+  (`docs/spec/dialect.md`, Q12, `[ABERTO]`). *(A Q12 fechada pelo
+  mantenedor em 2026-09-22, dentro de uma pasta; um link entre raízes é
+  deste ADR, ainda Proposto.)*
 - A config é indexada pelo caminho da pasta
   ([0011](0011-config-outside-tree-index-as-cache.md)): um workspace com
   várias raízes precisa de uma chave própria, e o briefing não diz qual.

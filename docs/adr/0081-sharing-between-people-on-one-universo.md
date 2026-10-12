@@ -197,7 +197,8 @@ carried a recommendation; the maintainer decided. Open items answered
    moment it was shared, and the dialog says so to the owner at the
    moment of sharing, in one line. *(Decided 2026-10-12, Revisions: the
    revoked share's sync turns off on the receiver's device with a notice;
-   being built that night, on `feat/universo-small`.)*
+   being built that night, on `feat/universo-small`; built in 6c7800e,
+   merged by d2a72b0.)*
 9. **Audit.** A share created, changed and removed, and an invitation
    that carries one, are entries of the audit log with the path
    ([0074](0074-accounts-and-access-on-the-server.md) item 9), read by
@@ -364,10 +365,12 @@ move them — sharing the whole vault has no such limit (item 11); the
 aggregates a receiver sees, the index's counts and a base's formulas,
 will be zeroed — decided, the next round (item 11); a revoked share's
 sync turns off with a notice — decided, being built that night on
-`feat/universo-small` (item 8). Each is recorded in its item (Revisions).
+`feat/universo-small` (item 8) *(built in 6c7800e, merged into
+`feat/universo` by d2a72b0 on 2026-10-12; in `CHANGELOG.md` under
+Unreleased)*. Each is recorded in its item (Revisions).
 
-Proposed on 2026-10-10. To be read by Opus 5.5 before it is accepted. For
-the maintainer, each with a recommendation: a share's own name (item 3;
+*(History, before the acceptance above:)* Proposed on 2026-10-10. To be
+read by Opus 5.5 before it is accepted. For the maintainer, each with a recommendation: a share's own name (item 3;
 no); who shares, and re-sharing (item 4; the owner only, no re-sharing);
 links anyone may open (item 4; not now); a share inside the receiver's
 own vault (item 6; no, a window of its own until 0041); attachments

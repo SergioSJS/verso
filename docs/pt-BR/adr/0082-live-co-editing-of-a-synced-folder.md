@@ -418,7 +418,8 @@ propriedades e a citação de um PDF fazem numa nota ao vivo vão passar
 pela sala — decidido, ainda não construído, a próxima rodada; e a
 coedição do board segue `[ABERTO]` (item 12).
 
-Proposta em 2026-10-10. O mantenedor aprovou a direção em sessão; os itens
+*(Histórico, antes da aceitação acima:)* Proposta em 2026-10-10. O
+mantenedor aprovou a direção em sessão; os itens
 são do autor. A ser lida por Opus 5.5 antes de ser aceita. Para o
 mantenedor, cada um com uma recomendação: se uma nota entra ao abrir ou só
 quando alguém está nela (item 5; ao abrir); se a coedição ao vivo fica

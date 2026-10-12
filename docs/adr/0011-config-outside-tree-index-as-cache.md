@@ -42,7 +42,7 @@ and be rebuildable.
   the folder is sensitive, with what permissions, and what happens to the
   orphaned index when the folder disappears, is `[OPEN]` in
   [0046](0046-index-location-lifecycle-tokenizer.md), to be decided before
-  feature 3 of Phase 1.
+  feature 3 of Phase 1. *(Decided: 0046 accepted on 2026-09-22.)*
 
 **Where the configuration directory is, and what keys a folder. Recorded on
 2026-09-22 from the feature 4 code — provisional, the maintainer decides on

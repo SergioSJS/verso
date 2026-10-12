@@ -33,10 +33,12 @@ já usa.
 - FTS5 exige escape da sintaxe de busca e queries parametrizadas; vira guardrail
   ([0029](0029-guardrails-in-ci.md)).
 - O parser base em Rust ainda não foi escolhido
-  ([0037](0037-base-parser.md), `[ABERTO]`).
+  ([0037](0037-base-parser.md), `[ABERTO]`). *(Decidido em 2026-09-21:
+  `pulldown-cmark`, 0037 Aceito.)*
 - O tokenizador do FTS5 precisa tratar acentos e maiúsculas de pt-BR e EN antes
   da primeira linha de base do benchmark
   ([0046](0046-index-location-lifecycle-tokenizer.md), `[ABERTO]`).
+  *(Decidido: o 0046 aceito em 2026-09-22.)*
 - Riscos não avaliados na decisão, registrados na revisão da Fase 0 (I4):
   Tauri v2 mobile é jovem; o WKWebView do iOS impõe limites a CodeMirror 6 e a
   Web Workers que nenhum documento lista. A UI é reversível antes da Fase 2;

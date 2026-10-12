@@ -18,7 +18,8 @@
 - Relacionados: [0022](0022-target-platforms-macos-first.md) (o Windows
   sai, antes do Linux), [0029](0029-guardrails-in-ci.md) (as verificações
   por plataforma e os scripts locais), [0043](0043-placeholder-guard.md) (o
-  placeholder do OneDrive, `[ABERTO]`),
+  placeholder do OneDrive, `[ABERTO]` — decidido em 2026-10-08, tratado
+  como o do iCloud, Status),
   [0051](0051-development-flow-and-releases.md) (as versões, e a assinatura
   de código no Windows adiada), [0055](0055-in-app-updater.md) (o caminho
   do atualizador no Windows, nunca exercitado).
@@ -372,7 +373,12 @@ enquanto algum arquivo dentro dela está aberto. (No macOS, desde
 
 ## Status
 
-Proposto. Decidido pelo mantenedor em 2026-10-07: o app de Windows começa
+**Decidido em partes (2026-10-07/09); o porte saiu na 0.5.0-beta.1**
+(2026-10-08, `CHANGELOG.md`; commit de release 98a2bf6). Ainda Proposto:
+os itens nomeados como Proposto abaixo.
+
+*(A abertura até 2026-10-12, guardada como histórico: "Proposto.")*
+Decidido pelo mantenedor em 2026-10-07: o app de Windows começa
 agora e passa à frente do resto do trabalho da Fase 2 — faz parte do escopo
 da Fase 2, e sai antes de a Fase 2 fechar ("Vou passar windows na frente";
 ADR 0022 e roadmap revisados no mesmo dia); só x64, sem ARM64, e Windows 10
@@ -382,11 +388,15 @@ não assinado); `scripts/check-windows.sh` obrigatório quando o diff toca
 código de plataforma, opcional nos outros casos (item 5, "Recomendado"); a
 máquina com Windows 10 depois, o porte escrito com o Windows 10 em mente
 desde o início (Consequências). Proposto: o bootstrapper do WebView2
-embutido (item 2), os itens 4, 6 a 9, e a ordem do trabalho. `[ABERTO]`, o
+embutido (item 2), os itens 4, 6 a 9, e a ordem do trabalho. **Decidido
+pelo mantenedor em 2026-10-09** (item 9; `CLAUDE.md` §2 item 9): o
+`FlushFileBuffers` do diretório conta como o `fsync` do diretório; o
+separador de caminho num caminho relativo à pasta aberta é `/`,
+definitivo. *(Histórico: até então os dois estavam `[ABERTO]`, o
 mantenedor ainda sem saber ("Não sei") e o porte seguindo com a
 recomendação registrada como fato provisório até o pull request dele: o
 que o `fsync` do diretório significa no Windows (item 9); o separador de
-caminho num caminho relativo à pasta aberta (item 9). Decidido em
+caminho num caminho relativo à pasta aberta (item 9).)* Decidido em
 2026-10-08: o local da configuração, `%LOCALAPPDATA%\verso` (item 9, a
 escolha deixada ao porte); o placeholder do OneDrive tratado como o do
 iCloud (item 9, ADR 0043).

@@ -13,7 +13,7 @@
   (configuração em camadas, Proposto), [0052](0052-typed-note.md) (schemas
   na pasta), [0062](0062-focuses.md) (focos em `.space/waypoints.json`),
   [0069](0069-windows-port.md) (o porte para Windows, o `[OPEN]` do
-  separador).
+  separador — decidido `/` em 2026-10-09).
 - Status no briefing: não presente
 - Revisões: 2026-10-09 — com a aceitação do
   [0073](0073-self-hosted-server-first.md) pelo mantenedor naquele dia: num
@@ -89,7 +89,8 @@ exatamente esses, a regra que o item 3 adota.
    todo sistema (ADR 0069, item 9). Uma `\` dentro de um link é parte do
    nome, como o Obsidian a lê no macOS: nunca vira `/`. As palavras do
    mantenedor acima apontam para `/`; fechar o `[OPEN]` do ADR 0069 cabe a
-   ele.
+   ele. *(Fechado pelo mantenedor em 2026-10-09: `/`, definitivo — ADR
+   0069 item 9.)*
 
 ## Consequências
 
@@ -124,13 +125,18 @@ exatamente esses, a regra que o item 3 adota.
 
 ## Status
 
-Proposto. Decidido pelo mantenedor em 2026-10-08: o item 3 (nomes que todo
-sistema guarda, para o que o Verso cria ou renomeia). Proposto: os itens 1,
-2 e 4. Decidido pelo mantenedor em 2026-10-09: o diretório oculto é
+Decidido em partes: o item 3 (2026-10-08); o separador do item 4, `/`, e o
+nome do diretório oculto, `.verso/` (2026-10-09). Proposto: os itens 1 e 2.
+
+*(Histórico, a abertura até 2026-10-12:)* Proposto. Decidido pelo
+mantenedor em 2026-10-08: o item 3 (nomes que todo sistema guarda, para o
+que o Verso cria ou renomeia). Proposto: os itens 1, 2 e 4 *(o separador
+do item 4 decidido no dia seguinte, abaixo)*. Decidido pelo mantenedor em 2026-10-09: o diretório oculto é
 **`.verso/`**, como o do Obsidian é `.obsidian/` ("Se inspire no
 obsidian"); o separador do ADR 0069 é `/`, definitivo. `[ABERTO]`: se as
 origens de embed aprovadas são da pasta ou da pessoa (uma permissão dada a
-um site, não uma propriedade das notas). Fechado em 2026-10-08: a `\` entra nos
+um site, não uma propriedade das notas) *(fechado em 2026-10-09,
+abaixo)*. Fechado em 2026-10-08: a `\` entra nos
 caracteres recusados do item 3 em todo sistema (levantado pela revisão
 daquele dia).
 

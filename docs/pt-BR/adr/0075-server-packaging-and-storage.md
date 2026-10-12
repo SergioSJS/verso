@@ -193,7 +193,10 @@ Proposta; decidida em suas partes pelo mantenedor em 2026-10-09 (Status).
 
 ## Status
 
-Proposto, decidido em suas partes pelo mantenedor em 2026-10-09, nas
+**Aceito em 2026-10-09 em suas partes** (o segundo parágrafo abaixo).
+
+*(Histórico, o status antes da aceitação:)* Proposto, decidido em suas
+partes pelo mantenedor em 2026-10-09, nas
 respostas dele: três formas de instalar (item 2, "B"); dois diretórios
 (item 3, "B"); o espaço mostrado agora e limites depois (item 4, "A agora
 B depois"); sync por pasta, desligado por padrão (item 5, "A"); o ARM64
@@ -201,7 +204,8 @@ do servidor agora (item 2, "agora!"); a imagem no registro do GitHub
 (Consequências, "pode publicar no próprio github"). A ser lido pela Fable
 5.1 e aceito com o [0073](0073-self-hosted-server-first.md). `[ABERTO]`:
 o caminho de atualização de um servidor, e symlinks que saem de uma pasta
-num servidor compartilhado (item 3), ambos do 0073.
+num servidor compartilhado (item 3), ambos do 0073. *(Os dois respondidos
+em 2026-10-09 — abaixo.)*
 
 **Aceito em 2026-10-09** com o [0073](0073-self-hosted-server-first.md), na
 resposta citada lá. Os dois `[ABERTO]` respondidos na mesma noite: o

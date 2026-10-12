@@ -109,11 +109,13 @@ Aceita (2026-10-10, Status).
      em dia por cada escrita e apagamento entre varreduras;
    - `[ABERTO]`: uma cota por conta (todas as pastas de que é dona) também,
      ou só por pasta. Recomendado: por pasta agora, por conta quando um
-     servidor tiver membros que criam pastas.
+     servidor tiver membros que criam pastas. *(Decidido em 2026-10-10
+     como recomendado — Status.)*
 6. **Nenhuma configuração do servidor é editada no console** nesta ADR: a
    configuração fica no ambiente (item 6 da 0075), mostrada só para
    leitura. Editá-la pelo console — e-mail, a cota padrão — fica
-   `[ABERTO]`, para quando um admin pedir.
+   `[ABERTO]`, para quando um admin pedir. *(Decidido em 2026-10-10: só
+   para leitura no console, editada no ambiente — Status.)*
 7. **Os dois idiomas, acessibilidade**: toda página em pt-BR e inglês,
    tabelas com cabeçalhos e legendas, ordenação e paginação pelo teclado,
    e os testes de ponta a ponta do console na suíte do servidor
@@ -146,4 +148,6 @@ Aceita (2026-10-10, Status).
 sessão: *"com exceção do 6, pode seguir o recomendado, o 6 pode já implementar"*. Item 5: cotas só por pasta; uma cota por conta quando
 um servidor tiver membros que criam pastas. Item 6: a configuração só para
 leitura no console, editada no ambiente. A ser lida por Fable 5.1 com o
-código da rodada.
+código da rodada *(histórico: lida por Fable 5.1 em 2026-10-10/11, na sessão da campanha
+de sync; o relatório final dela,
+`verso-sync-campaign/relatorio-final.md`, está fora do repositório)*.

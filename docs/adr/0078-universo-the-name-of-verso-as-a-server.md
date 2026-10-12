@@ -54,7 +54,8 @@ Accepted (2026-10-10, Status).
      and the CasaOS card named Universo.
 4. **The variables stay `VERSO_*`.** They are the server's configuration
    and already documented; renaming them would change every install for no
-   gain. Recommended; `[OPEN]` for the maintainer.
+   gain. Recommended; `[OPEN]` for the maintainer. *(Decided on
+   2026-10-10 as recommended — Status.)*
 5. **What a person sees.** The pages the server serves before the window
    — signing in, an invitation, a reset — and the administration console
    ([0077](0077-the-server-administration-console-and-folder-quotas.md))
@@ -63,7 +64,8 @@ Accepted (2026-10-10, Status).
    Settings › Servers is named for what it connects to: `[OPEN]` whether
    it becomes "Universo" or stays "Servers". Recommended: "Servers", with
    "Universo" in its description, since a person connects to a server
-   someone runs, by its address.
+   someone runs, by its address. *(Decided on 2026-10-10 as recommended —
+   Status.)*
 6. **0.7.0-beta.1's names are not carried along.** The image
    `ghcr.io/sergiosjs/verso` and the `verso-server-*` packages stop at
    0.7.0-beta.1; the next release publishes Universo's. Only the
@@ -93,4 +95,6 @@ Accepted (2026-10-10, Status).
 **Accepted on 2026-10-10** by the maintainer, with every recommendation,
 in session: *"com exceção do 6, pode seguir o recomendado, o 6 pode já implementar"*. Item 4: the variables stay `VERSO_*`. Item 5:
 Settings › Servers keeps its name, with Universo in its description. To be
-read by Fable 5.1 with the round's code.
+read by Fable 5.1 with the round's code *(history: read by Fable 5.1 on
+2026-10-10/11, in the sync campaign's session; its final report,
+`verso-sync-campaign/relatorio-final.md`, is outside the repository)*.

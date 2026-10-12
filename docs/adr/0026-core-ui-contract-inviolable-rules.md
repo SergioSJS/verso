@@ -110,6 +110,7 @@ hold is this:
   ([0009](0009-external-constraints.md)).
 - "Contract first" defines the order of work in Phase 2 and depends on the
   choice of TS type generation ([0038](0038-ts-type-generation.md), `[OPEN]`).
+  *(Decided: 0038 accepted on 2026-09-22.)*
 - Rule 5 is mechanically verifiable in two layers: file IO dependencies
   (`walkdir`, `notify`, `tempfile` and the like) only in `verso-fs`, and calls
   to `std::fs` denied by lint outside `verso-fs`, with a declared exception for
