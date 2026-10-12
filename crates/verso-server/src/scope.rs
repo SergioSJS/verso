@@ -162,13 +162,22 @@ impl Scope {
         e
     }
 
-    /// A warning of the core kept only when it concerns the share; one
-    /// that names another path is dropped.
+    /// A warning of the core kept only when it begins with a path inside
+    /// the share — the shared folder's, or the attachments folder shown
+    /// with it — re-rooted there. Any other is dropped (ADR 0081 item
+    /// 11): a note at the owner's root names no `/` and is still outside
+    /// (threat model, gap closed 2026-10-12), and a warning that names no
+    /// path cannot be said to be the share's.
     fn warning(&self, w: &str) -> Option<String> {
         if let Some(rest) = w.strip_prefix(&format!("{}/", self.root)) {
-            return Some(rest.to_owned());
+            return Some(self.said(rest));
         }
-        (!w.contains('/')).then(|| w.to_owned())
+        if let Some((name, path)) = &self.mount
+            && let Some(rest) = w.strip_prefix(&format!("{path}/"))
+        {
+            return Some(format!("{name}/{}", self.said(rest)));
+        }
+        None
     }
 
     fn warnings(&self, v: &mut Value) {
@@ -690,6 +699,38 @@ mod tests {
         assert_eq!(renamed["rewrites"], json!([]));
         assert_eq!(renamed["warnings"], json!(["c.md: y"]));
         assert_eq!(s.said("not found: Mesa/Campanha/x.md"), "not found: x.md");
+    }
+
+    #[test]
+    fn a_warning_reaches_the_window_only_about_a_path_inside_the_share() {
+        let s = Scope {
+            share: "s1".into(),
+            key: share_key("s1"),
+            name: "Mesa (Sérgio)".into(),
+            root: "Mesa".into(),
+            mount: Some(("Anexos".into(), "Anexos".into())),
+        };
+        // A rename's examination warns of the notes it read: one at the
+        // owner's root has no `/` and is still outside.
+        let renamed = s.answer_out(
+            "rename_entry",
+            json!({ "path": "Mesa/b.md", "rewrites": [], "skipped": [], "also": [],
+                    "warnings": [
+                        "Segredo.md: not JSON, its links were not followed",
+                        "Mesa2/Fora.md: permission denied",
+                        "Mesa/x.md: permission denied",
+                        "Anexos/p.png: not readable",
+                        "the index could not follow it"
+                    ] }),
+            0,
+        );
+        assert_eq!(
+            renamed["warnings"],
+            json!(["x.md: permission denied", "Anexos/p.png: not readable"])
+        );
+        let mut index = json!({ "problems": ["Segredo.md: bad", "Mesa/x.md: bad"] });
+        s.summary(&mut index, None);
+        assert_eq!(index["problems"], json!(["x.md: bad"]));
     }
 
     #[test]
