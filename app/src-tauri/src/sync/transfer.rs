@@ -7,6 +7,8 @@
 //! (invariant 11), deleted, renamed, or set aside as a conflict's copy —
 //! and why a step was refused.
 
+use sha2::{Digest, Sha256};
+
 use super::*;
 
 /// Why an action was not carried out.
@@ -76,10 +78,11 @@ fn reader_refusal(path: &str) -> Refusal {
     )
 }
 
-/// Send this computer's file at `path`, in pieces; the hash sent, its
-/// size, and the path it landed at — the spelling the server keeps for
-/// the name, which may be this computer's in another Unicode form (spec
-/// Q7).
+/// Send this computer's file at `path`, in pieces read from the disk as
+/// they go — never the file whole in memory (ADR 0079 item 12, revised
+/// 2026-10-12); the hash sent, its size, and the path it landed at — the
+/// spelling the server keeps for the name, which may be this computer's
+/// in another Unicode form (spec Q7).
 async fn upload(
     ctx: &Ctx,
     s: &Syncer,
@@ -90,12 +93,12 @@ async fn upload(
     let p = path.to_owned();
     // Larger than sync carries — grown since the pass listed it — is
     // refused by its size on the disk, before a read.
-    let bytes = tokio::task::block_in_place(|| {
+    let hashed = tokio::task::block_in_place(|| {
         ctx.service.with_key(&s.key, move |ws| {
             if ws.file_len(&p).is_some_and(|len| len > LARGEST) {
                 return Ok(None);
             }
-            Ok(Some(ws.read_with_revision(&p)?.0))
+            Ok(Some(ws.hash_with_revision(&p)?))
         })
     })
     .map_err(|e| of_here(ctx, s, path, e))?;
@@ -106,86 +109,148 @@ async fn upload(
             TOO_LARGE.to_owned(),
         )
     };
-    let Some(bytes) = bytes else {
+    let Some(hashed) = hashed else {
         return Err(too_large());
     };
-    let size = bytes.len() as u64;
+    let size = hashed.len;
     if size > LARGEST {
         return Err(too_large());
     }
-    let hash = sha256(&bytes);
-    let mut offset = 0_usize;
+    let crossed = || Refusal::Again(path.to_owned(), "changed while it crossed".to_owned());
+    let mut offset = 0_u64;
     loop {
-        let end = offset.saturating_add(PIECE).min(bytes.len());
-        let answer = remote
-            .call(
+        let p = path.to_owned();
+        let (piece, mark) = tokio::task::block_in_place(|| {
+            ctx.service
+                .with_key(&s.key, move |ws| Ok(ws.read_piece(&p, offset, PIECE)?))
+        })
+        .map_err(|e| of_here(ctx, s, path, e))?;
+        // Changed on the disk since it was hashed: the next pass sends it
+        // as it is then.
+        if mark != hashed.mark {
+            return Err(crossed());
+        }
+        let end = offset + piece.len() as u64;
+        let (answer, _) = remote
+            .call_with(
                 "sync_put",
                 json!({
                     "path": path,
                     "offset": offset,
                     "size": size,
-                    "hash": hash,
+                    "hash": hashed.hash,
                     "base": base,
-                    "data": base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &bytes[offset..end]),
                 }),
+                Some(piece),
             )
             .await
             .map_err(|e| of_server(path, &e))?;
         if answer["done"] == true {
             let landed = answer["path"].as_str().unwrap_or(path).to_owned();
-            return Ok((hash, size, landed));
+            return Ok((hashed.hash, size, landed));
         }
-        if end >= bytes.len() {
-            return Err(Refusal::Again(
-                path.to_owned(),
-                "changed while it crossed".to_owned(),
-            ));
+        if end >= size {
+            return Err(crossed());
         }
         offset = end;
     }
 }
 
-/// The server's file at `path`, in pieces, its hash checked.
-async fn download(remote: &remote::Remote, path: &str) -> Result<(Vec<u8>, String), Refusal> {
-    let mut out = Vec::new();
+/// The server's file at `path`, in pieces written as they arrive to a
+/// temporary file beside where it lands — never whole in memory — and its
+/// hash checked once all are there: the file staged, its hash and size. A
+/// broken transfer leaves nothing half-written (item 12): the staged file
+/// goes when dropped.
+async fn download(
+    ctx: &Ctx,
+    s: &Syncer,
+    remote: &remote::Remote,
+    path: &str,
+) -> Result<(verso_core::Staged, String, u64), Refusal> {
+    let p = path.to_owned();
+    let mut staged =
+        tokio::task::block_in_place(|| ctx.service.with_key(&s.key, move |ws| Ok(ws.stage(&p)?)))
+            .map_err(|e| of_here(ctx, s, path, e))?;
+    let crossed = || Refusal::Again(path.to_owned(), "changed while it crossed".to_owned());
+    let mut sha = Sha256::new();
     let mut hash = String::new();
     loop {
-        let a = remote
-            .call("sync_read", json!({ "path": path, "offset": out.len() }))
+        let (a, piece) = remote
+            .call_with(
+                "sync_read",
+                json!({ "path": path, "offset": staged.len() }),
+                None,
+            )
             .await
             .map_err(|e| of_server(path, &e))?;
         if let Some(h) = a["hash"].as_str() {
             h.clone_into(&mut hash);
         }
-        let piece = base64::Engine::decode(
-            &base64::engine::general_purpose::STANDARD,
-            a["data"].as_str().unwrap_or_default(),
-        )
-        .map_err(|_| Refusal::Again(path.to_owned(), "changed while it crossed".to_owned()))?;
-        out.extend_from_slice(&piece);
+        let piece = piece.ok_or_else(crossed)?;
+        tokio::task::block_in_place(|| staged.append(&piece))
+            .map_err(|e| Refusal::File(path.to_owned(), "failed".to_owned(), e.to_string()))?;
+        sha.update(&piece);
         if a["done"] == true {
             break;
         }
         if piece.is_empty() {
-            return Err(Refusal::Again(
-                path.to_owned(),
-                "changed while it crossed".to_owned(),
-            ));
+            return Err(crossed());
         }
     }
-    // A broken transfer leaves nothing half-written (item 12).
-    if sha256(&out) != hash {
-        return Err(Refusal::Again(
-            path.to_owned(),
-            "changed while it crossed".to_owned(),
-        ));
+    let got: String = sha.finalize().iter().map(|b| format!("{b:02x}")).collect();
+    if got != hash {
+        return Err(crossed());
     }
-    Ok((out, hash))
+    let size = staged.len();
+    Ok((staged, hash, size))
 }
 
-/// Write the server's bytes here: over the file the pass hashed — refused
-/// when it changed since (invariant 11) — or as a new one.
+/// The file at `path` here is the one the pass hashed (`planned`; `None`:
+/// no file): the revision to write over, hashed a piece at a time —
+/// refused as changed when it is another (invariant 11).
+fn planned_revision(
+    ws: &mut verso_core::Workspace,
+    p: &str,
+    planned: Option<&str>,
+) -> Result<Option<String>, OpError> {
+    match planned {
+        Some(hash) => {
+            let now = ws.hash_with_revision(p)?;
+            if now.hash != hash {
+                return Err(OpError::from(ContractError {
+                    kind: ErrorKind::Changed,
+                    message: "changed since it was read".to_owned(),
+                }));
+            }
+            Ok(Some(now.revision))
+        }
+        None => Ok(None),
+    }
+}
+
+/// Write the server's file, staged, here: over the file the pass hashed —
+/// refused when it changed since (invariant 11) — or as a new one.
 fn write_here(
+    ctx: &Ctx,
+    s: &Syncer,
+    path: &str,
+    staged: verso_core::Staged,
+    planned: Option<&str>,
+) -> Result<(), Refusal> {
+    let p = path.to_owned();
+    let planned = planned.map(str::to_owned);
+    tokio::task::block_in_place(|| {
+        ctx.service.with_key(&s.key, move |ws| {
+            let revision = planned_revision(ws, &p, planned.as_deref())?;
+            ws.write_staged(&p, staged, revision.as_deref())?;
+            Ok(())
+        })
+    })
+    .map_err(|e| of_here(ctx, s, path, e))
+}
+
+/// [`write_here`] for bytes held in memory: two appends to a note joined.
+fn write_bytes_here(
     ctx: &Ctx,
     s: &Syncer,
     path: &str,
@@ -196,19 +261,7 @@ fn write_here(
     let planned = planned.map(str::to_owned);
     tokio::task::block_in_place(|| {
         ctx.service.with_key(&s.key, move |ws| {
-            let revision = match &planned {
-                Some(hash) => {
-                    let (now, revision) = ws.read_with_revision(&p)?;
-                    if &sha256(&now) != hash {
-                        return Err(OpError::from(ContractError {
-                            kind: ErrorKind::Changed,
-                            message: "changed since it was read".to_owned(),
-                        }));
-                    }
-                    Some(revision)
-                }
-                None => None,
-            };
+            let revision = planned_revision(ws, &p, planned.as_deref())?;
             ws.write_bytes(&p, &bytes, revision.as_deref())?;
             Ok(())
         })
@@ -268,9 +321,8 @@ impl Side<'_> {
                 s.crossed(ctx, "sent", path, None);
             }
             Action::Download { path, .. } => {
-                let (bytes, hash) = download(remote, path).await?;
-                let size = bytes.len() as u64;
-                write_here(ctx, s, path, bytes, hash_here(local, path).as_deref())?;
+                let (staged, hash, size) = download(ctx, s, remote, path).await?;
+                write_here(ctx, s, path, staged, hash_here(local, path).as_deref())?;
                 remote_files.insert(
                     engine::spelled_there(remote_files, path),
                     FileState {
@@ -306,8 +358,8 @@ impl Side<'_> {
                 tokio::task::block_in_place(|| {
                     ctx.service.with_key(&s.key, move |ws| {
                         // Only the file the pass saw goes to the bin.
-                        let (now, _) = ws.read_with_revision(&p)?;
-                        if Some(sha256(&now)) != planned {
+                        let now = ws.hash_with_revision(&p)?.hash;
+                        if Some(now) != planned {
                             return Err(OpError::from(ContractError {
                                 kind: ErrorKind::Changed,
                                 message: "changed since it was read".to_owned(),
@@ -368,20 +420,23 @@ impl Side<'_> {
                 // The server's version first: it takes the name, or, when
                 // both sides appended to a note, its tail joins this
                 // computer's (item 8, decided 2026-10-11).
-                let (bytes, hash) = download(remote, path).await?;
+                let (mut staged, hash, size) = download(ctx, s, remote, path).await?;
                 if !reader
                     && engine::merges_by_append(path)
                     && let Some(base) = state.base.get(path).cloned()
                     && let Some(planned) = hash_here(local, path)
-                    && let Some(joined) = appended(ctx, s, path, &base, &planned, &bytes)?
                 {
-                    let there = FileState {
-                        hash,
-                        size: bytes.len() as u64,
-                    };
-                    return self
-                        .join(remote_files, local, state, path, joined, there)
-                        .await;
+                    // A note: small, joined in memory.
+                    let theirs =
+                        tokio::task::block_in_place(|| staged.contents()).map_err(|e| {
+                            Refusal::File(path.clone(), "failed".to_owned(), e.to_string())
+                        })?;
+                    if let Some(joined) = appended(ctx, s, path, &base, &planned, &theirs)? {
+                        let there = FileState { hash, size };
+                        return self
+                            .join(remote_files, local, state, path, joined, there)
+                            .await;
+                    }
                 }
                 // This computer's version steps aside under the copy's name…
                 let (f, t) = (path.clone(), copy.clone());
@@ -396,8 +451,7 @@ impl Side<'_> {
                     local.insert(copy.clone(), f);
                 }
                 // …the server's takes the name…
-                let size = bytes.len() as u64;
-                write_here(ctx, s, path, bytes, None)?;
+                write_here(ctx, s, path, staged, None)?;
                 remote_files.insert(
                     engine::spelled_there(remote_files, path),
                     FileState {
@@ -452,7 +506,7 @@ impl Side<'_> {
                 "changed since it was read".to_owned(),
             ));
         };
-        write_here(ctx, s, path, joined, Some(&planned))?;
+        write_bytes_here(ctx, s, path, joined, Some(&planned))?;
         let base = there.hash.clone();
         remote_files.insert(engine::spelled_there(remote_files, path), there);
         state.base.insert(path.to_owned(), base.clone());

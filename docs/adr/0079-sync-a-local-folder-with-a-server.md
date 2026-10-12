@@ -67,7 +67,21 @@
   local, its text kept and written here, nothing lost; the return rejoins
   the room, or, when the room is another, ends in item 8's conflict copy.
   A reader, which syncs to read (item 1), is present in the room and its
-  edits are refused. The items' words are unchanged.
+  edits are refused. The items' words are unchanged. 2026-10-12 — items
+  5 and 12, the wire (the sync campaign's finding F31, a file in transit
+  held whole in the server's memory per device, plus its base64; the
+  maintainer that day: *"Ajuste todas essas pendências agora"*, relayed in
+  the session that built it): a file crosses in pieces of 1 MiB read from
+  the disk as each is sent and written to a temporary file as each
+  arrives, on the server and on the device — never whole in memory — and
+  is put in place only whole, its hash matched, as item 12 says. **Sync
+  protocol 2**: a piece crosses as a binary WebSocket message (the JSON
+  header's length in four bytes, the header, the piece's bytes) instead
+  of base64 inside the JSON; a side of sync 1, and a connection that says
+  no version, is still sent and taken base64, as item 5 follows the
+  version before. Item 12's "the pieces stay as they are" (2026-10-11,
+  said of the 1 GiB limit) no longer holds for their size and their
+  wire. Built in 2b1f2c4. The items' words are unchanged.
 
 ## Context
 
@@ -135,7 +149,14 @@ Accepted (2026-10-10, Status).
    version — a window, a program, an older app — is never refused. The
    contract's version (the hash of the generated bindings) does not cover
    the sync's wire — the sync's commands are not in the bindings — so this
-   number is set before any change to that wire.
+   number is set before any change to that wire. *(Sync 2, 2026-10-12:
+   each change `sync_changes` answers may carry `device`, the name of
+   the device whose sync made it, as the person set it in Settings ›
+   Servers — item 4's "who made it" told to the devices; a device of
+   sync 1 ignores the field, and through a share it is left out. The
+   same version 2 carries a piece of a file as a binary WebSocket message
+   instead of base64 — item 12, revised the same day; a side of sync 1 is
+   still sent and taken base64.)*
 6. **When**: on the local watcher's batches (debounced), on the server's
    pushes, at start and on reconnecting, and by a scan every five minutes
    as a net. Offline, nothing queues but the state's difference: when the

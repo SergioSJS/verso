@@ -742,6 +742,34 @@ fn a_devices_change_and_its_refusal_name_the_device() {
             .unwrap_or_else(|| panic!("{folder}"));
         assert_eq!(change["who"], "admin@casa.lan", "{change}");
         assert_eq!(change["device"], Value::Null, "{change}");
+        // The changes a device reads name the device too (sync 2): its
+        // name as the person set it, renamed in Settings › Servers.
+        let renamed = reqwest::Client::new()
+            .put(r.url("/api/me/device"))
+            .header("origin", r.origin())
+            .bearer_auth(&token)
+            .json(&json!({ "device": "Estúdio" }))
+            .send()
+            .await
+            .unwrap()
+            .status()
+            .as_u16();
+        assert_eq!(renamed, 200);
+        let sent = send(&mut ws, 40, "Do estudio.md", b"# e\n", None).await;
+        assert_eq!(sent["ok"]["done"], true, "{sent}");
+        let feed = call(&mut ws, 50, "sync_changes", json!({ "since": 0 })).await;
+        let of = |path: &str| {
+            feed["ok"]["changes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|c| c["path"] == path)
+                .cloned()
+                .unwrap_or_else(|| panic!("{path}: {feed}"))
+        };
+        assert_eq!(of(COMPOSED)["device"], "verso-ubuntu", "{feed}");
+        assert_eq!(of("Do estudio.md")["device"], "Estúdio", "{feed}");
+        assert!(of("Do navegador.md").get("device").is_none(), "{feed}");
     });
 }
 

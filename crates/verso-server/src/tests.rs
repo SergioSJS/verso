@@ -40,7 +40,7 @@ static SERVERS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(4);
 
 pub(crate) struct Running {
     pub(crate) server: Arc<state::Server>,
-    addr: SocketAddr,
+    pub(crate) addr: SocketAddr,
     _dirs: (tempfile::TempDir, tempfile::TempDir),
     _stop: tokio::sync::oneshot::Sender<()>,
     /// One of [`SERVERS`], given back when the test drops its server; last,

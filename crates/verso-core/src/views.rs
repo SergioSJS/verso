@@ -108,7 +108,7 @@ impl Workspace {
         let files: Vec<bases::FileFacts> = self
             .entries
             .iter()
-            .filter(|e| e.kind != FileKind::Folder)
+            .filter(|e| e.kind != FileKind::Folder && query.sees(&e.path))
             .map(|e| bases::FileFacts {
                 path: e.path.clone(),
                 size: e.len,
@@ -120,6 +120,7 @@ impl Workspace {
         let notes = self
             .base_facts
             .iter()
+            .filter(|(path, _)| query.sees(path))
             .map(|(path, (_, facts))| (path.clone(), facts))
             .collect();
         let links = self
@@ -127,6 +128,7 @@ impl Workspace {
             .all_links()
             .map_err(CoreError::Index)?
             .into_iter()
+            .filter(|l| query.sees(&l.from))
             .map(|l| {
                 (
                     l.from,
@@ -134,7 +136,8 @@ impl Workspace {
                         target: l.target,
                         alias: l.alias,
                         embed: l.embed,
-                        resolved: l.resolved,
+                        // A note the query does not see is not reached.
+                        resolved: l.resolved.filter(|p| query.sees(p)),
                     },
                 )
             })
@@ -146,6 +149,7 @@ impl Workspace {
                 .ok()
                 .flatten()
                 .or_else(|| self.resolve_file(from, target))
+                .filter(|p| query.sees(p))
         };
         let facts = bases::Facts::new(files, notes, links, &resolver);
         Ok(bases::run(&base, query, &facts))

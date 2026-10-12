@@ -16,7 +16,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use crate::{Handle, Stamp, fnv1a, os, placeholder};
+use crate::{Handle, Stamp, fnv1a, os, placeholder, read_pieces};
 
 /// Why a write did not happen. Nothing on disk changed in any of these
 /// cases, except a temporary file that could not be removed after a failed
@@ -141,6 +141,43 @@ pub(crate) fn write_atomically(
     content: &[u8],
     expected: &Stamp,
 ) -> Result<WriteReport, WriteError> {
+    let checked = check(path, expected)?;
+    // No stem from the target's name: a long note name must stay writable
+    // (NAME_MAX is 255). Dot-prefixed, so a walk never lists it.
+    let temp = checked.dir.join(format!(
+        ".verso-tmp-{}-{}",
+        std::process::id(),
+        COUNTER.fetch_add(1, Ordering::Relaxed)
+    ));
+    // Created with the original's mode from the first instant: a 0600
+    // note is never visible as 0644 under the temporary name.
+    let written = (|| {
+        let mut out = open_new_with_mode(&temp, &checked.original)?;
+        out.write_all(content)?;
+        Ok::<File, std::io::Error>(out)
+    })();
+    match written {
+        Ok(out) => put_over(checked, &temp, out, fnv1a(content)),
+        Err(error) => {
+            let _ = std::fs::remove_file(&temp);
+            Err(WriteError::Io(error))
+        }
+    }
+}
+
+/// A write's target, checked: what [`put_over`] replaces.
+pub(crate) struct Checked {
+    target: PathBuf,
+    pub(crate) dir: PathBuf,
+    pub(crate) original: std::fs::Metadata,
+    report: WriteReport,
+}
+
+/// The checks before a write touches anything: not a placeholder (ADR
+/// 0043), on the name and through a symlink on its target (ADR 0044), and
+/// the file on disk the one that was read (invariant 11) — its content
+/// hashed a piece at a time, never whole in memory.
+pub(crate) fn check(path: &Path, expected: &Stamp) -> Result<Checked, WriteError> {
     let mut report = WriteReport::default();
 
     // A placeholder is never written over (ADR 0043): checked on the name
@@ -162,48 +199,64 @@ pub(crate) fn write_atomically(
     // Invariant 11: the file on disk must be the one that was read — by
     // modified time, length and content.
     let original = std::fs::metadata(&target).map_err(WriteError::Io)?;
-    let current_bytes = std::fs::read(&target).map_err(WriteError::Io)?;
     let current = Stamp {
         modified: original.modified().map_err(WriteError::Io)?,
         len: original.len(),
-        hash: fnv1a(&current_bytes),
+        hash: read_pieces(&target, |_| {}).map_err(WriteError::Io)?,
     };
     if current != *expected {
         return Err(WriteError::Changed { current });
     }
 
-    let dir = target.parent().ok_or_else(|| {
-        WriteError::Io(std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            "a file of the folder has a parent",
-        ))
-    })?;
-    // No stem from the target's name: a long note name must stay writable
-    // (NAME_MAX is 255). Dot-prefixed, so a walk never lists it.
-    let temp = dir.join(format!(
-        ".verso-tmp-{}-{}",
-        std::process::id(),
-        COUNTER.fetch_add(1, Ordering::Relaxed)
-    ));
+    let dir = target
+        .parent()
+        .ok_or_else(|| {
+            WriteError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "a file of the folder has a parent",
+            ))
+        })?
+        .to_path_buf();
+    Ok(Checked {
+        target,
+        dir,
+        original,
+        report,
+    })
+}
 
+/// Put `temp`, written through `out` and whose content hashes to
+/// `content_hash`, over the target `checked` names: the original's mode
+/// and attributes, `fsync` of the file, the rename, `fsync` of the
+/// directory (invariant 9, ADR 0029). A failure up to the rename removes
+/// `temp` and leaves the original untouched.
+pub(crate) fn put_over(
+    checked: Checked,
+    temp: &Path,
+    out: File,
+    content_hash: u64,
+) -> Result<WriteReport, WriteError> {
+    let Checked {
+        target,
+        dir,
+        original,
+        mut report,
+    } = checked;
     // Everything up to and including the rename: a failure here leaves the
     // original untouched and removes the temporary file.
     let before_rename = (|| {
-        // Created with the original's mode from the first instant: a 0600
-        // note is never visible as 0644 under the temporary name.
-        let mut out = open_new_with_mode(&temp, &original)?;
-        out.write_all(content)?;
+        let out = out;
         report.mode_preserved = out.set_permissions(original.permissions()).is_ok();
         report.owner_preserved = os::same_owner(&original, &out.metadata()?);
         // Attributes go on before the barrier, so they are durable with the content.
-        report.xattrs_not_preserved = copy_xattrs(&target, &temp);
+        report.xattrs_not_preserved = copy_xattrs(&target, temp);
         out.sync_all()?;
         drop(out);
         match os::link_count(&target, &original) {
             Ok(links) => report.hard_link_shared = links > 1,
             Err(e) => report.hard_links_not_checked = Some(e.to_string()),
         }
-        report.network_fs = network_fs(dir);
+        report.network_fs = network_fs(&dir);
         // A rename that has to wait for another program (Windows) asks
         // again, before each try, whether the file is still the one checked.
         let unchanged = || {
@@ -211,16 +264,16 @@ pub(crate) fn write_atomically(
                 now.len() == original.len() && now.modified().ok() == original.modified().ok()
             })
         };
-        os::rename_unless_changed(&temp, &target, unchanged)
+        os::rename_unless_changed(temp, &target, unchanged)
     })();
     match before_rename {
         Ok(true) => {}
         Ok(false) => {
-            let _ = std::fs::remove_file(&temp);
+            let _ = std::fs::remove_file(temp);
             return Err(changed_now(&target));
         }
         Err(error) => {
-            let _ = std::fs::remove_file(&temp);
+            let _ = std::fs::remove_file(temp);
             return Err(WriteError::Io(error));
         }
     }
@@ -231,12 +284,12 @@ pub(crate) fn write_atomically(
     // Without the directory fsync the rename may not survive a power loss
     // (ADR 0029).
     let after_rename = (|| {
-        os::sync_dir(dir)?;
+        os::sync_dir(&dir)?;
         let meta = std::fs::metadata(&target)?;
         Ok::<Stamp, std::io::Error>(Stamp {
             modified: meta.modified()?,
             len: meta.len(),
-            hash: fnv1a(content),
+            hash: content_hash,
         })
     })();
     match after_rename {
@@ -254,7 +307,7 @@ fn changed_now(target: &Path) -> WriteError {
         Ok::<Stamp, std::io::Error>(Stamp {
             modified: meta.modified()?,
             len: meta.len(),
-            hash: fnv1a(&std::fs::read(target)?),
+            hash: read_pieces(target, |_| {})?,
         })
     })();
     match stamp {
@@ -297,7 +350,10 @@ fn copy_xattrs(_from: &Path, _to: &Path) -> Vec<(String, String)> {
 }
 
 #[cfg(unix)]
-fn open_new_with_mode(temp: &Path, original: &std::fs::Metadata) -> Result<File, std::io::Error> {
+pub(crate) fn open_new_with_mode(
+    temp: &Path,
+    original: &std::fs::Metadata,
+) -> Result<File, std::io::Error> {
     use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
     OpenOptions::new()
         .write(true)
@@ -307,7 +363,10 @@ fn open_new_with_mode(temp: &Path, original: &std::fs::Metadata) -> Result<File,
 }
 
 #[cfg(not(unix))]
-fn open_new_with_mode(temp: &Path, _original: &std::fs::Metadata) -> Result<File, std::io::Error> {
+pub(crate) fn open_new_with_mode(
+    temp: &Path,
+    _original: &std::fs::Metadata,
+) -> Result<File, std::io::Error> {
     OpenOptions::new().write(true).create_new(true).open(temp)
 }
 

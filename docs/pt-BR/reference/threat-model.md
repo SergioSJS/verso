@@ -120,7 +120,7 @@ navegador ou de aparelho de um admin, nunca um token.
 | `GET /api/ws`, o contrato | um navegador (só com `--web`, `Origin` conferido antes de aceitar o cookie), um aparelho, um token | TLS; a sessão ou o token vivo antes de cada comando; o papel na pasta antes de o núcleo agir; as pastas e a escrita de um token; uma versão de sync mais velha que a anterior recusada para `sync_*` | 48 MB por mensagem; 8 requisições em andamento, além das quais a conexão não é lida; uma fila de 1024 mensagens e 64 MiB de envios, cheia = fechada; cada escrita em 30 s mais o tamanho dela a 32 KiB/s, senão fechada; um ping a cada 30 s, fechada depois de 2 sem resposta; 32 conexões por conta e 64 por endereço, 429 além disso; cada comando no ritmo da conta (100 por segundo, 400 de uma vez) e no do servidor (1 000, 2 000), esperando a vez além dele; as linhas de log de uma janela, 60 por minuto | o log do servidor: uma mudança de sync recusada, uma conexão lenta ou calada fechada, uma versão de sync recusada; o registro de mudanças de cada pasta nomeia a conta e o aparelho de cada escrita |
 | — comandos da pasta | a pasta da janela, aberta por `open_server_folder` ou `reopen_folder` | um comando de escrita pede editor ou dono e uma credencial que escreve; os bytes de uma escrita conferidos contra a cota antes | a cota (ADR 0077 item 5) | o registro de mudanças |
 | — `collab_*` (notas compartilhadas) | membros da pasta | `collab_update`, `_save`, `_resolve` pedem quem escreve; uma atualização Yjs malformada recusada | a presença (`collab_awareness`) com 16 KB no máximo, de uma janela na sala, carimbada com o nome da conta de quem enviou e só os clientes Yjs dela (lacuna 11); o que é repassado conta nos 64 MiB de envios de cada destinatário | nada |
-| — `sync_*` | um aparelho (qualquer credencial pode perguntar) | uma escrita, um apagamento ou uma mudança de nome pede quem escreve, nomeia o hash de base e é recusada quando o arquivo mudou; um apagamento vai para o `.trash/`; a cota sobre o arquivo inteiro | pedaços de 4 MiB; 2 transferências em cada sentido por conexão, descartadas depois de 120 s paradas e quando a conexão acaba; 1 GiB por arquivo; uma varredura no máximo uma vez por minuto | o log do servidor para uma recusa que não seja "mudou" |
+| — `sync_*` | um aparelho (qualquer credencial pode perguntar) | uma escrita, um apagamento ou uma mudança de nome pede quem escreve, nomeia o hash de base e é recusada quando o arquivo mudou; um apagamento vai para o `.trash/`; a cota sobre o arquivo inteiro | pedaços de 1 MiB, lidos do disco e gravados num arquivo temporário à medida que passam, um na memória por transferência (2b1f2c4); 2 transferências em cada sentido por conexão, descartadas depois de 120 s paradas e quando a conexão acaba, e com elas o arquivo temporário de um envio; 1 GiB por arquivo; a cota conferida no primeiro pedaço de um envio e de novo no último; uma varredura no máximo uma vez por minuto | o log do servidor para uma recusa que não seja "mudou" |
 | — `render_markdown`, `board_text`, `log_write`, `capabilities` | quem está dentro | — | o parser passa por fuzzing e pela checagem de tempo linear; linhas de log uma linha cada, 2000 caracteres | o log do servidor (`log_write`) |
 | O feed de releases | o servidor, de saída | — | uma vez por dia; só a versão no `User-Agent`; `VERSO_UPDATE_TOKEN` quando o repositório é privado; `VERSO_UPDATE_CHECK=off` | uma linha quando falha |
 | O servidor de e-mail de quem hospeda | o servidor, de saída, quando `VERSO_SMTP_URL` está definido | — | o que as rotas de e-mail acima permitem | uma linha quando o envio falha |
@@ -211,7 +211,7 @@ harness do navegador ainda falta.
 | Um aparelho apagando os arquivos de uma pasta | Um apagamento que um aparelho envia é conferido contra a base dele como uma escrita e vai para o `.trash/` da pasta no servidor; no computador, uma passada que apagaria mais de um quinto dos arquivos ou mais de 50 (pelo menos 3) pausa e pergunta (ADR 0079 item 9), e um placeholder nunca é um apagamento (ADR 0043). Ver e restaurar a lixeira na janela é o ADR 0080, aceito, em construção. |
 | Um token de aparelho roubado | Guardado `0600` no computador (acima), listado entre as sessões da conta com o nome que a pessoa deu ao computador e revogável ali; um admin o encerra pelo console junto com as outras sessões e os tokens da conta (ADR 0077 item 3, construído); o registro de mudanças nomeia o aparelho ao lado da conta (ADR 0079 item 4). |
 | Um aparelho falando outro sync | O aparelho envia a versão de sync dele como `x-verso-sync`; o servidor responde a sua no hello e recusa os comandos `sync_*` de uma versão mais velha que a anterior, com o motivo (ADR 0079 item 5, construído). Uma janela ou um programa que não diz nenhuma nunca é recusado. |
-| Um arquivo enorme para esgotar a memória | O sync move um arquivo em pedaços de 4 MiB, duas transferências por vez em cada sentido por conexão, descartadas depois de dois minutos paradas e quando a conexão acaba, e nenhum arquivo maior que 1 GiB (ADR 0079 item 12); um arquivo acima disso no servidor nunca é lido pela varredura e aparece na página da pasta no console. Os pedaços de um envio ficam na memória até o último chegar (ver as lacunas). |
+| Um arquivo enorme para esgotar a memória | O sync move um arquivo em pedaços de 1 MiB, lidos do disco quando cada um vai e gravados num arquivo temporário quando cada um chega — uma transferência segura um pedaço na memória, nunca o arquivo (2b1f2c4) —, duas transferências por vez em cada sentido por conexão, descartadas depois de dois minutos paradas e quando a conexão acaba, e nenhum arquivo maior que 1 GiB (ADR 0079 item 12); um arquivo acima disso no servidor nunca é lido pela varredura e aparece na página da pasta no console. O tamanho declarado de um envio é conferido contra a cota no primeiro pedaço (lacuna 5, fechada). |
 
 ### Compartilhar uma pasta dentro de uma pasta
 
@@ -225,6 +225,7 @@ que ele decide, não o que roda.
 | Um compartilhamento repassado, ou mantido depois de acabar | Só o dono da pasta compartilha, e quem recebe não recompartilha (item 4); uma revogação chega às janelas abertas de quem recebe na hora, e uma cópia sincronizada fica no computador dele com o sync desligado — dito ao dono ao compartilhar (item 8). |
 | Um compartilhamento apontando para outro lugar | Uma mudança de nome feita pelo servidor leva as concessões junto; uma que o servidor só acha depois deixa o compartilhamento num caminho que sumiu — uma pasta vazia para quem recebe, o dono avisado (item 13). |
 | Um compartilhamento feito sem ninguém ver | Um compartilhamento criado, mudado e removido é uma entrada do registro de auditoria com o caminho, lida pelo dono e pelo admin (item 9). |
+| Um aviso ou um problema que nomeia uma nota fora do compartilhamento | Lacuna achada e fechada em 2026-10-12: um aviso do core (o exame de uma renomeação, os problemas de uma indexação) chegava a quem recebe quando não tinha `/`, então uma nota na raiz do dono passava pelo nome; agora um aviso só chega a quem recebe quando começa com um caminho de dentro do compartilhamento, re-enraizado nele, e qualquer outro é descartado (item 11; `scope.rs`, o teste dele). |
 
 ### A lixeira e a coedição ao vivo de uma pasta sincronizada
 
@@ -311,9 +312,11 @@ classificação é uma recomendação para o mantenedor confirmar.
 5. **Um envio fica na memória até o último pedaço, e a cota só é
    conferida então.** Até dois envios de 1 GiB por conexão, vezes as
    conexões acima; o tamanho declarado é conhecido no primeiro pedaço e
-   poderia ser conferido contra a cota ali. **Continua aberta:** à espera
-   do `[ABERTO]` sobre guardar os pedaços em disco; as conexões agora são
-   limitadas (lacuna 4).
+   poderia ser conferido contra a cota ali. **Fechada: 2b1f2c4** — os
+   pedaços de um envio são gravados num arquivo temporário da pasta à
+   medida que chegam, um de cada vez na memória, e o tamanho declarado é
+   conferido contra a cota no primeiro pedaço (e de novo no último); uma
+   transferência descartada leva junto o seu arquivo temporário.
 6. **As rotas de e-mail respondem mais tarde quando o endereço tem
    conta.** `signin_link` e `forgot` esperam o servidor de e-mail só para
    uma conta que existe; o comentário diz "depois da mesma espera", o
@@ -433,7 +436,8 @@ mantenedor.
   conta e no servidor, a cota conferida no primeiro pedaço de um envio; os
   números medidos na máquina de 1 núcleo e 1 GB das notas de instalação do
   servidor. *Construído em 2026-10-11:* as lacunas 2, 3, 4 e 8 (os commits
-  delas acima); a lacuna 5 continua; os números são raciocinados, não
+  delas acima); a lacuna 5 em 2026-10-12 (2b1f2c4); os números são
+  raciocinados, não
   medidos naquela máquina. Deixado `[ABERTO]` para o mantenedor.
 - `[ABERTO]` O token de aparelho do desktop no chaveiro do sistema em vez
   de um arquivo `0600`. *Recomendação:* depois do primeiro usuário de fora,

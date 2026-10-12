@@ -396,8 +396,11 @@ on 2026-10-10, numbers kept in `scripts/sync-lab/results.jsonl`:
 
 - **Memory**: about 20 MB with a few devices connected and a folder of 150
   files; 460 MB with 200 connections writing at once (macOS), 1 GB on a
-  Linux VM. A large file in transit is held whole: each transfer up to the
-  file's size, two per device each way (files over 1 GiB do not sync).
+  Linux VM. A file in transit is not held whole since 2b1f2c4
+  (2026-10-12): each transfer holds one piece of 1 MiB, read from the disk
+  as a device asks for it or written to a temporary file as it arrives
+  (**Large files**, below); two transfers per device each way (files over
+  1 GiB do not sync).
 - **The disk is what bounds writing.** Every file a device writes is
   written atomically and flushed to the disk (fsync, invariant 9); one
   folder writes one file at a time, so the disk's flush time is each
@@ -456,18 +459,24 @@ one LAN hop away. The numbers are in the campaign's log
   fifty: the same picture. The same load on a 16-CPU Mac: p50 about 530 ms,
   132.9 operations per second (the row "round 2 final build 3fb8c3b" of
   `results.jsonl`).
-- **Large files** (measured before 95d11dc, not re-measured since): a
-  file in transit was held whole once for each device that fetched it, and
-  its base64 encoding added a third, so the server held about 2.3 × the
-  file's size × the devices fetching it at once. A new 60 MB file written
-  on one device and fetched by the other three at once took the process to
-  550 MB (cgroup 679 MB) on the VM squeezed to what the guest saw as 705 MB
-  (asked 512), with no kill; the five sides were equal in 56 s. Since
-  95d11dc the server keeps one read buffer per (folder, path, hash), shared
-  by the clients fetching that file, so the per-device multiplication no
-  longer holds on the server; the base64 of each message sent, and the
-  device side holding the whole file, remain. "Twice the largest file"
-  alone was too little when several devices fetched at once.
+- **Large files** (since 2b1f2c4, 2026-10-12): a file in transit is never
+  whole in the server's memory. A device that fetches it is sent pieces
+  of 1 MiB, each read from the disk when the device asks for it; a device
+  that sends one has each piece written to a temporary file beside where
+  the file lands, put in place atomically once the last piece is there
+  and the file's hash matches. The pieces cross as binary messages to an
+  app of sync 2 and as base64 to one of sync 1. Of a file several devices
+  fetch at once the server shares only what it is — its length, time and
+  hash — so it is hashed once; the desktop app, too, writes what it
+  fetches to a temporary file piece by piece. Measured on 2026-10-12 on a
+  Mac (Apple silicon, the release profile with mimalloc, `verso serve` on
+  the loopback), one 60 MB file fetched by three devices at once, the RSS
+  read every 20 ms, two runs of each: the build before (858d0ef) went from
+  99 MB — its walk had read the file whole — to a peak of 246 MB, and
+  held 245–246 MB 30 s later; 2b1f2c4 went from 42 MB to a peak of
+  42–46 MB, and held 43–47 MB 30 s later; 2b1f2c4 sending to an app of
+  sync 1 (base64) peaked at 65 MB. Not measured yet on the 1-core VM
+  (section 15).
 - **Squeezed memory** (the glibc build): the balloon was inflated towards
   512 MB right after
   the 50-device burst, leaving the guest 705 MB, and the kernel's OOM
@@ -475,7 +484,8 @@ one LAN hop away. The numbers are in the campaign's log
   after the burst did not fit. The unit's `Restart=on-failure` brought it
   back in 5 s, the devices reconnected and nothing was lost. Afterwards, on
   that 705 MB guest (asked 512), a 10-minute soak (RSS 18 MB), a 50-device
-  load (RSS 352 MB) and the 60 MB file above ran without a kill. On a guest
+  load (RSS 352 MB) and a new 60 MB file fetched by three devices at once
+  (the code before 95d11dc) ran without a kill. On a guest
   of 767 MB (asked 384) a 30-device load ran (RSS 379 MB). Squeezing to
   what the guest saw as 393 MB (asked 256), with that memory still held,
   killed the process once more (anon RSS 376 MB), back in 5 s; a 30-device
@@ -555,24 +565,36 @@ one LAN hop away. The numbers are in the campaign's log
 |---|---|---|
 | For | 1–3 people, notes and small attachments | a family or a team of up to ~10 people, several devices each (an estimate, not measured) |
 | CPU | 1 core, x64 or ARM64 (measured, rows "cloud 1 GB" of `results.jsonl`: one writer about 100 ms a write; a burst of 50 writers queues on the disk, p50 4.5 s) | 2 cores |
-| Memory | 512 MB — measured 2026-10-12 on a guest that saw 453 MiB with the balloon off (**A 453 MiB guest**, above): the shipped musl + mimalloc build ran two bursts of 50 writers with no OOM kill, a peak RSS of 200 MB and about half the 1 GB guest's throughput (likely cause, not proven: the data and the folder exceed the guest's page cache); as measured, enough for 1–3 people with small attachments; the campaign's two kills, on guests whose balloon was on, came from memory the glibc build held after a burst; if the process is killed, the unit brings it back in 5 s with nothing lost | 2 GB, or more than twice the largest file you sync; when several devices fetched a large file at once, the server held about 2.3 × the largest file × the devices fetching it (measured before 95d11dc and not re-measured since; since 95d11dc the server keeps one copy per folder, path and hash, so the per-device factor no longer holds on the server) |
+| Memory | 512 MB — measured 2026-10-12 on a guest that saw 453 MiB with the balloon off (**A 453 MiB guest**, above): the shipped musl + mimalloc build ran two bursts of 50 writers with no OOM kill, a peak RSS of 200 MB and about half the 1 GB guest's throughput (likely cause, not proven: the data and the folder exceed the guest's page cache); as measured, enough for 1–3 people with small attachments; the campaign's two kills, on guests whose balloon was on, came from memory the glibc build held after a burst; if the process is killed, the unit brings it back in 5 s with nothing lost | 2 GB; the size of the files you sync no longer counts in the server's memory: since 2b1f2c4 a transfer holds one piece of 1 MiB (**Large files**, above) |
 | Disk | an SSD; the notes' size × 2 + 1 GB (the bin, `.trash`, keeps what was deleted) | a local SSD for `VERSO_DATA_DIR`; the notes on an SSD or a NAS |
 | Examples | a Raspberry Pi 4 with 2 GB, the smallest VPS | a mini PC, a NAS with Docker, a 2 GB VPS |
 
 `[OPEN]` Whether 1 GB is enough for a small team: a 1 GB guest served four
 devices, a 20-minute soak, bursts of 50 writers and a 60 MB file to three
-devices at once (peak 550 MB, before 95d11dc); the table's "up to ~10
-people" was not measured.
+devices at once (that fetch no longer holds the file in memory since
+2b1f2c4: **Large files**, above); the table's "up to ~10 people" was not
+measured.
 
-`[OPEN]` Whether the server should send a large file's pieces from disk
-instead of holding the file whole is not decided; the large-file numbers
-above were measured before 95d11dc, which keeps one copy per folder, path
-and hash instead of one per device.
+Whether the server should send a large file's pieces from the disk
+instead of holding the file whole was `[OPEN]` until 2026-10-12, when the
+maintainer asked for the campaign's open items to be done (*"Ajuste todas
+essas pendências agora"*, relayed in the session that built it): built in
+2b1f2c4 (**Large files**, above).
 
 How much memory the server keeps after a burst is decided, not open: on
 2026-10-11, in the evening, the maintainer changed the `verso` binary's
 allocator to mimalloc (**The allocator**, above), which holds about 70 MB
 after a burst of 50 writers and peaked at 291 MB (VmHWM).
+
+`[OPEN]` Asking mimalloc to give its free memory back to the system once
+a burst ends (`mi_collect`, asked for on 2026-10-12) is not built: the
+call is reachable only through `unsafe` code, which the workspace forbids
+with no exception (`unsafe_code = "forbid"`, ADR 0029); it waits for the
+maintainer's decision on an exception, in a pull request of its own.
+`MIMALLOC_PURGE_DELAY=0` in the environment changed nothing measurable on
+macOS (the build before 2b1f2c4 still held 245 MB 30 s after the fetch of
+**Large files**); not tried on Linux, where by mimalloc's own notes a
+purge uses `MADV_DONTNEED`.
 
 A Raspberry Pi and a NAS have not been measured yet, nor a VPS at a
 provider (the 2026-10-11 VM was on the LAN). `scripts/sync-lab/lab.sh
@@ -633,4 +655,6 @@ Not verified yet:
   its `x-casaos` block follows the CasaOS AppStore's v2 description of
   2026-10-09, not checked by their validator);
 - the `tailscale serve` recipe and the Caddy example against this server;
-- pruning the registry's old versions.
+- pruning the registry's old versions;
+- a file in pieces from the disk (2b1f2c4) on the 1-core VM and with the
+  static musl build: measured on a Mac only (section 14, **Large files**).

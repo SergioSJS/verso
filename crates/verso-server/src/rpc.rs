@@ -19,9 +19,11 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use axum::body::Bytes;
 use axum::extract::WebSocketUpgrade;
 use axum::extract::ws::{Message, WebSocket};
 use axum::response::Response;
+use base64::Engine;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio::sync::Semaphore;
@@ -66,8 +68,8 @@ const SEND_FLOOR: Duration = Duration::from_secs(30);
 #[cfg(test)]
 const SEND_FLOOR: Duration = Duration::from_secs(1);
 /// The slowest link a message is waited for, in bytes a second: 32 KiB/s,
-/// 256 kbit/s, under a weak mobile link's. A piece of a file — 4 MiB, some
-/// 5.6 MB as base64 — gets about three minutes; a message at
+/// 256 kbit/s, under a weak mobile link's. A piece of a file — 1 MiB, 1.4
+/// MB as base64 to an app of sync 1 — gets about a minute; a message at
 /// [`MAX_MESSAGE`], about twenty-five. The desktop's connection waits
 /// the same (app/src-tauri/src/remote.rs).
 #[cfg(not(test))]
@@ -134,6 +136,9 @@ pub async fn upgrade(ctx: Ctx, ws: WebSocketUpgrade) -> ApiResult<Response> {
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.trim().parse::<u32>().ok());
     let sync_refused = sync_refusal(sync, verso_core::sync::PROTOCOL);
+    // A device of sync 2 takes a piece of a file as a binary message; one
+    // of sync 1, or one that says none, as base64 in the JSON.
+    let binary = sync.is_some_and(verso_core::sync::binary_pieces);
     let places = places(&ctx, &who)?;
     let server = Arc::clone(&ctx.server);
     Ok(ws
@@ -141,7 +146,7 @@ pub async fn upgrade(ctx: Ctx, ws: WebSocketUpgrade) -> ApiResult<Response> {
         .on_upgrade(move |socket| async move {
             // Held as long as the connection.
             let _places = places;
-            run(server, who, socket, sync_refused).await;
+            run(server, who, socket, (sync_refused, binary)).await;
         }))
 }
 
@@ -212,7 +217,12 @@ struct Request {
     args: Value,
 }
 
-async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket, sync_refused: Option<String>) {
+async fn run(
+    server: Arc<Server>,
+    who: Who,
+    mut socket: WebSocket,
+    (sync_refused, binary): (Option<String>, bool),
+) {
     let client = server.client_id();
     let (tx, mut rx, slow) = Outbox::new(QUEUE);
     let mut hello = json!({ "hello": {
@@ -256,7 +266,11 @@ async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket, sync_refused:
         tokio::select! {
             pushed = rx.recv() => {
                 let Some(out) = pushed else { break };
-                if !write(&mut socket, Message::Text(out.text), &client, &account).await {
+                let message = match out.binary {
+                    Some(bytes) => Message::Binary(bytes),
+                    None => Message::Text(out.text),
+                };
+                if !write(&mut socket, message, &client, &account).await {
                     break;
                 }
                 // Written: the request it answered gives its place back.
@@ -299,13 +313,23 @@ async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket, sync_refused:
                 // Anything heard, a pong or a request, says the other end
                 // is there.
                 unanswered = 0;
-                // Parsed where it arrived: a piece of a file is megabytes.
-                let parsed = match message {
-                    Message::Text(t) => serde_json::from_str::<Request>(t.as_str()),
+                // Parsed where it arrived: a piece of a file is a megabyte.
+                // A binary message is a piece a device sends (sync 2): its
+                // request's header, then the piece's bytes as they are.
+                let (parsed, data) = match message {
+                    Message::Text(t) => (serde_json::from_str::<Request>(t.as_str()).ok(), None),
+                    Message::Binary(b) => match verso_core::sync::unframe(&b) {
+                        Some((header, piece)) => {
+                            let request = serde_json::from_slice::<Request>(header).ok();
+                            let piece = b.slice_ref(piece);
+                            (request.filter(|r| r.cmd == "sync_put"), Some(piece))
+                        }
+                        None => (None, None),
+                    },
                     Message::Close(_) => break,
                     _ => continue,
                 };
-                let Ok(request) = parsed else {
+                let Some(request) = parsed else {
                     tx.send(&json!({ "err": refused("not a request") }));
                     continue;
                 };
@@ -345,13 +369,26 @@ async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket, sync_refused:
                         tokio::time::sleep(turn).await;
                     }
                     let id = request.id;
-                    let answer = handle(&server, &who, &client, request).await;
+                    let answer = handle(&server, &who, &client, request, data).await;
                     let signed_out = answer.as_ref().is_err_and(|e| e.message == SIGNED_OUT);
-                    let reply = match answer {
-                        Ok(value) => json!({ "id": id, "ok": value }),
-                        Err(e) => json!({ "id": id, "err": e }),
-                    };
-                    tx.answer(reply, permit).await;
+                    match answer {
+                        // A piece of a file (ADR 0079 item 12): in a binary
+                        // message to a device of sync 2, as base64 to one
+                        // of sync 1.
+                        Ok((value, Some(piece))) if binary => {
+                            let header = json!({ "id": id, "ok": value }).to_string();
+                            let message = verso_core::sync::frame(header.as_bytes(), &piece);
+                            drop(piece);
+                            tx.answer_binary(message, permit).await;
+                        }
+                        Ok((mut value, Some(piece))) => {
+                            value["data"] = json!(base64::engine::general_purpose::STANDARD.encode(&piece));
+                            drop(piece);
+                            tx.answer(json!({ "id": id, "ok": value }), permit).await;
+                        }
+                        Ok((value, None)) => tx.answer(json!({ "id": id, "ok": value }), permit).await,
+                        Err(e) => tx.answer(json!({ "id": id, "err": e }), permit).await,
+                    }
                     // The answer first, then the connection told and closed.
                     if signed_out {
                         tx.send(&json!({ "gone": "session" }));
@@ -422,17 +459,44 @@ async fn handle(
     who: &Arc<Who>,
     client: &str,
     r: Request,
-) -> Result<Value, ContractError> {
+    data: Option<Bytes>,
+) -> Result<crate::sync::Reply, ContractError> {
     if !still_signed_in(server, who).map_err(verso_service::failed)? {
         return Err(ContractError {
             kind: ErrorKind::Refused,
             message: SIGNED_OUT.to_owned(),
         });
     }
-    let args = r.args;
     // A window on a share: the share looked at again first (ADR 0081
     // item 8).
     crate::shares::check(server, who, client)?;
+    match r.cmd.as_str() {
+        "sync_state" | "sync_changes" | "sync_read" => {
+            return crate::sync::command(server, who, client, &r.cmd, r.args, None).await;
+        }
+        // A device's change: the folder's space follows it (ADR 0077).
+        "sync_put" | "sync_delete" | "sync_rename" => {
+            let (done, _) = crate::sync::command(server, who, client, &r.cmd, r.args, data).await?;
+            if r.cmd != "sync_put" || done["done"] == true {
+                record_space(server, client).await;
+            }
+            return Ok((done, None));
+        }
+        _ => {}
+    }
+    command(server, who, client, r)
+        .await
+        .map(|value| (value, None))
+}
+
+/// A command that carries no piece of a file.
+async fn command(
+    server: &Arc<Server>,
+    who: &Arc<Who>,
+    client: &str,
+    r: Request,
+) -> Result<Value, ContractError> {
+    let args = r.args;
     if let Some(access) = ops::access(&r.cmd) {
         return folder_command(server, who, client, &r.cmd, access, args).await;
     }
@@ -491,7 +555,10 @@ async fn handle(
         "current_folder" => {
             let info = to_value(server.service.current_folder(client))?;
             Ok(match crate::shares::scope_here(server, client) {
-                Some(scope) if !info.is_null() => scope.info(info),
+                Some(scope) if !info.is_null() => {
+                    let counts = share_counts(server, client, &scope).await;
+                    scope.info(info, counts)
+                }
                 _ => info,
             })
         }
@@ -503,7 +570,8 @@ async fn handle(
             record_space(server, client).await;
             let mut summary = to_value(summary)?;
             if let Some(scope) = crate::shares::scope_here(server, client) {
-                scope.summary(&mut summary);
+                let counts = share_counts(server, client, &scope).await;
+                scope.summary(&mut summary, counts);
             }
             Ok(summary)
         }
@@ -579,17 +647,6 @@ async fn handle(
                 }
                 None => crate::trash::command(server, who, client, &r.cmd, args).await,
             }
-        }
-        "sync_state" | "sync_changes" | "sync_read" => {
-            crate::sync::command(server, who, client, &r.cmd, args).await
-        }
-        // A device's change: the folder's space follows it (ADR 0077).
-        "sync_put" | "sync_delete" | "sync_rename" => {
-            let done = crate::sync::command(server, who, client, &r.cmd, args).await?;
-            if r.cmd != "sync_put" || done["done"] == true {
-                record_space(server, client).await;
-            }
-            Ok(done)
         }
         _ => Err(refused("not on a server")),
     }
@@ -717,6 +774,23 @@ async fn folder_command(
             });
         }
         "can_sync_focuses" => return Ok(Value::Bool(false)),
+        // A base through the share is evaluated over the shared folder
+        // only: its rows, its properties, its formulas and its summaries
+        // count nothing outside (ADR 0081 item 11, decided 2026-10-12).
+        "query_base" => {
+            let args = scope.args_in(name, args)?;
+            let query: verso_contract::BaseQuery = arg(&args, "query")?;
+            let c = client.to_owned();
+            let within = scope.roots();
+            let answer = blocking(move || {
+                s.service
+                    .with(&c, |ws| ops::query_base_within(ws, query, within))
+                    .and_then(to_value)
+            })
+            .await
+            .map_err(|e| scope.error(e))?;
+            return Ok(scope.answer_out(name, answer, limit));
+        }
         // The owner's folder settings are the whole folder's, never a
         // share's (ADR 0070, ADR 0081): the window keeps its own, and a
         // change is refused (`args_in`).
@@ -735,9 +809,29 @@ async fn folder_command(
         _ => {}
     }
     let args = scope.args_in(name, args)?;
-    let answer = folder_run(server, who, client, (name, access), (&folder, &key), args)
+    let mut answer = folder_run(server, who, client, (name, access), (&folder, &key), args)
         .await
         .map_err(|e| scope.error(e))?;
+    // A rename through the share keeps the owner's links outside it: the
+    // server writes those rewrites itself, and the window hears only of
+    // the ones inside (ADR 0081 item 11, decided 2026-10-12).
+    if matches!(name, "rename_note" | "rename_entry" | "move_entries") {
+        let outside = crate::share_links::take_outside(&scope, &mut answer);
+        if !outside.is_empty() {
+            let s = Arc::clone(server);
+            let k = key.clone();
+            let (actor, by, share) = (
+                who.account.id.clone(),
+                who.account.email.clone(),
+                scope.share.clone(),
+            );
+            let _ = blocking(move || {
+                crate::share_links::apply(&s, &k, (&actor, &by), &share, outside);
+                Ok(())
+            })
+            .await;
+        }
+    }
     Ok(scope.answer_out(name, answer, limit))
 }
 
@@ -920,9 +1014,28 @@ async fn open(
     record_space(server, client).await;
     let info = to_value(info)?;
     Ok(match &scope {
-        Some(s) => s.info(info),
+        Some(s) => {
+            let counts = share_counts(server, client, s).await;
+            s.info(info, counts)
+        }
         None => info,
     })
+}
+
+/// The share's own counts for the index's summary the window shows (ADR
+/// 0081 item 11); none when the folder cannot be read now, and then the
+/// summary says zero.
+async fn share_counts(
+    server: &Arc<Server>,
+    client: &str,
+    scope: &crate::scope::Scope,
+) -> Option<crate::scope::Counts> {
+    let s = Arc::clone(server);
+    let c = client.to_owned();
+    let sc = scope.clone();
+    blocking(move || s.service.with(&c, |ws| Ok(sc.counts(ws)?)))
+        .await
+        .ok()
 }
 
 /// Count the space of the window's folder and keep it for the pages that
