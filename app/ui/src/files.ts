@@ -2,6 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { sharedUnder } from "./shares";
+import { sh } from "./shareStrings";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { commands, type PropertyValue } from "./bindings";
 import { bookmarks, saveBookmarks, setBookmarks } from "./bookmarks";
@@ -273,7 +275,9 @@ export async function deleteNote(path: string): Promise<void> {
 export async function deleteEntry(path: string, kind: Kind): Promise<void> {
   if (!readable()) return;
   const label = kind === "folder" ? path.split("/").pop() ?? path : name(path);
-  if (!(await ask(kind === "folder" ? t.confirmDeleteFolder(label) : t.confirmDelete(label), { yes: t.deleteEntry, no: t.cancel }))) return;
+  // Deleting a shared folder ends its shares, said first (ADR 0081 item 13).
+  const question = kind === "folder" ? `${t.confirmDeleteFolder(label)}${sharedUnder(path) ? ` ${sh.deleteEndsShares}` : ""}` : t.confirmDelete(label);
+  if (!(await ask(question, { yes: t.deleteEntry, no: t.cancel }))) return;
   // What goes to the bin goes with its last words: saved first, or not moved.
   const unsaved = await flushed(leavesUnder(path));
   if (unsaved.length > 0) return stopped(unsaved);

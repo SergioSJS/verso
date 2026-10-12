@@ -300,7 +300,7 @@ function folders(c: Ctx, body: HTMLElement): void {
 
 async function folderPage(c: Ctx, body: HTMLElement, id: string): Promise<void> {
   const s = cw();
-  type Detail = { id: string; name: string; created: number; members: { id: string; name: string; email: string; role: string }[]; space: Space; quota: number | null; twins?: { kept: string; held: string }[]; tooLarge?: { path: string; size: number }[]; changes?: Change[] };
+  type Detail = { id: string; name: string; created: number; members: { id: string; name: string; email: string; role: string }[]; shares?: { id: string; path: string; attachments: string | null; people: { name: string; email: string; role: string }[] }[]; space: Space; quota: number | null; twins?: { kept: string; held: string }[]; tooLarge?: { path: string; size: number }[]; changes?: Change[] };
   const f = await api<Detail>("GET", `/api/admin/folders/${id}`);
   c.title(f.name);
   const said = line();
@@ -347,6 +347,11 @@ async function folderPage(c: Ctx, body: HTMLElement, id: string): Promise<void> 
       : []),
     el("h2", { class: "settings-subheading" }, s.members),
     f.members.length ? el("ul", { class: "console-list" }, ...f.members.map((m) => el("li", {}, `${m.name} · ${m.email} · ${roleName(m.role)}`))) : el("p", { class: "settings-hint" }, s.none),
+    // Its shares by path, with their people (ADR 0081 item 7).
+    el("h2", { class: "settings-subheading" }, s.shares),
+    f.shares?.length
+      ? el("ul", { class: "console-list" }, ...f.shares.map((sh) => el("li", {}, `${sh.path}${sh.attachments ? ` (+ ${sh.attachments})` : ""} — ${sh.people.map((p) => `${p.name} · ${roleName(p.role)}`).join(", ")}`)))
+      : el("p", { class: "settings-hint" }, s.none),
     el("h2", { class: "settings-subheading" }, s.latestChanges),
     f.changes?.length
       ? el("ul", { class: "console-list", "data-changes": "" }, ...f.changes.map((ch) => el("li", {}, `${when(ch.at)} · ${ch.who ?? s.onServerDisk}${ch.device ? ` (${ch.device})` : ""} — ${s.changeWhat(ch.deleted, ch.renamedFrom, ch.path)}`)))
