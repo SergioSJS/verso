@@ -249,5 +249,11 @@ test("the folder note name setting names the note a folder's labels come from", 
   await field.press("Enter");
   await app.key("Escape");
   await expect(folderSticker).toHaveCount(1);
-  expect((await app.calls("set_folder_note_name")).at(-1)).toEqual({ name: "README" });
+  // The folder's setting since ADR 0070 items 1–2: written into the
+  // folder's `.verso/settings.json`, created by this first change.
+  expect((await app.calls("set_folder_settings")).at(-1)).toEqual({
+    change: { bookmarks: null, folder_note_name: "README", ignore_build_dirs: null, respect_gitignore: null },
+    revision: null,
+  });
+  expect(JSON.parse(await app.file(".verso/settings.json"))).toEqual({ folderNoteName: "README" });
 });

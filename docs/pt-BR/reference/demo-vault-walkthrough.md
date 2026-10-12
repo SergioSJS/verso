@@ -524,6 +524,20 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    (`scripts/check-linux-vm.sh --install`, o app aberto no desktop do
    Ubuntu; `--webkit`, a suíte no WebKit do Linux); A (Debian, Fedora, o
    AppImage).
+9. Os ajustes da pasta (nota 15, "Da pasta ou desta máquina"; [ADR
+   0070](../adr/0070-what-travels-with-the-folder.md) itens 1–2): numa
+   pasta recém-importada, Ajustes › Arquivos e links › "Ignorar pastas de
+   build" diz *Desta máquina*, e a pasta não tem `.verso/`; desligado,
+   diz *Da pasta* e aparece `.verso/settings.json` com
+   `"ignoreBuildDirs": false`; uma estrela numa nota a acrescenta a
+   `bookmarks` ali; Organização › "Nome da nota da pasta" e "Favoritos"
+   também dizem *Da pasta*. Numa pasta cujos favoritos este computador já
+   guardava, a primeira abertura os leva para o arquivo, uma vez. Nível:
+   H; E: `folder-settings.spec.mjs`; U (`cargo test -p verso-core --test
+   folder_settings`; o `tests_sync.rs` do host, "the folder's settings
+   cross like a file and a conflict keeps both", contra um servidor de
+   verdade; o `folderLayer.test.mjs` do `npm test`); A (dois computadores
+   sincronizando uma pasta, à mão).
 
 ## 11. Organização: figurinhas, capas, páginas de pasta, ordem
 
@@ -755,7 +769,16 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
    barra de status e *Ajustes* › *Sincronizar* dizem *quem compartilhou
    revogou o acesso* e quando (e2e, `sync.spec.mjs`, "a share revoked by
    its owner"; o teste Rust do host contra um servidor de verdade,
-   `tests_shares.rs`).
+   `tests_shares.rs`). Como quem recebe, renomeie uma nota do
+   compartilhamento para a qual aponta uma nota da dona de fora dele; como
+   dona, o link dessa nota tem agora o nome novo, e a renomeação de quem
+   recebe só citou notas de dentro do compartilhamento (o teste Rust do
+   servidor, `tests_shares.rs`, "a receivers rename rewrites the owners
+   links outside the share", com uma nota aberta numa sala mantida como
+   estava; à mão com dois navegadores). A barra de status de quem recebe
+   conta as notas do compartilhamento, e uma base pelo compartilhamento
+   conta, soma e lista só notas de dentro dele (o teste Rust do servidor,
+   `tests_shares.rs`, "a receivers counts are the shares").
 11. Editar junto numa pasta sincronizada ([ADR
     0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), da seção
     *Editar junto numa pasta sincronizada* da nota 23: com a pasta
@@ -769,7 +792,12 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
     outra, a nota é lida de novo com o seu texto; *Ajustes* ›
     *Sincronizar* › *Editar notas junto enquanto online* desligado, a nota
     sai da sala e, aberta de novo, não entra em nenhuma (e2e,
-    `live.spec.mjs`). Dois aparelhos e um navegador numa sala, uma queda e
+    `live.spec.mjs`). Uma propriedade definida no painel de uma nota ao
+    vivo — um valor, uma caixa de marcar — entra na sala ao lado do que
+    outra pessoa digita ali, nunca no arquivo, que segue o salvamento da
+    sala; um adesivo, a célula de uma base e a citação de um PDF numa
+    nota de anotações ao vivo vão do mesmo jeito (e2e, `live.spec.mjs`,
+    "a property set in the panel"; `roomWrites.test.mjs`). Dois aparelhos e um navegador numa sala, uma queda e
     uma volta dentro da carência e depois dela, a edição de um programa de
     fora, um leitor, uma pausa, e o teste de propriedade de que nenhuma
     edição se perde — os testes Rust do host contra um servidor de verdade

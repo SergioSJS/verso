@@ -156,7 +156,11 @@ Aceita (2026-10-10, Status).
    antigo — nunca é recusada. A versão do contrato (o
    hash dos bindings gerados) não cobre o fio do sync — os comandos do
    sync não estão nos bindings — então esse número é definido antes de
-   qualquer mudança nesse fio.
+   qualquer mudança nesse fio. *(Sync 2, 2026-10-12: cada mudança que o
+   `sync_changes` responde pode trazer `device`, o nome do aparelho cujo
+   sync a fez, como a pessoa o definiu em Ajustes › Servidores — o "quem
+   fez" do item 4 dito aos aparelhos; um aparelho do sync 1 ignora o
+   campo, e por um compartilhamento ele fica de fora.)*
 6. **Quando**: nos lotes do watcher local (com espera), nos avisos do
    servidor, ao iniciar e ao reconectar, e por uma varredura a cada cinco
    minutos como rede de segurança. Offline, nada fica numa fila além da

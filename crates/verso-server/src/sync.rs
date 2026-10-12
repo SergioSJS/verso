@@ -122,12 +122,15 @@ impl<'a> Author<'a> {
     }
 }
 
-/// The folder's files as the index lists them: path, length, time.
+/// The folder's files as the index lists them, and the folder's settings
+/// directory, which the walk never lists and sync carries (ADR 0070, ADR
+/// 0079 item 2): path, length, time.
 fn listed(server: &Server, key: &str) -> Result<Vec<(String, u64, i64)>, ContractError> {
     server.service.with_key(key, |ws| {
         Ok(ws
             .entries()
             .iter()
+            .chain(ws.settings_entries())
             .filter(|e| !matches!(e.kind, FileKind::Folder | FileKind::Placeholder))
             .map(|e| (e.path.clone(), e.len, e.modified))
             .collect())
@@ -719,6 +722,12 @@ pub(crate) async fn command_in(
             None => who.account.email.clone(),
         },
     );
+    // Who the server's log says a change is by — the account and the
+    // device's name — and the share, when a rename through it rewrites
+    // the owner's links outside it (ADR 0081 item 11).
+    let said_by = said_as.2.clone();
+    let share =
+        crate::shares::scope_here(server, client).map_or_else(|| folder.clone(), |s| s.share);
     // A rename's folder and source, for the shares it may carry.
     let renaming = (cmd == "sync_rename").then(|| {
         (
@@ -763,7 +772,7 @@ pub(crate) async fn command_in(
                     account: Some(&actor),
                     device: device.as_deref(),
                 },
-                &replacer,
+                (&replacer, &said_by),
                 (args, &*inside),
                 data,
             ),
@@ -812,6 +821,7 @@ pub(crate) async fn command_in(
                     verso_core::sync::folded_form(&from) == verso_core::sync::folded_form(&to);
                 let (to, other) = as_kept(&s, &folder, &to, &*inside)?;
                 let (f, t) = (from.clone(), to.clone());
+                let reach = Arc::clone(&inside);
                 let landed = s.service.with_key(&key, move |ws| {
                     is_now(ws, &f, Some(&base))?;
                     if same {
@@ -829,9 +839,22 @@ pub(crate) async fn command_in(
                     }
                     let done = ws.rename_entry(&f, &t)?;
                     ws.prune_empty_parents(&f);
-                    Ok(Some(done.path))
+                    // Through a share, the owner's notes outside it that link
+                    // to what moved: the server rewrites them (ADR 0081 item
+                    // 11); the device rewrites the ones it has itself.
+                    let outside: Vec<crate::share_links::Outside> = done
+                        .rewrites
+                        .into_iter()
+                        .filter(|w| !reach(&w.path))
+                        .map(|w| crate::share_links::Outside {
+                            path: w.path,
+                            revision: w.revision,
+                            after: w.after,
+                        })
+                        .collect();
+                    Ok(Some((done.path, outside)))
                 })?;
-                let Some(landed) = landed else {
+                let Some((landed, outside)) = landed else {
                     drop(only);
                     let head = s.db.head(&folder).map_err(verso_service::failed)?;
                     return Ok(json!({ "head": head, "path": from }));
@@ -857,6 +880,9 @@ pub(crate) async fn command_in(
                         to: landed.clone(),
                     }],
                 );
+                if !outside.is_empty() {
+                    crate::share_links::apply(&s, &key, (&actor, &said_by), &share, outside);
+                }
                 Ok(json!({ "head": head, "path": landed }))
             }
             _ => Err(refused("no such command")),
@@ -1157,7 +1183,12 @@ fn identify(
     let (p, _) = as_kept(server, folder, path, inside)?;
     let at = p.clone();
     let mark = server.service.with_key(key, move |ws| {
-        let listed = ws.entries().iter().find(|e| e.path == at).map(|e| e.len);
+        let listed = ws
+            .entries()
+            .iter()
+            .chain(ws.settings_entries())
+            .find(|e| e.path == at)
+            .map(|e| e.len);
         if listed.is_some_and(|len| len > LARGEST) {
             return Err(too_large().into());
         }
@@ -1216,7 +1247,7 @@ fn put(
     client: &str,
     (folder, key): (&str, &str),
     by: Author<'_>,
-    replacer: &str,
+    (replacer, said): (&str, &str),
     (mut args, inside): (Value, Inside<'_>),
     data: Option<Bytes>,
 ) -> Result<Value, ContractError> {
@@ -1332,7 +1363,7 @@ fn put(
                     Ok(kept) => Some(kept),
                     Err(e) => {
                         crate::log::warn(&format!(
-                            "sync: the version of {p} a write replaces was not kept: {e}"
+                            "sync: the version of {p} a write by {said} replaces was not kept: {e}"
                         ));
                         None
                     }

@@ -7,9 +7,10 @@ import { refreshBases } from "./bases";
 import { commands, type ContractError, type FolderInfo } from "./bindings";
 import { loadBookmarks } from "./bookmarks";
 import { flushed, recheckAll, refreshLists, setShownProblems, showProblems, stopped, tellOutcomes } from "./changes";
-import { button, h, ui } from "./dom";
+import { button, h, showToast, ui } from "./dom";
 import { fail } from "./errors";
 import { forgetFiles } from "./files";
+import { loadFolderLayer } from "./folderLayer";
 import { loadFocuses } from "./focuses";
 import { currentFolder, LAST_FOLDER, nameFolderButton, secondary, setCurrentFolder, setFolderName } from "./folder";
 import { layout, newSpace, openIn, setCurrent, showSpace, Space, spaces } from "./layout/spaces";
@@ -31,6 +32,7 @@ export async function joinAsPopout(): Promise<void> {
   nameFolderButton();
   page?.classList.remove("empty");
   ui.search.disabled = false;
+  await loadFolderLayer();
   loadBookmarks();
   await loadFocuses();
   await listAll();
@@ -77,6 +79,22 @@ export async function openFolderBy(run: () => Promise<{ status: "ok"; data: Fold
   await showFolder(r.data);
   return true;
 }
+/** A folder on a volume where changes made by other programs may show
+ *  late (ADR 0048, revised 2026-10-12): said once per folder, the first
+ *  time it opens here — a property of the volume, not news; the host's
+ *  log has it at every opening. */
+function tellVolume(info: FolderInfo): void {
+  const fs = info.late_outside_changes;
+  if (!fs) return;
+  const key = `verso.lateOutsideChanges:${info.key}`;
+  try {
+    if (localStorage.getItem(key)) return;
+    localStorage.setItem(key, "1");
+  } catch {
+    // No storage: said each time, never lost.
+  }
+  showToast(t.lateOutsideChanges(fs), 12000);
+}
 export async function showFolder(info: FolderInfo): Promise<void> {
   setCurrentFolder(info.key);
   setFolderName(info.name);
@@ -95,6 +113,7 @@ export async function showFolder(info: FolderInfo): Promise<void> {
   ui.status.textContent = t.indexed(i.indexed, i.unchanged, i.placeholders);
   setShownProblems("");
   showProblems(i);
+  tellVolume(info);
   page?.classList.remove("empty");
   for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) l.destroy();
   spaces.length = 0;
@@ -103,6 +122,9 @@ export async function showFolder(info: FolderInfo): Promise<void> {
   ui.search.disabled = false;
   ribbon?.paint();
   ui.search.value = "";
+  // The folder's own settings (ADR 0070) before the tree is drawn: its
+  // folder note's name names the folders' notes.
+  await loadFolderLayer();
   loadBookmarks();
   await loadFocuses();
   panel.tagsCache = [];

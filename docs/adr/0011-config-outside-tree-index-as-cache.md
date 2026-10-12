@@ -11,6 +11,16 @@
   maintainer as built and tested, answering the ADR audit in session:
   *"Ajuste tudo que precisar. Está aprovado os ADRs"* (adjust whatever
   needs it; the ADRs are approved); a dated note beside each.
+  2026-10-12 — with [0070](0070-what-travels-with-the-folder.md) items 1
+  and 2 built: the folder's bookmarks, walk rules and folder note name
+  live inside the folder, in `.verso/settings.json`, written only when one
+  of them is first changed. Rule 1 holds as 0070 reads it — no directory
+  is *mandatory* inside the folder, and none appears by opening it — but
+  the Consequence "a folder synced between machines does not carry its
+  configuration along" no longer holds for those three, and the
+  discarded `.obsidian/`-like directory is, for them, what was built. The
+  machine's layer — the index, its sidecar, the log, the window's layout
+  — stays here, as decided.
 
 ## Context
 

@@ -12,6 +12,9 @@
   ("deveria ser possível mover vários arquivos juntos, selecionar vários e
   mover para pastas"); asked how a selection should behave, they chose "como
   o Finder/Obsidian".
+  2026-10-12 — volumes that name a file by `link` on macOS: a notice once
+  per folder, and exFAT's "not supported" taken for what it is
+  (Consequences, *Volumes without hard links*).
 
 ## Context
 
@@ -149,6 +152,22 @@ points.
   guard was weaker. Allowed, with that warning, by the maintainer on
   2026-09-23 — on the recommendation that refusing would leave Verso unusable
   on a removable drive.
+  *Revision, 2026-10-12:* on macOS a volume without the exclusive rename
+  (`renamex_np` with `RENAME_EXCL`, [0069](0069-windows-port.md) revised
+  2026-10-11) but with hard links — some network volumes — names a new or
+  moved file by `link`, whose later removal by another program FSEvents may
+  never report. Opening such a folder, `verso-fs` asks the volume once (APFS
+  and HFS+ by their name; any other by trying, on an empty file of its own
+  under a hidden temporary name, removed after); the window then says once
+  per folder, in both languages, that changes other programs make there may
+  show late and that what Verso writes stays safe, and the log has one WARN
+  line at each opening. exFAT has neither the rename nor hard links: its
+  files take the checked rename above, which FSEvents does report, so it
+  gets no notice — and its "operation not supported" (`ENOTSUP`, which std
+  leaves uncategorized) is now taken for that, where every new file there
+  failed before. Measured on mounted images: exFAT as said, FAT32 and APFS
+  with the exclusive rename. The maintainer's choice for the campaign's
+  finding was "document it, or a notice in the app"; both were done.
 - **Placeholders.** A single placeholder cannot be renamed or deleted, its
   content being in the cloud; a folder that holds placeholders moves and goes
   to the bin as a whole.

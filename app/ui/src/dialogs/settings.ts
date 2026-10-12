@@ -11,7 +11,10 @@ import { remoteContentChanged } from "../changes";
 import { ask } from "../dialog";
 import { button, h, ui } from "../dom";
 import { focusesSummary, getLocalFocuses, getSyncFocuses, isSyncFocusesAsked, loadFocuses, setFocusesSummary, setLocalFocuses, setSyncFocuses, setSyncFocusesAsked } from "../focuses";
+import { bookmarks } from "../bookmarks";
 import { currentFolder } from "../folder";
+import { changeFolder, folderValues, folderWritable } from "../folderLayer";
+import type { Scope } from "../organize/layerRules";
 import { icon } from "../icons";
 import { allCommands, comboOf, DEFAULT_KEYS, keyOf, MAC, paintKeyHints, prettyKeys, reloadWindow, RESERVED } from "../keys";
 import { LINUX, WINDOWS } from "../platform";
@@ -128,7 +131,7 @@ export class SettingsDialog {
       ...(can("account") && signedIn() ? [{ id: "account", label: t.sAccount, icon: "user" }] : []),
     ];
   }
-  private item(title: string, desc: string, control: HTMLElement | null): HTMLElement {
+  private item(title: string, desc: string, control: HTMLElement | null, scope?: Scope): HTMLElement {
     const row = h("div", "setting");
     const text = h("div", "setting-text");
     const id = `setting-${++this.ids}`;
@@ -136,7 +139,18 @@ export class SettingsDialog {
     titleEl.id = `${id}-title`;
     const descEl = h("div", "setting-desc", desc);
     descEl.id = `${id}-desc`;
-    text.append(titleEl, descEl);
+    text.append(titleEl);
+    // Where the setting is kept (ADR 0070): in the folder, travelling with
+    // it, or on this machine only — said under its name, and read with its
+    // line by a screen reader.
+    let scopeId = "";
+    if (scope) {
+      const tag = h("span", `setting-scope ${scope}`, scope === "folder" ? t.scopeFolder : t.scopeMachine);
+      tag.title = scope === "folder" ? t.scopeFolderTip : t.scopeMachineTip;
+      scopeId = tag.id = `${id}-scope`;
+      text.append(tag);
+    }
+    text.append(descEl);
     row.append(text);
     if (control) {
       // The control is named by the item's title and described by its line
@@ -145,7 +159,7 @@ export class SettingsDialog {
       // A control that names itself (one of several in the row) keeps it.
       if (title && !field?.hasAttribute("aria-label")) field?.setAttribute("aria-labelledby", titleEl.id);
       // A control with a note of its own is described by both.
-      if (field && desc) field.setAttribute("aria-describedby", [descEl.id, field.getAttribute("aria-describedby")].filter(Boolean).join(" "));
+      if (field && desc) field.setAttribute("aria-describedby", [scopeId, descEl.id, field.getAttribute("aria-describedby")].filter(Boolean).join(" "));
       row.append(control);
     }
     return row;
@@ -184,6 +198,20 @@ export class SettingsDialog {
     const out: { section: string; title: string; desc: string; node: () => HTMLElement; group?: string }[] = [];
     const add = (section: string, title: string, desc: string, control: () => HTMLElement | null, group?: string) =>
       out.push({ section, title, desc, node: () => this.item(title, desc, control()), group });
+    // A setting of the folder's layer (ADR 0070 items 1–2): shown with
+    // where it is kept now.
+    const addScoped = (section: string, title: string, desc: string, control: () => HTMLElement | null) =>
+      out.push({ section, title, desc, node: () => this.item(title, desc, control(), folderValues().scope) });
+    // A walk rule changed: into the folder's settings when they can be
+    // written, else this machine's; then the folder is walked again.
+    const walkRule = async (part: { ignore_build_dirs?: boolean; respect_gitignore?: boolean }, onMachine: () => void) => {
+      if (!(await changeFolder(() => part))) {
+        onMachine();
+        saveSettings();
+      }
+      await walkRulesChanged();
+      this.paint();
+    };
     if (can("devtools")) add("general", t.devtools, t.devtoolsDesc, () => this.toggle(settings.devtools, (v) => { settings.devtools = v; saveSettings(); }));
     if (can("updates")) add("general", t.checkUpdates, t.checkUpdatesDesc, () => this.toggle(settings.checkUpdates, (v) => { settings.checkUpdates = v; saveSettings(); }));
     add("general", t.appVersion, t.appVersionDesc, () => {
@@ -390,8 +418,8 @@ export class SettingsDialog {
     if (currentFolder && can("write")) {
       add("files", trashStrings().section, trashStrings().notCounted, () => trashSummary(() => { this.section = "trash"; this.search.value = ""; this.paint(); }));
     }
-    add("files", t.ignoreBuildDirs, t.ignoreBuildDirsDesc, () => this.toggle(settings.ignoreBuildDirs, (v) => { settings.ignoreBuildDirs = v; saveSettings(); void walkRulesChanged(); }));
-    add("files", t.respectGitignore, t.respectGitignoreDesc, () => this.toggle(settings.respectGitignore, (v) => { settings.respectGitignore = v; saveSettings(); void walkRulesChanged(); }));
+    addScoped("files", t.ignoreBuildDirs, t.ignoreBuildDirsDesc, () => this.toggle(folderValues().ignoreBuildDirs, (v) => void walkRule({ ignore_build_dirs: v }, () => { settings.ignoreBuildDirs = v; })));
+    addScoped("files", t.respectGitignore, t.respectGitignoreDesc, () => this.toggle(folderValues().respectGitignore, (v) => void walkRule({ respect_gitignore: v }, () => { settings.respectGitignore = v; })));
     add("general", t.autosaveDelay, t.autosaveDesc, () => {
       const i = h("input");
       i.type = "number"; i.min = "0.3"; i.step = "0.5"; i.value = String(settings.autosave);
@@ -447,7 +475,19 @@ export class SettingsDialog {
     add("organizing", t.covers, t.coversDesc, () => this.toggle(settings.covers, (v) => { settings.covers = v; saveSettings(); for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) if (l instanceof NoteLeaf && l.note) void l.load(l.path, true); }));
     add("organizing", t.coverHeight, t.coverHeightDesc, () => this.text(String(settings.coverHeight), (v) => { const n = Number(v); if (!isNaN(n) && n >= 80 && n <= 600) { settings.coverHeight = n; saveSettings(); } }));
     add("organizing", t.aliasInTree, t.aliasInTreeDesc, () => this.toggle(settings.aliasInTree, (v) => { settings.aliasInTree = v; saveSettings(); void listAll(); }));
-    add("organizing", t.folderNoteName, t.folderNoteNameDesc, () => this.text(settings.folderNoteName, (v) => { settings.folderNoteName = v.trim(); saveSettings(); void pushFolderNoteName().then(() => listAll()); }));
+    addScoped("organizing", t.folderNoteName, t.folderNoteNameDesc, () => this.text(folderValues().folderNoteName, (v) => void (async () => {
+      if (folderWritable() && (await changeFolder(() => ({ folder_note_name: v.trim() })))) {
+        await listAll();
+      } else {
+        settings.folderNoteName = v.trim();
+        saveSettings();
+        await pushFolderNoteName().then(() => listAll());
+      }
+      this.paint();
+    })()));
+    // The bookmarks are the folder's too (ADR 0070 item 2): kept beside
+    // its notes, they are set by the star; here, where they are kept.
+    if (currentFolder) addScoped("organizing", t.bookmarks, t.bookmarksSettingDesc, () => h("span", "setting-value", String(bookmarks.length)));
     add("organizing", t.folderPageTable, t.folderPageTableDesc, () => this.toggle(settings.folderPageTable, (v) => { settings.folderPageTable = v; saveSettings(); }));
     add("organizing", t.manualOrder, t.manualOrderDesc, () => this.toggle(settings.manualOrder, (v) => { settings.manualOrder = v; saveSettings(); orderModeChanged(); }));
     add("organizing", t.inlineEmbedEdit, t.inlineEmbedEditDesc, () => this.toggle(settings.inlineEmbedEdit, (v) => { settings.inlineEmbedEdit = v; saveSettings(); }));

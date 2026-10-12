@@ -225,6 +225,7 @@ que ele decide, não o que roda.
 | Um compartilhamento repassado, ou mantido depois de acabar | Só o dono da pasta compartilha, e quem recebe não recompartilha (item 4); uma revogação chega às janelas abertas de quem recebe na hora, e uma cópia sincronizada fica no computador dele com o sync desligado — dito ao dono ao compartilhar (item 8). |
 | Um compartilhamento apontando para outro lugar | Uma mudança de nome feita pelo servidor leva as concessões junto; uma que o servidor só acha depois deixa o compartilhamento num caminho que sumiu — uma pasta vazia para quem recebe, o dono avisado (item 13). |
 | Um compartilhamento feito sem ninguém ver | Um compartilhamento criado, mudado e removido é uma entrada do registro de auditoria com o caminho, lida pelo dono e pelo admin (item 9). |
+| Um aviso ou um problema que nomeia uma nota fora do compartilhamento | Lacuna achada e fechada em 2026-10-12: um aviso do core (o exame de uma renomeação, os problemas de uma indexação) chegava a quem recebe quando não tinha `/`, então uma nota na raiz do dono passava pelo nome; agora um aviso só chega a quem recebe quando começa com um caminho de dentro do compartilhamento, re-enraizado nele, e qualquer outro é descartado (item 11; `scope.rs`, o teste dele). |
 
 ### A lixeira e a coedição ao vivo de uma pasta sincronizada
 

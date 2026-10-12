@@ -11,6 +11,17 @@
   mantenedor como construídos e testados, respondendo à auditoria dos
   ADRs em sessão: *"Ajuste tudo que precisar. Está aprovado os ADRs"*; uma
   nota datada ao lado de cada um.
+  2026-10-12 — com os itens 1 e 2 do
+  [0070](0070-what-travels-with-the-folder.md) construídos: os favoritos,
+  as regras de varredura e o nome da nota de pasta moram dentro da pasta,
+  em `.verso/settings.json`, escrito só quando um deles muda pela primeira
+  vez. A regra 1 vale como o 0070 a lê — nenhum diretório é
+  *obrigatório* dentro da pasta, e nenhum aparece por abri-la —, mas a
+  Consequência "uma pasta sincronizada entre máquinas não leva a sua
+  configuração junto" deixa de valer para esses três, e o diretório à
+  moda do `.obsidian/` descartado é, para eles, o que foi construído. A
+  camada da máquina — o índice, o arquivo lateral dele, o log, o layout
+  da janela — fica aqui, como decidido.
 
 ## Contexto
 

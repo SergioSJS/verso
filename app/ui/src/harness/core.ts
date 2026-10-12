@@ -54,6 +54,8 @@ import type {
   Written,
   Focus,
   FocusesSummary,
+  FolderLayer,
+  FolderSettings,
   SyncStatus,
 } from "../bindings";
 import { Bin } from "./trash";
@@ -138,6 +140,10 @@ const stripMd = (p: string): string => p.replace(/\.md$/i, "");
 const hidden = (p: string): boolean => p.split("/").some((s) => s.startsWith("."));
 const isNote = (p: string): boolean => /\.md$/i.test(p);
 
+/** The folder's settings file (ADR 0070 items 1–2). */
+const SETTINGS_FILE = ".verso/settings.json";
+/** A path a bookmark may keep: relative, `/`-joined, no `..`, no `.`. */
+const plainPath = (p: string): boolean => p !== "" && !p.startsWith("/") && !p.endsWith("/") && p.split("/").every((s) => s !== "" && s !== "." && s !== "..");
 /** The core's `set_folder_note_name`: a plain file name, or empty. */
 const folderNoteSetting = (name: string): string => {
   const n = name.trim().replace(/\.md$/i, "");
@@ -306,8 +312,16 @@ export class Core {
   readonly folders = new Set<string>();
   /** The folder's trash and what is known of it (ADR 0080). */
   readonly bin = new Bin(this);
-  /** The folder note name setting (`set_folder_note_name`). */
-  private folderNoteName = "";
+  /** This machine's folder note name setting (`set_folder_note_name`):
+   *  what applies while the folder has no `.verso/settings.json`. */
+  private machineNoteName = "";
+  /** The folder note name that applies: the folder's settings file's when
+   *  it has a usable one (ADR 0070), else this machine's. */
+  private get folderNoteName(): string {
+    const layer = this.folderLayer();
+    if (layer.exists && !layer.problem) return folderNoteSetting(layer.settings.folder_note_name ?? "");
+    return this.machineNoteName;
+  }
   private syncFocuses = false;
   /** Every command asked for, in order: what a test looks at. */
   readonly calls: { cmd: string; args: unknown }[] = [];
@@ -379,6 +393,63 @@ export class Core {
     const was = this.stored(path);
     if (String(was.revision) !== revision) refuse("changed", `changed on disk: ${path}`);
     return this.put(path, encoder.encode(text));
+  }
+
+  /** The folder's layer of settings, `.verso/settings.json` (ADR 0070
+   *  items 1–2), as the core reads it. */
+  private folderLayer(): FolderLayer {
+    const stored = this.files.get(SETTINGS_FILE);
+    const empty: FolderSettings = { bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null };
+    if (!stored) return { exists: false, problem: null, revision: null, settings: empty, warnings: [] };
+    const revision = String(stored.revision);
+    let obj: unknown;
+    try {
+      obj = JSON.parse(strict.decode(stored.bytes));
+    } catch {
+      obj = null;
+    }
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) return { exists: true, problem: "invalid", revision, settings: empty, warnings: [] };
+    const o = obj as Record<string, unknown>;
+    const bool = (v: unknown): boolean | null => (typeof v === "boolean" ? v : null);
+    return {
+      exists: true,
+      problem: null,
+      revision,
+      settings: {
+        bookmarks: Array.isArray(o["bookmarks"]) ? o["bookmarks"].filter((p): p is string => typeof p === "string" && plainPath(p)) : null,
+        folder_note_name: typeof o["folderNoteName"] === "string" ? folderNoteSetting(o["folderNoteName"]) : null,
+        ignore_build_dirs: bool(o["ignoreBuildDirs"]),
+        respect_gitignore: bool(o["respectGitignore"]),
+      },
+      warnings: [],
+    };
+  }
+
+  /** A change of the folder's settings: created when there is no file
+   *  (`exists` when there is), else written over the revision read. */
+  private setFolderLayer(change: FolderSettings, revision: string | null): FolderLayer {
+    const stored = this.files.get(SETTINGS_FILE);
+    let obj: Record<string, unknown> = {};
+    if (revision === null) {
+      if (stored) refuse("exists", `already there: ${SETTINGS_FILE}`);
+    } else {
+      if (!stored) refuse("not_found", `no such file: ${SETTINGS_FILE}`);
+      if (String(stored.revision) !== revision) refuse("changed", `changed on disk: ${SETTINGS_FILE}`);
+      const parsed: unknown = JSON.parse(strict.decode(stored.bytes));
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) refuse("refused", "the folder's settings file is not a JSON object");
+      obj = parsed as Record<string, unknown>;
+    }
+    if (change.bookmarks) {
+      const bad = change.bookmarks.find((p) => !plainPath(p));
+      if (bad !== undefined) refuse("refused", `not a path of the folder: ${bad}`);
+      obj["bookmarks"] = change.bookmarks;
+    }
+    if (change.folder_note_name !== null && change.folder_note_name !== undefined) obj["folderNoteName"] = folderNoteSetting(change.folder_note_name);
+    if (change.ignore_build_dirs !== null && change.ignore_build_dirs !== undefined) obj["ignoreBuildDirs"] = change.ignore_build_dirs;
+    if (change.respect_gitignore !== null && change.respect_gitignore !== undefined) obj["respectGitignore"] = change.respect_gitignore;
+    const sorted = Object.fromEntries(Object.keys(obj).sort().map((k) => [k, obj[k]]));
+    this.put(SETTINGS_FILE, encoder.encode(`${JSON.stringify(sorted, null, 2)}\n`));
+    return this.folderLayer();
   }
 
   private getFocuses(): FocusesSummary {
@@ -575,7 +646,7 @@ export class Core {
   }
 
   folderInfo(): FolderInfo {
-    return { name: this.name, key: "harness", index: this.summary() };
+    return { name: this.name, key: "harness", index: this.summary(), late_outside_changes: null };
   }
 
   private summary(): IndexSummary {
@@ -1106,10 +1177,12 @@ export class Core {
     set_embed_origins: () => null,
     set_walk_rules: () => null,
     set_folder_note_name: (a) => {
-      this.folderNoteName = folderNoteSetting(String(a["name"] ?? ""));
+      this.machineNoteName = folderNoteSetting(String(a["name"] ?? ""));
       return null;
     },
     get_focuses: () => this.getFocuses(),
+    get_folder_settings: () => this.folderLayer(),
+    set_folder_settings: (a) => this.setFolderLayer(a["change"] as FolderSettings, (a["revision"] as string | null | undefined) ?? null),
     can_sync_focuses: () => {
       const summary = this.getFocuses();
       return summary.has_file && summary.format_known;

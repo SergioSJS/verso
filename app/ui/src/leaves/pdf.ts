@@ -8,15 +8,15 @@ import { afterFileChange, flushed, stopped } from "../changes";
 import { h, ui } from "../dom";
 import { fail } from "../errors";
 import { Pane } from "../layout/pane";
-import { crumbsFor, crumbsNav, layout, leavesOf, openIn, persistSoon } from "../layout/spaces";
+import { crumbsFor, crumbsNav, layout, leavesOf, liveHolder, openIn, persistSoon } from "../layout/spaces";
 import { fetchFirst, opening } from "../opening";
 import { dirOf, Kind } from "../paths";
 import { PdfView } from "../pdf";
 import { linkText } from "../resolve";
+import { appendLines, throughRoom } from "../roomWrites";
 import { t } from "../strings";
 import { markCurrent } from "../tree/tree";
 import { Leaf } from "./leaf";
-import { lineSeparator } from "./text";
 
 /* A PDF, read in the app: pages, text, search, a link to a page and a
  * quote of the selection into a companion note beside the file. */
@@ -53,7 +53,11 @@ export class PdfLeaf extends Leaf {
   }
   /** The passages the companion note quotes, painted on the pages. */
   async loadPassages(): Promise<void> {
-    const r = await opening.readNote(companionOf(this.path));
+    // A companion live in its room here: its text as the room has it,
+    // which holds a quote before the room writes the file.
+    const companion = companionOf(this.path);
+    const held = liveHolder(companion)?.text();
+    const r = held === undefined ? await opening.readNote(companion) : ({ status: "ok", data: { text: held } } as const);
     if (r.status !== "ok") return this.view.setPassages([]);
     const base = this.path.split("/").pop() ?? this.path;
     // The link may carry a path before the name (`./`, `../`, from the
@@ -91,6 +95,14 @@ export async function quoteIntoNotes(pdf: string, fragment: string, page: number
   const link = linkText(notePath, pdf);
   const quote = [`> [!quote] [[${link}#${fragment}|${stem}, ${t.pdfPage.toLowerCase()} ${page}]]`, ...text.split(/\n/).map((l) => `> ${l}`)];
   const block = `\n${quote.join("\n")}\n`;
+  // The companion live in its room here: the quote goes in as typing
+  // goes, the others see it come, and the room writes the file (ADR
+  // 0082, decided 2026-10-12).
+  const live = throughRoom(liveHolder(notePath), (was) => appendLines(was, quote));
+  if (live === "room" || live === "same") {
+    ui.status.textContent = t.quoted;
+    return;
+  }
   // The companion open in a tab: its text saved first, or nothing is written.
   const unsaved = await flushed(leavesOf(notePath));
   if (unsaved.length > 0) return stopped(unsaved);
@@ -99,10 +111,7 @@ export async function quoteIntoNotes(pdf: string, fragment: string, page: number
   if (existing.status === "ok") {
     // Appended as the note ends its lines, after a blank line; nothing of
     // it is trimmed or converted.
-    const was = existing.data.text;
-    const eol = /\r\n$/.test(was) ? "\r\n" : /\n$/.test(was) ? "\n" : lineSeparator(was) ?? "\n";
-    const ended = was === "" || /\n$/.test(was);
-    r = await commands.writeNote(notePath, `${was}${ended ? "" : eol}${eol}${quote.join(eol)}${eol}`, existing.data.revision);
+    r = await commands.writeNote(notePath, appendLines(existing.data.text, quote), existing.data.revision);
   }
   else {
     const made = await commands.createNote(notePath, `# ${t.pdfNotes} — ${stem}\n\n![[${link}]]\n${block}`);

@@ -512,6 +512,10 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .setting-actions .setting-value { white-space: normal; overflow-wrap: anywhere; text-align: right; }
 .setting-title { font-size: .93rem; color: var(--ink); }
 .setting-desc { font-size: .8rem; color: var(--ink-3); margin-top: .15rem; }
+/* Where a setting is kept (ADR 0070): of the folder, travelling with it,
+   or of this machine. A word, not a colour alone. */
+.setting-scope { display: inline-block; margin-top: .2rem; padding: 0 .4rem; border: 1px solid var(--hair); border-radius: 999px; font-size: .7rem; line-height: 1.5; color: var(--ink-3); vertical-align: middle; white-space: nowrap; }
+.setting-scope.folder { color: var(--brass-ink); border-color: currentColor; }
 /* A control that needs the row's width (a list to write in), with a note
    under it: the title and its line above, the box and the note below. */
 .setting:has(> .setting-block) { flex-direction: column; align-items: stretch; gap: .55rem; }
