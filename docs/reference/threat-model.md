@@ -337,7 +337,10 @@ recommendation for the maintainer to confirm.
    `.trash/`, which the walk and the quota do not count, with no
    retention yet: a writer can write and delete in a loop and fill the
    host's disk past the quota. ADR 0080 item 8 decided the guard.
-   **Still open:** ADR 0080 is being built by another author.
+   **Closed: 8ad89d2, 9c10495, 02903f1, 173cf7e, f3edc42** — ADR 0080 built
+   on the night of 2026-10-11 to 12: the trash expires (30 days by
+   default), and a folder's trash larger than its quota has its oldest
+   entries expire early, said in the folder's page (item 8).
 10. **An external review of this model**, as the model asked on
     2026-10-09; ADR 0073 asks for security "in full". **Still open:**
     after the gaps above.

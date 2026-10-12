@@ -342,7 +342,7 @@ decisions as recommended — the others close `[OPEN]` items of
 [0070](adr/0070-what-travels-with-the-folder.md),
 [0079](adr/0079-sync-a-local-folder-with-a-server.md) item 12 and
 `docs/reference/server-install.md` §14 without new work. Both were built
-the same day on `feat/decisions-2026-10-12`, not merged yet.
+the same day on `feat/decisions-2026-10-12`, merged into `feat/universo` by ceb724e.
 
 **Carried from Phase 2** (the maintainer, 2026-10-12, closing Phase 2 on
 2026-10-09). Phase 3 ends when no task of it is pending, and these are
@@ -356,8 +356,10 @@ among its tasks:
   history of the maintainer's vault with no diff they did not make —
   measured over the same month.
 - Phase 2's exit criterion 3, **guardrails green and fixtures intact**,
-  the UI code and the generated TS types included — not recorded as
-  checked at a close.
+  the UI code and the generated TS types included — checked at the close
+  of 2026-10-12: `scripts/check.sh` green at d15c4d1 (every guardrail, the
+  fixtures, 525 + 38 end-to-end tests, the bindings), `scripts/check-linux.sh`
+  and `scripts/check-windows.sh` green at b140275.
 - Phase 2's scope row 2.6, the typed note: the maintainer's reading,
   which the row says it waits for.
 - Phase 2's scope row 2.7, accessibility: the pass with a screen reader,
