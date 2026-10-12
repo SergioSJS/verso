@@ -828,6 +828,16 @@ impl Workspace {
         key_for(&self.folder)
     }
 
+    /// The name of the folder's file system when a file Verso creates or
+    /// moves there is named by `link` (macOS: some network volumes; ADR
+    /// 0048, revised 2026-10-12): changes made there by other programs may
+    /// show late. Asked of the volume through `verso-fs`, the only crate
+    /// that touches the folder.
+    #[must_use]
+    pub fn names_by_link(&self) -> Option<String> {
+        self.root.names_by_link()
+    }
+
     /// The index's size in bytes (ADR 0075 item 4).
     pub fn index_bytes(&self) -> Result<u64, CoreError> {
         self.index.bytes().map_err(CoreError::Index)
