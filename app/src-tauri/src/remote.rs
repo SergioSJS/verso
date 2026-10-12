@@ -168,7 +168,8 @@ impl Remote {
 
     /// The connection let go at once, as a network that drops it: the
     /// server sees it closed once the last holder lets the `Remote` go.
-    #[cfg(test)]
+    // Its tests need a `verso serve`, not built for Windows.
+    #[cfg(all(test, not(windows)))]
     pub(crate) fn hang_up(&self) {
         close(&self.pending);
         self.dead.notify_one();

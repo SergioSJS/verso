@@ -560,7 +560,8 @@ pub(crate) struct Link {
 
 impl Link {
     /// The head of the server's log the device's files are known at.
-    #[cfg(test)]
+    // Its tests need a `verso serve`, not built for Windows.
+    #[cfg(all(test, not(windows)))]
     pub(crate) fn cursor(&self) -> Option<i64> {
         self.known.as_ref().map(|(_, head)| *head)
     }
