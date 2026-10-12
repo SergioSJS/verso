@@ -402,6 +402,16 @@ confirmado"* às recomendações). A coedição do board segue `[ABERTO]` de
 propósito (item 12); a fusão por bloco de edições offline fica para
 depois, em ADR própria.
 
+**Construída na noite de 2026-10-11 para 12** (f0d7398, 807c8c9, 2de0737, cb7b29d e 5add311, juntados ao `feat/universo` pelo 817886e em 2026-10-12); o item 7 do
+[0073](0073-self-hosted-server-first.md) e os itens 7 e 8 do
+[0079](0079-sync-a-local-folder-with-a-server.md) ganharam as linhas de
+Revisões em 2026-10-12, como as Consequências pedem. As perguntas em
+aberto que a construção levantou foram mandadas ao mantenedor na mesma
+noite e esperam as respostas: onde mora o ajuste do item 15; as esperas
+de 5 s pelo envio antes de entrar (item 7) e de 4 s pelas reentradas
+antes de uma passada (item 9); as escritas de propriedades e de PDFs
+pela sala; e o board (item 12).
+
 Proposta em 2026-10-10. O mantenedor aprovou a direção em sessão; os itens
 são do autor. A ser lida por Opus 5.5 antes de ser aceita. Para o
 mantenedor, cada um com uma recomendação: se uma nota entra ao abrir ou só

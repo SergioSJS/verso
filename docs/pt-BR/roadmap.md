@@ -1,6 +1,6 @@
 # Roadmap do Verso
 
-- Versão: 2026-10-11, revisão 6 (a tabela da Fase 3 ganha o que foi construído desde a revisão 5 — [0077](adr/0077-the-server-administration-console-and-folder-quotas.md), [0078](adr/0078-universo-the-name-of-verso-as-a-server.md), [0079](adr/0079-sync-a-local-folder-with-a-server.md) — e os aceitos [0080](adr/0080-the-trash-with-expiry-and-restore.md), [0081](adr/0081-sharing-between-people-on-one-universo.md) e [0082](adr/0082-live-co-editing-of-a-synced-folder.md) na ordem que o mantenedor definiu em 2026-10-11, *"Sim para todos"*; as permissões mais finas riscadas como aceitas com o 0081; "Depois da Fase 2" posto em dia quanto ao sync; as linhas 3.10–3.16, que afetam o critério de saída, foram escritas a partir da recomendação do memorando, não de uma das oito respostas do mantenedor, e aguardam a aceitação do mantenedor — regra zero). Revisão 5, 2026-10-09 (a Fase 3 escrita, a partir do [ADR 0073](adr/0073-self-hosted-server-first.md) aceito pelo mantenedor com o 0074, o 0075 e o 0076; a identidade de sessão do contrato e os handles para o `verso serve` riscados como decididos). Revisão 4, 2026-09-24 (as decisões do mantenedor de 2026-09-24 riscadas: os handles nas duas fases, e as duas linhas da nota tipada, com o item 2.6 sem esperar mais por elas). Revisão 3, 2026-09-23: a Fase 2 como construída; as decisões da Fase 1 tomadas em 2026-09-22 riscadas
+- Versão: 2026-10-11, revisão 6 (a tabela da Fase 3 ganha o que foi construído desde a revisão 5 — [0077](adr/0077-the-server-administration-console-and-folder-quotas.md), [0078](adr/0078-universo-the-name-of-verso-as-a-server.md), [0079](adr/0079-sync-a-local-folder-with-a-server.md) — e os aceitos [0080](adr/0080-the-trash-with-expiry-and-restore.md), [0081](adr/0081-sharing-between-people-on-one-universo.md) e [0082](adr/0082-live-co-editing-of-a-synced-folder.md) na ordem que o mantenedor definiu em 2026-10-11, *"Sim para todos"*; as permissões mais finas riscadas como aceitas com o 0081; "Depois da Fase 2" posto em dia quanto ao sync; as linhas 3.10–3.16, que afetam o critério de saída, foram escritas a partir da recomendação do memorando, não de uma das oito respostas do mantenedor, e aguardam a aceitação do mantenedor — regra zero; em 2026-10-12, dentro desta revisão, as linhas 3.13, 3.14 e 3.16 marcadas como construídas e a 3.15 como feita, aquela aceitação ainda aguardada). Revisão 5, 2026-10-09 (a Fase 3 escrita, a partir do [ADR 0073](adr/0073-self-hosted-server-first.md) aceito pelo mantenedor com o 0074, o 0075 e o 0076; a identidade de sessão do contrato e os handles para o `verso serve` riscados como decididos). Revisão 4, 2026-09-24 (as decisões do mantenedor de 2026-09-24 riscadas: os handles nas duas fases, e as duas linhas da nota tipada, com o item 2.6 sem esperar mais por elas). Revisão 3, 2026-09-23: a Fase 2 como construída; as decisões da Fase 1 tomadas em 2026-09-22 riscadas
 - Fonte: `docs/BRIEFING.md` §15
 - ADR: [0034](adr/0034-roadmap-in-phases.md)
 
@@ -277,10 +277,10 @@ anterior fechar", acima, é `[ABERTO]`, para o mantenedor dizer.
 | 3.10 | O console de administração do servidor em `/admin`, e cotas por pasta — construídos em 2026-10-10; um admin encerrando as sessões de outra conta e revogando os tokens dela, com uma linha de auditoria, decidido em 2026-10-11, a construir | [0077](adr/0077-the-server-administration-console-and-folder-quotas.md) |
 | 3.11 | Universo, o nome do Verso como servidor — construído em 2026-10-10 | [0078](adr/0078-universo-the-name-of-verso-as-a-server.md) |
 | 3.12 | Sync de uma pasta local do desktop com uma pasta num servidor — construído em 2026-10-10 e posto em campanha em 2026-10-10 e 2026-10-11; o merge de acréscimos, o nome do aparelho definido pela pessoa, a versão do protocolo de sync e o limite de 1 GiB decididos em 2026-10-11 | [0079](adr/0079-sync-a-local-folder-with-a-server.md), [0074](adr/0074-accounts-and-access-on-the-server.md) item 8 |
-| 3.13 | Coedição ao vivo de uma pasta sincronizada — aceita em 2026-10-11; a primeira na ordem depois desta rodada | [0082](adr/0082-live-co-editing-of-a-synced-folder.md) |
-| 3.14 | A lixeira com expiração e restauração, com o item 12 dela: a versão que a escrita de um aparelho substituiu, guardada e restaurável (o achado F18 da campanha) — aceita em 2026-10-11; a segunda | [0080](adr/0080-the-trash-with-expiry-and-restore.md), [0079](adr/0079-sync-a-local-folder-with-a-server.md) Consequências |
-| 3.15 | O modelo de ameaças atualizado (`docs/reference/threat-model.md`), com os `[ABERTO]` dele — o terceiro, antes do compartilhamento | [0073](adr/0073-self-hosted-server-first.md) item 6 |
-| 3.16 | Compartilhamento entre pessoas num Universo: uma concessão num caminho, leitura ou escrita — aceito em 2026-10-11; o quarto | [0081](adr/0081-sharing-between-people-on-one-universo.md) |
+| 3.13 | Coedição ao vivo de uma pasta sincronizada — aceita em 2026-10-11; a primeira na ordem depois desta rodada; construída na noite de 2026-10-11 para 12 (juntada pelo 817886e, 2026-10-12) | [0082](adr/0082-live-co-editing-of-a-synced-folder.md) |
+| 3.14 | A lixeira com expiração e restauração, com o item 12 dela: a versão que a escrita de um aparelho substituiu, guardada e restaurável (o achado F18 da campanha) — aceita em 2026-10-11; a segunda; construída, com o item 12, na noite de 2026-10-11 para 12 (f3edc42, com a correção 5b5fb9c) | [0080](adr/0080-the-trash-with-expiry-and-restore.md), [0079](adr/0079-sync-a-local-folder-with-a-server.md) Consequências |
+| 3.15 | O modelo de ameaças atualizado (`docs/reference/threat-model.md`), com os `[ABERTO]` dele — o terceiro, antes do compartilhamento; feito em 2026-10-11 (4c09fc9), as lacunas que achou fechadas pelo reforço juntado no 60c717c, exceto as que ele lista como ainda abertas, e os `[ABERTO]` dele mantidos abertos | [0073](adr/0073-self-hosted-server-first.md) item 6 |
+| 3.16 | Compartilhamento entre pessoas num Universo: uma concessão num caminho, leitura ou escrita — aceito em 2026-10-11; o quarto; construído na noite de 2026-10-11 para 12 (juntado pelo 2f25923, 2026-10-12) | [0081](adr/0081-sharing-between-people-on-one-universo.md) |
 
 Os itens 3.2 a 3.9 saem juntos, na primeira versão do servidor (item 12
 do ADR 0073, revisto em 2026-10-09). A janela em toda tela é construída
@@ -298,7 +298,11 @@ lixeira com a versão substituída, o modelo de ameaças atualizado, o
 compartilhamento. O modelo de ameaças antes do compartilhamento é a razão
 do memorando para a ordem: o item 6 do
 [0073](adr/0073-self-hosted-server-first.md) pede segurança por inteiro
-antes do primeiro usuário que não seja o mantenedor.
+antes do primeiro usuário que não seja o mantenedor. Os itens 3.13, 3.14
+e 3.16 foram construídos, e o 3.15 feito, na noite de 2026-10-11 para 12,
+e nenhum foi lançado ainda; as perguntas em aberto que a construção
+levantou foram mandadas ao mantenedor na mesma noite, cada uma listada no
+Status da ADR dela.
 
 ### Decisões que precisam sair durante a fase
 

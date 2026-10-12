@@ -389,6 +389,15 @@ accepted by the maintainer on 2026-10-11 (*"Mas eu tinha confirmado"* to
 the recommendations). The board's co-editing stays `[OPEN]` on purpose
 (item 12); merge by block of offline edits stays later, for its own ADR.
 
+**Built on the night of 2026-10-11 to 12** (f0d7398, 807c8c9, 2de0737, cb7b29d and 5add311, merged into `feat/universo` by 817886e on 2026-10-12); [0073](0073-self-hosted-server-first.md) item 7 and
+[0079](0079-sync-a-local-folder-with-a-server.md) items 7 and 8 got
+their Revisions lines on 2026-10-12, as Consequences asks. The open
+questions the building raised were sent to the maintainer the same night
+and wait for their answers: where item 15's setting lives; the waits of
+5 s for the upload before a join (item 7) and of 4 s for the rejoins
+before a pass (item 9); the writes of properties and of PDFs
+through the room; and the board (item 12).
+
 Proposed on 2026-10-10. The maintainer approved the direction in session;
 the items are the author's. To be read by Opus 5.5 before it is accepted.
 For the maintainer, each with a recommendation: whether a note joins on

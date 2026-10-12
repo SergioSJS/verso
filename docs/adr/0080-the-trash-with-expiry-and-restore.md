@@ -261,6 +261,15 @@ read by Opus 5.5 (the handoff of 2026-10-10 and the answers' reading);
 accepted by the maintainer on 2026-10-11 (*"Mas eu tinha confirmado"* to
 the recommendations). No `[OPEN]` item stays open.
 
+**Built on the night of 2026-10-11 to 12** (8ad89d2, 9c10495, 02903f1,
+173cf7e and f3edc42, with item 12; the fix 5b5fb9c). The open questions
+the building raised were sent to the maintainer the same night and wait
+for their answers: whether a replaced version is kept only when a
+device's write replaced it (item 12); the range of days the owner may
+set (item 3); where a desktop folder's retention lives; a restore
+against the folder's quota (item 8); and the device's name on a deletion
+carried out by sync.
+
 Proposed on 2026-10-10. To be read by Opus 5.5 before it is accepted. For
 the maintainer, each with a recommendation: the retention's default
 (item 3; 30 days); whether the owner changes a folder's retention from the

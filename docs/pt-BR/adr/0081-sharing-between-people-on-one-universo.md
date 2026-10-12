@@ -351,6 +351,16 @@ respostas); aceita pelo mantenedor em 2026-10-11 (*"Mas eu tinha
 confirmado"* às recomendações). O histórico das mudanças de um arquivo
 segue `[ABERTO]` de propósito, para uma ADR própria.
 
+**Construída na noite de 2026-10-11 para 12** (9e725c2, 4c49939,
+7a648e0, acb1645 e 657fab1, juntados ao `feat/universo` pelo 2f25923 em
+2026-10-12). As perguntas em aberto que a construção levantou foram
+mandadas ao mantenedor na mesma noite e esperam as respostas: uma
+renomeação por quem recebe diante dos links do dono vindos de fora do
+compartilhamento; um dono convidando pessoas sem conta; anexos na raiz
+do cofre (item 11); o que quem recebe vê dos agregados da pasta; e o
+sync de um compartilhamento revogado, desligado no aparelho de quem
+recebe.
+
 Proposta em 2026-10-10. A ser lida por Opus 5.5 antes de ser aceita. Para
 o mantenedor, cada um com uma recomendação: um nome próprio para um
 compartilhamento (item 3; não); quem compartilha, e recompartilhar (item

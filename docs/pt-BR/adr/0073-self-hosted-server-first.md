@@ -119,6 +119,19 @@
   um id próprio que quem recebe abre e sincroniza como pasta; por nota e
   por bloco (Q9 da spec) continuam abertos. A redação antiga do Status
   fica.
+  2026-10-12 — item 7, com o [0082](0082-live-co-editing-of-a-synced-folder.md) construído
+  (aceito em 2026-10-11; f0d7398, 807c8c9, 2de0737, cb7b29d e 5add311, juntados ao `feat/universo` pelo 817886e em 2026-10-12): o
+  app desktop numa pasta local **sincronizada** também entra nas salas.
+  Uma nota de uma pasta assim entra na sala do servidor enquanto o
+  aparelho está conectado, pelo próprio link do sync, como o navegador e o
+  desktop online entram; enquanto a nota está ao vivo, só o sync escreve o
+  arquivo local, baixando o que a sala salva; uma conexão que cai no meio
+  de uma edição leva a nota para o local com o texto guardado e salvo no
+  computador, nada perdido, e a volta entra de novo na sala, ou, quando a
+  sala é outra (a folga passou, o servidor reiniciou), termina numa cópia
+  de conflito ao lado da versão do servidor; um leitor está presente na
+  sala, com cursor e nome, e as edições dele são recusadas. As palavras do
+  item não mudam; a coedição do board segue `[ABERTO]` (item 12 do 0082).
 
 ## Contexto
 
@@ -360,6 +373,9 @@ que segue `[ABERTO]` está listado no Status.
    2026-10-09**: a edição simultânea de notas é construída na mesma rodada
    do servidor, e a primeira versão do servidor já a tem, com a janela no
    navegador e o app desktop conectando (item 12).
+   *(Ampliado em 2026-10-12, uma linha de Revisões: o app desktop numa
+   pasta local sincronizada também entra, enquanto o sync dela está
+   conectado, [0082](0082-live-co-editing-of-a-synced-folder.md).)*
 8. **Celular e tablet: o navegador primeiro.** A janela servida pelo
    servidor é o cliente móvel (PWA, instalável em Android e iPadOS, como o
    [0025](0025-own-server-and-mobile-pwa.md) propôs; no iPadOS pede

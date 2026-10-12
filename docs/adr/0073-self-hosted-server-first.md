@@ -116,6 +116,19 @@
   day): a share is a grant on a path of one folder, with an id of its own
   the receiver opens and syncs as a folder; per note and per block (spec
   Q9) stay open. The old wording of the Status is kept.
+  2026-10-12 — item 7, with [0082](0082-live-co-editing-of-a-synced-folder.md) built (accepted
+  2026-10-11; f0d7398, 807c8c9, 2de0737, cb7b29d and 5add311, merged into `feat/universo` by 817886e on 2026-10-12): the
+  desktop app on a **synced** local folder joins the rooms too. A note of
+  such a folder joins the server's room while the device is connected,
+  over the sync's own link, as the browser and the online desktop do;
+  while the note is live, sync alone writes the local file, downloading
+  the room's saves; a connection that drops in the middle of an edit takes
+  the note local with its text kept and saved on the computer, nothing
+  lost, and the return rejoins the room, or, when the room is another (the
+  grace passed, the server restarted), ends in a conflict copy beside the
+  server's version; a reader is present in the room, with cursor and
+  name, and its edits are refused. The item's words are unchanged; the
+  board's co-editing stays `[OPEN]` (0082 item 12).
 
 ## Context
 
@@ -349,6 +362,8 @@ the date; what stays `[OPEN]` is listed in the Status.
    **Decided on 2026-10-09**: simultaneous editing of notes is built in
    the same round as the server, and the first release of the server has
    it, with the browser window and the desktop app connecting (item 12).
+   *(Widened on 2026-10-12, a Revisions line: the desktop app on a synced
+   local folder joins too, while its sync is connected, [0082](0082-live-co-editing-of-a-synced-folder.md).)*
 8. **Phone and tablet: the browser first.** The window served by the server
    is the mobile client (PWA, installable on Android and iPadOS, as
    [0025](0025-own-server-and-mobile-pwa.md) proposed; on iPadOS it asks for
