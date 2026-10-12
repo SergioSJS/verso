@@ -245,6 +245,7 @@ value counts as not set.
 | `VERSO_SMTP_URL` | no | the host's mail server (`smtps://user:password@host:465`, or `smtp://…:587?tls=required`): sign-in links, "forgot the password" and invitations sent by e-mail |
 | `VERSO_MAIL_FROM` | no | the sender of those e-mails; `Verso <verso@` the public address's host `>` by default |
 | `VERSO_FOLDER_QUOTA` | no | the quota a new folder gets: bytes, or a size such as `500MB` or `10GB`; none when unset. The console (`/admin`, Folders) changes each folder's ([ADR 0077](../adr/0077-the-server-administration-console-and-folder-quotas.md)) |
+| `VERSO_TRASH_DAYS` | 30 | how many days a folder's trash (`.trash/`) keeps deleted files, and the versions a device's write replaced; `0` keeps them forever. The console's folder page sets each folder's, and the folder's owner may shorten it from the window ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)). The trash is swept at start and once a day; it is shown, not counted against a quota, and when a folder's trash alone passes its quota the oldest items expire early |
 
 Without `VERSO_SMTP_URL` nothing is sent: the admin copies the invitation and reset links by hand.
 

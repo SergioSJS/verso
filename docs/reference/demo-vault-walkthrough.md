@@ -320,6 +320,19 @@ point 13).
    scrolls it and moves nothing; a finger held on a row and lifted opens
    its menu; held and then moved, it drags the row into a folder. Level: H
    (touch moves only in Chromium); E: `touch.spec.mjs`.
+11. Note 14, "A Lixeira" ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)):
+   delete a note, make another with its name, and open the trash from the
+   palette ("Abrir a lixeira"), from the tree's right-click on empty space,
+   or from *Ajustes › Arquivos e links*, where the trash shows beside the
+   folder's space: the list has a header row, the note with when and where
+   it was; "Restaurar" puts it beside the new one as `<nota> (restaurado
+   <data>).md` and says so; *Manter arquivos apagados por* "7 dias" removes
+   at once what was deleted longer ago; "Apagar agora" and "Esvaziar a
+   lixeira" ask in the page with the size. Level: H; E: `trash.spec.mjs`
+   (also at a phone's and a tablet's size); S:
+   `crates/verso-core/tests/trash.rs` (the sweep's guardrail, the quota's
+   guard), `crates/verso-fs/src/trashbin/tests.rs` (no symlink followed);
+   A: the files on disk and the log's lines (`manual-checks.md`).
 
 ## 7. The web
 
@@ -689,6 +702,15 @@ rest below and in `manual-checks.md`.
    in *Servidores* (`tests_sync.rs`,
    `an_ended_sessions_connection_is_closed_at_once`); two real computers,
    by hand.
+9. The trash on a server ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)):
+   a device writes other bytes over a note; *Ajustes › Lixeira* lists the
+   version it replaced, "substituído por" the device, and "Restaurar" puts
+   it beside the note; the console's folder page shows the trash, "fora da
+   cota", and its days (e2e-server, "a device's write keeps what it
+   replaced"). An editor restores but deletes nothing for good, a reader
+   sees no trash, the owner shortens the days under the admin's, and the
+   console sets and empties it; the sweep expires what is past its days and
+   the oldest while a trash alone passes the quota (`tests_trash.rs`).
 
 ## 14. The end
 
