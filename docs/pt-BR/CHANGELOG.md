@@ -45,6 +45,7 @@ versão de teste.
 
 ### Corrigido
 
+- **Uma página da janela no navegador, deixada enquanto ainda carrega, não acusa mais um erro**: o worker que faz as cópias menores das imagens de um board é criado na primeira vez que um board precisa de uma, não quando a janela carrega, e se não consegue começar, as imagens são desenhadas a partir dos originais em vez de ficarem esperando.
 - **"Guardar os dois" quando a nota mudou em disco enquanto você digitava**: a tela de conflito do editor oferece uma terceira escolha além de "descartar o meu" e "gravar o meu por cima": a versão do disco fica com o nome e o seu texto vai para uma cópia ao lado, nomeada como o sync nomeia; o mesmo num board, num arquivo de texto e numa nota embutida num board.
 - **Uma nota apagada fora enquanto a aba tinha texto não salvo** agora diz isso em palavras — "Esta nota foi apagada ou movida fora do Verso. O seu texto continua aqui." — com "Salvar de novo" e "Fechar sem salvar"; não falha mais a cada autosave com erro no log.
 - **Links que um rename não conseguiu atualizar** são nomeados num aviso com "Tentar de novo", em vez de uma linha cortada na barra de status.
