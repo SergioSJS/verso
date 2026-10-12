@@ -806,8 +806,11 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
     vivo — um valor, uma caixa de marcar — entra na sala ao lado do que
     outra pessoa digita ali, nunca no arquivo, que segue o salvamento da
     sala; um adesivo, a célula de uma base e a citação de um PDF numa
-    nota de anotações ao vivo vão do mesmo jeito (e2e, `live.spec.mjs`,
-    "a property set in the panel"; `roomWrites.test.mjs`). Dois aparelhos e um navegador numa sala, uma queda e
+    nota de anotações ao vivo vão do mesmo jeito, sem `write_note` e sem
+    cópia de conflito, esteja a nota numa aba daqui ou ao vivo só com outra
+    pessoa, a janela entrando na sala dela para a única escrita (e2e,
+    `live.spec.mjs`, "a property set in the panel"; `live-writes.spec.mjs`;
+    `roomWrites.test.mjs`). Dois aparelhos e um navegador numa sala, uma queda e
     uma volta dentro da carência e depois dela, a edição de um programa de
     fora, um leitor, uma pausa, e o teste de propriedade de que nenhuma
     edição se perde — os testes Rust do host contra um servidor de verdade
