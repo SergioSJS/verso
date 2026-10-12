@@ -26,6 +26,14 @@ status: ativo
 
 ---
 
+## Da pasta ou desta máquina
+
+Três ajustes são da pasta, não do computador: os **Favoritos**, as **pastas de build** e o **`.gitignore`** (em **Arquivos e links**) e o **Nome da nota da pasta** (em **Organização**). Eles ficam dentro da própria pasta, em `.verso/settings.json`, e viajam com ela: abra a pasta sincronizada em outro computador — pela sincronização do Verso (veja [[23 - Verso num Servidor]]), iCloud, OneDrive, Syncthing ou git — e eles estão lá. Ao lado de cada um, os Ajustes dizem **Da pasta** ou **Desta máquina**: desta máquina enquanto a pasta não tem o arquivo, que só aparece na primeira mudança — abrir uma pasta nunca o cria.
+
+Experimente: em **Arquivos e links**, desligue **Ignorar pastas de build** e veja a etiqueta passar a **Da pasta**; ligue de novo para voltar.
+
+---
+
 ## Aparência
 
 - **Tema**: **Sistema**, **Claro** ou **Escuro**.

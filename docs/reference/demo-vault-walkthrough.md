@@ -510,6 +510,20 @@ point 13).
    (`scripts/check-linux-vm.sh --install`, the app opened on Ubuntu's
    desktop; `--webkit`, the suite on Linux's WebKit); A (Debian, Fedora,
    the AppImage).
+9. The folder's settings (note 15, "Da pasta ou desta máquina"; [ADR
+   0070](../adr/0070-what-travels-with-the-folder.md) items 1–2): in a
+   folder just imported, Ajustes › Arquivos e links › "Ignorar pastas de
+   build" says *Desta máquina*, and the folder holds no `.verso/`;
+   turned off, it says *Da pasta* and `.verso/settings.json` appears with
+   `"ignoreBuildDirs": false`; a star on a note adds it to `bookmarks`
+   there; Organização › "Nome da nota da pasta" and "Favoritos" say *Da
+   pasta* too. In a folder whose bookmarks this computer kept before, the
+   first opening moves them into the file, once. Level: H; E:
+   `folder-settings.spec.mjs`; U (`cargo test -p verso-core --test
+   folder_settings`; the host's `tests_sync.rs`, "the folder's settings
+   cross like a file and a conflict keeps both", against a real server;
+   `npm test`'s `folderLayer.test.mjs`); A (two computers syncing one
+   folder, by hand).
 
 ## 11. Organizing: stickers, covers, folder pages, order
 

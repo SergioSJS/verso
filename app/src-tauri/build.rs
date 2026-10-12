@@ -65,6 +65,8 @@ fn main() {
         "set_focuses",
         "can_sync_focuses",
         "set_sync_focuses",
+        "get_folder_settings",
+        "set_folder_settings",
         "log_write",
         "log_read",
         "set_menu_language",

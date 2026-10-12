@@ -524,6 +524,20 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    (`scripts/check-linux-vm.sh --install`, o app aberto no desktop do
    Ubuntu; `--webkit`, a suíte no WebKit do Linux); A (Debian, Fedora, o
    AppImage).
+9. Os ajustes da pasta (nota 15, "Da pasta ou desta máquina"; [ADR
+   0070](../adr/0070-what-travels-with-the-folder.md) itens 1–2): numa
+   pasta recém-importada, Ajustes › Arquivos e links › "Ignorar pastas de
+   build" diz *Desta máquina*, e a pasta não tem `.verso/`; desligado,
+   diz *Da pasta* e aparece `.verso/settings.json` com
+   `"ignoreBuildDirs": false`; uma estrela numa nota a acrescenta a
+   `bookmarks` ali; Organização › "Nome da nota da pasta" e "Favoritos"
+   também dizem *Da pasta*. Numa pasta cujos favoritos este computador já
+   guardava, a primeira abertura os leva para o arquivo, uma vez. Nível:
+   H; E: `folder-settings.spec.mjs`; U (`cargo test -p verso-core --test
+   folder_settings`; o `tests_sync.rs` do host, "the folder's settings
+   cross like a file and a conflict keeps both", contra um servidor de
+   verdade; o `folderLayer.test.mjs` do `npm test`); A (dois computadores
+   sincronizando uma pasta, à mão).
 
 ## 11. Organização: figurinhas, capas, páginas de pasta, ordem
 

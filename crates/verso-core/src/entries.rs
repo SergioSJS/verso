@@ -63,6 +63,30 @@ impl Workspace {
     pub fn rename_entry(&mut self, from: &str, to: &str) -> Result<Renamed, CoreError> {
         let old = self.entry_key(from)?;
         let new = self.entry_key(to)?;
+        // Inside the folder's settings directory a move is the file's
+        // alone, never a note's nor the index's; into or out of it, none
+        // (ADR 0070).
+        let (in_old, in_new) = (
+            verso_fs::is_settings_path(&old),
+            verso_fs::is_settings_path(&new),
+        );
+        if in_old || in_new {
+            if !(in_old && in_new) {
+                return Err(CoreError::Confined(ConfinementError::Hidden));
+            }
+            let (_, report) = self
+                .root
+                .rename(Path::new(&old), Path::new(&new))
+                .map_err(CoreError::Write)?;
+            self.layer_written();
+            return Ok(Renamed {
+                path: new,
+                rewrites: Vec::new(),
+                skipped: Vec::new(),
+                warnings: report.warnings(),
+                also: Vec::new(),
+            });
+        }
         if !self.dirs.contains(&old) && is_note(&old) {
             return self.rename_note(&old, &new);
         }
@@ -246,6 +270,9 @@ impl Workspace {
             self.refresh(&mut warnings);
         } else {
             self.forget_file(&key);
+        }
+        if verso_fs::is_settings_path(&key) {
+            self.layer_written();
         }
         Ok(Trashed {
             path: gone.to_string_lossy().into_owned(),
