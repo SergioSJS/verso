@@ -5,6 +5,8 @@
 
 import { test as base, expect } from "@playwright/test";
 
+import { leakFixtures } from "./leaks.mjs";
+
 /** Console lines that are not the window's errors: WebKit's line for a
  *  response that failed, which the fixture reports itself, by address. */
 const NOISE = [/^Failed to load resource: the server responded with a status of \d+/];
@@ -173,6 +175,7 @@ export class App {
 }
 
 export const test = base.extend({
+  ...leakFixtures,
   app: async ({ page }, use) => {
     const problems = [];
     // The window's work area fills the window, always: a draft a library

@@ -6,7 +6,12 @@
 
 import { createHash } from "node:crypto";
 
-import { expect, test } from "@playwright/test";
+import { expect, test as base } from "@playwright/test";
+
+import { leakFixtures } from "../e2e/leaks.mjs";
+
+/** Every test ends with nothing of its own left open (e2e/leaks.mjs). */
+const test = base.extend(leakFixtures);
 
 const ADMIN = { email: "admin@verso.test", password: "uma senha bem longa" };
 
