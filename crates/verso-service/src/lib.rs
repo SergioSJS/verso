@@ -28,7 +28,7 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError, RwLock, Weak};
 use verso_contract::{
     ContractError, ErrorKind, FolderChanged, FolderInfo, IndexProgress, IndexSummary,
 };
-use verso_core::{CoreError, ReadError, Workspace, WriteError};
+use verso_core::{ConfinementError, CoreError, ReadError, Workspace, WriteError};
 
 pub mod convert;
 pub mod files;
@@ -128,6 +128,10 @@ pub fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
 #[must_use]
 pub fn convert(e: CoreError) -> ContractError {
     let kind = match &e {
+        // A new name beside its case twin (spec Q8): an answer of its own
+        // kind, which the window and sync tell apart without its text.
+        CoreError::Confined(ConfinementError::CaseTwin)
+        | CoreError::Write(WriteError::Confined(ConfinementError::CaseTwin)) => ErrorKind::CaseTwin,
         CoreError::Confined(_) | CoreError::InvalidKey => ErrorKind::Refused,
         CoreError::Write(WriteError::Confined(_)) => ErrorKind::Refused,
         CoreError::Read(ReadError::Unavailable) => ErrorKind::Unavailable,

@@ -916,6 +916,13 @@ export type ErrorKind =
 /**  Something already stands where a note would be created or moved. */
 "exists" | 
 /**
+ *  A new name differs only in case from an entry its folder already
+ *  lists — `nota.md` beside `Nota.md`: a Mac or Windows keeps the two
+ *  as one file, so nothing was made (spec Q8, decided 2026-10-12). An
+ *  answer, a name to choose again — not a fault.
+ */
+"case_twin" | 
+/**
  *  The folder's quota on its server would be passed: nothing was
  *  written; a write that shrinks the folder is always allowed (ADR
  *  0077 item 5).

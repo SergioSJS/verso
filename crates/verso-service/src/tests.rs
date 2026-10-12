@@ -158,3 +158,48 @@ fn the_bin_of_a_local_folder_is_listed_restored_and_emptied() {
         })
         .unwrap();
 }
+
+/// A new name beside an entry that differs from it only in case crosses
+/// the contract as its own kind (spec Q8, decided 2026-10-12), which the
+/// window and sync match — never its English text; any other refusal of
+/// a name stays `refused`.
+#[test]
+fn a_case_twin_crosses_as_its_own_kind() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let service = Service::new(Some(config.path().to_owned()));
+    let path = dir.path().to_owned();
+    let opened = service
+        .open("a", move |c| Workspace::open(&path, c))
+        .unwrap();
+    service.attach("a", opened);
+    let create = |name: &str| {
+        service
+            .dispatch(
+                "a",
+                "create_note",
+                serde_json::json!({"name": name, "text": "x"}),
+            )
+            .unwrap()
+    };
+    create("Nota").unwrap();
+    assert_eq!(create("nota").unwrap_err().kind, ErrorKind::CaseTwin);
+    assert_eq!(create("../fora").unwrap_err().kind, ErrorKind::Refused);
+    let folder = service
+        .dispatch("a", "create_folder", serde_json::json!({"path": "Pasta"}))
+        .unwrap();
+    assert!(folder.is_ok(), "{folder:?}");
+    let twin = service
+        .dispatch("a", "create_folder", serde_json::json!({"path": "pasta"}))
+        .unwrap();
+    assert_eq!(twin.unwrap_err().kind, ErrorKind::CaseTwin);
+    create("Outra").unwrap();
+    let renamed = service
+        .dispatch(
+            "a",
+            "rename_note",
+            serde_json::json!({"from": "Outra.md", "to": "NOTA.md"}),
+        )
+        .unwrap();
+    assert_eq!(renamed.unwrap_err().kind, ErrorKind::CaseTwin);
+}
