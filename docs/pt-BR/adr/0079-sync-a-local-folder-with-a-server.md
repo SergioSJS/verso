@@ -54,7 +54,22 @@
   (*"Pode ter esse limite de 1gb"*, registrado pelo 1cdf0a1), e é por essa
   confirmação que está decidido, com o "para que nenhum arquivo fique de
   fora pelo tamanho" do Status emendado para "nenhum arquivo abaixo de
-  1 GiB" — as palavras antigas guardadas lá.
+  1 GiB" — as palavras antigas guardadas lá. 2026-10-12 — itens 7 e 8,
+  com o [0082](0082-live-co-editing-of-a-synced-folder.md) construído (aceito em
+  2026-10-11; f0d7398, 807c8c9, 2de0737, cb7b29d e 5add311, juntados ao `feat/universo` pelo 817886e em 2026-10-12):
+  uma nota de uma pasta sincronizada entra na sala do servidor enquanto o
+  aparelho está conectado. Enquanto a nota está ao vivo, o arquivo local
+  tem um só escritor no Verso, o sync, que baixa sobre ele o que a sala
+  salva; uma mudança local cujo hash é o da própria aba não é enviada nem
+  é conflito, e assim uma nota ao vivo no aparelho não faz cópia de
+  conflito do próprio texto (item 8). A cópia continua para edições
+  offline dos dois lados e para um programa fora do Verso que edita o
+  arquivo depois que a sala salvou (itens 7 e 8). Uma conexão que cai no
+  meio de uma edição leva a nota para o local, o texto guardado e escrito
+  aqui, nada perdido; a volta entra de novo na sala, ou, quando a sala é
+  outra, termina na cópia de conflito do item 8. Um leitor, que
+  sincroniza para ler (item 1), está presente na sala e as edições dele
+  são recusadas. As palavras dos itens não mudam.
 
 ## Contexto
 
@@ -137,6 +152,9 @@ Aceita (2026-10-10, Status).
    servidor — onde uma nota aberta numa sala de edição simultânea (item 7
    da 0073) a recebe como recebe qualquer escrita, juntada à sala ou
    parando-a para as pessoas nela escolherem.
+   *(Com o [0082](0082-live-co-editing-of-a-synced-folder.md) construído, 2026-10-12,
+   Revisões: enquanto uma nota está ao vivo numa sala no aparelho, só o
+   sync escreve o arquivo local dela.)*
 8. **Uma mudança dos dois lados desde a base é um conflito**: a versão do
    servidor fica com o nome do arquivo; a versão local é guardada ao lado
    como `<nome> (conflito, <aparelho>, <aaaa-mm-dd hh.mm>).<ext>` — no
@@ -167,6 +185,10 @@ Aceita (2026-10-10, Status).
    conflitos terem sido vistos em uso: foram — o soak da campanha de
    2026-10-11 fez 42 cópias de uma nota editada de dois aparelhos a cada
    30 s.
+   *(Com o [0082](0082-live-co-editing-of-a-synced-folder.md) construído, 2026-10-12,
+   Revisões: uma nota ao vivo no aparelho não faz cópia de conflito do
+   próprio texto; a cópia continua para edições offline e para programas
+   fora do Verso.)*
 9. **Apagamentos**: um arquivo apagado de um lado e sem mudança do outro é
    apagado lá (para o `.trash/` da pasta no computador, para onde vai
    todo apagamento no Verso — item 9 da

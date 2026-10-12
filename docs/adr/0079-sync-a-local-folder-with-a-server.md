@@ -54,7 +54,20 @@
   (*"Pode ter esse limite de 1gb"*, recorded by 1cdf0a1), and on that
   confirmation it is decided, with the Status's "so that no file is left
   out for its size" amended to "no file under 1 GiB" — the old words kept
-  there.
+  there. 2026-10-12 — items 7 and 8, with [0082](0082-live-co-editing-of-a-synced-folder.md)
+  built (accepted 2026-10-11; f0d7398, 807c8c9, 2de0737, cb7b29d and 5add311, merged into `feat/universo` by 817886e on 2026-10-12):
+  a note of a synced folder joins the server's room while the device is
+  connected. While the note is live, the local file has one writer in
+  Verso, sync, which downloads the room's saves over it; a local change
+  whose hash is the tab's own is neither uploaded nor a conflict, so a
+  note live on the device makes no conflict copy of its own text (item
+  8). The copy remains for offline edits on both sides and for a program
+  outside Verso that edits the file after the room has saved (items 7 and
+  8). A connection that drops in the middle of an edit takes the note
+  local, its text kept and written here, nothing lost; the return rejoins
+  the room, or, when the room is another, ends in item 8's conflict copy.
+  A reader, which syncs to read (item 1), is present in the room and its
+  edits are refused. The items' words are unchanged.
 
 ## Context
 
@@ -132,6 +145,9 @@ Accepted (2026-10-10, Status).
    the service on the server — where a note open in a room of
    simultaneous editing (0073 item 7) receives it as any other write does,
    merged into the room or stopping it for the people in it to choose.
+   *(With [0082](0082-live-co-editing-of-a-synced-folder.md) built, 2026-10-12, Revisions:
+   while a note is live in a room on the device, sync alone writes its
+   local file.)*
 8. **A change on both sides since the base is a conflict**: the server's
    version keeps the file's name; the local version is kept beside it as
    `<name> (conflict, <device>, <yyyy-mm-dd hh.mm>).<ext>` — in the
@@ -160,6 +176,9 @@ Accepted (2026-10-10, Status).
    10's merge by block, which comes after conflicts have been seen in use:
    they were — the campaign's soak of 2026-10-11 made 42 copies of one
    note edited from two devices every 30 s.
+   *(With [0082](0082-live-co-editing-of-a-synced-folder.md) built, 2026-10-12, Revisions:
+   a note live on the device makes no conflict copy of its own text; the
+   copy remains for offline edits and for programs outside Verso.)*
 9. **Deletions**: a file deleted on one side and unchanged on the other is
    deleted there (into the folder's `.trash/` on the computer, as every
    deletion in Verso goes — [0080](0080-the-trash-with-expiry-and-restore.md)

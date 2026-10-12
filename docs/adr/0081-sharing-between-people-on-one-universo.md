@@ -330,6 +330,15 @@ accepted by the maintainer on 2026-10-11 (*"Mas eu tinha confirmado"* to
 the recommendations). The history of a file's changes stays `[OPEN]` on
 purpose, for its own ADR.
 
+**Built on the night of 2026-10-11 to 12** (9e725c2, 4c49939, 7a648e0,
+acb1645 and 657fab1, merged into `feat/universo` by 2f25923 on
+2026-10-12). The open questions the building raised were sent to the
+maintainer the same night and wait for their answers: a receiver's
+rename against the owner's links from outside the share; an owner
+inviting people who have no account; attachments at the vault's root
+(item 11); what a receiver sees of the folder's aggregates; and a
+revoked share's sync, turned off on the receiver's device.
+
 Proposed on 2026-10-10. To be read by Opus 5.5 before it is accepted. For
 the maintainer, each with a recommendation: a share's own name (item 3;
 no); who shares, and re-sharing (item 4; the owner only, no re-sharing);

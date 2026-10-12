@@ -38,6 +38,11 @@
   Recorded as a section of its own, "On a server", after the handles
   group; the desktop's local folder is unchanged, and the lines this
   revises are kept, each with a note.
+  2026-10-12 — one behaviour of "On a server" changed by commit 4ffe8a9,
+  the fix of a race, and recorded in that section **to be confirmed by
+  the maintainer**: a dangling symlink whose target is inside the folder
+  is treated as a new file inside, no longer refused as a link that
+  leaves. Nothing decided by it; the Status says what waits.
 
 ## Context
 
@@ -382,6 +387,25 @@ for the server, option (a) of that plan:
   costs named there. The desktop's local folder is unchanged: every
   symlink is followed, as decided on 2026-09-22.
 
+*Changed on 2026-10-12 by commit 4ffe8a9 — **to be confirmed by the
+maintainer**, to whom it was sent the same night.* It came from a race.
+The server's check canonicalized a path and, when that failed while an
+entry stood at the name, refused the entry as a link that leaves; a file
+being replaced at that instant — missing for a moment, or not resolvable
+while a rename lands (another program's save, a network file system, a
+file pending deletion on Windows) — was refused so, logged as "a link
+that leads out of the folder", and the server kept its old state of the
+file until its next walk. The fix makes the check component by
+component, reading each entry itself: only a symlink can move a path out
+of the folder; a plain entry, or a final file that is not there, is
+judged by its folder; a link whose end is missing is judged by where its
+text points, the hops bounded as the kernel bounds a loop; a `..` that
+cannot be resolved is refused. A link that leaves is refused as before,
+whether or not its end exists. The one behaviour that changed with it:
+**a dangling symlink whose target is inside the folder is no longer
+refused as a link that leaves; it is treated as a new file inside.** The
+desktop's local folder is untouched: every symlink is followed there.
+
 ## Consequences
 
 - None of these answers can come "in the code": each one becomes a line in this
@@ -499,4 +523,6 @@ on a server: decided on 2026-10-09 by the maintainer, Accepted. The watcher: bui
 2026-09-24 by the maintainer, Accepted. The items marked **provisional** inside
 the two groups decided on 2026-09-22 are not decided: they are what the
 feature 2 code does, recorded so that nothing is settled by silence, and they
-wait for the maintainer.
+wait for the maintainer. A dangling symlink whose target is inside the
+folder, on a server, treated as a new file inside since 4ffe8a9
+(2026-10-12, "On a server"): waits for the maintainer's confirmation.
