@@ -329,7 +329,10 @@ desde o dia 0"* (safe from day zero), were being built that night on
 item 8's revoked sync turned off with a notice; 3.17 to 3.19 come in the
 next round. *(Built: 3.20 in 3bc56ae, 3.21 in 5838c10, the revoked sync in
 6c7800e, merged into `feat/universo` by d2a72b0 on 2026-10-12; 241c233
-records the threat model's gaps 11 and 12 closed.)*
+records the threat model's gaps 11 and 12 closed. 3.17 to 3.19, and
+3.22, were built on 2026-10-12 — *"Ajuste todas essas pendências agora"*
+— and merged into `feat/universo` by 5b07712, 35d30ae and 05033f2, with
+the campaign's F31: a file crosses in pieces read from the disk.)*
 
 **Carried from Phase 2** (the maintainer, 2026-10-12, closing Phase 2 on
 2026-10-09). Phase 3 ends when no task of it is pending, and these are

@@ -160,7 +160,10 @@ Aceita (2026-10-10, Status).
    `sync_changes` responde pode trazer `device`, o nome do aparelho cujo
    sync a fez, como a pessoa o definiu em Ajustes › Servidores — o "quem
    fez" do item 4 dito aos aparelhos; um aparelho do sync 1 ignora o
-   campo, e por um compartilhamento ele fica de fora.)*
+   campo, e por um compartilhamento ele fica de fora. A mesma versão 2
+   leva um pedaço de arquivo como mensagem binária do WebSocket em vez de
+   base64 — item 12, revisto no mesmo dia; um lado do sync 1 ainda manda e
+   recebe base64.)*
 6. **Quando**: nos lotes do watcher local (com espera), nos avisos do
    servidor, ao iniciar e ao reconectar, e por uma varredura a cada cinco
    minutos como rede de segurança. Offline, nada fica numa fila além da
