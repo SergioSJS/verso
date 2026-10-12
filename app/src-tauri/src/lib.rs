@@ -481,23 +481,35 @@ fn reindex<R: tauri::Runtime>(
 
 /// What this side can do (ADR 0027; ADR 0076 item 11): the desktop app,
 /// with a folder on this computer, does everything the window offers.
+// And, while the folder syncs with its link up, it edits its notes with the
+// people in the server's rooms, as far as the link says (ADR 0082 item 3).
+// Not in the doc comment: that is the bindings', whose hash is the
+// contract's version, and this answer changes no type (item 3).
 #[tauri::command]
 #[specta::specta]
-fn capabilities() -> Result<Capabilities, ContractError> {
+fn capabilities<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+) -> Result<Capabilities, ContractError> {
+    let live = live_latency(&app, window.label());
+    let mut can = vec![
+        Can::Write,
+        Can::Reveal,
+        Can::CopyPath,
+        Can::Windows,
+        Can::WebViews,
+        Can::Agents,
+        Can::Updates,
+        Can::Devtools,
+        Can::LocalFolders,
+    ];
+    if live.is_some() {
+        can.push(Can::Collab);
+    }
     Ok(Capabilities {
         host: Host::Desktop,
-        can: vec![
-            Can::Write,
-            Can::Reveal,
-            Can::CopyPath,
-            Can::Windows,
-            Can::WebViews,
-            Can::Agents,
-            Can::Updates,
-            Can::Devtools,
-            Can::LocalFolders,
-        ],
-        latency_ms: None,
+        can,
+        latency_ms: live,
     })
 }
 
@@ -636,7 +648,7 @@ macro_rules! commands_for {
                 log_read,
                 set_menu_language::<$runtime>,
                 reindex::<$runtime>,
-                capabilities,
+                capabilities::<$runtime>,
                 folder_space::<$runtime>,
                 collab_join,
                 collab_update,
@@ -892,7 +904,7 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             // A window on a server's folder sends the folder's commands to
             // the server (remote.rs); every other goes to this app.
             let handler = commands.invoke_handler();
-            move |invoke| match remote::forward(invoke) {
+            move |invoke| match remote::forward(invoke).and_then(live_forward) {
                 None => true,
                 Some(invoke) => handler(invoke),
             }
@@ -1056,6 +1068,8 @@ fn ask_windows_to_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_live;
 #[cfg(test)]
 mod tests_remote;
 #[cfg(test)]

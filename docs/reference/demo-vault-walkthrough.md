@@ -726,6 +726,24 @@ rest below and in `manual-checks.md`.
    share, by `..`, a sibling, a rename, sync's listing, reads and writes,
    `/f/`, the events — the server's Rust tests (`tests_shares.rs`); two
    people and the attachments folder, by hand (`manual-checks.md`).
+11. Editing together in a synced folder ([ADR
+    0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), from note 23's
+    section *Editar junto numa pasta sincronizada*: with the folder syncing,
+    a note opened in *Editar* says *ao vivo, só você* beside its title and
+    in the status bar; another person in it is named (*ao vivo, com Bia*)
+    and their text arrives; what is typed goes to the room, never to the
+    file, which follows the room's save; the link dropped, the note says
+    *local — sem conexão*, keeps its text and saves it here; back, *A nota
+    está ao vivo de novo* and what was typed is in the room; paused, *local
+    — sincronização pausada*; back in another room, the note is read anew
+    with its text; *Ajustes* › *Sincronizar* › *Editar notas junto enquanto
+    online* off, the note leaves the room and, opened again, joins nothing
+    (e2e, `live.spec.mjs`). Two devices and a browser in one room, a drop
+    and a return within the grace and after it, an outside program's edit,
+    a reader, a pause, and the property test that no edit is lost — the
+    host's Rust tests against a real server (`tests_live.rs`); two real
+    computers, by hand (`manual-checks.md`). The demo vault has no server:
+    the steps run in the harness's room or by hand.
 
 ## 14. The end
 

@@ -390,6 +390,7 @@ export class Pane {
     layout().focus(this);
     showOutline(leaf);
     markCurrent();
+    dispatchEvent(new CustomEvent("verso:leaf-active", { detail: leaf }));
     leaf.tab.scrollIntoView({ block: "nearest", inline: "nearest" });
     if (focus) leaf.focusContent();
     this.mark(leaf.path, leaf.kind);

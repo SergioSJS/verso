@@ -746,6 +746,26 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
    sync, leituras e escritas, `/f/`, os eventos — os testes em Rust do
    servidor (`tests_shares.rs`); duas pessoas e a pasta de anexos, à mão
    (`manual-checks.md`).
+11. Editar junto numa pasta sincronizada ([ADR
+    0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), da seção
+    *Editar junto numa pasta sincronizada* da nota 23: com a pasta
+    sincronizando, uma nota aberta em *Editar* diz *ao vivo, só você* ao
+    lado do título e na barra de status; outra pessoa nela aparece pelo
+    nome (*ao vivo, com Bia*) e o texto dela chega; o que se digita vai para
+    a sala, nunca para o arquivo, que segue o salvamento da sala; a conexão
+    caída, a nota diz *local — sem conexão*, mantém o texto e o salva aqui;
+    de volta, *A nota está ao vivo de novo* e o que foi digitado está na
+    sala; pausada, *local — sincronização pausada*; de volta numa sala
+    outra, a nota é lida de novo com o seu texto; *Ajustes* ›
+    *Sincronizar* › *Editar notas junto enquanto online* desligado, a nota
+    sai da sala e, aberta de novo, não entra em nenhuma (e2e,
+    `live.spec.mjs`). Dois aparelhos e um navegador numa sala, uma queda e
+    uma volta dentro da carência e depois dela, a edição de um programa de
+    fora, um leitor, uma pausa, e o teste de propriedade de que nenhuma
+    edição se perde — os testes Rust do host contra um servidor de verdade
+    (`tests_live.rs`); dois computadores de verdade, à mão
+    (`manual-checks.md`). O cofre de demonstração não tem servidor: os
+    passos rodam na sala do harness ou à mão.
 
 ## 14. O fim
 

@@ -217,6 +217,10 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .note-title { flex: 1; margin: 0; font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; font-size: clamp(1.7rem, 2.6vw, 2.4rem); line-height: 1.1; letter-spacing: -.02em; font-variation-settings: "opsz" 72, "SOFT" 40; }
 .note-title:empty { display: none; }
 .dirty-mark { color: var(--seal); font-size: 1.4rem; line-height: 1; }
+/* A synced folder's note, live in the server's room or local (ADR 0082
+   item 14): said in words; the dot only repeats them. */
+.live-mark { flex: none; margin-left: auto; font-size: .78rem; color: var(--ink-3); white-space: nowrap; }
+.live-mark[data-live="live"]::before, .status-live[data-live="live"]::before { content: "● "; color: var(--brass-ink); }
 .save { font-size: .78rem; font-weight: 600; letter-spacing: .04em; color: var(--seal-ink); background: var(--seal); padding: .28rem .7rem; border-radius: 5px; }
 .save:hover { filter: brightness(1.08); }
 .flags { margin: .5rem 0 0; font-size: .82rem; color: var(--brass-ink); }
@@ -293,6 +297,7 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .status-sync { flex: none; padding: .1rem .45rem; font: inherit; font-size: .78rem; color: var(--ink-3); white-space: nowrap; border-radius: 4px; }
 .status-sync:hover { color: var(--ink); background: var(--paper-2); }
 .status-sync.warn { color: var(--seal); }
+.status-live { flex: none; padding: .1rem .45rem; font-size: .78rem; color: var(--ink-3); white-space: nowrap; }
 .panel-sub { margin: 1rem .6rem .3rem; font-family: var(--ui); font-size: .7rem; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
 .links-head { margin: .9rem .6rem .3rem; font-family: var(--ui); font-size: .7rem; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
 .links-section:first-child .links-head { margin-top: .4rem; }

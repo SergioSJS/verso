@@ -23,6 +23,7 @@ use verso_core::sync::{self as engine, Action, FileState, Files, Seen};
 
 use super::*;
 
+pub(crate) mod live;
 mod transfer;
 use transfer::{Refusal, Side};
 
@@ -49,6 +50,8 @@ pub(crate) struct Ctx {
     pub(crate) pt: Box<dyn Fn() -> bool + Send + Sync>,
     /// The status changed: the windows of the folder `key` hear it.
     pub(crate) shown: Shown,
+    /// A room's event, for the windows that hold its note (ADR 0082).
+    pub(crate) told: live::Told,
 }
 
 /// Where a folder's status goes: its key and the status.
@@ -77,6 +80,8 @@ pub(crate) struct Syncer {
     /// What each side ran when the server's contract was not this app's:
     /// the window names both builds (`SyncStatus::versions`).
     versions: Mutex<Option<SyncVersions>>,
+    /// The folder's notes live in the server's rooms (ADR 0082).
+    pub(crate) live: Arc<live::Live>,
 }
 
 impl Syncer {
@@ -101,6 +106,7 @@ impl Syncer {
             dirty: Mutex::new(HashSet::new()),
             disk: Mutex::new(()),
             versions: Mutex::new(None),
+            live: Arc::default(),
         })
     }
 
@@ -125,12 +131,18 @@ impl Syncer {
     /// both sides stay as they are.
     pub(crate) fn turn_off(&self, config: Option<&Path>) -> Result<(), ContractError> {
         let _one = lock(&self.disk);
+        // The live notes leave their rooms (ADR 0082 item 10).
+        live::out(self);
         self.stop();
         off(config, &self.key)
     }
 
     pub(crate) fn pause(&self, paused: bool) {
         self.paused.store(paused, Ordering::Relaxed);
+        // Paused, the live notes leave their rooms (ADR 0082 item 10).
+        if paused {
+            live::out(self);
+        }
         self.wake.notify_one();
     }
 
@@ -588,6 +600,9 @@ pub(crate) async fn link(ctx: &Ctx, s: &Syncer) -> Result<Link, ContractError> {
     let role = mine["role"].as_str().unwrap_or("reader").to_owned();
     let name = mine["name"].as_str().unwrap_or_default().to_owned();
     let (remote, heard, hello) = remote::dial_hello(&login, s.folder.clone()).await?;
+    // A room's events go to the windows as they come, never behind a pass
+    // (ADR 0082 item 2).
+    let heard = live::relay(Arc::clone(&s.live), Arc::clone(&ctx.told), heard);
     if let Some(v) = remote::mismatch(&hello) {
         let refused = remote::mismatch_refused(&v);
         *lock(&s.versions) = Some(v);
@@ -604,6 +619,9 @@ pub(crate) async fn link(ctx: &Ctx, s: &Syncer) -> Result<Link, ContractError> {
         .call("open_server_folder", json!({ "id": s.folder }))
         .await
         .map_err(|e| said(&e))?;
+    // The rooms of the folder's live notes go over this link (ADR 0082
+    // item 2).
+    s.live.connected(Arc::clone(&remote));
     Ok(Link {
         remote,
         heard,
@@ -639,6 +657,10 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
         st.problem = None;
         st.versions = None;
     });
+    // The status just said the link is up: the tabs whose notes were in
+    // rooms come back into them before anything is compared (ADR 0082
+    // item 9).
+    live::rejoined(s).await;
     let remote = Arc::clone(&l.remote);
     there(&remote, &mut l.known).await.map_err(|e| said(&e))?;
     let Some((remote_files, head)) = l.known.as_mut() else {
@@ -657,9 +679,12 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
     let when = chrono::Local::now().format("%Y-%m-%d %H.%M").to_string();
     let copy_name =
         |p: &str, taken: &BTreeSet<String>| engine::conflict_name(p, &device, &when, pt, taken);
+    // A live note's own text, already in its room, is not a change to
+    // send nor a conflict (ADR 0082 items 6 and 9).
+    let planned_on = live::masked(s, &local, remote_files, &state.base);
     // A yes counts for the deletions the person saw, no more, and once.
     let mut plan = engine::plan(
-        &local,
+        planned_on.as_ref().unwrap_or(&local),
         remote_files,
         &state,
         false,
@@ -1041,6 +1066,8 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
             // A burst of changes settles before the next pass.
             tokio::time::sleep(Duration::from_millis(500)).await;
         }
+        // The live notes go local (ADR 0082 item 8).
+        s.live.lost();
         if !gone(&s) && !ended {
             log::write(
                 "WARN",
