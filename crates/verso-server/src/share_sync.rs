@@ -31,25 +31,44 @@ pub async fn command(
     who: &Who,
     client: &str,
     cmd: &str,
-    mut args: Value,
+    args: Value,
     scope: Scope,
 ) -> Result<Value, ContractError> {
     let root = scope.root.clone();
-    let writes: Arc<dyn Fn(&str) -> bool + Send + Sync> = Arc::new(move |p: &str| covers(&root, p));
-    let reads = {
+    let writes: Reach = Arc::new(move |p: &str| covers(&root, p));
+    let reads: Reach = {
         let scope = scope.clone();
         Arc::new(move |p: &str| scope.to_rel(p).is_some())
-            as Arc<dyn Fn(&str) -> bool + Send + Sync>
     };
-    let answer = match cmd {
+    let mut answer = run(server, who, client, cmd, args, &scope, (reads, writes))
+        .await
+        .map_err(|e| scope.error(e))?;
+    if answer["path"].is_string() {
+        rel(&scope, &mut answer["path"]);
+    }
+    Ok(answer)
+}
+
+type Reach = Arc<dyn Fn(&str) -> bool + Send + Sync>;
+
+async fn run(
+    server: &Arc<Server>,
+    who: &Who,
+    client: &str,
+    cmd: &str,
+    mut args: Value,
+    scope: &Scope,
+    (reads, writes): (Reach, Reach),
+) -> Result<Value, ContractError> {
+    Ok(match cmd {
         "sync_state" => {
             let mut v = command_in(server, who, client, cmd, args, Arc::clone(&reads)).await?;
             if let Some(files) = v["files"].as_array_mut() {
-                files.retain_mut(|f| rel(&scope, &mut f["path"]));
+                files.retain_mut(|f| rel(scope, &mut f["path"]));
             }
             v
         }
-        "sync_changes" => return changes(server, who, client, &args, &scope).await,
+        "sync_changes" => return changes(server, who, client, &args, scope).await,
         "sync_read" => {
             let p: String = arg(&args, "path")?;
             args["path"] = json!(scope.to_full(&p)?);
@@ -68,12 +87,7 @@ pub async fn command(
             command_in(server, who, client, cmd, args, writes).await?
         }
         _ => return Err(verso_service::refused("no such command")),
-    };
-    let mut answer = answer;
-    if answer["path"].is_string() {
-        rel(&scope, &mut answer["path"]);
-    }
-    Ok(answer)
+    })
 }
 
 /// `v`, a path of the owner's folder, as the share names it; false when

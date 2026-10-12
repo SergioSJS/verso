@@ -513,7 +513,7 @@ async fn collab_command(
     let cmd = cmd.to_owned();
     let args = args.clone();
     let user = who.account.name.clone();
-    blocking(move || match cmd.as_str() {
+    let answer = blocking(move || match cmd.as_str() {
         "collab_join" => to_value(crate::collab::join(&s, &c, &key, &path, &user)?),
         "collab_update" => {
             let update: String = arg(&args, "update")?;
@@ -535,7 +535,12 @@ async fn collab_command(
             to_value(crate::collab::resolve(&s, &key, &path, &keep)?)
         }
     })
-    .await
+    .await;
+    // A share's error in the share's paths.
+    match &scope {
+        Some(s) => answer.map_err(|e| s.error(e)),
+        None => answer,
+    }
 }
 
 /// The role of the window's folder, or `no_folder`.
