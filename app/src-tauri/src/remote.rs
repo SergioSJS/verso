@@ -162,6 +162,15 @@ pub(crate) struct Remote {
     binary: bool,
 }
 
+impl Remote {
+    /// Whether pieces cross this connection as binary messages.
+    // Its tests need a `verso serve`, not built for Windows.
+    #[cfg(all(test, not(windows)))]
+    pub(crate) fn binary(&self) -> bool {
+        self.binary
+    }
+}
+
 /// The connection's own failure, told from a server's answer of the same
 /// kind by `transport`: sync reconnects on the first, and lists the file on
 /// the second.
