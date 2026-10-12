@@ -237,6 +237,15 @@ pub fn portable(path: &str) -> bool {
     verso_fs::is_portable(std::path::Path::new(path))
 }
 
+/// Whether `path` is in the folder's own settings directory, `.verso/`
+/// (ADR 0070 items 1–2): synced with a folder of one's own, but this
+/// machine's business in a share's folder — a share carries the shared
+/// folder's notes and files, never the receiver's settings.
+#[must_use]
+pub fn settings_path(path: &str) -> bool {
+    verso_fs::is_settings_path(path)
+}
+
 /// Whether this system's file systems fold names by default (APFS, NTFS):
 /// where they do not (Linux), two names differing in case are two files.
 pub const FOLDS_NAMES: bool = cfg!(any(target_os = "macos", windows));
