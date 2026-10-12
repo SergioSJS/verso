@@ -40,6 +40,8 @@ struct Shared {
     share: String,
     owner: String,
     receiver: String,
+    /// Dropped with it: the server stops.
+    _stop: tokio::sync::oneshot::Sender<()>,
     _dirs: (tempfile::TempDir, tempfile::TempDir),
 }
 
@@ -103,6 +105,9 @@ fn shared() -> Shared {
         "test".into(),
     );
     let (addr_tx, addr_rx) = std::sync::mpsc::channel();
+    // Stopped when the share is let go (tests_sync::Running): a server left
+    // running holds its descriptors until the test process ends.
+    let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
     std::thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
@@ -111,8 +116,12 @@ fn shared() -> Shared {
         rt.block_on(async move {
             let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
             addr_tx.send(listener.local_addr().unwrap()).unwrap();
-            let _ = verso_server::run(server, listener, std::future::pending()).await;
+            tokio::select! {
+                _ = verso_server::run(server, listener, std::future::pending()) => {}
+                _ = stopped => {}
+            }
         });
+        rt.shutdown_background();
     });
     let url = format!("http://localhost:{}", addr_rx.recv().unwrap().port());
     Shared {
@@ -121,6 +130,7 @@ fn shared() -> Shared {
         share: share.id,
         owner,
         receiver,
+        _stop: stop,
         _dirs: (data, folders),
     }
 }
