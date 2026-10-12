@@ -44,6 +44,7 @@ mod placeholder;
 pub mod server;
 mod settings;
 mod single;
+mod staged;
 pub mod trashbin;
 mod walk;
 mod watch;
@@ -79,6 +80,7 @@ pub use ops::OpReport;
 pub use placeholder::Placeholder;
 pub use settings::{SETTINGS_DIR, SETTINGS_FILE, in_settings_dir, is_settings_path};
 pub use single::Single;
+pub use staged::Staged;
 pub use walk::{Entry, EntryKind, Problem, Walk};
 pub use watch::{Changes, MAX_WAIT, Watch};
 pub use write::{WriteError, WriteReport};
@@ -128,15 +130,68 @@ impl Stamp {
     }
 }
 
+/// A file's length and modified time, as a read in pieces takes them
+/// before each piece: the file changed between two pieces when they
+/// differ.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Mark {
+    pub len: u64,
+    pub modified: SystemTime,
+}
+
 /// FNV-1a, 64-bit: a few lines, no dependency, good enough to tell two
 /// contents apart for invariant 11.
 pub(crate) fn fnv1a(bytes: &[u8]) -> u64 {
-    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
-    for &b in bytes {
-        hash ^= u64::from(b);
-        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    let mut hash = Fnv::new();
+    hash.update(bytes);
+    hash.finish()
+}
+
+/// FNV-1a fed a piece at a time: over pieces that join into `bytes`, the
+/// same value as [`fnv1a`] of `bytes` — a file read or written in pieces
+/// is never whole in memory for its stamp.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Fnv(u64);
+
+impl Fnv {
+    pub(crate) const fn new() -> Self {
+        Self(0xcbf2_9ce4_8422_2325)
     }
-    hash
+
+    pub(crate) fn update(&mut self, bytes: &[u8]) {
+        for &b in bytes {
+            self.0 ^= u64::from(b);
+            self.0 = self.0.wrapping_mul(0x0000_0100_0000_01b3);
+        }
+    }
+
+    pub(crate) const fn finish(self) -> u64 {
+        self.0
+    }
+}
+
+/// How much of a file one read takes when the file is read in pieces: a
+/// stamp's hash, a sync's hash, a piece sent.
+pub(crate) const READ_PIECE: usize = 1 << 20;
+
+/// Read the file at `path` a piece at a time, each piece handed to
+/// `each`; the FNV-1a of the whole. One buffer of [`READ_PIECE`], reused.
+pub(crate) fn read_pieces(path: &Path, mut each: impl FnMut(&[u8])) -> std::io::Result<u64> {
+    use std::io::Read;
+    let mut file = std::fs::File::open(path)?;
+    let mut buffer = vec![0_u8; READ_PIECE];
+    let mut hash = Fnv::new();
+    loop {
+        let n = match file.read(&mut buffer) {
+            Ok(0) => return Ok(hash.finish()),
+            Ok(n) => n,
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(e) => return Err(e),
+        };
+        let piece = buffer.get(..n).unwrap_or_default();
+        hash.update(piece);
+        each(piece);
+    }
 }
 
 /// Why a read did not return content.
@@ -437,18 +492,9 @@ impl Root {
     /// sibling stands in for it — is [`ReadError::Unavailable`] and is never
     /// opened (ADR 0043).
     pub fn read(&self, handle: Handle) -> Result<(Vec<u8>, Stamp), ReadError> {
-        let path = self
-            .path_of(handle)
-            .ok_or(ReadError::UnknownHandle(handle))?;
         // The guard runs on the name as given and, through a symlink, on
         // the target: both doors ask the same question as `write`.
-        if placeholder::stands_in(&path).map_err(ReadError::Io)? {
-            return Err(ReadError::Unavailable);
-        }
-        let target = placeholder::follow(&path).map_err(ReadError::Io)?;
-        if target != path && placeholder::stands_in(&target).map_err(ReadError::Io)? {
-            return Err(ReadError::Unavailable);
-        }
+        let target = self.readable(handle)?;
         // The stamp's time and length are taken before the bytes, as the
         // write takes them: a write that lands between the two leaves an
         // older time with the newer content, which the next index reads
@@ -457,6 +503,164 @@ impl Root {
         let bytes = std::fs::read(&target).map_err(ReadError::Io)?;
         let stamp = Stamp::of(&meta, &bytes).map_err(ReadError::Io)?;
         Ok((bytes, stamp))
+    }
+
+    /// The file `handle` names, a placeholder refused as [`Root::read`]
+    /// refuses it, and its target through a symlink.
+    fn readable(&self, handle: Handle) -> Result<PathBuf, ReadError> {
+        let path = self
+            .path_of(handle)
+            .ok_or(ReadError::UnknownHandle(handle))?;
+        if placeholder::stands_in(&path).map_err(ReadError::Io)? {
+            return Err(ReadError::Unavailable);
+        }
+        let target = placeholder::follow(&path).map_err(ReadError::Io)?;
+        if target != path && placeholder::stands_in(&target).map_err(ReadError::Io)? {
+            return Err(ReadError::Unavailable);
+        }
+        Ok(target)
+    }
+
+    /// Up to `max` bytes of the file `handle` names from `offset`, and the
+    /// file's length and modified time taken before the read, as
+    /// [`Root::read`] takes them: a file sent in pieces is never whole in
+    /// memory, and a caller that compares the length and time between
+    /// pieces sees the file change under it (ADR 0079 item 12, revised
+    /// 2026-10-12). Past the end, nothing.
+    pub fn read_range(
+        &self,
+        handle: Handle,
+        offset: u64,
+        max: usize,
+    ) -> Result<(Vec<u8>, Mark), ReadError> {
+        use std::io::{Read, Seek, SeekFrom};
+        let target = self.readable(handle)?;
+        let meta = std::fs::metadata(&target).map_err(ReadError::Io)?;
+        let mark = Mark {
+            len: meta.len(),
+            modified: meta.modified().map_err(ReadError::Io)?,
+        };
+        let left = mark.len.saturating_sub(offset);
+        let want = usize::try_from(left).unwrap_or(usize::MAX).min(max);
+        let mut bytes = Vec::with_capacity(want);
+        if want > 0 {
+            let mut file = std::fs::File::open(&target).map_err(ReadError::Io)?;
+            file.seek(SeekFrom::Start(offset)).map_err(ReadError::Io)?;
+            file.take(want as u64)
+                .read_to_end(&mut bytes)
+                .map_err(ReadError::Io)?;
+        }
+        Ok((bytes, mark))
+    }
+
+    /// Read the whole file `handle` names a piece at a time, each piece
+    /// handed to `each`, and return its [`Stamp`] — the same stamp
+    /// [`Root::read`] gives — without the file ever whole in memory: the
+    /// hash a sync compares, of a file of any size.
+    pub fn read_through(
+        &self,
+        handle: Handle,
+        each: impl FnMut(&[u8]),
+    ) -> Result<Stamp, ReadError> {
+        let target = self.readable(handle)?;
+        let meta = std::fs::metadata(&target).map_err(ReadError::Io)?;
+        let hash = read_pieces(&target, each).map_err(ReadError::Io)?;
+        Ok(Stamp {
+            modified: meta.modified().map_err(ReadError::Io)?,
+            len: meta.len(),
+            hash,
+        })
+    }
+
+    /// The temporary files of writes not finished, relative to the root:
+    /// a transfer in pieces under way, or what a process that stopped in
+    /// the middle of a write left behind. The walk never lists them (their
+    /// names are hidden); this says they are there.
+    pub fn temporaries(&self) -> std::io::Result<Vec<PathBuf>> {
+        let mut out = Vec::new();
+        let mut stack = vec![PathBuf::new()];
+        while let Some(rel) = stack.pop() {
+            for entry in std::fs::read_dir(on_disk(&self.path, &rel))? {
+                let entry = entry?;
+                let name = entry.file_name();
+                let kind = entry.file_type()?;
+                if kind.is_dir() {
+                    stack.push(rel_join(&rel, &name));
+                } else if name.as_encoded_bytes().starts_with(b".verso-tmp-") {
+                    out.push(rel_join(&rel, &name));
+                }
+            }
+        }
+        out.sort();
+        Ok(out)
+    }
+
+    /// Start a file that arrives in pieces at `relative`: a temporary file
+    /// beside where it will land, filled by [`Staged::append`], and given
+    /// its name by [`Root::create_staged`] or [`Root::write_staged`] —
+    /// the same atomic write as [`Root::create`] and [`Root::write`]
+    /// (invariant 9), never the file whole in memory. Dropped unfinished,
+    /// the temporary file goes. Confined like every path; a placeholder
+    /// is refused now rather than after the last piece (ADR 0043).
+    pub fn stage(&self, relative: &Path) -> Result<Staged, WriteError> {
+        let relative = self.confine(relative).map_err(WriteError::Confined)?;
+        let path = on_disk(&self.path, &relative);
+        if placeholder::stands_in(&path).map_err(WriteError::Io)? {
+            return Err(WriteError::Placeholder);
+        }
+        match std::fs::metadata(&path) {
+            Ok(meta) if meta.is_file() => {
+                // Over a file: beside its target, through a symlink, with
+                // its mode from the first instant, as `write` does.
+                let target = placeholder::follow(&path).map_err(WriteError::Io)?;
+                let original = std::fs::metadata(&target).map_err(WriteError::Io)?;
+                let dir = target.parent().unwrap_or(&self.path);
+                staged::Staged::beside(dir, Some(&original))
+            }
+            Ok(_) => Err(WriteError::Exists),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                confine::unportable_new(&self.path, &relative).map_err(WriteError::Confined)?;
+                // A new file: in the nearest folder that exists on its way,
+                // so an abandoned transfer leaves no empty folder behind;
+                // the missing ones are made when it lands.
+                let mut dir = path.parent().unwrap_or(&self.path);
+                while !dir.is_dir() && dir != self.path {
+                    dir = dir.parent().unwrap_or(&self.path);
+                }
+                staged::Staged::beside(dir, None)
+            }
+            Err(e) => Err(WriteError::Io(e)),
+        }
+    }
+
+    /// Give a file that arrived in pieces ([`Root::stage`]) the name
+    /// `relative`, which must not exist yet: [`Root::create`]'s step, the
+    /// file synced first.
+    pub fn create_staged(
+        &mut self,
+        relative: &Path,
+        staged: Staged,
+    ) -> Result<(Handle, OpReport), WriteError> {
+        let relative = self.confine(relative).map_err(WriteError::Confined)?;
+        confine::unportable_new(&self.path, &relative).map_err(WriteError::Confined)?;
+        let report = staged.create_at(&on_disk(&self.path, &relative))?;
+        Ok((self.intern(relative), report))
+    }
+
+    /// Put a file that arrived in pieces ([`Root::stage`]) over the file
+    /// `handle` names: [`Root::write`]'s step — refused when the file on
+    /// disk is not the one `expected` describes (invariant 11) or is a
+    /// placeholder (ADR 0043).
+    pub fn write_staged(
+        &self,
+        handle: Handle,
+        staged: Staged,
+        expected: &Stamp,
+    ) -> Result<WriteReport, WriteError> {
+        let path = self
+            .path_of(handle)
+            .ok_or(WriteError::UnknownHandle(handle))?;
+        staged.write_over(&path, expected)
     }
 
     /// The file `handle` names, when its content is only in the cloud in

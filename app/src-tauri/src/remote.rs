@@ -69,9 +69,13 @@ pub(crate) fn forwards(cmd: &str) -> bool {
 /// after the last one was answered unavailable.
 #[derive(Default)]
 struct Questions {
-    waiting: HashMap<u64, oneshot::Sender<Result<Value, Value>>>,
+    waiting: HashMap<u64, oneshot::Sender<Result<Answer, Value>>>,
     closed: bool,
 }
+
+/// An answer, and the piece of a file it carried in a binary message
+/// (sync 2, ADR 0079 item 12).
+type Answer = (Value, Option<Vec<u8>>);
 
 type Pending = Arc<Mutex<Questions>>;
 
@@ -96,8 +100,9 @@ fn close(pending: &Pending) -> bool {
 
 /// How long a question waits for its answer: a net under [`close`], for a
 /// connection dead without either task seeing it. One question carries at
-/// most one piece of a file — 4 MiB, some 5.6 MB as base64 — so the bound
-/// is one a slow link (150 kbit/s) does not reach for one piece.
+/// most one piece of a file — 1 MiB, 1.4 MB as base64 to a server of sync
+/// 1 — so the bound is one a slow link (150 kbit/s) does not reach for
+/// one piece.
 const ANSWER_WITHIN: std::time::Duration = std::time::Duration::from_secs(300);
 
 /// How often a connection pings the server, as the server pings it (R5
@@ -118,7 +123,7 @@ const MISSED: u8 = 2;
 /// taken as no longer reading (threat-model.md, gap 2): a floor, plus the
 /// message's size at 32 KiB/s (256 kbit/s, under a weak mobile link's) —
 /// the server's bound for its own writes (crates/verso-server, rpc.rs).
-/// A piece of a file as base64 (5.6 MB) gets about three minutes. A
+/// A piece of a file (1 MiB) gets about a minute. A
 /// write that does not end in time closes the connection as a failed one
 /// does, instead of holding every question behind it until the system
 /// gives up on the socket.
@@ -146,10 +151,14 @@ pub(crate) struct Remote {
     /// The last command's round trip, in milliseconds.
     latency: std::sync::atomic::AtomicU32,
     pending: Pending,
-    tx: mpsc::Sender<String>,
+    tx: mpsc::Sender<Message>,
     /// Told when the connection is taken as closed without either task
     /// seeing it close: the reader ends, as on a close.
     dead: Arc<tokio::sync::Notify>,
+    /// Whether a piece of a file crosses as a binary message: the server's
+    /// hello said a sync that takes them (ADR 0079 item 12, sync 2); with
+    /// one of sync 1, as base64 inside the JSON.
+    binary: bool,
 }
 
 /// The connection's own failure, told from a server's answer of the same
@@ -177,6 +186,21 @@ impl Remote {
 
     /// A command of the contract, answered by the server.
     pub(crate) async fn call(&self, cmd: &str, args: Value) -> Result<Value, Value> {
+        self.call_with(cmd, args, None)
+            .await
+            .map(|(answer, _)| answer)
+    }
+
+    /// A command of sync that carries a piece of a file, either way: `piece`
+    /// sent with it, and the piece its answer carries — in binary messages
+    /// with a server of sync 2, as base64 in the JSON with one of sync 1
+    /// (ADR 0079 items 5 and 12).
+    pub(crate) async fn call_with(
+        &self,
+        cmd: &str,
+        mut args: Value,
+        piece: Option<Vec<u8>>,
+    ) -> Result<Answer, Value> {
         let id = self.next.fetch_add(1, Ordering::Relaxed);
         let (tx, rx) = oneshot::channel();
         {
@@ -186,8 +210,29 @@ impl Remote {
             }
             q.waiting.insert(id, tx);
         }
-        let text = json!({ "id": id, "cmd": cmd, "args": args }).to_string();
-        match self.tx.try_send(text) {
+        let message = match piece {
+            Some(piece) if self.binary => {
+                let header = json!({ "id": id, "cmd": cmd, "args": args }).to_string();
+                Message::Binary(verso_core::sync::frame(header.as_bytes(), &piece).into())
+            }
+            Some(piece) => {
+                args["data"] = json!(base64::Engine::encode(
+                    &base64::engine::general_purpose::STANDARD,
+                    &piece
+                ));
+                Message::Text(
+                    json!({ "id": id, "cmd": cmd, "args": args })
+                        .to_string()
+                        .into(),
+                )
+            }
+            None => Message::Text(
+                json!({ "id": id, "cmd": cmd, "args": args })
+                    .to_string()
+                    .into(),
+            ),
+        };
+        match self.tx.try_send(message) {
             Ok(()) => {}
             Err(mpsc::error::TrySendError::Full(_)) => {
                 lock(&self.pending).waiting.remove(&id);
@@ -224,9 +269,21 @@ impl Remote {
         // What the window learns of the side includes how far it is
         // (ADR 0073 item 2).
         match (cmd, answer) {
-            ("capabilities", Ok(mut caps)) => {
+            ("capabilities", Ok((mut caps, piece))) => {
                 caps["latency_ms"] = json!(ms);
-                Ok(caps)
+                Ok((caps, piece))
+            }
+            // A piece from a server of sync 1: base64 in the answer.
+            ("sync_read", Ok((mut answer, None))) if answer.get("data").is_some() => {
+                let data = take(&mut answer, "data");
+                let piece = base64::Engine::decode(
+                    &base64::engine::general_purpose::STANDARD,
+                    data.as_str().unwrap_or_default(),
+                )
+                .map_err(
+                    |_| json!({ "kind": "failed", "message": "a piece that is not base64" }),
+                )?;
+                Ok((answer, Some(piece)))
             }
             (_, answer) => answer,
         }
@@ -686,7 +743,7 @@ pub(crate) async fn dial_hello(
             },
         })?;
     let (mut write, mut read) = socket.split();
-    let (tx, mut rx) = mpsc::channel::<String>(QUEUE);
+    let (tx, mut rx) = mpsc::channel::<Message>(QUEUE);
     let (heard_tx, heard_rx) = mpsc::unbounded_channel::<Heard>();
     let pending: Pending = Arc::default();
     let (hello_tx, hello_rx) = oneshot::channel::<Value>();
@@ -703,15 +760,15 @@ pub(crate) async fn dial_hello(
         ping.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         loop {
             let sent = tokio::select! {
-                text = rx.recv() => {
+                message = rx.recv() => {
                     // The connection was let go: nothing can be asked on
                     // it any more.
-                    let Some(text) = text else {
+                    let Some(message) = message else {
                         close(&writing);
                         return;
                     };
-                    let within = send_within(text.len());
-                    let sent = tokio::time::timeout(within, write.send(Message::Text(text.into()))).await;
+                    let within = send_within(message.len());
+                    let sent = tokio::time::timeout(within, write.send(message)).await;
                     if sent.is_err() {
                         log::write(
                             "WARN",
@@ -773,10 +830,20 @@ pub(crate) async fn dial_hello(
             // Anything heard, a pong or any other message, says the server
             // is there.
             unanswered.store(0, Ordering::Relaxed);
-            let Message::Text(text) = message else {
-                continue;
+            // A binary message is an answer carrying a piece of a file
+            // (sync 2): its header, then the piece as it is.
+            let (parsed, piece) = match message {
+                Message::Text(text) => (serde_json::from_str::<Value>(&text).ok(), None),
+                Message::Binary(bytes) => match verso_core::sync::unframe(&bytes) {
+                    Some((header, piece)) => (
+                        serde_json::from_slice::<Value>(header).ok(),
+                        Some(piece.to_vec()),
+                    ),
+                    None => (None, None),
+                },
+                _ => continue,
             };
-            let Ok(mut m) = serde_json::from_str::<Value>(&text) else {
+            let Some(mut m) = parsed else {
                 continue;
             };
             if let Some(id) = m["id"].as_u64() {
@@ -784,7 +851,7 @@ pub(crate) async fn dial_hello(
                     let _ = p.send(if m.get("err").is_some() {
                         Err(take(&mut m, "err"))
                     } else {
-                        Ok(take(&mut m, "ok"))
+                        Ok((take(&mut m, "ok"), piece))
                     });
                 }
             } else if let Some(event) = m["event"].as_str().map(str::to_owned) {
@@ -808,6 +875,12 @@ pub(crate) async fn dial_hello(
         .await
         .map_err(|_| failed("the server did not answer"))?
         .map_err(|_| failed("the server closed the connection"))?;
+    // Pieces as binary messages when both sides speak a sync that takes
+    // them; a server that says no sync speaks the one before the first.
+    let theirs = hello["sync"]
+        .as_u64()
+        .map_or(0, |v| u32::try_from(v).unwrap_or(u32::MAX));
+    let binary = verso_core::sync::binary_pieces(theirs.min(verso_core::sync::PROTOCOL));
     let remote = Arc::new(Remote {
         url: login.url.clone(),
         folder,
@@ -817,6 +890,7 @@ pub(crate) async fn dial_hello(
         pending,
         tx,
         dead,
+        binary,
     });
     Ok((remote, heard_rx, hello))
 }

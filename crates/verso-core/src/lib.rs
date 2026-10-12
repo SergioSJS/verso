@@ -35,8 +35,9 @@ use std::time::UNIX_EPOCH;
 
 use verso_fs::{EntryKind, Problem, Root, Stamp};
 // The two error types `CoreError` carries, so a caller can match on them.
+pub use sync_io::Hashed;
 pub use verso_fs::{
-    Changes, ConfinementError, Placeholder, ReadError, WalkRules, Watch, WriteError,
+    Changes, ConfinementError, Mark, Placeholder, ReadError, Staged, WalkRules, Watch, WriteError,
 };
 use verso_index::{Backlink, Block, Heading, Hit, Index, Link, NoteStamp, Unresolved};
 
