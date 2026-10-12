@@ -571,6 +571,17 @@ fn collab_save(path: String) -> Result<String, ContractError> {
     Err(not_here())
 }
 
+/// Whether someone is in the note's room now (ADR 0082): a write that is
+/// not a keystroke — a base's cell, a PDF's quote, the tree's label —
+/// joins the room to be made there. On a server, or a synced folder's
+/// link, only.
+#[tauri::command]
+#[specta::specta]
+fn collab_present(path: String) -> Result<bool, ContractError> {
+    let _ = path;
+    Err(not_here())
+}
+
 /// A shared note that changed on disk while edits waited: keep the disk's
 /// text (`disk`) or write the shared one over it (`mine`).
 #[tauri::command]
@@ -660,6 +671,7 @@ macro_rules! commands_for {
                 collab_leave,
                 collab_save,
                 collab_resolve,
+                collab_present,
                 server_sign_in::<$runtime>,
                 server_accounts,
                 server_sign_out::<$runtime>,

@@ -16,7 +16,8 @@ import { lineSeparator } from "../leaves/text";
 import { opening } from "../opening";
 import { Kind } from "../paths";
 import { type Edit, propertyChange } from "../props";
-import { throughRoom } from "../roomWrites";
+import { roomSide } from "../collab";
+import { writeLive } from "../roomWrites";
 import { baseStrings } from "../strings";
 import { listAll } from "../tree/tree";
 import { ensureFolderNote } from "./folderNotes";
@@ -217,8 +218,9 @@ export async function updateEntryProperties(path: string, kind: Kind, updates: R
     for (const [k, v] of Object.entries(updates)) text = setFrontmatterProp(text, k, v);
     return text;
   };
-  // A live note: into its room, as typing goes (ADR 0082).
-  if (throughRoom(liveHolder(targetNote), withUpdates) !== "disk") return;
+  // A live note, here or only elsewhere: into its room, as typing goes
+  // (ADR 0082).
+  if ((await writeLive(targetNote, liveHolder(targetNote), withUpdates, roomSide)) !== "disk") return;
   const leaf = activeLeafForPath(targetNote);
   if (leaf) {
     const was = leaf.editor.state.doc.toString();
@@ -248,8 +250,9 @@ export async function updateEntryListProperty(path: string, kind: Kind, key: "or
     if (!fn) return;
     targetNote = fn;
   }
-  // A live note: into its room, as typing goes (ADR 0082).
-  if (throughRoom(liveHolder(targetNote), (text) => setFrontmatterListProp(text, key, values)) !== "disk") return;
+  // A live note, here or only elsewhere: into its room, as typing goes
+  // (ADR 0082).
+  if ((await writeLive(targetNote, liveHolder(targetNote), (text) => setFrontmatterListProp(text, key, values), roomSide)) !== "disk") return;
   const leaf = activeLeafForPath(targetNote);
   if (leaf) {
     const was = leaf.editor.state.doc.toString();
@@ -299,15 +302,16 @@ export function withProperty(text: string, wanted: string, value: PropertyValue)
  *  note's tabs are saved first, so the write starts from their text, and
  *  read what was written after. */
 export async function setNoteProperty(path: string, key: string, value: PropertyValue | null): Promise<boolean> {
-  // A live note: into its room, as typing goes; the room writes the file
-  // (ADR 0082, decided 2026-10-12).
+  // A live note, here or only elsewhere (joined for this write): into its
+  // room, as typing goes; the room writes the file (ADR 0082, decided
+  // 2026-10-12).
   let refusedWhy: string = "";
-  const live = throughRoom(liveHolder(path), (text) => {
+  const live = await writeLive(path, liveHolder(path), (text) => {
     const next = withProperty(text, key, value ?? { kind: "empty" });
     if ("text" in next) return next.text;
     refusedWhy = next.refused;
     return null;
-  });
+  }, roomSide);
   if (live === "room" || live === "same") {
     refreshBases();
     return true;
