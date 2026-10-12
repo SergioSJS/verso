@@ -81,6 +81,10 @@ export type Settings = {
   syncFocuses: Record<string, boolean>;
   syncFocusesAsked: Record<string, boolean>;
   localFocuses: Record<string, Focus[]>;
+  /** A synced folder's notes edited together while online (ADR 0082
+   *  item 15), by folder: on unless the person turned it off — their
+   *  layer, never written into the folder. */
+  liveTogether: Record<string, boolean>;
 };
 export const DEFAULTS: Settings = {
   lang: "auto",
@@ -133,6 +137,7 @@ export const DEFAULTS: Settings = {
   syncFocuses: {},
   syncFocusesAsked: {},
   localFocuses: {},
+  liveTogether: {},
 };
 export let settings: Settings = { ...DEFAULTS };
 export function loadSettings(): void {
@@ -151,6 +156,7 @@ export function loadSettings(): void {
       if (!settings.syncFocuses || typeof settings.syncFocuses !== "object") settings.syncFocuses = {};
       if (!settings.syncFocusesAsked || typeof settings.syncFocusesAsked !== "object") settings.syncFocusesAsked = {};
       if (!settings.localFocuses || typeof settings.localFocuses !== "object") settings.localFocuses = {};
+      if (!settings.liveTogether || typeof settings.liveTogether !== "object") settings.liveTogether = {};
     }
   } catch {
     settings = { ...DEFAULTS };
@@ -192,6 +198,17 @@ export function setHiddenFromTree(list: string[]): void {
     settings.hiddenFromTree = {};
   }
   settings.hiddenFromTree[currentFolder] = list;
+  saveSettings();
+}
+/** Whether this folder's notes join the server's rooms while its sync is
+ *  online (ADR 0082 item 15): on by default. */
+export function liveTogether(): boolean {
+  return settings.liveTogether?.[currentFolder] !== false;
+}
+export function setLiveTogether(on: boolean): void {
+  if (!settings.liveTogether || typeof settings.liveTogether !== "object") settings.liveTogether = {};
+  if (on) delete settings.liveTogether[currentFolder];
+  else settings.liveTogether[currentFolder] = false;
   saveSettings();
 }
 export function applySettings(): void {

@@ -17,6 +17,7 @@ import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import { DEMO_VAULT_FILES } from "./demoVault";
 import type { Capabilities } from "./bindings";
 import { Core, UNUSED_ARGS, type Seed } from "./harness/core";
+import { Rooms } from "./harness/room";
 
 const vault = new URLSearchParams(location.search).get("vault");
 const big = (): Seed[] =>
@@ -46,6 +47,10 @@ if (onServer) {
   document.documentElement.dataset["host"] = "server";
   document.documentElement.dataset["role"] = role;
 }
+
+// A synced folder's live notes (ADR 0082): the server's room, played here
+// when a test says the sync's link is up.
+const rooms = onServer ? null : new Rooms(core);
 
 mockWindows("main");
 // Answered in a task of its own, as the app's IPC answers: never within the
@@ -88,6 +93,8 @@ const harness = {
   writeOutside: (path: string, text: string) => core.writeOutside(path, text),
   removeOutside: (path: string) => core.removeOutside(path),
   emit: (event: string, payload: unknown) => emit(event, payload),
+  /** The server's room of a synced folder's notes (ADR 0082). */
+  rooms,
   /** The server says the person's role in the folder changed (web.ts). */
   setRole: (next: string) => {
     role = next;

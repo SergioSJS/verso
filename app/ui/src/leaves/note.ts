@@ -51,6 +51,7 @@ import { askDiscard, Leaf } from "./leaf";
 import * as cover from "./note/cover";
 import * as editing from "./note/editing";
 import * as reading from "./note/reading";
+import * as live from "./note/live";
 import * as web from "./note/web";
 import { PdfLeaf } from "./pdf";
 import { fromDisk, lineSeparator } from "./text";
@@ -204,6 +205,13 @@ export class NoteLeaf extends Leaf {
   /** The note's room when several people may edit it at once (a server,
    *  ADR 0073 item 7): the server writes the file, not this tab. */
   collab: CollabSession | null = null;
+  /** A synced folder's note waits for its local text to cross before it
+   *  joins its room (ADR 0082 item 7). */
+  catching = false;
+  /** The others in the note, as last said to a screen reader. */
+  liveOthers: string[] = [];
+  /** The note's live state in words: a synced folder's (ADR 0082 item 14). */
+  readonly liveMark = h("span", "live-mark");
   resolved = new Map<string, string | null>();
   /** PDF readers and bases embedded in the preview, closed when it is
    *  redrawn. */
@@ -241,7 +249,8 @@ export class NoteLeaf extends Leaf {
     this.stickerBtn.addEventListener("click", () => this.openStickerPicker());
 
     const titleRow = h("div", "title-row");
-    titleRow.append(this.stickerBtn, this.title, this.dirtyMark, this.saveButton, this.star);
+    this.liveMark.hidden = true;
+    titleRow.append(this.stickerBtn, this.title, this.dirtyMark, this.saveButton, this.star, this.liveMark);
     this.buildToolbar();
     const sheet = this.sheet;
     sheet.append(this.coverBox, this.addCoverBtn, titleRow, this.flags, this.props.el, this.conflict.el, this.goneBanner.el, this.preview, this.editorHost);
@@ -634,7 +643,7 @@ export class NoteLeaf extends Leaf {
   /** What the file is now (read, or just written): the revision the next
    *  write goes over, the reading view, the flags. The editor's text and
    *  whether it is saved are the caller's. */
-  private refresh(note: NoteText): void {
+  refresh(note: NoteText): void {
     this.note = note;
     this.revision = note.revision;
     this.embedCache.clear();
@@ -707,7 +716,13 @@ export class NoteLeaf extends Leaf {
     if (back) this.goneBanner.hide();
     if (note.data.revision === this.revision) return back ? "back" : "same";
     // A shared note: its room brings the change in, for everyone at once.
-    if (this.collab) return back ? "back" : "same";
+    // A synced folder's live note: sync brought the room's save down —
+    // the reading view and the properties follow the file when it holds
+    // the editor's text (ADR 0082 item 6).
+    if (this.collab?.live) {
+      if (this.collab.synced && note.data.text === this.editorText()) this.refresh(note.data);
+      return back ? "back" : "same";
+    }
     if (this.dirty) {
       // Waited for, so that what the refused write puts on the status line
       // comes before what the watcher says of it.
@@ -768,10 +783,17 @@ export class NoteLeaf extends Leaf {
     // text, which may hold edits not written yet, is what the editor shows.
     this.collab?.leave();
     this.collab = null;
-    const shared = lineSeparator(note.data.text) === null ? null : await joinCollab(note.data.path, this.collabHandlers());
+    const catching = () => {
+      this.catching = true;
+      this.paintLive();
+    };
+    const shared = lineSeparator(note.data.text) === null ? null : await joinCollab(note.data.path, this.collabHandlers(), catching);
+    this.catching = false;
     if (this.destroyed || load !== this.loads) return shared?.leave();
     this.collab = shared;
+    this.liveOthers = shared?.others() ?? [];
     this.show(note.data);
+    this.paintLive();
   }
   /** What the tab does when its room speaks (ADR 0073 item 7). */
   private collabHandlers(): CollabHandlers {
@@ -779,7 +801,10 @@ export class NoteLeaf extends Leaf {
       saved: (revision) => {
         this.revision = revision;
         this.setDirty(false);
-        // The reading view, the properties and the flags from the file.
+        // The reading view, the properties and the flags from the file. A
+        // synced folder's file follows when sync brings the save down
+        // (`recheck`).
+        if (this.collab?.synced) return;
         void commands.readNote(this.path).then((r) => {
           if (r.status === "ok" && r.data.revision === revision && !this.destroyed) this.refresh(r.data);
         });
@@ -792,8 +817,21 @@ export class NoteLeaf extends Leaf {
       remote: () => {
         this.previewStale = true;
       },
+      local: (why) => void this.wentLocal(why),
+      live: () => this.cameBack(),
+      anew: () => void this.readAnew(),
+      presence: () => this.presenceChanged(),
+      settle: async () => {
+        await this.flush();
+      },
     };
   }
+  declare liveState: typeof live.liveState;
+  declare paintLive: typeof live.paintLive;
+  declare presenceChanged: typeof live.presenceChanged;
+  declare wentLocal: typeof live.wentLocal;
+  declare cameBack: typeof live.cameBack;
+  declare readAnew: typeof live.readAnew;
   /** The room closed: the note read again from the disk, on its own. One
    *  that followed a rename meanwhile (a device's, ADR 0079) is read at its
    *  new name by that load. One gone from the disk — deleted or moved on
@@ -827,7 +865,7 @@ export class NoteLeaf extends Leaf {
   /** The conflict banner's "reload": the disk's text — in a shared note,
    *  for everyone in it. */
   private async keepDisk(): Promise<void> {
-    if (!this.collab) return this.load(this.path, true);
+    if (!this.collab?.live) return this.load(this.path, true);
     const r = await commands.collabResolve(this.path, "disk");
     if (r.status !== "ok") return fail(r.error);
     this.conflict.hide();
@@ -843,7 +881,9 @@ export class NoteLeaf extends Leaf {
     const sep = lineSeparator(note.text);
     this.eol = this.collab ? (this.collab.crlf ? "\r\n" : "\n") : (sep ?? "\n");
     this.mixedEol = sep === null;
-    this.readOnly = this.mixedEol || !canWrite();
+    // A reader of a synced folder is present in the room, not typing
+    // (ADR 0082 item 4).
+    this.readOnly = this.mixedEol || !canWrite() || (this.collab?.reader ?? false);
     this.editor.setState(this.collab ? this.editorState(this.collab.initial(), this.collab.extension()) : this.editorState(note.text));
     this.conflict.hide();
     this.goneBanner.hide();
@@ -942,7 +982,7 @@ export class NoteLeaf extends Leaf {
         ui.status.textContent = t.gonePending;
         return;
       }
-      if (this.collab) {
+      if (this.collab?.live) {
         // A shared note: the server writes it now (⌘S, a closing tab).
         const r = await commands.collabSave(this.path);
         if (r.status === "ok") {
@@ -969,7 +1009,7 @@ export class NoteLeaf extends Leaf {
     const run = this.saving.then(async () => {
       const disk = this.conflict.disk;
       if (!this.note || !disk) return;
-      if (this.collab) {
+      if (this.collab?.live) {
         const r = await commands.collabResolve(this.path, "mine");
         if (r.status !== "ok") return fail(r.error);
         this.conflict.hide();
@@ -1066,7 +1106,7 @@ export class NoteLeaf extends Leaf {
       if (!copy) return null;
       // In a shared note, the room goes back to the disk's text for
       // everyone in it.
-      if (this.collab) {
+      if (this.collab?.live) {
         const back = await commands.collabResolve(note, "disk");
         if (back.status !== "ok") fail(back.error);
       }
@@ -1123,3 +1163,4 @@ methods(NoteLeaf, cover);
 methods(NoteLeaf, web);
 methods(NoteLeaf, editing);
 methods(NoteLeaf, reading);
+methods(NoteLeaf, live);
