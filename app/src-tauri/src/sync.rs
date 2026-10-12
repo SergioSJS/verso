@@ -83,7 +83,17 @@ pub(crate) struct Syncer {
     versions: Mutex<Option<SyncVersions>>,
     /// The folder's notes live in the server's rooms (ADR 0082).
     pub(crate) live: Arc<live::Live>,
+    /// Said once in the log: this folder, a share's, keeps its own
+    /// settings (`.verso/`) out of the sync.
+    pub(crate) settings_said: AtomicBool,
+    /// Who made the last change the server's log says of each path — the
+    /// person and the device (sync 2) — for the recent activity of what
+    /// came from there.
+    authors: Mutex<HashMap<String, Author>>,
 }
+
+/// Who made a change on the server: the person, the device.
+type Author = (Option<String>, Option<String>);
 
 impl Syncer {
     pub(crate) fn new(key: &str, state: &engine::State) -> Arc<Self> {
@@ -108,6 +118,8 @@ impl Syncer {
             disk: Mutex::new(()),
             versions: Mutex::new(None),
             live: Arc::default(),
+            settings_said: AtomicBool::new(false),
+            authors: Mutex::new(HashMap::new()),
         })
     }
 
@@ -215,6 +227,12 @@ impl Syncer {
                 other.map(|o| format!(" ({o})")).unwrap_or_default()
             ),
         );
+        // What came from the server says who made it there.
+        let (by, device) = if from_there(what) {
+            lock(&self.authors).get(path).cloned().unwrap_or_default()
+        } else {
+            (None, None)
+        };
         self.set(ctx, |s| {
             s.log.insert(
                 0,
@@ -223,11 +241,29 @@ impl Syncer {
                     what: what.to_owned(),
                     path: path.to_owned(),
                     other: other.map(str::to_owned),
+                    by,
+                    device,
                 },
             );
             s.log.truncate(LOG_LINES);
         });
     }
+}
+
+/// Whether a line of the recent activity is of a change that came from
+/// the server: received, deleted or renamed here, a conflict, a merge.
+fn from_there(what: &str) -> bool {
+    matches!(
+        what,
+        "received" | "deleted_here" | "renamed_here" | "conflict" | "merged"
+    )
+}
+
+/// Who the server's log says made change `c` (sync 2): its `by` and its
+/// `device`, each absent when unknown.
+fn author_of(c: &Value) -> Author {
+    let said = |f: &str| c[f].as_str().map(str::to_owned);
+    (said("by"), said("device"))
 }
 
 /// The state, as last saved, of a folder that syncs.
@@ -315,13 +351,22 @@ type Here = (Files, BTreeMap<String, SyncRefused>);
 /// the folder is walked at once and listed again, so this pass compares
 /// it as it is — the deletion, or the server's newer version, carried out
 /// now — and the file is never held as changed.
-fn here(ctx: &Ctx, s: &Syncer, state: &mut engine::State) -> Result<Here, ContractError> {
+///
+/// In a share's folder (`share`), the folder's own settings, `.verso/`,
+/// are this machine's business: never listed, never sent, said once in
+/// the log (ADR 0070, ADR 0081 item 6).
+fn here(
+    ctx: &Ctx,
+    s: &Syncer,
+    state: &mut engine::State,
+    share: bool,
+) -> Result<Here, ContractError> {
     let dirty: HashSet<String> = std::mem::take(&mut *lock(&s.dirty));
-    if let Some(found) = listed_here(ctx, s, state, &dirty, false)? {
+    if let Some(found) = listed_here(ctx, s, state, &dirty, (false, share))? {
         return Ok(found);
     }
     ctx.service.walk_quietly(&s.key);
-    listed_here(ctx, s, state, &dirty, true)?
+    listed_here(ctx, s, state, &dirty, (true, share))?
         .ok_or_else(|| verso_service::failed("the folder's listing did not settle"))
 }
 
@@ -333,16 +378,25 @@ fn listed_here(
     s: &Syncer,
     state: &mut engine::State,
     dirty: &HashSet<String>,
-    walked: bool,
+    (walked, share): (bool, bool),
 ) -> Result<Option<Here>, ContractError> {
     // The walk's entries and the folder's settings directory, which the
     // walk never lists and sync carries like any file (ADR 0070, ADR 0079
-    // item 2).
+    // item 2) — but not in a share's folder, where they stay here.
     let listed: Vec<(String, u64, i64, bool)> = ctx.service.with_key(&s.key, |ws| {
+        let settings = ws.settings_entries();
+        if share && !settings.is_empty() && !s.settings_said.swap(true, Ordering::Relaxed) {
+            log::write(
+                "INFO",
+                "sync",
+                "this folder syncs a share: its own settings (.verso/) stay on this computer and are not synced",
+            );
+        }
+        let settings = if share { &[][..] } else { settings };
         Ok(ws
             .entries()
             .iter()
-            .chain(ws.settings_entries())
+            .chain(settings)
             .filter(|e| e.kind != verso_core::FileKind::Folder)
             .map(|e| {
                 (
@@ -557,7 +611,11 @@ fn sha256(bytes: &[u8]) -> String {
 /// more to come, the next question asks from the last change received, and
 /// only the last page's answer moves the cursor to the server's head — a
 /// head taken from an earlier page would skip the pages between.
-async fn there(remote: &remote::Remote, known: &mut Option<(Files, i64)>) -> Result<(), Value> {
+async fn there(
+    remote: &remote::Remote,
+    known: &mut Option<(Files, i64)>,
+    authors: &Mutex<HashMap<String, Author>>,
+) -> Result<(), Value> {
     let Some((files, head)) = known else {
         let answer = remote.call("sync_state", json!({})).await?;
         let mut files = Files::new();
@@ -587,6 +645,7 @@ async fn there(remote: &remote::Remote, known: &mut Option<(Files, i64)>) -> Res
             if let Some(from) = c["renamedFrom"].as_str() {
                 files.remove(from);
             }
+            lock(authors).insert(path.to_owned(), author_of(c));
             match c["hash"].as_str() {
                 Some(hash) if c["deleted"] != true => {
                     files.insert(
@@ -631,6 +690,9 @@ pub(crate) struct Link {
     /// campaign, 2026-10-11) — would be skipped by every pass until a
     /// later walk.
     pub(crate) walk: bool,
+    /// The server's folder is a share of another person's (ADR 0081 item
+    /// 6): this folder's own settings stay here.
+    pub(crate) share: bool,
 }
 
 impl Link {
@@ -675,6 +737,8 @@ pub(crate) async fn link(ctx: &Ctx, s: &Syncer) -> Result<Link, ContractError> {
         })?;
     let role = mine["role"].as_str().unwrap_or("reader").to_owned();
     let name = mine["name"].as_str().unwrap_or_default().to_owned();
+    // A share of another person's folder (ADR 0081 item 6).
+    let share = mine["share"] == true;
     let (remote, heard, hello) = remote::dial_hello(&login, s.folder.clone()).await?;
     // A room's events go to the windows as they come, never behind a pass
     // (ADR 0082 item 2).
@@ -705,6 +769,7 @@ pub(crate) async fn link(ctx: &Ctx, s: &Syncer) -> Result<Link, ContractError> {
         name,
         known: None,
         walk: true,
+        share,
     })
 }
 
@@ -738,7 +803,9 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
     // item 9).
     live::rejoined(s).await;
     let remote = Arc::clone(&l.remote);
-    there(&remote, &mut l.known).await.map_err(|e| said(&e))?;
+    there(&remote, &mut l.known, &s.authors)
+        .await
+        .map_err(|e| said(&e))?;
     let Some((remote_files, head)) = l.known.as_mut() else {
         return Ok(Passed::default());
     };
@@ -749,7 +816,13 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
     let mut state = synced(ctx.config.as_deref(), &s.key).unwrap_or_default();
     state.server.clone_from(&s.url);
     state.folder.clone_from(&s.folder);
-    let (mut local, mut apart) = tokio::task::block_in_place(|| here(ctx, s, &mut state))?;
+    // A share carries no settings of the folder's: none of the server's
+    // is fetched over this computer's own (ADR 0070).
+    if l.share {
+        remote_files.retain(|p, _| !engine::settings_path(p));
+    }
+    let share = l.share;
+    let (mut local, mut apart) = tokio::task::block_in_place(|| here(ctx, s, &mut state, share))?;
     let pt = (ctx.pt)();
     let device = (ctx.device)();
     let when = chrono::Local::now().format("%Y-%m-%d %H.%M").to_string();
@@ -767,19 +840,14 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
         engine::FOLDS_NAMES,
         &copy_name,
     );
-    // A name's other Unicode form held by another file (spec Q7): listed,
-    // the same one on every pass, never sent to be refused again.
+    // A name's other Unicode form held by another file (spec Q7), or a
+    // name on the server another file there holds in another case (spec
+    // Q8): listed, the same one on every pass, never sent or fetched to be
+    // refused again.
     for h in &plan.held {
-        let message = if h.here {
-            "another file here has this name, its accents in another Unicode form: one name is one file everywhere"
-        } else {
-            "another file on the server has this name, its accents in another Unicode form"
-        };
-        apart.entry(h.path.clone()).or_insert_with(|| SyncRefused {
-            path: h.path.clone(),
-            reason: "name_taken".to_owned(),
-            message: message.to_owned(),
-        });
+        apart
+            .entry(h.path.clone())
+            .or_insert_with(|| transfer::held_refused(h));
     }
     let yes = s.confirmed.swap(0, Ordering::Relaxed);
     if plan.pause.is_some_and(|n| n <= yes) {

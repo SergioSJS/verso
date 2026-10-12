@@ -149,6 +149,23 @@ em 2026-10-10 (Status).
    de novo quando `sync-status` diz que o estado mudou (como pergunta de
    novo hoje numa mudança de papel). Nenhum tipo muda de forma; os
    bindings gerados não se movem (regra 3).
+   *(Revisto em 2026-10-12, registrando o que o mantenedor ordenou nesse
+   dia — "Ajuste todas essas pendências agora", "falei pra implementar
+   tudo isso" — com a entrada para escrever numa nota ao vivo só em outro
+   lugar, d86bce7:)* um comando é acrescentado, só de leitura:
+   `collab_present`, "tem alguém na sala desta nota?". Uma escrita que não
+   é digitação — a citação de um PDF, uma célula de base, a figurinha, o
+   rótulo ou a ordem da árvore, uma propriedade do painel — numa nota que
+   esta janela não tem ao vivo pergunta isso; quando há alguém, a escrita
+   entra na sala, faz a sua única edição no texto da sala, faz a sala
+   salvar e sai, em vez de gravar o arquivo por baixo da sala e criar uma
+   cópia de conflito numa pasta sincronizada. Sem ele a janela teria de
+   entrar às cegas, toda vez, para saber o mesmo. Não muda nenhum tipo
+   dos seis comandos nem dos cinco eventos; os bindings gerados se movem
+   por esse único comando (a regra 3 continua valendo: gerados do Rust,
+   nunca escritos à mão). O servidor responde a partir das suas salas, o
+   link do sync de uma pasta sincronizada o leva, e o desktop numa pasta
+   de servidor o encaminha.
 4. **Identidade e papel: os da sessão de aparelho.** A pessoa na sala é a
    conta com que o aparelho entrou ([0074](0074-accounts-and-access-on-the-server.md)
    item 8); o nome que os outros veem é o da conta, como pelo navegador.

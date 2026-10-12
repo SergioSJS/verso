@@ -588,7 +588,8 @@ fn both_forms_as_two_files_here_send_one_and_hold_the_other() {
         p.held,
         vec![Held {
             path: DECOMPOSED.into(),
-            here: true
+            here: true,
+            case: false
         }]
     );
     // The next pass: the same one held, nothing else to do.
@@ -605,7 +606,8 @@ fn both_forms_as_two_files_here_send_one_and_hold_the_other() {
         p.held,
         vec![Held {
             path: DECOMPOSED.into(),
-            here: true
+            here: true,
+            case: false
         }]
     );
     // The one the base knows syncs, whichever its form; the other is held
@@ -623,7 +625,8 @@ fn both_forms_as_two_files_here_send_one_and_hold_the_other() {
         p.held,
         vec![Held {
             path: COMPOSED.into(),
-            here: true
+            here: true,
+            case: false
         }]
     );
     // The held one deleted by the person: the other syncs as before.
@@ -1119,13 +1122,21 @@ fn run(seed: u64, on: Systems) {
             );
         }
         let mut synced = d.disk.clone();
+        let mut there = server.clone();
         for h in &last.held {
+            // Two files on the server whose names differ only in case:
+            // this device keeps one and holds the other there (spec Q8).
+            if h.case {
+                assert!(!h.here && cases && !server_folds, "{said}: {h:?}");
+                there.remove(&h.path);
+                continue;
+            }
             assert!(h.here, "{said}: the server holds both forms: {server:?}");
             synced.remove(&h.path);
         }
         assert_eq!(
             by_name(&synced),
-            by_name(&server),
+            by_name(&there),
             "{said}: {} differs from the server",
             d.name
         );
@@ -1260,4 +1271,82 @@ fn a_piece_crosses_in_a_frame_as_it_is() {
     assert!(binary_pieces(2));
     assert!(!binary_pieces(1));
     assert!(!binary_pieces(0));
+}
+
+/// Two files on the server whose names differ only in case (spec Q8: its
+/// disk keeps both; a new one is refused where it is made): this computer
+/// keeps one and holds the other, said once, the same on every pass —
+/// never fetched to be refused here. One it has or synced before stays in
+/// play, on a computer that folds names or not.
+#[test]
+fn case_twins_on_the_server_keep_one_here_and_hold_the_other() {
+    let remote = files(&[("Nota.md", "1"), ("nota.md", "2")]);
+    let held = |p: &str| Held {
+        path: p.into(),
+        here: false,
+        case: true,
+    };
+    for folds in [false, true] {
+        // First sync: the first in byte order comes, the other is held.
+        let p = plan(
+            &Files::new(),
+            &remote,
+            &State::default(),
+            false,
+            folds,
+            &copy,
+        );
+        assert_eq!(
+            p.actions,
+            vec![Action::Download {
+                path: "Nota.md".into(),
+                hash: "1".into()
+            }],
+            "folds: {folds}"
+        );
+        assert_eq!(p.held, vec![held("nota.md")], "folds: {folds}");
+        // Next pass: nothing to do, the same one held.
+        let p = plan(
+            &files(&[("Nota.md", "1")]),
+            &remote,
+            &state(&[("Nota.md", "1")]),
+            false,
+            folds,
+            &copy,
+        );
+        assert_eq!(p.actions, vec![], "folds: {folds}");
+        assert_eq!(p.held, vec![held("nota.md")], "folds: {folds}");
+        // The one this computer has, whichever, is the one kept.
+        let p = plan(
+            &files(&[("nota.md", "2")]),
+            &remote,
+            &state(&[("nota.md", "2")]),
+            false,
+            folds,
+            &copy,
+        );
+        assert_eq!(p.actions, vec![], "folds: {folds}");
+        assert_eq!(p.held, vec![held("Nota.md")], "folds: {folds}");
+    }
+    // A Linux device holding both syncs both, and a deletion of one of
+    // them here still crosses.
+    let both = state(&[("Nota.md", "1"), ("nota.md", "2")]);
+    let p = plan(&remote, &remote, &both, false, false, &copy);
+    assert_eq!((p.actions, p.held), (vec![], vec![]));
+    let p = plan(
+        &files(&[("Nota.md", "1")]),
+        &remote,
+        &both,
+        false,
+        false,
+        &copy,
+    );
+    assert_eq!(
+        p.actions,
+        vec![Action::DeleteRemote {
+            path: "nota.md".into(),
+            base: "2".into()
+        }]
+    );
+    assert_eq!(p.held, vec![]);
 }

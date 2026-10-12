@@ -18,6 +18,7 @@ import { openNote } from "../layout/spaces";
 import { syncedSessions } from "../collab";
 import { liveLine, liveWords } from "../coeditWords";
 import { liveTogether, setLiveTogether } from "../settings";
+import { madeBy } from "../syncWho";
 import { copyParts, looksBinary, originalOf, textByName } from "./conflictNames";
 
 const pt = {
@@ -78,6 +79,7 @@ const pt = {
   reasonTitle: {
     name_invalid: (n: number) => (n === 1 ? "Um arquivo com um nome que nem todo sistema aceita" : `${n} arquivos com nomes que nem todo sistema aceita`),
     name_taken: (n: number) => (n === 1 ? "Um arquivo com o nome de outro, só mudando maiúscula ou acento" : `${n} arquivos com o nome de outros, só mudando maiúscula ou acento`),
+    case_twin_there: (n: number) => (n === 1 ? "Dois nomes que só diferem em maiúsculas e minúsculas no servidor; este computador guarda um" : `${n} arquivos do servidor com nomes que só diferem de outros em maiúsculas e minúsculas; este computador guarda um de cada`),
     reader: (n: number) => (n === 1 ? "Um arquivo mudado aqui, numa pasta que você só lê" : `${n} arquivos mudados aqui, numa pasta que você só lê`),
     quota: (n: number) => (n === 1 ? "Um arquivo que não cabe na cota da pasta" : `${n} arquivos que não cabem na cota da pasta`),
     placeholder: (n: number) => (n === 1 ? "Um arquivo que ainda não está neste computador" : `${n} arquivos que ainda não estão neste computador`),
@@ -88,6 +90,7 @@ const pt = {
   reasonDo: {
     name_invalid: "Renomeie: tire o ponto ou o espaço do fim, os sinais < > : \" | ? * \\ e nomes como CON. Depois eles sincronizam sozinhos.",
     name_taken: "Renomeie um dos dois: o Windows e o macOS não guardam dois nomes assim na mesma pasta.",
+    case_twin_there: "Num Mac ou no Windows os dois seriam um arquivo só. Renomeie um deles no servidor (no navegador ou em outro aparelho) e os dois chegam aqui.",
     reader: "Eles ficam só neste computador. Peça para editar a quem é dono da pasta, se for o caso.",
     quota: "Libere espaço na pasta, ou peça ao admin do servidor para aumentar a cota.",
     placeholder: "Baixe-os do iCloud ou do OneDrive para que sincronizem.",
@@ -165,6 +168,7 @@ const en: typeof pt = {
   reasonTitle: {
     name_invalid: (n) => (n === 1 ? "A file whose name not every system keeps" : `${n} files whose names not every system keeps`),
     name_taken: (n) => (n === 1 ? "A file named as another but for its case or accents" : `${n} files named as others but for their case or accents`),
+    case_twin_there: (n) => (n === 1 ? "Two names that differ only in case on the server; this computer keeps one" : `${n} files on the server whose names differ from others only in case; this computer keeps one of each`),
     reader: (n) => (n === 1 ? "A file changed here, in a folder you only read" : `${n} files changed here, in a folder you only read`),
     quota: (n) => (n === 1 ? "A file that does not fit the folder's quota" : `${n} files that do not fit the folder's quota`),
     placeholder: (n) => (n === 1 ? "A file not on this computer yet" : `${n} files not on this computer yet`),
@@ -175,6 +179,7 @@ const en: typeof pt = {
   reasonDo: {
     name_invalid: "Rename them: no trailing dot or space, none of < > : \" | ? * \\, and no names such as CON. Then they sync on their own.",
     name_taken: "Rename one of the two: Windows and macOS do not keep two such names in one folder.",
+    case_twin_there: "On a Mac or Windows the two would be one file. Rename one of them on the server (in the browser or on another device) and both come here.",
     reader: "They stay on this computer. Ask the folder's owner to let you edit, if you should.",
     quota: "Free some space in the folder, or ask the server's admin for a larger quota.",
     placeholder: "Download them from iCloud or OneDrive so that they sync.",
@@ -548,5 +553,8 @@ function ledgerLine(e: SyncLogEntry): HTMLElement {
   time.dateTime = e.at;
   time.title = new Date(e.at).toLocaleString(locale());
   li.append(time, h("span", "sync-verb", s.what[e.what] ?? e.what), h("span", "sync-path", e.path + (e.other ? ` ← ${e.other}` : "")));
+  // Who made it, for what came from the server (sync 2).
+  const who = madeBy(e.by, e.device, document.documentElement.lang.startsWith("pt"));
+  if (who) li.append(h("span", "sync-who", who));
   return li;
 }

@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 use serde_json::json;
 use verso_core::sync as engine;
 
-use super::tests_sync::{device_at, text};
+use super::tests_sync::{changed, device_at, sync as pass_once, text};
 use super::*;
 
 const NOTE: &str = "Sessao.md";
@@ -201,4 +201,52 @@ fn a_revoked_shares_sync_turns_off_with_a_notice_and_keeps_the_files() {
         sync::off_status(d.ctx.config.as_deref(), &d.key).problem,
         None
     );
+}
+
+/// A receiver's own folder settings (`.verso/settings.json`, ADR 0070)
+/// are this machine's business in a share's folder: never sent — the
+/// server would refuse them, and they are not the shared folder's — and
+/// never listed as not synced, pass after pass; said once in the log.
+#[test]
+fn a_receivers_own_settings_stay_here_quietly() {
+    let r = shared();
+    let d = device_at(&r.url, &r.share, &r.receiver, &[]);
+    pass_once(&d);
+    assert_eq!(text(&d, NOTE).as_deref(), Some("# Sessao\n"));
+    let change = verso_core::FolderSettings {
+        bookmarks: Some(vec![NOTE.to_owned()]),
+        ..verso_core::FolderSettings::default()
+    };
+    d.ctx
+        .service
+        .with_key(&d.key, move |ws| {
+            let revision = ws.folder_settings().revision;
+            Ok(ws
+                .set_folder_settings(&change, revision.as_deref())
+                .map(|_| ())?)
+        })
+        .unwrap();
+    assert!(text(&d, ".verso/settings.json").is_some());
+    for _ in 0..3 {
+        changed(&d, &[".verso/settings.json"]);
+        let passed = pass_once(&d);
+        assert_eq!(passed.actions, 0, "nothing to send or fetch");
+        let status = d.s.status();
+        assert!(
+            status.refused.is_empty(),
+            "nothing listed as not synced: {:?}",
+            status.refused
+        );
+    }
+    assert!(d.s.settings_said.load(std::sync::atomic::Ordering::Relaxed));
+    // Never agreed with the server: nothing of `.verso/` in the base.
+    let base = engine::load(d.ctx.config.as_deref(), &d.key)
+        .unwrap()
+        .unwrap();
+    assert!(
+        base.base.keys().all(|p| !p.starts_with(".verso")),
+        "{:?}",
+        base.base
+    );
+    assert!(base.base.contains_key(NOTE));
 }

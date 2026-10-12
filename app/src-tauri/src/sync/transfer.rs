@@ -42,6 +42,35 @@ fn of_server(path: &str, e: &Value) -> Refusal {
     }
 }
 
+/// A path the plan holds apart (`engine::Held`), as the list of what is
+/// not synced says it: a name's other Unicode form held by another file
+/// (spec Q7) is a name taken; a name on the server that another file there
+/// holds in another case (spec Q8) is said as such — the server keeps
+/// both, this computer one.
+pub(super) fn held_refused(h: &engine::Held) -> SyncRefused {
+    let (reason, message) = if h.case {
+        (
+            "case_twin_there",
+            "two names that differ only in case on the server; this computer keeps one",
+        )
+    } else if h.here {
+        (
+            "name_taken",
+            "another file here has this name, its accents in another Unicode form: one name is one file everywhere",
+        )
+    } else {
+        (
+            "name_taken",
+            "another file on the server has this name, its accents in another Unicode form",
+        )
+    };
+    SyncRefused {
+        path: h.path.clone(),
+        reason: reason.to_owned(),
+        message: message.to_owned(),
+    }
+}
+
 /// A step here that failed. One whose file is gone since the listing —
 /// moved or deleted on this computer while the pass ran, or long before
 /// with no batch of the watcher to say so (C13, C17) — brings the listing
@@ -584,5 +613,53 @@ mod tests {
         assert_eq!(reason(&of_server("nota.md", &twin)), Some("name_taken"));
         let other = json!({"kind": "refused", "message": "differs only in case"});
         assert_eq!(reason(&of_server("nota.md", &other)), Some("failed"));
+    }
+
+    /// A name the server holds twice, in two cases, is said once as its
+    /// own reason; an accent's other form keeps "name taken".
+    #[test]
+    fn a_name_held_on_the_server_by_its_case_twin_says_so() {
+        let held = |here: bool, case: bool| {
+            held_refused(&engine::Held {
+                path: "nota.md".to_owned(),
+                here,
+                case,
+            })
+        };
+        let twin = held(false, true);
+        assert_eq!(twin.reason, "case_twin_there");
+        assert_eq!(
+            twin.message,
+            "two names that differ only in case on the server; this computer keeps one"
+        );
+        assert_eq!(held(true, false).reason, "name_taken");
+        assert_eq!(held(false, false).reason, "name_taken");
+    }
+
+    /// What the server's log says of who made a change (sync 2) reaches
+    /// the recent activity for what came from there, never for what this
+    /// computer sent.
+    #[test]
+    fn the_server_says_who_made_what_came_from_there() {
+        let c = json!({"seq": 3, "path": "a.md", "by": "Ana", "device": "MacBook"});
+        assert_eq!(
+            author_of(&c),
+            (Some("Ana".to_owned()), Some("MacBook".to_owned()))
+        );
+        let browser = json!({"seq": 4, "path": "b.md", "by": "Ana"});
+        assert_eq!(author_of(&browser), (Some("Ana".to_owned()), None));
+        assert_eq!(author_of(&json!({"seq": 5, "path": "c.md"})), (None, None));
+        for what in [
+            "received",
+            "deleted_here",
+            "renamed_here",
+            "conflict",
+            "merged",
+        ] {
+            assert!(from_there(what), "{what}");
+        }
+        for what in ["sent", "deleted_there", "renamed_there"] {
+            assert!(!from_there(what), "{what}");
+        }
     }
 }

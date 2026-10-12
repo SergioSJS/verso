@@ -155,11 +155,25 @@ Accepted (2026-10-10, Status).
    number is set before any change to that wire. *(Sync 2, 2026-10-12:
    each change `sync_changes` answers may carry `device`, the name of
    the device whose sync made it, as the person set it in Settings ›
-   Servers — item 4's "who made it" told to the devices; a device of
-   sync 1 ignores the field, and through a share it is left out. The
+   Servers, and `by`, the person's name (the account's e-mail when it
+   has none; added the same day, still unreleased) — item 4's "who made
+   it" told to the devices, which say it in Settings › Sync's recent
+   activity, "by <person> on <device>"; a device of sync 1 ignores the
+   fields, and through a share both are left out. The
    same version 2 carries a piece of a file as a binary WebSocket message
    instead of base64 — item 12, revised the same day; a side of sync 1 is
-   still sent and taken base64.)*
+   still sent and taken base64. Also in sync 2, unreleased when added on
+   2026-10-12: a write, rename or folder the server refuses because its
+   new name differs only in case from a sibling (spec Q8) answers with
+   the error kind `case_twin`, which a device of sync 2 lists as a name
+   taken; a device of sync 1 does not know the kind and already lists
+   the file as failed ("the server refused") — nothing breaks, the reason
+   is only less precise. And through a share (ADR 0081 item 6), `head`
+   and each change's `seq` count the share's own changes, not the
+   folder's, and the push that the log moved carries no head: the
+   folder's numbers told the receiver how much happens outside the share
+   (3.18). The device's cursor is opaque to it, and a device keeps it only
+   while it is connected, so nothing of sync 1 has to be read again.)*
 6. **When**: on the local watcher's batches (debounced), on the server's
    pushes, at start and on reconnecting, and by a scan every five minutes
    as a net. Offline, nothing queues but the state's difference: when the

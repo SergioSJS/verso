@@ -770,6 +770,9 @@ fn a_devices_change_and_its_refusal_name_the_device() {
         assert_eq!(of(COMPOSED)["device"], "verso-ubuntu", "{feed}");
         assert_eq!(of("Do estudio.md")["device"], "Estúdio", "{feed}");
         assert!(of("Do navegador.md").get("device").is_none(), "{feed}");
+        // And who: the account's name, a browser's change too.
+        assert_eq!(of("Do estudio.md")["by"], "Admin", "{feed}");
+        assert_eq!(of("Do navegador.md")["by"], "Admin", "{feed}");
     });
 }
 

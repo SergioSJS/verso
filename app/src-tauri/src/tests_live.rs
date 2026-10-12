@@ -173,6 +173,8 @@ struct Browser {
     doc: Doc,
     /// The note's path in the folder the browser opened.
     path: String,
+    /// The revision of the file the room last wrote or read, as heard.
+    revision: String,
 }
 
 fn browser(r: &Running) -> Browser {
@@ -203,6 +205,7 @@ fn browser_at(url: &str, token: &str, folder: &str, path: &str) -> Browser {
             heard,
             doc,
             path: path.to_owned(),
+            revision: joined["revision"].as_str().unwrap().to_owned(),
         }
     })
 }
@@ -223,39 +226,60 @@ impl Browser {
 
     fn hear(&mut self) {
         while let Ok(h) = self.heard.try_recv() {
-            if let remote::Heard::Event(event, payload) = h
-                && event == "collab-update"
-                && payload["path"] == self.path.as_str()
-            {
-                apply(&self.doc, &payload["update"]);
+            let remote::Heard::Event(event, payload) = h else {
+                continue;
+            };
+            if payload["path"] != self.path.as_str() {
+                continue;
+            }
+            match event.as_str() {
+                "collab-update" => apply(&self.doc, &payload["update"]),
+                "collab-saved" => {
+                    payload["revision"]
+                        .as_str()
+                        .unwrap()
+                        .clone_into(&mut self.revision);
+                }
+                _ => {}
             }
         }
     }
 
-    /// The note as the server's file holds it.
-    fn file(&self) -> String {
+    /// The note as the server's file holds it, and its revision.
+    fn note(&self) -> (String, String) {
         let note = self
             .call("read_note", json!({ "path": self.path }))
             .unwrap();
-        note["text"].as_str().unwrap().to_owned()
+        (
+            note["text"].as_str().unwrap().to_owned(),
+            note["revision"].as_str().unwrap().to_owned(),
+        )
+    }
+
+    /// The note as the server's file holds it.
+    fn file(&self) -> String {
+        self.note().0
     }
 }
 
 /// The room wrote what it holds, `must` among it: the server's file is the
-/// browser's text, as heard — not a fixed wait, which a loaded machine
-/// outruns.
+/// browser's text, as heard, and the save that made it is heard too — the
+/// room tells it once the folder's log has it, so a device's pass right
+/// after finds it. Not a fixed wait, which a loaded machine outruns; nor
+/// the file alone, which is on disk a moment before the log knows it.
 fn saved(c: &mut Browser, must: &[&str]) {
     let deadline = std::time::Instant::now() + Duration::from_secs(30);
     loop {
         c.hear();
         let room = text_of(&c.doc);
-        if must.iter().all(|w| room.contains(w)) && c.file() == room {
+        let (file, revision) = c.note();
+        if must.iter().all(|w| room.contains(w)) && file == room && revision == c.revision {
             return;
         }
         assert!(
             std::time::Instant::now() < deadline,
-            "the room did not write: {room:?} {:?}",
-            c.file()
+            "the room did not write: {room:?} {file:?} (heard {}, on disk {revision})",
+            c.revision
         );
         sleep(Duration::from_millis(100));
     }

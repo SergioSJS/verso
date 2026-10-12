@@ -76,6 +76,10 @@ async fn run(
             if let Some(files) = v["files"].as_array_mut() {
                 files.retain_mut(|f| rel(scope, &mut f["path"]));
             }
+            // The share's own head: how many of the folder's changes up to
+            // the folder's head are the share's (3.18).
+            let upto = v["head"].as_i64().unwrap_or(0);
+            v["head"] = json!(share_count(server, client, scope, upto).await?);
             (v, None)
         }
         "sync_changes" => return Ok((changes(server, who, client, &args, scope).await?, None)),
@@ -128,11 +132,67 @@ fn rel(scope: &Scope, v: &mut Value) -> bool {
     }
 }
 
+/// The roots a share sees changes under: the shared folder's path, and
+/// the attachments folder it shows.
+fn roots(scope: &Scope) -> Vec<String> {
+    let mut out = vec![scope.root.clone()];
+    out.extend(scope.mount.as_ref().map(|(_, path)| path.clone()));
+    out
+}
+
+/// How many of the folder's changes up to its number `upto` the share sees
+/// ([`crate::db::Db::share_seq`]): the share's own head.
+async fn share_count(
+    server: &Arc<Server>,
+    client: &str,
+    scope: &Scope,
+    upto: i64,
+) -> Result<i64, ContractError> {
+    let (folder, _) = crate::rpc::role_here(server, client)?;
+    let (s, roots) = (Arc::clone(server), roots(scope));
+    crate::rpc::blocking(move || {
+        let roots: Vec<&str> = roots.iter().map(String::as_str).collect();
+        s.db.share_seq(&folder, &roots, upto)
+            .map_err(verso_service::failed)
+    })
+    .await
+}
+
+/// Where in the folder's log the share's cursor `asked` is: the folder's
+/// number of the share's `asked`-th change, and the share's count there.
+/// A cursor past what the share sees (the share's path moved, so other
+/// changes are its own) stands at the last change it sees: nothing is
+/// missed, and what comes after is numbered on from there.
+async fn cursor_at(
+    server: &Arc<Server>,
+    client: &str,
+    scope: &Scope,
+    asked: i64,
+) -> Result<(i64, i64), ContractError> {
+    if asked < 1 {
+        return Ok((0, 0));
+    }
+    let (folder, _) = crate::rpc::role_here(server, client)?;
+    let (s, roots) = (Arc::clone(server), roots(scope));
+    crate::rpc::blocking(move || {
+        let roots: Vec<&str> = roots.iter().map(String::as_str).collect();
+        let fail = verso_service::failed;
+        let seen = s.db.share_seq(&folder, &roots, i64::MAX).map_err(fail)?;
+        let n = asked.min(seen);
+        let at = s.db.share_change(&folder, &roots, n).map_err(fail)?;
+        Ok((at.unwrap_or(0), n))
+    })
+    .await
+}
+
 /// The changes of the share after the device's cursor: the folder's log
 /// read in its pages and filtered — a change outside the share is not
-/// said, a file moved out of it is a deletion, one moved in is new. The
-/// head said is where the reading stopped, so that the device's next
-/// question starts there.
+/// said, a file moved out of it is a deletion, one moved in is new. Each
+/// is numbered in the share's own count (3.18): the folder's numbers would
+/// tell the receiver how much happens outside the share, so the device's
+/// cursor and the head it hears count the share's changes only, and the
+/// cursor is opaque to it. The head said is where the reading stopped, so
+/// that the device's next question starts there.
 async fn changes(
     server: &Arc<Server>,
     who: &Who,
@@ -140,7 +200,8 @@ async fn changes(
     args: &Value,
     scope: &Scope,
 ) -> Result<Value, ContractError> {
-    let mut since: i64 = arg(args, "since")?;
+    let asked: i64 = arg(args, "since")?;
+    let (mut since, mut n) = cursor_at(server, client, scope, asked).await?;
     let mut out: Vec<Value> = Vec::new();
     let all: Arc<dyn Fn(&str) -> bool + Send + Sync> = Arc::new(|_: &str| true);
     loop {
@@ -159,18 +220,19 @@ async fn changes(
         let more = page["more"] == true;
         for c in list {
             since = since.max(c["seq"].as_i64().unwrap_or(since));
-            if let Some(seen) = change(scope, c) {
+            if let Some(mut seen) = change(scope, c) {
+                n += 1;
+                seen["seq"] = json!(n);
                 out.push(seen);
             }
             if out.len() >= PAGE {
-                let more = since < head;
-                return Ok(
-                    json!({ "head": if more { since } else { head }, "changes": out, "more": more }),
-                );
+                return Ok(json!({ "head": n, "changes": out, "more": since < head }));
             }
         }
         if !more {
-            return Ok(json!({ "head": head, "changes": out, "more": false }));
+            // Every change up to the folder's head read: `n` is the
+            // share's head.
+            return Ok(json!({ "head": n, "changes": out, "more": false }));
         }
     }
 }
@@ -178,9 +240,11 @@ async fn changes(
 /// One change of the folder's log as the share sees it, if it sees it.
 fn change(scope: &Scope, mut c: Value) -> Option<Value> {
     // Which device of the owner's, or of another person's, made it is
-    // theirs: not the receiver's to know.
+    // theirs: not the receiver's to know; nor who, among the folder's
+    // people (the folder's change log says it to its own members).
     if let Some(o) = c.as_object_mut() {
         o.remove("device");
+        o.remove("by");
     }
     let path = c["path"].as_str().and_then(|p| scope.to_rel(p));
     let from = c["renamedFrom"].as_str().and_then(|p| scope.to_rel(p));
@@ -281,13 +345,14 @@ mod tests {
             root: "C".into(),
             mount: None,
         };
-        let c = |path: &str, from: Option<&str>| json!({ "seq": 1, "path": path, "hash": "h", "size": 1, "deleted": false, "renamedFrom": from, "device": "MacBook de Sérgio" });
+        let c = |path: &str, from: Option<&str>| json!({ "seq": 1, "path": path, "hash": "h", "size": 1, "deleted": false, "renamedFrom": from, "device": "MacBook de Sérgio", "by": "Sérgio" });
         assert_eq!(change(&scope, c("D/x.md", None)), None);
         assert_eq!(change(&scope, c("D/x.md", Some("D/y.md"))), None);
         let inside = change(&scope, c("C/x.md", Some("D/y.md"))).unwrap();
         assert_eq!(inside["path"], "x.md");
         assert_eq!(inside["renamedFrom"], Value::Null);
         assert!(inside.get("device").is_none(), "{inside}");
+        assert!(inside.get("by").is_none(), "{inside}");
         let out = change(&scope, c("D/x.md", Some("C/y.md"))).unwrap();
         assert_eq!(out["path"], "y.md");
         assert_eq!(out["deleted"], true);

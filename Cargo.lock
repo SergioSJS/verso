@@ -5944,6 +5944,7 @@ dependencies = [
  "notify",
  "rustix",
  "tempfile",
+ "unicode-normalization",
  "winapi-util",
  "xattr",
 ]

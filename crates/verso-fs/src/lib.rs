@@ -737,7 +737,8 @@ impl Root {
     /// The names a create or a rename makes along the confined `relative`,
     /// checked as ADR 0070 item 3 says: one not every OS can keep, or one
     /// that differs only in case from an entry its folder lists (spec Q8,
-    /// decided 2026-10-12), is refused; an entry that exists never is.
+    /// decided 2026-10-12) — case and the accents' Unicode form folded
+    /// together (spec Q7) — is refused; an entry that exists never is.
     /// `from`: the entry a rename moves.
     fn new_names(&self, relative: &Path, from: Option<&Path>) -> Result<(), WriteError> {
         confine::unportable_new(&self.path, relative).map_err(WriteError::Confined)?;
@@ -807,9 +808,30 @@ impl Root {
 
     /// Move an entry of `.trash/` back to `to`, confined as every path is;
     /// `WriteError::Exists` when something stands there (ADR 0080 item 5).
+    /// A restore is a move inside the folder: the names it makes are
+    /// checked as a rename's are (ADR 0070 item 3) — one not every OS can
+    /// keep is refused, and so is one that differs only in case from an
+    /// entry of its folder (spec Q8), which the caller takes for a name
+    /// taken and restores beside.
     pub fn restore_from_trash(&mut self, from: &Path, to: &Path) -> Result<OpReport, WriteError> {
         let to = self.confine(to).map_err(WriteError::Confined)?;
+        self.new_names(&to, None)?;
         trashbin::restore(&self.path, from, &to)
+    }
+
+    /// Whether an entry can be put into the folder `relative`: it is a
+    /// folder there — reached as the file system reaches it, so on a Mac
+    /// `Pasta` is the `pasta` that stands — or the folders it would make
+    /// pass ADR 0070 item 3's checks, refused with the reason a create
+    /// would give; nothing is made. A restore asks it of the folder it
+    /// puts an entry back into: one that only a case twin stands for on
+    /// Linux cannot be helped by a name beside.
+    pub fn check_new_folder(&self, relative: &Path) -> Result<(), WriteError> {
+        let relative = self.confine(relative).map_err(WriteError::Confined)?;
+        if std::fs::metadata(on_disk(&self.path, &relative)).is_ok_and(|m| m.is_dir()) {
+            return Ok(());
+        }
+        self.new_names(&relative, None)
     }
 
     /// Copy the file at `relative` into `.trash/` before a write replaces

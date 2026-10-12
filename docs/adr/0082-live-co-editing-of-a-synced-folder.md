@@ -145,6 +145,22 @@ carried a recommendation; the maintainer decided. Open items answered
    `latency_ms` from that link; the window asks again when `sync-status`
    says the state changed (as it asks again on a role change today). No
    type changes shape; the generated bindings do not move (rule 3).
+   *(Revised on 2026-10-12, recording what the maintainer ordered that
+   day — "Ajuste todas essas pendências agora", "falei pra implementar
+   tudo isso" — with the join-to-write of a note live only elsewhere,
+   d86bce7:)* one command is added, read-only: `collab_present`, "is
+   anyone in this note's room?". A write that is not a keystroke — a
+   PDF's quote, a base's cell, the tree's sticker, label or order, a
+   property from the panel — on a note this window does not hold live
+   asks it; when someone is in, the write joins the room, makes its one
+   edit on the room's text, has the room save, and leaves, instead of
+   writing the file under the room and making a conflict copy on a
+   synced folder. Without it the window would have to join blind, every
+   time, to learn the same. It changes no type of the six commands or
+   the five events; the generated bindings move by that one command
+   (rule 3 still holds: generated from Rust, never written by hand). The
+   server answers it from its rooms, a synced folder's sync link carries
+   it, and the desktop on a server's folder forwards it.
 4. **Identity and role: the device session's.** The person in the room is
    the account the device signed in as ([0074](0074-accounts-and-access-on-the-server.md)
    item 8); the name the others see is the account's name, as from the
