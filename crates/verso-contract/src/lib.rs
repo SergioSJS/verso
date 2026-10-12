@@ -702,11 +702,16 @@ pub struct SyncStatus {
     /// The last error, said (in English, for the log).
     pub message: Option<String>,
     /// What the last error was, for the window to say in its language:
-    /// `not_signed_in`, `signed_out`, `version`, `folder_gone`, `failed`.
+    /// `not_signed_in`, `signed_out`, `version`, `folder_gone`, `failed`;
+    /// with the state `off`, `revoked`.
     pub problem: Option<String>,
     /// With the problem `version`: what each side runs — two builds of one
     /// version can differ in their contracts, and the window names both.
     pub versions: Option<SyncVersions>,
+    /// When the folder's owner revoked the share this folder synced,
+    /// `YYYY-MM-DDTHH:MM:SSZ`: sync was turned off then, the files here
+    /// kept (ADR 0081 item 8). Said until sync is turned on again.
+    pub revoked: Option<String>,
 }
 
 /// What the server and this app run, when their contracts differ: the

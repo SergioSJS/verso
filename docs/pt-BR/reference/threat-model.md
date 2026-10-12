@@ -119,7 +119,7 @@ navegador ou de aparelho de um admin, nunca um token.
 | `GET /f/{folder}/{*path}` | um leitor da pasta ou mais; um token dentro das pastas dele | TLS; o papel, a cada requisição; o confinamento de caminhos do núcleo | `Content-Security-Policy: sandbox`, `nosniff`, `Cross-Origin-Resource-Policy: same-origin` | nada |
 | `GET /api/ws`, o contrato | um navegador (só com `--web`, `Origin` conferido antes de aceitar o cookie), um aparelho, um token | TLS; a sessão ou o token vivo antes de cada comando; o papel na pasta antes de o núcleo agir; as pastas e a escrita de um token; uma versão de sync mais velha que a anterior recusada para `sync_*` | 48 MB por mensagem; 8 requisições em andamento, além das quais a conexão não é lida; uma fila de 1024 mensagens e 64 MiB de envios, cheia = fechada; cada escrita em 30 s mais o tamanho dela a 32 KiB/s, senão fechada; um ping a cada 30 s, fechada depois de 2 sem resposta; 32 conexões por conta e 64 por endereço, 429 além disso; cada comando no ritmo da conta (100 por segundo, 400 de uma vez) e no do servidor (1 000, 2 000), esperando a vez além dele; as linhas de log de uma janela, 60 por minuto | o log do servidor: uma mudança de sync recusada, uma conexão lenta ou calada fechada, uma versão de sync recusada; o registro de mudanças de cada pasta nomeia a conta e o aparelho de cada escrita |
 | — comandos da pasta | a pasta da janela, aberta por `open_server_folder` ou `reopen_folder` | um comando de escrita pede editor ou dono e uma credencial que escreve; os bytes de uma escrita conferidos contra a cota antes | a cota (ADR 0077 item 5) | o registro de mudanças |
-| — `collab_*` (notas compartilhadas) | membros da pasta | `collab_update`, `_save`, `_resolve` pedem quem escreve; uma atualização Yjs malformada recusada | a presença (`collab_awareness`) com 16 KB no máximo, repassada como veio; o que é repassado conta nos 64 MiB de envios de cada destinatário | nada |
+| — `collab_*` (notas compartilhadas) | membros da pasta | `collab_update`, `_save`, `_resolve` pedem quem escreve; uma atualização Yjs malformada recusada | a presença (`collab_awareness`) com 16 KB no máximo, de uma janela na sala, carimbada com o nome da conta de quem enviou e só os clientes Yjs dela (lacuna 11); o que é repassado conta nos 64 MiB de envios de cada destinatário | nada |
 | — `sync_*` | um aparelho (qualquer credencial pode perguntar) | uma escrita, um apagamento ou uma mudança de nome pede quem escreve, nomeia o hash de base e é recusada quando o arquivo mudou; um apagamento vai para o `.trash/`; a cota sobre o arquivo inteiro | pedaços de 4 MiB; 2 transferências em cada sentido por conexão, descartadas depois de 120 s paradas e quando a conexão acaba; 1 GiB por arquivo; uma varredura no máximo uma vez por minuto | o log do servidor para uma recusa que não seja "mudou" |
 | — `render_markdown`, `board_text`, `log_write`, `capabilities` | quem está dentro | — | o parser passa por fuzzing e pela checagem de tempo linear; linhas de log uma linha cada, 2000 caracteres | o log do servidor (`log_write`) |
 | O feed de releases | o servidor, de saída | — | uma vez por dia; só a versão no `User-Agent`; `VERSO_UPDATE_TOKEN` quando o repositório é privado; `VERSO_UPDATE_CHECK=off` | uma linha quando falha |
@@ -150,7 +150,7 @@ navegador ou de aparelho de um admin, nunca um token.
 | O primeiro admin tomado por quem chegar primeiro | Nenhuma página de configuração aberta a qualquer um: o admin vem do ambiente na primeira subida, ou de um link de configuração de uso único, válido por uma hora, escrito uma vez no log — quem lê o log é quem roda o servidor. |
 | Um admin perdido | `universo admin reset <e-mail>` (ou `verso serve admin reset`) na máquina: o acesso à máquina é o último fator; a redefinição fica no registro de auditoria e encerra as sessões da conta. |
 | Um link de convite ou de senha nova repassado ou adivinhado | 256 bits, uso único, validade (7 dias, 24 horas), o uso registrado (por quem, quando), encerrável pelo admin antes do uso; tentativas desaceleradas por endereço. |
-| Um aparelho aprovado por engano | A página de aprovação mostra o nome do aparelho e o código que o app mostra, pede uma pessoa já dentro no navegador, e a sessão do aparelho é listada e revogável. O nome do aparelho é o que quem pediu enviou (ver as lacunas). |
+| Um aparelho aprovado por engano | A página de aprovação mostra o nome do aparelho e o código que o app mostra, o endereço e a hora do pedido, pergunta a uma pessoa já dentro no navegador *Foi você quem pediu, neste aparelho?* e oferece recusar, e a sessão do aparelho é listada e revogável. O nome do aparelho é o que quem pediu enviou; o endereço e a hora são os do servidor (lacuna 12). |
 | Um aparelho ou um celular perdido | A pessoa encerra a sessão nos Ajustes; um admin encerra todas as sessões de uma conta e revoga os tokens dela pelo console, as conexões abertas fechadas na hora, com uma linha de auditoria (ADR 0077 item 3, construído). |
 | Passkeys | WebAuthn com verificação do usuário exigida (webauthn-rs); o estado da cerimônia vive cinco minutos na memória; contadores guardados. |
 
@@ -167,7 +167,7 @@ navegador ou de aparelho de um admin, nunca um token.
 | Uma edição que apaga o texto de outro | A edição simultânea mescla; uma escrita vinda de fora é mesclada linha a linha ou recusada como mudada; uma mudança feita fora enquanto há edições esperando para a sala para as pessoas escolherem. `[ABERTO]`: histórico, atribuição e recuperação da mudança de outro membro (ADR 0073). |
 | O apagamento do arquivo de outro | Um apagamento vai para o `.trash/` da pasta, da janela e de um aparelho igualmente; ver e restaurar na janela, e a retenção, são o ADR 0080, aceito, em construção. |
 | Uma mensagem enorme ou muitas requisições para esgotar a memória | Uma mensagem de WebSocket tem 48 MB no máximo; uma atualização Yjs malformada é recusada; uma conexão tem no máximo 8 requisições em andamento e uma fila de 1024 mensagens e 64 MiB de envios, fechada quando enche; uma presença tem 16 KB no máximo. Os comandos seguem um ritmo por conta e no servidor, e as conexões são contadas por conta e por endereço (lacunas 3 e 4, fechadas). O espaço de uma pasta é limitado pela cota dela (ADR 0077 item 5): uma escrita que a passaria é recusada e nada é escrito. |
-| Uma presença que mente | A presença de um membro numa nota compartilhada é repassada como a janela dele a enviou; o servidor não a carimba com a conta (ver as lacunas). |
+| Uma presença que mente | O servidor carimba a presença com o nome da conta de quem a enviou, só mantém uma cor que seja uma cor, e deixa uma conexão falar só pelos clientes Yjs dela: o cursor de um membro não veste o nome de outro, nem move ou tira o de outro (lacuna 11). |
 
 ### O que o sanitizador garante
 
@@ -355,15 +355,23 @@ classificação é uma recomendação para o mantenedor confirmar.
 
 11. **A presença pode alegar outro nome.** `collab_awareness` é repassado
     opaco; o servidor não carimba a conta de quem enviou, então o cursor de
-    um membro pode vestir o nome e a cor de outro. **Continua aberta:**
-    uma decisão de produto — se o servidor carimba a presença com a conta,
-    e o que a janela mostra disso.
+    um membro pode vestir o nome e a cor de outro. **Fechada: 3bc56ae** —
+    o servidor lê cada atualização de presença, põe no `user` de cada
+    estado o nome da conta de quem enviou e uma cor `#rrggbb` (a primeira
+    da janela, senão), e descarta um cliente Yjs pelo qual outra conta
+    fala (no máximo 8 por conexão); bytes malformados, e a presença de uma
+    janela fora da sala, são recusados (o mantenedor, 2026-10-12: "temos
+    que ser seguros desde o dia 0").
 12. **Phishing pelo código de aparelho.** Quem inicia um código escolhe o
     nome do aparelho que a página de aprovação mostra; uma pessoa que
     recebe um link pode aprovar o aparelho de um estranho na própria conta.
-    A página não mostra endereço nem hora do pedido. **Continua aberta:**
-    uma decisão de produto — o que a página de aprovação mostra e
-    pergunta.
+    A página não mostra endereço nem hora do pedido. **Fechada: 5838c10**
+    — o código pendente guarda o endereço e a hora de onde foi pedido; a
+    página os mostra com o nome do aparelho em *Quem pediu*, e então
+    pergunta *Foi você quem pediu, neste aparelho?* antes de *Aprovar este
+    aparelho: <nome>* e *Não fui eu: recusar*; recusar acaba com o código.
+    O nome continua o de quem pediu: o endereço e a hora são o que
+    denunciam o pedido de um estranho.
 13. **O banco do servidor é criado com o umask do processo.** O índice do
     desktop e o `servers.json` são `0600`; `server.sqlite` e
     `VERSO_DATA_DIR` não recebem modo nenhum do servidor (não verificado

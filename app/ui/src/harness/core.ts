@@ -324,7 +324,7 @@ export class Core {
   deviceName: string | null = null;
 
   static syncOff(): SyncStatus {
-    return { key: "harness", on: false, server: "", folder: "", folder_name: "", role: "", state: "off", sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], log: [], last: null, message: null, problem: null, versions: null };
+    return { key: "harness", on: false, server: "", folder: "", folder_name: "", role: "", state: "off", sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], log: [], last: null, message: null, problem: null, versions: null, revoked: null };
   }
 
   constructor(

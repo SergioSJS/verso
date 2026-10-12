@@ -137,7 +137,8 @@ pub(crate) fn grant_whole(ctx: &Ctx, id: &str, account: &str, role: Role) -> Api
         return Err(ApiError::bad("last_owner", "a folder keeps an owner"));
     }
     ctx.server.db.grant(id, &target.id, role)?;
-    ctx.server.role_changed(id, &target.id, Some(role));
+    ctx.server
+        .role_changed(id, &target.id, Some(role), "revoked");
     ctx.audit(
         &format!("grant_{}", role.as_str()),
         Some(&target.id),
@@ -185,7 +186,10 @@ pub(crate) fn revoke_whole(ctx: &Ctx, id: &str, account: Option<String>) -> ApiR
         return Err(ApiError::bad("last_owner", "a folder keeps an owner"));
     }
     ctx.server.db.revoke(id, &account)?;
-    ctx.server.role_changed(id, &account, None);
+    // A member who left is told so, not that an owner took them out.
+    let left = ctx.who.as_ref().is_some_and(|w| w.account.id == account);
+    let why = if left { "left" } else { "revoked" };
+    ctx.server.role_changed(id, &account, None, why);
     ctx.audit("revoke", Some(&account), Some(id), true);
     Ok(())
 }

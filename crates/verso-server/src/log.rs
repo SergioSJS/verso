@@ -8,7 +8,8 @@
 //! prints, once, by design (item 1).
 
 /// The time as `YYYY-MM-DDTHH:MM:SSZ`, from the system clock.
-fn stamp() -> String {
+#[must_use]
+pub fn stamp() -> String {
     let secs = crate::db::now();
     let days = secs.div_euclid(86_400);
     let rest = secs.rem_euclid(86_400);

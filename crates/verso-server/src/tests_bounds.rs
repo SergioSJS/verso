@@ -82,7 +82,7 @@ fn a_presence_past_its_bound_is_refused() {
             &mut ws,
             3,
             "collab_awareness",
-            json!({ "path": "Sessao.md", "update": "AQ==" }),
+            json!({ "path": "Sessao.md", "update": "AA==" }),
         )
         .await;
         assert!(small.get("ok").is_some(), "{small}");

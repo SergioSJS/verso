@@ -677,7 +677,12 @@ rest below and in `manual-checks.md`.
    saved there is the conflict copies' and this device's session's on each
    server, and emptied the system's is back (e2e, `sync.spec.mjs`, "Servers
    names this computer"; the host's test,
-   `a_window_on_a_servers_folder_is_answered_by_the_server`).
+   `a_window_on_a_servers_folder_is_answered_by_the_server`). The page
+   that approves the device says who asked — the device's name, the
+   address, the time — and asks *Foi você quem pediu, neste aparelho?*,
+   with *Aprovar este aparelho: <nome>* and *Não fui eu: recusar*; refused,
+   the app's code is gone (e2e-server, "the page that approves a device
+   says who asked"; `tests_threats.rs`).
 7. Sync ([ADR 0079](../adr/0079-sync-a-local-folder-with-a-server.md)): with
    a folder of this computer open, *Ajustes* › *Sincronizar*; signed in to
    no server it says *Conecte a um servidor em Servidores primeiro*; signed
@@ -725,7 +730,12 @@ rest below and in `manual-checks.md`.
    out of what was shared"). What the receiver may reach — never above the
    share, by `..`, a sibling, a rename, sync's listing, reads and writes,
    `/f/`, the events — the server's Rust tests (`tests_shares.rs`); two
-   people and the attachments folder, by hand (`manual-checks.md`).
+   people and the attachments folder, by hand (`manual-checks.md`). The
+   owner removes a person whose computer syncs the share: that sync turns
+   off, the files kept, and the status bar and *Ajustes* › *Sincronizar*
+   say *quem compartilhou revogou o acesso* and when (e2e, `sync.spec.mjs`,
+   "a share revoked by its owner"; the host's Rust test against a real
+   server, `tests_shares.rs`).
 11. Editing together in a synced folder ([ADR
     0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), from note 23's
     section *Editar junto numa pasta sincronizada*: with the folder syncing,
@@ -741,7 +751,9 @@ rest below and in `manual-checks.md`.
     (e2e, `live.spec.mjs`). Two devices and a browser in one room, a drop
     and a return within the grace and after it, an outside program's edit,
     a reader, a pause, and the property test that no edit is lost — the
-    host's Rust tests against a real server (`tests_live.rs`); two real
+    host's Rust tests against a real server (`tests_live.rs`); a cursor
+    always wears its writer's account name, whatever the window sent
+    (`tests_threats.rs`); two real
     computers, by hand (`manual-checks.md`). The demo vault has no server:
     the steps run in the harness's room or by hand.
 

@@ -257,3 +257,24 @@ test("a conflict's copy whose note was renamed or deleted says so, and offers on
   await expect.poll(() => app.calls("read_note").then((c) => c.map((a) => a.path))).toContain(orphan);
   expect((await app.calls("read_note")).map((a) => a.path)).not.toContain("Lista.md");
 });
+
+test("a share revoked by its owner turns sync off and says so, in the bar and the section (ADR 0081 item 8)", async ({ app }) => {
+  await app.open();
+  const on = { ...(await app.page.evaluate(() => window.__harness.core.sync)), on: true, server: "https://notas.casa", folder: "s1", folder_name: "Mesa (Ana)", role: "editor", state: "synced", last: "2026-10-12T20:00:00Z" };
+  await say(app, on);
+  const bar = app.page.locator("#sync-state");
+  await expect(bar).toHaveText("Sincronizada");
+  await openSync(app);
+  // The owner revokes it: off, with when and why.
+  await say(app, { ...on, on: false, state: "off", role: "", last: null, problem: "revoked", message: "the folder's owner revoked the share: sync is off", revoked: "2026-10-12T21:30:00Z" });
+  await expect(bar).toBeVisible();
+  await expect(bar).toHaveText(/^Desligada: quem compartilhou revogou o acesso em /);
+  await expect(bar).toHaveClass(/warn/);
+  await expect(app.page.locator(".verso-toast")).toContainText("Quem compartilhou Mesa (Ana), em notas.casa, revogou o seu acesso em");
+  const notice = app.page.locator(".sync-revoked");
+  await expect(notice.getByRole("heading", { name: "Compartilhamento revogado" })).toBeVisible();
+  await expect(notice).toContainText("A sincronização desta pasta foi desligada; os arquivos continuam neste computador, como estavam.");
+  // The form to sync again is below it.
+  await expect(app.page.locator(".sync-off .sync-sentence")).toBeVisible();
+  await unsay(app);
+});
