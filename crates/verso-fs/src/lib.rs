@@ -68,14 +68,6 @@ pub fn is_portable(relative: &std::path::Path) -> bool {
         _ => true,
     })
 }
-/// A relative path in its confined form, or why it cannot name anything
-/// inside a folder — absolute, a `..`, empty, a NUL byte — without asking
-/// any folder: what a list of paths kept in a file of the folder (the
-/// folder's bookmarks, ADR 0070 item 1) is held to, every path relative
-/// and none absolute (invariant 4).
-pub fn confine_relative(relative: &std::path::Path) -> Result<PathBuf, ConfinementError> {
-    confine::confine(relative)
-}
 pub use ops::OpReport;
 pub use placeholder::Placeholder;
 pub use settings::{SETTINGS_DIR, SETTINGS_FILE, in_settings_dir, is_settings_path};

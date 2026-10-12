@@ -122,12 +122,44 @@ pub(crate) struct LayerRefresh {
     pub rules_changed: bool,
 }
 
-/// A path a bookmark may keep: relative, `/`-joined, already in its
-/// confined form — no `..`, nothing absolute, no `.` component, no NUL.
+/// Whether a bookmark's path may be kept, or why not: relative and
+/// `/`-joined as the file keeps it — no empty or `.` part, no `..`, no
+/// leading `/`, no drive (`C:`) as its first part, no NUL. A bookmark names
+/// an entry that exists, made on any system and synced here, and ADR 0070
+/// item 3 never refuses an existing entry — only a name Verso makes — so
+/// the names Windows would not let Verso make (`Reunião: pauta.md`, a `\`
+/// on macOS, which is part of the name, item 4) are kept, on every system.
+/// Checked as text, never through the OS's path rules.
+fn bookmark_path(p: &str) -> Result<(), ConfinementError> {
+    if p.is_empty() {
+        return Err(ConfinementError::Empty);
+    }
+    if p.contains('\0') {
+        return Err(ConfinementError::NulByte);
+    }
+    if p.starts_with('/') {
+        return Err(ConfinementError::Absolute);
+    }
+    let mut parts = p.split('/').peekable();
+    if let Some(first) = parts.peek()
+        && first.len() == 2
+        && first.ends_with(':')
+        && first.starts_with(|c: char| c.is_ascii_alphabetic())
+    {
+        return Err(ConfinementError::Absolute);
+    }
+    for part in parts {
+        match part {
+            ".." => return Err(ConfinementError::ParentComponent),
+            "" | "." => return Err(ConfinementError::Empty),
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
 fn plain_path(p: &str) -> bool {
-    !p.contains('\\')
-        && verso_fs::confine_relative(Path::new(p))
-            .is_ok_and(|c| c.to_string_lossy() == p && !p.ends_with('/'))
+    bookmark_path(p).is_ok()
 }
 
 /// The folder note name as the core applies it: trimmed, without `.md`;
@@ -220,11 +252,8 @@ impl Workspace {
         change: &FolderSettings,
         revision: Option<&str>,
     ) -> Result<FolderLayer, CoreError> {
-        if let Some(bad) = change.bookmarks.iter().flatten().find(|p| !plain_path(p)) {
-            let why = verso_fs::confine_relative(Path::new(bad))
-                .err()
-                .unwrap_or(ConfinementError::Absolute);
-            return Err(CoreError::Confined(why));
+        for bookmark in change.bookmarks.iter().flatten() {
+            bookmark_path(bookmark).map_err(CoreError::Confined)?;
         }
         let file = Path::new(SETTINGS_FILE);
         let warnings = match revision {
@@ -481,7 +510,16 @@ mod tests {
 
     #[test]
     fn a_bookmark_is_a_plain_relative_path_or_it_is_not_read() {
-        for good in ["a.md", "pasta/b.md", "Reunião: pauta.md", ".verso/x"] {
+        // An existing entry is kept whatever system made it (ADR 0070
+        // item 3): Windows' new-name rules do not apply to a bookmark.
+        for good in [
+            "a.md",
+            "pasta/b.md",
+            "Reunião: pauta.md",
+            "a\\b.md",
+            "CON.md",
+            "nota..md",
+        ] {
             assert!(plain_path(good), "{good}");
         }
         for bad in [
@@ -492,6 +530,8 @@ mod tests {
             "a//b.md",
             "",
             "a/",
+            "C:/x.md",
+            "a\0b.md",
         ] {
             assert!(!plain_path(bad), "{bad}");
         }
