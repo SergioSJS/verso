@@ -717,6 +717,15 @@ async fn folder_command(
             });
         }
         "can_sync_focuses" => return Ok(Value::Bool(false)),
+        // The owner's folder settings are the whole folder's, never a
+        // share's (ADR 0070, ADR 0081): the window keeps its own, and a
+        // change is refused (`args_in`).
+        "get_folder_settings" => {
+            return to_value(verso_contract::FolderLayer {
+                problem: Some("share".to_owned()),
+                ..verso_contract::FolderLayer::default()
+            });
+        }
         "folder_space" => {
             let k = key.clone();
             let sc = scope.clone();
@@ -834,7 +843,11 @@ async fn folder_run(
         // (ADR 0079 item 4): a device asking next sees it.
         let s = Arc::clone(server);
         let actor = who.account.id.clone();
-        let paths = crate::sync::paths_of(&args_for_log);
+        let mut paths = crate::sync::paths_of(&args_for_log);
+        // The folder's settings name no path in their arguments (ADR 0070).
+        if name == "set_folder_settings" {
+            paths.push(verso_fs::SETTINGS_FILE.to_owned());
+        }
         let _ = blocking(move || {
             crate::sync::reconcile_key(&s, &key_for_log, Some(&actor), &paths);
             Ok(())

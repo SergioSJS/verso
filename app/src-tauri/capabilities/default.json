@@ -69,6 +69,8 @@
     "allow-set-focuses",
     "allow-can-sync-focuses",
     "allow-set-sync-focuses",
+    "allow-get-folder-settings",
+    "allow-set-folder-settings",
     "allow-log-write",
     "allow-log-read",
     "allow-set-menu-language",

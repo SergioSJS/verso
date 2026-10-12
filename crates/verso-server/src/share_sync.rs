@@ -76,18 +76,34 @@ async fn run(
         }
         "sync_put" | "sync_delete" => {
             let p: String = arg(&args, "path")?;
+            settings_stay(&p)?;
             args["path"] = json!(scope.to_full_write(&p)?);
             command_in(server, who, client, cmd, args, writes).await?
         }
         "sync_rename" => {
             let from: String = arg(&args, "from")?;
             let to: String = arg(&args, "to")?;
+            settings_stay(&from)?;
+            settings_stay(&to)?;
             args["from"] = json!(scope.to_full_write(&from)?);
             args["to"] = json!(scope.to_full_write(&to)?);
             command_in(server, who, client, cmd, args, writes).await?
         }
         _ => return Err(verso_service::refused("no such command")),
     })
+}
+
+/// A receiver's own folder settings, `.verso/` at the root of the folder
+/// of their computer, stay there: a share carries the shared folder's
+/// notes and files, and the settings of the owner's folder are the whole
+/// folder's (ADR 0070). Refused with the reason, which the device lists.
+fn settings_stay(path: &str) -> Result<(), ContractError> {
+    if verso_fs::is_settings_path(path) {
+        return Err(verso_service::refused(
+            "a share carries the shared folder's notes and files: this folder's own settings stay on this computer",
+        ));
+    }
+    Ok(())
 }
 
 /// `v`, a path of the owner's folder, as the share names it; false when

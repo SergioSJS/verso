@@ -32,9 +32,9 @@ use tauri_plugin_dialog::DialogExt;
 use verso_contract::{
     AppInfo, Backlink, BaseQuery, BaseResult, Can, Capabilities, CliState, CollabJoin, CollabState,
     CollabUpdate, ContractError, Edge, ErrorKind, FileEntry, Focus, FocusesSummary, FolderChanged,
-    FolderInfo, FolderSpace, Hit, Host, IndexProgress, IndexSummary, Link, McpAdded,
-    McpClientState, McpStatus, MovedEntries, NoteText, Renamed, ServerAccount, Tag, TextFile,
-    Trashed, UpdateProgress, WebNote, Written,
+    FolderInfo, FolderLayer, FolderSettings, FolderSpace, Hit, Host, IndexProgress, IndexSummary,
+    Link, McpAdded, McpClientState, McpStatus, MovedEntries, NoteText, Renamed, ServerAccount, Tag,
+    TextFile, Trashed, UpdateProgress, WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
 use verso_service::{OpError, Service, lock, no_folder, ops, refused};
@@ -44,6 +44,7 @@ mod cli;
 mod device;
 mod files;
 mod focuses;
+mod folder_layer;
 mod log;
 mod menu;
 mod notes;
@@ -62,6 +63,7 @@ use cli::*;
 use device::*;
 use files::*;
 use focuses::*;
+use folder_layer::*;
 use menu::*;
 use notes::*;
 use protocol::*;
@@ -644,6 +646,8 @@ macro_rules! commands_for {
                 set_focuses::<$runtime>,
                 can_sync_focuses::<$runtime>,
                 set_sync_focuses::<$runtime>,
+                get_folder_settings::<$runtime>,
+                set_folder_settings::<$runtime>,
                 log_write,
                 log_read,
                 set_menu_language::<$runtime>,
