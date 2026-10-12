@@ -452,3 +452,23 @@ fn a_date_moved_past_the_calendar_stops_at_its_edge() {
     assert!(matches!(cells[0], Cell::Date { ms, .. } if ms == time::MAX_MS));
     assert!(matches!(cells[1], Cell::Number(n) if n < 0.0));
 }
+
+#[test]
+fn a_query_within_folders_sees_only_what_is_under_them() {
+    // The whole folder.
+    let all = BaseQuery::default();
+    assert!(all.sees("Segredo.md"));
+    // A share of "Mesa" with its attachments folder (ADR 0081 item 11).
+    let share = BaseQuery {
+        within: vec!["Mesa".to_owned(), "Anexos".to_owned()],
+        ..BaseQuery::default()
+    };
+    assert!(share.sees("Mesa"));
+    assert!(share.sees("Mesa/Notas.md"));
+    assert!(share.sees("Mesa/Sub/Funda.md"));
+    assert!(share.sees("Anexos/p.png"));
+    assert!(!share.sees("Segredo.md"));
+    assert!(!share.sees("Mesa2/Fora.md"));
+    assert!(!share.sees("Mesa.md"));
+    assert!(!share.sees("Diario/Mesa/x.md"));
+}

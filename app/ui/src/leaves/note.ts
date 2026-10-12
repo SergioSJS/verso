@@ -59,6 +59,7 @@ import { PdfLeaf } from "./pdf";
 import { fromDisk, lineSeparator } from "./text";
 import { type CollabHandlers, type CollabSession, joinCollab, lostLine } from "../collab";
 import { tableWidths } from "../tableWidths";
+import { applyChange, throughRoom } from "../roomWrites";
 import { currentFolder } from "../folder";
 
 /* A note: reading, Live Preview, source; saving through the atomic write. */
@@ -78,9 +79,11 @@ export class NoteLeaf extends Leaf {
     onOpen: (path) => void openNote(path, false),
     // One property changed in the panel: the frontmatter lines of that
     // key change in the editor's document, nothing else; the save follows
-    // as after any keystroke.
+    // as after any keystroke. In a live note, into the room as typing
+    // goes, and the room writes the file (ADR 0082, decided 2026-10-12).
     doc: () => this.editor.state.doc.toString(),
     apply: (change) => {
+      if (throughRoom(this.roomHolder(), (text) => applyChange(text, change)) !== "disk") return;
       this.editor.dispatch({ changes: change, annotations: Transaction.userEvent.of("input") });
       if (this.mode === "preview") void this.save();
     },
@@ -840,6 +843,7 @@ export class NoteLeaf extends Leaf {
     };
   }
   declare liveState: typeof live.liveState;
+  declare roomHolder: typeof live.roomHolder;
   declare paintLive: typeof live.paintLive;
   declare presenceChanged: typeof live.presenceChanged;
   declare wentLocal: typeof live.wentLocal;

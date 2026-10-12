@@ -6,6 +6,7 @@
 //   node scripts/server-load.mjs --folder <id> --disk <the folder's directory on the server>
 //        --accounts email:password[,email:password…] [--devices 40] [--seconds 60]
 //        [--url http://localhost:7341] [--label "what this run is"] [--no-record]
+//        [--sync 2]
 //
 // Every simulated device is a connection of its own over a real device
 // session (one per account: starting a device's sign-in is limited per
@@ -42,6 +43,11 @@ const DEVICES = Number(arg("devices", "40"));
 const SECONDS = Number(arg("seconds", "60"));
 const LABEL = arg("label", "");
 const RECORD = !argv.includes("--no-record");
+// The sync the devices speak (ADR 0079 item 5): 2, as the app since
+// 2026-10-12, sends and takes a piece of a file as a binary message (its
+// JSON header's length in four bytes, the header, the bytes); 1, as
+// base64 inside the JSON.
+const SYNC = Number(arg("sync", "2"));
 const ACCOUNTS = (arg("accounts", "") || "").split(",").filter(Boolean).map((s) => {
   const at = s.indexOf(":");
   return [s.slice(0, at), s.slice(at + 1)];
@@ -115,10 +121,21 @@ class Device {
   }
   connect() {
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket(URL_.replace(/^http/, "ws") + "/api/ws", { headers: { authorization: `Bearer ${this.token}` } });
+      const ws = new WebSocket(URL_.replace(/^http/, "ws") + "/api/ws", {
+        headers: { authorization: `Bearer ${this.token}`, "x-verso-sync": String(SYNC) },
+      });
+      ws.binaryType = "arraybuffer";
       this.ws = ws;
       ws.onmessage = (e) => {
-        const m = JSON.parse(String(e.data));
+        let m;
+        if (typeof e.data === "string") m = JSON.parse(e.data);
+        else {
+          // A piece of a file in a binary message: its header, then it.
+          const b = Buffer.from(e.data);
+          const len = b.readUInt32BE(0);
+          m = JSON.parse(b.subarray(4, 4 + len).toString());
+          if (m.ok) m.ok.piece = b.subarray(4 + len);
+        }
         if (m.hello) return resolve();
         const w = m.id && this.waiting.get(m.id);
         if (w) {
@@ -129,26 +146,34 @@ class Device {
       ws.onerror = (e) => reject(new Error(e.message ?? "websocket error"));
     });
   }
-  call(cmd, args) {
+  call(cmd, args, piece) {
     const id = this.id++;
     return new Promise((resolve) => {
       this.waiting.set(id, resolve);
-      this.ws.send(JSON.stringify({ id, cmd, args }));
+      if (piece && SYNC >= 2) {
+        const header = Buffer.from(JSON.stringify({ id, cmd, args }));
+        const len = Buffer.alloc(4);
+        len.writeUInt32BE(header.length);
+        this.ws.send(Buffer.concat([len, header, piece]));
+      } else {
+        if (piece) args = { ...args, data: piece.toString("base64") };
+        this.ws.send(JSON.stringify({ id, cmd, args }));
+      }
     });
   }
-  async timed(op, cmd, args) {
+  async timed(op, cmd, args, piece) {
     const t = performance.now();
-    const m = await this.call(cmd, args);
+    const m = await this.call(cmd, args, piece);
     noted(op, performance.now() - t);
     if (m.err) failed(op, m.err.kind);
     return m;
   }
   async put(op, path, data, base) {
     const hash = sha(data);
-    const PIECE = 4 << 20;
+    const PIECE = 1 << 20;
     for (let off = 0; ; ) {
       const end = Math.min(off + PIECE, data.length);
-      const m = await this.timed(op, "sync_put", { path, offset: off, size: data.length, hash, base, data: data.subarray(off, end).toString("base64") });
+      const m = await this.timed(op, "sync_put", { path, offset: off, size: data.length, hash, base }, data.subarray(off, end));
       if (m.err) return { err: m.err, hash };
       if (m.ok.done) return { ok: true, hash };
       off = end;
@@ -194,7 +219,7 @@ class Device {
           break;
         }
         if (m.ok.hash) hash = m.ok.hash;
-        const piece = Buffer.from(m.ok.data, "base64");
+        const piece = m.ok.piece ?? Buffer.from(m.ok.data, "base64");
         pieces.push(piece);
         off += piece.length;
         if (m.ok.done) break;
@@ -273,6 +298,7 @@ async function main() {
     machine: `${os.type()} ${os.arch()}, ${os.cpus().length} CPUs, ${Math.round(os.totalmem() / 2 ** 30)} GB`,
     server: URL_,
     devices: DEVICES,
+    sync: SYNC,
     accounts: ACCOUNTS.length,
     seconds: round(elapsed),
     operations: total,

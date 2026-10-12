@@ -35,8 +35,9 @@ use std::time::UNIX_EPOCH;
 
 use verso_fs::{EntryKind, Problem, Root, Stamp};
 // The two error types `CoreError` carries, so a caller can match on them.
+pub use sync_io::Hashed;
 pub use verso_fs::{
-    Changes, ConfinementError, Placeholder, ReadError, WalkRules, Watch, WriteError,
+    Changes, ConfinementError, Mark, Placeholder, ReadError, Staged, WalkRules, Watch, WriteError,
 };
 use verso_index::{Backlink, Block, Heading, Hit, Index, Link, NoteStamp, Unresolved};
 
@@ -841,6 +842,16 @@ impl Workspace {
     #[must_use]
     pub fn key(&self) -> String {
         key_for(&self.folder)
+    }
+
+    /// The name of the folder's file system when a file Verso creates or
+    /// moves there is named by `link` (macOS: some network volumes; ADR
+    /// 0048, revised 2026-10-12): changes made there by other programs may
+    /// show late. Asked of the volume through `verso-fs`, the only crate
+    /// that touches the folder.
+    #[must_use]
+    pub fn names_by_link(&self) -> Option<String> {
+        self.root.names_by_link()
     }
 
     /// The index's size in bytes (ADR 0075 item 4).

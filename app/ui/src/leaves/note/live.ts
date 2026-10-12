@@ -12,11 +12,13 @@
 // (item 9). The state is said in words in the tab and the status bar, and
 // to a screen reader (item 14).
 
+import { Transaction } from "@codemirror/state";
 import { commands } from "../../bindings";
 import type { LocalWhy } from "../../collab";
 import { type LiveState, liveLine, liveWords, localSaid, presenceSaid } from "../../coeditWords";
 import { h, ui } from "../../dom";
 import { layout, spaces } from "../../layout/spaces";
+import type { LiveHolder } from "../../roomWrites";
 import type { NoteLeaf } from "../note";
 
 function lang(): string {
@@ -46,6 +48,21 @@ export function liveState(this: NoteLeaf): LiveState | null {
   if (!c?.synced) return null;
   if (!c.live) return { kind: "local", why: c.why ?? "offline" };
   return { kind: "live", others: c.others(), reader: c.reader };
+}
+
+/** The way into the note's room for a write that is not a keystroke —
+ *  the properties panel, a PDF's quote (roomWrites.ts): an edit of this
+ *  tab's editor, which the room's binding sends on as typing goes, and
+ *  which ⌘Z here undoes. Null when the note is not live: out of its
+ *  room, read-only for this person, or stopped on a conflict waiting
+ *  for a choice — then the write goes to the file as before, and stops
+ *  there on the conflict. */
+export function roomHolder(this: NoteLeaf): LiveHolder | null {
+  if (!this.collab?.live || this.readOnly || this.conflict.up || this.destroyed) return null;
+  return {
+    text: () => this.editor.state.doc.toString(),
+    edit: (change) => this.editor.dispatch({ changes: change, annotations: Transaction.userEvent.of("input") }),
+  };
 }
 
 /** The state said in the tab and, for the active note, in the status bar. */

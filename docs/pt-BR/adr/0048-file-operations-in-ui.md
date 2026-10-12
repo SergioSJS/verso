@@ -12,6 +12,9 @@
   ("deveria ser possível mover vários arquivos juntos, selecionar vários e
   mover para pastas"); perguntado como uma seleção deveria se comportar,
   escolheu "como o Finder/Obsidian".
+  2026-10-12 — volumes que dão nome a um arquivo por `link` no macOS: um
+  aviso uma vez por pasta, e o "não suportado" do exFAT tomado pelo que é
+  (Consequências, *Volumes sem hard links*).
 
 ## Contexto
 
@@ -154,6 +157,24 @@ acima). É o código como ficou depois da leitura da Opus do branch da Fase 2
   link, e diz que a proteção foi mais fraca. Permitido, com esse aviso, pelo
   mantenedor em 2026-09-23 — sobre a recomendação de que recusar deixaria o
   Verso inútil numa unidade removível.
+  *Revisão, 2026-10-12:* no macOS um volume sem a renomeação exclusiva
+  (`renamex_np` com `RENAME_EXCL`, [0069](0069-windows-port.md) revisado em
+  2026-10-11) mas com hard links — alguns volumes de rede — dá nome a um
+  arquivo novo ou movido por `link`, cuja remoção posterior por outro
+  programa o FSEvents pode nunca informar. Ao abrir uma pasta assim, o
+  `verso-fs` pergunta ao volume uma vez (APFS e HFS+ pelo nome; qualquer
+  outro tentando, num arquivo vazio próprio com um nome temporário oculto,
+  removido depois); a janela então diz uma vez por pasta, nas duas línguas,
+  que mudanças que outros programas fazem ali podem aparecer com atraso e
+  que o que o Verso grava continua seguro, e o log ganha uma linha WARN a
+  cada abertura. O exFAT não tem nem a renomeação nem hard links: os
+  arquivos dele recebem a renomeação conferida acima, que o FSEvents
+  informa, então ele não ganha aviso — e o "operation not supported" dele
+  (`ENOTSUP`, que a std deixa sem categoria) agora é tomado por isso, onde
+  antes todo arquivo novo ali falhava. Medido em imagens montadas: exFAT
+  como dito, FAT32 e APFS com a renomeação exclusiva. A escolha do
+  mantenedor para o achado da campanha foi "documentar ou aviso no app";
+  os dois foram feitos.
 - **Placeholders.** Um placeholder sozinho não pode ser renomeado nem excluído,
   porque o conteúdo está na nuvem; uma pasta com placeholders muda de lugar e
   vai para a lixeira inteira.

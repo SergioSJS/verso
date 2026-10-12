@@ -295,9 +295,9 @@ pendencies — "Carried from Phase 2", below.)*
 | 3.14 | The trash with expiry and restore, with its item 12: the version a device's write replaced, kept and restorable (the campaign's finding F18) — accepted 2026-10-11; second; built, item 12 with it, on the night of 2026-10-11 to 12 (f3edc42; 5b5fb9c, of the same night, fixes a Windows test's timing, not the trash) | [0080](adr/0080-the-trash-with-expiry-and-restore.md), [0079](adr/0079-sync-a-local-folder-with-a-server.md) Consequences |
 | 3.15 | The threat model refreshed (`docs/reference/threat-model.md`), its own `[OPEN]` items with it — third, before sharing; done 2026-10-11 (4c09fc9), the gaps it found closed by the hardening merged in 60c717c except those it lists as still open, and its own `[OPEN]` items kept open | [0073](adr/0073-self-hosted-server-first.md) item 6 |
 | 3.16 | Sharing between people on one UniVerso: a grant on a path, read or write — accepted 2026-10-11; fourth; built on the night of 2026-10-11 to 12 (merged 2f25923, 2026-10-12) | [0081](adr/0081-sharing-between-people-on-one-universo.md) |
-| 3.17 | A receiver's rename rewrites the owner's links outside the share — decided 2026-10-12, not built yet; the next round | [0081](adr/0081-sharing-between-people-on-one-universo.md) item 11 |
-| 3.18 | The aggregates a receiver sees — the index's counts, a base's formulas — zeroed — decided 2026-10-12, not built yet; the next round | [0081](adr/0081-sharing-between-people-on-one-universo.md) item 11 |
-| 3.19 | The writes the properties panel and a PDF's quote make to a live note go through the room — decided 2026-10-12, not built yet; the next round | [0082](adr/0082-live-co-editing-of-a-synced-folder.md) Status |
+| 3.17 | A receiver's rename rewrites the owner's links outside the share — decided 2026-10-12; built 2026-10-12 on `feat/share-next`: the server writes the rewrites of the notes outside the share, the receiver hears only of the ones inside | [0081](adr/0081-sharing-between-people-on-one-universo.md) item 11 |
+| 3.18 | The aggregates a receiver sees — the index's counts, a base's formulas — zeroed — decided 2026-10-12; built 2026-10-12 on `feat/share-next`: each counts only what is inside the share, and what cannot be scoped is zero | [0081](adr/0081-sharing-between-people-on-one-universo.md) item 11 |
+| 3.19 | The writes the properties panel and a PDF's quote make to a live note go through the room — decided 2026-10-12, built 2026-10-12 | [0082](adr/0082-live-co-editing-of-a-synced-folder.md) Status |
 | 3.20 | Presence stamped by the server with the sender's account (the threat model's gap 11) — decided 2026-10-12, built (3bc56ae), merged by d2a72b0; 241c233 records the gap closed | [0073](adr/0073-self-hosted-server-first.md) item 6, `docs/reference/threat-model.md` |
 | 3.21 | The device approval page against device-code phishing (the threat model's gap 12) — decided 2026-10-12, built (5838c10), merged by d2a72b0; 241c233 records the gap closed | [0073](adr/0073-self-hosted-server-first.md) item 6, [0074](adr/0074-accounts-and-access-on-the-server.md) item 8, `docs/reference/threat-model.md` |
 | 3.22 | The folder's settings layer (ADR 0070 items 1–2): the bookmarks, the walk's rules and the folder note's name in `.verso/settings.json`, carried by sync — built 2026-10-12 | [0070](adr/0070-what-travels-with-the-folder.md) items 1–2, [0079](adr/0079-sync-a-local-folder-with-a-server.md) item 2 |
@@ -329,7 +329,10 @@ desde o dia 0"* (safe from day zero), were being built that night on
 item 8's revoked sync turned off with a notice; 3.17 to 3.19 come in the
 next round. *(Built: 3.20 in 3bc56ae, 3.21 in 5838c10, the revoked sync in
 6c7800e, merged into `feat/universo` by d2a72b0 on 2026-10-12; 241c233
-records the threat model's gaps 11 and 12 closed.)*
+records the threat model's gaps 11 and 12 closed. 3.17 to 3.19, and
+3.22, were built on 2026-10-12 — *"Ajuste todas essas pendências agora"*
+— and merged into `feat/universo` by 5b07712, 35d30ae and 05033f2, with
+the campaign's F31: a file crosses in pieces read from the disk.)*
 
 **Carried from Phase 2** (the maintainer, 2026-10-12, closing Phase 2 on
 2026-10-09). Phase 3 ends when no task of it is pending, and these are

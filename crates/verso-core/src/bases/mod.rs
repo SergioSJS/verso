@@ -51,6 +51,27 @@ pub struct BaseQuery {
     pub offset_minutes: i32,
     /// The interface language, for month names and relative dates.
     pub lang: String,
+    /// The folders the query sees, by path; empty: the whole folder. A
+    /// window on a share sees the shared folder only (ADR 0081 item 11):
+    /// a file outside is not a row, its properties are not offered, a
+    /// link to it resolves to nothing, and no formula or summary counts
+    /// it — a backlink from outside included.
+    pub within: Vec<String>,
+}
+
+impl BaseQuery {
+    /// Whether the query sees the file at `path`.
+    #[must_use]
+    pub fn sees(&self, path: &str) -> bool {
+        self.within.is_empty()
+            || self.within.iter().any(|root| {
+                root.is_empty()
+                    || path == root
+                    || path
+                        .strip_prefix(root.as_str())
+                        .is_some_and(|rest| rest.starts_with('/'))
+            })
+    }
 }
 
 /// A base evaluated.

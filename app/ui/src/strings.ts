@@ -94,6 +94,9 @@ export type Strings = Record<
   readOutside: (names: string) => string;
   backOutside: (names: string) => string;
   notWatched: (why: string) => string;
+  /** Changes made by other programs on the folder's volume may show late
+   *  (ADR 0048, revised 2026-10-12): said once per folder. */
+  lateOutsideChanges: (fs: string) => string;
   notIndexed: (why: string) => string;
   conflictOutside: (names: string) => string;
   goneNamed: (names: string) => string;
@@ -107,6 +110,9 @@ export type Strings = Record<
   indexProblems: (n: number, first: string) => string;
   scanningVault: string;
   indexingNotes: (cur: number, tot: number, pct: number, file: string) => string;
+  /** A walk whose count this window is not told (a share's receiver,
+   *  ADR 0081 item 11). */
+  indexingUncounted: (file: string) => string;
   indexingDone: string;
   openingFolder: string;
   demoVaultNew: (n: number) => string;
@@ -118,6 +124,7 @@ export const pt: Strings = {
   unverified: "Última versão conhecida: o arquivo era um placeholder ao indexar.", noNotes: "Pasta vazia.", line: "linha", error: "Erro",
   scanningVault: "Escaneando arquivos…",
   indexingNotes: (cur, tot, pct, file) => `Indexando: ${cur}/${tot} (${pct}%)${file ? ` · ${file}` : ""}`,
+  indexingUncounted: (file) => `Indexando…${file ? ` · ${file}` : ""}`,
   indexingDone: "Indexação concluída.",
   openingFolder: "Abrindo pasta e escaneando arquivos…",
   demoVaultNew: (n) => (n === 1 ? "1 novo" : `${n} novos`),
@@ -160,6 +167,7 @@ export const pt: Strings = {
   readOutside: (names) => `Mudou fora do Verso e foi lida de novo: ${names}.`,
   backOutside: (names) => `Voltou para a pasta: ${names}.`,
   notWatched: (why) => `Mudanças feitas fora do Verso só aparecem no Reindexar: a pasta não pôde ser vigiada (${why}).`,
+  lateOutsideChanges: (fs) => `Esta pasta está num volume (${fs}) sem a renomeação exclusiva do macOS: mudanças feitas aqui por outros programas podem aparecer com atraso. O que o Verso grava continua seguro.`,
   notIndexed: (why) => `A pasta mudou e não pôde ser indexada: ${why}`,
   conflictOutside: (names) => `Mudou fora do Verso, com texto não salvo aqui: ${names}. As duas versões estão na nota.`,
   goneNamed: (names) => `Apagada ou movida fora do Verso: ${names}. O texto continua na aba.`,
@@ -279,6 +287,7 @@ export const en: Strings = {
   unverified: "Last known version: the file was a placeholder when indexed.", noNotes: "Empty folder.", line: "line", error: "Error",
   scanningVault: "Scanning files…",
   indexingNotes: (cur, tot, pct, file) => `Indexing: ${cur}/${tot} (${pct}%)${file ? ` · ${file}` : ""}`,
+  indexingUncounted: (file) => `Indexing…${file ? ` · ${file}` : ""}`,
   indexingDone: "Indexing complete.",
   openingFolder: "Opening folder and scanning files…",
   demoVaultNew: (n) => (n === 1 ? "1 new" : `${n} new`),
@@ -319,6 +328,7 @@ export const en: Strings = {
   readOutside: (names) => `Changed outside Verso and read again: ${names}.`,
   backOutside: (names) => `Back in the folder: ${names}.`,
   notWatched: (why) => `Changes made outside Verso show up on Reindex only: the folder could not be watched (${why}).`,
+  lateOutsideChanges: (fs) => `This folder is on a volume (${fs}) without macOS's exclusive rename: changes other programs make here may show late. What Verso writes stays safe.`,
   notIndexed: (why) => `The folder changed and could not be indexed: ${why}`,
   conflictOutside: (names) => `Changed outside Verso, with unsaved text here: ${names}. Both versions are in the note.`,
   goneNamed: (names) => `Deleted or moved outside Verso: ${names}. The text stays in its tab.`,
