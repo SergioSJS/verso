@@ -18,6 +18,12 @@ function say(text: string): void {
   ours = text;
   ui.status.textContent = text;
 }
+/** Whether the walk's progress carries its count: a window on a share
+ *  gets none (the server leaves `current` and `total` out). */
+function counted(p: IndexProgress): boolean {
+  const v = p as { current?: unknown; total?: unknown };
+  return typeof v.current === "number" && typeof v.total === "number";
+}
 export function handleIndexProgress(p: IndexProgress): void {
   if (indexProgressTimer) {
     clearTimeout(indexProgressTimer);
@@ -35,6 +41,17 @@ export function handleIndexProgress(p: IndexProgress): void {
     ui.indexProgressBar.style.width = "40%";
     ui.indexProgressLabel.textContent = t.scanningVault;
     say(t.scanningVault);
+  } else if (p.phase === "indexing" && !counted(p)) {
+    // A share's receiver is not told how far the owner's whole folder is
+    // (ADR 0081 item 11): the walk runs without a number.
+    ui.topProgressFill.classList.add("indeterminate");
+    ui.topProgressFill.style.width = "35%";
+    ui.indexProgressBar.classList.add("indeterminate");
+    ui.indexProgressBar.style.width = "40%";
+    const fName = p.file ? p.file.split("/").pop() ?? p.file : "";
+    const msg = t.indexingUncounted(fName);
+    ui.indexProgressLabel.textContent = msg;
+    say(msg);
   } else if (p.phase === "indexing") {
     ui.topProgressFill.classList.remove("indeterminate");
     ui.indexProgressBar.classList.remove("indeterminate");

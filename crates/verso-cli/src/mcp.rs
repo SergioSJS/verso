@@ -743,6 +743,7 @@ impl Server {
                     now_ms,
                     offset_minutes: 0,
                     lang: "en".to_owned(),
+                    within: Vec::new(),
                 })
                 .map_err(|e| fail(&e, Some(&path)))?;
             let view = result

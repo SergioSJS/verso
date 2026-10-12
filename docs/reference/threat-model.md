@@ -218,6 +218,7 @@ decides, not what runs.
 | A share passed on, or kept after it ends | Only the folder's owner shares, and a receiver does not re-share (item 4); a revocation reaches the receiver's open windows at once, and a synced copy stays on their computer with its sync off — said to the owner when sharing (item 8). |
 | A share left pointing elsewhere | A rename made through the server carries the grants with it; one the server only finds afterwards leaves the share on a path that is gone — an empty folder for the receiver, the owner told (item 13). |
 | A share made unseen | A share created, changed and removed is an entry of the audit log with its path, read by the owner and the admin (item 9). |
+| A warning or a problem naming a note outside the share | Gap found and closed on 2026-10-12: a warning of the core (a rename's examination, an index run's problems) reached the receiver when it named no `/`, so a note at the owner's root crossed by name; now a warning reaches a receiver only when it begins with a path inside the share, re-rooted there, and any other is dropped (item 11; `scope.rs`, its test). |
 
 ### The trash and live co-editing of a synced folder
 

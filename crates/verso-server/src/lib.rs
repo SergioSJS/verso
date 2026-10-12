@@ -33,6 +33,7 @@ pub mod presence;
 pub mod quota;
 pub mod rpc;
 pub mod scope;
+pub mod share_links;
 pub mod share_sync;
 pub mod shares;
 pub mod state;

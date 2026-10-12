@@ -106,6 +106,9 @@ export type Strings = Record<
   indexProblems: (n: number, first: string) => string;
   scanningVault: string;
   indexingNotes: (cur: number, tot: number, pct: number, file: string) => string;
+  /** A walk whose count this window is not told (a share's receiver,
+   *  ADR 0081 item 11). */
+  indexingUncounted: (file: string) => string;
   indexingDone: string;
   openingFolder: string;
   demoVaultNew: (n: number) => string;
@@ -117,6 +120,7 @@ export const pt: Strings = {
   unverified: "Última versão conhecida: o arquivo era um placeholder ao indexar.", noNotes: "Pasta vazia.", line: "linha", error: "Erro",
   scanningVault: "Escaneando arquivos…",
   indexingNotes: (cur, tot, pct, file) => `Indexando: ${cur}/${tot} (${pct}%)${file ? ` · ${file}` : ""}`,
+  indexingUncounted: (file) => `Indexando…${file ? ` · ${file}` : ""}`,
   indexingDone: "Indexação concluída.",
   openingFolder: "Abrindo pasta e escaneando arquivos…",
   demoVaultNew: (n) => (n === 1 ? "1 novo" : `${n} novos`),
@@ -274,6 +278,7 @@ export const en: Strings = {
   unverified: "Last known version: the file was a placeholder when indexed.", noNotes: "Empty folder.", line: "line", error: "Error",
   scanningVault: "Scanning files…",
   indexingNotes: (cur, tot, pct, file) => `Indexing: ${cur}/${tot} (${pct}%)${file ? ` · ${file}` : ""}`,
+  indexingUncounted: (file) => `Indexing…${file ? ` · ${file}` : ""}`,
   indexingDone: "Indexing complete.",
   openingFolder: "Opening folder and scanning files…",
   demoVaultNew: (n) => (n === 1 ? "1 new" : `${n} new`),

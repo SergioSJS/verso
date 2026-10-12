@@ -399,19 +399,7 @@ ops! {
 
     /// A base evaluated over the folder (ADR 0053).
     Read fn query_base(ws, query: BaseQuery) -> BaseResult {
-        let core = verso_core::bases::BaseQuery {
-            path: query.path,
-            text: query.text,
-            this: query.this,
-            view: query.view,
-            extra: query.extra,
-            // The window's clock: whole milliseconds are all a base reads.
-            now_ms: query.now as i64,
-            offset_minutes: query.offset,
-            lang: query.lang,
-        };
-        let r = ws.query_base(&core)?;
-        Ok(base_result(r))
+        query_base_within(ws, query, Vec::new())
     }
 
     /// Read focuses from `.space/waypoints.json` in the open folder
@@ -467,6 +455,31 @@ ops! {
         ws.set_sync_focuses(enabled);
         Ok(())
     }
+}
+
+/// A base evaluated over the folders `within` only (none: the whole
+/// folder): a window on a share sees its shared folder, and no row,
+/// property, formula or summary counts a file outside it (ADR 0081 item
+/// 11). Not a command of its own: the server calls it for a share.
+pub fn query_base_within(
+    ws: &mut Workspace,
+    query: BaseQuery,
+    within: Vec<String>,
+) -> Result<BaseResult, OpError> {
+    let core = verso_core::bases::BaseQuery {
+        path: query.path,
+        text: query.text,
+        this: query.this,
+        view: query.view,
+        extra: query.extra,
+        // The window's clock: whole milliseconds are all a base reads.
+        now_ms: query.now as i64,
+        offset_minutes: query.offset,
+        lang: query.lang,
+        within,
+    };
+    let r = ws.query_base(&core)?;
+    Ok(base_result(r))
 }
 
 fn base_result(r: verso_core::bases::BaseResult) -> BaseResult {
