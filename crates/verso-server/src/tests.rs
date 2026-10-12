@@ -60,6 +60,11 @@ impl Running {
         self.addr
     }
 
+    /// The test folder's directory on the server's disk.
+    pub(crate) fn campanha(&self) -> std::path::PathBuf {
+        self._dirs.1.path().join("Campanha")
+    }
+
     pub(crate) fn origin(&self) -> String {
         format!("http://localhost:{}", self.addr.port())
     }

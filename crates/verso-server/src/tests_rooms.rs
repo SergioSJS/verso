@@ -119,3 +119,55 @@ fn a_window_that_writes_to_a_note_someone_is_in_joins_its_room_and_leaves() {
         assert_eq!(present(after), Some(false));
     });
 }
+
+/// A window back in its room sends its whole state, which the room holds
+/// already: an edit that changes nothing. A change from outside right
+/// after — before the room's quiet wait ends — finds nothing waiting to
+/// be written, so it enters the room as one edit; it does not stop the
+/// room for the people in it to choose (ADR 0082, a change from outside).
+#[test]
+fn an_edit_that_changes_nothing_leaves_nothing_waiting_for_a_change_from_outside() {
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &b).await;
+        let mut ws = connect(&r, Some(&b.cookie), Some(&r.origin()), None)
+            .await
+            .unwrap();
+        next(&mut ws).await;
+        let opened = call(&mut ws, 1, "open_server_folder", json!({ "id": id })).await;
+        let key = opened["ok"]["key"].as_str().unwrap().to_owned();
+        let joined = call(&mut ws, 2, "collab_join", json!({ "path": "Sessao.md" })).await;
+        // The room's own state, sent back as a window does on its return.
+        let whole = joined["ok"]["update"].as_str().unwrap().to_owned();
+        let sent = call(
+            &mut ws,
+            3,
+            "collab_update",
+            json!({ "path": "Sessao.md", "update": whole }),
+        )
+        .await;
+        assert!(sent.get("ok").is_some(), "{sent}");
+        {
+            use std::io::Write;
+            let dir = r.campanha();
+            let mut f = tempfile::NamedTempFile::new_in(&dir).unwrap();
+            f.write_all(b"# Sessao\n\nde fora\n").unwrap();
+            f.persist(dir.join("Sessao.md")).unwrap();
+        }
+        collab::changed_outside(&r.server, &key, &["Sessao.md".to_owned()], &[]);
+        // In the room, and the room still writes.
+        let again = call(&mut ws, 4, "collab_join", json!({ "path": "Sessao.md" })).await;
+        let doc = yrs::Doc::new();
+        let state = base64::engine::general_purpose::STANDARD
+            .decode(again["ok"]["update"].as_str().unwrap())
+            .unwrap();
+        doc.transact_mut()
+            .apply_update(yrs::Update::decode_v1(&state).unwrap())
+            .unwrap();
+        let text = doc.get_or_insert_text(collab::TEXT);
+        assert_eq!(text.get_string(&doc.transact()), "# Sessao\n\nde fora\n");
+        let saved = call(&mut ws, 5, "collab_save", json!({ "path": "Sessao.md" })).await;
+        assert!(saved["ok"].is_string(), "{saved}");
+    });
+}
