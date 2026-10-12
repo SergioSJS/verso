@@ -407,9 +407,12 @@ seção 3) em 2026-10-10, com os números em `scripts/sync-lab/results.jsonl`:
 
 - **Memória**: cerca de 20 MB com alguns aparelhos conectados e uma pasta
   de 150 arquivos; 460 MB com 200 conexões gravando ao mesmo tempo
-  (macOS), 1 GB numa VM Linux. Um arquivo grande em trânsito fica inteiro
-  na memória: cada transferência até o tamanho do arquivo, duas por
-  aparelho em cada sentido (arquivos acima de 1 GiB não sincronizam).
+  (macOS), 1 GB numa VM Linux. Um arquivo em trânsito não fica inteiro na
+  memória desde o 2b1f2c4 (2026-10-12): cada transferência segura um
+  pedaço de 1 MiB, lido do disco quando um aparelho o pede ou gravado num
+  arquivo temporário quando chega (**Arquivos grandes**, abaixo); duas
+  transferências por aparelho em cada sentido (arquivos acima de 1 GiB
+  não sincronizam).
 - **Quem limita a escrita é o disco.** Todo arquivo que um aparelho grava
   é gravado de forma atômica e descarregado no disco (fsync, invariante 9);
   uma pasta grava um arquivo por vez, então o tempo de descarga do disco é
@@ -472,20 +475,25 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
   quadro. A mesma carga num Mac de 16 CPUs: p50 cerca de 530 ms, 132,9
   operações por segundo (a linha "round 2 final build 3fb8c3b" do
   `results.jsonl`).
-- **Arquivos grandes** (medido antes do 95d11dc, não medido de novo
-  desde então): um arquivo em trânsito ficava inteiro na memória uma vez
-  para cada aparelho que o buscava, e a codificação base64 somava um terço,
-  então o servidor segurava cerca de 2,3 × o tamanho do arquivo × os
-  aparelhos que o buscavam ao mesmo tempo. Um arquivo novo de 60 MB gravado
-  num aparelho e buscado pelos outros três ao mesmo tempo levou o processo a
-  550 MB (cgroup 679 MB) na VM apertada ao que o convidado via como 705 MB
-  (pedido 512), sem ser morto; os cinco lados ficaram iguais em 56 s. Desde
-  o 95d11dc o servidor guarda um buffer de leitura por (pasta, caminho,
-  hash), compartilhado pelos clientes que buscam esse arquivo, então a
-  multiplicação por aparelho não vale mais no servidor; o base64 de cada
-  mensagem enviada, e o lado do aparelho segurando o arquivo inteiro,
-  continuam. "O dobro do maior arquivo" sozinho era pouco quando vários
-  aparelhos buscavam ao mesmo tempo.
+- **Arquivos grandes** (desde o 2b1f2c4, 2026-10-12): um arquivo em
+  trânsito nunca fica inteiro na memória do servidor. Um aparelho que o
+  busca recebe pedaços de 1 MiB, cada um lido do disco quando o aparelho o
+  pede; um aparelho que envia um arquivo tem cada pedaço gravado num
+  arquivo temporário ao lado de onde o arquivo vai ficar, posto no lugar
+  de forma atômica quando o último pedaço chega e o hash do arquivo bate.
+  Os pedaços cruzam como mensagens binárias para um app da sincronização 2
+  e em base64 para um da sincronização 1. De um arquivo que vários
+  aparelhos buscam ao mesmo tempo o servidor compartilha só o que ele é —
+  tamanho, hora e hash —, então ele é lido para o hash uma vez só; o app
+  desktop também grava o que busca num arquivo temporário, pedaço por
+  pedaço. Medido em 2026-10-12 num Mac (Apple silicon, o perfil de release
+  com mimalloc, `verso serve` no loopback), um arquivo de 60 MB buscado
+  por três aparelhos ao mesmo tempo, o RSS lido a cada 20 ms, duas rodadas
+  de cada: o build de antes (858d0ef) foi de 99 MB — a varredura dele
+  tinha lido o arquivo inteiro — a um pico de 246 MB, e segurava 245–246
+  MB 30 s depois; o 2b1f2c4 foi de 42 MB a um pico de 42–46 MB, e segurava
+  43–47 MB 30 s depois; o 2b1f2c4 enviando para um app da sincronização 1
+  (base64) chegou a 65 MB. Ainda não medido na VM de 1 núcleo (seção 15).
 - **Memória apertada** (o build glibc): o balloon foi inflado rumo a
   512 MB logo depois do
   pico de 50 aparelhos, deixando o convidado com 705 MB, e o OOM killer do
@@ -493,8 +501,9 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
   guardava depois do pico não cabia. O `Restart=on-failure` da unit o
   trouxe de volta em 5 s, os aparelhos reconectaram e nada se perdeu.
   Depois, nesse convidado de 705 MB (pedido 512), um soak de 10 minutos
-  (RSS 18 MB), uma carga de 50 aparelhos (RSS 352 MB) e o arquivo de 60 MB
-  acima rodaram sem ele ser morto. Num convidado de 767 MB (pedido 384) uma
+  (RSS 18 MB), uma carga de 50 aparelhos (RSS 352 MB) e um arquivo novo de
+  60 MB buscado por três aparelhos ao mesmo tempo (o código de antes do
+  95d11dc) rodaram sem ele ser morto. Num convidado de 767 MB (pedido 384) uma
   carga de 30 aparelhos rodou (RSS 379 MB). Apertar ao que o convidado via
   como 393 MB (pedido 256), com essa memória ainda guardada, matou o
   processo mais uma vez (anon RSS 376 MB), de volta em 5 s; uma carga de 30
@@ -578,24 +587,36 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
 |---|---|---|
 | Para | 1 a 3 pessoas, notas e anexos pequenos | uma família ou equipe de até ~10 pessoas, vários aparelhos cada (uma estimativa, não medida) |
 | CPU | 1 núcleo, x64 ou ARM64 (medido, linhas "cloud 1 GB" do `results.jsonl`: um aparelho gravando, cerca de 100 ms por gravação; um pico de 50 faz fila no disco, p50 4,5 s) | 2 núcleos |
-| Memória | 512 MB — medido em 2026-10-12 num convidado que via 453 MiB com o balloon desligado (**Um convidado de 453 MiB**, acima): o build musl + mimalloc distribuído rodou dois picos de 50 gravando sem morte por OOM, com RSS máximo de 200 MB e cerca de metade da vazão do convidado de 1 GB (causa provável, não provada: os dados e a pasta passam do cache de páginas do convidado); como medido, basta para 1 a 3 pessoas com anexos pequenos; as duas mortes da campanha, em convidados com o balloon ligado, vieram da memória que o build glibc guardava depois de um pico; se o processo for morto, a unit o traz de volta em 5 s sem perder nada | 2 GB, ou mais que o dobro do maior arquivo que vocês sincronizam; quando vários aparelhos buscavam um arquivo grande ao mesmo tempo, o servidor segurava cerca de 2,3 × o maior arquivo × os aparelhos que o buscavam (medido antes do 95d11dc e não medido de novo desde então; desde o 95d11dc o servidor guarda uma cópia por pasta, caminho e hash, então o fator por aparelho não vale mais no servidor) |
+| Memória | 512 MB — medido em 2026-10-12 num convidado que via 453 MiB com o balloon desligado (**Um convidado de 453 MiB**, acima): o build musl + mimalloc distribuído rodou dois picos de 50 gravando sem morte por OOM, com RSS máximo de 200 MB e cerca de metade da vazão do convidado de 1 GB (causa provável, não provada: os dados e a pasta passam do cache de páginas do convidado); como medido, basta para 1 a 3 pessoas com anexos pequenos; as duas mortes da campanha, em convidados com o balloon ligado, vieram da memória que o build glibc guardava depois de um pico; se o processo for morto, a unit o traz de volta em 5 s sem perder nada | 2 GB; o tamanho dos arquivos que vocês sincronizam não conta mais na memória do servidor: desde o 2b1f2c4 uma transferência segura um pedaço de 1 MiB (**Arquivos grandes**, acima) |
 | Disco | um SSD; o tamanho das notas × 2 + 1 GB (a lixeira, `.trash`, guarda o que foi apagado) | um SSD local para o `VERSO_DATA_DIR`; as notas num SSD ou num NAS |
 | Exemplos | um Raspberry Pi 4 de 2 GB, a VPS mais barata | um mini PC, um NAS com Docker, uma VPS de 2 GB |
 
 `[OPEN]` Se 1 GB basta para uma equipe pequena: um convidado de 1 GB serviu
 quatro aparelhos, um soak de 20 minutos, picos de 50 gravando e um arquivo
-de 60 MB para três aparelhos ao mesmo tempo (pico de 550 MB, antes do
-95d11dc); o "até ~10 pessoas" da tabela não foi medido.
+de 60 MB para três aparelhos ao mesmo tempo (essa busca não segura mais o
+arquivo na memória desde o 2b1f2c4: **Arquivos grandes**, acima); o "até
+~10 pessoas" da tabela não foi medido.
 
-`[OPEN]` Se o servidor deve mandar os pedaços de um arquivo grande a partir
-do disco em vez de segurar o arquivo inteiro não está decidido; os números
-de arquivos grandes acima foram medidos antes do 95d11dc, que guarda uma
-cópia por pasta, caminho e hash em vez de uma por aparelho.
+Se o servidor deve mandar os pedaços de um arquivo grande a partir do
+disco em vez de segurar o arquivo inteiro ficou `[OPEN]` até 2026-10-12,
+quando o mantenedor pediu que as pendências da campanha fossem feitas
+(*"Ajuste todas essas pendências agora"*, repassado na sessão que o
+construiu): construído no 2b1f2c4 (**Arquivos grandes**, acima).
 
 Quanta memória o servidor guarda depois de um pico está decidido, não
 aberto: em 2026-10-11, à noite, o mantenedor trocou o alocador do binário
 `verso` para o mimalloc (**O alocador**, acima), que guarda cerca de 70 MB
 depois de um pico de 50 gravando e chegou a 291 MB (VmHWM).
+
+`[OPEN]` Pedir ao mimalloc que devolva a memória livre ao sistema quando um
+pico termina (`mi_collect`, pedido em 2026-10-12) não foi construído: a
+chamada só se alcança por código `unsafe`, que o workspace proíbe sem
+exceção (`unsafe_code = "forbid"`, ADR 0029); espera a decisão do
+mantenedor sobre uma exceção, num pull request próprio.
+`MIMALLOC_PURGE_DELAY=0` no ambiente não mudou nada mensurável no macOS (o
+build de antes do 2b1f2c4 ainda segurava 245 MB 30 s depois da busca de
+**Arquivos grandes**); não testado no Linux, onde, pelas notas do próprio
+mimalloc, uma limpeza usa `MADV_DONTNEED`.
 
 Um Raspberry Pi e um NAS ainda não foram medidos, nem uma VPS num provedor
 (a VM de 2026-10-11 estava na LAN). `scripts/sync-lab/lab.sh load
@@ -661,4 +682,7 @@ Ainda não verificado:
   `docker compose config`; o bloco `x-casaos` segue a descrição v2 da
   CasaOS AppStore de 2026-10-09, sem passar pelo validador deles);
 - a receita do `tailscale serve` e o exemplo do Caddy contra este servidor;
-- a poda das versões antigas no registry.
+- a poda das versões antigas no registry;
+- um arquivo em pedaços a partir do disco (2b1f2c4) na VM de 1 núcleo e
+  com o build musl estático: medido só num Mac (seção 14, **Arquivos
+  grandes**).

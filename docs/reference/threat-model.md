@@ -116,7 +116,7 @@ token.
 | `GET /api/ws`, the contract | a browser (only with `--web`, `Origin` checked before the cookie is accepted), a device, a token | TLS; the session or token alive before every command; the role in the folder before the core acts; a token's folders and write flag; a sync version older than the previous one refused for `sync_*` | 48 MB a message; 8 requests under way, past which the connection is not read; a queue of 1024 messages and 64 MiB of pushes, full = closed; each write within 30 s plus its size at 32 KiB/s, else closed; a ping every 30 s, closed after 2 unanswered; 32 connections per account and 64 per address, 429 past them; each command at its account's pace (100 a second, 400 at once) and the server's (1 000, 2 000), waiting its turn past it; a window's log lines 60 a minute | the server's log: a sync change refused, a slow or silent connection closed, a sync version refused; each folder's change log names the account and the device of every write |
 | — folder commands | the window's folder, opened by `open_server_folder` or `reopen_folder` | a write command needs editor or owner and a writing credential; a write's bytes checked against the quota first | the quota (ADR 0077 item 5) | the change log |
 | — `collab_*` (shared notes) | members of the folder | `collab_update`, `_save`, `_resolve` need a writer; a malformed Yjs update refused | presence (`collab_awareness`) 16 KB at most, from a window in the room, stamped with the sender's account name and only its own Yjs clients (gap 11); what is relayed counts in each receiver's 64 MiB of pushes | nothing |
-| — `sync_*` | a device (any credential may ask) | a write, deletion or rename needs a writer, names its base hash and is refused when the file changed; a deletion goes to `.trash/`; the quota on the whole file | pieces of 4 MiB; 2 transfers each way per connection, dropped after 120 s idle and when the connection ends; 1 GiB per file; a walk at most once a minute | the server's log for a refusal other than "changed" |
+| — `sync_*` | a device (any credential may ask) | a write, deletion or rename needs a writer, names its base hash and is refused when the file changed; a deletion goes to `.trash/`; the quota on the whole file | pieces of 1 MiB, read from the disk and written to a temporary file as they go, one in memory per transfer (2b1f2c4); 2 transfers each way per connection, dropped after 120 s idle and when the connection ends, a send's temporary file with it; 1 GiB per file; the quota checked at a send's first piece and again at its last; a walk at most once a minute | the server's log for a refusal other than "changed" |
 | — `render_markdown`, `board_text`, `log_write`, `capabilities` | signed in | — | the parser is fuzzed and checked for linear time; log lines one line each, 2000 characters | the server's log (`log_write`) |
 | The release feed | the server, outbound | — | once a day; the version alone in the `User-Agent`; `VERSO_UPDATE_TOKEN` when the repository is private; `VERSO_UPDATE_CHECK=off` | a line when it fails |
 | The host's mail server | the server, outbound, when `VERSO_SMTP_URL` is set | — | what the mail routes above allow | a line when sending fails |
@@ -204,7 +204,7 @@ the same table in the browser harness is still to add.
 | A device deleting a folder's files | A deletion a device sends is checked against its base like a write and goes to the folder's `.trash/` on the server; on the computer, a pass that would delete more than a fifth of the files or more than 50 (3 at least) pauses and asks (ADR 0079 item 9), and a placeholder is never a deletion (ADR 0043). Seeing and restoring the trash in the window is ADR 0080, accepted, being built. |
 | A device token stolen | Kept `0600` on the computer (above), listed among the account's sessions under the name the person gave the computer, and revocable there; an admin ends it from the console with the account's other sessions and tokens (ADR 0077 item 3, built); the change log names the device beside the account (ADR 0079 item 4). |
 | A device speaking another sync | The device sends its sync version as `x-verso-sync`; the server answers its own in the hello and refuses the `sync_*` commands of a version older than the previous one, with the reason (ADR 0079 item 5, built). A window or a program that says none is never refused. |
-| A huge file to exhaust memory | Sync moves a file in pieces of 4 MiB, two transfers at a time each way per connection, dropped after two idle minutes and when the connection ends, and no file larger than 1 GiB (ADR 0079 item 12); a file above it on the server is never read by the walk, and is listed on the folder's console page. The pieces of an upload are held in memory until the last arrives (see the gaps). |
+| A huge file to exhaust memory | Sync moves a file in pieces of 1 MiB, read from the disk as each is sent and written to a temporary file as each arrives — a transfer holds one piece in memory, never the file (2b1f2c4) — two transfers at a time each way per connection, dropped after two idle minutes and when the connection ends, and no file larger than 1 GiB (ADR 0079 item 12); a file above it on the server is never read by the walk, and is listed on the folder's console page. A send's declared size is checked against the quota at its first piece (gap 5, closed). |
 
 ### Sharing a folder inside a folder
 
@@ -302,9 +302,11 @@ recommendation for the maintainer to confirm.
 5. **An upload is held in memory until its last piece, and the quota is
    checked only then.** Up to two uploads of 1 GiB per connection, times
    the connections above; the declared size is known at the first piece
-   and could be checked against the quota there. **Still open:** pending
-   the `[OPEN]` on keeping the pieces on disk; the connections are now
-   bounded (gap 4).
+   and could be checked against the quota there. **Closed: 2b1f2c4** —
+   an upload's pieces are written to a temporary file of the folder as
+   they arrive, one in memory at a time, and its declared size is checked
+   against the quota at the first piece (and again at the last); a
+   transfer dropped takes its temporary file with it.
 6. **The mail routes answer later when the address has an account.**
    `signin_link` and `forgot` await the mail server only for an existing
    account; the comment says "after the same delay", the code adds none.
@@ -415,8 +417,8 @@ answer — a recommendation, not a decision; the maintainer decides.
   bytes, a cap on connections per account and on the server, the quota
   checked at an upload's first piece; the numbers measured on the 1-core,
   1 GB host of the server's installation notes. *Built on 2026-10-11:*
-  gaps 2, 3, 4 and 8 (their commits above); gap 5 stays; the numbers are
-  reasoned, not measured on that host. Left `[OPEN]` for the maintainer.
+  gaps 2, 3, 4 and 8 (their commits above); gap 5 on 2026-10-12
+  (2b1f2c4); the numbers are reasoned, not measured on that host. Left `[OPEN]` for the maintainer.
 - `[OPEN]` The desktop's device token in the system's keychain instead of a
   `0600` file. *Recommendation:* after the first outside user, recorded as
   deferred: the token is revocable from Settings and the console, and the
