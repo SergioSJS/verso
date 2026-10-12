@@ -635,4 +635,31 @@ mod tests {
         assert_eq!(held(true, false).reason, "name_taken");
         assert_eq!(held(false, false).reason, "name_taken");
     }
+
+    /// What the server's log says of who made a change (sync 2) reaches
+    /// the recent activity for what came from there, never for what this
+    /// computer sent.
+    #[test]
+    fn the_server_says_who_made_what_came_from_there() {
+        let c = json!({"seq": 3, "path": "a.md", "by": "Ana", "device": "MacBook"});
+        assert_eq!(
+            author_of(&c),
+            (Some("Ana".to_owned()), Some("MacBook".to_owned()))
+        );
+        let browser = json!({"seq": 4, "path": "b.md", "by": "Ana"});
+        assert_eq!(author_of(&browser), (Some("Ana".to_owned()), None));
+        assert_eq!(author_of(&json!({"seq": 5, "path": "c.md"})), (None, None));
+        for what in [
+            "received",
+            "deleted_here",
+            "renamed_here",
+            "conflict",
+            "merged",
+        ] {
+            assert!(from_there(what), "{what}");
+        }
+        for what in ["sent", "deleted_there", "renamed_there"] {
+            assert!(!from_there(what), "{what}");
+        }
+    }
 }

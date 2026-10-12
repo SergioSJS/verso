@@ -161,9 +161,12 @@ Aceita (2026-10-10, Status).
    sync não estão nos bindings — então esse número é definido antes de
    qualquer mudança nesse fio. *(Sync 2, 2026-10-12: cada mudança que o
    `sync_changes` responde pode trazer `device`, o nome do aparelho cujo
-   sync a fez, como a pessoa o definiu em Ajustes › Servidores — o "quem
-   fez" do item 4 dito aos aparelhos; um aparelho do sync 1 ignora o
-   campo, e por um compartilhamento ele fica de fora. A mesma versão 2
+   sync a fez, como a pessoa o definiu em Ajustes › Servidores, e `by`, o
+   nome da pessoa (o e-mail da conta quando ela não tem nome; acrescentado
+   no mesmo dia, ainda não lançado) — o "quem fez" do item 4 dito aos
+   aparelhos, que o dizem na atividade recente de Ajustes ›
+   Sincronização, "por <pessoa> em <aparelho>"; um aparelho do sync 1
+   ignora os campos, e por um compartilhamento os dois ficam de fora. A mesma versão 2
    leva um pedaço de arquivo como mensagem binária do WebSocket em vez de
    base64 — item 12, revisto no mesmo dia; um lado do sync 1 ainda manda e
    recebe base64. Também no sync 2, ainda não lançado quando acrescentado

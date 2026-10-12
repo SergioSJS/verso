@@ -86,7 +86,14 @@ pub(crate) struct Syncer {
     /// Said once in the log: this folder, a share's, keeps its own
     /// settings (`.verso/`) out of the sync.
     pub(crate) settings_said: AtomicBool,
+    /// Who made the last change the server's log says of each path — the
+    /// person and the device (sync 2) — for the recent activity of what
+    /// came from there.
+    authors: Mutex<HashMap<String, Author>>,
 }
+
+/// Who made a change on the server: the person, the device.
+type Author = (Option<String>, Option<String>);
 
 impl Syncer {
     pub(crate) fn new(key: &str, state: &engine::State) -> Arc<Self> {
@@ -112,6 +119,7 @@ impl Syncer {
             versions: Mutex::new(None),
             live: Arc::default(),
             settings_said: AtomicBool::new(false),
+            authors: Mutex::new(HashMap::new()),
         })
     }
 
@@ -219,6 +227,12 @@ impl Syncer {
                 other.map(|o| format!(" ({o})")).unwrap_or_default()
             ),
         );
+        // What came from the server says who made it there.
+        let (by, device) = if from_there(what) {
+            lock(&self.authors).get(path).cloned().unwrap_or_default()
+        } else {
+            (None, None)
+        };
         self.set(ctx, |s| {
             s.log.insert(
                 0,
@@ -227,11 +241,29 @@ impl Syncer {
                     what: what.to_owned(),
                     path: path.to_owned(),
                     other: other.map(str::to_owned),
+                    by,
+                    device,
                 },
             );
             s.log.truncate(LOG_LINES);
         });
     }
+}
+
+/// Whether a line of the recent activity is of a change that came from
+/// the server: received, deleted or renamed here, a conflict, a merge.
+fn from_there(what: &str) -> bool {
+    matches!(
+        what,
+        "received" | "deleted_here" | "renamed_here" | "conflict" | "merged"
+    )
+}
+
+/// Who the server's log says made change `c` (sync 2): its `by` and its
+/// `device`, each absent when unknown.
+fn author_of(c: &Value) -> Author {
+    let said = |f: &str| c[f].as_str().map(str::to_owned);
+    (said("by"), said("device"))
 }
 
 /// The state, as last saved, of a folder that syncs.
@@ -579,7 +611,11 @@ fn sha256(bytes: &[u8]) -> String {
 /// more to come, the next question asks from the last change received, and
 /// only the last page's answer moves the cursor to the server's head — a
 /// head taken from an earlier page would skip the pages between.
-async fn there(remote: &remote::Remote, known: &mut Option<(Files, i64)>) -> Result<(), Value> {
+async fn there(
+    remote: &remote::Remote,
+    known: &mut Option<(Files, i64)>,
+    authors: &Mutex<HashMap<String, Author>>,
+) -> Result<(), Value> {
     let Some((files, head)) = known else {
         let answer = remote.call("sync_state", json!({})).await?;
         let mut files = Files::new();
@@ -609,6 +645,7 @@ async fn there(remote: &remote::Remote, known: &mut Option<(Files, i64)>) -> Res
             if let Some(from) = c["renamedFrom"].as_str() {
                 files.remove(from);
             }
+            lock(authors).insert(path.to_owned(), author_of(c));
             match c["hash"].as_str() {
                 Some(hash) if c["deleted"] != true => {
                     files.insert(
@@ -766,7 +803,9 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
     // item 9).
     live::rejoined(s).await;
     let remote = Arc::clone(&l.remote);
-    there(&remote, &mut l.known).await.map_err(|e| said(&e))?;
+    there(&remote, &mut l.known, &s.authors)
+        .await
+        .map_err(|e| said(&e))?;
     let Some((remote_files, head)) = l.known.as_mut() else {
         return Ok(Passed::default());
     };

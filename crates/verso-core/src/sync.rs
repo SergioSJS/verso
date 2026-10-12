@@ -168,7 +168,8 @@ pub const PAUSE_FLOOR: usize = 3;
 ///
 /// 2 (2026-10-12, one version for both changes): each change
 /// `sync_changes` answers may carry `device`, the name of the device whose
-/// sync made it — a field a device of sync 1 ignores; and a piece of a
+/// sync made it, and `by`, the person's — fields a device of sync 1
+/// ignores; and a piece of a
 /// file crosses as a binary WebSocket message ([`frame`]) instead of
 /// base64 inside the JSON text, both ways (item 12 revised) — a side that
 /// speaks 1, or says no version, is still sent and taken base64, as the

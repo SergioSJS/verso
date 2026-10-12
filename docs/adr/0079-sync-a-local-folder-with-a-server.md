@@ -155,8 +155,11 @@ Accepted (2026-10-10, Status).
    number is set before any change to that wire. *(Sync 2, 2026-10-12:
    each change `sync_changes` answers may carry `device`, the name of
    the device whose sync made it, as the person set it in Settings ›
-   Servers — item 4's "who made it" told to the devices; a device of
-   sync 1 ignores the field, and through a share it is left out. The
+   Servers, and `by`, the person's name (the account's e-mail when it
+   has none; added the same day, still unreleased) — item 4's "who made
+   it" told to the devices, which say it in Settings › Sync's recent
+   activity, "by <person> on <device>"; a device of sync 1 ignores the
+   fields, and through a share both are left out. The
    same version 2 carries a piece of a file as a binary WebSocket message
    instead of base64 — item 12, revised the same day; a side of sync 1 is
    still sent and taken base64. Also in sync 2, unreleased when added on

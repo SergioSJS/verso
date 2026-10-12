@@ -795,6 +795,14 @@ pub struct SyncLogEntry {
     pub path: String,
     /// The other path of a rename, or a conflict's copy.
     pub other: Option<String>,
+    /// For what came from the server — received, deleted or renamed here,
+    /// a conflict, a merge — who made the change there, as the server's
+    /// log says it (sync 2): the person's name, and the name of the
+    /// device whose sync made it. Either may be unknown: a change made in
+    /// a browser has no device, one found on the server's disk no one, a
+    /// share says neither.
+    pub by: Option<String>,
+    pub device: Option<String>,
 }
 
 /// Information about an application update.
