@@ -105,6 +105,12 @@
   sync protocol version in the hello (0079 item 5). The maintainer,
   answering a memo of recommendations: *"Sim para todos"* (yes to all).
   What follows the round is in `docs/roadmap.md`, revision 6.
+  2026-10-11 — the Status's `[OPEN]` on permissions finer than the folder
+  is answered for a folder inside a folder by
+  [0081](0081-sharing-between-people-on-one-universo.md) (accepted that
+  day): a share is a grant on a path of one folder, with an id of its own
+  the receiver opens and syncs as a folder; per note and per block (spec
+  Q9) stay open. The old wording of the Status is kept.
 
 ## Context
 

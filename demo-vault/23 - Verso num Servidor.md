@@ -88,4 +88,18 @@ A barra de status mostra o estado — *Sincronizada*, *enviando 3*, *Sem conexã
 
 ---
 
+## Compartilhar com outra pessoa
+
+Cada pessoa tem o seu vault no mesmo Universo. Para dividir **uma pasta** do seu com outra pessoa, clique com o botão direito na pasta, na árvore, e escolha **Compartilhar…**: escreva o e-mail da conta dela neste servidor e o papel — **lê** ou **edita**. Para dividir **o vault todo**, o mesmo diálogo no menu da raiz da árvore, **Compartilhar a pasta toda…**. Só a dona da pasta compartilha; quem recebe não repassa.
+
+A pasta compartilhada ganha uma marquinha de pessoa na árvore. No diálogo, mude o papel de alguém ou tire o acesso — o diálogo pergunta antes, e as janelas abertas dessa pessoa fecham a pasta na hora. O que ela já tinha sincronizado continua no computador dela.
+
+Se as notas da pasta mostram imagens guardadas **fora** dela — a pasta de anexos na raiz do vault, como o Obsidian faz —, o diálogo avisa e oferece **incluir a pasta de anexos, só leitura**.
+
+Quem recebe vê a pasta como uma pasta **sua**, com o nome dela e o da dona — *Campanha (Sérgio)* — em **Compartilhados comigo**: no botão da pasta, no topo da barra lateral (que agrupa **Neste computador**, **Meus** e **Compartilhados comigo**), em Ajustes › Servidores e na conta no navegador. Ela abre numa janela própria e, no app desktop, sincroniza com uma pasta deste computador só dela — nunca dentro do seu vault. Nada de fora da pasta compartilhada chega a ela: um link para uma nota de fora aparece como **não está no que foi compartilhado com você**, sem criar nota.
+
+Este vault de demonstração não tem duas contas: para ver o outro lado, use dois navegadores num Universo.
+
+---
+
 Para o celular e o tablet, veja [[22 - Verso no Celular e no Tablet]]. Volte para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].
