@@ -8,7 +8,7 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use axum::extract::ws::Utf8Bytes;
@@ -35,6 +35,16 @@ pub type Push = serde_json::Value;
 /// it is closed rather than the queue grown without end.
 pub const QUEUE: usize = 1024;
 
+/// The bytes of pushed messages a connection's queue holds, at most, beside
+/// [`QUEUE`] (threat-model.md, gap 3): a shared note's update and a
+/// presence are relayed as their sender wrote them, up to the message
+/// limit (`crate::rpc::MAX_MESSAGE`, 48 MB), so 1024 of them could be
+/// gigabytes. 64 MiB holds one message at the limit with room for the
+/// small ones; past it the client is too slow and is closed, as a full
+/// queue's is. Answers are not counted: the requests a connection may
+/// have under way bound them (`crate::rpc`).
+pub const QUEUE_BYTES: usize = 64 * 1024 * 1024;
+
 /// A message on its way to one connection, already in its frame's text —
 /// a message pushed to many is written once and shared — with whether the
 /// connection closes after it, and, for an answer, the permit of the
@@ -43,6 +53,21 @@ pub struct Out {
     pub text: Utf8Bytes,
     pub close: bool,
     pub permit: Option<OwnedSemaphorePermit>,
+    /// A pushed message's bytes, given back to the queue's budget when it
+    /// is written or dropped.
+    _charge: Option<Charge>,
+}
+
+/// Bytes held of a queue's budget while a message waits in it.
+struct Charge {
+    queued: Arc<AtomicUsize>,
+    bytes: usize,
+}
+
+impl Drop for Charge {
+    fn drop(&mut self) {
+        self.queued.fetch_sub(self.bytes, Ordering::Relaxed);
+    }
 }
 
 /// A message in its frame's text, to send to one connection or more.
@@ -70,19 +95,30 @@ pub struct Outbox {
     tx: mpsc::Sender<Out>,
     /// Told when the queue was found full: the loop closes the connection.
     slow: Arc<Notify>,
+    /// The bytes of pushed messages waiting, and the most it may hold.
+    queued: Arc<AtomicUsize>,
+    budget: usize,
 }
 
 impl Outbox {
-    /// A queue of `capacity` messages, its reading end, and what tells its
-    /// loop that the client is too slow.
+    /// A queue of `capacity` messages and [`QUEUE_BYTES`] of pushes, its
+    /// reading end, and what tells its loop that the client is too slow.
     #[must_use]
     pub fn new(capacity: usize) -> (Self, mpsc::Receiver<Out>, Arc<Notify>) {
+        Self::with_budget(capacity, QUEUE_BYTES)
+    }
+
+    /// The same, with a budget of `budget` bytes of pushes.
+    #[must_use]
+    pub fn with_budget(capacity: usize, budget: usize) -> (Self, mpsc::Receiver<Out>, Arc<Notify>) {
         let (tx, rx) = mpsc::channel(capacity);
         let slow = Arc::new(Notify::new());
         (
             Self {
                 tx,
                 slow: Arc::clone(&slow),
+                queued: Arc::new(AtomicUsize::new(0)),
+                budget,
             },
             rx,
             slow,
@@ -98,10 +134,22 @@ impl Outbox {
 
     /// [`Outbox::send`], for a message already in its frame.
     pub fn send_frame(&self, frame: &Frame) -> bool {
+        let bytes = frame.text.len();
+        let before = self.queued.fetch_add(bytes, Ordering::Relaxed);
+        let charge = Charge {
+            queued: Arc::clone(&self.queued),
+            bytes,
+        };
+        if before.saturating_add(bytes) > self.budget {
+            drop(charge);
+            self.slow.notify_one();
+            return false;
+        }
         let out = Out {
             text: frame.text.clone(),
             close: frame.close,
             permit: None,
+            _charge: Some(charge),
         };
         match self.tx.try_send(out) {
             Ok(()) => true,
@@ -127,6 +175,7 @@ impl Outbox {
                 text: frame.text,
                 close: frame.close,
                 permit: Some(permit),
+                _charge: None,
             })
             .await;
     }
@@ -364,6 +413,30 @@ mod tests {
             // The connection gone: nothing queued, nothing said.
             drop(rx);
             assert!(!out.send(&json!({ "event": "cinco" })));
+        });
+    }
+
+    /// The queue is bounded in bytes too (gap 3 of 2026-10-11): pushes
+    /// past the budget are not queued and the client is said too slow;
+    /// a message written gives its bytes back. Answers are not counted.
+    #[test]
+    fn a_queue_full_of_bytes_says_the_client_reads_too_slowly() {
+        crate::tests::block_on(async {
+            // {"event":"um"} is 14 bytes: two fit in 40, a third does not.
+            let (out, mut rx, slow) = Outbox::with_budget(1024, 40);
+            assert!(out.send(&json!({ "event": "um" })));
+            assert!(out.send(&json!({ "event": "um" })));
+            assert!(!out.send(&json!({ "event": "um" })));
+            tokio::time::timeout(Duration::from_secs(5), slow.notified())
+                .await
+                .unwrap();
+            drop(rx.recv().await.unwrap());
+            assert!(out.send(&json!({ "event": "um" })));
+            // An answer waits for room in messages, never for bytes.
+            let permits = std::sync::Arc::new(tokio::sync::Semaphore::new(1));
+            let permit = permits.try_acquire_owned().unwrap();
+            out.answer(json!({ "id": 1, "ok": "x".repeat(100) }), permit)
+                .await;
         });
     }
 }
