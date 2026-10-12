@@ -12,6 +12,10 @@
   more added, all still **provisional**.
   2026-09-23 — the sidecar's file mode: `0600`, by the maintainer's answer
   (`docs/review/phase-2.md` §6, item 15).
+  2026-10-12 — the provisional records of 2026-09-22 ratified by the
+  maintainer as built and tested, answering the ADR audit in session:
+  *"Ajuste tudo que precisar. Está aprovado os ADRs"* (adjust whatever
+  needs it; the ADRs are approved); a dated note beside each.
 
 ## Context
 
@@ -89,6 +93,8 @@ decided here.
 and provisional: the maintainer decides on waking**, on the five lines of
 `docs/reference/index-decision.md` §9. Each item is what `verso-index` does
 today, not a decision; the questions above are unchanged.
+*(Ratified by the maintainer on 2026-10-12, as built and tested:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 
 - **One SQLite file per folder**, named `<folder-name>-<hash>.sqlite`: the
   folder's own name with every non-alphanumeric character replaced and
@@ -129,7 +135,7 @@ today, not a decision; the questions above are unchanged.
   and `cantar` and `cantando` are two.
 
 **Recorded on 2026-09-22 from the feature 3 code as it stands after the Opus 5
-reading — provisional, the maintainer decides.** The two items above about the
+reading — provisional, the maintainer decides.** *(Ratified by the maintainer on 2026-10-12, as built and tested: "Ajuste tudo que precisar. Está aprovado os ADRs".)* The two items above about the
 `meta` table and the WAL companions were rewritten in place, because they say
 what the code does and the code changed. These five are new, and none of them
 is a decision either:

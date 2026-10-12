@@ -290,7 +290,9 @@ recomendada: uma versão substituída é guardada só quando a escrita de um
 aparelho a substituiu (item 12); o dono pode definir os dias de uma pasta
 em qualquer ponto entre 1 e o valor do admin (item 3); a retenção de uma
 pasta do desktop fica no índice deste computador até existir uma camada
-de ajustes que sincroniza — essa camada segue `[ABERTO]`; uma restauração
+de ajustes que sincroniza — essa camada segue `[ABERTO]` *(decidida em 2026-10-12:
+os itens 1 e 2 do [0070](0070-what-travels-with-the-folder.md), a próxima
+rodada; a retenção espera por ela)*; uma restauração
 no servidor conta na cota da pasta (item 8); e uma exclusão trazida pelo
 sync nomeia o servidor, o aparelho depois.
 

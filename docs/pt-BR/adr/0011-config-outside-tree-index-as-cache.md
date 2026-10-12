@@ -7,6 +7,10 @@
   Consequências, como **provisório**; a Decisão não muda e as perguntas que o
   [0046](0046-index-location-lifecycle-tokenizer.md) guarda continuam
   `[ABERTO]` (memo `docs/reference/cli-decision.md`).
+  2026-10-12 — os registros provisórios de 2026-09-22 ratificados pelo
+  mantenedor como construídos e testados, respondendo à auditoria dos
+  ADRs em sessão: *"Ajuste tudo que precisar. Está aprovado os ADRs"*; uma
+  nota datada ao lado de cada um.
 
 ## Contexto
 
@@ -45,6 +49,8 @@ precisam morar em outro lugar e ser reconstruíveis.
 em 2026-09-22 a partir do código da feature 4 — provisório, o mantenedor decide
 ao acordar**, na linha 2 da §10 de `docs/reference/cli-decision.md`. É o que o
 código faz, não uma decisão.
+*(Ratificado pelo mantenedor em 2026-10-12, como construído e testado:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 
 - **O diretório** é `$VERSO_CONFIG_DIR` quando está definido e não vazio; senão
   `$XDG_CONFIG_HOME/verso` quando essa está definida e não vazia; senão

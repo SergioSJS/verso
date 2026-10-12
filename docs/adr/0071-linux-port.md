@@ -253,7 +253,9 @@ it; case-only names (spec Q8).
 
 *(History, the status before the port shipped:)* Proposed. The port waits, by the maintainer's word on 2026-10-08 ("deixe
 pra depois"); ADR 0022 is unchanged (Linux after Phase 2) until the
-maintainer revises it. **The port started on 2026-10-09**, by the
+maintainer revises it *(revised on 2026-10-12:
+[0022](0022-target-platforms-macos-first.md) records Linux shipped in
+Phase 3, on 2026-10-09)*. **The port started on 2026-10-09**, by the
 maintainer's word ("começar a trabalhar na versão Linux … eu confio na sua
 seleção e também na implementação"): the three machines of item 4, set up
 from the distributions' cloud images with cloud-init (`verso-linux-vm`,

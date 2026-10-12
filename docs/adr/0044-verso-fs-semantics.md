@@ -43,6 +43,10 @@
   maintainer** the same night, "Ok": a dangling symlink whose target is
   inside the folder is treated as a new file inside, no longer refused as
   a link that leaves. Decided by that confirmation (Status).
+  2026-10-12 — the provisional records of 2026-09-22 ratified by the
+  maintainer as built and tested, answering the ADR audit in session:
+  *"Ajuste tudo que precisar. Está aprovado os ADRs"* (adjust whatever
+  needs it; the ADRs are approved); a dated note beside each.
 
 ## Context
 
@@ -104,6 +108,8 @@ Decided by the maintainer on 2026-09-22, on the memo
   followed"; it was reproduced while reading the feature 2 code and fixed there.
 
 **Provisional, recorded on 2026-09-22 from the feature 2 code, not decided.**
+*(Ratified by the maintainer on 2026-10-12, as built and tested:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 The maintainer decides these on waking; they are here because the code had to
 choose something and an unrecorded choice is worse than a recorded one:
 
@@ -164,6 +170,8 @@ also the answer to Q26 of [`docs/spec/dialect.md`](../spec/dialect.md):
   and it is not.
 
 **Provisional, recorded on 2026-09-22 from the feature 2 code, not decided.**
+*(Ratified by the maintainer on 2026-10-12, as built and tested:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 
 - **A handle is refused for a hidden entry or an ignored path.** `Root::handle`
   answers `ConfinementError::Hidden` or `ConfinementError::Ignored`. The
@@ -523,7 +531,8 @@ on a server: decided on 2026-10-09 by the maintainer, Accepted. The watcher: bui
 2026-09-24 by the maintainer, Accepted. The items marked **provisional** inside
 the two groups decided on 2026-09-22 are not decided: they are what the
 feature 2 code does, recorded so that nothing is settled by silence, and they
-wait for the maintainer. A dangling symlink whose target is inside the
+wait for the maintainer. *(Ratified by the maintainer on 2026-10-12, as
+built and tested; Accepted.)* A dangling symlink whose target is inside the
 folder, on a server, treated as a new file inside since 4ffe8a9
 (2026-10-12, "On a server"): confirmed by the maintainer on 2026-10-12,
 Accepted.

@@ -176,6 +176,14 @@ app real.
   ficam), e abrir uma nota baixa só aquela e mostra o texto dela — nenhum
   "the cloud did not give the file's content" no log. Só o `attrib +O` foi
   testado.
+- [ ] **Uma pasta dentro de um cliente de sync de terceiros** (ADR 0029, a
+  escrita atômica da feature 2; uma checagem manual desde 2026-10-12, que
+  não trava nada): ponha uma pasta de notas dentro do iCloud Drive, do
+  Dropbox, do OneDrive ou do Syncthing, abra-a no Verso e salve uma nota
+  algumas vezes; em outra máquina, ou na página web do próprio cliente, a
+  nota chega como o mesmo arquivo editado — não apagada e criada de novo,
+  sem cópia em conflito, com o histórico de versões mantido onde o cliente
+  tem um.
 
 ### 0.4.0-beta.1
 

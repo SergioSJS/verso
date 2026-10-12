@@ -22,6 +22,11 @@
   pessoa, nunca do autor da nota nem da pasta (0073 item 6), o que fecha o
   `[OPEN]` deste ADR sobre elas. O texto abaixo fica, com uma nota onde
   trata disso.
+  2026-10-12 — os itens 1 e 2, a camada de ajustes da pasta em
+  `.verso/`, aceitos pelo mantenedor para a próxima rodada, respondendo à
+  auditoria dos ADRs em sessão: *"Ajuste tudo que precisar. Está aprovado os ADRs"*; a
+  retenção de uma pasta do desktop no
+  [0080](0080-the-trash-with-expiry-and-restore.md) espera por eles.
 
 ## Contexto
 
@@ -54,7 +59,8 @@ exatamente esses, a regra que o item 3 adota.
 
 ## Decisão
 
-1. **Três camadas de configuração** (proposto):
+1. **Três camadas de configuração** (proposto; aceito em 2026-10-12,
+   construído na próxima rodada):
    - **as da máquina**, nunca sincronizadas: o índice, o arquivo lateral
      dele, o log, o layout da janela. Onde estão hoje (ADR 0011 sem
      mudança).
@@ -70,7 +76,8 @@ exatamente esses, a regra que o item 3 adota.
      ([0021](0021-sync-automerge-layered-config.md)) lhes dar um lugar.
      *(Num servidor, desde 2026-10-09: a conta é o lugar delas,
      [0073](0073-self-hosted-server-first.md) item 5.)*
-2. **A camada da pasta, conteúdo proposto**: os favoritos, os caminhos
+2. **A camada da pasta, conteúdo proposto** *(aceito em 2026-10-12,
+   construído na próxima rodada)*: os favoritos, os caminhos
    ignorados, o nome da nota de pasta. Na primeira abertura de uma pasta
    depois disso, o que a máquina guardava dela vai para a pasta, uma vez.
 3. **Nomes que todo sistema guarda. Decidido pelo mantenedor em
@@ -126,7 +133,11 @@ exatamente esses, a regra que o item 3 adota.
 ## Status
 
 Decidido em partes: o item 3 (2026-10-08); o separador do item 4, `/`, e o
-nome do diretório oculto, `.verso/` (2026-10-09). Proposto: os itens 1 e 2.
+nome do diretório oculto, `.verso/` (2026-10-09). Os itens 1 e 2, a
+camada da pasta em `.verso/`: aceitos em 2026-10-12, para construir na
+próxima rodada; a retenção de uma pasta do desktop no
+[0080](0080-the-trash-with-expiry-and-restore.md) espera por eles. *(Até
+2026-10-12: "Proposto: os itens 1 e 2.")*
 
 *(Histórico, a abertura até 2026-10-12:)* Proposto. Decidido pelo
 mantenedor em 2026-10-08: o item 3 (nomes que todo sistema guarda, para o

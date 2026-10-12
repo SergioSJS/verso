@@ -1,6 +1,6 @@
 # Roadmap do Verso
 
-- Versão: 2026-10-11, revisão 6 (a tabela da Fase 3 ganha o que foi construído desde a revisão 5 — [0077](adr/0077-the-server-administration-console-and-folder-quotas.md), [0078](adr/0078-universo-the-name-of-verso-as-a-server.md), [0079](adr/0079-sync-a-local-folder-with-a-server.md) — e os aceitos [0080](adr/0080-the-trash-with-expiry-and-restore.md), [0081](adr/0081-sharing-between-people-on-one-universo.md) e [0082](adr/0082-live-co-editing-of-a-synced-folder.md) na ordem que o mantenedor definiu em 2026-10-11, *"Sim para todos"*; as permissões mais finas riscadas como aceitas com o 0081; "Depois da Fase 2" posto em dia quanto ao sync; as linhas 3.10–3.16, que afetam o critério de saída, foram escritas a partir da recomendação do memorando, não de uma das oito respostas do mantenedor, e aguardavam a aceitação do mantenedor — regra zero; em 2026-10-12, dentro desta revisão, as linhas 3.13, 3.14 e 3.16 marcadas como construídas e a 3.15 como feita, as linhas 3.10–3.16 **aceitas pelo mantenedor** naquela noite, "Ok", e as linhas 3.17–3.21 acrescentadas a partir das respostas do mantenedor da mesma noite; as linhas 3.10, 3.14, 3.20 e 3.21 postas em dia com o que foi construído pela auditoria de 2026-10-12). Revisão 5, 2026-10-09 (a Fase 3 escrita, a partir do [ADR 0073](adr/0073-self-hosted-server-first.md) aceito pelo mantenedor com o 0074, o 0075 e o 0076; a identidade de sessão do contrato e os handles para o `verso serve` riscados como decididos). Revisão 4, 2026-09-24 (as decisões do mantenedor de 2026-09-24 riscadas: os handles nas duas fases, e as duas linhas da nota tipada, com o item 2.6 sem esperar mais por elas). Revisão 3, 2026-09-23: a Fase 2 como construída; as decisões da Fase 1 tomadas em 2026-09-22 riscadas
+- Versão: 2026-10-12, revisão 7 (a Fase 2 declarada fechada em 2026-10-09 pelo mantenedor, respondendo à auditoria dos ADRs, *"Ajuste tudo que precisar. Está aprovado os ADRs"* — o `[ABERTO]` no começo da Fase 3 respondido, e o que ainda faltava ao critério de saída e ao escopo da Fase 2 passado para a Fase 3 como pendências dela; notas datadas ao lado de "uma fase não começa antes de a anterior fechar" e do portão da Fase 2). Revisão 6, 2026-10-11 (a tabela da Fase 3 ganha o que foi construído desde a revisão 5 — [0077](adr/0077-the-server-administration-console-and-folder-quotas.md), [0078](adr/0078-universo-the-name-of-verso-as-a-server.md), [0079](adr/0079-sync-a-local-folder-with-a-server.md) — e os aceitos [0080](adr/0080-the-trash-with-expiry-and-restore.md), [0081](adr/0081-sharing-between-people-on-one-universo.md) e [0082](adr/0082-live-co-editing-of-a-synced-folder.md) na ordem que o mantenedor definiu em 2026-10-11, *"Sim para todos"*; as permissões mais finas riscadas como aceitas com o 0081; "Depois da Fase 2" posto em dia quanto ao sync; as linhas 3.10–3.16, que afetam o critério de saída, foram escritas a partir da recomendação do memorando, não de uma das oito respostas do mantenedor, e aguardavam a aceitação do mantenedor — regra zero; em 2026-10-12, dentro desta revisão, as linhas 3.13, 3.14 e 3.16 marcadas como construídas e a 3.15 como feita, as linhas 3.10–3.16 **aceitas pelo mantenedor** naquela noite, "Ok", e as linhas 3.17–3.21 acrescentadas a partir das respostas do mantenedor da mesma noite; as linhas 3.10, 3.14, 3.20 e 3.21 postas em dia com o que foi construído pela auditoria de 2026-10-12). Revisão 5, 2026-10-09 (a Fase 3 escrita, a partir do [ADR 0073](adr/0073-self-hosted-server-first.md) aceito pelo mantenedor com o 0074, o 0075 e o 0076; a identidade de sessão do contrato e os handles para o `verso serve` riscados como decididos). Revisão 4, 2026-09-24 (as decisões do mantenedor de 2026-09-24 riscadas: os handles nas duas fases, e as duas linhas da nota tipada, com o item 2.6 sem esperar mais por elas). Revisão 3, 2026-09-23: a Fase 2 como construída; as decisões da Fase 1 tomadas em 2026-09-22 riscadas
 - Fonte: `docs/BRIEFING.md` §15
 - ADR: [0034](adr/0034-roadmap-in-phases.md)
 
@@ -9,7 +9,10 @@ Três fases, e desde 2026-10-09 uma quarta, a Fase 3
 participou do trabalho consegue executar a verificação e concluir "passou" ou
 "não passou" sem julgar mérito.
 
-Uma fase não começa antes de a anterior fechar. Um item de escopo que não estiver
+Uma fase não começa antes de a anterior fechar. *(A Fase 3 começou
+em 2026-10-09 com o critério de saída da Fase 2 não cumprido; em
+2026-10-12 o mantenedor declarou a Fase 2 fechada naquele dia, as
+pendências dela passadas para a Fase 3 — abaixo.)* Um item de escopo que não estiver
 listado aqui não entra na fase sem virar decisão registrada.
 
 **Fora de escopo até o fim da Fase 2:** sync, mobile, plugins e shim de
@@ -182,6 +185,9 @@ do resto do trabalho dela, e sai antes de a fase fechar
 ([ADR 0069](adr/0069-windows-port.md), o mantenedor: "Vou passar windows na
 frente").
 
+**Fechada em 2026-10-09**, declarada pelo mantenedor em 2026-10-12; o
+que ainda lhe faltava passa para a Fase 3 ("Herdado da Fase 2", abaixo).
+
 ### Escopo
 
 | # | Entrega | Estado em 2026-09-24 |
@@ -245,6 +251,11 @@ do Notion ([ADR 0061](adr/0061-blocks-in-edit-mode.md)).
 O portão é uso, não checklist: com os sete itens de escopo prontos e o mês de uso
 não acontecendo, a fase não fechou.
 
+*(2026-10-12: o mantenedor declarou a Fase 2 fechada em 2026-10-09, o dia
+em que a Fase 3 começou, com os itens 1 a 3 acima não registrados como
+cumpridos; eles passam para a Fase 3, abaixo. O texto acima fica como
+decidido.)*
+
 ---
 
 ## Fase 3 — O app de Linux, depois o servidor auto-hospedado
@@ -259,7 +270,10 @@ navegador, um celular, um tablet e o app desktop, com várias pessoas numa
 pasta. O critério de saída da Fase 2 não está registrado como cumprido, e
 a resposta do mantenedor começa este trabalho agora (*"L deve vir
 agora"*); como isso fica diante de "uma fase não começa antes de a
-anterior fechar", acima, é `[ABERTO]`, para o mantenedor dizer.
+anterior fechar", acima, é `[ABERTO]`, para o mantenedor dizer. *(Respondido pelo mantenedor
+em 2026-10-12, aceitando a recomendação da auditoria dos ADRs — "Ajuste tudo que precisar. Está aprovado os ADRs": a Fase 2 está fechada em
+2026-10-09, o dia em que a Fase 3 começou, e o que ainda lhe faltava passa
+a pendências da Fase 3 — "Herdado da Fase 2", abaixo.)*
 
 ### Escopo
 
@@ -317,6 +331,25 @@ um aviso; da 3.17 à 3.19 vêm na próxima rodada. *(Construídas: a 3.20 em
 3bc56ae, a 3.21 em 5838c10, o sync revogado em 6c7800e, mesclados no
 `feat/universo` por d2a72b0 em 2026-10-12; o 241c233 registra as lacunas
 11 e 12 do modelo de ameaças fechadas.)*
+
+**Herdado da Fase 2** (o mantenedor, 2026-10-12, fechando a Fase 2 em
+2026-10-09). A Fase 3 termina quando nenhuma tarefa dela está pendente, e
+estas estão entre as tarefas dela:
+
+- O critério de saída 1 da Fase 2, **um mês de uso real**: o mantenedor
+  prepara as mesas no Verso por um mês corrido, sem voltar ao Obsidian para
+  tarefa que o Verso deveria cobrir, e registra o que o fez voltar — não
+  registrado como cumprido.
+- O critério de saída 2 da Fase 2, **nenhuma perda de dado nesse mês**: o
+  histórico do git do vault do mantenedor sem diff que ele não tenha feito
+  — medido no mesmo mês.
+- O critério de saída 3 da Fase 2, **guardrails verdes e fixtures
+  intactas**, o código de UI e os tipos TS gerados incluídos — não
+  registrado como conferido num fechamento.
+- A linha 2.6 do escopo da Fase 2, a nota tipada: a leitura do
+  mantenedor, que a linha diz esperar.
+- A linha 2.7 do escopo da Fase 2, acessibilidade: a passada com um
+  leitor de tela, que a linha diz não ter sido feita.
 
 ### Decisões que precisam sair durante a fase
 

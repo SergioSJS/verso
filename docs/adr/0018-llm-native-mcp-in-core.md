@@ -3,6 +3,10 @@
 - Date: 2026-09-21
 - Source: `docs/BRIEFING.md` §7
 - Status in the briefing: `DECIDED`
+- Revisions: 2026-10-12 — the provisional records of 2026-09-22 ratified by the
+  maintainer as built and tested, answering the ADR audit in session:
+  *"Ajuste tudo que precisar. Está aprovado os ADRs"* (adjust whatever
+  needs it; the ADRs are approved); a dated note beside each.
 
 ## Context
 
@@ -56,6 +60,8 @@ the structure that serves the person is the same one that serves the agent.
 2026-09-22 from the feature 6 code — provisional, the maintainer decides**
 (§3.4 and §6 of `docs/reference/mcp-decision.md`). This is what the code does,
 not a decision.
+*(Ratified by the maintainer on 2026-10-12, as built and tested:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 
 - **`read_note` returns numbered lines.** Each line arrives as
   `{ "n": 12, "text": "…" }`, so the number a model cites is **read from the

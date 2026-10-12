@@ -7,6 +7,13 @@
   follows them, from the maintainer. 2026-10-07 — the Windows app starts
   now, while Phase 2 is open, from the maintainer
   ([0069](0069-windows-port.md)).
+  2026-10-12 — Linux shipped in Phase 3, on 2026-10-09
+  ([0071](0071-linux-port.md), 0.6.0-beta.1), not after Phase 2; recorded
+  with the maintainer's acceptance of the ADR audit, in session:
+  *"Ajuste tudo que precisar. Está aprovado os ADRs"*. The sentence that
+  said otherwise is kept as history. The same day, item 3 of
+  [0027](0027-runtime-capabilities.md), which the first Consequence
+  cites, revised.
 
 ## Context
 
@@ -23,7 +30,8 @@ fastest route to the burnout recorded in §10.3.
 
 - "Explicit" has an address: runtime capabilities, and the rule that the UI
   explains the absence of a feature instead of hiding it
-  ([0027](0027-runtime-capabilities.md)).
+  ([0027](0027-runtime-capabilities.md)). *(That rule revised on
+  2026-10-12: a feature the side cannot do is not shown — 0027 item 3.)*
 - Phase 2 is a walking skeleton on macOS only
   ([0034](0034-roadmap-in-phases.md)); mobile is out of scope until then.
 - CI runs on macOS and Linux from Phase 0 on, even with no UI on Linux
@@ -48,7 +56,9 @@ fastest route to the burnout recorded in §10.3.
   ahead of the rest of Phase 2's work, and ships before Phase 2 closes;
   "Phase 2 is a walking skeleton on macOS only" above holds for Phase 2 as
   it was planned, and the roadmap carries the revision. Linux is unchanged
-  (2026-09-23): after Phase 2.
+  (2026-09-23): after Phase 2. *(Kept as history. Revised on 2026-10-12:
+  Linux shipped in Phase 3, on 2026-10-09 — [0071](0071-linux-port.md),
+  0.6.0-beta.1.)*
 
 ## Discarded alternatives
 
@@ -56,4 +66,5 @@ None recorded: the briefing does not discuss another initial platform.
 
 ## Status
 
-Accepted.
+Accepted. Revised on 2026-10-12: Linux shipped in Phase 3, on 2026-10-09
+(Revisions).

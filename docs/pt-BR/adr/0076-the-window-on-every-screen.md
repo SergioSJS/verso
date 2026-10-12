@@ -29,6 +29,9 @@
   resposta citada lá (*"P tudo"*); construído nesta rodada, antes de a
   janela do servidor sair. As opções não escolhidas ficam ao lado de cada
   recomendação.
+  2026-10-12 — a regra do item 11 é agora o item 3 do
+  [0027](0027-runtime-capabilities.md), revisado para ela pelo mantenedor
+  naquele dia com a aceitação do 0027 (*"Ajuste tudo que precisar. Está aprovado os ADRs"*).
 
 ## Contexto
 

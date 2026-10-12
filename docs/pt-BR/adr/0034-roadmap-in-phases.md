@@ -24,11 +24,20 @@
   *(Decidido pelo mantenedor em 2026-10-10: a fase termina quando nenhuma
   tarefa dela está pendente e o mantenedor a declara encerrada — a Fase 3
   do roadmap.)*
+  2026-10-12 — a Fase 2 declarada fechada em 2026-10-09 pelo mantenedor,
+  respondendo à auditoria dos ADRs em sessão: *"Ajuste tudo que precisar. Está aprovado os ADRs"*.
+  A Fase 3 começou naquele dia com o mês de uso da Fase 2 por fazer,
+  então as duas se sobrepuseram; o portão abaixo e o "uma fase não começa
+  antes de a anterior fechar" do roadmap ficam como decididos, cada um
+  com uma nota datada, e o que ainda faltava à Fase 2 passa para a Fase 3
+  como pendências dela (a Fase 3 do roadmap).
 
 ## Contexto
 
 Escopo e burnout são risco declarado. A mitigação registrada é núcleo pequeno,
-features como plugins e um portão de um mês de uso real antes de seguir.
+features como plugins e um portão de um mês de uso real antes de seguir. *(2026-10-12: a Fase 2
+fechada em 2026-10-09 sem o mês, pela declaração do mantenedor; o mês
+passa para a Fase 3 — Revisões.)*
 
 ## Decisão
 
@@ -50,7 +59,8 @@ Os critérios de saída estão em `docs/roadmap.md`.
 - Fase 1 inteira sem UI: o core precisa ser utilizável pela CLI antes de existir
   janela.
 - O portão da Fase 2 é uso real, não checklist de features: um mês de preparação
-  de mesa usando o próprio app.
+  de mesa usando o próprio app. *(A Fase 2 declarada fechada sem ele em
+  2026-10-12; o mês é uma pendência da Fase 3.)*
 - Nenhuma decisão de plugin, sync ou board precisa ser fechada agora, o que
   mantém os ADRs `PROPOSTO` correspondentes sem pressa.
 - A Fase 0 depende de uma decisão que não é técnica ([0005](0005-license.md)):
@@ -67,4 +77,6 @@ Os critérios de saída estão em `docs/roadmap.md`.
 Aceito. O ponto 4 estreitado pelo [0057](0057-board-json-canvas.md) em
 2026-09-30: o board está na Fase 2. Revisto em 2026-10-09 pelo
 [0073](0073-self-hosted-server-first.md): uma Fase 3, e sync e mobile fora
-da lista do ponto 4 (Revisões).
+da lista do ponto 4 (Revisões). A Fase 2 declarada fechada em 2026-10-09
+pelo mantenedor em 2026-10-12, as pendências dela passadas para a Fase 3
+(Revisões).

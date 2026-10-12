@@ -267,7 +267,9 @@ precisarem; nomes que diferem só em maiúsculas (a Q8 da spec).
 
 *(Histórico, o status antes de o porte sair:)* Proposto. O porte espera, pela palavra do mantenedor em 2026-10-08 ("deixe
 pra depois"); o ADR 0022 não muda (Linux depois da Fase 2) até o mantenedor
-o revisar. **O porte começou em 2026-10-09**, pela palavra do mantenedor
+o revisar *(revisado em 2026-10-12: o
+[0022](0022-target-platforms-macos-first.md) registra o Linux lançado na
+Fase 3, em 2026-10-09)*. **O porte começou em 2026-10-09**, pela palavra do mantenedor
 ("começar a trabalhar na versão Linux … eu confio na sua seleção e também na
 implementação"): as três máquinas do item 4, montadas a partir das imagens
 cloud das distribuições com cloud-init (`verso-linux-vm`, fora do

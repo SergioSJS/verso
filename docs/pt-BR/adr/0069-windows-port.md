@@ -38,6 +38,11 @@
   confirmada pelo mantenedor em 2026-10-11, em sessão: *"Mas eu tinha confirmado"* —
   o *"Gostei das recomendações, pode seguir"* dele de 2026-10-10 cobre
   toda opção recomendada, esta revisão entre elas.
+  2026-10-12 — os itens ainda Propostos aceitos pelo mantenedor como
+  construídos e lançados na 0.5.0-beta.1, em sessão, respondendo à
+  auditoria dos ADRs: *"Ajuste tudo que precisar. Está aprovado os ADRs"*:
+  o bootstrapper do WebView2 embutido (item 2), os itens 4, 6 a 9 e a
+  ordem do trabalho (Consequências).
 
 ## Contexto
 
@@ -136,7 +141,8 @@ enquanto algum arquivo dentro dela está aberto. (No macOS, desde
    só o NSIS como alvo. O Windows 11 traz o WebView2 e o Windows 10 pode não
    ter, então o instalador embute o bootstrapper do WebView2 (uns 1,8 MB), que
    o instala quando falta (proposto; o padrão do Tauri baixa o bootstrapper
-   na hora da instalação).
+   na hora da instalação). *(Aceito em 2026-10-12, como construído e
+   lançado.)*
 3. **Sem assinatura de código por enquanto.** O SmartScreen avisa na
    primeira execução de um instalador não assinado, e isso fica aceito até
    a distribuição pública, onde o
@@ -174,7 +180,8 @@ enquanto algum arquivo dentro dela está aberto. (No macOS, desde
    atualizador procura) e o `verso-cli-X.Y.Z-windows-x64.zip`, com a UI
    compilada no bash do Git, e os publica junto com os arquivos do macOS.
 7. **O app real testado por máquina no Windows, pela suíte ponta a ponta
-   que o repositório já tem** (proposto, pull request próprio). O WebView2 é
+   que o repositório já tem** (proposto, pull request próprio; aceito em
+   2026-10-12, como construído). O WebView2 é
    Chromium: iniciado com
    `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=<porta>`,
    a janela real aceita o Playwright pelo Chrome DevTools Protocol. A suíte
@@ -191,7 +198,8 @@ enquanto algum arquivo dentro dela está aberto. (No macOS, desde
    janela real também no Mac, com um servidor WebDriver embutido — decisão
    própria, não deste ADR.
 8. **Antes de qualquer máquina Windows: a suíte ponta a ponta em Chromium
-   no Mac** (proposto, o primeiro passo do porte). Um projeto `chromium` do
+   no Mac** (proposto, o primeiro passo do porte; aceito em 2026-10-12,
+   como construído). Um projeto `chromium` do
    Playwright ao lado do `webkit`, no `scripts/check.sh`; o que difere entre
    os dois motores é a maior parte do que vai diferir no WebView2, e não
    custa runner nem SSH.
@@ -305,7 +313,8 @@ enquanto algum arquivo dentro dela está aberto. (No macOS, desde
 
 ## Consequências
 
-- **Ordem do trabalho** (recomendação registrada, decisão do mantenedor): o
+- **Ordem do trabalho** (recomendação registrada, decisão do mantenedor;
+  aceita em 2026-10-12, como seguida): o
   porte nasce de `main` depois do merge do pull request #37; o primeiro
   pull request dele é só infraestrutura — item 8, `scripts/check-windows.sh`,
   um build NSIS que instala e abre — e não toca código do `verso-fs`; o
@@ -374,8 +383,13 @@ enquanto algum arquivo dentro dela está aberto. (No macOS, desde
 ## Status
 
 **Decidido em partes (2026-10-07/09); o porte saiu na 0.5.0-beta.1**
-(2026-10-08, `CHANGELOG.md`; commit de release 98a2bf6). Ainda Proposto:
-os itens nomeados como Proposto abaixo.
+(2026-10-08, `CHANGELOG.md`; commit de release 98a2bf6). **Aceito em
+2026-10-12** no que ainda era Proposto: o bootstrapper do WebView2
+embutido (item 2), os itens 4, 6 a 9 e a ordem do trabalho, aceitos pelo
+mantenedor como construídos e lançados, respondendo à auditoria dos ADRs
+(*"Ajuste tudo que precisar. Está aprovado os ADRs"*). *(Até 2026-10-12
+esta abertura terminava: "Ainda Proposto: os itens nomeados como Proposto
+abaixo.")*
 
 *(A abertura até 2026-10-12, guardada como histórico: "Proposto.")*
 Decidido pelo mantenedor em 2026-10-07: o app de Windows começa
@@ -388,7 +402,8 @@ não assinado); `scripts/check-windows.sh` obrigatório quando o diff toca
 código de plataforma, opcional nos outros casos (item 5, "Recomendado"); a
 máquina com Windows 10 depois, o porte escrito com o Windows 10 em mente
 desde o início (Consequências). Proposto: o bootstrapper do WebView2
-embutido (item 2), os itens 4, 6 a 9, e a ordem do trabalho. **Decidido
+embutido (item 2), os itens 4, 6 a 9, e a ordem do trabalho *(aceitos em
+2026-10-12, como construídos)*. **Decidido
 pelo mantenedor em 2026-10-09** (item 9; `CLAUDE.md` §2 item 9): o
 `FlushFileBuffers` do diretório conta como o `fsync` do diretório; o
 separador de caminho num caminho relativo à pasta aberta é `/`,

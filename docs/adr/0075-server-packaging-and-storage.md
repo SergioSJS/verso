@@ -30,6 +30,9 @@
   (quotas per folder now); the server's package, image and paths renamed
   Universo by [0078](0078-universo-the-name-of-verso-as-a-server.md);
   both accepted by the maintainer that day.
+  2026-10-12 — `VERSO_UPDATE_CHECK` (item 7) accepted by the maintainer
+  as built, answering the ADR audit in session:
+  *"Ajuste tudo que precisar. Está aprovado os ADRs"*.
 - Revisions: 2026-10-09 (night) — accepted by the maintainer together with
   [0073](0073-self-hosted-server-first.md), in the answer quoted there;
   its two `[OPEN]` answered — the update path (item 7, the maintainer's
@@ -152,7 +155,8 @@ Proposed; decided in its parts by the maintainer on 2026-10-09 (Status).
    still reaches no network, and the server reaches, besides what
    [0073](0073-self-hosted-server-first.md) lists, only the release feed,
    for this check. The check can be turned off by an environment variable,
-   `VERSO_UPDATE_CHECK=off` — proposed with the implementation.
+   `VERSO_UPDATE_CHECK=off` — proposed with the implementation; accepted
+   as built on 2026-10-12.
 
 ## Consequences
 
@@ -190,7 +194,9 @@ Proposed; decided in its parts by the maintainer on 2026-10-09 (Status).
 
 ## Status
 
-**Accepted on 2026-10-09 in its parts** (the second paragraph below).
+**Accepted on 2026-10-09 in its parts** (the second paragraph below), and
+in full on 2026-10-12: the variable that turns the update check off
+(item 7) accepted by the maintainer as built.
 
 *(History, the status before the acceptance:)* Proposed, decided in its
 parts by the maintainer on 2026-10-09, in his
@@ -209,4 +215,5 @@ update path (item 7, option (b), the maintainer's and not the
 recommendation) and symlinks on a server (item 3); with them `verso serve`
 as a subcommand of `verso` (item 1), a folder's id (item 3) and the TLS
 variables (item 6). Proposed with the implementation: the variable that
-turns the update check off (item 7).
+turns the update check off (item 7). *(Accepted on 2026-10-12, as built:
+`VERSO_UPDATE_CHECK`.)*

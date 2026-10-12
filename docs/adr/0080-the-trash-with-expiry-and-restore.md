@@ -279,7 +279,9 @@ as built and recommended: a replaced version is kept only when a
 device's write replaced it (item 12); the owner may set a folder's days
 anywhere between 1 and the admin's value (item 3); a desktop folder's
 retention stays in this computer's index until a layer of settings that
-syncs exists — that layer stays `[OPEN]`; a restore on the server counts
+syncs exists — that layer stays `[OPEN]` *(decided on 2026-10-12:
+[0070](0070-what-travels-with-the-folder.md) items 1 and 2, the next
+round; the retention waits on it)*; a restore on the server counts
 against the folder's quota (item 8); and a deletion carried by sync
 names the server, the device later.
 

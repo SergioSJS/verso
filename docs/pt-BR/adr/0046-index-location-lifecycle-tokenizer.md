@@ -11,6 +11,10 @@
   mais cinco acrescentados, todos ainda **provisórios**.
   2026-09-23 — o modo do arquivo do sidecar: `0600`, pela resposta do
   mantenedor (`docs/review/phase-2.md` §6, item 15).
+  2026-10-12 — os registros provisórios de 2026-09-22 ratificados pelo
+  mantenedor como construídos e testados, respondendo à auditoria dos
+  ADRs em sessão: *"Ajuste tudo que precisar. Está aprovado os ADRs"*; uma
+  nota datada ao lado de cada um.
 
 ## Contexto
 
@@ -85,6 +89,8 @@ explícita de "prefixo" poria o `*` fora das aspas. Não decidido aqui.
 2026-09-22 e provisório: o mantenedor decide ao acordar**, nas cinco linhas da
 §9 de `docs/reference/index-decision.md`. Cada item é o que o `verso-index`
 faz hoje, não uma decisão; as questões acima continuam como estão.
+*(Ratificado pelo mantenedor em 2026-10-12, como construído e testado:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 
 - **Um arquivo SQLite por pasta**, chamado `<nome-da-pasta>-<hash>.sqlite`: o
   nome da própria pasta com cada caractere não alfanumérico substituído e
@@ -124,7 +130,7 @@ faz hoje, não uma decisão; as questões acima continuam como estão.
   e `cantando` são dois.
 
 **Registrado em 2026-09-22 a partir do código da feature 3 como ele ficou
-depois da leitura do Opus 5 — provisório, quem decide é o mantenedor.** Os dois
+depois da leitura do Opus 5 — provisório, quem decide é o mantenedor.** *(Ratificado pelo mantenedor em 2026-10-12, como construído e testado: "Ajuste tudo que precisar. Está aprovado os ADRs".)* Os dois
 itens acima sobre a tabela `meta` e sobre os companheiros do WAL foram
 reescritos no lugar, porque dizem o que o código faz e o código mudou. Estes
 cinco são novos, e nenhum deles é decisão também:
