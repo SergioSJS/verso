@@ -20,7 +20,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::crypto;
 
 /// The schema's version, in `PRAGMA user_version`.
-const SCHEMA: i64 = 6;
+const SCHEMA: i64 = 7;
 
 /// Schema 6: the device that made a change of a folder's log, by its name
 /// (ADR 0079 item 4, "who made it"): two devices of one account told apart.
@@ -456,6 +456,7 @@ impl Db {
             (4, CONSOLE),
             (5, SYNC),
             (6, DEVICES),
+            (7, trash::TRASH),
         ]
         .iter()
         .filter(|(at, _)| *at > version)
@@ -1411,8 +1412,10 @@ impl Db {
 
 mod console;
 mod sync;
+mod trash;
 pub use console::{AccountRow, AuditFilter, FolderRow, Page, PageQuery};
 pub use sync::{Change, Known, Made, Recorded};
+pub use trash::FolderBook;
 
 #[cfg(test)]
 mod tests;

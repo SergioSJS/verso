@@ -377,6 +377,14 @@ pub fn router(server: Arc<Server>) -> Router {
             axum::routing::put(crate::console::set_quota),
         )
         .route("/api/admin/folders/{id}/enter", post(crate::admin::enter))
+        .route(
+            "/api/admin/folders/{id}/trash",
+            axum::routing::put(crate::console::set_trash),
+        )
+        .route(
+            "/api/admin/folders/{id}/trash/empty",
+            axum::routing::post(crate::console::empty_trash),
+        )
         .route("/api/admin/audit", get(crate::console::audit))
         .route("/api/admin/audit/actions", get(crate::console::actions))
         .route("/api/admin/overview", get(crate::console::overview))

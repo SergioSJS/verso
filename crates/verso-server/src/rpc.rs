@@ -427,6 +427,9 @@ async fn handle(
         "fetch_file" => Ok(Value::Bool(false)),
         "collab_join" | "collab_update" | "collab_awareness" | "collab_leave" | "collab_save"
         | "collab_resolve" => collab_command(server, who, client, &r.cmd, &args).await,
+        "trash_list" | "trash_restore" | "trash_delete" | "trash_empty" | "trash_set_days" => {
+            crate::trash::command(server, who, client, &r.cmd, args).await
+        }
         "sync_state" | "sync_changes" | "sync_read" => {
             crate::sync::command(server, who, client, &r.cmd, args).await
         }
@@ -553,14 +556,33 @@ async fn folder_command(
     let s = Arc::clone(server);
     let c = client.to_owned();
     let n = name.to_owned();
+    let folder_id = folder.clone();
+    let by = crate::trash::by_name(who, None);
     let answer = blocking(move || {
         // Nothing typed is left behind a rename or a bin.
         if moves {
             crate::collab::write_all(&s, &key)?;
         }
-        let answer = service
-            .dispatch(&c, &n, args)
-            .unwrap_or_else(|| Err(refused("no such command")));
+        // A deletion is recorded with who made it (ADR 0080 item 2).
+        let answer = if matches!(n.as_str(), "delete_note" | "delete_entry") {
+            let path: String = arg(&args, "path")?;
+            service
+                .with(&c, |ws| {
+                    Ok(if n == "delete_note" {
+                        ws.delete_note(&path)?
+                    } else {
+                        ws.delete_entry(&path)?
+                    })
+                })
+                .and_then(|gone| {
+                    crate::trash::deleted(&s, &folder_id, &gone, &by);
+                    to_value(verso_service::convert::trashed_out(gone))
+                })
+        } else {
+            service
+                .dispatch(&c, &n, args)
+                .unwrap_or_else(|| Err(refused("no such command")))
+        };
         if moves && let Ok(notes) = service.with(&c, ops::list_notes) {
             crate::collab::close_missing(&s, &key, &notes);
         }
