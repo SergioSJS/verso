@@ -105,6 +105,17 @@
   sync protocol version in the hello (0079 item 5). The maintainer,
   answering a memo of recommendations: *"Sim para todos"* (yes to all).
   What follows the round is in `docs/roadmap.md`, revision 6.
+  2026-10-11 — the Status's `[OPEN]` on recovering another member's
+  deletion is answered by [0080](0080-the-trash-with-expiry-and-restore.md)
+  items 5 and 7, accepted by the maintainer that day: a deletion goes to
+  the folder's trash, seen by those who may write in it, any of whom
+  restores it. History and attribution of a **change** stay open.
+  2026-10-11 — the Status's `[OPEN]` on permissions finer than the folder
+  is answered for a folder inside a folder by
+  [0081](0081-sharing-between-people-on-one-universo.md) (accepted that
+  day): a share is a grant on a path of one folder, with an id of its own
+  the receiver opens and syncs as a folder; per note and per block (spec
+  Q9) stay open. The old wording of the Status is kept.
 
 ## Context
 
@@ -536,8 +547,9 @@ embed origins (the reader's, item 6).
 `[OPEN]`: whether the phone in the browser, online only, meets the mobile
 sync the maintainer called essential, or offline on the phone moves earlier
 in item 12; permissions finer than the folder (per note or per block, spec
-Q9), and history, attribution and recovery of another member's change or
-deletion; whether a server used by one person may opt into end-to-end
+Q9), and history and attribution of another member's change (the
+recovery of a deletion answered by
+[0080](0080-the-trash-with-expiry-and-restore.md), 2026-10-11); whether a server used by one person may opt into end-to-end
 encryption later; the board's co-editing; the MCP transport and
 authorization over the network (item 11); whether the pre-signed URL of
 item 4 is rule 4's opaque handle or needs an amendment of

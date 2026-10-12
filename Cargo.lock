@@ -5969,6 +5969,8 @@ dependencies = [
  "diffy",
  "futures-util",
  "getrandom 0.3.4",
+ "hyper",
+ "hyper-util",
  "lettre",
  "openssl",
  "rcgen",

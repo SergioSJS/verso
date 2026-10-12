@@ -325,8 +325,14 @@ pub fn update(
     Ok(())
 }
 
+/// The largest presence relayed (threat-model.md, gap 3): a window's is
+/// its name, its colour and its cursor, a few hundred bytes as base64. A
+/// reader may send presence, so without this bound a reader could have
+/// messages of up to the message limit relayed to every member's window.
+pub const PRESENCE_MOST: usize = 16 * 1024;
+
 /// A presence from `client` (its cursor, its name), relayed as is: the
-/// server keeps none.
+/// server keeps none. One past [`PRESENCE_MOST`] is refused.
 pub fn awareness(
     server: &Server,
     client: &str,
@@ -334,6 +340,9 @@ pub fn awareness(
     path: &str,
     update: &str,
 ) -> Result<(), ContractError> {
+    if update.len() > PRESENCE_MOST {
+        return Err(refused("a presence of 16 KB at most"));
+    }
     let room = server
         .rooms
         .get(key, path)
@@ -504,6 +513,38 @@ pub fn gone(server: &Arc<Server>, client: &str) {
                     map.remove(&place);
                 }
             });
+        }
+    }
+}
+
+/// A window that may no longer see its folder — its share revoked, its
+/// role gone (ADR 0081 item 8): out of every room at once, so that nothing
+/// typed there reaches it any more. A room left empty is written and
+/// closed.
+pub fn gone_now(server: &Server, client: &str) {
+    let rooms: Vec<Arc<Mutex<Room>>> = lock(&server.rooms.map)
+        .values()
+        .filter(|r| lock(r).clients.contains(client))
+        .map(Arc::clone)
+        .collect();
+    for room in rooms {
+        let empty = {
+            let mut r = lock(&room);
+            r.clients.remove(client);
+            r.clients.is_empty()
+        };
+        if empty && settled(server, &room) {
+            let place = {
+                let r = lock(&room);
+                (r.key.clone(), r.path.clone())
+            };
+            let mut map = lock(&server.rooms.map);
+            if map
+                .get(&place)
+                .is_some_and(|r| Arc::ptr_eq(r, &room) && lock(r).clients.is_empty())
+            {
+                map.remove(&place);
+            }
         }
     }
 }

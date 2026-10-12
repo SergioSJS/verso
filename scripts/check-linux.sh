@@ -43,6 +43,8 @@ if [ "${1:-}" = "--inside" ]; then
 fi
 
 cd "$(dirname "$0")/.."
+# The commit checked, so that a kept log names it.
+printf 'checking %s\n' "$(git rev-parse --short HEAD 2>/dev/null || echo 'no git')"
 command -v docker >/dev/null || { echo "docker not found"; exit 1; }
 if [ ! -f app/ui/dist/index.html ]; then
   echo "no UI bundle: run scripts/check.sh first (or: cd app/ui && npm ci && npm run build)"

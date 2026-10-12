@@ -20,7 +20,37 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::crypto;
 
 /// The schema's version, in `PRAGMA user_version`.
-const SCHEMA: i64 = 6;
+const SCHEMA: i64 = 8;
+
+/// Schema 8: sharing a folder inside a folder (ADR 0081 items 1, 2, 9, 11
+/// and 15): a share is a path of one folder with an id of its own, its
+/// people and their roles, the attachments folder it may also show
+/// read-only, the shares a personal access token names, an invitation's
+/// share, and the path an entry of the audit log concerns.
+const SHARES: &str = r"
+CREATE TABLE shares (
+  id TEXT PRIMARY KEY,
+  folder TEXT NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
+  path TEXT NOT NULL,
+  attachments TEXT,
+  created INTEGER NOT NULL,
+  UNIQUE (folder, path)
+);
+CREATE TABLE share_grants (
+  share TEXT NOT NULL REFERENCES shares(id) ON DELETE CASCADE,
+  account TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('editor', 'reader')),
+  PRIMARY KEY (share, account)
+);
+CREATE INDEX share_grants_account ON share_grants(account);
+CREATE TABLE token_shares (
+  token TEXT NOT NULL REFERENCES tokens(id) ON DELETE CASCADE,
+  share TEXT NOT NULL REFERENCES shares(id) ON DELETE CASCADE,
+  PRIMARY KEY (token, share)
+);
+ALTER TABLE invitations ADD COLUMN share TEXT REFERENCES shares(id) ON DELETE SET NULL;
+ALTER TABLE audit ADD COLUMN path TEXT;
+";
 
 /// Schema 6: the device that made a change of a folder's log, by its name
 /// (ADR 0079 item 4, "who made it"): two devices of one account told apart.
@@ -299,6 +329,8 @@ pub struct Invitation {
     pub used: Option<i64>,
     pub used_by: Option<String>,
     pub ended: Option<i64>,
+    /// The share it carries, when it carries one (ADR 0081 item 4).
+    pub share: Option<String>,
 }
 
 impl Invitation {
@@ -357,6 +389,10 @@ pub struct AuditEntry {
     pub folder: Option<String>,
     pub address: Option<String>,
     pub ok: bool,
+    /// The path inside the folder a share's entry concerns (ADR 0081
+    /// item 9).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
 }
 
 /// A single-use link before it is made: an invitation, a password reset or
@@ -370,6 +406,8 @@ pub struct NewLink<'a> {
     pub role: Option<Role>,
     pub created_by: Option<&'a str>,
     pub life: i64,
+    /// A share of `folder` the invitation carries (ADR 0081 item 4).
+    pub share: Option<&'a str>,
 }
 
 /// One line of the audit log, before it is written.
@@ -409,6 +447,12 @@ impl Db {
     pub fn open(dir: &Path) -> R<Self> {
         let path = dir.join("server.sqlite");
         let mut db = Self::from(Connection::open(&path).map_err(e)?)?;
+        // The accounts' hashes are for this server's user alone
+        // (threat-model.md, gap 13), whatever the umask made them.
+        for name in ["server.sqlite", "server.sqlite-wal", "server.sqlite-shm"] {
+            verso_fs::server::owner_only(&dir.join(name))
+                .map_err(|err| format!("{name}: {err}"))?;
+        }
         for _ in 0..READERS {
             let reader = Connection::open_with_flags(
                 &path,
@@ -456,6 +500,8 @@ impl Db {
             (4, CONSOLE),
             (5, SYNC),
             (6, DEVICES),
+            (7, trash::TRASH),
+            (8, SHARES),
         ]
         .iter()
         .filter(|(at, _)| *at > version)
@@ -933,14 +979,15 @@ impl Db {
             role,
             created_by,
             life,
+            share,
         } = *link;
         let token = crypto::token()?;
         let id = crypto::id()?;
         let at = now();
         self.conn()
             .execute(
-                "INSERT INTO invitations (id, hash, kind, email, account, folder, role, created_by, created, expires)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                "INSERT INTO invitations (id, hash, kind, email, account, folder, role, created_by, created, expires, share)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
                 params![
                     id,
                     crypto::hash(&token),
@@ -951,7 +998,8 @@ impl Db {
                     role.map(Role::as_str),
                     created_by,
                     at,
-                    at + life
+                    at + life,
+                    share
                 ],
             )
             .map_err(e)?;
@@ -961,7 +1009,7 @@ impl Db {
         Ok((token, invitation))
     }
 
-    const INVITATION: &'static str = "SELECT id, kind, email, account, folder, role, created_by, created, expires, used, used_by, ended FROM invitations";
+    const INVITATION: &'static str = "SELECT id, kind, email, account, folder, role, created_by, created, expires, used, used_by, ended, share FROM invitations";
 
     fn invitation_from(r: &rusqlite::Row<'_>) -> rusqlite::Result<Invitation> {
         Ok(Invitation {
@@ -977,6 +1025,7 @@ impl Db {
             used: r.get(9)?,
             used_by: r.get(10)?,
             ended: r.get(11)?,
+            share: r.get(12)?,
         })
     }
 
@@ -1091,11 +1140,19 @@ impl Db {
         )
         .map_err(e)?;
         for folder in folders {
-            tx.execute(
-                "INSERT INTO token_folders (token, folder) VALUES (?1, ?2)",
-                params![id, folder],
-            )
-            .map_err(e)?;
+            // A share is named beside the folders (ADR 0081 item 15).
+            let share: Option<String> = tx
+                .query_row("SELECT id FROM shares WHERE id = ?1", [folder], |r| {
+                    r.get(0)
+                })
+                .optional()
+                .map_err(e)?;
+            let sql = if share.is_some() {
+                "INSERT INTO token_shares (token, share) VALUES (?1, ?2)"
+            } else {
+                "INSERT INTO token_folders (token, folder) VALUES (?1, ?2)"
+            };
+            tx.execute(sql, params![id, folder]).map_err(e)?;
         }
         tx.commit().map_err(e)?;
         Ok((
@@ -1207,7 +1264,10 @@ impl Db {
         )
         .map_err(e)?;
         let mut st = conn
-            .prepare("SELECT folder FROM token_folders WHERE token = ?1")
+            .prepare(
+                "SELECT folder FROM token_folders WHERE token = ?1
+                 UNION ALL SELECT share FROM token_shares WHERE token = ?1",
+            )
             .map_err(e)?;
         let folders = st
             .query_map([&id], |r| r.get(0))
@@ -1246,7 +1306,10 @@ impl Db {
             .collect::<rusqlite::Result<_>>()
             .map_err(e)?;
         let mut st = conn
-            .prepare("SELECT folder FROM token_folders WHERE token = ?1")
+            .prepare(
+                "SELECT folder FROM token_folders WHERE token = ?1
+                 UNION ALL SELECT share FROM token_shares WHERE token = ?1",
+            )
             .map_err(e)?;
         for t in &mut tokens {
             t.folders = st
@@ -1366,7 +1429,7 @@ impl Db {
         let conn = self.conn();
         let mut st = conn
             .prepare(
-                "SELECT at, actor, action, subject, folder, address, ok FROM audit
+                "SELECT at, actor, action, subject, folder, address, ok, path FROM audit
                  WHERE ?1 IS NULL OR folder = ?1 ORDER BY at DESC, rowid DESC LIMIT ?2",
             )
             .map_err(e)?;
@@ -1379,6 +1442,7 @@ impl Db {
                 folder: r.get(4)?,
                 address: r.get(5)?,
                 ok: r.get(6)?,
+                path: r.get(7)?,
             })
         })
         .map_err(e)?
@@ -1410,9 +1474,13 @@ impl Db {
 }
 
 mod console;
+mod shares;
 mod sync;
+mod trash;
 pub use console::{AccountRow, AuditFilter, FolderRow, Page, PageQuery};
+pub use shares::{Share, covers};
 pub use sync::{Change, Known, Made, Recorded};
+pub use trash::FolderBook;
 
 #[cfg(test)]
 mod tests;

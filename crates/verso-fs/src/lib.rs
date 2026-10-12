@@ -40,12 +40,13 @@ mod os;
 mod placeholder;
 pub mod server;
 mod single;
+pub mod trashbin;
 mod walk;
 mod watch;
 mod write;
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::SystemTime;
 
@@ -196,6 +197,54 @@ pub struct Root {
     by_path: HashMap<PathBuf, u32>,
 }
 
+/// How many links one check follows by their text before it gives up, as
+/// the kernel gives up on a loop (`ELOOP`).
+const LINK_HOPS: u32 = 40;
+
+/// Whether `probe`, an absolute path, lands in `root` (canonical) once
+/// every symlink on its way is followed. Only a symlink moves a place: a
+/// plain file or directory is where its parent is, and what is not there
+/// is judged by the deepest part that is. So the check reads each entry
+/// itself (`symlink_metadata`), never only the final file's existence: a
+/// file that another writer is replacing at this very instant — missing
+/// for a moment, or not resolvable while the rename lands — is judged by
+/// its folder, never taken for a link that leads out. A link whose end is
+/// not there now is judged by where its text points, which is a place
+/// like any other; a link that leaves is refused whether or not its end
+/// exists.
+fn lands_inside(root: &Path, mut probe: PathBuf, hops: u32) -> bool {
+    loop {
+        match std::fs::symlink_metadata(&probe) {
+            Ok(meta) if meta.file_type().is_symlink() => {
+                if let Ok(real) = std::fs::canonicalize(&probe) {
+                    return real.starts_with(root);
+                }
+                // Nothing at its end now (or a loop): follow the text.
+                if hops >= LINK_HOPS {
+                    return false;
+                }
+                let (Ok(target), Some(parent)) = (std::fs::read_link(&probe), probe.parent())
+                else {
+                    return false;
+                };
+                return lands_inside(root, parent.join(target), hops + 1);
+            }
+            Ok(_) => {
+                if let Ok(real) = std::fs::canonicalize(&probe) {
+                    return real.starts_with(root);
+                }
+            }
+            Err(_) => {}
+        }
+        // Not there, or not resolvable this instant: its place is its
+        // folder's. Only a plain name is stepped back from; a `..` in a
+        // link's text that cannot be resolved is refused, never guessed.
+        if !matches!(probe.components().next_back(), Some(Component::Normal(_))) || !probe.pop() {
+            return false;
+        }
+    }
+}
+
 impl Root {
     /// Open a folder. `path` is the one place a path string enters; it must
     /// be a directory. Every ignored path is confined like a request: an
@@ -263,21 +312,7 @@ impl Root {
         let Ok(root) = std::fs::canonicalize(&self.path) else {
             return false;
         };
-        let mut probe = self.path.join(relative);
-        loop {
-            match std::fs::canonicalize(&probe) {
-                Ok(real) => return real.starts_with(&root),
-                Err(_) => {
-                    // A broken link is a link: refused, not looked past.
-                    if std::fs::symlink_metadata(&probe).is_ok() {
-                        return false;
-                    }
-                    if !probe.pop() {
-                        return false;
-                    }
-                }
-            }
-        }
+        lands_inside(&root, self.path.join(relative), 0)
     }
 
     /// The rules the walk runs under.
@@ -516,6 +551,32 @@ impl Root {
     pub fn trash(&mut self, relative: &Path) -> Result<(PathBuf, OpReport), WriteError> {
         let relative = self.confine(relative).map_err(WriteError::Confined)?;
         ops::trash(&self.path, &relative)
+    }
+
+    /// Everything in `.trash/` at the root, not following a symlink (ADR
+    /// 0080 item 2): the one walk that enters a hidden directory, by name.
+    pub fn trash_walk(&self) -> std::io::Result<Vec<trashbin::Binned>> {
+        trashbin::walk(&self.path)
+    }
+
+    /// Remove an entry of `.trash/` for good (ADR 0080 items 3 and 7):
+    /// only a path under the bin, a symlink removed as itself.
+    pub fn purge_trash(&self, relative: &Path) -> Result<(), WriteError> {
+        trashbin::purge(&self.path, relative)
+    }
+
+    /// Move an entry of `.trash/` back to `to`, confined as every path is;
+    /// `WriteError::Exists` when something stands there (ADR 0080 item 5).
+    pub fn restore_from_trash(&mut self, from: &Path, to: &Path) -> Result<OpReport, WriteError> {
+        let to = self.confine(to).map_err(WriteError::Confined)?;
+        trashbin::restore(&self.path, from, &to)
+    }
+
+    /// Copy the file at `relative` into `.trash/` before a write replaces
+    /// it (ADR 0080 item 12); returns where the copy went.
+    pub fn keep_in_trash(&mut self, relative: &Path) -> Result<PathBuf, WriteError> {
+        let relative = self.confine(relative).map_err(WriteError::Confined)?;
+        trashbin::keep_copy(&self.path, &relative)
     }
 
     /// Read `.space/waypoints.json` at the root and its [`Stamp`] (ADR 0062 D7).

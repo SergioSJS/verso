@@ -16,7 +16,7 @@
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import type { ContractError } from "../bindings";
-import { pageContract } from "./api";
+import { api, ApiError, pageContract, signedIn } from "./api";
 import { notice } from "./notice";
 import { w } from "./strings";
 
@@ -260,6 +260,29 @@ async function local(cmd: string, a: Record<string, unknown>): Promise<{ answere
         asset_size: null,
         published_at: null,
       });
+    // The owner's share dialog (ADR 0081 item 7): the server's own pages
+    // of the folder, over HTTP with the session, as the desktop app asks
+    // them with its token.
+    case "share_list":
+    case "share_grant":
+    case "share_revoke":
+    case "share_attachments":
+      return done(await shareCall(cmd, a));
+    // The folder switcher (ADR 0081 item 5): in a browser the account is
+    // this server's, its folders and shares are its own, and nothing is on
+    // this computer.
+    case "recent_folders":
+      return done([]);
+    case "server_accounts": {
+      const me = signedIn();
+      return done(me ? [{ url: location.origin, email: me.email, name: me.name }] : []);
+    }
+    case "server_folders": {
+      const r = await api<{ folders: { id: string; name: string; role: string; owner: { name: string } | null; share: boolean; missing?: boolean }[] }>("GET", "/api/folders");
+      return done(r.folders.map((f) => ({ id: f.id, name: f.name, role: f.role, owner: f.owner?.name ?? null, share: f.share, missing: f.missing ?? false })));
+    }
+    case "server_open":
+      return done(await openFolder(String(a.folder ?? "")));
     case "reopen_folder": {
       const value = await request(cmd, a);
       openedOnce = true;
@@ -267,6 +290,34 @@ async function local(cmd: string, a: Record<string, unknown>): Promise<{ answere
     }
     default:
       return { answered: false };
+  }
+}
+
+type Share = { id: string | null; path: string; people: unknown[]; attachments: string | null; missing: boolean };
+
+/** A share command of the window, asked of the server's pages; refused as
+ *  the contract refuses. */
+async function shareCall(cmd: string, a: Record<string, unknown>): Promise<unknown> {
+  if (!folderId) throw refused("no folder");
+  const at = `/api/folders/${encodeURIComponent(folderId)}/shares`;
+  try {
+    switch (cmd) {
+      case "share_list": {
+        const r = await api<{ root: Share; shares: Share[] }>("GET", at);
+        return [r.root, ...r.shares];
+      }
+      case "share_grant":
+        return await api<Share>("PUT", at, { path: a.path, email: a.email, role: a.role });
+      case "share_revoke":
+        return await api<Share>("POST", `${at}/revoke`, { path: a.path, account: a.account ?? null });
+      default:
+        return await api<Share>("PUT", `${at}/attachments`, { path: a.path, attachments: a.attachments ?? null });
+    }
+  } catch (e) {
+    if (e instanceof ApiError) {
+      throw { kind: e.status === 404 ? "not_found" : e.status === 401 || e.status === 403 ? "refused" : "failed", message: e.message } satisfies ContractError;
+    }
+    throw { kind: "unavailable", message: String(e) } satisfies ContractError;
   }
 }
 

@@ -373,6 +373,32 @@ export const commands = {
 	 *  folder, connects, and from now on sends the folder's commands there.
 	 */
 	serverOpen: (url: string, folder: string) => typedError<FolderInfo, ContractError>(__TAURI_INVOKE("server_open", { url, folder })),
+	/**
+	 *  The shares of the window's folder: the whole folder's people first,
+	 *  then each folder inside it shared, by path (ADR 0081 item 7).
+	 */
+	shareList: () => typedError<FolderShare[], ContractError>(__TAURI_INVOKE("share_list")),
+	/**
+	 *  Share the folder at `path` (`""` the whole folder) with the account of
+	 *  `email`, reading or writing, or change their role.
+	 */
+	shareGrant: (path: string, email: string, role: string) => typedError<FolderShare, ContractError>(__TAURI_INVOKE("share_grant", { path, email, role })),
+	/**
+	 *  Take a person out of the share at `path`, or remove the share when no
+	 *  person is named (item 8).
+	 */
+	shareRevoke: (path: string, account: string | null) => typedError<FolderShare, ContractError>(__TAURI_INVOKE("share_revoke", { path, account })),
+	/**
+	 *  Show the attachments folder with the share at `path`, read-only, or
+	 *  stop showing it (item 11).
+	 */
+	shareAttachments: (path: string, attachments: string | null) => typedError<FolderShare, ContractError>(__TAURI_INVOKE("share_attachments", { path, attachments })),
+	/**
+	 *  The folders of this computer opened before, freshest first, for the
+	 *  folder switcher's "On this computer" (ADR 0081 item 5): names and keys,
+	 *  no path.
+	 */
+	recentFolders: () => __TAURI_INVOKE<RecentFolder[]>("recent_folders"),
 	/**  The window's folder's sync: off, or its state. */
 	folderSync: () => typedError<SyncStatus, ContractError>(__TAURI_INVOKE("folder_sync")),
 	/**
@@ -453,6 +479,24 @@ export const commands = {
 	downloadAndInstallUpdate: () => typedError<InstallResult, ContractError>(__TAURI_INVOKE("download_and_install_update")),
 	/**  Restarts the application to apply updates. */
 	restartApp: () => typedError<null, ContractError>(__TAURI_INVOKE("restart_app")),
+	/**  The folder's bin, newest first. */
+	trashList: () => typedError<TrashListing, ContractError>(__TAURI_INVOKE("trash_list")),
+	/**
+	 *  Put an entry of the bin back where it was, or beside it under a name
+	 *  that says so when that place is taken (`today` the person's date,
+	 *  `lang` their language).
+	 */
+	trashRestore: (path: string, today: string, lang: string) => typedError<Restored, ContractError>(__TAURI_INVOKE("trash_restore", { path, today, lang })),
+	/**  Remove entries of the bin for good. */
+	trashDelete: (paths: string[]) => typedError<TrashListing, ContractError>(__TAURI_INVOKE("trash_delete", { paths })),
+	/**  Empty the bin. */
+	trashEmpty: () => typedError<TrashListing, ContractError>(__TAURI_INVOKE("trash_empty")),
+	/**
+	 *  How long this folder keeps deleted files: days, 0 for ever — the
+	 *  person's setting of the local folder, kept beside its index (item 3).
+	 *  What is past the new time goes at once.
+	 */
+	trashSetDays: (days: number) => typedError<TrashListing, ContractError>(__TAURI_INVOKE("trash_set_days", { days })),
 };
 
 /* Types */
@@ -987,6 +1031,21 @@ export type FolderInfo = {
 };
 
 /**
+ *  A folder of the open folder as its owner shares it (ADR 0081 item 7):
+ *  the path inside the open folder — `""` for the whole folder, whose
+ *  people are its members — who has access and in which role, and the
+ *  attachments folder shown with it, read-only (item 11).
+ */
+export type FolderShare = {
+	id: string | null,
+	path: string,
+	people: SharePerson[],
+	attachments: string | null,
+	/**  The share points at a folder that is gone (item 13). */
+	missing: boolean,
+};
+
+/**
  *  The space a folder takes (ADR 0075 item 4): counted from the walk the
  *  index already makes, never by a walk of its own. Bytes, as numbers the
  *  window can show.
@@ -1090,6 +1149,12 @@ export type Link = {
 	alias: string | null,
 	line: number,
 	col: number,
+	/**
+	 *  The note or file it resolves to is not in what was shared with the
+	 *  person (ADR 0081 item 11): shown like an unresolved link, and never
+	 *  made into a note. Nothing else of it crosses.
+	 */
+	outside?: boolean,
 };
 
 /**
@@ -1248,6 +1313,16 @@ export type PropertyValue = { kind: "text"; value: string } | { kind: "number"; 
 /**  Machine-readable code for the reason `.space/waypoints.json` is read-only (ADR 0062). */
 export type ReadOnlyReasonCode = "cloud_placeholder" | "invalid_json" | "unknown_format";
 
+/**
+ *  A folder of this computer opened before, for the folder switcher's
+ *  "On this computer" (ADR 0081 item 5): its name and the key
+ *  `reopen_folder` takes — never its path (ADR 0026 rule 4).
+ */
+export type RecentFolder = {
+	key: string,
+	name: string,
+};
+
 /**  An entry a move left where it was, and why. */
 export type RefusedEntry = {
 	path: string,
@@ -1270,6 +1345,14 @@ export type Renamed = {
 	 *  note taking the folder's new name (ADR 0060). Old path to new.
 	 */
 	also: Moved[],
+};
+
+/**  Where a restore put an entry of the bin (ADR 0080 item 5). */
+export type Restored = {
+	path: string,
+	/**  The original path was taken: it went beside it, under a new name. */
+	beside: boolean,
+	warnings: string[],
 };
 
 /**  A `verso-schema` block of a note. */
@@ -1299,6 +1382,18 @@ export type ServerFolder = {
 	id: string,
 	name: string,
 	role: string,
+	/**
+	 *  Whose it is, when it is someone else's — a whole folder or a share
+	 *  (ADR 0081 item 5): it is listed under "Shared with me".
+	 */
+	owner?: string | null,
+	/**
+	 *  A folder inside someone's folder, shared with this account (ADR
+	 *  0081 item 2).
+	 */
+	share?: boolean,
+	/**  The shared folder is no longer where the share points (item 13). */
+	missing?: boolean,
 };
 
 /**
@@ -1308,6 +1403,18 @@ export type ServerFolder = {
 export type ServerSignIn = {
 	code: string,
 	page: string,
+};
+
+/**
+ *  A person who has access to a shared folder, and in which role (ADR
+ *  0081 item 7).
+ */
+export type SharePerson = {
+	id: string,
+	name: string,
+	email: string,
+	/**  `owner`, `editor` (writes) or `reader` (reads only). */
+	role: string,
 };
 
 /**  Why a note that links to what moved got no rewrite. */
@@ -1438,6 +1545,71 @@ export type TextFile = {
 	revision: string,
 	/**  What the write could not preserve, one line each; empty after a read. */
 	warnings: string[],
+};
+
+/**
+ *  One entry of the folder's bin (ADR 0080 item 4): a file, or a folder
+ *  trashed whole, with what is known of its deletion.
+ */
+export type TrashEntry = {
+	/**  Where it is, under `.trash/`: what a restore or a removal names. */
+	path: string,
+	/**  Where it was, relative to the folder. */
+	original: string,
+	/**  A folder trashed with what it held. */
+	folder: boolean,
+	/**  The bytes it holds. */
+	size: number | null,
+	/**
+	 *  When it was deleted, in seconds since the Unix epoch; when that is
+	 *  not known (`known` false), when it was first seen in the bin.
+	 */
+	deleted: number | null,
+	known: boolean,
+	/**
+	 *  Who deleted it: on a server the account (or, for a version a write
+	 *  replaced, the device); on the computer the server whose sync
+	 *  carried the deletion out. None: this computer, or not known.
+	 */
+	by: string | null,
+	/**  Sync carried the deletion out on this computer (item 9). */
+	sync: boolean,
+	/**  Not deleted: the version a device's write replaced (item 12). */
+	replaced: boolean,
+	/**
+	 *  When it is removed for good, in seconds; none when deleted files
+	 *  are kept for ever.
+	 */
+	expires: number | null,
+};
+
+/**  The folder's bin as its page shows it (ADR 0080 items 3, 4, 7 and 8). */
+export type TrashListing = {
+	/**  Newest first. */
+	entries: TrashEntry[],
+	/**  The bytes the bin holds — shown, not counted against the quota. */
+	size: number | null,
+	/**  How many days deleted files are kept; 0: for ever. */
+	days: number,
+	/**
+	 *  The most days this person may choose (a server folder's owner
+	 *  shortens what the admin set, item 3); none: anything, for ever too.
+	 */
+	most: number | null,
+	/**  Whether this person may change how long deleted files are kept. */
+	can_set: boolean,
+	/**
+	 *  Whether this person may delete an entry now or empty the bin: the
+	 *  folder's owner (item 7); on the computer, always.
+	 */
+	can_purge: boolean,
+	/**  The folder's quota on its server, in bytes; none without one. */
+	quota: number | null,
+	/**
+	 *  The bin alone is larger than the quota: its oldest entries expire
+	 *  early (item 8).
+	 */
+	early: boolean,
 };
 
 /**

@@ -47,6 +47,8 @@ for arg in "$@"; do
     *) echo "unknown argument: $arg (see --help)"; exit 2 ;;
   esac
 done
+# The commit checked, so that a kept log names it.
+printf 'checking %s\n' "$(git rev-parse --short HEAD 2>/dev/null || echo 'no git')"
 
 if [ ! -f app/ui/dist/index.html ]; then
   echo "no UI bundle: run scripts/check.sh first (or: cd app/ui && npm ci && npm run build)"

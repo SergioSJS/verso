@@ -5,7 +5,7 @@ import { test, expect } from "./fixtures.mjs";
 test("the settings have the sections the tutorial names", async ({ app }) => {
   await app.open();
   await app.key("Mod+,");
-  await expect(app.page.locator(".settings-nav-item")).toHaveText(["Geral", "Aparência", "Editor", "Organização", "Arquivos e links", "Board", "Atalhos", "Terminal e agentes", "Servidores", "Sincronizar"]);
+  await expect(app.page.locator(".settings-nav-item")).toHaveText(["Geral", "Aparência", "Editor", "Organização", "Arquivos e links", "Lixeira", "Board", "Atalhos", "Terminal e agentes", "Servidores", "Sincronizar"]);
   await app.page.locator(".settings-nav-item", { hasText: "Aparência" }).click();
   for (const label of ["Tema", "Paleta de cores", "Tamanho da fonte", "Fonte dos títulos", "Fonte do texto", "Cor de destaque dos títulos", "Largura do texto"]) {
     await expect(app.page.getByText(label, { exact: true }).first()).toBeVisible();
@@ -51,9 +51,9 @@ test("the bug report opens with no error of the session", async ({ app }) => {
   await app.page.locator("#report-bug").click();
   const dialog = app.page.getByRole("dialog", { name: "Relatar problema" });
   await expect(dialog).toBeVisible();
-  const text = await dialog.locator("textarea").inputValue();
-  expect(text).toContain("## Erros desta sessão");
-  expect(text).toMatch(/## Erros desta sessão\s+nenhum/);
+  // The report is composed after the dialog shows: wait for the section,
+  // do not read the box once.
+  await expect(dialog.locator("textarea")).toHaveValue(/## Erros desta sessão\s+nenhum/);
 });
 
 // A long answer beside a setting wraps under it, and the setting's own text

@@ -55,6 +55,8 @@ for arg in "$@"; do
     *) echo "unknown argument: $arg (see --help)"; exit 2 ;;
   esac
 done
+# The commit checked, so that a kept log names it.
+printf 'checking %s\n' "$(git rev-parse --short HEAD 2>/dev/null || echo 'no git')"
 
 if [ "$webkit" = 1 ]; then
   # The tree without what is built or installed here (node_modules holds

@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { loadShares } from "./shares";
 import { refreshBases } from "./bases";
 import { commands, type ContractError, type FolderInfo } from "./bindings";
 import { loadBookmarks } from "./bookmarks";
@@ -108,6 +109,9 @@ export async function showFolder(info: FolderInfo): Promise<void> {
   void panel.loadTags();
   showOutline(null);
   await listAll();
+  // Whether the person owns it on a server, and what of it is shared
+  // (ADR 0081 item 7).
+  void loadShares();
   let restored = false;
   try {
     const saved = secondary ? null : localStorage.getItem(`verso.spaces:${info.key}`);

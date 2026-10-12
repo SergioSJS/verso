@@ -189,9 +189,11 @@ export class TableEditor extends WidgetType {
     const text = this.text;
     void render(text).then((html) => {
       if (!dom.isConnected) return;
-      const tmp = document.createElement("div");
+      // Parsed in a template, where nothing loads or runs; the HTML comes
+      // cleaned (`render` passes it through the sanitizer).
+      const tmp = document.createElement("template");
       tmp.innerHTML = html;
-      const rendered = tmp.querySelector("table");
+      const rendered = tmp.content.querySelector("table");
       if (!rendered) return;
       // Rows by order — the header first — whether the renderer puts the
       // header in a `thead` or not.

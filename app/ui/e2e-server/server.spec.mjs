@@ -4,6 +4,8 @@
 // write; the pages are in the person's language and the console stays
 // clean.
 
+import { createHash } from "node:crypto";
+
 import { expect, test } from "@playwright/test";
 
 const ADMIN = { email: "admin@verso.test", password: "uma senha bem longa" };
@@ -51,8 +53,9 @@ async function openDemo(page) {
   if (!(await page.locator("#open").isVisible()) || (page.viewportSize()?.width ?? 1000) < 760) {
     await page.locator(".bottom-bar .bar-files").click();
   }
+  // The folder button opens the folder switcher (ADR 0081 item 5).
   await page.locator("#open").click();
-  const dialog = page.getByRole("dialog", { name: "Abrir pasta" });
+  const dialog = page.getByRole("dialog", { name: "Trocar de pasta" });
   await dialog.getByRole("button", { name: /Demo/ }).click();
   await expect(page.locator("#notes li").first()).toBeVisible();
   await expect(page).toHaveURL(/folder=/);
@@ -384,5 +387,124 @@ test("the administration console pages its lists and sets a folder's quota", asy
   await page.goto("/account");
   await expect(page.locator(".settings-body a[href='/admin']")).toBeVisible();
   await expect(page.locator(".settings-nav-item", { hasText: "Administração" })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+/** A request of the page's own session, with its CSRF token. */
+async function asPage(page, method, path, data) {
+  const state = await (await page.request.get("/api/state")).json();
+  const res = await page.request.fetch(path, { method, data, headers: { "x-verso-csrf": state.csrf ?? "", origin: new URL(page.url()).origin } });
+  expect(res.ok(), `${method} ${path}: ${await res.text()}`).toBeTruthy();
+  return res.json();
+}
+
+test("two people share folders on one server, both ways (ADR 0081)", async ({ page, browser }) => {
+  const errors = watch(page);
+  await signedIn(page, ADMIN.email, ADMIN.password);
+  await demoRegistered(page);
+  const tag = test.info().project.name;
+  const email = `ana-${tag}@verso.test`;
+  // Ana, invited to no folder.
+  await page.goto("/admin/invitations");
+  const invite = page.locator(".console-content");
+  await invite.getByLabel("E-mail (opcional)").fill(email);
+  await invite.getByRole("button", { name: "Convidar" }).click();
+  const link = (await invite.locator(".web-snippet .setting-code").textContent()) ?? "";
+  const other = await browser.newContext({ locale: "pt-BR" });
+  const ana = await other.newPage();
+  const anaErrors = watch(ana);
+  await ana.goto(link);
+  await ana.getByLabel("Nome").fill("Ana");
+  await ana.getByLabel("Senha nova").fill("a senha da ana");
+  await ana.getByRole("button", { name: "Criar conta" }).click();
+  await expect(ana).not.toHaveURL(/invite/);
+  // The admin shares the folder "Personagens" of Demo with her, editing,
+  // from the folder's menu in the tree.
+  await openDemo(page);
+  const folder = page.locator('summary[data-folder="Personagens"]');
+  await expect(async () => {
+    await page.keyboard.press("Escape");
+    await folder.focus();
+    await page.keyboard.press("Shift+F10");
+    await page.getByRole("menuitem", { name: "Compartilhar…" }).click({ timeout: 1000 });
+  }).toPass({ timeout: 15000 });
+  const dialog = page.getByRole("dialog", { name: "Compartilhar “Personagens”" });
+  await dialog.getByLabel("E-mail").fill(email);
+  await dialog.getByLabel("Papel").selectOption("editor");
+  await dialog.getByRole("button", { name: "Compartilhar", exact: true }).click();
+  await expect(dialog.getByRole("status")).toHaveText(`Compartilhada com ${email}.`);
+  await dialog.getByRole("button", { name: "Fechar" }).click();
+  await expect(folder.locator(".share-mark")).toHaveAttribute("aria-label", "compartilhada com 1 pessoa");
+  // Ana finds it under "Shared with me", named after the folder and its
+  // owner, and it opens as a folder of its own: its notes, nothing above.
+  await ana.goto("/");
+  if ((ana.viewportSize()?.width ?? 1000) < 760) await ana.locator(".bottom-bar .bar-files").click();
+  await ana.locator("#open").click();
+  const switcher = ana.getByRole("dialog", { name: "Trocar de pasta" });
+  const shared = switcher.getByRole("region", { name: "Compartilhados comigo" });
+  await shared.getByRole("button", { name: /Personagens \(Admin\)/ }).click();
+  await expect(ana.locator("#folder")).toHaveText("Personagens (Admin)");
+  await expect(ana.locator("#notes")).toContainText("Lia Torres.md");
+  await expect(ana.locator("#notes")).not.toContainText("00 - Bem-vindo");
+  // And back: Ana, let make folders, shares hers whole with the admin to
+  // read.
+  const anaAccount = (await (await ana.request.get("/api/me")).json()).account;
+  await asPage(page, "PATCH", `/api/admin/accounts/${anaAccount.id}`, { admin: false, mayCreate: true });
+  const mine = await asPage(ana, "POST", "/api/folders", { name: `Ana ${tag}` });
+  await asPage(ana, "PUT", `/api/folders/${mine.id}/shares`, { path: "", email: ADMIN.email, role: "reader" });
+  if ((page.viewportSize()?.width ?? 1000) < 760) await page.locator(".bottom-bar .bar-files").click();
+  await page.locator("#open").click();
+  const back = page.getByRole("dialog", { name: "Trocar de pasta" }).getByRole("region", { name: "Compartilhados comigo" });
+  await expect(back).toContainText(`Ana ${tag}`);
+  await expect(back).toContainText("lê");
+  await page.keyboard.press("Escape");
+  // The admin takes Ana out: her window closes the folder at once.
+  await asPage(page, "POST", `/api/folders/${(await (await page.request.get("/api/folders")).json()).folders.find((f) => f.name === "Demo").id}/shares/revoke`, { path: "Personagens", account: email });
+  await expect(ana.locator("#notes")).not.toContainText("Lia Torres.md");
+  await other.close();
+  expect(errors).toEqual([]);
+  expect(anaErrors.filter((e) => !/folder|pasta/i.test(e))).toEqual([]);
+});
+
+test("a device's write keeps what it replaced in the trash, restored from the window", async ({ page }) => {
+  const errors = watch(page);
+  await signedIn(page, ADMIN.email, ADMIN.password);
+  await demoRegistered(page);
+  await openDemo(page);
+  const folder = new URL(page.url()).searchParams.get("folder");
+  const name = `Lixo ${test.info().project.name}`;
+  await page.keyboard.press("ControlOrMeta+n");
+  await expect(page.locator("input.title-input")).toBeFocused();
+  await page.keyboard.type(name);
+  await page.keyboard.press("Enter");
+  await page.locator(".template-picker").getByRole("button", { name: "Em branco", exact: true }).click();
+  await expect(page.locator("#notes")).toContainText(`${name}.md`);
+  // A device writes other bytes over it (ADR 0080 item 12): the version
+  // it replaced goes to the folder's trash.
+  const bytes = Buffer.from("de outro programa\n");
+  const put = await asDevice(page, folder, "sync_put", {
+    path: `${name}.md`,
+    offset: 0,
+    size: bytes.length,
+    hash: createHash("sha256").update(bytes).digest("hex"),
+    data: bytes.toString("base64"),
+  });
+  expect(put.ok?.done, JSON.stringify(put)).toBe(true);
+  // The trash, from the command palette.
+  await page.keyboard.press("ControlOrMeta+Shift+p");
+  await page.keyboard.type("Abrir a lixeira");
+  await page.keyboard.press("Enter");
+  const body = page.locator(".settings-body");
+  await expect(body.locator(".settings-title")).toHaveText("Lixeira");
+  const row = body.locator("tbody tr", { hasText: name }).first();
+  await expect(row).toContainText("substituído por");
+  await row.getByRole("button", { name: `Restaurar ${name}.md` }).click();
+  await expect(body.locator(".trash-said")).toContainText(`${name}.md já existia: restaurado ao lado, como ${name} (restaurado `);
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#notes")).toContainText(`${name} (restaurado `);
+  // The console's folder page shows the trash, not counted in the quota.
+  await page.goto("/admin/folders");
+  await page.locator(".console-table a", { hasText: "Demo" }).click();
+  await expect(page.locator("[data-trash]")).toContainText("Os arquivos apagados ficam 30 dias.");
   expect(errors).toEqual([]);
 });

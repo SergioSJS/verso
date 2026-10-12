@@ -96,6 +96,7 @@ pub async fn register_start(ctx: Ctx) -> ApiResult<Response> {
     let id = crate::crypto::id()?;
     let mut map = lock(&ctx.server.ceremonies.registering);
     map.retain(|_, (at, _, _)| at.elapsed() < LIFE);
+    crate::limit::make_room(&mut map, crate::limit::PENDING, |(at, _, _)| *at);
     map.insert(id.clone(), (Instant::now(), who.account.id.clone(), state));
     Ok(ok(json!({ "ceremony": id, "options": options })))
 }
@@ -152,7 +153,7 @@ pub struct SignInStart {
 /// (threat-model.md).
 pub async fn sign_in_start(ctx: Ctx, Json(body): Json<SignInStart>) -> ApiResult<Response> {
     ctx.changes()?;
-    let key = format!("pk:{}", ctx.peer.addr);
+    let key = format!("pk:{}", ctx.peer.key());
     let wait = ctx.server.limiter.wait(&key);
     if !wait.is_zero() {
         return Err(ApiError::wait(wait.as_secs() + 1));
@@ -178,6 +179,7 @@ pub async fn sign_in_start(ctx: Ctx, Json(body): Json<SignInStart>) -> ApiResult
     let id = crate::crypto::id()?;
     let mut map = lock(&ctx.server.ceremonies.signing_in);
     map.retain(|_, (at, _, _)| at.elapsed() < LIFE);
+    crate::limit::make_room(&mut map, crate::limit::PENDING, |(at, _, _)| *at);
     map.insert(
         id.clone(),
         (
@@ -230,7 +232,7 @@ pub async fn sign_in_finish(ctx: Ctx, Json(body): Json<SignInFinish>) -> ApiResu
     }
     ctx.server
         .limiter
-        .succeeded(&format!("pk:{}", ctx.peer.addr));
+        .succeeded(&format!("pk:{}", ctx.peer.key()));
     ctx.audit_as(Some(&account.id), "sign_in_passkey", None, None, true);
     let (token, csrf) = ctx.server.db.create_session(
         &account.id,

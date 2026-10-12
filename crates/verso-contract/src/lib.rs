@@ -391,6 +391,68 @@ pub struct Trashed {
     pub warnings: Vec<String>,
 }
 
+/// One entry of the folder's bin (ADR 0080 item 4): a file, or a folder
+/// trashed whole, with what is known of its deletion.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct TrashEntry {
+    /// Where it is, under `.trash/`: what a restore or a removal names.
+    pub path: String,
+    /// Where it was, relative to the folder.
+    pub original: String,
+    /// A folder trashed with what it held.
+    pub folder: bool,
+    /// The bytes it holds.
+    pub size: f64,
+    /// When it was deleted, in seconds since the Unix epoch; when that is
+    /// not known (`known` false), when it was first seen in the bin.
+    pub deleted: f64,
+    pub known: bool,
+    /// Who deleted it: on a server the account (or, for a version a write
+    /// replaced, the device); on the computer the server whose sync
+    /// carried the deletion out. None: this computer, or not known.
+    pub by: Option<String>,
+    /// Sync carried the deletion out on this computer (item 9).
+    pub sync: bool,
+    /// Not deleted: the version a device's write replaced (item 12).
+    pub replaced: bool,
+    /// When it is removed for good, in seconds; none when deleted files
+    /// are kept for ever.
+    pub expires: Option<f64>,
+}
+
+/// The folder's bin as its page shows it (ADR 0080 items 3, 4, 7 and 8).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct TrashListing {
+    /// Newest first.
+    pub entries: Vec<TrashEntry>,
+    /// The bytes the bin holds — shown, not counted against the quota.
+    pub size: f64,
+    /// How many days deleted files are kept; 0: for ever.
+    pub days: u32,
+    /// The most days this person may choose (a server folder's owner
+    /// shortens what the admin set, item 3); none: anything, for ever too.
+    pub most: Option<u32>,
+    /// Whether this person may change how long deleted files are kept.
+    pub can_set: bool,
+    /// Whether this person may delete an entry now or empty the bin: the
+    /// folder's owner (item 7); on the computer, always.
+    pub can_purge: bool,
+    /// The folder's quota on its server, in bytes; none without one.
+    pub quota: Option<f64>,
+    /// The bin alone is larger than the quota: its oldest entries expire
+    /// early (item 8).
+    pub early: bool,
+}
+
+/// Where a restore put an entry of the bin (ADR 0080 item 5).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct Restored {
+    pub path: String,
+    /// The original path was taken: it went beside it, under a new name.
+    pub beside: bool,
+    pub warnings: Vec<String>,
+}
+
 /// What the running app is: its version (the workspace's, ADR 0051) and the
 /// commit it was built from — shown in the settings and the About panel.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -557,6 +619,51 @@ pub struct ServerFolder {
     pub id: String,
     pub name: String,
     pub role: String,
+    /// Whose it is, when it is someone else's — a whole folder or a share
+    /// (ADR 0081 item 5): it is listed under "Shared with me".
+    #[serde(default)]
+    pub owner: Option<String>,
+    /// A folder inside someone's folder, shared with this account (ADR
+    /// 0081 item 2).
+    #[serde(default)]
+    pub share: bool,
+    /// The shared folder is no longer where the share points (item 13).
+    #[serde(default)]
+    pub missing: bool,
+}
+
+/// A folder of this computer opened before, for the folder switcher's
+/// "On this computer" (ADR 0081 item 5): its name and the key
+/// `reopen_folder` takes — never its path (ADR 0026 rule 4).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct RecentFolder {
+    pub key: String,
+    pub name: String,
+}
+
+/// A person who has access to a shared folder, and in which role (ADR
+/// 0081 item 7).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct SharePerson {
+    pub id: String,
+    pub name: String,
+    pub email: String,
+    /// `owner`, `editor` (writes) or `reader` (reads only).
+    pub role: String,
+}
+
+/// A folder of the open folder as its owner shares it (ADR 0081 item 7):
+/// the path inside the open folder — `""` for the whole folder, whose
+/// people are its members — who has access and in which role, and the
+/// attachments folder shown with it, read-only (item 11).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct FolderShare {
+    pub id: Option<String>,
+    pub path: String,
+    pub people: Vec<SharePerson>,
+    pub attachments: Option<String>,
+    /// The share points at a folder that is gone (item 13).
+    pub missing: bool,
 }
 
 /// A folder's sync with a server, as its window shows it (ADR 0079 item
@@ -760,6 +867,11 @@ pub struct Link {
     pub alias: Option<String>,
     pub line: u32,
     pub col: u32,
+    /// The note or file it resolves to is not in what was shared with the
+    /// person (ADR 0081 item 11): shown like an unresolved link, and never
+    /// made into a note. Nothing else of it crosses.
+    #[serde(default)]
+    pub outside: bool,
 }
 
 /// A link into a note, from another.

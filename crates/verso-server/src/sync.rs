@@ -718,10 +718,33 @@ pub async fn command(
     args: Value,
 ) -> Result<Value, ContractError> {
     let (folder, role) = role_here(server, client)?;
-    let writes = role.writes() && who.reaches(&folder).1;
+    let scope = crate::shares::scope_here(server, client);
+    let visible = scope
+        .as_ref()
+        .map_or_else(|| folder.clone(), |s| s.share.clone());
+    let writes = role.writes() && who.reaches(&visible).1;
     if matches!(cmd, "sync_put" | "sync_delete" | "sync_rename") && !writes {
         return Err(refused("you may only read this folder"));
     }
+    // A share synced to a folder of the receiver's computer (ADR 0081
+    // item 6): its paths joined to the shared folder's, its answers
+    // re-rooted, the log and the files filtered to it.
+    if let Some(scope) = scope {
+        return crate::share_sync::command(server, who, client, cmd, args, scope).await;
+    }
+    command_in(server, who, client, cmd, args, Arc::new(|_: &str| true)).await
+}
+
+/// A device's sync command, what it may reach said by `inside`.
+pub(crate) async fn command_in(
+    server: &Arc<Server>,
+    who: &Who,
+    client: &str,
+    cmd: &str,
+    args: Value,
+    inside: Arc<dyn Fn(&str) -> bool + Send + Sync>,
+) -> Result<Value, ContractError> {
+    let (folder, _) = role_here(server, client)?;
     let key = server
         .service
         .folder_of(client)
@@ -745,6 +768,10 @@ pub async fn command(
         }
         _ => None,
     };
+    // Who the bin names (ADR 0080): the account and its device for a
+    // deletion, the device for a version its write replaced.
+    let by = crate::trash::by_name(who, device.as_deref());
+    let replacer = device.clone().unwrap_or_else(|| who.account.name.clone());
     // What is said in the server's log when a device's change is refused.
     let said_as = (
         cmd.to_owned(),
@@ -758,6 +785,13 @@ pub async fn command(
             None => who.account.email.clone(),
         },
     );
+    // A rename's folder and source, for the shares it may carry.
+    let renaming = (cmd == "sync_rename").then(|| {
+        (
+            folder.clone(),
+            args.get("from").and_then(Value::as_str).map(str::to_owned),
+        )
+    });
     let cmd = cmd.to_owned();
     // Moved, never copied: a piece of a file is megabytes of base64.
     let answer = blocking(move || match cmd.as_str() {
@@ -780,7 +814,7 @@ pub async fn command(
             let more = changes.last().is_some_and(|last| last.seq < head);
             Ok(json!({ "head": head, "changes": changes, "more": more }))
         }
-        "sync_read" => read(&s, &c, &folder, &key, &args),
+        "sync_read" => read(&s, &c, (&folder, &key), &args, &*inside),
         "sync_put" => put(
             &s,
             &c,
@@ -789,7 +823,8 @@ pub async fn command(
                 account: Some(&actor),
                 device: device.as_deref(),
             },
-            args,
+            &replacer,
+            (args, &*inside),
         ),
         "sync_delete" => {
             let named: String = arg(&args, "path")?;
@@ -797,15 +832,16 @@ pub async fn command(
             let (head, path) = {
                 let one = one_at_a_time(&s, &folder);
                 let _only = lock(&one);
-                let (path, _) = as_kept(&s, &folder, &named)?;
+                let (path, _) = as_kept(&s, &folder, &named, &*inside)?;
                 let p = path.clone();
-                s.service.with_key(&key, move |ws| {
+                let gone = s.service.with_key(&key, move |ws| {
                     is_now(ws, &p, Some(&base))?;
-                    ws.delete_entry(&p)?;
+                    let gone = ws.delete_entry(&p)?;
                     // No empty folder left behind on the server either.
                     ws.prune_empty_parents(&p);
-                    Ok(())
+                    Ok(gone)
                 })?;
+                crate::trash::deleted(&s, &folder, &gone, &by);
                 let head = reconcile_paths(
                     &s,
                     &folder,
@@ -828,11 +864,11 @@ pub async fn command(
             let base: String = arg(&args, "base")?;
             let one = one_at_a_time(&s, &folder);
             let only = lock(&one);
-            let (from, _) = as_kept(&s, &folder, &from)?;
+            let (from, _) = as_kept(&s, &folder, &from, &*inside)?;
             // Only the accents' form changing: the same name, the same
             // file (spec Q7) — nothing to move.
             let same = verso_core::sync::folded_form(&from) == verso_core::sync::folded_form(&to);
-            let (to, other) = as_kept(&s, &folder, &to)?;
+            let (to, other) = as_kept(&s, &folder, &to, &*inside)?;
             let (f, t) = (from.clone(), to.clone());
             let landed = s.service.with_key(&key, move |ws| {
                 is_now(ws, &f, Some(&base))?;
@@ -896,6 +932,14 @@ pub async fn command(
             e.kind, e.message
         ));
     }
+    // A shared folder moved on a computer follows to where its files went
+    // (ADR 0081 item 13).
+    if let (Ok(done), Some((folder, Some(from)))) = (&answer, &renaming)
+        && let Some(to) = done["path"].as_str()
+        && let Ok(Some(f)) = server.db.folder(folder)
+    {
+        crate::shares::synced_rename(server, &f, from, to);
+    }
     answer
 }
 
@@ -908,7 +952,13 @@ pub async fn command(
 /// The windows first: a tab that hears its room close knows by then
 /// where its note went. The watcher does not report what the server
 /// wrote itself.
-fn told(server: &Server, key: &str, changed: &[String], removed: &[String], moved: &[Moved]) {
+pub(crate) fn told(
+    server: &Server,
+    key: &str,
+    changed: &[String],
+    removed: &[String],
+    moved: &[Moved],
+) {
     let clients = server.service.clients_of(key);
     if let Some(index) = clients
         .first()
@@ -999,7 +1049,30 @@ pub(crate) fn one_name(path: &str, folded: &str, other: &str) -> bool {
 /// keeps it; a new file in a folder the log knows under the other form
 /// goes into that folder. Returns the spelling, and whether it is another
 /// file's that the path named under the other form.
-fn as_kept(server: &Server, folder: &str, path: &str) -> Result<(String, bool), ContractError> {
+fn as_kept(
+    server: &Server,
+    folder: &str,
+    path: &str,
+    inside: Inside<'_>,
+) -> Result<(String, bool), ContractError> {
+    let (kept, other) = as_kept_anywhere(server, folder, path)?;
+    // Through a share, the other form of a name may be a folder beside the
+    // shared one: never reached (ADR 0081 item 2).
+    if !inside(&kept) {
+        return Err(refused("not in the shared folder"));
+    }
+    Ok((kept, other))
+}
+
+/// What a device's change may reach: everything for a whole folder's
+/// window, the shared folder for a share's.
+pub(crate) type Inside<'a> = &'a (dyn Fn(&str) -> bool + Send + Sync);
+
+fn as_kept_anywhere(
+    server: &Server,
+    folder: &str,
+    path: &str,
+) -> Result<(String, bool), ContractError> {
     let fail = verso_service::failed;
     if server.db.known(folder, path).map_err(fail)?.is_some() {
         return Ok((path.to_owned(), false));
@@ -1055,9 +1128,9 @@ fn too_large() -> ContractError {
 fn read(
     server: &Server,
     client: &str,
-    folder: &str,
-    key: &str,
+    (folder, key): (&str, &str),
     args: &Value,
+    inside: Inside<'_>,
 ) -> Result<Value, ContractError> {
     let path: String = arg(args, "path")?;
     let offset: u64 = arg(args, "offset")?;
@@ -1073,7 +1146,7 @@ fn read(
     let (bytes, hash) = match kept {
         Some(b) => (b, None),
         None => {
-            let (b, h) = load(server, folder, key, &path)?;
+            let (b, h) = load(server, (folder, key), &path, inside)?;
             (b, Some(h))
         }
     };
@@ -1101,11 +1174,11 @@ fn read(
 /// not larger than sync carries.
 fn load(
     server: &Server,
-    folder: &str,
-    key: &str,
+    (folder, key): (&str, &str),
     path: &str,
+    inside: Inside<'_>,
 ) -> Result<(Arc<Vec<u8>>, String), ContractError> {
-    let (p, _) = as_kept(server, folder, path)?;
+    let (p, _) = as_kept(server, folder, path, inside)?;
     let logged = server
         .db
         .known(folder, &p)
@@ -1139,11 +1212,12 @@ fn load(
 }
 
 fn put(
-    server: &Server,
+    server: &Arc<Server>,
     client: &str,
     (folder, key): (&str, &str),
     by: Author<'_>,
-    mut args: Value,
+    replacer: &str,
+    (mut args, inside): (Value, Inside<'_>),
 ) -> Result<Value, ContractError> {
     let path: String = arg(&args, "path")?;
     let offset: u64 = arg(&args, "offset")?;
@@ -1208,22 +1282,41 @@ fn put(
     }
     let one = one_at_a_time(server, folder);
     let only = lock(&one);
-    let (path, other) = as_kept(server, folder, &path)?;
+    let (path, other) = as_kept(server, folder, &path, inside)?;
     crate::quota::check(server, key, &path, size)?;
     let p = path.clone();
+    let new_hash = hash.clone();
     let (head, landed) = {
-        let (landed, quick) = server.service.with_key(key, move |ws| {
+        let (landed, quick, kept) = server.service.with_key(key, move |ws| {
             // New, under the other form of a name a file holds: taken.
             if other && base.is_none() && now(ws, &p)?.is_some() {
                 return Err(form_taken());
             }
             let revision = is_now(ws, &p, base.as_deref())?;
+            // The version this write replaces goes to the bin first, when
+            // its bytes differ (ADR 0080 item 12): an outside program's
+            // stale save, carried here by sync, can be undone (F18).
+            let kept = match &base {
+                Some(old) if *old != new_hash => match ws.keep_replaced(&p) {
+                    Ok(kept) => Some(kept),
+                    Err(e) => {
+                        crate::log::warn(&format!(
+                            "sync: the version of {p} a write replaces was not kept: {e}"
+                        ));
+                        None
+                    }
+                },
+                _ => None,
+            };
             let written = ws.write_bytes(&p, &bytes, revision.as_deref())?;
             // The written file's own time: the next walk skips it.
             let quick =
                 quick_of(&written, bytes.len()).unwrap_or_else(|| format!("{}:0", bytes.len()));
-            Ok((on_disk(ws, &p), quick))
+            Ok((on_disk(ws, &p), quick, kept))
         })?;
+        if let Some(kept) = &kept {
+            crate::trash::replaced(server, folder, kept, &path, replacer);
+        }
         let head = reconcile_paths(
             server,
             folder,

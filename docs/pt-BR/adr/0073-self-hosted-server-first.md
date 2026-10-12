@@ -106,6 +106,19 @@
   do protocolo de sync no hello (item 5 do 0079). O mantenedor,
   respondendo a um memorando de recomendações: *"Sim para todos"*. O que
   vem depois da rodada está no `docs/roadmap.md`, revisão 6.
+  2026-10-11 — o `[ABERTO]` do Status sobre recuperar a exclusão de outro
+  membro está respondido pelos itens 5 e 7 do
+  [0080](0080-the-trash-with-expiry-and-restore.md), aceito pelo
+  mantenedor naquele dia: uma exclusão vai para a lixeira da pasta, vista
+  por quem pode escrever nela, e qualquer um deles a restaura. Histórico e
+  atribuição de uma **mudança** continuam abertos.
+  2026-10-11 — o `[ABERTO]` do Status sobre permissões mais finas que a
+  pasta fica respondido para uma pasta dentro de uma pasta pelo
+  [0081](0081-sharing-between-people-on-one-universo.md) (aceito nesse
+  dia): um compartilhamento é uma concessão num caminho de uma pasta, com
+  um id próprio que quem recebe abre e sincroniza como pasta; por nota e
+  por bloco (Q9 da spec) continuam abertos. A redação antiga do Status
+  fica.
 
 ## Contexto
 
@@ -547,8 +560,9 @@ remoto e as origens de embed aprovadas (do leitor, item 6).
 `[ABERTO]`: se o celular no navegador, só online, atende ao sync com
 celular que o mantenedor chamou de imprescindível, ou se o offline no
 celular vem mais cedo no item 12; permissões mais finas que a pasta (por
-nota ou por bloco, Q9 da spec), e histórico, atribuição e recuperação de
-uma mudança ou exclusão de outro membro; se um servidor de uma pessoa só
+nota ou por bloco, Q9 da spec), e histórico e atribuição de uma mudança
+de outro membro (a recuperação de uma exclusão respondida pelo
+[0080](0080-the-trash-with-expiry-and-restore.md), 2026-10-11); se um servidor de uma pessoa só
 pode optar por criptografia ponta a ponta depois; a coedição do board; o
 transporte e a autorização do MCP pela rede (item 11); se a URL
 pré-assinada do item 4 é o handle opaco da regra 4 ou precisa de emenda ao

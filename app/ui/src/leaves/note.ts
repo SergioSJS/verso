@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { sh } from "../shareStrings";
 import { isolateHistory } from "@codemirror/commands";
 import { closeSearchPanel, getSearchQuery, openSearchPanel, searchPanelOpen, SearchQuery, setSearchQuery } from "@codemirror/search";
 import { Compartment, EditorState, type Extension, Transaction } from "@codemirror/state";
@@ -38,6 +39,7 @@ import { dirOf, Kind, name } from "../paths";
 import { PdfView } from "../pdf";
 import { PropertiesView } from "../props";
 import { st } from "../screen/strings";
+import { cleanHtmlText } from "../sanitize";
 import { searchNotes } from "../search";
 import { ReadingSearch, searchStrings } from "../searchPanel";
 import { settings, sourceLineNumbers } from "../settings";
@@ -139,7 +141,7 @@ export class NoteLeaf extends Leaf {
   bannerUrl = "";
   readonly editor: EditorView;
   backlinksData: { from: string; line: number }[] = [];
-  linksData: { target: string; resolved: string | null }[] = [];
+  linksData: { target: string; resolved: string | null; outside?: boolean }[] = [];
   readonly liveCompartment = new Compartment();
   readonly lineNumbersCompartment = new Compartment();
   readonly slash = new SlashMenu(slashSections, { empty: t.slash.empty, label: t.slash.insert });
@@ -213,6 +215,9 @@ export class NoteLeaf extends Leaf {
   /** The note's live state in words: a synced folder's (ADR 0082 item 14). */
   readonly liveMark = h("span", "live-mark");
   resolved = new Map<string, string | null>();
+  /** Link targets outside what was shared with the person (ADR 0081
+   *  item 11), lower-cased. */
+  outside = new Set<string>();
   /** PDF readers and bases embedded in the preview, closed when it is
    *  redrawn. */
   embeds: (PdfView | BaseView)[] = [];
@@ -275,7 +280,9 @@ export class NoteLeaf extends Leaf {
       table: {
         labels: { ...t.tableEdit, cell: (r, c) => (r === 0 ? t.tableEdit.headerCell : t.tableEdit.cell.replace("{r}", String(r))).replace("{c}", String(c)) },
         menu: (x, y, items) => showMenu(x, y, items as MenuItem[]),
-        render: (md) => commands.renderMarkdown(md),
+        // The cells' HTML is a note's like any other: cleaned before it
+        // reaches the editor (threat-model.md, gap 1).
+        render: async (md) => cleanHtmlText(await commands.renderMarkdown(md)),
         widths: (ordinal, cols) => tableWidths(currentFolder, this.path, ordinal, cols),
       },
       isEmbedActive: (target) => {
@@ -587,6 +594,12 @@ export class NoteLeaf extends Leaf {
     if (to) {
       const leaf = openIn(this.pane, to);
       if (headingPart && leaf) jumpToHeading(leaf, headingPart);
+      return;
+    }
+    // Not in what was shared with the person: said, and no note is made
+    // in its name (ADR 0081 item 11).
+    if (this.isOutside(notePart)) {
+      ui.status.textContent = sh.notShared;
       return;
     }
 
@@ -959,6 +972,7 @@ export class NoteLeaf extends Leaf {
   declare dressLinks: typeof reading.dressLinks;
   declare resolve: typeof reading.resolve;
   declare dress: typeof reading.dress;
+  declare isOutside: typeof reading.isOutside;
   declare mountBases: typeof reading.mountBases;
   declare liveBase: typeof reading.liveBase;
   declare livePdf: typeof reading.livePdf;

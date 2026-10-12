@@ -19,14 +19,17 @@ use crate::config::MIN_PASSWORD;
 use crate::db::{self, Role};
 use crate::http::{ApiError, ApiResult, Ctx, ok};
 
-/// What the page asks before anything: the server's version and the
-/// contract's, whether it may sign in here, whether the first admin is
-/// still to be made, and who is signed in.
+/// What the page asks before anything: whether it may sign in here,
+/// whether the first admin is still to be made, and who is signed in;
+/// to someone signed in, the server's version and the contract's too. A
+/// stranger is not told the exact version (threat-model.md, gap 15): it
+/// matches a server to an advisory, and the sign-in page needs none.
 pub async fn state(ctx: Ctx) -> ApiResult<Response> {
     let setup = ctx.server.db.account_count()? == 0;
+    let known = ctx.who.is_some();
     Ok(ok(json!({
-        "version": env!("CARGO_PKG_VERSION"),
-        "contract": ctx.server.contract,
+        "version": known.then_some(env!("CARGO_PKG_VERSION")),
+        "contract": known.then_some(&ctx.server.contract),
         "secure": ctx.peer.secure,
         "web": ctx.server.config.web,
         "mail": ctx.server.mail.get().is_some(),
@@ -118,7 +121,7 @@ pub struct SignIn {
 /// are answered alike, in about the same time.
 pub async fn sign_in(ctx: Ctx, Json(body): Json<SignIn>) -> ApiResult<Response> {
     ctx.changes()?;
-    let by_address = format!("in:{}", ctx.peer.addr);
+    let by_address = format!("in:{}", ctx.peer.key());
     let by_account = format!("in:{}", db::fold_email(&body.email));
     limited(&ctx, &[&by_address, &by_account])?;
     let server = std::sync::Arc::clone(&ctx.server);
@@ -189,7 +192,7 @@ pub struct Setup {
 /// only while the server has no account, only with that link.
 pub async fn setup(ctx: Ctx, Json(body): Json<Setup>) -> ApiResult<Response> {
     ctx.changes()?;
-    let key = format!("link:{}", ctx.peer.addr);
+    let key = format!("link:{}", ctx.peer.key());
     limited(&ctx, &[&key])?;
     let Some(link) = ctx.server.db.pending(&body.token, "setup")? else {
         ctx.server.limiter.failed(&key);
@@ -228,7 +231,7 @@ pub async fn setup(ctx: Ctx, Json(body): Json<Setup>) -> ApiResult<Response> {
 /// What an invitation link offers, before it is accepted: the address it
 /// was made for, the folder and the role it carries.
 pub async fn invitation(ctx: Ctx, Path(token): Path<String>) -> ApiResult<Response> {
-    let key = format!("link:{}", ctx.peer.addr);
+    let key = format!("link:{}", ctx.peer.key());
     limited(&ctx, &[&key])?;
     let Some(link) = ctx.server.db.pending(&token, "invite")? else {
         ctx.server.limiter.failed(&key);
@@ -241,6 +244,17 @@ pub async fn invitation(ctx: Ctx, Path(token): Path<String>) -> ApiResult<Respon
     let folder = match &link.folder {
         Some(id) => ctx.server.db.folder(id)?.map(|f| f.dir),
         None => None,
+    };
+    // A share is named as its people see it: its folder's last part (ADR
+    // 0081 item 3).
+    let folder = match &link.share {
+        Some(id) => ctx
+            .server
+            .db
+            .share(id)?
+            .map(|s| crate::scope::last(&s.path).to_owned())
+            .or(folder),
+        None => folder,
     };
     Ok(ok(json!({
         "email": link.email,
@@ -266,7 +280,7 @@ pub async fn accept(
     Json(body): Json<Accept>,
 ) -> ApiResult<Response> {
     ctx.changes()?;
-    let key = format!("link:{}", ctx.peer.addr);
+    let key = format!("link:{}", ctx.peer.key());
     limited(&ctx, &[&key])?;
     let Some(link) = ctx.server.db.pending(&token, "invite")? else {
         ctx.server.limiter.failed(&key);
@@ -311,7 +325,15 @@ pub async fn accept(
         ));
     }
     if let (Some(folder), Some(role)) = (&link.folder, link.role.as_deref().and_then(Role::parse)) {
-        ctx.server.db.grant(folder, &account.id, role)?;
+        match &link.share {
+            Some(share) if ctx.server.db.share(share)?.is_some() => {
+                ctx.server.db.grant_share(share, &account.id, role)?;
+            }
+            // The share went before the invitation was used: nothing of
+            // the folder is given in its place.
+            Some(_) => {}
+            None => ctx.server.db.grant(folder, &account.id, role)?,
+        }
     }
     let account = ctx
         .server
@@ -330,7 +352,7 @@ pub async fn accept(
 
 /// What a reset link is for: the account's e-mail.
 pub async fn reset_link(ctx: Ctx, Path(token): Path<String>) -> ApiResult<Response> {
-    let key = format!("link:{}", ctx.peer.addr);
+    let key = format!("link:{}", ctx.peer.key());
     limited(&ctx, &[&key])?;
     let Some(link) = ctx.server.db.pending(&token, "reset")? else {
         ctx.server.limiter.failed(&key);
@@ -363,7 +385,7 @@ pub async fn reset(
     Json(body): Json<Reset>,
 ) -> ApiResult<Response> {
     ctx.changes()?;
-    let key = format!("link:{}", ctx.peer.addr);
+    let key = format!("link:{}", ctx.peer.key());
     limited(&ctx, &[&key])?;
     let Some(link) = ctx.server.db.pending(&token, "reset")? else {
         ctx.server.limiter.failed(&key);
@@ -399,14 +421,8 @@ pub async fn reset(
 /// The person, the folders they may enter and their role in each.
 pub async fn me(ctx: Ctx) -> ApiResult<Response> {
     let who = ctx.who()?;
-    let folders: Vec<_> = ctx
-        .server
-        .db
-        .folders_of(&who.account.id)?
-        .into_iter()
-        .filter(|(f, _)| who.reaches(&f.id).0)
-        .map(|(f, role)| json!({ "id": f.id, "name": f.dir, "role": role }))
-        .collect();
+    // The shares given to them too (ADR 0081 item 5).
+    let (folders, _) = crate::shares::listing(&ctx, who)?;
     Ok(ok(json!({
         "account": account_json(&who.account),
         "folders": folders,
@@ -445,11 +461,16 @@ pub async fn password(ctx: Ctx, Json(body): Json<Password>) -> ApiResult<Respons
     let who = ctx.person()?.clone();
     let key = format!("in:{}", db::fold_email(&who.account.email));
     limited(&ctx, &[&key])?;
-    let right = who
-        .account
-        .password
-        .as_deref()
-        .is_some_and(|h| crate::crypto::verify_password(&body.current, h));
+    // Argon2id on the blocking pool, as a sign-in's (threat-model.md,
+    // gap 16): on the runtime's thread it held every other request there.
+    let hash = who.account.password.clone();
+    let current = body.current.clone();
+    let right = tokio::task::spawn_blocking(move || {
+        hash.as_deref()
+            .is_some_and(|h| crate::crypto::verify_password(&current, h))
+    })
+    .await
+    .map_err(|e| e.to_string())?;
     if !right {
         ctx.server.limiter.failed(&key);
         ctx.audit("password_change", None, None, false);
@@ -541,7 +562,12 @@ pub async fn create_token(ctx: Ctx, Json(body): Json<NewToken>) -> ApiResult<Res
         return Err(ApiError::bad("bad_request", "one year at most"));
     }
     for id in &body.folders {
-        let (_, role) = crate::access::role(&ctx.server, who, id)?;
+        // A folder, or a share given to the person (ADR 0081 item 15).
+        let role = match crate::shares::opening(&ctx.server, who, id)? {
+            crate::shares::Opening::Folder(_, role) | crate::shares::Opening::Share(_, _, role) => {
+                role
+            }
+        };
         if body.write && !role.writes() {
             return Err(ApiError::forbidden("you only read that folder"));
         }
@@ -613,37 +639,95 @@ pub struct ByMail {
 }
 
 /// A sign-in link by e-mail (ADR 0074 item 3): sent when the address has
-/// an account; answered the same either way, after the same delay.
+/// an account; answered the same either way, and at once — whether the
+/// address has an account, the link and the mail server's round happen
+/// after the answer has left ([`mail_later`]).
 pub async fn signin_link(ctx: Ctx, Json(body): Json<ByMail>) -> ApiResult<Response> {
     ctx.changes()?;
-    let Some(mail) = ctx.server.mail.get() else {
+    if ctx.server.mail.get().is_none() {
         return Err(ApiError::bad("no_mail", "this server has no mail server"));
-    };
-    let key = format!("mail:{}", ctx.peer.addr);
+    }
+    let key = format!("mail:{}", ctx.peer.key());
     limited(&ctx, &[&key])?;
     ctx.server.limiter.failed(&key);
-    if let Some(account) = ctx.server.db.account_by_email(&body.email)? {
-        let token = crate::crypto::token()?;
-        {
-            let mut links = verso_service::lock(&ctx.server.signin_links);
+    mail_later(&ctx, body.email, Mailed::SignIn);
+    Ok(ok(json!({ "sent": true })))
+}
+
+/// What a mail route sends to an address that has an account.
+#[derive(Clone, Copy)]
+enum Mailed {
+    SignIn,
+    Reset,
+}
+
+/// The work of a mail route, off its answer (threat-model.md, gap 6 of
+/// 2026-10-11): the answer used to wait for the mail server only when the
+/// address had an account, and its time told who has one. Now it leaves
+/// before the database is asked, the same for every address; the mail,
+/// its link and its line in the audit log follow on their own.
+fn mail_later(ctx: &Ctx, email: String, what: Mailed) {
+    let server = std::sync::Arc::clone(&ctx.server);
+    let base = auth::expected_origin(&ctx.server, &ctx.headers).unwrap_or_default();
+    let address = ctx.address();
+    tokio::spawn(async move {
+        if let Err(e) = mailed(&server, &email, &base, &address, what).await {
+            crate::log::error(&format!("a mail route: {e}"));
+        }
+    });
+}
+
+async fn mailed(
+    server: &crate::state::Server,
+    email: &str,
+    base: &str,
+    address: &str,
+    what: Mailed,
+) -> Result<(), String> {
+    let (Some(mail), Some(account)) = (server.mail.get(), server.db.account_by_email(email)?)
+    else {
+        return Ok(());
+    };
+    let (path, token, action, words) = match what {
+        Mailed::SignIn => {
+            let token = crate::crypto::token()?;
+            let mut links = verso_service::lock(&server.signin_links);
             links.retain(|_, (_, at)| at.elapsed() < SIGNIN_LINK_LIFE);
+            crate::limit::make_room(&mut links, crate::limit::PENDING, |(_, at)| *at);
             links.insert(
                 crate::crypto::hash(&token),
                 (account.id.clone(), std::time::Instant::now()),
             );
+            ("signin-link", token, "signin_link_sent", "signin")
         }
-        let link = crate::admin::link(&ctx, "signin-link", &token);
-        let (subject, text) = crate::mail::words(&account.lang, "signin", &link);
-        mail.send(&account.email, &subject, &text).await;
-        ctx.audit_as(Some(&account.id), "signin_link_sent", None, None, true);
-    }
-    Ok(ok(json!({ "sent": true })))
+        Mailed::Reset => {
+            server.db.end_links_of(&account.id, "reset")?;
+            let (token, _) = server.db.create_invitation(&db::NewLink {
+                kind: "reset",
+                account: Some(&account.id),
+                life: db::RESET_LIFE,
+                ..db::NewLink::default()
+            })?;
+            ("reset", token, "reset_link_mailed", "reset")
+        }
+    };
+    let link = format!("{base}/{path}/{token}");
+    let (subject, text) = crate::mail::words(&account.lang, words, &link);
+    mail.send(&account.email, &subject, &text).await;
+    server.db.audit(&db::Audit {
+        actor: Some(&account.id),
+        action,
+        subject: None,
+        folder: None,
+        address: Some(address),
+        ok: true,
+    })
 }
 
 /// The link from the e-mail, used once: a session, as a password's.
 pub async fn signin_by_link(ctx: Ctx, Path(token): Path<String>) -> ApiResult<Response> {
     ctx.changes()?;
-    let key = format!("link:{}", ctx.peer.addr);
+    let key = format!("link:{}", ctx.peer.key());
     limited(&ctx, &[&key])?;
     let found = verso_service::lock(&ctx.server.signin_links)
         .remove(&crate::crypto::hash(&token))
@@ -666,28 +750,17 @@ pub async fn signin_by_link(ctx: Ctx, Path(token): Path<String>) -> ApiResult<Re
 }
 
 /// "Forgot the password": a reset link sent to the account's address, for
-/// a server with a mail server (ADR 0074 item 5); answered the same way
-/// whether the address has an account or not.
+/// a server with a mail server (ADR 0074 item 5); answered the same way,
+/// and at once, whether the address has an account or not
+/// ([`mail_later`]).
 pub async fn forgot(ctx: Ctx, Json(body): Json<ByMail>) -> ApiResult<Response> {
     ctx.changes()?;
-    let Some(mail) = ctx.server.mail.get() else {
+    if ctx.server.mail.get().is_none() {
         return Err(ApiError::bad("no_mail", "this server has no mail server"));
-    };
-    let key = format!("mail:{}", ctx.peer.addr);
+    }
+    let key = format!("mail:{}", ctx.peer.key());
     limited(&ctx, &[&key])?;
     ctx.server.limiter.failed(&key);
-    if let Some(account) = ctx.server.db.account_by_email(&body.email)? {
-        ctx.server.db.end_links_of(&account.id, "reset")?;
-        let (token, _) = ctx.server.db.create_invitation(&db::NewLink {
-            kind: "reset",
-            account: Some(&account.id),
-            life: db::RESET_LIFE,
-            ..db::NewLink::default()
-        })?;
-        let link = crate::admin::link(&ctx, "reset", &token);
-        let (subject, text) = crate::mail::words(&account.lang, "reset", &link);
-        mail.send(&account.email, &subject, &text).await;
-        ctx.audit_as(Some(&account.id), "reset_link_mailed", None, None, true);
-    }
+    mail_later(&ctx, body.email, Mailed::Reset);
     Ok(ok(json!({ "sent": true })))
 }
