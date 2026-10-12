@@ -19,14 +19,17 @@ use crate::config::MIN_PASSWORD;
 use crate::db::{self, Role};
 use crate::http::{ApiError, ApiResult, Ctx, ok};
 
-/// What the page asks before anything: the server's version and the
-/// contract's, whether it may sign in here, whether the first admin is
-/// still to be made, and who is signed in.
+/// What the page asks before anything: whether it may sign in here,
+/// whether the first admin is still to be made, and who is signed in;
+/// to someone signed in, the server's version and the contract's too. A
+/// stranger is not told the exact version (threat-model.md, gap 15): it
+/// matches a server to an advisory, and the sign-in page needs none.
 pub async fn state(ctx: Ctx) -> ApiResult<Response> {
     let setup = ctx.server.db.account_count()? == 0;
+    let known = ctx.who.is_some();
     Ok(ok(json!({
-        "version": env!("CARGO_PKG_VERSION"),
-        "contract": ctx.server.contract,
+        "version": known.then_some(env!("CARGO_PKG_VERSION")),
+        "contract": known.then_some(&ctx.server.contract),
         "secure": ctx.peer.secure,
         "web": ctx.server.config.web,
         "mail": ctx.server.mail.get().is_some(),
@@ -445,11 +448,16 @@ pub async fn password(ctx: Ctx, Json(body): Json<Password>) -> ApiResult<Respons
     let who = ctx.person()?.clone();
     let key = format!("in:{}", db::fold_email(&who.account.email));
     limited(&ctx, &[&key])?;
-    let right = who
-        .account
-        .password
-        .as_deref()
-        .is_some_and(|h| crate::crypto::verify_password(&body.current, h));
+    // Argon2id on the blocking pool, as a sign-in's (threat-model.md,
+    // gap 16): on the runtime's thread it held every other request there.
+    let hash = who.account.password.clone();
+    let current = body.current.clone();
+    let right = tokio::task::spawn_blocking(move || {
+        hash.as_deref()
+            .is_some_and(|h| crate::crypto::verify_password(&current, h))
+    })
+    .await
+    .map_err(|e| e.to_string())?;
     if !right {
         ctx.server.limiter.failed(&key);
         ctx.audit("password_change", None, None, false);
