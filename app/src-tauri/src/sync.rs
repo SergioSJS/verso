@@ -83,6 +83,9 @@ pub(crate) struct Syncer {
     versions: Mutex<Option<SyncVersions>>,
     /// The folder's notes live in the server's rooms (ADR 0082).
     pub(crate) live: Arc<live::Live>,
+    /// Said once in the log: this folder, a share's, keeps its own
+    /// settings (`.verso/`) out of the sync.
+    pub(crate) settings_said: AtomicBool,
 }
 
 impl Syncer {
@@ -108,6 +111,7 @@ impl Syncer {
             disk: Mutex::new(()),
             versions: Mutex::new(None),
             live: Arc::default(),
+            settings_said: AtomicBool::new(false),
         })
     }
 
@@ -315,13 +319,22 @@ type Here = (Files, BTreeMap<String, SyncRefused>);
 /// the folder is walked at once and listed again, so this pass compares
 /// it as it is — the deletion, or the server's newer version, carried out
 /// now — and the file is never held as changed.
-fn here(ctx: &Ctx, s: &Syncer, state: &mut engine::State) -> Result<Here, ContractError> {
+///
+/// In a share's folder (`share`), the folder's own settings, `.verso/`,
+/// are this machine's business: never listed, never sent, said once in
+/// the log (ADR 0070, ADR 0081 item 6).
+fn here(
+    ctx: &Ctx,
+    s: &Syncer,
+    state: &mut engine::State,
+    share: bool,
+) -> Result<Here, ContractError> {
     let dirty: HashSet<String> = std::mem::take(&mut *lock(&s.dirty));
-    if let Some(found) = listed_here(ctx, s, state, &dirty, false)? {
+    if let Some(found) = listed_here(ctx, s, state, &dirty, (false, share))? {
         return Ok(found);
     }
     ctx.service.walk_quietly(&s.key);
-    listed_here(ctx, s, state, &dirty, true)?
+    listed_here(ctx, s, state, &dirty, (true, share))?
         .ok_or_else(|| verso_service::failed("the folder's listing did not settle"))
 }
 
@@ -333,16 +346,25 @@ fn listed_here(
     s: &Syncer,
     state: &mut engine::State,
     dirty: &HashSet<String>,
-    walked: bool,
+    (walked, share): (bool, bool),
 ) -> Result<Option<Here>, ContractError> {
     // The walk's entries and the folder's settings directory, which the
     // walk never lists and sync carries like any file (ADR 0070, ADR 0079
-    // item 2).
+    // item 2) — but not in a share's folder, where they stay here.
     let listed: Vec<(String, u64, i64, bool)> = ctx.service.with_key(&s.key, |ws| {
+        let settings = ws.settings_entries();
+        if share && !settings.is_empty() && !s.settings_said.swap(true, Ordering::Relaxed) {
+            log::write(
+                "INFO",
+                "sync",
+                "this folder syncs a share: its own settings (.verso/) stay on this computer and are not synced",
+            );
+        }
+        let settings = if share { &[][..] } else { settings };
         Ok(ws
             .entries()
             .iter()
-            .chain(ws.settings_entries())
+            .chain(settings)
             .filter(|e| e.kind != verso_core::FileKind::Folder)
             .map(|e| {
                 (
@@ -631,6 +653,9 @@ pub(crate) struct Link {
     /// campaign, 2026-10-11) — would be skipped by every pass until a
     /// later walk.
     pub(crate) walk: bool,
+    /// The server's folder is a share of another person's (ADR 0081 item
+    /// 6): this folder's own settings stay here.
+    pub(crate) share: bool,
 }
 
 impl Link {
@@ -675,6 +700,8 @@ pub(crate) async fn link(ctx: &Ctx, s: &Syncer) -> Result<Link, ContractError> {
         })?;
     let role = mine["role"].as_str().unwrap_or("reader").to_owned();
     let name = mine["name"].as_str().unwrap_or_default().to_owned();
+    // A share of another person's folder (ADR 0081 item 6).
+    let share = mine["share"] == true;
     let (remote, heard, hello) = remote::dial_hello(&login, s.folder.clone()).await?;
     // A room's events go to the windows as they come, never behind a pass
     // (ADR 0082 item 2).
@@ -705,6 +732,7 @@ pub(crate) async fn link(ctx: &Ctx, s: &Syncer) -> Result<Link, ContractError> {
         name,
         known: None,
         walk: true,
+        share,
     })
 }
 
@@ -749,7 +777,13 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
     let mut state = synced(ctx.config.as_deref(), &s.key).unwrap_or_default();
     state.server.clone_from(&s.url);
     state.folder.clone_from(&s.folder);
-    let (mut local, mut apart) = tokio::task::block_in_place(|| here(ctx, s, &mut state))?;
+    // A share carries no settings of the folder's: none of the server's
+    // is fetched over this computer's own (ADR 0070).
+    if l.share {
+        remote_files.retain(|p, _| !engine::settings_path(p));
+    }
+    let share = l.share;
+    let (mut local, mut apart) = tokio::task::block_in_place(|| here(ctx, s, &mut state, share))?;
     let pt = (ctx.pt)();
     let device = (ctx.device)();
     let when = chrono::Local::now().format("%Y-%m-%d %H.%M").to_string();

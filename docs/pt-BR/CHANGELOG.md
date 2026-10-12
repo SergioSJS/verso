@@ -45,6 +45,7 @@ versão de teste.
 
 ### Corrigido
 
+- **Uma pasta que sincroniza um compartilhamento não lista mais os próprios ajustes como não sincronizados**: o `.verso/settings.json` da pasta de quem recebe é assunto deste computador ([ADR 0070](adr/0070-what-travels-with-the-folder.md)), então a sincronização do compartilhamento o deixa em paz — nunca enviado, nunca baixado, nunca listado — e diz isso uma vez no log do app.
 - **Uma pasta do servidor com dois nomes que só diferem em maiúsculas e minúsculas** (`Nota.md` e `nota.md`, feitos antes da recusa por caixa ou fora do Verso): o aparelho guarda um e lista o outro uma vez em *Ajustes › Sincronização*, "dois nomes que só diferem em maiúsculas e minúsculas no servidor; este computador guarda um", em vez de tentar baixá-lo e falhar como nome ocupado a cada passada (spec Q8).
 - **"Guardar os dois" quando a nota mudou em disco enquanto você digitava**: a tela de conflito do editor oferece uma terceira escolha além de "descartar o meu" e "gravar o meu por cima": a versão do disco fica com o nome e o seu texto vai para uma cópia ao lado, nomeada como o sync nomeia; o mesmo num board, num arquivo de texto e numa nota embutida num board.
 - **Uma nota apagada fora enquanto a aba tinha texto não salvo** agora diz isso em palavras — "Esta nota foi apagada ou movida fora do Verso. O seu texto continua aqui." — com "Salvar de novo" e "Fechar sem salvar"; não falha mais a cada autosave com erro no log.
