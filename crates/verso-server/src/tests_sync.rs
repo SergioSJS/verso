@@ -292,6 +292,7 @@ fn a_reader_syncs_to_read_and_the_quota_holds_for_sync() {
         assert_eq!(gone, 200);
         let told = next(&mut ws).await;
         assert_eq!(told["gone"], "folder", "{told}");
+        assert_eq!(told["reason"], "revoked", "{told}");
         let again = remove(
             &r,
             &format!("/api/folders/{id}/members/leitor@casa.lan"),

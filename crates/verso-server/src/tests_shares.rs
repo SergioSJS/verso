@@ -605,6 +605,9 @@ fn revoking_a_share_closes_it_and_attachments_are_read_only() {
             }
         };
         assert_eq!(gone["gone"], "folder");
+        // Said as revoked, so that a device syncing it turns off with a
+        // notice (ADR 0081 item 8).
+        assert_eq!(gone["reason"], "revoked", "{gone}");
         let none = w.call("list_notes", json!({})).await;
         assert_eq!(none["err"]["kind"], "no_folder", "{none}");
         let again = w.call("open_server_folder", json!({ "id": share })).await;

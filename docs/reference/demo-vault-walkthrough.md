@@ -725,7 +725,12 @@ rest below and in `manual-checks.md`.
    out of what was shared"). What the receiver may reach — never above the
    share, by `..`, a sibling, a rename, sync's listing, reads and writes,
    `/f/`, the events — the server's Rust tests (`tests_shares.rs`); two
-   people and the attachments folder, by hand (`manual-checks.md`).
+   people and the attachments folder, by hand (`manual-checks.md`). The
+   owner removes a person whose computer syncs the share: that sync turns
+   off, the files kept, and the status bar and *Ajustes* › *Sincronizar*
+   say *quem compartilhou revogou o acesso* and when (e2e, `sync.spec.mjs`,
+   "a share revoked by its owner"; the host's Rust test against a real
+   server, `tests_shares.rs`).
 11. Editing together in a synced folder ([ADR
     0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), from note 23's
     section *Editar junto numa pasta sincronizada*: with the folder syncing,

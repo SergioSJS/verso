@@ -1073,4 +1073,6 @@ mod tests_live;
 #[cfg(test)]
 mod tests_remote;
 #[cfg(test)]
+mod tests_shares;
+#[cfg(test)]
 mod tests_sync;

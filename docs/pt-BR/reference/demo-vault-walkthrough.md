@@ -745,7 +745,12 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
    compartilhamento, por `..`, uma irmã, uma renomeação, a listagem do
    sync, leituras e escritas, `/f/`, os eventos — os testes em Rust do
    servidor (`tests_shares.rs`); duas pessoas e a pasta de anexos, à mão
-   (`manual-checks.md`).
+   (`manual-checks.md`). A dona tira uma pessoa cujo computador sincroniza
+   o compartilhamento: essa sincronização desliga, os arquivos ficam, e a
+   barra de status e *Ajustes* › *Sincronizar* dizem *quem compartilhou
+   revogou o acesso* e quando (e2e, `sync.spec.mjs`, "a share revoked by
+   its owner"; o teste Rust do host contra um servidor de verdade,
+   `tests_shares.rs`).
 11. Editar junto numa pasta sincronizada ([ADR
     0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), da seção
     *Editar junto numa pasta sincronizada* da nota 23: com a pasta

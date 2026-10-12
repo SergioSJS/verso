@@ -130,11 +130,47 @@ impl Syncer {
     /// Sync turned off (item 1): the task ends, the state is forgotten,
     /// both sides stay as they are.
     pub(crate) fn turn_off(&self, config: Option<&Path>) -> Result<(), ContractError> {
+        self.turned_off(config, None)
+    }
+
+    fn turned_off(
+        &self,
+        config: Option<&Path>,
+        revoked: Option<engine::Revoked>,
+    ) -> Result<(), ContractError> {
         let _one = lock(&self.disk);
         // The live notes leave their rooms (ADR 0082 item 10).
         live::out(self);
         self.stop();
-        off(config, &self.key)
+        marked_off(config, &self.key, revoked)
+    }
+
+    /// The folder's owner revoked the share this folder syncs (ADR 0081
+    /// item 8; the maintainer, 2026-10-12: "aviso importante"): sync turns
+    /// off as the person's own turning off does — the files here stay —
+    /// and the folder's state says so, and when, until sync is turned on
+    /// again. A log line says it too.
+    pub(crate) fn revoked(&self, ctx: &Ctx) {
+        let revoked = engine::Revoked {
+            at: log::now(),
+            name: lock(&self.status).folder_name.clone(),
+        };
+        log::write(
+            "WARN",
+            "sync",
+            &format!(
+                "turned off: folder {}: its owner revoked the share of {} on {} ({}); the files here are kept",
+                self.key, revoked.name, self.url, self.folder
+            ),
+        );
+        if let Err(e) = self.turned_off(ctx.config.as_deref(), Some(revoked)) {
+            log::write(
+                "ERROR",
+                "sync",
+                &format!("turning off a revoked share's sync: {}", e.message),
+            );
+        }
+        (ctx.shown)(&self.key, &off_status(ctx.config.as_deref(), &self.key));
     }
 
     pub(crate) fn pause(&self, paused: bool) {
@@ -203,12 +239,45 @@ pub(crate) fn synced(config: Option<&Path>, key: &str) -> Option<engine::State> 
 
 /// The folder's sync marked off, its base kept for turning it on again.
 pub(crate) fn off(config: Option<&Path>, key: &str) -> Result<(), ContractError> {
+    marked_off(config, key, None)
+}
+
+/// [`off`], and why when it is a share revoked by its owner — otherwise
+/// a revocation said before is forgotten: the person turned it off.
+fn marked_off(
+    config: Option<&Path>,
+    key: &str,
+    revoked: Option<engine::Revoked>,
+) -> Result<(), ContractError> {
     let mut state = engine::load(config, key)
         .map_err(verso_service::convert)?
         .unwrap_or_default();
     state.off = true;
     state.paused = false;
+    state.revoked = revoked;
     engine::save(config, key, &state).map_err(verso_service::convert)
+}
+
+/// A folder whose sync is off, as the window shows it: with the share's
+/// revocation when that is why it is off (ADR 0081 item 8).
+pub(crate) fn off_status(config: Option<&Path>, key: &str) -> SyncStatus {
+    let mut status = SyncStatus {
+        key: key.to_owned(),
+        state: "off".to_owned(),
+        ..SyncStatus::default()
+    };
+    let kept = engine::load(config, key).ok().flatten().filter(|s| s.off);
+    if let Some(state) = kept
+        && let Some(revoked) = state.revoked
+    {
+        status.server = state.server;
+        status.folder = state.folder;
+        status.folder_name = revoked.name;
+        status.problem = Some("revoked".to_owned());
+        status.message = Some("the folder's owner revoked the share: sync is off".to_owned());
+        status.revoked = Some(revoked.at);
+    }
+    status
 }
 
 /// What a sync error is, for the window to say in its language
@@ -1005,6 +1074,8 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
         // The server ended this device's session: said now, as it closes
         // the connection, not as a connection lost.
         let mut ended = false;
+        // The folder's owner revoked the share: sync turns off.
+        let mut revoked = false;
         while !gone(&s) {
             match pass(&ctx, &s, &mut l).await {
                 // Waiting for the person; the pass said so.
@@ -1045,9 +1116,15 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
                             break false;
                         }
                         Some(remote::Heard::Event(..)) => {}
-                        Some(remote::Heard::Gone(what)) if what == "session" => {
+                        Some(remote::Heard::Gone(what, _)) if what == "session" => {
                             log::write("INFO", "sync", "signed out: the server ended this device's session");
                             ended = true;
+                            break true;
+                        }
+                        Some(remote::Heard::Gone(what, why))
+                            if what == "folder" && why.as_deref() == Some("revoked") =>
+                        {
+                            revoked = true;
                             break true;
                         }
                         _ => break true,
@@ -1060,6 +1137,11 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
                     }
                 }
             };
+            if revoked {
+                s.live.lost();
+                s.revoked(&ctx);
+                return;
+            }
             if lost {
                 break;
             }
