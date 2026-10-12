@@ -34,10 +34,35 @@ app real.
   da Ana continuam. Notas que incorporam imagens da pasta de anexos do
   vault: o diálogo oferece *Incluir “…”, só leitura*, e a Ana passa a ver
   as imagens sem poder mudá-las. Sérgio tira a Ana: a janela dela fecha a
-  pasta na hora, a cópia sincronizada fica e o sync dela diz que a pasta
-  sumiu. Também na largura de um celular. A página da pasta no console
+  pasta na hora, a cópia sincronizada fica e o sync dela desliga, dizendo
+  que o compartilhamento foi revogado e quando (`6c7800e`). Também na largura de um celular. A página da pasta no console
   lista o compartilhamento com as pessoas; o log de auditoria tem cada
   passo com o caminho.
+
+- [ ] **A sincronização de um compartilhamento revogado desliga com um
+  aviso** (ADR 0081 item 8, `6c7800e`): no app instalado, a Ana
+  sincroniza um compartilhamento do Sérgio; o Sérgio a tira em
+  *Compartilhar…*. Em segundos o app da Ana mostra um aviso "Quem
+  compartilhou … revogou o seu acesso em …", a barra de status diz
+  "Desligada: quem compartilhou revogou o acesso em …" (âmbar), e
+  *Ajustes › Sincronizar* abre em "Compartilhamento revogado" acima do
+  formulário; os arquivos dela estão como estavam; o log do app tem uma
+  linha `WARN sync turned off: … its owner revoked the share` e nenhum
+  `ERROR`. Feche e abra a pasta de novo: o aviso continua e a
+  sincronização não começa. Ligue a sincronização de novo com outra
+  pasta: o aviso some.
+- [ ] **A página que aprova um aparelho diz quem pediu** (lacuna 12 do
+  modelo de ameaças, `5838c10`): *Ajustes › Servidores*, conecte ao
+  Universo; a página no navegador mostra *Quem pediu* — o nome deste
+  computador, o endereço que o servidor vê para ele, a hora — e então
+  *Foi você quem pediu, neste aparelho?*, *Aprovar este aparelho: <nome>*
+  e *Não fui eu: recusar*. Recuse: o app para de perguntar e não
+  entra; conecte de novo e aprove: entra. Com o VoiceOver, os dados e a
+  pergunta são lidos antes dos botões. Também na largura de um celular.
+- [ ] **Um cursor leva o nome de quem escreve** (lacuna 11 do modelo de
+  ameaças, `3bc56ae`): duas contas numa nota, em dois navegadores: cada
+  uma vê o cursor da outra com o nome e a cor da conta da outra, como
+  antes.
 
 - [ ] **"Guardar os dois" no conflito do editor** (`18da5c7`): numa pasta
   sincronizada, mantenha uma nota aberta em Editar com texto não salvo
