@@ -98,13 +98,42 @@ pub(crate) enum Placed {
 /// have hard links at all, rather than because of the destination.
 fn no_hard_links(e: &std::io::Error) -> bool {
     use std::io::ErrorKind;
-    matches!(
-        e.kind(),
-        ErrorKind::Unsupported
-            | ErrorKind::PermissionDenied
-            | ErrorKind::CrossesDevices
-            | ErrorKind::TooManyLinks
-    )
+    not_supported(e)
+        || matches!(
+            e.kind(),
+            ErrorKind::PermissionDenied | ErrorKind::CrossesDevices | ErrorKind::TooManyLinks
+        )
+}
+
+/// Whether the volume answered "operation not supported". std calls only
+/// `ENOSYS` `Unsupported`, and leaves `ENOTSUP` and `EOPNOTSUPP`
+/// uncategorized — which is what exFAT on macOS answers to both `link`
+/// and `renamex_np` with `RENAME_EXCL` (errno 45, measured on a mounted
+/// exFAT image on 2026-10-12): read by number here, so that such a volume
+/// falls back as decided (ADR 0048, volumes without hard links) instead
+/// of refusing every new file.
+fn not_supported(e: &std::io::Error) -> bool {
+    if e.kind() == std::io::ErrorKind::Unsupported {
+        return true;
+    }
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    {
+        use nix::errno::Errno;
+        e.raw_os_error()
+            .is_some_and(|n| n == Errno::ENOTSUP as i32 || n == Errno::EOPNOTSUPP as i32)
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    {
+        false
+    }
+}
+
+/// Whether the exclusive rename was refused for the volume's sake — it
+/// does not offer the flag (`not_supported`), or does not know it
+/// (`InvalidInput`) — rather than for the names'.
+#[cfg(any(target_os = "macos", all(test, target_os = "linux")))]
+fn no_exclusive_rename(e: &std::io::Error) -> bool {
+    not_supported(e) || e.kind() == std::io::ErrorKind::InvalidInput
 }
 
 /// Give the regular file `from` the name `to` without replacing whatever
@@ -147,24 +176,31 @@ fn place(
 /// volume without that rename falls back to [`place`]. Elsewhere,
 /// [`place`]: inotify and `ReadDirectoryChangesW` report the removal of a
 /// linked file.
+#[cfg(target_os = "macos")]
 pub(crate) fn claim(from: &Path, to: &Path) -> Result<Placed, WriteError> {
-    #[cfg(target_os = "macos")]
-    match crate::os::rename_exclusive(from, to) {
-        Ok(()) => return Ok(Placed::Claimed { removal: None }),
-        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
-            return Err(WriteError::Exists);
-        }
-        Err(e)
-            if !matches!(
-                e.kind(),
-                std::io::ErrorKind::Unsupported | std::io::ErrorKind::InvalidInput
-            ) =>
-        {
-            return Err(WriteError::Io(e));
-        }
-        Err(_) => {}
-    }
+    claim_by(from, to, crate::os::rename_exclusive)
+}
+
+/// [`claim`] off macOS: [`place`].
+#[cfg(not(target_os = "macos"))]
+pub(crate) fn claim(from: &Path, to: &Path) -> Result<Placed, WriteError> {
     place(from, to, |a, b| std::fs::hard_link(a, b))
+}
+
+/// [`claim`] on macOS, with the exclusive rename a parameter so that a
+/// test can stand in a volume without it.
+#[cfg(any(target_os = "macos", all(test, target_os = "linux")))]
+fn claim_by(
+    from: &Path,
+    to: &Path,
+    rename_exclusive: impl Fn(&Path, &Path) -> std::io::Result<()>,
+) -> Result<Placed, WriteError> {
+    match rename_exclusive(from, to) {
+        Ok(()) => Ok(Placed::Claimed { removal: None }),
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Err(WriteError::Exists),
+        Err(e) if no_exclusive_rename(&e) => place(from, to, |a, b| std::fs::hard_link(a, b)),
+        Err(e) => Err(WriteError::Io(e)),
+    }
 }
 
 use crate::os::sync_dir;
@@ -496,6 +532,54 @@ mod tests {
 
     fn no_links(_: &Path, _: &Path) -> std::io::Result<()> {
         Err(std::io::Error::from(std::io::ErrorKind::Unsupported))
+    }
+
+    /// "Operation not supported" as the system says it, which std leaves
+    /// uncategorized: what exFAT on macOS answers to `link` and to the
+    /// exclusive rename.
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    fn enotsup(_: &Path, _: &Path) -> std::io::Result<()> {
+        Err(std::io::Error::from_raw_os_error(
+            nix::errno::Errno::ENOTSUP as i32,
+        ))
+    }
+
+    /// exFAT on macOS refused every new file before 2026-10-12: its
+    /// "operation not supported" (errno 45) was not taken for a volume
+    /// without the exclusive rename, nor without hard links. Now the file
+    /// is named by a checked rename, as ADR 0048 decided for such volumes.
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    #[test]
+    fn an_uncategorized_not_supported_falls_back_as_decided() {
+        let dir = tempfile::tempdir().unwrap();
+        let from = dir.path().join("a");
+        let to = dir.path().join("b");
+        std::fs::write(&from, b"x").unwrap();
+        assert!(matches!(place(&from, &to, enotsup), Ok(Placed::Renamed)));
+        assert_eq!(std::fs::read(&to).unwrap(), b"x");
+        // No exclusive rename: `link` names it, where the volume has it.
+        let other = dir.path().join("c");
+        assert!(matches!(
+            claim_by(&to, &other, enotsup),
+            Ok(Placed::Claimed { removal: None })
+        ));
+        assert!(!to.exists());
+        assert_eq!(std::fs::read(&other).unwrap(), b"x");
+        // An existing name is still refused, and any other failure is
+        // still an error.
+        std::fs::write(&from, b"y").unwrap();
+        assert!(matches!(
+            claim_by(&from, &other, enotsup),
+            Err(WriteError::Exists)
+        ));
+        let denied = |_: &Path, _: &Path| -> std::io::Result<()> {
+            Err(std::io::Error::other("disk on fire"))
+        };
+        assert!(matches!(
+            claim_by(&from, &dir.path().join("d"), denied),
+            Err(WriteError::Io(_))
+        ));
+        assert_eq!(std::fs::read(&other).unwrap(), b"x");
     }
 
     /// exFAT answers `link` with "operation not supported": a create or a

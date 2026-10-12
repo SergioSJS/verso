@@ -64,6 +64,7 @@ test release.
 - **A computer back after many changes on the server no longer misses some**: when more than a thousand changes waited for it (a burst of changes, or a long time away), sync read the first thousand and skipped the rest — files changed, renamed or deleted there in that rest did not arrive. It now reads every one of them before it counts itself up to date.
 - **A change to a server folder's file at the moment the server checked it** is no longer logged a minute late with "a link that leads out of the folder": a file being replaced is judged by its folder, and only a link that really leaves is refused.
 - **A cursor in a shared note always wears its writer's own name** (threat model, gap 11): the server stamps each presence with the sender's account name and keeps only a colour that is a colour, and a window may speak only for its own cursor — a member can no longer show their cursor under another member's name, nor move or remove someone else's.
+- **A new, renamed or moved file on an exFAT drive, on macOS**, failed with "Operation not supported": the system's answer was not taken for a volume without the exclusive rename and without hard links. The file is now named by a checked rename there, as decided for such volumes ([ADR 0048](docs/adr/0048-file-operations-in-ui.md)), and the status says its guard was weaker.
 
 ## 0.7.0-beta.1 — 2026-10-10
 
