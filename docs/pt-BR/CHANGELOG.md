@@ -64,6 +64,7 @@ versão de teste.
 - **Um computador que volta depois de muitas mudanças no servidor não perde mais algumas**: quando mais de mil mudanças esperavam por ele (uma rajada de mudanças, ou muito tempo fora), a sincronização lia as primeiras mil e pulava o resto — arquivos mudados, renomeados ou apagados lá nesse resto não chegavam. Agora ela lê todas antes de se dar por em dia.
 - **Uma mudança num arquivo de pasta do servidor no instante em que o servidor o conferia** não é mais registrada um minuto depois com "um link que leva para fora da pasta": um arquivo sendo substituído é julgado pela pasta dele, e só um link que de fato sai é recusado.
 - **Um cursor numa nota compartilhada sempre leva o nome de quem escreve** (modelo de ameaças, lacuna 11): o servidor carimba cada presença com o nome da conta de quem a enviou e só mantém uma cor que seja uma cor, e uma janela só fala pelo seu próprio cursor — um membro não consegue mais mostrar o cursor com o nome de outro, nem mover ou tirar o de outra pessoa.
+- **Um arquivo novo, renomeado ou movido num disco exFAT, no macOS**, falhava com "Operation not supported": a resposta do sistema não era tomada por um volume sem a renomeação exclusiva e sem hard links. Agora o arquivo recebe o nome ali por uma renomeação conferida, como decidido para esses volumes ([ADR 0048](adr/0048-file-operations-in-ui.md)), e o status diz que a proteção foi mais fraca.
 
 ## 0.7.0-beta.1 — 2026-10-10
 
