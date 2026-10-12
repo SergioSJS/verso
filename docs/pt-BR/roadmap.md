@@ -344,8 +344,8 @@ da rodada como recomendado — as outras fecham itens `[ABERTO]` do
 [0070](adr/0070-what-travels-with-the-folder.md), do item 12 do
 [0079](adr/0079-sync-a-local-folder-with-a-server.md) e da §14 de
 `docs/reference/server-install.md` sem trabalho novo. As duas foram
-construídas no mesmo dia no `feat/decisions-2026-10-12`, ainda não
-mescladas.
+construídas no mesmo dia no `feat/decisions-2026-10-12`, mescladas no
+`feat/universo` pelo ceb724e.
 
 **Herdado da Fase 2** (o mantenedor, 2026-10-12, fechando a Fase 2 em
 2026-10-09). A Fase 3 termina quando nenhuma tarefa dela está pendente, e
@@ -359,8 +359,11 @@ estas estão entre as tarefas dela:
   histórico do git do vault do mantenedor sem diff que ele não tenha feito
   — medido no mesmo mês.
 - O critério de saída 3 da Fase 2, **guardrails verdes e fixtures
-  intactas**, o código de UI e os tipos TS gerados incluídos — não
-  registrado como conferido num fechamento.
+  intactas**, o código de UI e os tipos TS gerados incluídos — conferido
+  no fechamento de 2026-10-12: `scripts/check.sh` verde no d15c4d1 (todos
+  os guardrails, as fixtures, 525 + 38 testes de ponta a ponta, os
+  bindings), `scripts/check-linux.sh` e `scripts/check-windows.sh` verdes
+  no b140275.
 - A linha 2.6 do escopo da Fase 2, a nota tipada: a leitura do
   mantenedor, que a linha diz esperar.
 - A linha 2.7 do escopo da Fase 2, acessibilidade: a passada com um

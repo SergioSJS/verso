@@ -349,7 +349,10 @@ classificação é uma recomendação para o mantenedor confirmar.
    apagamentos vão para o `.trash/`, que a varredura e a cota não contam,
    ainda sem retenção: quem escreve pode escrever e apagar em laço e encher
    o disco da máquina além da cota. O item 8 do ADR 0080 decidiu a guarda.
-   **Continua aberta:** o ADR 0080 está sendo construído por outro autor.
+   **Fechada: 8ad89d2, 9c10495, 02903f1, 173cf7e, f3edc42** — o ADR 0080
+   construído na noite de 2026-10-11 para 12: a lixeira expira (30 dias
+   por padrão), e a lixeira de uma pasta maior que a cota dela tem as
+   entradas mais antigas expiradas antes, dito na página da pasta (item 8).
 10. **Uma revisão externa deste modelo**, como o modelo pediu em
     2026-10-09; o ADR 0073 pede segurança "por inteiro". **Continua
     aberta:** depois das lacunas acima.
