@@ -140,7 +140,7 @@ the test.
 | npm license allowlist over the window's lockfile | an npm package under a license the project cannot ship | Phase 2 |
 | The window's unit tests (`npm test` in `app/ui`) | the board's model changing what it writes unnoticed | the board |
 | The demo vault built from its sources and holding together | a stale embed, a board edited by hand, a tutorial that no longer holds | the tutorial |
-| The window's end-to-end tests in Chromium beside WebKit (`scripts/check.sh`) — provisional: [ADR 0069](docs/adr/0069-windows-port.md) item 8 is Proposed | a window that works in WebKit and breaks in WebView2 | the Windows port |
+| The window's end-to-end tests in Chromium beside WebKit (`scripts/check.sh`) — [ADR 0069](docs/adr/0069-windows-port.md) item 8, accepted 2026-10-12 | a window that works in WebKit and breaks in WebView2 | the Windows port |
 | Clippy and the tests on Windows over SSH (`scripts/check-windows.sh`), when the diff touches platform code | code that is dead or different on Windows | the Windows port |
 
 CI ([ADR 0029](docs/adr/0029-guardrails-in-ci.md), 2026-09-23): a pull
