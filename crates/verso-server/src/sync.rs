@@ -785,8 +785,9 @@ pub(crate) async fn command_in(
             None => who.account.email.clone(),
         },
     );
-    // Who a rename through a share is said to be by, and the share, when
-    // it rewrites the owner's links outside it (ADR 0081 item 11).
+    // Who the server's log says a change is by — the account and the
+    // device's name — and the share, when a rename through it rewrites
+    // the owner's links outside it (ADR 0081 item 11).
     let said_by = said_as.2.clone();
     let share =
         crate::shares::scope_here(server, client).map_or_else(|| folder.clone(), |s| s.share);
@@ -828,7 +829,7 @@ pub(crate) async fn command_in(
                 account: Some(&actor),
                 device: device.as_deref(),
             },
-            &replacer,
+            (&replacer, &said_by),
             (args, &*inside),
         ),
         "sync_delete" => {
@@ -935,8 +936,7 @@ pub(crate) async fn command_in(
                 }],
             );
             if !outside.is_empty() {
-                let by = said_by.clone();
-                crate::share_links::apply(&s, &key, (&actor, &by), &share, outside);
+                crate::share_links::apply(&s, &key, (&actor, &said_by), &share, outside);
             }
             Ok(json!({ "head": head, "path": landed }))
         }
@@ -1239,7 +1239,7 @@ fn put(
     client: &str,
     (folder, key): (&str, &str),
     by: Author<'_>,
-    replacer: &str,
+    (replacer, said): (&str, &str),
     (mut args, inside): (Value, Inside<'_>),
 ) -> Result<Value, ContractError> {
     let path: String = arg(&args, "path")?;
@@ -1324,7 +1324,7 @@ fn put(
                     Ok(kept) => Some(kept),
                     Err(e) => {
                         crate::log::warn(&format!(
-                            "sync: the version of {p} a write replaces was not kept: {e}"
+                            "sync: the version of {p} a write by {said} replaces was not kept: {e}"
                         ));
                         None
                     }

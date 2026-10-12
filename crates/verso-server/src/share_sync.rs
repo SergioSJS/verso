@@ -151,6 +151,11 @@ async fn changes(
 
 /// One change of the folder's log as the share sees it, if it sees it.
 fn change(scope: &Scope, mut c: Value) -> Option<Value> {
+    // Which device of the owner's, or of another person's, made it is
+    // theirs: not the receiver's to know.
+    if let Some(o) = c.as_object_mut() {
+        o.remove("device");
+    }
     let path = c["path"].as_str().and_then(|p| scope.to_rel(p));
     let from = c["renamedFrom"].as_str().and_then(|p| scope.to_rel(p));
     match (path, from) {
@@ -250,12 +255,13 @@ mod tests {
             root: "C".into(),
             mount: None,
         };
-        let c = |path: &str, from: Option<&str>| json!({ "seq": 1, "path": path, "hash": "h", "size": 1, "deleted": false, "renamedFrom": from });
+        let c = |path: &str, from: Option<&str>| json!({ "seq": 1, "path": path, "hash": "h", "size": 1, "deleted": false, "renamedFrom": from, "device": "MacBook de Sérgio" });
         assert_eq!(change(&scope, c("D/x.md", None)), None);
         assert_eq!(change(&scope, c("D/x.md", Some("D/y.md"))), None);
         let inside = change(&scope, c("C/x.md", Some("D/y.md"))).unwrap();
         assert_eq!(inside["path"], "x.md");
         assert_eq!(inside["renamedFrom"], Value::Null);
+        assert!(inside.get("device").is_none(), "{inside}");
         let out = change(&scope, c("D/x.md", Some("C/y.md"))).unwrap();
         assert_eq!(out["path"], "y.md");
         assert_eq!(out["deleted"], true);
