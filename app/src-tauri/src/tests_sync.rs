@@ -1293,3 +1293,76 @@ fn a_server_that_does_not_follow_this_apps_sync_is_said_in_words() {
         Some(engine::PROTOCOL.to_string().as_str())
     );
 }
+
+/// More changes on the server than one answer of its log carries (a page
+/// of 1000) while a kept connection waits — a burst of changes, or a
+/// device back after a long time: the device reads every page from the
+/// last change it received, and only then takes the head as its cursor.
+/// A rename, a deletion and an edit on the second page cross too.
+#[test]
+fn more_than_a_page_of_changes_is_read_page_by_page_not_skipped() {
+    let r = serve(&[]);
+    let a = device(
+        &r,
+        &r.owner,
+        &[
+            ("Uma.md", "# Uma\n"),
+            ("Duas.md", "# Duas\n"),
+            ("Quatro.md", "# Quatro\n"),
+            ("Cinco.md", "# Cinco\n"),
+            ("Seis.md", "# Seis\n"),
+        ],
+    );
+    sync(&a);
+    let b = device(&r, &r.owner, &[]);
+    let mut l = kept(&b);
+    on(&b, &mut l);
+    assert_eq!(text(&b, "Uma.md").as_deref(), Some("# Uma\n"));
+    // A thousand new notes: the first page, whole.
+    let many: Vec<String> = (0..1000).map(|i| format!("Nota {i:04}.md")).collect();
+    for name in &many {
+        let mut f = tempfile::Builder::new()
+            .prefix(name.as_str())
+            .rand_bytes(0)
+            .tempfile_in(a._dirs.1.path())
+            .unwrap();
+        f.write_all(name.as_bytes()).unwrap();
+        f.keep().unwrap();
+    }
+    changed(&a, &[]);
+    sync(&a);
+    // Then a rename, a deletion and an edit: the second page.
+    a.ctx
+        .service
+        .with_key(&a.key, |ws| {
+            Ok(ws.rename_entry("Uma.md", "Pasta/Uma.md").map(|_| ())?)
+        })
+        .unwrap();
+    a.ctx
+        .service
+        .with_key(&a.key, |ws| Ok(ws.delete_entry("Duas.md").map(|_| ())?))
+        .unwrap();
+    write(&a, "Quatro.md", b"# Quatro\n\neditada\n");
+    changed(&a, &["Uma.md", "Pasta/Uma.md", "Duas.md"]);
+    sync(&a);
+    // B, on the connection it kept.
+    changed(&b, &[]);
+    on(&b, &mut l);
+    for name in &many {
+        assert_eq!(text(&b, name).as_deref(), Some(name.as_str()), "{name}");
+    }
+    assert_eq!(text(&b, "Uma.md"), None);
+    assert_eq!(text(&b, "Pasta/Uma.md").as_deref(), Some("# Uma\n"));
+    assert_eq!(text(&b, "Duas.md"), None);
+    assert_eq!(
+        text(&b, "Quatro.md").as_deref(),
+        Some("# Quatro\n\neditada\n")
+    );
+    // Its cursor at the server's head, as a new connection finds it.
+    let mut fresh = kept(&a);
+    on(&a, &mut fresh);
+    assert_eq!(l.cursor(), fresh.cursor());
+    // And nothing more to do on the same connection.
+    changed(&b, &[]);
+    assert_eq!(on(&b, &mut l).actions, 0);
+}

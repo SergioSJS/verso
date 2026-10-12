@@ -466,7 +466,10 @@ fn sha256(bytes: &[u8]) -> String {
 }
 
 /// The server's files: all of them on the connection's first pass, then
-/// the changes after the last head.
+/// the changes after the last head. The log answers a page at a time: with
+/// more to come, the next question asks from the last change received, and
+/// only the last page's answer moves the cursor to the server's head — a
+/// head taken from an earlier page would skip the pages between.
 async fn there(remote: &remote::Remote, known: &mut Option<(Files, i64)>) -> Result<(), Value> {
     let Some((files, head)) = known else {
         let answer = remote.call("sync_state", json!({})).await?;
@@ -486,8 +489,9 @@ async fn there(remote: &remote::Remote, known: &mut Option<(Files, i64)>) -> Res
         return Ok(());
     };
     loop {
+        let asked = *head;
         let answer = remote
-            .call("sync_changes", json!({ "since": *head }))
+            .call("sync_changes", json!({ "since": asked }))
             .await?;
         for c in answer["changes"].as_array().into_iter().flatten() {
             let Some(path) = c["path"].as_str() else {
@@ -512,9 +516,13 @@ async fn there(remote: &remote::Remote, known: &mut Option<(Files, i64)>) -> Res
             }
             *head = (*head).max(c["seq"].as_i64().unwrap_or(0));
         }
-        let more = answer["more"] == true;
-        *head = (*head).max(answer["head"].as_i64().unwrap_or(0));
-        if !more {
+        if answer["more"] != true {
+            *head = (*head).max(answer["head"].as_i64().unwrap_or(0));
+            return Ok(());
+        }
+        // A page that says there is more but moved nothing on would ask
+        // the same question for ever: the rest waits for the next pass.
+        if *head == asked {
             return Ok(());
         }
     }
@@ -536,6 +544,14 @@ pub(crate) struct Link {
     /// campaign, 2026-10-11) — would be skipped by every pass until a
     /// later walk.
     pub(crate) walk: bool,
+}
+
+impl Link {
+    /// The head of the server's log the device's files are known at.
+    #[cfg(test)]
+    pub(crate) fn cursor(&self) -> Option<i64> {
+        self.known.as_ref().map(|(_, head)| *head)
+    }
 }
 
 /// Connect for `s`: the device's session, the folder opened, its role.
