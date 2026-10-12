@@ -255,8 +255,16 @@ em 2026-10-10 (Status).
     mudança feita no servidor; quem recebe só fica sabendo das notas de
     dentro, e o log do servidor diz o que foi escrito e o que ficou; e
     **os agregados que quem recebe vê — as contagens do índice, as
-    fórmulas de uma base — são zerados** — ainda não construído, a
-    próxima rodada. *Decidido no mesmo dia:* anexos soltos na raiz do cofre
+    fórmulas de uma base — são zerados** — construído em 2026-10-12: cada
+    um conta só o que está dentro do compartilhamento — as notas da barra
+    de status são as do compartilhamento; uma base pelo compartilhamento
+    é avaliada só sobre a pasta compartilhada (e a pasta de anexos dela),
+    então as linhas, o total, os nomes de propriedades, as fórmulas (um
+    backlink de fora incluído) e os resumos são os do compartilhamento;
+    tags, backlinks, links de saída e o grafo já eram filtrados — e o que
+    não dá para restringir é zero, nunca o total da pasta: as contagens
+    de uma indexação enviadas com uma mudança, e o progresso de uma
+    varredura. *Decidido no mesmo dia:* anexos soltos na raiz do cofre
     ficam fora de uma subpasta compartilhada, já que não há pasta de
     anexos para acrescentar, e o diálogo de compartilhar pede ao dono que
     os mova para uma; compartilhar o cofre inteiro não tem esse limite.
@@ -397,7 +405,7 @@ soltos na raiz do cofre ficam fora de uma subpasta compartilhada, o
 diálogo pedindo ao dono que os mova — compartilhar o cofre inteiro não
 tem esse limite (item 11); os agregados que quem recebe vê, as contagens
 do índice e as fórmulas de uma base, vão ser zerados — decidido, a
-próxima rodada (item 11); o sync de um compartilhamento revogado se
+próxima rodada (item 11) *(construído em 2026-10-12)*; o sync de um compartilhamento revogado se
 desliga com um aviso — decidido, sendo construído naquela noite no
 `feat/universo-small` (item 8) *(construído em 6c7800e, mesclado no
 `feat/universo` por d2a72b0 em 2026-10-12; no `CHANGELOG.md` em

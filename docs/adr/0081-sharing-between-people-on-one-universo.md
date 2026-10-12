@@ -244,7 +244,15 @@ carried a recommendation; the maintainer decided. Open items answered
     as any change made on the server; the receiver hears only of the
     notes inside, and the server's log says what was written and what
     was left; and **the aggregates a receiver sees — the index's counts,
-    a base's formulas — are zeroed** — not built yet, the next round.
+    a base's formulas — are zeroed** — built 2026-10-12: each counts
+    only what is inside the share — the status bar's notes are the
+    share's; a base through the share is evaluated over the shared folder
+    (and its attachments folder) alone, so its rows, total, property
+    names, formulas (a backlink from outside included) and summaries
+    are the share's; tags, backlinks, outgoing links and the graph were
+    already filtered — and what cannot be scoped is zero, never the
+    folder's total: an index run's counts pushed with a change, and a
+    walk's progress.
     *Decided the same day:* attachments
     loose at the vault's root stay outside a shared sub-folder, as there
     is no attachments folder to add, and the sharing dialog asks the owner
@@ -373,7 +381,8 @@ people who have no account (item 4); attachments loose at the vault's
 root stay outside a shared sub-folder, the dialog asking the owner to
 move them — sharing the whole vault has no such limit (item 11); the
 aggregates a receiver sees, the index's counts and a base's formulas,
-will be zeroed — decided, the next round (item 11); a revoked share's
+will be zeroed — decided, the next round (item 11) *(built
+2026-10-12)*; a revoked share's
 sync turns off with a notice — decided, being built that night on
 `feat/universo-small` (item 8) *(built in 6c7800e, merged into
 `feat/universo` by d2a72b0 on 2026-10-12; in `CHANGELOG.md` under

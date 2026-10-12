@@ -857,3 +857,91 @@ fn a_receivers_rename_rewrites_the_owners_links_outside_the_share() {
         assert_eq!(hoje["ok"]["text"], "Hoje: [[Notas]].\n", "{hoje}");
     });
 }
+
+/// What a receiver's window counts is the share's (ADR 0081 item 11,
+/// decided 2026-10-12): the status bar's notes, and a base's rows,
+/// formulas, summaries and property names — a backlink from a note
+/// outside counted by no formula, a value outside summed by no summary.
+#[test]
+fn a_receivers_counts_are_the_shares() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let (id, mut owner) = furnished(&r, &admin).await;
+        let (ana, _) = ana(&r).await;
+        for (name, text) in [
+            ("Mesa/Pontuada", "---\npontos: 5\n---\nDentro.\n"),
+            ("Placar", "---\npontos: 100\nsegredo_campo: x\n---\nFora.\n"),
+        ] {
+            let made = owner
+                .call("create_note", json!({ "name": name, "text": text }))
+                .await;
+            assert!(made.get("ok").is_some(), "{made}");
+        }
+        let (_, shared) = put(
+            &r,
+            &format!("/api/folders/{id}/shares"),
+            json!({ "path": "Mesa", "email": "ana@casa.lan", "role": "reader" }),
+            &admin,
+        )
+        .await;
+        let share = shared["id"].as_str().unwrap().to_owned();
+        let (mut w, info) = Win::open(&r, &ana, &share).await;
+        // The status bar's notes: the share's four, never the folder's.
+        let index = &info["ok"]["index"];
+        assert_eq!(index["unchanged"], 4, "{info}");
+        assert_eq!(index["indexed"], 0, "{info}");
+        assert_eq!(index["removed"], 0, "{info}");
+        let current = w.call("current_folder", json!({})).await;
+        assert_eq!(current["ok"]["index"]["unchanged"], 4, "{current}");
+        let again = w.call("reindex", json!({})).await;
+        assert_eq!(again["ok"]["unchanged"], 4, "{again}");
+        assert_eq!(again["ok"]["indexed"], 0, "{again}");
+        let owners = owner.call("current_folder", json!({})).await;
+        let all = &owners["ok"]["index"];
+        let folder_notes = all["unchanged"].as_u64().unwrap() + all["indexed"].as_u64().unwrap();
+        assert!(folder_notes > 4, "{owners}");
+        // A base over everything: the share's rows, the share's sums.
+        let text = "formulas:\n  entram: file.backlinks.length\nviews:\n  - type: table\n    name: T\n    order: [file.name, formula.entram, pontos]\n    summaries:\n      pontos: Sum\n";
+        let query = json!({ "query": { "path": null, "text": text, "this": null, "view": null,
+            "extra": [], "now": 0, "offset": 0, "lang": "pt" } });
+        let base = w.call("query_base", query.clone()).await;
+        let result = &base["ok"];
+        assert_eq!(result["total"], 4, "{base}");
+        let group = &result["groups"][0];
+        let row = |name: &str| {
+            group["rows"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|r| r["path"] == name)
+                .cloned()
+                .unwrap_or_else(|| panic!("{name} in {base}"))
+        };
+        // "Segredo", outside, links to "Notas": no backlink here.
+        assert_eq!(
+            row("Notas.md")["cells"][1],
+            json!({ "kind": "number", "value": 0.0 }),
+            "{base}"
+        );
+        assert_eq!(
+            group["summaries"][2],
+            json!({ "kind": "number", "value": 5.0 }),
+            "{base}"
+        );
+        let names = result["properties"].as_array().unwrap();
+        assert!(names.contains(&json!("pontos")), "{base}");
+        assert!(!names.contains(&json!("segredo_campo")), "{base}");
+        says_nothing_outside(&base);
+        // The owner's own window counts the whole folder.
+        let theirs = owner.call("query_base", query).await;
+        let total = theirs["ok"]["total"].as_u64().unwrap();
+        assert!(total > 4, "{theirs}");
+        let sum = &theirs["ok"]["groups"][0]["summaries"][2];
+        assert_eq!(
+            sum,
+            &json!({ "kind": "number", "value": 105.0 }),
+            "{theirs}"
+        );
+    });
+}
