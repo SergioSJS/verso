@@ -55,7 +55,7 @@ Em **Ajustes › Conta** — o botão da pessoa, ao lado da engrenagem na faixa 
 
 ## Editar junto
 
-Abra a mesma nota em duas janelas, ou com outra pessoa: o que um digita aparece no outro enquanto digita, com o cursor e o nome. O servidor grava o arquivo quando as edições assentam, e **nunca grava por cima** de uma mudança feita fora — essa mostra a diferença para vocês escolherem, como o Verso sempre fez.
+Abra a mesma nota em duas janelas, ou com outra pessoa: o que um digita aparece no outro enquanto digita, com o cursor e o nome — o nome da conta de quem digita, posto pelo servidor: ninguém aparece com o nome de outra pessoa. O servidor grava o arquivo quando as edições assentam, e **nunca grava por cima** de uma mudança feita fora — essa mostra a diferença para vocês escolherem, como o Verso sempre fez.
 
 Numa nota, num board ou num arquivo de texto que mudou em disco enquanto você digitava, são três saídas: **Descartar o meu e recarregar**, **Gravar o meu por cima** ou **Guardar os dois** — a versão do disco fica com o nome, e o seu texto vai para uma cópia ao lado, com o nome que a sincronização dá a um conflito.
 
@@ -63,7 +63,7 @@ Numa nota, num board ou num arquivo de texto que mudou em disco enquanto você d
 
 ## Do app desktop
 
-Em **Ajustes › Servidores**, escreva o endereço do servidor e conecte: o navegador abre a página do servidor para você **permitir este computador** — ninguém cola token. Depois, escolha uma pasta do servidor, e a janela a mostra como se estivesse aqui.
+Em **Ajustes › Servidores**, escreva o endereço do servidor e conecte: o navegador abre a página do servidor para você **permitir este computador** — ninguém cola token. A página diz **quem pediu** — o nome do aparelho, o endereço e a hora do pedido — e pergunta: *Foi você quem pediu, neste aparelho?* **Aprovar este aparelho** ou **Não fui eu: recusar**. Um link que alguém mandou para você aprovar o aparelho dele mostra um endereço e uma hora que não são os seus: recuse. Depois, escolha uma pasta do servidor, e a janela a mostra como se estivesse aqui.
 
 Ali também fica o **nome deste aparelho** — por padrão, o nome do sistema. Dê um nome seu (dois computadores com o mesmo nome de sistema deixam de se confundir): ele vai no nome das cópias de conflito, na lista de sessões do servidor e nas últimas mudanças de cada pasta.
 
@@ -105,7 +105,7 @@ Boards, bases e anexos continuam cruzando como arquivos.
 
 Cada pessoa tem o seu vault no mesmo Universo. Para dividir **uma pasta** do seu com outra pessoa, clique com o botão direito na pasta, na árvore, e escolha **Compartilhar…**: escreva o e-mail da conta dela neste servidor e o papel — **lê** ou **edita**. Para dividir **o vault todo**, o mesmo diálogo no menu da raiz da árvore, **Compartilhar a pasta toda…**. Só a dona da pasta compartilha; quem recebe não repassa.
 
-A pasta compartilhada ganha uma marquinha de pessoa na árvore. No diálogo, mude o papel de alguém ou tire o acesso — o diálogo pergunta antes, e as janelas abertas dessa pessoa fecham a pasta na hora. O que ela já tinha sincronizado continua no computador dela.
+A pasta compartilhada ganha uma marquinha de pessoa na árvore. No diálogo, mude o papel de alguém ou tire o acesso — o diálogo pergunta antes, e as janelas abertas dessa pessoa fecham a pasta na hora. O que ela já tinha sincronizado continua no computador dela, e a sincronização desse compartilhamento é **desligada**: a barra de status e Ajustes › Sincronizar dizem que quem compartilhou revogou o acesso, e quando.
 
 Se as notas da pasta mostram imagens guardadas **fora** dela — a pasta de anexos na raiz do vault, como o Obsidian faz —, o diálogo avisa e oferece **incluir a pasta de anexos, só leitura**.
 

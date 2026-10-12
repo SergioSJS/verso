@@ -29,6 +29,7 @@ pub mod listen;
 pub mod log;
 pub mod mail;
 pub mod passkeys;
+pub mod presence;
 pub mod quota;
 pub mod rpc;
 pub mod scope;
@@ -301,5 +302,7 @@ mod tests_console;
 mod tests_shares;
 #[cfg(test)]
 mod tests_sync;
+#[cfg(test)]
+mod tests_threats;
 #[cfg(test)]
 mod tests_trash;

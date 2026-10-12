@@ -508,3 +508,32 @@ test("a device's write keeps what it replaced in the trash, restored from the wi
   await expect(page.locator("[data-trash]")).toContainText("Os arquivos apagados ficam 30 dias.");
   expect(errors).toEqual([]);
 });
+
+test("the page that approves a device says who asked, and refuses (threat model, gap 12)", async ({ page, request }) => {
+  const errors = watch(page);
+  await signedIn(page, ADMIN.email, ADMIN.password);
+  const ask = async (device) => (await request.post("/api/device/start", { data: { device } })).json();
+  // Refused: the app that asked hears the code gone.
+  const first = await ask("Verso · Estranho");
+  await page.goto(`/device?code=${first.code}`);
+  const who = page.getByRole("region", { name: "Quem pediu" });
+  await expect(who).toContainText("Verso · Estranho");
+  await expect(who).toContainText("127.0.0.1");
+  const question = page.getByRole("heading", { name: "Foi você quem pediu, neste aparelho?", level: 2 });
+  await expect(question).toBeVisible();
+  // The question names the form; its buttons come after it.
+  const form = page.getByRole("form", { name: "Foi você quem pediu, neste aparelho?" });
+  await expect(form.getByRole("button", { name: "Aprovar este aparelho: Verso · Estranho" })).toBeVisible();
+  await form.getByRole("button", { name: "Não fui eu: recusar" }).click();
+  await expect(page.locator(".web-lead")).toHaveText("Recusado. O aplicativo que pediu não entra na sua conta.");
+  const polled = await request.post("/api/device/poll", { data: { code: first.code, poll: first.poll } });
+  expect(polled.status()).toBe(410);
+  // Approved: by the button named for the device.
+  const second = await ask("Verso · MacBook");
+  await page.goto(`/device?code=${second.code}`);
+  await page.getByRole("button", { name: "Aprovar este aparelho: Verso · MacBook" }).click();
+  await expect(page.locator(".web-lead")).toHaveText("Pronto. Pode voltar ao aplicativo.");
+  const done = await (await request.post("/api/device/poll", { data: { code: second.code, poll: second.poll } })).json();
+  expect(typeof done.token).toBe("string");
+  expect(errors).toEqual([]);
+});

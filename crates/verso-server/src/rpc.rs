@@ -629,6 +629,7 @@ async fn collab_command(
     let cmd = cmd.to_owned();
     let args = args.clone();
     let user = who.account.name.clone();
+    let account = who.account.id.clone();
     let answer = blocking(move || match cmd.as_str() {
         "collab_join" => to_value(crate::collab::join(&s, &c, &key, &path, &user)?),
         "collab_update" => {
@@ -638,7 +639,12 @@ async fn collab_command(
         }
         "collab_awareness" => {
             let update: String = arg(&args, "update")?;
-            crate::collab::awareness(&s, &c, &key, &path, &update)?;
+            let sender = crate::presence::Sender {
+                client: &c,
+                account: &account,
+                name: &user,
+            };
+            crate::collab::awareness(&s, &sender, &key, &path, &update)?;
             Ok(Value::Null)
         }
         "collab_leave" => {

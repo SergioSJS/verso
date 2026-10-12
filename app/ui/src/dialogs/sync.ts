@@ -12,7 +12,7 @@
 
 import { listen } from "@tauri-apps/api/event";
 import { commands, type ServerAccount, type ServerFolder, type SyncStatus, type SyncVersions } from "../bindings";
-import { h, ui } from "../dom";
+import { h, showToast, ui } from "../dom";
 import { fail } from "../errors";
 import { currentFolder, folderName } from "../folder";
 import { liveTogether } from "../settings";
@@ -107,6 +107,11 @@ const pt = {
     merged: "juntado",
   } as Record<string, string>,
   bar: "Sincronização",
+  // A share revoked by its owner (ADR 0081 item 8): sync turned off.
+  revokedShort: (when: string) => `Desligada: quem compartilhou revogou o acesso em ${when}`,
+  revokedTitle: "Compartilhamento revogado",
+  revokedWhy: (folder: string, server: string, when: string) =>
+    `Quem compartilhou ${folder}, em ${server}, revogou o seu acesso em ${when}. A sincronização desta pasta foi desligada; os arquivos continuam neste computador, como estavam.`,
 };
 const en: typeof pt = {
   section: "Sync",
@@ -194,6 +199,10 @@ const en: typeof pt = {
     merged: "merged",
   },
   bar: "Sync",
+  revokedShort: (when: string) => `Off: the share's owner revoked it on ${when}`,
+  revokedTitle: "Share revoked",
+  revokedWhy: (folder: string, server: string, when: string) =>
+    `Whoever shared ${folder}, on ${server}, revoked your access on ${when}. This folder's sync was turned off; the files stay on this computer as they were.`,
 };
 
 export function syncStrings(): typeof pt {
@@ -234,6 +243,10 @@ function size(bytes: number | null): string {
   return `${n.toLocaleString(pt ? "pt-BR" : "en", { maximumFractionDigits: i ? 1 : 0 })} ${units[i]}`;
 }
 
+function hostOf(url: string): string {
+  return url.replace(/^https?:\/\//, "");
+}
+
 function when(stamp: string): string {
   const d = new Date(stamp);
   if (Number.isNaN(d.getTime())) return stamp;
@@ -251,6 +264,7 @@ function problemText(st: SyncStatus): string | null {
 /** The state in a few words, as the status bar and the section say it. */
 export function stateText(st: SyncStatus): string {
   const s = syncStrings();
+  if (st.state === "off" && st.revoked) return s.revokedShort(when(st.revoked));
   let text = s.states[st.state] ?? st.state;
   if (st.state === "syncing" && (st.sending || st.receiving)) text = s.moving(st.sending, st.receiving);
   if (st.state === "paused" && st.deletions) text = `${s.states["paused"]} · ${s.toDelete(st.deletions)}`;
@@ -287,14 +301,17 @@ function paint(): void {
   tellSyncState();
   const b = bar();
   const st = status;
-  b.hidden = !st || !st.on;
-  if (st?.on) {
+  // Off because the share was revoked, the bar says so until the person
+  // turns sync on again or off themselves.
+  const revoked = Boolean(st && !st.on && st.revoked);
+  b.hidden = !st || (!st.on && !revoked);
+  if (st && (st.on || revoked)) {
     const text = stateText(st);
     b.textContent = text;
     b.title = `${syncStrings().bar}: ${text}`;
     b.setAttribute("aria-label", b.title);
     b.dataset["state"] = st.state;
-    b.classList.toggle("warn", st.state === "error" || st.state === "paused" || st.conflicts.length > 0);
+    b.classList.toggle("warn", revoked || st.state === "error" || st.state === "paused" || st.conflicts.length > 0);
   }
   for (const p of painters) p();
 }
@@ -314,6 +331,11 @@ export function hearSync(open: (section: string) => void): void {
   openSection = open;
   void listen<SyncStatus>("sync-status", (e) => {
     if (e.payload.key !== currentFolder) return;
+    // Revoked as it synced: said at once, beside the status bar's line.
+    if (status?.on && !e.payload.on && e.payload.revoked) {
+      const s = syncStrings();
+      showToast(s.revokedWhy(e.payload.folder_name || e.payload.folder, hostOf(e.payload.server), when(e.payload.revoked)), 12000);
+    }
     status = e.payload;
     paint();
   });
@@ -329,15 +351,18 @@ type Item = (title: string, desc: string, control: HTMLElement | null) => HTMLEl
 export function syncBody(item: Item): HTMLElement {
   const box = h("div", "sync");
   let wasOn: boolean | null = null;
+  let wasRevoked: string | null = null;
   const draw = () => {
     if (wasOn !== null && !box.isConnected) {
       painters.delete(draw);
       return;
     }
     const on = status?.on ?? false;
+    const revoked = on ? null : (status?.revoked ?? null);
     if (on) drawOn(box, status as SyncStatus);
-    else if (wasOn !== false) void drawOff(box, item);
+    else if (wasOn !== false || revoked !== wasRevoked) void drawOff(box, item);
     wasOn = on;
+    wasRevoked = revoked;
   };
   painters.add(draw);
   draw();
@@ -354,6 +379,17 @@ async function drawOff(box: HTMLElement, item: Item): Promise<void> {
   sentence.dataset["tone"] = "quiet";
   top.append(sentence, h("p", "sync-lede", s.lede));
   box.replaceChildren(top);
+  // Turned off because the share was revoked: said first, in words.
+  const st = status;
+  if (st && !st.on && st.revoked) {
+    const notice = h("article", "sync-item danger sync-revoked");
+    notice.setAttribute("role", "status");
+    notice.append(
+      h("h3", "sync-item-title", s.revokedTitle),
+      h("p", "sync-item-why", s.revokedWhy(st.folder_name || st.folder, hostOf(st.server), when(st.revoked))),
+    );
+    box.prepend(notice);
+  }
   const accounts = await commands.serverAccounts();
   if (accounts.status !== "ok") return fail(accounts.error);
   if (accounts.data.length === 0) {

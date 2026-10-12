@@ -693,7 +693,12 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
    ali é o das cópias de conflito e o da sessão deste aparelho em cada
    servidor, e esvaziado volta o do sistema (e2e, `sync.spec.mjs`, "Servers
    names this computer"; o teste do host,
-   `a_window_on_a_servers_folder_is_answered_by_the_server`).
+   `a_window_on_a_servers_folder_is_answered_by_the_server`). A página
+   que aprova o aparelho diz quem pediu — o nome do aparelho, o endereço,
+   a hora — e pergunta *Foi você quem pediu, neste aparelho?*, com *Aprovar
+   este aparelho: <nome>* e *Não fui eu: recusar*; recusado, o código do
+   app acaba (e2e-server, "the page that approves a device says who
+   asked"; `tests_threats.rs`).
 7. Sincronização ([ADR 0079](../adr/0079-sync-a-local-folder-with-a-server.md)):
    com uma pasta deste computador aberta, *Ajustes* › *Sincronizar*; sem
    servidor conectado, diz *Conecte a um servidor em Servidores primeiro*;
@@ -745,7 +750,12 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
    compartilhamento, por `..`, uma irmã, uma renomeação, a listagem do
    sync, leituras e escritas, `/f/`, os eventos — os testes em Rust do
    servidor (`tests_shares.rs`); duas pessoas e a pasta de anexos, à mão
-   (`manual-checks.md`).
+   (`manual-checks.md`). A dona tira uma pessoa cujo computador sincroniza
+   o compartilhamento: essa sincronização desliga, os arquivos ficam, e a
+   barra de status e *Ajustes* › *Sincronizar* dizem *quem compartilhou
+   revogou o acesso* e quando (e2e, `sync.spec.mjs`, "a share revoked by
+   its owner"; o teste Rust do host contra um servidor de verdade,
+   `tests_shares.rs`).
 11. Editar junto numa pasta sincronizada ([ADR
     0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), da seção
     *Editar junto numa pasta sincronizada* da nota 23: com a pasta
@@ -763,7 +773,9 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
     uma volta dentro da carência e depois dela, a edição de um programa de
     fora, um leitor, uma pausa, e o teste de propriedade de que nenhuma
     edição se perde — os testes Rust do host contra um servidor de verdade
-    (`tests_live.rs`); dois computadores de verdade, à mão
+    (`tests_live.rs`); um cursor sempre leva o nome da conta de quem
+    escreve, o que quer que a janela tenha mandado (`tests_threats.rs`);
+    dois computadores de verdade, à mão
     (`manual-checks.md`). O cofre de demonstração não tem servidor: os
     passos rodam na sala do harness ou à mão.
 

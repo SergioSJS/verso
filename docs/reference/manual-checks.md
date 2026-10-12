@@ -34,9 +34,31 @@ in the real app.
   Notes that embed pictures from the vault's attachments folder: the
   dialog offers *Incluir “…”, só leitura*, and Ana then sees the pictures
   and cannot change them. Sérgio removes Ana: her window closes the
-  folder at once, her synced copy stays and its sync says the folder is
-  gone. Both at a phone's width too. The console's folder page lists the
+  folder at once, her synced copy stays and its sync turns off, saying
+  the share was revoked and when (`6c7800e`). Both at a phone's width too. The console's folder page lists the
   share with its people; the audit log has each step with its path.
+
+- [ ] **A revoked share's sync turns off with a notice** (ADR 0081 item 8,
+  `6c7800e`): in the installed app, Ana syncs a share of Sérgio's; Sérgio
+  removes her in *Compartilhar…*. Within seconds Ana's app shows a notice
+  "Quem compartilhou … revogou o seu acesso em …", the status bar reads
+  "Desligada: quem compartilhou revogou o acesso em …" (amber), and
+  *Ajustes › Sincronizar* opens on "Compartilhamento revogado" above the
+  form; her files are as they were; the app's log has a `WARN sync
+  turned off: … its owner revoked the share` line and no `ERROR`. Quit and
+  reopen the folder: the notice is still there and sync does not start.
+  Turn sync on again with another folder: the notice is gone.
+- [ ] **The device approval page says who asked** (threat model gap 12,
+  `5838c10`): *Ajustes › Servidores*, connect to the Universo; the page in
+  the browser shows *Quem pediu* — this computer's name, the address the
+  server sees for it, the time — then *Foi você quem pediu, neste
+  aparelho?*, *Aprovar este aparelho: <nome>* and *Não fui eu: recusar*.
+  Refuse: the app stops asking and is not signed in; connect again and
+  approve: signed in. With VoiceOver, the facts and the question
+  are read before the buttons. At a phone's width too.
+- [ ] **A cursor wears its writer's name** (threat model gap 11,
+  `3bc56ae`): two accounts in one note, in two browsers: each sees the
+  other's cursor under the other's account name and colour, as before.
 
 - [ ] **"Guardar os dois" in the editor's conflict** (`18da5c7`): with a
   synced folder, keep a note open in Editar with unsaved text while another

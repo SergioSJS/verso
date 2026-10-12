@@ -59,6 +59,8 @@ pub struct Room {
     clients: HashSet<String>,
     /// Which room this is (made again from the disk, it is another).
     epoch: String,
+    /// The Yjs clients each connection speaks for in presence (gap 11).
+    claims: crate::presence::Claims,
 }
 
 /// A room's place: (folder key, note path).
@@ -265,6 +267,7 @@ pub fn join(
                 scheduled: false,
                 clients: HashSet::new(),
                 epoch: crate::crypto::id().map_err(verso_service::failed)?,
+                claims: crate::presence::Claims::new(),
             }));
             let mut map = lock(&server.rooms.map);
             // Two windows joining at once: the first room made stays.
@@ -331,11 +334,14 @@ pub fn update(
 /// messages of up to the message limit relayed to every member's window.
 pub const PRESENCE_MOST: usize = 16 * 1024;
 
-/// A presence from `client` (its cursor, its name), relayed as is: the
-/// server keeps none. One past [`PRESENCE_MOST`] is refused.
+/// A presence from `who` (its cursor, its name), relayed stamped by the
+/// server (threat-model.md, gap 11): the name the sender's account's, the
+/// clients another account speaks for dropped (`presence.rs`). The server
+/// keeps none. One past [`PRESENCE_MOST`], one that is not a presence, and
+/// one from a window not in the room are refused.
 pub fn awareness(
     server: &Server,
-    client: &str,
+    who: &crate::presence::Sender,
     key: &str,
     path: &str,
     update: &str,
@@ -343,16 +349,25 @@ pub fn awareness(
     if update.len() > PRESENCE_MOST {
         return Err(refused("a presence of 16 KB at most"));
     }
+    let bytes = unb64(update)?;
     let room = server
         .rooms
         .get(key, path)
         .ok_or_else(|| refused("join the note first"))?;
-    let r = lock(&room);
+    let mut r = lock(&room);
+    if !r.clients.contains(who.client) {
+        return Err(refused("join the note first"));
+    }
+    let Room {
+        claims, clients, ..
+    } = &mut *r;
+    let stamped =
+        crate::presence::stamped(&bytes, who, claims, clients).map_err(|e| refused(&e))?;
     tell(
         server,
         &r,
-        Some(client),
-        &event("collab-awareness", path, "update", &json!(update)),
+        Some(who.client),
+        &event("collab-awareness", path, "update", &json!(b64(&stamped))),
     );
     Ok(())
 }
