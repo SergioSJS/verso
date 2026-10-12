@@ -69,7 +69,22 @@
   aqui, nada perdido; a volta entra de novo na sala, ou, quando a sala é
   outra, termina na cópia de conflito do item 8. Um leitor, que
   sincroniza para ler (item 1), está presente na sala e as edições dele
-  são recusadas. As palavras dos itens não mudam.
+  são recusadas. As palavras dos itens não mudam. 2026-10-12 — itens 5 e
+  12, o fio (o achado F31 da campanha de sincronização, um arquivo em
+  trânsito inteiro na memória do servidor para cada aparelho, mais o seu
+  base64; o mantenedor nesse dia: *"Ajuste todas essas pendências agora"*,
+  repassado na sessão que o construiu): um arquivo cruza em pedaços de
+  1 MiB lidos do disco quando cada um vai e gravados num arquivo
+  temporário quando cada um chega, no servidor e no aparelho — nunca
+  inteiro na memória — e só vai para o lugar inteiro, com o hash
+  conferido, como diz o item 12. **Protocolo de sincronização 2**: um
+  pedaço cruza como mensagem binária do WebSocket (o tamanho do cabeçalho
+  JSON em quatro bytes, o cabeçalho, os bytes do pedaço) em vez de base64
+  dentro do JSON; um lado da sincronização 1, e uma conexão que não diz
+  versão, continua mandando e recebendo base64, porque o item 5 acompanha
+  a versão anterior. O "os pedaços ficam como estão" do item 12
+  (2026-10-11, dito do limite de 1 GiB) não vale mais para o tamanho e o
+  fio deles. Construído no 2b1f2c4. As palavras dos itens não mudam.
 
 ## Contexto
 
