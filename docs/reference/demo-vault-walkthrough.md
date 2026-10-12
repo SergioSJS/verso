@@ -783,8 +783,10 @@ rest below and in `manual-checks.md`.
     a value, a checkbox — goes into the room beside what another person
     types there, never to the file, which follows the room's save; a
     sticker, a base's cell and a PDF's quote into a live companion note go
-    the same way (e2e, `live.spec.mjs`, "a property set in the panel";
-    `roomWrites.test.mjs`). Two devices and a browser in one room, a drop
+    the same way, with no `write_note` and no conflict copy, whether a tab
+    here holds the note or it is live only with someone else, the window
+    joining its room for the one write (e2e, `live.spec.mjs`, "a property
+    set in the panel"; `live-writes.spec.mjs`; `roomWrites.test.mjs`). Two devices and a browser in one room, a drop
     and a return within the grace and after it, an outside program's edit,
     a reader, a pause, and the property test that no edit is lost — the
     host's Rust tests against a real server (`tests_live.rs`); a cursor
