@@ -9,12 +9,14 @@ import { afterFileChange, flushed, recheckAll, stopped } from "../changes";
 import { ui } from "../dom";
 import { fail } from "../errors";
 import { frontmatterClose } from "../frontmatter";
-import { activeLeafForPath, leavesOf } from "../layout/spaces";
+import { minimalEdit } from "../edit";
+import { activeLeafForPath, leavesOf, liveHolder } from "../layout/spaces";
 import { NoteLeaf } from "../leaves/note";
 import { lineSeparator } from "../leaves/text";
 import { opening } from "../opening";
 import { Kind } from "../paths";
 import { type Edit, propertyChange } from "../props";
+import { throughRoom } from "../roomWrites";
 import { baseStrings } from "../strings";
 import { listAll } from "../tree/tree";
 import { ensureFolderNote } from "./folderNotes";
@@ -211,14 +213,17 @@ export async function updateEntryProperties(path: string, kind: Kind, updates: R
     if (!fn) return;
     targetNote = fn;
   }
+  const withUpdates = (text: string): string => {
+    for (const [k, v] of Object.entries(updates)) text = setFrontmatterProp(text, k, v);
+    return text;
+  };
+  // A live note: into its room, as typing goes (ADR 0082).
+  if (throughRoom(liveHolder(targetNote), withUpdates) !== "disk") return;
   const leaf = activeLeafForPath(targetNote);
   if (leaf) {
-    let doc = leaf.editor.state.doc.toString();
-    for (const [k, v] of Object.entries(updates)) {
-      doc = setFrontmatterProp(doc, k, v);
-    }
-    const curLen = leaf.editor.state.doc.length;
-    leaf.editor.dispatch({ changes: { from: 0, to: curLen, insert: doc }, annotations: Transaction.userEvent.of("input") });
+    const was = leaf.editor.state.doc.toString();
+    const edit = minimalEdit(was, withUpdates(was));
+    if (edit) leaf.editor.dispatch({ changes: edit, annotations: Transaction.userEvent.of("input") });
     await leaf.save();
     await afterFileChange();
   } else {
@@ -227,11 +232,7 @@ export async function updateEntryProperties(path: string, kind: Kind, updates: R
       fail(read.error);
       return;
     }
-    let text = read.data.text;
-    for (const [k, v] of Object.entries(updates)) {
-      text = setFrontmatterProp(text, k, v);
-    }
-    const written = await commands.writeNote(targetNote, text, read.data.revision);
+    const written = await commands.writeNote(targetNote, withUpdates(read.data.text), read.data.revision);
     if (written.status !== "ok") {
       fail(written.error);
       return;
@@ -247,12 +248,13 @@ export async function updateEntryListProperty(path: string, kind: Kind, key: "or
     if (!fn) return;
     targetNote = fn;
   }
+  // A live note: into its room, as typing goes (ADR 0082).
+  if (throughRoom(liveHolder(targetNote), (text) => setFrontmatterListProp(text, key, values)) !== "disk") return;
   const leaf = activeLeafForPath(targetNote);
   if (leaf) {
-    let doc = leaf.editor.state.doc.toString();
-    doc = setFrontmatterListProp(doc, key, values);
-    const curLen = leaf.editor.state.doc.length;
-    leaf.editor.dispatch({ changes: { from: 0, to: curLen, insert: doc }, annotations: Transaction.userEvent.of("input") });
+    const was = leaf.editor.state.doc.toString();
+    const edit = minimalEdit(was, setFrontmatterListProp(was, key, values));
+    if (edit) leaf.editor.dispatch({ changes: edit, annotations: Transaction.userEvent.of("input") });
     await leaf.save();
     await afterFileChange();
     await listAll();
@@ -297,6 +299,23 @@ export function withProperty(text: string, wanted: string, value: PropertyValue)
  *  note's tabs are saved first, so the write starts from their text, and
  *  read what was written after. */
 export async function setNoteProperty(path: string, key: string, value: PropertyValue | null): Promise<boolean> {
+  // A live note: into its room, as typing goes; the room writes the file
+  // (ADR 0082, decided 2026-10-12).
+  let refusedWhy: string = "";
+  const live = throughRoom(liveHolder(path), (text) => {
+    const next = withProperty(text, key, value ?? { kind: "empty" });
+    if ("text" in next) return next.text;
+    refusedWhy = next.refused;
+    return null;
+  });
+  if (live === "room" || live === "same") {
+    refreshBases();
+    return true;
+  }
+  if (live === "refused") {
+    ui.status.textContent = refusedWhy === "fixed" ? baseStrings.refusedShape : baseStrings.cellWriteFailed;
+    return false;
+  }
   const left = await flushed(leavesOf(path));
   if (left.length > 0) {
     stopped(left);

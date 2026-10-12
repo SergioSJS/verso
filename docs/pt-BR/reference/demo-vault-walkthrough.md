@@ -769,7 +769,12 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
     outra, a nota é lida de novo com o seu texto; *Ajustes* ›
     *Sincronizar* › *Editar notas junto enquanto online* desligado, a nota
     sai da sala e, aberta de novo, não entra em nenhuma (e2e,
-    `live.spec.mjs`). Dois aparelhos e um navegador numa sala, uma queda e
+    `live.spec.mjs`). Uma propriedade definida no painel de uma nota ao
+    vivo — um valor, uma caixa de marcar — entra na sala ao lado do que
+    outra pessoa digita ali, nunca no arquivo, que segue o salvamento da
+    sala; um adesivo, a célula de uma base e a citação de um PDF numa
+    nota de anotações ao vivo vão do mesmo jeito (e2e, `live.spec.mjs`,
+    "a property set in the panel"; `roomWrites.test.mjs`). Dois aparelhos e um navegador numa sala, uma queda e
     uma volta dentro da carência e depois dela, a edição de um programa de
     fora, um leitor, uma pausa, e o teste de propriedade de que nenhuma
     edição se perde — os testes Rust do host contra um servidor de verdade
