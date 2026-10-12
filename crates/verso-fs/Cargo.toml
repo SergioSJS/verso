@@ -23,6 +23,13 @@ notify = "8.2"
 # own engine, instead of a partial matcher of ours that got `!` wrong.
 # Only the `gitignore` module is used; the crate's own walker is not.
 ignore = "0.4"
+# A new name is compared with its siblings as every device compares names:
+# case aside and its accents in one Unicode form (spec Q7, decided
+# 2026-10-10; Q8's creation side, 2026-10-12), so `Café.md` composed is
+# refused beside `CAFÉ.md` decomposed. std has no Unicode normalization;
+# already in the lockfile through verso-index, verso-core and verso-server,
+# same version and licence (MIT OR Apache-2.0).
+unicode-normalization = "0.1"
 
 [target.'cfg(windows)'.dependencies]
 # A file's identity (volume serial number and file index) and its hard link
