@@ -85,6 +85,9 @@
   a versão anterior. O "os pedaços ficam como estão" do item 12
   (2026-10-11, dito do limite de 1 GiB) não vale mais para o tamanho e o
   fio deles. Construído no 2b1f2c4. As palavras dos itens não mudam.
+  2026-10-12 — item 12, o tamanho dos pedaços: **1 MiB fica**, decidido
+  pelo mantenedor naquele dia, por volta das 16:00 BRT, entre as sete
+  decisões da rodada, todas como recomendado: *"Todos aprovados"*.
 
 ## Contexto
 

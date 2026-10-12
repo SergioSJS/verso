@@ -316,6 +316,12 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    pauta`, `Ideia?` ou `a\b` não é criada (`nota.` é: o arquivo dela é `nota..md`); a barra de status diz que o Windows não
    guarda esse nome. Um renomear para um nome assim é recusado do mesmo
    jeito. Nível: H; E: `prompts.spec.mjs`; S: `crates/verso-fs/tests/ops.rs`.
+   Ao lado de `Nota`, uma nota nova `nota` também não é criada, e a barra
+   de status diz que um Mac ou o Windows guardaria só um dos dois;
+   renomear `Nota` para `nota` funciona (spec Q8, decidido em
+   2026-10-12). Nível: A (o harness não a recusa); U:
+   `crates/verso-fs/tests/ops.rs`,
+   `crates/verso-core/tests/workspace/rename.rs`.
 9. Nota 14, "A Visão de Pasta": abra uma pasta pela setinha e feche outra;
    abra o app de novo — a árvore está como ficou. Uma pasta de milhares de
    notas abre com as pastas de primeiro nível fechadas. Nível: H; E:
@@ -537,7 +543,11 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    folder_settings`; o `tests_sync.rs` do host, "the folder's settings
    cross like a file and a conflict keeps both", contra um servidor de
    verdade; o `folderLayer.test.mjs` do `npm test`); A (dois computadores
-   sincronizando uma pasta, à mão).
+   sincronizando uma pasta, à mão). Um leitor de uma pasta de servidor
+   marca uma nota com estrela neste computador: "Favoritos" diz *Desta
+   máquina* para ele, e o arquivo da pasta não muda (decidido em
+   2026-10-12). Nível: U (o `folderLayer.test.mjs` do `npm test`;
+   `crates/verso-server/src/tests.rs`, "an invited reader"); A.
 
 ## 11. Organização: figurinhas, capas, páginas de pasta, ordem
 

@@ -60,7 +60,27 @@
   como da pasta —, não o "Ocultar da árvore", que o
   [0060](0060-makemd-organizing-features.md) diz não ser os caminhos
   ignorados do 0044 e que fica desta máquina; e o nome do arquivo,
-  `settings.json`, que nenhum documento nomeava.
+  `settings.json`, que nenhum documento nomeava *(as duas fechadas em
+  2026-10-12, abaixo)*.
+  2026-10-12 — o mantenedor, por volta das 16:00 BRT, sobre as sete
+  decisões abertas da rodada, todas como recomendado: *"Todos
+  aprovados"*. Para este ADR: as duas leituras acima estão decididas — o
+  arquivo é `.verso/settings.json`, e "os caminhos ignorados" são as duas
+  chaves "Ignorar pastas de build" e "Respeitar .gitignore", enquanto o
+  "Ocultar da árvore" fica desta máquina
+  ([0060](0060-makemd-organizing-features.md)). Itens 1–2: os favoritos
+  de um leitor voltam para esta máquina — quando a conta não pode
+  escrever a camada da pasta (um leitor de uma pasta de servidor, na
+  janela dele ou sincronizada num computador; a janela de um
+  compartilhamento; um arquivo de ajustes que é um placeholder ou não é
+  JSON), marcar uma nota com estrela lê e escreve os favoritos que esta
+  máquina guarda para a pasta, onde eles moravam antes dos itens 1–2, em
+  vez de ser recusado, e os Ajustes os marcam "Desta máquina"; as regras
+  de varredura e o nome da nota de pasta ficam da pasta, que essa conta
+  lê. Item 3: um nome novo que só difere em maiúsculas e minúsculas de uma
+  entrada que a pasta dele já lista também é recusado (a revisão do item
+  3; spec Q8). Construído no mesmo dia (branch
+  `feat/decisions-2026-10-12`).
 
 ## Contexto
 
@@ -126,6 +146,19 @@ exatamente esses, a regra que o item 3 adota.
    existe nunca é recusada: é do usuário, abre, é lida e escrita como
    antes; só um nome novo é checado. No Windows, onde esses nomes nem
    existem, todo pedido é checado (ADR 0069).
+   *(Revisado em 2026-10-12, com o "Todos aprovados" do mantenedor, que
+   fecha a spec Q8 para os nomes que o Verso cria:)* recusado também, em
+   todo sistema e no servidor, um nome novo que só difere em maiúsculas e
+   minúsculas de uma entrada que a pasta dele já lista — `nota.md` criado
+   ao lado de `Nota.md`, ou um arquivo renomeado para `NOTA.md` ali: dois
+   arquivos no Linux e no ext4 de um servidor, um só num Mac ou no
+   Windows, que guardaria só um deles. A recusa diz o porquê, como as
+   outras, na língua da pessoa. Um arquivo renomeado para o próprio nome
+   em outra caixa é permitido
+   ([0079](0079-sync-a-local-folder-with-a-server.md) item 10); duas
+   entradas que já diferem só na caixa, feitas em outro lugar, ficam,
+   abrem e mudam como antes, e só uma terceira grafia do nome delas é
+   recusada.
 4. **O separador**: o que o Verso escreve usa `/`, que o Obsidian resolve em
    todo sistema (ADR 0069, item 9). Uma `\` dentro de um link é parte do
    nome, como o Obsidian a lê no macOS: nunca vira `/`. As palavras do
@@ -171,10 +204,14 @@ nome do diretório oculto, `.verso/` (2026-10-09). Os itens 1 e 2, a
 camada da pasta em `.verso/`: aceitos em 2026-10-12 e construídos no
 mesmo dia (Revisões); a retenção de uma pasta do desktop no
 [0080](0080-the-trash-with-expiry-and-restore.md) esperava por eles.
-`[ABERTO]`, da construção: "os caminhos ignorados" lidos como as chaves
-das pastas de build e do `.gitignore`, e o nome do arquivo,
-`settings.json` (Revisões). *(Até 2026-10-12: "Proposto: os itens 1 e
-2"; depois, "aceitos, para construir na próxima rodada".)*
+Fechadas pelo mantenedor em 2026-10-12 (*"Todos aprovados"*), as duas
+leituras `[ABERTO]` da construção até então: "os caminhos ignorados" são
+as chaves das pastas de build e do `.gitignore`, o "Ocultar da árvore"
+fica desta máquina, e o arquivo é `settings.json` (Revisões). Decidido no
+mesmo dia: os favoritos de um leitor são desta máquina (itens 1–2), e o
+item 3 recusa um nome novo que só difere em maiúsculas e minúsculas de
+uma entrada da pasta dele (spec Q8). *(Até 2026-10-12: "Proposto: os
+itens 1 e 2"; depois, "aceitos, para construir na próxima rodada".)*
 
 *(Histórico, a abertura até 2026-10-12:)* Proposto. Decidido pelo
 mantenedor em 2026-10-08: o item 3 (nomes que todo sistema guarda, para o

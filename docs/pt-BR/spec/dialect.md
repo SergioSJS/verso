@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.36
+# Spec do dialeto do Verso — v0.37
 
-- Versão: v0.36 · 2026-10-10
+- Versão: v0.37 · 2026-10-12
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -958,6 +958,14 @@ Levantadas ao escrever esta spec. Todas precisam de resposta antes de
   A outra metade desta questão — quais extensões fazem de um arquivo uma nota —
   é o fato do `verso-fs` registrado sob a Q12. Quem decide é o mantenedor; esta
   linha só registra o que o código faz enquanto isso.
+
+  **O lado da criação, decidido pelo mantenedor em 2026-10-12** (*"Todos
+  aprovados"*), não a resolução, que continua `[ABERTO]`: um nome novo que só
+  difere em maiúsculas e minúsculas de uma entrada que a pasta dele já lista é
+  recusado quando o Verso o cria ou renomeia, em todo sistema e no servidor;
+  uma entrada que existe nunca é recusada
+  ([ADR 0070](../adr/0070-what-travels-with-the-folder.md) item 3, revisado em
+  2026-10-12).
 - **Q12. Regra de resolução de link para arquivo.** **FECHADA em 2026-09-22
   pelo mantenedor**, seguindo o Obsidian 1.13.7 como observado
   (`docs/reference/index-decision.md` §4.1 e §4.6,
@@ -1340,3 +1348,4 @@ ser escolhido.
 | v0.34 | 2026-10-09 | **Dois `^id` sozinhos em sequência** `DECIDIDO` pelo mantenedor: só o último nomeia o bloco antes deles, como no Obsidian; a fixture `fixtures/block/two-alone` rascunhada, aguardando a aprovação do mantenedor. |
 | v0.35 | 2026-10-09 | A fixture `fixtures/block/two-alone` aprovada pelo mantenedor em sessão ("aprovado"). |
 | v0.36 | 2026-10-10 | **Q7 `DECIDIDO`** pelo mantenedor em sessão, como recomendado, a partir do achado F20 da campanha de sync de 2026-10-10 (dois aparelhos no Windows e no Linux guardaram as duas formas de um nome, e um nunca enviou): um nome é um arquivo só em todo lugar — o servidor compara nomes em NFC, cada aparelho guarda a grafia que o próprio sistema de arquivos deu ao nome, um arquivo mudado dos dois lados sob as duas formas é uma cópia de conflito (item 8 da ADR 0079). A §5.10 diz isso; o fato provisório da v0.10 mantido como histórico. Sem fixture: o mantenedor não pediu uma. |
+| v0.37 | 2026-10-12 | O lado da criação da Q8 `DECIDIDO` pelo mantenedor em sessão (*"Todos aprovados"*, como recomendado): um nome novo que só difere em maiúsculas e minúsculas de uma entrada da pasta dele é recusado quando o Verso o cria ou renomeia, em todo sistema e no servidor (ADR 0070 item 3, revisado). A Q8 em si, a caixa na resolução de nome, continua `[ABERTO]`. Sem fixture: nomes criados, não o dialeto. |

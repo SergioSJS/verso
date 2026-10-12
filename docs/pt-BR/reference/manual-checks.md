@@ -18,6 +18,23 @@ app real.
 
 ## Ainda não conferido
 
+### As decisões de 2026-10-12 (feat/decisions-2026-10-12)
+
+- [ ] **Um nome que só difere na caixa é recusado** (spec Q8, ADR 0070
+  item 3): no app instalado, ao lado de uma nota `Nota`, uma nota nova
+  `nota` não é criada e a barra de status diz que um Mac ou o Windows
+  guardaria só um dos dois; renomear `Nota` para `nota` funciona; uma
+  pasta sincronizada com um UniVerso no Linux com uma nota `nota.md`
+  criada ali ao lado de `Nota.md` (à mão no disco do servidor) aparece em
+  "Não sincronizados" da sincronização como nome ocupado.
+- [ ] **Os favoritos de um leitor ficam neste computador** (ADR 0070
+  itens 1–2): conectado como leitor de uma pasta de UniVerso que tem
+  `.verso/settings.json`, uma estrela numa nota aparece na hora, continua
+  depois de reabrir a pasta, e *Ajustes › Organização › Favoritos* diz
+  *Desta máquina*; o `settings.json` do servidor não muda e nenhum erro é
+  dito; a mesma pasta sincronizada no desktop como leitor se comporta
+  igual.
+
 ### Sincronização e UniVerso (feat/universo, 2026-10-11)
 
 - [ ] **Duas pessoas compartilham pastas num UniVerso** (ADR 0081,
