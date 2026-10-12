@@ -281,6 +281,17 @@ pub(super) fn files(d: &Device) -> Vec<String> {
         .unwrap()
 }
 
+/// A file made in the device's folder by another program, not by Verso.
+fn made_outside(d: &Device, name: &str, bytes: &[u8]) -> tempfile::NamedTempFile {
+    let mut f = tempfile::Builder::new()
+        .prefix(name)
+        .rand_bytes(0)
+        .tempfile_in(d._dirs.1.path())
+        .unwrap();
+    f.write_all(bytes).unwrap();
+    f
+}
+
 pub(super) fn copy_of(d: &Device, path: &str) -> String {
     let stem = path.trim_end_matches(".md");
     files(d)
@@ -791,12 +802,7 @@ fn a_file_gone_while_the_pass_lists_it_is_read_again_not_failed() {
     let (_r, a, b) = two_in_step();
     // Made by another program and listed; dropped, the file goes from the
     // disk while the listing still has it.
-    let mut outside = tempfile::Builder::new()
-        .prefix("Fugaz.md")
-        .rand_bytes(0)
-        .tempfile_in(a._dirs.1.path())
-        .unwrap();
-    outside.write_all(b"# Fugaz\n").unwrap();
+    let outside = made_outside(&a, "Fugaz.md", b"# Fugaz\n");
     changed(&a, &["Fugaz.md"]);
     sync(&a);
     changed(&b, &[]);
@@ -833,12 +839,7 @@ fn a_file_deleted_here_while_renamed_there_arrives_under_its_new_name() {
     let (old, new) = ("com espaços  duplos.md", "espaços.md");
     // Made by another program, old enough that a pass trusts its size and
     // time without reading it — as any file listed long ago.
-    let mut outside = tempfile::Builder::new()
-        .prefix(old)
-        .rand_bytes(0)
-        .tempfile_in(a._dirs.1.path())
-        .unwrap();
-    outside.write_all(b"# Duplos\n").unwrap();
+    let outside = made_outside(&a, old, b"# Duplos\n");
     outside
         .as_file()
         .set_modified(std::time::SystemTime::now() - std::time::Duration::from_secs(3600))
@@ -1028,12 +1029,7 @@ fn a_name_not_every_system_keeps_is_said_here_not_sent() {
     let r = serve(&[]);
     let a = device(&r, &r.owner, &[("Uma.md", "# Uma\n")]);
     sync(&a);
-    let mut outside = tempfile::Builder::new()
-        .prefix("hora 10:30.md")
-        .rand_bytes(0)
-        .tempfile_in(a._dirs.1.path())
-        .unwrap();
-    outside.write_all(b"# hora\n").unwrap();
+    let _outside = made_outside(&a, "hora 10:30.md", b"# hora\n");
     changed(&a, &["hora 10:30.md"]);
     assert_eq!(sync(&a).actions, 0);
     let status = lock(&a.shown).last().cloned().unwrap();
@@ -1143,16 +1139,18 @@ fn the_two_forms_of_a_name_are_one_file_and_each_device_keeps_its_own() {
 
 /// A device on ext4 holding both forms as two files — the state the
 /// campaign left (F20): one is sent, the other is listed as a name taken,
-/// the same on every pass, and nothing loops.
+/// the same on every pass, and nothing loops. Verso no longer makes the
+/// second form beside the first (its new-name check folds case and the
+/// accents' form, spec Q7 and Q8), so it is made as another program would.
 #[cfg(target_os = "linux")]
 #[test]
 fn both_forms_as_two_files_here_send_one_and_say_the_other() {
     let r = serve(&[]);
-    let a = device(
-        &r,
-        &r.owner,
-        &[(COMPOSED, "# composto\n"), (DECOMPOSED, "# decomposto\n")],
-    );
+    let a = device(&r, &r.owner, &[(COMPOSED, "# composto\n")]);
+    made_outside(&a, DECOMPOSED, b"# decomposto\n")
+        .keep()
+        .unwrap();
+    changed(&a, &[DECOMPOSED]);
     sync(&a);
     for _ in 0..2 {
         changed(&a, &[]);
