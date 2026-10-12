@@ -768,7 +768,9 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
     uma volta dentro da carência e depois dela, a edição de um programa de
     fora, um leitor, uma pausa, e o teste de propriedade de que nenhuma
     edição se perde — os testes Rust do host contra um servidor de verdade
-    (`tests_live.rs`); dois computadores de verdade, à mão
+    (`tests_live.rs`); um cursor sempre leva o nome da conta de quem
+    escreve, o que quer que a janela tenha mandado (`tests_threats.rs`);
+    dois computadores de verdade, à mão
     (`manual-checks.md`). O cofre de demonstração não tem servidor: os
     passos rodam na sala do harness ou à mão.
 

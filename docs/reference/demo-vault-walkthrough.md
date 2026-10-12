@@ -746,7 +746,9 @@ rest below and in `manual-checks.md`.
     (e2e, `live.spec.mjs`). Two devices and a browser in one room, a drop
     and a return within the grace and after it, an outside program's edit,
     a reader, a pause, and the property test that no edit is lost — the
-    host's Rust tests against a real server (`tests_live.rs`); two real
+    host's Rust tests against a real server (`tests_live.rs`); a cursor
+    always wears its writer's account name, whatever the window sent
+    (`tests_threats.rs`); two real
     computers, by hand (`manual-checks.md`). The demo vault has no server:
     the steps run in the harness's room or by hand.
 
