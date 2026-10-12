@@ -52,6 +52,8 @@ export function showToast(message: string, durationMs = 3500): void {
   const existing = document.querySelector(".verso-toast");
   if (existing) existing.remove();
   const toast = h("div", "verso-update-banner verso-toast");
+  // Said to a screen reader as it appears (ADR 0035).
+  toast.setAttribute("role", "status");
   toast.append(icon("sparkles"));
   const span = h("span", "", message);
   toast.append(span);

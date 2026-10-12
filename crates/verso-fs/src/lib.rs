@@ -304,6 +304,19 @@ impl Root {
         self.links_inside
     }
 
+    /// The name of the folder's file system when a file Verso creates or
+    /// moves there is named by `link` (macOS: a volume without the
+    /// exclusive rename and with hard links, some network volumes):
+    /// changes made there by other programs may show late; Verso's own
+    /// writes are as safe as anywhere (ADR 0048, revised 2026-10-12).
+    /// Asked of the volume each time it is called — a host asks once, when
+    /// it opens the folder; `None` when nothing is named by `link` there,
+    /// when it could not be told, and off macOS.
+    #[must_use]
+    pub fn names_by_link(&self) -> Option<String> {
+        ops::names_by_link(&self.path)
+    }
+
     /// Whether `relative`, resolved through every symlink on its way, stays
     /// in the folder. What does not exist yet is judged by the deepest
     /// part that does: a new file inside a linked directory that leaves is
