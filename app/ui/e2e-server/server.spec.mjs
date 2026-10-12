@@ -4,6 +4,8 @@
 // write; the pages are in the person's language and the console stays
 // clean.
 
+import { createHash } from "node:crypto";
+
 import { expect, test } from "@playwright/test";
 
 const ADMIN = { email: "admin@verso.test", password: "uma senha bem longa" };
@@ -384,5 +386,48 @@ test("the administration console pages its lists and sets a folder's quota", asy
   await page.goto("/account");
   await expect(page.locator(".settings-body a[href='/admin']")).toBeVisible();
   await expect(page.locator(".settings-nav-item", { hasText: "Administração" })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("a device's write keeps what it replaced in the trash, restored from the window", async ({ page }) => {
+  const errors = watch(page);
+  await signedIn(page, ADMIN.email, ADMIN.password);
+  await demoRegistered(page);
+  await openDemo(page);
+  const folder = new URL(page.url()).searchParams.get("folder");
+  const name = `Lixo ${test.info().project.name}`;
+  await page.keyboard.press("ControlOrMeta+n");
+  await expect(page.locator("input.title-input")).toBeFocused();
+  await page.keyboard.type(name);
+  await page.keyboard.press("Enter");
+  await page.locator(".template-picker").getByRole("button", { name: "Em branco", exact: true }).click();
+  await expect(page.locator("#notes")).toContainText(`${name}.md`);
+  // A device writes other bytes over it (ADR 0080 item 12): the version
+  // it replaced goes to the folder's trash.
+  const bytes = Buffer.from("de outro programa\n");
+  const put = await asDevice(page, folder, "sync_put", {
+    path: `${name}.md`,
+    offset: 0,
+    size: bytes.length,
+    hash: createHash("sha256").update(bytes).digest("hex"),
+    data: bytes.toString("base64"),
+  });
+  expect(put.ok?.done, JSON.stringify(put)).toBe(true);
+  // The trash, from the command palette.
+  await page.keyboard.press("ControlOrMeta+Shift+p");
+  await page.keyboard.type("Abrir a lixeira");
+  await page.keyboard.press("Enter");
+  const body = page.locator(".settings-body");
+  await expect(body.locator(".settings-title")).toHaveText("Lixeira");
+  const row = body.locator("tbody tr", { hasText: name }).first();
+  await expect(row).toContainText("substituído por");
+  await row.getByRole("button", { name: `Restaurar ${name}.md` }).click();
+  await expect(body.locator(".trash-said")).toContainText(`${name}.md já existia: restaurado ao lado, como ${name} (restaurado `);
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#notes")).toContainText(`${name} (restaurado `);
+  // The console's folder page shows the trash, not counted in the quota.
+  await page.goto("/admin/folders");
+  await page.locator(".console-table a", { hasText: "Demo" }).click();
+  await expect(page.locator("[data-trash]")).toContainText("Os arquivos apagados ficam 30 dias.");
   expect(errors).toEqual([]);
 });

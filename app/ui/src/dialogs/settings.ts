@@ -5,6 +5,7 @@
 import { can } from "../can";
 import { serverStrings, serversBody } from "./servers";
 import { syncBody, syncStrings } from "./sync";
+import { trashBody, trashStrings, trashSummary } from "./trash";
 import { type CliState, commands, type McpStatus } from "../bindings";
 import { remoteContentChanged } from "../changes";
 import { ask } from "../dialog";
@@ -111,6 +112,8 @@ export class SettingsDialog {
       { id: "editor", label: t.sEditor, icon: "edit" },
       { id: "organizing", label: t.sOrganizing, icon: "folder" },
       { id: "files", label: t.sFiles, icon: "folder" },
+      // The folder's trash (ADR 0080 item 4), for whoever may change it.
+      ...(currentFolder && can("write") ? [{ id: "trash", label: trashStrings().section, icon: "trash" }] : []),
       { id: "board", label: boardText.sBoard, icon: "board" },
       { id: "hotkeys", label: t.sHotkeys, icon: "keyboard" },
       // What the side the window talks to cannot do is absent (ADR 0076
@@ -382,6 +385,11 @@ export class SettingsDialog {
         return v;
       });
     }
+    // The trash beside the folder's space, not counted in it (ADR 0080
+    // items 4 and 8), and the way into it.
+    if (currentFolder && can("write")) {
+      add("files", trashStrings().section, trashStrings().notCounted, () => trashSummary(() => { this.section = "trash"; this.search.value = ""; this.paint(); }));
+    }
     add("files", t.ignoreBuildDirs, t.ignoreBuildDirsDesc, () => this.toggle(settings.ignoreBuildDirs, (v) => { settings.ignoreBuildDirs = v; saveSettings(); void walkRulesChanged(); }));
     add("files", t.respectGitignore, t.respectGitignoreDesc, () => this.toggle(settings.respectGitignore, (v) => { settings.respectGitignore = v; saveSettings(); void walkRulesChanged(); }));
     add("general", t.autosaveDelay, t.autosaveDesc, () => {
@@ -548,6 +556,7 @@ export class SettingsDialog {
     const me = signedIn();
     if (can("account") && me) for (const e of accountEntries(me, (a, b, c) => this.item(a, b, c))) out.push({ section: "account", ...e });
     if (can("local_folders")) out.push({ section: "servers", title: serverStrings().connect, desc: serverStrings().connectDesc, node: () => serversBody((a, b, c) => this.item(a, b, c)) });
+    if (currentFolder && can("write")) out.push({ section: "trash", title: trashStrings().section, desc: trashStrings().lead, node: () => trashBody((a, b, c) => this.item(a, b, c)) });
     if (can("local_folders") && currentFolder) out.push({ section: "sync", title: syncStrings().title, desc: syncStrings().desc, node: () => syncBody((a, b, c) => this.item(a, b, c)) });
     add("cli", t.cliTitle, WINDOWS ? t.cliDescWindows : LINUX ? t.cliDescLinux : t.cliDesc, () => this.cliControl());
     // One server per folder, or one for all of Verso (ADR 0054, 2026-10-08).
