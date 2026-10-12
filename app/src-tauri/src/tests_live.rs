@@ -225,6 +225,26 @@ impl Browser {
     }
 }
 
+/// The room wrote what it holds, `must` among it: the server's file is the
+/// browser's text, as heard — not a fixed wait, which a loaded machine
+/// outruns.
+fn saved(c: &mut Browser, must: &[&str]) {
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
+    loop {
+        c.hear();
+        let room = text_of(&c.doc);
+        if must.iter().all(|w| room.contains(w)) && c.file() == room {
+            return;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the room did not write: {room:?} {:?}",
+            c.file()
+        );
+        sleep(Duration::from_millis(100));
+    }
+}
+
 /// The device's link dropped, as a network drops it (item 8).
 fn drop_link(d: &Device, l: Link) {
     l.remote.hang_up();
@@ -237,8 +257,11 @@ fn two() -> (Running, Device, Device) {
     let r = serve(&[(NOTE, "# Sessao\n")]);
     let a = device(&r, &r.owner, &[]);
     let b = device(&r, &r.owner, &[]);
-    on(&a, &mut kept(&a));
-    on(&b, &mut kept(&b));
+    for d in [&a, &b] {
+        let mut l = kept(d);
+        on(d, &mut l);
+        drop_link(d, l);
+    }
     assert_eq!(text(&a, NOTE).as_deref(), Some("# Sessao\n"));
     assert_eq!(text(&b, NOTE).as_deref(), Some("# Sessao\n"));
     (r, a, b)
@@ -276,7 +299,7 @@ fn two_devices_and_a_browser_edit_one_note_live_and_the_files_follow() {
     }
     // The room writes the server's file; each device's sync brings it
     // down over the local file, which no tab wrote meanwhile.
-    sleep(SETTLE);
+    saved(&mut c, &[]);
     on(&a, &mut la);
     on(&b, &mut lb);
     let room = ta.text();
@@ -306,14 +329,14 @@ fn a_drop_and_a_return_within_the_grace_keep_every_edit_and_make_no_copy() {
     insert(&ta.doc, 99, "sem rede, de A\n");
     ta.local(&a);
     tb.type_live(&b, 0, "enquanto A estava fora\n");
-    sleep(SETTLE);
+    saved(&mut c, &["enquanto A estava fora"]);
     on(&b, &mut lb);
 
     // A comes back: the same room, the tab's whole state into it.
     let mut la = kept(&a);
     assert!(ta.rejoin(&a, &mut la), "the same room");
     on(&a, &mut la);
-    sleep(SETTLE);
+    saved(&mut c, &["sem rede, de A", "enquanto A estava fora"]);
     on(&a, &mut la);
     on(&b, &mut lb);
     ta.hear(&a);
@@ -382,9 +405,10 @@ fn a_return_to_another_room_keeps_the_text_in_the_file_or_in_a_copy() {
 
 #[test]
 fn an_outside_program_on_a_device_with_a_live_note_is_merged_or_kept_as_a_copy() {
-    let (_r, a, b) = two();
+    let (r, a, b) = two();
     let (mut la, mut lb) = (kept(&a), kept(&b));
     let (mut ta, mut tb) = (Tab::open(&a), Tab::open(&b));
+    let mut c = browser(&r);
 
     // Nothing waits in the room: the outside edit is sent and enters the
     // room as one edit, which every tab sees.
@@ -396,7 +420,7 @@ fn an_outside_program_on_a_device_with_a_live_note_is_merged_or_kept_as_a_copy()
     tb.hear(&b);
     assert!(tb.text().contains("de outro programa"), "{}", tb.text());
     assert!(copies(&a).is_empty());
-    sleep(SETTLE);
+    saved(&mut c, &["de outro programa"]);
     on(&a, &mut la);
     on(&b, &mut lb);
 
@@ -406,7 +430,7 @@ fn an_outside_program_on_a_device_with_a_live_note_is_merged_or_kept_as_a_copy()
     let now = text(&a, NOTE).unwrap();
     write(&a, NOTE, format!("{now}outra vez de fora\n").as_bytes());
     tb.type_live(&b, 0, "de B, ao vivo\n");
-    sleep(SETTLE);
+    saved(&mut c, &["de B, ao vivo"]);
     on(&a, &mut la);
     on(&a, &mut la);
     let named = text(&a, NOTE).unwrap();
@@ -559,7 +583,7 @@ fn run(ops: &[Op]) {
                 // right after: sent into the room as one edit, or kept as
                 // a copy — never a room stopped for the people in it to
                 // choose, which this run does not play.
-                sleep(SETTLE);
+                saved(&mut c, &[]);
                 let w = word(&mut typed);
                 let s = &mut sides[i];
                 let now = text(&s.d, NOTE).unwrap_or_default();
@@ -604,7 +628,7 @@ fn run(ops: &[Op]) {
         }
     }
     for _ in 0..3 {
-        sleep(SETTLE);
+        saved(&mut c, &[]);
         for s in &mut sides {
             s.tab.hear(&s.d);
             changed(&s.d, &[]);
@@ -641,6 +665,13 @@ fn run(ops: &[Op]) {
             assert!(copies(&s.d).is_empty(), "{:?} {ops:?}", files(&s.d));
         }
     }
+    // The connections let go: a run is one of many.
+    for s in &mut sides {
+        if let Some(l) = s.l.take() {
+            drop_link(&s.d, l);
+        }
+    }
+    c.remote.hang_up();
 }
 
 proptest! {
