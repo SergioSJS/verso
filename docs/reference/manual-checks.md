@@ -21,6 +21,23 @@ in the real app.
 
 ### Sync and Universo (feat/universo, 2026-10-11)
 
+- [ ] **Two people share folders on one Universo** (ADR 0081, 2026-10-11):
+  two accounts, two browsers (and the desktop app). Sérgio right-clicks a
+  folder of his vault, *Compartilhar…*, Ana's e-mail, *edita*; Ana's
+  folder button lists it under *Compartilhados comigo* as "Pasta
+  (Sérgio)", it opens in a window of its own, a note made there appears in
+  Sérgio's folder, a link to a note of his outside reads *Não está no que
+  foi compartilhado com você.*; Ana shares one back with Sérgio, *lê*. In
+  the desktop app Ana syncs the share with an empty folder of her computer
+  (Ajustes › Servidores › *Sincronizar*), never inside her vault. Sérgio
+  renames the shared folder in his window: Ana's window and sync go on.
+  Notes that embed pictures from the vault's attachments folder: the
+  dialog offers *Incluir “…”, só leitura*, and Ana then sees the pictures
+  and cannot change them. Sérgio removes Ana: her window closes the
+  folder at once, her synced copy stays and its sync says the folder is
+  gone. Both at a phone's width too. The console's folder page lists the
+  share with its people; the audit log has each step with its path.
+
 - [ ] **"Guardar os dois" in the editor's conflict** (`18da5c7`): with a
   synced folder, keep a note open in Editar with unsaved text while another
   device changes it; the view "O arquivo mudou em disco…" offers a third
