@@ -321,10 +321,20 @@ function paint(): void {
 async function refresh(): Promise<void> {
   if (!currentFolder) return;
   const r = await commands.folderSync();
-  if (r.status === "ok") {
-    status = r.data;
-    paint();
+  if (r.status === "ok") took(r.data);
+}
+
+/** A status heard — by the event or by asking — becomes the window's. A
+ *  share revoked while it synced is said at once, beside the status bar's
+ *  line, by whichever of the two brings the change first: a question
+ *  answered before the event would otherwise take the change in silence. */
+function took(next: SyncStatus): void {
+  if (status?.on && !next.on && next.revoked) {
+    const s = syncStrings();
+    showToast(s.revokedWhy(next.folder_name || next.folder, hostOf(next.server), when(next.revoked)), 12000);
   }
+  status = next;
+  paint();
 }
 
 /** Hear the folder's sync from the start: the status bar shows it, and a
@@ -333,13 +343,7 @@ export function hearSync(open: (section: string) => void): void {
   openSection = open;
   void listen<SyncStatus>("sync-status", (e) => {
     if (e.payload.key !== currentFolder) return;
-    // Revoked as it synced: said at once, beside the status bar's line.
-    if (status?.on && !e.payload.on && e.payload.revoked) {
-      const s = syncStrings();
-      showToast(s.revokedWhy(e.payload.folder_name || e.payload.folder, hostOf(e.payload.server), when(e.payload.revoked)), 12000);
-    }
-    status = e.payload;
-    paint();
+    took(e.payload);
   });
   addEventListener("verso:folder-shown", () => void refresh());
   void refresh();
