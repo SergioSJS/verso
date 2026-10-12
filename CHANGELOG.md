@@ -46,6 +46,7 @@ test release.
 
 ### Fixed
 
+- **In a browser, the folder button works from the first click**: while the window is still loading it shows it is not ready yet, and a click made then is kept and opens the folder switcher as soon as the window is — on a slow machine it was simply lost.
 - **A share revoked while it synced is always said at once**: the notice "Whoever shared … revoked your access on …" could be lost when the window asked for the sync's state just before hearing the change; whichever brings the change first now says it, once.
 - **A folder that syncs a share no longer lists its own settings as not synced**: `.verso/settings.json` of the receiver's folder is this computer's business ([ADR 0070](docs/adr/0070-what-travels-with-the-folder.md)), so the share's sync leaves it alone — never sent, never fetched, never listed — and says so once in the app's log.
 - **A server folder holding two names that differ only in case** (`Nota.md` and `nota.md`, made before the case refusal or outside Verso): a device keeps one and lists the other once in *Settings › Sync*, "two names that differ only in case on the server; this computer keeps one", instead of trying to fetch it and failing as a name taken on every pass (spec Q8).
