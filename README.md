@@ -2,6 +2,10 @@
 
 [Português (Brasil)](docs/pt-BR/README.md)
 
+Official site: **https://versomd.com** (its source: [SergioSJS/versomd-site](https://github.com/SergioSJS/versomd-site)).
+Builds and UniVerso's packages come only from this repository's releases,
+signed with minisign `RWS1zv2nvs/ng1hA0YspwOg7wGda98zkXjVfx8m9CtT5obRW5zabNHaT`.
+
 Verso is a notes app for plain Markdown files. Point it at a folder — an
 Obsidian vault works as it is — and it gives you an editor, boards, bases,
 search and a graph over those files, on macOS, Windows and Linux. Nothing is

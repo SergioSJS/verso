@@ -2,6 +2,10 @@
 
 [English](../../README.md)
 
+Site oficial: **https://versomd.com** (o código dele: [SergioSJS/versomd-site](https://github.com/SergioSJS/versomd-site)).
+Os instaladores e os pacotes do UniVerso saem só das versões deste
+repositório, assinados com minisign `RWS1zv2nvs/ng1hA0YspwOg7wGda98zkXjVfx8m9CtT5obRW5zabNHaT`.
+
 O Verso é um aplicativo de notas para arquivos Markdown simples. Aponte para
 uma pasta — um vault do Obsidian funciona como está — e ele dá um editor,
 boards, bases, busca e um grafo sobre esses arquivos, no macOS, no Windows e
