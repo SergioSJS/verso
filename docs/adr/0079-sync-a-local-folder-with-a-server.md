@@ -81,7 +81,10 @@
   no version, is still sent and taken base64, as item 5 follows the
   version before. Item 12's "the pieces stay as they are" (2026-10-11,
   said of the 1 GiB limit) no longer holds for their size and their
-  wire. Built in 2b1f2c4. The items' words are unchanged.
+  wire. Built in 2b1f2c4. The items' words are unchanged. 2026-10-12 —
+  item 12, the pieces' size: **1 MiB stays**, decided by the maintainer
+  that day, about 16:00 BRT, among the round's seven decisions, all as
+  recommended: *"Todos aprovados"* (all approved).
 
 ## Context
 

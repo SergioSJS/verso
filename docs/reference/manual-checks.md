@@ -19,6 +19,23 @@ in the real app.
 
 ## Not yet checked
 
+### The decisions of 2026-10-12 (feat/decisions-2026-10-12)
+
+- [ ] **A name differing only in case is refused** (spec Q8, ADR 0070
+  item 3): in the installed app, beside a note `Nota`, a new note `nota`
+  is not made and the status bar says a Mac or Windows would keep only
+  one of the two; renaming `Nota` to `nota` works; a folder synced to a
+  UniVerso on Linux with a note `nota.md` made there beside `Nota.md`
+  (by hand on the server's disk) is listed in the sync's "Não
+  sincronizados" as a name taken.
+- [ ] **A reader's bookmarks stay on this computer** (ADR 0070 items
+  1–2): signed in as a reader of a UniVerso folder that has
+  `.verso/settings.json`, a star on a note shows at once, stays after
+  reopening the folder, and *Ajustes › Organização › Favoritos* says
+  *Desta máquina*; the server's `settings.json` is unchanged and no error
+  is said; the same folder synced to the desktop as a reader behaves the
+  same.
+
 ### Sync and UniVerso (feat/universo, 2026-10-11)
 
 - [ ] **Two people share folders on one UniVerso** (ADR 0081, 2026-10-11):
