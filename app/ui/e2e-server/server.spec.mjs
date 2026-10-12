@@ -430,7 +430,9 @@ test("two people share folders on one server, both ways (ADR 0081)", async ({ pa
   }).toPass({ timeout: 15000 });
   const dialog = page.getByRole("dialog", { name: "Compartilhar “Personagens”" });
   await dialog.getByLabel("E-mail").fill(email);
-  await dialog.getByLabel("Papel").selectOption("editor");
+  // "Papel" alone: each person already in the list has a select of their
+  // own, named after them ("Ana, edita; mudar o papel").
+  await dialog.getByLabel("Papel", { exact: true }).selectOption("editor");
   await dialog.getByRole("button", { name: "Compartilhar", exact: true }).click();
   await expect(dialog.getByRole("status")).toHaveText(`Compartilhada com ${email}.`);
   await dialog.getByRole("button", { name: "Fechar" }).click();
@@ -442,8 +444,10 @@ test("two people share folders on one server, both ways (ADR 0081)", async ({ pa
   await ana.locator("#open").click();
   const switcher = ana.getByRole("dialog", { name: "Trocar de pasta" });
   const shared = switcher.getByRole("region", { name: "Compartilhados comigo" });
-  await shared.getByRole("button", { name: /Personagens \(Admin\)/ }).click();
-  await expect(ana.locator("#folder")).toHaveText("Personagens (Admin)");
+  // The owner's name: the admin made from VERSO_ADMIN_EMAIL is called
+  // after the e-mail's local part, "admin".
+  await shared.getByRole("button", { name: /Personagens \(admin\)/ }).click();
+  await expect(ana.locator("#folder")).toHaveText("Personagens (admin)");
   await expect(ana.locator("#notes")).toContainText("Lia Torres.md");
   await expect(ana.locator("#notes")).not.toContainText("00 - Bem-vindo");
   // And back: Ana, let make folders, shares hers whole with the admin to
@@ -512,7 +516,19 @@ test("a device's write keeps what it replaced in the trash, restored from the wi
 test("the page that approves a device says who asked, and refuses (threat model, gap 12)", async ({ page, request }) => {
   const errors = watch(page);
   await signedIn(page, ADMIN.email, ADMIN.password);
-  const ask = async (device) => (await request.post("/api/device/start", { data: { device } })).json();
+  // Every start counts for the limiter, by address: the three projects ask
+  // from one, so a start may be told to wait, and asks again.
+  const ask = async (device) => {
+    for (let i = 0; ; i++) {
+      const res = await request.post("/api/device/start", { data: { device } });
+      const body = await res.json();
+      if (res.status() !== 429 || i === 5) {
+        expect(res.ok(), JSON.stringify(body)).toBeTruthy();
+        return body;
+      }
+      await new Promise((r) => setTimeout(r, (body.retry ?? 1) * 1000));
+    }
+  };
   // Refused: the app that asked hears the code gone.
   const first = await ask("Verso · Estranho");
   await page.goto(`/device?code=${first.code}`);
@@ -525,6 +541,8 @@ test("the page that approves a device says who asked, and refuses (threat model,
   const form = page.getByRole("form", { name: "Foi você quem pediu, neste aparelho?" });
   await expect(form.getByRole("button", { name: "Aprovar este aparelho: Verso · Estranho" })).toBeVisible();
   await form.getByRole("button", { name: "Não fui eu: recusar" }).click();
+  // The answer replaces the question's two paragraphs with one.
+  await expect(page.locator(".web-lead")).toHaveCount(1);
   await expect(page.locator(".web-lead")).toHaveText("Recusado. O aplicativo que pediu não entra na sua conta.");
   const polled = await request.post("/api/device/poll", { data: { code: first.code, poll: first.poll } });
   expect(polled.status()).toBe(410);
@@ -532,6 +550,7 @@ test("the page that approves a device says who asked, and refuses (threat model,
   const second = await ask("Verso · MacBook");
   await page.goto(`/device?code=${second.code}`);
   await page.getByRole("button", { name: "Aprovar este aparelho: Verso · MacBook" }).click();
+  await expect(page.locator(".web-lead")).toHaveCount(1);
   await expect(page.locator(".web-lead")).toHaveText("Pronto. Pode voltar ao aplicativo.");
   const done = await (await request.post("/api/device/poll", { data: { code: second.code, poll: second.poll } })).json();
   expect(typeof done.token).toBe("string");
