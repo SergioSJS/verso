@@ -61,6 +61,7 @@ pub(crate) fn forwards(cmd: &str) -> bool {
                 | "collab_leave"
                 | "collab_save"
                 | "collab_resolve"
+                | "collab_present"
         )
 }
 

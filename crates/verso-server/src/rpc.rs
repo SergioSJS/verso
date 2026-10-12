@@ -638,7 +638,9 @@ async fn command(
         "set_embed_origins" | "set_menu_language" => Ok(Value::Null),
         "fetch_file" => Ok(Value::Bool(false)),
         "collab_join" | "collab_update" | "collab_awareness" | "collab_leave" | "collab_save"
-        | "collab_resolve" => collab_command(server, who, client, &r.cmd, &args).await,
+        | "collab_resolve" | "collab_present" => {
+            collab_command(server, who, client, &r.cmd, &args).await
+        }
         "trash_list" | "trash_restore" | "trash_delete" | "trash_empty" | "trash_set_days" => {
             // Through a share, its part of the bin only (ADR 0081 item 16).
             match crate::shares::scope_here(server, client) {
@@ -688,6 +690,9 @@ async fn collab_command(
     let user = who.account.name.clone();
     let account = who.account.id.clone();
     let answer = blocking(move || match cmd.as_str() {
+        // Whether someone is in the note: a write that is not a keystroke
+        // joins the room to be made there (ADR 0082).
+        "collab_present" => Ok(Value::Bool(s.rooms.occupied(&key, &path))),
         "collab_join" => to_value(crate::collab::join(&s, &c, &key, &path, &user)?),
         "collab_update" => {
             let update: String = arg(&args, "update")?;

@@ -11,8 +11,15 @@
 // would reach the room as a change from outside: a conflict when edits
 // wait to be written, and on a synced folder a second writer of the
 // local file, the source of a conflict copy (ADR 0082 item 6). Decided by
-// the maintainer on 2026-10-12 (ADR 0082, Status). A note that is not
-// live is written as before.
+// the maintainer on 2026-10-12 (ADR 0082, Status).
+//
+// A note live only elsewhere — someone else, or another window, has it in
+// its room and this window does not — is written the same way: the write
+// joins the room, makes its one edit there, has the room write the file,
+// and leaves (`writeLive`). Written to the file instead, it would reach
+// the room as a change from outside, and on a synced folder through an
+// upload that a room's save may have overtaken: a conflict copy. A note in
+// no room is written as before.
 
 import { minimalEdit } from "./edit";
 import { lineSeparator } from "./leaves/text";
@@ -50,6 +57,49 @@ export function throughRoom(holder: LiveHolder | null, change: (text: string) =>
   if (!edit) return "same";
   holder.edit(edit);
   return "room";
+}
+
+/** A room this window joined for one write, holding no tab: the room's
+ *  text as it joined, the edit made into it, `send` handing the edit to
+ *  the room and having the room write the file — false when the room
+ *  took nothing (the person only reads, the link dropped) — and `leave`. */
+export type VisitedRoom = LiveHolder & {
+  send: () => Promise<boolean>;
+  leave: () => Promise<void>;
+};
+
+/** What the window asks of the side that keeps the rooms (collab.ts):
+ *  whether someone is in the note's room now, and a visit to it. */
+export type RoomSide = {
+  present: (path: string) => Promise<boolean>;
+  visit: (path: string) => Promise<VisitedRoom | null>;
+};
+
+/** Make the write `change` asks for to the note at `path`: through this
+ *  window's tab when it holds the note live (`throughRoom`); else, when
+ *  someone is in the note's room, by joining it for this one edit, the
+ *  room writing the file before this window leaves; else `disk`, the
+ *  caller writing the file as before — also when the visit could not be
+ *  made or the room took nothing, so the write is never lost. */
+export async function writeLive(
+  path: string,
+  holder: LiveHolder | null,
+  change: (text: string) => string | null,
+  side: RoomSide | null,
+): Promise<Through> {
+  if (holder) return throughRoom(holder, change);
+  if (!side) return "disk";
+  const present = await side.present(path).catch(() => false);
+  if (!present) return "disk";
+  const room = await side.visit(path).catch(() => null);
+  if (!room) return "disk";
+  try {
+    const through = throughRoom(room, change);
+    if (through !== "room") return through;
+    return (await room.send().catch(() => false)) ? "room" : "disk";
+  } finally {
+    await room.leave().catch(() => undefined);
+  }
 }
 
 /** `text` with `change` made. */

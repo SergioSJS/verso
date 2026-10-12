@@ -25,6 +25,7 @@ import { yCollab, ySyncAnnotation, yUndoManagerKeymap } from "y-codemirror.next"
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from "y-protocols/awareness";
 import * as Y from "yjs";
 import { commands, type Capabilities, type CollabState, type CollabUpdate } from "./bindings";
+import type { RoomSide, TextChange, VisitedRoom } from "./roomWrites";
 
 let capabilities: Promise<Capabilities | null> | null = null;
 
@@ -330,6 +331,63 @@ export async function joinCollab(path: string, handlers: CollabHandlers, catchin
   if (r.status !== "ok" || r.data.read_only) return null;
   return new CollabSession(path, r.data, handlers, synced);
 }
+
+/** Whether someone else is in the room of `path` now — another person,
+ *  or another window of this app — while this window holds it in no tab:
+ *  a write that is not a keystroke then joins the room (roomWrites.ts,
+ *  ADR 0082). False where the side keeps no rooms, the person keeps the
+ *  folder's notes local (item 15), or the link is down: the file is
+ *  written as before. */
+async function presentElsewhere(path: string): Promise<boolean> {
+  if (sessions.has(path) || !(await canCollab())) return false;
+  if ((await syncedSide()) && !liveAllowed()) return false;
+  const r = await commands.collabPresent(path);
+  return r.status === "ok" && r.data;
+}
+
+/** Into the room of `path` for one write, with no tab: the room's text as
+ *  it is, the one edit made into a document of its own, sent, the room
+ *  asked to write the file at once (⌘S's `collab_save`; on a synced folder
+ *  sync brings it down), and out. The others' edits meanwhile are not
+ *  heard here: Yjs merges this edit with them in the room. */
+async function visitRoom(path: string): Promise<VisitedRoom | null> {
+  if (sessions.has(path)) return null;
+  const r = await commands.collabJoin(path);
+  // A file whose line ends are mixed is in no room: written as before.
+  if (r.status !== "ok" || r.data.read_only) return null;
+  const doc = new Y.Doc();
+  Y.applyUpdate(doc, fromB64(r.data.update), REMOTE);
+  const text = doc.getText("verso");
+  const before = Y.encodeStateVector(doc);
+  let left = false;
+  return {
+    text: () => text.toString(),
+    edit: (c: TextChange) => {
+      doc.transact(() => {
+        if (c.to > c.from) text.delete(c.from, c.to - c.from);
+        if (c.insert) text.insert(c.from, c.insert);
+      });
+    },
+    send: async () => {
+      const sent = await commands.collabUpdate(path, toB64(Y.encodeStateAsUpdate(doc, before)));
+      // Refused — the person only reads, the link dropped: nothing went.
+      if (sent.status !== "ok") return false;
+      // In the room now, whatever the save says: a room stopped by a
+      // change on disk writes it once the people in it choose.
+      await commands.collabSave(path);
+      return true;
+    },
+    leave: async () => {
+      if (left) return;
+      left = true;
+      doc.destroy();
+      await commands.collabLeave(path);
+    },
+  };
+}
+
+/** The rooms as the window's writes that are not keystrokes reach them. */
+export const roomSide: RoomSide = { present: presentElsewhere, visit: visitRoom };
 
 /** The synced folder's state changed (sync.ts): what the side can do is
  *  asked again, and each synced note goes local or back into its room. */
