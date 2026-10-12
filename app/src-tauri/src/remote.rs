@@ -44,6 +44,7 @@ pub(crate) fn contract_version() -> String {
 /// other one is this app's (its windows, its menus, its updates).
 pub(crate) fn forwards(cmd: &str) -> bool {
     verso_service::ops::access(cmd).is_some()
+        || verso_service::trash::COMMANDS.contains(&cmd)
         || matches!(
             cmd,
             "current_folder"
@@ -112,6 +113,21 @@ const PING_EVERY: std::time::Duration = std::time::Duration::from_secs(1);
 /// Pings in a row left unanswered before the connection is taken as
 /// closed: within a minute and a half of the server going silent.
 const MISSED: u8 = 2;
+
+/// How long one message may take to be written before the server is
+/// taken as no longer reading (threat-model.md, gap 2): a floor, plus the
+/// message's size at 32 KiB/s (256 kbit/s, under a weak mobile link's) —
+/// the server's bound for its own writes (crates/verso-server, rpc.rs).
+/// A piece of a file as base64 (5.6 MB) gets about three minutes. A
+/// write that does not end in time closes the connection as a failed one
+/// does, instead of holding every question behind it until the system
+/// gives up on the socket.
+fn send_within(bytes: usize) -> std::time::Duration {
+    const FLOOR: u64 = 30;
+    const RATE: u64 = 32 * 1024;
+    let bytes = u64::try_from(bytes).unwrap_or(u64::MAX);
+    std::time::Duration::from_secs(FLOOR.saturating_add(bytes / RATE))
+}
 
 /// Messages a connection holds unwritten. A sync sends one piece of a
 /// file and waits for its answer before the next; a window asks a few
@@ -484,6 +500,9 @@ pub(crate) async fn server_folders<R: tauri::Runtime>(
                     id: f["id"].as_str().unwrap_or_default().to_owned(),
                     name: f["name"].as_str().unwrap_or_default().to_owned(),
                     role: f["role"].as_str().unwrap_or_default().to_owned(),
+                    owner: f["owner"]["name"].as_str().map(str::to_owned),
+                    share: f["share"] == true,
+                    missing: f["missing"] == true,
                 })
                 .collect()
         })
@@ -688,7 +707,16 @@ pub(crate) async fn dial_hello(
                         close(&writing);
                         return;
                     };
-                    write.send(Message::Text(text.into())).await
+                    let within = send_within(text.len());
+                    let sent = tokio::time::timeout(within, write.send(Message::Text(text.into()))).await;
+                    if sent.is_err() {
+                        log::write(
+                            "WARN",
+                            "host",
+                            &format!("the server at {url} took no message in {} s: its connection is taken as closed", within.as_secs()),
+                        );
+                    }
+                    sent.map_err(|_| ()).and_then(|s| s.map_err(|_| ()))
                 }
                 _ = ping.tick() => {
                     // A question waiting: its answer may be a piece of a
@@ -711,7 +739,10 @@ pub(crate) async fn dial_hello(
                     // Counted before it is written: its pong may be heard
                     // before this task runs again.
                     unanswered_w.fetch_add(1, Ordering::Relaxed);
-                    write.send(Message::Ping(Default::default())).await
+                    tokio::time::timeout(send_within(0), write.send(Message::Ping(Default::default())))
+                        .await
+                        .map_err(|_| ())
+                        .and_then(|s| s.map_err(|_| ()))
                 }
             };
             if sent.is_err() {

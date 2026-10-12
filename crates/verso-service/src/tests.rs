@@ -105,3 +105,56 @@ fn a_poisoned_lock_still_answers() {
             .is_ok()
     );
 }
+
+/// The bin of a folder of this computer, its records in the folder's index
+/// (ADR 0080 items 2, 4, 5 and 7): listed with who and when, restored,
+/// deleted for good, emptied.
+#[test]
+fn the_bin_of_a_local_folder_is_listed_restored_and_emptied() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let service = Service::new(Some(config.path().to_owned()));
+    let path = dir.path().to_owned();
+    let opened = service
+        .open("a", move |c| Workspace::open(&path, c))
+        .unwrap();
+    service.attach("a", opened);
+    service
+        .with("a", |ws| {
+            for name in ["Uma", "Duas", "Tres"] {
+                ws.create_note(name, "texto")?;
+                let gone = ws.delete_note(name)?;
+                trash::deleted(ws, None, &gone, None)?;
+            }
+            let policy = trash::Policy::local(ws);
+            assert_eq!(policy.days, verso_core::trash::DEFAULT_DAYS);
+            let list = trash::list(ws, None, policy)?;
+            assert_eq!(list.entries.len(), 3);
+            assert!(list.entries.iter().all(|e| e.known && e.by.is_none()));
+            assert!(list.can_purge && list.can_set && list.quota.is_none());
+            let first = list.entries[0].expires.unwrap() - list.entries[0].deleted;
+            assert!((first - 30.0 * 86_400.0).abs() < 1.0);
+            let (back, _) = trash::restore(ws, None, ".trash/Uma.md", "2026-10-11", "en")?;
+            assert_eq!(back.path, "Uma.md");
+            assert!(!back.beside);
+            assert!(ws.notes()?.contains(&"Uma.md".to_owned()));
+            let gone = trash::delete(ws, None, &[".trash/Duas.md".to_owned()])?;
+            assert_eq!(gone.len(), 1);
+            ws.set_trash_days(0)?;
+            let list = trash::list(ws, None, trash::Policy::local(ws))?;
+            assert_eq!(list.entries.len(), 1);
+            assert_eq!(list.days, 0);
+            assert!(list.entries[0].expires.is_none());
+            trash::empty(ws, None)?;
+            assert!(
+                trash::list(ws, None, trash::Policy::local(ws))?
+                    .entries
+                    .is_empty()
+            );
+            // Nothing in the bin at a path: not found.
+            let missing = trash::restore(ws, None, ".trash/Uma.md", "2026-10-11", "en");
+            assert!(missing.is_err());
+            Ok(())
+        })
+        .unwrap();
+}

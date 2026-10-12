@@ -21,6 +21,23 @@ in the real app.
 
 ### Sync and Universo (feat/universo, 2026-10-11)
 
+- [ ] **Two people share folders on one Universo** (ADR 0081, 2026-10-11):
+  two accounts, two browsers (and the desktop app). Sérgio right-clicks a
+  folder of his vault, *Compartilhar…*, Ana's e-mail, *edita*; Ana's
+  folder button lists it under *Compartilhados comigo* as "Pasta
+  (Sérgio)", it opens in a window of its own, a note made there appears in
+  Sérgio's folder, a link to a note of his outside reads *Não está no que
+  foi compartilhado com você.*; Ana shares one back with Sérgio, *lê*. In
+  the desktop app Ana syncs the share with an empty folder of her computer
+  (Ajustes › Servidores › *Sincronizar*), never inside her vault. Sérgio
+  renames the shared folder in his window: Ana's window and sync go on.
+  Notes that embed pictures from the vault's attachments folder: the
+  dialog offers *Incluir “…”, só leitura*, and Ana then sees the pictures
+  and cannot change them. Sérgio removes Ana: her window closes the
+  folder at once, her synced copy stays and its sync says the folder is
+  gone. Both at a phone's width too. The console's folder page lists the
+  share with its people; the audit log has each step with its path.
+
 - [ ] **"Guardar os dois" in the editor's conflict** (`18da5c7`): with a
   synced folder, keep a note open in Editar with unsaved text while another
   device changes it; the view "O arquivo mudou em disco…" offers a third
@@ -54,6 +71,36 @@ in the real app.
   once (not at its next scan), that account's browser lands on the sign-in
   page, its token stops answering, and the log lists "encerrou as sessões e
   os tokens da conta" about that account.
+
+### The trash (ADR 0080, feat/universo, 2026-10-11)
+
+- [ ] **The trash of a folder of this computer** (`9c10495`, `173cf7e`):
+  in the installed app, delete a note, then *Ajustes › Lixeira* (or the
+  palette's "Abrir a lixeira", or the tree's right-click on empty space):
+  the note is listed with today's date; "Restaurar" puts the file back on
+  disk (the Finder shows it) and the log has a `trash` "restored" line.
+- [ ] **What an older trash held** (`8ad89d2`): open a folder whose `.trash`
+  Obsidian or an older Verso filled; its items are listed "antes de …
+  (data desconhecida)", nothing is deleted at once; *Manter arquivos
+  apagados por* "1 dia" a day later removes them, each an "expired" line of
+  the log; the sweep also runs a day after the folder was opened, while it
+  stays open.
+- [ ] **A deletion sync carried out here** (`9c10495`): with two computers
+  syncing one folder, delete a note on one; on the other, the trash lists it
+  "pela sincronização com <servidor>".
+- [ ] **The test server's trash** (`02903f1`): after the upgrade the 306 MB
+  already in a folder's `.trash` are listed with an unknown date and
+  nothing goes before 30 days from the first walk; the console's folder page
+  shows *Lixeira* (count, size, "fora da cota") and *Dias na lixeira*; the
+  Overview's totals add the trashes; an editor restores but sees no
+  "Apagar agora"; the owner shortens the days from the window and cannot
+  pass the admin's.
+- [ ] **A version a device's write replaced** (`02903f1`, F18): on a synced
+  computer, let another program save an old buffer over a note sync just
+  updated; on the server, *Lixeira* lists "substituído por <aparelho>", and
+  "Restaurar" puts it beside the note as `<nota> (restaurado <data>).md`.
+- [ ] **The desktop window on a server's folder** (`9c10495`): *Ajustes ›
+  Lixeira* shows the server's trash, with the role's limits.
 
 ### Version 0.5 (feat/windows-fs, feat/signed-updates)
 

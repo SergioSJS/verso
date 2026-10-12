@@ -295,6 +295,13 @@ impl Side<'_> {
             }
             Action::DeleteLocal { path } => {
                 let p = path.clone();
+                let by = format!(
+                    "{}{}",
+                    verso_core::trash::BY_SYNC,
+                    s.url
+                        .split_once("://")
+                        .map_or(s.url.as_str(), |(_, host)| host)
+                );
                 let planned = hash_here(local, path);
                 tokio::task::block_in_place(|| {
                     ctx.service.with_key(&s.key, move |ws| {
@@ -306,7 +313,10 @@ impl Side<'_> {
                                 message: "changed since it was read".to_owned(),
                             }));
                         }
-                        ws.delete_entry(&p)?;
+                        let gone = ws.delete_entry(&p)?;
+                        // The bin's record names the server whose sync
+                        // carried the deletion out (ADR 0080 item 9).
+                        crate::trash::record(ws, &gone, Some(&by));
                         ws.prune_empty_parents(&p);
                         Ok(())
                     })

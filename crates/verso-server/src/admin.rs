@@ -207,6 +207,9 @@ pub struct Invite {
     email: Option<String>,
     folder: Option<String>,
     role: Option<Role>,
+    /// A share the invitation carries (ADR 0081 item 4): its folder is the
+    /// share's.
+    share: Option<String>,
 }
 
 /// An invitation: a single-use link for seven days, which may already
@@ -231,28 +234,36 @@ pub async fn invite(ctx: Ctx, Json(body): Json<Invite>) -> ApiResult<Response> {
             ));
         }
     }
-    if let Some(f) = &body.folder {
+    let shared = match &body.share {
+        Some(s) => Some(ctx.server.db.share(s)?.ok_or_else(ApiError::not_found)?),
+        None => None,
+    };
+    let folder = shared
+        .as_ref()
+        .map(|s| s.folder.clone())
+        .or(body.folder.clone());
+    if let Some(f) = &folder {
         ctx.server.db.folder(f)?.ok_or_else(ApiError::not_found)?;
     }
-    let role = body
-        .folder
-        .as_ref()
-        .map(|_| body.role.unwrap_or(Role::Reader));
+    let role = folder.as_ref().map(|_| {
+        let r = body.role.unwrap_or(Role::Reader);
+        if shared.is_some() {
+            r.min(Role::Editor)
+        } else {
+            r
+        }
+    });
     let (token, inv) = ctx.server.db.create_invitation(&NewLink {
         kind: "invite",
         email,
-        folder: body.folder.as_deref(),
+        folder: folder.as_deref(),
         role,
         created_by: Some(&admin),
         life: db::INVITE_LIFE,
+        share: shared.as_ref().map(|s| s.id.as_str()),
         ..NewLink::default()
     })?;
-    ctx.audit(
-        "invitation_created",
-        Some(&inv.id),
-        body.folder.as_deref(),
-        true,
-    );
+    ctx.audit("invitation_created", Some(&inv.id), folder.as_deref(), true);
     let address = link(&ctx, "invite", &token);
     // With a mail server, the invitation goes to its address too (ADR 0074
     // item 4); the admin has the link either way.

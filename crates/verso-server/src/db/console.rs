@@ -275,7 +275,7 @@ impl Db {
             .map_err(e)?;
         let mut st = conn
             .prepare(&format!(
-                "SELECT at, actor, action, subject, folder, address, ok FROM audit {wh}
+                "SELECT at, actor, action, subject, folder, address, ok, path FROM audit {wh}
                  ORDER BY at DESC, rowid DESC LIMIT ?6 OFFSET ?7"
             ))
             .map_err(e)?;
@@ -299,6 +299,7 @@ impl Db {
                         folder: r.get(4)?,
                         address: r.get(5)?,
                         ok: r.get(6)?,
+                        path: r.get(7)?,
                     })
                 },
             )

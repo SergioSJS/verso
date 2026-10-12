@@ -116,6 +116,17 @@ pub async fn folder(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
         .into_iter()
         .map(|(a, role)| json!({ "id": a.id, "name": a.name, "email": a.email, "role": role }))
         .collect();
+    let mut shares: Vec<Value> = Vec::new();
+    for share in db.shares_of(&id)? {
+        let people: Vec<Value> = db
+            .share_people(&share.id)?
+            .into_iter()
+            .map(|(a, role)| json!({ "id": a.id, "name": a.name, "email": a.email, "role": role }))
+            .collect();
+        shares.push(json!({
+            "id": share.id, "path": share.path, "attachments": share.attachments, "people": people,
+        }));
+    }
     let mut emails: HashMap<String, String> = HashMap::new();
     let mut changes: Vec<Value> = Vec::new();
     for c in db.latest_changes(&id, LATEST_CHANGES)? {
@@ -135,11 +146,22 @@ pub async fn folder(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
             "renamedFrom": c.renamed_from, "who": who, "device": c.device,
         }));
     }
+    // The bin (ADR 0080 items 4 and 8): walked off the event loop.
+    let trash = {
+        let s = std::sync::Arc::clone(&ctx.server);
+        let f = id.clone();
+        tokio::task::spawn_blocking(move || crate::trash::console_view(&s, &f))
+            .await
+            .map_err(|e| e.to_string())??
+    };
     Ok(ok(json!({
         "id": folder.id,
         "name": folder.dir,
         "created": folder.created,
+        "trash": trash,
         "members": members,
+        // Its shares by path, with their people (ADR 0081 item 7).
+        "shares": shares,
         "space": crate::folders::space(&ctx, &id),
         "quota": db.quota(&id)?,
         "twins": crate::twins::of_folder(&ctx.server, &id),
@@ -179,6 +201,78 @@ pub async fn set_quota(
         true,
     );
     Ok(ok(json!({ "quota": bytes })))
+}
+
+#[derive(Deserialize)]
+pub struct SetTrash {
+    /// Days the folder's bin keeps deleted files, 0 for ever, or null for
+    /// the server's default (`VERSO_TRASH_DAYS`).
+    days: Option<u32>,
+}
+
+/// How long a folder's bin keeps deleted files, set by an admin (ADR 0080
+/// item 3): the admin lengthens it or turns expiry off; an owner's shorter
+/// choice stays under it. In the log; what is past the new time goes now.
+pub async fn set_trash(
+    ctx: Ctx,
+    Path(id): Path<String>,
+    Json(body): Json<SetTrash>,
+) -> ApiResult<Response> {
+    ctx.changes()?;
+    ctx.admin()?;
+    let db = &ctx.server.db;
+    db.folder(&id)?.ok_or_else(ApiError::not_found)?;
+    if body.days.is_some_and(|d| d > 36_500) {
+        return Err(ApiError::bad(
+            "bad_days",
+            "a number of days, 0 for ever, or none",
+        ));
+    }
+    db.set_trash_days(&id, body.days)?;
+    // An owner's choice the admin's new days no longer bound is kept only
+    // while it is shorter.
+    if let (_, Some(owner)) = db.trash_days(&id)? {
+        let admin = body.days.unwrap_or(ctx.server.config.trash_days);
+        if admin != 0 && owner >= admin {
+            db.set_trash_owner_days(&id, None)?;
+        }
+    }
+    ctx.audit(
+        "trash_days",
+        Some(
+            &body
+                .days
+                .map_or_else(|| "default".to_owned(), |d| d.to_string()),
+        ),
+        Some(&id),
+        true,
+    );
+    let s = std::sync::Arc::clone(&ctx.server);
+    let f = id.clone();
+    let view = tokio::task::spawn_blocking(move || {
+        crate::trash::sweep(&s, &f);
+        crate::trash::console_view(&s, &f)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    Ok(ok(view))
+}
+
+/// Empty a folder's bin from the console (ADR 0080 item 4), in the log.
+pub async fn empty_trash(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
+    ctx.changes()?;
+    ctx.admin()?;
+    ctx.server.db.folder(&id)?.ok_or_else(ApiError::not_found)?;
+    let actor = ctx.who()?.account.id.clone();
+    let s = std::sync::Arc::clone(&ctx.server);
+    let f = id.clone();
+    let view = tokio::task::spawn_blocking(move || {
+        crate::trash::empty_from_console(&s, &f, &actor)?;
+        crate::trash::console_view(&s, &f)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    Ok(ok(view))
 }
 
 fn bad_size() -> ApiError {
@@ -420,6 +514,14 @@ pub async fn overview(ctx: Ctx) -> ApiResult<Response> {
     .await
     .map_err(|e| e.to_string())?;
     let (accounts, folder_count, space) = ctx.server.db.totals()?;
+    // The bins, as last seen: shown beside the space, not counted in it
+    // (ADR 0080 items 4 and 8).
+    let mut trash = (0_u64, 0_u64);
+    for f in ctx.server.db.folders()? {
+        let (count, size) = crate::trash::kept_size(&ctx.server, &f.id);
+        trash.0 += count;
+        trash.1 += size;
+    }
     let near: Vec<Value> = ctx
         .server
         .db
@@ -458,6 +560,8 @@ pub async fn overview(ctx: Ctx) -> ApiResult<Response> {
         "accounts": accounts,
         "folders": folder_count,
         "space": space,
+        "trash": { "count": trash.0, "size": trash.1 },
+        "defaultTrashDays": config.trash_days,
         "nearQuota": near,
         "twins": twins,
         "defaultQuota": config.folder_quota,
@@ -504,6 +608,7 @@ pub async fn config(ctx: Ctx) -> ApiResult<Response> {
             c.folder_quota.map(|q| q.to_string()),
             false,
         ),
+        ("VERSO_TRASH_DAYS", Some(c.trash_days.to_string()), false),
     ]
     .into_iter()
     .map(|(name, value, secret)| {

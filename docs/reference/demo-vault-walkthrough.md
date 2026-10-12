@@ -320,6 +320,19 @@ point 13).
    scrolls it and moves nothing; a finger held on a row and lifted opens
    its menu; held and then moved, it drags the row into a folder. Level: H
    (touch moves only in Chromium); E: `touch.spec.mjs`.
+11. Note 14, "A Lixeira" ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)):
+   delete a note, make another with its name, and open the trash from the
+   palette ("Abrir a lixeira"), from the tree's right-click on empty space,
+   or from *Ajustes › Arquivos e links*, where the trash shows beside the
+   folder's space: the list has a header row, the note with when and where
+   it was; "Restaurar" puts it beside the new one as `<nota> (restaurado
+   <data>).md` and says so; *Manter arquivos apagados por* "7 dias" removes
+   at once what was deleted longer ago; "Apagar agora" and "Esvaziar a
+   lixeira" ask in the page with the size. Level: H; E: `trash.spec.mjs`
+   (also at a phone's and a tablet's size); S:
+   `crates/verso-core/tests/trash.rs` (the sweep's guardrail, the quota's
+   guard), `crates/verso-fs/src/trashbin/tests.rs` (no symlink followed);
+   A: the files on disk and the log's lines (`manual-checks.md`).
 
 ## 7. The web
 
@@ -689,24 +702,48 @@ rest below and in `manual-checks.md`.
    in *Servidores* (`tests_sync.rs`,
    `an_ended_sessions_connection_is_closed_at_once`); two real computers,
    by hand.
-9. Editing together in a synced folder ([ADR
-   0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), from note 23's
-   section *Editar junto numa pasta sincronizada*: with the folder syncing,
-   a note opened in *Editar* says *ao vivo, só você* beside its title and
-   in the status bar; another person in it is named (*ao vivo, com Bia*)
-   and their text arrives; what is typed goes to the room, never to the
-   file, which follows the room's save; the link dropped, the note says
-   *local — sem conexão*, keeps its text and saves it here; back, *A nota
-   está ao vivo de novo* and what was typed is in the room; paused, *local
-   — sincronização pausada*; back in another room, the note is read anew
-   with its text; *Ajustes* › *Sincronizar* › *Editar notas junto enquanto
-   online* off, the note leaves the room and, opened again, joins nothing
-   (e2e, `live.spec.mjs`). Two devices and a browser in one room, a drop
-   and a return within the grace and after it, an outside program's edit,
-   a reader, a pause, and the property test that no edit is lost — the
-   host's Rust tests against a real server (`tests_live.rs`); two real
-   computers, by hand (`manual-checks.md`). The demo vault has no server:
-   the steps run in the harness's room or by hand.
+9. The trash on a server ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)):
+   a device writes other bytes over a note; *Ajustes › Lixeira* lists the
+   version it replaced, "substituído por" the device, and "Restaurar" puts
+   it beside the note; the console's folder page shows the trash, "fora da
+   cota", and its days (e2e-server, "a device's write keeps what it
+   replaced"). An editor restores but deletes nothing for good, a reader
+   sees no trash, the owner shortens the days under the admin's, and the
+   console sets and empties it; the sweep expires what is past its days and
+   the oldest while a trash alone passes the quota (`tests_trash.rs`).
+10. Sharing between people ([ADR 0081](../adr/0081-sharing-between-people-on-one-universo.md)),
+   from note 23's "Compartilhar com outra pessoa" and the tour's stop: the
+   demo vault has one account, so the other side is followed with two
+   browsers on a Universo. The folder button at the top of the side bar
+   opens the switcher, *Neste computador*, *Meus*, *Compartilhados comigo*;
+   a share opens from it (e2e, `shares.spec.mjs`, "the folder switcher").
+   As the owner, a folder's menu › *Compartilhar…*: the dialog adds a person
+   by e-mail, changes the role by keyboard, and asks before *Tirar*; the
+   tree marks the folder "compartilhada com 1 pessoa" (e2e, "the owner
+   shares a folder"). A link of a shared note to a note outside reads *Não
+   está no que foi compartilhado com você.* and makes no note (e2e, "a link
+   out of what was shared"). What the receiver may reach — never above the
+   share, by `..`, a sibling, a rename, sync's listing, reads and writes,
+   `/f/`, the events — the server's Rust tests (`tests_shares.rs`); two
+   people and the attachments folder, by hand (`manual-checks.md`).
+11. Editing together in a synced folder ([ADR
+    0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), from note 23's
+    section *Editar junto numa pasta sincronizada*: with the folder syncing,
+    a note opened in *Editar* says *ao vivo, só você* beside its title and
+    in the status bar; another person in it is named (*ao vivo, com Bia*)
+    and their text arrives; what is typed goes to the room, never to the
+    file, which follows the room's save; the link dropped, the note says
+    *local — sem conexão*, keeps its text and saves it here; back, *A nota
+    está ao vivo de novo* and what was typed is in the room; paused, *local
+    — sincronização pausada*; back in another room, the note is read anew
+    with its text; *Ajustes* › *Sincronizar* › *Editar notas junto enquanto
+    online* off, the note leaves the room and, opened again, joins nothing
+    (e2e, `live.spec.mjs`). Two devices and a browser in one room, a drop
+    and a return within the grace and after it, an outside program's edit,
+    a reader, a pause, and the property test that no edit is lost — the
+    host's Rust tests against a real server (`tests_live.rs`); two real
+    computers, by hand (`manual-checks.md`). The demo vault has no server:
+    the steps run in the harness's room or by hand.
 
 ## 14. The end
 

@@ -330,6 +330,19 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    árvore a rola e não move nada; um dedo segurado numa linha e solto abre
    o menu dela; segurado e depois movido, arrasta a linha para uma pasta.
    Nível: H (o toque só se move no Chromium); E: `touch.spec.mjs`.
+11. Nota 14, "A Lixeira" ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)):
+   apague uma nota, crie outra com o nome dela e abra a lixeira pela
+   paleta ("Abrir a lixeira"), pelo botão direito no espaço vazio da
+   árvore ou por *Ajustes › Arquivos e links*, onde a lixeira aparece ao
+   lado do espaço da pasta: a lista tem uma linha de cabeçalho, a nota com
+   quando e onde estava; "Restaurar" a põe ao lado da nova como `<nota>
+   (restaurado <data>).md` e diz isso; *Manter arquivos apagados por* "7
+   dias" remove na hora o que foi apagado antes disso; "Apagar agora" e
+   "Esvaziar a lixeira" perguntam na página, com o tamanho. Nível: H; E:
+   `trash.spec.mjs` (também no tamanho de celular e de tablet); S:
+   `crates/verso-core/tests/trash.rs` (a guarda da varredura, a da cota),
+   `crates/verso-fs/src/trashbin/tests.rs` (nenhum symlink seguido); A: os
+   arquivos no disco e as linhas do log (`manual-checks.md`).
 
 ## 7. A web
 
@@ -706,26 +719,53 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
    conectar de novo em *Servidores* (`tests_sync.rs`,
    `an_ended_sessions_connection_is_closed_at_once`); dois computadores de
    verdade, à mão.
-9. Editar junto numa pasta sincronizada ([ADR
-   0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), da seção
-   *Editar junto numa pasta sincronizada* da nota 23: com a pasta
-   sincronizando, uma nota aberta em *Editar* diz *ao vivo, só você* ao
-   lado do título e na barra de status; outra pessoa nela aparece pelo
-   nome (*ao vivo, com Bia*) e o texto dela chega; o que se digita vai para
-   a sala, nunca para o arquivo, que segue o salvamento da sala; a conexão
-   caída, a nota diz *local — sem conexão*, mantém o texto e o salva aqui;
-   de volta, *A nota está ao vivo de novo* e o que foi digitado está na
-   sala; pausada, *local — sincronização pausada*; de volta numa sala
-   outra, a nota é lida de novo com o seu texto; *Ajustes* ›
-   *Sincronizar* › *Editar notas junto enquanto online* desligado, a nota
-   sai da sala e, aberta de novo, não entra em nenhuma (e2e,
-   `live.spec.mjs`). Dois aparelhos e um navegador numa sala, uma queda e
-   uma volta dentro da carência e depois dela, a edição de um programa de
-   fora, um leitor, uma pausa, e o teste de propriedade de que nenhuma
-   edição se perde — os testes Rust do host contra um servidor de verdade
-   (`tests_live.rs`); dois computadores de verdade, à mão
-   (`manual-checks.md`). O cofre de demonstração não tem servidor: os
-   passos rodam na sala do harness ou à mão.
+9. A lixeira num servidor ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)):
+   um aparelho grava outros bytes por cima de uma nota; *Ajustes › Lixeira*
+   lista a versão substituída, "substituído por" o aparelho, e "Restaurar"
+   a põe ao lado da nota; a página da pasta no console mostra a lixeira,
+   "fora da cota", e os dias dela (e2e-server, "a device's write keeps
+   what it replaced"). Quem edita restaura mas não apaga de vez, quem só lê
+   não vê lixeira, a dona encurta os dias abaixo dos da administração, e o
+   console define e esvazia; a varredura expira o que passou dos dias e os
+   mais antigos enquanto a lixeira sozinha passa da cota
+   (`tests_trash.rs`).
+10. Compartilhar entre pessoas ([ADR 0081](../adr/0081-sharing-between-people-on-one-universo.md)),
+   a partir de "Compartilhar com outra pessoa" da nota 23 e da parada do
+   tour: o vault de demonstração tem uma conta só, então o outro lado se
+   segue com dois navegadores num Universo. O botão da pasta no topo da
+   barra lateral abre o seletor, *Neste computador*, *Meus*,
+   *Compartilhados comigo*; um compartilhamento abre por ele (e2e,
+   `shares.spec.mjs`, "the folder switcher"). Como dona, o menu de uma
+   pasta › *Compartilhar…*: o diálogo acrescenta uma pessoa pelo e-mail,
+   muda o papel pelo teclado e pergunta antes de *Tirar*; a árvore marca a
+   pasta "compartilhada com 1 pessoa" (e2e, "the owner shares a folder").
+   Um link de uma nota compartilhada para uma nota de fora diz *Não está no
+   que foi compartilhado com você.* e não cria nota (e2e, "a link out of
+   what was shared"). O que quem recebe alcança — nunca acima do
+   compartilhamento, por `..`, uma irmã, uma renomeação, a listagem do
+   sync, leituras e escritas, `/f/`, os eventos — os testes em Rust do
+   servidor (`tests_shares.rs`); duas pessoas e a pasta de anexos, à mão
+   (`manual-checks.md`).
+11. Editar junto numa pasta sincronizada ([ADR
+    0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), da seção
+    *Editar junto numa pasta sincronizada* da nota 23: com a pasta
+    sincronizando, uma nota aberta em *Editar* diz *ao vivo, só você* ao
+    lado do título e na barra de status; outra pessoa nela aparece pelo
+    nome (*ao vivo, com Bia*) e o texto dela chega; o que se digita vai para
+    a sala, nunca para o arquivo, que segue o salvamento da sala; a conexão
+    caída, a nota diz *local — sem conexão*, mantém o texto e o salva aqui;
+    de volta, *A nota está ao vivo de novo* e o que foi digitado está na
+    sala; pausada, *local — sincronização pausada*; de volta numa sala
+    outra, a nota é lida de novo com o seu texto; *Ajustes* ›
+    *Sincronizar* › *Editar notas junto enquanto online* desligado, a nota
+    sai da sala e, aberta de novo, não entra em nenhuma (e2e,
+    `live.spec.mjs`). Dois aparelhos e um navegador numa sala, uma queda e
+    uma volta dentro da carência e depois dela, a edição de um programa de
+    fora, um leitor, uma pausa, e o teste de propriedade de que nenhuma
+    edição se perde — os testes Rust do host contra um servidor de verdade
+    (`tests_live.rs`); dois computadores de verdade, à mão
+    (`manual-checks.md`). O cofre de demonstração não tem servidor: os
+    passos rodam na sala do harness ou à mão.
 
 ## 14. O fim
 

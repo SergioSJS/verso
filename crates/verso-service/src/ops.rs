@@ -172,6 +172,7 @@ ops! {
                 alias: l.alias,
                 line: l.line,
                 col: l.col,
+                outside: false,
             })
             .collect())
     }

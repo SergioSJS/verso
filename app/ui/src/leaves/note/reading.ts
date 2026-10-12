@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { sh } from "../../shareStrings";
 import { ensureSyntaxTree, foldAll, syntaxTree, unfoldAll } from "@codemirror/language";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { baseHost, liveBases } from "../../bases";
@@ -472,9 +473,16 @@ export async function relink(this: NoteLeaf, path: string): Promise<void> {
   const [back, links] = await Promise.all([commands.backlinks(path), commands.links(path)]);
   if (this.path !== path) return;
   this.resolved = new Map();
-  if (links.status === "ok") for (const l of links.data) this.resolved.set(l.target.toLowerCase(), l.resolved);
+  this.outside = new Set();
+  if (links.status === "ok") {
+    for (const l of links.data) {
+      this.resolved.set(l.target.toLowerCase(), l.resolved);
+      // Not in what was shared with the person (ADR 0081 item 11).
+      if (l.outside) this.outside.add(l.target.toLowerCase());
+    }
+  }
   this.backlinksData = back.status === "ok" ? back.data.map((b) => ({ from: b.from, line: b.line })) : [];
-  this.linksData = links.status === "ok" ? links.data.map((l) => ({ target: l.target, resolved: l.resolved })) : [];
+  this.linksData = links.status === "ok" ? links.data.map((l) => ({ target: l.target, resolved: l.resolved, outside: l.outside })) : [];
   this.dressLinks(path);
   if (this.pane.active === this) panel.show(this);
 }
@@ -486,6 +494,14 @@ export function dressLinks(this: NoteLeaf, path: string): void {
     const target = a.dataset["target"] ?? "";
     const to = this.resolve(target);
     a.classList.toggle("unresolved", to === null);
+    // A note outside what was shared: like an unresolved link, and it says
+    // so (ADR 0081 item 11); it never makes a note.
+    const out = to === null && this.isOutside(target);
+    a.classList.toggle("outside", out);
+    if (out) {
+      a.title = sh.notShared;
+      a.setAttribute("aria-description", sh.notShared);
+    }
     // `[[Note#Heading]]` reads as "Note › Heading" when it has no alias.
     if (a.textContent === target && /[#^]/.test(target)) a.textContent = target.replace(/#\^?/g, " › ");
     if (settings.stickerInLinks && to) {
@@ -511,7 +527,22 @@ export function resolve(this: NoteLeaf, target: string): string | null {
   return this.resolved.get(key.toLowerCase()) ?? this.resolved.get(target.toLowerCase()) ?? resolveNoteByName(key, this.path);
 }
 
+/** Whether a link's target is a note or a file outside what was shared
+ *  with the person (ADR 0081 item 11). */
+export function isOutside(this: NoteLeaf, target: string): boolean {
+  const key = (target.split(/[#^]/)[0] ?? "").trim().toLowerCase();
+  return this.outside.has(key) || this.outside.has(target.toLowerCase());
+}
+
 export function dress(this: NoteLeaf, forPath: string): void {
+  // An embed of what was not shared shows the same words in its place.
+  for (const span of this.preview.querySelectorAll<HTMLElement>("span.embed")) {
+    const raw = span.dataset["target"] ?? "";
+    if (this.resolve(raw) !== null || !this.isOutside(raw)) continue;
+    const said = h("span", "embed-outside", sh.notShared);
+    said.dataset["target"] = raw;
+    span.replaceWith(said);
+  }
   for (const span of this.preview.querySelectorAll<HTMLElement>("span.embed:not(.file)")) {
     const raw = span.dataset["target"] ?? "";
     const to = this.resolve(raw);
@@ -733,7 +764,8 @@ export function gatherFootnotes(this: NoteLeaf): void {
   for (const d of defs) {
     const back = h("a", "footnote-back", "↩");
     back.href = `#fnref-${d.id}`;
-    back.title = d.id;
+    // The label as the note wrote it, without the sanitizer's prefix.
+    back.title = d.id.replace(/^note-/, "");
     // Said as what it does, not as the arrow it draws.
     back.setAttribute("aria-label", t.footnoteBack);
     d.append(back);

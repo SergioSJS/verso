@@ -180,6 +180,30 @@ Uma atualização mantém o `/etc/universo/universo.env` editado e reinicia um
 serviço em execução. Uma remoção para e desabilita o serviço e deixa
 `/var/lib/universo` e o usuário `universo` onde estão: são dados do host.
 
+Duas coisas vistas em 2026-10-12 (seção 15) ao instalar de novo depois de
+uma remoção:
+
+- **Debian e Ubuntu**: o `apt remove` (não o `apt purge`) deixa o pacote
+  conhecido do dpkg, com as configurações, então instalá-lo de novo é uma
+  atualização aos olhos do dpkg: o `universo.env` editado fica e o serviço
+  volta **desabilitado**. Habilite de novo com
+  `sudo systemctl enable --now universo`; ele parte dos mesmos dados. O
+  pacote verificado não imprimiu nada nesse caso; o `postinstall.sh` agora
+  imprime a mensagem de que não está rodando sempre que a unit não está
+  habilitada (ainda não verificado num host).
+- **Fedora e RHEL**: o `dnf remove` guarda um
+  `/etc/universo/universo.env` editado como
+  `/etc/universo/universo.env.rpmsave` (o rpm faz isso com um arquivo de
+  configuração alterado na remoção), e instalar de novo põe um
+  `universo.env` modelo, novo, ao lado dele. Mova o seu de volta antes de
+  iniciar o serviço, ou toda configuração alterada (`VERSO_PUBLIC_URL` e o
+  resto) se perde:
+
+  ```sh
+  sudo mv /etc/universo/universo.env.rpmsave /etc/universo/universo.env
+  sudo systemctl enable --now universo
+  ```
+
 ## 6. O arquivo
 
 `universo-<versão>-x86_64.tar.gz` e `-aarch64.tar.gz` trazem
@@ -230,6 +254,7 @@ vazio conta como não definido.
 | `VERSO_SMTP_URL` | não | o servidor de correio do host (`smtps://usuario:senha@host:465`, ou `smtp://…:587?tls=required`): links de login, "esqueci a senha" e convites enviados por e-mail |
 | `VERSO_MAIL_FROM` | não | o remetente desses e-mails; `Verso <verso@` o host do endereço público `>` por padrão |
 | `VERSO_FOLDER_QUOTA` | não | a cota que uma pasta nova recebe: bytes, ou um tamanho como `500MB` ou `10GB`; nenhuma quando não definida. O console (`/admin`, Pastas) muda a de cada pasta ([ADR 0077](../adr/0077-the-server-administration-console-and-folder-quotas.md)) |
+| `VERSO_TRASH_DAYS` | 30 | quantos dias a lixeira de uma pasta (`.trash/`) guarda os arquivos apagados e as versões que a escrita de um aparelho substituiu; `0` guarda para sempre. A página da pasta no console define o de cada pasta, e a dona da pasta pode encurtá-lo pela janela ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)). A lixeira é varrida ao iniciar e uma vez por dia; aparece, mas não conta na cota, e quando a lixeira sozinha de uma pasta passa da cota os itens mais antigos expiram antes |
 
 Sem `VERSO_SMTP_URL` nada é enviado: o admin copia os links de convite e de senha nova à mão.
 
@@ -394,7 +419,8 @@ seção 3) em 2026-10-10, com os números em `scripts/sync-lab/results.jsonl`:
 - **CPU**: o hash de cada arquivo gravado (SHA-256), a indexação das notas
   para a busca, e o TLS quando é o próprio servidor que o faz.
 
-E uma VM do tamanho da VPS mais barata, em 2026-10-11: 1 vCPU, 1 GB de
+E uma VM do tamanho da VPS mais barata, em 2026-10-11 (e, em 2026-10-12,
+um convidado de 453 MiB: o último item): 1 vCPU, 1 GB de
 memória (o `free -m` do convidado mostrava 956 MB no total), um disco
 virtual de 10 GB no Proxmox, a imagem cloud do Ubuntu 26.04 server sem
 desktop, e o Universo, o build b8ebc5f (código do servidor 552f0f6),
@@ -423,7 +449,8 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
   de 62 MB aos quatro aparelhos ao mesmo tempo (69 s) chegou a 200 MB, e o
   processo manteve cerca de 151 MB residentes depois: o alocador da glibc
   guardou a memória tomada no pico em vez de devolvê-la ao sistema. O
-  build musl da release a devolve (**O alocador**, abaixo).
+  build musl puro a devolve, e o build musl + mimalloc distribuído guarda
+  cerca de 70–74 MB depois de um pico (**O alocador**, abaixo).
 - **O dia a dia**: 20 minutos de soak, quatro aparelhos editando e uma nota
   editada dos dois lados a cada rodada: RSS estável em 151 MB, CPU abaixo
   de 2 %, 33 rodadas, os cinco lados iguais byte a byte em todo ponto de
@@ -445,15 +472,20 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
   quadro. A mesma carga num Mac de 16 CPUs: p50 cerca de 530 ms, 132,9
   operações por segundo (a linha "round 2 final build 3fb8c3b" do
   `results.jsonl`).
-- **Arquivos grandes**: um arquivo em trânsito fica inteiro na memória uma
-  vez para cada aparelho que o busca, e a codificação base64 soma um terço,
-  então o servidor segura cerca de 2,3 × o tamanho do arquivo × os
-  aparelhos que o buscam ao mesmo tempo. Um arquivo novo de 60 MB gravado
+- **Arquivos grandes** (medido antes do 95d11dc, não medido de novo
+  desde então): um arquivo em trânsito ficava inteiro na memória uma vez
+  para cada aparelho que o buscava, e a codificação base64 somava um terço,
+  então o servidor segurava cerca de 2,3 × o tamanho do arquivo × os
+  aparelhos que o buscavam ao mesmo tempo. Um arquivo novo de 60 MB gravado
   num aparelho e buscado pelos outros três ao mesmo tempo levou o processo a
   550 MB (cgroup 679 MB) na VM apertada ao que o convidado via como 705 MB
-  (pedido 512), sem ser morto; os cinco lados ficaram iguais em 56 s. "O
-  dobro do maior arquivo" sozinho é pouco quando vários aparelhos buscam ao
-  mesmo tempo.
+  (pedido 512), sem ser morto; os cinco lados ficaram iguais em 56 s. Desde
+  o 95d11dc o servidor guarda um buffer de leitura por (pasta, caminho,
+  hash), compartilhado pelos clientes que buscam esse arquivo, então a
+  multiplicação por aparelho não vale mais no servidor; o base64 de cada
+  mensagem enviada, e o lado do aparelho segurando o arquivo inteiro,
+  continuam. "O dobro do maior arquivo" sozinho era pouco quando vários
+  aparelhos buscavam ao mesmo tempo.
 - **Memória apertada** (o build glibc): o balloon foi inflado rumo a
   512 MB logo depois do
   pico de 50 aparelhos, deixando o convidado com 705 MB, e o OOM killer do
@@ -470,9 +502,13 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
   levou 122 s até os cinco lados ficarem iguais. Nenhum dos três é um
   limite limpo: o balloon do convidado devolveu memória sob pressão, e o
   convidado nunca teve 512, 384 nem 256 MB. As mortes vieram da memória
-  que o build glibc guardava depois de um pico; com o build musl da
-  release, que a devolve (**O alocador**), elas não são esperadas, mas o
-  aperto não foi rodado de novo com esse build.
+  que o build glibc guardava depois de um pico. O binário distribuído agora
+  é musl + mimalloc, que depois de um pico guarda cerca de 70–74 MB e
+  chegou a 291 MB (VmHWM) com 50 gravando (a linha do mimalloc em **O
+  alocador**); as mortes não foram medidas de novo com ele nesses
+  convidados. Um convidado de 453 MiB com o balloon desligado rodou dois
+  picos de 50 gravando com ele e nenhuma morte (**Um convidado de 453
+  MiB**, abaixo).
 - **O alocador** (medido em 2026-10-11, por volta de 19:00–19:40 BRT, na
   mesma VM): três builds do mesmo código de servidor, cada um com dois picos
   do `scripts/server-load.mjs` com 50 aparelhos por 60 s a partir da VM a
@@ -489,19 +525,21 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
   | musl + mimalloc 0.1.52 (um teste, `#[global_allocator]`, +132 KB) | 18,0 MB | 291 MB | 70/70/70; 74/74/74 MB | 65–67 MB | 15,4; 18,5 | 4,9 s; 3,5 s |
   | glibc, dinâmico (o binário da campanha) | 18,7 MB | 340; 365 MB | 307/307/307; 340/340/340 MB | 289; 322 MB | 11,8; 14,0 | 6,3 s; 5,7 s |
 
-  Nenhuma execução teve problema de integridade, e os únicos erros foram os
-  `put_hot:changed` esperados. Em cada execução inteira o amostrador, a
+  Os números de RSS recém-iniciado vêm do relatório da sessão que mediu,
+  não de um log guardado. Nenhuma execução teve problema de integridade, e
+  os únicos erros foram os `put_hot:changed` esperados. Em cada execução inteira o amostrador, a
   cada 10 s, leu: musl RSS no máximo 99 MB (12 MB no fim), cgroup no
   máximo 219 MB; mimalloc RSS no máximo 278 MB (74 MB no fim), cgroup no
   máximo 339 MB; glibc RSS no máximo 365 MB (340 MB no fim), cgroup no
-  máximo 446 MB. Lido sem rodeio: o build musl da release devolve a memória
+  máximo 446 MB. Lido sem rodeio: o build musl puro devolve a memória
   depois de um pico (12–23 MB parado, pico de cerca de 100–120 MB com 50
   gravando); o build glibc medido na campanha guardou 300 MB ou mais, e
   cresceu de pico em pico; o mimalloc fica no meio, guardando cerca de
-  70 MB, e foi um pouco mais rápido, cerca de 20–35 % mais operações por
-  segundo — um número frouxo: dois picos de um mesmo binário diferem em até
-  20 %, a pasta cresceu de uma execução para a outra, e um processo perdido
-  ocupava um dos núcleos da VM de carga. Decidido em 2026-10-11, à noite:
+  70 MB, e foi um pouco mais rápido em operações por segundo, pico a pico:
+  +10 % e +46 % sobre o musl, cerca de +31 % sobre o glibc em cada um — um
+  número frouxo: dois picos de um mesmo binário diferem em até 20 %, a pasta
+  cresceu de uma execução para a outra, e um processo perdido ocupava um
+  dos núcleos da VM de carga. Decidido em 2026-10-11, à noite:
   o mantenedor adotou o mimalloc como alocador do binário `verso` (*"pode
   implementar, deixa isso pronto"*), contra a recomendação enviada a ele,
   que era não adotá-lo.
@@ -519,25 +557,45 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
   `/var/lib/universo/folders` 272 MB.
 - **Logs**: nenhum ERROR no journal; as únicas linhas WARN nos aparelhos
   foram as `offline:` esperadas a cada parada, reinício e remoção.
+- **Um convidado de 453 MiB** (2026-10-12, 00:40–01:30 UTC): a VM 107
+  configurada com 512 MB e o balloon do Proxmox desligado, então a memória
+  era do próprio convidado e não foi devolvida sob pressão; o `free -m`
+  dele mostrava 453 MiB no total. O tipo de binário distribuído, musl
+  estático + mimalloc no 7729940 (compilado com o musl-gcc na VM de build
+  Ubuntu, não com o cargo-zigbuild da release), instalado de um `.deb`
+  gerado com o nfpm (seção 15). Dois picos do `scripts/server-load.mjs`
+  com 50 aparelhos por 60 s: RSS máximo de 200 MB (cgroup 220 MB), RSS
+  depois dos picos 104 MB e 85 MB, `MemAvailable` no mínimo 60–62 MB, CPU
+  média 46–48 %, swap 0, **nenhuma morte por OOM**, `NRestarts` 0; 7,4 e
+  5,2 operações por segundo, `put_new` p50 10,0 s e 8,3 s, p99 20 s e
+  36 s, nenhum problema de integridade — cerca de metade da taxa do
+  convidado de 1 GB. Uma causa provável, não provada: o diretório de dados
+  (395 MB) e a pasta da carga (219 MB, 3094 arquivos) juntos passam dos
+  cerca de 170 MB de cache de páginas que o convidado tem. Os logs estão em
+  `verso-sync-campaign/logs/pkg/`, guardados fora do repositório.
 
 | | Mínimo | Recomendado |
 |---|---|---|
 | Para | 1 a 3 pessoas, notas e anexos pequenos | uma família ou equipe de até ~10 pessoas, vários aparelhos cada (uma estimativa, não medida) |
 | CPU | 1 núcleo, x64 ou ARM64 (medido, linhas "cloud 1 GB" do `results.jsonl`: um aparelho gravando, cerca de 100 ms por gravação; um pico de 50 faz fila no disco, p50 4,5 s) | 2 núcleos |
-| Memória | 512 MB — ainda não medido: um convidado de 512 MB ainda não foi medido (o menor medido tinha 393 MB depois de o balloon tomar o resto, e rodou uma carga de 30 aparelhos e um arquivo de 60 MB depois de ser morto e reiniciado uma vez); a memória guardada depois de um pico que fez o processo ser morto era a do build glibc da campanha, e o build musl da release a devolve (12–23 MB parado, pico de cerca de 100–120 MB com 50 gravando); se o processo for morto, a unit o traz de volta em 5 s sem perder nada | 2 GB, ou mais que o dobro do maior arquivo que vocês sincronizam; quando vários aparelhos buscam um arquivo grande ao mesmo tempo, cerca de 2,3 × o maior arquivo × os aparelhos que o buscam (medido) |
+| Memória | 512 MB — medido em 2026-10-12 num convidado que via 453 MiB com o balloon desligado (**Um convidado de 453 MiB**, acima): o build musl + mimalloc distribuído rodou dois picos de 50 gravando sem morte por OOM, com RSS máximo de 200 MB e cerca de metade da vazão do convidado de 1 GB (causa provável, não provada: os dados e a pasta passam do cache de páginas do convidado); como medido, basta para 1 a 3 pessoas com anexos pequenos; as duas mortes da campanha, em convidados com o balloon ligado, vieram da memória que o build glibc guardava depois de um pico; se o processo for morto, a unit o traz de volta em 5 s sem perder nada | 2 GB, ou mais que o dobro do maior arquivo que vocês sincronizam; quando vários aparelhos buscavam um arquivo grande ao mesmo tempo, o servidor segurava cerca de 2,3 × o maior arquivo × os aparelhos que o buscavam (medido antes do 95d11dc e não medido de novo desde então; desde o 95d11dc o servidor guarda uma cópia por pasta, caminho e hash, então o fator por aparelho não vale mais no servidor) |
 | Disco | um SSD; o tamanho das notas × 2 + 1 GB (a lixeira, `.trash`, guarda o que foi apagado) | um SSD local para o `VERSO_DATA_DIR`; as notas num SSD ou num NAS |
 | Exemplos | um Raspberry Pi 4 de 2 GB, a VPS mais barata | um mini PC, um NAS com Docker, uma VPS de 2 GB |
 
 `[OPEN]` Se 1 GB basta para uma equipe pequena: um convidado de 1 GB serviu
 quatro aparelhos, um soak de 20 minutos, picos de 50 gravando e um arquivo
-de 60 MB para três aparelhos ao mesmo tempo (pico de 550 MB); o "até ~10
-pessoas" da tabela não foi medido.
+de 60 MB para três aparelhos ao mesmo tempo (pico de 550 MB, antes do
+95d11dc); o "até ~10 pessoas" da tabela não foi medido.
 
 `[OPEN]` Se o servidor deve mandar os pedaços de um arquivo grande a partir
-do disco em vez de segurá-lo inteiro para cada aparelho não está decidido;
-os números acima são os do build atual. Se ele deve devolver memória ao
-sistema depois de um pico está respondido pela medição do alocador acima: o
-build musl da release já devolve, e nada foi mudado.
+do disco em vez de segurar o arquivo inteiro não está decidido; os números
+de arquivos grandes acima foram medidos antes do 95d11dc, que guarda uma
+cópia por pasta, caminho e hash em vez de uma por aparelho.
+
+Quanta memória o servidor guarda depois de um pico está decidido, não
+aberto: em 2026-10-11, à noite, o mantenedor trocou o alocador do binário
+`verso` para o mimalloc (**O alocador**, acima), que guarda cerca de 70 MB
+depois de um pico de 50 gravando e chegou a 291 MB (VmHWM).
 
 Um Raspberry Pi e um NAS ainda não foram medidos, nem uma VPS num provedor
 (a VM de 2026-10-11 estava na LAN). `scripts/sync-lab/lab.sh load
@@ -559,14 +617,46 @@ máquina real. Verificado desde então:
   `/var/lib/universo`, `/etc/universo/universo.env` e o usuário `universo`;
   instalado de novo, o que partiu dos mesmos dados, os cinco lados iguais
   (seção 14).
+- 2026-10-12: o `.deb` (amd64), verificado com o binário musl estático no
+  7729940 (musl + mimalloc, compilado com o musl-gcc na VM de build
+  Ubuntu, empacotado com o nfpm a partir de `packaging/server/nfpm.yaml`
+  com `VERSO_VERSION=0.7.0-beta.1`) no Debian 12 (systemd 252): instalação
+  (a mensagem de que não está rodando, o usuário `universo` criado, a unit
+  desabilitada), início (`systemctl enable --now`, o primeiro admin vindo
+  do arquivo de configuração, `curl /` 200), reinstalação por cima de si
+  mesmo (`dpkg -i`: o serviço reiniciado, o PID mudou, a configuração
+  editada mantida), remoção (`apt remove`: o binário, a janela e a unit
+  removidos, o serviço desabilitado; `/var/lib/universo`, com o WAL do
+  banco consolidado, o `universo.env` editado e o usuário e o grupo
+  mantidos), instalação de novo (ver a nota da seção 5 sobre a
+  reinstalação: nenhuma mensagem, o serviço desabilitado até ser habilitado
+  de novo, e então partiu dos mesmos dados). Os logs estão em
+  `verso-sync-campaign/logs/pkg/`, guardados fora do repositório.
+- 2026-10-12: o `.rpm` (x86_64), o mesmo binário, no Fedora 44 (systemd
+  259, SELinux em modo enforcing: o processo rodou como
+  `unconfined_service_t`, nenhuma negação): instalação (`dnf install`; as
+  checagens OpenPGP puladas, o pacote não é assinado), início e `curl /`
+  como no Debian; reinstalação (`dnf reinstall`: o serviço reiniciado, a
+  configuração mantida, nenhum `.rpmnew`); remoção (`dnf remove`: a
+  configuração editada guardada como `universo.env.rpmsave`, um
+  `/usr/share/universo/` vazio deixado para trás, os dados, o usuário e o
+  grupo mantidos, a unit removida); instalação de novo (um `universo.env`
+  modelo, novo, ao lado do `.rpmsave`; depois do `enable --now` o servidor
+  partiu dos mesmos dados; ver a nota da seção 5).
+- 2026-10-12: o build musl estático do servidor (x86_64), feito com o
+  musl-gcc; o caminho da release, o cargo-zigbuild, ainda não foi
+  verificado.
 
 Ainda não verificado:
 
 - a imagem construída e executada em amd64 e arm64, e os binários
-  estáticos compilados com cargo-zigbuild;
-- o `.deb` em arm64, uma atualização de uma versão para outra mais nova, e
-  o `.rpm` instalado, atualizado e removido (gerado com o nfpm num Mac, com
-  um binário de mentira);
+  estáticos compilados com cargo-zigbuild (o caminho da release; um build
+  musl estático feito com o musl-gcc está verificado, acima);
+- o `.deb` e o `.rpm` em arm64, e uma atualização de uma versão para outra
+  mais nova;
+- a mensagem de que não está rodando que o `postinstall.sh` imprime quando
+  uma instalação deixa o serviço desabilitado (acrescentada depois da
+  verificação de 2026-10-12);
 - o arquivo compose no CasaOS e no ZimaOS (passa no
   `docker compose config`; o bloco `x-casaos` segue a descrição v2 da
   CasaOS AppStore de 2026-10-09, sem passar pelo validador deles);
