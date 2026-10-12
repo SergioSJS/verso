@@ -611,7 +611,7 @@ impl Root {
             }
             Ok(_) => Err(WriteError::Exists),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                confine::unportable_new(&self.path, &relative).map_err(WriteError::Confined)?;
+                self.new_names(&relative, None)?;
                 // A new file: in the nearest folder that exists on its way,
                 // so an abandoned transfer leaves no empty folder behind;
                 // the missing ones are made when it lands.
@@ -634,7 +634,7 @@ impl Root {
         staged: Staged,
     ) -> Result<(Handle, OpReport), WriteError> {
         let relative = self.confine(relative).map_err(WriteError::Confined)?;
-        confine::unportable_new(&self.path, &relative).map_err(WriteError::Confined)?;
+        self.new_names(&relative, None)?;
         let report = staged.create_at(&on_disk(&self.path, &relative))?;
         Ok((self.intern(relative), report))
     }
@@ -707,7 +707,7 @@ impl Root {
         content: &[u8],
     ) -> Result<(Handle, OpReport), WriteError> {
         let relative = self.confine(relative).map_err(WriteError::Confined)?;
-        confine::unportable_new(&self.path, &relative).map_err(WriteError::Confined)?;
+        self.new_names(&relative, None)?;
         let report = ops::create_atomically(&on_disk(&self.path, &relative), content)?;
         Ok((self.intern(relative), report))
     }
@@ -716,7 +716,7 @@ impl Root {
     /// new directory synced into the one it hangs from.
     pub fn create_dir(&self, relative: &Path) -> Result<(PathBuf, OpReport), WriteError> {
         let relative = self.confine(relative).map_err(WriteError::Confined)?;
-        confine::unportable_new(&self.path, &relative).map_err(WriteError::Confined)?;
+        self.new_names(&relative, None)?;
         let report = ops::create_directory(&on_disk(&self.path, &relative))?;
         Ok((relative, report))
     }
@@ -733,9 +733,20 @@ impl Root {
         ops::remove_empty_directory(&on_disk(&self.path, &relative))
     }
 
+    /// The names a create or a rename makes along the confined `relative`,
+    /// checked as ADR 0070 item 3 says: one not every OS can keep, or one
+    /// that differs only in case from an entry its folder lists (spec Q8,
+    /// decided 2026-10-12), is refused; an entry that exists never is.
+    /// `from`: the entry a rename moves.
+    fn new_names(&self, relative: &Path, from: Option<&Path>) -> Result<(), WriteError> {
+        confine::unportable_new(&self.path, relative).map_err(WriteError::Confined)?;
+        confine::case_twin_new(&self.path, relative, from).map_err(WriteError::Confined)
+    }
+
     /// Move an entry to another path of the folder, both confined; refuses
     /// an occupied destination, unless it is the entry itself under another
-    /// spelling of its name (a case-only rename on APFS); creates the
+    /// spelling of its name (a case-only rename on APFS), and a new name
+    /// that differs only in case from another entry there (spec Q8); creates the
     /// destination's folders. A regular file is moved by an exclusive
     /// rename on macOS and by `link` and `unlink` elsewhere, so nothing
     /// that appears at the destination meanwhile is replaced; a directory
@@ -743,7 +754,7 @@ impl Root {
     pub fn rename(&mut self, from: &Path, to: &Path) -> Result<(Handle, OpReport), WriteError> {
         let from = self.confine(from).map_err(WriteError::Confined)?;
         let to = self.confine(to).map_err(WriteError::Confined)?;
-        confine::unportable_new(&self.path, &to).map_err(WriteError::Confined)?;
+        self.new_names(&to, Some(&from))?;
         let report = ops::rename_path(&on_disk(&self.path, &from), &on_disk(&self.path, &to))?;
         Ok((self.intern(to), report))
     }

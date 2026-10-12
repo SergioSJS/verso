@@ -681,18 +681,28 @@ Se o servidor deve mandar os pedaços de um arquivo grande a partir do
 disco em vez de segurar o arquivo inteiro ficou `[OPEN]` até 2026-10-12,
 quando o mantenedor pediu que as pendências da campanha fossem feitas
 (*"Ajuste todas essas pendências agora"*, repassado na sessão que o
-construiu): construído no 2b1f2c4 (**Arquivos grandes**, acima).
+construiu): construído no 2b1f2c4 (**Arquivos grandes**, acima). Fechado
+pelo mantenedor no mesmo dia, por volta das 16:00 BRT, nas sete decisões
+da rodada: *"Todos aprovados"*; os pedaços ficam com 1 MiB
+([ADR 0079](../adr/0079-sync-a-local-folder-with-a-server.md), Revisões,
+item 12).
 
 Quanta memória o servidor guarda depois de um pico está decidido, não
 aberto: em 2026-10-11, à noite, o mantenedor trocou o alocador do binário
 `verso` para o mimalloc (**O alocador**, acima), que guarda cerca de 70 MB
 depois de um pico de 50 gravando e chegou a 291 MB (VmHWM).
 
-`[OPEN]` Pedir ao mimalloc que devolva a memória livre ao sistema quando um
-pico termina (`mi_collect`, pedido em 2026-10-12) não foi construído: a
-chamada só se alcança por código `unsafe`, que o workspace proíbe sem
-exceção (`unsafe_code = "forbid"`, ADR 0029); espera a decisão do
-mantenedor sobre uma exceção, num pull request próprio.
+Pedir ao mimalloc que devolva a memória livre ao sistema quando um pico
+termina (`mi_collect`, pedido em 2026-10-12) não é feito — decidido pelo
+mantenedor em 2026-10-12, por volta das 16:00 BRT (*"Todos aprovados"*),
+sem exceção ao `unsafe_code = "forbid"` (ADR 0029), o único caminho até a
+chamada. Os pedaços a partir do disco a tornaram desnecessária: o que uma
+transferência segurava não está mais lá para devolver — três aparelhos
+buscando um arquivo de 60 MB seguravam 43–47 MB 30 s depois com o
+2b1f2c4, contra 245–246 MB com o build de antes (**Arquivos grandes**,
+acima), e no convidado de 453 MiB dez aparelhos buscando 181 MB ao mesmo
+tempo chegaram a 44 MB sem nenhuma morte em nenhuma rodada (a linha
+Memória da tabela). *(`[OPEN]` daquela manhã até a decisão.)*
 `MIMALLOC_PURGE_DELAY=0` no ambiente não mudou nada mensurável no macOS (o
 build de antes do 2b1f2c4 ainda segurava 245 MB 30 s depois da busca de
 **Arquivos grandes**); não testado no Linux, onde, pelas notas do próprio

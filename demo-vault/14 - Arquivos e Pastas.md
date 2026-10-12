@@ -20,6 +20,7 @@ O cofre é uma pasta comum do seu computador: o que o Verso cria, renomeia ou ap
 - O botão **Nova nota** (`+`) da faixa da esquerda abre o menu **Nova…**: nota, pasta, **Nova base**, **Novo board** e **Nova página web…**.
 - O botão direito numa pasta da árvore, ou no espaço vazio dela, tem os mesmos itens — o que você criar entra naquela pasta.
 - Um nome que o Windows não guarda — `CON`, `NUL`, `COM1`, ponto ou espaço no fim, ou `: * " < > ? | \` — não é criado nem dado num renomear, em nenhum sistema: a pasta pode ser sincronizada com um Windows. O campo diz por quê. Um arquivo que já tem um nome assim continua abrindo, e pode ser renomeado para um nome que todo sistema guarda.
+- Também não é criado nem dado num renomear um nome que só difere de outro da mesma pasta em maiúsculas e minúsculas — `nota.md` ao lado de `Nota.md`: num Mac ou no Windows os dois seriam um arquivo só. Renomear `nota.md` para `Nota.md` continua valendo.
 
 ---
 

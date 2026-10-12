@@ -498,3 +498,96 @@ fn an_existing_name_no_os_check_refuses_it() {
         vec!["Ideias?".to_owned(), "Reunião - pauta.md".to_owned()]
     );
 }
+
+/// A new name that differs only in case from an entry its folder lists is
+/// refused on every OS (spec Q8, decided 2026-10-12): a create, a folder,
+/// a file that arrives in pieces, a rename. The entry's own case variant
+/// is no twin of it, and a name listed exactly is that entry.
+#[test]
+fn a_new_name_differing_only_in_case_from_a_sibling_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    touch(&dir.path().join("Nota.md"), "n");
+    touch(&dir.path().join("Outra.md"), "o");
+    touch(&dir.path().join("Pasta/dentro.md"), "d");
+    let mut root = Root::open(dir.path(), vec![]).unwrap();
+    let twin = |r: Result<(), WriteError>, what: &str| {
+        assert!(
+            matches!(r, Err(WriteError::Confined(ConfinementError::CaseTwin))),
+            "{what}: {r:?}"
+        );
+    };
+    twin(
+        root.create(Path::new("nota.md"), b"x").map(|_| ()),
+        "create",
+    );
+    twin(
+        root.create_dir(Path::new("PASTA")).map(|_| ()),
+        "create_dir",
+    );
+    // In pieces: refused when it starts, where the name is free on disk,
+    // or when it lands, where the file system finds `Nota.md` under it.
+    let landed = match root.stage(Path::new("NOTA.md")) {
+        Ok(staged) => root.create_staged(Path::new("NOTA.md"), staged).map(|_| ()),
+        Err(e) => Err(e),
+    };
+    twin(landed, "a file in pieces");
+    twin(
+        root.rename(Path::new("Outra.md"), Path::new("nota.md"))
+            .map(|_| ()),
+        "rename",
+    );
+    twin(
+        root.rename(Path::new("Outra.md"), Path::new("pasta"))
+            .map(|_| ()),
+        "rename onto a folder's twin",
+    );
+    assert_eq!(names(dir.path()), vec!["Nota.md", "Outra.md", "Pasta"]);
+    let reason = ConfinementError::CaseTwin.to_string();
+    assert!(reason.contains("differs only in case"), "{reason}");
+    // Listed exactly: the entry itself, as before.
+    let _ = root.create(Path::new("Pasta/nova.md"), b"x").unwrap();
+    assert!(matches!(
+        root.create(Path::new("Nota.md"), b"x"),
+        Err(WriteError::Exists)
+    ));
+    // Its own case variant, a file and a folder.
+    let _ = root
+        .rename(Path::new("Nota.md"), Path::new("NOTA.md"))
+        .unwrap();
+    let _ = root.rename(Path::new("Pasta"), Path::new("pasta")).unwrap();
+    assert_eq!(names(dir.path()), vec!["NOTA.md", "Outra.md", "pasta"]);
+    assert_eq!(
+        names(&dir.path().join("pasta")),
+        vec!["dentro.md", "nova.md"]
+    );
+}
+
+/// On a file system that tells case apart, two entries differing only in
+/// case may already stand side by side, made by another app or synced in:
+/// both are the user's and open, change and move as any entry; only a
+/// third spelling of the name is refused (ADR 0070 item 3).
+#[test]
+fn twins_that_already_exist_are_kept_and_a_third_spelling_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    touch(&dir.path().join("Nota.md"), "maiúscula");
+    let folds = dir.path().join("nota.md").symlink_metadata().is_ok();
+    if folds {
+        // APFS, NTFS: the two cannot stand here.
+        return;
+    }
+    touch(&dir.path().join("nota.md"), "minúscula");
+    let mut root = Root::open(dir.path(), vec![]).unwrap();
+    for name in ["Nota.md", "nota.md"] {
+        let h = root.handle(Path::new(name)).unwrap();
+        let (_, stamp) = root.read(h).unwrap();
+        let _ = root.write(h, b"y", &stamp).unwrap();
+    }
+    assert!(matches!(
+        root.rename(Path::new("Nota.md"), Path::new("NOTA.md")),
+        Err(WriteError::Confined(ConfinementError::CaseTwin))
+    ));
+    let _ = root
+        .rename(Path::new("nota.md"), Path::new("Outra.md"))
+        .unwrap();
+    assert_eq!(names(dir.path()), vec!["Nota.md", "Outra.md"]);
+}

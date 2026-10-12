@@ -59,7 +59,25 @@
   folder's —, not "Hide from the tree", which
   [0060](0060-makemd-organizing-features.md) says is not 0044's ignored
   paths and which stays this machine's; and the file's name,
-  `settings.json`, which no document named.
+  `settings.json`, which no document named *(both closed on 2026-10-12,
+  below)*.
+  2026-10-12 — the maintainer, about 16:00 BRT, on the round's seven open
+  decisions, all as recommended: *"Todos aprovados"* (all approved). For
+  this ADR: the two readings above are decided — the file is
+  `.verso/settings.json`, and "the ignored paths" are the two switches
+  "Ignore build folders" and "Respect .gitignore", while "Hide from tree"
+  stays this machine's ([0060](0060-makemd-organizing-features.md)).
+  Items 1–2: a reader's bookmarks fall back to this machine — when the
+  account cannot write the folder's layer (a reader of a server's folder,
+  in its window or synced to a computer; a share's window; a settings file
+  that is a placeholder or not JSON), starring a note reads and writes the
+  bookmarks this machine keeps for the folder, where they lived before
+  items 1–2, instead of being refused, and Settings marks them "Of this
+  machine"; the walk's rules and the folder note's name stay the
+  folder's, which such an account reads. Item 3: a new name that differs
+  only in case from an entry its folder already lists is refused too
+  (item 3's revision; spec Q8). Built the same day (branch
+  `feat/decisions-2026-10-12`).
 
 ## Context
 
@@ -123,6 +141,17 @@ those, the rule item 3 takes.
    the user's, it opens, reads and writes as before; only a new name is
    checked. On Windows, where such names cannot exist at all, every request
    is checked (ADR 0069).
+   *(Revised on 2026-10-12, the maintainer's "Todos aprovados", which
+   closes spec Q8 for the names Verso makes:)* refused as well, on every OS
+   and on the server, a new name that differs only in case from an entry
+   its folder already lists — `nota.md` made beside `Nota.md`, or a file
+   renamed to `NOTA.md` there: two files on Linux and on a server's ext4,
+   one on a Mac or Windows, which would keep only one of them. The refusal
+   says why, as the others do, in the person's language. A file renamed to
+   its own name in another case is allowed
+   ([0079](0079-sync-a-local-folder-with-a-server.md) item 10); two entries
+   that already differ only in case, made elsewhere, are kept, open and
+   change as before, and only a third spelling of their name is refused.
 4. **The separator**: what Verso writes uses `/`, which Obsidian resolves on
    every OS (ADR 0069, item 9). A `\` inside a link is part of the name, as
    Obsidian reads it on macOS: never turned into `/`. The maintainer's words
@@ -164,10 +193,14 @@ hidden directory's name, `.verso/` (2026-10-09). Items 1 and 2, the
 folder's layer in `.verso/`: accepted on 2026-10-12 and built the same
 day (Revisions); the retention of a desktop folder in
 [0080](0080-the-trash-with-expiry-and-restore.md) waited on them.
-`[OPEN]`, from the building: "the ignored paths" read as the build
-folders and the `.gitignore` switches, and the file's name,
-`settings.json` (Revisions). *(Until 2026-10-12: "Proposed: items 1 and
-2"; then "accepted, to be built in the next round".)*
+Closed by the maintainer on 2026-10-12 (*"Todos aprovados"*), the two
+readings `[OPEN]` from the building until then: "the ignored paths" are
+the build folders and the `.gitignore` switches, "Hide from tree" stays
+this machine's, and the file is `settings.json` (Revisions). Decided the
+same day: a reader's bookmarks are this machine's (items 1–2), and item 3
+refuses a new name that differs only in case from an entry of its folder
+(spec Q8). *(Until 2026-10-12: "Proposed: items 1 and 2"; then
+"accepted, to be built in the next round".)*
 
 *(History, the lead until 2026-10-12:)* Proposed. Decided by the
 maintainer on 2026-10-08: item 3 (names every OS can keep, for what Verso

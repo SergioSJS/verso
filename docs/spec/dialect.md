@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.36
+# Verso dialect spec — v0.37
 
-- Version: v0.36 · 2026-10-10
+- Version: v0.37 · 2026-10-12
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -946,6 +946,13 @@ Raised while writing this spec. All of them need an answer before
   question — which extensions make a file a note — is the `verso-fs` fact
   recorded under Q12. The maintainer decides; this line only records what the
   code does in the meantime.
+
+  **The creation side, decided by the maintainer on 2026-10-12** (*"Todos
+  aprovados"*), not the resolution, which stays `[OPEN]`: a new name that
+  differs only in case from an entry its folder already lists is refused
+  when Verso makes or renames it, on every OS and on the server; an entry
+  that exists is never refused ([ADR 0070](../adr/0070-what-travels-with-the-folder.md)
+  item 3, revised 2026-10-12).
 - **Q12. Rule for resolving a link to a file.** **CLOSED on 2026-09-22 by the
   maintainer**, following Obsidian 1.13.7 as observed
   (`docs/reference/index-decision.md` §4.1 and §4.6,
@@ -1322,3 +1329,4 @@ the parser was chosen.
 | v0.34 | 2026-10-09 | **Two `^id`s alone in a row** `DECIDED` by the maintainer: only the last names the block before them, as in Obsidian; the fixture `fixtures/block/two-alone` drafted, awaiting the maintainer's approval. |
 | v0.35 | 2026-10-09 | The fixture `fixtures/block/two-alone` approved by the maintainer in session ("aprovado"). |
 | v0.36 | 2026-10-10 | **Q7 `DECIDED`** by the maintainer in session, as recommended, from finding F20 of the sync campaign of 2026-10-10 (two devices on Windows and Linux kept both forms of a name, and one never uploaded): one name is one file everywhere — the server compares names in NFC, each device keeps the spelling its own file system gave the name, a file changed on both sides under the two forms is a conflict copy (ADR 0079 item 8). §5.10 says so; the provisional fact of v0.10 kept as history. No fixture: the maintainer did not ask for one. |
+| v0.37 | 2026-10-12 | Q8's creation side `DECIDED` by the maintainer in session (*"Todos aprovados"*, as recommended): a new name differing only in case from an entry of its folder is refused when Verso makes or renames it, on every OS and on the server (ADR 0070 item 3, revised). Q8 itself, case in name resolution, stays `[OPEN]`. No fixture: names made, not the dialect. |

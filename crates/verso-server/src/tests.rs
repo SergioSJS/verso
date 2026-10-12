@@ -474,6 +474,19 @@ fn an_invited_reader_reads_and_cannot_write() {
         )
         .await;
         assert_eq!(write["err"]["kind"], "refused", "{write}");
+        // The folder's settings: read, never changed by a reader — whose
+        // window keeps its bookmarks on its machine (ADR 0070, decided
+        // 2026-10-12).
+        let layer = call(&mut ws, 30, "get_folder_settings", json!({})).await;
+        assert!(layer["ok"]["problem"].is_null(), "{layer}");
+        let star = call(
+            &mut ws,
+            31,
+            "set_folder_settings",
+            json!({ "change": { "bookmarks": ["Sessao.md"] }, "revision": null }),
+        )
+        .await;
+        assert_eq!(star["err"]["kind"], "refused", "{star}");
         let caps = call(&mut ws, 4, "capabilities", json!({})).await;
         assert!(
             !caps["ok"]["can"]
@@ -518,6 +531,19 @@ fn an_invited_reader_reads_and_cannot_write() {
         )
         .await;
         assert_eq!(made["ok"]["path"], "Minha.md", "{made}");
+        // The same change, now that they write: kept in the folder's file.
+        let star = call(
+            &mut ws,
+            32,
+            "set_folder_settings",
+            json!({ "change": { "bookmarks": ["Sessao.md"] }, "revision": null }),
+        )
+        .await;
+        assert_eq!(
+            star["ok"]["settings"]["bookmarks"],
+            json!(["Sessao.md"]),
+            "{star}"
+        );
         // The audit log has the invitation and the grant, for the owner.
         let (_, log) = get(&r, &format!("/api/folders/{id}/audit"), Some(&admin)).await;
         let actions: Vec<&str> = log
