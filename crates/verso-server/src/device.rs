@@ -65,7 +65,7 @@ pub struct Start {
 /// The app asks for a code.
 pub async fn start(ctx: Ctx, Json(body): Json<Start>) -> ApiResult<Response> {
     ctx.secure()?;
-    let key = format!("device:{}", ctx.peer.addr);
+    let key = format!("device:{}", ctx.peer.key());
     let wait = ctx.server.limiter.wait(&key);
     if !wait.is_zero() {
         return Err(ApiError::wait(wait.as_secs() + 1));
@@ -78,6 +78,7 @@ pub async fn start(ctx: Ctx, Json(body): Json<Start>) -> ApiResult<Response> {
     let poll = crate::crypto::token()?;
     let mut devices = lock(&ctx.server.devices);
     devices.retain(|_, p| p.made.elapsed() < LIFE);
+    crate::limit::make_room(&mut devices, crate::limit::PENDING, |p| p.made);
     devices.insert(
         code.clone(),
         Pending {
