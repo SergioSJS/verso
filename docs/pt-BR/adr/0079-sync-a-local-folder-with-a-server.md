@@ -166,7 +166,13 @@ Aceita (2026-10-10, Status).
    campo, e por um compartilhamento ele fica de fora. A mesma versão 2
    leva um pedaço de arquivo como mensagem binária do WebSocket em vez de
    base64 — item 12, revisto no mesmo dia; um lado do sync 1 ainda manda e
-   recebe base64.)*
+   recebe base64. Também no sync 2, ainda não lançado quando acrescentado
+   em 2026-10-12: uma escrita, um rename ou uma pasta que o servidor recusa
+   porque o nome novo só difere de um vizinho em maiúsculas e minúsculas
+   (spec Q8) responde com o tipo de erro `case_twin`, que um aparelho do
+   sync 2 lista como nome ocupado; um aparelho do sync 1 não conhece o tipo
+   e já lista o arquivo como falha ("the server refused") — nada quebra,
+   só o motivo fica menos preciso.)*
 6. **Quando**: nos lotes do watcher local (com espera), nos avisos do
    servidor, ao iniciar e ao reconectar, e por uma varredura a cada cinco
    minutos como rede de segurança. Offline, nada fica numa fila além da

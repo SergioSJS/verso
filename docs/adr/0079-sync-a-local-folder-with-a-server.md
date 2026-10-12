@@ -159,7 +159,13 @@ Accepted (2026-10-10, Status).
    sync 1 ignores the field, and through a share it is left out. The
    same version 2 carries a piece of a file as a binary WebSocket message
    instead of base64 — item 12, revised the same day; a side of sync 1 is
-   still sent and taken base64.)*
+   still sent and taken base64. Also in sync 2, unreleased when added on
+   2026-10-12: a write, rename or folder the server refuses because its
+   new name differs only in case from a sibling (spec Q8) answers with
+   the error kind `case_twin`, which a device of sync 2 lists as a name
+   taken; a device of sync 1 does not know the kind and already lists
+   the file as failed ("the server refused") — nothing breaks, the reason
+   is only less precise.)*
 6. **When**: on the local watcher's batches (debounced), on the server's
    pushes, at start and on reconnecting, and by a scan every five minutes
    as a net. Offline, nothing queues but the state's difference: when the
