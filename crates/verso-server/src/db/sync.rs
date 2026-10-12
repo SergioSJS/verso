@@ -59,6 +59,12 @@ pub struct Change {
     /// (sync 2, ADR 0079 item 5).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<String>,
+    /// Who made it: the account's name, or its e-mail when it has none;
+    /// absent for a change found on the server's disk (sync 2, ADR 0079
+    /// item 5). A device's recent activity says "by <person> on
+    /// <device>".
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub by: Option<String>,
 }
 
 /// A change a share sees: its path, or its path before a rename, is one
@@ -190,8 +196,10 @@ impl Db {
         let conn = self.reader();
         let mut st = conn
             .prepare(
-                "SELECT seq, path, hash, size, deleted, renamed_from, device FROM changes
-                 WHERE folder = ?1 AND seq > ?2 ORDER BY seq LIMIT ?3",
+                "SELECT c.seq, c.path, c.hash, c.size, c.deleted, c.renamed_from, c.device,
+                        COALESCE(NULLIF(a.name, ''), a.email)
+                 FROM changes c LEFT JOIN accounts a ON a.id = c.actor
+                 WHERE c.folder = ?1 AND c.seq > ?2 ORDER BY c.seq LIMIT ?3",
             )
             .map_err(e)?;
         st.query_map(params![folder, since, limit], |r| {
@@ -203,6 +211,7 @@ impl Db {
                 deleted: r.get(4)?,
                 renamed_from: r.get(5)?,
                 device: r.get(6)?,
+                by: r.get(7)?,
             })
         })
         .map_err(e)?

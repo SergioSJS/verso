@@ -656,9 +656,11 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .sync-verb { color: var(--ink-2); }
 .sync-ledger li[data-what="conflict"] .sync-verb { color: var(--seal); }
 .sync-path { color: var(--ink); overflow-wrap: anywhere; }
+/* Who made what came from the server: under the path, quieter. */
+.sync-who { grid-column: 3; color: var(--ink-3); font-size: .78rem; overflow-wrap: anywhere; }
 @media (max-width: 760px) {
   .sync-ledger li { grid-template-columns: 3.2rem minmax(0, 1fr); }
-  .sync-ledger .sync-path { grid-column: 2; }
+  .sync-ledger .sync-path, .sync-ledger .sync-who { grid-column: 2; }
   .sync-copy { margin-left: 0; }
   /* The form while off: each label above its control, the control the
      page's width — a select of folder names cut at 40% says nothing. */

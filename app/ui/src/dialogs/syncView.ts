@@ -18,6 +18,7 @@ import { openNote } from "../layout/spaces";
 import { syncedSessions } from "../collab";
 import { liveLine, liveWords } from "../coeditWords";
 import { liveTogether, setLiveTogether } from "../settings";
+import { madeBy } from "../syncWho";
 import { copyParts, looksBinary, originalOf, textByName } from "./conflictNames";
 
 const pt = {
@@ -552,5 +553,8 @@ function ledgerLine(e: SyncLogEntry): HTMLElement {
   time.dateTime = e.at;
   time.title = new Date(e.at).toLocaleString(locale());
   li.append(time, h("span", "sync-verb", s.what[e.what] ?? e.what), h("span", "sync-path", e.path + (e.other ? ` ← ${e.other}` : "")));
+  // Who made it, for what came from the server (sync 2).
+  const who = madeBy(e.by, e.device, document.documentElement.lang.startsWith("pt"));
+  if (who) li.append(h("span", "sync-who", who));
   return li;
 }

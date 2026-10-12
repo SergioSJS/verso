@@ -82,7 +82,7 @@ Com a pasta aberta, em **Ajustes › Sincronizar**, escolha o servidor e **uma p
 - se os dois lados só **acrescentaram linhas ao fim** de uma nota, não é conflito: as linhas se juntam numa nota só, as do servidor primeiro, e a atividade recente diz *juntado*;
 - um nome com acento é **um arquivo só** em todo lugar, mesmo que um sistema guarde o `é` inteiro e outro como `e` mais o acento (como os Macs antigos gravavam): cada computador fica com a grafia que o seu sistema deu ao nome, e o mesmo arquivo mudado dos dois lados é um conflito;
 - se a sincronização fosse apagar **muitos arquivos** de uma vez — mais de um quinto da pasta, ou mais de 50, e ao menos 3 —, ela **para e pergunta**: uma pasta movida ou um disco que não montou parecem exclusões;
-- o que fica de fora (a cota do servidor, um arquivo que não está no computador) aparece com o motivo, e **O que cruzou** lista o que foi e veio.
+- o que fica de fora (a cota do servidor, um arquivo que não está no computador) aparece com o motivo, e **Atividade recente** lista o que foi e veio — o que veio do servidor diz por quem e em qual aparelho, como "por Ana em MacBook de Ana".
 
 A barra de status mostra o estado — *Sincronizada*, *enviando 3*, *Sem conexão*, *Pausada*, *1 conflito* — e um clique nela abre a seção. Quem só **lê** a pasta no servidor recebe as mudanças; as feitas aqui ficam aqui. Desligar deixa os dois lados como estão.
 
