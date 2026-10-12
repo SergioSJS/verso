@@ -677,7 +677,12 @@ rest below and in `manual-checks.md`.
    saved there is the conflict copies' and this device's session's on each
    server, and emptied the system's is back (e2e, `sync.spec.mjs`, "Servers
    names this computer"; the host's test,
-   `a_window_on_a_servers_folder_is_answered_by_the_server`).
+   `a_window_on_a_servers_folder_is_answered_by_the_server`). The page
+   that approves the device says who asked — the device's name, the
+   address, the time — and asks *Foi você quem pediu, neste aparelho?*,
+   with *Aprovar este aparelho: <nome>* and *Não fui eu: recusar*; refused,
+   the app's code is gone (e2e-server, "the page that approves a device
+   says who asked"; `tests_threats.rs`).
 7. Sync ([ADR 0079](../adr/0079-sync-a-local-folder-with-a-server.md)): with
    a folder of this computer open, *Ajustes* › *Sincronizar*; signed in to
    no server it says *Conecte a um servidor em Servidores primeiro*; signed

@@ -693,7 +693,12 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
    ali é o das cópias de conflito e o da sessão deste aparelho em cada
    servidor, e esvaziado volta o do sistema (e2e, `sync.spec.mjs`, "Servers
    names this computer"; o teste do host,
-   `a_window_on_a_servers_folder_is_answered_by_the_server`).
+   `a_window_on_a_servers_folder_is_answered_by_the_server`). A página
+   que aprova o aparelho diz quem pediu — o nome do aparelho, o endereço,
+   a hora — e pergunta *Foi você quem pediu, neste aparelho?*, com *Aprovar
+   este aparelho: <nome>* e *Não fui eu: recusar*; recusado, o código do
+   app acaba (e2e-server, "the page that approves a device says who
+   asked"; `tests_threats.rs`).
 7. Sincronização ([ADR 0079](../adr/0079-sync-a-local-folder-with-a-server.md)):
    com uma pasta deste computador aberta, *Ajustes* › *Sincronizar*; sem
    servidor conectado, diz *Conecte a um servidor em Servidores primeiro*;

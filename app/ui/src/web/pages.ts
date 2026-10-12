@@ -207,26 +207,60 @@ export async function devicePage(account: Account | null): Promise<void> {
     return;
   }
   setLang(account.lang);
-  let what: { device: string };
+  const at = `/api/device/${encodeURIComponent(code)}`;
+  let what: { device: string; address: string; asked: string };
   try {
-    what = await api("GET", `/api/device/${encodeURIComponent(code)}`);
+    what = await api("GET", at);
   } catch (e) {
     page(s.deviceTitle, lead(explain(e)));
     return;
   }
+  // Who asked, before the question (threat-model.md, gap 12): a link
+  // someone else sent shows an address and a time that are not the
+  // person's, and the device's name as that someone gave it.
+  const asked = new Date(what.asked);
+  const when = Number.isNaN(asked.getTime())
+    ? what.asked
+    : asked.toLocaleString(account.lang.startsWith("pt") ? "pt-BR" : "en", { dateStyle: "long", timeStyle: "medium" });
+  const fact = (term: string, value: string) => [el("dt", {}, term), el("dd", {}, value)];
+  const who = el(
+    "section",
+    { class: "web-asked", "aria-labelledby": "device-who" },
+    el("h2", { id: "device-who", class: "web-subtitle" }, s.deviceWho),
+    el("dl", { class: "web-facts" }, ...fact(s.deviceName, what.device), ...fact(s.deviceAddress, what.address), ...fact(s.deviceWhen, when)),
+  );
   const f = form(
     [],
-    s.deviceApprove,
+    s.deviceApprove(what.device),
     async () => {
-      await api("POST", `/api/device/${encodeURIComponent(code)}`, {});
+      await api("POST", at, {});
       page(s.deviceTitle, lead(s.deviceDone));
     },
     explain,
   );
+  // The question is the form's name, read before its buttons.
+  const question = el("h2", { id: "device-ask", class: "web-subtitle" }, s.deviceAsk);
+  f.form.setAttribute("aria-labelledby", "device-ask");
+  f.form.setAttribute("aria-describedby", "device-ask-why");
+  const refuse = el("button", { type: "button", class: "web-secondary" }, s.deviceRefuse);
+  refuse.addEventListener("click", () => {
+    f.error.textContent = "";
+    refuse.disabled = true;
+    api("DELETE", at)
+      .then(() => page(s.deviceTitle, lead(s.deviceRefused)))
+      .catch((e: unknown) => {
+        f.error.textContent = explain(e);
+        refuse.disabled = false;
+      });
+  });
+  f.form.append(refuse);
   page(
     s.deviceTitle,
     lead(s.deviceLead(what.device)),
     el("p", { class: "web-code", "aria-label": s.deviceCode }, code),
+    who,
+    question,
+    el("p", { id: "device-ask-why", class: "web-lead" }, s.deviceAskWhy),
     f.form,
   );
 }
