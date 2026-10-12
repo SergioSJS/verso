@@ -235,4 +235,133 @@ mod links {
             .count();
         assert_eq!(refused, 2, "{:?}", walk.problems);
     }
+
+    /// A link is judged by where it leads whether or not its end is there:
+    /// one to a missing place outside, one through `..` out of the folder
+    /// and a loop are refused; one to a missing place inside is a new file
+    /// inside.
+    #[test]
+    fn a_link_whose_end_is_missing_is_judged_by_where_it_points() {
+        let outside = tempfile::tempdir().unwrap();
+        let folder = tempfile::tempdir().unwrap();
+        let link = |target: &Path, name: &str| {
+            std::os::unix::fs::symlink(target, folder.path().join(name)).unwrap();
+        };
+        link(&outside.path().join("sumiu.md"), "fora.md");
+        link(&outside.path().join("sumiu/longe.md"), "fora-fundo.md");
+        link(Path::new("../../../../../../../../tmp/x.md"), "subindo.md");
+        link(Path::new("ausente/../../x.md"), "voltando.md");
+        link(Path::new("laco-b.md"), "laco-a.md");
+        link(Path::new("laco-a.md"), "laco-b.md");
+        link(Path::new("ainda-nao.md"), "dentro.md");
+        link(&folder.path().join("pasta/nova.md"), "dentro-absoluto.md");
+        let mut root = Root::open(folder.path(), Vec::new()).unwrap();
+        root.set_links_inside(true);
+        for leaving in [
+            "fora.md",
+            "fora-fundo.md",
+            "subindo.md",
+            "voltando.md",
+            "laco-a.md",
+        ] {
+            assert_eq!(
+                root.handle(Path::new(leaving)).unwrap_err(),
+                ConfinementError::LeavesFolder,
+                "{leaving}"
+            );
+        }
+        for inside in ["dentro.md", "dentro-absoluto.md"] {
+            assert!(root.handle(Path::new(inside)).is_ok(), "{inside}");
+        }
+    }
+}
+
+#[cfg(test)]
+#[cfg(unix)]
+mod links_while_written {
+    use std::path::Path;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    use crate::{ConfinementError, Root};
+
+    /// A folder with a note, a note in a directory, and a link inside to
+    /// that one; `write` replaces their content in another thread while
+    /// this one asks whether each stays in the folder. Returns how many
+    /// answers said "a link that leads out", and how many were asked.
+    fn refusals_while(write: impl FnOnce(&Path) + Send + 'static) -> (u32, u32) {
+        let folder = tempfile::tempdir().unwrap();
+        std::fs::create_dir(folder.path().join("dentro")).unwrap();
+        std::fs::write(folder.path().join("nota.md"), "0").unwrap();
+        std::fs::write(folder.path().join("dentro/alvo.md"), "0").unwrap();
+        std::os::unix::fs::symlink("dentro/alvo.md", folder.path().join("ligada.md")).unwrap();
+        let done = Arc::new(AtomicBool::new(false));
+        let writer = {
+            let done = Arc::clone(&done);
+            let path = folder.path().to_path_buf();
+            std::thread::spawn(move || {
+                write(&path);
+                done.store(true, Ordering::Relaxed);
+            })
+        };
+        let mut root = Root::open(folder.path(), Vec::new()).unwrap();
+        root.set_links_inside(true);
+        let (mut refused, mut asked) = (0, 0);
+        while !done.load(Ordering::Relaxed) {
+            for name in ["nota.md", "dentro/alvo.md", "ligada.md"] {
+                asked += 1;
+                if root.confine(Path::new(name)) == Err(ConfinementError::LeavesFolder) {
+                    refused += 1;
+                }
+            }
+        }
+        writer.join().unwrap();
+        (refused, asked)
+    }
+
+    /// Verso's own atomic write: the rename leaves the name to the old
+    /// file or the new one, and the check never reads it as a way out.
+    #[test]
+    fn a_file_replaced_by_an_atomic_write_is_not_a_link_that_leaves() {
+        let (refused, asked) = refusals_while(|path| {
+            let mut root = Root::open(path, Vec::new()).unwrap();
+            let plain = root.handle(Path::new("nota.md")).unwrap();
+            let linked = root.handle(Path::new("ligada.md")).unwrap();
+            for i in 0..100 {
+                for handle in [plain, linked] {
+                    let (_, stamp) = root.read(handle).unwrap();
+                    let _ = root
+                        .write(handle, format!("{i}").as_bytes(), &stamp)
+                        .unwrap();
+                }
+            }
+        });
+        assert_eq!(
+            refused, 0,
+            "{refused} of {asked} checks said the file leaves"
+        );
+    }
+
+    /// A replacement that leaves the name empty for an instant — another
+    /// app's save, a rename a network file system does not make atomic:
+    /// a file missing at the moment of the check is not a link leading
+    /// out either.
+    #[test]
+    fn a_file_missing_for_an_instant_is_not_a_link_that_leaves() {
+        let (refused, asked) = refusals_while(|path| {
+            for i in 0..5000 {
+                for name in ["nota.md", "dentro/alvo.md"] {
+                    let file = path.join(name);
+                    let temp = path.join(format!(".tmp-{i}"));
+                    std::fs::write(&temp, format!("{i}")).unwrap();
+                    std::fs::remove_file(&file).unwrap();
+                    std::fs::rename(&temp, &file).unwrap();
+                }
+            }
+        });
+        assert_eq!(
+            refused, 0,
+            "{refused} of {asked} checks said the file leaves"
+        );
+    }
 }
