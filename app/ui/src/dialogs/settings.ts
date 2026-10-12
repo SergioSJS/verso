@@ -200,8 +200,8 @@ export class SettingsDialog {
       out.push({ section, title, desc, node: () => this.item(title, desc, control()), group });
     // A setting of the folder's layer (ADR 0070 items 1–2): shown with
     // where it is kept now.
-    const addScoped = (section: string, title: string, desc: string, control: () => HTMLElement | null) =>
-      out.push({ section, title, desc, node: () => this.item(title, desc, control(), folderValues().scope) });
+    const addScoped = (section: string, title: string, desc: string, control: () => HTMLElement | null, scope: () => Scope = () => folderValues().scope) =>
+      out.push({ section, title, desc, node: () => this.item(title, desc, control(), scope()) });
     // A walk rule changed: into the folder's settings when they can be
     // written, else this machine's; then the folder is walked again.
     const walkRule = async (part: { ignore_build_dirs?: boolean; respect_gitignore?: boolean }, onMachine: () => void) => {
@@ -487,7 +487,8 @@ export class SettingsDialog {
     })()));
     // The bookmarks are the folder's too (ADR 0070 item 2): kept beside
     // its notes, they are set by the star; here, where they are kept.
-    if (currentFolder) addScoped("organizing", t.bookmarks, t.bookmarksSettingDesc, () => h("span", "setting-value", String(bookmarks.length)));
+    // A reader's are this machine's (decided 2026-10-12): said so.
+    if (currentFolder) addScoped("organizing", t.bookmarks, t.bookmarksSettingDesc, () => h("span", "setting-value", String(bookmarks.length)), () => folderValues().bookmarksScope);
     add("organizing", t.folderPageTable, t.folderPageTableDesc, () => this.toggle(settings.folderPageTable, (v) => { settings.folderPageTable = v; saveSettings(); }));
     add("organizing", t.manualOrder, t.manualOrderDesc, () => this.toggle(settings.manualOrder, (v) => { settings.manualOrder = v; saveSettings(); orderModeChanged(); }));
     add("organizing", t.inlineEmbedEdit, t.inlineEmbedEditDesc, () => this.toggle(settings.inlineEmbedEdit, (v) => { settings.inlineEmbedEdit = v; saveSettings(); }));

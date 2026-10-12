@@ -19,7 +19,10 @@
 //! data stream of another file; and the characters Windows does not allow
 //! in a name. On every other OS the same names are refused for what is
 //! made or renamed (ADR 0070: a folder synced to Windows must carry them),
-//! never for an entry that already exists ([`unportable_new`]).
+//! never for an entry that already exists ([`unportable_new`]). So is a new
+//! name that differs only in case from an entry its folder already lists
+//! (spec Q8, decided 2026-10-12; ADR 0070 item 3): a Mac or a Windows
+//! computer keeps the two as one file ([`case_twin_new`]).
 
 use std::path::{Component, Path, PathBuf};
 
@@ -47,6 +50,12 @@ pub enum ConfinementError {
     /// name — `OBSIDI~1` for `.obsidian`: a second spelling that would get
     /// past the hidden and ignored rules (ADR 0069, item 9).
     ShortName,
+    /// A new name that differs only in case from an entry its folder
+    /// already lists — `nota.md` beside `Nota.md`: a Mac or Windows keeps
+    /// the two as one file (spec Q8, decided 2026-10-12). The window
+    /// tells it apart by its text's "differs only in case"
+    /// (`app/ui/src/errors.ts`), to say it in the person's language.
+    CaseTwin,
 }
 
 impl std::fmt::Display for ConfinementError {
@@ -63,6 +72,9 @@ impl std::fmt::Display for ConfinementError {
             }
             Self::ShortName => "a short (8.3) name of another entry",
             Self::LeavesFolder => "a link that leads out of the folder",
+            Self::CaseTwin => {
+                "a name that differs only in case from another entry of its folder (a Mac or Windows keeps the two as one file)"
+            }
         };
         write!(
             f,
@@ -115,6 +127,73 @@ pub(crate) fn unportable_new(root: &Path, relative: &Path) -> Result<(), Confine
         if !exists && unportable(part) {
             return Err(ConfinementError::UnportableName);
         }
+    }
+    Ok(())
+}
+
+/// The first new name of the confined `relative` that differs only in case
+/// from an entry its folder already lists, refused (spec Q8, decided
+/// 2026-10-12; ADR 0070 item 3): `nota.md` made beside `Nota.md`, or a file
+/// renamed to `NOTA.md` there, is a second file on Linux and on the server
+/// and one file on a Mac or Windows, which would keep only one of them.
+/// `from` is the entry a rename moves: its own case variant is no twin of
+/// it (`nota.md` renamed `Nota.md` is allowed), however its name is spelled.
+/// What exists is never refused: a name listed exactly as asked is that
+/// entry, and a folder that a folding file system finds under another
+/// spelling is reached, not made. Only the folders on the way are listed,
+/// up to the first new name; below a new folder there is nothing to meet.
+pub(crate) fn case_twin_new(
+    root: &Path,
+    relative: &Path,
+    from: Option<&Path>,
+) -> Result<(), ConfinementError> {
+    let parts: Vec<&std::ffi::OsStr> = relative
+        .components()
+        .filter_map(|c| match c {
+            Component::Normal(part) => Some(part),
+            _ => None,
+        })
+        .collect();
+    let source = from.map(|f| crate::on_disk(root, f));
+    let mut at = PathBuf::new();
+    for (i, part) in parts.iter().enumerate() {
+        let Ok(listing) = std::fs::read_dir(crate::on_disk(root, &at)) else {
+            // A folder not there (made by this step) or not readable: the
+            // step itself says why, if anything.
+            return Ok(());
+        };
+        let wanted = part.to_string_lossy().to_lowercase();
+        let mut exact = false;
+        let mut twins = Vec::new();
+        for entry in listing.flatten() {
+            let name = entry.file_name();
+            if name == *part {
+                exact = true;
+                break;
+            }
+            if name.to_string_lossy().to_lowercase() == wanted {
+                twins.push(name);
+            }
+        }
+        let next = crate::rel_join(&at, part);
+        let last = i + 1 == parts.len();
+        if exact
+            || (!last && std::fs::metadata(crate::on_disk(root, &next)).is_ok_and(|m| m.is_dir()))
+        {
+            at = next;
+            continue;
+        }
+        let twin = twins.iter().any(|name| {
+            let sibling = crate::on_disk(root, &crate::rel_join(&at, name));
+            !source
+                .as_deref()
+                .is_some_and(|s| crate::ops::same_entry_at(s, &sibling))
+        });
+        return if twin {
+            Err(ConfinementError::CaseTwin)
+        } else {
+            Ok(())
+        };
     }
     Ok(())
 }

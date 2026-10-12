@@ -473,6 +473,15 @@ fn same_entry(a: &Path, a_meta: &std::fs::Metadata, b: &Path, b_meta: &std::fs::
     }
 }
 
+/// Whether the paths `a` and `b` name one entry, neither followed: a
+/// rename's source met under another spelling of its name.
+pub(crate) fn same_entry_at(a: &Path, b: &Path) -> bool {
+    match (a.symlink_metadata(), b.symlink_metadata()) {
+        (Ok(a_meta), Ok(b_meta)) => same_entry(a, &a_meta, b, &b_meta),
+        _ => false,
+    }
+}
+
 /// Whether the directory `dir` lists an entry named exactly `name`, byte
 /// for byte — what a case-insensitive lookup cannot tell.
 fn lists_exactly(dir: &Path, name: &std::ffi::OsStr) -> Result<bool, std::io::Error> {

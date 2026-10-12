@@ -12,6 +12,7 @@ import { boardText, t } from "./strings";
  *  detail (English: its language is `[OPEN]` under ADR 0035); a message of
  *  ours, as it is. */
 export function fail(e: ContractError | unknown): void {
+  if (caseTwin(e)) return nameTaken(t.caseTwinName);
   const { kind, message } = errorParts(e);
   const said = errorSentence(e);
   ui.status.textContent = said;
@@ -49,8 +50,17 @@ export function errorParts(e: ContractError | unknown): { kind: string; message:
   const kind = typeof e === "object" && e !== null && "kind" in e ? String((e as ContractError).kind) : "";
   return { kind, message };
 }
+/** A new name refused beside another entry of its folder that differs
+ *  from it only in case (spec Q8, decided 2026-10-12; ADR 0070 item 3):
+ *  `refused`, told apart by the core's reason (verso-fs, `CaseTwin`), and
+ *  said as an answer — a name to choose again — not as a fault. */
+export function caseTwin(e: ContractError | unknown): boolean {
+  const { kind, message } = errorParts(e);
+  return kind === "refused" && message.includes("differs only in case");
+}
 /** An error of the core said in the interface's language. */
 export function errorSentence(e: ContractError | unknown): string {
+  if (caseTwin(e)) return `${t.error}: ${t.caseTwinName}`;
   const { kind, message } = errorParts(e);
   const sentence: Record<string, string> = { no_folder: t.errNoFolder, refused: t.errRefused, not_found: t.errNotFound, unavailable: t.errUnavailable, not_text: t.errNotText, not_canvas: boardText.notABoard, changed: t.errChanged, exists: t.exists, quota: t.errQuota, failed: t.errFailed };
   const said = sentence[kind];

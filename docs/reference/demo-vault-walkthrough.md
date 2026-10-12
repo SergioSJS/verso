@@ -307,6 +307,11 @@ point 13).
    `Ideia?` or `a\b` is not made (`nota.` is: its file is `nota..md`); the status bar says Windows cannot keep that name.
    A rename to such a name is refused the same way. Level: H; E:
    `prompts.spec.mjs`; S: `crates/verso-fs/tests/ops.rs`.
+   Beside `Nota`, a new note `nota` is not made either, and the status
+   bar says a Mac or Windows would keep only one of the two; renaming
+   `Nota` to `nota` works (spec Q8, decided 2026-10-12). Level: A (the
+   harness does not refuse it); U: `crates/verso-fs/tests/ops.rs`,
+   `crates/verso-core/tests/workspace/rename.rs`.
 9. Note 14, "A Visão de Pasta": open a folder with its chevron and close
    another; open the app again — the tree is as it was left. A folder of
    thousands of notes opens with its top-level folders closed. Level: H;
@@ -523,7 +528,11 @@ point 13).
    folder_settings`; the host's `tests_sync.rs`, "the folder's settings
    cross like a file and a conflict keeps both", against a real server;
    `npm test`'s `folderLayer.test.mjs`); A (two computers syncing one
-   folder, by hand).
+   folder, by hand). A reader of a server's folder stars a note on this
+   computer: "Favoritos" says *Desta máquina* for them, and the folder's
+   file is not changed (decided 2026-10-12). Level: U (`npm test`'s
+   `folderLayer.test.mjs`; `crates/verso-server/src/tests.rs`, "an
+   invited reader"); A.
 
 ## 11. Organizing: stickers, covers, folder pages, order
 

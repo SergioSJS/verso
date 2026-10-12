@@ -11,7 +11,8 @@
 //! in the server's log at each walk, and on the folder's page of the
 //! console — until someone removes or renames it on the server's disk.
 //! Two names that differ only in case are two files on such a disk, and
-//! stay so: case is spec Q8, open.
+//! stay so when they exist; a new one is refused where it is made (spec
+//! Q8, decided 2026-10-12; `verso_fs::ConfinementError::CaseTwin`).
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::time::Instant;
@@ -174,7 +175,7 @@ mod tests {
             "Outra.md".to_owned(),
             "outra.md".to_owned(),
         ];
-        // Case alone is two files on such a disk (spec Q8, open).
+        // Case alone is two files on such a disk (spec Q8: kept when they exist).
         assert_eq!(
             twins(&listed, &known(&[])),
             vec![twin(COMPOSED, DECOMPOSED)]

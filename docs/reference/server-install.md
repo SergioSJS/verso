@@ -653,18 +653,26 @@ Whether the server should send a large file's pieces from the disk
 instead of holding the file whole was `[OPEN]` until 2026-10-12, when the
 maintainer asked for the campaign's open items to be done (*"Ajuste todas
 essas pendências agora"*, relayed in the session that built it): built in
-2b1f2c4 (**Large files**, above).
+2b1f2c4 (**Large files**, above). Closed by the maintainer the same day,
+about 16:00 BRT, on the round's seven decisions: *"Todos aprovados"*; the
+pieces stay 1 MiB ([ADR 0079](../adr/0079-sync-a-local-folder-with-a-server.md),
+Revisions, item 12).
 
 How much memory the server keeps after a burst is decided, not open: on
 2026-10-11, in the evening, the maintainer changed the `verso` binary's
 allocator to mimalloc (**The allocator**, above), which holds about 70 MB
 after a burst of 50 writers and peaked at 291 MB (VmHWM).
 
-`[OPEN]` Asking mimalloc to give its free memory back to the system once
-a burst ends (`mi_collect`, asked for on 2026-10-12) is not built: the
-call is reachable only through `unsafe` code, which the workspace forbids
-with no exception (`unsafe_code = "forbid"`, ADR 0029); it waits for the
-maintainer's decision on an exception, in a pull request of its own.
+Asking mimalloc to give its free memory back to the system once a burst
+ends (`mi_collect`, asked for on 2026-10-12) is not done — decided by the
+maintainer on 2026-10-12, about 16:00 BRT (*"Todos aprovados"*), with no
+exception to `unsafe_code = "forbid"` (ADR 0029), the only way to reach
+the call. The pieces from the disk made it unnecessary: what a transfer
+held is no longer there to give back — three devices fetching a 60 MB file
+held 43–47 MB 30 s later with 2b1f2c4, against 245–246 MB with the build
+before (**Large files**, above), and on the 453 MiB guest ten devices
+fetching 181 MB at once peaked at 44 MB with no kill in any run (the
+table's Memory row). *(`[OPEN]` from that morning until the decision.)*
 `MIMALLOC_PURGE_DELAY=0` in the environment changed nothing measurable on
 macOS (the build before 2b1f2c4 still held 245 MB 30 s after the fetch of
 **Large files**); not tried on Linux, where by mimalloc's own notes a

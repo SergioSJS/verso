@@ -58,6 +58,37 @@ describe("The layer a setting is read from", () => {
   });
 });
 
+describe("A reader's bookmarks (decided 2026-10-12)", () => {
+  test("are this machine's, said as this machine's, while the folder's rules still apply", () => {
+    const layer = file({ bookmarks: ["Dali.md"], folder_note_name: "Índice", respect_gitignore: false });
+    const reader = effective(layer, machine, false);
+    assert.deepEqual(reader.bookmarks, ["Daqui.md"]);
+    assert.equal(reader.bookmarksScope, "machine");
+    assert.equal(reader.scope, "folder");
+    assert.equal(reader.folderNoteName, "Índice");
+    assert.equal(reader.respectGitignore, false);
+    // One who writes: the folder's, said as the folder's.
+    const writer = effective(layer, machine);
+    assert.deepEqual(writer.bookmarks, ["Dali.md"]);
+    assert.equal(writer.bookmarksScope, "folder");
+  });
+
+  test("with no usable file, everything is this machine's for anyone", () => {
+    for (const layer of [absent, null, { ...file({ bookmarks: ["Dali.md"] }), problem: "share" }]) {
+      for (const writes of [true, false]) {
+        const now = effective(layer, machine, writes);
+        assert.equal(now.bookmarksScope, "machine");
+        assert.deepEqual(now.bookmarks, ["Daqui.md"]);
+      }
+    }
+  });
+
+  test("never move into the folder's file", () => {
+    assert.equal(shouldMove(absent, machine, false, false), false);
+    assert.equal(shouldMove(absent, machine, false, true), true);
+  });
+});
+
 describe("The file's first write", () => {
   test("carries this machine's values that differ from the defaults, under the change", () => {
     assert.deepEqual(seed(machine), { bookmarks: ["Daqui.md"], folder_note_name: "README", ignore_build_dirs: null, respect_gitignore: false });
@@ -66,7 +97,7 @@ describe("The file's first write", () => {
     assert.deepEqual(first, { bookmarks: ["Daqui.md"], folder_note_name: "README", ignore_build_dirs: false, respect_gitignore: false });
     // So the values that apply are the same before and after it.
     const after = effective(file(first), machine);
-    assert.deepEqual({ ...after, scope: "machine" }, { ...effective(absent, machine), ignoreBuildDirs: false });
+    assert.deepEqual({ ...after, scope: "machine", bookmarksScope: "machine" }, { ...effective(absent, machine), ignoreBuildDirs: false });
   });
 
   test("over an existing file the change goes alone", () => {

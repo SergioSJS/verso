@@ -11,6 +11,7 @@
 // `organize/layerRules.ts`'s.
 
 import { commands, type FolderLayer, type FolderSettings } from "./bindings";
+import { canWrite, onCan } from "./can";
 import { fail } from "./errors";
 import { currentFolder } from "./folder";
 import { effective, firstWrite, shouldMove, writable, type Effective, type Machine } from "./organize/layerRules";
@@ -78,15 +79,42 @@ function machine(): Machine {
   };
 }
 
+/** A synced folder in which the person only reads on the server
+ *  (`verso:sync-state`, sync.ts): what they change in its layer here would
+ *  be refused there. */
+let syncedReader = false;
+addEventListener("verso:sync-state", (e) => {
+  const next = (e as CustomEvent<{ on: boolean; role: string }>).detail;
+  const now = Boolean(next?.on) && next?.role === "reader";
+  if (now === syncedReader) return;
+  syncedReader = now;
+  told();
+});
+// The person's role changed (can.ts): the bookmarks that apply may too.
+onCan(() => told());
+
+/** Whether the person may change the folder's layer: not a reader of a
+ *  server's folder, in its window or synced here. */
+function accountWrites(): boolean {
+  return canWrite() && !syncedReader;
+}
+
 /** The values that apply to the open folder now, and from which layer. */
 export function folderValues(): Effective {
-  return effective(currentFolder ? layer : null, machine());
+  return effective(currentFolder ? layer : null, machine(), accountWrites());
 }
 
 /** Whether a change goes to the folder's layer: a folder is open and its
  *  settings file can be created or written. */
 export function folderWritable(): boolean {
   return currentFolder !== "" && writable(layer);
+}
+
+/** Whether a star goes to the folder's layer: it can be written and the
+ *  person may write it — a reader's bookmarks stay on this machine, as
+ *  they did before ADR 0070 (decided 2026-10-12). */
+export function bookmarksWritable(): boolean {
+  return folderWritable() && accountWrites();
 }
 
 async function read(): Promise<void> {
@@ -102,7 +130,7 @@ export async function loadFolderLayer(): Promise<void> {
   if (!currentFolder) return told();
   await read();
   const m = machine();
-  if (layer && shouldMove(layer, m, movedBefore())) {
+  if (layer && shouldMove(layer, m, movedBefore(), accountWrites())) {
     const w = await commands.setFolderSettings(firstWrite(layer, m, {
       bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null,
     }), null);
@@ -114,8 +142,8 @@ export async function loadFolderLayer(): Promise<void> {
       markMoved();
       await read();
     }
-    // Refused (a reader of a server's folder) or failed: this machine's
-    // copy stays where it is, and applies; tried again at the next opening.
+    // Refused (the role changed meanwhile) or failed: this machine's copy
+    // stays where it is, and applies; tried again at the next opening.
   }
   told();
 }
