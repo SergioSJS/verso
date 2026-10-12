@@ -493,7 +493,12 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
   tinha lido o arquivo inteiro — a um pico de 246 MB, e segurava 245–246
   MB 30 s depois; o 2b1f2c4 foi de 42 MB a um pico de 42–46 MB, e segurava
   43–47 MB 30 s depois; o 2b1f2c4 enviando para um app da sincronização 1
-  (base64) chegou a 65 MB. Ainda não medido na VM de 1 núcleo (seção 15).
+  (base64) chegou a 65 MB. Na VM de 1 núcleo com o build musl estático
+  (**Dez aparelhos, e o convidado de 453 MiB de novo**, abaixo), dez
+  aparelhos buscando uma pasta de 61 MB ao mesmo tempo chegaram a um pico
+  de 403 MB com o 858d0ef e de 46 MB com o 8e2c2f1 (que traz o 2b1f2c4) no
+  convidado de 1 GB; no convidado de 453 MiB o 858d0ef foi morto pelo OOM
+  killer e o 8e2c2f1 chegou a 49 MB.
 - **Memória apertada** (o build glibc): o balloon foi inflado rumo a
   512 MB logo depois do
   pico de 50 aparelhos, deixando o convidado com 705 MB, e o OOM killer do
@@ -582,20 +587,95 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
   (395 MB) e a pasta da carga (219 MB, 3094 arquivos) juntos passam dos
   cerca de 170 MB de cache de páginas que o convidado tem. Os logs estão em
   `verso-sync-campaign/logs/pkg/`, guardados fora do repositório.
+- **Dez aparelhos, e o convidado de 453 MiB de novo, antes e depois dos
+  pedaços a partir do disco** (2026-10-12, 14:23–17:20 UTC): dois builds
+  do servidor, cada um feito na VM de build Ubuntu do jeito da release —
+  `cargo zigbuild --release --locked -p verso-cli --target
+  x86_64-unknown-linux-musl`, com o cargo-zigbuild 0.23.4 e o ziglang
+  0.15.2, as versões que o workflow da release fixa; binários estáticos
+  que dizem `verso 0.7.0-beta.1 (858d0ef)` e `verso 0.7.0-beta.1
+  (8e2c2f1)`, o 8e2c2f1 trazendo o 2b1f2c4 — cada um empacotado com o
+  nfpm ao lado da janela gerada do mesmo commit e instalado por cima do
+  anterior na VM 107 com `apt-get install --reinstall`, os dados
+  mantidos. O convidado primeiro com 1024 MB e o balloon ligado e não
+  inflado (`free -m`: 956 MB no total), depois com 512 MB e o balloon
+  desligado (453 MiB), e de volta a 1024 MB no fim. As gravações: o
+  `scripts/server-load.mjs` a partir da VM de build, a um salto de LAN,
+  a cópia de cada build (sincronização 1 contra o 858d0ef; sincronização
+  2, pedaços binários, contra o 8e2c2f1). A primeira sincronização: o
+  `scripts/server-load.mjs` não tem um modo que busque uma pasta, então
+  um script do kit da campanha (`cloud-fetch.mjs`, guardado fora do
+  repositório) abriu a pasta "Caderno" a partir de tantos aparelhos
+  simulados ao mesmo tempo pelo mesmo protocolo (sessões de aparelho,
+  `sync_state`, depois `sync_read` de cada arquivo, pedaço por pedaço,
+  conferindo o hash de cada arquivo), sincronização 2 contra o 8e2c2f1
+  salvo quando dito. A pasta tinha crescido desde 2026-10-11 para 197
+  arquivos e 181 MB, com mais dois arquivos de 60 MB dos testes daquele
+  dia: "61 MB" abaixo é a pasta sem esses dois (195 arquivos, o arquivo de
+  60 MB original entre eles), "181 MB" é ela inteira. O pico é o VmHWM do
+  processo, zerado antes de cada rodada (`/proc/<pid>/clear_refs`);
+  "depois" é o RSS 30 s depois do fim da rodada. Em toda rodada que
+  terminou: nenhum problema de integridade nas gravações, nenhum problema
+  de hash nas buscas, nenhum ERROR no journal, e os únicos erros foram
+  `put_hot:changed`, a checagem de revisão. As gravações são `put_new`
+  p50 / p99:
+
+  | Convidado | Rodada | 858d0ef | 8e2c2f1 |
+  |---|---|---|---|
+  | 956 MB | em repouso | 10 MB | 10 MB |
+  | 956 MB | 1 gravando, 20 s | 157 operações, 7,8/s; 112 ms / 2,5 s; pico 89 MB, depois 25 MB | — |
+  | 956 MB | 10 gravando, 60 s | 784 operações, 12,9/s; 0,98 s / 3,8 s; pico 149 MB, depois 27 MB | 745 operações, 12,2/s; 1,16 s / 4,4 s; pico 127 MB, depois 24 MB |
+  | 956 MB | 10 gravando, 300 s | 4079 operações, 13,5/s; 0,97 s / 3,6 s; pico 170 MB, depois 41 MB | — |
+  | 956 MB | 50 gravando, 60 s | 813 operações, 11,8/s; 6,3 s / 10,6 s; pico 295 MB, depois 31 MB | 612 operações, 9,2/s; 7,0 s / 21,0 s; pico 272 MB, depois 29 MB |
+  | 956 MB | 61 MB buscados por 3 | 6,6 s; pico 266 MB, depois 26 MB | 8,1 s; pico 38 MB, depois 30 MB |
+  | 956 MB | 61 MB buscados por 10 | 29,2 s; pico 403 MB, depois 39 MB | 22,8 s; pico 46 MB, depois 22 MB |
+  | 956 MB | 181 MB buscados por 10 | 66,8 s; pico 493 MB (`MemAvailable` caindo a 274 MB), depois 23 MB | 68,4 s; pico 45 MB, depois 23 MB |
+  | 453 MiB | em repouso | 10 MB | 6,5 MB |
+  | 453 MiB | 1 gravando, 20 s | 165 operações, 8,2/s; 137 ms / 3,2 s; pico 68 MB, depois 18 MB | 163 operações, 7,8/s; 173 ms / 2,5 s; pico 71 MB, depois 21 MB |
+  | 453 MiB | 10 gravando, 60 s | 524 operações, 8,3/s; 1,2 s / 5,5 s; pico 140 MB, depois 17 MB | 623 operações, 10,2/s; 1,4 s / 6,1 s; pico 102 MB, depois 21 MB |
+  | 453 MiB | 50 gravando, 60 s | 369 operações, 4,8/s; 16,1 s / 22,3 s; pico 238 MB, depois 25 MB | 387 operações, 5,0/s; 10,1 s / 26,7 s; pico 204 MB (`MemAvailable` caindo a 32 MB), depois 97 MB |
+  | 453 MiB | 61 MB buscados por 3 | 16,2 s; pico 240 MB (`MemAvailable` caindo a 65 MB), depois 24 MB | 10,4 s e 10,1 s; pico 97 e 40 MB, depois 23 e 19 MB |
+  | 453 MiB | 61 MB buscados por 10 | **morto pelo OOM killer, duas vezes em duas rodadas** (anon RSS 252 e 255 MB na morte), de volta em 5 s pelo `Restart=on-failure`; a busca não terminou | 22,1 s; pico 49 MB, depois 26 MB; com a sincronização 1 (base64) no mesmo servidor: 30,9 s, pico 55 MB |
+  | 453 MiB | 181 MB buscados por 10 | não rodado | 68,5 s; pico 44 MB, depois 20 MB |
+
+  Lido sem rodeios: antes dos pedaços, o pico de uma busca crescia com os
+  aparelhos e os arquivos buscados (266, 403, 493 MB no convidado de
+  1 GB), e dez aparelhos buscando 61 MB não couberam em 453 MiB; com o
+  8e2c2f1 o pico ficou em 38–97 MB não importa quantos aparelhos
+  buscassem nem o tamanho da pasta, nos dois convidados, sem nenhuma
+  morte. Gravando, os dois builds se parecem: um pico de 68–295 MB com 1
+  a 50 gravando, de volta a 17–41 MB em 30 s (uma rodada, 50 gravando em
+  453 MiB com o 8e2c2f1, ainda segurava 97 MB). Dez gravando rodaram a
+  12–13,5 operações por segundo por 1 e por 5 minutos em 1 núcleo e 1 GB,
+  e a 8–10 em 453 MiB; cinquenta a 9–12 e a cerca de 5. As diferenças
+  entre os builds nas linhas de gravação estão dentro da variação já vista
+  entre duas rodadas de um mesmo binário (até cerca de 45 %), e o p99 de
+  21 s com 50 gravando no 8e2c2f1 em 1 GB não foi repetido. A pasta Carga
+  em que as gravações escrevem cresceu ao longo da rodada, para 7273
+  arquivos e 461 MB, e o diretório de dados para 675 MB, e o 8e2c2f1 rodou
+  depois do 858d0ef em cada convidado, com mais dados embaixo dele. A taxa
+  com 50 gravando em 1 GB (9–12 por segundo) fica abaixo dos 15,4 e 18,5
+  da medição dos alocadores no mesmo convidado, que tinha uma pasta de
+  3094 arquivos; a causa não está provada. Os logs estão em
+  `verso-sync-campaign/logs/cloud2/`, guardados fora do repositório.
 
 | | Mínimo | Recomendado |
 |---|---|---|
-| Para | 1 a 3 pessoas, notas e anexos pequenos | uma família ou equipe de até ~10 pessoas, vários aparelhos cada (uma estimativa, não medida) |
+| Para | 1 a 3 pessoas, notas e anexos pequenos | uma família ou equipe de até ~10 pessoas, vários aparelhos cada (uma estimativa: dez aparelhos simulados foram medidos em 1 núcleo e 1 GB em 2026-10-12, gravando por 5 minutos a 13,5 operações por segundo com `put_new` p50 de cerca de 1 s e RSS máximo de 170 MB, e buscando uma pasta de 181 MB ao mesmo tempo com pico de 45 MB; dez pessoas com vários aparelhos cada, pelos apps, não foram) |
 | CPU | 1 núcleo, x64 ou ARM64 (medido, linhas "cloud 1 GB" do `results.jsonl`: um aparelho gravando, cerca de 100 ms por gravação; um pico de 50 faz fila no disco, p50 4,5 s) | 2 núcleos |
-| Memória | 512 MB — medido em 2026-10-12 num convidado que via 453 MiB com o balloon desligado (**Um convidado de 453 MiB**, acima): o build musl + mimalloc distribuído rodou dois picos de 50 gravando sem morte por OOM, com RSS máximo de 200 MB e cerca de metade da vazão do convidado de 1 GB (causa provável, não provada: os dados e a pasta passam do cache de páginas do convidado); como medido, basta para 1 a 3 pessoas com anexos pequenos; as duas mortes da campanha, em convidados com o balloon ligado, vieram da memória que o build glibc guardava depois de um pico; se o processo for morto, a unit o traz de volta em 5 s sem perder nada | 2 GB; o tamanho dos arquivos que vocês sincronizam não conta mais na memória do servidor: desde o 2b1f2c4 uma transferência segura um pedaço de 1 MiB (**Arquivos grandes**, acima) |
+| Memória | 512 MB — medido em 2026-10-12 num convidado que via 453 MiB com o balloon desligado (**Um convidado de 453 MiB**, acima): o build musl + mimalloc distribuído rodou dois picos de 50 gravando sem morte por OOM, com RSS máximo de 200 MB e cerca de metade da vazão do convidado de 1 GB (causa provável, não provada: os dados e a pasta passam do cache de páginas do convidado); como medido, basta para 1 a 3 pessoas com anexos pequenos; as duas mortes da campanha, em convidados com o balloon ligado, vieram da memória que o build glibc guardava depois de um pico; em 2026-10-12, no mesmo convidado de 453 MiB, o 858d0ef foi morto duas vezes em duas rodadas quando dez aparelhos buscaram uma pasta de 61 MB ao mesmo tempo, e o 8e2c2f1 (pedaços a partir do disco) não morreu em nenhuma rodada — dez aparelhos buscando 181 MB ao mesmo tempo chegaram a 44 MB, cinquenta gravando a 204 MB (**Dez aparelhos, e o convidado de 453 MiB de novo**, acima); se o processo for morto, a unit o traz de volta em 5 s sem perder nada | 2 GB; o tamanho dos arquivos que vocês sincronizam não conta mais na memória do servidor: desde o 2b1f2c4 uma transferência segura um pedaço de 1 MiB (**Arquivos grandes**, acima) |
 | Disco | um SSD; o tamanho das notas × 2 + 1 GB (a lixeira, `.trash`, guarda o que foi apagado) | um SSD local para o `VERSO_DATA_DIR`; as notas num SSD ou num NAS |
 | Exemplos | um Raspberry Pi 4 de 2 GB, a VPS mais barata | um mini PC, um NAS com Docker, uma VPS de 2 GB |
 
 `[OPEN]` Se 1 GB basta para uma equipe pequena: um convidado de 1 GB serviu
 quatro aparelhos, um soak de 20 minutos, picos de 50 gravando e um arquivo
 de 60 MB para três aparelhos ao mesmo tempo (essa busca não segura mais o
-arquivo na memória desde o 2b1f2c4: **Arquivos grandes**, acima); o "até
-~10 pessoas" da tabela não foi medido.
+arquivo na memória desde o 2b1f2c4: **Arquivos grandes**, acima); em
+2026-10-12 ele serviu dez aparelhos simulados gravando por 5 minutos e
+buscando a pasta inteira de 181 MB ao mesmo tempo (**Dez aparelhos, e o
+convidado de 453 MiB de novo**, acima). Aparelhos simulados na LAN não
+são os apps de dez pessoas: o "até ~10 pessoas" da tabela, cada uma com
+vários aparelhos, não foi medido.
 
 Se o servidor deve mandar os pedaços de um arquivo grande a partir do
 disco em vez de segurar o arquivo inteiro ficou `[OPEN]` até 2026-10-12,
@@ -619,7 +699,7 @@ build de antes do 2b1f2c4 ainda segurava 245 MB 30 s depois da busca de
 mimalloc, uma limpeza usa `MADV_DONTNEED`.
 
 Um Raspberry Pi e um NAS ainda não foram medidos, nem uma VPS num provedor
-(a VM de 2026-10-11 estava na LAN). `scripts/sync-lab/lab.sh load
+(as VMs de 2026-10-11 e de 2026-10-12 estavam na LAN). `scripts/sync-lab/lab.sh load
 --devices 1` na própria máquina diz o quão rápido o disco dela grava.
 
 ## 15. O que ainda não foi verificado
@@ -665,14 +745,24 @@ máquina real. Verificado desde então:
   modelo, novo, ao lado do `.rpmsave`; depois do `enable --now` o servidor
   partiu dos mesmos dados; ver a nota da seção 5).
 - 2026-10-12: o build musl estático do servidor (x86_64), feito com o
-  musl-gcc; o caminho da release, o cargo-zigbuild, ainda não foi
-  verificado.
+  musl-gcc.
+- 2026-10-12: o caminho da release para o binário estático em x86_64:
+  `cargo zigbuild --release --locked -p verso-cli --target
+  x86_64-unknown-linux-musl` com o cargo-zigbuild 0.23.4 e o ziglang
+  0.15.2 (as versões que o workflow da release fixa), no 858d0ef e no
+  8e2c2f1, na VM de build Ubuntu (`file`: estaticamente ligado); cada um
+  empacotado como `.deb` com o nfpm e instalado por cima do anterior no
+  Ubuntu 26.04 com `apt-get install --reinstall` (o serviço reiniciado,
+  os dados mantidos), depois medido na VM de 1 núcleo com 1 GB e com
+  453 MiB, um arquivo em pedaços a partir do disco (8e2c2f1) entre as
+  medições (seção 14, **Dez aparelhos, e o convidado de 453 MiB de
+  novo**).
 
 Ainda não verificado:
 
-- a imagem construída e executada em amd64 e arm64, e os binários
-  estáticos compilados com cargo-zigbuild (o caminho da release; um build
-  musl estático feito com o musl-gcc está verificado, acima);
+- a imagem construída e executada em amd64 e arm64, e o binário
+  estático de arm64 compilado com cargo-zigbuild (o de x86_64 está
+  verificado, acima);
 - o `.deb` e o `.rpm` em arm64, e uma atualização de uma versão para outra
   mais nova;
 - a mensagem de que não está rodando que o `postinstall.sh` imprime quando
@@ -682,7 +772,4 @@ Ainda não verificado:
   `docker compose config`; o bloco `x-casaos` segue a descrição v2 da
   CasaOS AppStore de 2026-10-09, sem passar pelo validador deles);
 - a receita do `tailscale serve` e o exemplo do Caddy contra este servidor;
-- a poda das versões antigas no registry;
-- um arquivo em pedaços a partir do disco (2b1f2c4) na VM de 1 núcleo e
-  com o build musl estático: medido só num Mac (seção 14, **Arquivos
-  grandes**).
+- a poda das versões antigas no registry.
