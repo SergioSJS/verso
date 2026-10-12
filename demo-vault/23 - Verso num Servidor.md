@@ -86,6 +86,19 @@ Com a pasta aberta, em **Ajustes › Sincronizar**, escolha o servidor e **uma p
 
 A barra de status mostra o estado — *Sincronizada*, *enviando 3*, *Sem conexão*, *Pausada*, *1 conflito* — e um clique nela abre a seção. Quem só **lê** a pasta no servidor recebe as mudanças; as feitas aqui ficam aqui. Desligar deixa os dois lados como estão.
 
+### Editar junto numa pasta sincronizada
+
+Enquanto a sincronização está conectada, uma nota aberta aqui **entra na mesma sala** de quem a abriu no navegador ou noutro aparelho: vocês editam juntos, ao vivo, com o cursor e o nome de cada um. O servidor grava a nota quando as edições assentam, e a sincronização traz o arquivo para este computador — nenhuma cópia de conflito do seu próprio texto.
+
+- Ao lado do título, e na barra de status, a nota diz o estado em palavras: *ao vivo, com Ana e Bia*, *ao vivo, só você*, *pondo em dia…* enquanto o que você mudou sem rede é enviado antes de entrar.
+- **A rede caiu?** A nota fica *local — sem conexão*: o seu texto continua na tela e é salvo neste computador. Quando a rede volta, a nota volta para a sala e o que você digitou se junta, letra por letra, ao que os outros digitaram. Se a sala já é outra (passou muito tempo, o servidor reiniciou), a sincronização compara como sempre — e, se os dois lados mudaram, a sua versão fica numa cópia ao lado. Nada se perde.
+- **Pausar** a sincronização deixa a nota *local — sincronização pausada* até você retomar.
+- Quem só **lê** a pasta aparece na nota, com o nome, e não digita.
+- Uma mudança feita **fora do Verso** (o Obsidian, um script) na nota aberta cruza como qualquer outra: entra na sala, ou fica numa cópia se a sala já tinha salvo outra coisa.
+- Não quer editar junto nesta pasta? Em **Ajustes › Sincronizar**, desligue **Editar notas junto enquanto online**: as notas voltam a ser editadas só aqui e cruzam ao salvar. É um ajuste seu, deste computador — não vai para a pasta.
+
+Boards, bases e anexos continuam cruzando como arquivos.
+
 ---
 
 Para o celular e o tablet, veja [[22 - Verso no Celular e no Tablet]]. Volte para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].

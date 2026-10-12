@@ -170,6 +170,18 @@ end-to-end tests cover the rest.
   and a copy *(conflito, …)*, its difference in *Ajustes* › *Sincronizar*;
   a large video crosses whole; Obsidian, on the Mac's folder, sees the
   changes; the log says what crossed and has no `ERROR`.
+- [ ] **A note live on two computers** (ADR 0082), beside the check
+  above: the same note open in Editar on the Mac's synced folder, on the
+  other computer's and in a browser; each sees the others' text as they
+  type, with their names beside the title (*ao vivo, com …*); the files on
+  both computers follow the room within seconds and no copy *(conflito,
+  …)* appears. Wi-Fi off on the Mac while typing: *local — sem conexão*,
+  the text stays and is in the Mac's file; back on, the note is *ao vivo*
+  again and the text typed offline is in the others' windows, once. With
+  two windows of the Mac on two synced folders that both hold a note of
+  the same name, typing in one never shows in the other (a window hears
+  its own room's events only). VoiceOver says who joins and leaves, and
+  the note going local and live. The log has no `ERROR`.
 - [ ] **A ribbon button hidden and brought back** in the installed app:
   right click › *Ocultar este botão*, the status bar says where; *Ajustes* ›
   *Aparência* › its switch brings it back; the gear has no *Ocultar*.
