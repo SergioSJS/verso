@@ -27,6 +27,9 @@ const DROPPED = new Set([
   "applet", "param", "template", "noscript", "noembed", "noframes", "title", "textarea", "select",
   "option", "optgroup", "datalist", "output", "progress", "meter", "canvas", "audio", "video",
   "source", "track", "map", "area", "portal", "xmp", "plaintext", "listing", "slot", "head",
+  // Foreign content, by name as well as by namespace: a parser that put
+  // them in HTML's (as a test's DOM can) still drops them whole.
+  "svg", "math",
 ]);
 
 /** On any element kept. */
@@ -34,7 +37,7 @@ const GLOBAL = new Set(["class", "id", "title", "lang", "dir", "style", "align",
 const OWN: Record<string, Set<string>> = {
   a: new Set(["href"]),
   iframe: new Set(["src", "width", "height", "style", "title", "allow", "allowfullscreen", "loading", "sandbox"]),
-  img: new Set(["src", "alt", "width", "height"]),
+  img: new Set(["src", "alt", "width", "height", "data-src"]),
   ol: new Set(["start", "reversed", "type"]),
   li: new Set(["value"]),
   input: new Set(["type", "checked", "disabled"]),
@@ -47,20 +50,25 @@ const OWN: Record<string, Set<string>> = {
 };
 
 /** The renderer's classes, the only ones kept: a note's own class could
- *  wear the app's (`quick`, `menu`…) and lay itself over the window. */
-const CLASSES = new Set(["wikilink", "tag", "embed", "math", "math-display", "callout", "callout-title", "footnote-reference", "footnote-definition", "footnote-definition-label"]);
+ *  wear the app's (`quick`, `menu`…) and lay itself over the window.
+ *  `remote-image` is the held picture's link, a dashed box; kept so that
+ *  what this module wrote cleans to itself. */
+const CLASSES = new Set(["wikilink", "tag", "embed", "math", "math-display", "callout", "callout-title", "footnote-reference", "footnote-definition", "footnote-definition-label", "remote-image"]);
 const LANGUAGE = /^language-[\w#+.-]+$/;
 
-/** Ids the app answers to — the page's own, and any it makes later under
- *  `verso-` — which a note may not take (a drop over a note that claimed
- *  `tree-root` would land in the tree). A note's other ids stay: its
- *  footnotes and anchors point at them. */
-const RESERVED = new Set(Array.from(document.querySelectorAll("[id]"), (e) => e.id));
-/** Ids the window makes later, for its lists and dialogs (their
- *  `aria-*` point at them): a note's element with one would come first in
- *  the document and take the reference. */
-const LATER = /^(verso-|quick-|palette-|plan-|setting-|slash-|folders-)/;
-const reserved = (id: string): boolean => RESERVED.has(id) || LATER.test(id);
+/** A note's ids, and the in-page links that point at them, live under
+ *  this prefix. An element's id is also a name the page answers to: by
+ *  `getElementById` — the window's own lists and dialogs, made at any
+ *  time (`sync-state`, `mask-icons`…), would find the note's element
+ *  first — and as a property of `window` — a note's `id="isTauri"`
+ *  would answer the Tauri library's own question in a browser. Under
+ *  the prefix no id of the window and no global name can be met. The
+ *  same rewrite on both sides keeps footnotes and anchors working; one
+ *  already under the prefix is kept, so cleaning twice changes nothing. */
+const ID_PREFIX = "note-";
+function noteId(id: string): string {
+  return id.startsWith(ID_PREFIX) ? id : `${ID_PREFIX}${id}`;
+}
 
 /** Whether a note may ask the web for an image: the "load remote
  *  content" setting (ADR 0050). Off, a remote image becomes a link to
@@ -80,7 +88,7 @@ export function allowRemoteContent(on: boolean): void {
  *  slip past a check made on it. */
 function address(value: string, image: boolean): string | null {
   const v = value.trim();
-  if (v.startsWith("#")) return image ? null : v;
+  if (v.startsWith("#")) return image ? null : v.length > 1 ? `#${noteId(v.slice(1))}` : v;
   if (image && !v.includes(":") && !v.startsWith("//")) return v;
   let url: URL;
   try {
@@ -121,11 +129,32 @@ export function imageLink(doc: Document, src: string, alt: string): HTMLAnchorEl
 
 /** An inline style kept, but not one that lifts the element out of the
  *  note (fixed or absolute): anything else is clipped by its scroller.
- *  With remote content off, it loses whatever it would fetch. */
+ *  What a style fetches is a picture's address by the picture's rules:
+ *  the web (while remote content is on) or a picture in data — never
+ *  `javascript:`, a file, or this page's own origin (`url(/api/…)`).
+ *  `image-set()` and `src()` name addresses without `url()`: they go. */
 function tameStyle(style: CSSStyleDeclaration): void {
   const position = style.getPropertyValue("position").trim().toLowerCase();
   if (position !== "" && position !== "static" && position !== "relative" && position !== "sticky" && position !== "-webkit-sticky") style.removeProperty("position");
-  if (!remote) for (const property of Array.from(style)) if (/url\s*\(/i.test(style.getPropertyValue(property))) style.removeProperty(property);
+  for (const property of Array.from(style)) {
+    const value = style.getPropertyValue(property);
+    if (FETCHES_UNSEEN.test(value) || !urlsAllowed(value)) style.removeProperty(property);
+  }
+}
+const FETCHES_UNSEEN = /(?:^|[^\w-])(?:-webkit-)?(?:image-set|src)\s*\(/i;
+const URL_FN = /url\s*\(\s*(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'|([^)\s"']*))\s*\)/gi;
+/** Whether every `url()` of a style's value may load, as the CSSOM wrote
+ *  it (escapes resolved, quotes its own). */
+function urlsAllowed(value: string): boolean {
+  const opened = (value.match(/url\s*\(/gi) ?? []).length;
+  if (opened === 0) return true;
+  const read = Array.from(value.matchAll(URL_FN));
+  // A `url(` the pattern could not read is not trusted.
+  if (read.length !== opened) return false;
+  return read.every((m) => {
+    const raw = (m[1] ?? m[2] ?? m[3] ?? "").trim();
+    return onTheWeb(raw) ? remote : /^data:image\//i.test(raw);
+  });
 }
 
 /* ---------- Embedded web pages ---------- */
@@ -309,6 +338,13 @@ function gated(doc: Document, frame: HTMLIFrameElement, url: string): HTMLElemen
  *  note's `<iframe>` gave for size and style — the style tamed as the
  *  reading view's is, so the frame cannot lift itself out of the pane. */
 export function webFrame(url: string, width: string, height: string, style: string): HTMLElement {
+  // Only a page on the web: an approval of "everything" is still no
+  // approval of `javascript:` or `file:` for the child view.
+  if (!onTheWeb(url)) {
+    const text = document.createElement("span");
+    text.textContent = url;
+    return text;
+  }
   const frame = document.createElement("iframe");
   if (style) {
     frame.style.cssText = style;
@@ -362,6 +398,17 @@ function onGate(e: MouseEvent): void {
   }
 }
 
+/** The policy, as the hostile-HTML suite prints and checks it
+ *  (test/sanitize.test.mjs): what is kept, what goes with all it holds. */
+export const POLICY = {
+  elements: [...ELEMENTS].sort(),
+  dropped: [...DROPPED].sort(),
+  global: [...GLOBAL].sort(),
+  own: Object.fromEntries(Object.entries(OWN).map(([tag, names]) => [tag, [...names].sort()])),
+  classes: [...CLASSES].sort(),
+  idPrefix: ID_PREFIX,
+} as const;
+
 function keepAttributes(el: Element, tag: string): void {
   const own = OWN[tag];
   for (const attr of Array.from(el.attributes)) {
@@ -370,7 +417,10 @@ function keepAttributes(el: Element, tag: string): void {
       el.removeAttribute(name);
       continue;
     }
-    if (name === "href" || name === "src") {
+    if (name === "data-src") {
+      // A file beside the note, as a relative `src` becomes below.
+      if (!relativeImage(attr.value)) el.removeAttribute(name);
+    } else if (name === "href" || name === "src") {
       const v = address(attr.value, name === "src");
       if (v === null) el.removeAttribute(name);
       else if (v !== attr.value) el.setAttribute(name, v);
@@ -378,14 +428,19 @@ function keepAttributes(el: Element, tag: string): void {
       const kept = attr.value.split(/\s+/).filter((c) => CLASSES.has(c) || (tag === "code" && LANGUAGE.test(c)));
       if (kept.length === 0) el.removeAttribute(name);
       else el.setAttribute(name, kept.join(" "));
-    } else if (name === "id" && reserved(attr.value)) {
-      el.removeAttribute(name);
+    } else if (name === "id") {
+      const id = attr.value.trim();
+      if (id === "") el.removeAttribute(name);
+      else el.setAttribute(name, noteId(id));
     }
   }
   const style = (el as HTMLElement).style as CSSStyleDeclaration | undefined;
   if (style && el.hasAttribute("style")) {
     tameStyle(style);
+    // Written back as the CSSOM read it: what it could not read was not
+    // checked, and goes.
     if (style.length === 0) el.removeAttribute("style");
+    else el.setAttribute("style", style.cssText);
   }
 }
 

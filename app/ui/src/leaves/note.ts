@@ -38,6 +38,7 @@ import { dirOf, Kind, name } from "../paths";
 import { PdfView } from "../pdf";
 import { PropertiesView } from "../props";
 import { st } from "../screen/strings";
+import { cleanHtmlText } from "../sanitize";
 import { searchNotes } from "../search";
 import { ReadingSearch, searchStrings } from "../searchPanel";
 import { settings, sourceLineNumbers } from "../settings";
@@ -266,7 +267,9 @@ export class NoteLeaf extends Leaf {
       table: {
         labels: { ...t.tableEdit, cell: (r, c) => (r === 0 ? t.tableEdit.headerCell : t.tableEdit.cell.replace("{r}", String(r))).replace("{c}", String(c)) },
         menu: (x, y, items) => showMenu(x, y, items as MenuItem[]),
-        render: (md) => commands.renderMarkdown(md),
+        // The cells' HTML is a note's like any other: cleaned before it
+        // reaches the editor (threat-model.md, gap 1).
+        render: async (md) => cleanHtmlText(await commands.renderMarkdown(md)),
         widths: (ordinal, cols) => tableWidths(currentFolder, this.path, ordinal, cols),
       },
       isEmbedActive: (target) => {
