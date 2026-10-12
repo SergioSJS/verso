@@ -23,7 +23,10 @@ export type Machine = {
 /** Where the values that apply come from. */
 export type Scope = "folder" | "machine";
 
-export type Effective = Machine & { scope: Scope };
+/** `scope`: where the walk's rules and the folder note's name come from;
+ *  `bookmarksScope`: where the bookmarks do — this machine's for an
+ *  account that cannot write the folder's layer (decided 2026-10-12). */
+export type Effective = Machine & { scope: Scope; bookmarksScope: Scope };
 
 /** The folder's file is there and can be read: its values apply. */
 export function usable(layer: FolderLayer | null): boolean {
@@ -39,12 +42,18 @@ export function writable(layer: FolderLayer | null): boolean {
 
 /** The values that apply now, and from which layer. A key the folder's
  *  file does not set takes the default — never this machine's value, so
- *  that two computers opening one folder find the same. */
-export function effective(layer: FolderLayer | null, machine: Machine): Effective {
-  if (!layer || !usable(layer)) return { ...machine, scope: "machine" };
+ *  that two computers opening one folder find the same. `writes`: whether
+ *  the person may change the folder's layer. One who may not — a reader of
+ *  a server's folder — keeps their bookmarks on this machine, where they
+ *  lived before ADR 0070, and stars and unstars there (the maintainer,
+ *  2026-10-12: "Todos aprovados"); the walk's rules and the folder note's
+ *  name stay the folder's, which they only read. */
+export function effective(layer: FolderLayer | null, machine: Machine, writes = true): Effective {
+  if (!layer || !usable(layer)) return { ...machine, scope: "machine", bookmarksScope: "machine" };
   const s = layer.settings;
   return {
-    bookmarks: s.bookmarks ?? [],
+    bookmarks: writes ? s.bookmarks ?? [] : machine.bookmarks,
+    bookmarksScope: writes ? "folder" : "machine",
     folderNoteName: s.folder_note_name ?? "",
     ignoreBuildDirs: s.ignore_build_dirs ?? true,
     respectGitignore: s.respect_gitignore ?? true,
@@ -78,12 +87,13 @@ export function firstWrite(layer: FolderLayer, machine: Machine, change: FolderS
 }
 
 /** Whether, at this opening, the folder's bookmarks this machine kept move
- *  into the folder: once — not moved before —, only into a folder that has
+ *  into the folder: by a person who may write it (`writes`), once — not
+ *  moved before —, only into a folder that has
  *  no settings file yet and can take one, and only when there is
  *  something to move. A second computer finds the file there and keeps
  *  its own copy where it was. */
-export function shouldMove(layer: FolderLayer | null, machine: Machine, movedBefore: boolean): boolean {
-  return !movedBefore && layer !== null && !layer.exists && !layer.problem && machine.bookmarks.length > 0;
+export function shouldMove(layer: FolderLayer | null, machine: Machine, movedBefore: boolean, writes = true): boolean {
+  return writes && !movedBefore && layer !== null && !layer.exists && !layer.problem && machine.bookmarks.length > 0;
 }
 
 /** `list` with `path` added at the end, or taken out when it was there. */

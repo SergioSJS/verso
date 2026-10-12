@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { changeFolder, folderValues, folderWritable, onFolderLayer, saveMachineBookmarks } from "./folderLayer";
+import { bookmarksWritable, changeFolder, folderValues, onFolderLayer, saveMachineBookmarks } from "./folderLayer";
 import { leavesOf } from "./layout/spaces";
 import { NoteLeaf } from "./leaves/note";
 import { panel } from "./main";
@@ -10,7 +10,8 @@ import { toggled } from "./organize/layerRules";
 
 /* ---------- Bookmarks ---------- */
 /** The open folder's bookmarks as they apply now: the folder's own, in
- *  `.verso/settings.json`, or this machine's while it has none (ADR 0070). */
+ *  `.verso/settings.json`, or this machine's while it has none or the
+ *  person only reads it (ADR 0070; decided 2026-10-12). */
 export let bookmarks: string[] = [];
 export function loadBookmarks(): void {
   bookmarks = folderValues().bookmarks;
@@ -18,12 +19,13 @@ export function loadBookmarks(): void {
 /** The bookmarks changed by `change`, applied at once here and kept in the
  *  folder's layer — made again over the file as it is when it is written,
  *  so a change another computer synced in meanwhile stays — or on this
- *  machine when the folder's layer cannot be written. */
+ *  machine when the folder's layer cannot be written, or the person only
+ *  reads the folder (decided 2026-10-12). */
 export function changeBookmarks(change: (list: readonly string[]) => string[]): void {
   const next = change(bookmarks);
   if (next.length === bookmarks.length && next.every((p, i) => p === bookmarks[i])) return;
   bookmarks = next;
-  if (!folderWritable()) {
+  if (!bookmarksWritable()) {
     saveMachineBookmarks(next);
     return;
   }
