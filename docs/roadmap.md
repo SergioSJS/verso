@@ -1,6 +1,6 @@
 # Verso roadmap
 
-- Version: 2026-10-11, revision 6 (Phase 3's table gains what was built since revision 5 — [0077](adr/0077-the-server-administration-console-and-folder-quotas.md), [0078](adr/0078-universo-the-name-of-verso-as-a-server.md), [0079](adr/0079-sync-a-local-folder-with-a-server.md) — and the accepted [0080](adr/0080-the-trash-with-expiry-and-restore.md), [0081](adr/0081-sharing-between-people-on-one-universo.md) and [0082](adr/0082-live-co-editing-of-a-synced-folder.md) in the order the maintainer set on 2026-10-11, *"Sim para todos"*; finer permissions struck through as accepted with 0081; "After Phase 2" brought up to date on sync; the rows 3.10–3.16, which bear on the exit criterion, were written from the memo's recommendation, not from one of the maintainer's eight answers, and await the maintainer's acceptance — rule zero; on 2026-10-12, within this revision, rows 3.13, 3.14 and 3.16 marked built and 3.15 done, that acceptance still awaited). Revision 5, 2026-10-09 (Phase 3 written, from [ADR 0073](adr/0073-self-hosted-server-first.md) accepted by the maintainer with 0074, 0075 and 0076; the contract's session identity and the handles for `verso serve` struck through as decided). Revision 4, 2026-09-24 (the maintainer's decisions of 2026-09-24 struck through: the handles in both phases, and the typed note's two rows, with item 2.6 no longer waiting for them). Revision 3, 2026-09-23: Phase 2 as built; the Phase 1 decisions taken on 2026-09-22 struck through
+- Version: 2026-10-11, revision 6 (Phase 3's table gains what was built since revision 5 — [0077](adr/0077-the-server-administration-console-and-folder-quotas.md), [0078](adr/0078-universo-the-name-of-verso-as-a-server.md), [0079](adr/0079-sync-a-local-folder-with-a-server.md) — and the accepted [0080](adr/0080-the-trash-with-expiry-and-restore.md), [0081](adr/0081-sharing-between-people-on-one-universo.md) and [0082](adr/0082-live-co-editing-of-a-synced-folder.md) in the order the maintainer set on 2026-10-11, *"Sim para todos"*; finer permissions struck through as accepted with 0081; "After Phase 2" brought up to date on sync; the rows 3.10–3.16, which bear on the exit criterion, were written from the memo's recommendation, not from one of the maintainer's eight answers, and awaited the maintainer's acceptance — rule zero; on 2026-10-12, within this revision, rows 3.13, 3.14 and 3.16 marked built and 3.15 done, rows 3.10–3.16 **accepted by the maintainer** that night, "Ok", and rows 3.17–3.21 added from the maintainer's answers of the same night). Revision 5, 2026-10-09 (Phase 3 written, from [ADR 0073](adr/0073-self-hosted-server-first.md) accepted by the maintainer with 0074, 0075 and 0076; the contract's session identity and the handles for `verso serve` struck through as decided). Revision 4, 2026-09-24 (the maintainer's decisions of 2026-09-24 struck through: the handles in both phases, and the typed note's two rows, with item 2.6 no longer waiting for them). Revision 3, 2026-09-23: Phase 2 as built; the Phase 1 decisions taken on 2026-09-22 struck through
 - Source: `docs/BRIEFING.md` §15
 - ADR: [0034](adr/0034-roadmap-in-phases.md)
 
@@ -282,6 +282,11 @@ phase does not start before the previous one closes", above, is
 | 3.14 | The trash with expiry and restore, with its item 12: the version a device's write replaced, kept and restorable (the campaign's finding F18) — accepted 2026-10-11; second; built, item 12 with it, on the night of 2026-10-11 to 12 (f3edc42, with the fix 5b5fb9c) | [0080](adr/0080-the-trash-with-expiry-and-restore.md), [0079](adr/0079-sync-a-local-folder-with-a-server.md) Consequences |
 | 3.15 | The threat model refreshed (`docs/reference/threat-model.md`), its own `[OPEN]` items with it — third, before sharing; done 2026-10-11 (4c09fc9), the gaps it found closed by the hardening merged in 60c717c except those it lists as still open, and its own `[OPEN]` items kept open | [0073](adr/0073-self-hosted-server-first.md) item 6 |
 | 3.16 | Sharing between people on one Universo: a grant on a path, read or write — accepted 2026-10-11; fourth; built on the night of 2026-10-11 to 12 (merged 2f25923, 2026-10-12) | [0081](adr/0081-sharing-between-people-on-one-universo.md) |
+| 3.17 | A receiver's rename rewrites the owner's links outside the share — decided 2026-10-12, not built yet; the next round | [0081](adr/0081-sharing-between-people-on-one-universo.md) item 11 |
+| 3.18 | The aggregates a receiver sees — the index's counts, a base's formulas — zeroed — decided 2026-10-12, not built yet; the next round | [0081](adr/0081-sharing-between-people-on-one-universo.md) item 11 |
+| 3.19 | The writes the properties panel and a PDF's quote make to a live note go through the room — decided 2026-10-12, not built yet; the next round | [0082](adr/0082-live-co-editing-of-a-synced-folder.md) Status |
+| 3.20 | Presence stamped by the server with the sender's account (the threat model's gap 11) — decided 2026-10-12, being built | [0073](adr/0073-self-hosted-server-first.md) item 6, `docs/reference/threat-model.md` |
+| 3.21 | The device approval page against device-code phishing (the threat model's gap 12) — decided 2026-10-12, being built | [0073](adr/0073-self-hosted-server-first.md) item 6, [0074](adr/0074-accounts-and-access-on-the-server.md) item 8, `docs/reference/threat-model.md` |
 
 Items 3.2 to 3.9 ship together, in the first release of the server
 (ADR 0073 item 12, revised on 2026-10-09). The window on every screen is
@@ -302,7 +307,13 @@ full before the first user who is not the maintainer. Items 3.13,
 3.14 and 3.16 were built, and 3.15 done, on the night of 2026-10-11 to
 12, and none is released yet; the open questions their building raised
 were sent to the maintainer the same night, each listed in its ADR's
-Status.
+Status. The maintainer answered them at 01:15 BRT on 2026-10-12, each
+answer recorded in its ADR, and accepted rows 3.10 to 3.16 ("Ok"). Rows
+3.17 to 3.21 come from those answers: 3.20 and 3.21, decided *"seguros
+desde o dia 0"* (safe from day zero), were being built that night on
+`feat/universo-small`, with [0081](adr/0081-sharing-between-people-on-one-universo.md)
+item 8's revoked sync turned off with a notice; 3.17 to 3.19 come in the
+next round.
 
 ### Decisions that have to come out during the phase
 
