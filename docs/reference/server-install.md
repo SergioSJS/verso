@@ -475,8 +475,12 @@ one LAN hop away. The numbers are in the campaign's log
   99 MB — its walk had read the file whole — to a peak of 246 MB, and
   held 245–246 MB 30 s later; 2b1f2c4 went from 42 MB to a peak of
   42–46 MB, and held 43–47 MB 30 s later; 2b1f2c4 sending to an app of
-  sync 1 (base64) peaked at 65 MB. Not measured yet on the 1-core VM
-  (section 15).
+  sync 1 (base64) peaked at 65 MB. On the 1-core VM with the static musl
+  build (**Ten devices, and the 453 MiB guest again**, below), ten devices
+  fetching a 61 MB folder at once peaked at 403 MB with 858d0ef and at
+  46 MB with 8e2c2f1 (which carries 2b1f2c4) on the 1 GB guest; on the
+  453 MiB guest 858d0ef was killed by the OOM killer and 8e2c2f1 peaked at
+  49 MB.
 - **Squeezed memory** (the glibc build): the balloon was inflated towards
   512 MB right after
   the 50-device burst, leaving the guest 705 MB, and the kernel's OOM
@@ -560,20 +564,90 @@ one LAN hop away. The numbers are in the campaign's log
   the load folder (219 MB, 3094 files) together exceed the about 170 MB of
   page cache the guest has. The logs are in `verso-sync-campaign/logs/pkg/`,
   kept outside the repository.
+- **Ten devices, and the 453 MiB guest again, before and after pieces from
+  the disk** (2026-10-12, 14:23–17:20 UTC): two builds of the server, each
+  made on the Ubuntu build VM the release's way — `cargo zigbuild
+  --release --locked -p verso-cli --target x86_64-unknown-linux-musl`, with
+  cargo-zigbuild 0.23.4 and ziglang 0.15.2, the versions the release
+  workflow pins; static binaries that say `verso 0.7.0-beta.1 (858d0ef)`
+  and `verso 0.7.0-beta.1 (8e2c2f1)`, 8e2c2f1 carrying 2b1f2c4 — each
+  packaged with nfpm beside the window built from the same commit and
+  installed over the one before on VM 107 with `apt-get install
+  --reinstall`, the data kept. The guest first at 1024 MB with the balloon
+  on and not inflated (`free -m`: 956 MB in total), then at 512 MB with
+  the balloon off (453 MiB), and back to 1024 MB at the end. The writers:
+  `scripts/server-load.mjs` from the build VM, one LAN hop away, each
+  build's own copy (sync 1 against 858d0ef; sync 2, binary pieces, against
+  8e2c2f1). The first sync: `scripts/server-load.mjs` has no mode that
+  fetches a folder, so a script of the campaign's kit (`cloud-fetch.mjs`,
+  kept outside the repository) opened the folder "Caderno" from that many
+  simulated devices at once over the same protocol (device sessions,
+  `sync_state`, then `sync_read` of every file, piece by piece, each
+  file's hash checked), sync 2 against 8e2c2f1 unless said. The folder
+  had grown since 2026-10-11 to 197 files and 181 MB, with two more 60 MB
+  files from that day's tests: "61 MB" below is the folder without those
+  two (195 files, the original 60 MB file among them), "181 MB" is all of
+  it. The peak is the process's VmHWM, reset before each run
+  (`/proc/<pid>/clear_refs`); "after" is the RSS 30 s after the run ended.
+  In every run that finished: no integrity problem in the writes, no hash
+  problem in the fetches, no ERROR in the journal, and the only errors
+  were `put_hot:changed`, the revision check. Writes are `put_new` p50 /
+  p99:
+
+  | Guest | Run | 858d0ef | 8e2c2f1 |
+  |---|---|---|---|
+  | 956 MB | at rest | 10 MB | 10 MB |
+  | 956 MB | 1 writer, 20 s | 157 operations, 7.8/s; 112 ms / 2.5 s; peak 89 MB, after 25 MB | — |
+  | 956 MB | 10 writers, 60 s | 784 operations, 12.9/s; 0.98 s / 3.8 s; peak 149 MB, after 27 MB | 745 operations, 12.2/s; 1.16 s / 4.4 s; peak 127 MB, after 24 MB |
+  | 956 MB | 10 writers, 300 s | 4079 operations, 13.5/s; 0.97 s / 3.6 s; peak 170 MB, after 41 MB | — |
+  | 956 MB | 50 writers, 60 s | 813 operations, 11.8/s; 6.3 s / 10.6 s; peak 295 MB, after 31 MB | 612 operations, 9.2/s; 7.0 s / 21.0 s; peak 272 MB, after 29 MB |
+  | 956 MB | 61 MB fetched by 3 | 6.6 s; peak 266 MB, after 26 MB | 8.1 s; peak 38 MB, after 30 MB |
+  | 956 MB | 61 MB fetched by 10 | 29.2 s; peak 403 MB, after 39 MB | 22.8 s; peak 46 MB, after 22 MB |
+  | 956 MB | 181 MB fetched by 10 | 66.8 s; peak 493 MB (`MemAvailable` down to 274 MB), after 23 MB | 68.4 s; peak 45 MB, after 23 MB |
+  | 453 MiB | at rest | 10 MB | 6.5 MB |
+  | 453 MiB | 1 writer, 20 s | 165 operations, 8.2/s; 137 ms / 3.2 s; peak 68 MB, after 18 MB | 163 operations, 7.8/s; 173 ms / 2.5 s; peak 71 MB, after 21 MB |
+  | 453 MiB | 10 writers, 60 s | 524 operations, 8.3/s; 1.2 s / 5.5 s; peak 140 MB, after 17 MB | 623 operations, 10.2/s; 1.4 s / 6.1 s; peak 102 MB, after 21 MB |
+  | 453 MiB | 50 writers, 60 s | 369 operations, 4.8/s; 16.1 s / 22.3 s; peak 238 MB, after 25 MB | 387 operations, 5.0/s; 10.1 s / 26.7 s; peak 204 MB (`MemAvailable` down to 32 MB), after 97 MB |
+  | 453 MiB | 61 MB fetched by 3 | 16.2 s; peak 240 MB (`MemAvailable` down to 65 MB), after 24 MB | 10.4 s and 10.1 s; peak 97 and 40 MB, after 23 and 19 MB |
+  | 453 MiB | 61 MB fetched by 10 | **killed by the OOM killer, twice in two runs** (anon RSS 252 and 255 MB at the kill), back in 5 s by `Restart=on-failure`; the fetch did not finish | 22.1 s; peak 49 MB, after 26 MB; with sync 1 (base64) to the same server: 30.9 s, peak 55 MB |
+  | 453 MiB | 181 MB fetched by 10 | not run | 68.5 s; peak 44 MB, after 20 MB |
+
+  Read plainly: before pieces, a fetch's peak grew with the devices and
+  the files fetched (266, 403, 493 MB on the 1 GB guest), and ten devices
+  fetching 61 MB did not fit in 453 MiB; with 8e2c2f1 the peak stayed at
+  38–97 MB however many devices fetched and however large the folder, on
+  both guests, with no kill. Writing, the two builds are alike: a peak of
+  68–295 MB with 1–50 writers, back to 17–41 MB within 30 s (one run, 50
+  writers on 453 MiB with 8e2c2f1, still held 97 MB). Ten writers ran at
+  12–13.5 operations a second for 1 and 5 minutes on 1 core and 1 GB, and
+  at 8–10 on 453 MiB; fifty at 9–12 and at about 5. The differences
+  between the builds in the write rows are within the spread already seen
+  between two runs of one binary (up to about 45 %), and the 50-writer
+  p99 of 21 s with 8e2c2f1 on 1 GB was not repeated. The Carga folder the
+  writers write to grew through the round, to 7273 files and 461 MB, and
+  the data directory to 675 MB, and 8e2c2f1 ran after 858d0ef on each
+  guest, with more data under it. The 50-writer rate on 1 GB (9–12 a
+  second) is below the allocator measurement's 15.4 and 18.5 on the same
+  guest, which had a folder of 3094 files; the cause is not proven. The
+  logs are in `verso-sync-campaign/logs/cloud2/`, kept outside the
+  repository.
 
 | | Minimum | Recommended |
 |---|---|---|
-| For | 1–3 people, notes and small attachments | a family or a team of up to ~10 people, several devices each (an estimate, not measured) |
+| For | 1–3 people, notes and small attachments | a family or a team of up to ~10 people, several devices each (an estimate: ten simulated devices were measured on 1 core and 1 GB on 2026-10-12, writing for 5 minutes at 13.5 operations a second with `put_new` p50 about 1 s and a peak RSS of 170 MB, and fetching a 181 MB folder at once with a peak of 45 MB; ten people with several devices each, through the apps, were not) |
 | CPU | 1 core, x64 or ARM64 (measured, rows "cloud 1 GB" of `results.jsonl`: one writer about 100 ms a write; a burst of 50 writers queues on the disk, p50 4.5 s) | 2 cores |
-| Memory | 512 MB — measured 2026-10-12 on a guest that saw 453 MiB with the balloon off (**A 453 MiB guest**, above): the shipped musl + mimalloc build ran two bursts of 50 writers with no OOM kill, a peak RSS of 200 MB and about half the 1 GB guest's throughput (likely cause, not proven: the data and the folder exceed the guest's page cache); as measured, enough for 1–3 people with small attachments; the campaign's two kills, on guests whose balloon was on, came from memory the glibc build held after a burst; if the process is killed, the unit brings it back in 5 s with nothing lost | 2 GB; the size of the files you sync no longer counts in the server's memory: since 2b1f2c4 a transfer holds one piece of 1 MiB (**Large files**, above) |
+| Memory | 512 MB — measured 2026-10-12 on a guest that saw 453 MiB with the balloon off (**A 453 MiB guest**, above): the shipped musl + mimalloc build ran two bursts of 50 writers with no OOM kill, a peak RSS of 200 MB and about half the 1 GB guest's throughput (likely cause, not proven: the data and the folder exceed the guest's page cache); as measured, enough for 1–3 people with small attachments; the campaign's two kills, on guests whose balloon was on, came from memory the glibc build held after a burst; on 2026-10-12, on the same 453 MiB guest, 858d0ef was killed twice in two runs when ten devices fetched a 61 MB folder at once, and 8e2c2f1 (pieces from the disk) did not die in any run — ten devices fetching 181 MB at once peaked at 44 MB, fifty writers at 204 MB (**Ten devices, and the 453 MiB guest again**, above); if the process is killed, the unit brings it back in 5 s with nothing lost | 2 GB; the size of the files you sync no longer counts in the server's memory: since 2b1f2c4 a transfer holds one piece of 1 MiB (**Large files**, above) |
 | Disk | an SSD; the notes' size × 2 + 1 GB (the bin, `.trash`, keeps what was deleted) | a local SSD for `VERSO_DATA_DIR`; the notes on an SSD or a NAS |
 | Examples | a Raspberry Pi 4 with 2 GB, the smallest VPS | a mini PC, a NAS with Docker, a 2 GB VPS |
 
 `[OPEN]` Whether 1 GB is enough for a small team: a 1 GB guest served four
 devices, a 20-minute soak, bursts of 50 writers and a 60 MB file to three
 devices at once (that fetch no longer holds the file in memory since
-2b1f2c4: **Large files**, above); the table's "up to ~10 people" was not
-measured.
+2b1f2c4: **Large files**, above); on 2026-10-12 it served ten simulated
+devices writing for 5 minutes and fetching the whole 181 MB folder at
+once (**Ten devices, and the 453 MiB guest again**, above). Simulated
+devices on the LAN are not ten people's apps: the table's "up to ~10
+people", each with several devices, was not measured.
 
 Whether the server should send a large file's pieces from the disk
 instead of holding the file whole was `[OPEN]` until 2026-10-12, when the
@@ -597,7 +671,7 @@ macOS (the build before 2b1f2c4 still held 245 MB 30 s after the fetch of
 purge uses `MADV_DONTNEED`.
 
 A Raspberry Pi and a NAS have not been measured yet, nor a VPS at a
-provider (the 2026-10-11 VM was on the LAN). `scripts/sync-lab/lab.sh
+provider (the VMs of 2026-10-11 and 2026-10-12 were on the LAN). `scripts/sync-lab/lab.sh
 load --devices 1` on the machine itself says how fast its disk writes.
 
 ## 15. What is not verified yet
@@ -640,13 +714,22 @@ on a real machine. Verified since:
   template `universo.env` beside the `.rpmsave`; after `enable --now` the
   server started from the same data; see the note in section 5).
 - 2026-10-12: the static musl build of the server (x86_64), made with
-  musl-gcc; the release's path, cargo-zigbuild, is still not verified.
+  musl-gcc.
+- 2026-10-12: the release's path for the static binary on x86_64:
+  `cargo zigbuild --release --locked -p verso-cli --target
+  x86_64-unknown-linux-musl` with cargo-zigbuild 0.23.4 and ziglang 0.15.2
+  (the versions the release workflow pins), at 858d0ef and at 8e2c2f1, on
+  the Ubuntu build VM (`file`: statically linked); each packaged as a
+  `.deb` with nfpm and installed over the one before on Ubuntu 26.04 with
+  `apt-get install --reinstall` (the service restarted, the data kept),
+  then measured on the 1-core VM at 1 GB and at 453 MiB, a file in pieces
+  from the disk (8e2c2f1) among it (section 14, **Ten devices, and the 453
+  MiB guest again**).
 
 Not verified yet:
 
-- the image built and run on amd64 and arm64, and the static binaries
-  built with cargo-zigbuild (the release's path; a static musl build made
-  with musl-gcc is verified, above);
+- the image built and run on amd64 and arm64, and the arm64 static
+  binary built with cargo-zigbuild (the x86_64 one is verified, above);
 - the `.deb` and the `.rpm` on arm64, and an upgrade from one version to a
   newer one;
 - the not-running message `postinstall.sh` prints when an install leaves
@@ -655,6 +738,4 @@ Not verified yet:
   its `x-casaos` block follows the CasaOS AppStore's v2 description of
   2026-10-09, not checked by their validator);
 - the `tailscale serve` recipe and the Caddy example against this server;
-- pruning the registry's old versions;
-- a file in pieces from the disk (2b1f2c4) on the 1-core VM and with the
-  static musl build: measured on a Mac only (section 14, **Large files**).
+- pruning the registry's old versions.
