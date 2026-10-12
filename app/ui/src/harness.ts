@@ -48,6 +48,14 @@ if (onServer) {
   document.documentElement.dataset["role"] = role;
 }
 
+// A folder of this computer that syncs with a server where the person only
+// reads (ADR 0079 item 1), from the start: `?sync=reader`. The window asks
+// `folder_sync` as it opens, as the app's does; a test that changes the
+// state later says it with `sync-status`.
+if (params.get("sync") === "reader") {
+  core.sync = { ...Core.syncOff(), on: true, server: "https://notas.casa", folder: "f1", folder_name: "Campanha", role: "reader", state: "synced", last: "2026-10-12T12:00:00Z" };
+}
+
 // A synced folder's live notes (ADR 0082): the server's room, played here
 // when a test says the sync's link is up.
 const rooms = onServer ? null : new Rooms(core);
