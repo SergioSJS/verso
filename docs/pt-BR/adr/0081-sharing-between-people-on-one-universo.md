@@ -263,8 +263,9 @@ em 2026-10-10 (Status).
     backlink de fora incluído) e os resumos são os do compartilhamento;
     tags, backlinks, links de saída e o grafo já eram filtrados — e o que
     não dá para restringir é zero, nunca o total da pasta: as contagens
-    de uma indexação enviadas com uma mudança, e o progresso de uma
-    varredura. *Decidido no mesmo dia:* anexos soltos na raiz do cofre
+    de uma indexação enviadas com uma mudança; o progresso de uma
+    varredura passa sem a contagem, e a janela diz *Indexando…* sem
+    número. *Decidido no mesmo dia:* anexos soltos na raiz do cofre
     ficam fora de uma subpasta compartilhada, já que não há pasta de
     anexos para acrescentar, e o diálogo de compartilhar pede ao dono que
     os mova para uma; compartilhar o cofre inteiro não tem esse limite.

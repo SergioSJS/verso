@@ -251,8 +251,9 @@ carried a recommendation; the maintainer decided. Open items answered
     names, formulas (a backlink from outside included) and summaries
     are the share's; tags, backlinks, outgoing links and the graph were
     already filtered — and what cannot be scoped is zero, never the
-    folder's total: an index run's counts pushed with a change, and a
-    walk's progress.
+    folder's total: an index run's counts pushed with a change; a walk's
+    progress crosses without its count, and the window says
+    *Indexing…* with no number.
     *Decided the same day:* attachments
     loose at the vault's root stay outside a shared sub-folder, as there
     is no attachments folder to add, and the sharing dialog asks the owner
