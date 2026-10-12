@@ -95,9 +95,12 @@ banner_y: "20"
   await expect(hint).toHaveCount(0);
 
   // A new position, written as make.md writes it: a percentage, as text.
-  await expect.poll(async () => /^banner_y: "(\d+)"$/m.exec(await app.file(note))?.[1]).toMatch(/^\d+$/);
-  const dragged = /^banner_y: "(\d+)"$/m.exec(await app.file(note))?.[1];
-  expect(dragged).not.toBe("20");
+  // The file already holds "20" before the save lands, so the wait is for a
+  // number other than the old one, not for any number.
+  const bannerY = async () => /^banner_y: "(\d+)"$/m.exec(await app.file(note))?.[1];
+  await expect.poll(bannerY).toMatch(/^\d+$/);
+  await expect.poll(bannerY).not.toBe("20");
+  const dragged = await bannerY();
 
   // From the keyboard: the slider takes ↓ three times, 5% each, and Enter.
   await btnReposition.click();
