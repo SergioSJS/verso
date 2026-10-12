@@ -15,6 +15,7 @@ import { commands, type ServerAccount, type ServerFolder, type SyncStatus, type 
 import { h, ui } from "../dom";
 import { fail } from "../errors";
 import { currentFolder, folderName } from "../folder";
+import { liveTogether } from "../settings";
 import { drawSyncOn } from "./syncView";
 
 const pt = {
@@ -273,7 +274,17 @@ function bar(): HTMLButtonElement {
   return b;
 }
 
+/** The folder's sync, for the notes that may be live in the server's
+ *  rooms (collab.ts, ADR 0082): on or off, its state, the role there and
+ *  the person's setting. */
+export function tellSyncState(): void {
+  const st = status;
+  const detail = { on: st?.on ?? false, state: st?.state ?? "off", role: st?.role ?? "", live: liveTogether() };
+  dispatchEvent(new CustomEvent("verso:sync-state", { detail }));
+}
+
 function paint(): void {
+  tellSyncState();
   const b = bar();
   const st = status;
   b.hidden = !st || !st.on;

@@ -34,15 +34,15 @@ impl verso_server::config::Env for Loopback {
 
 /// A running server with a folder "Campanha" holding `files`, and a
 /// device token per account: the owner's, then a reader's.
-struct Running {
-    url: String,
-    folder: String,
-    owner: String,
-    reader: String,
+pub(super) struct Running {
+    pub(super) url: String,
+    pub(super) folder: String,
+    pub(super) owner: String,
+    pub(super) reader: String,
     _dirs: (tempfile::TempDir, tempfile::TempDir),
 }
 
-fn serve(files: &[(&str, &str)]) -> Running {
+pub(super) fn serve(files: &[(&str, &str)]) -> Running {
     let data = tempfile::tempdir().unwrap();
     let folders = tempfile::tempdir().unwrap();
     let campanha = tempfile::Builder::new()
@@ -124,20 +124,25 @@ fn serve(files: &[(&str, &str)]) -> Running {
     }
 }
 
+/// What a room told a device's windows (ADR 0082): to whom, the event, its
+/// payload.
+pub(super) type Told = Vec<(Vec<String>, String, serde_json::Value)>;
+
 /// A folder of this computer, open, set to sync with the server's.
-struct Device {
-    ctx: Arc<Ctx>,
-    s: Arc<Syncer>,
-    key: String,
-    shown: Arc<Mutex<Vec<SyncStatus>>>,
+pub(super) struct Device {
+    pub(super) ctx: Arc<Ctx>,
+    pub(super) s: Arc<Syncer>,
+    pub(super) key: String,
+    pub(super) shown: Arc<Mutex<Vec<SyncStatus>>>,
+    pub(super) told: Arc<Mutex<Told>>,
     _dirs: (tempfile::TempDir, tempfile::TempDir),
 }
 
-fn device(r: &Running, token: &str, files: &[(&str, &str)]) -> Device {
+pub(super) fn device(r: &Running, token: &str, files: &[(&str, &str)]) -> Device {
     device_at(&r.url, &r.folder, token, files)
 }
 
-fn device_at(url: &str, folder: &str, token: &str, files: &[(&str, &str)]) -> Device {
+pub(super) fn device_at(url: &str, folder: &str, token: &str, files: &[(&str, &str)]) -> Device {
     let config = tempfile::tempdir().unwrap();
     let dir = tempfile::tempdir().unwrap();
     verso_core::servers::keep(
@@ -164,6 +169,8 @@ fn device_at(url: &str, folder: &str, token: &str, files: &[(&str, &str)]) -> De
     engine::save(Some(config.path()), &info.key, &state).unwrap();
     let shown = Arc::new(Mutex::new(Vec::new()));
     let heard = Arc::clone(&shown);
+    let told = Arc::new(Mutex::new(Vec::new()));
+    let rooms = Arc::clone(&told);
     let d = Device {
         ctx: Arc::new(Ctx {
             service,
@@ -171,10 +178,14 @@ fn device_at(url: &str, folder: &str, token: &str, files: &[(&str, &str)]) -> De
             device: Box::new(|| "Mac".into()),
             pt: Box::new(|| true),
             shown: Box::new(move |_, s| lock(&heard).push(s.clone())),
+            told: Arc::new(move |to, event, payload| {
+                lock(&rooms).push((to.to_vec(), event.to_owned(), payload.clone()));
+            }),
         }),
         s: Syncer::new(&info.key, &state),
         key: info.key,
         shown,
+        told,
         _dirs: (config, dir),
     };
     for (p, text) in files {
@@ -183,7 +194,7 @@ fn device_at(url: &str, folder: &str, token: &str, files: &[(&str, &str)]) -> De
     d
 }
 
-fn sync(d: &Device) -> Passed {
+pub(super) fn sync(d: &Device) -> Passed {
     tauri::async_runtime::block_on(async {
         let mut l = link(&d.ctx, &d.s).await.unwrap();
         pass(&d.ctx, &d.s, &mut l).await.unwrap()
@@ -193,15 +204,15 @@ fn sync(d: &Device) -> Passed {
 /// A connection kept across passes, as the app keeps one: only its first
 /// pass walks the folder again (and the scan's, which these tests do not
 /// wait for) — a later one compares the listing as the last batch left it.
-fn kept(d: &Device) -> super::sync::Link {
+pub(super) fn kept(d: &Device) -> super::sync::Link {
     tauri::async_runtime::block_on(link(&d.ctx, &d.s)).unwrap()
 }
 
-fn on(d: &Device, l: &mut super::sync::Link) -> Passed {
+pub(super) fn on(d: &Device, l: &mut super::sync::Link) -> Passed {
     tauri::async_runtime::block_on(pass(&d.ctx, &d.s, l)).unwrap()
 }
 
-fn read(d: &Device, path: &str) -> Option<Vec<u8>> {
+pub(super) fn read(d: &Device, path: &str) -> Option<Vec<u8>> {
     let p = path.to_owned();
     match d
         .ctx
@@ -214,12 +225,12 @@ fn read(d: &Device, path: &str) -> Option<Vec<u8>> {
     }
 }
 
-fn text(d: &Device, path: &str) -> Option<String> {
+pub(super) fn text(d: &Device, path: &str) -> Option<String> {
     read(d, path).map(|b| String::from_utf8(b).unwrap())
 }
 
 /// A change made here, as the watcher reports it to the sync.
-fn write(d: &Device, path: &str, bytes: &[u8]) {
+pub(super) fn write(d: &Device, path: &str, bytes: &[u8]) {
     let (p, b) = (path.to_owned(), bytes.to_vec());
     d.ctx
         .service
@@ -232,12 +243,12 @@ fn write(d: &Device, path: &str, bytes: &[u8]) {
     changed(d, &[path]);
 }
 
-fn changed(d: &Device, paths: &[&str]) {
+pub(super) fn changed(d: &Device, paths: &[&str]) {
     d.ctx.service.reindex("w").unwrap();
     d.s.touched(paths.iter().map(|p| (*p).to_owned()));
 }
 
-fn files(d: &Device) -> Vec<String> {
+pub(super) fn files(d: &Device) -> Vec<String> {
     d.ctx
         .service
         .with_key(&d.key, |ws| {
@@ -251,7 +262,7 @@ fn files(d: &Device) -> Vec<String> {
         .unwrap()
 }
 
-fn copy_of(d: &Device, path: &str) -> String {
+pub(super) fn copy_of(d: &Device, path: &str) -> String {
     let stem = path.trim_end_matches(".md");
     files(d)
         .into_iter()

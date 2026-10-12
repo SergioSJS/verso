@@ -5853,6 +5853,7 @@ dependencies = [
  "chrono",
  "futures-util",
  "minisign-verify",
+ "proptest",
  "reqwest",
  "serde",
  "serde_json",
@@ -5872,6 +5873,7 @@ dependencies = [
  "verso-server",
  "verso-service",
  "xattr",
+ "yrs",
  "zip",
 ]
 
