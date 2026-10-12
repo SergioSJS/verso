@@ -17,6 +17,47 @@
   de release. Nada aqui foi executado de ponta a ponta ainda: a seção 15
   lista o que não foi verificado.
 
+## O script de instalação
+
+O `packaging/server/universo.sh` faz por você os passos da seção 5 numa
+máquina com systemd e apt ou dnf, e diz cada um enquanto faz (decidido
+pelo mantenedor em 2026-10-12, [ADR 0075](../adr/0075-server-packaging-and-storage.md),
+Revisões). É um arquivo `sh` POSIX, em inglês ou em português do Brasil
+conforme o `LANG`, servido também em `https://versomd.com/universo.sh` —
+uma cópia do arquivo do repositório, que é a fonte. Baixe, leia se quiser,
+depois rode (mandá-lo direto para o `sh` não é o caminho recomendado):
+
+```sh
+curl -fsSLO https://versomd.com/universo.sh
+sh universo.sh install --url https://notas.exemplo.com
+```
+
+| Comando | O que faz |
+|---|---|
+| `install [--version X] [--package ARQ] [--url URL]` | baixa o pacote desta máquina (x64 ou ARM64, `.deb` ou `.rpm`) da release mais recente ou da `X`, confere, instala, grava o `VERSO_PUBLIC_URL` no `/etc/universo/universo.env` (pergunta quando não é dado; toda outra linha fica como estava), roda `systemctl enable --now universo`, espera o servidor responder e imprime os próximos passos: o primeiro admin (seção 9, o link de configuração do log), HTTPS (seção 8), as portas |
+| `update [--version X] [--package ARQ]` | o mesmo download e a mesma conferência, instalado por cima do que roda; configurações e dados ficam; reinicia e imprime a versão antiga e a nova |
+| `uninstall [--purge]` | remove o pacote e diz o que deixou: `/var/lib/universo`, `/etc/universo`, o usuário `universo`. O `--purge` remove esses também, depois de você digitar `/var/lib/universo` de volta |
+| `status` | o estado do serviço, a versão, o endereço em que escuta, o tamanho dos dois diretórios, as últimas 5 linhas do log |
+| `logs [-f]` | `journalctl -u universo` |
+| `backup [PASTA]` | para o serviço, empacota `/var/lib/universo` e `/etc/universo` em `universo-backup-<data>-<hora>.tar.gz` na `PASTA` (`/var/backups/universo` por padrão), liga de novo; recusa quando a `PASTA` tem menos espaço livre do que os dois diretórios ocupam |
+| `reset-admin [E-MAIL]` | o comando da seção 10 |
+| `firewall` | abre 80 e 443 com ufw, firewalld ou iptables (mantidas entre reboots com o `netfilter-persistent` quando ele existe), e lembra que o firewall da própria nuvem (a security list da VCN da Oracle) se abre no console dela. Só quando pedido: o `install` nunca mexe no firewall |
+
+Como um download é conferido: com o `minisign` instalado, o `.sig` da
+release contra a chave de release do Verso (seção 6), o comentário
+assinado nomeando o arquivo; sem ele, o `sha256` que o GitHub publica para
+cada arquivo da release; sem nenhum dos dois, recusa, a menos que receba
+`--insecure-no-verify`, que diz em voz alta que nada foi conferido. Um
+pacote de `--package ARQ` é conferido com o `ARQ.sig` ao lado. Enquanto o
+repositório é privado, baixar pede um token do GitHub em `GITHUB_TOKEN`
+(fine-grained, Contents: Read-only no repositório); sem ele o script diz
+como criar, ou aceita `--package`. Uma máquina sem apt nem dnf é mandada
+para o arquivo compactado (seção 6). As seções 5 e 6 continuam os
+caminhos manuais.
+
+Um passo a passo numa máquina de nuvem gratuita, de criá-la ao app
+conectado: [UniVerso no Always Free da Oracle Cloud](universo-on-oracle-free.md).
+
 ## 1. O que é instalado
 
 O **UniVerso**, o servidor do Verso ([ADR 0078](../adr/0078-universo-the-name-of-verso-as-a-server.md)):
@@ -756,6 +797,24 @@ máquina real. Verificado desde então:
   partiu dos mesmos dados; ver a nota da seção 5).
 - 2026-10-12: o build musl estático do servidor (x86_64), feito com o
   musl-gcc.
+- 2026-10-12: o `.deb` de arm64, com o binário estático compilado do
+  jeito da release mas num Mac (Apple silicon): `cargo zigbuild --release
+  --locked -p verso-cli --target aarch64-unknown-linux-musl` com o
+  cargo-zigbuild 0.23.4 e o ziglang 0.15.2 (`file`: statically linked), a
+  janela do `npm run build`, o nfpm 2.47.0 com o
+  `packaging/server/nfpm.yaml`, sem assinatura; instalado pelo
+  `universo.sh install --package … --insecure-no-verify` numa VM nova de
+  Ubuntu 24.04 arm64 (Lima, a virtualização da Apple): instalado,
+  habilitado e respondendo 200 ao `curl /`, o link de configuração
+  impresso; o primeiro admin criado por ele; `status`; `backup` (o serviço
+  parado e ligado de novo, o arquivo com o banco, uma nota e o
+  `universo.env`; recusado num sistema de arquivos de 64 KB); `update
+  --package` com o mesmo arquivo (reinstalado, o serviço reiniciado, o
+  `universo.env` igual byte a byte, a nota e a entrada do admin mantidas);
+  `uninstall` (o binário removido, os dados, as configurações e o usuário
+  deixados); `uninstall --purge` (recusado com uma resposta errada; com
+  `/var/lib/universo`: o pacote expurgado, os dois diretórios, o usuário e
+  o grupo removidos).
 - 2026-10-12: o caminho da release para o binário estático em x86_64:
   `cargo zigbuild --release --locked -p verso-cli --target
   x86_64-unknown-linux-musl` com o cargo-zigbuild 0.23.4 e o ziglang
@@ -771,10 +830,12 @@ máquina real. Verificado desde então:
 Ainda não verificado:
 
 - a imagem construída e executada em amd64 e arm64, e o binário
-  estático de arm64 compilado com cargo-zigbuild (o de x86_64 está
-  verificado, acima);
-- o `.deb` e o `.rpm` em arm64, e uma atualização de uma versão para outra
-  mais nova;
+  estático de arm64 compilado com cargo-zigbuild no runner Linux da
+  release (num Mac está verificado, acima);
+- o `.rpm` em arm64, e uma atualização de uma versão para outra mais nova;
+- o `universo.sh` baixando de uma release (nenhuma release traz ainda os
+  pacotes `universo`) e conferindo um `.sig` de verdade com o minisign, e
+  os comandos `firewall` e `reset-admin` dele;
 - a mensagem de que não está rodando que o `postinstall.sh` imprime quando
   uma instalação deixa o serviço desabilitado (acrescentada depois da
   verificação de 2026-10-12);
