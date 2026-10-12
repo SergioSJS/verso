@@ -613,7 +613,7 @@ export function consolePage(me: Account): void {
     },
     title: (t) => {
       heading.textContent = t;
-      document.title = `${t} — ${s.console} — Universo`;
+      document.title = `${t} — ${s.console} — UniVerso`;
     },
   };
   const draw = async () => {

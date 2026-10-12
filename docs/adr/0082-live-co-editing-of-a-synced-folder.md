@@ -43,7 +43,7 @@
   [0029](0029-guardrails-in-ci.md) (a feature's guardrail seen failing
   first), [0035](0035-cross-cutting-requirements.md) (both languages,
   accessibility), [0078](0078-universo-the-name-of-verso-as-a-server.md)
-  (Universo).
+  (UniVerso).
 - Status in the briefing: not present; on acceptance.
 
 ## Context
@@ -109,7 +109,7 @@ carried a recommendation; the maintainer decided. Open items answered
 2026-10-10 (Status).
 
 1. **A note of a synced folder is live while the server is reachable.**
-   When a local folder syncs with a Universo ([0079](0079-sync-a-local-folder-with-a-server.md)
+   When a local folder syncs with a UniVerso ([0079](0079-sync-a-local-folder-with-a-server.md)
    item 1) and its sync is connected, a note opened in the desktop app
    joins the **same room** the browser and the online desktop use: the
    people see each other's cursors and names, the edits merge letter by

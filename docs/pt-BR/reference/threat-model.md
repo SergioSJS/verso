@@ -1,6 +1,6 @@
 # O modelo de ameaças do servidor (2026-10-09, atualizado em 2026-10-11)
 
-O que o Universo — o `verso serve` — protege, de quem e como. O [ADR 0073](../adr/0073-self-hosted-server-first.md)
+O que o UniVerso — o `verso serve` — protege, de quem e como. O [ADR 0073](../adr/0073-self-hosted-server-first.md)
 item 6 o pede antes de o servidor ser anunciado a qualquer pessoa além do
 mantenedor, e pede segurança por inteiro antes do primeiro usuário que não
 seja o mantenedor; o [ADR 0074](../adr/0074-accounts-and-access-on-the-server.md)

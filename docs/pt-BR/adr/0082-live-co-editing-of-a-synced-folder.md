@@ -43,7 +43,7 @@
   presente e sem digitar), [0029](0029-guardrails-in-ci.md) (o guardrail
   de uma feature visto falhando primeiro), [0035](0035-cross-cutting-requirements.md)
   (os dois idiomas, acessibilidade), [0078](0078-universo-the-name-of-verso-as-a-server.md)
-  (Universo).
+  (UniVerso).
 - Status no briefing: ausente; ao ser aceita.
 
 ## Contexto
@@ -111,7 +111,7 @@ trouxe uma recomendação; o mantenedor decidiu. Itens abertos respondidos
 em 2026-10-10 (Status).
 
 1. **Uma nota de uma pasta sincronizada está ao vivo enquanto o servidor
-   está ao alcance.** Quando uma pasta local sincroniza com um Universo
+   está ao alcance.** Quando uma pasta local sincroniza com um UniVerso
    ([0079](0079-sync-a-local-folder-with-a-server.md) item 1) e o sync
    dela está conectado, uma nota aberta no app desktop entra na **mesma
    sala** que o navegador e o desktop online usam: as pessoas veem os

@@ -18,9 +18,9 @@ app real.
 
 ## Ainda não conferido
 
-### Sincronização e Universo (feat/universo, 2026-10-11)
+### Sincronização e UniVerso (feat/universo, 2026-10-11)
 
-- [ ] **Duas pessoas compartilham pastas num Universo** (ADR 0081,
+- [ ] **Duas pessoas compartilham pastas num UniVerso** (ADR 0081,
   2026-10-11): duas contas, dois navegadores (e o app desktop). Sérgio
   clica com o botão direito numa pasta do vault dele, *Compartilhar…*, o
   e-mail da Ana, *edita*; o botão da pasta da Ana a lista em
@@ -53,7 +53,7 @@ app real.
   pasta: o aviso some.
 - [ ] **A página que aprova um aparelho diz quem pediu** (lacuna 12 do
   modelo de ameaças, `5838c10`): *Ajustes › Servidores*, conecte ao
-  Universo; a página no navegador mostra *Quem pediu* — o nome deste
+  UniVerso; a página no navegador mostra *Quem pediu* — o nome deste
   computador, o endereço que o servidor vê para ele, a hora — e então
   *Foi você quem pediu, neste aparelho?*, *Aprovar este aparelho: <nome>*
   e *Não fui eu: recusar*. Recuse: o app para de perguntar e não
@@ -253,7 +253,7 @@ testes de ponta a ponta cobrem o resto.
   apagar um arquivo é permitido.
 - [ ] **Sincronização entre dois computadores** (ADR 0079), com o app
   instalado no Mac e em outro computador (a VM Windows), os dois
-  conectados ao mesmo Universo: uma pasta sincronizada do Mac para uma
+  conectados ao mesmo UniVerso: uma pasta sincronizada do Mac para uma
   pasta nova lá, depois a mesma pasta do servidor sincronizada numa pasta
   vazia do outro computador; uma edição num chega no outro em segundos; uma
   nota editada nos dois com um sem rede volta como a versão do servidor e

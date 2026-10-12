@@ -19,7 +19,7 @@
 
 ## 1. O que é instalado
 
-O **Universo**, o servidor do Verso ([ADR 0078](../adr/0078-universo-the-name-of-verso-as-a-server.md)):
+O **UniVerso**, o servidor do Verso ([ADR 0078](../adr/0078-universo-the-name-of-verso-as-a-server.md)):
 um programa — o binário `verso` iniciado como `universo`, que é o `verso
 serve`, subcomando da linha de comando `verso` —
 compilado estático para Linux x64 e ARM64. Ele serve o contrato por um
@@ -375,7 +375,7 @@ nova; `VERSO_UPDATE_CHECK=off` desliga a consulta. Para atualizar:
 Faça backup dos dois diretórios (seção 2) antes de uma atualização.
 
 **A partir da 0.7.0-beta.1**, a última versão antes de o servidor se
-chamar Universo ([ADR 0078](../adr/0078-universo-the-name-of-verso-as-a-server.md)):
+chamar UniVerso ([ADR 0078](../adr/0078-universo-the-name-of-verso-as-a-server.md)):
 a imagem `ghcr.io/sergiosjs/verso` e os pacotes `verso-server` param ali.
 Com Docker, aponte o compose ou o `docker run` para
 `ghcr.io/sergiosjs/universo` e mantenha os mesmos dois diretórios em
@@ -423,7 +423,7 @@ E uma VM do tamanho da VPS mais barata, em 2026-10-11 (e, em 2026-10-12,
 um convidado de 453 MiB: o último item): 1 vCPU, 1 GB de
 memória (o `free -m` do convidado mostrava 956 MB no total), um disco
 virtual de 10 GB no Proxmox, a imagem cloud do Ubuntu 26.04 server sem
-desktop, e o Universo, o build b8ebc5f (código do servidor 552f0f6),
+desktop, e o UniVerso, o build b8ebc5f (código do servidor 552f0f6),
 instalado pelo `.deb` exatamente como na seção 5 (com
 `VERSO_UPDATE_CHECK=off`). O binário dentro desse `.deb` não era o da
 release: era um build glibc ligado dinamicamente, compilado numa VM de build

@@ -33,7 +33,7 @@
 # The server (ADR 0075): `verso serve`, static for x64 and ARM64 (ARM64
 # cross-compiled, ADR 0075 item 2), as an archive, a `.deb` and an `.rpm`
 # with a systemd unit, signed like the apps; and an image for amd64 and
-# arm64 on GitHub's registry (ghcr.io/sergiosjs/universo; Universo is the
+# arm64 on GitHub's registry (ghcr.io/sergiosjs/universo; UniVerso is the
 # server's name, ADR 0078), pushed after the
 # release is published (packaging/server/).
 #
@@ -597,7 +597,7 @@ jobs:
             cp -R target/server-ui "target/$dir/share/universo/ui"
             cp LICENSE packaging/server/universo.service packaging/server/universo.env "target/$dir/"
             printf '%s\n' \
-              "Universo $VERSION, the Verso server ($arch, static)." \
+              "UniVerso $VERSION, the Verso server ($arch, static)." \
               "" \
               "  bin/universo           starts it; settings by environment (universo.env lists them)" \
               "  share/universo/ui      the window, found by bin/universo with no VERSO_UI_DIR" \

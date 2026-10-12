@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The sync lab (docs/reference/sync-lab.md): a Universo on this machine with
+# The sync lab (docs/reference/sync-lab.md): a UniVerso on this machine with
 # the test vault, three people and two folders, kept under target/sync-lab
 # between runs so that campaigns and load tests reuse it.
 #

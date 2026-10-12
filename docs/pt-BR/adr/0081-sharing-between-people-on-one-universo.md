@@ -1,4 +1,4 @@
-# ADR 0081 — Compartilhar entre pessoas num mesmo Universo: um vault, uma pasta dentro dele, leitura ou escrita
+# ADR 0081 — Compartilhar entre pessoas num mesmo UniVerso: um vault, uma pasta dentro dele, leitura ou escrita
 
 - Data: 2026-10-10
 - Fonte: o mantenedor, em sessão em 2026-10-10: *"assim como acontece no
@@ -43,7 +43,7 @@
   (a mesa de jogadores, o caso que pediu isto),
   [0035](0035-cross-cutting-requirements.md) (os dois idiomas,
   acessibilidade), [0078](0078-universo-the-name-of-verso-as-a-server.md)
-  (Universo).
+  (UniVerso).
 - Status no briefing: ausente; ao ser aceita.
 - Revisões: 2026-10-12 — as respostas do mantenedor às cinco perguntas
   que a construção levantou (Status), cada uma registrada no item dela,
@@ -54,7 +54,7 @@
 ## Contexto
 
 O que existe ([0074](0074-accounts-and-access-on-the-server.md)): num
-Universo a unidade de acesso é uma **pasta** — um vault — com um id
+UniVerso a unidade de acesso é uma **pasta** — um vault — com um id
 aleatório e um diretório sob a raiz das pastas; uma conta tem um papel
 nela, dono, editor ou leitor, concedido por um dono (pelo e-mail de uma
 conta existente) ou carregado por um convite; a concessão é auditada; um
@@ -144,7 +144,7 @@ em 2026-10-10 (Status).
    editor não, e quem recebe não recompartilha (`[ABERTO]`; recomendado
    assim, pois o registro de auditoria fica com um autor por
    compartilhamento — decidido em 2026-10-10: só o dono compartilha;
-   quem recebe não recompartilha). Quem recebe é uma conta no mesmo Universo, nomeada
+   quem recebe não recompartilha). Quem recebe é uma conta no mesmo UniVerso, nomeada
    por e-mail, ou uma pessoa convidada: o convite do item 4 da
    [0074](0074-accounts-and-access-on-the-server.md), que já carrega uma
    pasta e um papel, carrega um caminho também, então "convidar um jogador

@@ -45,7 +45,7 @@ fi
 if [ "$tell" = yes ]; then
   cat <<'MSG'
 
-Universo installed. It is NOT running yet.
+UniVerso installed. It is NOT running yet.
 
   1. Edit /etc/universo/universo.env: at least VERSO_PUBLIC_URL, and the first
      admin (VERSO_ADMIN_EMAIL, VERSO_ADMIN_PASSWORD), read on the first

@@ -737,7 +737,7 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
 10. Compartilhar entre pessoas ([ADR 0081](../adr/0081-sharing-between-people-on-one-universo.md)),
    a partir de "Compartilhar com outra pessoa" da nota 23 e da parada do
    tour: o vault de demonstração tem uma conta só, então o outro lado se
-   segue com dois navegadores num Universo. O botão da pasta no topo da
+   segue com dois navegadores num UniVerso. O botão da pasta no topo da
    barra lateral abre o seletor, *Neste computador*, *Meus*,
    *Compartilhados comigo*; um compartilhamento abre por ele (e2e,
    `shares.spec.mjs`, "the folder switcher"). Como dona, o menu de uma

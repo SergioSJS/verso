@@ -27,7 +27,7 @@ priority: optional
 # (decided by the maintainer on 2026-10-10).
 maintainer: Sérgio J. Sousa <sergiosjs@pm.me>
 description: |-
-  Universo, the Verso server
+  UniVerso, the Verso server
   The Verso core without a window, served to a browser: Markdown notes
   compatible with Obsidian's folders, self-hosted, with accounts and shared
   folders. Runs as a systemd service under the universo user.
@@ -86,5 +86,5 @@ scripts:
 # on Fedora and RHEL, present on every install, so no dependency is
 # declared. nfpm reads this file strictly: an unknown key fails the build.
 rpm:
-  summary: Universo, the Verso server
+  summary: UniVerso, the Verso server
   group: Applications/Text

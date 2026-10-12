@@ -1,6 +1,6 @@
 # The server's threat model (2026-10-09, refreshed 2026-10-11)
 
-What Universo — `verso serve` — protects, from whom, and how. [ADR 0073](../adr/0073-self-hosted-server-first.md)
+What UniVerso — `verso serve` — protects, from whom, and how. [ADR 0073](../adr/0073-self-hosted-server-first.md)
 item 6 asks for it before the server is announced to anyone but the
 maintainer, and for security in full before the first user who is not the
 maintainer; [ADR 0074](../adr/0074-accounts-and-access-on-the-server.md)

@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// What sharing between people on one Universo says (ADR 0081), in both
+// What sharing between people on one UniVerso says (ADR 0081), in both
 // languages (ADR 0035): the share dialog, the tree's mark, a link out of
 // what was shared, the lists of folders and the folder switcher.
 
@@ -48,7 +48,7 @@ const pt = {
   notShared: "Não está no que foi compartilhado com você.",
   deleteEndsShares: "Ela está compartilhada: o compartilhamento acaba junto, e quem recebe perde o acesso.",
   sharedWith: (n: number) => (n === 1 ? "compartilhada com 1 pessoa" : `compartilhada com ${n} pessoas`),
-  notOnServer: "Esta pasta não está num servidor: sincronize com um Universo para compartilhar.",
+  notOnServer: "Esta pasta não está num servidor: sincronize com um UniVerso para compartilhar.",
   // The folder switcher (item 5).
   switcher: "Trocar de pasta",
   here: "Neste computador",
@@ -104,7 +104,7 @@ const en: typeof pt = {
   notShared: "Not in what was shared with you.",
   deleteEndsShares: "It is shared: the share ends with it, and whoever received it loses access.",
   sharedWith: (n) => (n === 1 ? "shared with 1 person" : `shared with ${n} people`),
-  notOnServer: "This folder is not on a server: sync it with a Universo to share it.",
+  notOnServer: "This folder is not on a server: sync it with a UniVerso to share it.",
   switcher: "Switch folder",
   here: "On this computer",
   mine: "Mine",

@@ -1,4 +1,4 @@
-# ADR 0081 — Sharing between people on one Universo: a vault, a folder inside it, read or write
+# ADR 0081 — Sharing between people on one UniVerso: a vault, a folder inside it, read or write
 
 - Date: 2026-10-10
 - Source: the maintainer, in session on 2026-10-10: *"assim como acontece no
@@ -43,7 +43,7 @@
   (the table of players, the case that asked for this),
   [0035](0035-cross-cutting-requirements.md) (both languages,
   accessibility), [0078](0078-universo-the-name-of-verso-as-a-server.md)
-  (Universo).
+  (UniVerso).
 - Status in the briefing: not present; on acceptance.
 - Revisions: 2026-10-12 — the maintainer's answers to the five questions
   the building raised (Status), each recorded in its item, dated: items
@@ -53,7 +53,7 @@
 ## Context
 
 What exists ([0074](0074-accounts-and-access-on-the-server.md)): on a
-Universo the unit of access is a **folder** — a vault — with a random id
+UniVerso the unit of access is a **folder** — a vault — with a random id
 and a directory under the folders root; an account holds a role in it,
 owner, editor or reader, granted by an owner (by e-mail of an existing
 account) or carried by an invitation; the grant is audited; a reader only
@@ -140,7 +140,7 @@ carried a recommendation; the maintainer decided. Open items answered
    recommended so, as the audit log then has one author per share —
    decided 2026-10-10: only the owner shares; a receiver does not
    re-share). The
-   receiver is an account on the same Universo, named by e-mail, or a
+   receiver is an account on the same UniVerso, named by e-mail, or a
    person invited: [0074](0074-accounts-and-access-on-the-server.md) item
    4's invitation, which already carries a folder and a role, carries a
    path too, so "invite a player to the campaign's folder" is one link.

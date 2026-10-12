@@ -1,4 +1,4 @@
-# ADR 0078 — Universo: o nome do Verso como servidor
+# ADR 0078 — UniVerso: o nome do Verso como servidor
 
 - Data: 2026-10-10
 - Fonte: o mantenedor, em sessão em 2026-10-10, sobre o choque de
@@ -13,6 +13,8 @@
   por ele), [0004](0004-project-name-verso.md) (o nome do produto),
   [0071](0071-linux-port.md) (os `.deb`/`.rpm` do app desktop).
 - Status no briefing: ausente; ao ser aceito, ao lado do nome do produto.
+- Revisões: 2026-10-12 — o nome se escreve UniVerso, com V maiúsculo,
+  decidido pelo mantenedor (Decisão, a revisão abaixo).
 
 ## Contexto
 
@@ -25,7 +27,7 @@ teste não se chocam (o beta do desktop instala `verso-beta`), então a
 mostraria.
 
 O mantenedor tinha um nome para o Verso como servidor, nunca escrito até
-agora: **Universo** — *uni-verso*, os versos juntos; o servidor onde as
+agora: **UniVerso** — *uni-verso*, os versos juntos; o servidor onde as
 pastas de várias pessoas se encontram e, com o sync (item 10 da 0073), onde
 os aparelhos de uma pessoa se encontram.
 
@@ -33,9 +35,9 @@ os aparelhos de uma pessoa se encontram.
 
 Aceita (2026-10-10, Status).
 
-1. **Universo é o nome do Verso como servidor.** O app continua Verso; o
+1. **UniVerso é o nome do Verso como servidor.** O app continua Verso; o
    servidor auto-hospedado — hoje o `verso serve`, amanhã o centro por onde
-   o sync passa — é o Universo. Uma base de código, um binário (item 1 da
+   o sync passa — é o UniVerso. Uma base de código, um binário (item 1 da
    0075): o nome é o empacotamento do servidor e como se fala dele.
 2. **Chamado como `universo`, o binário é o servidor.** O binário olha o
    nome com que foi iniciado: `universo` roda o que o `verso serve` roda, e
@@ -52,7 +54,7 @@ Aceita (2026-10-10, Status).
      instala;
    - o arquivo `universo-<versão>-<arq>.tar.gz`;
    - a imagem `ghcr.io/sergiosjs/universo`, o serviço do arquivo compose e
-     o cartão do CasaOS com o nome Universo.
+     o cartão do CasaOS com o nome UniVerso.
 4. **As variáveis continuam `VERSO_*`.** São a configuração do servidor e
    já estão documentadas; renomeá-las mudaria toda instalação sem ganho.
    Recomendado; `[ABERTO]` para o mantenedor. *(Decidido em 2026-10-10
@@ -60,29 +62,44 @@ Aceita (2026-10-10, Status).
 5. **O que uma pessoa vê.** As páginas que o servidor serve antes da janela
    — entrar, um convite, uma senha nova — e o console de administração
    ([0077](0077-the-server-administration-console-and-folder-quotas.md))
-   dizem "Universo" ao lado da marca do Verso ("Universo · um servidor
+   dizem "UniVerso" ao lado da marca do Verso ("UniVerso · um servidor
    Verso"); a janela em si é o Verso, onde quer que seja servida. No app
    desktop, Ajustes › Servidores tem o nome do que conecta: `[ABERTO]` se
-   vira "Universo" ou continua "Servidores". Recomendado: "Servidores", com
-   "Universo" na descrição, já que uma pessoa se conecta a um servidor que
+   vira "UniVerso" ou continua "Servidores". Recomendado: "Servidores", com
+   "UniVerso" na descrição, já que uma pessoa se conecta a um servidor que
    alguém roda, pelo endereço. *(Decidido em 2026-10-10 como recomendado
    — Status.)*
 6. **Os nomes da 0.7.0-beta.1 não seguem.** A imagem
    `ghcr.io/sergiosjs/verso` e os pacotes `verso-server-*` param na
-   0.7.0-beta.1; a próxima versão publica os do Universo. Só o mantenedor
+   0.7.0-beta.1; a próxima versão publica os do UniVerso. Só o mantenedor
    roda um servidor por enquanto, então nenhuma migração é distribuída; a
    página de instalação diz como mover um diretório de dados de
    `/var/lib/verso` para `/var/lib/universo` numa instalação por pacote.
+
+### Revisto: o nome se escreve UniVerso — decidido em 2026-10-12
+
+O mantenedor decidiu em 2026-10-12 que o nome do servidor se escreve
+**UniVerso**, com V maiúsculo: a maiúscula deixa visível no próprio nome a
+leitura *uni-verso*, os versos juntos. A grafia vale onde quer que o nome
+seja mostrado ou escrito em prosa — as páginas e o console do servidor, os
+textos do app desktop, a ajuda da linha de comando, as descrições dos
+pacotes, os documentos e o cofre de exemplo. Os identificadores continuam
+em minúsculas, como o item 3 os lista: o comando e o binário `universo`, os
+pacotes e arquivos `universo-<versão>-<arq>`, a unidade `universo.service`,
+o usuário e o grupo `universo`, `/etc/universo`, `/var/lib/universo`,
+`share/universo`, a imagem `ghcr.io/sergiosjs/universo`, o serviço do
+arquivo compose e os nomes de arquivo, inclusive os destes registros. As
+variáveis continuam `VERSO_*` (item 4).
 
 ## Consequências
 
 - O `verso-cli` ganha o despacho pelo nome com que foi iniciado; o workflow
   de release, `packaging/server/*`, o arquivo compose, as páginas de
   instalação (os dois idiomas) e o modelo de ameaças mudam de nome; a nota
-  do cofre de exemplo sobre o servidor diz Universo.
-- O `.deb`/`.rpm` de produção do app desktop e o Universo se instalam na
+  do cofre de exemplo sobre o servidor diz UniVerso.
+- O `.deb`/`.rpm` de produção do app desktop e o UniVerso se instalam na
   mesma máquina.
-- Um domínio ou um logo próprio do Universo não são decididos aqui.
+- Um domínio ou um logo próprio do UniVerso não são decididos aqui.
 
 ## Alternativas descartadas
 
@@ -95,7 +112,7 @@ Aceita (2026-10-10, Status).
 
 **Aceita em 2026-10-10** pelo mantenedor, com todas as recomendações, em
 sessão: *"com exceção do 6, pode seguir o recomendado, o 6 pode já implementar"*. Item 4: as variáveis continuam `VERSO_*`. Item 5:
-Ajustes › Servidores mantém o nome, com Universo na descrição. A ser lida
+Ajustes › Servidores mantém o nome, com UniVerso na descrição. A ser lida
 por Fable 5.1 com o código da rodada *(histórico: lida por Fable 5.1 em 2026-10-10/11, na sessão da campanha
 de sync; o relatório final dela,
 `verso-sync-campaign/relatorio-final.md`, está fora do repositório)*.

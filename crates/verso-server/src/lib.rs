@@ -233,7 +233,7 @@ pub async fn run_on<L: listen::Incoming>(
     // Every folder's bin swept now and once a day (ADR 0080 item 3).
     tokio::spawn(trash::daily(Arc::clone(&server)));
     log::info(&format!(
-        "Universo {} (verso serve; contract {}) on {listen}, folders in {}",
+        "UniVerso {} (verso serve; contract {}) on {listen}, folders in {}",
         env!("CARGO_PKG_VERSION"),
         server.contract,
         server.config.folders_dir.display()
