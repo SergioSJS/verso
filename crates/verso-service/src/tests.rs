@@ -203,3 +203,68 @@ fn a_case_twin_crosses_as_its_own_kind() {
         .unwrap();
     assert_eq!(renamed.unwrap_err().kind, ErrorKind::CaseTwin);
 }
+
+/// The lines the service gives its host's log.
+#[derive(Default)]
+struct Lines(Mutex<Vec<(String, String)>>);
+
+impl Events for Lines {
+    fn progress(&self, _: &[String], _: &IndexProgress) {}
+    fn folder_changed(&self, _: &[String], _: &FolderChanged) {}
+    fn log(&self, level: &str, message: &str) {
+        lock(&self.0).push((level.to_owned(), message.to_owned()));
+    }
+}
+
+/// A temporary file a crash left in the folder is removed when the folder
+/// opens, with one INFO line saying how many went; an opening that finds
+/// none says nothing.
+#[test]
+fn the_temporary_files_of_a_crash_go_when_the_folder_opens() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let other = std::process::id().wrapping_add(1).max(2);
+    let _left = tempfile::Builder::new()
+        .prefix(&format!(".verso-tmp-{other}-1"))
+        .rand_bytes(0)
+        .tempfile_in(dir.path())
+        .unwrap()
+        .keep()
+        .unwrap();
+    let service = Service::new(Some(config.path().to_owned()));
+    let lines = Arc::new(Lines::default());
+    service.set_events(Arc::clone(&lines) as Arc<dyn Events>);
+    let path = dir.path().to_owned();
+    let opened = service
+        .open("a", move |c| Workspace::open(&path, c))
+        .unwrap();
+    service.attach("a", opened);
+    let swept: Vec<_> = lock(&lines.0)
+        .iter()
+        .filter(|(_, m)| m.contains("temporary file"))
+        .cloned()
+        .collect();
+    assert_eq!(swept.len(), 1, "{swept:?}");
+    assert_eq!(swept[0].0, "INFO");
+    assert!(swept[0].1.contains(": 1 temporary file"), "{swept:?}");
+    let left = service
+        .with_key(&service.current_folder("a").unwrap().key, |ws| {
+            Ok(ws.sweep_temporaries()?)
+        })
+        .unwrap();
+    assert_eq!(left, 0);
+    service.release("a");
+    lock(&lines.0).clear();
+    let path = dir.path().to_owned();
+    let opened = service
+        .open("b", move |c| Workspace::open(&path, c))
+        .unwrap();
+    service.attach("b", opened);
+    assert!(
+        lock(&lines.0)
+            .iter()
+            .all(|(_, m)| !m.contains("temporary file")),
+        "{:?}",
+        lock(&lines.0)
+    );
+}

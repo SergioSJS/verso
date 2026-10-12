@@ -854,6 +854,17 @@ impl Workspace {
         self.root.names_by_link()
     }
 
+    /// Remove the temporary files that writes and transfers of a stopped
+    /// process left in the folder — a crash between a write's temporary
+    /// file and its rename — and say how many went. For a host that opens
+    /// the folder as its writer (the desktop app, the server: verso-service
+    /// does it at every opening), never for a reader beside one, as the
+    /// command line and the MCP are: their process is not the folder's
+    /// writer. Through `verso-fs`, the only crate that touches the folder.
+    pub fn sweep_temporaries(&self) -> Result<usize, CoreError> {
+        self.root.sweep_temporaries().map_err(CoreError::Folder)
+    }
+
     /// The index's size in bytes (ADR 0075 item 4).
     pub fn index_bytes(&self) -> Result<u64, CoreError> {
         self.index.bytes().map_err(CoreError::Index)
