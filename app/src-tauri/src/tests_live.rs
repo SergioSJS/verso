@@ -171,28 +171,39 @@ struct Browser {
     remote: Arc<remote::Remote>,
     heard: tokio::sync::mpsc::UnboundedReceiver<remote::Heard>,
     doc: Doc,
+    /// The note's path in the folder the browser opened.
+    path: String,
 }
 
 fn browser(r: &Running) -> Browser {
+    browser_at(&r.url, &r.owner, &r.folder, NOTE)
+}
+
+fn browser_at(url: &str, token: &str, folder: &str, path: &str) -> Browser {
     let login = verso_core::servers::ServerLogin {
-        url: r.url.clone(),
-        token: r.owner.clone(),
+        url: url.to_owned(),
+        token: token.to_owned(),
         email: "ana@casa.lan".into(),
         name: "Ana".into(),
     };
     tauri::async_runtime::block_on(async {
-        let (remote, heard) = remote::dial(&login, r.folder.clone()).await.unwrap();
+        let (remote, heard) = remote::dial(&login, folder.to_owned()).await.unwrap();
         remote
-            .call("open_server_folder", json!({ "id": r.folder }))
+            .call("open_server_folder", json!({ "id": folder }))
             .await
             .unwrap();
         let joined = remote
-            .call("collab_join", json!({ "path": NOTE }))
+            .call("collab_join", json!({ "path": path }))
             .await
             .unwrap();
         let doc = doc();
         apply(&doc, &joined["update"]);
-        Browser { remote, heard, doc }
+        Browser {
+            remote,
+            heard,
+            doc,
+            path: path.to_owned(),
+        }
     })
 }
 
@@ -203,15 +214,18 @@ impl Browser {
 
     fn type_live(&self, line: usize, what: &str) {
         let update = insert(&self.doc, line, what);
-        self.call("collab_update", json!({ "path": NOTE, "update": update }))
-            .unwrap();
+        self.call(
+            "collab_update",
+            json!({ "path": self.path, "update": update }),
+        )
+        .unwrap();
     }
 
     fn hear(&mut self) {
         while let Ok(h) = self.heard.try_recv() {
             if let remote::Heard::Event(event, payload) = h
                 && event == "collab-update"
-                && payload["path"] == NOTE
+                && payload["path"] == self.path.as_str()
             {
                 apply(&self.doc, &payload["update"]);
             }
@@ -220,7 +234,9 @@ impl Browser {
 
     /// The note as the server's file holds it.
     fn file(&self) -> String {
-        let note = self.call("read_note", json!({ "path": NOTE })).unwrap();
+        let note = self
+            .call("read_note", json!({ "path": self.path }))
+            .unwrap();
         note["text"].as_str().unwrap().to_owned()
     }
 }
@@ -497,6 +513,119 @@ fn pausing_sync_takes_a_live_note_out_of_its_room_and_resuming_brings_it_back() 
     assert!(ta.text().contains("pausada"), "{}", ta.text());
     assert!(a.s.live.holds(NOTE));
     assert!(copies(&a).is_empty());
+}
+
+/// A test server listens on the loopback and never asks the release feed.
+struct Loopback;
+
+impl verso_server::config::Env for Loopback {
+    fn var(&self, name: &str) -> Option<String> {
+        match name {
+            "VERSO_LISTEN" => Some("127.0.0.1:0".to_owned()),
+            "VERSO_UPDATE_CHECK" => Some("off".to_owned()),
+            _ => None,
+        }
+    }
+}
+
+/// A receiver who synced a share as a folder of this computer (ADR 0082
+/// item 13, ADR 0081 items 6 and 12) edits its note in the owner's room:
+/// the server re-roots the share's path under the owner's folder, both
+/// ways, so the owner in the browser and the receiver's tab are one room.
+#[test]
+fn a_synced_shares_note_is_live_in_the_owners_room() {
+    let data = tempfile::tempdir().unwrap();
+    let folders = tempfile::tempdir().unwrap();
+    // The server's folder on disk, made as tests_sync.rs makes it: no
+    // `std::fs` in the app's crate (ADR 0029).
+    let named = |prefix: &str, at: &std::path::Path| {
+        tempfile::Builder::new()
+            .prefix(prefix)
+            .rand_bytes(0)
+            .tempdir_in(at)
+            .unwrap()
+            .keep()
+    };
+    let mesa = named("Mesa", &named("Campanha", folders.path()));
+    let mut note = tempfile::Builder::new()
+        .prefix(NOTE)
+        .rand_bytes(0)
+        .tempfile_in(&mesa)
+        .unwrap();
+    std::io::Write::write_all(&mut note, b"# Sessao\n").unwrap();
+    note.keep().unwrap();
+    let config = verso_server::config::Config::from_env(
+        &Loopback,
+        &verso_server::config::Defaults {
+            data_dir: data.path().to_owned(),
+            folders_dir: folders.path().to_owned(),
+            ui_dir: data.path().join("ui"),
+        },
+    )
+    .unwrap();
+    let db = verso_server::db::Db::open(data.path()).unwrap();
+    let ana = db
+        .create_account("ana@casa.lan", "Ana", "pt", Some("uma senha longa"), true)
+        .unwrap();
+    let caio = db
+        .create_account(
+            "caio@casa.lan",
+            "Caio",
+            "pt",
+            Some("outra senha longa"),
+            false,
+        )
+        .unwrap();
+    let folder = db.create_folder("Campanha", &ana.id).unwrap();
+    let share = db.make_share(&folder.id, "Mesa").unwrap();
+    db.grant_share(&share.id, &caio.id, verso_server::db::Role::Editor)
+        .unwrap();
+    let (owner, _) = db
+        .create_session(&ana.id, "device", "Verso · teste", "127.0.0.1")
+        .unwrap();
+    let (receiver, _) = db
+        .create_session(&caio.id, "device", "Verso · Caio", "127.0.0.1")
+        .unwrap();
+    let server = verso_server::state::Server::new(
+        config,
+        db,
+        verso_server::contract_version(),
+        "test".into(),
+    );
+    let (addr_tx, addr_rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        rt.block_on(async move {
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            addr_tx.send(listener.local_addr().unwrap()).unwrap();
+            let _ = verso_server::run(server, listener, std::future::pending()).await;
+        });
+    });
+    let url = format!("http://localhost:{}", addr_rx.recv().unwrap().port());
+
+    // Caio syncs the share — its id is the folder's, to the device — and
+    // opens its note, live; Ana has it open in the browser, in her folder.
+    let d = super::tests_sync::device_at(&url, &share.id, &receiver, &[]);
+    let mut l = kept(&d);
+    on(&d, &mut l);
+    assert_eq!(text(&d, NOTE).as_deref(), Some("# Sessao\n"));
+    let mut tab = Tab::open(&d);
+    let mut c = browser_at(&url, &owner, &folder.id, "Mesa/Sessao.md");
+
+    tab.type_live(&d, 9, "do Caio\n");
+    c.type_live(0, "da Ana\n");
+    saved(&mut c, &["do Caio", "da Ana"]);
+    tab.hear(&d);
+    assert_eq!(tab.text(), text_of(&c.doc));
+    // The room wrote the owner's file; Caio's sync brings it down.
+    on(&d, &mut l);
+    assert_eq!(text(&d, NOTE), Some(c.file()));
+    assert!(copies(&d).is_empty());
+    drop_link(&d, l);
+    c.remote.hang_up();
 }
 
 /* ---------- The feature's guardrail (ADR 0082 item 16) ---------- */

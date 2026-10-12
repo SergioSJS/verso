@@ -142,7 +142,7 @@ pub(super) fn device(r: &Running, token: &str, files: &[(&str, &str)]) -> Device
     device_at(&r.url, &r.folder, token, files)
 }
 
-fn device_at(url: &str, folder: &str, token: &str, files: &[(&str, &str)]) -> Device {
+pub(super) fn device_at(url: &str, folder: &str, token: &str, files: &[(&str, &str)]) -> Device {
     let config = tempfile::tempdir().unwrap();
     let dir = tempfile::tempdir().unwrap();
     verso_core::servers::keep(
