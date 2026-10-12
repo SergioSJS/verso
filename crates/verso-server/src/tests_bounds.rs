@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::json;
 
-use crate::tests::{block_on, connect, next, sign_in, start};
+use crate::tests::{block_on, call, connect, folder_id, next, sign_in, start};
 
 /// The connections of `account` the server still holds.
 fn connections_of(r: &crate::tests::Running, account: &str) -> Vec<String> {
@@ -62,4 +62,38 @@ fn the_time_a_message_may_take_grows_with_its_size() {
     assert!(small >= Duration::from_secs(1));
     assert!(piece > small);
     assert!(crate::rpc::send_within(usize::MAX) > piece);
+}
+
+/// A presence is small: one past its bound is refused, not relayed to
+/// every window of the note (gap 3).
+#[test]
+fn a_presence_past_its_bound_is_refused() {
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &b).await;
+        let mut ws = connect(&r, Some(&b.cookie), Some(&r.origin()), None)
+            .await
+            .unwrap();
+        next(&mut ws).await;
+        call(&mut ws, 1, "open_server_folder", json!({ "id": id })).await;
+        call(&mut ws, 2, "collab_join", json!({ "path": "Sessao.md" })).await;
+        let small = call(
+            &mut ws,
+            3,
+            "collab_awareness",
+            json!({ "path": "Sessao.md", "update": "AQ==" }),
+        )
+        .await;
+        assert!(small.get("ok").is_some(), "{small}");
+        let big = "A".repeat(crate::collab::PRESENCE_MOST + 4);
+        let refused = call(
+            &mut ws,
+            4,
+            "collab_awareness",
+            json!({ "path": "Sessao.md", "update": big }),
+        )
+        .await;
+        assert!(refused.get("err").is_some(), "{refused}");
+    });
 }

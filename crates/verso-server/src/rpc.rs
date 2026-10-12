@@ -31,7 +31,7 @@ use verso_service::{Access, lock, ops};
 use crate::auth::{Via, Who};
 use crate::db::{Folder, Role};
 use crate::http::{ApiError, ApiResult, Ctx};
-use crate::state::{Client, Outbox, QUEUE, Server};
+use crate::state::{Client, Outbox, QUEUE, QUEUE_BYTES, Server};
 
 /// The largest message: a picture pasted into a note crosses as base64 in
 /// `create_file` (ADR 0073 item 6: upload limits).
@@ -216,7 +216,7 @@ async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket, sync_refused:
             }
             () = slow.notified() => {
                 crate::log::warn(&format!(
-                    "connection {client} ({}) closed: {QUEUE} messages waited for it, it reads too slowly",
+                    "connection {client} ({}) closed: its queue filled ({QUEUE} messages or {QUEUE_BYTES} bytes at most), it reads too slowly",
                     who.account.id
                 ));
                 break;
