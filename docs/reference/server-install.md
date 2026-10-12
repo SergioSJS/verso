@@ -175,6 +175,28 @@ An upgrade keeps an edited `/etc/universo/universo.env` and restarts a running
 service. A removal stops and disables it and leaves `/var/lib/universo` and
 the `universo` user in place: they are the host's data.
 
+Two things seen on 2026-10-12 (section 15) when installing again after a
+removal:
+
+- **Debian and Ubuntu**: `apt remove` (not `apt purge`) leaves the package
+  known to dpkg, with its settings, so installing it again is an upgrade in
+  dpkg's eyes: the edited `universo.env` stays and the service comes back
+  **disabled**. Enable it again with `sudo systemctl enable --now universo`;
+  it starts from the same data. The package verified printed nothing then;
+  `postinstall.sh` now prints the not-running message whenever the unit is
+  not enabled (not verified on a host yet).
+- **Fedora and RHEL**: `dnf remove` saves an edited
+  `/etc/universo/universo.env` as `/etc/universo/universo.env.rpmsave` (rpm
+  does that with a changed settings file on removal), and installing again
+  puts a fresh template `universo.env` beside it. Move yours back before
+  starting the service, or every changed setting (`VERSO_PUBLIC_URL` and the
+  rest) is lost:
+
+  ```sh
+  sudo mv /etc/universo/universo.env.rpmsave /etc/universo/universo.env
+  sudo systemctl enable --now universo
+  ```
+
 ## 6. The archive
 
 `universo-<version>-x86_64.tar.gz` and `-aarch64.tar.gz` hold
@@ -383,7 +405,8 @@ on 2026-10-10, numbers kept in `scripts/sync-lab/results.jsonl`:
 - **CPU**: hashing each file written (SHA-256), indexing notes for search,
   and TLS when the server does its own.
 
-And a VM sized like the smallest VPS, on 2026-10-11: 1 vCPU, 1 GB of
+And a VM sized like the smallest VPS, on 2026-10-11 (and, on 2026-10-12, a
+guest of 453 MiB: the last bullet): 1 vCPU, 1 GB of
 memory (the guest's `free -m` showed 956 MB in total), a 10 GB virtual disk
 on Proxmox, the Ubuntu 26.04 server cloud image with no desktop, and
 Universo, the build b8ebc5f (server code 552f0f6), installed from the
@@ -462,7 +485,8 @@ one LAN hop away. The numbers are in the campaign's log
   after a burst. The shipped binary is now musl + mimalloc, which after a
   burst holds about 70–74 MB and peaked at 291 MB (VmHWM) under 50 writers
   (the mimalloc row of **The allocator**); the kills were not re-measured
-  with it.
+  with it on these guests. A guest of 453 MiB with the balloon off ran two
+  bursts of 50 writers with it and no kill (**A 453 MiB guest**, below).
 - **The allocator** (measured 2026-10-11, about 19:00–19:40 BRT, on the same
   VM): three builds of the same server code, each given two bursts of
   `scripts/server-load.mjs` with 50 devices for 60 s from the VM one LAN hop
@@ -510,12 +534,27 @@ one LAN hop away. The numbers are in the campaign's log
   `/var/lib/universo/folders` 272 MB.
 - **Logs**: no ERROR in the journal; the only WARN lines on the devices
   were the expected `offline:` ones at each stop, reboot and removal.
+- **A 453 MiB guest** (2026-10-12, 00:40–01:30 UTC): VM 107 set to 512 MB
+  with the Proxmox balloon off, so the memory was the guest's own and was
+  not given back under pressure; its `free -m` showed 453 MiB in total. The
+  shipped kind of binary, static musl + mimalloc at 7729940 (built with
+  musl-gcc on the Ubuntu build VM, not with the release's cargo-zigbuild),
+  installed from a `.deb` built with nfpm (section 15). Two bursts of
+  `scripts/server-load.mjs` with 50 devices for 60 s: peak RSS 200 MB
+  (cgroup 220 MB), RSS after the bursts 104 MB and 85 MB, `MemAvailable` at
+  its lowest 60–62 MB, CPU average 46–48 %, swap 0, **no OOM kill**,
+  `NRestarts` 0; 7.4 and 5.2 operations per second, `put_new` p50 10.0 s
+  and 8.3 s, p99 20 s and 36 s, no integrity problem — about half the 1 GB
+  guest's rate. A likely cause, not proven: the data directory (395 MB) and
+  the load folder (219 MB, 3094 files) together exceed the about 170 MB of
+  page cache the guest has. The logs are in `verso-sync-campaign/logs/pkg/`,
+  kept outside the repository.
 
 | | Minimum | Recommended |
 |---|---|---|
 | For | 1–3 people, notes and small attachments | a family or a team of up to ~10 people, several devices each (an estimate, not measured) |
 | CPU | 1 core, x64 or ARM64 (measured, rows "cloud 1 GB" of `results.jsonl`: one writer about 100 ms a write; a burst of 50 writers queues on the disk, p50 4.5 s) | 2 cores |
-| Memory | 512 MB — not measured yet: a 512 MB guest has still not been measured (the smallest measured had 393 MB after the balloon took the rest, and ran a 30-device load and a 60 MB file after one kill-and-restart); the memory held after a burst that got the process killed was the campaign's glibc build's; the shipped binary is now musl + mimalloc, which after a burst holds about 70–74 MB and peaked at 291 MB (VmHWM) under 50 writers (the mimalloc row of **The allocator**), and the kills were not re-measured with it; if the process is killed, the unit brings it back in 5 s with nothing lost | 2 GB, or more than twice the largest file you sync; when several devices fetched a large file at once, the server held about 2.3 × the largest file × the devices fetching it (measured before 95d11dc and not re-measured since; since 95d11dc the server keeps one copy per folder, path and hash, so the per-device factor no longer holds on the server) |
+| Memory | 512 MB — measured 2026-10-12 on a guest that saw 453 MiB with the balloon off (**A 453 MiB guest**, above): the shipped musl + mimalloc build ran two bursts of 50 writers with no OOM kill, a peak RSS of 200 MB and about half the 1 GB guest's throughput (likely cause, not proven: the data and the folder exceed the guest's page cache); as measured, enough for 1–3 people with small attachments; the campaign's two kills, on guests whose balloon was on, came from memory the glibc build held after a burst; if the process is killed, the unit brings it back in 5 s with nothing lost | 2 GB, or more than twice the largest file you sync; when several devices fetched a large file at once, the server held about 2.3 × the largest file × the devices fetching it (measured before 95d11dc and not re-measured since; since 95d11dc the server keeps one copy per folder, path and hash, so the per-device factor no longer holds on the server) |
 | Disk | an SSD; the notes' size × 2 + 1 GB (the bin, `.trash`, keeps what was deleted) | a local SSD for `VERSO_DATA_DIR`; the notes on an SSD or a NAS |
 | Examples | a Raspberry Pi 4 with 2 GB, the smallest VPS | a mini PC, a NAS with Docker, a 2 GB VPS |
 
@@ -553,14 +592,42 @@ on a real machine. Verified since:
   service, removed `/usr/bin/universo` and left `/var/lib/universo`,
   `/etc/universo/universo.env` and the `universo` user; installed again,
   which started from the same data, the five sides equal (section 14).
+- 2026-10-12: the `.deb` (amd64), verified with the static musl binary at
+  7729940 (musl + mimalloc, built with musl-gcc on the Ubuntu build VM,
+  packaged with nfpm from `packaging/server/nfpm.yaml` with
+  `VERSO_VERSION=0.7.0-beta.1`) on Debian 12 (systemd 252): install (the
+  not-running message, the `universo` user made, the unit disabled), start
+  (`systemctl enable --now`, the first admin from the settings file,
+  `curl /` 200), reinstall over itself (`dpkg -i`: the service restarted,
+  its PID changed, the edited settings kept), remove (`apt remove`: the
+  binary, the window and the unit gone, the service disabled;
+  `/var/lib/universo`, the database's WAL checkpointed, the edited
+  `universo.env` and the user and group kept), install again (see the note
+  in section 5 on the reinstall: no message, the service disabled until
+  enabled again, then started from the same data). The logs are in
+  `verso-sync-campaign/logs/pkg/`, kept outside the repository.
+- 2026-10-12: the `.rpm` (x86_64), the same binary, on Fedora 44 (systemd
+  259, SELinux enforcing: the process ran as `unconfined_service_t`, no
+  denials): install (`dnf install`; the OpenPGP checks skipped, the package
+  is unsigned), start and `curl /` as on Debian; reinstall (`dnf
+  reinstall`: the service restarted, the settings kept, no `.rpmnew`);
+  remove (`dnf remove`: the edited settings saved as
+  `universo.env.rpmsave`, an empty `/usr/share/universo/` left behind, the
+  data, the user and the group kept, the unit gone); install again (a fresh
+  template `universo.env` beside the `.rpmsave`; after `enable --now` the
+  server started from the same data; see the note in section 5).
+- 2026-10-12: the static musl build of the server (x86_64), made with
+  musl-gcc; the release's path, cargo-zigbuild, is still not verified.
 
 Not verified yet:
 
 - the image built and run on amd64 and arm64, and the static binaries
-  built with cargo-zigbuild;
-- the `.deb` on arm64, an upgrade from one version to a newer one, and the
-  `.rpm` installed, upgraded and removed (built with nfpm on a Mac, with a
-  stand-in binary);
+  built with cargo-zigbuild (the release's path; a static musl build made
+  with musl-gcc is verified, above);
+- the `.deb` and the `.rpm` on arm64, and an upgrade from one version to a
+  newer one;
+- the not-running message `postinstall.sh` prints when an install leaves
+  the service disabled (added after the 2026-10-12 verification);
 - the compose file in CasaOS and ZimaOS (it passes `docker compose config`;
   its `x-casaos` block follows the CasaOS AppStore's v2 description of
   2026-10-09, not checked by their validator);
