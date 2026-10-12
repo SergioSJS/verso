@@ -118,7 +118,7 @@ pub struct SignIn {
 /// are answered alike, in about the same time.
 pub async fn sign_in(ctx: Ctx, Json(body): Json<SignIn>) -> ApiResult<Response> {
     ctx.changes()?;
-    let by_address = format!("in:{}", ctx.peer.addr);
+    let by_address = format!("in:{}", ctx.peer.key());
     let by_account = format!("in:{}", db::fold_email(&body.email));
     limited(&ctx, &[&by_address, &by_account])?;
     let server = std::sync::Arc::clone(&ctx.server);
@@ -189,7 +189,7 @@ pub struct Setup {
 /// only while the server has no account, only with that link.
 pub async fn setup(ctx: Ctx, Json(body): Json<Setup>) -> ApiResult<Response> {
     ctx.changes()?;
-    let key = format!("link:{}", ctx.peer.addr);
+    let key = format!("link:{}", ctx.peer.key());
     limited(&ctx, &[&key])?;
     let Some(link) = ctx.server.db.pending(&body.token, "setup")? else {
         ctx.server.limiter.failed(&key);
@@ -228,7 +228,7 @@ pub async fn setup(ctx: Ctx, Json(body): Json<Setup>) -> ApiResult<Response> {
 /// What an invitation link offers, before it is accepted: the address it
 /// was made for, the folder and the role it carries.
 pub async fn invitation(ctx: Ctx, Path(token): Path<String>) -> ApiResult<Response> {
-    let key = format!("link:{}", ctx.peer.addr);
+    let key = format!("link:{}", ctx.peer.key());
     limited(&ctx, &[&key])?;
     let Some(link) = ctx.server.db.pending(&token, "invite")? else {
         ctx.server.limiter.failed(&key);
@@ -266,7 +266,7 @@ pub async fn accept(
     Json(body): Json<Accept>,
 ) -> ApiResult<Response> {
     ctx.changes()?;
-    let key = format!("link:{}", ctx.peer.addr);
+    let key = format!("link:{}", ctx.peer.key());
     limited(&ctx, &[&key])?;
     let Some(link) = ctx.server.db.pending(&token, "invite")? else {
         ctx.server.limiter.failed(&key);
@@ -330,7 +330,7 @@ pub async fn accept(
 
 /// What a reset link is for: the account's e-mail.
 pub async fn reset_link(ctx: Ctx, Path(token): Path<String>) -> ApiResult<Response> {
-    let key = format!("link:{}", ctx.peer.addr);
+    let key = format!("link:{}", ctx.peer.key());
     limited(&ctx, &[&key])?;
     let Some(link) = ctx.server.db.pending(&token, "reset")? else {
         ctx.server.limiter.failed(&key);
@@ -363,7 +363,7 @@ pub async fn reset(
     Json(body): Json<Reset>,
 ) -> ApiResult<Response> {
     ctx.changes()?;
-    let key = format!("link:{}", ctx.peer.addr);
+    let key = format!("link:{}", ctx.peer.key());
     limited(&ctx, &[&key])?;
     let Some(link) = ctx.server.db.pending(&token, "reset")? else {
         ctx.server.limiter.failed(&key);
@@ -621,7 +621,7 @@ pub async fn signin_link(ctx: Ctx, Json(body): Json<ByMail>) -> ApiResult<Respon
     if ctx.server.mail.get().is_none() {
         return Err(ApiError::bad("no_mail", "this server has no mail server"));
     }
-    let key = format!("mail:{}", ctx.peer.addr);
+    let key = format!("mail:{}", ctx.peer.key());
     limited(&ctx, &[&key])?;
     ctx.server.limiter.failed(&key);
     mail_later(&ctx, body.email, Mailed::SignIn);
@@ -667,6 +667,7 @@ async fn mailed(
             let token = crate::crypto::token()?;
             let mut links = verso_service::lock(&server.signin_links);
             links.retain(|_, (_, at)| at.elapsed() < SIGNIN_LINK_LIFE);
+            crate::limit::make_room(&mut links, crate::limit::PENDING, |(_, at)| *at);
             links.insert(
                 crate::crypto::hash(&token),
                 (account.id.clone(), std::time::Instant::now()),
@@ -700,7 +701,7 @@ async fn mailed(
 /// The link from the e-mail, used once: a session, as a password's.
 pub async fn signin_by_link(ctx: Ctx, Path(token): Path<String>) -> ApiResult<Response> {
     ctx.changes()?;
-    let key = format!("link:{}", ctx.peer.addr);
+    let key = format!("link:{}", ctx.peer.key());
     limited(&ctx, &[&key])?;
     let found = verso_service::lock(&ctx.server.signin_links)
         .remove(&crate::crypto::hash(&token))
@@ -731,7 +732,7 @@ pub async fn forgot(ctx: Ctx, Json(body): Json<ByMail>) -> ApiResult<Response> {
     if ctx.server.mail.get().is_none() {
         return Err(ApiError::bad("no_mail", "this server has no mail server"));
     }
-    let key = format!("mail:{}", ctx.peer.addr);
+    let key = format!("mail:{}", ctx.peer.key());
     limited(&ctx, &[&key])?;
     ctx.server.limiter.failed(&key);
     mail_later(&ctx, body.email, Mailed::Reset);

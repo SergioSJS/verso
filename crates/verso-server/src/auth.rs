@@ -28,6 +28,15 @@ pub struct Peer {
     pub secure: bool,
 }
 
+impl Peer {
+    /// The address as the per-address delays and counts key it: an IPv6
+    /// address by its /64 ([`crate::limit::address_key`]).
+    #[must_use]
+    pub fn key(&self) -> String {
+        crate::limit::address_key(self.addr)
+    }
+}
+
 /// How a request proved who it is.
 #[derive(Debug, Clone)]
 pub enum Via {
