@@ -180,6 +180,30 @@ Uma atualização mantém o `/etc/universo/universo.env` editado e reinicia um
 serviço em execução. Uma remoção para e desabilita o serviço e deixa
 `/var/lib/universo` e o usuário `universo` onde estão: são dados do host.
 
+Duas coisas vistas em 2026-10-12 (seção 15) ao instalar de novo depois de
+uma remoção:
+
+- **Debian e Ubuntu**: o `apt remove` (não o `apt purge`) deixa o pacote
+  conhecido do dpkg, com as configurações, então instalá-lo de novo é uma
+  atualização aos olhos do dpkg: o `universo.env` editado fica e o serviço
+  volta **desabilitado**. Habilite de novo com
+  `sudo systemctl enable --now universo`; ele parte dos mesmos dados. O
+  pacote verificado não imprimiu nada nesse caso; o `postinstall.sh` agora
+  imprime a mensagem de que não está rodando sempre que a unit não está
+  habilitada (ainda não verificado num host).
+- **Fedora e RHEL**: o `dnf remove` guarda um
+  `/etc/universo/universo.env` editado como
+  `/etc/universo/universo.env.rpmsave` (o rpm faz isso com um arquivo de
+  configuração alterado na remoção), e instalar de novo põe um
+  `universo.env` modelo, novo, ao lado dele. Mova o seu de volta antes de
+  iniciar o serviço, ou toda configuração alterada (`VERSO_PUBLIC_URL` e o
+  resto) se perde:
+
+  ```sh
+  sudo mv /etc/universo/universo.env.rpmsave /etc/universo/universo.env
+  sudo systemctl enable --now universo
+  ```
+
 ## 6. O arquivo
 
 `universo-<versão>-x86_64.tar.gz` e `-aarch64.tar.gz` trazem
@@ -394,7 +418,8 @@ seção 3) em 2026-10-10, com os números em `scripts/sync-lab/results.jsonl`:
 - **CPU**: o hash de cada arquivo gravado (SHA-256), a indexação das notas
   para a busca, e o TLS quando é o próprio servidor que o faz.
 
-E uma VM do tamanho da VPS mais barata, em 2026-10-11: 1 vCPU, 1 GB de
+E uma VM do tamanho da VPS mais barata, em 2026-10-11 (e, em 2026-10-12,
+um convidado de 453 MiB: o último item): 1 vCPU, 1 GB de
 memória (o `free -m` do convidado mostrava 956 MB no total), um disco
 virtual de 10 GB no Proxmox, a imagem cloud do Ubuntu 26.04 server sem
 desktop, e o Universo, o build b8ebc5f (código do servidor 552f0f6),
@@ -479,7 +504,10 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
   que o build glibc guardava depois de um pico. O binário distribuído agora
   é musl + mimalloc, que depois de um pico guarda cerca de 70–74 MB e
   chegou a 291 MB (VmHWM) com 50 gravando (a linha do mimalloc em **O
-  alocador**); as mortes não foram medidas de novo com ele.
+  alocador**); as mortes não foram medidas de novo com ele nesses
+  convidados. Um convidado de 453 MiB com o balloon desligado rodou dois
+  picos de 50 gravando com ele e nenhuma morte (**Um convidado de 453
+  MiB**, abaixo).
 - **O alocador** (medido em 2026-10-11, por volta de 19:00–19:40 BRT, na
   mesma VM): três builds do mesmo código de servidor, cada um com dois picos
   do `scripts/server-load.mjs` com 50 aparelhos por 60 s a partir da VM a
@@ -528,12 +556,28 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
   `/var/lib/universo/folders` 272 MB.
 - **Logs**: nenhum ERROR no journal; as únicas linhas WARN nos aparelhos
   foram as `offline:` esperadas a cada parada, reinício e remoção.
+- **Um convidado de 453 MiB** (2026-10-12, 00:40–01:30 UTC): a VM 107
+  configurada com 512 MB e o balloon do Proxmox desligado, então a memória
+  era do próprio convidado e não foi devolvida sob pressão; o `free -m`
+  dele mostrava 453 MiB no total. O tipo de binário distribuído, musl
+  estático + mimalloc no 7729940 (compilado com o musl-gcc na VM de build
+  Ubuntu, não com o cargo-zigbuild da release), instalado de um `.deb`
+  gerado com o nfpm (seção 15). Dois picos do `scripts/server-load.mjs`
+  com 50 aparelhos por 60 s: RSS máximo de 200 MB (cgroup 220 MB), RSS
+  depois dos picos 104 MB e 85 MB, `MemAvailable` no mínimo 60–62 MB, CPU
+  média 46–48 %, swap 0, **nenhuma morte por OOM**, `NRestarts` 0; 7,4 e
+  5,2 operações por segundo, `put_new` p50 10,0 s e 8,3 s, p99 20 s e
+  36 s, nenhum problema de integridade — cerca de metade da taxa do
+  convidado de 1 GB. Uma causa provável, não provada: o diretório de dados
+  (395 MB) e a pasta da carga (219 MB, 3094 arquivos) juntos passam dos
+  cerca de 170 MB de cache de páginas que o convidado tem. Os logs estão em
+  `verso-sync-campaign/logs/pkg/`, guardados fora do repositório.
 
 | | Mínimo | Recomendado |
 |---|---|---|
 | Para | 1 a 3 pessoas, notas e anexos pequenos | uma família ou equipe de até ~10 pessoas, vários aparelhos cada (uma estimativa, não medida) |
 | CPU | 1 núcleo, x64 ou ARM64 (medido, linhas "cloud 1 GB" do `results.jsonl`: um aparelho gravando, cerca de 100 ms por gravação; um pico de 50 faz fila no disco, p50 4,5 s) | 2 núcleos |
-| Memória | 512 MB — ainda não medido: um convidado de 512 MB ainda não foi medido (o menor medido tinha 393 MB depois de o balloon tomar o resto, e rodou uma carga de 30 aparelhos e um arquivo de 60 MB depois de ser morto e reiniciado uma vez); a memória guardada depois de um pico que fez o processo ser morto era a do build glibc da campanha; o binário distribuído agora é musl + mimalloc, que depois de um pico guarda cerca de 70–74 MB e chegou a 291 MB (VmHWM) com 50 gravando (a linha do mimalloc em **O alocador**), e as mortes não foram medidas de novo com ele; se o processo for morto, a unit o traz de volta em 5 s sem perder nada | 2 GB, ou mais que o dobro do maior arquivo que vocês sincronizam; quando vários aparelhos buscavam um arquivo grande ao mesmo tempo, o servidor segurava cerca de 2,3 × o maior arquivo × os aparelhos que o buscavam (medido antes do 95d11dc e não medido de novo desde então; desde o 95d11dc o servidor guarda uma cópia por pasta, caminho e hash, então o fator por aparelho não vale mais no servidor) |
+| Memória | 512 MB — medido em 2026-10-12 num convidado que via 453 MiB com o balloon desligado (**Um convidado de 453 MiB**, acima): o build musl + mimalloc distribuído rodou dois picos de 50 gravando sem morte por OOM, com RSS máximo de 200 MB e cerca de metade da vazão do convidado de 1 GB (causa provável, não provada: os dados e a pasta passam do cache de páginas do convidado); como medido, basta para 1 a 3 pessoas com anexos pequenos; as duas mortes da campanha, em convidados com o balloon ligado, vieram da memória que o build glibc guardava depois de um pico; se o processo for morto, a unit o traz de volta em 5 s sem perder nada | 2 GB, ou mais que o dobro do maior arquivo que vocês sincronizam; quando vários aparelhos buscavam um arquivo grande ao mesmo tempo, o servidor segurava cerca de 2,3 × o maior arquivo × os aparelhos que o buscavam (medido antes do 95d11dc e não medido de novo desde então; desde o 95d11dc o servidor guarda uma cópia por pasta, caminho e hash, então o fator por aparelho não vale mais no servidor) |
 | Disco | um SSD; o tamanho das notas × 2 + 1 GB (a lixeira, `.trash`, guarda o que foi apagado) | um SSD local para o `VERSO_DATA_DIR`; as notas num SSD ou num NAS |
 | Exemplos | um Raspberry Pi 4 de 2 GB, a VPS mais barata | um mini PC, um NAS com Docker, uma VPS de 2 GB |
 
@@ -572,14 +616,46 @@ máquina real. Verificado desde então:
   `/var/lib/universo`, `/etc/universo/universo.env` e o usuário `universo`;
   instalado de novo, o que partiu dos mesmos dados, os cinco lados iguais
   (seção 14).
+- 2026-10-12: o `.deb` (amd64), verificado com o binário musl estático no
+  7729940 (musl + mimalloc, compilado com o musl-gcc na VM de build
+  Ubuntu, empacotado com o nfpm a partir de `packaging/server/nfpm.yaml`
+  com `VERSO_VERSION=0.7.0-beta.1`) no Debian 12 (systemd 252): instalação
+  (a mensagem de que não está rodando, o usuário `universo` criado, a unit
+  desabilitada), início (`systemctl enable --now`, o primeiro admin vindo
+  do arquivo de configuração, `curl /` 200), reinstalação por cima de si
+  mesmo (`dpkg -i`: o serviço reiniciado, o PID mudou, a configuração
+  editada mantida), remoção (`apt remove`: o binário, a janela e a unit
+  removidos, o serviço desabilitado; `/var/lib/universo`, com o WAL do
+  banco consolidado, o `universo.env` editado e o usuário e o grupo
+  mantidos), instalação de novo (ver a nota da seção 5 sobre a
+  reinstalação: nenhuma mensagem, o serviço desabilitado até ser habilitado
+  de novo, e então partiu dos mesmos dados). Os logs estão em
+  `verso-sync-campaign/logs/pkg/`, guardados fora do repositório.
+- 2026-10-12: o `.rpm` (x86_64), o mesmo binário, no Fedora 44 (systemd
+  259, SELinux em modo enforcing: o processo rodou como
+  `unconfined_service_t`, nenhuma negação): instalação (`dnf install`; as
+  checagens OpenPGP puladas, o pacote não é assinado), início e `curl /`
+  como no Debian; reinstalação (`dnf reinstall`: o serviço reiniciado, a
+  configuração mantida, nenhum `.rpmnew`); remoção (`dnf remove`: a
+  configuração editada guardada como `universo.env.rpmsave`, um
+  `/usr/share/universo/` vazio deixado para trás, os dados, o usuário e o
+  grupo mantidos, a unit removida); instalação de novo (um `universo.env`
+  modelo, novo, ao lado do `.rpmsave`; depois do `enable --now` o servidor
+  partiu dos mesmos dados; ver a nota da seção 5).
+- 2026-10-12: o build musl estático do servidor (x86_64), feito com o
+  musl-gcc; o caminho da release, o cargo-zigbuild, ainda não foi
+  verificado.
 
 Ainda não verificado:
 
 - a imagem construída e executada em amd64 e arm64, e os binários
-  estáticos compilados com cargo-zigbuild;
-- o `.deb` em arm64, uma atualização de uma versão para outra mais nova, e
-  o `.rpm` instalado, atualizado e removido (gerado com o nfpm num Mac, com
-  um binário de mentira);
+  estáticos compilados com cargo-zigbuild (o caminho da release; um build
+  musl estático feito com o musl-gcc está verificado, acima);
+- o `.deb` e o `.rpm` em arm64, e uma atualização de uma versão para outra
+  mais nova;
+- a mensagem de que não está rodando que o `postinstall.sh` imprime quando
+  uma instalação deixa o serviço desabilitado (acrescentada depois da
+  verificação de 2026-10-12);
 - o arquivo compose no CasaOS e no ZimaOS (passa no
   `docker compose config`; o bloco `x-casaos` segue a descrição v2 da
   CasaOS AppStore de 2026-10-09, sem passar pelo validador deles);
