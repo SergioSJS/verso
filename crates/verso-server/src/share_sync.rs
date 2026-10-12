@@ -167,6 +167,76 @@ fn change(scope: &Scope, mut c: Value) -> Option<Value> {
     }
 }
 
+/// The bin seen through a share (ADR 0081 item 16): a writer of the share
+/// sees and restores the entries whose original path is inside it, in the
+/// share's paths; the rest of the folder's bin is not theirs, and nobody
+/// of a share deletes for good or changes the bin's days — the owner's.
+pub async fn trash(
+    server: &Arc<Server>,
+    who: &Who,
+    client: &str,
+    cmd: &str,
+    mut args: Value,
+    scope: &Scope,
+) -> Result<Value, ContractError> {
+    let inside = |listing: &mut Value| {
+        let mut size = 0.0;
+        if let Some(entries) = listing["entries"].as_array_mut() {
+            entries.retain_mut(|e| {
+                if !rel(scope, &mut e["original"]) {
+                    return false;
+                }
+                e["path"] = json!(scope.said(e["path"].as_str().unwrap_or_default()));
+                size += e["size"].as_f64().unwrap_or(0.0);
+                true
+            });
+        }
+        listing["size"] = json!(size);
+        listing["can_set"] = json!(false);
+        listing["can_purge"] = json!(false);
+    };
+    let list = || crate::trash::command(server, who, client, "trash_list", json!({}));
+    match cmd {
+        "trash_list" => {
+            let mut listing = list().await.map_err(|e| scope.error(e))?;
+            inside(&mut listing);
+            Ok(listing)
+        }
+        "trash_restore" => {
+            let asked: String = arg(&args, "path")?;
+            let all = list().await.map_err(|e| scope.error(e))?;
+            let real = all["entries"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .find(|e| {
+                    e["original"]
+                        .as_str()
+                        .and_then(|o| scope.to_rel(o))
+                        .is_some()
+                        && scope.said(e["path"].as_str().unwrap_or_default()) == asked
+                })
+                .and_then(|e| e["path"].as_str().map(str::to_owned))
+                .ok_or_else(|| ContractError {
+                    kind: verso_contract::ErrorKind::NotFound,
+                    message: format!("nothing in the bin at {asked}"),
+                })?;
+            args["path"] = json!(real);
+            let mut done = crate::trash::command(server, who, client, cmd, args)
+                .await
+                .map_err(|e| scope.error(e))?;
+            if !rel(scope, &mut done["path"]) {
+                done["path"] = json!("");
+            }
+            done["warnings"] = json!([]);
+            Ok(done)
+        }
+        _ => Err(verso_service::refused(
+            "only the folder's owner deletes for good or changes how long the trash keeps files",
+        )),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

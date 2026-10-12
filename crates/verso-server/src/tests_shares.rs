@@ -661,3 +661,70 @@ fn a_token_reaches_the_share_it_names_and_no_more() {
         assert_eq!(folder["err"]["kind"], "not_found", "{folder}");
     });
 }
+
+#[test]
+fn a_writer_of_a_share_sees_and_restores_only_its_part_of_the_bin() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let (id, mut owner) = furnished(&r, &admin).await;
+        let (ana, _) = ana(&r).await;
+        let (_, shared) = put(
+            &r,
+            &format!("/api/folders/{id}/shares"),
+            json!({ "path": "Mesa", "email": "ana@casa.lan", "role": "editor" }),
+            &admin,
+        )
+        .await;
+        let share = shared["id"].as_str().unwrap().to_owned();
+        // The owner bins a note above the share; Ana bins one inside it.
+        let above = owner
+            .call("delete_entry", json!({ "path": "Segredo.md" }))
+            .await;
+        assert!(above.get("ok").is_some(), "{above}");
+        let (mut w, _) = Win::open(&r, &ana, &share).await;
+        let gone = w.call("delete_entry", json!({ "path": "Outra.md" })).await;
+        assert!(gone.get("ok").is_some(), "{gone}");
+        let bin = w.call("trash_list", json!({})).await;
+        let entries = bin["ok"]["entries"].as_array().unwrap();
+        assert_eq!(entries.len(), 1, "{bin}");
+        assert_eq!(entries[0]["original"], "Outra.md");
+        assert_eq!(bin["ok"]["can_purge"], false);
+        says_nothing_outside(&bin);
+        // The owner's entry above is not hers to restore, by any name.
+        let theirs = owner.call("trash_list", json!({})).await;
+        let above_path = theirs["ok"]["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|e| e["original"] == "Segredo.md")
+            .unwrap()["path"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let stolen = w
+            .call(
+                "trash_restore",
+                json!({ "path": above_path, "today": "2026-10-11", "lang": "pt" }),
+            )
+            .await;
+        assert_eq!(stolen["err"]["kind"], "not_found", "{stolen}");
+        for cmd in ["trash_empty", "trash_delete", "trash_set_days"] {
+            let a = w
+                .call(cmd, json!({ "paths": [above_path.clone()], "days": 1 }))
+                .await;
+            assert_eq!(a["err"]["kind"], "refused", "{cmd}: {a}");
+        }
+        let back = w
+            .call(
+                "trash_restore",
+                json!({ "path": entries[0]["path"], "today": "2026-10-11", "lang": "pt" }),
+            )
+            .await;
+        assert_eq!(back["ok"]["path"], "Outra.md", "{back}");
+        let mine = owner
+            .call("read_note", json!({ "path": "Mesa/Outra.md" }))
+            .await;
+        assert!(mine.get("ok").is_some(), "{mine}");
+    });
+}

@@ -572,7 +572,13 @@ async fn handle(
         "collab_join" | "collab_update" | "collab_awareness" | "collab_leave" | "collab_save"
         | "collab_resolve" => collab_command(server, who, client, &r.cmd, &args).await,
         "trash_list" | "trash_restore" | "trash_delete" | "trash_empty" | "trash_set_days" => {
-            crate::trash::command(server, who, client, &r.cmd, args).await
+            // Through a share, its part of the bin only (ADR 0081 item 16).
+            match crate::shares::scope_here(server, client) {
+                Some(scope) => {
+                    crate::share_sync::trash(server, who, client, &r.cmd, args, &scope).await
+                }
+                None => crate::trash::command(server, who, client, &r.cmd, args).await,
+            }
         }
         "sync_state" | "sync_changes" | "sync_read" => {
             crate::sync::command(server, who, client, &r.cmd, args).await
