@@ -768,6 +768,10 @@ pub(crate) async fn command_in(
         }
         _ => None,
     };
+    // Who the bin names (ADR 0080): the account and its device for a
+    // deletion, the device for a version its write replaced.
+    let by = crate::trash::by_name(who, device.as_deref());
+    let replacer = device.clone().unwrap_or_else(|| who.account.name.clone());
     // What is said in the server's log when a device's change is refused.
     let said_as = (
         cmd.to_owned(),
@@ -819,6 +823,7 @@ pub(crate) async fn command_in(
                 account: Some(&actor),
                 device: device.as_deref(),
             },
+            &replacer,
             (args, &*inside),
         ),
         "sync_delete" => {
@@ -829,13 +834,14 @@ pub(crate) async fn command_in(
                 let _only = lock(&one);
                 let (path, _) = as_kept(&s, &folder, &named, &*inside)?;
                 let p = path.clone();
-                s.service.with_key(&key, move |ws| {
+                let gone = s.service.with_key(&key, move |ws| {
                     is_now(ws, &p, Some(&base))?;
-                    ws.delete_entry(&p)?;
+                    let gone = ws.delete_entry(&p)?;
                     // No empty folder left behind on the server either.
                     ws.prune_empty_parents(&p);
-                    Ok(())
+                    Ok(gone)
                 })?;
+                crate::trash::deleted(&s, &folder, &gone, &by);
                 let head = reconcile_paths(
                     &s,
                     &folder,
@@ -946,7 +952,13 @@ pub(crate) async fn command_in(
 /// The windows first: a tab that hears its room close knows by then
 /// where its note went. The watcher does not report what the server
 /// wrote itself.
-fn told(server: &Server, key: &str, changed: &[String], removed: &[String], moved: &[Moved]) {
+pub(crate) fn told(
+    server: &Server,
+    key: &str,
+    changed: &[String],
+    removed: &[String],
+    moved: &[Moved],
+) {
     let clients = server.service.clients_of(key);
     if let Some(index) = clients
         .first()
@@ -1200,10 +1212,11 @@ fn load(
 }
 
 fn put(
-    server: &Server,
+    server: &Arc<Server>,
     client: &str,
     (folder, key): (&str, &str),
     by: Author<'_>,
+    replacer: &str,
     (mut args, inside): (Value, Inside<'_>),
 ) -> Result<Value, ContractError> {
     let path: String = arg(&args, "path")?;
@@ -1272,19 +1285,38 @@ fn put(
     let (path, other) = as_kept(server, folder, &path, inside)?;
     crate::quota::check(server, key, &path, size)?;
     let p = path.clone();
+    let new_hash = hash.clone();
     let (head, landed) = {
-        let (landed, quick) = server.service.with_key(key, move |ws| {
+        let (landed, quick, kept) = server.service.with_key(key, move |ws| {
             // New, under the other form of a name a file holds: taken.
             if other && base.is_none() && now(ws, &p)?.is_some() {
                 return Err(form_taken());
             }
             let revision = is_now(ws, &p, base.as_deref())?;
+            // The version this write replaces goes to the bin first, when
+            // its bytes differ (ADR 0080 item 12): an outside program's
+            // stale save, carried here by sync, can be undone (F18).
+            let kept = match &base {
+                Some(old) if *old != new_hash => match ws.keep_replaced(&p) {
+                    Ok(kept) => Some(kept),
+                    Err(e) => {
+                        crate::log::warn(&format!(
+                            "sync: the version of {p} a write replaces was not kept: {e}"
+                        ));
+                        None
+                    }
+                },
+                _ => None,
+            };
             let written = ws.write_bytes(&p, &bytes, revision.as_deref())?;
             // The written file's own time: the next walk skips it.
             let quick =
                 quick_of(&written, bytes.len()).unwrap_or_else(|| format!("{}:0", bytes.len()));
-            Ok((on_disk(ws, &p), quick))
+            Ok((on_disk(ws, &p), quick, kept))
         })?;
+        if let Some(kept) = &kept {
+            crate::trash::replaced(server, folder, kept, &path, replacer);
+        }
         let head = reconcile_paths(
             server,
             folder,

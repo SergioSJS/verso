@@ -27,6 +27,12 @@ tokio = { version = "1", default-features = false, features = ["rt-multi-thread"
 # HTTP and WebSocket routing (MIT), over hyper and tower, both already in
 # the tree through reqwest. Nothing of ours did this; std has no HTTP.
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "ws", "query", "json"] }
+# Each connection served by hyper's own HTTP/1 builder, with a timer, so
+# that a request's headers have a deadline and a connection is counted
+# before it is read (threat-model.md, gap 8): axum::serve gives neither.
+# Both already in the tree under axum (MIT); nothing of ours did this.
+hyper = { version = "1", default-features = false, features = ["server", "http1"] }
+hyper-util = { version = "0.1", default-features = false, features = ["tokio", "server", "service"] }
 # The window's files served from VERSO_UI_DIR, with ranges and validators
 # (MIT); already in the tree through reqwest.
 tower-http = { version = "0.6", default-features = false, features = ["fs"] }

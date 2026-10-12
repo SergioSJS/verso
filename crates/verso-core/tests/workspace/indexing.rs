@@ -203,7 +203,12 @@ fn a_note_under_an_unreadable_directory_is_not_removed() {
     let config = tempfile::tempdir().unwrap();
     let _root = note(vault.path(), "root.md", "[[a]]\n");
     let sub = subdir(vault.path(), "sub");
-    let _a = note(sub.path(), "a.md", "a\n");
+    let a = note(sub.path(), "a.md", "a\n");
+    // Never trusted by its stat, so the run below reads it: on a slow
+    // machine (Windows under the whole suite) more than two seconds passed
+    // between writing it and the first run, the second run trusted it, read
+    // nothing and had nothing to report (check-windows.sh, 2026-10-11).
+    crate::shell::future_mtime(a.path());
     let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
     let r = ws.index().unwrap();
     assert_eq!((r.indexed, r.removed), (2, 0), "{r:?}");

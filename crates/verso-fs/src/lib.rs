@@ -40,6 +40,7 @@ mod os;
 mod placeholder;
 pub mod server;
 mod single;
+pub mod trashbin;
 mod walk;
 mod watch;
 mod write;
@@ -516,6 +517,32 @@ impl Root {
     pub fn trash(&mut self, relative: &Path) -> Result<(PathBuf, OpReport), WriteError> {
         let relative = self.confine(relative).map_err(WriteError::Confined)?;
         ops::trash(&self.path, &relative)
+    }
+
+    /// Everything in `.trash/` at the root, not following a symlink (ADR
+    /// 0080 item 2): the one walk that enters a hidden directory, by name.
+    pub fn trash_walk(&self) -> std::io::Result<Vec<trashbin::Binned>> {
+        trashbin::walk(&self.path)
+    }
+
+    /// Remove an entry of `.trash/` for good (ADR 0080 items 3 and 7):
+    /// only a path under the bin, a symlink removed as itself.
+    pub fn purge_trash(&self, relative: &Path) -> Result<(), WriteError> {
+        trashbin::purge(&self.path, relative)
+    }
+
+    /// Move an entry of `.trash/` back to `to`, confined as every path is;
+    /// `WriteError::Exists` when something stands there (ADR 0080 item 5).
+    pub fn restore_from_trash(&mut self, from: &Path, to: &Path) -> Result<OpReport, WriteError> {
+        let to = self.confine(to).map_err(WriteError::Confined)?;
+        trashbin::restore(&self.path, from, &to)
+    }
+
+    /// Copy the file at `relative` into `.trash/` before a write replaces
+    /// it (ADR 0080 item 12); returns where the copy went.
+    pub fn keep_in_trash(&mut self, relative: &Path) -> Result<PathBuf, WriteError> {
+        let relative = self.confine(relative).map_err(WriteError::Confined)?;
+        trashbin::keep_copy(&self.path, &relative)
     }
 
     /// Read `.space/waypoints.json` at the root and its [`Stamp`] (ADR 0062 D7).

@@ -56,6 +56,10 @@ impl Running {
         format!("http://localhost:{}{path}", self.addr.port())
     }
 
+    pub(crate) fn addr(&self) -> SocketAddr {
+        self.addr
+    }
+
     pub(crate) fn origin(&self) -> String {
         format!("http://localhost:{}", self.addr.port())
     }
@@ -852,7 +856,7 @@ fn the_server_serves_its_own_tls() {
         let r = start().await;
         let tcp = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = tcp.local_addr().unwrap().port();
-        let listener = tls::TlsListener::new(tcp, acceptor).unwrap();
+        let listener = tls::TlsListener::new(tcp, acceptor, Arc::clone(&r.server.slots)).unwrap();
         let server = Arc::clone(&r.server);
         tokio::spawn(async move {
             let _ = run_on(server, listener, std::future::pending()).await;
@@ -869,7 +873,9 @@ fn the_server_serves_its_own_tls() {
             .json()
             .await
             .unwrap();
-        assert_eq!(state["contract"], contract_version());
+        assert_eq!(state["secure"], true);
+        // A stranger is not told the version (threat-model.md, gap 15).
+        assert!(state["version"].is_null() && state["contract"].is_null());
         // Plain HTTP to the TLS port gets nothing.
         assert!(
             reqwest::get(format!("http://localhost:{port}/api/state"))
@@ -1229,6 +1235,16 @@ fn with_a_mail_server_links_go_by_mail_and_say_nothing_of_strangers() {
         )
         .await;
         assert_eq!((s1, s2), (200, 200));
+        // Sent after the answer (threat-model.md, gap 6): waited for.
+        let mut mails = sent();
+        for _ in 0..100 {
+            if !mails.is_empty() {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            mails = sent();
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
         let mails = sent();
         assert_eq!(mails.len(), 1);
         assert_eq!(mails[0].0, "admin@casa.lan");
@@ -1268,6 +1284,12 @@ fn with_a_mail_server_links_go_by_mail_and_say_nothing_of_strangers() {
             .0,
             200
         );
+        for _ in 0..100 {
+            if sent().len() > 1 {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
         assert!(sent().last().unwrap().2.contains("/reset/"));
         // An invitation to an address goes there too.
         let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;

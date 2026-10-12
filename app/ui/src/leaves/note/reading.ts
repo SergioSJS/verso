@@ -764,7 +764,8 @@ export function gatherFootnotes(this: NoteLeaf): void {
   for (const d of defs) {
     const back = h("a", "footnote-back", "↩");
     back.href = `#fnref-${d.id}`;
-    back.title = d.id;
+    // The label as the note wrote it, without the sanitizer's prefix.
+    back.title = d.id.replace(/^note-/, "");
     // Said as what it does, not as the arrow it draws.
     back.setAttribute("aria-label", t.footnoteBack);
     d.append(back);

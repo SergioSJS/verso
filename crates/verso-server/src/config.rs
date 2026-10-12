@@ -54,6 +54,10 @@ pub struct Config {
     /// The quota a new folder gets, in bytes (`VERSO_FOLDER_QUOTA`, ADR
     /// 0077 item 5): none when unset; the console changes it per folder.
     pub folder_quota: Option<i64>,
+    /// How many days a folder's bin keeps deleted files unless the console
+    /// says otherwise (`VERSO_TRASH_DAYS`, ADR 0080 item 3): 30 when unset,
+    /// 0 for ever.
+    pub trash_days: u32,
 }
 
 /// A size as a person writes it: bytes, or a number with KB, MB, GB or TB
@@ -214,6 +218,20 @@ impl Config {
                     })
                 })
                 .transpose()?,
+            trash_days: value(env, "VERSO_TRASH_DAYS")?
+                .map(|v| {
+                    v.trim()
+                        .parse::<u32>()
+                        .ok()
+                        .filter(|d| *d <= 36_500)
+                        .ok_or_else(|| {
+                            ConfigError(format!(
+                                "VERSO_TRASH_DAYS: a number of days, 0 for never, not {v}"
+                            ))
+                        })
+                })
+                .transpose()?
+                .unwrap_or(verso_core::trash::DEFAULT_DAYS),
         })
     }
 

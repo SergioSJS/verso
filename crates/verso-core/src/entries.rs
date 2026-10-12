@@ -249,6 +249,7 @@ impl Workspace {
         }
         Ok(Trashed {
             path: gone.to_string_lossy().into_owned(),
+            original: key,
             warnings,
         })
     }

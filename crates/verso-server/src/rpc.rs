@@ -31,7 +31,7 @@ use verso_service::{Access, lock, ops};
 use crate::auth::{Via, Who};
 use crate::db::{Folder, Role};
 use crate::http::{ApiError, ApiResult, Ctx};
-use crate::state::{Client, Outbox, QUEUE, Server};
+use crate::state::{Client, Outbox, QUEUE, QUEUE_BYTES, Server};
 
 /// The largest message: a picture pasted into a note crosses as base64 in
 /// `create_file` (ADR 0073 item 6: upload limits).
@@ -58,6 +58,54 @@ const PING_EVERY: Duration = Duration::from_secs(30);
 
 /// Pings in a row left unanswered before the connection is closed.
 const MISSED: u8 = 2;
+
+/// The least time a message may take to be written (threat-model.md,
+/// gap 2): a small message's round on a poor link, with room to spare.
+#[cfg(not(test))]
+const SEND_FLOOR: Duration = Duration::from_secs(30);
+#[cfg(test)]
+const SEND_FLOOR: Duration = Duration::from_secs(1);
+/// The slowest link a message is waited for, in bytes a second: 32 KiB/s,
+/// 256 kbit/s, under a weak mobile link's. A piece of a file — 4 MiB, some
+/// 5.6 MB as base64 — gets about three minutes; a message at
+/// [`MAX_MESSAGE`], about twenty-five. The desktop's connection waits
+/// the same (app/src-tauri/src/remote.rs).
+#[cfg(not(test))]
+const SEND_RATE: u64 = 32 * 1024;
+#[cfg(test)]
+const SEND_RATE: u64 = 1024 * 1024;
+
+/// How long a message of `bytes` may take to be written before the other
+/// end is taken as no longer reading: a peer that stops reading at the
+/// TCP level otherwise holds the connection's loop in the write — the
+/// full queue and the pings unheard — until the system gives up on the
+/// socket, hours later.
+pub(crate) fn send_within(bytes: usize) -> Duration {
+    let bytes = u64::try_from(bytes).unwrap_or(u64::MAX);
+    SEND_FLOOR.saturating_add(Duration::from_secs(bytes / SEND_RATE))
+}
+
+/// Write `message` to the connection within [`send_within`] its size:
+/// false when the write failed or did not end in time — the connection is
+/// then closed, and the time said in the log.
+async fn write(socket: &mut WebSocket, message: Message, client: &str, account: &str) -> bool {
+    let bytes = match &message {
+        Message::Text(t) => t.len(),
+        Message::Binary(b) => b.len(),
+        _ => 0,
+    };
+    let within = send_within(bytes);
+    match tokio::time::timeout(within, socket.send(message)).await {
+        Ok(sent) => sent.is_ok(),
+        Err(_) => {
+            crate::log::warn(&format!(
+                "connection {client} ({account}) closed: a message of {bytes} bytes was not taken in {} s",
+                within.as_secs()
+            ));
+            false
+        }
+    }
+}
 
 pub async fn upgrade(ctx: Ctx, ws: WebSocketUpgrade) -> ApiResult<Response> {
     ctx.secure()?;
@@ -86,10 +134,60 @@ pub async fn upgrade(ctx: Ctx, ws: WebSocketUpgrade) -> ApiResult<Response> {
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.trim().parse::<u32>().ok());
     let sync_refused = sync_refusal(sync, verso_core::sync::PROTOCOL);
+    let places = places(&ctx, &who)?;
     let server = Arc::clone(&ctx.server);
     Ok(ws
         .max_message_size(MAX_MESSAGE)
-        .on_upgrade(move |socket| run(server, who, socket, sync_refused)))
+        .on_upgrade(move |socket| async move {
+            // Held as long as the connection.
+            let _places = places;
+            run(server, who, socket, sync_refused).await;
+        }))
+}
+
+/// The connection's places among its account's and its address's
+/// (threat-model.md, gap 4), or 429.
+fn places(ctx: &Ctx, who: &Who) -> ApiResult<Vec<crate::fair::Held>> {
+    let counts = &ctx.server.fair.connections;
+    let too_many = |what: &str, most: u32| {
+        crate::log::warn(&format!(
+            "a connection refused: {what} holds {most} already"
+        ));
+        ApiError {
+            retry: Some(30),
+            ..ApiError::new(
+                axum::http::StatusCode::TOO_MANY_REQUESTS,
+                "too_many",
+                format!("too many connections at once ({most} at most)"),
+            )
+        }
+    };
+    let account = format!("account:{}", who.account.id);
+    let mut held = vec![
+        counts
+            .take(&account, crate::fair::PER_ACCOUNT)
+            .ok_or_else(|| {
+                too_many(
+                    &format!("account {}", who.account.id),
+                    crate::fair::PER_ACCOUNT,
+                )
+            })?,
+    ];
+    // This machine is the proxy in front, speaking for everyone.
+    if !ctx.peer.addr.is_loopback() {
+        let address = format!("address:{}", ctx.peer.key());
+        held.push(
+            counts
+                .take(&address, crate::fair::PER_ADDRESS)
+                .ok_or_else(|| {
+                    too_many(
+                        &format!("address {}", ctx.peer.key()),
+                        crate::fair::PER_ADDRESS,
+                    )
+                })?,
+        );
+    }
+    Ok(held)
 }
 
 /// Why a device that speaks sync `theirs` is refused by a server that
@@ -117,17 +215,6 @@ struct Request {
 async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket, sync_refused: Option<String>) {
     let client = server.client_id();
     let (tx, mut rx, slow) = Outbox::new(QUEUE);
-    lock(&server.clients).insert(
-        client.clone(),
-        Client {
-            account: who.account.id.clone(),
-            session: who.session().map(str::to_owned),
-            folder: None,
-            scope: None,
-            token_write: !matches!(who.via, Via::Token { write: false, .. }),
-            tx: tx.clone(),
-        },
-    );
     let mut hello = json!({ "hello": {
         "version": env!("CARGO_PKG_VERSION"),
         "commit": server.commit,
@@ -144,7 +231,21 @@ async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket, sync_refused:
             who.account.id
         ));
     }
-    let _ = socket.send(Message::Text(hello.to_string().into())).await;
+    // The hello is the first message the queue holds, written as any
+    // other; the connection is pushed to only after it.
+    tx.send(&hello);
+    lock(&server.clients).insert(
+        client.clone(),
+        Client {
+            account: who.account.id.clone(),
+            session: who.session().map(str::to_owned),
+            folder: None,
+            scope: None,
+            token_write: !matches!(who.via, Via::Token { write: false, .. }),
+            tx: tx.clone(),
+        },
+    );
+    let account = who.account.id.clone();
     let who = Arc::new(who);
     let mut log_budget = (std::time::Instant::now(), 0_u32);
     let requests = Arc::new(Semaphore::new(REQUESTS));
@@ -155,19 +256,19 @@ async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket, sync_refused:
         tokio::select! {
             pushed = rx.recv() => {
                 let Some(out) = pushed else { break };
-                if socket.send(Message::Text(out.text)).await.is_err() {
+                if !write(&mut socket, Message::Text(out.text), &client, &account).await {
                     break;
                 }
                 // Written: the request it answered gives its place back.
                 drop(out.permit);
                 if out.close {
-                    let _ = socket.send(Message::Close(None)).await;
+                    let _ = write(&mut socket, Message::Close(None), &client, &account).await;
                     break;
                 }
             }
             () = slow.notified() => {
                 crate::log::warn(&format!(
-                    "connection {client} ({}) closed: {QUEUE} messages waited for it, it reads too slowly",
+                    "connection {client} ({}) closed: its queue filled ({QUEUE} messages or {QUEUE_BYTES} bytes at most), it reads too slowly",
                     who.account.id
                 ));
                 break;
@@ -186,7 +287,7 @@ async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket, sync_refused:
                     ));
                     break;
                 }
-                if socket.send(Message::Ping(Default::default())).await.is_err() {
+                if !write(&mut socket, Message::Ping(Default::default()), &client, &account).await {
                     break;
                 }
                 unanswered += 1;
@@ -236,7 +337,13 @@ async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket, sync_refused:
                 let tx = tx.clone();
                 // Each command in a task of its own: an index run of
                 // seconds holds no other answer.
+                // The member's pace and the server's (gap 4): past it the
+                // command waits its turn here, holding its place.
+                let turn = server.fair.command(&who.account.id);
                 tokio::spawn(async move {
+                    if !turn.is_zero() {
+                        tokio::time::sleep(turn).await;
+                    }
                     let id = request.id;
                     let answer = handle(&server, &who, &client, request).await;
                     let signed_out = answer.as_ref().is_err_and(|e| e.message == SIGNED_OUT);
@@ -464,6 +571,9 @@ async fn handle(
         "fetch_file" => Ok(Value::Bool(false)),
         "collab_join" | "collab_update" | "collab_awareness" | "collab_leave" | "collab_save"
         | "collab_resolve" => collab_command(server, who, client, &r.cmd, &args).await,
+        "trash_list" | "trash_restore" | "trash_delete" | "trash_empty" | "trash_set_days" => {
+            crate::trash::command(server, who, client, &r.cmd, args).await
+        }
         "sync_state" | "sync_changes" | "sync_read" => {
             crate::sync::command(server, who, client, &r.cmd, args).await
         }
@@ -657,14 +767,33 @@ async fn folder_run(
     let s = Arc::clone(server);
     let c = client.to_owned();
     let n = name.to_owned();
+    let folder_id = folder.to_owned();
+    let by = crate::trash::by_name(who, None);
     let answer = blocking(move || {
         // Nothing typed is left behind a rename or a bin.
         if moves {
             crate::collab::write_all(&s, &key)?;
         }
-        let answer = service
-            .dispatch(&c, &n, args)
-            .unwrap_or_else(|| Err(refused("no such command")));
+        // A deletion is recorded with who made it (ADR 0080 item 2).
+        let answer = if matches!(n.as_str(), "delete_note" | "delete_entry") {
+            let path: String = arg(&args, "path")?;
+            service
+                .with(&c, |ws| {
+                    Ok(if n == "delete_note" {
+                        ws.delete_note(&path)?
+                    } else {
+                        ws.delete_entry(&path)?
+                    })
+                })
+                .and_then(|gone| {
+                    crate::trash::deleted(&s, &folder_id, &gone, &by);
+                    to_value(verso_service::convert::trashed_out(gone))
+                })
+        } else {
+            service
+                .dispatch(&c, &n, args)
+                .unwrap_or_else(|| Err(refused("no such command")))
+        };
         if moves && let Ok(notes) = service.with(&c, ops::list_notes) {
             crate::collab::close_missing(&s, &key, &notes);
         }

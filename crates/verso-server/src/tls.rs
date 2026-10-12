@@ -20,6 +20,8 @@ use tokio::sync::mpsc;
 use tokio_rustls::TlsAcceptor;
 use tokio_rustls::server::TlsStream;
 
+use crate::listen::{Counted, Incoming, Slots};
+
 /// How long a client has to finish its handshake.
 const HANDSHAKE: Duration = Duration::from_secs(10);
 
@@ -48,14 +50,20 @@ pub fn acceptor(cert: &Path, key: &Path) -> Result<TlsAcceptor, String> {
     Ok(TlsAcceptor::from(Arc::new(config)))
 }
 
-/// A listener whose connections are TLS, for `axum::serve`.
+/// A listener whose connections are TLS. A connection takes its place
+/// ([`crate::listen::Slots`]) before its handshake: one without a place is
+/// closed before any work is spent on it.
 pub struct TlsListener {
-    incoming: mpsc::Receiver<(TlsStream<TcpStream>, SocketAddr)>,
+    incoming: mpsc::Receiver<(Counted<TlsStream<TcpStream>>, SocketAddr)>,
     local: SocketAddr,
 }
 
 impl TlsListener {
-    pub fn new(tcp: TcpListener, acceptor: TlsAcceptor) -> std::io::Result<Self> {
+    pub fn new(
+        tcp: TcpListener,
+        acceptor: TlsAcceptor,
+        slots: Arc<Slots>,
+    ) -> std::io::Result<Self> {
         let local = tcp.local_addr()?;
         let (tx, incoming) = mpsc::channel(64);
         tokio::spawn(async move {
@@ -68,6 +76,9 @@ impl TlsListener {
                         continue;
                     }
                 };
+                let Some(slot) = slots.take(addr.ip()) else {
+                    continue;
+                };
                 let acceptor = acceptor.clone();
                 let tx = tx.clone();
                 tokio::spawn(async move {
@@ -76,7 +87,7 @@ impl TlsListener {
                     if let Ok(Ok(tls)) =
                         tokio::time::timeout(HANDSHAKE, acceptor.accept(stream)).await
                     {
-                        let _ = tx.send((tls, addr)).await;
+                        let _ = tx.send((Counted::new(tls, slot), addr)).await;
                     }
                 });
             }
@@ -85,11 +96,10 @@ impl TlsListener {
     }
 }
 
-impl axum::serve::Listener for TlsListener {
+impl Incoming for TlsListener {
     type Io = TlsStream<TcpStream>;
-    type Addr = SocketAddr;
 
-    async fn accept(&mut self) -> (Self::Io, Self::Addr) {
+    async fn accept(&mut self) -> (Counted<Self::Io>, SocketAddr) {
         loop {
             if let Some(c) = self.incoming.recv().await {
                 return c;
@@ -99,7 +109,7 @@ impl axum::serve::Listener for TlsListener {
         }
     }
 
-    fn local_addr(&self) -> std::io::Result<Self::Addr> {
+    fn local_addr(&self) -> std::io::Result<SocketAddr> {
         Ok(self.local)
     }
 }

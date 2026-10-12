@@ -667,3 +667,18 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
   .settings-nav-item { flex: none; white-space: nowrap; }
   .settings-body { padding: 1rem 1rem 2rem; }
 }
+
+/* The folder's trash, a section of the settings (ADR 0080). */
+.trash-sentence { margin: .2rem 0 .3rem; font-family: var(--display); font-weight: 500; font-size: 1.2rem; line-height: 1.25; color: var(--ink); }
+.trash-early { margin: .4rem 0; font-size: .88rem; }
+.trash-tools { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: .8rem 0 .2rem; }
+.trash-tools .trash-search { flex: 1 1 14rem; min-width: 0; }
+.trash-ask { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: .6rem 0; padding: .8rem 1rem; border-radius: 8px; background: var(--seal-wash); }
+.trash-ask p { margin: 0; flex: 1 1 100%; color: var(--ink); }
+.trash-table td.trash-name { font-weight: 500; white-space: normal; overflow-wrap: anywhere; min-width: 8rem; }
+.trash-table td.num { text-align: right; }
+.trash-kind { color: var(--ink-3); font-weight: 400; }
+.trash-actions { display: flex; gap: .3rem; }
+.trash-summary { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; justify-content: flex-end; }
+.trash-said { margin: .5rem 0 0; font-size: .88rem; color: var(--ink-2); }
+.trash-said:empty { display: none; }

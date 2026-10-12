@@ -33,6 +33,7 @@ use verso_core::{CoreError, ReadError, Workspace, WriteError};
 pub mod convert;
 pub mod files;
 pub mod ops;
+pub mod trash;
 
 pub use ops::{Access, OpError};
 

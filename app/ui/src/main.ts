@@ -32,6 +32,7 @@ import { Palette } from "./dialogs/palette";
 import { QuickSwitcher } from "./dialogs/quick";
 import { ReplaceDialog } from "./dialogs/replace";
 import { hotkeyRecorder, SettingsDialog } from "./dialogs/settings";
+import { trashStrings } from "./dialogs/trash";
 import { button, el, h, ui } from "./dom";
 import { fail } from "./errors";
 import { installFrame } from "./frame";
@@ -401,6 +402,8 @@ ui.treeRoot.addEventListener("contextmenu", (e) => {
     ...(mayShare() ? [[sh.shareWhole, () => openShareDialog(""), "user"] as MenuItem] : []),
     ...(order.length > 0 ? [...order, sep] : []),
     [collapsed ? t.expandAll : t.collapseAll, collapseAll, collapsed ? "expand" : "collapse"],
+    // The folder's trash (ADR 0080 item 4): no row in the tree, a way in here.
+    ...(can("write") ? [sep, [trashStrings().open, () => settingsDialog.show("trash"), "trash"] as MenuItem] : []),
   ];
   showMenu(e.clientX, e.clientY, items);
 });

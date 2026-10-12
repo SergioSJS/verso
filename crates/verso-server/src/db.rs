@@ -20,9 +20,9 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::crypto;
 
 /// The schema's version, in `PRAGMA user_version`.
-const SCHEMA: i64 = 7;
+const SCHEMA: i64 = 8;
 
-/// Schema 7: sharing a folder inside a folder (ADR 0081 items 1, 2, 9, 11
+/// Schema 8: sharing a folder inside a folder (ADR 0081 items 1, 2, 9, 11
 /// and 15): a share is a path of one folder with an id of its own, its
 /// people and their roles, the attachments folder it may also show
 /// read-only, the shares a personal access token names, an invitation's
@@ -447,6 +447,12 @@ impl Db {
     pub fn open(dir: &Path) -> R<Self> {
         let path = dir.join("server.sqlite");
         let mut db = Self::from(Connection::open(&path).map_err(e)?)?;
+        // The accounts' hashes are for this server's user alone
+        // (threat-model.md, gap 13), whatever the umask made them.
+        for name in ["server.sqlite", "server.sqlite-wal", "server.sqlite-shm"] {
+            verso_fs::server::owner_only(&dir.join(name))
+                .map_err(|err| format!("{name}: {err}"))?;
+        }
         for _ in 0..READERS {
             let reader = Connection::open_with_flags(
                 &path,
@@ -494,7 +500,8 @@ impl Db {
             (4, CONSOLE),
             (5, SYNC),
             (6, DEVICES),
-            (7, SHARES),
+            (7, trash::TRASH),
+            (8, SHARES),
         ]
         .iter()
         .filter(|(at, _)| *at > version)
@@ -1469,9 +1476,11 @@ impl Db {
 mod console;
 mod shares;
 mod sync;
+mod trash;
 pub use console::{AccountRow, AuditFilter, FolderRow, Page, PageQuery};
 pub use shares::{Share, covers};
 pub use sync::{Change, Known, Made, Recorded};
+pub use trash::FolderBook;
 
 #[cfg(test)]
 mod tests;
