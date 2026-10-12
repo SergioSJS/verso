@@ -410,8 +410,9 @@ one LAN hop away. The numbers are in the campaign's log
   17–18 MB. Serving the first sync of the 62 MB folder to the four devices
   at once (69 s) peaked at 200 MB, and the process kept about 151 MB
   resident afterwards: glibc's allocator kept the memory taken in the burst
-  instead of returning it to the system. The release's musl build returns
-  it (**The allocator**, below).
+  instead of returning it to the system. The plain musl build returns it,
+  and the shipped musl + mimalloc build holds about 70–74 MB after a burst
+  (**The allocator**, below).
 - **Every day**: a 20-minute soak, four devices editing and one note edited
   from two sides each round: RSS steady at 151 MB, CPU under 2 %, 33
   rounds, the five sides byte-equal at every checkpoint and at the end.
@@ -431,14 +432,18 @@ one LAN hop away. The numbers are in the campaign's log
   fifty: the same picture. The same load on a 16-CPU Mac: p50 about 530 ms,
   132.9 operations per second (the row "round 2 final build 3fb8c3b" of
   `results.jsonl`).
-- **Large files**: a file in transit is held whole once for each device
-  that fetches it, and its base64 encoding adds a third, so the server
-  holds about 2.3 × the file's size × the devices fetching it at once. A
-  new 60 MB file written on one device and fetched by the other three at
-  once took the process to 550 MB (cgroup 679 MB) on the VM squeezed to
-  what the guest saw as 705 MB (asked 512), with no kill; the five sides
-  were equal in 56 s. "Twice the largest file" alone is too little when
-  several devices fetch at once.
+- **Large files** (measured before 95d11dc, not re-measured since): a
+  file in transit was held whole once for each device that fetched it, and
+  its base64 encoding added a third, so the server held about 2.3 × the
+  file's size × the devices fetching it at once. A new 60 MB file written
+  on one device and fetched by the other three at once took the process to
+  550 MB (cgroup 679 MB) on the VM squeezed to what the guest saw as 705 MB
+  (asked 512), with no kill; the five sides were equal in 56 s. Since
+  95d11dc the server keeps one read buffer per (folder, path, hash), shared
+  by the clients fetching that file, so the per-device multiplication no
+  longer holds on the server; the base64 of each message sent, and the
+  device side holding the whole file, remain. "Twice the largest file"
+  alone was too little when several devices fetched at once.
 - **Squeezed memory** (the glibc build): the balloon was inflated towards
   512 MB right after
   the 50-device burst, leaving the guest 705 MB, and the kernel's OOM
@@ -454,9 +459,10 @@ one LAN hop away. The numbers are in the campaign's log
   to reach five equal sides. None of the three is a clean limit: the
   guest's balloon gave memory back under pressure, and the guest never had
   512, 384 or 256 MB. The kills came from memory the glibc build held
-  after a burst; with the release's musl build, which gives it back (**The
-  allocator**), they are not expected, but the squeeze was not run again
-  with that build.
+  after a burst. The shipped binary is now musl + mimalloc, which after a
+  burst holds about 70–74 MB and peaked at 291 MB (VmHWM) under 50 writers
+  (the mimalloc row of **The allocator**); the kills were not re-measured
+  with it.
 - **The allocator** (measured 2026-10-11, about 19:00–19:40 BRT, on the same
   VM): three builds of the same server code, each given two bursts of
   `scripts/server-load.mjs` with 50 devices for 60 s from the VM one LAN hop
@@ -473,18 +479,20 @@ one LAN hop away. The numbers are in the campaign's log
   | musl + mimalloc 0.1.52 (a trial, `#[global_allocator]`, +132 KB) | 18.0 MB | 291 MB | 70/70/70; 74/74/74 MB | 65–67 MB | 15.4; 18.5 | 4.9 s; 3.5 s |
   | glibc, dynamic (the campaign's binary) | 18.7 MB | 340; 365 MB | 307/307/307; 340/340/340 MB | 289; 322 MB | 11.8; 14.0 | 6.3 s; 5.7 s |
 
-  No run had an integrity problem, and the only errors were the expected
-  `put_hot:changed`. Over each whole run the sampler, every 10 s, read:
+  The fresh RSS figures come from the measuring session's report, not from
+  a kept log. No run had an integrity problem, and the only errors were the
+  expected `put_hot:changed`. Over each whole run the sampler, every 10 s, read:
   musl RSS at most 99 MB (12 MB at the end), cgroup at most 219 MB;
   mimalloc RSS at most 278 MB (74 MB at the end), cgroup at most 339 MB;
   glibc RSS at most 365 MB (340 MB at the end), cgroup at most 446 MB.
-  Read plainly: the release's musl build gives memory back after a burst
+  Read plainly: the plain musl build gives memory back after a burst
   (12–23 MB idle, a peak of about 100–120 MB under 50 writers); the glibc
   build measured during the campaign held 300 MB and more, and grew burst
   over burst; mimalloc sits in between, holding about 70 MB, and was a
-  little faster, about 20–35 % more operations per second — a soft figure:
-  two bursts of one binary differ by up to 20 %, the folder grew across the
-  runs, and a stray process held one of the load VM's cores. Decided
+  little faster in operations per second, burst for burst: +10 % and +46 %
+  over musl, about +31 % over glibc in each — a soft figure: two bursts of
+  one binary differ by up to 20 %, the folder grew across the runs, and a
+  stray process held one of the load VM's cores. Decided
   2026-10-11, in the evening: the maintainer adopted mimalloc as the
   allocator of the `verso` binary (*"pode implementar, deixa isso
   pronto"*), overruling the recommendation sent to them, which was not to
@@ -507,20 +515,24 @@ one LAN hop away. The numbers are in the campaign's log
 |---|---|---|
 | For | 1–3 people, notes and small attachments | a family or a team of up to ~10 people, several devices each (an estimate, not measured) |
 | CPU | 1 core, x64 or ARM64 (measured, rows "cloud 1 GB" of `results.jsonl`: one writer about 100 ms a write; a burst of 50 writers queues on the disk, p50 4.5 s) | 2 cores |
-| Memory | 512 MB — not measured yet: a 512 MB guest has still not been measured (the smallest measured had 393 MB after the balloon took the rest, and ran a 30-device load and a 60 MB file after one kill-and-restart); the memory held after a burst that got the process killed was the campaign's glibc build's, and the release's musl build gives it back (idle 12–23 MB, a peak of about 100–120 MB under 50 writers); if the process is killed, the unit brings it back in 5 s with nothing lost | 2 GB, or more than twice the largest file you sync; when several devices fetch a large file at once, about 2.3 × the largest file × the devices fetching it (measured) |
+| Memory | 512 MB — not measured yet: a 512 MB guest has still not been measured (the smallest measured had 393 MB after the balloon took the rest, and ran a 30-device load and a 60 MB file after one kill-and-restart); the memory held after a burst that got the process killed was the campaign's glibc build's; the shipped binary is now musl + mimalloc, which after a burst holds about 70–74 MB and peaked at 291 MB (VmHWM) under 50 writers (the mimalloc row of **The allocator**), and the kills were not re-measured with it; if the process is killed, the unit brings it back in 5 s with nothing lost | 2 GB, or more than twice the largest file you sync; when several devices fetched a large file at once, the server held about 2.3 × the largest file × the devices fetching it (measured before 95d11dc and not re-measured since; since 95d11dc the server keeps one copy per folder, path and hash, so the per-device factor no longer holds on the server) |
 | Disk | an SSD; the notes' size × 2 + 1 GB (the bin, `.trash`, keeps what was deleted) | a local SSD for `VERSO_DATA_DIR`; the notes on an SSD or a NAS |
 | Examples | a Raspberry Pi 4 with 2 GB, the smallest VPS | a mini PC, a NAS with Docker, a 2 GB VPS |
 
 `[OPEN]` Whether 1 GB is enough for a small team: a 1 GB guest served four
 devices, a 20-minute soak, bursts of 50 writers and a 60 MB file to three
-devices at once (peak 550 MB); the table's "up to ~10 people" was not
-measured.
+devices at once (peak 550 MB, before 95d11dc); the table's "up to ~10
+people" was not measured.
 
 `[OPEN]` Whether the server should send a large file's pieces from disk
-instead of holding it whole for each device is not decided; the numbers
-above are the current build's. Whether it should give memory back to the
-system after a burst is answered by the allocator measurement above: the
-release's musl build already does, and nothing was changed.
+instead of holding the file whole is not decided; the large-file numbers
+above were measured before 95d11dc, which keeps one copy per folder, path
+and hash instead of one per device.
+
+How much memory the server keeps after a burst is decided, not open: on
+2026-10-11, in the evening, the maintainer changed the `verso` binary's
+allocator to mimalloc (**The allocator**, above), which holds about 70 MB
+after a burst of 50 writers and peaked at 291 MB (VmHWM).
 
 A Raspberry Pi and a NAS have not been measured yet, nor a VPS at a
 provider (the 2026-10-11 VM was on the LAN). `scripts/sync-lab/lab.sh

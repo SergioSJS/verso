@@ -49,9 +49,12 @@
   [0074](0074-accounts-and-access-on-the-server.md) item 8, the device
   session). Item 5: a **sync protocol version**, the device's in its
   WebSocket request and the server's in its hello.
-  Item 12: the **1 GiB limit** the code keeps (`LARGEST`) recorded as
-  decided, and the Status's "so that no file is left out for its size"
-  amended to "no file under 1 GiB" — the old words kept there.
+  Item 12: the **1 GiB limit** the code keeps (`LARGEST`) is not one of
+  those answers: the maintainer confirmed it later that evening, separately
+  (*"Pode ter esse limite de 1gb"*, recorded by 1cdf0a1), and on that
+  confirmation it is decided, with the Status's "so that no file is left
+  out for its size" amended to "no file under 1 GiB" — the old words kept
+  there.
 
 ## Context
 

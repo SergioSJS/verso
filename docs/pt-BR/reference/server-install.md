@@ -423,7 +423,8 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
   de 62 MB aos quatro aparelhos ao mesmo tempo (69 s) chegou a 200 MB, e o
   processo manteve cerca de 151 MB residentes depois: o alocador da glibc
   guardou a memória tomada no pico em vez de devolvê-la ao sistema. O
-  build musl da release a devolve (**O alocador**, abaixo).
+  build musl puro a devolve, e o build musl + mimalloc distribuído guarda
+  cerca de 70–74 MB depois de um pico (**O alocador**, abaixo).
 - **O dia a dia**: 20 minutos de soak, quatro aparelhos editando e uma nota
   editada dos dois lados a cada rodada: RSS estável em 151 MB, CPU abaixo
   de 2 %, 33 rodadas, os cinco lados iguais byte a byte em todo ponto de
@@ -445,15 +446,20 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
   quadro. A mesma carga num Mac de 16 CPUs: p50 cerca de 530 ms, 132,9
   operações por segundo (a linha "round 2 final build 3fb8c3b" do
   `results.jsonl`).
-- **Arquivos grandes**: um arquivo em trânsito fica inteiro na memória uma
-  vez para cada aparelho que o busca, e a codificação base64 soma um terço,
-  então o servidor segura cerca de 2,3 × o tamanho do arquivo × os
-  aparelhos que o buscam ao mesmo tempo. Um arquivo novo de 60 MB gravado
+- **Arquivos grandes** (medido antes do 95d11dc, não medido de novo
+  desde então): um arquivo em trânsito ficava inteiro na memória uma vez
+  para cada aparelho que o buscava, e a codificação base64 somava um terço,
+  então o servidor segurava cerca de 2,3 × o tamanho do arquivo × os
+  aparelhos que o buscavam ao mesmo tempo. Um arquivo novo de 60 MB gravado
   num aparelho e buscado pelos outros três ao mesmo tempo levou o processo a
   550 MB (cgroup 679 MB) na VM apertada ao que o convidado via como 705 MB
-  (pedido 512), sem ser morto; os cinco lados ficaram iguais em 56 s. "O
-  dobro do maior arquivo" sozinho é pouco quando vários aparelhos buscam ao
-  mesmo tempo.
+  (pedido 512), sem ser morto; os cinco lados ficaram iguais em 56 s. Desde
+  o 95d11dc o servidor guarda um buffer de leitura por (pasta, caminho,
+  hash), compartilhado pelos clientes que buscam esse arquivo, então a
+  multiplicação por aparelho não vale mais no servidor; o base64 de cada
+  mensagem enviada, e o lado do aparelho segurando o arquivo inteiro,
+  continuam. "O dobro do maior arquivo" sozinho era pouco quando vários
+  aparelhos buscavam ao mesmo tempo.
 - **Memória apertada** (o build glibc): o balloon foi inflado rumo a
   512 MB logo depois do
   pico de 50 aparelhos, deixando o convidado com 705 MB, e o OOM killer do
@@ -470,9 +476,10 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
   levou 122 s até os cinco lados ficarem iguais. Nenhum dos três é um
   limite limpo: o balloon do convidado devolveu memória sob pressão, e o
   convidado nunca teve 512, 384 nem 256 MB. As mortes vieram da memória
-  que o build glibc guardava depois de um pico; com o build musl da
-  release, que a devolve (**O alocador**), elas não são esperadas, mas o
-  aperto não foi rodado de novo com esse build.
+  que o build glibc guardava depois de um pico. O binário distribuído agora
+  é musl + mimalloc, que depois de um pico guarda cerca de 70–74 MB e
+  chegou a 291 MB (VmHWM) com 50 gravando (a linha do mimalloc em **O
+  alocador**); as mortes não foram medidas de novo com ele.
 - **O alocador** (medido em 2026-10-11, por volta de 19:00–19:40 BRT, na
   mesma VM): três builds do mesmo código de servidor, cada um com dois picos
   do `scripts/server-load.mjs` com 50 aparelhos por 60 s a partir da VM a
@@ -489,19 +496,21 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
   | musl + mimalloc 0.1.52 (um teste, `#[global_allocator]`, +132 KB) | 18,0 MB | 291 MB | 70/70/70; 74/74/74 MB | 65–67 MB | 15,4; 18,5 | 4,9 s; 3,5 s |
   | glibc, dinâmico (o binário da campanha) | 18,7 MB | 340; 365 MB | 307/307/307; 340/340/340 MB | 289; 322 MB | 11,8; 14,0 | 6,3 s; 5,7 s |
 
-  Nenhuma execução teve problema de integridade, e os únicos erros foram os
-  `put_hot:changed` esperados. Em cada execução inteira o amostrador, a
+  Os números de RSS recém-iniciado vêm do relatório da sessão que mediu,
+  não de um log guardado. Nenhuma execução teve problema de integridade, e
+  os únicos erros foram os `put_hot:changed` esperados. Em cada execução inteira o amostrador, a
   cada 10 s, leu: musl RSS no máximo 99 MB (12 MB no fim), cgroup no
   máximo 219 MB; mimalloc RSS no máximo 278 MB (74 MB no fim), cgroup no
   máximo 339 MB; glibc RSS no máximo 365 MB (340 MB no fim), cgroup no
-  máximo 446 MB. Lido sem rodeio: o build musl da release devolve a memória
+  máximo 446 MB. Lido sem rodeio: o build musl puro devolve a memória
   depois de um pico (12–23 MB parado, pico de cerca de 100–120 MB com 50
   gravando); o build glibc medido na campanha guardou 300 MB ou mais, e
   cresceu de pico em pico; o mimalloc fica no meio, guardando cerca de
-  70 MB, e foi um pouco mais rápido, cerca de 20–35 % mais operações por
-  segundo — um número frouxo: dois picos de um mesmo binário diferem em até
-  20 %, a pasta cresceu de uma execução para a outra, e um processo perdido
-  ocupava um dos núcleos da VM de carga. Decidido em 2026-10-11, à noite:
+  70 MB, e foi um pouco mais rápido em operações por segundo, pico a pico:
+  +10 % e +46 % sobre o musl, cerca de +31 % sobre o glibc em cada um — um
+  número frouxo: dois picos de um mesmo binário diferem em até 20 %, a pasta
+  cresceu de uma execução para a outra, e um processo perdido ocupava um
+  dos núcleos da VM de carga. Decidido em 2026-10-11, à noite:
   o mantenedor adotou o mimalloc como alocador do binário `verso` (*"pode
   implementar, deixa isso pronto"*), contra a recomendação enviada a ele,
   que era não adotá-lo.
@@ -524,20 +533,24 @@ de outra VM a um salto de LAN. Os números estão no log da campanha
 |---|---|---|
 | Para | 1 a 3 pessoas, notas e anexos pequenos | uma família ou equipe de até ~10 pessoas, vários aparelhos cada (uma estimativa, não medida) |
 | CPU | 1 núcleo, x64 ou ARM64 (medido, linhas "cloud 1 GB" do `results.jsonl`: um aparelho gravando, cerca de 100 ms por gravação; um pico de 50 faz fila no disco, p50 4,5 s) | 2 núcleos |
-| Memória | 512 MB — ainda não medido: um convidado de 512 MB ainda não foi medido (o menor medido tinha 393 MB depois de o balloon tomar o resto, e rodou uma carga de 30 aparelhos e um arquivo de 60 MB depois de ser morto e reiniciado uma vez); a memória guardada depois de um pico que fez o processo ser morto era a do build glibc da campanha, e o build musl da release a devolve (12–23 MB parado, pico de cerca de 100–120 MB com 50 gravando); se o processo for morto, a unit o traz de volta em 5 s sem perder nada | 2 GB, ou mais que o dobro do maior arquivo que vocês sincronizam; quando vários aparelhos buscam um arquivo grande ao mesmo tempo, cerca de 2,3 × o maior arquivo × os aparelhos que o buscam (medido) |
+| Memória | 512 MB — ainda não medido: um convidado de 512 MB ainda não foi medido (o menor medido tinha 393 MB depois de o balloon tomar o resto, e rodou uma carga de 30 aparelhos e um arquivo de 60 MB depois de ser morto e reiniciado uma vez); a memória guardada depois de um pico que fez o processo ser morto era a do build glibc da campanha; o binário distribuído agora é musl + mimalloc, que depois de um pico guarda cerca de 70–74 MB e chegou a 291 MB (VmHWM) com 50 gravando (a linha do mimalloc em **O alocador**), e as mortes não foram medidas de novo com ele; se o processo for morto, a unit o traz de volta em 5 s sem perder nada | 2 GB, ou mais que o dobro do maior arquivo que vocês sincronizam; quando vários aparelhos buscavam um arquivo grande ao mesmo tempo, o servidor segurava cerca de 2,3 × o maior arquivo × os aparelhos que o buscavam (medido antes do 95d11dc e não medido de novo desde então; desde o 95d11dc o servidor guarda uma cópia por pasta, caminho e hash, então o fator por aparelho não vale mais no servidor) |
 | Disco | um SSD; o tamanho das notas × 2 + 1 GB (a lixeira, `.trash`, guarda o que foi apagado) | um SSD local para o `VERSO_DATA_DIR`; as notas num SSD ou num NAS |
 | Exemplos | um Raspberry Pi 4 de 2 GB, a VPS mais barata | um mini PC, um NAS com Docker, uma VPS de 2 GB |
 
 `[OPEN]` Se 1 GB basta para uma equipe pequena: um convidado de 1 GB serviu
 quatro aparelhos, um soak de 20 minutos, picos de 50 gravando e um arquivo
-de 60 MB para três aparelhos ao mesmo tempo (pico de 550 MB); o "até ~10
-pessoas" da tabela não foi medido.
+de 60 MB para três aparelhos ao mesmo tempo (pico de 550 MB, antes do
+95d11dc); o "até ~10 pessoas" da tabela não foi medido.
 
 `[OPEN]` Se o servidor deve mandar os pedaços de um arquivo grande a partir
-do disco em vez de segurá-lo inteiro para cada aparelho não está decidido;
-os números acima são os do build atual. Se ele deve devolver memória ao
-sistema depois de um pico está respondido pela medição do alocador acima: o
-build musl da release já devolve, e nada foi mudado.
+do disco em vez de segurar o arquivo inteiro não está decidido; os números
+de arquivos grandes acima foram medidos antes do 95d11dc, que guarda uma
+cópia por pasta, caminho e hash em vez de uma por aparelho.
+
+Quanta memória o servidor guarda depois de um pico está decidido, não
+aberto: em 2026-10-11, à noite, o mantenedor trocou o alocador do binário
+`verso` para o mimalloc (**O alocador**, acima), que guarda cerca de 70 MB
+depois de um pico de 50 gravando e chegou a 291 MB (VmHWM).
 
 Um Raspberry Pi e um NAS ainda não foram medidos, nem uma VPS num provedor
 (a VM de 2026-10-11 estava na LAN). `scripts/sync-lab/lab.sh load
