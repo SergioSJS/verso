@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { sh } from "../shareStrings";
 import { isolateHistory } from "@codemirror/commands";
 import { closeSearchPanel, getSearchQuery, openSearchPanel, searchPanelOpen, SearchQuery, setSearchQuery } from "@codemirror/search";
 import { Compartment, EditorState, type Extension, Transaction } from "@codemirror/state";
@@ -138,7 +139,7 @@ export class NoteLeaf extends Leaf {
   bannerUrl = "";
   readonly editor: EditorView;
   backlinksData: { from: string; line: number }[] = [];
-  linksData: { target: string; resolved: string | null }[] = [];
+  linksData: { target: string; resolved: string | null; outside?: boolean }[] = [];
   readonly liveCompartment = new Compartment();
   readonly lineNumbersCompartment = new Compartment();
   readonly slash = new SlashMenu(slashSections, { empty: t.slash.empty, label: t.slash.insert });
@@ -205,6 +206,9 @@ export class NoteLeaf extends Leaf {
    *  ADR 0073 item 7): the server writes the file, not this tab. */
   collab: CollabSession | null = null;
   resolved = new Map<string, string | null>();
+  /** Link targets outside what was shared with the person (ADR 0081
+   *  item 11), lower-cased. */
+  outside = new Set<string>();
   /** PDF readers and bases embedded in the preview, closed when it is
    *  redrawn. */
   embeds: (PdfView | BaseView)[] = [];
@@ -580,6 +584,12 @@ export class NoteLeaf extends Leaf {
       if (headingPart && leaf) jumpToHeading(leaf, headingPart);
       return;
     }
+    // Not in what was shared with the person: said, and no note is made
+    // in its name (ADR 0081 item 11).
+    if (this.isOutside(notePart)) {
+      ui.status.textContent = sh.notShared;
+      return;
+    }
 
     // Not a note: an attachment, maybe with `#page=N` for a PDF.
     const key = notePart;
@@ -919,6 +929,7 @@ export class NoteLeaf extends Leaf {
   declare dressLinks: typeof reading.dressLinks;
   declare resolve: typeof reading.resolve;
   declare dress: typeof reading.dress;
+  declare isOutside: typeof reading.isOutside;
   declare mountBases: typeof reading.mountBases;
   declare liveBase: typeof reading.liveBase;
   declare livePdf: typeof reading.livePdf;

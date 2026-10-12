@@ -1,0 +1,38 @@
+/* Sharing between people on one Universo (ADR 0081): the tree's mark on a
+   shared folder, the share dialog, a link out of what was shared, and the
+   folder switcher's groups. */
+.share-mark { display: inline-flex; align-items: center; margin-left: .3rem; color: var(--brass-ink); flex: none; }
+.share-mark .icon { width: 12px; height: 12px; }
+.share-dialog { width: min(34rem, calc(100vw - 32px)); }
+.share-people { list-style: none; padding: 0; margin: .6rem 0; display: flex; flex-direction: column; gap: .2rem; }
+.share-empty { font-size: .88rem; color: var(--ink-3); padding: .3rem 0; }
+.share-person { display: flex; align-items: center; justify-content: space-between; gap: .6rem; flex-wrap: wrap; padding: .35rem 0; border-bottom: 1px solid var(--hair); }
+.share-who { display: flex; flex-direction: column; min-width: 0; }
+.share-who small { color: var(--ink-3); font-size: .8rem; overflow-wrap: anywhere; }
+.share-person-actions { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+.share-form { display: grid; grid-template-columns: auto 1fr; gap: .4rem .6rem; align-items: center; margin: .8rem 0 .4rem; }
+.share-form input, .share-form select { min-height: 30px; min-width: 0; }
+.share-form button { grid-column: 2; justify-self: end; }
+.share-attachments { font-size: .88rem; margin: .5rem 0; }
+.share-attachments p { margin: .3rem 0; }
+.share-ask { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+.share-ask-text { margin: 0; font-size: .86rem; flex-basis: 100%; }
+.share-missing { color: var(--seal); font-size: .88rem; }
+.share-status { min-height: 1.2em; font-size: .86rem; color: var(--ink-2); margin: .3rem 0 0; }
+.share-actions { flex-wrap: wrap; }
+.preview a.wikilink.outside { color: var(--ink-3); border-bottom-style: dotted; cursor: help; }
+.embed-outside { display: block; padding: .5rem .7rem; margin: .4rem 0; border: 1px dashed var(--hair); border-radius: 6px; color: var(--ink-3); font-size: .9rem; }
+.panel-list li.outside > button.row { color: var(--ink-3); font-style: italic; }
+/* The folder switcher (item 5): the side bar's folder button opens it. */
+.folder-switcher { position: fixed; z-index: 60; min-width: 16rem; max-width: min(24rem, calc(100vw - 32px)); max-height: min(70vh, 32rem); overflow: auto; padding: .4rem; background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-radius: 10px; box-shadow: 0 20px 50px -20px oklch(0% 0 0 / .4); }
+.folder-switcher section { padding: .2rem 0; }
+.folder-switcher section + section { border-top: 1px solid var(--hair); }
+.folder-switcher h3 { font-size: .74rem; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); margin: .35rem .5rem .2rem; font-weight: 600; }
+.folder-switcher ul { list-style: none; margin: 0; padding: 0; }
+.folder-switcher button { width: 100%; display: flex; align-items: baseline; gap: .5rem; text-align: left; padding: .4rem .5rem; border-radius: 6px; font-size: .9rem; color: var(--ink); }
+.folder-switcher button span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.folder-switcher button small { font-size: .76rem; color: var(--ink-3); flex: none; }
+.folder-switcher button:hover, .folder-switcher button:focus-visible { background: var(--paper-3); outline: none; }
+.folder-switcher button[aria-current="true"] span { font-weight: 600; }
+.folder-switcher .switcher-note { font-size: .82rem; color: var(--ink-3); padding: .3rem .5rem; margin: 0; }
+.srv-group { font: 600 .7rem var(--ui); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); padding: .6rem 0 .2rem; }

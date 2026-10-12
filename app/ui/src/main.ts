@@ -12,6 +12,9 @@
 // a workspace is a tree of splits; a split holds panes; a pane holds
 // tabs; a tab is a leaf — a note, an image, a text file or a folder.
 
+import { openFolderSwitcher } from "./panel/folderSwitcher";
+import { mayShare, openShareDialog } from "./shares";
+import { sh } from "./shareStrings";
 import { bytes } from "./web/strings";
 import { redo, selectAll, undo } from "@codemirror/commands";
 import { convertFileSrc } from "@tauri-apps/api/core";
@@ -382,7 +385,8 @@ paintKeyHints();
 // (ADR 0076).
 installScreen();
 
-ui.open.addEventListener("click", () => void openFolderDialog());
+// The folder button opens the folder switcher (ADR 0081 item 5).
+ui.open.addEventListener("click", () => void openFolderSwitcher(ui.open));
 ui.collapse.addEventListener("click", collapseAll);
 ui.treeRoot.addEventListener("contextmenu", (e) => {
   if ((e.target as HTMLElement).closest("button.row, summary, input")) return;
@@ -394,6 +398,7 @@ ui.treeRoot.addEventListener("contextmenu", (e) => {
     ...createMenuItems(""),
     sep,
     ...(rootNote ? [[t.openFolderNote, () => void openNote(rootNote, false), "note"] as MenuItem] : []),
+    ...(mayShare() ? [[sh.shareWhole, () => openShareDialog(""), "user"] as MenuItem] : []),
     ...(order.length > 0 ? [...order, sep] : []),
     [collapsed ? t.expandAll : t.collapseAll, collapseAll, collapsed ? "expand" : "collapse"],
   ];

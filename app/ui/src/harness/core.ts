@@ -86,6 +86,11 @@ export const UNUSED_ARGS: Record<string, string[]> = {
   server_sign_out: ["url"],
   server_folders: ["url"],
   server_open: ["url", "folder"],
+  // Sharing is a server's (ADR 0081): a folder of the harness is not on
+  // one; a test stands in for the server by replacing these.
+  share_grant: ["path", "email", "role"],
+  share_revoke: ["path", "account"],
+  share_attachments: ["path", "attachments"],
   reopen_folder: ["key"],
   open_window: ["path"],
   return_to_main: ["path"],
@@ -1325,6 +1330,13 @@ export class Core {
     server_sign_out: () => null,
     server_folders: () => [],
     server_open: () => refuse("unavailable", "no server in the harness"),
+    share_list: () => refuse("refused", "this folder is not on a server: sync it with one first"),
+    share_grant: () => refuse("refused", "this folder is not on a server: sync it with one first"),
+    share_revoke: () => refuse("refused", "this folder is not on a server: sync it with one first"),
+    share_attachments: () => refuse("refused", "this folder is not on a server: sync it with one first"),
+    // The folder switcher's "On this computer" (ADR 0081 item 5): the
+    // demo vault, opened before.
+    recent_folders: () => [{ key: "harness", name: this.name }],
     // The folder's sync (ADR 0079): turned on against the server a test
     // signs in to (`server_accounts`), synced at once — nothing to cross.
     folder_sync: (): SyncStatus => this.sync,
