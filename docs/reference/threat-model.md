@@ -115,7 +115,7 @@ token.
 | `GET /f/{folder}/{*path}` | a reader of the folder or more; a token within its folders | TLS; the role, on every request; the core's path confinement | `Content-Security-Policy: sandbox`, `nosniff`, `Cross-Origin-Resource-Policy: same-origin` | nothing |
 | `GET /api/ws`, the contract | a browser (only with `--web`, `Origin` checked before the cookie is accepted), a device, a token | TLS; the session or token alive before every command; the role in the folder before the core acts; a token's folders and write flag; a sync version older than the previous one refused for `sync_*` | 48 MB a message; 8 requests under way, past which the connection is not read; a queue of 1024 messages and 64 MiB of pushes, full = closed; each write within 30 s plus its size at 32 KiB/s, else closed; a ping every 30 s, closed after 2 unanswered; 32 connections per account and 64 per address, 429 past them; each command at its account's pace (100 a second, 400 at once) and the server's (1 000, 2 000), waiting its turn past it; a window's log lines 60 a minute | the server's log: a sync change refused, a slow or silent connection closed, a sync version refused; each folder's change log names the account and the device of every write |
 | — folder commands | the window's folder, opened by `open_server_folder` or `reopen_folder` | a write command needs editor or owner and a writing credential; a write's bytes checked against the quota first | the quota (ADR 0077 item 5) | the change log |
-| — `collab_*` (shared notes) | members of the folder | `collab_update`, `_save`, `_resolve` need a writer; a malformed Yjs update refused | presence (`collab_awareness`) 16 KB at most, relayed as sent; what is relayed counts in each receiver's 64 MiB of pushes | nothing |
+| — `collab_*` (shared notes) | members of the folder | `collab_update`, `_save`, `_resolve` need a writer; a malformed Yjs update refused | presence (`collab_awareness`) 16 KB at most, from a window in the room, stamped with the sender's account name and only its own Yjs clients (gap 11); what is relayed counts in each receiver's 64 MiB of pushes | nothing |
 | — `sync_*` | a device (any credential may ask) | a write, deletion or rename needs a writer, names its base hash and is refused when the file changed; a deletion goes to `.trash/`; the quota on the whole file | pieces of 4 MiB; 2 transfers each way per connection, dropped after 120 s idle and when the connection ends; 1 GiB per file; a walk at most once a minute | the server's log for a refusal other than "changed" |
 | — `render_markdown`, `board_text`, `log_write`, `capabilities` | signed in | — | the parser is fuzzed and checked for linear time; log lines one line each, 2000 characters | the server's log (`log_write`) |
 | The release feed | the server, outbound | — | once a day; the version alone in the `User-Agent`; `VERSO_UPDATE_TOKEN` when the repository is private; `VERSO_UPDATE_CHECK=off` | a line when it fails |
@@ -146,7 +146,7 @@ token.
 | The first admin taken by whoever arrives first | No setup page open to anyone: the admin comes from the environment on the first start, or from a single-use setup link valid one hour, printed once in the log — whoever reads the log is whoever runs the server. |
 | A lost admin | `universo admin reset <e-mail>` (or `verso serve admin reset`) on the machine: access to the machine is the last factor; the reset is in the audit log and ends the account's sessions. |
 | An invitation or a reset link forwarded or guessed | 256 bits, single use, an expiry (7 days, 24 hours), its use recorded (by whom, when), ended by the admin before use; attempts slowed by address. |
-| A device approved by mistake | The approval page shows the device's name and the code the app shows, asks a signed-in person in the browser, and the device's session is listed and revocable. The device's name is the one the requester sent (see the gaps). |
+| A device approved by mistake | The approval page shows the device's name and the code the app shows, the address and the time of the request, asks a signed-in person in the browser *Was it you who asked, on this device?* and offers to refuse, and the device's session is listed and revocable. The device's name is the one the requester sent; the address and the time are the server's (gap 12). |
 | A device or a phone lost | The person ends the session in Settings; an admin ends every session of an account and revokes its tokens from the console, its open connections closed at once, with an audit line (ADR 0077 item 3, built). |
 | Passkeys | WebAuthn with user verification required (webauthn-rs); the ceremony's state lives five minutes in memory; counters stored. |
 
@@ -163,7 +163,7 @@ token.
 | An edit that erases another's text | Simultaneous editing merges; a write from elsewhere is merged line by line or refused as changed; a change made outside while edits wait stops the room for people to choose. `[OPEN]`: history, attribution and recovery of another member's change (ADR 0073). |
 | A deletion of another's file | A deletion goes to the folder's `.trash/`, from the window and from a device alike; seeing and restoring it in the window, and its retention, are ADR 0080, accepted, being built. |
 | A huge message or many requests to exhaust memory | A WebSocket message is 48 MB at most; a malformed Yjs update is refused; a connection has 8 requests under way at most, and a queue of 1024 messages and 64 MiB of pushes, closed when it fills; a presence is 16 KB at most. Commands keep a pace per account and on the server, and connections are counted per account and per address (gaps 3 and 4, closed). A folder's space is bounded by its quota (ADR 0077 item 5): a write that would pass it is refused and nothing is written. |
-| Presence that lies | A member's presence in a shared note is relayed as their window sent it; the server does not stamp it with the account (see the gaps). |
+| Presence that lies | The server stamps a presence with the sender's account name, keeps only a colour that is a colour, and lets a connection speak only for its own Yjs clients: a member's cursor cannot wear another's name, nor move or remove another's (gap 11). |
 
 ### What the sanitizer guarantees
 
@@ -343,14 +343,22 @@ recommendation for the maintainer to confirm.
 
 11. **Presence can claim another name.** `collab_awareness` is relayed
     opaque; the server does not stamp the sender's account, so a member's
-    cursor can wear another member's name and colour. **Still open:** a
-    product decision — whether the server stamps presence with the
-    account, and what the window shows of it.
+    cursor can wear another member's name and colour. **Closed: 3bc56ae**
+    — the server reads each awareness update, sets each state's `user` to
+    the sender's account name and a `#rrggbb` colour (the window's first
+    otherwise), and drops a Yjs client another account speaks for (at
+    most 8 per connection); malformed bytes, and a presence from a window
+    not in the room, are refused (the maintainer, 2026-10-12: "temos que
+    ser seguros desde o dia 0").
 12. **Device-code phishing.** Whoever starts a code chooses the device's
     name the approval page shows; a person sent a link can approve a
     stranger's device into their own account. The page shows no address
-    or time of the request. **Still open:** a product decision — what the
-    approval page shows and asks.
+    or time of the request. **Closed: 5838c10** — the pending code keeps
+    the address and the time it was asked from; the page shows them with
+    the device's name under *Who asked*, then asks *Was it you who asked,
+    on this device?* before *Approve this device: <name>* and *It was not
+    me: refuse*; a refusal ends the code. The name stays the requester's:
+    the address and the time are what tell a stranger's request.
 13. **The server's database is created with the process's umask.** The
     desktop's index and `servers.json` are `0600`; `server.sqlite` and
     `VERSO_DATA_DIR` get no mode from the server (unverified per package:
