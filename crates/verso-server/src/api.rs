@@ -613,31 +613,88 @@ pub struct ByMail {
 }
 
 /// A sign-in link by e-mail (ADR 0074 item 3): sent when the address has
-/// an account; answered the same either way, after the same delay.
+/// an account; answered the same either way, and at once — whether the
+/// address has an account, the link and the mail server's round happen
+/// after the answer has left ([`mail_later`]).
 pub async fn signin_link(ctx: Ctx, Json(body): Json<ByMail>) -> ApiResult<Response> {
     ctx.changes()?;
-    let Some(mail) = ctx.server.mail.get() else {
+    if ctx.server.mail.get().is_none() {
         return Err(ApiError::bad("no_mail", "this server has no mail server"));
-    };
+    }
     let key = format!("mail:{}", ctx.peer.addr);
     limited(&ctx, &[&key])?;
     ctx.server.limiter.failed(&key);
-    if let Some(account) = ctx.server.db.account_by_email(&body.email)? {
-        let token = crate::crypto::token()?;
-        {
-            let mut links = verso_service::lock(&ctx.server.signin_links);
+    mail_later(&ctx, body.email, Mailed::SignIn);
+    Ok(ok(json!({ "sent": true })))
+}
+
+/// What a mail route sends to an address that has an account.
+#[derive(Clone, Copy)]
+enum Mailed {
+    SignIn,
+    Reset,
+}
+
+/// The work of a mail route, off its answer (threat-model.md, gap 6 of
+/// 2026-10-11): the answer used to wait for the mail server only when the
+/// address had an account, and its time told who has one. Now it leaves
+/// before the database is asked, the same for every address; the mail,
+/// its link and its line in the audit log follow on their own.
+fn mail_later(ctx: &Ctx, email: String, what: Mailed) {
+    let server = std::sync::Arc::clone(&ctx.server);
+    let base = auth::expected_origin(&ctx.server, &ctx.headers).unwrap_or_default();
+    let address = ctx.address();
+    tokio::spawn(async move {
+        if let Err(e) = mailed(&server, &email, &base, &address, what).await {
+            crate::log::error(&format!("a mail route: {e}"));
+        }
+    });
+}
+
+async fn mailed(
+    server: &crate::state::Server,
+    email: &str,
+    base: &str,
+    address: &str,
+    what: Mailed,
+) -> Result<(), String> {
+    let (Some(mail), Some(account)) = (server.mail.get(), server.db.account_by_email(email)?)
+    else {
+        return Ok(());
+    };
+    let (path, token, action, words) = match what {
+        Mailed::SignIn => {
+            let token = crate::crypto::token()?;
+            let mut links = verso_service::lock(&server.signin_links);
             links.retain(|_, (_, at)| at.elapsed() < SIGNIN_LINK_LIFE);
             links.insert(
                 crate::crypto::hash(&token),
                 (account.id.clone(), std::time::Instant::now()),
             );
+            ("signin-link", token, "signin_link_sent", "signin")
         }
-        let link = crate::admin::link(&ctx, "signin-link", &token);
-        let (subject, text) = crate::mail::words(&account.lang, "signin", &link);
-        mail.send(&account.email, &subject, &text).await;
-        ctx.audit_as(Some(&account.id), "signin_link_sent", None, None, true);
-    }
-    Ok(ok(json!({ "sent": true })))
+        Mailed::Reset => {
+            server.db.end_links_of(&account.id, "reset")?;
+            let (token, _) = server.db.create_invitation(&db::NewLink {
+                kind: "reset",
+                account: Some(&account.id),
+                life: db::RESET_LIFE,
+                ..db::NewLink::default()
+            })?;
+            ("reset", token, "reset_link_mailed", "reset")
+        }
+    };
+    let link = format!("{base}/{path}/{token}");
+    let (subject, text) = crate::mail::words(&account.lang, words, &link);
+    mail.send(&account.email, &subject, &text).await;
+    server.db.audit(&db::Audit {
+        actor: Some(&account.id),
+        action,
+        subject: None,
+        folder: None,
+        address: Some(address),
+        ok: true,
+    })
 }
 
 /// The link from the e-mail, used once: a session, as a password's.
@@ -666,28 +723,17 @@ pub async fn signin_by_link(ctx: Ctx, Path(token): Path<String>) -> ApiResult<Re
 }
 
 /// "Forgot the password": a reset link sent to the account's address, for
-/// a server with a mail server (ADR 0074 item 5); answered the same way
-/// whether the address has an account or not.
+/// a server with a mail server (ADR 0074 item 5); answered the same way,
+/// and at once, whether the address has an account or not
+/// ([`mail_later`]).
 pub async fn forgot(ctx: Ctx, Json(body): Json<ByMail>) -> ApiResult<Response> {
     ctx.changes()?;
-    let Some(mail) = ctx.server.mail.get() else {
+    if ctx.server.mail.get().is_none() {
         return Err(ApiError::bad("no_mail", "this server has no mail server"));
-    };
+    }
     let key = format!("mail:{}", ctx.peer.addr);
     limited(&ctx, &[&key])?;
     ctx.server.limiter.failed(&key);
-    if let Some(account) = ctx.server.db.account_by_email(&body.email)? {
-        ctx.server.db.end_links_of(&account.id, "reset")?;
-        let (token, _) = ctx.server.db.create_invitation(&db::NewLink {
-            kind: "reset",
-            account: Some(&account.id),
-            life: db::RESET_LIFE,
-            ..db::NewLink::default()
-        })?;
-        let link = crate::admin::link(&ctx, "reset", &token);
-        let (subject, text) = crate::mail::words(&account.lang, "reset", &link);
-        mail.send(&account.email, &subject, &text).await;
-        ctx.audit_as(Some(&account.id), "reset_link_mailed", None, None, true);
-    }
+    mail_later(&ctx, body.email, Mailed::Reset);
     Ok(ok(json!({ "sent": true })))
 }
