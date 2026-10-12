@@ -642,3 +642,63 @@ fn a_rename_in_the_demo_vault_writes_the_same_bytes_on_every_os() {
         }
     }
 }
+
+/// Two names that differ only in case are two files on Linux and on the
+/// server, one on a Mac or Windows: a name Verso makes is refused beside
+/// its case twin, with the reason, on every system (spec Q8, decided
+/// 2026-10-12; ADR 0070 item 3) — a note, a folder, a rename. A file
+/// renamed to its own name in another case is no twin of itself.
+#[test]
+fn a_name_differing_only_in_case_from_another_entry_is_refused() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    ws.create_note("Nota", "# Nota\n").unwrap();
+    ws.create_note("Outra", "# Outra\n").unwrap();
+    ws.create_folder("Pasta").unwrap();
+    let twin = |got: Result<(), CoreError>, what: &str| match got {
+        Err(
+            e @ CoreError::Write(verso_core::WriteError::Confined(
+                verso_core::ConfinementError::CaseTwin,
+            )),
+        ) => assert!(
+            e.to_string().contains("differs only in case"),
+            "{what}: {e}"
+        ),
+        other => panic!("{what}: {other:?}"),
+    };
+    twin(ws.create_note("nota", "x").map(|_| ()), "create nota.md");
+    twin(
+        ws.create_file("NOTA.md", b"x").map(|_| ()),
+        "create NOTA.md",
+    );
+    twin(ws.create_folder("pasta").map(|_| ()), "create pasta");
+    twin(
+        ws.rename_note("Outra", "nota.md").map(|_| ()),
+        "rename Outra.md to nota.md",
+    );
+    twin(
+        ws.rename_entry("Outra.md", "NOTA.md").map(|_| ()),
+        "rename Outra.md to NOTA.md",
+    );
+    let mut listed: Vec<String> = std::fs::read_dir(vault.path())
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    listed.sort();
+    assert_eq!(listed, ["Nota.md", "Outra.md", "Pasta"]);
+    // Its own case variant: allowed, the file under the new spelling only.
+    let renamed = ws.rename_note("Nota", "nota.md").unwrap();
+    assert_eq!(renamed.path, "nota.md");
+    ws.rename_entry("Pasta", "pasta").unwrap();
+    let mut listed: Vec<String> = std::fs::read_dir(vault.path())
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    listed.sort();
+    assert_eq!(listed, ["Outra.md", "nota.md", "pasta"]);
+    // A name with no twin is made as before, in the folder as it is listed.
+    ws.create_note("pasta/Nova", "x").unwrap();
+    ws.rename_note("Outra", "Outra2.md").unwrap();
+}
