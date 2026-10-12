@@ -49,10 +49,12 @@
   sistema (com o item 8 do [0074](0074-accounts-and-access-on-the-server.md),
   a sessão de aparelho). Item 5: uma **versão do protocolo de sync**, a do
   aparelho no seu pedido de WebSocket e a do servidor no hello. Item 12:
-  o **limite de 1 GiB** que o código mantém (`LARGEST`) registrado como
-  decidido, e o "para que nenhum arquivo fique de fora
-  pelo tamanho" do Status emendado para "nenhum arquivo abaixo de 1 GiB" —
-  as palavras antigas guardadas lá.
+  o **limite de 1 GiB** que o código mantém (`LARGEST`) não é uma dessas
+  respostas: o mantenedor o confirmou mais tarde naquela noite, à parte
+  (*"Pode ter esse limite de 1gb"*, registrado pelo 1cdf0a1), e é por essa
+  confirmação que está decidido, com o "para que nenhum arquivo fique de
+  fora pelo tamanho" do Status emendado para "nenhum arquivo abaixo de
+  1 GiB" — as palavras antigas guardadas lá.
 
 ## Contexto
 

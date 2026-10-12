@@ -29,6 +29,8 @@ if [ "${1:-}" = "--inside" ]; then
 fi
 
 cd "$(dirname "$0")/.."
+# The commit checked, so that a kept log names it.
+printf 'checking %s\n' "$(git rev-parse --short HEAD 2>/dev/null || echo 'no git')"
 command -v docker >/dev/null || { echo "docker not found"; exit 1; }
 [ -f app/ui/dist/web.html ] || { echo "no UI build with web.html: cd app/ui && npm run build"; exit 1; }
 dir="${VERSO_LINUX_DIR:-$HOME/.cache/verso-server-image}"

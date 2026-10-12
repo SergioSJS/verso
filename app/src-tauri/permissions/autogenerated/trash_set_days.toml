@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-trash-set-days"
+description = "Enables the trash_set_days command without any pre-configured scope."
+commands.allow = ["trash_set_days"]
+
+[[permission]]
+identifier = "deny-trash-set-days"
+description = "Denies the trash_set_days command without any pre-configured scope."
+commands.deny = ["trash_set_days"]

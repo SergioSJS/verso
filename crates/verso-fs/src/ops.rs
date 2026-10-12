@@ -85,7 +85,7 @@ impl OpReport {
 }
 
 /// How [`claim`] or [`place`] gave a file its new name.
-enum Placed {
+pub(crate) enum Placed {
     /// In a step that refuses an existing name — an exclusive rename on
     /// macOS, `link` then removing the old name elsewhere; `removal` is the
     /// error that left the old name behind after a `link`, if any.
@@ -147,7 +147,7 @@ fn place(
 /// volume without that rename falls back to [`place`]. Elsewhere,
 /// [`place`]: inotify and `ReadDirectoryChangesW` report the removal of a
 /// linked file.
-fn claim(from: &Path, to: &Path) -> Result<Placed, WriteError> {
+pub(crate) fn claim(from: &Path, to: &Path) -> Result<Placed, WriteError> {
     #[cfg(target_os = "macos")]
     match crate::os::rename_exclusive(from, to) {
         Ok(()) => return Ok(Placed::Claimed { removal: None }),
@@ -171,14 +171,14 @@ use crate::os::sync_dir;
 
 /// Something already stands at `path` — a file, a directory, or a
 /// placeholder for it.
-fn occupied(path: &Path) -> Result<bool, std::io::Error> {
+pub(crate) fn occupied(path: &Path) -> Result<bool, std::io::Error> {
     Ok(path.symlink_metadata().is_ok() || placeholder::stands_in(path)?)
 }
 
 /// Create `dir` and the parents it lacks, and return the directories that
 /// did not exist, shallowest first, so the caller can sync each of them
 /// and the one they hang from once the entry is in place.
-fn create_dirs(dir: &Path) -> Result<Vec<PathBuf>, std::io::Error> {
+pub(crate) fn create_dirs(dir: &Path) -> Result<Vec<PathBuf>, std::io::Error> {
     let mut missing = Vec::new();
     let mut current = Some(dir);
     while let Some(p) = current {
@@ -199,7 +199,7 @@ fn create_dirs(dir: &Path) -> Result<Vec<PathBuf>, std::io::Error> {
 /// Sync `dir` — where the entry landed — and every directory that was
 /// created on the way to it, plus the parent of the shallowest one, whose
 /// entry for it is what makes the new branch reachable after a power loss.
-fn sync_created(dir: &Path, created: &[PathBuf]) -> Result<(), std::io::Error> {
+pub(crate) fn sync_created(dir: &Path, created: &[PathBuf]) -> Result<(), std::io::Error> {
     sync_dir(dir)?;
     for d in created.iter().rev() {
         if d != dir {
@@ -221,7 +221,7 @@ fn parent_of(path: &Path) -> Result<&Path, WriteError> {
     })
 }
 
-fn temporary_name(dir: &Path) -> PathBuf {
+pub(crate) fn temporary_name(dir: &Path) -> PathBuf {
     dir.join(format!(
         ".verso-tmp-{}-{}",
         std::process::id(),
@@ -448,22 +448,7 @@ pub(crate) fn trash(root: &Path, relative: &Path) -> Result<(PathBuf, OpReport),
     if placeholder::stands_in(&from).map_err(WriteError::Io)? {
         return Err(WriteError::Placeholder);
     }
-    let bin = crate::rel_join(Path::new(".trash"), relative);
-    let mut target = bin.clone();
-    let mut n = 2;
-    while occupied(&crate::on_disk(root, &target)).map_err(WriteError::Io)? {
-        let stem = bin
-            .file_stem()
-            .map(|s| s.to_string_lossy().into_owned())
-            .unwrap_or_default();
-        let ext = bin
-            .extension()
-            .map(|e| format!(".{}", e.to_string_lossy()))
-            .unwrap_or_default();
-        let parent = bin.parent().unwrap_or(Path::new(""));
-        target = crate::rel_join(parent, format!("{stem} ({n}){ext}"));
-        n += 1;
-    }
+    let target = crate::trashbin::free_name(root, relative)?;
     let report = rename_path(&from, &crate::on_disk(root, &target))?;
     Ok((target, report))
 }

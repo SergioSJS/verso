@@ -479,6 +479,24 @@ export const commands = {
 	downloadAndInstallUpdate: () => typedError<InstallResult, ContractError>(__TAURI_INVOKE("download_and_install_update")),
 	/**  Restarts the application to apply updates. */
 	restartApp: () => typedError<null, ContractError>(__TAURI_INVOKE("restart_app")),
+	/**  The folder's bin, newest first. */
+	trashList: () => typedError<TrashListing, ContractError>(__TAURI_INVOKE("trash_list")),
+	/**
+	 *  Put an entry of the bin back where it was, or beside it under a name
+	 *  that says so when that place is taken (`today` the person's date,
+	 *  `lang` their language).
+	 */
+	trashRestore: (path: string, today: string, lang: string) => typedError<Restored, ContractError>(__TAURI_INVOKE("trash_restore", { path, today, lang })),
+	/**  Remove entries of the bin for good. */
+	trashDelete: (paths: string[]) => typedError<TrashListing, ContractError>(__TAURI_INVOKE("trash_delete", { paths })),
+	/**  Empty the bin. */
+	trashEmpty: () => typedError<TrashListing, ContractError>(__TAURI_INVOKE("trash_empty")),
+	/**
+	 *  How long this folder keeps deleted files: days, 0 for ever — the
+	 *  person's setting of the local folder, kept beside its index (item 3).
+	 *  What is past the new time goes at once.
+	 */
+	trashSetDays: (days: number) => typedError<TrashListing, ContractError>(__TAURI_INVOKE("trash_set_days", { days })),
 };
 
 /* Types */
@@ -1329,6 +1347,14 @@ export type Renamed = {
 	also: Moved[],
 };
 
+/**  Where a restore put an entry of the bin (ADR 0080 item 5). */
+export type Restored = {
+	path: string,
+	/**  The original path was taken: it went beside it, under a new name. */
+	beside: boolean,
+	warnings: string[],
+};
+
 /**  A `verso-schema` block of a note. */
 export type SchemaNotice = {
 	/**  The line of the opening fence (1-based). */
@@ -1519,6 +1545,71 @@ export type TextFile = {
 	revision: string,
 	/**  What the write could not preserve, one line each; empty after a read. */
 	warnings: string[],
+};
+
+/**
+ *  One entry of the folder's bin (ADR 0080 item 4): a file, or a folder
+ *  trashed whole, with what is known of its deletion.
+ */
+export type TrashEntry = {
+	/**  Where it is, under `.trash/`: what a restore or a removal names. */
+	path: string,
+	/**  Where it was, relative to the folder. */
+	original: string,
+	/**  A folder trashed with what it held. */
+	folder: boolean,
+	/**  The bytes it holds. */
+	size: number | null,
+	/**
+	 *  When it was deleted, in seconds since the Unix epoch; when that is
+	 *  not known (`known` false), when it was first seen in the bin.
+	 */
+	deleted: number | null,
+	known: boolean,
+	/**
+	 *  Who deleted it: on a server the account (or, for a version a write
+	 *  replaced, the device); on the computer the server whose sync
+	 *  carried the deletion out. None: this computer, or not known.
+	 */
+	by: string | null,
+	/**  Sync carried the deletion out on this computer (item 9). */
+	sync: boolean,
+	/**  Not deleted: the version a device's write replaced (item 12). */
+	replaced: boolean,
+	/**
+	 *  When it is removed for good, in seconds; none when deleted files
+	 *  are kept for ever.
+	 */
+	expires: number | null,
+};
+
+/**  The folder's bin as its page shows it (ADR 0080 items 3, 4, 7 and 8). */
+export type TrashListing = {
+	/**  Newest first. */
+	entries: TrashEntry[],
+	/**  The bytes the bin holds — shown, not counted against the quota. */
+	size: number | null,
+	/**  How many days deleted files are kept; 0: for ever. */
+	days: number,
+	/**
+	 *  The most days this person may choose (a server folder's owner
+	 *  shortens what the admin set, item 3); none: anything, for ever too.
+	 */
+	most: number | null,
+	/**  Whether this person may change how long deleted files are kept. */
+	can_set: boolean,
+	/**
+	 *  Whether this person may delete an entry now or empty the bin: the
+	 *  folder's owner (item 7); on the computer, always.
+	 */
+	can_purge: boolean,
+	/**  The folder's quota on its server, in bytes; none without one. */
+	quota: number | null,
+	/**
+	 *  The bin alone is larger than the quota: its oldest entries expire
+	 *  early (item 8).
+	 */
+	early: boolean,
 };
 
 /**

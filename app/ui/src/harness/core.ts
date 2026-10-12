@@ -56,6 +56,7 @@ import type {
   FocusesSummary,
   SyncStatus,
 } from "../bindings";
+import { Bin } from "./trash";
 import { blocksOf, fitsKind, headingsOf, propertiesOf, propertyList, readableLines, renderMarkdown, schemaBlocksOf } from "./markdown";
 
 export type Seed = { path: string; b64: string };
@@ -303,6 +304,8 @@ export function canvasLayout(value: unknown, depth = 0): string {
 export class Core {
   readonly files = new Map<string, Stored>();
   readonly folders = new Set<string>();
+  /** The folder's trash and what is known of it (ADR 0080). */
+  readonly bin = new Bin(this);
   /** The folder note name setting (`set_folder_note_name`). */
   private folderNoteName = "";
   private syncFocuses = false;
@@ -797,8 +800,10 @@ export class Core {
     const path = this.confine(pathIn);
     if (!this.files.has(path) && !this.folders.has(path)) refuse("not_found", `no such entry: ${path}`);
     const to = this.free(`.trash/${path}`);
+    const folder = !this.files.has(path);
     this.move(path, to);
     this.folders.delete(path);
+    this.bin.record(to, path, folder);
     return { path: to, warnings: [] };
   }
 
@@ -1359,6 +1364,7 @@ export class Core {
       return null;
     },
     folder_sync_now: () => null,
+    ...this.bin.handlers(),
     // The harness stands in for the desktop app (ADR 0058).
     capabilities: (): Capabilities => ({
       host: "desktop",

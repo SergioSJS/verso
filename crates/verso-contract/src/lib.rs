@@ -391,6 +391,68 @@ pub struct Trashed {
     pub warnings: Vec<String>,
 }
 
+/// One entry of the folder's bin (ADR 0080 item 4): a file, or a folder
+/// trashed whole, with what is known of its deletion.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct TrashEntry {
+    /// Where it is, under `.trash/`: what a restore or a removal names.
+    pub path: String,
+    /// Where it was, relative to the folder.
+    pub original: String,
+    /// A folder trashed with what it held.
+    pub folder: bool,
+    /// The bytes it holds.
+    pub size: f64,
+    /// When it was deleted, in seconds since the Unix epoch; when that is
+    /// not known (`known` false), when it was first seen in the bin.
+    pub deleted: f64,
+    pub known: bool,
+    /// Who deleted it: on a server the account (or, for a version a write
+    /// replaced, the device); on the computer the server whose sync
+    /// carried the deletion out. None: this computer, or not known.
+    pub by: Option<String>,
+    /// Sync carried the deletion out on this computer (item 9).
+    pub sync: bool,
+    /// Not deleted: the version a device's write replaced (item 12).
+    pub replaced: bool,
+    /// When it is removed for good, in seconds; none when deleted files
+    /// are kept for ever.
+    pub expires: Option<f64>,
+}
+
+/// The folder's bin as its page shows it (ADR 0080 items 3, 4, 7 and 8).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct TrashListing {
+    /// Newest first.
+    pub entries: Vec<TrashEntry>,
+    /// The bytes the bin holds — shown, not counted against the quota.
+    pub size: f64,
+    /// How many days deleted files are kept; 0: for ever.
+    pub days: u32,
+    /// The most days this person may choose (a server folder's owner
+    /// shortens what the admin set, item 3); none: anything, for ever too.
+    pub most: Option<u32>,
+    /// Whether this person may change how long deleted files are kept.
+    pub can_set: bool,
+    /// Whether this person may delete an entry now or empty the bin: the
+    /// folder's owner (item 7); on the computer, always.
+    pub can_purge: bool,
+    /// The folder's quota on its server, in bytes; none without one.
+    pub quota: Option<f64>,
+    /// The bin alone is larger than the quota: its oldest entries expire
+    /// early (item 8).
+    pub early: bool,
+}
+
+/// Where a restore put an entry of the bin (ADR 0080 item 5).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct Restored {
+    pub path: String,
+    /// The original path was taken: it went beside it, under a new name.
+    pub beside: bool,
+    pub warnings: Vec<String>,
+}
+
 /// What the running app is: its version (the workspace's, ADR 0051) and the
 /// commit it was built from — shown in the settings and the About panel.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]

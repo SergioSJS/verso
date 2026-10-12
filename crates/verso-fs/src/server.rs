@@ -102,9 +102,48 @@ fn detect(_path: &Path) -> Option<String> {
     None
 }
 
+/// A file of the server's own kept to its owner (threat-model.md, gap
+/// 13): its database of accounts and password hashes, which SQLite makes
+/// with the process's umask (0644 under the usual 022), readable by any
+/// other user of the host. SQLite gives its journal files the database's
+/// mode as it makes them; those already there are set here too. A file
+/// that is not there is left so. Nothing on Windows, where the profile's
+/// or the service's own permissions decide.
+pub fn owner_only(path: &Path) -> io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = match std::fs::metadata(path) {
+            Ok(m) => m.permissions().mode(),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
+            Err(e) => return Err(e),
+        };
+        if mode & 0o077 != 0 {
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
+        }
+    }
+    #[cfg(not(unix))]
+    let _ = path;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn a_servers_own_file_is_kept_to_its_owner() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("server.sqlite");
+        std::fs::write(&file, "x").unwrap();
+        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o644)).unwrap();
+        owner_only(&file).unwrap();
+        let mode = std::fs::metadata(&file).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o600);
+        owner_only(&dir.path().join("server.sqlite-wal")).unwrap();
+    }
 
     #[test]
     fn folders_are_the_visible_directories_under_the_root() {
