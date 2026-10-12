@@ -1,4 +1,4 @@
-/* Sharing between people on one Universo (ADR 0081): the tree's mark on a
+/* Sharing between people on one UniVerso (ADR 0081): the tree's mark on a
    shared folder, the share dialog, a link out of what was shared, and the
    folder switcher's groups. */
 .share-mark { display: inline-flex; align-items: center; margin-left: .3rem; color: var(--brass-ink); flex: none; }

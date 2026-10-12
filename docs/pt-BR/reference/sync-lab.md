@@ -2,7 +2,7 @@
 
 [English](../../reference/sync-lab.md)
 
-Um Universo nesta máquina, um vault de teste e as ferramentas para exercitar
+Um UniVerso nesta máquina, um vault de teste e as ferramentas para exercitar
 a sincronização ([ADR 0079](../adr/0079-sync-a-local-folder-with-a-server.md))
 com apps de verdade e muitos aparelhos, guardados entre uma rodada e outra
 para que toda campanha comece do mesmo lugar e todo teste de carga seja

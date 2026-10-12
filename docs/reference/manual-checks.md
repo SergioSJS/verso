@@ -19,9 +19,9 @@ in the real app.
 
 ## Not yet checked
 
-### Sync and Universo (feat/universo, 2026-10-11)
+### Sync and UniVerso (feat/universo, 2026-10-11)
 
-- [ ] **Two people share folders on one Universo** (ADR 0081, 2026-10-11):
+- [ ] **Two people share folders on one UniVerso** (ADR 0081, 2026-10-11):
   two accounts, two browsers (and the desktop app). Sérgio right-clicks a
   folder of his vault, *Compartilhar…*, Ana's e-mail, *edita*; Ana's
   folder button lists it under *Compartilhados comigo* as "Pasta
@@ -49,7 +49,7 @@ in the real app.
   reopen the folder: the notice is still there and sync does not start.
   Turn sync on again with another folder: the notice is gone.
 - [ ] **The device approval page says who asked** (threat model gap 12,
-  `5838c10`): *Ajustes › Servidores*, connect to the Universo; the page in
+  `5838c10`): *Ajustes › Servidores*, connect to the UniVerso; the page in
   the browser shows *Quem pediu* — this computer's name, the address the
   server sees for it, the time — then *Foi você quem pediu, neste
   aparelho?*, *Aprovar este aparelho: <nome>* and *Não fui eu: recusar*.
@@ -239,7 +239,7 @@ end-to-end tests cover the rest.
   deleting a file is allowed.
 - [ ] **Sync between two computers** (ADR 0079), with the installed app
   on the Mac and on another computer (the Windows VM), both signed in to
-  the same Universo: a folder synced from the Mac to a new folder there,
+  the same UniVerso: a folder synced from the Mac to a new folder there,
   then the same server folder synced into an empty folder on the other
   computer; an edit on one arrives on the other within seconds; a note
   edited on both while one is offline comes back as the server's version

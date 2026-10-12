@@ -719,7 +719,7 @@ rest below and in `manual-checks.md`.
 10. Sharing between people ([ADR 0081](../adr/0081-sharing-between-people-on-one-universo.md)),
    from note 23's "Compartilhar com outra pessoa" and the tour's stop: the
    demo vault has one account, so the other side is followed with two
-   browsers on a Universo. The folder button at the top of the side bar
+   browsers on a UniVerso. The folder button at the top of the side bar
    opens the switcher, *Neste computador*, *Meus*, *Compartilhados comigo*;
    a share opens from it (e2e, `shares.spec.mjs`, "the folder switcher").
    As the owner, a folder's menu › *Compartilhar…*: the dialog adds a person

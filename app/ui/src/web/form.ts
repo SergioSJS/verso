@@ -34,7 +34,7 @@ export function page(title: string, ...children: Node[]): HTMLElement {
   return main;
 }
 
-/** The server's mark: Verso's icon, Universo's name, and what it is
+/** The server's mark: Verso's icon, UniVerso's name, and what it is
  *  (ADR 0078 item 5). */
 export function brand(size: number): HTMLElement {
   const s = w();

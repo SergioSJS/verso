@@ -28,7 +28,7 @@
 - Revisions: 2026-10-10 — item 4's "limits come later" superseded by
   [0077](0077-the-server-administration-console-and-folder-quotas.md)
   (quotas per folder now); the server's package, image and paths renamed
-  Universo by [0078](0078-universo-the-name-of-verso-as-a-server.md);
+  UniVerso by [0078](0078-universo-the-name-of-verso-as-a-server.md);
   both accepted by the maintainer that day.
   2026-10-12 — `VERSO_UPDATE_CHECK` (item 7) accepted by the maintainer
   as built, answering the ADR audit in session:

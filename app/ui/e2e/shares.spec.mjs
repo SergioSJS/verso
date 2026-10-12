@@ -1,4 +1,4 @@
-// Walkthrough, section 11: sharing between people on one Universo (ADR
+// Walkthrough, section 11: sharing between people on one UniVerso (ADR
 // 0081). The harness has no server: a test stands in for it by answering
 // the share commands, the server's folders and a note's links as a server
 // would — the window's part is what is tried here: the folder switcher's

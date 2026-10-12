@@ -111,22 +111,22 @@ x-casaos:
   # Consequences) brings an icon.svg of its own.
   icon: https://raw.githubusercontent.com/SergioSJS/verso/main/app/src-tauri/icons/128x128@2x.png
   title:
-    en_US: Universo
-    pt_BR: Universo
+    en_US: UniVerso
+    pt_BR: UniVerso
   tagline:
     en_US: The Verso server: Markdown notes, Obsidian-compatible, on your own server
     pt_BR: O servidor do Verso: notas em Markdown, compatíveis com o Obsidian, no seu próprio servidor
   description:
     en_US: |
       Verso is a Markdown notes app compatible with Obsidian's folders. This is
-      its self-hosted server, Universo: open your folders of notes in a browser, on a
+      its self-hosted server, UniVerso: open your folders of notes in a browser, on a
       phone or an iPad, and share a folder with other people.
 
       The notes stay plain files in the folders directory. Whoever hosts the
       server can read them: there is no end-to-end encryption.
     pt_BR: |
       O Verso é um app de notas em Markdown compatível com as pastas do
-      Obsidian. Este é o servidor dele, auto-hospedado, o Universo: abra suas pastas de
+      Obsidian. Este é o servidor dele, auto-hospedado, o UniVerso: abra suas pastas de
       notas no navegador, no celular ou no iPad, e compartilhe uma pasta com
       outras pessoas.
 

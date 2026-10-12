@@ -968,7 +968,7 @@ fn serve(command: &Command, lang: Lang, mut out: Output) -> Output {
             return with_code(out, 3);
         }
     };
-    // Where the packages put the window, beside the binary: Universo's
+    // Where the packages put the window, beside the binary: UniVerso's
     // under share/universo (ADR 0078), the command line's under share/verso.
     let ui = std::env::current_exe()
         .ok()
@@ -1028,7 +1028,7 @@ fn emit(mut sink: impl Write, lines: &[String]) {
     let _ = sink.flush();
 }
 
-/// Universo is Verso as a server (ADR 0078): the binary started by that
+/// UniVerso is Verso as a server (ADR 0078): the binary started by that
 /// name — the server's packages install it as `universo` — runs `verso
 /// serve`, so `universo`, `universo --web` and `universo admin reset
 /// <e-mail>` are the server's own commands; `--help` and `--version` stay

@@ -8,7 +8,7 @@ tags:
 
 # Verso num Servidor
 
-O **Universo** é o Verso sem janela, numa máquina sua — um servidor em casa, um NAS, uma nuvem qualquer. As notas continuam **pastas comuns de arquivos Markdown** no disco dele; você as abre num navegador, no computador, no celular ou no tablet, e várias pessoas podem trabalhar na mesma pasta.
+O **UniVerso** é o Verso sem janela, numa máquina sua — um servidor em casa, um NAS, uma nuvem qualquer. As notas continuam **pastas comuns de arquivos Markdown** no disco dele; você as abre num navegador, no computador, no celular ou no tablet, e várias pessoas podem trabalhar na mesma pasta.
 
 > [!NOTE] Quem hospeda vê as notas
 > O servidor lê os arquivos para buscar e para editar junto: não há criptografia de ponta a ponta. Quem roda a máquina vê o que está nela, como num Notion seu.
@@ -103,7 +103,7 @@ Boards, bases e anexos continuam cruzando como arquivos.
 
 ## Compartilhar com outra pessoa
 
-Cada pessoa tem o seu vault no mesmo Universo. Para dividir **uma pasta** do seu com outra pessoa, clique com o botão direito na pasta, na árvore, e escolha **Compartilhar…**: escreva o e-mail da conta dela neste servidor e o papel — **lê** ou **edita**. Para dividir **o vault todo**, o mesmo diálogo no menu da raiz da árvore, **Compartilhar a pasta toda…**. Só a dona da pasta compartilha; quem recebe não repassa.
+Cada pessoa tem o seu vault no mesmo UniVerso. Para dividir **uma pasta** do seu com outra pessoa, clique com o botão direito na pasta, na árvore, e escolha **Compartilhar…**: escreva o e-mail da conta dela neste servidor e o papel — **lê** ou **edita**. Para dividir **o vault todo**, o mesmo diálogo no menu da raiz da árvore, **Compartilhar a pasta toda…**. Só a dona da pasta compartilha; quem recebe não repassa.
 
 A pasta compartilhada ganha uma marquinha de pessoa na árvore. No diálogo, mude o papel de alguém ou tire o acesso — o diálogo pergunta antes, e as janelas abertas dessa pessoa fecham a pasta na hora. O que ela já tinha sincronizado continua no computador dela, e a sincronização desse compartilhamento é **desligada**: a barra de status e Ajustes › Sincronizar dizem que quem compartilhou revogou o acesso, e quando.
 
@@ -111,7 +111,7 @@ Se as notas da pasta mostram imagens guardadas **fora** dela — a pasta de anex
 
 Quem recebe vê a pasta como uma pasta **sua**, com o nome dela e o da dona — *Campanha (Sérgio)* — em **Compartilhados comigo**: no botão da pasta, no topo da barra lateral (que agrupa **Neste computador**, **Meus** e **Compartilhados comigo**), em Ajustes › Servidores e na conta no navegador. Ela abre numa janela própria e, no app desktop, sincroniza com uma pasta deste computador só dela — nunca dentro do seu vault. Nada de fora da pasta compartilhada chega a ela: um link para uma nota de fora aparece como **não está no que foi compartilhado com você**, sem criar nota.
 
-Este vault de demonstração não tem duas contas: para ver o outro lado, use dois navegadores num Universo.
+Este vault de demonstração não tem duas contas: para ver o outro lado, use dois navegadores num UniVerso.
 
 ---
 

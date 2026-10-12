@@ -17,7 +17,7 @@
   item 3, nomes que todo sistema guarda), [0011](0011-config-outside-tree-index-as-cache.md)
   (estado fora da pasta), [0074](0074-accounts-and-access-on-the-server.md)
   (a sessão de aparelho, os papéis), [0077](0077-the-server-administration-console-and-folder-quotas.md)
-  (cotas), [0078](0078-universo-the-name-of-verso-as-a-server.md) (Universo).
+  (cotas), [0078](0078-universo-the-name-of-verso-as-a-server.md) (UniVerso).
 - Status no briefing: ausente; ao ser aceito.
 - Revisões: 2026-10-10 — depois da revisão e da campanha de sync do mesmo
   dia, o mantenedor ficou com a resposta recomendada a cada questão que

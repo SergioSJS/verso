@@ -21,7 +21,7 @@ import { drawSyncOn } from "./syncView";
 const pt = {
   section: "Sincronizar",
   title: "Sincronizar com um servidor",
-  desc: "Esta pasta continua neste computador — abre sem rede, o Obsidian lê, o backup copia — e um Universo guarda os mesmos arquivos para os seus outros aparelhos, o navegador e quem divide a pasta com você.",
+  desc: "Esta pasta continua neste computador — abre sem rede, o Obsidian lê, o backup copia — e um UniVerso guarda os mesmos arquivos para os seus outros aparelhos, o navegador e quem divide a pasta com você.",
   noServer: "Conecte a um servidor em Servidores primeiro.",
   toServers: "Ir para Servidores",
   server: "Servidor",
@@ -33,7 +33,7 @@ const pt = {
   // The form while off, read in three seconds: where the folder is now,
   // what syncing gives, where it goes, what the first pass does.
   onlyHere: (name: string) => `${name} está só neste computador.`,
-  lede: "Com um Universo, os mesmos arquivos ficam nos seus outros aparelhos, no navegador e com quem divide a pasta com você. Ela continua aqui também: abre sem rede, o Obsidian lê, o backup copia.",
+  lede: "Com um UniVerso, os mesmos arquivos ficam nos seus outros aparelhos, no navegador e com quem divide a pasta com você. Ela continua aqui também: abre sem rede, o Obsidian lê, o backup copia.",
   account: (host: string, name: string) => `${host} · ${name}`,
   space: (files: number, size: string) => `Esta pasta tem ${files} arquivos, ${size}.`,
   firstSafe: "Na primeira vez, nada é apagado.",
@@ -116,7 +116,7 @@ const pt = {
 const en: typeof pt = {
   section: "Sync",
   title: "Sync with a server",
-  desc: "This folder stays on this computer — it opens offline, Obsidian reads it, the backup copies it — and a Universo keeps the same files for your other devices, the browser and whoever shares the folder with you.",
+  desc: "This folder stays on this computer — it opens offline, Obsidian reads it, the backup copies it — and a UniVerso keeps the same files for your other devices, the browser and whoever shares the folder with you.",
   noServer: "Connect to a server in Servers first.",
   toServers: "Go to Servers",
   server: "Server",
@@ -126,7 +126,7 @@ const en: typeof pt = {
   newName: "The new folder's name",
   role: (r: string) => (r === "owner" ? "owner" : r === "editor" ? "edits" : "reads only"),
   onlyHere: (name: string) => `${name} is only on this computer.`,
-  lede: "With a Universo, the same files are on your other devices, in the browser and with whoever shares the folder with you. It stays here too: it opens offline, Obsidian reads it, the backup copies it.",
+  lede: "With a UniVerso, the same files are on your other devices, in the browser and with whoever shares the folder with you. It stays here too: it opens offline, Obsidian reads it, the backup copies it.",
   account: (host: string, name: string) => `${host} · ${name}`,
   space: (files: number, size: string) => `This folder has ${files} files, ${size}.`,
   firstSafe: "The first time, nothing is deleted.",

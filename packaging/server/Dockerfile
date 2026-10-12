@@ -1,4 +1,4 @@
-# Universo's image, the Verso server (ADR 0075 item 2, ADR 0078): the
+# UniVerso's image, the Verso server (ADR 0075 item 2, ADR 0078): the
 # binary started as `universo` — `verso serve` — nothing else.
 #
 # Nothing is compiled here. The release workflow (.github/workflows/release.yml,
@@ -30,7 +30,7 @@
 FROM --platform=$BUILDPLATFORM alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6 AS prep
 RUN mkdir -p /out/etc /out/data /out/folders /out/home/universo \
  && cp /etc/passwd /etc/group /out/etc/ \
- && echo 'universo:x:1000:1000:Universo:/home/universo:/sbin/nologin' >> /out/etc/passwd \
+ && echo 'universo:x:1000:1000:UniVerso:/home/universo:/sbin/nologin' >> /out/etc/passwd \
  && echo 'universo:x:1000:' >> /out/etc/group
 
 FROM alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
@@ -38,8 +38,8 @@ FROM alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4c
 # Set by buildx for each platform it builds (amd64, arm64).
 ARG TARGETARCH
 
-LABEL org.opencontainers.image.title="Universo" \
-      org.opencontainers.image.description="Universo: the Verso server — the Verso core without a window, served to a browser (self-hosted)" \
+LABEL org.opencontainers.image.title="UniVerso" \
+      org.opencontainers.image.description="UniVerso: the Verso server — the Verso core without a window, served to a browser (self-hosted)" \
       org.opencontainers.image.source="https://github.com/SergioSJS/verso" \
       org.opencontainers.image.url="https://versomd.com" \
       org.opencontainers.image.licenses="MPL-2.0" \

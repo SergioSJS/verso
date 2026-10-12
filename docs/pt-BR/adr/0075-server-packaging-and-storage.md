@@ -28,7 +28,7 @@
 - Revisões: 2026-10-10 — o "limites depois" do item 4 substituído pela
   [0077](0077-the-server-administration-console-and-folder-quotas.md)
   (cotas por pasta agora); o pacote, a imagem e os caminhos do servidor
-  renomeados Universo pela [0078](0078-universo-the-name-of-verso-as-a-server.md);
+  renomeados UniVerso pela [0078](0078-universo-the-name-of-verso-as-a-server.md);
   as duas aceitas pelo mantenedor naquele dia.
   2026-10-12 — o `VERSO_UPDATE_CHECK` (item 7) aceito pelo mantenedor
   como construído, respondendo à auditoria dos ADRs em sessão:

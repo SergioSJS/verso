@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Load test of a Universo's sync (ADR 0079; docs/reference/sync-lab.md):
+// Load test of a UniVerso's sync (ADR 0079; docs/reference/sync-lab.md):
 // many devices at once against a running server, and the files checked
 // byte for byte at the end.
 //

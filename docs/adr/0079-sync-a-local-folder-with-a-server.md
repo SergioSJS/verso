@@ -17,7 +17,7 @@
   item 3, names every OS can keep), [0011](0011-config-outside-tree-index-as-cache.md)
   (state outside the folder), [0074](0074-accounts-and-access-on-the-server.md)
   (the device session, roles), [0077](0077-the-server-administration-console-and-folder-quotas.md)
-  (quotas), [0078](0078-universo-the-name-of-verso-as-a-server.md) (Universo).
+  (quotas), [0078](0078-universo-the-name-of-verso-as-a-server.md) (UniVerso).
 - Status in the briefing: not present; on acceptance.
 - Revisions: 2026-10-10 — after the review and the sync campaign of the
   same day, the maintainer took the recommended answer to each question

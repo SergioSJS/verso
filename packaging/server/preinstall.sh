@@ -12,6 +12,6 @@ if ! getent passwd universo >/dev/null 2>&1; then
   nologin=/usr/sbin/nologin
   [ -x "$nologin" ] || nologin=/sbin/nologin
   useradd --system --gid universo --home-dir /var/lib/universo --no-create-home \
-    --shell "$nologin" --comment "Universo, the Verso server" universo
+    --shell "$nologin" --comment "UniVerso, the Verso server" universo
 fi
 exit 0

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // The sync lab's server, made ready (docs/reference/sync-lab.md): on a
-// running Universo whose first admin came from the environment, three
+// running UniVerso whose first admin came from the environment, three
 // people — the admin, Ana and Bia, both editors — and two folders: the
 // seeded vault "Caderno" and an empty "Carga" for the load test. Writes
 // what a device or a test needs to <lab>/lab.json.
