@@ -283,9 +283,30 @@ pub struct Server {
     pub ceremonies: crate::passkeys::Ceremonies,
     /// The runtime, for what the watcher's thread hands over.
     pub runtime: std::sync::OnceLock<tokio::runtime::Handle>,
+    /// The sync this server speaks (ADR 0079 item 5): its own,
+    /// `verso_core::sync::PROTOCOL`, unless [`Server::speak_sync`] set an
+    /// older one.
+    sync: std::sync::atomic::AtomicU32,
 }
 
 impl Server {
+    /// The sync this server speaks: what its hello says, and whether a
+    /// piece of a file crosses as a binary message.
+    #[must_use]
+    pub fn sync(&self) -> u32 {
+        self.sync.load(Ordering::Relaxed)
+    }
+
+    /// Speak an older sync than this build's, as a server of the version
+    /// before would: a device of a newer sync is tested against it (ADR
+    /// 0079 item 5: the newer side follows the version before). Nothing
+    /// else changes: what the version before lacks, a device of it never
+    /// asks for.
+    pub fn speak_sync(&self, version: u32) {
+        self.sync
+            .store(version.min(verso_core::sync::PROTOCOL), Ordering::Relaxed);
+    }
+
     pub fn new(config: Config, db: Db, contract: String, commit: String) -> Arc<Self> {
         let service = Service::new(Some(config.data_dir.join("indexes")));
         let slots = crate::listen::Slots::new(config.trusted_proxy);
@@ -310,6 +331,7 @@ impl Server {
             mail: std::sync::OnceLock::new(),
             signin_links: Mutex::new(HashMap::new()),
             runtime: std::sync::OnceLock::new(),
+            sync: std::sync::atomic::AtomicU32::new(verso_core::sync::PROTOCOL),
         });
         service.set_events(Arc::new(ServerEvents {
             server: Arc::downgrade(&server),

@@ -1092,3 +1092,5 @@ mod tests_remote;
 mod tests_shares;
 #[cfg(test)]
 mod tests_sync;
+#[cfg(test)]
+mod tests_sync1;

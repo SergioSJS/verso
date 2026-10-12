@@ -135,10 +135,13 @@ pub async fn upgrade(ctx: Ctx, ws: WebSocketUpgrade) -> ApiResult<Response> {
         .get(verso_core::sync::PROTOCOL_HEADER)
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.trim().parse::<u32>().ok());
-    let sync_refused = sync_refusal(sync, verso_core::sync::PROTOCOL);
+    let ours = ctx.server.sync();
+    let sync_refused = sync_refusal(sync, ours);
     // A device of sync 2 takes a piece of a file as a binary message; one
-    // of sync 1, or one that says none, as base64 in the JSON.
-    let binary = sync.is_some_and(verso_core::sync::binary_pieces);
+    // of sync 1, or one that says none, as base64 in the JSON — and so
+    // does every device of a server that speaks sync 1.
+    let binary =
+        verso_core::sync::binary_pieces(ours) && sync.is_some_and(verso_core::sync::binary_pieces);
     let places = places(&ctx, &who)?;
     let server = Arc::clone(&ctx.server);
     Ok(ws
@@ -229,7 +232,7 @@ async fn run(
         "version": env!("CARGO_PKG_VERSION"),
         "commit": server.commit,
         "contract": server.contract,
-        "sync": verso_core::sync::PROTOCOL,
+        "sync": server.sync(),
         "account": crate::api::account_json(&who.account),
     }});
     // A device older than the sync this server follows is told so in the
