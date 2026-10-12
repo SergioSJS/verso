@@ -340,6 +340,18 @@ pub fn router(server: Arc<Server>) -> Router {
         )
         .route("/api/folders/{id}/audit", get(crate::folders::audit))
         .route(
+            "/api/folders/{id}/shares",
+            get(crate::shares::list).put(crate::shares::grant),
+        )
+        .route(
+            "/api/folders/{id}/shares/revoke",
+            post(crate::shares::revoke),
+        )
+        .route(
+            "/api/folders/{id}/shares/attachments",
+            axum::routing::put(crate::shares::attachments),
+        )
+        .route(
             "/api/admin/accounts",
             get(crate::console::accounts).post(crate::admin::create_account),
         )

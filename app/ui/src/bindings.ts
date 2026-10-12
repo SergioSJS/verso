@@ -373,6 +373,32 @@ export const commands = {
 	 *  folder, connects, and from now on sends the folder's commands there.
 	 */
 	serverOpen: (url: string, folder: string) => typedError<FolderInfo, ContractError>(__TAURI_INVOKE("server_open", { url, folder })),
+	/**
+	 *  The shares of the window's folder: the whole folder's people first,
+	 *  then each folder inside it shared, by path (ADR 0081 item 7).
+	 */
+	shareList: () => typedError<FolderShare[], ContractError>(__TAURI_INVOKE("share_list")),
+	/**
+	 *  Share the folder at `path` (`""` the whole folder) with the account of
+	 *  `email`, reading or writing, or change their role.
+	 */
+	shareGrant: (path: string, email: string, role: string) => typedError<FolderShare, ContractError>(__TAURI_INVOKE("share_grant", { path, email, role })),
+	/**
+	 *  Take a person out of the share at `path`, or remove the share when no
+	 *  person is named (item 8).
+	 */
+	shareRevoke: (path: string, account: string | null) => typedError<FolderShare, ContractError>(__TAURI_INVOKE("share_revoke", { path, account })),
+	/**
+	 *  Show the attachments folder with the share at `path`, read-only, or
+	 *  stop showing it (item 11).
+	 */
+	shareAttachments: (path: string, attachments: string | null) => typedError<FolderShare, ContractError>(__TAURI_INVOKE("share_attachments", { path, attachments })),
+	/**
+	 *  The folders of this computer opened before, freshest first, for the
+	 *  folder switcher's "On this computer" (ADR 0081 item 5): names and keys,
+	 *  no path.
+	 */
+	recentFolders: () => __TAURI_INVOKE<RecentFolder[]>("recent_folders"),
 	/**  The window's folder's sync: off, or its state. */
 	folderSync: () => typedError<SyncStatus, ContractError>(__TAURI_INVOKE("folder_sync")),
 	/**
@@ -987,6 +1013,21 @@ export type FolderInfo = {
 };
 
 /**
+ *  A folder of the open folder as its owner shares it (ADR 0081 item 7):
+ *  the path inside the open folder — `""` for the whole folder, whose
+ *  people are its members — who has access and in which role, and the
+ *  attachments folder shown with it, read-only (item 11).
+ */
+export type FolderShare = {
+	id: string | null,
+	path: string,
+	people: SharePerson[],
+	attachments: string | null,
+	/**  The share points at a folder that is gone (item 13). */
+	missing: boolean,
+};
+
+/**
  *  The space a folder takes (ADR 0075 item 4): counted from the walk the
  *  index already makes, never by a walk of its own. Bytes, as numbers the
  *  window can show.
@@ -1090,6 +1131,12 @@ export type Link = {
 	alias: string | null,
 	line: number,
 	col: number,
+	/**
+	 *  The note or file it resolves to is not in what was shared with the
+	 *  person (ADR 0081 item 11): shown like an unresolved link, and never
+	 *  made into a note. Nothing else of it crosses.
+	 */
+	outside?: boolean,
 };
 
 /**
@@ -1248,6 +1295,16 @@ export type PropertyValue = { kind: "text"; value: string } | { kind: "number"; 
 /**  Machine-readable code for the reason `.space/waypoints.json` is read-only (ADR 0062). */
 export type ReadOnlyReasonCode = "cloud_placeholder" | "invalid_json" | "unknown_format";
 
+/**
+ *  A folder of this computer opened before, for the folder switcher's
+ *  "On this computer" (ADR 0081 item 5): its name and the key
+ *  `reopen_folder` takes — never its path (ADR 0026 rule 4).
+ */
+export type RecentFolder = {
+	key: string,
+	name: string,
+};
+
 /**  An entry a move left where it was, and why. */
 export type RefusedEntry = {
 	path: string,
@@ -1299,6 +1356,18 @@ export type ServerFolder = {
 	id: string,
 	name: string,
 	role: string,
+	/**
+	 *  Whose it is, when it is someone else's — a whole folder or a share
+	 *  (ADR 0081 item 5): it is listed under "Shared with me".
+	 */
+	owner?: string | null,
+	/**
+	 *  A folder inside someone's folder, shared with this account (ADR
+	 *  0081 item 2).
+	 */
+	share?: boolean,
+	/**  The shared folder is no longer where the share points (item 13). */
+	missing?: boolean,
 };
 
 /**
@@ -1308,6 +1377,18 @@ export type ServerFolder = {
 export type ServerSignIn = {
 	code: string,
 	page: string,
+};
+
+/**
+ *  A person who has access to a shared folder, and in which role (ADR
+ *  0081 item 7).
+ */
+export type SharePerson = {
+	id: string,
+	name: string,
+	email: string,
+	/**  `owner`, `editor` (writes) or `reader` (reads only). */
+	role: string,
 };
 
 /**  Why a note that links to what moved got no rewrite. */

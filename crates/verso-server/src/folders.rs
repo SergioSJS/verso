@@ -27,18 +27,14 @@ pub fn space(ctx: &Ctx, id: &str) -> serde_json::Value {
         .unwrap_or(serde_json::Value::Null)
 }
 
+/// The folders the person may enter — their own, the ones others own and
+/// the shares given to them, each with its owner (ADR 0081 item 5) — and,
+/// for an owner, the shares of their folders ("Shared by me").
 pub async fn mine(ctx: Ctx) -> ApiResult<Response> {
     let who = ctx.who()?;
-    let list: Vec<_> = ctx
-        .server
-        .db
-        .folders_of(&who.account.id)?
-        .into_iter()
-        .filter(|(f, _)| who.reaches(&f.id).0)
-        .map(|(f, role)| json!({ "id": f.id, "name": f.dir, "role": role, "space": space(&ctx, &f.id) }))
-        .collect();
+    let (folders, by_me) = crate::shares::listing(&ctx, who)?;
     Ok(ok(
-        json!({ "folders": list, "mayCreate": who.account.may_create }),
+        json!({ "folders": folders, "mayCreate": who.account.may_create, "byMe": by_me }),
     ))
 }
 
@@ -117,24 +113,38 @@ pub async fn set_member(
     ctx.changes()?;
     let who = ctx.person()?;
     crate::access::at_least(&ctx.server, who, &id, Role::Owner)?;
-    let target = match ctx.server.db.account(&account)? {
-        Some(a) => a,
-        None => ctx.server.db.account_by_email(&account)?.ok_or_else(|| {
-            ApiError::bad("no_account", "no account has that e-mail: invite them")
-        })?,
-    };
-    if body.role != Role::Owner && last_owner(&ctx, &id, &target.id)? {
+    grant_whole(&ctx, &id, &account, body.role)?;
+    Ok(ok(json!(null)))
+}
+
+/// An account named by id or by e-mail.
+pub(crate) fn named(ctx: &Ctx, account: &str) -> ApiResult<crate::db::Account> {
+    match ctx.server.db.account(account)? {
+        Some(a) => Ok(a),
+        None => {
+            ctx.server.db.account_by_email(account)?.ok_or_else(|| {
+                ApiError::bad("no_account", "no account has that e-mail: invite them")
+            })
+        }
+    }
+}
+
+/// The whole folder granted to `account` in `role`, the owner already
+/// checked: the share of the root (ADR 0081 item 1).
+pub(crate) fn grant_whole(ctx: &Ctx, id: &str, account: &str, role: Role) -> ApiResult<()> {
+    let target = named(ctx, account)?;
+    if role != Role::Owner && last_owner(ctx, id, &target.id)? {
         return Err(ApiError::bad("last_owner", "a folder keeps an owner"));
     }
-    ctx.server.db.grant(&id, &target.id, body.role)?;
-    ctx.server.role_changed(&id, &target.id, Some(body.role));
+    ctx.server.db.grant(id, &target.id, role)?;
+    ctx.server.role_changed(id, &target.id, Some(role));
     ctx.audit(
-        &format!("grant_{}", body.role.as_str()),
+        &format!("grant_{}", role.as_str()),
         Some(&target.id),
-        Some(&id),
+        Some(id),
         true,
     );
-    Ok(ok(json!(null)))
+    Ok(())
 }
 
 pub async fn remove_member(
@@ -154,9 +164,15 @@ pub async fn remove_member(
     } else {
         crate::access::role(&ctx.server, who, &id)?;
     }
+    revoke_whole(&ctx, &id, named)?;
+    Ok(ok(json!(null)))
+}
+
+/// `account` out of the whole folder, who may do it already checked.
+pub(crate) fn revoke_whole(ctx: &Ctx, id: &str, account: Option<String>) -> ApiResult<()> {
     // One that is not a member is said, never answered as done.
-    let account = match named {
-        Some(a) if ctx.server.db.role(&id, &a)?.is_some() => a,
+    let account = match account {
+        Some(a) if ctx.server.db.role(id, &a)?.is_some() => a,
         _ => {
             return Err(ApiError::new(
                 axum::http::StatusCode::NOT_FOUND,
@@ -165,13 +181,13 @@ pub async fn remove_member(
             ));
         }
     };
-    if last_owner(&ctx, &id, &account)? {
+    if last_owner(ctx, id, &account)? {
         return Err(ApiError::bad("last_owner", "a folder keeps an owner"));
     }
-    ctx.server.db.revoke(&id, &account)?;
-    ctx.server.role_changed(&id, &account, None);
-    ctx.audit("revoke", Some(&account), Some(&id), true);
-    Ok(ok(json!(null)))
+    ctx.server.db.revoke(id, &account)?;
+    ctx.server.role_changed(id, &account, None);
+    ctx.audit("revoke", Some(&account), Some(id), true);
+    Ok(())
 }
 
 /// Whether `account` is the folder's only owner.

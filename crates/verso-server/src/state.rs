@@ -138,8 +138,40 @@ pub struct Client {
     pub account: String,
     /// The session the connection was opened with; none for a token's.
     pub session: Option<String>,
+    /// The folder it shows — the owner's, when it opened a share — and its
+    /// role there.
     pub folder: Option<(String, Role)>,
+    /// The share it opened (ADR 0081 item 2): every path it sends and
+    /// hears goes through it.
+    pub scope: Option<crate::scope::Scope>,
+    /// Whether its credential may write at all: a token that only reads
+    /// may not, whatever the role.
+    pub token_write: bool,
     pub tx: Outbox,
+}
+
+impl Client {
+    /// `message` as this window may hear it: none when it shows no folder
+    /// (an event is always of a folder), re-rooted when it opened a share.
+    fn hears(&self, message: &Push) -> Option<Push> {
+        if message.get("event").is_some() && self.folder.is_none() {
+            return None;
+        }
+        match &self.scope {
+            Some(scope) => scope.push(message),
+            None => Some(message.clone()),
+        }
+    }
+
+    fn send_frame(&self, frame: &Frame, message: &Push) {
+        if self.scope.is_none() {
+            if message.get("event").is_none() || self.folder.is_some() {
+                self.tx.send_frame(frame);
+            }
+        } else if let Some(m) = self.hears(message) {
+            self.tx.send(&m);
+        }
+    }
 }
 
 pub struct Server {
@@ -227,7 +259,7 @@ impl Server {
         let table = lock(&self.clients);
         for id in clients {
             if let Some(c) = table.get(id) {
-                c.tx.send_frame(&frame);
+                c.send_frame(&frame, message);
             }
         }
     }
@@ -238,7 +270,7 @@ impl Server {
         let table = lock(&self.clients);
         for c in table.values() {
             if c.folder.as_ref().is_some_and(|(f, _)| f == folder) {
-                c.tx.send_frame(&frame);
+                c.send_frame(&frame, message);
             }
         }
     }
@@ -248,7 +280,7 @@ impl Server {
         let frame = Frame::of(message);
         let table = lock(&self.clients);
         for c in table.values().filter(|c| c.account == account) {
-            c.tx.send_frame(&frame);
+            c.send_frame(&frame, message);
         }
     }
 
@@ -275,20 +307,42 @@ impl Server {
     /// that show it learn it, and one that may no longer see it is told to
     /// leave.
     pub fn role_changed(&self, folder: &str, account: &str, role: Option<Role>) {
-        let mut table = lock(&self.clients);
-        for c in table.values_mut() {
-            if c.account == account && c.folder.as_ref().is_some_and(|(f, _)| f == folder) {
-                match role {
-                    Some(r) => {
-                        c.folder = Some((folder.to_owned(), r));
-                        c.tx.send(&serde_json::json!({ "role": r }));
-                    }
-                    None => {
-                        c.folder = None;
-                        c.tx.send(&serde_json::json!({ "gone": "folder" }));
+        let mut gone = Vec::new();
+        {
+            let mut table = lock(&self.clients);
+            for (id, c) in table.iter_mut() {
+                if c.account == account
+                    && c.scope.is_none()
+                    && c.folder.as_ref().is_some_and(|(f, _)| f == folder)
+                {
+                    match role {
+                        Some(r) => {
+                            c.folder = Some((folder.to_owned(), r));
+                            c.tx.send(&serde_json::json!({ "role": r }));
+                        }
+                        None => {
+                            c.folder = None;
+                            c.tx.send(&serde_json::json!({ "gone": "folder" }));
+                            gone.push(id.clone());
+                        }
                     }
                 }
             }
+        }
+        self.left(&gone);
+        // A role of the whole folder counts in its shares too (ADR 0081
+        // item 14).
+        crate::shares::refresh(self, folder);
+    }
+
+    /// Windows that may no longer see their folder leave it: out of its
+    /// rooms, its transfers dropped, the folder no longer held for them —
+    /// nothing more of it reaches them.
+    pub fn left(&self, clients: &[String]) {
+        for client in clients {
+            self.transfers.forget(client);
+            crate::collab::gone_now(self, client);
+            self.service.release(client);
         }
     }
 }
