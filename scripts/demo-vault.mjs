@@ -136,6 +136,11 @@ function unportable(name) {
 function problems() {
   const files = vaultFiles();
   const said = [];
+  // The tutorial carries no folder settings (ADR 0070): imported, it is
+  // the person's folder, and its `.verso/` is made by their first change.
+  for (const p of files.filter((f) => f === ".verso" || f.startsWith(".verso/"))) {
+    said.push(`${p}: the tutorial carries no folder settings — only a change made in the app writes them (ADR 0070)`);
+  }
   for (const p of files) {
     for (const part of p.replace(/^demo-vault\//, "").split("/")) {
       if (unportable(part)) said.push(`${p}: "${part}" is a name not every system can keep (ADR 0070)`);

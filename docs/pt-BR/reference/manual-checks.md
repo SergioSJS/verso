@@ -260,6 +260,16 @@ testes de ponta a ponta cobrem o resto.
   uma cópia *(conflito, …)*, com a diferença em *Ajustes* ›
   *Sincronizar*; um vídeo grande cruza inteiro; o Obsidian, na pasta do
   Mac, vê as mudanças; o log diz o que cruzou e não tem `ERROR`.
+- [ ] **Os ajustes de uma pasta em dois computadores** (ADR 0070 itens
+  1–2), ao lado da conferência acima: no Mac, uma nota com estrela e
+  *Ignorar pastas de build* desligado na pasta sincronizada; no outro
+  computador, depois da sincronização, a estrela e a chave estão lá, cada
+  uma marcada *Da pasta*, e o `.verso/settings.json` as guarda; mudados
+  nos dois com um sem rede, a versão do servidor fica com o nome e o
+  `.verso/settings (conflito, …).json` fica ao lado; uma pasta nunca
+  marcada nem mudada não tem `.verso/`; uma pasta cujos favoritos o app
+  instalado já guardava antes desta versão abre com eles, levados para o
+  `.verso/settings.json` uma vez.
 - [ ] **Uma nota ao vivo em dois computadores** (ADR 0082), ao lado da
   verificação acima: a mesma nota aberta em Editar na pasta sincronizada
   do Mac, na do outro computador e num navegador; cada um vê o texto dos

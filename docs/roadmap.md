@@ -300,6 +300,7 @@ pendencies — "Carried from Phase 2", below.)*
 | 3.19 | The writes the properties panel and a PDF's quote make to a live note go through the room — decided 2026-10-12, not built yet; the next round | [0082](adr/0082-live-co-editing-of-a-synced-folder.md) Status |
 | 3.20 | Presence stamped by the server with the sender's account (the threat model's gap 11) — decided 2026-10-12, built (3bc56ae), merged by d2a72b0; 241c233 records the gap closed | [0073](adr/0073-self-hosted-server-first.md) item 6, `docs/reference/threat-model.md` |
 | 3.21 | The device approval page against device-code phishing (the threat model's gap 12) — decided 2026-10-12, built (5838c10), merged by d2a72b0; 241c233 records the gap closed | [0073](adr/0073-self-hosted-server-first.md) item 6, [0074](adr/0074-accounts-and-access-on-the-server.md) item 8, `docs/reference/threat-model.md` |
+| 3.22 | The folder's settings layer (ADR 0070 items 1–2): the bookmarks, the walk's rules and the folder note's name in `.verso/settings.json`, carried by sync — built 2026-10-12 | [0070](adr/0070-what-travels-with-the-folder.md) items 1–2, [0079](adr/0079-sync-a-local-folder-with-a-server.md) item 2 |
 
 Items 3.2 to 3.9 ship together, in the first release of the server
 (ADR 0073 item 12, revised on 2026-10-09). The window on every screen is

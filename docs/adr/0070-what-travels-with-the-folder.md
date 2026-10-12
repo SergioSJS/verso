@@ -29,6 +29,37 @@
   ADR audit in session: *"Ajuste tudo que precisar. Está aprovado os ADRs"*; the
   retention of a desktop folder in
   [0080](0080-the-trash-with-expiry-and-restore.md) waits on them.
+  2026-10-12 — items 1 and 2 built the same day, on the maintainer's
+  *"Ajuste todas essas pendências agora"* (branch `feat/folder-settings`):
+  the folder's layer is one file, `.verso/settings.json` — JSON, keys
+  sorted, two-space indentation, a final newline, unknown keys kept on
+  every write — holding `bookmarks`, `folderNoteName`, `ignoreBuildDirs`
+  and `respectGitignore`. Opening, walking and reading a folder never
+  create it; the first change does, by a create that fails when something
+  stands there, and every later write goes over the version read
+  (invariants 7, 9, 11). When the folder has a usable file its values
+  apply, a key it does not set taking the default; when it has none, or
+  one that cannot be read now (a placeholder, not JSON), this machine's,
+  as before. On first opening a folder, the bookmarks this machine kept
+  for it move in once — only into a folder with no settings file, marked
+  moved on this machine; the file's first write carries this machine's
+  walk rules and folder note name when they are not the defaults, so its
+  creation changes nothing the person sees. `.verso/` and its plain
+  entries are the one hidden path `verso-fs` confines like a file and its
+  watcher reports; the walk, the index and the tree never list it, sync
+  lists it apart and carries it like any file — a conflict keeps the
+  other version beside it, in `.verso/` ([0079](0079-sync-a-local-folder-with-a-server.md)
+  item 8) —, and a share of a server's folder never carries it
+  ([0081](0081-sharing-between-people-on-one-universo.md)). Settings marks
+  each of the three "Of the folder" or "Of this machine". Two readings
+  the text did not settle, made by the author and `[OPEN]` for the
+  maintainer: "the ignored paths" read as [0044](0044-verso-fs-semantics.md)'s
+  ignored paths the window has settings for — the build folders and the
+  `.gitignore` switches, which the server already treated as the
+  folder's —, not "Hide from the tree", which
+  [0060](0060-makemd-organizing-features.md) says is not 0044's ignored
+  paths and which stays this machine's; and the file's name,
+  `settings.json`, which no document named.
 
 ## Context
 
@@ -62,7 +93,7 @@ those, the rule item 3 takes.
 ## Decision
 
 1. **Three layers of settings** (proposed; accepted on 2026-10-12, built
-   in the next round):
+   2026-10-12):
    - **the machine's**, never synced: the index, its sidecar, the log, the
      window's layout. Where they are today (ADR 0011 unchanged).
    - **the folder's**, synced with it because they are about it: what anyone
@@ -78,7 +109,7 @@ those, the rule item 3 takes.
      *(On a server, since 2026-10-09: the account is their home,
      [0073](0073-self-hosted-server-first.md) item 5.)*
 2. **The folder's layer, proposed contents** *(accepted on 2026-10-12,
-   built in the next round)*: the bookmarks, the ignored
+   built 2026-10-12, in `.verso/settings.json`)*: the bookmarks, the ignored
    paths, the folder note's name. On first opening a folder after this
    lands, what the machine kept for it moves into the folder once.
 3. **Names every OS can keep. Decided by the maintainer on 2026-10-08**:
@@ -130,10 +161,13 @@ those, the rule item 3 takes.
 
 Decided in parts: item 3 (2026-10-08); item 4's separator, `/`, and the
 hidden directory's name, `.verso/` (2026-10-09). Items 1 and 2, the
-folder's layer in `.verso/`: accepted on 2026-10-12, to be built in the
-next round; the retention of a desktop folder in
-[0080](0080-the-trash-with-expiry-and-restore.md) waits on them. *(Until
-2026-10-12: "Proposed: items 1 and 2.")*
+folder's layer in `.verso/`: accepted on 2026-10-12 and built the same
+day (Revisions); the retention of a desktop folder in
+[0080](0080-the-trash-with-expiry-and-restore.md) waited on them.
+`[OPEN]`, from the building: "the ignored paths" read as the build
+folders and the `.gitignore` switches, and the file's name,
+`settings.json` (Revisions). *(Until 2026-10-12: "Proposed: items 1 and
+2"; then "accepted, to be built in the next round".)*
 
 *(History, the lead until 2026-10-12:)* Proposed. Decided by the
 maintainer on 2026-10-08: item 3 (names every OS can keep, for what Verso

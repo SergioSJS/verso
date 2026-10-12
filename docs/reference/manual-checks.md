@@ -246,6 +246,15 @@ end-to-end tests cover the rest.
   and a copy *(conflito, …)*, its difference in *Ajustes* › *Sincronizar*;
   a large video crosses whole; Obsidian, on the Mac's folder, sees the
   changes; the log says what crossed and has no `ERROR`.
+- [ ] **A folder's settings on two computers** (ADR 0070 items 1–2),
+  beside the check above: on the Mac, a note starred and *Ignorar pastas
+  de build* turned off in the synced folder; on the other computer, after
+  the sync, the star and the switch are there, each marked *Da pasta*, and
+  `.verso/settings.json` holds them; changed on both while one is offline,
+  the server's version keeps the name and `.verso/settings (conflito, …).json`
+  sits beside it; a folder never starred or changed has no `.verso/`; a
+  folder whose bookmarks the installed app kept before this version opens
+  with them, moved into `.verso/settings.json` once.
 - [ ] **A note live on two computers** (ADR 0082), beside the check
   above: the same note open in Editar on the Mac's synced folder, on the
   other computer's and in a browser; each sees the others' text as they
