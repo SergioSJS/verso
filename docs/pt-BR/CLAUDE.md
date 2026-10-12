@@ -136,7 +136,7 @@ mudando o teste.
 | Allowlist de licenças npm sobre o lockfile da janela | pacote npm sob licença que o projeto não pode distribuir | Fase 2 |
 | Os testes unitários da janela (`npm test` em `app/ui`) | o modelo do board mudar o que grava sem ninguém ver | o board |
 | O cofre de exemplo construído das suas fontes e se sustentando | um embutido velho, um board editado à mão, um tutorial que não se sustenta | o tutorial |
-| Os testes de ponta a ponta da janela no Chromium ao lado do WebKit (`scripts/check.sh`) — o item 8 do [ADR 0069](adr/0069-windows-port.md), aceito em 2026-10-12 | uma janela que funciona no WebKit e quebra no WebView2 | o porte para Windows |
+| Os testes de ponta a ponta da janela no Chromium ao lado do WebKit (`scripts/check.sh`; no macOS sem capturas de janela, com um worker e o pre-flight do `app/ui/e2e/preflight.mjs`) — o item 8 do [ADR 0069](adr/0069-windows-port.md), aceito em 2026-10-12, revisado no mesmo dia | uma janela que funciona no WebKit e quebra no WebView2 | o porte para Windows |
 | Clippy e os testes no Windows por SSH (`scripts/check-windows.sh`), quando o diff toca código de plataforma | código morto ou diferente no Windows | o porte para Windows |
 
 CI ([ADR 0029](adr/0029-guardrails-in-ci.md), 2026-09-23): um pull request
