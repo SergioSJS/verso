@@ -153,7 +153,10 @@ Accepted (2026-10-10, Status).
    each change `sync_changes` answers may carry `device`, the name of
    the device whose sync made it, as the person set it in Settings ›
    Servers — item 4's "who made it" told to the devices; a device of
-   sync 1 ignores the field, and through a share it is left out.)*
+   sync 1 ignores the field, and through a share it is left out. The
+   same version 2 carries a piece of a file as a binary WebSocket message
+   instead of base64 — item 12, revised the same day; a side of sync 1 is
+   still sent and taken base64.)*
 6. **When**: on the local watcher's batches (debounced), on the server's
    pushes, at start and on reconnecting, and by a scan every five minutes
    as a net. Offline, nothing queues but the state's difference: when the
