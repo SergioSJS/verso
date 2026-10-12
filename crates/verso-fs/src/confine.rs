@@ -52,9 +52,9 @@ pub enum ConfinementError {
     ShortName,
     /// A new name that differs only in case from an entry its folder
     /// already lists — `nota.md` beside `Nota.md`: a Mac or Windows keeps
-    /// the two as one file (spec Q8, decided 2026-10-12). The window
-    /// tells it apart by its text's "differs only in case"
-    /// (`app/ui/src/errors.ts`), to say it in the person's language.
+    /// the two as one file (spec Q8, decided 2026-10-12). It crosses the
+    /// contract as its own kind, `ErrorKind::CaseTwin`, which the window
+    /// says in the person's language and sync lists as a name taken.
     CaseTwin,
 }
 

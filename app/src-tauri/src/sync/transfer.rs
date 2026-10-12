@@ -35,18 +35,11 @@ fn of_server(path: &str, e: &Value) -> Refusal {
         ErrorKind::Changed => Refusal::Again(path.to_owned(), e.message),
         ErrorKind::Exists => Refusal::File(path.to_owned(), "name_taken".to_owned(), e.message),
         ErrorKind::Quota => Refusal::File(path.to_owned(), "quota".to_owned(), e.message),
-        ErrorKind::Refused if case_twin(&e.message) => {
-            Refusal::File(path.to_owned(), "name_taken".to_owned(), e.message)
-        }
+        // A new name beside an entry that differs from it only in case
+        // (spec Q8, decided 2026-10-12): listed as a name taken.
+        ErrorKind::CaseTwin => Refusal::File(path.to_owned(), "name_taken".to_owned(), e.message),
         _ => Refusal::File(path.to_owned(), "failed".to_owned(), e.message),
     }
-}
-
-/// A new name refused beside an entry that differs from it only in case
-/// (spec Q8, decided 2026-10-12; `verso_fs::ConfinementError::CaseTwin`):
-/// listed as a name taken, here or on the server.
-fn case_twin(message: &str) -> bool {
-    message.contains("differs only in case")
 }
 
 /// A step here that failed. One whose file is gone since the listing —
@@ -71,7 +64,9 @@ fn of_here(ctx: &Ctx, s: &Syncer, path: &str, e: ContractError) -> Refusal {
             "name_taken".to_owned(),
             "another file here has this name, differing only in case or accents".to_owned(),
         ),
-        ErrorKind::Refused if case_twin(&e.message) => Refusal::File(
+        // A new name beside its case twin here (spec Q8), refused where
+        // it is made.
+        ErrorKind::CaseTwin => Refusal::File(
             path.to_owned(),
             "name_taken".to_owned(),
             "another file here has a name differing from this one only in case".to_owned(),
@@ -567,4 +562,27 @@ fn appended(
         ));
     }
     Ok(engine::append_merge(base, &mine, theirs))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn reason(r: &Refusal) -> Option<&str> {
+        match r {
+            Refusal::File(_, why, _) => Some(why.as_str()),
+            _ => None,
+        }
+    }
+
+    /// The server's refusal of a new name beside its case twin (spec Q8)
+    /// is told by its kind and listed as a name taken; a refusal of
+    /// another kind is not, whatever its text says.
+    #[test]
+    fn a_case_twin_on_the_server_is_listed_as_a_name_taken_by_its_kind() {
+        let twin = json!({"kind": "case_twin", "message": "a new name"});
+        assert_eq!(reason(&of_server("nota.md", &twin)), Some("name_taken"));
+        let other = json!({"kind": "refused", "message": "differs only in case"});
+        assert_eq!(reason(&of_server("nota.md", &other)), Some("failed"));
+    }
 }
