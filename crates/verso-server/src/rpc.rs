@@ -134,10 +134,60 @@ pub async fn upgrade(ctx: Ctx, ws: WebSocketUpgrade) -> ApiResult<Response> {
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.trim().parse::<u32>().ok());
     let sync_refused = sync_refusal(sync, verso_core::sync::PROTOCOL);
+    let places = places(&ctx, &who)?;
     let server = Arc::clone(&ctx.server);
     Ok(ws
         .max_message_size(MAX_MESSAGE)
-        .on_upgrade(move |socket| run(server, who, socket, sync_refused)))
+        .on_upgrade(move |socket| async move {
+            // Held as long as the connection.
+            let _places = places;
+            run(server, who, socket, sync_refused).await;
+        }))
+}
+
+/// The connection's places among its account's and its address's
+/// (threat-model.md, gap 4), or 429.
+fn places(ctx: &Ctx, who: &Who) -> ApiResult<Vec<crate::fair::Held>> {
+    let counts = &ctx.server.fair.connections;
+    let too_many = |what: &str, most: u32| {
+        crate::log::warn(&format!(
+            "a connection refused: {what} holds {most} already"
+        ));
+        ApiError {
+            retry: Some(30),
+            ..ApiError::new(
+                axum::http::StatusCode::TOO_MANY_REQUESTS,
+                "too_many",
+                format!("too many connections at once ({most} at most)"),
+            )
+        }
+    };
+    let account = format!("account:{}", who.account.id);
+    let mut held = vec![
+        counts
+            .take(&account, crate::fair::PER_ACCOUNT)
+            .ok_or_else(|| {
+                too_many(
+                    &format!("account {}", who.account.id),
+                    crate::fair::PER_ACCOUNT,
+                )
+            })?,
+    ];
+    // This machine is the proxy in front, speaking for everyone.
+    if !ctx.peer.addr.is_loopback() {
+        let address = format!("address:{}", ctx.peer.key());
+        held.push(
+            counts
+                .take(&address, crate::fair::PER_ADDRESS)
+                .ok_or_else(|| {
+                    too_many(
+                        &format!("address {}", ctx.peer.key()),
+                        crate::fair::PER_ADDRESS,
+                    )
+                })?,
+        );
+    }
+    Ok(held)
 }
 
 /// Why a device that speaks sync `theirs` is refused by a server that
@@ -285,7 +335,13 @@ async fn run(server: Arc<Server>, who: Who, mut socket: WebSocket, sync_refused:
                 let tx = tx.clone();
                 // Each command in a task of its own: an index run of
                 // seconds holds no other answer.
+                // The member's pace and the server's (gap 4): past it the
+                // command waits its turn here, holding its place.
+                let turn = server.fair.command(&who.account.id);
                 tokio::spawn(async move {
+                    if !turn.is_zero() {
+                        tokio::time::sleep(turn).await;
+                    }
                     let id = request.id;
                     let answer = handle(&server, &who, &client, request).await;
                     let signed_out = answer.as_ref().is_err_and(|e| e.message == SIGNED_OUT);

@@ -197,6 +197,9 @@ pub struct Server {
     pub service: Arc<Service>,
     pub clients: Mutex<HashMap<String, Client>>,
     pub limiter: Limiter,
+    /// What one member may hold of the server: connections, the pace of
+    /// commands (threat-model.md, gap 4).
+    pub fair: crate::fair::Fair,
     /// The contract's version: a hash of the generated bindings (the
     /// maintainer's answer D of 2026-10-09), sent in the handshake.
     pub contract: String,
@@ -239,6 +242,7 @@ impl Server {
             service: Arc::clone(&service),
             clients: Mutex::new(HashMap::new()),
             limiter: Limiter::default(),
+            fair: crate::fair::Fair::default(),
             contract,
             next: AtomicU64::new(1),
             devices: Mutex::new(HashMap::new()),
