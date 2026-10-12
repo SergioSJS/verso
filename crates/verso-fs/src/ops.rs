@@ -324,7 +324,7 @@ pub(crate) fn sync_created(dir: &Path, created: &[PathBuf]) -> Result<(), std::i
     Ok(())
 }
 
-fn parent_of(path: &Path) -> Result<&Path, WriteError> {
+pub(crate) fn parent_of(path: &Path) -> Result<&Path, WriteError> {
     path.parent().ok_or_else(|| {
         WriteError::Io(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
@@ -360,13 +360,27 @@ pub(crate) fn create_atomically(path: &Path, content: &[u8]) -> Result<OpReport,
         let _ = std::fs::remove_file(&temp);
         return Err(WriteError::Io(e));
     }
+    claim_new(path, &created, &temp, fnv1a(content))
+}
+
+/// Give `temp`, written and synced, the name `path`, which must not exist:
+/// in a step that fails if anything appeared there since the caller
+/// looked, the folders on the way (`created`, made by the caller) synced
+/// once it is in place. A failure removes `temp`.
+pub(crate) fn claim_new(
+    path: &Path,
+    created: &[PathBuf],
+    temp: &Path,
+    content_hash: u64,
+) -> Result<OpReport, WriteError> {
+    let dir = parent_of(path)?;
     // The final name is claimed in a step that fails if anything appeared
     // there since the check above: no window in which a file created by
     // someone else is replaced (a plain `rename` would replace it).
-    let placed = match claim(&temp, path) {
+    let placed = match claim(temp, path) {
         Ok(placed) => placed,
         Err(e) => {
-            let _ = std::fs::remove_file(&temp);
+            let _ = std::fs::remove_file(temp);
             return Err(e);
         }
     };
@@ -388,12 +402,20 @@ pub(crate) fn create_atomically(path: &Path, content: &[u8]) -> Result<OpReport,
         Placed::Renamed => report.no_hard_links = true,
     }
     let after = (|| {
-        sync_created(dir, &created)?;
+        sync_created(dir, created)?;
+        // The temporary file's folder, when it is another (a file that
+        // arrived in pieces waited in the nearest folder that existed):
+        // its entry went away with the move.
+        if let Some(from) = temp.parent()
+            && from != dir
+        {
+            sync_dir(from)?;
+        }
         let meta = std::fs::metadata(path)?;
         Ok::<Stamp, std::io::Error>(Stamp {
             modified: meta.modified()?,
             len: meta.len(),
-            hash: fnv1a(content),
+            hash: content_hash,
         })
     })();
     match after {

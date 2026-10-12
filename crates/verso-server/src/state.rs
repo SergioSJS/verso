@@ -11,6 +11,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
+use axum::body::Bytes;
 use axum::extract::ws::Utf8Bytes;
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::{Notify, OwnedSemaphorePermit, mpsc};
@@ -51,6 +52,10 @@ pub const QUEUE_BYTES: usize = 64 * 1024 * 1024;
 /// request it answers, given back once it is written.
 pub struct Out {
     pub text: Utf8Bytes,
+    /// An answer that carries a piece of a file to a device that speaks
+    /// sync 2 (ADR 0079 item 12): written as a binary message, its header
+    /// and its bytes (`verso_core::sync::frame`), instead of `text`.
+    pub binary: Option<Bytes>,
     pub close: bool,
     pub permit: Option<OwnedSemaphorePermit>,
     /// A pushed message's bytes, given back to the queue's budget when it
@@ -147,6 +152,7 @@ impl Outbox {
         }
         let out = Out {
             text: frame.text.clone(),
+            binary: None,
             close: frame.close,
             permit: None,
             _charge: Some(charge),
@@ -173,7 +179,23 @@ impl Outbox {
             .tx
             .send(Out {
                 text: frame.text,
+                binary: None,
                 close: frame.close,
+                permit: Some(permit),
+                _charge: None,
+            })
+            .await;
+    }
+
+    /// [`Outbox::answer`] for an answer in a binary message: a piece of a
+    /// file and its header, framed (`verso_core::sync::frame`).
+    pub async fn answer_binary(&self, message: Vec<u8>, permit: OwnedSemaphorePermit) {
+        let _ = self
+            .tx
+            .send(Out {
+                text: Utf8Bytes::default(),
+                binary: Some(Bytes::from(message)),
+                close: false,
                 permit: Some(permit),
                 _charge: None,
             })

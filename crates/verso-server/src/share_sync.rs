@@ -12,6 +12,7 @@
 
 use std::sync::Arc;
 
+use axum::body::Bytes;
 use serde_json::{Value, json};
 use verso_contract::ContractError;
 
@@ -20,7 +21,7 @@ use crate::db::covers;
 use crate::rpc::arg;
 use crate::scope::Scope;
 use crate::state::Server;
-use crate::sync::command_in;
+use crate::sync::{Reply, command_in};
 
 /// Changes a device gets at once, as the whole folder's log gives them.
 const PAGE: usize = 1000;
@@ -31,22 +32,30 @@ pub async fn command(
     who: &Who,
     client: &str,
     cmd: &str,
-    args: Value,
+    (args, data): (Value, Option<Bytes>),
     scope: Scope,
-) -> Result<Value, ContractError> {
+) -> Result<Reply, ContractError> {
     let root = scope.root.clone();
     let writes: Reach = Arc::new(move |p: &str| covers(&root, p));
     let reads: Reach = {
         let scope = scope.clone();
         Arc::new(move |p: &str| scope.to_rel(p).is_some())
     };
-    let mut answer = run(server, who, client, cmd, args, &scope, (reads, writes))
-        .await
-        .map_err(|e| scope.error(e))?;
+    let (mut answer, piece) = run(
+        server,
+        who,
+        client,
+        cmd,
+        (args, data),
+        &scope,
+        (reads, writes),
+    )
+    .await
+    .map_err(|e| scope.error(e))?;
     if answer["path"].is_string() {
         rel(&scope, &mut answer["path"]);
     }
-    Ok(answer)
+    Ok((answer, piece))
 }
 
 type Reach = Arc<dyn Fn(&str) -> bool + Send + Sync>;
@@ -56,29 +65,30 @@ async fn run(
     who: &Who,
     client: &str,
     cmd: &str,
-    mut args: Value,
+    (mut args, data): (Value, Option<Bytes>),
     scope: &Scope,
     (reads, writes): (Reach, Reach),
-) -> Result<Value, ContractError> {
+) -> Result<Reply, ContractError> {
     Ok(match cmd {
         "sync_state" => {
-            let mut v = command_in(server, who, client, cmd, args, Arc::clone(&reads)).await?;
+            let (mut v, _) =
+                command_in(server, who, client, cmd, (args, None), Arc::clone(&reads)).await?;
             if let Some(files) = v["files"].as_array_mut() {
                 files.retain_mut(|f| rel(scope, &mut f["path"]));
             }
-            v
+            (v, None)
         }
-        "sync_changes" => return changes(server, who, client, &args, scope).await,
+        "sync_changes" => return Ok((changes(server, who, client, &args, scope).await?, None)),
         "sync_read" => {
             let p: String = arg(&args, "path")?;
             args["path"] = json!(scope.to_full(&p)?);
-            command_in(server, who, client, cmd, args, reads).await?
+            command_in(server, who, client, cmd, (args, None), reads).await?
         }
         "sync_put" | "sync_delete" => {
             let p: String = arg(&args, "path")?;
             settings_stay(&p)?;
             args["path"] = json!(scope.to_full_write(&p)?);
-            command_in(server, who, client, cmd, args, writes).await?
+            command_in(server, who, client, cmd, (args, data), writes).await?
         }
         "sync_rename" => {
             let from: String = arg(&args, "from")?;
@@ -87,7 +97,7 @@ async fn run(
             settings_stay(&to)?;
             args["from"] = json!(scope.to_full_write(&from)?);
             args["to"] = json!(scope.to_full_write(&to)?);
-            command_in(server, who, client, cmd, args, writes).await?
+            command_in(server, who, client, cmd, (args, None), writes).await?
         }
         _ => return Err(verso_service::refused("no such command")),
     })
@@ -134,12 +144,12 @@ async fn changes(
     let mut out: Vec<Value> = Vec::new();
     let all: Arc<dyn Fn(&str) -> bool + Send + Sync> = Arc::new(|_: &str| true);
     loop {
-        let page = command_in(
+        let (page, _) = command_in(
             server,
             who,
             client,
             "sync_changes",
-            json!({ "since": since }),
+            (json!({ "since": since }), None),
             Arc::clone(&all),
         )
         .await
