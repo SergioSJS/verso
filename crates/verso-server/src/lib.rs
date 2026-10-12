@@ -38,6 +38,7 @@ pub mod shares;
 pub mod state;
 pub mod sync;
 pub mod tls;
+pub mod transfers;
 pub mod trash;
 pub mod twins;
 pub mod update;
@@ -298,6 +299,8 @@ mod tests;
 mod tests_bounds;
 #[cfg(test)]
 mod tests_console;
+#[cfg(test)]
+mod tests_pieces;
 #[cfg(test)]
 mod tests_shares;
 #[cfg(test)]

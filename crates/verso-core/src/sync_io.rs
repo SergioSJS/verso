@@ -6,11 +6,38 @@
 //! kind: their bytes with the revision they were read at, and a write of
 //! bytes — a new file, or over the one a revision describes, refused when
 //! it changed (invariant 11) — through `verso-fs`, atomically (invariant
-//! 9), the index following a note or a board.
+//! 9), the index following a note or a board. A file of any size crosses
+//! in pieces (item 12, revised 2026-10-12): read a range at a time, hashed
+//! as it is read, and written to a temporary file as its pieces arrive,
+//! never whole in memory.
 
 use std::path::Path;
 
+use sha2::{Digest, Sha256};
+use verso_fs::{Mark, Staged};
+
 use super::{CoreError, Workspace, is_canvas, is_note, note_stamp, revision};
+
+/// A file hashed a piece at a time: its SHA-256 (hex), its length, the
+/// revision it was read at, and its length and time as a read in pieces
+/// compares them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Hashed {
+    pub hash: String,
+    pub len: u64,
+    pub revision: String,
+    pub mark: Mark,
+}
+
+/// SHA-256 as sync writes it: lowercase hex.
+fn hex(digest: &[u8]) -> String {
+    use std::fmt::Write;
+    let mut out = String::with_capacity(digest.len() * 2);
+    for b in digest {
+        let _ = write!(out, "{b:02x}");
+    }
+    out
+}
 
 impl Workspace {
     /// A file's bytes and the revision they were read at; any kind of
@@ -23,6 +50,60 @@ impl Workspace {
             .map_err(CoreError::Confined)?;
         let (bytes, stamp) = self.root.read(handle).map_err(CoreError::Read)?;
         Ok((bytes, revision::encode(&stamp)))
+    }
+
+    /// Up to `max` bytes of the file `relative` names from `offset`, and
+    /// the file's length and time taken before the read: a piece of a file
+    /// sent to a device, the file never whole in memory. Any kind of
+    /// file; a placeholder answers `Read(Unavailable)` (ADR 0043).
+    pub fn read_piece(
+        &mut self,
+        relative: &str,
+        offset: u64,
+        max: usize,
+    ) -> Result<(Vec<u8>, Mark), CoreError> {
+        let key = self.entry_key(relative)?;
+        let handle = self
+            .root
+            .handle(Path::new(&key))
+            .map_err(CoreError::Confined)?;
+        self.root
+            .read_range(handle, offset, max)
+            .map_err(CoreError::Read)
+    }
+
+    /// The SHA-256 of the file `relative` names, read a piece at a time,
+    /// with the revision it was read at: what sync compares and sends,
+    /// for a file of any size, never whole in memory.
+    pub fn hash_with_revision(&mut self, relative: &str) -> Result<Hashed, CoreError> {
+        let key = self.entry_key(relative)?;
+        let handle = self
+            .root
+            .handle(Path::new(&key))
+            .map_err(CoreError::Confined)?;
+        let mut sha = Sha256::new();
+        let stamp = self
+            .root
+            .read_through(handle, |piece| sha.update(piece))
+            .map_err(CoreError::Read)?;
+        Ok(Hashed {
+            hash: hex(&sha.finalize()),
+            len: stamp.len,
+            revision: revision::encode(&stamp),
+            mark: Mark {
+                len: stamp.len,
+                modified: stamp.modified,
+            },
+        })
+    }
+
+    /// Start a file that arrives in pieces at `relative`: written to a
+    /// temporary file beside where it lands, as each piece comes
+    /// ([`Staged::append`]), and given its name by
+    /// [`Workspace::write_staged`]. Dropped unfinished, nothing of it stays.
+    pub fn stage(&mut self, relative: &str) -> Result<Staged, CoreError> {
+        let key = self.entry_key(relative)?;
+        self.root.stage(Path::new(&key)).map_err(CoreError::Write)
     }
 
     /// Whether `relative` names a folder on the disk now, a symlink
@@ -119,5 +200,67 @@ impl Workspace {
             self.index_canvas(&key, bytes, note_stamp(&stamp))?;
         }
         Ok(revision::encode(&stamp))
+    }
+    /// [`Workspace::write_bytes`] for a file that arrived in pieces
+    /// ([`Workspace::stage`]): a new file when `revision` is `None`
+    /// (refused when something stands there), else over the file the
+    /// revision describes (refused, with nothing written, when it is no
+    /// longer that file — invariant 11). Atomic, as every write (invariant
+    /// 9). Returns the revision of the file written.
+    pub fn write_staged(
+        &mut self,
+        relative: &str,
+        staged: Staged,
+        revision: Option<&str>,
+    ) -> Result<String, CoreError> {
+        let key = self.entry_key(relative)?;
+        let (handle, stamp) = match revision {
+            None => {
+                let (handle, report) = self
+                    .root
+                    .create_staged(Path::new(&key), staged)
+                    .map_err(CoreError::Write)?;
+                if !is_note(&key) {
+                    self.files
+                        .entry(verso_index::file_key(super::name_of(&key)))
+                        .or_default()
+                        .push(key.clone());
+                }
+                (handle, report.stamp)
+            }
+            Some(revision) => {
+                let handle = self
+                    .root
+                    .handle(Path::new(&key))
+                    .map_err(CoreError::Confined)?;
+                let expected = Self::decode_revision(revision)?;
+                let report = self
+                    .root
+                    .write_staged(handle, staged, &expected)
+                    .map_err(CoreError::Write)?;
+                (handle, report.stamp)
+            }
+        };
+        // The index follows what it knows, a note's text and a board's
+        // links, read back once in place: notes and boards are text.
+        if is_note(&key) || is_canvas(&key) {
+            let (bytes, read) = self.root.read(handle).map_err(CoreError::Read)?;
+            if is_note(&key) {
+                let text = String::from_utf8_lossy(&bytes);
+                self.index
+                    .upsert(&key, note_stamp(&read), &text, &verso_dialect::parse(&text))
+                    .map_err(CoreError::Index)?;
+            } else {
+                self.index_canvas(&key, &bytes, note_stamp(&read))?;
+            }
+            // The revision of the bytes written; read back when the write
+            // could not confirm its stamp, as `write_bytes` does.
+            return Ok(revision::encode(&stamp.unwrap_or(read)));
+        }
+        // A stamp the write could not confirm: one no later write matches,
+        // so the next one reads the file again rather than trust it.
+        Ok(revision::encode(
+            &stamp.unwrap_or_else(revision::impossible),
+        ))
     }
 }
