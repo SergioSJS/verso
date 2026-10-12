@@ -400,9 +400,12 @@ PDF's quote make to a note, through the room; and the board (item 12).
 
 **Answered by the maintainer on 2026-10-12** (01:15 BRT), item by item: item 15's setting stays in the window's settings; the 5 s and 4 s
 waits stand, to be tuned with use; the writes the properties panel and a
-PDF's quote make to a live note will go through the room — decided, not
-built yet, the next round; and the board's co-editing stays `[OPEN]`
-(item 12).
+PDF's quote make to a live note go through the room — decided, built
+2026-10-12: each goes in as one edit of the tab's editor, as typing does,
+and the room writes the file; with them the other writes of a property
+that are not keystrokes — a sticker, a colour or a cover, a base's cell,
+the tree's label and order; a note that is not live is written as
+before; and the board's co-editing stays `[OPEN]` (item 12).
 
 *(History, before the acceptance above:)* Proposed on 2026-10-10. The
 maintainer approved the direction in session;

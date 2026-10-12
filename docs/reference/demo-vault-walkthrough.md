@@ -756,7 +756,12 @@ rest below and in `manual-checks.md`.
     — sincronização pausada*; back in another room, the note is read anew
     with its text; *Ajustes* › *Sincronizar* › *Editar notas junto enquanto
     online* off, the note leaves the room and, opened again, joins nothing
-    (e2e, `live.spec.mjs`). Two devices and a browser in one room, a drop
+    (e2e, `live.spec.mjs`). A property set in the panel of a live note —
+    a value, a checkbox — goes into the room beside what another person
+    types there, never to the file, which follows the room's save; a
+    sticker, a base's cell and a PDF's quote into a live companion note go
+    the same way (e2e, `live.spec.mjs`, "a property set in the panel";
+    `roomWrites.test.mjs`). Two devices and a browser in one room, a drop
     and a return within the grace and after it, an outside program's edit,
     a reader, a pause, and the property test that no edit is lost — the
     host's Rust tests against a real server (`tests_live.rs`); a cursor

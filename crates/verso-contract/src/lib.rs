@@ -30,6 +30,15 @@ pub struct FolderInfo {
     /// under, and what `reopen_folder` takes to open the folder again.
     pub key: String,
     pub index: IndexSummary,
+    /// The name of the folder's file system when changes made there by
+    /// other programs may show late: a volume without the exclusive rename
+    /// and with hard links (macOS: some network volumes; ADR 0048, revised
+    /// 2026-10-12), where a file Verso creates or moves is named by a
+    /// link, whose later removal by another program the system may not
+    /// report. Verso's own writes are as safe as anywhere. The UI says it
+    /// once per folder, in the user's language (ADR 0035).
+    #[serde(default)]
+    pub late_outside_changes: Option<String>,
 }
 
 /// What changed in the open folder, as the watcher saw it and the index

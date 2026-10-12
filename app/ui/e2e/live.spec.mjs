@@ -137,3 +137,36 @@ test("back in another room, the note is read anew; with editing together off it 
   await page.keyboard.type("so aqui");
   await expect.poll(() => app.file(NOTE), { timeout: 15_000 }).toContain("so aqui");
 });
+
+test("a property set in the panel of a live note goes into the room, beside what another person types", async ({ app, page }) => {
+  // ADR 0082, decided 2026-10-12: the panel's writes go through the room
+  // as typing does — never to the file, which follows the room's save.
+  const NOTED = "Sessao com estado.md";
+  await app.open();
+  await link(app, true);
+  await say(app, SYNCED);
+  await app.writeOutside(NOTED, "---\nestado: rascunho\npronta: false\n---\n# Sessao\n\num\n");
+  await app.folderChanged([NOTED], true);
+  await app.quickOpen("Sessao com estado");
+  await expect(page.locator(".live-mark:visible")).toHaveText("ao vivo, só você");
+
+  // Bia types in the body while the value is changed here.
+  await page.evaluate((n) => {
+    window.__harness.rooms.present(n, "Bia");
+    window.__harness.rooms.type(n, "Bia", "dois, da Bia\n");
+  }, NOTED);
+  const value = page.locator('.props .prop[data-key="estado"] input');
+  await value.fill("pronta");
+  await value.press("Enter");
+  await page.locator('.props .prop[data-key="pronta"] input[type="checkbox"]').check();
+  const room = () => page.evaluate((n) => window.__harness.rooms.text(n), NOTED);
+  await expect.poll(room).toContain("estado: pronta");
+  await expect.poll(room).toContain("pronta: true");
+  expect(await room()).toContain("dois, da Bia");
+  await page.waitForTimeout(2000);
+  expect(await app.calls("write_note")).toHaveLength(0);
+  await page.evaluate((n) => window.__harness.rooms.save(n), NOTED);
+  const file = await app.file(NOTED);
+  expect(file).toContain("estado: pronta");
+  expect(file).toContain("dois, da Bia");
+});
