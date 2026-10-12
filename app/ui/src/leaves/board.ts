@@ -638,7 +638,18 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
  * copy is made once per picture, off the main thread; the original is laid
  * over it when the board is zoomed in close (`.is-close`). */
 export const PICTURE_COPY = 800;
-export const pictureWorker = ((): Worker | null => {
+export const pictureCopies = new Map<string, Promise<string | null>>();
+const pictureWaiting = new Map<number, (out: Blob | null) => void>();
+let pictureIds = 0;
+/** The worker that makes the copies: made the first time a card needs a
+ *  copy, not as the window's script loads — a page left while it loads
+ *  (a link followed, an address typed) had WebKit refuse the worker's
+ *  `blob:` script, reported as the page's error (2026-10-12). A worker
+ *  whose script cannot load answers every copy waiting with none, the
+ *  original drawn instead, and none is made again. */
+let pictureWorkerMade: Worker | null | undefined;
+function pictureWorker(): Worker | null {
+  if (pictureWorkerMade !== undefined) return pictureWorkerMade;
   try {
     const code = `self.onmessage = async (e) => {
       const { id, blob, width } = e.data;
@@ -654,14 +665,24 @@ export const pictureWorker = ((): Worker | null => {
         self.postMessage({ id, out });
       } catch { self.postMessage({ id, out: null }); }
     };`;
-    return new Worker(URL.createObjectURL(new Blob([code], { type: "text/javascript" })));
+    const worker = new Worker(URL.createObjectURL(new Blob([code], { type: "text/javascript" })));
+    worker.addEventListener("message", (e: MessageEvent<{ id: number; out: Blob | null }>) => {
+      pictureWaiting.get(e.data.id)?.(e.data.out);
+      pictureWaiting.delete(e.data.id);
+    });
+    worker.addEventListener("error", (e) => {
+      e.preventDefault();
+      worker.terminate();
+      pictureWorkerMade = null;
+      for (const done of pictureWaiting.values()) done(null);
+      pictureWaiting.clear();
+    });
+    pictureWorkerMade = worker;
   } catch {
-    return null;
+    pictureWorkerMade = null;
   }
-})();
-export const pictureCopies = new Map<string, Promise<string | null>>();
-export const pictureWaiting = new Map<number, (out: Blob | null) => void>();
-export let pictureIds = 0;
+  return pictureWorkerMade;
+}
 /** The copy of the picture at `src` for a card, as an address; null when
  *  the picture is small enough, or not one a copy is made of (a drawing, an
  *  animation), and the original is drawn. */
@@ -669,14 +690,17 @@ export function pictureCopy(src: string): Promise<string | null> {
   let made = pictureCopies.get(src);
   if (!made) {
     made = (async () => {
-      if (!pictureWorker) return null;
+      const worker = pictureWorker();
+      if (!worker) return null;
       try {
         const blob = await (await fetch(src)).blob();
         if (!/^image\/(jpeg|png|webp|bmp|avif)$/.test(blob.type)) return null;
         const id = ++pictureIds;
         const out = await new Promise<Blob | null>((resolve) => {
+          // Its script failed to load meanwhile: no copy.
+          if (pictureWorkerMade !== worker) return resolve(null);
           pictureWaiting.set(id, resolve);
-          pictureWorker.postMessage({ id, blob, width: PICTURE_COPY });
+          worker.postMessage({ id, blob, width: PICTURE_COPY });
         });
         return out ? URL.createObjectURL(out) : null;
       } catch {
