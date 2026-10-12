@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-share-attachments"
+description = "Enables the share_attachments command without any pre-configured scope."
+commands.allow = ["share_attachments"]
+
+[[permission]]
+identifier = "deny-share-attachments"
+description = "Denies the share_attachments command without any pre-configured scope."
+commands.deny = ["share_attachments"]

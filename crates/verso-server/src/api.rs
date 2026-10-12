@@ -242,6 +242,17 @@ pub async fn invitation(ctx: Ctx, Path(token): Path<String>) -> ApiResult<Respon
         Some(id) => ctx.server.db.folder(id)?.map(|f| f.dir),
         None => None,
     };
+    // A share is named as its people see it: its folder's last part (ADR
+    // 0081 item 3).
+    let folder = match &link.share {
+        Some(id) => ctx
+            .server
+            .db
+            .share(id)?
+            .map(|s| crate::scope::last(&s.path).to_owned())
+            .or(folder),
+        None => folder,
+    };
     Ok(ok(json!({
         "email": link.email,
         "folder": folder,
@@ -311,7 +322,15 @@ pub async fn accept(
         ));
     }
     if let (Some(folder), Some(role)) = (&link.folder, link.role.as_deref().and_then(Role::parse)) {
-        ctx.server.db.grant(folder, &account.id, role)?;
+        match &link.share {
+            Some(share) if ctx.server.db.share(share)?.is_some() => {
+                ctx.server.db.grant_share(share, &account.id, role)?;
+            }
+            // The share went before the invitation was used: nothing of
+            // the folder is given in its place.
+            Some(_) => {}
+            None => ctx.server.db.grant(folder, &account.id, role)?,
+        }
     }
     let account = ctx
         .server
@@ -399,14 +418,8 @@ pub async fn reset(
 /// The person, the folders they may enter and their role in each.
 pub async fn me(ctx: Ctx) -> ApiResult<Response> {
     let who = ctx.who()?;
-    let folders: Vec<_> = ctx
-        .server
-        .db
-        .folders_of(&who.account.id)?
-        .into_iter()
-        .filter(|(f, _)| who.reaches(&f.id).0)
-        .map(|(f, role)| json!({ "id": f.id, "name": f.dir, "role": role }))
-        .collect();
+    // The shares given to them too (ADR 0081 item 5).
+    let (folders, _) = crate::shares::listing(&ctx, who)?;
     Ok(ok(json!({
         "account": account_json(&who.account),
         "folders": folders,
@@ -541,7 +554,12 @@ pub async fn create_token(ctx: Ctx, Json(body): Json<NewToken>) -> ApiResult<Res
         return Err(ApiError::bad("bad_request", "one year at most"));
     }
     for id in &body.folders {
-        let (_, role) = crate::access::role(&ctx.server, who, id)?;
+        // A folder, or a share given to the person (ADR 0081 item 15).
+        let role = match crate::shares::opening(&ctx.server, who, id)? {
+            crate::shares::Opening::Folder(_, role) | crate::shares::Opening::Share(_, _, role) => {
+                role
+            }
+        };
         if body.write && !role.writes() {
             return Err(ApiError::forbidden("you only read that folder"));
         }

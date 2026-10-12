@@ -29,6 +29,9 @@ pub mod mail;
 pub mod passkeys;
 pub mod quota;
 pub mod rpc;
+pub mod scope;
+pub mod share_sync;
+pub mod shares;
 pub mod state;
 pub mod sync;
 pub mod tls;
@@ -294,5 +297,7 @@ pub fn admin_reset(config: &Config, email: &str) -> Result<String, String> {
 mod tests;
 #[cfg(test)]
 mod tests_console;
+#[cfg(test)]
+mod tests_shares;
 #[cfg(test)]
 mod tests_sync;

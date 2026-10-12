@@ -1,0 +1,663 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+//! Sharing a folder inside a folder (ADR 0081), against a running server:
+//! the share's confinement is a boundary between two people's notes, and
+//! is tried here the way someone on the other side would try it — `..`,
+//! a sibling whose name begins like the share's, the parent, renames
+//! across the boundary, sync's listing, reads, writes, deletions and
+//! renames through the share, the files under `/f/`, the events pushed to
+//! the window — besides what the owner and the admin see.
+
+use serde_json::{Value, json};
+
+use crate::tests::{
+    Browser, Running, Socket, block_on, call, connect, event_named, folder_id, get, next, post,
+    put, sign_in, start,
+};
+use crate::tests_sync::{fetch, send};
+
+/// A socket and the ids of its requests.
+struct Win {
+    ws: Socket,
+    n: u64,
+}
+
+impl Win {
+    async fn open(r: &Running, b: &Browser, id: &str) -> (Self, Value) {
+        let mut ws = connect(r, Some(&b.cookie), Some(&r.origin()), None)
+            .await
+            .unwrap();
+        next(&mut ws).await;
+        let info = call(&mut ws, 1, "open_server_folder", json!({ "id": id })).await;
+        (Self { ws, n: 10 }, info)
+    }
+
+    async fn call(&mut self, cmd: &str, args: Value) -> Value {
+        self.n += 1;
+        call(&mut self.ws, self.n, cmd, args).await
+    }
+}
+
+/// The owner's folder "Campanha": a shared folder "Mesa" with notes that
+/// link out, a sibling "Mesa2" whose name begins as the share's, notes at
+/// the root, and the attachments at "Anexos".
+async fn furnished(r: &Running, admin: &Browser) -> (String, Win) {
+    let id = folder_id(r, admin).await;
+    let (mut w, _) = Win::open(r, admin, &id).await;
+    for (name, text) in [
+        (
+            "Mesa/Notas",
+            "# Notas\n\nVer [[Segredo]] e [[Outra]] e [[Fora]].\n\n![[p.png]]\n\n#mesa\n",
+        ),
+        ("Mesa/Outra", "Outra nota palavrachave\n"),
+        ("Mesa/Sub/Funda", "Funda\n"),
+        (
+            "Segredo",
+            "# Segredo\n\npalavrachave segredissima [[Notas]]\n\n#mesa\n",
+        ),
+        ("Mesa2/Fora", "Fora da mesa palavrachave\n"),
+    ] {
+        let made = w
+            .call("create_note", json!({ "name": name, "text": text }))
+            .await;
+        assert!(made.get("ok").is_some(), "{made}");
+    }
+    let file = w
+        .call(
+            "create_file",
+            json!({ "path": "Anexos/p.png", "base64": "iVBORw0KGgo=" }),
+        )
+        .await;
+    assert_eq!(file["ok"], "Anexos/p.png", "{file}");
+    (id, w)
+}
+
+async fn ana(r: &Running) -> (Browser, String) {
+    let a = r
+        .server
+        .db
+        .create_account("ana@casa.lan", "Ana", "pt", Some("a senha da ana"), false)
+        .unwrap();
+    (sign_in(r, "ana@casa.lan", "a senha da ana").await, a.id)
+}
+
+fn strings(v: &Value) -> Vec<String> {
+    let mut out: Vec<String> = v
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|x| x.as_str().unwrap().to_owned())
+        .collect();
+    out.sort();
+    out
+}
+
+/// Every path an answer names, wherever it is in it.
+fn every_string(v: &Value, out: &mut Vec<String>) {
+    match v {
+        Value::String(s) => out.push(s.clone()),
+        Value::Array(a) => a.iter().for_each(|x| every_string(x, out)),
+        Value::Object(o) => o.values().for_each(|x| every_string(x, out)),
+        _ => {}
+    }
+}
+
+/// Nothing of the owner's folder outside the share in `v`: no name of a
+/// note above or beside it, no path with the share's own name in front.
+fn says_nothing_outside(v: &Value) {
+    let mut all = Vec::new();
+    every_string(v, &mut all);
+    for s in all {
+        for leak in ["Segredo.md", "segredissima", "Mesa2", "Fora.md", "Mesa/"] {
+            assert!(!s.contains(leak), "{leak} crossed in {v}");
+        }
+    }
+}
+
+#[test]
+fn a_reader_sees_the_shared_folder_and_nothing_above_or_beside_it() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let (id, mut owner) = furnished(&r, &admin).await;
+        let (ana, _) = ana(&r).await;
+        // Nothing yet.
+        let (_, mine) = get(&r, "/api/folders", Some(&ana)).await;
+        assert_eq!(mine["folders"], json!([]), "{mine}");
+        let (status, shared) = put(
+            &r,
+            &format!("/api/folders/{id}/shares"),
+            json!({ "path": "Mesa", "email": "ana@casa.lan", "role": "reader" }),
+            &admin,
+        )
+        .await;
+        assert_eq!(status, 200, "{shared}");
+        let share = shared["id"].as_str().unwrap().to_owned();
+        // Ana lists it as hers to open, named after the folder and its
+        // owner; the owner lists it as shared by them.
+        let (_, mine) = get(&r, "/api/folders", Some(&ana)).await;
+        assert_eq!(mine["folders"][0]["id"], share);
+        assert_eq!(mine["folders"][0]["name"], "Mesa (Admin)");
+        assert_eq!(mine["folders"][0]["share"], true);
+        assert_eq!(mine["folders"][0]["role"], "reader");
+        assert_eq!(mine["folders"][0]["owner"]["name"], "Admin");
+        assert_eq!(mine["folders"].as_array().unwrap().len(), 1);
+        let (_, theirs) = get(&r, "/api/folders", Some(&admin)).await;
+        assert_eq!(theirs["byMe"][0]["path"], "Mesa");
+        assert_eq!(theirs["byMe"][0]["people"][0]["email"], "ana@casa.lan");
+        // The owner's folder itself is not hers.
+        let (mut w, refused) = Win::open(&r, &ana, &id).await;
+        assert_eq!(refused["err"]["kind"], "not_found", "{refused}");
+        let info = w.call("open_server_folder", json!({ "id": share })).await;
+        assert_eq!(info["ok"]["name"], "Mesa (Admin)", "{info}");
+        let key = info["ok"]["key"].as_str().unwrap().to_owned();
+        assert!(key.starts_with("share-"), "{key}");
+        says_nothing_outside(&info);
+        // What is listed is the share, re-rooted.
+        let notes = w.call("list_notes", json!({})).await;
+        assert_eq!(
+            strings(&notes["ok"]),
+            ["Notas.md", "Outra.md", "Sub/Funda.md"]
+        );
+        let folders = w.call("list_folders", json!({})).await;
+        assert_eq!(strings(&folders["ok"]), ["Sub"]);
+        for cmd in [
+            "list_entries",
+            "list_files",
+            "list_tags",
+            "graph",
+            "list_web_notes",
+            "current_folder",
+            "reindex",
+            "get_focuses",
+            "folder_space",
+        ] {
+            let answer = w.call(cmd, json!({})).await;
+            assert!(answer.get("ok").is_some(), "{cmd}: {answer}");
+            says_nothing_outside(&answer);
+        }
+        let tags = w.call("list_tags", json!({})).await;
+        assert_eq!(tags["ok"][0]["notes"], json!(["Notas.md"]), "{tags}");
+        let found = w
+            .call("search", json!({ "words": "palavrachave", "limit": 20 }))
+            .await;
+        assert_eq!(found["ok"].as_array().unwrap().len(), 1, "{found}");
+        assert_eq!(found["ok"][0]["path"], "Outra.md");
+        says_nothing_outside(&found);
+        let backlinks = w.call("backlinks", json!({ "path": "Notas.md" })).await;
+        assert_eq!(backlinks["ok"], json!([]), "{backlinks}");
+        // A link out of the share: the name written, nothing else — not
+        // whether it exists, not where.
+        let links = w.call("links", json!({ "path": "Notas.md" })).await;
+        let by_target = |t: &str| {
+            links["ok"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|l| l["target"] == t)
+                .cloned()
+                .unwrap()
+        };
+        assert_eq!(by_target("Segredo")["resolved"], Value::Null);
+        assert_eq!(by_target("Segredo")["outside"], true);
+        assert_eq!(by_target("Outra")["resolved"], "Outra.md");
+        assert_eq!(by_target("Outra")["outside"], false);
+        assert_eq!(by_target("Fora")["outside"], true);
+        assert_eq!(by_target("p.png")["resolved"], Value::Null);
+        says_nothing_outside(&links);
+        let attachment = w
+            .call(
+                "resolve_attachment",
+                json!({ "source": "Notas.md", "target": "p.png" }),
+            )
+            .await;
+        assert_eq!(attachment["ok"], Value::Null, "{attachment}");
+        // Every way out is closed: `..`, absolute, backslashes, the parent,
+        // the sibling, an empty part.
+        for path in [
+            "../Segredo.md",
+            "Sub/../../Segredo.md",
+            "/Segredo.md",
+            "..\\Segredo.md",
+            "./Notas.md",
+            "Sub//Funda.md",
+            "..",
+            "../Mesa2/Fora.md",
+        ] {
+            for cmd in ["read_note", "read_text", "read_file_text", "links"] {
+                let a = w.call(cmd, json!({ "path": path })).await;
+                assert_eq!(a["err"]["kind"], "refused", "{cmd} {path}: {a}");
+                says_nothing_outside(&a);
+            }
+        }
+        // A name that exists above is not found inside.
+        let above = w.call("read_note", json!({ "path": "Segredo.md" })).await;
+        assert_eq!(above["err"]["kind"], "not_found", "{above}");
+        says_nothing_outside(&above);
+        // A base asked over the whole folder answers with the share only.
+        let base = w
+            .call(
+                "query_base",
+                json!({ "query": { "path": null, "text": "views:\n  - type: table\n    name: T\n",
+                    "this": "Notas.md", "view": null, "extra": [], "now": 0, "offset": 0, "lang": "pt" } }),
+            )
+            .await;
+        assert!(base.get("ok").is_some(), "{base}");
+        says_nothing_outside(&base);
+        // A reader writes nothing.
+        let write = w
+            .call("create_note", json!({ "name": "Minha", "text": "x" }))
+            .await;
+        assert_eq!(write["err"]["kind"], "refused", "{write}");
+        let caps = w.call("capabilities", json!({})).await;
+        assert!(
+            !caps["ok"]["can"]
+                .as_array()
+                .unwrap()
+                .contains(&json!("write"))
+        );
+        // Commands the share does not answer are refused, never passed on.
+        for cmd in ["set_focuses", "set_sync_focuses"] {
+            let a = w.call(cmd, json!({ "enabled": true, "focuses": [] })).await;
+            assert_eq!(a["err"]["kind"], "refused", "{cmd}: {a}");
+        }
+        // The files under /f/: the share's, by its paths; nothing above.
+        let file = |p: &str| {
+            let cookie = ana.cookie.clone();
+            let url = r.url(&format!("/f/{share}/{p}"));
+            async move {
+                reqwest::Client::new()
+                    .get(url)
+                    .header("cookie", cookie)
+                    .send()
+                    .await
+                    .unwrap()
+                    .status()
+                    .as_u16()
+            }
+        };
+        assert_eq!(file("Anexos/p.png").await, 404);
+        assert_eq!(file("..%2FAnexos%2Fp.png").await, 404);
+        assert_eq!(file("%2E%2E/Anexos/p.png").await, 404);
+        let (direct, _) = get(&r, &format!("/f/{id}/Anexos/p.png"), Some(&ana)).await;
+        assert_eq!(direct, 404);
+        // Sync through the share: the share's files only.
+        let state = w.call("sync_state", json!({})).await;
+        let paths: Vec<String> = state["ok"]["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|f| f["path"].as_str().unwrap().to_owned())
+            .collect();
+        assert!(paths.contains(&"Notas.md".to_owned()), "{state}");
+        says_nothing_outside(&state);
+        let changes = w.call("sync_changes", json!({ "since": 0 })).await;
+        assert!(!changes["ok"]["changes"].as_array().unwrap().is_empty());
+        says_nothing_outside(&changes);
+        let (bytes, _) = fetch(&mut w.ws, 500, "Outra.md").await;
+        assert_eq!(bytes, b"Outra nota palavrachave\n");
+        let outside = w
+            .call("sync_read", json!({ "path": "../Segredo.md", "offset": 0 }))
+            .await;
+        assert_eq!(outside["err"]["kind"], "refused", "{outside}");
+        // What the owner changes outside the share is never pushed to the
+        // window; what they change inside is, in the share's paths.
+        let put_root = send(&mut owner.ws, 600, "Fora2.md", b"fora\n", None).await;
+        assert_eq!(put_root["ok"]["done"], true, "{put_root}");
+        let put_in = send(&mut owner.ws, 700, "Mesa/Nova2.md", b"dentro\n", None).await;
+        assert_eq!(put_in["ok"]["done"], true, "{put_in}");
+        loop {
+            let heard = event_named(&mut w.ws, "folder-changed").await;
+            says_nothing_outside(&heard);
+            assert_eq!(heard["key"], key);
+            if heard["changed"]
+                .as_array()
+                .unwrap()
+                .contains(&json!("Nova2.md"))
+            {
+                break;
+            }
+        }
+        // The audit log has the share with its path, for the owner.
+        let (_, log) = get(&r, &format!("/api/folders/{id}/audit"), Some(&admin)).await;
+        assert!(
+            log.as_array()
+                .unwrap()
+                .iter()
+                .any(|e| e["action"] == "share_reader" && e["path"] == "Mesa"),
+            "{log}"
+        );
+        // And the console's folder page lists it.
+        let (_, page) = get(&r, &format!("/api/admin/folders/{id}"), Some(&admin)).await;
+        assert_eq!(page["shares"][0]["path"], "Mesa", "{page}");
+        assert_eq!(page["shares"][0]["people"][0]["email"], "ana@casa.lan");
+    });
+}
+
+#[test]
+fn a_writer_writes_inside_the_share_and_never_above_it() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let (id, mut owner) = furnished(&r, &admin).await;
+        let (ana, _) = ana(&r).await;
+        let (_, shared) = put(
+            &r,
+            &format!("/api/folders/{id}/shares"),
+            json!({ "path": "Mesa", "email": "ana@casa.lan", "role": "editor" }),
+            &admin,
+        )
+        .await;
+        let share = shared["id"].as_str().unwrap().to_owned();
+        let (mut w, info) = Win::open(&r, &ana, &share).await;
+        assert!(info.get("ok").is_some(), "{info}");
+        let made = w
+            .call("create_note", json!({ "name": "Nova", "text": "nova\n" }))
+            .await;
+        assert_eq!(made["ok"]["path"], "Nova.md", "{made}");
+        let theirs = owner
+            .call("read_note", json!({ "path": "Mesa/Nova.md" }))
+            .await;
+        assert!(theirs.get("ok").is_some(), "{theirs}");
+        // Out of the share by any write: refused before the core acts.
+        let tries = [
+            ("create_note", json!({ "name": "../Fora", "text": "x" })),
+            ("create_note", json!({ "name": "/Fora", "text": "x" })),
+            ("create_folder", json!({ "path": "../X" })),
+            (
+                "create_file",
+                json!({ "path": "../x.png", "base64": "AA==" }),
+            ),
+            (
+                "write_text",
+                json!({ "path": "../Segredo.md", "text": "x", "revision": "r" }),
+            ),
+            (
+                "write_note",
+                json!({ "path": "../Segredo.md", "text": "x", "revision": "r" }),
+            ),
+            (
+                "rename_entry",
+                json!({ "from": "Nova.md", "to": "../Nova.md" }),
+            ),
+            (
+                "rename_entry",
+                json!({ "from": "Nova.md", "to": "../Mesa2/Nova.md" }),
+            ),
+            (
+                "rename_note",
+                json!({ "from": "../Segredo.md", "to": "Segredo.md" }),
+            ),
+            ("rename_entry", json!({ "from": "", "to": "Outro" })),
+            (
+                "move_entries",
+                json!({ "paths": ["Nova.md"], "folder": ".." }),
+            ),
+            (
+                "move_entries",
+                json!({ "paths": ["../Segredo.md"], "folder": "" }),
+            ),
+            ("move_entries", json!({ "paths": [""], "folder": "Sub" })),
+            ("delete_entry", json!({ "path": "" })),
+            ("delete_entry", json!({ "path": "../Segredo.md" })),
+            ("delete_note", json!({ "path": "../Segredo.md" })),
+            (
+                "write_board",
+                json!({ "path": "../b.canvas", "json": "{}", "revision": "r" }),
+            ),
+        ];
+        for (cmd, args) in tries {
+            let a = w.call(cmd, args.clone()).await;
+            assert_eq!(a["err"]["kind"], "refused", "{cmd} {args}: {a}");
+        }
+        // The owner's notes above are as they were.
+        let above = owner
+            .call("read_note", json!({ "path": "Segredo.md" }))
+            .await;
+        assert!(
+            above["ok"]["text"]
+                .as_str()
+                .unwrap()
+                .contains("segredissima"),
+            "{above}"
+        );
+        let sibling = owner.call("list_notes", json!({})).await;
+        assert!(strings(&sibling["ok"]).contains(&"Mesa2/Fora.md".to_owned()));
+        // Inside, a rename and a move work and answer in the share's paths.
+        let moved = w
+            .call(
+                "rename_entry",
+                json!({ "from": "Nova.md", "to": "Sub/Nova.md" }),
+            )
+            .await;
+        assert_eq!(moved["ok"]["path"], "Sub/Nova.md", "{moved}");
+        says_nothing_outside(&moved);
+        // Sync's log through the share, before a note of the same name as
+        // one above is made inside it.
+        let changes = w.call("sync_changes", json!({ "since": 0 })).await;
+        says_nothing_outside(&changes);
+        // Sync through the share: in, never out.
+        let put_out = send(&mut w.ws, 100, "../Segredo.md", b"x", None).await;
+        assert_eq!(put_out["err"]["kind"], "refused", "{put_out}");
+        let put_in = send(&mut w.ws, 200, "Segredo.md", b"o meu\n", None).await;
+        assert_eq!(put_in["ok"]["path"], "Segredo.md", "{put_in}");
+        let mine = owner
+            .call("read_note", json!({ "path": "Mesa/Segredo.md" }))
+            .await;
+        assert_eq!(mine["ok"]["text"], "o meu\n");
+        let root = owner
+            .call("read_note", json!({ "path": "Segredo.md" }))
+            .await;
+        assert!(
+            root["ok"]["text"]
+                .as_str()
+                .unwrap()
+                .contains("segredissima")
+        );
+        for (cmd, args) in [
+            (
+                "sync_delete",
+                json!({ "path": "../Segredo.md", "base": "x" }),
+            ),
+            ("sync_delete", json!({ "path": "", "base": "x" })),
+            (
+                "sync_rename",
+                json!({ "from": "Notas.md", "to": "../Notas.md", "base": "x" }),
+            ),
+            (
+                "sync_rename",
+                json!({ "from": "../Segredo.md", "to": "Roubado.md", "base": "x" }),
+            ),
+        ] {
+            let a = w.call(cmd, args.clone()).await;
+            assert_eq!(a["err"]["kind"], "refused", "{cmd} {args}: {a}");
+        }
+        // The owner renames the shared folder through the server: the share
+        // follows, its id and the window's paths unchanged (item 13).
+        let renamed = owner
+            .call("rename_entry", json!({ "from": "Mesa", "to": "Mesa Nova" }))
+            .await;
+        assert!(renamed.get("ok").is_some(), "{renamed}");
+        assert_eq!(
+            r.server.db.share(&share).unwrap().unwrap().path,
+            "Mesa Nova"
+        );
+        let after = w.call("list_notes", json!({})).await;
+        assert!(
+            strings(&after["ok"]).contains(&"Notas.md".to_owned()),
+            "{after}"
+        );
+        let (_, listed) = get(&r, "/api/folders", Some(&ana)).await;
+        assert_eq!(listed["folders"][0]["name"], "Mesa Nova (Admin)");
+        // A rename made outside the server orphans it: the owner and Ana
+        // see it as missing (item 13).
+        r.server.db.move_shares(&id, "Mesa Nova", "Sumiu").unwrap();
+        let (_, listed) = get(&r, "/api/folders", Some(&ana)).await;
+        assert_eq!(listed["folders"][0]["missing"], true, "{listed}");
+        r.server.db.move_shares(&id, "Sumiu", "Mesa Nova").unwrap();
+        // The owner deletes it: the share goes, Ana's window is told.
+        let gone = owner
+            .call("delete_entry", json!({ "path": "Mesa Nova" }))
+            .await;
+        assert!(gone.get("ok").is_some(), "{gone}");
+        assert!(r.server.db.share(&share).unwrap().is_none());
+        let none = w.call("list_notes", json!({})).await;
+        assert_eq!(none["err"]["kind"], "no_folder", "{none}");
+    });
+}
+
+#[test]
+fn revoking_a_share_closes_it_and_attachments_are_read_only() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let (id, _owner) = furnished(&r, &admin).await;
+        let (ana, ana_id) = ana(&r).await;
+        let (_, shared) = put(
+            &r,
+            &format!("/api/folders/{id}/shares"),
+            json!({ "path": "Mesa", "email": "ana@casa.lan", "role": "editor" }),
+            &admin,
+        )
+        .await;
+        let share = shared["id"].as_str().unwrap().to_owned();
+        // Only the owner shares: Ana, an editor of the share, may not.
+        let (status, _) = put(
+            &r,
+            &format!("/api/folders/{id}/shares"),
+            json!({ "path": "Mesa", "email": "admin@casa.lan", "role": "editor" }),
+            &ana,
+        )
+        .await;
+        assert_eq!(status, 404);
+        // A path that is no folder, or a hidden one, or one going up.
+        for path in ["Nada", "../x", ".trash", "Mesa/../Segredo.md", "Segredo.md"] {
+            let (status, said) = put(
+                &r,
+                &format!("/api/folders/{id}/shares"),
+                json!({ "path": path, "email": "ana@casa.lan", "role": "reader" }),
+                &admin,
+            )
+            .await;
+            assert!(status == 400 || status == 404, "{path}: {status} {said}");
+        }
+        // The attachments folder, read only, under its own name.
+        let (status, att) = put(
+            &r,
+            &format!("/api/folders/{id}/shares/attachments"),
+            json!({ "path": "Mesa", "attachments": "Anexos" }),
+            &admin,
+        )
+        .await;
+        assert_eq!(status, 200, "{att}");
+        assert_eq!(att["attachments"], "Anexos");
+        let (mut w, _) = Win::open(&r, &ana, &share).await;
+        let files = w.call("list_files", json!({})).await;
+        assert!(
+            strings(&files["ok"]).contains(&"Anexos/p.png".to_owned()),
+            "{files}"
+        );
+        let resolved = w
+            .call(
+                "resolve_attachment",
+                json!({ "source": "Notas.md", "target": "p.png" }),
+            )
+            .await;
+        assert_eq!(resolved["ok"], "Anexos/p.png", "{resolved}");
+        let (img, _) = get(&r, &format!("/f/{share}/Anexos/p.png"), Some(&ana)).await;
+        assert_eq!(img, 200);
+        for (cmd, args) in [
+            (
+                "create_file",
+                json!({ "path": "Anexos/q.png", "base64": "AA==" }),
+            ),
+            ("delete_entry", json!({ "path": "Anexos/p.png" })),
+            (
+                "rename_entry",
+                json!({ "from": "Anexos/p.png", "to": "p.png" }),
+            ),
+            (
+                "rename_entry",
+                json!({ "from": "Notas.md", "to": "Anexos/Notas.md" }),
+            ),
+        ] {
+            let a = w.call(cmd, args.clone()).await;
+            assert_eq!(a["err"]["kind"], "refused", "{cmd} {args}: {a}");
+        }
+        let put_att = send(&mut w.ws, 300, "Anexos/r.png", b"r", None).await;
+        assert_eq!(put_att["err"]["kind"], "refused", "{put_att}");
+        // Revoked: the window hears it at once and the share is closed to
+        // every way in.
+        let (status, _) = post(
+            &r,
+            &format!("/api/folders/{id}/shares/revoke"),
+            json!({ "path": "Mesa", "account": ana_id }),
+            Some(&admin),
+        )
+        .await;
+        assert_eq!(status, 200);
+        let gone = loop {
+            let m = next(&mut w.ws).await;
+            if m.get("gone").is_some() {
+                break m;
+            }
+        };
+        assert_eq!(gone["gone"], "folder");
+        let none = w.call("list_notes", json!({})).await;
+        assert_eq!(none["err"]["kind"], "no_folder", "{none}");
+        let again = w.call("open_server_folder", json!({ "id": share })).await;
+        assert_eq!(again["err"]["kind"], "not_found", "{again}");
+        let (img, _) = get(&r, &format!("/f/{share}/Anexos/p.png"), Some(&ana)).await;
+        assert_eq!(img, 404);
+        let (_, mine) = get(&r, "/api/folders", Some(&ana)).await;
+        assert_eq!(mine["folders"], json!([]));
+        // The last person gone, the share goes too.
+        assert!(r.server.db.share(&share).unwrap().is_none());
+    });
+}
+
+#[test]
+fn a_token_reaches_the_share_it_names_and_no_more() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let (id, _owner) = furnished(&r, &admin).await;
+        let (ana, _) = ana(&r).await;
+        let (_, shared) = put(
+            &r,
+            &format!("/api/folders/{id}/shares"),
+            json!({ "path": "Mesa", "email": "ana@casa.lan", "role": "editor" }),
+            &admin,
+        )
+        .await;
+        let share = shared["id"].as_str().unwrap().to_owned();
+        let (status, token) = post(
+            &r,
+            "/api/me/tokens",
+            json!({ "name": "leitura", "write": false, "days": 30, "folders": [share] }),
+            Some(&ana),
+        )
+        .await;
+        assert_eq!(status, 200, "{token}");
+        let secret = token["secret"].as_str().unwrap();
+        let mut ws = connect(&r, None, None, Some(secret)).await.unwrap();
+        next(&mut ws).await;
+        let opened = call(&mut ws, 1, "open_server_folder", json!({ "id": share })).await;
+        assert!(opened.get("ok").is_some(), "{opened}");
+        let notes = call(&mut ws, 2, "list_notes", json!({})).await;
+        assert!(strings(&notes["ok"]).contains(&"Notas.md".to_owned()));
+        // The token reads only: the editor's role is narrowed.
+        let write = call(
+            &mut ws,
+            3,
+            "create_note",
+            json!({ "name": "X", "text": "x" }),
+        )
+        .await;
+        assert_eq!(write["err"]["kind"], "refused", "{write}");
+        let folder = call(&mut ws, 4, "open_server_folder", json!({ "id": id })).await;
+        assert_eq!(folder["err"]["kind"], "not_found", "{folder}");
+    });
+}
