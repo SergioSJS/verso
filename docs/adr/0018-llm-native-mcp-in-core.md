@@ -43,7 +43,8 @@ the structure that serves the person is the same one that serves the agent.
   ([0045](0045-server-and-mcp-security.md)).
 - MCP transport, exposed surface and supported protocol version are `[OPEN]`
   in [0045](0045-server-and-mcp-security.md), to be decided before
-  feature 6 of Phase 1.
+  feature 6 of Phase 1. *(Decided for `verso mcp` on 2026-09-22: stdio,
+  seven read-only tools, the version `initialize` negotiates — 0045.)*
 - "Structured query before similarity" defines the implementation order: index
   and graph before any embedding.
 - Agent writes fall under the same diff rule as conversions

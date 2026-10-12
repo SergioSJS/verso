@@ -66,7 +66,9 @@ O Verso já tem a maior parte das peças:
 
 O que é um bloco continua indefinido para o dialeto: a Q21 da spec está
 `[ABERTO]`, e com ela a Q3 além das duas posições decididas (o fim de um
-parágrafo, o fim de um item de lista) e a Q4.
+parágrafo, o fim de um item de lista) e a Q4. *(Q21, Q3 e Q4 decididas pelo
+mantenedor em 2026-10-07 — spec v0.28; `docs/spec/dialect.md`, Q21: um
+bloco é a unidade do editor.)*
 
 A D9 do [ADR 0060](0060-makemd-organizing-features.md) — "o compositor de
 blocos espera o mês de uso" — é outra coisa: os blocos de layout de página do
@@ -147,6 +149,8 @@ Duas regras mantêm o sentido de um bloco movido:
   diferente de 1 mantém o seu início.
 
 A definição é do editor e não fecha nada na spec: a Q21 continua `[ABERTO]`.
+*(A Q21 decidida em 2026-10-07 por esta definição — spec
+`docs/spec/dialect.md`, Q21.)*
 Ela concorda com as duas posições que a Q3 decidiu — o parágrafo e o item de
 lista são blocos aqui — e fica oferecida como insumo quando a Q21 for
 respondida.

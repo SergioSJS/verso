@@ -24,6 +24,7 @@ O board usa Excalidraw (MIT) como camada de anotação livre.
 - A camada semântica é proposta, não decidida: nós são notas, arestas são
   relações tipadas, e uma seta livre pode ser promovida a relação tipada.
 - A persistência do board é `[ABERTO]` ([0040](0040-board-persistence.md)).
+  *(Decidida: o 0040 aceito em 2026-09-30, pelo ADR 0057.)*
 - O board precisa de vista equivalente acessível — lista ou tabela das mesmas
   notas e relações ([0035](0035-cross-cutting-requirements.md), `PROPOSTO`).
 - Vaults com `.excalidraw.md` do plugin do Obsidian exigem conversão explícita

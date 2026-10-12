@@ -68,11 +68,11 @@ and the screen readers were not observed.
 
 ## Decision
 
-Proposed in every item. Each one names the options and the author's
-recommendation; the maintainer chooses. *(Accepted on 2026-10-09 with
-every recommendation: option (a) in items 2, 4 and 6, option (a) for the
-page's zoom in item 10, and the single recommendation of every other
-item.)*
+**Accepted on 2026-10-09** with every recommendation: option (a) in items
+2, 4 and 6, option (a) for the page's zoom in item 10, and the single
+recommendation of every other item (Status). *(History: proposed in every
+item. Each one names the options and the author's recommendation; the
+maintainer chooses.)*
 
 1. **Two levels decide the layout: the screen decides the frame, the pane
    decides its content.** The frame — drawer or side bars, ribbon, status
@@ -218,10 +218,6 @@ recommendation above.
 
 ## Status
 
-Proposed. Every item waits for the maintainer's choice; the observations
-of Notion in the Context wait for his phone and iPad. `[OPEN]`: the
-contents of the keyboard's toolbar (item 7), after use.
-
 **Accepted on 2026-10-09** by the maintainer, with every recommendation,
 together with [0073](0073-self-hosted-server-first.md) (*"P tudo"*): (a)
 in items 2, 4 and 6, (a) for the page's zoom in item 10, and the
@@ -230,3 +226,8 @@ before the server's window ships. The keyboard's toolbar of item 7 ships
 with the recommended short set. Still `[OPEN]`: the toolbar's contents,
 to revisit after use. The observations of Notion in the Context still wait
 for the maintainer's phone and iPad.
+
+*(History, the status before the acceptance:)* Proposed. Every item waits
+for the maintainer's choice; the observations of Notion in the Context
+wait for his phone and iPad. `[OPEN]`: the contents of the keyboard's
+toolbar (item 7), after use.

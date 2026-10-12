@@ -21,6 +21,9 @@
   dá — mobile pelo navegador, servido pelo servidor; sync depois do
   servidor e por ele; plugins e o shim de compatibilidade continuam fora.
   O critério de saída da Fase 3 não está definido (`[ABERTO]`, no roadmap).
+  *(Decidido pelo mantenedor em 2026-10-10: a fase termina quando nenhuma
+  tarefa dela está pendente e o mantenedor a declara encerrada — a Fase 3
+  do roadmap.)*
 
 ## Contexto
 

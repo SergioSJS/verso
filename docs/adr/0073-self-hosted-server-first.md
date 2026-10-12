@@ -562,7 +562,9 @@ embed origins (the reader's, item 6).
 `[OPEN]`: whether the phone in the browser, online only, meets the mobile
 sync the maintainer called essential, or offline on the phone moves earlier
 in item 12; permissions finer than the folder (per note or per block, spec
-Q9), and history and attribution of another member's change (the
+Q9) *(in part answered by [0081](0081-sharing-between-people-on-one-universo.md),
+accepted 2026-10-11: a grant on a path inside a folder; per note and per
+block stay open; the roadmap strikes the row)*, and history and attribution of another member's change (the
 recovery of a deletion answered by
 [0080](0080-the-trash-with-expiry-and-restore.md), 2026-10-11); whether a server used by one person may opt into end-to-end
 encryption later; the board's co-editing; the MCP transport and

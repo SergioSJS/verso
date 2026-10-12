@@ -259,10 +259,14 @@ carried a recommendation; the maintainer decided. Open items answered
 **Accepted (2026-10-11).** Open items answered 2026-10-10 as recommended;
 read by Opus 5.5 (the handoff of 2026-10-10 and the answers' reading);
 accepted by the maintainer on 2026-10-11 (*"Mas eu tinha confirmado"* to
-the recommendations). No `[OPEN]` item stays open.
+the recommendations). No `[OPEN]` item stays open *(as written on
+2026-10-11; the answers of 2026-10-12 below leave one `[OPEN]`: the layer
+of settings that syncs, where a desktop folder's retention would live)*.
 
 **Built on the night of 2026-10-11 to 12** (8ad89d2, 9c10495, 02903f1,
-173cf7e and f3edc42, with item 12; the fix 5b5fb9c). The open questions
+173cf7e and f3edc42, with item 12; 5b5fb9c, of the same night, is not
+the trash's: it fixes the timing of a test of an unreadable directory on
+Windows). The open questions
 the building raised were sent to the maintainer the same night, and
 answered (below): whether a replaced version is kept only when a
 device's write replaced it (item 12); the range of days the owner may
@@ -279,8 +283,8 @@ syncs exists — that layer stays `[OPEN]`; a restore on the server counts
 against the folder's quota (item 8); and a deletion carried by sync
 names the server, the device later.
 
-Proposed on 2026-10-10. To be read by Opus 5.5 before it is accepted. For
-the maintainer, each with a recommendation: the retention's default
+*(History, before the acceptance above:)* Proposed on 2026-10-10. To be
+read by Opus 5.5 before it is accepted. For the maintainer, each with a recommendation: the retention's default
 (item 3; 30 days); whether the owner changes a folder's retention from the
 window (item 3; shorten only); whether the tree shows a Trash row (item 4;
 no); whether the trash counts against the quota (item 8; shown, not

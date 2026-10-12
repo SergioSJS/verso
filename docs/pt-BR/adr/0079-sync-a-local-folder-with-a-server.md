@@ -278,4 +278,6 @@ rodada, para que nenhum arquivo abaixo de 1 GiB fique de fora pelo tamanho
 *(emendado em 2026-10-11, Revisões; as palavras eram "para que nenhum
 arquivo fique de fora pelo tamanho": o limite de 1 GiB, aceito pelo
 mantenedor nesse dia, é do item 12)*. A ser lida por Fable 5.1 com o
-código da rodada.
+código da rodada *(histórico: lida por Fable 5.1 em 2026-10-10/11, na sessão da campanha
+de sync; o relatório final dela,
+`verso-sync-campaign/relatorio-final.md`, está fora do repositório)*.

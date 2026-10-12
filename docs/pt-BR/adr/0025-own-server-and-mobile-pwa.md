@@ -52,6 +52,10 @@ Nenhuma registrada: o briefing não compara PWA com app nativo mobile.
 
 ## Status
 
-Proposto. Os itens 1 e 2 aceitos em 2026-10-09 no
+Nada segue Proposto: os itens 1 e 2 aceitos em 2026-10-09 no
+[0073](0073-self-hosted-server-first.md), o item 3 superado lá.
+
+*(Histórico, a abertura até 2026-10-12:)* Proposto. Os itens 1 e 2
+aceitos em 2026-10-09 no
 [0073](0073-self-hosted-server-first.md); o item 3 superado lá
 (Revisões).

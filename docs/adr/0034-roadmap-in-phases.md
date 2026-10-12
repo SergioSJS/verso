@@ -20,7 +20,9 @@
   list: sync and mobile leave it, in the shape 0073 gives them — mobile
   through the browser, served by the server; sync after the server and
   through it; plugins and the compatibility shim stay out. Phase 3's exit
-  criterion is not set (`[OPEN]`, in the roadmap).
+  criterion is not set (`[OPEN]`, in the roadmap). *(Decided by the
+  maintainer on 2026-10-10: the phase ends when no task of it is pending
+  and the maintainer declares it ended — the roadmap's Phase 3.)*
 
 ## Context
 

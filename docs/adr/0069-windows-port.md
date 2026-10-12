@@ -23,7 +23,8 @@
 - Related: [0022](0022-target-platforms-macos-first.md) (Windows ships,
   before Linux), [0029](0029-guardrails-in-ci.md) (the platform checks and
   the local scripts), [0043](0043-placeholder-guard.md) (OneDrive's
-  placeholder, `[OPEN]`), [0051](0051-development-flow-and-releases.md)
+  placeholder, `[OPEN]` — decided on 2026-10-08, handled as iCloud's,
+  Status), [0051](0051-development-flow-and-releases.md)
   (releases, and Windows code signing deferred),
   [0055](0055-in-app-updater.md) (the updater's Windows path, unexercised).
 - Status in the briefing: not present
@@ -361,7 +362,12 @@ refuses to rename a folder while any file in it is open. (On macOS, since
 
 ## Status
 
-Proposed. Decided by the maintainer on 2026-10-07: the Windows app starts
+**Decided in parts (2026-10-07/09); the port shipped in 0.5.0-beta.1**
+(2026-10-08, `CHANGELOG.md`; release commit 98a2bf6). Still Proposed: the
+items named Proposed below.
+
+*(The lead until 2026-10-12, kept as history: "Proposed.")* Decided by
+the maintainer on 2026-10-07: the Windows app starts
 now and goes ahead of the rest of Phase 2's work — it is part of Phase 2's
 scope, and ships before Phase 2 closes ("Vou passar windows na frente";
 ADR 0022 and the roadmap revised the same day); x64 only, no ARM64, and
@@ -371,10 +377,14 @@ Windows 10 and 11 (item 1); NSIS per user (item 2); no code signing for now
 code, optional otherwise (item 5, "Recomendado"); the Windows 10 machine
 later, the port written with Windows 10 in mind from the start
 (Consequences). Proposed: the embedded WebView2 bootstrapper (item 2),
-items 4, 6 to 9, and the order of the work. `[OPEN]`, the maintainer not
-knowing yet ("Não sei") and the port proceeding on the recorded
-recommendation as a provisional fact until its pull request: what the
-directory `fsync` means on Windows (item 9); the path separator in a path
-relative to the open folder (item 9). Decided on 2026-10-08: the
+items 4, 6 to 9, and the order of the work. **Decided by the maintainer
+on 2026-10-09** (item 9; `CLAUDE.md` §2 item 9): the directory's
+`FlushFileBuffers` counts as the directory `fsync`; the path separator in
+a path relative to the open folder is `/`, definitive. *(History: until
+then both were `[OPEN]`, the maintainer not knowing yet ("Não sei") and
+the port proceeding on the recorded recommendation as a provisional fact
+until its pull request: what the directory `fsync` means on Windows
+(item 9); the path separator in a path relative to the open folder (item
+9).)* Decided on 2026-10-08: the
 configuration location, `%LOCALAPPDATA%\verso` (item 9, the choice left to
 the port); OneDrive's placeholder handled as iCloud's (item 9, ADR 0043).

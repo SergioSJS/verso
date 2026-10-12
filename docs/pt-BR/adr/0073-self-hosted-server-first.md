@@ -576,7 +576,10 @@ remoto e as origens de embed aprovadas (do leitor, item 6).
 `[ABERTO]`: se o celular no navegador, só online, atende ao sync com
 celular que o mantenedor chamou de imprescindível, ou se o offline no
 celular vem mais cedo no item 12; permissões mais finas que a pasta (por
-nota ou por bloco, Q9 da spec), e histórico e atribuição de uma mudança
+nota ou por bloco, Q9 da spec) *(em parte respondido pelo
+[0081](0081-sharing-between-people-on-one-universo.md), aceito em
+2026-10-11: uma concessão sobre um caminho dentro de uma pasta; por nota
+e por bloco seguem abertos; o roadmap risca a linha)*, e histórico e atribuição de uma mudança
 de outro membro (a recuperação de uma exclusão respondida pelo
 [0080](0080-the-trash-with-expiry-and-restore.md), 2026-10-11); se um servidor de uma pessoa só
 pode optar por criptografia ponta a ponta depois; a coedição do board; o

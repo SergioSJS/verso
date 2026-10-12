@@ -269,10 +269,15 @@ em 2026-10-10 (Status).
 **Aceita (2026-10-11).** Itens abertos respondidos em 2026-10-10 como
 recomendado; lida por Opus 5.5 (o handoff de 2026-10-10 e a leitura das
 respostas); aceita pelo mantenedor em 2026-10-11 (*"Mas eu tinha
-confirmado"* às recomendações). Nenhum item `[ABERTO]` segue aberto.
+confirmado"* às recomendações). Nenhum item `[ABERTO]` segue aberto
+*(como escrito em 2026-10-11; as respostas de 2026-10-12 abaixo deixam um
+`[ABERTO]`: a camada de ajustes que sincroniza, onde moraria a retenção
+de uma pasta do desktop)*.
 
 **Construída na noite de 2026-10-11 para 12** (8ad89d2, 9c10495,
-02903f1, 173cf7e e f3edc42, com o item 12; a correção 5b5fb9c). As
+02903f1, 173cf7e e f3edc42, com o item 12; o 5b5fb9c, da mesma noite,
+não é da lixeira: corrige o tempo de um teste de diretório ilegível no
+Windows). As
 perguntas em aberto que a construção levantou foram mandadas ao
 mantenedor na mesma noite, e respondidas (abaixo): se uma versão
 substituída é guardada só quando a escrita de um aparelho a substituiu
@@ -289,8 +294,8 @@ de ajustes que sincroniza — essa camada segue `[ABERTO]`; uma restauração
 no servidor conta na cota da pasta (item 8); e uma exclusão trazida pelo
 sync nomeia o servidor, o aparelho depois.
 
-Proposta em 2026-10-10. A ser lida por Opus 5.5 antes de ser aceita. Para
-o mantenedor, cada um com uma recomendação: o padrão da retenção (item 3;
+*(Histórico, antes da aceitação acima:)* Proposta em 2026-10-10. A ser
+lida por Opus 5.5 antes de ser aceita. Para o mantenedor, cada um com uma recomendação: o padrão da retenção (item 3;
 30 dias); se o dono muda a retenção de uma pasta pela janela (item 3; só
 encurtar); se a árvore mostra uma linha Lixeira (item 4; não); se a
 lixeira conta na cota (item 8; mostrada, não contada, as mais antigas

@@ -43,7 +43,9 @@ que serve a pessoa é a mesma que serve o agente.
   ([0045](0045-server-and-mcp-security.md)).
 - Transporte do MCP, superfície exposta e versão do protocolo suportada são
   `[ABERTO]` em [0045](0045-server-and-mcp-security.md), a decidir antes
-  da feature 6 da Fase 1.
+  da feature 6 da Fase 1. *(Decididos para o `verso mcp` em 2026-09-22:
+  stdio, sete ferramentas só de leitura, a versão que o `initialize`
+  negocia — 0045.)*
 - "Consulta estruturada antes de similaridade" define a ordem de implementação:
   índice e grafo antes de qualquer embedding.
 - Escrita por agente cai sob a mesma regra de diff das conversões

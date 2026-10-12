@@ -190,7 +190,10 @@ Proposed; decided in its parts by the maintainer on 2026-10-09 (Status).
 
 ## Status
 
-Proposed, decided in its parts by the maintainer on 2026-10-09, in his
+**Accepted on 2026-10-09 in its parts** (the second paragraph below).
+
+*(History, the status before the acceptance:)* Proposed, decided in its
+parts by the maintainer on 2026-10-09, in his
 answers: three ways to install (item 2, "B"); two directories (item 3,
 "B"); the space shown now and limits later (item 4, "A agora B depois");
 sync per folder, off by default (item 5, "A"); the server's ARM64 now
@@ -198,7 +201,7 @@ sync per folder, off by default (item 5, "A"); the server's ARM64 now
 publicar no próprio github"). To be read by Fable 5.1 and accepted with
 [0073](0073-self-hosted-server-first.md). `[OPEN]`: the update path of a
 server, and symlinks that leave a folder on a shared server (item 3), both
-0073's.
+0073's. *(Both answered on 2026-10-09 — below.)*
 
 **Accepted on 2026-10-09** with [0073](0073-self-hosted-server-first.md),
 in the answer quoted there. Both `[OPEN]` answered the same night: the

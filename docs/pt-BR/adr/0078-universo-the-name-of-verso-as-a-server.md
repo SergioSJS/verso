@@ -55,7 +55,8 @@ Aceita (2026-10-10, Status).
      o cartão do CasaOS com o nome Universo.
 4. **As variáveis continuam `VERSO_*`.** São a configuração do servidor e
    já estão documentadas; renomeá-las mudaria toda instalação sem ganho.
-   Recomendado; `[ABERTO]` para o mantenedor.
+   Recomendado; `[ABERTO]` para o mantenedor. *(Decidido em 2026-10-10
+   como recomendado — Status.)*
 5. **O que uma pessoa vê.** As páginas que o servidor serve antes da janela
    — entrar, um convite, uma senha nova — e o console de administração
    ([0077](0077-the-server-administration-console-and-folder-quotas.md))
@@ -64,7 +65,8 @@ Aceita (2026-10-10, Status).
    desktop, Ajustes › Servidores tem o nome do que conecta: `[ABERTO]` se
    vira "Universo" ou continua "Servidores". Recomendado: "Servidores", com
    "Universo" na descrição, já que uma pessoa se conecta a um servidor que
-   alguém roda, pelo endereço.
+   alguém roda, pelo endereço. *(Decidido em 2026-10-10 como recomendado
+   — Status.)*
 6. **Os nomes da 0.7.0-beta.1 não seguem.** A imagem
    `ghcr.io/sergiosjs/verso` e os pacotes `verso-server-*` param na
    0.7.0-beta.1; a próxima versão publica os do Universo. Só o mantenedor
@@ -94,4 +96,6 @@ Aceita (2026-10-10, Status).
 **Aceita em 2026-10-10** pelo mantenedor, com todas as recomendações, em
 sessão: *"com exceção do 6, pode seguir o recomendado, o 6 pode já implementar"*. Item 4: as variáveis continuam `VERSO_*`. Item 5:
 Ajustes › Servidores mantém o nome, com Universo na descrição. A ser lida
-por Fable 5.1 com o código da rodada.
+por Fable 5.1 com o código da rodada *(histórico: lida por Fable 5.1 em 2026-10-10/11, na sessão da campanha
+de sync; o relatório final dela,
+`verso-sync-campaign/relatorio-final.md`, está fora do repositório)*.
