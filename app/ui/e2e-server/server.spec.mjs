@@ -76,18 +76,14 @@ async function demoRegistered(page) {
 }
 
 /** The folder switcher open (ADR 0081 item 5), from the folder button —
- *  on a phone in the side bar's drawer (ADR 0076). The page's `load`
- *  comes before the window's own script has loaded and given the buttons
- *  their actions: a press before that does nothing, so it is pressed
- *  again while nothing opened — never once something did, which would
- *  close it again. */
+ *  on a phone in the side bar's drawer (ADR 0076). One press: the page's
+ *  `load` comes before the window's own script, and a press made before
+ *  it is kept and made once the button is wired (`earlyClicks.ts`). */
 async function openSwitcher(page) {
   await showTree(page);
   const dialog = page.getByRole("dialog", { name: "Trocar de pasta" });
-  await expect(async () => {
-    if (!(await dialog.isVisible())) await page.locator("#open").click();
-    await expect(dialog).toBeVisible({ timeout: 2000 });
-  }).toPass({ timeout: 30_000 });
+  await page.locator("#open").click();
+  await expect(dialog).toBeVisible({ timeout: 30_000 });
   return dialog;
 }
 
@@ -98,6 +94,28 @@ async function openDemo(page) {
   await expect(page.locator("#notes li").first()).toBeVisible();
   await expect(page).toHaveURL(/folder=/);
 }
+
+test("a click on the folder button before the window's script has loaded opens the switcher", async ({ page }) => {
+  // The phone's folder button is in the side's drawer, which the window's
+  // script opens: nothing of it can be pressed before.
+  test.skip((page.viewportSize()?.width ?? 1000) < 760, "the folder button is in the drawer on a phone");
+  const errors = watch(page);
+  await signedIn(page, ADMIN.email, ADMIN.password);
+  // A slow machine: the window's script arrives two seconds after the page.
+  await page.route(/\/main\.js(\?|$)/, async (route) => {
+    await new Promise((r) => setTimeout(r, 2000));
+    await route.continue();
+  });
+  await page.goto("/", { waitUntil: "load" });
+  const open = page.locator("#open");
+  // Not ready, and it says so.
+  await expect(open).toHaveAttribute("aria-busy", "true");
+  // One press, right after `load`, never again: kept, then made.
+  await open.click();
+  await expect(page.getByRole("dialog", { name: "Trocar de pasta" })).toBeVisible({ timeout: 30_000 });
+  await expect(open).not.toHaveAttribute("aria-busy");
+  expect(errors).toEqual([]);
+});
 
 test("the admin signs in, registers a folder and works in it", async ({ page }) => {
   const errors = watch(page);
