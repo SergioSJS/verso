@@ -4,7 +4,10 @@
 # the universo user, and tells systemd of the unit. It does NOT enable or
 # start the service on a first install: the server needs its settings
 # first (ADR 0075 item 2). On an upgrade, a running service is restarted
-# on the new binary.
+# on the new binary; if the unit is not enabled, the host is told it is not
+# running, as on a first install. That happens on Debian when the package
+# was removed and not purged: dpkg then passes the old version, so an
+# install again looks like an upgrade, and the removal disabled the unit.
 set -e
 
 # The .deb passes "configure <old version>" (the old version empty on a
@@ -27,7 +30,19 @@ if [ -d /run/systemd/system ]; then
   fi
 fi
 
+# The message goes out on a first install, and on an upgrade that leaves the
+# unit not enabled (is-enabled prints "disabled", "masked" and so on, and
+# exits non-zero, for anything else). Without systemctl, an upgrade says
+# nothing, as before.
+tell=no
 if [ "$upgrade" = no ]; then
+  tell=yes
+elif command -v systemctl >/dev/null 2>&1; then
+  enabled=$(systemctl is-enabled universo.service 2>/dev/null || true)
+  [ "$enabled" = enabled ] || tell=yes
+fi
+
+if [ "$tell" = yes ]; then
   cat <<'MSG'
 
 Universo installed. It is NOT running yet.
