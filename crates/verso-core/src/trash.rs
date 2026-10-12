@@ -418,6 +418,15 @@ impl Workspace {
             return Err(CoreError::Confined(ConfinementError::Empty));
         }
         let wanted = self.entry_key(original)?;
+        // The folders it goes back into, as a create would make them: a
+        // parent refused (a name not every OS keeps, or the case twin of a
+        // folder there) is refused with its reason — a name beside it would
+        // be under the same parent.
+        if let Some((parent, _)) = wanted.rsplit_once('/') {
+            self.root
+                .check_new_folder(Path::new(parent))
+                .map_err(CoreError::Write)?;
+        }
         let mut target = wanted.clone();
         let mut n = 1;
         let report = loop {
@@ -426,7 +435,11 @@ impl Workspace {
                 .restore_from_trash(Path::new(path), Path::new(&target))
             {
                 Ok(report) => break report,
-                Err(WriteError::Exists) if n < 100 => {
+                // Taken, or taken on a Mac or Windows by a name that differs
+                // only in case (spec Q8): beside it (item 5).
+                Err(WriteError::Exists | WriteError::Confined(ConfinementError::CaseTwin))
+                    if n < 100 =>
+                {
                     target = self.entry_key(&beside_name(&wanted, dir, today, pt, n))?;
                     n += 1;
                 }
