@@ -561,3 +561,108 @@ test("the page that approves a device says who asked, and refuses (threat model,
   expect(typeof done.token).toBe("string");
   expect(errors).toEqual([]);
 });
+
+/** The folder's layer of settings as the window on `page` reads it from
+ *  the server (`.verso/settings.json`, ADR 0070): whether the file is
+ *  there, its revision and its bookmarks. With `kept`, the file is made
+ *  to hold that bookmark first, if it does not yet — once for the three
+ *  browsers, which share the server. */
+function folderSettings(page, kept = null) {
+  return page.evaluate(async (k) => {
+    const internals = window.__TAURI_INTERNALS__;
+    let layer = await internals.invoke("get_folder_settings", {});
+    const have = layer.settings.bookmarks ?? [];
+    if (k && !(layer.exists && have.includes(k))) {
+      const change = { bookmarks: [...have, k], folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null };
+      layer = await internals.invoke("set_folder_settings", { change, revision: layer.exists ? layer.revision : null });
+    }
+    return { exists: layer.exists, revision: layer.revision, bookmarks: layer.settings.bookmarks };
+  }, kept);
+}
+
+/** The tree on screen: on a phone, in its drawer. */
+async function showTree(page) {
+  if ((page.viewportSize()?.width ?? 1000) >= 760) return;
+  if ((await page.locator("body.side-open").count()) === 0) await page.locator(".bottom-bar .bar-files").click();
+  await expect(page.locator("body.side-open")).toHaveCount(1);
+}
+
+/** The bookmarks' line of Settings › Organização: where they are kept,
+ *  and how many. */
+async function bookmarksLine(page) {
+  await page.keyboard.press("ControlOrMeta+,");
+  await page.locator(".settings-nav-item", { hasText: "Organização" }).click();
+  return page.locator(".setting", { has: page.locator(".setting-title", { hasText: /^Favoritos$/ }) });
+}
+
+test("a reader's star stays in this browser, and the folder's settings are left as they were", async ({ page, browser }) => {
+  const errors = watch(page);
+  await signedIn(page, ADMIN.email, ADMIN.password);
+  await demoRegistered(page);
+  await openDemo(page);
+  const folder = new URL(page.url()).searchParams.get("folder");
+  // The owner's window on the folder again, after the console.
+  const backToFolder = async () => {
+    await page.goto(`/?folder=${folder}`);
+    await expect(page.locator("#folder")).toHaveText("Demo");
+  };
+  // The folder's own settings hold a bookmark of its owner's: the folder's
+  // layer is there — a reader's star must leave it alone.
+  const before = await folderSettings(page, "12 - Busca e Navegação.md");
+  expect(before.exists).toBe(true);
+  expect(before.bookmarks).toContain("12 - Busca e Navegação.md");
+  // A reader of the folder, invited to it.
+  const email = `estrela-${test.info().project.name}@verso.test`;
+  await page.goto("/admin/invitations");
+  const invite = page.locator(".console-content");
+  await invite.getByLabel("E-mail (opcional)").fill(email);
+  await invite.getByLabel("Pasta (opcional)").selectOption({ label: "Demo" });
+  await invite.getByRole("button", { name: "Convidar" }).click();
+  const link = (await invite.locator(".web-snippet .setting-code").textContent()) ?? "";
+  expect(link).toContain("/invite/");
+  const other = await browser.newContext({ locale: "pt-BR" });
+  const reader = await other.newPage();
+  const readerErrors = watch(reader);
+  await reader.goto(link);
+  await reader.getByLabel("Nome").fill("Estrela");
+  await reader.getByLabel("Senha nova").fill("a senha da leitora");
+  await reader.getByRole("button", { name: "Criar conta" }).click();
+  await expect(reader).not.toHaveURL(/invite/);
+  await openDemo(reader);
+  await expect(reader.locator("html")).toHaveAttribute("data-role", "reader");
+  // The window knows it only reads before anything is starred.
+  await expect(reader.locator(".read-only-line")).toBeVisible();
+  const NOTE = "14 - Arquivos e Pastas.md";
+  const star = reader.locator(".title-row:visible", { has: reader.locator(".note-title", { hasText: /^14 - Arquivos e Pastas$/ }) }).locator("button.star");
+  await showTree(reader);
+  await reader.locator(`#notes li[data-path="${NOTE}"] > button`).click();
+  await expect(star).toBeVisible();
+  // Not among the folder's bookmarks, nor this browser's yet.
+  await expect(star).not.toHaveClass(/\bon\b/);
+  await star.click();
+  await expect(star).toHaveClass(/\bon\b/);
+  // Settings say where the reader's bookmarks are kept: this browser.
+  const line = await bookmarksLine(reader);
+  await expect(line.locator(".setting-scope")).toHaveText("Desta máquina");
+  await expect(line.locator(".setting-value")).toHaveText("1");
+  await reader.locator(".settings-close").click();
+  // The server's `.verso/settings.json` is as it was.
+  await backToFolder();
+  expect(await folderSettings(page)).toEqual(before);
+  // A reload: the star is still there, kept by this browser.
+  await reader.reload();
+  await expect(reader.locator("#folder")).toHaveText("Demo");
+  await expect(reader.locator(".read-only-line")).toBeVisible();
+  await showTree(reader);
+  await reader.locator(`#notes li[data-path="${NOTE}"] > button`).click();
+  await expect(star).toBeVisible();
+  await expect(star).toHaveClass(/\bon\b/);
+  const again = await bookmarksLine(reader);
+  await expect(again.locator(".setting-scope")).toHaveText("Desta máquina");
+  await expect(again.locator(".setting-value")).toHaveText("1");
+  await reader.locator(".settings-close").click();
+  expect(await folderSettings(page)).toEqual(before);
+  await other.close();
+  expect(errors).toEqual([]);
+  expect(readerErrors).toEqual([]);
+});

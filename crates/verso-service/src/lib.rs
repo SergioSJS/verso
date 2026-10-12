@@ -28,7 +28,7 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError, RwLock, Weak};
 use verso_contract::{
     ContractError, ErrorKind, FolderChanged, FolderInfo, IndexProgress, IndexSummary,
 };
-use verso_core::{CoreError, ReadError, Workspace, WriteError};
+use verso_core::{ConfinementError, CoreError, ReadError, Workspace, WriteError};
 
 pub mod convert;
 pub mod files;
@@ -128,6 +128,10 @@ pub fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
 #[must_use]
 pub fn convert(e: CoreError) -> ContractError {
     let kind = match &e {
+        // A new name beside its case twin (spec Q8): an answer of its own
+        // kind, which the window and sync tell apart without its text.
+        CoreError::Confined(ConfinementError::CaseTwin)
+        | CoreError::Write(WriteError::Confined(ConfinementError::CaseTwin)) => ErrorKind::CaseTwin,
         CoreError::Confined(_) | CoreError::InvalidKey => ErrorKind::Refused,
         CoreError::Write(WriteError::Confined(_)) => ErrorKind::Refused,
         CoreError::Read(ReadError::Unavailable) => ErrorKind::Unavailable,
@@ -280,6 +284,29 @@ impl Service {
         }
     }
 
+    /// Remove the temporary files a stopped process left in the folder,
+    /// with one line in the log when any went; a failure to look is a
+    /// warning, and the folder opens all the same.
+    fn sweep_temporaries(&self, workspace: &Workspace) {
+        match workspace.sweep_temporaries() {
+            Ok(0) => {}
+            Ok(n) => self.events().log(
+                "INFO",
+                &format!(
+                    "folder {}: {n} temporary file(s) of an interrupted write removed",
+                    workspace.name()
+                ),
+            ),
+            Err(e) => self.events().log(
+                "WARN",
+                &format!(
+                    "folder {}: its temporary files were not swept: {e}",
+                    workspace.name()
+                ),
+            ),
+        }
+    }
+
     /// Open a folder and index it, blocking — seconds on a large vault, so
     /// a host calls it off its event loop. Watched before the first index
     /// run, so that a change made while it runs is not missed; a folder that
@@ -294,6 +321,10 @@ impl Service {
         let mut workspace = open(self.config()).map_err(convert)?;
         workspace.set_walk_rules(*lock(&self.walk_rules));
         workspace.set_folder_note_name(&lock(&self.folder_note_name));
+        // What a write or a transfer cut short by a crash left behind: no
+        // write of this opening is in flight yet, and those of this
+        // process under another opening are spared by verso-fs.
+        self.sweep_temporaries(&workspace);
         let missed = Arc::new(AtomicBool::new(false));
         let (watch, unwatched) = self.watch(&workspace, Arc::clone(&missed));
         let report = workspace
