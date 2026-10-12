@@ -755,7 +755,16 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
    barra de status e *Ajustes* › *Sincronizar* dizem *quem compartilhou
    revogou o acesso* e quando (e2e, `sync.spec.mjs`, "a share revoked by
    its owner"; o teste Rust do host contra um servidor de verdade,
-   `tests_shares.rs`).
+   `tests_shares.rs`). Como quem recebe, renomeie uma nota do
+   compartilhamento para a qual aponta uma nota da dona de fora dele; como
+   dona, o link dessa nota tem agora o nome novo, e a renomeação de quem
+   recebe só citou notas de dentro do compartilhamento (o teste Rust do
+   servidor, `tests_shares.rs`, "a receivers rename rewrites the owners
+   links outside the share", com uma nota aberta numa sala mantida como
+   estava; à mão com dois navegadores). A barra de status de quem recebe
+   conta as notas do compartilhamento, e uma base pelo compartilhamento
+   conta, soma e lista só notas de dentro dele (o teste Rust do servidor,
+   `tests_shares.rs`, "a receivers counts are the shares").
 11. Editar junto numa pasta sincronizada ([ADR
     0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), da seção
     *Editar junto numa pasta sincronizada* da nota 23: com a pasta
