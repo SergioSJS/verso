@@ -144,11 +144,16 @@ pub struct Plan {
 
 /// A path sync leaves alone: another file holds its name in the other
 /// Unicode form — two files here on a file system that tells the forms
-/// apart (`here`), or two on the server from before the decision.
+/// apart (`here`), or two on the server from before the decision — or,
+/// on the server (`case`), another file holds a name that differs from it
+/// only in case: two files on its disk, and this computer keeps one
+/// (spec Q8: a new name differing only in case is refused where it is
+/// made, so the second would be refused here on every pass).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Held {
     pub path: String,
     pub here: bool,
+    pub case: bool,
 }
 
 /// The fewest deletions in one pass that pause it (item 9, revised
@@ -163,11 +168,20 @@ pub const PAUSE_FLOOR: usize = 3;
 ///
 /// 2 (2026-10-12, one version for both changes): each change
 /// `sync_changes` answers may carry `device`, the name of the device whose
-/// sync made it — a field a device of sync 1 ignores; and a piece of a
+/// sync made it, and `by`, the person's — fields a device of sync 1
+/// ignores; and a piece of a
 /// file crosses as a binary WebSocket message ([`frame`]) instead of
 /// base64 inside the JSON text, both ways (item 12 revised) — a side that
 /// speaks 1, or says no version, is still sent and taken base64, as the
-/// version before is followed (item 5).
+/// version before is followed (item 5). Also in 2, still unreleased when
+/// added: a change the server refuses because its new name differs only
+/// in case from a sibling (spec Q8) answers with the error kind
+/// `case_twin`, which a device of 2 lists as a name taken; a device of 1
+/// does not know the kind, cannot read the error, and lists the file as
+/// failed ("the server refused") — as it lists any refusal it cannot read.
+/// And through a share, `head` and each change's `seq` count the share's
+/// own changes, never the folder's (3.18); the cursor is opaque to the
+/// device, which keeps it only while connected.
 pub const PROTOCOL: u32 = 2;
 
 /// The first sync whose pieces cross as binary messages.
@@ -222,6 +236,15 @@ pub const fn follows(ours: u32, theirs: u32) -> bool {
 #[must_use]
 pub fn portable(path: &str) -> bool {
     verso_fs::is_portable(std::path::Path::new(path))
+}
+
+/// Whether `path` is in the folder's own settings directory, `.verso/`
+/// (ADR 0070 items 1–2): synced with a folder of one's own, but this
+/// machine's business in a share's folder — a share carries the shared
+/// folder's notes and files, never the receiver's settings.
+#[must_use]
+pub fn settings_path(path: &str) -> bool {
+    verso_fs::is_settings_path(path)
 }
 
 /// Whether this system's file systems fold names by default (APFS, NTFS):
@@ -343,11 +366,12 @@ pub fn plan(
     // computer's spelling of each name.
     let Named {
         local,
-        remote,
+        mut remote,
         base,
         rebased,
-        held,
+        mut held,
     } = one_name_one_file(local, remote, &state.base);
+    case_twins_there(&local, &mut remote, &base, &mut held);
     let mut base = base;
     let mut actions = Vec::new();
     let mut done: BTreeSet<String> = held.iter().map(|h| h.path.clone()).collect();
@@ -517,6 +541,7 @@ fn one_name_one_file(local: &Files, remote: &Files, base: &BTreeMap<String, Stri
             named.held.push(Held {
                 path: p.clone(),
                 here: true,
+                case: false,
             });
         }
         if let Some(f) = local.get(&kept) {
@@ -533,6 +558,7 @@ fn one_name_one_file(local: &Files, remote: &Files, base: &BTreeMap<String, Stri
             named.held.push(Held {
                 path: p.clone(),
                 here: false,
+                case: false,
             });
         }
         let at = mine.unwrap_or_else(|| chosen.clone());
@@ -554,6 +580,47 @@ fn one_name_one_file(local: &Files, remote: &Files, base: &BTreeMap<String, Stri
         }
     }
     named
+}
+
+/// Two files on the server whose names differ only in case (its disk
+/// tells case apart; they were made before spec Q8 was decided, or
+/// outside Verso): this computer keeps one of them, the same on every
+/// pass, and holds the others — said once in the list of what is not
+/// synced, never fetched to be refused here (a new name differing only in
+/// case is refused where it is made, on every system), never taken for a
+/// deletion. The ones this computer has, spelled exactly, or synced
+/// before (the base knows them) stay in play — a Linux device may hold
+/// both, and its edits and deletions cross; when none does, the first in
+/// byte order.
+fn case_twins_there(
+    local: &Files,
+    remote: &mut Files,
+    base: &BTreeMap<String, String>,
+    held: &mut Vec<Held>,
+) {
+    let mut by_name: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for p in remote.keys() {
+        by_name.entry(folded(p)).or_default().push(p.clone());
+    }
+    for paths in by_name.into_values().filter(|p| p.len() > 1) {
+        // What this computer has or had synced stays in play: its edits
+        // and deletions cross as before.
+        let mut kept: Vec<&String> = paths
+            .iter()
+            .filter(|p| local.contains_key(*p) || base.contains_key(*p))
+            .collect();
+        if kept.is_empty() {
+            kept.extend(paths.first());
+        }
+        for p in paths.iter().filter(|p| !kept.contains(p)) {
+            remote.remove(p);
+            held.push(Held {
+                path: p.clone(),
+                here: false,
+                case: true,
+            });
+        }
+    }
 }
 
 /// One path's hashes here, there and in the base.

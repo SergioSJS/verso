@@ -59,6 +59,27 @@ pub struct Change {
     /// (sync 2, ADR 0079 item 5).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<String>,
+    /// Who made it: the account's name, or its e-mail when it has none;
+    /// absent for a change found on the server's disk (sync 2, ADR 0079
+    /// item 5). A device's recent activity says "by <person> on
+    /// <device>".
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub by: Option<String>,
+}
+
+/// A change a share sees: its path, or its path before a rename, is one
+/// of two roots or inside it (`?3`, `?4`; the same twice when the share
+/// shows no attachments folder) — `covers` in SQL, without `LIKE`, so a
+/// `%` or `_` in a folder's name is only itself.
+const SEEN: &str = "(path = ?3 OR substr(path, 1, length(?3) + 1) = ?3 || '/' \
+     OR path = ?4 OR substr(path, 1, length(?4) + 1) = ?4 || '/' \
+     OR renamed_from = ?3 OR substr(renamed_from, 1, length(?3) + 1) = ?3 || '/' \
+     OR renamed_from = ?4 OR substr(renamed_from, 1, length(?4) + 1) = ?4 || '/')";
+
+/// A share's one or two roots as the two parameters of [`SEEN`].
+fn two_roots<'a>(roots: &[&'a str]) -> (&'a str, &'a str) {
+    let a = roots.first().copied().unwrap_or("");
+    (a, roots.get(1).copied().unwrap_or(a))
 }
 
 impl Db {
@@ -175,8 +196,10 @@ impl Db {
         let conn = self.reader();
         let mut st = conn
             .prepare(
-                "SELECT seq, path, hash, size, deleted, renamed_from, device FROM changes
-                 WHERE folder = ?1 AND seq > ?2 ORDER BY seq LIMIT ?3",
+                "SELECT c.seq, c.path, c.hash, c.size, c.deleted, c.renamed_from, c.device,
+                        COALESCE(NULLIF(a.name, ''), a.email)
+                 FROM changes c LEFT JOIN accounts a ON a.id = c.actor
+                 WHERE c.folder = ?1 AND c.seq > ?2 ORDER BY c.seq LIMIT ?3",
             )
             .map_err(e)?;
         st.query_map(params![folder, since, limit], |r| {
@@ -188,11 +211,48 @@ impl Db {
                 deleted: r.get(4)?,
                 renamed_from: r.get(5)?,
                 device: r.get(6)?,
+                by: r.get(7)?,
             })
         })
         .map_err(e)?
         .collect::<rusqlite::Result<Vec<_>>>()
         .map_err(e)
+    }
+
+    /// How many changes of the folder's log up to `upto` a share sees: a
+    /// change whose path, or whose path before a rename, is inside one of
+    /// `roots` — the shared folder's path and the attachments folder it
+    /// shows (ADR 0081 items 6 and 11). The share's own count of changes:
+    /// its head, never the folder's (3.18).
+    pub fn share_seq(&self, folder: &str, roots: &[&str], upto: i64) -> R<i64> {
+        let (a, b) = two_roots(roots);
+        self.reader()
+            .query_row(
+                &format!("SELECT COUNT(*) FROM changes WHERE folder = ?1 AND seq <= ?2 AND {SEEN}"),
+                params![folder, upto, a, b],
+                |r| r.get(0),
+            )
+            .map_err(e)
+    }
+
+    /// The folder's number of the `n`-th change a share sees (counted
+    /// from 1, as [`Db::share_seq`] counts them); `None` when it sees
+    /// fewer.
+    pub fn share_change(&self, folder: &str, roots: &[&str], n: i64) -> R<Option<i64>> {
+        if n < 1 {
+            return Ok(None);
+        }
+        let (a, b) = two_roots(roots);
+        self.reader()
+            .query_row(
+                &format!(
+                    "SELECT seq FROM changes WHERE folder = ?1 AND {SEEN} ORDER BY seq LIMIT 1 OFFSET ?2"
+                ),
+                params![folder, n - 1, a, b],
+                |r| r.get(0),
+            )
+            .optional()
+            .map_err(e)
     }
 
     /// The folder's last `limit` changes, newest first, with who made each

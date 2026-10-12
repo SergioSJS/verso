@@ -168,16 +168,72 @@ impl Scope {
     /// 11): a note at the owner's root names no `/` and is still outside
     /// (threat model, gap closed 2026-10-12), and a warning that names no
     /// path cannot be said to be the share's.
+    ///
+    /// The rest of the line is the core's message about that path, and may
+    /// name another — `Mesa/x.md: the link [[Segredo]] could not be
+    /// pointed at Segredo.md`. Every name it holds must be inside the share
+    /// too, or the whole warning is dropped: a name cannot be cut out of a
+    /// sentence safely, and a warning lost is only less said.
     fn warning(&self, w: &str) -> Option<String> {
-        if let Some(rest) = w.strip_prefix(&format!("{}/", self.root)) {
-            return Some(self.said(rest));
-        }
-        if let Some((name, path)) = &self.mount
+        let (said, rest) = if let Some(rest) = w.strip_prefix(&format!("{}/", self.root)) {
+            (self.said(rest), rest)
+        } else if let Some((name, path)) = &self.mount
             && let Some(rest) = w.strip_prefix(&format!("{path}/"))
         {
-            return Some(format!("{name}/{}", self.said(rest)));
+            (format!("{name}/{}", self.said(rest)), rest)
+        } else {
+            return None;
+        };
+        // The path the warning is about ends at the first ": "; what
+        // follows is the message.
+        let message = rest.split_once(": ").map_or("", |(_, m)| m);
+        if self.names_outside(message) {
+            return None;
         }
-        None
+        Some(said)
+    }
+
+    /// Whether `message` holds a name that is not a path inside the share:
+    /// a link (`[[…]]`), or a word that looks like a path — a `/` or `\`
+    /// in it, or a name with an extension (`Segredo.md`) — that is not, as
+    /// the owner's path, in the share or its attachments folder. Erring
+    /// towards a name: `e.g.` counts as one.
+    fn names_outside(&self, message: &str) -> bool {
+        if message.contains("[[") {
+            return true;
+        }
+        message.split_whitespace().any(|word| {
+            let word = word.trim_matches(|c: char| {
+                matches!(
+                    c,
+                    '"' | '\''
+                        | '`'
+                        | '('
+                        | ')'
+                        | '['
+                        | ']'
+                        | '{'
+                        | '}'
+                        | '<'
+                        | '>'
+                        | ','
+                        | ';'
+                        | ':'
+                        | '.'
+                        | '!'
+                        | '?'
+                )
+            });
+            let pathlike = word.contains(['/', '\\'])
+                || word.rsplit_once('.').is_some_and(|(stem, ext)| {
+                    !stem.is_empty()
+                        && !ext.is_empty()
+                        && ext.len() <= 10
+                        && ext.chars().all(char::is_alphanumeric)
+                        && ext.chars().any(char::is_alphabetic)
+                });
+            pathlike && self.to_rel(word).is_none()
+        })
     }
 
     fn warnings(&self, v: &mut Value) {
@@ -592,7 +648,15 @@ impl Scope {
                     return None;
                 }
             }
-            "sync-changed" | "folder-quota" => {}
+            // The folder's head is not the share's (3.18): a device asks
+            // the share for its own. (`push_sync_changed` already sends
+            // the share's windows only its own changes, without it.)
+            "sync-changed" => {
+                if let Some(p) = m["payload"].as_object_mut() {
+                    p.remove("head");
+                }
+            }
+            "folder-quota" => {}
             _ => return None,
         }
         Some(m)
@@ -735,6 +799,44 @@ mod tests {
         let mut index = json!({ "problems": ["Segredo.md: bad", "Mesa/x.md: bad"] });
         s.summary(&mut index, None);
         assert_eq!(index["problems"], json!(["x.md: bad"]));
+    }
+
+    /// A warning about a path inside the share that names an outside path
+    /// later in the line is dropped whole (threat model, gap closed
+    /// 2026-10-12): `Mesa/x.md: links to Segredo.md` says that the owner
+    /// has a `Segredo.md`. One whose message names only paths inside the
+    /// share, or none, is kept.
+    #[test]
+    fn a_warning_naming_an_outside_path_later_in_the_line_is_dropped() {
+        let s = Scope {
+            share: "s1".into(),
+            key: share_key("s1"),
+            name: "Mesa (Sérgio)".into(),
+            root: "Mesa".into(),
+            mount: Some(("Anexos".into(), "Anexos".into())),
+        };
+        let renamed = s.answer_out(
+            "rename_entry",
+            json!({ "path": "Mesa/b.md", "rewrites": [], "skipped": [], "also": [],
+                    "warnings": [
+                        "Mesa/x.md: links to Segredo.md",
+                        "Mesa/x.md: the link [[Segredo]] could not be pointed at Segredo.md",
+                        "Mesa/x.md: moved beside Fora/y.md",
+                        "Anexos/p.png: read through /Users/owner/Notas/Segredo.md",
+                        "Mesa/x.md: links to Mesa/y.md",
+                        "Mesa/x.md: links to Anexos/p.png",
+                        "Mesa/Minha nota.md: permission denied (os error 13)"
+                    ] }),
+            0,
+        );
+        assert_eq!(
+            renamed["warnings"],
+            json!([
+                "x.md: links to y.md",
+                "x.md: links to Anexos/p.png",
+                "Minha nota.md: permission denied (os error 13)"
+            ])
+        );
     }
 
     #[test]

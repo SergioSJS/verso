@@ -283,9 +283,30 @@ pub struct Server {
     pub ceremonies: crate::passkeys::Ceremonies,
     /// The runtime, for what the watcher's thread hands over.
     pub runtime: std::sync::OnceLock<tokio::runtime::Handle>,
+    /// The sync this server speaks (ADR 0079 item 5): its own,
+    /// `verso_core::sync::PROTOCOL`, unless [`Server::speak_sync`] set an
+    /// older one.
+    sync: std::sync::atomic::AtomicU32,
 }
 
 impl Server {
+    /// The sync this server speaks: what its hello says, and whether a
+    /// piece of a file crosses as a binary message.
+    #[must_use]
+    pub fn sync(&self) -> u32 {
+        self.sync.load(Ordering::Relaxed)
+    }
+
+    /// Speak an older sync than this build's, as a server of the version
+    /// before would: a device of a newer sync is tested against it (ADR
+    /// 0079 item 5: the newer side follows the version before). Nothing
+    /// else changes: what the version before lacks, a device of it never
+    /// asks for.
+    pub fn speak_sync(&self, version: u32) {
+        self.sync
+            .store(version.min(verso_core::sync::PROTOCOL), Ordering::Relaxed);
+    }
+
     pub fn new(config: Config, db: Db, contract: String, commit: String) -> Arc<Self> {
         let service = Service::new(Some(config.data_dir.join("indexes")));
         let slots = crate::listen::Slots::new(config.trusted_proxy);
@@ -310,6 +331,7 @@ impl Server {
             mail: std::sync::OnceLock::new(),
             signin_links: Mutex::new(HashMap::new()),
             runtime: std::sync::OnceLock::new(),
+            sync: std::sync::atomic::AtomicU32::new(verso_core::sync::PROTOCOL),
         });
         service.set_events(Arc::new(ServerEvents {
             server: Arc::downgrade(&server),
@@ -346,6 +368,34 @@ impl Server {
         for c in table.values() {
             if c.folder.as_ref().is_some_and(|(f, _)| f == folder) {
                 c.send_frame(&frame, message);
+            }
+        }
+    }
+
+    /// The folder's log moved on to `head` with changes at `paths`: every
+    /// window that shows the folder hears it. One that opened a share
+    /// hears it only when a change is the share's, and without the head —
+    /// the folder's number counts its changes outside the share too, which
+    /// are not the receiver's to know (3.18); a device asks the share for
+    /// its own.
+    pub fn push_sync_changed(&self, folder: &str, head: i64, paths: &[&str]) {
+        let whole = serde_json::json!({ "event": "sync-changed", "payload": { "head": head } });
+        let frame = Frame::of(&whole);
+        let bare = serde_json::json!({ "event": "sync-changed", "payload": {} });
+        let table = lock(&self.clients);
+        for c in table.values() {
+            if !c.folder.as_ref().is_some_and(|(f, _)| f == folder) {
+                continue;
+            }
+            match &c.scope {
+                None => {
+                    c.tx.send_frame(&frame);
+                }
+                Some(scope) => {
+                    if paths.iter().any(|p| scope.to_rel(p).is_some()) {
+                        c.tx.send(&bare);
+                    }
+                }
             }
         }
     }

@@ -50,7 +50,6 @@ import { clearDropHints, ghost } from "./layout/drag";
 import { Layout } from "./layout/layout";
 import { Pane } from "./layout/pane";
 import { layout, newSpace, newSpaceButton, openNote, paneToOpenIn, showSpace, spaces, spaceTabs } from "./layout/spaces";
-import { pictureWaiting, pictureWorker } from "./leaves/board";
 import { folderSort, setFolderSort } from "./leaves/folderView";
 import { NoteLeaf } from "./leaves/note";
 import { TextLeaf } from "./leaves/textfile";
@@ -214,10 +213,6 @@ new MutationObserver((records) => {
     syncEmbedViews();
   }
 }).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["hidden", "class", "style"] });
-pictureWorker?.addEventListener("message", (e: MessageEvent<{ id: number; out: Blob | null }>) => {
-  pictureWaiting.get(e.data.id)?.(e.data.out);
-  pictureWaiting.delete(e.data.id);
-});
 updateLeavesLineNumbers = () => {
   for (const sp of spaces) {
     for (const p of sp.layout.panes()) {

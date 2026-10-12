@@ -25,17 +25,40 @@ function watch(page) {
   return errors;
 }
 
+/** Press "Entrar" and answer the server's answer to it. The password is
+ *  checked slowly in a debug build — seconds on a slow machine — so the
+ *  answer is waited for, never a fixed time. The wrong passwords of the
+ *  three browsers come from one address: when the limiter asks for a wait
+ *  (429), the person waits what it says and presses again. */
+async function enter(page) {
+  for (let i = 0; ; i++) {
+    const answer = page.waitForResponse((r) => new URL(r.url()).pathname === "/api/signin" && r.request().method() === "POST", { timeout: 30_000 });
+    await page.getByRole("button", { name: "Entrar", exact: true }).click();
+    const res = await answer;
+    if (res.status() !== 429 || i === 10) return res;
+    const body = await res.json().catch(() => ({}));
+    await page.waitForTimeout((body.retry ?? 1) * 1000);
+  }
+}
+
+/** Signed in: the server said yes, and the page went where it sends the
+ *  person — out of /signin, loaded. */
+async function landed(page) {
+  const res = await enter(page);
+  expect(res.status()).toBe(200);
+  await page.waitForURL((u) => !u.pathname.startsWith("/signin"), { timeout: 30_000 });
+}
+
 async function signIn(page, email, password) {
   await page.goto("/");
   await expect(page).toHaveURL(/\/signin/);
   await page.getByLabel("E-mail").fill(email);
   await page.getByLabel("Senha", { exact: true }).fill(password);
-  await page.getByRole("button", { name: "Entrar", exact: true }).click();
 }
 
 async function signedIn(page, email, password) {
   await signIn(page, email, password);
-  await expect(page).not.toHaveURL(/signin/);
+  await landed(page);
 }
 
 /** The demo folder registered once, owned by the admin, from the
@@ -52,15 +75,25 @@ async function demoRegistered(page) {
   await expect(listed).toBeVisible();
 }
 
+/** The folder switcher open (ADR 0081 item 5), from the folder button —
+ *  on a phone in the side bar's drawer (ADR 0076). The page's `load`
+ *  comes before the window's own script has loaded and given the buttons
+ *  their actions: a press before that does nothing, so it is pressed
+ *  again while nothing opened — never once something did, which would
+ *  close it again. */
+async function openSwitcher(page) {
+  await showTree(page);
+  const dialog = page.getByRole("dialog", { name: "Trocar de pasta" });
+  await expect(async () => {
+    if (!(await dialog.isVisible())) await page.locator("#open").click();
+    await expect(dialog).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 30_000 });
+  return dialog;
+}
+
 async function openDemo(page) {
   await page.goto("/");
-  // On a phone the side bar is a drawer: opened first (ADR 0076).
-  if (!(await page.locator("#open").isVisible()) || (page.viewportSize()?.width ?? 1000) < 760) {
-    await page.locator(".bottom-bar .bar-files").click();
-  }
-  // The folder button opens the folder switcher (ADR 0081 item 5).
-  await page.locator("#open").click();
-  const dialog = page.getByRole("dialog", { name: "Trocar de pasta" });
+  const dialog = await openSwitcher(page);
   await dialog.getByRole("button", { name: /Demo/ }).click();
   await expect(page.locator("#notes li").first()).toBeVisible();
   await expect(page).toHaveURL(/folder=/);
@@ -69,14 +102,10 @@ async function openDemo(page) {
 test("the admin signs in, registers a folder and works in it", async ({ page }) => {
   const errors = watch(page);
   await signIn(page, ADMIN.email, "senha errada!!");
+  expect((await enter(page)).status()).toBe(401);
   await expect(page.getByRole("alert")).toHaveText("E-mail ou senha errados.");
   await page.getByLabel("Senha", { exact: true }).fill(ADMIN.password);
-  // The wrong passwords of the three browsers come from one address: the
-  // limiter may ask for a second's wait, and the person tries again.
-  await expect(async () => {
-    await page.getByRole("button", { name: "Entrar", exact: true }).click();
-    await expect(page).not.toHaveURL(/signin/, { timeout: 1500 });
-  }).toPass({ timeout: 15000 });
+  await landed(page);
   await demoRegistered(page);
   await openDemo(page);
   await expect(page.locator("#folder")).toHaveText("Demo");
@@ -178,7 +207,7 @@ test("two windows edit one note at once and the file follows", async ({ page, br
   const otherErrors = watch(other);
   await other.goto(`/?folder=${folder}`);
   await expect(other.locator("#notes")).toContainText(`${name}.md`);
-  if ((other.viewportSize()?.width ?? 1000) < 760) await other.locator(".bottom-bar .bar-files").click();
+  await showTree(other);
   await other.locator("#notes").getByRole("button", { name: `${name}.md` }).click();
   const theirs = other.locator(".cm-content:visible").first();
   // Edit mode in the second window, if it opened in reading.
@@ -298,10 +327,7 @@ test("signing in follows only this server's own paths", async ({ page }) => {
   await page.goto("/signin?next=" + encodeURIComponent("/\\evil.example/x"));
   await page.getByLabel("E-mail").fill(ADMIN.email);
   await page.getByLabel("Senha", { exact: true }).fill(ADMIN.password);
-  await expect(async () => {
-    await page.getByRole("button", { name: "Entrar", exact: true }).click();
-    await expect(page).not.toHaveURL(/signin/, { timeout: 1500 });
-  }).toPass({ timeout: 15000 });
+  await landed(page);
   expect(new URL(page.url()).host).toBe(new URL(test.info().project.use.baseURL ?? page.url()).host);
 });
 
@@ -332,7 +358,11 @@ test("an admin ends another account's sessions and tokens from its page", async 
   await page.getByRole("button", { name: "Encerrar sessões e tokens" }).click();
   await expect(page.locator(".web-said")).toHaveText("1 sessão encerrada · 0 tokens revogados.");
   await expect(page.getByRole("button", { name: "Encerrar sessões e tokens" })).toBeDisabled();
-  // The lost browser is signed out; the admin's own session stays.
+  // The lost browser is signed out: its window, told by the server, goes
+  // to the sign-in page by itself — waited for, not navigated over — and
+  // the address opened again asks to sign in. The admin's session stays.
+  await expect(lost).toHaveURL(/\/signin/, { timeout: 30_000 });
+  await lost.waitForLoadState("load");
   await lost.goto("/");
   await expect(lost).toHaveURL(/\/signin/);
   await other.close();
@@ -445,9 +475,7 @@ test("two people share folders on one server, both ways (ADR 0081)", async ({ pa
   // Ana finds it under "Shared with me", named after the folder and its
   // owner, and it opens as a folder of its own: its notes, nothing above.
   await ana.goto("/");
-  if ((ana.viewportSize()?.width ?? 1000) < 760) await ana.locator(".bottom-bar .bar-files").click();
-  await ana.locator("#open").click();
-  const switcher = ana.getByRole("dialog", { name: "Trocar de pasta" });
+  const switcher = await openSwitcher(ana);
   const shared = switcher.getByRole("region", { name: "Compartilhados comigo" });
   // The owner's name: the admin made from VERSO_ADMIN_EMAIL is called
   // after the e-mail's local part, "admin".
@@ -461,9 +489,7 @@ test("two people share folders on one server, both ways (ADR 0081)", async ({ pa
   await asPage(page, "PATCH", `/api/admin/accounts/${anaAccount.id}`, { admin: false, mayCreate: true });
   const mine = await asPage(ana, "POST", "/api/folders", { name: `Ana ${tag}` });
   await asPage(ana, "PUT", `/api/folders/${mine.id}/shares`, { path: "", email: ADMIN.email, role: "reader" });
-  if ((page.viewportSize()?.width ?? 1000) < 760) await page.locator(".bottom-bar .bar-files").click();
-  await page.locator("#open").click();
-  const back = page.getByRole("dialog", { name: "Trocar de pasta" }).getByRole("region", { name: "Compartilhados comigo" });
+  const back = (await openSwitcher(page)).getByRole("region", { name: "Compartilhados comigo" });
   await expect(back).toContainText(`Ana ${tag}`);
   await expect(back).toContainText("lê");
   await page.keyboard.press("Escape");
@@ -580,11 +606,16 @@ function folderSettings(page, kept = null) {
   }, kept);
 }
 
-/** The tree on screen: on a phone, in its drawer. */
+/** The tree on screen: on a phone, in its drawer — its button pressed
+ *  again while the drawer stays shut (a press before the window's script
+ *  has loaded does nothing), never once it opened. */
 async function showTree(page) {
   if ((page.viewportSize()?.width ?? 1000) >= 760) return;
-  if ((await page.locator("body.side-open").count()) === 0) await page.locator(".bottom-bar .bar-files").click();
-  await expect(page.locator("body.side-open")).toHaveCount(1);
+  const open = page.locator("body.side-open");
+  await expect(async () => {
+    if ((await open.count()) === 0) await page.locator(".bottom-bar .bar-files").click();
+    await expect(open).toHaveCount(1, { timeout: 2000 });
+  }).toPass({ timeout: 30_000 });
 }
 
 /** The bookmarks' line of Settings › Organização: where they are kept,
