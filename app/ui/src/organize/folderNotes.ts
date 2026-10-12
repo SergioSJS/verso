@@ -7,15 +7,20 @@ import { afterFileChange } from "../changes";
 import { ui } from "../dom";
 import { fail } from "../errors";
 import { allNotes, folderName } from "../folder";
+import { folderValues } from "../folderLayer";
 import { dirOf } from "../paths";
 import { settings } from "../settings";
 import { t } from "../strings";
 import { allFolders } from "../tree/tree";
 
-/** The folder note name setting as the core applies it
- *  (`set_folder_note_name`): a plain file name, or empty. */
+/** The folder note name setting as the core applies it — the folder's
+ *  own (ADR 0070) or this machine's (`set_folder_note_name`): a plain file
+ *  name, or empty. */
 export function folderNoteStem(): string {
-  const n = settings.folderNoteName.trim().replace(/\.md$/i, "");
+  return plainStem(folderValues().folderNoteName);
+}
+function plainStem(name: string): string {
+  const n = name.trim().replace(/\.md$/i, "");
   return /[/\\]/.test(n) || n === "." || n === ".." ? "" : n;
 }
 /** The paths a folder's note may have, in the order they are looked for —
@@ -58,11 +63,12 @@ export function folderNoteOf(folder: string): string | null {
   }
   return null;
 }
-/** The folder note name setting, handed to the core, which finds folder
- *  notes by it when a rename rewrites an `order:` and when it labels a
- *  folder. Awaited with the walk rules, before any folder opens. */
+/** This machine's folder note name setting, handed to the core, which
+ *  finds folder notes by it — when the folder has no settings file of its
+ *  own (ADR 0070) — when a rename rewrites an `order:` and when it labels
+ *  a folder. Awaited with the walk rules, before any folder opens. */
 export function pushFolderNoteName(): Promise<boolean> {
-  return commands.setFolderNoteName(folderNoteStem()).then(
+  return commands.setFolderNoteName(plainStem(settings.folderNoteName)).then(
     (r) => r.status === "ok" || (fail(r.error), false),
     () => false,
   );

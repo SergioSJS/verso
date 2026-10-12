@@ -27,6 +27,40 @@
   auditoria dos ADRs em sessão: *"Ajuste tudo que precisar. Está aprovado os ADRs"*; a
   retenção de uma pasta do desktop no
   [0080](0080-the-trash-with-expiry-and-restore.md) espera por eles.
+  2026-10-12 — os itens 1 e 2 construídos no mesmo dia, com o *"Ajuste
+  todas essas pendências agora"* do mantenedor (branch
+  `feat/folder-settings`): a camada da pasta é um arquivo,
+  `.verso/settings.json` — JSON, chaves em ordem, recuo de dois espaços,
+  uma quebra de linha no fim, chaves desconhecidas mantidas em toda
+  escrita — com `bookmarks`, `folderNoteName`, `ignoreBuildDirs` e
+  `respectGitignore`. Abrir, percorrer e ler uma pasta nunca o criam; a
+  primeira mudança cria, por uma criação que falha quando já há algo ali,
+  e toda escrita seguinte vai sobre a versão lida (invariantes 7, 9, 11).
+  Quando a pasta tem um arquivo utilizável, valem os valores dele, e uma
+  chave que ele não define fica no padrão; quando não tem, ou tem um que
+  não dá para ler agora (um placeholder, um que não é JSON), valem os
+  desta máquina, como antes. Na primeira abertura de uma pasta, os
+  favoritos que esta máquina guardava para ela entram nela uma vez — só
+  numa pasta sem arquivo de ajustes, marcados como movidos nesta máquina;
+  a primeira escrita do arquivo leva as regras de varredura e o nome da
+  nota de pasta desta máquina quando não são os padrões, para que criá-lo
+  não mude nada do que a pessoa vê. `.verso/` e as entradas simples dele
+  são o único caminho oculto que o `verso-fs` confina como um arquivo e
+  que o observador relata; a varredura, o índice e a árvore nunca o
+  listam, a sincronização o lista à parte e o leva como qualquer arquivo
+  — um conflito guarda a outra versão ao lado, em `.verso/`
+  ([0079](0079-sync-a-local-folder-with-a-server.md) item 8) —, e um
+  compartilhamento de uma pasta de servidor nunca o leva
+  ([0081](0081-sharing-between-people-on-one-universo.md)). Os Ajustes
+  marcam cada um dos três como "Da pasta" ou "Desta máquina". Duas
+  leituras que o texto não resolvia, feitas pelo autor e `[ABERTO]` para
+  o mantenedor: "os caminhos ignorados" lidos como os caminhos ignorados
+  do [0044](0044-verso-fs-semantics.md) que a janela tem como ajuste — as
+  chaves das pastas de build e do `.gitignore`, que o servidor já tratava
+  como da pasta —, não o "Ocultar da árvore", que o
+  [0060](0060-makemd-organizing-features.md) diz não ser os caminhos
+  ignorados do 0044 e que fica desta máquina; e o nome do arquivo,
+  `settings.json`, que nenhum documento nomeava.
 
 ## Contexto
 
@@ -60,7 +94,7 @@ exatamente esses, a regra que o item 3 adota.
 ## Decisão
 
 1. **Três camadas de configuração** (proposto; aceito em 2026-10-12,
-   construído na próxima rodada):
+   construído em 2026-10-12):
    - **as da máquina**, nunca sincronizadas: o índice, o arquivo lateral
      dele, o log, o layout da janela. Onde estão hoje (ADR 0011 sem
      mudança).
@@ -77,7 +111,7 @@ exatamente esses, a regra que o item 3 adota.
      *(Num servidor, desde 2026-10-09: a conta é o lugar delas,
      [0073](0073-self-hosted-server-first.md) item 5.)*
 2. **A camada da pasta, conteúdo proposto** *(aceito em 2026-10-12,
-   construído na próxima rodada)*: os favoritos, os caminhos
+   construído em 2026-10-12, em `.verso/settings.json`)*: os favoritos, os caminhos
    ignorados, o nome da nota de pasta. Na primeira abertura de uma pasta
    depois disso, o que a máquina guardava dela vai para a pasta, uma vez.
 3. **Nomes que todo sistema guarda. Decidido pelo mantenedor em
@@ -134,10 +168,13 @@ exatamente esses, a regra que o item 3 adota.
 
 Decidido em partes: o item 3 (2026-10-08); o separador do item 4, `/`, e o
 nome do diretório oculto, `.verso/` (2026-10-09). Os itens 1 e 2, a
-camada da pasta em `.verso/`: aceitos em 2026-10-12, para construir na
-próxima rodada; a retenção de uma pasta do desktop no
-[0080](0080-the-trash-with-expiry-and-restore.md) espera por eles. *(Até
-2026-10-12: "Proposto: os itens 1 e 2.")*
+camada da pasta em `.verso/`: aceitos em 2026-10-12 e construídos no
+mesmo dia (Revisões); a retenção de uma pasta do desktop no
+[0080](0080-the-trash-with-expiry-and-restore.md) esperava por eles.
+`[ABERTO]`, da construção: "os caminhos ignorados" lidos como as chaves
+das pastas de build e do `.gitignore`, e o nome do arquivo,
+`settings.json` (Revisões). *(Até 2026-10-12: "Proposto: os itens 1 e
+2"; depois, "aceitos, para construir na próxima rodada".)*
 
 *(Histórico, a abertura até 2026-10-12:)* Proposto. Decidido pelo
 mantenedor em 2026-10-08: o item 3 (nomes que todo sistema guarda, para o

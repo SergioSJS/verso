@@ -41,6 +41,17 @@ impl Workspace {
             narrowed: true,
             ..IndexReport::default()
         };
+        // The folder's settings directory is never listed nor indexed: its
+        // file read again, what changed reported (ADR 0070). A change of
+        // the walk's rules makes the batch a walk.
+        let (layer, paths): (Vec<String>, Vec<String>) = paths
+            .iter()
+            .cloned()
+            .partition(|p| verso_fs::is_settings_path(p));
+        if !layer.is_empty() && !self.narrow_layer(&mut report) {
+            return Ok(None);
+        }
+        let paths = paths.as_slice();
         let asked: Vec<&Path> = paths.iter().map(Path::new).collect();
         let found = self.root.single(&asked);
         let mut steps: Vec<(&String, Step)> = Vec::new();

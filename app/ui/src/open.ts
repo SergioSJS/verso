@@ -10,6 +10,7 @@ import { flushed, recheckAll, refreshLists, setShownProblems, showProblems, stop
 import { button, h, showToast, ui } from "./dom";
 import { fail } from "./errors";
 import { forgetFiles } from "./files";
+import { loadFolderLayer } from "./folderLayer";
 import { loadFocuses } from "./focuses";
 import { currentFolder, LAST_FOLDER, nameFolderButton, secondary, setCurrentFolder, setFolderName } from "./folder";
 import { layout, newSpace, openIn, setCurrent, showSpace, Space, spaces } from "./layout/spaces";
@@ -31,6 +32,7 @@ export async function joinAsPopout(): Promise<void> {
   nameFolderButton();
   page?.classList.remove("empty");
   ui.search.disabled = false;
+  await loadFolderLayer();
   loadBookmarks();
   await loadFocuses();
   await listAll();
@@ -120,6 +122,9 @@ export async function showFolder(info: FolderInfo): Promise<void> {
   ui.search.disabled = false;
   ribbon?.paint();
   ui.search.value = "";
+  // The folder's own settings (ADR 0070) before the tree is drawn: its
+  // folder note's name names the folders' notes.
+  await loadFolderLayer();
   loadBookmarks();
   await loadFocuses();
   panel.tagsCache = [];
