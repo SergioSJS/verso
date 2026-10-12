@@ -11,7 +11,7 @@
 // `organize/layerRules.ts`'s.
 
 import { commands, type FolderLayer, type FolderSettings } from "./bindings";
-import { canWrite, onCan } from "./can";
+import { can, canWrite, loadCan, onCan } from "./can";
 import { fail } from "./errors";
 import { currentFolder } from "./folder";
 import { effective, firstWrite, shouldMove, writable, type Effective, type Machine } from "./organize/layerRules";
@@ -122,15 +122,29 @@ async function read(): Promise<void> {
   layer = r.status === "ok" ? r.data : null;
 }
 
+/** Whether the person only reads the folder, asked before the bookmarks
+ *  move in: at the opening the side's capabilities, and on this computer
+ *  sync's state event (`verso:sync-state`), may come after that move, and
+ *  a reader's bookmarks must never move into the folder (decided
+ *  2026-10-12). The capabilities are awaited; a folder of this computer
+ *  asks its sync. */
+async function readerNow(): Promise<boolean> {
+  await loadCan();
+  if (!accountWrites()) return true;
+  if (!can("local_folders")) return false;
+  const r = await commands.folderSync().catch(() => null);
+  return r?.status === "ok" && r.data.on && r.data.role === "reader";
+}
+
 /** The open folder's layer read — never written by the reading — and,
  *  once, this machine's bookmarks of it moved in when the folder has no
- *  settings file yet (ADR 0070 item 2). */
+ *  settings file yet (ADR 0070 item 2), by a person who may write it. */
 export async function loadFolderLayer(): Promise<void> {
   layer = null;
   if (!currentFolder) return told();
   await read();
   const m = machine();
-  if (layer && shouldMove(layer, m, movedBefore(), accountWrites())) {
+  if (layer && shouldMove(layer, m, movedBefore(), accountWrites()) && !(await readerNow())) {
     const w = await commands.setFolderSettings(firstWrite(layer, m, {
       bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null,
     }), null);

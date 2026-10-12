@@ -85,6 +85,7 @@ export const UNUSED_ARGS: Record<string, string[]> = {
   collab_leave: ["path"],
   collab_save: ["path"],
   collab_resolve: ["path", "keep"],
+  collab_present: ["path"],
   server_sign_in: ["url"],
   server_sign_out: ["url"],
   server_folders: ["url"],
@@ -1402,6 +1403,7 @@ export class Core {
     collab_leave: () => refuse("refused", "simultaneous editing is a server's"),
     collab_save: () => refuse("refused", "simultaneous editing is a server's"),
     collab_resolve: () => refuse("refused", "simultaneous editing is a server's"),
+    collab_present: () => refuse("refused", "simultaneous editing is a server's"),
     // No server signed in to from the harness (ADR 0073 item 2).
     server_accounts: () => [],
     server_sign_in: () => refuse("unavailable", "no server in the harness"),
