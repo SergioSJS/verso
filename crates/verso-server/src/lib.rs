@@ -19,6 +19,7 @@ pub mod crypto;
 pub mod data;
 pub mod db;
 pub mod device;
+pub mod fair;
 pub mod files;
 pub mod folders;
 pub mod http;

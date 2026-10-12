@@ -139,3 +139,42 @@ fn the_mail_routes_answer_alike_whether_the_address_has_an_account() {
         }
     });
 }
+
+/// One account holds a bounded number of connections (gap 4): past it
+/// the next is refused, and a place comes back with its connection.
+#[test]
+fn an_account_holds_a_bounded_number_of_connections() {
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let mut held = Vec::new();
+        for _ in 0..crate::fair::PER_ACCOUNT {
+            let mut ws = connect(&r, Some(&b.cookie), Some(&r.origin()), None)
+                .await
+                .unwrap();
+            next(&mut ws).await;
+            held.push(ws);
+        }
+        assert_eq!(
+            connect(&r, Some(&b.cookie), Some(&r.origin()), None)
+                .await
+                .err(),
+            Some(429)
+        );
+        drop(held.pop());
+        let started = Instant::now();
+        loop {
+            match connect(&r, Some(&b.cookie), Some(&r.origin()), None).await {
+                Ok(_) => break,
+                Err(status) => {
+                    assert_eq!(status, 429);
+                    assert!(
+                        started.elapsed() < Duration::from_secs(10),
+                        "no place came back"
+                    );
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                }
+            }
+        }
+    });
+}
