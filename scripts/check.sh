@@ -13,6 +13,8 @@
 # on the first run.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# The commit checked, so that a kept log names it.
+printf 'checking %s\n' "$(git rev-parse --short HEAD 2>/dev/null || echo 'no git')"
 
 step() { printf '\n== %s\n' "$*"; }
 
