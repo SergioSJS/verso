@@ -331,7 +331,10 @@ noite no `feat/universo-small`, com o sync revogado do item 8 do
 um aviso; da 3.17 à 3.19 vêm na próxima rodada. *(Construídas: a 3.20 em
 3bc56ae, a 3.21 em 5838c10, o sync revogado em 6c7800e, mesclados no
 `feat/universo` por d2a72b0 em 2026-10-12; o 241c233 registra as lacunas
-11 e 12 do modelo de ameaças fechadas.)*
+11 e 12 do modelo de ameaças fechadas. Da 3.17 à 3.19, e a 3.22, foram
+construídas em 2026-10-12 — *"Ajuste todas essas pendências agora"* — e
+mescladas no `feat/universo` por 5b07712, 35d30ae e 05033f2, com o F31 da
+campanha: um arquivo cruza em pedaços lidos do disco.)*
 
 **Herdado da Fase 2** (o mantenedor, 2026-10-12, fechando a Fase 2 em
 2026-10-09). A Fase 3 termina quando nenhuma tarefa dela está pendente, e
