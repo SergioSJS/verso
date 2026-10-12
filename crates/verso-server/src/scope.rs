@@ -578,9 +578,13 @@ impl Scope {
                 let file = self.rel_value(&m["payload"]["file"]).unwrap_or(Value::Null);
                 m["payload"]["file"] = file;
                 // How far a walk of the owner's whole folder is: not the
-                // share's to know (item 11).
-                m["payload"]["current"] = json!(0);
-                m["payload"]["total"] = json!(0);
+                // share's to know (item 11). Left out, not zero — a zero
+                // would read as a count; the window shows the walk
+                // without one.
+                if let Some(p) = m["payload"].as_object_mut() {
+                    p.remove("current");
+                    p.remove("total");
+                }
             }
             "collab-update" | "collab-awareness" | "collab-saved" | "collab-conflict"
             | "collab-closed" => {
@@ -758,8 +762,9 @@ mod tests {
         let walk = json!({ "event": "index-progress", "payload": {
             "phase": "indexing", "current": 120, "total": 480, "file": "Mesa/Segredo.md" } });
         let seen = s.push(&walk).unwrap();
-        assert_eq!(seen["payload"]["current"], 0);
-        assert_eq!(seen["payload"]["total"], 0);
+        assert!(seen["payload"].get("current").is_none(), "{seen}");
+        assert!(seen["payload"].get("total").is_none(), "{seen}");
+        assert_eq!(seen["payload"]["phase"], "indexing");
         assert_eq!(seen["payload"]["file"], Value::Null);
         let room = json!({ "event": "collab-update", "payload": { "path": "Mesa/Segredo.md" } });
         assert_eq!(s.push(&room), None);
