@@ -254,6 +254,7 @@ vazio conta como não definido.
 | `VERSO_SMTP_URL` | não | o servidor de correio do host (`smtps://usuario:senha@host:465`, ou `smtp://…:587?tls=required`): links de login, "esqueci a senha" e convites enviados por e-mail |
 | `VERSO_MAIL_FROM` | não | o remetente desses e-mails; `Verso <verso@` o host do endereço público `>` por padrão |
 | `VERSO_FOLDER_QUOTA` | não | a cota que uma pasta nova recebe: bytes, ou um tamanho como `500MB` ou `10GB`; nenhuma quando não definida. O console (`/admin`, Pastas) muda a de cada pasta ([ADR 0077](../adr/0077-the-server-administration-console-and-folder-quotas.md)) |
+| `VERSO_TRASH_DAYS` | 30 | quantos dias a lixeira de uma pasta (`.trash/`) guarda os arquivos apagados e as versões que a escrita de um aparelho substituiu; `0` guarda para sempre. A página da pasta no console define o de cada pasta, e a dona da pasta pode encurtá-lo pela janela ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)). A lixeira é varrida ao iniciar e uma vez por dia; aparece, mas não conta na cota, e quando a lixeira sozinha de uma pasta passa da cota os itens mais antigos expiram antes |
 
 Sem `VERSO_SMTP_URL` nada é enviado: o admin copia os links de convite e de senha nova à mão.
 

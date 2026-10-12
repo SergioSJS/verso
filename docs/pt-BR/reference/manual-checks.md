@@ -55,6 +55,37 @@ app real.
   cai na página de entrar, o token dela para de responder, e o registro
   lista "encerrou as sessões e os tokens da conta" sobre essa conta.
 
+### A lixeira (ADR 0080, feat/universo, 2026-10-11)
+
+- [ ] **A lixeira de uma pasta deste computador** (`9c10495`, `173cf7e`):
+  no app instalado, apague uma nota e abra *Ajustes › Lixeira* (ou "Abrir
+  a lixeira" na paleta, ou o botão direito no espaço vazio da árvore): a
+  nota aparece com a data de hoje; "Restaurar" põe o arquivo de volta no
+  disco (o Finder mostra) e o log tem uma linha `trash` "restored".
+- [ ] **O que uma lixeira antiga guardava** (`8ad89d2`): abra uma pasta cuja
+  `.trash` o Obsidian ou um Verso mais antigo encheu; os itens aparecem
+  "antes de … (data desconhecida)", nada é apagado na hora; *Manter
+  arquivos apagados por* "1 dia", um dia depois, remove-os, cada um uma
+  linha "expired" do log; a varredura também roda um dia depois de abrir a
+  pasta, enquanto ela fica aberta.
+- [ ] **Uma exclusão que a sincronização fez aqui** (`9c10495`): com dois
+  computadores sincronizando uma pasta, apague uma nota num deles; no
+  outro, a lixeira a lista "pela sincronização com <servidor>".
+- [ ] **A lixeira do servidor de teste** (`02903f1`): depois da
+  atualização, os 306 MB que já estavam na `.trash` de uma pasta aparecem
+  com data desconhecida e nada some antes de 30 dias desde a primeira
+  leitura; a página da pasta no console mostra *Lixeira* (quantidade,
+  tamanho, "fora da cota") e *Dias na lixeira*; os totais da Visão geral
+  somam as lixeiras; quem edita restaura mas não vê "Apagar agora"; a dona
+  encurta os dias pela janela e não passa dos da administração.
+- [ ] **Uma versão que a escrita de um aparelho substituiu** (`02903f1`,
+  F18): num computador sincronizado, deixe outro programa salvar um texto
+  antigo por cima de uma nota que a sincronização acabou de atualizar; no
+  servidor, a *Lixeira* lista "substituído por <aparelho>", e "Restaurar"
+  a põe ao lado da nota como `<nota> (restaurado <data>).md`.
+- [ ] **A janela do desktop numa pasta do servidor** (`9c10495`): *Ajustes ›
+  Lixeira* mostra a lixeira do servidor, com os limites do papel.
+
 ### Versão 0.5 (feat/windows-fs, feat/signed-updates)
 
 - [ ] **Verso para Linux** (ADR 0071, 2026-10-09), nas máquinas do

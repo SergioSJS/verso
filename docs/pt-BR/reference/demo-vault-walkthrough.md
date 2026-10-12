@@ -330,6 +330,19 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    árvore a rola e não move nada; um dedo segurado numa linha e solto abre
    o menu dela; segurado e depois movido, arrasta a linha para uma pasta.
    Nível: H (o toque só se move no Chromium); E: `touch.spec.mjs`.
+11. Nota 14, "A Lixeira" ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)):
+   apague uma nota, crie outra com o nome dela e abra a lixeira pela
+   paleta ("Abrir a lixeira"), pelo botão direito no espaço vazio da
+   árvore ou por *Ajustes › Arquivos e links*, onde a lixeira aparece ao
+   lado do espaço da pasta: a lista tem uma linha de cabeçalho, a nota com
+   quando e onde estava; "Restaurar" a põe ao lado da nova como `<nota>
+   (restaurado <data>).md` e diz isso; *Manter arquivos apagados por* "7
+   dias" remove na hora o que foi apagado antes disso; "Apagar agora" e
+   "Esvaziar a lixeira" perguntam na página, com o tamanho. Nível: H; E:
+   `trash.spec.mjs` (também no tamanho de celular e de tablet); S:
+   `crates/verso-core/tests/trash.rs` (a guarda da varredura, a da cota),
+   `crates/verso-fs/src/trashbin/tests.rs` (nenhum symlink seguido); A: os
+   arquivos no disco e as linhas do log (`manual-checks.md`).
 
 ## 7. A web
 
@@ -706,6 +719,16 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
    conectar de novo em *Servidores* (`tests_sync.rs`,
    `an_ended_sessions_connection_is_closed_at_once`); dois computadores de
    verdade, à mão.
+9. A lixeira num servidor ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)):
+   um aparelho grava outros bytes por cima de uma nota; *Ajustes › Lixeira*
+   lista a versão substituída, "substituído por" o aparelho, e "Restaurar"
+   a põe ao lado da nota; a página da pasta no console mostra a lixeira,
+   "fora da cota", e os dias dela (e2e-server, "a device's write keeps
+   what it replaced"). Quem edita restaura mas não apaga de vez, quem só lê
+   não vê lixeira, a dona encurta os dias abaixo dos da administração, e o
+   console define e esvazia; a varredura expira o que passou dos dias e os
+   mais antigos enquanto a lixeira sozinha passa da cota
+   (`tests_trash.rs`).
 
 ## 14. O fim
 
