@@ -726,9 +726,29 @@ async fn folder_command(
         _ => {}
     }
     let args = scope.args_in(name, args)?;
-    let answer = folder_run(server, who, client, (name, access), (&folder, &key), args)
+    let mut answer = folder_run(server, who, client, (name, access), (&folder, &key), args)
         .await
         .map_err(|e| scope.error(e))?;
+    // A rename through the share keeps the owner's links outside it: the
+    // server writes those rewrites itself, and the window hears only of
+    // the ones inside (ADR 0081 item 11, decided 2026-10-12).
+    if matches!(name, "rename_note" | "rename_entry" | "move_entries") {
+        let outside = crate::share_links::take_outside(&scope, &mut answer);
+        if !outside.is_empty() {
+            let s = Arc::clone(server);
+            let k = key.clone();
+            let (actor, by, share) = (
+                who.account.id.clone(),
+                who.account.email.clone(),
+                scope.share.clone(),
+            );
+            let _ = blocking(move || {
+                crate::share_links::apply(&s, &k, (&actor, &by), &share, outside);
+                Ok(())
+            })
+            .await;
+        }
+    }
     Ok(scope.answer_out(name, answer, limit))
 }
 

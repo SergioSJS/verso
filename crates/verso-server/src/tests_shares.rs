@@ -731,3 +731,129 @@ fn a_writer_of_a_share_sees_and_restores_only_its_part_of_the_bin() {
         assert!(mine.get("ok").is_some(), "{mine}");
     });
 }
+
+/// Ana's rename inside the share keeps the owner's links outside it (ADR
+/// 0081 item 11, decided 2026-10-12): the server rewrites them, by the
+/// rules of the window's own rewrite, and Ana hears only of the notes
+/// inside. A note open in a room keeps its links, as a window's plan
+/// would leave it.
+#[test]
+fn a_receivers_rename_rewrites_the_owners_links_outside_the_share() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let (id, mut owner) = furnished(&r, &admin).await;
+        let (ana, ana_id) = ana(&r).await;
+        for (name, text) in [
+            ("Mesa/Ref", "Ver [[Notas]].\n"),
+            ("Diario/Hoje", "Hoje: [[Notas]].\n"),
+        ] {
+            let made = owner
+                .call("create_note", json!({ "name": name, "text": text }))
+                .await;
+            assert!(made.get("ok").is_some(), "{made}");
+        }
+        let (_, shared) = put(
+            &r,
+            &format!("/api/folders/{id}/shares"),
+            json!({ "path": "Mesa", "email": "ana@casa.lan", "role": "editor" }),
+            &admin,
+        )
+        .await;
+        let share = shared["id"].as_str().unwrap().to_owned();
+        // The owner is editing "Hoje" in a room.
+        let mut room = connect(&r, Some(&admin.cookie), Some(&r.origin()), None)
+            .await
+            .unwrap();
+        next(&mut room).await;
+        call(&mut room, 1, "open_server_folder", json!({ "id": id })).await;
+        let joined = call(
+            &mut room,
+            2,
+            "collab_join",
+            json!({ "path": "Diario/Hoje.md" }),
+        )
+        .await;
+        assert!(joined.get("ok").is_some(), "{joined}");
+        let (mut w, _) = Win::open(&r, &ana, &share).await;
+        let renamed = w
+            .call(
+                "rename_entry",
+                json!({ "from": "Notas.md", "to": "Notas2.md" }),
+            )
+            .await;
+        assert_eq!(renamed["ok"]["path"], "Notas2.md", "{renamed}");
+        // Ana's answer: the note inside, for her window to write; nothing
+        // of the owner's notes outside — not a path, not a count.
+        let rewrites = renamed["ok"]["rewrites"].as_array().unwrap();
+        assert_eq!(rewrites.len(), 1, "{renamed}");
+        assert_eq!(rewrites[0]["path"], "Ref.md");
+        assert_eq!(renamed["ok"]["skipped"], json!([]), "{renamed}");
+        says_nothing_outside(&renamed);
+        for leak in ["Hoje", "Diario"] {
+            assert!(!renamed.to_string().contains(leak), "{leak}: {renamed}");
+        }
+        // The owner's windows hear of the note the server rewrote.
+        loop {
+            let heard = event_named(&mut owner.ws, "folder-changed").await;
+            if heard["changed"]
+                .as_array()
+                .unwrap()
+                .contains(&json!("Segredo.md"))
+            {
+                break;
+            }
+        }
+        let above = owner
+            .call("read_note", json!({ "path": "Segredo.md" }))
+            .await;
+        let text = above["ok"]["text"].as_str().unwrap();
+        assert!(text.contains("[[Notas2]]"), "{above}");
+        assert!(text.contains("segredissima"), "{above}");
+        // Open in a room: kept as it was.
+        let hoje = owner
+            .call("read_note", json!({ "path": "Diario/Hoje.md" }))
+            .await;
+        assert_eq!(hoje["ok"]["text"], "Hoje: [[Notas]].\n", "{hoje}");
+        // The note inside is Ana's window's to write: untouched here.
+        let inside = owner
+            .call("read_note", json!({ "path": "Mesa/Ref.md" }))
+            .await;
+        assert_eq!(inside["ok"]["text"], "Ver [[Notas]].\n", "{inside}");
+        // The folder's change log keeps the rewrite with its author.
+        let made = r.server.db.latest_changes(&id, 50).unwrap();
+        assert!(
+            made.iter()
+                .any(|c| c.path == "Segredo.md" && c.actor.as_deref() == Some(ana_id.as_str())),
+            "{made:?}"
+        );
+        // A device's rename through the share does the same.
+        let state = w.call("sync_state", json!({})).await;
+        let base = state["ok"]["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|f| f["path"] == "Notas2.md")
+            .unwrap()["hash"]
+            .clone();
+        let moved = w
+            .call(
+                "sync_rename",
+                json!({ "from": "Notas2.md", "to": "Sub/Notas3.md", "base": base }),
+            )
+            .await;
+        assert_eq!(moved["ok"]["path"], "Sub/Notas3.md", "{moved}");
+        says_nothing_outside(&moved);
+        let above = owner
+            .call("read_note", json!({ "path": "Segredo.md" }))
+            .await;
+        assert!(
+            above["ok"]["text"].as_str().unwrap().contains("Notas3"),
+            "{above}"
+        );
+        let hoje = owner
+            .call("read_note", json!({ "path": "Diario/Hoje.md" }))
+            .await;
+        assert_eq!(hoje["ok"]["text"], "Hoje: [[Notas]].\n", "{hoje}");
+    });
+}

@@ -230,12 +230,22 @@ carried a recommendation; the maintainer decided. Open items answered
     recommended: when sharing, the owner is told which attachments lie
     outside the shared folder and may add the attachments folder to the
     share, read-only.
-    *Decided 2026-10-12 (Revisions), not built yet — the next round:*
+    *Decided 2026-10-12 (Revisions):*
     **a receiver's rename rewrites the owner's links outside the share**,
     as Notion updates them (*"no Notion atualiza, imagino que vamos
     precisar também"* — Notion updates them, I imagine we will need it
-    too); and **the aggregates a receiver sees — the index's counts, a
-    base's formulas — are zeroed**. *Decided the same day:* attachments
+    too) — built 2026-10-12: a rename or a move through the share, in a
+    window or by the receiver's synced device, has the server write the
+    rewrites of the owner's notes outside the shared folder itself, by
+    the rules of a window's rewrite (over the revision the rename read,
+    atomically, within the quota; a note open in a room or changed since
+    is left as it was), each in the folder's change log with the
+    receiver as its author and told to the owner's windows and devices
+    as any change made on the server; the receiver hears only of the
+    notes inside, and the server's log says what was written and what
+    was left; and **the aggregates a receiver sees — the index's counts,
+    a base's formulas — are zeroed** — not built yet, the next round.
+    *Decided the same day:* attachments
     loose at the vault's root stay outside a shared sub-folder, as there
     is no attachments folder to add, and the sharing dialog asks the owner
     to move them into one; sharing the whole vault has no such limit.
@@ -358,7 +368,7 @@ revoked share's sync, turned off on the receiver's device.
 
 **Answered by the maintainer on 2026-10-12** (01:15 BRT), item by item: a receiver's rename **will rewrite the owner's links outside the
 share** (*"no Notion atualiza, imagino que vamos precisar também"*) —
-decided, not built yet, the next round (item 11); only the admin invites
+decided, the next round (item 11) *(built 2026-10-12)*; only the admin invites
 people who have no account (item 4); attachments loose at the vault's
 root stay outside a shared sub-folder, the dialog asking the owner to
 move them — sharing the whole vault has no such limit (item 11); the
