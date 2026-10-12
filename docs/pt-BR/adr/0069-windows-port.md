@@ -43,6 +43,38 @@
   auditoria dos ADRs: *"Ajuste tudo que precisar. Está aprovado os ADRs"*:
   o bootstrapper do WebView2 embutido (item 2), os itens 4, 6 a 9 e a
   ordem do trabalho (Consequências).
+  2026-10-12 — o item 8 no Mac: depois do quarto abort do WindowServer em
+  dois dias, todos durante o passo de ponta a ponta do `scripts/check.sh`,
+  o mantenedor, em sessão: *"esse check.sh deve estar com pau, bugada ou
+  mal otimizada"* e *"resolver de uma vez por todas… para que não trave
+  meu Mac mais"*. A causa, pelos três relatórios de crash e pelo log
+  unificado: o WindowServer ficou sem IOSurfaces — tinha 64.084 das 65.536
+  do sistema às 15:39:49 de 2026-10-12 (o "IOSurface count of 65024
+  approaching limit of 65536" do kernel) e abortou ao criar mais uma para
+  uma captura de janela (`_XWindowListCreateImage` → `captureWindowList`
+  → `CompositorMetal::CreateCaptureSurface` →
+  `WSIOSurfaceDebugTallyAndAbort`) de uma janela de 1500 × 1000, a viewport
+  do harness, nos três. Quem pede essas capturas: o WebKit do Playwright,
+  que no macOS desenha numa janela real do window server e tira um
+  screenshot ou um quadro de screencast capturando-a (o WebKit dele importa
+  `CGSHWCaptureWindowList` e `WebCore::cgWindowListCreateImage`). As
+  suítes pediam uma por quadro: `trace: "retain-on-failure"` grava um
+  trace de todo teste e o descarta quando o teste passa, e o screencast
+  de um trace tira um quadro a cada 200 ms, e todos os quadros nos 500 ms
+  depois de cada ação, em cada página. O app Verso não captura nada. A
+  revisão, aplicada pela IA por ordem do mantenedor, para a confirmação
+  dele: no macOS as duas configs do Playwright gravam traces sem o
+  screencast (o DOM de cada passo fica) e não tiram screenshot na falha,
+  e a suíte do harness roda com um worker; o Linux mantém os dois. Um
+  pre-flight, `app/ui/e2e/preflight.mjs`, rodado pelo `scripts/check.sh`,
+  pelos scripts npm e pelas duas configs, se recusa a começar enquanto um
+  navegador, outra execução do Playwright ou o app Verso está vivo, ou
+  enquanto o sistema já tem mais de 16.000 IOSurfaces, e para uma
+  execução, como o Ctrl-C pararia, quando a contagem passa de 24.000. O
+  WebKit fica no Mac: rodá-lo só no Linux foi proposto no mesmo dia e
+  recusado pelo mantenedor (*"mandar rodar no linux é meio merda"*). E uma
+  fixture fecha e relata o que um teste deixa aberto
+  (`app/ui/e2e/leaks.mjs`).
 
 ## Contexto
 
@@ -202,7 +234,10 @@ enquanto algum arquivo dentro dela está aberto. (No macOS, desde
    como construído). Um projeto `chromium` do
    Playwright ao lado do `webkit`, no `scripts/check.sh`; o que difere entre
    os dois motores é a maior parte do que vai diferir no WebView2, e não
-   custa runner nem SSH.
+   custa runner nem SSH. *(Revisado em 2026-10-12, para a confirmação do
+   mantenedor: no macOS nenhuma captura de janela — traces sem o
+   screencast, nenhum screenshot na falha — um worker, e um pre-flight e
+   uma vigia de IOSurfaces em volta da execução; ver Revisões.)*
 9. **O que o porte traz, cada item com um teste.**
    - Escrita atômica: `FlushFileBuffers` no arquivo temporário (`sync_all`),
      depois `MoveFileEx` com `MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH`
