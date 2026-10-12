@@ -735,7 +735,12 @@ rest below and in `manual-checks.md`.
    off, the files kept, and the status bar and *Ajustes* › *Sincronizar*
    say *quem compartilhou revogou o acesso* and when (e2e, `sync.spec.mjs`,
    "a share revoked by its owner"; the host's Rust test against a real
-   server, `tests_shares.rs`).
+   server, `tests_shares.rs`). As the receiver, rename a note of the share
+   that a note of the owner's outside it links to; as the owner, that
+   note's link now has the new name, and the receiver's rename named only
+   notes inside the share (the server's Rust test, `tests_shares.rs`, "a
+   receivers rename rewrites the owners links outside the share", with a
+   note open in a room kept as it was; by hand with two browsers).
 11. Editing together in a synced folder ([ADR
     0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), from note 23's
     section *Editar junto numa pasta sincronizada*: with the folder syncing,

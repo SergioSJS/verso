@@ -241,12 +241,22 @@ em 2026-10-10 (Status).
     2026-10-10, como recomendado: ao compartilhar, o dono é avisado de
     quais anexos ficam fora da pasta compartilhada e pode acrescentar a
     pasta de anexos ao compartilhamento, só leitura.
-    *Decidido em 2026-10-12 (Revisões), ainda não construído — a próxima
-    rodada:* **uma renomeação por quem recebe reescreve os links do dono
-    fora do compartilhamento**, como o Notion os atualiza (*"no Notion
-    atualiza, imagino que vamos precisar também"*); e **os agregados que
-    quem recebe vê — as contagens do índice, as fórmulas de uma base — são
-    zerados**. *Decidido no mesmo dia:* anexos soltos na raiz do cofre
+    *Decidido em 2026-10-12 (Revisões):* **uma renomeação por quem
+    recebe reescreve os links do dono fora do compartilhamento**, como o
+    Notion os atualiza (*"no Notion atualiza, imagino que vamos precisar
+    também"*) — construído em 2026-10-12: uma renomeação ou uma movimentação
+    pelo compartilhamento, numa janela ou pelo aparelho sincronizado de
+    quem recebe, faz o servidor escrever ele mesmo as reescritas das notas
+    do dono fora da pasta compartilhada, pelas regras da reescrita de uma
+    janela (sobre a revisão que a renomeação leu, de forma atômica, dentro
+    da cota; uma nota aberta numa sala ou mudada desde então fica como
+    estava), cada uma no registro de mudanças da pasta com quem recebe
+    como autor e avisada às janelas e aos aparelhos do dono como qualquer
+    mudança feita no servidor; quem recebe só fica sabendo das notas de
+    dentro, e o log do servidor diz o que foi escrito e o que ficou; e
+    **os agregados que quem recebe vê — as contagens do índice, as
+    fórmulas de uma base — são zerados** — ainda não construído, a
+    próxima rodada. *Decidido no mesmo dia:* anexos soltos na raiz do cofre
     ficam fora de uma subpasta compartilhada, já que não há pasta de
     anexos para acrescentar, e o diálogo de compartilhar pede ao dono que
     os mova para uma; compartilhar o cofre inteiro não tem esse limite.
@@ -381,8 +391,8 @@ recebe.
 
 **Respondidas pelo mantenedor em 2026-10-12** (01:15 BRT), item a item: uma renomeação por quem recebe **vai reescrever os links do dono
 fora do compartilhamento** (*"no Notion atualiza, imagino que vamos
-precisar também"*) — decidido, ainda não construído, a próxima rodada
-(item 11); só o admin convida pessoas que não têm conta (item 4); anexos
+precisar também"*) — decidido, a próxima rodada (item 11)
+*(construído em 2026-10-12)*; só o admin convida pessoas que não têm conta (item 4); anexos
 soltos na raiz do cofre ficam fora de uma subpasta compartilhada, o
 diálogo pedindo ao dono que os mova — compartilhar o cofre inteiro não
 tem esse limite (item 11); os agregados que quem recebe vê, as contagens

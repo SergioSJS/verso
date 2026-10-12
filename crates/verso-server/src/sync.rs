@@ -785,6 +785,11 @@ pub(crate) async fn command_in(
             None => who.account.email.clone(),
         },
     );
+    // Who a rename through a share is said to be by, and the share, when
+    // it rewrites the owner's links outside it (ADR 0081 item 11).
+    let said_by = said_as.2.clone();
+    let share =
+        crate::shares::scope_here(server, client).map_or_else(|| folder.clone(), |s| s.share);
     // A rename's folder and source, for the shares it may carry.
     let renaming = (cmd == "sync_rename").then(|| {
         (
@@ -870,6 +875,7 @@ pub(crate) async fn command_in(
             let same = verso_core::sync::folded_form(&from) == verso_core::sync::folded_form(&to);
             let (to, other) = as_kept(&s, &folder, &to, &*inside)?;
             let (f, t) = (from.clone(), to.clone());
+            let reach = Arc::clone(&inside);
             let landed = s.service.with_key(&key, move |ws| {
                 is_now(ws, &f, Some(&base))?;
                 if same {
@@ -887,9 +893,22 @@ pub(crate) async fn command_in(
                 }
                 let done = ws.rename_entry(&f, &t)?;
                 ws.prune_empty_parents(&f);
-                Ok(Some(done.path))
+                // Through a share, the owner's notes outside it that link
+                // to what moved: the server rewrites them (ADR 0081 item
+                // 11); the device rewrites the ones it has itself.
+                let outside: Vec<crate::share_links::Outside> = done
+                    .rewrites
+                    .into_iter()
+                    .filter(|w| !reach(&w.path))
+                    .map(|w| crate::share_links::Outside {
+                        path: w.path,
+                        revision: w.revision,
+                        after: w.after,
+                    })
+                    .collect();
+                Ok(Some((done.path, outside)))
             })?;
-            let Some(landed) = landed else {
+            let Some((landed, outside)) = landed else {
                 drop(only);
                 let head = s.db.head(&folder).map_err(verso_service::failed)?;
                 return Ok(json!({ "head": head, "path": from }));
@@ -915,6 +934,10 @@ pub(crate) async fn command_in(
                     to: landed.clone(),
                 }],
             );
+            if !outside.is_empty() {
+                let by = said_by.clone();
+                crate::share_links::apply(&s, &key, (&actor, &by), &share, outside);
+            }
             Ok(json!({ "head": head, "path": landed }))
         }
         _ => Err(refused("no such command")),
