@@ -27,8 +27,9 @@ pub(crate) mod live;
 mod transfer;
 use transfer::{Refusal, Side};
 
-/// A piece of a file on the wire: the server's (ADR 0079 item 12).
-const PIECE: usize = 4 << 20;
+/// A piece of a file on the wire, read from the disk as it is sent (ADR
+/// 0079 item 12, revised 2026-10-12): the server's.
+const PIECE: usize = 1 << 20;
 /// The largest file sync carries, as the server.
 const LARGEST: u64 = 1 << 30;
 /// Why a file above [`LARGEST`] is held apart, in the window's list.
@@ -429,12 +430,13 @@ fn listed_here(
             continue;
         }
         let p = path.clone();
+        // Hashed a piece at a time: a large file is never whole in memory.
         match ctx
             .service
-            .with_key(&s.key, move |ws| Ok(ws.read_with_revision(&p)?.0))
+            .with_key(&s.key, move |ws| Ok(ws.hash_with_revision(&p)?))
         {
-            Ok(bytes) => {
-                let hash = sha256(&bytes);
+            Ok(read) => {
+                let hash = read.hash;
                 // A file changed in the second it was read could change
                 // again with the same size and time: not remembered.
                 if modified < now - 2 {
@@ -453,7 +455,7 @@ fn listed_here(
                     path,
                     FileState {
                         hash,
-                        size: bytes.len() as u64,
+                        size: read.len,
                     },
                 );
             }
@@ -503,7 +505,7 @@ fn listed_here(
             if ws.file_len(&p).is_some_and(|len| len > LARGEST) {
                 return Ok(Some(None));
             }
-            Ok(Some(Some(ws.read_with_revision(&p)?.0)))
+            Ok(Some(Some(ws.hash_with_revision(&p)?)))
         }) {
             Ok(Some(None)) => held(
                 &path,
@@ -512,12 +514,12 @@ fn listed_here(
                 &mut files,
                 &mut apart,
             ),
-            Ok(Some(Some(bytes))) => {
+            Ok(Some(Some(read))) => {
                 files.insert(
                     path,
                     FileState {
-                        hash: sha256(&bytes),
-                        size: bytes.len() as u64,
+                        hash: read.hash,
+                        size: read.len,
                     },
                 );
             }

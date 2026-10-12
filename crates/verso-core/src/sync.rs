@@ -160,7 +160,45 @@ pub const PAUSE_FLOOR: usize = 3;
 /// [`PROTOCOL_HEADER`], the server in its hello. The sync's commands are
 /// not in the generated bindings, so the contract's version does not
 /// cover their wire: this number is raised before any change to it.
-pub const PROTOCOL: u32 = 1;
+///
+/// 2 (2026-10-12, item 12 revised): a piece of a file crosses as a binary
+/// WebSocket message ([`frame`]) instead of base64 inside the JSON text,
+/// both ways; a side that speaks 1 — or says no version — is still sent
+/// and taken base64, as the version before is followed (item 5).
+pub const PROTOCOL: u32 = 2;
+
+/// The first sync whose pieces cross as binary messages.
+pub const BINARY_PIECES: u32 = 2;
+
+/// Whether a side that speaks sync `version` takes and sends a piece of a
+/// file as a binary message ([`frame`]) rather than base64 in the JSON.
+#[must_use]
+pub const fn binary_pieces(version: u32) -> bool {
+    version >= BINARY_PIECES
+}
+
+/// A piece of a file in one binary message: the length of a JSON header
+/// in four bytes (big-endian), the header — a request's `{id, cmd, args}`
+/// or an answer's `{id, ok}` / `{id, err}`, as the text messages carry
+/// them — then the piece's bytes as they are, no base64.
+#[must_use]
+pub fn frame(header: &[u8], data: &[u8]) -> Vec<u8> {
+    let len = u32::try_from(header.len()).unwrap_or(u32::MAX);
+    let mut out = Vec::with_capacity(4 + header.len() + data.len());
+    out.extend_from_slice(&len.to_be_bytes());
+    out.extend_from_slice(header);
+    out.extend_from_slice(data);
+    out
+}
+
+/// A binary message's header and piece ([`frame`]); `None` when it is not
+/// one — shorter than its header says.
+#[must_use]
+pub fn unframe(message: &[u8]) -> Option<(&[u8], &[u8])> {
+    let (len, rest) = message.split_first_chunk::<4>()?;
+    let len = usize::try_from(u32::from_be_bytes(*len)).ok()?;
+    (len <= rest.len()).then(|| rest.split_at(len))
+}
 
 /// The header of the WebSocket's request a device says its [`PROTOCOL`]
 /// in.

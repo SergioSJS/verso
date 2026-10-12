@@ -1232,3 +1232,31 @@ fn a_side_follows_its_own_sync_and_the_one_before_not_older() {
     // Newer than this side: the newer side's to judge.
     assert!(follows(1, 2));
 }
+
+/// A piece of a file in a binary message (item 12, revised 2026-10-12):
+/// its header and its bytes come back as they went, whatever the bytes —
+/// no base64 — and a message shorter than its header says is no frame.
+#[test]
+fn a_piece_crosses_in_a_frame_as_it_is() {
+    use super::{binary_pieces, frame, unframe};
+    let header = br#"{"id":7,"cmd":"sync_put","args":{"path":"a.bin","offset":0}}"#;
+    let bytes: Vec<u8> = (0..=255).cycle().take(70_000).collect();
+    let message = frame(header, &bytes);
+    assert_eq!(message.len(), 4 + header.len() + bytes.len());
+    let (h, data) = unframe(&message).unwrap();
+    assert_eq!(h, header);
+    assert_eq!(data, bytes.as_slice());
+    // An empty piece (the end of a file of a whole number of pieces).
+    let empty = frame(b"{}", &[]);
+    let (h, data) = unframe(&empty).unwrap();
+    assert_eq!((h, data), (&b"{}"[..], &[][..]));
+    // Cut short: refused, never read past its end.
+    assert_eq!(unframe(&message[..4 + header.len() - 1]), None);
+    assert_eq!(unframe(&[0, 0, 0]), None);
+    assert_eq!(unframe(&[0xff, 0xff, 0xff, 0xff, b'{']), None);
+    // Sync 2 sends pieces as frames; sync 1 and a side that says none,
+    // base64.
+    assert!(binary_pieces(2));
+    assert!(!binary_pieces(1));
+    assert!(!binary_pieces(0));
+}
