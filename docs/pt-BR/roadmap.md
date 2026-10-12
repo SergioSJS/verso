@@ -1,6 +1,6 @@
 # Roadmap do Verso
 
-- Versão: 2026-10-11, revisão 6 (a tabela da Fase 3 ganha o que foi construído desde a revisão 5 — [0077](adr/0077-the-server-administration-console-and-folder-quotas.md), [0078](adr/0078-universo-the-name-of-verso-as-a-server.md), [0079](adr/0079-sync-a-local-folder-with-a-server.md) — e os aceitos [0080](adr/0080-the-trash-with-expiry-and-restore.md), [0081](adr/0081-sharing-between-people-on-one-universo.md) e [0082](adr/0082-live-co-editing-of-a-synced-folder.md) na ordem que o mantenedor definiu em 2026-10-11, *"Sim para todos"*; as permissões mais finas riscadas como aceitas com o 0081; "Depois da Fase 2" posto em dia quanto ao sync; as linhas 3.10–3.16, que afetam o critério de saída, foram escritas a partir da recomendação do memorando, não de uma das oito respostas do mantenedor, e aguardam a aceitação do mantenedor — regra zero; em 2026-10-12, dentro desta revisão, as linhas 3.13, 3.14 e 3.16 marcadas como construídas e a 3.15 como feita, aquela aceitação ainda aguardada). Revisão 5, 2026-10-09 (a Fase 3 escrita, a partir do [ADR 0073](adr/0073-self-hosted-server-first.md) aceito pelo mantenedor com o 0074, o 0075 e o 0076; a identidade de sessão do contrato e os handles para o `verso serve` riscados como decididos). Revisão 4, 2026-09-24 (as decisões do mantenedor de 2026-09-24 riscadas: os handles nas duas fases, e as duas linhas da nota tipada, com o item 2.6 sem esperar mais por elas). Revisão 3, 2026-09-23: a Fase 2 como construída; as decisões da Fase 1 tomadas em 2026-09-22 riscadas
+- Versão: 2026-10-11, revisão 6 (a tabela da Fase 3 ganha o que foi construído desde a revisão 5 — [0077](adr/0077-the-server-administration-console-and-folder-quotas.md), [0078](adr/0078-universo-the-name-of-verso-as-a-server.md), [0079](adr/0079-sync-a-local-folder-with-a-server.md) — e os aceitos [0080](adr/0080-the-trash-with-expiry-and-restore.md), [0081](adr/0081-sharing-between-people-on-one-universo.md) e [0082](adr/0082-live-co-editing-of-a-synced-folder.md) na ordem que o mantenedor definiu em 2026-10-11, *"Sim para todos"*; as permissões mais finas riscadas como aceitas com o 0081; "Depois da Fase 2" posto em dia quanto ao sync; as linhas 3.10–3.16, que afetam o critério de saída, foram escritas a partir da recomendação do memorando, não de uma das oito respostas do mantenedor, e aguardavam a aceitação do mantenedor — regra zero; em 2026-10-12, dentro desta revisão, as linhas 3.13, 3.14 e 3.16 marcadas como construídas e a 3.15 como feita, as linhas 3.10–3.16 **aceitas pelo mantenedor** naquela noite, "Ok", e as linhas 3.17–3.21 acrescentadas a partir das respostas do mantenedor da mesma noite). Revisão 5, 2026-10-09 (a Fase 3 escrita, a partir do [ADR 0073](adr/0073-self-hosted-server-first.md) aceito pelo mantenedor com o 0074, o 0075 e o 0076; a identidade de sessão do contrato e os handles para o `verso serve` riscados como decididos). Revisão 4, 2026-09-24 (as decisões do mantenedor de 2026-09-24 riscadas: os handles nas duas fases, e as duas linhas da nota tipada, com o item 2.6 sem esperar mais por elas). Revisão 3, 2026-09-23: a Fase 2 como construída; as decisões da Fase 1 tomadas em 2026-09-22 riscadas
 - Fonte: `docs/BRIEFING.md` §15
 - ADR: [0034](adr/0034-roadmap-in-phases.md)
 
@@ -281,6 +281,11 @@ anterior fechar", acima, é `[ABERTO]`, para o mantenedor dizer.
 | 3.14 | A lixeira com expiração e restauração, com o item 12 dela: a versão que a escrita de um aparelho substituiu, guardada e restaurável (o achado F18 da campanha) — aceita em 2026-10-11; a segunda; construída, com o item 12, na noite de 2026-10-11 para 12 (f3edc42, com a correção 5b5fb9c) | [0080](adr/0080-the-trash-with-expiry-and-restore.md), [0079](adr/0079-sync-a-local-folder-with-a-server.md) Consequências |
 | 3.15 | O modelo de ameaças atualizado (`docs/reference/threat-model.md`), com os `[ABERTO]` dele — o terceiro, antes do compartilhamento; feito em 2026-10-11 (4c09fc9), as lacunas que achou fechadas pelo reforço juntado no 60c717c, exceto as que ele lista como ainda abertas, e os `[ABERTO]` dele mantidos abertos | [0073](adr/0073-self-hosted-server-first.md) item 6 |
 | 3.16 | Compartilhamento entre pessoas num Universo: uma concessão num caminho, leitura ou escrita — aceito em 2026-10-11; o quarto; construído na noite de 2026-10-11 para 12 (juntado pelo 2f25923, 2026-10-12) | [0081](adr/0081-sharing-between-people-on-one-universo.md) |
+| 3.17 | Uma renomeação por quem recebe reescreve os links do dono fora do compartilhamento — decidido em 2026-10-12, ainda não construído; a próxima rodada | [0081](adr/0081-sharing-between-people-on-one-universo.md) item 11 |
+| 3.18 | Os agregados que quem recebe vê — as contagens do índice, as fórmulas de uma base — zerados — decidido em 2026-10-12, ainda não construído; a próxima rodada | [0081](adr/0081-sharing-between-people-on-one-universo.md) item 11 |
+| 3.19 | As escritas que o painel de propriedades e a citação de um PDF fazem numa nota ao vivo passam pela sala — decidido em 2026-10-12, ainda não construído; a próxima rodada | [0082](adr/0082-live-co-editing-of-a-synced-folder.md) Status |
+| 3.20 | A presença carimbada pelo servidor com a conta de quem a manda (a lacuna 11 do modelo de ameaças) — decidido em 2026-10-12, sendo construído | [0073](adr/0073-self-hosted-server-first.md) item 6, `docs/reference/threat-model.md` |
+| 3.21 | A página de aprovação de aparelho contra phishing por código de aparelho (a lacuna 12 do modelo de ameaças) — decidido em 2026-10-12, sendo construído | [0073](adr/0073-self-hosted-server-first.md) item 6, [0074](adr/0074-accounts-and-access-on-the-server.md) item 8, `docs/reference/threat-model.md` |
 
 Os itens 3.2 a 3.9 saem juntos, na primeira versão do servidor (item 12
 do ADR 0073, revisto em 2026-10-09). A janela em toda tela é construída
@@ -302,7 +307,13 @@ antes do primeiro usuário que não seja o mantenedor. Os itens 3.13, 3.14
 e 3.16 foram construídos, e o 3.15 feito, na noite de 2026-10-11 para 12,
 e nenhum foi lançado ainda; as perguntas em aberto que a construção
 levantou foram mandadas ao mantenedor na mesma noite, cada uma listada no
-Status da ADR dela.
+Status da ADR dela. O mantenedor as respondeu à 01:15 BRT de 2026-10-12,
+cada resposta registrada na ADR dela, e aceitou as linhas 3.10 a 3.16
+("Ok"). As linhas 3.17 a 3.21 vêm dessas respostas: a 3.20 e a 3.21,
+decididas *"seguros desde o dia 0"*, estavam sendo construídas naquela
+noite no `feat/universo-small`, com o sync revogado do item 8 do
+[0081](adr/0081-sharing-between-people-on-one-universo.md) desligado com
+um aviso; da 3.17 à 3.19 vêm na próxima rodada.
 
 ### Decisões que precisam sair durante a fase
 

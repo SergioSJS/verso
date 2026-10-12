@@ -39,10 +39,10 @@
   group; the desktop's local folder is unchanged, and the lines this
   revises are kept, each with a note.
   2026-10-12 — one behaviour of "On a server" changed by commit 4ffe8a9,
-  the fix of a race, and recorded in that section **to be confirmed by
-  the maintainer**: a dangling symlink whose target is inside the folder
-  is treated as a new file inside, no longer refused as a link that
-  leaves. Nothing decided by it; the Status says what waits.
+  the fix of a race, and recorded in that section — **confirmed by the
+  maintainer** the same night, "Ok": a dangling symlink whose target is
+  inside the folder is treated as a new file inside, no longer refused as
+  a link that leaves. Decided by that confirmation (Status).
 
 ## Context
 
@@ -387,8 +387,8 @@ for the server, option (a) of that plan:
   costs named there. The desktop's local folder is unchanged: every
   symlink is followed, as decided on 2026-09-22.
 
-*Changed on 2026-10-12 by commit 4ffe8a9 — **to be confirmed by the
-maintainer**, to whom it was sent the same night.* It came from a race.
+*Changed on 2026-10-12 by commit 4ffe8a9; **confirmed by the
+maintainer** the same night, answering "Ok" at 01:15 BRT.* It came from a race.
 The server's check canonicalized a path and, when that failed while an
 entry stood at the name, refused the entry as a link that leaves; a file
 being replaced at that instant — missing for a moment, or not resolvable
@@ -525,4 +525,5 @@ the two groups decided on 2026-09-22 are not decided: they are what the
 feature 2 code does, recorded so that nothing is settled by silence, and they
 wait for the maintainer. A dangling symlink whose target is inside the
 folder, on a server, treated as a new file inside since 4ffe8a9
-(2026-10-12, "On a server"): waits for the maintainer's confirmation.
+(2026-10-12, "On a server"): confirmed by the maintainer on 2026-10-12,
+Accepted.

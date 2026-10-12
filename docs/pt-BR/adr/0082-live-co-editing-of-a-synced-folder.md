@@ -407,10 +407,16 @@ depois, em ADR própria.
 [0079](0079-sync-a-local-folder-with-a-server.md) ganharam as linhas de
 Revisões em 2026-10-12, como as Consequências pedem. As perguntas em
 aberto que a construção levantou foram mandadas ao mantenedor na mesma
-noite e esperam as respostas: onde mora o ajuste do item 15; as esperas
+noite, e respondidas (abaixo): onde mora o ajuste do item 15; as esperas
 de 5 s pelo envio antes de entrar (item 7) e de 4 s pelas reentradas
-antes de uma passada (item 9); as escritas de propriedades e de PDFs
-pela sala; e o board (item 12).
+antes de uma passada (item 9); as escritas que o painel de propriedades
+e a citação de um PDF fazem numa nota, pela sala; e o board (item 12).
+
+**Respondidas pelo mantenedor em 2026-10-12** (01:15 BRT), item a item: o ajuste do item 15 fica nos ajustes da janela; as esperas de 5 s e
+de 4 s ficam, a afinar com o uso; as escritas que o painel de
+propriedades e a citação de um PDF fazem numa nota ao vivo vão passar
+pela sala — decidido, ainda não construído, a próxima rodada; e a
+coedição do board segue `[ABERTO]` (item 12).
 
 Proposta em 2026-10-10. O mantenedor aprovou a direção em sessão; os itens
 são do autor. A ser lida por Opus 5.5 antes de ser aceita. Para o

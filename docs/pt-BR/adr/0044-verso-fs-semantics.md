@@ -41,10 +41,11 @@
   handles; a pasta local do desktop não muda, e as linhas que isso revê
   ficam, cada uma com uma nota.
   2026-10-12 — um comportamento de "Num servidor" mudado pelo commit
-  4ffe8a9, a correção de uma corrida, e registrado naquela seção **a ser
-  confirmado pelo mantenedor**: um symlink pendente cujo alvo fica dentro
-  da pasta é tratado como um arquivo novo dentro, e não mais recusado como
-  um link que sai. Nada decidido por ele; o Status diz o que espera.
+  4ffe8a9, a correção de uma corrida, e registrado naquela seção —
+  **confirmado pelo mantenedor** na mesma noite, "Ok": um symlink pendente
+  cujo alvo fica dentro da pasta é tratado como um arquivo novo dentro, e
+  não mais recusado como um link que sai. Decidido por essa confirmação
+  (Status).
 
 ## Contexto
 
@@ -398,8 +399,8 @@ resposta dele para o servidor, a opção (a) daquele plano:
   nomeados lá. A pasta local do desktop não muda: todo symlink é seguido,
   como decidido em 2026-09-22.
 
-*Mudado em 2026-10-12 pelo commit 4ffe8a9 — **a ser confirmado pelo
-mantenedor**, a quem foi mandado na mesma noite.* Veio de uma corrida. A
+*Mudado em 2026-10-12 pelo commit 4ffe8a9; **confirmado pelo
+mantenedor** na mesma noite, respondendo "Ok" à 01:15 BRT.* Veio de uma corrida. A
 verificação do servidor canonicalizava um caminho e, quando isso falhava
 com uma entrada no nome, recusava a entrada como um link que sai; um
 arquivo sendo substituído naquele instante — ausente por um momento, ou
@@ -540,4 +541,5 @@ como **provisórios** dentro dos dois grupos decididos em 2026-09-22 não estão
 decididos: são o que o código da feature 2 faz, registrados para que nada seja
 resolvido por silêncio, e esperam o mantenedor. Um symlink pendente cujo alvo
 fica dentro da pasta, num servidor, tratado como um arquivo novo dentro desde o
-4ffe8a9 (2026-10-12, "Num servidor"): espera a confirmação do mantenedor.
+4ffe8a9 (2026-10-12, "Num servidor"): confirmado pelo mantenedor em
+2026-10-12, Aceito.

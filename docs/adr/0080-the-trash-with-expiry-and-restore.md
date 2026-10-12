@@ -263,12 +263,21 @@ the recommendations). No `[OPEN]` item stays open.
 
 **Built on the night of 2026-10-11 to 12** (8ad89d2, 9c10495, 02903f1,
 173cf7e and f3edc42, with item 12; the fix 5b5fb9c). The open questions
-the building raised were sent to the maintainer the same night and wait
-for their answers: whether a replaced version is kept only when a
+the building raised were sent to the maintainer the same night, and
+answered (below): whether a replaced version is kept only when a
 device's write replaced it (item 12); the range of days the owner may
 set (item 3); where a desktop folder's retention lives; a restore
 against the folder's quota (item 8); and the device's name on a deletion
 carried out by sync.
+
+**Answered by the maintainer on 2026-10-12** (01:15 BRT), item by item, *"Sobre lixeira, todos aprovados"* (on the trash, all approved), each
+as built and recommended: a replaced version is kept only when a
+device's write replaced it (item 12); the owner may set a folder's days
+anywhere between 1 and the admin's value (item 3); a desktop folder's
+retention stays in this computer's index until a layer of settings that
+syncs exists — that layer stays `[OPEN]`; a restore on the server counts
+against the folder's quota (item 8); and a deletion carried by sync
+names the server, the device later.
 
 Proposed on 2026-10-10. To be read by Opus 5.5 before it is accepted. For
 the maintainer, each with a recommendation: the retention's default

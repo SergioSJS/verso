@@ -274,11 +274,20 @@ confirmado"* às recomendações). Nenhum item `[ABERTO]` segue aberto.
 **Construída na noite de 2026-10-11 para 12** (8ad89d2, 9c10495,
 02903f1, 173cf7e e f3edc42, com o item 12; a correção 5b5fb9c). As
 perguntas em aberto que a construção levantou foram mandadas ao
-mantenedor na mesma noite e esperam as respostas: se uma versão
+mantenedor na mesma noite, e respondidas (abaixo): se uma versão
 substituída é guardada só quando a escrita de um aparelho a substituiu
 (item 12); a faixa de dias que o dono pode definir (item 3); onde mora a
 retenção de uma pasta do desktop; uma restauração diante da cota da
 pasta (item 8); e o nome do aparelho numa exclusão feita pelo sync.
+
+**Respondidas pelo mantenedor em 2026-10-12** (01:15 BRT), item a item, *"Sobre lixeira, todos aprovados"*, cada uma como construída e
+recomendada: uma versão substituída é guardada só quando a escrita de um
+aparelho a substituiu (item 12); o dono pode definir os dias de uma pasta
+em qualquer ponto entre 1 e o valor do admin (item 3); a retenção de uma
+pasta do desktop fica no índice deste computador até existir uma camada
+de ajustes que sincroniza — essa camada segue `[ABERTO]`; uma restauração
+no servidor conta na cota da pasta (item 8); e uma exclusão trazida pelo
+sync nomeia o servidor, o aparelho depois.
 
 Proposta em 2026-10-10. A ser lida por Opus 5.5 antes de ser aceita. Para
 o mantenedor, cada um com uma recomendação: o padrão da retenção (item 3;

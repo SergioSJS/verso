@@ -45,6 +45,11 @@
   acessibilidade), [0078](0078-universo-the-name-of-verso-as-a-server.md)
   (Universo).
 - Status no briefing: ausente; ao ser aceita.
+- Revisões: 2026-10-12 — as respostas do mantenedor às cinco perguntas
+  que a construção levantou (Status), cada uma registrada no item dela,
+  datada: itens 4, 8 e 11. Duas delas, ambas no item 11, estão decididas
+  e ainda não construídas; uma, no item 8, estava sendo construída naquela
+  noite.
 
 ## Contexto
 
@@ -146,7 +151,8 @@ em 2026-10-10 (Status).
    para a pasta da campanha" é um link só. Links que qualquer um que os
    tenha pode abrir não estão nesta ADR (`[ABERTO]`, para quando pedirem;
    um servidor de notas privadas começa sem eles — decidido em
-   2026-10-10: agora não).
+   2026-10-10: agora não). *(Decidido em 2026-10-12, Revisões: só o
+   admin convida uma pessoa que não tem conta.)*
 5. **Onde aparece.** Uma seção **"Compartilhados comigo"** — *Shared with
    me* — em todo lugar que lista as pastas de uma pessoa: o seletor de
    pastas do navegador e Ajustes › Conta › Pastas; Ajustes › Servidores do
@@ -197,7 +203,9 @@ em 2026-10-10 (Status).
    [0079](0079-sync-a-local-folder-with-a-server.md) para desligar o
    sync): o que foi baixado era dela desde o momento em que foi
    compartilhado, e o diálogo diz isso ao dono na hora de compartilhar,
-   numa linha.
+   numa linha. *(Decidido em 2026-10-12, Revisões: o sync do
+   compartilhamento revogado se desliga no aparelho de quem recebe, com
+   um aviso; sendo construído naquela noite, no `feat/universo-small`.)*
 9. **Auditoria.** Um compartilhamento criado, mudado e removido, e um
    convite que carrega um, são entradas do registro de auditoria com o
    caminho ([0074](0074-accounts-and-access-on-the-server.md) item 9),
@@ -232,6 +240,15 @@ em 2026-10-10 (Status).
     2026-10-10, como recomendado: ao compartilhar, o dono é avisado de
     quais anexos ficam fora da pasta compartilhada e pode acrescentar a
     pasta de anexos ao compartilhamento, só leitura.
+    *Decidido em 2026-10-12 (Revisões), ainda não construído — a próxima
+    rodada:* **uma renomeação por quem recebe reescreve os links do dono
+    fora do compartilhamento**, como o Notion os atualiza (*"no Notion
+    atualiza, imagino que vamos precisar também"*); e **os agregados que
+    quem recebe vê — as contagens do índice, as fórmulas de uma base — são
+    zerados**. *Decidido no mesmo dia:* anexos soltos na raiz do cofre
+    ficam fora de uma subpasta compartilhada, já que não há pasta de
+    anexos para acrescentar, e o diálogo de compartilhar pede ao dono que
+    os mova para uma; compartilhar o cofre inteiro não tem esse limite.
 12. **Salas** ([0073](0073-self-hosted-server-first.md) item 7). Uma nota
     aberta por um compartilhamento e pela pasta do dono é **uma sala só**:
     o lugar da sala é a chave da pasta do dono e o caminho completo, para
@@ -354,12 +371,25 @@ segue `[ABERTO]` de propósito, para uma ADR própria.
 **Construída na noite de 2026-10-11 para 12** (9e725c2, 4c49939,
 7a648e0, acb1645 e 657fab1, juntados ao `feat/universo` pelo 2f25923 em
 2026-10-12). As perguntas em aberto que a construção levantou foram
-mandadas ao mantenedor na mesma noite e esperam as respostas: uma
+mandadas ao mantenedor na mesma noite, e respondidas (abaixo): uma
 renomeação por quem recebe diante dos links do dono vindos de fora do
 compartilhamento; um dono convidando pessoas sem conta; anexos na raiz
 do cofre (item 11); o que quem recebe vê dos agregados da pasta; e o
 sync de um compartilhamento revogado, desligado no aparelho de quem
 recebe.
+
+**Respondidas pelo mantenedor em 2026-10-12** (01:15 BRT), item a item: uma renomeação por quem recebe **vai reescrever os links do dono
+fora do compartilhamento** (*"no Notion atualiza, imagino que vamos
+precisar também"*) — decidido, ainda não construído, a próxima rodada
+(item 11); só o admin convida pessoas que não têm conta (item 4); anexos
+soltos na raiz do cofre ficam fora de uma subpasta compartilhada, o
+diálogo pedindo ao dono que os mova — compartilhar o cofre inteiro não
+tem esse limite (item 11); os agregados que quem recebe vê, as contagens
+do índice e as fórmulas de uma base, vão ser zerados — decidido, a
+próxima rodada (item 11); o sync de um compartilhamento revogado se
+desliga com um aviso — decidido, sendo construído naquela noite no
+`feat/universo-small` (item 8). Cada uma está registrada no item dela
+(Revisões).
 
 Proposta em 2026-10-10. A ser lida por Opus 5.5 antes de ser aceita. Para
 o mantenedor, cada um com uma recomendação: um nome próprio para um

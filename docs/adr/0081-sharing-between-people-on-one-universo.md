@@ -45,6 +45,10 @@
   accessibility), [0078](0078-universo-the-name-of-verso-as-a-server.md)
   (Universo).
 - Status in the briefing: not present; on acceptance.
+- Revisions: 2026-10-12 — the maintainer's answers to the five questions
+  the building raised (Status), each recorded in its item, dated: items
+  4, 8 and 11. Two of them, both in item 11, are decided and not built
+  yet; one, in item 8, was being built that night.
 
 ## Context
 
@@ -142,7 +146,8 @@ carried a recommendation; the maintainer decided. Open items answered
    path too, so "invite a player to the campaign's folder" is one link.
    Links that anyone holding them may open are not in this ADR
    (`[OPEN]`, for when asked; a server of private notes starts without
-   them — decided 2026-10-10: not now).
+   them — decided 2026-10-10: not now). *(Decided 2026-10-12, Revisions:
+   only the admin invites a person who has no account.)*
 5. **Where it appears.** A section **"Shared with me"** — *Compartilhados
    comigo* — in every place that lists a person's folders: the browser's
    folder picker and Settings › Account › Folders; the desktop app's
@@ -190,7 +195,9 @@ carried a recommendation; the maintainer decided. Open items answered
    ([0079](0079-sync-a-local-folder-with-a-server.md) item 1's rule for
    turning sync off): what was downloaded was theirs to keep from the
    moment it was shared, and the dialog says so to the owner at the
-   moment of sharing, in one line.
+   moment of sharing, in one line. *(Decided 2026-10-12, Revisions: the
+   revoked share's sync turns off on the receiver's device with a notice;
+   being built that night, on `feat/universo-small`.)*
 9. **Audit.** A share created, changed and removed, and an invitation
    that carries one, are entries of the audit log with the path
    ([0074](0074-accounts-and-access-on-the-server.md) item 9), read by
@@ -222,6 +229,15 @@ carried a recommendation; the maintainer decided. Open items answered
     recommended: when sharing, the owner is told which attachments lie
     outside the shared folder and may add the attachments folder to the
     share, read-only.
+    *Decided 2026-10-12 (Revisions), not built yet — the next round:*
+    **a receiver's rename rewrites the owner's links outside the share**,
+    as Notion updates them (*"no Notion atualiza, imagino que vamos
+    precisar também"* — Notion updates them, I imagine we will need it
+    too); and **the aggregates a receiver sees — the index's counts, a
+    base's formulas — are zeroed**. *Decided the same day:* attachments
+    loose at the vault's root stay outside a shared sub-folder, as there
+    is no attachments folder to add, and the sharing dialog asks the owner
+    to move them into one; sharing the whole vault has no such limit.
 12. **Rooms** ([0073](0073-self-hosted-server-first.md) item 7). A note
     open through a share and through the owner's folder is **one room**:
     the room's place is the owner's folder key and the full path, which
@@ -333,11 +349,22 @@ purpose, for its own ADR.
 **Built on the night of 2026-10-11 to 12** (9e725c2, 4c49939, 7a648e0,
 acb1645 and 657fab1, merged into `feat/universo` by 2f25923 on
 2026-10-12). The open questions the building raised were sent to the
-maintainer the same night and wait for their answers: a receiver's
+maintainer the same night, and answered (below): a receiver's
 rename against the owner's links from outside the share; an owner
 inviting people who have no account; attachments at the vault's root
 (item 11); what a receiver sees of the folder's aggregates; and a
 revoked share's sync, turned off on the receiver's device.
+
+**Answered by the maintainer on 2026-10-12** (01:15 BRT), item by item: a receiver's rename **will rewrite the owner's links outside the
+share** (*"no Notion atualiza, imagino que vamos precisar também"*) —
+decided, not built yet, the next round (item 11); only the admin invites
+people who have no account (item 4); attachments loose at the vault's
+root stay outside a shared sub-folder, the dialog asking the owner to
+move them — sharing the whole vault has no such limit (item 11); the
+aggregates a receiver sees, the index's counts and a base's formulas,
+will be zeroed — decided, the next round (item 11); a revoked share's
+sync turns off with a notice — decided, being built that night on
+`feat/universo-small` (item 8). Each is recorded in its item (Revisions).
 
 Proposed on 2026-10-10. To be read by Opus 5.5 before it is accepted. For
 the maintainer, each with a recommendation: a share's own name (item 3;
