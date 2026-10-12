@@ -388,7 +388,9 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/api/device/poll", post(crate::device::poll))
         .route(
             "/api/device/{code}",
-            get(crate::device::describe).post(crate::device::approve),
+            get(crate::device::describe)
+                .post(crate::device::approve)
+                .delete(crate::device::refuse),
         );
     // The pages — signing in, approving the desktop app, the account — are
     // served always; the notes' window in a browser only with `--web`
