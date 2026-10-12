@@ -293,6 +293,8 @@ pub fn admin_reset(config: &Config, email: &str) -> Result<String, String> {
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_bounds;
+#[cfg(test)]
 mod tests_console;
 #[cfg(test)]
 mod tests_sync;
