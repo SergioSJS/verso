@@ -33,12 +33,21 @@ impl verso_server::config::Env for Loopback {
 }
 
 /// A running server with a folder "Campanha" holding `files`, and a
-/// device token per account: the owner's, then a reader's.
+/// device token per account: the owner's, then a reader's. Dropped, the
+/// server stops: its runtime, its database and its connections go with
+/// it. A server left running holds a few dozen descriptors — its sockets,
+/// its runtime's, its database's — and the tests that each start one (a
+/// property test starts one per case) ran a Linux runner out of them
+/// (`ulimit -n` 1024: "Too many open files", 2026-10-12).
 pub(super) struct Running {
     pub(super) url: String,
     pub(super) folder: String,
     pub(super) owner: String,
     pub(super) reader: String,
+    /// Dropped with the server's handle: the server stops.
+    _stop: tokio::sync::oneshot::Sender<()>,
+    /// The server, while anything holds it.
+    pub(super) server: std::sync::Weak<verso_server::state::Server>,
     _dirs: (tempfile::TempDir, tempfile::TempDir),
 }
 
@@ -100,7 +109,9 @@ pub(super) fn serve(files: &[(&str, &str)]) -> Running {
         verso_server::contract_version(),
         "test".into(),
     );
+    let weak = Arc::downgrade(&server);
     let (addr_tx, addr_rx) = std::sync::mpsc::channel();
+    let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
     std::thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
@@ -109,8 +120,14 @@ pub(super) fn serve(files: &[(&str, &str)]) -> Running {
         rt.block_on(async move {
             let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
             addr_tx.send(listener.local_addr().unwrap()).unwrap();
-            let _ = verso_server::run(server, listener, std::future::pending()).await;
+            // Stopped when the test lets its server go, at once: a
+            // connection still open is not waited for.
+            tokio::select! {
+                _ = verso_server::run(server, listener, std::future::pending()) => {}
+                _ = stopped => {}
+            }
         });
+        rt.shutdown_background();
     });
     let addr = addr_rx.recv().unwrap();
     // The folder's directory stays: `campanha` is dropped with `folders`.
@@ -120,6 +137,8 @@ pub(super) fn serve(files: &[(&str, &str)]) -> Running {
         folder: folder.id,
         owner,
         reader,
+        _stop: stop,
+        server: weak,
         _dirs: (data, folders),
     }
 }
@@ -1450,4 +1469,31 @@ fn the_folders_settings_cross_like_a_file_and_a_conflict_keeps_both() {
     changed(&a, &[]);
     sync(&a);
     assert!(text(&a, &copies[0]).is_some());
+}
+
+/// A test's server stops when the test lets it go: a property test starts
+/// one per case, and servers left running took a Linux runner's file
+/// descriptors (2026-10-12).
+#[test]
+fn a_test_server_stops_when_it_is_let_go() {
+    let r = serve(&[]);
+    let addr = r
+        .url
+        .trim_start_matches("http://localhost:")
+        .parse::<u16>()
+        .unwrap();
+    let reaches = || std::net::TcpStream::connect(("127.0.0.1", addr)).is_ok();
+    assert!(reaches());
+    // A device synced with it: its connection, its folder.
+    let d = device(&r, &r.owner, &[("Uma.md", "# Uma\n")]);
+    sync(&d);
+    let server = r.server.clone();
+    drop(r);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while (reaches() || server.strong_count() > 0) && std::time::Instant::now() < deadline {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    assert!(!reaches(), "the server still listens");
+    assert_eq!(server.strong_count(), 0, "the server is still held");
+    drop(d);
 }
