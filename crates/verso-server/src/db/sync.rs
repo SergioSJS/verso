@@ -53,6 +53,12 @@ pub struct Change {
     pub deleted: bool,
     /// The path this one was, for a rename or a move.
     pub renamed_from: Option<String>,
+    /// The device whose sync made it, by the name the person gave it
+    /// (Settings › Servers): two devices of one account told apart.
+    /// Absent for a change a window, a room or the server's disk made
+    /// (sync 2, ADR 0079 item 5).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device: Option<String>,
 }
 
 impl Db {
@@ -169,7 +175,7 @@ impl Db {
         let conn = self.reader();
         let mut st = conn
             .prepare(
-                "SELECT seq, path, hash, size, deleted, renamed_from FROM changes
+                "SELECT seq, path, hash, size, deleted, renamed_from, device FROM changes
                  WHERE folder = ?1 AND seq > ?2 ORDER BY seq LIMIT ?3",
             )
             .map_err(e)?;
@@ -181,6 +187,7 @@ impl Db {
                 size: r.get(3)?,
                 deleted: r.get(4)?,
                 renamed_from: r.get(5)?,
+                device: r.get(6)?,
             })
         })
         .map_err(e)?

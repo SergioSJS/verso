@@ -9,6 +9,7 @@ import { ui } from "./dom";
 import { fail } from "./errors";
 import { followMoved, forgetFiles } from "./files";
 import { currentFolder } from "./folder";
+import { folderValues, reloadFolderLayer } from "./folderLayer";
 import { leavesUnder, spaces } from "./layout/spaces";
 import { BoardLeaf } from "./leaves/board";
 import { onFileMade } from "./leaves/conflict";
@@ -20,6 +21,9 @@ import { name } from "./paths";
 import { searchNotes } from "./search";
 import { t } from "./strings";
 import { listAll } from "./tree/tree";
+
+/** The folder's settings file (ADR 0070 items 1–2). */
+const SETTINGS_FILE = ".verso/settings.json";
 
 /* ---------- File operations ---------- */
 /** Remote content turned on or off: every reading view, tab icon and
@@ -75,7 +79,15 @@ export async function changedOutside(change: FolderChanged): Promise<void> {
     ui.status.textContent = t.movedElsewhere(moved.map((m) => `${name(m.from)} → ${name(m.to)}`).join(", "));
   }
   const changed = new Set([...change.changed, ...change.removed]);
-  if (change.listing) refreshLists();
+  // The folder's settings changed outside this window — another window,
+  // sync, another program (ADR 0070): read again.
+  let named = false;
+  if (changed.has(SETTINGS_FILE)) {
+    const before = folderValues().folderNoteName;
+    await reloadFolderLayer();
+    named = folderValues().folderNoteName !== before;
+  }
+  if (change.listing || named) refreshLists();
   else if (changed.size > 0 && ui.search.value.trim() !== "") whenNotRenaming(ui.notes, () => void searchNotes(ui.search.value));
   if (changed.size > 0) void panel.loadTags();
   const outcomes = await recheckAll(changed.size > 0 ? changed : null);

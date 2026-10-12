@@ -146,6 +146,7 @@ pub fn convert(e: CoreError) -> ContractError {
         CoreError::Write(WriteError::Changed { .. }) => ErrorKind::Changed,
         CoreError::Write(WriteError::Exists) => ErrorKind::Exists,
         CoreError::Write(WriteError::Placeholder) => ErrorKind::Unavailable,
+        CoreError::FolderSettings(_) => ErrorKind::Refused,
         _ => ErrorKind::Failed,
     };
     ContractError {
@@ -298,10 +299,23 @@ impl Service {
         let report = workspace
             .index_with_progress(self.progress_to(vec![opener.to_owned()]))
             .map_err(convert)?;
+        // Asked once, at the opening: said to the client with the folder,
+        // and one line in the log (ADR 0048, revised 2026-10-12).
+        let late_outside_changes = workspace.names_by_link();
+        if let Some(fs) = &late_outside_changes {
+            self.events().log(
+                "WARN",
+                &format!(
+                    "folder {}: its volume ({fs}) has no exclusive rename, so a file Verso creates or moves there is named by a link; its later removal by another program may show only at a reindex or at sync's scan",
+                    workspace.name()
+                ),
+            );
+        }
         let mut info = FolderInfo {
             name: workspace.name(),
             key: workspace.key(),
             index: convert::summary(&report),
+            late_outside_changes,
         };
         info.index.unwatched.clone_from(&unwatched);
         Ok(Opened {

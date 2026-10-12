@@ -158,13 +158,14 @@ impl Workspace {
         revision: Option<&str>,
     ) -> Result<String, CoreError> {
         let key = self.entry_key(relative)?;
+        let settings = verso_fs::is_settings_path(&key);
         let stamp = match revision {
             None => {
                 let (handle, report) = self
                     .root
                     .create(Path::new(&key), bytes)
                     .map_err(CoreError::Write)?;
-                if !is_note(&key) {
+                if !is_note(&key) && !settings {
                     self.files
                         .entry(verso_index::file_key(super::name_of(&key)))
                         .or_default()
@@ -185,8 +186,11 @@ impl Workspace {
                 self.stamp_of_written(handle, report.stamp, bytes)
             }
         };
-        // The index follows what it knows: a note's text, a board's links.
-        if is_note(&key) {
+        // The folder's settings are read again, never indexed (ADR 0070);
+        // the index follows what it knows: a note's text, a board's links.
+        if settings {
+            self.layer_written();
+        } else if is_note(&key) {
             let text = String::from_utf8_lossy(bytes);
             self.index
                 .upsert(

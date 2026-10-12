@@ -510,6 +510,20 @@ point 13).
    (`scripts/check-linux-vm.sh --install`, the app opened on Ubuntu's
    desktop; `--webkit`, the suite on Linux's WebKit); A (Debian, Fedora,
    the AppImage).
+9. The folder's settings (note 15, "Da pasta ou desta máquina"; [ADR
+   0070](../adr/0070-what-travels-with-the-folder.md) items 1–2): in a
+   folder just imported, Ajustes › Arquivos e links › "Ignorar pastas de
+   build" says *Desta máquina*, and the folder holds no `.verso/`;
+   turned off, it says *Da pasta* and `.verso/settings.json` appears with
+   `"ignoreBuildDirs": false`; a star on a note adds it to `bookmarks`
+   there; Organização › "Nome da nota da pasta" and "Favoritos" say *Da
+   pasta* too. In a folder whose bookmarks this computer kept before, the
+   first opening moves them into the file, once. Level: H; E:
+   `folder-settings.spec.mjs`; U (`cargo test -p verso-core --test
+   folder_settings`; the host's `tests_sync.rs`, "the folder's settings
+   cross like a file and a conflict keeps both", against a real server;
+   `npm test`'s `folderLayer.test.mjs`); A (two computers syncing one
+   folder, by hand).
 
 ## 11. Organizing: stickers, covers, folder pages, order
 
@@ -735,7 +749,15 @@ rest below and in `manual-checks.md`.
    off, the files kept, and the status bar and *Ajustes* › *Sincronizar*
    say *quem compartilhou revogou o acesso* and when (e2e, `sync.spec.mjs`,
    "a share revoked by its owner"; the host's Rust test against a real
-   server, `tests_shares.rs`).
+   server, `tests_shares.rs`). As the receiver, rename a note of the share
+   that a note of the owner's outside it links to; as the owner, that
+   note's link now has the new name, and the receiver's rename named only
+   notes inside the share (the server's Rust test, `tests_shares.rs`, "a
+   receivers rename rewrites the owners links outside the share", with a
+   note open in a room kept as it was; by hand with two browsers). The
+   receiver's status bar counts the share's notes, and a base through the
+   share counts, sums and lists only notes inside it (the server's Rust
+   test, `tests_shares.rs`, "a receivers counts are the shares").
 11. Editing together in a synced folder ([ADR
     0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), from note 23's
     section *Editar junto numa pasta sincronizada*: with the folder syncing,
@@ -748,7 +770,12 @@ rest below and in `manual-checks.md`.
     — sincronização pausada*; back in another room, the note is read anew
     with its text; *Ajustes* › *Sincronizar* › *Editar notas junto enquanto
     online* off, the note leaves the room and, opened again, joins nothing
-    (e2e, `live.spec.mjs`). Two devices and a browser in one room, a drop
+    (e2e, `live.spec.mjs`). A property set in the panel of a live note —
+    a value, a checkbox — goes into the room beside what another person
+    types there, never to the file, which follows the room's save; a
+    sticker, a base's cell and a PDF's quote into a live companion note go
+    the same way (e2e, `live.spec.mjs`, "a property set in the panel";
+    `roomWrites.test.mjs`). Two devices and a browser in one room, a drop
     and a return within the grace and after it, an outside program's edit,
     a reader, a pause, and the property test that no edit is lost — the
     host's Rust tests against a real server (`tests_live.rs`); a cursor

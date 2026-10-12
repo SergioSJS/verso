@@ -161,10 +161,13 @@ pub const PAUSE_FLOOR: usize = 3;
 /// not in the generated bindings, so the contract's version does not
 /// cover their wire: this number is raised before any change to it.
 ///
-/// 2 (2026-10-12, item 12 revised): a piece of a file crosses as a binary
-/// WebSocket message ([`frame`]) instead of base64 inside the JSON text,
-/// both ways; a side that speaks 1 — or says no version — is still sent
-/// and taken base64, as the version before is followed (item 5).
+/// 2 (2026-10-12, one version for both changes): each change
+/// `sync_changes` answers may carry `device`, the name of the device whose
+/// sync made it — a field a device of sync 1 ignores; and a piece of a
+/// file crosses as a binary WebSocket message ([`frame`]) instead of
+/// base64 inside the JSON text, both ways (item 12 revised) — a side that
+/// speaks 1, or says no version, is still sent and taken base64, as the
+/// version before is followed (item 5).
 pub const PROTOCOL: u32 = 2;
 
 /// The first sync whose pieces cross as binary messages.

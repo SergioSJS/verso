@@ -35,6 +35,9 @@ impl Workspace {
             total: 0,
             file: None,
         });
+        // The folder's settings first: the walk's rules may be its own
+        // (ADR 0070). What changed in `.verso/` is reported, never indexed.
+        let (layer_changed, layer_gone) = self.walk_layer();
         let walk = self.root.walk();
         let total_notes = walk
             .entries
@@ -47,7 +50,11 @@ impl Workspace {
             total: total_notes,
             file: None,
         });
-        let mut report = IndexReport::default();
+        let mut report = IndexReport {
+            changed: layer_changed,
+            gone: layer_gone,
+            ..IndexReport::default()
+        };
         let mut present: HashSet<String> = HashSet::new();
         let mut files: HashMap<String, Vec<String>> = HashMap::new();
         let mut dirs: HashSet<String> = HashSet::new();
@@ -348,6 +355,8 @@ impl Workspace {
             .confine(Path::new(note))
             .map_err(CoreError::Confined)?;
         let mut key = confined.to_string_lossy().into_owned();
+        // The folder's settings directory holds no note (ADR 0070).
+        Self::refuse_settings(&key)?;
         if !key.ends_with(".md") {
             key.push_str(".md");
         }
@@ -370,6 +379,7 @@ impl Workspace {
         if !is_canvas(&confined) {
             return self.note_key(note);
         }
+        Self::refuse_settings(&confined)?;
         // A note named `Plano.canvas.md` asked for without its `.md`: the
         // note, when no board of that path is known and the note is
         // (review `board.md`, second reading, finding 8).

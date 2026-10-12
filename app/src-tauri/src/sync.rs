@@ -335,10 +335,14 @@ fn listed_here(
     dirty: &HashSet<String>,
     walked: bool,
 ) -> Result<Option<Here>, ContractError> {
+    // The walk's entries and the folder's settings directory, which the
+    // walk never lists and sync carries like any file (ADR 0070, ADR 0079
+    // item 2).
     let listed: Vec<(String, u64, i64, bool)> = ctx.service.with_key(&s.key, |ws| {
         Ok(ws
             .entries()
             .iter()
+            .chain(ws.settings_entries())
             .filter(|e| e.kind != verso_core::FileKind::Folder)
             .map(|e| {
                 (

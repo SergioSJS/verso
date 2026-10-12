@@ -52,7 +52,9 @@ pub mod sync;
 pub mod trash;
 pub mod typed;
 pub use focuses::{Focus, FocusesSummary, ReadOnlyReasonCode};
+pub use folder_settings::{FolderLayer, FolderSettings, LayerProblem};
 mod entries;
+mod folder_settings;
 mod indexing;
 mod narrow;
 mod notes;
@@ -156,6 +158,9 @@ pub enum CoreError {
     /// An MCP client's configuration could not be read or changed
     /// (`clients`): what, in the message.
     Client(String),
+    /// The folder's settings file (ADR 0070) cannot be changed as it is:
+    /// what, in the message.
+    FolderSettings(String),
 }
 
 impl std::fmt::Display for CoreError {
@@ -177,6 +182,7 @@ impl std::fmt::Display for CoreError {
             Self::UnknownFolder => write!(f, "no folder opened before has this key"),
             Self::Watch(e) => write!(f, "the folder cannot be watched for changes: {e}"),
             Self::Client(m) => write!(f, "MCP client: {m}"),
+            Self::FolderSettings(m) => write!(f, "folder settings: {m}"),
         }
     }
 }
@@ -622,9 +628,13 @@ pub struct Workspace {
     /// of the content it was read from: read again only when the index
     /// has another hash for the note.
     base_facts: HashMap<String, (u64, bases::NoteFacts)>,
-    /// The folder note name setting (ADR 0060 D12): empty, a folder's note
-    /// is named after it.
+    /// The folder note name that applies (ADR 0060 D12): empty, a
+    /// folder's note is named after it. The folder's own, or this
+    /// machine's while the folder has none (ADR 0070, `folder_settings`).
     folder_note_name: String,
+    /// The folder's layer of settings and this machine's fallback (ADR
+    /// 0070 items 1–2).
+    layer: folder_settings::Layer,
     /// Cache of stamped focuses reads, for concurrent reapply (ADR 0062 D7).
     stamped_focuses: HashMap<String, Vec<Focus>>,
     /// The last read focuses from .space/waypoints.json, for concurrent reapply (ADR 0062 D7).
@@ -761,7 +771,7 @@ impl Workspace {
         };
         let file = config.join("index").join(Index::file_name_for(&folder));
         let index = Index::open(file).map_err(CoreError::Index)?;
-        Ok(Self {
+        let mut workspace = Self {
             folder,
             root,
             index,
@@ -770,10 +780,15 @@ impl Workspace {
             entries: Vec::new(),
             base_facts: HashMap::new(),
             folder_note_name: String::new(),
+            layer: folder_settings::Layer::default(),
             stamped_focuses: HashMap::new(),
             last_focuses: None,
             sync_focuses: false,
-        })
+        };
+        // The folder's own settings, read before anything is walked: the
+        // walk's rules may be the folder's (ADR 0070). Read only.
+        let _ = workspace.refresh_layer();
+        Ok(workspace)
     }
 
     /// Open again a folder opened (and indexed) before, by its
@@ -829,6 +844,16 @@ impl Workspace {
         key_for(&self.folder)
     }
 
+    /// The name of the folder's file system when a file Verso creates or
+    /// moves there is named by `link` (macOS: some network volumes; ADR
+    /// 0048, revised 2026-10-12): changes made there by other programs may
+    /// show late. Asked of the volume through `verso-fs`, the only crate
+    /// that touches the folder.
+    #[must_use]
+    pub fn names_by_link(&self) -> Option<String> {
+        self.root.names_by_link()
+    }
+
     /// The index's size in bytes (ADR 0075 item 4).
     pub fn index_bytes(&self) -> Result<u64, CoreError> {
         self.index.bytes().map_err(CoreError::Index)
@@ -849,29 +874,10 @@ impl Workspace {
         self.index_with_progress(|_| {})
     }
 
-    /// The walk's rules — the user's setting, from outside the tree.
-    /// Takes effect on the next index run; the caller reindexes.
-    pub fn set_walk_rules(&mut self, rules: WalkRules) {
-        self.root.set_rules(rules);
-    }
-
     /// Follow symlinks only inside the folder: a server's folder, shared by
     /// several people (ADR 0044, revised 2026-10-09).
     pub fn set_links_inside(&mut self, on: bool) {
         self.root.set_links_inside(on);
-    }
-
-    /// The folder note name setting (ADR 0060 D12), from the window. A
-    /// name that is not a plain file name — a separator, `.` or `..` — is
-    /// taken as empty: a folder's note is then named after it.
-    pub fn set_folder_note_name(&mut self, name: &str) {
-        let name = without_md(name.trim());
-        let plain = !name.contains(['/', '\\']) && name != "." && name != "..";
-        self.folder_note_name = if plain {
-            name.to_owned()
-        } else {
-            String::new()
-        };
     }
 
     /// The note that carries `folder`'s labels, order and pins, if it has

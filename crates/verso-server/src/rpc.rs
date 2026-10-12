@@ -555,7 +555,10 @@ async fn command(
         "current_folder" => {
             let info = to_value(server.service.current_folder(client))?;
             Ok(match crate::shares::scope_here(server, client) {
-                Some(scope) if !info.is_null() => scope.info(info),
+                Some(scope) if !info.is_null() => {
+                    let counts = share_counts(server, client, &scope).await;
+                    scope.info(info, counts)
+                }
                 _ => info,
             })
         }
@@ -567,7 +570,8 @@ async fn command(
             record_space(server, client).await;
             let mut summary = to_value(summary)?;
             if let Some(scope) = crate::shares::scope_here(server, client) {
-                scope.summary(&mut summary);
+                let counts = share_counts(server, client, &scope).await;
+                scope.summary(&mut summary, counts);
             }
             Ok(summary)
         }
@@ -770,6 +774,32 @@ async fn folder_command(
             });
         }
         "can_sync_focuses" => return Ok(Value::Bool(false)),
+        // A base through the share is evaluated over the shared folder
+        // only: its rows, its properties, its formulas and its summaries
+        // count nothing outside (ADR 0081 item 11, decided 2026-10-12).
+        "query_base" => {
+            let args = scope.args_in(name, args)?;
+            let query: verso_contract::BaseQuery = arg(&args, "query")?;
+            let c = client.to_owned();
+            let within = scope.roots();
+            let answer = blocking(move || {
+                s.service
+                    .with(&c, |ws| ops::query_base_within(ws, query, within))
+                    .and_then(to_value)
+            })
+            .await
+            .map_err(|e| scope.error(e))?;
+            return Ok(scope.answer_out(name, answer, limit));
+        }
+        // The owner's folder settings are the whole folder's, never a
+        // share's (ADR 0070, ADR 0081): the window keeps its own, and a
+        // change is refused (`args_in`).
+        "get_folder_settings" => {
+            return to_value(verso_contract::FolderLayer {
+                problem: Some("share".to_owned()),
+                ..verso_contract::FolderLayer::default()
+            });
+        }
         "folder_space" => {
             let k = key.clone();
             let sc = scope.clone();
@@ -779,9 +809,29 @@ async fn folder_command(
         _ => {}
     }
     let args = scope.args_in(name, args)?;
-    let answer = folder_run(server, who, client, (name, access), (&folder, &key), args)
+    let mut answer = folder_run(server, who, client, (name, access), (&folder, &key), args)
         .await
         .map_err(|e| scope.error(e))?;
+    // A rename through the share keeps the owner's links outside it: the
+    // server writes those rewrites itself, and the window hears only of
+    // the ones inside (ADR 0081 item 11, decided 2026-10-12).
+    if matches!(name, "rename_note" | "rename_entry" | "move_entries") {
+        let outside = crate::share_links::take_outside(&scope, &mut answer);
+        if !outside.is_empty() {
+            let s = Arc::clone(server);
+            let k = key.clone();
+            let (actor, by, share) = (
+                who.account.id.clone(),
+                who.account.email.clone(),
+                scope.share.clone(),
+            );
+            let _ = blocking(move || {
+                crate::share_links::apply(&s, &k, (&actor, &by), &share, outside);
+                Ok(())
+            })
+            .await;
+        }
+    }
     Ok(scope.answer_out(name, answer, limit))
 }
 
@@ -887,7 +937,11 @@ async fn folder_run(
         // (ADR 0079 item 4): a device asking next sees it.
         let s = Arc::clone(server);
         let actor = who.account.id.clone();
-        let paths = crate::sync::paths_of(&args_for_log);
+        let mut paths = crate::sync::paths_of(&args_for_log);
+        // The folder's settings name no path in their arguments (ADR 0070).
+        if name == "set_folder_settings" {
+            paths.push(verso_fs::SETTINGS_FILE.to_owned());
+        }
         let _ = blocking(move || {
             crate::sync::reconcile_key(&s, &key_for_log, Some(&actor), &paths);
             Ok(())
@@ -960,9 +1014,28 @@ async fn open(
     record_space(server, client).await;
     let info = to_value(info)?;
     Ok(match &scope {
-        Some(s) => s.info(info),
+        Some(s) => {
+            let counts = share_counts(server, client, s).await;
+            s.info(info, counts)
+        }
         None => info,
     })
+}
+
+/// The share's own counts for the index's summary the window shows (ADR
+/// 0081 item 11); none when the folder cannot be read now, and then the
+/// summary says zero.
+async fn share_counts(
+    server: &Arc<Server>,
+    client: &str,
+    scope: &crate::scope::Scope,
+) -> Option<crate::scope::Counts> {
+    let s = Arc::clone(server);
+    let c = client.to_owned();
+    let sc = scope.clone();
+    blocking(move || s.service.with(&c, |ws| Ok(sc.counts(ws)?)))
+        .await
+        .ok()
 }
 
 /// Count the space of the window's folder and keep it for the pages that

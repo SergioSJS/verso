@@ -1377,3 +1377,77 @@ fn more_than_a_page_of_changes_is_read_page_by_page_not_skipped() {
     changed(&b, &[]);
     assert_eq!(on(&b, &mut l).actions, 0);
 }
+
+/// The folder's settings, `.verso/settings.json` (ADR 0070 items 1–2),
+/// cross like any file though the walk never lists them: written on one
+/// device, they arrive on the other; changed on both, the server's keeps
+/// the name and this computer's is kept beside it, in `.verso/` too —
+/// never in the listing the tree and the index read.
+#[test]
+fn the_folders_settings_cross_like_a_file_and_a_conflict_keeps_both() {
+    let r = serve(&[("Nota.md", "# Nota\n")]);
+    let a = device(&r, &r.owner, &[]);
+    let b = device(&r, &r.owner, &[]);
+    sync(&a);
+    sync(&b);
+    let starred = |d: &Device, list: &[&str]| {
+        let change = verso_core::FolderSettings {
+            bookmarks: Some(list.iter().map(|s| (*s).to_owned()).collect()),
+            ..verso_core::FolderSettings::default()
+        };
+        d.ctx
+            .service
+            .with_key(&d.key, move |ws| {
+                let revision = ws.folder_settings().revision;
+                Ok(ws
+                    .set_folder_settings(&change, revision.as_deref())
+                    .map(|_| ())?)
+            })
+            .unwrap();
+        changed(d, &[".verso/settings.json"]);
+    };
+    let bookmarks = |d: &Device| {
+        d.ctx
+            .service
+            .with_key(&d.key, |ws| Ok(ws.folder_settings().settings.bookmarks))
+            .unwrap()
+    };
+    starred(&a, &["Nota.md"]);
+    sync(&a);
+    changed(&b, &[]);
+    sync(&b);
+    assert_eq!(bookmarks(&b), Some(vec!["Nota.md".to_owned()]));
+    assert!(files(&b).iter().all(|p| !p.starts_with(".verso")));
+
+    // Both change them: a conflict, kept beside the file, in `.verso/`.
+    starred(&a, &["Nota.md", "De A.md"]);
+    starred(&b, &["De B.md"]);
+    sync(&a);
+    sync(&b);
+    assert_eq!(
+        bookmarks(&b),
+        Some(vec!["Nota.md".to_owned(), "De A.md".to_owned()])
+    );
+    let copies: Vec<String> = b
+        .ctx
+        .service
+        .with_key(&b.key, |ws| {
+            Ok(ws
+                .settings_entries()
+                .iter()
+                .map(|e| e.path.clone())
+                .filter(|p| p.starts_with(".verso/settings (conflito, Mac, "))
+                .collect())
+        })
+        .unwrap();
+    assert_eq!(copies.len(), 1, "{copies:?}");
+    assert!(
+        text(&b, &copies[0]).unwrap().contains("\"De B.md\""),
+        "the copy is this computer's version"
+    );
+    assert!(files(&b).iter().all(|p| !p.starts_with(".verso")));
+    // The copy reaches the first device too.
+    changed(&a, &[]);
+    sync(&a);
+    assert!(text(&a, &copies[0]).is_some());
+}
