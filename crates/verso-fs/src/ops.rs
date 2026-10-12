@@ -131,7 +131,7 @@ fn not_supported(e: &std::io::Error) -> bool {
 /// Whether the exclusive rename was refused for the volume's sake — it
 /// does not offer the flag (`not_supported`), or does not know it
 /// (`InvalidInput`) — rather than for the names'.
-#[cfg(any(target_os = "macos", all(test, target_os = "linux")))]
+#[cfg(any(test, target_os = "macos"))]
 fn no_exclusive_rename(e: &std::io::Error) -> bool {
     not_supported(e) || e.kind() == std::io::ErrorKind::InvalidInput
 }
@@ -201,6 +201,82 @@ fn claim_by(
         Err(e) if no_exclusive_rename(&e) => place(from, to, |a, b| std::fs::hard_link(a, b)),
         Err(e) => Err(WriteError::Io(e)),
     }
+}
+
+/// The name of the folder's file system when a file Verso creates or
+/// moves there is named by `link`: the volume does not offer the
+/// exclusive rename (`renamex_np` with `RENAME_EXCL`, optional for a
+/// volume, `VOL_CAP_INT_RENAME_EXCL`) and does offer hard links — some
+/// network volumes. FSEvents may never report the later removal of such a
+/// file by another program (ADR 0069, revised 2026-10-11): that change
+/// shows late, at a reindex or at sync's scan. Verso's own writes are as
+/// safe as anywhere. A volume with neither — exFAT — names a file by a
+/// checked rename, which FSEvents does report, and each create or move
+/// there says its guard was weaker ([`OpReport`]); FAT32 and APFS have
+/// the exclusive rename (measured on mounted images, 2026-10-12). APFS
+/// and HFS+ are answered from their name alone; any other volume is asked
+/// by trying, once, on an empty file of the probe's own made under a
+/// temporary name the walk and the watcher never list, and removed after.
+/// `None` when nothing is named by `link` there, when it could not be
+/// told (a folder Verso cannot write to), and off macOS, where `link` is
+/// the rule and the removal of a linked file is heard.
+#[cfg(target_os = "macos")]
+pub(crate) fn names_by_link(dir: &Path) -> Option<String> {
+    let fs = nix::sys::statfs::statfs(dir)
+        .ok()?
+        .filesystem_type_name()
+        .to_owned();
+    if matches!(fs.as_str(), "apfs" | "hfs") {
+        return None;
+    }
+    probe_names_by_link(dir, crate::os::rename_exclusive, |a, b| {
+        std::fs::hard_link(a, b)
+    })
+    .then_some(fs)
+}
+
+#[cfg(not(target_os = "macos"))]
+pub(crate) fn names_by_link(_dir: &Path) -> Option<String> {
+    None
+}
+
+/// Whether [`claim_by`] would name a file in `dir` by `link`: the
+/// exclusive `rename` refused for the volume's sake, and `link` working
+/// there. Tried on an empty file made in `dir` under a temporary name;
+/// false when the file cannot be made, or the rename fails for another
+/// reason — nothing is said that was not seen. Every name the probe made
+/// is removed after. `rename` and `link` are parameters so that a test
+/// can stand in a volume without them.
+#[cfg(any(test, target_os = "macos"))]
+fn probe_names_by_link(
+    dir: &Path,
+    rename: impl Fn(&Path, &Path) -> std::io::Result<()>,
+    link: impl Fn(&Path, &Path) -> std::io::Result<()>,
+) -> bool {
+    let from = temporary_name(dir);
+    let to = temporary_name(dir);
+    if File::options()
+        .write(true)
+        .create_new(true)
+        .open(&from)
+        .is_err()
+    {
+        return false;
+    }
+    let by_link = match rename(&from, &to) {
+        Ok(()) => false,
+        Err(e) if no_exclusive_rename(&e) => link(&from, &to).is_ok(),
+        Err(_) => false,
+    };
+    for left in [&from, &to] {
+        if left.symlink_metadata().is_ok() {
+            // A file of the probe's own, empty: a failure to remove it
+            // leaves a hidden name the walk never lists, nothing of the
+            // person's.
+            let _ = std::fs::remove_file(left);
+        }
+    }
+    by_link
 }
 
 use crate::os::sync_dir;
@@ -580,6 +656,44 @@ mod tests {
             Err(WriteError::Io(_))
         ));
         assert_eq!(std::fs::read(&other).unwrap(), b"x");
+    }
+
+    /// A volume that names files by `link` is told by trying once, on a
+    /// file of the probe's own, which is gone afterwards whatever the
+    /// answer; a volume with the exclusive rename, one with neither, or a
+    /// folder the probe cannot write to, is never said to.
+    #[test]
+    fn a_volume_that_names_by_link_is_told_and_nothing_is_left() {
+        let dir = tempfile::tempdir().unwrap();
+        let listed = || std::fs::read_dir(dir.path()).unwrap().count();
+        let linked = |a: &Path, b: &Path| std::fs::hard_link(a, b);
+        let invalid = |_: &Path, _: &Path| -> std::io::Result<()> {
+            Err(std::io::Error::from(std::io::ErrorKind::InvalidInput))
+        };
+        // No exclusive rename, hard links: some network volumes.
+        assert!(probe_names_by_link(dir.path(), no_links, linked));
+        assert_eq!(listed(), 0);
+        assert!(probe_names_by_link(dir.path(), invalid, linked));
+        assert_eq!(listed(), 0);
+        // Neither: exFAT — a checked rename, which FSEvents reports.
+        assert!(!probe_names_by_link(dir.path(), no_links, no_links));
+        assert_eq!(listed(), 0);
+        // The exclusive rename works: APFS, FAT32.
+        let renamed = |a: &Path, b: &Path| std::fs::rename(a, b);
+        assert!(!probe_names_by_link(dir.path(), renamed, linked));
+        assert_eq!(listed(), 0);
+        // Another failure says nothing of the volume.
+        let other = |_: &Path, _: &Path| -> std::io::Result<()> {
+            Err(std::io::Error::other("disk on fire"))
+        };
+        assert!(!probe_names_by_link(dir.path(), other, linked));
+        assert_eq!(listed(), 0);
+        // A folder that is not there: nothing could be tried.
+        let nowhere = dir.path().join("nowhere");
+        assert!(!probe_names_by_link(&nowhere, no_links, linked));
+        // The folder of a test is on the machine's own disk.
+        assert_eq!(names_by_link(dir.path()), None);
+        assert_eq!(listed(), 0);
     }
 
     /// exFAT answers `link` with "operation not supported": a create or a

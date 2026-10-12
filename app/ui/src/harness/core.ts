@@ -575,7 +575,7 @@ export class Core {
   }
 
   folderInfo(): FolderInfo {
-    return { name: this.name, key: "harness", index: this.summary() };
+    return { name: this.name, key: "harness", index: this.summary(), late_outside_changes: null };
   }
 
   private summary(): IndexSummary {

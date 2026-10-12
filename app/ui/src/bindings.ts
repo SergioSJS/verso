@@ -22,6 +22,16 @@ export const commands = {
 	 */
 	key: string,
 	index: IndexSummary,
+	/**
+	 *  The name of the folder's file system when changes made there by
+	 *  other programs may show late: a volume without the exclusive rename
+	 *  and with hard links (macOS: some network volumes; ADR 0048, revised
+	 *  2026-10-12), where a file Verso creates or moves is named by a
+	 *  link, whose later removal by another program the system may not
+	 *  report. Verso's own writes are as safe as anywhere. The UI says it
+	 *  once per folder, in the user's language (ADR 0035).
+	 */
+	late_outside_changes?: string | null,
 } | null, ContractError>(__TAURI_INVOKE("pick_folder")),
 	/**
 	 *  Open again a folder opened before, by the key `FolderInfo` carried:
@@ -49,6 +59,16 @@ export const commands = {
 	 */
 	key: string,
 	index: IndexSummary,
+	/**
+	 *  The name of the folder's file system when changes made there by
+	 *  other programs may show late: a volume without the exclusive rename
+	 *  and with hard links (macOS: some network volumes; ADR 0048, revised
+	 *  2026-10-12), where a file Verso creates or moves is named by a
+	 *  link, whose later removal by another program the system may not
+	 *  report. Verso's own writes are as safe as anywhere. The UI says it
+	 *  once per folder, in the user's language (ADR 0035).
+	 */
+	late_outside_changes?: string | null,
 } | null, ContractError>(__TAURI_INVOKE("open_initial")),
 	/**  Every note the index knows, by path relative to the folder. */
 	listNotes: () => typedError<string[], ContractError>(__TAURI_INVOKE("list_notes")),
@@ -149,6 +169,16 @@ export const commands = {
 	 */
 	key: string,
 	index: IndexSummary,
+	/**
+	 *  The name of the folder's file system when changes made there by
+	 *  other programs may show late: a volume without the exclusive rename
+	 *  and with hard links (macOS: some network volumes; ADR 0048, revised
+	 *  2026-10-12), where a file Verso creates or moves is named by a
+	 *  link, whose later removal by another program the system may not
+	 *  report. Verso's own writes are as safe as anywhere. The UI says it
+	 *  once per folder, in the user's language (ADR 0035).
+	 */
+	late_outside_changes?: string | null,
 } | null, ContractError>(__TAURI_INVOKE("current_folder")),
 	/**
 	 *  The app's version and the commit it was built from (ADR 0051), for the
@@ -1028,6 +1058,16 @@ export type FolderInfo = {
 	 */
 	key: string,
 	index: IndexSummary,
+	/**
+	 *  The name of the folder's file system when changes made there by
+	 *  other programs may show late: a volume without the exclusive rename
+	 *  and with hard links (macOS: some network volumes; ADR 0048, revised
+	 *  2026-10-12), where a file Verso creates or moves is named by a
+	 *  link, whose later removal by another program the system may not
+	 *  report. Verso's own writes are as safe as anywhere. The UI says it
+	 *  once per folder, in the user's language (ADR 0035).
+	 */
+	late_outside_changes?: string | null,
 };
 
 /**
