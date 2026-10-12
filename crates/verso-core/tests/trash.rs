@@ -247,3 +247,82 @@ fn a_restore_beside_a_taken_name_and_a_copy_before_a_write() {
             .is_err()
     );
 }
+
+/// A restore is a move inside the folder, and the names it makes are
+/// checked as a rename's (ADR 0070 item 3, ADR 0080 item 5): its original
+/// name now the case twin of an entry there — two files on Linux, one on
+/// a Mac or Windows (spec Q8) — counts as taken, and the entry goes beside
+/// it; a folder it goes back into that only a case twin stands for is
+/// refused with the reason (a name beside would be under it too), unless
+/// the file system reaches it; a name not every OS can keep is refused.
+#[test]
+fn a_restore_checks_the_names_it_makes() {
+    let folder = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let root = folder.path();
+    std::fs::write(root.join("Nota.md"), "primeira").unwrap();
+    let mut ws = Workspace::open(root, Some(config.path())).unwrap();
+    ws.index().unwrap();
+    ws.create_file("Pasta/x.md", b"x").unwrap();
+    let nota = ws.delete_entry("Nota.md").unwrap();
+    ws.create_note("nota.md", "segunda").unwrap();
+    let back = ws
+        .restore_from_trash(&nota.path, "Nota.md", false, "2026-10-12", false)
+        .unwrap();
+    assert_eq!(back.path, "Nota (restored 2026-10-12).md");
+    assert!(back.beside);
+    assert_eq!(
+        std::fs::read_to_string(root.join("nota.md")).unwrap(),
+        "segunda"
+    );
+    // Its folder respelled meanwhile: on a file system that folds names
+    // the restore reaches it; on one that tells case apart, `Pasta` would
+    // be a second folder beside `pasta`, refused.
+    let x = ws.delete_entry("Pasta/x.md").unwrap();
+    ws.rename_entry("Pasta", "pasta").unwrap();
+    let folds = std::fs::read_to_string(root.join("NOTA.md")).is_ok();
+    let restored = ws.restore_from_trash(&x.path, "Pasta/x.md", false, "2026-10-12", false);
+    if folds {
+        restored.unwrap();
+        assert_eq!(
+            std::fs::read_to_string(root.join("pasta/x.md")).unwrap(),
+            "x"
+        );
+    } else {
+        match restored {
+            Err(verso_core::CoreError::Write(verso_core::WriteError::Confined(
+                verso_core::ConfinementError::CaseTwin,
+            ))) => {}
+            other => panic!("a parent's case twin: {other:?}"),
+        }
+        assert!(
+            std::fs::read_to_string(root.join(&x.path)).is_ok(),
+            "still in the bin"
+        );
+    }
+}
+
+/// A name Windows would not keep is refused when a restore would make it,
+/// as a rename's is (ADR 0070 item 3); the entry stays in the bin. Not on
+/// Windows, where such a file cannot exist at all.
+#[cfg(not(windows))]
+#[test]
+fn a_restore_to_a_name_not_every_os_keeps_is_refused() {
+    let folder = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let root = folder.path();
+    std::fs::write(root.join("Reunião: pauta.md"), "p").unwrap();
+    let mut ws = Workspace::open(root, Some(config.path())).unwrap();
+    ws.index().unwrap();
+    let gone = ws.delete_entry("Reunião: pauta.md").unwrap();
+    match ws.restore_from_trash(&gone.path, "Reunião: pauta.md", false, "2026-10-12", true) {
+        Err(verso_core::CoreError::Write(verso_core::WriteError::Confined(
+            verso_core::ConfinementError::UnportableName,
+        ))) => {}
+        other => panic!("{other:?}"),
+    }
+    assert!(
+        std::fs::read_to_string(root.join(&gone.path)).is_ok(),
+        "still in the bin"
+    );
+}
