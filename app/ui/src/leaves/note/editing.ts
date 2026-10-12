@@ -105,7 +105,8 @@ export function editorState(this: NoteLeaf, doc: string, shared: Extension = [])
             this.setDirty(true);
             // In a shared note the server writes the file once the edits
             // settle; the tab hears it (`collab-saved`).
-            if (!this.collab) this.scheduleSave();
+            // A synced folder's note out of its room saves here (ADR 0082).
+            if (!this.collab?.live) this.scheduleSave();
           }
           this.updateWords();
         }

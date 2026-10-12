@@ -15,6 +15,9 @@ import { diffNode } from "../diff";
 import { h } from "../dom";
 import { errorSentence, fail } from "../errors";
 import { openNote } from "../layout/spaces";
+import { syncedSessions } from "../collab";
+import { liveLine, liveWords } from "../coeditWords";
+import { liveTogether, setLiveTogether } from "../settings";
 import { copyParts, looksBinary, originalOf, textByName } from "./conflictNames";
 
 const pt = {
@@ -301,7 +304,7 @@ export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, p
   );
   top.append(sentence, metaLine);
   if (problem) top.append(h("p", "sync-problem", capitalized(problem)));
-  top.append(actions);
+  top.append(actions, togetherRow(refresh));
 
   // 2. What needs the person, or the calm that nothing does.
   const needs = h("section", "sync-needs");
@@ -355,6 +358,35 @@ export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, p
   }
 
   box.replaceChildren(top, needs, history);
+}
+
+/** The person's setting for this folder (ADR 0082 item 15): its notes
+ *  join the server's rooms while online, or stay this computer's alone. */
+function togetherRow(refresh: Refresh): HTMLElement {
+  const w = liveWords(document.documentElement.lang);
+  const row = h("label", "sync-together");
+  const box = h("input");
+  box.type = "checkbox";
+  box.checked = liveTogether();
+  box.addEventListener("change", () => {
+    setLiveTogether(box.checked);
+    void refresh().then(() => dispatchEvent(new Event("verso:live-together")));
+  });
+  const words = h("span", "sync-together-words");
+  words.append(h("strong", "", w.setting), h("span", "sync-together-desc", w.settingDesc));
+  row.append(box, words);
+  // The notes open in this window, each with its state, as their tabs say it.
+  const open = syncedSessions();
+  if (open.length === 0) return row;
+  const wrap = h("div", "sync-together-box");
+  const list = h("ul", "sync-together-now");
+  const lang = document.documentElement.lang;
+  for (const c of open) {
+    const state = c.live ? { kind: "live" as const, others: c.others(), reader: c.reader } : { kind: "local" as const, why: c.why ?? "offline" };
+    list.append(h("li", "", `${c.path.replace(/\.md$/, "")}: ${liveLine(state, lang)}`));
+  }
+  wrap.append(row, list);
+  return wrap;
 }
 
 let historyOpen = false;
