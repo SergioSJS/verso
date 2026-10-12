@@ -144,6 +144,20 @@ fn unavailable(message: &str) -> Value {
 }
 
 impl Remote {
+    /// The last command's round trip, in milliseconds: how far the server
+    /// is (ADR 0073 item 2).
+    pub(crate) fn latency_ms(&self) -> u32 {
+        self.latency.load(Ordering::Relaxed)
+    }
+
+    /// The connection let go at once, as a network that drops it: the
+    /// server sees it closed once the last holder lets the `Remote` go.
+    #[cfg(test)]
+    pub(crate) fn hang_up(&self) {
+        close(&self.pending);
+        self.dead.notify_one();
+    }
+
     /// A command of the contract, answered by the server.
     pub(crate) async fn call(&self, cmd: &str, args: Value) -> Result<Value, Value> {
         let id = self.next.fetch_add(1, Ordering::Relaxed);
