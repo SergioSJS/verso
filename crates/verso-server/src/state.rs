@@ -358,8 +358,8 @@ impl Server {
 
     /// A member's role in a folder changed or ended: the windows of theirs
     /// that show it learn it, and one that may no longer see it is told to
-    /// leave.
-    pub fn role_changed(&self, folder: &str, account: &str, role: Option<Role>) {
+    /// leave, and `why` (`revoked` by an owner, `left` by the member).
+    pub fn role_changed(&self, folder: &str, account: &str, role: Option<Role>, why: &str) {
         let mut gone = Vec::new();
         {
             let mut table = lock(&self.clients);
@@ -375,7 +375,7 @@ impl Server {
                         }
                         None => {
                             c.folder = None;
-                            c.tx.send(&serde_json::json!({ "gone": "folder" }));
+                            c.tx.send(&serde_json::json!({ "gone": "folder", "reason": why }));
                             gone.push(id.clone());
                         }
                     }
@@ -385,7 +385,7 @@ impl Server {
         self.left(&gone);
         // A role of the whole folder counts in its shares too (ADR 0081
         // item 14).
-        crate::shares::refresh(self, folder);
+        crate::shares::refresh(self, folder, why);
     }
 
     /// Windows that may no longer see their folder leave it: out of its

@@ -105,7 +105,7 @@ Boards, bases e anexos continuam cruzando como arquivos.
 
 Cada pessoa tem o seu vault no mesmo Universo. Para dividir **uma pasta** do seu com outra pessoa, clique com o botão direito na pasta, na árvore, e escolha **Compartilhar…**: escreva o e-mail da conta dela neste servidor e o papel — **lê** ou **edita**. Para dividir **o vault todo**, o mesmo diálogo no menu da raiz da árvore, **Compartilhar a pasta toda…**. Só a dona da pasta compartilha; quem recebe não repassa.
 
-A pasta compartilhada ganha uma marquinha de pessoa na árvore. No diálogo, mude o papel de alguém ou tire o acesso — o diálogo pergunta antes, e as janelas abertas dessa pessoa fecham a pasta na hora. O que ela já tinha sincronizado continua no computador dela.
+A pasta compartilhada ganha uma marquinha de pessoa na árvore. No diálogo, mude o papel de alguém ou tire o acesso — o diálogo pergunta antes, e as janelas abertas dessa pessoa fecham a pasta na hora. O que ela já tinha sincronizado continua no computador dela, e a sincronização desse compartilhamento é **desligada**: a barra de status e Ajustes › Sincronizar dizem que quem compartilhou revogou o acesso, e quando.
 
 Se as notas da pasta mostram imagens guardadas **fora** dela — a pasta de anexos na raiz do vault, como o Obsidian faz —, o diálogo avisa e oferece **incluir a pasta de anexos, só leitura**.
 

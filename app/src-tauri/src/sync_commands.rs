@@ -138,7 +138,9 @@ pub(crate) fn folder_sync<R: tauri::Runtime>(
         return Ok(off(""));
     }
     let key = key_of(&app, &window)?;
-    Ok(running(&app, &key).map_or_else(|| off(&key), |s| s.status()))
+    let config = app.state::<App>().service.config().map(Path::to_path_buf);
+    Ok(running(&app, &key)
+        .map_or_else(|| sync::off_status(config.as_deref(), &key), |s| s.status()))
 }
 
 /// Sync the window's folder with a folder of a server the app is signed
@@ -188,6 +190,7 @@ pub(crate) async fn folder_sync_start<R: tauri::Runtime>(
         Some(kept) if kept.server == login.url && kept.folder == id => engine::State {
             off: false,
             paused: false,
+            revoked: None,
             ..kept
         },
         _ => engine::State {

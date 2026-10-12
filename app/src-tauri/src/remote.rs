@@ -553,8 +553,10 @@ pub(crate) fn release<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &str)
 pub(crate) enum Heard {
     /// An event the server pushed: its name and payload.
     Event(String, Value),
-    /// The server ended something (`gone`): the session, the folder.
-    Gone(Value),
+    /// The server ended something (`gone`): the session, the folder; and
+    /// why, when it says (`reason`: a folder's share `revoked` by its
+    /// owner, `deleted`, or `left` by the person).
+    Gone(Value, Option<String>),
     /// The account's role in the folder changed: `owner`, `editor`, `reader`.
     Role(String),
     /// The connection closed.
@@ -791,7 +793,8 @@ pub(crate) async fn dial_hello(
                     let _ = h.send(take(&mut m, "hello"));
                 }
             } else if m.get("gone").is_some() {
-                let _ = heard_tx.send(Heard::Gone(take(&mut m, "gone")));
+                let reason = m["reason"].as_str().map(str::to_owned);
+                let _ = heard_tx.send(Heard::Gone(take(&mut m, "gone"), reason));
             } else if let Some(role) = m["role"].as_str() {
                 let _ = heard_tx.send(Heard::Role(role.to_owned()));
             }
@@ -835,11 +838,11 @@ async fn connect<R: tauri::Runtime>(
                 Heard::Event(event, payload) => {
                     let _ = app_r.emit_to(label_r.as_str(), &event, payload);
                 }
-                Heard::Gone(what) => {
+                Heard::Gone(what, reason) => {
                     let _ = app_r.emit_to(
                         label_r.as_str(),
                         "server-gone",
-                        json!({ "url": url_r, "what": what }),
+                        json!({ "url": url_r, "what": what, "reason": reason }),
                     );
                 }
                 // A window on a server's folder asks its capabilities

@@ -94,7 +94,11 @@ pub fn opening(server: &Server, who: &Who, id: &str) -> ApiResult<Opening> {
 
 /// The windows on shares of `folder` learn what changed at once: a new
 /// role, a share gone (they leave it), a share moved (their paths follow).
-pub fn refresh(server: &Server, folder: &str) {
+/// `why` is said with a share gone (`gone: folder, reason`): `revoked` when
+/// its owner took the person out or removed the share, `deleted` when the
+/// shared folder went — a device that syncs it turns its sync off on the
+/// first, with a notice (ADR 0081 item 8).
+pub fn refresh(server: &Server, folder: &str, why: &str) {
     let open: Vec<(String, String, String, bool)> = lock(&server.clients)
         .iter()
         .filter_map(|(id, c)| {
@@ -143,7 +147,7 @@ pub fn refresh(server: &Server, folder: &str) {
                 None => {
                     c.folder = None;
                     c.scope = None;
-                    c.tx.send(&json!({ "gone": "folder" }));
+                    c.tx.send(&json!({ "gone": "folder", "reason": why }));
                     gone.push(client);
                 }
             }
@@ -175,6 +179,12 @@ pub fn check(server: &Server, who: &Who, client: &str) -> Result<(), ContractErr
     } else {
         None
     };
+    // Gone: revoked when the share is still there, deleted otherwise.
+    let why = if now.is_none() && matches!(server.db.share(&share), Ok(None)) {
+        "deleted"
+    } else {
+        "revoked"
+    };
     let mut table = lock(&server.clients);
     let Some(c) = table.get_mut(client) else {
         return Err(verso_service::no_folder());
@@ -188,7 +198,7 @@ pub fn check(server: &Server, who: &Who, client: &str) -> Result<(), ContractErr
         None => {
             c.folder = None;
             c.scope = None;
-            c.tx.send(&json!({ "gone": "folder" }));
+            c.tx.send(&json!({ "gone": "folder", "reason": why }));
             drop(table);
             server.left(&[client.to_owned()]);
             Err(verso_service::no_folder())
@@ -410,7 +420,7 @@ pub async fn grant(
         &folder.id,
         &share.path,
     );
-    refresh(&ctx.server, &folder.id);
+    refresh(&ctx.server, &folder.id, "revoked");
     Ok(ok(of_share(&ctx.server, &folder, &share)?))
 }
 
@@ -472,7 +482,7 @@ pub async fn revoke(
             );
         }
     }
-    refresh(&ctx.server, &folder.id);
+    refresh(&ctx.server, &folder.id, "revoked");
     Ok(ok(share_json(&ctx.server, &folder, &body.path)?))
 }
 
@@ -535,7 +545,7 @@ pub async fn attachments(
         &folder.id,
         &share.path,
     );
-    refresh(&ctx.server, &folder.id);
+    refresh(&ctx.server, &folder.id, "revoked");
     let now = ctx
         .server
         .db
@@ -595,14 +605,14 @@ pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answe
         }
     }
     if touched {
-        refresh(server, folder);
+        refresh(server, folder, "deleted");
     }
 }
 
 /// `path` of `folder` deleted through the server: its shares go with it.
 pub fn deleted(server: &Server, folder: &str, path: &str) {
     match server.db.drop_shares_under(folder, path) {
-        Ok(ids) if !ids.is_empty() => refresh(server, folder),
+        Ok(ids) if !ids.is_empty() => refresh(server, folder, "deleted"),
         Ok(_) => {}
         Err(e) => crate::log::error(&format!("removing a share: {e}")),
     }
@@ -630,7 +640,7 @@ pub fn synced_rename(server: &Server, folder: &Folder, from: &str, to: &str) {
         if let Ok(ids) = server.db.move_shares(&folder.id, &s.path, new_root)
             && !ids.is_empty()
         {
-            refresh(server, &folder.id);
+            refresh(server, &folder.id, "deleted");
         }
     }
 }

@@ -1506,7 +1506,8 @@ export type SyncStatus = {
 	message: string | null,
 	/**
 	 *  What the last error was, for the window to say in its language:
-	 *  `not_signed_in`, `signed_out`, `version`, `folder_gone`, `failed`.
+	 *  `not_signed_in`, `signed_out`, `version`, `folder_gone`, `failed`;
+	 *  with the state `off`, `revoked`.
 	 */
 	problem: string | null,
 	/**
@@ -1514,6 +1515,12 @@ export type SyncStatus = {
 	 *  version can differ in their contracts, and the window names both.
 	 */
 	versions: SyncVersions | null,
+	/**
+	 *  When the folder's owner revoked the share this folder synced,
+	 *  `YYYY-MM-DDTHH:MM:SSZ`: sync was turned off then, the files here
+	 *  kept (ADR 0081 item 8). Said until sync is turned on again.
+	 */
+	revoked: string | null,
 };
 
 /**

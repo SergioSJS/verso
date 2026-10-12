@@ -75,6 +75,20 @@ pub struct State {
     /// file.
     #[serde(default)]
     pub seen: BTreeMap<String, Seen>,
+    /// Turned off because the folder's owner revoked the share (ADR 0081
+    /// item 8): when, and the folder's name there, for the window to say
+    /// it until the person turns sync on again.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub revoked: Option<Revoked>,
+}
+
+/// A share revoked by its owner, as the device heard it.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Revoked {
+    /// `YYYY-MM-DDTHH:MM:SSZ`.
+    pub at: String,
+    /// The server's folder's name, as the sync last knew it.
+    pub name: String,
 }
 
 /// A file of this computer as last hashed.
