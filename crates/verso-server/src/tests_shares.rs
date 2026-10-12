@@ -945,3 +945,83 @@ fn a_receivers_counts_are_the_shares() {
         );
     });
 }
+
+/// The receiver's sync counts the share's changes, never the folder's
+/// (3.18): the head and the numbers of `sync_changes` through a share are
+/// the share's own, so what the owner does outside it moves nothing the
+/// receiver sees — not the head, not a push, not a gap in the numbers.
+#[test]
+fn changes_outside_the_share_do_not_move_the_receivers_head() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let (id, mut owner) = furnished(&r, &admin).await;
+        let (ana, _) = ana(&r).await;
+        let (_, shared) = put(
+            &r,
+            &format!("/api/folders/{id}/shares"),
+            json!({ "path": "Mesa", "email": "ana@casa.lan", "role": "reader" }),
+            &admin,
+        )
+        .await;
+        let share = shared["id"].as_str().unwrap().to_owned();
+        let (mut w, info) = Win::open(&r, &ana, &share).await;
+        assert!(info.get("ok").is_some(), "{info}");
+        // The share's changes from the start: numbered 1, 2, 3… with no
+        // gap, and the head is the last of them.
+        let all = w.call("sync_changes", json!({ "since": 0 })).await;
+        let seqs: Vec<i64> = all["ok"]["changes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c["seq"].as_i64().unwrap())
+            .collect();
+        assert!(!seqs.is_empty(), "{all}");
+        assert_eq!(seqs, (1..=seqs.len() as i64).collect::<Vec<_>>(), "{all}");
+        let head = all["ok"]["head"].as_i64().unwrap();
+        assert_eq!(head, seqs.len() as i64, "{all}");
+        let state = w.call("sync_state", json!({})).await;
+        assert_eq!(state["ok"]["head"], head, "{state}");
+        let folder_head = owner.call("sync_state", json!({})).await["ok"]["head"]
+            .as_i64()
+            .unwrap();
+        assert!(
+            folder_head > head,
+            "the folder has changes outside the share"
+        );
+        // The owner works outside the share: the receiver's head stays.
+        for (n, name) in ["Fora3.md", "Fora4.md", "Mesa2/Fora5.md"]
+            .iter()
+            .enumerate()
+        {
+            let put = send(&mut owner.ws, 300 + n as u64, name, b"fora\n", None).await;
+            assert_eq!(put["ok"]["done"], true, "{put}");
+        }
+        let state = w.call("sync_state", json!({})).await;
+        assert_eq!(state["ok"]["head"], head, "{state}");
+        let none = w.call("sync_changes", json!({ "since": head })).await;
+        assert_eq!(none["ok"]["changes"], json!([]), "{none}");
+        assert_eq!(none["ok"]["head"], head, "{none}");
+        // Then inside: the receiver hears it, with no head of the folder's
+        // in the push, and the change is the share's next number.
+        let put = send(&mut owner.ws, 400, "Mesa/Dentro.md", b"dentro\n", None).await;
+        assert_eq!(put["ok"]["done"], true, "{put}");
+        let heard = event_named(&mut w.ws, "sync-changed").await;
+        assert!(heard.get("head").is_none(), "{heard}");
+        let one = w.call("sync_changes", json!({ "since": head })).await;
+        let changes = one["ok"]["changes"].as_array().unwrap();
+        assert_eq!(changes.len(), 1, "{one}");
+        assert_eq!(changes[0]["path"], "Dentro.md", "{one}");
+        assert_eq!(changes[0]["seq"], head + 1, "{one}");
+        assert_eq!(one["ok"]["head"], head + 1, "{one}");
+        says_nothing_outside(&one);
+        // A cursor past what the share sees stands at its last change:
+        // nothing is missed, nothing is said twice.
+        let past = w.call("sync_changes", json!({ "since": head + 50 })).await;
+        assert_eq!(past["ok"]["changes"], json!([]), "{past}");
+        assert_eq!(past["ok"]["head"], head + 1, "{past}");
+        // The owner's own window still hears the folder's head.
+        let theirs = owner.call("sync_state", json!({})).await;
+        assert!(theirs["ok"]["head"].as_i64().unwrap() > folder_head + 3);
+    });
+}

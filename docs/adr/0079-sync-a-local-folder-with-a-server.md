@@ -165,7 +165,12 @@ Accepted (2026-10-10, Status).
    the error kind `case_twin`, which a device of sync 2 lists as a name
    taken; a device of sync 1 does not know the kind and already lists
    the file as failed ("the server refused") — nothing breaks, the reason
-   is only less precise.)*
+   is only less precise. And through a share (ADR 0081 item 6), `head`
+   and each change's `seq` count the share's own changes, not the
+   folder's, and the push that the log moved carries no head: the
+   folder's numbers told the receiver how much happens outside the share
+   (3.18). The device's cursor is opaque to it, and a device keeps it only
+   while it is connected, so nothing of sync 1 has to be read again.)*
 6. **When**: on the local watcher's batches (debounced), on the server's
    pushes, at start and on reconnecting, and by a scan every five minutes
    as a net. Offline, nothing queues but the state's difference: when the
