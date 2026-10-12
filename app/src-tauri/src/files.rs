@@ -50,7 +50,11 @@ pub(crate) fn delete_note<R: tauri::Runtime>(
     state: State<'_, App>,
     path: String,
 ) -> Result<Trashed, ContractError> {
-    with(&state, &window, |ws| ops::delete_note(ws, path))
+    with(&state, &window, |ws| {
+        let gone = ws.delete_note(&path)?;
+        crate::trash::record(ws, &gone, None);
+        Ok(verso_service::convert::trashed_out(gone))
+    })
 }
 
 /// Rename or move a note. The file moves; the notes whose links reached
@@ -115,7 +119,11 @@ pub(crate) fn delete_entry<R: tauri::Runtime>(
     state: State<'_, App>,
     path: String,
 ) -> Result<Trashed, ContractError> {
-    with(&state, &window, |ws| ops::delete_entry(ws, path))
+    with(&state, &window, |ws| {
+        let gone = ws.delete_entry(&path)?;
+        crate::trash::record(ws, &gone, None);
+        Ok(verso_service::convert::trashed_out(gone))
+    })
 }
 
 /// Show an entry in the system's file manager. The absolute path is
