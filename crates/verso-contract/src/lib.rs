@@ -131,6 +131,42 @@ pub struct FocusesSummary {
     pub stamp: Option<String>,
 }
 
+/// The folder's settings that travel with it (ADR 0070 items 1–2), as
+/// `.verso/settings.json` holds them, or a change to them: `None` is "not
+/// set here". Every path is relative to the folder, joined by `/`.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct FolderSettings {
+    pub bookmarks: Option<Vec<String>>,
+    /// A plain file name without `.md`; empty: a folder's note is named
+    /// after the folder.
+    pub folder_note_name: Option<String>,
+    /// Leave out the well-known build folders (ADR 0044).
+    pub ignore_build_dirs: Option<bool>,
+    /// Honour each `.gitignore` (ADR 0044).
+    pub respect_gitignore: Option<bool>,
+}
+
+/// The folder's layer of settings as read now (ADR 0070 items 1–2).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct FolderLayer {
+    /// Whether `.verso/settings.json` stands in the folder. When it does
+    /// not, every setting is this machine's until one is first changed.
+    pub exists: bool,
+    /// Why the folder's layer is not used now: `unavailable` (the file is
+    /// a placeholder of on-demand storage, ADR 0043), `invalid` (not a
+    /// JSON object) or `share` (a window on a share of a server's folder,
+    /// whose settings are the whole folder's, ADR 0081). It is never
+    /// written then, and this machine's settings apply.
+    pub problem: Option<String>,
+    /// What was read, for the next change to hand back (invariant 11);
+    /// `None` when there is no file — the next change creates it.
+    pub revision: Option<String>,
+    pub settings: FolderSettings,
+    /// What the write that answered this could not confirm; empty after
+    /// a read.
+    pub warnings: Vec<String>,
+}
+
 /// What one entry of the open folder is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "lowercase")]

@@ -203,12 +203,15 @@ impl<'a> Author<'a> {
     }
 }
 
-/// The folder's files as the index lists them: path, length, time.
+/// The folder's files as the index lists them, and the folder's settings
+/// directory, which the walk never lists and sync carries (ADR 0070, ADR
+/// 0079 item 2): path, length, time.
 fn listed(server: &Server, key: &str) -> Result<Vec<(String, u64, i64)>, ContractError> {
     server.service.with_key(key, |ws| {
         Ok(ws
             .entries()
             .iter()
+            .chain(ws.settings_entries())
             .filter(|e| !matches!(e.kind, FileKind::Folder | FileKind::Placeholder))
             .map(|e| (e.path.clone(), e.len, e.modified))
             .collect())
@@ -1196,7 +1199,12 @@ fn load(
         }
     }
     let bytes = server.service.with_key(key, move |ws| {
-        let listed = ws.entries().iter().find(|e| e.path == p).map(|e| e.len);
+        let listed = ws
+            .entries()
+            .iter()
+            .chain(ws.settings_entries())
+            .find(|e| e.path == p)
+            .map(|e| e.len);
         if listed.is_some_and(|len| len > LARGEST) {
             return Err(too_large().into());
         }
