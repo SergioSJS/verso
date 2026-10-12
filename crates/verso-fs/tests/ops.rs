@@ -562,6 +562,50 @@ fn a_new_name_differing_only_in_case_from_a_sibling_is_refused() {
     );
 }
 
+/// Case and the accents' Unicode form are folded together (spec Q7,
+/// decided 2026-10-10: one name is one file everywhere; Q8's creation
+/// side, 2026-10-12): `Café.md` written composed (NFC) is refused beside
+/// `CAFÉ.md` written decomposed (NFD), a folder the same, on a file system
+/// that tells the forms apart (ext4) as on one that does not (APFS). The
+/// entry itself respelled in the other form is no twin of itself, and a
+/// name of other letters is free.
+#[test]
+fn a_new_name_differing_in_case_and_unicode_form_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    touch(&dir.path().join("CAFE\u{301}.md"), "nfd");
+    touch(&dir.path().join("Reunia\u{303}o/a.md"), "a");
+    let mut root = Root::open(dir.path(), vec![]).unwrap();
+    let twin = |r: Result<(), WriteError>, what: &str| {
+        assert!(
+            matches!(r, Err(WriteError::Confined(ConfinementError::CaseTwin))),
+            "{what}: {r:?}"
+        );
+    };
+    twin(
+        root.create(Path::new("Caf\u{e9}.md"), b"x").map(|_| ()),
+        "create, composed and lower case",
+    );
+    twin(
+        root.create_dir(Path::new("REUNI\u{c3}O")).map(|_| ()),
+        "create_dir, composed and upper case",
+    );
+    twin(
+        root.rename(Path::new("Reunia\u{303}o/a.md"), Path::new("caf\u{e9}.md"))
+            .map(|_| ()),
+        "rename",
+    );
+    assert_eq!(
+        names(dir.path()),
+        vec!["CAFE\u{301}.md".to_owned(), "Reunia\u{303}o".to_owned()]
+    );
+    // Other letters: free.
+    let _ = root.create(Path::new("Cafe.md"), b"x").unwrap();
+    // The entry itself, respelled composed: allowed.
+    let _ = root
+        .rename(Path::new("CAFE\u{301}.md"), Path::new("Caf\u{e9}.md"))
+        .unwrap();
+}
+
 /// On a file system that tells case apart, two entries differing only in
 /// case may already stand side by side, made by another app or synced in:
 /// both are the user's and open, change and move as any entry; only a

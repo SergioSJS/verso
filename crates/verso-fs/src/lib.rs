@@ -737,7 +737,8 @@ impl Root {
     /// The names a create or a rename makes along the confined `relative`,
     /// checked as ADR 0070 item 3 says: one not every OS can keep, or one
     /// that differs only in case from an entry its folder lists (spec Q8,
-    /// decided 2026-10-12), is refused; an entry that exists never is.
+    /// decided 2026-10-12) — case and the accents' Unicode form folded
+    /// together (spec Q7) — is refused; an entry that exists never is.
     /// `from`: the entry a rename moves.
     fn new_names(&self, relative: &Path, from: Option<&Path>) -> Result<(), WriteError> {
         confine::unportable_new(&self.path, relative).map_err(WriteError::Confined)?;
