@@ -144,11 +144,16 @@ pub struct Plan {
 
 /// A path sync leaves alone: another file holds its name in the other
 /// Unicode form — two files here on a file system that tells the forms
-/// apart (`here`), or two on the server from before the decision.
+/// apart (`here`), or two on the server from before the decision — or,
+/// on the server (`case`), another file holds a name that differs from it
+/// only in case: two files on its disk, and this computer keeps one
+/// (spec Q8: a new name differing only in case is refused where it is
+/// made, so the second would be refused here on every pass).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Held {
     pub path: String,
     pub here: bool,
+    pub case: bool,
 }
 
 /// The fewest deletions in one pass that pause it (item 9, revised
@@ -343,11 +348,12 @@ pub fn plan(
     // computer's spelling of each name.
     let Named {
         local,
-        remote,
+        mut remote,
         base,
         rebased,
-        held,
+        mut held,
     } = one_name_one_file(local, remote, &state.base);
+    case_twins_there(&local, &mut remote, &base, &mut held);
     let mut base = base;
     let mut actions = Vec::new();
     let mut done: BTreeSet<String> = held.iter().map(|h| h.path.clone()).collect();
@@ -517,6 +523,7 @@ fn one_name_one_file(local: &Files, remote: &Files, base: &BTreeMap<String, Stri
             named.held.push(Held {
                 path: p.clone(),
                 here: true,
+                case: false,
             });
         }
         if let Some(f) = local.get(&kept) {
@@ -533,6 +540,7 @@ fn one_name_one_file(local: &Files, remote: &Files, base: &BTreeMap<String, Stri
             named.held.push(Held {
                 path: p.clone(),
                 here: false,
+                case: false,
             });
         }
         let at = mine.unwrap_or_else(|| chosen.clone());
@@ -554,6 +562,47 @@ fn one_name_one_file(local: &Files, remote: &Files, base: &BTreeMap<String, Stri
         }
     }
     named
+}
+
+/// Two files on the server whose names differ only in case (its disk
+/// tells case apart; they were made before spec Q8 was decided, or
+/// outside Verso): this computer keeps one of them, the same on every
+/// pass, and holds the others — said once in the list of what is not
+/// synced, never fetched to be refused here (a new name differing only in
+/// case is refused where it is made, on every system), never taken for a
+/// deletion. The ones this computer has, spelled exactly, or synced
+/// before (the base knows them) stay in play — a Linux device may hold
+/// both, and its edits and deletions cross; when none does, the first in
+/// byte order.
+fn case_twins_there(
+    local: &Files,
+    remote: &mut Files,
+    base: &BTreeMap<String, String>,
+    held: &mut Vec<Held>,
+) {
+    let mut by_name: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for p in remote.keys() {
+        by_name.entry(folded(p)).or_default().push(p.clone());
+    }
+    for paths in by_name.into_values().filter(|p| p.len() > 1) {
+        // What this computer has or had synced stays in play: its edits
+        // and deletions cross as before.
+        let mut kept: Vec<&String> = paths
+            .iter()
+            .filter(|p| local.contains_key(*p) || base.contains_key(*p))
+            .collect();
+        if kept.is_empty() {
+            kept.extend(paths.first());
+        }
+        for p in paths.iter().filter(|p| !kept.contains(p)) {
+            remote.remove(p);
+            held.push(Held {
+                path: p.clone(),
+                here: false,
+                case: true,
+            });
+        }
+    }
 }
 
 /// One path's hashes here, there and in the base.

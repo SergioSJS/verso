@@ -767,19 +767,14 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
         engine::FOLDS_NAMES,
         &copy_name,
     );
-    // A name's other Unicode form held by another file (spec Q7): listed,
-    // the same one on every pass, never sent to be refused again.
+    // A name's other Unicode form held by another file (spec Q7), or a
+    // name on the server another file there holds in another case (spec
+    // Q8): listed, the same one on every pass, never sent or fetched to be
+    // refused again.
     for h in &plan.held {
-        let message = if h.here {
-            "another file here has this name, its accents in another Unicode form: one name is one file everywhere"
-        } else {
-            "another file on the server has this name, its accents in another Unicode form"
-        };
-        apart.entry(h.path.clone()).or_insert_with(|| SyncRefused {
-            path: h.path.clone(),
-            reason: "name_taken".to_owned(),
-            message: message.to_owned(),
-        });
+        apart
+            .entry(h.path.clone())
+            .or_insert_with(|| transfer::held_refused(h));
     }
     let yes = s.confirmed.swap(0, Ordering::Relaxed);
     if plan.pause.is_some_and(|n| n <= yes) {

@@ -45,6 +45,7 @@ test release.
 
 ### Fixed
 
+- **A server folder holding two names that differ only in case** (`Nota.md` and `nota.md`, made before the case refusal or outside Verso): a device keeps one and lists the other once in *Settings › Sync*, "two names that differ only in case on the server; this computer keeps one", instead of trying to fetch it and failing as a name taken on every pass (spec Q8).
 - **"Keep both" when a note changed on disk while you typed**: the editor's conflict view offers a third choice beside "discard mine" and "save mine over": the disk's version keeps the name and your text goes to a copy beside it, named as sync names one; the same on a board, a text file and a note embedded in a board.
 - **A note deleted outside while its tab held unsaved text** now says so in words — "This note was deleted or moved outside Verso. Your text is still here." — with "Save again" and "Close without saving"; it no longer fails each autosave with an error in the log.
 - **Links a rename could not update** are named in a notice with "Try again", instead of a line in the status bar cut short.
