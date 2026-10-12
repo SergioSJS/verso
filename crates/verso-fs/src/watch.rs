@@ -129,6 +129,21 @@ impl Filter {
         if rel.as_os_str().is_empty() {
             return Some(None);
         }
+        // The folder's settings directory passes, hidden as it is: sync
+        // carries it, and a change to it made elsewhere reaches the window
+        // (ADR 0070 items 1–2). Its own hidden names — the atomic write's
+        // temporary files — and anything deeper do not.
+        if rel.components().next() == Some(Component::Normal(crate::SETTINGS_DIR.as_ref())) {
+            return crate::in_settings_dir(rel).then(|| {
+                Some(rel.components().fold(PathBuf::new(), |out, c| {
+                    let name = c.as_os_str();
+                    match placeholder::icloud_placeholder_of(name) {
+                        Some(real) => crate::rel_join(&out, real),
+                        None => crate::rel_join(&out, name),
+                    }
+                }))
+            });
+        }
         let mut out = PathBuf::new();
         let count = rel.components().count();
         for (i, c) in rel.components().enumerate() {
@@ -462,6 +477,20 @@ mod tests {
         assert_eq!(rel("/tmp/v/.obsidian/workspace.json"), None);
         assert_eq!(rel("/tmp/v/Lugares/.verso-tmp-1-2"), None);
         assert_eq!(rel("/tmp/v/Arquivo/Velho.md"), None);
+        // The folder's settings directory is the one exception (ADR 0070):
+        // its plain entries pass, its temporary files and deeper paths do not.
+        assert_eq!(
+            rel("/tmp/v/.verso/settings.json"),
+            Some(Some(".verso/settings.json".into()))
+        );
+        assert_eq!(rel("/tmp/v/.verso"), Some(Some(".verso".into())));
+        assert_eq!(
+            rel("/tmp/v/.verso/.settings.json.icloud"),
+            Some(Some(".verso/settings.json".into()))
+        );
+        assert_eq!(rel("/tmp/v/.verso/.verso-tmp-1-2"), None);
+        assert_eq!(rel("/tmp/v/.verso/a/b.json"), None);
+        assert_eq!(rel("/tmp/v/Lugares/.verso/settings.json"), None);
         assert_eq!(rel("/tmp/w/Taverna.md"), None);
         // The iCloud placeholder form names the real file (ADR 0043); a
         // directory of that form is walked, so it is watched too.

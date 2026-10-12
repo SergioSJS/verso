@@ -26,7 +26,10 @@
 //!   and the walk stops at depth [`MAX_DEPTH`] with an error, never
 //!   silently;
 //! - hidden entries (name starting with `.`) are not walked at any depth,
-//!   nor are the relative paths the caller lists as ignored; an iCloud
+//!   nor are the relative paths the caller lists as ignored — the folder's
+//!   settings directory, `.verso/`, is not walked either, but its plain
+//!   entries are confined like files and listed apart for sync
+//!   ([`Root::settings_walk`], ADR 0070 items 1–2); an iCloud
 //!   Drive placeholder `.Name.ext.icloud` is recognized before the hidden
 //!   rule and reported as a placeholder for `Name.ext`;
 //! - a placeholder — that sibling name, or a file whose `st_flags` carry
@@ -39,6 +42,7 @@ mod ops;
 mod os;
 mod placeholder;
 pub mod server;
+mod settings;
 mod single;
 pub mod trashbin;
 mod walk;
@@ -63,8 +67,17 @@ pub fn is_portable(relative: &std::path::Path) -> bool {
         _ => true,
     })
 }
+/// A relative path in its confined form, or why it cannot name anything
+/// inside a folder — absolute, a `..`, empty, a NUL byte — without asking
+/// any folder: what a list of paths kept in a file of the folder (the
+/// folder's bookmarks, ADR 0070 item 1) is held to, every path relative
+/// and none absolute (invariant 4).
+pub fn confine_relative(relative: &std::path::Path) -> Result<PathBuf, ConfinementError> {
+    confine::confine(relative)
+}
 pub use ops::OpReport;
 pub use placeholder::Placeholder;
+pub use settings::{SETTINGS_DIR, SETTINGS_FILE, in_settings_dir, is_settings_path};
 pub use single::Single;
 pub use walk::{Entry, EntryKind, Problem, Walk};
 pub use watch::{Changes, MAX_WAIT, Watch};
@@ -323,7 +336,9 @@ impl Root {
 
     /// The handle for a path relative to the root, confined first: an
     /// absolute path, a `..` component or a NUL byte is refused; so is a
-    /// path the walk would not list — a hidden entry or an ignored path —
+    /// path the walk would not list — a hidden entry (but the folder's
+    /// settings directory and its plain entries, ADR 0070) or an ignored
+    /// path —
     /// because the only door plugins and agents have is this one
     /// (provisional: ADR 0044). Nothing on disk is checked here; a handle
     /// to a file that does not exist is legal and its read fails later with
@@ -345,13 +360,17 @@ impl Root {
     pub fn confine(&self, relative: &Path) -> Result<PathBuf, ConfinementError> {
         let relative = confine::confine(relative)?;
         // The placeholder name form outranks the hidden rule here as in the
-        // walk (ADR 0043), so a walked placeholder can be named again.
-        let hidden = relative.components().enumerate().any(|(i, c)| {
-            let name = c.as_os_str();
-            let last = i + 1 == relative.components().count();
-            name.as_encoded_bytes().starts_with(b".")
-                && !(last && placeholder::icloud_placeholder_of(name).is_some())
-        });
+        // walk (ADR 0043), so a walked placeholder can be named again. The
+        // folder's settings directory, `.verso/`, and its plain entries are
+        // the one exception (ADR 0070 items 1–2): the folder's layer lives
+        // there and sync carries it like any file.
+        let hidden = !settings::in_settings_dir(&relative)
+            && relative.components().enumerate().any(|(i, c)| {
+                let name = c.as_os_str();
+                let last = i + 1 == relative.components().count();
+                name.as_encoded_bytes().starts_with(b".")
+                    && !(last && placeholder::icloud_placeholder_of(name).is_some())
+            });
         if hidden {
             return Err(ConfinementError::Hidden);
         }
