@@ -300,6 +300,7 @@ a pendências da Fase 3 — "Herdado da Fase 2", abaixo.)*
 | 3.19 | As escritas que o painel de propriedades e a citação de um PDF fazem numa nota ao vivo passam pela sala — decidido em 2026-10-12, ainda não construído; a próxima rodada | [0082](adr/0082-live-co-editing-of-a-synced-folder.md) Status |
 | 3.20 | A presença carimbada pelo servidor com a conta de quem a manda (a lacuna 11 do modelo de ameaças) — decidido em 2026-10-12, construído (3bc56ae), mesclado por d2a72b0; o 241c233 registra a lacuna fechada | [0073](adr/0073-self-hosted-server-first.md) item 6, `docs/reference/threat-model.md` |
 | 3.21 | A página de aprovação de aparelho contra phishing por código de aparelho (a lacuna 12 do modelo de ameaças) — decidido em 2026-10-12, construído (5838c10), mesclado por d2a72b0; o 241c233 registra a lacuna fechada | [0073](adr/0073-self-hosted-server-first.md) item 6, [0074](adr/0074-accounts-and-access-on-the-server.md) item 8, `docs/reference/threat-model.md` |
+| 3.22 | A camada de ajustes da pasta (ADR 0070 itens 1–2): os favoritos, as regras de varredura e o nome da nota de pasta em `.verso/settings.json`, levados pela sincronização — construído em 2026-10-12 | [0070](adr/0070-what-travels-with-the-folder.md) itens 1–2, [0079](adr/0079-sync-a-local-folder-with-a-server.md) item 2 |
 
 Os itens 3.2 a 3.9 saem juntos, na primeira versão do servidor (item 12
 do ADR 0073, revisto em 2026-10-09). A janela em toda tela é construída
