@@ -8,8 +8,8 @@
     "check": "tsc --noEmit",
     "test": "node --test test/mermaid.test.mjs test/pdf.test.mjs test/board.test.mjs test/labels.test.mjs test/blocks.test.mjs test/blockEmbed.test.mjs test/table.test.mjs test/locale.test.mjs test/conflictNames.test.mjs test/replay.test.mjs test/sanitize.test.mjs test/coeditWords.test.mjs test/roomWrites.test.mjs test/folderLayer.test.mjs test/errorKinds.test.mjs",
     "build": "rm -rf dist/web.html dist/web.js dist/web.js.map dist/chunks dist/excalidraw dist/harness.js dist/harness.js.map dist/harness.html dist/*.test-bundle.mjs && esbuild src/main.ts src/web.ts --bundle --format=esm --target=es2022 --splitting --outdir=dist --chunk-names=chunks/[name]-[hash] --jsx=automatic --define:process.env.NODE_ENV='\"production\"' --sourcemap && mkdir -p dist/excalidraw && cp node_modules/@excalidraw/excalidraw/dist/prod/index.css dist/excalidraw/ && cp -R node_modules/@excalidraw/excalidraw/dist/prod/fonts dist/excalidraw/fonts && node build-index.mjs dist/index.html && node build-index.mjs --web dist/web.html && cp web-assets/* dist/ && node css/bundle.mjs dist/style.css && mkdir -p dist/fonts && cp fonts/*.woff2 dist/fonts/ && cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs dist/ && rm -rf dist/cmaps dist/standard_fonts && cp -R node_modules/pdfjs-dist/cmaps dist/cmaps && cp -R node_modules/pdfjs-dist/standard_fonts dist/standard_fonts && cp node_modules/pdfjs-dist/web/pdf_viewer.css dist/ && rm -rf dist/images && cp -R node_modules/pdfjs-dist/web/images dist/images && cp node_modules/katex/dist/katex.min.css dist/ && rm -rf dist/fonts/katex && mkdir -p dist/fonts && cp -R node_modules/katex/dist/fonts/. dist/fonts/",
-    "e2e": "npm run build && playwright test",
-    "e2e:server": "playwright test -c playwright.server.config.mjs"
+    "e2e": "node e2e/preflight.mjs && npm run build && playwright test",
+    "e2e:server": "node e2e/preflight.mjs && playwright test -c playwright.server.config.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",

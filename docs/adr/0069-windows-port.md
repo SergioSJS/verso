@@ -47,6 +47,39 @@
   *"Ajuste tudo que precisar. Está aprovado os ADRs"* (adjust whatever
   needs it; the ADRs are approved): the embedded WebView2 bootstrapper
   (item 2), items 4, 6 to 9 and the order of the work (Consequences).
+  2026-10-12 — item 8 on the Mac: after the fourth WindowServer abort in
+  two days, every one during `scripts/check.sh`'s end-to-end step, the
+  maintainer, in session: *"esse check.sh deve estar com pau, bugada ou mal
+  otimizada"* (this check.sh must be broken, buggy or badly optimized), and
+  *"resolver de uma vez por todas… para que não trave meu Mac mais"* (solve
+  it once and for all… so that it does not freeze my Mac again). The
+  cause, from the three crash reports and the unified log: the
+  WindowServer ran out of IOSurfaces — it held 64,084 of the system's
+  65,536 at 15:39:49 on 2026-10-12 (the kernel's "IOSurface count of 65024
+  approaching limit of 65536"), and aborted creating one more for a window
+  capture (`_XWindowListCreateImage` → `captureWindowList` →
+  `CompositorMetal::CreateCaptureSurface` → `WSIOSurfaceDebugTallyAndAbort`)
+  of a 1500 × 1000 window, the harness's viewport, in all three. Who asks
+  for those captures: Playwright's WebKit, which on macOS draws in a real
+  window of the window server and takes a screenshot or a frame of a
+  screencast by capturing it (its WebKit imports `CGSHWCaptureWindowList`
+  and `WebCore::cgWindowListCreateImage`). The suites asked for one per
+  frame: `trace: "retain-on-failure"` records a trace for every test and
+  drops it when the test passes, and a trace's screencast takes a frame
+  every 200 ms, and every frame for 500 ms after each action, in every
+  page. The Verso app captures nothing. The revision, applied by the AI at
+  the maintainer's order, for their confirmation: on macOS the two
+  Playwright configs record traces without the screencast (the DOM of each
+  step is kept) and take no screenshot on failure, and the harness's
+  suite runs with one worker; Linux keeps both. A pre-flight,
+  `app/ui/e2e/preflight.mjs`, run by `scripts/check.sh`, the npm scripts
+  and both configs, refuses to start while a browser, another Playwright
+  run or the Verso app is alive, or while the system already holds more
+  than 16,000 IOSurfaces, and stops a run, as Ctrl-C would, when the count
+  passes 24,000. WebKit stays on the Mac: running it only on Linux was
+  proposed the same day and declined by the maintainer (*"mandar rodar no
+  linux é meio merda"*). And a fixture closes and reports what a test
+  leaves open (`app/ui/e2e/leaks.mjs`).
 
 ## Context
 
@@ -198,7 +231,10 @@ refuses to rename a folder while any file in it is open. (On macOS, since
    built). A Playwright `chromium` project
    beside the `webkit` one, in `scripts/check.sh`; what differs between the
    two engines is most of what will differ in WebView2, and it costs no
-   runner and no SSH.
+   runner and no SSH. *(Revised on 2026-10-12, for the maintainer's
+   confirmation: on macOS no window captures — traces without the
+   screencast, no screenshot on failure — one worker, and a pre-flight and
+   an IOSurface watch around the run; see Revisions.)*
 9. **What the port brings, each item with a test.**
    - Atomic write: `FlushFileBuffers` on the temporary file (`sync_all`),
      then `MoveFileEx` with `MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH`
