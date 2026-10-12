@@ -414,8 +414,12 @@ e a citação de um PDF fazem numa nota, pela sala; e o board (item 12).
 
 **Respondidas pelo mantenedor em 2026-10-12** (01:15 BRT), item a item: o ajuste do item 15 fica nos ajustes da janela; as esperas de 5 s e
 de 4 s ficam, a afinar com o uso; as escritas que o painel de
-propriedades e a citação de um PDF fazem numa nota ao vivo vão passar
-pela sala — decidido, ainda não construído, a próxima rodada; e a
+propriedades e a citação de um PDF fazem numa nota ao vivo passam pela
+sala — decidido, construído em 2026-10-12: cada uma entra como uma
+edição do editor da aba, como a digitação, e a sala grava o arquivo; com
+elas as outras escritas de uma propriedade que não são teclas — um
+adesivo, uma cor ou uma capa, a célula de uma base, o rótulo e a ordem
+da árvore; uma nota que não está ao vivo é gravada como antes; e a
 coedição do board segue `[ABERTO]` (item 12).
 
 *(Histórico, antes da aceitação acima:)* Proposta em 2026-10-10. O

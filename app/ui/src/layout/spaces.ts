@@ -14,6 +14,7 @@ import { NoteLeaf } from "../leaves/note";
 import { noLayout } from "../main";
 import { MenuItem, showMenu } from "../menu";
 import { dirOf } from "../paths";
+import type { LiveHolder } from "../roomWrites";
 import { t } from "../strings";
 import { markCurrent, showOutline } from "../tree/tree";
 import { Layout } from "./layout";
@@ -230,6 +231,17 @@ export function activeLeafForPath(path: string): NoteLeaf | null {
         if (l instanceof NoteLeaf && l.path === path) return l;
       }
     }
+  }
+  return null;
+}
+/** The tab of this window that holds `path` live in its room and may
+ *  type into it: a write to the note from elsewhere — a base's cell, a
+ *  PDF's quote, the tree's sticker — goes in through it (roomWrites.ts,
+ *  ADR 0082). Null when no tab holds it live. */
+export function liveHolder(path: string): LiveHolder | null {
+  for (const l of leavesOf(path)) {
+    const held = l instanceof NoteLeaf ? l.roomHolder() : null;
+    if (held) return held;
   }
   return null;
 }
