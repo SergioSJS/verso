@@ -178,3 +178,61 @@ fn an_account_holds_a_bounded_number_of_connections() {
         }
     });
 }
+
+/// A request's headers have a deadline (gap 8): a client that sends a
+/// few bytes and then nothing is let go.
+#[test]
+fn a_request_whose_headers_never_end_is_let_go() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    block_on(async {
+        let r = start().await;
+        let mut tcp = tokio::net::TcpStream::connect(r.addr()).await.unwrap();
+        tcp.write_all(b"GET /api/state HTTP/1.1\r\nHost: localhost\r\n")
+            .await
+            .unwrap();
+        let mut buf = [0_u8; 256];
+        let read = tokio::time::timeout(Duration::from_secs(10), tcp.read(&mut buf)).await;
+        assert!(read.is_ok(), "the connection is still open");
+    });
+}
+
+/// Past the server's connections, the next is closed before it is read,
+/// and a place comes back when one closes (gap 8).
+#[test]
+fn past_the_servers_connections_the_next_is_closed() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    block_on(async {
+        let r = start().await;
+        let tcp = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = tcp.local_addr().unwrap();
+        let listener = crate::listen::Plain::new(tcp, crate::listen::Slots::bounded(None, 1, 128));
+        let app = crate::http::router(std::sync::Arc::clone(&r.server));
+        tokio::spawn(crate::listen::serve(listener, app, std::future::pending()));
+        let first = tokio::net::TcpStream::connect(addr).await.unwrap();
+        // Accepted, then closed: nothing is read from it.
+        let mut second = tokio::net::TcpStream::connect(addr).await.unwrap();
+        let mut buf = [0_u8; 64];
+        let n = tokio::time::timeout(Duration::from_secs(5), second.read(&mut buf))
+            .await
+            .unwrap()
+            .unwrap_or(0);
+        assert_eq!(n, 0, "the second connection was served");
+        drop(first);
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        let mut third = tokio::net::TcpStream::connect(addr).await.unwrap();
+        third
+            .write_all(b"GET /api/state HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+            .await
+            .unwrap();
+        let mut answer = Vec::new();
+        tokio::time::timeout(Duration::from_secs(5), third.read_to_end(&mut answer))
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(
+            answer.starts_with(b"HTTP/1.1 200"),
+            "{}",
+            String::from_utf8_lossy(&answer)
+        );
+    });
+}
