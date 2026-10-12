@@ -238,6 +238,7 @@ impl Workspace {
         self.forget_file(&key);
         Ok(Trashed {
             path: gone.to_string_lossy().into_owned(),
+            original: key,
             warnings,
         })
     }
