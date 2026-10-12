@@ -409,6 +409,12 @@ impl Db {
     pub fn open(dir: &Path) -> R<Self> {
         let path = dir.join("server.sqlite");
         let mut db = Self::from(Connection::open(&path).map_err(e)?)?;
+        // The accounts' hashes are for this server's user alone
+        // (threat-model.md, gap 13), whatever the umask made them.
+        for name in ["server.sqlite", "server.sqlite-wal", "server.sqlite-shm"] {
+            verso_fs::server::owner_only(&dir.join(name))
+                .map_err(|err| format!("{name}: {err}"))?;
+        }
         for _ in 0..READERS {
             let reader = Connection::open_with_flags(
                 &path,

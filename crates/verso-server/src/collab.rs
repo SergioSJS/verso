@@ -325,8 +325,14 @@ pub fn update(
     Ok(())
 }
 
+/// The largest presence relayed (threat-model.md, gap 3): a window's is
+/// its name, its colour and its cursor, a few hundred bytes as base64. A
+/// reader may send presence, so without this bound a reader could have
+/// messages of up to the message limit relayed to every member's window.
+pub const PRESENCE_MOST: usize = 16 * 1024;
+
 /// A presence from `client` (its cursor, its name), relayed as is: the
-/// server keeps none.
+/// server keeps none. One past [`PRESENCE_MOST`] is refused.
 pub fn awareness(
     server: &Server,
     client: &str,
@@ -334,6 +340,9 @@ pub fn awareness(
     path: &str,
     update: &str,
 ) -> Result<(), ContractError> {
+    if update.len() > PRESENCE_MOST {
+        return Err(refused("a presence of 16 KB at most"));
+    }
     let room = server
         .rooms
         .get(key, path)

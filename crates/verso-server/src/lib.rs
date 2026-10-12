@@ -19,11 +19,13 @@ pub mod crypto;
 pub mod data;
 pub mod db;
 pub mod device;
+pub mod fair;
 pub mod files;
 pub mod folders;
 pub mod http;
 pub mod large;
 pub mod limit;
+pub mod listen;
 pub mod log;
 pub mod mail;
 pub mod passkeys;
@@ -36,7 +38,6 @@ pub mod trash;
 pub mod twins;
 pub mod update;
 
-use std::net::SocketAddr;
 use std::sync::Arc;
 
 use config::Config;
@@ -189,7 +190,9 @@ pub fn serve(config: Config, commit: &str) -> Result<(), String> {
             .map_err(|e| format!("listening on {listen}: {e}"))?;
         match acceptor {
             Some(acceptor) => {
-                let tls = tls::TlsListener::new(listener, acceptor).map_err(|e| e.to_string())?;
+                let slots = Arc::clone(&server.slots);
+                let tls =
+                    tls::TlsListener::new(listener, acceptor, slots).map_err(|e| e.to_string())?;
                 run_on(server, tls, stopped()).await
             }
             None => run(server, listener, stopped()).await,
@@ -203,20 +206,18 @@ pub async fn run(
     listener: tokio::net::TcpListener,
     stop: impl std::future::Future<Output = ()> + Send + 'static,
 ) -> Result<(), String> {
-    run_on(server, listener, stop).await
+    let slots = Arc::clone(&server.slots);
+    run_on(server, listen::Plain::new(listener, slots), stop).await
 }
 
-/// Serve on any listener — plain TCP, or TLS ([`tls::TlsListener`]).
-pub async fn run_on<L>(
+/// Serve on any listener — plain TCP, or TLS ([`tls::TlsListener`]) —
+/// each connection counted and its requests' headers given a deadline
+/// ([`listen`]).
+pub async fn run_on<L: listen::Incoming>(
     server: Arc<state::Server>,
     listener: L,
     stop: impl std::future::Future<Output = ()> + Send + 'static,
-) -> Result<(), String>
-where
-    L: axum::serve::Listener<Addr = SocketAddr>,
-    http::Remote:
-        for<'a> axum::extract::connect_info::Connected<axum::serve::IncomingStream<'a, L>>,
-{
+) -> Result<(), String> {
     let listen = listener.local_addr().map_err(|e| e.to_string())?;
     let _ = server.runtime.set(tokio::runtime::Handle::current());
     if server.config.update_check {
@@ -234,13 +235,7 @@ where
         server.config.folders_dir.display()
     ));
     let app = http::router(server);
-    axum::serve(
-        listener,
-        app.into_make_service_with_connect_info::<http::Remote>(),
-    )
-    .with_graceful_shutdown(stop)
-    .await
-    .map_err(|e| e.to_string())?;
+    listen::serve(listener, app, stop).await;
     log::info("stopped");
     Ok(())
 }
@@ -295,6 +290,8 @@ pub fn admin_reset(config: &Config, email: &str) -> Result<String, String> {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_bounds;
 #[cfg(test)]
 mod tests_console;
 #[cfg(test)]
