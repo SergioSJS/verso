@@ -3,9 +3,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 //! The window's commands for its folder's sync (ADR 0079 items 1, 9 and
-//! 13), and the sync's tasks started and ended with the folder's windows.
+//! 13), and the sync's tasks started and ended with the folder's windows;
+//! the room commands of a synced folder's live notes (ADR 0082).
 
-use serde_json::json;
+use serde_json::{Value, json};
 use verso_contract::SyncStatus;
 use verso_core::sync as engine;
 
@@ -22,7 +23,7 @@ fn off(key: &str) -> SyncStatus {
 
 fn context<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Arc<Ctx> {
     let state = app.state::<App>();
-    let (language, shown) = (app.clone(), app.clone());
+    let (language, shown, told) = (app.clone(), app.clone(), app.clone());
     let config = state.service.config().map(Path::to_path_buf);
     let named = config.clone();
     Arc::new(Ctx {
@@ -33,6 +34,12 @@ fn context<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Arc<Ctx> {
         // Once, to every window: each shows its own folder's.
         shown: Box::new(move |_, status| {
             let _ = shown.emit("sync-status", status);
+        }),
+        // To each window that holds the note: a window listens to its own.
+        told: Arc::new(move |windows, event, payload| {
+            for label in windows {
+                let _ = told.emit_to(label.as_str(), event, payload);
+            }
         }),
     })
 }
@@ -210,11 +217,15 @@ pub(crate) fn folder_sync_stop<R: tauri::Runtime>(
 ) -> Result<SyncStatus, ContractError> {
     let key = key_of(&app, &window)?;
     let config = app.state::<App>().service.config().map(Path::to_path_buf);
-    match lock(&app.state::<App>().syncs).remove(&key) {
+    let removed = lock(&app.state::<App>().syncs).remove(&key);
+    match removed {
         Some(s) => s.turn_off(config.as_deref())?,
         None => sync::off(config.as_deref(), &key)?,
     }
     log::write("INFO", "sync", &format!("turned off: folder {key}"));
+    // Every window of the folder hears it: a live note goes local (ADR
+    // 0082 item 10).
+    let _ = app.emit("sync-status", off(&key));
     Ok(off(&key))
 }
 
@@ -250,4 +261,72 @@ pub(crate) fn folder_sync_now<R: tauri::Runtime>(
 ) -> Result<(), ContractError> {
     syncer(&app, &window)?.poke();
     Ok(())
+}
+
+/* ---------- A synced folder's live notes (ADR 0082) ---------- */
+
+/// The running sync of the folder a window of this computer shows.
+fn synced_of<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &str) -> Option<Arc<Syncer>> {
+    if remote::of(app, label).is_some() {
+        return None;
+    }
+    let key = app.state::<App>().service.folder_of(label)?;
+    running(app, &key)
+}
+
+/// How far the server is when the window's folder may have live notes —
+/// it syncs, its link is up, it is not paused (item 3) — or `None`.
+pub(crate) fn live_latency<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    label: &str,
+) -> Option<u32> {
+    synced_of(app, label).and_then(|s| sync::live::up(&s))
+}
+
+/// A tab wrote a note of its folder itself (`write_note`): out of its
+/// room, that is its own text (items 6 and 8).
+pub(crate) fn wrote<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    label: &str,
+    path: &str,
+    text: &str,
+) {
+    if let Some(s) = synced_of(app, label) {
+        sync::live::wrote(&s, label, path, text.as_bytes());
+    }
+}
+
+/// Before the app's own handler, after `remote::forward`: a window on a
+/// folder of this computer that syncs sends its room commands over the
+/// sync's link (items 2 and 3); every other is the app's, which answers
+/// that simultaneous editing is a server's.
+pub(crate) fn live_forward<R: tauri::Runtime>(
+    invoke: tauri::ipc::Invoke<R>,
+) -> Option<tauri::ipc::Invoke<R>> {
+    let cmd = invoke.message.command().to_owned();
+    if !cmd.starts_with("collab_") {
+        return Some(invoke);
+    }
+    let webview = invoke.message.webview();
+    let label = webview.label().to_owned();
+    if !is_app_view(&label) {
+        return Some(invoke);
+    }
+    let app = webview.app_handle().clone();
+    let Some(s) = synced_of(&app, &label) else {
+        return Some(invoke);
+    };
+    let args = match invoke.message.payload() {
+        tauri::ipc::InvokeBody::Json(v) => v.clone(),
+        tauri::ipc::InvokeBody::Raw(_) => Value::Null,
+    };
+    let resolver = invoke.resolver;
+    tauri::async_runtime::spawn(async move {
+        let ctx = context(&app);
+        match sync::live::command(&ctx, &s, &label, &cmd, args).await {
+            Ok(v) => resolver.resolve(v),
+            Err(e) => resolver.reject(e),
+        }
+    });
+    None
 }

@@ -73,6 +73,13 @@ xattr = "1.6"
 # A real `verso serve` for the tests of a window on a server's folder; the
 # server is not built for Windows (crates/verso-cli/Cargo.toml).
 verso-server = { path = "../../crates/verso-server" }
+# A synced folder's live notes (ADR 0082 item 16): the tests' tabs are Yjs
+# documents, as the window's, and the feature's guardrail is a property
+# test. Both already in the tree, at these versions, through verso-server
+# (yrs, MIT) and verso-core (proptest, MIT OR Apache-2.0); they replace
+# nothing of ours.
+yrs = "0.28"
+proptest = { version = "1.11", default-features = false, features = ["std"] }
 
 [dev-dependencies]
 # The commands exercised through Tauri's mock runtime, as the UI calls
