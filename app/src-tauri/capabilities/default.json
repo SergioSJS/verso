@@ -88,6 +88,7 @@
     "allow-collab-leave",
     "allow-collab-save",
     "allow-collab-resolve",
+    "allow-collab-present",
     "allow-server-sign-in",
     "allow-server-accounts",
     "allow-server-sign-out",

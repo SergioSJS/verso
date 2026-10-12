@@ -284,6 +284,14 @@ end-to-end tests cover the rest.
   the same name, typing in one never shows in the other (a window hears
   its own room's events only). VoiceOver says who joins and leaves, and
   the note going local and live. The log has no `ERROR`.
+- [ ] **A write to a note live only elsewhere** (ADR 0082, the writes
+  that are not keystrokes): the note open in Editar in the browser only;
+  on the Mac's synced folder, with the note in no tab, quote a PDF's
+  passage into it (its companion note), set a base's cell of it, and give
+  it a sticker in the tree. Each arrives in the browser's text as an edit
+  while it types there, the file follows within seconds, and no copy
+  *(conflito, …)* appears on either computer. Closed in the browser, the
+  same writes go to the file as before.
 - [ ] **A ribbon button hidden and brought back** in the installed app:
   right click › *Ocultar este botão*, the status bar says where; *Ajustes* ›
   *Aparência* › its switch brings it back; the gear has no *Ocultar*.

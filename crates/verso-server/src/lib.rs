@@ -303,6 +303,8 @@ mod tests_console;
 #[cfg(test)]
 mod tests_pieces;
 #[cfg(test)]
+mod tests_rooms;
+#[cfg(test)]
 mod tests_shares;
 #[cfg(test)]
 mod tests_sync;
