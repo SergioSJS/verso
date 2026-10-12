@@ -33,6 +33,17 @@
   2026-10-12 — `VERSO_UPDATE_CHECK` (item 7) accepted by the maintainer
   as built, answering the ADR audit in session:
   *"Ajuste tudo que precisar. Está aprovado os ADRs"*.
+  2026-10-12 — an installer script for the packages, decided by the
+  maintainer (*"Excelente, vamos seguir assim… por mim já faz"*):
+  `packaging/server/universo.sh`, one POSIX `sh` file that installs,
+  updates, removes, backs up and reports on the `.deb` or `.rpm` of item 2
+  with systemd and apt or dnf, verifying each download with the release's
+  signature (or GitHub's published checksum, refusing without either
+  unless told to skip), and opens the firewall only when asked; served
+  unchanged at `https://versomd.com/universo.sh`, the repository's copy
+  being the source. Sections 5 and 6 of the install guide stay the manual
+  paths ([server-install.md](../reference/server-install.md), "The
+  installer script").
 - Revisions: 2026-10-09 (night) — accepted by the maintainer together with
   [0073](0073-self-hosted-server-first.md), in the answer quoted there;
   its two `[OPEN]` answered — the update path (item 7, the maintainer's
