@@ -36,6 +36,13 @@ pub struct Scope {
     pub mount: Option<(String, String)>,
 }
 
+/// What the index's summary counts, of a share (ADR 0081 item 11).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Counts {
+    pub notes: u32,
+    pub placeholders: u32,
+}
+
 fn refused(message: &str) -> ContractError {
     verso_service::refused(message)
 }
@@ -350,8 +357,11 @@ impl Scope {
         v
     }
 
-    /// A base's answer: rows outside the share gone, the summaries of a
-    /// group that lost rows unsaid, the folder's property names unsaid.
+    /// A base's answer, re-rooted at the share. The base was evaluated
+    /// over the share only (`query_base_within`, ADR 0081 item 11), so its
+    /// rows, property names, formulas and summaries are the share's; this
+    /// is the second fence: a row outside gone, the summaries of a group
+    /// that lost one unsaid, a link or a file outside saying nothing.
     fn base(&self, v: &mut Value) {
         let mut removed = 0_u64;
         if let Some(groups) = v["groups"].as_array_mut() {
@@ -383,7 +393,6 @@ impl Scope {
         }
         let total = v["total"].as_u64().unwrap_or(0).saturating_sub(removed);
         v["total"] = json!(total);
-        v["properties"] = json!([]);
     }
 
     /// A value of a base: a link or a file outside the share says nothing
@@ -457,19 +466,62 @@ impl Scope {
         space
     }
 
-    /// The folder as the window knows it: the share's name and key, the
-    /// index's problems of the share only.
+    /// The folders of the owner's a base through the share sees: the
+    /// shared folder, and the attachments folder shown with it.
     #[must_use]
-    pub fn info(&self, mut info: Value) -> Value {
+    pub fn roots(&self) -> Vec<String> {
+        let mut roots = vec![self.root.clone()];
+        roots.extend(self.mount.as_ref().map(|(_, path)| path.clone()));
+        roots
+    }
+
+    /// The share's own counts, as the index's summary says the folder's
+    /// (ADR 0081 item 11, decided 2026-10-12): the notes the window sees,
+    /// and how many of them are still only in the cloud (ADR 0043).
+    ///
+    /// The notes are the index's, as `list_notes` answers them; the
+    /// placeholders the last walk's.
+    pub fn counts(&self, ws: &verso_core::Workspace) -> Result<Counts, verso_core::CoreError> {
+        let visible = |p: &str| self.to_rel(p).is_some();
+        let count = |n: usize| u32::try_from(n).unwrap_or(u32::MAX);
+        let notes = ws.notes()?.iter().filter(|p| visible(p)).count();
+        let placeholders = ws
+            .entries()
+            .iter()
+            .filter(|e| {
+                e.kind == verso_core::FileKind::Placeholder
+                    && e.path.to_lowercase().ends_with(".md")
+                    && visible(&e.path)
+            })
+            .count();
+        Ok(Counts {
+            notes: count(notes),
+            placeholders: count(placeholders),
+        })
+    }
+
+    /// The folder as the window knows it: the share's name and key, the
+    /// index's problems and counts of the share only.
+    #[must_use]
+    pub fn info(&self, mut info: Value, counts: Option<Counts>) -> Value {
         info["name"] = json!(self.name);
         info["key"] = json!(self.key);
-        self.summary(&mut info["index"]);
+        self.summary(&mut info["index"], counts);
         info
     }
 
-    /// An index run's summary: its problems in the share only.
-    pub fn summary(&self, index: &mut Value) {
+    /// An index run's summary: its problems in the share only, and its
+    /// counts the share's — every note of it as up to date, when they are
+    /// known; zero when they are not, never the owner's folder's.
+    pub fn summary(&self, index: &mut Value, counts: Option<Counts>) {
         self.warnings(&mut index["problems"]);
+        if index.is_object() {
+            let c = counts.unwrap_or_default();
+            index["indexed"] = json!(0);
+            index["removed"] = json!(0);
+            index["unchanged"] = json!(c.notes);
+            index["placeholders"] = json!(c.placeholders);
+        }
     }
 
     /// A message pushed to the window, in its paths; `None` when nothing of
@@ -510,11 +562,16 @@ impl Scope {
                 p["changed"] = json!(changed);
                 p["removed"] = json!(removed);
                 p["moved"] = json!(moved);
-                self.summary(&mut p["index"]);
+                // The run's counts are the owner's folder's: zero here.
+                self.summary(&mut p["index"], None);
             }
             "index-progress" => {
                 let file = self.rel_value(&m["payload"]["file"]).unwrap_or(Value::Null);
                 m["payload"]["file"] = file;
+                // How far a walk of the owner's whole folder is: not the
+                // share's to know (item 11).
+                m["payload"]["current"] = json!(0);
+                m["payload"]["total"] = json!(0);
             }
             "collab-update" | "collab-awareness" | "collab-saved" | "collab-conflict"
             | "collab-closed" => {
@@ -645,12 +702,24 @@ mod tests {
         let mixed = json!({ "event": "folder-changed", "payload": {
             "key": "owner", "changed": ["Mesa/Segredo.md", "Mesa/Campanha/a.md"], "removed": [],
             "moved": [{ "from": "Mesa/Campanha/b.md", "to": "Mesa/Segredo2.md" }],
-            "listing": false, "index": { "problems": ["Mesa/Segredo.md: bad"] } } });
+            "listing": false, "index": { "problems": ["Mesa/Segredo.md: bad"],
+            "indexed": 2, "unchanged": 480, "removed": 1, "placeholders": 7 } } });
         let seen = s.push(&mixed).unwrap();
         assert_eq!(seen["payload"]["key"], s.key);
         assert_eq!(seen["payload"]["changed"], json!(["a.md"]));
         assert_eq!(seen["payload"]["removed"], json!(["b.md"]));
         assert_eq!(seen["payload"]["index"]["problems"], json!([]));
+        // The run's counts are the owner's folder's: zero to the share
+        // (ADR 0081 item 11), never the folder's total.
+        for count in ["indexed", "unchanged", "removed", "placeholders"] {
+            assert_eq!(seen["payload"]["index"][count], 0, "{count}");
+        }
+        let walk = json!({ "event": "index-progress", "payload": {
+            "phase": "indexing", "current": 120, "total": 480, "file": "Mesa/Segredo.md" } });
+        let seen = s.push(&walk).unwrap();
+        assert_eq!(seen["payload"]["current"], 0);
+        assert_eq!(seen["payload"]["total"], 0);
+        assert_eq!(seen["payload"]["file"], Value::Null);
         let room = json!({ "event": "collab-update", "payload": { "path": "Mesa/Segredo.md" } });
         assert_eq!(s.push(&room), None);
         assert_eq!(

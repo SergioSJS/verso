@@ -740,7 +740,10 @@ rest below and in `manual-checks.md`.
    note's link now has the new name, and the receiver's rename named only
    notes inside the share (the server's Rust test, `tests_shares.rs`, "a
    receivers rename rewrites the owners links outside the share", with a
-   note open in a room kept as it was; by hand with two browsers).
+   note open in a room kept as it was; by hand with two browsers). The
+   receiver's status bar counts the share's notes, and a base through the
+   share counts, sums and lists only notes inside it (the server's Rust
+   test, `tests_shares.rs`, "a receivers counts are the shares").
 11. Editing together in a synced folder ([ADR
     0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), from note 23's
     section *Editar junto numa pasta sincronizada*: with the folder syncing,
