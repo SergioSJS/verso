@@ -56,6 +56,10 @@ impl Running {
         format!("http://localhost:{}{path}", self.addr.port())
     }
 
+    pub(crate) fn addr(&self) -> SocketAddr {
+        self.addr
+    }
+
     pub(crate) fn origin(&self) -> String {
         format!("http://localhost:{}", self.addr.port())
     }
@@ -852,7 +856,7 @@ fn the_server_serves_its_own_tls() {
         let r = start().await;
         let tcp = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = tcp.local_addr().unwrap().port();
-        let listener = tls::TlsListener::new(tcp, acceptor).unwrap();
+        let listener = tls::TlsListener::new(tcp, acceptor, Arc::clone(&r.server.slots)).unwrap();
         let server = Arc::clone(&r.server);
         tokio::spawn(async move {
             let _ = run_on(server, listener, std::future::pending()).await;

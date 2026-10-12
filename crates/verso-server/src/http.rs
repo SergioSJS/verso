@@ -95,27 +95,10 @@ impl IntoResponse for ApiError {
 
 pub type ApiResult<T> = Result<T, ApiError>;
 
-/// The address a connection came from, over TCP or TLS alike.
+/// The address a connection came from, over TCP or TLS alike, set on each
+/// request by the listener (`crate::listen`).
 #[derive(Debug, Clone, Copy)]
 pub struct Remote(pub SocketAddr);
-
-impl
-    axum::extract::connect_info::Connected<axum::serve::IncomingStream<'_, tokio::net::TcpListener>>
-    for Remote
-{
-    fn connect_info(stream: axum::serve::IncomingStream<'_, tokio::net::TcpListener>) -> Self {
-        Self(*stream.remote_addr())
-    }
-}
-
-impl
-    axum::extract::connect_info::Connected<axum::serve::IncomingStream<'_, crate::tls::TlsListener>>
-    for Remote
-{
-    fn connect_info(stream: axum::serve::IncomingStream<'_, crate::tls::TlsListener>) -> Self {
-        Self(*stream.remote_addr())
-    }
-}
 
 /// What every handler of the API knows of its request.
 pub struct Ctx {
@@ -404,6 +387,7 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/signin-link/{token}", page())
         .fallback_service(static_files)
         .layer(middleware::from_fn_with_state(Arc::clone(&server), guard))
+        .layer(middleware::from_fn(deadline))
         // A request's body: a form, a setting, a passkey — never a file,
         // which goes over the WebSocket under its own limit
         // (rpc::MAX_MESSAGE).
@@ -413,6 +397,25 @@ pub fn router(server: Arc<Server>) -> Router {
 
 /// The most a request's body takes: settings are 256 KB at most.
 const API_BODY: usize = 1024 * 1024;
+
+/// How long a request may take, its body's arrival included
+/// (threat-model.md, gap 8): a body of [`API_BODY`] at 32 KiB/s is half
+/// a minute; a client that trickles one in holds its connection no longer.
+/// A WebSocket's answer is its upgrade, at once; what it carries after is
+/// bounded by its own loop (`crate::rpc`).
+const REQUEST_WITHIN: std::time::Duration = std::time::Duration::from_secs(60);
+
+async fn deadline(request: Request, next: Next) -> Response {
+    match tokio::time::timeout(REQUEST_WITHIN, next.run(request)).await {
+        Ok(response) => response,
+        Err(_) => ApiError::new(
+            StatusCode::REQUEST_TIMEOUT,
+            "timeout",
+            "the request took too long",
+        )
+        .into_response(),
+    }
+}
 
 /// The window's own policy, sent as a header and narrower than the
 /// desktop's (ADR 0073 item 6): scripts, styles and connections from this

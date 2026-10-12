@@ -200,6 +200,9 @@ pub struct Server {
     /// What one member may hold of the server: connections, the pace of
     /// commands (threat-model.md, gap 4).
     pub fair: crate::fair::Fair,
+    /// The connections the listener holds, on the server and by address
+    /// (threat-model.md, gap 8).
+    pub slots: Arc<crate::listen::Slots>,
     /// The contract's version: a hash of the generated bindings (the
     /// maintainer's answer D of 2026-10-09), sent in the handshake.
     pub contract: String,
@@ -236,6 +239,7 @@ pub struct Server {
 impl Server {
     pub fn new(config: Config, db: Db, contract: String, commit: String) -> Arc<Self> {
         let service = Service::new(Some(config.data_dir.join("indexes")));
+        let slots = crate::listen::Slots::new(config.trusted_proxy);
         let server = Arc::new(Self {
             config,
             db,
@@ -243,6 +247,7 @@ impl Server {
             clients: Mutex::new(HashMap::new()),
             limiter: Limiter::default(),
             fair: crate::fair::Fair::default(),
+            slots,
             contract,
             next: AtomicU64::new(1),
             devices: Mutex::new(HashMap::new()),
