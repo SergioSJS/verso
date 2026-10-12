@@ -918,8 +918,9 @@ fn by_name(disk: &Disk) -> BTreeMap<String, String> {
 
 /// Where a run happens: whether the devices' file systems fold names, the
 /// server's, and whether names differing in case are in play — not
-/// against a server that folds names from devices that do not (spec Q8
-/// is open: two files there, one here). And the chance in a hundred
+/// against a server that folds names from devices that do not (spec Q8:
+/// two files that exist there are one here; a new one is refused since
+/// 2026-10-12, where it is made, which this model of the disks leaves out). And the chance in a hundred
 /// that the server refuses a rename while the person works, on top of
 /// any change refused.
 #[derive(Clone, Copy)]
@@ -1181,7 +1182,7 @@ fn where_names_fold_two_devices_and_a_server_end_alike_and_lose_no_edit() {
 /// against a server on a Mac (APFS, which folds them) — the other pairing
 /// runs above: one name is one file everywhere (spec Q7). Case stays out:
 /// against a server that folds it, two names differing in case on ext4
-/// are spec Q8, open.
+/// are spec Q8 (a new one refused where it is made since 2026-10-12).
 #[test]
 fn the_two_forms_of_a_name_end_as_one_file_against_a_server_that_folds_names() {
     for seed in 1..=300u64 {

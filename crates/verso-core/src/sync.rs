@@ -233,7 +233,8 @@ pub const FOLDS_NAMES: bool = cfg!(any(target_os = "macos", windows));
 /// Two paths of one `folded_form` are one file everywhere, whatever the
 /// file system — ext4 tells `Café.md` composed and decomposed apart, sync
 /// does not. Case is not folded here, only where the file system folds it
-/// ([`folded`], [`FOLDS_NAMES`]; spec Q8 is open).
+/// ([`folded`], [`FOLDS_NAMES`]; spec Q8, decided 2026-10-12: a new name
+/// differing only in case is refused where it is made, by `verso-fs`).
 #[must_use]
 pub fn folded_form(path: &str) -> String {
     use unicode_normalization::UnicodeNormalization;
@@ -701,7 +702,8 @@ fn respelled(
 /// fetch here, on every pass: a device working forever. They become one
 /// entry, under the spelling the server keeps (else this computer's),
 /// with the hash [`agreed`] picks; the others go. A name with two files
-/// on the server (one that tells case apart) is left as it is (spec Q8).
+/// on the server (one that tells case apart) is left as it is: two that
+/// exist are kept (spec Q8, decided 2026-10-12, refuses only a new one).
 fn one_base_per_name(
     local: &Files,
     remote: &Files,

@@ -35,8 +35,18 @@ fn of_server(path: &str, e: &Value) -> Refusal {
         ErrorKind::Changed => Refusal::Again(path.to_owned(), e.message),
         ErrorKind::Exists => Refusal::File(path.to_owned(), "name_taken".to_owned(), e.message),
         ErrorKind::Quota => Refusal::File(path.to_owned(), "quota".to_owned(), e.message),
+        ErrorKind::Refused if case_twin(&e.message) => {
+            Refusal::File(path.to_owned(), "name_taken".to_owned(), e.message)
+        }
         _ => Refusal::File(path.to_owned(), "failed".to_owned(), e.message),
     }
+}
+
+/// A new name refused beside an entry that differs from it only in case
+/// (spec Q8, decided 2026-10-12; `verso_fs::ConfinementError::CaseTwin`):
+/// listed as a name taken, here or on the server.
+fn case_twin(message: &str) -> bool {
+    message.contains("differs only in case")
 }
 
 /// A step here that failed. One whose file is gone since the listing —
@@ -60,6 +70,11 @@ fn of_here(ctx: &Ctx, s: &Syncer, path: &str, e: ContractError) -> Refusal {
             path.to_owned(),
             "name_taken".to_owned(),
             "another file here has this name, differing only in case or accents".to_owned(),
+        ),
+        ErrorKind::Refused if case_twin(&e.message) => Refusal::File(
+            path.to_owned(),
+            "name_taken".to_owned(),
+            "another file here has a name differing from this one only in case".to_owned(),
         ),
         ErrorKind::Unavailable => Refusal::File(
             path.to_owned(),
