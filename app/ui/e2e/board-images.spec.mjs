@@ -190,7 +190,6 @@ test("a picture card is cropped on the card: the node keeps the crop, the file i
   await page.mouse.down();
   await page.mouse.move(r.x + r.width / 2, r.y + r.height / 2, { steps: 8 });
   await page.mouse.up();
-  await page.screenshot({ path: "/private/tmp/claude-502/-Users-sergio-sousa-Projects-person-apps-verso/58b8519c-6850-4e5b-9e41-fd329849e27c/scratchpad/crop.png" });
   await page.getByRole("button", { name: "Aplicar" }).click();
   await expect.poll(async () => JSON.parse(await app.file("Mesa.canvas")).nodes[0].verso?.crop).toMatchObject({ x: 0, y: 0 });
   const node = JSON.parse(await app.file("Mesa.canvas")).nodes[0];
