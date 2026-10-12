@@ -7,6 +7,10 @@
   Consequences, as **provisional**; the Decision is unchanged and the questions
   [0046](0046-index-location-lifecycle-tokenizer.md) holds stay `[OPEN]`
   (memo `docs/reference/cli-decision.md`).
+  2026-10-12 — the provisional records of 2026-09-22 ratified by the
+  maintainer as built and tested, answering the ADR audit in session:
+  *"Ajuste tudo que precisar. Está aprovado os ADRs"* (adjust whatever
+  needs it; the ADRs are approved); a dated note beside each.
 
 ## Context
 
@@ -48,6 +52,8 @@ and be rebuildable.
 2026-09-22 from the feature 4 code — provisional, the maintainer decides on
 waking**, on line 2 of `docs/reference/cli-decision.md` §10. This is what the
 code does, not a decision.
+*(Ratified by the maintainer on 2026-10-12, as built and tested:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 
 - **The directory** is `$VERSO_CONFIG_DIR` when it is set and non-empty; else
   `$XDG_CONFIG_HOME/verso` when that one is set and non-empty; else

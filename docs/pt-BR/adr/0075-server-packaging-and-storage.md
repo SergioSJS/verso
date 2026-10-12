@@ -30,6 +30,9 @@
   (cotas por pasta agora); o pacote, a imagem e os caminhos do servidor
   renomeados Universo pela [0078](0078-universo-the-name-of-verso-as-a-server.md);
   as duas aceitas pelo mantenedor naquele dia.
+  2026-10-12 — o `VERSO_UPDATE_CHECK` (item 7) aceito pelo mantenedor
+  como construído, respondendo à auditoria dos ADRs em sessão:
+  *"Ajuste tudo que precisar. Está aprovado os ADRs"*.
 - Revisões: 2026-10-09 (noite) — aceito pelo mantenedor junto com o
   [0073](0073-self-hosted-server-first.md), na resposta citada lá; os dois
   `[ABERTO]` dele respondidos — o caminho de atualização (item 7, a opção
@@ -155,7 +158,8 @@ Proposta; decidida em suas partes pelo mantenedor em 2026-10-09 (Status).
    rede, e o servidor alcança, além do que o
    [0073](0073-self-hosted-server-first.md) lista, só o feed de versões,
    para esta checagem. A checagem pode ser desligada por uma variável de
-   ambiente, `VERSO_UPDATE_CHECK=off` — proposto com a implementação.
+   ambiente, `VERSO_UPDATE_CHECK=off` — proposto com a implementação;
+   aceito como construído em 2026-10-12.
 
 ## Consequências
 
@@ -193,7 +197,9 @@ Proposta; decidida em suas partes pelo mantenedor em 2026-10-09 (Status).
 
 ## Status
 
-**Aceito em 2026-10-09 em suas partes** (o segundo parágrafo abaixo).
+**Aceito em 2026-10-09 em suas partes** (o segundo parágrafo abaixo), e
+por inteiro em 2026-10-12: a variável que desliga a checagem de
+atualização (item 7) aceita pelo mantenedor como construída.
 
 *(Histórico, o status antes da aceitação:)* Proposto, decidido em suas
 partes pelo mantenedor em 2026-10-09, nas
@@ -213,4 +219,5 @@ caminho de atualização (item 7, a opção (b), do mantenedor e não a
 recomendação) e os symlinks num servidor (item 3); com eles o
 `verso serve` como subcomando do `verso` (item 1), o id de uma pasta (item
 3) e as variáveis de TLS (item 6). Proposto com a implementação: a
-variável que desliga a checagem de atualização (item 7).
+variável que desliga a checagem de atualização (item 7). *(Aceito em
+2026-10-12, como construído: `VERSO_UPDATE_CHECK`.)*

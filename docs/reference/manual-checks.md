@@ -167,6 +167,13 @@ in the real app.
   first index downloads nothing (the cloud icons stay), and opening one
   note downloads that one alone and shows its text — no "the cloud did
   not give the file's content" in the log. Only `attrib +O` was tested.
+- [ ] **A folder inside a third-party sync client** (ADR 0029, feature 2's
+  atomic write; a manual check since 2026-10-12, gating nothing): put a
+  folder of notes inside iCloud Drive, Dropbox, OneDrive or Syncthing, open
+  it in Verso and save a note a few times; on another machine, or on the
+  client's own web page, the note arrives as the same file edited — not
+  deleted and created again, no conflicted copy, its version history kept
+  where the client keeps one.
 
 ### 0.4.0-beta.1
 

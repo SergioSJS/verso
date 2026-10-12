@@ -46,6 +46,10 @@
   cujo alvo fica dentro da pasta é tratado como um arquivo novo dentro, e
   não mais recusado como um link que sai. Decidido por essa confirmação
   (Status).
+  2026-10-12 — os registros provisórios de 2026-09-22 ratificados pelo
+  mantenedor como construídos e testados, respondendo à auditoria dos
+  ADRs em sessão: *"Ajuste tudo que precisar. Está aprovado os ADRs"*; uma
+  nota datada ao lado de cada um.
 
 ## Contexto
 
@@ -110,7 +114,7 @@ Decidido pelo mantenedor em 2026-09-22, sobre o memo
   corrigido lá.
 
 **Provisório, registrado em 2026-09-22 a partir do código da feature 2, não
-decidido.** O mantenedor decide isto ao acordar; está aqui porque o código
+decidido.** *(Ratificado pelo mantenedor em 2026-10-12, como construído e testado: "Ajuste tudo que precisar. Está aprovado os ADRs".)* O mantenedor decide isto ao acordar; está aqui porque o código
 precisou escolher alguma coisa, e escolha não registrada é pior do que escolha
 registrada:
 
@@ -172,6 +176,8 @@ também a resposta da Q26 de [`docs/spec/dialect.md`](../spec/dialect.md):
 
 **Provisório, registrado em 2026-09-22 a partir do código da feature 2, não
 decidido.**
+*(Ratificado pelo mantenedor em 2026-10-12, como construído e testado:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 
 - **Handle é recusado para entrada oculta ou caminho ignorado.** `Root::handle`
   responde `ConfinementError::Hidden` ou `ConfinementError::Ignored`. O
@@ -539,7 +545,8 @@ mantenedor, Aceito. O watcher: construído depois da
 feature 2 e decidido em 2026-09-24 pelo mantenedor, Aceito. Os itens marcados
 como **provisórios** dentro dos dois grupos decididos em 2026-09-22 não estão
 decididos: são o que o código da feature 2 faz, registrados para que nada seja
-resolvido por silêncio, e esperam o mantenedor. Um symlink pendente cujo alvo
+resolvido por silêncio, e esperam o mantenedor. *(Ratificados pelo mantenedor em 2026-10-12,
+como construídos e testados; Aceito.)* Um symlink pendente cujo alvo
 fica dentro da pasta, num servidor, tratado como um arquivo novo dentro desde o
 4ffe8a9 (2026-10-12, "Num servidor"): confirmado pelo mantenedor em
 2026-10-12, Aceito.

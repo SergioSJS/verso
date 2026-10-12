@@ -6,6 +6,10 @@
   (nome de pacote); `ABERTO` (disponibilidade em crates.io, npm e org do GitHub)
 - Revisões: 2026-09-24 — o domínio decidido pelo mantenedor, em sessão:
   `versomd.com`
+  2026-10-12 — a disponibilidade conferida e o nome de pacote decidido
+  pelo mantenedor, aceitando a auditoria dos ADRs em sessão:
+  *"Ajuste tudo que precisar. Está aprovado os ADRs"*: o nome do pacote,
+  do crate e no npm é **`versomd`**.
 
 ## Contexto
 
@@ -26,10 +30,20 @@ e um editor de metadados de imagem em Perl.
   2026-09-24, o mais próximo de `verso.md`, a proposta, que ele conseguiu (em
   sessão: "eu comprei o domínio versomd.com, foi o mais próximo que
   consegui").
-- Nome de pacote/org caso `verso` esteja ocupado: `verso-md`, `PROPOSTO`.
+- Nome de pacote/org caso `verso` esteja ocupado: `verso-md`, `PROPOSTO`. *(Substituído
+  em 2026-10-12: `versomd`, abaixo.)*
 - A disponibilidade em crates.io, npm e org do GitHub é `[ABERTO]` e precisa
   ser verificada antes de tornar o repositório público
-  ([0007](0007-private-repo-until-license.md)).
+  ([0007](0007-private-repo-until-license.md)). *(Conferida em 2026-10-12:
+  abaixo.)*
+- **Disponibilidade, conferida em 2026-10-12.** crates.io: `verso`
+  ocupado; `versomd`, `verso-md`, `verso-cli` e `universo` livres. npm:
+  `verso` ocupado; `versomd` e `verso-md` livres. GitHub: `verso` ocupado;
+  `versomd` é um usuário dormente (criado em 2023-11, sem repositórios
+  públicos). **Decidido pelo mantenedor em 2026-10-12**: o nome do pacote,
+  do crate e no npm é **`versomd`**; o binário continua `verso` e o
+  produto continua Verso. O repositório fica sob `SergioSJS`, a menos que
+  o nome dormente `versomd` do GitHub seja obtido do suporte do GitHub.
 - **Decidido em 2026-10-07 pelo mantenedor — o identificador do app é
   `com.versomd.app`** (`com.versomd.app.beta` nas betas:
   `app/src-tauri/tauri.conf.json`, o workflow da versão), seguindo o
@@ -54,5 +68,8 @@ e um editor de metadados de imagem em Perl.
 ## Status
 
 Aceito para o nome; para o domínio, `versomd.com`, em 2026-09-24 pelo
-mantenedor. Nome de pacote alternativo: Proposto. Disponibilidade em crates.io,
-npm e org do GitHub: `[ABERTO]`.
+mantenedor. Nome do pacote, do crate e no npm: **`versomd`**, decidido em
+2026-10-12 com a conferência de disponibilidade daquele dia; o repositório
+sob `SergioSJS`, a menos que o nome `versomd` do GitHub seja obtido
+(Consequências). *(Até 2026-10-12: "Nome de pacote alternativo: Proposto.
+Disponibilidade em crates.io, npm e org do GitHub: `[ABERTO]`.")*

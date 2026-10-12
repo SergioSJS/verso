@@ -1,6 +1,6 @@
 # Verso roadmap
 
-- Version: 2026-10-11, revision 6 (Phase 3's table gains what was built since revision 5 — [0077](adr/0077-the-server-administration-console-and-folder-quotas.md), [0078](adr/0078-universo-the-name-of-verso-as-a-server.md), [0079](adr/0079-sync-a-local-folder-with-a-server.md) — and the accepted [0080](adr/0080-the-trash-with-expiry-and-restore.md), [0081](adr/0081-sharing-between-people-on-one-universo.md) and [0082](adr/0082-live-co-editing-of-a-synced-folder.md) in the order the maintainer set on 2026-10-11, *"Sim para todos"*; finer permissions struck through as accepted with 0081; "After Phase 2" brought up to date on sync; the rows 3.10–3.16, which bear on the exit criterion, were written from the memo's recommendation, not from one of the maintainer's eight answers, and awaited the maintainer's acceptance — rule zero; on 2026-10-12, within this revision, rows 3.13, 3.14 and 3.16 marked built and 3.15 done, rows 3.10–3.16 **accepted by the maintainer** that night, "Ok", and rows 3.17–3.21 added from the maintainer's answers of the same night; rows 3.10, 3.14, 3.20 and 3.21 brought up to what was built by the audit of 2026-10-12). Revision 5, 2026-10-09 (Phase 3 written, from [ADR 0073](adr/0073-self-hosted-server-first.md) accepted by the maintainer with 0074, 0075 and 0076; the contract's session identity and the handles for `verso serve` struck through as decided). Revision 4, 2026-09-24 (the maintainer's decisions of 2026-09-24 struck through: the handles in both phases, and the typed note's two rows, with item 2.6 no longer waiting for them). Revision 3, 2026-09-23: Phase 2 as built; the Phase 1 decisions taken on 2026-09-22 struck through
+- Version: 2026-10-12, revision 7 (Phase 2 declared closed on 2026-10-09 by the maintainer, answering the ADR audit, *"Ajuste tudo que precisar. Está aprovado os ADRs"* — the `[OPEN]` at the head of Phase 3 answered, and what Phase 2's exit criterion and scope still lacked carried into Phase 3 as its pendencies; dated notes beside "a phase does not start before the previous one closes" and Phase 2's gate). Revision 6, 2026-10-11 (Phase 3's table gains what was built since revision 5 — [0077](adr/0077-the-server-administration-console-and-folder-quotas.md), [0078](adr/0078-universo-the-name-of-verso-as-a-server.md), [0079](adr/0079-sync-a-local-folder-with-a-server.md) — and the accepted [0080](adr/0080-the-trash-with-expiry-and-restore.md), [0081](adr/0081-sharing-between-people-on-one-universo.md) and [0082](adr/0082-live-co-editing-of-a-synced-folder.md) in the order the maintainer set on 2026-10-11, *"Sim para todos"*; finer permissions struck through as accepted with 0081; "After Phase 2" brought up to date on sync; the rows 3.10–3.16, which bear on the exit criterion, were written from the memo's recommendation, not from one of the maintainer's eight answers, and awaited the maintainer's acceptance — rule zero; on 2026-10-12, within this revision, rows 3.13, 3.14 and 3.16 marked built and 3.15 done, rows 3.10–3.16 **accepted by the maintainer** that night, "Ok", and rows 3.17–3.21 added from the maintainer's answers of the same night; rows 3.10, 3.14, 3.20 and 3.21 brought up to what was built by the audit of 2026-10-12). Revision 5, 2026-10-09 (Phase 3 written, from [ADR 0073](adr/0073-self-hosted-server-first.md) accepted by the maintainer with 0074, 0075 and 0076; the contract's session identity and the handles for `verso serve` struck through as decided). Revision 4, 2026-09-24 (the maintainer's decisions of 2026-09-24 struck through: the handles in both phases, and the typed note's two rows, with item 2.6 no longer waiting for them). Revision 3, 2026-09-23: Phase 2 as built; the Phase 1 decisions taken on 2026-09-22 struck through
 - Source: `docs/BRIEFING.md` §15
 - ADR: [0034](adr/0034-roadmap-in-phases.md)
 
@@ -9,7 +9,10 @@ Three phases, and since 2026-10-09 a fourth, Phase 3
 part in the work can run the verification and conclude "passed" or "did not
 pass" without judging merit.
 
-A phase does not start before the previous one closes. A scope item that is not
+A phase does not start before the previous one closes. *(Phase 3 started
+on 2026-10-09 with Phase 2's exit criterion not met; on 2026-10-12 the
+maintainer declared Phase 2 closed that day, its pendencies carried into
+Phase 3 — below.)* A scope item that is not
 listed here does not enter the phase without becoming a recorded decision.
 
 **Out of scope until the end of Phase 2:** sync, mobile, plugins and the
@@ -181,6 +184,9 @@ rest of its work, and ships before the phase closes
 ([ADR 0069](adr/0069-windows-port.md), the maintainer: "Vou passar windows
 na frente").
 
+**Closed on 2026-10-09**, declared by the maintainer on 2026-10-12; what
+it still lacked is carried into Phase 3 ("Carried from Phase 2", below).
+
 ### Scope
 
 | # | Deliverable | State on 2026-09-24 |
@@ -246,6 +252,10 @@ any other block, a `+`, a menu per block and Notion's keys
 The gate is use, not a checklist: with the seven scope items done and the month
 of use not happening, the phase has not closed.
 
+*(2026-10-12: the maintainer declared Phase 2 closed on 2026-10-09, the
+day Phase 3 started, with items 1 to 3 above not recorded as met; they are
+carried into Phase 3, below. The text above is kept as decided.)*
+
 ---
 
 ## Phase 3 — The Linux app, then the self-hosted server
@@ -260,7 +270,10 @@ phone, a tablet and the desktop app, with several people in one folder.
 Phase 2's exit criterion is not recorded as met, and the maintainer's
 answer starts this work now (*"L deve vir agora"*); how that sits with "a
 phase does not start before the previous one closes", above, is
-`[OPEN]`, the maintainer's to say.
+`[OPEN]`, the maintainer's to say. *(Answered by the maintainer on
+2026-10-12, accepting the ADR audit's recommendation — "Ajuste tudo que precisar. Está aprovado os ADRs": Phase 2 is closed on 2026-10-09, the day
+Phase 3 started, and what it still lacked is carried as Phase 3's
+pendencies — "Carried from Phase 2", below.)*
 
 ### Scope
 
@@ -316,6 +329,25 @@ item 8's revoked sync turned off with a notice; 3.17 to 3.19 come in the
 next round. *(Built: 3.20 in 3bc56ae, 3.21 in 5838c10, the revoked sync in
 6c7800e, merged into `feat/universo` by d2a72b0 on 2026-10-12; 241c233
 records the threat model's gaps 11 and 12 closed.)*
+
+**Carried from Phase 2** (the maintainer, 2026-10-12, closing Phase 2 on
+2026-10-09). Phase 3 ends when no task of it is pending, and these are
+among its tasks:
+
+- Phase 2's exit criterion 1, **one month of real use**: the maintainer
+  prepares their table sessions in Verso for a full month, without going
+  back to Obsidian for a task Verso is supposed to cover, and records what
+  made them go back — not recorded as met.
+- Phase 2's exit criterion 2, **no data loss in that month**: the git
+  history of the maintainer's vault with no diff they did not make —
+  measured over the same month.
+- Phase 2's exit criterion 3, **guardrails green and fixtures intact**,
+  the UI code and the generated TS types included — not recorded as
+  checked at a close.
+- Phase 2's scope row 2.6, the typed note: the maintainer's reading,
+  which the row says it waits for.
+- Phase 2's scope row 2.7, accessibility: the pass with a screen reader,
+  which the row says has not been made.
 
 ### Decisions that have to come out during the phase
 

@@ -29,6 +29,9 @@
   in the answer quoted there (*"P tudo"*: P all of it); built in this
   round, before the server's window ships. The options not chosen stay
   beside each recommendation.
+  2026-10-12 — item 11's rule is now item 3 of
+  [0027](0027-runtime-capabilities.md), revised to it by the maintainer
+  that day with 0027's acceptance (*"Ajuste tudo que precisar. Está aprovado os ADRs"*).
 
 ## Context
 

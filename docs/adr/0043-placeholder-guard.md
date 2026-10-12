@@ -10,6 +10,10 @@
   providers stay `[OPEN]`. 2026-09-22 — where the guard runs and what wins
   between a real file and a stale `.icloud` sibling, from the feature 2 code,
   recorded as provisional.
+  2026-10-12 — the provisional records of 2026-09-22 ratified by the
+  maintainer as built and tested, answering the ADR audit in session:
+  *"Ajuste tudo que precisar. Está aprovado os ADRs"* (adjust whatever
+  needs it; the ADRs are approved); a dated note beside each.
 
 ## Context
 
@@ -86,6 +90,8 @@ Recorded on 2026-09-22 from the second reading of the feature 2 code —
 provisional, the maintainer decides on waking.** These are what the code does,
 not decisions; they are written down because the alternative to writing them
 down is deciding them by silence.
+*(Ratified by the maintainer on 2026-10-12, as built and tested:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 
 - **A symlink whose target iCloud evicted in the older form is a placeholder,
   not a broken link.** `nota.md` points at `out/Real.md`, and what exists on
@@ -112,6 +118,8 @@ down is deciding them by silence.
 is closed by code rather than by a new decision. Recorded on 2026-09-22 from
 the feature 4 code — the details below are provisional, the maintainer decides
 on waking.**
+*(Ratified by the maintainer on 2026-10-12, as built and tested:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 
 - **The index carries the mark.** Schema version 2 of `verso-index` adds
   `notes.unverified`; an index at any other version is dropped and rebuilt,

@@ -42,6 +42,11 @@
   session: *"Mas eu tinha confirmado"* (but I had confirmed) — their
   *"Gostei das recomendações, pode seguir"* of 2026-10-10 covers every
   recommended option, this revision among them.
+  2026-10-12 — the items still Proposed accepted by the maintainer as
+  built and shipped in 0.5.0-beta.1, in session, answering the ADR audit:
+  *"Ajuste tudo que precisar. Está aprovado os ADRs"* (adjust whatever
+  needs it; the ADRs are approved): the embedded WebView2 bootstrapper
+  (item 2), items 4, 6 to 9 and the order of the work (Consequences).
 
 ## Context
 
@@ -135,7 +140,8 @@ refuses to rename a folder while any file in it is open. (On macOS, since
    Windows bundle targets NSIS only. Windows 11 ships WebView2 and Windows 10
    may lack it, so the installer embeds WebView2's bootstrapper (about 1.8 MB),
    which installs it when missing (proposed; Tauri's default downloads the
-   bootstrapper at install time instead).
+   bootstrapper at install time instead). *(Accepted on 2026-10-12, as
+   built and shipped.)*
 3. **Not code-signed for now.** SmartScreen warns on the first run of an
    unsigned installer, and that is accepted until public distribution, when
    [0051](0051-development-flow-and-releases.md) already places the code
@@ -171,7 +177,8 @@ refuses to rename a folder while any file in it is open. (On macOS, since
    for it) and `verso-cli-X.Y.Z-windows-x64.zip`, the UI built in Git's
    bash, and publishes them with macOS's files.
 7. **The real app tested by machine on Windows, through the end-to-end
-   suite the repository already has** (proposed, its own pull request).
+   suite the repository already has** (proposed, its own pull request;
+   accepted on 2026-10-12, as built).
    WebView2 is Chromium: started with
    `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=<port>`,
    the real window takes Playwright over the Chrome DevTools Protocol. The
@@ -187,7 +194,8 @@ refuses to rename a folder while any file in it is open. (On macOS, since
    window on the Mac too, with an embedded WebDriver server — a decision of
    its own, not this ADR's.
 8. **Before any Windows machine: the end-to-end suite in Chromium on the
-   Mac** (proposed, the port's first step). A Playwright `chromium` project
+   Mac** (proposed, the port's first step; accepted on 2026-10-12, as
+   built). A Playwright `chromium` project
    beside the `webkit` one, in `scripts/check.sh`; what differs between the
    two engines is most of what will differ in WebView2, and it costs no
    runner and no SSH.
@@ -296,7 +304,8 @@ refuses to rename a folder while any file in it is open. (On macOS, since
 
 ## Consequences
 
-- **Order of the work** (recorded recommendation, the maintainer's call):
+- **Order of the work** (recorded recommendation, the maintainer's call;
+  accepted on 2026-10-12, as followed):
   the port branches from `main` after pull request #37 merges; its first
   pull request is infrastructure only — item 8, `scripts/check-windows.sh`,
   an NSIS build that installs and opens — and touches no `verso-fs` code;
@@ -363,8 +372,12 @@ refuses to rename a folder while any file in it is open. (On macOS, since
 ## Status
 
 **Decided in parts (2026-10-07/09); the port shipped in 0.5.0-beta.1**
-(2026-10-08, `CHANGELOG.md`; release commit 98a2bf6). Still Proposed: the
-items named Proposed below.
+(2026-10-08, `CHANGELOG.md`; release commit 98a2bf6). **Accepted on
+2026-10-12** in what was still Proposed: the embedded WebView2
+bootstrapper (item 2), items 4, 6 to 9 and the order of the work,
+accepted by the maintainer as built and shipped, answering the ADR audit
+(*"Ajuste tudo que precisar. Está aprovado os ADRs"*). *(Until 2026-10-12
+this lead ended: "Still Proposed: the items named Proposed below.")*
 
 *(The lead until 2026-10-12, kept as history: "Proposed.")* Decided by
 the maintainer on 2026-10-07: the Windows app starts
@@ -377,7 +390,8 @@ Windows 10 and 11 (item 1); NSIS per user (item 2); no code signing for now
 code, optional otherwise (item 5, "Recomendado"); the Windows 10 machine
 later, the port written with Windows 10 in mind from the start
 (Consequences). Proposed: the embedded WebView2 bootstrapper (item 2),
-items 4, 6 to 9, and the order of the work. **Decided by the maintainer
+items 4, 6 to 9, and the order of the work *(accepted on 2026-10-12, as
+built)*. **Decided by the maintainer
 on 2026-10-09** (item 9; `CLAUDE.md` §2 item 9): the directory's
 `FlushFileBuffers` counts as the directory `fsync`; the path separator in
 a path relative to the open folder is `/`, definitive. *(History: until

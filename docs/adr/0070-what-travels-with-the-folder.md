@@ -24,6 +24,11 @@
   setting of the person, never of the note's author or of the folder
   (0073 item 6), which closes this ADR's `[OPEN]` on them. The text below
   is kept, with a note where it concerns these.
+  2026-10-12 — items 1 and 2, the folder's layer of settings in
+  `.verso/`, accepted by the maintainer for the next round, answering the
+  ADR audit in session: *"Ajuste tudo que precisar. Está aprovado os ADRs"*; the
+  retention of a desktop folder in
+  [0080](0080-the-trash-with-expiry-and-restore.md) waits on them.
 
 ## Context
 
@@ -56,7 +61,8 @@ those, the rule item 3 takes.
 
 ## Decision
 
-1. **Three layers of settings** (proposed):
+1. **Three layers of settings** (proposed; accepted on 2026-10-12, built
+   in the next round):
    - **the machine's**, never synced: the index, its sidecar, the log, the
      window's layout. Where they are today (ADR 0011 unchanged).
    - **the folder's**, synced with it because they are about it: what anyone
@@ -71,7 +77,8 @@ those, the rule item 3 takes.
      ([0021](0021-sync-automerge-layered-config.md)) gives them a home.
      *(On a server, since 2026-10-09: the account is their home,
      [0073](0073-self-hosted-server-first.md) item 5.)*
-2. **The folder's layer, proposed contents**: the bookmarks, the ignored
+2. **The folder's layer, proposed contents** *(accepted on 2026-10-12,
+   built in the next round)*: the bookmarks, the ignored
    paths, the folder note's name. On first opening a folder after this
    lands, what the machine kept for it moves into the folder once.
 3. **Names every OS can keep. Decided by the maintainer on 2026-10-08**:
@@ -122,7 +129,11 @@ those, the rule item 3 takes.
 ## Status
 
 Decided in parts: item 3 (2026-10-08); item 4's separator, `/`, and the
-hidden directory's name, `.verso/` (2026-10-09). Proposed: items 1 and 2.
+hidden directory's name, `.verso/` (2026-10-09). Items 1 and 2, the
+folder's layer in `.verso/`: accepted on 2026-10-12, to be built in the
+next round; the retention of a desktop folder in
+[0080](0080-the-trash-with-expiry-and-restore.md) waits on them. *(Until
+2026-10-12: "Proposed: items 1 and 2.")*
 
 *(History, the lead until 2026-10-12:)* Proposed. Decided by the
 maintainer on 2026-10-08: item 3 (names every OS can keep, for what Verso
