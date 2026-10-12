@@ -15,6 +15,13 @@ import { pullSettings, pushSettings } from "./web/settingsSync";
 import { notice } from "./web/notice";
 import { chooseFolder, devicePage, invitePage, resetPage, setupPage, signInLinkPage, signInPage } from "./web/pages";
 import { setLang, w } from "./web/strings";
+import { holdClicks } from "./earlyClicks";
+
+// The folder button is on the page before the window's script, which this
+// one imports only after the server said who is signed in: a click on it
+// meanwhile is kept and made once the switcher is wired (the button shows
+// it is busy until then).
+const openHeld = holdClicks(document.getElementById("open"));
 
 async function start(): Promise<void> {
   const s = await state();
@@ -89,6 +96,7 @@ async function start(): Promise<void> {
     sayReader();
   });
   const window_ = await import("./main");
+  openHeld();
   if (section) {
     const { loadCan } = await import("./can");
     await loadCan();

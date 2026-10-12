@@ -46,6 +46,7 @@ versão de teste.
 
 ### Corrigido
 
+- **No navegador, o botão da pasta funciona desde o primeiro clique**: enquanto a janela ainda carrega, ele mostra que ainda não está pronto, e um clique feito nessa hora é guardado e abre o seletor de pastas assim que a janela fica pronta — numa máquina lenta ele simplesmente se perdia.
 - **Um compartilhamento revogado enquanto sincronizava sempre é dito na hora**: o aviso "Quem compartilhou … revogou o seu acesso em …" podia se perder quando a janela perguntava o estado da sincronização logo antes de ouvir a mudança; agora quem trouxer a mudança primeiro a diz, uma vez.
 - **Uma pasta que sincroniza um compartilhamento não lista mais os próprios ajustes como não sincronizados**: o `.verso/settings.json` da pasta de quem recebe é assunto deste computador ([ADR 0070](adr/0070-what-travels-with-the-folder.md)), então a sincronização do compartilhamento o deixa em paz — nunca enviado, nunca baixado, nunca listado — e diz isso uma vez no log do app.
 - **Uma pasta do servidor com dois nomes que só diferem em maiúsculas e minúsculas** (`Nota.md` e `nota.md`, feitos antes da recusa por caixa ou fora do Verso): o aparelho guarda um e lista o outro uma vez em *Ajustes › Sincronização*, "dois nomes que só diferem em maiúsculas e minúsculas no servidor; este computador guarda um", em vez de tentar baixá-lo e falhar como nome ocupado a cada passada (spec Q8).
