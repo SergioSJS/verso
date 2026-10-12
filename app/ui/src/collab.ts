@@ -295,6 +295,9 @@ function hear(): void {
   void listen<CollabUpdate>("collab-update", (e) => sessions.get(e.payload.path)?.applyRemote(e.payload.update), opts);
   void listen<CollabUpdate>("collab-awareness", (e) => sessions.get(e.payload.path)?.applyAwareness(e.payload.update), opts);
   void listen<CollabState>("collab-saved", (e) => {
+    // A room wrote its file: the views over the folder read it again
+    // (bases.ts), whoever holds the note.
+    dispatchEvent(new CustomEvent<string>("verso:room-saved", { detail: e.payload.path }));
     const s = sessions.get(e.payload.path);
     if (s && e.payload.revision) {
       s.revision = e.payload.revision;
