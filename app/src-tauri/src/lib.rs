@@ -51,6 +51,7 @@ mod protocol;
 mod remote;
 mod sync;
 mod sync_commands;
+mod trash;
 mod update;
 mod version;
 mod web;
@@ -65,6 +66,7 @@ use notes::*;
 use protocol::*;
 use remote::*;
 use sync_commands::*;
+use trash::*;
 use update::*;
 use web::*;
 use windows::*;
@@ -255,7 +257,13 @@ async fn install<R: tauri::Runtime>(
     // A batch that came while the folder was being opened found no session
     // to bring up to date; it runs now.
     if let Some(catch_up) = catch_up {
+        let service = Arc::clone(&service);
         tauri::async_runtime::spawn_blocking(move || service.catch_up(&catch_up));
+    }
+    // Its bin is swept as it opens (ADR 0080 item 3), off the event loop.
+    {
+        let key = info.key.clone();
+        tauri::async_runtime::spawn_blocking(move || trash::sweep_now(&service, &key));
     }
     // The folder just opened is the freshest recent: the menu learns.
     #[cfg(target_os = "macos")]
@@ -657,7 +665,12 @@ macro_rules! commands_for {
                 open_claude_download,
                 check_for_updates,
                 download_and_install_update::<$runtime>,
-                restart_app::<$runtime>
+                restart_app::<$runtime>,
+                trash_list::<$runtime>,
+                trash_restore::<$runtime>,
+                trash_delete::<$runtime>,
+                trash_empty::<$runtime>,
+                trash_set_days::<$runtime>
             ])
             // Not in any command: the payload of events.
             .typ::<FolderChanged>()
@@ -844,6 +857,8 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             // before any window opens (ADR 0004, decided 2026-10-07).
             migrate_web_data(&app.config().identifier);
             hear(app.handle());
+            // Each open folder's bin, swept once a day (ADR 0080 item 3).
+            trash::start_daily(app.handle());
             // The main window is made here, not from the configuration
             // alone: it needs the download hook every window of the app
             // has (`on_download`).
