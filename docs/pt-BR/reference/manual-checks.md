@@ -177,6 +177,19 @@ testes de ponta a ponta cobrem o resto.
   uma cópia *(conflito, …)*, com a diferença em *Ajustes* ›
   *Sincronizar*; um vídeo grande cruza inteiro; o Obsidian, na pasta do
   Mac, vê as mudanças; o log diz o que cruzou e não tem `ERROR`.
+- [ ] **Uma nota ao vivo em dois computadores** (ADR 0082), ao lado da
+  verificação acima: a mesma nota aberta em Editar na pasta sincronizada
+  do Mac, na do outro computador e num navegador; cada um vê o texto dos
+  outros enquanto digitam, com os nomes ao lado do título (*ao vivo, com
+  …*); os arquivos dos dois computadores seguem a sala em segundos e
+  nenhuma cópia *(conflito, …)* aparece. Wi-Fi desligado no Mac enquanto
+  digita: *local — sem conexão*, o texto fica e está no arquivo do Mac;
+  ligado de novo, a nota volta a *ao vivo* e o texto digitado sem rede
+  está nas janelas dos outros, uma vez só. Com duas janelas do Mac em duas
+  pastas sincronizadas que têm, cada uma, uma nota com o mesmo nome,
+  digitar numa nunca aparece na outra (uma janela ouve só os eventos da
+  sua sala). O VoiceOver diz quem entra e sai, e a nota ficando local e
+  ao vivo. O log não tem `ERROR`.
 - [ ] **Um botão da faixa oculto e trazido de volta** no app instalado:
   botão direito › *Ocultar este botão*, a barra de status diz onde;
   *Ajustes* › *Aparência* › o switch dele o traz de volta; a engrenagem não

@@ -346,7 +346,7 @@ const STOPS = [
     cards: [["n-servidor", "23 - Verso num Servidor.md", 640]],
     tip:
       "O Universo, o Verso num servidor seu, guarda as pastas e as abre no navegador: contas por convite, dono, editores e leitores, várias pessoas na mesma nota. " +
-      "No app desktop, Ajustes › Servidores conecta pelo navegador; Ajustes › Sincronizar mantém uma pasta deste computador igual a uma do servidor.",
+      "No app desktop, Ajustes › Servidores conecta pelo navegador; Ajustes › Sincronizar mantém uma pasta deste computador igual a uma do servidor — e, com a rede, uma nota aberta nela é editada junto, ao vivo.",
   },
 ];
 
