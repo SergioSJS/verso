@@ -163,6 +163,7 @@ impl Board {
         if json.len() > CANVAS_MOST {
             return Err(refused("a board's file of 16 MB at most"));
         }
+        crate::collab::readable(at)?;
         let at = StateVector::decode_v1(at).map_err(|_| refused("not a state vector"))?;
         self.canvases.retain(|(sv, _)| *sv != at);
         self.canvases.push((at, json));
