@@ -94,7 +94,7 @@ as written. Sizes: S is hours, M a day or two, L more.
    line with that prefix and the masked address, that a `log_write` of
    `sign-in failed from …` comes out prefixed `window`, and that the
    fail2ban regex, run over the test's lines with a small matcher,
-   catches exactly the failures. Size S.
+   catches exactly the failures. Size S. *(2026-10-13, as built: see below)*
    - `[DECIDED 2026-10-13]` Ship the fail2ban filter in the `.deb`/`.rpm` (under
      `/etc/fail2ban/filter.d/`, inert without fail2ban) or in the
      documentation only. *Recommendation:* in the package, so that
@@ -138,7 +138,7 @@ as written. Sizes: S is hours, M a day or two, L more.
    characters stays the floor. `api.rs` (`check_password`), `config.rs`,
    `lib.rs`. Guardrail: a test that `password1234` and `qwertyuiop12`
    are refused and a four-word passphrase is accepted; the file's size
-   bounded in the test (under 200 KB). Size S.
+   bounded in the test (under 200 KB). Size S. *(2026-10-13, as built: see below)*
    - `[DECIDED 2026-10-13]` A k-anonymity check against Have I Been
      Pwned's range API
      (five characters of the SHA-1 sent, nothing identifying). *Recommendation:*
@@ -222,7 +222,7 @@ as written. Sizes: S is hours, M a day or two, L more.
      (`update.rs`).
    Guardrail: a test per bound in `tests_bounds.rs` (the 64 KiB header
    refused with 431, the 4 MB update refused, the poll delay) and the
-   PDF option asserted by `test/pdf.test.mjs`.
+   PDF option asserted by `test/pdf.test.mjs`. *(2026-10-13, as built: see below)*
 
 9. **The headers completed, and asserted** (F16). HSTS gains
    `includeSubDomains` when the server serves its own TLS or the public
@@ -263,7 +263,7 @@ as written. Sizes: S is hours, M a day or two, L more.
     image started on the lab's VM by `scripts/check-linux.sh`'s package
     step (the server answering `/api/state` under the new unit and the
     read-only container), seen failing first with a syscall the filter
-    denies. Size S.
+    denies. Size S. *(2026-10-13, as built: see below)*
 
 12. **A backup that can leave the machine** (F10). `universo.sh backup`
     gains `--encrypt`: with `age` installed, the tarball is piped through
@@ -411,6 +411,162 @@ implementada e feita".)*
   maintainer says otherwise: a CAPTCHA, a proof-of-work, Have I Been
   Pwned, account lockout.
 
+## As built (2026-10-13)
+
+Built on 2026-10-13 on the branch `docs/security-hardening`, in the
+merges of sec/edge (cf0aa7f: items 5, 7, 8, 9), sec/sign-in (fcddbf8:
+items 1 to 4), sec/ops (29d11f7 and b5b9dae: items 10 to 13 and 15) and
+sec/prove (c6fbf1a: items 6 and 17). Below, item by item, where the code
+departs from the Decision's text or reads it one way among several, as the
+builders recorded it in their commits. Item 14 is being merged (Status);
+items 16, 18 and 19 are not in these merges. A fact taken from a builder's
+report and not found in the code or in a commit says *(reported)*.
+
+**Item 1** (e9dda35). The Decision's `failregex` catches nothing:
+fail2ban cuts the time out of a line it reads from a file, and puts
+`<host> <program>[<pid>]: ` before a line it reads from the journal, so
+`^\S+ WARN` matches neither; and `<HOST>` cannot take the /64 the line
+carries for IPv6. The shipped filter is
+`^\s*(?:\S+ \S+: )?(?:\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ )?WARN sign-in failed from <SUBNET> for \S+ \(\d+ in a row\)$`,
+the jail reads the journal (`backend = systemd`), and nfpm installs both
+files as `config|noreplace`. The test's matcher expands `<HOST>`,
+`<ADDR>` and `<SUBNET>` as fail2ban 1.1 does and runs the filter over the
+lines a test server wrote, in both shapes; it takes `regex` as a
+dev-dependency (already in the tree, MIT OR Apache-2.0). `log::line` turns
+a message's control characters into spaces, so no message writes a second
+line. A device's poll names no account: its line says `for -` and its
+count is keyed `device:<address>`. `sign-in limited` is said by every
+caller of `api::limited`, by the passkey's start and by the device's
+start.
+
+**Item 2** (805febb, 97cfd3e). "Accounts under attack today" is read as
+the last 24 hours. The notice is a row of the audit log,
+`sign_in_noticed`, so the once-a-day rule holds across a restart; the row
+is written whether or not the server has a mail server, and the console's
+words say no more than that (97cfd3e). A passkey refused and a wrong
+current password at a change count among the 20. Every sign-in — by
+password, a passkey's finish, a device's poll — waits the server's debt
+before it is heard, the debt never deeper than 2 s.
+
+**Item 3** (c77902e). SecLists' top 10 000 holds only 24 passwords of 12
+characters or more, and neither `password1234` nor `qwertyuiop12`; the
+list is therefore the 10 000 commonest of 12 characters or more from the
+same project's xato-net list of a million (MIT), with the source's
+commit, address and SHA-256 and the command that made it in
+`crates/verso-server/passwords.LICENSE`; 140 276 bytes. A password equal
+to the account's e-mail or its local part answers the same
+`common_password`. A reset checks the password before the link is used,
+so a refused one leaves the link usable.
+
+**Item 4** (ac59422, 66debdc). `revokeTokens` defaults to false on the
+server, for pages older than the change; the window's form offers it
+checked by default. `universo admin reset` revokes the tokens too, its
+audit rows with the address `machine`. The tokens' queries moved first,
+unchanged, to `db/tokens.rs` (66debdc, [0067](0067-source-files-stay-small.md):
+`db.rs` was at 1 486 lines), where `revoke_tokens_of` is.
+
+**Item 5** (748838d). `X-Forwarded-Proto` is still believed from any
+trusted peer, not walked as `X-Forwarded-For` is. The Cloudflare recipes
+of `docs/reference/server-install.md` follow Caddy's documented options
+and have not been tried against a live Cloudflare *(reported)*.
+
+**Item 7** (9b4cdf0, 023dcc0, 4bbd292). Only a direct connection from
+loopback is left unpaced (023dcc0): through a proxy everyone is paced
+under the walked address, or, when the proxy forwarded none, under the
+proxy's own address as one key — a forwarded `127.0.0.1` would otherwise
+have been exempt, and a proxy that forwarded nothing would have switched
+the pace off. A refused WebSocket upgrade takes a request from the pace and
+is answered 429 past it, since `fair.rs` counts accepted sockets only. At
+most 10 "past the pace" lines a minute for the whole server, then one line
+that counts the rest (4bbd292). The map of buckets is bounded at 100 000
+keys, the least recently used tenth evicted.
+
+**Item 8** (cb05804, 4b892cc). hyper's `max_buf_size(64 KiB)` alone lets
+a head through when it arrives in one read (seen: 100 KiB answered 200),
+so the router's `guard` answers 431 past 64 KiB as well. `isEvalSupported`
+no longer exists in pdfjs-dist 6.3.289 (tsc refuses the key), and its
+build has no `eval(` call and no `Function(` constructor: F22 is void as
+written, and its guardrail is a test in `app/ui/test/pdf.test.mjs` that
+asserts that of `pdf.mjs` and `pdf.worker.mjs` (4b892cc). A poll's right
+secret is answered whatever its address's delay; the delay slows wrong
+polls only, so a stranger behind the same address cannot keep the app
+from signing in ([0074](0074-accounts-and-access-on-the-server.md)
+item 9). The mail key is taken only for a string with an `@`.
+
+**Item 9** (7cd1383). As written; no `preload`. The whole set is asserted
+in `tests_threats.rs`, over plain HTTP on this machine and with an HTTPS
+public address.
+
+**Item 10** (99683ed). At most 36 500 days, one parser shared with
+`VERSO_TRASH_DAYS`. The sweep runs at start and once a day; no route,
+command or setting triggers it or names a row, so it is no way to erase
+evidence.
+
+**Item 11** (d2af446). `scripts/check-linux.sh` has no package step. The
+unit and the read-only image are started by `scripts/check-server-image.sh`:
+the compose file parsed and its hardening checked, the image run with the
+same flags, then the static binary laid out as `nfpm.yaml` lays it in a
+Debian 12 container running systemd, started by `universo.service`, and
+checked to run under seccomp with the folder 0750 and the database 0600;
+seen failing with a write outside the volumes and with a fabricated
+`SystemCallFilter=~bind`. Run in Docker on arm64, `systemd-analyze
+security` exposure 1.3 (`docs/reference/server-install.md`, section 15). `docker-compose.yml` at 2409498 was invalid
+YAML (an unquoted colon in a CasaOS tagline): quoted. The Docker secret
+for the first admin's password is shown commented out, since
+`docker compose up` refuses to start while the secret's file is missing.
+
+**Item 12** (80f35b3). Beside `backup --encrypt`, `--keygen`,
+`--passphrase` and `--to-stdout`, the script gains
+`restore FILE [--identity KEY-FILE] [--to DIR]`, beyond the restore line
+the Decision names, noted for the maintainer. The secret key is never a
+command's argument and is written under none of `/etc`, `/var`, `/root`,
+`/tmp`, `/home`, `/run`, `/usr/local` or `/opt`, which the script test
+checks. The site's copy, `public/universo.sh` in versomd-site, is to be
+refreshed from the package's *(reported)*.
+
+**Item 13** (cda7500, b616d12, d160f38). On 2026-10-13 the gate found five
+high advisories with no fix the PR could take, and the maintainer decided
+(*"aceito recomendação"*): nanoid overridden to 3.3.20 and 5.1.16
+(Excalidraw's pins); lodash-es overridden to 4.18.1 (the pins of langium's
+chevrotain and of dagre-d3-es); mermaid 12.0.0 → 12.2.0 (a direct
+dependency, approved); braces 3.0.3 excepted in
+`app/ui/audit-exceptions.json` until 2027-01-11 — the newest published,
+still covered, reaching the tree through Excalidraw → sass → chokidar and
+absent from the window's bundle. source-map-js 1.2.1 → 1.2.2 in the
+lockfile. One low advisory, KaTeX's, remains *(reported)*: the gate
+lists lows and moderates and fails on high and critical only.
+
+**Item 15** (cfd382f, e779585). `Expires` is a year after the date
+`CHANGELOG.md` gives the version built (the binary embeds the changelog;
+it has no build date of its own), and the test checks that date, not the
+clock (e779585). `Canonical` only behind an HTTPS public address (RFC
+9116). `Policy` points at the repository's `SECURITY.md` on GitHub, which
+answers 404 to the public while the repository is private *(reported)*.
+The supported line is the newest release. The site must serve the same
+file *(reported)*; that the mailbox exists is still for the maintainer to
+confirm.
+
+**Item 6** (40de8b5, 1d7c4e4). The session keeps `proved_at` (schema 9),
+stamped by every session's creation — a sign-in by password, passkey or
+e-mail link, a reset, an invitation, a device's approval.
+`POST /api/me/prove` by password goes through the sign-in's own keys,
+turn, hash and refusal (items 1 and 2) and answers 403 `signin_failed`;
+by passkey, `POST /api/me/prove/passkey` starts the ceremony. Gated
+beyond the Decision's list: the password change, the admin's reset link
+for another account, an owner giving or changing a member's role
+(`folders::set_member`) and a share's role (`shares::grant`). Left
+ungated: invitations, creating accounts, adopting a folder, quotas, the
+trash, removing a member. The window asks on the spot through
+`web/proof.ts` and `web/proveDialog.ts` and retries once. A request with a
+personal access token answers 403 "not with an access token".
+
+**Item 17** (73807d2). A typed code is cleaned (`read_code`), compared in
+constant time against every pending code, and the address's
+`device:<address>` delay is checked before every lookup — describe,
+approve, refuse, by link or typed — and counted on a wrong code; a right
+code does not clear it. The page sends the code in the body; the path
+routes stay. Item 6's proof is checked before the code is read.
+
 ## Consequences
 
 - What people feel: a password they chose refused at setup or at an
@@ -497,3 +653,20 @@ person outside the project, which stays a condition of the announcement.
 The items go in one PR with their guardrails, each seen failing first
 ([0029](0029-guardrails-in-ci.md)), and the review's findings table says
 what closed each.
+
+**Built on 2026-10-13** (As built): items 1 to 13, 15 and 17. **Item
+14 is in progress**, its fuzz targets and fixes on the branch sec/fuzz,
+being merged; its as-built note comes with that merge. What the targets
+found, so that the next pass completes it:
+(a) `Host: [::1]@evil.example` was taken for the loopback — fixed in
+fec23f4, with a test; (b) yrs 0.28, the newest, panics in a release build
+on updates a member who may write can send — decided on 2026-10-13
+(*"aceito recomendação"*): the panic is caught at the room's boundary, the
+update refused, a `WARN` line with the account's id, and the room made
+again from the file on disk by the path a change from outside takes; what
+a member loses is the edits since the room last wrote (900 ms after the
+last edit) — 606ffeb; (c) count bombs: an update or a state vector that
+declares more entries than it has bytes is refused before yrs decodes it —
+40893a6, 658f924; (d) the server's targets run with `-O` (release) in CI —
+060f126; (e) `config::size` below one byte is an error — bc2b9fc. The
+hashes are those of sec/fuzz and may change in the merge.

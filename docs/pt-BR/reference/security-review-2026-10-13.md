@@ -10,9 +10,10 @@
   mantenedor.
 - Escrita por Fable 5.1 a pedido do mantenedor, uma troca dos papéis do
   [ADR 0032](../adr/0032-author-and-reviewer-roles.md) (documentos são do
-  Opus); a ser lida por Opus 5.5. Não decide nada: cada achado traz uma
-  severidade como recomendação, e o que depende do mantenedor está
-  `[ABERTO]` no ADR.
+  Opus); lida por Opus 5.5 em 2026-10-13 (ADR 0083, Status). Não decide
+  nada: cada achado traz uma severidade como recomendação, e o que depende
+  do mantenedor está `[ABERTO]` no ADR. A última coluna da tabela de
+  achados, acrescentada em 2026-10-13, diz o que fechou cada um.
 - Contra o HEAD af4d73a de `feat/universo`. Lido para esta revisão:
   `crates/verso-server/src` (`http.rs`, `auth.rs`, `api.rs`, `device.rs`,
   `passkeys.rs`, `limit.rs`, `listen.rs`, `fair.rs`, `tls.rs`, `rpc.rs`,
@@ -63,31 +64,31 @@ guardrail ou decisão aceita é violada e nenhum achado perde dados. Os
 IMPORTANTES são o que separa este HEAD da "segurança por inteiro" do
 item 6 do ADR 0073:
 
-| # | Achado | Severidade | Onde |
-|---|---|---|---|
-| F1 | Um sign-in que falha não escreve linha no log do servidor: só a tabela de auditoria. fail2ban e CrowdSec não veem nada; uma força bruta é invisível ao host até a página de auditoria ser lida | IMPORTANTE | `api.rs:149-157`; sondado: 12 falhas, o log vazio |
-| F2 | Nenhum teto sobre tentativas de sign-in além do atraso por chave: a 60 s por chave, uma conta recebe ~1 440 palpites por dia para sempre, de um endereço ou de muitos, e ninguém é avisado | IMPORTANTE | `limit.rs:69-73,101`, `api.rs:124-126` |
-| F3 | A senha só é conferida pelo tamanho (12): uma senha comum de 12 caracteres passa; sem lista de recusa, sem aviso no sign-in | IMPORTANTE | `api.rs:70-78`, `config.rs:128` |
-| F4 | Uma redefinição ou troca de senha encerra as sessões e deixa os tokens de acesso pessoal: o token de um atacante sobrevive à recuperação da pessoa | IMPORTANTE | `api.rs:413-416`, `api.rs:484-487`; o `end_all_of` do admin revoga (`admin.rs:171`) |
-| F5 | Um só endereço de proxy confiável: atrás do Cloudflare, ou de qualquer proxy com vários endereços, os cabeçalhos encaminhados não podem ser acreditados, e todo limite por endereço passa a usar o endereço do proxy — as três falhas de um estranho atrasam o sign-in de todo mundo | IMPORTANTE | `config.rs:171-176`, `auth.rs:99-116` |
-| F6 | As entradas do próprio servidor não passam por fuzzing: os pedidos JSON do WebSocket, as atualizações Yjs, os quadros do sync e os estados de presença; só o dialeto e o leitor de canvas passam | IMPORTANTE | `.github/workflows/ci.yml:236-261`; `collab.rs:460`, `rpc.rs:322-331` |
-| F7 | As dependências npm são conferidas por licença, nunca por advisories; os renderizadores (PDF.js, Mermaid, KaTeX, Excalidraw, Yjs) já tiveram advisories de XSS e prototype pollution | IMPORTANTE | `ci.yml:80-81,142-144`; nenhum `npm audit` em lugar nenhum |
-| F8 | Nenhum jeito de relatar uma vulnerabilidade: sem `SECURITY.md`, sem `/.well-known/security.txt`, sem política de divulgação ou prazo de resposta declarados | IMPORTANTE | raiz do repositório; `http.rs:266-418` (sem rota) |
-| F9 | A revisão externa que o item 6 do ADR 0073 pede continua aberta (lacuna 10 do modelo de ameaças); a revisão do sanitizador pelo modelo que não o escreveu também | IMPORTANTE | `threat-model.md`, lacuna 10 e o primeiro `[ABERTO]` |
-| F10 | Um backup é um tarball em claro com as notas, o banco e o arquivo env (uma senha dentro, talvez); o manual manda copiá-lo para fora da máquina, em claro | IMPORTANTE | `packaging/server/universo.sh:819-879` |
-| F11 | Uma caixa de e-mail pode ser inundada com e-mails de sign-in e de redefinição: o atraso usa o endereço do remetente, nunca o endereço de destino | MENOR | `api.rs:650-654,761-764` (lacuna 7 do modelo de ameaças, o resto) |
-| F12 | O buffer de cabeçalhos do hyper é o padrão (~400 KiB): uma linha de cabeçalho de 200 KB foi aceita; 512 conexões × 400 KiB é um quinto do host de 1 GB | MENOR | `listen.rs:264-267`; sondado |
-| F13 | Uma sala de nota aceita uma atualização Yjs de até 48 MB (o limite da mensagem); a sala de board limita uma a 4 MB | MENOR | `rpc.rs:40`, `collab_board.rs:49`; `collab.rs:460` |
-| F14 | As rotas REST não têm ritmo além da família do sign-in: uma inundação de `/api/state` ou da página sem sessão é limitada só pelas conexões | MENOR | `http.rs:266-418`; `fair.rs` cobre só o WebSocket |
-| F15 | Ações sensíveis não pedem prova recente: um token é criado, uma passkey adicionada, uma conta apagada pelo admin, com um cookie de 14 dias | MENOR | `api.rs:548-585`, `passkeys.rs:79`, `admin.rs:118` |
-| F16 | `HSTS` sem `includeSubDomains`; `Permissions-Policy` nomeia quatro recursos; `style-src 'unsafe-inline'`, `img-src https:`, `frame-src https:` na política da página | MENOR | `http.rs:446-454,482-486,512` |
-| F17 | A rota de poll do aparelho não tem atraso próprio; a página de aprovação tira o código do link, então um link num e-mail ainda chega num botão *Aprovar* (a lacuna 12 fez a página dizer quem pediu) | MENOR | `device.rs:193-231`, `device.rs:159-183` |
-| F18 | O compose e o manual do Docker põem a senha do primeiro admin em `environment:`, legível com `docker inspect`; a forma `_FILE` existe e não é o exemplo | MENOR | `docker-compose.yml:52-57`, `config.rs:110-125` |
-| F19 | O contêiner não é declarado somente leitura e mantém as capabilities no compose; a unidade poderia somar `ProtectProc`, `SystemCallFilter` | MENOR | `docker-compose.yml:25-59`, `universo.service:33-61` |
-| F20 | Uma pasta é criada com o umask do processo (`0755` visto): num host com outros usuários locais e um diretório de pastas que eles entram, as notas ficam legíveis; o diretório `0750` do pacote as guarda | MENOR | sondado; `postinstall.sh:22-24` |
-| F21 | Um membro escreve 60 linhas de 2 000 caracteres por minuto no log do servidor; a tabela de auditoria cresce sem retenção | MENOR | `rpc.rs:46,592-610`, `db.rs:1417` |
-| F22 | O PDF.js é aberto com `isEvalSupported` no padrão (true); a política da página não tem `unsafe-eval`, então o compilador de fontes é bloqueado pelo navegador, não pelo código | MENOR | `app/ui/src/pdf.ts:246,443` |
-| F23 | A checagem de atualização segue redirecionamentos (padrão do reqwest): um feed que redirecionasse a um endereço privado seria buscado | MENOR | `update.rs:103-114` |
+| # | Achado | Severidade | Onde | Fechado por (ADR 0083, 2026-10-13) |
+|---|---|---|---|---|
+| F1 | Um sign-in que falha não escreve linha no log do servidor: só a tabela de auditoria. fail2ban e CrowdSec não veem nada; uma força bruta é invisível ao host até a página de auditoria ser lida | IMPORTANTE | `api.rs:149-157`; sondado: 12 falhas, o log vazio | item 1: e9dda35 |
+| F2 | Nenhum teto sobre tentativas de sign-in além do atraso por chave: a 60 s por chave, uma conta recebe ~1 440 palpites por dia para sempre, de um endereço ou de muitos, e ninguém é avisado | IMPORTANTE | `limit.rs:69-73,101`, `api.rs:124-126` | item 2: 805febb, 97cfd3e |
+| F3 | A senha só é conferida pelo tamanho (12): uma senha comum de 12 caracteres passa; sem lista de recusa, sem aviso no sign-in | IMPORTANTE | `api.rs:70-78`, `config.rs:128` | item 3: c77902e |
+| F4 | Uma redefinição ou troca de senha encerra as sessões e deixa os tokens de acesso pessoal: o token de um atacante sobrevive à recuperação da pessoa | IMPORTANTE | `api.rs:413-416`, `api.rs:484-487`; o `end_all_of` do admin revoga (`admin.rs:171`) | item 4: ac59422 |
+| F5 | Um só endereço de proxy confiável: atrás do Cloudflare, ou de qualquer proxy com vários endereços, os cabeçalhos encaminhados não podem ser acreditados, e todo limite por endereço passa a usar o endereço do proxy — as três falhas de um estranho atrasam o sign-in de todo mundo | IMPORTANTE | `config.rs:171-176`, `auth.rs:99-116` | item 5: 748838d |
+| F6 | As entradas do próprio servidor não passam por fuzzing: os pedidos JSON do WebSocket, as atualizações Yjs, os quadros do sync e os estados de presença; só o dialeto e o leitor de canvas passam | IMPORTANTE | `.github/workflows/ci.yml:236-261`; `collab.rs:460`, `rpc.rs:322-331` | item 14: em andamento (sec/fuzz, sendo integrado) |
+| F7 | As dependências npm são conferidas por licença, nunca por advisories; os renderizadores (PDF.js, Mermaid, KaTeX, Excalidraw, Yjs) já tiveram advisories de XSS e prototype pollution | IMPORTANTE | `ci.yml:80-81,142-144`; nenhum `npm audit` em lugar nenhum | item 13: cda7500, b616d12, d160f38 |
+| F8 | Nenhum jeito de relatar uma vulnerabilidade: sem `SECURITY.md`, sem `/.well-known/security.txt`, sem política de divulgação ou prazo de resposta declarados | IMPORTANTE | raiz do repositório; `http.rs:266-418` (sem rota) | item 15: cfd382f, e779585 |
+| F9 | A revisão externa que o item 6 do ADR 0073 pede continua aberta (lacuna 10 do modelo de ameaças); a revisão do sanitizador pelo modelo que não o escreveu também | IMPORTANTE | `threat-model.md`, lacuna 10 e o primeiro `[ABERTO]` | item 16: pendente |
+| F10 | Um backup é um tarball em claro com as notas, o banco e o arquivo env (uma senha dentro, talvez); o manual manda copiá-lo para fora da máquina, em claro | IMPORTANTE | `packaging/server/universo.sh:819-879` | item 12: 80f35b3 |
+| F11 | Uma caixa de e-mail pode ser inundada com e-mails de sign-in e de redefinição: o atraso usa o endereço do remetente, nunca o endereço de destino | MENOR | `api.rs:650-654,761-764` (lacuna 7 do modelo de ameaças, o resto) | item 8: cb05804 |
+| F12 | O buffer de cabeçalhos do hyper é o padrão (~400 KiB): uma linha de cabeçalho de 200 KB foi aceita; 512 conexões × 400 KiB é um quinto do host de 1 GB | MENOR | `listen.rs:264-267`; sondado | item 8: cb05804 |
+| F13 | Uma sala de nota aceita uma atualização Yjs de até 48 MB (o limite da mensagem); a sala de board limita uma a 4 MB | MENOR | `rpc.rs:40`, `collab_board.rs:49`; `collab.rs:460` | item 8: cb05804 |
+| F14 | As rotas REST não têm ritmo além da família do sign-in: uma inundação de `/api/state` ou da página sem sessão é limitada só pelas conexões | MENOR | `http.rs:266-418`; `fair.rs` cobre só o WebSocket | item 7: 9b4cdf0, 023dcc0, 4bbd292 |
+| F15 | Ações sensíveis não pedem prova recente: um token é criado, uma passkey adicionada, uma conta apagada pelo admin, com um cookie de 14 dias | MENOR | `api.rs:548-585`, `passkeys.rs:79`, `admin.rs:118` | item 6: 40de8b5, 1d7c4e4 |
+| F16 | `HSTS` sem `includeSubDomains`; `Permissions-Policy` nomeia quatro recursos; `style-src 'unsafe-inline'`, `img-src https:`, `frame-src https:` na política da página | MENOR | `http.rs:446-454,482-486,512` | item 9: 7cd1383 |
+| F17 | A rota de poll do aparelho não tem atraso próprio; a página de aprovação tira o código do link, então um link num e-mail ainda chega num botão *Aprovar* (a lacuna 12 fez a página dizer quem pediu) | MENOR | `device.rs:193-231`, `device.rs:159-183` | item 8: cb05804 (a espera do poll); item 17: 73807d2 (o código digitado) |
+| F18 | O compose e o manual do Docker põem a senha do primeiro admin em `environment:`, legível com `docker inspect`; a forma `_FILE` existe e não é o exemplo | MENOR | `docker-compose.yml:52-57`, `config.rs:110-125` | item 11: d2af446 |
+| F19 | O contêiner não é declarado somente leitura e mantém as capabilities no compose; a unidade poderia somar `ProtectProc`, `SystemCallFilter` | MENOR | `docker-compose.yml:25-59`, `universo.service:33-61` | item 11: d2af446 |
+| F20 | Uma pasta é criada com o umask do processo (`0755` visto): num host com outros usuários locais e um diretório de pastas que eles entram, as notas ficam legíveis; o diretório `0750` do pacote as guarda | MENOR | sondado; `postinstall.sh:22-24` | item 11: d2af446 |
+| F21 | Um membro escreve 60 linhas de 2 000 caracteres por minuto no log do servidor; a tabela de auditoria cresce sem retenção | MENOR | `rpc.rs:46,592-610`, `db.rs:1417` | item 10: 99683ed (a retenção da tabela de auditoria; as 60 linhas por minuto do log sem mudança) |
+| F22 | O PDF.js é aberto com `isEvalSupported` no padrão (true); a política da página não tem `unsafe-eval`, então o compilador de fontes é bloqueado pelo navegador, não pelo código | MENOR | `app/ui/src/pdf.ts:246,443` | sem objeto: o pdfjs-dist 6.3.289 não tem `isEvalSupported` nem eval; teste de guardrail, item 8: 4b892cc |
+| F23 | A checagem de atualização segue redirecionamentos (padrão do reqwest): um feed que redirecionasse a um endereço privado seria buscado | MENOR | `update.rs:103-114` | item 8: cb05804 |
 
 ## 2. Bots e abuso
 
