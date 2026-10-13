@@ -40,8 +40,16 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
+    # The port is published on this machine's loopback only: TLS goes in
+    # front (Caddy, a tunnel, or `tailscale serve`; docs/reference/
+    # server-install.md, section 8), and the proxy reaches it here. To
+    # publish it on the home network instead (a CasaOS box reached from the
+    # LAN, say), change one line: the address on `host_ip` below becomes
+    # 0.0.0.0. Plain HTTP on the LAN still signs nobody in from
+    # another machine: the server signs in over HTTPS only (ADR 0073 item 6).
     ports:
       - target: 7340
+        host_ip: 127.0.0.1
         published: "7340"
         protocol: tcp
     volumes:
@@ -106,8 +114,8 @@ services:
       ports:
         - container: "7340"
           description:
-            en_US: Web UI (HTTP; put TLS in front)
-            pt_BR: Interface web (HTTP; coloque TLS na frente)
+            en_US: Web UI (HTTP, on this machine only by default; put TLS in front)
+            pt_BR: Interface web (HTTP, por padrão só nesta máquina; coloque TLS na frente)
       volumes:
         - container: /data
           description:

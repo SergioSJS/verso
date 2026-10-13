@@ -690,6 +690,18 @@ as expectativas foram corrigidas para o parser dos navegadores, e nenhuma
 falha do sanitizador foi achada. O pentest por uma pessoa de fora do
 projeto não está nesta rodada e continua condição do anúncio.
 
+**A porta do arquivo compose** (2026-10-13). Deixada em aberto depois
+da construção e decidida pelo mantenedor em 2026-10-13 (*"sobre as
+decisões em aberto, siga as recomendações"*): o
+`packaging/server/docker-compose.yml` publica a 7340 em `127.0.0.1` por
+padrão (`host_ip`), com TLS na frente — Caddy, um túnel ou o Tailscale.
+O comentário dele diz a única linha a trocar para publicar na LAN, para
+uma caixa CasaOS numa rede de casa, e que HTTP puro na LAN não faz login
+de ninguém de outra máquina de qualquer forma
+([0073](0073-self-hosted-server-first.md) item 6). O
+`scripts/check-server-image.sh` confere a ligação no arquivo já lido, e
+um comentário não passa por ela.
+
 ## Consequências
 
 - O que as pessoas sentem: uma senha que escolheram recusada no setup ou

@@ -667,6 +667,18 @@ expectations were corrected for the browsers' parser, and no fault of the
 sanitizer was found. The pentest by a person outside the project is not
 in this round and stays a condition of the announcement.
 
+**The compose file's port** (2026-10-13). Left open after the build and
+decided by the maintainer on 2026-10-13 (*"sobre as decisões em aberto,
+siga as recomendações"*, on the open decisions, follow the
+recommendations): `packaging/server/docker-compose.yml` publishes 7340 on
+`127.0.0.1` by default (`host_ip`), TLS in front — Caddy, a tunnel or
+Tailscale. Its comment says the one line to change to publish on the
+LAN, for a CasaOS box on a home network, and that plain HTTP on the LAN
+signs nobody in from another machine anyway
+([0073](0073-self-hosted-server-first.md) item 6).
+`scripts/check-server-image.sh` checks the binding in the parsed file,
+so a comment cannot pass for it.
+
 ## Consequences
 
 - What people feel: a password they chose refused at setup or at an

@@ -202,7 +202,8 @@ Tags: the version (`0.8.0-beta.1`), `latest` for the newest
 production version and `beta` for the newest test version. While only test
 versions exist, `latest` does not exist: use `beta` or a version.
 
-The port is published on `127.0.0.1` because TLS goes in front (section 8).
+The port is published on `127.0.0.1` because TLS goes in front (section 8);
+the compose file of section 4 publishes it the same way.
 `docker logs universo` shows the log, including the setup link of section 9.
 
 **A proxy on the host in front of a published port** (Caddy installed on
@@ -248,7 +249,19 @@ command (`read_only`, `tmpfs: /tmp`, `cap_drop: ALL`,
 `no-new-privileges`), and shows the first admin's password as a Docker
 secret, commented out, before the plain variable: to use it, put the
 password in `admin-password` beside the compose file, readable by uid 1000,
-and uncomment the three places the file marks. The image is pulled from GitHub's registry,
+and uncomment the three places the file marks.
+
+The compose file publishes port 7340 on `127.0.0.1` only (decided by the
+maintainer on 2026-10-13, [ADR 0083](../adr/0083-security-hardening-of-universo.md),
+As built): TLS goes in front — Caddy, a tunnel, or `tailscale serve`
+(section 8) — and reaches it on the machine itself. To publish it on the
+home network instead, as a CasaOS box reached from the LAN may want,
+change one line, `host_ip: 127.0.0.1` to `host_ip: 0.0.0.0`. Plain HTTP
+on the LAN still signs nobody in from another machine: the server signs in
+over HTTPS only ([ADR 0073](../adr/0073-self-hosted-server-first.md)
+item 6), so the LAN still needs TLS in front for a sign-in.
+
+The image is pulled from GitHub's registry,
 which needs a `docker login` while the repository is private (section 11):
 on CasaOS and ZimaOS, in the system's terminal, once.
 
