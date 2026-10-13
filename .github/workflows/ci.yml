@@ -79,6 +79,11 @@ jobs:
       # the lockfile only, with the runner's own Node.
       - name: npm licenses on the allowlist (ADR 0029)
         run: node scripts/check-npm-licenses.mjs
+      # No advisory of severity high or critical in the same lockfile but by
+      # a dated exception in app/ui/audit-exceptions.json, as cargo deny
+      # holds the Rust tree (ADR 0083 item 13). It asks the registry.
+      - name: npm advisories (ADR 0083 item 13)
+        run: node scripts/check-npm-audit.mjs
       # No source file past 1500 lines, but by a recorded exception that
       # only shrinks. Node and git only.
       - name: source files under the size limit (ADR 0067)
