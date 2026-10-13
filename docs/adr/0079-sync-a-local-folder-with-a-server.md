@@ -67,7 +67,11 @@
   local, its text kept and written here, nothing lost; the return rejoins
   the room, or, when the room is another, ends in item 8's conflict copy.
   A reader, which syncs to read (item 1), is present in the room and its
-  edits are refused. The items' words are unchanged. 2026-10-12 — items
+  edits are refused. The items' words are unchanged. *(2026-10-12, evening:
+  the same for a board and any text file of a synced folder,
+  [0082](0082-live-co-editing-of-a-synced-folder.md) item 12 — live while
+  connected, sync the one writer of the local file, and the tab's own write
+  out of the room, by `write_text` or `write_board`, known by its hash.)* 2026-10-12 — items
   5 and 12, the wire (the sync campaign's finding F31, a file in transit
   held whole in the server's memory per device, plus its base64; the
   maintainer that day: *"Ajuste todas essas pendências agora"*, relayed in

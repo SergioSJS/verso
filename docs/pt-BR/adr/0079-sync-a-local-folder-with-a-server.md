@@ -69,7 +69,12 @@
   aqui, nada perdido; a volta entra de novo na sala, ou, quando a sala é
   outra, termina na cópia de conflito do item 8. Um leitor, que
   sincroniza para ler (item 1), está presente na sala e as edições dele
-  são recusadas. As palavras dos itens não mudam. 2026-10-12 — itens 5 e
+  são recusadas. As palavras dos itens não mudam. *(2026-10-12, noite: o
+  mesmo para um board e qualquer arquivo de texto de uma pasta
+  sincronizada, item 12 da [0082](0082-live-co-editing-of-a-synced-folder.md)
+  — ao vivo enquanto conectado, o sync o único escritor do arquivo local,
+  e a escrita da própria aba fora da sala, por `write_text` ou
+  `write_board`, reconhecida pelo hash.)* 2026-10-12 — itens 5 e
   12, o fio (o achado F31 da campanha de sincronização, um arquivo em
   trânsito inteiro na memória do servidor para cada aparelho, mais o seu
   base64; o mantenedor nesse dia: *"Ajuste todas essas pendências agora"*,
