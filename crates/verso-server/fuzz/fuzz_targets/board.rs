@@ -35,11 +35,9 @@
 //! of what they wrote a window could not read or apply, now checked
 //! before they are sent (`collab::state`, `collab::written`). The tests
 //! are in `tests_room_inputs.rs`.
-//! Open, in `../open-board/` and not replayed by the job until decided:
-//! `use-after-free.bin`, the note's finding in a board's room;
-//! `window-reads-other-elements.bin` and `order-matters.bin`, updates kept
-//! aside by the room that a window that joins, or a room that took them
-//! in the other order, places.
+//! And `use-after-free.bin`, `window-reads-other-elements.bin` and
+//! `order-matters.bin`: the note's findings on the path where `yrs` keeps
+//! an update aside, which a room no longer takes (see the `note` target).
 //! Run:
 //! `cargo +nightly fuzz run board fuzz/corpus/board fuzz/seeds-board`.
 

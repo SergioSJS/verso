@@ -276,6 +276,9 @@ async fn run(
     let account = who.account.id.clone();
     let who = Arc::new(who);
     let mut log_budget = (std::time::Instant::now(), 0_u32);
+    // The last room update of this connection still being taken: the next
+    // waits for it (`collab_update` in order, below).
+    let mut last_update: Option<tokio::sync::oneshot::Receiver<()>> = None;
     let requests = Arc::new(Semaphore::new(REQUESTS));
     let mut ping = tokio::time::interval_at(tokio::time::Instant::now() + PING_EVERY, PING_EVERY);
     ping.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -389,12 +392,31 @@ async fn run(
                 } else {
                     server.fair.command(&who.account.id)
                 };
+                // A window's room updates are taken in the order it sent
+                // them (ADR 0083 item 14): each waits for the one before
+                // to be taken, so the room never holds one aside for an
+                // earlier one still on its way. The connection's other
+                // commands stay side by side.
+                let in_order = (request.cmd == "collab_update").then(|| {
+                    let (done, taken) = tokio::sync::oneshot::channel::<()>();
+                    (last_update.replace(taken), done)
+                });
                 tokio::spawn(async move {
                     if !turn.is_zero() {
                         tokio::time::sleep(turn).await;
                     }
+                    let done = match in_order {
+                        Some((before, done)) => {
+                            if let Some(before) = before {
+                                let _ = before.await;
+                            }
+                            Some(done)
+                        }
+                        None => None,
+                    };
                     let id = request.id;
                     let answer = handle(&server, &who, &client, request, data).await;
+                    drop(done);
                     let signed_out = answer.as_ref().is_err_and(|e| e.message == SIGNED_OUT);
                     match answer {
                         // A piece of a file (ADR 0079 item 12): in a binary

@@ -10,9 +10,12 @@
 //! moves, resizes, text, colour, grouping, reconnecting, deleting,
 //! undoing a deletion — on the elements as it sees them, so that two
 //! change one element at once whenever their views lag. What each sends
-//! goes in a shuffled order, what each hears is taken in a shuffled order
-//! and late, one drops its connection in the middle of a burst and comes
-//! back, and the room is asked to write the board as it goes. A reader
+//! goes in the order it made it, as a window's connection carries it, and
+//! the room takes a connection's updates in that order (ADR 0083 item 14:
+//! it once took them side by side and kept some aside, where `yrs` 0.28
+//! read freed memory); what each hears is taken in a shuffled order and
+//! late, one drops its connection in the middle of a burst and comes back,
+//! and the room is asked to write the board as it goes. A reader
 //! reads the file from the disk the whole time.
 //!
 //! After each seed: (a) every client holds the same elements, which are
@@ -217,13 +220,12 @@ impl Client {
         }
     }
 
-    /// What waits to go out, in a shuffled order.
-    async fn flush(&mut self, rng: &mut Rng) {
+    /// What waits to go out, in the order it was made.
+    async fn flush(&mut self) {
         if self.ws.is_none() {
             return;
         }
-        let mut out = std::mem::take(&mut self.out);
-        rng.shuffle(&mut out);
+        let out = std::mem::take(&mut self.out);
         for u in out {
             let sent = self
                 .call(
@@ -287,11 +289,29 @@ fn hear(inbox: &mut Vec<Vec<u8>>, conflicts: &mut usize, v: &Value) {
     }
 }
 
-/// A client takes an update in as the window's Yjs does — which places
-/// updates heard in any order — through the server's own `integrate`
-/// (yrs alone leaves some aside).
+/// A client takes an update in as the window's Yjs does, which places
+/// updates heard in any order: what waits for an earlier one is taken out
+/// and applied again until nothing more is placed (`yrs` 0.28 leaves some
+/// of what it kept aside unplaced once several wait). The room no longer
+/// does this: it takes a connection's updates in order.
 fn apply(doc: &Doc, update: &[u8]) {
-    crate::collab::integrate(doc, Update::decode_v1(update).unwrap()).unwrap();
+    use yrs::WriteTxn;
+    let mut txn = doc.transact_mut();
+    txn.apply_update(Update::decode_v1(update).unwrap())
+        .unwrap();
+    for _ in 0..64 {
+        if !txn.has_missing_updates() {
+            break;
+        }
+        let before = txn.state_vector();
+        let Some(waiting) = txn.prune_pending() else {
+            break;
+        };
+        txn.apply_update(waiting).unwrap();
+        if txn.state_vector() == before {
+            break;
+        }
+    }
 }
 
 fn waiting(doc: &Doc) -> bool {
@@ -751,7 +771,7 @@ async fn run(seed: u64, ops: usize) -> (usize, usize) {
         }
         let c = &mut clients[n];
         if rng.chance(60) {
-            c.flush(&mut rng).await;
+            c.flush().await;
         }
         if rng.chance(50) {
             c.listen(Duration::from_millis(rng.below(15) as u64)).await;
@@ -763,7 +783,7 @@ async fn run(seed: u64, ops: usize) -> (usize, usize) {
         // A connection dropped in the middle of a burst (never the first
         // client's: the room keeps someone in it), and back a while later.
         if n != 0 && c.ws.is_some() && rng.chance(4) {
-            c.flush(&mut rng).await;
+            c.flush().await;
             c.ws = None;
             c.offline = true;
             c.inbox.clear();
@@ -798,7 +818,7 @@ async fn run(seed: u64, ops: usize) -> (usize, usize) {
     }
     for _ in 0..4 {
         for c in &mut clients {
-            c.flush(&mut rng).await;
+            c.flush().await;
         }
         for c in &mut clients {
             c.listen(Duration::from_millis(150)).await;

@@ -37,6 +37,7 @@ versão de teste.
 ### Corrigido
 
 - **O arquivo compose volta a ser lido**: dois-pontos sem aspas no tagline do CasaOS faziam o `docker compose` recusar o arquivo inteiro; o `scripts/check-server-image.sh` agora o confere com `docker compose config`.
+- **As edições de uma janela chegam a uma nota ou um board compartilhado na ordem em que foram feitas** ([ADR 0083](adr/0083-security-hardening-of-universo.md) item 14): o UniVerso recebia as edições de uma janela lado a lado e podia embaralhá-las, e a sala podia ficar sem parte do que as janelas tinham. Agora recebe as edições de cada janela na ordem em que foram enviadas; uma edição que depende de algo que a sala nunca recebeu é recusada, e a sala é lida de novo do arquivo.
 
 ## 0.8.0-beta.1 — 2026-10-13
 
