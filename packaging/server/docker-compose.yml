@@ -40,6 +40,12 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
+    # The log rotated by Docker: three files of 10 MB at most (ADR 0083, As built).
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     # The port is published on this machine's loopback only: TLS goes in
     # front (Caddy, a tunnel, or `tailscale serve`; docs/reference/
     # server-install.md, section 8), and the proxy reaches it here. To

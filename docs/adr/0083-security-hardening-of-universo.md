@@ -679,6 +679,15 @@ signs nobody in from another machine anyway
 `scripts/check-server-image.sh` checks the binding in the parsed file,
 so a comment cannot pass for it.
 
+**The server's log volume** (2026-10-13, F21's remaining part). Decided
+by the maintainer on 2026-10-13 (*"sobre as decisões em aberto, siga as
+recomendações"*): the server rotates no log of its own; rotation is left
+to the host's tools and documented. A package's log is the unit's output,
+which journald rotates (`journalctl --vacuum-size`, `SystemMaxUse=`;
+`docs/reference/server-install.md`, section 5); the compose file declares
+Docker's `json-file` driver with `max-size: "10m"` and `max-file: "3"`
+(section 4). The 60 lines a minute a window may write are unchanged.
+
 ## Consequences
 
 - What people feel: a password they chose refused at setup or at an
