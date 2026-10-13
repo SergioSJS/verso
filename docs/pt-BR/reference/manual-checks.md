@@ -18,6 +18,35 @@ app real.
 
 ## Ainda não conferido
 
+### Tudo editado junto (item 12 da ADR 0082, feat/coedit-everything, 2026-10-12)
+
+- [ ] **Um board em dois lugares ao mesmo tempo** (21d096a, 5a027db): num
+  UniVerso, um board aberto no navegador e no app instalado na pasta do
+  servidor; arraste um cartão num enquanto desenha uma forma e escreve um
+  texto no outro: os dois veem os dois num instante, o ponteiro do outro
+  anda com o nome, o arquivo no disco do servidor tem os dois, sem faixa
+  de conflito, sem cópia; apague uma forma num enquanto a arrasta no
+  outro: ela continua apagada, e o ⌘Z onde foi apagada a traz de volta nos
+  dois.
+- [ ] **O board de uma pasta sincronizada entre dois computadores**: a
+  pasta sincronizada em dois Macs (ou um Mac e a VM do Windows), o mesmo
+  board aberto nos dois com rede: o mesmo de cima, e o arquivo local de
+  cada computador segue os salvamentos da sala; tire a rede de um, desenhe,
+  a aba diz *local — sem conexão* e o arquivo local tem o desenho; com a
+  rede de volta, *O quadro está ao vivo de novo* e o outro computador
+  recebe o que foi desenhado, sem cópia.
+- [ ] **Um `.txt` e uma base em dois lugares**: um arquivo de texto
+  digitado pelo navegador e pelo app ao mesmo tempo, letras juntadas; o
+  *Ordenar* e os *Filtros* de uma base mudados num, a visão da base do
+  outro se redesenha com eles, e o `.base` no disco os tem.
+- [ ] **Uma nota no cartão de um board e numa aba da mesma janela**: a
+  nota editada no cartão com a aba dela aberta ao lado, e de um navegador
+  ao mesmo tempo: os três mostram o mesmo texto, ninguém é tirado da sala,
+  o arquivo acompanha.
+- [ ] **Abrir não grava nada**: um board aberto em dois lugares, olhado,
+  arrastado e ampliado, fechado: a hora de modificação do arquivo não
+  muda.
+
 ### As decisões de 2026-10-12 (feat/decisions-2026-10-12)
 
 - [ ] **Um nome que só difere na caixa é recusado** (spec Q8, ADR 0070
