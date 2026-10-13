@@ -102,7 +102,8 @@ function room() {
 /** A board, as Excalidraw keeps one: handed elements, it orders them and
  *  gives a new index — a new version, in place — to one that shares its
  *  place with the one before. */
-function pane(session, r, layOut = null) {
+function pane(session, r, layOut = null, layOutTimes = Infinity) {
+  let laidOut = 0;
   const p = {
     scene: [],
     apply(remote) {
@@ -117,18 +118,19 @@ function pane(session, r, layOut = null) {
         }
         prev = e.index;
         // An engine of its own: a text laid out its way, a new version.
-        if (layOut && e.type === "text" && e.width !== layOut) {
+        if (layOut && e.type === "text" && e.width !== layOut && laidOut++ < layOutTimes) {
           e.width = layOut;
           e.version += 1;
           e.versionNonce = Math.floor(Math.random() * 2 ** 31);
         }
       }
       p.scene = merged;
-      const now = new Set(merged);
+      const now = new Map(merged.map((e) => [e.id, e]));
       // The board changed: it tells its room, as onChange does; what it
       // changed goes out on the session's own beat.
       session.scene(p.scene, "transparent", false);
-      return remote.filter((e) => now.has(e)).map((e) => e.id);
+      // Taken: the room's version, or a copy of it with its index repaired.
+      return remote.filter((e) => now.get(e.id) === e || (now.get(e.id)?.version === e.version && now.get(e.id)?.versionNonce === e.versionNonce)).map((e) => e.id);
     },
     people() {},
   };
@@ -138,7 +140,7 @@ function pane(session, r, layOut = null) {
 
 const el = (id, index, nonce) => ({ id, type: "rectangle", x: 0, y: 0, width: 10, height: 10, isDeleted: false, version: 1, versionNonce: nonce, index, groupIds: [], frameId: null });
 
-test("a version a board makes of a remote element by itself goes to the room, and every window settles on one", async () => {
+test("two elements in one place: every window draws them repaired alike, at the room's versions, and nothing is sent for it", async () => {
   const r = room();
   const sessions = [0, 1, 2, 3].map((n) => r.join(n));
   // Three windows draw the board; a fourth changes it with no board of its
@@ -149,17 +151,25 @@ test("a version a board makes of a remote element by itself goes to the room, an
   await r.deliver();
   // Two elements put in the same place: every board, handed both, gives
   // the second a place of its own — in place, its own nonce each.
+  const before = r.sent;
   r.as(sessions[3], () => sessions[3].patch([el("x1", "a5", 11), el("x2", "a5", 22)]));
   for (let i = 0; i < 6; i++) await r.deliver();
   const roomEls = b.resolve(r.doc.getMap("elements").entries());
-  const ranks = (els) => JSON.stringify([...els].filter((e) => e.id.startsWith("x")).map((e) => `${e.id}:${e.version}:${e.versionNonce}:${e.index}`).sort());
+  const ranks = (els) => JSON.stringify([...els].filter((e) => e.id.startsWith("x")).map((e) => `${e.id}:${e.version}:${e.versionNonce}`).sort());
+  const drawn = (els) => JSON.stringify([...els].filter((e) => e.id.startsWith("x")).map((e) => `${e.id}:${e.index}`));
   const want = ranks(roomEls.values());
-  if (process.env.DEBUG) { console.log("room", want); for (const p of panes) console.log("pane", ranks(p.scene)); }
+  if (process.env.DEBUG) { console.log("room", want); for (const p of panes) console.log("pane", ranks(p.scene), drawn(p.scene)); }
+  // Every window draws the room's versions — none made one of its own —
+  // and the same repaired order.
   for (const [i, p] of panes.entries()) assert.equal(ranks(p.scene), want, `window ${i} draws what the room does not hold`);
   for (const [i, s] of sessions.entries()) assert.equal(ranks(s.resolved().values()), want, `window ${i} holds another room`);
-  // Settled on one: the second element in a place of its own.
-  const x = [...roomEls.values()].filter((e) => e.id.startsWith("x")).sort((a, c) => (a.index < c.index ? -1 : 1));
-  assert.notEqual(x[0].index, x[1].index);
+  assert.equal(want, JSON.stringify(["x1:1:11", "x2:1:22"]), "a version made for the repair");
+  for (const p of panes.slice(1)) assert.equal(drawn(p.scene), drawn(panes[0].scene));
+  const x = panes[0].scene.filter((e) => e.id.startsWith("x"));
+  assert.deepEqual(x.map((e) => e.id), ["x1", "x2"]);
+  assert.ok(x[0].index < x[1].index, `${x[0].index} < ${x[1].index}`);
+  // Only the patch went to the room.
+  assert.equal(r.sent - before, 1, "the repair was sent");
   } finally {
     for (const s of sessions) s.leave();
   }
@@ -185,5 +195,28 @@ test("two engines that lay a text out each their own way settle: the room's vers
   } finally {
     for (const s of sessions) s.leave();
     void panes;
+  }
+});
+
+test("when the guard lets an engine's own layout stand, the board is handed the room's version once more and draws it", async () => {
+  const r = room();
+  const sessions = [0, 1, 2].map((n) => r.join(n));
+  // Two engines lay the text out each its own way, answering each other,
+  // on their first four intakes; after that each takes what it is handed.
+  // The guard stops the sending, and the board is handed the room's
+  // version once more: it draws it, not a layout of its own.
+  const panes = [pane(sessions[0], r, 100, 4), pane(sessions[1], r, 102, 4)];
+  try {
+    r.as(sessions[0], () => sessions[0].seed([]));
+    await r.deliver();
+    r.as(sessions[2], () => sessions[2].patch([{ ...el("t1", "a1", 5), type: "text", text: "olá", width: 90 }]));
+    for (let i = 0; i < 40; i++) await r.deliver();
+    const roomT = b.resolve(r.doc.getMap("elements").entries()).get("t1");
+    for (const [i, p] of panes.entries()) {
+      const t = p.scene.find((e) => e.id === "t1");
+      assert.equal(`${t.version}:${t.versionNonce}`, `${roomT.version}:${roomT.versionNonce}`, `window ${i} keeps a version of its own`);
+    }
+  } finally {
+    for (const s of sessions) s.leave();
   }
 });

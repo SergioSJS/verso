@@ -169,3 +169,48 @@ describe("a canvas given anew", () => {
     assert.equal(out[0].version, 5 + m.DELETE_JUMP);
   });
 });
+
+describe("indices repaired before the board takes the room's elements", () => {
+  const at = (id, index, more = {}) => ({ id, type: "rectangle", x: 0, y: 0, width: 10, height: 10, isDeleted: false, version: 3, versionNonce: 7, index, ...more });
+  test("two elements in one place: the second (by id) takes a key between it and the next, at the same version", () => {
+    const els = m.ordered([at("b", "a1"), at("a", "a1"), at("c", "a2")]);
+    const out = m.repairedIndices(els);
+    assert.deepEqual(out.map((e) => e.id), ["a", "b", "c"]);
+    assert.equal(out[0].index, "a1");
+    assert.ok("a1" < out[1].index && out[1].index < "a2", out[1].index);
+    assert.equal(out[2].index, "a2");
+    // A copy, at the room's version and nonce: nothing to send.
+    assert.equal(out[1].version, 3);
+    assert.equal(out[1].versionNonce, 7);
+    assert.notEqual(out[1], els[1]);
+    assert.equal(out[0], els[0]);
+  });
+  test("two windows handed the same room in other orders draw the same", () => {
+    const room = [at("x1", "a5"), at("x2", "a5"), at("x3", "a5"), at("y", "a6"), at("z", null), at("w", "")];
+    const one = m.repairedIndices(m.ordered(room));
+    const two = m.repairedIndices(m.ordered([...room].reverse()));
+    assert.deepEqual(two, one);
+    const idx = one.map((e) => e.index);
+    for (let i = 1; i < idx.length; i++) assert.ok(idx[i - 1] < idx[i], `${idx[i - 1]} < ${idx[i]}`);
+    // What has a good index keeps it.
+    assert.equal(one.find((e) => e.id === "x1").index, "a5");
+    assert.equal(one.find((e) => e.id === "y").index, "a6");
+  });
+  test("an order that is already good is left as it is", () => {
+    const els = [at("a", "a0"), at("b", "a1"), at("c", "a1V")];
+    const out = m.repairedIndices(els);
+    for (let i = 0; i < els.length; i++) assert.equal(out[i], els[i]);
+  });
+  test("mergeScene hands the board repaired indices", () => {
+    const merged = m.mergeScene([at("a", "a1")], [at("b", "a1", { version: 4 })], new Set(), () => false);
+    assert.ok(merged[0].index < merged[1].index);
+  });
+  test("the board's own object stays where it holds the room's very version", () => {
+    const mine = at("a", "a1");
+    const room = { ...mine };
+    const moved = { ...at("b", "a2"), version: 5 };
+    const merged = m.mergeScene([mine, at("b", "a2")], [room, moved], new Set(), () => false);
+    assert.equal(merged[0], mine, "drawn anew though nothing changed");
+    assert.equal(merged[1], moved);
+  });
+});

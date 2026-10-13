@@ -276,12 +276,13 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
   /** The room's elements `ids` (and its background), into the board. */
   private pull(ids: ReadonlySet<string>, background: string | null | undefined): void {
     const all = this.resolved();
-    const remote: El[] = [];
-    for (const id of ids) {
-      const e = all.get(id);
-      if (e) remote.push(e);
-    }
-    if (remote.length === 0 && background === undefined) return;
+    if (![...ids].some((id) => all.has(id)) && background === undefined) return;
+    // Every element of the room, not only the ones that changed: the board
+    // is handed the room's own version of each element it agrees on, so
+    // what it draws — the indices repaired the same in every window
+    // (`repairedIndices`) — is made of the room's state alone, never of an
+    // earlier repair this window made over fewer elements.
+    const remote = [...all.values()];
     // Merged while `known` still says what the board last agreed on: a
     // change of its own not sent yet — a deletion above all — is told from
     // one the room already has (`mine`). What a board took in is agreed on
@@ -300,6 +301,7 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
     const taken = new Set<string>();
     for (const p of this.panes) for (const id of p.apply(remote, background)) taken.add(id);
     let own = false;
+    const again = new Set<string>();
     for (const e of remote) {
       if (!taken.has(e.id)) continue;
       const rank = ranks.get(e.id)!;
@@ -308,15 +310,23 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
         this.selfMade.delete(e.id);
         continue;
       }
-      // Changed by the board itself as it took the room's version. Two
-      // engines that lay an element out each their own way would answer
-      // each other's version for ever: after a few rounds the room's
-      // version stands here, and the board's own is not sent.
+      // Changed by the board itself as it took the room's version (a text
+      // laid out again by another engine; never an index any more, which
+      // `repairedIndices` hands it valid). Two engines that lay an element
+      // out each their own way would answer each other's version for
+      // ever: after a few rounds the board is handed the room's version
+      // once more, as its own is not — so that it draws the room's — and
+      // if it changes that one too, its own stands here, never sent.
       const n = (this.selfMade.get(e.id) ?? 0) + 1;
       this.selfMade.set(e.id, n);
-      if (n > SELF_MADE_MOST) this.known.set(e.id, rankOf(e));
-      else own = true;
+      if (n <= SELF_MADE_MOST) own = true;
+      else {
+        this.known.set(e.id, rankOf(e));
+        if (n === SELF_MADE_MOST + 1) again.add(e.id);
+      }
     }
+    // The room's version over the board's own, once (see above).
+    if (again.size > 0) this.pull(again, undefined);
     // What the board changed of them by itself goes out on the next beat.
     if (own && this.writable) this.pushSoon();
   }
