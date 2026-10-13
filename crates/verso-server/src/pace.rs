@@ -44,6 +44,55 @@ const PRUNE_EVERY: Duration = Duration::from_secs(60);
 /// How often a key past its pace is said in the log.
 const SAY_EVERY: Duration = Duration::from_secs(60);
 
+/// The lines past the pace said in a minute, for the whole server: past
+/// them, one line a minute counts the addresses not said, so that many
+/// addresses (a /48 holds 65 536 /64s) are a few lines, not a log filled.
+pub const LINES_A_MINUTE: u32 = 10;
+
+/// What the log has said of the pace this minute.
+#[derive(Default)]
+struct Said {
+    since: Option<Instant>,
+    lines: u32,
+    more: u32,
+}
+
+impl Said {
+    /// What to say of `key`, past its pace at `now` and not said in the
+    /// last minute: its line, while fewer than [`LINES_A_MINUTE`] were said
+    /// this minute; past them nothing, counted. The count is said with the
+    /// first line of the next minute — a flood that stopped is not said
+    /// again, its last minute being in the lines already there.
+    fn lines(&mut self, key: &str, now: Instant) -> Vec<String> {
+        let mut out = Vec::new();
+        if self
+            .since
+            .is_none_or(|s| now.saturating_duration_since(s) >= SAY_EVERY)
+        {
+            if self.more > 0 {
+                out.push(format!(
+                    "… and {} more addresses past the pace in the last minute: answered 429",
+                    self.more
+                ));
+            }
+            *self = Self {
+                since: Some(now),
+                lines: 0,
+                more: 0,
+            };
+        }
+        if self.lines < LINES_A_MINUTE {
+            self.lines += 1;
+            out.push(format!(
+                "requests from {key} past {RATE} a second: answered 429"
+            ));
+        } else {
+            self.more += 1;
+        }
+        out
+    }
+}
+
 struct Entry {
     bucket: Bucket,
     /// When this key's refusal was last said in the log.
@@ -59,6 +108,7 @@ struct Keys {
 #[derive(Default)]
 pub struct Pace {
     keys: Mutex<Keys>,
+    said: Mutex<Said>,
     /// A test's clock: when set, the time stands there until moved.
     #[cfg(test)]
     clock: Mutex<Option<Instant>>,
@@ -121,9 +171,10 @@ impl Pace {
         }
         drop(keys);
         if say {
-            crate::log::warn(&format!(
-                "requests from {key} past {RATE} a second: answered 429"
-            ));
+            let lines = lock(&self.said).lines(key, now);
+            for line in lines {
+                crate::log::warn(&line);
+            }
         }
         Some(wait)
     }
@@ -168,6 +219,36 @@ mod tests {
         // Said once a minute, not once a request.
         let said = crate::log::said("requests from 203.0.113.1 past");
         assert_eq!(said.len(), 1, "{said:?}");
+    }
+
+    #[test]
+    fn the_lines_past_the_pace_are_capped_for_the_whole_server() {
+        let mut said = Said::default();
+        let at = Instant::now();
+        let mut lines = Vec::new();
+        for i in 0..25 {
+            lines.extend(said.lines(&format!("198.51.100.{i}"), at));
+        }
+        assert_eq!(lines.len(), LINES_A_MINUTE as usize, "{lines:?}");
+        // A minute on: the count of the addresses not said, then the line.
+        let later = said.lines("198.51.100.99", at + Duration::from_secs(61));
+        assert_eq!(
+            later,
+            [
+                "… and 15 more addresses past the pace in the last minute: answered 429",
+                "requests from 198.51.100.99 past 20 a second: answered 429",
+            ]
+        );
+        // Through the pace: twelve addresses past it, ten said.
+        let pace = Pace::default();
+        pace.freeze();
+        for i in 0..12 {
+            for _ in 0..=(BURST as usize) {
+                pace.take(&format!("cap-{i}"));
+            }
+        }
+        let said = crate::log::said("requests from cap-");
+        assert_eq!(said.len(), LINES_A_MINUTE as usize, "{said:?}");
     }
 
     #[test]
