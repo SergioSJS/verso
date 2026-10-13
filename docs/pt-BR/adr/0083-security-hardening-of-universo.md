@@ -728,6 +728,13 @@ item 14 nomeia "o leitor de awareness do `collab.rs`": o alvo `presence`
 passa pelo `presence.rs` (`presence::stamped`, que o `collab::awareness`
 chama; 34474a0).
 
+**As conferências do mantenedor no app** (2026-10-13). O que os testes
+não alcançam está em `docs/reference/manual-checks.md`, nada disso
+bloqueando: uma nota e um board compartilhados editados pelo app desktop
+ao lado de outra janela (a ordem do (e)), o diálogo do item 6 com senha e
+com passkey, o código digitado do item 17, o Mermaid 12.2.0 (item 13) e
+os passos do Caddy do `universo.sh` ao lado de outro site (7755802).
+
 ## Consequências
 
 - O que as pessoas sentem: uma senha que escolheram recusada no setup ou
