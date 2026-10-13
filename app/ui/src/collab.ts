@@ -27,6 +27,7 @@ import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwareness
 import * as Y from "yjs";
 import { commands, type Capabilities, type CollabJoin, type CollabState, type CollabUpdate } from "./bindings";
 import type { RoomSide, TextChange, VisitedRoom } from "./roomWrites";
+import { UpdateQueue } from "./updateQueue";
 
 let capabilities: Promise<Capabilities | null> | null = null;
 
@@ -160,6 +161,9 @@ export abstract class RoomSession {
   private readonly holders = new Set<CollabHandlers>();
   /** What the room says, told to every holder. */
   readonly handlers: CollabHandlers;
+  /** This window's updates to the room, one in flight at a time
+   *  (updateQueue.ts). */
+  private readonly outbox: UpdateQueue;
 
   constructor(
     readonly path: string,
@@ -178,18 +182,22 @@ export abstract class RoomSession {
     for (const c of joined.user) hash = (hash * 31 + c.charCodeAt(0)) >>> 0;
     const color = COLORS[hash % COLORS.length] ?? "#b5651d";
     this.awareness.setLocalStateField("user", { name: joined.user, color, colorLight: `${color}33` });
+    this.outbox = new UpdateQueue(
+      async (update) => {
+        const r = await commands.collabUpdate(this.path, toB64(update));
+        if (r.status === "ok") return "ok";
+        return r.error.kind === "unavailable" ? "unavailable" : "refused";
+      },
+      // Refused — the person reads only now, the room is gone: what is
+      // typed here would never be written. Out of the room, and the tab
+      // says it (offline is not this: the rejoin sends it all).
+      () => this.lost(),
+      () => !this.closedLocally,
+    );
     this.doc.on("update", (update: Uint8Array, origin: unknown) => {
       // Local: kept in the document, sent whole when the tab is back.
       if (origin === REMOTE || this.closedLocally || !this.live) return;
-      void commands.collabUpdate(this.path, toB64(update)).then(
-        (r) => {
-          // Refused — the person reads only now, the room is gone: what is
-          // typed here would never be written. Out of the room, and the
-          // tab says it (offline is not this: the rejoin sends it all).
-          if (r.status !== "ok" && r.error.kind !== "unavailable") this.lost();
-        },
-        () => undefined,
-      );
+      this.outbox.push(update);
     });
     this.awareness.on("update", ({ added, updated, removed }: { added: number[]; updated: number[]; removed: number[] }, origin: unknown) => {
       if (origin === REMOTE || this.closedLocally || !this.live) return;
@@ -309,7 +317,8 @@ export abstract class RoomSession {
       Y.applyUpdate(this.doc, fromB64(r.data.update), REMOTE);
       this.live = true;
       this.why = null;
-      void commands.collabUpdate(this.path, toB64(Y.encodeStateAsUpdate(this.doc)));
+      // After whatever this window still had on its way.
+      this.outbox.push(Y.encodeStateAsUpdate(this.doc));
       this.revision = r.data.revision;
       // This window's cursor and name, to the others again.
       const me = this.awareness.getLocalState();
