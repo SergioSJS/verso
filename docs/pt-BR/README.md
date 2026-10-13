@@ -189,3 +189,7 @@ de produção, `vX.Y.Z-beta.N` uma versão de teste
   questões abertas.
 - [reference/app-decision.md](reference/app-decision.md) — o que a janela
   faz, e como verificar sem ler código.
+- [reference/server-hands-on.md](reference/server-hands-on.md) — instalar o
+  UniVerso passo a passo, com Docker ou um pacote, ao lado de outros apps,
+  até o app de desktop conectado; a referência é
+  [reference/server-install.md](reference/server-install.md).
