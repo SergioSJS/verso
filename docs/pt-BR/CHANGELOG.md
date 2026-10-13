@@ -12,6 +12,10 @@ versão de teste.
 
 ## Não lançado
 
+Nada ainda.
+
+## 0.8.0-beta.1 — 2026-10-13
+
 ### Acrescentado
 
 - **Tudo o que você edita na janela é editado junto, ao vivo — não só as notas** (item 12 da [ADR 0082](adr/0082-live-co-editing-of-a-synced-folder.md)): um board, um `.txt`, `.json` ou `.csv`, uma base (os filtros, ordenações, colunas e visões dela inclusive), o código de uma página e uma nota editada no cartão de um board entram na mesma sala de quem os tem abertos — no navegador, no app numa pasta do servidor ou em outro aparelho que sincroniza a pasta. Num board, as mudanças dos outros chegam enquanto eles as fazem e as deles e as suas ficam; quando duas pessoas mudam a mesma forma ao mesmo tempo, fica a versão mais nova, como o Excalidraw decide, e uma forma apagada continua apagada mesmo que alguém a estivesse arrastando. Você vê os ponteiros e as seleções dos outros com os nomes, e a aba diz quem está lá — *ao vivo, com Ana* —, o que um leitor de tela também ouve. O servidor grava o arquivo quando as edições assentam; uma edição feita junto nunca vira cópia de conflito. Um canvas salvo por outra ferramenta em outro layout só entra depois do primeiro salvamento aqui, mostrado como diff; um desenho do plugin Excalidraw continua mostrado, não editado, e o texto dele é uma nota, ao vivo como as notas.
@@ -48,6 +52,8 @@ versão de teste.
 
 ### Corrigido
 
+- **O que se edita junto chega em fração de segundo, não em meio minuto**: cada janela mandava o ponteiro umas 45 vezes por segundo, e o ritmo do servidor para uma conta segurava as edições atrás disso; agora uma janela manda a presença no máximo a cada 100 ms, e o servidor descarta uma presença além do ritmo em vez de pô-la na fila à frente de uma edição. Três janelas de uma conta num board ficam iguais 0,1–0,2 s depois que as edições param (levavam 25–33 s).
+- **Um board editado em várias janelas ao mesmo tempo termina igual em todas**: dois elementos feitos no mesmo instante no mesmo lugar não deixam mais cada janela empilhá-los do seu jeito, cada uma uma versão à frente da sala; uma janela que diagrama um texto do seu jeito volta a desenhar a versão da sala; e um elemento que outra pessoa apaga no instante em que o seu clique ou o seu desfazer o seleciona não fica mais selecionado depois de sumir; e o arquivo que a sala grava tem os mesmos bytes seja qual for a janela que o fez, então nunca muda sem uma edição.
 - **O que se digitava junto podia faltar no arquivo**: quando duas edições de uma janela chegavam ao servidor na ordem trocada, o servidor podia deixar a segunda de lado para sempre, e a nota, o arquivo de texto ou o board que ele gravava ficava sem o que foi digitado depois dela. Toda edição agora entra, na ordem que chegar (item 12 da [ADR 0082](adr/0082-live-co-editing-of-a-synced-folder.md)).
 - **Enter numa célula da tabela de uma base mostra o valor novo na hora**: o campo fecha, a célula mostra o que foi digitado e fica com o foco (Enter a abre de novo, como antes); a tabela não espera mais o foco sair da célula. Numa nota ao vivo na sua sala, o valor continua à mostra até a sala gravar o arquivo.
 - **No navegador, o botão da pasta funciona desde o primeiro clique**: enquanto a janela ainda carrega, ele mostra que ainda não está pronto, e um clique feito nessa hora é guardado e abre o seletor de pastas assim que a janela fica pronta — numa máquina lenta ele simplesmente se perdia.

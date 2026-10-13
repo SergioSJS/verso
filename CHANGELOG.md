@@ -12,6 +12,10 @@ test release.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.8.0-beta.1 — 2026-10-13
+
 ### Added
 
 - **Everything you edit in the window is edited together, live — not only notes** ([ADR 0082](docs/adr/0082-live-co-editing-of-a-synced-folder.md) item 12): a board, a `.txt`, `.json` or `.csv`, a base (its view's filters, sorts, columns and views included), a page's source and a note edited in a board's card join the same room as whoever has them open — in the browser, in the app on a server's folder, or on another device syncing the folder. On a board, the others' changes arrive as they make them and theirs and yours both land; when two people change the same shape at once, the later version stays, as Excalidraw decides it, and a shape deleted stays deleted even if someone was dragging it. You see the others' pointers and selections with their names, and the tab says who is there — *live, with Ana* — which a screen reader also hears. The server writes the file once the edits settle; an edit made together never becomes a conflict copy. A canvas saved by another tool in another layout joins only after its first save here, shown as a diff; a drawing of the Excalidraw plugin is still shown, not edited, and its text is a note, live as notes are.
@@ -48,6 +52,8 @@ test release.
 
 ### Fixed
 
+- **Edits made together arrive in a fraction of a second, not half a minute**: every window sent its pointer about 45 times a second, and the server's pace for an account held the edits behind them; a window now sends its presence at most every 100 ms, and the server drops a presence past the pace instead of queuing it ahead of an edit. Three windows of one account on one board now agree 0.1–0.2 s after the edits stop (they took 25–33 s).
+- **A board edited in several windows at once ends the same in all of them**: two elements made at the same moment in the same place no longer leave each window stacking them its own way, each one version apart from the room; a window that lays a text out its own way draws the room's version again; and an element another person deletes just as your own click or undo selects it is no longer left selected after it is gone; and the file the room writes has the same bytes whichever window made it, so it never changes without an edit.
 - **Text typed together could fall short of the file**: when two of a window's edits reached the server in the other order, the server could keep the later one aside for good, and the note, text file or board it wrote then lacked what was typed after it. Every edit is now placed, in whatever order it arrives ([ADR 0082](docs/adr/0082-live-co-editing-of-a-synced-folder.md) item 12).
 - **Enter in a base's table cell shows the new value at once**: the field closes, the cell shows what was typed and keeps the focus (Enter opens it again, as before); the table no longer waits for the focus to leave the cell. On a note live in its room, the value stays shown until the room writes the file.
 - **In a browser, the folder button works from the first click**: while the window is still loading it shows it is not ready yet, and a click made then is kept and opens the folder switcher as soon as the window is — on a slow machine it was simply lost.
