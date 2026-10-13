@@ -111,12 +111,17 @@ fn board_replayed(input: &[u8]) -> usize {
     served(Kind::Board, &base, doc, &records[3.min(records.len())..]).1
 }
 
-/// `fuzz/seeds-board/divide-by-zero.bin`: updates on which `yrs` divides
-/// by zero as it integrates them (`block_store.rs:60`).
+/// `fuzz/seeds-board/divide-by-zero.bin`: updates on which `yrs` divided
+/// by zero as it integrated them (`block_store.rs:60`). Its run of length
+/// 0 is now refused before `yrs` reads it; the room takes the rest.
 #[test]
 fn updates_that_divide_by_zero_do_not_break_a_board_room() {
-    let broken = board_replayed(include_bytes!("../fuzz/seeds-board/divide-by-zero.bin"));
-    assert!(broken >= 1);
+    let input = include_bytes!("../fuzz/seeds-board/divide-by-zero.bin");
+    let refused = records(input)[3..]
+        .iter()
+        .any(|u| collab::readable(u).is_err());
+    assert!(refused);
+    board_replayed(input);
 }
 
 /// `fuzz/seeds-board/state-that-does-not-apply.bin`: updates after which
@@ -468,5 +473,37 @@ fn every_window_gets_a_state_and_a_write_it_can_apply() {
         include_bytes!("../fuzz/seeds-board/written-with-an-invalid-parent-2.bin"),
     ] {
         board_through(input);
+    }
+}
+
+/// Found by the fuzz targets under `-O` once the panics were caught: a
+/// run of deleted clocks of length 0 left a run whose last clock wrapped
+/// to 0, and `yrs` divided by zero — in the update, and again in the
+/// transaction's drop as the first panic unwound. Two panics end the
+/// process, past any catch: the whole server. Refused before `yrs` reads
+/// them, with runs and deletions that pass `u32::MAX`.
+#[test]
+fn runs_of_no_length_or_past_the_last_clock_are_refused() {
+    for input in [
+        &include_bytes!("../fuzz/seeds-note/run-wrapping-to-zero.bin")[..],
+        include_bytes!("../fuzz/seeds-board/run-wrapping-to-zero.bin"),
+    ] {
+        let room = note_room("# Nota\n");
+        for update in records(input).get(3..).unwrap_or_default() {
+            let _ = taken(&room, update);
+        }
+    }
+    let by_hand: [&[u8]; 4] = [
+        // A GC run of length 0, and a skipped one.
+        &[1, 1, 5, 1, 0, 0, 0],
+        &[1, 1, 5, 1, 10, 0, 0],
+        // A deletion of length 0.
+        &[0, 1, 5, 1, 3, 0],
+        // A GC run from clock 2^32 - 2, of length 4.
+        &[1, 1, 5, 0xfe, 0xff, 0xff, 0xff, 0x0f, 0, 4, 0],
+    ];
+    for update in by_hand {
+        let e = collab::readable(update).expect_err("refused");
+        assert_eq!(e.message, "an update the room cannot read", "{update:?}");
     }
 }

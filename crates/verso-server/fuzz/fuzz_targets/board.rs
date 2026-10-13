@@ -82,7 +82,13 @@ fuzz_target!(|data: &[u8]| {
             Err(_) => {}
         }
     }
+    // A room made again from its file as it made its state: what it took
+    // is gone too.
+    let reloads = room.reloads;
     let state = room.state();
+    if room.reloads != reloads {
+        taken.clear();
+    }
     let merged = elements(&room.doc);
     let _ = edits(&room.doc);
     let _ = room.board.waiting(&room.doc);

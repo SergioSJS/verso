@@ -158,6 +158,8 @@ pub struct BoardRoom {
     pub board: Board,
     base: String,
     client: u64,
+    /// How many times the room was made again from its file.
+    pub reloads: u32,
 }
 
 impl BoardRoom {
@@ -170,11 +172,14 @@ impl BoardRoom {
             board,
             base: base.to_owned(),
             client,
+            reloads: 0,
         }
     }
 
     fn reload(&mut self) {
+        let reloads = self.reloads + 1;
         *self = Self::open(&self.base.clone(), self.client);
+        self.reloads = reloads;
     }
 
     /// A window's update, taken in as `collab::update` takes it: within
