@@ -17,6 +17,9 @@
 // (`fromElements`, model.ts), laid over the canvas the room was made from:
 // every window that holds the same state makes the same file.
 
+// The keys Excalidraw makes its fractional indices with, the same version
+// it depends on: an index repaired here is one Excalidraw takes as valid.
+import { generateNKeysBetween, validateOrderKey } from "@excalidraw/fractional-indexing";
 import { type CanvasDoc, type CanvasEdge, type CanvasNode, type El, fromElements } from "./model";
 
 /** An element's place among the others' versions of it. */
@@ -128,14 +131,66 @@ export function ordered(elements: Iterable<El>): El[] {
   });
 }
 
+/** Whether `index` is a fractional index Excalidraw takes. */
+function validIndex(index: unknown): index is string {
+  if (typeof index !== "string" || index === "") return false;
+  try {
+    validateOrderKey(index);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** `els`, in the board's order (`ordered`), with every index strictly
+ *  above the one before: an element whose index is not — two elements
+ *  made at once in two windows in the same place, an index missing —
+ *  takes a key between the last good one and the next one above it, the
+ *  keys Excalidraw would make (`generateNKeysBetween`). Handed to the
+ *  board, nothing is left for Excalidraw to repair on intake — which it
+ *  does in place, at a new version with a nonce of each window's own, so
+ *  that the windows never agree again. A repaired element is a copy at
+ *  the same version and nonce: not this window's change, nothing sent; its
+ *  index reaches the room with the element's next real edit. The order is
+ *  `ordered`'s, so the file (made of the room's elements in that order)
+ *  and every board stack them alike, and the keys depend on the elements
+ *  alone: windows handed the same elements repair them the same. */
+export function repairedIndices(els: readonly El[]): El[] {
+  const out = [...els];
+  let prev: string | null = null;
+  let i = 0;
+  while (i < out.length) {
+    const here = out[i]!["index"];
+    if (validIndex(here) && (prev === null || here > prev)) {
+      prev = here;
+      i++;
+      continue;
+    }
+    // The run of elements with no good index, and the first good one after.
+    let j = i;
+    while (j < out.length) {
+      const at = out[j]!["index"];
+      if (validIndex(at) && (prev === null || at > prev)) break;
+      j++;
+    }
+    const next = j < out.length ? (out[j]!["index"] as string) : null;
+    const keys = generateNKeysBetween(prev, next, j - i);
+    for (let k = i; k < j; k++) out[k] = { ...out[k]!, index: keys[k - i] };
+    prev = keys[keys.length - 1] ?? prev;
+    i = j;
+  }
+  return out;
+}
+
 /** The scene after the room's elements `remote` came in over `local`: an
  *  element the room has a winning version of takes it, unless this window
  *  is changing it right now (`busy`: a text typed, a shape dragged) or
  *  holds a version of its own that wins and is still on its way
  *  (`mine`). Elements new to this window come in; the result is in the
- *  board's order. */
+ *  board's order, its indices repaired (`repairedIndices`). */
 export function mergeScene(local: readonly El[], remote: Iterable<El>, busy: ReadonlySet<string>, mine: (e: El) => boolean): El[] {
-  const byId = new Map(local.map((e) => [e.id, e] as const));
+  const before = new Map(local.map((e) => [e.id, e] as const));
+  const byId = new Map(before);
   for (const r of remote) {
     const l = byId.get(r.id);
     // The room's version, also at the same rank: two windows that drew the
@@ -147,7 +202,14 @@ export function mergeScene(local: readonly El[], remote: Iterable<El>, busy: Rea
     if (l && (busy.has(r.id) || (mine(l) && outranks(rankOf(sendable(l, r)), rankOf(r))))) continue;
     byId.set(r.id, r);
   }
-  return ordered(byId.values());
+  // The board's own object where it already holds that very version, at
+  // the index it is drawn at: Excalidraw keeps what it drew of an element
+  // by the object, and a board handed the whole room on every change
+  // would draw every element anew.
+  return repairedIndices(ordered(byId.values())).map((e) => {
+    const l = before.get(e.id);
+    return l && l !== e && l["version"] === e["version"] && l["versionNonce"] === e["versionNonce"] && l["index"] === e["index"] && l.isDeleted === e.isDeleted ? l : e;
+  });
 }
 
 /** The canvas the room's elements make, laid over the canvas the room was
