@@ -95,18 +95,6 @@ mod tests {
     use super::*;
     use crate::tests::{block_on, start};
 
-    /// Days since 1970-01-01 of a civil date (Howard Hinnant's
-    /// `days_from_civil`), to compare `Expires` with today.
-    fn days(y: i64, m: i64, d: i64) -> i64 {
-        let y = if m <= 2 { y - 1 } else { y };
-        let era = y.div_euclid(400);
-        let yoe = y - era * 400;
-        let mp = (m + 9) % 12;
-        let doy = (153 * mp + 2) / 5 + d - 1;
-        let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-        era * 146_097 + doe - 719_468
-    }
-
     #[test]
     fn the_version_built_has_its_release_date_in_the_changelog() {
         let date = released(CHANGELOG, env!("CARGO_PKG_VERSION"));
@@ -121,9 +109,14 @@ mod tests {
         );
         assert_eq!(released("## 0.1.0 — soon\n", "0.1.0"), None);
         assert_eq!(
+            a_year_after("2026-10-13").as_deref(),
+            Some("2027-10-13T00:00:00Z")
+        );
+        assert_eq!(
             a_year_after("2028-02-29").as_deref(),
             Some("2029-02-28T00:00:00Z")
         );
+        assert_eq!(a_year_after("soon"), None);
     }
 
     #[test]
@@ -136,8 +129,11 @@ mod tests {
         assert!(!text(None).contains("Canonical:"));
     }
 
-    /// The route answers with the fields RFC 9116 asks, an `Expires` still
-    /// ahead, the server's headers, and nothing for a name not the
+    /// The route answers with the fields RFC 9116 asks, `Expires` a year
+    /// after the release the changelog dates — not checked against today:
+    /// a stale `Expires` is what a reader of an old build should see, and
+    /// a test that turned red with the calendar would have no PR to blame
+    /// (ADR 0029) — the server's headers, and nothing for a name not the
     /// server's.
     #[test]
     fn the_route_says_where_to_report_and_until_when() {
@@ -168,11 +164,19 @@ mod tests {
             );
             assert_eq!(field("Preferred-Languages").as_deref(), Some("pt-BR, en"));
             assert_eq!(field("Policy").as_deref(), Some(POLICY));
-            let expires = field("Expires").unwrap();
-            let n = |a: usize, b: usize| expires[a..b].parse::<i64>().unwrap();
-            let expires_day = days(n(0, 4), n(5, 7), n(8, 10));
-            let today = crate::db::now() / 86_400;
-            assert!(expires_day > today, "Expires {expires} is past");
+            // RFC 9116's form, the changelog's date with the year after
+            // (29 February to the 28th), worked out here on its own.
+            let date = released(CHANGELOG, env!("CARGO_PKG_VERSION")).unwrap();
+            let year: u32 = date[..4].parse().unwrap();
+            let day = if &date[4..] == "-02-29" {
+                "-02-28"
+            } else {
+                &date[4..]
+            };
+            assert_eq!(
+                field("Expires"),
+                Some(format!("{}{day}T00:00:00Z", year + 1))
+            );
             // Only what RFC 9116 asks: five fields at most, no comment.
             assert!(body.lines().all(|l| l.contains(": ")));
             assert!(body.lines().count() <= 5);
