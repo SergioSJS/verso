@@ -1017,9 +1017,12 @@ Not verified yet:
 - fail2ban's filter and jail, the CrowdSec parser and scenarios, and the
   Caddy `rate_limit` example of section 16, on a real host: the filter's
   expression is run in the server's tests over the server's own lines, as
-  fail2ban expands `<SUBNET>` and as it reads a file and the journal, not
-  by fail2ban itself; the CrowdSec files and the Caddy example are not run
-  at all.
+  fail2ban expands `<IP4>` and `<IP6>` and as it reads a file and the
+  journal; fail2ban 1.1.0 itself (Debian 13, in a container, 2026-10-13)
+  ran it with `fail2ban-regex` over a file of such lines — the IPv4
+  address and the IPv6 /64 caught, `0.0.0.0/0`, a /48 and a /24 not — and
+  `fail2ban-client -t` accepted the jail, but not over a journal; the
+  CrowdSec files and the Caddy example are not run at all.
 
 ## 16. Bans: fail2ban, CrowdSec and Caddy's rate_limit
 
@@ -1063,7 +1066,12 @@ The `.deb` and the `.rpm` install a filter,
 `/etc/fail2ban/filter.d/universo.conf`, and a jail,
 `/etc/fail2ban/jail.d/universo.conf`: ten refusals from one address in
 ten minutes ban it for an hour, read from the journal of
-`universo.service`. They do nothing until fail2ban is installed:
+`universo.service`. The filter takes an IPv4 address with no prefix or an
+IPv6 /64, the two shapes the server writes, and no other range, so a line
+naming `0.0.0.0/0` or a /48 bans no one. A ban closes `http` and `https`
+only (the jail's `port`), so a banned address still reaches SSH; a server
+that serves its own TLS on another port adds it to `port`. They do
+nothing until fail2ban is installed:
 
 ```sh
 sudo apt install fail2ban        # or: sudo dnf install fail2ban
@@ -1090,7 +1098,12 @@ In Docker, fail2ban runs on the host, and the two files are copied from
 `logging: driver: journald` in the compose file, in place of the shipped
 `json-file` block (journald then rotates them by its own limits, section
 5); the jail then reads
-`journalmatch = CONTAINER_NAME=universo` (the container's name). Docker
+`journalmatch = _SYSTEMD_UNIT=docker.service CONTAINER_NAME=universo` (the
+container's name). Both fields, not the name alone: `CONTAINER_NAME` is a
+field any program on the machine can write into the journal, and
+`_SYSTEMD_UNIT`, with its underscore, is journald's own, so only Docker's
+lines count (rootless Docker runs as a user's unit:
+`_SYSTEMD_USER_UNIT=docker.service`). Docker
 sends a published port's traffic past the host's `INPUT` chain: the ban
 needs `chain = DOCKER-USER` in the jail. On the host's network
 (`network_mode: host`, `--network host`), nothing is published and the
