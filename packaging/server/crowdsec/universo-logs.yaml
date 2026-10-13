@@ -1,0 +1,35 @@
+# CrowdSec's parser for UniVerso, the Verso server (ADR 0083 item 1): the
+# server's line for a refused sign-in,
+#
+#   2026-10-13T12:00:00Z WARN sign-in failed from 203.0.113.9 for a***@example.org (3 in a row)
+#
+# the address an IPv4 address whole or an IPv6 /64 (2001:db8:1:2::/64).
+# Not in the packages (decided 2026-10-13: CrowdSec's parsers live in its
+# hub); copied by hand, as docs/reference/server-install.md section 16 says:
+#
+#   sudo cp universo-logs.yaml /etc/crowdsec/parsers/s01-parse/
+#
+# It reads what crowdsecurity/syslog-logs leaves of a journal line (the
+# acquisition in section 16: journalctl, type syslog), the program being
+# `universo`, the binary's name under the packages' unit. A window's lines
+# begin with "window <id> (<account>):" after the level and are not read.
+
+onsuccess: next_stage
+name: verso/universo-logs
+description: "UniVerso: a refused sign-in"
+filter: "evt.Parsed.program == 'universo'"
+nodes:
+  - grok:
+      pattern: '^%{TIMESTAMP_ISO8601:verso_time} WARN sign-in failed from %{IP:verso_ip}(?:/%{INT:verso_prefix})? for %{NOTSPACE:verso_user} \(%{INT:verso_in_a_row} in a row\)$'
+      apply_on: message
+statics:
+  - meta: service
+    value: universo
+  - meta: log_type
+    value: universo_failed_auth
+  - meta: source_ip
+    expression: evt.Parsed.verso_ip
+  - meta: verso_prefix
+    expression: evt.Parsed.verso_prefix
+  - meta: target_user
+    expression: evt.Parsed.verso_user

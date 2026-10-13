@@ -9,9 +9,10 @@
   security "in full" before the first user who is not the maintainer.
 - Written by Fable 5.1 at the maintainer's request, a swap of the roles of
   [ADR 0032](../adr/0032-author-and-reviewer-roles.md) (documents are
-  Opus's); to be read by Opus 5.5. It decides nothing: each finding
-  carries a severity as a recommendation, and what needs the maintainer is
-  `[OPEN]` in the ADR.
+  Opus's); read by Opus 5.5 on 2026-10-13 (ADR 0083, Status). It decides
+  nothing: each finding carries a severity as a recommendation, and what
+  needs the maintainer is `[OPEN]` in the ADR. The findings table's last
+  column, added on 2026-10-13, says what closed each.
 - Against HEAD af4d73a of `feat/universo`. Read for this review:
   `crates/verso-server/src` (`http.rs`, `auth.rs`, `api.rs`, `device.rs`,
   `passkeys.rs`, `limit.rs`, `listen.rs`, `fair.rs`, `tls.rs`, `rpc.rs`,
@@ -60,31 +61,31 @@ accepted decision is violated and no finding loses data. The IMPORTANT
 ones are what stands between this HEAD and the "security in full" of ADR
 0073 item 6:
 
-| # | Finding | Severity | Where |
-|---|---|---|---|
-| F1 | A failed sign-in writes no line to the server's log: only the audit table. fail2ban and CrowdSec see nothing; a brute force is invisible to the host until the audit page is read | IMPORTANT | `api.rs:149-157`; probed: 12 failures, the log empty |
-| F2 | No ceiling on sign-in attempts beyond the per-key delay: at 60 s a key, an account takes ~1 440 guesses a day for ever, from one address or many, and nobody is told | IMPORTANT | `limit.rs:69-73,101`, `api.rs:124-126` |
-| F3 | A password is checked for length only (12): a common one of 12 characters passes; no deny list, no notice at sign-in | IMPORTANT | `api.rs:70-78`, `config.rs:128` |
-| F4 | A password reset or change ends the sessions and leaves the personal access tokens: an attacker's token survives the person's recovery | IMPORTANT | `api.rs:413-416`, `api.rs:484-487`; the admin's `end_all_of` does revoke (`admin.rs:171`) |
-| F5 | One trusted proxy address: behind Cloudflare, or any proxy with several addresses, forwarded headers cannot be believed, and every per-address limit then keys the proxy's address — one stranger's three failures slow everyone's sign-in | IMPORTANT | `config.rs:171-176`, `auth.rs:99-116` |
-| F6 | The server's own inputs are not fuzzed: the WebSocket's JSON requests, the Yjs updates, the sync frames and the presence states; only the dialect and the canvas reader are | IMPORTANT | `.github/workflows/ci.yml:236-261`; `collab.rs:460`, `rpc.rs:322-331` |
-| F7 | The npm dependencies are checked for licenses, never for advisories; the renderers (PDF.js, Mermaid, KaTeX, Excalidraw, Yjs) have had XSS and prototype-pollution advisories | IMPORTANT | `ci.yml:80-81,142-144`; no `npm audit` anywhere |
-| F8 | No way to report a vulnerability: no `SECURITY.md`, no `/.well-known/security.txt`, no stated disclosure policy or response time | IMPORTANT | repository root; `http.rs:266-418` (no route) |
-| F9 | The external review ADR 0073 item 6 asks for is still open (threat model gap 10); the sanitizer's review by the model that did not write it too | IMPORTANT | `threat-model.md`, gaps 10 and the first `[OPEN]` |
-| F10 | A backup is a plain tarball with the notes, the database and the env file (a password inside, maybe); the guide says to copy it off the machine, in the clear | IMPORTANT | `packaging/server/universo.sh:819-879` |
-| F11 | A mailbox can be flooded with sign-in and reset mails: the delay keys the sender's address, never the address mailed to | MINOR | `api.rs:650-654,761-764` (threat model gap 7, remainder) |
-| F12 | hyper's header buffer is its default (~400 KiB): a 200 KB header line was accepted; 512 connections × 400 KiB is the 1 GB host's fifth | MINOR | `listen.rs:264-267`; probed |
-| F13 | A note room takes a Yjs update of up to 48 MB (the message limit); the board room caps one at 4 MB | MINOR | `rpc.rs:40`, `collab_board.rs:49`; `collab.rs:460` |
-| F14 | The REST routes have no rate beyond the sign-in family: a signed-out flood of `/api/state` or the page is bounded by connections alone | MINOR | `http.rs:266-418`; `fair.rs` covers the WebSocket only |
-| F15 | Sensitive actions need no fresh proof: a token is created, a passkey added, an account deleted by the admin, with a 14-day-old cookie | MINOR | `api.rs:548-585`, `passkeys.rs:79`, `admin.rs:118` |
-| F16 | `HSTS` without `includeSubDomains`; `Permissions-Policy` names four features; `style-src 'unsafe-inline'`, `img-src https:`, `frame-src https:` in the page's policy | MINOR | `http.rs:446-454,482-486,512` |
-| F17 | The device's poll endpoint has no delay of its own; the approval page takes the code from the link, so a link in a mail still reaches an *Approve* button (gap 12 made it say who asked) | MINOR | `device.rs:193-231`, `device.rs:159-183` |
-| F18 | The compose file and the Docker guide put the first admin's password in `environment:`, readable with `docker inspect`; the `_FILE` form exists and is not the example | MINOR | `docker-compose.yml:52-57`, `config.rs:110-125` |
-| F19 | The container is not declared read-only and keeps its capabilities in the compose file; the unit could add `ProtectProc`, `SystemCallFilter` | MINOR | `docker-compose.yml:25-59`, `universo.service:33-61` |
-| F20 | A folder is created with the process's umask (`0755` seen): on a host with other local users and a folders directory they can enter, the notes are readable; the package's `0750` directory keeps them | MINOR | probed; `postinstall.sh:22-24` |
-| F21 | A member writes 60 lines of 2 000 characters a minute to the server's log; the audit table grows without retention | MINOR | `rpc.rs:46,592-610`, `db.rs:1417` |
-| F22 | PDF.js is opened with `isEvalSupported` at its default (true); the page's policy has no `unsafe-eval`, so the font compiler is blocked by the browser, not by the code | MINOR | `app/ui/src/pdf.ts:246,443` |
-| F23 | The update check follows redirects (reqwest's default): a feed that redirected to a private address would be fetched | MINOR | `update.rs:103-114` |
+| # | Finding | Severity | Where | Closed by (ADR 0083, 2026-10-13) |
+|---|---|---|---|---|
+| F1 | A failed sign-in writes no line to the server's log: only the audit table. fail2ban and CrowdSec see nothing; a brute force is invisible to the host until the audit page is read | IMPORTANT | `api.rs:149-157`; probed: 12 failures, the log empty | item 1: e9dda35 |
+| F2 | No ceiling on sign-in attempts beyond the per-key delay: at 60 s a key, an account takes ~1 440 guesses a day for ever, from one address or many, and nobody is told | IMPORTANT | `limit.rs:69-73,101`, `api.rs:124-126` | item 2: 805febb, 97cfd3e |
+| F3 | A password is checked for length only (12): a common one of 12 characters passes; no deny list, no notice at sign-in | IMPORTANT | `api.rs:70-78`, `config.rs:128` | item 3: c77902e |
+| F4 | A password reset or change ends the sessions and leaves the personal access tokens: an attacker's token survives the person's recovery | IMPORTANT | `api.rs:413-416`, `api.rs:484-487`; the admin's `end_all_of` does revoke (`admin.rs:171`) | item 4: ac59422 |
+| F5 | One trusted proxy address: behind Cloudflare, or any proxy with several addresses, forwarded headers cannot be believed, and every per-address limit then keys the proxy's address — one stranger's three failures slow everyone's sign-in | IMPORTANT | `config.rs:171-176`, `auth.rs:99-116` | item 5: 748838d |
+| F6 | The server's own inputs are not fuzzed: the WebSocket's JSON requests, the Yjs updates, the sync frames and the presence states; only the dialect and the canvas reader are | IMPORTANT | `.github/workflows/ci.yml:236-261`; `collab.rs:460`, `rpc.rs:322-331` | item 14: in progress (sec/fuzz, being merged) |
+| F7 | The npm dependencies are checked for licenses, never for advisories; the renderers (PDF.js, Mermaid, KaTeX, Excalidraw, Yjs) have had XSS and prototype-pollution advisories | IMPORTANT | `ci.yml:80-81,142-144`; no `npm audit` anywhere | item 13: cda7500, b616d12, d160f38 |
+| F8 | No way to report a vulnerability: no `SECURITY.md`, no `/.well-known/security.txt`, no stated disclosure policy or response time | IMPORTANT | repository root; `http.rs:266-418` (no route) | item 15: cfd382f, e779585 |
+| F9 | The external review ADR 0073 item 6 asks for is still open (threat model gap 10); the sanitizer's review by the model that did not write it too | IMPORTANT | `threat-model.md`, gaps 10 and the first `[OPEN]` | item 16: pending |
+| F10 | A backup is a plain tarball with the notes, the database and the env file (a password inside, maybe); the guide says to copy it off the machine, in the clear | IMPORTANT | `packaging/server/universo.sh:819-879` | item 12: 80f35b3 |
+| F11 | A mailbox can be flooded with sign-in and reset mails: the delay keys the sender's address, never the address mailed to | MINOR | `api.rs:650-654,761-764` (threat model gap 7, remainder) | item 8: cb05804 |
+| F12 | hyper's header buffer is its default (~400 KiB): a 200 KB header line was accepted; 512 connections × 400 KiB is the 1 GB host's fifth | MINOR | `listen.rs:264-267`; probed | item 8: cb05804 |
+| F13 | A note room takes a Yjs update of up to 48 MB (the message limit); the board room caps one at 4 MB | MINOR | `rpc.rs:40`, `collab_board.rs:49`; `collab.rs:460` | item 8: cb05804 |
+| F14 | The REST routes have no rate beyond the sign-in family: a signed-out flood of `/api/state` or the page is bounded by connections alone | MINOR | `http.rs:266-418`; `fair.rs` covers the WebSocket only | item 7: 9b4cdf0, 023dcc0, 4bbd292 |
+| F15 | Sensitive actions need no fresh proof: a token is created, a passkey added, an account deleted by the admin, with a 14-day-old cookie | MINOR | `api.rs:548-585`, `passkeys.rs:79`, `admin.rs:118` | item 6: 40de8b5, 1d7c4e4 |
+| F16 | `HSTS` without `includeSubDomains`; `Permissions-Policy` names four features; `style-src 'unsafe-inline'`, `img-src https:`, `frame-src https:` in the page's policy | MINOR | `http.rs:446-454,482-486,512` | item 9: 7cd1383 |
+| F17 | The device's poll endpoint has no delay of its own; the approval page takes the code from the link, so a link in a mail still reaches an *Approve* button (gap 12 made it say who asked) | MINOR | `device.rs:193-231`, `device.rs:159-183` | item 8: cb05804 (the poll's delay); item 17: 73807d2 (the typed code) |
+| F18 | The compose file and the Docker guide put the first admin's password in `environment:`, readable with `docker inspect`; the `_FILE` form exists and is not the example | MINOR | `docker-compose.yml:52-57`, `config.rs:110-125` | item 11: d2af446 |
+| F19 | The container is not declared read-only and keeps its capabilities in the compose file; the unit could add `ProtectProc`, `SystemCallFilter` | MINOR | `docker-compose.yml:25-59`, `universo.service:33-61` | item 11: d2af446 |
+| F20 | A folder is created with the process's umask (`0755` seen): on a host with other local users and a folders directory they can enter, the notes are readable; the package's `0750` directory keeps them | MINOR | probed; `postinstall.sh:22-24` | item 11: d2af446 |
+| F21 | A member writes 60 lines of 2 000 characters a minute to the server's log; the audit table grows without retention | MINOR | `rpc.rs:46,592-610`, `db.rs:1417` | item 10: 99683ed (the audit table's retention; the log's 60 lines a minute unchanged) |
+| F22 | PDF.js is opened with `isEvalSupported` at its default (true); the page's policy has no `unsafe-eval`, so the font compiler is blocked by the browser, not by the code | MINOR | `app/ui/src/pdf.ts:246,443` | void: pdfjs-dist 6.3.289 has no `isEvalSupported` and no eval; guardrail test, item 8: 4b892cc |
+| F23 | The update check follows redirects (reqwest's default): a feed that redirected to a private address would be fetched | MINOR | `update.rs:103-114` | item 8: cb05804 |
 
 ## 2. Bots and abuse
 

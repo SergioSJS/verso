@@ -199,6 +199,7 @@ fn the_console_pages_searches_and_filters_on_the_server() {
         let (_, overview) = get(&r, "/api/admin/overview", Some(&admin)).await;
         assert_eq!(overview["accounts"], 8, "{overview}");
         assert_eq!(overview["folders"], 1);
+        assert_eq!(overview["auditDays"], 365, "{overview}");
     });
 }
 

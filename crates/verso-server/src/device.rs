@@ -74,6 +74,7 @@ pub async fn start(ctx: Ctx, Json(body): Json<Start>) -> ApiResult<Response> {
     let key = format!("device:{}", ctx.peer.key());
     let wait = ctx.server.limiter.wait(&key);
     if !wait.is_zero() {
+        ctx.server.signins.limited(&key, &ctx.peer.key());
         return Err(ApiError::wait(wait.as_secs() + 1));
     }
     // Each start counts: a flood of codes is slowed like a flood of
@@ -114,16 +115,80 @@ fn link_gone() -> ApiError {
     )
 }
 
+/// A code as the link carried it or the person typed it from the device's
+/// screen (ADR 0083 item 17): spaces and the dash dropped, upper-cased,
+/// eight letters of [`ALPHABET`] written `XXXX-XXXX`; anything else is no
+/// code.
+fn read_code(code: &str) -> Option<String> {
+    let letters: String = code
+        .chars()
+        .take(64)
+        .filter(|c| !c.is_whitespace() && *c != '-')
+        .map(|c| c.to_ascii_uppercase())
+        .collect();
+    (letters.len() == 8 && letters.bytes().all(|b| ALPHABET.contains(&b)))
+        .then(|| format!("{}-{}", &letters[..4], &letters[4..]))
+}
+
+/// The open code — not expired, not yet approved — that `code` names, from
+/// the link or typed, the same way: compared with each pending code in
+/// constant time, so that how long a wrong guess takes says nothing of how
+/// near it was. Every lookup first waits out the `device:` delay of the
+/// address, and a wrong code counts against it, as a wrong poll secret does
+/// (ADR 0083 items 8 and 17): a code is 8 letters, which a delay protects.
+/// A right one does not clear it: approving one's own code is no way to
+/// guess more.
+fn open_code(ctx: &Ctx, code: &str) -> ApiResult<String> {
+    let key = format!("device:{}", ctx.peer.key());
+    let wait = ctx.server.limiter.wait(&key);
+    if !wait.is_zero() {
+        ctx.server.signins.limited(&key, &ctx.peer.key());
+        return Err(ApiError::wait(wait.as_secs() + 1));
+    }
+    let found = read_code(code).and_then(|wanted| {
+        let devices = lock(&ctx.server.devices);
+        let mut hit = None;
+        for (pending, p) in devices.iter() {
+            let open = p.made.elapsed() < LIFE && p.approved.is_none();
+            if crate::crypto::same(pending.as_bytes(), wanted.as_bytes()) && open {
+                hit = Some(pending.clone());
+            }
+        }
+        hit
+    });
+    found.ok_or_else(|| {
+        ctx.server.limiter.failed(&key);
+        link_gone()
+    })
+}
+
+/// A code in a request's body: typed on the page, which keeps it out of
+/// the address (ADR 0083 item 17).
+#[derive(Deserialize)]
+pub struct Typed {
+    code: String,
+}
+
 /// What is asking, for the page that approves it: the device's name as
-/// it gave it, and the address and time it asked from (gap 12).
+/// it gave it, and the address and time it asked from (gap 12), with the
+/// code as the server read it, for the page to show beside them.
 pub async fn describe(ctx: Ctx, Path(code): Path<String>) -> ApiResult<Response> {
+    describing(&ctx, &code)
+}
+
+/// The same, for a code the person typed.
+pub async fn describe_typed(ctx: Ctx, Json(body): Json<Typed>) -> ApiResult<Response> {
+    ctx.changes()?;
+    describing(&ctx, &body.code)
+}
+
+fn describing(ctx: &Ctx, code: &str) -> ApiResult<Response> {
     ctx.who()?;
+    let code = open_code(ctx, code)?;
     let devices = lock(&ctx.server.devices);
-    let p = devices
-        .get(&code.to_ascii_uppercase())
-        .filter(|p| p.made.elapsed() < LIFE && p.approved.is_none())
-        .ok_or_else(link_gone)?;
+    let p = devices.get(&code).ok_or_else(link_gone)?;
     Ok(ok(json!({
+        "code": code,
         "device": p.device,
         "address": p.address,
         "asked": p.asked,
@@ -134,11 +199,21 @@ pub async fn describe(ctx: Ctx, Path(code): Path<String>) -> ApiResult<Response>
 /// asked hears `link_gone` (gap 12).
 pub async fn refuse(ctx: Ctx, Path(code): Path<String>) -> ApiResult<Response> {
     ctx.changes()?;
+    refusing(&ctx, &code)
+}
+
+/// The same, for a code the person typed.
+pub async fn refuse_typed(ctx: Ctx, Json(body): Json<Typed>) -> ApiResult<Response> {
+    ctx.changes()?;
+    refusing(&ctx, &body.code)
+}
+
+fn refusing(ctx: &Ctx, code: &str) -> ApiResult<Response> {
     let who = ctx.who()?;
     if !matches!(who.via, crate::auth::Via::Browser { .. }) {
         return Err(ApiError::forbidden("refused in the browser"));
     }
-    let code = code.to_ascii_uppercase();
+    let code = open_code(ctx, code)?;
     let refused = {
         let mut devices = lock(&ctx.server.devices);
         let open = devices
@@ -158,11 +233,23 @@ pub async fn refuse(ctx: Ctx, Path(code): Path<String>) -> ApiResult<Response> {
 /// The person approves the code, signed in in the browser.
 pub async fn approve(ctx: Ctx, Path(code): Path<String>) -> ApiResult<Response> {
     ctx.changes()?;
+    approving(&ctx, &code)
+}
+
+/// The same, for a code the person typed.
+pub async fn approve_typed(ctx: Ctx, Json(body): Json<Typed>) -> ApiResult<Response> {
+    ctx.changes()?;
+    approving(&ctx, &body.code)
+}
+
+fn approving(ctx: &Ctx, code: &str) -> ApiResult<Response> {
     let who = ctx.who()?.clone();
     if !matches!(who.via, crate::auth::Via::Browser { .. }) {
         return Err(ApiError::forbidden("approved in the browser"));
     }
-    let code = code.to_ascii_uppercase();
+    // A fresh proof first, before the code is looked at (ADR 0083 item 6).
+    ctx.proved()?;
+    let code = open_code(ctx, code)?;
     let device = {
         let devices = lock(&ctx.server.devices);
         devices
@@ -189,11 +276,48 @@ pub struct Poll {
 }
 
 /// The app asks whether the person approved: `pending` until then, the
-/// device's token once, `link_gone` after.
+/// device's token once, `link_gone` after. A code unknown or a wrong poll
+/// secret counts against the `device:` key of the address, as a start does
+/// (ADR 0083 item 8, F17): past the free failures the next wrong one waits
+/// its delay. The app that holds the right secret is answered whatever the
+/// address's delay — a stranger sharing it, behind the same NAT, cannot
+/// keep it from signing in (ADR 0074 item 9: never a lock a stranger can
+/// use); the secret is 256 bits, not a thing a delay protects.
 pub async fn poll(ctx: Ctx, Json(body): Json<Poll>) -> ApiResult<Response> {
     ctx.secure()?;
+    // Past the server's pace of refusals, every sign-in waits its turn
+    // (ADR 0083 item 2).
+    let turn = ctx.server.signins.turn();
+    if !turn.is_zero() {
+        tokio::time::sleep(turn).await;
+    }
     let code = body.code.to_ascii_uppercase();
     let mut devices = lock(&ctx.server.devices);
+    let right = devices
+        .get(&code)
+        .is_some_and(|p| crate::crypto::same(&p.poll, &crate::crypto::hash(&body.poll)));
+    if !right {
+        let known = devices.contains_key(&code);
+        drop(devices);
+        let key = format!("device:{}", ctx.peer.key());
+        let wait = ctx.server.limiter.wait(&key);
+        if !wait.is_zero() {
+            ctx.server.signins.limited(&key, &ctx.peer.key());
+            return Err(ApiError::wait(wait.as_secs() + 1));
+        }
+        ctx.server.limiter.failed(&key);
+        // A wrong poll secret for a code that exists is a guess at a
+        // device's sign-in: said as a refused one, under no e-mail (ADR
+        // 0083 item 1). A code unknown — expired, or never made — is not.
+        if known {
+            crate::signin::refused(&ctx.server, &ctx.peer.key(), None, None);
+        }
+        return Err(ApiError::new(
+            StatusCode::GONE,
+            "link_gone",
+            "this code is used or expired",
+        ));
+    }
     let Some(p) = devices.get(&code) else {
         return Err(ApiError::new(
             StatusCode::GONE,
@@ -201,13 +325,6 @@ pub async fn poll(ctx: Ctx, Json(body): Json<Poll>) -> ApiResult<Response> {
             "this code is used or expired",
         ));
     };
-    if !crate::crypto::same(&p.poll, &crate::crypto::hash(&body.poll)) {
-        return Err(ApiError::new(
-            StatusCode::GONE,
-            "link_gone",
-            "this code is used or expired",
-        ));
-    }
     if p.made.elapsed() >= LIFE {
         devices.remove(&code);
         return Err(ApiError::new(
@@ -220,6 +337,8 @@ pub async fn poll(ctx: Ctx, Json(body): Json<Poll>) -> ApiResult<Response> {
         return Ok(ok(json!({ "pending": true, "interval": INTERVAL })));
     };
     devices.remove(&code);
+    drop(devices);
+    ctx.server.signins.succeeded(&ctx.peer.key(), None);
     let account = ctx
         .server
         .db

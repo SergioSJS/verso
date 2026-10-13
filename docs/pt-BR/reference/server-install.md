@@ -39,7 +39,9 @@ sh universo.sh install --url https://notas.exemplo.com
 | `uninstall [--purge]` | remove o pacote e diz o que deixou: `/var/lib/universo`, `/etc/universo`, o usuário `universo`. O `--purge` remove esses também, depois de você digitar `/var/lib/universo` de volta |
 | `status` | o estado do serviço, a versão, o endereço em que escuta, o tamanho dos dois diretórios, as últimas 5 linhas do log |
 | `logs [-f]` | `journalctl -u universo` |
-| `backup [PASTA]` | para o serviço, empacota `/var/lib/universo` e `/etc/universo` em `universo-backup-<data>-<hora>.tar.gz` na `PASTA` (`/var/backups/universo` por padrão), liga de novo; recusa quando a `PASTA` tem menos espaço livre do que os dois diretórios ocupam |
+| `backup [PASTA] [--encrypt \| --passphrase] [--to-stdout]` | para o serviço, empacota `/var/lib/universo` e `/etc/universo` em `universo-backup-<data>-<hora>.tar.gz` na `PASTA` (`/var/backups/universo` por padrão), liga de novo; recusa quando a `PASTA` tem menos espaço livre do que os dois diretórios ocupam. `--encrypt` criptografa com o `age` (`.tar.gz.age`), `--passphrase` para uma frase-senha digitada, `--to-stdout` escreve na saída padrão para um pipe (seção 2) |
+| `backup --keygen` | cria a chave dos backups criptografados, uma vez: a pública em `/etc/universo/backup.pub`, a secreta impressa, nunca guardada na máquina (seção 2) |
+| `restore ARQUIVO [--identity ARQUIVO-DA-CHAVE] [--to PASTA]` | põe um backup de volta sobre `/var/lib/universo` e `/etc/universo` depois de você digitar `/var/lib/universo`, com o serviço parado enquanto isso; um criptografado com a chave secreta ou a frase-senha; `--to PASTA` desempacota na `PASTA`, sem tocar no servidor (seção 2) |
 | `reset-admin [E-MAIL]` | o comando da seção 10 |
 | `firewall` | abre 80 e 443 com ufw, firewalld ou iptables (mantidas entre reboots com o `netfilter-persistent` quando ele existe), e lembra que o firewall da própria nuvem (a security list da VCN da Oracle) se abre no console dela. Só quando pedido: o `install` nunca mexe no firewall |
 
@@ -100,6 +102,48 @@ inicie de novo — ou tire um snapshot do volume (ZFS, btrfs, LVM) e copie a
 partir do snapshot. Depois mande a cópia para outro lugar, por exemplo com
 `rclone` para um bucket (a receita da 0073, Consequências).
 
+### Criptografado, fora da máquina
+
+Um backup contém os hashes das senhas, as sessões, todas as notas e o
+arquivo de configurações (que pode ter a senha do primeiro admin): copiado
+para fora da máquina às claras, é tudo isso na mão de outra pessoa. O
+script de instalação o criptografa com o [age](https://age-encryption.org)
+([ADR 0083](../adr/0083-security-hardening-of-universo.md) item 12), que o
+Debian, o Ubuntu, o Fedora e o Alpine trazem (`sudo apt install age`;
+`sudo dnf install age`, no RHEL pelo EPEL):
+
+```sh
+sudo sh universo.sh backup --keygen     # uma vez: a chave
+sudo sh universo.sh backup --encrypt    # a cada backup
+```
+
+O `--keygen` grava a chave pública em `/etc/universo/backup.pub` e imprime
+a **chave secreta** — três linhas, entre elas `AGE-SECRET-KEY-1…` — na
+saída padrão, sem guardá-la em lugar nenhum da máquina: ponha num
+gerenciador de senhas ou em outra máquina. Quem a tem lê todos os backups;
+sem ela nenhum pode ser restaurado. Ele se recusa a substituir um
+`backup.pub` que já existe: tire-o do lugar antes, guardando a chave
+secreta antiga para os backups antigos. `--passphrase` no lugar de uma
+chave pede uma frase-senha no terminal. Sem o `age`, o `--encrypt` diz como
+instalá-lo e faz o tarball sem criptografia, com um aviso em maiúsculas.
+
+`--to-stdout` escreve o backup (criptografado ou não) na saída padrão, para
+um pipeline seu, por exemplo
+`sudo sh universo.sh backup --encrypt --to-stdout | rclone rcat remote:universo/$(date +%F).tar.gz.age`.
+
+Para restaurar, com o serviço parado enquanto isso e depois de você
+digitar `/var/lib/universo`:
+
+```sh
+sudo sh universo.sh restore universo-backup-<data>-<hora>.tar.gz.age --identity chave.txt
+```
+
+com a chave secreta em `chave.txt` só naquela hora (ou o `age` pede a
+frase-senha); um backup sem criptografia não precisa de `--identity`.
+`--to /uma/pasta` desempacota lá, para olhar antes, sem tocar no servidor.
+À mão: `age -d -i chave.txt ARQUIVO | sudo tar -xzpf - -C /` com o serviço
+parado.
+
 ### Bancos de dados num NAS
 
 A própria documentação do SQLite avisa que os locks dele não são confiáveis
@@ -142,6 +186,7 @@ seção 11):
 ```sh
 docker run -d --name universo --restart unless-stopped \
   -p 127.0.0.1:7340:7340 \
+  --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
   -v /srv/universo/data:/data \
   -v /srv/universo/folders:/folders \
   -e VERSO_PUBLIC_URL=https://notas.exemplo.com \
@@ -159,6 +204,15 @@ A porta é publicada em `127.0.0.1` porque o TLS fica na frente (seção 8).
 `docker logs universo` mostra o log, incluindo o link de configuração da
 seção 9.
 
+A segunda linha limita o contêiner ao que o servidor precisa
+([ADR 0083](../adr/0083-security-hardening-of-universo.md) item 11): os
+arquivos da própria imagem só para leitura, `/tmp` em memória, nenhuma
+capability do Linux, nada ganho por um programa setuid; o servidor só
+escreve em `/data` e `/folders`. A senha vem de um arquivo montado como
+segredo, que o `docker inspect` não mostra, e não de
+`-e VERSO_ADMIN_PASSWORD`, que ele mostra; o arquivo precisa ser legível
+pelo uid 1000.
+
 ## 4. CasaOS e ZimaOS
 
 O `packaging/server/docker-compose.yml` traz os metadados `x-casaos`
@@ -174,7 +228,12 @@ para qualquer host que aceite um arquivo compose:
 Ele monta `/DATA/AppData/universo/data` (o caminho de dados de app que o
 CasaOS usa) em `/data`, e `/DATA/Documents/Verso` em `/folders` — troque o
 segundo para onde as notas devem ficar, inclusive um NAS. Os dois precisam
-permitir escrita ao uid 1000, como na seção 3. A imagem vem do registry do
+permitir escrita ao uid 1000, como na seção 3. Ele declara o mesmo
+endurecimento do comando da seção 3 (`read_only`, `tmpfs: /tmp`,
+`cap_drop: ALL`, `no-new-privileges`), e mostra a senha do primeiro admin
+como um segredo do Docker, comentado, antes da variável comum: para usar,
+ponha a senha em `admin-password` ao lado do arquivo compose, legível pelo
+uid 1000, e descomente os três lugares que o arquivo marca. A imagem vem do registry do
 GitHub, que exige um `docker login` enquanto o repositório for privado
 (seção 11): no CasaOS e no ZimaOS, no terminal do sistema, uma vez.
 
@@ -208,7 +267,9 @@ journalctl -u universo -f
 
 O pacote escuta em `127.0.0.1:7340` por padrão: o TLS fica na frente
 (seção 8). A unit é endurecida (`ProtectSystem=strict`, escreve só sob
-`/var/lib/universo`, `ProtectHome=read-only`). Um diretório de pastas em
+`/var/lib/universo`, `ProtectHome=read-only`, os outros processos ocultos
+por `ProtectProc=invisible`, só as chamadas de sistema de um serviço comum,
+`UMask=0027`; uma pasta nova é criada `0750`). Um diretório de pastas em
 outro lugar precisa de um drop-in, que uma atualização mantém:
 
 ```sh
@@ -287,8 +348,8 @@ vazio conta como não definido.
 | `VERSO_FOLDERS_DIR` | imagem `/folders`, pacotes `/var/lib/universo/folders` | as pastas de notas; pode ser um NAS |
 | `VERSO_UI_DIR` | `<diretório do binário>/../share/universo/ui` | os arquivos da janela |
 | `VERSO_ADMIN_EMAIL` | nenhum | o primeiro admin, só na primeira inicialização |
-| `VERSO_ADMIN_PASSWORD` ou `VERSO_ADMIN_PASSWORD_FILE` | nenhum | a senha do primeiro admin, 12 caracteres ou mais |
-| `VERSO_TRUSTED_PROXY` | nenhum | o endereço IP do proxy reverso cujos `X-Forwarded-For` e `X-Forwarded-Proto` são aceitos (um endereço) |
+| `VERSO_ADMIN_PASSWORD` ou `VERSO_ADMIN_PASSWORD_FILE` | nenhum | a senha do primeiro admin, 12 caracteres ou mais, fora das listas que atacantes tentam primeiro, diferente do e-mail |
+| `VERSO_TRUSTED_PROXY` | nenhum | os proxies reversos cujos `X-Forwarded-For` e `X-Forwarded-Proto` são aceitos: um endereço, ou uma lista de endereços e CIDRs separados por vírgulas, IPv4 e IPv6 (`127.0.0.1, 10.0.0.0/8, 2001:db8::/32`); seção 8 |
 | `VERSO_TLS_CERT_FILE` e `VERSO_TLS_KEY_FILE` | nenhum | o Verso serve TLS ele mesmo com esse certificado e essa chave (PEM); os dois ou nenhum |
 | `VERSO_UPDATE_CHECK` | ligado | `off` desliga a checagem de versão nova (seção 12) |
 | `VERSO_UPDATE_TOKEN` | não | um token que lê as releases do projeto, necessário para a checagem enquanto o repositório é privado (um token do GitHub com leitura dele); sem ele o log avisa uma vez |
@@ -296,6 +357,7 @@ vazio conta como não definido.
 | `VERSO_MAIL_FROM` | não | o remetente desses e-mails; `Verso <verso@` o host do endereço público `>` por padrão |
 | `VERSO_FOLDER_QUOTA` | não | a cota que uma pasta nova recebe: bytes, ou um tamanho como `500MB` ou `10GB`; nenhuma quando não definida. O console (`/admin`, Pastas) muda a de cada pasta ([ADR 0077](../adr/0077-the-server-administration-console-and-folder-quotas.md)) |
 | `VERSO_TRASH_DAYS` | 30 | quantos dias a lixeira de uma pasta (`.trash/`) guarda os arquivos apagados e as versões que a escrita de um aparelho substituiu; `0` guarda para sempre. A página da pasta no console define o de cada pasta, e a dona da pasta pode encurtá-lo pela janela ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)). A lixeira é varrida ao iniciar e uma vez por dia; aparece, mas não conta na cota, e quando a lixeira sozinha de uma pasta passa da cota os itens mais antigos expiram antes |
+| `VERSO_AUDIT_DAYS` | 365 | quantos dias o registro de auditoria guarda uma linha (entradas, sessões, tokens, convites, permissões, compartilhamentos, as ações da lixeira, com o endereço); `0` guarda para sempre, 36500 no máximo. Uma varredura ao iniciar e uma vez por dia apaga as linhas mais antigas, só pelo tempo: nenhuma página nem comando apaga uma linha. A visão geral do console diz o prazo ([ADR 0083](../adr/0083-security-hardening-of-universo.md) item 10) |
 
 Sem `VERSO_SMTP_URL` nada é enviado: o admin copia os links de convite e de senha nova à mão.
 
@@ -342,6 +404,66 @@ na mesma máquina. Um proxy em outro contêiner vem do endereço desse
 contêiner, que então precisa ser fixo (um `ipv4_address` na rede do
 compose). Traefik ou o proxy do próprio NAS funcionam do mesmo jeito.
 
+O endereço do cliente é lido do `X-Forwarded-For` como se lê toda cadeia
+de proxies: da direita, passando por cada endereço do
+`VERSO_TRUSTED_PROXY`; o primeiro que não está nele é o cliente, e o que
+fica à esquerda dele — escrito pelo cliente — nunca é aceito. Uma conexão
+de um endereço fora da lista tem o `X-Forwarded-For` ignorado. Ponha na
+lista só os proxies: uma faixa de endereços que também tem pessoas deixa
+que elas digam o endereço que quiserem.
+
+**Um proxy fora da lista faz de todo visitante um endereço só.** Toda
+requisição parece então vir do proxy, e toda espera por endereço conta
+para ele: três logins errados de um estranho atrasam o de todo mundo, e
+o ritmo da API — 20 requisições por segundo de um endereço, 100 de uma
+vez, além do qual ela responde 429 com `Retry-After` — passa a ser
+dividido por todos os visitantes. Só uma conexão direta desta máquina não
+tem ritmo. Quando uma requisição vem de um proxy confiável sem `X-Forwarded-For`, ela
+é atendida com o endereço do proxy e o log diz, uma vez por minuto, *a
+request from the trusted proxy carried no X-Forwarded-For: is the proxy
+configured to forward it?*
+
+### Atrás da Cloudflare
+
+A Cloudflare chega ao servidor por muitos endereços, que ela publica em
+<https://www.cloudflare.com/ips/> e que mudam de tempos em tempos. Dois
+caminhos:
+
+- **Da Cloudflare direto para o Verso.** O Verso serve TLS ele mesmo
+  (abaixo; um certificado da Origin CA da Cloudflare funciona com o modo
+  *Full (strict)*), e o `VERSO_TRUSTED_PROXY` lista as faixas da
+  Cloudflare. A linha pode ser montada com:
+
+  ```sh
+  { curl -fsS https://www.cloudflare.com/ips-v4; echo; curl -fsS https://www.cloudflare.com/ips-v6; } \
+    | grep . | paste -sd, -
+  ```
+
+  Confira de novo de vez em quando: um endereço que a Cloudflare acrescenta
+  e a lista não tem é, para o servidor, um visitante só.
+- **Cloudflare → Caddy → Verso**, com só o Caddy confiável
+  (`VERSO_TRUSTED_PROXY=127.0.0.1`). O Caddy recebe as faixas da
+  Cloudflare e repassa só o endereço do cliente:
+
+  ```
+  {
+      servers {
+          trusted_proxies static 173.245.48.0/20 103.21.244.0/22 …
+          client_ip_headers CF-Connecting-IP X-Forwarded-For
+      }
+  }
+
+  notas.exemplo.com {
+      reverse_proxy 127.0.0.1:7340 {
+          header_up X-Forwarded-For {client_ip}
+      }
+  }
+  ```
+
+  com todas as faixas do comando acima em `trusted_proxies`. Sem elas, o
+  Caddy repassa o endereço da Cloudflare como o do cliente, e o servidor vê
+  todo visitante como alguns poucos endereços da Cloudflare.
+
 ### O certificado do próprio Verso
 
 `VERSO_TLS_CERT_FILE` e `VERSO_TLS_KEY_FILE` apontam um certificado e a
@@ -382,9 +504,11 @@ pacotes:
 sudo -u universo -H sh -c 'set -a; . /etc/universo/universo.env; exec universo admin reset voce@exemplo.com'
 ```
 
-Ele imprime um link de uso único, encerra as sessões da conta e registra a
-redefinição no registro de auditoria. A senha de um membro é redefinida
-pelo admin, no console de administração (`/admin`).
+Ele imprime um link de uso único, encerra as sessões da conta, revoga os
+tokens de acesso pessoais dela e registra a redefinição, e cada token, no
+registro de auditoria (ADR 0083 item 4). A senha de um membro é
+redefinida pelo admin, no console de administração (`/admin`); usar esse
+link revoga os tokens do membro também.
 
 ## 11. O registry enquanto o repositório for privado
 
@@ -829,6 +953,19 @@ máquina real. Verificado desde então:
   453 MiB, um arquivo em pedaços a partir do disco (8e2c2f1) entre as
   medições (seção 14, **Dez aparelhos, e o convidado de 453 MiB de
   novo**).
+- 2026-10-13: o endurecimento do [ADR 0083](../adr/0083-security-hardening-of-universo.md)
+  item 11, em Docker num Mac com Apple silicon (colima, Linux 6.8, arm64),
+  pelo `scripts/check-server-image.sh`: a imagem rodando só para leitura,
+  `/tmp` em memória, nenhuma capability, `no-new-privileges` (o estado pelo
+  TLS próprio, uma entrada, uma pasta criada `0750`, `admin reset`); e o
+  mesmo binário estático musl disposto como o `nfpm.yaml` dispõe, à mão,
+  num contêiner Debian 12 rodando o systemd 252, iniciado pela
+  `universo.service` com as configurações novas (o processo sob um filtro
+  seccomp, o estado, uma entrada, uma pasta `0750`, o banco `0600`;
+  `systemd-analyze security`: 1.3, OK). Não é um pacote feito pelo nfpm,
+  nem uma VM, nem amd64. Antes desse dia o arquivo compose não passava no
+  `docker compose config` (dois-pontos sem aspas num tagline); agora passa,
+  e o script confere.
 
 Ainda não verificado:
 
@@ -843,7 +980,145 @@ Ainda não verificado:
   uma instalação deixa o serviço desabilitado (acrescentada depois da
   verificação de 2026-10-12);
 - o arquivo compose no CasaOS e no ZimaOS (passa no
-  `docker compose config`; o bloco `x-casaos` segue a descrição v2 da
+  `docker compose config` desde 2026-10-13; o bloco `x-casaos` segue a descrição v2 da
   CasaOS AppStore de 2026-10-09, sem passar pelo validador deles);
 - a receita do `tailscale serve` e o exemplo do Caddy contra este servidor;
-- a poda das versões antigas no registry.
+- a poda das versões antigas no registry;
+- o filtro e a jail do fail2ban, o parser e os cenários do CrowdSec, e o
+  exemplo de `rate_limit` do Caddy da seção 16, num host de verdade: a
+  expressão do filtro roda nos testes do servidor sobre as próprias linhas
+  dele, como o fail2ban expande `<SUBNET>` e como ele lê um arquivo e o
+  journal, não pelo próprio fail2ban; os arquivos do CrowdSec e o exemplo
+  do Caddy não rodaram.
+
+## 16. Banimentos: fail2ban, CrowdSec e o rate_limit do Caddy
+
+O servidor freia palpites sozinho — três livres, depois uma espera de 1 s
+que dobra até 60 s, por endereço e por conta, e, sob uma enxurrada de
+recusas vinda de muitos endereços, toda entrada espera a sua vez, 2 s no
+máximo — e nunca tranca uma conta (ADR 0074 item 9). Uma conta recusada
+20 vezes numa hora, de qualquer endereço, é avisada por e-mail, no máximo
+uma vez por dia, quando o servidor tem um servidor de e-mail (o
+`VERSO_SMTP_URL` da seção 7); o log tem uma linha `INFO` para cada aviso,
+e a visão geral do console os conta nas últimas 24 horas (ADR 0083 item
+2). Ele não bane
+ninguém: isso é trabalho do firewall do host, e o servidor dá a ele uma
+linha do log por entrada recusada (ADR 0083 item 1):
+
+```
+2026-10-13T12:00:00Z WARN sign-in failed from 203.0.113.9 for a***@example.org (3 in a row)
+```
+
+Uma senha errada, uma chave de acesso recusada, o segredo errado na
+consulta de um aparelho, ou a senha atual errada ao trocá-la. O endereço é
+o do cliente como o proxy confiável o encaminhou (seção 8): um endereço
+IPv4 inteiro, um IPv6 pelo seu /64 (`2001:db8:1:2::/64`), como os atrasos
+do próprio servidor contam. O e-mail vem mascarado, igual tenha ele conta
+ou não; a contagem é das recusas desse e-mail desde o último acerto.
+Quando o atraso recusa um pedido, `WARN sign-in limited from <endereço>`,
+uma vez por minuto por chave. As linhas da própria janela no log começam
+com `window <id> (<conta>):`, então um membro não consegue escrever uma
+linha que essas ferramentas tomem por uma entrada recusada.
+
+Atrás de um proxy que o `VERSO_TRUSTED_PROXY` não nomeia, toda linha
+nomeia o proxy, e um banimento bane todo mundo. Antes de ligar um
+banimento, confira que as linhas nomeiam os seus visitantes:
+
+```sh
+journalctl -u universo | grep 'sign-in failed'
+```
+
+### fail2ban
+
+O `.deb` e o `.rpm` instalam um filtro,
+`/etc/fail2ban/filter.d/universo.conf`, e uma jail,
+`/etc/fail2ban/jail.d/universo.conf`: dez recusas de um endereço em dez
+minutos o banem por uma hora, lidas do journal do `universo.service`. Não
+fazem nada até o fail2ban ser instalado:
+
+```sh
+sudo apt install fail2ban        # ou: sudo dnf install fail2ban
+sudo systemctl enable --now fail2ban
+sudo fail2ban-client status universo
+```
+
+O fail2ban lê o journal pela ligação Python dele com o systemd
+(`python3-systemd`, no Debian, no Ubuntu e no Fedora), que o próprio
+pacote dele pode só recomendar. Os dois arquivos são configuração:
+edite-os — os números são seus — e uma atualização os mantém. Uma casa ou
+um escritório atrás de um endereço divide um banimento: um membro que erra
+dez vezes bane os outros por uma hora, a menos que o endereço esteja no
+`ignoreip` da jail. Para testar o filtro nas próprias linhas do servidor:
+
+```sh
+journalctl -u universo -o cat > /tmp/universo.log
+sudo fail2ban-regex /tmp/universo.log /etc/fail2ban/filter.d/universo.conf
+```
+
+No Docker, o fail2ban roda no host, e os dois arquivos são copiados de
+`packaging/server/fail2ban/` para `/etc/fail2ban/filter.d/` e
+`/etc/fail2ban/jail.d/`. As linhas do contêiner chegam ao journal com
+`logging: driver: journald` no arquivo compose; a jail então lê
+`journalmatch = CONTAINER_NAME=universo` (o nome do contêiner). O Docker
+manda o tráfego de uma porta publicada por fora da chain `INPUT` do host:
+o banimento precisa de `chain = DOCKER-USER` na jail.
+
+### CrowdSec
+
+Um parser e dois cenários — um endereço IPv4, um /64 de IPv6 — com o
+limite da jail, em `packaging/server/crowdsec/`; fora dos pacotes, já que
+os do CrowdSec moram no hub dele:
+
+```sh
+sudo cp packaging/server/crowdsec/universo-logs.yaml /etc/crowdsec/parsers/s01-parse/
+sudo cp packaging/server/crowdsec/universo-bf.yaml /etc/crowdsec/scenarios/
+```
+
+e o journal do serviço como fonte, em
+`/etc/crowdsec/acquis.d/universo.yaml`:
+
+```yaml
+source: journalctl
+journalctl_filter:
+  - "_SYSTEMD_UNIT=universo.service"
+labels:
+  type: syslog
+```
+
+depois `sudo systemctl reload crowdsec`; `sudo cscli metrics` mostra o
+parser lendo as linhas. Um bouncer (o do firewall) executa as decisões,
+pelo tempo que o `/etc/crowdsec/profiles.yaml` disser.
+
+### O rate_limit do Caddy
+
+Um proxy reverso pode barrar uma enxurrada antes que ela chegue ao Verso.
+O `rate_limit` do Caddy é um módulo, `github.com/mholt/caddy-ratelimit`,
+fora da compilação padrão do Caddy (`xcaddy build --with
+github.com/mholt/caddy-ratelimit`). Dez tentativas de entrar por minuto
+por endereço, e depois delas um 429 do Caddy:
+
+```
+{
+    order rate_limit before reverse_proxy
+}
+
+notas.exemplo.com {
+    rate_limit {
+        zone signin {
+            match {
+                method POST
+                path /api/signin /api/passkey/finish /api/device/poll
+            }
+            key {remote_host}
+            events 10
+            window 1m
+        }
+    }
+    reverse_proxy 127.0.0.1:7340
+}
+```
+
+Atrás do Cloudflare ou de outro proxy na frente do Caddy, `{remote_host}`
+é esse proxy: use `{client_ip}` como chave, com o `trusted_proxies` do
+Caddy nomeando esse proxy. O Verso mantém os próprios atrasos de qualquer
+jeito.

@@ -138,6 +138,21 @@ mudando o teste.
 | O cofre de exemplo construído das suas fontes e se sustentando | um embutido velho, um board editado à mão, um tutorial que não se sustenta | o tutorial |
 | Os testes de ponta a ponta da janela no Chromium ao lado do WebKit (`scripts/check.sh`; no macOS sem capturas de janela, com um worker e o pre-flight do `app/ui/e2e/preflight.mjs`) — o item 8 do [ADR 0069](adr/0069-windows-port.md), aceito em 2026-10-12, revisado no mesmo dia | uma janela que funciona no WebKit e quebra no WebView2 | o porte para Windows |
 | Clippy e os testes no Windows por SSH (`scripts/check-windows.sh`), quando o diff toca código de plataforma | código morto ou diferente no Windows | o porte para Windows |
+| Um sign-in recusado é uma linha de log, e o filtro do fail2ban entregue, expandido como o fail2ban 1.1 faz, pega exatamente essas linhas (`tests_bounds.rs`) | uma força bruta que as ferramentas do host nunca veem | item 1 do ADR 0083 |
+| A 20ª recusa de sign-in numa hora manda e-mail à conta uma vez, a 21ª não; o bucket dos sign-ins recusados do servidor | palpites para sempre, sem ninguém avisado | item 2 do ADR 0083 |
+| A lista de senhas: `password1234`, `qwertyuiop12` e o e-mail recusados, uma frase aceita, a lista abaixo de 200 KB | uma senha das listas que atacantes tentam primeiro | item 3 do ADR 0083 |
+| Um token responde 401 depois de uma redefinição, de um `admin reset` e de uma troca com `revokeTokens` | o token de um ladrão sobrevivendo à recuperação | item 4 do ADR 0083 |
+| O percurso do `X-Forwarded-For` além dos proxies confiáveis (`proxy.rs`: dois saltos, uma entrada forjada à esquerda, um CIDR) | um endereço forjado, ou todo visitante com a chave do proxy | item 5 do ADR 0083 |
+| O ritmo REST: o 101º pedido de uma rajada responde 429, o do segundo seguinte não; um loopback encaminhado entra no ritmo (`tests_bounds.rs`) | uma enxurrada nas rotas REST | item 7 do ADR 0083 |
+| Os limites: uma cabeça acima de 64 KiB responde 431, uma atualização de nota acima de 4 MB recusada, um poll errado atrasado, a chave de e-mail, nenhum redirecionamento seguido (`tests_bounds.rs`, `update.rs`); o build do PDF.js sem `eval` (`app/ui/test/pdf.test.mjs`) | um limite frouxo voltando | item 8 do ADR 0083 |
+| O conjunto inteiro de cabeçalhos de segurança, nome e valor, em `/`, `/api/state` e `/f/` (`tests_threats.rs`) | um cabeçalho perdido numa refatoração | item 9 do ADR 0083 |
+| A retenção da auditoria: uma linha mais velha que `VERSO_AUDIT_DAYS` sai, uma mais nova fica, 0 guarda tudo (`audit::tests`) | o registro de auditoria guardado para sempre | item 10 do ADR 0083 |
+| Uma pasta nova `0750` (`verso-fs`); a unidade e a imagem somente leitura iniciadas pelo `scripts/check-server-image.sh` | um serviço ou um contêiner que pode mais do que precisa | item 11 do ADR 0083 |
+| O teste do script de backup no `scripts/check-linux.sh` (`--script`): um backup cifrado restaurado e comparado, a chave secreta em nenhum arquivo | um backup que não restaura, ou a chave dele deixada no host | item 12 do ADR 0083 |
+| `scripts/check-npm-audit.mjs` sobre o `app/ui` (CI e `scripts/check.sh`), exceções com validade em `app/ui/audit-exceptions.json` | uma advisory npm alta ou crítica entregue sem ninguém ver | item 13 do ADR 0083 |
+| `/.well-known/security.txt` responde os campos exigidos, `Expires` um ano depois da data de release do changelog (`security_txt.rs`) | quem acha uma falha sem ter para onde escrever | item 15 do ADR 0083 |
+| Os testes de prova (`tests_prove.rs`, `app/ui/test/proof.test.mjs`): toda rota sensível responde `prove_first` passados dez minutos; o código digitado da página de aparelho | uma ação sensível com um cookie velho ou roubado | itens 6 e 17 do ADR 0083 |
+| As entradas do servidor sob fuzzing com `cargo-fuzz`, 60 s por alvo na `main` (sendo integrado) | um pedido, uma atualização ou um cabeçalho hostil derrubando o servidor | item 14 do ADR 0083 |
 
 CI ([ADR 0029](adr/0029-guardrails-in-ci.md), 2026-09-23): um pull request
 roda todo guardrail menos o fuzzing num job de Linux; o `main` acrescenta

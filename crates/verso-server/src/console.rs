@@ -537,9 +537,15 @@ pub async fn overview(ctx: Ctx) -> ApiResult<Response> {
             twins.push(json!({ "id": id, "name": f.dir, "count": count }));
         }
     }
+    // The accounts told of 20 refused sign-ins within an hour, in the last
+    // day (ADR 0083 item 2): each is told once a day at most.
+    let under_attack = ctx.server.db.actors_since(
+        crate::signin::NOTICED,
+        crate::db::now() - crate::signin::NOTICE_EVERY,
+    )?;
     let tls = if config.tls.is_some() {
         "own"
-    } else if config.trusted_proxy.is_some() {
+    } else if !config.trusted_proxy.is_empty() {
         "proxy"
     } else if config.loopback_only() {
         "loopback"
@@ -562,8 +568,11 @@ pub async fn overview(ctx: Ctx) -> ApiResult<Response> {
         "space": space,
         "trash": { "count": trash.0, "size": trash.1 },
         "defaultTrashDays": config.trash_days,
+        // How long the audit log keeps a row, 0 for ever (ADR 0083 item 10).
+        "auditDays": config.audit_days,
         "nearQuota": near,
         "twins": twins,
+        "underAttack": under_attack,
         "defaultQuota": config.folder_quota,
     })))
 }
@@ -582,7 +591,7 @@ pub async fn config(ctx: Ctx) -> ApiResult<Response> {
         ("VERSO_UI_DIR", path(&c.ui_dir), false),
         (
             "VERSO_TRUSTED_PROXY",
-            c.trusted_proxy.map(|a| a.to_string()),
+            (!c.trusted_proxy.is_empty()).then(|| c.trusted_proxy.to_string()),
             false,
         ),
         (
@@ -609,6 +618,7 @@ pub async fn config(ctx: Ctx) -> ApiResult<Response> {
             false,
         ),
         ("VERSO_TRASH_DAYS", Some(c.trash_days.to_string()), false),
+        ("VERSO_AUDIT_DAYS", Some(c.audit_days.to_string()), false),
     ]
     .into_iter()
     .map(|(name, value, secret)| {

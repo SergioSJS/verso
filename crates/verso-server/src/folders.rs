@@ -112,6 +112,8 @@ pub async fn set_member(
 ) -> ApiResult<Response> {
     ctx.changes()?;
     let who = ctx.person()?;
+    // A fresh proof first (ADR 0083 item 6): a role given is a power given.
+    ctx.proved()?;
     crate::access::at_least(&ctx.server, who, &id, Role::Owner)?;
     grant_whole(&ctx, &id, &account, body.role)?;
     Ok(ok(json!(null)))

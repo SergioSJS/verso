@@ -6,7 +6,7 @@
 // (base64url, as webauthn-rs writes them) handed to the browser's
 // `navigator.credentials`, and its answer sent back in the same form.
 
-import { api } from "./api";
+import { api, request } from "./api";
 
 function fromB64url(s: string): ArrayBuffer {
   const b64 = s.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(s.length / 4) * 4, "=");
@@ -62,9 +62,11 @@ export async function addPasskey(name: string): Promise<void> {
   });
 }
 
-/** Sign in with a passkey of the account `email`; the session's CSRF token. */
-export async function signInWithPasskey(email: string): Promise<string> {
-  const started = await api<{ ceremony: string; options: { publicKey: Json } }>("POST", "/api/passkey/start", { email });
+type Started = { ceremony: string; options: { publicKey: Json } };
+
+/** The device's answer to a ceremony the server started: what goes back
+ *  to it, beside the ceremony's id. */
+async function answer(started: Started): Promise<Json> {
   const pk = started.options.publicKey;
   const publicKey = {
     ...pk,
@@ -74,7 +76,7 @@ export async function signInWithPasskey(email: string): Promise<string> {
   const credential = (await navigator.credentials.get({ publicKey })) as PublicKeyCredential | null;
   if (!credential) throw new Error("cancelled");
   const response = credential.response as AuthenticatorAssertionResponse;
-  const done = await api<{ csrf: string }>("POST", "/api/passkey/finish", {
+  return {
     ceremony: started.ceremony,
     credential: {
       id: credential.id,
@@ -88,6 +90,20 @@ export async function signInWithPasskey(email: string): Promise<string> {
         userHandle: toB64url(response.userHandle),
       },
     },
-  });
+  };
+}
+
+/** Sign in with a passkey of the account `email`; the session's CSRF token. */
+export async function signInWithPasskey(email: string): Promise<string> {
+  const started = await api<Started>("POST", "/api/passkey/start", { email });
+  const done = await api<{ csrf: string }>("POST", "/api/passkey/finish", await answer(started));
   return done.csrf;
+}
+
+/** The person signed in proves who they are with one of their passkeys
+ *  (ADR 0083 item 6). Sent once each: a proof is never itself asked to be
+ *  proved. */
+export async function provePasskey(): Promise<void> {
+  const started = await request<Started>("POST", "/api/me/prove/passkey", {});
+  await request("POST", "/api/me/prove", await answer(started));
 }

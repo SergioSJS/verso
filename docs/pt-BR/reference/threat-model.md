@@ -44,12 +44,18 @@ senha conferida só pelo tamanho, a recuperação deixando tokens vivos, um
 endereço de proxy confiável só, as entradas do servidor sem fuzzing,
 advisories do npm não conferidos, nenhum canal de divulgação, a revisão
 de fora ainda aberta, um backup em claro) e o
-[ADR 0083](../adr/0083-security-hardening-of-universo.md) (Proposta: as
-medidas, os números, os guardrails e a ordem do trabalho). Das lacunas
-abaixo, nenhuma aparece fechada por essa revisão; a lacuna 10 é respondida
-pelo item 16 dela quando feito, e o resto da lacuna 7 (uma caixa de e-mail
-inundada) pelo item 8. As linhas deste modelo não mudam: o que a revisão
-achou é novo, não uma correção do que está escrito aqui.
+[ADR 0083](../adr/0083-security-hardening-of-universo.md) (as
+medidas, os números, os guardrails e a ordem do trabalho). O ADR foi
+aceito em 2026-10-13 e construído no mesmo dia, numa rodada só: os itens 1
+a 13, 15 e 17 estão construídos, o item 14 (as entradas do servidor sob
+fuzzing) está sendo integrado, e a seção "Como construído" dele diz onde o
+código se afasta do texto; o pentest do item 16 por uma pessoa de fora do
+projeto continua condição do anúncio. Das lacunas abaixo, o resto da
+lacuna 7 (uma caixa de e-mail inundada) está fechado pelo item 8
+(cb05804), e a lacuna 10 é respondida pelo item 16 quando feito. As linhas
+deste modelo de resto não mudam: o que a revisão achou é novo, não uma
+correção do que está escrito aqui, e as linhas de ameaça abaixo ainda não
+foram atualizadas com as medidas do ADR 0083.
 
 ## O que é protegido
 
@@ -356,7 +362,9 @@ classificação é uma recomendação para o mantenedor confirmar.
    links de entrada e as cerimônias de passkey 10 000 cada, saindo
    primeiro o décimo mais antigo. Uma caixa de e-mail continua limitada só
    pelos /64 de quem envia: uma espera pelo endereço de destino não foi
-   construída.
+   construída. **Fechada: cb05804** (ADR 0083 item 8) — as rotas de
+   e-mail ganham uma segunda chave, `mail:<e-mail normalizado>`, com a
+   espera de quem envia.
 8. **Sem tempos limite de HTTP nem teto de conexões no listener** (não
    verificado: nenhum é configurado em `lib.rs`; se os padrões do
    `axum::serve` dão tempo limite a um cabeçalho lento não foi conferido).
@@ -462,7 +470,11 @@ mantenedor.
   servidor. *Construído em 2026-10-11:* as lacunas 2, 3, 4 e 8 (os commits
   delas acima); a lacuna 5 em 2026-10-12 (2b1f2c4); os números são
   raciocinados, não
-  medidos naquela máquina. Deixado `[ABERTO]` para o mantenedor.
+  medidos naquela máquina. *Construído em 2026-10-13:* um ritmo nas rotas
+  REST por endereço, 20 por segundo e 100 de uma vez (9b4cdf0, item 7 do
+  ADR 0083), e um ritmo nos sign-ins recusados do servidor (805febb, item 2
+  do ADR 0083); medi-los é o item 18 do ADR 0083. Deixado `[ABERTO]` para
+  o mantenedor.
 - `[ABERTO]` O token de aparelho do desktop no chaveiro do sistema em vez
   de um arquivo `0600`. *Recomendação:* depois do primeiro usuário de fora,
   registrado como adiado: o token é revogável nos Ajustes e no console, e o
@@ -477,4 +489,7 @@ mantenedor.
   ele vai ser lançado. *2026-10-13:* a revisão dessa data e o item 16 do
   ADR 0083 dizem o que ela é e quando — um pentest do servidor do
   laboratório antes do anúncio, o sanitizador lido pelo modelo que não o
-  escreveu — e o que vem antes dela (itens 1 a 5, 8 a 10 e 13 do ADR).
+  escreveu — e o que vem antes dela: todos os outros itens do ADR,
+  construídos numa rodada só (a ordem do trabalho dele, reescrita quando
+  foi aceito em 2026-10-13) — os itens 1 a 13, 15 e 17 construídos em
+  2026-10-13, o item 14 sendo integrado.

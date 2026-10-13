@@ -44,8 +44,10 @@ pub const ELEMENTS: &str = "elements";
 /// edits (`edit:<client>`), and the count written last (`saved`).
 pub const META: &str = "meta";
 
-/// The largest board update taken in, decoded (threat-model.md, the board
-/// room's limits): a paste of a large drawing fits; more is refused.
+/// The largest update taken in, decoded (threat-model.md, the board
+/// room's limits): a paste of a large drawing fits; more is refused. A
+/// note room shares it (ADR 0083 item 8), checked before decoding
+/// (`crate::collab::update`).
 pub const UPDATE_MOST: usize = 4 * 1024 * 1024;
 /// The most element entries one update may put in.
 pub const INSERTS_MOST: u32 = 10_000;

@@ -338,6 +338,30 @@ impl Db {
             .map_err(e)
     }
 
+    /// When `actor` last did `action`, by the audit log (ADR 0083 item 2:
+    /// a sign-in notice once a day, across restarts).
+    pub fn last_action_of(&self, actor: &str, action: &str) -> R<Option<i64>> {
+        self.reader()
+            .query_row(
+                "SELECT MAX(at) FROM audit WHERE actor = ?1 AND action = ?2",
+                params![actor, action],
+                |r| r.get(0),
+            )
+            .map_err(e)
+    }
+
+    /// The accounts that did `action` since `since`, each once: the
+    /// console's "accounts under attack today" (ADR 0083 item 2).
+    pub fn actors_since(&self, action: &str, since: i64) -> R<i64> {
+        self.reader()
+            .query_row(
+                "SELECT COUNT(DISTINCT actor) FROM audit WHERE action = ?1 AND at >= ?2",
+                params![action, since],
+                |r| r.get(0),
+            )
+            .map_err(e)
+    }
+
     /// A folder's quota in bytes, or none.
     pub fn quota(&self, folder: &str) -> R<Option<i64>> {
         self.conn()
