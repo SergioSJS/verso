@@ -287,6 +287,7 @@ value counts as not set.
 | `VERSO_MAIL_FROM` | no | the sender of those e-mails; `Verso <verso@` the public address's host `>` by default |
 | `VERSO_FOLDER_QUOTA` | no | the quota a new folder gets: bytes, or a size such as `500MB` or `10GB`; none when unset. The console (`/admin`, Folders) changes each folder's ([ADR 0077](../adr/0077-the-server-administration-console-and-folder-quotas.md)) |
 | `VERSO_TRASH_DAYS` | 30 | how many days a folder's trash (`.trash/`) keeps deleted files, and the versions a device's write replaced; `0` keeps them forever. The console's folder page sets each folder's, and the folder's owner may shorten it from the window ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)). The trash is swept at start and once a day; it is shown, not counted against a quota, and when a folder's trash alone passes its quota the oldest items expire early |
+| `VERSO_AUDIT_DAYS` | 365 | how many days the audit log keeps a row (sign-ins, sessions, tokens, invitations, grants, shares, the trash's actions, with the address); `0` keeps them forever, 36500 at most. A sweep at start and once a day deletes older rows, by time alone: no page or command deletes a row. The console's overview says the retention ([ADR 0083](../adr/0083-security-hardening-of-universo.md) item 10) |
 
 Without `VERSO_SMTP_URL` nothing is sent: the admin copies the invitation and reset links by hand.
 

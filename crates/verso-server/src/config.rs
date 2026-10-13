@@ -58,6 +58,31 @@ pub struct Config {
     /// says otherwise (`VERSO_TRASH_DAYS`, ADR 0080 item 3): 30 when unset,
     /// 0 for ever.
     pub trash_days: u32,
+    /// How many days the audit log keeps a row (`VERSO_AUDIT_DAYS`, ADR
+    /// 0083 item 10): 365 when unset, 0 for ever. Swept once a day by time
+    /// alone (`crate::audit`); nothing else deletes a row.
+    pub audit_days: u32,
+}
+
+/// The audit log's retention when `VERSO_AUDIT_DAYS` is unset (ADR 0083
+/// item 10, decided 2026-10-13).
+pub const DEFAULT_AUDIT_DAYS: u32 = 365;
+
+/// A number of days, 0 for never, at most a century — `VERSO_TRASH_DAYS`
+/// and `VERSO_AUDIT_DAYS` alike; `default` when unset.
+fn days(env: &dyn Env, name: &str, default: u32) -> Result<u32, ConfigError> {
+    value(env, name)?
+        .map(|v| {
+            v.trim()
+                .parse::<u32>()
+                .ok()
+                .filter(|d| *d <= 36_500)
+                .ok_or_else(|| {
+                    ConfigError(format!("{name}: a number of days, 0 for never, not {v}"))
+                })
+        })
+        .transpose()
+        .map(|d| d.unwrap_or(default))
 }
 
 /// A size as a person writes it: bytes, or a number with KB, MB, GB or TB
@@ -218,20 +243,8 @@ impl Config {
                     })
                 })
                 .transpose()?,
-            trash_days: value(env, "VERSO_TRASH_DAYS")?
-                .map(|v| {
-                    v.trim()
-                        .parse::<u32>()
-                        .ok()
-                        .filter(|d| *d <= 36_500)
-                        .ok_or_else(|| {
-                            ConfigError(format!(
-                                "VERSO_TRASH_DAYS: a number of days, 0 for never, not {v}"
-                            ))
-                        })
-                })
-                .transpose()?
-                .unwrap_or(verso_core::trash::DEFAULT_DAYS),
+            trash_days: days(env, "VERSO_TRASH_DAYS", verso_core::trash::DEFAULT_DAYS)?,
+            audit_days: days(env, "VERSO_AUDIT_DAYS", DEFAULT_AUDIT_DAYS)?,
         })
     }
 
@@ -322,6 +335,22 @@ mod tests {
             ])
             .is_err()
         );
+    }
+
+    #[test]
+    fn the_audit_log_keeps_a_year_unless_told_and_is_bounded_as_the_trash() {
+        assert_eq!(read(&[]).unwrap().audit_days, 365);
+        assert_eq!(read(&[("VERSO_AUDIT_DAYS", "0")]).unwrap().audit_days, 0);
+        assert_eq!(
+            read(&[("VERSO_AUDIT_DAYS", " 90 ")]).unwrap().audit_days,
+            90
+        );
+        for bad in ["-1", "36501", "um ano", "1.5"] {
+            let e = read(&[("VERSO_AUDIT_DAYS", bad)]).unwrap_err().0;
+            assert!(e.starts_with("VERSO_AUDIT_DAYS:"), "{e}");
+            assert!(read(&[("VERSO_TRASH_DAYS", bad)]).is_err());
+        }
+        assert_eq!(read(&[]).unwrap().trash_days, 30);
     }
 
     #[test]

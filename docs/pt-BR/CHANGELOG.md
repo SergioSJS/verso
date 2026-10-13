@@ -15,6 +15,7 @@ versão de teste.
 ### Acrescentado
 
 - **Um jeito de relatar uma vulnerabilidade** ([ADR 0083](adr/0083-security-hardening-of-universo.md) item 15): o [SECURITY.md](SECURITY.md) dá o endereço, security@versomd.com, o que se promete — resposta em até 7 dias, correção na próxima versão, crédito quando quiser — e o que está dentro e fora do escopo; todo servidor UniVerso responde `/.well-known/security.txt` com o mesmo endereço, válido por um ano depois da versão que ele roda.
+- **O registro de auditoria guarda um ano, depois esquece** ([ADR 0083](adr/0083-security-hardening-of-universo.md) item 10): `VERSO_AUDIT_DAYS` (365 por padrão, `0` para sempre) diz por quanto tempo uma linha — quem entrou, de onde, o que mudou nos acessos — fica guardada; uma varredura ao iniciar e uma vez por dia apaga as mais antigas, só pelo tempo, e a visão geral do console diz o prazo.
 
 ## 0.8.0-beta.1 — 2026-10-13
 
