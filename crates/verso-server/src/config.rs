@@ -34,9 +34,10 @@ pub struct Config {
     pub web: bool,
     /// The first admin, read on the first start only (ADR 0074 item 1).
     pub admin: Option<(String, String)>,
-    /// The reverse proxy whose forwarded headers are believed
-    /// (`VERSO_TRUSTED_PROXY`, ADR 0073 item 6).
-    pub trusted_proxy: Option<std::net::IpAddr>,
+    /// The reverse proxies whose forwarded headers are believed
+    /// (`VERSO_TRUSTED_PROXY`, ADR 0073 item 6): addresses and CIDRs,
+    /// separated by commas (ADR 0083 item 5); empty when unset.
+    pub trusted_proxy: crate::proxy::Proxies,
     /// The certificate and key the server serves TLS with itself
     /// (`VERSO_TLS_CERT_FILE`, `VERSO_TLS_KEY_FILE`; the maintainer's answer
     /// F of 2026-10-09).
@@ -170,10 +171,11 @@ impl Config {
         };
         let trusted_proxy = value(env, "VERSO_TRUSTED_PROXY")?
             .map(|a| {
-                a.parse()
+                crate::proxy::Proxies::parse(&a)
                     .map_err(|e| ConfigError(format!("VERSO_TRUSTED_PROXY: {e}")))
             })
-            .transpose()?;
+            .transpose()?
+            .unwrap_or_default();
         let tls = match (
             value(env, "VERSO_TLS_CERT_FILE")?,
             value(env, "VERSO_TLS_KEY_FILE")?,
@@ -336,5 +338,22 @@ mod tests {
         .unwrap();
         assert!(!c.loopback_only());
         assert_eq!(c.public_url.as_deref(), Some("https://notas.casa"));
+    }
+
+    #[test]
+    fn the_trusted_proxies_are_a_list_or_one_address() {
+        assert!(read(&[]).unwrap().trusted_proxy.is_empty());
+        let one = read(&[("VERSO_TRUSTED_PROXY", "127.0.0.1")]).unwrap();
+        assert!(one.trusted_proxy.trusts("127.0.0.1".parse().unwrap()));
+        let many = read(&[(
+            "VERSO_TRUSTED_PROXY",
+            "127.0.0.1, 10.0.0.0/8, 2001:db8::/32",
+        )])
+        .unwrap()
+        .trusted_proxy;
+        assert!(many.trusts("10.1.2.3".parse().unwrap()));
+        assert!(many.trusts("2001:db8::9".parse().unwrap()));
+        let bad = read(&[("VERSO_TRUSTED_PROXY", "10.0.0.0/40")]).unwrap_err();
+        assert!(bad.0.starts_with("VERSO_TRUSTED_PROXY"), "{bad}");
     }
 }

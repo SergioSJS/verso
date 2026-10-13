@@ -95,18 +95,24 @@ impl Drop for Held {
 
 /// A token bucket: `rate` a second, `burst` at once. A command takes a
 /// token, in debt if need be, and waits as long as the debt takes to
-/// repay: commands past the pace are served in turn, none refused.
+/// repay: commands past the pace are served in turn, none refused. The
+/// REST routes' pace (`crate::pace`) takes one only when it is there.
 #[derive(Clone, Copy)]
-struct Bucket {
+pub(crate) struct Bucket {
     tokens: f64,
-    at: Instant,
+    /// When it was last taken from, or made.
+    pub(crate) at: Instant,
 }
 
 impl Bucket {
     fn full(burst: f64) -> Self {
+        Self::full_at(burst, Instant::now())
+    }
+
+    pub(crate) fn full_at(burst: f64, now: Instant) -> Self {
         Self {
             tokens: burst,
-            at: Instant::now(),
+            at: now,
         }
     }
 
@@ -114,10 +120,14 @@ impl Bucket {
     /// instead of waiting (presence) takes one only when it costs no other
     /// command its turn.
     fn take_free(&mut self, rate: f64, burst: f64) -> bool {
-        let now = Instant::now();
-        let earned = now.duration_since(self.at).as_secs_f64() * rate;
+        self.take_free_at(Instant::now(), rate, burst)
+    }
+
+    /// The same at `now`, a clock the caller holds (a test's own).
+    pub(crate) fn take_free_at(&mut self, now: Instant, rate: f64, burst: f64) -> bool {
+        let earned = now.saturating_duration_since(self.at).as_secs_f64() * rate;
         let tokens = (self.tokens + earned).min(burst);
-        self.at = now;
+        self.at = now.max(self.at);
         if tokens >= 1.0 {
             self.tokens = tokens - 1.0;
             true
@@ -125,6 +135,18 @@ impl Bucket {
             self.tokens = tokens;
             false
         }
+    }
+
+    /// How long until a token is there, after a [`Bucket::take_free_at`]
+    /// that found none.
+    pub(crate) fn until_one(&self, rate: f64) -> Duration {
+        Duration::from_secs_f64(((1.0 - self.tokens) / rate).max(0.0))
+    }
+
+    /// Whether, at `now`, the bucket has filled again: it then says no
+    /// more than a new one would, and may be forgotten.
+    pub(crate) fn refilled(&self, now: Instant, rate: f64, burst: f64) -> bool {
+        self.tokens + now.saturating_duration_since(self.at).as_secs_f64() * rate >= burst
     }
 
     fn take(&mut self, rate: f64, burst: f64) -> Duration {

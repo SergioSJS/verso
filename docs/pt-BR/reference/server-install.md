@@ -288,7 +288,7 @@ vazio conta como não definido.
 | `VERSO_UI_DIR` | `<diretório do binário>/../share/universo/ui` | os arquivos da janela |
 | `VERSO_ADMIN_EMAIL` | nenhum | o primeiro admin, só na primeira inicialização |
 | `VERSO_ADMIN_PASSWORD` ou `VERSO_ADMIN_PASSWORD_FILE` | nenhum | a senha do primeiro admin, 12 caracteres ou mais |
-| `VERSO_TRUSTED_PROXY` | nenhum | o endereço IP do proxy reverso cujos `X-Forwarded-For` e `X-Forwarded-Proto` são aceitos (um endereço) |
+| `VERSO_TRUSTED_PROXY` | nenhum | os proxies reversos cujos `X-Forwarded-For` e `X-Forwarded-Proto` são aceitos: um endereço, ou uma lista de endereços e CIDRs separados por vírgulas, IPv4 e IPv6 (`127.0.0.1, 10.0.0.0/8, 2001:db8::/32`); seção 8 |
 | `VERSO_TLS_CERT_FILE` e `VERSO_TLS_KEY_FILE` | nenhum | o Verso serve TLS ele mesmo com esse certificado e essa chave (PEM); os dois ou nenhum |
 | `VERSO_UPDATE_CHECK` | ligado | `off` desliga a checagem de versão nova (seção 12) |
 | `VERSO_UPDATE_TOKEN` | não | um token que lê as releases do projeto, necessário para a checagem enquanto o repositório é privado (um token do GitHub com leitura dele); sem ele o log avisa uma vez |
@@ -341,6 +341,66 @@ com o endereço de onde vêm as conexões do proxy: `127.0.0.1` para um proxy
 na mesma máquina. Um proxy em outro contêiner vem do endereço desse
 contêiner, que então precisa ser fixo (um `ipv4_address` na rede do
 compose). Traefik ou o proxy do próprio NAS funcionam do mesmo jeito.
+
+O endereço do cliente é lido do `X-Forwarded-For` como se lê toda cadeia
+de proxies: da direita, passando por cada endereço do
+`VERSO_TRUSTED_PROXY`; o primeiro que não está nele é o cliente, e o que
+fica à esquerda dele — escrito pelo cliente — nunca é aceito. Uma conexão
+de um endereço fora da lista tem o `X-Forwarded-For` ignorado. Ponha na
+lista só os proxies: uma faixa de endereços que também tem pessoas deixa
+que elas digam o endereço que quiserem.
+
+**Um proxy fora da lista faz de todo visitante um endereço só.** Toda
+requisição parece então vir do proxy, e toda espera por endereço conta
+para ele: três logins errados de um estranho atrasam o de todo mundo, e
+o ritmo da API — 20 requisições por segundo de um endereço, 100 de uma
+vez, além do qual ela responde 429 com `Retry-After` — passa a ser
+dividido por todos os visitantes. Só uma conexão direta desta máquina não
+tem ritmo. Quando uma requisição vem de um proxy confiável sem `X-Forwarded-For`, ela
+é atendida com o endereço do proxy e o log diz, uma vez por minuto, *a
+request from the trusted proxy carried no X-Forwarded-For: is the proxy
+configured to forward it?*
+
+### Atrás da Cloudflare
+
+A Cloudflare chega ao servidor por muitos endereços, que ela publica em
+<https://www.cloudflare.com/ips/> e que mudam de tempos em tempos. Dois
+caminhos:
+
+- **Da Cloudflare direto para o Verso.** O Verso serve TLS ele mesmo
+  (abaixo; um certificado da Origin CA da Cloudflare funciona com o modo
+  *Full (strict)*), e o `VERSO_TRUSTED_PROXY` lista as faixas da
+  Cloudflare. A linha pode ser montada com:
+
+  ```sh
+  { curl -fsS https://www.cloudflare.com/ips-v4; echo; curl -fsS https://www.cloudflare.com/ips-v6; } \
+    | grep . | paste -sd, -
+  ```
+
+  Confira de novo de vez em quando: um endereço que a Cloudflare acrescenta
+  e a lista não tem é, para o servidor, um visitante só.
+- **Cloudflare → Caddy → Verso**, com só o Caddy confiável
+  (`VERSO_TRUSTED_PROXY=127.0.0.1`). O Caddy recebe as faixas da
+  Cloudflare e repassa só o endereço do cliente:
+
+  ```
+  {
+      servers {
+          trusted_proxies static 173.245.48.0/20 103.21.244.0/22 …
+          client_ip_headers CF-Connecting-IP X-Forwarded-For
+      }
+  }
+
+  notas.exemplo.com {
+      reverse_proxy 127.0.0.1:7340 {
+          header_up X-Forwarded-For {client_ip}
+      }
+  }
+  ```
+
+  com todas as faixas do comando acima em `trusted_proxies`. Sem elas, o
+  Caddy repassa o endereço da Cloudflare como o do cliente, e o servidor vê
+  todo visitante como alguns poucos endereços da Cloudflare.
 
 ### O certificado do próprio Verso
 
