@@ -371,8 +371,16 @@ function Board({
             captureUpdate: CaptureUpdateAction.NEVER,
           });
         });
-        const now = new Set(merged);
-        return remote.filter((e) => now.has(e)).map((e) => e.id);
+        // Taken: the room's version is what the board now holds — the
+        // same object, or a copy of it with its index repaired, at the same
+        // version and nonce (roomModel.ts `repairedIndices`).
+        const now = new Map(merged.map((e) => [e.id, e] as const));
+        return remote
+          .filter((e) => {
+            const m = now.get(e.id);
+            return m === e || (m !== undefined && m["version"] === e["version"] && m["versionNonce"] === e["versionNonce"]);
+          })
+          .map((e) => e.id);
       },
       people: (people) => api.current?.updateScene({ collaborators: new Map(people) as never }),
     };

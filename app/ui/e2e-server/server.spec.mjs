@@ -1004,17 +1004,43 @@ test("three windows, two engines, edit one board hard for a minute: one board ev
   await Promise.all(windows.map((p, i) => workOnBoard(p, seeded(seed + i * 7919), 60_000)));
   // Quiet: every window draws the room's board, and each makes the same file.
   let last = null;
+  const quietAt = Date.now();
+  const waited = [];
+  // On a failure: every element some window holds otherwise than another,
+  // as each window's room and board hold it.
+  const diff = async () => {
+    const full = await Promise.all(windows.map((p) => p.evaluate(() => {
+      const room = window.__VERSO_TEST__.boardRoom;
+      const pick = (e) => ({ v: e.version, n: e.versionNonce, i: e.index, d: e.isDeleted === true, x: Math.round(e.x), y: Math.round(e.y), w: Math.round(e.width), h: Math.round(e.height), t: e.text });
+      return { room: Object.fromEntries([...room.resolved().values()].map((e) => [e.id, pick(e)])), scene: Object.fromEntries(window.__VERSO_TEST__.board.getSceneElementsIncludingDeleted().map((e) => [e.id, pick(e)])), sel: window.__VERSO_TEST__.board.getAppState().selectedElementIds };
+    })));
+    const ids = new Set(full.flatMap((w) => [...Object.keys(w.room), ...Object.keys(w.scene)]));
+    for (const id of ids) {
+      const vals = full.flatMap((w) => [JSON.stringify(w.room[id]), JSON.stringify(w.scene[id])]);
+      if (new Set(vals).size > 1) console.log(`DIFF ${id}\n  ` + full.map((w, k) => `w${k} room ${JSON.stringify(w.room[id])}\n  w${k} scene ${JSON.stringify(w.scene[id])}`).join("\n  "));
+    }
+  };
   await expect
     .poll(
       async () => {
         const all = await Promise.all(windows.map(roomOf));
         last = all;
+        // How many elements each window still holds otherwise than the
+        // first window's room, as the wait goes: where the time goes.
+        const off = all.map((w) => Object.keys({ ...w.room, ...w.scene, ...all[0].room }).filter((id) => w.scene[id] !== all[0].room[id] || w.room[id] !== all[0].room[id]).length);
+        waited.push(`${((Date.now() - quietAt) / 1000).toFixed(1)}s:${off.join("/")}`);
         const same = all.every((w) => JSON.stringify(w.room) === JSON.stringify(all[0].room) && JSON.stringify(w.scene) === JSON.stringify(w.room));
         return same && all.every((w) => JSON.stringify(w.canvas) === JSON.stringify(all[0].canvas));
       },
       { timeout: 60_000, intervals: [500] },
     )
-    .toBe(true);
+    .toBe(true)
+    .catch(async (e) => {
+      console.log(`board three windows: elements still different, per window: ${waited.slice(-6).join(" ")}`);
+      await diff();
+      throw e;
+    });
+  console.log(`board three windows: agreed ${((Date.now() - quietAt) / 1000).toFixed(1)} s after the edits stopped (elements still different, per window: ${waited.join(" ")})`);
   // The file on the server's disk: a JSON Canvas, and that board.
   await windows[0].evaluate(async (p) => window.__TAURI_INTERNALS__.invoke("collab_save", { path: p }), path).catch(() => undefined);
   await expect.poll(async () => JSON.stringify(JSON.parse(await onDisk(page, path))), { timeout: 30_000 }).toBe(JSON.stringify(last[0].canvas));
@@ -1043,4 +1069,61 @@ test("three windows, two engines, edit one board hard for a minute: one board ev
   await wk.close();
   await browser.close();
   for (const e of errs) expect(e).toEqual([]);
+});
+
+test("an element another window deletes while this one presses it, selected, is deleted here once let go, and not left selected", async ({ page }) => {
+  await page.context().addInitScript(() => {
+    window.__VERSO_TEST__ = {};
+  });
+  const errors = watch(page);
+  await signedIn(page, ADMIN.email, ADMIN.password);
+  await demoRegistered(page);
+  await openDemo(page);
+  const folder = new URL(page.url()).searchParams.get("folder");
+  const path = `Mesa premida ${test.info().project.name} ${Date.now()}.canvas`;
+  await made(page, path, TWO_CARDS);
+  await windowOn(page, folder, path);
+  const other = await page.context().newPage();
+  const otherErrors = watch(other);
+  await windowOn(other, folder, path);
+  for (const p of [page, other]) await p.waitForFunction(() => (window.__VERSO_TEST__?.board?.getSceneElements().length ?? 0) >= 2 && window.__VERSO_TEST__.board.getAppState().width > 0);
+  // A rectangle drawn here, and seen there.
+  const a = await onBoard(page, 0, 250);
+  await page.mouse.click(a.x, a.y);
+  await page.keyboard.press("r");
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down();
+  await page.mouse.move(a.x + 80, a.y + 60, { steps: 4 });
+  await page.mouse.up();
+  await page.keyboard.press("Escape");
+  const id = await page.evaluate(() => window.__VERSO_TEST__.board.getSceneElements().find((e) => e.type === "rectangle").id);
+  await expect.poll(async () => (await sceneOf(other)).some((e) => e.id === id), { timeout: 20_000 }).toBe(true);
+  // Selected here, then pressed again, the pointer held: Excalidraw holds
+  // the pressed element across the press, and selects it alone when the
+  // pointer goes up with no drag.
+  const r = (await sceneOf(page)).find((e) => e.id === id);
+  const at = await onBoard(page, r.x + 4, r.y + r.height / 2);
+  await page.mouse.click(at.x, at.y);
+  await expect.poll(() => page.evaluate((i) => window.__VERSO_TEST__.board.getAppState().selectedElementIds[i] === true, id)).toBe(true);
+  await page.mouse.move(at.x, at.y);
+  await page.mouse.down();
+  // Deleted there meanwhile.
+  await other.evaluate((i) => {
+    const b = window.__VERSO_TEST__.board;
+    b.updateScene({ elements: b.getSceneElementsIncludingDeleted().map((e) => (e.id === i ? { ...e, isDeleted: true, version: e.version + 1, versionNonce: e.versionNonce + 1 } : e)) });
+  }, id);
+  await expect
+    .poll(() => page.evaluate((i) => window.__VERSO_TEST__.boardRoom.resolved().get(i)?.isDeleted === true, id), { timeout: 20_000 })
+    .toBe(true);
+  await page.waitForTimeout(300);
+  await page.mouse.up();
+  // Deleted here too once let go, and not selected.
+  await expect
+    .poll(() => page.evaluate((i) => window.__VERSO_TEST__.board.getSceneElementsIncludingDeleted().find((e) => e.id === i)?.isDeleted === true, id), { timeout: 20_000 })
+    .toBe(true);
+  await page.waitForTimeout(500);
+  expect(await page.evaluate((i) => window.__VERSO_TEST__.board.getAppState().selectedElementIds[i] === true, id)).toBe(false);
+  await other.close();
+  expect(errors).toEqual([]);
+  expect(otherErrors).toEqual([]);
 });
