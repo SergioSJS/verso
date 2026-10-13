@@ -41,11 +41,11 @@ fn served(kind: Kind, file: &str, doc: Doc, updates: &[&[u8]]) -> (Vec<u8>, usiz
             board = collab_board::Board::of(&doc);
         }
     }
-    let state = match collab::state(&doc) {
+    let state = match collab::state(&doc, kind) {
         Ok(state) => state,
         Err(e) => {
             assert_eq!(e.message, collab::BROKEN);
-            collab::state(&fresh()).expect("a room made from its file has a state")
+            collab::state(&fresh(), kind).expect("a room made from its file has a state")
         }
     };
     let window = Doc::new();
@@ -322,7 +322,7 @@ fn window_of(room: &Doc, client: u64) -> Doc {
     let window = Doc::with_options(options);
     window
         .transact_mut()
-        .apply_update(Update::decode_v1(&collab::state(room).unwrap()).unwrap())
+        .apply_update(Update::decode_v1(&collab::state(room, Kind::Note).unwrap()).unwrap())
         .unwrap();
     window
 }
@@ -365,9 +365,10 @@ fn a_deletion_of_the_rooms_items_ahead_of_it_is_refused() {
 }
 
 /// What windows send stays taken: a deletion of what the same update
-/// makes, a deletion of the room's own text, and — a connection's updates
-/// can reach the room in the other order — a window's deletion of another
-/// window's item the room has not seen yet.
+/// makes, a deletion of the room's own text, and a window's deletion of
+/// another window's item, which it heard from the room, so after the room
+/// took it. The same deletion ahead of the insert — which no window sends,
+/// since a connection's updates reach the room in order — is refused.
 #[test]
 fn deletions_a_window_can_make_are_taken() {
     use yrs::{GetString, Text};
@@ -389,8 +390,7 @@ fn deletions_a_window_can_make_are_taken() {
         txn.encode_update_v1()
     };
     assert_eq!(taken(&room, &rooms), Ok(()));
-    // Window two's insert and window one's deletion of it, the deletion
-    // first.
+    // Window two's insert and window one's deletion of it.
     let two = window_of(&room, 3);
     let text_two = two.get_or_insert_text(collab::TEXT);
     let inserted = {
@@ -406,8 +406,16 @@ fn deletions_a_window_can_make_are_taken() {
         text.remove_range(&mut txn, 0, 3);
         txn.encode_update_v1()
     };
-    assert_eq!(taken(&room, &deleted), Ok(()));
+    let ahead = note_room("# Nota\n");
+    assert_eq!(taken(&ahead, &own), Ok(()));
+    assert_eq!(taken(&ahead, &rooms), Ok(()));
+    assert_eq!(
+        taken(&ahead, &deleted),
+        Err(collab::BROKEN.to_owned()),
+        "a deletion ahead of the insert"
+    );
     assert_eq!(taken(&room, &inserted), Ok(()));
+    assert_eq!(taken(&room, &deleted), Ok(()));
     let room_text = room
         .get_or_insert_text(collab::TEXT)
         .get_string(&room.transact());
@@ -436,10 +444,10 @@ fn board_through(input: &[u8]) {
         }
     }
     let join = |doc: &mut Doc, board: &mut collab_board::Board| {
-        let state = collab::state(doc).unwrap_or_else(|_| {
+        let state = collab::state(doc, Kind::Board).unwrap_or_else(|_| {
             *doc = fresh();
             *board = collab_board::Board::of(doc);
-            collab::state(doc).expect("a room made of its file has a state")
+            collab::state(doc, Kind::Board).expect("a room made of its file has a state")
         });
         let window = Doc::with_client_id(2);
         window
@@ -536,4 +544,142 @@ fn an_item_of_the_rooms_own_client_ahead_of_it_is_refused() {
     let whole =
         yrs::ReadTxn::encode_state_as_update_v1(&window.transact(), &yrs::StateVector::default());
     assert_eq!(taken(&room, &whole), Ok(()));
+}
+
+fn room_text(room: &Doc) -> String {
+    use yrs::GetString;
+    room.get_or_insert_text(collab::TEXT)
+        .get_string(&room.transact())
+}
+
+/// A window that joins `room` as `join` lets it: the room's state, or —
+/// when the state would not read in a window as in the room — the room
+/// made again from `file` first. Whether the room was made again.
+fn join_note(room: &mut Doc, file: &str) -> bool {
+    use yrs::GetString;
+    let (state, again) = match collab::state(room, Kind::Note) {
+        Ok(state) => (state, false),
+        Err(e) => {
+            assert_eq!(e.message, collab::BROKEN);
+            *room = note_room(file);
+            (collab::state(room, Kind::Note).unwrap(), true)
+        }
+    };
+    let window = Doc::new();
+    window
+        .transact_mut()
+        .apply_update(Update::decode_v1(&state).unwrap())
+        .unwrap();
+    let text = window.get_or_insert_text(collab::TEXT);
+    assert_eq!(text.get_string(&window.transact()), room_text(room));
+    again
+}
+
+/// A note room through a fuzz input of the target `note` as the server
+/// keeps it: the updates (the room made again from its file when one is
+/// BROKEN), a window joining after each, a write from elsewhere merged, a
+/// change from outside; every window that joins reads the room's text.
+fn note_through(input: &[u8]) {
+    let records = records(input);
+    let text = |i: usize| {
+        String::from_utf8_lossy(records.get(i).copied().unwrap_or_default()).into_owned()
+    };
+    let Some((file, _)) = collab::normalized(&text(0)) else {
+        return;
+    };
+    let mut room = note_room(&file);
+    for update in records.get(3..).unwrap_or_default() {
+        if taken(&room, update).is_err_and(|e| e == collab::BROKEN) {
+            room = note_room(&file);
+        }
+        join_note(&mut room, &file);
+    }
+    if collab::merge_into(&room, &file, &text(2)).is_ok() {
+        join_note(&mut room, &file);
+    }
+    if let Some((outside, _)) = collab::normalized(&text(1)) {
+        collab::apply_text(&room, &outside);
+        assert_eq!(room_text(&room), outside);
+        join_note(&mut room, &file);
+    }
+}
+
+/// A board room through a fuzz input of the target `board`: a window that
+/// joins, and a room that took the same updates in the other order, hold
+/// the room's elements.
+fn board_elements_through(input: &[u8]) {
+    let records = records(input);
+    let base = String::from_utf8_lossy(records[0]).into_owned();
+    let fresh = || collab_board::based(Doc::with_client_id(1), &base);
+    let (mut doc, mut taken_in) = (fresh(), Vec::new());
+    let mut board = collab_board::Board::of(&doc);
+    for update in records.get(3..).unwrap_or_default() {
+        let Ok(decoded) = decode(update) else {
+            continue;
+        };
+        match take(Kind::Board, &doc, &mut board, update, decoded) {
+            Ok(()) => taken_in.push(*update),
+            Err(e) if e.message == collab::BROKEN => {
+                doc = fresh();
+                board = collab_board::Board::of(&doc);
+                taken_in.clear();
+            }
+            Err(_) => {}
+        }
+    }
+    let state = collab::state(&doc, Kind::Board).unwrap_or_else(|e| {
+        assert_eq!(e.message, collab::BROKEN);
+        doc = fresh();
+        taken_in.clear();
+        collab::state(&doc, Kind::Board).unwrap()
+    });
+    let elements = collab_board::elements(&doc);
+    let window = Doc::with_client_id(2);
+    window
+        .transact_mut()
+        .apply_update(Update::decode_v1(&state).unwrap())
+        .unwrap();
+    assert_eq!(collab_board::elements(&window), elements);
+    let other = fresh();
+    let mut other_board = collab_board::Board::of(&other);
+    let all = taken_in.iter().rev().all(|u| {
+        decode(u).is_ok_and(|d| take(Kind::Board, &other, &mut other_board, u, d).is_ok())
+    });
+    if all {
+        assert_eq!(collab_board::elements(&other), elements);
+    }
+}
+
+/// What the fuzz targets found once the panics were caught, kept open
+/// until the room took a connection's updates in order (ADR 0083 item
+/// 14): `yrs` 0.28 read a run it had freed (AddressSanitizer), and rooms
+/// and windows read different texts and elements — all on the path where
+/// `yrs` keeps an update aside. The room now never keeps one aside: it is
+/// refused and the room made again, and every window reads the room.
+#[test]
+fn what_yrs_kept_aside_no_longer_reaches_a_room() {
+    for input in [
+        &include_bytes!("../fuzz/seeds-note/use-after-free.bin")[..],
+        include_bytes!("../fuzz/seeds-note/window-reads-other-text.bin"),
+        include_bytes!("../fuzz/seeds-note/window-reads-other-text-after-a-write.bin"),
+    ] {
+        note_through(input);
+    }
+    for input in [
+        &include_bytes!("../fuzz/seeds-board/use-after-free.bin")[..],
+        include_bytes!("../fuzz/seeds-board/window-reads-other-elements.bin"),
+        include_bytes!("../fuzz/seeds-board/order-matters.bin"),
+    ] {
+        board_elements_through(input);
+    }
+}
+
+/// Found by the fuzz target `board` once the order held
+/// (`seeds-board/half-applied.bin`): `yrs` stopped applying an update
+/// halfway ("block parent … must be deleted or shared ref type") and left
+/// the room's board without an element a window had made; the same
+/// updates taken otherwise kept it. A room `yrs` stopped in is made again.
+#[test]
+fn a_room_yrs_stopped_halfway_in_is_made_again() {
+    board_elements_through(include_bytes!("../fuzz/seeds-board/half-applied.bin"));
 }

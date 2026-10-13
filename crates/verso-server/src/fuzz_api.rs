@@ -93,7 +93,7 @@ impl NoteRoom {
     /// (`collab::state`), the room made again first when `yrs` cannot make
     /// it.
     pub fn state(&mut self) -> Vec<u8> {
-        if let Ok(state) = collab::state(&self.doc) {
+        if let Ok(state) = collab::state(&self.doc, Kind::Note) {
             return state;
         }
         self.reload();
@@ -195,7 +195,7 @@ impl BoardRoom {
     /// What a window that joins is sent (`collab::state`), the room made
     /// again first when `yrs` cannot make it.
     pub fn state(&mut self) -> Vec<u8> {
-        if let Ok(state) = collab::state(&self.doc) {
+        if let Ok(state) = collab::state(&self.doc, Kind::Board) {
             return state;
         }
         self.reload();

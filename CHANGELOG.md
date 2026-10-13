@@ -37,6 +37,7 @@ test release.
 ### Fixed
 
 - **The compose file parses again**: an unquoted colon in its CasaOS tagline made `docker compose` refuse the whole file; `scripts/check-server-image.sh` now checks it with `docker compose config`.
+- **A window's edits reach a shared note or board in the order they were made** ([ADR 0083](docs/adr/0083-security-hardening-of-universo.md) item 14): UniVerso took one window's edits side by side and could shuffle them, and the room could be left short of what the windows held. It now takes each window's edits in the order sent; an edit that depends on something the room never received is refused, and the room is read again from its file.
 
 ## 0.8.0-beta.1 — 2026-10-13
 
