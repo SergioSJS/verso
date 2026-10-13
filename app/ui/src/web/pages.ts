@@ -8,6 +8,7 @@
 
 import { ApiError, api, setCsrf, type Account } from "./api";
 import { divider, el, field, form, lead, page, select } from "./form";
+import { readCode } from "./deviceCode";
 import { passkeysHere, signInWithPasskey } from "./passkeys";
 import { roleName, setLang, w } from "./strings";
 import { icon } from "../icons";
@@ -199,22 +200,64 @@ export async function resetPage(token: string): Promise<void> {
   password.input.focus();
 }
 
+type Asked = { code: string; device: string; address: string; asked: string };
+
+/** What is asking under `code`: the server reads the code, from the link
+ *  or typed, and a wrong one costs a try of the address's delay. */
+function describeCode(code: string): Promise<Asked> {
+  return api<Asked>("POST", "/api/device/describe", { code });
+}
+
 export async function devicePage(account: Account | null): Promise<void> {
   const s = w();
-  const code = (new URLSearchParams(location.search).get("code") ?? "").toUpperCase();
+  const linked = (new URLSearchParams(location.search).get("code") ?? "").trim();
   if (!account) {
     location.href = `/signin?next=${encodeURIComponent(location.pathname + location.search)}`;
     return;
   }
   setLang(account.lang);
-  const at = `/api/device/${encodeURIComponent(code)}`;
-  let what: { device: string; address: string; asked: string };
+  // Without a code in the link, the person types the one the device shows
+  // (ADR 0083 item 17), as GitHub asks; the link keeps the app's own flow.
+  if (!linked) {
+    typeCodePage(account);
+    return;
+  }
+  let what: Asked;
   try {
-    what = await api("GET", at);
+    what = await describeCode(linked);
   } catch (e) {
     page(s.deviceTitle, lead(explain(e)));
     return;
   }
+  askPage(account, what, false);
+}
+
+/** The code typed from the device's screen; the question once the server
+ *  knows it, the error said in place otherwise. */
+function typeCodePage(account: Account): void {
+  const s = w();
+  const code = field(s.deviceTypeLabel, "text", { autocomplete: "off", autocapitalize: "characters", spellcheck: "false", maxlength: "20", required: "" }, s.deviceTypeHint);
+  const bad = new Error(s.deviceCodeBad);
+  const f = form(
+    [code],
+    s.deviceContinue,
+    async () => {
+      const read = readCode(code.input.value);
+      if (!read) throw bad;
+      askPage(account, await describeCode(read), true);
+    },
+    (e) => (e === bad ? bad.message : explain(e)),
+  );
+  page(s.deviceTitle, lead(s.deviceTypeLead), f.form);
+  code.input.focus();
+}
+
+/** Who asked, and the question: approve — with a fresh proof, asked on the
+ *  spot (ADR 0083 item 6) — or refuse. A typed code is shown beside who
+ *  asked, as the server read it. */
+function askPage(account: Account, what: Asked, typed: boolean): void {
+  const s = w();
+  const sent = { code: what.code };
   // Who asked, before the question (threat-model.md, gap 12): a link
   // someone else sent shows an address and a time that are not the
   // person's, and the device's name as that someone gave it.
@@ -223,17 +266,25 @@ export async function devicePage(account: Account | null): Promise<void> {
     ? what.asked
     : asked.toLocaleString(account.lang.startsWith("pt") ? "pt-BR" : "en", { dateStyle: "long", timeStyle: "medium" });
   const fact = (term: string, value: string) => [el("dt", {}, term), el("dd", {}, value)];
+  const heading = el("h2", { id: "device-who", class: "web-subtitle", tabindex: "-1" }, s.deviceWho);
   const who = el(
     "section",
     { class: "web-asked", "aria-labelledby": "device-who" },
-    el("h2", { id: "device-who", class: "web-subtitle" }, s.deviceWho),
-    el("dl", { class: "web-facts" }, ...fact(s.deviceName, what.device), ...fact(s.deviceAddress, what.address), ...fact(s.deviceWhen, when)),
+    heading,
+    el(
+      "dl",
+      { class: "web-facts" },
+      ...(typed ? fact(s.deviceCodeTyped, what.code) : []),
+      ...fact(s.deviceName, what.device),
+      ...fact(s.deviceAddress, what.address),
+      ...fact(s.deviceWhen, when),
+    ),
   );
   const f = form(
     [],
     s.deviceApprove(what.device),
     async () => {
-      await api("POST", at, {});
+      await api("POST", "/api/device/approve", sent);
       page(s.deviceTitle, lead(s.deviceDone));
     },
     explain,
@@ -246,7 +297,7 @@ export async function devicePage(account: Account | null): Promise<void> {
   refuse.addEventListener("click", () => {
     f.error.textContent = "";
     refuse.disabled = true;
-    api("DELETE", at)
+    api("POST", "/api/device/refuse", sent)
       .then(() => page(s.deviceTitle, lead(s.deviceRefused)))
       .catch((e: unknown) => {
         f.error.textContent = explain(e);
@@ -257,12 +308,14 @@ export async function devicePage(account: Account | null): Promise<void> {
   page(
     s.deviceTitle,
     lead(s.deviceLead(what.device)),
-    el("p", { class: "web-code", "aria-label": s.deviceCode }, code),
+    typed ? el("span") : el("p", { class: "web-code", "aria-label": s.deviceCode }, what.code),
     who,
     question,
     el("p", { id: "device-ask-why", class: "web-lead" }, s.deviceAskWhy),
     f.form,
   );
+  // The page changed under the person's hands: they land on who asked.
+  if (typed) heading.focus();
 }
 
 type FolderRow = { id: string; name: string; role: string; owner?: { name: string } | null; share?: boolean; missing?: boolean };
