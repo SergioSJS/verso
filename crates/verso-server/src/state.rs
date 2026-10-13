@@ -255,6 +255,8 @@ pub struct Server {
     /// A trusted proxy that forwarded no `X-Forwarded-For`, said once a
     /// minute (ADR 0083 item 5).
     pub unforwarded: crate::log::OnceAMinute,
+    /// The REST routes' pace per address (ADR 0083 item 7).
+    pub pace: crate::pace::Pace,
     /// The contract's version: a hash of the generated bindings (the
     /// maintainer's answer D of 2026-10-09), sent in the handshake.
     pub contract: String,
@@ -322,6 +324,7 @@ impl Server {
             fair: crate::fair::Fair::default(),
             slots,
             unforwarded: crate::log::OnceAMinute::default(),
+            pace: crate::pace::Pace::default(),
             contract,
             next: AtomicU64::new(1),
             devices: Mutex::new(HashMap::new()),

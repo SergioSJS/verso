@@ -29,6 +29,7 @@ pub mod limit;
 pub mod listen;
 pub mod log;
 pub mod mail;
+pub mod pace;
 pub mod passkeys;
 pub mod presence;
 pub mod proxy;

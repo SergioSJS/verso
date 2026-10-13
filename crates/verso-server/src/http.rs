@@ -408,6 +408,7 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/reset/{token}", page())
         .route("/signin-link/{token}", page())
         .fallback_service(static_files)
+        .layer(middleware::from_fn_with_state(Arc::clone(&server), pace))
         .layer(middleware::from_fn_with_state(Arc::clone(&server), guard))
         .layer(middleware::from_fn(deadline))
         // A request's body: a form, a setting, a passkey — never a file,
@@ -437,6 +438,70 @@ async fn deadline(request: Request, next: Next) -> Response {
         )
         .into_response(),
     }
+}
+
+/// The pace of the REST routes, per address (ADR 0083 item 7): every
+/// route under `/api/` but the WebSocket's upgrade, which `crate::fair`
+/// counts once it is accepted; this machine and the trusted proxies are
+/// not paced (they speak for everyone), nor the window's files and the
+/// page, left to the connection limits (a page load is a burst of files).
+/// A refused upgrade is not counted by `crate::fair`: it takes a request
+/// from the pace like any other, and is refused 429 when the address is
+/// past it, so that a flood of upgrades with no credential is no way
+/// around the pace.
+async fn pace(State(server): State<Arc<Server>>, request: Request, next: Next) -> Response {
+    let path = request.uri().path();
+    if !path.starts_with("/api/") {
+        return next.run(request).await;
+    }
+    let remote = request
+        .extensions()
+        .get::<ConnectInfo<Remote>>()
+        .map_or_else(|| SocketAddr::from(([127, 0, 0, 1], 0)), |c| c.0.0);
+    let proxies = &server.config.trusted_proxy;
+    let client = proxies.client(
+        remote.ip(),
+        request
+            .headers()
+            .get_all("x-forwarded-for")
+            .iter()
+            .filter_map(|v| v.to_str().ok()),
+    );
+    if client.addr.is_loopback() || proxies.trusts(client.addr) {
+        return next.run(request).await;
+    }
+    let key = crate::limit::address_key(client.addr);
+    let too_many = |wait: u64| {
+        ApiError {
+            retry: Some(wait),
+            ..ApiError::new(
+                StatusCode::TOO_MANY_REQUESTS,
+                "too_many",
+                "too many requests",
+            )
+        }
+        .into_response()
+    };
+    let upgrade = path == "/api/ws"
+        && request
+            .headers()
+            .get(header::UPGRADE)
+            .and_then(|v| v.to_str().ok())
+            .is_some_and(|v| v.eq_ignore_ascii_case("websocket"));
+    if upgrade {
+        if let Some(wait) = server.pace.waiting(&key) {
+            return too_many(wait);
+        }
+        let response = next.run(request).await;
+        if response.status() != StatusCode::SWITCHING_PROTOCOLS {
+            let _ = server.pace.take(&key);
+        }
+        return response;
+    }
+    if let Some(wait) = server.pace.take(&key) {
+        return too_many(wait);
+    }
+    next.run(request).await
 }
 
 /// The window's own policy, sent as a header and narrower than the

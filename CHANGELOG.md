@@ -15,6 +15,7 @@ test release.
 ### Changed
 
 - **UniVerso trusts several proxies** ([ADR 0083](docs/adr/0083-security-hardening-of-universo.md) item 5): `VERSO_TRUSTED_PROXY` takes a list of addresses and CIDRs, IPv4 and IPv6, separated by commas (`127.0.0.1, 10.0.0.0/8, 2001:db8::/32`); one address, as before, still works. The visitor's address is read from `X-Forwarded-For` from the right, past every proxy in the list, so a chain such as Cloudflare → Caddy → Verso, or Cloudflare straight to Verso with its ranges listed, gives each visitor their own address. A trusted proxy that forwards no `X-Forwarded-For` is said in the log once a minute. The installation guide has the Cloudflare recipe.
+- **UniVerso's API has a pace per address** ([ADR 0083](docs/adr/0083-security-hardening-of-universo.md) item 7): every route under `/api/` takes 20 requests a second from one address (an IPv6 /64 as one), 100 at once; past that it answers 429 with `Retry-After`, said in the log once a minute per address. The WebSocket, the window's files and the page are not paced; this machine and the trusted proxies are not either.
 
 ## 0.8.0-beta.1 — 2026-10-13
 

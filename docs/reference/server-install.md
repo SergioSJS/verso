@@ -342,7 +342,10 @@ range that also holds people lets them say any address they like.
 
 **A proxy not in the list makes every visitor one address.** Every
 request then seems to come from the proxy, and every per-address delay
-keys it: three failed sign-ins by a stranger slow everyone's. When a
+keys it: three failed sign-ins by a stranger slow everyone's, and the
+pace of the API — 20 requests a second from one address, 100 at once,
+past which it answers 429 with `Retry-After` — is shared by every
+visitor. This machine and the trusted proxies are not paced. When a
 request comes from a trusted proxy with no `X-Forwarded-For`, it is served
 with the proxy's address and the log says, once a minute, *a request from
 the trusted proxy carried no X-Forwarded-For: is the proxy configured to
