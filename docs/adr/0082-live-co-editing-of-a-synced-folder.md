@@ -483,7 +483,18 @@ co-edits live, the board by Excalidraw's own rule, as item 12 now says.
 The maintainer: *"Então a gente não tá com a aplicação 100% cooperativa,
 né? Com coedição. Deveria estar. A gente ainda não fechou o universo."*
 [0057](0057-board-json-canvas.md) and [0073](0073-self-hosted-server-first.md)
-item 7 got their Revisions lines the same day.
+item 7 got their Revisions lines the same day. Stressed the same night at
+the maintainer's request (*"tenho receio de quebrar algo em edições
+conjuntas"*): five clients on one board against a real server, 200 seeds
+of 200 changes (`tests_board_stress.rs`); five windows with the window's
+own code, 200 seeds of 200 changes (`boardStress.test.mjs`); three
+browser windows, two engines, a minute of random work, four seeds (the
+server's end-to-end suite); and the file read back by Obsidian 1.14.4
+(`docs/reference/obsidian-observations.md` §18). Three faults found and
+fixed at their cause: the server's `yrs` left some updates heard out of
+order unplaced (692b2ed); a deletion not yet sent was undone on the board
+by a drag heard meanwhile, and the board took a version equal to one heard
+for the room's (24d65d2).
 
 **Answered by the maintainer on 2026-10-12** (01:15 BRT), item by item: item 15's setting stays in the window's settings; the 5 s and 4 s
 waits stand, to be tuned with use; the writes the properties panel and a
