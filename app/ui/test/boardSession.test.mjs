@@ -74,6 +74,13 @@ function room() {
       act();
       current = null;
     },
+    /** What is relayed so far reaches its session, at once, in this task. */
+    deliverNow() {
+      while (queue.length) {
+        const [s, u] = queue.shift();
+        s.applyRemote(u);
+      }
+    },
     /** Everything relayed reaches its session. */
     sent: 0,
     async deliver() {
@@ -218,5 +225,58 @@ test("when the guard lets an engine's own layout stand, the board is handed the 
     }
   } finally {
     for (const s of sessions) s.leave();
+  }
+});
+
+/** A board as Excalidraw keeps its selection: changed at once by the
+ *  board's own scene, and by a person's action (a key, a press) only when
+ *  React renders, in a task of its own already queued. */
+function selectingPane(session) {
+  const p = {
+    scene: [],
+    selected: new Set(),
+    /** A press selects `id`: drawn in a task to come. */
+    press(id) {
+      const { port1, port2 } = new MessageChannel();
+      port1.onmessage = () => {
+        port1.close();
+        p.selected.add(id);
+      };
+      port2.postMessage(null);
+    },
+    apply(remote) {
+      const merged = b.mergeScene(p.scene, remote, new Set(), (e) => session.mine(e));
+      // view.tsx: what the room deleted leaves the selection first.
+      for (const e of merged) if (e.isDeleted) p.selected.delete(e.id);
+      p.scene = merged;
+      session.scene(p.scene, "transparent", false);
+      const now = new Map(merged.map((e) => [e.id, e]));
+      return remote.filter((e) => now.get(e.id)?.version === e.version && now.get(e.id)?.versionNonce === e.versionNonce).map((e) => e.id);
+    },
+    people() {},
+  };
+  session.attach(p, []);
+  return p;
+}
+
+test("an element another deletes as this person's own press selects it is never drawn selected and deleted", async () => {
+  const r = room();
+  const [a, other] = [0, 1].map((n) => r.join(n));
+  const pane = selectingPane(a);
+  try {
+    r.as(a, () => a.seed([]));
+    r.as(other, () => other.patch([el("x", "a1", 5)]));
+    await r.deliver();
+    assert.ok(pane.scene.some((e) => e.id === "x" && !e.isDeleted));
+    // The press selects x, to be drawn in a task already queued; the other
+    // window's deletion of x arrives in this very task.
+    pane.press("x");
+    r.as(other, () => other.patch([{ ...el("x", "a1", 6), version: 9, isDeleted: true }]));
+    r.deliverNow();
+    for (let i = 0; i < 5; i++) await new Promise((res) => setTimeout(res, 5));
+    assert.ok(pane.scene.some((e) => e.id === "x" && e.isDeleted), "the deletion was drawn");
+    assert.ok(!pane.selected.has("x"), "a deleted element left selected");
+  } finally {
+    for (const s of [a, other]) s.leave();
   }
 });
