@@ -12,6 +12,10 @@ versão de teste.
 
 ## Não lançado
 
+Nada ainda.
+
+## 0.8.0-beta.1 — 2026-10-13
+
 ### Acrescentado
 
 - **Tudo o que você edita na janela é editado junto, ao vivo — não só as notas** (item 12 da [ADR 0082](adr/0082-live-co-editing-of-a-synced-folder.md)): um board, um `.txt`, `.json` ou `.csv`, uma base (os filtros, ordenações, colunas e visões dela inclusive), o código de uma página e uma nota editada no cartão de um board entram na mesma sala de quem os tem abertos — no navegador, no app numa pasta do servidor ou em outro aparelho que sincroniza a pasta. Num board, as mudanças dos outros chegam enquanto eles as fazem e as deles e as suas ficam; quando duas pessoas mudam a mesma forma ao mesmo tempo, fica a versão mais nova, como o Excalidraw decide, e uma forma apagada continua apagada mesmo que alguém a estivesse arrastando. Você vê os ponteiros e as seleções dos outros com os nomes, e a aba diz quem está lá — *ao vivo, com Ana* —, o que um leitor de tela também ouve. O servidor grava o arquivo quando as edições assentam; uma edição feita junto nunca vira cópia de conflito. Um canvas salvo por outra ferramenta em outro layout só entra depois do primeiro salvamento aqui, mostrado como diff; um desenho do plugin Excalidraw continua mostrado, não editado, e o texto dele é uma nota, ao vivo como as notas.

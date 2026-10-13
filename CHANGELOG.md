@@ -12,6 +12,10 @@ test release.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.8.0-beta.1 — 2026-10-13
+
 ### Added
 
 - **Everything you edit in the window is edited together, live — not only notes** ([ADR 0082](docs/adr/0082-live-co-editing-of-a-synced-folder.md) item 12): a board, a `.txt`, `.json` or `.csv`, a base (its view's filters, sorts, columns and views included), a page's source and a note edited in a board's card join the same room as whoever has them open — in the browser, in the app on a server's folder, or on another device syncing the folder. On a board, the others' changes arrive as they make them and theirs and yours both land; when two people change the same shape at once, the later version stays, as Excalidraw decides it, and a shape deleted stays deleted even if someone was dragging it. You see the others' pointers and selections with their names, and the tab says who is there — *live, with Ana* — which a screen reader also hears. The server writes the file once the edits settle; an edit made together never becomes a conflict copy. A canvas saved by another tool in another layout joins only after its first save here, shown as a diff; a drawing of the Excalidraw plugin is still shown, not edited, and its text is a note, live as notes are.
