@@ -41,6 +41,7 @@ test release.
 - **`universo.sh install`'s Caddy steps keep the sites already there**: they printed a command that replaced `/etc/caddy/Caddyfile`, erasing any other site the machine served; UniVerso's site now goes in `/etc/caddy/Caddyfile.d/universo.caddyfile` and the Caddyfile only gains `import Caddyfile.d/*.caddyfile` when it lacks it. The walk-through on Oracle Cloud shows the same. On Oracle Linux, RHEL, Rocky and Alma, where Caddy is only in EPEL, the script prints how to get EPEL first instead of a bare `dnf install caddy`.
 - **The compose file parses again**: an unquoted colon in its CasaOS tagline made `docker compose` refuse the whole file; `scripts/check-server-image.sh` now checks it with `docker compose config`.
 - **A window's edits reach a shared note or board in the order they were made** ([ADR 0083](docs/adr/0083-security-hardening-of-universo.md) item 14): UniVerso took one window's edits side by side and could shuffle them, and the room could be left short of what the windows held. It now takes each window's edits in the order sent; an edit that depends on something the room never received is refused, and the room is read again from its file.
+- **An invitation to a share gives nothing once the share is gone** ([ADR 0081](docs/adr/0081-sharing-between-people-on-one-universo.md) items 4 and 8): accepted after the owner removed the share's last person or deleted its folder, it gave the invited person the whole folder the share was in. It now ends with the share, and its link says it is used or expired.
 
 ## 0.8.0-beta.1 — 2026-10-13
 
