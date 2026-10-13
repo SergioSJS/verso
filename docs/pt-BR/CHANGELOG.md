@@ -12,7 +12,9 @@ versão de teste.
 
 ## Não lançado
 
-Nada ainda.
+### Acrescentado
+
+- **Um jeito de relatar uma vulnerabilidade** ([ADR 0083](adr/0083-security-hardening-of-universo.md) item 15): o [SECURITY.md](SECURITY.md) dá o endereço, security@versomd.com, o que se promete — resposta em até 7 dias, correção na próxima versão, crédito quando quiser — e o que está dentro e fora do escopo; todo servidor UniVerso responde `/.well-known/security.txt` com o mesmo endereço, válido por um ano depois da versão que ele roda.
 
 ## 0.8.0-beta.1 — 2026-10-13
 

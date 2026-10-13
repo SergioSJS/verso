@@ -12,7 +12,9 @@ test release.
 
 ## Unreleased
 
-Nothing yet.
+### Added
+
+- **A way to report a vulnerability** ([ADR 0083](docs/adr/0083-security-hardening-of-universo.md) item 15): [SECURITY.md](SECURITY.md) gives the address, security@versomd.com, what is promised — an answer within 7 days, a fix in the next version, credit when wanted — and what is in and out of scope; every UniVerso server answers `/.well-known/security.txt` with the same address, valid for a year after the release it runs.
 
 ## 0.8.0-beta.1 — 2026-10-13
 
