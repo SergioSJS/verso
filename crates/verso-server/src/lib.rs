@@ -23,6 +23,10 @@ pub mod device;
 pub mod fair;
 pub mod files;
 pub mod folders;
+/// The server's inputs, opened to its fuzz harness only (ADR 0083 item 14).
+#[cfg(feature = "fuzzing")]
+#[doc(hidden)]
+pub mod fuzz_api;
 pub mod http;
 pub mod large;
 pub mod limit;

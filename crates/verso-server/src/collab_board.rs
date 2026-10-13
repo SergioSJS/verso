@@ -81,7 +81,11 @@ fn refused(message: &str) -> ContractError {
 
 /// A new board room's document: the file it is made from, nothing drawn.
 pub fn new_doc(base: &str) -> Doc {
-    let doc = Doc::new();
+    based(Doc::new(), base)
+}
+
+/// `doc` made a new board room's, of the file `base`.
+pub(crate) fn based(doc: Doc, base: &str) -> Doc {
     {
         let meta = doc.get_or_insert_map(META);
         let mut txn = doc.transact_mut();
