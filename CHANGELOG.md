@@ -34,6 +34,7 @@ test release.
 
 ### Fixed
 
+- **`universo.sh install`'s Caddy steps keep the sites already there**: they printed a command that replaced `/etc/caddy/Caddyfile`, erasing any other site the machine served; UniVerso's site now goes in `/etc/caddy/Caddyfile.d/universo.caddyfile` and the Caddyfile only gains `import Caddyfile.d/*.caddyfile` when it lacks it. The walk-through on Oracle Cloud shows the same. On Oracle Linux, RHEL, Rocky and Alma, where Caddy is only in EPEL, the script prints how to get EPEL first instead of a bare `dnf install caddy`.
 - **The compose file parses again**: an unquoted colon in its CasaOS tagline made `docker compose` refuse the whole file; `scripts/check-server-image.sh` now checks it with `docker compose config`.
 
 ## 0.8.0-beta.1 — 2026-10-13

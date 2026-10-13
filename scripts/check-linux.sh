@@ -109,7 +109,39 @@ if [ "${1:-}" = "--universo-sh" ]; then
   tar -tzf /elsewhere/clear.tar.gz > /tmp/listed || fail "--to-stdout gave no tarball"
   grep -q '^etc/universo/backup.pub$' /tmp/listed || fail "--to-stdout's tarball lacks the settings"
 
-  printf '\nthe backup script makes, encrypts and restores backups\n'
+  printf '\n== the Caddy steps install prints, run beside another site (twice)\n'
+  apt-get install -y -qq caddy >/dev/null
+  printf '#!/bin/sh\nexec "$@"\n' > /usr/local/bin/sudo && chmod 0755 /usr/local/bin/sudo
+  printf 'foundry.example.com {\n\treverse_proxy 127.0.0.1:30000\n}\n' > /etc/caddy/Caddyfile
+  UNIVERSO_SH_FUNCTIONS=1 sh -c '. /src/packaging/server/universo.sh; PM=deb; caddy_steps notes.example.com 7340' > /tmp/caddy-steps
+  cat /tmp/caddy-steps
+  # What touches Caddy's files, without installing or reloading anything.
+  grep -v -e systemctl -e ' install ' /tmp/caddy-steps > /tmp/caddy-files.sh
+  sh -e /tmp/caddy-files.sh >/dev/null || fail "the Caddy steps failed"
+  sh -e /tmp/caddy-files.sh >/dev/null || fail "the Caddy steps failed a second time"
+  grep -q '^foundry.example.com {' /etc/caddy/Caddyfile || fail "the Caddy steps erased the site already there"
+  caddy adapt --config /etc/caddy/Caddyfile --adapter caddyfile > /tmp/caddy.json 2>/tmp/caddy.err \
+    || fail "Caddy refuses the result: $(cat /tmp/caddy.err)"
+  grep -q '"foundry.example.com"' /tmp/caddy.json || fail "the other site is gone from Caddy's configuration"
+  grep -q '"notes.example.com"' /tmp/caddy.json || fail "UniVerso's site is not in Caddy's configuration"
+  [ "$(grep -c 'import ' /etc/caddy/Caddyfile)" = 1 ] || fail "the import is not there exactly once"
+  # A Caddyfile that imports the directory already (Fedora's, EPEL's) gains nothing.
+  printf 'http:// {\n\tfile_server\n}\nimport Caddyfile.d/*.caddyfile\n' > /etc/caddy/Caddyfile
+  sh -e /tmp/caddy-files.sh >/dev/null || fail "the Caddy steps failed on a Fedora Caddyfile"
+  [ "$(grep -c 'import ' /etc/caddy/Caddyfile)" = 1 ] || fail "a second import on a Fedora Caddyfile"
+  caddy adapt --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 || fail "Caddy refuses the Fedora case"
+  # The install line per family of rpm systems.
+  family() {
+    printf 'ID=%s\nVERSION_ID=%s\n' "$1" "$2" > /tmp/os-release
+    OS_RELEASE=/tmp/os-release UNIVERSO_SH_FUNCTIONS=1 sh -c '. /src/packaging/server/universo.sh; PM=rpm; caddy_install'
+  }
+  family fedora 42 | grep -qx 'sudo dnf install caddy' || fail "Fedora's line"
+  family ol 9.8 | grep -qx 'sudo dnf install oracle-epel-release-el9 && sudo dnf install caddy' || fail "Oracle Linux's line"
+  family rocky 9.5 | grep -qx 'sudo dnf install epel-release && sudo dnf install caddy' || fail "Rocky's line"
+  family rhel 9.4 | grep -qF 'epel-release-latest-9.noarch.rpm' || fail "RHEL's line"
+  family opensuse 15 | grep -qF 'copr enable @caddy/caddy' || fail "the fallback's alternatives"
+
+  printf '\nthe backup script makes, encrypts and restores backups; its Caddy steps keep the sites there\n'
   exit 0
 fi
 
