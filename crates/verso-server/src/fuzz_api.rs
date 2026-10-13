@@ -203,7 +203,7 @@ impl BoardRoom {
     /// `None` when `yrs` could not make it and the room was made again.
     pub fn written(&mut self) -> Option<Vec<u8>> {
         let Self { doc, board, .. } = self;
-        let written = collab::caught(|| board.written(doc)).ok();
+        let written = collab::written(doc, board).ok();
         if written.is_none() {
             self.reload();
         }

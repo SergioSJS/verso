@@ -408,3 +408,65 @@ fn deletions_a_window_can_make_are_taken() {
         .get_string(&room.transact());
     assert_eq!(room_text, text.get_string(&one.transact()));
 }
+
+/// A board room through a fuzz input of the target `board` as the server
+/// keeps it, its Yjs client 1: the updates taken in, a window joining
+/// with the state the room sends, the window's file kept, another window
+/// joining, and the room writing — the windows taking what the room says
+/// it wrote. When the room says BROKEN it is made again from its file, as
+/// `reload` has the windows do, and they join again.
+fn board_through(input: &[u8]) {
+    let records = records(input);
+    let base = String::from_utf8_lossy(records[0]).into_owned();
+    let fresh = || collab_board::based(Doc::with_client_id(1), &base);
+    let mut doc = fresh();
+    let mut board = collab_board::Board::of(&doc);
+    for update in records.get(3..).unwrap_or_default() {
+        if let Ok(decoded) = decode(update)
+            && take(Kind::Board, &doc, &mut board, update, decoded)
+                .is_err_and(|e| e.message == collab::BROKEN)
+        {
+            doc = fresh();
+            board = collab_board::Board::of(&doc);
+        }
+    }
+    let join = |doc: &mut Doc, board: &mut collab_board::Board| {
+        let state = collab::state(doc).unwrap_or_else(|_| {
+            *doc = fresh();
+            *board = collab_board::Board::of(doc);
+            collab::state(doc).expect("a room made of its file has a state")
+        });
+        let window = Doc::with_client_id(2);
+        window
+            .transact_mut()
+            .apply_update(Update::decode_v1(&state).expect("the room's state decodes"))
+            .expect("the room's state applies in a window");
+        window
+    };
+    join(&mut doc, &mut board);
+    let json = String::from_utf8_lossy(records.get(1).copied().unwrap_or_default()).into_owned();
+    let _ = board.keep(records.get(2).copied().unwrap_or_default(), json.clone());
+    let _ = board.keep(&collab_board::state_vector(&doc), json);
+    let window = join(&mut doc, &mut board);
+    if let Ok(written) = collab::written(&doc, &mut board) {
+        window
+            .transact_mut()
+            .apply_update(Update::decode_v1(&written).expect("what is written decodes"))
+            .expect("what is written applies in a window");
+    }
+}
+
+/// Found by the fuzz target `board` under `-O`: rooms whose state, or
+/// whose word of what they wrote, a window could not read or apply
+/// (`EndOfBuffer`, `InvalidParent`). The room now checks both before it
+/// sends them, and is made again from its file when they fail.
+#[test]
+fn every_window_gets_a_state_and_a_write_it_can_apply() {
+    for input in [
+        &include_bytes!("../fuzz/seeds-board/state-that-does-not-decode.bin")[..],
+        include_bytes!("../fuzz/seeds-board/written-with-an-invalid-parent-1.bin"),
+        include_bytes!("../fuzz/seeds-board/written-with-an-invalid-parent-2.bin"),
+    ] {
+        board_through(input);
+    }
+}

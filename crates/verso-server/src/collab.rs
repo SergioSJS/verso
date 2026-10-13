@@ -601,12 +601,40 @@ pub(crate) fn caught<T>(f: impl FnOnce() -> T) -> Result<T, ContractError> {
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).map_err(|_| refused(BROKEN))
 }
 
-/// A room's whole state, as `join` sends it.
+/// A room's whole state, as `join` sends it: checked first to apply in a
+/// window, since `yrs` 0.28 can make a state it cannot read back (the fuzz
+/// target `board`: `EndOfBuffer`).
 pub(crate) fn state(doc: &Doc) -> Result<Vec<u8>, ContractError> {
-    caught(|| {
+    let state = caught(|| {
         doc.transact()
             .encode_state_as_update_v1(&StateVector::default())
-    })
+    })?;
+    applies(&Doc::new(), &state)?;
+    Ok(state)
+}
+
+/// Whether `update` decodes and applies in `window`, as a window takes it.
+fn applies(window: &Doc, update: &[u8]) -> Result<(), ContractError> {
+    let applied = caught(|| {
+        Update::decode_v1(update)
+            .ok()
+            .and_then(|u| window.transact_mut().apply_update(u).ok())
+    })?;
+    applied.ok_or_else(|| refused(BROKEN))
+}
+
+/// What a board room says it wrote (`Board::written`), checked first to
+/// apply in a window that holds the room's state (the fuzz target
+/// `board`: `InvalidParent`).
+pub(crate) fn written(
+    doc: &Doc,
+    board: &mut crate::collab_board::Board,
+) -> Result<Vec<u8>, ContractError> {
+    let window = Doc::new();
+    applies(&window, &state(doc)?)?;
+    let update = caught(|| board.written(doc))?;
+    applies(&window, &update)?;
+    Ok(update)
 }
 
 /// A room `yrs` could not go on with: said in the log, and closed — what a
@@ -732,7 +760,7 @@ pub fn write(server: &Server, room: &Arc<Mutex<Room>>) -> Result<String, Contrac
                     // What was written is said in the document too: the
                     // windows see that nothing waits any more.
                     let Room { board, doc, .. } = &mut *r;
-                    let Ok(update) = caught(|| board.written(doc)) else {
+                    let Ok(update) = self::written(doc, board) else {
                         let key = r.key.clone();
                         drop(r);
                         reload(server, &key, &path, "its state could not be made");
