@@ -18,6 +18,56 @@ app real.
 
 ## Ainda não conferido
 
+### Endurecimento de segurança (ADR 0083, 2026-10-13)
+
+- [ ] **Uma nota e um board compartilhados editados pelo app desktop
+  enquanto outra janela os edita** (8d419e9, ca4c8a6, 857f4aa): no app
+  instalado numa pasta de UniVerso, a mesma nota aberta no navegador;
+  digite rápido nos dois ao mesmo tempo, depois cole um parágrafo longo
+  no app enquanto o navegador digita: cada letra chega nos dois, na
+  ordem digitada, nada perdido nem dobrado, a aba ainda *ao vivo* e
+  nunca avisada de uma edição que não foi, sem faixa de conflito, o
+  arquivo no disco do servidor com o mesmo texto; depois um board, arrastando e desenhando nos dois ao mesmo
+  tempo: os dois veem os dois, nada pula de volta. O log do app
+  (`verso.log`) e o journal do servidor não têm atualização recusada.
+  Não verificado por teste: que o app passa adiante as chamadas de uma
+  janela na ordem (ca4c8a6).
+- [ ] **"Confirme que é você" antes de um token e antes de aprovar um
+  aparelho** (item 6 da ADR 0083; 40de8b5, 1d7c4e4): com o login feito
+  há mais de dez minutos, nos *Ajustes* do servidor, *Tokens de acesso*,
+  *Criar token*: o diálogo *Confirme que é você* abre, o campo de senha
+  com o foco; uma senha errada diz *Senha errada.*; a certa cria o token
+  sem perguntar de novo. De novo depois de dez minutos, com *Usar uma
+  passkey* (Touch ID no Mac, a passkey do celular): o token é criado. O
+  mesmo no *Aprovar este aparelho* da página do aparelho. O Escape fecha
+  o diálogo e nada é criado; o VoiceOver lê o título e a linha do
+  diálogo.
+- [ ] **A página do aparelho com um código digitado** (item 17 da ADR
+  0083, 73807d2): `/device` aberta à mão, sem o código no endereço, pede
+  *Digite o código que o aplicativo mostra na tela dele.*; o código que o
+  app mostra, digitado em minúsculas e sem o traço, é aceito, e a página
+  mostra *Código que você digitou* ao lado de quem pediu antes de
+  *Aprovar* ou *Não fui eu: recusar*; um código digitado errado diz *Um
+  código tem oito letras…* ou responde como desconhecido, e alguns
+  errados seguidos fazem a página esperar antes do próximo; o app então
+  entra depois de aprovado.
+- [ ] **Os diagramas Mermaid depois da 12.2.0** (item 13 da ADR 0083,
+  cda7500): a nota "08 - Diagramas Mermaid" do vault de demonstração no
+  app instalado e no navegador: todo diagrama desenha, no claro e no
+  escuro; um diagrama com erro de sintaxe mostra a mensagem do próprio
+  leitor abaixo de "Syntax error in text"; os nós em círculo cabem no
+  rótulo, os rótulos de um mapa mental ficam centrados e legíveis, as
+  cardinalidades de um diagrama de classes ficam ao lado das pontas das
+  relações.
+- [ ] **Os passos do Caddy que o universo.sh imprime, num host que já
+  serve outro site** (7755802): num host Linux cujo Caddy já serve um
+  site, instale com o `universo.sh` e siga os passos impressos: o outro
+  site continua respondendo, o site do UniVerso está em
+  `/etc/caddy/Caddyfile.d/universo.caddyfile`, o Caddyfile tem um
+  `import Caddyfile.d/*.caddyfile` só (nenhum acrescentado no Fedora ou
+  no EPEL, cujo pacote já o tem), o `caddy validate` passa e os dois
+  sites respondem por HTTPS.
+
 ### Tudo editado junto (item 12 da ADR 0082, feat/coedit-everything, 2026-10-12)
 
 - [ ] **Um board em dois lugares ao mesmo tempo** (21d096a, 5a027db): num

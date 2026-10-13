@@ -667,6 +667,50 @@ expectations were corrected for the browsers' parser, and no fault of the
 sanitizer was found. The pentest by a person outside the project is not
 in this round and stays a condition of the announcement.
 
+**The compose file's port** (2026-10-13). Left open after the build and
+decided by the maintainer on 2026-10-13 (*"sobre as decisões em aberto,
+siga as recomendações"*, on the open decisions, follow the
+recommendations): `packaging/server/docker-compose.yml` publishes 7340 on
+`127.0.0.1` by default (`host_ip`), TLS in front — Caddy, a tunnel or
+Tailscale. Its comment says the one line to change to publish on the
+LAN, for a CasaOS box on a home network, and that plain HTTP on the LAN
+signs nobody in from another machine anyway
+([0073](0073-self-hosted-server-first.md) item 6).
+`scripts/check-server-image.sh` checks the binding in the parsed file,
+so a comment cannot pass for it.
+
+**The server's log volume** (2026-10-13, F21's remaining part). Decided
+by the maintainer on 2026-10-13 (*"sobre as decisões em aberto, siga as
+recomendações"*): the server rotates no log of its own; rotation is left
+to the host's tools and documented. A package's log is the unit's output,
+which journald rotates (`journalctl --vacuum-size`, `SystemMaxUse=`;
+`docs/reference/server-install.md`, section 5); the compose file declares
+Docker's `json-file` driver with `max-size: "10m"` and `max-file: "3"`
+(section 4). The 60 lines a minute a window may write are unchanged.
+
+**The threat model's rate limit beyond sign-ins** (2026-10-13). Its
+`[OPEN]` closed by the maintainer's answer of 2026-10-13 (*"sobre as
+decisões em aberto, siga as recomendações"*): the paces of items 7
+(9b4cdf0) and 2 (805febb), beside the connection limits built before,
+answer it; `docs/reference/threat-model.md` says **Closed: 9b4cdf0 and
+805febb**. Measuring the numbers stays item 18.
+
+**Two readings of the Decision's text** (2026-10-13), noted here and not
+rewritten above. Item 16's guardrail is "kept in `npm run e2e`": that
+suite runs locally, in `scripts/check.sh`, not in CI
+([0058](0058-demo-vault-as-tutorial.md)), so the browser run of the
+sanitizer's cases holds before a push, not on a pull request. Item 14
+names "`collab.rs`'s awareness reader": the `presence` target goes
+through `presence.rs` (`presence::stamped`, which `collab::awareness`
+calls; 34474a0).
+
+**The maintainer's checks in the app** (2026-10-13). What the tests do
+not reach is listed in `docs/reference/manual-checks.md`, none of it
+blocking: a shared note and board edited from the desktop app beside
+another window (the order of (e)), item 6's dialog with a password and a
+passkey, item 17's typed code, Mermaid 12.2.0 (item 13), and
+`universo.sh`'s Caddy steps beside another site (7755802).
+
 ## Consequences
 
 - What people feel: a password they chose refused at setup or at an

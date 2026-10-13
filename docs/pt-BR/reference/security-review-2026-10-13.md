@@ -86,7 +86,7 @@ item 6 do ADR 0073:
 | F18 | O compose e o manual do Docker põem a senha do primeiro admin em `environment:`, legível com `docker inspect`; a forma `_FILE` existe e não é o exemplo | MENOR | `docker-compose.yml:52-57`, `config.rs:110-125` | item 11: d2af446 |
 | F19 | O contêiner não é declarado somente leitura e mantém as capabilities no compose; a unidade poderia somar `ProtectProc`, `SystemCallFilter` | MENOR | `docker-compose.yml:25-59`, `universo.service:33-61` | item 11: d2af446 |
 | F20 | Uma pasta é criada com o umask do processo (`0755` visto): num host com outros usuários locais e um diretório de pastas que eles entram, as notas ficam legíveis; o diretório `0750` do pacote as guarda | MENOR | sondado; `postinstall.sh:22-24` | item 11: d2af446 |
-| F21 | Um membro escreve 60 linhas de 2 000 caracteres por minuto no log do servidor; a tabela de auditoria cresce sem retenção | MENOR | `rpc.rs:46,592-610`, `db.rs:1417` | item 10: 99683ed (a retenção da tabela de auditoria; as 60 linhas por minuto do log sem mudança) |
+| F21 | Um membro escreve 60 linhas de 2 000 caracteres por minuto no log do servidor; a tabela de auditoria cresce sem retenção | MENOR | `rpc.rs:46,592-610`, `db.rs:1417` | item 10: 99683ed (a retenção da tabela de auditoria); o volume do log fechado em 2026-10-13 pelo commit que acrescenta o `logging:` do arquivo compose (rotação deixada às ferramentas do host — o journald para o pacote, os limites do `json-file` do Docker para o arquivo compose — e documentada no guia de instalação; as 60 linhas por minuto que uma janela pode escrever sem mudança; ADR 0083, Como construído) |
 | F22 | O PDF.js é aberto com `isEvalSupported` no padrão (true); a política da página não tem `unsafe-eval`, então o compilador de fontes é bloqueado pelo navegador, não pelo código | MENOR | `app/ui/src/pdf.ts:246,443` | sem objeto: o pdfjs-dist 6.3.289 não tem `isEvalSupported` nem eval; teste de guardrail, item 8: 4b892cc |
 | F23 | A checagem de atualização segue redirecionamentos (padrão do reqwest): um feed que redirecionasse a um endereço privado seria buscado | MENOR | `update.rs:103-114` | item 8: cb05804 |
 
@@ -345,7 +345,8 @@ funcionar:
 
 **No lugar.** `app/ui/src/sanitize.ts` é a fronteira entre membros (ADR
 0073 item 6), revisado linha a linha por Opus 5.5 em 2026-10-11 com uma
-bateria de 76 entradas hostis no `npm test`; o "O que o sanitizador
+bateria de 76 entradas hostis no `npm test` (*2026-10-13:* 102 casos
+desde 1e25bcf, rodados no node e no WebKit e no Chromium); o "O que o sanitizador
 garante" do modelo de ameaças diz o que ele mantém. O Mermaid roda em
 `securityLevel: "strict"` (`mermaid.ts:27`); o KaTeX com `throwOnError:
 false` e o `trust: false` padrão (`render.ts:19`, `live.ts:656,828`),
@@ -363,7 +364,9 @@ linha numa nota são descartados pelo nome.
 
 - A revisão pelo modelo que não escreveu o sanitizador está `[ABERTO]` no
   modelo de ameaças (F9). A bateria roda no happy-dom; uma rodada no
-  WebKit e no Chromium pelo harness ainda falta.
+  WebKit e no Chromium pelo harness ainda falta. *2026-10-13:*
+  acrescentada em 1e25bcf — os 102 casos rodam no node sobre o happy-dom
+  e no WebKit e no Chromium pelo harness (item 16 do ADR 0083).
 - PDF.js (F22): `getDocument` é chamado sem `isEvalSupported: false`
   (`pdf.ts:246,443`). Desde a 4.2.67 (CVE-2024-4367) o compilador de
   fontes não avalia mais strings não confiáveis, e o `pdfjs-dist` está na

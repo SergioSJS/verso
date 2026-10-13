@@ -86,6 +86,10 @@ docker compose -f "$compose" config -q || { echo "$compose is not a valid compos
 for want in 'read_only: true' '- /tmp' '- ALL' '- no-new-privileges:true'; do
   grep -qF -- "$want" "$compose" || { echo "$compose does not declare: $want"; exit 1; }
 done
+# The port published on loopback by default (2026-10-13): TLS goes in front.
+# Read from the parsed file, so a comment cannot pass for it.
+docker compose -f "$compose" config | grep -qF 'host_ip: 127.0.0.1' ||
+  { echo "$compose does not publish its port on 127.0.0.1"; exit 1; }
 docker run -d --name "$name" -p "127.0.0.1:$port:7340" \
   --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
   -v "$certs":/certs:ro \
