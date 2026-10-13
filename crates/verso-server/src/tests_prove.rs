@@ -528,3 +528,75 @@ fn a_typed_right_code_approves_the_device() {
         );
     });
 }
+
+/// Two more acts that hand over an account or a folder want a fresh proof
+/// (ADR 0083 item 6, as the maintainer's review of 2026-10-13 read it): the
+/// admin making a reset link for another account — with a stolen admin
+/// cookie, the way to take it over — and an owner giving or changing a
+/// member's role, by the members' route or the shares' route alike.
+#[test]
+fn a_reset_link_and_a_members_role_want_a_fresh_proof() {
+    use reqwest::Method;
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let me = id_of(&r, "admin@casa.lan");
+        let folder = crate::tests::folder_id(&r, &admin).await;
+        let other = r
+            .server
+            .db
+            .create_account(
+                "membro@prova.example",
+                "Membro",
+                "pt",
+                Some("a senha do membro aqui"),
+                false,
+            )
+            .unwrap();
+        let reset = format!("/api/admin/accounts/{}/reset", other.id);
+        let (status, link) = gated(&r, &admin, &me, Method::POST, &reset, Some(json!({}))).await;
+        assert_eq!(status, 200, "{link}");
+        assert!(
+            link["link"].as_str().is_some_and(|l| l.contains("/reset/")),
+            "{link}"
+        );
+        let member = format!("/api/folders/{folder}/members/membro@prova.example");
+        for role in ["reader", "editor"] {
+            let (status, set) = gated(
+                &r,
+                &admin,
+                &me,
+                Method::PUT,
+                &member,
+                Some(json!({ "role": role })),
+            )
+            .await;
+            assert_eq!(status, 200, "{role}: {set}");
+            assert_eq!(
+                r.server
+                    .db
+                    .role(&folder, &other.id)
+                    .unwrap()
+                    .map(|x| x.as_str()),
+                Some(role)
+            );
+        }
+        let shares = format!("/api/folders/{folder}/shares");
+        let whole = json!({ "path": "", "email": "membro@prova.example", "role": "reader" });
+        let (status, set) = gated(&r, &admin, &me, Method::PUT, &shares, Some(whole)).await;
+        assert_eq!(status, 200, "{set}");
+        assert_eq!(
+            r.server.db.role(&folder, &other.id).unwrap(),
+            Some(crate::db::Role::Reader)
+        );
+        // A share of a path inside: past the proof, the path is looked at.
+        let inside =
+            json!({ "path": "Nenhuma", "email": "membro@prova.example", "role": "reader" });
+        let (status, said) = gated(&r, &admin, &me, Method::PUT, &shares, Some(inside)).await;
+        assert_eq!(
+            (status, &said["error"]),
+            (404, &json!("no_folder")),
+            "{said}"
+        );
+    });
+}

@@ -184,6 +184,9 @@ pub async fn end_sessions(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Respons
 pub async fn reset_link(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
     ctx.changes()?;
     let admin = ctx.admin()?.account.id.clone();
+    // A fresh proof first (ADR 0083 item 6): a link that sets another
+    // account's password is the way to take it over.
+    ctx.proved()?;
     ctx.server
         .db
         .account(&id)?
