@@ -12,7 +12,9 @@ versão de teste.
 
 ## Não lançado
 
-Nada ainda.
+### Alterado
+
+- **O UniVerso confia em vários proxies** (item 5 da [ADR 0083](adr/0083-security-hardening-of-universo.md)): o `VERSO_TRUSTED_PROXY` aceita uma lista de endereços e CIDRs, IPv4 e IPv6, separados por vírgulas (`127.0.0.1, 10.0.0.0/8, 2001:db8::/32`); um endereço só, como antes, continua valendo. O endereço do visitante é lido do `X-Forwarded-For` pela direita, passando por cada proxy da lista, e assim uma cadeia como Cloudflare → Caddy → Verso, ou a Cloudflare direto para o Verso com as faixas dela na lista, dá a cada visitante o próprio endereço. Um proxy confiável que não encaminha `X-Forwarded-For` é dito no log uma vez por minuto. O guia de instalação traz a receita da Cloudflare.
 
 ## 0.8.0-beta.1 — 2026-10-13
 
