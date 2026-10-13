@@ -390,6 +390,9 @@ pub async fn grant(
     Json(body): Json<Grant>,
 ) -> ApiResult<Response> {
     ctx.changes()?;
+    // A fresh proof first (ADR 0083 item 6): the members' route by
+    // another door, and a share's role a power given as well.
+    ctx.proved()?;
     let folder = owned(&ctx, &id)?;
     if body.path.is_empty() {
         crate::folders::grant_whole(&ctx, &folder.id, &body.email, body.role)?;

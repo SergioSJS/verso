@@ -45,6 +45,13 @@ const pt = {
   deviceAskWhy: "Se não foi, recuse: quem aprova um pedido de outra pessoa dá a ela a sua conta.",
   deviceRefuse: "Não fui eu: recusar",
   deviceRefused: "Recusado. O aplicativo que pediu não entra na sua conta.",
+  // The code typed when the link carries none (ADR 0083 item 17).
+  deviceTypeLead: "Digite o código que o aplicativo mostra na tela dele.",
+  deviceTypeLabel: "Código do aplicativo",
+  deviceTypeHint: "Oito letras, como BCDF-GHJK.",
+  deviceContinue: "Continuar",
+  deviceCodeBad: "Um código tem oito letras, como BCDF-GHJK. Confira na tela do aplicativo.",
+  deviceCodeTyped: "Código que você digitou",
   linkGone: "Este link já foi usado ou expirou. Peça outro a quem administra o servidor.",
   tlsRequired: "Este servidor só aceita entrar por HTTPS. Use o endereço seguro dele (veja a documentação: proxy reverso ou Tailscale).",
   signinFailed: "E-mail ou senha errados.",
@@ -211,6 +218,13 @@ const pt = {
   noAddress: "As passkeys precisam do endereço público do servidor (VERSO_PUBLIC_URL).",
   passkeyFailed: "A passkey não foi aceita. Tente de novo.",
   badRequest: "Confira os campos: falta alguma coisa, ou algo passou do limite.",
+  // A fresh proof before a sensitive action (ADR 0083 item 6).
+  proveTitle: "Confirme que é você",
+  proveLead: "Esta ação pede a sua senha de novo, ou uma passkey: a última confirmação foi há mais de 10 minutos.",
+  proveConfirm: "Confirmar",
+  provePasskey: "Usar uma passkey",
+  proveWrong: "Senha errada.",
+  proveFirst: "Esta ação pede que você confirme que é você. Tente de novo e confirme.",
 };
 
 export type WebStrings = typeof pt;
@@ -253,6 +267,12 @@ const en: WebStrings = {
   deviceAskWhy: "If it was not, refuse: approving someone else's request gives them your account.",
   deviceRefuse: "It was not me: refuse",
   deviceRefused: "Refused. The app that asked does not get into your account.",
+  deviceTypeLead: "Type the code the app shows on its screen.",
+  deviceTypeLabel: "The app's code",
+  deviceTypeHint: "Eight letters, like BCDF-GHJK.",
+  deviceContinue: "Continue",
+  deviceCodeBad: "A code is eight letters, like BCDF-GHJK. Check the app's screen.",
+  deviceCodeTyped: "Code you typed",
   linkGone: "This link was used or has expired. Ask whoever runs the server for another.",
   tlsRequired: "This server signs in over HTTPS only. Use its secure address (see the documentation: a reverse proxy or Tailscale).",
   signinFailed: "Wrong e-mail or password.",
@@ -418,6 +438,12 @@ const en: WebStrings = {
   noAddress: "Passkeys need the server's public address (VERSO_PUBLIC_URL).",
   passkeyFailed: "The passkey was not accepted. Try again.",
   badRequest: "Check the fields: something is missing, or over the limit.",
+  proveTitle: "Confirm it is you",
+  proveLead: "This action asks for your password again, or a passkey: you last confirmed more than 10 minutes ago.",
+  proveConfirm: "Confirm",
+  provePasskey: "Use a passkey",
+  proveWrong: "Wrong password.",
+  proveFirst: "This action needs you to confirm it is you. Try again and confirm.",
 };
 
 let current: Lang = navigator.language.toLowerCase().startsWith("pt") ? "pt" : "en";
