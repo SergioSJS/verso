@@ -18,18 +18,7 @@ impl Workspace {
         // Rendered from the same parse: the reader hides the ids it found.
         let html = verso_dialect::to_html_with(&text, &document);
         let schema_blocks = document.schemas.iter().map(typed::notice).collect();
-        let frontmatter = match document.frontmatter.map(|f| f.values) {
-            Some(Ok(verso_dialect::Value::Mapping(map))) => map,
-            _ => Vec::new(),
-        };
-        let note_type = if typed::written_type(&frontmatter).is_some() {
-            let blocks = self.index.schema_blocks().map_err(CoreError::Index)?;
-            typed::note_type(&frontmatter, &blocks, |p| {
-                self.index.content_of(p).ok().flatten()
-            })
-        } else {
-            None
-        };
+        let note_type = self.type_of(document.frontmatter.map(|f| f.values), &[])?;
         Ok(NoteText {
             lines: text.lines().map(str::to_owned).collect(),
             html,
@@ -44,6 +33,42 @@ impl Workspace {
             text,
             path,
         })
+    }
+
+    /// A note's type from its frontmatter, by the schemas the index found
+    /// under `within` (the whole folder when empty).
+    fn type_of(
+        &self,
+        frontmatter: Option<Result<verso_dialect::Value, String>>,
+        within: &[String],
+    ) -> Result<Option<typed::NoteType>, CoreError> {
+        let frontmatter = match frontmatter {
+            Some(Ok(verso_dialect::Value::Mapping(map))) => map,
+            _ => Vec::new(),
+        };
+        if typed::written_type(&frontmatter).is_none() {
+            return Ok(None);
+        }
+        let mut blocks = self.index.schema_blocks().map_err(CoreError::Index)?;
+        if !within.is_empty() {
+            blocks.retain(|b| within.iter().any(|root| typed::under(root, &b.path)));
+        }
+        Ok(typed::note_type(&frontmatter, &blocks, |p| {
+            self.index.content_of(p).ok().flatten()
+        }))
+    }
+
+    /// The type of a note whose text is `text`, by the schemas held in
+    /// the folders `within` only — what a share sees of the folder (ADR
+    /// 0081 item 11): a schema outside them types nothing and is never
+    /// named. Empty `within`: the whole folder, as `read_note` answers.
+    pub fn note_type_within(
+        &self,
+        text: &str,
+        within: &[String],
+    ) -> Result<Option<typed::NoteType>, CoreError> {
+        let document = verso_dialect::parse(text);
+        self.type_of(document.frontmatter.map(|f| f.values), within)
     }
 
     /// The note's text as it is on disk now, through `verso-fs` (a

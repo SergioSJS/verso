@@ -1101,3 +1101,94 @@ fn an_invitation_to_a_share_that_is_gone_gives_nothing() {
         }
     });
 }
+
+/// A note's type through a share is resolved over the share's schemas
+/// only (ADR 0081 item 11, ADR 0052): a schema the owner keeps outside
+/// types nothing there and is never named — not its path, not that it
+/// exists — and one inside is named as the receiver knows it.
+#[test]
+fn a_notes_type_through_a_share_names_no_schema_outside_it() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let (id, mut owner) = furnished(&r, &admin).await;
+        let schema = |name: &str| {
+            format!(
+                "```verso-schema\ntype: {name}\nproperties:\n  - key: idade\n    kind: number\n```\n"
+            )
+        };
+        for (name, text) in [
+            ("Schemas/pessoa", schema("pessoa")),
+            ("Schemas/lugar", schema("lugar")),
+            ("Mesa/Tipos/lugar", schema("lugar")),
+            (
+                "Mesa/x",
+                "---\ntype: pessoa\nidade: 3\n---\n# X\n".to_owned(),
+            ),
+            ("Mesa/y", "---\ntype: lugar\n---\n# Y\n".to_owned()),
+        ] {
+            let made = owner
+                .call("create_note", json!({ "name": name, "text": text }))
+                .await;
+            assert!(made.get("ok").is_some(), "{made}");
+        }
+        // The owner sees the schema outside, and the two of one name.
+        let theirs = owner
+            .call("read_note", json!({ "path": "Mesa/x.md" }))
+            .await;
+        assert_eq!(
+            theirs["ok"]["note_type"]["state"]["schema"], "Schemas/pessoa.md",
+            "{theirs}"
+        );
+        let (ana, _) = ana(&r).await;
+        let (_, shared) = put(
+            &r,
+            &format!("/api/folders/{id}/shares"),
+            json!({ "path": "Mesa", "email": "ana@casa.lan", "role": "editor" }),
+            &admin,
+        )
+        .await;
+        let share = shared["id"].as_str().unwrap().to_owned();
+        let (mut w, _) = Win::open(&r, &ana, &share).await;
+        let x = w.call("read_note", json!({ "path": "x.md" })).await;
+        let mut all = Vec::new();
+        every_string(&x, &mut all);
+        for s in &all {
+            assert!(
+                !s.contains("Schemas"),
+                "a schema outside the share crossed: {x}"
+            );
+        }
+        says_nothing_outside(&x);
+        assert_eq!(x["ok"]["note_type"], Value::Null, "{x}");
+        // A schema inside types the note, named as the receiver knows it,
+        // and the one of the same name outside makes no conflict.
+        let y = w.call("read_note", json!({ "path": "y.md" })).await;
+        assert_eq!(y["ok"]["note_type"]["state"]["kind"], "typed", "{y}");
+        assert_eq!(
+            y["ok"]["note_type"]["state"]["schema"], "Tipos/lugar.md",
+            "{y}"
+        );
+        says_nothing_outside(&y);
+        // Writing and creating answer the same.
+        let revision = x["ok"]["revision"].as_str().unwrap();
+        let written = w
+            .call(
+                "write_note",
+                json!({ "path": "x.md", "text": "---\ntype: pessoa\n---\n# X2\n", "revision": revision }),
+            )
+            .await;
+        assert!(written.get("ok").is_some(), "{written}");
+        assert_eq!(written["ok"]["note"]["note_type"], Value::Null, "{written}");
+        says_nothing_outside(&written);
+        let made = w
+            .call(
+                "create_note",
+                json!({ "name": "z", "text": "---\ntype: pessoa\n---\n" }),
+            )
+            .await;
+        assert!(made.get("ok").is_some(), "{made}");
+        assert_eq!(made["ok"]["note_type"], Value::Null, "{made}");
+        says_nothing_outside(&made);
+    });
+}
