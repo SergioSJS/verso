@@ -26,6 +26,7 @@ REPO=SergioSJS/verso
 # and docs/reference/server-install.md section 6 prints.
 PUBKEY=RWS1zv2nvs/ng1hA0YspwOg7wGda98zkXjVfx8m9CtT5obRW5zabNHaT
 ENV_FILE=/etc/universo/universo.env
+OS_RELEASE=${OS_RELEASE:-/etc/os-release}
 ETC_DIR=/etc/universo
 DATA_ROOT=/var/lib/universo
 SERVICE=universo
@@ -619,9 +620,13 @@ next_steps() {
     "2. HTTPS (seção 8). O servidor não deixa ninguém entrar por HTTP puro de outra máquina. Ou:"
   t "   a. Caddy, with a domain whose DNS points at this machine:" \
     "   a. Caddy, com um domínio cujo DNS aponta para esta máquina:"
-  if [ "$PM" = deb ]; then echo "        sudo apt install caddy"; else echo "        sudo dnf install caddy"; fi
-  printf "        printf '%%s\\\\n' '%s' 'reverse_proxy 127.0.0.1:%s' | sudo tee /etc/caddy/Caddyfile\n" "$host" "$port"
-  echo "        sudo systemctl reload caddy"
+  caddy_steps "$host" "$port" | sed 's/^/        /'
+  t "      A Caddyfile already there is left as it is: the site goes in a file of its own,
+      and the Caddyfile only gains the import line, at its end, when it lacks it.
+      (A Caddyfile that is one site without braces needs { } around its lines first.)" \
+    "      Um Caddyfile que já exista fica como está: o site vai num arquivo próprio,
+      e o Caddyfile só ganha a linha de import, no fim, quando não a tiver.
+      (Um Caddyfile que seja um site só, sem chaves, precisa de { } em volta das linhas antes.)"
   t "      and in $ENV_FILE: VERSO_PUBLIC_URL=https://$host and VERSO_TRUSTED_PROXY=127.0.0.1,
       then: sudo systemctl restart universo" \
     "      e no $ENV_FILE: VERSO_PUBLIC_URL=https://$host e VERSO_TRUSTED_PROXY=127.0.0.1,
@@ -641,6 +646,44 @@ next_steps() {
   t "Then connect the app: Settings › Servers, the address $url. Back up with: sh universo.sh backup" \
     "Depois conecte o app: Ajustes › Servidores, o endereço $url. Backup com: sh universo.sh backup"
   t "Guide: $DOCS" "Manual: $DOCS"
+}
+
+# caddy_install: the line that installs Caddy on this machine's family.
+# Debian and Ubuntu, and Fedora, carry it; Oracle Linux, RHEL, Rocky and
+# Alma only in EPEL (seen 2026-10-13 on Oracle Linux 9 and Rocky 9).
+caddy_install() {
+  if [ "$PM" = deb ]; then echo "sudo apt install caddy"; return 0; fi
+  id='' major=''
+  if [ -r "$OS_RELEASE" ]; then
+    # shellcheck disable=SC1090 # the system's own file, read in a subshell.
+    id=$(. "$OS_RELEASE" && echo "${ID:-}")
+    # shellcheck disable=SC1090
+    major=$(. "$OS_RELEASE" && echo "${VERSION_ID%%.*}")
+  fi
+  case "$id" in
+    fedora) echo "sudo dnf install caddy" ;;
+    ol) echo "sudo dnf install oracle-epel-release-el$major && sudo dnf install caddy" ;;
+    rhel) echo "sudo dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-$major.noarch.rpm && sudo dnf install caddy" ;;
+    rocky|almalinux|centos) echo "sudo dnf install epel-release && sudo dnf install caddy" ;;
+    *)
+      echo "sudo dnf install epel-release && sudo dnf install caddy"
+      t "(or Caddy's own repository: sudo dnf copr enable @caddy/caddy && sudo dnf install caddy)" \
+        "(ou o repositório do próprio Caddy: sudo dnf copr enable @caddy/caddy && sudo dnf install caddy)" ;;
+  esac
+}
+
+# caddy_steps HOST PORT: the commands that put HOST behind Caddy on this
+# machine, one per line, for the person to run. The site goes in a file of
+# its own, /etc/caddy/Caddyfile.d/universo.caddyfile — the directory
+# Fedora's and EPEL's caddy already import — and the main Caddyfile only
+# gains that import, at its end and only when missing: the sites already
+# there are left as they are.
+caddy_steps() {
+  caddy_install
+  printf '%s\n' "sudo mkdir -p /etc/caddy/Caddyfile.d"
+  printf '%s\n' "printf '%s {\\n\\treverse_proxy 127.0.0.1:%s\\n}\\n' '$1' '$2' | sudo tee /etc/caddy/Caddyfile.d/universo.caddyfile"
+  printf '%s\n' "sudo grep -qs 'import  *Caddyfile.d/' /etc/caddy/Caddyfile || printf '\\nimport Caddyfile.d/*.caddyfile\\n' | sudo tee -a /etc/caddy/Caddyfile"
+  printf '%s\n' "sudo systemctl reload caddy"
 }
 
 # --- commands ---------------------------------------------------------------
@@ -1191,6 +1234,13 @@ A porta 7340 fica fechada: o Caddy chega nela nesta máquina."
 }
 
 # --- arguments --------------------------------------------------------------
+
+# Sourced by scripts/check-linux.sh's test with UNIVERSO_SH_FUNCTIONS=1: the
+# functions above, nothing run.
+if [ "${UNIVERSO_SH_FUNCTIONS:-}" = 1 ]; then
+  # shellcheck disable=SC2317 # exit only when not sourced, on purpose.
+  return 0 2>/dev/null || exit 0
+fi
 
 [ "$#" -gt 0 ] || { usage; exit 1; }
 for a in "$@"; do
