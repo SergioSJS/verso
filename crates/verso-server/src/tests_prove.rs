@@ -410,3 +410,121 @@ fn a_passkey_proves_only_through_its_own_ceremony() {
         assert_eq!(said, prove_first(), "still not proved");
     });
 }
+
+/// A code typed on the device's page (ADR 0083 item 17) and a code in the
+/// link are one door: a wrong one, either way, counts against the
+/// `device:` key of the address, and past the free failures waits.
+#[test]
+fn a_typed_wrong_code_is_delayed_like_a_wrong_link() {
+    use reqwest::Method;
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let (_, device) = post(&r, "/api/device/start", json!({ "device": "Verso" }), None).await;
+        assert!(device["code"].is_string(), "{device}");
+        let tries = [
+            (
+                Method::POST,
+                "/api/device/approve",
+                json!({ "code": "BCDF-GHJK" }),
+            ),
+            (
+                Method::POST,
+                "/api/device/describe",
+                json!({ "code": "bcdfghjk" }),
+            ),
+            (
+                Method::POST,
+                "/api/device/refuse",
+                json!({ "code": "x".repeat(500) }),
+            ),
+            (
+                Method::POST,
+                "/api/device/approve",
+                json!({ "code": "ZZZZ-ZZZZ" }),
+            ),
+        ];
+        r.server.limiter.succeeded("device:127.0.0.1");
+        let mut typed = Vec::new();
+        for (method, path, body) in tries.clone() {
+            typed.push(send(&r, method, path, Some(body), &admin).await.0);
+        }
+        assert_eq!(typed, [404, 404, 404, 429], "a typed code");
+        r.server.limiter.succeeded("device:127.0.0.1");
+        let mut linked = Vec::new();
+        for (method, path) in [
+            (Method::POST, "/api/device/BCDF-GHJK"),
+            (Method::GET, "/api/device/BCDF-GHJK"),
+            (Method::DELETE, "/api/device/BCDF-GHJK"),
+            (Method::POST, "/api/device/ZZZZ-ZZZZ"),
+        ] {
+            linked.push(send(&r, method, path, Some(json!({})), &admin).await.0);
+        }
+        assert_eq!(linked, [404, 404, 404, 429], "a code in the link");
+    });
+}
+
+/// The right code typed — in any case, with or without its dash — says who
+/// asked and, with a fresh proof, approves: the app that asked gets its
+/// token.
+#[test]
+fn a_typed_right_code_approves_the_device() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let me = id_of(&r, "admin@casa.lan");
+        let (_, device) = post(
+            &r,
+            "/api/device/start",
+            json!({ "device": "Verso · Digitado" }),
+            None,
+        )
+        .await;
+        let code = device["code"].as_str().unwrap().to_owned();
+        let poll = device["poll"].as_str().unwrap().to_owned();
+        let typed = format!(" {} ", code.replace('-', "").to_lowercase());
+        let (status, what) = post(
+            &r,
+            "/api/device/describe",
+            json!({ "code": typed }),
+            Some(&admin),
+        )
+        .await;
+        assert_eq!(status, 200, "{what}");
+        assert_eq!(what["device"], "Verso · Digitado");
+        assert_eq!(
+            what["code"],
+            json!(code),
+            "the page shows the code it was given"
+        );
+        stale(&r, &me);
+        let (status, said) = post(
+            &r,
+            "/api/device/approve",
+            json!({ "code": typed }),
+            Some(&admin),
+        )
+        .await;
+        assert_eq!((status, said), prove_first());
+        assert_eq!(prove(&r, &admin, "senha muito longa").await.0, 200);
+        let (status, approved) = post(
+            &r,
+            "/api/device/approve",
+            json!({ "code": typed }),
+            Some(&admin),
+        )
+        .await;
+        assert_eq!(status, 200, "{approved}");
+        let (_, done) = post(
+            &r,
+            "/api/device/poll",
+            json!({ "code": code, "poll": poll }),
+            None,
+        )
+        .await;
+        assert!(
+            done["token"].as_str().is_some_and(|t| !t.is_empty()),
+            "{done}"
+        );
+    });
+}
