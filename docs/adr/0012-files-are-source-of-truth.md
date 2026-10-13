@@ -5,6 +5,10 @@
 - Status in the briefing: `DECIDED`
 - Revisions: 2026-09-22 — what the concurrent-modification check compares in the
   feature 2 code (time, length and a content hash), recorded as provisional.
+  2026-10-12 — the provisional records of 2026-09-22 ratified by the
+  maintainer as built and tested, answering the ADR audit in session:
+  *"Ajuste tudo que precisar. Está aprovado os ADRs"* (adjust whatever
+  needs it; the ADRs are approved); a dated note beside each.
 
 ## Context
 
@@ -50,6 +54,8 @@ note-taking app is lost the first time it touches a file without being told to.
   is what this rule is about, and not against an adversary who can choose the
   bytes: someone able to craft a collision can already write into the vault, and
   invariant 11 assumes an honest file system underneath.
+  *(Ratified by the maintainer on 2026-10-12, as built and tested:
+  "Ajuste tudo que precisar. Está aprovado os ADRs".)*
 - "Round-trip" had two possible readings, and they selected different parsers.
   The maintainer decided `docs/spec/dialect.md` Q18 on 2026-09-21: reading
   (b), a read-only parser with a four-property round-trip test; the base

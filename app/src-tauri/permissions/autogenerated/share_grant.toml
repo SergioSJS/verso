@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-share-grant"
+description = "Enables the share_grant command without any pre-configured scope."
+commands.allow = ["share_grant"]
+
+[[permission]]
+identifier = "deny-share-grant"
+description = "Denies the share_grant command without any pre-configured scope."
+commands.deny = ["share_grant"]

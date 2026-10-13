@@ -4,12 +4,17 @@
 
 import { can } from "../can";
 import { serverStrings, serversBody } from "./servers";
+import { syncBody, syncStrings } from "./sync";
+import { trashBody, trashStrings, trashSummary } from "./trash";
 import { type CliState, commands, type McpStatus } from "../bindings";
 import { remoteContentChanged } from "../changes";
 import { ask } from "../dialog";
 import { button, h, ui } from "../dom";
 import { focusesSummary, getLocalFocuses, getSyncFocuses, isSyncFocusesAsked, loadFocuses, setFocusesSummary, setLocalFocuses, setSyncFocuses, setSyncFocusesAsked } from "../focuses";
+import { bookmarks } from "../bookmarks";
 import { currentFolder } from "../folder";
+import { changeFolder, folderValues, folderWritable } from "../folderLayer";
+import type { Scope } from "../organize/layerRules";
 import { icon } from "../icons";
 import { allCommands, comboOf, DEFAULT_KEYS, keyOf, MAC, paintKeyHints, prettyKeys, reloadWindow, RESERVED } from "../keys";
 import { LINUX, WINDOWS } from "../platform";
@@ -25,7 +30,6 @@ import { boardText, t } from "../strings";
 import { listAll } from "../tree/tree";
 import { asDialog, closed, opened } from "./a11y";
 import { accountEntries } from "../web/account";
-import { adminEntries } from "../web/admin";
 import { signedIn } from "../web/api";
 
 /** A settings page is a list of items: a title, a line about it, a control. */
@@ -111,6 +115,8 @@ export class SettingsDialog {
       { id: "editor", label: t.sEditor, icon: "edit" },
       { id: "organizing", label: t.sOrganizing, icon: "folder" },
       { id: "files", label: t.sFiles, icon: "folder" },
+      // The folder's trash (ADR 0080 item 4), for whoever may change it.
+      ...(currentFolder && can("write") ? [{ id: "trash", label: trashStrings().section, icon: "trash" }] : []),
       { id: "board", label: boardText.sBoard, icon: "board" },
       { id: "hotkeys", label: t.sHotkeys, icon: "keyboard" },
       // What the side the window talks to cannot do is absent (ADR 0076
@@ -118,13 +124,14 @@ export class SettingsDialog {
       // and so is opening a server's folder from it (ADR 0073 item 2).
       ...(can("agents") ? [{ id: "cli", label: t.sCli, icon: "terminal" }] : []),
       ...(can("local_folders") ? [{ id: "servers", label: serverStrings().section, icon: "globe" }] : []),
-      // On a server: the person's account, and the server's administration
-      // for an admin (ADR 0074 items 7 and 9).
+      // A folder of this computer syncs with a server's (ADR 0079 item 1).
+      ...(can("local_folders") && currentFolder ? [{ id: "sync", label: syncStrings().section, icon: "refresh" }] : []),
+      // On a server: the person's account (ADR 0074 items 7 and 9); the
+      // server's administration is a console of its own (ADR 0077).
       ...(can("account") && signedIn() ? [{ id: "account", label: t.sAccount, icon: "user" }] : []),
-      ...(can("admin") && signedIn()?.admin ? [{ id: "admin", label: t.sAdmin, icon: "shield" }] : []),
     ];
   }
-  private item(title: string, desc: string, control: HTMLElement | null): HTMLElement {
+  private item(title: string, desc: string, control: HTMLElement | null, scope?: Scope): HTMLElement {
     const row = h("div", "setting");
     const text = h("div", "setting-text");
     const id = `setting-${++this.ids}`;
@@ -132,15 +139,27 @@ export class SettingsDialog {
     titleEl.id = `${id}-title`;
     const descEl = h("div", "setting-desc", desc);
     descEl.id = `${id}-desc`;
-    text.append(titleEl, descEl);
+    text.append(titleEl);
+    // Where the setting is kept (ADR 0070): in the folder, travelling with
+    // it, or on this machine only — said under its name, and read with its
+    // line by a screen reader.
+    let scopeId = "";
+    if (scope) {
+      const tag = h("span", `setting-scope ${scope}`, scope === "folder" ? t.scopeFolder : t.scopeMachine);
+      tag.title = scope === "folder" ? t.scopeFolderTip : t.scopeMachineTip;
+      scopeId = tag.id = `${id}-scope`;
+      text.append(tag);
+    }
+    text.append(descEl);
     row.append(text);
     if (control) {
       // The control is named by the item's title and described by its line
       // (a hotkey row names its own buttons).
-      const field = control.matches("input, select") ? control : control.querySelector<HTMLElement>("input, select");
+      const field = control.matches("input, select, textarea") ? control : control.querySelector<HTMLElement>("input, select, textarea");
       // A control that names itself (one of several in the row) keeps it.
       if (title && !field?.hasAttribute("aria-label")) field?.setAttribute("aria-labelledby", titleEl.id);
-      if (field && desc) field.setAttribute("aria-describedby", descEl.id);
+      // A control with a note of its own is described by both.
+      if (field && desc) field.setAttribute("aria-describedby", [scopeId, descEl.id, field.getAttribute("aria-describedby")].filter(Boolean).join(" "));
       row.append(control);
     }
     return row;
@@ -179,6 +198,20 @@ export class SettingsDialog {
     const out: { section: string; title: string; desc: string; node: () => HTMLElement; group?: string }[] = [];
     const add = (section: string, title: string, desc: string, control: () => HTMLElement | null, group?: string) =>
       out.push({ section, title, desc, node: () => this.item(title, desc, control()), group });
+    // A setting of the folder's layer (ADR 0070 items 1–2): shown with
+    // where it is kept now.
+    const addScoped = (section: string, title: string, desc: string, control: () => HTMLElement | null, scope: () => Scope = () => folderValues().scope) =>
+      out.push({ section, title, desc, node: () => this.item(title, desc, control(), scope()) });
+    // A walk rule changed: into the folder's settings when they can be
+    // written, else this machine's; then the folder is walked again.
+    const walkRule = async (part: { ignore_build_dirs?: boolean; respect_gitignore?: boolean }, onMachine: () => void) => {
+      if (!(await changeFolder(() => part))) {
+        onMachine();
+        saveSettings();
+      }
+      await walkRulesChanged();
+      this.paint();
+    };
     if (can("devtools")) add("general", t.devtools, t.devtoolsDesc, () => this.toggle(settings.devtools, (v) => { settings.devtools = v; saveSettings(); }));
     if (can("updates")) add("general", t.checkUpdates, t.checkUpdatesDesc, () => this.toggle(settings.checkUpdates, (v) => { settings.checkUpdates = v; saveSettings(); }));
     add("general", t.appVersion, t.appVersionDesc, () => {
@@ -348,7 +381,14 @@ export class SettingsDialog {
         allowEmbedOrigins(settings.embedOrigins);
         void pushEmbedOrigins();
       });
-      return box;
+      // The long part — how to write a line, and what * lets in — under
+      // the box as a note, not squeezed into the column beside it.
+      const wrap = h("div", "setting-block");
+      const note = h("p", "setting-note", t.embedAllowedNote);
+      note.id = `embed-allowed-note-${++this.ids}`;
+      box.setAttribute("aria-describedby", note.id);
+      wrap.append(box, note);
+      return wrap;
     });
     // The space the open folder takes (ADR 0075 item 4), from the walk the
     // index already made.
@@ -373,8 +413,13 @@ export class SettingsDialog {
         return v;
       });
     }
-    add("files", t.ignoreBuildDirs, t.ignoreBuildDirsDesc, () => this.toggle(settings.ignoreBuildDirs, (v) => { settings.ignoreBuildDirs = v; saveSettings(); void walkRulesChanged(); }));
-    add("files", t.respectGitignore, t.respectGitignoreDesc, () => this.toggle(settings.respectGitignore, (v) => { settings.respectGitignore = v; saveSettings(); void walkRulesChanged(); }));
+    // The trash beside the folder's space, not counted in it (ADR 0080
+    // items 4 and 8), and the way into it.
+    if (currentFolder && can("write")) {
+      add("files", trashStrings().section, trashStrings().notCounted, () => trashSummary(() => { this.section = "trash"; this.search.value = ""; this.paint(); }));
+    }
+    addScoped("files", t.ignoreBuildDirs, t.ignoreBuildDirsDesc, () => this.toggle(folderValues().ignoreBuildDirs, (v) => void walkRule({ ignore_build_dirs: v }, () => { settings.ignoreBuildDirs = v; })));
+    addScoped("files", t.respectGitignore, t.respectGitignoreDesc, () => this.toggle(folderValues().respectGitignore, (v) => void walkRule({ respect_gitignore: v }, () => { settings.respectGitignore = v; })));
     add("general", t.autosaveDelay, t.autosaveDesc, () => {
       const i = h("input");
       i.type = "number"; i.min = "0.3"; i.step = "0.5"; i.value = String(settings.autosave);
@@ -430,7 +475,20 @@ export class SettingsDialog {
     add("organizing", t.covers, t.coversDesc, () => this.toggle(settings.covers, (v) => { settings.covers = v; saveSettings(); for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) if (l instanceof NoteLeaf && l.note) void l.load(l.path, true); }));
     add("organizing", t.coverHeight, t.coverHeightDesc, () => this.text(String(settings.coverHeight), (v) => { const n = Number(v); if (!isNaN(n) && n >= 80 && n <= 600) { settings.coverHeight = n; saveSettings(); } }));
     add("organizing", t.aliasInTree, t.aliasInTreeDesc, () => this.toggle(settings.aliasInTree, (v) => { settings.aliasInTree = v; saveSettings(); void listAll(); }));
-    add("organizing", t.folderNoteName, t.folderNoteNameDesc, () => this.text(settings.folderNoteName, (v) => { settings.folderNoteName = v.trim(); saveSettings(); void pushFolderNoteName().then(() => listAll()); }));
+    addScoped("organizing", t.folderNoteName, t.folderNoteNameDesc, () => this.text(folderValues().folderNoteName, (v) => void (async () => {
+      if (folderWritable() && (await changeFolder(() => ({ folder_note_name: v.trim() })))) {
+        await listAll();
+      } else {
+        settings.folderNoteName = v.trim();
+        saveSettings();
+        await pushFolderNoteName().then(() => listAll());
+      }
+      this.paint();
+    })()));
+    // The bookmarks are the folder's too (ADR 0070 item 2): kept beside
+    // its notes, they are set by the star; here, where they are kept.
+    // A reader's are this machine's (decided 2026-10-12): said so.
+    if (currentFolder) addScoped("organizing", t.bookmarks, t.bookmarksSettingDesc, () => h("span", "setting-value", String(bookmarks.length)), () => folderValues().bookmarksScope);
     add("organizing", t.folderPageTable, t.folderPageTableDesc, () => this.toggle(settings.folderPageTable, (v) => { settings.folderPageTable = v; saveSettings(); }));
     add("organizing", t.manualOrder, t.manualOrderDesc, () => this.toggle(settings.manualOrder, (v) => { settings.manualOrder = v; saveSettings(); orderModeChanged(); }));
     add("organizing", t.inlineEmbedEdit, t.inlineEmbedEditDesc, () => this.toggle(settings.inlineEmbedEdit, (v) => { settings.inlineEmbedEdit = v; saveSettings(); }));
@@ -513,14 +571,17 @@ export class SettingsDialog {
     }));
     add("editor", t.defaultMode, t.defaultModeDesc, () => this.select([["preview", t.reading], ["live", t.edit]], settings.defaultMode, (v) => { settings.defaultMode = v; saveSettings(); }));
     add("editor", t.spellcheck, t.spellcheckDesc, () => this.toggle(settings.spellcheck, (v) => { settings.spellcheck = v; saveSettings(); }));
+    add("editor", t.blocks.handles, t.blocks.handlesDesc, () => this.toggle(settings.blockHandles, (v) => { settings.blockHandles = v; saveSettings(); }));
+    add("editor", t.blocks.enterNewBlock, t.blocks.enterNewBlockDesc, () => this.toggle(settings.enterNewBlock, (v) => { settings.enterNewBlock = v; saveSettings(); }));
     // Sub-division for Line Numbers, in the exact order of the mode buttons on screen:
     // 1. Reading mode (Leitura)
     // 2. Edit mode (Editar)
     // 3. Source mode (Fonte)
+    // The three together and last of the section, under one heading: an
+    // item between them drew the heading twice, and an item after them
+    // would read as one of them.
     add("editor", t.lineNumbersPreview, t.lineNumbersPreviewDesc, () => this.toggle(settings.lineNumbersPreview, (v) => { settings.lineNumbersPreview = v; saveSettings(); }), t.lineNumbers);
     add("editor", t.lineNumbersEdit, t.lineNumbersEditDesc, () => this.toggle(settings.lineNumbersEdit, (v) => { settings.lineNumbersEdit = v; saveSettings(); }), t.lineNumbers);
-    add("editor", t.blocks.handles, t.blocks.handlesDesc, () => this.toggle(settings.blockHandles, (v) => { settings.blockHandles = v; saveSettings(); }));
-    add("editor", t.blocks.enterNewBlock, t.blocks.enterNewBlockDesc, () => this.toggle(settings.enterNewBlock, (v) => { settings.enterNewBlock = v; saveSettings(); }));
     add("editor", t.lineNumbersSource, t.lineNumbersSourceDesc, () => this.toggle(settings.lineNumbersSource, (v) => { settings.lineNumbersSource = v; saveSettings(); }), t.lineNumbers);
     add("files", t.linkFormat, t.linkFormatDesc, () => this.select([["shortest", t.linkShortest], ["relative", t.linkRelative], ["root", t.linkRoot]], settings.linkFormat, (v) => { settings.linkFormat = v; saveSettings(); }));
     add("files", t.attachments, t.attachmentsDesc, () => this.text(settings.attachments, (v) => { settings.attachments = v; saveSettings(); }));
@@ -535,8 +596,9 @@ export class SettingsDialog {
     // in what a client starts: its path crosses nowhere (ADR 0026 rule 4).
     const me = signedIn();
     if (can("account") && me) for (const e of accountEntries(me, (a, b, c) => this.item(a, b, c))) out.push({ section: "account", ...e });
-    if (can("admin") && me?.admin) for (const e of adminEntries(me, (a, b, c) => this.item(a, b, c))) out.push({ section: "admin", ...e });
     if (can("local_folders")) out.push({ section: "servers", title: serverStrings().connect, desc: serverStrings().connectDesc, node: () => serversBody((a, b, c) => this.item(a, b, c)) });
+    if (currentFolder && can("write")) out.push({ section: "trash", title: trashStrings().section, desc: trashStrings().lead, node: () => trashBody((a, b, c) => this.item(a, b, c)) });
+    if (can("local_folders") && currentFolder) out.push({ section: "sync", title: syncStrings().title, desc: syncStrings().desc, node: () => syncBody((a, b, c) => this.item(a, b, c)) });
     add("cli", t.cliTitle, WINDOWS ? t.cliDescWindows : LINUX ? t.cliDescLinux : t.cliDesc, () => this.cliControl());
     // One server per folder, or one for all of Verso (ADR 0054, 2026-10-08).
     add("cli", t.mcpModeTitle, t.mcpModeDesc, () => this.select([["folder", t.mcpModeFolder], ["all", t.mcpModeAll]], settings.mcpMode, (v) => { settings.mcpMode = v; saveSettings(); this.paint(); }));
@@ -760,6 +822,17 @@ export class SettingsDialog {
     wrap.append(shown, change, reset);
     return wrap;
   }
+  /** On a phone the sections are a row scrolled sideways, and drawing it
+   *  again starts it at the first: the open section's tab is brought into
+   *  view — the row alone scrolls, never the page. */
+  private revealCurrent(): void {
+    const current = this.nav.querySelector<HTMLElement>('[aria-current="true"]');
+    if (!current || this.nav.scrollWidth <= this.nav.clientWidth) return;
+    const row = this.nav.getBoundingClientRect();
+    const tab = current.getBoundingClientRect();
+    if (tab.left < row.left) this.nav.scrollLeft -= row.left - tab.left;
+    else if (tab.right > row.right) this.nav.scrollLeft += tab.right - row.right;
+  }
   paint(): void {
     const q = this.search.value.trim().toLowerCase();
     this.nav.replaceChildren(...this.sections().map((sec) => {
@@ -770,6 +843,7 @@ export class SettingsDialog {
       b.addEventListener("click", () => { this.section = sec.id; this.search.value = ""; this.paint(); });
       return b;
     }));
+    this.revealCurrent();
     const items = this.items().filter((it) => (q ? `${it.group ?? ""} ${it.title} ${it.desc}`.toLowerCase().includes(q) : it.section === this.section));
     const frag = document.createDocumentFragment();
     let lastSection = "";

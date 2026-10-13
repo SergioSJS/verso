@@ -29,7 +29,8 @@ Verso's own (`"verso"`). Until that day: none.
   ([0030](0030-base-dialect-obsidian-compatible.md)).
 - The proposed semantic layer (nodes are notes, edges are typed relations)
   depends on typed relation syntax, also `[OPEN]`
-  (`docs/spec/dialect.md`).
+  (`docs/spec/dialect.md`). *(Decided on 2026-09-30: spec Q10, ADR 0057
+  point 4.)*
 - Vaults with `.excalidraw.md` from the Obsidian plugin need explicit
   conversion, which makes the target format part of this decision.
 

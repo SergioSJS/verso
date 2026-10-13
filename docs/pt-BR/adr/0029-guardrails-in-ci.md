@@ -62,6 +62,12 @@
   `main` ganha um job de Windows — clippy e os testes numa imagem fixada
   `windows-2025`, com a conversão de fim de linha do runner desligada antes
   do checkout.
+  2026-10-12 — os registros provisórios de 2026-09-22 ratificados pelo
+  mantenedor como construídos e testados, respondendo à auditoria dos
+  ADRs em sessão: *"Ajuste tudo que precisar. Está aprovado os ADRs"*; uma
+  nota datada ao lado de cada um.
+  O teste com cliente de sync fica aberto como uma checagem manual do
+  mantenedor e não trava mais nada.
 
 ## Contexto
 
@@ -199,6 +205,8 @@ tratar, com teste para cada item:
 - Clientes de sync (iCloud Drive, Dropbox, OneDrive, Syncthing) veem
   "apagou e criou". Testar com pasta dentro de pelo menos um deles antes de
   fechar a feature.
+  *(Desde 2026-10-12 uma checagem manual do mantenedor, que não trava
+  nada: abaixo.)*
 - Sistemas de arquivo de rede onde rename não é atômico: detectar e degradar
   com aviso, não silenciosamente.
 - Windows: substituir arquivo existente exige `MoveFileEx` com
@@ -208,6 +216,8 @@ tratar, com teste para cada item:
 **Como o código da feature 2 responde à lista acima, registrado em 2026-09-22 e
 provisório: o mantenedor decide ao acordar.** Cada item é o que o código faz,
 não uma decisão; os requisitos acima continuam como estão.
+*(Ratificado pelo mantenedor em 2026-10-12, como construído e testado:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 
 - **Hard links: detecta e avisa.** A escrita reporta
   `WriteReport::hard_link_shared` quando o arquivo substituído tinha mais de um
@@ -249,6 +259,9 @@ não uma decisão; os requisitos acima continuam como estão.
   de fechar a feature" não foi feito: exige uma pasta real de iCloud Drive,
   Dropbox, OneDrive ou Syncthing na máquina do mantenedor. O requisito continua
   de pé, não cumprido, e a feature 2 não fecha enquanto ele não for cumprido.
+  *(2026-10-12, o mantenedor, aceitando a auditoria dos ADRs: o teste fica
+  aberto como uma checagem manual dele e não trava mais nada —
+  `docs/reference/manual-checks.md`.)*
 - **O código só de macOS é compilado por um pull request apenas num Mac.** A
   verificação de `st_flags` da guarda de placeholder e a de `statfs` para
   sistema de arquivos de rede estão atrás de `#[cfg(target_os = "macos")]`, e um
@@ -263,6 +276,8 @@ não uma decisão; os requisitos acima continuam como estão.
 **Registrado em 2026-09-22 e provisório: o mantenedor decide ao acordar**, na
 linha 5 da §9 de `docs/reference/index-decision.md`. O guardrail acima continua
 como está; isto é o que o `verso-index` faz.
+*(Ratificado pelo mantenedor em 2026-10-12, como construído e testado:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 
 - **Todo valor entra como parâmetro ligado.** Nenhuma query é montada
   formatando um valor dentro do SQL: caminhos, alvos e limites entram como
@@ -533,4 +548,7 @@ meta: as metas seguem `[OPEN]` ([0039](0039-performance-targets.md)).
 
 ## Status
 
-Aceito.
+Aceito. Em 2026-10-12 o mantenedor ratificou os registros provisórios de
+2026-09-22 (a escrita atômica, o FTS5) como construídos e testados, e
+deixou o teste com cliente de sync aberto como uma checagem manual que não
+trava nada (Revisões).

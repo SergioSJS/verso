@@ -97,7 +97,51 @@
   (duas crates). Aceitos com este ADR: o
   [0074](0074-accounts-and-access-on-the-server.md), o
   [0075](0075-server-packaging-and-storage.md) e o
-  [0076](0076-the-window-on-every-screen.md).
+  [0076](0076-the-window-on-every-screen.md). 2026-10-11 (noite) — item
+  10: os conflitos foram vistos em uso (o soak da campanha de sync de
+  2026-10-11 fez 42 cópias de uma nota editada de dois aparelhos a cada
+  30 s), e o primeiro passo do merge por bloco está decidido — dois
+  acréscimos ao fim de uma nota juntados em vez de uma cópia, item 8 do
+  [0079](0079-sync-a-local-folder-with-a-server.md); com ele, uma versão
+  do protocolo de sync no hello (item 5 do 0079). O mantenedor,
+  respondendo a um memorando de recomendações: *"Sim para todos"*. O que
+  vem depois da rodada está no `docs/roadmap.md`, revisão 6.
+  2026-10-11 — o `[ABERTO]` do Status sobre recuperar a exclusão de outro
+  membro está respondido pelos itens 5 e 7 do
+  [0080](0080-the-trash-with-expiry-and-restore.md), aceito pelo
+  mantenedor naquele dia: uma exclusão vai para a lixeira da pasta, vista
+  por quem pode escrever nela, e qualquer um deles a restaura. Histórico e
+  atribuição de uma **mudança** continuam abertos.
+  2026-10-11 — o `[ABERTO]` do Status sobre permissões mais finas que a
+  pasta fica respondido para uma pasta dentro de uma pasta pelo
+  [0081](0081-sharing-between-people-on-one-universo.md) (aceito nesse
+  dia): um compartilhamento é uma concessão num caminho de uma pasta, com
+  um id próprio que quem recebe abre e sincroniza como pasta; por nota e
+  por bloco (Q9 da spec) continuam abertos. A redação antiga do Status
+  fica.
+  2026-10-12 — item 7, com o [0082](0082-live-co-editing-of-a-synced-folder.md) construído
+  (aceito em 2026-10-11; f0d7398, 807c8c9, 2de0737, cb7b29d e 5add311, juntados ao `feat/universo` pelo 817886e em 2026-10-12): o
+  app desktop numa pasta local **sincronizada** também entra nas salas.
+  Uma nota de uma pasta assim entra na sala do servidor enquanto o
+  aparelho está conectado, pelo próprio link do sync, como o navegador e o
+  desktop online entram; enquanto a nota está ao vivo, só o sync escreve o
+  arquivo local, baixando o que a sala salva; uma conexão que cai no meio
+  de uma edição leva a nota para o local com o texto guardado e salvo no
+  computador, nada perdido, e a volta entra de novo na sala, ou, quando a
+  sala é outra (a folga passou, o servidor reiniciou), termina numa cópia
+  de conflito ao lado da versão do servidor; um leitor está presente na
+  sala, com cursor e nome, e as edições dele são recusadas. As palavras do
+  item não mudam; a coedição do board segue `[ABERTO]` (item 12 do 0082).
+  2026-10-12 (noite) — item 7: **a coedição do board está decidida e
+  construída** (item 12 da [0082](0082-live-co-editing-of-a-synced-folder.md);
+  o mantenedor, *"Deveria estar"*), e com ela a de todo arquivo de texto:
+  um board é uma sala dos seus elementos fundidos pela reconciliação do
+  próprio Excalidraw, que o pacote exporta, sobre a sala do servidor como
+  o relay — vence a `version` maior, no empate o `versionNonce` menor,
+  apagar é uma lápide — e a sala grava o arquivo que o conversor de uma
+  janela fez exatamente do estado que ela tem; qualquer arquivo de texto
+  da pasta é uma sala como a de uma nota. As palavras do item e a ordem
+  do item 12 ficam; o `[ABERTO]` deles sobre o board é respondido aqui.
 
 ## Contexto
 
@@ -339,6 +383,9 @@ que segue `[ABERTO]` está listado no Status.
    2026-10-09**: a edição simultânea de notas é construída na mesma rodada
    do servidor, e a primeira versão do servidor já a tem, com a janela no
    navegador e o app desktop conectando (item 12).
+   *(Ampliado em 2026-10-12, uma linha de Revisões: o app desktop numa
+   pasta local sincronizada também entra, enquanto o sync dela está
+   conectado, [0082](0082-live-co-editing-of-a-synced-folder.md).)*
 8. **Celular e tablet: o navegador primeiro.** A janela servida pelo
    servidor é o cliente móvel (PWA, instalável em Android e iPadOS, como o
    [0025](0025-own-server-and-mobile-pwa.md) propôs; no iPadOS pede
@@ -371,6 +418,8 @@ que segue `[ABERTO]` está listado no Status.
     nome que o item 3 do [0070](0070-what-travels-with-the-folder.md) permite
     em todo SO — com o diff mostrado (invariante 11), nada silencioso; merge
     por bloco vem depois de conflitos terem sido vistos em uso, nunca antes.
+    *(O primeiro passo dele decidido em 2026-10-11, Revisões: o merge de
+    acréscimos do item 8 do [0079](0079-sync-a-local-folder-with-a-server.md).)*
     Propõe-se revisar o item 1 do
     [0020](0020-sync-merge-in-core-transports-as-plugins.md) (revisto assim
     em 2026-10-09, uma linha de Revisões lá): as integrações
@@ -537,8 +586,12 @@ remoto e as origens de embed aprovadas (do leitor, item 6).
 `[ABERTO]`: se o celular no navegador, só online, atende ao sync com
 celular que o mantenedor chamou de imprescindível, ou se o offline no
 celular vem mais cedo no item 12; permissões mais finas que a pasta (por
-nota ou por bloco, Q9 da spec), e histórico, atribuição e recuperação de
-uma mudança ou exclusão de outro membro; se um servidor de uma pessoa só
+nota ou por bloco, Q9 da spec) *(em parte respondido pelo
+[0081](0081-sharing-between-people-on-one-universo.md), aceito em
+2026-10-11: uma concessão sobre um caminho dentro de uma pasta; por nota
+e por bloco seguem abertos; o roadmap risca a linha)*, e histórico e atribuição de uma mudança
+de outro membro (a recuperação de uma exclusão respondida pelo
+[0080](0080-the-trash-with-expiry-and-restore.md), 2026-10-11); se um servidor de uma pessoa só
 pode optar por criptografia ponta a ponta depois; a coedição do board; o
 transporte e a autorização do MCP pela rede (item 11); se a URL
 pré-assinada do item 4 é o handle opaco da regra 4 ou precisa de emenda ao

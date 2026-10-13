@@ -23,7 +23,8 @@ Schemas são distribuíveis como conteúdo — diário, worldbuilding, sistemas 
   [0047](0047-plugin-api-open-questions.md), e a integridade do pack
   baixado (hash, origem) também.
 - Depende do formato e da localização dos schemas, ainda `[ABERTO]`
-  (`docs/spec/dialect.md`).
+  (`docs/spec/dialect.md`). *(Decididos em 2026-09-24: Q11 da spec, ADR
+  0052.)*
 - Um pack por sistema de jogo é o caminho previsto para o suporte a RPG
   ([0036](0036-tabletop-rpg-support.md)).
 - Packs precisam sobreviver ao usuário editar o schema depois de instalado: a

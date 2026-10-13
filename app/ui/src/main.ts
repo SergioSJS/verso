@@ -12,6 +12,11 @@
 // a workspace is a tree of splits; a split holds panes; a pane holds
 // tabs; a tab is a leaf — a note, an image, a text file or a folder.
 
+import { openFolderSwitcher } from "./panel/folderSwitcher";
+import { ready } from "./earlyClicks";
+import { mayShare, openShareDialog } from "./shares";
+import { sh } from "./shareStrings";
+import { bytes } from "./web/strings";
 import { redo, selectAll, undo } from "@codemirror/commands";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -28,23 +33,24 @@ import { Palette } from "./dialogs/palette";
 import { QuickSwitcher } from "./dialogs/quick";
 import { ReplaceDialog } from "./dialogs/replace";
 import { hotkeyRecorder, SettingsDialog } from "./dialogs/settings";
+import { trashStrings } from "./dialogs/trash";
 import { button, el, h, ui } from "./dom";
 import { fail } from "./errors";
 import { installFrame } from "./frame";
 import { installLongPress } from "./touch";
 import { installScreen } from "./screen/frame";
-import { can } from "./can";
+import { can, loadCan } from "./can";
 import { copyFilesInto, newUntitled } from "./files";
 import { focusesList, loadFocuses, selectFocus } from "./focuses";
 import { LAST_FOLDER, nameFolderButton, popout, secondary } from "./folder";
 import { hearServers, openServerFolder, parseServerKey } from "./dialogs/servers";
+import { hearSync } from "./dialogs/sync";
 import { icon } from "./icons";
 import { allCommands, keyHint, keyOf, MAC, paintKeyHints, prettyKeys, runHotkey } from "./keys";
 import { clearDropHints, ghost } from "./layout/drag";
 import { Layout } from "./layout/layout";
 import { Pane } from "./layout/pane";
 import { layout, newSpace, newSpaceButton, openNote, paneToOpenIn, showSpace, spaces, spaceTabs } from "./layout/spaces";
-import { pictureWaiting, pictureWorker } from "./leaves/board";
 import { folderSort, setFolderSort } from "./leaves/folderView";
 import { NoteLeaf } from "./leaves/note";
 import { TextLeaf } from "./leaves/textfile";
@@ -208,10 +214,6 @@ new MutationObserver((records) => {
     syncEmbedViews();
   }
 }).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["hidden", "class", "style"] });
-pictureWorker?.addEventListener("message", (e: MessageEvent<{ id: number; out: Blob | null }>) => {
-  pictureWaiting.get(e.data.id)?.(e.data.out);
-  pictureWaiting.delete(e.data.id);
-});
 updateLeavesLineNumbers = () => {
   for (const sp of spaces) {
     for (const p of sp.layout.panes()) {
@@ -380,7 +382,10 @@ paintKeyHints();
 // (ADR 0076).
 installScreen();
 
-ui.open.addEventListener("click", () => void openFolderDialog());
+// The folder button opens the folder switcher (ADR 0081 item 5): wired,
+// it is no longer busy (a click made before is made again, `web.ts`).
+ui.open.addEventListener("click", () => void openFolderSwitcher(ui.open));
+ready(ui.open);
 ui.collapse.addEventListener("click", collapseAll);
 ui.treeRoot.addEventListener("contextmenu", (e) => {
   if ((e.target as HTMLElement).closest("button.row, summary, input")) return;
@@ -392,8 +397,11 @@ ui.treeRoot.addEventListener("contextmenu", (e) => {
     ...createMenuItems(""),
     sep,
     ...(rootNote ? [[t.openFolderNote, () => void openNote(rootNote, false), "note"] as MenuItem] : []),
+    ...(mayShare() ? [[sh.shareWhole, () => openShareDialog(""), "user"] as MenuItem] : []),
     ...(order.length > 0 ? [...order, sep] : []),
     [collapsed ? t.expandAll : t.collapseAll, collapseAll, collapsed ? "expand" : "collapse"],
+    // The folder's trash (ADR 0080 item 4): no row in the tree, a way in here.
+    ...(can("write") ? [sep, [trashStrings().open, () => settingsDialog.show("trash"), "trash"] as MenuItem] : []),
   ];
   showMenu(e.clientX, e.clientY, items);
 });
@@ -693,6 +701,16 @@ void listen<[string, string]>("menu-edit", (e) => {
 const TEXT_INPUTS = new Set(["text", "search", "url", "email", "tel", "password", "number"]);
 void listen<FolderChanged>("folder-changed", (e) => void changedOutside(e.payload));
 void listen<IndexProgress>("index-progress", (e) => handleIndexProgress(e.payload));
+// On a server, a folder at 90 % of its quota or more (ADR 0077 item 5):
+// said after a write, at most once every ten minutes.
+let quotaSaid = 0;
+void listen<{ used: number; quota: number }>("folder-quota", (e) => {
+  if (Date.now() - quotaSaid < 600_000) return;
+  quotaSaid = Date.now();
+  const said = t.quotaNear.replace("{used}", bytes(e.payload.used)).replace("{quota}", bytes(e.payload.quota));
+  ui.status.textContent = said;
+  dispatchEvent(new CustomEvent("verso:failed", { detail: said }));
+});
 if (!popout && settings.checkUpdates) {
   setTimeout(() => void updateController.check(true), 2500);
 }
@@ -701,6 +719,11 @@ if (!popout && settings.checkUpdates) {
  *  `board.md`, second reading, finding 9). */
 export const started: Promise<void> = (async () => {
   hearServers();
+  // A folder of this computer that syncs with a server says so in the
+  // status bar (ADR 0079 item 13); a server's own folder does not sync.
+  void loadCan().then(() => {
+    if (!popout && can("local_folders")) hearSync((section) => settingsDialog.show(section));
+  });
   await Promise.all([embedOriginsPushed, walkRulesPushed, folderNoteNamePushed]);
   if (popout) return void joinAsPopout();
   // A reload (a language change) finds the host's folder still open: the

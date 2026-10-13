@@ -28,11 +28,12 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError, RwLock, Weak};
 use verso_contract::{
     ContractError, ErrorKind, FolderChanged, FolderInfo, IndexProgress, IndexSummary,
 };
-use verso_core::{CoreError, ReadError, Workspace, WriteError};
+use verso_core::{ConfinementError, CoreError, ReadError, Workspace, WriteError};
 
 pub mod convert;
 pub mod files;
 pub mod ops;
+pub mod trash;
 
 pub use ops::{Access, OpError};
 
@@ -127,10 +128,19 @@ pub fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
 #[must_use]
 pub fn convert(e: CoreError) -> ContractError {
     let kind = match &e {
+        // A new name beside its case twin (spec Q8): an answer of its own
+        // kind, which the window and sync tell apart without its text.
+        CoreError::Confined(ConfinementError::CaseTwin)
+        | CoreError::Write(WriteError::Confined(ConfinementError::CaseTwin)) => ErrorKind::CaseTwin,
         CoreError::Confined(_) | CoreError::InvalidKey => ErrorKind::Refused,
         CoreError::Write(WriteError::Confined(_)) => ErrorKind::Refused,
         CoreError::Read(ReadError::Unavailable) => ErrorKind::Unavailable,
-        CoreError::Read(ReadError::Io(io)) if io.kind() == std::io::ErrorKind::NotFound => {
+        // A file gone, read or written to: a rename or a deletion whose
+        // entry (or its folder) is not there any more is not found, as a
+        // read of it is — never a failure of the disk.
+        CoreError::Read(ReadError::Io(io)) | CoreError::Write(WriteError::Io(io))
+            if io.kind() == std::io::ErrorKind::NotFound =>
+        {
             ErrorKind::NotFound
         }
         CoreError::Folder(io) if io.kind() == std::io::ErrorKind::NotFound => ErrorKind::NotFound,
@@ -140,6 +150,7 @@ pub fn convert(e: CoreError) -> ContractError {
         CoreError::Write(WriteError::Changed { .. }) => ErrorKind::Changed,
         CoreError::Write(WriteError::Exists) => ErrorKind::Exists,
         CoreError::Write(WriteError::Placeholder) => ErrorKind::Unavailable,
+        CoreError::FolderSettings(_) => ErrorKind::Refused,
         _ => ErrorKind::Failed,
     };
     ContractError {
@@ -162,6 +173,37 @@ pub fn refused(message: impl Into<String>) -> ContractError {
         kind: ErrorKind::Refused,
         message: message.into(),
     }
+}
+
+/// The folder's quota on its server would be passed (ADR 0077 item 5):
+/// nothing was written.
+#[must_use]
+pub fn over_quota(used: u64, quota: u64) -> ContractError {
+    ContractError {
+        kind: ErrorKind::Quota,
+        message: format!("the folder takes {used} bytes of its quota of {quota}"),
+    }
+}
+
+/// The bytes the folder's files take now, and how much writing `len`
+/// bytes at `path` would change that (negative when the file shrinks).
+/// A note may be named without its `.md`.
+#[must_use]
+pub fn growth(ws: &Workspace, path: &str, len: u64) -> (u64, i64) {
+    let mut total = 0u64;
+    let mut old = 0u64;
+    let as_note = format!("{path}.md");
+    for e in ws.entries() {
+        if matches!(e.kind, verso_core::FileKind::Folder) {
+            continue;
+        }
+        total = total.saturating_add(e.len);
+        if e.path == path || e.path == as_note {
+            old = e.len;
+        }
+    }
+    let delta = i64::try_from(len).unwrap_or(i64::MAX) - i64::try_from(old).unwrap_or(i64::MAX);
+    (total, delta)
 }
 
 #[must_use]
@@ -242,6 +284,29 @@ impl Service {
         }
     }
 
+    /// Remove the temporary files a stopped process left in the folder,
+    /// with one line in the log when any went; a failure to look is a
+    /// warning, and the folder opens all the same.
+    fn sweep_temporaries(&self, workspace: &Workspace) {
+        match workspace.sweep_temporaries() {
+            Ok(0) => {}
+            Ok(n) => self.events().log(
+                "INFO",
+                &format!(
+                    "folder {}: {n} temporary file(s) of an interrupted write removed",
+                    workspace.name()
+                ),
+            ),
+            Err(e) => self.events().log(
+                "WARN",
+                &format!(
+                    "folder {}: its temporary files were not swept: {e}",
+                    workspace.name()
+                ),
+            ),
+        }
+    }
+
     /// Open a folder and index it, blocking — seconds on a large vault, so
     /// a host calls it off its event loop. Watched before the first index
     /// run, so that a change made while it runs is not missed; a folder that
@@ -256,15 +321,32 @@ impl Service {
         let mut workspace = open(self.config()).map_err(convert)?;
         workspace.set_walk_rules(*lock(&self.walk_rules));
         workspace.set_folder_note_name(&lock(&self.folder_note_name));
+        // What a write or a transfer cut short by a crash left behind: no
+        // write of this opening is in flight yet, and those of this
+        // process under another opening are spared by verso-fs.
+        self.sweep_temporaries(&workspace);
         let missed = Arc::new(AtomicBool::new(false));
         let (watch, unwatched) = self.watch(&workspace, Arc::clone(&missed));
         let report = workspace
             .index_with_progress(self.progress_to(vec![opener.to_owned()]))
             .map_err(convert)?;
+        // Asked once, at the opening: said to the client with the folder,
+        // and one line in the log (ADR 0048, revised 2026-10-12).
+        let late_outside_changes = workspace.names_by_link();
+        if let Some(fs) = &late_outside_changes {
+            self.events().log(
+                "WARN",
+                &format!(
+                    "folder {}: its volume ({fs}) has no exclusive rename, so a file Verso creates or moves there is named by a link; its later removal by another program may show only at a reindex or at sync's scan",
+                    workspace.name()
+                ),
+            );
+        }
         let mut info = FolderInfo {
             name: workspace.name(),
             key: workspace.key(),
             index: convert::summary(&report),
+            late_outside_changes,
         };
         info.index.unwatched.clone_from(&unwatched);
         Ok(Opened {
@@ -345,9 +427,30 @@ impl Service {
         self.changed(key, missed, None);
     }
 
+    /// The folder walked again as [`Service::changed_outside`] walks it,
+    /// without the progress the windows show for a walk: what a folder's
+    /// sync asks for itself — on reconnecting and on its five-minute scan
+    /// — so that a change the watcher's batches never brought (a deletion
+    /// while the server was out of reach, C15 of the live campaign) is in
+    /// the listing it compares (ADR 0079 item 6).
+    pub fn walk_quietly(&self, key: &str) {
+        self.changed_as(key, &AtomicBool::new(false), None, false);
+    }
+
     /// The same, with the batch's paths when the watch gave them: only
     /// those are read again when they can be (ADR 0073 item 12).
     fn changed(&self, key: &str, missed: &AtomicBool, changes: Option<&verso_core::Changes>) {
+        self.changed_as(key, missed, changes, true);
+    }
+
+    /// [`Service::changed`], its progress shown to the windows or not.
+    fn changed_as(
+        &self,
+        key: &str,
+        missed: &AtomicBool,
+        changes: Option<&verso_core::Changes>,
+        shown: bool,
+    ) {
         let (clients, session) = {
             let sessions = lock(&self.sessions);
             let Some(session) = sessions.by_key.get(key).map(Arc::clone) else {
@@ -357,7 +460,12 @@ impl Service {
             (sessions.clients_of(key), session)
         };
         let mut session = lock(&session);
-        let progress = self.progress_to(clients.clone());
+        let mut said = self.progress_to(clients.clone());
+        let progress = move |p| {
+            if shown {
+                said(p);
+            }
+        };
         let outcome = std::panic::catch_unwind(AssertUnwindSafe(|| match changes {
             Some(changes) => session.workspace.index_changes(changes, progress),
             None => session.workspace.index_with_progress(progress),
@@ -378,6 +486,7 @@ impl Service {
                     key: key.to_owned(),
                     changed: report.changed,
                     removed: report.gone,
+                    moved: Vec::new(),
                     listing: report.listing_changed,
                     index: session.info.index.clone(),
                 }
@@ -392,6 +501,7 @@ impl Service {
                     key: key.to_owned(),
                     changed: Vec::new(),
                     removed: Vec::new(),
+                    moved: Vec::new(),
                     listing: false,
                     index,
                 }

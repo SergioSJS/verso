@@ -30,6 +30,15 @@ pub struct FolderInfo {
     /// under, and what `reopen_folder` takes to open the folder again.
     pub key: String,
     pub index: IndexSummary,
+    /// The name of the folder's file system when changes made there by
+    /// other programs may show late: a volume without the exclusive rename
+    /// and with hard links (macOS: some network volumes; ADR 0048, revised
+    /// 2026-10-12), where a file Verso creates or moves is named by a
+    /// link, whose later removal by another program the system may not
+    /// report. Verso's own writes are as safe as anywhere. The UI says it
+    /// once per folder, in the user's language (ADR 0035).
+    #[serde(default)]
+    pub late_outside_changes: Option<String>,
 }
 
 /// What changed in the open folder, as the watcher saw it and the index
@@ -49,6 +58,13 @@ pub struct FolderChanged {
     pub changed: Vec<String>,
     /// Notes this run found gone from disk.
     pub removed: Vec<String>,
+    /// Entries renamed or moved, when the side knows it moved them: a
+    /// device's rename on a server (ADR 0079). A window's tab of `from`
+    /// follows it to `to`, as after a rename made in the window. The
+    /// watcher never knows a rename, and leaves this empty: the old path
+    /// is among `removed`, the new one among `changed`, as here too.
+    #[serde(default)]
+    pub moved: Vec<Moved>,
     /// Whether which entries there are, or of which kind, changed: a tree
     /// or a folder view is drawn again only then.
     pub listing: bool,
@@ -122,6 +138,42 @@ pub struct FocusesSummary {
     pub read_only_code: Option<ReadOnlyReasonCode>,
     /// The revision stamp for optimistic concurrency (Invariants 9 & 11).
     pub stamp: Option<String>,
+}
+
+/// The folder's settings that travel with it (ADR 0070 items 1–2), as
+/// `.verso/settings.json` holds them, or a change to them: `None` is "not
+/// set here". Every path is relative to the folder, joined by `/`.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct FolderSettings {
+    pub bookmarks: Option<Vec<String>>,
+    /// A plain file name without `.md`; empty: a folder's note is named
+    /// after the folder.
+    pub folder_note_name: Option<String>,
+    /// Leave out the well-known build folders (ADR 0044).
+    pub ignore_build_dirs: Option<bool>,
+    /// Honour each `.gitignore` (ADR 0044).
+    pub respect_gitignore: Option<bool>,
+}
+
+/// The folder's layer of settings as read now (ADR 0070 items 1–2).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct FolderLayer {
+    /// Whether `.verso/settings.json` stands in the folder. When it does
+    /// not, every setting is this machine's until one is first changed.
+    pub exists: bool,
+    /// Why the folder's layer is not used now: `unavailable` (the file is
+    /// a placeholder of on-demand storage, ADR 0043), `invalid` (not a
+    /// JSON object) or `share` (a window on a share of a server's folder,
+    /// whose settings are the whole folder's, ADR 0081). It is never
+    /// written then, and this machine's settings apply.
+    pub problem: Option<String>,
+    /// What was read, for the next change to hand back (invariant 11);
+    /// `None` when there is no file — the next change creates it.
+    pub revision: Option<String>,
+    pub settings: FolderSettings,
+    /// What the write that answered this could not confirm; empty after
+    /// a read.
+    pub warnings: Vec<String>,
 }
 
 /// What one entry of the open folder is.
@@ -384,12 +436,102 @@ pub struct Trashed {
     pub warnings: Vec<String>,
 }
 
+/// One entry of the folder's bin (ADR 0080 item 4): a file, or a folder
+/// trashed whole, with what is known of its deletion.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct TrashEntry {
+    /// Where it is, under `.trash/`: what a restore or a removal names.
+    pub path: String,
+    /// Where it was, relative to the folder.
+    pub original: String,
+    /// A folder trashed with what it held.
+    pub folder: bool,
+    /// The bytes it holds.
+    pub size: f64,
+    /// When it was deleted, in seconds since the Unix epoch; when that is
+    /// not known (`known` false), when it was first seen in the bin.
+    pub deleted: f64,
+    pub known: bool,
+    /// Who deleted it: on a server the account (or, for a version a write
+    /// replaced, the device); on the computer the server whose sync
+    /// carried the deletion out. None: this computer, or not known.
+    pub by: Option<String>,
+    /// Sync carried the deletion out on this computer (item 9).
+    pub sync: bool,
+    /// Not deleted: the version a device's write replaced (item 12).
+    pub replaced: bool,
+    /// When it is removed for good, in seconds; none when deleted files
+    /// are kept for ever.
+    pub expires: Option<f64>,
+}
+
+/// The folder's bin as its page shows it (ADR 0080 items 3, 4, 7 and 8).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct TrashListing {
+    /// Newest first.
+    pub entries: Vec<TrashEntry>,
+    /// The bytes the bin holds — shown, not counted against the quota.
+    pub size: f64,
+    /// How many days deleted files are kept; 0: for ever.
+    pub days: u32,
+    /// The most days this person may choose (a server folder's owner
+    /// shortens what the admin set, item 3); none: anything, for ever too.
+    pub most: Option<u32>,
+    /// Whether this person may change how long deleted files are kept.
+    pub can_set: bool,
+    /// Whether this person may delete an entry now or empty the bin: the
+    /// folder's owner (item 7); on the computer, always.
+    pub can_purge: bool,
+    /// The folder's quota on its server, in bytes; none without one.
+    pub quota: Option<f64>,
+    /// The bin alone is larger than the quota: its oldest entries expire
+    /// early (item 8).
+    pub early: bool,
+}
+
+/// Where a restore put an entry of the bin (ADR 0080 item 5).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct Restored {
+    pub path: String,
+    /// The original path was taken: it went beside it, under a new name.
+    pub beside: bool,
+    pub warnings: Vec<String>,
+}
+
 /// What the running app is: its version (the workspace's, ADR 0051) and the
 /// commit it was built from — shown in the settings and the About panel.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct AppInfo {
     pub version: String,
     pub commit: String,
+    /// This computer's name, as the copy of a conflict names it (ADR 0079
+    /// item 8): the editor's "keep both" names its copy as sync does.
+    /// None where the window runs on no computer of its own (a server).
+    pub device: Option<String>,
+}
+
+/// This computer's name (ADR 0079 item 8, ADR 0074 item 8; decided
+/// 2026-10-11): the one the person set in Settings › Servers, or the
+/// system's. A conflict's copy carries it, and a server's list of sessions
+/// and its change log show it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct DeviceName {
+    /// The name in use: the person's when set, the system's otherwise.
+    pub name: String,
+    /// The system's name, the default.
+    pub system: String,
+    /// Whether the person set the name.
+    pub custom: bool,
+}
+
+/// The name set, and the servers this computer is signed in to that could
+/// not be told: their list of sessions keeps the old name until the next
+/// sign-in there.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct DeviceRenamed {
+    pub device: DeviceName,
+    /// The addresses of the servers not reached.
+    pub unreached: Vec<String>,
 }
 
 /// The space a folder takes (ADR 0075 item 4): counted from the walk the
@@ -460,13 +602,26 @@ pub struct Capabilities {
     pub latency_ms: Option<u32>,
 }
 
-/// A note joined for editing by several people at once (ADR 0073 item 7):
-/// the shared state as a Yjs update (base64) to apply to an empty
-/// document, the revision on disk it stands on, and how the file is
-/// written — its text in the shared state has `\n` line ends; a file
-/// that mixes them is shown read-only and joins nothing.
+/// What a room holds (ADR 0082 item 12, decided 2026-10-12): a `text` —
+/// a note, or any other text file of the folder — as one Yjs text, or a
+/// `board` as its elements, one entry per element and version.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum CollabKind {
+    Text,
+    Board,
+}
+
+/// A file joined for editing by several people at once (ADR 0073 item 7,
+/// ADR 0082 item 12): the shared state as a Yjs update (base64) to apply
+/// to an empty document, the revision on disk it stands on, and how the
+/// file is written — a text's lines in the shared state end in `\n`; a
+/// file that mixes them is shown read-only and joins nothing.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct CollabJoin {
+    /// A text or a board: the window binds the state to its editor or to
+    /// its board by it.
+    pub kind: CollabKind,
     pub update: String,
     pub revision: String,
     pub read_only: bool,
@@ -522,6 +677,145 @@ pub struct ServerFolder {
     pub id: String,
     pub name: String,
     pub role: String,
+    /// Whose it is, when it is someone else's — a whole folder or a share
+    /// (ADR 0081 item 5): it is listed under "Shared with me".
+    #[serde(default)]
+    pub owner: Option<String>,
+    /// A folder inside someone's folder, shared with this account (ADR
+    /// 0081 item 2).
+    #[serde(default)]
+    pub share: bool,
+    /// The shared folder is no longer where the share points (item 13).
+    #[serde(default)]
+    pub missing: bool,
+}
+
+/// A folder of this computer opened before, for the folder switcher's
+/// "On this computer" (ADR 0081 item 5): its name and the key
+/// `reopen_folder` takes — never its path (ADR 0026 rule 4).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct RecentFolder {
+    pub key: String,
+    pub name: String,
+}
+
+/// A person who has access to a shared folder, and in which role (ADR
+/// 0081 item 7).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct SharePerson {
+    pub id: String,
+    pub name: String,
+    pub email: String,
+    /// `owner`, `editor` (writes) or `reader` (reads only).
+    pub role: String,
+}
+
+/// A folder of the open folder as its owner shares it (ADR 0081 item 7):
+/// the path inside the open folder — `""` for the whole folder, whose
+/// people are its members — who has access and in which role, and the
+/// attachments folder shown with it, read-only (item 11).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct FolderShare {
+    pub id: Option<String>,
+    pub path: String,
+    pub people: Vec<SharePerson>,
+    pub attachments: Option<String>,
+    /// The share points at a folder that is gone (item 13).
+    pub missing: bool,
+}
+
+/// A folder's sync with a server, as its window shows it (ADR 0079 item
+/// 13): the status bar's state and the folder settings' section.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct SyncStatus {
+    /// The folder of this computer it is of (`FolderInfo::key`): every
+    /// window hears every folder's, and shows its own.
+    pub key: String,
+    /// Whether the folder syncs at all.
+    pub on: bool,
+    /// The server, as signed in to (Settings › Servers).
+    pub server: String,
+    /// The server's folder: its id and its name there.
+    pub folder: String,
+    pub folder_name: String,
+    /// The role there: `owner`, `editor` or `reader` (a reader only
+    /// receives, item 1).
+    pub role: String,
+    /// `off`, `starting`, `synced`, `syncing`, `offline`, `paused` or
+    /// `error`.
+    pub state: String,
+    /// Files on their way in this pass.
+    pub sending: u32,
+    pub receiving: u32,
+    /// When paused for deletions, how many it would delete (item 9).
+    pub deletions: Option<u32>,
+    /// The conflict copies in the folder (item 8), by path.
+    pub conflicts: Vec<String>,
+    /// Files not synced, each with its reason (item 13).
+    pub refused: Vec<SyncRefused>,
+    /// What crossed lately, newest first.
+    pub log: Vec<SyncLogEntry>,
+    /// When the last pass ended, `YYYY-MM-DDTHH:MM:SSZ`.
+    pub last: Option<String>,
+    /// The last error, said (in English, for the log).
+    pub message: Option<String>,
+    /// What the last error was, for the window to say in its language:
+    /// `not_signed_in`, `signed_out`, `version`, `folder_gone`, `failed`;
+    /// with the state `off`, `revoked`.
+    pub problem: Option<String>,
+    /// With the problem `version`: what each side runs — two builds of one
+    /// version can differ in their contracts, and the window names both.
+    pub versions: Option<SyncVersions>,
+    /// When the folder's owner revoked the share this folder synced,
+    /// `YYYY-MM-DDTHH:MM:SSZ`: sync was turned off then, the files here
+    /// kept (ADR 0081 item 8). Said until sync is turned on again.
+    pub revoked: Option<String>,
+}
+
+/// What the server and this app run, when their contracts differ: the
+/// version, the commit it was built from, and the contract's hash.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct SyncVersions {
+    pub server_version: String,
+    pub server_build: String,
+    pub server_contract: String,
+    pub app_version: String,
+    pub app_build: String,
+    pub app_contract: String,
+}
+
+/// A file sync left out, and why.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct SyncRefused {
+    pub path: String,
+    /// `reader`, `quota`, `placeholder`, `too_large`, `name_taken`,
+    /// `case_twin_there` (two names on the server that differ only in
+    /// case: this computer keeps one, spec Q8), `name_invalid`, `changed`
+    /// or `failed`.
+    pub reason: String,
+    pub message: String,
+}
+
+/// One thing that crossed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct SyncLogEntry {
+    /// `YYYY-MM-DDTHH:MM:SSZ`.
+    pub at: String,
+    /// `sent`, `received`, `deleted_there`, `deleted_here`,
+    /// `renamed_there`, `renamed_here`, `conflict` or `merged` (two
+    /// appends to a note joined, ADR 0079 item 8).
+    pub what: String,
+    pub path: String,
+    /// The other path of a rename, or a conflict's copy.
+    pub other: Option<String>,
+    /// For what came from the server — received, deleted or renamed here,
+    /// a conflict, a merge — who made the change there, as the server's
+    /// log says it (sync 2): the person's name, and the name of the
+    /// device whose sync made it. Either may be unknown: a change made in
+    /// a browser has no device, one found on the server's disk no one, a
+    /// share says neither.
+    pub by: Option<String>,
+    pub device: Option<String>,
 }
 
 /// Information about an application update.
@@ -646,6 +940,11 @@ pub struct Link {
     pub alias: Option<String>,
     pub line: u32,
     pub col: u32,
+    /// The note or file it resolves to is not in what was shared with the
+    /// person (ADR 0081 item 11): shown like an unresolved link, and never
+    /// made into a note. Nothing else of it crosses.
+    #[serde(default)]
+    pub outside: bool,
 }
 
 /// A link into a note, from another.
@@ -683,6 +982,15 @@ pub enum ErrorKind {
     Changed,
     /// Something already stands where a note would be created or moved.
     Exists,
+    /// A new name differs only in case from an entry its folder already
+    /// lists — `nota.md` beside `Nota.md`: a Mac or Windows keeps the two
+    /// as one file, so nothing was made (spec Q8, decided 2026-10-12). An
+    /// answer, a name to choose again — not a fault.
+    CaseTwin,
+    /// The folder's quota on its server would be passed: nothing was
+    /// written; a write that shrinks the folder is always allowed (ADR
+    /// 0077 item 5).
+    Quota,
     /// The core could not answer.
     Failed,
 }

@@ -95,6 +95,23 @@ pub fn old_mtime(path: &Path) {
     assert!(done, "old_mtime({})", path.display());
 }
 
+/// Set `path`'s modification time to 2099-01-01 00:00, local time: a note
+/// the index then never trusts by its stat (a modified time from well
+/// before the last complete run), so every run reads it, however slowly
+/// the machine ran the test before that run.
+pub fn future_mtime(path: &Path) {
+    #[cfg(unix)]
+    let done = ran(Command::new("touch").args(["-t", "209901010000"]).arg(path));
+    #[cfg(windows)]
+    let done = ran(Command::new("powershell")
+        .args(["-NoProfile", "-Command"])
+        .arg(format!(
+            "(Get-Item -LiteralPath '{}').LastWriteTime = [datetime]'2099-01-01T00:00:00'",
+            path.display()
+        )));
+    assert!(done, "future_mtime({})", path.display());
+}
+
 /// Another program appends a line to `path` (Windows ends it with CRLF).
 pub fn append_line(path: &Path, line: &str) -> bool {
     #[cfg(unix)]

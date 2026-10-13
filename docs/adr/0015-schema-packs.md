@@ -23,7 +23,7 @@ and not as plugin code.
   [0047](0047-plugin-api-open-questions.md), and so is the integrity of the
   downloaded pack (hash, origin).
 - Depends on the format and the location of schemas, still `[OPEN]`
-  (`docs/spec/dialect.md`).
+  (`docs/spec/dialect.md`). *(Decided on 2026-09-24: spec Q11, ADR 0052.)*
 - One pack per game system is the expected path for RPG support
   ([0036](0036-tabletop-rpg-support.md)).
 - Packs have to survive the user editing the schema after installing it: a pack

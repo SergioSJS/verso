@@ -3,10 +3,13 @@
 // folders, the contract over the WebSocket, invitations and roles. In
 // Chromium and WebKit, as the harness's. `npm run e2e:server`, after
 // `cargo build -p verso-cli` and `npm run build`; scripts/check.sh runs it.
+// On macOS, no screenshot and no trace screencast, as the harness's
+// (playwright.config.mjs; ADR 0069 item 8, revised on 2026-10-12).
 
 import { defineConfig, devices } from "@playwright/test";
 
 const port = Number(process.env.SERVER_PORT ?? 4174);
+const mac = process.platform === "darwin";
 
 export default defineConfig({
   testDir: "e2e-server",
@@ -19,14 +22,15 @@ export default defineConfig({
   workers: 1,
   forbidOnly: true,
   retries: 0,
+  globalSetup: "./e2e/preflight.mjs",
   reporter: [["list"]],
   use: {
     baseURL: `http://localhost:${port}`,
     viewport: { width: 1400, height: 900 },
     locale: "pt-BR",
     timezoneId: "America/Sao_Paulo",
-    trace: "retain-on-failure",
-    screenshot: "only-on-failure",
+    trace: mac ? { mode: "retain-on-failure", screenshots: false, snapshots: true } : "retain-on-failure",
+    screenshot: mac ? "off" : "only-on-failure",
   },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1400, height: 900 } } },

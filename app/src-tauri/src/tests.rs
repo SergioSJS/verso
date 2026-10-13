@@ -15,6 +15,34 @@ use tauri::webview::InvokeRequest;
 use super::*;
 use crate::version::ParsedVersion;
 
+/// A window keeps its size on a large screen, and on a small one fits the
+/// work area, centred, never under its minimum: 1180×760 on a 1280×800
+/// screen at 125% (a work area of 1024×592 under the task bar) was taller
+/// than the screen.
+#[test]
+fn a_window_fits_the_screens_work_area() {
+    let main = (1180.0, 760.0);
+    let min = (360.0, 480.0);
+    assert_eq!(fit_to_area(main, min, (0.0, 25.0, 1920.0, 1055.0)), None);
+    assert_eq!(
+        fit_to_area(main, min, (0.0, 0.0, 1024.0, 592.0)),
+        Some((1024.0, 592.0, 0.0, 0.0))
+    );
+    // Only the side that does not fit shrinks, and the window is centred
+    // in what is left: 1280×752 at 100% under a 48 px task bar.
+    assert_eq!(
+        fit_to_area(main, min, (0.0, 0.0, 1280.0, 752.0)),
+        Some((1180.0, 752.0, 50.0, 0.0))
+    );
+    // A work area below the minimum keeps the minimum.
+    assert_eq!(
+        fit_to_area(main, min, (0.0, 0.0, 800.0, 400.0)),
+        Some((800.0, 480.0, 0.0, 0.0))
+    );
+    // A screen that says nothing changes nothing.
+    assert_eq!(fit_to_area(main, min, (0.0, 0.0, 0.0, 0.0)), None);
+}
+
 /// What the install hands the shell and AppleScript stays one word and
 /// one string, whatever the app's path holds — a space in "Verso Beta",
 /// a quote someone put in a folder's name.
@@ -53,6 +81,15 @@ struct TestConfig {
 fn app_with(
     initial: Option<PathBuf>,
 ) -> (tauri::App<MockRuntime>, tauri::WebviewWindow<MockRuntime>) {
+    let app = app_alone(initial);
+    let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
+        .build()
+        .unwrap();
+    (app, webview)
+}
+
+/// The app as it stands before its setup made the main window.
+fn app_alone(initial: Option<PathBuf>) -> tauri::App<MockRuntime> {
     let config = tempfile::tempdir().unwrap();
     let app = mock_builder()
         .plugin(navigation_guard())
@@ -66,10 +103,7 @@ fn app_with(
         .build(context())
         .unwrap();
     hear(app.handle());
-    let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
-        .build()
-        .unwrap();
-    (app, webview)
+    app
 }
 
 fn app() -> (tauri::App<MockRuntime>, tauri::WebviewWindow<MockRuntime>) {
@@ -102,6 +136,28 @@ fn a_folder_handed_to_the_running_app_is_opened_once_by_the_main_window() {
     );
     assert!(!info.to_string().contains(vault.path().to_str().unwrap()));
     assert!(call(&webview, "open_initial", json!({})).unwrap().is_null());
+}
+
+/// macOS hands `open -a Verso <folder>` to an app that is launching before
+/// its setup has made the main window (the live campaign, 2026-10-11: after
+/// a quit, the folder's window opened and an empty "Verso" one beside it):
+/// no window is made for the folder; the main window, made next, opens it.
+#[test]
+fn a_folder_handed_before_the_main_window_is_opened_by_it_alone() {
+    let vault = tempfile::tempdir().unwrap();
+    let _nota = note(vault.path(), "Nota.md", "# Nota\n");
+    let app = app_alone(None);
+    folder_handed(app.handle(), vault.path().to_path_buf());
+    assert!(app.webview_windows().is_empty());
+    let webview = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
+        .build()
+        .unwrap();
+    let info = call(&webview, "open_initial", json!({})).unwrap();
+    assert_eq!(
+        info["name"],
+        vault.path().file_name().unwrap().to_str().unwrap()
+    );
+    assert_eq!(app.webview_windows().len(), 1);
 }
 
 /// The app launched again (`verso <folder>`, any system): the second
@@ -341,7 +397,7 @@ fn the_commands_answer_through_the_contract() {
         "Taverna.md",
         "# Taverna\n\nO [[Barão]] bebe aqui.\n",
     );
-    let _barao = note(
+    let barao_file = note(
         vault.path(),
         "Barão.md",
         "---\ntags: [npc]\nurl: https://example.org\nmeta: {a: 1}\n---\n",
@@ -353,6 +409,9 @@ fn the_commands_answer_through_the_contract() {
     let info = call(&webview, "app_info", json!({})).unwrap();
     assert_eq!(info["version"], env!("CARGO_PKG_VERSION"), "{info}");
     assert!(!info["commit"].as_str().unwrap().is_empty(), "{info}");
+    // This computer's name, as a conflict's copy carries it (ADR 0079
+    // item 8): the editor's "keep both" names its copy with it.
+    assert!(!info["device"].as_str().unwrap().is_empty(), "{info}");
 
     // Nothing open yet: every command says so, in the contract's words.
     let err = call(&webview, "list_notes", json!({})).unwrap_err();
@@ -435,6 +494,19 @@ fn the_commands_answer_through_the_contract() {
     assert_eq!(web[0]["url"], "https://example.org", "{web}");
     let graph = call(&webview, "graph", json!({})).unwrap();
     assert_eq!(graph.as_array().unwrap().len(), 0, "{graph}");
+
+    // Deleted outside the app while a tab still holds it: the tab's save
+    // finds it not found, as a read of it would — the window's state,
+    // which it says in words, never a failure of the disk.
+    let held = barao["revision"].as_str().unwrap().to_owned();
+    drop(barao_file);
+    let late = call(
+        &webview,
+        "write_note",
+        json!({ "path": "Barão", "text": "x", "revision": held }),
+    )
+    .unwrap_err();
+    assert_eq!(late["kind"], "not_found", "{late}");
 
     // A deletion answers where the note went, and any warning.
     let gone = call(&webview, "delete_note", json!({ "path": "Taverna" })).unwrap();
@@ -984,4 +1056,42 @@ fn every_command_of_the_bindings_is_allowed() {
         }
     }
     assert!(missing.is_empty(), "{missing:#?}");
+}
+
+/// A server whose contract is not this app's (the live campaign,
+/// 2026-10-11, read "the server runs Verso 0.7.0-beta.1, another version
+/// than this app's 0.7.0-beta.1"): with one version on both sides, the
+/// refusal names the build and the contract of each, and the window gets
+/// them to say in its language; still the `version` problem.
+#[test]
+fn a_contract_of_another_build_names_both_builds() {
+    let ours = json!({ "version": env!("CARGO_PKG_VERSION"), "commit": "1dac246", "contract": remote::contract_version() });
+    assert_eq!(remote::mismatch(&ours), None);
+    let other = json!({ "version": env!("CARGO_PKG_VERSION"), "commit": "1dac246", "contract": "0123456789abcdef" });
+    let v = remote::mismatch(&other).unwrap();
+    assert_eq!(
+        (v.server_build.as_str(), v.server_contract.as_str()),
+        ("1dac246", "0123456789abcdef")
+    );
+    assert_eq!(v.app_build, env!("VERSO_COMMIT"));
+    let said = remote::mismatch_refused(&v).message;
+    assert_eq!(
+        said,
+        format!(
+            "the server runs Verso {0} (build 1dac246, contract 0123456789abcdef), this app {0} (build {1}, contract {2}): their contracts differ — update the one that is behind",
+            env!("CARGO_PKG_VERSION"),
+            env!("VERSO_COMMIT"),
+            remote::contract_version()
+        )
+    );
+    // Another version: the two versions say it.
+    let older =
+        remote::mismatch(&json!({ "version": "0.6.0", "contract": "0123456789abcdef" })).unwrap();
+    assert_eq!(
+        remote::mismatch_refused(&older).message,
+        format!(
+            "the server runs Verso 0.6.0, this app {}: update the one that is behind",
+            env!("CARGO_PKG_VERSION")
+        )
+    );
 }

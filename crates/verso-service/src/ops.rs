@@ -15,8 +15,8 @@
 use verso_contract::{
     Backlink, BaseColumn, BaseGroup, BaseProblem, BaseProblemKind, BaseQuery, BaseResult, BaseRow,
     BaseView, ContractError, Edge, EntryLabel, ErrorKind, FileEntry, FileKind, Focus,
-    FocusesSummary, FolderSpace, Hit, Link, MovedEntries, NoteText, RefusedEntry, Renamed, Tag,
-    TextFile, Trashed, WebNote, Written,
+    FocusesSummary, FolderLayer, FolderSettings, FolderSpace, Hit, Link, MovedEntries, NoteText,
+    RefusedEntry, Renamed, Tag, TextFile, Trashed, WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
 
@@ -172,6 +172,7 @@ ops! {
                 alias: l.alias,
                 line: l.line,
                 col: l.col,
+                outside: false,
             })
             .collect())
     }
@@ -398,19 +399,7 @@ ops! {
 
     /// A base evaluated over the folder (ADR 0053).
     Read fn query_base(ws, query: BaseQuery) -> BaseResult {
-        let core = verso_core::bases::BaseQuery {
-            path: query.path,
-            text: query.text,
-            this: query.this,
-            view: query.view,
-            extra: query.extra,
-            // The window's clock: whole milliseconds are all a base reads.
-            now_ms: query.now as i64,
-            offset_minutes: query.offset,
-            lang: query.lang,
-        };
-        let r = ws.query_base(&core)?;
-        Ok(base_result(r))
+        query_base_within(ws, query, Vec::new())
     }
 
     /// Read focuses from `.space/waypoints.json` in the open folder
@@ -461,10 +450,82 @@ ops! {
         Ok(space)
     }
 
+    /// The folder's layer of settings, `.verso/settings.json` (ADR 0070
+    /// items 1–2): whether it exists, what it sets, its revision. Reading
+    /// never creates it.
+    Read fn get_folder_settings(ws) -> FolderLayer {
+        Ok(layer_out(ws.folder_settings()))
+    }
+
+    /// Change the folder's settings: what `change` sets replaces what the
+    /// file says. With no `revision` the file must not exist yet (`exists`
+    /// when another machine's came first); with one, it is written over
+    /// that version only (`changed` otherwise). A change of the walk's
+    /// rules applies from the next walk: the window reindexes.
+    Write fn set_folder_settings(
+        ws,
+        change: FolderSettings,
+        revision: Option<String>,
+    ) -> FolderLayer {
+        let change = verso_core::FolderSettings {
+            bookmarks: change.bookmarks,
+            folder_note_name: change.folder_note_name,
+            ignore_build_dirs: change.ignore_build_dirs,
+            respect_gitignore: change.respect_gitignore,
+        };
+        Ok(layer_out(ws.set_folder_settings(&change, revision.as_deref())?))
+    }
+
     /// Set whether focuses sync to `.space/waypoints.json` (ADR 0062 D5, D9).
     Write fn set_sync_focuses(ws, enabled: bool) -> () {
         ws.set_sync_focuses(enabled);
         Ok(())
+    }
+}
+
+/// A base evaluated over the folders `within` only (none: the whole
+/// folder): a window on a share sees its shared folder, and no row,
+/// property, formula or summary counts a file outside it (ADR 0081 item
+/// 11). Not a command of its own: the server calls it for a share.
+pub fn query_base_within(
+    ws: &mut Workspace,
+    query: BaseQuery,
+    within: Vec<String>,
+) -> Result<BaseResult, OpError> {
+    let core = verso_core::bases::BaseQuery {
+        path: query.path,
+        text: query.text,
+        this: query.this,
+        view: query.view,
+        extra: query.extra,
+        // The window's clock: whole milliseconds are all a base reads.
+        now_ms: query.now as i64,
+        offset_minutes: query.offset,
+        lang: query.lang,
+        within,
+    };
+    let r = ws.query_base(&core)?;
+    Ok(base_result(r))
+}
+
+fn layer_out(l: verso_core::FolderLayer) -> FolderLayer {
+    FolderLayer {
+        exists: l.exists,
+        problem: l.problem.map(|p| {
+            match p {
+                verso_core::LayerProblem::Unavailable => "unavailable",
+                verso_core::LayerProblem::Invalid => "invalid",
+            }
+            .to_owned()
+        }),
+        revision: l.revision,
+        settings: FolderSettings {
+            bookmarks: l.settings.bookmarks,
+            folder_note_name: l.settings.folder_note_name,
+            ignore_build_dirs: l.settings.ignore_build_dirs,
+            respect_gitignore: l.settings.respect_gitignore,
+        },
+        warnings: l.warnings,
     }
 }
 

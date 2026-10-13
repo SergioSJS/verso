@@ -13,7 +13,8 @@
   pelo que ele achou (ADR 0032).
 - Relacionados: [0022](0022-target-platforms-macos-first.md) (Linux depois
   da Fase 2), [0011](0011-config-outside-tree-index-as-cache.md) (o local do
-  índice no Linux, `[ABERTO]`), [0029](0029-guardrails-in-ci.md)
+  índice no Linux, `[ABERTO]` — respondido em 2026-10-09:
+  `~/.config/verso`, Status), [0029](0029-guardrails-in-ci.md)
   (guardrails e scripts locais), [0043](0043-placeholder-guard.md)
   (placeholders: nenhum provedor reconhecido no Linux),
   [0044](0044-verso-fs-semantics.md) (a varredura periódica do watcher
@@ -108,9 +109,12 @@ Ubuntu 22.04 ([Ubuntu](https://packages.ubuntu.com/source/jammy/glibc)).
 ## Decisão
 
 Tudo proposto pelo autor; o porte espera ("deixe pra depois").
+*(Histórico: o porte começou em 2026-10-09 e saiu na 0.6.0-beta.1 no
+mesmo dia; o que o mantenedor respondeu está no Status.)*
 
 1. **x64 primeiro.** Linux em ARM64 (Raspberry Pi, notebooks ARM) é uma
-   pergunta, não um plano: `[ABERTO]`.
+   pergunta, não um plano: `[ABERTO]`. *(Respondido em 2026-10-09: gerado
+   ao lado do x64 quando o repositório for público — Status.)*
 2. **Um build, três pacotes:** um AppImage para toda distribuição, um
    `.deb` para a família Debian (Debian, Ubuntu, Mint, Pop!_OS), um `.rpm`
    para o Fedora e a família dele — os três de um único `tauri build`. Isso
@@ -124,7 +128,8 @@ Tudo proposto pelo autor; o porte espera ("deixe pra depois").
    família, para os pacotes rodarem no Ubuntu 22.04 em diante, no Debian 12
    (agora em LTS) em diante e no Fedora atual. O container Debian 12 do `check-linux.sh`
    continua checando; ele não compila o que é distribuído. As versões
-   suportadas são uma pergunta: `[ABERTO]`.
+   suportadas são uma pergunta: `[ABERTO]`. *(Respondido em 2026-10-09:
+   nenhuma lista publicada, o piso é o WebKitGTK 4.1 — Status.)*
 4. **Testado em máquinas virtuais no host Proxmox**, instaladas sem
    intervenção (o autoinstall do Ubuntu, o kickstart do Fedora, o preseed do
    Debian), com snapshots e SSH por chave, como a máquina Windows. O
@@ -147,7 +152,9 @@ Tudo proposto pelo autor; o porte espera ("deixe pra depois").
    Duas ou três máquinas: `[ABERTO]`. Sem GPU numa máquina virtual: a
    janela renderiza em software ali, bom para correção, não para a fluidez
    do board; NVIDIA no Wayland precisa de hardware de verdade, que nenhuma
-   máquina daqui tem: `[ABERTO]`.
+   máquina daqui tem: `[ABERTO]`. *(Respondido em 2026-10-09: as três
+   máquinas, montadas quando o porte começou; a conferência da NVIDIA no
+   desktop do mantenedor — Status.)*
 5. **`scripts/check-linux-vm.sh`**, ao lado do `check-linux.sh` e do
    `check-windows.sh`: a mesma árvore, byte a byte, para uma VM, o pacote
    compilado e instalado, o app aberto; e o projeto WebKit da suíte de ponta
@@ -156,7 +163,8 @@ Tudo proposto pelo autor; o porte espera ("deixe pra depois").
    `browser_patches/webkit` do Playwright) — perto do motor do app de Linux sem o
    custo de uma máquina. Quando ele é exigido antes de um push, como o
    `check-windows.sh` é quando código de plataforma muda (0069, item 5):
-   `[ABERTO]`. A lista de scripts locais do ADR 0029 o ganha quando ele
+   `[ABERTO]`. *(Respondido em 2026-10-09: só quando fizer sentido ou para
+   um pacote fechado — Status.)* A lista de scripts locais do ADR 0029 o ganha quando ele
    chegar.
 6. **CI quando o porte chegar:** o job de pull request continua; uma versão
    compila e publica os três pacotes ao lado dos do macOS, e dos do Windows
@@ -172,7 +180,9 @@ Tudo proposto pelo autor; o porte espera ("deixe pra depois").
      lado pelo ADR 0055 enquanto o repositório é privado, ele atualiza
      AppImage, `.deb` e `.rpm` desde a 2.10.0 e sempre exige assinatura
      ([changelog](https://v2.tauri.app/release/updater/all-versions/)) (a
-     assinatura é do ADR 0051): `[ABERTO]`;
+     assinatura é do ADR 0051): `[ABERTO]` *(respondido em 2026-10-09: o
+     arquivo pelo formato, assinado com a chave de release do ADR 0055 —
+     Status, "Como foi construído")*;
    - uma instância só — falta no Windows também, então um trabalho só para
      os dois;
    - a linha de comando no `PATH` sem root (`~/.local/bin`, da
@@ -190,7 +200,8 @@ Tudo proposto pelo autor; o porte espera ("deixe pra depois").
      Ubuntu e Debian ([Anthropic](https://claude.com/download)); onde ele lê
      as configurações não está documentado — o `~/.config/Claude` é
      observado numa instalação de verdade antes de se contar com ele:
-     `[ABERTO]`;
+     `[ABERTO]` *(respondido em 2026-10-09: tomado como `~/.config/Claude`,
+     a observar — Status)*;
    - a varredura periódica quando acaba o limite de observadores do
      inotify (ADR 0044);
    - sistemas de arquivos de rede: detectados no Linux também, ou
@@ -205,7 +216,8 @@ Tudo proposto pelo autor; o porte espera ("deixe pra depois").
    - web views filhas no Wayland: observadas, e o construtor GTK que o wry
      documenta para o Wayland tentado; o que não funciona aparece como não
      funcionando, nunca um painel em branco;
-   - placeholders de nuvem no Linux: `[ABERTO]` (ADR 0043);
+   - placeholders de nuvem no Linux: `[ABERTO]` (ADR 0043) *(respondido
+     em 2026-10-09: nenhum no Linux — Status)*;
    - as teclas do tutorial com Ctrl, como no Windows.
 8. **A ordem do trabalho, quando o porte começar:** as máquinas e o
    `check-linux-vm.sh`, e a suíte WebKit num container (sem código de
@@ -247,9 +259,17 @@ Tudo proposto pelo autor; o porte espera ("deixe pra depois").
 
 ## Status
 
-Proposto. O porte espera, pela palavra do mantenedor em 2026-10-08 ("deixe
+**Saiu na 0.6.0-beta.1 em 2026-10-09** (`CHANGELOG.md`; pull request #41,
+mesclado em 51f89f6): x64, como AppImage, `.deb` e `.rpm`. Os itens que o
+mantenedor respondeu em 2026-10-09 estão listados abaixo. Ainda
+`[ABERTO]`: Snap; Wayland nativo ou X11 forçado onde as web views filhas
+precisarem; nomes que diferem só em maiúsculas (a Q8 da spec).
+
+*(Histórico, o status antes de o porte sair:)* Proposto. O porte espera, pela palavra do mantenedor em 2026-10-08 ("deixe
 pra depois"); o ADR 0022 não muda (Linux depois da Fase 2) até o mantenedor
-o revisar. **O porte começou em 2026-10-09**, pela palavra do mantenedor
+o revisar *(revisado em 2026-10-12: o
+[0022](0022-target-platforms-macos-first.md) registra o Linux lançado na
+Fase 3, em 2026-10-09)*. **O porte começou em 2026-10-09**, pela palavra do mantenedor
 ("começar a trabalhar na versão Linux … eu confio na sua seleção e também na
 implementação"): as três máquinas do item 4, montadas a partir das imagens
 cloud das distribuições com cloud-init (`verso-linux-vm`, fora do
@@ -282,7 +302,8 @@ linha de comando continuam rodando sem tela; só a janela precisa de uma.
 precisarem; nomes que diferem só em maiúsculas (a Q8 da spec).
 
 **Como foi construído em 2026-10-09** (branch `feat/linux-port`, não
-mesclada):
+mesclada quando escrito; mesclada pelo pull request #41, 51f89f6, e lançada
+na 0.6.0-beta.1):
 - **As máquinas:** Ubuntu 26.04 com GNOME, Debian 12 com GNOME, Fedora 44
   com KDE Plasma, cada uma com um snapshot `provisioned`. O KDE do Fedora 44
   entra pelo `plasmalogin`, não pelo sddm, e roda o assistente
@@ -322,7 +343,8 @@ mesclada):
   gerenciador de pacotes.
 - **O job de release:** x64 no `ubuntu-22.04`; gera os três pacotes e o
   arquivo da linha de comando, assina e confere as assinaturas. Ainda não
-  rodou.
+  rodou *(quando escrito; depois rodou para a 0.6.0-beta.1, tag
+  `v0.6.0-beta.1`)*.
 - **O motor:** o projeto WebKit da suíte de ponta a ponta, no contêiner
   Linux do Playwright, passou em 179 de 179. Foi preciso uma correção no
   produto: um board tomava o estado do Excalidraw de antes de carregar o

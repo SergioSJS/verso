@@ -42,6 +42,13 @@ pub fn from_config(url: &str, from: &str) -> Result<Mail, String> {
 }
 
 impl Mail {
+    /// Whether messages leave the server (a mail server is set), rather
+    /// than staying in memory for the tests.
+    #[must_use]
+    pub fn sends(&self) -> bool {
+        matches!(self, Self::Smtp { .. })
+    }
+
     /// Send `body` (plain text) to `to`; an error is said in the log, never
     /// to the person who asked (it would tell whether the address exists).
     pub async fn send(&self, to: &str, subject: &str, body: &str) {

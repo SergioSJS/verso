@@ -51,7 +51,7 @@ serde_json = "1"
 # (MIT); tokio is Tauri's own runtime.
 tokio-tungstenite = { version = "0.29", default-features = false, features = ["connect", "rustls-tls-native-roots"] }
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
-tokio = { version = "1", default-features = false, features = ["sync", "time"] }
+tokio = { version = "1", default-features = false, features = ["sync", "time", "macros"] }
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "rustls", "http2", "gzip", "json"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
 sha2 = "0.10"
@@ -59,6 +59,10 @@ sha2 = "0.10"
 # as `tauri signer` writes them; the verifier Tauri's own updater uses.
 minisign-verify = "0.2"
 base64 = "0.22"
+# A sync conflict's copy is named with the local date and time (ADR 0079
+# item 8): the system's time zone, which std does not read. Already in the
+# tree through rmcp, with the same feature (MIT OR Apache-2.0).
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # Clearing the download quarantine from the CLI binary and an extracted
@@ -69,6 +73,13 @@ xattr = "1.6"
 # A real `verso serve` for the tests of a window on a server's folder; the
 # server is not built for Windows (crates/verso-cli/Cargo.toml).
 verso-server = { path = "../../crates/verso-server" }
+# A synced folder's live notes (ADR 0082 item 16): the tests' tabs are Yjs
+# documents, as the window's, and the feature's guardrail is a property
+# test. Both already in the tree, at these versions, through verso-server
+# (yrs, MIT) and verso-core (proptest, MIT OR Apache-2.0); they replace
+# nothing of ours.
+yrs = "0.28"
+proptest = { version = "1.11", default-features = false, features = ["std"] }
 
 [dev-dependencies]
 # The commands exercised through Tauri's mock runtime, as the UI calls

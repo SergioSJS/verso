@@ -27,8 +27,12 @@
 # rust-toolchain.toml pins. How the machine is built stays outside the
 # repository (`verso-linux-vm`).
 #
-# On the host, VERSO_LINUX_DIR (default ~/verso-check) holds src/, replaced on
-# every run, and target/, kept between runs so a build is incremental.
+# On the host, VERSO_LINUX_DIR (default ~/verso-check) holds src/, made equal
+# to this tree on every run, and target/, kept between runs so a build is
+# incremental. A file whose bytes changed is written with the time of the
+# copy, every other one keeps its time: cargo rebuilds what changed even
+# when this tree's file is older than the host's last build (a stale crate
+# was linked once, 2026-10-10).
 #
 # Every step runs even when one before it fails; the exit code says whether
 # all were green.
@@ -51,6 +55,8 @@ for arg in "$@"; do
     *) echo "unknown argument: $arg (see --help)"; exit 2 ;;
   esac
 done
+# The commit checked, so that a kept log names it.
+printf 'checking %s\n' "$(git rev-parse --short HEAD 2>/dev/null || echo 'no git')"
 
 if [ "$webkit" = 1 ]; then
   # The tree without what is built or installed here (node_modules holds
@@ -90,7 +96,8 @@ copy_tree() {
     | while IFS= read -r -d '' f; do [ -f "$f" ] && printf '%s\0' "$f"; done \
     | sort -zu \
     | COPYFILE_DISABLE=1 tar --no-xattrs --null -T - -cf - \
-    | on_host "rm -rf '$base/src' && mkdir -p '$base/src' && tar -xf - -C '$base/src'"
+    | on_host "rm -rf '$base/src.new' && mkdir -p '$base/src.new' '$base/src' && tar -xf - -C '$base/src.new' \
+        && rsync -rcp --delete '$base/src.new/' '$base/src/' && rm -rf '$base/src.new'"
 }
 step "copy the working tree to $host:$base/src" copy_tree
 if [ "${#failed[@]}" -gt 0 ]; then

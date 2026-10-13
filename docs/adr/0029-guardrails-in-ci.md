@@ -57,6 +57,12 @@
   day, with the port's atomic write, `main` gains a Windows job — clippy
   and the tests on a pinned `windows-2025` image, the runner's line-ending
   conversion turned off before the checkout.
+  2026-10-12 — the provisional records of 2026-09-22 ratified by the
+  maintainer as built and tested, answering the ADR audit in session:
+  *"Ajuste tudo que precisar. Está aprovado os ADRs"* (adjust whatever
+  needs it; the ADRs are approved); a dated note beside each.
+  The sync-client test stays open as a manual check of the maintainer
+  and no longer gates anything.
 
 ## Context
 
@@ -190,6 +196,8 @@ handle, with a test for each item:
 - Sync clients (iCloud Drive, Dropbox, OneDrive, Syncthing) see
   "deleted and created". Test with a folder inside at least one of them before
   closing the feature.
+  *(Since 2026-10-12 a manual check of the maintainer, gating nothing:
+  below.)*
 - Network file systems where rename is not atomic: detect and degrade with a
   warning, not silently.
 - Windows: replacing an existing file requires `MoveFileEx` with
@@ -199,6 +207,8 @@ handle, with a test for each item:
 **How the feature 2 code answers the list above, recorded on 2026-09-22 and
 provisional: the maintainer decides on waking.** Each item is what the code
 does, not a decision; the requirements above are unchanged.
+*(Ratified by the maintainer on 2026-10-12, as built and tested:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 
 - **Hard links: it detects and warns.** The write reports
   `WriteReport::hard_link_shared` when the file it replaced carried more than
@@ -239,6 +249,9 @@ does, not a decision; the requirements above are unchanged.
   feature" was not done: it needs a real iCloud Drive, Dropbox, OneDrive or
   Syncthing folder on the maintainer's machine. The requirement stands, unmet,
   and feature 2 does not close while it is unmet.
+  *(2026-10-12, the maintainer, accepting the ADR audit: the test stays
+  open as a manual check of theirs and no longer gates anything —
+  `docs/reference/manual-checks.md`.)*
 - **The macOS-only code is compiled by a pull request only on a Mac.** The
   `st_flags` check of the placeholder guard and the `statfs` check for a network
   filesystem are behind `#[cfg(target_os = "macos")]`, and a pull request runs on
@@ -253,6 +266,8 @@ does, not a decision; the requirements above are unchanged.
 **Recorded on 2026-09-22 and provisional: the maintainer decides on waking**,
 on line 5 of `docs/reference/index-decision.md` §9. The guardrail above is
 unchanged; this is what `verso-index` does.
+*(Ratified by the maintainer on 2026-10-12, as built and tested:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 
 - **Every value is a bound parameter.** No query is assembled by formatting a
   value into SQL: paths, targets and limits go in as `?1`, `?2`.
@@ -521,4 +536,6 @@ full scan it had before commit `4e99082`, which took 4 000 notes from 0.71 s to
 
 ## Status
 
-Accepted.
+Accepted. On 2026-10-12 the maintainer ratified the provisional records
+of 2026-09-22 (the atomic write, FTS5) as built and tested, and left the
+sync-client test open as a manual check that gates nothing (Revisions).

@@ -18,6 +18,164 @@ app real.
 
 ## Ainda não conferido
 
+### Tudo editado junto (item 12 da ADR 0082, feat/coedit-everything, 2026-10-12)
+
+- [ ] **Um board em dois lugares ao mesmo tempo** (21d096a, 5a027db): num
+  UniVerso, um board aberto no navegador e no app instalado na pasta do
+  servidor; arraste um cartão num enquanto desenha uma forma e escreve um
+  texto no outro: os dois veem os dois num instante, o ponteiro do outro
+  anda com o nome, o arquivo no disco do servidor tem os dois, sem faixa
+  de conflito, sem cópia; apague uma forma num enquanto a arrasta no
+  outro: ela continua apagada, e o ⌘Z onde foi apagada a traz de volta nos
+  dois.
+- [ ] **O board de uma pasta sincronizada entre dois computadores**: a
+  pasta sincronizada em dois Macs (ou um Mac e a VM do Windows), o mesmo
+  board aberto nos dois com rede: o mesmo de cima, e o arquivo local de
+  cada computador segue os salvamentos da sala; tire a rede de um, desenhe,
+  a aba diz *local — sem conexão* e o arquivo local tem o desenho; com a
+  rede de volta, *O quadro está ao vivo de novo* e o outro computador
+  recebe o que foi desenhado, sem cópia.
+- [ ] **Um `.txt` e uma base em dois lugares**: um arquivo de texto
+  digitado pelo navegador e pelo app ao mesmo tempo, letras juntadas; o
+  *Ordenar* e os *Filtros* de uma base mudados num, a visão da base do
+  outro se redesenha com eles, e o `.base` no disco os tem.
+- [ ] **Uma nota no cartão de um board e numa aba da mesma janela**: a
+  nota editada no cartão com a aba dela aberta ao lado, e de um navegador
+  ao mesmo tempo: os três mostram o mesmo texto, ninguém é tirado da sala,
+  o arquivo acompanha.
+- [ ] **Abrir não grava nada**: um board aberto em dois lugares, olhado,
+  arrastado e ampliado, fechado: a hora de modificação do arquivo não
+  muda.
+
+### As decisões de 2026-10-12 (feat/decisions-2026-10-12)
+
+- [ ] **Um nome que só difere na caixa é recusado** (spec Q8, ADR 0070
+  item 3): no app instalado, ao lado de uma nota `Nota`, uma nota nova
+  `nota` não é criada e a barra de status diz que um Mac ou o Windows
+  guardaria só um dos dois; renomear `Nota` para `nota` funciona; uma
+  pasta sincronizada com um UniVerso no Linux com uma nota `nota.md`
+  criada ali ao lado de `Nota.md` (à mão no disco do servidor) aparece em
+  "Não sincronizados" da sincronização como nome ocupado.
+- [ ] **Os favoritos de um leitor ficam neste computador** (ADR 0070
+  itens 1–2): conectado como leitor de uma pasta de UniVerso que tem
+  `.verso/settings.json`, uma estrela numa nota aparece na hora, continua
+  depois de reabrir a pasta, e *Ajustes › Organização › Favoritos* diz
+  *Desta máquina*; o `settings.json` do servidor não muda e nenhum erro é
+  dito; a mesma pasta sincronizada no desktop como leitor se comporta
+  igual.
+
+### Sincronização e UniVerso (feat/universo, 2026-10-11)
+
+- [ ] **Duas pessoas compartilham pastas num UniVerso** (ADR 0081,
+  2026-10-11): duas contas, dois navegadores (e o app desktop). Sérgio
+  clica com o botão direito numa pasta do vault dele, *Compartilhar…*, o
+  e-mail da Ana, *edita*; o botão da pasta da Ana a lista em
+  *Compartilhados comigo* como "Pasta (Sérgio)", ela abre numa janela
+  própria, uma nota criada ali aparece na pasta do Sérgio, um link para
+  uma nota dele de fora diz *Não está no que foi compartilhado com você.*;
+  Ana compartilha uma de volta com Sérgio, *lê*. No app desktop a Ana
+  sincroniza o compartilhamento com uma pasta vazia do computador dela
+  (Ajustes › Servidores › *Sincronizar*), nunca dentro do vault dela.
+  Sérgio renomeia a pasta compartilhada na janela dele: a janela e o sync
+  da Ana continuam. Notas que incorporam imagens da pasta de anexos do
+  vault: o diálogo oferece *Incluir “…”, só leitura*, e a Ana passa a ver
+  as imagens sem poder mudá-las. Sérgio tira a Ana: a janela dela fecha a
+  pasta na hora, a cópia sincronizada fica e o sync dela desliga, dizendo
+  que o compartilhamento foi revogado e quando (`6c7800e`). Também na largura de um celular. A página da pasta no console
+  lista o compartilhamento com as pessoas; o log de auditoria tem cada
+  passo com o caminho.
+
+- [ ] **A sincronização de um compartilhamento revogado desliga com um
+  aviso** (ADR 0081 item 8, `6c7800e`): no app instalado, a Ana
+  sincroniza um compartilhamento do Sérgio; o Sérgio a tira em
+  *Compartilhar…*. Em segundos o app da Ana mostra um aviso "Quem
+  compartilhou … revogou o seu acesso em …", a barra de status diz
+  "Desligada: quem compartilhou revogou o acesso em …" (âmbar), e
+  *Ajustes › Sincronizar* abre em "Compartilhamento revogado" acima do
+  formulário; os arquivos dela estão como estavam; o log do app tem uma
+  linha `WARN sync turned off: … its owner revoked the share` e nenhum
+  `ERROR`. Feche e abra a pasta de novo: o aviso continua e a
+  sincronização não começa. Ligue a sincronização de novo com outra
+  pasta: o aviso some.
+- [ ] **A página que aprova um aparelho diz quem pediu** (lacuna 12 do
+  modelo de ameaças, `5838c10`): *Ajustes › Servidores*, conecte ao
+  UniVerso; a página no navegador mostra *Quem pediu* — o nome deste
+  computador, o endereço que o servidor vê para ele, a hora — e então
+  *Foi você quem pediu, neste aparelho?*, *Aprovar este aparelho: <nome>*
+  e *Não fui eu: recusar*. Recuse: o app para de perguntar e não
+  entra; conecte de novo e aprove: entra. Com o VoiceOver, os dados e a
+  pergunta são lidos antes dos botões. Também na largura de um celular.
+- [ ] **Um cursor leva o nome de quem escreve** (lacuna 11 do modelo de
+  ameaças, `3bc56ae`): duas contas numa nota, em dois navegadores: cada
+  uma vê o cursor da outra com o nome e a cor da conta da outra, como
+  antes.
+
+- [ ] **"Guardar os dois" no conflito do editor** (`18da5c7`): numa pasta
+  sincronizada, mantenha uma nota aberta em Editar com texto não salvo
+  enquanto outro aparelho a muda; a tela "O arquivo mudou em disco…" oferece
+  um terceiro botão, "Guardar os dois" — a versão do disco fica com o nome,
+  o seu texto vai para `<nota> (conflito, <este computador>, <data>).md`, a
+  aba mostra a cópia.
+- [ ] **Uma nota apagada fora enquanto a aba está suja** (`e5b3ee0`): apague
+  o arquivo no Finder enquanto digita nele; a aba diz "Esta nota foi apagada
+  ou movida fora do Verso. O seu texto continua aqui." com "Salvar de novo" e
+  "Fechar sem salvar"; sem ERROR no log do app.
+- [ ] **Links que um rename não conseguiu atualizar** (`da6ac8e`): renomeie
+  uma nota enquanto outro programa edita uma nota que linka para ela; o
+  aviso nomeia a nota pulada, e "Tentar de novo" aplica a mudança sobre o
+  texto novo.
+- [ ] **Um nome em duas formas de acento** (spec Q7, `0cb6dd5`): num
+  aparelho Linux ou Windows crie `Café.md` ao lado de um `Café.md` que o
+  servidor já tem na outra forma Unicode; o segundo é listado em "nome de
+  outro, só mudando…" e nunca enviado; o primeiro continua sincronizando.
+- [ ] **Janela numa tela pequena** (`068215e`): numa tela 1280×800 a
+  primeira janela abre dentro da tela, barra de status visível.
+- [ ] **O nome deste aparelho** (ADR 0079 item 8, 2026-10-11): no app
+  instalado, Ajustes › Servidores › "Nome deste aparelho" — vazio, com o
+  nome do sistema de placeholder; dê "Estúdio", "Salvar nome": conectado a
+  um servidor, diz "os servidores já mostram o nome novo", e o Ajustes ›
+  Conta do servidor lista a sessão como "Verso · Estúdio"; um conflito feito
+  depois é `<nota> (conflito, Estúdio, <data>).md`; esvaziado e salvo, o
+  nome do sistema volta nos dois.
+- [ ] **Um admin encerra as sessões de outra conta** (ADR 0077 item 3,
+  2026-10-11): no console, a página de uma conta com um aparelho conectado
+  e sincronizando e um token — "Encerrar sessões e tokens", confirme; a
+  página diz quantas foram; a sincronização do aparelho diz que foi
+  desconectada na hora (não na próxima varredura), o navegador dessa conta
+  cai na página de entrar, o token dela para de responder, e o registro
+  lista "encerrou as sessões e os tokens da conta" sobre essa conta.
+
+### A lixeira (ADR 0080, feat/universo, 2026-10-11)
+
+- [ ] **A lixeira de uma pasta deste computador** (`9c10495`, `173cf7e`):
+  no app instalado, apague uma nota e abra *Ajustes › Lixeira* (ou "Abrir
+  a lixeira" na paleta, ou o botão direito no espaço vazio da árvore): a
+  nota aparece com a data de hoje; "Restaurar" põe o arquivo de volta no
+  disco (o Finder mostra) e o log tem uma linha `trash` "restored".
+- [ ] **O que uma lixeira antiga guardava** (`8ad89d2`): abra uma pasta cuja
+  `.trash` o Obsidian ou um Verso mais antigo encheu; os itens aparecem
+  "antes de … (data desconhecida)", nada é apagado na hora; *Manter
+  arquivos apagados por* "1 dia", um dia depois, remove-os, cada um uma
+  linha "expired" do log; a varredura também roda um dia depois de abrir a
+  pasta, enquanto ela fica aberta.
+- [ ] **Uma exclusão que a sincronização fez aqui** (`9c10495`): com dois
+  computadores sincronizando uma pasta, apague uma nota num deles; no
+  outro, a lixeira a lista "pela sincronização com <servidor>".
+- [ ] **A lixeira do servidor de teste** (`02903f1`): depois da
+  atualização, os 306 MB que já estavam na `.trash` de uma pasta aparecem
+  com data desconhecida e nada some antes de 30 dias desde a primeira
+  leitura; a página da pasta no console mostra *Lixeira* (quantidade,
+  tamanho, "fora da cota") e *Dias na lixeira*; os totais da Visão geral
+  somam as lixeiras; quem edita restaura mas não vê "Apagar agora"; a dona
+  encurta os dias pela janela e não passa dos da administração.
+- [ ] **Uma versão que a escrita de um aparelho substituiu** (`02903f1`,
+  F18): num computador sincronizado, deixe outro programa salvar um texto
+  antigo por cima de uma nota que a sincronização acabou de atualizar; no
+  servidor, a *Lixeira* lista "substituído por <aparelho>", e "Restaurar"
+  a põe ao lado da nota como `<nota> (restaurado <data>).md`.
+- [ ] **A janela do desktop numa pasta do servidor** (`9c10495`): *Ajustes ›
+  Lixeira* mostra a lixeira do servidor, com os limites do papel.
+
 ### Versão 0.5 (feat/windows-fs, feat/signed-updates)
 
 - [ ] **Verso para Linux** (ADR 0071, 2026-10-09), nas máquinas do
@@ -64,6 +222,14 @@ app real.
   ficam), e abrir uma nota baixa só aquela e mostra o texto dela — nenhum
   "the cloud did not give the file's content" no log. Só o `attrib +O` foi
   testado.
+- [ ] **Uma pasta dentro de um cliente de sync de terceiros** (ADR 0029, a
+  escrita atômica da feature 2; uma checagem manual desde 2026-10-12, que
+  não trava nada): ponha uma pasta de notas dentro do iCloud Drive, do
+  Dropbox, do OneDrive ou do Syncthing, abra-a no Verso e salve uma nota
+  algumas vezes; em outra máquina, ou na página web do próprio cliente, a
+  nota chega como o mesmo arquivo editado — não apagada e criada de novo,
+  sem cópia em conflito, com o histórico de versões mantido onde o cliente
+  tem um.
 
 ### 0.4.0-beta.1
 
@@ -122,11 +288,55 @@ testes de ponta a ponta cobrem o resto.
 - [ ] **CasaOS ou ZimaOS**: o compose instalado pela tela da loja de apps,
   as variáveis do admin preenchidas, as pastas no NAS.
 - [ ] **Um `.deb` numa máquina pequena sem Docker**: instalado, o arquivo
-  de ambiente editado, `systemctl enable --now verso`.
-- [ ] **A conta e a administração em Ajustes**, no navegador do Mac e do
-  iPhone: o botão da pessoa ao lado da engrenagem abre *Ajustes* › *Conta*;
-  um admin também tem *Administração*; no celular, *Ajustes* e *Conta* no pé
-  da gaveta lateral; o cartão de entrar nos dois temas.
+  de ambiente editado, `systemctl enable --now universo`.
+- [ ] **A conta em Ajustes e o console de administração**, no navegador do
+  Mac e do iPhone: o botão da pessoa ao lado da engrenagem abre *Ajustes* ›
+  *Conta*, que leva um admin ao `/admin`; as seções do console, a cota de uma
+  pasta, o menu no celular; no celular, *Ajustes* e *Conta* no pé da gaveta
+  lateral; o cartão de entrar nos dois temas.
+- [ ] **Uma pasta perto da cota**: uma nota acrescentada além de 90 % mostra
+  o aviso na janela; um arquivo além da cota é recusado com a frase, e
+  apagar um arquivo é permitido.
+- [ ] **Sincronização entre dois computadores** (ADR 0079), com o app
+  instalado no Mac e em outro computador (a VM Windows), os dois
+  conectados ao mesmo UniVerso: uma pasta sincronizada do Mac para uma
+  pasta nova lá, depois a mesma pasta do servidor sincronizada numa pasta
+  vazia do outro computador; uma edição num chega no outro em segundos; uma
+  nota editada nos dois com um sem rede volta como a versão do servidor e
+  uma cópia *(conflito, …)*, com a diferença em *Ajustes* ›
+  *Sincronizar*; um vídeo grande cruza inteiro; o Obsidian, na pasta do
+  Mac, vê as mudanças; o log diz o que cruzou e não tem `ERROR`.
+- [ ] **Os ajustes de uma pasta em dois computadores** (ADR 0070 itens
+  1–2), ao lado da conferência acima: no Mac, uma nota com estrela e
+  *Ignorar pastas de build* desligado na pasta sincronizada; no outro
+  computador, depois da sincronização, a estrela e a chave estão lá, cada
+  uma marcada *Da pasta*, e o `.verso/settings.json` as guarda; mudados
+  nos dois com um sem rede, a versão do servidor fica com o nome e o
+  `.verso/settings (conflito, …).json` fica ao lado; uma pasta nunca
+  marcada nem mudada não tem `.verso/`; uma pasta cujos favoritos o app
+  instalado já guardava antes desta versão abre com eles, levados para o
+  `.verso/settings.json` uma vez.
+- [ ] **Uma nota ao vivo em dois computadores** (ADR 0082), ao lado da
+  verificação acima: a mesma nota aberta em Editar na pasta sincronizada
+  do Mac, na do outro computador e num navegador; cada um vê o texto dos
+  outros enquanto digitam, com os nomes ao lado do título (*ao vivo, com
+  …*); os arquivos dos dois computadores seguem a sala em segundos e
+  nenhuma cópia *(conflito, …)* aparece. Wi-Fi desligado no Mac enquanto
+  digita: *local — sem conexão*, o texto fica e está no arquivo do Mac;
+  ligado de novo, a nota volta a *ao vivo* e o texto digitado sem rede
+  está nas janelas dos outros, uma vez só. Com duas janelas do Mac em duas
+  pastas sincronizadas que têm, cada uma, uma nota com o mesmo nome,
+  digitar numa nunca aparece na outra (uma janela ouve só os eventos da
+  sua sala). O VoiceOver diz quem entra e sai, e a nota ficando local e
+  ao vivo. O log não tem `ERROR`.
+- [ ] **Uma gravação numa nota ao vivo só em outro lugar** (ADR 0082, as
+  gravações que não são teclas): a nota aberta em Editar só no navegador;
+  na pasta sincronizada do Mac, com a nota em nenhuma aba, citar nela um
+  trecho de PDF (é a nota de anotações dele), definir uma célula de base
+  dela e dar a ela um adesivo na árvore. Cada uma chega ao texto do
+  navegador como uma edição enquanto se digita lá, o arquivo segue em
+  segundos, e nenhuma cópia *(conflito, …)* aparece em nenhum computador.
+  Fechada no navegador, as mesmas gravações vão para o arquivo como antes.
 - [ ] **Um botão da faixa oculto e trazido de volta** no app instalado:
   botão direito › *Ocultar este botão*, a barra de status diz onde;
   *Ajustes* › *Aparência* › o switch dele o traz de volta; a engrenagem não

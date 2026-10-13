@@ -2,35 +2,50 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { currentFolder } from "./folder";
+import { bookmarksWritable, changeFolder, folderValues, onFolderLayer, saveMachineBookmarks } from "./folderLayer";
 import { leavesOf } from "./layout/spaces";
 import { NoteLeaf } from "./leaves/note";
 import { panel } from "./main";
+import { toggled } from "./organize/layerRules";
 
 /* ---------- Bookmarks ---------- */
+/** The open folder's bookmarks as they apply now: the folder's own, in
+ *  `.verso/settings.json`, or this machine's while it has none or the
+ *  person only reads it (ADR 0070; decided 2026-10-12). */
 export let bookmarks: string[] = [];
-export function setBookmarks(value: string[]): void {
-  bookmarks = value;
-}
 export function loadBookmarks(): void {
-  try {
-    bookmarks = JSON.parse(localStorage.getItem(`verso.bookmarks:${currentFolder}`) ?? "[]") as string[];
-  } catch {
-    bookmarks = [];
-  }
+  bookmarks = folderValues().bookmarks;
 }
-export function saveBookmarks(): void {
-  try {
-    localStorage.setItem(`verso.bookmarks:${currentFolder}`, JSON.stringify(bookmarks));
-  } catch {
-    // No storage.
+/** The bookmarks changed by `change`, applied at once here and kept in the
+ *  folder's layer — made again over the file as it is when it is written,
+ *  so a change another computer synced in meanwhile stays — or on this
+ *  machine when the folder's layer cannot be written, or the person only
+ *  reads the folder (decided 2026-10-12). */
+export function changeBookmarks(change: (list: readonly string[]) => string[]): void {
+  const next = change(bookmarks);
+  if (next.length === bookmarks.length && next.every((p, i) => p === bookmarks[i])) return;
+  bookmarks = next;
+  if (!bookmarksWritable()) {
+    saveMachineBookmarks(next);
+    return;
   }
+  void changeFolder((now) => ({ bookmarks: change(now.bookmarks) })).then((kept) => {
+    // The folder's layer went away meanwhile: this machine keeps it.
+    if (!kept) saveMachineBookmarks(change(folderValues().bookmarks));
+  });
 }
 export function toggleBookmark(path: string): void {
-  const i = bookmarks.indexOf(path);
-  if (i >= 0) bookmarks.splice(i, 1);
-  else bookmarks.push(path);
-  saveBookmarks();
+  changeBookmarks((list) => toggled(list, path));
   for (const l of leavesOf(path)) if (l instanceof NoteLeaf) l.paintStar();
   panel.refresh();
 }
+// The folder's layer read again — opened, changed here, changed elsewhere:
+// the stars and the panel show what applies.
+onFolderLayer(() => {
+  const was = bookmarks;
+  loadBookmarks();
+  const changed = [...was, ...bookmarks].filter((p) => !was.includes(p) || !bookmarks.includes(p));
+  if (changed.length === 0) return;
+  for (const p of new Set(changed)) for (const l of leavesOf(p)) if (l instanceof NoteLeaf) l.paintStar();
+  panel.refresh();
+});

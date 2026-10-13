@@ -18,15 +18,22 @@ use axum::response::{IntoResponse, Response};
 use verso_service::OpError;
 use verso_service::files::{Policy, serve};
 
-use crate::db::Role;
-use crate::http::{ApiResult, Ctx};
+use crate::http::{ApiError, ApiResult, Ctx};
 
 const FILE_CSP: &str = "sandbox; default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:";
 
 pub async fn file(ctx: Ctx, Path((folder, path)): Path<(String, String)>) -> ApiResult<Response> {
     ctx.secure()?;
     let who = ctx.who()?;
-    let (found, _) = crate::access::at_least(&ctx.server, who, &folder, Role::Reader)?;
+    // A share's file, by its path in the shared folder, behind the same
+    // check (ADR 0081 item 2).
+    let (found, path) = match crate::shares::opening(&ctx.server, who, &folder)? {
+        crate::shares::Opening::Folder(found, _) => (found, path),
+        crate::shares::Opening::Share(found, scope, _) => {
+            let full = scope.to_full(&path).map_err(|_| ApiError::not_found())?;
+            (found, full)
+        }
+    };
     let key = crate::access::key(&ctx.server, &found)?;
     let server = std::sync::Arc::clone(&ctx.server);
     let served = tokio::task::spawn_blocking(move || {

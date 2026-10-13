@@ -3,6 +3,10 @@
 .side-head { display: flex; align-items: center; gap: .5rem; padding: 1.1rem 1rem .4rem 1.1rem; }
 .folder-button { flex: 1; min-width: 0; display: flex; align-items: center; gap: .55rem; text-align: left; padding: .35rem .55rem; margin-left: -.55rem; border-radius: 6px; }
 .folder-button:hover { background: var(--paper-3); }
+/* Not wired yet (the window's script still loading in a browser): a click
+   is kept and made once it is; the button says it is not ready. */
+.folder-button[aria-busy="true"] { cursor: progress; opacity: .6; }
+.folder-button[aria-busy="true"]:hover { background: none; }
 .folder-button .ic { display: inline-flex; color: var(--brass); }
 .folder-name { font-family: var(--display); font-size: 1.05rem; font-weight: 600; letter-spacing: -.005em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .folder-name:empty::before { content: attr(data-empty); color: var(--ink-2); font-weight: 400; }

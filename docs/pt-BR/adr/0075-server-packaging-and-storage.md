@@ -25,6 +25,26 @@
   [0051](0051-development-flow-and-releases.md) (o workflow de release),
   [0055](0055-in-app-updater.md) (atualizações assinadas).
 - Status no briefing: ausente; na aceitação, junto com o 0073.
+- Revisões: 2026-10-10 — o "limites depois" do item 4 substituído pela
+  [0077](0077-the-server-administration-console-and-folder-quotas.md)
+  (cotas por pasta agora); o pacote, a imagem e os caminhos do servidor
+  renomeados UniVerso pela [0078](0078-universo-the-name-of-verso-as-a-server.md);
+  as duas aceitas pelo mantenedor naquele dia.
+  2026-10-12 — o `VERSO_UPDATE_CHECK` (item 7) aceito pelo mantenedor
+  como construído, respondendo à auditoria dos ADRs em sessão:
+  *"Ajuste tudo que precisar. Está aprovado os ADRs"*.
+  2026-10-12 — um script de instalação para os pacotes, decidido pelo
+  mantenedor (*"Excelente, vamos seguir assim… por mim já faz"*): o
+  `packaging/server/universo.sh`, um arquivo `sh` POSIX que instala,
+  atualiza, remove, faz backup e informa o estado do `.deb` ou do `.rpm`
+  do item 2 com systemd e apt ou dnf, conferindo cada download com a
+  assinatura da release (ou o checksum publicado pelo GitHub, recusando
+  sem nenhum dos dois a menos que mandado pular), e abre o firewall só
+  quando pedido; servido sem mudança em `https://versomd.com/universo.sh`,
+  a cópia do repositório sendo a fonte. As seções 5 e 6 do manual de
+  instalação continuam os caminhos manuais
+  ([server-install.md](../reference/server-install.md), "O script de
+  instalação").
 - Revisões: 2026-10-09 (noite) — aceito pelo mantenedor junto com o
   [0073](0073-self-hosted-server-first.md), na resposta citada lá; os dois
   `[ABERTO]` dele respondidos — o caminho de atualização (item 7, a opção
@@ -150,7 +170,8 @@ Proposta; decidida em suas partes pelo mantenedor em 2026-10-09 (Status).
    rede, e o servidor alcança, além do que o
    [0073](0073-self-hosted-server-first.md) lista, só o feed de versões,
    para esta checagem. A checagem pode ser desligada por uma variável de
-   ambiente, `VERSO_UPDATE_CHECK=off` — proposto com a implementação.
+   ambiente, `VERSO_UPDATE_CHECK=off` — proposto com a implementação;
+   aceito como construído em 2026-10-12.
 
 ## Consequências
 
@@ -188,7 +209,12 @@ Proposta; decidida em suas partes pelo mantenedor em 2026-10-09 (Status).
 
 ## Status
 
-Proposto, decidido em suas partes pelo mantenedor em 2026-10-09, nas
+**Aceito em 2026-10-09 em suas partes** (o segundo parágrafo abaixo), e
+por inteiro em 2026-10-12: a variável que desliga a checagem de
+atualização (item 7) aceita pelo mantenedor como construída.
+
+*(Histórico, o status antes da aceitação:)* Proposto, decidido em suas
+partes pelo mantenedor em 2026-10-09, nas
 respostas dele: três formas de instalar (item 2, "B"); dois diretórios
 (item 3, "B"); o espaço mostrado agora e limites depois (item 4, "A agora
 B depois"); sync por pasta, desligado por padrão (item 5, "A"); o ARM64
@@ -196,7 +222,8 @@ do servidor agora (item 2, "agora!"); a imagem no registro do GitHub
 (Consequências, "pode publicar no próprio github"). A ser lido pela Fable
 5.1 e aceito com o [0073](0073-self-hosted-server-first.md). `[ABERTO]`:
 o caminho de atualização de um servidor, e symlinks que saem de uma pasta
-num servidor compartilhado (item 3), ambos do 0073.
+num servidor compartilhado (item 3), ambos do 0073. *(Os dois respondidos
+em 2026-10-09 — abaixo.)*
 
 **Aceito em 2026-10-09** com o [0073](0073-self-hosted-server-first.md), na
 resposta citada lá. Os dois `[ABERTO]` respondidos na mesma noite: o
@@ -204,4 +231,5 @@ caminho de atualização (item 7, a opção (b), do mantenedor e não a
 recomendação) e os symlinks num servidor (item 3); com eles o
 `verso serve` como subcomando do `verso` (item 1), o id de uma pasta (item
 3) e as variáveis de TLS (item 6). Proposto com a implementação: a
-variável que desliga a checagem de atualização (item 7).
+variável que desliga a checagem de atualização (item 7). *(Aceito em
+2026-10-12, como construído: `VERSO_UPDATE_CHECK`.)*

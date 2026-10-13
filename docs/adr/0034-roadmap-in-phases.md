@@ -20,12 +20,23 @@
   list: sync and mobile leave it, in the shape 0073 gives them — mobile
   through the browser, served by the server; sync after the server and
   through it; plugins and the compatibility shim stay out. Phase 3's exit
-  criterion is not set (`[OPEN]`, in the roadmap).
+  criterion is not set (`[OPEN]`, in the roadmap). *(Decided by the
+  maintainer on 2026-10-10: the phase ends when no task of it is pending
+  and the maintainer declares it ended — the roadmap's Phase 3.)*
+  2026-10-12 — Phase 2 declared closed on 2026-10-09 by the maintainer,
+  answering the ADR audit in session: *"Ajuste tudo que precisar. Está aprovado os ADRs"*.
+  Phase 3 started that day with Phase 2's month of use not done, so the
+  two overlapped; the gate below and the roadmap's "a phase does not
+  start before the previous one closes" are kept as decided, each with a
+  dated note, and what Phase 2 still lacked is carried into Phase 3 as its
+  pendencies (the roadmap's Phase 3).
 
 ## Context
 
 Scope and burnout are a declared risk. The recorded mitigation is a small core,
-features as plugins and a gate of one month of real use before moving on.
+features as plugins and a gate of one month of real use before moving on. *(2026-10-12: Phase 2
+closed on 2026-10-09 without the month, by the maintainer's declaration;
+the month carried into Phase 3 — Revisions.)*
 
 ## Decision
 
@@ -47,7 +58,8 @@ The exit criteria are in `docs/roadmap.md`.
 - All of Phase 1 without UI: the core has to be usable from the CLI before a
   window exists.
 - The Phase 2 gate is real use, not a feature checklist: one month of session
-  preparation using the app itself.
+  preparation using the app itself. *(Phase 2 declared closed without it on
+  2026-10-12; the month is a pendency of Phase 3.)*
 - No plugin, sync or board decision needs to be closed now, which keeps the
   corresponding `PROPOSED` ADRs unhurried.
 - Phase 0 depends on a decision that is not technical
@@ -64,4 +76,6 @@ The exit criteria are in `docs/roadmap.md`.
 Accepted. Point 4 narrowed by [0057](0057-board-json-canvas.md) on 2026-09-30:
 the board is in Phase 2. Revised on 2026-10-09 by
 [0073](0073-self-hosted-server-first.md): a Phase 3, and sync and mobile
-out of point 4's list (Revisions).
+out of point 4's list (Revisions). Phase 2 declared closed on 2026-10-09
+by the maintainer on 2026-10-12, its pendencies carried into Phase 3
+(Revisions).

@@ -36,7 +36,8 @@ typed notes and schemas now, relations and views when they come.
 - Views have to be able to materialize their output as real Markdown in the
   file ([0014](0014-primitives-catalog.md)).
 - Typed relation syntax, still `[OPEN]`, is constrained by this proposal: it
-  has to be readable outside Verso (`docs/spec/dialect.md`).
+  has to be readable outside Verso (`docs/spec/dialect.md`). *(Decided on
+  2026-09-30: spec Q10, ADR 0057 point 4.)*
 - The cost is redundancy: the same data appears in the file and in the index,
   and the two have to agree.
 - "Readable Markdown" is read as **text readable in any editor, in the format

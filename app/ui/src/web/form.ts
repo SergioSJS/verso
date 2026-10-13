@@ -5,6 +5,8 @@
 // The pieces the server's pages are made of: a page in place of the
 // window, a labelled field, a form whose error is announced (ADR 0035).
 
+import { w } from "./strings";
+
 let ids = 0;
 
 export function el<K extends keyof HTMLElementTagNameMap>(
@@ -27,10 +29,21 @@ export function page(title: string, ...children: Node[]): HTMLElement {
   document.body.classList.add("web-mode");
   document.querySelector(".web-page")?.remove();
   document.title = `${title} — Verso`;
-  const brand = el("div", { class: "web-brand" }, el("img", { src: "/icon-192.png", alt: "", width: "32", height: "32" }), el("span", {}, "Verso"));
-  const main = el("main", { class: "web-page web-auth" }, el("div", { class: "web-card" }, brand, el("h1", { class: "web-title" }, title), ...children));
+  const main = el("main", { class: "web-page web-auth" }, el("div", { class: "web-card" }, brand(32), el("h1", { class: "web-title" }, title), ...children));
   document.body.append(main);
   return main;
+}
+
+/** The server's mark: Verso's icon, UniVerso's name, and what it is
+ *  (ADR 0078 item 5). */
+export function brand(size: number): HTMLElement {
+  const s = w();
+  return el(
+    "div",
+    { class: "web-brand" },
+    el("img", { src: "/icon-192.png", alt: "", width: String(size), height: String(size) }),
+    el("span", { class: "web-brand-text" }, el("span", { class: "web-brand-name" }, s.serverName), el("span", { class: "web-brand-of" }, s.serverOf)),
+  );
 }
 
 /** A lead line under a page's title. */

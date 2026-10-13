@@ -38,6 +38,15 @@
   Recorded as a section of its own, "On a server", after the handles
   group; the desktop's local folder is unchanged, and the lines this
   revises are kept, each with a note.
+  2026-10-12 — one behaviour of "On a server" changed by commit 4ffe8a9,
+  the fix of a race, and recorded in that section — **confirmed by the
+  maintainer** the same night, "Ok": a dangling symlink whose target is
+  inside the folder is treated as a new file inside, no longer refused as
+  a link that leaves. Decided by that confirmation (Status).
+  2026-10-12 — the provisional records of 2026-09-22 ratified by the
+  maintainer as built and tested, answering the ADR audit in session:
+  *"Ajuste tudo que precisar. Está aprovado os ADRs"* (adjust whatever
+  needs it; the ADRs are approved); a dated note beside each.
 
 ## Context
 
@@ -99,6 +108,8 @@ Decided by the maintainer on 2026-09-22, on the memo
   followed"; it was reproduced while reading the feature 2 code and fixed there.
 
 **Provisional, recorded on 2026-09-22 from the feature 2 code, not decided.**
+*(Ratified by the maintainer on 2026-10-12, as built and tested:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 The maintainer decides these on waking; they are here because the code had to
 choose something and an unrecorded choice is worse than a recorded one:
 
@@ -159,6 +170,8 @@ also the answer to Q26 of [`docs/spec/dialect.md`](../spec/dialect.md):
   and it is not.
 
 **Provisional, recorded on 2026-09-22 from the feature 2 code, not decided.**
+*(Ratified by the maintainer on 2026-10-12, as built and tested:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 
 - **A handle is refused for a hidden entry or an ignored path.** `Root::handle`
   answers `ConfinementError::Hidden` or `ConfinementError::Ignored`. The
@@ -382,6 +395,25 @@ for the server, option (a) of that plan:
   costs named there. The desktop's local folder is unchanged: every
   symlink is followed, as decided on 2026-09-22.
 
+*Changed on 2026-10-12 by commit 4ffe8a9; **confirmed by the
+maintainer** the same night, answering "Ok" at 01:15 BRT.* It came from a race.
+The server's check canonicalized a path and, when that failed while an
+entry stood at the name, refused the entry as a link that leaves; a file
+being replaced at that instant — missing for a moment, or not resolvable
+while a rename lands (another program's save, a network file system, a
+file pending deletion on Windows) — was refused so, logged as "a link
+that leads out of the folder", and the server kept its old state of the
+file until its next walk. The fix makes the check component by
+component, reading each entry itself: only a symlink can move a path out
+of the folder; a plain entry, or a final file that is not there, is
+judged by its folder; a link whose end is missing is judged by where its
+text points, the hops bounded as the kernel bounds a loop; a `..` that
+cannot be resolved is refused. A link that leaves is refused as before,
+whether or not its end exists. The one behaviour that changed with it:
+**a dangling symlink whose target is inside the folder is no longer
+refused as a link that leaves; it is treated as a new file inside.** The
+desktop's local folder is untouched: every symlink is followed there.
+
 ## Consequences
 
 - None of these answers can come "in the code": each one becomes a line in this
@@ -499,4 +531,8 @@ on a server: decided on 2026-10-09 by the maintainer, Accepted. The watcher: bui
 2026-09-24 by the maintainer, Accepted. The items marked **provisional** inside
 the two groups decided on 2026-09-22 are not decided: they are what the
 feature 2 code does, recorded so that nothing is settled by silence, and they
-wait for the maintainer.
+wait for the maintainer. *(Ratified by the maintainer on 2026-10-12, as
+built and tested; Accepted.)* A dangling symlink whose target is inside the
+folder, on a server, treated as a new file inside since 4ffe8a9
+(2026-10-12, "On a server"): confirmed by the maintainer on 2026-10-12,
+Accepted.

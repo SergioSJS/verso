@@ -21,9 +21,10 @@
 # Windows Defender: scanning every object file makes cargo several times
 # slower.
 #
-# On the host, VERSO_WIN_DIR (default C:/dev/verso-check) holds src/, replaced
-# on every run so it mirrors this tree exactly, and target/, kept between runs
-# so a build is incremental (tar keeps the files' times, which cargo reads).
+# On the host, VERSO_WIN_DIR (default C:/dev/verso-check) holds src/, made
+# equal to this tree on every run, and target/, kept between runs so a
+# build is incremental: a file whose bytes changed is written with the time
+# of the copy, every other one keeps its time, which cargo reads.
 #
 # The UI bundle (app/ui/dist) must exist here first — scripts/check.sh builds
 # it; the host embeds it at compile time in clippy and the tests. --bundle
@@ -46,6 +47,8 @@ for arg in "$@"; do
     *) echo "unknown argument: $arg (see --help)"; exit 2 ;;
   esac
 done
+# The commit checked, so that a kept log names it.
+printf 'checking %s\n' "$(git rev-parse --short HEAD 2>/dev/null || echo 'no git')"
 
 if [ ! -f app/ui/dist/index.html ]; then
   echo "no UI bundle: run scripts/check.sh first (or: cd app/ui && npm ci && npm run build)"
@@ -92,9 +95,30 @@ copy_tree() {
   } | while IFS= read -r -d '' f; do [ -f "$f" ] && printf '%s\0' "$f"; done \
     | sort -zu \
     | COPYFILE_DISABLE=1 tar --no-xattrs --null -T - -cf - \
-    | on_host "if (Test-Path '$base/src') { Remove-Item -Recurse -Force '$base/src' }
-               New-Item -ItemType Directory -Force '$base/src' | Out-Null
-               tar -xf - -C '$base/src'"
+    | on_host "if (Test-Path '$base/src.new') { Remove-Item -Recurse -Force '$base/src.new' }
+               New-Item -ItemType Directory -Force '$base/src.new', '$base/src' | Out-Null
+               tar -xf - -C '$base/src.new'
+               # src made equal to src.new: a file whose bytes changed gets
+               # the time of the copy, the others keep theirs, so cargo
+               # rebuilds what changed even when its time is older than
+               # the last build (a stale crate was linked once, 2026-10-10).
+               \$new = (Resolve-Path '$base/src.new').Path
+               \$old = (Resolve-Path '$base/src').Path
+               \$now = Get-Date
+               Get-ChildItem -LiteralPath \$new -Recurse -File | ForEach-Object {
+                 \$rel = \$_.FullName.Substring(\$new.Length)
+                 \$to = Join-Path \$old \$rel
+                 if (-not (Test-Path -LiteralPath \$to) -or (Get-FileHash -LiteralPath \$_.FullName).Hash -ne (Get-FileHash -LiteralPath \$to).Hash) {
+                   New-Item -ItemType Directory -Force (Split-Path \$to) | Out-Null
+                   Copy-Item -LiteralPath \$_.FullName \$to -Force
+                   (Get-Item -LiteralPath \$to).LastWriteTime = \$now
+                 }
+               }
+               Get-ChildItem -LiteralPath \$old -Recurse -File | ForEach-Object {
+                 \$rel = \$_.FullName.Substring(\$old.Length)
+                 if (-not (Test-Path -LiteralPath (Join-Path \$new \$rel))) { Remove-Item -LiteralPath \$_.FullName -Force }
+               }
+               Remove-Item -Recurse -Force \$new"
 }
 step "copy the working tree to $host:$base/src" copy_tree
 if [ "${#failed[@]}" -gt 0 ]; then

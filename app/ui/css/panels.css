@@ -512,6 +512,16 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .setting-actions .setting-value { white-space: normal; overflow-wrap: anywhere; text-align: right; }
 .setting-title { font-size: .93rem; color: var(--ink); }
 .setting-desc { font-size: .8rem; color: var(--ink-3); margin-top: .15rem; }
+/* Where a setting is kept (ADR 0070): of the folder, travelling with it,
+   or of this machine. A word, not a colour alone. */
+.setting-scope { display: inline-block; margin-top: .2rem; padding: 0 .4rem; border: 1px solid var(--hair); border-radius: 999px; font-size: .7rem; line-height: 1.5; color: var(--ink-3); vertical-align: middle; white-space: nowrap; }
+.setting-scope.folder { color: var(--brass-ink); border-color: currentColor; }
+/* A control that needs the row's width (a list to write in), with a note
+   under it: the title and its line above, the box and the note below. */
+.setting:has(> .setting-block) { flex-direction: column; align-items: stretch; gap: .55rem; }
+.setting:has(> .setting-block) .setting-text { flex: none; }
+.setting-block { display: flex; flex-direction: column; gap: .45rem; min-width: 0; }
+.setting-note { margin: 0; font-size: .78rem; line-height: 1.5; color: var(--ink-3); max-width: 62ch; }
 /* A value to read, not to change: the version and its commit. */
 .setting-value { font-family: var(--mono); font-size: .82rem; color: var(--ink-2); user-select: text; white-space: nowrap; }
 .setting input[type="text"], .setting input[type="number"], .setting select { font: inherit; font-size: .88rem; padding: .3rem .55rem; background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-radius: 6px; width: 14rem; max-width: 40vw; }
@@ -548,6 +558,118 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .prop.fixed .prop-input:disabled { color: var(--ink-2); background: none; cursor: default; }
 .prop.fixed .pill-label { cursor: default; }
 
+/* ---------- Buttons of the settings: one look, four weights ---------- */
+.btn { display: inline-flex; align-items: center; gap: .4rem; font: 500 .84rem var(--ui); padding: .42rem .85rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 7px; white-space: nowrap; transition: background .12s, border-color .12s, color .12s; }
+.btn:hover:not(:disabled) { background: var(--paper-2); border-color: var(--ink-3); }
+.btn:focus-visible { outline: 2px solid var(--brass-ink); outline-offset: 2px; }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.primary { color: var(--paper); background: var(--ink); border-color: var(--ink); }
+.btn.primary:hover:not(:disabled) { background: color-mix(in oklch, var(--ink) 86%, var(--paper)); border-color: transparent; }
+.btn.quiet { color: var(--ink-2); background: none; border-color: transparent; }
+.btn.quiet:hover:not(:disabled) { color: var(--ink); background: var(--paper-3); border-color: transparent; }
+.btn.danger { color: var(--seal-ink); background: var(--seal); border-color: var(--seal); }
+.btn.danger:hover:not(:disabled) { background: color-mix(in oklch, var(--seal) 88%, var(--ink)); }
+
+/* ---------- Servers (dialogs/servers.ts): connect, then each server with its folders ---------- */
+.srv-connect { padding: .3rem 0 1.4rem; border-bottom: 1px solid var(--hair); }
+.srv-label { display: block; margin: 0 0 .45rem; font: 600 .9rem var(--ui); color: var(--ink); }
+.srv-field { display: flex; gap: .5rem; max-width: 34rem; }
+.srv-field input { flex: 1; min-width: 0; font: inherit; font-size: .9rem; padding: .45rem .7rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 7px; }
+.srv-field input:focus { outline: none; border-color: var(--brass-ink); }
+.srv-help { margin: .55rem 0 0; font-size: .82rem; line-height: 1.5; color: var(--ink-3); max-width: 60ch; }
+.srv-said { margin: .7rem 0 0; font-size: .88rem; color: var(--ink-2); }
+.srv-said:empty { display: none; }
+.srv-code { display: inline-block; margin: 0 .15rem; padding: .05rem .45rem; font: 600 .95rem var(--ui); letter-spacing: .08em; font-variant-numeric: tabular-nums; color: var(--brass-ink); background: var(--brass-wash); border-radius: 5px; }
+.srv { padding: 1.3rem 0 .4rem; border-bottom: 1px solid var(--hair); }
+.srv-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.srv-host { margin: 0; font-family: var(--display); font-weight: 500; font-size: 1.15rem; color: var(--ink); overflow-wrap: anywhere; }
+.srv-who { margin: .2rem 0 0; font-size: .82rem; color: var(--ink-3); }
+.srv-pair { margin: .85rem 0 0; font-size: .82rem; line-height: 1.5; color: var(--ink-3); max-width: 62ch; }
+.srv-pair strong { font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+.srv-folders { margin: .8rem 0 0; padding: 0; list-style: none; }
+.srv-folder { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .6rem 0; border-top: 1px solid var(--hair); }
+.srv-folder:first-child { border-top: 0; }
+.srv-folder-text { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem .6rem; min-width: 0; }
+.srv-folder-name { font-size: .93rem; font-weight: 500; color: var(--ink); overflow-wrap: anywhere; }
+.srv-role { font: 600 .68rem var(--ui); letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); }
+.srv-role[data-role="owner"] { color: var(--brass-ink); }
+.srv-note { font-size: .78rem; color: var(--brass-ink); }
+.srv-folder-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .35rem; flex: none; }
+.srv-empty { padding: .4rem 0; font-size: .86rem; color: var(--ink-3); list-style: none; }
+@media (max-width: 760px) {
+  .srv-folder { flex-direction: column; align-items: stretch; }
+  .srv-folder-actions { justify-content: flex-start; }
+  .srv-field { flex-direction: column; }
+}
+
+/* ---------- A folder's sync (dialogs/syncView.ts, ADR 0079 item 13) ----------
+   Read top to bottom as a person asks: is everything fine? — one sentence;
+   does anything need me? — a list, each with what to do; what happened? —
+   folded, last. */
+.sync-top { padding: .4rem 0 1.3rem; border-bottom: 1px solid var(--hair); }
+.sync-sentence { margin: 0; font-family: var(--display); font-weight: 500; font-size: clamp(1.3rem, 1.05rem + .9vw, 1.65rem); line-height: 1.2; color: var(--ink); text-wrap: balance; }
+.sync-sentence::before { content: ""; display: inline-block; width: .5em; height: .5em; margin-right: .5em; border-radius: 50%; vertical-align: .12em; background: var(--brass); }
+.sync-sentence[data-tone="attention"]::before { background: var(--seal); }
+.sync-sentence[data-tone="quiet"]::before { background: none; box-shadow: inset 0 0 0 2px var(--ink-3); }
+.sync-sentence[data-tone="busy"]::before { animation: sync-breathe 1.6s var(--ease-out, ease-out) infinite alternate; }
+@keyframes sync-breathe { from { opacity: 1; } to { opacity: .3; } }
+@media (prefers-reduced-motion: reduce) { .sync-sentence[data-tone="busy"]::before { animation: none; } }
+.sync-meta { margin: .45rem 0 0; font-size: .82rem; color: var(--ink-3); }
+.sync-problem { margin: .7rem 0 0; font-size: .88rem; line-height: 1.5; color: var(--ink-2); max-width: 62ch; }
+.sync-lede { margin: .55rem 0 0; font-size: .88rem; line-height: 1.55; color: var(--ink-2); max-width: 62ch; }
+.sync-off { padding-bottom: 1.1rem; }
+.sync-fixed { font-size: .88rem; color: var(--ink-2); text-align: right; overflow-wrap: anywhere; }
+.sync-go { padding: 1.1rem 0 0; }
+.sync-space { margin: 0; font-size: .9rem; font-weight: 500; color: var(--ink); }
+.sync-first { margin: .3rem 0 1rem; font-size: .83rem; line-height: 1.5; color: var(--ink-3); max-width: 62ch; }
+.sync-first strong { font-weight: 600; color: var(--ink-2); }
+.sync-buttons { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.1rem; }
+.sync-together { display: flex; align-items: flex-start; gap: .6rem; margin-top: 1.1rem; cursor: pointer; }
+.sync-together input { margin-top: .2rem; }
+.sync-together-words { display: flex; flex-direction: column; gap: .2rem; }
+.sync-together-desc { font-size: .85rem; color: var(--ink-3); }
+.sync-together-now { margin: .5rem 0 0 1.6rem; padding: 0; list-style: none; font-size: .85rem; color: var(--ink-2, var(--ink)); }
+.sync-h { margin: 1.8rem 0 .4rem; font: 600 .72rem var(--ui); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.sync-calm { margin: .2rem 0 0; font-size: .88rem; color: var(--ink-3); }
+.sync-item { padding: 1rem 0 1.05rem; border-top: 1px solid var(--hair); }
+.sync-h + .sync-item, .sync-h + .sync-calm + .sync-item { border-top: 0; padding-top: .3rem; }
+.sync-item.danger { margin: .4rem 0 1.05rem; padding: 1rem 1.1rem; border: 0; border-radius: 8px; background: var(--seal-wash); }
+.sync-item-title { margin: 0 0 .25rem; font: 600 .95rem var(--ui); color: var(--ink); overflow-wrap: anywhere; }
+.sync-item-why { margin: 0 0 .6rem; font-size: .83rem; line-height: 1.5; color: var(--ink-2); max-width: 62ch; }
+.sync-copy { margin: .75rem 0 0 .9rem; }
+.sync-copy-label { margin: 0; font-size: .85rem; color: var(--ink); }
+.sync-row { display: flex; flex-wrap: wrap; gap: .35rem; margin: .45rem 0 0; }
+.sync-diff { margin-top: .6rem; }
+.sync-diff .diff { margin: .3rem 0 0; max-height: 16rem; }
+.sync-files { margin: 0; padding: 0; list-style: none; font-size: .85rem; color: var(--ink); }
+.sync-files li { padding: .18rem 0; overflow-wrap: anywhere; }
+.sync-needs > .sync-calm { margin-bottom: 1.05rem; }
+.sync-history { border-top: 1px solid var(--hair); padding-top: .9rem; }
+.sync-history > summary { display: inline-flex; align-items: center; gap: .45rem; cursor: pointer; list-style: none; font: 600 .72rem var(--ui); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.sync-history > summary::-webkit-details-marker { display: none; }
+.sync-history > summary::before { content: ""; width: .4em; height: .4em; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform .15s var(--ease-out, ease-out); }
+.sync-history[open] > summary::before { transform: rotate(45deg); }
+.sync-history > summary:hover { color: var(--ink-2); }
+.sync-ledger { margin: .7rem 0 0; padding: 0; list-style: none; }
+.sync-ledger li { display: grid; grid-template-columns: 3.4rem 10rem minmax(0, 1fr); gap: .75rem; padding: .3rem 0; font-size: .83rem; align-items: baseline; }
+.sync-ledger time { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.sync-verb { color: var(--ink-2); }
+.sync-ledger li[data-what="conflict"] .sync-verb { color: var(--seal); }
+.sync-path { color: var(--ink); overflow-wrap: anywhere; }
+/* Who made what came from the server: under the path, quieter. */
+.sync-who { grid-column: 3; color: var(--ink-3); font-size: .78rem; overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .sync-ledger li { grid-template-columns: 3.2rem minmax(0, 1fr); }
+  .sync-ledger .sync-path, .sync-ledger .sync-who { grid-column: 2; }
+  .sync-copy { margin-left: 0; }
+  /* The form while off: each label above its control, the control the
+     page's width — a select of folder names cut at 40% says nothing. */
+  .sync .setting { flex-direction: column; align-items: stretch; gap: .45rem; }
+  .sync .setting-text { flex: none; }
+  .sync .setting select, .sync .setting input[type="text"] { width: 100%; max-width: none; }
+  .sync-fixed { text-align: left; }
+}
+
 /* A phone: the sections become a row above the page, scrolled sideways. */
 @media (max-width: 760px) {
   .settings-box { flex-direction: column; width: 100vw; height: 100dvh; border-radius: 0; border: 0; }
@@ -556,3 +678,18 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
   .settings-nav-item { flex: none; white-space: nowrap; }
   .settings-body { padding: 1rem 1rem 2rem; }
 }
+
+/* The folder's trash, a section of the settings (ADR 0080). */
+.trash-sentence { margin: .2rem 0 .3rem; font-family: var(--display); font-weight: 500; font-size: 1.2rem; line-height: 1.25; color: var(--ink); }
+.trash-early { margin: .4rem 0; font-size: .88rem; }
+.trash-tools { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: .8rem 0 .2rem; }
+.trash-tools .trash-search { flex: 1 1 14rem; min-width: 0; }
+.trash-ask { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: .6rem 0; padding: .8rem 1rem; border-radius: 8px; background: var(--seal-wash); }
+.trash-ask p { margin: 0; flex: 1 1 100%; color: var(--ink); }
+.trash-table td.trash-name { font-weight: 500; white-space: normal; overflow-wrap: anywhere; min-width: 8rem; }
+.trash-table td.num { text-align: right; }
+.trash-kind { color: var(--ink-3); font-weight: 400; }
+.trash-actions { display: flex; gap: .3rem; }
+.trash-summary { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; justify-content: flex-end; }
+.trash-said { margin: .5rem 0 0; font-size: .88rem; color: var(--ink-2); }
+.trash-said:empty { display: none; }

@@ -10,6 +10,10 @@
 - Revisions: 2026-09-23 — how the Phase 2 window meets decision 1 recorded
   under Consequences, at the maintainer's request (`docs/review/phase-2.md`
   §6, item 12); the Decision is unchanged.
+  2026-10-12 — the provisional records of 2026-09-22 ratified by the
+  maintainer as built and tested, answering the ADR audit in session:
+  *"Ajuste tudo que precisar. Está aprovado os ADRs"* (adjust whatever
+  needs it; the ADRs are approved); a dated note beside each.
 
 ## Context
 
@@ -64,6 +68,8 @@ precisa"*. What follows from it:
 the feature 4 code — provisional, the maintainer decides on waking**, on line 3
 of `docs/reference/cli-decision.md` §10. This is what the code does, not a
 decision.
+*(Ratified by the maintainer on 2026-10-12, as built and tested:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 
 - **A `Msg` enum**, one variant per user-facing message, carrying its data as
   fields, and one function `messages::text(msg, lang)` with an **exhaustive

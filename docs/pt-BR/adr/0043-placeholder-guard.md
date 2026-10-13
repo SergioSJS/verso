@@ -10,6 +10,10 @@
   provedores continuam `[ABERTO]`. 2026-09-22 — onde a guarda roda e o que ganha
   entre um arquivo real e um irmão `.icloud` obsoleto, vindo do código da
   feature 2, registrado como provisório.
+  2026-10-12 — os registros provisórios de 2026-09-22 ratificados pelo
+  mantenedor como construídos e testados, respondendo à auditoria dos
+  ADRs em sessão: *"Ajuste tudo que precisar. Está aprovado os ADRs"*; uma
+  nota datada ao lado de cada um.
 
 ## Contexto
 
@@ -85,6 +89,8 @@ Registrado em 2026-09-22 a partir da segunda leitura do código da feature 2 —
 provisório, o mantenedor decide ao acordar.** São coisas que o código faz, não
 decisões; estão escritas porque a alternativa a escrevê-las é decidi-las por
 silêncio.
+*(Ratificado pelo mantenedor em 2026-10-12, como construído e testado:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 
 - **Symlink cujo alvo o iCloud removeu na forma antiga é placeholder, não link
   quebrado.** `nota.md` aponta para `out/Real.md`, e o que existe em disco é
@@ -111,6 +117,8 @@ silêncio.
 registrou fecha por código, não por uma decisão nova. Registrado em 2026-09-22 a
 partir do código da feature 4 — os detalhes abaixo são provisórios, o mantenedor
 decide ao acordar.**
+*(Ratificado pelo mantenedor em 2026-10-12, como construído e testado:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 
 - **O índice carrega a marca.** A versão 2 do esquema do `verso-index`
   acrescenta `notes.unverified`; um índice em qualquer outra versão é destruído

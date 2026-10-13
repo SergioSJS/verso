@@ -28,6 +28,10 @@
   [0045](0045-server-and-mcp-security.md) is answered by
   [0074](0074-accounts-and-access-on-the-server.md) item 11. Each is a
   note beside the text it concerns.
+  2026-10-12 — the provisional records of 2026-09-22 ratified by the
+  maintainer as built and tested, answering the ADR audit in session:
+  *"Ajuste tudo que precisar. Está aprovado os ADRs"* (adjust whatever
+  needs it; the ADRs are approved); a dated note beside each.
 
 ## Context
 
@@ -110,6 +114,7 @@ hold is this:
   ([0009](0009-external-constraints.md)).
 - "Contract first" defines the order of work in Phase 2 and depends on the
   choice of TS type generation ([0038](0038-ts-type-generation.md), `[OPEN]`).
+  *(Decided: 0038 accepted on 2026-09-22.)*
 - Rule 5 is mechanically verifiable in two layers: file IO dependencies
   (`walkdir`, `notify`, `tempfile` and the like) only in `verso-fs`, and calls
   to `std::fs` denied by lint outside `verso-fs`, with a declared exception for
@@ -146,6 +151,8 @@ the handles group closed — the Decision carries the new wording — and the
 relative path at the MCP edge is the decision
 [0045](0045-server-and-mcp-security.md) took then, confirmed as the text that
 stands when the group was decided on 2026-09-24.)*
+*(Ratified by the maintainer on 2026-10-12, as built and tested:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 
 ## Discarded alternatives
 

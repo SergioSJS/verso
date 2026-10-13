@@ -29,6 +29,9 @@
   resposta citada lá (*"P tudo"*); construído nesta rodada, antes de a
   janela do servidor sair. As opções não escolhidas ficam ao lado de cada
   recomendação.
+  2026-10-12 — a regra do item 11 é agora o item 3 do
+  [0027](0027-runtime-capabilities.md), revisado para ela pelo mantenedor
+  naquele dia com a aceitação do 0027 (*"Ajuste tudo que precisar. Está aprovado os ADRs"*).
 
 ## Contexto
 
@@ -66,10 +69,11 @@ leitores de tela não foram observados.
 
 ## Decisão
 
-Proposto em todos os itens. Cada um nomeia as opções e a recomendação do
-autor; o mantenedor escolhe. *(Aceito em 2026-10-09 com todas as
-recomendações: a opção (a) nos itens 2, 4 e 6, a opção (a) para o zoom da
-página no item 10, e a recomendação única de cada outro item.)*
+**Aceito em 2026-10-09** com todas as recomendações: a opção (a) nos itens
+2, 4 e 6, a opção (a) para o zoom da página no item 10, e a recomendação
+única de cada outro item (Status). *(Histórico: proposto em todos os
+itens. Cada um nomeia as opções e a recomendação do autor; o mantenedor
+escolhe.)*
 
 1. **Dois níveis decidem o layout: a tela decide a moldura, o painel
    decide o conteúdo dele.** A moldura — gaveta ou barras laterais, ribbon,
@@ -221,10 +225,6 @@ recomendação acima.
 
 ## Status
 
-Proposto. Todo item espera a escolha do mantenedor; as observações do
-Notion no Contexto esperam o celular e o iPad dele. `[ABERTO]`: o conteúdo
-da barra do teclado (item 7), depois do uso.
-
 **Aceito em 2026-10-09** pelo mantenedor, com todas as recomendações,
 junto com o [0073](0073-self-hosted-server-first.md) (*"P tudo"*): (a) nos
 itens 2, 4 e 6, (a) para o zoom da página no item 10, e a recomendação de
@@ -233,3 +233,8 @@ servidor sair. A barra do teclado do item 7 sai com o conjunto curto
 recomendado. Segue `[ABERTO]`: o conteúdo da barra, a rever depois do uso.
 As observações do Notion no Contexto ainda esperam o celular e o iPad do
 mantenedor.
+
+*(Histórico, o status antes da aceitação:)* Proposto. Todo item espera a
+escolha do mantenedor; as observações do Notion no Contexto esperam o
+celular e o iPad dele. `[ABERTO]`: o conteúdo da barra do teclado (item
+7), depois do uso.

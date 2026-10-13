@@ -1,6 +1,6 @@
 # Verso roadmap
 
-- Version: 2026-10-09, revision 5 (Phase 3 written, from [ADR 0073](adr/0073-self-hosted-server-first.md) accepted by the maintainer with 0074, 0075 and 0076; the contract's session identity and the handles for `verso serve` struck through as decided). Revision 4, 2026-09-24 (the maintainer's decisions of 2026-09-24 struck through: the handles in both phases, and the typed note's two rows, with item 2.6 no longer waiting for them). Revision 3, 2026-09-23: Phase 2 as built; the Phase 1 decisions taken on 2026-09-22 struck through
+- Version: 2026-10-12, revision 7 (Phase 2 declared closed on 2026-10-09 by the maintainer, answering the ADR audit, *"Ajuste tudo que precisar. Está aprovado os ADRs"* — the `[OPEN]` at the head of Phase 3 answered, and what Phase 2's exit criterion and scope still lacked carried into Phase 3 as its pendencies; dated notes beside "a phase does not start before the previous one closes" and Phase 2's gate; rows 3.23 and 3.24 added the same day from the maintainer's *"Todos aprovados"*). Revision 6, 2026-10-11 (Phase 3's table gains what was built since revision 5 — [0077](adr/0077-the-server-administration-console-and-folder-quotas.md), [0078](adr/0078-universo-the-name-of-verso-as-a-server.md), [0079](adr/0079-sync-a-local-folder-with-a-server.md) — and the accepted [0080](adr/0080-the-trash-with-expiry-and-restore.md), [0081](adr/0081-sharing-between-people-on-one-universo.md) and [0082](adr/0082-live-co-editing-of-a-synced-folder.md) in the order the maintainer set on 2026-10-11, *"Sim para todos"*; finer permissions struck through as accepted with 0081; "After Phase 2" brought up to date on sync; the rows 3.10–3.16, which bear on the exit criterion, were written from the memo's recommendation, not from one of the maintainer's eight answers, and awaited the maintainer's acceptance — rule zero; on 2026-10-12, within this revision, rows 3.13, 3.14 and 3.16 marked built and 3.15 done, rows 3.10–3.16 **accepted by the maintainer** that night, "Ok", and rows 3.17–3.21 added from the maintainer's answers of the same night; rows 3.10, 3.14, 3.20 and 3.21 brought up to what was built by the audit of 2026-10-12). Revision 5, 2026-10-09 (Phase 3 written, from [ADR 0073](adr/0073-self-hosted-server-first.md) accepted by the maintainer with 0074, 0075 and 0076; the contract's session identity and the handles for `verso serve` struck through as decided). Revision 4, 2026-09-24 (the maintainer's decisions of 2026-09-24 struck through: the handles in both phases, and the typed note's two rows, with item 2.6 no longer waiting for them). Revision 3, 2026-09-23: Phase 2 as built; the Phase 1 decisions taken on 2026-09-22 struck through
 - Source: `docs/BRIEFING.md` §15
 - ADR: [0034](adr/0034-roadmap-in-phases.md)
 
@@ -9,7 +9,10 @@ Three phases, and since 2026-10-09 a fourth, Phase 3
 part in the work can run the verification and conclude "passed" or "did not
 pass" without judging merit.
 
-A phase does not start before the previous one closes. A scope item that is not
+A phase does not start before the previous one closes. *(Phase 3 started
+on 2026-10-09 with Phase 2's exit criterion not met; on 2026-10-12 the
+maintainer declared Phase 2 closed that day, its pendencies carried into
+Phase 3 — below.)* A scope item that is not
 listed here does not enter the phase without becoming a recorded decision.
 
 **Out of scope until the end of Phase 2:** sync, mobile, plugins and the
@@ -123,7 +126,7 @@ Execution order from briefing §15:
 | ~~Symlinks, loops and ignored paths (Q26)~~ | decided 2026-09-22: every symlink is followed, maximum depth 64 with an error at the cap; hidden entries are not walked; an ignored note is an unresolved target and never a backlink source (`docs/reference/fs-decision.md`) | [0044](adr/0044-verso-fs-semantics.md) |
 | ~~Placeholder detection mechanism per provider, starting with iCloud Drive~~ | decided 2026-09-22: both iCloud forms (`SF_DATALESS` and `.Name.ext.icloud`), checked before the file is opened; the other providers deferred (`docs/reference/fs-decision.md`) | [0043](adr/0043-placeholder-guard.md) |
 | ~~Location, permissions and cleanup of the index~~ | decided 2026-09-22: one file per folder under the configuration directory, a sidecar naming the folder, `0700`/`0600`, excluded from backup, cleanup on demand (`docs/reference/index-decision.md`) | [0046](adr/0046-index-location-lifecycle-tokenizer.md) |
-| ~~Disambiguation rule between `verso <folder>` and a subcommand~~ | decided 2026-09-22: a subcommand is required in Phase 1; the Phase 2 rule recorded and still open (`docs/reference/cli-decision.md`) | [0042](adr/0042-open-from-command-line.md) |
+| ~~Disambiguation rule between `verso <folder>` and a subcommand~~ | decided 2026-09-22: a subcommand is required in Phase 1; the Phase 2 rule recorded and still open (`docs/reference/cli-decision.md`) — decided by the maintainer on 2026-09-23 (0042 Status) | [0042](adr/0042-open-from-command-line.md) |
 | ~~FTS5 tokenizer for pt-BR and EN~~ | decided 2026-09-22: `unicode61` with `remove_diacritics 2`, no stemming | [0046](adr/0046-index-location-lifecycle-tokenizer.md) |
 | Performance targets | after feature 5 produces the baseline; the Mac baseline exists since commit `6b53c64` (`crates/verso-bench/baselines.json`), the targets are still open | [0039](adr/0039-performance-targets.md) |
 | ~~MCP transport, exposed surface, protocol version~~ | decided 2026-09-22: stdio, seven read-only tools, the version `initialize` negotiates (`docs/reference/mcp-decision.md`); widened on 2026-10-07 to nine — typed relations, boards, properties and tags, bases | [0045](adr/0045-server-and-mcp-security.md), [0066](adr/0066-mcp-sees-boards-relations-properties-bases.md) |
@@ -180,6 +183,9 @@ The first version that gets used. macOS only
 rest of its work, and ships before the phase closes
 ([ADR 0069](adr/0069-windows-port.md), the maintainer: "Vou passar windows
 na frente").
+
+**Closed on 2026-10-09**, declared by the maintainer on 2026-10-12; what
+it still lacked is carried into Phase 3 ("Carried from Phase 2", below).
 
 ### Scope
 
@@ -246,6 +252,10 @@ any other block, a `+`, a menu per block and Notion's keys
 The gate is use, not a checklist: with the seven scope items done and the month
 of use not happening, the phase has not closed.
 
+*(2026-10-12: the maintainer declared Phase 2 closed on 2026-10-09, the
+day Phase 3 started, with items 1 to 3 above not recorded as met; they are
+carried into Phase 3, below. The text above is kept as decided.)*
+
 ---
 
 ## Phase 3 — The Linux app, then the self-hosted server
@@ -260,7 +270,10 @@ phone, a tablet and the desktop app, with several people in one folder.
 Phase 2's exit criterion is not recorded as met, and the maintainer's
 answer starts this work now (*"L deve vir agora"*); how that sits with "a
 phase does not start before the previous one closes", above, is
-`[OPEN]`, the maintainer's to say.
+`[OPEN]`, the maintainer's to say. *(Answered by the maintainer on
+2026-10-12, accepting the ADR audit's recommendation — "Ajuste tudo que precisar. Está aprovado os ADRs": Phase 2 is closed on 2026-10-09, the day
+Phase 3 started, and what it still lacked is carried as Phase 3's
+pendencies — "Carried from Phase 2", below.)*
 
 ### Scope
 
@@ -275,6 +288,22 @@ phase does not start before the previous one closes", above, is
 | 3.7 | The window on every screen, and the window served with `--web` | [0076](adr/0076-the-window-on-every-screen.md), [0073](adr/0073-self-hosted-server-first.md) item 9 |
 | 3.8 | Simultaneous editing of notes | [0073](adr/0073-self-hosted-server-first.md) item 7 |
 | 3.9 | The watcher's per-batch re-index narrowed to the batch's paths, measured with the benchmark | [0073](adr/0073-self-hosted-server-first.md) item 12 |
+| 3.10 | The server's administration console at `/admin`, and quotas per folder — built 2026-10-10; an admin ending another account's sessions and revoking its tokens, with an audit line, decided 2026-10-11, built 2026-10-11 (ae23725) | [0077](adr/0077-the-server-administration-console-and-folder-quotas.md) |
+| 3.11 | UniVerso, the name of Verso as a server — built 2026-10-10 | [0078](adr/0078-universo-the-name-of-verso-as-a-server.md) |
+| 3.12 | Sync of a desktop's local folder with a folder on a server — built 2026-10-10 and campaigned 2026-10-10 and 2026-10-11; the append-merge, the device's name set by the person, the sync protocol version and the 1 GiB limit decided 2026-10-11 | [0079](adr/0079-sync-a-local-folder-with-a-server.md), [0074](adr/0074-accounts-and-access-on-the-server.md) item 8 |
+| 3.13 | Live co-editing of a synced folder — accepted 2026-10-11; first in the order after this round; built on the night of 2026-10-11 to 12 (merged 817886e, 2026-10-12) | [0082](adr/0082-live-co-editing-of-a-synced-folder.md) |
+| 3.14 | The trash with expiry and restore, with its item 12: the version a device's write replaced, kept and restorable (the campaign's finding F18) — accepted 2026-10-11; second; built, item 12 with it, on the night of 2026-10-11 to 12 (f3edc42; 5b5fb9c, of the same night, fixes a Windows test's timing, not the trash) | [0080](adr/0080-the-trash-with-expiry-and-restore.md), [0079](adr/0079-sync-a-local-folder-with-a-server.md) Consequences |
+| 3.15 | The threat model refreshed (`docs/reference/threat-model.md`), its own `[OPEN]` items with it — third, before sharing; done 2026-10-11 (4c09fc9), the gaps it found closed by the hardening merged in 60c717c except those it lists as still open, and its own `[OPEN]` items kept open | [0073](adr/0073-self-hosted-server-first.md) item 6 |
+| 3.16 | Sharing between people on one UniVerso: a grant on a path, read or write — accepted 2026-10-11; fourth; built on the night of 2026-10-11 to 12 (merged 2f25923, 2026-10-12) | [0081](adr/0081-sharing-between-people-on-one-universo.md) |
+| 3.17 | A receiver's rename rewrites the owner's links outside the share — decided 2026-10-12; built 2026-10-12 on `feat/share-next`: the server writes the rewrites of the notes outside the share, the receiver hears only of the ones inside | [0081](adr/0081-sharing-between-people-on-one-universo.md) item 11 |
+| 3.18 | The aggregates a receiver sees — the index's counts, a base's formulas — zeroed — decided 2026-10-12; built 2026-10-12 on `feat/share-next`: each counts only what is inside the share, and what cannot be scoped is zero; and (2026-10-12, `fix/round-gaps`) the sync's cursor through a share counts the share's own changes — its head, the numbers of `sync_changes` and the push that a change happened say nothing of the owner's activity outside it | [0081](adr/0081-sharing-between-people-on-one-universo.md) item 11 |
+| 3.19 | The writes the properties panel and a PDF's quote make to a live note go through the room — decided 2026-10-12, built 2026-10-12 | [0082](adr/0082-live-co-editing-of-a-synced-folder.md) Status |
+| 3.20 | Presence stamped by the server with the sender's account (the threat model's gap 11) — decided 2026-10-12, built (3bc56ae), merged by d2a72b0; 241c233 records the gap closed | [0073](adr/0073-self-hosted-server-first.md) item 6, `docs/reference/threat-model.md` |
+| 3.21 | The device approval page against device-code phishing (the threat model's gap 12) — decided 2026-10-12, built (5838c10), merged by d2a72b0; 241c233 records the gap closed | [0073](adr/0073-self-hosted-server-first.md) item 6, [0074](adr/0074-accounts-and-access-on-the-server.md) item 8, `docs/reference/threat-model.md` |
+| 3.22 | The folder's settings layer (ADR 0070 items 1–2): the bookmarks, the walk's rules and the folder note's name in `.verso/settings.json`, carried by sync — built 2026-10-12 | [0070](adr/0070-what-travels-with-the-folder.md) items 1–2, [0079](adr/0079-sync-a-local-folder-with-a-server.md) item 2 |
+| 3.23 | A new name differing only in case from an entry of its folder refused — `nota.md` beside `Nota.md` —, on every OS and on the server, with the reason; an existing entry never refused (spec Q8's creation side) — decided 2026-10-12, built 2026-10-12 | [0070](adr/0070-what-travels-with-the-folder.md) item 3, `docs/spec/dialect.md` Q8 |
+| 3.24 | A reader's bookmarks fall back to this machine: an account that cannot write the folder's layer stars and unstars on this machine instead of being refused, and Settings says "Of this machine" — decided 2026-10-12, built 2026-10-12 | [0070](adr/0070-what-travels-with-the-folder.md) items 1–2 |
+| 3.25 | Live co-editing of boards, drawings and every text file: a board is a room of its elements merged by Excalidraw's own rule (the higher `version`, on a tie the lower `versionNonce`; a deletion a tombstone a concurrent move does not undo), with the others' pointers, selections and names, the room writing the file its windows' converter made of exactly the state it holds; a `.txt`, `.json`, `.csv`, a base's `.base` (its view's settings included) and a page's source are rooms as a note is; a note edited in a board's card is in the note's room; a plugin drawing is shown, never edited, and its text is a note, live as notes are; on a server and over a synced folder's link — decided by the maintainer 2026-10-12 ("Deveria estar"), built 2026-10-12 on `feat/coedit-everything` (21d096a, 5a027db) | [0082](adr/0082-live-co-editing-of-a-synced-folder.md) item 12, [0057](adr/0057-board-json-canvas.md), [0073](adr/0073-self-hosted-server-first.md) item 7, `docs/reference/threat-model.md` |
 
 Items 3.2 to 3.9 ship together, in the first release of the server
 (ADR 0073 item 12, revised on 2026-10-09). The window on every screen is
@@ -282,14 +311,69 @@ built before the server's window ships; passkeys come after password
 sign-in, once the packaging pipeline works. What comes after the first
 release of the server is in "After Phase 2", below.
 
+Items 3.10 to 3.12 were built in the round that followed the first release
+of the server (0.7.0-beta.1, 2026-10-10), opened by the maintainer the
+same day (*"quero sincronização funcionando também"*, [0079](adr/0079-sync-a-local-folder-with-a-server.md) Source and
+Status), and are not released yet. The order after this round, set by the
+maintainer on 2026-10-11 answering a memo of recommendations with *"Sim
+para todos"*: 3.13 → 3.14 → 3.15 → 3.16 — live co-editing, the trash
+with the replaced version, the threat model refreshed, sharing. The threat
+model before sharing is the memo's reason for the order:
+[0073](adr/0073-self-hosted-server-first.md) item 6 asks for security in
+full before the first user who is not the maintainer. Items 3.13,
+3.14 and 3.16 were built, and 3.15 done, on the night of 2026-10-11 to
+12, and none is released yet; the open questions their building raised
+were sent to the maintainer the same night, each listed in its ADR's
+Status. The maintainer answered them at 01:15 BRT on 2026-10-12, each
+answer recorded in its ADR, and accepted rows 3.10 to 3.16 ("Ok"). Rows
+3.17 to 3.21 come from those answers: 3.20 and 3.21, decided *"seguros
+desde o dia 0"* (safe from day zero), were being built that night on
+`feat/universo-small`, with [0081](adr/0081-sharing-between-people-on-one-universo.md)
+item 8's revoked sync turned off with a notice; 3.17 to 3.19 come in the
+next round. *(Built: 3.20 in 3bc56ae, 3.21 in 5838c10, the revoked sync in
+6c7800e, merged into `feat/universo` by d2a72b0 on 2026-10-12; 241c233
+records the threat model's gaps 11 and 12 closed. 3.17 to 3.19, and
+3.22, were built on 2026-10-12 — *"Ajuste todas essas pendências agora"*
+— and merged into `feat/universo` by 5b07712, 35d30ae and 05033f2, with
+the campaign's F31: a file crosses in pieces read from the disk.)*
+
+Rows 3.23 and 3.24 come from the maintainer's *"Todos aprovados"* of
+2026-10-12, about 16:00 BRT, which approved the round's seven open
+decisions as recommended — the others close `[OPEN]` items of
+[0070](adr/0070-what-travels-with-the-folder.md),
+[0079](adr/0079-sync-a-local-folder-with-a-server.md) item 12 and
+`docs/reference/server-install.md` §14 without new work. Both were built
+the same day on `feat/decisions-2026-10-12`, merged into `feat/universo` by ceb724e.
+
+**Carried from Phase 2** (the maintainer, 2026-10-12, closing Phase 2 on
+2026-10-09). Phase 3 ends when no task of it is pending, and these are
+among its tasks:
+
+- Phase 2's exit criterion 1, **one month of real use**: the maintainer
+  prepares their table sessions in Verso for a full month, without going
+  back to Obsidian for a task Verso is supposed to cover, and records what
+  made them go back — not recorded as met.
+- Phase 2's exit criterion 2, **no data loss in that month**: the git
+  history of the maintainer's vault with no diff they did not make —
+  measured over the same month.
+- Phase 2's exit criterion 3, **guardrails green and fixtures intact**,
+  the UI code and the generated TS types included — checked at the close
+  of 2026-10-12: `scripts/check.sh` green at d15c4d1 (every guardrail, the
+  fixtures, 525 + 38 end-to-end tests, the bindings), `scripts/check-linux.sh`
+  and `scripts/check-windows.sh` green at b140275.
+- Phase 2's scope row 2.6, the typed note: the maintainer's reading,
+  which the row says it waits for.
+- Phase 2's scope row 2.7, accessibility: the pass with a screen reader,
+  which the row says has not been made.
+
 ### Decisions that have to come out during the phase
 
 | Decision | ADR |
 |---|---|
 | Whether the phone in the browser, online only, meets the mobile need, or offline on the phone moves earlier | [0073](adr/0073-self-hosted-server-first.md) |
-| Permissions finer than the folder; history, attribution and recovery of another member's change | [0073](adr/0073-self-hosted-server-first.md), spec Q9 |
+| ~~Permissions finer than the folder~~ (accepted 2026-10-11: a grant on a path inside a folder, [0081](adr/0081-sharing-between-people-on-one-universo.md)); history, attribution and recovery of another member's change — still open, for an ADR of its own (0081 Status) | [0073](adr/0073-self-hosted-server-first.md), spec Q9, [0081](adr/0081-sharing-between-people-on-one-universo.md) |
 | End-to-end encryption, later, as an opt-in for a server of one person | [0073](adr/0073-self-hosted-server-first.md) |
-| The board's co-editing | [0073](adr/0073-self-hosted-server-first.md) item 7 |
+| The board's co-editing | [0073](adr/0073-self-hosted-server-first.md) item 7, [0082](adr/0082-live-co-editing-of-a-synced-folder.md) item 12 |
 | The MCP's transport and authorization over the network | [0073](adr/0073-self-hosted-server-first.md) item 11, [0045](adr/0045-server-and-mcp-security.md) |
 | The pre-signed URL of a bucket | [0073](adr/0073-self-hosted-server-first.md) item 4 |
 | The criteria that would send the iPad from the browser to a native app | [0073](adr/0073-self-hosted-server-first.md) |
@@ -337,7 +421,9 @@ server and through it, are proposed in
 2026-10-09, above, with 0073 accepted.)*
 
 What stays after, since 2026-10-09: after the first release of the server,
-in the order of 0073 item 12 — sync for the desktop's local folders, the
+in the order of 0073 item 12 — ~~sync for the desktop's local folders~~
+*(built in the round right after that release, at the maintainer's word
+of 2026-10-10, [0079](adr/0079-sync-a-local-folder-with-a-server.md) Source and Status; Phase 3 item 3.12, above)*, the
 PWA offline, the user's bucket ([0073](adr/0073-self-hosted-server-first.md)
 item 4) and a native mobile app if the browser's limits bite; and, with no
 order, plugins, the compatibility shim, the primitives still proposed and

@@ -1,4 +1,4 @@
-# The verso-server .deb and .rpm (ADR 0075 item 2), built by nfpm
+# The universo .deb and .rpm (ADR 0075 item 2), built by nfpm
 # (https://nfpm.goreleaser.com, Apache-2.0) in the release workflow's
 # `server` job, once per architecture and format:
 #
@@ -13,9 +13,9 @@
 # 0.7.0~beta.1 in both formats, so that it sorts before 0.7.0.
 #
 # The service is installed and NOT started: the host edits
-# /etc/verso/verso.env first (postinstall.sh says so).
+# /etc/universo/universo.env first (postinstall.sh says so).
 
-name: verso-server
+name: universo
 arch: ${VERSO_ARCH}
 platform: linux
 version: ${VERSO_VERSION}
@@ -27,52 +27,52 @@ priority: optional
 # (decided by the maintainer on 2026-10-10).
 maintainer: Sérgio J. Sousa <sergiosjs@pm.me>
 description: |-
-  Verso server (verso serve)
+  UniVerso, the Verso server
   The Verso core without a window, served to a browser: Markdown notes
   compatible with Obsidian's folders, self-hosted, with accounts and shared
-  folders. Runs as a systemd service under the verso user.
+  folders. Runs as a systemd service under the universo user.
 vendor: Verso
 homepage: https://github.com/SergioSJS/verso
 license: MPL-2.0
 
 contents:
   - src: target/server-stage/verso
-    dst: /usr/bin/verso
+    dst: /usr/bin/universo
     file_info:
       mode: 0755
 
   - src: target/server-stage/ui/
-    dst: /usr/share/verso/ui
+    dst: /usr/share/universo/ui
     type: tree
 
-  - src: packaging/server/verso.service
-    dst: /usr/lib/systemd/system/verso.service
+  - src: packaging/server/universo.service
+    dst: /usr/lib/systemd/system/universo.service
     file_info:
       mode: 0644
 
-  - dst: /etc/verso
+  - dst: /etc/universo
     type: dir
     file_info:
       mode: 0750
       owner: root
-      group: verso
+      group: universo
 
   # The host's settings: kept on upgrade and removal when edited. It can
-  # hold the first admin's password, hence root and the verso group only.
-  - src: packaging/server/verso.env
-    dst: /etc/verso/verso.env
+  # hold the first admin's password, hence root and the universo group only.
+  - src: packaging/server/universo.env
+    dst: /etc/universo/universo.env
     type: config|noreplace
     file_info:
       mode: 0640
       owner: root
-      group: verso
+      group: universo
 
   - src: LICENSE
-    dst: /usr/share/doc/verso-server/LICENSE
+    dst: /usr/share/doc/universo/LICENSE
     file_info:
       mode: 0644
 
-# /var/lib/verso and its two directories are made by postinstall.sh, not
+# /var/lib/universo and its two directories are made by postinstall.sh, not
 # listed here: a directory a package owns is removed with it, and these
 # hold the host's data.
 scripts:
@@ -81,10 +81,10 @@ scripts:
   preremove: packaging/server/preremove.sh
   postremove: packaging/server/postremove.sh
 
-# The `verso` user and group are made with groupadd and useradd: the
+# The `universo` user and group are made with groupadd and useradd: the
 # passwd package on Debian and Ubuntu (priority required) and shadow-utils
 # on Fedora and RHEL, present on every install, so no dependency is
 # declared. nfpm reads this file strictly: an unknown key fails the build.
 rpm:
-  summary: Verso server (verso serve)
+  summary: UniVerso, the Verso server
   group: Applications/Text

@@ -19,7 +19,9 @@ import { noteImages } from "../images";
 import { renderSticker, resolveColor, showStickerPicker } from "../labels";
 import { armDrag } from "../layout/drag";
 import { Pane } from "../layout/pane";
-import { crumbsFor, crumbsNav, layout, openFolder, openNote, persistSoon } from "../layout/spaces";
+import { crumbsFor, crumbsNav, layout, liveHolder, openFolder, openNote, persistSoon } from "../layout/spaces";
+import { roomSide } from "../collab";
+import { writeLive } from "../roomWrites";
 import { createMenuItems, entryMenu, showMenu, type MenuItem } from "../menu";
 import { opening } from "../opening";
 import { bannerFraction, bannerPercent, pickerStrings } from "../organize/cover";
@@ -210,6 +212,7 @@ export class FolderLeaf extends Leaf {
       folder: this.path,
       text: () => currentYaml,
       edit: async (next: string) => {
+        const was = currentYaml;
         currentYaml = next;
         if (!baseExists) {
           const created = await commands.createFile(basePath, textBase64(next));
@@ -224,6 +227,21 @@ export class FolderLeaf extends Leaf {
             fail(created.error);
           }
         } else {
+          // The base live in its room — a tab, or someone else — takes the
+          // change there (ADR 0082 item 12); one whose text moved on since
+          // this page read it is read again.
+          const read = was.replace(/\r\n/g, "\n");
+          const through = await writeLive(basePath, liveHolder(basePath), (now) => (now === read ? next : null), roomSide);
+          if (through === "room" || through === "same") return;
+          if (through === "refused") {
+            const fresh = await opening.readText(basePath);
+            if (fresh.status === "ok") {
+              currentYaml = fresh.data.text;
+              baseRevision = fresh.data.revision;
+            }
+            fail({ kind: "changed", message: t.conflictPendingBoth });
+            return;
+          }
           const written = await commands.writeText(basePath, next, baseRevision ?? "");
           if (written.status === "ok") {
             baseRevision = written.data.revision;

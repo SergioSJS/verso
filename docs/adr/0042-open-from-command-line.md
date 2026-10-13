@@ -88,7 +88,9 @@ second escape hatch.
 **What the feature 4 code does with the collision above. Recorded on
 2026-09-22 — provisional, the maintainer decides on waking**, on line 1 of
 `docs/reference/cli-decision.md` §10. This is what the binary does today, not a
-decision; the disambiguation rule above stays `[OPEN]`.
+decision; the disambiguation rule above stays `[OPEN]`. *(Decided by the
+maintainer on 2026-09-23 — Status; `docs/review/phase-2.md` §6, item
+3.)*
 
 - **In Phase 1 the first argument is always a subcommand.** The set is `index`,
   `search` and `backlinks`, with `mcp` joining it in feature 6; `help`,

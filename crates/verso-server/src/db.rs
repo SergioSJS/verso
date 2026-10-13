@@ -20,7 +20,80 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::crypto;
 
 /// The schema's version, in `PRAGMA user_version`.
-const SCHEMA: i64 = 3;
+const SCHEMA: i64 = 8;
+
+/// Schema 8: sharing a folder inside a folder (ADR 0081 items 1, 2, 9, 11
+/// and 15): a share is a path of one folder with an id of its own, its
+/// people and their roles, the attachments folder it may also show
+/// read-only, the shares a personal access token names, an invitation's
+/// share, and the path an entry of the audit log concerns.
+const SHARES: &str = r"
+CREATE TABLE shares (
+  id TEXT PRIMARY KEY,
+  folder TEXT NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
+  path TEXT NOT NULL,
+  attachments TEXT,
+  created INTEGER NOT NULL,
+  UNIQUE (folder, path)
+);
+CREATE TABLE share_grants (
+  share TEXT NOT NULL REFERENCES shares(id) ON DELETE CASCADE,
+  account TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('editor', 'reader')),
+  PRIMARY KEY (share, account)
+);
+CREATE INDEX share_grants_account ON share_grants(account);
+CREATE TABLE token_shares (
+  token TEXT NOT NULL REFERENCES tokens(id) ON DELETE CASCADE,
+  share TEXT NOT NULL REFERENCES shares(id) ON DELETE CASCADE,
+  PRIMARY KEY (token, share)
+);
+ALTER TABLE invitations ADD COLUMN share TEXT REFERENCES shares(id) ON DELETE SET NULL;
+ALTER TABLE audit ADD COLUMN path TEXT;
+";
+
+/// Schema 6: the device that made a change of a folder's log, by its name
+/// (ADR 0079 item 4, "who made it"): two devices of one account told apart.
+const DEVICES: &str = r"
+ALTER TABLE changes ADD COLUMN device TEXT;
+";
+
+/// Schema 5: each folder's files as sync last saw them, and the log of
+/// their changes a device reads from a cursor (ADR 0079 items 4 and 5).
+const SYNC: &str = r"
+CREATE TABLE manifest (
+  folder TEXT NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
+  path TEXT NOT NULL,
+  hash TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  quick TEXT NOT NULL,
+  seq INTEGER NOT NULL,
+  PRIMARY KEY (folder, path)
+);
+CREATE TABLE changes (
+  folder TEXT NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
+  seq INTEGER NOT NULL,
+  path TEXT NOT NULL,
+  hash TEXT,
+  size INTEGER NOT NULL,
+  deleted INTEGER NOT NULL,
+  renamed_from TEXT,
+  actor TEXT,
+  at INTEGER NOT NULL,
+  PRIMARY KEY (folder, seq)
+);
+";
+
+/// Schema 4: a folder's quota, and the indexes the administration console
+/// pages by (ADR 0077 items 4 and 5).
+const CONSOLE: &str = r"
+ALTER TABLE folders ADD COLUMN quota INTEGER;
+CREATE INDEX sessions_account ON sessions(account, last_used);
+CREATE INDEX grants_account ON grants(account, role);
+CREATE INDEX audit_actor ON audit(actor, at);
+CREATE INDEX audit_action ON audit(action, at);
+CREATE INDEX invitations_created ON invitations(kind, created);
+";
 
 /// Schema 3: the person's settings, with the account (ADR 0073 item 5).
 const SETTINGS: &str = r"
@@ -256,6 +329,8 @@ pub struct Invitation {
     pub used: Option<i64>,
     pub used_by: Option<String>,
     pub ended: Option<i64>,
+    /// The share it carries, when it carries one (ADR 0081 item 4).
+    pub share: Option<String>,
 }
 
 impl Invitation {
@@ -314,6 +389,10 @@ pub struct AuditEntry {
     pub folder: Option<String>,
     pub address: Option<String>,
     pub ok: bool,
+    /// The path inside the folder a share's entry concerns (ADR 0081
+    /// item 9).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
 }
 
 /// A single-use link before it is made: an invitation, a password reset or
@@ -327,6 +406,8 @@ pub struct NewLink<'a> {
     pub role: Option<Role>,
     pub created_by: Option<&'a str>,
     pub life: i64,
+    /// A share of `folder` the invitation carries (ADR 0081 item 4).
+    pub share: Option<&'a str>,
 }
 
 /// One line of the audit log, before it is written.
@@ -342,8 +423,18 @@ pub struct Audit<'a> {
 /// The database, one connection behind a lock: the server writes little,
 /// and each statement is short.
 pub struct Db {
+    /// The one connection that writes.
     conn: Mutex<Connection>,
+    /// Connections that only read (WAL lets them read while the writer
+    /// writes): the questions every device asks often — the change log,
+    /// the manifest, a file as sync knows it — do not wait for another
+    /// folder's write. Empty for a database in memory.
+    readers: Vec<Mutex<Connection>>,
+    next_reader: std::sync::atomic::AtomicUsize,
 }
+
+/// How many reading connections a server keeps.
+const READERS: usize = 4;
 
 type R<T> = Result<T, String>;
 
@@ -354,7 +445,27 @@ fn e(err: rusqlite::Error) -> String {
 impl Db {
     /// Open the database in `dir`, creating it at the first start.
     pub fn open(dir: &Path) -> R<Self> {
-        Self::from(Connection::open(dir.join("server.sqlite")).map_err(e)?)
+        let path = dir.join("server.sqlite");
+        let mut db = Self::from(Connection::open(&path).map_err(e)?)?;
+        // The accounts' hashes are for this server's user alone
+        // (threat-model.md, gap 13), whatever the umask made them.
+        for name in ["server.sqlite", "server.sqlite-wal", "server.sqlite-shm"] {
+            verso_fs::server::owner_only(&dir.join(name))
+                .map_err(|err| format!("{name}: {err}"))?;
+        }
+        for _ in 0..READERS {
+            let reader = Connection::open_with_flags(
+                &path,
+                rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY
+                    | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+            )
+            .map_err(e)?;
+            reader
+                .execute_batch("PRAGMA busy_timeout = 5000; PRAGMA query_only = ON;")
+                .map_err(e)?;
+            db.readers.push(Mutex::new(reader));
+        }
+        Ok(db)
     }
 
     /// A database in memory, for tests.
@@ -363,40 +474,72 @@ impl Db {
     }
 
     fn from(conn: Connection) -> R<Self> {
+        // NORMAL in WAL: a crash or a power cut never corrupts the
+        // database, and may lose the last commits before it — what a
+        // reconciliation finds again on the disk for sync's log, and a
+        // moment of sessions and audit lines; FULL would sync the disk on
+        // every commit, the cost of each device's write (measured, sync
+        // lab, 2026-10-10).
         conn.execute_batch(
-            "PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;",
+            "PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;",
         )
         .map_err(e)?;
         let version: i64 = conn
             .query_row("PRAGMA user_version", [], |r| r.get(0))
             .map_err(e)?;
-        if version == 0 {
-            conn.execute_batch(&format!(
-                "BEGIN; {CREATE} {PASSKEYS} {SETTINGS} PRAGMA user_version = {SCHEMA}; COMMIT;"
-            ))
-            .map_err(e)?;
-        } else if version == 1 {
-            conn.execute_batch(&format!(
-                "BEGIN; {PASSKEYS} {SETTINGS} PRAGMA user_version = {SCHEMA}; COMMIT;"
-            ))
-            .map_err(e)?;
-        } else if version == 2 {
-            conn.execute_batch(&format!(
-                "BEGIN; {SETTINGS} PRAGMA user_version = {SCHEMA}; COMMIT;"
-            ))
-            .map_err(e)?;
-        } else if version > SCHEMA {
+        if version > SCHEMA {
             return Err(format!(
                 "the database is of a newer Verso (schema {version}, this one knows {SCHEMA})"
             ));
         }
+        // Each schema after the one found, in one transaction.
+        let steps: String = [
+            (1, CREATE),
+            (2, PASSKEYS),
+            (3, SETTINGS),
+            (4, CONSOLE),
+            (5, SYNC),
+            (6, DEVICES),
+            (7, trash::TRASH),
+            (8, SHARES),
+        ]
+        .iter()
+        .filter(|(at, _)| *at > version)
+        .map(|(_, sql)| *sql)
+        .collect();
+        if !steps.is_empty() {
+            conn.execute_batch(&format!(
+                "BEGIN; {steps} PRAGMA user_version = {SCHEMA}; COMMIT;"
+            ))
+            .map_err(e)?;
+        }
         Ok(Self {
             conn: Mutex::new(conn),
+            readers: Vec::new(),
+            next_reader: std::sync::atomic::AtomicUsize::new(0),
         })
     }
 
     fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
         verso_service::lock(&self.conn)
+    }
+
+    /// A connection to read with: a free reader, else the next one in
+    /// turn; the writer when there are none (in memory).
+    fn reader(&self) -> std::sync::MutexGuard<'_, Connection> {
+        if self.readers.is_empty() {
+            return self.conn();
+        }
+        for r in &self.readers {
+            if let Ok(free) = r.try_lock() {
+                return free;
+            }
+        }
+        let at = self
+            .next_reader
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            % self.readers.len();
+        verso_service::lock(&self.readers[at])
     }
 
     /* ---------- accounts ---------- */
@@ -836,14 +979,15 @@ impl Db {
             role,
             created_by,
             life,
+            share,
         } = *link;
         let token = crypto::token()?;
         let id = crypto::id()?;
         let at = now();
         self.conn()
             .execute(
-                "INSERT INTO invitations (id, hash, kind, email, account, folder, role, created_by, created, expires)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                "INSERT INTO invitations (id, hash, kind, email, account, folder, role, created_by, created, expires, share)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
                 params![
                     id,
                     crypto::hash(&token),
@@ -854,7 +998,8 @@ impl Db {
                     role.map(Role::as_str),
                     created_by,
                     at,
-                    at + life
+                    at + life,
+                    share
                 ],
             )
             .map_err(e)?;
@@ -864,7 +1009,7 @@ impl Db {
         Ok((token, invitation))
     }
 
-    const INVITATION: &'static str = "SELECT id, kind, email, account, folder, role, created_by, created, expires, used, used_by, ended FROM invitations";
+    const INVITATION: &'static str = "SELECT id, kind, email, account, folder, role, created_by, created, expires, used, used_by, ended, share FROM invitations";
 
     fn invitation_from(r: &rusqlite::Row<'_>) -> rusqlite::Result<Invitation> {
         Ok(Invitation {
@@ -880,6 +1025,7 @@ impl Db {
             used: r.get(9)?,
             used_by: r.get(10)?,
             ended: r.get(11)?,
+            share: r.get(12)?,
         })
     }
 
@@ -994,11 +1140,19 @@ impl Db {
         )
         .map_err(e)?;
         for folder in folders {
-            tx.execute(
-                "INSERT INTO token_folders (token, folder) VALUES (?1, ?2)",
-                params![id, folder],
-            )
-            .map_err(e)?;
+            // A share is named beside the folders (ADR 0081 item 15).
+            let share: Option<String> = tx
+                .query_row("SELECT id FROM shares WHERE id = ?1", [folder], |r| {
+                    r.get(0)
+                })
+                .optional()
+                .map_err(e)?;
+            let sql = if share.is_some() {
+                "INSERT INTO token_shares (token, share) VALUES (?1, ?2)"
+            } else {
+                "INSERT INTO token_folders (token, folder) VALUES (?1, ?2)"
+            };
+            tx.execute(sql, params![id, folder]).map_err(e)?;
         }
         tx.commit().map_err(e)?;
         Ok((
@@ -1013,6 +1167,31 @@ impl Db {
                 folders: folders.to_vec(),
             },
         ))
+    }
+
+    /// The name of the device behind session `id`, when it is a device's.
+    pub fn session_device(&self, id: &str) -> R<Option<String>> {
+        self.reader()
+            .query_row(
+                "SELECT device FROM sessions WHERE id = ?1 AND kind = 'device'",
+                [id],
+                |r| r.get(0),
+            )
+            .optional()
+            .map_err(e)
+    }
+
+    /// Name the device behind session `id` again; false when it is no
+    /// device's session.
+    pub fn rename_device(&self, id: &str, device: &str) -> R<bool> {
+        Ok(self
+            .conn()
+            .execute(
+                "UPDATE sessions SET device = ?2 WHERE id = ?1 AND kind = 'device'",
+                params![id, device],
+            )
+            .map_err(e)?
+            > 0)
     }
 
     /// Whether session `id` still stands (not ended, not expired by the
@@ -1085,7 +1264,10 @@ impl Db {
         )
         .map_err(e)?;
         let mut st = conn
-            .prepare("SELECT folder FROM token_folders WHERE token = ?1")
+            .prepare(
+                "SELECT folder FROM token_folders WHERE token = ?1
+                 UNION ALL SELECT share FROM token_shares WHERE token = ?1",
+            )
             .map_err(e)?;
         let folders = st
             .query_map([&id], |r| r.get(0))
@@ -1124,7 +1306,10 @@ impl Db {
             .collect::<rusqlite::Result<_>>()
             .map_err(e)?;
         let mut st = conn
-            .prepare("SELECT folder FROM token_folders WHERE token = ?1")
+            .prepare(
+                "SELECT folder FROM token_folders WHERE token = ?1
+                 UNION ALL SELECT share FROM token_shares WHERE token = ?1",
+            )
             .map_err(e)?;
         for t in &mut tokens {
             t.folders = st
@@ -1244,7 +1429,7 @@ impl Db {
         let conn = self.conn();
         let mut st = conn
             .prepare(
-                "SELECT at, actor, action, subject, folder, address, ok FROM audit
+                "SELECT at, actor, action, subject, folder, address, ok, path FROM audit
                  WHERE ?1 IS NULL OR folder = ?1 ORDER BY at DESC, rowid DESC LIMIT ?2",
             )
             .map_err(e)?;
@@ -1257,6 +1442,7 @@ impl Db {
                 folder: r.get(4)?,
                 address: r.get(5)?,
                 ok: r.get(6)?,
+                path: r.get(7)?,
             })
         })
         .map_err(e)?
@@ -1286,6 +1472,15 @@ impl Db {
         Ok(())
     }
 }
+
+mod console;
+mod shares;
+mod sync;
+mod trash;
+pub use console::{AccountRow, AuditFilter, FolderRow, Page, PageQuery};
+pub use shares::{Share, covers};
+pub use sync::{Change, Known, Made, Recorded};
+pub use trash::FolderBook;
 
 #[cfg(test)]
 mod tests;

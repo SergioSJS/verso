@@ -155,7 +155,7 @@ const STOPS = [
     tip:
       "Renomear atualiza os links que apontam para a nota, mostrando cada um antes. Uma imagem colada vai para assets ao lado da nota; " +
       "arrastar uma nota da árvore para o texto cria um link; ⌘-clique e ⇧-clique selecionam várias, que se movem juntas; " +
-      "a lixeira é a pasta .trash, como no Obsidian.",
+      "a lixeira é a pasta .trash, como no Obsidian — Abrir a lixeira (paleta) mostra o que foi apagado, restaura e guarda 30 dias.",
     extra(b, x, y, f) {
       keys(b, "d-arq", x + 740, y + 160, [[["⌘", "N"], "nova nota"], [["⌘", "⇧", "N"], "nova nota com nome"], [["F2"], "renomear"], [["⌘", "⌫"], "para a lixeira"]], f);
     },
@@ -345,8 +345,9 @@ const STOPS = [
     canvasColor: "5",
     cards: [["n-servidor", "23 - Verso num Servidor.md", 640]],
     tip:
-      "O verso serve guarda as pastas num servidor seu e as abre no navegador: contas por convite, dono, editores e leitores, várias pessoas na mesma nota. " +
-      "No app desktop, Ajustes › Servidores conecta pelo navegador e abre uma pasta do servidor numa janela.",
+      "O UniVerso, o Verso num servidor seu, guarda as pastas e as abre no navegador: contas por convite, dono, editores e leitores, várias pessoas na mesma nota, no mesmo board ou arquivo, ao vivo, com o ponteiro e o nome de cada um. " +
+      "No app desktop, Ajustes › Servidores conecta pelo navegador; Ajustes › Sincronizar mantém uma pasta deste computador igual a uma do servidor — e, com a rede, uma nota, um board ou um arquivo de texto aberto nela é editado junto, ao vivo. " +
+      "Botão direito numa pasta › Compartilhar… divide só ela com outra pessoa, lendo ou editando; quem recebe a vê em Compartilhados comigo.",
   },
 ];
 

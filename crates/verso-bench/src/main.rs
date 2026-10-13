@@ -39,6 +39,8 @@ const USAGE: &str = "usage: verso-bench [--sizes N,N,...] [--reps N] [--seed N] 
               exit 1 when --machine has no baseline to compare with, printing
               the entries to record: for CI, where --record has no file to keep
   --json      one JSON object per (size, operation) instead of the table
+  --created   the watch's batch also creates as many new notes as it changes,
+              as a sync's download brings them (not in the baselines)
 
 Run it in release: cargo run --release -p verso-bench -- ...";
 
@@ -102,6 +104,8 @@ struct Options {
     /// A missing baseline for `machine` is a failure, not a note.
     require_baseline: bool,
     json: bool,
+    /// The watch's batch creates new notes besides changing some.
+    created: bool,
 }
 
 enum Failure {
@@ -131,6 +135,7 @@ fn parse(args: &[String]) -> Result<Options, Failure> {
         record: false,
         require_baseline: false,
         json: false,
+        created: false,
     };
     let mut it = args.iter();
     let value = |flag: &str, v: Option<&String>| {
@@ -161,6 +166,7 @@ fn parse(args: &[String]) -> Result<Options, Failure> {
             "--record" => o.record = true,
             "--require-baseline" => o.require_baseline = true,
             "--json" => o.json = true,
+            "--created" => o.created = true,
             other => return Err(Failure::Usage(format!("unknown argument {other}"))),
         }
     }
@@ -199,17 +205,26 @@ fn child(args: &[String]) -> Result<ChildReport, Failure> {
     let result = match op.as_str() {
         "watch_batch_walk" | "watch_batch" => {
             ws.index()?;
+            // A line `+path` names a note the batch creates, as a sync's
+            // download brings one (`--created`).
             let paths: Vec<std::path::PathBuf> = arg
                 .unwrap_or_default()
                 .lines()
-                .map(std::path::PathBuf::from)
-                .collect();
-            for p in &paths {
-                let file = Path::new(vault).join(p);
-                let mut text = std::fs::read_to_string(&file)?;
-                text.push_str("Um lote do watcher: outra linha.\n");
-                std::fs::write(&file, text)?;
-            }
+                .map(|line| -> Result<std::path::PathBuf, Failure> {
+                    if let Some(new) = line.strip_prefix('+') {
+                        std::fs::write(
+                            Path::new(vault).join(new),
+                            "# Nova\n\nUma nota que chegou de outro aparelho.\n",
+                        )?;
+                        return Ok(std::path::PathBuf::from(new));
+                    }
+                    let file = Path::new(vault).join(line);
+                    let mut text = std::fs::read_to_string(&file)?;
+                    text.push_str("Um lote do watcher: outra linha.\n");
+                    std::fs::write(&file, text)?;
+                    Ok(std::path::PathBuf::from(line))
+                })
+                .collect::<Result<_, _>>()?;
             start = Instant::now();
             let r = if op == "watch_batch" {
                 ws.index_changes(
@@ -356,19 +371,33 @@ fn run_size(size: usize, o: &Options, time: Option<&str>) -> Result<Vec<Measured
                 seed: o.seed,
             },
         )?;
-        let batch: String = vault
+        let changed: Vec<String> = vault
             .to_change
             .iter()
             .filter_map(|p| p.strip_prefix(&vault_dir).ok())
             .map(|p| p.to_string_lossy().into_owned())
-            .collect::<Vec<_>>()
-            .join("\n");
+            .collect();
+        // With `--created`, as many new notes, one beside each changed one,
+        // named apart for each of the two ways, which run on one vault.
+        let batch =
+            |way: &str| -> String {
+                let mut lines = changed.clone();
+                if o.created {
+                    lines.extend(changed.iter().enumerate().map(
+                        |(k, p)| match p.rsplit_once('/') {
+                            Some((dir, _)) => format!("+{dir}/Nova {way} {k}.md"),
+                            None => format!("+Nova {way} {k}.md"),
+                        },
+                    ));
+                }
+                lines.join("\n")
+            };
         let args: [Option<String>; 9] = [
             None,
             None,
             None,
-            Some(batch.clone()),
-            Some(batch),
+            Some(batch("walk")),
+            Some(batch("narrow")),
             Some(COMMON_WORD.to_owned()),
             Some(RARE_WORD.to_owned()),
             Some(vault.most_linked.clone()),

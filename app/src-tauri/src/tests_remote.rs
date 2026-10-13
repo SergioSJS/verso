@@ -46,9 +46,16 @@ fn call(
 
 struct Loopback;
 
+/// A test server listens on the loopback and never runs the update check:
+/// `VERSO_UPDATE_CHECK=off` through this table, not the process's
+/// environment, so no test reaches GitHub's release feed.
 impl verso_server::config::Env for Loopback {
     fn var(&self, name: &str) -> Option<String> {
-        (name == "VERSO_LISTEN").then(|| "127.0.0.1:0".to_owned())
+        match name {
+            "VERSO_LISTEN" => Some("127.0.0.1:0".to_owned()),
+            "VERSO_UPDATE_CHECK" => Some("off".to_owned()),
+            _ => None,
+        }
     }
 }
 
@@ -77,6 +84,10 @@ fn a_window_on_a_servers_folder_is_answered_by_the_server() {
         },
     )
     .unwrap();
+    assert!(
+        !config.update_check,
+        "a test server never asks the release feed"
+    );
     let db = verso_server::db::Db::open(data.path()).unwrap();
     let account = db
         .create_account("ana@casa.lan", "Ana", "pt", Some("uma senha longa"), true)
@@ -91,7 +102,11 @@ fn a_window_on_a_servers_folder_is_answered_by_the_server() {
         verso_server::contract_version(),
         "test".into(),
     );
+    let kept = std::sync::Arc::clone(&server);
     let (addr_tx, addr_rx) = std::sync::mpsc::channel();
+    // Stopped when the test ends is let go (tests_sync::Running): a server left
+    // running holds its descriptors until the test process ends.
+    let (_stop, stopped) = tokio::sync::oneshot::channel::<()>();
     std::thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
@@ -100,8 +115,12 @@ fn a_window_on_a_servers_folder_is_answered_by_the_server() {
         rt.block_on(async move {
             let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
             addr_tx.send(listener.local_addr().unwrap()).unwrap();
-            let _ = verso_server::run(server, listener, std::future::pending()).await;
+            tokio::select! {
+                _ = verso_server::run(server, listener, std::future::pending()) => {}
+                _ = stopped => {}
+            }
         });
+        rt.shutdown_background();
     });
     let addr = addr_rx.recv().unwrap();
     let url = format!("http://localhost:{}", addr.port());
@@ -175,10 +194,209 @@ fn a_window_on_a_servers_folder_is_answered_by_the_server() {
     assert_eq!(refused["kind"], "refused", "{refused}");
     // The app's own commands stay the app's.
     assert!(call(&main, "app_info", json!({})).is_ok());
+    // The person names this computer (ADR 0079 item 8, ADR 0074 item 8):
+    // the name wins over the system's here, and the server's session of
+    // this device takes it at once.
+    let named = call(
+        &main,
+        "set_device_name",
+        json!({ "name": " Estúdio da Ana " }),
+    )
+    .unwrap();
+    assert_eq!(named["device"]["name"], "Estúdio da Ana", "{named}");
+    assert_eq!(named["device"]["custom"], true);
+    assert_eq!(named["unreached"], json!([]), "{named}");
+    assert_eq!(
+        call(&main, "app_info", json!({})).unwrap()["device"],
+        "Estúdio da Ana"
+    );
+    assert_eq!(device::name(Some(app_config.path())), "Estúdio da Ana");
+    assert_eq!(
+        device::session_name(Some(app_config.path())),
+        "Verso · Estúdio da Ana"
+    );
+    let sessions = kept.db.sessions_of(&account.id).unwrap();
+    assert_eq!(sessions[0].device, "Verso · Estúdio da Ana");
+    // Nothing in it: the system's name again, told to the server too.
+    let back = call(&main, "set_device_name", json!({ "name": "" })).unwrap();
+    assert_eq!(back["device"]["custom"], false);
+    assert_eq!(back["device"]["name"], back["device"]["system"]);
+    assert_eq!(
+        call(&main, "device_name", json!({})).unwrap(),
+        back["device"]
+    );
+    assert_eq!(
+        kept.db.sessions_of(&account.id).unwrap()[0].device,
+        format!("Verso · {}", device::system())
+    );
     // A folder of this computer again: the window leaves the server.
     remote::release(app.handle(), "main");
     assert_eq!(
         call(&main, "list_notes", json!({})).unwrap_err()["kind"],
         "no_folder"
     );
+}
+
+/// A question asked on a connection that closed between two questions —
+/// the reader ended, the writer still waiting for something to send —
+/// fails at once as unavailable, so sync says offline and connects again.
+/// Before, it was sent through the writer and waited for an answer no one
+/// would give: the live campaign's Linux device stayed "syncing" for 40
+/// minutes (2026-10-11).
+#[test]
+fn a_question_on_a_connection_closed_between_questions_fails_at_once() {
+    use std::time::Duration;
+
+    let data = tempfile::tempdir().unwrap();
+    let folders = tempfile::tempdir().unwrap();
+    let _campanha = tempfile::Builder::new()
+        .prefix("Campanha")
+        .rand_bytes(0)
+        .tempdir_in(folders.path())
+        .unwrap();
+    let config = verso_server::config::Config::from_env(
+        &Loopback,
+        &verso_server::config::Defaults {
+            data_dir: data.path().to_owned(),
+            folders_dir: folders.path().to_owned(),
+            ui_dir: data.path().join("ui"),
+        },
+    )
+    .unwrap();
+    let db = verso_server::db::Db::open(data.path()).unwrap();
+    let account = db
+        .create_account("ana@casa.lan", "Ana", "pt", Some("uma senha longa"), true)
+        .unwrap();
+    let folder = db.create_folder("Campanha", &account.id).unwrap();
+    let (token, _) = db
+        .create_session(&account.id, "device", "Verso · teste", "127.0.0.1")
+        .unwrap();
+    let server = verso_server::state::Server::new(
+        config,
+        db,
+        verso_server::contract_version(),
+        "test".into(),
+    );
+    // A server that can be stopped: its runtime dropped, every connection
+    // with it.
+    let (addr_tx, addr_rx) = std::sync::mpsc::channel();
+    let (stop_tx, stop_rx) = tokio::sync::oneshot::channel::<()>();
+    let stopped = std::thread::spawn(move || {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        rt.block_on(async move {
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            addr_tx.send(listener.local_addr().unwrap()).unwrap();
+            tokio::select! {
+                _ = verso_server::run(server, listener, std::future::pending()) => {}
+                _ = stop_rx => {}
+            }
+        });
+        rt.shutdown_timeout(Duration::from_secs(2));
+    });
+    let addr = addr_rx.recv().unwrap();
+    let login = verso_core::servers::ServerLogin {
+        url: format!("http://localhost:{}", addr.port()),
+        token,
+        email: "ana@casa.lan".into(),
+        name: "Ana".into(),
+    };
+
+    tauri::async_runtime::block_on(async move {
+        let (remote, mut heard, _) = remote::dial_hello(&login, folder.id.clone()).await.unwrap();
+        remote
+            .call("open_server_folder", json!({ "id": folder.id }))
+            .await
+            .unwrap();
+        // The server goes away while nothing is asked: the reader ends.
+        stop_tx.send(()).unwrap();
+        tokio::time::timeout(Duration::from_secs(10), async {
+            while let Some(h) = heard.recv().await {
+                if matches!(h, remote::Heard::Closed) {
+                    return;
+                }
+            }
+        })
+        .await
+        .expect("the closed connection is heard");
+        // The next pass's first question.
+        let answer = tokio::time::timeout(
+            Duration::from_secs(10),
+            remote.call("sync_state", json!({})),
+        )
+        .await
+        .expect("a question on a closed connection does not wait forever");
+        let e = answer.unwrap_err();
+        assert_eq!(e["kind"], "unavailable", "{e}");
+        assert_eq!(e["transport"], true, "{e}");
+    });
+    stopped.join().unwrap();
+}
+
+/// A WebSocket server on the loopback that says a hello and then either
+/// answers pings — it reads, and its WebSocket answers on its own — or
+/// reads nothing more, as a server whose machine went away without
+/// closing the connection.
+fn a_server_that(answers: bool) -> verso_core::servers::ServerLogin {
+    use futures_util::{SinkExt, StreamExt};
+    use tokio_tungstenite::tungstenite::Message;
+
+    let listener =
+        tauri::async_runtime::block_on(tokio::net::TcpListener::bind("127.0.0.1:0")).unwrap();
+    let port = listener.local_addr().unwrap().port();
+    tauri::async_runtime::spawn(async move {
+        let (stream, _) = listener.accept().await.unwrap();
+        let mut ws = tokio_tungstenite::accept_async(stream).await.unwrap();
+        ws.send(Message::Text(json!({ "hello": {} }).to_string().into()))
+            .await
+            .unwrap();
+        if answers {
+            while let Some(Ok(_)) = ws.next().await {}
+        } else {
+            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+        }
+        drop(ws);
+    });
+    verso_core::servers::ServerLogin {
+        url: format!("http://127.0.0.1:{port}"),
+        token: "um token".into(),
+        email: "ana@casa.lan".into(),
+        name: "Ana".into(),
+    }
+}
+
+/// A server gone silent without closing the connection is noticed by the
+/// pings it leaves unanswered (R5 of 2026-10-11, the device's side): the
+/// connection is heard closed — sync says offline and connects again —
+/// and a question on it fails at once. One that answers its pings stays.
+/// Pings go every second in the tests, every 30 in the app.
+#[test]
+fn a_server_that_answers_no_ping_is_heard_closed_and_one_that_does_stays() {
+    use std::time::Duration;
+
+    let silent = a_server_that(false);
+    let alive = a_server_that(true);
+    tauri::async_runtime::block_on(async move {
+        let (remote, mut heard, _) = remote::dial_hello(&silent, "f".into()).await.unwrap();
+        let (_kept, mut heard_alive, _) = remote::dial_hello(&alive, "f".into()).await.unwrap();
+        tokio::time::timeout(Duration::from_secs(10), async {
+            while let Some(h) = heard.recv().await {
+                if matches!(h, remote::Heard::Closed) {
+                    return;
+                }
+            }
+        })
+        .await
+        .expect("a server that answers no ping is heard closed");
+        let e = remote.call("sync_state", json!({})).await.unwrap_err();
+        assert_eq!(e["kind"], "unavailable", "{e}");
+        assert_eq!(e["transport"], true, "{e}");
+        // Past the same pings, the one that answers them is still there.
+        assert!(
+            !matches!(heard_alive.try_recv(), Ok(remote::Heard::Closed)),
+            "a server that answers its pings is kept"
+        );
+    });
 }

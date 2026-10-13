@@ -22,6 +22,16 @@ export const commands = {
 	 */
 	key: string,
 	index: IndexSummary,
+	/**
+	 *  The name of the folder's file system when changes made there by
+	 *  other programs may show late: a volume without the exclusive rename
+	 *  and with hard links (macOS: some network volumes; ADR 0048, revised
+	 *  2026-10-12), where a file Verso creates or moves is named by a
+	 *  link, whose later removal by another program the system may not
+	 *  report. Verso's own writes are as safe as anywhere. The UI says it
+	 *  once per folder, in the user's language (ADR 0035).
+	 */
+	late_outside_changes?: string | null,
 } | null, ContractError>(__TAURI_INVOKE("pick_folder")),
 	/**
 	 *  Open again a folder opened before, by the key `FolderInfo` carried:
@@ -49,6 +59,16 @@ export const commands = {
 	 */
 	key: string,
 	index: IndexSummary,
+	/**
+	 *  The name of the folder's file system when changes made there by
+	 *  other programs may show late: a volume without the exclusive rename
+	 *  and with hard links (macOS: some network volumes; ADR 0048, revised
+	 *  2026-10-12), where a file Verso creates or moves is named by a
+	 *  link, whose later removal by another program the system may not
+	 *  report. Verso's own writes are as safe as anywhere. The UI says it
+	 *  once per folder, in the user's language (ADR 0035).
+	 */
+	late_outside_changes?: string | null,
 } | null, ContractError>(__TAURI_INVOKE("open_initial")),
 	/**  Every note the index knows, by path relative to the folder. */
 	listNotes: () => typedError<string[], ContractError>(__TAURI_INVOKE("list_notes")),
@@ -149,12 +169,32 @@ export const commands = {
 	 */
 	key: string,
 	index: IndexSummary,
+	/**
+	 *  The name of the folder's file system when changes made there by
+	 *  other programs may show late: a volume without the exclusive rename
+	 *  and with hard links (macOS: some network volumes; ADR 0048, revised
+	 *  2026-10-12), where a file Verso creates or moves is named by a
+	 *  link, whose later removal by another program the system may not
+	 *  report. Verso's own writes are as safe as anywhere. The UI says it
+	 *  once per folder, in the user's language (ADR 0035).
+	 */
+	late_outside_changes?: string | null,
 } | null, ContractError>(__TAURI_INVOKE("current_folder")),
 	/**
 	 *  The app's version and the commit it was built from (ADR 0051), for the
 	 *  settings. Host-only, like `open_url`: nothing of the folder.
 	 */
 	appInfo: () => typedError<AppInfo, ContractError>(__TAURI_INVOKE("app_info")),
+	/**  This computer's name, for Settings › Servers. */
+	deviceName: () => typedError<DeviceName, ContractError>(__TAURI_INVOKE("device_name")),
+	/**
+	 *  Name this computer: kept here, and told to every server it is signed in
+	 *  to, whose session of this device takes the new name at once. A server
+	 *  that cannot be reached now — or one older than this — keeps the old
+	 *  name until the next sign-in there, and is listed so. A name with
+	 *  nothing in it, or the system's own, goes back to following the system.
+	 */
+	setDeviceName: (name: string) => typedError<DeviceRenamed, ContractError>(__TAURI_INVOKE("set_device_name", { name })),
 	/**
 	 *  A note in a window of its own: the same UI, which asks which note
 	 *  by its window's label.
@@ -302,6 +342,16 @@ export const commands = {
 	/**  Set whether focuses sync to `.space/waypoints.json` is enabled (ADR 0062 D5, D9). */
 	setSyncFocuses: (enabled: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("set_sync_focuses", { enabled })),
 	/**
+	 *  The folder's layer of settings: whether `.verso/settings.json` exists,
+	 *  what it sets and its revision. Reading never creates it.
+	 */
+	getFolderSettings: () => typedError<FolderLayer, ContractError>(__TAURI_INVOKE("get_folder_settings")),
+	/**
+	 *  Change the folder's settings; with no `revision` the file must not
+	 *  exist yet — the first change, or this machine's copy moving in.
+	 */
+	setFolderSettings: (change: FolderSettings, revision: string | null) => typedError<FolderLayer, ContractError>(__TAURI_INVOKE("set_folder_settings", { change, revision })),
+	/**
 	 *  A line from the window into the app's log: what `fail()` shows for a
 	 *  moment there, and what the browser would otherwise swallow — a
 	 *  script error, a rejected promise. The source is the window's, the
@@ -344,6 +394,20 @@ export const commands = {
 	 */
 	collabResolve: (path: string, keep: string) => typedError<string, ContractError>(__TAURI_INVOKE("collab_resolve", { path, keep })),
 	/**
+	 *  Whether someone is in the note's room now (ADR 0082): a write that is
+	 *  not a keystroke — a base's cell, a PDF's quote, the tree's label —
+	 *  joins the room to be made there. On a server, or a synced folder's
+	 *  link, only.
+	 */
+	collabPresent: (path: string) => typedError<boolean, ContractError>(__TAURI_INVOKE("collab_present", { path })),
+	/**
+	 *  A board's file, as this window's converter makes it of the room's state
+	 *  `at` (a Yjs state vector, base64): the room writes the one made of the
+	 *  state it holds (ADR 0082 item 12). On a server, or a synced folder's
+	 *  link, only.
+	 */
+	collabCanvas: (path: string, at: string, json: string) => typedError<null, ContractError>(__TAURI_INVOKE("collab_canvas", { path, at, json })),
+	/**
 	 *  Sign in to a server through the browser: the server's page opens for the
 	 *  person to approve this device; the app asks meanwhile, keeps the token
 	 *  when it comes, and says so (`server-signed-in`).
@@ -363,6 +427,48 @@ export const commands = {
 	 *  folder, connects, and from now on sends the folder's commands there.
 	 */
 	serverOpen: (url: string, folder: string) => typedError<FolderInfo, ContractError>(__TAURI_INVOKE("server_open", { url, folder })),
+	/**
+	 *  The shares of the window's folder: the whole folder's people first,
+	 *  then each folder inside it shared, by path (ADR 0081 item 7).
+	 */
+	shareList: () => typedError<FolderShare[], ContractError>(__TAURI_INVOKE("share_list")),
+	/**
+	 *  Share the folder at `path` (`""` the whole folder) with the account of
+	 *  `email`, reading or writing, or change their role.
+	 */
+	shareGrant: (path: string, email: string, role: string) => typedError<FolderShare, ContractError>(__TAURI_INVOKE("share_grant", { path, email, role })),
+	/**
+	 *  Take a person out of the share at `path`, or remove the share when no
+	 *  person is named (item 8).
+	 */
+	shareRevoke: (path: string, account: string | null) => typedError<FolderShare, ContractError>(__TAURI_INVOKE("share_revoke", { path, account })),
+	/**
+	 *  Show the attachments folder with the share at `path`, read-only, or
+	 *  stop showing it (item 11).
+	 */
+	shareAttachments: (path: string, attachments: string | null) => typedError<FolderShare, ContractError>(__TAURI_INVOKE("share_attachments", { path, attachments })),
+	/**
+	 *  The folders of this computer opened before, freshest first, for the
+	 *  folder switcher's "On this computer" (ADR 0081 item 5): names and keys,
+	 *  no path.
+	 */
+	recentFolders: () => __TAURI_INVOKE<RecentFolder[]>("recent_folders"),
+	/**  The window's folder's sync: off, or its state. */
+	folderSync: () => typedError<SyncStatus, ContractError>(__TAURI_INVOKE("folder_sync")),
+	/**
+	 *  Sync the window's folder with a folder of a server the app is signed
+	 *  in to: `folder`, one there by id, or a new one named `name` (item 1).
+	 *  The first sync deletes nothing (item 11).
+	 */
+	folderSyncStart: (url: string, folder: string | null, name: string | null) => typedError<SyncStatus, ContractError>(__TAURI_INVOKE("folder_sync_start", { url, folder, name })),
+	/**  Turn the window's folder's sync off: both sides stay as they are. */
+	folderSyncStop: () => typedError<SyncStatus, ContractError>(__TAURI_INVOKE("folder_sync_stop")),
+	/**  Pause the sync, or resume it. */
+	folderSyncPause: (paused: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("folder_sync_pause", { paused })),
+	/**  The deletions a pass paused for go ahead (item 9). */
+	folderSyncConfirm: () => typedError<null, ContractError>(__TAURI_INVOKE("folder_sync_confirm")),
+	/**  Compare now, without waiting for a change or the scan. */
+	folderSyncNow: () => typedError<null, ContractError>(__TAURI_INVOKE("folder_sync_now")),
 	/**
 	 *  A base evaluated over the folder (ADR 0053): the rows of the view the
 	 *  window draws, as a table, cards, a list, a kanban or a calendar.
@@ -427,6 +533,24 @@ export const commands = {
 	downloadAndInstallUpdate: () => typedError<InstallResult, ContractError>(__TAURI_INVOKE("download_and_install_update")),
 	/**  Restarts the application to apply updates. */
 	restartApp: () => typedError<null, ContractError>(__TAURI_INVOKE("restart_app")),
+	/**  The folder's bin, newest first. */
+	trashList: () => typedError<TrashListing, ContractError>(__TAURI_INVOKE("trash_list")),
+	/**
+	 *  Put an entry of the bin back where it was, or beside it under a name
+	 *  that says so when that place is taken (`today` the person's date,
+	 *  `lang` their language).
+	 */
+	trashRestore: (path: string, today: string, lang: string) => typedError<Restored, ContractError>(__TAURI_INVOKE("trash_restore", { path, today, lang })),
+	/**  Remove entries of the bin for good. */
+	trashDelete: (paths: string[]) => typedError<TrashListing, ContractError>(__TAURI_INVOKE("trash_delete", { paths })),
+	/**  Empty the bin. */
+	trashEmpty: () => typedError<TrashListing, ContractError>(__TAURI_INVOKE("trash_empty")),
+	/**
+	 *  How long this folder keeps deleted files: days, 0 for ever — the
+	 *  person's setting of the local folder, kept beside its index (item 3).
+	 *  What is past the new time goes at once.
+	 */
+	trashSetDays: (days: number) => typedError<TrashListing, ContractError>(__TAURI_INVOKE("trash_set_days", { days })),
 };
 
 /* Types */
@@ -437,6 +561,12 @@ export const commands = {
 export type AppInfo = {
 	version: string,
 	commit: string,
+	/**
+	 *  This computer's name, as the copy of a conflict names it (ADR 0079
+	 *  item 8): the editor's "keep both" names its copy as sync does.
+	 *  None where the window runs on no computer of its own (a server).
+	 */
+	device: string | null,
 };
 
 /**  A link into a note, from another. */
@@ -654,13 +784,18 @@ export type CliState =
 "bundled";
 
 /**
- *  A note joined for editing by several people at once (ADR 0073 item 7):
- *  the shared state as a Yjs update (base64) to apply to an empty
- *  document, the revision on disk it stands on, and how the file is
- *  written — its text in the shared state has `\n` line ends; a file
- *  that mixes them is shown read-only and joins nothing.
+ *  A file joined for editing by several people at once (ADR 0073 item 7,
+ *  ADR 0082 item 12): the shared state as a Yjs update (base64) to apply
+ *  to an empty document, the revision on disk it stands on, and how the
+ *  file is written — a text's lines in the shared state end in `\n`; a
+ *  file that mixes them is shown read-only and joins nothing.
  */
 export type CollabJoin = {
+	/**
+	 *  A text or a board: the window binds the state to its editor or to
+	 *  its board by it.
+	 */
+	kind: CollabKind,
 	update: string,
 	revision: string,
 	read_only: boolean,
@@ -675,6 +810,13 @@ export type CollabJoin = {
 	 */
 	epoch: string,
 };
+
+/**
+ *  What a room holds (ADR 0082 item 12, decided 2026-10-12): a `text` —
+ *  a note, or any other text file of the folder — as one Yjs text, or a
+ *  `board` as its elements, one entry per element and version.
+ */
+export type CollabKind = "text" | "board";
 
 /**
  *  What became of a shared note (events `collab-saved`, `collab-conflict`,
@@ -704,6 +846,32 @@ export type CollabUpdate = {
 export type ContractError = {
 	kind: ErrorKind,
 	message: string,
+};
+
+/**
+ *  This computer's name (ADR 0079 item 8, ADR 0074 item 8; decided
+ *  2026-10-11): the one the person set in Settings › Servers, or the
+ *  system's. A conflict's copy carries it, and a server's list of sessions
+ *  and its change log show it.
+ */
+export type DeviceName = {
+	/**  The name in use: the person's when set, the system's otherwise. */
+	name: string,
+	/**  The system's name, the default. */
+	system: string,
+	/**  Whether the person set the name. */
+	custom: boolean,
+};
+
+/**
+ *  The name set, and the servers this computer is signed in to that could
+ *  not be told: their list of sessions keeps the old name until the next
+ *  sign-in there.
+ */
+export type DeviceRenamed = {
+	device: DeviceName,
+	/**  The addresses of the servers not reached. */
+	unreached: string[],
 };
 
 /**  One resolved link of the vault, for the graph. */
@@ -773,6 +941,19 @@ export type ErrorKind =
 "changed" | 
 /**  Something already stands where a note would be created or moved. */
 "exists" | 
+/**
+ *  A new name differs only in case from an entry its folder already
+ *  lists — `nota.md` beside `Nota.md`: a Mac or Windows keeps the two
+ *  as one file, so nothing was made (spec Q8, decided 2026-10-12). An
+ *  answer, a name to choose again — not a fault.
+ */
+"case_twin" | 
+/**
+ *  The folder's quota on its server would be passed: nothing was
+ *  written; a write that shrinks the folder is always allowed (ADR
+ *  0077 item 5).
+ */
+"quota" | 
 /**  The core could not answer. */
 "failed";
 
@@ -892,6 +1073,14 @@ export type FolderChanged = {
 	/**  Notes this run found gone from disk. */
 	removed: string[],
 	/**
+	 *  Entries renamed or moved, when the side knows it moved them: a
+	 *  device's rename on a server (ADR 0079). A window's tab of `from`
+	 *  follows it to `to`, as after a rename made in the window. The
+	 *  watcher never knows a rename, and leaves this empty: the old path
+	 *  is among `removed`, the new one among `changed`, as here too.
+	 */
+	moved?: Moved[],
+	/**
 	 *  Whether which entries there are, or of which kind, changed: a tree
 	 *  or a folder view is drawn again only then.
 	 */
@@ -912,6 +1101,77 @@ export type FolderInfo = {
 	 */
 	key: string,
 	index: IndexSummary,
+	/**
+	 *  The name of the folder's file system when changes made there by
+	 *  other programs may show late: a volume without the exclusive rename
+	 *  and with hard links (macOS: some network volumes; ADR 0048, revised
+	 *  2026-10-12), where a file Verso creates or moves is named by a
+	 *  link, whose later removal by another program the system may not
+	 *  report. Verso's own writes are as safe as anywhere. The UI says it
+	 *  once per folder, in the user's language (ADR 0035).
+	 */
+	late_outside_changes?: string | null,
+};
+
+/**  The folder's layer of settings as read now (ADR 0070 items 1–2). */
+export type FolderLayer = {
+	/**
+	 *  Whether `.verso/settings.json` stands in the folder. When it does
+	 *  not, every setting is this machine's until one is first changed.
+	 */
+	exists: boolean,
+	/**
+	 *  Why the folder's layer is not used now: `unavailable` (the file is
+	 *  a placeholder of on-demand storage, ADR 0043), `invalid` (not a
+	 *  JSON object) or `share` (a window on a share of a server's folder,
+	 *  whose settings are the whole folder's, ADR 0081). It is never
+	 *  written then, and this machine's settings apply.
+	 */
+	problem: string | null,
+	/**
+	 *  What was read, for the next change to hand back (invariant 11);
+	 *  `None` when there is no file — the next change creates it.
+	 */
+	revision: string | null,
+	settings: FolderSettings,
+	/**
+	 *  What the write that answered this could not confirm; empty after
+	 *  a read.
+	 */
+	warnings: string[],
+};
+
+/**
+ *  The folder's settings that travel with it (ADR 0070 items 1–2), as
+ *  `.verso/settings.json` holds them, or a change to them: `None` is "not
+ *  set here". Every path is relative to the folder, joined by `/`.
+ */
+export type FolderSettings = {
+	bookmarks: string[] | null,
+	/**
+	 *  A plain file name without `.md`; empty: a folder's note is named
+	 *  after the folder.
+	 */
+	folder_note_name: string | null,
+	/**  Leave out the well-known build folders (ADR 0044). */
+	ignore_build_dirs: boolean | null,
+	/**  Honour each `.gitignore` (ADR 0044). */
+	respect_gitignore: boolean | null,
+};
+
+/**
+ *  A folder of the open folder as its owner shares it (ADR 0081 item 7):
+ *  the path inside the open folder — `""` for the whole folder, whose
+ *  people are its members — who has access and in which role, and the
+ *  attachments folder shown with it, read-only (item 11).
+ */
+export type FolderShare = {
+	id: string | null,
+	path: string,
+	people: SharePerson[],
+	attachments: string | null,
+	/**  The share points at a folder that is gone (item 13). */
+	missing: boolean,
 };
 
 /**
@@ -1018,6 +1278,12 @@ export type Link = {
 	alias: string | null,
 	line: number,
 	col: number,
+	/**
+	 *  The note or file it resolves to is not in what was shared with the
+	 *  person (ADR 0081 item 11): shown like an unresolved link, and never
+	 *  made into a note. Nothing else of it crosses.
+	 */
+	outside?: boolean,
 };
 
 /**
@@ -1176,6 +1442,16 @@ export type PropertyValue = { kind: "text"; value: string } | { kind: "number"; 
 /**  Machine-readable code for the reason `.space/waypoints.json` is read-only (ADR 0062). */
 export type ReadOnlyReasonCode = "cloud_placeholder" | "invalid_json" | "unknown_format";
 
+/**
+ *  A folder of this computer opened before, for the folder switcher's
+ *  "On this computer" (ADR 0081 item 5): its name and the key
+ *  `reopen_folder` takes — never its path (ADR 0026 rule 4).
+ */
+export type RecentFolder = {
+	key: string,
+	name: string,
+};
+
 /**  An entry a move left where it was, and why. */
 export type RefusedEntry = {
 	path: string,
@@ -1198,6 +1474,14 @@ export type Renamed = {
 	 *  note taking the folder's new name (ADR 0060). Old path to new.
 	 */
 	also: Moved[],
+};
+
+/**  Where a restore put an entry of the bin (ADR 0080 item 5). */
+export type Restored = {
+	path: string,
+	/**  The original path was taken: it went beside it, under a new name. */
+	beside: boolean,
+	warnings: string[],
 };
 
 /**  A `verso-schema` block of a note. */
@@ -1227,6 +1511,18 @@ export type ServerFolder = {
 	id: string,
 	name: string,
 	role: string,
+	/**
+	 *  Whose it is, when it is someone else's — a whole folder or a share
+	 *  (ADR 0081 item 5): it is listed under "Shared with me".
+	 */
+	owner?: string | null,
+	/**
+	 *  A folder inside someone's folder, shared with this account (ADR
+	 *  0081 item 2).
+	 */
+	share?: boolean,
+	/**  The shared folder is no longer where the share points (item 13). */
+	missing?: boolean,
 };
 
 /**
@@ -1236,6 +1532,18 @@ export type ServerFolder = {
 export type ServerSignIn = {
 	code: string,
 	page: string,
+};
+
+/**
+ *  A person who has access to a shared folder, and in which role (ADR
+ *  0081 item 7).
+ */
+export type SharePerson = {
+	id: string,
+	name: string,
+	email: string,
+	/**  `owner`, `editor` (writes) or `reader` (reads only). */
+	role: string,
 };
 
 /**  Why a note that links to what moved got no rewrite. */
@@ -1257,6 +1565,118 @@ export type Skipped = {
 	reason: SkipReason,
 };
 
+/**  One thing that crossed. */
+export type SyncLogEntry = {
+	/**  `YYYY-MM-DDTHH:MM:SSZ`. */
+	at: string,
+	/**
+	 *  `sent`, `received`, `deleted_there`, `deleted_here`,
+	 *  `renamed_there`, `renamed_here`, `conflict` or `merged` (two
+	 *  appends to a note joined, ADR 0079 item 8).
+	 */
+	what: string,
+	path: string,
+	/**  The other path of a rename, or a conflict's copy. */
+	other: string | null,
+	/**
+	 *  For what came from the server — received, deleted or renamed here,
+	 *  a conflict, a merge — who made the change there, as the server's
+	 *  log says it (sync 2): the person's name, and the name of the
+	 *  device whose sync made it. Either may be unknown: a change made in
+	 *  a browser has no device, one found on the server's disk no one, a
+	 *  share says neither.
+	 */
+	by: string | null,
+	device: string | null,
+};
+
+/**  A file sync left out, and why. */
+export type SyncRefused = {
+	path: string,
+	/**
+	 *  `reader`, `quota`, `placeholder`, `too_large`, `name_taken`,
+	 *  `case_twin_there` (two names on the server that differ only in
+	 *  case: this computer keeps one, spec Q8), `name_invalid`, `changed`
+	 *  or `failed`.
+	 */
+	reason: string,
+	message: string,
+};
+
+/**
+ *  A folder's sync with a server, as its window shows it (ADR 0079 item
+ *  13): the status bar's state and the folder settings' section.
+ */
+export type SyncStatus = {
+	/**
+	 *  The folder of this computer it is of (`FolderInfo::key`): every
+	 *  window hears every folder's, and shows its own.
+	 */
+	key: string,
+	/**  Whether the folder syncs at all. */
+	on: boolean,
+	/**  The server, as signed in to (Settings › Servers). */
+	server: string,
+	/**  The server's folder: its id and its name there. */
+	folder: string,
+	folder_name: string,
+	/**
+	 *  The role there: `owner`, `editor` or `reader` (a reader only
+	 *  receives, item 1).
+	 */
+	role: string,
+	/**
+	 *  `off`, `starting`, `synced`, `syncing`, `offline`, `paused` or
+	 *  `error`.
+	 */
+	state: string,
+	/**  Files on their way in this pass. */
+	sending: number,
+	receiving: number,
+	/**  When paused for deletions, how many it would delete (item 9). */
+	deletions: number | null,
+	/**  The conflict copies in the folder (item 8), by path. */
+	conflicts: string[],
+	/**  Files not synced, each with its reason (item 13). */
+	refused: SyncRefused[],
+	/**  What crossed lately, newest first. */
+	log: SyncLogEntry[],
+	/**  When the last pass ended, `YYYY-MM-DDTHH:MM:SSZ`. */
+	last: string | null,
+	/**  The last error, said (in English, for the log). */
+	message: string | null,
+	/**
+	 *  What the last error was, for the window to say in its language:
+	 *  `not_signed_in`, `signed_out`, `version`, `folder_gone`, `failed`;
+	 *  with the state `off`, `revoked`.
+	 */
+	problem: string | null,
+	/**
+	 *  With the problem `version`: what each side runs — two builds of one
+	 *  version can differ in their contracts, and the window names both.
+	 */
+	versions: SyncVersions | null,
+	/**
+	 *  When the folder's owner revoked the share this folder synced,
+	 *  `YYYY-MM-DDTHH:MM:SSZ`: sync was turned off then, the files here
+	 *  kept (ADR 0081 item 8). Said until sync is turned on again.
+	 */
+	revoked: string | null,
+};
+
+/**
+ *  What the server and this app run, when their contracts differ: the
+ *  version, the commit it was built from, and the contract's hash.
+ */
+export type SyncVersions = {
+	server_version: string,
+	server_build: string,
+	server_contract: string,
+	app_version: string,
+	app_build: string,
+	app_contract: string,
+};
+
 /**  A tag and the notes that carry it. */
 export type Tag = {
 	name: string,
@@ -1273,6 +1693,71 @@ export type TextFile = {
 	revision: string,
 	/**  What the write could not preserve, one line each; empty after a read. */
 	warnings: string[],
+};
+
+/**
+ *  One entry of the folder's bin (ADR 0080 item 4): a file, or a folder
+ *  trashed whole, with what is known of its deletion.
+ */
+export type TrashEntry = {
+	/**  Where it is, under `.trash/`: what a restore or a removal names. */
+	path: string,
+	/**  Where it was, relative to the folder. */
+	original: string,
+	/**  A folder trashed with what it held. */
+	folder: boolean,
+	/**  The bytes it holds. */
+	size: number | null,
+	/**
+	 *  When it was deleted, in seconds since the Unix epoch; when that is
+	 *  not known (`known` false), when it was first seen in the bin.
+	 */
+	deleted: number | null,
+	known: boolean,
+	/**
+	 *  Who deleted it: on a server the account (or, for a version a write
+	 *  replaced, the device); on the computer the server whose sync
+	 *  carried the deletion out. None: this computer, or not known.
+	 */
+	by: string | null,
+	/**  Sync carried the deletion out on this computer (item 9). */
+	sync: boolean,
+	/**  Not deleted: the version a device's write replaced (item 12). */
+	replaced: boolean,
+	/**
+	 *  When it is removed for good, in seconds; none when deleted files
+	 *  are kept for ever.
+	 */
+	expires: number | null,
+};
+
+/**  The folder's bin as its page shows it (ADR 0080 items 3, 4, 7 and 8). */
+export type TrashListing = {
+	/**  Newest first. */
+	entries: TrashEntry[],
+	/**  The bytes the bin holds — shown, not counted against the quota. */
+	size: number | null,
+	/**  How many days deleted files are kept; 0: for ever. */
+	days: number,
+	/**
+	 *  The most days this person may choose (a server folder's owner
+	 *  shortens what the admin set, item 3); none: anything, for ever too.
+	 */
+	most: number | null,
+	/**  Whether this person may change how long deleted files are kept. */
+	can_set: boolean,
+	/**
+	 *  Whether this person may delete an entry now or empty the bin: the
+	 *  folder's owner (item 7); on the computer, always.
+	 */
+	can_purge: boolean,
+	/**  The folder's quota on its server, in bytes; none without one. */
+	quota: number | null,
+	/**
+	 *  The bin alone is larger than the quota: its oldest entries expire
+	 *  early (item 8).
+	 */
+	early: boolean,
 };
 
 /**

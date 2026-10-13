@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-folder-sync-now"
+description = "Enables the folder_sync_now command without any pre-configured scope."
+commands.allow = ["folder_sync_now"]
+
+[[permission]]
+identifier = "deny-folder-sync-now"
+description = "Denies the folder_sync_now command without any pre-configured scope."
+commands.deny = ["folder_sync_now"]

@@ -1,0 +1,282 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+// The owner shares a folder of theirs (ADR 0081 item 7): the tree marks a
+// shared folder, its menu has "Share…", and the dialog says who has access
+// and in which role, adds a person by e-mail, changes a role, removes a
+// person or the whole share — each removal asked first, in the dialog
+// (item 18) — and offers the folder of the attachments the notes show
+// when it lies outside (item 11). Only the owner shares (item 4): the
+// window learns it when the server answers the list of shares, and shows
+// nothing of this otherwise.
+
+import { commands, type ContractError, type FolderShare } from "./bindings";
+import { asDialog, closed, opened } from "./dialogs/a11y";
+import { h, ui } from "./dom";
+import { allNotes, folderName } from "./folder";
+import { icon } from "./icons";
+import { dirOf, name } from "./paths";
+import { roleWord, sh } from "./shareStrings";
+
+/** The folders of the open folder shared with someone, by path. */
+const shared = new Map<string, FolderShare>();
+let owner = false;
+
+/** Whether the person may share here: the owner of a server's folder. */
+export function mayShare(): boolean {
+  return owner;
+}
+
+/** The shares of the window's folder, asked again: the tree's marks follow. */
+export async function loadShares(): Promise<void> {
+  const r = await commands.shareList();
+  owner = r.status === "ok";
+  shared.clear();
+  if (r.status === "ok") for (const s of r.data.slice(1)) if (s.path && s.people.length > 0) shared.set(s.path, s);
+  markShared();
+}
+
+/** Whether the folder at `path`, or one inside it, is shared. */
+export function sharedUnder(path: string): boolean {
+  return [...shared.keys()].some((p) => p === path || p.startsWith(`${path}/`));
+}
+
+/** A shared folder's mark in the tree, named for a screen reader. */
+export function shareMark(path: string): HTMLElement | null {
+  const s = shared.get(path);
+  if (!s) return null;
+  const mark = h("span", "share-mark");
+  mark.setAttribute("role", "img");
+  mark.setAttribute("aria-label", sh.sharedWith(s.people.length));
+  mark.title = sh.sharedWith(s.people.length);
+  mark.append(icon("user"));
+  return mark;
+}
+
+/** The marks of the folders drawn now. */
+export function markShared(): void {
+  for (const s of ui.treeRoot.querySelectorAll<HTMLElement>("summary[data-folder]")) {
+    s.querySelector(".share-mark")?.remove();
+    const mark = shareMark(s.dataset["folder"] ?? "");
+    if (mark) s.querySelector(".folder-label")?.after(mark);
+  }
+}
+
+function said(e: ContractError): string {
+  return /no account has that e-mail/i.test(e.message) ? sh.noAccount : e.message;
+}
+
+/** The attachments the notes under `path` embed that lie outside it: the
+ *  folder most of them are in, and how many. */
+async function outsideAttachments(path: string): Promise<{ folder: string; count: number } | null> {
+  const inside = `${path}/`;
+  const dirs = new Map<string, number>();
+  let count = 0;
+  for (const note of allNotes.filter((n) => n.startsWith(inside)).slice(0, 300)) {
+    const r = await commands.links(note);
+    if (r.status !== "ok") continue;
+    for (const l of r.data) {
+      const to = l.resolved;
+      if (!l.embed || !to || to.toLowerCase().endsWith(".md") || to.startsWith(inside)) continue;
+      count++;
+      dirs.set(dirOf(to), (dirs.get(dirOf(to)) ?? 0) + 1);
+    }
+  }
+  if (count === 0) return null;
+  const folder = [...dirs.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+  return { folder, count };
+}
+
+/** A removal asked first, in the dialog: the button becomes the question. */
+function askFirst(where: HTMLElement, question: string, yes: () => Promise<void>): void {
+  const box = h("div", "share-ask");
+  box.setAttribute("role", "group");
+  box.setAttribute("aria-label", question);
+  const q = h("p", "share-ask-text", question);
+  const ok = h("button", "btn danger", sh.yes);
+  ok.type = "button";
+  const no = h("button", "btn quiet", sh.cancel);
+  no.type = "button";
+  const back = Array.from(where.childNodes);
+  no.addEventListener("click", () => where.replaceChildren(...back));
+  ok.addEventListener("click", () => void yes());
+  box.append(q, ok, no);
+  where.replaceChildren(box);
+  ok.focus();
+}
+
+/** The share dialog of the folder at `path` (`""` the whole folder). */
+export function openShareDialog(path: string): void {
+  const whole = path === "";
+  const dialog = h("dialog", "web-dialog share-dialog");
+  const titleId = "share-title";
+  const title = h("h2", "web-dialog-title", whole ? sh.titleWhole(folderName) : sh.title(name(path)));
+  title.id = titleId;
+  const status = h("p", "share-status");
+  status.setAttribute("role", "status");
+  const list = h("ul", "share-people");
+  list.setAttribute("aria-label", sh.people);
+  const attachments = h("div", "share-attachments");
+  const footer = h("div", "web-actions share-actions");
+  const missing = h("p", "share-missing", sh.missing);
+  missing.setAttribute("role", "alert");
+  missing.hidden = true;
+  const close = () => {
+    dialog.close();
+    dialog.remove();
+    closed(dialog);
+    void loadShares();
+  };
+  asDialog(dialog, "", close, titleId);
+  dialog.addEventListener("cancel", (e) => {
+    e.preventDefault();
+    close();
+  });
+
+  // Add a person, or change their role.
+  const form = h("form", "share-form");
+  const emailId = "share-email";
+  const emailLabel = h("label", "", sh.email);
+  emailLabel.htmlFor = emailId;
+  const email = h("input");
+  email.type = "email";
+  email.id = emailId;
+  email.required = true;
+  email.autocomplete = "off";
+  const roleLabel = h("label", "", sh.role);
+  roleLabel.htmlFor = "share-role";
+  const role = roleSelect(whole, "reader");
+  role.id = "share-role";
+  const add = h("button", "btn", sh.add);
+  add.type = "submit";
+  form.append(emailLabel, email, roleLabel, role, add);
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    void commands.shareGrant(path, email.value.trim(), role.value).then((r) => {
+      if (r.status !== "ok") return void (status.textContent = said(r.error));
+      status.textContent = sh.added(email.value.trim());
+      email.value = "";
+      draw(r.data);
+    });
+  });
+
+  const draw = (s: FolderShare) => {
+    missing.hidden = !s.missing;
+    list.replaceChildren(
+      ...(s.people.length === 0
+        ? [h("li", "share-empty", sh.nobody)]
+        : s.people.map((p) => {
+            const li = h("li", "share-person");
+            const who = h("span", "share-who");
+            who.append(h("strong", "", p.name), h("small", "", p.email));
+            const actions = h("span", "share-person-actions");
+            const select = roleSelect(whole, p.role);
+            select.setAttribute("aria-label", sh.roleOf(p.name, roleWord(p.role)));
+            select.addEventListener("change", () => {
+              void commands.shareGrant(path, p.email, select.value).then((r) => {
+                if (r.status !== "ok") return void (status.textContent = said(r.error));
+                status.textContent = sh.saved;
+                draw(r.data);
+              });
+            });
+            const remove = h("button", "btn quiet", sh.remove);
+            remove.type = "button";
+            remove.setAttribute("aria-label", sh.removeNamed(p.name));
+            remove.addEventListener("click", () =>
+              askFirst(actions, sh.confirmRemove(p.name), async () => {
+                const r = await commands.shareRevoke(path, p.id);
+                if (r.status !== "ok") {
+                  status.textContent = said(r.error);
+                  return;
+                }
+                status.textContent = sh.removed;
+                draw(r.data);
+                email.focus();
+              }),
+            );
+            actions.append(select, remove);
+            li.append(who, actions);
+            return li;
+          })),
+    );
+    footer.replaceChildren();
+    if (!whole && s.id) {
+      const stop = h("button", "btn quiet danger", sh.stop);
+      stop.type = "button";
+      stop.addEventListener("click", () =>
+        askFirst(footer, sh.confirmStop, async () => {
+          const r = await commands.shareRevoke(path, null);
+          if (r.status !== "ok") {
+            status.textContent = said(r.error);
+            return;
+          }
+          status.textContent = sh.stopped;
+          draw(r.data);
+          email.focus();
+        }),
+      );
+      footer.append(stop);
+    }
+    const done = h("button", "btn", sh.close);
+    done.type = "button";
+    done.addEventListener("click", close);
+    footer.append(done);
+    if (!whole) void drawAttachments(s);
+  };
+
+  const drawAttachments = async (s: FolderShare) => {
+    if (s.attachments) {
+      const off = h("button", "btn quiet", sh.attachmentsRemove);
+      off.type = "button";
+      off.addEventListener("click", () => {
+        void commands.shareAttachments(path, null).then((r) => (r.status === "ok" ? draw(r.data) : void (status.textContent = said(r.error))));
+      });
+      attachments.replaceChildren(h("p", "", sh.attachmentsShown(s.attachments)), off);
+      return;
+    }
+    attachments.replaceChildren(h("p", "settings-hint", sh.attachmentsLooking));
+    const out = await outsideAttachments(path);
+    if (!out) {
+      attachments.replaceChildren(h("p", "settings-hint", sh.attachmentsNone));
+      return;
+    }
+    if (out.folder === "") {
+      attachments.replaceChildren(h("p", "", sh.attachmentsAtRoot(out.count)));
+      return;
+    }
+    const include = h("button", "btn quiet", sh.attachmentsAdd(out.folder));
+    include.type = "button";
+    // Only once someone has the share: the share is made with its first person.
+    include.disabled = !s.id;
+    include.addEventListener("click", () => {
+      void commands.shareAttachments(path, out.folder).then((r) => (r.status === "ok" ? draw(r.data) : void (status.textContent = said(r.error))));
+    });
+    attachments.replaceChildren(h("p", "", sh.attachmentsOutside(out.count, out.folder)), include);
+  };
+
+  dialog.append(title, h("p", "settings-hint", sh.kept), missing, list, form, attachments, status, footer);
+  document.body.append(dialog);
+  opened(dialog);
+  dialog.showModal();
+  email.focus();
+  void commands.shareList().then((r) => {
+    if (r.status !== "ok") {
+      status.textContent = said(r.error);
+      return;
+    }
+    draw(r.data.find((s) => s.path === path) ?? { id: null, path, people: [], attachments: null, missing: false });
+  });
+}
+
+function roleSelect(whole: boolean, value: string): HTMLSelectElement {
+  const select = h("select", "share-role");
+  const roles = whole ? ["reader", "editor", "owner"] : ["reader", "editor"];
+  for (const r of roles) {
+    const o = h("option", "", roleWord(r));
+    o.value = r;
+    o.selected = r === value;
+    select.append(o);
+  }
+  return select;
+}

@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { afterRestore } from "./restoring";
 import { commands } from "../bindings";
 import { can } from "../can";
 import { button, h, ui } from "../dom";
@@ -14,6 +15,7 @@ import { NoteLeaf } from "../leaves/note";
 import { noLayout } from "../main";
 import { MenuItem, showMenu } from "../menu";
 import { dirOf } from "../paths";
+import type { LiveHolder } from "../roomWrites";
 import { t } from "../strings";
 import { markCurrent, showOutline } from "../tree/tree";
 import { Layout } from "./layout";
@@ -213,12 +215,15 @@ export function openIn(pane: Pane, path: string): Leaf {
 /** `preview`: a single click in a list (the tree, a folder, the search,
  *  the quick switcher) — a preview tab, when the setting has them. */
 export function openNote(path: string, aside: boolean, fresh = false, preview = false): Leaf | null {
+  // Asked for while the folder's tabs come back: opened over them after.
+  if (afterRestore(() => void openNote(path, aside, fresh, preview))) return null;
   document.body.classList.remove("side-open");
   let pane = paneToOpenIn();
   if (aside) pane = layout().split(pane, "row");
   return pane.open(path, false, fresh, preview && !aside && !fresh);
 }
 export function openFolder(path: string, preview = false): void {
+  if (afterRestore(() => openFolder(path, preview))) return;
   const pane = paneToOpenIn();
   pane.openFolder(path, preview);
 }
@@ -230,6 +235,19 @@ export function activeLeafForPath(path: string): NoteLeaf | null {
         if (l instanceof NoteLeaf && l.path === path) return l;
       }
     }
+  }
+  return null;
+}
+/** The tab of this window that holds `path` live in its room and may
+ *  type into it: a write to the note from elsewhere — a base's cell, a
+ *  PDF's quote, the tree's sticker — goes in through it (roomWrites.ts,
+ *  ADR 0082). A text file's tab too — a plan's rewrite, a folder page's
+ *  base (ADR 0082 item 12). Null when no tab holds it live. */
+export function liveHolder(path: string): LiveHolder | null {
+  for (const l of leavesOf(path)) {
+    const tab = l as unknown as { roomHolder?: () => LiveHolder | null };
+    const held = l instanceof NoteLeaf ? l.roomHolder() : typeof tab.roomHolder === "function" ? tab.roomHolder() : null;
+    if (held) return held;
   }
   return null;
 }

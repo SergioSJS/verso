@@ -211,6 +211,14 @@
   z-index: 2000;
   pointer-events: none;
 }
+/* What an apply could not write, by name, until closed or tried again:
+   the update banner's voice, at the foot, above the status line; it wraps
+   instead of cutting the names short. */
+.verso-update-banner.plan-notice { top: auto; bottom: 2.6rem; border-radius: 12px; align-items: flex-start; flex-wrap: wrap; max-width: min(40rem, calc(100vw - 32px)); padding: .7rem .8rem .7rem 1rem; animation: none; }
+.plan-notice-words { flex: 1 1 18rem; min-width: 0; }
+.plan-notice-words p { margin: 0; line-height: 1.45; overflow-wrap: anywhere; }
+.plan-notice-words p + p { margin-top: .3rem; }
+.plan-notice .verso-update-banner-actions { flex: none; margin-left: auto; align-self: center; }
 
 /* Mermaid diagrams (Reading view and Live preview) */
 .mermaid-block, .cm-lp-mermaid {

@@ -7,6 +7,20 @@
   Consequences, as **provisional**; the Decision is unchanged and the questions
   [0046](0046-index-location-lifecycle-tokenizer.md) holds stay `[OPEN]`
   (memo `docs/reference/cli-decision.md`).
+  2026-10-12 — the provisional records of 2026-09-22 ratified by the
+  maintainer as built and tested, answering the ADR audit in session:
+  *"Ajuste tudo que precisar. Está aprovado os ADRs"* (adjust whatever
+  needs it; the ADRs are approved); a dated note beside each.
+  2026-10-12 — with [0070](0070-what-travels-with-the-folder.md) items 1
+  and 2 built: the folder's bookmarks, walk rules and folder note name
+  live inside the folder, in `.verso/settings.json`, written only when one
+  of them is first changed. Rule 1 holds as 0070 reads it — no directory
+  is *mandatory* inside the folder, and none appears by opening it — but
+  the Consequence "a folder synced between machines does not carry its
+  configuration along" no longer holds for those three, and the
+  discarded `.obsidian/`-like directory is, for them, what was built. The
+  machine's layer — the index, its sidecar, the log, the window's layout
+  — stays here, as decided.
 
 ## Context
 
@@ -42,12 +56,14 @@ and be rebuildable.
   the folder is sensitive, with what permissions, and what happens to the
   orphaned index when the folder disappears, is `[OPEN]` in
   [0046](0046-index-location-lifecycle-tokenizer.md), to be decided before
-  feature 3 of Phase 1.
+  feature 3 of Phase 1. *(Decided: 0046 accepted on 2026-09-22.)*
 
 **Where the configuration directory is, and what keys a folder. Recorded on
 2026-09-22 from the feature 4 code — provisional, the maintainer decides on
 waking**, on line 2 of `docs/reference/cli-decision.md` §10. This is what the
 code does, not a decision.
+*(Ratified by the maintainer on 2026-10-12, as built and tested:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 
 - **The directory** is `$VERSO_CONFIG_DIR` when it is set and non-empty; else
   `$XDG_CONFIG_HOME/verso` when that one is set and non-empty; else

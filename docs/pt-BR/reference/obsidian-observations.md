@@ -2099,3 +2099,27 @@ rótulos de uma pasta na nota da pasta, criada se faltar, sem
 pergunta (O2, D3) — e `banner_y` como porcentagem (O3). `order:` e `pinned:`
 na nota da pasta são do próprio Verso (D4, D5) e não dependem de O4 e O5.
 O4–O7 e O9–O12 ainda esperam alguém nos menus do make.md.
+
+## 18. Um board editado junto com força, aberto no Obsidian 1.14.4 (2026-10-12)
+
+Observado de fora (ADR 0009) depois do teste de carga do board do item 12
+da ADR 0082 (`crates/verso-server/src/tests_board_stress.rs`, semente 2):
+o arquivo que a sala gravou — 34 cartões (11 deles grupos), 12 arestas (5
+com rótulo), 55 elementos desenhados sob `verso` e uma chave de topo
+desconhecida — copiado para `Sandbox/verso-fixtures/`, lido e aberto com o
+`eval` do CLI sobre a API pública (`app.vault.read`, `JSON.parse`,
+`workspace.getLeaf(true)`, `leaf.openFile`, `view.getViewType()`), e
+depois removido.
+
+| O quê | Visto |
+|---|---|
+| O arquivo lido e interpretado | sim: 34 nós, 12 arestas, 55 desenhados |
+| Aberto numa aba | a visão `canvas`, sem erro |
+| Gravado pelo Obsidian ao abrir | **sim**: cada uma das 12 arestas, que não tinham `fromSide`/`toSide`, ganhou os dois; nada mais mudou — todo nó como estava, `verso` (o desenho) igual como JSON, a chave de topo desconhecida mantida |
+
+Então um canvas cujas arestas não têm lados é regravado pelo Obsidian na
+primeira vez que a visão de canvas dele o abre. Uma aresta que o board
+desenha ganha os lados ao ser presa (ADR 0057 pontos 14 e 20); as arestas
+do teste de carga não tinham porque o teste faz o arquivo ele mesmo. Numa
+sala, a gravação do Obsidian pela montagem é uma mudança de fora: entra na
+sala, ou as pessoas no board escolhem (item 12 da ADR 0082).

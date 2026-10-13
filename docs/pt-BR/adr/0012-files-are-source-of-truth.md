@@ -6,6 +6,10 @@
 - Revisões: 2026-09-22 — o que a verificação de modificação concorrente compara
   no código da feature 2 (tempo, tamanho e hash de conteúdo), registrado como
   provisório.
+  2026-10-12 — os registros provisórios de 2026-09-22 ratificados pelo
+  mantenedor como construídos e testados, respondendo à auditoria dos
+  ADRs em sessão: *"Ajuste tudo que precisar. Está aprovado os ADRs"*; uma
+  nota datada ao lado de cada um.
 
 ## Contexto
 
@@ -52,6 +56,8 @@ notas se perde na primeira vez que ele mexe em um arquivo sem ser mandado.
   adversário que escolhe os bytes: quem consegue forjar uma colisão já consegue
   escrever dentro do vault, e a invariante 11 pressupõe um sistema de arquivos
   honesto por baixo.
+  *(Ratificado pelo mantenedor em 2026-10-12, como construído e testado:
+  "Ajuste tudo que precisar. Está aprovado os ADRs".)*
 - "Round-trip" tinha duas leituras possíveis, e elas escolhiam parsers
   diferentes. O mantenedor decidiu `docs/spec/dialect.md` Q18 em 2026-09-21:
   leitura (b), parser somente leitura com property test de round-trip de

@@ -138,7 +138,7 @@ test("undo stays per file between parent and embed", async ({ app, page }) => {
   await expect(parentContent).toContainText("Prefix Start A");
 });
 
-test("conflict on the embedded file shows two versions", async ({ app, page }) => {
+test("conflict on the embedded file shows two versions, and keeps both on a third choice", async ({ app, page }) => {
   await app.open();
   const parentFile = "ConflictParent.md";
   const childFile = "ConflictChild.md";
@@ -169,6 +169,67 @@ test("conflict on the embedded file shows two versions", async ({ app, page }) =
   // Conflict banner should appear in the embed
   const banner = embed.locator(".conflict");
   await expect(banner).toBeVisible();
+
+  // The embed's view offers the note's three ways; "Guardar os dois" keeps
+  // the disk's under the name and the embed's text in a copy beside it.
+  await expect(banner.getByRole("button")).toHaveText(["Descartar o meu e recarregar", "Gravar o meu por cima", "Guardar os dois"]);
+  await banner.getByRole("button", { name: "Guardar os dois" }).click();
+  const named = /^ConflictChild \(conflito, Mac de Teste, \d{4}-\d{2}-\d{2} \d{2}\.\d{2}\)\.md$/;
+  await expect.poll(async () => (await app.files()).filter((f) => named.test(f)).length).toBe(1);
+  const copy = (await app.files()).find((f) => named.test(f));
+  expect(await app.file(childFile)).toBe("# Conflict Child\nExternal remote change\n");
+  expect(await app.file(copy)).toContain("Local change");
+  expect(await app.file(copy)).not.toContain("External remote change");
+  // The embed stays on its note, now the disk's version, with no conflict left.
+  await expect(banner).toBeHidden();
+  await expect(cardEditor).toContainText("External remote change");
+  await expect(page.locator("#status")).toContainText("Os dois ficaram: a versão do disco em ConflictChild, o seu texto em ConflictChild (conflito");
+});
+
+test("conflict on an embed edited in Live Preview keeps both on the third choice too", async ({ app, page }) => {
+  await app.open();
+  const parentFile = "LiveConflictParent.md";
+  const childFile = "LiveConflictChild.md";
+
+  await app.writeOutside(parentFile, "# Parent\n\n![[LiveConflictChild]]\n\nFooter line.\n");
+  await app.writeOutside(childFile, "# Live Conflict Child\nOriginal\n");
+  await app.folderChanged([parentFile, childFile], true);
+
+  await app.quickOpen("LiveConflictParent");
+  await page.getByRole("button", { name: /^(Editar|Edit)$/, exact: true }).click();
+  // The caret away from the embed, so Live Preview draws it.
+  await page.locator(".cm-content").first().click({ position: { x: 50, y: 10 } });
+
+  const embed = page.locator(".editor .embed-note");
+  await expect(embed).toBeVisible();
+  await embed.locator(".embed-edit").click();
+  const cardEditor = embed.locator(".card-editor");
+  await expect(cardEditor).toBeVisible();
+  await cardEditor.locator(".cm-content").click();
+  await app.key("End");
+  await page.keyboard.type(" Local change");
+
+  await app.writeOutside(childFile, "# Live Conflict Child\nExternal remote change\n");
+  await app.key("Mod+s");
+
+  const banner = embed.locator(".conflict");
+  await expect(banner).toBeVisible();
+  await expect(banner.getByRole("button")).toHaveText(["Descartar o meu e recarregar", "Gravar o meu por cima", "Guardar os dois"]);
+  await banner.getByRole("button", { name: "Guardar os dois" }).click();
+  const named = /^LiveConflictChild \(conflito, Mac de Teste, \d{4}-\d{2}-\d{2} \d{2}\.\d{2}\)\.md$/;
+  await expect.poll(async () => (await app.files()).filter((f) => named.test(f)).length).toBe(1);
+  const copy = (await app.files()).find((f) => named.test(f));
+  expect(await app.file(childFile)).toBe("# Live Conflict Child\nExternal remote change\n");
+  expect(await app.file(copy)).toContain("Local change");
+  expect(await app.file(copy)).not.toContain("External remote change");
+  // No conflict left, and the embed shows the disk's version (Live Preview
+  // redraws it on the folder's new reading, so the in-place editor closes;
+  // WebKit may leave the caret on its line, where the source shows).
+  await expect(banner).toBeHidden();
+  await page.locator(".cm-content").first().click({ position: { x: 50, y: 10 } });
+  await expect(embed).toContainText("External remote change");
+  await expect(embed).not.toContainText("Local change");
+  await expect(page.locator("#status")).toContainText("Os dois ficaram: a versão do disco em LiveConflictChild, o seu texto em LiveConflictChild (conflito");
 });
 
 test("emoji trigger with : opens completion and inserts emoji (ADR 0060 E4)", async ({ app, page }) => {

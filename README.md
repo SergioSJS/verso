@@ -2,6 +2,10 @@
 
 [Português (Brasil)](docs/pt-BR/README.md)
 
+Official site: **https://versomd.com** (its source: [SergioSJS/versomd-site](https://github.com/SergioSJS/versomd-site)).
+Builds and UniVerso's packages come only from this repository's releases,
+signed with minisign `RWS1zv2nvs/ng1hA0YspwOg7wGda98zkXjVfx8m9CtT5obRW5zabNHaT`.
+
 Verso is a notes app for plain Markdown files. Point it at a folder — an
 Obsidian vault works as it is — and it gives you an editor, boards, bases,
 search and a graph over those files, on macOS, Windows and Linux. Nothing is
@@ -132,7 +136,7 @@ your machine:
 
 | Script | Runs | Needs |
 |---|---|---|
-| `scripts/check.sh` | every guardrail of CI's Linux job, natively — on a Mac, this is the macOS check; and, which CI does not run, the window's end-to-end tests over the browser harness ([ADR 0058](docs/adr/0058-demo-vault-as-tutorial.md)), in WebKit and in Chromium, the engines of the macOS and Windows apps ([ADR 0069](docs/adr/0069-windows-port.md)) | the toolchain, Node 22, `cargo install cargo-deny --locked`; Playwright's WebKit and Chromium, downloaded on the first run |
+| `scripts/check.sh` | every guardrail of CI's Linux job, natively — on a Mac, this is the macOS check; and, which CI does not run, the window's end-to-end tests over the browser harness ([ADR 0058](docs/adr/0058-demo-vault-as-tutorial.md)), in WebKit and in Chromium, the engines of the macOS and Windows apps ([ADR 0069](docs/adr/0069-windows-port.md)); on a Mac with one worker and no window captures, and refused while a browser or the Verso app is open (quit them first) | the toolchain, Node 22, `cargo install cargo-deny --locked`; Playwright's WebKit and Chromium, downloaded on the first run |
 | `scripts/check-linux.sh` | fmt, clippy, the tests and the generated bindings in a Linux container, as an ordinary user | Docker; the UI bundle the first script builds |
 | `scripts/check-windows.sh` | clippy and the tests on a Windows machine over SSH; `--bundle` also builds the installer ([ADR 0069](docs/adr/0069-windows-port.md)). Required when the diff touches platform code (`verso-fs`, `app/src-tauri`, configuration paths, `cfg(windows)`), optional otherwise | an SSH host named `verso-win` with the toolchain (the script's header lists it) |
 | `scripts/check-linux-vm.sh` | clippy and the tests on a Linux machine over SSH; `--bundle` builds the `.deb`, `.rpm` and AppImage, `--install` opens the app on its desktop, `--webkit` runs the end-to-end suite on Linux's WebKit in a container ([ADR 0071](docs/adr/0071-linux-port.md)). When it makes sense, or for a closed package | an SSH host named `verso-ubuntu` (the script's header lists it); Docker for `--webkit` |

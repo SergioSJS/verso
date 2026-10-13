@@ -67,7 +67,9 @@ Verso already has most of the parts:
 
 What a block is stays undefined for the dialect: spec Q21 is `[OPEN]`, and
 with it Q3 beyond its two decided positions (the end of a paragraph, the end
-of a list item) and Q4.
+of a list item) and Q4. *(Q21, Q3 and Q4 decided by the maintainer on
+2026-10-07 — spec v0.28; `docs/spec/dialect.md`, Q21: a block is the
+editor's unit.)*
 
 [ADR 0060](0060-makemd-organizing-features.md) D9 — "the block compositor
 waits for the month of use" — is a different thing: make.md's page-layout
@@ -144,7 +146,8 @@ Two rules keep a moved block's meaning:
   today; a list that starts at a number other than 1 keeps its start.
 
 The definition is the editor's and closes nothing in the spec: Q21 stays
-`[OPEN]`. It agrees with the two positions Q3 decided — the paragraph and the
+`[OPEN]`. *(Q21 decided on 2026-10-07 by this definition — spec
+`docs/spec/dialect.md`, Q21.)* It agrees with the two positions Q3 decided — the paragraph and the
 list item are blocks here — and is offered as an input when Q21 is answered.
 
 ### 3. The handle, the + and the drop (D6)

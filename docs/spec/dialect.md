@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.35
+# Verso dialect spec — v0.37
 
-- Version: v0.35 · 2026-10-09
+- Version: v0.37 · 2026-10-12
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -421,8 +421,9 @@ links:
 
 Unicode normalization in name comparison (NFC × NFD: files coming from HFS+,
 from other platforms and from sync mix the two forms; APFS preserves the form it
-receives and does a normalization-insensitive lookup) and case sensitivity:
-`[OPEN]` (section 9, Q7 and Q8).
+receives and does a normalization-insensitive lookup): `DECIDED` on 2026-10-10 —
+one name is one file everywhere, the server comparing names in NFC (section 9,
+Q7). Case sensitivity: `[OPEN]` (section 9, Q8).
 
 ### 5.11 `.canvas` (JSON Canvas)
 
@@ -908,7 +909,7 @@ Raised while writing this spec. All of them need an answer before
   help shows `<iframe>` in a note; no public page shows `<video>` or `<audio>`
   in a note's raw HTML — audio and video are documented as `![[…]]` embeds.
   The question stays `[OPEN]`, and that memo lays out the options.)*
-- **Q7. Unicode normalization in name comparison.** `[OPEN]`
+- **Q7. Unicode normalization in name comparison.** `DECIDED` on 2026-10-10.
   NFC × NFD. APFS (macOS, the initial platform) preserves the form it receives
   and does a normalization-insensitive lookup; HFS+ forced NFD; Linux compares
   bytes. A vault that went through sync or through HFS+ mixes the two forms
@@ -920,7 +921,18 @@ Raised while writing this spec. All of them need an answer before
   are one name. This was **not** observed in Obsidian: it follows from the
   definition of the two forms, and APFS being normalization-insensitive hides
   the difference on the initial platform. The maintainer decides; this line
-  only records what the code does in the meantime.
+  only records what the code does in the meantime. *(Kept as the history that
+  led to the decision below.)*
+
+  **Decided on 2026-10-10 by the maintainer**, in session, taking the
+  recommended answer: *"Gostei das recomendações, pode seguir"*. The question
+  came back from the sync campaign of 2026-10-10, its finding F20: two devices
+  on Windows and Linux kept a name in both forms, and one of them never
+  uploaded its file. **One name is one file everywhere**: the server compares
+  names in NFC; each device keeps the spelling its own file system gave the
+  name; a file changed on both sides under the two forms is a conflict copy
+  ([ADR 0079](../adr/0079-sync-a-local-folder-with-a-server.md) item 8). No
+  fixture: the maintainer did not ask for one.
 - **Q8. Case sensitivity in name resolution.** `[OPEN]`
   It interacts with case-insensitive file systems (macOS by default — APFS can
   be case-sensitive per volume —, Windows) and case-sensitive ones (Linux) — the
@@ -934,6 +946,13 @@ Raised while writing this spec. All of them need an answer before
   question — which extensions make a file a note — is the `verso-fs` fact
   recorded under Q12. The maintainer decides; this line only records what the
   code does in the meantime.
+
+  **The creation side, decided by the maintainer on 2026-10-12** (*"Todos
+  aprovados"*), not the resolution, which stays `[OPEN]`: a new name that
+  differs only in case from an entry its folder already lists is refused
+  when Verso makes or renames it, on every OS and on the server; an entry
+  that exists is never refused ([ADR 0070](../adr/0070-what-travels-with-the-folder.md)
+  item 3, revised 2026-10-12).
 - **Q12. Rule for resolving a link to a file.** **CLOSED on 2026-09-22 by the
   maintainer**, following Obsidian 1.13.7 as observed
   (`docs/reference/index-decision.md` §4.1 and §4.6,
@@ -1309,3 +1328,5 @@ the parser was chosen.
 | v0.33 | 2026-10-07 | After the second Opus reading: §5.7 says the decided rule (the top-level section, or the innermost list item) in place of the "own text" sentence, lists the three new fixtures and says what a `^id` that names nothing looks like; Q3's two decision paragraphs are one, in two steps; **two `^id`s alone in a row** is `[OPEN]` (the extension or Obsidian's last-only), with the frontmatter and footnote cases recorded as unobserved; the 28 observed inputs are in `docs/reference/obsidian-blocks-2026-10-07.md`. |
 | v0.34 | 2026-10-09 | **Two `^id`s alone in a row** `DECIDED` by the maintainer: only the last names the block before them, as in Obsidian; the fixture `fixtures/block/two-alone` drafted, awaiting the maintainer's approval. |
 | v0.35 | 2026-10-09 | The fixture `fixtures/block/two-alone` approved by the maintainer in session ("aprovado"). |
+| v0.36 | 2026-10-10 | **Q7 `DECIDED`** by the maintainer in session, as recommended, from finding F20 of the sync campaign of 2026-10-10 (two devices on Windows and Linux kept both forms of a name, and one never uploaded): one name is one file everywhere — the server compares names in NFC, each device keeps the spelling its own file system gave the name, a file changed on both sides under the two forms is a conflict copy (ADR 0079 item 8). §5.10 says so; the provisional fact of v0.10 kept as history. No fixture: the maintainer did not ask for one. |
+| v0.37 | 2026-10-12 | Q8's creation side `DECIDED` by the maintainer in session (*"Todos aprovados"*, as recommended): a new name differing only in case from an entry of its folder is refused when Verso makes or renames it, on every OS and on the server (ADR 0070 item 3, revised). Q8 itself, case in name resolution, stays `[OPEN]`. No fixture: names made, not the dialect. |

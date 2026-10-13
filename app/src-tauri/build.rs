@@ -65,23 +65,45 @@ fn main() {
         "set_focuses",
         "can_sync_focuses",
         "set_sync_focuses",
+        "get_folder_settings",
+        "set_folder_settings",
         "log_write",
         "log_read",
         "set_menu_language",
         "reindex",
         "capabilities",
         "folder_space",
+        "trash_list",
+        "trash_restore",
+        "trash_delete",
+        "trash_empty",
+        "trash_set_days",
         "collab_join",
         "collab_update",
         "collab_awareness",
         "collab_leave",
         "collab_save",
         "collab_resolve",
+        "collab_present",
+        "collab_canvas",
         "server_sign_in",
         "server_accounts",
         "server_sign_out",
+        "device_name",
+        "set_device_name",
         "server_folders",
         "server_open",
+        "share_list",
+        "share_grant",
+        "share_revoke",
+        "share_attachments",
+        "recent_folders",
+        "folder_sync",
+        "folder_sync_start",
+        "folder_sync_stop",
+        "folder_sync_pause",
+        "folder_sync_confirm",
+        "folder_sync_now",
         "app_info",
         "query_base",
         "new_window",
@@ -132,6 +154,22 @@ fn commit() {
     if let Some(common) = git(&["rev-parse", "--path-format=absolute", "--git-common-dir"]) {
         println!("cargo:rerun-if-changed={common}/refs/heads");
     }
+    // A commit on the checked-out branch rewrites the branch's own ref (a
+    // file under refs/heads, or a line of packed-refs once the refs were
+    // packed), never HEAD, and a directory's scan misses the packed form —
+    // a beta reported the build before's hash on 2026-10-12. Git appends
+    // to the logs of HEAD and of the branch at every move, whatever form
+    // the ref is kept in: those are watched, each only when git says it
+    // exists (`git reflog exists`), never by a stat of our own.
+    let branch = git(&["rev-parse", "--symbolic-full-name", "HEAD"]);
+    for name in std::iter::once("HEAD").chain(branch.as_deref()) {
+        if git_ok(&["reflog", "exists", name]) {
+            let log = format!("logs/{name}");
+            if let Some(path) = git(&["rev-parse", "--path-format=absolute", "--git-path", &log]) {
+                println!("cargo:rerun-if-changed={path}");
+            }
+        }
+    }
 }
 
 /// Whether the build is for Windows with Microsoft's linker.
@@ -152,6 +190,15 @@ fn embed_windows_manifest() {
     println!("cargo:rerun-if-changed=windows-app-manifest.xml");
     println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
     println!("cargo:rustc-link-arg=/MANIFESTINPUT:{}", manifest.display());
+}
+
+/// Whether a git command succeeds (an answer with no output, such as
+/// `git reflog exists`); false when git is missing or says no.
+fn git_ok(args: &[&str]) -> bool {
+    std::process::Command::new("git")
+        .args(args)
+        .output()
+        .is_ok_and(|out| out.status.success())
 }
 
 /// A git command's output, trimmed; `None` when git is missing or fails.
