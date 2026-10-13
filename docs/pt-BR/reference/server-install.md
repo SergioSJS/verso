@@ -846,4 +846,137 @@ Ainda não verificado:
   `docker compose config`; o bloco `x-casaos` segue a descrição v2 da
   CasaOS AppStore de 2026-10-09, sem passar pelo validador deles);
 - a receita do `tailscale serve` e o exemplo do Caddy contra este servidor;
-- a poda das versões antigas no registry.
+- a poda das versões antigas no registry;
+- o filtro e a jail do fail2ban, o parser e os cenários do CrowdSec, e o
+  exemplo de `rate_limit` do Caddy da seção 16, num host de verdade: a
+  expressão do filtro roda nos testes do servidor sobre as próprias linhas
+  dele, como o fail2ban expande `<SUBNET>` e como ele lê um arquivo e o
+  journal, não pelo próprio fail2ban; os arquivos do CrowdSec e o exemplo
+  do Caddy não rodaram.
+
+## 16. Banimentos: fail2ban, CrowdSec e o rate_limit do Caddy
+
+O servidor freia palpites sozinho — três livres, depois uma espera de 1 s
+que dobra até 60 s, por endereço e por conta, e, sob uma enxurrada de
+recusas vinda de muitos endereços, toda entrada espera a sua vez, 2 s no
+máximo — e nunca tranca uma conta (ADR 0074 item 9). Ele não bane
+ninguém: isso é trabalho do firewall do host, e o servidor dá a ele uma
+linha do log por entrada recusada (ADR 0083 item 1):
+
+```
+2026-10-13T12:00:00Z WARN sign-in failed from 203.0.113.9 for a***@example.org (3 in a row)
+```
+
+Uma senha errada, uma chave de acesso recusada, o segredo errado na
+consulta de um aparelho, ou a senha atual errada ao trocá-la. O endereço é
+o do cliente como o proxy confiável o encaminhou (seção 8): um endereço
+IPv4 inteiro, um IPv6 pelo seu /64 (`2001:db8:1:2::/64`), como os atrasos
+do próprio servidor contam. O e-mail vem mascarado, igual tenha ele conta
+ou não; a contagem é das recusas desse e-mail desde o último acerto.
+Quando o atraso recusa um pedido, `WARN sign-in limited from <endereço>`,
+uma vez por minuto por chave. As linhas da própria janela no log começam
+com `window <id> (<conta>):`, então um membro não consegue escrever uma
+linha que essas ferramentas tomem por uma entrada recusada.
+
+Atrás de um proxy que o `VERSO_TRUSTED_PROXY` não nomeia, toda linha
+nomeia o proxy, e um banimento bane todo mundo. Antes de ligar um
+banimento, confira que as linhas nomeiam os seus visitantes:
+
+```sh
+journalctl -u universo | grep 'sign-in failed'
+```
+
+### fail2ban
+
+O `.deb` e o `.rpm` instalam um filtro,
+`/etc/fail2ban/filter.d/universo.conf`, e uma jail,
+`/etc/fail2ban/jail.d/universo.conf`: dez recusas de um endereço em dez
+minutos o banem por uma hora, lidas do journal do `universo.service`. Não
+fazem nada até o fail2ban ser instalado:
+
+```sh
+sudo apt install fail2ban        # ou: sudo dnf install fail2ban
+sudo systemctl enable --now fail2ban
+sudo fail2ban-client status universo
+```
+
+O fail2ban lê o journal pela ligação Python dele com o systemd
+(`python3-systemd`, no Debian, no Ubuntu e no Fedora), que o próprio
+pacote dele pode só recomendar. Os dois arquivos são configuração:
+edite-os — os números são seus — e uma atualização os mantém. Uma casa ou
+um escritório atrás de um endereço divide um banimento: um membro que erra
+dez vezes bane os outros por uma hora, a menos que o endereço esteja no
+`ignoreip` da jail. Para testar o filtro nas próprias linhas do servidor:
+
+```sh
+journalctl -u universo -o cat > /tmp/universo.log
+sudo fail2ban-regex /tmp/universo.log /etc/fail2ban/filter.d/universo.conf
+```
+
+No Docker, o fail2ban roda no host, e os dois arquivos são copiados de
+`packaging/server/fail2ban/` para `/etc/fail2ban/filter.d/` e
+`/etc/fail2ban/jail.d/`. As linhas do contêiner chegam ao journal com
+`logging: driver: journald` no arquivo compose; a jail então lê
+`journalmatch = CONTAINER_NAME=universo` (o nome do contêiner). O Docker
+manda o tráfego de uma porta publicada por fora da chain `INPUT` do host:
+o banimento precisa de `chain = DOCKER-USER` na jail.
+
+### CrowdSec
+
+Um parser e dois cenários — um endereço IPv4, um /64 de IPv6 — com o
+limite da jail, em `packaging/server/crowdsec/`; fora dos pacotes, já que
+os do CrowdSec moram no hub dele:
+
+```sh
+sudo cp packaging/server/crowdsec/universo-logs.yaml /etc/crowdsec/parsers/s01-parse/
+sudo cp packaging/server/crowdsec/universo-bf.yaml /etc/crowdsec/scenarios/
+```
+
+e o journal do serviço como fonte, em
+`/etc/crowdsec/acquis.d/universo.yaml`:
+
+```yaml
+source: journalctl
+journalctl_filter:
+  - "_SYSTEMD_UNIT=universo.service"
+labels:
+  type: syslog
+```
+
+depois `sudo systemctl reload crowdsec`; `sudo cscli metrics` mostra o
+parser lendo as linhas. Um bouncer (o do firewall) executa as decisões,
+pelo tempo que o `/etc/crowdsec/profiles.yaml` disser.
+
+### O rate_limit do Caddy
+
+Um proxy reverso pode barrar uma enxurrada antes que ela chegue ao Verso.
+O `rate_limit` do Caddy é um módulo, `github.com/mholt/caddy-ratelimit`,
+fora da compilação padrão do Caddy (`xcaddy build --with
+github.com/mholt/caddy-ratelimit`). Dez tentativas de entrar por minuto
+por endereço, e depois delas um 429 do Caddy:
+
+```
+{
+    order rate_limit before reverse_proxy
+}
+
+notas.exemplo.com {
+    rate_limit {
+        zone signin {
+            match {
+                method POST
+                path /api/signin /api/passkey/finish /api/device/poll
+            }
+            key {remote_host}
+            events 10
+            window 1m
+        }
+    }
+    reverse_proxy 127.0.0.1:7340
+}
+```
+
+Atrás do Cloudflare ou de outro proxy na frente do Caddy, `{remote_host}`
+é esse proxy: use `{client_ip}` como chave, com o `trusted_proxies` do
+Caddy nomeando esse proxy. O Verso mantém os próprios atrasos de qualquer
+jeito.

@@ -156,6 +156,7 @@ pub async fn sign_in_start(ctx: Ctx, Json(body): Json<SignInStart>) -> ApiResult
     let key = format!("pk:{}", ctx.peer.key());
     let wait = ctx.server.limiter.wait(&key);
     if !wait.is_zero() {
+        ctx.server.signins.limited(&key, &ctx.peer.key());
         return Err(ApiError::wait(wait.as_secs() + 1));
     }
     ctx.server.limiter.failed(&key);
@@ -208,6 +209,12 @@ pub async fn sign_in_finish(ctx: Ctx, Json(body): Json<SignInFinish>) -> ApiResu
     let result = match w.finish_passkey_authentication(&body.credential, &state) {
         Ok(r) => r,
         Err(e) => {
+            // Said as a password's refusal is, under the account's e-mail
+            // (ADR 0083 item 1): the ceremony was started for it.
+            let email = ctx.server.db.account(&account_id)?.map(|a| a.email);
+            ctx.server
+                .signins
+                .failed(&ctx.peer.key(), Some(email.as_deref().unwrap_or("")));
             ctx.audit_as(Some(&account_id), "sign_in_passkey", None, None, false);
             return Err(ApiError::new(
                 StatusCode::UNAUTHORIZED,
@@ -233,6 +240,9 @@ pub async fn sign_in_finish(ctx: Ctx, Json(body): Json<SignInFinish>) -> ApiResu
     ctx.server
         .limiter
         .succeeded(&format!("pk:{}", ctx.peer.key()));
+    ctx.server
+        .signins
+        .succeeded(&ctx.peer.key(), Some(&account.email));
     ctx.audit_as(Some(&account.id), "sign_in_passkey", None, None, true);
     let (token, csrf) = ctx.server.db.create_session(
         &account.id,

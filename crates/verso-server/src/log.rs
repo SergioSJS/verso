@@ -31,11 +31,20 @@ pub fn stamp() -> String {
     )
 }
 
+/// One line of the log: the time, the level, the message. A newline or
+/// another control character in the message becomes a space, so that no
+/// message — a file's name in an error, a window's words — writes a second
+/// line a host's tool would read as the server's own (ADR 0083 item 1).
 pub fn line(level: &str, message: &str) {
-    eprintln!("{} {level} {message}", stamp());
+    let message: String = message
+        .chars()
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .collect();
+    let said = format!("{level} {message}");
+    eprintln!("{} {said}", stamp());
     #[cfg(test)]
-    if let Ok(mut said) = SAID.lock() {
-        said.push(format!("{level} {message}"));
+    if let Ok(mut kept) = SAID.lock() {
+        kept.push(said);
     }
 }
 

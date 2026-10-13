@@ -74,6 +74,7 @@ pub async fn start(ctx: Ctx, Json(body): Json<Start>) -> ApiResult<Response> {
     let key = format!("device:{}", ctx.peer.key());
     let wait = ctx.server.limiter.wait(&key);
     if !wait.is_zero() {
+        ctx.server.signins.limited(&key, &ctx.peer.key());
         return Err(ApiError::wait(wait.as_secs() + 1));
     }
     // Each start counts: a flood of codes is slowed like a flood of
@@ -202,6 +203,10 @@ pub async fn poll(ctx: Ctx, Json(body): Json<Poll>) -> ApiResult<Response> {
         ));
     };
     if !crate::crypto::same(&p.poll, &crate::crypto::hash(&body.poll)) {
+        // A wrong poll secret is a guess at a device's sign-in: said as a
+        // refused one, under no e-mail (ADR 0083 item 1).
+        drop(devices);
+        ctx.server.signins.failed(&ctx.peer.key(), None);
         return Err(ApiError::new(
             StatusCode::GONE,
             "link_gone",
@@ -220,6 +225,8 @@ pub async fn poll(ctx: Ctx, Json(body): Json<Poll>) -> ApiResult<Response> {
         return Ok(ok(json!({ "pending": true, "interval": INTERVAL })));
     };
     devices.remove(&code);
+    drop(devices);
+    ctx.server.signins.succeeded(&ctx.peer.key(), None);
     let account = ctx
         .server
         .db
