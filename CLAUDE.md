@@ -151,7 +151,7 @@ the test.
 | The bounds: a head past 64 KiB answers 431, a note update past 4 MB refused, a wrong poll delayed, the mail key, no redirect followed (`tests_bounds.rs`, `update.rs`); PDF.js's build without `eval` (`app/ui/test/pdf.test.mjs`) | a loose bound coming back | ADR 0083 item 8 |
 | The whole set of security headers, name and value, on `/`, `/api/state` and `/f/` (`tests_threats.rs`) | a header lost in a refactor | ADR 0083 item 9 |
 | The audit retention: a row older than `VERSO_AUDIT_DAYS` goes, a younger one stays, 0 keeps all (`audit::tests`) | the audit log kept for ever | ADR 0083 item 10 |
-| A new folder `0750` (`verso-fs`); the unit and the read-only image started by `scripts/check-server-image.sh` | a service or a container that can do more than it needs | ADR 0083 item 11 |
+| A new folder `0750` (`verso-fs`); the unit and the read-only image started by `scripts/check-server-image.sh`, a step of `scripts/check-linux.sh` | a service or a container that can do more than it needs | ADR 0083 item 11 |
 | The backup script test in `scripts/check-linux.sh` (`--script`): an encrypted backup restored and compared, the secret key on no file | a backup that does not restore, or its key left on the host | ADR 0083 item 12 |
 | `scripts/check-npm-audit.mjs` over `app/ui` (CI and `scripts/check.sh`), exceptions with an expiry in `app/ui/audit-exceptions.json` | a high or critical npm advisory shipped unseen | ADR 0083 item 13 |
 | `/.well-known/security.txt` answers the required fields, `Expires` a year after the changelog's release date (`security_txt.rs`) | a reporter with nowhere to write | ADR 0083 item 15 |
