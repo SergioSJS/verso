@@ -39,7 +39,9 @@ sh universo.sh install --url https://notas.exemplo.com
 | `uninstall [--purge]` | remove o pacote e diz o que deixou: `/var/lib/universo`, `/etc/universo`, o usuário `universo`. O `--purge` remove esses também, depois de você digitar `/var/lib/universo` de volta |
 | `status` | o estado do serviço, a versão, o endereço em que escuta, o tamanho dos dois diretórios, as últimas 5 linhas do log |
 | `logs [-f]` | `journalctl -u universo` |
-| `backup [PASTA]` | para o serviço, empacota `/var/lib/universo` e `/etc/universo` em `universo-backup-<data>-<hora>.tar.gz` na `PASTA` (`/var/backups/universo` por padrão), liga de novo; recusa quando a `PASTA` tem menos espaço livre do que os dois diretórios ocupam |
+| `backup [PASTA] [--encrypt \| --passphrase] [--to-stdout]` | para o serviço, empacota `/var/lib/universo` e `/etc/universo` em `universo-backup-<data>-<hora>.tar.gz` na `PASTA` (`/var/backups/universo` por padrão), liga de novo; recusa quando a `PASTA` tem menos espaço livre do que os dois diretórios ocupam. `--encrypt` criptografa com o `age` (`.tar.gz.age`), `--passphrase` para uma frase-senha digitada, `--to-stdout` escreve na saída padrão para um pipe (seção 2) |
+| `backup --keygen` | cria a chave dos backups criptografados, uma vez: a pública em `/etc/universo/backup.pub`, a secreta impressa, nunca guardada na máquina (seção 2) |
+| `restore ARQUIVO [--identity ARQUIVO-DA-CHAVE] [--to PASTA]` | põe um backup de volta sobre `/var/lib/universo` e `/etc/universo` depois de você digitar `/var/lib/universo`, com o serviço parado enquanto isso; um criptografado com a chave secreta ou a frase-senha; `--to PASTA` desempacota na `PASTA`, sem tocar no servidor (seção 2) |
 | `reset-admin [E-MAIL]` | o comando da seção 10 |
 | `firewall` | abre 80 e 443 com ufw, firewalld ou iptables (mantidas entre reboots com o `netfilter-persistent` quando ele existe), e lembra que o firewall da própria nuvem (a security list da VCN da Oracle) se abre no console dela. Só quando pedido: o `install` nunca mexe no firewall |
 
@@ -100,6 +102,48 @@ inicie de novo — ou tire um snapshot do volume (ZFS, btrfs, LVM) e copie a
 partir do snapshot. Depois mande a cópia para outro lugar, por exemplo com
 `rclone` para um bucket (a receita da 0073, Consequências).
 
+### Criptografado, fora da máquina
+
+Um backup contém os hashes das senhas, as sessões, todas as notas e o
+arquivo de configurações (que pode ter a senha do primeiro admin): copiado
+para fora da máquina às claras, é tudo isso na mão de outra pessoa. O
+script de instalação o criptografa com o [age](https://age-encryption.org)
+([ADR 0083](../adr/0083-security-hardening-of-universo.md) item 12), que o
+Debian, o Ubuntu, o Fedora e o Alpine trazem (`sudo apt install age`;
+`sudo dnf install age`, no RHEL pelo EPEL):
+
+```sh
+sudo sh universo.sh backup --keygen     # uma vez: a chave
+sudo sh universo.sh backup --encrypt    # a cada backup
+```
+
+O `--keygen` grava a chave pública em `/etc/universo/backup.pub` e imprime
+a **chave secreta** — três linhas, entre elas `AGE-SECRET-KEY-1…` — na
+saída padrão, sem guardá-la em lugar nenhum da máquina: ponha num
+gerenciador de senhas ou em outra máquina. Quem a tem lê todos os backups;
+sem ela nenhum pode ser restaurado. Ele se recusa a substituir um
+`backup.pub` que já existe: tire-o do lugar antes, guardando a chave
+secreta antiga para os backups antigos. `--passphrase` no lugar de uma
+chave pede uma frase-senha no terminal. Sem o `age`, o `--encrypt` diz como
+instalá-lo e faz o tarball sem criptografia, com um aviso em maiúsculas.
+
+`--to-stdout` escreve o backup (criptografado ou não) na saída padrão, para
+um pipeline seu, por exemplo
+`sudo sh universo.sh backup --encrypt --to-stdout | rclone rcat remote:universo/$(date +%F).tar.gz.age`.
+
+Para restaurar, com o serviço parado enquanto isso e depois de você
+digitar `/var/lib/universo`:
+
+```sh
+sudo sh universo.sh restore universo-backup-<data>-<hora>.tar.gz.age --identity chave.txt
+```
+
+com a chave secreta em `chave.txt` só naquela hora (ou o `age` pede a
+frase-senha); um backup sem criptografia não precisa de `--identity`.
+`--to /uma/pasta` desempacota lá, para olhar antes, sem tocar no servidor.
+À mão: `age -d -i chave.txt ARQUIVO | sudo tar -xzpf - -C /` com o serviço
+parado.
+
 ### Bancos de dados num NAS
 
 A própria documentação do SQLite avisa que os locks dele não são confiáveis
@@ -142,6 +186,7 @@ seção 11):
 ```sh
 docker run -d --name universo --restart unless-stopped \
   -p 127.0.0.1:7340:7340 \
+  --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
   -v /srv/universo/data:/data \
   -v /srv/universo/folders:/folders \
   -e VERSO_PUBLIC_URL=https://notas.exemplo.com \
@@ -159,6 +204,15 @@ A porta é publicada em `127.0.0.1` porque o TLS fica na frente (seção 8).
 `docker logs universo` mostra o log, incluindo o link de configuração da
 seção 9.
 
+A segunda linha limita o contêiner ao que o servidor precisa
+([ADR 0083](../adr/0083-security-hardening-of-universo.md) item 11): os
+arquivos da própria imagem só para leitura, `/tmp` em memória, nenhuma
+capability do Linux, nada ganho por um programa setuid; o servidor só
+escreve em `/data` e `/folders`. A senha vem de um arquivo montado como
+segredo, que o `docker inspect` não mostra, e não de
+`-e VERSO_ADMIN_PASSWORD`, que ele mostra; o arquivo precisa ser legível
+pelo uid 1000.
+
 ## 4. CasaOS e ZimaOS
 
 O `packaging/server/docker-compose.yml` traz os metadados `x-casaos`
@@ -174,7 +228,12 @@ para qualquer host que aceite um arquivo compose:
 Ele monta `/DATA/AppData/universo/data` (o caminho de dados de app que o
 CasaOS usa) em `/data`, e `/DATA/Documents/Verso` em `/folders` — troque o
 segundo para onde as notas devem ficar, inclusive um NAS. Os dois precisam
-permitir escrita ao uid 1000, como na seção 3. A imagem vem do registry do
+permitir escrita ao uid 1000, como na seção 3. Ele declara o mesmo
+endurecimento do comando da seção 3 (`read_only`, `tmpfs: /tmp`,
+`cap_drop: ALL`, `no-new-privileges`), e mostra a senha do primeiro admin
+como um segredo do Docker, comentado, antes da variável comum: para usar,
+ponha a senha em `admin-password` ao lado do arquivo compose, legível pelo
+uid 1000, e descomente os três lugares que o arquivo marca. A imagem vem do registry do
 GitHub, que exige um `docker login` enquanto o repositório for privado
 (seção 11): no CasaOS e no ZimaOS, no terminal do sistema, uma vez.
 
@@ -208,7 +267,9 @@ journalctl -u universo -f
 
 O pacote escuta em `127.0.0.1:7340` por padrão: o TLS fica na frente
 (seção 8). A unit é endurecida (`ProtectSystem=strict`, escreve só sob
-`/var/lib/universo`, `ProtectHome=read-only`). Um diretório de pastas em
+`/var/lib/universo`, `ProtectHome=read-only`, os outros processos ocultos
+por `ProtectProc=invisible`, só as chamadas de sistema de um serviço comum,
+`UMask=0027`; uma pasta nova é criada `0750`). Um diretório de pastas em
 outro lugar precisa de um drop-in, que uma atualização mantém:
 
 ```sh
@@ -296,6 +357,7 @@ vazio conta como não definido.
 | `VERSO_MAIL_FROM` | não | o remetente desses e-mails; `Verso <verso@` o host do endereço público `>` por padrão |
 | `VERSO_FOLDER_QUOTA` | não | a cota que uma pasta nova recebe: bytes, ou um tamanho como `500MB` ou `10GB`; nenhuma quando não definida. O console (`/admin`, Pastas) muda a de cada pasta ([ADR 0077](../adr/0077-the-server-administration-console-and-folder-quotas.md)) |
 | `VERSO_TRASH_DAYS` | 30 | quantos dias a lixeira de uma pasta (`.trash/`) guarda os arquivos apagados e as versões que a escrita de um aparelho substituiu; `0` guarda para sempre. A página da pasta no console define o de cada pasta, e a dona da pasta pode encurtá-lo pela janela ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)). A lixeira é varrida ao iniciar e uma vez por dia; aparece, mas não conta na cota, e quando a lixeira sozinha de uma pasta passa da cota os itens mais antigos expiram antes |
+| `VERSO_AUDIT_DAYS` | 365 | quantos dias o registro de auditoria guarda uma linha (entradas, sessões, tokens, convites, permissões, compartilhamentos, as ações da lixeira, com o endereço); `0` guarda para sempre, 36500 no máximo. Uma varredura ao iniciar e uma vez por dia apaga as linhas mais antigas, só pelo tempo: nenhuma página nem comando apaga uma linha. A visão geral do console diz o prazo ([ADR 0083](../adr/0083-security-hardening-of-universo.md) item 10) |
 
 Sem `VERSO_SMTP_URL` nada é enviado: o admin copia os links de convite e de senha nova à mão.
 
@@ -891,6 +953,19 @@ máquina real. Verificado desde então:
   453 MiB, um arquivo em pedaços a partir do disco (8e2c2f1) entre as
   medições (seção 14, **Dez aparelhos, e o convidado de 453 MiB de
   novo**).
+- 2026-10-13: o endurecimento do [ADR 0083](../adr/0083-security-hardening-of-universo.md)
+  item 11, em Docker num Mac com Apple silicon (colima, Linux 6.8, arm64),
+  pelo `scripts/check-server-image.sh`: a imagem rodando só para leitura,
+  `/tmp` em memória, nenhuma capability, `no-new-privileges` (o estado pelo
+  TLS próprio, uma entrada, uma pasta criada `0750`, `admin reset`); e o
+  mesmo binário estático musl disposto como o `nfpm.yaml` dispõe, à mão,
+  num contêiner Debian 12 rodando o systemd 252, iniciado pela
+  `universo.service` com as configurações novas (o processo sob um filtro
+  seccomp, o estado, uma entrada, uma pasta `0750`, o banco `0600`;
+  `systemd-analyze security`: 1.3, OK). Não é um pacote feito pelo nfpm,
+  nem uma VM, nem amd64. Antes desse dia o arquivo compose não passava no
+  `docker compose config` (dois-pontos sem aspas num tagline); agora passa,
+  e o script confere.
 
 Ainda não verificado:
 
@@ -905,7 +980,7 @@ Ainda não verificado:
   uma instalação deixa o serviço desabilitado (acrescentada depois da
   verificação de 2026-10-12);
 - o arquivo compose no CasaOS e no ZimaOS (passa no
-  `docker compose config`; o bloco `x-casaos` segue a descrição v2 da
+  `docker compose config` desde 2026-10-13; o bloco `x-casaos` segue a descrição v2 da
   CasaOS AppStore de 2026-10-09, sem passar pelo validador deles);
 - a receita do `tailscale serve` e o exemplo do Caddy contra este servidor;
 - a poda das versões antigas no registry;

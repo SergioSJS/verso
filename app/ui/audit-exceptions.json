@@ -1,0 +1,4 @@
+{
+  "policy": "ADR 0083 item 13, as deny.toml's (ADR 0029): an advisory of severity high or critical found by scripts/check-npm-audit.mjs is excepted here only with its id (GHSA-…), a reason with a link, and an expiry date (YYYY-MM-DD); an expired exception fails. Each enters with a justification in its PR.",
+  "exceptions": []
+}

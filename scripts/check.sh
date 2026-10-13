@@ -32,6 +32,8 @@ step "fixtures (ADR 0031)"
 bash scripts/check-fixtures.sh
 step "npm licenses (ADR 0029)"
 node scripts/check-npm-licenses.mjs
+step "npm advisories (ADR 0083 item 13)"
+node scripts/check-npm-audit.mjs
 step "source files under the size limit (ADR 0067)"
 node scripts/check-sizes.mjs
 
