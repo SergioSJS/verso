@@ -695,6 +695,15 @@ decisões em aberto, siga as recomendações"*): the paces of items 7
 answer it; `docs/reference/threat-model.md` says **Closed: 9b4cdf0 and
 805febb**. Measuring the numbers stays item 18.
 
+**Two readings of the Decision's text** (2026-10-13), noted here and not
+rewritten above. Item 16's guardrail is "kept in `npm run e2e`": that
+suite runs locally, in `scripts/check.sh`, not in CI
+([0058](0058-demo-vault-as-tutorial.md)), so the browser run of the
+sanitizer's cases holds before a push, not on a pull request. Item 14
+names "`collab.rs`'s awareness reader": the `presence` target goes
+through `presence.rs` (`presence::stamped`, which `collab::awareness`
+calls; 34474a0).
+
 ## Consequences
 
 - What people feel: a password they chose refused at setup or at an

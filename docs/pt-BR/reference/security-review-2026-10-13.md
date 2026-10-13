@@ -345,7 +345,8 @@ funcionar:
 
 **No lugar.** `app/ui/src/sanitize.ts` é a fronteira entre membros (ADR
 0073 item 6), revisado linha a linha por Opus 5.5 em 2026-10-11 com uma
-bateria de 76 entradas hostis no `npm test`; o "O que o sanitizador
+bateria de 76 entradas hostis no `npm test` (*2026-10-13:* 102 casos
+desde 1e25bcf, rodados no node e no WebKit e no Chromium); o "O que o sanitizador
 garante" do modelo de ameaças diz o que ele mantém. O Mermaid roda em
 `securityLevel: "strict"` (`mermaid.ts:27`); o KaTeX com `throwOnError:
 false` e o `trust: false` padrão (`render.ts:19`, `live.ts:656,828`),
@@ -363,7 +364,9 @@ linha numa nota são descartados pelo nome.
 
 - A revisão pelo modelo que não escreveu o sanitizador está `[ABERTO]` no
   modelo de ameaças (F9). A bateria roda no happy-dom; uma rodada no
-  WebKit e no Chromium pelo harness ainda falta.
+  WebKit e no Chromium pelo harness ainda falta. *2026-10-13:*
+  acrescentada em 1e25bcf — os 102 casos rodam no node sobre o happy-dom
+  e no WebKit e no Chromium pelo harness (item 16 do ADR 0083).
 - PDF.js (F22): `getDocument` é chamado sem `isEvalSupported: false`
   (`pdf.ts:246,443`). Desde a 4.2.67 (CVE-2024-4367) o compilador de
   fontes não avalia mais strings não confiáveis, e o `pdfjs-dist` está na
