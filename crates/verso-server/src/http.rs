@@ -407,6 +407,8 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/invite/{token}", page())
         .route("/reset/{token}", page())
         .route("/signin-link/{token}", page())
+        // Where to report a vulnerability (RFC 9116; ADR 0083 item 15).
+        .route("/.well-known/security.txt", get(crate::security_txt::serve))
         .fallback_service(static_files)
         .layer(middleware::from_fn_with_state(Arc::clone(&server), guard))
         .layer(middleware::from_fn(deadline))
