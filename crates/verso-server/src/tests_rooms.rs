@@ -257,3 +257,68 @@ fn an_update_yrs_panics_on_is_refused_and_the_room_is_made_again() {
         assert!(ok.get("ok").is_some(), "{ok}");
     });
 }
+
+/// A window's updates sent fast, without waiting for the answers, are
+/// taken in the order they were sent (ADR 0083 item 14): the room holds
+/// none aside, so each is taken and the room's text is the window's. Half
+/// of them delete what the one before typed: a deletion that depends on
+/// an earlier update of the same connection applies because it comes
+/// after it, not because the room kept it aside.
+#[test]
+fn a_windows_updates_sent_at_once_are_taken_in_order() {
+    use futures_util::SinkExt;
+    use tokio_tungstenite::tungstenite::Message;
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &b).await;
+        let mut ws = window(&r, &b, &id).await;
+        let joined = call(&mut ws, 2, "collab_join", json!({ "path": "Sessao.md" })).await;
+        let doc = yrs::Doc::with_options(yrs::Options {
+            offset_kind: yrs::OffsetKind::Utf16,
+            ..Default::default()
+        });
+        let state = base64::engine::general_purpose::STANDARD
+            .decode(joined["ok"]["update"].as_str().unwrap())
+            .unwrap();
+        doc.transact_mut()
+            .apply_update(yrs::Update::decode_v1(&state).unwrap())
+            .unwrap();
+        let text = doc.get_or_insert_text(collab::TEXT);
+        let mut updates = Vec::new();
+        for i in 0..60_u32 {
+            let mut txn = doc.transact_mut();
+            if i % 2 == 0 {
+                text.insert(&mut txn, 0, &format!("<{i}>"));
+            } else {
+                // What the update before typed, deleted again but its
+                // first character.
+                let len = format!("<{}>", i - 1).encode_utf16().count() as u32;
+                text.remove_range(&mut txn, 1, len - 1);
+            }
+            updates.push(txn.encode_update_v1());
+        }
+        for (n, u) in updates.iter().enumerate() {
+            let args = json!({ "path": "Sessao.md",
+                "update": base64::engine::general_purpose::STANDARD.encode(u) });
+            ws.send(Message::Text(
+                json!({ "id": 100 + n, "cmd": "collab_update", "args": args })
+                    .to_string()
+                    .into(),
+            ))
+            .await
+            .unwrap();
+        }
+        for _ in &updates {
+            let answer = next(&mut ws).await;
+            assert!(answer.get("ok").is_some(), "{answer}");
+        }
+        let saved = call(&mut ws, 3, "collab_save", json!({ "path": "Sessao.md" })).await;
+        assert!(saved["ok"].is_string(), "{saved}");
+        let read = call(&mut ws, 4, "read_note", json!({ "path": "Sessao.md" })).await;
+        assert_eq!(
+            read["ok"]["text"].as_str().unwrap(),
+            text.get_string(&doc.transact())
+        );
+    });
+}
