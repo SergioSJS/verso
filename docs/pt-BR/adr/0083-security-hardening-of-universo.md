@@ -712,6 +712,13 @@ seção 5); o arquivo compose declara o driver `json-file` do Docker com
 `max-size: "10m"` e `max-file: "3"` (seção 4). As 60 linhas por minuto que
 uma janela pode escrever não mudam.
 
+**O limite de taxa além dos logins, do modelo de ameaças** (2026-10-13).
+O `[ABERTO]` dele fechado pela resposta do mantenedor de 2026-10-13
+(*"sobre as decisões em aberto, siga as recomendações"*): os ritmos dos
+itens 7 (9b4cdf0) e 2 (805febb), ao lado dos limites de conexão
+construídos antes, respondem a ele; o `docs/reference/threat-model.md`
+diz **Fechada: 9b4cdf0 e 805febb**. Medir os números continua o item 18.
+
 ## Consequências
 
 - O que as pessoas sentem: uma senha que escolheram recusada no setup ou

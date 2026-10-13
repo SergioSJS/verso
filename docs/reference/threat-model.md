@@ -475,7 +475,7 @@ answer — a recommendation, not a decision; the maintainer decides.
   member's edit inside a room stays `[OPEN]` for an ADR of its own, as the
   roadmap says, and the documentation says until then that a member with
   write access can change another's text.
-- `[OPEN]` A rate limit beyond sign-ins. *(Quotas per folder: ADR 0077
+- A rate limit beyond sign-ins. *(Quotas per folder: ADR 0077
   item 5, built on 2026-10-10; per connection: 8 requests, a queue of 1024
   messages, pings, built on 2026-10-11, b56c538.)* *Recommendation:* before
   the first outside user, gaps 2 to 5: a send timeout, the queue bounded in
@@ -487,7 +487,11 @@ answer — a recommendation, not a decision; the maintainer decides.
   *Built on 2026-10-13:* a pace on the REST routes per address, 20 a
   second and 100 at once (9b4cdf0, ADR 0083 item 7), and a pace on the
   server's refused sign-ins (805febb, ADR 0083 item 2); measuring them is
-  ADR 0083 item 18. Left `[OPEN]` for the maintainer.
+  ADR 0083 item 18. **Closed: 9b4cdf0 and 805febb** — decided by the
+  maintainer on 2026-10-13 (*"sobre as decisões em aberto, siga as
+  recomendações"*, on the open decisions, follow the recommendations):
+  the limits as built answer it; measuring the numbers on the 1-core host
+  stays ADR 0083 item 18.
 - `[OPEN]` The desktop's device token in the system's keychain instead of a
   `0600` file. *Recommendation:* after the first outside user, recorded as
   deferred: the token is revocable from Settings and the console, and the
