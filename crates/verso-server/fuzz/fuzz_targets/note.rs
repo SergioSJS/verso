@@ -30,8 +30,9 @@
 //! state (`block.rs:252`): the room catches both (`collab::BROKEN`) and is
 //! made again from its file; `clients-count-bomb.bin`, four bytes that
 //! declare 2^28 clients, for which `yrs` asked the allocator for 22 GB:
-//! refused before `yrs` reads it (`collab::decode`). The tests are in
-//! `tests_room_inputs.rs`.
+//! refused before `yrs` reads it (`collab::decode`), and
+//! `runs-count-bomb.bin`, a client's runs declared past the bytes
+//! (`yjs_bounds.rs`). The tests are in `tests_room_inputs.rs`.
 //! And `outside-after-a-delete-past-the-end.bin`: a window deleted the
 //! room's own Yjs client past its last clock; `yrs` kept the deletion and
 //! cut the change from outside the server then put in, in a window that

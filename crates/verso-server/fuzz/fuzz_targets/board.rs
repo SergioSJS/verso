@@ -28,8 +28,13 @@
 //! `state-that-does-not-apply.bin` (the room's state, `transaction.rs:390`);
 //! and `state-vector-count-bomb.bin`, a window's state vector
 //! (`collab_canvas`) that declares 243 million entries in four bytes,
-//! refused before `yrs` reads it (`Board::keep`). The tests are in
-//! `tests_room_inputs.rs`.
+//! refused before `yrs` reads it (`Board::keep`); `runs-count-bomb.bin`,
+//! a client's runs declared past the bytes (`yjs_bounds.rs`);
+//! `state-that-does-not-decode.bin` and
+//! `written-with-an-invalid-parent-{1,2}.bin`, rooms whose state or word
+//! of what they wrote a window could not read or apply, now checked
+//! before they are sent (`collab::state`, `collab::written`). The tests
+//! are in `tests_room_inputs.rs`.
 //! Run:
 //! `cargo +nightly fuzz run board fuzz/corpus/board fuzz/seeds-board`.
 
