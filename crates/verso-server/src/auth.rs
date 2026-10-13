@@ -95,18 +95,25 @@ fn https(server: &Server) -> bool {
             .is_some_and(|u| u.starts_with("https://"))
 }
 
+/// Where a request came from: the connection's address, or, from a
+/// trusted proxy, the client `X-Forwarded-For` names, read from the right
+/// past every trusted proxy (ADR 0083 item 5, [`crate::proxy`]); the
+/// header of any other peer is ignored. A trusted proxy that forwards none
+/// is served as itself and said in the log once a minute.
 pub fn peer(server: &Server, headers: &HeaderMap, remote: SocketAddr) -> Peer {
-    let from_proxy = server.config.trusted_proxy == Some(remote.ip());
-    let addr = if from_proxy {
+    let client = server.config.trusted_proxy.client(
+        remote.ip(),
         headers
-            .get("x-forwarded-for")
-            .and_then(|v| v.to_str().ok())
-            .and_then(|v| v.rsplit(',').next())
-            .and_then(|a| a.trim().parse().ok())
-            .unwrap_or(remote.ip())
-    } else {
-        remote.ip()
-    };
+            .get_all("x-forwarded-for")
+            .iter()
+            .filter_map(|v| v.to_str().ok()),
+    );
+    if client.unforwarded {
+        server.unforwarded.warn(
+            "a request from the trusted proxy carried no X-Forwarded-For: is the proxy configured to forward it?",
+        );
+    }
+    let (addr, from_proxy) = (client.addr, client.from_proxy);
     let secure = own_tls(server)
         || (from_proxy
             && headers

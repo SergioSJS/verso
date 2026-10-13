@@ -249,9 +249,16 @@ pub struct Server {
     /// What one member may hold of the server: connections, the pace of
     /// commands (threat-model.md, gap 4).
     pub fair: crate::fair::Fair,
+    /// Refused sign-ins, said for the host's tools (ADR 0083 item 1).
+    pub signins: crate::signin::Watch,
     /// The connections the listener holds, on the server and by address
     /// (threat-model.md, gap 8).
     pub slots: Arc<crate::listen::Slots>,
+    /// A trusted proxy that forwarded no `X-Forwarded-For`, said once a
+    /// minute (ADR 0083 item 5).
+    pub unforwarded: crate::log::OnceAMinute,
+    /// The REST routes' pace per address (ADR 0083 item 7).
+    pub pace: crate::pace::Pace,
     /// The contract's version: a hash of the generated bindings (the
     /// maintainer's answer D of 2026-10-09), sent in the handshake.
     pub contract: String,
@@ -309,7 +316,7 @@ impl Server {
 
     pub fn new(config: Config, db: Db, contract: String, commit: String) -> Arc<Self> {
         let service = Service::new(Some(config.data_dir.join("indexes")));
-        let slots = crate::listen::Slots::new(config.trusted_proxy);
+        let slots = crate::listen::Slots::new(config.trusted_proxy.clone());
         let server = Arc::new(Self {
             config,
             db,
@@ -317,7 +324,10 @@ impl Server {
             clients: Mutex::new(HashMap::new()),
             limiter: Limiter::default(),
             fair: crate::fair::Fair::default(),
+            signins: crate::signin::Watch::default(),
             slots,
+            unforwarded: crate::log::OnceAMinute::default(),
+            pace: crate::pace::Pace::default(),
             contract,
             next: AtomicU64::new(1),
             devices: Mutex::new(HashMap::new()),

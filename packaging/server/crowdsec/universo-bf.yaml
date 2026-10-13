@@ -1,0 +1,50 @@
+# CrowdSec's scenarios for UniVerso, the Verso server (ADR 0083 item 1):
+# ten refused sign-ins from one address in ten minutes, as fail2ban's jail
+# in packaging/server/fail2ban/jail.d/universo.conf. Over IPv4 the address
+# is banned; over IPv6 its /64, as the server counts it. How long a ban
+# lasts is CrowdSec's profiles' (/etc/crowdsec/profiles.yaml; four hours
+# by default), not a scenario's. Copied by hand beside the parser:
+#
+#   sudo cp universo-bf.yaml /etc/crowdsec/scenarios/
+#
+# A leaky bucket of capacity 9 overflows at the tenth event; one event
+# leaks a minute, so ten in ten minutes are needed.
+
+type: leaky
+name: verso/universo-bf
+description: "UniVerso: refused sign-ins from one IPv4 address"
+filter: "evt.Meta.log_type == 'universo_failed_auth' && evt.Meta.verso_prefix == ''"
+groupby: evt.Meta.source_ip
+capacity: 9
+leakspeed: 60s
+blackhole: 10m
+labels:
+  service: universo
+  remediation: true
+  confidence: 3
+  spoofable: 0
+  classification:
+    - attack.T1110
+  behavior: "http:bruteforce"
+  label: "UniVerso sign-in brute force"
+---
+type: leaky
+name: verso/universo-bf-ipv6
+description: "UniVerso: refused sign-ins from one IPv6 /64"
+filter: "evt.Meta.log_type == 'universo_failed_auth' && evt.Meta.verso_prefix == '64'"
+groupby: evt.Meta.source_ip
+capacity: 9
+leakspeed: 60s
+blackhole: 10m
+scope:
+  type: Range
+  expression: evt.Meta.source_ip + "/64"
+labels:
+  service: universo
+  remediation: true
+  confidence: 3
+  spoofable: 0
+  classification:
+    - attack.T1110
+  behavior: "http:bruteforce"
+  label: "UniVerso sign-in brute force (IPv6 /64)"

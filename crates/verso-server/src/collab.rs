@@ -455,7 +455,17 @@ pub fn update(
         .rooms
         .get(key, path)
         .ok_or_else(|| refused("join the note first"))?;
+    // Every room, a note's as a board's, refuses an update past
+    // `UPDATE_MOST` before decoding it (ADR 0083 item 8, F13): its base64
+    // first, then its bytes.
+    let most = crate::collab_board::UPDATE_MOST;
+    if update.len() > most.div_ceil(3) * 4 {
+        return Err(refused("an update of 4 MB at most"));
+    }
     let bytes = unb64(update)?;
+    if bytes.len() > most {
+        return Err(refused("an update of 4 MB at most"));
+    }
     let decoded =
         Update::decode_v1(&bytes).map_err(|e| refused(&format!("not a Yjs update: {e}")))?;
     let mut r = lock(&room);

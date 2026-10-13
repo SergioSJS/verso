@@ -410,6 +410,7 @@ pub fn router(server: Arc<Server>) -> Router {
         // Where to report a vulnerability (RFC 9116; ADR 0083 item 15).
         .route("/.well-known/security.txt", get(crate::security_txt::serve))
         .fallback_service(static_files)
+        .layer(middleware::from_fn_with_state(Arc::clone(&server), pace))
         .layer(middleware::from_fn_with_state(Arc::clone(&server), guard))
         .layer(middleware::from_fn(deadline))
         // A request's body: a form, a setting, a passkey — never a file,
@@ -441,6 +442,74 @@ async fn deadline(request: Request, next: Next) -> Response {
     }
 }
 
+/// The pace of the REST routes, per address (ADR 0083 item 7): every
+/// route under `/api/` but the WebSocket's upgrade, which `crate::fair`
+/// counts once it is accepted. A direct connection from this machine is not
+/// paced; everything that comes through a trusted proxy is, under the
+/// address the proxy forwarded — a forwarded `127.0.0.1` is the client's
+/// word, never this machine — or, when it forwarded none, under the
+/// proxy's own: every visitor as one key, which the once-a-minute warning
+/// of `crate::auth::peer` explains. The window's files and the page are
+/// left to the connection limits (a page load is a burst of files).
+/// A refused upgrade is not counted by `crate::fair`: it takes a request
+/// from the pace like any other, and is refused 429 when the address is
+/// past it, so that a flood of upgrades with no credential is no way
+/// around the pace.
+async fn pace(State(server): State<Arc<Server>>, request: Request, next: Next) -> Response {
+    let path = request.uri().path();
+    if !path.starts_with("/api/") {
+        return next.run(request).await;
+    }
+    let remote = request
+        .extensions()
+        .get::<ConnectInfo<Remote>>()
+        .map_or_else(|| SocketAddr::from(([127, 0, 0, 1], 0)), |c| c.0.0);
+    let proxies = &server.config.trusted_proxy;
+    let client = proxies.client(
+        remote.ip(),
+        request
+            .headers()
+            .get_all("x-forwarded-for")
+            .iter()
+            .filter_map(|v| v.to_str().ok()),
+    );
+    if !client.from_proxy && remote.ip().is_loopback() {
+        return next.run(request).await;
+    }
+    let key = crate::limit::address_key(client.addr);
+    let too_many = |wait: u64| {
+        ApiError {
+            retry: Some(wait),
+            ..ApiError::new(
+                StatusCode::TOO_MANY_REQUESTS,
+                "too_many",
+                "too many requests",
+            )
+        }
+        .into_response()
+    };
+    let upgrade = path == "/api/ws"
+        && request
+            .headers()
+            .get(header::UPGRADE)
+            .and_then(|v| v.to_str().ok())
+            .is_some_and(|v| v.eq_ignore_ascii_case("websocket"));
+    if upgrade {
+        if let Some(wait) = server.pace.waiting(&key) {
+            return too_many(wait);
+        }
+        let response = next.run(request).await;
+        if response.status() != StatusCode::SWITCHING_PROTOCOLS {
+            let _ = server.pace.take(&key);
+        }
+        return response;
+    }
+    if let Some(wait) = server.pace.take(&key) {
+        return too_many(wait);
+    }
+    next.run(request).await
+}
+
 /// The window's own policy, sent as a header and narrower than the
 /// desktop's (ADR 0073 item 6): scripts, styles and connections from this
 /// server only; pictures, sound and embedded pages from the web as the
@@ -455,9 +524,30 @@ fn page_policy(ws_origin: &str) -> String {
     )
 }
 
-/// Before every route: the `Host` named this server, or 421; after it, the
+/// The size of a request's head as it came: its line, and each header as
+/// `name: value` and a line end.
+fn head_size(request: &Request) -> usize {
+    let line = request.method().as_str().len() + request.uri().to_string().len() + 12;
+    request
+        .headers()
+        .iter()
+        .map(|(name, value)| name.as_str().len() + value.len() + 4)
+        .sum::<usize>()
+        + line
+}
+
+/// Before every route: the head within 64 KiB, or 431 (ADR 0083 item 8);
+/// the `Host` named this server, or 421; after it, the
 /// server's headers on every answer.
 async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) -> Response {
+    if head_size(&request) > crate::listen::HEAD_MOST {
+        return ApiError::new(
+            StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE,
+            "head_too_large",
+            "a request's headers are 64 KiB at most",
+        )
+        .into_response();
+    }
     if !auth::host_ok(&server, request.headers()) {
         return ApiError::new(
             StatusCode::MISDIRECTED_REQUEST,
@@ -484,7 +574,8 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
     set(
         h,
         "permissions-policy",
-        "camera=(), microphone=(), geolocation=(), payment=()",
+        "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), \
+         interest-cohort=()",
     );
     if is_file {
         // A folder's file is for this server's pages alone: another
@@ -511,7 +602,14 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
             .as_deref()
             .is_some_and(|u| u.starts_with("https://"))
     {
-        set(h, "strict-transport-security", "max-age=31536000");
+        // A subdomain of the server's name could otherwise set a cookie
+        // for it over plain HTTP; `preload` is the host's own choice for
+        // their domain, never sent by default (ADR 0083 item 9).
+        set(
+            h,
+            "strict-transport-security",
+            "max-age=31536000; includeSubDomains",
+        );
     }
     response
 }
