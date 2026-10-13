@@ -67,6 +67,22 @@ contents:
       owner: root
       group: universo
 
+  # fail2ban's filter and jail for refused sign-ins (ADR 0083 item 1):
+  # inert without fail2ban; with it, `systemctl enable --now fail2ban` is
+  # the whole setup. Config files, kept on upgrade and removal when the
+  # host edited them, as the settings are.
+  - src: packaging/server/fail2ban/universo.conf
+    dst: /etc/fail2ban/filter.d/universo.conf
+    type: config|noreplace
+    file_info:
+      mode: 0644
+
+  - src: packaging/server/fail2ban/jail.d/universo.conf
+    dst: /etc/fail2ban/jail.d/universo.conf
+    type: config|noreplace
+    file_info:
+      mode: 0644
+
   - src: LICENSE
     dst: /usr/share/doc/universo/LICENSE
     file_info:

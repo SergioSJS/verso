@@ -31,6 +31,7 @@ pub mod log;
 pub mod mail;
 pub mod pace;
 pub mod passkeys;
+pub mod passwords;
 pub mod presence;
 pub mod proxy;
 pub mod quota;
@@ -39,6 +40,7 @@ pub mod scope;
 pub mod share_links;
 pub mod share_sync;
 pub mod shares;
+pub mod signin;
 pub mod state;
 pub mod sync;
 pub mod tls;
@@ -271,14 +273,25 @@ async fn stopped() {
 
 /// `verso serve admin reset <e-mail>` (ADR 0074 item 5): run on the
 /// machine or inside the container by whoever runs the server, it ends the
-/// account's sessions and prints a reset link to use once, and the reset
-/// goes into the audit log. Access to the machine is the last factor.
+/// account's sessions, revokes its personal access tokens (ADR 0083 item
+/// 4) and prints a reset link to use once; the reset and each token go
+/// into the audit log. Access to the machine is the last factor.
 pub fn admin_reset(config: &Config, email: &str) -> Result<String, String> {
     let db = prepare(config)?;
     let account = db
         .account_by_email(email)?
         .ok_or_else(|| format!("no account has the e-mail {email}"))?;
     db.end_sessions(&account.id, None)?;
+    for id in db.revoke_tokens_of(&account.id)? {
+        db.audit(&db::Audit {
+            actor: None,
+            action: "token_revoked",
+            subject: Some(&id),
+            folder: None,
+            address: Some("machine"),
+            ok: true,
+        })?;
+    }
     db.end_links_of(&account.id, "reset")?;
     let (token, _) = db.create_invitation(&NewLink {
         kind: "reset",
@@ -313,6 +326,8 @@ mod tests_pieces;
 mod tests_rooms;
 #[cfg(test)]
 mod tests_shares;
+#[cfg(test)]
+mod tests_signin;
 #[cfg(test)]
 mod tests_sync;
 #[cfg(test)]

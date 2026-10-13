@@ -75,6 +75,7 @@ const pt = {
   nearQuota: (name: string, used: string, quota: string) => `${name}: ${used} de ${quota}`,
   twin: (kept: string, held: string) => `Dois arquivos com o mesmo nome em formas diferentes: só ${kept} sincroniza; remova ou renomeie ${held} no disco do servidor.`,
   twinsIn: (name: string, n: number) => `${name}: ${n === 1 ? "um arquivo não sincroniza" : `${n} arquivos não sincronizam`} — o mesmo nome de outro, em outra forma`,
+  underAttack: (n: number) => `${n === 1 ? "Uma conta teve" : `${n} contas tiveram`} 20 entradas recusadas numa hora, nas últimas 24 horas — veja o registro`,
   allGood: "Nada pede atenção agora.",
   defaultQuota: "Cota padrão de pastas novas",
   // Accounts
@@ -176,6 +177,7 @@ const pt = {
   actions: {
     sign_in: "entrou",
     sign_in_passkey: "entrou com uma chave de acesso",
+    sign_in_noticed: "teve 20 entradas recusadas numa hora (avisada por e-mail, se houver servidor de e-mail)",
     sign_in_link: "entrou por um link",
     signin_link_sent: "pediu um link de entrada",
     sign_out: "saiu",
@@ -298,6 +300,7 @@ const en: typeof pt = {
   nearQuota: (name: string, used: string, quota: string) => `${name}: ${used} of ${quota}`,
   twin: (kept: string, held: string) => `Two files with one name in different forms: only ${kept} syncs; remove or rename ${held} on the server's disk.`,
   twinsIn: (name: string, n: number) => `${name}: ${n === 1 ? "one file does not sync" : `${n} files do not sync`} — another's name, in another form`,
+  underAttack: (n: number) => `${n === 1 ? "One account had" : `${n} accounts had`} 20 sign-ins refused within an hour, in the last 24 hours — see the audit log`,
   allGood: "Nothing needs a look now.",
   defaultQuota: "Default quota of new folders",
   accountPage: "Account",
@@ -393,6 +396,7 @@ const en: typeof pt = {
   actions: {
     sign_in: "signed in",
     sign_in_passkey: "signed in with a passkey",
+    sign_in_noticed: "had 20 sign-ins refused within an hour (told by mail, with a mail server)",
     sign_in_link: "signed in with a link",
     signin_link_sent: "asked for a sign-in link",
     sign_out: "signed out",
