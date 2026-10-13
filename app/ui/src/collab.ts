@@ -95,6 +95,10 @@ export type CollabHandlers = {
 };
 
 /** The origin of what the room brought in. */
+/** The most often a window sends its presence (its pointer, its
+ *  selection), in ms: the latest only. */
+const PRESENCE_EVERY = 100;
+
 export const REMOTE = "remote";
 /** A colour for each person, from their name. */
 const COLORS = ["#b5651d", "#2e7d32", "#1565c0", "#6a1b9a", "#ad1457", "#00838f", "#9e9d24", "#5d4037"];
@@ -189,8 +193,12 @@ export abstract class RoomSession {
     });
     this.awareness.on("update", ({ added, updated, removed }: { added: number[]; updated: number[]; removed: number[] }, origin: unknown) => {
       if (origin === REMOTE || this.closedLocally || !this.live) return;
-      const changed = [...added, ...updated, ...removed];
-      void commands.collabAwareness(this.path, toB64(encodeAwarenessUpdate(this.awareness, changed)));
+      for (const id of [...added, ...updated, ...removed]) this.presenceDue.add(id);
+      // A pointer moved sends its place at most every PRESENCE_EVERY ms,
+      // the latest only: ~45 a second a window held the edits back behind
+      // them on the server (2026-10-13). Someone leaving goes at once.
+      if (removed.length > 0) this.sendPresence();
+      else if (this.presenceTimer === undefined) this.presenceTimer = window.setTimeout(() => this.sendPresence(), PRESENCE_EVERY);
     });
     this.awareness.on("change", () => {
       const now = this.others();
@@ -199,6 +207,23 @@ export abstract class RoomSession {
       this.handlers.presence?.();
     });
     sessions.set(this.path, this);
+  }
+
+  /** Presence of these clients to send at the next beat. */
+  private readonly presenceDue = new Set<number>();
+  private presenceTimer: number | undefined;
+
+  /** The presence changed since the last one sent, in one message. */
+  private sendPresence(): void {
+    window.clearTimeout(this.presenceTimer);
+    this.presenceTimer = undefined;
+    if (this.presenceDue.size === 0 || this.closedLocally || !this.live) {
+      this.presenceDue.clear();
+      return;
+    }
+    const ids = [...this.presenceDue];
+    this.presenceDue.clear();
+    void commands.collabAwareness(this.path, toB64(encodeAwarenessUpdate(this.awareness, ids)));
   }
 
   /** Another holder in this window: a card on a note a tab holds, a tab

@@ -366,7 +366,18 @@ async fn run(
                 // seconds holds no other answer.
                 // The member's pace and the server's (gap 4): past it the
                 // command waits its turn here, holding its place.
-                let turn = server.fair.command(&who.account.id);
+                // A presence past the pace is dropped, never queued ahead
+                // of an edit: the next one replaces it (Fair::droppable).
+                if request.cmd == "collab_awareness" && !server.fair.droppable(&who.account.id) {
+                    tx.send(&json!({ "id": request.id, "ok": null }));
+                    drop(permit);
+                    continue;
+                }
+                let turn = if request.cmd == "collab_awareness" {
+                    Duration::ZERO
+                } else {
+                    server.fair.command(&who.account.id)
+                };
                 tokio::spawn(async move {
                     if !turn.is_zero() {
                         tokio::time::sleep(turn).await;

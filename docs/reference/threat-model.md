@@ -299,7 +299,10 @@ recommendation for the maintainer to confirm.
    address; 512 connections on the server, 128 per address; commands at
    100 a second per account (400 at once) and 1 000 on the server (2 000),
    waiting their turn past it, said in the log once a minute. Reasoned,
-   not measured on the 1-core host yet.
+   not measured on the 1-core host yet. A presence (`collab_awareness`)
+   past the pace is dropped, never queued ahead of an edit, and a window
+   sends one at most every 100 ms (2026-10-13: three windows of one
+   account at ~45 presences a second each held the edits back 30 s).
 5. **An upload is held in memory until its last piece, and the quota is
    checked only then.** Up to two uploads of 1 GiB per connection, times
    the connections above; the declared size is known at the first piece

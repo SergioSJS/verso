@@ -110,6 +110,23 @@ impl Bucket {
         }
     }
 
+    /// A token if one is there now, never in debt: what can be dropped
+    /// instead of waiting (presence) takes one only when it costs no other
+    /// command its turn.
+    fn take_free(&mut self, rate: f64, burst: f64) -> bool {
+        let now = Instant::now();
+        let earned = now.duration_since(self.at).as_secs_f64() * rate;
+        let tokens = (self.tokens + earned).min(burst);
+        self.at = now;
+        if tokens >= 1.0 {
+            self.tokens = tokens - 1.0;
+            true
+        } else {
+            self.tokens = tokens;
+            false
+        }
+    }
+
     fn take(&mut self, rate: f64, burst: f64) -> Duration {
         let now = Instant::now();
         let earned = now.duration_since(self.at).as_secs_f64() * rate;
@@ -168,6 +185,20 @@ impl Fair {
         mine.max(all)
     }
 
+    /// Whether a command that may be dropped — a window's presence, which
+    /// the next one replaces — goes now: only with a token free in the
+    /// account's pace and the server's. Past the pace it is dropped, never
+    /// queued: presence must not hold back an edit (seen on macOS,
+    /// 2026-10-13: three windows of one account sent ~45 presences a
+    /// second each, and the edits behind them took 30 s to arrive).
+    pub fn droppable(&self, account: &str) -> bool {
+        let mine = lock(&self.accounts)
+            .entry(account.to_owned())
+            .or_insert_with(|| Bucket::full(ACCOUNT_BURST))
+            .take_free(ACCOUNT_RATE, ACCOUNT_BURST);
+        mine && lock(&self.server).take_free(SERVER_RATE, SERVER_BURST)
+    }
+
     fn say(&self, key: &str, line: &str) {
         let mut said = lock(&self.said);
         if said.get(key).is_none_or(|at| at.elapsed() >= SAY_EVERY) {
@@ -192,6 +223,26 @@ mod tests {
         assert_eq!(counts.count("k"), 1);
         assert!(counts.take("k", 2).is_some());
         drop(b);
+    }
+
+    #[test]
+    fn a_presence_past_the_pace_is_dropped_and_never_puts_the_pace_in_debt() {
+        let mut bucket = Bucket::full(2.0);
+        assert!(bucket.take_free(10.0, 2.0));
+        assert!(bucket.take_free(10.0, 2.0));
+        // No token: dropped, and the bucket is not in debt for it — the
+        // next real command still waits only its own turn.
+        assert!(!bucket.take_free(10.0, 2.0));
+        assert!(!bucket.take_free(10.0, 2.0));
+        let wait = bucket.take(10.0, 2.0);
+        assert!(wait <= Duration::from_millis(100), "{wait:?}");
+        // An account past its pace: presences dropped, commands still served.
+        let fair = Fair::default();
+        for _ in 0..(ACCOUNT_BURST as usize) {
+            let _ = fair.command("a");
+        }
+        assert!(!fair.droppable("a"));
+        assert!(fair.droppable("b"));
     }
 
     #[test]
