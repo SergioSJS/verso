@@ -30,6 +30,7 @@ pub mod listen;
 pub mod log;
 pub mod mail;
 pub mod passkeys;
+pub mod passwords;
 pub mod presence;
 pub mod quota;
 pub mod rpc;

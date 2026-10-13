@@ -109,3 +109,96 @@ fn twenty_refusals_in_an_hour_tell_the_account_once() {
         assert_eq!(overview["underAttack"], Value::from(1), "{overview}");
     });
 }
+
+/// A password from the lists attackers try first, or the account's own
+/// e-mail, is refused where a password is chosen — an invitation's
+/// acceptance, a reset, a change — with its own code (ADR 0083 item 3).
+#[test]
+fn a_password_from_the_lists_is_refused_where_one_is_chosen() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let (_, inv) = post(&r, "/api/admin/invitations", json!({}), Some(&admin)).await;
+        let token = inv["link"]
+            .as_str()
+            .unwrap()
+            .rsplit('/')
+            .next()
+            .unwrap()
+            .to_owned();
+        let accept = |password: &'static str| {
+            let path = format!("/api/invite/{token}");
+            let r = &r;
+            async move {
+                post(
+                    r,
+                    &path,
+                    json!({ "email": "carla.mendes@lists.example", "name": "Carla", "password": password, "lang": "pt" }),
+                    None,
+                )
+                .await
+            }
+        };
+        for common in ["qwertyuiop12", "Carla.Mendes@lists.example", "carla.mendes"] {
+            let (status, body) = accept(common).await;
+            assert_eq!(
+                (status, body["error"].clone()),
+                (400, json!("common_password")),
+                "{common}: {body}"
+            );
+            assert_eq!(
+                body["message"],
+                "this password is on the lists attackers try first"
+            );
+        }
+        let (status, _) = accept("uma frase longa que ninguem tenta").await;
+        assert_eq!(status, 200);
+        // A change.
+        let (status, body) = post(
+            &r,
+            "/api/me/password",
+            json!({ "current": "senha muito longa", "new": "password1234" }),
+            Some(&admin),
+        )
+        .await;
+        assert_eq!(
+            (status, body["error"].clone()),
+            (400, json!("common_password")),
+            "{body}"
+        );
+        // A reset.
+        let admin_id = r
+            .server
+            .db
+            .account_by_email("admin@casa.lan")
+            .unwrap()
+            .unwrap()
+            .id;
+        let (_, link) = post(
+            &r,
+            &format!("/api/admin/accounts/{admin_id}/reset"),
+            json!({}),
+            Some(&admin),
+        )
+        .await;
+        let reset = link["link"]
+            .as_str()
+            .unwrap()
+            .rsplit('/')
+            .next()
+            .unwrap()
+            .to_owned();
+        let (status, body) = post(
+            &r,
+            &format!("/api/reset/{reset}"),
+            json!({ "password": "admin@casa.lan" }),
+            None,
+        )
+        .await;
+        assert_eq!(
+            (status, body["error"].clone()),
+            (400, json!("common_password")),
+            "{body}"
+        );
+    });
+}

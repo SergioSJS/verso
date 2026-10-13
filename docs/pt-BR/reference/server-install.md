@@ -287,7 +287,7 @@ vazio conta como não definido.
 | `VERSO_FOLDERS_DIR` | imagem `/folders`, pacotes `/var/lib/universo/folders` | as pastas de notas; pode ser um NAS |
 | `VERSO_UI_DIR` | `<diretório do binário>/../share/universo/ui` | os arquivos da janela |
 | `VERSO_ADMIN_EMAIL` | nenhum | o primeiro admin, só na primeira inicialização |
-| `VERSO_ADMIN_PASSWORD` ou `VERSO_ADMIN_PASSWORD_FILE` | nenhum | a senha do primeiro admin, 12 caracteres ou mais |
+| `VERSO_ADMIN_PASSWORD` ou `VERSO_ADMIN_PASSWORD_FILE` | nenhum | a senha do primeiro admin, 12 caracteres ou mais, fora das listas que atacantes tentam primeiro, diferente do e-mail |
 | `VERSO_TRUSTED_PROXY` | nenhum | o endereço IP do proxy reverso cujos `X-Forwarded-For` e `X-Forwarded-Proto` são aceitos (um endereço) |
 | `VERSO_TLS_CERT_FILE` e `VERSO_TLS_KEY_FILE` | nenhum | o Verso serve TLS ele mesmo com esse certificado e essa chave (PEM); os dois ou nenhum |
 | `VERSO_UPDATE_CHECK` | ligado | `off` desliga a checagem de versão nova (seção 12) |
