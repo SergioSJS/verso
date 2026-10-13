@@ -32,6 +32,22 @@ by the commit its entry names: 1, 2, 3, 4, 6, 7, 8 and 13 to 16. The
 attack surface and the threats below say the bounds as built there; 5, 9,
 10, 11, 12 and 17 stay open, each with its reason.
 
+**See the review of 2026-10-13 and ADR 0083.** On 2026-10-13, at the
+maintainer's request, Fable 5.1 read the server again against HEAD af4d73a
+with bots, abuse and attacks from outside in hand, and probed it on a
+loopback port: [`security-review-2026-10-13.md`](security-review-2026-10-13.md)
+(findings F1 to F23, none BLOCKING, ten IMPORTANT — a failed sign-in with
+no log line for fail2ban or CrowdSec, no ceiling or notice on guesses, a
+password checked for length only, recovery leaving tokens alive, one
+trusted proxy address, the server's inputs not fuzzed, npm advisories
+unchecked, no disclosure channel, the outside review still open, a backup
+in the clear) and [ADR 0083](../adr/0083-security-hardening-of-universo.md)
+(Proposed: the measures, their numbers, guardrails and order of work). Of
+the gaps below, none is shown closed by that review; gap 10 is answered by
+its item 16 when done, and gap 7's remainder (a mailbox flooded) by its
+item 8. The rows of this model are unchanged: what the review found is
+new, not a correction of what is written here.
+
 ## What is protected
 
 | Asset | Where | Why it matters |
@@ -434,4 +450,7 @@ answer — a recommendation, not a decision; the maintainer decides.
 - An external review of this model, as ADR 0073 asks of the server's
   security "in full". *Recommendation:* after the BLOCKING and IMPORTANT
   gaps above are closed, so that the review reads the server as it will
-  be released.
+  be released. *2026-10-13:* the review of that date and ADR 0083 item 16
+  say what it is and when — a pentest of the lab server before the
+  announcement, the sanitizer read by the model that did not write it —
+  and what comes before it (items 1 to 5, 8 to 10 and 13 of the ADR).

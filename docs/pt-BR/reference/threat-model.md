@@ -34,6 +34,23 @@ o que decidem, não o que roda.
 como construídos ali; 5, 9, 10, 11, 12 e 17 continuam abertas, cada uma
 com seu motivo.
 
+**Veja a revisão de 2026-10-13 e o ADR 0083.** Em 2026-10-13, a pedido do
+mantenedor, Fable 5.1 leu o servidor de novo contra o HEAD af4d73a com
+bots, abuso e ataques de fora em mãos, e o sondou numa porta de loopback:
+[`security-review-2026-10-13.md`](security-review-2026-10-13.md) (achados
+F1 a F23, nenhum BLOQUEANTE, dez IMPORTANTES — um sign-in falho sem linha
+de log para fail2ban ou CrowdSec, nenhum teto ou aviso sobre palpites, uma
+senha conferida só pelo tamanho, a recuperação deixando tokens vivos, um
+endereço de proxy confiável só, as entradas do servidor sem fuzzing,
+advisories do npm não conferidos, nenhum canal de divulgação, a revisão
+de fora ainda aberta, um backup em claro) e o
+[ADR 0083](../adr/0083-security-hardening-of-universo.md) (Proposta: as
+medidas, os números, os guardrails e a ordem do trabalho). Das lacunas
+abaixo, nenhuma aparece fechada por essa revisão; a lacuna 10 é respondida
+pelo item 16 dela quando feito, e o resto da lacuna 7 (uma caixa de e-mail
+inundada) pelo item 8. As linhas deste modelo não mudam: o que a revisão
+achou é novo, não uma correção do que está escrito aqui.
+
 ## O que é protegido
 
 | Bem | Onde | Por que importa |
@@ -453,4 +470,7 @@ mantenedor.
 - Uma revisão externa deste modelo, como o ADR 0073 pede da segurança do
   servidor "por inteiro". *Recomendação:* depois de fechadas as lacunas
   BLOQUEANTES e IMPORTANTES acima, para que a revisão leia o servidor como
-  ele vai ser lançado.
+  ele vai ser lançado. *2026-10-13:* a revisão dessa data e o item 16 do
+  ADR 0083 dizem o que ela é e quando — um pentest do servidor do
+  laboratório antes do anúncio, o sanitizador lido pelo modelo que não o
+  escreveu — e o que vem antes dela (itens 1 a 5, 8 a 10 e 13 do ADR).
