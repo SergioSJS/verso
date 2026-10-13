@@ -76,16 +76,30 @@ describe("the room's entries", () => {
 });
 
 describe("what a window sends", () => {
-  test("only the elements whose version is new to the room and wins", () => {
+  test("every element whose version is not the one the board last agreed on with the room", () => {
     const known = new Map([
       ["a", { version: 1, nonce: 0 }],
       ["b", { version: 5, nonce: 0 }],
+      ["d", { version: 2, nonce: 9 }],
     ]);
-    const scene = [el("a", 2, 3), el("b", 4, 0), el("c", 1, 0)];
+    // a changed here; b changed here over an older version (it goes, and
+    // loses to the room's); c is new; d is as agreed.
+    const scene = [el("a", 2, 3), el("b", 4, 7), el("c", 1, 0), el("d", 2, 9)];
     assert.deepEqual(
       m.changedElements(scene, known).map((e) => e.id),
-      ["a", "c"],
+      ["a", "b", "c"],
     );
+    assert.equal(m.unsent(el("d", 2, 9), known), false);
+    assert.equal(m.unsent(el("d", 2, 8), known), true);
+  });
+
+  test("a deletion not sent yet is not undone by a drag heard meanwhile", () => {
+    // The board deleted it at version 13; a drag of 40 frames arrives
+    // before the deletion leaves: the deletion stays, as it will be sent.
+    const known = new Map([["x", { version: 12, nonce: 1 }]]);
+    const local = [el("x", 13, 5, { isDeleted: true })];
+    const merged = m.mergeScene(local, [el("x", 52, 3, { x: 99 })], new Set(), (e) => m.unsent(e, known));
+    assert.equal(merged[0].isDeleted, true);
   });
 });
 

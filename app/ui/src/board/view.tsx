@@ -343,7 +343,8 @@ function Board({
     const pane: BoardPane = {
       apply: (remote, background) => {
         const a = api.current;
-        if (!a || !alive.current) return;
+        // Not up yet: it is drawn from the room's elements as they are.
+        if (!a || !alive.current) return remote.map((e) => e.id);
         const st = a.getAppState();
         const busy = new Set<string>();
         for (const id of [st.editingTextElement?.id, st.resizingElement?.id, st.newElement?.id, st.multiElement?.id, st.selectedLinearElement?.isEditing ? st.selectedLinearElement.elementId : undefined]) if (id) busy.add(id);
@@ -356,6 +357,8 @@ function Board({
             captureUpdate: CaptureUpdateAction.NEVER,
           }),
         );
+        const now = new Set(merged);
+        return remote.filter((e) => now.has(e)).map((e) => e.id);
       },
       people: (people) => api.current?.updateScene({ collaborators: new Map(people) as never }),
     };
