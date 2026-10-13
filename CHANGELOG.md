@@ -15,6 +15,8 @@ test release.
 ### Added
 
 - **UniVerso says every refused sign-in in its log, for fail2ban and CrowdSec** ([ADR 0083](docs/adr/0083-security-hardening-of-universo.md) item 1): one line each — `WARN sign-in failed from <address> for a***@example.org (<n> in a row)` — for a wrong password, a passkey refused, a device's wrong poll secret or a wrong current password, and `WARN sign-in limited from <address>` once a minute when the delay refuses; the address as the trusted proxy forwarded it (an IPv6 address by its /64), the e-mail masked. The `.deb` and the `.rpm` install a fail2ban filter and jail (ten refusals in ten minutes ban the address for an hour), which do nothing until fail2ban is installed and an upgrade keeps once edited; a CrowdSec parser and scenarios are in `packaging/server/crowdsec/`. The installation guide's new section 16 explains both, and Caddy's `rate_limit`. A line of the log no longer spans two lines, whatever its message holds.
+- **An account someone keeps guessing at is told** ([ADR 0083](docs/adr/0083-security-hardening-of-universo.md) item 2): after 20 refused sign-ins within an hour, from any address, the account gets a mail — when, and from which addresses — once a day at most, when the server has a mail server; the admin's log has a line, and the console's overview says how many accounts were told in the last 24 hours, linking to the audit log. The account is never locked.
+- **Under a flood of wrong passwords, every sign-in waits its turn**: past 10 refused sign-ins a second across the server (50 at once), each sign-in waits up to 2 s before it is heard, the honest one too — seconds, never a lock; the log says so once a minute.
 
 ## 0.8.0-beta.1 — 2026-10-13
 

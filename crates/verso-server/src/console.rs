@@ -537,6 +537,12 @@ pub async fn overview(ctx: Ctx) -> ApiResult<Response> {
             twins.push(json!({ "id": id, "name": f.dir, "count": count }));
         }
     }
+    // The accounts told of 20 refused sign-ins within an hour, in the last
+    // day (ADR 0083 item 2): each is told once a day at most.
+    let under_attack = ctx.server.db.actors_since(
+        crate::signin::NOTICED,
+        crate::db::now() - crate::signin::NOTICE_EVERY,
+    )?;
     let tls = if config.tls.is_some() {
         "own"
     } else if config.trusted_proxy.is_some() {
@@ -564,6 +570,7 @@ pub async fn overview(ctx: Ctx) -> ApiResult<Response> {
         "defaultTrashDays": config.trash_days,
         "nearQuota": near,
         "twins": twins,
+        "underAttack": under_attack,
         "defaultQuota": config.folder_quota,
     })))
 }

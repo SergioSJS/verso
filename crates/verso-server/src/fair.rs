@@ -95,15 +95,16 @@ impl Drop for Held {
 
 /// A token bucket: `rate` a second, `burst` at once. A command takes a
 /// token, in debt if need be, and waits as long as the debt takes to
-/// repay: commands past the pace are served in turn, none refused.
+/// repay: commands past the pace are served in turn, none refused. The
+/// server's refused sign-ins keep one too (`crate::signin`).
 #[derive(Clone, Copy)]
-struct Bucket {
+pub(crate) struct Bucket {
     tokens: f64,
     at: Instant,
 }
 
 impl Bucket {
-    fn full(burst: f64) -> Self {
+    pub(crate) fn full(burst: f64) -> Self {
         Self {
             tokens: burst,
             at: Instant::now(),
@@ -124,6 +125,33 @@ impl Bucket {
         } else {
             self.tokens = tokens;
             false
+        }
+    }
+
+    /// A token taken in debt, the debt never deeper than `most` of the
+    /// pace: what is past it waits its turn, never longer than `most` —
+    /// a flood past the pace slows everyone by that much and no more.
+    pub(crate) fn take_within(&mut self, rate: f64, burst: f64, most: Duration) -> Duration {
+        let floor = -most.as_secs_f64() * rate;
+        self.take(rate, burst);
+        self.tokens = self.tokens.max(floor);
+        self.owed(rate)
+    }
+
+    /// How long the debt takes to repay now, no token taken.
+    pub(crate) fn due(&mut self, rate: f64, burst: f64) -> Duration {
+        let now = Instant::now();
+        let earned = now.duration_since(self.at).as_secs_f64() * rate;
+        self.tokens = (self.tokens + earned).min(burst);
+        self.at = now;
+        self.owed(rate)
+    }
+
+    fn owed(&self, rate: f64) -> Duration {
+        if self.tokens >= 0.0 {
+            Duration::ZERO
+        } else {
+            Duration::from_secs_f64(-self.tokens / rate)
         }
     }
 
@@ -243,6 +271,35 @@ mod tests {
         }
         assert!(!fair.droppable("a"));
         assert!(fair.droppable("b"));
+    }
+
+    #[test]
+    fn a_debt_kept_within_its_floor_waits_at_most_that_long() {
+        let mut bucket = Bucket::full(5.0);
+        for _ in 0..5 {
+            assert_eq!(
+                bucket.take_within(10.0, 5.0, Duration::from_secs(2)),
+                Duration::ZERO
+            );
+        }
+        assert_eq!(bucket.due(10.0, 5.0), Duration::ZERO);
+        // In debt: the next waits a tenth of a second, and so does anyone
+        // who only asks for a turn.
+        let sixth = bucket.take_within(10.0, 5.0, Duration::from_secs(2));
+        assert!(
+            sixth > Duration::from_millis(50) && sixth <= Duration::from_millis(100),
+            "{sixth:?}"
+        );
+        assert!(bucket.due(10.0, 5.0) > Duration::from_millis(50));
+        // A flood: the debt stops at its floor, 2 s of the pace.
+        for _ in 0..1000 {
+            bucket.take_within(10.0, 5.0, Duration::from_secs(2));
+        }
+        let due = bucket.due(10.0, 5.0);
+        assert!(
+            due > Duration::from_millis(1900) && due <= Duration::from_secs(2),
+            "{due:?}"
+        );
     }
 
     #[test]
