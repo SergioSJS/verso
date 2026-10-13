@@ -4,8 +4,8 @@
 
 //! Fuzz target: `config::size` (ADR 0083 item 14, F6), a size as a person
 //! writes it — `VERSO_FOLDER_QUOTA` at the start, a folder's quota in the
-//! admin's console. Any text returns; a size read is never negative, and a
-//! number of bytes it gives reads back as itself.
+//! admin's console. Any text returns; a size read is one byte at least,
+//! and a number of bytes it gives reads back as itself.
 //!
 //! A crash means a quota typed in the console panics the request that
 //! carries it (a slice off a character's boundary, an overflow), or that a
@@ -23,10 +23,10 @@ fuzz_target!(|data: &[u8]| {
         return;
     };
     if let Some(n) = size(text) {
-        assert!(n >= 0, "{text:?} read as {n}");
+        assert!(n >= 1, "{text:?} read as {n}");
         // Below 2^53 a whole number of bytes is exact as a float.
         if n < 1 << 53 {
-            assert_eq!(size(&n.to_string()), (n > 0).then_some(n), "{text:?}");
+            assert_eq!(size(&n.to_string()), Some(n), "{text:?}");
         }
     }
 });
