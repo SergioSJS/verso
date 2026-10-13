@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::json;
 
-use crate::tests::{block_on, call, connect, folder_id, next, sign_in, start};
+use crate::tests::{block_on, call, connect, folder_id, next, sign_in, start, start_with};
 
 /// The connections of `account` the server still holds.
 fn connections_of(r: &crate::tests::Running, account: &str) -> Vec<String> {
@@ -267,5 +267,74 @@ fn the_database_the_files_and_the_version_say_no_more_than_they_must() {
                 .and_then(|v| v.to_str().ok()),
             Some("same-origin")
         );
+    });
+}
+
+/// A server behind a trusted proxy on this machine: a test's requests
+/// then come from the address their `X-Forwarded-For` names.
+async fn behind_proxy() -> crate::tests::Running {
+    start_with(|c| c.trusted_proxy = crate::proxy::Proxies::parse("127.0.0.1").unwrap()).await
+}
+
+/// The REST routes have a pace per address (ADR 0083 item 7): the 101st
+/// request of a burst from one address answers 429 with `Retry-After`,
+/// and the next second's is heard; another address, the proxy itself and
+/// the page are not held back by it.
+#[test]
+fn past_a_burst_the_rest_routes_answer_429_until_the_next_second() {
+    block_on(async {
+        let r = behind_proxy().await;
+        r.server.pace.freeze();
+        let client = reqwest::Client::new();
+        let from = |path: &str, address: &str| {
+            client
+                .get(r.url(path))
+                .header("x-forwarded-for", address)
+                .send()
+        };
+        for i in 1..=100 {
+            let status = from("/api/state", "203.0.113.7").await.unwrap().status();
+            assert_eq!(status.as_u16(), 200, "request {i}");
+        }
+        let refused = from("/api/state", "203.0.113.7").await.unwrap();
+        assert_eq!(refused.status().as_u16(), 429, "the 101st request");
+        assert_eq!(
+            refused
+                .headers()
+                .get("retry-after")
+                .and_then(|v| v.to_str().ok()),
+            Some("1")
+        );
+        // A WebSocket upgrade with no credential is no way around it.
+        let upgrade = client
+            .get(r.url("/api/ws"))
+            .header("x-forwarded-for", "203.0.113.7")
+            .header("connection", "upgrade")
+            .header("upgrade", "websocket")
+            .header("sec-websocket-version", "13")
+            .header("sec-websocket-key", "dGhlIHNhbXBsZSBub25jZQ==")
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(upgrade.status().as_u16(), 429);
+        // Another address, the proxy's own requests and the page are not
+        // behind it.
+        let other = from("/api/state", "203.0.113.8").await.unwrap().status();
+        assert_eq!(other.as_u16(), 200);
+        let own = client
+            .get(r.url("/api/state"))
+            .send()
+            .await
+            .unwrap()
+            .status();
+        assert_eq!(own.as_u16(), 200);
+        let page = from("/signin", "203.0.113.7").await.unwrap().status();
+        assert_ne!(page.as_u16(), 429);
+        // The next second's request is heard.
+        r.server.pace.advance(Duration::from_secs(1));
+        let next_second = from("/api/state", "203.0.113.7").await.unwrap().status();
+        assert_eq!(next_second.as_u16(), 200);
+        assert!(!crate::log::said("requests from 203.0.113.7 past").is_empty());
+        assert!(!crate::log::said("carried no X-Forwarded-For").is_empty());
     });
 }
