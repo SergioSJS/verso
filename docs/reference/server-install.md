@@ -38,7 +38,9 @@ sh universo.sh install --url https://notes.example.com
 | `uninstall [--purge]` | removes the package and says what it left: `/var/lib/universo`, `/etc/universo`, the `universo` user. `--purge` removes them too, after you type `/var/lib/universo` back |
 | `status` | the service's state, the version, the address it listens on, the size of the two directories, the last 5 lines of the log |
 | `logs [-f]` | `journalctl -u universo` |
-| `backup [DIR]` | stops the service, packs `/var/lib/universo` and `/etc/universo` into `universo-backup-<date>-<time>.tar.gz` in `DIR` (`/var/backups/universo` by default), starts it again; refuses when `DIR` has less free space than the two directories take |
+| `backup [DIR] [--encrypt \| --passphrase] [--to-stdout]` | stops the service, packs `/var/lib/universo` and `/etc/universo` into `universo-backup-<date>-<time>.tar.gz` in `DIR` (`/var/backups/universo` by default), starts it again; refuses when `DIR` has less free space than the two directories take. `--encrypt` encrypts it with `age` (`.tar.gz.age`), `--passphrase` to a typed passphrase, `--to-stdout` writes it to standard output for a pipe (section 2) |
+| `backup --keygen` | makes the key of encrypted backups, once: the public one in `/etc/universo/backup.pub`, the secret one printed, never kept on the machine (section 2) |
+| `restore FILE [--identity KEY-FILE] [--to DIR]` | puts a backup back over `/var/lib/universo` and `/etc/universo` after you type `/var/lib/universo`, the service stopped meanwhile; an encrypted one with its secret key or passphrase; `--to DIR` unpacks it into `DIR` instead, the server untouched (section 2) |
 | `reset-admin [E-MAIL]` | the command of section 10 |
 | `firewall` | opens 80 and 443 with ufw, firewalld or iptables (kept across reboots with `netfilter-persistent` when present), and reminds that a cloud's own firewall (Oracle's VCN security list) is opened in its console. Only when asked: `install` never touches the firewall |
 
@@ -96,6 +98,48 @@ files with any `-wal` and `-shm` beside them), start it again — or take a
 snapshot of the volume (ZFS, btrfs, LVM) and copy from the snapshot. Then
 send the copy elsewhere, for example with `rclone` to a bucket (the recipe
 of 0073, Consequences).
+
+### Encrypted, off the machine
+
+A backup holds the password hashes, the sessions, every note and the
+settings file (which may hold the first admin's password): copied off the
+machine in the clear, it is all of that in someone else's hands. The
+installer script encrypts it with [age](https://age-encryption.org)
+([ADR 0083](../adr/0083-security-hardening-of-universo.md) item 12), which
+Debian, Ubuntu, Fedora and Alpine carry (`sudo apt install age`;
+`sudo dnf install age`, on RHEL from EPEL):
+
+```sh
+sudo sh universo.sh backup --keygen     # once: the key
+sudo sh universo.sh backup --encrypt    # each time
+```
+
+`--keygen` writes the public key to `/etc/universo/backup.pub` and prints
+the **secret key** — three lines, `AGE-SECRET-KEY-1…` among them — on
+standard output, and keeps it nowhere on the machine: put it in a password
+manager or on another machine. Whoever holds it reads every backup;
+without it none can be restored. It refuses to replace an existing
+`backup.pub`: move it away first, keeping the old secret key for the old
+backups. `--passphrase` instead of a key asks a passphrase at the terminal.
+Without `age`, `--encrypt` says how to install it and makes the plain
+tarball, with a warning in capitals.
+
+`--to-stdout` writes the backup (encrypted or not) to standard output, for
+a pipeline of your own, for example
+`sudo sh universo.sh backup --encrypt --to-stdout | rclone rcat remote:universo/$(date +%F).tar.gz.age`.
+
+To restore, the service stopped meanwhile and after you type
+`/var/lib/universo`:
+
+```sh
+sudo sh universo.sh restore universo-backup-<date>-<time>.tar.gz.age --identity key.txt
+```
+
+with the secret key in `key.txt` for the moment (or `age` asks the
+passphrase); a plain backup needs no `--identity`. `--to /some/dir`
+unpacks it there instead, to look at it first, leaving the server alone.
+By hand: `age -d -i key.txt FILE | sudo tar -xzpf - -C /` with the service
+stopped.
 
 ### Databases on a NAS
 
