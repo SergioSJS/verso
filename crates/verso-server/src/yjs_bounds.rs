@@ -16,9 +16,15 @@
 //! `Any::decode`, `IdSet::decode`, `StateVector::decode`), each number as
 //! its `read_var` reads it. A count past the bytes left at that point is
 //! refused, since every element takes one byte at least; so is a value
-//! nested deeper than [`DEPTH`]. Whatever the walk cannot read — an ending
-//! cut short, a kind it does not know — is left to `yrs`, which refuses it
-//! on its own: the walk only ever refuses what it read.
+//! nested deeper than [`DEPTH`]; so are a run of deleted or skipped
+//! clocks of length 0 and a deletion of length 0, which Yjs never makes,
+//! and runs or deletions whose clocks pass `u32::MAX`: on both `yrs`'s
+//! arithmetic wraps, and a run whose last clock wrapped to 0 made it
+//! divide by zero — in the update, and again in the transaction's drop as
+//! the panic unwound: two panics, which end the process, past any catch.
+//! Whatever the walk cannot read — an ending cut short, a kind it does not
+//! know — is left to `yrs`, which refuses it on its own: the walk only
+//! ever refuses what it read.
 
 /// The deepest a value may nest: a window's values are the board's
 /// elements as JSON strings, a map of the board's facts, a subdocument's
@@ -116,10 +122,12 @@ impl<'a> Walk<'a> {
         Ok(n)
     }
 
-    /// `read_buf` and `read_string`: a length, then that many bytes.
-    fn buf(&mut self) -> Result<(), Stop> {
+    /// `read_buf` and `read_string`: a length, then that many bytes; the
+    /// length.
+    fn buf(&mut self) -> Result<u64, Stop> {
         let len = self.var_u32()?;
-        self.skip(usize::try_from(len).map_err(|_| Stop::Unreadable)?)
+        self.skip(usize::try_from(len).map_err(|_| Stop::Unreadable)?)?;
+        Ok(u64::from(len))
     }
 
     /// `read_id`: a client and a clock.
@@ -147,7 +155,9 @@ impl<'a> Walk<'a> {
                 125 => self.var_i64()?,
                 124 => self.skip(4)?,
                 123 | 122 => self.skip(8)?,
-                119 | 116 => self.buf()?,
+                119 | 116 => {
+                    self.buf()?;
+                }
                 tag @ (118 | 117) => {
                     let n = self.var_u64()?;
                     let n = self.count(n)?;
@@ -162,13 +172,13 @@ impl<'a> Walk<'a> {
         Ok(())
     }
 
-    /// `ItemContent::decode`.
-    fn content(&mut self, kind: u8) -> Result<(), Stop> {
+    /// `ItemContent::decode`; the clocks the item takes, at most (a
+    /// string's length in UTF-16 is at most its length in bytes).
+    fn content(&mut self, kind: u8) -> Result<u64, Stop> {
+        let mut len = 1;
         match kind & 0x0f {
             // Deleted: a length.
-            1 => {
-                self.var_u32()?;
-            }
+            1 => len = u64::from(self.var_u32()?),
             // JSON: a count, then one string more than it says.
             2 => {
                 let n = self.var_u32()?;
@@ -176,9 +186,14 @@ impl<'a> Walk<'a> {
                 for _ in 0..=n {
                     self.buf()?;
                 }
+                len = n + 1;
             }
-            // Binary, String, Embed (JSON as a string).
-            3..=5 => self.buf()?,
+            // String: its bytes.
+            4 => len = self.buf()?,
+            // Binary, Embed (JSON as a string).
+            3 | 5 => {
+                self.buf()?;
+            }
             // Format: a key and JSON as a string.
             6 => {
                 self.buf()?;
@@ -188,7 +203,9 @@ impl<'a> Walk<'a> {
             7 => {
                 let type_ref = self.u8()?;
                 match type_ref {
-                    3 => self.buf()?,
+                    3 => {
+                        self.buf()?;
+                    }
                     0..=2 | 4..=6 | 9 | 15 => {}
                     _ => return Err(Stop::Unreadable),
                 }
@@ -200,6 +217,7 @@ impl<'a> Walk<'a> {
                 for _ in 0..n {
                     self.any()?;
                 }
+                len = n;
             }
             // A subdocument: its guid and its options.
             9 => {
@@ -208,17 +226,18 @@ impl<'a> Walk<'a> {
             }
             _ => return Err(Stop::Unreadable),
         }
-        Ok(())
+        Ok(len)
     }
 
-    /// `decode_block`.
-    fn block(&mut self) -> Result<(), Stop> {
+    /// `decode_block`; the clocks the run takes, at most.
+    fn block(&mut self) -> Result<u64, Stop> {
         let info = self.u8()?;
         match info {
-            // Skip and GC: a length.
-            10 | 0 => {
-                self.var_u32()?;
-            }
+            // Skip and GC: a length, never 0.
+            10 | 0 => match self.var_u32()? {
+                0 => Err(Stop::Bomb),
+                len => Ok(u64::from(len)),
+            },
             info => {
                 let has_origin = info & 0x80 != 0;
                 let has_right = info & 0x40 != 0;
@@ -239,10 +258,9 @@ impl<'a> Walk<'a> {
                         self.buf()?;
                     }
                 }
-                self.content(info)?;
+                self.content(info)
             }
         }
-        Ok(())
     }
 
     /// `IdSet::decode`: clients, each with its ranges of clocks.
@@ -254,8 +272,11 @@ impl<'a> Walk<'a> {
             let ranges = self.var_u32()?;
             let ranges = self.count(u64::from(ranges))?;
             for _ in 0..ranges {
-                self.var_u32()?;
-                self.var_u32()?;
+                let clock = self.var_u32()?;
+                let len = self.var_u32()?;
+                if len == 0 || clock.checked_add(len).is_none() {
+                    return Err(Stop::Bomb);
+                }
             }
         }
         Ok(())
@@ -269,9 +290,12 @@ impl<'a> Walk<'a> {
             let runs = self.var_u32()?;
             let runs = self.count(u64::from(runs))?;
             self.var_u64()?;
-            self.var_u32()?;
+            let mut clock = u64::from(self.var_u32()?);
             for _ in 0..runs {
-                self.block()?;
+                clock += self.block()?;
+                if clock > u64::from(u32::MAX) {
+                    return Err(Stop::Bomb);
+                }
             }
         }
         self.delete_set()
