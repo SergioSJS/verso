@@ -137,7 +137,7 @@ fn changed(message: &str) -> ContractError {
 /// The file's text with `\n` line ends, the form the editor and the room
 /// hold, and whether it had CRLF; `None` when it mixes them (shown
 /// read-only, never shared).
-fn normalized(text: &str) -> Option<(String, bool)> {
+pub(crate) fn normalized(text: &str) -> Option<(String, bool)> {
     let crlf = text.contains("\r\n");
     let rest = text.replace("\r\n", "");
     if rest.contains('\r') || (crlf && rest.contains('\n')) {
@@ -146,7 +146,7 @@ fn normalized(text: &str) -> Option<(String, bool)> {
     Some((text.replace("\r\n", "\n"), crlf))
 }
 
-fn on_disk(text: &str, crlf: bool) -> String {
+pub(crate) fn on_disk(text: &str, crlf: bool) -> String {
     if crlf {
         text.replace('\n', "\r\n")
     } else {
@@ -155,14 +155,28 @@ fn on_disk(text: &str, crlf: bool) -> String {
 }
 
 fn new_doc() -> Doc {
-    // UTF-16 offsets, as the window's Yjs counts them.
-    Doc::with_options(Options {
-        offset_kind: OffsetKind::Utf16,
-        ..Options::default()
-    })
+    Doc::with_options(utf16(Options::default()))
 }
 
-fn text_of(doc: &Doc) -> String {
+/// UTF-16 offsets, as the window's Yjs counts them.
+pub(crate) fn utf16(options: Options) -> Options {
+    Options {
+        offset_kind: OffsetKind::Utf16,
+        ..options
+    }
+}
+
+/// `doc` holding the file's `text`: a room's document as [`join`] makes it.
+pub(crate) fn holding(doc: Doc, text: &str) -> Doc {
+    {
+        let t = doc.get_or_insert_text(TEXT);
+        let mut txn = doc.transact_mut();
+        t.insert(&mut txn, 0, text);
+    }
+    doc
+}
+
+pub(crate) fn text_of(doc: &Doc) -> String {
     let text = doc.get_or_insert_text(TEXT);
     let txn = doc.transact();
     text.get_string(&txn)
@@ -205,7 +219,7 @@ fn minimal_edit(from: &str, to: &str) -> Option<(u32, u32, String)> {
 
 /// Make the room's text `to` by one edit of the server's own; the update
 /// to relay, if anything changed.
-fn apply_text(doc: &Doc, to: &str) -> Option<Vec<u8>> {
+pub(crate) fn apply_text(doc: &Doc, to: &str) -> Option<Vec<u8>> {
     let from = text_of(doc);
     let (start, removed, inserted) = minimal_edit(&from, to)?;
     let text = doc.get_or_insert_text(TEXT);
@@ -397,12 +411,7 @@ pub fn join(
                         epoch: String::new(),
                     });
                 };
-                let doc = new_doc();
-                {
-                    let t = doc.get_or_insert_text(TEXT);
-                    let mut txn = doc.transact_mut();
-                    t.insert(&mut txn, 0, &text);
-                }
+                let doc = holding(new_doc(), &text);
                 (doc, crlf, text, crate::collab_board::Board::default())
             };
             let room = Arc::new(Mutex::new(Room {
@@ -462,11 +471,10 @@ pub fn update(
     if !r.clients.contains(client) {
         return Err(refused("join the note first"));
     }
-    if r.kind == Kind::Board {
-        r.board.admits(&r.doc, &bytes, &decoded)?;
-        r.board.bytes = r.board.bytes.saturating_add(bytes.len());
-    }
-    integrate(&r.doc, decoded).map_err(|e| refused(&format!("the update does not apply: {e}")))?;
+    let Room {
+        kind, doc, board, ..
+    } = &mut *r;
+    take(*kind, doc, board, &bytes, decoded)?;
     tell(
         server,
         &r,
@@ -481,6 +489,22 @@ pub fn update(
         schedule(server, Arc::clone(&room));
     }
     Ok(())
+}
+
+/// A window's update `bytes`, decoded, taken into a room's document: a
+/// board's within its limits first (`collab_board.rs`), then integrated.
+pub(crate) fn take(
+    kind: Kind,
+    doc: &Doc,
+    board: &mut crate::collab_board::Board,
+    bytes: &[u8],
+    decoded: Update,
+) -> Result<(), ContractError> {
+    if kind == Kind::Board {
+        board.admits(doc, bytes, &decoded)?;
+        board.bytes = board.bytes.saturating_add(bytes.len());
+    }
+    integrate(doc, decoded).map_err(|e| refused(&format!("the update does not apply: {e}")))
 }
 
 /// The largest presence relayed (threat-model.md, gap 3): a window's is
@@ -1033,13 +1057,7 @@ pub fn write_through(
         if revision != r.revision {
             return Err(changed("the note changed since it was read"));
         }
-        let Some((mine, _)) = normalized(text) else {
-            return Err(refused("a text that mixes line ends"));
-        };
-        let theirs = text_of(&r.doc);
-        let merged = diffy::merge(&r.saved, &theirs, &mine)
-            .map_err(|_| changed("the same lines changed in the note meanwhile"))?;
-        if let Some(update) = apply_text(&r.doc, &merged) {
+        if let Some(update) = merge_into(&r.doc, &r.saved, text)? {
             tell(
                 server,
                 &r,
@@ -1049,6 +1067,23 @@ pub fn write_through(
         }
     }
     write(server, &room)
+}
+
+/// `text`, a write from elsewhere, merged line by line into the room's
+/// edits over `saved`, the text last written: the update to relay, if
+/// anything changed; `changed` when the two touch the same lines.
+pub(crate) fn merge_into(
+    doc: &Doc,
+    saved: &str,
+    text: &str,
+) -> Result<Option<Vec<u8>>, ContractError> {
+    let Some((mine, _)) = normalized(text) else {
+        return Err(refused("a text that mixes line ends"));
+    };
+    let theirs = text_of(doc);
+    let merged = diffy::merge(saved, &theirs, &mine)
+        .map_err(|_| changed("the same lines changed in the note meanwhile"))?;
+    Ok(apply_text(doc, &merged))
 }
 
 #[cfg(test)]

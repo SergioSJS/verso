@@ -97,5 +97,11 @@ rcgen = { version = "0.14", default-features = false, features = ["ring", "pem"]
 tokio-tungstenite = "0.29"
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
 
+# The server's inputs opened to its fuzz harness (`fuzz/`, ADR 0083 item
+# 14): the `fuzz_api` module, compiled with this feature only. Nothing
+# that ships turns it on.
+[features]
+fuzzing = []
+
 [lints]
 workspace = true
