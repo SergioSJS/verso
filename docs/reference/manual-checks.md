@@ -19,6 +19,33 @@ in the real app.
 
 ## Not yet checked
 
+### Everything edited together (ADR 0082 item 12, feat/coedit-everything, 2026-10-12)
+
+- [ ] **A board in two places at once** (21d096a, 5a027db): on a UniVerso,
+  one board open in the browser and in the installed app on the server's
+  folder; drag a card in one while drawing a shape and writing a text in
+  the other: both see both within a moment, the other's pointer moves
+  with its name, the file on the server's disk holds both, no conflict
+  banner, no copy; delete a shape in one while dragging it in the other:
+  it stays deleted, and ⌘Z where it was deleted brings it back in both.
+- [ ] **A synced folder's board between two computers**: the folder synced
+  on two Macs (or a Mac and the Windows VM), the same board open on both
+  while online: the same as above, and each computer's local file follows
+  the room's saves; pull the network on one, draw, the tab says *local —
+  sem conexão* and the local file has the drawing; back online, *O quadro
+  está ao vivo de novo* and the other computer gets what was drawn, no
+  copy.
+- [ ] **A `.txt` and a base in two places**: a text file typed in from the
+  browser and the app at once, letters merged; a base's *Ordenar* and
+  *Filtros* changed in one, the other's base view redraws with them, and
+  the `.base` on disk has them.
+- [ ] **A note in a board's card and in a tab of the same window**: the
+  note edited in its card while its tab is open beside it, and from a
+  browser at the same time: all three show the same text, nothing is
+  pushed out of the room, the file follows.
+- [ ] **Opening writes nothing**: a board opened in two places, looked at,
+  panned and zoomed, closed: the file's modification time is unchanged.
+
 ### The decisions of 2026-10-12 (feat/decisions-2026-10-12)
 
 - [ ] **A name differing only in case is refused** (spec Q8, ADR 0070

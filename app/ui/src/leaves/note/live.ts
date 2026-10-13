@@ -26,12 +26,12 @@ function lang(): string {
 }
 
 /** Said to a screen reader: the status line is a live region. */
-function say(text: string): void {
+export function say(text: string): void {
   ui.status.textContent = text;
 }
 
 /** The status bar's line for the active note, beside the sync's state. */
-function bar(): HTMLElement {
+export function bar(): HTMLElement {
   let b = document.getElementById("live-state");
   if (b) return b;
   b = h("span", "status-live");
@@ -123,7 +123,7 @@ export function cameBack(this: NoteLeaf): void {
 export async function readAnew(this: NoteLeaf): Promise<void> {
   await this.flush();
   const before = this.editorText();
-  this.collab?.leave();
+  this.collab?.release(this.roomHandlers);
   this.collab = null;
   await this.load(this.path, true);
   if (this.destroyed) return;

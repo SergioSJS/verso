@@ -89,6 +89,7 @@
     "allow-collab-save",
     "allow-collab-resolve",
     "allow-collab-present",
+    "allow-collab-canvas",
     "allow-server-sign-in",
     "allow-server-accounts",
     "allow-server-sign-out",

@@ -17,6 +17,12 @@
 //! panel, a task checked in the reading view, a quote from a PDF — is
 //! merged into the room line by line over the edits not yet written, or
 //! refused as `changed` when the two touch the same lines.
+//!
+//! Every file a window edits has its room (ADR 0082 item 12, decided by
+//! the maintainer on 2026-10-12): a note as before; any other text file of
+//! the folder — `.txt`, `.json`, `.csv`, a base's `.base` — the same way,
+//! read and written as text; and a board, whose room holds its elements
+//! (`collab_board.rs`).
 
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
@@ -25,10 +31,12 @@ use std::time::{Duration, Instant};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use serde_json::json;
-use verso_contract::{CollabJoin, ContractError, ErrorKind, NoteText};
+use verso_contract::{CollabJoin, CollabKind, ContractError, ErrorKind};
 use verso_service::{lock, ops};
 use yrs::updates::decoder::Decode;
-use yrs::{Doc, GetString, OffsetKind, Options, ReadTxn, StateVector, Text, Transact, Update};
+use yrs::{
+    Doc, GetString, OffsetKind, Options, ReadTxn, StateVector, Text, Transact, Update, WriteTxn,
+};
 
 use crate::state::Server;
 
@@ -40,9 +48,32 @@ const GRACE: Duration = Duration::from_secs(120);
 /// The text's name inside the document, as the window's binding names it.
 pub const TEXT: &str = "verso";
 
+/// What a room is of: a note (read and written as a note, indexed), any
+/// other text file, or a board.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Kind {
+    Note,
+    Text,
+    Board,
+}
+
+/// The kind of the room of `path`, by its name: the window's tab for it
+/// is the same (a note's, a board's, a text's).
+pub fn kind_of(path: &str) -> Kind {
+    let lower = path.to_lowercase();
+    if lower.ends_with(".md") {
+        Kind::Note
+    } else if lower.ends_with(".canvas") {
+        Kind::Board
+    } else {
+        Kind::Text
+    }
+}
+
 pub struct Room {
     key: String,
     path: String,
+    kind: Kind,
     doc: Doc,
     crlf: bool,
     /// The revision on disk of what was last written or read.
@@ -63,6 +94,21 @@ pub struct Room {
     epoch: String,
     /// The Yjs clients each connection speaks for in presence (gap 11).
     claims: crate::presence::Claims,
+    /// A board's own state: what was written, the files windows made.
+    board: crate::collab_board::Board,
+}
+
+impl Room {
+    /// Whether the room holds edits not yet written: a text that differs
+    /// from the one last written or read — an edit that changed nothing,
+    /// as a window's whole state sent back on its return, leaves nothing
+    /// waiting — or a board whose count of people's edits moved.
+    fn waiting(&self) -> bool {
+        match self.kind {
+            Kind::Board => self.board.waiting(&self.doc),
+            Kind::Note | Kind::Text => text_of(&self.doc) != self.saved,
+        }
+    }
 }
 
 /// A room's place: (folder key, note path).
@@ -173,6 +219,33 @@ fn apply_text(doc: &Doc, to: &str) -> Option<Vec<u8>> {
     Some(txn.encode_update_v1())
 }
 
+/// Apply `update` to `doc`, and with it whatever earlier updates were
+/// waiting for it. A connection's requests run side by side, so two of a
+/// window's updates can reach the room in the other order; Yjs keeps the
+/// later one aside until the earlier arrives — but `yrs` 0.28 leaves some
+/// of what it kept aside unplaced once several wait (seen by
+/// `tests_board_stress.rs`, seed 1: an item heard and never placed, the
+/// room's state then short of what the windows hold). What waits is taken
+/// out and applied again until nothing more is placed.
+pub fn integrate(doc: &Doc, update: Update) -> Result<(), yrs::error::UpdateError> {
+    let mut txn = doc.transact_mut();
+    txn.apply_update(update)?;
+    for _ in 0..64 {
+        if !txn.has_missing_updates() {
+            break;
+        }
+        let before = txn.state_vector();
+        let Some(waiting) = txn.prune_pending() else {
+            break;
+        };
+        txn.apply_update(waiting)?;
+        if txn.state_vector() == before {
+            break;
+        }
+    }
+    Ok(())
+}
+
 fn b64(bytes: &[u8]) -> String {
     STANDARD.encode(bytes)
 }
@@ -230,11 +303,62 @@ fn event(name: &str, path: &str, field: &str, value: &serde_json::Value) -> serd
     json!({ "event": name, "payload": payload })
 }
 
-fn read(server: &Server, key: &str, path: &str) -> Result<NoteText, ContractError> {
+/// A file's text and its revision on disk: a note as a note, anything
+/// else as text.
+struct Read {
+    text: String,
+    revision: String,
+}
+
+fn read(server: &Server, key: &str, path: &str) -> Result<Read, ContractError> {
     let p = path.to_owned();
-    server
+    if kind_of(path) == Kind::Note {
+        let n = server
+            .service
+            .with_key(key, move |ws| ops::read_note(ws, p))?;
+        return Ok(Read {
+            text: n.text,
+            revision: n.revision,
+        });
+    }
+    let t = server
         .service
-        .with_key(key, move |ws| ops::read_note(ws, p))
+        .with_key(key, move |ws| ops::read_text(ws, p))?;
+    Ok(Read {
+        text: t.text,
+        revision: t.revision,
+    })
+}
+
+/// Write `bytes` over `revision` as the room's kind is written: its new
+/// revision.
+fn write_file(
+    server: &Server,
+    room: &Room,
+    bytes: String,
+    revision: String,
+) -> Result<String, ContractError> {
+    let path = room.path.clone();
+    match room.kind {
+        Kind::Note => server
+            .service
+            .with_key(&room.key, move |ws| {
+                ops::write_note(ws, path, bytes, revision)
+            })
+            .map(|w| w.note.revision),
+        Kind::Text => server
+            .service
+            .with_key(&room.key, move |ws| {
+                ops::write_text(ws, path, bytes, revision)
+            })
+            .map(|t| t.revision),
+        Kind::Board => server
+            .service
+            .with_key(&room.key, move |ws| {
+                ops::write_board(ws, path, bytes, revision)
+            })
+            .map(|t| t.revision),
+    }
 }
 
 /// Join `client` to the room of `path` in folder `key`, made from the disk
@@ -246,39 +370,56 @@ pub fn join(
     path: &str,
     user: &str,
 ) -> Result<CollabJoin, ContractError> {
+    let kind = kind_of(path);
+    let wire = if kind == Kind::Board {
+        CollabKind::Board
+    } else {
+        CollabKind::Text
+    };
     let room = match server.rooms.get(key, path) {
         Some(room) => room,
         None => {
             let note = read(server, key, path)?;
-            let Some((text, crlf)) = normalized(&note.text) else {
-                return Ok(CollabJoin {
-                    update: String::new(),
-                    revision: note.revision,
-                    read_only: true,
-                    crlf: false,
-                    user: user.to_owned(),
-                    epoch: String::new(),
-                });
+            let (doc, crlf, saved, board) = if kind == Kind::Board {
+                // Drawn in by the first window to join (collab_board.rs).
+                let doc = crate::collab_board::new_doc(&note.text);
+                let board = crate::collab_board::Board::of(&doc);
+                (doc, false, String::new(), board)
+            } else {
+                let Some((text, crlf)) = normalized(&note.text) else {
+                    return Ok(CollabJoin {
+                        kind: wire,
+                        update: String::new(),
+                        revision: note.revision,
+                        read_only: true,
+                        crlf: false,
+                        user: user.to_owned(),
+                        epoch: String::new(),
+                    });
+                };
+                let doc = new_doc();
+                {
+                    let t = doc.get_or_insert_text(TEXT);
+                    let mut txn = doc.transact_mut();
+                    t.insert(&mut txn, 0, &text);
+                }
+                (doc, crlf, text, crate::collab_board::Board::default())
             };
-            let doc = new_doc();
-            {
-                let t = doc.get_or_insert_text(TEXT);
-                let mut txn = doc.transact_mut();
-                t.insert(&mut txn, 0, &text);
-            }
             let room = Arc::new(Mutex::new(Room {
                 key: key.to_owned(),
                 path: path.to_owned(),
+                kind,
                 doc,
                 crlf,
                 revision: note.revision,
-                saved: text,
+                saved,
                 conflict: false,
                 edited: Instant::now(),
                 scheduled: false,
                 clients: HashSet::new(),
                 epoch: crate::crypto::id().map_err(verso_service::failed)?,
                 claims: crate::presence::Claims::new(),
+                board,
             }));
             let mut map = lock(&server.rooms.map);
             // Two windows joining at once: the first room made stays.
@@ -292,6 +433,7 @@ pub fn join(
         .transact()
         .encode_state_as_update_v1(&StateVector::default());
     Ok(CollabJoin {
+        kind: wire,
         update: b64(&state),
         revision: r.revision.clone(),
         read_only: false,
@@ -320,10 +462,11 @@ pub fn update(
     if !r.clients.contains(client) {
         return Err(refused("join the note first"));
     }
-    r.doc
-        .transact_mut()
-        .apply_update(decoded)
-        .map_err(|e| refused(&format!("the update does not apply: {e}")))?;
+    if r.kind == Kind::Board {
+        r.board.admits(&r.doc, &bytes, &decoded)?;
+        r.board.bytes = r.board.bytes.saturating_add(bytes.len());
+    }
+    integrate(&r.doc, decoded).map_err(|e| refused(&format!("the update does not apply: {e}")))?;
     tell(
         server,
         &r,
@@ -331,7 +474,9 @@ pub fn update(
         &event("collab-update", path, "update", &json!(update)),
     );
     r.edited = Instant::now();
-    if !r.scheduled && !r.conflict {
+    // A board's change that is no one's edit — drawn in, measured again —
+    // leaves nothing to write (invariant 7).
+    if !r.scheduled && !r.conflict && (r.kind != Kind::Board || r.waiting()) {
         r.scheduled = true;
         schedule(server, Arc::clone(&room));
     }
@@ -394,7 +539,11 @@ fn schedule(server: &Arc<Server>, room: Arc<Mutex<Room>>) {
         }
         let _ = tokio::task::spawn_blocking(move || {
             lock(&room).scheduled = false;
-            if let Err(e) = write(&server, &room) {
+            // A board no window made into a file yet is written when one
+            // comes (`canvas`).
+            if let Err(e) = write(&server, &room)
+                && e.kind != ErrorKind::Unavailable
+            {
                 crate::log::warn(&format!("a shared note was not written: {}", e.message));
             }
         })
@@ -409,11 +558,20 @@ pub fn write(server: &Server, room: &Arc<Mutex<Room>>) -> Result<String, Contrac
     if r.conflict {
         return Err(changed("the file changed on disk: choose first"));
     }
-    let text = text_of(&r.doc);
-    if text == r.saved {
+    if !r.waiting() {
         return Ok(r.revision.clone());
     }
-    let bytes = on_disk(&text, r.crlf);
+    // A board: the file a window made of exactly the state the room holds
+    // (collab_board.rs); none yet, it is written when one comes.
+    let (bytes, text) = if r.kind == Kind::Board {
+        match r.board.canvas_now(&r.doc) {
+            Some(json) => (json, None),
+            None => return Err(not_drawn()),
+        }
+    } else {
+        let text = text_of(&r.doc);
+        (on_disk(&text, r.crlf), Some(text))
+    };
     // The room's text passes the folder's quota like any write (ADR 0077):
     // refused, the room keeps it (as a failed write always does).
     crate::quota::check(
@@ -422,15 +580,27 @@ pub fn write(server: &Server, room: &Arc<Mutex<Room>>) -> Result<String, Contrac
         &r.path,
         u64::try_from(bytes.len()).unwrap_or(u64::MAX),
     )?;
-    let (path, revision) = (r.path.clone(), r.revision.clone());
-    let written = server
-        .service
-        .with_key(&r.key, move |ws| ops::write_note(ws, path, bytes, revision));
+    let revision = r.revision.clone();
+    let written = write_file(server, &r, bytes, revision);
     match written {
-        Ok(w) => {
-            r.revision = w.note.revision.clone();
-            r.saved = text;
+        Ok(revision) => {
+            r.revision = revision;
             let path = r.path.clone();
+            match text {
+                Some(text) => r.saved = text,
+                None => {
+                    // What was written is said in the document too: the
+                    // windows see that nothing waits any more.
+                    let Room { board, doc, .. } = &mut *r;
+                    let update = board.written(doc);
+                    tell(
+                        server,
+                        &r,
+                        None,
+                        &event("collab-update", &path, "update", &json!(b64(&update))),
+                    );
+                }
+            }
             // The folder's log for sync follows the save (ADR 0079 item 4),
             // before the windows hear it: a save heard is one a device's
             // next question finds.
@@ -476,11 +646,27 @@ pub fn leave(server: &Server, client: &str, key: &str, path: &str) {
     }
 }
 
+/// A board whose edits no window has made into a file yet.
+fn not_drawn() -> ContractError {
+    ContractError {
+        kind: ErrorKind::Unavailable,
+        message: "the board's edits are still being made into its file: it is written in a moment"
+            .to_owned(),
+    }
+}
+
 /// The room written, or kept: false, said in the log, when what was typed
 /// could not reach the file.
 fn settled(server: &Server, room: &Arc<Mutex<Room>>) -> bool {
     match write(server, room) {
         Ok(_) => true,
+        Err(e) if e.kind == ErrorKind::Unavailable => {
+            let path = lock(room).path.clone();
+            crate::log::warn(&format!(
+                "a shared board keeps edits no window made into its file yet: {path} stays open on the server, and the next window on it writes them"
+            ));
+            false
+        }
         Err(e) => {
             let path = lock(room).path.clone();
             crate::log::warn(&format!(
@@ -532,7 +718,7 @@ pub fn gone(server: &Arc<Server>, client: &str) {
                 // it. Closed only when that write held.
                 let clean = map.get(&place).is_some_and(|r| {
                     let r = lock(r);
-                    !r.conflict && text_of(&r.doc) == r.saved
+                    !r.conflict && !r.waiting()
                 });
                 if still_empty && clean {
                     map.remove(&place);
@@ -583,6 +769,40 @@ pub fn save(server: &Server, key: &str, path: &str) -> Result<String, ContractEr
     write(server, &room)
 }
 
+/// A window's file of a board, as its converter makes it of the room's
+/// state `at` (a Yjs state vector, base64): kept, and written at once when
+/// it is of the state the room holds, the room has edits waiting, and its
+/// quiet wait is over (collab_board.rs).
+pub fn canvas(
+    server: &Server,
+    client: &str,
+    key: &str,
+    path: &str,
+    at: &str,
+    json: String,
+) -> Result<(), ContractError> {
+    let room = server
+        .rooms
+        .get(key, path)
+        .ok_or_else(|| refused("join the board first"))?;
+    let at = unb64(at)?;
+    let ready = {
+        let mut r = lock(&room);
+        if !r.clients.contains(client) {
+            return Err(refused("join the board first"));
+        }
+        if r.kind != Kind::Board {
+            return Err(refused("not a board"));
+        }
+        r.board.keep(&at, json)?;
+        !r.scheduled && !r.conflict && r.waiting() && r.board.canvas_now(&r.doc).is_some()
+    };
+    if ready && let Err(e) = write(server, &room) {
+        crate::log::warn(&format!("a shared board was not written: {}", e.message));
+    }
+    Ok(())
+}
+
 /// The people in a note that changed on disk while edits waited chose:
 /// the disk's text (`disk`), or the room's written over it (`mine`).
 pub fn resolve(
@@ -597,6 +817,27 @@ pub fn resolve(
         .ok_or_else(|| refused("join the note first"))?;
     let note = read(server, key, path)?;
     let mut r = lock(&room);
+    if r.kind == Kind::Board {
+        return match keep {
+            // The disk's board: the room goes, and the windows draw the
+            // file again in a room made of it.
+            "disk" => {
+                let Room { board, doc, .. } = &mut *r;
+                board.forget(doc);
+                drop(r);
+                close(server, key, path);
+                Ok(note.revision)
+            }
+            "mine" => {
+                r.revision = note.revision;
+                r.conflict = false;
+                r.board.force();
+                drop(r);
+                write(server, &room)
+            }
+            _ => Err(refused("keep `disk` or `mine`")),
+        };
+    }
     match keep {
         "disk" => {
             let Some((text, crlf)) = normalized(&note.text) else {
@@ -707,6 +948,24 @@ pub fn changed_outside(server: &Server, key: &str, changed: &[String], removed: 
         if note.revision == r.revision {
             continue;
         }
+        // A board the server cannot draw: with nothing waiting, the room
+        // goes and the windows draw the file again; with edits waiting, it
+        // stops for the people in it to choose, as a note's does.
+        if r.kind == Kind::Board {
+            if r.waiting() {
+                r.conflict = true;
+                tell(
+                    server,
+                    &r,
+                    None,
+                    &event("collab-conflict", path, "revision", &json!(null)),
+                );
+            } else {
+                drop(r);
+                close(server, key, path);
+            }
+            continue;
+        }
         let Some((text, crlf)) = normalized(&note.text) else {
             drop(r);
             close(server, key, path);
@@ -716,7 +975,7 @@ pub fn changed_outside(server: &Server, key: &str, changed: &[String], removed: 
         // written or read. One the room took in and that changed nothing —
         // a window's whole state sent back on its return — waits for
         // nothing, and must not stop the room.
-        if text_of(&r.doc) != r.saved {
+        if r.waiting() {
             r.conflict = true;
             tell(
                 server,
@@ -763,6 +1022,11 @@ pub fn write_through(
         .ok_or_else(|| refused("not shared"))?;
     {
         let r = lock(&room);
+        if r.kind == Kind::Board {
+            return Err(changed(
+                "the board is being edited together: its changes go through its room",
+            ));
+        }
         if r.conflict {
             return Err(changed("the file changed on disk: choose first"));
         }
@@ -801,6 +1065,45 @@ mod tests {
         apply_text(&doc, "olá 😀 mundo");
         apply_text(&doc, "olá 😀 grande mundo");
         assert_eq!(text_of(&doc), "olá 😀 grande mundo");
+    }
+
+    /// One window's updates reaching the room in a shuffled order are all
+    /// placed (the `integrate` above; `yrs` alone left most of these runs
+    /// with something unplaced).
+    #[test]
+    fn a_windows_updates_in_any_order_are_all_placed() {
+        for seed in 0..300_u64 {
+            let mut s = seed.wrapping_mul(2_654_435_761) | 1;
+            let mut rnd = || {
+                s ^= s << 13;
+                s ^= s >> 7;
+                s ^= s << 17;
+                s
+            };
+            let window = new_doc();
+            let text = window.get_or_insert_text(TEXT);
+            let mut updates = Vec::new();
+            for i in 0..12_u32 {
+                let mut txn = window.transact_mut();
+                let len = text.len(&txn);
+                let at = u32::try_from(rnd() % u64::from(len + 1)).unwrap();
+                text.insert(&mut txn, at, &format!("<{i}>"));
+                if len > 4 && rnd() % 3 == 0 {
+                    text.remove_range(&mut txn, 0, 2);
+                }
+                updates.push(txn.encode_update_v1());
+            }
+            for i in (1..updates.len()).rev() {
+                let j = usize::try_from(rnd() % (i as u64 + 1)).unwrap();
+                updates.swap(i, j);
+            }
+            let room = new_doc();
+            for u in &updates {
+                integrate(&room, Update::decode_v1(u).unwrap()).unwrap();
+            }
+            assert!(!room.transact().has_missing_updates(), "seed {seed}");
+            assert_eq!(text_of(&room), text_of(&window), "seed {seed}");
+        }
     }
 
     #[test]

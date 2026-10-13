@@ -340,7 +340,12 @@ pub(crate) fn write_text<R: tauri::Runtime>(
     text: String,
     revision: String,
 ) -> Result<TextFile, ContractError> {
-    with(&state, &window, |ws| {
+    let (p, t) = (path.clone(), text.clone());
+    let written = with(&state, &window, |ws| {
         ops::write_text(ws, path, text, revision)
-    })
+    })?;
+    // A live text file of a synced folder, written by its tab while out of
+    // its room: the tab's own (ADR 0082 items 6 and 8, item 12).
+    wrote(window.app_handle(), window.label(), &p, &t);
+    Ok(written)
 }

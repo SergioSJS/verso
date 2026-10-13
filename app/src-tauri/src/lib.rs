@@ -582,6 +582,17 @@ fn collab_present(path: String) -> Result<bool, ContractError> {
     Err(not_here())
 }
 
+/// A board's file, as this window's converter makes it of the room's state
+/// `at` (a Yjs state vector, base64): the room writes the one made of the
+/// state it holds (ADR 0082 item 12). On a server, or a synced folder's
+/// link, only.
+#[tauri::command]
+#[specta::specta]
+fn collab_canvas(path: String, at: String, json: String) -> Result<(), ContractError> {
+    let _ = (path, at, json);
+    Err(not_here())
+}
+
 /// A shared note that changed on disk while edits waited: keep the disk's
 /// text (`disk`) or write the shared one over it (`mine`).
 #[tauri::command]
@@ -672,6 +683,7 @@ macro_rules! commands_for {
                 collab_save,
                 collab_resolve,
                 collab_present,
+                collab_canvas,
                 server_sign_in::<$runtime>,
                 server_accounts,
                 server_sign_out::<$runtime>,

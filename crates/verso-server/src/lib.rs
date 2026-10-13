@@ -13,6 +13,7 @@ pub mod admin;
 pub mod api;
 pub mod auth;
 pub mod collab;
+pub mod collab_board;
 pub mod config;
 pub mod console;
 pub mod crypto;
@@ -296,6 +297,10 @@ pub fn admin_reset(config: &Config, email: &str) -> Result<String, String> {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_board_rooms;
+#[cfg(test)]
+mod tests_board_stress;
 #[cfg(test)]
 mod tests_bounds;
 #[cfg(test)]

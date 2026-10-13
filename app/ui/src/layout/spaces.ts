@@ -237,10 +237,12 @@ export function activeLeafForPath(path: string): NoteLeaf | null {
 /** The tab of this window that holds `path` live in its room and may
  *  type into it: a write to the note from elsewhere — a base's cell, a
  *  PDF's quote, the tree's sticker — goes in through it (roomWrites.ts,
- *  ADR 0082). Null when no tab holds it live. */
+ *  ADR 0082). A text file's tab too — a plan's rewrite, a folder page's
+ *  base (ADR 0082 item 12). Null when no tab holds it live. */
 export function liveHolder(path: string): LiveHolder | null {
   for (const l of leavesOf(path)) {
-    const held = l instanceof NoteLeaf ? l.roomHolder() : null;
+    const tab = l as unknown as { roomHolder?: () => LiveHolder | null };
+    const held = l instanceof NoteLeaf ? l.roomHolder() : typeof tab.roomHolder === "function" ? tab.roomHolder() : null;
     if (held) return held;
   }
   return null;
