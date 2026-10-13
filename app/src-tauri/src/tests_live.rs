@@ -515,6 +515,174 @@ fn a_reader_is_present_in_the_room_and_writes_nothing() {
     assert!(!text_of(&c.doc).contains("da leitora"));
 }
 
+/// What device `d` told its window for `path` since `seen`, applied.
+fn hear_path(d: &Device, seen: &mut usize, path: &str, doc: &Doc) {
+    let told = lock(&d.told);
+    for (to, event, payload) in &told[*seen..] {
+        if to.iter().any(|w| w == WINDOW) && event == "collab-update" && payload["path"] == path {
+            apply(doc, &payload["update"]);
+        }
+    }
+    *seen = told.len();
+}
+
+/// A board's element written into the room as a window's board writes
+/// it: an entry per element and version, the entries it outranks gone.
+fn put_element(doc: &Doc, id: &str, version: i64, nonce: i64, el: &Value) -> String {
+    use yrs::Map;
+    let map = doc.get_or_insert_map(verso_server::collab_board::ELEMENTS);
+    let mut txn = doc.transact_mut();
+    let older: Vec<String> = map
+        .keys(&txn)
+        .filter(|k| k.starts_with(&format!("{id}\n")))
+        .map(str::to_owned)
+        .collect();
+    for k in older {
+        map.remove(&mut txn, &k);
+    }
+    let mut el = el.clone();
+    el["id"] = json!(id);
+    el["version"] = json!(version);
+    el["versionNonce"] = json!(nonce);
+    map.insert(
+        &mut txn,
+        format!("{id}\n{version}\n{nonce}"),
+        el.to_string(),
+    );
+    STANDARD.encode(txn.encode_update_v1())
+}
+
+/// A meta entry of a board's room: drawn in, a person's edit.
+fn put_meta(doc: &Doc, key: &str, value: yrs::Any) -> String {
+    use yrs::Map;
+    let meta = doc.get_or_insert_map(verso_server::collab_board::META);
+    let mut txn = doc.transact_mut();
+    meta.insert(&mut txn, key, value);
+    STANDARD.encode(txn.encode_update_v1())
+}
+
+/// A text file and a board of a synced folder are live as a note is (ADR
+/// 0082 item 12): their rooms over the sync's link, the edits of two
+/// devices merged — the text letter by letter, the board element by
+/// element — the room writing the server's file and sync bringing it
+/// down over each local one, no copy made.
+#[test]
+fn a_synced_text_file_and_board_are_live_and_the_files_follow() {
+    const TXT: &str = "lista.txt";
+    const BOARD: &str = "Mesa.canvas";
+    let r = serve(&[(TXT, "um\n"), (BOARD, "{\"nodes\":[],\"edges\":[]}")]);
+    let a = device(&r, &r.owner, &[]);
+    let b = device(&r, &r.owner, &[]);
+    for d in [&a, &b] {
+        let mut l = kept(d);
+        on(d, &mut l);
+        drop_link(d, l);
+    }
+    let (mut la, mut lb) = (kept(&a), kept(&b));
+    let (mut sa, mut sb) = (lock(&a.told).len(), lock(&b.told).len());
+
+    // The text file: a room of text, typed on both devices at once.
+    let ja = cmd(&a, "collab_join", json!({ "path": TXT })).unwrap();
+    let jb = cmd(&b, "collab_join", json!({ "path": TXT })).unwrap();
+    assert_eq!(ja["kind"], "text", "{ja}");
+    let (ta, tb) = (doc(), doc());
+    apply(&ta, &ja["update"]);
+    apply(&tb, &jb["update"]);
+    let ua = insert(&ta, 0, "zero\n");
+    let ub = insert(&tb, 9, "dois\n");
+    cmd(&a, "collab_update", json!({ "path": TXT, "update": ua })).unwrap();
+    cmd(&b, "collab_update", json!({ "path": TXT, "update": ub })).unwrap();
+    sleep(Duration::from_millis(300));
+    hear_path(&a, &mut sa, TXT, &ta);
+    hear_path(&b, &mut sb, TXT, &tb);
+    assert_eq!(text_of(&ta), "zero\num\ndois\n");
+    assert_eq!(text_of(&ta), text_of(&tb));
+    cmd(&a, "collab_save", json!({ "path": TXT })).unwrap();
+
+    // The board: drawn in by the first device, then a shape moved on one
+    // and a text added on the other, at once.
+    let ba = cmd(&a, "collab_join", json!({ "path": BOARD })).unwrap();
+    assert_eq!(ba["kind"], "board", "{ba}");
+    let (da, db) = (doc(), doc());
+    apply(&da, &ba["update"]);
+    let seed = put_element(
+        &da,
+        "r1",
+        1,
+        0,
+        &json!({ "type": "rectangle", "x": 0, "index": "a1" }),
+    );
+    cmd(
+        &a,
+        "collab_update",
+        json!({ "path": BOARD, "update": seed }),
+    )
+    .unwrap();
+    let seeded = put_meta(&da, "seeded", yrs::Any::Bool(true));
+    cmd(
+        &a,
+        "collab_update",
+        json!({ "path": BOARD, "update": seeded }),
+    )
+    .unwrap();
+    let bb = cmd(&b, "collab_join", json!({ "path": BOARD })).unwrap();
+    apply(&db, &bb["update"]);
+    let moved = put_element(
+        &da,
+        "r1",
+        2,
+        5,
+        &json!({ "type": "rectangle", "x": 80, "index": "a1" }),
+    );
+    let mark_a = put_meta(&da, &format!("edit:{}", da.client_id()), yrs::Any::from(1));
+    let added = put_element(
+        &db,
+        "t1",
+        1,
+        9,
+        &json!({ "type": "text", "text": "olá", "index": "a2" }),
+    );
+    let mark_b = put_meta(&db, &format!("edit:{}", db.client_id()), yrs::Any::from(1));
+    for u in [&moved, &mark_a] {
+        cmd(&a, "collab_update", json!({ "path": BOARD, "update": u })).unwrap();
+    }
+    for u in [&added, &mark_b] {
+        cmd(&b, "collab_update", json!({ "path": BOARD, "update": u })).unwrap();
+    }
+    sleep(Duration::from_millis(300));
+    hear_path(&a, &mut sa, BOARD, &da);
+    hear_path(&b, &mut sb, BOARD, &db);
+    let room = verso_server::collab_board::elements(&da);
+    assert_eq!(room, verso_server::collab_board::elements(&db));
+    assert_eq!(room["r1"]["x"], 80);
+    assert_eq!(room["t1"]["text"], "olá");
+    // The file, as a window's converter makes it of the room's state,
+    // handed over the sync's link; the room writes it.
+    let drawing: Vec<Value> = room.values().cloned().collect();
+    let canvas = json!({ "nodes": [], "edges": [], "verso": { "version": 1, "drawing": drawing } });
+    let at = STANDARD.encode(verso_server::collab_board::state_vector(&da));
+    cmd(
+        &a,
+        "collab_canvas",
+        json!({ "path": BOARD, "at": at, "json": canvas.to_string() }),
+    )
+    .unwrap();
+    let saved = cmd(&a, "collab_save", json!({ "path": BOARD }));
+    assert!(saved.is_ok(), "{saved:?}");
+
+    // Sync brings both saves down over each device's files: no copy.
+    sleep(SETTLE);
+    on(&a, &mut la);
+    on(&b, &mut lb);
+    for d in [&a, &b] {
+        assert_eq!(text(d, TXT).as_deref(), Some("zero\num\ndois\n"));
+        let board: Value = serde_json::from_str(&text(d, BOARD).unwrap()).unwrap();
+        let drawn = board["verso"]["drawing"].as_array().unwrap();
+        assert_eq!(drawn.len(), 2, "{board}");
+        assert!(copies(d).is_empty(), "{:?}", copies(d));
+    }
+}
+
 #[test]
 fn pausing_sync_takes_a_live_note_out_of_its_room_and_resuming_brings_it_back() {
     let (_r, a, _b) = two();

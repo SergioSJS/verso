@@ -18,9 +18,14 @@ pub(crate) fn write_board<R: tauri::Runtime>(
     json: String,
     revision: String,
 ) -> Result<TextFile, ContractError> {
-    with(&state, &window, |ws| {
+    let p = path.clone();
+    let written = with(&state, &window, |ws| {
         ops::write_board(ws, path, json, revision)
-    })
+    })?;
+    // A live board of a synced folder, written by its tab while out of its
+    // room: the tab's own (ADR 0082 items 6 and 8, item 12).
+    wrote(window.app_handle(), window.label(), &p, &written.text);
+    Ok(written)
 }
 
 /// What `write_board` would write for `json` over the canvas at `path` as

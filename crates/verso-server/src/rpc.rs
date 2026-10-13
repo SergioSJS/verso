@@ -641,7 +641,7 @@ async fn command(
         "set_embed_origins" | "set_menu_language" => Ok(Value::Null),
         "fetch_file" => Ok(Value::Bool(false)),
         "collab_join" | "collab_update" | "collab_awareness" | "collab_leave" | "collab_save"
-        | "collab_resolve" | "collab_present" => {
+        | "collab_resolve" | "collab_present" | "collab_canvas" => {
             collab_command(server, who, client, &r.cmd, &args).await
         }
         "trash_list" | "trash_restore" | "trash_delete" | "trash_empty" | "trash_set_days" => {
@@ -670,7 +670,10 @@ async fn collab_command(
     let scope = crate::shares::scope_here(server, client);
     let visible = scope.as_ref().map_or(folder, |s| s.share.clone());
     let writes = role.writes() && who.reaches(&visible).1;
-    let typing = matches!(cmd, "collab_update" | "collab_save" | "collab_resolve");
+    let typing = matches!(
+        cmd,
+        "collab_update" | "collab_save" | "collab_resolve" | "collab_canvas"
+    );
     if typing && !writes {
         return Err(refused("you may only read this folder"));
     }
@@ -717,6 +720,12 @@ async fn collab_command(
             Ok(Value::Null)
         }
         "collab_save" => to_value(crate::collab::save(&s, &key, &path)?),
+        "collab_canvas" => {
+            let at: String = arg(&args, "at")?;
+            let json: String = arg(&args, "json")?;
+            crate::collab::canvas(&s, &c, &key, &path, &at, json)?;
+            Ok(Value::Null)
+        }
         _ => {
             let keep: String = arg(&args, "keep")?;
             to_value(crate::collab::resolve(&s, &key, &path, &keep)?)
@@ -863,21 +872,29 @@ async fn folder_run(
         blocking(move || crate::quota::check(&s, &k, &path, len)).await?;
     }
     // A write to a note being edited together goes through its room
-    // (ADR 0073 item 7).
-    if name == "write_note" {
+    // (ADR 0073 item 7); so does a write to any text file in a room (ADR
+    // 0082 item 12). A board's room takes its changes as elements only:
+    // a write of its file from outside the room is a change from outside.
+    if matches!(name, "write_note" | "write_text") {
         let path: String = arg(&args, "path")?;
-        if server.rooms.has(&key, &path) {
+        if server.rooms.has(&key, &path)
+            && crate::collab::kind_of(&path) != crate::collab::Kind::Board
+        {
             let text: String = arg(&args, "text")?;
             let revision: String = arg(&args, "revision")?;
             let s = Arc::clone(server);
             let c = client.to_owned();
+            let note = name == "write_note";
             return blocking(move || {
                 crate::collab::write_through(&s, &key, &path, &text, &revision)?;
-                let note = s.service.with(&c, move |ws| ops::read_note(ws, path))?;
-                to_value(verso_contract::Written {
-                    note,
-                    warnings: Vec::new(),
-                })
+                if note {
+                    let note = s.service.with(&c, move |ws| ops::read_note(ws, path))?;
+                    return to_value(verso_contract::Written {
+                        note,
+                        warnings: Vec::new(),
+                    });
+                }
+                to_value(s.service.with(&c, move |ws| ops::read_text(ws, path))?)
             })
             .await;
         }
@@ -923,6 +940,22 @@ async fn folder_run(
         answer
     })
     .await?;
+    // A board's file written from outside its room — a window not in it, a
+    // rename's rewrite: a change from outside, which the room takes as one
+    // (ADR 0082 item 12) — the windows draw it again, or choose.
+    if matches!(name, "write_text" | "write_board")
+        && let Ok(path) = arg::<String>(&args_for_log, "path")
+        && crate::collab::kind_of(&path) == crate::collab::Kind::Board
+        && server.rooms.has(&key_for_log, &path)
+    {
+        let s = Arc::clone(server);
+        let k = key_for_log.clone();
+        let _ = blocking(move || {
+            crate::collab::changed_outside(&s, &k, &[path], &[]);
+            Ok(())
+        })
+        .await;
+    }
     if access == Access::Write {
         // A share follows its folder's rename and goes with its deletion
         // (ADR 0081 item 13).

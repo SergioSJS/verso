@@ -15,7 +15,7 @@ import * as Y from "yjs";
 import type { Capabilities, ContractError, NoteText } from "../bindings";
 import { type Core, fromBase64, toBase64 } from "./core";
 
-type Room = { doc: Y.Doc; epoch: string; revision: string };
+type Room = { doc: Y.Doc; epoch: string; revision: string; board: boolean; canvas: string | null };
 
 function unavailable(): never {
   const e: ContractError = { kind: "unavailable", message: "the folder's sync is not connected" };
@@ -43,7 +43,7 @@ export class Rooms {
       if (!this.up) unavailable();
       const path = String(a["path"]);
       const room = this.room(path);
-      return { update: toBase64(Y.encodeStateAsUpdate(room.doc)), revision: room.revision, read_only: false, crlf: false, user: "Ana", epoch: room.epoch };
+      return { kind: room.board ? "board" : "text", update: toBase64(Y.encodeStateAsUpdate(room.doc)), revision: room.revision, read_only: false, crlf: false, user: "Ana", epoch: room.epoch };
     };
     h["collab_update"] = (a) => {
       if (!this.up) unavailable();
@@ -54,6 +54,15 @@ export class Rooms {
     };
     h["collab_awareness"] = () => {
       if (!this.up) unavailable();
+      return null;
+    };
+    // A board's file as the window made it of the room's state (ADR 0082
+    // item 12): what the room's save writes.
+    h["collab_canvas"] = (a) => {
+      if (!this.up) unavailable();
+      const room = this.rooms.get(String(a["path"]));
+      if (!room?.board) unavailable();
+      room.canvas = String(a["json"]);
       return null;
     };
     h["collab_leave"] = () => null;
@@ -76,9 +85,13 @@ export class Rooms {
     let room = this.rooms.get(path);
     if (room) return room;
     const doc = new Y.Doc();
-    doc.getText("verso").insert(0, this.core.read(path) ?? "");
-    const note = this.core.handlers["read_note"]!({ path }) as NoteText;
-    room = { doc, epoch: `e${++this.epochs}`, revision: note.revision };
+    const board = /\.canvas$/i.test(path);
+    // A board's room holds the file it was made from; the window draws it
+    // in (boardRoom.ts).
+    if (board) doc.getMap("meta").set("base", this.core.read(path) ?? "");
+    else doc.getText("verso").insert(0, this.core.read(path) ?? "");
+    const read = this.core.handlers[board ? "read_text" : "read_note"]!({ path }) as NoteText;
+    room = { doc, epoch: `e${++this.epochs}`, revision: read.revision, board, canvas: null };
     this.rooms.set(path, room);
     return room;
   }
@@ -87,7 +100,14 @@ export class Rooms {
   save(path: string): string {
     const room = this.rooms.get(path);
     if (!room) unavailable();
-    this.core.writeOutside(path, room.doc.getText("verso").toString());
+    if (room.board) {
+      // The core lays the board's canvas over the file, as the server's
+      // room writes it.
+      if (room.canvas !== null) {
+        const laid = this.core.handlers["board_preview"]!({ path, json: room.canvas }) as string;
+        this.core.writeOutside(path, laid);
+      }
+    } else this.core.writeOutside(path, room.doc.getText("verso").toString());
     room.revision = `r${Date.now()}`;
     void emit("collab-saved", { path, revision: room.revision });
     return room.revision;
