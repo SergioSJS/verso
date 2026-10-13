@@ -132,18 +132,13 @@ fn public_authority(server: &Server) -> Option<&str> {
 }
 
 fn loopback_host(host: &str) -> bool {
-    let name = if let Some(rest) = host.strip_prefix('[') {
-        rest.split(']').next().unwrap_or("")
-    } else {
-        host.rsplit_once(':').map_or(host, |(h, p)| {
-            if p.chars().all(|c| c.is_ascii_digit()) {
-                h
-            } else {
-                host
-            }
-        })
+    // The name without a port of digits after its last colon: `[::1]`
+    // keeps its brackets, and nothing but that port may follow them.
+    let name = match host.rsplit_once(':') {
+        Some((name, port)) if port.bytes().all(|b| b.is_ascii_digit()) => name,
+        _ => host,
     };
-    matches!(name, "localhost" | "127.0.0.1" | "::1")
+    matches!(name, "localhost" | "127.0.0.1" | "[::1]")
 }
 
 /// The `Host` header names this server: the public address's authority,
@@ -330,6 +325,27 @@ mod tests {
             "localhost.evil.example",
             "10.0.0.2:7340",
             "127.0.0.1.nip.io",
+        ] {
+            assert!(!loopback_host(h), "{h}");
+        }
+    }
+
+    /// Found by the fuzz target `host` (ADR 0083 item 14; its input is
+    /// `fuzz/seeds-host/bracket-then-anything.txt`): a name in brackets was
+    /// taken for `[::1]` whatever followed the bracket, so such a `Host`
+    /// passed, and with no public address it became the origin the server
+    /// expects — the base of the links it mails (a password reset's) and a
+    /// source in the page's policy. `[::1]@evil.example` makes a link a
+    /// browser opens at evil.example.
+    #[test]
+    fn only_the_loopback_in_brackets_is_one() {
+        for h in [
+            "[::1]@evil.example",
+            "[::1]:7340@evil.example",
+            "[::1]x",
+            "[::1]:igin: https",
+            "[::1];script-src *",
+            "[::1]evil.example:80",
         ] {
             assert!(!loopback_host(h), "{h}");
         }

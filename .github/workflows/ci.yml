@@ -237,8 +237,13 @@ jobs:
     # here — cargo-fuzz does not create a corpus directory it was given by
     # name. Inputs up to 64 KiB: the 8 KB frontmatter that overflowed the
     # stack was out of reach of the 4 KiB default (review of PR #7,
-    # finding 2).
-    name: verso-dialect and canvas fuzz, 60s each (main, ADR 0029)
+    # finding 2). The server's inputs have a harness of their own
+    # (crates/verso-server/fuzz, ADR 0083 item 14): the WebSocket's request,
+    # a binary frame, a Yjs update into a note's room and into a board's,
+    # a presence, the Host and Origin checks and a size, each 60 s from its
+    # versioned seeds in `fuzz/seeds-<target>`, the same way, built as the
+    # server ships (`-O`, see the step).
+    name: verso-dialect, canvas and server fuzz, 60s each (main, ADR 0029, ADR 0083)
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     steps:
@@ -249,7 +254,9 @@ jobs:
           tool: cargo-fuzz@0.13.2
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
-          workspaces: crates/verso-dialect/fuzz
+          workspaces: |
+            crates/verso-dialect/fuzz
+            crates/verso-server/fuzz
       # install-action ships a static (musl) cargo-fuzz on Linux, and
       # cargo-fuzz defaults --target to the platform it was built for; the
       # sanitizer does not link against static musl, so the target is explicit.
@@ -265,12 +272,29 @@ jobs:
         run: |
           mkdir -p fuzz/corpus/canvas
           cargo +nightly fuzz run --target x86_64-unknown-linux-gnu canvas fuzz/corpus/canvas fuzz/seeds-canvas -- -max_total_time=60 -max_len=65536 -timeout=20
+      # The server's inputs (ADR 0083 item 14, F6), one target after the
+      # other in one step: a crash ends it, and its input is kept below.
+      # What each target feeds and what a crash means is in its doc comment.
+      # Built with `-O`, the release profile without debug assertions or
+      # overflow checks, as the server ships: yrs asserts and overflows in a
+      # debug build on what a release build takes (the first runs of
+      # 2026-10-13), and those are not what a member can do to a server.
+      # The dialect's and the canvas's keep cargo-fuzz's default flags.
+      - name: fuzz the server's inputs for 60 seconds each
+        working-directory: crates/verso-server
+        run: |
+          for target in request unframe note board presence host size; do
+            mkdir -p fuzz/corpus/$target
+            cargo +nightly fuzz run -O --target x86_64-unknown-linux-gnu $target fuzz/corpus/$target fuzz/seeds-$target -- -max_total_time=60 -max_len=65536 -timeout=20
+          done
       - name: keep a crash, if any, as an artifact
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: fuzz-artifacts
-          path: crates/verso-dialect/fuzz/artifacts
+          path: |
+            crates/verso-dialect/fuzz/artifacts
+            crates/verso-server/fuzz/artifacts
           if-no-files-found: ignore
 
   bench:

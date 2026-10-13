@@ -213,11 +213,26 @@ pub(crate) fn sync_refusal(theirs: Option<u32>, ours: u32) -> Option<String> {
 }
 
 #[derive(Deserialize)]
-struct Request {
-    id: u64,
-    cmd: String,
+pub(crate) struct Request {
+    pub(crate) id: u64,
+    pub(crate) cmd: String,
     #[serde(default)]
-    args: Value,
+    pub(crate) args: Value,
+}
+
+/// A text message's request, as the connection's loop reads it.
+pub(crate) fn text_request(text: &str) -> Option<Request> {
+    serde_json::from_str(text).ok()
+}
+
+/// A binary message's request and piece (sync 2, [`verso_core::sync::frame`]):
+/// the request of its header — a `sync_put`'s only, the one command that
+/// carries a piece — and the piece, a slice of `message`; `None` when the
+/// message is no frame.
+pub(crate) fn binary_request(message: &[u8]) -> Option<(Option<Request>, &[u8])> {
+    let (header, piece) = verso_core::sync::unframe(message)?;
+    let request = serde_json::from_slice::<Request>(header).ok();
+    Some((request.filter(|r| r.cmd == "sync_put"), piece))
 }
 
 async fn run(
@@ -320,13 +335,9 @@ async fn run(
                 // A binary message is a piece a device sends (sync 2): its
                 // request's header, then the piece's bytes as they are.
                 let (parsed, data) = match message {
-                    Message::Text(t) => (serde_json::from_str::<Request>(t.as_str()).ok(), None),
-                    Message::Binary(b) => match verso_core::sync::unframe(&b) {
-                        Some((header, piece)) => {
-                            let request = serde_json::from_slice::<Request>(header).ok();
-                            let piece = b.slice_ref(piece);
-                            (request.filter(|r| r.cmd == "sync_put"), Some(piece))
-                        }
+                    Message::Text(t) => (text_request(t.as_str()), None),
+                    Message::Binary(b) => match binary_request(&b) {
+                        Some((request, piece)) => (request, Some(b.slice_ref(piece))),
                         None => (None, None),
                     },
                     Message::Close(_) => break,
@@ -713,7 +724,7 @@ async fn collab_command(
         "collab_join" => to_value(crate::collab::join(&s, &c, &key, &path, &user)?),
         "collab_update" => {
             let update: String = arg(&args, "update")?;
-            crate::collab::update(&s, &c, &key, &path, &update)?;
+            crate::collab::update(&s, (&c, &account), &key, &path, &update)?;
             Ok(Value::Null)
         }
         "collab_awareness" => {

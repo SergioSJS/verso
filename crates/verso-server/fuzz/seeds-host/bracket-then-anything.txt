@@ -1,0 +1,3 @@
+host: [::1]:igin: httpsz40
+orAigihost: rigin: httpsz40
+orAigihost: [::1]:73igin h:t//[::1]:7340
