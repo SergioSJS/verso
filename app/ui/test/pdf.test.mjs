@@ -73,3 +73,26 @@ describe("PDF Embed specification parser (parsePdfSpec)", () => {
     assert.equal(spec.page, 12);
   });
 });
+
+// ADR 0083 item 8 (F22): PDF.js used to compile fonts with `eval` unless
+// told `isEvalSupported: false`. pdfjs-dist 6 has no such option and no
+// eval left; the page's policy has no `unsafe-eval` either. This sees an
+// upgrade that brings it back: the build the window ships has no
+// `eval(` call and no `Function(` constructor.
+describe("PDF.js ships no eval", () => {
+  const evalCall = /(?<![\w$.])eval\s*\(|(?<![\w$.])(?:new\s+)?Function\s*\(/;
+  test("the pattern sees eval and Function, and no name ending in eval", () => {
+    assert.match('x = eval("1")', evalCall);
+    assert.match('f = new Function("a", "return a")', evalCall);
+    assert.doesNotMatch("this._evalBlock(b); retrieval(x); obj.eval(y); isFunction(z)", evalCall);
+  });
+  for (const file of ["build/pdf.mjs", "build/pdf.worker.mjs"]) {
+    test(`pdfjs-dist/${file} has no eval`, async () => {
+      const { readFileSync } = await import("node:fs");
+      const text = readFileSync(new URL(`../node_modules/pdfjs-dist/${file}`, import.meta.url), "utf8");
+      const found = text.match(evalCall);
+      const where = found ? text.slice(Math.max(0, found.index - 80), found.index + 80) : "";
+      assert.equal(found?.[0] ?? null, null, where);
+    });
+  }
+});

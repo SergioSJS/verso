@@ -156,3 +156,100 @@ fn a_device_code_says_who_asked_and_can_be_refused() {
         assert_eq!(status, 404);
     });
 }
+
+/// The server's headers, every one by name and value, on the page, the
+/// API and a folder's file (ADR 0083 item 9; the review's section 3.2): a
+/// header lost or changed in a refactor is seen here. `None` is a header
+/// that must not be there.
+#[test]
+fn every_answer_carries_the_whole_set_of_headers() {
+    const PERMISSIONS: &str = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), interest-cohort=()";
+    const FILE_CSP: &str = "sandbox; default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:";
+    let page_csp = |ws: &str| {
+        format!(
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; \
+             img-src 'self' data: blob: https:; media-src 'self' blob: https:; \
+             frame-src 'self' https:; object-src 'none'; connect-src 'self' {ws}; \
+             worker-src 'self' blob:; font-src 'self' data:; base-uri 'none'; \
+             form-action 'self'; frame-ancestors 'self'"
+        )
+    };
+    block_on(async {
+        // Over plain HTTP on this machine, and with an HTTPS address.
+        for public in [None, Some("https://notas.casa")] {
+            let r = crate::tests::start_with(|c| c.public_url = public.map(str::to_owned)).await;
+            crate::data::ensure_dir(&r.server.config.ui_dir).unwrap();
+            crate::data::write_for_tests(
+                &r.server.config.ui_dir.join("web.html"),
+                "<!doctype html><title>Verso</title>",
+            );
+            let admin = r
+                .server
+                .db
+                .account_by_email("admin@casa.lan")
+                .unwrap()
+                .unwrap();
+            let (token, csrf) = r
+                .server
+                .db
+                .create_session(&admin.id, "browser", "test", "127.0.0.1")
+                .unwrap();
+            let b = crate::tests::Browser {
+                cookie: format!("{}={token}", crate::auth::cookie_name(&r.server)),
+                csrf,
+            };
+            let id = folder_id(&r, &b).await;
+            // A folder's files are served while a window has it open.
+            let origin = public.map_or_else(|| r.origin(), str::to_owned);
+            let mut window = connect(&r, Some(&b.cookie), Some(&origin), None)
+                .await
+                .unwrap();
+            next(&mut window).await;
+            call(&mut window, 1, "open_server_folder", json!({ "id": id })).await;
+            let ws = public.map_or_else(
+                || format!("ws://localhost:{}", r.addr().port()),
+                |_| "wss://notas.casa".to_owned(),
+            );
+            let hsts = public.map(|_| "max-age=31536000; includeSubDomains");
+            let page = page_csp(&ws);
+            let common = |csp: &str, corp: Option<&'static str>, cache: Option<&'static str>| {
+                vec![
+                    ("x-content-type-options", Some("nosniff".to_owned())),
+                    ("referrer-policy", Some("no-referrer".to_owned())),
+                    ("x-frame-options", Some("SAMEORIGIN".to_owned())),
+                    ("cross-origin-opener-policy", Some("same-origin".to_owned())),
+                    ("permissions-policy", Some(PERMISSIONS.to_owned())),
+                    ("content-security-policy", Some(csp.to_owned())),
+                    ("cross-origin-resource-policy", corp.map(str::to_owned)),
+                    ("cache-control", cache.map(str::to_owned)),
+                    ("strict-transport-security", hsts.map(str::to_owned)),
+                ]
+            };
+            let routes = [
+                ("/", common(&page, None, Some("no-store"))),
+                ("/api/state", common(&page, None, None)),
+                (
+                    &*format!("/f/{id}/mapa.svg"),
+                    common(FILE_CSP, Some("same-origin"), Some("no-store")),
+                ),
+            ];
+            for (path, expected) in routes {
+                let res = reqwest::Client::new()
+                    .get(r.url(path))
+                    .header("cookie", &b.cookie)
+                    .send()
+                    .await
+                    .unwrap();
+                assert_eq!(res.status().as_u16(), 200, "{path}");
+                for (name, value) in expected {
+                    let got = res
+                        .headers()
+                        .get(name)
+                        .and_then(|v| v.to_str().ok())
+                        .map(str::to_owned);
+                    assert_eq!(got, value, "{public:?} {path} {name}");
+                }
+            }
+        }
+    });
+}

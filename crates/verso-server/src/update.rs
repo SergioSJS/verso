@@ -99,12 +99,21 @@ fn newest(current: &str, releases: &[Release]) -> Option<String> {
         .map(|(_, tag)| tag)
 }
 
-async fn ask(token: Option<&str>) -> Result<Vec<Release>, String> {
-    let client = reqwest::Client::builder()
+/// The client the feed is asked with. It follows no redirect (ADR 0083
+/// item 8, F23): the feed is one fixed address, and a redirect — to a
+/// private address, the cloud's metadata — is answered as the error it
+/// is, never fetched.
+fn client() -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
         .user_agent(concat!("verso-server/", env!("CARGO_PKG_VERSION")))
         .timeout(Duration::from_secs(20))
+        .redirect(reqwest::redirect::Policy::none())
         .build()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())
+}
+
+async fn ask(token: Option<&str>) -> Result<Vec<Release>, String> {
+    let client = client()?;
     let mut request = client
         .get(FEED)
         .header("Accept", "application/vnd.github+json");
@@ -188,5 +197,40 @@ mod tests {
         );
         assert_eq!(newest("0.6.0", &feed).as_deref(), Some("0.6.1"));
         assert_eq!(newest("0.6.1", &feed), None);
+    }
+
+    /// The feed's client follows no redirect (ADR 0083 item 8, F23): a
+    /// feed that answered with one to a private address would otherwise
+    /// have it fetched.
+    #[test]
+    fn the_feeds_client_follows_no_redirect() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        crate::tests::block_on(async {
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let addr = listener.local_addr().unwrap();
+            tokio::spawn(async move {
+                while let Ok((mut tcp, _)) = listener.accept().await {
+                    let mut buf = [0_u8; 1024];
+                    let n = tcp.read(&mut buf).await.unwrap_or(0);
+                    let asked = String::from_utf8_lossy(&buf[..n]).into_owned();
+                    let answer = if asked.starts_with("GET /private") {
+                        "HTTP/1.1 200 OK\r\nContent-Length: 6\r\nConnection: close\r\n\r\nsecret"
+                            .to_owned()
+                    } else {
+                        format!(
+                            "HTTP/1.1 302 Found\r\nLocation: http://{addr}/private\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                        )
+                    };
+                    let _ = tcp.write_all(answer.as_bytes()).await;
+                }
+            });
+            let res = client()
+                .unwrap()
+                .get(format!("http://{addr}/feed"))
+                .send()
+                .await
+                .unwrap();
+            assert_eq!(res.status().as_u16(), 302);
+        });
     }
 }
