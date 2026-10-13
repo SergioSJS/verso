@@ -300,6 +300,8 @@ mod tests;
 #[cfg(test)]
 mod tests_board_rooms;
 #[cfg(test)]
+mod tests_board_stress;
+#[cfg(test)]
 mod tests_bounds;
 #[cfg(test)]
 mod tests_console;
