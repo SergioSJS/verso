@@ -270,21 +270,32 @@ function gateOf(url: string): { kind: "local" | "public" | "remote"; origin: str
   return null;
 }
 
-/** The iframe for web page `url`, loaded directly and sandboxed; or, when
- *  it may not load yet, a box that says why and asks. The iframe waits
- *  inside the box in a `template`: inert, nothing is fetched until a
- *  click. Built in `doc`, the inert document of a note or the page. */
-function gated(doc: Document, frame: HTMLIFrameElement, url: string): HTMLElement {
+/** The box a web page renders in, `div.embed-web`, sized and styled as
+ *  `style` says — tamed, so the frame cannot lift itself out of the pane —
+ *  and not loaded: `data-embed-web` is what loads it. */
+function webHost(doc: Document, style: string): HTMLElement {
   // The page renders in a child web view the window overlays on this
   // box — a top-level view, which X-Frame-Options does not bind, unlike
   // an iframe (ADR 0056). The note's <iframe> only donates its size.
   const host = doc.createElement("div");
   host.className = "embed-web";
-  const style = frame.getAttribute("style") ?? "";
   if (style) {
     host.style.cssText = style;
     tameStyle(host.style);
+    if (host.style.length === 0) host.removeAttribute("style");
   }
+  return host;
+}
+
+/** The iframe for web page `url`, loaded directly and sandboxed; or, when
+ *  it may not load yet, a box that says why and asks. The box carries
+ *  what its button needs — the address, and the frame's style with its
+ *  size — as attributes: nothing is built, and nothing fetched, until a
+ *  click (`onGate`), and the box means the same parsed again wherever a
+ *  view puts its text. Built in `doc`, the inert document of a note or
+ *  the page. */
+function gated(doc: Document, frame: HTMLIFrameElement, url: string): HTMLElement {
+  const host = webHost(doc, frame.getAttribute("style") ?? "");
   const width = frame.getAttribute("width");
   const height = frame.getAttribute("height");
   if (width) host.style.width = /^\d+$/.test(width) ? `${width}px` : width;
@@ -310,6 +321,7 @@ function gated(doc: Document, frame: HTMLIFrameElement, url: string): HTMLElemen
   box.setAttribute("data-embed-kind", gate.kind);
   box.setAttribute("data-embed-url", url);
   box.setAttribute("data-embed-origin", gate.origin);
+  box.setAttribute("data-embed-style", host.style.cssText);
   const where = doc.createElement("code");
   where.className = "embed-gate-origin";
   where.textContent = gate.kind === "remote" ? url : gate.origin;
@@ -328,9 +340,7 @@ function gated(doc: Document, frame: HTMLIFrameElement, url: string): HTMLElemen
   };
   if (gate.kind === "remote") actions.append(button("load", s.load, "save"));
   else actions.append(button("cancel", s.cancel, "ghost"), button("approve", s.approve, "save"));
-  const held = doc.createElement("template");
-  held.content.append(host);
-  box.append(where, text, actions, held);
+  box.append(where, text, actions);
   return box;
 }
 
@@ -367,13 +377,22 @@ function onGate(e: MouseEvent): void {
   e.preventDefault();
   e.stopPropagation();
   const url = box.getAttribute("data-embed-url") ?? "";
-  const origin = box.getAttribute("data-embed-origin") ?? "";
+  // The origin asked about is the address's own, never what else the box
+  // says: a box is only read here, and what it claims is checked again.
+  let origin = "";
+  try {
+    origin = onTheWeb(url) ? new URL(url).origin : "";
+  } catch {
+    /* not an address: nothing loads */
+  }
   const load = () => {
-    const held = box.querySelector("template")?.content.querySelector("div.embed-web");
-    if (!held) return;
-    // Only a box this module made carries the address it asked about.
-    held.setAttribute("data-embed-web", embedTarget(url));
-    box.replaceWith(document.importNode(held, true));
+    // A page on the web whose origin was approved, and nothing else,
+    // whoever wrote the box.
+    if (!origin || (!approvedAll && !approved.has(origin))) return;
+    // The frame built from the box's own attributes, its style tamed again.
+    const host = webHost(document, box.getAttribute("data-embed-style") ?? "");
+    host.setAttribute("data-embed-web", embedTarget(url));
+    box.replaceWith(host);
   };
   switch (button.getAttribute("data-embed-action")) {
     case "load":
@@ -381,6 +400,7 @@ function onGate(e: MouseEvent): void {
       load();
       break;
     case "approve":
+      if (!origin) break;
       void hooks?.approve(origin).then((ok) => {
         if (!ok) return;
         approved.add(origin);
@@ -390,7 +410,7 @@ function onGate(e: MouseEvent): void {
     case "cancel": {
       const link = document.createElement("a");
       link.className = "remote-image";
-      link.href = url;
+      if (origin) link.href = url;
       link.textContent = url;
       box.replaceWith(link);
       break;
