@@ -205,7 +205,10 @@ fn past_the_servers_connections_the_next_is_closed() {
         let r = start().await;
         let tcp = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = tcp.local_addr().unwrap();
-        let listener = crate::listen::Plain::new(tcp, crate::listen::Slots::bounded(None, 1, 128));
+        let listener = crate::listen::Plain::new(
+            tcp,
+            crate::listen::Slots::bounded(crate::proxy::Proxies::default(), 1, 128),
+        );
         let app = crate::http::router(std::sync::Arc::clone(&r.server));
         tokio::spawn(crate::listen::serve(listener, app, std::future::pending()));
         let first = tokio::net::TcpStream::connect(addr).await.unwrap();

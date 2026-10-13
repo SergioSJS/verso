@@ -31,6 +31,7 @@ pub mod log;
 pub mod mail;
 pub mod passkeys;
 pub mod presence;
+pub mod proxy;
 pub mod quota;
 pub mod rpc;
 pub mod scope;
