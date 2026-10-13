@@ -177,7 +177,7 @@ const pt = {
   actions: {
     sign_in: "entrou",
     sign_in_passkey: "entrou com uma chave de acesso",
-    sign_in_noticed: "foi avisada de 20 entradas recusadas numa hora",
+    sign_in_noticed: "teve 20 entradas recusadas numa hora (avisada por e-mail, se houver servidor de e-mail)",
     sign_in_link: "entrou por um link",
     signin_link_sent: "pediu um link de entrada",
     sign_out: "saiu",
@@ -396,7 +396,7 @@ const en: typeof pt = {
   actions: {
     sign_in: "signed in",
     sign_in_passkey: "signed in with a passkey",
-    sign_in_noticed: "was told of 20 sign-ins refused within an hour",
+    sign_in_noticed: "had 20 sign-ins refused within an hour (told by mail, with a mail server)",
     sign_in_link: "signed in with a link",
     signin_link_sent: "asked for a sign-in link",
     sign_out: "signed out",
