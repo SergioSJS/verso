@@ -9,6 +9,7 @@
 import { ApiError, api, setCsrf, type Account } from "./api";
 import { divider, el, field, form, lead, page, select } from "./form";
 import { readCode } from "./deviceCode";
+import { nextPath } from "./nextPath";
 import { passkeysHere, signInWithPasskey } from "./passkeys";
 import { roleName, setLang, w } from "./strings";
 import { icon } from "../icons";
@@ -25,15 +26,7 @@ function langField(): ReturnType<typeof select> {
 /** Where to go once signed in: the `next` of the address, when it is a
  *  path of this server. */
 function next(): string {
-  // Resolved as the browser will: `/\host` and the like are another
-  // origin, and only this one's paths are followed.
-  const n = new URLSearchParams(location.search).get("next") ?? "/";
-  try {
-    const u = new URL(n, location.origin);
-    return u.origin === location.origin ? `${u.pathname}${u.search}${u.hash}` : "/";
-  } catch {
-    return "/";
-  }
+  return nextPath(new URLSearchParams(location.search).get("next"), location.origin);
 }
 
 type SignedIn = { account: Account; csrf: string };
