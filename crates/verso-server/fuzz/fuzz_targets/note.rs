@@ -41,14 +41,14 @@
 //! room's next edit took. Both are now refused (`collab::ahead_of_room`);
 //! `run-wrapping-to-zero.bin`, a run of length 0 on which `yrs` divided by
 //! zero twice and ended the process, is refused by `yjs_bounds.rs`.
-//! Open, in `../open-note/` and not replayed by the job until decided:
-//! `use-after-free.bin`, on which `yrs` 0.28 reads a run it freed
-//! replacing a run it had kept aside (`BlockStore::push`), in one
-//! `apply_update` — AddressSanitizer's heap-use-after-free, memory a
-//! release build reads silently; `window-reads-other-text.bin` and
-//! `…-after-a-write.bin`, updates of other windows' clients kept aside
-//! by the room and placed by a window that joins, so the two read
-//! different texts.
+//! And `use-after-free.bin`, on which `yrs` 0.28 read a run it had freed
+//! replacing a run it kept aside (AddressSanitizer), and
+//! `window-reads-other-text*.bin`, a room and a window that joined reading
+//! different texts: the path where `yrs` keeps an update aside, which a
+//! room no longer takes — a connection's updates reach it in order, one
+//! that would leave something aside is refused and the room made again,
+//! and a state that would read otherwise in a window is never sent
+//! (`collab::integrate`, `collab::state`).
 //! Run: `cargo +nightly fuzz run note fuzz/corpus/note fuzz/seeds-note`.
 
 #![no_main]
