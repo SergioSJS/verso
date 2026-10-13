@@ -54,10 +54,20 @@ pub fn folder_path(root: &Path, name: &str) -> Option<PathBuf> {
 }
 
 /// Make folder `name` under `root`; `AlreadyExists` when something stands
-/// there.
+/// there. On Unix it is made `0750` (ADR 0083 item 11, finding F20): the
+/// server's user whole, its group to read — a backup run as that group —
+/// and nothing for other users of the host, whatever the folders root
+/// gives them; the process's umask may narrow it further, never widen it.
+/// On Windows the folder inherits the root's permissions.
 pub fn make_folder(root: &Path, name: &str) -> io::Result<PathBuf> {
     let path = folder_path(root, name)
         .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "not a folder name"))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        std::fs::DirBuilder::new().mode(0o750).create(&path)?;
+    }
+    #[cfg(not(unix))]
     std::fs::create_dir(&path)?;
     crate::os::sync_dir(root)?;
     Ok(path)
@@ -165,6 +175,20 @@ mod tests {
             assert!(!is_folder_name(bad), "{bad:?}");
             assert!(make_folder(root.path(), bad).is_err(), "{bad:?}");
         }
+    }
+
+    /// A folder is made 0750 (ADR 0083 item 11, finding F20): the owner
+    /// whole, the group may read, other users of the host nothing — not
+    /// the process's umask, 0755 under the usual 022.
+    #[cfg(unix)]
+    #[test]
+    fn a_folder_is_made_for_its_owner_and_group_only() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = tempfile::tempdir().unwrap();
+        let made = make_folder(root.path(), "Campanha").unwrap();
+        let mode = std::fs::metadata(&made).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode & 0o700, 0o700, "{mode:o}");
+        assert_eq!(mode & 0o027, 0, "{mode:o}: group write or others");
     }
 
     #[test]

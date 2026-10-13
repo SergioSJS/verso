@@ -1321,6 +1321,7 @@ impl Db {
     }
 }
 
+mod audit;
 mod console;
 mod shares;
 mod sync;
