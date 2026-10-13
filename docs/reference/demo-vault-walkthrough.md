@@ -818,7 +818,12 @@ rest below and in `manual-checks.md`.
     server's Rust tests (`tests_board_rooms.rs`, `collab_board.rs`), the
     window's (`boardRoom.test.mjs`), and two synced devices on a text file
     and a board (`tests_live.rs`); two real computers, by hand
-    (`manual-checks.md`).
+    (`manual-checks.md`). Under load: five clients on a board against a
+    real server, seeded, with reordering, drops and a reader of the disk
+    (`tests_board_stress.rs`; the long run `board_stress_long`, ignored);
+    five windows with the window's own merge and converter
+    (`boardStress.test.mjs`); three windows in two engines working at
+    random for a minute (e2e-server, "three windows, two engines").
 
 ## 14. The end
 

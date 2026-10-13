@@ -503,7 +503,19 @@ em `feat/coedit-everything`): todo arquivo que uma pessoa edita na janela
 cooperativa, né? Com coedição. Deveria estar. A gente ainda não fechou o
 universo."* A [0057](0057-board-json-canvas.md) e o item 7 da
 [0073](0073-self-hosted-server-first.md) ganharam suas linhas de Revisões
-no mesmo dia.
+no mesmo dia. Posto à prova na mesma noite a pedido do mantenedor
+(*"tenho receio de quebrar algo em edições conjuntas"*): cinco clientes
+num board contra um servidor de verdade, 200 sementes de 200 mudanças
+(`tests_board_stress.rs`); cinco janelas com o próprio código da janela,
+200 sementes de 200 mudanças (`boardStress.test.mjs`); três janelas de
+navegador, dois motores, um minuto de trabalho aleatório, quatro sementes
+(a suíte ponta a ponta do servidor); e o arquivo lido de volta pelo
+Obsidian 1.14.4 (`docs/reference/obsidian-observations.md` §18). Três
+falhas achadas e corrigidas na causa: o `yrs` do servidor deixava sem
+lugar algumas atualizações ouvidas fora de ordem (692b2ed); uma exclusão
+ainda não enviada era desfeita no board por um arrasto ouvido no meio
+tempo, e o board tomava uma versão igual a uma ouvida pela da sala
+(24d65d2).
 
 **Respondidas pelo mantenedor em 2026-10-12** (01:15 BRT), item a item: o ajuste do item 15 fica nos ajustes da janela; as esperas de 5 s e
 de 4 s ficam, a afinar com o uso; as escritas que o painel de

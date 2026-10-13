@@ -844,7 +844,12 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
     `collab_board.rs`), os da janela (`boardRoom.test.mjs`), e dois
     aparelhos sincronizados num arquivo de texto e num board
     (`tests_live.rs`); dois computadores de verdade, à mão
-    (`manual-checks.md`).
+    (`manual-checks.md`). Sob carga: cinco clientes num board contra um
+    servidor de verdade, com semente, com reordenação, quedas e um leitor
+    do disco (`tests_board_stress.rs`; a rodada longa `board_stress_long`,
+    ignorada); cinco janelas com a fusão e o conversor da própria janela
+    (`boardStress.test.mjs`); três janelas em dois motores trabalhando ao
+    acaso por um minuto (e2e-server, "three windows, two engines").
 
 ## 14. O fim
 

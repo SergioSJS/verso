@@ -48,6 +48,7 @@ test release.
 
 ### Fixed
 
+- **Text typed together could fall short of the file**: when two of a window's edits reached the server in the other order, the server could keep the later one aside for good, and the note, text file or board it wrote then lacked what was typed after it. Every edit is now placed, in whatever order it arrives ([ADR 0082](docs/adr/0082-live-co-editing-of-a-synced-folder.md) item 12).
 - **Enter in a base's table cell shows the new value at once**: the field closes, the cell shows what was typed and keeps the focus (Enter opens it again, as before); the table no longer waits for the focus to leave the cell. On a note live in its room, the value stays shown until the room writes the file.
 - **In a browser, the folder button works from the first click**: while the window is still loading it shows it is not ready yet, and a click made then is kept and opens the folder switcher as soon as the window is — on a slow machine it was simply lost.
 - **A share revoked while it synced is always said at once**: the notice "Whoever shared … revoked your access on …" could be lost when the window asked for the sync's state just before hearing the change; whichever brings the change first now says it, once.

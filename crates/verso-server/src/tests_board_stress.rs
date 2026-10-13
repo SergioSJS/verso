@@ -944,6 +944,10 @@ async fn run(seed: u64, ops: usize) -> (usize, usize) {
         expected_file["ok"].as_str().unwrap(),
         "seed {seed}: the file is not the board of the room's state"
     );
+    // The file, for a reader outside (Obsidian, ADR 0009) when asked.
+    if std::env::var("VERSO_STRESS_PRINT").is_ok_and(|v| v == seed.to_string()) {
+        println!("STRESS-FILE-BEGIN\n{written}\nSTRESS-FILE-END");
+    }
     // (b) a JSON Canvas, and the board of these elements again.
     let file = checked(&written).unwrap_or_else(|e| panic!("seed {seed}: {e}"));
     assert_eq!(

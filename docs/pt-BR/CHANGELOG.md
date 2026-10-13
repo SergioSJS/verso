@@ -48,6 +48,7 @@ versão de teste.
 
 ### Corrigido
 
+- **O que se digitava junto podia faltar no arquivo**: quando duas edições de uma janela chegavam ao servidor na ordem trocada, o servidor podia deixar a segunda de lado para sempre, e a nota, o arquivo de texto ou o board que ele gravava ficava sem o que foi digitado depois dela. Toda edição agora entra, na ordem que chegar (item 12 da [ADR 0082](adr/0082-live-co-editing-of-a-synced-folder.md)).
 - **Enter numa célula da tabela de uma base mostra o valor novo na hora**: o campo fecha, a célula mostra o que foi digitado e fica com o foco (Enter a abre de novo, como antes); a tabela não espera mais o foco sair da célula. Numa nota ao vivo na sua sala, o valor continua à mostra até a sala gravar o arquivo.
 - **No navegador, o botão da pasta funciona desde o primeiro clique**: enquanto a janela ainda carrega, ele mostra que ainda não está pronto, e um clique feito nessa hora é guardado e abre o seletor de pastas assim que a janela fica pronta — numa máquina lenta ele simplesmente se perdia.
 - **Um compartilhamento revogado enquanto sincronizava sempre é dito na hora**: o aviso "Quem compartilhou … revogou o seu acesso em …" podia se perder quando a janela perguntava o estado da sincronização logo antes de ouvir a mudança; agora quem trouxer a mudança primeiro a diz, uma vez.
