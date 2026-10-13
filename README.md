@@ -181,3 +181,7 @@ released yet sits under "Unreleased". `vX.Y.Z` is a production release,
   open questions.
 - [docs/reference/app-decision.md](docs/reference/app-decision.md) — what the
   window does, and how to verify it without reading code.
+- [docs/reference/server-hands-on.md](docs/reference/server-hands-on.md) —
+  installing UniVerso step by step, with Docker or a package, beside other
+  apps, up to the desktop app connected; the reference is
+  [docs/reference/server-install.md](docs/reference/server-install.md).
