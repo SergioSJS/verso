@@ -99,19 +99,21 @@ export function sendable(e: El, held: El | undefined): El {
   return { ...e, version: Math.max(rankOf(e).version, held ? rankOf(held).version : 0) + DELETE_JUMP };
 }
 
-/** The elements of `scene` the room does not have yet: each one whose
- *  rank is new to `known` (what this window last saw of the room) and
- *  wins over it. One the room holds a later version of is the room's to
- *  bring in, never this window's to send. */
+/** Whether `e` is this window's own change, not sent yet: its version is
+ *  not the one the board last agreed on with the room (`known` — what it
+ *  sent, or took in from the room). Excalidraw makes a new version, with a
+ *  new nonce, at every change. */
+export function unsent(e: El, known: ReadonlyMap<string, Rank>): boolean {
+  const k = known.get(e.id);
+  const r = rankOf(e);
+  return !k || k.version !== r.version || k.nonce !== r.nonce;
+}
+
+/** The elements of `scene` this window changed and has not sent (`unsent`).
+ *  Each goes, whatever the room holds: the rule picks among the versions,
+ *  and one that loses is brought back to the room's on the board. */
 export function changedElements(scene: readonly El[], known: ReadonlyMap<string, Rank>): El[] {
-  const out: El[] = [];
-  for (const e of scene) {
-    const r = rankOf(e);
-    const k = known.get(e.id);
-    if (k && !outranks(r, k)) continue;
-    out.push(e);
-  }
-  return out;
+  return scene.filter((e) => unsent(e, known));
 }
 
 /** The elements in the board's order: by their fractional index, then by
@@ -139,7 +141,10 @@ export function mergeScene(local: readonly El[], remote: Iterable<El>, busy: Rea
     // The room's version, also at the same rank: two windows that drew the
     // same file in measured its texts each their way, and the room keeps
     // one.
-    if (l && (busy.has(r.id) || (mine(l) && outranks(rankOf(l), rankOf(r))))) continue;
+    // A deletion of this window's still on its way counts as it will be
+    // sent — jumped ahead (`sendable`): a drag heard meanwhile does not
+    // undo it here before it ever leaves.
+    if (l && (busy.has(r.id) || (mine(l) && outranks(rankOf(sendable(l, r)), rankOf(r))))) continue;
     byId.set(r.id, r);
   }
   return ordered(byId.values());

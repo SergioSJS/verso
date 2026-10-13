@@ -18,8 +18,9 @@ export type BoardPerson = {
 
 /** What the board's pane gives a room. */
 export type BoardPane = {
-  /** The room's elements came in (and its background, when it changed). */
-  apply: (remote: El[], background?: string | null) => void;
+  /** The room's elements came in (and its background, when it changed):
+   *  the ids the board took in — not the ones it kept, its own or busy. */
+  apply: (remote: El[], background?: string | null) => string[];
   /** The others on the board now. */
   people: (people: Map<string, BoardPerson>) => void;
 };

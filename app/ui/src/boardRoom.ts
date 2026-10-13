@@ -23,7 +23,7 @@ import { commands } from "./bindings";
 import { type CollabHandlers, fromB64, joinRoom, REMOTE, RoomSession, roomSide, toB64 } from "./collab";
 import { backgroundOf, type CanvasDoc, type El, parseCanvas } from "./board/model";
 import type { BoardPane, BoardPerson as Person, BoardRoomLink } from "./board/types";
-import { canvasOf, changedElements, entryKey, mergeScene, outrankedKeys, outranks, parseKey, type Rank, rankOf, resolve, sendable } from "./board/roomModel";
+import { canvasOf, changedElements, entryKey, mergeScene, outrankedKeys, parseKey, type Rank, rankOf, resolve, sendable, unsent } from "./board/roomModel";
 
 /** The origin of this window's own changes to the room's document. */
 const LOCAL = "board";
@@ -128,6 +128,10 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
    *  from: put into a room no window drew in yet. */
   attach(pane: BoardPane, drawn: readonly El[]): void {
     this.panes.add(pane);
+    // The browser tests read the room's state (e2e-server/): only when they
+    // ask for it (`__VERSO_TEST__`), as the board's scene is read.
+    const test = (window as unknown as { __VERSO_TEST__?: { boardRoom?: unknown } }).__VERSO_TEST__;
+    if (test) test.boardRoom = this;
     if (!this.seeded) this.seed(drawn);
     else {
       // Drawn from the file while the room held more: what the room holds.
@@ -142,7 +146,10 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
   seed(drawn: readonly El[]): void {
     if (this.seeded || !this.writable || !this.open) return;
     this.doc.transact(() => {
-      for (const e of drawn) this.put(e);
+      for (const e of drawn) {
+        this.put(e);
+        this.known.set(e.id, rankOf(e));
+      }
       this.meta.set("seeded", true);
       this.meta.set("background", backgroundOf(this.base()) ?? "");
     }, LOCAL);
@@ -160,9 +167,7 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
 
   /** Whether this window's version of `e` is its own, still on its way. */
   mine(e: El): boolean {
-    if (!this.writable) return false;
-    const k = this.known.get(e.id);
-    return !k || outranks(rankOf(e), k);
+    return this.writable && unsent(e, this.known);
   }
 
   /** The board changed: what it changed goes to the room, in a moment.
@@ -183,29 +188,45 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
     const p = this.pending;
     this.pending = null;
     if (!p || !this.writable || !this.open) return;
+    const held = this.resolved();
     const changed = changedElements(p.scene, this.known);
     const bg = p.background === "transparent" ? "" : p.background;
     // The background is the person's to change, never the board loading.
     const bgChanged = p.user && this.seeded && (typeof this.meta.get("background") === "string" ? this.meta.get("background") : (backgroundOf(this.base()) ?? "")) !== bg;
-    if (changed.length === 0 && !bgChanged) return;
-    // A deletion jumps ahead of any move made meanwhile (roomModel.ts).
-    const held = changed.some((e) => e.isDeleted) ? this.resolved() : null;
-    this.doc.transact(() => {
-      for (const e of changed) this.put(held ? sendable(e, held.get(e.id)) : e);
-      if (bgChanged) this.meta.set("background", bg);
-      if (p.user) this.meta.set(`edit:${this.doc.clientID}`, ++this.edits);
-    }, LOCAL);
+    if (changed.length > 0 || bgChanged) {
+      // A deletion jumps ahead of any move made meanwhile (roomModel.ts).
+      this.doc.transact(() => {
+        for (const e of changed) {
+          this.put(sendable(e, held.get(e.id)));
+          this.known.set(e.id, rankOf(e));
+        }
+        if (bgChanged) this.meta.set("background", bg);
+        if (p.user) this.meta.set(`edit:${this.doc.clientID}`, ++this.edits);
+      }, LOCAL);
+    }
+    // What the board shows that is not the room's winner, and is not a
+    // change of its own still to go — a deletion as it was sent (jumped
+    // ahead), a version of its own another outranked, one it was busy with
+    // while the room's later version came in — takes the room's version
+    // now: an undo here then counts from it, and nothing is left behind.
+    const room = this.resolved();
+    const behind = new Set<string>();
+    for (const e of p.scene) {
+      const w = room.get(e.id);
+      if (!w || unsent(e, this.known)) continue;
+      const a = rankOf(e);
+      const b = rankOf(w);
+      if (a.version !== b.version || a.nonce !== b.nonce) behind.add(e.id);
+    }
+    if (behind.size > 0) this.pull(behind, undefined);
   }
 
-  /** `e` into the room at its version; the entries of it it outranks go. */
+  /** `e` into the room at its version; the entries of it it outranks go.
+   *  One a later version outranks stays beside it, and loses. */
   private put(e: El): void {
     const r = rankOf(e);
-    const now = this.known.get(e.id);
     for (const key of outrankedKeys(this.entries.keys(), e.id, r)) this.entries.delete(key);
-    // The room holds a later version already: the room's stays.
-    if (now && outranks(now, r)) return;
     this.entries.set(entryKey(e.id, r), JSON.stringify(e));
-    this.known.set(e.id, r);
   }
 
   /** The room's elements `ids` (and its background), into the board. */
@@ -214,12 +235,20 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
     const remote: El[] = [];
     for (const id of ids) {
       const e = all.get(id);
-      if (!e) continue;
-      this.known.set(id, rankOf(e));
-      remote.push(e);
+      if (e) remote.push(e);
     }
     if (remote.length === 0 && background === undefined) return;
-    for (const p of this.panes) p.apply(remote, background);
+    // Merged while `known` still says what the board last agreed on: a
+    // change of its own not sent yet — a deletion above all — is told from
+    // one the room already has (`mine`). What a board took in is agreed on
+    // now; what it kept (its own, or what it is busy with) is not.
+    if (this.panes.size === 0) {
+      for (const e of remote) this.known.set(e.id, rankOf(e));
+      return;
+    }
+    const taken = new Set<string>();
+    for (const p of this.panes) for (const id of p.apply(remote, background)) taken.add(id);
+    for (const e of remote) if (taken.has(e.id)) this.known.set(e.id, rankOf(e));
   }
 
   /** The board as the room has it, merged over `local` (mergeScene). */
