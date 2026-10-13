@@ -278,7 +278,7 @@ value counts as not set.
 | `VERSO_FOLDERS_DIR` | image `/folders`, packages `/var/lib/universo/folders` | the folders of notes; may be a NAS |
 | `VERSO_UI_DIR` | `<binary's directory>/../share/universo/ui` | the window's files |
 | `VERSO_ADMIN_EMAIL` | none | the first admin, on the first start only |
-| `VERSO_ADMIN_PASSWORD` or `VERSO_ADMIN_PASSWORD_FILE` | none | the first admin's password, 12 characters at least |
+| `VERSO_ADMIN_PASSWORD` or `VERSO_ADMIN_PASSWORD_FILE` | none | the first admin's password, 12 characters at least, not on the lists attackers try first, not the e-mail |
 | `VERSO_TRUSTED_PROXY` | none | the IP address of the reverse proxy whose `X-Forwarded-For` and `X-Forwarded-Proto` are believed (one address) |
 | `VERSO_TLS_CERT_FILE` and `VERSO_TLS_KEY_FILE` | none | Verso serves TLS itself with this certificate and key (PEM); both or neither |
 | `VERSO_UPDATE_CHECK` | on | `off` stops the check for a new version (section 12) |

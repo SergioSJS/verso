@@ -149,9 +149,11 @@ impl Config {
         let password = value(env, "VERSO_ADMIN_PASSWORD")?;
         let admin = match (email, password) {
             (Some(e), Some(p)) => {
-                if p.chars().count() < MIN_PASSWORD {
+                // As a password chosen in the window is (ADR 0083 item 3).
+                if let Some(why) = crate::passwords::weak(&p, &e) {
                     return Err(ConfigError(format!(
-                        "VERSO_ADMIN_PASSWORD: at least {MIN_PASSWORD} characters"
+                        "VERSO_ADMIN_PASSWORD: {}",
+                        why.words()
                     )));
                 }
                 Some((e, p))
@@ -294,6 +296,19 @@ mod tests {
             ("VERSO_ADMIN_PASSWORD", "curta"),
         ]);
         assert!(short.unwrap_err().0.contains("VERSO_ADMIN_PASSWORD"));
+        // From the lists attackers try first, or the e-mail itself (ADR
+        // 0083 item 3): refused, naming the variable.
+        for common in ["password1234", "A.Long.Admin@b.c"] {
+            let refused = read(&[
+                ("VERSO_ADMIN_EMAIL", "a.long.admin@b.c"),
+                ("VERSO_ADMIN_PASSWORD", common),
+            ]);
+            let why = refused.err().map(|e| e.0).unwrap_or_default();
+            assert!(
+                why.contains("VERSO_ADMIN_PASSWORD") && why.contains("lists attackers try first"),
+                "{common}: {why}"
+            );
+        }
         let ok = read(&[
             ("VERSO_ADMIN_EMAIL", "a@b.c"),
             ("VERSO_ADMIN_PASSWORD", "uma senha longa"),

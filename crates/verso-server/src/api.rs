@@ -15,7 +15,6 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::auth::{self, Via};
-use crate::config::MIN_PASSWORD;
 use crate::db::{self, Role};
 use crate::http::{ApiError, ApiResult, Ctx, ok};
 
@@ -66,15 +65,14 @@ pub fn check_name(name: &str) -> ApiResult<()> {
 
 const NAME_MOST: usize = 200;
 
-/// A password the server takes: long enough, not all spaces.
-fn check_password(password: &str) -> ApiResult<()> {
-    if password.chars().count() < MIN_PASSWORD || password.trim().is_empty() {
-        return Err(ApiError::bad(
-            "weak_password",
-            format!("at least {MIN_PASSWORD} characters"),
-        ));
+/// A password the server takes for the account `email`: long enough, not
+/// all spaces, not on the lists attackers try first, not the e-mail
+/// (ADR 0083 item 3).
+fn check_password(password: &str, email: &str) -> ApiResult<()> {
+    match crate::passwords::weak(password, email) {
+        Some(why) => Err(ApiError::bad(why.code(), why.words())),
+        None => Ok(()),
     }
-    Ok(())
 }
 
 fn check_lang(lang: &str) -> &'static str {
@@ -229,7 +227,7 @@ pub async fn setup(ctx: Ctx, Json(body): Json<Setup>) -> ApiResult<Response> {
     if !db::is_email(&body.email) {
         return Err(ApiError::bad("not_email", "not an e-mail address"));
     }
-    check_password(&body.password)?;
+    check_password(&body.password, &body.email)?;
     check_name(&body.name)?;
     let account = ctx.server.db.create_account(
         &body.email,
@@ -311,7 +309,7 @@ pub async fn accept(
     if !db::is_email(&email) {
         return Err(ApiError::bad("not_email", "not an e-mail address"));
     }
-    check_password(&body.password)?;
+    check_password(&body.password, &email)?;
     check_name(&body.name)?;
     let account = match ctx.server.db.create_account(
         &email,
@@ -412,7 +410,6 @@ pub async fn reset(
             "this link is used or expired",
         ));
     };
-    check_password(&body.password)?;
     let account = link
         .account
         .as_deref()
@@ -420,6 +417,8 @@ pub async fn reset(
         .transpose()?
         .flatten()
         .ok_or_else(ApiError::not_found)?;
+    // Before the link is used: a password refused leaves it to try again.
+    check_password(&body.password, &account.email)?;
     if !ctx.server.db.use_invitation(&link.id, &account.id)? {
         return Err(ApiError::new(
             StatusCode::NOT_FOUND,
@@ -506,7 +505,7 @@ pub async fn password(ctx: Ctx, Json(body): Json<Password>) -> ApiResult<Respons
     ctx.server
         .signins
         .succeeded(&ctx.peer.key(), Some(&who.account.email));
-    check_password(&body.new)?;
+    check_password(&body.new, &who.account.email)?;
     ctx.server.db.set_password(&who.account.id, &body.new)?;
     ctx.server.db.end_sessions(&who.account.id, who.session())?;
     ctx.server
