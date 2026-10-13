@@ -34,9 +34,7 @@ use serde_json::json;
 use verso_contract::{CollabJoin, CollabKind, ContractError, ErrorKind};
 use verso_service::{lock, ops};
 use yrs::updates::decoder::Decode;
-use yrs::{
-    Doc, GetString, OffsetKind, Options, ReadTxn, StateVector, Text, Transact, Update, WriteTxn,
-};
+use yrs::{Doc, GetString, OffsetKind, Options, ReadTxn, StateVector, Text, Transact, Update};
 
 use crate::state::Server;
 
@@ -233,31 +231,16 @@ pub(crate) fn apply_text(doc: &Doc, to: &str) -> Option<Vec<u8>> {
     Some(txn.encode_update_v1())
 }
 
-/// Apply `update` to `doc`, and with it whatever earlier updates were
-/// waiting for it. A connection's requests run side by side, so two of a
-/// window's updates can reach the room in the other order; Yjs keeps the
-/// later one aside until the earlier arrives — but `yrs` 0.28 leaves some
-/// of what it kept aside unplaced once several wait (seen by
-/// `tests_board_stress.rs`, seed 1: an item heard and never placed, the
-/// room's state then short of what the windows hold). What waits is taken
-/// out and applied again until nothing more is placed.
-pub fn integrate(doc: &Doc, update: Update) -> Result<(), yrs::error::UpdateError> {
+/// Apply `update` to `doc`: whether it left nothing aside. A window's
+/// updates reach the room in the order it sent them (`rpc.rs`), and each
+/// depends only on what the room sent it and what it sent before, so an
+/// update that leaves something aside — an item or a deletion of what the
+/// room has not seen — comes from no window the room serves. The room
+/// then holds it aside and is made again ([`take`]).
+pub fn integrate(doc: &Doc, update: Update) -> Result<bool, yrs::error::UpdateError> {
     let mut txn = doc.transact_mut();
     txn.apply_update(update)?;
-    for _ in 0..64 {
-        if !txn.has_missing_updates() {
-            break;
-        }
-        let before = txn.state_vector();
-        let Some(waiting) = txn.prune_pending() else {
-            break;
-        };
-        txn.apply_update(waiting)?;
-        if txn.state_vector() == before {
-            break;
-        }
-    }
-    Ok(())
+    Ok(!txn.has_missing_updates())
 }
 
 fn b64(bytes: &[u8]) -> String {
@@ -453,7 +436,7 @@ fn join_room(
         }
     };
     let mut r = lock(&room);
-    let state = state(&r.doc)?;
+    let state = state(&r.doc, r.kind)?;
     r.clients.insert(client.to_owned());
     Ok(CollabJoin {
         kind: wire,
@@ -573,7 +556,14 @@ pub(crate) fn take(
             board.admits(doc, bytes, &decoded)?;
             board.bytes = board.bytes.saturating_add(bytes.len());
         }
-        integrate(doc, decoded).map_err(|e| refused(&format!("the update does not apply: {e}")))
+        // An update `yrs` stopped applying halfway (the fuzz target
+        // `board`: a parent that is no type), or one that left what the
+        // room has not seen aside: the document is not what any window
+        // holds, and the room is made again.
+        match integrate(doc, decoded) {
+            Ok(true) => Ok(()),
+            Ok(false) | Err(_) => Err(refused(BROKEN)),
+        }
     })?
 }
 
@@ -614,14 +604,25 @@ pub(crate) fn caught<T>(f: impl FnOnce() -> T) -> Result<T, ContractError> {
 }
 
 /// A room's whole state, as `join` sends it: checked first to apply in a
-/// window, since `yrs` 0.28 can make a state it cannot read back (the fuzz
-/// target `board`: `EndOfBuffer`).
-pub(crate) fn state(doc: &Doc) -> Result<Vec<u8>, ContractError> {
+/// window and to read there as the room reads — its text, or its board's
+/// elements. `yrs` 0.28 can make a state it cannot read back (the fuzz
+/// target `board`: `EndOfBuffer`), and a hostile window's item whose two
+/// neighbours are not neighbours is placed by the room as it came and by a
+/// window that joins as the state orders it (the target `note`).
+pub(crate) fn state(doc: &Doc, kind: Kind) -> Result<Vec<u8>, ContractError> {
     let state = caught(|| {
         doc.transact()
             .encode_state_as_update_v1(&StateVector::default())
     })?;
-    applies(&Doc::new(), &state)?;
+    let window = new_doc();
+    applies(&window, &state)?;
+    let alike = caught(|| match kind {
+        Kind::Board => crate::collab_board::elements(doc) == crate::collab_board::elements(&window),
+        Kind::Note | Kind::Text => text_of(doc) == text_of(&window),
+    })?;
+    if !alike {
+        return Err(refused(BROKEN));
+    }
     Ok(state)
 }
 
@@ -643,7 +644,7 @@ pub(crate) fn written(
     board: &mut crate::collab_board::Board,
 ) -> Result<Vec<u8>, ContractError> {
     let window = Doc::new();
-    applies(&window, &state(doc)?)?;
+    applies(&window, &state(doc, Kind::Board)?)?;
     let update = caught(|| board.written(doc))?;
     applies(&window, &update)?;
     Ok(update)
@@ -1263,11 +1264,13 @@ mod tests {
         assert_eq!(text_of(&doc), "olá 😀 grande mundo");
     }
 
-    /// One window's updates reaching the room in a shuffled order are all
-    /// placed (the `integrate` above; `yrs` alone left most of these runs
-    /// with something unplaced).
+    /// One window's updates taken in the order it made them are all placed
+    /// and leave nothing aside; taken in a shuffled order, `integrate` says
+    /// when one was held aside (the room then refuses it and is made again;
+    /// a connection's updates now reach it in order, `rpc.rs`).
     #[test]
-    fn a_windows_updates_in_any_order_are_all_placed() {
+    fn a_windows_updates_in_order_are_placed_and_one_ahead_is_told() {
+        let mut told = 0;
         for seed in 0..300_u64 {
             let mut s = seed.wrapping_mul(2_654_435_761) | 1;
             let mut rnd = || {
@@ -1289,17 +1292,25 @@ mod tests {
                 }
                 updates.push(txn.encode_update_v1());
             }
+            let room = new_doc();
+            for u in &updates {
+                assert!(integrate(&room, Update::decode_v1(u).unwrap()).unwrap());
+            }
+            assert_eq!(text_of(&room), text_of(&window), "seed {seed}");
             for i in (1..updates.len()).rev() {
                 let j = usize::try_from(rnd() % (i as u64 + 1)).unwrap();
                 updates.swap(i, j);
             }
             let room = new_doc();
-            for u in &updates {
-                integrate(&room, Update::decode_v1(u).unwrap()).unwrap();
+            let whole = updates
+                .iter()
+                .all(|u| integrate(&room, Update::decode_v1(u).unwrap()).unwrap());
+            if !whole {
+                told += 1;
+                assert!(room.transact().has_missing_updates(), "seed {seed}");
             }
-            assert!(!room.transact().has_missing_updates(), "seed {seed}");
-            assert_eq!(text_of(&room), text_of(&window), "seed {seed}");
         }
+        assert!(told > 0);
     }
 
     #[test]
