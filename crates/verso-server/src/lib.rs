@@ -11,6 +11,7 @@
 pub mod access;
 pub mod admin;
 pub mod api;
+pub mod audit;
 pub mod auth;
 pub mod collab;
 pub mod collab_board;
@@ -236,6 +237,9 @@ pub async fn run_on<L: listen::Incoming>(
     }
     // Every folder's bin swept now and once a day (ADR 0080 item 3).
     tokio::spawn(trash::daily(Arc::clone(&server)));
+    // The audit log's rows past VERSO_AUDIT_DAYS, now and once a day (ADR
+    // 0083 item 10).
+    tokio::spawn(audit::daily(Arc::clone(&server)));
     log::info(&format!(
         "UniVerso {} (verso serve; contract {}) on {listen}, folders in {}",
         env!("CARGO_PKG_VERSION"),

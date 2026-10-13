@@ -562,6 +562,8 @@ pub async fn overview(ctx: Ctx) -> ApiResult<Response> {
         "space": space,
         "trash": { "count": trash.0, "size": trash.1 },
         "defaultTrashDays": config.trash_days,
+        // How long the audit log keeps a row, 0 for ever (ADR 0083 item 10).
+        "auditDays": config.audit_days,
         "nearQuota": near,
         "twins": twins,
         "defaultQuota": config.folder_quota,
@@ -609,6 +611,7 @@ pub async fn config(ctx: Ctx) -> ApiResult<Response> {
             false,
         ),
         ("VERSO_TRASH_DAYS", Some(c.trash_days.to_string()), false),
+        ("VERSO_AUDIT_DAYS", Some(c.audit_days.to_string()), false),
     ]
     .into_iter()
     .map(|(name, value, secret)| {

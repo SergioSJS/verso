@@ -15,6 +15,7 @@ test release.
 ### Added
 
 - **A way to report a vulnerability** ([ADR 0083](docs/adr/0083-security-hardening-of-universo.md) item 15): [SECURITY.md](SECURITY.md) gives the address, security@versomd.com, what is promised — an answer within 7 days, a fix in the next version, credit when wanted — and what is in and out of scope; every UniVerso server answers `/.well-known/security.txt` with the same address, valid for a year after the release it runs.
+- **The audit log keeps a year, then forgets** ([ADR 0083](docs/adr/0083-security-hardening-of-universo.md) item 10): `VERSO_AUDIT_DAYS` (365 by default, `0` for ever) says how long a row — who signed in, from where, what changed in access — is kept; a sweep at start and once a day deletes older rows, by time alone, and the console's overview says the retention.
 
 ## 0.8.0-beta.1 — 2026-10-13
 

@@ -122,6 +122,8 @@ const pt = {
   emptyTrashAsk: (n: number, size: string) => `Apagar de vez ${n} ${n === 1 ? "item" : "itens"} (${size})? Não dá para desfazer.`,
   emptyTrashYes: "Apagar de vez",
   trashTotal: (n: number, size: string) => `Lixeiras: ${n} ${n === 1 ? "item" : "itens"}, ${size}, fora das cotas`,
+  // The audit log's retention (ADR 0083 item 10).
+  auditKept: (days: number) => (days === 0 ? "Cada linha do registro fica para sempre (VERSO_AUDIT_DAYS=0)." : `Cada linha do registro fica ${days} ${days === 1 ? "dia" : "dias"} e depois é apagada (VERSO_AUDIT_DAYS).`),
   quotaTitle: "Cota",
   quotaDesc: "O espaço máximo da pasta. Uma escrita que passaria do limite é recusada; diminuir a pasta sempre é possível.",
   quotaPlaceholder: "por exemplo 10GB",
@@ -343,6 +345,7 @@ const en: typeof pt = {
   emptyTrashAsk: (n: number, size: string) => `Delete ${n} ${n === 1 ? "item" : "items"} for good (${size})? This cannot be undone.`,
   emptyTrashYes: "Delete for good",
   trashTotal: (n: number, size: string) => `Trashes: ${n} ${n === 1 ? "item" : "items"}, ${size}, not counted in quotas`,
+  auditKept: (days: number) => (days === 0 ? "Each row of the log is kept forever (VERSO_AUDIT_DAYS=0)." : `Each row of the log is kept for ${days} ${days === 1 ? "day" : "days"}, then deleted (VERSO_AUDIT_DAYS).`),
   quotaTitle: "Quota",
   quotaDesc: "The folder's largest size. A write that would pass it is refused; making the folder smaller always works.",
   quotaPlaceholder: "for example 10GB",

@@ -83,7 +83,7 @@ function usage(space: number, quota: number | null): HTMLElement {
 async function overview(c: Ctx, body: HTMLElement): Promise<void> {
   const s = cw();
   c.title(s.overview);
-  type Info = { version: string; newer: string | null; updateCheck: boolean; dataDir: string; foldersDir: string; dataOnNetwork: string | null; foldersOnNetwork: string | null; mail: boolean; tls: string; accounts: number; folders: number; space: number; trash?: { count: number; size: number }; nearQuota: { id: string; name: string; space: number; quota: number }[]; twins: { id: string; name: string; count: number }[]; defaultQuota: number | null };
+  type Info = { version: string; newer: string | null; updateCheck: boolean; dataDir: string; foldersDir: string; dataOnNetwork: string | null; foldersOnNetwork: string | null; mail: boolean; tls: string; accounts: number; folders: number; space: number; trash?: { count: number; size: number }; nearQuota: { id: string; name: string; space: number; quota: number }[]; twins: { id: string; name: string; count: number }[]; defaultQuota: number | null; auditDays?: number };
   const o = await api<Info>("GET", "/api/admin/overview");
   const card = (title: string, ...content: (Node | string)[]) => el("section", { class: "console-card" }, el("h2", {}, title), ...content);
   const attention: Node[] = [];
@@ -114,6 +114,7 @@ async function overview(c: Ctx, body: HTMLElement): Promise<void> {
         el("p", {}, el("strong", {}, s.foldersDir), el("br"), el("code", {}, o.foldersDir), o.foldersOnNetwork ? el("span", {}, ` — ${s.onNetwork(o.foldersOnNetwork)}`) : ""),
       ),
       card(s.mail, el("p", {}, o.mail ? s.mailOn : s.mailOff)),
+      card(s.audit, el("p", { "data-audit-days": "" }, s.auditKept(o.auditDays ?? 365))),
       card(s.tls, el("p", {}, tls)),
     ),
   );
