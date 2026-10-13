@@ -64,6 +64,9 @@ const OPERATIONS: [&str; 9] = [
 const DEFAULT_SIZES: [usize; 3] = [1_000, 10_000, 50_000];
 const DEFAULT_REPS: usize = 3;
 const SEARCH_LIMIT: usize = 20;
+/// How many more times a size is measured when an operation's time is past
+/// the baseline, before it counts as a regression.
+const REMEASURE: usize = 2;
 
 /// What a child prints on its last line of stdout.
 #[derive(Serialize, Deserialize)]
@@ -475,7 +478,51 @@ fn run(args: &[String]) -> Result<ExitCode, Failure> {
     // `--require-baseline` prints for the maintainer to record.
     let mut unrecorded: Vec<Entry> = Vec::new();
     for &size in &o.sizes {
-        let measured = run_size(size, &o, time)?;
+        let mut measured = run_size(size, &o, time)?;
+        // A time past the baseline is measured again before it counts: a
+        // shared runner's noise reached 1.7x on 2026-10-13 (watch_batch_walk,
+        // 10 000 notes, passing on the rerun and flat on a Mac), and noise is
+        // not a regression. The size is run again up to REMEASURE times;
+        // an operation keeps its lowest median, so a real regression — slow
+        // every time — still fails (ADR 0029, revised 2026-10-13).
+        if !o.record
+            && let Some(machine) = o.machine.as_deref()
+        {
+            for _ in 0..REMEASURE {
+                let slow: Vec<&'static str> = measured
+                    .iter()
+                    .filter(|m| {
+                        baselines
+                            .find(machine, GENERATOR_VERSION, size, m.operation)
+                            .is_some_and(|b| baseline::slower(m.median_ms, b))
+                    })
+                    .map(|m| m.operation)
+                    .collect();
+                if slow.is_empty() {
+                    break;
+                }
+                eprintln!(
+                    "verso-bench: {size} {}: past the baseline's time, measured again",
+                    slow.join(", ")
+                );
+                let again = run_size(size, &o, time)?;
+                for m in &mut measured {
+                    if !slow.contains(&m.operation) {
+                        continue;
+                    }
+                    if let Some(a) = again.iter().find(|a| a.operation == m.operation) {
+                        eprintln!(
+                            "verso-bench: {size} {}: {:.1} ms, then {:.1} ms",
+                            m.operation, m.median_ms, a.median_ms
+                        );
+                        if a.median_ms < m.median_ms {
+                            m.median_ms = baseline::settled(&[m.median_ms, a.median_ms]);
+                            m.samples_ms.clone_from(&a.samples_ms);
+                        }
+                    }
+                }
+            }
+        }
         let mut missing = false;
         for m in &measured {
             let is_index = m.operation.contains("index");

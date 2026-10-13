@@ -212,6 +212,27 @@ fn a_tiny_run_reports_the_nine_operations_and_a_regression_is_red() {
         "{stdout}"
     );
 
+    // A time past the baseline every time — a real regression, here forced
+    // with a baseline no run can meet — is measured again before it
+    // counts (ADR 0029, revised 2026-10-13), and still red: noise only
+    // ever adds time, so a run that is slow every time is slow.
+    let mut slow = quiet.clone();
+    for e in slow["entries"].as_array_mut().unwrap() {
+        e["median_ms"] = json!(1e-9);
+    }
+    std::fs::write(&baseline, slow.to_string()).unwrap();
+    let out = bench(&common, &baseline);
+    assert_eq!(out.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(
+        stderr
+            .matches("past the baseline's time, measured again")
+            .count(),
+        2,
+        "{stderr}"
+    );
+    assert!(String::from_utf8_lossy(&out.stdout).contains("REGRESSION 100 fresh_index median_ms"));
+
     // Another machine: nothing to compare with, green, and it says so.
     let other = ["--sizes", "100", "--reps", "1", "--machine", "other"];
     let out = bench(&other, &baseline);
@@ -293,4 +314,30 @@ fn the_child_reports_the_index_size_as_it_is_once_the_connection_closes() {
         report["index_bytes"].as_u64().unwrap(),
         std::fs::metadata(index).unwrap().len()
     );
+}
+
+/// The rule behind the re-measure: a median measured more than once is the
+/// lowest, so one slow run among normal ones is noise, and a run slow every
+/// time is a regression (ADR 0029, revised 2026-10-13).
+#[test]
+fn one_slow_run_is_noise_and_slow_every_time_is_a_regression() {
+    use verso_bench::baseline::{Entry, settled, slower};
+    let base = Entry {
+        machine: "ci-linux".into(),
+        os: "linux".into(),
+        generator: GENERATOR_VERSION,
+        size: 10_000,
+        operation: "watch_batch_walk".into(),
+        median_ms: 225.8,
+        peak_rss_bytes: None,
+        index_bytes: 1,
+        commit: "x".into(),
+        recorded_at: 0,
+    };
+    // The run of 2026-10-13: 391.9 ms once, then back at the baseline.
+    assert!(slower(391.9, &base));
+    assert!(!slower(settled(&[391.9, 230.0]), &base));
+    // Slow every time: still past the tolerance.
+    assert!(slower(settled(&[391.9, 380.0, 402.5]), &base));
+    assert_eq!(settled(&[3.0, 1.0, 2.0]), 1.0);
 }
