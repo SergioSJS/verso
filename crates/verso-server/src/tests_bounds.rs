@@ -548,3 +548,194 @@ fn a_mailbox_is_not_flooded_from_many_addresses() {
         }
     });
 }
+
+/// The filter the packages install for fail2ban (ADR 0083 item 1).
+const FAIL2BAN_FILTER: &str = include_str!("../../../packaging/server/fail2ban/universo.conf");
+
+/// The filter's `failregex`, as fail2ban reads it — its configuration
+/// reader trims the value — with `<HOST>`, `<ADDR>` and `<SUBNET>` expanded
+/// as fail2ban 1.1 expands them (fail2ban/server/failregex.py, `R_HOST`,
+/// and ipdns.py, `IP_4_RE` and `IP_6_RE`). The one change: Python's
+/// look-behind `(?<=:)` before IPv6's last `:` is dropped, which the
+/// `regex` crate has not; it always holds there, since every repetition
+/// before it ends in `:`.
+fn fail2ban_regex(filter: &str) -> regex::Regex {
+    let failregex = filter
+        .lines()
+        .find_map(|l| l.strip_prefix("failregex"))
+        .and_then(|l| l.trim_start().strip_prefix('='))
+        .unwrap()
+        .trim();
+    let ip4 = r"(?:::f{4,6}:)?(?P<ip4>(?:\d{1,3}\.){3}\d{1,3})";
+    let ip6 = r"(?P<ip6>(?:[0-9a-fA-F]{1,4}::?|:){1,7}(?:[0-9a-fA-F]{1,4}|:))";
+    let dns = r"(?P<dns>[\w\-.^_]*\w)";
+    let addr = format!(r"\[?(?:{ip4}|{ip6})\]?");
+    let host = format!(r"(?:{addr}|{dns})");
+    let subnet = format!(r"\[?(?:{ip4}|{ip6})(?:/(?P<cidr>\d+))?\]?");
+    let expanded = failregex
+        .replace("<HOST>", &host)
+        .replace("<ADDR>", &addr)
+        .replace("<SUBNET>", &subnet);
+    regex::Regex::new(&expanded).unwrap()
+}
+
+/// What fail2ban sees of one line the server wrote, in the two ways a host
+/// gives it the log (fail2ban/server/filter.py, `processLine`, and
+/// filtersystemd.py, `formatJournalEntry`): from a file, the time it finds
+/// cut out of the line; from systemd's journal, the host's name and the
+/// program's before the message, the journal's own time apart.
+fn as_fail2ban_sees(line: &str) -> [String; 2] {
+    let stamp = line.split(' ').next().unwrap_or("");
+    [
+        line[stamp.len()..].to_owned(),
+        format!("verso-host universo[4242]: {line}"),
+    ]
+}
+
+/// The address each of `lines` bans, by the filter, in each way it is read;
+/// `None` for a line it lets pass.
+fn banned(lines: &[String]) -> Vec<[Option<String>; 2]> {
+    let re = fail2ban_regex(FAIL2BAN_FILTER);
+    lines
+        .iter()
+        .map(|line| {
+            as_fail2ban_sees(line).map(|seen| {
+                re.captures(&seen).map(|c| {
+                    let ip = c.name("ip4").or_else(|| c.name("ip6")).unwrap().as_str();
+                    match c.name("cidr") {
+                        Some(cidr) => format!("{ip}/{}", cidr.as_str()),
+                        None => ip.to_owned(),
+                    }
+                })
+            })
+        })
+        .collect()
+}
+
+/// fail2ban's filter catches exactly the refused sign-ins, IPv4 and IPv6
+/// (its /64, as the server keys it), in a log file and in the journal; a
+/// window's own line saying the same words, and the limiter's line, pass
+/// (ADR 0083 item 1).
+#[test]
+fn the_fail2ban_filter_catches_exactly_the_refused_sign_ins() {
+    let lines: Vec<String> = [
+        "2026-10-13T12:00:00Z WARN sign-in failed from 203.0.113.9 for a***@example.org (3 in a row)",
+        "2026-10-13T12:00:01Z WARN sign-in failed from 2001:db8:1:2::/64 for b***@example.org (1 in a row)",
+        "2026-10-13T12:00:02Z WARN sign-in limited from 203.0.113.9",
+        "2026-10-13T12:00:03Z WARN window 7 (acc1): sign-in failed from 198.51.100.7 for c***@example.org (1 in a row)",
+        "2026-10-13T12:00:04Z INFO window 7 (acc1): WARN sign-in failed from 198.51.100.8 for c***@example.org (1 in a row)",
+        "2026-10-13T12:00:05Z INFO the first admin was made from the setup link",
+    ]
+    .map(str::to_owned)
+    .to_vec();
+    let seen = banned(&lines);
+    let both = |a: &str| [Some(a.to_owned()), Some(a.to_owned())];
+    assert_eq!(
+        seen,
+        vec![
+            both("203.0.113.9"),
+            both("2001:db8:1:2::/64"),
+            [None, None],
+            [None, None],
+            [None, None],
+            [None, None],
+        ]
+    );
+}
+
+/// A refused sign-in is one line of the log, in the fixed format the host's
+/// tools read, for an e-mail with an account and for one without, alike;
+/// the limiter's refusal is said once; a window cannot write a line the
+/// filter takes for a refused sign-in (ADR 0083 item 1).
+#[test]
+fn a_refused_sign_in_is_one_line_for_the_hosts_tools() {
+    block_on(async {
+        let r = start().await;
+        r.server
+            .db
+            .create_account(
+                "ana@f2b-known.example",
+                "Ana",
+                "pt",
+                Some("a senha certa da ana"),
+                false,
+            )
+            .unwrap();
+        let wrong = |email: &'static str| {
+            crate::tests::post(
+                &r,
+                "/api/signin",
+                json!({ "email": email, "password": "uma senha errada" }),
+                None,
+            )
+        };
+        assert_eq!(wrong("ana@f2b-known.example").await.0, 401);
+        assert_eq!(wrong("Ana@F2B-known.example").await.0, 401);
+        assert_eq!(wrong("ninguem@f2b-unknown.example").await.0, 401);
+        // The fourth from this address waits: refused, and said.
+        assert_eq!(wrong("ana@f2b-known.example").await.0, 429);
+        let failed: Vec<String> = crate::log::said("f2b-")
+            .into_iter()
+            .filter(|l| !l.contains("window"))
+            .collect();
+        assert_eq!(
+            failed,
+            vec![
+                "WARN sign-in failed from 127.0.0.1 for a***@f2b-known.example (1 in a row)",
+                "WARN sign-in failed from 127.0.0.1 for a***@f2b-known.example (2 in a row)",
+                "WARN sign-in failed from 127.0.0.1 for n***@f2b-unknown.example (1 in a row)",
+            ]
+        );
+        assert!(!crate::log::said("WARN sign-in limited from 127.0.0.1").is_empty());
+        // A window's line in the same words: prefixed, never taken for one.
+        // (The address's delay is not this part's subject.)
+        r.server.limiter.succeeded("in:127.0.0.1");
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let mut ws = connect(&r, Some(&b.cookie), Some(&r.origin()), None)
+            .await
+            .unwrap();
+        next(&mut ws).await;
+        let forged = "sign-in failed from 198.51.100.66 for f***@f2b-forged.example (1 in a row)";
+        for level in ["WARN", "INFO"] {
+            crate::tests::call(
+                &mut ws,
+                1,
+                "log_write",
+                json!({ "level": level, "message": forged }),
+            )
+            .await;
+        }
+        let windows = crate::log::said("f2b-forged.example");
+        assert_eq!(windows.len(), 2, "{windows:?}");
+        assert!(
+            windows
+                .iter()
+                .all(|l| l.contains(" window ") && !l.starts_with("WARN sign-in")),
+            "{windows:?}"
+        );
+        // The filter, over the lines as the log wrote them: the three
+        // refusals, and nothing of the window's.
+        let stamped = |l: &String| format!("{} {l}", crate::log::stamp());
+        let all: Vec<String> = failed.iter().chain(&windows).map(stamped).collect();
+        let hits: Vec<_> = banned(&all).into_iter().flatten().flatten().collect();
+        assert_eq!(hits, vec!["127.0.0.1"; 6], "{all:?}");
+        // A device's poll with a wrong secret: a refusal under no e-mail.
+        let (_, started) =
+            crate::tests::post(&r, "/api/device/start", json!({ "device": "f2b" }), None).await;
+        let code = started["code"].as_str().unwrap();
+        let (status, _) = crate::tests::post(
+            &r,
+            "/api/device/poll",
+            json!({ "code": code, "poll": "not-the-secret" }),
+            None,
+        )
+        .await;
+        assert_eq!(status, 410);
+        let device = crate::log::said("WARN sign-in failed from 127.0.0.1 for - (");
+        assert!(!device.is_empty());
+        assert_eq!(
+            banned(&device.iter().map(stamped).collect::<Vec<_>>())[0],
+            [Some("127.0.0.1".to_owned()), Some("127.0.0.1".to_owned())]
+        );
+    });
+}

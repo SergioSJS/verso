@@ -130,3 +130,30 @@ pub fn words(lang: &str, what: &str, link: &str) -> (String, String) {
         ),
     }
 }
+
+/// The notice to an account refused many times within an hour (ADR 0083
+/// item 2), in the person's language: when, from where, and what to do —
+/// nothing, if it was them; the account is not locked either way.
+pub fn notice_words(
+    lang: &str,
+    email: &str,
+    when: &str,
+    from: &str,
+    count: usize,
+) -> (String, String) {
+    if lang == "en" {
+        (
+            "Someone is trying to sign in to your Verso account".to_owned(),
+            format!(
+                "In the hour up to {when} (UTC), sign-ins to your Verso account ({email}) were refused {count} times, from: {from}.\n\nIf it was you, there is nothing to do. If it was not, your account is not locked and your password still works: each new attempt waits longer than the one before. A long password used nowhere else, or a passkey (Settings › Account), keeps guesses out.\n\nThis notice comes once a day at most."
+            ),
+        )
+    } else {
+        (
+            "Alguém está tentando entrar na sua conta do Verso".to_owned(),
+            format!(
+                "Na hora até {when} (UTC), entradas na sua conta do Verso ({email}) foram recusadas {count} vezes, a partir de: {from}.\n\nSe foi você, não há nada a fazer. Se não foi, a sua conta não está trancada e a sua senha continua valendo: cada nova tentativa espera mais que a anterior. Uma senha longa que você não usa em outro lugar, ou uma chave de acesso (Ajustes › Conta), mantém os palpites de fora.\n\nEste aviso vem no máximo uma vez por dia."
+            ),
+        )
+    }
+}
