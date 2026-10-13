@@ -78,6 +78,13 @@ struct Questions {
 /// An answer, and the piece of a file it carried in a binary message
 /// (sync 2, ADR 0079 item 12).
 type Answer = (Value, Option<Vec<u8>>);
+/// A question on the connection: its id, where its answer comes, when it
+/// was put.
+pub(crate) type Asked = (
+    u64,
+    oneshot::Receiver<Result<Answer, Value>>,
+    std::time::Instant,
+);
 
 type Pending = Arc<Mutex<Questions>>;
 
@@ -209,9 +216,22 @@ impl Remote {
     pub(crate) async fn call_with(
         &self,
         cmd: &str,
-        mut args: Value,
+        args: Value,
         piece: Option<Vec<u8>>,
     ) -> Result<Answer, Value> {
+        let asked = self.ask(cmd, args, piece)?;
+        self.answer(cmd, asked).await
+    }
+
+    /// The question put on the connection now, in the order of the calls
+    /// (the server takes a window's room updates in the order they reach
+    /// it, ADR 0083 item 14); its answer is waited for with [`Self::answer`].
+    pub(crate) fn ask(
+        &self,
+        cmd: &str,
+        mut args: Value,
+        piece: Option<Vec<u8>>,
+    ) -> Result<Asked, Value> {
         let id = self.next.fetch_add(1, Ordering::Relaxed);
         let (tx, rx) = oneshot::channel();
         {
@@ -266,7 +286,11 @@ impl Remote {
                 return Err(unavailable("the server's connection is closed"));
             }
         }
-        let sent = std::time::Instant::now();
+        Ok((id, rx, std::time::Instant::now()))
+    }
+
+    /// The answer to a question [`Self::ask`] put.
+    pub(crate) async fn answer(&self, cmd: &str, (id, rx, sent): Asked) -> Result<Answer, Value> {
         let answer = match tokio::time::timeout(ANSWER_WITHIN, rx).await {
             Ok(Ok(answer)) => answer,
             Ok(Err(_)) => Err(unavailable("the server's connection closed")),
@@ -1042,8 +1066,16 @@ pub(crate) fn forward<R: tauri::Runtime>(
         tauri::ipc::InvokeBody::Raw(_) => Value::Null,
     };
     let resolver = invoke.resolver;
+    // Put on the connection here, in the order the window asked: a task's
+    // first turn comes in any order, and the server takes a window's room
+    // updates in the order they reach it (ADR 0083 item 14).
+    let asked = remote.ask(&cmd, args, None);
     tauri::async_runtime::spawn(async move {
-        match remote.call(&cmd, args).await {
+        let answer = match asked {
+            Ok(asked) => remote.answer(&cmd, asked).await.map(|(v, _)| v),
+            Err(e) => Err(e),
+        };
+        match answer {
             Ok(v) => resolver.resolve(v),
             Err(e) => resolver.reject(e),
         }
