@@ -355,8 +355,8 @@ requisição parece então vir do proxy, e toda espera por endereço conta
 para ele: três logins errados de um estranho atrasam o de todo mundo, e
 o ritmo da API — 20 requisições por segundo de um endereço, 100 de uma
 vez, além do qual ela responde 429 com `Retry-After` — passa a ser
-dividido por todos os visitantes. Esta máquina e os proxies confiáveis não
-têm ritmo. Quando uma requisição vem de um proxy confiável sem `X-Forwarded-For`, ela
+dividido por todos os visitantes. Só uma conexão direta desta máquina não
+tem ritmo. Quando uma requisição vem de um proxy confiável sem `X-Forwarded-For`, ela
 é atendida com o endereço do proxy e o log diz, uma vez por minuto, *a
 request from the trusted proxy carried no X-Forwarded-For: is the proxy
 configured to forward it?*

@@ -442,9 +442,13 @@ async fn deadline(request: Request, next: Next) -> Response {
 
 /// The pace of the REST routes, per address (ADR 0083 item 7): every
 /// route under `/api/` but the WebSocket's upgrade, which `crate::fair`
-/// counts once it is accepted; this machine and the trusted proxies are
-/// not paced (they speak for everyone), nor the window's files and the
-/// page, left to the connection limits (a page load is a burst of files).
+/// counts once it is accepted. A direct connection from this machine is not
+/// paced; everything that comes through a trusted proxy is, under the
+/// address the proxy forwarded — a forwarded `127.0.0.1` is the client's
+/// word, never this machine — or, when it forwarded none, under the
+/// proxy's own: every visitor as one key, which the once-a-minute warning
+/// of `crate::auth::peer` explains. The window's files and the page are
+/// left to the connection limits (a page load is a burst of files).
 /// A refused upgrade is not counted by `crate::fair`: it takes a request
 /// from the pace like any other, and is refused 429 when the address is
 /// past it, so that a flood of upgrades with no credential is no way
@@ -467,7 +471,7 @@ async fn pace(State(server): State<Arc<Server>>, request: Request, next: Next) -
             .iter()
             .filter_map(|v| v.to_str().ok()),
     );
-    if client.addr.is_loopback() || proxies.trusts(client.addr) {
+    if !client.from_proxy && remote.ip().is_loopback() {
         return next.run(request).await;
     }
     let key = crate::limit::address_key(client.addr);
