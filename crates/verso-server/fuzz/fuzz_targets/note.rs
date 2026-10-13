@@ -35,11 +35,13 @@
 //! `a_client_of_no_runs_does_not_break_a_note_room` and
 //! `a_run_of_no_length_does_not_break_a_note_room` fail on the first two.
 //! And `outside-after-a-delete-past-the-end.bin`: a window deletes the
-//! room's own client past its last clock, and the change from outside the
-//! server then puts in loses a run of its text (`"# Nndo de fora\n"` for
-//! the file's `"# Nota\n\nolá 😀 mundo de fora\n"`) — in this harness's
-//! build only: the same steps in a plain build give the file's text, so no
-//! unit test fails on it yet.
+//! room's own Yjs client past its last clock; `yrs` keeps the deletion
+//! pending, sends it in the room's state, and applies it to the room's
+//! own next run: the change from outside the server then puts in is cut
+//! (`"# Nndo de fora\n"` for `"# Nota\n\nolá 😀 mundo de fora\n"`) in a
+//! window that joins at once, and in the room at its next update from
+//! anyone. Any build; Yjs's own semantics for a deletion of what is not
+//! there yet, open for the maintainer.
 //! Run: `cargo +nightly fuzz run note fuzz/corpus/note fuzz/seeds-note`.
 
 #![no_main]
