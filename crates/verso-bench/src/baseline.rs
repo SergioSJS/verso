@@ -101,11 +101,27 @@ impl Baselines {
     }
 }
 
+/// Whether a median of `now_ms` is past the time `base` allows.
+#[must_use]
+pub fn slower(now_ms: f64, base: &Entry) -> bool {
+    now_ms > base.median_ms * TIME_TOLERANCE
+}
+
+/// The median a run reports for an operation measured more than once: the
+/// lowest. A shared runner's noise only ever adds time, so a time
+/// regression stands only when every measurement is past the tolerance
+/// (ADR 0029, revised 2026-10-13: a single slow run on CI is not a
+/// regression).
+#[must_use]
+pub fn settled(medians: &[f64]) -> f64 {
+    medians.iter().copied().fold(f64::INFINITY, f64::min)
+}
+
 /// The regressions of `now` against `base`, if any (§4.3).
 #[must_use]
 pub fn compare(now: &Entry, base: &Entry) -> Vec<Regression> {
     let mut out = Vec::new();
-    if now.median_ms > base.median_ms * TIME_TOLERANCE {
+    if slower(now.median_ms, base) {
         out.push(Regression {
             metric: "median_ms",
             now: now.median_ms,
