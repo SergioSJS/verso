@@ -1,4 +1,4 @@
-# The server's threat model (2026-10-09, refreshed 2026-10-11)
+# The server's threat model (2026-10-09, refreshed 2026-10-11 and 2026-10-13)
 
 What UniVerso — `verso serve` — protects, from whom, and how. [ADR 0073](../adr/0073-self-hosted-server-first.md)
 item 6 asks for it before the server is announced to anyone but the
@@ -44,14 +44,19 @@ unchecked, no disclosure channel, the outside review still open, a backup
 in the clear) and [ADR 0083](../adr/0083-security-hardening-of-universo.md)
 (the measures, their numbers, guardrails and order of work). The ADR was
 accepted on 2026-10-13 and built the same day, in one round: items 1 to
-13, 15 and 17 are built, item 14 (the server's inputs fuzzed) is being
-merged, and its section "As built" says where the code departs from its
-text; item 16's pentest by a person outside the project stays a condition
-of the announcement. Of the gaps below, gap 7's remainder (a mailbox
-flooded) is closed by its item 8 (cb05804), and gap 10 is answered by its
-item 16 when done. The rows of this model are otherwise unchanged: what
-the review found is new, not a correction of what is written here, and the
-threat rows below are not yet refreshed with the measures of ADR 0083.
+15 and 17 are built, with item 16's reading of the sanitizer and its suite
+run in WebKit and Chromium, and its section "As built" says where the code
+departs from its text; item 16's pentest by a person outside the project
+stays a condition of the announcement. Of the gaps below, gap 7's
+remainder (a mailbox flooded) is closed by its item 8 (cb05804), and gap
+10 is answered in part by its item 16 (the sanitizer's reading done, the
+pentest pending). What the review found is new, not a correction of what
+was written here.
+
+**Refreshed on 2026-10-13 against 0b5fea1** of `docs/security-hardening`:
+the attack surface and the threat rows below say the measures of ADR 0083
+as built, each with its item; the commits are in the ADR's section "As
+built" and in the review's findings table.
 
 ## What is protected
 
@@ -62,7 +67,7 @@ threat rows below are not yet refreshed with the measures of ADR 0083.
 | Accounts and password hashes | `server.sqlite` in `VERSO_DATA_DIR` | Argon2id hashes; a stolen one is attacked offline |
 | Sessions, device sessions, personal access tokens, single-use links | the same database, as SHA-256 only; sign-in links by e-mail and pending device codes in memory | each opens an account until it ends |
 | Passkey credentials | the same database | public keys and counters; no secret |
-| The audit log and each folder's change log | the same database | who did what, from which device; a member's evidence |
+| The audit log and each folder's change log | the same database; the audit log's rows kept `VERSO_AUDIT_DAYS` days, 365 by default (ADR 0083 item 10) | who did what, from which device; a member's evidence |
 | A device's token on a desktop | `servers.json` in the app's configuration directory, `0600` on macOS and Linux; on Windows, the profile's own permissions | opens the account from that computer |
 | The server's memory and threads | the process | one member's connections can starve every other member's |
 
@@ -99,20 +104,27 @@ threat rows below are not yet refreshed with the measures of ADR 0083.
 ## The attack surface at HEAD
 
 Every connection first takes a place — 512 on the server, 128 per address
-(an IPv6 /64 as one; this machine and the trusted proxy are not counted) —
+(an IPv6 /64 as one; this machine and the trusted proxies are not counted) —
 before a TLS handshake or a byte of HTTP is read, and holds it to its end,
 a WebSocket's included. A request's headers have 30 s, the wait for the
 next request on a kept-alive connection included; a request has 60 s, its
-body's arrival included (408 past it). Every request passes the `Host`
+body's arrival included (408 past it); a request's head is 64 KiB at
+most (431 past it, ADR 0083 item 8). Every request passes the `Host`
 check first (421 otherwise) and gets the server's headers after:
 `nosniff`, `no-referrer`, `SAMEORIGIN`, `Cross-Origin-Opener-Policy`, a
-`Permissions-Policy`, HSTS over HTTPS and, except under `/f/`, the
-window's own policy (under `/f/`, `Cross-Origin-Resource-Policy:
-same-origin`). A body of the REST API is 1 MB at most. Every delay "by
-address" below keys an IPv4 address whole and an IPv6 address by its
-/64; the maps strangers fill are bounded — the delays' 100 000 keys, and
-10 000 each of device codes, sign-in links and passkey ceremonies — the
-oldest tenth going first. A secret sent over plain HTTP from another machine is never
+`Permissions-Policy`, HSTS with `includeSubDomains` over HTTPS and,
+except under `/f/`, the window's own policy (under `/f/`,
+`Cross-Origin-Resource-Policy: same-origin`) — the whole set asserted,
+name and value (ADR 0083 item 9). A body of the REST API is 1 MB at
+most. Every route under `/api/` keeps a pace per address, 20 a second
+and 100 at once, 429 with `Retry-After` past it; only a direct
+connection from this machine is unpaced (ADR 0083 item 7). Every delay
+"by address" below keys an IPv4 address whole and an IPv6 address by
+its /64, the address being the connection's or, behind a trusted proxy,
+the right-most `X-Forwarded-For` entry that is not a trusted proxy (ADR
+0083 item 5); the maps strangers fill are bounded — the delays' and the
+REST pace's 100 000 keys each, and 10 000 each of device codes, sign-in
+links and passkey ceremonies — the oldest tenth going first. A secret sent over plain HTTP from another machine is never
 read. "Origin" below is `Ctx::changes()`: a browser's change carries a
 matching `Origin` and the session's CSRF token; a bearer (a token or a
 device) carries neither; with no session, `Origin` alone. "The person" is
@@ -122,24 +134,24 @@ token.
 
 | Surface | Who may call it | What checks it | What limits it | What logs it |
 |---|---|---|---|---|
-| `GET /api/state`, the pages, the window's files | anyone; the server's version and the contract's only to someone signed in | `Host` | the page is never cached | nothing |
-| `POST /api/signin` | anyone, over TLS | Origin | a growing delay by address and by account (`in:`): 3 free, then 1 s doubling to 60 s, forgotten after an hour | audit `sign_in`, failed or not |
-| `POST /api/passkey/start`, `/finish` | anyone, over TLS | Origin; WebAuthn with user verification; the ceremony 5 minutes in memory | a delay by address (`pk:`), every start counted | audit `sign_in_passkey` |
-| `POST /api/signin/link`, `POST /api/forgot` | anyone, only when the server has a mail server | Origin | a delay by address (`mail:`), every request counted; answered before the address is looked up — the link, the mail and the audit line follow the answer; a sign-in link lives 15 minutes, in memory | audit `signin_link_sent`, `reset_link_mailed` when the address has an account |
-| `POST /api/signin/link/{token}`, `GET`/`POST /api/invite/{token}`, `GET`/`POST /api/reset/{token}`, `POST /api/setup` | whoever holds the link | Origin on `POST`; the link's hash, single use, expiry (setup 1 hour, invitation 7 days, reset 24 hours); setup only while there is no account | a delay by address on a wrong link (`link:`) | audit `sign_in_link`, `invitation_used`, `password_reset`, `setup` |
+| `GET /api/state`, the pages, the window's files | anyone; the server's version and the contract's only to someone signed in | `Host` | the page is never cached; `/api/state` at the REST pace | nothing |
+| `POST /api/signin` | anyone, over TLS | Origin | a growing delay by address and by account (`in:`): 3 free, then 1 s doubling to 60 s, forgotten after an hour; the server's refused sign-ins share one bucket, 10 a second and 50 at once, and every sign-in waits its debt, never more than 2 s; 20 refused in an hour tell the account by mail, once a day at most (ADR 0083 item 2) | audit `sign_in`, failed or not, and `sign_in_noticed`; a refusal is a `WARN sign-in failed` line of the server's log, which the shipped fail2ban filter reads (ADR 0083 item 1) |
+| `POST /api/passkey/start`, `/finish` | anyone, over TLS | Origin; WebAuthn with user verification; the ceremony 5 minutes in memory | a delay by address (`pk:`), every start counted; the finish waits the server's sign-in debt (ADR 0083 item 2) | audit `sign_in_passkey`; a refusal a `WARN sign-in failed` line |
+| `POST /api/signin/link`, `POST /api/forgot` | anyone, only when the server has a mail server | Origin | a delay by address (`mail:`) and by the address mailed to (`mail:<e-mail>`, ADR 0083 item 8), every request counted; answered before the address is looked up — the link, the mail and the audit line follow the answer; a sign-in link lives 15 minutes, in memory | audit `signin_link_sent`, `reset_link_mailed` when the address has an account |
+| `POST /api/signin/link/{token}`, `GET`/`POST /api/invite/{token}`, `GET`/`POST /api/reset/{token}`, `POST /api/setup` | whoever holds the link | Origin on `POST`; the link's hash, single use, expiry (setup 1 hour, invitation 7 days, reset 24 hours); setup only while there is no account; a new password not among the commonest nor the account's e-mail (ADR 0083 item 3) | a delay by address on a wrong link (`link:`) | audit `sign_in_link`, `invitation_used`, `password_reset`, `setup` |
 | `POST /api/device/start` | anyone, over TLS | nothing more | every start counted by address (`device:`), the same delay; a code lives 10 minutes | nothing |
-| `POST /api/device/poll` | whoever holds the poll secret (256 bits) | the secret's hash, compared in constant time | none of its own | nothing |
-| `GET`/`POST /api/device/{code}` | signed in; approving only from a browser session | Origin (approve) | the code: 10 minutes, once | audit `device_approved` |
-| `/api/me`, `/api/me/*` | the person (profile, password, sessions, settings, passkeys); a token is made only from a browser; a device renames only itself | Origin; the current password for a new one | the password change by account (`in:`), its Argon2id on the blocking pool; settings 256 KB; names 200 characters | audit `password_change`, `session_ended`, `sessions_ended`, `token_created`, `token_revoked`, `passkey_added`, `passkey_removed`, `device_renamed`; a profile or settings change is not audited |
-| `/api/folders`, `/api/folders/{id}/*` | signed in; creating: an account allowed to, never a token; members and the folder's audit: the folder's owner | Origin; the role in the folder, 404 when none | — | audit `folder_created`, grants, `revoke` |
-| `/api/admin/*` | admin | Origin on changes | every list paged on the server (50 rows) | audit for every change (`account_created`, `powers_*`, `account_deleted`, `account_sessions_ended`, `reset_link`, invitations, `folder_adopted`, `admin_self_grant_*`, `folder_quota`); reads are not audited |
+| `POST /api/device/poll` | whoever holds the poll secret (256 bits) | the secret's hash, compared in constant time | a wrong secret or an unknown code counted against the address's `device:` delay and waiting it; the right secret answered whatever that delay (ADR 0083 item 8); the server's sign-in debt (item 2) | a wrong secret a `WARN sign-in failed` line, `for -` (ADR 0083 item 1) |
+| `GET`/`POST /api/device/{code}`, `POST /api/device/describe`, `/approve`, `/refuse` | signed in; approving only from a browser session | Origin (approve); a fresh proof within ten minutes before approving, checked before the code is read (ADR 0083 item 6) | the code: 10 minutes, once; typed or in the link, compared in constant time with every pending code behind the address's `device:` delay, a wrong one counted, a right one not clearing it (ADR 0083 item 17) | audit `device_approved` |
+| `/api/me`, `/api/me/*` | the person (profile, password, sessions, settings, passkeys); a token is made only from a browser; a device renames only itself | Origin; the current password for a new one, not among the commonest (ADR 0083 item 3); a fresh proof within ten minutes for a token, a passkey added or removed and the password change, made by `POST /api/me/prove` or `/api/me/prove/passkey`, never with a token (ADR 0083 item 6) | the password change by account (`in:`), its Argon2id on the blocking pool; settings 256 KB; names 200 characters | audit `password_change`, `session_ended`, `sessions_ended`, `token_created`, `token_revoked`, `passkey_added`, `passkey_removed`, `device_renamed`; a profile or settings change is not audited |
+| `/api/folders`, `/api/folders/{id}/*` | signed in; creating: an account allowed to, never a token; members and the folder's audit: the folder's owner | Origin; the role in the folder, 404 when none; a fresh proof for an owner giving or changing a member's role or a share's (ADR 0083 item 6) | — | audit `folder_created`, grants, `revoke` |
+| `/api/admin/*` | admin | Origin on changes; a fresh proof within ten minutes for deleting an account, changing powers, ending another's sessions, entering a folder and a reset link for another account (ADR 0083 item 6) | every list paged on the server (50 rows) | audit for every change (`account_created`, `powers_*`, `account_deleted`, `account_sessions_ended`, `reset_link`, invitations, `folder_adopted`, `admin_self_grant_*`, `folder_quota`); reads are not audited |
 | `GET /f/{folder}/{*path}` | a reader of the folder or more; a token within its folders | TLS; the role, on every request; the core's path confinement | `Content-Security-Policy: sandbox`, `nosniff`, `Cross-Origin-Resource-Policy: same-origin` | nothing |
 | `GET /api/ws`, the contract | a browser (only with `--web`, `Origin` checked before the cookie is accepted), a device, a token | TLS; the session or token alive before every command; the role in the folder before the core acts; a token's folders and write flag; a sync version older than the previous one refused for `sync_*` | 48 MB a message; 8 requests under way, past which the connection is not read; a queue of 1024 messages and 64 MiB of pushes, full = closed; each write within 30 s plus its size at 32 KiB/s, else closed; a ping every 30 s, closed after 2 unanswered; 32 connections per account and 64 per address, 429 past them; each command at its account's pace (100 a second, 400 at once) and the server's (1 000, 2 000), waiting its turn past it; a window's log lines 60 a minute | the server's log: a sync change refused, a slow or silent connection closed, a sync version refused; each folder's change log names the account and the device of every write |
 | — folder commands | the window's folder, opened by `open_server_folder` or `reopen_folder` | a write command needs editor or owner and a writing credential; a write's bytes checked against the quota first | the quota (ADR 0077 item 5) | the change log |
-| — `collab_*` (shared notes, text files and boards, ADR 0082 item 12) | members of the folder | `collab_update`, `_save`, `_resolve` and `_canvas` need a writer; a malformed Yjs update refused; a board's file (`collab_canvas`) is written only when it is of exactly the state the room holds, through the core's board writer, over the revision read | presence (`collab_awareness`) 16 KB at most, from a window in the room, stamped with the sender's account name and only its own Yjs clients (gap 11); a board room: an update 4 MB and 10 000 entries at most, the room 100 000 entries and 64 MB, a file handed to it 16 MB (`collab_board.rs`), past which refused; what is relayed counts in each receiver's 64 MiB of pushes | nothing |
+| — `collab_*` (shared notes, text files and boards, ADR 0082 item 12) | members of the folder | `collab_update`, `_save`, `_resolve` and `_canvas` need a writer; a malformed Yjs update refused, and before yrs reads one, an update that declares more than its bytes, nests past 64 levels, holds a run or a deletion of length 0 or a clock past `u32::MAX`, or makes or deletes the room's own Yjs items ahead of the room; a connection's updates taken in the order sent, one that leaves anything pending refused; a panic of yrs caught, the update refused and the room made again from its file; what `join` sends and a board's write tells applied in a scratch document first (ADR 0083 item 14); a board's file (`collab_canvas`) is written only when it is of exactly the state the room holds, through the core's board writer, over the revision read | presence (`collab_awareness`) 16 KB at most, from a window in the room, stamped with the sender's account name and only its own Yjs clients (gap 11); a note room: an update 4 MB at most (ADR 0083 item 8); one update of a window in flight per room, what is typed meanwhile merged into the next (item 14); a board room: an update 4 MB and 10 000 entries at most, the room 100 000 entries and 64 MB, a file handed to it 16 MB (`collab_board.rs`), past which refused; what is relayed counts in each receiver's 64 MiB of pushes | the server's log: an update the room could not integrate, with the account's id (ADR 0083 item 14) |
 | — `sync_*` | a device (any credential may ask) | a write, deletion or rename needs a writer, names its base hash and is refused when the file changed; a deletion goes to `.trash/`; the quota on the whole file | pieces of 1 MiB, read from the disk and written to a temporary file as they go, one in memory per transfer (2b1f2c4); 2 transfers each way per connection, dropped after 120 s idle and when the connection ends, a send's temporary file with it; 1 GiB per file; the quota checked at a send's first piece and again at its last; a walk at most once a minute | the server's log for a refusal other than "changed" |
 | — `render_markdown`, `board_text`, `log_write`, `capabilities` | signed in | — | the parser is fuzzed and checked for linear time; log lines one line each, 2000 characters | the server's log (`log_write`) |
-| The release feed | the server, outbound | — | once a day; the version alone in the `User-Agent`; `VERSO_UPDATE_TOKEN` when the repository is private; `VERSO_UPDATE_CHECK=off` | a line when it fails |
+| The release feed | the server, outbound | — | once a day; no redirect followed (ADR 0083 item 8); the version alone in the `User-Agent`; `VERSO_UPDATE_TOKEN` when the repository is private; `VERSO_UPDATE_CHECK=off` | a line when it fails |
 | The host's mail server | the server, outbound, when `VERSO_SMTP_URL` is set | — | what the mail routes above allow | a line when sending fails |
 
 ## Threats and what answers them
@@ -148,26 +160,26 @@ token.
 
 | Threat | Answer as built |
 |---|---|
-| A password or a token read on the wire | Nothing that signs in or carries a secret is served without TLS — the server's own (`VERSO_TLS_CERT_FILE`), a configured proxy's (`VERSO_TRUSTED_PROXY` with `X-Forwarded-Proto: https`) — or from this machine to a server that listens on loopback only. A secret over plain HTTP from elsewhere is not even read. HSTS is sent when the address is HTTPS. |
-| Forwarded headers forged to look secure | Believed only from `VERSO_TRUSTED_PROXY`'s address; the client's address is the last one of `X-Forwarded-For`, the one that proxy added. |
-| DNS rebinding: a site resolving its own name to the server | The `Host` header must be the public address's or a loopback name; else 421. The links the server mails and prints are built from `VERSO_PUBLIC_URL`, never from a request's `Host`. |
+| A password or a token read on the wire | Nothing that signs in or carries a secret is served without TLS — the server's own (`VERSO_TLS_CERT_FILE`), a trusted proxy's (an address or range of `VERSO_TRUSTED_PROXY` with `X-Forwarded-Proto: https`) — or from this machine to a server that listens on loopback only. A secret over plain HTTP from elsewhere is not even read. HSTS, with `includeSubDomains`, is sent when the address is HTTPS. |
+| Forwarded headers forged to look secure | Believed only from an address or range of `VERSO_TRUSTED_PROXY`, a list; the client's address is the right-most `X-Forwarded-For` entry that is not a trusted proxy, walking left; an untrusted peer's header is ignored, and a trusted proxy that forwards none is served as itself, said in the log once a minute (ADR 0083 item 5). `X-Forwarded-Proto` is believed from any trusted proxy, not walked. |
+| DNS rebinding: a site resolving its own name to the server | The `Host` header must be the public address's or a loopback name — `localhost`, `127.0.0.1` or `[::1]`, compared whole: `[::1]` followed by anything had passed, found by the fuzzing of ADR 0083 item 14 (fec23f4); else 421. The links the server mails and prints are built from `VERSO_PUBLIC_URL`, never from a request's `Host`. |
 | Listening beyond loopback by accident | Refused at start without `VERSO_PUBLIC_URL`; the default is `127.0.0.1`. |
-| A connection held open to tie up the server | Every connection takes a place first — 512 on the server, 128 per address — before its TLS handshake (10 seconds) or a byte of HTTP; a request's headers have 30 seconds, a request 60. A WebSocket is pinged every 30 seconds and closed after two pings unanswered, and closed when a write is not taken in time; an account holds 32 of them, an address 64 (gaps 2, 4 and 8, closed). |
-| The process taking the host | The container runs as user 1000; the systemd unit runs as `universo` with `NoNewPrivileges`, `ProtectSystem=strict`, no capabilities and a narrow system-call and address-family set (ADR 0075). |
+| A connection held open to tie up the server | Every connection takes a place first — 512 on the server, 128 per address — before its TLS handshake (10 seconds) or a byte of HTTP; a request's headers have 30 seconds and 64 KiB, a request 60. A WebSocket is pinged every 30 seconds and closed after two pings unanswered, and closed when a write is not taken in time; an account holds 32 of them, an address 64 (gaps 2, 4 and 8, closed). |
+| The process taking the host | The container runs as user 1000, declared read-only with a `tmpfs` `/tmp`, every capability dropped and `no-new-privileges`; the systemd unit runs as `universo` with `NoNewPrivileges`, `ProtectSystem=strict`, `ProtectProc=invisible`, `ProcSubset=pid`, no capabilities, `SystemCallFilter=@system-service` less `@privileged` and `@resources`, a narrow address-family set and `UMask=0027`; a folder is made `0750` (ADR 0075; ADR 0083 item 11). |
 
 ### Signing in and staying signed in
 
 | Threat | Answer as built |
 |---|---|
-| Guessing passwords | Argon2id (OWASP's first parameters); a growing delay by address and by account, never a lock a stranger can use; 12 characters at least. |
+| Guessing passwords | Argon2id (OWASP's first parameters); a growing delay by address and by account, and one bucket for the server's refused sign-ins, never a lock a stranger can use; 20 refusals in an hour tell the account by mail, once a day at most (ADR 0083 item 2); every refusal a log line the shipped fail2ban filter reads (item 1); 12 characters at least, none of the 10 000 commonest of 12 or more, nor the account's e-mail (item 3). |
 | Learning who has an account | A wrong password and an unknown e-mail are answered alike, in about the same time (a hash is computed either way); a passkey's start answers an unknown e-mail and an account without passkeys alike, and gives an account with passkeys its challenge — which says that the address has passkeys, never that an account without them exists. A sign-in link and "forgot the password" answer alike in their words and in their time: the answer leaves before the address is looked up (gap 6, closed). |
-| A stolen session cookie | `HttpOnly`, `SameSite=Lax`, `Secure` and `__Host-` over HTTPS; 14 days idle, 90 at most; listed in Settings and ended there; a password change ends the others; checked again before every command of an open WebSocket, and an ended session's connections are told and closed at once. |
+| A stolen session cookie | `HttpOnly`, `SameSite=Lax`, `Secure` and `__Host-` over HTTPS; 14 days idle, 90 at most; listed in Settings and ended there; a password change ends the others; checked again before every command of an open WebSocket, and an ended session's connections are told and closed at once. A sensitive action — a token, a passkey, a device approved, the password, an admin's powers or reset link, a member's role — asks for a fresh proof within ten minutes (ADR 0083 item 6). |
 | Cross-site requests | Every request that changes something checks `Origin` against the server's and carries the session's CSRF token; the WebSocket checks `Origin` before it accepts the cookie. |
-| A token leaked from a script | Personal access tokens are scoped to folders and to reading or writing, never more than the member's role; never an admin, never the account's own pages; made only from a browser; prefixed `verso_pat_` for secret scanners; kept as SHA-256; an expiry of a year at most, or none said in red; revocable. |
+| A token leaked from a script | Personal access tokens are scoped to folders and to reading or writing, never more than the member's role; never an admin, never the account's own pages; made only from a browser; prefixed `verso_pat_` for secret scanners; kept as SHA-256; an expiry of a year at most, or none said in red; revocable; revoked by a password reset, by `admin reset`, and by a change when asked (ADR 0083 item 4). |
 | The first admin taken by whoever arrives first | No setup page open to anyone: the admin comes from the environment on the first start, or from a single-use setup link valid one hour, printed once in the log — whoever reads the log is whoever runs the server. |
-| A lost admin | `universo admin reset <e-mail>` (or `verso serve admin reset`) on the machine: access to the machine is the last factor; the reset is in the audit log and ends the account's sessions. |
+| A lost admin | `universo admin reset <e-mail>` (or `verso serve admin reset`) on the machine: access to the machine is the last factor; the reset is in the audit log, ends the account's sessions and revokes its tokens (ADR 0083 item 4). |
 | An invitation or a reset link forwarded or guessed | 256 bits, single use, an expiry (7 days, 24 hours), its use recorded (by whom, when), ended by the admin before use; attempts slowed by address. |
-| A device approved by mistake | The approval page shows the device's name and the code the app shows, the address and the time of the request, asks a signed-in person in the browser *Was it you who asked, on this device?* and offers to refuse, and the device's session is listed and revocable. The device's name is the one the requester sent; the address and the time are the server's (gap 12). |
+| A device approved by mistake | The approval page shows the device's name and the code the app shows, the address and the time of the request, asks a signed-in person in the browser *Was it you who asked, on this device?* and offers to refuse, and the device's session is listed and revocable. The device's name is the one the requester sent; the address and the time are the server's (gap 12). Opened without a code, the page asks for the one the app shows, typed (ADR 0083 item 17); approving asks for a fresh proof (item 6). |
 | A device or a phone lost | The person ends the session in Settings; an admin ends every session of an account and revokes its tokens from the console, its open connections closed at once, with an audit line (ADR 0077 item 3, built). |
 | Passkeys | WebAuthn with user verification required (webauthn-rs); the ceremony's state lives five minutes in memory; counters stored. |
 
@@ -178,17 +190,20 @@ token.
 | Reaching a folder one was not given | Every command and every file request checks the member's role in the folder before the core acts; a folder one may not see answers 404. The admin is no exception: entering a folder is a grant to oneself, in the log the owner reads. |
 | A reader writing | Write commands, a shared note's update, save and resolve, a device's put, delete and rename, and the folder's settings are refused below the editor's role; the window hides what the role cannot do. A role changed or removed reaches the member's open windows at once. |
 | Stored XSS through an attachment (HTML, SVG) | Files are served from `/f/` with `Content-Security-Policy: sandbox` and `nosniff`: a document made of them runs no script. |
-| Stored XSS through a note's HTML | The window's sanitizer, `app/ui/src/sanitize.ts`, is the boundary between members (ADR 0073 item 6): an allowlist of elements, attributes and the renderer's classes, parsed in an inert document; scripts, styles, forms and foreign content dropped; links to the web, mail and the page only; an embedded page behind the reader's approval of its origin; inline style kept but never fixed or absolute. The window's own policy, sent as a header, allows scripts from the server only. Mermaid runs at `securityLevel: "strict"`; KaTeX with its defaults. What the sanitizer guarantees, and the suite that holds it to that: below (gap 1, closed). `[OPEN]`: the review by the model that did not write it (the gaps before the announcement). |
+| Stored XSS through a note's HTML | The window's sanitizer, `app/ui/src/sanitize.ts`, is the boundary between members (ADR 0073 item 6): an allowlist of elements, attributes and the renderer's classes, parsed in an inert document; scripts, styles, forms and foreign content dropped; links to the web, mail and the page only; an embedded page behind the reader's approval of its origin; inline style kept but never fixed or absolute. The window's own policy, sent as a header, allows scripts from the server only. Mermaid runs at `securityLevel: "strict"`; KaTeX with its defaults. What the sanitizer guarantees, and the suite that holds it to that: below (gap 1, closed). The review by the model that did not write it done on 2026-10-13 (ADR 0083 item 16); its `[OPEN]` left for the maintainer (the gaps before the announcement). |
 | Remote content leaking who reads | Remote pictures and embedded pages follow the reader's own setting, never the author's (the maintainer's answer I). |
 | Symlinks leading out of a shared folder | On a server a link is followed only when it leads inside the folder; one that leaves is refused and listed as a problem. |
 | An edit that erases another's text | Simultaneous editing merges; a write from elsewhere is merged line by line or refused as changed; a change made outside while edits wait stops the room for people to choose. A board merges by element, Excalidraw's rule (ADR 0082 item 12): a member's change to one element can win over another's to the same element — the higher version — but never touches the others' elements, and a deletion is a tombstone a later undo can bring back; a window that hands the room a false file of the board is a writer writing, as any write. `[OPEN]`: history, attribution and recovery of another member's change (ADR 0073). |
 | A deletion of another's file | A deletion goes to the folder's `.trash/`, from the window and from a device alike; seeing and restoring it in the window, and its retention, are ADR 0080, accepted, being built. |
-| A huge message or many requests to exhaust memory | A WebSocket message is 48 MB at most; a malformed Yjs update is refused; a connection has 8 requests under way at most, and a queue of 1024 messages and 64 MiB of pushes, closed when it fills; a presence is 16 KB at most; a board room takes an update of 4 MB and 10 000 entries at most and holds 100 000 entries and 64 MB, and a board's file handed to it is 16 MB at most (ADR 0082 item 12). Commands keep a pace per account and on the server, and connections are counted per account and per address (gaps 3 and 4, closed). A folder's space is bounded by its quota (ADR 0077 item 5): a write that would pass it is refused and nothing is written. |
+| A huge message or many requests to exhaust memory | A WebSocket message is 48 MB at most; a malformed Yjs update is refused, and an update's counts and nesting are read against its bytes before yrs reserves anything (ADR 0083 item 14); a note room takes an update of 4 MB at most (item 8); a connection has 8 requests under way at most, and a queue of 1024 messages and 64 MiB of pushes, closed when it fills; a presence is 16 KB at most; a board room takes an update of 4 MB and 10 000 entries at most and holds 100 000 entries and 64 MB, and a board's file handed to it is 16 MB at most (ADR 0082 item 12). Commands keep a pace per account and on the server, and connections are counted per account and per address (gaps 3 and 4, closed). A folder's space is bounded by its quota (ADR 0077 item 5): a write that would pass it is refused and nothing is written. |
+| An update that crashes a room or the server | The server's inputs are fuzzed on `main`, 60 s a target with `-O` (ADR 0083 item 14): the WebSocket's request, a sync frame, a note's and a board's Yjs update, a presence, the `Host` and `Origin` headers, a size. A panic of yrs at a room's boundary is caught, the update refused with a `WARN` line naming the account, and the room made again from its file: the room's members lose the edits since it last wrote, 900 ms after the last edit. What ended the process — a value nested deep enough to overflow the stack, a run of length 0 that panicked again during the unwinding — is refused before yrs reads it; a window's updates are taken in the order it sent them, so none waits on yrs's pending path; what a joining window and a board's write are sent is applied in a scratch document first, and the room made again when it does not apply. |
 | Presence that lies | The server stamps a presence with the sender's account name, keeps only a colour that is a colour, and lets a connection speak only for its own Yjs clients: a member's cursor cannot wear another's name, nor move or remove another's (gap 11). |
 
 ### What the sanitizer guarantees
 
-`app/ui/src/sanitize.ts` is written by hand, with no library. Reviewed line
+`app/ui/src/sanitize.ts` is written by hand, with no library. Read again
+on 2026-10-13 by Fable 5.1, the model that did not write it (ADR 0083
+item 16). Reviewed line
 by line on 2026-10-11 against what reaches it — the dialect's `to_html`
 with a note's raw HTML, embedded notes and blocks, callouts, links, and a
 table's cells in Live Preview, which reached the page uncleaned until then
@@ -207,14 +222,22 @@ every `#` link moves under `note-`: a note names none of the window's ids
 and no global (`isTauri`). An inline style is kept as the CSSOM reads it,
 never `fixed` or `absolute`, its `url()` only to the web (remote content
 on) or a picture in data. An `<iframe>` is a box until the reader approves
-its origin, and never one for an address off the web. What it gives back
+its origin, and never one for an address off the web; the box carries
+what its button needs, the button takes the origin from the address
+itself, and a box does not survive a second cleaning, so a note cannot
+forge one (e86eee8). What it gives back
 parses to itself and cleans to itself: no mutation XSS on the way through
-`cleanHtmlText`. `app/ui/test/sanitize.test.mjs` prints this policy,
-checks it against the module's, and runs 76 hostile inputs — the OWASP
-cheat sheet's staples, the known mXSS payloads, encoding tricks,
-clobbering — in `npm test`. It runs in happy-dom, whose parser is not
-WebKit's: the guarantees are structural and hold for either, and a run of
-the same table in the browser harness is still to add.
+`cleanHtmlText`. The hostile inputs, 102, live in
+`app/ui/test/sanitize-cases.mjs` — the OWASP cheat sheet's staples, the
+known mXSS payloads, encoding tricks, clobbering, and since 2026-10-13
+what a browser's parser does with foreign content, `noscript`,
+`template`, `textarea` and `title`, a forged gate box, a note ten
+thousand levels deep. `app/ui/test/sanitize.test.mjs` prints this
+policy, checks it against the module's, and runs them in `npm test`, in
+happy-dom; `app/ui/e2e/sanitize.spec.mjs` runs the same cases in WebKit
+and Chromium through the harness (`npm run e2e`), where the window's own
+sanitizer cleans each and the browser's parser reads the output back
+(ADR 0083 item 16, 1e25bcf).
 
 ### A device that syncs
 
@@ -259,8 +282,10 @@ being built): these rows say what they decide, not what runs.
 |---|---|
 | The server as an open proxy | It reaches the network only for the update check — the project's release feed, once a day, with nothing but its version in the `User-Agent`; `VERSO_UPDATE_CHECK=off` stops it — and for the host's mail server when `VERSO_SMTP_URL` is set. |
 | The databases corrupted on a NAS | Warned in the log and on the admin page when `VERSO_DATA_DIR` is on a network file system. |
-| Secrets in the log | No password, token or link is logged; the setup link is the one secret printed, once, by design. A window's log lines are one line each, control characters replaced. The console shows the configuration with its secrets (`VERSO_UPDATE_TOKEN`, `VERSO_SMTP_URL`) as set or not, never their value. |
-| A vulnerable or unlicensed dependency | `cargo-deny` (advisories, licenses) and the npm license allowlist in CI; one unmaintained notice excepted with an expiry (RUSTSEC-2026-0215, smallstr via yrs). |
+| Secrets in the log | No password, token or link is logged; a refused sign-in's line masks the e-mail to one word (ADR 0083 item 1); the setup link is the one secret printed, once, by design. A window's log lines are one line each, control characters replaced. The console shows the configuration with its secrets (`VERSO_UPDATE_TOKEN`, `VERSO_SMTP_URL`) as set or not, never their value. |
+| A vulnerable or unlicensed dependency | `cargo-deny` (advisories, licenses), the npm license allowlist and the npm advisories in CI — a high or critical one fails unless `app/ui/audit-exceptions.json` excepts it with a reason, a link and an expiry (ADR 0083 item 13); one unmaintained notice excepted with an expiry (RUSTSEC-2026-0215, smallstr via yrs), and one npm advisory (braces 3.0.3, absent from the window's bundle, until 2027-01-11). |
+| A backup read where it was copied | `universo.sh backup --encrypt` encrypts it with `age`, to a public key or a passphrase; the secret key is never a command's argument and is left on none of the host's usual directories (ADR 0083 item 12). Without `age` the backup is the plain tarball, with the warning. |
+| A flaw found with nowhere to report it | `SECURITY.md` and `/.well-known/security.txt` name the address and the promise (ADR 0083 item 15). |
 
 ### Agents
 
@@ -369,7 +394,11 @@ recommendation for the maintainer to confirm.
    entries expire early, said in the folder's page (item 8).
 10. **An external review of this model**, as the model asked on
     2026-10-09; ADR 0073 asks for security "in full". **Still open:**
-    after the gaps above.
+    after the gaps above. *2026-10-13:* ADR 0083 item 16 answers it in
+    two parts: the sanitizer read by the model that did not write it,
+    done on 2026-10-13 (0b5fea1); the pentest of the lab server by a
+    person outside the project, pending, a condition of the
+    announcement.
 
 **MINOR**
 
@@ -433,7 +462,13 @@ answer — a recommendation, not a decision; the maintainer decides.
   review line by line and the suite, which stays as a guardrail in
   `npm test`; left `[OPEN]` for the maintainer: the review by the model
   that did not write `sanitize.ts`, the other renderers, and the gate and
-  the suite run in a browser.
+  the suite run in a browser. *Done on 2026-10-13 (ADR 0083 item 16,
+  0b5fea1):* the reading by Fable 5.1, the model that did not write
+  `sanitize.ts` — no BLOCKING, three MINOR, the gate box's resolved in
+  e86eee8 *(reported)* — and the suite run in WebKit and Chromium
+  through the harness; of the other renderers, PDF.js's build asserted
+  to hold no `eval` (ADR 0083 item 8, 4b892cc), Mermaid, KaTeX and
+  Excalidraw not read. Left `[OPEN]` for the maintainer.
 - `[OPEN]` History and recovery of another member's change or deletion.
   *Recommendation:* ADR 0080 (the trash, and the version a device's write
   replaced) answers deletions and devices for the first outside user; a
@@ -469,5 +504,5 @@ answer — a recommendation, not a decision; the maintainer decides.
   announcement, the sanitizer read by the model that did not write it —
   and what comes before it: every other item of the ADR, built in one
   round (its order of work, rewritten when it was accepted on 2026-10-13)
-  — items 1 to 13, 15 and 17 built on 2026-10-13, item 14 being
-  merged.
+  — items 1 to 15 and 17 built on 2026-10-13, with item 16's reading of
+  the sanitizer; the pentest pending.

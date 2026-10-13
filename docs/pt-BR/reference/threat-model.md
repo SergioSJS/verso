@@ -1,4 +1,4 @@
-# O modelo de ameaças do servidor (2026-10-09, atualizado em 2026-10-11)
+# O modelo de ameaças do servidor (2026-10-09, atualizado em 2026-10-11 e 2026-10-13)
 
 O que o UniVerso — o `verso serve` — protege, de quem e como. O [ADR 0073](../adr/0073-self-hosted-server-first.md)
 item 6 o pede antes de o servidor ser anunciado a qualquer pessoa além do
@@ -47,15 +47,19 @@ de fora ainda aberta, um backup em claro) e o
 [ADR 0083](../adr/0083-security-hardening-of-universo.md) (as
 medidas, os números, os guardrails e a ordem do trabalho). O ADR foi
 aceito em 2026-10-13 e construído no mesmo dia, numa rodada só: os itens 1
-a 13, 15 e 17 estão construídos, o item 14 (as entradas do servidor sob
-fuzzing) está sendo integrado, e a seção "Como construído" dele diz onde o
-código se afasta do texto; o pentest do item 16 por uma pessoa de fora do
-projeto continua condição do anúncio. Das lacunas abaixo, o resto da
-lacuna 7 (uma caixa de e-mail inundada) está fechado pelo item 8
-(cb05804), e a lacuna 10 é respondida pelo item 16 quando feito. As linhas
-deste modelo de resto não mudam: o que a revisão achou é novo, não uma
-correção do que está escrito aqui, e as linhas de ameaça abaixo ainda não
-foram atualizadas com as medidas do ADR 0083.
+a 15 e 17 estão construídos, com a leitura do sanitizador do item 16 e a
+bateria dele rodada no WebKit e no Chromium, e a seção "Como construído"
+dele diz onde o código se afasta do texto; o pentest do item 16 por uma
+pessoa de fora do projeto continua condição do anúncio. Das lacunas
+abaixo, o resto da lacuna 7 (uma caixa de e-mail inundada) está fechado
+pelo item 8 (cb05804), e a lacuna 10 é respondida em parte pelo item 16
+(a leitura do sanitizador feita, o pentest pendente). O que a revisão
+achou é novo, não uma correção do que estava escrito aqui.
+
+**Atualizado em 2026-10-13 contra o 0b5fea1** do `docs/security-hardening`:
+a superfície de ataque e as linhas de ameaça abaixo dizem as medidas do
+ADR 0083 como construídas, cada uma com o seu item; os commits estão na
+seção "Como construído" do ADR e na tabela de achados da revisão.
 
 ## O que é protegido
 
@@ -66,7 +70,7 @@ foram atualizadas com as medidas do ADR 0083.
 | Contas e hashes de senha | `server.sqlite` em `VERSO_DATA_DIR` | hashes Argon2id; um roubado é atacado offline |
 | Sessões, sessões de aparelho, tokens de acesso pessoal, links de uso único | o mesmo banco, só como SHA-256; links de entrada por e-mail e códigos de aparelho pendentes na memória | cada um abre uma conta até terminar |
 | Credenciais de passkey | o mesmo banco | chaves públicas e contadores; nenhum segredo |
-| O registro de auditoria e o registro de mudanças de cada pasta | o mesmo banco | quem fez o quê, de qual aparelho; a prova de um membro |
+| O registro de auditoria e o registro de mudanças de cada pasta | o mesmo banco; as linhas do registro de auditoria guardadas `VERSO_AUDIT_DAYS` dias, 365 por padrão (ADR 0083 item 10) | quem fez o quê, de qual aparelho; a prova de um membro |
 | O token de um aparelho num desktop | `servers.json` na pasta de configuração do app, `0600` no macOS e no Linux; no Windows, as permissões do próprio perfil | abre a conta daquele computador |
 | A memória e as threads do servidor | o processo | as conexões de um membro podem esgotar as de todos os outros |
 
@@ -104,21 +108,29 @@ foram atualizadas com as medidas do ADR 0083.
 ## A superfície de ataque no HEAD
 
 Toda conexão primeiro ocupa um lugar — 512 no servidor, 128 por endereço
-(um /64 de IPv6 conta como um; esta máquina e o proxy confiável não são
-contados) — antes de um handshake TLS ou de um byte de HTTP ser lido, e o
+(um /64 de IPv6 conta como um; esta máquina e os proxies confiáveis não
+são contados) — antes de um handshake TLS ou de um byte de HTTP ser lido, e o
 mantém até o fim, o de um WebSocket também. Os cabeçalhos de uma
 requisição têm 30 s, a espera pela próxima numa conexão mantida viva
 incluída; uma requisição tem 60 s, a chegada do corpo incluída (408 depois
-disso). Toda requisição passa primeiro pela checagem do `Host` (421 se
-não) e recebe depois os cabeçalhos do servidor: `nosniff`, `no-referrer`,
-`SAMEORIGIN`, `Cross-Origin-Opener-Policy`, uma `Permissions-Policy`, HSTS
-em HTTPS e, fora de `/f/`, a política da própria janela (em `/f/`,
-`Cross-Origin-Resource-Policy: same-origin`). Um corpo da API REST tem
-1 MB no máximo. Toda espera "por endereço" abaixo usa como chave um
-endereço IPv4 inteiro e um IPv6 pelo seu /64; os mapas que estranhos
-enchem são limitados — 100 000 chaves das esperas, e 10 000 cada de
-códigos de aparelho, links de entrada e cerimônias de passkey — saindo
-primeiro o décimo mais antigo. Um segredo enviado por HTTP simples de outra
+disso); a cabeça de uma requisição tem 64 KiB no máximo (431 depois disso,
+ADR 0083 item 8). Toda requisição passa primeiro pela checagem do `Host`
+(421 se não) e recebe depois os cabeçalhos do servidor: `nosniff`,
+`no-referrer`, `SAMEORIGIN`, `Cross-Origin-Opener-Policy`, uma
+`Permissions-Policy`, HSTS com `includeSubDomains` em HTTPS e, fora de
+`/f/`, a política da própria janela (em `/f/`,
+`Cross-Origin-Resource-Policy: same-origin`) — o conjunto inteiro
+conferido, nome e valor (ADR 0083 item 9). Um corpo da API REST tem 1 MB
+no máximo. Toda rota sob `/api/` segue um ritmo por endereço, 20 por
+segundo e 100 de uma vez, 429 com `Retry-After` além dele; só uma conexão
+direta desta máquina fica fora do ritmo (ADR 0083 item 7). Toda espera
+"por endereço" abaixo usa como chave um endereço IPv4 inteiro e um IPv6
+pelo seu /64, sendo o endereço o da conexão ou, atrás de um proxy
+confiável, a entrada mais à direita do `X-Forwarded-For` que não é um
+proxy confiável (ADR 0083 item 5); os mapas que estranhos enchem são
+limitados — 100 000 chaves cada para as esperas e o ritmo REST, e 10 000
+cada de códigos de aparelho, links de entrada e cerimônias de passkey —
+saindo primeiro o décimo mais antigo. Um segredo enviado por HTTP simples de outra
 máquina nunca é lido. "Origin" abaixo é o `Ctx::changes()`: a mudança de um
 navegador leva um `Origin` que confere e o token CSRF da sessão; um bearer
 (um token ou um aparelho) não leva nenhum dos dois; sem sessão, só o
@@ -128,24 +140,24 @@ navegador ou de aparelho de um admin, nunca um token.
 
 | Superfície | Quem pode chamar | O que confere | O que limita | O que registra |
 |---|---|---|---|---|
-| `GET /api/state`, as páginas, os arquivos da janela | qualquer um; a versão do servidor e a do contrato só para quem está dentro | `Host` | a página nunca vai para cache | nada |
-| `POST /api/signin` | qualquer um, em TLS | Origin | uma espera que cresce por endereço e por conta (`in:`): 3 livres, depois 1 s dobrando até 60 s, esquecida depois de uma hora | auditoria `sign_in`, falha ou não |
-| `POST /api/passkey/start`, `/finish` | qualquer um, em TLS | Origin; WebAuthn com verificação do usuário; a cerimônia 5 minutos na memória | uma espera por endereço (`pk:`), todo início contado | auditoria `sign_in_passkey` |
-| `POST /api/signin/link`, `POST /api/forgot` | qualquer um, só quando o servidor tem servidor de e-mail | Origin | uma espera por endereço (`mail:`), toda requisição contada; respondida antes de o endereço ser procurado — o link, o e-mail e a linha de auditoria vêm depois da resposta; um link de entrada vive 15 minutos, na memória | auditoria `signin_link_sent`, `reset_link_mailed` quando o endereço tem conta |
-| `POST /api/signin/link/{token}`, `GET`/`POST /api/invite/{token}`, `GET`/`POST /api/reset/{token}`, `POST /api/setup` | quem tem o link | Origin no `POST`; o hash do link, uso único, validade (configuração 1 hora, convite 7 dias, senha nova 24 horas); configuração só enquanto não há conta | uma espera por endereço num link errado (`link:`) | auditoria `sign_in_link`, `invitation_used`, `password_reset`, `setup` |
+| `GET /api/state`, as páginas, os arquivos da janela | qualquer um; a versão do servidor e a do contrato só para quem está dentro | `Host` | a página nunca vai para cache; `/api/state` no ritmo REST | nada |
+| `POST /api/signin` | qualquer um, em TLS | Origin | uma espera que cresce por endereço e por conta (`in:`): 3 livres, depois 1 s dobrando até 60 s, esquecida depois de uma hora; os sign-ins recusados do servidor dividem um bucket, 10 por segundo e 50 de uma vez, e todo sign-in espera a dívida dele, nunca mais que 2 s; 20 recusas numa hora avisam a conta por e-mail, uma vez por dia no máximo (ADR 0083 item 2) | auditoria `sign_in`, falha ou não, e `sign_in_noticed`; uma recusa é uma linha `WARN sign-in failed` do log do servidor, que o filtro do fail2ban entregue lê (ADR 0083 item 1) |
+| `POST /api/passkey/start`, `/finish` | qualquer um, em TLS | Origin; WebAuthn com verificação do usuário; a cerimônia 5 minutos na memória | uma espera por endereço (`pk:`), todo início contado; o fim espera a dívida de sign-in do servidor (ADR 0083 item 2) | auditoria `sign_in_passkey`; uma recusa, uma linha `WARN sign-in failed` |
+| `POST /api/signin/link`, `POST /api/forgot` | qualquer um, só quando o servidor tem servidor de e-mail | Origin | uma espera por endereço (`mail:`) e pelo endereço que recebe o e-mail (`mail:<e-mail>`, ADR 0083 item 8), toda requisição contada; respondida antes de o endereço ser procurado — o link, o e-mail e a linha de auditoria vêm depois da resposta; um link de entrada vive 15 minutos, na memória | auditoria `signin_link_sent`, `reset_link_mailed` quando o endereço tem conta |
+| `POST /api/signin/link/{token}`, `GET`/`POST /api/invite/{token}`, `GET`/`POST /api/reset/{token}`, `POST /api/setup` | quem tem o link | Origin no `POST`; o hash do link, uso único, validade (configuração 1 hora, convite 7 dias, senha nova 24 horas); configuração só enquanto não há conta; uma senha nova que não esteja entre as mais comuns nem seja o e-mail da conta (ADR 0083 item 3) | uma espera por endereço num link errado (`link:`) | auditoria `sign_in_link`, `invitation_used`, `password_reset`, `setup` |
 | `POST /api/device/start` | qualquer um, em TLS | nada mais | todo início contado por endereço (`device:`), a mesma espera; um código vive 10 minutos | nada |
-| `POST /api/device/poll` | quem tem o segredo de consulta (256 bits) | o hash do segredo, comparado em tempo constante | nenhum próprio | nada |
-| `GET`/`POST /api/device/{code}` | quem está dentro; aprovar só de uma sessão de navegador | Origin (aprovar) | o código: 10 minutos, uma vez | auditoria `device_approved` |
-| `/api/me`, `/api/me/*` | a pessoa (perfil, senha, sessões, ajustes, passkeys); um token só se cria num navegador; um aparelho só renomeia a si mesmo | Origin; a senha atual para uma nova | a troca de senha por conta (`in:`), o Argon2id dela no pool de bloqueio; ajustes 256 KB; nomes 200 caracteres | auditoria `password_change`, `session_ended`, `sessions_ended`, `token_created`, `token_revoked`, `passkey_added`, `passkey_removed`, `device_renamed`; uma mudança de perfil ou de ajustes não é auditada |
-| `/api/folders`, `/api/folders/{id}/*` | quem está dentro; criar: uma conta autorizada, nunca um token; membros e a auditoria da pasta: o dono da pasta | Origin; o papel na pasta, 404 quando não há | — | auditoria `folder_created`, concessões, `revoke` |
-| `/api/admin/*` | admin | Origin nas mudanças | toda lista paginada no servidor (50 linhas) | auditoria de toda mudança (`account_created`, `powers_*`, `account_deleted`, `account_sessions_ended`, `reset_link`, convites, `folder_adopted`, `admin_self_grant_*`, `folder_quota`); leituras não são auditadas |
+| `POST /api/device/poll` | quem tem o segredo de consulta (256 bits) | o hash do segredo, comparado em tempo constante | um segredo errado ou um código desconhecido contado na espera `device:` do endereço, e esperando-a; o segredo certo respondido seja qual for essa espera (ADR 0083 item 8); a dívida de sign-in do servidor (item 2) | um segredo errado, uma linha `WARN sign-in failed`, `for -` (ADR 0083 item 1) |
+| `GET`/`POST /api/device/{code}`, `POST /api/device/describe`, `/approve`, `/refuse` | quem está dentro; aprovar só de uma sessão de navegador | Origin (aprovar); uma prova recente, de dez minutos, antes de aprovar, conferida antes de o código ser lido (ADR 0083 item 6) | o código: 10 minutos, uma vez; digitado ou no link, comparado em tempo constante com todo código pendente atrás da espera `device:` do endereço, um errado contado, um certo sem zerá-la (ADR 0083 item 17) | auditoria `device_approved` |
+| `/api/me`, `/api/me/*` | a pessoa (perfil, senha, sessões, ajustes, passkeys); um token só se cria num navegador; um aparelho só renomeia a si mesmo | Origin; a senha atual para uma nova, que não esteja entre as mais comuns (ADR 0083 item 3); uma prova recente, de dez minutos, para um token, uma passkey acrescentada ou retirada e a troca de senha, feita por `POST /api/me/prove` ou `/api/me/prove/passkey`, nunca com um token (ADR 0083 item 6) | a troca de senha por conta (`in:`), o Argon2id dela no pool de bloqueio; ajustes 256 KB; nomes 200 caracteres | auditoria `password_change`, `session_ended`, `sessions_ended`, `token_created`, `token_revoked`, `passkey_added`, `passkey_removed`, `device_renamed`; uma mudança de perfil ou de ajustes não é auditada |
+| `/api/folders`, `/api/folders/{id}/*` | quem está dentro; criar: uma conta autorizada, nunca um token; membros e a auditoria da pasta: o dono da pasta | Origin; o papel na pasta, 404 quando não há; uma prova recente para um dono dar ou mudar o papel de um membro ou de um compartilhamento (ADR 0083 item 6) | — | auditoria `folder_created`, concessões, `revoke` |
+| `/api/admin/*` | admin | Origin nas mudanças; uma prova recente, de dez minutos, para apagar uma conta, mudar poderes, encerrar as sessões de outro, entrar numa pasta e um link de senha nova para outra conta (ADR 0083 item 6) | toda lista paginada no servidor (50 linhas) | auditoria de toda mudança (`account_created`, `powers_*`, `account_deleted`, `account_sessions_ended`, `reset_link`, convites, `folder_adopted`, `admin_self_grant_*`, `folder_quota`); leituras não são auditadas |
 | `GET /f/{folder}/{*path}` | um leitor da pasta ou mais; um token dentro das pastas dele | TLS; o papel, a cada requisição; o confinamento de caminhos do núcleo | `Content-Security-Policy: sandbox`, `nosniff`, `Cross-Origin-Resource-Policy: same-origin` | nada |
 | `GET /api/ws`, o contrato | um navegador (só com `--web`, `Origin` conferido antes de aceitar o cookie), um aparelho, um token | TLS; a sessão ou o token vivo antes de cada comando; o papel na pasta antes de o núcleo agir; as pastas e a escrita de um token; uma versão de sync mais velha que a anterior recusada para `sync_*` | 48 MB por mensagem; 8 requisições em andamento, além das quais a conexão não é lida; uma fila de 1024 mensagens e 64 MiB de envios, cheia = fechada; cada escrita em 30 s mais o tamanho dela a 32 KiB/s, senão fechada; um ping a cada 30 s, fechada depois de 2 sem resposta; 32 conexões por conta e 64 por endereço, 429 além disso; cada comando no ritmo da conta (100 por segundo, 400 de uma vez) e no do servidor (1 000, 2 000), esperando a vez além dele; as linhas de log de uma janela, 60 por minuto | o log do servidor: uma mudança de sync recusada, uma conexão lenta ou calada fechada, uma versão de sync recusada; o registro de mudanças de cada pasta nomeia a conta e o aparelho de cada escrita |
 | — comandos da pasta | a pasta da janela, aberta por `open_server_folder` ou `reopen_folder` | um comando de escrita pede editor ou dono e uma credencial que escreve; os bytes de uma escrita conferidos contra a cota antes | a cota (ADR 0077 item 5) | o registro de mudanças |
-| — `collab_*` (notas, arquivos de texto e boards compartilhados, ADR 0082 item 12) | membros da pasta | `collab_update`, `_save`, `_resolve` e `_canvas` pedem quem escreve; uma atualização Yjs malformada recusada; o arquivo de um board (`collab_canvas`) só é gravado quando é exatamente do estado que a sala tem, pelo gravador de boards do núcleo, sobre a revisão lida | a presença (`collab_awareness`) com 16 KB no máximo, de uma janela na sala, carimbada com o nome da conta de quem enviou e só os clientes Yjs dela (lacuna 11); uma sala de board: uma atualização de 4 MB e 10 000 entradas no máximo, a sala com 100 000 entradas e 64 MB, um arquivo entregue a ela de 16 MB (`collab_board.rs`), além disso recusado; o que é repassado conta nos 64 MiB de envios de cada destinatário | nada |
+| — `collab_*` (notas, arquivos de texto e boards compartilhados, ADR 0082 item 12) | membros da pasta | `collab_update`, `_save`, `_resolve` e `_canvas` pedem quem escreve; uma atualização Yjs malformada recusada, e antes de o yrs ler uma, recusada a atualização que declara mais do que tem de bytes, aninha além de 64 níveis, tem uma sequência ou uma deleção de comprimento 0 ou um relógio além de `u32::MAX`, ou cria ou apaga itens do próprio cliente Yjs da sala à frente da sala; as atualizações de uma conexão tomadas na ordem em que foram mandadas, uma que deixa algo pendente recusada; um pânico do yrs pego, a atualização recusada e a sala refeita a partir do arquivo; o que o `join` manda e o que a escrita de um board diz aplicados antes num documento de rascunho (ADR 0083 item 14); o arquivo de um board (`collab_canvas`) só é gravado quando é exatamente do estado que a sala tem, pelo gravador de boards do núcleo, sobre a revisão lida | a presença (`collab_awareness`) com 16 KB no máximo, de uma janela na sala, carimbada com o nome da conta de quem enviou e só os clientes Yjs dela (lacuna 11); uma sala de nota: uma atualização de 4 MB no máximo (ADR 0083 item 8); uma atualização de uma janela em voo por sala, o que é digitado enquanto isso juntado na próxima (item 14); uma sala de board: uma atualização de 4 MB e 10 000 entradas no máximo, a sala com 100 000 entradas e 64 MB, um arquivo entregue a ela de 16 MB (`collab_board.rs`), além disso recusado; o que é repassado conta nos 64 MiB de envios de cada destinatário | o log do servidor: uma atualização que a sala não conseguiu integrar, com o id da conta (ADR 0083 item 14) |
 | — `sync_*` | um aparelho (qualquer credencial pode perguntar) | uma escrita, um apagamento ou uma mudança de nome pede quem escreve, nomeia o hash de base e é recusada quando o arquivo mudou; um apagamento vai para o `.trash/`; a cota sobre o arquivo inteiro | pedaços de 1 MiB, lidos do disco e gravados num arquivo temporário à medida que passam, um na memória por transferência (2b1f2c4); 2 transferências em cada sentido por conexão, descartadas depois de 120 s paradas e quando a conexão acaba, e com elas o arquivo temporário de um envio; 1 GiB por arquivo; a cota conferida no primeiro pedaço de um envio e de novo no último; uma varredura no máximo uma vez por minuto | o log do servidor para uma recusa que não seja "mudou" |
 | — `render_markdown`, `board_text`, `log_write`, `capabilities` | quem está dentro | — | o parser passa por fuzzing e pela checagem de tempo linear; linhas de log uma linha cada, 2000 caracteres | o log do servidor (`log_write`) |
-| O feed de releases | o servidor, de saída | — | uma vez por dia; só a versão no `User-Agent`; `VERSO_UPDATE_TOKEN` quando o repositório é privado; `VERSO_UPDATE_CHECK=off` | uma linha quando falha |
+| O feed de releases | o servidor, de saída | — | uma vez por dia; nenhum redirecionamento seguido (ADR 0083 item 8); só a versão no `User-Agent`; `VERSO_UPDATE_TOKEN` quando o repositório é privado; `VERSO_UPDATE_CHECK=off` | uma linha quando falha |
 | O servidor de e-mail de quem hospeda | o servidor, de saída, quando `VERSO_SMTP_URL` está definido | — | o que as rotas de e-mail acima permitem | uma linha quando o envio falha |
 
 ## Ameaças e o que responde a elas
@@ -154,26 +166,26 @@ navegador ou de aparelho de um admin, nunca um token.
 
 | Ameaça | Resposta como construída |
 |---|---|
-| Uma senha ou um token lido no fio | Nada que faça login ou carregue segredo é servido sem TLS — o do próprio servidor (`VERSO_TLS_CERT_FILE`), o de um proxy configurado (`VERSO_TRUSTED_PROXY` com `X-Forwarded-Proto: https`) — ou desta máquina para um servidor que só escuta em loopback. Um segredo por HTTP simples vindo de outro lugar nem é lido. HSTS é enviado quando o endereço é HTTPS. |
-| Cabeçalhos encaminhados forjados para parecer seguros | Só são aceitos vindos do endereço de `VERSO_TRUSTED_PROXY`; o endereço do cliente é o último do `X-Forwarded-For`, o que aquele proxy acrescentou. |
-| DNS rebinding: um site resolvendo o próprio nome para o servidor | O cabeçalho `Host` precisa ser o do endereço público ou um nome de loopback; senão, 421. Os links que o servidor manda por e-mail e escreve são montados a partir de `VERSO_PUBLIC_URL`, nunca do `Host` de uma requisição. |
+| Uma senha ou um token lido no fio | Nada que faça login ou carregue segredo é servido sem TLS — o do próprio servidor (`VERSO_TLS_CERT_FILE`), o de um proxy confiável (um endereço ou faixa do `VERSO_TRUSTED_PROXY` com `X-Forwarded-Proto: https`) — ou desta máquina para um servidor que só escuta em loopback. Um segredo por HTTP simples vindo de outro lugar nem é lido. HSTS, com `includeSubDomains`, é enviado quando o endereço é HTTPS. |
+| Cabeçalhos encaminhados forjados para parecer seguros | Só são aceitos vindos de um endereço ou faixa do `VERSO_TRUSTED_PROXY`, uma lista; o endereço do cliente é a entrada mais à direita do `X-Forwarded-For` que não é um proxy confiável, andando para a esquerda; o cabeçalho de um par não confiável é ignorado, e um proxy confiável que não encaminha nenhum é servido como ele mesmo, dito no log uma vez por minuto (ADR 0083 item 5). O `X-Forwarded-Proto` é aceito de qualquer proxy confiável, sem percurso. |
+| DNS rebinding: um site resolvendo o próprio nome para o servidor | O cabeçalho `Host` precisa ser o do endereço público ou um nome de loopback — `localhost`, `127.0.0.1` ou `[::1]`, comparado inteiro: `[::1]` seguido de qualquer coisa passava, achado pelo fuzzing do item 14 do ADR 0083 (fec23f4); senão, 421. Os links que o servidor manda por e-mail e escreve são montados a partir de `VERSO_PUBLIC_URL`, nunca do `Host` de uma requisição. |
 | Escutar além de loopback por engano | Recusado na subida sem `VERSO_PUBLIC_URL`; o padrão é `127.0.0.1`. |
-| Uma conexão mantida aberta para prender o servidor | Toda conexão ocupa primeiro um lugar — 512 no servidor, 128 por endereço — antes do handshake TLS (10 segundos) ou de um byte de HTTP; os cabeçalhos de uma requisição têm 30 segundos, uma requisição 60. Um WebSocket recebe um ping a cada 30 segundos e é fechado depois de dois pings sem resposta, e fechado quando uma escrita não é aceita a tempo; uma conta tem até 32 deles, um endereço 64 (lacunas 2, 4 e 8, fechadas). |
-| O processo tomando a máquina | O contêiner roda como o usuário 1000; a unidade do systemd roda como `universo` com `NoNewPrivileges`, `ProtectSystem=strict`, sem capabilities e com um conjunto estreito de chamadas de sistema e de famílias de endereço (ADR 0075). |
+| Uma conexão mantida aberta para prender o servidor | Toda conexão ocupa primeiro um lugar — 512 no servidor, 128 por endereço — antes do handshake TLS (10 segundos) ou de um byte de HTTP; os cabeçalhos de uma requisição têm 30 segundos e 64 KiB, uma requisição 60. Um WebSocket recebe um ping a cada 30 segundos e é fechado depois de dois pings sem resposta, e fechado quando uma escrita não é aceita a tempo; uma conta tem até 32 deles, um endereço 64 (lacunas 2, 4 e 8, fechadas). |
+| O processo tomando a máquina | O contêiner roda como o usuário 1000, declarado somente leitura com um `tmpfs` em `/tmp`, todas as capabilities retiradas e `no-new-privileges`; a unidade do systemd roda como `universo` com `NoNewPrivileges`, `ProtectSystem=strict`, `ProtectProc=invisible`, `ProcSubset=pid`, sem capabilities, `SystemCallFilter=@system-service` menos `@privileged` e `@resources`, um conjunto estreito de famílias de endereço e `UMask=0027`; uma pasta é criada `0750` (ADR 0075; ADR 0083 item 11). |
 
 ### Entrar e continuar dentro
 
 | Ameaça | Resposta como construída |
 |---|---|
-| Adivinhar senhas | Argon2id (os primeiros parâmetros do OWASP); uma espera que cresce por endereço e por conta, nunca um bloqueio que um estranho possa usar; 12 caracteres no mínimo. |
+| Adivinhar senhas | Argon2id (os primeiros parâmetros do OWASP); uma espera que cresce por endereço e por conta, e um bucket para os sign-ins recusados do servidor, nunca um bloqueio que um estranho possa usar; 20 recusas numa hora avisam a conta por e-mail, uma vez por dia no máximo (ADR 0083 item 2); toda recusa uma linha de log que o filtro do fail2ban entregue lê (item 1); 12 caracteres no mínimo, nenhuma das 10 000 mais comuns de 12 ou mais, nem o e-mail da conta (item 3). |
 | Descobrir quem tem conta | Uma senha errada e um e-mail desconhecido são respondidos igual, em tempo parecido (um hash é calculado nos dois casos); o início de uma passkey responde igual a um e-mail desconhecido e a uma conta sem passkey, e dá o desafio a uma conta com passkeys — o que diz que o endereço tem passkeys, nunca que existe uma conta sem elas. Um link de entrada e o "esqueci a senha" respondem igual nas palavras e no tempo: a resposta sai antes de o endereço ser procurado (lacuna 6, fechada). |
-| Um cookie de sessão roubado | `HttpOnly`, `SameSite=Lax`, `Secure` e `__Host-` em HTTPS; 14 dias parado, 90 no máximo; listado nos Ajustes e encerrado ali; trocar a senha encerra as outras; conferido de novo antes de cada comando de um WebSocket aberto, e as conexões de uma sessão encerrada são avisadas e fechadas na hora. |
+| Um cookie de sessão roubado | `HttpOnly`, `SameSite=Lax`, `Secure` e `__Host-` em HTTPS; 14 dias parado, 90 no máximo; listado nos Ajustes e encerrado ali; trocar a senha encerra as outras; conferido de novo antes de cada comando de um WebSocket aberto, e as conexões de uma sessão encerrada são avisadas e fechadas na hora. Uma ação sensível — um token, uma passkey, um aparelho aprovado, a senha, os poderes ou o link de senha nova de um admin, o papel de um membro — pede uma prova recente, de dez minutos (ADR 0083 item 6). |
 | Requisições de outro site | Toda requisição que muda algo confere o `Origin` contra o do servidor e leva o token CSRF da sessão; o WebSocket confere o `Origin` antes de aceitar o cookie. |
-| Um token vazado de um script | Tokens de acesso pessoal limitados a pastas e a ler ou escrever, nunca mais que o papel do membro; nunca admin, nunca as páginas da própria conta; criados só num navegador; com o prefixo `verso_pat_` para os detectores de segredos; guardados como SHA-256; validade de um ano no máximo, ou nenhuma, dita em vermelho; revogáveis. |
+| Um token vazado de um script | Tokens de acesso pessoal limitados a pastas e a ler ou escrever, nunca mais que o papel do membro; nunca admin, nunca as páginas da própria conta; criados só num navegador; com o prefixo `verso_pat_` para os detectores de segredos; guardados como SHA-256; validade de um ano no máximo, ou nenhuma, dita em vermelho; revogáveis; revogados por uma redefinição de senha, pelo `admin reset`, e por uma troca quando pedido (ADR 0083 item 4). |
 | O primeiro admin tomado por quem chegar primeiro | Nenhuma página de configuração aberta a qualquer um: o admin vem do ambiente na primeira subida, ou de um link de configuração de uso único, válido por uma hora, escrito uma vez no log — quem lê o log é quem roda o servidor. |
-| Um admin perdido | `universo admin reset <e-mail>` (ou `verso serve admin reset`) na máquina: o acesso à máquina é o último fator; a redefinição fica no registro de auditoria e encerra as sessões da conta. |
+| Um admin perdido | `universo admin reset <e-mail>` (ou `verso serve admin reset`) na máquina: o acesso à máquina é o último fator; a redefinição fica no registro de auditoria, encerra as sessões da conta e revoga os tokens dela (ADR 0083 item 4). |
 | Um link de convite ou de senha nova repassado ou adivinhado | 256 bits, uso único, validade (7 dias, 24 horas), o uso registrado (por quem, quando), encerrável pelo admin antes do uso; tentativas desaceleradas por endereço. |
-| Um aparelho aprovado por engano | A página de aprovação mostra o nome do aparelho e o código que o app mostra, o endereço e a hora do pedido, pergunta a uma pessoa já dentro no navegador *Foi você quem pediu, neste aparelho?* e oferece recusar, e a sessão do aparelho é listada e revogável. O nome do aparelho é o que quem pediu enviou; o endereço e a hora são os do servidor (lacuna 12). |
+| Um aparelho aprovado por engano | A página de aprovação mostra o nome do aparelho e o código que o app mostra, o endereço e a hora do pedido, pergunta a uma pessoa já dentro no navegador *Foi você quem pediu, neste aparelho?* e oferece recusar, e a sessão do aparelho é listada e revogável. O nome do aparelho é o que quem pediu enviou; o endereço e a hora são os do servidor (lacuna 12). Aberta sem código, a página pede o que o app mostra, digitado (ADR 0083 item 17); aprovar pede uma prova recente (item 6). |
 | Um aparelho ou um celular perdido | A pessoa encerra a sessão nos Ajustes; um admin encerra todas as sessões de uma conta e revoga os tokens dela pelo console, as conexões abertas fechadas na hora, com uma linha de auditoria (ADR 0077 item 3, construído). |
 | Passkeys | WebAuthn com verificação do usuário exigida (webauthn-rs); o estado da cerimônia vive cinco minutos na memória; contadores guardados. |
 
@@ -184,17 +196,20 @@ navegador ou de aparelho de um admin, nunca um token.
 | Chegar a uma pasta que não lhe foi dada | Todo comando e todo pedido de arquivo confere o papel do membro na pasta antes de o núcleo agir; uma pasta que não se pode ver responde 404. O admin não é exceção: entrar numa pasta é uma permissão dada a si mesmo, no registro que o dono lê. |
 | Um leitor escrevendo | Comandos de escrita, a atualização, o salvamento e a resolução de uma nota compartilhada, o envio, o apagamento e a mudança de nome de um aparelho, e os ajustes da pasta são recusados abaixo do papel de editor; a janela esconde o que o papel não pode fazer. Um papel mudado ou retirado chega na hora às janelas abertas do membro. |
 | XSS armazenado por um anexo (HTML, SVG) | Os arquivos são servidos de `/f/` com `Content-Security-Policy: sandbox` e `nosniff`: um documento feito deles não roda script. |
-| XSS armazenado pelo HTML de uma nota | O sanitizador da janela, `app/ui/src/sanitize.ts`, é a fronteira entre membros (ADR 0073 item 6): uma lista permitida de elementos, atributos e classes do renderizador, interpretada num documento inerte; scripts, estilos, formulários e conteúdo estrangeiro descartados; links só para a web, o e-mail e a própria página; uma página incorporada atrás da aprovação da origem pelo leitor; estilo inline mantido, mas nunca fixed ou absolute. A política da própria janela, enviada como cabeçalho, só permite scripts do servidor. O Mermaid roda com `securityLevel: "strict"`; o KaTeX com os padrões dele. O que o sanitizador garante, e a bateria que o mantém nisso: abaixo (lacuna 1, fechada). `[ABERTO]`: a revisão pelo modelo que não o escreveu (as lacunas antes do anúncio). |
+| XSS armazenado pelo HTML de uma nota | O sanitizador da janela, `app/ui/src/sanitize.ts`, é a fronteira entre membros (ADR 0073 item 6): uma lista permitida de elementos, atributos e classes do renderizador, interpretada num documento inerte; scripts, estilos, formulários e conteúdo estrangeiro descartados; links só para a web, o e-mail e a própria página; uma página incorporada atrás da aprovação da origem pelo leitor; estilo inline mantido, mas nunca fixed ou absolute. A política da própria janela, enviada como cabeçalho, só permite scripts do servidor. O Mermaid roda com `securityLevel: "strict"`; o KaTeX com os padrões dele. O que o sanitizador garante, e a bateria que o mantém nisso: abaixo (lacuna 1, fechada). A revisão pelo modelo que não o escreveu feita em 2026-10-13 (ADR 0083 item 16); o `[ABERTO]` dela deixado para o mantenedor (as lacunas antes do anúncio). |
 | Conteúdo remoto revelando quem lê | Imagens remotas e páginas incorporadas seguem o ajuste do próprio leitor, nunca o do autor (a resposta I do mantenedor). |
 | Symlinks levando para fora de uma pasta compartilhada | Num servidor, um link só é seguido quando leva para dentro da pasta; um que sai é recusado e listado como problema. |
 | Uma edição que apaga o texto de outro | A edição simultânea mescla; uma escrita vinda de fora é mesclada linha a linha ou recusada como mudada; uma mudança feita fora enquanto há edições esperando para a sala para as pessoas escolherem. Um board mescla por elemento, a regra do Excalidraw (ADR 0082 item 12): a mudança de um membro num elemento pode vencer a de outro no mesmo elemento — a versão maior — mas nunca toca os elementos dos outros, e apagar é uma lápide que um desfazer depois pode trazer de volta; uma janela que entrega à sala um arquivo falso do board é quem escreve escrevendo, como qualquer escrita. `[ABERTO]`: histórico, atribuição e recuperação da mudança de outro membro (ADR 0073). |
 | O apagamento do arquivo de outro | Um apagamento vai para o `.trash/` da pasta, da janela e de um aparelho igualmente; ver e restaurar na janela, e a retenção, são o ADR 0080, aceito, em construção. |
-| Uma mensagem enorme ou muitas requisições para esgotar a memória | Uma mensagem de WebSocket tem 48 MB no máximo; uma atualização Yjs malformada é recusada; uma conexão tem no máximo 8 requisições em andamento e uma fila de 1024 mensagens e 64 MiB de envios, fechada quando enche; uma presença tem 16 KB no máximo; uma sala de board aceita uma atualização de 4 MB e 10 000 entradas no máximo e guarda 100 000 entradas e 64 MB, e o arquivo de um board entregue a ela tem 16 MB no máximo (ADR 0082 item 12). Os comandos seguem um ritmo por conta e no servidor, e as conexões são contadas por conta e por endereço (lacunas 3 e 4, fechadas). O espaço de uma pasta é limitado pela cota dela (ADR 0077 item 5): uma escrita que a passaria é recusada e nada é escrito. |
+| Uma mensagem enorme ou muitas requisições para esgotar a memória | Uma mensagem de WebSocket tem 48 MB no máximo; uma atualização Yjs malformada é recusada, e as contagens e o aninhamento de uma atualização são lidos contra os bytes dela antes de o yrs reservar qualquer coisa (ADR 0083 item 14); uma sala de nota aceita uma atualização de 4 MB no máximo (item 8); uma conexão tem no máximo 8 requisições em andamento e uma fila de 1024 mensagens e 64 MiB de envios, fechada quando enche; uma presença tem 16 KB no máximo; uma sala de board aceita uma atualização de 4 MB e 10 000 entradas no máximo e guarda 100 000 entradas e 64 MB, e o arquivo de um board entregue a ela tem 16 MB no máximo (ADR 0082 item 12). Os comandos seguem um ritmo por conta e no servidor, e as conexões são contadas por conta e por endereço (lacunas 3 e 4, fechadas). O espaço de uma pasta é limitado pela cota dela (ADR 0077 item 5): uma escrita que a passaria é recusada e nada é escrito. |
+| Uma atualização que derruba uma sala ou o servidor | As entradas do servidor passam por fuzzing na `main`, 60 s por alvo com `-O` (ADR 0083 item 14): o pedido do WebSocket, um quadro de sync, a atualização Yjs de uma nota e de um board, uma presença, os cabeçalhos `Host` e `Origin`, um tamanho. Um pânico do yrs na fronteira de uma sala é pego, a atualização recusada com uma linha `WARN` que nomeia a conta, e a sala refeita a partir do arquivo: os membros da sala perdem as edições desde a última escrita dela, 900 ms depois da última edição. O que encerrava o processo — um valor aninhado o bastante para estourar a pilha, uma sequência de comprimento 0 que entrava em pânico de novo durante o desempilhamento — é recusado antes de o yrs ler; as atualizações de uma janela são tomadas na ordem em que ela as mandou, então nenhuma espera no caminho de pendências do yrs; o que uma janela que entra e a escrita de um board recebem é aplicado antes num documento de rascunho, e a sala refeita quando não se aplica. |
 | Uma presença que mente | O servidor carimba a presença com o nome da conta de quem a enviou, só mantém uma cor que seja uma cor, e deixa uma conexão falar só pelos clientes Yjs dela: o cursor de um membro não veste o nome de outro, nem move ou tira o de outro (lacuna 11). |
 
 ### O que o sanitizador garante
 
-O `app/ui/src/sanitize.ts` é escrito à mão, sem biblioteca. Revisado linha
+O `app/ui/src/sanitize.ts` é escrito à mão, sem biblioteca. Lido de novo
+em 2026-10-13 pelo Fable 5.1, o modelo que não o escreveu (ADR 0083
+item 16). Revisado linha
 a linha em 2026-10-11 contra o que chega até ele — o `to_html` do dialeto
 com o HTML cru de uma nota, notas e blocos incorporados, callouts, links, e
 as células de uma tabela no Live Preview, que até então chegavam à página
@@ -215,15 +230,23 @@ para baixo de `note-`: uma nota não nomeia nenhum id da janela nem global
 nenhum (`isTauri`). Um estilo inline é mantido como o CSSOM o lê, nunca
 `fixed` ou `absolute`, o `url()` dele só para a web (conteúdo remoto
 ligado) ou uma imagem em dados. Um `<iframe>` é uma caixa até o leitor
-aprovar a origem dele, e nunca uma para um endereço fora da web. O que ele
+aprovar a origem dele, e nunca uma para um endereço fora da web; a caixa
+carrega o que o botão dela precisa, o botão toma a origem do próprio
+endereço, e uma caixa não sobrevive a uma segunda limpeza, então uma nota
+não consegue forjar uma (e86eee8). O que ele
 devolve se interpreta como ele mesmo e se limpa como ele mesmo: nada de
-mutation XSS no caminho pelo `cleanHtmlText`. O
+mutation XSS no caminho pelo `cleanHtmlText`. As entradas hostis, 102,
+ficam em `app/ui/test/sanitize-cases.mjs` — o básico da cheat sheet da
+OWASP, os payloads de mXSS conhecidos, truques de codificação,
+clobbering, e desde 2026-10-13 o que o parser de um navegador faz com
+conteúdo estrangeiro, `noscript`, `template`, `textarea` e `title`, uma
+caixa de bloqueio forjada, uma nota com dez mil níveis. O
 `app/ui/test/sanitize.test.mjs` escreve esta política, a confere contra a
-do módulo e roda 76 entradas hostis — o básico da cheat sheet da OWASP, os
-payloads de mXSS conhecidos, truques de codificação, clobbering — no
-`npm test`. Roda no happy-dom, cujo parser não é o do WebKit: as garantias
-são estruturais e valem para os dois, e uma rodada da mesma tabela no
-harness do navegador ainda falta.
+do módulo e as roda no `npm test`, no happy-dom; o
+`app/ui/e2e/sanitize.spec.mjs` roda os mesmos casos no WebKit e no
+Chromium pelo harness (`npm run e2e`), onde o próprio sanitizador da
+janela limpa cada um e o parser do navegador lê a saída de volta (ADR 0083
+item 16, 1e25bcf).
 
 ### Um aparelho que sincroniza
 
@@ -268,8 +291,10 @@ em construção): estas linhas dizem o que eles decidem, não o que roda.
 |---|---|
 | O servidor como proxy aberto | Ele só sai para a rede na checagem de versão — o feed de releases do projeto, uma vez por dia, sem nada além da versão no `User-Agent`; `VERSO_UPDATE_CHECK=off` desliga — e para o servidor de e-mail de quem hospeda quando `VERSO_SMTP_URL` está definido. |
 | Os bancos corrompidos num NAS | Aviso no log e na página de admin quando `VERSO_DATA_DIR` está num sistema de arquivos de rede. |
-| Segredos no log | Nenhuma senha, token ou link vai para o log; o link de configuração é o único segredo escrito, uma vez, de propósito. As linhas de log de uma janela são uma linha cada, com os caracteres de controle trocados. O console mostra a configuração com os segredos (`VERSO_UPDATE_TOKEN`, `VERSO_SMTP_URL`) como definidos ou não, nunca o valor. |
-| Uma dependência vulnerável ou sem licença | `cargo-deny` (avisos, licenças) e a lista de licenças do npm no CI; um aviso de falta de manutenção com exceção e validade (RUSTSEC-2026-0215, smallstr via yrs). |
+| Segredos no log | Nenhuma senha, token ou link vai para o log; a linha de um sign-in recusado mascara o e-mail numa palavra (ADR 0083 item 1); o link de configuração é o único segredo escrito, uma vez, de propósito. As linhas de log de uma janela são uma linha cada, com os caracteres de controle trocados. O console mostra a configuração com os segredos (`VERSO_UPDATE_TOKEN`, `VERSO_SMTP_URL`) como definidos ou não, nunca o valor. |
+| Uma dependência vulnerável ou sem licença | `cargo-deny` (avisos, licenças), a lista de licenças do npm e as advisories do npm no CI — uma alta ou crítica falha a não ser que o `app/ui/audit-exceptions.json` a exclua com motivo, link e validade (ADR 0083 item 13); um aviso de falta de manutenção com exceção e validade (RUSTSEC-2026-0215, smallstr via yrs), e uma advisory do npm (braces 3.0.3, ausente do bundle da janela, até 2027-01-11). |
+| Um backup lido onde foi copiado | O `universo.sh backup --encrypt` o cifra com o `age`, para uma chave pública ou uma frase-senha; a chave secreta nunca é argumento de um comando e não fica em nenhum dos diretórios de costume da máquina (ADR 0083 item 12). Sem o `age` o backup é o tarball simples, com o aviso. |
+| Uma falha achada sem ter a quem relatar | O `SECURITY.md` e o `/.well-known/security.txt` dizem o endereço e a promessa (ADR 0083 item 15). |
 
 ### Agentes
 
@@ -384,7 +409,11 @@ classificação é uma recomendação para o mantenedor confirmar.
    entradas mais antigas expiradas antes, dito na página da pasta (item 8).
 10. **Uma revisão externa deste modelo**, como o modelo pediu em
     2026-10-09; o ADR 0073 pede segurança "por inteiro". **Continua
-    aberta:** depois das lacunas acima.
+    aberta:** depois das lacunas acima. *2026-10-13:* o item 16 do ADR
+    0083 a responde em duas partes: o sanitizador lido pelo modelo que não
+    o escreveu, feito em 2026-10-13 (0b5fea1); o pentest do servidor do
+    laboratório por uma pessoa de fora do projeto, pendente, condição do
+    anúncio.
 
 **MENOR**
 
@@ -453,6 +482,13 @@ mantenedor.
   bateria, que fica como guarda no `npm test`; deixado `[ABERTO]` para o
   mantenedor: a revisão pelo modelo que não escreveu o `sanitize.ts`, os
   outros renderizadores, e a porta e a bateria rodadas num navegador.
+  *Feito em 2026-10-13 (ADR 0083 item 16, 0b5fea1):* a leitura pelo Fable
+  5.1, o modelo que não escreveu o `sanitize.ts` — nenhum BLOQUEANTE, três
+  MENORES, o da caixa de bloqueio resolvido em e86eee8 *(relatado)* — e a
+  bateria rodada no WebKit e no Chromium pelo harness; dos outros
+  renderizadores, o build do PDF.js conferido sem `eval` (ADR 0083 item 8,
+  4b892cc), Mermaid, KaTeX e Excalidraw não lidos. Deixado `[ABERTO]` para
+  o mantenedor.
 - `[ABERTO]` Histórico e recuperação da mudança ou da remoção feita por
   outro membro. *Recomendação:* o ADR 0080 (a lixeira, e a versão que a
   escrita de um aparelho substituiu) responde aos apagamentos e aos
@@ -491,5 +527,6 @@ mantenedor.
   laboratório antes do anúncio, o sanitizador lido pelo modelo que não o
   escreveu — e o que vem antes dela: todos os outros itens do ADR,
   construídos numa rodada só (a ordem do trabalho dele, reescrita quando
-  foi aceito em 2026-10-13) — os itens 1 a 13, 15 e 17 construídos em
-  2026-10-13, o item 14 sendo integrado.
+  foi aceito em 2026-10-13) — os itens 1 a 15 e 17 construídos em
+  2026-10-13, com a leitura do sanitizador do item 16; o pentest
+  pendente.

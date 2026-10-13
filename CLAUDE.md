@@ -156,7 +156,8 @@ the test.
 | `scripts/check-npm-audit.mjs` over `app/ui` (CI and `scripts/check.sh`), exceptions with an expiry in `app/ui/audit-exceptions.json` | a high or critical npm advisory shipped unseen | ADR 0083 item 13 |
 | `/.well-known/security.txt` answers the required fields, `Expires` a year after the changelog's release date (`security_txt.rs`) | a reporter with nowhere to write | ADR 0083 item 15 |
 | The proof tests (`tests_prove.rs`, `app/ui/test/proof.test.mjs`): every sensitive route answers `prove_first` past ten minutes; the device page's typed code | a sensitive action from an old or stolen cookie | ADR 0083 items 6 and 17 |
-| The server's inputs fuzzed with `cargo-fuzz`, 60 s a target on `main` (being merged) | a hostile request, update or header crashing the server | ADR 0083 item 14 |
+| The server's inputs fuzzed: seven `cargo-fuzz` targets in `crates/verso-server/fuzz` (request, unframe, note, board, presence, host, size), 60 s each with `-O` on `main`, their seeds versioned per target; each input they found kept as a test (`tests_room_inputs.rs` for the rooms); `app/ui/test/updateQueue.test.mjs`, one room update in flight | a hostile request, update or header crashing the server, or a room and a window reading different texts | ADR 0083 item 14 |
+| The hostile-HTML suite, 102 cases in `app/ui/test/sanitize-cases.mjs`, run in node by `npm test` and in WebKit and Chromium by `npm run e2e` (`app/ui/e2e/sanitize.spec.mjs`, through the harness's `__harness.sanitize`) | a note's HTML that runs or loads in another member's window, seen only through happy-dom's parser | ADR 0083 item 16 |
 
 CI ([ADR 0029](docs/adr/0029-guardrails-in-ci.md), 2026-09-23): a pull
 request runs every guardrail but the fuzzing in one Linux job; `main` adds
