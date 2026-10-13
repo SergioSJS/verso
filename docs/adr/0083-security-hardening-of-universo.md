@@ -704,6 +704,13 @@ names "`collab.rs`'s awareness reader": the `presence` target goes
 through `presence.rs` (`presence::stamped`, which `collab::awareness`
 calls; 34474a0).
 
+**The maintainer's checks in the app** (2026-10-13). What the tests do
+not reach is listed in `docs/reference/manual-checks.md`, none of it
+blocking: a shared note and board edited from the desktop app beside
+another window (the order of (e)), item 6's dialog with a password and a
+passkey, item 17's typed code, Mermaid 12.2.0 (item 13), and
+`universo.sh`'s Caddy steps beside another site (7755802).
+
 ## Consequences
 
 - What people feel: a password they chose refused at setup or at an

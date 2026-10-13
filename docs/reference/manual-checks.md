@@ -19,6 +19,53 @@ in the real app.
 
 ## Not yet checked
 
+### Security hardening (ADR 0083, 2026-10-13)
+
+- [ ] **A shared note and a shared board edited from the desktop app while
+  another window edits them** (8d419e9, ca4c8a6, 857f4aa): in the
+  installed app on a UniVerso folder, the same note open in the browser;
+  type quickly in both at once, then paste a long paragraph in the app
+  while the browser types: every letter arrives in both, in the order
+  typed, nothing lost or doubled, the tab still *ao vivo* and never told
+  an edit did not go, no conflict banner, the file on the server's disk
+  the same text; then a
+  board, dragging and drawing in both at once: both see both, nothing
+  jumps back. The app's log (`verso.log`) and the server's journal hold
+  no refused update. Not verified by a test: that the app hands a
+  window's calls on in order (ca4c8a6).
+- [ ] **"Confirme que é você" before a token and before approving a
+  device** (ADR 0083 item 6; 40de8b5, 1d7c4e4): signed in more than ten
+  minutes ago, in the server's *Ajustes*, *Tokens de acesso*, *Criar
+  token*: the dialog *Confirme que é você* opens, the password field has
+  the focus; a wrong password says *Senha errada.*; the right one makes
+  the token without asking again. Again past ten minutes, with *Usar uma
+  passkey* instead (Touch ID on the Mac, the phone's passkey): the token
+  is made. The same on the device page's *Aprovar este aparelho*. Escape
+  closes the dialog and nothing is made; the dialog reads its title and
+  line in VoiceOver.
+- [ ] **The device page with a typed code** (ADR 0083 item 17, 73807d2):
+  `/device` opened by hand, without the code in its address, asks
+  *Digite o código que o aplicativo mostra na tela dele.*; the code the
+  app shows typed in lower case and without the dash is taken, and the
+  page shows *Código que você digitou* beside who asked before *Aprovar*
+  or *Não fui eu: recusar*; a mistyped code says *Um código tem oito
+  letras…* or answers as unknown, and a few wrong ones in a row make the
+  page wait before the next; the app then signs in once approved.
+- [ ] **Mermaid diagrams after 12.2.0** (ADR 0083 item 13, cda7500): the
+  demo vault's "08 - Diagramas Mermaid" in the installed app and in the
+  browser: every diagram draws, in light and dark; a diagram with a
+  syntax error shows the parser's own message under "Syntax error in
+  text"; circle nodes fit their label, a mindmap's labels are centred and
+  readable, a class diagram's cardinalities sit by their relation ends.
+- [ ] **universo.sh's printed Caddy steps on a host that already serves
+  another site** (7755802): on a Linux host whose Caddy already serves a
+  site, install with `universo.sh` and follow the printed steps: the
+  other site still answers, UniVerso's site is in
+  `/etc/caddy/Caddyfile.d/universo.caddyfile`, the Caddyfile has one
+  `import Caddyfile.d/*.caddyfile` (none added on Fedora or EPEL, whose
+  package already has it), `caddy validate` passes and both sites answer
+  over HTTPS.
+
 ### Everything edited together (ADR 0082 item 12, feat/coedit-everything, 2026-10-12)
 
 - [ ] **A board in two places at once** (21d096a, 5a027db): on a UniVerso,
