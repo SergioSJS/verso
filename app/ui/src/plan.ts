@@ -8,12 +8,25 @@ import { asDialog, closed, opened } from "./dialogs/a11y";
 import { diffNode } from "./diff";
 import { button, h, ui } from "./dom";
 import { fail } from "./errors";
-import { leavesOf } from "./layout/spaces";
+import { leavesOf, liveHolder } from "./layout/spaces";
+import { roomSide } from "./collab";
+import { writeLive } from "./roomWrites";
+import { writeBoardLive } from "./leaves/boardLive";
 import { name } from "./paths";
 import { replay } from "./replay";
 import { t } from "./strings";
 
 type Rewrite = { path: string; revision: string; before: string; after: string };
+
+/** A rewrite of a file live in its room, made there: `room`, `refused`
+ *  (the room's text moved on since the plan read it: shown as changed,
+ *  with the way to try again), or `disk` (in no room: written as before). */
+async function rewriteLive(w: Rewrite): Promise<"room" | "refused" | "disk"> {
+  if (/\.canvas$/i.test(w.path)) return (await writeBoardLive(w.path, w.before, w.after)) ? "room" : "disk";
+  const read = w.before.replace(/\r\n/g, "\n");
+  const through = await writeLive(w.path, liveHolder(w.path), (now) => (now === read ? w.after : null), roomSide);
+  return through === "disk" ? "disk" : through === "refused" ? "refused" : "room";
+}
 
 export class Plan {
   readonly el = h("div", "plan");
@@ -97,6 +110,20 @@ export class Plan {
       // A tab of this note saves first; one that cannot is left out, named.
       if ((await flushed(leavesOf(w.path))).length > 0) {
         left.push(w);
+        continue;
+      }
+      // A file live in its room — this window's tab, or someone else's —
+      // takes the rewrite there, as an edit, never under the room (ADR 0082
+      // item 12): a text when it still reads as the plan read it, a board
+      // as the elements the rewrite changes.
+      const through = await rewriteLive(w);
+      if (through === "room") {
+        ok++;
+        continue;
+      }
+      if (through === "refused") {
+        failed++;
+        changed.push(w);
         continue;
       }
       // `writeText`: a note goes through `write_note`, a board is indexed

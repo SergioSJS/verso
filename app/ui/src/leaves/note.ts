@@ -797,20 +797,24 @@ export class NoteLeaf extends Leaf {
     this.clearFailure();
     // Several people in the note, where the side allows it: the room's
     // text, which may hold edits not written yet, is what the editor shows.
-    this.collab?.leave();
+    this.collab?.release(this.roomHandlers);
     this.collab = null;
     const catching = () => {
       this.catching = true;
       this.paintLive();
     };
-    const shared = lineSeparator(note.data.text) === null ? null : await joinCollab(note.data.path, this.collabHandlers(), catching);
+    const shared = lineSeparator(note.data.text) === null ? null : await joinCollab(note.data.path, this.roomHandlers, catching);
     this.catching = false;
-    if (this.destroyed || load !== this.loads) return shared?.leave();
+    if (this.destroyed || load !== this.loads) return shared?.release(this.roomHandlers);
     this.collab = shared;
     this.liveOthers = shared?.others() ?? [];
     this.show(note.data);
     this.paintLive();
   }
+  /** What the tab does when its room speaks, one object for the tab's
+   *  life: a board's card on the same note shares the window's place in
+   *  the room, and each lets go of its own (ADR 0082 item 12). */
+  readonly roomHandlers: CollabHandlers = this.collabHandlers();
   /** What the tab does when its room speaks (ADR 0073 item 7). */
   private collabHandlers(): CollabHandlers {
     return {
@@ -1172,7 +1176,7 @@ export class NoteLeaf extends Leaf {
     this.embeds = [];
     this.slash.el.remove();
     this.closeWeb();
-    this.collab?.leave();
+    this.collab?.release(this.roomHandlers);
     this.collab = null;
     this.editor.destroy();
   }

@@ -2,7 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// Several people in one note (ADR 0073 item 7): where the side the window
+// Several people in one file (ADR 0073 item 7; ADR 0082 item 12, decided
+// 2026-10-12: a note, any text file, a board). Several people in one note: where the side the window
 // talks to can do it (`capabilities`: `collab`, a server), a note opened
 // for editing joins the server's room — a Yjs document bound to the
 // editor by y-codemirror.next. The window's edits go to the room, the
@@ -24,7 +25,7 @@ import { keymap } from "@codemirror/view";
 import { yCollab, ySyncAnnotation, yUndoManagerKeymap } from "y-codemirror.next";
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from "y-protocols/awareness";
 import * as Y from "yjs";
-import { commands, type Capabilities, type CollabState, type CollabUpdate } from "./bindings";
+import { commands, type Capabilities, type CollabJoin, type CollabState, type CollabUpdate } from "./bindings";
 import type { RoomSide, TextChange, VisitedRoom } from "./roomWrites";
 
 let capabilities: Promise<Capabilities | null> | null = null;
@@ -57,13 +58,13 @@ function liveAllowed(): boolean {
   return syncState?.live ?? true;
 }
 
-function toB64(bytes: Uint8Array): string {
+export function toB64(bytes: Uint8Array): string {
   let s = "";
   for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   return btoa(s);
 }
 
-function fromB64(text: string): Uint8Array {
+export function fromB64(text: string): Uint8Array {
   const s = atob(text);
   const out = new Uint8Array(s.length);
   for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
@@ -93,18 +94,54 @@ export type CollabHandlers = {
   settle?: () => Promise<void>;
 };
 
-const REMOTE = "remote";
+/** The origin of what the room brought in. */
+export const REMOTE = "remote";
 /** A colour for each person, from their name. */
 const COLORS = ["#b5651d", "#2e7d32", "#1565c0", "#6a1b9a", "#ad1457", "#00838f", "#9e9d24", "#5d4037"];
 
-export class CollabSession {
+/** Every holder's handlers as one: each event told to each holder of the
+ *  session — a note's tab and a board's card on the same note, in one
+ *  window, share the window's one place in the room. An event no holder
+ *  hears is none. */
+function fanOut(holders: Set<CollabHandlers>): CollabHandlers {
+  const all = (): CollabHandlers[] => [...holders];
+  const some = <K extends keyof CollabHandlers>(k: K): CollabHandlers[] => all().filter((h) => h[k] !== undefined);
+  return {
+    saved: (revision) => all().forEach((h) => h.saved(revision)),
+    conflict: () => all().forEach((h) => h.conflict()),
+    closed: (why) => all().forEach((h) => h.closed(why)),
+    remote: () => all().forEach((h) => h.remote()),
+    get local() {
+      const hs = some("local");
+      return hs.length ? (why: LocalWhy) => hs.forEach((h) => h.local?.(why)) : undefined;
+    },
+    get live() {
+      const hs = some("live");
+      return hs.length ? () => hs.forEach((h) => h.live?.()) : undefined;
+    },
+    get anew() {
+      const hs = some("anew");
+      return hs.length ? () => hs.forEach((h) => h.anew?.()) : undefined;
+    },
+    get presence() {
+      const hs = some("presence");
+      return hs.length ? () => hs.forEach((h) => h.presence?.()) : undefined;
+    },
+    get settle() {
+      const hs = some("settle");
+      return hs.length ? async () => void (await Promise.all(hs.map((h) => h.settle?.()))) : undefined;
+    },
+  };
+}
+
+/** What every room's session is, a text's or a board's: the room's Yjs
+ *  document, the people in it, the way out and back. */
+export abstract class RoomSession {
   readonly doc = new Y.Doc();
-  readonly text: Y.Text;
   readonly awareness: Awareness;
-  readonly crlf: boolean;
   revision: string;
   epoch: string;
-  private closedLocally = false;
+  protected closedLocally = false;
   /** In the room now; false while a synced folder's note is local. */
   live = true;
   /** Why it is local, while it is. */
@@ -115,18 +152,22 @@ export class CollabSession {
   private left = false;
   /** The names of the others in the note, as last said. */
   private seen: string[] = [];
+  /** Who holds the session in this window: a tab, a card. */
+  private readonly holders = new Set<CollabHandlers>();
+  /** What the room says, told to every holder. */
+  readonly handlers: CollabHandlers;
 
   constructor(
     readonly path: string,
-    joined: { update: string; revision: string; crlf: boolean; user: string; epoch: string },
-    readonly handlers: CollabHandlers,
+    joined: { update: string; revision: string; user: string; epoch: string },
+    first: CollabHandlers,
     synced = false,
   ) {
+    this.holders.add(first);
+    this.handlers = fanOut(this.holders);
     this.synced = synced;
-    this.text = this.doc.getText("verso");
     Y.applyUpdate(this.doc, fromB64(joined.update), REMOTE);
     this.revision = joined.revision;
-    this.crlf = joined.crlf;
     this.epoch = joined.epoch;
     this.awareness = new Awareness(this.doc);
     let hash = 0;
@@ -158,6 +199,24 @@ export class CollabSession {
       this.handlers.presence?.();
     });
     sessions.set(this.path, this);
+  }
+
+  /** Another holder in this window: a card on a note a tab holds, a tab
+   *  on a note a card holds. */
+  hold(h: CollabHandlers): void {
+    this.holders.add(h);
+  }
+
+  /** A holder lets the file go: the session leaves the room when it was
+   *  the last one. */
+  release(h: CollabHandlers): void {
+    this.holders.delete(h);
+    if (this.holders.size === 0) this.leave();
+  }
+
+  /** Whether the session is still in its room's place in this window. */
+  get open(): boolean {
+    return !this.closedLocally;
   }
 
   /** The person only reads the folder on the server: present in the
@@ -192,17 +251,10 @@ export class CollabSession {
     }
     this.handlers.local?.(why);
   }
-  /** The editor's binding: the text kept in step with the room, the
-   *  others' cursors and names, and ⌘Z undoing this window's edits only. */
-  extension(): Extension {
-    const undoManager = new Y.UndoManager(this.text);
-    return [yCollab(this.text, this.awareness, { undoManager }), Prec.highest(keymap.of(yUndoManagerKeymap))];
-  }
 
-  /** The text as it starts in the editor (`\n` line ends). */
-  initial(): string {
-    return this.text.toString();
-  }
+  /** Whether a room made again from the disk holds what this one does:
+   *  then nothing typed meanwhile is lost by reading it anew. */
+  protected abstract sameAs(fresh: Y.Doc): boolean;
 
   applyRemote(update: string): void {
     Y.applyUpdate(this.doc, fromB64(update), REMOTE);
@@ -245,7 +297,7 @@ export class CollabSession {
     if (this.synced && this.handlers.anew) return this.handlers.anew();
     const fresh = new Y.Doc();
     Y.applyUpdate(fresh, fromB64(r.data.update));
-    const same = fresh.getText("verso").toString() === this.text.toString();
+    const same = this.sameAs(fresh);
     fresh.destroy();
     this.leave();
     this.handlers.closed(same ? undefined : "lost");
@@ -270,7 +322,36 @@ export class CollabSession {
   }
 }
 
-const sessions = new Map<string, CollabSession>();
+/** A text's room — a note's, or any text file's: one Yjs text bound to
+ *  the editor. */
+export class CollabSession extends RoomSession {
+  readonly text: Y.Text;
+  readonly crlf: boolean;
+
+  constructor(path: string, joined: { update: string; revision: string; crlf: boolean; user: string; epoch: string }, handlers: CollabHandlers, synced = false) {
+    super(path, joined, handlers, synced);
+    this.text = this.doc.getText("verso");
+    this.crlf = joined.crlf;
+  }
+
+  /** The editor's binding: the text kept in step with the room, the
+   *  others' cursors and names, and ⌘Z undoing this window's edits only. */
+  extension(): Extension {
+    const undoManager = new Y.UndoManager(this.text);
+    return [yCollab(this.text, this.awareness, { undoManager }), Prec.highest(keymap.of(yUndoManagerKeymap))];
+  }
+
+  /** The text as it starts in the editor (`\n` line ends). */
+  initial(): string {
+    return this.text.toString();
+  }
+
+  protected sameAs(fresh: Y.Doc): boolean {
+    return fresh.getText("verso").toString() === this.text.toString();
+  }
+}
+
+const sessions = new Map<string, RoomSession>();
 let listening = false;
 
 /** The window's own label: a room's event is told to the windows that hold
@@ -319,20 +400,45 @@ async function syncedSide(): Promise<boolean> {
   return (await sideCan())?.host === "desktop";
 }
 
-/** Join the room of `path`; null where the side cannot, the person keeps
- *  the folder's notes local (ADR 0082 item 15), or the file is shown
- *  read-only (its line ends mixed). `catching` is told while a synced
- *  folder's join waits for the note's local text to cross (item 7). */
-export async function joinCollab(path: string, handlers: CollabHandlers, catching?: () => void): Promise<CollabSession | null> {
+/** Join the room of `path`, made into a session by `make` (null: the room
+ *  is of another kind than the tab's, and is left); null where the side
+ *  cannot, the person keeps the folder's files local (ADR 0082 item 15),
+ *  or the file is shown read-only (its line ends mixed). `catching` is
+ *  told while a synced folder's join waits for the file's local text to
+ *  cross (item 7). */
+export async function joinRoom<S extends RoomSession>(
+  path: string,
+  catching: (() => void) | undefined,
+  make: (joined: CollabJoin, synced: boolean) => S | null,
+  share?: { handlers: CollabHandlers; is: (s: RoomSession) => s is S },
+): Promise<S | null> {
   if (!(await canCollab())) return null;
   const synced = await syncedSide();
   if (synced && !liveAllowed()) return null;
   hear();
-  sessions.get(path)?.leave();
+  // Held already in this window — a card on a note a tab holds: shared.
+  const held = sessions.get(path);
+  if (share && held && held.open && share.is(held)) {
+    held.hold(share.handlers);
+    return held;
+  }
+  held?.leave();
   if (synced) catching?.();
   const r = await commands.collabJoin(path);
   if (r.status !== "ok" || r.data.read_only) return null;
-  return new CollabSession(path, r.data, handlers, synced);
+  const made = make(r.data, synced);
+  if (!made) void commands.collabLeave(path);
+  return made;
+}
+
+/** Join the room of a text — a note, any text file of the folder. A
+ *  session this window holds already for it, live, is shared, not left:
+ *  a board's card on a note open in a tab (ADR 0082 item 12). */
+export function joinCollab(path: string, handlers: CollabHandlers, catching?: () => void): Promise<CollabSession | null> {
+  return joinRoom(path, catching, (joined, synced) => (joined.kind === "text" ? new CollabSession(path, joined, handlers, synced) : null), {
+    handlers,
+    is: (s): s is CollabSession => s instanceof CollabSession,
+  });
 }
 
 /** Whether someone else is in the room of `path` now — another person,
@@ -358,6 +464,11 @@ async function visitRoom(path: string): Promise<VisitedRoom | null> {
   const r = await commands.collabJoin(path);
   // A file whose line ends are mixed is in no room: written as before.
   if (r.status !== "ok" || r.data.read_only) return null;
+  // A board's room takes elements, not text (boardRoom.ts).
+  if (r.data.kind !== "text") {
+    void commands.collabLeave(path);
+    return null;
+  }
   const doc = new Y.Doc();
   Y.applyUpdate(doc, fromB64(r.data.update), REMOTE);
   const text = doc.getText("verso");
@@ -413,8 +524,8 @@ async function follow(next: SyncState): Promise<void> {
 
 addEventListener("verso:sync-state", (e) => void follow((e as CustomEvent<SyncState>).detail));
 
-/** Every synced note open in this window, for the status bar. */
-export function syncedSessions(): CollabSession[] {
+/** Every synced file open in this window, for the status bar. */
+export function syncedSessions(): RoomSession[] {
   return [...sessions.values()].filter((s) => s.synced);
 }
 
