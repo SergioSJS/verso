@@ -186,6 +186,7 @@ seção 11):
 ```sh
 docker run -d --name universo --restart unless-stopped \
   -p 127.0.0.1:7340:7340 \
+  --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
   -v /srv/universo/data:/data \
   -v /srv/universo/folders:/folders \
   -e VERSO_PUBLIC_URL=https://notas.exemplo.com \
@@ -203,6 +204,15 @@ A porta é publicada em `127.0.0.1` porque o TLS fica na frente (seção 8).
 `docker logs universo` mostra o log, incluindo o link de configuração da
 seção 9.
 
+A segunda linha limita o contêiner ao que o servidor precisa
+([ADR 0083](../adr/0083-security-hardening-of-universo.md) item 11): os
+arquivos da própria imagem só para leitura, `/tmp` em memória, nenhuma
+capability do Linux, nada ganho por um programa setuid; o servidor só
+escreve em `/data` e `/folders`. A senha vem de um arquivo montado como
+segredo, que o `docker inspect` não mostra, e não de
+`-e VERSO_ADMIN_PASSWORD`, que ele mostra; o arquivo precisa ser legível
+pelo uid 1000.
+
 ## 4. CasaOS e ZimaOS
 
 O `packaging/server/docker-compose.yml` traz os metadados `x-casaos`
@@ -218,7 +228,12 @@ para qualquer host que aceite um arquivo compose:
 Ele monta `/DATA/AppData/universo/data` (o caminho de dados de app que o
 CasaOS usa) em `/data`, e `/DATA/Documents/Verso` em `/folders` — troque o
 segundo para onde as notas devem ficar, inclusive um NAS. Os dois precisam
-permitir escrita ao uid 1000, como na seção 3. A imagem vem do registry do
+permitir escrita ao uid 1000, como na seção 3. Ele declara o mesmo
+endurecimento do comando da seção 3 (`read_only`, `tmpfs: /tmp`,
+`cap_drop: ALL`, `no-new-privileges`), e mostra a senha do primeiro admin
+como um segredo do Docker, comentado, antes da variável comum: para usar,
+ponha a senha em `admin-password` ao lado do arquivo compose, legível pelo
+uid 1000, e descomente os três lugares que o arquivo marca. A imagem vem do registry do
 GitHub, que exige um `docker login` enquanto o repositório for privado
 (seção 11): no CasaOS e no ZimaOS, no terminal do sistema, uma vez.
 
@@ -252,7 +267,9 @@ journalctl -u universo -f
 
 O pacote escuta em `127.0.0.1:7340` por padrão: o TLS fica na frente
 (seção 8). A unit é endurecida (`ProtectSystem=strict`, escreve só sob
-`/var/lib/universo`, `ProtectHome=read-only`). Um diretório de pastas em
+`/var/lib/universo`, `ProtectHome=read-only`, os outros processos ocultos
+por `ProtectProc=invisible`, só as chamadas de sistema de um serviço comum,
+`UMask=0027`; uma pasta nova é criada `0750`). Um diretório de pastas em
 outro lugar precisa de um drop-in, que uma atualização mantém:
 
 ```sh
@@ -874,6 +891,19 @@ máquina real. Verificado desde então:
   453 MiB, um arquivo em pedaços a partir do disco (8e2c2f1) entre as
   medições (seção 14, **Dez aparelhos, e o convidado de 453 MiB de
   novo**).
+- 2026-10-13: o endurecimento do [ADR 0083](../adr/0083-security-hardening-of-universo.md)
+  item 11, em Docker num Mac com Apple silicon (colima, Linux 6.8, arm64),
+  pelo `scripts/check-server-image.sh`: a imagem rodando só para leitura,
+  `/tmp` em memória, nenhuma capability, `no-new-privileges` (o estado pelo
+  TLS próprio, uma entrada, uma pasta criada `0750`, `admin reset`); e o
+  mesmo binário estático musl disposto como o `nfpm.yaml` dispõe, à mão,
+  num contêiner Debian 12 rodando o systemd 252, iniciado pela
+  `universo.service` com as configurações novas (o processo sob um filtro
+  seccomp, o estado, uma entrada, uma pasta `0750`, o banco `0600`;
+  `systemd-analyze security`: 1.3, OK). Não é um pacote feito pelo nfpm,
+  nem uma VM, nem amd64. Antes desse dia o arquivo compose não passava no
+  `docker compose config` (dois-pontos sem aspas num tagline); agora passa,
+  e o script confere.
 
 Ainda não verificado:
 
@@ -888,7 +918,7 @@ Ainda não verificado:
   uma instalação deixa o serviço desabilitado (acrescentada depois da
   verificação de 2026-10-12);
 - o arquivo compose no CasaOS e no ZimaOS (passa no
-  `docker compose config`; o bloco `x-casaos` segue a descrição v2 da
+  `docker compose config` desde 2026-10-13; o bloco `x-casaos` segue a descrição v2 da
   CasaOS AppStore de 2026-10-09, sem passar pelo validador deles);
 - a receita do `tailscale serve` e o exemplo do Caddy contra este servidor;
 - a poda das versões antigas no registry.

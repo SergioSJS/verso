@@ -18,6 +18,14 @@ versão de teste.
 - **O registro de auditoria guarda um ano, depois esquece** ([ADR 0083](adr/0083-security-hardening-of-universo.md) item 10): `VERSO_AUDIT_DAYS` (365 por padrão, `0` para sempre) diz por quanto tempo uma linha — quem entrou, de onde, o que mudou nos acessos — fica guardada; uma varredura ao iniciar e uma vez por dia apaga as mais antigas, só pelo tempo, e a visão geral do console diz o prazo.
 - **Backups criptografados que podem sair da máquina** ([ADR 0083](adr/0083-security-hardening-of-universo.md) item 12): `sh universo.sh backup --encrypt` criptografa o backup com o [age](https://age-encryption.org) para uma chave criada uma vez por `backup --keygen` — cuja metade secreta é impressa para você guardar em outro lugar e nunca fica no servidor — ou, com `--passphrase`, para uma frase-senha; `backup --to-stdout` escreve num pipe seu; `sh universo.sh restore ARQUIVO [--identity ARQUIVO-DA-CHAVE] [--to PASTA]` põe um backup de volta, ou o desempacota em outro lugar para olhar. Sem o age, o `--encrypt` diz como instalá-lo e faz o backup sem criptografia com um aviso em maiúsculas.
 
+### Alterado
+
+- **O serviço e o contêiner do UniVerso fazem menos** ([ADR 0083](adr/0083-security-hardening-of-universo.md) item 11): a unit do systemd esconde os outros processos da máquina (`ProtectProc=invisible`, `ProcSubset=pid`), só permite as chamadas de sistema de um serviço comum (`SystemCallFilter=@system-service`, nenhuma de `@privileged` ou `@resources`) e cria arquivos fechados para os outros usuários (`UMask=0027`); uma pasta de notas nova é criada `0750` qualquer que seja o umask; o arquivo compose roda o contêiner só para leitura com `/tmp` em memória, sem capability e com `no-new-privileges`, e mostra a senha do primeiro admin como um segredo do Docker antes da variável comum, como o `docker run` do guia.
+
+### Corrigido
+
+- **O arquivo compose volta a ser lido**: dois-pontos sem aspas no tagline do CasaOS faziam o `docker compose` recusar o arquivo inteiro; o `scripts/check-server-image.sh` agora o confere com `docker compose config`.
+
 ## 0.8.0-beta.1 — 2026-10-13
 
 ### Acrescentado
