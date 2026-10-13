@@ -21,8 +21,10 @@
 # directories laid out as the package leaves them — without age first (the
 # plain tarball and its warning), then with age: a throw-away key made by
 # `backup --keygen`, an encrypted backup, a restore into a scratch root
-# compared file by file, mode and owner with the original. `--script` runs
-# that test alone.
+# compared file by file, mode and owner with the original; a restore over
+# / that gives a changed note back, and backups holding something a backup
+# never holds (another path, a link, a set-id file, an absolute name)
+# refused with nothing written. `--script` runs that test alone.
 #
 # Last, the server's packaging (ADR 0083 item 11): scripts/check-server-
 # image.sh builds the static musl server in a container of this machine's
@@ -75,6 +77,42 @@ if [ "${1:-}" = "--universo-sh" ]; then
   same /restored-plain
   if $u backup --keygen >/dev/null 2>&1; then fail "--keygen without age"; fi
   if echo nope | $u restore "$plain" >/dev/null 2>&1; then fail "a restore over / not confirmed went ahead"; fi
+
+  printf '\n== restore over /, confirmed: a changed note comes back\n'
+  snapshot / > /tmp/before
+  printf 'mudou\n' > '/var/lib/universo/folders/Campanha/Sessão 1.md'
+  echo /var/lib/universo | $u restore "$plain" >/dev/null || fail "a confirmed restore over /"
+  snapshot / > /tmp/after
+  diff -u /tmp/before /tmp/after || fail "the restore over / did not give the backup back"
+
+  printf '\n== a backup holding more than its own paths is refused, and nothing is written\n'
+  # Each made from the good backup, plus one thing a backup never holds.
+  evil() { rm -rf /tmp/evil && mkdir /tmp/evil && tar -xzpf "$plain" -C /tmp/evil; }
+  evil; mkdir -p /tmp/evil/etc/cron.d && printf '* * * * * root touch /pwned\n' > /tmp/evil/etc/cron.d/x
+  tar -czpf /tmp/bad-cron.tar.gz -C /tmp/evil var/lib/universo etc/universo etc/cron.d/x
+  evil; ln -s /etc /tmp/evil/var/lib/universo/folders/Campanha/etc
+  tar -czpf /tmp/bad-link.tar.gz -C /tmp/evil var/lib/universo etc/universo
+  evil; cp /bin/true /tmp/evil/var/lib/universo/folders/Campanha/run
+  chmod 4755 /tmp/evil/var/lib/universo/folders/Campanha/run
+  tar -czpf /tmp/bad-setid.tar.gz -C /tmp/evil var/lib/universo etc/universo
+  evil; mkdir -p /tmp/abs-src && printf 'x\n' > /tmp/abs-src/y
+  tar -czpPf /tmp/bad-abs.tar.gz -C /tmp/evil var/lib/universo etc/universo /tmp/abs-src/y
+  rm -rf /tmp/abs-src
+  for bad in cron link setid abs; do
+    if $u restore "/tmp/bad-$bad.tar.gz" --to "/r-bad-$bad" >/tmp/bad.out 2>&1; then
+      fail "the $bad backup was unpacked into a scratch root: $(cat /tmp/bad.out)"
+    fi
+    [ ! -e "/r-bad-$bad" ] || [ -z "$(ls -A "/r-bad-$bad")" ] || fail "the refused $bad backup wrote into /r-bad-$bad"
+    if echo /var/lib/universo | $u restore "/tmp/bad-$bad.tar.gz" >/tmp/bad.out 2>&1; then
+      fail "the $bad backup was restored over /: $(cat /tmp/bad.out)"
+    fi
+    grep -i 'refus' /tmp/bad.out || fail "the $bad backup's refusal does not say so: $(cat /tmp/bad.out)"
+  done
+  [ ! -e /etc/cron.d/x ] && [ ! -e /tmp/abs-src ] || fail "a refused backup wrote outside its paths"
+  [ ! -L /var/lib/universo/folders/Campanha/etc ] || fail "a refused backup's link was written"
+  [ ! -e /var/lib/universo/folders/Campanha/run ] || fail "a refused backup's set-id file was written"
+  snapshot / > /tmp/after
+  diff -u /tmp/before /tmp/after || fail "a refused backup changed the server"
 
   printf '\n== age installed; --keygen keeps the public key and prints the secret one only\n'
   apt-get install -y -qq age >/dev/null
