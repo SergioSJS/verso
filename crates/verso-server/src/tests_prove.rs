@@ -650,3 +650,67 @@ fn an_invitation_to_a_folder_wants_a_fresh_proof() {
         assert_eq!(status, 200, "{made}");
     });
 }
+
+/// A device's session is born unproved: the approval proved the browser
+/// that approved it, not the app holding the token, which proves itself
+/// as any session does before a sensitive action (ADR 0083 item 6).
+#[test]
+fn a_device_session_is_not_proved_by_its_approval() {
+    use reqwest::Method;
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let other = r
+            .server
+            .db
+            .create_account(
+                "outra@aparelho.example",
+                "Outra",
+                "pt",
+                Some("a senha da outra conta"),
+                false,
+            )
+            .unwrap();
+        let (_, device) = post(
+            &r,
+            "/api/device/start",
+            json!({ "device": "Verso · Aparelho" }),
+            None,
+        )
+        .await;
+        let code = device["code"].as_str().unwrap().to_owned();
+        let poll = device["poll"].as_str().unwrap().to_owned();
+        let (status, approved) = send(
+            &r,
+            Method::POST,
+            &format!("/api/device/{code}"),
+            Some(json!({})),
+            &admin,
+        )
+        .await;
+        assert_eq!(status, 200, "{approved}");
+        let (_, done) = post(
+            &r,
+            "/api/device/poll",
+            json!({ "code": code, "poll": poll }),
+            None,
+        )
+        .await;
+        let token = done["token"].as_str().unwrap().to_owned();
+        let res = reqwest::Client::new()
+            .delete(r.url(&format!("/api/admin/accounts/{}/sessions", other.id)))
+            .bearer_auth(&token)
+            .send()
+            .await
+            .unwrap();
+        let said = (
+            res.status().as_u16(),
+            res.json::<Value>().await.unwrap_or(Value::Null),
+        );
+        assert_eq!(
+            said,
+            prove_first(),
+            "a device's bearer right after its approval"
+        );
+    });
+}
