@@ -398,9 +398,11 @@ services:
 Duas mudanças em relação ao arquivo publicado, ambas da seção 8 do manual:
 o contêiner usa a rede do host (`network_mode: host`, por isso o bloco
 `ports:` do arquivo publicado sai) e escuta em `127.0.0.1:7340`. O arquivo
-publicado expõe a 7340 em todas as interfaces, em HTTP puro; assim, a
-porta só é alcançada da própria máquina, pelo proxy, cujas conexões vêm
-então de `127.0.0.1` — o endereço que o `VERSO_TRUSTED_PROXY` nomeia. Um
+publicado também expõe a 7340 em `127.0.0.1`, mas pela rede do Docker,
+então o contêiner vê as conexões do proxy virem do gateway dessa rede, não
+de `127.0.0.1` (manual, seção 3). Assim, a porta continua sendo alcançada
+só da própria máquina, pelo proxy, e as conexões dele vêm de
+`127.0.0.1` — o endereço que o `VERSO_TRUSTED_PROXY` nomeia. Um
 proxy rodando em outro contêiner é o outro caso do manual (seção 8: um
 endereço fixo na rede do compose).
 

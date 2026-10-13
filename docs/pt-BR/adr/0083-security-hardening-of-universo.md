@@ -690,6 +690,51 @@ as expectativas foram corrigidas para o parser dos navegadores, e nenhuma
 falha do sanitizador foi achada. O pentest por uma pessoa de fora do
 projeto não está nesta rodada e continua condição do anúncio.
 
+**A porta do arquivo compose** (2026-10-13). Deixada em aberto depois
+da construção e decidida pelo mantenedor em 2026-10-13 (*"sobre as
+decisões em aberto, siga as recomendações"*): o
+`packaging/server/docker-compose.yml` publica a 7340 em `127.0.0.1` por
+padrão (`host_ip`), com TLS na frente — Caddy, um túnel ou o Tailscale.
+O comentário dele diz a única linha a trocar para publicar na LAN, para
+uma caixa CasaOS numa rede de casa, e que HTTP puro na LAN não faz login
+de ninguém de outra máquina de qualquer forma
+([0073](0073-self-hosted-server-first.md) item 6). O
+`scripts/check-server-image.sh` confere a ligação no arquivo já lido, e
+um comentário não passa por ela.
+
+**O volume do log do servidor** (2026-10-13, a parte restante do F21).
+Decidido pelo mantenedor em 2026-10-13 (*"sobre as decisões em aberto,
+siga as recomendações"*): o servidor não faz rotação de log nenhum por
+conta própria; a rotação fica com as ferramentas do host, documentada. O log de
+um pacote é a saída da unit, cuja rotação o journald faz (`journalctl
+--vacuum-size`, `SystemMaxUse=`; `docs/reference/server-install.md`,
+seção 5); o arquivo compose declara o driver `json-file` do Docker com
+`max-size: "10m"` e `max-file: "3"` (seção 4). As 60 linhas por minuto que
+uma janela pode escrever não mudam.
+
+**O limite de taxa além dos logins, do modelo de ameaças** (2026-10-13).
+O `[ABERTO]` dele fechado pela resposta do mantenedor de 2026-10-13
+(*"sobre as decisões em aberto, siga as recomendações"*): os ritmos dos
+itens 7 (9b4cdf0) e 2 (805febb), ao lado dos limites de conexão
+construídos antes, respondem a ele; o `docs/reference/threat-model.md`
+diz **Fechada: 9b4cdf0 e 805febb**. Medir os números continua o item 18.
+
+**Duas leituras do texto da Decisão** (2026-10-13), anotadas aqui e não
+reescritas acima. A guarda do item 16 é "mantida no `npm run e2e`": essa
+bateria roda localmente, no `scripts/check.sh`, não na CI
+([0058](0058-demo-vault-as-tutorial.md)), então a rodada dos casos do
+sanitizador no navegador vale antes de um push, não num pull request. O
+item 14 nomeia "o leitor de awareness do `collab.rs`": o alvo `presence`
+passa pelo `presence.rs` (`presence::stamped`, que o `collab::awareness`
+chama; 34474a0).
+
+**As conferências do mantenedor no app** (2026-10-13). O que os testes
+não alcançam está em `docs/reference/manual-checks.md`, nada disso
+bloqueando: uma nota e um board compartilhados editados pelo app desktop
+ao lado de outra janela (a ordem do (e)), o diálogo do item 6 com senha e
+com passkey, o código digitado do item 17, o Mermaid 12.2.0 (item 13) e
+os passos do Caddy do `universo.sh` ao lado de outro site (7755802).
+
 ## Consequências
 
 - O que as pessoas sentem: uma senha que escolheram recusada no setup ou

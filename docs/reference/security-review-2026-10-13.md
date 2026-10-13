@@ -83,7 +83,7 @@ ones are what stands between this HEAD and the "security in full" of ADR
 | F18 | The compose file and the Docker guide put the first admin's password in `environment:`, readable with `docker inspect`; the `_FILE` form exists and is not the example | MINOR | `docker-compose.yml:52-57`, `config.rs:110-125` | item 11: d2af446 |
 | F19 | The container is not declared read-only and keeps its capabilities in the compose file; the unit could add `ProtectProc`, `SystemCallFilter` | MINOR | `docker-compose.yml:25-59`, `universo.service:33-61` | item 11: d2af446 |
 | F20 | A folder is created with the process's umask (`0755` seen): on a host with other local users and a folders directory they can enter, the notes are readable; the package's `0750` directory keeps them | MINOR | probed; `postinstall.sh:22-24` | item 11: d2af446 |
-| F21 | A member writes 60 lines of 2 000 characters a minute to the server's log; the audit table grows without retention | MINOR | `rpc.rs:46,592-610`, `db.rs:1417` | item 10: 99683ed (the audit table's retention; the log's 60 lines a minute unchanged) |
+| F21 | A member writes 60 lines of 2 000 characters a minute to the server's log; the audit table grows without retention | MINOR | `rpc.rs:46,592-610`, `db.rs:1417` | item 10: 99683ed (the audit table's retention); the log's volume closed on 2026-10-13 by the commit that adds the compose file's `logging:` (rotation left to the host's tools — journald for the package, Docker's `json-file` limits for the compose file — and documented in the install guide; the 60 lines a minute a window may write unchanged; ADR 0083, As built) |
 | F22 | PDF.js is opened with `isEvalSupported` at its default (true); the page's policy has no `unsafe-eval`, so the font compiler is blocked by the browser, not by the code | MINOR | `app/ui/src/pdf.ts:246,443` | void: pdfjs-dist 6.3.289 has no `isEvalSupported` and no eval; guardrail test, item 8: 4b892cc |
 | F23 | The update check follows redirects (reqwest's default): a feed that redirected to a private address would be fetched | MINOR | `update.rs:103-114` | item 8: cb05804 |
 
@@ -326,7 +326,8 @@ add, and what the server must do for it to work:
 
 **In place.** `app/ui/src/sanitize.ts` is the boundary between members
 (ADR 0073 item 6), reviewed line by line by Opus 5.5 on 2026-10-11 with a
-suite of 76 hostile inputs in `npm test`; the threat model's "What the
+suite of 76 hostile inputs in `npm test` (*2026-10-13:* 102 cases since
+1e25bcf, run in node and in WebKit and Chromium); the threat model's "What the
 sanitizer guarantees" says what it keeps. Mermaid runs at `securityLevel:
 "strict"` (`mermaid.ts:27`); KaTeX with `throwOnError: false` and its
 default `trust: false` (`render.ts:19`, `live.ts:656,828`), so `\url` and
@@ -344,7 +345,9 @@ reader's approval; a folder's SVG or HTML file is served under
 
 - The review by the model that did not write the sanitizer is `[OPEN]` in
   the threat model (F9). The suite runs in happy-dom; a run in WebKit and
-  Chromium through the harness is still to add.
+  Chromium through the harness is still to add. *2026-10-13:* added in
+  1e25bcf — the 102 cases run in node over happy-dom and in WebKit and
+  Chromium through the harness (ADR 0083 item 16).
 - PDF.js (F22): `getDocument` is called without `isEvalSupported: false`
   (`pdf.ts:246,443`). Since 4.2.67 (CVE-2024-4367) the font compiler no
   longer evaluates untrusted strings, and `pdfjs-dist` is at 6.x; the

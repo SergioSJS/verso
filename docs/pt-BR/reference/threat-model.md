@@ -496,7 +496,7 @@ mantenedor.
   de uma sala fica `[ABERTO]` para um ADR próprio, como o roadmap diz, e a
   documentação diz até lá que um membro com escrita pode mudar o texto de
   outro.
-- `[ABERTO]` Um limite de taxa além dos logins. *(Cotas por pasta: ADR 0077
+- Um limite de taxa além dos logins. *(Cotas por pasta: ADR 0077
   item 5, construído em 2026-10-10; por conexão: 8 requisições, uma fila de
   1024 mensagens, pings, construídos em 2026-10-11, b56c538.)*
   *Recomendação:* antes do primeiro usuário de fora, as lacunas 2 a 5: um
@@ -509,8 +509,11 @@ mantenedor.
   medidos naquela máquina. *Construído em 2026-10-13:* um ritmo nas rotas
   REST por endereço, 20 por segundo e 100 de uma vez (9b4cdf0, item 7 do
   ADR 0083), e um ritmo nos sign-ins recusados do servidor (805febb, item 2
-  do ADR 0083); medi-los é o item 18 do ADR 0083. Deixado `[ABERTO]` para
-  o mantenedor.
+  do ADR 0083); medi-los é o item 18 do ADR 0083. **Fechada: 9b4cdf0 e
+  805febb** — decidido pelo mantenedor em 2026-10-13 (*"sobre as decisões
+  em aberto, siga as recomendações"*): os limites como construídos
+  respondem a ela; medir os números na máquina de 1 núcleo continua o
+  item 18 do ADR 0083.
 - `[ABERTO]` O token de aparelho do desktop no chaveiro do sistema em vez
   de um arquivo `0600`. *Recomendação:* depois do primeiro usuário de fora,
   registrado como adiado: o token é revogável nos Ajustes e no console, e o
