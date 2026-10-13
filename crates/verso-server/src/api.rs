@@ -75,6 +75,18 @@ fn check_password(password: &str, email: &str) -> ApiResult<()> {
     }
 }
 
+/// `password` hashed with Argon2id in one of the hashes' places
+/// (`crate::hashes`): a new password, at setup, an invitation, a reset or a
+/// change.
+async fn hashed(ctx: &Ctx, password: &str) -> ApiResult<String> {
+    let password = password.to_owned();
+    Ok(ctx
+        .server
+        .hashes
+        .run(move || crate::crypto::hash_password(&password))
+        .await??)
+}
+
 fn check_lang(lang: &str) -> &'static str {
     if lang.starts_with("en") { "en" } else { "pt" }
 }
@@ -130,13 +142,19 @@ pub async fn sign_in(ctx: Ctx, Json(body): Json<SignIn>) -> ApiResult<Response> 
     if !turn.is_zero() {
         tokio::time::sleep(turn).await;
     }
+    // One attempt in flight per key, the delay asked again once it is
+    // this one's turn: attempts sent together are counted one by one.
+    let _turn = ctx.server.hashes.turn(&[&by_address, &by_account]).await?;
+    limited(&ctx, &[&by_address, &by_account])?;
     let server = std::sync::Arc::clone(&ctx.server);
     let email = body.email.clone();
     let password = body.password.clone();
     // The account, and whether the password is its: an unknown e-mail
     // costs a hash too.
-    let found =
-        tokio::task::spawn_blocking(move || -> Result<(Option<db::Account>, bool), String> {
+    let found = ctx
+        .server
+        .hashes
+        .run(move || -> Result<(Option<db::Account>, bool), String> {
             let account = server.db.account_by_email(&email)?;
             let right = match &account {
                 Some(a) => a
@@ -150,8 +168,7 @@ pub async fn sign_in(ctx: Ctx, Json(body): Json<SignIn>) -> ApiResult<Response> 
             };
             Ok((account, right))
         })
-        .await
-        .map_err(|e| e.to_string())??;
+        .await??;
     let (Some(account), true) = found else {
         ctx.server.limiter.failed(&by_address);
         ctx.server.limiter.failed(&by_account);
@@ -229,11 +246,12 @@ pub async fn setup(ctx: Ctx, Json(body): Json<Setup>) -> ApiResult<Response> {
     }
     check_password(&body.password, &body.email)?;
     check_name(&body.name)?;
-    let account = ctx.server.db.create_account(
+    let hashed = hashed(&ctx, &body.password).await?;
+    let account = ctx.server.db.create_account_hashed(
         &body.email,
         &body.name,
         check_lang(&body.lang),
-        Some(&body.password),
+        Some(hashed),
         true,
     )?;
     ctx.server.db.use_invitation(&link.id, &account.id)?;
@@ -311,11 +329,12 @@ pub async fn accept(
     }
     check_password(&body.password, &email)?;
     check_name(&body.name)?;
-    let account = match ctx.server.db.create_account(
+    let hashed = hashed(&ctx, &body.password).await?;
+    let account = match ctx.server.db.create_account_hashed(
         &email,
         &body.name,
         check_lang(&body.lang),
-        Some(&body.password),
+        Some(hashed),
         false,
     ) {
         Ok(a) => a,
@@ -421,6 +440,7 @@ pub async fn reset(
         .ok_or_else(ApiError::not_found)?;
     // Before the link is used: a password refused leaves it to try again.
     check_password(&body.password, &account.email)?;
+    let hashed = hashed(&ctx, &body.password).await?;
     if !ctx.server.db.use_invitation(&link.id, &account.id)? {
         return Err(ApiError::new(
             StatusCode::NOT_FOUND,
@@ -428,7 +448,7 @@ pub async fn reset(
             "this link is used or expired",
         ));
     }
-    ctx.server.db.set_password(&account.id, &body.password)?;
+    ctx.server.db.set_hashed_password(&account.id, &hashed)?;
     ctx.server.db.end_sessions(&account.id, None)?;
     let revoked = revoke_tokens(&ctx, &account.id)?;
     ctx.server
@@ -499,16 +519,21 @@ pub async fn password(ctx: Ctx, Json(body): Json<Password>) -> ApiResult<Respons
     ctx.proved()?;
     let key = format!("in:{}", db::fold_email(&who.account.email));
     limited(&ctx, &[&key])?;
+    let _turn = ctx.server.hashes.turn(&[&key]).await?;
+    limited(&ctx, &[&key])?;
     // Argon2id on the blocking pool, as a sign-in's (threat-model.md,
-    // gap 16): on the runtime's thread it held every other request there.
+    // gap 16): on the runtime's thread it held every other request there;
+    // and in one of the hashes' places (`crate::hashes`).
     let hash = who.account.password.clone();
     let current = body.current.clone();
-    let right = tokio::task::spawn_blocking(move || {
-        hash.as_deref()
-            .is_some_and(|h| crate::crypto::verify_password(&current, h))
-    })
-    .await
-    .map_err(|e| e.to_string())?;
+    let right = ctx
+        .server
+        .hashes
+        .run(move || {
+            hash.as_deref()
+                .is_some_and(|h| crate::crypto::verify_password(&current, h))
+        })
+        .await?;
     if !right {
         ctx.server.limiter.failed(&key);
         crate::signin::refused(
@@ -528,7 +553,10 @@ pub async fn password(ctx: Ctx, Json(body): Json<Password>) -> ApiResult<Respons
         .signins
         .succeeded(&ctx.peer.key(), Some(&who.account.email));
     check_password(&body.new, &who.account.email)?;
-    ctx.server.db.set_password(&who.account.id, &body.new)?;
+    let hashed = hashed(&ctx, &body.new).await?;
+    ctx.server
+        .db
+        .set_hashed_password(&who.account.id, &hashed)?;
     ctx.server.db.end_sessions(&who.account.id, who.session())?;
     ctx.server
         .sessions_ended(&who.account.id, None, who.session());

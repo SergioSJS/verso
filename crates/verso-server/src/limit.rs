@@ -66,7 +66,7 @@ const KEYS: usize = 100_000;
 pub const PENDING: usize = 10_000;
 
 /// Failures heard without delay.
-const FREE: u32 = 3;
+pub(crate) const FREE: u32 = 3;
 /// The longest wait between two attempts.
 const MOST: Duration = Duration::from_secs(60);
 /// A key forgotten this long after its last failure.

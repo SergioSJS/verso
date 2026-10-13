@@ -559,8 +559,21 @@ impl Db {
         password: Option<&str>,
         admin: bool,
     ) -> R<Account> {
-        let id = crypto::id()?;
         let hashed = password.map(crypto::hash_password).transpose()?;
+        self.create_account_hashed(email, name, lang, hashed, admin)
+    }
+
+    /// [`Db::create_account`] with the password already hashed — by a
+    /// request, in one of the hashes' places (`crate::hashes`).
+    pub fn create_account_hashed(
+        &self,
+        email: &str,
+        name: &str,
+        lang: &str,
+        hashed: Option<String>,
+        admin: bool,
+    ) -> R<Account> {
+        let id = crypto::id()?;
         let created = now();
         self.conn()
             .execute(
@@ -630,7 +643,11 @@ impl Db {
     }
 
     pub fn set_password(&self, account: &str, password: &str) -> R<()> {
-        let hashed = crypto::hash_password(password)?;
+        self.set_hashed_password(account, &crypto::hash_password(password)?)
+    }
+
+    /// [`Db::set_password`] with the password already hashed.
+    pub fn set_hashed_password(&self, account: &str, hashed: &str) -> R<()> {
         self.conn()
             .execute(
                 "UPDATE accounts SET password = ?2 WHERE id = ?1",
