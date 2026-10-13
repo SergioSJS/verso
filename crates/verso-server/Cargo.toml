@@ -96,6 +96,11 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "rus
 rcgen = { version = "0.14", default-features = false, features = ["ring", "pem"] }
 tokio-tungstenite = "0.29"
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
+# fail2ban's filter of packaging/server/fail2ban/ run over the server's own
+# log lines, as fail2ban runs it (ADR 0083 item 1): a regular expression
+# engine, in tests only. Already in the tree (MIT OR Apache-2.0); nothing
+# of ours matched regular expressions.
+regex = "1"
 
 [lints]
 workspace = true

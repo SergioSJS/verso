@@ -51,6 +51,8 @@ export class ApiError extends Error {
         return s.tooMany(this.retry ?? 1);
       case "weak_password":
         return s.weakPassword;
+      case "common_password":
+        return s.commonPassword;
       case "not_email":
         return s.notEmail;
       case "exists":

@@ -338,8 +338,8 @@ value counts as not set.
 | `VERSO_FOLDERS_DIR` | image `/folders`, packages `/var/lib/universo/folders` | the folders of notes; may be a NAS |
 | `VERSO_UI_DIR` | `<binary's directory>/../share/universo/ui` | the window's files |
 | `VERSO_ADMIN_EMAIL` | none | the first admin, on the first start only |
-| `VERSO_ADMIN_PASSWORD` or `VERSO_ADMIN_PASSWORD_FILE` | none | the first admin's password, 12 characters at least |
-| `VERSO_TRUSTED_PROXY` | none | the IP address of the reverse proxy whose `X-Forwarded-For` and `X-Forwarded-Proto` are believed (one address) |
+| `VERSO_ADMIN_PASSWORD` or `VERSO_ADMIN_PASSWORD_FILE` | none | the first admin's password, 12 characters at least, not on the lists attackers try first, not the e-mail |
+| `VERSO_TRUSTED_PROXY` | none | the reverse proxies whose `X-Forwarded-For` and `X-Forwarded-Proto` are believed: one address, or a list of addresses and CIDRs separated by commas, IPv4 and IPv6 (`127.0.0.1, 10.0.0.0/8, 2001:db8::/32`); section 8 |
 | `VERSO_TLS_CERT_FILE` and `VERSO_TLS_KEY_FILE` | none | Verso serves TLS itself with this certificate and key (PEM); both or neither |
 | `VERSO_UPDATE_CHECK` | on | `off` stops the check for a new version (section 12) |
 | `VERSO_UPDATE_TOKEN` | no | a token that reads the project's releases, needed for the check while the repository is private (a GitHub token with read access to it); without one the log says so once |
@@ -394,6 +394,65 @@ container comes from that container's address, which then must be fixed
 (an `ipv4_address` in the compose network). Traefik or a NAS's own proxy
 work the same way.
 
+The client's address is read from `X-Forwarded-For` as every proxy chain
+is read: from the right, past each address in `VERSO_TRUSTED_PROXY`; the
+first that is not in it is the client, and what is left of it — written by
+the client — is never believed. A connection from an address not in the
+list has its `X-Forwarded-For` ignored. Name only the proxies: an address
+range that also holds people lets them say any address they like.
+
+**A proxy not in the list makes every visitor one address.** Every
+request then seems to come from the proxy, and every per-address delay
+keys it: three failed sign-ins by a stranger slow everyone's, and the
+pace of the API — 20 requests a second from one address, 100 at once,
+past which it answers 429 with `Retry-After` — is shared by every
+visitor. Only a direct connection from this machine is not paced. When a
+request comes from a trusted proxy with no `X-Forwarded-For`, it is served
+with the proxy's address and the log says, once a minute, *a request from
+the trusted proxy carried no X-Forwarded-For: is the proxy configured to
+forward it?*
+
+### Behind Cloudflare
+
+Cloudflare reaches the server from many addresses, which it publishes at
+<https://www.cloudflare.com/ips/> and which change from time to time. Two
+ways:
+
+- **Cloudflare straight to Verso.** Verso serves TLS itself (below; a
+  Cloudflare Origin CA certificate works with the *Full (strict)* mode),
+  and `VERSO_TRUSTED_PROXY` lists Cloudflare's ranges. They can be made
+  into the line with:
+
+  ```sh
+  { curl -fsS https://www.cloudflare.com/ips-v4; echo; curl -fsS https://www.cloudflare.com/ips-v6; } \
+    | grep . | paste -sd, -
+  ```
+
+  Check them again now and then: an address Cloudflare adds and the list
+  lacks is, for the server, one visitor.
+- **Cloudflare → Caddy → Verso**, with Caddy trusted alone
+  (`VERSO_TRUSTED_PROXY=127.0.0.1`). Caddy is told Cloudflare's ranges and
+  passes on the client's address alone:
+
+  ```
+  {
+      servers {
+          trusted_proxies static 173.245.48.0/20 103.21.244.0/22 …
+          client_ip_headers CF-Connecting-IP X-Forwarded-For
+      }
+  }
+
+  notes.example.com {
+      reverse_proxy 127.0.0.1:7340 {
+          header_up X-Forwarded-For {client_ip}
+      }
+  }
+  ```
+
+  with every range of the command above in `trusted_proxies`. Without
+  them, Caddy forwards Cloudflare's address as the client's, and the
+  server sees every visitor as a few of Cloudflare's addresses.
+
 ### Verso's own certificate
 
 `VERSO_TLS_CERT_FILE` and `VERSO_TLS_KEY_FILE` name a certificate and its
@@ -432,9 +491,11 @@ docker exec universo universo admin reset you@example.com
 sudo -u universo -H sh -c 'set -a; . /etc/universo/universo.env; exec universo admin reset you@example.com'
 ```
 
-It prints a link to use once, ends the account's sessions and records the
-reset in the audit log. A member's password is reset by the admin, in
-the administration console (`/admin`).
+It prints a link to use once, ends the account's sessions, revokes its
+personal access tokens and records the reset, and each token, in the
+audit log (ADR 0083 item 4). A member's password is reset by the admin,
+in the administration console (`/admin`); using that link revokes the
+member's tokens too.
 
 ## 11. The registry while the repository is private
 
@@ -883,4 +944,141 @@ Not verified yet:
   its `x-casaos` block follows the CasaOS AppStore's v2 description of
   2026-10-09, not checked by their validator);
 - the `tailscale serve` recipe and the Caddy example against this server;
-- pruning the registry's old versions.
+- pruning the registry's old versions;
+- fail2ban's filter and jail, the CrowdSec parser and scenarios, and the
+  Caddy `rate_limit` example of section 16, on a real host: the filter's
+  expression is run in the server's tests over the server's own lines, as
+  fail2ban expands `<SUBNET>` and as it reads a file and the journal, not
+  by fail2ban itself; the CrowdSec files and the Caddy example are not run
+  at all.
+
+## 16. Bans: fail2ban, CrowdSec and Caddy's rate_limit
+
+The server slows guesses by itself — three free, then a wait from 1 s
+doubling to 60 s, by address and by account, and, under a flood of
+refusals across many addresses, every sign-in waits its turn, 2 s at
+most — and never locks an account (ADR 0074 item 9). An account refused
+20 times within an hour, from any address, is told by mail, once a day
+at most, when the server has a mail server (section 7's
+`VERSO_SMTP_URL`); the log has an `INFO` line for each, and the console's
+overview counts them for the last 24 hours (ADR 0083 item 2). It bans nobody:
+that is the host's firewall's work, and the server gives it one line of
+its log per refused sign-in (ADR 0083 item 1):
+
+```
+2026-10-13T12:00:00Z WARN sign-in failed from 203.0.113.9 for a***@example.org (3 in a row)
+```
+
+A wrong password, a passkey refused, a device's wrong poll secret, or a
+wrong current password when changing it. The address is the client's as
+the trusted proxy forwarded it (section 8): an IPv4 address whole, an
+IPv6 address by its /64 (`2001:db8:1:2::/64`), as the server's own delays
+count it. The e-mail is masked, the same whether it has an account or
+not; the count is of that e-mail's refusals since its last success. When
+the delay refuses a request, `WARN sign-in limited from <address>`, once a
+minute per key. A window's own lines in the log begin with
+`window <id> (<account>):`, so a member cannot write a line these tools
+take for a refused sign-in.
+
+Behind a proxy that `VERSO_TRUSTED_PROXY` does not name, every line names
+the proxy, and a ban bans everyone. Before turning a ban on, check that
+the lines name your visitors:
+
+```sh
+journalctl -u universo | grep 'sign-in failed'
+```
+
+### fail2ban
+
+The `.deb` and the `.rpm` install a filter,
+`/etc/fail2ban/filter.d/universo.conf`, and a jail,
+`/etc/fail2ban/jail.d/universo.conf`: ten refusals from one address in
+ten minutes ban it for an hour, read from the journal of
+`universo.service`. They do nothing until fail2ban is installed:
+
+```sh
+sudo apt install fail2ban        # or: sudo dnf install fail2ban
+sudo systemctl enable --now fail2ban
+sudo fail2ban-client status universo
+```
+
+fail2ban reads the journal through its Python binding to systemd
+(`python3-systemd`, on Debian, Ubuntu and Fedora alike), which its own
+package may only recommend. Both files are configuration: edit them — the
+numbers are yours — and an upgrade keeps them. A household or an office
+behind one address shares a ban: a member who mistypes ten times bans the
+others for the hour, unless the address is in the jail's `ignoreip`. To
+try the filter on the server's own lines:
+
+```sh
+journalctl -u universo -o cat > /tmp/universo.log
+sudo fail2ban-regex /tmp/universo.log /etc/fail2ban/filter.d/universo.conf
+```
+
+In Docker, fail2ban runs on the host, and the two files are copied from
+`packaging/server/fail2ban/` to `/etc/fail2ban/filter.d/` and
+`/etc/fail2ban/jail.d/`. The container's lines reach the journal with
+`logging: driver: journald` in the compose file; the jail then reads
+`journalmatch = CONTAINER_NAME=universo` (the container's name). Docker
+sends a published port's traffic past the host's `INPUT` chain: the ban
+needs `chain = DOCKER-USER` in the jail.
+
+### CrowdSec
+
+A parser and two scenarios — an IPv4 address, an IPv6 /64 — with the
+jail's threshold, in `packaging/server/crowdsec/`; not in the packages,
+since CrowdSec's own live in its hub:
+
+```sh
+sudo cp packaging/server/crowdsec/universo-logs.yaml /etc/crowdsec/parsers/s01-parse/
+sudo cp packaging/server/crowdsec/universo-bf.yaml /etc/crowdsec/scenarios/
+```
+
+and the journal of the service as a source, in
+`/etc/crowdsec/acquis.d/universo.yaml`:
+
+```yaml
+source: journalctl
+journalctl_filter:
+  - "_SYSTEMD_UNIT=universo.service"
+labels:
+  type: syslog
+```
+
+then `sudo systemctl reload crowdsec`; `sudo cscli metrics` shows the
+parser reading the lines. A bouncer (the firewall's) carries out the
+decisions, for as long as `/etc/crowdsec/profiles.yaml` says.
+
+### Caddy's rate_limit
+
+A reverse proxy can turn a flood away before it reaches Verso. Caddy's
+`rate_limit` is a module, `github.com/mholt/caddy-ratelimit`, not in
+Caddy's standard build (`xcaddy build --with
+github.com/mholt/caddy-ratelimit`). Ten sign-in attempts a minute per
+address, past them a 429 from Caddy:
+
+```
+{
+    order rate_limit before reverse_proxy
+}
+
+notes.example.com {
+    rate_limit {
+        zone signin {
+            match {
+                method POST
+                path /api/signin /api/passkey/finish /api/device/poll
+            }
+            key {remote_host}
+            events 10
+            window 1m
+        }
+    }
+    reverse_proxy 127.0.0.1:7340
+}
+```
+
+Behind Cloudflare or another proxy in front of Caddy, `{remote_host}` is
+that proxy: key on `{client_ip}` instead, with Caddy's
+`trusted_proxies` naming that proxy. Verso keeps its own delays either
+way.
