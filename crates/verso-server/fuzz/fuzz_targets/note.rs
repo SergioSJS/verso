@@ -21,19 +21,17 @@
 //! that joins it read different texts, or that a change from outside does
 //! not leave the room holding exactly the file. Seeds in `../seeds-note/`:
 //! `two-windows-crlf.bin` and `out-of-order.bin`, written by
-//! `examples/seeds.rs` from real edits of windows; and three inputs this
-//! target found on 2026-10-13, open until the maintainer decides (the
-//! report of ADR 0083 item 14): `client-of-no-runs.bin`, an update naming
-//! the room's own Yjs client with no runs, on which `yrs` 0.28 unwraps
-//! nothing as it applies it (`update.rs:85`, a release build too);
-//! `gc-of-no-length.bin`, a deleted run of length 0, after which `yrs`
-//! subtracts past zero making the room's state (`block.rs:252`, a debug
-//! build; a release one wraps); `clients-count-bomb.bin`, four bytes that
-//! declare 2^28 clients, for which `yrs` asks the allocator for 22 GB
-//! before it reads one (`try_reserve`: refused, not a crash, where the
-//! allocator refuses; libFuzzer stops at 2 GB). `collab.rs`'s tests
-//! `a_client_of_no_runs_does_not_break_a_note_room` and
-//! `a_run_of_no_length_does_not_break_a_note_room` fail on the first two.
+//! `examples/seeds.rs` from real edits of windows; and the inputs this
+//! target found on 2026-10-13 (ADR 0083 item 14): `client-of-no-runs.bin`,
+//! an update naming the room's own Yjs client with no runs, on which
+//! `yrs` 0.28 unwraps nothing as it applies it (`update.rs:85`, a release
+//! build too), and `gc-of-no-length.bin`, a deleted run of length 0 after
+//! which a debug build of `yrs` subtracts past zero making the room's
+//! state (`block.rs:252`): the room catches both (`collab::BROKEN`) and is
+//! made again from its file; `clients-count-bomb.bin`, four bytes that
+//! declare 2^28 clients, for which `yrs` asked the allocator for 22 GB:
+//! refused before `yrs` reads it (`collab::decode`). The tests are in
+//! `tests_room_inputs.rs`.
 //! And `outside-after-a-delete-past-the-end.bin`: a window deletes the
 //! room's own Yjs client past its last clock; `yrs` keeps the deletion
 //! pending, sends it in the room's state, and applies it to the room's
@@ -74,6 +72,11 @@ fn joined(state: &[u8]) -> String {
 }
 
 fuzz_target!(|data: &[u8]| {
+    // The room catches a panic of `yrs` (`collab::caught`); libFuzzer's
+    // hook would end the run on it even so. The default hook again: a
+    // panic that escapes the room still ends the run, as a crash.
+    static HOOK: std::sync::Once = std::sync::Once::new();
+    HOOK.call_once(|| drop(std::panic::take_hook()));
     let records = records(data);
     let text = |i| String::from_utf8_lossy(record(&records, i)).into_owned();
     let Some(mut room) = NoteRoom::open(&text(0), ROOM) else {
