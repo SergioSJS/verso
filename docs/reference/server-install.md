@@ -279,7 +279,7 @@ value counts as not set.
 | `VERSO_UI_DIR` | `<binary's directory>/../share/universo/ui` | the window's files |
 | `VERSO_ADMIN_EMAIL` | none | the first admin, on the first start only |
 | `VERSO_ADMIN_PASSWORD` or `VERSO_ADMIN_PASSWORD_FILE` | none | the first admin's password, 12 characters at least, not on the lists attackers try first, not the e-mail |
-| `VERSO_TRUSTED_PROXY` | none | the IP address of the reverse proxy whose `X-Forwarded-For` and `X-Forwarded-Proto` are believed (one address) |
+| `VERSO_TRUSTED_PROXY` | none | the reverse proxies whose `X-Forwarded-For` and `X-Forwarded-Proto` are believed: one address, or a list of addresses and CIDRs separated by commas, IPv4 and IPv6 (`127.0.0.1, 10.0.0.0/8, 2001:db8::/32`); section 8 |
 | `VERSO_TLS_CERT_FILE` and `VERSO_TLS_KEY_FILE` | none | Verso serves TLS itself with this certificate and key (PEM); both or neither |
 | `VERSO_UPDATE_CHECK` | on | `off` stops the check for a new version (section 12) |
 | `VERSO_UPDATE_TOKEN` | no | a token that reads the project's releases, needed for the check while the repository is private (a GitHub token with read access to it); without one the log says so once |
@@ -332,6 +332,65 @@ from: `127.0.0.1` for a proxy on the same machine. A proxy in another
 container comes from that container's address, which then must be fixed
 (an `ipv4_address` in the compose network). Traefik or a NAS's own proxy
 work the same way.
+
+The client's address is read from `X-Forwarded-For` as every proxy chain
+is read: from the right, past each address in `VERSO_TRUSTED_PROXY`; the
+first that is not in it is the client, and what is left of it — written by
+the client — is never believed. A connection from an address not in the
+list has its `X-Forwarded-For` ignored. Name only the proxies: an address
+range that also holds people lets them say any address they like.
+
+**A proxy not in the list makes every visitor one address.** Every
+request then seems to come from the proxy, and every per-address delay
+keys it: three failed sign-ins by a stranger slow everyone's, and the
+pace of the API — 20 requests a second from one address, 100 at once,
+past which it answers 429 with `Retry-After` — is shared by every
+visitor. Only a direct connection from this machine is not paced. When a
+request comes from a trusted proxy with no `X-Forwarded-For`, it is served
+with the proxy's address and the log says, once a minute, *a request from
+the trusted proxy carried no X-Forwarded-For: is the proxy configured to
+forward it?*
+
+### Behind Cloudflare
+
+Cloudflare reaches the server from many addresses, which it publishes at
+<https://www.cloudflare.com/ips/> and which change from time to time. Two
+ways:
+
+- **Cloudflare straight to Verso.** Verso serves TLS itself (below; a
+  Cloudflare Origin CA certificate works with the *Full (strict)* mode),
+  and `VERSO_TRUSTED_PROXY` lists Cloudflare's ranges. They can be made
+  into the line with:
+
+  ```sh
+  { curl -fsS https://www.cloudflare.com/ips-v4; echo; curl -fsS https://www.cloudflare.com/ips-v6; } \
+    | grep . | paste -sd, -
+  ```
+
+  Check them again now and then: an address Cloudflare adds and the list
+  lacks is, for the server, one visitor.
+- **Cloudflare → Caddy → Verso**, with Caddy trusted alone
+  (`VERSO_TRUSTED_PROXY=127.0.0.1`). Caddy is told Cloudflare's ranges and
+  passes on the client's address alone:
+
+  ```
+  {
+      servers {
+          trusted_proxies static 173.245.48.0/20 103.21.244.0/22 …
+          client_ip_headers CF-Connecting-IP X-Forwarded-For
+      }
+  }
+
+  notes.example.com {
+      reverse_proxy 127.0.0.1:7340 {
+          header_up X-Forwarded-For {client_ip}
+      }
+  }
+  ```
+
+  with every range of the command above in `trusted_proxies`. Without
+  them, Caddy forwards Cloudflare's address as the client's, and the
+  server sees every visitor as a few of Cloudflare's addresses.
 
 ### Verso's own certificate
 

@@ -697,11 +697,28 @@ pub async fn signin_link(ctx: Ctx, Json(body): Json<ByMail>) -> ApiResult<Respon
     if ctx.server.mail.get().is_none() {
         return Err(ApiError::bad("no_mail", "this server has no mail server"));
     }
-    let key = format!("mail:{}", ctx.peer.key());
-    limited(&ctx, &[&key])?;
-    ctx.server.limiter.failed(&key);
+    mail_limited(&ctx, &body.email)?;
     mail_later(&ctx, body.email, Mailed::SignIn);
     Ok(ok(json!({ "sent": true })))
+}
+
+/// A mail route's delays: the sender's address, and the address mailed
+/// to (ADR 0083 item 8, F11), each counted on every request with the same
+/// growing delay, so that a mailbox is not flooded from many addresses each
+/// within its own. Only a string that looks like an e-mail is keyed: it
+/// has an `@`, which no address key has, so a request cannot name another
+/// address's key; anything else has no account and is mailed nothing.
+fn mail_limited(ctx: &Ctx, email: &str) -> ApiResult<()> {
+    let mut keys = vec![format!("mail:{}", ctx.peer.key())];
+    if db::is_email(email) {
+        keys.push(format!("mail:{}", db::fold_email(email)));
+    }
+    let named: Vec<&str> = keys.iter().map(String::as_str).collect();
+    limited(ctx, &named)?;
+    for key in &keys {
+        ctx.server.limiter.failed(key);
+    }
+    Ok(())
 }
 
 /// What a mail route sends to an address that has an account.
@@ -808,9 +825,7 @@ pub async fn forgot(ctx: Ctx, Json(body): Json<ByMail>) -> ApiResult<Response> {
     if ctx.server.mail.get().is_none() {
         return Err(ApiError::bad("no_mail", "this server has no mail server"));
     }
-    let key = format!("mail:{}", ctx.peer.key());
-    limited(&ctx, &[&key])?;
-    ctx.server.limiter.failed(&key);
+    mail_limited(&ctx, &body.email)?;
     mail_later(&ctx, body.email, Mailed::Reset);
     Ok(ok(json!({ "sent": true })))
 }

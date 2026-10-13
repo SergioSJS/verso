@@ -545,7 +545,7 @@ pub async fn overview(ctx: Ctx) -> ApiResult<Response> {
     )?;
     let tls = if config.tls.is_some() {
         "own"
-    } else if config.trusted_proxy.is_some() {
+    } else if !config.trusted_proxy.is_empty() {
         "proxy"
     } else if config.loopback_only() {
         "loopback"
@@ -589,7 +589,7 @@ pub async fn config(ctx: Ctx) -> ApiResult<Response> {
         ("VERSO_UI_DIR", path(&c.ui_dir), false),
         (
             "VERSO_TRUSTED_PROXY",
-            c.trusted_proxy.map(|a| a.to_string()),
+            (!c.trusted_proxy.is_empty()).then(|| c.trusted_proxy.to_string()),
             false,
         ),
         (

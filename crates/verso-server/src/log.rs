@@ -61,6 +61,22 @@ pub(crate) fn said(what: &str) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// A line said at most once a minute: a flood of the same event is one
+/// line, not a disk filled (the refusals, a proxy that forwards nothing).
+#[derive(Default)]
+pub struct OnceAMinute(std::sync::Mutex<Option<std::time::Instant>>);
+
+impl OnceAMinute {
+    pub fn warn(&self, message: &str) {
+        let mut said = verso_service::lock(&self.0);
+        if said.is_none_or(|at| at.elapsed() >= std::time::Duration::from_secs(60)) {
+            *said = Some(std::time::Instant::now());
+            drop(said);
+            warn(message);
+        }
+    }
+}
+
 pub fn info(message: &str) {
     line("INFO", message);
 }
