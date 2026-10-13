@@ -143,8 +143,18 @@ sudo sh universo.sh restore universo-backup-<date>-<time>.tar.gz.age --identity 
 with the secret key in `key.txt` for the moment (or `age` asks the
 passphrase); a plain backup needs no `--identity`. `--to /some/dir`
 unpacks it there instead, to look at it first, leaving the server alone.
+Before writing anything, `restore` copies the backup (or decrypts it) into
+a directory of its own and lists it: it refuses the whole backup when any
+entry is not a plain file or a directory under `/var/lib/universo`,
+`/etc/universo` or the `VERSO_DATA_DIR` and `VERSO_FOLDERS_DIR` this
+machine's settings name — an absolute path, a `..`, a link, a device or a
+set-id file — and then unpacks exactly the entries it checked. A backup
+kept where someone else can write (a shared bucket, a shared directory)
+cannot so put a file anywhere else on the machine as root. A backup whose
+directories lay outside `/var/lib/universo` restores them once this
+machine's `universo.env` names the same ones; until then, `--to`.
 By hand: `age -d -i key.txt FILE | sudo tar -xzpf - -C /` with the service
-stopped.
+stopped — with none of these checks, so only for a backup you made.
 
 ### Databases on a NAS
 

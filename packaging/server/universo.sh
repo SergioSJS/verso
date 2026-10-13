@@ -950,6 +950,67 @@ só naquela hora:
   key=
 }
 
+# backup_paths: what a backup holds, one path a line, relative to / (tar
+# -C /): the data root and the settings, plus each directory of the
+# settings that lies outside them. A restore takes nothing else back.
+backup_paths() {
+  printf '%s\n' "${DATA_ROOT#/}" "${ETC_DIR#/}"
+  for d in "$(env_get VERSO_DATA_DIR)" "$(env_get VERSO_FOLDERS_DIR)"; do
+    d=${d%/}
+    case "$d" in ''|"$DATA_ROOT"|"$DATA_ROOT"/*) ;; *) printf '%s\n' "${d#/}" ;; esac
+  done
+}
+
+# check_members TARBALL NAME: lists TARBALL and refuses it, NAME being the
+# backup's file, unless every entry is a directory or a plain file under
+# backup_paths: no absolute name, no "..", no link, no device or other
+# special file, no set-id bit. The names, as tar quotes them, go to
+# $TMPD/members, for tar -T to unquote.
+check_members() {
+  # The notes' names are root's only too.
+  (umask 077 && : > "$TMPD/listing" && : > "$TMPD/members" && : > "$TMPD/prefixes") \
+    || die "Could not write into $TMPD." "Não foi possível gravar em $TMPD."
+  LC_ALL=C tar -tvzf "$1" --numeric-owner > "$TMPD/listing" 2> "$TMPD/tar.err" || {
+    cat "$TMPD/tar.err" >&2
+    die "Could not read $2 (above): is it a backup made by universo.sh?" \
+        "Não foi possível ler $2 (acima): é um backup feito pelo universo.sh?"
+  }
+  backup_paths > "$TMPD/prefixes"
+  # A line of tar -tv: mode, owner, size, date, time, then the name (and
+  # " -> target" for a link, refused before its name is read).
+  bad=$(LC_ALL=C awk -v pf="$TMPD/prefixes" -v out="$TMPD/members" '
+    BEGIN { while ((getline p < pf) > 0) if (p != "") prefix[p] = 1; printf "" > out }
+    {
+      mode = $1; name = $0
+      for (i = 0; i < 4; i++) sub(/^[^ ]+ +/, "", name)
+      sub(/^[^ ]+ /, "", name)
+      t = substr(mode, 1, 1); why = ""
+      if (t != "-" && t != "d") why = "special"
+      else if (substr(mode, 4, 1) ~ /[sS]/ || substr(mode, 7, 1) ~ /[sS]/) why = "setid"
+      else if (name ~ /^\//) why = "absolute"
+      else if (name ~ /(^|\/)\.\.(\/|$)/) why = "dotdot"
+      else {
+        ok = 0
+        for (p in prefix) if (name == p || index(name, p "/") == 1) ok = 1
+        if (!ok) why = "outside"
+      }
+      if (why != "") { print why " " name; exit }
+      print name > out
+    }' "$TMPD/listing")
+  [ -n "$bad" ] || return 0
+  name=${bad#* }
+  case "${bad%% *}" in
+    special) why=$(t "a link, a device or another special file" "um link, um dispositivo ou outro arquivo especial") ;;
+    setid) why=$(t "a set-id file" "um arquivo set-id") ;;
+    absolute) why=$(t "an absolute path" "um caminho absoluto") ;;
+    dotdot) why=$(t "a path with .." "um caminho com ..") ;;
+    *) why=$(t "a path no backup holds" "um caminho que nenhum backup contém") ;;
+  esac
+  paths=$(backup_paths | sed 's#^#/#' | tr '\n' ' ')
+  die "REFUSED: $2 holds $why, $name. A backup made by universo.sh holds only plain files and directories under ${paths}(the paths this machine's $ENV_FILE sets). Nothing was written." \
+      "RECUSADO: $2 contém $why, $name. Um backup feito pelo universo.sh contém só arquivos e pastas comuns em ${paths}(os caminhos que o $ENV_FILE desta máquina define). Nada foi gravado."
+}
+
 # pack PATH...: the tarball of PATH... (relative to /), encrypted when
 # asked, into $file or to descriptor 3.
 pack() {
@@ -1000,13 +1061,13 @@ cmd_backup() {
     esac
     mkdir -p "$dir" || die "Could not make $dir." "Não foi possível criar $dir."
   fi
-  # What goes in, as paths relative to / (tar -C /): the data root and the
-  # settings, plus each directory of the settings that lies outside them.
-  set -- "${DATA_ROOT#/}"
-  [ -d "$ETC_DIR" ] && set -- "$@" "${ETC_DIR#/}"
-  for d in "$data" "$folders"; do
-    case "$d" in "$DATA_ROOT"/*) ;; *) [ -d "$d" ] && set -- "$@" "${d#/}" ;; esac
-  done
+  # What goes in: backup_paths, those that exist.
+  set --
+  while IFS= read -r p; do
+    [ -d "/$p" ] && set -- "$@" "$p"
+  done <<EOF
+$(backup_paths)
+EOF
   if [ "$TO_STDOUT" = 0 ]; then
     need_k=0
     for p in "$@"; do
@@ -1109,6 +1170,23 @@ cmd_restore() {
   fi
   target=${RESTORE_TO:-/}
   case "$target" in /*) ;; *) target="$(pwd)/$target" ;; esac
+  # The backup is copied (or decrypted) once into this script's own
+  # directory, root's only, and read from there: a file someone else can
+  # replace (a shared bucket, a shared directory) is not read twice. Then
+  # every entry is checked before anything is written.
+  make_tmp
+  staged=$TMPD/restore.tar.gz
+  step "Reading $file." "Lendo $file."
+  if [ "$encrypted" = 1 ]; then
+    (umask 077 && age_dec "$file" > "$staged") \
+      || die "Could not decrypt $file (above): the right key, or passphrase?" \
+             "Não foi possível descriptografar $file (acima): a chave, ou a frase-senha, certa?"
+  else
+    (umask 077 && cat "$file" > "$staged") \
+      || die "Could not copy $file into $TMPD (above): with too little room there, set TMPDIR to a directory with room." \
+             "Não foi possível copiar $file para $TMPD (acima): com pouco espaço ali, defina TMPDIR para uma pasta com espaço."
+  fi
+  check_members "$staged" "$file"
   was_active=0
   if [ "$target" = / ]; then
     t "This puts the backup's copy of $DATA_ROOT and $ETC_DIR back in place: every file the backup holds replaces the one here (a file made since stays). The service is stopped meanwhile. To look at a backup first: --to /some/empty/dir" \
@@ -1125,16 +1203,10 @@ cmd_restore() {
     mkdir -p "$target" || die "Could not make $target." "Não foi possível criar $target."
   fi
   step "Unpacking $file into $target." "Desempacotando $file em $target."
-  if [ "$encrypted" = 1 ]; then
-    make_tmp
-    rm -f "$TMPD/age-failed"
-    if ! { age_dec "$file" || : > "$TMPD/age-failed"; } | tar -xzpf - -C "$target" || [ -e "$TMPD/age-failed" ]; then
-      die "Could not decrypt or unpack $file (above): the right key, or passphrase?" \
-          "Não foi possível descriptografar ou desempacotar $file (acima): a chave, ou a frase-senha, certa?"
-    fi
-  else
-    tar -xzpf "$file" -C "$target" || die "Could not unpack $file (above)." "Não foi possível desempacotar $file (acima)."
-  fi
+  # Exactly the entries checked, each by its own name: no pattern, and a
+  # directory's name stands for itself only.
+  LC_ALL=C tar -xzpf "$staged" -C "$target" --no-wildcards --no-recursion -T "$TMPD/members" \
+    || die "Could not unpack $file (above)." "Não foi possível desempacotar $file (acima)."
   if [ "$was_active" = 1 ]; then
     step "Starting the service again." "Ligando o serviço de novo."
     systemctl start "$SERVICE" || warn "It did not start: sudo journalctl -u universo -n 50" "Ele não ligou: sudo journalctl -u universo -n 50"

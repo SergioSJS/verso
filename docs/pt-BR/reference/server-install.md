@@ -145,8 +145,21 @@ sudo sh universo.sh restore universo-backup-<data>-<hora>.tar.gz.age --identity 
 com a chave secreta em `chave.txt` só naquela hora (ou o `age` pede a
 frase-senha); um backup sem criptografia não precisa de `--identity`.
 `--to /uma/pasta` desempacota lá, para olhar antes, sem tocar no servidor.
+Antes de gravar qualquer coisa, o `restore` copia o backup (ou o
+descriptografa) para uma pasta só sua e o lista: recusa o backup inteiro
+quando alguma entrada não é um arquivo comum ou uma pasta sob
+`/var/lib/universo`, `/etc/universo` ou o `VERSO_DATA_DIR` e o
+`VERSO_FOLDERS_DIR` que as configurações desta máquina nomeiam — um
+caminho absoluto, um `..`, um link, um dispositivo ou um arquivo set-id — e
+então desempacota exatamente as entradas que conferiu. Um backup guardado
+onde outra pessoa pode escrever (um bucket compartilhado, uma pasta
+compartilhada) não consegue assim pôr um arquivo em outro lugar da máquina
+como root. Um backup cujas pastas ficavam fora de `/var/lib/universo` as
+restaura depois que o `universo.env` desta máquina nomear as mesmas; até
+lá, `--to`.
 À mão: `age -d -i chave.txt ARQUIVO | sudo tar -xzpf - -C /` com o serviço
-parado.
+parado — sem nenhuma dessas conferências, então só para um backup que você
+fez.
 
 ### Bancos de dados num NAS
 
