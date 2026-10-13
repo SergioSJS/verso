@@ -14,6 +14,7 @@ import { loadFolderLayer } from "./folderLayer";
 import { loadFocuses } from "./focuses";
 import { currentFolder, LAST_FOLDER, nameFolderButton, secondary, setCurrentFolder, setFolderName } from "./folder";
 import { layout, newSpace, openIn, setCurrent, showSpace, Space, spaces } from "./layout/spaces";
+import { beginRestore, endRestore } from "./layout/restoring";
 import { askDiscard } from "./leaves/leaf";
 import { panel, ribbon } from "./main";
 import { name } from "./paths";
@@ -118,6 +119,18 @@ export async function showFolder(info: FolderInfo): Promise<void> {
   for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) l.destroy();
   spaces.length = 0;
   setCurrent(null);
+  // From here until the saved tabs are back, a file opened from the tree
+  // is opened after them, in front (layout/restoring.ts).
+  beginRestore();
+  try {
+    await showListsAndTabs(info);
+  } finally {
+    endRestore();
+  }
+  ui.search.focus();
+}
+/** The folder's lists, then its tabs as they were left. */
+async function showListsAndTabs(info: FolderInfo): Promise<void> {
   ui.collapse.disabled = false;
   ui.search.disabled = false;
   ribbon?.paint();
@@ -154,7 +167,6 @@ export async function showFolder(info: FolderInfo): Promise<void> {
     // A layout that does not parse: start with one workspace.
   }
   if (!restored) newSpace();
-  ui.search.focus();
 }
 export async function openFolderDialog(): Promise<void> {
   await openFolderBy(() => commands.pickFolder());

@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { afterRestore } from "./restoring";
 import { commands } from "../bindings";
 import { can } from "../can";
 import { button, h, ui } from "../dom";
@@ -214,12 +215,15 @@ export function openIn(pane: Pane, path: string): Leaf {
 /** `preview`: a single click in a list (the tree, a folder, the search,
  *  the quick switcher) — a preview tab, when the setting has them. */
 export function openNote(path: string, aside: boolean, fresh = false, preview = false): Leaf | null {
+  // Asked for while the folder's tabs come back: opened over them after.
+  if (afterRestore(() => void openNote(path, aside, fresh, preview))) return null;
   document.body.classList.remove("side-open");
   let pane = paneToOpenIn();
   if (aside) pane = layout().split(pane, "row");
   return pane.open(path, false, fresh, preview && !aside && !fresh);
 }
 export function openFolder(path: string, preview = false): void {
+  if (afterRestore(() => openFolder(path, preview))) return;
   const pane = paneToOpenIn();
   pane.openFolder(path, preview);
 }
