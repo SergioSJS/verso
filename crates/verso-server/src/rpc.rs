@@ -724,7 +724,7 @@ async fn collab_command(
         "collab_join" => to_value(crate::collab::join(&s, &c, &key, &path, &user)?),
         "collab_update" => {
             let update: String = arg(&args, "update")?;
-            crate::collab::update(&s, &c, &key, &path, &update)?;
+            crate::collab::update(&s, (&c, &account), &key, &path, &update)?;
             Ok(Value::Null)
         }
         "collab_awareness" => {

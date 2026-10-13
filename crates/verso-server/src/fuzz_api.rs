@@ -20,6 +20,9 @@ use yrs::{Doc, Options, ReadTxn, StateVector, Transact};
 use crate::collab::{self, Kind};
 use crate::collab_board::{self, Board};
 
+/// What a room answers an update `yrs` panicked on (`collab::BROKEN`).
+pub const BROKEN: &str = collab::BROKEN;
+
 /// A request as the connection's loop reads it: its id, its command and
 /// its arguments.
 pub type Request = (u64, String, Value);
@@ -50,12 +53,15 @@ fn update(kind: Kind, doc: &Doc, board: &mut Board, bytes: &[u8]) -> Result<(), 
 
 /// A note's room (or any other text file's), as `collab::join` makes it
 /// of the file's text, with its document's Yjs client fixed: the server's
-/// is random, and a run must replay.
+/// is random, and a run must replay. When `yrs` panics on what a window
+/// sent (`collab::BROKEN`), the room is made again from the file it last
+/// wrote, as the server's `reload` has the windows do.
 pub struct NoteRoom {
     doc: Doc,
     saved: String,
     crlf: bool,
     board: Board,
+    client: u64,
 }
 
 impl NoteRoom {
@@ -71,12 +77,26 @@ impl NoteRoom {
             saved: text,
             crlf,
             board: Board::default(),
+            client,
         })
     }
 
-    /// What a window that joins is sent: the room's whole state.
-    #[must_use]
-    pub fn state(&self) -> Vec<u8> {
+    /// The room made again from the file it last wrote (`collab::reload`).
+    fn reload(&mut self) {
+        let file = collab::on_disk(&self.saved, self.crlf);
+        if let Some(room) = Self::open(&file, self.client) {
+            *self = room;
+        }
+    }
+
+    /// What a window that joins is sent: the room's whole state
+    /// (`collab::state`), the room made again first when `yrs` cannot make
+    /// it.
+    pub fn state(&mut self) -> Vec<u8> {
+        if let Ok(state) = collab::state(&self.doc) {
+            return state;
+        }
+        self.reload();
         self.doc
             .transact()
             .encode_state_as_update_v1(&StateVector::default())
@@ -84,7 +104,11 @@ impl NoteRoom {
 
     /// A window's update, taken in as `collab::update` takes it.
     pub fn update(&mut self, bytes: &[u8]) -> Result<(), String> {
-        update(Kind::Note, &self.doc, &mut self.board, bytes)
+        let taken = update(Kind::Note, &self.doc, &mut self.board, bytes);
+        if taken.as_ref().is_err_and(|e| e == collab::BROKEN) {
+            self.reload();
+        }
+        taken
     }
 
     /// The room's text, as it is written and as every window shows it.
@@ -128,9 +152,12 @@ impl NoteRoom {
 /// A board's room, as `collab::join` makes it of the file `base`, with its
 /// document's Yjs client fixed. Its document and its own state are the
 /// server's types, open to the board's public functions (`collab_board`).
+/// Made again from `base` when `yrs` panics on what a window sent.
 pub struct BoardRoom {
     pub doc: Doc,
     pub board: Board,
+    base: String,
+    client: u64,
 }
 
 impl BoardRoom {
@@ -138,12 +165,48 @@ impl BoardRoom {
     pub fn open(base: &str, client: u64) -> Self {
         let doc = collab_board::based(Doc::with_client_id(client), base);
         let board = Board::of(&doc);
-        Self { doc, board }
+        Self {
+            doc,
+            board,
+            base: base.to_owned(),
+            client,
+        }
+    }
+
+    fn reload(&mut self) {
+        *self = Self::open(&self.base.clone(), self.client);
     }
 
     /// A window's update, taken in as `collab::update` takes it: within
     /// the board's limits, then integrated.
     pub fn update(&mut self, bytes: &[u8]) -> Result<(), String> {
-        update(Kind::Board, &self.doc, &mut self.board, bytes)
+        let taken = update(Kind::Board, &self.doc, &mut self.board, bytes);
+        if taken.as_ref().is_err_and(|e| e == collab::BROKEN) {
+            self.reload();
+        }
+        taken
+    }
+
+    /// What a window that joins is sent (`collab::state`), the room made
+    /// again first when `yrs` cannot make it.
+    pub fn state(&mut self) -> Vec<u8> {
+        if let Ok(state) = collab::state(&self.doc) {
+            return state;
+        }
+        self.reload();
+        self.doc
+            .transact()
+            .encode_state_as_update_v1(&StateVector::default())
+    }
+
+    /// Written (`collab::write`): the update that tells the windows, or
+    /// `None` when `yrs` could not make it and the room was made again.
+    pub fn written(&mut self) -> Option<Vec<u8>> {
+        let Self { doc, board, .. } = self;
+        let written = collab::caught(|| board.written(doc)).ok();
+        if written.is_none() {
+            self.reload();
+        }
+        written
     }
 }

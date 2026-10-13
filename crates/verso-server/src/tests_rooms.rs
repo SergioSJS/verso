@@ -171,3 +171,89 @@ fn an_edit_that_changes_nothing_leaves_nothing_waiting_for_a_change_from_outside
         assert!(saved["ok"].is_string(), "{saved}");
     });
 }
+
+/// An update `yrs` 0.28 panics on as it applies it — the room's own Yjs
+/// client named with no runs (ADR 0083 item 14, the fuzz target `note`'s
+/// `client-of-no-runs.bin`) — is refused; the room is closed and made
+/// again from its file, which the windows read: what was typed since the
+/// room last wrote is lost, nothing else.
+#[test]
+fn an_update_yrs_panics_on_is_refused_and_the_room_is_made_again() {
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &b).await;
+        let mut one = window(&r, &b, &id).await;
+        let mut two = window(&r, &b, &id).await;
+        let join = |p: serde_json::Value| {
+            let state = base64::engine::general_purpose::STANDARD
+                .decode(p["ok"]["update"].as_str().unwrap())
+                .unwrap();
+            yrs::Update::decode_v1(&state).unwrap()
+        };
+        let first = join(call(&mut one, 2, "collab_join", json!({ "path": "Sessao.md" })).await);
+        call(&mut two, 2, "collab_join", json!({ "path": "Sessao.md" })).await;
+        // The room's client: the one its state holds.
+        let room = first
+            .state_vector()
+            .iter()
+            .next()
+            .map(|(c, _)| c.get())
+            .unwrap();
+        let mut bad = vec![1, 0];
+        let mut n = room;
+        while n >= 0x80 {
+            bad.push(u8::try_from(n & 0x7f).unwrap() | 0x80);
+            n >>= 7;
+        }
+        bad.push(u8::try_from(n).unwrap());
+        bad.extend([0, 0]);
+        let sent = call(
+            &mut two,
+            3,
+            "collab_update",
+            json!({ "path": "Sessao.md",
+                "update": base64::engine::general_purpose::STANDARD.encode(&bad) }),
+        )
+        .await;
+        assert_eq!(sent["err"]["message"], collab::BROKEN, "{sent}");
+        // Said in the log: the folder, the note, the member's account.
+        let said = crate::log::said("the room could not integrate");
+        assert!(
+            said.iter().any(|l| l.starts_with(&format!(
+                "WARN room {id}/Sessao.md: an update from account "
+            ))),
+            "{said:?}"
+        );
+        // Every window hears the room closed, and joins one made anew.
+        let closed = crate::tests::event_named(&mut one, "collab-closed").await;
+        assert_eq!(closed["path"], "Sessao.md");
+        let again = call(&mut one, 3, "collab_join", json!({ "path": "Sessao.md" })).await;
+        let doc = yrs::Doc::with_options(yrs::Options {
+            offset_kind: yrs::OffsetKind::Utf16,
+            ..Default::default()
+        });
+        doc.transact_mut().apply_update(join(again)).unwrap();
+        let text = doc.get_or_insert_text(collab::TEXT);
+        let read = call(&mut one, 4, "read_note", json!({ "path": "Sessao.md" })).await;
+        assert_eq!(
+            text.get_string(&doc.transact()),
+            read["ok"]["text"].as_str().unwrap()
+        );
+        // And it still takes an edit.
+        let edit = {
+            let mut txn = doc.transact_mut();
+            text.insert(&mut txn, 0, "> ");
+            txn.encode_update_v1()
+        };
+        let ok = call(
+            &mut one,
+            5,
+            "collab_update",
+            json!({ "path": "Sessao.md",
+                "update": base64::engine::general_purpose::STANDARD.encode(edit) }),
+        )
+        .await;
+        assert!(ok.get("ok").is_some(), "{ok}");
+    });
+}
