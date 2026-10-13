@@ -719,6 +719,15 @@ itens 7 (9b4cdf0) e 2 (805febb), ao lado dos limites de conexão
 construídos antes, respondem a ele; o `docs/reference/threat-model.md`
 diz **Fechada: 9b4cdf0 e 805febb**. Medir os números continua o item 18.
 
+**Duas leituras do texto da Decisão** (2026-10-13), anotadas aqui e não
+reescritas acima. A guarda do item 16 é "mantida no `npm run e2e`": essa
+bateria roda localmente, no `scripts/check.sh`, não na CI
+([0058](0058-demo-vault-as-tutorial.md)), então a rodada dos casos do
+sanitizador no navegador vale antes de um push, não num pull request. O
+item 14 nomeia "o leitor de awareness do `collab.rs`": o alvo `presence`
+passa pelo `presence.rs` (`presence::stamped`, que o `collab::awareness`
+chama; 34474a0).
+
 ## Consequências
 
 - O que as pessoas sentem: uma senha que escolheram recusada no setup ou

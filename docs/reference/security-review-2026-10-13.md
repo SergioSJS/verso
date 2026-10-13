@@ -326,7 +326,8 @@ add, and what the server must do for it to work:
 
 **In place.** `app/ui/src/sanitize.ts` is the boundary between members
 (ADR 0073 item 6), reviewed line by line by Opus 5.5 on 2026-10-11 with a
-suite of 76 hostile inputs in `npm test`; the threat model's "What the
+suite of 76 hostile inputs in `npm test` (*2026-10-13:* 102 cases since
+1e25bcf, run in node and in WebKit and Chromium); the threat model's "What the
 sanitizer guarantees" says what it keeps. Mermaid runs at `securityLevel:
 "strict"` (`mermaid.ts:27`); KaTeX with `throwOnError: false` and its
 default `trust: false` (`render.ts:19`, `live.ts:656,828`), so `\url` and
@@ -344,7 +345,9 @@ reader's approval; a folder's SVG or HTML file is served under
 
 - The review by the model that did not write the sanitizer is `[OPEN]` in
   the threat model (F9). The suite runs in happy-dom; a run in WebKit and
-  Chromium through the harness is still to add.
+  Chromium through the harness is still to add. *2026-10-13:* added in
+  1e25bcf — the 102 cases run in node over happy-dom and in WebKit and
+  Chromium through the harness (ADR 0083 item 16).
 - PDF.js (F22): `getDocument` is called without `isEvalSupported: false`
   (`pdf.ts:246,443`). Since 4.2.67 (CVE-2024-4367) the font compiler no
   longer evaluates untrusted strings, and `pdfjs-dist` is at 6.x; the
