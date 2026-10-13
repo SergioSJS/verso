@@ -142,6 +142,21 @@ the test.
 | The demo vault built from its sources and holding together | a stale embed, a board edited by hand, a tutorial that no longer holds | the tutorial |
 | The window's end-to-end tests in Chromium beside WebKit (`scripts/check.sh`; on macOS with no window captures, one worker and the pre-flight of `app/ui/e2e/preflight.mjs`) — [ADR 0069](docs/adr/0069-windows-port.md) item 8, accepted 2026-10-12, revised the same day | a window that works in WebKit and breaks in WebView2 | the Windows port |
 | Clippy and the tests on Windows over SSH (`scripts/check-windows.sh`), when the diff touches platform code | code that is dead or different on Windows | the Windows port |
+| A refused sign-in is one log line, and the shipped fail2ban filter, expanded as fail2ban 1.1 does, catches exactly those lines (`tests_bounds.rs`) | a brute force the host's tools never see | ADR 0083 item 1 |
+| The 20th refused sign-in in an hour mails the account once, the 21st does not; the bucket of the server's refused sign-ins | guesses for ever, with nobody told | ADR 0083 item 2 |
+| The password list: `password1234`, `qwertyuiop12` and the e-mail refused, a passphrase taken, the list under 200 KB | a password from the lists attackers try first | ADR 0083 item 3 |
+| A token answers 401 after a reset, an `admin reset` and a change with `revokeTokens` | a thief's token outliving the recovery | ADR 0083 item 4 |
+| The walk of `X-Forwarded-For` past the trusted proxies (`proxy.rs`: two hops, a spoofed left entry, a CIDR) | a forged address, or every visitor keyed as the proxy | ADR 0083 item 5 |
+| The REST pace: the 101st request of a burst answers 429, the next second's does not; a forwarded loopback is paced (`tests_bounds.rs`) | a flood of the REST routes | ADR 0083 item 7 |
+| The bounds: a head past 64 KiB answers 431, a note update past 4 MB refused, a wrong poll delayed, the mail key, no redirect followed (`tests_bounds.rs`, `update.rs`); PDF.js's build without `eval` (`app/ui/test/pdf.test.mjs`) | a loose bound coming back | ADR 0083 item 8 |
+| The whole set of security headers, name and value, on `/`, `/api/state` and `/f/` (`tests_threats.rs`) | a header lost in a refactor | ADR 0083 item 9 |
+| The audit retention: a row older than `VERSO_AUDIT_DAYS` goes, a younger one stays, 0 keeps all (`audit::tests`) | the audit log kept for ever | ADR 0083 item 10 |
+| A new folder `0750` (`verso-fs`); the unit and the read-only image started by `scripts/check-server-image.sh` | a service or a container that can do more than it needs | ADR 0083 item 11 |
+| The backup script test in `scripts/check-linux.sh` (`--script`): an encrypted backup restored and compared, the secret key on no file | a backup that does not restore, or its key left on the host | ADR 0083 item 12 |
+| `scripts/check-npm-audit.mjs` over `app/ui` (CI and `scripts/check.sh`), exceptions with an expiry in `app/ui/audit-exceptions.json` | a high or critical npm advisory shipped unseen | ADR 0083 item 13 |
+| `/.well-known/security.txt` answers the required fields, `Expires` a year after the changelog's release date (`security_txt.rs`) | a reporter with nowhere to write | ADR 0083 item 15 |
+| The proof tests (`tests_prove.rs`, `app/ui/test/proof.test.mjs`): every sensitive route answers `prove_first` past ten minutes; the device page's typed code | a sensitive action from an old or stolen cookie | ADR 0083 items 6 and 17 |
+| The server's inputs fuzzed with `cargo-fuzz`, 60 s a target on `main` (being merged) | a hostile request, update or header crashing the server | ADR 0083 item 14 |
 
 CI ([ADR 0029](docs/adr/0029-guardrails-in-ci.md), 2026-09-23): a pull
 request runs every guardrail but the fuzzing in one Linux job; `main` adds
