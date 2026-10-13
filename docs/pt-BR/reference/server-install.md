@@ -417,8 +417,11 @@ Sem `VERSO_SMTP_URL` nada é enviado: o admin copia os links de convite e de sen
 
 O servidor se recusa a autenticar alguém por HTTP simples (0073 item 6).
 Uma requisição conta como segura quando o próprio Verso serve TLS, quando
-vem do `VERSO_TRUSTED_PROXY` com `X-Forwarded-Proto: https`, ou quando o
-Verso escuta no loopback e a requisição vem desta máquina. O navegador
+vem do `VERSO_TRUSTED_PROXY` com `X-Forwarded-Proto: https` — por um
+proxy confiável só esse cabeçalho decide, então um proxy que não o manda,
+ou manda `http`, tem os visitantes recusados (`tls_required`) —, ou quando
+o Verso escuta no loopback e a requisição vem direto desta máquina, não
+por um proxy confiável. O navegador
 também exige HTTPS para os recursos seguros da janela (entre eles as
 passkeys). Três caminhos, decididos na 0073 item 6:
 

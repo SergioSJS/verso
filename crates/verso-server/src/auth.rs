@@ -22,9 +22,10 @@ pub struct Peer {
     /// forwarded.
     pub addr: IpAddr,
     /// Whether the request reached the server over TLS — its own, or a
-    /// trusted proxy's — or from this machine, where a browser counts
-    /// `http://localhost` as a secure context. Nothing that signs in or
-    /// carries a secret is served otherwise (ADR 0073 item 6).
+    /// trusted proxy's, as its `X-Forwarded-Proto` alone says — or directly
+    /// from this machine, where a browser counts `http://localhost` as a
+    /// secure context. Nothing that signs in or carries a secret is served
+    /// otherwise (ADR 0073 item 6).
     pub secure: bool,
 }
 
@@ -114,13 +115,19 @@ pub fn peer(server: &Server, headers: &HeaderMap, remote: SocketAddr) -> Peer {
         );
     }
     let (addr, from_proxy) = (client.addr, client.from_proxy);
+    // Through a trusted proxy, its `X-Forwarded-Proto` alone says how the
+    // visitor came: a proxy on this machine serving plain HTTP is not made
+    // secure by the server's loopback listen. Only a direct connection from
+    // this machine is, as `http://localhost` is for a browser.
     let secure = own_tls(server)
-        || (from_proxy
-            && headers
+        || if from_proxy {
+            headers
                 .get("x-forwarded-proto")
                 .and_then(|v| v.to_str().ok())
-                .is_some_and(|p| p.eq_ignore_ascii_case("https")))
-        || (remote.ip().is_loopback() && server.config.loopback_only());
+                .is_some_and(|p| p.eq_ignore_ascii_case("https"))
+        } else {
+            remote.ip().is_loopback() && server.config.loopback_only()
+        };
     Peer { addr, secure }
 }
 
