@@ -251,6 +251,9 @@ pub struct Server {
     pub fair: crate::fair::Fair,
     /// Refused sign-ins, said for the host's tools (ADR 0083 item 1).
     pub signins: crate::signin::Watch,
+    /// The Argon2id hashes run at once, and the sign-in attempts in flight
+    /// per key (`crate::hashes`).
+    pub hashes: crate::hashes::Hashes,
     /// The connections the listener holds, on the server and by address
     /// (threat-model.md, gap 8).
     pub slots: Arc<crate::listen::Slots>,
@@ -325,6 +328,7 @@ impl Server {
             limiter: Limiter::default(),
             fair: crate::fair::Fair::default(),
             signins: crate::signin::Watch::default(),
+            hashes: crate::hashes::Hashes::default(),
             slots,
             unforwarded: crate::log::OnceAMinute::default(),
             pace: crate::pace::Pace::default(),
