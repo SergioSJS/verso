@@ -86,19 +86,22 @@ function password(item: Item): HTMLElement {
   const line = said();
   const current = input("password", { autocomplete: "current-password" });
   const next = input("password", { autocomplete: "new-password", minlength: "12" });
+  // Checked by default: whoever took the old password may have made a
+  // token (ADR 0083 item 4). Its row's title names it (aria-labelledby).
+  const revoke = toggle(true);
   const go = button(s.changePassword, "save");
   act(
     go,
     line,
     async () => {
-      await api("POST", "/api/me/password", { current: current.value, new: next.value });
+      const done = await api<{ tokensRevoked: number; tokensKept: number }>("POST", "/api/me/password", { current: current.value, new: next.value, revokeTokens: revoke.input.checked });
       current.value = "";
       next.value = "";
-      line.textContent = s.saved;
+      line.textContent = revoke.input.checked ? s.tokensRevoked(done.tokensRevoked) : s.tokensKept(done.tokensKept);
     },
     explain,
   );
-  return el("div", { class: "web-block" }, item(s.passwordCurrent, "", current), item(s.passwordNew, s.passwordHint, next), item("", s.passwordChangeDesc, controls(go)), line);
+  return el("div", { class: "web-block" }, item(s.passwordCurrent, "", current), item(s.passwordNew, s.passwordHint, next), item(s.revokeTokens, s.revokeTokensDesc, revoke.el), item("", s.passwordChangeDesc, controls(go)), line);
 }
 
 function passkeys(item: Item): HTMLElement {
