@@ -490,15 +490,22 @@ pub fn update(
     Ok(())
 }
 
-/// The count a Yjs v1 encoding starts with, lib0's variable-length
-/// integer: an update's clients, a state vector's entries. `None` when
-/// the bytes end inside it.
-fn declared(bytes: &[u8]) -> Option<u64> {
-    let mut n: u64 = 0;
-    for (i, b) in bytes.iter().take(10).enumerate() {
-        n |= u64::from(b & 0x7f) << (7 * i);
+/// The count a Yjs v1 encoding starts with, as `yrs` 0.28 reads it
+/// (`read_var_u32`): lib0's variable-length integer in up to eleven
+/// bytes, each one's seven bits shifted by a multiple of 7 that wraps at
+/// 32. An update's clients, a state vector's entries. `None` when `yrs`
+/// would not read one.
+fn declared(bytes: &[u8]) -> Option<u32> {
+    let mut n: u32 = 0;
+    let mut shift: u32 = 0;
+    for b in bytes {
+        n |= u32::from(b & 0x7f).wrapping_shl(shift);
+        shift += 7;
         if b & 0x80 == 0 {
             return Some(n);
+        }
+        if shift > 70 {
+            return None;
         }
     }
     None
@@ -510,9 +517,10 @@ fn declared(bytes: &[u8]) -> Option<u64> {
 /// 0083 item 14; the fuzz targets `note` and `board` saw 22 GB asked for
 /// four bytes). No real one declares more than it has bytes.
 pub(crate) fn readable(bytes: &[u8]) -> Result<(), ContractError> {
-    let len = u64::try_from(bytes.len()).unwrap_or(u64::MAX);
     match declared(bytes) {
-        Some(count) if count > len => Err(refused("an update the room cannot read")),
+        Some(count) if usize::try_from(count).unwrap_or(usize::MAX) > bytes.len() => {
+            Err(refused("an update the room cannot read"))
+        }
         _ => Ok(()),
     }
 }
@@ -1363,6 +1371,17 @@ mod tests {
         let doc = crate::collab_board::new_doc("{}");
         let mut board = crate::collab_board::Board::of(&doc);
         let e = board.keep(at, String::new()).expect_err("refused");
+        assert_eq!(e.message, "an update the room cannot read");
+    }
+
+    /// Seen in the fuzz target `board` once the count was guarded: `yrs`
+    /// reads the count in up to eleven bytes, its shifts wrapping at 32
+    /// bits, so a count written long declares as much as a short one.
+    #[test]
+    fn a_count_written_in_eleven_bytes_is_read_as_yrs_reads_it() {
+        let mut update = vec![0xff; 10];
+        update.extend([0x01, 0, 0]);
+        let e = decode(&update).expect_err("refused");
         assert_eq!(e.message, "an update the room cannot read");
     }
 }
