@@ -917,7 +917,10 @@ on a real machine. Verified since:
   MiB guest again**).
 - 2026-10-13: the hardening of [ADR 0083](../adr/0083-security-hardening-of-universo.md)
   item 11, in Docker on an Apple-silicon Mac (colima, Linux 6.8, arm64),
-  by `scripts/check-server-image.sh`: the image run read-only, `/tmp` in
+  by `scripts/check-server-image.sh` — a step of `scripts/check-linux.sh`
+  since then, run before a push, not in CI, where building the static
+  server from nothing would add several minutes to the Linux job: the
+  image run read-only, `/tmp` in
   memory, no capability, `no-new-privileges` (the state over its own TLS, a
   sign-in, a folder made `0750`, `admin reset`); and the same static musl
   binary laid out as `nfpm.yaml` lays it, by hand, in a Debian 12 container
