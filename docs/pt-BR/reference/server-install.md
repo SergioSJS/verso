@@ -382,9 +382,11 @@ pacotes:
 sudo -u universo -H sh -c 'set -a; . /etc/universo/universo.env; exec universo admin reset voce@exemplo.com'
 ```
 
-Ele imprime um link de uso único, encerra as sessões da conta e registra a
-redefinição no registro de auditoria. A senha de um membro é redefinida
-pelo admin, no console de administração (`/admin`).
+Ele imprime um link de uso único, encerra as sessões da conta, revoga os
+tokens de acesso pessoais dela e registra a redefinição, e cada token, no
+registro de auditoria (ADR 0083 item 4). A senha de um membro é
+redefinida pelo admin, no console de administração (`/admin`); usar esse
+link revoga os tokens do membro também.
 
 ## 11. O registry enquanto o repositório for privado
 

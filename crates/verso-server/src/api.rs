@@ -393,7 +393,9 @@ pub struct Reset {
 }
 
 /// A new password from a reset link (ADR 0074 item 5): every session of
-/// the account ends, and this browser is signed in.
+/// the account ends, every personal access token is revoked (ADR 0083 item
+/// 4: whoever took the password may have made one), and this browser is
+/// signed in.
 pub async fn reset(
     ctx: Ctx,
     Path(token): Path<String>,
@@ -428,10 +430,11 @@ pub async fn reset(
     }
     ctx.server.db.set_password(&account.id, &body.password)?;
     ctx.server.db.end_sessions(&account.id, None)?;
+    let revoked = revoke_tokens(&ctx, &account.id)?;
     ctx.server
         .push_account(&account.id, &json!({ "gone": "session" }));
     ctx.audit_as(Some(&account.id), "password_reset", None, None, true);
-    signed_in(&ctx, &account, json!(null))
+    signed_in(&ctx, &account, json!({ "tokensRevoked": revoked }))
 }
 
 /// The person, the folders they may enter and their role in each.
@@ -464,14 +467,30 @@ pub async fn profile(ctx: Ctx, Json(body): Json<Profile>) -> ApiResult<Response>
     Ok(ok(json!(null)))
 }
 
+/// Every personal access token of `account` revoked, a line of the audit
+/// log each, as the account's own (ADR 0083 item 4): how many.
+fn revoke_tokens(ctx: &Ctx, account: &str) -> ApiResult<usize> {
+    let ids = ctx.server.db.revoke_tokens_of(account)?;
+    for id in &ids {
+        ctx.audit_as(Some(account), "token_revoked", Some(id), None, true);
+    }
+    Ok(ids.len())
+}
+
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Password {
     current: String,
     new: String,
+    /// The account's personal access tokens revoked too (ADR 0083 item
+    /// 4); the window offers it checked.
+    #[serde(default)]
+    revoke_tokens: bool,
 }
 
 /// A new password: the current one first; the other sessions end
-/// (ADR 0074 item 7).
+/// (ADR 0074 item 7), and the tokens when asked — otherwise the answer
+/// says how many stay (ADR 0083 item 4).
 pub async fn password(ctx: Ctx, Json(body): Json<Password>) -> ApiResult<Response> {
     ctx.changes()?;
     let who = ctx.person()?.clone();
@@ -510,8 +529,14 @@ pub async fn password(ctx: Ctx, Json(body): Json<Password>) -> ApiResult<Respons
     ctx.server.db.end_sessions(&who.account.id, who.session())?;
     ctx.server
         .sessions_ended(&who.account.id, None, who.session());
+    let revoked = if body.revoke_tokens {
+        revoke_tokens(&ctx, &who.account.id)?
+    } else {
+        0
+    };
+    let kept = ctx.server.db.token_count(&who.account.id)?;
     ctx.audit("password_change", None, None, true);
-    Ok(ok(json!(null)))
+    Ok(ok(json!({ "tokensRevoked": revoked, "tokensKept": kept })))
 }
 
 pub async fn sessions(ctx: Ctx) -> ApiResult<Response> {

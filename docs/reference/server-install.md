@@ -371,9 +371,11 @@ docker exec universo universo admin reset you@example.com
 sudo -u universo -H sh -c 'set -a; . /etc/universo/universo.env; exec universo admin reset you@example.com'
 ```
 
-It prints a link to use once, ends the account's sessions and records the
-reset in the audit log. A member's password is reset by the admin, in
-the administration console (`/admin`).
+It prints a link to use once, ends the account's sessions, revokes its
+personal access tokens and records the reset, and each token, in the
+audit log (ADR 0083 item 4). A member's password is reset by the admin,
+in the administration console (`/admin`); using that link revokes the
+member's tokens too.
 
 ## 11. The registry while the repository is private
 

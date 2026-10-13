@@ -3,8 +3,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 //! Personal access tokens (ADR 0074 item 8): made, looked up by their
-//! hash, listed and revoked. Moved out of `db.rs` whole, which was near
-//! the size limit (ADR 0067).
+//! hash, listed and revoked — one by one, or all of an account's at a
+//! password's reset (ADR 0083 item 4). Moved out of `db.rs`, which was
+//! near the size limit (ADR 0067).
 
 use rusqlite::{OptionalExtension, params};
 
@@ -161,5 +162,38 @@ impl Db {
             )
             .map_err(e)?
             > 0)
+    }
+
+    /// Revoke every token of `account`: the ids revoked, for the audit
+    /// log's line each (ADR 0083 item 4).
+    pub fn revoke_tokens_of(&self, account: &str) -> R<Vec<String>> {
+        let mut conn = self.conn();
+        let tx = conn.transaction().map_err(e)?;
+        let ids = {
+            let mut st = tx
+                .prepare("SELECT id FROM tokens WHERE account = ?1 ORDER BY created")
+                .map_err(e)?;
+            st.query_map([account], |r| r.get(0))
+                .map_err(e)?
+                .collect::<rusqlite::Result<Vec<String>>>()
+                .map_err(e)?
+        };
+        tx.execute("DELETE FROM tokens WHERE account = ?1", [account])
+            .map_err(e)?;
+        tx.commit().map_err(e)?;
+        Ok(ids)
+    }
+
+    /// How many tokens `account` holds.
+    pub fn token_count(&self, account: &str) -> R<usize> {
+        let n: i64 = self
+            .conn()
+            .query_row(
+                "SELECT COUNT(*) FROM tokens WHERE account = ?1",
+                [account],
+                |r| r.get(0),
+            )
+            .map_err(e)?;
+        Ok(usize::try_from(n).unwrap_or(0))
     }
 }

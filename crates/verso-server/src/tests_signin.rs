@@ -202,3 +202,136 @@ fn a_password_from_the_lists_is_refused_where_one_is_chosen() {
         );
     });
 }
+
+/// What `/api/folders` answers a request with `secret` as its bearer.
+async fn with_token(r: &Running, secret: &str) -> u16 {
+    reqwest::Client::new()
+        .get(r.url("/api/folders"))
+        .bearer_auth(secret)
+        .send()
+        .await
+        .unwrap()
+        .status()
+        .as_u16()
+}
+
+/// A new personal access token of the browser `b`, reading `folder`.
+async fn new_token(r: &Running, b: &crate::tests::Browser, folder: &str) -> (String, String) {
+    let (status, made) = post(
+        r,
+        "/api/me/tokens",
+        json!({ "name": "script", "write": false, "days": 30, "folders": [folder] }),
+        Some(b),
+    )
+    .await;
+    assert_eq!(status, 200, "{made}");
+    (
+        made["secret"].as_str().unwrap().to_owned(),
+        made["token"]["id"].as_str().unwrap().to_owned(),
+    )
+}
+
+/// The audit log's `token_revoked` rows for token `id`.
+fn revoked_rows(r: &Running, id: &str) -> usize {
+    r.server
+        .db
+        .audit_log(None, 1000)
+        .unwrap()
+        .iter()
+        .filter(|a| a.action == "token_revoked" && a.subject.as_deref() == Some(id))
+        .count()
+}
+
+/// A password reset — by a link, or on the server's machine — revokes the
+/// account's tokens, each in the audit log; a change does when asked, and
+/// otherwise says how many stay (ADR 0083 item 4).
+#[test]
+fn a_reset_takes_the_accounts_tokens_and_a_change_does_when_asked() {
+    block_on(async {
+        let r = start().await;
+        let mut admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let folder = crate::tests::folder_id(&r, &admin).await;
+        let admin_id = r
+            .server
+            .db
+            .account_by_email("admin@casa.lan")
+            .unwrap()
+            .unwrap()
+            .id;
+        // A reset by link: the token answers 401 after it.
+        let (secret, id) = new_token(&r, &admin, &folder).await;
+        assert_eq!(with_token(&r, &secret).await, 200);
+        let (_, link) = post(
+            &r,
+            &format!("/api/admin/accounts/{admin_id}/reset"),
+            json!({}),
+            Some(&admin),
+        )
+        .await;
+        let reset = link["link"]
+            .as_str()
+            .unwrap()
+            .rsplit('/')
+            .next()
+            .unwrap()
+            .to_owned();
+        let (status, done) = post(
+            &r,
+            &format!("/api/reset/{reset}"),
+            json!({ "password": "uma senha nova bem longa" }),
+            None,
+        )
+        .await;
+        assert_eq!(status, 200, "{done}");
+        assert_eq!(
+            with_token(&r, &secret).await,
+            401,
+            "the token outlived the reset"
+        );
+        assert_eq!(done["done"]["tokensRevoked"], json!(1), "{done}");
+        assert_eq!(revoked_rows(&r, &id), 1);
+        // A reset on the server's machine (`universo admin reset`).
+        admin = sign_in(&r, "admin@casa.lan", "uma senha nova bem longa").await;
+        let (secret, id) = new_token(&r, &admin, &folder).await;
+        crate::admin_reset(&r.server.config, "admin@casa.lan").unwrap();
+        assert_eq!(
+            with_token(&r, &secret).await,
+            401,
+            "the token outlived the reset"
+        );
+        assert_eq!(revoked_rows(&r, &id), 1);
+        // A change with `revokeTokens`: gone.
+        r.server.limiter.succeeded("in:127.0.0.1");
+        admin = sign_in(&r, "admin@casa.lan", "uma senha nova bem longa").await;
+        let (secret, id) = new_token(&r, &admin, &folder).await;
+        let (status, changed) = post(
+            &r,
+            "/api/me/password",
+            json!({ "current": "uma senha nova bem longa", "new": "mais uma senha bem longa", "revokeTokens": true }),
+            Some(&admin),
+        )
+        .await;
+        assert_eq!(status, 200, "{changed}");
+        assert_eq!(
+            with_token(&r, &secret).await,
+            401,
+            "the token outlived the change"
+        );
+        assert_eq!(changed["tokensRevoked"], json!(1), "{changed}");
+        assert_eq!(revoked_rows(&r, &id), 1);
+        // A change without it: the token stays, and the answer says so.
+        let (secret, _) = new_token(&r, &admin, &folder).await;
+        let (_, other) = new_token(&r, &admin, &folder).await;
+        let _ = other;
+        let (status, changed) = post(
+            &r,
+            "/api/me/password",
+            json!({ "current": "mais uma senha bem longa", "new": "a ultima senha bem longa" }),
+            Some(&admin),
+        )
+        .await;
+        assert_eq!(status, 200, "{changed}");
+        assert_eq!(with_token(&r, &secret).await, 200);
+        assert_eq!(changed["tokensKept"], json!(2), "{changed}");
+    });
+}
