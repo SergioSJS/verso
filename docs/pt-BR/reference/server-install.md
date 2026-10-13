@@ -955,7 +955,10 @@ máquina real. Verificado desde então:
   novo**).
 - 2026-10-13: o endurecimento do [ADR 0083](../adr/0083-security-hardening-of-universo.md)
   item 11, em Docker num Mac com Apple silicon (colima, Linux 6.8, arm64),
-  pelo `scripts/check-server-image.sh`: a imagem rodando só para leitura,
+  pelo `scripts/check-server-image.sh` — desde então um passo do
+  `scripts/check-linux.sh`, rodado antes de um push, não no CI, onde
+  compilar o servidor estático do zero somaria vários minutos ao job do
+  Linux: a imagem rodando só para leitura,
   `/tmp` em memória, nenhuma capability, `no-new-privileges` (o estado pelo
   TLS próprio, uma entrada, uma pasta criada `0750`, `admin reset`); e o
   mesmo binário estático musl disposto como o `nfpm.yaml` dispõe, à mão,

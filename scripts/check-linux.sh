@@ -23,6 +23,14 @@
 # `backup --keygen`, an encrypted backup, a restore into a scratch root
 # compared file by file, mode and owner with the original. `--script` runs
 # that test alone.
+#
+# Last, the server's packaging (ADR 0083 item 11): scripts/check-server-
+# image.sh builds the static musl server in a container of this machine's
+# architecture (arm64 on Apple silicon; the release builds amd64 too), runs
+# the image as the compose file declares it (read-only, no capability),
+# and starts the same binary under packaging/server/universo.service in a
+# Debian container running systemd — the package's layout laid by hand, not
+# a .deb made by nfpm. `--image` runs that step alone.
 set -euo pipefail
 
 if [ "${1:-}" = "--universo-sh" ]; then
@@ -105,6 +113,13 @@ if [ "${1:-}" = "--universo-sh" ]; then
   exit 0
 fi
 
+image_test() {
+  printf '\n== the server image and the systemd unit, in Docker on %s, no nfpm package (ADR 0083 item 11)\n' "$(docker version --format '{{.Server.Arch}}')"
+  # Its own working directory, never this script's VERSO_LINUX_DIR: both
+  # copy the tree into $dir/src.
+  env -u VERSO_LINUX_DIR bash scripts/check-server-image.sh
+}
+
 script_test() {
   printf '\n== universo.sh: backup, --encrypt with age, restore (ADR 0083 item 12)\n'
   docker run --rm -v "$PWD":/src:ro debian:12-slim bash /src/scripts/check-linux.sh --universo-sh
@@ -143,6 +158,11 @@ if [ "${1:-}" = "--script" ]; then
   script_test
   exit 0
 fi
+if [ "${1:-}" = "--image" ]; then
+  [ -f app/ui/dist/web.html ] || { echo "no UI build with web.html: cd app/ui && npm run build"; exit 1; }
+  image_test
+  exit 0
+fi
 if [ ! -f app/ui/dist/index.html ]; then
   echo "no UI bundle: run scripts/check.sh first (or: cd app/ui && npm ci && npm run build)"
   exit 1
@@ -161,3 +181,4 @@ docker run --rm \
   -v verso-rustup:/usr/local/rustup \
   rust:1-bookworm bash scripts/check-linux.sh --inside
 script_test
+image_test
