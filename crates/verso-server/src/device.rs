@@ -163,6 +163,8 @@ pub async fn approve(ctx: Ctx, Path(code): Path<String>) -> ApiResult<Response> 
     if !matches!(who.via, crate::auth::Via::Browser { .. }) {
         return Err(ApiError::forbidden("approved in the browser"));
     }
+    // A fresh proof first, before the code is looked at (ADR 0083 item 6).
+    ctx.proved()?;
     let code = code.to_ascii_uppercase();
     let device = {
         let devices = lock(&ctx.server.devices);

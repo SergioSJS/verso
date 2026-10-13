@@ -33,6 +33,7 @@ pub mod pace;
 pub mod passkeys;
 pub mod passwords;
 pub mod presence;
+pub mod proof;
 pub mod proxy;
 pub mod quota;
 pub mod rpc;
@@ -322,6 +323,8 @@ mod tests_bounds;
 mod tests_console;
 #[cfg(test)]
 mod tests_pieces;
+#[cfg(test)]
+mod tests_prove;
 #[cfg(test)]
 mod tests_rooms;
 #[cfg(test)]

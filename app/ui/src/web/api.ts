@@ -6,6 +6,7 @@
 // A request that changes something carries the session's CSRF token; the
 // cookie is the browser's, never read here (HttpOnly).
 
+import { withProof } from "./proof";
 import { w } from "./strings";
 
 export type Account = { id: string; email: string; name: string; lang: string; admin: boolean; mayCreate: boolean };
@@ -83,13 +84,16 @@ export class ApiError extends Error {
         return s.passkeyFailed;
       case "bad_request":
         return s.badRequest;
+      case "prove_first":
+        return s.proveFirst;
       default:
         return this.message || s.failed;
     }
   }
 }
 
-export async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
+/** A request of the API, sent once, whatever it answers. */
+export async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["content-type"] = "application/json";
   if (csrf && method !== "GET") headers["x-verso-csrf"] = csrf;
@@ -109,6 +113,13 @@ export async function api<T>(method: string, path: string, body?: unknown): Prom
     );
   }
   return data as T;
+}
+
+/** A request of the API; when it wants a fresh proof (`prove_first`, ADR
+ *  0083 item 6), the person is asked on the spot and it is sent once more
+ *  (`web/proof.ts`). */
+export function api<T>(method: string, path: string, body?: unknown): Promise<T> {
+  return withProof(() => request<T>(method, path, body));
 }
 
 let account: Account | null = null;
