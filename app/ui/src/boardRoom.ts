@@ -273,8 +273,39 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
     this.entries.set(entryKey(e.id, r), JSON.stringify(e));
   }
 
-  /** The room's elements `ids` (and its background), into the board. */
+  /** The room's elements `ids` (and its background), into the board — in
+   *  a task of its own, after the tasks already queued, the ones asked for
+   *  meanwhile together. Excalidraw changes its scene at once but its
+   *  state (the selection above all) only when React renders, in a task it
+   *  queued: a key or a pointer just handled — an undo selecting again an
+   *  element it restored, a press selecting the element under it — can
+   *  have a selection still to come. Handed the room's elements in
+   *  between, the board deletes an element the person's own action is
+   *  about to select, and draws it selected and deleted (Excalidraw's
+   *  "[NONDELETED][INVARIANT] getSelectedElements skipping deleted
+   *  selected element", seen on macOS and in Linux under load,
+   *  2026-10-13). After those tasks, the selection the board reads is the
+   *  one it will draw, and the elements another deleted leave it first. */
   private pull(ids: ReadonlySet<string>, background: string | null | undefined): void {
+    for (const id of ids) this.pullIds.add(id);
+    if (background !== undefined) this.pullBackground = background;
+    if (this.pullQueued) return;
+    this.pullQueued = true;
+    nextTask(() => {
+      this.pullQueued = false;
+      const queued = this.pullIds;
+      const bg = this.pullBackground;
+      this.pullIds = new Set();
+      this.pullBackground = undefined;
+      if (this.open) this.pullNow(queued, bg);
+    });
+  }
+  private pullIds = new Set<string>();
+  private pullBackground: string | null | undefined = undefined;
+  private pullQueued = false;
+
+  /** [`pull`], now. */
+  private pullNow(ids: ReadonlySet<string>, background: string | null | undefined): void {
     const all = this.resolved();
     if (![...ids].some((id) => all.has(id)) && background === undefined) return;
     // Every element of the room, not only the ones that changed: the board
@@ -434,6 +465,18 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
     this.panes.clear();
     super.leave();
   }
+}
+
+/** Run `f` in a task of its own, after the tasks already queued (a
+ *  posted message: not delayed as a timer is in a window in the
+ *  background). */
+function nextTask(f: () => void): void {
+  const { port1, port2 } = new MessageChannel();
+  port1.onmessage = () => {
+    port1.close();
+    f();
+  };
+  port2.postMessage(null);
 }
 
 /** Join the room of the board at `path`: null where the side keeps no
