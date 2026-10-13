@@ -18,6 +18,14 @@ test release.
 - **The audit log keeps a year, then forgets** ([ADR 0083](docs/adr/0083-security-hardening-of-universo.md) item 10): `VERSO_AUDIT_DAYS` (365 by default, `0` for ever) says how long a row — who signed in, from where, what changed in access — is kept; a sweep at start and once a day deletes older rows, by time alone, and the console's overview says the retention.
 - **Encrypted backups that can leave the machine** ([ADR 0083](docs/adr/0083-security-hardening-of-universo.md) item 12): `sh universo.sh backup --encrypt` encrypts the backup with [age](https://age-encryption.org) to a key made once by `backup --keygen` — whose secret half is printed for you to keep elsewhere and never stays on the server — or, with `--passphrase`, to a passphrase; `backup --to-stdout` writes it to a pipe of your own; `sh universo.sh restore FILE [--identity KEY-FILE] [--to DIR]` puts a backup back, or unpacks it elsewhere to look at it. Without age, `--encrypt` says how to install it and makes the plain backup with a warning in capitals.
 
+### Changed
+
+- **UniVerso's service and container do less** ([ADR 0083](docs/adr/0083-security-hardening-of-universo.md) item 11): the systemd unit hides the host's other processes (`ProtectProc=invisible`, `ProcSubset=pid`), allows only an ordinary service's system calls (`SystemCallFilter=@system-service`, none of `@privileged` or `@resources`) and makes files closed to other users (`UMask=0027`); a new folder of notes is made `0750` whatever the umask; the compose file runs the container read-only with `/tmp` in memory, no capability and `no-new-privileges`, and shows the first admin's password as a Docker secret before the plain variable, as the guide's `docker run` does.
+
+### Fixed
+
+- **The compose file parses again**: an unquoted colon in its CasaOS tagline made `docker compose` refuse the whole file; `scripts/check-server-image.sh` now checks it with `docker compose config`.
+
 ## 0.8.0-beta.1 — 2026-10-13
 
 ### Added

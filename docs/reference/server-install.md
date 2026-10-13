@@ -183,6 +183,7 @@ section 11):
 ```sh
 docker run -d --name universo --restart unless-stopped \
   -p 127.0.0.1:7340:7340 \
+  --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
   -v /srv/universo/data:/data \
   -v /srv/universo/folders:/folders \
   -e VERSO_PUBLIC_URL=https://notes.example.com \
@@ -199,6 +200,14 @@ versions exist, `latest` does not exist: use `beta` or a version.
 The port is published on `127.0.0.1` because TLS goes in front (section 8).
 `docker logs universo` shows the log, including the setup link of section 9.
 
+The second line keeps the container to what the server needs
+([ADR 0083](../adr/0083-security-hardening-of-universo.md) item 11): the
+image's own files read-only, `/tmp` in memory, no Linux capability, nothing
+gained through a setuid program; the server writes under `/data` and
+`/folders` only. The password comes from a file mounted as a secret, which
+`docker inspect` does not show, rather than from `-e VERSO_ADMIN_PASSWORD`,
+which it does; the file must be readable by uid 1000.
+
 ## 4. CasaOS and ZimaOS
 
 `packaging/server/docker-compose.yml` carries the `x-casaos` metadata
@@ -214,7 +223,12 @@ and serves any host that takes a compose file:
 It binds `/DATA/AppData/universo/data` (the app data path CasaOS uses) to
 `/data`, and `/DATA/Documents/Verso` to `/folders` — change the second to
 wherever the notes should live, a NAS included. Both must be writable by
-uid 1000, as in section 3. The image is pulled from GitHub's registry,
+uid 1000, as in section 3. It declares the same hardening as section 3's
+command (`read_only`, `tmpfs: /tmp`, `cap_drop: ALL`,
+`no-new-privileges`), and shows the first admin's password as a Docker
+secret, commented out, before the plain variable: to use it, put the
+password in `admin-password` beside the compose file, readable by uid 1000,
+and uncomment the three places the file marks. The image is pulled from GitHub's registry,
 which needs a `docker login` while the repository is private (section 11):
 on CasaOS and ZimaOS, in the system's terminal, once.
 
@@ -247,7 +261,9 @@ journalctl -u universo -f
 
 The package listens on `127.0.0.1:7340` by default: TLS goes in front
 (section 8). The unit is hardened (`ProtectSystem=strict`, writes only under
-`/var/lib/universo`, `ProtectHome=read-only`). A folders directory elsewhere
+`/var/lib/universo`, `ProtectHome=read-only`, other processes hidden by
+`ProtectProc=invisible`, the system calls of an ordinary service only,
+`UMask=0027`; a new folder is made `0750`). A folders directory elsewhere
 needs a drop-in, which an upgrade keeps:
 
 ```sh
@@ -838,6 +854,18 @@ on a real machine. Verified since:
   then measured on the 1-core VM at 1 GB and at 453 MiB, a file in pieces
   from the disk (8e2c2f1) among it (section 14, **Ten devices, and the 453
   MiB guest again**).
+- 2026-10-13: the hardening of [ADR 0083](../adr/0083-security-hardening-of-universo.md)
+  item 11, in Docker on an Apple-silicon Mac (colima, Linux 6.8, arm64),
+  by `scripts/check-server-image.sh`: the image run read-only, `/tmp` in
+  memory, no capability, `no-new-privileges` (the state over its own TLS, a
+  sign-in, a folder made `0750`, `admin reset`); and the same static musl
+  binary laid out as `nfpm.yaml` lays it, by hand, in a Debian 12 container
+  running systemd 252, started by `universo.service` with its new settings
+  (the process under a seccomp filter, the state, a sign-in, a folder
+  `0750`, the database `0600`; `systemd-analyze security`: 1.3, OK). Not a
+  package built by nfpm, not a VM, not amd64. Before that day the compose
+  file did not pass `docker compose config` (an unquoted colon in a
+  tagline); it does now, and the script checks it.
 
 Not verified yet:
 
@@ -850,7 +878,8 @@ Not verified yet:
   its `firewall` and `reset-admin` commands;
 - the not-running message `postinstall.sh` prints when an install leaves
   the service disabled (added after the 2026-10-12 verification);
-- the compose file in CasaOS and ZimaOS (it passes `docker compose config`;
+- the compose file in CasaOS and ZimaOS (it passes `docker compose config`
+  since 2026-10-13;
   its `x-casaos` block follows the CasaOS AppStore's v2 description of
   2026-10-09, not checked by their validator);
 - the `tailscale serve` recipe and the Caddy example against this server;
