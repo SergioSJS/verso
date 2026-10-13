@@ -31,6 +31,9 @@ const LOCAL = "board";
 const PUSH_EVERY = 60;
 /** How long the room's state rests before this window hands it the file. */
 const CANVAS_AFTER = 250;
+/** How many times in a row the board's own change to an element it took
+ *  in goes to the room before the room's version is let stand. */
+const SELF_MADE_MOST = 3;
 /** How often this window's pointer goes out. */
 const POINTER_EVERY = 40;
 
@@ -45,6 +48,11 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
   private readonly panes = new Set<BoardPane>();
   private edits = 0;
   private pending: { scene: readonly El[]; user: boolean; background: string } | null = null;
+  /** Per element: how many times in a row the board changed by itself
+   *  the room's version it took in. A person's change resets it. */
+  private readonly selfMade = new Map<string, number>();
+  /** The scene as the board last said it. */
+  private last: { scene: readonly El[]; user: boolean; background: string } | null = null;
   private pushTimer: number | undefined;
   private canvasTimer: number | undefined;
   private pointerTimer: number | undefined;
@@ -178,14 +186,25 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
     if (!this.writable || !this.open) return;
     const was = this.pending;
     this.pending = { scene, user: user || (was?.user ?? false), background };
+    this.last = { scene, user: false, background };
     if (this.pushTimer === undefined) this.pushTimer = window.setTimeout(() => this.push(), PUSH_EVERY);
+  }
+
+  /** Send what the board holds of its own on the next beat, though it
+   *  said nothing new (a change Excalidraw made by itself while taking the
+   *  room's elements in). */
+  private pushSoon(): void {
+    if (this.pushTimer !== undefined) return;
+    this.pushTimer = window.setTimeout(() => this.push(), PUSH_EVERY);
   }
 
   /** What waits to go out, now. */
   push(): void {
     window.clearTimeout(this.pushTimer);
     this.pushTimer = undefined;
-    const p = this.pending;
+    // Nothing new said: the scene as last said, for what the board changed
+    // by itself since (`pushSoon`).
+    const p = this.pending ?? this.last;
     this.pending = null;
     if (!p || !this.writable || !this.open) return;
     const held = this.resolved();
@@ -203,6 +222,7 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
         if (bgChanged) this.meta.set("background", bg);
         if (p.user) this.meta.set(`edit:${this.doc.clientID}`, ++this.edits);
       }, LOCAL);
+      if (p.user) for (const e of changed) this.selfMade.delete(e.id);
     }
     // What the board shows that is not the room's winner, and is not a
     // change of its own still to go — a deletion as it was sent (jumped
@@ -214,6 +234,8 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
     for (const e of p.scene) {
       const w = room.get(e.id);
       if (!w || unsent(e, this.known)) continue;
+      // The room's version let stand here, laid out this board's way.
+      if ((this.selfMade.get(e.id) ?? 0) > SELF_MADE_MOST) continue;
       const a = rankOf(e);
       const b = rankOf(w);
       if (a.version !== b.version || a.nonce !== b.nonce) behind.add(e.id);
@@ -246,9 +268,35 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
       for (const e of remote) this.known.set(e.id, rankOf(e));
       return;
     }
+    // The versions as the room holds them, taken before the board has
+    // them: Excalidraw changes an element it is handed in place — a new
+    // index where two share a place, a new version with its own nonce in
+    // each window — and that change is the board's own, to be sent, not
+    // the room's (seen on macOS, 2026-10-13: every window one version
+    // ahead of the room, for good).
+    const ranks = new Map(remote.map((e) => [e.id, rankOf(e)] as const));
     const taken = new Set<string>();
     for (const p of this.panes) for (const id of p.apply(remote, background)) taken.add(id);
-    for (const e of remote) if (taken.has(e.id)) this.known.set(e.id, rankOf(e));
+    let own = false;
+    for (const e of remote) {
+      if (!taken.has(e.id)) continue;
+      const rank = ranks.get(e.id)!;
+      this.known.set(e.id, rank);
+      if (!unsent(e, this.known)) {
+        this.selfMade.delete(e.id);
+        continue;
+      }
+      // Changed by the board itself as it took the room's version. Two
+      // engines that lay an element out each their own way would answer
+      // each other's version for ever: after a few rounds the room's
+      // version stands here, and the board's own is not sent.
+      const n = (this.selfMade.get(e.id) ?? 0) + 1;
+      this.selfMade.set(e.id, n);
+      if (n > SELF_MADE_MOST) this.known.set(e.id, rankOf(e));
+      else own = true;
+    }
+    // What the board changed of them by itself goes out on the next beat.
+    if (own && this.writable) this.pushSoon();
   }
 
   /** The board as the room has it, merged over `local` (mergeScene). */
