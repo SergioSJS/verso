@@ -151,7 +151,11 @@ scp 'ubuntu@<IP público>:universo-backup-*.tar.gz' .                           
 ```
 
 O arquivo guarda as contas, as notas e o `universo.env`, que pode ter uma
-senha: guarde em lugar seguro.
+senha: guarde em lugar seguro. Melhor, criptografe antes de ele sair:
+`sudo apt install age`, depois `sh universo.sh backup --keygen` uma vez
+(guarde em outro lugar a chave secreta que ele imprime) e `sh universo.sh
+backup --encrypt` — o arquivo termina em `.tar.gz.age` e só essa chave o
+abre ([o guia de instalação](server-install.md), seção 2).
 
 ## 7. Limites, honestamente
 

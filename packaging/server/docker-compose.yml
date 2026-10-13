@@ -30,6 +30,16 @@ services:
     # folders belong to another user names it here (its numbers, from
     # `id`); the two directories below must be writable by it.
     # user: "1000:1000"
+    # Hardening (ADR 0083 item 11): the image's own files read-only, /tmp
+    # in memory, no Linux capability, nothing gained through a setuid
+    # program. The server writes under /data and /folders only.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     ports:
       - target: 7340
         published: "7340"
@@ -54,9 +64,20 @@ services:
       # (ADR 0074 item 1). Left empty, the log prints a setup link instead.
       # The password: 12 characters at least.
       VERSO_ADMIN_EMAIL: ""
+      # The password is best given as a Docker secret, which `docker
+      # inspect` does not show: write it to a file beside this one,
+      # admin-password, readable by uid 1000 alone (sudo install -m 0400
+      # -o 1000 /dev/null admin-password, then edit it), uncomment the next
+      # line, this service's `secrets:` below and the `secrets:` block at
+      # the end, and leave VERSO_ADMIN_PASSWORD empty. Only one of the two.
+      # VERSO_ADMIN_PASSWORD_FILE: /run/secrets/universo-admin
+      # Or the password itself, readable with `docker inspect`: remove it
+      # once the admin exists.
       VERSO_ADMIN_PASSWORD: ""
       # The reverse proxy's IP address, when one terminates TLS in front.
       VERSO_TRUSTED_PROXY: ""
+    # secrets:
+    #   - universo-admin
     x-casaos:
       envs:
         - container: VERSO_PUBLIC_URL
@@ -90,6 +111,12 @@ services:
             en_US: The folders of notes. May be a NAS. Back it up.
             pt_BR: As pastas de notas. Pode ser um NAS. Faça backup.
 
+# The first admin's password as a Docker secret (above): uncomment with the
+# two lines of the service.
+# secrets:
+#   universo-admin:
+#     file: ./admin-password
+
 x-casaos:
   id: com.versomd.universo
   # The key older CasaOS releases read for the app's identity; the v2
@@ -114,8 +141,8 @@ x-casaos:
     en_US: UniVerso
     pt_BR: UniVerso
   tagline:
-    en_US: The Verso server: Markdown notes, Obsidian-compatible, on your own server
-    pt_BR: O servidor do Verso: notas em Markdown, compatíveis com o Obsidian, no seu próprio servidor
+    en_US: "The Verso server: Markdown notes, Obsidian-compatible, on your own server"
+    pt_BR: "O servidor do Verso: notas em Markdown, compatíveis com o Obsidian, no seu próprio servidor"
   description:
     en_US: |
       Verso is a Markdown notes app compatible with Obsidian's folders. This is

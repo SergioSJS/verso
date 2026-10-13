@@ -1323,6 +1323,7 @@ impl Db {
     }
 }
 
+mod audit;
 mod console;
 mod proof;
 mod shares;

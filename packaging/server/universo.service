@@ -53,6 +53,16 @@ LockPersonality=yes
 MemoryDenyWriteExecute=yes
 SystemCallArchitectures=native
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+# ADR 0083 item 11: other processes of the host unseen in /proc, and
+# /proc reduced to processes; system calls of an ordinary service only,
+# none of the privileged or resource-changing sets; what the server makes
+# (a folder, the database) closed to others whatever the folders root
+# gives them.
+ProtectProc=invisible
+ProcSubset=pid
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+UMask=0027
 # No capabilities. To listen on a port under 1024 (443 with
 # VERSO_TLS_CERT_FILE), a drop-in adds both:
 #   AmbientCapabilities=CAP_NET_BIND_SERVICE
