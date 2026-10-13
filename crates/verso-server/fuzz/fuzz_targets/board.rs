@@ -20,19 +20,16 @@
 //! the other order, reads other elements than the room — the merge's one
 //! promise — or that a file made of the room's own state is not the one it
 //! writes. Seeds in `../seeds-board/`: `two-windows.bin`, written by
-//! `examples/seeds.rs` from two windows' real edits; and two inputs this
-//! target found on 2026-10-13, open until the maintainer decides:
-//! `client-of-no-runs.bin`, the note's finding in a board's room
-//! (`collab.rs`'s test `a_client_of_no_runs_does_not_break_a_board_room`
-//! fails on it); `divide-by-zero.bin`, updates on which `yrs` divides by
-//! zero as it integrates them (`block_store.rs:60`, a release build too;
-//! test `updates_that_divide_by_zero_do_not_break_a_board_room`);
-//! `state-that-does-not-apply.bin`, updates after which the room's state,
-//! as `join` sends it, does not apply in a window (`transaction.rs:390`;
-//! test `a_board_rooms_state_applies_in_a_window`); and
-//! `state-vector-count-bomb.bin`, a window's state
-//! vector (`collab_canvas`) that declares 243 million entries in four
-//! bytes, for which `StateVector::decode_v1` asks the allocator for 9 GB.
+//! `examples/seeds.rs` from two windows' real edits; and the inputs this
+//! target found on 2026-10-13 (ADR 0083 item 14), on which `yrs` 0.28
+//! panics in a release build too and the room now catches
+//! (`collab::BROKEN`), made again from its file: `client-of-no-runs.bin`
+//! (`update.rs:85`), `divide-by-zero.bin` (`block_store.rs:60`) and
+//! `state-that-does-not-apply.bin` (the room's state, `transaction.rs:390`);
+//! and `state-vector-count-bomb.bin`, a window's state vector
+//! (`collab_canvas`) that declares 243 million entries in four bytes,
+//! refused before `yrs` reads it (`Board::keep`). The tests are in
+//! `tests_room_inputs.rs`.
 //! Run:
 //! `cargo +nightly fuzz run board fuzz/corpus/board fuzz/seeds-board`.
 
@@ -44,20 +41,18 @@ mod records;
 use libfuzzer_sys::fuzz_target;
 use records::{record, records};
 use verso_server::collab_board::{edits, elements, state_vector};
-use verso_server::fuzz_api::BoardRoom;
+use verso_server::fuzz_api::{BROKEN, BoardRoom};
 use yrs::updates::decoder::Decode;
-use yrs::{Doc, ReadTxn, StateVector, Transact, Update};
+use yrs::{Doc, Transact, Update};
 
 /// The room's Yjs client and a window's: fixed, so that a run replays.
 const ROOM: u64 = 1;
 const WINDOW: u64 = 2;
 
-fn joined(room: &Doc) -> Doc {
-    let state = room
-        .transact()
-        .encode_state_as_update_v1(&StateVector::default());
+/// A window that joins: a document made of the room's state.
+fn joined(state: &[u8]) -> Doc {
     let doc = Doc::with_client_id(WINDOW);
-    let update = Update::decode_v1(&state).expect("the room's state decodes");
+    let update = Update::decode_v1(state).expect("the room's state decodes");
     doc.transact_mut()
         .apply_update(update)
         .expect("the room's state applies");
@@ -65,20 +60,29 @@ fn joined(room: &Doc) -> Doc {
 }
 
 fuzz_target!(|data: &[u8]| {
+    // The room catches a panic of `yrs` (`collab::caught`); libFuzzer's
+    // hook would end the run on it even so. The default hook again: a
+    // panic that escapes the room still ends the run, as a crash.
+    static HOOK: std::sync::Once = std::sync::Once::new();
+    HOOK.call_once(|| drop(std::panic::take_hook()));
     let records = records(data);
     let base = String::from_utf8_lossy(record(&records, 0));
     let mut room = BoardRoom::open(&base, ROOM);
     let mut taken = Vec::new();
     for update in records.iter().skip(3) {
-        if room.update(update).is_ok() {
-            taken.push(*update);
+        match room.update(update) {
+            Ok(()) => taken.push(*update),
+            // Made again from its file: what it took is gone.
+            Err(e) if e == BROKEN => taken.clear(),
+            Err(_) => {}
         }
     }
+    let state = room.state();
     let merged = elements(&room.doc);
     let _ = edits(&room.doc);
     let _ = room.board.waiting(&room.doc);
     assert_eq!(
-        elements(&joined(&room.doc)),
+        elements(&joined(&state)),
         merged,
         "a window joins the room's board"
     );
@@ -103,8 +107,11 @@ fuzz_target!(|data: &[u8]| {
     {
         assert_eq!(room.board.canvas_now(&room.doc), Some(json));
     }
-    let window = joined(&room.doc);
-    let written = room.board.written(&room.doc);
+    let window = joined(&room.state());
+    let merged = elements(&room.doc);
+    let Some(written) = room.written() else {
+        return;
+    };
     assert!(!room.board.waiting(&room.doc), "written, nothing waits");
     window
         .transact_mut()
