@@ -396,8 +396,10 @@ services:
 Two changes from the shipped file, both from the guide's section 8: the
 container shares the host's network (`network_mode: host`, so the shipped
 `ports:` block goes) and listens on `127.0.0.1:7340`. The shipped file
-publishes 7340 on every interface, in plain HTTP; this way the port is
-reached only from the machine itself, by the proxy, whose connections then
+publishes 7340 on `127.0.0.1` too, but through Docker's network, so the
+container sees the proxy's connections come from that network's gateway,
+not from `127.0.0.1` (guide, section 3). This way the port is still
+reached only from the machine itself, by the proxy, and its connections
 come from `127.0.0.1` — the address `VERSO_TRUSTED_PROXY` names. A proxy
 running in another container is the guide's other case (section 8: a fixed
 address in the compose network).

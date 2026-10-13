@@ -204,7 +204,8 @@ Tags: a versão (`0.8.0-beta.1`), `latest` para a versão de
 produção mais nova e `beta` para a versão de teste mais nova. Enquanto só
 existirem versões de teste, `latest` não existe: use `beta` ou uma versão.
 
-A porta é publicada em `127.0.0.1` porque o TLS fica na frente (seção 8).
+A porta é publicada em `127.0.0.1` porque o TLS fica na frente (seção 8);
+o arquivo compose da seção 4 a publica do mesmo jeito.
 `docker logs universo` mostra o log, incluindo o link de configuração da
 seção 9.
 
@@ -252,7 +253,19 @@ endurecimento do comando da seção 3 (`read_only`, `tmpfs: /tmp`,
 `cap_drop: ALL`, `no-new-privileges`), e mostra a senha do primeiro admin
 como um segredo do Docker, comentado, antes da variável comum: para usar,
 ponha a senha em `admin-password` ao lado do arquivo compose, legível pelo
-uid 1000, e descomente os três lugares que o arquivo marca. A imagem vem do registry do
+uid 1000, e descomente os três lugares que o arquivo marca.
+
+O arquivo compose publica a porta 7340 só em `127.0.0.1` (decidido pelo
+mantenedor em 2026-10-13, [ADR 0083](../adr/0083-security-hardening-of-universo.md),
+Como construído): o TLS fica na frente — Caddy, um túnel ou o
+`tailscale serve` (seção 8) — e a alcança na própria máquina. Para
+publicá-la na rede de casa, como uma caixa CasaOS acessada pela LAN pode
+querer, troque uma linha, `host_ip: 127.0.0.1` por `host_ip: 0.0.0.0`.
+HTTP puro na LAN continua sem entrar ninguém de outra máquina: o servidor
+só faz login por HTTPS ([ADR 0073](../adr/0073-self-hosted-server-first.md)
+item 6), então a LAN também precisa de TLS na frente para um login.
+
+A imagem vem do registry do
 GitHub, que exige um `docker login` enquanto o repositório for privado
 (seção 11): no CasaOS e no ZimaOS, no terminal do sistema, uma vez.
 
