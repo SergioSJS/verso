@@ -36,8 +36,11 @@
 //! And `outside-after-a-delete-past-the-end.bin`: a window deleted the
 //! room's own Yjs client past its last clock; `yrs` kept the deletion and
 //! cut the change from outside the server then put in, in a window that
-//! joined and in the room at its next update. Such an update is now
-//! refused (`collab::deletes_ahead`).
+//! joined and in the room at its next update; `room-client-forged.bin`,
+//! an item made as the room's own client ahead of it, whose clock the
+//! room's next edit took. Both are now refused (`collab::ahead_of_room`);
+//! `run-wrapping-to-zero.bin`, a run of length 0 on which `yrs` divided by
+//! zero twice and ended the process, is refused by `yjs_bounds.rs`.
 //! Run: `cargo +nightly fuzz run note fuzz/corpus/note fuzz/seeds-note`.
 
 #![no_main]
