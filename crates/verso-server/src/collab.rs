@@ -1189,4 +1189,118 @@ mod tests {
         assert_eq!(text_of(&server), text_of(&window));
         assert_eq!(text_of(&server), "---\ntag: x\n---\n# Nota\n\num\ndois\n");
     }
+
+    /// What `join` sends a window after `update` was taken into a room:
+    /// the room's whole state.
+    fn taken_then_joined(kind: Kind, doc: &Doc, update: &[u8]) -> Vec<u8> {
+        let mut board = crate::collab_board::Board::of(doc);
+        if let Ok(decoded) = Update::decode_v1(update) {
+            let _ = take(kind, doc, &mut board, update, decoded);
+        }
+        doc.transact()
+            .encode_state_as_update_v1(&StateVector::default())
+    }
+
+    /// Found by the fuzz target `note` (ADR 0083 item 14; its input is
+    /// `fuzz/seeds-note/gc-of-no-length.bin`): a window's update of one
+    /// client holding one deleted run of length 0 is taken in, and the
+    /// room's state can no longer be made for the next window that joins —
+    /// `yrs` 0.28 subtracts past zero in `Block::clock_range`
+    /// (`block.rs:252`). The room must refuse the update or survive it.
+    #[test]
+    fn a_run_of_no_length_does_not_break_a_note_room() {
+        let doc = holding(new_doc(), "# Nota\n");
+        let state = taken_then_joined(Kind::Note, &doc, &[1, 1, 0, 0, 0, 0, 0]);
+        assert!(Update::decode_v1(&state).is_ok());
+    }
+
+    /// An update naming `client` with no runs at all: a count of one
+    /// client, no runs, the client (lib0's variable-length integer), its
+    /// first clock, no deletions.
+    fn no_runs_of(client: u64) -> Vec<u8> {
+        let mut out = vec![1, 0];
+        let mut n = client;
+        while n >= 0x80 {
+            out.push(u8::try_from(n & 0x7f).unwrap() | 0x80);
+            n >>= 7;
+        }
+        out.push(u8::try_from(n).unwrap());
+        out.extend([0, 0]);
+        out
+    }
+
+    /// Found by the fuzz target `board` (its input is
+    /// `fuzz/seeds-board/client-of-no-runs.bin`): a window's update naming
+    /// the room's own Yjs client — which every window that joins reads in
+    /// the room's state — with no runs at all panics `yrs` 0.28 as it
+    /// applies it (`update.rs:85`, an `unwrap` of the first run of an empty
+    /// list): in a release build too, with the room's lock held.
+    #[test]
+    fn a_client_of_no_runs_does_not_break_a_board_room() {
+        let doc = crate::collab_board::new_doc("{}");
+        let update = no_runs_of(doc.client_id().get());
+        let state = taken_then_joined(Kind::Board, &doc, &update);
+        assert!(Update::decode_v1(&state).is_ok());
+    }
+
+    /// The same update in a note's room.
+    #[test]
+    fn a_client_of_no_runs_does_not_break_a_note_room() {
+        let doc = holding(new_doc(), "# Nota\n");
+        let update = no_runs_of(doc.client_id().get());
+        let state = taken_then_joined(Kind::Note, &doc, &update);
+        assert!(Update::decode_v1(&state).is_ok());
+    }
+
+    /// A board room made of a fuzz input of the target `board`
+    /// (`fuzz/fuzz_targets/records.rs`: records, each a two-byte length
+    /// and its bytes; 0 is the file, 3 on are the windows' updates), its
+    /// Yjs client 1 as the target's, the updates taken in as `update`
+    /// takes them; then the room's state, as `join` sends it, applied by a
+    /// window that joins.
+    fn board_replayed(input: &[u8]) {
+        let mut records = Vec::new();
+        let mut data = input;
+        while let Some((len, rest)) = data.split_first_chunk::<2>() {
+            let len = usize::from(u16::from_le_bytes(*len)).min(rest.len());
+            records.push(&rest[..len]);
+            data = &rest[len..];
+        }
+        let base = String::from_utf8_lossy(records.first().copied().unwrap_or_default());
+        let doc = crate::collab_board::based(Doc::with_client_id(1), &base);
+        let mut board = crate::collab_board::Board::of(&doc);
+        for update in records.iter().skip(3) {
+            if let Ok(decoded) = Update::decode_v1(update) {
+                let _ = take(Kind::Board, &doc, &mut board, update, decoded);
+            }
+        }
+        let state = doc
+            .transact()
+            .encode_state_as_update_v1(&StateVector::default());
+        let window = Doc::new();
+        let update = Update::decode_v1(&state).expect("the room's state decodes");
+        window
+            .transact_mut()
+            .apply_update(update)
+            .expect("the room's state applies");
+    }
+
+    /// Found by the fuzz target `board`: windows' updates on which `yrs`
+    /// 0.28 divides by zero as it integrates them
+    /// (`ClientBlockList::find_index`, `block_store.rs:60`), in a release
+    /// build too.
+    #[test]
+    fn updates_that_divide_by_zero_do_not_break_a_board_room() {
+        board_replayed(include_bytes!("../fuzz/seeds-board/divide-by-zero.bin"));
+    }
+
+    /// Found by the fuzz target `board`: windows' updates after which the
+    /// room's state, as `join` sends it, does not apply in a window —
+    /// `yrs` 0.28 reads past its end (`transaction.rs:390`).
+    #[test]
+    fn a_board_rooms_state_applies_in_a_window() {
+        board_replayed(include_bytes!(
+            "../fuzz/seeds-board/state-that-does-not-apply.bin"
+        ));
+    }
 }
