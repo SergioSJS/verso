@@ -15,6 +15,8 @@ import { pullSettings, pushSettings } from "./web/settingsSync";
 import { notice } from "./web/notice";
 import { chooseFolder, devicePage, invitePage, resetPage, setupPage, signInLinkPage, signInPage } from "./web/pages";
 import { setLang, w } from "./web/strings";
+import { setProver } from "./web/proof";
+import { askProof } from "./web/proveDialog";
 import { holdClicks } from "./earlyClicks";
 
 // The folder button is on the page before the window's script, which this
@@ -24,6 +26,9 @@ import { holdClicks } from "./earlyClicks";
 const openHeld = holdClicks(document.getElementById("open"));
 
 async function start(): Promise<void> {
+  // A sensitive action the server wants proved again asks here, on any
+  // page (ADR 0083 item 6).
+  setProver(askProof);
   const s = await state();
   setLang(s.account?.lang);
   const path = location.pathname;

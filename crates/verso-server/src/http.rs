@@ -288,6 +288,8 @@ pub fn router(server: Arc<Server>) -> Router {
         )
         .route("/api/me", get(crate::api::me).patch(crate::api::profile))
         .route("/api/me/password", post(crate::api::password))
+        .route("/api/me/prove", post(crate::proof::prove))
+        .route("/api/me/prove/passkey", post(crate::passkeys::prove_start))
         .route("/api/me/sessions", get(crate::api::sessions))
         .route("/api/me/device", axum::routing::put(crate::device::rename))
         .route("/api/me/sessions/others", delete(crate::api::end_others))
@@ -386,6 +388,9 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/api/admin/config", get(crate::console::config))
         .route("/api/device/start", post(crate::device::start))
         .route("/api/device/poll", post(crate::device::poll))
+        .route("/api/device/describe", post(crate::device::describe_typed))
+        .route("/api/device/approve", post(crate::device::approve_typed))
+        .route("/api/device/refuse", post(crate::device::refuse_typed))
         .route(
             "/api/device/{code}",
             get(crate::device::describe)
