@@ -45,6 +45,14 @@
   (os dois idiomas, acessibilidade), [0078](0078-universo-the-name-of-verso-as-a-server.md)
   (UniVerso).
 - Status no briefing: ausente; ao ser aceita.
+- Revisões: 2026-10-12 (noite) — item 12 decidido e construído: todo
+  arquivo que uma pessoa edita na janela é coeditado ao vivo — uma nota,
+  qualquer arquivo de texto, uma base, um board — num servidor e pelo
+  link de uma pasta sincronizada igualmente. O mantenedor, ao saber que só
+  as notas eram: *"Então a gente não tá com a aplicação 100% cooperativa,
+  né? Com coedição. Deveria estar. A gente ainda não fechou o universo."*
+  O texto antigo do item 12 fica, a decisão abaixo dele; construído em
+  `feat/coedit-everything` (21d096a, 5a027db).
 
 ## Contexto
 
@@ -300,6 +308,65 @@ em 2026-10-10 (Status).
     canvases, anexos e os ajustes da pasta cruzam pelo sync como arquivos,
     e duas pessoas num mesmo board em duas pastas sincronizadas terminam
     como a [0079](0079-sync-a-local-folder-with-a-server.md) item 8 diz.
+    *(Decidido e construído em 2026-10-12, o texto antigo mantido acima.)*
+    O mantenedor, na noite de 2026-10-12, ao saber que só as notas eram
+    coeditadas ao vivo: *"Deveria estar"* — construir agora, nada pela
+    metade. **Todo arquivo que uma pessoa edita na janela tem uma sala**,
+    num servidor e pelo link de uma pasta sincronizada igualmente, sob os
+    itens 1 a 11 e 13 a 15 como a de uma nota:
+    - **Um arquivo de texto** — `.txt`, `.json`, `.csv`, o `.base` de uma
+      base, o código de uma página, qualquer arquivo que a janela abre no
+      seu editor de código — é uma sala como a de uma nota: um texto Yjs
+      ligado ao editor, lido e gravado como texto, uma escrita de outro
+      lugar fundida pela sala. Uma base mudada pelos ajustes da sua visão
+      (filtros, colunas, ordenações, visões) muda o texto do editor, então
+      entra como a digitação.
+    - **Um board** (`.canvas`) é uma sala dos seus elementos: um mapa Yjs
+      com uma entrada por elemento e versão (`id`, `version`,
+      `versionNonce`), o elemento como JSON, ao lado dos fatos do arquivo de
+      que foi feita. **A regra de fusão é a reconciliação do próprio
+      Excalidraw**: duas pessoas mudando elementos diferentes, as duas
+      mudanças ficam; no mesmo elemento vence a `version` maior, e no
+      empate o `versionNonce` menor, igual em todos os lados, em qualquer
+      ordem que as edições cheguem. Apagar é o elemento com `isDeleted` —
+      uma lápide, nunca removida — mandado um milhão de versões à frente,
+      então um arrasto feito ao mesmo tempo, que conta suas versões a
+      partir de onde começou, não o traz de volta; um desfazer feito depois
+      conta a partir da versão do apagar e vence. As imagens que um board
+      mostra são arquivos da pasta: suas referências cruzam com os
+      elementos, seus bytes como arquivos. A presença é o ponteiro, a
+      seleção, o nome e a cor, carimbados pelo servidor (modelo de ameaças,
+      lacuna 11), desenhados como os colaboradores do Excalidraw.
+    - **Quem grava o arquivo de um board.** O servidor não sabe desenhar um
+      board: a primeira janela a entrar desenha o arquivo de que a sala foi
+      feita e o põe nela, o que não é edição de ninguém (abrir não grava
+      nada, invariante 7); cada janela que edita entrega à sala o arquivo
+      que o seu próprio conversor faz do estado da sala, com o vetor Yjs
+      desse estado (`collab_canvas`). A sala grava o arquivo feito
+      exatamente do estado que tem — a saída do conversor da cena fundida
+      — pelo gravador de boards do núcleo, atomicamente e sobre a revisão
+      que leu (invariantes 9 e 11), quando as edições assentam e no
+      `collab_save`; o registro de mudanças da pasta tem o salvamento antes
+      de as janelas ouvirem. Uma edição feita na sala nunca é uma cópia de
+      conflito. Uma mudança de fora enquanto há edições esperando para a
+      sala para as pessoas nela escolherem, como a de uma nota; sem nada
+      esperando a sala fecha e as janelas desenham o arquivo de novo.
+    - **O contrato** ganha, ao lado do `collab_present` do item 3, o tipo
+      da sala no `CollabJoin` (`text` ou `board`) e o comando
+      `collab_canvas`; os bindings são gerados do Rust (regra 3).
+    - **Fora de uma sala**: um canvas em outro layout, até o primeiro
+      salvamento, mostrado como diff, o pôr no do Obsidian
+      ([0057](0057-board-json-canvas.md) ponto 13); um board de um Verso
+      mais novo, mostrado e nunca gravado; um arquivo com fins de linha
+      misturados, só leitura como o de uma nota; e um desenho do plugin
+      Excalidraw, que a janela mostra e nunca edita
+      ([0057](0057-board-json-canvas.md) ponto 5) — o texto dele é uma nota,
+      ao vivo como as notas, e o desenho mostrado segue os salvamentos da
+      sala.
+    - **Limites** (`docs/reference/threat-model.md`): uma atualização de
+      board de 4 MB e 10 000 entradas no máximo; uma sala de board de
+      100 000 entradas e 64 MB; um arquivo entregue a ela de 16 MB; uma
+      presença de 16 KB, como a de uma nota.
 13. **Um compartilhamento, e um leitor.** Quem recebe e sincronizou um
     compartilhamento como pasta local ([0081](0081-sharing-between-people-on-one-universo.md)
     item 6) entra na **sala da pasta do dono**: o lugar da sala é a chave
@@ -428,6 +495,15 @@ noite, e respondidas (abaixo): onde mora o ajuste do item 15; as esperas
 de 5 s pelo envio antes de entrar (item 7) e de 4 s pelas reentradas
 antes de uma passada (item 9); as escritas que o painel de propriedades
 e a citação de um PDF fazem numa nota, pela sala; e o board (item 12).
+
+**Item 12 decidido e construído em 2026-10-12** (noite; 21d096a e 5a027db
+em `feat/coedit-everything`): todo arquivo que uma pessoa edita na janela
+é coeditado ao vivo, o board pela regra do próprio Excalidraw, como o item
+12 agora diz. O mantenedor: *"Então a gente não tá com a aplicação 100%
+cooperativa, né? Com coedição. Deveria estar. A gente ainda não fechou o
+universo."* A [0057](0057-board-json-canvas.md) e o item 7 da
+[0073](0073-self-hosted-server-first.md) ganharam suas linhas de Revisões
+no mesmo dia.
 
 **Respondidas pelo mantenedor em 2026-10-12** (01:15 BRT), item a item: o ajuste do item 15 fica nos ajustes da janela; as esperas de 5 s e
 de 4 s ficam, a afinar com o uso; as escritas que o painel de
