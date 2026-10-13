@@ -14,8 +14,10 @@
   configuração); são construídos e publicados pelos jobs `server` e
   `server-image` do `.github/workflows/release.yml`.
 - Situação: escrito junto com o empacotamento, antes da primeira execução
-  de release. Nada aqui foi executado de ponta a ponta ainda: a seção 15
-  lista o que não foi verificado.
+  de release; desde então os pacotes, a execução da imagem e o script de
+  instalação foram verificados parte a parte, e a v0.8.0-beta.1 é a
+  primeira release que traz os pacotes `universo`. A seção 15 lista o que
+  foi verificado, quando e como, e o que ainda não foi.
 
 ## O script de instalação
 
@@ -59,6 +61,8 @@ caminhos manuais.
 
 Um passo a passo numa máquina de nuvem gratuita, de criá-la ao app
 conectado: [UniVerso no Always Free da Oracle Cloud](universo-on-oracle-free.md).
+Caminhos de copiar e colar para um pacote, para o Docker e ao lado de um
+app que já ocupa as portas 80 e 443: [UniVerso na prática](server-hands-on.md).
 
 ## 1. O que é instalado
 
@@ -196,13 +200,28 @@ docker run -d --name universo --restart unless-stopped \
   ghcr.io/sergiosjs/universo:beta
 ```
 
-Tags: a versão (`0.7.0`, `0.7.0-beta.1`), `latest` para a versão de
+Tags: a versão (`0.8.0-beta.1`), `latest` para a versão de
 produção mais nova e `beta` para a versão de teste mais nova. Enquanto só
 existirem versões de teste, `latest` não existe: use `beta` ou uma versão.
 
 A porta é publicada em `127.0.0.1` porque o TLS fica na frente (seção 8).
 `docker logs universo` mostra o log, incluindo o link de configuração da
 seção 9.
+
+**Um proxy no host na frente de uma porta publicada** (o Caddy instalado
+na máquina, `reverse_proxy 127.0.0.1:7340`): o contêiner não vê as
+conexões do proxy vindo de `127.0.0.1`, e sim do gateway da rede do
+Docker, então `VERSO_TRUSTED_PROXY=127.0.0.1` não confia em ninguém e toda
+entrada é recusada como não HTTPS. Confie no gateway — na rede padrão
+normalmente `172.17.0.1`, como diz
+`docker network inspect bridge --format '{{(index .IPAM.Config 0).Gateway}}'`;
+num projeto compose, o da rede dele
+(`docker network inspect universo_default`). Ou rode o contêiner na rede
+do host (`--network host`, sem `-p`) com `-e VERSO_LISTEN=127.0.0.1:7340`,
+para que ele escute só no loopback e o proxy venha de `127.0.0.1`. Visto
+em 2026-10-13: por uma porta publicada com
+`VERSO_TRUSTED_PROXY=127.0.0.1`, uma requisição repassada como HTTPS teve
+como resposta `"secure":false`; com `172.17.0.1`, `"secure":true`.
 
 A segunda linha limita o contêiner ao que o servidor precisa
 ([ADR 0083](../adr/0083-security-hardening-of-universo.md) item 11): os
@@ -248,8 +267,8 @@ A release traz `universo-<versão>-amd64.deb`,
 `universo-<versão>-aarch64.rpm`:
 
 ```sh
-sudo apt install ./universo-0.7.0-amd64.deb      # Debian, Ubuntu
-sudo dnf install ./universo-0.7.0-x86_64.rpm     # Fedora, RHEL
+sudo apt install ./universo-0.8.0-beta.1-amd64.deb      # Debian, Ubuntu
+sudo dnf install ./universo-0.8.0-beta.1-x86_64.rpm     # Fedora, RHEL
 ```
 
 O pacote instala `/usr/bin/universo`, a janela em `/usr/share/universo/ui`, a
@@ -314,8 +333,8 @@ encontra sem `VERSO_UI_DIR` —, a licença, a unit e o modelo de
 configuração:
 
 ```sh
-tar -xzf universo-0.7.0-x86_64.tar.gz
-cd universo-0.7.0-x86_64
+tar -xzf universo-0.8.0-beta.1-x86_64.tar.gz
+cd universo-0.8.0-beta.1-x86_64
 VERSO_DATA_DIR=$HOME/verso/data VERSO_FOLDERS_DIR=$HOME/verso/folders ./bin/universo
 ```
 
@@ -329,9 +348,9 @@ pública do Verso, a mesma que o app carrega
 (`app/src-tauri/src/update.rs`):
 
 ```sh
-base64 -d < universo-0.7.0-x86_64.tar.gz.sig > file.minisig
+base64 -d < universo-0.8.0-beta.1-x86_64.tar.gz.sig > file.minisig
 minisign -V -P RWS1zv2nvs/ng1hA0YspwOg7wGda98zkXjVfx8m9CtT5obRW5zabNHaT \
-  -m universo-0.7.0-x86_64.tar.gz -x file.minisig
+  -m universo-0.8.0-beta.1-x86_64.tar.gz -x file.minisig
 ```
 
 ## 7. As variáveis
@@ -343,7 +362,7 @@ vazio conta como não definido.
 | Variável | Padrão | O que faz |
 |---|---|---|
 | `VERSO_LISTEN` | `127.0.0.1:7340` (imagem: `0.0.0.0:7340`) | endereço e porta; além do loopback exige `VERSO_PUBLIC_URL` |
-| `VERSO_PUBLIC_URL` | nenhum | o endereço que as pessoas usam (`https://…`): as checagens de `Origin` e `Host`, os links de convites e de redefinição |
+| `VERSO_PUBLIC_URL` | nenhum | o endereço que as pessoas usam: as checagens de `Origin` e `Host`, os links de convites e de redefinição. `https://…` ou `http://…`, os dois são aceitos; mas uma entrada vinda de outra máquina só é aceita por HTTPS (seção 8), então `http://` serve só a esta máquina |
 | `VERSO_DATA_DIR` | imagem `/data`, pacotes `/var/lib/universo/data` | contas, sessões, registro de auditoria, índices; um disco local |
 | `VERSO_FOLDERS_DIR` | imagem `/folders`, pacotes `/var/lib/universo/folders` | as pastas de notas; pode ser um NAS |
 | `VERSO_UI_DIR` | `<diretório do binário>/../share/universo/ui` | os arquivos da janela |
@@ -400,7 +419,9 @@ notas.exemplo.com {
 
 com `VERSO_PUBLIC_URL=https://notas.exemplo.com` e `VERSO_TRUSTED_PROXY`
 com o endereço de onde vêm as conexões do proxy: `127.0.0.1` para um proxy
-na mesma máquina. Um proxy em outro contêiner vem do endereço desse
+na mesma máquina de um servidor instalado por pacote; para um contêiner
+atrás de uma porta publicada, o gateway da rede do Docker (seção 3). Um
+proxy em outro contêiner vem do endereço desse
 contêiner, que então precisa ser fixo (um `ipv4_address` na rede do
 compose). Traefik ou o proxy do próprio NAS funcionam do mesmo jeito.
 
@@ -976,9 +997,10 @@ Ainda não verificado:
   estático de arm64 compilado com cargo-zigbuild no runner Linux da
   release (num Mac está verificado, acima);
 - o `.rpm` em arm64, e uma atualização de uma versão para outra mais nova;
-- o `universo.sh` baixando de uma release (nenhuma release traz ainda os
-  pacotes `universo`) e conferindo um `.sig` de verdade com o minisign, e
-  os comandos `firewall` e `reset-admin` dele;
+- o `universo.sh` baixando de uma release (a v0.8.0-beta.1 é a primeira a
+  trazer os pacotes `universo`; o script não foi rodado contra ela aqui) e
+  conferindo um `.sig` de verdade com o minisign, e os comandos `firewall`
+  e `reset-admin` dele;
 - a mensagem de que não está rodando que o `postinstall.sh` imprime quando
   uma instalação deixa o serviço desabilitado (acrescentada depois da
   verificação de 2026-10-12);
@@ -1064,7 +1086,11 @@ No Docker, o fail2ban roda no host, e os dois arquivos são copiados de
 `logging: driver: journald` no arquivo compose; a jail então lê
 `journalmatch = CONTAINER_NAME=universo` (o nome do contêiner). O Docker
 manda o tráfego de uma porta publicada por fora da chain `INPUT` do host:
-o banimento precisa de `chain = DOCKER-USER` na jail.
+o banimento precisa de `chain = DOCKER-USER` na jail. Na rede do host
+(`network_mode: host`, `--network host`), nada é publicado e o tráfego
+passa pela `INPUT` como num pacote: mantenha a chain padrão da jail. De
+um jeito ou de outro, a porta que o fail2ban precisa fechar é a que as
+pessoas alcançam — a 80 e a 443 do proxy quando há um proxy na frente.
 
 ### CrowdSec
 
