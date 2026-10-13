@@ -77,9 +77,16 @@
   `app/ui/audit-exceptions.json`), no job Linux do pull request e no
   `scripts/check.sh`; o teste do script de backup no
   `scripts/check-linux.sh`; o `scripts/check-server-image.sh`, que inicia
-  a unidade e a imagem somente leitura; e as entradas do servidor sob
-  fuzzing na `main` ao lado das do dialeto e do canvas (item 14, sendo
-  integrado).
+  a unidade e a imagem somente leitura; as entradas do servidor sob
+  fuzzing na `main` ao lado das do dialeto e do canvas — sete alvos
+  `cargo-fuzz` em `crates/verso-server/fuzz`, 60 s cada com `-O`, as
+  sementes versionadas por alvo, cada entrada que acharam guardada como
+  teste (item 14, d5ea899 e c1bc4cc; visto falhando antes com um alvo
+  sobre um stub que entra em panic, 34474a0); e a bateria de HTML hostil
+  do sanitizador, seus casos compartilhados em
+  `app/ui/test/sanitize-cases.mjs`, rodada no node pelo `npm test` e no
+  WebKit e no Chromium pelo `npm run e2e` (item 16, 1e25bcf; vista
+  falhando antes com uma asserção errada nos dois navegadores).
 
 ## Contexto
 

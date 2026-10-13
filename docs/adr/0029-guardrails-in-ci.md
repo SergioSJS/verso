@@ -72,8 +72,15 @@
   in `app/ui/audit-exceptions.json`), in the pull request's Linux job and
   in `scripts/check.sh`; the backup script's test in
   `scripts/check-linux.sh`; `scripts/check-server-image.sh`, which starts
-  the unit and the read-only image; and the server's inputs fuzzed on
-  `main` beside the dialect's and the canvas's (item 14, being merged).
+  the unit and the read-only image; the server's inputs fuzzed on `main`
+  beside the dialect's and the canvas's — seven `cargo-fuzz` targets in
+  `crates/verso-server/fuzz`, 60 s each with `-O`, their seeds versioned
+  per target, each input they found kept as a test (item 14, d5ea899 and
+  c1bc4cc; seen failing first with a target over a panicking stub,
+  34474a0); and the sanitizer's hostile-HTML suite, its cases shared in
+  `app/ui/test/sanitize-cases.mjs`, run in node by `npm test` and in
+  WebKit and Chromium by `npm run e2e` (item 16, 1e25bcf; seen failing
+  first with a wrong assertion in both browsers).
 
 ## Context
 

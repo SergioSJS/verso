@@ -416,10 +416,12 @@ implementada e feita".)*
 Built on 2026-10-13 on the branch `docs/security-hardening`, in the
 merges of sec/edge (cf0aa7f: items 5, 7, 8, 9), sec/sign-in (fcddbf8:
 items 1 to 4), sec/ops (29d11f7 and b5b9dae: items 10 to 13 and 15) and
-sec/prove (c6fbf1a: items 6 and 17). Below, item by item, where the code
-departs from the Decision's text or reads it one way among several, as the
-builders recorded it in their commits. Item 14 is being merged (Status);
-items 16, 18 and 19 are not in these merges. A fact taken from a builder's
+sec/prove (c6fbf1a: items 6 and 17), sec/fuzz (d5ea899 and c1bc4cc:
+item 14) and sec/sanitizer-harness (0b5fea1: item 16's reading and
+suite). Below, item by item, where the code departs from the Decision's
+text or reads it one way among several, as the builders recorded it in
+their commits. Items 18 and 19 are not in these merges, nor item 16's
+pentest, which is outside this round. A fact taken from a builder's
 report and not found in the code or in a commit says *(reported)*.
 
 **Item 1** (e9dda35). The Decision's `failregex` catches nothing:
@@ -502,8 +504,11 @@ public address.
 command or setting triggers it or names a row, so it is no way to erase
 evidence.
 
-**Item 11** (d2af446). `scripts/check-linux.sh` has no package step. The
-unit and the read-only image are started by `scripts/check-server-image.sh`:
+**Item 11** (d2af446, 024b9f8). `scripts/check-linux.sh` has no package
+step. The unit and the read-only image are started by
+`scripts/check-server-image.sh`, since 024b9f8 the last step of
+`scripts/check-linux.sh` and not in CI (it would add several minutes to
+every pull request's Linux job):
 the compose file parsed and its hardening checked, the image run with the
 same flags, then the static binary laid out as `nfpm.yaml` lays it in a
 Debian 12 container running systemd, started by `universo.service`, and
@@ -566,6 +571,101 @@ constant time against every pending code, and the address's
 approve, refuse, by link or typed — and counted on a wrong code; a right
 code does not clear it. The page sends the code in the body; the path
 routes stay. Item 6's proof is checked before the code is read.
+
+**Item 14** (d5ea899, c1bc4cc). Seven `cargo-fuzz` targets in
+`crates/verso-server/fuzz`, a harness of its own outside the workspace as
+the dialect's is: `request`, `unframe`, `note`, `board`, `presence`,
+`host` and `size` (34474a0). The crate's own readers are reached through
+`fuzz_api`, a module compiled only with the `fuzzing` feature, which
+nothing that ships turns on (f6d52f5). On `main` each runs 60 s with
+`-O`, the release profile without debug assertions: with cargo-fuzz's
+default flags a run stopped on yrs's debug-only asserts and overflows,
+which a release build takes (060f126); the dialect's and the canvas's
+keep their flags. The seeds are versioned per target, in
+`fuzz/seeds-<target>`, each input a target found among them. What the
+targets found, and what closed each:
+
+- (a) A `Host` of the form `[::1]` followed by anything was taken as the
+  loopback: on a server with no `VERSO_PUBLIC_URL` it passed the `Host`
+  check and became the origin of the links the server mails. The name is
+  now compared whole: `localhost`, `127.0.0.1` or `[::1]` (fec23f4).
+- (b) yrs 0.28, the newest published, panics in a release build on some
+  updates a member who may write can send (7170df6). Decided on
+  2026-10-13 (*"aceito recomendação"*): every call into yrs over what a
+  window sent is made under `catch_unwind` at the room's boundary; the
+  update is refused, a `WARN` line names the account's id, and the room
+  is made again from its file, as a change from outside makes it. What a
+  member loses: the edits in that room since it last wrote, which it does
+  900 ms after the last edit (606ffeb).
+- (c) A declared count larger than the bytes left, and a value nested
+  deeper than 64 levels, are refused before yrs reads an update:
+  `yjs_bounds.rs` walks the update's v1 layout as yrs reads it, each
+  number as yrs reads it, and reads no content (40893a6, 658f924,
+  4e1338f). Runs of deleted or skipped clocks of length 0, deletions of
+  length 0 and clocks past `u32::MAX` are refused too (75872f9). Two of
+  these ended the whole process, not one request: a value nested deep
+  enough overflowed the thread's stack (seen while writing the tests),
+  and a run of length 0 made yrs panic a second time during the
+  unwinding, an abort past the catch of (b).
+- (d) An update that makes or deletes items as the room's own Yjs client
+  beyond those the room has made is refused (670a07f, b7ef994). Other
+  clients' items stay unjudged.
+- (e) A connection's requests ran side by side, so the server itself
+  reordered one window's updates: the only way a legitimate update
+  reached yrs's pending path, where yrs read freed memory
+  (AddressSanitizer's heap-use-after-free) and rooms and windows came to
+  read different texts and boards. A connection's `collab_update` now
+  waits for its previous one (`rpc.rs`, a chain per connection), and an
+  update that leaves anything pending, or that yrs stops applying
+  halfway, is refused and the room made again (8d419e9). Decided on
+  2026-10-13, option (a) (*"bora a"* *(reported)*). The desktop host
+  writes a window's questions on the server's connection in the order of
+  the calls (`remote.rs`, ca4c8a6); that Tauri hands a window's
+  invocations on in that order was not verified, and the window makes
+  the order its own: one update in flight per room, what is typed
+  meanwhile merged into the next (`updateQueue.ts`, 857f4aa).
+- (f) What `join` sends and what a board's write tells the windows are
+  decoded and applied in a scratch document before they are sent, the
+  room made again on a failure (ef1c389); a room's state must also read
+  in a window as it reads in the room (8d419e9). Cost: one decode and
+  apply of the room's state per join and per board write (the server's
+  tests from 22 s to 33 s).
+- (g) `config::size` below one byte is an error, no longer a quota of 0
+  bytes (bc2b9fc).
+
+Final state: 60 s under `-O` on the `note` and `board` targets with no
+crash *(reported)*; the seeds, the six inputs once kept aside as open
+(f95226d) among them, replay clean (8d419e9). The yrs findings are to be
+reported upstream, waiting for the maintainer's OK *(reported)*.
+
+**Item 16** (0b5fea1; e86eee8, 1e25bcf). The reading:
+`app/ui/src/sanitize.ts`, written by Opus 5.5, read by Fable 5.1 on
+2026-10-13, no BLOCKING finding and three MINOR *(reported)*. The values
+of `data-task-line` are not restricted, and `toggleTask` checks again
+that the line holds a task before it edits. A relative picture's address
+reaches `resolveAttachment` and `verso-fs`'s confinement, which refuses
+the UNC and absolute forms (`confine.rs`, tested on Windows). And the
+embedded page's gate box held its frame's host in a `<template>`, which
+a second cleaning dropped; resolved by making the box self-contained
+(e86eee8): it carries the address and the frame's tamed style
+(`data-embed-style`), the host is built at the click, the origin is the
+address's own and never the box's `data-embed-origin`, "load" works only
+for an origin the person approved, and "approve" and "cancel" only for an
+http(s) address. A gate box does not survive a second cleaning, on
+purpose: a note cannot forge one.
+
+The suite: the hostile-HTML cases, 102, live in
+`app/ui/test/sanitize-cases.mjs` and run in node over happy-dom
+(`npm test`) and in WebKit and Chromium through
+`app/ui/e2e/sanitize.spec.mjs` (`npm run e2e`, local, in
+`scripts/check.sh`), through the harness's hook `__harness.sanitize` —
+the instance `main.ts` configures — built only into the harness's site,
+never into `dist/` (1e25bcf). Seen failing first with a deliberately
+wrong assertion in both browsers; then three cases failed in both, their
+outputs safe and their expectations written for happy-dom's tree; the
+expectations were corrected for the browsers' parser, and no fault of the
+sanitizer was found. The pentest by a person outside the project is not
+in this round and stays a condition of the announcement.
 
 ## Consequences
 
@@ -654,19 +754,8 @@ The items go in one PR with their guardrails, each seen failing first
 ([0029](0029-guardrails-in-ci.md)), and the review's findings table says
 what closed each.
 
-**Built on 2026-10-13** (As built): items 1 to 13, 15 and 17. **Item
-14 is in progress**, its fuzz targets and fixes on the branch sec/fuzz,
-being merged; its as-built note comes with that merge. What the targets
-found, so that the next pass completes it:
-(a) `Host: [::1]@evil.example` was taken for the loopback — fixed in
-fec23f4, with a test; (b) yrs 0.28, the newest, panics in a release build
-on updates a member who may write can send — decided on 2026-10-13
-(*"aceito recomendação"*): the panic is caught at the room's boundary, the
-update refused, a `WARN` line with the account's id, and the room made
-again from the file on disk by the path a change from outside takes; what
-a member loses is the edits since the room last wrote (900 ms after the
-last edit) — 606ffeb; (c) count bombs: an update or a state vector that
-declares more entries than it has bytes is refused before yrs decodes it —
-40893a6, 658f924; (d) the server's targets run with `-O` (release) in CI —
-060f126; (e) `config::size` below one byte is an error — bc2b9fc. The
-hashes are those of sec/fuzz and may change in the merge.
+**Built on 2026-10-13** (As built): items 1 to 15 and 17, and item 16's
+reading of the sanitizer with its suite run in WebKit and Chromium. Not
+in these merges: item 18's measurement and item 19's hostile lab.
+Outside this round: item 16's pentest by a person outside the project, a
+condition of the announcement.

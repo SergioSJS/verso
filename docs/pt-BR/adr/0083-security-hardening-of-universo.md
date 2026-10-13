@@ -428,11 +428,13 @@ implementada e feita".)*
 Construído em 2026-10-13 no branch `docs/security-hardening`, nos merges
 de sec/edge (cf0aa7f: itens 5, 7, 8, 9), sec/sign-in (fcddbf8: itens 1 a
 4), sec/ops (29d11f7 e b5b9dae: itens 10 a 13 e 15) e sec/prove (c6fbf1a:
-itens 6 e 17). Abaixo, item por item, onde o código se afasta do texto da
-Decisão ou o lê de um jeito entre vários, como os construtores registraram
-nos commits. O item 14 está sendo integrado (Status); os itens 16, 18 e 19
-não estão nesses merges. Um fato tirado do relato de um construtor e não
-achado no código nem num commit diz *(relatado)*.
+itens 6 e 17), sec/fuzz (d5ea899 e c1bc4cc: item 14) e
+sec/sanitizer-harness (0b5fea1: a leitura e a bateria do item 16).
+Abaixo, item por item, onde o código se afasta do texto da Decisão ou o
+lê de um jeito entre vários, como os construtores registraram nos
+commits. Os itens 18 e 19 não estão nesses merges, nem o pentest do
+item 16, que fica fora desta rodada. Um fato tirado do relato de um
+construtor e não achado no código nem num commit diz *(relatado)*.
 
 **Item 1** (e9dda35). O `failregex` da Decisão não pega nada: o fail2ban
 corta a hora de uma linha que lê de um arquivo, e põe
@@ -517,9 +519,11 @@ com `VERSO_TRASH_DAYS`. A varredura roda no início e uma vez por dia;
 nenhuma rota, comando ou configuração a dispara ou nomeia uma linha, então
 ela não é um jeito de apagar evidência.
 
-**Item 11** (d2af446). O `scripts/check-linux.sh` não tem passo de
-pacote. A unidade e a imagem somente leitura são iniciadas pelo
-`scripts/check-server-image.sh`: o compose lido e o endurecimento dele
+**Item 11** (d2af446, 024b9f8). O `scripts/check-linux.sh` não tem
+passo de pacote. A unidade e a imagem somente leitura são iniciadas pelo
+`scripts/check-server-image.sh`, desde 024b9f8 o último passo do
+`scripts/check-linux.sh` e fora da CI (somaria vários minutos ao job Linux
+de todo pull request): o compose lido e o endurecimento dele
 checado, a imagem rodada com as mesmas flags, depois o binário estático
 disposto como o `nfpm.yaml` o dispõe num contêiner Debian 12 rodando
 systemd, iniciado pelo `universo.service`, e checado rodando sob seccomp
@@ -585,6 +589,106 @@ descrever, aprovar, recusar, pelo link ou digitado — e contado num código
 errado; um código certo não o zera. A página manda o código no corpo; as
 rotas com o código no caminho continuam. A prova do item 6 é checada antes
 de o código ser lido.
+
+**Item 14** (d5ea899, c1bc4cc). Sete alvos `cargo-fuzz` em
+`crates/verso-server/fuzz`, um harness próprio fora do workspace como o
+do dialeto: `request`, `unframe`, `note`, `board`, `presence`, `host` e
+`size` (34474a0). Os leitores do próprio crate são alcançados pelo
+`fuzz_api`, um módulo compilado só com a feature `fuzzing`, que nada do
+que é entregue liga (f6d52f5). Na `main` cada um roda 60 s com `-O`, o
+perfil de release sem asserções de debug: com as flags padrão do
+cargo-fuzz uma rodada parava nas asserções e nos overflows só de debug do
+yrs, que um build de release aceita (060f126); os do dialeto e do canvas
+mantêm as flags deles. As sementes são versionadas por alvo, em
+`fuzz/seeds-<alvo>`, cada entrada que um alvo achou entre elas. O que os
+alvos acharam, e o que fechou cada achado:
+
+- (a) Um `Host` da forma `[::1]` seguido de qualquer coisa era tomado
+  pelo loopback: num servidor sem `VERSO_PUBLIC_URL` ele passava a
+  checagem do `Host` e virava a origem dos links que o servidor manda por
+  e-mail. O nome agora é comparado inteiro: `localhost`, `127.0.0.1` ou
+  `[::1]` (fec23f4).
+- (b) O yrs 0.28, o mais novo publicado, entra em pânico num build de
+  release com algumas atualizações que um membro que pode escrever
+  consegue mandar (7170df6). Decidido em 2026-10-13 (*"aceito
+  recomendação"*): toda chamada ao yrs sobre o que uma janela mandou é
+  feita sob `catch_unwind` na fronteira da sala; a atualização é recusada,
+  uma linha `WARN` nomeia o id da conta, e a sala é refeita a partir do
+  arquivo, como uma mudança de fora a refaz. O que um membro perde: as
+  edições naquela sala desde a última escrita dela, que acontece 900 ms
+  depois da última edição (606ffeb).
+- (c) Uma contagem declarada maior que os bytes restantes, e um valor
+  aninhado mais fundo que 64 níveis, são recusados antes de o yrs ler uma
+  atualização: o `yjs_bounds.rs` percorre o layout v1 da atualização como
+  o yrs o lê, cada número como o yrs o lê, e não lê conteúdo (40893a6,
+  658f924, 4e1338f). Sequências de relógios apagados ou pulados de
+  comprimento 0, deleções de comprimento 0 e relógios além de `u32::MAX`
+  também são recusados (75872f9). Dois desses encerravam o processo
+  inteiro, não um pedido: um valor aninhado o bastante estourava a pilha
+  da thread (visto ao escrever os testes), e uma sequência de comprimento
+  0 fazia o yrs entrar em pânico uma segunda vez durante o
+  desempilhamento, um abort além da captura de (b).
+- (d) Uma atualização que cria ou apaga itens como o próprio cliente Yjs
+  da sala além dos que a sala criou é recusada (670a07f, b7ef994). Os
+  itens de outros clientes continuam sem julgamento.
+- (e) Os pedidos de uma conexão rodavam lado a lado, então o próprio
+  servidor reordenava as atualizações de uma janela: o único jeito de uma
+  atualização legítima chegar ao caminho de pendências do yrs, onde o yrs
+  lia memória liberada (heap-use-after-free do AddressSanitizer) e salas
+  e janelas passavam a ler textos e boards diferentes. O `collab_update`
+  de uma conexão agora espera o anterior (`rpc.rs`, uma corrente por
+  conexão), e uma atualização que deixa algo pendente, ou que o yrs para
+  de aplicar no meio, é recusada e a sala refeita (8d419e9). Decidido em
+  2026-10-13, opção (a) (*"bora a"* *(relatado)*). O host do desktop
+  escreve as perguntas de uma janela na conexão do servidor na ordem das
+  chamadas (`remote.rs`, ca4c8a6); que o Tauri repassa as invocações de
+  uma janela nessa ordem não foi verificado, e a janela torna a ordem
+  sua: uma atualização em voo por sala, o que é digitado enquanto isso
+  juntado na próxima (`updateQueue.ts`, 857f4aa).
+- (f) O que o `join` manda e o que a escrita de um board diz às janelas
+  são decodificados e aplicados num documento de rascunho antes de
+  serem mandados, a sala refeita numa falha (ef1c389); o estado de uma
+  sala também tem de ler numa janela como lê na sala (8d419e9). Custo:
+  uma decodificação e aplicação do estado da sala por join e por escrita
+  de board (os testes do servidor de 22 s para 33 s).
+- (g) `config::size` abaixo de um byte é um erro, não mais uma cota de 0
+  bytes (bc2b9fc).
+
+Estado final: 60 s sob `-O` nos alvos `note` e `board` sem nenhum crash
+*(relatado)*; as sementes, entre elas as seis entradas antes guardadas à
+parte como abertas (f95226d), repassam limpas (8d419e9). Os achados do
+yrs são para relatar ao projeto, esperando o OK do mantenedor
+*(relatado)*.
+
+**Item 16** (0b5fea1; e86eee8, 1e25bcf). A leitura:
+`app/ui/src/sanitize.ts`, escrito pelo Opus 5.5, lido pelo Fable 5.1 em
+2026-10-13, nenhum achado BLOQUEANTE e três MENORES *(relatado)*. Os
+valores de `data-task-line` não são restritos, e o `toggleTask` checa de
+novo que a linha tem uma tarefa antes de editar. O endereço relativo de
+uma imagem chega ao `resolveAttachment` e ao confinamento do `verso-fs`,
+que recusa as formas UNC e absolutas (`confine.rs`, testado no Windows).
+E a caixa de bloqueio de uma página embutida guardava o host do frame
+num `<template>`, que uma segunda limpeza descartava; resolvido tornando
+a caixa autossuficiente (e86eee8): ela carrega o endereço e o estilo
+domado do frame (`data-embed-style`), o host é montado no clique, a
+origem é a do próprio endereço e nunca o `data-embed-origin` da caixa,
+"carregar" só funciona para uma origem que a pessoa aprovou, e "aprovar"
+e "cancelar" só para um endereço http(s). Uma caixa de bloqueio não
+sobrevive a uma segunda limpeza, de propósito: uma nota não consegue
+forjar uma.
+
+A bateria: os casos de HTML hostil, 102, ficam em
+`app/ui/test/sanitize-cases.mjs` e rodam no node sobre o happy-dom
+(`npm test`) e no WebKit e no Chromium pelo
+`app/ui/e2e/sanitize.spec.mjs` (`npm run e2e`, local, no
+`scripts/check.sh`), pelo gancho `__harness.sanitize` do harness — a
+instância que o `main.ts` configura — montado só no site do harness,
+nunca no `dist/` (1e25bcf). Vista falhando antes com uma asserção errada
+de propósito nos dois navegadores; depois três casos falharam nos dois,
+as saídas seguras e as expectativas escritas para a árvore do happy-dom;
+as expectativas foram corrigidas para o parser dos navegadores, e nenhuma
+falha do sanitizador foi achada. O pentest por uma pessoa de fora do
+projeto não está nesta rodada e continua condição do anúncio.
 
 ## Consequências
 
@@ -669,21 +773,8 @@ condição do anúncio. Os itens vão num PR só com os guardrails deles, cada
 um visto falhando antes ([0029](0029-guardrails-in-ci.md)), e a tabela de
 achados da revisão diz o que fechou cada um.
 
-**Construído em 2026-10-13** (Como construído): itens 1 a 13, 15 e 17.
-**O item 14 está em andamento**, os alvos de fuzzing e as correções dele
-no branch sec/fuzz, sendo integrado; a nota de como construído dele vem
-com esse merge. O que os alvos acharam, para que a próxima passada o
-complete: (a) `Host: [::1]@evil.example` era tomado pelo loopback —
-corrigido em fec23f4, com um teste; (b) o yrs 0.28, o mais novo, entra em
-pânico num build de release com atualizações que um membro que pode
-escrever consegue mandar — decidido em 2026-10-13 (*"aceito
-recomendação"*): o pânico é pego na fronteira da sala, a atualização
-recusada, uma linha `WARN` com o id da conta, e a sala refeita a partir do
-arquivo em disco pelo caminho que uma mudança de fora toma; o que um
-membro perde são as edições desde a última escrita da sala (900 ms depois
-da última edição) — 606ffeb; (c) bombas de contagem: uma atualização ou um
-vetor de estado que declara mais entradas do que tem bytes é recusado
-antes de o yrs decodificá-lo — 40893a6, 658f924; (d) os alvos do servidor
-rodam com `-O` (release) na CI — 060f126; (e) `config::size` abaixo de um
-byte é um erro — bc2b9fc. Os hashes são os de sec/fuzz e podem mudar no
-merge.
+**Construído em 2026-10-13** (Como construído): itens 1 a 15 e 17, e a
+leitura do sanitizador do item 16 com a bateria dele rodada no WebKit e no
+Chromium. Fora desses merges: a medição do item 18 e o laboratório hostil
+do item 19. Fora desta rodada: o pentest do item 16 por uma pessoa de fora
+do projeto, condição do anúncio.

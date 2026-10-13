@@ -152,7 +152,8 @@ mudando o teste.
 | `scripts/check-npm-audit.mjs` sobre o `app/ui` (CI e `scripts/check.sh`), exceções com validade em `app/ui/audit-exceptions.json` | uma advisory npm alta ou crítica entregue sem ninguém ver | item 13 do ADR 0083 |
 | `/.well-known/security.txt` responde os campos exigidos, `Expires` um ano depois da data de release do changelog (`security_txt.rs`) | quem acha uma falha sem ter para onde escrever | item 15 do ADR 0083 |
 | Os testes de prova (`tests_prove.rs`, `app/ui/test/proof.test.mjs`): toda rota sensível responde `prove_first` passados dez minutos; o código digitado da página de aparelho | uma ação sensível com um cookie velho ou roubado | itens 6 e 17 do ADR 0083 |
-| As entradas do servidor sob fuzzing com `cargo-fuzz`, 60 s por alvo na `main` (sendo integrado) | um pedido, uma atualização ou um cabeçalho hostil derrubando o servidor | item 14 do ADR 0083 |
+| As entradas do servidor sob fuzzing: sete alvos `cargo-fuzz` em `crates/verso-server/fuzz` (request, unframe, note, board, presence, host, size), 60 s cada com `-O` na `main`, as sementes versionadas por alvo; cada entrada que acharam guardada como teste (`tests_room_inputs.rs` para as salas); `app/ui/test/updateQueue.test.mjs`, uma atualização de sala em voo | um pedido, uma atualização ou um cabeçalho hostil derrubando o servidor, ou uma sala e uma janela lendo textos diferentes | item 14 do ADR 0083 |
+| A bateria de HTML hostil, 102 casos em `app/ui/test/sanitize-cases.mjs`, rodada no node pelo `npm test` e no WebKit e no Chromium pelo `npm run e2e` (`app/ui/e2e/sanitize.spec.mjs`, pelo `__harness.sanitize` do harness) | o HTML de uma nota que roda ou carrega na janela de outro membro, visto só pelo parser do happy-dom | item 16 do ADR 0083 |
 
 CI ([ADR 0029](adr/0029-guardrails-in-ci.md), 2026-09-23): um pull request
 roda todo guardrail menos o fuzzing num job de Linux; o `main` acrescenta
