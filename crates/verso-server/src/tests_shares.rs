@@ -1025,3 +1025,79 @@ fn changes_outside_the_share_do_not_move_the_receivers_head() {
         assert!(theirs["ok"]["head"].as_i64().unwrap() > folder_head + 3);
     });
 }
+
+/// An invitation to a share, accepted after the share is gone — its last
+/// person revoked, or its folder deleted: nothing of the folder is given
+/// in its place (ADR 0081 items 4 and 8), and the link answers as one
+/// that expired.
+#[test]
+fn an_invitation_to_a_share_that_is_gone_gives_nothing() {
+    block_on(async {
+        for how in ["revoked", "deleted"] {
+            let r = start().await;
+            let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+            let (id, mut owner) = furnished(&r, &admin).await;
+            let (_, ana_id) = ana(&r).await;
+            let (_, shared) = put(
+                &r,
+                &format!("/api/folders/{id}/shares"),
+                json!({ "path": "Mesa", "email": "ana@casa.lan", "role": "reader" }),
+                &admin,
+            )
+            .await;
+            let share = shared["id"].as_str().unwrap().to_owned();
+            let (status, inv) = post(
+                &r,
+                "/api/admin/invitations",
+                json!({ "email": "novo@casa.lan", "share": share, "role": "editor" }),
+                Some(&admin),
+            )
+            .await;
+            assert_eq!(status, 200, "{inv}");
+            let token = inv["link"].as_str().unwrap().rsplit('/').next().unwrap();
+            if how == "revoked" {
+                let (status, _) = post(
+                    &r,
+                    &format!("/api/folders/{id}/shares/revoke"),
+                    json!({ "path": "Mesa", "account": ana_id }),
+                    Some(&admin),
+                )
+                .await;
+                assert_eq!(status, 200);
+            } else {
+                let gone = owner.call("delete_entry", json!({ "path": "Mesa" })).await;
+                assert!(gone.get("ok").is_some(), "{gone}");
+            }
+            assert!(r.server.db.share(&share).unwrap().is_none(), "{how}");
+            let (status, said) = post(
+                &r,
+                &format!("/api/invite/{token}"),
+                json!({ "email": "x@y.z", "name": "Novo", "password": "outra senha longa", "lang": "pt" }),
+                None,
+            )
+            .await;
+            // Whatever the answer, nothing of the folder was given…
+            let members = r.server.db.members(&id).unwrap();
+            assert!(
+                !members.iter().any(|(a, _)| a.email == "novo@casa.lan"),
+                "{how}: the invitation to a share gave the whole folder: {:?}",
+                members
+                    .iter()
+                    .map(|(a, role)| (a.email.clone(), *role))
+                    .collect::<Vec<_>>()
+            );
+            if status == 200 {
+                let novo = sign_in(&r, "novo@casa.lan", "outra senha longa").await;
+                let (_, me) = get(&r, "/api/me", Some(&novo)).await;
+                assert_eq!(me["folders"], json!([]), "{how}: {me}");
+            }
+            // …and the link is gone, as an expired one is.
+            assert_eq!(status, 404, "{how}: {said}");
+            assert_eq!(said["error"], "link_gone", "{how}: {said}");
+            let (status, _) = get(&r, &format!("/api/invite/{token}"), None).await;
+            assert_eq!(status, 404, "{how}");
+            let (_, list) = get(&r, "/api/admin/invitations", Some(&admin)).await;
+            assert_eq!(list["rows"][0]["state"], "ended", "{how}: {list}");
+        }
+    });
+}
