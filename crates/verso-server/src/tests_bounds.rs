@@ -278,8 +278,8 @@ async fn behind_proxy() -> crate::tests::Running {
 
 /// The REST routes have a pace per address (ADR 0083 item 7): the 101st
 /// request of a burst from one address answers 429 with `Retry-After`,
-/// and the next second's is heard; another address, the proxy itself and
-/// the page are not held back by it.
+/// and the next second's is heard; another address, the proxy's own key
+/// and the page are not held back by it.
 #[test]
 fn past_a_burst_the_rest_routes_answer_429_until_the_next_second() {
     block_on(async {
@@ -317,8 +317,8 @@ fn past_a_burst_the_rest_routes_answer_429_until_the_next_second() {
             .await
             .unwrap();
         assert_eq!(upgrade.status().as_u16(), 429);
-        // Another address, the proxy's own requests and the page are not
-        // behind it.
+        // Another address, the proxy's own key (a request it forwarded
+        // nothing for) and the page are not behind it.
         let other = from("/api/state", "203.0.113.8").await.unwrap().status();
         assert_eq!(other.as_u16(), 200);
         let own = client
@@ -336,6 +336,42 @@ fn past_a_burst_the_rest_routes_answer_429_until_the_next_second() {
         assert_eq!(next_second.as_u16(), 200);
         assert!(!crate::log::said("requests from 203.0.113.7 past").is_empty());
         assert!(!crate::log::said("carried no X-Forwarded-For").is_empty());
+    });
+}
+
+/// Nothing that comes through a proxy claims this machine's exemption
+/// from the pace (ADR 0083 item 7): a forwarded `127.0.0.1` — a proxy
+/// that passed the client's own header on — is paced under that address,
+/// and a proxy that forwards nothing is paced under its own, every
+/// visitor as one key. Only a direct connection from this machine is not.
+#[test]
+fn a_forwarded_loopback_or_an_unforwarding_proxy_is_paced() {
+    block_on(async {
+        let r = behind_proxy().await;
+        r.server.pace.freeze();
+        let client = reqwest::Client::new();
+        let state = |forwarded: Option<&str>| {
+            let mut req = client.get(r.url("/api/state"));
+            if let Some(f) = forwarded {
+                req = req.header("x-forwarded-for", f);
+            }
+            req.send()
+        };
+        for forwarded in [Some("127.0.0.1"), None] {
+            for i in 1..=100 {
+                let status = state(forwarded).await.unwrap().status().as_u16();
+                assert_eq!(status, 200, "{forwarded:?} request {i}");
+            }
+            let status = state(forwarded).await.unwrap().status().as_u16();
+            assert_eq!(status, 429, "{forwarded:?}: the 101st request");
+            r.server.pace.advance(Duration::from_secs(10));
+        }
+        // A direct connection from this machine, no proxy set, is not paced.
+        let direct = start().await;
+        for i in 1..=150 {
+            let (status, _) = crate::tests::get(&direct, "/api/state", None).await;
+            assert_eq!(status, 200, "direct request {i}");
+        }
     });
 }
 
