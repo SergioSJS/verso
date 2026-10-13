@@ -602,13 +602,26 @@ pub struct Capabilities {
     pub latency_ms: Option<u32>,
 }
 
-/// A note joined for editing by several people at once (ADR 0073 item 7):
-/// the shared state as a Yjs update (base64) to apply to an empty
-/// document, the revision on disk it stands on, and how the file is
-/// written — its text in the shared state has `\n` line ends; a file
-/// that mixes them is shown read-only and joins nothing.
+/// What a room holds (ADR 0082 item 12, decided 2026-10-12): a `text` —
+/// a note, or any other text file of the folder — as one Yjs text, or a
+/// `board` as its elements, one entry per element and version.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum CollabKind {
+    Text,
+    Board,
+}
+
+/// A file joined for editing by several people at once (ADR 0073 item 7,
+/// ADR 0082 item 12): the shared state as a Yjs update (base64) to apply
+/// to an empty document, the revision on disk it stands on, and how the
+/// file is written — a text's lines in the shared state end in `\n`; a
+/// file that mixes them is shown read-only and joins nothing.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct CollabJoin {
+    /// A text or a board: the window binds the state to its editor or to
+    /// its board by it.
+    pub kind: CollabKind,
     pub update: String,
     pub revision: String,
     pub read_only: bool,

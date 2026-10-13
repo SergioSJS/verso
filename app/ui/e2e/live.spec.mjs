@@ -170,3 +170,63 @@ test("a property set in the panel of a live note goes into the room, beside what
   expect(file).toContain("estado: pronta");
   expect(file).toContain("dois, da Bia");
 });
+
+/** Two cards, as Obsidian writes a canvas. */
+const BOARD = "Mesa ao vivo.canvas";
+const TWO = '{\n\t"nodes":[\n\t\t{"id":"a","x":0,"y":0,"width":250,"height":60,"type":"text","text":"Alfa"},\n\t\t{"id":"b","x":400,"y":0,"width":250,"height":60,"type":"text","text":"Beta"}\n\t],\n\t"edges":[]\n}';
+
+/** Drag a card by its middle, as a person does. */
+async function drag(app, id, dx, dy) {
+  const at = await app.centerOf(id);
+  await app.page.mouse.move(at.x, at.y);
+  await app.page.mouse.down();
+  await app.page.mouse.move(at.x + dx, at.y + dy, { steps: 8 });
+  await app.page.mouse.up();
+}
+
+const cardY = async (app, text, id) => JSON.parse(text).nodes.find((n) => n.id === id).y;
+
+test("a synced folder's board is live: what is drawn goes to the room, which writes the file; offline it is saved here, and back it is live again", async ({ app, page }) => {
+  await app.open();
+  await link(app, true);
+  await say(app, SYNCED);
+  await app.writeOutside(BOARD, TWO);
+  await app.folderChanged([BOARD], true);
+  await app.quickOpen("Mesa ao vivo");
+  await app.boardReady();
+  const mark = page.locator(".live-mark:visible");
+  await expect(mark).toHaveText("ao vivo, só você");
+  expect(await app.calls("collab_join")).toHaveLength(1);
+
+  // A card moved here goes to the room as its element, with the file this
+  // window's converter makes of the room; the tab writes nothing itself.
+  await drag(app, "b", 60, 120);
+  await expect.poll(async () => (await app.calls("collab_canvas")).length, { timeout: 15_000 }).toBeGreaterThan(0);
+  await page.waitForTimeout(1500);
+  expect(await app.calls("write_board")).toHaveLength(0);
+  await page.evaluate((n) => window.__harness.rooms.save(n), BOARD);
+  await expect.poll(async () => cardY(app, await app.file(BOARD), "b")).toBeGreaterThan(50);
+
+  // The link drops: the board goes local, said in words, and what is
+  // drawn now is saved on this computer.
+  await link(app, false);
+  await say(app, { ...SYNCED, state: "offline" });
+  await expect(mark).toHaveText("local — sem conexão");
+  await expect(page.locator("#status")).toContainText("O quadro agora é local: a conexão caiu");
+  await drag(app, "a", 0, 300);
+  await expect.poll(async () => cardY(app, await app.file(BOARD), "a"), { timeout: 15_000 }).toBeGreaterThan(200);
+  expect((await app.calls("write_board")).length).toBeGreaterThan(0);
+
+  // Back: the same room, live again, and what was drawn meanwhile handed
+  // to it — the room's save has both cards where they were left.
+  const handed = (await app.calls("collab_canvas")).length;
+  await link(app, true);
+  await say(app, { ...SYNCED, state: "syncing" });
+  await expect(mark).toHaveText(/^ao vivo/);
+  await expect(page.locator("#status")).toContainText("O quadro está ao vivo de novo.");
+  await expect.poll(async () => (await app.calls("collab_canvas")).length, { timeout: 15_000 }).toBeGreaterThan(handed);
+  await page.evaluate((n) => window.__harness.rooms.save(n), BOARD);
+  const saved = await app.file(BOARD);
+  expect(await cardY(app, saved, "a")).toBeGreaterThan(200);
+  expect(await cardY(app, saved, "b")).toBeGreaterThan(50);
+});

@@ -401,6 +401,13 @@ export const commands = {
 	 */
 	collabPresent: (path: string) => typedError<boolean, ContractError>(__TAURI_INVOKE("collab_present", { path })),
 	/**
+	 *  A board's file, as this window's converter makes it of the room's state
+	 *  `at` (a Yjs state vector, base64): the room writes the one made of the
+	 *  state it holds (ADR 0082 item 12). On a server, or a synced folder's
+	 *  link, only.
+	 */
+	collabCanvas: (path: string, at: string, json: string) => typedError<null, ContractError>(__TAURI_INVOKE("collab_canvas", { path, at, json })),
+	/**
 	 *  Sign in to a server through the browser: the server's page opens for the
 	 *  person to approve this device; the app asks meanwhile, keeps the token
 	 *  when it comes, and says so (`server-signed-in`).
@@ -777,13 +784,18 @@ export type CliState =
 "bundled";
 
 /**
- *  A note joined for editing by several people at once (ADR 0073 item 7):
- *  the shared state as a Yjs update (base64) to apply to an empty
- *  document, the revision on disk it stands on, and how the file is
- *  written — its text in the shared state has `\n` line ends; a file
- *  that mixes them is shown read-only and joins nothing.
+ *  A file joined for editing by several people at once (ADR 0073 item 7,
+ *  ADR 0082 item 12): the shared state as a Yjs update (base64) to apply
+ *  to an empty document, the revision on disk it stands on, and how the
+ *  file is written — a text's lines in the shared state end in `\n`; a
+ *  file that mixes them is shown read-only and joins nothing.
  */
 export type CollabJoin = {
+	/**
+	 *  A text or a board: the window binds the state to its editor or to
+	 *  its board by it.
+	 */
+	kind: CollabKind,
 	update: string,
 	revision: string,
 	read_only: boolean,
@@ -798,6 +810,13 @@ export type CollabJoin = {
 	 */
 	epoch: string,
 };
+
+/**
+ *  What a room holds (ADR 0082 item 12, decided 2026-10-12): a `text` —
+ *  a note, or any other text file of the folder — as one Yjs text, or a
+ *  `board` as its elements, one entry per element and version.
+ */
+export type CollabKind = "text" | "board";
 
 /**
  *  What became of a shared note (events `collab-saved`, `collab-conflict`,

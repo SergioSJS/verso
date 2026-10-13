@@ -71,20 +71,25 @@ async function noSecondWriter(app) {
   expect((await app.files()).filter((f) => /\((conflito|conflict)\b/.test(f))).toEqual([]);
 }
 
-/** Held here: one join, the tab's; no visit to the room. */
-async function heldHere(app) {
-  expect(await app.calls("collab_join")).toHaveLength(1);
-  expect(await app.calls("collab_present")).toHaveLength(0);
-  expect((await app.calls("collab_update")).length).toBeGreaterThan(0);
+/** Held here: one join, the tab's; no visit to the room. With `path`,
+ *  only that file's calls count: a base's own tab is in its own room too
+ *  (ADR 0082 item 12). */
+async function heldHere(app, path) {
+  const of = async (cmd) => (await app.calls(cmd)).filter((a) => !path || a.path === path);
+  expect(await of("collab_join")).toHaveLength(1);
+  expect(await of("collab_present")).toHaveLength(0);
+  expect((await of("collab_update")).length).toBeGreaterThan(0);
 }
 
 /** Live only elsewhere: asked, joined, the edit sent, the room asked to
  *  write the file, and left — once each, for the one write. */
 async function visited(app, path) {
+  // The note's room, joined for the one write; a base's own tab is in its
+  // own room besides (ADR 0082 item 12), and leaves it never here.
   for (const cmd of ["collab_present", "collab_join", "collab_save", "collab_leave"]) {
-    expect(await app.calls(cmd), cmd).toEqual([{ path }]);
+    expect((await app.calls(cmd)).filter((a) => !/\.base$/.test(a.path)), cmd).toEqual([{ path }]);
   }
-  const sent = await app.calls("collab_update");
+  const sent = (await app.calls("collab_update")).filter((a) => !/\.base$/.test(a.path));
   expect(sent.length).toBeGreaterThan(0);
   expect(sent.every((a) => a.path === path)).toBe(true);
 }
@@ -176,7 +181,8 @@ test("a base's cell written to a note held live here goes into its room, beside 
   await expect(page.locator(".base a.base-file", { hasText: /^Projeto Alpha$/ })).toBeVisible();
   // The note opened beside the base (⌘-click on its name), live.
   await page.locator(".base a.base-file", { hasText: /^Projeto Alpha$/ }).click({ modifiers: ["ControlOrMeta"] });
-  await expect(page.locator(".live-mark:visible")).toHaveText("ao vivo, só você");
+  // The note's tab says it; the base's own tab is live in its own room.
+  await expect(page.getByRole("tabpanel", { name: /^Projeto Alpha/ }).locator(".live-mark")).toHaveText("ao vivo, só você");
   await biaTypes(app, PROJECT, "dois, da Bia\n");
   // Her line lands at the end of a long note, below what the editor
   // draws; the editor is read at the top, where the property is.
@@ -190,7 +196,7 @@ test("a base's cell written to a note held live here goes into its room, beside 
   expect(text).toContain("dois, da Bia");
   // The tab's editor holds it as well: the edit went through it.
   await expect(editor).toContainText("status: pausado");
-  await heldHere(app);
+  await heldHere(app, PROJECT);
   await noSecondWriter(app);
   await roomSaves(app, PROJECT);
   const file = await app.file(PROJECT);
@@ -204,7 +210,7 @@ test("a base's cell written to a note live only with Bia joins its room for the 
   await app.quickOpen("Projetos.base");
 
   await setStatus(app, "pausado");
-  await expect.poll(() => app.calls("collab_leave")).toHaveLength(1);
+  await expect.poll(async () => (await app.calls("collab_leave")).filter((a) => a.path === PROJECT)).toHaveLength(1);
   await visited(app, PROJECT);
   const text = await room(app, PROJECT);
   expect(text).toContain("status: pausado");

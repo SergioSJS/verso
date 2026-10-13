@@ -819,6 +819,37 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
     dois computadores de verdade, à mão
     (`manual-checks.md`). O cofre de demonstração não tem servidor: os
     passos rodam na sala do harness ou à mão.
+12. Tudo editado junto, não só as notas (item 12 da [ADR
+    0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), da seção
+    *Editar junto* da nota 23 e da parada "Num servidor" do tour: com o
+    cofre de demonstração num UniVerso, abra o *Tour do Verso* — ou um
+    board seu — em duas janelas. Arraste um cartão numa enquanto a outra
+    escreve um texto com a ferramenta de texto: cada janela mostra os dois,
+    e o arquivo tem os dois, sem cópia de conflito e sem faixa; o ponteiro
+    da outra janela anda no board desta com o nome, e a aba diz *ao vivo,
+    com* e o nome (e2e-server, "two windows on one board"; com o board fora
+    da sala o teste falha). Abra um `.txt` em duas janelas e digite em cada
+    uma: cada uma vê as letras da outra, e o arquivo acompanha; abra
+    *Projetos.base* em duas janelas e acrescente uma ordenação pelo
+    *Ordenar* › *+ Adicionar ordenação* da barra: a base da outra janela a
+    tem, e o arquivo também (e2e-server, "two windows on a text file and on
+    a base's settings"). Numa pasta sincronizada um board fica ao vivo
+    enquanto o link está de pé, fica *local — sem conexão* com o que tem
+    salvo aqui, e volta com *O quadro está ao vivo de novo* (e2e,
+    `live.spec.mjs`, "a synced folder's board is live"). A fusão — dois
+    elementos, os dois ficam; o mesmo elemento, a versão maior, no empate o
+    nonce menor; apagar contra arrastar continua apagado; o arquivo só do
+    estado da própria sala; abrir não grava nada; uma mudança de fora; os
+    limites — os testes Rust do servidor (`tests_board_rooms.rs`,
+    `collab_board.rs`), os da janela (`boardRoom.test.mjs`), e dois
+    aparelhos sincronizados num arquivo de texto e num board
+    (`tests_live.rs`); dois computadores de verdade, à mão
+    (`manual-checks.md`). Sob carga: cinco clientes num board contra um
+    servidor de verdade, com semente, com reordenação, quedas e um leitor
+    do disco (`tests_board_stress.rs`; a rodada longa `board_stress_long`,
+    ignorada); cinco janelas com a fusão e o conversor da própria janela
+    (`boardStress.test.mjs`); três janelas em dois motores trabalhando ao
+    acaso por um minuto (e2e-server, "three windows, two engines").
 
 ## 14. O fim
 

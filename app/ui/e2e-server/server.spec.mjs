@@ -6,7 +6,7 @@
 
 import { createHash } from "node:crypto";
 
-import { expect, test as base } from "@playwright/test";
+import { expect, test as base, webkit } from "@playwright/test";
 
 import { leakFixtures } from "../e2e/leaks.mjs";
 
@@ -714,4 +714,333 @@ test("a reader's star stays in this browser, and the folder's settings are left 
   await other.close();
   expect(errors).toEqual([]);
   expect(readerErrors).toEqual([]);
+});
+
+/* ---------- Every file a person edits co-edits live (ADR 0082 item 12) ---------- */
+
+/** A file made in the folder through the window's own contract. */
+async function made(page, path, text) {
+  const r = await page.evaluate(
+    async ({ path, text }) => {
+      let bin = "";
+      for (const b of new TextEncoder().encode(text)) bin += String.fromCharCode(b);
+      return window.__TAURI_INTERNALS__.invoke("create_file", { path, base64: btoa(bin) });
+    },
+    { path, text },
+  );
+  expect(r).toBe(path);
+}
+
+/** The file as the server's disk holds it. */
+function onDisk(page, path) {
+  return page.evaluate(async (p) => (await window.__TAURI_INTERNALS__.invoke("read_text", { path: p })).text, path);
+}
+
+/** A window on the folder with `path` open in a tab, the board's scene
+ *  readable (`__VERSO_TEST__`, as the harness's). */
+async function windowOn(page, folder, path) {
+  await page.goto(`/?folder=${folder}`);
+  await expect(page.locator("#folder")).toHaveText("Demo");
+  await showTree(page);
+  await expect(page.locator("#notes")).toContainText(path);
+  await page.locator("#notes").getByRole("button", { name: path }).click();
+}
+
+/** The board's scene in a window, as a test reads it. */
+function sceneOf(page) {
+  return page.evaluate(() =>
+    (window.__VERSO_TEST__?.board?.getSceneElements() ?? []).map((e) => ({ id: e.id, type: e.type, x: e.x, y: e.y, width: e.width, height: e.height, text: e.text })),
+  );
+}
+
+/** A point of the board, on the page. */
+async function onBoard(page, x, y) {
+  const v = await page.evaluate(() => {
+    const s = window.__VERSO_TEST__.board.getAppState();
+    return { scrollX: s.scrollX, scrollY: s.scrollY, zoom: s.zoom.value, left: s.offsetLeft, top: s.offsetTop };
+  });
+  return { x: (x + v.scrollX) * v.zoom + v.left, y: (y + v.scrollY) * v.zoom + v.top };
+}
+
+/** Nothing beside the file but itself: an edit made in a room is never a
+ *  conflict's copy. */
+async function noCopies(page, stem) {
+  const files = await page.evaluate(() => window.__TAURI_INTERNALS__.invoke("list_files", {}));
+  return files.filter((f) => f.startsWith(stem) && !/\.(canvas|txt|base)$/.test(f.replace(stem, "")));
+}
+
+/** Two cards, as Obsidian writes a canvas. */
+const TWO_CARDS = '{\n\t"nodes":[\n\t\t{"id":"a","x":0,"y":0,"width":250,"height":60,"type":"text","text":"Alfa"},\n\t\t{"id":"b","x":400,"y":0,"width":250,"height":60,"type":"text","text":"Beta"}\n\t],\n\t"edges":[]\n}';
+
+test("two windows on one board: a card moved in one and a text added in the other land in both and in the file", async ({ page }) => {
+  await page.context().addInitScript(() => {
+    window.__VERSO_TEST__ = {};
+  });
+  const errors = watch(page);
+  await signedIn(page, ADMIN.email, ADMIN.password);
+  await demoRegistered(page);
+  await openDemo(page);
+  const folder = new URL(page.url()).searchParams.get("folder");
+  const stem = `Mesa junto ${test.info().project.name}`;
+  const path = `${stem}.canvas`;
+  await made(page, path, TWO_CARDS);
+  await windowOn(page, folder, path);
+  const other = await page.context().newPage();
+  const otherErrors = watch(other);
+  await windowOn(other, folder, path);
+  for (const p of [page, other]) await p.waitForFunction(() => (window.__VERSO_TEST__?.board?.getSceneElements().length ?? 0) >= 2 && window.__VERSO_TEST__.board.getAppState().width > 0);
+
+  // The first window drags card "b" by its middle, as a person does.
+  const b = (await sceneOf(page)).find((e) => e.id === "b");
+  const from = await onBoard(page, b.x + b.width / 2, b.y + b.height / 2);
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x + 90, from.y + 140, { steps: 8 });
+  await page.mouse.up();
+  // At the same time the second adds a text, with the text tool.
+  const free = await onBoard(other, 0, 300);
+  await other.mouse.click(free.x, free.y);
+  await other.keyboard.press("t");
+  await other.mouse.click(free.x, free.y);
+  await other.keyboard.type("olá junto");
+  await other.keyboard.press("Escape");
+
+  // Each sees both.
+  await expect.poll(async () => (await sceneOf(page)).some((e) => e.type === "text" && e.text === "olá junto"), { timeout: 20_000 }).toBe(true);
+  await expect.poll(async () => (await sceneOf(other)).find((e) => e.id === "b")?.y ?? 0, { timeout: 20_000 }).toBeGreaterThan(50);
+  // The room wrote the file, both in it, laid as a board is laid.
+  await expect
+    .poll(
+      async () => {
+        const doc = JSON.parse(await onDisk(page, path));
+        const moved = doc.nodes.find((n) => n.id === "b").y > 50;
+        const text = (doc.verso?.drawing ?? []).some((d) => d.type === "text" && d.text === "olá junto");
+        return moved && text;
+      },
+      { timeout: 20_000 },
+    )
+    .toBe(true);
+  expect(await noCopies(page, stem)).toEqual([]);
+  for (const p of [page, other]) await expect(p.locator(".conflict:visible")).toHaveCount(0);
+
+  // The other window is there: its pointer, with its name, on this one's
+  // board, and its name in words in the tab.
+  const spot = await onBoard(other, 100, 100);
+  await other.mouse.move(spot.x, spot.y);
+  await other.mouse.move(spot.x + 20, spot.y + 10, { steps: 3 });
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const people = [...window.__VERSO_TEST__.board.getAppState().collaborators.values()];
+          return people.some((c) => /admin/i.test(c.username ?? "") && c.pointer && Number.isFinite(c.pointer.x));
+        }),
+      { timeout: 20_000 },
+    )
+    .toBe(true);
+  await expect(page.locator(".live-mark:visible").first()).toContainText(/ao vivo, com admin/i);
+  await other.close();
+  expect(errors).toEqual([]);
+  expect(otherErrors).toEqual([]);
+});
+
+test("two windows on a text file and on a base's settings edit them together, and the files follow", async ({ page }) => {
+  const errors = watch(page);
+  await signedIn(page, ADMIN.email, ADMIN.password);
+  await demoRegistered(page);
+  await openDemo(page);
+  const folder = new URL(page.url()).searchParams.get("folder");
+  const stem = `Lista junto ${test.info().project.name}`;
+
+  // A text file: what one types, the other sees, without saving.
+  const txt = `${stem}.txt`;
+  await made(page, txt, "um\n");
+  await windowOn(page, folder, txt);
+  const other = await page.context().newPage();
+  const otherErrors = watch(other);
+  await windowOn(other, folder, txt);
+  const mine = page.locator(".editor.source .cm-content:visible").first();
+  const theirs = other.locator(".editor.source .cm-content:visible").first();
+  await expect(mine).toContainText("um");
+  await expect(theirs).toContainText("um");
+  await mine.click();
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.type("dois");
+  await expect(theirs).toContainText("dois");
+  await theirs.click();
+  await other.keyboard.press("ControlOrMeta+End");
+  await other.keyboard.type(" e três");
+  await expect(mine).toContainText("dois e três");
+  await expect.poll(() => onDisk(page, txt), { timeout: 20_000 }).toBe("um\ndois e três");
+
+  // A base: a sort added from the view's settings in one window goes into
+  // the room, and the other's base has it.
+  const base = `${stem}.base`;
+  await made(page, base, "views:\n  - type: table\n    name: Tabela\n");
+  await windowOn(page, folder, base);
+  await windowOn(other, folder, base);
+  await page.locator(".base-tool[aria-label='Ordenar']:visible").first().click();
+  await page.getByRole("button", { name: "+ Adicionar ordenação" }).click();
+  await expect
+    .poll(() => other.evaluate(() => [...document.querySelectorAll(".editor.source .cm-content")].map((e) => e.textContent).join("\n")), { timeout: 20_000 })
+    .toContain("sort:");
+  await expect.poll(() => onDisk(page, base), { timeout: 20_000 }).toContain("sort:");
+  expect(await noCopies(page, stem)).toEqual([]);
+  for (const p of [page, other]) await expect(p.locator(".conflict:visible")).toHaveCount(0);
+  await other.close();
+  expect(errors).toEqual([]);
+  expect(otherErrors).toEqual([]);
+});
+
+/* ---------- A board edited hard in three windows at once (ADR 0082 item 12) ---------- */
+
+/** A seeded generator: the seed says every window's run. */
+function seeded(seed) {
+  let s = seed >>> 0 || 1;
+  return () => {
+    s ^= s << 13;
+    s >>>= 0;
+    s ^= s >>> 17;
+    s ^= s << 5;
+    s >>>= 0;
+    return s;
+  };
+}
+
+/** For `ms`, a person working on the board as fast as a person does:
+ *  dragging, drawing, writing, deleting, rewriting a text. */
+async function workOnBoard(page, next, ms) {
+  const until = Date.now() + ms;
+  const box = await page.locator(".board-canvas, .excalidraw canvas.interactive").first().boundingBox();
+  const spot = () => ({ x: box.x + 80 + (next() % Math.max(1, box.width - 160)), y: box.y + 80 + (next() % Math.max(1, box.height - 160)) });
+  while (Date.now() < until) {
+    const scene = await sceneOf(page);
+    const live = scene.filter((e) => e.type !== "embeddable");
+    const pick = live.length ? live[next() % live.length] : null;
+    const what = next() % 100;
+    try {
+      if (what < 30 && pick) {
+        const at = await onBoard(page, pick.x + pick.width / 2, pick.y + pick.height / 2);
+        await page.mouse.move(at.x, at.y);
+        await page.mouse.down();
+        await page.mouse.move(at.x + (next() % 160) - 80, at.y + (next() % 160) - 80, { steps: 4 + (next() % 6) });
+        await page.mouse.up();
+      } else if (what < 55) {
+        const a = spot();
+        await page.mouse.click(a.x, a.y);
+        await page.keyboard.press(next() % 2 ? "r" : "o");
+        await page.mouse.move(a.x, a.y);
+        await page.mouse.down();
+        await page.mouse.move(a.x + 40 + (next() % 80), a.y + 30 + (next() % 60), { steps: 4 });
+        await page.mouse.up();
+        await page.keyboard.press("Escape");
+      } else if (what < 72) {
+        const a = spot();
+        await page.mouse.click(a.x, a.y);
+        await page.keyboard.press("t");
+        await page.mouse.click(a.x, a.y);
+        await page.keyboard.type(`t${next() % 1000}`);
+        await page.keyboard.press("Escape");
+      } else if (what < 87 && pick) {
+        const at = await onBoard(page, pick.x + pick.width / 2, pick.y + pick.height / 2);
+        await page.mouse.click(at.x, at.y);
+        await page.keyboard.press("Delete");
+      } else if (pick && pick.type === "text") {
+        const at = await onBoard(page, pick.x + pick.width / 2, pick.y + pick.height / 2);
+        await page.mouse.dblclick(at.x, at.y);
+        await page.keyboard.type(` +${next() % 100}`);
+        await page.keyboard.press("Escape");
+      } else {
+        await page.keyboard.press("ControlOrMeta+z");
+      }
+    } catch {
+      // An element gone under the pointer meanwhile: the next change.
+    }
+    await page.waitForTimeout(next() % 120);
+  }
+  await page.keyboard.press("Escape");
+}
+
+/** What a window holds of the room: the winning version of every element,
+ *  the file it would make, and the version of every element it draws. */
+function roomOf(page) {
+  return page.evaluate(() => {
+    const room = window.__VERSO_TEST__.boardRoom;
+    const board = window.__VERSO_TEST__.board;
+    const ranks = (els) => Object.fromEntries([...els].map((e) => [e.id, `${e.version}:${e.versionNonce}:${e.isDeleted === true}`]).sort(([a], [b]) => (a < b ? -1 : 1)));
+    return { room: ranks(room.resolved().values()), scene: ranks(board.getSceneElementsIncludingDeleted()), canvas: room.canvas(), waiting: room.waiting };
+  });
+}
+
+test("three windows, two engines, edit one board hard for a minute: one board everywhere, and the file holds it", async ({ page }, info) => {
+  test.skip(info.project.name !== "chromium", "one run drives both engines");
+  test.setTimeout(240_000);
+  await page.context().addInitScript(() => {
+    window.__VERSO_TEST__ = {};
+  });
+  const errors = watch(page);
+  await signedIn(page, ADMIN.email, ADMIN.password);
+  await demoRegistered(page);
+  await openDemo(page);
+  const folder = new URL(page.url()).searchParams.get("folder");
+  const path = `Mesa em tres ${Date.now()}.canvas`;
+  await made(page, path, TWO_CARDS);
+  // A second Chromium window, and a WebKit one signed in as the same person.
+  const other = await page.context().newPage();
+  const browser = await webkit.launch();
+  const wk = await browser.newContext({ storageState: await page.context().storageState(), baseURL: info.project.use.baseURL ?? `http://localhost:${process.env.SERVER_PORT ?? 4174}`, viewport: { width: 1400, height: 900 }, locale: "pt-BR" });
+  await wk.addInitScript(() => {
+    window.__VERSO_TEST__ = {};
+  });
+  const third = await wk.newPage();
+  const windows = [page, other, third];
+  const errs = [errors, watch(other), watch(third)];
+  for (const p of windows) {
+    await windowOn(p, folder, path);
+    await p.waitForFunction(() => (window.__VERSO_TEST__?.board?.getSceneElements().length ?? 0) >= 2 && window.__VERSO_TEST__.boardRoom);
+  }
+  const seed = Number(process.env.BOARD_E2E_SEED ?? 20261012);
+  console.log(`board three windows: seed ${seed}`);
+  await Promise.all(windows.map((p, i) => workOnBoard(p, seeded(seed + i * 7919), 60_000)));
+  // Quiet: every window draws the room's board, and each makes the same file.
+  let last = null;
+  await expect
+    .poll(
+      async () => {
+        const all = await Promise.all(windows.map(roomOf));
+        last = all;
+        const same = all.every((w) => JSON.stringify(w.room) === JSON.stringify(all[0].room) && JSON.stringify(w.scene) === JSON.stringify(w.room));
+        return same && all.every((w) => JSON.stringify(w.canvas) === JSON.stringify(all[0].canvas));
+      },
+      { timeout: 60_000, intervals: [500] },
+    )
+    .toBe(true);
+  // The file on the server's disk: a JSON Canvas, and that board.
+  await windows[0].evaluate(async (p) => window.__TAURI_INTERNALS__.invoke("collab_save", { path: p }), path).catch(() => undefined);
+  await expect.poll(async () => JSON.stringify(JSON.parse(await onDisk(page, path))), { timeout: 30_000 }).toBe(JSON.stringify(last[0].canvas));
+  const file = JSON.parse(await onDisk(page, path));
+  const ids = new Set();
+  for (const n of file.nodes) {
+    expect(typeof n.id === "string" && typeof n.type === "string" && [n.x, n.y, n.width, n.height].every(Number.isFinite)).toBe(true);
+    expect(ids.has(n.id)).toBe(false);
+    ids.add(n.id);
+  }
+  const nodes = new Set(ids);
+  for (const e of file.edges) {
+    expect(nodes.has(e.fromNode) && nodes.has(e.toNode)).toBe(true);
+    ids.add(e.id);
+  }
+  for (const d of file.verso?.drawing ?? []) {
+    expect(ids.has(d.id)).toBe(false);
+    ids.add(d.id);
+  }
+  const elements = Object.keys(last[0].room).length;
+  console.log(`board three windows: ${elements} elements, ${file.nodes.length} cards, ${(file.verso?.drawing ?? []).length} drawn, file of ${JSON.stringify(file).length} bytes`);
+  expect(elements).toBeGreaterThan(10);
+  expect(await noCopies(page, path.replace(/\.canvas$/, ""))).toEqual([]);
+  await other.close();
+  await third.close();
+  await wk.close();
+  await browser.close();
+  for (const e of errs) expect(e).toEqual([]);
 });

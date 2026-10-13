@@ -129,6 +129,16 @@
   server's version; a reader is present in the room, with cursor and
   name, and its edits are refused. The item's words are unchanged; the
   board's co-editing stays `[OPEN]` (0082 item 12).
+  2026-10-12 (evening) — item 7: **the board's co-editing is decided and
+  built** ([0082](0082-live-co-editing-of-a-synced-folder.md) item 12; the
+  maintainer, *"Deveria estar"*), and with it every text file's: a board is
+  a room of its elements merged by Excalidraw's own reconciliation, which
+  the package exports, over the server's room as the relay — the higher
+  `version` wins, a tie the lower `versionNonce`, a deletion a tombstone —
+  and the room writes the file a window's converter made of exactly the
+  state it holds; any text file of the folder is a room as a note is. The
+  item's words and item 12's order are kept; their `[OPEN]` on the board
+  is answered here.
 
 ## Context
 

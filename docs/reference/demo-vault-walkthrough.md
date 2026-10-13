@@ -794,6 +794,36 @@ rest below and in `manual-checks.md`.
     (`tests_threats.rs`); two real
     computers, by hand (`manual-checks.md`). The demo vault has no server:
     the steps run in the harness's room or by hand.
+12. Everything edited together, not only notes ([ADR
+    0082](../adr/0082-live-co-editing-of-a-synced-folder.md) item 12), from
+    note 23's *Editar junto* and the tour's stop "Num servidor": with the
+    demo vault on a UniVerso, open *Tour do Verso* — or a board of your
+    own — in two windows. Drag a card in one while the other draws a text
+    with the text tool: each window shows both, and the file holds both,
+    no conflict copy and no banner; the other window's pointer moves on
+    this one's board with its name, and the tab says *ao vivo, com* and the
+    name (e2e-server, "two windows on one board"; with the board kept out
+    of its room the test fails). Open a `.txt` in two windows and type in
+    each: each sees the other's letters, and the file follows; open
+    *Projetos.base* in two windows and add a sort with the toolbar's
+    *Ordenar* › *+ Adicionar ordenação*: the other window's base has it,
+    and so does the file (e2e-server, "two windows on a text file and on a
+    base's settings"). On a synced folder a board is live while the link is
+    up, goes *local — sem conexão* with what it holds saved here, and comes
+    back with *O quadro está ao vivo de novo* (e2e, `live.spec.mjs`, "a
+    synced folder's board is live"). The merge — two elements both land,
+    the same element the higher version, on a tie the lower nonce, a
+    deletion against a drag stays deleted, the file only of the room's own
+    state, opening writes nothing, a change from outside, the limits — the
+    server's Rust tests (`tests_board_rooms.rs`, `collab_board.rs`), the
+    window's (`boardRoom.test.mjs`), and two synced devices on a text file
+    and a board (`tests_live.rs`); two real computers, by hand
+    (`manual-checks.md`). Under load: five clients on a board against a
+    real server, seeded, with reordering, drops and a reader of the disk
+    (`tests_board_stress.rs`; the long run `board_stress_long`, ignored);
+    five windows with the window's own merge and converter
+    (`boardStress.test.mjs`); three windows in two engines working at
+    random for a minute (e2e-server, "three windows, two engines").
 
 ## 14. The end
 

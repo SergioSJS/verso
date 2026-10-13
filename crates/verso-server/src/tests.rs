@@ -479,6 +479,23 @@ fn an_invited_reader_reads_and_cannot_write() {
         )
         .await;
         assert_eq!(write["err"]["kind"], "refused", "{write}");
+        // In a room a reader is present and sends nothing: no edit, and no
+        // board's file to write (ADR 0082 items 4 and 12).
+        let canvas = call(
+            &mut ws,
+            40,
+            "collab_canvas",
+            json!({ "path": "Mesa.canvas", "at": "AA==", "json": "{}" }),
+        )
+        .await;
+        assert_eq!(canvas["err"]["kind"], "refused", "{canvas}");
+        assert!(
+            canvas["err"]["message"]
+                .as_str()
+                .unwrap()
+                .contains("only read"),
+            "{canvas}"
+        );
         // The folder's settings: read, never changed by a reader — whose
         // window keeps its bookmarks on its machine (ADR 0070, decided
         // 2026-10-12).

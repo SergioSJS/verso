@@ -132,6 +132,16 @@
   de conflito ao lado da versão do servidor; um leitor está presente na
   sala, com cursor e nome, e as edições dele são recusadas. As palavras do
   item não mudam; a coedição do board segue `[ABERTO]` (item 12 do 0082).
+  2026-10-12 (noite) — item 7: **a coedição do board está decidida e
+  construída** (item 12 da [0082](0082-live-co-editing-of-a-synced-folder.md);
+  o mantenedor, *"Deveria estar"*), e com ela a de todo arquivo de texto:
+  um board é uma sala dos seus elementos fundidos pela reconciliação do
+  próprio Excalidraw, que o pacote exporta, sobre a sala do servidor como
+  o relay — vence a `version` maior, no empate o `versionNonce` menor,
+  apagar é uma lápide — e a sala grava o arquivo que o conversor de uma
+  janela fez exatamente do estado que ela tem; qualquer arquivo de texto
+  da pasta é uma sala como a de uma nota. As palavras do item e a ordem
+  do item 12 ficam; o `[ABERTO]` deles sobre o board é respondido aqui.
 
 ## Contexto
 

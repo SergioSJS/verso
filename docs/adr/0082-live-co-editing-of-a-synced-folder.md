@@ -45,6 +45,15 @@
   accessibility), [0078](0078-universo-the-name-of-verso-as-a-server.md)
   (UniVerso).
 - Status in the briefing: not present; on acceptance.
+- Revisions: 2026-10-12 (evening) — item 12 decided and built: every file
+  a person edits in the window co-edits live — a note, any text file, a
+  base, a board — on a server and over a synced folder's link alike. The
+  maintainer, learning that only notes did: *"Então a gente não tá com a
+  aplicação 100% cooperativa, né? Com coedição. Deveria estar. A gente
+  ainda não fechou o universo."* (So the application is not 100%
+  cooperative, with co-editing? It should be. We have not closed the
+  universe yet.) The old wording of item 12 is kept, the decision below
+  it; built on `feat/coedit-everything` (21d096a, 5a027db).
 
 ## Context
 
@@ -291,6 +300,60 @@ carried a recommendation; the maintainer decided. Open items answered
     canvases, attachments and the folder's settings cross by sync as
     files, and two people on one board in two synced folders end as
     [0079](0079-sync-a-local-folder-with-a-server.md) item 8 says.
+    *(Decided and built on 2026-10-12, the old wording kept above.)* The
+    maintainer, on the evening of 2026-10-12, learning that only notes
+    co-edited live: *"Deveria estar"* — build it now, nothing partial.
+    **Every file a person edits in the window has a room**, on a server
+    and over a synced folder's link alike, under items 1 to 11 and 13 to
+    15 as a note's:
+    - **A text file** — `.txt`, `.json`, `.csv`, a base's `.base`, a
+      page's source, any file the window opens in its source editor — is a
+      room as a note is: one Yjs text bound to the editor, read and written
+      as text, a write from elsewhere merged through the room. A base
+      changed from its view's settings (filters, columns, sorts, views)
+      changes the editor's text, so it goes in as typing does.
+    - **A board** (`.canvas`) is a room of its elements: a Yjs map with an
+      entry per element and version (`id`, `version`, `versionNonce`), the
+      element as JSON, beside the facts of the file it was made from.
+      **The merge rule is Excalidraw's own reconciliation**: two people
+      changing different elements both land; on the same element the
+      higher `version` wins, a tie goes to the lower `versionNonce`, the
+      same on every side whatever order the edits came in. A deletion is
+      the element with `isDeleted` — a tombstone, never removed — sent a
+      million versions ahead, so a drag made at the same time, which counts
+      its versions up from where it started, does not bring it back; an
+      undo made after it counts from the deletion's version and wins. The
+      pictures a board shows are files of the folder: their references
+      cross with the elements, their bytes as files. Presence is the
+      pointer, the selection, the name and the colour, stamped by the
+      server (threat model, gap 11), drawn as Excalidraw's collaborators.
+    - **Who writes a board's file.** The server cannot draw a board: the
+      first window to join draws the file the room was made from and puts
+      it in, which is no one's edit (opening writes nothing, invariant 7);
+      each window that edits hands the room the file its own converter
+      makes of the room's state, with that state's Yjs vector
+      (`collab_canvas`). The room writes the file made of exactly the state
+      it holds — the converter's output of the merged scene — through the
+      core's board writer, atomically and over the revision it read
+      (invariants 9 and 11), when its edits settle and on `collab_save`; the
+      folder's change log has the save before the windows hear it. An edit
+      made in the room is never a conflict copy. A change from outside
+      while edits wait stops the room for the people in it to choose, as a
+      note's does; with nothing waiting the room closes and the windows draw
+      the file again.
+    - **The contract** gains, beside item 3's `collab_present`, the room's
+      kind in `CollabJoin` (`text` or `board`) and the command
+      `collab_canvas`; the bindings are generated from Rust (rule 3).
+    - **Not in a room**: a canvas in another layout, until its first save,
+      shown as a diff, puts it in Obsidian's ([0057](0057-board-json-canvas.md)
+      point 13); a board of a later Verso, shown and never written; a file
+      whose line ends are mixed, read-only as a note's; and a drawing of the
+      Excalidraw plugin, which the window shows and never edits
+      ([0057](0057-board-json-canvas.md) point 5) — its text is a note,
+      live as notes are, and the drawing shown follows the room's saves.
+    - **Limits** (`docs/reference/threat-model.md`): a board update of 4 MB
+      and 10 000 entries at most; a board room of 100 000 entries and 64 MB;
+      a file handed to it of 16 MB; a presence of 16 KB, as a note's.
 13. **A share, and a reader.** A receiver who synced a share as a local
     folder ([0081](0081-sharing-between-people-on-one-universo.md) item 6)
     joins the **owner's folder's room**: the room's place is the owner's
@@ -413,6 +476,25 @@ and answered (below): where item 15's setting lives; the waits of
 5 s for the upload before a join (item 7) and of 4 s for the rejoins
 before a pass (item 9); the writes the properties panel and a
 PDF's quote make to a note, through the room; and the board (item 12).
+
+**Item 12 decided and built on 2026-10-12** (evening; 21d096a and 5a027db
+on `feat/coedit-everything`): every file a person edits in the window
+co-edits live, the board by Excalidraw's own rule, as item 12 now says.
+The maintainer: *"Então a gente não tá com a aplicação 100% cooperativa,
+né? Com coedição. Deveria estar. A gente ainda não fechou o universo."*
+[0057](0057-board-json-canvas.md) and [0073](0073-self-hosted-server-first.md)
+item 7 got their Revisions lines the same day. Stressed the same night at
+the maintainer's request (*"tenho receio de quebrar algo em edições
+conjuntas"*): five clients on one board against a real server, 200 seeds
+of 200 changes (`tests_board_stress.rs`); five windows with the window's
+own code, 200 seeds of 200 changes (`boardStress.test.mjs`); three
+browser windows, two engines, a minute of random work, four seeds (the
+server's end-to-end suite); and the file read back by Obsidian 1.14.4
+(`docs/reference/obsidian-observations.md` §18). Three faults found and
+fixed at their cause: the server's `yrs` left some updates heard out of
+order unplaced (692b2ed); a deletion not yet sent was undone on the board
+by a drag heard meanwhile, and the board took a version equal to one heard
+for the room's (24d65d2).
 
 **Answered by the maintainer on 2026-10-12** (01:15 BRT), item by item: item 15's setting stays in the window's settings; the 5 s and 4 s
 waits stand, to be tuned with use; the writes the properties panel and a
