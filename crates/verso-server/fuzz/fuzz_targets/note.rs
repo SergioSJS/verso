@@ -32,14 +32,11 @@
 //! declare 2^28 clients, for which `yrs` asked the allocator for 22 GB:
 //! refused before `yrs` reads it (`collab::decode`). The tests are in
 //! `tests_room_inputs.rs`.
-//! And `outside-after-a-delete-past-the-end.bin`: a window deletes the
-//! room's own Yjs client past its last clock; `yrs` keeps the deletion
-//! pending, sends it in the room's state, and applies it to the room's
-//! own next run: the change from outside the server then puts in is cut
-//! (`"# Nndo de fora\n"` for `"# Nota\n\nolá 😀 mundo de fora\n"`) in a
-//! window that joins at once, and in the room at its next update from
-//! anyone. Any build; Yjs's own semantics for a deletion of what is not
-//! there yet, open for the maintainer.
+//! And `outside-after-a-delete-past-the-end.bin`: a window deleted the
+//! room's own Yjs client past its last clock; `yrs` kept the deletion and
+//! cut the change from outside the server then put in, in a window that
+//! joined and in the room at its next update. Such an update is now
+//! refused (`collab::deletes_ahead`).
 //! Run: `cargo +nightly fuzz run note fuzz/corpus/note fuzz/seeds-note`.
 
 #![no_main]

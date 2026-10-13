@@ -297,3 +297,114 @@ fn the_walk_reads_real_updates_to_their_end() {
     let sv = yrs::updates::encoder::Encode::encode_v1(&sv);
     assert_eq!(crate::yjs_bounds::state_vector(&sv), Ok(sv.len()));
 }
+
+/// A room of `text` whose Yjs client is 1, as the fuzz target `note`'s.
+fn note_room(text: &str) -> Doc {
+    let options = collab::utf16(yrs::Options::with_client_id(yrs::ClientID::new(1)));
+    holding(Doc::with_options(options), text)
+}
+
+/// Taken in as `update` takes it: `Ok` when the room took it.
+fn taken(doc: &Doc, update: &[u8]) -> Result<(), String> {
+    let decoded = decode(update).map_err(|e| e.message)?;
+    let mut board = collab_board::Board::default();
+    take(Kind::Note, doc, &mut board, update, decoded).map_err(|e| e.message)
+}
+
+/// A window that joined `room`, its Yjs client `client`.
+fn window_of(room: &Doc, client: u64) -> Doc {
+    let options = collab::utf16(yrs::Options::with_client_id(yrs::ClientID::new(client)));
+    let window = Doc::with_options(options);
+    window
+        .transact_mut()
+        .apply_update(Update::decode_v1(&collab::state(room).unwrap()).unwrap())
+        .unwrap();
+    window
+}
+
+/// Finding 5 of the fuzzing (`seeds-note/outside-after-a-delete-past-the-end.bin`):
+/// a window deleted the room's own client past its last clock; `yrs` kept
+/// the deletion and cut the room's next text with it. No window can have
+/// seen an item of the room's own the room has not made: refused, and a
+/// change from outside then reads whole in the room and in a window.
+#[test]
+fn a_deletion_of_the_rooms_items_ahead_of_it_is_refused() {
+    let file = "# Nota\n\nolá 😀 mundo\n";
+    let room = note_room(file);
+    // Client 1's clocks 3..35; the room has made 21.
+    let e = taken(&room, &[0, 1, 1, 1, 3, 0x20]).expect_err("refused");
+    assert_eq!(e, "an update the room cannot read");
+    let outside = "# Nota\n\nolá 😀 mundo de fora\n";
+    collab::apply_text(&room, outside);
+    let window = window_of(&room, 2);
+    let text = |d: &Doc| {
+        use yrs::GetString;
+        d.get_or_insert_text(collab::TEXT).get_string(&d.transact())
+    };
+    assert_eq!(text(&room), outside);
+    assert_eq!(text(&window), outside);
+    // The seed itself: its deleting update is refused.
+    let input = include_bytes!("../fuzz/seeds-note/outside-after-a-delete-past-the-end.bin");
+    let records = records(input);
+    let room = note_room(&String::from_utf8_lossy(records[0]).replace("\r\n", "\n"));
+    let refused: Vec<String> = records[3..]
+        .iter()
+        .filter_map(|u| taken(&room, u).err())
+        .collect();
+    assert!(
+        refused
+            .iter()
+            .any(|e| e == "an update the room cannot read"),
+        "{refused:?}"
+    );
+}
+
+/// What windows send stays taken: a deletion of what the same update
+/// makes, a deletion of the room's own text, and — a connection's updates
+/// can reach the room in the other order — a window's deletion of another
+/// window's item the room has not seen yet.
+#[test]
+fn deletions_a_window_can_make_are_taken() {
+    use yrs::{GetString, Text};
+    let room = note_room("# Nota\n");
+    let one = window_of(&room, 2);
+    let text = one.get_or_insert_text(collab::TEXT);
+    // Made and deleted in one update.
+    let own = {
+        let mut txn = one.transact_mut();
+        text.insert(&mut txn, 7, "abc");
+        text.remove_range(&mut txn, 8, 1);
+        txn.encode_update_v1()
+    };
+    assert_eq!(taken(&room, &own), Ok(()));
+    // The room's own text deleted.
+    let rooms = {
+        let mut txn = one.transact_mut();
+        text.remove_range(&mut txn, 0, 2);
+        txn.encode_update_v1()
+    };
+    assert_eq!(taken(&room, &rooms), Ok(()));
+    // Window two's insert and window one's deletion of it, the deletion
+    // first.
+    let two = window_of(&room, 3);
+    let text_two = two.get_or_insert_text(collab::TEXT);
+    let inserted = {
+        let mut txn = two.transact_mut();
+        text_two.insert(&mut txn, 0, "xyz");
+        txn.encode_update_v1()
+    };
+    one.transact_mut()
+        .apply_update(Update::decode_v1(&inserted).unwrap())
+        .unwrap();
+    let deleted = {
+        let mut txn = one.transact_mut();
+        text.remove_range(&mut txn, 0, 3);
+        txn.encode_update_v1()
+    };
+    assert_eq!(taken(&room, &deleted), Ok(()));
+    assert_eq!(taken(&room, &inserted), Ok(()));
+    let room_text = room
+        .get_or_insert_text(collab::TEXT)
+        .get_string(&room.transact());
+    assert_eq!(room_text, text.get_string(&one.transact()));
+}
