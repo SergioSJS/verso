@@ -507,3 +507,33 @@ fn runs_of_no_length_or_past_the_last_clock_are_refused() {
         assert_eq!(e.message, "an update the room cannot read", "{update:?}");
     }
 }
+
+/// Found by the fuzz target `note` under `-O`
+/// (`seeds-note/room-client-forged.bin`): a window's update made an item
+/// as the room's own Yjs client, ahead of the room; the room's next own
+/// edit took the same clock, and a window that joined read another text
+/// than the room. No window makes the room's items: refused. A window's
+/// whole state sent back on its return holds the room's items the room
+/// has made, and is taken.
+#[test]
+fn an_item_of_the_rooms_own_client_ahead_of_it_is_refused() {
+    let input = include_bytes!("../fuzz/seeds-note/room-client-forged.bin");
+    let records = records(input);
+    let room = note_room(&String::from_utf8_lossy(records[0]));
+    let refused: Vec<String> = records[3..]
+        .iter()
+        .filter_map(|u| taken(&room, u).err())
+        .collect();
+    assert!(
+        refused
+            .iter()
+            .any(|e| e == "an update the room cannot read"),
+        "{refused:?}"
+    );
+    // The room's text and a window's again the same after its own edit.
+    let room = note_room("# Nota\n");
+    let window = window_of(&room, 2);
+    let whole =
+        yrs::ReadTxn::encode_state_as_update_v1(&window.transact(), &yrs::StateVector::default());
+    assert_eq!(taken(&room, &whole), Ok(()));
+}

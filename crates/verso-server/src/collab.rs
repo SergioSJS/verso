@@ -556,7 +556,7 @@ pub(crate) fn take(
     decoded: Update,
 ) -> Result<(), ContractError> {
     caught(|| {
-        if deletes_ahead(doc, &decoded) {
+        if ahead_of_room(doc, &decoded) {
             return Err(refused("an update the room cannot read"));
         }
         if kind == Kind::Board {
@@ -567,24 +567,26 @@ pub(crate) fn take(
     })?
 }
 
-/// Whether `update` deletes items of the room's own Yjs client the room
-/// has not made, nor the update itself (finding 5 of the fuzzing, ADR
-/// 0083 item 14): `yrs` keeps such a deletion and applies it to the
-/// room's next items — a change from outside cut in every window. Only
+/// Whether `update` makes or deletes items of the room's own Yjs client
+/// past those the room has made (findings 5 and its sequel, ADR 0083 item
+/// 14): `yrs` keeps a deletion of what is not there yet and applies it to
+/// the room's next items, and an item made as the room's client takes the
+/// clock of the room's next own edit — either way a change from outside
+/// or a merged write reads otherwise in the windows than in the room. Only
 /// the room makes its own items and every window learns them from it, so
-/// no window can have seen one ahead. Another window's items are not
-/// judged: a connection's updates can reach the room in the other order,
-/// a deletion before the insert it deletes.
-fn deletes_ahead(doc: &Doc, update: &Update) -> bool {
+/// no window can have seen one ahead; a window's whole state sent back
+/// holds only those the room made. Another window's items are not judged:
+/// a connection's updates can reach the room in the other order, a
+/// deletion before the insert it deletes.
+fn ahead_of_room(doc: &Doc, update: &Update) -> bool {
     let own = doc.client_id();
-    let Some((_, deleted)) = update.delete_set().iter().find(|(c, _)| **c == own) else {
-        return false;
+    let made = doc.transact().state_vector().get(&own);
+    let past = |set: &yrs::IdSet| {
+        set.iter()
+            .find(|(c, _)| **c == own)
+            .is_some_and(|(_, ranges)| ranges.iter().any(|r| r.end > made))
     };
-    let mut known = doc.transact().state_vector().get(&own);
-    if let Some((_, made)) = update.insertions(true).iter().find(|(c, _)| **c == own) {
-        known = made.iter().map(|r| r.end).fold(known, u32::max);
-    }
-    deleted.iter().any(|r| r.end > known)
+    past(update.delete_set()) || past(&update.insertions(true))
 }
 
 /// What a room answers when `yrs` panicked on what a window sent (ADR
