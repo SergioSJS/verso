@@ -51,6 +51,11 @@ import { pdfStrings, quoteIntoNotes } from "./pdf";
 import { fromDisk, lineSeparator, readOnlyText } from "./text";
 import { TextLeaf } from "./textfile";
 import { asset } from "../version";
+import { methods } from "../methods";
+import type { BoardSession } from "../boardRoom";
+import { type CollabHandlers, type CollabSession, joinCollab, ySyncAnnotation } from "../collab";
+import { ordered } from "../board/roomModel";
+import * as boardLive from "./boardLive";
 
 /** Every board on screen, told when the folder changes (ADR 0057). */
 export const liveBoards = new Set<BoardHandle>();
@@ -83,6 +88,15 @@ export class BoardLeaf extends TextLeaf {
    *  layout is rewritten whole by its first save, shown first as a diff
    *  (decided on 2026-10-01, review `board.md` §6 item 4). */
   private layoutKept = true;
+  /** The board's room when several people may edit it at once (ADR 0082
+   *  item 12): the room writes the file, not this tab. */
+  room: BoardSession | null = null;
+  /** The text the text face was last given, and whether text was typed
+   *  there since: in a room, what was typed goes in as elements. */
+  textBase = "";
+  textEdited = false;
+  /** A synced folder's board out of its room: its save on this computer. */
+  localTimer: number | undefined;
   constructor(pane: Pane) {
     super(pane);
     this.boardModes.setAttribute("role", "group");
@@ -104,22 +118,86 @@ export class BoardLeaf extends TextLeaf {
     if (this.path !== path) return;
     this.pendingBoard = null;
     const text = this.editor.state.doc.toString();
+    this.textBase = text;
+    this.textEdited = false;
     const laid = await commands.boardText(text);
     this.layoutKept = laid.status !== "ok" || laid.data === text;
+    await this.joinBoardRoom(path, text);
+    if (this.path !== path) return;
     if (this.showing === "board") await this.showBoard();
   }
+  protected override roomKind(): "text" | "board" {
+    return "board";
+  }
+  override liveSession(): BoardSession | null {
+    return this.room;
+  }
+  override liveWhat(): "board" {
+    return "board";
+  }
+  override makeHandlers(): CollabHandlers {
+    return this.boardHandlers();
+  }
+  /** Text typed on the text face: in a room, it goes in as elements. */
+  protected override extras(): Extension {
+    return EditorView.updateListener.of((u) => {
+      if (u.docChanged) this.textEdited = true;
+    });
+  }
+  layoutIsKept(): boolean {
+    return this.layoutKept;
+  }
+  /** The board taken down, to be drawn again the other way. */
+  unmountBoard(): void {
+    if (this.board) liveBoards.delete(this.board);
+    this.board?.destroy();
+    this.board = null;
+  }
+  /** The text face shows `text`, the file as it is now. */
+  showText(text: string): void {
+    this.editor.setState(this.state(text));
+    this.textBase = text;
+    this.textEdited = false;
+  }
+  /** What the board holds in its save's delay, out to its room. */
+  flushBoard(): Promise<void> {
+    return this.board?.flush() ?? Promise.resolve();
+  }
+  /** The board's canvas written to its file here (out of its room). */
+  saveBoardJson(json: string): Promise<void> {
+    return this.saveBoard(json);
+  }
+  declare boardHandlers: typeof boardLive.boardHandlers;
+  declare joinBoardRoom: typeof boardLive.joinBoardRoom;
+  declare roomInitial: typeof boardLive.roomInitial;
+  declare roomChanged: typeof boardLive.roomChanged;
+  declare saveLocalNow: typeof boardLive.saveLocalNow;
+  declare followSaved: typeof boardLive.followSaved;
+  declare boardConflict: typeof boardLive.boardConflict;
+  declare boardWentLocal: typeof boardLive.boardWentLocal;
+  declare boardReadAnew: typeof boardLive.boardReadAnew;
+  declare saveInRoom: typeof boardLive.saveInRoom;
+  declare overwriteInRoom: typeof boardLive.overwriteInRoom;
+  declare applyCanvas: typeof boardLive.applyCanvas;
   /** Draw the editor's text as the board: a first mount, or the new text
    *  over the board already there. Not JSON: said, and the text shown. */
   private async showBoard(): Promise<void> {
     const text = this.editor.state.doc.toString();
     if (this.board) {
+      // In a room, the room keeps the board as it is.
+      if (this.room) return;
       if (this.board.load(text)) return;
     } else {
       this.boardHost.replaceChildren(h("p", "board-loading", boardText.loading));
       const mod = await loadBoardModule();
       if (this.board) return void this.showBoard();
       const mount = h("div", "board-mount");
-      const handle = mod.mountBoard(mount, this.hostApi(), text);
+      // In a room: the room's elements, or — no window drew it in yet — the
+      // file the room was made from, which this board then puts in.
+      const room = this.room;
+      const handle = room
+        ? mod.mountBoard(mount, this.hostApi(), this.roomInitial(room), room.seeded ? ordered(room.resolved().values()) : undefined)
+        : mod.mountBoard(mount, this.hostApi(), text);
       if (handle) {
         this.board = handle;
         liveBoards.add(handle);
@@ -139,7 +217,10 @@ export class BoardLeaf extends TextLeaf {
       lang: LANG,
       dark: () => settings.theme === "dark" || (settings.theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches),
       save: (json) => this.saveBoard(json),
-      readOnly: () => !canWrite(),
+      // A reader of a synced folder is present on the board, not drawing
+      // (ADR 0082 item 4).
+      readOnly: () => !canWrite() || (this.room !== null && !this.room.writable),
+      room: this.room ?? undefined,
       changed: () => this.setDirty(true),
       settled: () => {
         if (this.pendingBoard === null && this.cards.size === 0) this.setDirty(false);
@@ -288,6 +369,11 @@ export class BoardLeaf extends TextLeaf {
    *  showed it against the disk's, when the board was refused; the text
    *  face's text otherwise. */
   protected override async copyText(): Promise<string> {
+    if (this.room) {
+      const json = JSON.stringify(this.room.canvas());
+      const laid = await commands.boardPreview(this.path, json);
+      return laid.status === "ok" ? laid.data : json;
+    }
     const board = this.pendingBoard;
     if (board === null) return this.text();
     const laid = await commands.boardPreview(this.path, board);
@@ -299,6 +385,11 @@ export class BoardLeaf extends TextLeaf {
   /** Over the disk's version the banner shows: the board's canvas when the
    *  board was refused, the editor's text otherwise. */
   protected override overwrite(): Promise<void> {
+    if (this.room?.live) {
+      const run = this.saving.then(() => this.overwriteInRoom());
+      this.saving = run.catch(() => undefined);
+      return run;
+    }
     const board = this.pendingBoard;
     if (board === null) return super.overwrite();
     const run = this.saving.then(async () => {
@@ -345,6 +436,15 @@ export class BoardLeaf extends TextLeaf {
   async recheck(): Promise<void> {
     const path = this.path;
     if (!path || this.conflict.up) return;
+    // In a room the room brings every change in. A synced folder's file
+    // follows when sync brings the room's save down: the text face shows it
+    // (ADR 0082 item 6).
+    if (this.room) {
+      if (!this.room.synced || !this.room.live || this.textEdited) return;
+      const r = await commands.readText(path);
+      if (r.status === "ok" && path === this.path && !this.textEdited) this.showText(r.data.text);
+      return;
+    }
     await this.saving;
     const r = await commands.readText(path);
     if (r.status !== "ok" || path !== this.path || r.data.revision === this.revision) return;
@@ -354,11 +454,24 @@ export class BoardLeaf extends TextLeaf {
     }
     await this.load(path, true);
   }
+  /** In a room: text typed on the text face into the room, the board's
+   *  changes out, the room asked to write. */
+  override save(): Promise<void> {
+    if (!this.room) return super.save();
+    const run = this.saving.then(() => this.saveInRoom());
+    this.saving = run.catch(() => undefined);
+    return run;
+  }
   override async flush(): Promise<boolean> {
     // What the cards hold, and what the board holds in its save's delay,
     // goes out first (review `board.md`, reading 2, finding 2).
     const cards = await Promise.all([...this.cards].map((c) => c.flush()));
     await this.board?.flush();
+    if (this.room) {
+      if (this.dirty || this.textEdited || !this.room.live) await this.save();
+      await this.saving;
+      return cards.every(Boolean) && !this.dirty && !this.conflict.up;
+    }
     if (this.pendingBoard !== null && !this.conflict.up) await this.saveBoard(this.pendingBoard);
     await this.saving;
     // A board write refused or declined leaves the board unsaved: the text
@@ -378,19 +491,27 @@ export class BoardLeaf extends TextLeaf {
     return true;
   }
   override destroy(): void {
+    window.clearTimeout(this.localTimer);
     if (this.board) liveBoards.delete(this.board);
     this.board?.destroy();
     this.board = null;
+    this.room?.release(this.roomHandlers);
+    this.room = null;
     super.destroy();
   }
 }
+methods(BoardLeaf, boardLive);
 
 /* A note edited inside its card on a board (ADR 0057): the note editor
  * in Live Preview, saved as a note's tab saves it — after a pause, over
  * the revision read, atomically — and a refused write shows both versions
  * in the card until the user decides (invariant 11). Keys, and the
  * clipboard, stay in the card: Excalidraw takes a text box that is not an
- * <input> for the board, and would read Delete or a letter as its own. */
+ * <input> for the board, and would read Delete or a letter as its own.
+ * Where the side keeps rooms, the card is in the note's room as a tab is
+ * (ADR 0082 item 12): the others' edits come in, the room writes the
+ * file; a tab of this window on the same note shares the window's place
+ * in the room. */
 /** A card's editor as it was left: its text, selection and undo history,
  *  and the revision and line separator that text stands on. */
 export type KeptCard = { json: unknown; revision: string; eol: string };
@@ -417,6 +538,9 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
   let timer: number | undefined;
   let saving: Promise<void> = Promise.resolve();
   let gone = false;
+  /** The note's room, while the card is in it. */
+  let room: CollabSession | null = null;
+  const inRoom = (): boolean => room !== null && room.live;
   const text = (): string => view?.state.doc.sliceString(0, undefined, eol) ?? "";
   let readOnly = false;
   const extensions = (): Extension[] => {
@@ -449,9 +573,13 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
         Prec.high(keymap.of(keys)),
         EditorView.updateListener.of((u) => {
           if (!u.docChanged || u.transactions.some((tr) => tr.annotation(fromDisk))) return;
+          // The others' edits, brought in by the room: nothing of the card's.
+          if (room && u.transactions.every((tr) => !tr.docChanged || tr.annotation(ySyncAnnotation) !== undefined)) return;
           dirty = true;
           // An edit keeps the board's tab, as an edit keeps a note's (ADR 0059).
           onEdit?.();
+          // In the room, the room writes the note once the edits settle.
+          if (inRoom()) return;
           window.clearTimeout(timer);
           timer = window.setTimeout(() => {
             if (dirty && !conflict.up) void save();
@@ -460,12 +588,12 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
       ];
   };
   const show = (note: NoteText): void => {
-    revision = note.revision;
+    revision = room ? room.revision : note.revision;
     const sep = lineSeparator(note.text);
-    eol = sep ?? "\n";
+    eol = room ? (room.crlf ? "\r\n" : "\n") : (sep ?? "\n");
     // Mixed line endings, or a reader on a server (ADR 0076 item 11).
-    readOnly = sep === null || !canWrite();
-    const st = EditorState.create({ doc: note.text, extensions: extensions() });
+    readOnly = sep === null || !canWrite() || (room?.reader ?? false);
+    const st = room ? EditorState.create({ doc: room.initial(), extensions: [extensions(), room.extension()] }) : EditorState.create({ doc: note.text, extensions: extensions() });
     if (view) view.setState(st);
     else view = new EditorView({ parent: editorHost, state: st });
     dirty = false;
@@ -494,13 +622,59 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
     dirty = false;
     return true;
   };
-  const ready = opening.readNote(path).then((r) => {
+  // What the card does when the note's room speaks.
+  const handlers: CollabHandlers = {
+    saved: (rev) => {
+      revision = rev;
+      dirty = false;
+    },
+    conflict: () => void roomConflict(),
+    closed: () => {
+      room = null;
+      void reload();
+    },
+    remote: () => {},
+    local: () => {
+      // Out of the room on a synced folder: the card saves here, over the
+      // local file's revision (ADR 0082 item 8).
+      void opening.readNote(path).then((r) => {
+        if (r.status !== "ok" || inRoom()) return;
+        revision = r.data.revision;
+        if (r.data.text !== text()) {
+          dirty = true;
+          void save();
+        }
+      });
+    },
+    live: () => {
+      if (room) revision = room.revision;
+    },
+    anew: () => {
+      room?.release(handlers);
+      room = null;
+      void reload();
+    },
+    settle: () => save(),
+  };
+  const ready = opening.readNote(path).then(async (r) => {
     if (gone) return;
     if (r.status !== "ok") return fail(r.error);
-    const k = kept.get(path);
+    room = lineSeparator(r.data.text) === null ? null : await joinCollab(path, handlers);
+    if (gone) {
+      room?.release(handlers);
+      room = null;
+      return;
+    }
+    const k = room ? undefined : kept.get(path);
     if (!k || !resume(r.data, k)) show(r.data);
     if (autoFocus && view) view.focus();
   });
+  /** The note changed on disk while the room's edits waited. */
+  const roomConflict = async (): Promise<void> => {
+    const fresh = await opening.readNote(path);
+    if (fresh.status !== "ok") return fail(fresh.error);
+    conflict.show({ text: fresh.data.text, revision: fresh.data.revision }, text());
+  };
   const written = (w: Written, mine: string): void => {
     revision = w.note.revision;
     if (text() === mine) dirty = false;
@@ -519,6 +693,16 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
         ui.status.textContent = t.conflictPendingBoth;
         return;
       }
+      if (room && inRoom()) {
+        const r = await commands.collabSave(path);
+        if (r.status === "ok") {
+          revision = r.data;
+          dirty = false;
+          ui.status.textContent = t.saved;
+        } else if (r.error.kind === "changed") await roomConflict();
+        else fail(r.error);
+        return;
+      }
       const mine = text();
       const r = await commands.writeNote(path, mine, revision);
       if (r.status === "ok") written(r.data, mine);
@@ -531,6 +715,14 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
     const run = saving.then(async () => {
       const disk = conflict.disk;
       if (!view || !disk) return;
+      if (room && inRoom()) {
+        const r = await commands.collabResolve(path, "mine");
+        if (r.status !== "ok") return fail(r.error);
+        conflict.hide();
+        revision = r.data;
+        dirty = false;
+        return;
+      }
       const mine = text();
       const r = await commands.writeNote(path, mine, disk.revision);
       if (r.status !== "ok") return refused(r.error);
@@ -542,8 +734,18 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
   };
   const reload = async (): Promise<void> => {
     await saving;
+    // In the room, the disk's text for everyone in it.
+    if (room && inRoom() && conflict.up) {
+      const back = await commands.collabResolve(path, "disk");
+      if (back.status !== "ok") return fail(back.error);
+      conflict.hide();
+      dirty = false;
+      return;
+    }
     const r = await opening.readNote(path);
     if (r.status !== "ok") return fail(r.error);
+    if (!room && !gone && lineSeparator(r.data.text) !== null) room = await joinCollab(path, handlers);
+    if (gone) return;
     show(r.data);
   };
   // "Keep both", as a note's tab offers it: the card's text goes beside
@@ -561,6 +763,14 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
         return r.status === "ok" ? { status: "ok", data: r.data.path } : r;
       });
       if (!copy) return null;
+      // In the room, it goes back to the disk's text for everyone in it.
+      if (room && inRoom()) {
+        const back = await commands.collabResolve(path, "disk");
+        if (back.status !== "ok") fail(back.error);
+        conflict.hide();
+        dirty = false;
+        return copy;
+      }
       const r = await opening.readNote(path);
       if (r.status !== "ok") fail(r.error);
       else show(r.data);
@@ -588,7 +798,8 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
     async recheck() {
       await ready;
       await saving;
-      if (!view || gone || conflict.up) return;
+      // In the room, the room brings every change in.
+      if (!view || gone || conflict.up || inRoom()) return;
       if (dirty) return void (await save());
       const r = await opening.readNote(path);
       if (gone || r.status !== "ok" || r.data.revision === revision || !view) return;
@@ -618,9 +829,12 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
       gone = true;
       window.clearTimeout(timer);
       // Kept only when all of it is on disk: a text not saved (a conflict
-      // left open) would come back over the file.
-      if (view && !dirty && !conflict.up && !readOnly) kept.set(path, { json: view.state.toJSON({ history: historyField }), revision, eol });
+      // left open) would come back over the file. In a room the room's
+      // text comes back, never a history of it.
+      if (view && !dirty && !conflict.up && !readOnly && !room) kept.set(path, { json: view.state.toJSON({ history: historyField }), revision, eol });
       else kept.delete(path);
+      room?.release(handlers);
+      room = null;
       view?.destroy();
       host.replaceChildren();
     },

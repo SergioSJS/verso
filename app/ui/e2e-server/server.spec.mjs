@@ -715,3 +715,179 @@ test("a reader's star stays in this browser, and the folder's settings are left 
   expect(errors).toEqual([]);
   expect(readerErrors).toEqual([]);
 });
+
+/* ---------- Every file a person edits co-edits live (ADR 0082 item 12) ---------- */
+
+/** A file made in the folder through the window's own contract. */
+async function made(page, path, text) {
+  const r = await page.evaluate(
+    async ({ path, text }) => {
+      let bin = "";
+      for (const b of new TextEncoder().encode(text)) bin += String.fromCharCode(b);
+      return window.__TAURI_INTERNALS__.invoke("create_file", { path, base64: btoa(bin) });
+    },
+    { path, text },
+  );
+  expect(r).toBe(path);
+}
+
+/** The file as the server's disk holds it. */
+function onDisk(page, path) {
+  return page.evaluate(async (p) => (await window.__TAURI_INTERNALS__.invoke("read_text", { path: p })).text, path);
+}
+
+/** A window on the folder with `path` open in a tab, the board's scene
+ *  readable (`__VERSO_TEST__`, as the harness's). */
+async function windowOn(page, folder, path) {
+  await page.goto(`/?folder=${folder}`);
+  await expect(page.locator("#folder")).toHaveText("Demo");
+  await showTree(page);
+  await expect(page.locator("#notes")).toContainText(path);
+  await page.locator("#notes").getByRole("button", { name: path }).click();
+}
+
+/** The board's scene in a window, as a test reads it. */
+function sceneOf(page) {
+  return page.evaluate(() =>
+    (window.__VERSO_TEST__?.board?.getSceneElements() ?? []).map((e) => ({ id: e.id, type: e.type, x: e.x, y: e.y, width: e.width, height: e.height, text: e.text })),
+  );
+}
+
+/** A point of the board, on the page. */
+async function onBoard(page, x, y) {
+  const v = await page.evaluate(() => {
+    const s = window.__VERSO_TEST__.board.getAppState();
+    return { scrollX: s.scrollX, scrollY: s.scrollY, zoom: s.zoom.value, left: s.offsetLeft, top: s.offsetTop };
+  });
+  return { x: (x + v.scrollX) * v.zoom + v.left, y: (y + v.scrollY) * v.zoom + v.top };
+}
+
+/** Nothing beside the file but itself: an edit made in a room is never a
+ *  conflict's copy. */
+async function noCopies(page, stem) {
+  const files = await page.evaluate(() => window.__TAURI_INTERNALS__.invoke("list_files", {}));
+  return files.filter((f) => f.startsWith(stem) && !/\.(canvas|txt|base)$/.test(f.replace(stem, "")));
+}
+
+/** Two cards, as Obsidian writes a canvas. */
+const TWO_CARDS = '{\n\t"nodes":[\n\t\t{"id":"a","x":0,"y":0,"width":250,"height":60,"type":"text","text":"Alfa"},\n\t\t{"id":"b","x":400,"y":0,"width":250,"height":60,"type":"text","text":"Beta"}\n\t],\n\t"edges":[]\n}';
+
+test("two windows on one board: a card moved in one and a text added in the other land in both and in the file", async ({ page }) => {
+  await page.context().addInitScript(() => {
+    window.__VERSO_TEST__ = {};
+  });
+  const errors = watch(page);
+  await signedIn(page, ADMIN.email, ADMIN.password);
+  await demoRegistered(page);
+  await openDemo(page);
+  const folder = new URL(page.url()).searchParams.get("folder");
+  const stem = `Mesa junto ${test.info().project.name}`;
+  const path = `${stem}.canvas`;
+  await made(page, path, TWO_CARDS);
+  await windowOn(page, folder, path);
+  const other = await page.context().newPage();
+  const otherErrors = watch(other);
+  await windowOn(other, folder, path);
+  for (const p of [page, other]) await p.waitForFunction(() => (window.__VERSO_TEST__?.board?.getSceneElements().length ?? 0) >= 2 && window.__VERSO_TEST__.board.getAppState().width > 0);
+
+  // The first window drags card "b" by its middle, as a person does.
+  const b = (await sceneOf(page)).find((e) => e.id === "b");
+  const from = await onBoard(page, b.x + b.width / 2, b.y + b.height / 2);
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x + 90, from.y + 140, { steps: 8 });
+  await page.mouse.up();
+  // At the same time the second adds a text, with the text tool.
+  const free = await onBoard(other, 0, 300);
+  await other.mouse.click(free.x, free.y);
+  await other.keyboard.press("t");
+  await other.mouse.click(free.x, free.y);
+  await other.keyboard.type("olá junto");
+  await other.keyboard.press("Escape");
+
+  // Each sees both.
+  await expect.poll(async () => (await sceneOf(page)).some((e) => e.type === "text" && e.text === "olá junto"), { timeout: 20_000 }).toBe(true);
+  await expect.poll(async () => (await sceneOf(other)).find((e) => e.id === "b")?.y ?? 0, { timeout: 20_000 }).toBeGreaterThan(50);
+  // The room wrote the file, both in it, laid as a board is laid.
+  await expect
+    .poll(
+      async () => {
+        const doc = JSON.parse(await onDisk(page, path));
+        const moved = doc.nodes.find((n) => n.id === "b").y > 50;
+        const text = (doc.verso?.drawing ?? []).some((d) => d.type === "text" && d.text === "olá junto");
+        return moved && text;
+      },
+      { timeout: 20_000 },
+    )
+    .toBe(true);
+  expect(await noCopies(page, stem)).toEqual([]);
+  for (const p of [page, other]) await expect(p.locator(".conflict:visible")).toHaveCount(0);
+
+  // The other window is there: its pointer, with its name, on this one's
+  // board, and its name in words in the tab.
+  const spot = await onBoard(other, 100, 100);
+  await other.mouse.move(spot.x, spot.y);
+  await other.mouse.move(spot.x + 20, spot.y + 10, { steps: 3 });
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const people = [...window.__VERSO_TEST__.board.getAppState().collaborators.values()];
+          return people.some((c) => /admin/i.test(c.username ?? "") && c.pointer && Number.isFinite(c.pointer.x));
+        }),
+      { timeout: 20_000 },
+    )
+    .toBe(true);
+  await expect(page.locator(".live-mark:visible").first()).toContainText(/ao vivo, com admin/i);
+  await other.close();
+  expect(errors).toEqual([]);
+  expect(otherErrors).toEqual([]);
+});
+
+test("two windows on a text file and on a base's settings edit them together, and the files follow", async ({ page }) => {
+  const errors = watch(page);
+  await signedIn(page, ADMIN.email, ADMIN.password);
+  await demoRegistered(page);
+  await openDemo(page);
+  const folder = new URL(page.url()).searchParams.get("folder");
+  const stem = `Lista junto ${test.info().project.name}`;
+
+  // A text file: what one types, the other sees, without saving.
+  const txt = `${stem}.txt`;
+  await made(page, txt, "um\n");
+  await windowOn(page, folder, txt);
+  const other = await page.context().newPage();
+  const otherErrors = watch(other);
+  await windowOn(other, folder, txt);
+  const mine = page.locator(".editor.source .cm-content:visible").first();
+  const theirs = other.locator(".editor.source .cm-content:visible").first();
+  await expect(mine).toContainText("um");
+  await expect(theirs).toContainText("um");
+  await mine.click();
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.type("dois");
+  await expect(theirs).toContainText("dois");
+  await theirs.click();
+  await other.keyboard.press("ControlOrMeta+End");
+  await other.keyboard.type(" e três");
+  await expect(mine).toContainText("dois e três");
+  await expect.poll(() => onDisk(page, txt), { timeout: 20_000 }).toBe("um\ndois e três");
+
+  // A base: a sort added from the view's settings in one window goes into
+  // the room, and the other's base has it.
+  const base = `${stem}.base`;
+  await made(page, base, "views:\n  - type: table\n    name: Tabela\n");
+  await windowOn(page, folder, base);
+  await windowOn(other, folder, base);
+  await page.locator(".base-tool[aria-label='Ordenar']:visible").first().click();
+  await page.getByRole("button", { name: "+ Adicionar ordenação" }).click();
+  await expect
+    .poll(() => other.evaluate(() => [...document.querySelectorAll(".editor.source .cm-content")].map((e) => e.textContent).join("\n")), { timeout: 20_000 })
+    .toContain("sort:");
+  await expect.poll(() => onDisk(page, base), { timeout: 20_000 }).toContain("sort:");
+  expect(await noCopies(page, stem)).toEqual([]);
+  for (const p of [page, other]) await expect(p.locator(".conflict:visible")).toHaveCount(0);
+  await other.close();
+  expect(errors).toEqual([]);
+  expect(otherErrors).toEqual([]);
+});

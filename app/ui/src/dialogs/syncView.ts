@@ -14,8 +14,9 @@ import { ask } from "../dialog";
 import { diffNode } from "../diff";
 import { h } from "../dom";
 import { errorSentence, fail } from "../errors";
-import { openNote } from "../layout/spaces";
-import { syncedSessions } from "../collab";
+import { liveHolder, openNote } from "../layout/spaces";
+import { roomSide, syncedSessions } from "../collab";
+import { writeLive } from "../roomWrites";
 import { liveLine, liveWords } from "../coeditWords";
 import { liveTogether, setLiveTogether } from "../settings";
 import { madeBy } from "../syncWho";
@@ -537,8 +538,13 @@ async function keepCopy(note: string, copy: string): Promise<void> {
   const [now, mine] = await Promise.all([commands.readNote(note), commands.readFileText(copy)]);
   if (now.status !== "ok") return fail(now.error);
   if (mine.status !== "ok") return fail(mine.error);
-  const written = await commands.writeNote(note, mine.data, now.data.revision);
-  if (written.status !== "ok") return fail(written.error);
+  // A note live in its room takes the copy's text there, as one edit (ADR
+  // 0082): written under the room, it would be a change from outside.
+  const through = await writeLive(note, liveHolder(note), () => mine.data, roomSide);
+  if (through === "disk") {
+    const written = await commands.writeNote(note, mine.data, now.data.revision);
+    if (written.status !== "ok") return fail(written.error);
+  }
   const gone = await commands.deleteEntry(copy);
   if (gone.status !== "ok") return fail(gone.error);
   comparing.delete(copy);
