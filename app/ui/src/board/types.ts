@@ -40,6 +40,10 @@ export type BoardRoomLink = {
   mine: (e: El) => boolean;
   pointer: (x: number, y: number, tool: "pointer" | "laser", button: "up" | "down") => void;
   selected: (ids: readonly string[]) => void;
+  /** The others on the board now. */
+  people: () => Map<string, BoardPerson>;
+  /** Everything the room holds, into the board again. */
+  resync: () => void;
 };
 
 /** What the window gives the board: its contract calls and its dialogs. */

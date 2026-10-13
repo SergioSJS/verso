@@ -341,23 +341,23 @@ function Board({
     // counted as this person's edit; the others are drawn where they are.
     const room = host.room;
     const pane: BoardPane = {
-        apply: (remote, background) => {
-          const a = api.current;
-          if (!a || !alive.current) return;
-          const st = a.getAppState();
-          const busy = new Set<string>();
-          for (const id of [st.editingTextElement?.id, st.resizingElement?.id, st.newElement?.id, st.multiElement?.id, st.selectedLinearElement?.isEditing ? st.selectedLinearElement.elementId : undefined]) if (id) busy.add(id);
-          if (st.selectedElementsAreBeingDragged) for (const [id, on] of Object.entries(st.selectedElementIds)) if (on) busy.add(id);
-          const merged = mergeScene(a.getSceneElementsIncludingDeleted() as unknown as El[], remote, busy, (e) => room?.mine(e) ?? false);
-          own((b) =>
-            b.updateScene({
-              elements: merged as never,
-              ...(background !== undefined ? { appState: { viewBackgroundColor: background ?? "transparent" } as never } : {}),
-              captureUpdate: CaptureUpdateAction.NEVER,
-            }),
-          );
-        },
-        people: (people) => api.current?.updateScene({ collaborators: new Map(people) as never }),
+      apply: (remote, background) => {
+        const a = api.current;
+        if (!a || !alive.current) return;
+        const st = a.getAppState();
+        const busy = new Set<string>();
+        for (const id of [st.editingTextElement?.id, st.resizingElement?.id, st.newElement?.id, st.multiElement?.id, st.selectedLinearElement?.isEditing ? st.selectedLinearElement.elementId : undefined]) if (id) busy.add(id);
+        if (st.selectedElementsAreBeingDragged) for (const [id, on] of Object.entries(st.selectedElementIds)) if (on) busy.add(id);
+        const merged = mergeScene(a.getSceneElementsIncludingDeleted() as unknown as El[], remote, busy, (e) => room?.mine(e) ?? false);
+        own((b) =>
+          b.updateScene({
+            elements: merged as never,
+            ...(background !== undefined ? { appState: { viewBackgroundColor: background ?? "transparent" } as never } : {}),
+            captureUpdate: CaptureUpdateAction.NEVER,
+          }),
+        );
+      },
+      people: (people) => api.current?.updateScene({ collaborators: new Map(people) as never }),
     };
     room?.attach(pane, initialElements as unknown as El[]);
     const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -1116,6 +1116,12 @@ function Board({
                 syncCards(a.getSceneElements());
                 scheduleOverlays(a.getSceneElements());
                 remeasureWhenFontsIn(a.getSceneElements());
+                // The others already on the board, before any of them moves;
+                // and what the room changed while Excalidraw was starting.
+                if (host.room) {
+                  a.updateScene({ collaborators: new Map(host.room.people()) as never });
+                  host.room.resync();
+                }
                 const st = a.getAppState();
                 const v: View = { scrollX: st.scrollX, scrollY: st.scrollY, zoom: st.zoom.value, width: st.width, height: st.height };
                 settledRef.current = v;

@@ -217,9 +217,16 @@ test("a synced folder's board is live: what is drawn goes to the room, which wri
   await expect.poll(async () => cardY(app, await app.file(BOARD), "a"), { timeout: 15_000 }).toBeGreaterThan(200);
   expect((await app.calls("write_board")).length).toBeGreaterThan(0);
 
-  // Back: the same room, live again.
+  // Back: the same room, live again, and what was drawn meanwhile handed
+  // to it — the room's save has both cards where they were left.
+  const handed = (await app.calls("collab_canvas")).length;
   await link(app, true);
   await say(app, { ...SYNCED, state: "syncing" });
   await expect(mark).toHaveText(/^ao vivo/);
   await expect(page.locator("#status")).toContainText("O quadro está ao vivo de novo.");
+  await expect.poll(async () => (await app.calls("collab_canvas")).length, { timeout: 15_000 }).toBeGreaterThan(handed);
+  await page.evaluate((n) => window.__harness.rooms.save(n), BOARD);
+  const saved = await app.file(BOARD);
+  expect(await cardY(app, saved, "a")).toBeGreaterThan(200);
+  expect(await cardY(app, saved, "b")).toBeGreaterThan(50);
 });

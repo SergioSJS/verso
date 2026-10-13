@@ -53,7 +53,12 @@ export function boardHandlers(this: BoardLeaf): CollabHandlers {
     },
     remote: () => {},
     local: (why) => void this.boardWentLocal(why),
-    live: () => this.textCameBack(),
+    live: () => {
+      this.textCameBack();
+      // What was drawn out of the room went back into it: the room is
+      // handed the file of its state now, to write it.
+      void this.room?.flush();
+    },
     anew: () => void this.boardReadAnew(),
     presence: () => this.presenceChanged(),
     settle: async () => {

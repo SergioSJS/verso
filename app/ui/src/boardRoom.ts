@@ -140,12 +140,18 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
    *  window drew in yet: not anyone's edit, so nothing is written for it.
    *  A change made before it would make a file of a part of the board. */
   seed(drawn: readonly El[]): void {
-    if (this.seeded || !this.writable) return;
+    if (this.seeded || !this.writable || !this.open) return;
     this.doc.transact(() => {
       for (const e of drawn) this.put(e);
       this.meta.set("seeded", true);
       this.meta.set("background", backgroundOf(this.base()) ?? "");
     }, LOCAL);
+  }
+
+  /** Everything the room holds, into the boards again: what came in while
+   *  a board was starting. */
+  resync(): void {
+    if (this.open && this.seeded) this.pull(new Set(this.resolved().keys()), this.background());
   }
 
   detach(pane: BoardPane): void {
@@ -163,7 +169,8 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
    *  `user`: a person's edit is in it (only that leaves something to
    *  write; what the board adjusts by itself rides along). */
   scene(scene: readonly El[], background: string, user: boolean): void {
-    if (!this.writable) return;
+    // Out of the room for good (closed, left): the board is drawn again.
+    if (!this.writable || !this.open) return;
     const was = this.pending;
     this.pending = { scene, user: user || (was?.user ?? false), background };
     if (this.pushTimer === undefined) this.pushTimer = window.setTimeout(() => this.push(), PUSH_EVERY);
@@ -175,7 +182,7 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
     this.pushTimer = undefined;
     const p = this.pending;
     this.pending = null;
-    if (!p || !this.writable) return;
+    if (!p || !this.writable || !this.open) return;
     const changed = changedElements(p.scene, this.known);
     const bg = p.background === "transparent" ? "" : p.background;
     // The background is the person's to change, never the board loading.
@@ -230,7 +237,7 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
   /** The file this window's converter makes of the room's state now. */
   async sendCanvas(): Promise<void> {
     window.clearTimeout(this.canvasTimer);
-    if (!this.writable || !this.live || !this.waiting) return;
+    if (!this.writable || !this.live || !this.open || !this.waiting) return;
     const at = toB64(Y.encodeStateVector(this.doc));
     if (at === this.sentAt) return;
     this.sentAt = at;
@@ -248,7 +255,7 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
   /** The changes of a canvas given anew — its text edited, a link
    *  rewritten — as elements at versions that win (roomModel.ts). */
   patch(elements: readonly El[]): void {
-    if (!this.writable || elements.length === 0) return;
+    if (!this.writable || !this.open || elements.length === 0) return;
     this.doc.transact(() => {
       for (const e of elements) this.put(e);
       this.meta.set(`edit:${this.doc.clientID}`, ++this.edits);
