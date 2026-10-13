@@ -137,7 +137,7 @@ fn changed(message: &str) -> ContractError {
 /// The file's text with `\n` line ends, the form the editor and the room
 /// hold, and whether it had CRLF; `None` when it mixes them (shown
 /// read-only, never shared).
-fn normalized(text: &str) -> Option<(String, bool)> {
+pub(crate) fn normalized(text: &str) -> Option<(String, bool)> {
     let crlf = text.contains("\r\n");
     let rest = text.replace("\r\n", "");
     if rest.contains('\r') || (crlf && rest.contains('\n')) {
@@ -146,7 +146,7 @@ fn normalized(text: &str) -> Option<(String, bool)> {
     Some((text.replace("\r\n", "\n"), crlf))
 }
 
-fn on_disk(text: &str, crlf: bool) -> String {
+pub(crate) fn on_disk(text: &str, crlf: bool) -> String {
     if crlf {
         text.replace('\n', "\r\n")
     } else {
@@ -154,15 +154,29 @@ fn on_disk(text: &str, crlf: bool) -> String {
     }
 }
 
-fn new_doc() -> Doc {
-    // UTF-16 offsets, as the window's Yjs counts them.
-    Doc::with_options(Options {
-        offset_kind: OffsetKind::Utf16,
-        ..Options::default()
-    })
+pub(crate) fn new_doc() -> Doc {
+    Doc::with_options(utf16(Options::default()))
 }
 
-fn text_of(doc: &Doc) -> String {
+/// UTF-16 offsets, as the window's Yjs counts them.
+pub(crate) fn utf16(options: Options) -> Options {
+    Options {
+        offset_kind: OffsetKind::Utf16,
+        ..options
+    }
+}
+
+/// `doc` holding the file's `text`: a room's document as [`join`] makes it.
+pub(crate) fn holding(doc: Doc, text: &str) -> Doc {
+    {
+        let t = doc.get_or_insert_text(TEXT);
+        let mut txn = doc.transact_mut();
+        t.insert(&mut txn, 0, text);
+    }
+    doc
+}
+
+pub(crate) fn text_of(doc: &Doc) -> String {
     let text = doc.get_or_insert_text(TEXT);
     let txn = doc.transact();
     text.get_string(&txn)
@@ -205,7 +219,7 @@ fn minimal_edit(from: &str, to: &str) -> Option<(u32, u32, String)> {
 
 /// Make the room's text `to` by one edit of the server's own; the update
 /// to relay, if anything changed.
-fn apply_text(doc: &Doc, to: &str) -> Option<Vec<u8>> {
+pub(crate) fn apply_text(doc: &Doc, to: &str) -> Option<Vec<u8>> {
     let from = text_of(doc);
     let (start, removed, inserted) = minimal_edit(&from, to)?;
     let text = doc.get_or_insert_text(TEXT);
@@ -362,8 +376,25 @@ fn write_file(
 }
 
 /// Join `client` to the room of `path` in folder `key`, made from the disk
-/// when it is the first.
+/// when it is the first. A room whose state `yrs` cannot make any more is
+/// made again from the file ([`reload`]) and joined.
 pub fn join(
+    server: &Arc<Server>,
+    client: &str,
+    key: &str,
+    path: &str,
+    user: &str,
+) -> Result<CollabJoin, ContractError> {
+    match join_room(server, client, key, path, user) {
+        Err(e) if e.message == BROKEN => {
+            reload(server, key, path, "its state could not be made");
+            join_room(server, client, key, path, user)
+        }
+        joined => joined,
+    }
+}
+
+fn join_room(
     server: &Arc<Server>,
     client: &str,
     key: &str,
@@ -397,12 +428,7 @@ pub fn join(
                         epoch: String::new(),
                     });
                 };
-                let doc = new_doc();
-                {
-                    let t = doc.get_or_insert_text(TEXT);
-                    let mut txn = doc.transact_mut();
-                    t.insert(&mut txn, 0, &text);
-                }
+                let doc = holding(new_doc(), &text);
                 (doc, crlf, text, crate::collab_board::Board::default())
             };
             let room = Arc::new(Mutex::new(Room {
@@ -427,11 +453,8 @@ pub fn join(
         }
     };
     let mut r = lock(&room);
+    let state = state(&r.doc)?;
     r.clients.insert(client.to_owned());
-    let state = r
-        .doc
-        .transact()
-        .encode_state_as_update_v1(&StateVector::default());
     Ok(CollabJoin {
         kind: wire,
         update: b64(&state),
@@ -446,7 +469,7 @@ pub fn join(
 /// An edit from `client`: applied, relayed, written once it settles.
 pub fn update(
     server: &Arc<Server>,
-    client: &str,
+    (client, account): (&str, &str),
     key: &str,
     path: &str,
     update: &str,
@@ -466,17 +489,29 @@ pub fn update(
     if bytes.len() > most {
         return Err(refused("an update of 4 MB at most"));
     }
-    let decoded =
-        Update::decode_v1(&bytes).map_err(|e| refused(&format!("not a Yjs update: {e}")))?;
+    let decoded = decode(&bytes)?;
     let mut r = lock(&room);
     if !r.clients.contains(client) {
         return Err(refused("join the note first"));
     }
-    if r.kind == Kind::Board {
-        r.board.admits(&r.doc, &bytes, &decoded)?;
-        r.board.bytes = r.board.bytes.saturating_add(bytes.len());
+    let taken = {
+        let Room {
+            kind, doc, board, ..
+        } = &mut *r;
+        take(*kind, doc, board, &bytes, decoded)
+    };
+    if let Err(e) = taken {
+        if e.message == BROKEN {
+            drop(r);
+            reload(
+                server,
+                key,
+                path,
+                &format!("an update from account {account} the room could not integrate"),
+            );
+        }
+        return Err(e);
     }
-    integrate(&r.doc, decoded).map_err(|e| refused(&format!("the update does not apply: {e}")))?;
     tell(
         server,
         &r,
@@ -491,6 +526,141 @@ pub fn update(
         schedule(server, Arc::clone(&room));
     }
     Ok(())
+}
+
+/// A window's update `bytes`, refused before `yrs` reads it when one of
+/// its counts declares more than the bytes left, or a value nests past
+/// the bound (`yjs_bounds.rs`): `yrs` reserves room for every element
+/// declared before it reads the first, and reads nested values by
+/// recursion (ADR 0083 item 14; the fuzz targets `note` and `board` saw
+/// 22 GB asked for four bytes, and a 200 KB update overflowed the stack).
+/// No real update does either.
+pub(crate) fn readable(bytes: &[u8]) -> Result<(), ContractError> {
+    match crate::yjs_bounds::update(bytes) {
+        Err(crate::yjs_bounds::Stop::Bomb) => Err(refused("an update the room cannot read")),
+        _ => Ok(()),
+    }
+}
+
+/// A window's state vector, refused the same way.
+pub(crate) fn readable_vector(bytes: &[u8]) -> Result<(), ContractError> {
+    match crate::yjs_bounds::state_vector(bytes) {
+        Err(crate::yjs_bounds::Stop::Bomb) => Err(refused("an update the room cannot read")),
+        _ => Ok(()),
+    }
+}
+
+/// A window's update, decoded once it is [`readable`].
+pub(crate) fn decode(bytes: &[u8]) -> Result<Update, ContractError> {
+    readable(bytes)?;
+    Update::decode_v1(bytes).map_err(|e| refused(&format!("not a Yjs update: {e}")))
+}
+
+/// A window's update `bytes`, decoded, taken into a room's document: a
+/// board's within its limits first (`collab_board.rs`), then integrated.
+pub(crate) fn take(
+    kind: Kind,
+    doc: &Doc,
+    board: &mut crate::collab_board::Board,
+    bytes: &[u8],
+    decoded: Update,
+) -> Result<(), ContractError> {
+    caught(|| {
+        if ahead_of_room(doc, &decoded) {
+            return Err(refused("an update the room cannot read"));
+        }
+        if kind == Kind::Board {
+            board.admits(doc, bytes, &decoded)?;
+            board.bytes = board.bytes.saturating_add(bytes.len());
+        }
+        integrate(doc, decoded).map_err(|e| refused(&format!("the update does not apply: {e}")))
+    })?
+}
+
+/// Whether `update` makes or deletes items of the room's own Yjs client
+/// past those the room has made (findings 5 and its sequel, ADR 0083 item
+/// 14): `yrs` keeps a deletion of what is not there yet and applies it to
+/// the room's next items, and an item made as the room's client takes the
+/// clock of the room's next own edit — either way a change from outside
+/// or a merged write reads otherwise in the windows than in the room. Only
+/// the room makes its own items and every window learns them from it, so
+/// no window can have seen one ahead; a window's whole state sent back
+/// holds only those the room made. Another window's items are not judged:
+/// a connection's updates can reach the room in the other order, a
+/// deletion before the insert it deletes.
+fn ahead_of_room(doc: &Doc, update: &Update) -> bool {
+    let own = doc.client_id();
+    let made = doc.transact().state_vector().get(&own);
+    let past = |set: &yrs::IdSet| {
+        set.iter()
+            .find(|(c, _)| **c == own)
+            .is_some_and(|(_, ranges)| ranges.iter().any(|r| r.end > made))
+    };
+    past(update.delete_set()) || past(&update.insertions(true))
+}
+
+/// What a room answers when `yrs` panicked on what a window sent (ADR
+/// 0083 item 14, finding 2 of the fuzzing, option (a) accepted by the
+/// maintainer on 2026-10-13): the document may be half changed, so the
+/// room is made again from its file ([`reload`]).
+pub(crate) const BROKEN: &str = "an update the room could not integrate";
+
+/// `f`, a call into `yrs` over what a window sent or what it left in a
+/// room, with a panic of `yrs` caught as [`BROKEN`]. `yrs` 0.28 unwraps,
+/// divides by zero and reads past an end on some updates, in a release
+/// build too (the fuzz targets `note` and `board`).
+pub(crate) fn caught<T>(f: impl FnOnce() -> T) -> Result<T, ContractError> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).map_err(|_| refused(BROKEN))
+}
+
+/// A room's whole state, as `join` sends it: checked first to apply in a
+/// window, since `yrs` 0.28 can make a state it cannot read back (the fuzz
+/// target `board`: `EndOfBuffer`).
+pub(crate) fn state(doc: &Doc) -> Result<Vec<u8>, ContractError> {
+    let state = caught(|| {
+        doc.transact()
+            .encode_state_as_update_v1(&StateVector::default())
+    })?;
+    applies(&Doc::new(), &state)?;
+    Ok(state)
+}
+
+/// Whether `update` decodes and applies in `window`, as a window takes it.
+fn applies(window: &Doc, update: &[u8]) -> Result<(), ContractError> {
+    let applied = caught(|| {
+        Update::decode_v1(update)
+            .ok()
+            .and_then(|u| window.transact_mut().apply_update(u).ok())
+    })?;
+    applied.ok_or_else(|| refused(BROKEN))
+}
+
+/// What a board room says it wrote (`Board::written`), checked first to
+/// apply in a window that holds the room's state (the fuzz target
+/// `board`: `InvalidParent`).
+pub(crate) fn written(
+    doc: &Doc,
+    board: &mut crate::collab_board::Board,
+) -> Result<Vec<u8>, ContractError> {
+    let window = Doc::new();
+    applies(&window, &state(doc)?)?;
+    let update = caught(|| board.written(doc))?;
+    applies(&window, &update)?;
+    Ok(update)
+}
+
+/// A room `yrs` could not go on with: said in the log, and closed — what a
+/// change from outside does to a room it cannot take in
+/// ([`changed_outside`]): the windows read the file again, and the next to
+/// join makes the room anew from it. What was typed in the room since it
+/// last wrote is lost.
+fn reload(server: &Server, key: &str, path: &str, why: &str) {
+    let folder = lock(&server.keys)
+        .get(key)
+        .cloned()
+        .unwrap_or_else(|| key.to_owned());
+    crate::log::warn(&format!("room {folder}/{path}: {why}"));
+    close(server, key, path);
 }
 
 /// The largest presence relayed (threat-model.md, gap 3): a window's is
@@ -602,7 +772,12 @@ pub fn write(server: &Server, room: &Arc<Mutex<Room>>) -> Result<String, Contrac
                     // What was written is said in the document too: the
                     // windows see that nothing waits any more.
                     let Room { board, doc, .. } = &mut *r;
-                    let update = board.written(doc);
+                    let Ok(update) = self::written(doc, board) else {
+                        let key = r.key.clone();
+                        drop(r);
+                        reload(server, &key, &path, "its state could not be made");
+                        return Err(refused(BROKEN));
+                    };
                     tell(
                         server,
                         &r,
@@ -1043,13 +1218,7 @@ pub fn write_through(
         if revision != r.revision {
             return Err(changed("the note changed since it was read"));
         }
-        let Some((mine, _)) = normalized(text) else {
-            return Err(refused("a text that mixes line ends"));
-        };
-        let theirs = text_of(&r.doc);
-        let merged = diffy::merge(&r.saved, &theirs, &mine)
-            .map_err(|_| changed("the same lines changed in the note meanwhile"))?;
-        if let Some(update) = apply_text(&r.doc, &merged) {
+        if let Some(update) = merge_into(&r.doc, &r.saved, text)? {
             tell(
                 server,
                 &r,
@@ -1059,6 +1228,23 @@ pub fn write_through(
         }
     }
     write(server, &room)
+}
+
+/// `text`, a write from elsewhere, merged line by line into the room's
+/// edits over `saved`, the text last written: the update to relay, if
+/// anything changed; `changed` when the two touch the same lines.
+pub(crate) fn merge_into(
+    doc: &Doc,
+    saved: &str,
+    text: &str,
+) -> Result<Option<Vec<u8>>, ContractError> {
+    let Some((mine, _)) = normalized(text) else {
+        return Err(refused("a text that mixes line ends"));
+    };
+    let theirs = text_of(doc);
+    let merged = diffy::merge(saved, &theirs, &mine)
+        .map_err(|_| changed("the same lines changed in the note meanwhile"))?;
+    Ok(apply_text(doc, &merged))
 }
 
 #[cfg(test)]

@@ -24,6 +24,10 @@ pub mod device;
 pub mod fair;
 pub mod files;
 pub mod folders;
+/// The server's inputs, opened to its fuzz harness only (ADR 0083 item 14).
+#[cfg(feature = "fuzzing")]
+#[doc(hidden)]
+pub mod fuzz_api;
 pub mod http;
 pub mod large;
 pub mod limit;
@@ -51,6 +55,7 @@ pub mod transfers;
 pub mod trash;
 pub mod twins;
 pub mod update;
+mod yjs_bounds;
 
 use std::sync::Arc;
 
@@ -330,6 +335,8 @@ mod tests_console;
 mod tests_pieces;
 #[cfg(test)]
 mod tests_prove;
+#[cfg(test)]
+mod tests_room_inputs;
 #[cfg(test)]
 mod tests_rooms;
 #[cfg(test)]

@@ -83,7 +83,11 @@ fn refused(message: &str) -> ContractError {
 
 /// A new board room's document: the file it is made from, nothing drawn.
 pub fn new_doc(base: &str) -> Doc {
-    let doc = Doc::new();
+    based(Doc::new(), base)
+}
+
+/// `doc` made a new board room's, of the file `base`.
+pub(crate) fn based(doc: Doc, base: &str) -> Doc {
     {
         let meta = doc.get_or_insert_map(META);
         let mut txn = doc.transact_mut();
@@ -161,7 +165,9 @@ impl Board {
         if json.len() > CANVAS_MOST {
             return Err(refused("a board's file of 16 MB at most"));
         }
-        let at = StateVector::decode_v1(at).map_err(|_| refused("not a state vector"))?;
+        crate::collab::readable_vector(at)?;
+        let at = crate::collab::caught(|| StateVector::decode_v1(at))?
+            .map_err(|_| refused("not a state vector"))?;
         self.canvases.retain(|(sv, _)| *sv != at);
         self.canvases.push((at, json));
         if self.canvases.len() > CANVASES_KEPT {

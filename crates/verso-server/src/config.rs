@@ -87,7 +87,8 @@ fn days(env: &dyn Env, name: &str, default: u32) -> Result<u32, ConfigError> {
 }
 
 /// A size as a person writes it: bytes, or a number with KB, MB, GB or TB
-/// (powers of 1024, as the console shows them); `None` when it is none.
+/// (powers of 1024, as the console shows them); `None` when it is none,
+/// or under one byte.
 #[must_use]
 pub fn size(text: &str) -> Option<i64> {
     let t = text.trim().to_ascii_uppercase();
@@ -106,7 +107,9 @@ pub fn size(text: &str) -> Option<i64> {
     if !value.is_finite() || value <= 0.0 {
         return None;
     }
-    Some((value * factor as f64).round() as i64)
+    // Under a byte is no size: it would read as a quota of 0.
+    let bytes = value * factor as f64;
+    (bytes >= 1.0).then(|| bytes.round() as i64)
 }
 
 /// What went wrong reading the environment, naming the variable.
@@ -352,6 +355,16 @@ mod tests {
             ])
             .is_err()
         );
+    }
+
+    /// Seen writing the fuzz target `size` (ADR 0083 item 14): a size under
+    /// one byte read as a quota of 0 bytes, which refuses every write.
+    #[test]
+    fn a_size_under_one_byte_is_none() {
+        assert_eq!(size("0.3"), None);
+        assert_eq!(size("0,4 B"), None);
+        assert_eq!(size("1"), Some(1));
+        assert_eq!(size("0.5KB"), Some(512));
     }
 
     #[test]
