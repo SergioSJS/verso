@@ -688,6 +688,13 @@ which journald rotates (`journalctl --vacuum-size`, `SystemMaxUse=`;
 Docker's `json-file` driver with `max-size: "10m"` and `max-file: "3"`
 (section 4). The 60 lines a minute a window may write are unchanged.
 
+**The threat model's rate limit beyond sign-ins** (2026-10-13). Its
+`[OPEN]` closed by the maintainer's answer of 2026-10-13 (*"sobre as
+decisões em aberto, siga as recomendações"*): the paces of items 7
+(9b4cdf0) and 2 (805febb), beside the connection limits built before,
+answer it; `docs/reference/threat-model.md` says **Closed: 9b4cdf0 and
+805febb**. Measuring the numbers stays item 18.
+
 ## Consequences
 
 - What people feel: a password they chose refused at setup or at an
