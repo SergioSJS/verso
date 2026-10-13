@@ -57,6 +57,14 @@ Em **Ajustes › Conta** — o botão da pessoa, ao lado da engrenagem na faixa 
 
 Abra a mesma nota em duas janelas, ou com outra pessoa: o que um digita aparece no outro enquanto digita, com o cursor e o nome — o nome da conta de quem digita, posto pelo servidor: ninguém aparece com o nome de outra pessoa. O servidor grava o arquivo quando as edições assentam, e **nunca grava por cima** de uma mudança feita fora — essa mostra a diferença para vocês escolherem, como o Verso sempre fez.
 
+Não só as notas: **tudo o que você edita na janela** é editado junto, do mesmo jeito.
+
+- **Um board**: o que cada um desenha, move ou escreve aparece no outro enquanto faz, e as mudanças dos dois ficam. Você vê o **ponteiro** e a **seleção** de cada um, com o nome. Se dois mexem na **mesma forma** ao mesmo tempo, fica a versão mais nova, como o Excalidraw decide; uma forma **apagada** continua apagada mesmo que alguém a estivesse arrastando — e o ⌘Z de quem apagou a traz de volta.
+- **Um arquivo de texto** (`.txt`, `.json`, `.csv`, o código de uma página) e **uma base** — inclusive os filtros, as ordenações, as colunas e as visões mudados pela própria base: letra por letra, como numa nota.
+- **Uma nota no cartão de um board**: editada dentro do cartão, está na mesma sala de quem a abriu numa aba.
+- A aba diz quem está lá — *ao vivo, com Ana* —, e um leitor de tela ouve quem entra e quem sai.
+- Um canvas salvo por outro programa noutro layout só entra na sala depois do primeiro salvamento aqui, que mostra a diferença antes. Um desenho do plugin Excalidraw continua só para ver; o texto dele é uma nota, editada junto como as outras.
+
 Numa nota, num board ou num arquivo de texto que mudou em disco enquanto você digitava, são três saídas: **Descartar o meu e recarregar**, **Gravar o meu por cima** ou **Guardar os dois** — a versão do disco fica com o nome, e o seu texto vai para uma cópia ao lado, com o nome que a sincronização dá a um conflito.
 
 ---
@@ -97,7 +105,7 @@ Enquanto a sincronização está conectada, uma nota aberta aqui **entra na mesm
 - Uma mudança feita **fora do Verso** (o Obsidian, um script) na nota aberta cruza como qualquer outra: entra na sala, ou fica numa cópia se a sala já tinha salvo outra coisa.
 - Não quer editar junto nesta pasta? Em **Ajustes › Sincronizar**, desligue **Editar notas junto enquanto online**: as notas voltam a ser editadas só aqui e cruzam ao salvar. É um ajuste seu, deste computador — não vai para a pasta.
 
-Boards, bases e anexos continuam cruzando como arquivos.
+Boards, arquivos de texto e bases abertos aqui também ficam ao vivo, do mesmo jeito; os anexos cruzam como arquivos.
 
 ---
 
