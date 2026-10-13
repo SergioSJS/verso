@@ -17,7 +17,11 @@
   0.3.0-beta.3 pedir um pull request da feature, um pull request da release
   e uma tag, o mantenedor: "esse processo de gerar versao ta ruim de mais", e depois "ta, melhore o fluxo de deploy entao, ai testamos na próxma versao". A versão agora vai no pull
   request que lança, e o merge dele na `main` compila, publica e cria a
-  tag.
+  tag. 2026-10-13 — Decisão 4: como os números andam. O mantenedor, em
+  2026-10-13: *"0.9 só quando estiver quase tudo pronto"*. A partir da
+  0.8.0-beta.1 só o último número anda — 0.8.1, 0.8.2, … — cada uma ainda
+  uma release de teste `-beta.N` até a linha ficar estável; a próxima
+  release é a 0.8.1-beta.1.
 
 ## Contexto
 
@@ -60,7 +64,12 @@ modificações até gerar versão, considerando changelog inclusive"*.
    permanentes**: um ruleset recusa apagar ou mover uma tag `v*`, sem ninguém
    isento — perguntado depois de a leitura do pull request que trouxe esta
    ADR achar isso registrado sem a palavra dele, o mantenedor respondeu
-   *"Manter"* (2026-09-24).
+   *"Manter"* (2026-09-24). *(2026-10-13: a versão 0.9 fica reservada para
+   quando quase tudo estiver pronto — o mantenedor: "0.9 só quando estiver
+   quase tudo pronto" — então, a partir da 0.8.0-beta.1, só o último
+   número anda, 0.8.1, 0.8.2, …, cada uma ainda uma release de teste
+   `-beta.N` até a linha ficar estável; a próxima release é a
+   0.8.1-beta.1.)*
 5. **Uma versão só é gerada quando o mantenedor pede** — pelo mantenedor, ou
    por um agente a pedido dele — com o `scripts/release.mjs prepare
    X.Y.Z[-beta.N]`, **na branch do pull request que lança**: ele define a

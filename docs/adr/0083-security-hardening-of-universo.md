@@ -63,13 +63,15 @@ de bots* — and 0073 item 6 sets the moment: before the first user who is
 not the maintainer. This ADR turns the review into measures, each with
 its default numbers, the crate and file it lands in, and the test that
 guards it; each number the maintainer may want to change, and each
-measure that costs people something, is `[OPEN]` with a recommendation.
+measure that costs people something, was `[OPEN]` with a recommendation,
+and was decided on 2026-10-13 (Status).
 
 ## Decision
 
-Proposed. Each `[OPEN]` carries a recommendation; the maintainer decides.
-What has no `[OPEN]` is proposed as written. Sizes: S is hours, M a day
-or two, L more.
+Accepted on 2026-10-13. Each point that was `[OPEN]` carried a
+recommendation and is now marked `[DECIDED 2026-10-13]`: the maintainer
+accepted every recommendation (Status). What had no `[OPEN]` is decided
+as written. Sizes: S is hours, M a day or two, L more.
 
 1. **Every refused sign-in is one line of the server's log, in a fixed
    format, for the host's tools** (F1). `crates/verso-server/src/api.rs`
@@ -93,11 +95,12 @@ or two, L more.
    `sign-in failed from …` comes out prefixed `window`, and that the
    fail2ban regex, run over the test's lines with a small matcher,
    catches exactly the failures. Size S.
-   - `[OPEN]` Ship the fail2ban filter in the `.deb`/`.rpm` (under
+   - `[DECIDED 2026-10-13]` Ship the fail2ban filter in the `.deb`/`.rpm` (under
      `/etc/fail2ban/filter.d/`, inert without fail2ban) or in the
      documentation only. *Recommendation:* in the package, so that
      `sudo systemctl enable fail2ban` is the whole setup; CrowdSec files
-     in the documentation, since its parsers live in its hub.
+     in the documentation, since its parsers live in its hub. *Decided:*
+     in the package; the CrowdSec files in the documentation.
 
 2. **A ceiling, and a notice, on sign-ins** (F2). The per-key delay stays
    as it is (3 free, 1 s doubling to 60 s, never a lock — 0074 item 9).
@@ -113,13 +116,15 @@ or two, L more.
    `api.rs`, `console.rs`, `mail.rs`. Guardrail: unit tests of the
    bucket and the hourly count; a test that the mail is sent once and the
    21st failure does not send again. Size M.
-   - `[OPEN]` The numbers: 20 failures an hour for the notice; 10 a
-     second, 50 at once for the server. *Recommendation:* as written;
-     measured on the 1 GB host in item 18 and adjusted there.
-   - `[OPEN]` Whether, after the notice, an account that has a passkey
-     refuses its password until the passkey or a reset link is used.
-     *Recommendation:* no — it is a lock a stranger can use, the thing
-     0074 item 9 forbids; the notice and the delay are enough.
+   - `[DECIDED 2026-10-13]` The numbers: 20 failures an hour for the
+     notice; 10 a second, 50 at once for the server. *Recommendation:* as
+     written; measured on the 1 GB host in item 18 and adjusted there.
+     *Decided:* as written, measured in item 18 and adjusted there.
+   - `[DECIDED 2026-10-13]` Whether, after the notice, an account that
+     has a passkey refuses its password until the passkey or a reset link
+     is used. *Recommendation:* no — it is a lock a stranger can use, the
+     thing 0074 item 9 forbids; the notice and the delay are enough.
+     *Decided:* no.
 
 3. **A password from the lists attackers try is refused** (F3). The
    10 000 commonest passwords from a public list under a permissive
@@ -134,12 +139,13 @@ or two, L more.
    `lib.rs`. Guardrail: a test that `password1234` and `qwertyuiop12`
    are refused and a four-word passphrase is accepted; the file's size
    bounded in the test (under 200 KB). Size S.
-   - `[OPEN]` A k-anonymity check against Have I Been Pwned's range API
+   - `[DECIDED 2026-10-13]` A k-anonymity check against Have I Been
+     Pwned's range API
      (five characters of the SHA-1 sent, nothing identifying). *Recommendation:*
      no — it is an outbound request to a third party from a server that
      reaches nothing but the release feed and the host's SMTP (threat
      model, "the server's own reach"), and the embedded list catches the
-     stuffing lists' bulk.
+     stuffing lists' bulk. *Decided:* no; the embedded list only.
 
 4. **Recovery revokes the account's tokens** (F4). A password reset (a
    link's use, `api.rs` `reset`, and `admin reset`) revokes every
@@ -179,10 +185,12 @@ or two, L more.
    `web/account.ts` and `web/console.ts`. Guardrail: a test per route
    that it answers `prove_first` after the mark is older than 10 minutes
    and succeeds within. Size M.
-   - `[OPEN]` Whether this is before the first outside user or before the
-     announcement. *Recommendation:* before the announcement — the first
-     outside users are invited people on a server with few accounts, and
-     the tokens are already scoped and revocable.
+   - `[DECIDED 2026-10-13]` Whether this is before the first outside
+     user or before the announcement. *Recommendation:* before the
+     announcement — the first outside users are invited people on a server
+     with few accounts, and the tokens are already scoped and revocable.
+     *Decided:* a condition of the announcement, not of the first outside
+     user; built in this round all the same (Order of work).
 
 7. **A pace on the REST routes, per address** (F14). A token bucket per
    address key — 20 requests a second sustained, 100 at once — on every
@@ -194,9 +202,10 @@ or two, L more.
    beside `guard`), `fair.rs` (the bucket, reused). Guardrail: a test in
    `tests_bounds.rs` that the 101st request in a burst answers 429 and
    the next second's does not. Size S.
-   - `[OPEN]` The numbers. *Recommendation:* as written — a window's
-     REST use is a few requests a minute; sync and the window's commands
-     go over the WebSocket, under `fair.rs`.
+   - `[DECIDED 2026-10-13]` The numbers. *Recommendation:* as written —
+     a window's REST use is a few requests a minute; sync and the window's
+     commands go over the WebSocket, under `fair.rs`. *Decided:* as
+     written, adjusted after item 18's measurement.
 
 8. **The bounds the review found loose, each tightened** (F11, F12, F13,
    F17, F22, F23), one PR, size S in all:
@@ -224,8 +233,9 @@ or two, L more.
    that asserts the whole set of headers, name and value, on `/`,
    `/api/state` and `/f/<folder>/<file>` — the set the review's section
    3.2 lists — so that a header lost in a refactor is seen. Size S.
-   - `[OPEN]` `preload` on HSTS. *Recommendation:* no — it is the host's
-     irreversible choice for their domain, not the server's default.
+   - `[DECIDED 2026-10-13]` `preload` on HSTS. *Recommendation:* no — it
+     is the host's irreversible choice for their domain, not the server's
+     default. *Decided:* no `preload`.
 
 10. **The audit log expires** (F21). `VERSO_AUDIT_DAYS`, 365 by default,
     0 for never, bounded like `VERSO_TRASH_DAYS`; a sweep once a day
@@ -234,9 +244,10 @@ or two, L more.
     `console.rs`; `packaging/server/universo.env` and the guide. Guardrail:
     a test that a row older than the retention goes and a younger one
     stays. Size S.
-    - `[OPEN]` 365 days. *Recommendation:* 365 — a year of who signed in
-      from where is what a person asks for after an incident, and it is
-      personal data (addresses) that should not be kept for ever.
+    - `[DECIDED 2026-10-13]` 365 days. *Recommendation:* 365 — a year of
+      who signed in from where is what a person asks for after an
+      incident, and it is personal data (addresses) that should not be
+      kept for ever. *Decided:* 365 days.
 
 11. **The package hardened** (F18, F19, F20). The unit gains
     `ProtectProc=invisible`, `ProcSubset=pid`,
@@ -267,12 +278,13 @@ or two, L more.
     section 2. Guardrail: `scripts/check-linux.sh`'s script test makes a
     backup with a throw-away key, restores it to a scratch root and
     compares. Size M.
-    - `[OPEN]` `age` as the tool (one static binary, in Debian, Ubuntu,
+    - `[DECIDED 2026-10-13]` `age` as the tool (one static binary, in Debian, Ubuntu,
       Fedora and Alpine repositories, X25519 recipients, no key
       management beyond a file) against `openssl enc` (present everywhere,
       a passphrase only, easy to misuse) or GnuPG (heavy). *Recommendation:*
       `age`, optional, the plain backup kept as the fallback with the
-      warning.
+      warning. *Decided:* `age`, optional, the plain backup with the
+      warning as the fallback.
 
 13. **Advisories on the npm tree, as `cargo deny` on the Rust tree** (F7).
     `node scripts/check-npm-audit.mjs` runs `npm audit --json` in `app/ui`
@@ -307,8 +319,11 @@ or two, L more.
     serves the same. Guardrail: a test that the route answers with the
     required fields and an `Expires` in the future; the mirror check for
     the twin. Size S.
-    - `[OPEN]` The address. *Recommendation:* `security@versomd.com`, a
-      mailbox the maintainer reads; no bug bounty.
+    - `[DECIDED 2026-10-13]` The address. *Recommendation:*
+      `security@versomd.com`, a mailbox the maintainer reads; no bug
+      bounty. *Decided:* `security@versomd.com`, no bug bounty; that the
+      mailbox exists is still for the maintainer to confirm, which does
+      not hold the item back.
 
 16. **The outside reading, and the sanitizer's cross-review** (F9). Before
     the announcement: `app/ui/src/sanitize.ts` read by the model that did
@@ -320,10 +335,12 @@ or two, L more.
     and closed in a PR of their own. Guardrail: the harness run of the
     sanitizer's cases, kept in `npm run e2e`. Size L for the pentest
     (outside the project's hours), S for the reading.
-    - `[OPEN]` Whether the pentest is a condition of the announcement or
-      of the first outside user. *Recommendation:* of the announcement;
-      the first outside users are invited and known, and items 1 to 5, 8
-      to 10 and 13 are what they need.
+    - `[DECIDED 2026-10-13]` Whether the pentest is a condition of the
+      announcement or of the first outside user. *Recommendation:* of the
+      announcement; the first outside users are invited and known, and
+      items 1 to 5, 8 to 10 and 13 are what they need. *Decided:* a
+      condition of the announcement; the sanitizer's cross-reading is done
+      in this round (Order of work).
 
 17. **No CAPTCHA; no proof-of-work; the device page keeps its link.** A
     CAPTCHA from a third party brings that party's script into the sign-in
@@ -335,10 +352,12 @@ or two, L more.
     device approval page keeps taking the code from the link (0074 item
     8, gap 12 as decided on 2026-10-12), and item 6's fresh proof covers
     the approval.
-    - `[OPEN]` Proof-of-work. *Recommendation:* no, recorded as considered.
-    - `[OPEN]` The device page asks the person to type the code when the
-      link carries none, as GitHub does, and shows the typed one. *Recommendation:*
-      yes, S, with item 6; the link stays for the app's own flow.
+    - `[DECIDED 2026-10-13]` Proof-of-work. *Recommendation:* no,
+      recorded as considered. *Decided:* no.
+    - `[DECIDED 2026-10-13]` The device page asks the person to type the
+      code when the link carries none, as GitHub does, and shows the typed
+      one. *Recommendation:* yes, S, with item 6; the link stays for the
+      app's own flow. *Decided:* yes, with item 6.
 
 18. **The numbers measured.** The connection, queue, pace and bucket
     numbers of items 2 and 7 and of the threat model's attack surface are
@@ -347,18 +366,44 @@ or two, L more.
     `docs/reference/server-install.md` section 15 with the date; a number
     the measurement contradicts is changed in the same PR. Size M.
 
+19. **Validation in a hostile lab.** Decided by the maintainer on
+    2026-10-13, in the same answer that accepted the recommendations:
+    *"em seguida você deve emular um ambiente de ataque um ambiente hostil
+    para validar todas as implementações e outras. Tenha em mente que o
+    código é aberto, então o atacante se quiser ele vai ler o código, vai
+    tentar encontrar a vulnerabilidade no código e usar isso a seu favor."*
+    (next you must emulate an attack environment, a hostile environment,
+    to validate all the implementations and others. Keep in mind that the
+    code is open, so an attacker who wants to will read the code, try to
+    find the vulnerability in it and use it to their advantage.) Once the
+    items above are built, they are validated in a local attack lab, in
+    Docker: the running server, and scripted attacks against it — over the
+    network, as a stranger and as a hostile member — written on the
+    assumption that the attacker has read the source code, since the code
+    is public. Its findings are classified with the levels of
+    [0033](0033-pr-workflow.md), and the fixes are made on the same
+    assumption. It does not replace item 16's pentest by a person outside
+    the project.
+
 ### Order of work
 
-- **Before the first user who is not the maintainer** (0073 item 6):
-  items 1, 2, 3, 4, 5, 8, 9, 10 and 13 — the log line and the host's
-  filters, the ceiling and the notice, the deny list, recovery revoking
-  tokens, the proxy list, the loose bounds, the headers asserted, the
-  audit retention, the npm advisories. About two days in all.
-- **Before the announcement** (0073 item 6, the threat model's "gaps
-  before the announcement"): items 6, 7, 11, 12, 14, 15, 16 and 18 — the
-  fresh proof, the REST pace, the package, the encrypted backup, the
-  fuzzing, the disclosure channel, the cross-review and the pentest, the
-  measurement.
+*(Rewritten on 2026-10-13, when the ADR was accepted. As proposed, it put
+items 1, 2, 3, 4, 5, 8, 9, 10 and 13 before the first user who is not the
+maintainer, and items 6, 7, 11, 12, 14, 15, 16 and 18 before the
+announcement; the maintainer ordered everything built now: "toda rotina
+de segurança possível que faça sentido para nossa aplicação tem que ser
+implementada e feita".)*
+
+- **In this round, from 2026-10-13:** every item — 1 to 15, 17, 18 and
+  19 — and item 16's cross-reading of the sanitizer, in the numbered
+  order where one depends on another (item 17's typed device code with
+  item 6; item 18's measurement once the numbers of items 2 and 7 exist;
+  item 19 after the items it attacks). Item 18 measures on the lab's
+  server.
+- **Outside this round, a condition of the announcement** (0073 item 6):
+  item 16's penetration test by a person outside the project. Item 6's
+  fresh proof was also decided as a condition of the announcement, not of
+  the first outside user, and is built in this round all the same.
 - **Later, in ADRs of their own or not at all:** OIDC and TOTP (0074 item
   3), a read log per folder (the review's section 2.7), the device token
   in the system keychain and end-to-end encryption (the threat model's
@@ -386,13 +431,18 @@ or two, L more.
   the same exception policy as `deny.toml`; a password list of a few
   hundred kilobytes in the binary; the pentest's cost, in hours or money,
   before the announcement; a test per bound, which is the point.
+- **Item 19's hostile lab**: the round ends with the running server
+  attacked, in Docker, by scripts written by someone who has read the
+  code. The project pays for the lab and its time; it gains that each
+  measure was seen holding against an attacker who knows it, not only
+  against its own test.
 - What stays as it is, said again: the host sees the notes; the server
   reaches nothing but the release feed and the host's SMTP; nothing of a
   member leaves the server to a third party; accessibility is not traded
   for a gate.
 - The threat model gains a pointer to the review and to this ADR, and
   marks gap 10 as answered by item 16 when it is done; it is refreshed
-  again when the items before the first outside user are built.
+  again when this round's items are built.
 
 ## Discarded alternatives
 
@@ -411,14 +461,39 @@ up by the maintainer:
 - **A nonce-based `style-src`**: the renderer's inline styles would have
   to be rewritten; the sanitizer tames them instead.
 - **Encrypting the backup with `openssl enc` or GnuPG** instead of `age`:
-  item 12's `[OPEN]`.
+  item 12's decision, `age`.
 - **A read log per folder** to tell scraping from reading: a row per read,
   recorded for a later ADR, not now.
 
 ## Status
 
-Proposed (2026-10-13), written by Fable 5.1 at the maintainer's request;
-to be read by Opus 5.5. The maintainer decides each `[OPEN]` and the
-order; nothing here is built. When accepted, the items before the first
-outside user go in one PR with their guardrails, each seen failing first
-(0029), and the review's findings table says what closed each.
+**Accepted (2026-10-13).** Written by Fable 5.1 at the maintainer's
+request; read by Opus 5.5 on 2026-10-13, which confirmed F1, F3, F4 and
+F5 against the code. The maintainer was sent the open decisions with
+their recommendations and the question *"todas como recomendado?"* (all
+as recommended?), and answered on 2026-10-13:
+*"seguinte eu preciso que você implemente tudo isso toda rotina de
+segurança possível que faça sentido para nossa aplicação tem que ser
+implementada e feita [...] em seguida você deve emular um ambiente de
+ataque um ambiente hostil para validar todas as implementações e outras.
+Tenha em mente que o código é aberto, então o atacante se quiser ele vai
+ler o código, vai tentar encontrar a vulnerabilidade no código e usar
+isso a seu favor. Então você deve levar isso em conta nas correções e
+também na hora que você fizer uma rotina de ataques nesse servidor."*
+(here is the thing: I need you to implement all of this; every security
+routine that makes sense for our application has to be implemented and
+done [...] next you must emulate an attack environment, a hostile
+environment, to validate all the implementations and others. Keep in mind
+that the code is open, so an attacker who wants to will read the code,
+try to find the vulnerability in it and use it to their advantage. So you
+must take that into account in the fixes and also when you write a
+routine of attacks against this server.)
+
+*"Tudo isso"* (all of this) accepts every recommendation: each `[OPEN]`
+is decided as recommended and marked `[DECIDED 2026-10-13]`. The rest of
+the answer adds item 19, the hostile lab, and makes the order of work one
+round: every item is built in this round except item 16's pentest by a
+person outside the project, which stays a condition of the announcement.
+The items go in one PR with their guardrails, each seen failing first
+([0029](0029-guardrails-in-ci.md)), and the review's findings table says
+what closed each.

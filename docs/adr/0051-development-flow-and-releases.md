@@ -17,7 +17,11 @@
   took a feature pull request, a release pull request and a tag, the
   maintainer: "esse processo de gerar versao ta ruim de mais", then "ta, melhore o fluxo de deploy entao, ai testamos na próxma versao". The version now travels in the
   pull request that releases, and its merge into `main` builds, publishes
-  and tags.
+  and tags. 2026-10-13 — Decision 4: how the numbers move. The
+  maintainer, on 2026-10-13: *"0.9 só quando estiver quase tudo pronto"*
+  (0.9 only when almost everything is ready). From 0.8.0-beta.1 on only
+  the last number moves — 0.8.1, 0.8.2, … — each still a `-beta.N` test
+  release until the line is stable; the next release is 0.8.1-beta.1.
 
 ## Context
 
@@ -59,7 +63,11 @@ modificações até gerar versão, considerando changelog inclusive"*.
    ruleset refuses deleting or moving a `v*` tag, with no one exempt —
    asked after the reading of the pull request that brought this ADR found
    it recorded without the maintainer's word, the maintainer answered
-   *"Manter"* (2026-09-24).
+   *"Manter"* (2026-09-24). *(2026-10-13: version 0.9 is reserved for
+   when almost everything is ready — the maintainer: "0.9 só quando
+   estiver quase tudo pronto" — so from 0.8.0-beta.1 on only the last
+   number moves, 0.8.1, 0.8.2, …, each still a `-beta.N` test release
+   until the line is stable; the next release is 0.8.1-beta.1.)*
 5. **A version is cut only when the maintainer asks** — by the maintainer, or
    by an agent on the maintainer's request — with `scripts/release.mjs
    prepare X.Y.Z[-beta.N]`, **on the branch of the pull request that

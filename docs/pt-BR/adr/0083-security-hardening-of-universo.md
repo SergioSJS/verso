@@ -69,14 +69,15 @@ As palavras do mantenedor dão a régua — *resistente a ataques*,
 usuário que não seja o mantenedor. Este ADR transforma a revisão em
 medidas, cada uma com os números padrão, o crate e o arquivo onde cai, e
 o teste que a guarda; cada número que o mantenedor possa querer mudar, e
-cada medida que custa algo às pessoas, está `[ABERTO]` com uma
-recomendação.
+cada medida que custa algo às pessoas, estava `[ABERTO]` com uma
+recomendação, e foi decidido em 2026-10-13 (Status).
 
 ## Decisão
 
-Proposta. Cada `[ABERTO]` traz uma recomendação; o mantenedor decide. O
-que não tem `[ABERTO]` é proposto como está escrito. Tamanhos: S são
-horas, M um ou dois dias, L mais.
+Aceita em 2026-10-13. Cada ponto que estava `[ABERTO]` trazia uma
+recomendação e agora está marcado `[DECIDIDO 2026-10-13]`: o mantenedor
+aceitou todas as recomendações (Status). O que não tinha `[ABERTO]` está
+decidido como escrito. Tamanhos: S são horas, M um ou dois dias, L mais.
 
 1. **Todo sign-in recusado é uma linha do log do servidor, num formato
    fixo, para as ferramentas do host** (F1). `crates/verso-server/src/api.rs`
@@ -101,11 +102,12 @@ horas, M um ou dois dias, L mais.
    `log_write` de `sign-in failed from …` sai com o prefixo `window`, e
    de que a regex do fail2ban, rodada sobre as linhas do teste com um
    casador pequeno, pega exatamente as falhas. Tamanho S.
-   - `[ABERTO]` Entregar o filtro do fail2ban no `.deb`/`.rpm` (sob
+   - `[DECIDIDO 2026-10-13]` Entregar o filtro do fail2ban no `.deb`/`.rpm` (sob
      `/etc/fail2ban/filter.d/`, inerte sem o fail2ban) ou só na
      documentação. *Recomendação:* no pacote, para que `sudo systemctl
      enable fail2ban` seja toda a configuração; os arquivos do CrowdSec na
-     documentação, já que os parsers dele vivem no hub dele.
+     documentação, já que os parsers dele vivem no hub dele. *Decidido:*
+     no pacote; os arquivos do CrowdSec na documentação.
 
 2. **Um teto, e um aviso, sobre sign-ins** (F2). O atraso por chave fica
    como está (3 livres, 1 s dobrando até 60 s, nunca um bloqueio — 0074
@@ -122,13 +124,16 @@ horas, M um ou dois dias, L mais.
    `console.rs`, `mail.rs`. Guardrail: testes unitários do bucket e da
    contagem por hora; um teste de que o e-mail é enviado uma vez e a 21ª
    falha não envia de novo. Tamanho M.
-   - `[ABERTO]` Os números: 20 falhas por hora para o aviso; 10 por
-     segundo, 50 de uma vez para o servidor. *Recomendação:* como está;
-     medidos no host de 1 GB no item 18 e ajustados lá.
-   - `[ABERTO]` Se, depois do aviso, uma conta que tem passkey recusa a
+   - `[DECIDIDO 2026-10-13]` Os números: 20 falhas por hora para o
+     aviso; 10 por segundo, 50 de uma vez para o servidor.
+     *Recomendação:* como está; medidos no host de 1 GB no item 18 e
+     ajustados lá. *Decidido:* como está, medidos no item 18 e ajustados
+     lá.
+   - `[DECIDIDO 2026-10-13]` Se, depois do aviso, uma conta que tem passkey recusa a
      senha até a passkey ou um link de redefinição ser usado.
      *Recomendação:* não — é um bloqueio que um estranho pode usar, o que
-     o item 9 da 0074 proíbe; o aviso e o atraso bastam.
+     o item 9 da 0074 proíbe; o aviso e o atraso bastam. *Decidido:*
+     não.
 
 3. **Uma senha das listas que atacantes tentam é recusada** (F3). As
    10 000 senhas mais comuns de uma lista pública sob licença permissiva
@@ -143,12 +148,13 @@ horas, M um ou dois dias, L mais.
    `config.rs`, `lib.rs`. Guardrail: um teste de que `password1234` e
    `qwertyuiop12` são recusadas e uma frase de quatro palavras é aceita; o
    tamanho do arquivo limitado no teste (abaixo de 200 KB). Tamanho S.
-   - `[ABERTO]` Uma checagem por k-anonimato contra a API de faixas do
+   - `[DECIDIDO 2026-10-13]` Uma checagem por k-anonimato contra a API de faixas do
      Have I Been Pwned (cinco caracteres do SHA-1 enviados, nada que
      identifique). *Recomendação:* não — é um pedido de saída a um
      terceiro de um servidor que só alcança o feed de releases e o SMTP do
      host (modelo de ameaças, "o alcance do próprio servidor"), e a lista
-     embutida pega o grosso das listas de stuffing.
+     embutida pega o grosso das listas de stuffing. *Decidido:* não; só
+     a lista embutida.
 
 4. **A recuperação revoga os tokens da conta** (F4). Uma redefinição de
    senha (o uso de um link, `api.rs` `reset`, e `admin reset`) revoga todo
@@ -190,10 +196,12 @@ horas, M um ou dois dias, L mais.
    `web/console.ts` da janela. Guardrail: um teste por rota de que ela
    responde `prove_first` depois que a marca passa de 10 minutos e tem
    sucesso dentro deles. Tamanho M.
-   - `[ABERTO]` Se isso vem antes do primeiro usuário de fora ou antes do
-     anúncio. *Recomendação:* antes do anúncio — os primeiros usuários de
+   - `[DECIDIDO 2026-10-13]` Se isso vem antes do primeiro usuário de
+     fora ou antes do anúncio. *Recomendação:* antes do anúncio — os primeiros usuários de
      fora são pessoas convidadas num servidor com poucas contas, e os
-     tokens já são limitados e revogáveis.
+     tokens já são limitados e revogáveis. *Decidido:* condição do
+     anúncio, não do primeiro usuário de fora; construído nesta rodada
+     mesmo assim (Ordem do trabalho).
 
 7. **Um ritmo nas rotas REST, por endereço** (F14). Um token bucket por
    chave de endereço — 20 pedidos por segundo sustentados, 100 de uma vez
@@ -206,9 +214,10 @@ horas, M um ou dois dias, L mais.
    `fair.rs` (o bucket, reusado). Guardrail: um teste em `tests_bounds.rs`
    de que o 101º pedido numa rajada responde 429 e o do segundo seguinte
    não. Tamanho S.
-   - `[ABERTO]` Os números. *Recomendação:* como está — o uso REST de uma
-     janela é alguns pedidos por minuto; o sync e os comandos da janela
-     vão pelo WebSocket, sob o `fair.rs`.
+   - `[DECIDIDO 2026-10-13]` Os números. *Recomendação:* como está — o
+     uso REST de uma janela é alguns pedidos por minuto; o sync e os
+     comandos da janela vão pelo WebSocket, sob o `fair.rs`. *Decidido:*
+     como está, ajustados depois da medição do item 18.
 
 8. **Os limites que a revisão achou frouxos, cada um apertado** (F11,
    F12, F13, F17, F22, F23), um PR, tamanho S no total:
@@ -240,8 +249,9 @@ horas, M um ou dois dias, L mais.
    `/api/state` e `/f/<pasta>/<arquivo>` — o conjunto que a seção 3.2 da
    revisão lista — para que um cabeçalho perdido numa refatoração seja
    visto. Tamanho S.
-   - `[ABERTO]` `preload` no HSTS. *Recomendação:* não — é a escolha
-     irreversível do host para o domínio dele, não o padrão do servidor.
+   - `[DECIDIDO 2026-10-13]` `preload` no HSTS. *Recomendação:* não — é
+     a escolha irreversível do host para o domínio dele, não o padrão do
+     servidor. *Decidido:* sem `preload`.
 
 10. **O registro de auditoria expira** (F21). `VERSO_AUDIT_DAYS`, 365 por
     padrão, 0 para nunca, limitado como `VERSO_TRASH_DAYS`; uma varredura
@@ -250,9 +260,10 @@ horas, M um ou dois dias, L mais.
     `lib.rs`, `console.rs`; `packaging/server/universo.env` e o manual.
     Guardrail: um teste de que uma linha mais velha que a retenção vai
     embora e uma mais nova fica. Tamanho S.
-    - `[ABERTO]` 365 dias. *Recomendação:* 365 — um ano de quem entrou de
-      onde é o que uma pessoa pede depois de um incidente, e são dados
-      pessoais (endereços) que não deveriam ficar para sempre.
+    - `[DECIDIDO 2026-10-13]` 365 dias. *Recomendação:* 365 — um ano de
+      quem entrou de onde é o que uma pessoa pede depois de um incidente,
+      e são dados pessoais (endereços) que não deveriam ficar para
+      sempre. *Decidido:* 365 dias.
 
 11. **O pacote endurecido** (F18, F19, F20). A unidade ganha
     `ProtectProc=invisible`, `ProcSubset=pid`,
@@ -283,12 +294,13 @@ horas, M um ou dois dias, L mais.
     Guardrail: o teste de script do `scripts/check-linux.sh` faz um
     backup com uma chave descartável, restaura numa raiz descartável e
     compara. Tamanho M.
-    - `[ABERTO]` `age` como ferramenta (um binário estático, nos
+    - `[DECIDIDO 2026-10-13]` `age` como ferramenta (um binário estático, nos
       repositórios do Debian, Ubuntu, Fedora e Alpine, destinatários
       X25519, nenhuma gestão de chaves além de um arquivo) contra `openssl
       enc` (presente em toda parte, só senha, fácil de usar mal) ou GnuPG
       (pesado). *Recomendação:* `age`, opcional, o backup puro mantido como
-      alternativa com o aviso.
+      alternativa com o aviso. *Decidido:* `age`, opcional, o backup puro
+      com o aviso como alternativa.
 
 13. **Advisories na árvore npm, como o `cargo deny` na árvore Rust** (F7).
     `node scripts/check-npm-audit.mjs` roda `npm audit --json` em `app/ui`
@@ -324,8 +336,10 @@ horas, M um ou dois dias, L mais.
     para o arquivo; o site serve o mesmo. Guardrail: um teste de que a
     rota responde com os campos exigidos e um `Expires` no futuro; a
     checagem de espelho para o gêmeo. Tamanho S.
-    - `[ABERTO]` O endereço. *Recomendação:* `security@versomd.com`, uma
-      caixa que o mantenedor lê; sem bug bounty.
+    - `[DECIDIDO 2026-10-13]` O endereço. *Recomendação:*
+      `security@versomd.com`, uma caixa que o mantenedor lê; sem bug
+      bounty. *Decidido:* `security@versomd.com`, sem bug bounty; falta o
+      mantenedor confirmar que a caixa existe, o que não segura o item.
 
 16. **A leitura de fora, e a revisão cruzada do sanitizador** (F9). Antes
     do anúncio: `app/ui/src/sanitize.ts` lido pelo modelo que não o
@@ -337,10 +351,11 @@ horas, M um ou dois dias, L mais.
     fechados num PR próprio. Guardrail: a rodada do harness dos casos do
     sanitizador, mantida no `npm run e2e`. Tamanho L para o pentest (fora
     das horas do projeto), S para a leitura.
-    - `[ABERTO]` Se o pentest é condição do anúncio ou do primeiro usuário
-      de fora. *Recomendação:* do anúncio; os primeiros usuários de fora
+    - `[DECIDIDO 2026-10-13]` Se o pentest é condição do anúncio ou do
+      primeiro usuário de fora. *Recomendação:* do anúncio; os primeiros usuários de fora
       são convidados e conhecidos, e os itens 1 a 5, 8 a 10 e 13 são o que
-      eles precisam.
+      eles precisam. *Decidido:* condição do anúncio; a leitura cruzada do
+      sanitizador é feita nesta rodada (Ordem do trabalho).
 
 17. **Sem CAPTCHA; sem prova de trabalho; a página de aparelho mantém o
     link.** Um CAPTCHA de terceiro traz o script desse terceiro para a
@@ -353,12 +368,12 @@ horas, M um ou dois dias, L mais.
     aparelho continua tirando o código do link (0074 item 8, lacuna 12
     como decidida em 2026-10-12), e a prova recente do item 6 cobre a
     aprovação.
-    - `[ABERTO]` Prova de trabalho. *Recomendação:* não, registrada como
-      considerada.
-    - `[ABERTO]` A página de aparelho pede que a pessoa digite o código
+    - `[DECIDIDO 2026-10-13]` Prova de trabalho. *Recomendação:* não,
+      registrada como considerada. *Decidido:* não.
+    - `[DECIDIDO 2026-10-13]` A página de aparelho pede que a pessoa digite o código
       quando o link não traz nenhum, como o GitHub faz, e mostra o
       digitado. *Recomendação:* sim, S, com o item 6; o link fica para o
-      fluxo do próprio app.
+      fluxo do próprio app. *Decidido:* sim, com o item 6.
 
 18. **Os números medidos.** Os números de conexão, fila, ritmo e bucket
     dos itens 2 e 7 e da superfície de ataque do modelo de ameaças são
@@ -367,18 +382,40 @@ horas, M um ou dois dias, L mais.
     `docs/reference/server-install.md`, seção 15, com a data; um número
     que a medição contradiga é mudado no mesmo PR. Tamanho M.
 
+19. **Validação num laboratório hostil.** Decidida pelo mantenedor em
+    2026-10-13, na mesma resposta que aceitou as recomendações: *"em
+    seguida você deve emular um ambiente de ataque um ambiente hostil para
+    validar todas as implementações e outras. Tenha em mente que o código
+    é aberto, então o atacante se quiser ele vai ler o código, vai tentar
+    encontrar a vulnerabilidade no código e usar isso a seu favor."*
+    Construídos os itens acima, eles são validados num laboratório de
+    ataque local, em Docker: o servidor rodando, e ataques roteirizados
+    contra ele — pela rede, como estranho e como membro hostil — escritos
+    supondo que o atacante leu o código-fonte, já que o código é público.
+    Os achados são classificados com os níveis da
+    [0033](0033-pr-workflow.md), e as correções feitas com a mesma
+    suposição. Não substitui o pentest do item 16 por uma pessoa de fora
+    do projeto.
+
 ### Ordem do trabalho
 
-- **Antes do primeiro usuário que não seja o mantenedor** (0073 item
-  6): itens 1, 2, 3, 4, 5, 8, 9, 10 e 13 — a linha de log e os filtros do
-  host, o teto e o aviso, a lista de recusa, a recuperação revogando
-  tokens, a lista de proxies, os limites frouxos, os cabeçalhos
-  afirmados, a retenção da auditoria, os advisories do npm. Uns dois dias
-  no total.
-- **Antes do anúncio** (0073 item 6, as "lacunas antes do anúncio" do
-  modelo de ameaças): itens 6, 7, 11, 12, 14, 15, 16 e 18 — a prova
-  recente, o ritmo REST, o pacote, o backup cifrado, o fuzzing, o canal de
-  divulgação, a revisão cruzada e o pentest, a medição.
+*(Reescrita em 2026-10-13, quando o ADR foi aceito. Como proposta, punha
+os itens 1, 2, 3, 4, 5, 8, 9, 10 e 13 antes do primeiro usuário que não
+seja o mantenedor, e os itens 6, 7, 11, 12, 14, 15, 16 e 18 antes do
+anúncio; o mantenedor mandou construir tudo agora: "toda rotina de
+segurança possível que faça sentido para nossa aplicação tem que ser
+implementada e feita".)*
+
+- **Nesta rodada, a partir de 2026-10-13:** todos os itens — 1 a 15, 17,
+  18 e 19 — e a leitura cruzada do sanitizador do item 16, na ordem
+  numerada onde um depende de outro (o código de aparelho digitado do
+  item 17 com o item 6; a medição do item 18 depois que os números dos
+  itens 2 e 7 existirem; o item 19 depois dos itens que ele ataca). O
+  item 18 mede no servidor do laboratório.
+- **Fora desta rodada, condição do anúncio** (0073 item 6): o teste de
+  penetração do item 16 por uma pessoa de fora do projeto. A prova
+  recente do item 6 também foi decidida como condição do anúncio, não do
+  primeiro usuário de fora, e é construída nesta rodada mesmo assim.
 - **Depois, em ADRs próprios ou nunca:** OIDC e TOTP (0074 item 3), um
   registro de leituras por pasta (seção 2.7 da revisão), o token de
   aparelho no chaveiro do sistema e criptografia de ponta a ponta (os
@@ -409,13 +446,17 @@ horas, M um ou dois dias, L mais.
   senhas de algumas centenas de kilobytes no binário; o custo do pentest,
   em horas ou dinheiro, antes do anúncio; um teste por limite, que é o
   ponto.
+- **O laboratório hostil do item 19**: a rodada termina com o servidor
+  rodando atacado, em Docker, por roteiros escritos por quem leu o
+  código. O projeto paga o laboratório e o tempo dele; ganha que cada
+  medida foi vista resistindo a um atacante que a conhece, não só ao
+  próprio teste dela.
 - O que fica como está, dito de novo: o host vê as notas; o servidor só
   alcança o feed de releases e o SMTP do host; nada de um membro sai do
   servidor para um terceiro; acessibilidade não é trocada por um portão.
 - O modelo de ameaças ganha um ponteiro para a revisão e para este ADR, e
   marca a lacuna 10 como respondida pelo item 16 quando ele for feito; é
-  atualizado de novo quando os itens antes do primeiro usuário de fora
-  estiverem construídos.
+  atualizado de novo quando os itens desta rodada estiverem construídos.
 
 ## Alternativas descartadas
 
@@ -435,17 +476,32 @@ retomada pelo mantenedor:
   conjunto.
 - **Um `style-src` por nonce**: os estilos em linha do renderizador
   teriam de ser reescritos; o sanitizador os doma no lugar.
-- **Cifrar o backup com `openssl enc` ou GnuPG** em vez de `age`: o
-  `[ABERTO]` do item 12.
+- **Cifrar o backup com `openssl enc` ou GnuPG** em vez de `age`: a
+  decisão do item 12, o `age`.
 - **Um registro de leituras por pasta** para distinguir raspagem de
   leitura: uma linha por leitura, registrado para um ADR posterior, não
   agora.
 
 ## Status
 
-Proposta (2026-10-13), escrita por Fable 5.1 a pedido do mantenedor; a
-ser lida por Opus 5.5. O mantenedor decide cada `[ABERTO]` e a ordem;
-nada aqui está construído. Quando aceita, os itens antes do primeiro
-usuário de fora vão num PR só com os guardrails deles, cada um visto
-falhando antes (0029), e a tabela de achados da revisão diz o que fechou
-cada um.
+**Aceita (2026-10-13).** Escrita por Fable 5.1 a pedido do mantenedor;
+lida por Opus 5.5 em 2026-10-13, que confirmou F1, F3, F4 e F5 contra o
+código. O mantenedor recebeu as decisões em aberto com as recomendações e
+a pergunta *"todas como recomendado?"*, e respondeu em 2026-10-13:
+*"seguinte eu preciso que você implemente tudo isso toda rotina de
+segurança possível que faça sentido para nossa aplicação tem que ser
+implementada e feita [...] em seguida você deve emular um ambiente de
+ataque um ambiente hostil para validar todas as implementações e outras.
+Tenha em mente que o código é aberto, então o atacante se quiser ele vai
+ler o código, vai tentar encontrar a vulnerabilidade no código e usar
+isso a seu favor. Então você deve levar isso em conta nas correções e
+também na hora que você fizer uma rotina de ataques nesse servidor."*
+
+O *"tudo isso"* aceita todas as recomendações: cada `[ABERTO]` está
+decidido como recomendado e marcado `[DECIDIDO 2026-10-13]`. O resto da
+resposta acrescenta o item 19, o laboratório hostil, e faz da ordem do
+trabalho uma rodada só: todo item é construído nesta rodada, menos o
+pentest do item 16 por uma pessoa de fora do projeto, que continua
+condição do anúncio. Os itens vão num PR só com os guardrails deles, cada
+um visto falhando antes ([0029](0029-guardrails-in-ci.md)), e a tabela de
+achados da revisão diz o que fechou cada um.
