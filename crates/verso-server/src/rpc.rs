@@ -873,6 +873,21 @@ async fn folder_command(
     let mut answer = folder_run(server, who, client, (name, access), (&folder, &key), args)
         .await
         .map_err(|e| scope.error(e))?;
+    // A note's type through the share names the share's schemas only
+    // (ADR 0081 item 11).
+    if matches!(name, "read_note" | "create_note" | "write_note") && answer.is_object() {
+        let (s, k, sc, cmd) = (
+            Arc::clone(server),
+            key.clone(),
+            scope.clone(),
+            name.to_owned(),
+        );
+        answer = blocking(move || {
+            s.service
+                .with_key(&k, |ws| Ok(sc.typed_within(ws, &cmd, answer)))
+        })
+        .await?;
+    }
     // A rename through the share keeps the owner's links outside it: the
     // server writes those rewrites itself, and the window hears only of
     // the ones inside (ADR 0081 item 11, decided 2026-10-12).
