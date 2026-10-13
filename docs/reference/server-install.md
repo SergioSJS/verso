@@ -38,7 +38,9 @@ sh universo.sh install --url https://notes.example.com
 | `uninstall [--purge]` | removes the package and says what it left: `/var/lib/universo`, `/etc/universo`, the `universo` user. `--purge` removes them too, after you type `/var/lib/universo` back |
 | `status` | the service's state, the version, the address it listens on, the size of the two directories, the last 5 lines of the log |
 | `logs [-f]` | `journalctl -u universo` |
-| `backup [DIR]` | stops the service, packs `/var/lib/universo` and `/etc/universo` into `universo-backup-<date>-<time>.tar.gz` in `DIR` (`/var/backups/universo` by default), starts it again; refuses when `DIR` has less free space than the two directories take |
+| `backup [DIR] [--encrypt \| --passphrase] [--to-stdout]` | stops the service, packs `/var/lib/universo` and `/etc/universo` into `universo-backup-<date>-<time>.tar.gz` in `DIR` (`/var/backups/universo` by default), starts it again; refuses when `DIR` has less free space than the two directories take. `--encrypt` encrypts it with `age` (`.tar.gz.age`), `--passphrase` to a typed passphrase, `--to-stdout` writes it to standard output for a pipe (section 2) |
+| `backup --keygen` | makes the key of encrypted backups, once: the public one in `/etc/universo/backup.pub`, the secret one printed, never kept on the machine (section 2) |
+| `restore FILE [--identity KEY-FILE] [--to DIR]` | puts a backup back over `/var/lib/universo` and `/etc/universo` after you type `/var/lib/universo`, the service stopped meanwhile; an encrypted one with its secret key or passphrase; `--to DIR` unpacks it into `DIR` instead, the server untouched (section 2) |
 | `reset-admin [E-MAIL]` | the command of section 10 |
 | `firewall` | opens 80 and 443 with ufw, firewalld or iptables (kept across reboots with `netfilter-persistent` when present), and reminds that a cloud's own firewall (Oracle's VCN security list) is opened in its console. Only when asked: `install` never touches the firewall |
 
@@ -97,6 +99,48 @@ snapshot of the volume (ZFS, btrfs, LVM) and copy from the snapshot. Then
 send the copy elsewhere, for example with `rclone` to a bucket (the recipe
 of 0073, Consequences).
 
+### Encrypted, off the machine
+
+A backup holds the password hashes, the sessions, every note and the
+settings file (which may hold the first admin's password): copied off the
+machine in the clear, it is all of that in someone else's hands. The
+installer script encrypts it with [age](https://age-encryption.org)
+([ADR 0083](../adr/0083-security-hardening-of-universo.md) item 12), which
+Debian, Ubuntu, Fedora and Alpine carry (`sudo apt install age`;
+`sudo dnf install age`, on RHEL from EPEL):
+
+```sh
+sudo sh universo.sh backup --keygen     # once: the key
+sudo sh universo.sh backup --encrypt    # each time
+```
+
+`--keygen` writes the public key to `/etc/universo/backup.pub` and prints
+the **secret key** — three lines, `AGE-SECRET-KEY-1…` among them — on
+standard output, and keeps it nowhere on the machine: put it in a password
+manager or on another machine. Whoever holds it reads every backup;
+without it none can be restored. It refuses to replace an existing
+`backup.pub`: move it away first, keeping the old secret key for the old
+backups. `--passphrase` instead of a key asks a passphrase at the terminal.
+Without `age`, `--encrypt` says how to install it and makes the plain
+tarball, with a warning in capitals.
+
+`--to-stdout` writes the backup (encrypted or not) to standard output, for
+a pipeline of your own, for example
+`sudo sh universo.sh backup --encrypt --to-stdout | rclone rcat remote:universo/$(date +%F).tar.gz.age`.
+
+To restore, the service stopped meanwhile and after you type
+`/var/lib/universo`:
+
+```sh
+sudo sh universo.sh restore universo-backup-<date>-<time>.tar.gz.age --identity key.txt
+```
+
+with the secret key in `key.txt` for the moment (or `age` asks the
+passphrase); a plain backup needs no `--identity`. `--to /some/dir`
+unpacks it there instead, to look at it first, leaving the server alone.
+By hand: `age -d -i key.txt FILE | sudo tar -xzpf - -C /` with the service
+stopped.
+
 ### Databases on a NAS
 
 SQLite's own documentation warns that its locks are unreliable on network
@@ -139,6 +183,7 @@ section 11):
 ```sh
 docker run -d --name universo --restart unless-stopped \
   -p 127.0.0.1:7340:7340 \
+  --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
   -v /srv/universo/data:/data \
   -v /srv/universo/folders:/folders \
   -e VERSO_PUBLIC_URL=https://notes.example.com \
@@ -155,6 +200,14 @@ versions exist, `latest` does not exist: use `beta` or a version.
 The port is published on `127.0.0.1` because TLS goes in front (section 8).
 `docker logs universo` shows the log, including the setup link of section 9.
 
+The second line keeps the container to what the server needs
+([ADR 0083](../adr/0083-security-hardening-of-universo.md) item 11): the
+image's own files read-only, `/tmp` in memory, no Linux capability, nothing
+gained through a setuid program; the server writes under `/data` and
+`/folders` only. The password comes from a file mounted as a secret, which
+`docker inspect` does not show, rather than from `-e VERSO_ADMIN_PASSWORD`,
+which it does; the file must be readable by uid 1000.
+
 ## 4. CasaOS and ZimaOS
 
 `packaging/server/docker-compose.yml` carries the `x-casaos` metadata
@@ -170,7 +223,12 @@ and serves any host that takes a compose file:
 It binds `/DATA/AppData/universo/data` (the app data path CasaOS uses) to
 `/data`, and `/DATA/Documents/Verso` to `/folders` — change the second to
 wherever the notes should live, a NAS included. Both must be writable by
-uid 1000, as in section 3. The image is pulled from GitHub's registry,
+uid 1000, as in section 3. It declares the same hardening as section 3's
+command (`read_only`, `tmpfs: /tmp`, `cap_drop: ALL`,
+`no-new-privileges`), and shows the first admin's password as a Docker
+secret, commented out, before the plain variable: to use it, put the
+password in `admin-password` beside the compose file, readable by uid 1000,
+and uncomment the three places the file marks. The image is pulled from GitHub's registry,
 which needs a `docker login` while the repository is private (section 11):
 on CasaOS and ZimaOS, in the system's terminal, once.
 
@@ -203,7 +261,9 @@ journalctl -u universo -f
 
 The package listens on `127.0.0.1:7340` by default: TLS goes in front
 (section 8). The unit is hardened (`ProtectSystem=strict`, writes only under
-`/var/lib/universo`, `ProtectHome=read-only`). A folders directory elsewhere
+`/var/lib/universo`, `ProtectHome=read-only`, other processes hidden by
+`ProtectProc=invisible`, the system calls of an ordinary service only,
+`UMask=0027`; a new folder is made `0750`). A folders directory elsewhere
 needs a drop-in, which an upgrade keeps:
 
 ```sh
@@ -287,6 +347,7 @@ value counts as not set.
 | `VERSO_MAIL_FROM` | no | the sender of those e-mails; `Verso <verso@` the public address's host `>` by default |
 | `VERSO_FOLDER_QUOTA` | no | the quota a new folder gets: bytes, or a size such as `500MB` or `10GB`; none when unset. The console (`/admin`, Folders) changes each folder's ([ADR 0077](../adr/0077-the-server-administration-console-and-folder-quotas.md)) |
 | `VERSO_TRASH_DAYS` | 30 | how many days a folder's trash (`.trash/`) keeps deleted files, and the versions a device's write replaced; `0` keeps them forever. The console's folder page sets each folder's, and the folder's owner may shorten it from the window ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)). The trash is swept at start and once a day; it is shown, not counted against a quota, and when a folder's trash alone passes its quota the oldest items expire early |
+| `VERSO_AUDIT_DAYS` | 365 | how many days the audit log keeps a row (sign-ins, sessions, tokens, invitations, grants, shares, the trash's actions, with the address); `0` keeps them forever, 36500 at most. A sweep at start and once a day deletes older rows, by time alone: no page or command deletes a row. The console's overview says the retention ([ADR 0083](../adr/0083-security-hardening-of-universo.md) item 10) |
 
 Without `VERSO_SMTP_URL` nothing is sent: the admin copies the invitation and reset links by hand.
 
@@ -854,6 +915,18 @@ on a real machine. Verified since:
   then measured on the 1-core VM at 1 GB and at 453 MiB, a file in pieces
   from the disk (8e2c2f1) among it (section 14, **Ten devices, and the 453
   MiB guest again**).
+- 2026-10-13: the hardening of [ADR 0083](../adr/0083-security-hardening-of-universo.md)
+  item 11, in Docker on an Apple-silicon Mac (colima, Linux 6.8, arm64),
+  by `scripts/check-server-image.sh`: the image run read-only, `/tmp` in
+  memory, no capability, `no-new-privileges` (the state over its own TLS, a
+  sign-in, a folder made `0750`, `admin reset`); and the same static musl
+  binary laid out as `nfpm.yaml` lays it, by hand, in a Debian 12 container
+  running systemd 252, started by `universo.service` with its new settings
+  (the process under a seccomp filter, the state, a sign-in, a folder
+  `0750`, the database `0600`; `systemd-analyze security`: 1.3, OK). Not a
+  package built by nfpm, not a VM, not amd64. Before that day the compose
+  file did not pass `docker compose config` (an unquoted colon in a
+  tagline); it does now, and the script checks it.
 
 Not verified yet:
 
@@ -866,7 +939,8 @@ Not verified yet:
   its `firewall` and `reset-admin` commands;
 - the not-running message `postinstall.sh` prints when an install leaves
   the service disabled (added after the 2026-10-12 verification);
-- the compose file in CasaOS and ZimaOS (it passes `docker compose config`;
+- the compose file in CasaOS and ZimaOS (it passes `docker compose config`
+  since 2026-10-13;
   its `x-casaos` block follows the CasaOS AppStore's v2 description of
   2026-10-09, not checked by their validator);
 - the `tailscale serve` recipe and the Caddy example against this server;
