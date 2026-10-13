@@ -568,7 +568,8 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
     set(
         h,
         "permissions-policy",
-        "camera=(), microphone=(), geolocation=(), payment=()",
+        "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), \
+         interest-cohort=()",
     );
     if is_file {
         // A folder's file is for this server's pages alone: another
@@ -595,7 +596,14 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
             .as_deref()
             .is_some_and(|u| u.starts_with("https://"))
     {
-        set(h, "strict-transport-security", "max-age=31536000");
+        // A subdomain of the server's name could otherwise set a cookie
+        // for it over plain HTTP; `preload` is the host's own choice for
+        // their domain, never sent by default (ADR 0083 item 9).
+        set(
+            h,
+            "strict-transport-security",
+            "max-age=31536000; includeSubDomains",
+        );
     }
     response
 }
