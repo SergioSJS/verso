@@ -105,8 +105,8 @@ test("the policy printed above is the module's", () => {
  *  picture's address waiting for the window, an embedded page's box. */
 const MADE = {
   classes: new Set(["embed-web", "embed-gate", "embed-gate-origin", "embed-gate-text", "embed-gate-actions", "save", "ghost"]),
-  attrs: { div: ["data-embed-web", "data-embed-kind", "data-embed-url", "data-embed-origin"], button: ["type", "data-embed-action"] },
-  elements: new Set(["button", "template"]),
+  attrs: { div: ["data-embed-web", "data-embed-kind", "data-embed-url", "data-embed-origin", "data-embed-style"], button: ["type", "data-embed-action"] },
+  elements: new Set(["button"]),
 };
 
 const parse = (html) => new win.DOMParser().parseFromString(html, "text/html").body;
@@ -288,9 +288,79 @@ describe("embedded pages", () => {
     const box = parse(out).querySelector(".embed-gate");
     assert.ok(box, out);
     assert.equal(box.getAttribute("data-embed-origin"), "https://evil.example");
-    const held = box.querySelector("template").content.querySelector(".embed-web");
-    assert.equal(held.getAttribute("data-embed-web"), null, "not loaded before the approval");
+    assert.equal(parse(out).querySelector("[data-embed-web]"), null, "not loaded before the approval");
     assert.doesNotMatch(out, /position|onload/);
+  });
+});
+
+describe("a gate box stands on its own", () => {
+  const strings = { remoteOff: "off", load: "load", local: "local", publicSite: "public", approve: "ok", cancel: "no" };
+  /** The box as a view puts it into the page: its text parsed again
+   *  (`innerHTML`, Live Preview's widget, a template of images.ts). */
+  const mounted = (out) => {
+    const mount = document.createElement("div");
+    mount.innerHTML = out;
+    document.body.append(mount);
+    return mount;
+  };
+  test("what its button needs is on the box: no template, nothing loaded before the click", () => {
+    s.configureEmbeds({ strings, approve: async () => true });
+    s.allowEmbedOrigins(["https://ok.example"]);
+    s.allowRemoteContent(false);
+    const input = `<iframe src="https://ok.example/p" width="300" style="border: 1px solid red; position: fixed; background: url(javascript:alert(1))"></iframe>`;
+    const out = s.cleanHtmlText(input);
+    const mount = mounted(out);
+    try {
+      assertSafe(out, input);
+      assert.doesNotMatch(out, /<template/, out);
+      assert.equal(mount.querySelector("[data-embed-web], .embed-web"), null, "nothing to load before the click");
+      mount.querySelector('[data-embed-action="load"]').click();
+      const host = mount.querySelector("div.embed-web");
+      assert.ok(host, `the load button built no frame\n  out: ${out}`);
+      assert.equal(host.getAttribute("data-embed-web"), "https://ok.example/p");
+      assert.equal(host.style.width, "300px");
+      assert.equal(host.style.height, "800px");
+      assert.match(host.getAttribute("style"), /border/);
+      assert.doesNotMatch(host.getAttribute("style"), /position|javascript|url/);
+      assert.equal(mount.querySelector(".embed-gate"), null);
+    } finally {
+      mount.remove();
+      s.allowRemoteContent(true);
+      s.allowEmbedOrigins([]);
+    }
+  });
+  test("approved, the box builds its frame from its own address", async () => {
+    let asked = "";
+    s.configureEmbeds({ strings, approve: async (origin) => ((asked = origin), true) });
+    const out = s.cleanHtmlText(`<iframe src="https://new.example/a?b=1" height="120"></iframe>`);
+    const mount = mounted(out);
+    try {
+      mount.querySelector('[data-embed-action="approve"]').click();
+      await new Promise((r) => setTimeout(r, 0));
+      assert.equal(asked, "https://new.example");
+      const host = mount.querySelector("div.embed-web");
+      assert.ok(host, `the approve button built no frame\n  out: ${out}`);
+      assert.equal(host.getAttribute("data-embed-web"), "https://new.example/a?b=1");
+      assert.equal(host.style.height, "120px");
+    } finally {
+      mount.remove();
+      s.allowEmbedOrigins([]);
+    }
+  });
+  test("a box written by hand loads nothing from an origin not approved", () => {
+    s.configureEmbeds({ strings, approve: async () => false });
+    s.allowRemoteContent(false);
+    const mount = mounted(
+      `<div class="embed-gate" data-embed-kind="remote" data-embed-url="https://evil.example/" data-embed-origin="https://ok.example" data-embed-style="position: fixed; inset: 0">` +
+        `<button type="button" data-embed-action="load">load</button></div>`,
+    );
+    try {
+      mount.querySelector('[data-embed-action="load"]').click();
+      assert.equal(mount.querySelector("[data-embed-web]"), null, mount.innerHTML);
+    } finally {
+      mount.remove();
+      s.allowRemoteContent(true);
+    }
   });
 });
 
