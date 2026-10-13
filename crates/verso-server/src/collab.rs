@@ -34,7 +34,9 @@ use serde_json::json;
 use verso_contract::{CollabJoin, CollabKind, ContractError, ErrorKind};
 use verso_service::{lock, ops};
 use yrs::updates::decoder::Decode;
-use yrs::{Doc, GetString, OffsetKind, Options, ReadTxn, StateVector, Text, Transact, Update};
+use yrs::{
+    Doc, GetString, OffsetKind, Options, ReadTxn, StateVector, Text, Transact, Update, WriteTxn,
+};
 
 use crate::state::Server;
 
@@ -215,6 +217,33 @@ fn apply_text(doc: &Doc, to: &str) -> Option<Vec<u8>> {
         text.insert(&mut txn, start, &inserted);
     }
     Some(txn.encode_update_v1())
+}
+
+/// Apply `update` to `doc`, and with it whatever earlier updates were
+/// waiting for it. A connection's requests run side by side, so two of a
+/// window's updates can reach the room in the other order; Yjs keeps the
+/// later one aside until the earlier arrives — but `yrs` 0.28 leaves some
+/// of what it kept aside unplaced once several wait (seen by
+/// `tests_board_stress.rs`, seed 1: an item heard and never placed, the
+/// room's state then short of what the windows hold). What waits is taken
+/// out and applied again until nothing more is placed.
+pub fn integrate(doc: &Doc, update: Update) -> Result<(), yrs::error::UpdateError> {
+    let mut txn = doc.transact_mut();
+    txn.apply_update(update)?;
+    for _ in 0..64 {
+        if !txn.has_missing_updates() {
+            break;
+        }
+        let before = txn.state_vector();
+        let Some(waiting) = txn.prune_pending() else {
+            break;
+        };
+        txn.apply_update(waiting)?;
+        if txn.state_vector() == before {
+            break;
+        }
+    }
+    Ok(())
 }
 
 fn b64(bytes: &[u8]) -> String {
@@ -437,10 +466,7 @@ pub fn update(
         r.board.admits(&r.doc, &bytes, &decoded)?;
         r.board.bytes = r.board.bytes.saturating_add(bytes.len());
     }
-    r.doc
-        .transact_mut()
-        .apply_update(decoded)
-        .map_err(|e| refused(&format!("the update does not apply: {e}")))?;
+    integrate(&r.doc, decoded).map_err(|e| refused(&format!("the update does not apply: {e}")))?;
     tell(
         server,
         &r,
@@ -1039,6 +1065,45 @@ mod tests {
         apply_text(&doc, "olá 😀 mundo");
         apply_text(&doc, "olá 😀 grande mundo");
         assert_eq!(text_of(&doc), "olá 😀 grande mundo");
+    }
+
+    /// One window's updates reaching the room in a shuffled order are all
+    /// placed (the `integrate` above; `yrs` alone left most of these runs
+    /// with something unplaced).
+    #[test]
+    fn a_windows_updates_in_any_order_are_all_placed() {
+        for seed in 0..300_u64 {
+            let mut s = seed.wrapping_mul(2_654_435_761) | 1;
+            let mut rnd = || {
+                s ^= s << 13;
+                s ^= s >> 7;
+                s ^= s << 17;
+                s
+            };
+            let window = new_doc();
+            let text = window.get_or_insert_text(TEXT);
+            let mut updates = Vec::new();
+            for i in 0..12_u32 {
+                let mut txn = window.transact_mut();
+                let len = text.len(&txn);
+                let at = u32::try_from(rnd() % u64::from(len + 1)).unwrap();
+                text.insert(&mut txn, at, &format!("<{i}>"));
+                if len > 4 && rnd() % 3 == 0 {
+                    text.remove_range(&mut txn, 0, 2);
+                }
+                updates.push(txn.encode_update_v1());
+            }
+            for i in (1..updates.len()).rev() {
+                let j = usize::try_from(rnd() % (i as u64 + 1)).unwrap();
+                updates.swap(i, j);
+            }
+            let room = new_doc();
+            for u in &updates {
+                integrate(&room, Update::decode_v1(u).unwrap()).unwrap();
+            }
+            assert!(!room.transact().has_missing_updates(), "seed {seed}");
+            assert_eq!(text_of(&room), text_of(&window), "seed {seed}");
+        }
     }
 
     #[test]
