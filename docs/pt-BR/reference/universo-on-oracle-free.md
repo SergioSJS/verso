@@ -103,16 +103,27 @@ seu nome e repassa tudo ao UniVerso:
 
 ```sh
 sudo apt install caddy
-printf '%s\n' 'notas.exemplo.com' 'reverse_proxy 127.0.0.1:7340' | sudo tee /etc/caddy/Caddyfile
+sudo mkdir -p /etc/caddy/Caddyfile.d
+printf '%s {\n\treverse_proxy 127.0.0.1:%s\n}\n' 'notas.exemplo.com' '7340' | sudo tee /etc/caddy/Caddyfile.d/universo.caddyfile
+sudo grep -qs 'import  *Caddyfile.d/' /etc/caddy/Caddyfile || printf '\nimport Caddyfile.d/*.caddyfile\n' | sudo tee -a /etc/caddy/Caddyfile
 sudo systemctl reload caddy
 ```
 
-O Caddyfile são estas duas linhas:
+O site do UniVerso vai num arquivo próprio,
+`/etc/caddy/Caddyfile.d/universo.caddyfile`:
 
 ```
-notas.exemplo.com
-reverse_proxy 127.0.0.1:7340
+notas.exemplo.com {
+	reverse_proxy 127.0.0.1:7340
+}
 ```
+
+e o `/etc/caddy/Caddyfile` principal só ganha a linha
+`import Caddyfile.d/*.caddyfile` no fim, quando não a tiver — o diretório
+que o Caddy do Fedora e do EPEL já importa. Um Caddyfile que já exista,
+com outros sites, fica como está; um que seja um site só, sem chaves,
+precisa de `{ }` em volta das linhas antes. São as linhas que o
+`sh universo.sh install` imprime.
 
 Depois diga ao UniVerso que o Caddy, nesta máquina, é o proxy em que
 acreditar (seção 8 do manual): defina `VERSO_TRUSTED_PROXY=127.0.0.1` no

@@ -75,6 +75,13 @@ services:
       # once the admin exists.
       VERSO_ADMIN_PASSWORD: ""
       # The reverse proxy's IP address, when one terminates TLS in front.
+      # A proxy on the host (Caddy installed on the machine) reaching the
+      # published port is seen coming from this project's network gateway,
+      # not from 127.0.0.1: put that gateway here, as
+      #   docker network inspect universo_default --format '{{(index .IPAM.Config 0).Gateway}}'
+      # says (often 172.18.0.1; 172.17.0.1 on Docker's default network).
+      # With 127.0.0.1 every sign-in is refused as not HTTPS
+      # (docs/reference/server-install.md, section 3).
       VERSO_TRUSTED_PROXY: ""
     # secrets:
     #   - universo-admin
