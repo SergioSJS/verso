@@ -7,9 +7,9 @@
 [workspace]
 resolver = "3"
 members = ["crates/*", "app/src-tauri"]
-# The fuzz harness is a dev tool on nightly, never shipped; it is its own
+# The fuzz harnesses are dev tools on nightly, never shipped; each is its own
 # package (see its Cargo.toml). Run with `cargo +nightly fuzz` inside the crate.
-exclude = ["crates/verso-dialect/fuzz"]
+exclude = ["crates/verso-dialect/fuzz", "crates/verso-server/fuzz"]
 
 [workspace.package]
 version = "0.8.0-beta.1"
