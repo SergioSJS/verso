@@ -48,6 +48,7 @@ pub mod transfers;
 pub mod trash;
 pub mod twins;
 pub mod update;
+mod yjs_bounds;
 
 use std::sync::Arc;
 
