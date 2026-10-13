@@ -175,3 +175,125 @@ fn a_count_written_in_eleven_bytes_is_read_as_yrs_reads_it() {
     let e = decode(&update).expect_err("refused");
     assert_eq!(e.message, "an update the room cannot read");
 }
+
+/// An update whose kind of value nests `depth` arrays: one client, one
+/// run of `Any` content in the root type `x`.
+fn nested(depth: usize) -> Vec<u8> {
+    let mut u = vec![1, 1, 5, 0, 8, 1, 1, b'x', 1];
+    for _ in 0..depth {
+        u.extend([117, 1]);
+    }
+    u.extend([126, 0]);
+    u
+}
+
+/// Found while fixing the fuzzers' allocations: `yrs` reads a value by
+/// recursion with no bound, and a 200 KB update of arrays in arrays
+/// overflowed the stack, which ends the whole server, not the request.
+#[test]
+fn a_value_nested_past_the_bound_is_refused() {
+    let e = decode(&nested(100_000)).expect_err("refused");
+    assert_eq!(e.message, "an update the room cannot read");
+    assert!(decode(&nested(8)).is_ok());
+}
+
+/// Counts past the first: a client's runs (the fuzz targets' own inputs,
+/// `seeds-note/runs-count-bomb.bin` and `seeds-board/runs-count-bomb.bin`),
+/// a run's values, a map's entries, the deletions' clients and ranges.
+#[test]
+fn every_count_yrs_reserves_from_is_bounded_by_the_bytes_left() {
+    let bombs: [&[u8]; 2] = [
+        include_bytes!("../fuzz/seeds-note/runs-count-bomb.bin"),
+        include_bytes!("../fuzz/seeds-board/runs-count-bomb.bin"),
+    ];
+    for input in bombs {
+        let refused = records(input)
+            .iter()
+            .skip(3)
+            .any(|u| collab::readable(u).is_err());
+        assert!(refused, "{input:?}");
+    }
+    let by_hand: [&[u8]; 5] = [
+        // One client declaring 2^28 runs.
+        &[1, 0xff, 0xff, 0xff, 0x7f, 5, 0],
+        // One run of Any content declaring 2^28 values.
+        &[1, 1, 5, 0, 8, 1, 1, b'x', 0xff, 0xff, 0xff, 0x7f],
+        // One value, a map declaring 2^28 entries.
+        &[1, 1, 5, 0, 8, 1, 1, b'x', 1, 118, 0xff, 0xff, 0xff, 0x7f],
+        // No runs; deletions of 2^28 clients.
+        &[0, 0xff, 0xff, 0xff, 0x7f],
+        // No runs; one client's deletions in 2^28 ranges.
+        &[0, 1, 5, 0xff, 0xff, 0xff, 0x7f],
+    ];
+    for update in by_hand {
+        let e = collab::readable(update).expect_err("refused");
+        assert_eq!(e.message, "an update the room cannot read", "{update:?}");
+    }
+}
+
+/// What windows send is walked to its last byte and taken: every kind of
+/// content `yrs` makes, and the fuzz targets' real seeds.
+#[test]
+fn the_walk_reads_real_updates_to_their_end() {
+    use yrs::{Any, Array, Map, ReadTxn, Text, WriteTxn, XmlFragment};
+    let doc = Doc::new();
+    let mut updates = Vec::new();
+    {
+        let text = doc.get_or_insert_text("verso");
+        let rich = doc.get_or_insert_text("rich");
+        let mut txn = doc.transact_mut();
+        text.insert(&mut txn, 0, "olá 😀 mundo");
+        text.remove_range(&mut txn, 2, 3);
+        rich.insert(&mut txn, 0, "negrito");
+        rich.format(&mut txn, 0, 3, [("bold".into(), Any::Bool(true))].into());
+        rich.insert_embed(&mut txn, 7, Any::from(vec![Any::from(1.5), Any::Null]));
+        updates.push(txn.encode_update_v1());
+    }
+    {
+        let map = doc.get_or_insert_map("meta");
+        let array = doc.get_or_insert_array("list");
+        let mut txn = doc.transact_mut();
+        map.insert(&mut txn, "n", 7);
+        map.insert(&mut txn, "big", i64::MAX);
+        map.insert(&mut txn, "s", "texto");
+        map.insert(&mut txn, "buf", Any::Buffer(vec![1_u8, 2, 3].into()));
+        map.insert(
+            &mut txn,
+            "nested",
+            Any::from(std::collections::HashMap::from([(
+                "a".to_owned(),
+                Any::from(vec![Any::from(true), Any::from(-3)]),
+            )])),
+        );
+        array.insert(&mut txn, 0, 1.25);
+        let sub = yrs::Doc::new();
+        map.insert(&mut txn, "doc", sub);
+        let frag = txn.get_or_insert_xml_fragment("xml");
+        frag.insert(&mut txn, 0, yrs::XmlElementPrelim::empty("p"));
+        map.remove(&mut txn, "s");
+        updates.push(txn.encode_update_v1());
+    }
+    updates.push(
+        doc.transact()
+            .encode_state_as_update_v1(&yrs::StateVector::default()),
+    );
+    let seeds: [&[u8]; 3] = [
+        include_bytes!("../fuzz/seeds-note/two-windows-crlf.bin"),
+        include_bytes!("../fuzz/seeds-note/out-of-order.bin"),
+        include_bytes!("../fuzz/seeds-board/two-windows.bin"),
+    ];
+    for input in seeds {
+        updates.extend(records(input).iter().skip(3).map(|u| u.to_vec()));
+    }
+    for update in &updates {
+        assert!(Update::decode_v1(update).is_ok());
+        assert_eq!(
+            crate::yjs_bounds::update(update),
+            Ok(update.len()),
+            "{update:?}"
+        );
+    }
+    let sv = doc.transact().state_vector();
+    let sv = yrs::updates::encoder::Encode::encode_v1(&sv);
+    assert_eq!(crate::yjs_bounds::state_vector(&sv), Ok(sv.len()));
+}

@@ -518,37 +518,24 @@ pub fn update(
     Ok(())
 }
 
-/// The count a Yjs v1 encoding starts with, as `yrs` 0.28 reads it
-/// (`read_var_u32`): lib0's variable-length integer in up to eleven
-/// bytes, each one's seven bits shifted by a multiple of 7 that wraps at
-/// 32. An update's clients, a state vector's entries. `None` when `yrs`
-/// would not read one.
-fn declared(bytes: &[u8]) -> Option<u32> {
-    let mut n: u32 = 0;
-    let mut shift: u32 = 0;
-    for b in bytes {
-        n |= u32::from(b & 0x7f).wrapping_shl(shift);
-        shift += 7;
-        if b & 0x80 == 0 {
-            return Some(n);
-        }
-        if shift > 70 {
-            return None;
-        }
+/// A window's update `bytes`, refused before `yrs` reads it when one of
+/// its counts declares more than the bytes left, or a value nests past
+/// the bound (`yjs_bounds.rs`): `yrs` reserves room for every element
+/// declared before it reads the first, and reads nested values by
+/// recursion (ADR 0083 item 14; the fuzz targets `note` and `board` saw
+/// 22 GB asked for four bytes, and a 200 KB update overflowed the stack).
+/// No real update does either.
+pub(crate) fn readable(bytes: &[u8]) -> Result<(), ContractError> {
+    match crate::yjs_bounds::update(bytes) {
+        Err(crate::yjs_bounds::Stop::Bomb) => Err(refused("an update the room cannot read")),
+        _ => Ok(()),
     }
-    None
 }
 
-/// A window's update or state vector `bytes`, refused before `yrs` reads
-/// it when it declares more clients or entries than it has bytes: `yrs`
-/// reserves room for every one declared before it reads the first (ADR
-/// 0083 item 14; the fuzz targets `note` and `board` saw 22 GB asked for
-/// four bytes). No real one declares more than it has bytes.
-pub(crate) fn readable(bytes: &[u8]) -> Result<(), ContractError> {
-    match declared(bytes) {
-        Some(count) if usize::try_from(count).unwrap_or(usize::MAX) > bytes.len() => {
-            Err(refused("an update the room cannot read"))
-        }
+/// A window's state vector, refused the same way.
+pub(crate) fn readable_vector(bytes: &[u8]) -> Result<(), ContractError> {
+    match crate::yjs_bounds::state_vector(bytes) {
+        Err(crate::yjs_bounds::Stop::Bomb) => Err(refused("an update the room cannot read")),
         _ => Ok(()),
     }
 }
