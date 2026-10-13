@@ -308,7 +308,11 @@ classificação é uma recomendação para o mantenedor confirmar.
    por conta, 64 por endereço; 512 conexões no servidor, 128 por endereço;
    comandos a 100 por segundo por conta (400 de uma vez) e 1 000 no
    servidor (2 000), esperando a vez além disso, dito no log uma vez por
-   minuto. Raciocinados, ainda não medidos na máquina de 1 núcleo.
+   minuto. Raciocinados, ainda não medidos na máquina de 1 núcleo. Uma
+   presença (`collab_awareness`) além do ritmo é descartada, nunca posta na
+   fila à frente de uma edição, e uma janela manda uma no máximo a cada
+   100 ms (2026-10-13: três janelas de uma conta a ~45 presenças por
+   segundo cada seguraram as edições por 30 s).
 5. **Um envio fica na memória até o último pedaço, e a cota só é
    conferida então.** Até dois envios de 1 GiB por conexão, vezes as
    conexões acima; o tamanho declarado é conhecido no primeiro pedaço e
