@@ -46,6 +46,16 @@ pub const HEADERS_WITHIN: Duration = Duration::from_secs(30);
 #[cfg(test)]
 pub const HEADERS_WITHIN: Duration = Duration::from_secs(2);
 
+/// The most a request's head — its line and headers — may take (ADR 0083
+/// item 8, F12): hyper's read buffer, whose default is some 400 KiB, so
+/// that 512 connections held a fifth of a 1 GB host. 64 KiB is more than
+/// any browser sends; past it hyper answers 431 and closes. hyper checks
+/// its bound only while a head is incomplete, and a single read may fill
+/// the buffer's whole capacity (up to about twice the bound): a head
+/// that arrived in one read and is a little past 64 KiB is refused with
+/// 431 by the router instead (`crate::http`'s `guard`).
+pub const HEAD_MOST: usize = 64 * 1024;
+
 /// The connections held, on the server and by address.
 pub struct Slots {
     all: Arc<Semaphore>,
@@ -264,7 +274,8 @@ pub async fn serve<L: Incoming>(
             let mut builder = hyper::server::conn::http1::Builder::new();
             builder
                 .timer(TokioTimer::new())
-                .header_read_timeout(HEADERS_WITHIN);
+                .header_read_timeout(HEADERS_WITHIN)
+                .max_buf_size(HEAD_MOST);
             let conn = builder
                 .serve_connection(TokioIo::new(io), service)
                 .with_upgrades();

@@ -518,9 +518,30 @@ fn page_policy(ws_origin: &str) -> String {
     )
 }
 
-/// Before every route: the `Host` named this server, or 421; after it, the
+/// The size of a request's head as it came: its line, and each header as
+/// `name: value` and a line end.
+fn head_size(request: &Request) -> usize {
+    let line = request.method().as_str().len() + request.uri().to_string().len() + 12;
+    request
+        .headers()
+        .iter()
+        .map(|(name, value)| name.as_str().len() + value.len() + 4)
+        .sum::<usize>()
+        + line
+}
+
+/// Before every route: the head within 64 KiB, or 431 (ADR 0083 item 8);
+/// the `Host` named this server, or 421; after it, the
 /// server's headers on every answer.
 async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) -> Response {
+    if head_size(&request) > crate::listen::HEAD_MOST {
+        return ApiError::new(
+            StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE,
+            "head_too_large",
+            "a request's headers are 64 KiB at most",
+        )
+        .into_response();
+    }
     if !auth::host_ok(&server, request.headers()) {
         return ApiError::new(
             StatusCode::MISDIRECTED_REQUEST,

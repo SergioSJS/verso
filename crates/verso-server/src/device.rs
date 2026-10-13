@@ -189,11 +189,34 @@ pub struct Poll {
 }
 
 /// The app asks whether the person approved: `pending` until then, the
-/// device's token once, `link_gone` after.
+/// device's token once, `link_gone` after. A code unknown or a wrong poll
+/// secret counts against the `device:` key of the address, as a start does
+/// (ADR 0083 item 8, F17): past the free failures the next wrong one waits
+/// its delay. The app that holds the right secret is answered whatever the
+/// address's delay — a stranger sharing it, behind the same NAT, cannot
+/// keep it from signing in (ADR 0074 item 9: never a lock a stranger can
+/// use); the secret is 256 bits, not a thing a delay protects.
 pub async fn poll(ctx: Ctx, Json(body): Json<Poll>) -> ApiResult<Response> {
     ctx.secure()?;
     let code = body.code.to_ascii_uppercase();
     let mut devices = lock(&ctx.server.devices);
+    let right = devices
+        .get(&code)
+        .is_some_and(|p| crate::crypto::same(&p.poll, &crate::crypto::hash(&body.poll)));
+    if !right {
+        drop(devices);
+        let key = format!("device:{}", ctx.peer.key());
+        let wait = ctx.server.limiter.wait(&key);
+        if !wait.is_zero() {
+            return Err(ApiError::wait(wait.as_secs() + 1));
+        }
+        ctx.server.limiter.failed(&key);
+        return Err(ApiError::new(
+            StatusCode::GONE,
+            "link_gone",
+            "this code is used or expired",
+        ));
+    }
     let Some(p) = devices.get(&code) else {
         return Err(ApiError::new(
             StatusCode::GONE,
@@ -201,13 +224,6 @@ pub async fn poll(ctx: Ctx, Json(body): Json<Poll>) -> ApiResult<Response> {
             "this code is used or expired",
         ));
     };
-    if !crate::crypto::same(&p.poll, &crate::crypto::hash(&body.poll)) {
-        return Err(ApiError::new(
-            StatusCode::GONE,
-            "link_gone",
-            "this code is used or expired",
-        ));
-    }
     if p.made.elapsed() >= LIFE {
         devices.remove(&code);
         return Err(ApiError::new(
