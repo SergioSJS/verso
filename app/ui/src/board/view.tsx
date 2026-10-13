@@ -350,13 +350,27 @@ function Board({
         for (const id of [st.editingTextElement?.id, st.resizingElement?.id, st.newElement?.id, st.multiElement?.id, st.selectedLinearElement?.isEditing ? st.selectedLinearElement.elementId : undefined]) if (id) busy.add(id);
         if (st.selectedElementsAreBeingDragged) for (const [id, on] of Object.entries(st.selectedElementIds)) if (on) busy.add(id);
         const merged = mergeScene(a.getSceneElementsIncludingDeleted() as unknown as El[], remote, busy, (e) => room?.mine(e) ?? false);
-        own((b) =>
+        // An element another person deleted leaves this window's selection
+        // with it: Excalidraw holds a deleted element selected as a broken
+        // invariant (seen on macOS, 2026-10-13, three windows on one board).
+        const gone = new Set(merged.filter((e) => e["isDeleted"] === true).map((e) => e.id));
+        const selected = Object.entries(st.selectedElementIds).filter(([, on]) => on);
+        const keep = selected.filter(([id]) => !gone.has(id));
+        own((b) => {
+          // The selection first, on its own: the scene drawn with the new
+          // elements must never find a deleted element still selected.
+          if (keep.length !== selected.length) {
+            b.updateScene({
+              appState: { selectedElementIds: Object.fromEntries(keep), selectedGroupIds: {} } as never,
+              captureUpdate: CaptureUpdateAction.NEVER,
+            });
+          }
           b.updateScene({
             elements: merged as never,
             ...(background !== undefined ? { appState: { viewBackgroundColor: background ?? "transparent" } as never } : {}),
             captureUpdate: CaptureUpdateAction.NEVER,
-          }),
-        );
+          });
+        });
         const now = new Set(merged);
         return remote.filter((e) => now.has(e)).map((e) => e.id);
       },

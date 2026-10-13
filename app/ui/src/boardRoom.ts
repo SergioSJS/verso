@@ -34,6 +34,9 @@ const CANVAS_AFTER = 250;
 /** How many times in a row the board's own change to an element it took
  *  in goes to the room before the room's version is let stand. */
 const SELF_MADE_MOST = 3;
+/** How many passes in a row an element the room holds and the board does
+ *  not draw is handed to the board again before it is let be. */
+const MISSING_MOST = 3;
 /** How often this window's pointer goes out. */
 const POINTER_EVERY = 40;
 
@@ -51,6 +54,9 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
   /** Per element: how many times in a row the board changed by itself
    *  the room's version it took in. A person's change resets it. */
   private readonly selfMade = new Map<string, number>();
+  /** Per element: passes in a row the room held it and the board did not
+   *  draw it. */
+  private readonly missing = new Map<string, number>();
   /** The scene as the board last said it. */
   private last: { scene: readonly El[]; user: boolean; background: string } | null = null;
   private pushTimer: number | undefined;
@@ -239,6 +245,22 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
       const a = rankOf(e);
       const b = rankOf(w);
       if (a.version !== b.version || a.nonce !== b.nonce) behind.add(e.id);
+    }
+    // An element the room holds and the board does not draw at all — taken
+    // in while the board replaced its scene, and lost there (seen on macOS,
+    // 2026-10-13: three windows agreed on the room and the file, and one of
+    // them never drew an element another had just made) — is drawn now.
+    // Tried a few times, so a board that will not take an element cannot
+    // loop on it.
+    const drawn = new Set(p.scene.map((e) => e.id));
+    for (const id of room.keys()) {
+      if (drawn.has(id)) {
+        this.missing.delete(id);
+        continue;
+      }
+      const n = (this.missing.get(id) ?? 0) + 1;
+      this.missing.set(id, n);
+      if (n <= MISSING_MOST) behind.add(id);
     }
     if (behind.size > 0) this.pull(behind, undefined);
   }
