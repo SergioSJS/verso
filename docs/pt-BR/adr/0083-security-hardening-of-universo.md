@@ -702,6 +702,16 @@ de ninguém de outra máquina de qualquer forma
 `scripts/check-server-image.sh` confere a ligação no arquivo já lido, e
 um comentário não passa por ela.
 
+**O volume do log do servidor** (2026-10-13, a parte restante do F21).
+Decidido pelo mantenedor em 2026-10-13 (*"sobre as decisões em aberto,
+siga as recomendações"*): o servidor não faz rotação de log nenhum por
+conta própria; a rotação fica com as ferramentas do host, documentada. O log de
+um pacote é a saída da unit, cuja rotação o journald faz (`journalctl
+--vacuum-size`, `SystemMaxUse=`; `docs/reference/server-install.md`,
+seção 5); o arquivo compose declara o driver `json-file` do Docker com
+`max-size: "10m"` e `max-file: "3"` (seção 4). As 60 linhas por minuto que
+uma janela pode escrever não mudam.
+
 ## Consequências
 
 - O que as pessoas sentem: uma senha que escolheram recusada no setup ou

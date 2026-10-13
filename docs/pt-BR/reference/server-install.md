@@ -207,7 +207,10 @@ existirem versões de teste, `latest` não existe: use `beta` ou uma versão.
 A porta é publicada em `127.0.0.1` porque o TLS fica na frente (seção 8);
 o arquivo compose da seção 4 a publica do mesmo jeito.
 `docker logs universo` mostra o log, incluindo o link de configuração da
-seção 9.
+seção 9. O Docker guarda esse log sem limite se não for dito o contrário:
+acrescente `--log-opt max-size=10m --log-opt max-file=3` ao comando, como
+o arquivo compose da seção 4 declara, ou defina o mesmo para todos os
+contêineres no `daemon.json` do Docker.
 
 **Um proxy no host na frente de uma porta publicada** (o Caddy instalado
 na máquina, `reverse_proxy 127.0.0.1:7340`): o contêiner não vê as
@@ -265,6 +268,13 @@ HTTP puro na LAN continua sem entrar ninguém de outra máquina: o servidor
 só faz login por HTTPS ([ADR 0073](../adr/0073-self-hosted-server-first.md)
 item 6), então a LAN também precisa de TLS na frente para um login.
 
+O arquivo compose limita o log do contêiner a três arquivos de 10 MB no
+máximo (`logging:` com o driver `json-file` do Docker, `max-size: "10m"`,
+`max-file: "3"`): quem faz a rotação é o Docker, não o servidor. Uma janela
+pode escrever no log do servidor (60 linhas por minuto no máximo, F21 da
+[revisão de segurança](security-review-2026-10-13.md)), e um log sem
+limite cresceria enquanto um membro continuasse escrevendo.
+
 A imagem vem do registry do
 GitHub, que exige um `docker login` enquanto o repositório for privado
 (seção 11): no CasaOS e no ZimaOS, no terminal do sistema, uma vez.
@@ -296,6 +306,16 @@ sudoedit /etc/universo/universo.env       # no mínimo VERSO_PUBLIC_URL
 sudo systemctl enable --now universo
 journalctl -u universo -f
 ```
+
+O log do servidor é a saída da unit, que o journald guarda e cuja rotação
+faz pelos próprios limites; o servidor não faz rotação nenhuma (decidido pelo
+mantenedor em 2026-10-13, [ADR 0083](../adr/0083-security-hardening-of-universo.md),
+Como construído). `journalctl --disk-usage` diz quanto o journal ocupa,
+`sudo journalctl --vacuum-size=500M` o apara na hora, e `SystemMaxUse=` em
+`/etc/systemd/journald.conf` (ou num arquivo em
+`/etc/systemd/journald.conf.d/`) o limita de vez. Uma janela pode escrever
+nesse log, 60 linhas por minuto no máximo (F21 da
+[revisão de segurança](security-review-2026-10-13.md)).
 
 O pacote escuta em `127.0.0.1:7340` por padrão: o TLS fica na frente
 (seção 8). A unit é endurecida (`ProtectSystem=strict`, escreve só sob
@@ -1096,7 +1116,9 @@ sudo fail2ban-regex /tmp/universo.log /etc/fail2ban/filter.d/universo.conf
 No Docker, o fail2ban roda no host, e os dois arquivos são copiados de
 `packaging/server/fail2ban/` para `/etc/fail2ban/filter.d/` e
 `/etc/fail2ban/jail.d/`. As linhas do contêiner chegam ao journal com
-`logging: driver: journald` no arquivo compose; a jail então lê
+`logging: driver: journald` no arquivo compose, no lugar do bloco
+`json-file` publicado (o journald então faz a rotação delas pelos próprios limites,
+seção 5); a jail então lê
 `journalmatch = CONTAINER_NAME=universo` (o nome do contêiner). O Docker
 manda o tráfego de uma porta publicada por fora da chain `INPUT` do host:
 o banimento precisa de `chain = DOCKER-USER` na jail. Na rede do host
