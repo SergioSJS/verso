@@ -5,6 +5,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import * as esbuild from "esbuild";
 import LZString from "lz-string";
+import { readFileSync } from "node:fs";
 
 await esbuild.build({
   stdin: {
@@ -422,5 +423,34 @@ describe("the board as a picture", () => {
     assert.deepEqual(b.wrapLines("um dois tres quatro", 8, 5, m), ["um dois", "tres", "quatro"]);
     assert.deepEqual(b.wrapLines("um dois tres quatro", 8, 2, m), ["um dois", "tres…"]);
     assert.deepEqual(b.wrapLines("abcdefghijkl", 5, 5, m), ["abcde", "fghij", "kl"]);
+  });
+});
+
+describe("the file a board writes has the same bytes for the same board", () => {
+  test("two equal elements put together in other orders write byte-identical files", () => {
+    const base = { nodes: [], edges: [] };
+    const one = {
+      id: "r", type: "rectangle", x: 0, y: 0, width: 10, height: 10, isDeleted: false, version: 3, versionNonce: 7,
+      boundElements: [{ type: "text", id: "t" }, { type: "arrow", id: "a" }],
+      roundness: { type: 3 },
+      customData: { canvas: { b: 1, a: { y: 2, x: 1 } } },
+    };
+    const two = {
+      id: "r", type: "rectangle", x: 0, y: 0, width: 10, height: 10, isDeleted: false, version: 3, versionNonce: 7,
+      boundElements: [{ id: "t", type: "text" }, { id: "a", type: "arrow" }],
+      roundness: { type: 3 },
+      customData: { canvas: { a: { x: 1, y: 2 }, b: 1 } },
+    };
+    const a = JSON.stringify(b.fromElements([one], base));
+    assert.equal(JSON.stringify(b.fromElements([two], base)), a);
+    // One order, by name: a binding is {id, type}; the list keeps its order.
+    assert.ok(a.includes('"boundElements":[{"id":"t","type":"text"},{"id":"a","type":"arrow"}]'), a);
+  });
+
+  test("the demo vault's boards come back byte-identical from the converter", () => {
+    for (const name of ["Board de Demonstração", "Tour do Verso", "Treino do Board"]) {
+      const doc = JSON.parse(readFileSync(new URL(`../../../demo-vault/${name}.canvas`, import.meta.url), "utf8"));
+      assert.equal(JSON.stringify(b.fromElements(b.toElements(doc), doc)), JSON.stringify(doc), name);
+    }
   });
 });
