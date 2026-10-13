@@ -68,6 +68,18 @@
   nota datada ao lado de cada um.
   O teste com cliente de sync fica aberto como uma checagem manual do
   mantenedor e não trava mais nada.
+  2026-10-13 — os guardrails de feature do
+  [0083](0083-security-hardening-of-universo.md), o endurecimento de
+  segurança do UniVerso, cada um entrando com seu item e visto falhando
+  antes: os testes do servidor dos itens 1 a 10, 15 e 17;
+  `scripts/check-npm-audit.mjs`, que submete as advisories da árvore npm
+  à política do `deny.toml` (uma exceção com motivo, link e validade, em
+  `app/ui/audit-exceptions.json`), no job Linux do pull request e no
+  `scripts/check.sh`; o teste do script de backup no
+  `scripts/check-linux.sh`; o `scripts/check-server-image.sh`, que inicia
+  a unidade e a imagem somente leitura; e as entradas do servidor sob
+  fuzzing na `main` ao lado das do dialeto e do canvas (item 14, sendo
+  integrado).
 
 ## Contexto
 

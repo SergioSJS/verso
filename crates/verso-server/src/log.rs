@@ -31,11 +31,20 @@ pub fn stamp() -> String {
     )
 }
 
+/// One line of the log: the time, the level, the message. A newline or
+/// another control character in the message becomes a space, so that no
+/// message — a file's name in an error, a window's words — writes a second
+/// line a host's tool would read as the server's own (ADR 0083 item 1).
 pub fn line(level: &str, message: &str) {
-    eprintln!("{} {level} {message}", stamp());
+    let message: String = message
+        .chars()
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .collect();
+    let said = format!("{level} {message}");
+    eprintln!("{} {said}", stamp());
     #[cfg(test)]
-    if let Ok(mut said) = SAID.lock() {
-        said.push(format!("{level} {message}"));
+    if let Ok(mut kept) = SAID.lock() {
+        kept.push(said);
     }
 }
 
@@ -50,6 +59,22 @@ pub(crate) fn said(what: &str) -> Vec<String> {
     SAID.lock()
         .map(|s| s.iter().filter(|l| l.contains(what)).cloned().collect())
         .unwrap_or_default()
+}
+
+/// A line said at most once a minute: a flood of the same event is one
+/// line, not a disk filled (the refusals, a proxy that forwards nothing).
+#[derive(Default)]
+pub struct OnceAMinute(std::sync::Mutex<Option<std::time::Instant>>);
+
+impl OnceAMinute {
+    pub fn warn(&self, message: &str) {
+        let mut said = verso_service::lock(&self.0);
+        if said.is_none_or(|at| at.elapsed() >= std::time::Duration::from_secs(60)) {
+            *said = Some(std::time::Instant::now());
+            drop(said);
+            warn(message);
+        }
+    }
 }
 
 pub fn info(message: &str) {

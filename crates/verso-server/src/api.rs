@@ -15,7 +15,6 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::auth::{self, Via};
-use crate::config::MIN_PASSWORD;
 use crate::db::{self, Role};
 use crate::http::{ApiError, ApiResult, Ctx, ok};
 
@@ -66,15 +65,14 @@ pub fn check_name(name: &str) -> ApiResult<()> {
 
 const NAME_MOST: usize = 200;
 
-/// A password the server takes: long enough, not all spaces.
-fn check_password(password: &str) -> ApiResult<()> {
-    if password.chars().count() < MIN_PASSWORD || password.trim().is_empty() {
-        return Err(ApiError::bad(
-            "weak_password",
-            format!("at least {MIN_PASSWORD} characters"),
-        ));
+/// A password the server takes for the account `email`: long enough, not
+/// all spaces, not on the lists attackers try first, not the e-mail
+/// (ADR 0083 item 3).
+fn check_password(password: &str, email: &str) -> ApiResult<()> {
+    match crate::passwords::weak(password, email) {
+        Some(why) => Err(ApiError::bad(why.code(), why.words())),
+        None => Ok(()),
     }
-    Ok(())
 }
 
 fn check_lang(lang: &str) -> &'static str {
@@ -96,16 +94,18 @@ fn signed_in(ctx: &Ctx, account: &db::Account, body: serde_json::Value) -> ApiRe
     Ok(response)
 }
 
-/// Wait out the delay of `keys`, or refuse.
-fn limited(ctx: &Ctx, keys: &[&str]) -> ApiResult<()> {
-    let wait = keys
+/// Wait out the delay of `keys`, or refuse — said in the log once a
+/// minute per key (ADR 0083 item 1).
+pub(crate) fn limited(ctx: &Ctx, keys: &[&str]) -> ApiResult<()> {
+    let (wait, key) = keys
         .iter()
-        .map(|k| ctx.server.limiter.wait(k))
+        .map(|k| (ctx.server.limiter.wait(k), *k))
         .max()
         .unwrap_or_default();
     if wait.is_zero() {
         Ok(())
     } else {
+        ctx.server.signins.limited(key, &ctx.peer.key());
         Err(ApiError::wait(wait.as_secs() + 1))
     }
 }
@@ -124,31 +124,43 @@ pub async fn sign_in(ctx: Ctx, Json(body): Json<SignIn>) -> ApiResult<Response> 
     let by_address = format!("in:{}", ctx.peer.key());
     let by_account = format!("in:{}", db::fold_email(&body.email));
     limited(&ctx, &[&by_address, &by_account])?;
+    // Past the server's pace of refusals, every sign-in waits its turn
+    // (ADR 0083 item 2).
+    let turn = ctx.server.signins.turn();
+    if !turn.is_zero() {
+        tokio::time::sleep(turn).await;
+    }
     let server = std::sync::Arc::clone(&ctx.server);
     let email = body.email.clone();
     let password = body.password.clone();
-    let found = tokio::task::spawn_blocking(move || -> Result<Option<db::Account>, String> {
-        let account = server.db.account_by_email(&email)?;
-        match account {
-            Some(a)
-                if a.password
+    // The account, and whether the password is its: an unknown e-mail
+    // costs a hash too.
+    let found =
+        tokio::task::spawn_blocking(move || -> Result<(Option<db::Account>, bool), String> {
+            let account = server.db.account_by_email(&email)?;
+            let right = match &account {
+                Some(a) => a
+                    .password
                     .as_deref()
-                    .is_some_and(|h| crate::crypto::verify_password(&password, h)) =>
-            {
-                Ok(Some(a))
-            }
-            Some(_) => Ok(None),
-            None => {
-                crate::crypto::waste_time(&password);
-                Ok(None)
-            }
-        }
-    })
-    .await
-    .map_err(|e| e.to_string())??;
-    let Some(account) = found else {
+                    .is_some_and(|h| crate::crypto::verify_password(&password, h)),
+                None => {
+                    crate::crypto::waste_time(&password);
+                    false
+                }
+            };
+            Ok((account, right))
+        })
+        .await
+        .map_err(|e| e.to_string())??;
+    let (Some(account), true) = found else {
         ctx.server.limiter.failed(&by_address);
         ctx.server.limiter.failed(&by_account);
+        crate::signin::refused(
+            &ctx.server,
+            &ctx.peer.key(),
+            Some(&body.email),
+            found.0.as_ref(),
+        );
         ctx.audit("sign_in", Some(&db::fold_email(&body.email)), None, false);
         return Err(ApiError::new(
             StatusCode::UNAUTHORIZED,
@@ -158,6 +170,9 @@ pub async fn sign_in(ctx: Ctx, Json(body): Json<SignIn>) -> ApiResult<Response> 
     };
     ctx.server.limiter.succeeded(&by_address);
     ctx.server.limiter.succeeded(&by_account);
+    ctx.server
+        .signins
+        .succeeded(&ctx.peer.key(), Some(&body.email));
     ctx.audit_as(Some(&account.id), "sign_in", None, None, true);
     signed_in(&ctx, &account, json!(null))
 }
@@ -212,7 +227,7 @@ pub async fn setup(ctx: Ctx, Json(body): Json<Setup>) -> ApiResult<Response> {
     if !db::is_email(&body.email) {
         return Err(ApiError::bad("not_email", "not an e-mail address"));
     }
-    check_password(&body.password)?;
+    check_password(&body.password, &body.email)?;
     check_name(&body.name)?;
     let account = ctx.server.db.create_account(
         &body.email,
@@ -294,7 +309,7 @@ pub async fn accept(
     if !db::is_email(&email) {
         return Err(ApiError::bad("not_email", "not an e-mail address"));
     }
-    check_password(&body.password)?;
+    check_password(&body.password, &email)?;
     check_name(&body.name)?;
     let account = match ctx.server.db.create_account(
         &email,
@@ -378,7 +393,9 @@ pub struct Reset {
 }
 
 /// A new password from a reset link (ADR 0074 item 5): every session of
-/// the account ends, and this browser is signed in.
+/// the account ends, every personal access token is revoked (ADR 0083 item
+/// 4: whoever took the password may have made one), and this browser is
+/// signed in.
 pub async fn reset(
     ctx: Ctx,
     Path(token): Path<String>,
@@ -395,7 +412,6 @@ pub async fn reset(
             "this link is used or expired",
         ));
     };
-    check_password(&body.password)?;
     let account = link
         .account
         .as_deref()
@@ -403,6 +419,8 @@ pub async fn reset(
         .transpose()?
         .flatten()
         .ok_or_else(ApiError::not_found)?;
+    // Before the link is used: a password refused leaves it to try again.
+    check_password(&body.password, &account.email)?;
     if !ctx.server.db.use_invitation(&link.id, &account.id)? {
         return Err(ApiError::new(
             StatusCode::NOT_FOUND,
@@ -412,10 +430,11 @@ pub async fn reset(
     }
     ctx.server.db.set_password(&account.id, &body.password)?;
     ctx.server.db.end_sessions(&account.id, None)?;
+    let revoked = revoke_tokens(&ctx, &account.id)?;
     ctx.server
         .push_account(&account.id, &json!({ "gone": "session" }));
     ctx.audit_as(Some(&account.id), "password_reset", None, None, true);
-    signed_in(&ctx, &account, json!(null))
+    signed_in(&ctx, &account, json!({ "tokensRevoked": revoked }))
 }
 
 /// The person, the folders they may enter and their role in each.
@@ -448,17 +467,36 @@ pub async fn profile(ctx: Ctx, Json(body): Json<Profile>) -> ApiResult<Response>
     Ok(ok(json!(null)))
 }
 
+/// Every personal access token of `account` revoked, a line of the audit
+/// log each, as the account's own (ADR 0083 item 4): how many.
+fn revoke_tokens(ctx: &Ctx, account: &str) -> ApiResult<usize> {
+    let ids = ctx.server.db.revoke_tokens_of(account)?;
+    for id in &ids {
+        ctx.audit_as(Some(account), "token_revoked", Some(id), None, true);
+    }
+    Ok(ids.len())
+}
+
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Password {
     current: String,
     new: String,
+    /// The account's personal access tokens revoked too (ADR 0083 item
+    /// 4); the window offers it checked.
+    #[serde(default)]
+    revoke_tokens: bool,
 }
 
 /// A new password: the current one first; the other sessions end
-/// (ADR 0074 item 7).
+/// (ADR 0074 item 7), and the tokens when asked — otherwise the answer
+/// says how many stay (ADR 0083 item 4).
 pub async fn password(ctx: Ctx, Json(body): Json<Password>) -> ApiResult<Response> {
     ctx.changes()?;
     let who = ctx.person()?.clone();
+    // A fresh proof first, and the current password still (ADR 0083 item
+    // 6): a stale cookie reaches neither the change nor a guess at it.
+    ctx.proved()?;
     let key = format!("in:{}", db::fold_email(&who.account.email));
     limited(&ctx, &[&key])?;
     // Argon2id on the blocking pool, as a sign-in's (threat-model.md,
@@ -473,6 +511,12 @@ pub async fn password(ctx: Ctx, Json(body): Json<Password>) -> ApiResult<Respons
     .map_err(|e| e.to_string())?;
     if !right {
         ctx.server.limiter.failed(&key);
+        crate::signin::refused(
+            &ctx.server,
+            &ctx.peer.key(),
+            Some(&who.account.email),
+            Some(&who.account),
+        );
         ctx.audit("password_change", None, None, false);
         return Err(ApiError::new(
             StatusCode::FORBIDDEN,
@@ -480,13 +524,22 @@ pub async fn password(ctx: Ctx, Json(body): Json<Password>) -> ApiResult<Respons
             "wrong password",
         ));
     }
-    check_password(&body.new)?;
+    ctx.server
+        .signins
+        .succeeded(&ctx.peer.key(), Some(&who.account.email));
+    check_password(&body.new, &who.account.email)?;
     ctx.server.db.set_password(&who.account.id, &body.new)?;
     ctx.server.db.end_sessions(&who.account.id, who.session())?;
     ctx.server
         .sessions_ended(&who.account.id, None, who.session());
+    let revoked = if body.revoke_tokens {
+        revoke_tokens(&ctx, &who.account.id)?
+    } else {
+        0
+    };
+    let kept = ctx.server.db.token_count(&who.account.id)?;
     ctx.audit("password_change", None, None, true);
-    Ok(ok(json!(null)))
+    Ok(ok(json!({ "tokensRevoked": revoked, "tokensKept": kept })))
 }
 
 pub async fn sessions(ctx: Ctx) -> ApiResult<Response> {
@@ -551,6 +604,8 @@ pub async fn create_token(ctx: Ctx, Json(body): Json<NewToken>) -> ApiResult<Res
     if !matches!(who.via, Via::Browser { .. }) {
         return Err(ApiError::forbidden("tokens are made in the browser"));
     }
+    // A fresh proof first (ADR 0083 item 6).
+    ctx.proved()?;
     check_name(&body.name)?;
     if body.name.trim().is_empty() || body.folders.is_empty() {
         return Err(ApiError::bad(
@@ -647,11 +702,28 @@ pub async fn signin_link(ctx: Ctx, Json(body): Json<ByMail>) -> ApiResult<Respon
     if ctx.server.mail.get().is_none() {
         return Err(ApiError::bad("no_mail", "this server has no mail server"));
     }
-    let key = format!("mail:{}", ctx.peer.key());
-    limited(&ctx, &[&key])?;
-    ctx.server.limiter.failed(&key);
+    mail_limited(&ctx, &body.email)?;
     mail_later(&ctx, body.email, Mailed::SignIn);
     Ok(ok(json!({ "sent": true })))
+}
+
+/// A mail route's delays: the sender's address, and the address mailed
+/// to (ADR 0083 item 8, F11), each counted on every request with the same
+/// growing delay, so that a mailbox is not flooded from many addresses each
+/// within its own. Only a string that looks like an e-mail is keyed: it
+/// has an `@`, which no address key has, so a request cannot name another
+/// address's key; anything else has no account and is mailed nothing.
+fn mail_limited(ctx: &Ctx, email: &str) -> ApiResult<()> {
+    let mut keys = vec![format!("mail:{}", ctx.peer.key())];
+    if db::is_email(email) {
+        keys.push(format!("mail:{}", db::fold_email(email)));
+    }
+    let named: Vec<&str> = keys.iter().map(String::as_str).collect();
+    limited(ctx, &named)?;
+    for key in &keys {
+        ctx.server.limiter.failed(key);
+    }
+    Ok(())
 }
 
 /// What a mail route sends to an address that has an account.
@@ -758,9 +830,7 @@ pub async fn forgot(ctx: Ctx, Json(body): Json<ByMail>) -> ApiResult<Response> {
     if ctx.server.mail.get().is_none() {
         return Err(ApiError::bad("no_mail", "this server has no mail server"));
     }
-    let key = format!("mail:{}", ctx.peer.key());
-    limited(&ctx, &[&key])?;
-    ctx.server.limiter.failed(&key);
+    mail_limited(&ctx, &body.email)?;
     mail_later(&ctx, body.email, Mailed::Reset);
     Ok(ok(json!({ "sent": true })))
 }

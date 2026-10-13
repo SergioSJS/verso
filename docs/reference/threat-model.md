@@ -42,11 +42,16 @@ password checked for length only, recovery leaving tokens alive, one
 trusted proxy address, the server's inputs not fuzzed, npm advisories
 unchecked, no disclosure channel, the outside review still open, a backup
 in the clear) and [ADR 0083](../adr/0083-security-hardening-of-universo.md)
-(Proposed: the measures, their numbers, guardrails and order of work). Of
-the gaps below, none is shown closed by that review; gap 10 is answered by
-its item 16 when done, and gap 7's remainder (a mailbox flooded) by its
-item 8. The rows of this model are unchanged: what the review found is
-new, not a correction of what is written here.
+(the measures, their numbers, guardrails and order of work). The ADR was
+accepted on 2026-10-13 and built the same day, in one round: items 1 to
+13, 15 and 17 are built, item 14 (the server's inputs fuzzed) is being
+merged, and its section "As built" says where the code departs from its
+text; item 16's pentest by a person outside the project stays a condition
+of the announcement. Of the gaps below, gap 7's remainder (a mailbox
+flooded) is closed by its item 8 (cb05804), and gap 10 is answered by its
+item 16 when done. The rows of this model are otherwise unchanged: what
+the review found is new, not a correction of what is written here, and the
+threat rows below are not yet refreshed with the measures of ADR 0083.
 
 ## What is protected
 
@@ -343,7 +348,9 @@ recommendation for the maintainer to confirm.
    address whole); the delays keep 100 000 keys, the device codes, sign-in
    links and passkey ceremonies 10 000 each, the oldest tenth going first.
    A mailbox is still bounded only by the senders' /64s: a delay by the
-   address mailed to is not built.
+   address mailed to is not built. **Closed: cb05804** (ADR 0083 item 8)
+   — the mail routes take a second key, `mail:<folded e-mail>`, with the
+   sender's delay.
 8. **No HTTP timeouts or connection limit on the listener** (unverified:
    none is configured in `lib.rs`; whether the defaults of `axum::serve`
    time out a slow header was not checked). Behind Caddy or `tailscale
@@ -441,7 +448,11 @@ answer — a recommendation, not a decision; the maintainer decides.
   checked at an upload's first piece; the numbers measured on the 1-core,
   1 GB host of the server's installation notes. *Built on 2026-10-11:*
   gaps 2, 3, 4 and 8 (their commits above); gap 5 on 2026-10-12
-  (2b1f2c4); the numbers are reasoned, not measured on that host. Left `[OPEN]` for the maintainer.
+  (2b1f2c4); the numbers are reasoned, not measured on that host.
+  *Built on 2026-10-13:* a pace on the REST routes per address, 20 a
+  second and 100 at once (9b4cdf0, ADR 0083 item 7), and a pace on the
+  server's refused sign-ins (805febb, ADR 0083 item 2); measuring them is
+  ADR 0083 item 18. Left `[OPEN]` for the maintainer.
 - `[OPEN]` The desktop's device token in the system's keychain instead of a
   `0600` file. *Recommendation:* after the first outside user, recorded as
   deferred: the token is revocable from Settings and the console, and the
@@ -456,4 +467,7 @@ answer — a recommendation, not a decision; the maintainer decides.
   be released. *2026-10-13:* the review of that date and ADR 0083 item 16
   say what it is and when — a pentest of the lab server before the
   announcement, the sanitizer read by the model that did not write it —
-  and what comes before it (items 1 to 5, 8 to 10 and 13 of the ADR).
+  and what comes before it: every other item of the ADR, built in one
+  round (its order of work, rewritten when it was accepted on 2026-10-13)
+  — items 1 to 13, 15 and 17 built on 2026-10-13, item 14 being
+  merged.

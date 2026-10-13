@@ -11,6 +11,7 @@
 pub mod access;
 pub mod admin;
 pub mod api;
+pub mod audit;
 pub mod auth;
 pub mod collab;
 pub mod collab_board;
@@ -33,14 +34,20 @@ pub mod limit;
 pub mod listen;
 pub mod log;
 pub mod mail;
+pub mod pace;
 pub mod passkeys;
+pub mod passwords;
 pub mod presence;
+pub mod proof;
+pub mod proxy;
 pub mod quota;
 pub mod rpc;
 pub mod scope;
+pub mod security_txt;
 pub mod share_links;
 pub mod share_sync;
 pub mod shares;
+pub mod signin;
 pub mod state;
 pub mod sync;
 pub mod tls;
@@ -240,6 +247,9 @@ pub async fn run_on<L: listen::Incoming>(
     }
     // Every folder's bin swept now and once a day (ADR 0080 item 3).
     tokio::spawn(trash::daily(Arc::clone(&server)));
+    // The audit log's rows past VERSO_AUDIT_DAYS, now and once a day (ADR
+    // 0083 item 10).
+    tokio::spawn(audit::daily(Arc::clone(&server)));
     log::info(&format!(
         "UniVerso {} (verso serve; contract {}) on {listen}, folders in {}",
         env!("CARGO_PKG_VERSION"),
@@ -274,14 +284,25 @@ async fn stopped() {
 
 /// `verso serve admin reset <e-mail>` (ADR 0074 item 5): run on the
 /// machine or inside the container by whoever runs the server, it ends the
-/// account's sessions and prints a reset link to use once, and the reset
-/// goes into the audit log. Access to the machine is the last factor.
+/// account's sessions, revokes its personal access tokens (ADR 0083 item
+/// 4) and prints a reset link to use once; the reset and each token go
+/// into the audit log. Access to the machine is the last factor.
 pub fn admin_reset(config: &Config, email: &str) -> Result<String, String> {
     let db = prepare(config)?;
     let account = db
         .account_by_email(email)?
         .ok_or_else(|| format!("no account has the e-mail {email}"))?;
     db.end_sessions(&account.id, None)?;
+    for id in db.revoke_tokens_of(&account.id)? {
+        db.audit(&db::Audit {
+            actor: None,
+            action: "token_revoked",
+            subject: Some(&id),
+            folder: None,
+            address: Some("machine"),
+            ok: true,
+        })?;
+    }
     db.end_links_of(&account.id, "reset")?;
     let (token, _) = db.create_invitation(&NewLink {
         kind: "reset",
@@ -313,11 +334,15 @@ mod tests_console;
 #[cfg(test)]
 mod tests_pieces;
 #[cfg(test)]
+mod tests_prove;
+#[cfg(test)]
 mod tests_room_inputs;
 #[cfg(test)]
 mod tests_rooms;
 #[cfg(test)]
 mod tests_shares;
+#[cfg(test)]
+mod tests_signin;
 #[cfg(test)]
 mod tests_sync;
 #[cfg(test)]

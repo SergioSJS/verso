@@ -39,9 +39,8 @@ use libfuzzer_sys::fuzz_target;
 use verso_server::auth::{expected_origin, host_ok, origin_ok, peer};
 use verso_server::config::Config;
 use verso_server::db::Db;
+use verso_server::proxy::Proxies;
 use verso_server::state::Server;
-
-const PROXY: IpAddr = IpAddr::V4(Ipv4Addr::LOCALHOST);
 
 fn server(listen: &str, public_url: Option<&str>, tls: bool, proxy: bool) -> Arc<Server> {
     let config = Config {
@@ -52,7 +51,11 @@ fn server(listen: &str, public_url: Option<&str>, tls: bool, proxy: bool) -> Arc
         ui_dir: PathBuf::from("/nonexistent/ui"),
         web: true,
         admin: None,
-        trusted_proxy: proxy.then_some(PROXY),
+        trusted_proxy: if proxy {
+            Proxies::parse("127.0.0.1").expect("a proxy")
+        } else {
+            Proxies::default()
+        },
         tls: tls.then(|| (PathBuf::from("/c"), PathBuf::from("/k"))),
         update_check: false,
         update_token: None,
@@ -60,6 +63,7 @@ fn server(listen: &str, public_url: Option<&str>, tls: bool, proxy: bool) -> Arc
         mail_from: None,
         folder_quota: None,
         trash_days: 30,
+        audit_days: 365,
     };
     let db = Db::memory().expect("a database in memory");
     Server::new(config, db, "fuzz".to_owned(), "fuzz".to_owned())
@@ -165,7 +169,7 @@ fuzz_target!(|data: &[u8]| {
     }
 
     let p = peer(server, &headers, SocketAddr::new(remote, 50_000));
-    if server.config.trusted_proxy != Some(remote) {
+    if !server.config.trusted_proxy.trusts(remote) {
         assert_eq!(p.addr, remote, "only a trusted proxy forwards an address");
     }
 });
