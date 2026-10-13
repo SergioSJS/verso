@@ -338,3 +338,177 @@ fn past_a_burst_the_rest_routes_answer_429_until_the_next_second() {
         assert!(!crate::log::said("carried no X-Forwarded-For").is_empty());
     });
 }
+
+/// A request's headers are 64 KiB at most (ADR 0083 item 8, F12): one
+/// past it is refused with 431 before it is read whole, and one well
+/// within it is served.
+#[test]
+fn headers_past_64_kib_are_refused_with_431() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    block_on(async {
+        let r = start().await;
+        let first_line = |size: usize| {
+            let addr = r.addr();
+            async move {
+                let mut tcp = tokio::net::TcpStream::connect(addr).await.unwrap();
+                let request = format!(
+                    "GET /api/state HTTP/1.1\r\nHost: localhost\r\nX-Big: {}\r\nConnection: close\r\n\r\n",
+                    "x".repeat(size)
+                );
+                // The server may stop reading before the whole request is
+                // in: what it answered is what is looked at.
+                let _ = tcp.write_all(request.as_bytes()).await;
+                let mut answer = Vec::new();
+                let _ = tokio::time::timeout(Duration::from_secs(5), tcp.read_to_end(&mut answer))
+                    .await;
+                String::from_utf8_lossy(&answer)
+                    .lines()
+                    .next()
+                    .unwrap_or("")
+                    .to_owned()
+            }
+        };
+        assert_eq!(first_line(32 * 1024).await, "HTTP/1.1 200 OK");
+        // Just past the bound, which hyper's buffer alone lets through
+        // when the head arrives in one read, and far past it.
+        for size in [70 * 1024, 300 * 1024] {
+            assert_eq!(
+                first_line(size).await,
+                "HTTP/1.1 431 Request Header Fields Too Large",
+                "{size}"
+            );
+        }
+    });
+}
+
+/// A note room refuses a Yjs update past 4 MB before decoding it (ADR
+/// 0083 item 8, F13), as a board room does: a well-formed update of
+/// tens of megabytes would otherwise be taken into the room's memory and
+/// relayed to every window in it.
+#[test]
+fn a_note_room_refuses_an_update_past_4_mb() {
+    use base64::Engine;
+    use yrs::updates::decoder::Decode;
+    use yrs::{GetString, ReadTxn, Text, Transact};
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &b).await;
+        let mut ws = connect(&r, Some(&b.cookie), Some(&r.origin()), None)
+            .await
+            .unwrap();
+        next(&mut ws).await;
+        call(&mut ws, 1, "open_server_folder", json!({ "id": id })).await;
+        let joined = call(&mut ws, 2, "collab_join", json!({ "path": "Sessao.md" })).await;
+        let doc = yrs::Doc::with_options(yrs::Options {
+            offset_kind: yrs::OffsetKind::Utf16,
+            ..Default::default()
+        });
+        let state = base64::engine::general_purpose::STANDARD
+            .decode(joined["ok"]["update"].as_str().unwrap())
+            .unwrap();
+        doc.transact_mut()
+            .apply_update(yrs::Update::decode_v1(&state).unwrap())
+            .unwrap();
+        let text = doc.get_or_insert_text(crate::collab::TEXT);
+        let typed = |words: &str| {
+            let mut txn = doc.transact_mut();
+            let len = text.get_string(&txn).encode_utf16().count() as u32;
+            let before = txn.state_vector();
+            text.insert(&mut txn, len, words);
+            drop(txn);
+            let txn = doc.transact();
+            base64::engine::general_purpose::STANDARD.encode(txn.encode_state_as_update_v1(&before))
+        };
+        let big = typed(&"x".repeat(crate::collab_board::UPDATE_MOST + 1));
+        let refused = call(
+            &mut ws,
+            3,
+            "collab_update",
+            json!({ "path": "Sessao.md", "update": big }),
+        )
+        .await;
+        let said: String = refused.to_string().chars().take(200).collect();
+        assert_eq!(refused["err"]["kind"], "refused", "{said}");
+        assert!(said.contains("4 MB"), "{said}");
+    });
+}
+
+/// A wrong poll secret counts against the `device:` key of its address
+/// (ADR 0083 item 8, F17): past the free failures the next wrong one
+/// waits; the app that holds the right secret is still answered.
+#[test]
+fn a_wrong_poll_secret_is_delayed_like_a_failed_sign_in() {
+    block_on(async {
+        let r = start().await;
+        let (_, started) = crate::tests::post(
+            &r,
+            "/api/device/start",
+            json!({ "device": "Verso · MacBook" }),
+            None,
+        )
+        .await;
+        let code = started["code"].as_str().unwrap().to_owned();
+        let poll = started["poll"].as_str().unwrap().to_owned();
+        let mut statuses = Vec::new();
+        for _ in 0..3 {
+            let (status, _) = crate::tests::post(
+                &r,
+                "/api/device/poll",
+                json!({ "code": code, "poll": "not the secret" }),
+                None,
+            )
+            .await;
+            statuses.push(status);
+        }
+        // The start counted one; two wrong secrets make the free three.
+        assert_eq!(statuses, [410, 410, 429]);
+        let (status, right) = crate::tests::post(
+            &r,
+            "/api/device/poll",
+            json!({ "code": code, "poll": poll }),
+            None,
+        )
+        .await;
+        assert_eq!((status, &right["pending"]), (200, &json!(true)), "{right}");
+    });
+}
+
+/// The mail routes take a second key, the e-mail mailed to (ADR 0083
+/// item 8, F11): a mailbox is not flooded from many addresses, each
+/// within its own delay.
+#[test]
+fn a_mailbox_is_not_flooded_from_many_addresses() {
+    block_on(async {
+        let r = behind_proxy().await;
+        let _ = r
+            .server
+            .mail
+            .set(crate::mail::Mail::Memory(std::sync::Mutex::new(Vec::new())));
+        let client = reqwest::Client::new();
+        let ask = |route: &'static str, email: &'static str, from: String| {
+            client
+                .post(r.url(route))
+                .header("origin", r.origin())
+                .header("x-forwarded-for", from)
+                .json(&json!({ "email": email }))
+                .send()
+        };
+        for route in ["/api/forgot", "/api/signin/link"] {
+            let mut statuses = Vec::new();
+            for i in 1..=4 {
+                let res = ask(route, "admin@casa.lan", format!("198.51.100.{i}"))
+                    .await
+                    .unwrap();
+                statuses.push(res.status().as_u16());
+            }
+            assert_eq!(statuses, [200, 200, 200, 429], "{route}");
+            // Another mailbox, from another address, is not behind it.
+            let other = ask(route, "ana@casa.lan", "198.51.100.9".to_owned())
+                .await
+                .unwrap();
+            assert_eq!(other.status().as_u16(), 200, "{route}");
+            r.server.limiter.succeeded("mail:admin@casa.lan");
+        }
+    });
+}
