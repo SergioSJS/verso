@@ -859,7 +859,12 @@ Ainda não verificado:
 O servidor freia palpites sozinho — três livres, depois uma espera de 1 s
 que dobra até 60 s, por endereço e por conta, e, sob uma enxurrada de
 recusas vinda de muitos endereços, toda entrada espera a sua vez, 2 s no
-máximo — e nunca tranca uma conta (ADR 0074 item 9). Ele não bane
+máximo — e nunca tranca uma conta (ADR 0074 item 9). Uma conta recusada
+20 vezes numa hora, de qualquer endereço, é avisada por e-mail, no máximo
+uma vez por dia, quando o servidor tem um servidor de e-mail (o
+`VERSO_SMTP_URL` da seção 7); o log tem uma linha `INFO` para cada aviso,
+e a visão geral do console os conta nas últimas 24 horas (ADR 0083 item
+2). Ele não bane
 ninguém: isso é trabalho do firewall do host, e o servidor dá a ele uma
 linha do log por entrada recusada (ADR 0083 item 1):
 

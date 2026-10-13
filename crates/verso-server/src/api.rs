@@ -126,34 +126,43 @@ pub async fn sign_in(ctx: Ctx, Json(body): Json<SignIn>) -> ApiResult<Response> 
     let by_address = format!("in:{}", ctx.peer.key());
     let by_account = format!("in:{}", db::fold_email(&body.email));
     limited(&ctx, &[&by_address, &by_account])?;
+    // Past the server's pace of refusals, every sign-in waits its turn
+    // (ADR 0083 item 2).
+    let turn = ctx.server.signins.turn();
+    if !turn.is_zero() {
+        tokio::time::sleep(turn).await;
+    }
     let server = std::sync::Arc::clone(&ctx.server);
     let email = body.email.clone();
     let password = body.password.clone();
-    let found = tokio::task::spawn_blocking(move || -> Result<Option<db::Account>, String> {
-        let account = server.db.account_by_email(&email)?;
-        match account {
-            Some(a)
-                if a.password
+    // The account, and whether the password is its: an unknown e-mail
+    // costs a hash too.
+    let found =
+        tokio::task::spawn_blocking(move || -> Result<(Option<db::Account>, bool), String> {
+            let account = server.db.account_by_email(&email)?;
+            let right = match &account {
+                Some(a) => a
+                    .password
                     .as_deref()
-                    .is_some_and(|h| crate::crypto::verify_password(&password, h)) =>
-            {
-                Ok(Some(a))
-            }
-            Some(_) => Ok(None),
-            None => {
-                crate::crypto::waste_time(&password);
-                Ok(None)
-            }
-        }
-    })
-    .await
-    .map_err(|e| e.to_string())??;
-    let Some(account) = found else {
+                    .is_some_and(|h| crate::crypto::verify_password(&password, h)),
+                None => {
+                    crate::crypto::waste_time(&password);
+                    false
+                }
+            };
+            Ok((account, right))
+        })
+        .await
+        .map_err(|e| e.to_string())??;
+    let (Some(account), true) = found else {
         ctx.server.limiter.failed(&by_address);
         ctx.server.limiter.failed(&by_account);
-        ctx.server
-            .signins
-            .failed(&ctx.peer.key(), Some(&body.email));
+        crate::signin::refused(
+            &ctx.server,
+            &ctx.peer.key(),
+            Some(&body.email),
+            found.0.as_ref(),
+        );
         ctx.audit("sign_in", Some(&db::fold_email(&body.email)), None, false);
         return Err(ApiError::new(
             StatusCode::UNAUTHORIZED,
@@ -481,9 +490,12 @@ pub async fn password(ctx: Ctx, Json(body): Json<Password>) -> ApiResult<Respons
     .map_err(|e| e.to_string())?;
     if !right {
         ctx.server.limiter.failed(&key);
-        ctx.server
-            .signins
-            .failed(&ctx.peer.key(), Some(&who.account.email));
+        crate::signin::refused(
+            &ctx.server,
+            &ctx.peer.key(),
+            Some(&who.account.email),
+            Some(&who.account),
+        );
         ctx.audit("password_change", None, None, false);
         return Err(ApiError::new(
             StatusCode::FORBIDDEN,

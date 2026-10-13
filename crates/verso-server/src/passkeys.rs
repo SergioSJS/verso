@@ -201,6 +201,12 @@ pub struct SignInFinish {
 /// The device answered: a session, as a password's sign-in makes.
 pub async fn sign_in_finish(ctx: Ctx, Json(body): Json<SignInFinish>) -> ApiResult<Response> {
     ctx.changes()?;
+    // Past the server's pace of refusals, every sign-in waits its turn
+    // (ADR 0083 item 2).
+    let turn = ctx.server.signins.turn();
+    if !turn.is_zero() {
+        tokio::time::sleep(turn).await;
+    }
     let (_, account_id, state) = lock(&ctx.server.ceremonies.signing_in)
         .remove(&body.ceremony)
         .filter(|(at, _, _)| at.elapsed() < LIFE)
@@ -211,10 +217,13 @@ pub async fn sign_in_finish(ctx: Ctx, Json(body): Json<SignInFinish>) -> ApiResu
         Err(e) => {
             // Said as a password's refusal is, under the account's e-mail
             // (ADR 0083 item 1): the ceremony was started for it.
-            let email = ctx.server.db.account(&account_id)?.map(|a| a.email);
-            ctx.server
-                .signins
-                .failed(&ctx.peer.key(), Some(email.as_deref().unwrap_or("")));
+            let account = ctx.server.db.account(&account_id)?;
+            crate::signin::refused(
+                &ctx.server,
+                &ctx.peer.key(),
+                Some(account.as_ref().map_or("", |a| a.email.as_str())),
+                account.as_ref(),
+            );
             ctx.audit_as(Some(&account_id), "sign_in_passkey", None, None, false);
             return Err(ApiError::new(
                 StatusCode::UNAUTHORIZED,

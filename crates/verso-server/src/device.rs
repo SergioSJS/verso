@@ -193,6 +193,12 @@ pub struct Poll {
 /// device's token once, `link_gone` after.
 pub async fn poll(ctx: Ctx, Json(body): Json<Poll>) -> ApiResult<Response> {
     ctx.secure()?;
+    // Past the server's pace of refusals, every sign-in waits its turn
+    // (ADR 0083 item 2).
+    let turn = ctx.server.signins.turn();
+    if !turn.is_zero() {
+        tokio::time::sleep(turn).await;
+    }
     let code = body.code.to_ascii_uppercase();
     let mut devices = lock(&ctx.server.devices);
     let Some(p) = devices.get(&code) else {
@@ -206,7 +212,7 @@ pub async fn poll(ctx: Ctx, Json(body): Json<Poll>) -> ApiResult<Response> {
         // A wrong poll secret is a guess at a device's sign-in: said as a
         // refused one, under no e-mail (ADR 0083 item 1).
         drop(devices);
-        ctx.server.signins.failed(&ctx.peer.key(), None);
+        crate::signin::refused(&ctx.server, &ctx.peer.key(), None, None);
         return Err(ApiError::new(
             StatusCode::GONE,
             "link_gone",

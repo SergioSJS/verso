@@ -822,7 +822,11 @@ Not verified yet:
 The server slows guesses by itself — three free, then a wait from 1 s
 doubling to 60 s, by address and by account, and, under a flood of
 refusals across many addresses, every sign-in waits its turn, 2 s at
-most — and never locks an account (ADR 0074 item 9). It bans nobody:
+most — and never locks an account (ADR 0074 item 9). An account refused
+20 times within an hour, from any address, is told by mail, once a day
+at most, when the server has a mail server (section 7's
+`VERSO_SMTP_URL`); the log has an `INFO` line for each, and the console's
+overview counts them for the last 24 hours (ADR 0083 item 2). It bans nobody:
 that is the host's firewall's work, and the server gives it one line of
 its log per refused sign-in (ADR 0083 item 1):
 
