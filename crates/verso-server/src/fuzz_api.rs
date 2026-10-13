@@ -15,8 +15,7 @@
 
 use serde_json::Value;
 use yrs::ClientID;
-use yrs::updates::decoder::Decode;
-use yrs::{Doc, Options, ReadTxn, StateVector, Transact, Update};
+use yrs::{Doc, Options, ReadTxn, StateVector, Transact};
 
 use crate::collab::{self, Kind};
 use crate::collab_board::{self, Board};
@@ -45,7 +44,7 @@ pub fn binary_request(message: &[u8]) -> Option<(Option<Request>, &[u8])> {
 /// A window's update, as `collab::update` takes it once the room is found
 /// and the window is in it: decoded, then [`collab::take`].
 fn update(kind: Kind, doc: &Doc, board: &mut Board, bytes: &[u8]) -> Result<(), String> {
-    let decoded = Update::decode_v1(bytes).map_err(|e| format!("not a Yjs update: {e}"))?;
+    let decoded = collab::decode(bytes).map_err(|e| e.message)?;
     collab::take(kind, doc, board, bytes, decoded).map_err(|e| e.message)
 }
 

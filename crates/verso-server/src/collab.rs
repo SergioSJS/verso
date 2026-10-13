@@ -465,8 +465,7 @@ pub fn update(
         .get(key, path)
         .ok_or_else(|| refused("join the note first"))?;
     let bytes = unb64(update)?;
-    let decoded =
-        Update::decode_v1(&bytes).map_err(|e| refused(&format!("not a Yjs update: {e}")))?;
+    let decoded = decode(&bytes)?;
     let mut r = lock(&room);
     if !r.clients.contains(client) {
         return Err(refused("join the note first"));
@@ -489,6 +488,39 @@ pub fn update(
         schedule(server, Arc::clone(&room));
     }
     Ok(())
+}
+
+/// The count a Yjs v1 encoding starts with, lib0's variable-length
+/// integer: an update's clients, a state vector's entries. `None` when
+/// the bytes end inside it.
+fn declared(bytes: &[u8]) -> Option<u64> {
+    let mut n: u64 = 0;
+    for (i, b) in bytes.iter().take(10).enumerate() {
+        n |= u64::from(b & 0x7f) << (7 * i);
+        if b & 0x80 == 0 {
+            return Some(n);
+        }
+    }
+    None
+}
+
+/// A window's update or state vector `bytes`, refused before `yrs` reads
+/// it when it declares more clients or entries than it has bytes: `yrs`
+/// reserves room for every one declared before it reads the first (ADR
+/// 0083 item 14; the fuzz targets `note` and `board` saw 22 GB asked for
+/// four bytes). No real one declares more than it has bytes.
+pub(crate) fn readable(bytes: &[u8]) -> Result<(), ContractError> {
+    let len = u64::try_from(bytes.len()).unwrap_or(u64::MAX);
+    match declared(bytes) {
+        Some(count) if count > len => Err(refused("an update the room cannot read")),
+        _ => Ok(()),
+    }
+}
+
+/// A window's update, decoded once it is [`readable`].
+pub(crate) fn decode(bytes: &[u8]) -> Result<Update, ContractError> {
+    readable(bytes)?;
+    Update::decode_v1(bytes).map_err(|e| refused(&format!("not a Yjs update: {e}")))
 }
 
 /// A window's update `bytes`, decoded, taken into a room's document: a
@@ -1259,13 +1291,7 @@ mod tests {
     /// takes them; then the room's state, as `join` sends it, applied by a
     /// window that joins.
     fn board_replayed(input: &[u8]) {
-        let mut records = Vec::new();
-        let mut data = input;
-        while let Some((len, rest)) = data.split_first_chunk::<2>() {
-            let len = usize::from(u16::from_le_bytes(*len)).min(rest.len());
-            records.push(&rest[..len]);
-            data = &rest[len..];
-        }
+        let records = records(input);
         let base = String::from_utf8_lossy(records.first().copied().unwrap_or_default());
         let doc = crate::collab_board::based(Doc::with_client_id(1), &base);
         let mut board = crate::collab_board::Board::of(&doc);
@@ -1302,5 +1328,41 @@ mod tests {
         board_replayed(include_bytes!(
             "../fuzz/seeds-board/state-that-does-not-apply.bin"
         ));
+    }
+
+    /// A fuzz input's records (`fuzz/fuzz_targets/records.rs`): each a
+    /// two-byte length and its bytes.
+    fn records(input: &[u8]) -> Vec<&[u8]> {
+        let mut records = Vec::new();
+        let mut data = input;
+        while let Some((len, rest)) = data.split_first_chunk::<2>() {
+            let len = usize::from(u16::from_le_bytes(*len)).min(rest.len());
+            records.push(&rest[..len]);
+            data = &rest[len..];
+        }
+        records
+    }
+
+    /// Found by the fuzz target `note`: four bytes that declare 2^28
+    /// clients, for which `yrs` reserved 22 GB before reading one. Refused
+    /// before `yrs` sees them.
+    #[test]
+    fn an_update_that_declares_more_clients_than_bytes_is_refused() {
+        let input = include_bytes!("../fuzz/seeds-note/clients-count-bomb.bin");
+        let update = records(input)[3];
+        let e = decode(update).expect_err("refused");
+        assert_eq!(e.message, "an update the room cannot read");
+    }
+
+    /// Found by the fuzz target `board`: a window's state vector that
+    /// declares 243 million entries in four bytes (9 GB reserved).
+    #[test]
+    fn a_state_vector_that_declares_more_entries_than_bytes_is_refused() {
+        let input = include_bytes!("../fuzz/seeds-board/state-vector-count-bomb.bin");
+        let at = records(input)[2];
+        let doc = crate::collab_board::new_doc("{}");
+        let mut board = crate::collab_board::Board::of(&doc);
+        let e = board.keep(at, String::new()).expect_err("refused");
+        assert_eq!(e.message, "an update the room cannot read");
     }
 }
