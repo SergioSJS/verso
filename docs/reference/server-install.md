@@ -408,8 +408,11 @@ Without `VERSO_SMTP_URL` nothing is sent: the admin copies the invitation and re
 
 The server refuses to sign anyone in over plain HTTP (0073 item 6). A
 request counts as secure when Verso serves TLS itself, when it comes from
-`VERSO_TRUSTED_PROXY` with `X-Forwarded-Proto: https`, or when Verso
-listens on loopback and the request comes from this machine. A browser
+`VERSO_TRUSTED_PROXY` with `X-Forwarded-Proto: https` — through a trusted
+proxy that header alone decides, so a proxy that sends none, or `http`,
+has its visitors refused (`tls_required`) — or when Verso listens on
+loopback and the request comes directly from this machine, not through a
+trusted proxy. A browser
 also needs HTTPS for the window's secure features (passkeys among them).
 Three ways, decided in 0073 item 6:
 
