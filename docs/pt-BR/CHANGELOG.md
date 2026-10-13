@@ -12,7 +12,9 @@ versão de teste.
 
 ## Não lançado
 
-Nada ainda.
+### Acrescentado
+
+- **O UniVerso diz no log cada entrada recusada, para o fail2ban e o CrowdSec** ([ADR 0083](adr/0083-security-hardening-of-universo.md) item 1): uma linha cada — `WARN sign-in failed from <endereço> for a***@example.org (<n> in a row)` — para uma senha errada, uma chave de acesso recusada, o segredo errado na consulta de um aparelho ou a senha atual errada, e `WARN sign-in limited from <endereço>` uma vez por minuto quando o atraso recusa; o endereço como o proxy confiável o encaminhou (um IPv6 pelo seu /64), o e-mail mascarado. O `.deb` e o `.rpm` instalam um filtro e uma jail do fail2ban (dez recusas em dez minutos banem o endereço por uma hora), que não fazem nada até o fail2ban ser instalado e que uma atualização mantém depois de editados; um parser e cenários do CrowdSec estão em `packaging/server/crowdsec/`. A nova seção 16 do guia de instalação explica os dois, e o `rate_limit` do Caddy. Uma linha do log não ocupa mais duas linhas, contenha o que contiver a mensagem.
 
 ## 0.8.0-beta.1 — 2026-10-13
 

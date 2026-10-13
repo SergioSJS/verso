@@ -37,6 +37,7 @@ pub mod scope;
 pub mod share_links;
 pub mod share_sync;
 pub mod shares;
+pub mod signin;
 pub mod state;
 pub mod sync;
 pub mod tls;

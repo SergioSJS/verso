@@ -5975,6 +5975,7 @@ dependencies = [
  "lettre",
  "openssl",
  "rcgen",
+ "regex",
  "reqwest",
  "rusqlite",
  "rustls-pki-types",

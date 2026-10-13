@@ -249,6 +249,8 @@ pub struct Server {
     /// What one member may hold of the server: connections, the pace of
     /// commands (threat-model.md, gap 4).
     pub fair: crate::fair::Fair,
+    /// Refused sign-ins, said for the host's tools (ADR 0083 item 1).
+    pub signins: crate::signin::Watch,
     /// The connections the listener holds, on the server and by address
     /// (threat-model.md, gap 8).
     pub slots: Arc<crate::listen::Slots>,
@@ -317,6 +319,7 @@ impl Server {
             clients: Mutex::new(HashMap::new()),
             limiter: Limiter::default(),
             fair: crate::fair::Fair::default(),
+            signins: crate::signin::Watch::default(),
             slots,
             contract,
             next: AtomicU64::new(1),

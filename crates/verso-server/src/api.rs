@@ -96,16 +96,18 @@ fn signed_in(ctx: &Ctx, account: &db::Account, body: serde_json::Value) -> ApiRe
     Ok(response)
 }
 
-/// Wait out the delay of `keys`, or refuse.
+/// Wait out the delay of `keys`, or refuse — said in the log once a
+/// minute per key (ADR 0083 item 1).
 fn limited(ctx: &Ctx, keys: &[&str]) -> ApiResult<()> {
-    let wait = keys
+    let (wait, key) = keys
         .iter()
-        .map(|k| ctx.server.limiter.wait(k))
+        .map(|k| (ctx.server.limiter.wait(k), *k))
         .max()
         .unwrap_or_default();
     if wait.is_zero() {
         Ok(())
     } else {
+        ctx.server.signins.limited(key, &ctx.peer.key());
         Err(ApiError::wait(wait.as_secs() + 1))
     }
 }
@@ -149,6 +151,9 @@ pub async fn sign_in(ctx: Ctx, Json(body): Json<SignIn>) -> ApiResult<Response> 
     let Some(account) = found else {
         ctx.server.limiter.failed(&by_address);
         ctx.server.limiter.failed(&by_account);
+        ctx.server
+            .signins
+            .failed(&ctx.peer.key(), Some(&body.email));
         ctx.audit("sign_in", Some(&db::fold_email(&body.email)), None, false);
         return Err(ApiError::new(
             StatusCode::UNAUTHORIZED,
@@ -158,6 +163,9 @@ pub async fn sign_in(ctx: Ctx, Json(body): Json<SignIn>) -> ApiResult<Response> 
     };
     ctx.server.limiter.succeeded(&by_address);
     ctx.server.limiter.succeeded(&by_account);
+    ctx.server
+        .signins
+        .succeeded(&ctx.peer.key(), Some(&body.email));
     ctx.audit_as(Some(&account.id), "sign_in", None, None, true);
     signed_in(&ctx, &account, json!(null))
 }
@@ -473,6 +481,9 @@ pub async fn password(ctx: Ctx, Json(body): Json<Password>) -> ApiResult<Respons
     .map_err(|e| e.to_string())?;
     if !right {
         ctx.server.limiter.failed(&key);
+        ctx.server
+            .signins
+            .failed(&ctx.peer.key(), Some(&who.account.email));
         ctx.audit("password_change", None, None, false);
         return Err(ApiError::new(
             StatusCode::FORBIDDEN,
@@ -480,6 +491,9 @@ pub async fn password(ctx: Ctx, Json(body): Json<Password>) -> ApiResult<Respons
             "wrong password",
         ));
     }
+    ctx.server
+        .signins
+        .succeeded(&ctx.peer.key(), Some(&who.account.email));
     check_password(&body.new)?;
     ctx.server.db.set_password(&who.account.id, &body.new)?;
     ctx.server.db.end_sessions(&who.account.id, who.session())?;
