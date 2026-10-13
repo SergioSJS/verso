@@ -20,7 +20,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::crypto;
 
 /// The schema's version, in `PRAGMA user_version`.
-const SCHEMA: i64 = 8;
+const SCHEMA: i64 = 9;
 
 /// Schema 8: sharing a folder inside a folder (ADR 0081 items 1, 2, 9, 11
 /// and 15): a share is a path of one folder with an id of its own, its
@@ -502,6 +502,7 @@ impl Db {
             (6, DEVICES),
             (7, trash::TRASH),
             (8, SHARES),
+            (9, proof::PROOF),
         ]
         .iter()
         .filter(|(at, _)| *at > version)
@@ -676,7 +677,8 @@ impl Db {
 
     /* ---------- sessions ---------- */
 
-    /// A new session for `account`: the token to hand over, once, and the
+    /// A new session for `account`, proved now — a sign-in, or a device's
+    /// approval (ADR 0083 item 6): the token to hand over, once, and the
     /// session's CSRF token.
     pub fn create_session(
         &self,
@@ -690,8 +692,8 @@ impl Db {
         let at = now();
         self.conn()
             .execute(
-                "INSERT INTO sessions (id, hash, account, kind, device, csrf, created, last_used, address)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7, ?8)",
+                "INSERT INTO sessions (id, hash, account, kind, device, csrf, created, last_used, address, proved_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7, ?8, ?7)",
                 params![crypto::id()?, crypto::hash(&token), account, kind, device, csrf, at, address],
             )
             .map_err(e)?;
@@ -1322,6 +1324,7 @@ impl Db {
 }
 
 mod console;
+mod proof;
 mod shares;
 mod sync;
 mod tokens;

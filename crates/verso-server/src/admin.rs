@@ -88,6 +88,9 @@ pub async fn set_powers(
 ) -> ApiResult<Response> {
     ctx.changes()?;
     let me = ctx.admin()?.account.id.clone();
+    // A fresh proof first (ADR 0083 item 6), as for each of the admin's
+    // acts on an account or a folder below.
+    ctx.proved()?;
     let target = ctx
         .server
         .db
@@ -118,6 +121,7 @@ pub async fn set_powers(
 pub async fn delete_account(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
     ctx.changes()?;
     let me = ctx.admin()?.account.id.clone();
+    ctx.proved()?;
     if id == me {
         return Err(ApiError::bad("last_admin", "another admin removes you"));
     }
@@ -158,6 +162,7 @@ pub async fn delete_account(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Respo
 pub async fn end_sessions(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
     ctx.changes()?;
     let me = ctx.admin()?.account.id.clone();
+    ctx.proved()?;
     if id == me {
         return Err(ApiError::bad(
             "own_account",
@@ -347,6 +352,7 @@ pub async fn enter(
 ) -> ApiResult<Response> {
     ctx.changes()?;
     let me = ctx.admin()?.account.id.clone();
+    ctx.proved()?;
     ctx.server.db.folder(&id)?.ok_or_else(ApiError::not_found)?;
     ctx.server.db.grant(&id, &me, body.role)?;
     ctx.audit(

@@ -96,7 +96,7 @@ fn signed_in(ctx: &Ctx, account: &db::Account, body: serde_json::Value) -> ApiRe
 
 /// Wait out the delay of `keys`, or refuse — said in the log once a
 /// minute per key (ADR 0083 item 1).
-fn limited(ctx: &Ctx, keys: &[&str]) -> ApiResult<()> {
+pub(crate) fn limited(ctx: &Ctx, keys: &[&str]) -> ApiResult<()> {
     let (wait, key) = keys
         .iter()
         .map(|k| (ctx.server.limiter.wait(k), *k))
@@ -494,6 +494,9 @@ pub struct Password {
 pub async fn password(ctx: Ctx, Json(body): Json<Password>) -> ApiResult<Response> {
     ctx.changes()?;
     let who = ctx.person()?.clone();
+    // A fresh proof first, and the current password still (ADR 0083 item
+    // 6): a stale cookie reaches neither the change nor a guess at it.
+    ctx.proved()?;
     let key = format!("in:{}", db::fold_email(&who.account.email));
     limited(&ctx, &[&key])?;
     // Argon2id on the blocking pool, as a sign-in's (threat-model.md,
@@ -601,6 +604,8 @@ pub async fn create_token(ctx: Ctx, Json(body): Json<NewToken>) -> ApiResult<Res
     if !matches!(who.via, Via::Browser { .. }) {
         return Err(ApiError::forbidden("tokens are made in the browser"));
     }
+    // A fresh proof first (ADR 0083 item 6).
+    ctx.proved()?;
     check_name(&body.name)?;
     if body.name.trim().is_empty() || body.folders.is_empty() {
         return Err(ApiError::bad(

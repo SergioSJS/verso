@@ -211,6 +211,13 @@ const pt = {
   noAddress: "As passkeys precisam do endereço público do servidor (VERSO_PUBLIC_URL).",
   passkeyFailed: "A passkey não foi aceita. Tente de novo.",
   badRequest: "Confira os campos: falta alguma coisa, ou algo passou do limite.",
+  // A fresh proof before a sensitive action (ADR 0083 item 6).
+  proveTitle: "Confirme que é você",
+  proveLead: "Esta ação pede a sua senha de novo, ou uma passkey: a última confirmação foi há mais de 10 minutos.",
+  proveConfirm: "Confirmar",
+  provePasskey: "Usar uma passkey",
+  proveWrong: "Senha errada.",
+  proveFirst: "Esta ação pede que você confirme que é você. Tente de novo e confirme.",
 };
 
 export type WebStrings = typeof pt;
@@ -418,6 +425,12 @@ const en: WebStrings = {
   noAddress: "Passkeys need the server's public address (VERSO_PUBLIC_URL).",
   passkeyFailed: "The passkey was not accepted. Try again.",
   badRequest: "Check the fields: something is missing, or over the limit.",
+  proveTitle: "Confirm it is you",
+  proveLead: "This action asks for your password again, or a passkey: you last confirmed more than 10 minutes ago.",
+  proveConfirm: "Confirm",
+  provePasskey: "Use a passkey",
+  proveWrong: "Wrong password.",
+  proveFirst: "This action needs you to confirm it is you. Try again and confirm.",
 };
 
 let current: Lang = navigator.language.toLowerCase().startsWith("pt") ? "pt" : "en";
