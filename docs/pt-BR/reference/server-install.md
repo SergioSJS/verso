@@ -39,7 +39,9 @@ sh universo.sh install --url https://notas.exemplo.com
 | `uninstall [--purge]` | remove o pacote e diz o que deixou: `/var/lib/universo`, `/etc/universo`, o usuário `universo`. O `--purge` remove esses também, depois de você digitar `/var/lib/universo` de volta |
 | `status` | o estado do serviço, a versão, o endereço em que escuta, o tamanho dos dois diretórios, as últimas 5 linhas do log |
 | `logs [-f]` | `journalctl -u universo` |
-| `backup [PASTA]` | para o serviço, empacota `/var/lib/universo` e `/etc/universo` em `universo-backup-<data>-<hora>.tar.gz` na `PASTA` (`/var/backups/universo` por padrão), liga de novo; recusa quando a `PASTA` tem menos espaço livre do que os dois diretórios ocupam |
+| `backup [PASTA] [--encrypt \| --passphrase] [--to-stdout]` | para o serviço, empacota `/var/lib/universo` e `/etc/universo` em `universo-backup-<data>-<hora>.tar.gz` na `PASTA` (`/var/backups/universo` por padrão), liga de novo; recusa quando a `PASTA` tem menos espaço livre do que os dois diretórios ocupam. `--encrypt` criptografa com o `age` (`.tar.gz.age`), `--passphrase` para uma frase-senha digitada, `--to-stdout` escreve na saída padrão para um pipe (seção 2) |
+| `backup --keygen` | cria a chave dos backups criptografados, uma vez: a pública em `/etc/universo/backup.pub`, a secreta impressa, nunca guardada na máquina (seção 2) |
+| `restore ARQUIVO [--identity ARQUIVO-DA-CHAVE] [--to PASTA]` | põe um backup de volta sobre `/var/lib/universo` e `/etc/universo` depois de você digitar `/var/lib/universo`, com o serviço parado enquanto isso; um criptografado com a chave secreta ou a frase-senha; `--to PASTA` desempacota na `PASTA`, sem tocar no servidor (seção 2) |
 | `reset-admin [E-MAIL]` | o comando da seção 10 |
 | `firewall` | abre 80 e 443 com ufw, firewalld ou iptables (mantidas entre reboots com o `netfilter-persistent` quando ele existe), e lembra que o firewall da própria nuvem (a security list da VCN da Oracle) se abre no console dela. Só quando pedido: o `install` nunca mexe no firewall |
 
@@ -99,6 +101,48 @@ arquivos do banco junto com os `-wal` e `-shm` que estiverem ao lado) e
 inicie de novo — ou tire um snapshot do volume (ZFS, btrfs, LVM) e copie a
 partir do snapshot. Depois mande a cópia para outro lugar, por exemplo com
 `rclone` para um bucket (a receita da 0073, Consequências).
+
+### Criptografado, fora da máquina
+
+Um backup contém os hashes das senhas, as sessões, todas as notas e o
+arquivo de configurações (que pode ter a senha do primeiro admin): copiado
+para fora da máquina às claras, é tudo isso na mão de outra pessoa. O
+script de instalação o criptografa com o [age](https://age-encryption.org)
+([ADR 0083](../adr/0083-security-hardening-of-universo.md) item 12), que o
+Debian, o Ubuntu, o Fedora e o Alpine trazem (`sudo apt install age`;
+`sudo dnf install age`, no RHEL pelo EPEL):
+
+```sh
+sudo sh universo.sh backup --keygen     # uma vez: a chave
+sudo sh universo.sh backup --encrypt    # a cada backup
+```
+
+O `--keygen` grava a chave pública em `/etc/universo/backup.pub` e imprime
+a **chave secreta** — três linhas, entre elas `AGE-SECRET-KEY-1…` — na
+saída padrão, sem guardá-la em lugar nenhum da máquina: ponha num
+gerenciador de senhas ou em outra máquina. Quem a tem lê todos os backups;
+sem ela nenhum pode ser restaurado. Ele se recusa a substituir um
+`backup.pub` que já existe: tire-o do lugar antes, guardando a chave
+secreta antiga para os backups antigos. `--passphrase` no lugar de uma
+chave pede uma frase-senha no terminal. Sem o `age`, o `--encrypt` diz como
+instalá-lo e faz o tarball sem criptografia, com um aviso em maiúsculas.
+
+`--to-stdout` escreve o backup (criptografado ou não) na saída padrão, para
+um pipeline seu, por exemplo
+`sudo sh universo.sh backup --encrypt --to-stdout | rclone rcat remote:universo/$(date +%F).tar.gz.age`.
+
+Para restaurar, com o serviço parado enquanto isso e depois de você
+digitar `/var/lib/universo`:
+
+```sh
+sudo sh universo.sh restore universo-backup-<data>-<hora>.tar.gz.age --identity chave.txt
+```
+
+com a chave secreta em `chave.txt` só naquela hora (ou o `age` pede a
+frase-senha); um backup sem criptografia não precisa de `--identity`.
+`--to /uma/pasta` desempacota lá, para olhar antes, sem tocar no servidor.
+À mão: `age -d -i chave.txt ARQUIVO | sudo tar -xzpf - -C /` com o serviço
+parado.
 
 ### Bancos de dados num NAS
 
