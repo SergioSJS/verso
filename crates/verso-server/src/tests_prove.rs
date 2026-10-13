@@ -600,3 +600,53 @@ fn a_reset_link_and_a_members_role_want_a_fresh_proof() {
         );
     });
 }
+
+/// An invitation that carries a folder or a share hands that folder over,
+/// with any role up to owner: the admin's invitation wants a fresh proof
+/// then, as entering a folder does; one that carries none is a link to sign
+/// up and still goes without.
+#[test]
+fn an_invitation_to_a_folder_wants_a_fresh_proof() {
+    use reqwest::Method;
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let me = id_of(&r, "admin@casa.lan");
+        let folder = crate::tests::folder_id(&r, &admin).await;
+        stale(&r, &me);
+        for body in [
+            json!({ "folder": folder, "role": "owner" }),
+            json!({ "email": "nova@prova.example", "folder": folder }),
+            json!({ "share": "nobody", "role": "editor" }),
+        ] {
+            let said = send(
+                &r,
+                Method::POST,
+                "/api/admin/invitations",
+                Some(body.clone()),
+                &admin,
+            )
+            .await;
+            assert_eq!(said, prove_first(), "an aged proof invited with {body}");
+        }
+        let (status, plain) = send(
+            &r,
+            Method::POST,
+            "/api/admin/invitations",
+            Some(json!({ "email": "nova@prova.example" })),
+            &admin,
+        )
+        .await;
+        assert_eq!(status, 200, "an invitation with no folder: {plain}");
+        let (status, made) = gated(
+            &r,
+            &admin,
+            &me,
+            Method::POST,
+            "/api/admin/invitations",
+            Some(json!({ "folder": folder, "role": "owner" })),
+        )
+        .await;
+        assert_eq!(status, 200, "{made}");
+    });
+}
