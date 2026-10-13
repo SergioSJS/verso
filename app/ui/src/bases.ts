@@ -23,6 +23,12 @@ import { baseStrings, LOCALE, t } from "./strings";
 /** Every base on screen — a tab, a block, an embed — drawn again when the
  *  folder changes. */
 export const liveBases = new Set<BaseView>();
+// A live note's room wrote its file (collab.ts): a value committed into it
+// from a base's cell is the file's now — each view reads it again.
+addEventListener("verso:room-saved", (e) => {
+  const path = (e as CustomEvent<string>).detail;
+  for (const v of liveBases) v.roomSaved(path);
+});
 /* ---------- Bases (ADR 0053) ---------- */
 export let basesTimer: number | undefined;
 /** Every base on screen asks the core again, once the changes settle. */

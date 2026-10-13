@@ -33,10 +33,11 @@ pub(crate) async fn open_window<R: tauri::Runtime>(
         .trim_end_matches(".md")
         .to_owned();
     lock(&state.popouts).insert(label.clone(), path);
-    tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::App("index.html".into()))
-        .title(title)
-        .inner_size(920.0, 720.0)
-        .min_inner_size(360.0, 400.0)
+    let builder =
+        tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::App("index.html".into()))
+            .title(title)
+            .min_inner_size(360.0, 400.0);
+    sized(&app, builder, (920.0, 720.0), (360.0, 400.0))
         .disable_drag_drop_handler()
         .on_download(on_download)
         .build()
@@ -97,10 +98,117 @@ pub(crate) fn open_folder_window<R: tauri::Runtime>(
         .cloned()
         .unwrap_or_default();
     config.label = label;
+    fit_config(app, &mut config);
     open_frameless(
         tauri::WebviewWindowBuilder::from_config(app, &config)?.on_download(on_download),
     )?;
     Ok(())
+}
+
+/// A window's size, fitted to a screen's work area — the screen less its
+/// task bar, dock or menu bar — in logical pixels `(x, y, width, height)`.
+/// None when the size asked fits: the window keeps it and the system's
+/// placement, as on any large screen. Otherwise the largest size that
+/// fits, never under the window's minimum, centred in the work area: on a
+/// 1280×800 screen (the Windows VM, at 100% or 125%) the first window was
+/// taller than the screen and its status bar under the task bar.
+pub(crate) fn fit_to_area(
+    asked: (f64, f64),
+    min: (f64, f64),
+    area: (f64, f64, f64, f64),
+) -> Option<(f64, f64, f64, f64)> {
+    let (x, y, w, h) = area;
+    if w <= 0.0 || h <= 0.0 || (asked.0 <= w && asked.1 <= h) {
+        return None;
+    }
+    let width = asked.0.min(w).max(min.0);
+    let height = asked.1.min(h).max(min.1);
+    Some((
+        width,
+        height,
+        x + ((w - width) / 2.0).max(0.0),
+        y + ((h - height) / 2.0).max(0.0),
+    ))
+}
+
+/// The primary screen's work area in logical pixels, where a new window
+/// opens; none when the system does not say. Asked on the main thread:
+/// AppKit and GTK answer only there, and a window made by a command is
+/// made from another one (run at once when already on it, as at the
+/// start).
+fn work_area<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<(f64, f64, f64, f64)> {
+    // The tests' mock runtime has no screen: its handle panics when asked.
+    if cfg!(test) {
+        return None;
+    }
+    let (tx, rx) = std::sync::mpsc::channel();
+    let handle = app.clone();
+    app.run_on_main_thread(move || {
+        let area = handle.primary_monitor().ok().flatten().map(|monitor| {
+            let scale = monitor.scale_factor();
+            let area = monitor.work_area();
+            let at = area.position.to_logical::<f64>(scale);
+            let size = area.size.to_logical::<f64>(scale);
+            (at.x, at.y, size.width, size.height)
+        });
+        let _ = tx.send(area);
+    })
+    .ok()?;
+    rx.recv_timeout(std::time::Duration::from_secs(2))
+        .ok()
+        .flatten()
+}
+
+/// A window's size asked, fitted to the screen (`fit_to_area`): what the
+/// builder is given, and where, when it had to change.
+pub(crate) fn fitted<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    asked: (f64, f64),
+    min: (f64, f64),
+) -> Option<(f64, f64, f64, f64)> {
+    let area = work_area(app)?;
+    let fit = fit_to_area(asked, min, area)?;
+    log::write(
+        "INFO",
+        "host",
+        &format!(
+            "window fitted to the screen: {:.0}×{:.0} asked, {:.0}×{:.0} given in a work area of {:.0}×{:.0}",
+            asked.0, asked.1, fit.0, fit.1, area.2, area.3
+        ),
+    );
+    Some(fit)
+}
+
+/// A folder's window configuration fitted to the screen (`fitted`).
+pub(crate) fn fit_config<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    config: &mut tauri::utils::config::WindowConfig,
+) {
+    let min = (
+        config.min_width.unwrap_or(0.0),
+        config.min_height.unwrap_or(0.0),
+    );
+    if let Some((width, height, x, y)) = fitted(app, (config.width, config.height), min) {
+        config.width = width;
+        config.height = height;
+        config.x = Some(x);
+        config.y = Some(y);
+        config.center = false;
+    }
+}
+
+/// A builder given a size fitted to the screen (`fitted`): the size asked
+/// on a large one.
+pub(crate) fn sized<'a, R: tauri::Runtime, M: tauri::Manager<R>>(
+    app: &tauri::AppHandle<R>,
+    builder: tauri::WebviewWindowBuilder<'a, R, M>,
+    asked: (f64, f64),
+    min: (f64, f64),
+) -> tauri::WebviewWindowBuilder<'a, R, M> {
+    match fitted(app, asked, min) {
+        Some((width, height, x, y)) => builder.inner_size(width, height).position(x, y),
+        None => builder.inner_size(asked.0, asked.1),
+    }
 }
 
 /// A folder's window without the system's title bar (ADR 0072). On macOS

@@ -20,7 +20,9 @@ Workspace with multiple roots, with links resolving between them.
 - Link resolution stops being local to a folder: `[[nota]]` becomes able to
   point to another root, which makes the resolution rule and the behavior with
   an ambiguous name dialect questions still without an answer
-  (`docs/spec/dialect.md`, Q12, `[OPEN]`).
+  (`docs/spec/dialect.md`, Q12, `[OPEN]`). *(Q12 closed by the maintainer
+  on 2026-09-22, within one folder; a link across roots is this ADR's,
+  still Proposed.)*
 - Config is indexed by the folder path
   ([0011](0011-config-outside-tree-index-as-cache.md)): a workspace with
   several roots needs a key of its own, and the briefing does not say which.

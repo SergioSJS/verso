@@ -39,6 +39,9 @@
 | a Windows cloud file read like any other | reading a OneDrive Files On-Demand file downloads it: a first index would pull the whole folder | `placeholder::is_dataless` reads its attributes (`RECALL_ON_DATA_ACCESS`, `RECALL_ON_OPEN`, `OFFLINE`); test with `attrib +O` |
 | checking a name's characters only | `OBSIDI~1`, the 8.3 short name of `.obsidian`, got past the hidden rule | `confine::short_name` looks such a name up in its folder (`ShortName`) |
 | a test writing through `Workspace::open(dir, None)` | 1167 indexes left in the user's real config folder | always pass a config folder in tests |
+| the other way round, right on Linux and Windows, wrong on the Mac: a new or moved file given its name by `link` and `unlink` | FSEvents never reported that file's later removal outside the app (Finder, `rm`): the tree stayed stale and sync sent the deletion only at its 5-minute scan (2026-10-11) | `ops::claim`: `renamex_np` with `RENAME_EXCL` on macOS (`os::rename_exclusive`, through `rustix`), `link` elsewhere; `tests/watch.rs` removes such a file and waits for its event ([ADR 0069](../adr/0069-windows-port.md), revised 2026-10-11) |
+| a volume without the exclusive rename but with hard links (macOS: some network volumes), opened like any other | a file Verso named there by `link` and later removed by another program stayed in the tree until a reindex or sync's scan | the person is told once per folder that changes other programs make there may show late, and what Verso writes stays safe; the log has a WARN line (`ops::names_by_link`, probed at opening; [ADR 0048](../adr/0048-file-operations-in-ui.md), revised 2026-10-12) |
+| an `io::Error` matched by `kind()` alone for "not supported" | std calls only `ENOSYS` `Unsupported`; exFAT on macOS answers `link` and `renamex_np` with `ENOTSUP` (45), `Uncategorized`: every new or moved file on an exFAT drive failed (found on a mounted image, 2026-10-12) | `ops::not_supported` reads the number too (`ENOTSUP`, `EOPNOTSUPP`) |
 
 ## 3. Processes, configuration, executables
 
@@ -77,3 +80,4 @@
 | `check-windows.sh` while `check.sh` runs | the UI bundle was rebuilt under the copy: "Cannot stat", nothing ran on Windows | run them one after the other |
 | a `?` in a git pathspec | read as a wildcard | `':(literal)path'` |
 | `cmd /C echo {line}>file` | a line ending in a digit makes `1>` a redirection | `(echo {line})>file` |
+| a test that bounds a time by an absolute limit (`verso-dialect`'s `pathological_inputs_stay_linear`, 5 s) | the Windows VM under load crossed 5 s | bound linearity by a ratio, time(2N)/time(N) ≤ 2.5, not an absolute time (decided 2026-10-10; the code change is a commit of its own; its retry on a loaded machine — a unit over the bound measured again, up to three attempts, failing only if every one is over, 7729940 — accepted by the maintainer on 2026-10-12) |

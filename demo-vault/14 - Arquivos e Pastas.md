@@ -20,6 +20,7 @@ O cofre é uma pasta comum do seu computador: o que o Verso cria, renomeia ou ap
 - O botão **Nova nota** (`+`) da faixa da esquerda abre o menu **Nova…**: nota, pasta, **Nova base**, **Novo board** e **Nova página web…**.
 - O botão direito numa pasta da árvore, ou no espaço vazio dela, tem os mesmos itens — o que você criar entra naquela pasta.
 - Um nome que o Windows não guarda — `CON`, `NUL`, `COM1`, ponto ou espaço no fim, ou `: * " < > ? | \` — não é criado nem dado num renomear, em nenhum sistema: a pasta pode ser sincronizada com um Windows. O campo diz por quê. Um arquivo que já tem um nome assim continua abrindo, e pode ser renomeado para um nome que todo sistema guarda.
+- Também não é criado nem dado num renomear um nome que só difere de outro da mesma pasta em maiúsculas e minúsculas — `nota.md` ao lado de `Nota.md`: num Mac ou no Windows os dois seriam um arquivo só. O mesmo vale para um nome que só difere na forma em que os acentos foram gravados (um `Café.md` vindo de outro sistema). Renomear `nota.md` para `Nota.md` continua valendo.
 
 ---
 
@@ -31,7 +32,7 @@ Com o botão direito numa nota da árvore (num celular ou tablet, segure o dedo 
 - **Renomear** (ou `F2` — na árvore ou com a nota aberta —, ou um clique no título da nota aberta). Se outras notas apontam para ela, o Verso mostra, nota por nota, como cada link vai ficar, e pergunta: **Atualizar links** ou **Deixar como está**.
 - **Mover para…** leva a nota para outra pasta; **Duplicar** faz uma cópia.
 - **Mostrar no Finder**, **Copiar caminho relativo** e **Copiar caminho completo**.
-- **Mover para a lixeira** (ou `Delete`, ou `⌘⌫`, na árvore): a nota vai para a pasta `.trash` do cofre, como no Obsidian — nada se perde de vez.
+- **Mover para a lixeira** (ou `Delete`, ou `⌘⌫`, na árvore): a nota vai para a pasta `.trash` do cofre, como no Obsidian — nada se perde de vez; veja [[#A Lixeira]].
 
 ---
 
@@ -42,6 +43,18 @@ Com o botão direito numa nota da árvore (num celular ou tablet, segure o dedo 
 - Arraste um arquivo da árvore para o **texto de uma nota**: entra um link para ele (ou um embed, se for imagem, PDF ou outro arquivo).
 - Arraste arquivos do Finder para a árvore: eles são copiados para a pasta onde você soltar.
 - Cole ou arraste uma **imagem** dentro de uma nota: ela é salva na pasta `assets` ao lado da nota (**Ajustes › Arquivos e links › Pasta de anexos**).
+
+---
+
+## A Lixeira
+
+O que você apaga fica na **Lixeira** da pasta por 30 dias, e depois some de vez. Para vê-la: **Abrir a lixeira** na paleta de comandos, o botão direito no espaço vazio da árvore, ou **Ajustes › Arquivos e links**, onde o tamanho da lixeira aparece ao lado do espaço da pasta (ela não conta nesse espaço). A lixeira não aparece como uma linha da árvore: a árvore é dos seus arquivos.
+
+- A lista mostra cada item com **onde estava**, o **tamanho**, **quando** foi apagado (e por quem, numa pasta de servidor) e **quando expira**; a busca no alto filtra pelo nome.
+- **Restaurar** devolve o item para onde estava — uma pasta volta com tudo o que tinha. Se já existe outro arquivo com aquele nome, nada é substituído: o item volta ao lado, como `Nome (restaurado 2026-10-11).md`, e o Verso diz onde ele foi parar — também quando o nome que está ali só difere em maiúsculas e minúsculas. Um nome que o Windows não guarda não é restaurado: o Verso diz por quê, e o item continua na lixeira.
+- **Apagar agora** e **Esvaziar a lixeira** apagam de vez, e perguntam antes, ali mesmo, com o tamanho.
+- **Manter arquivos apagados por** muda o prazo desta pasta: de 1 dia a **Para sempre**. Encurtar apaga na hora o que já passou do novo prazo.
+- Numa pasta de um servidor ([[23 - Verso num Servidor]]), quem pode editar vê a lixeira e restaura; apagar de vez e encurtar o prazo é da dona da pasta. Quando um aparelho sincronizado grava por cima de uma nota, a versão que ele substituiu também vai para a lixeira, como **substituído por** aquele aparelho — se outro programa salvou um texto velho por cima, dá para voltar.
 
 ---
 

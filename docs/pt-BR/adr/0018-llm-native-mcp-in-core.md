@@ -3,6 +3,10 @@
 - Data: 2026-09-21
 - Fonte: `docs/BRIEFING.md` §7
 - Status no briefing: `DECIDIDO`
+- Revisões: 2026-10-12 — os registros provisórios de 2026-09-22 ratificados pelo
+  mantenedor como construídos e testados, respondendo à auditoria dos
+  ADRs em sessão: *"Ajuste tudo que precisar. Está aprovado os ADRs"*; uma
+  nota datada ao lado de cada um.
 
 ## Contexto
 
@@ -43,7 +47,9 @@ que serve a pessoa é a mesma que serve o agente.
   ([0045](0045-server-and-mcp-security.md)).
 - Transporte do MCP, superfície exposta e versão do protocolo suportada são
   `[ABERTO]` em [0045](0045-server-and-mcp-security.md), a decidir antes
-  da feature 6 da Fase 1.
+  da feature 6 da Fase 1. *(Decididos para o `verso mcp` em 2026-09-22:
+  stdio, sete ferramentas só de leitura, a versão que o `initialize`
+  negocia — 0045.)*
 - "Consulta estruturada antes de similaridade" define a ordem de implementação:
   índice e grafo antes de qualquer embedding.
 - Escrita por agente cai sob a mesma regra de diff das conversões
@@ -55,6 +61,8 @@ que serve a pessoa é a mesma que serve o agente.
 Registrado em 2026-09-22 a partir do código da feature 6 — provisório, o
 mantenedor decide** (§3.4 e §6 de `docs/reference/mcp-decision.md`). É o que o
 código faz, não uma decisão.
+*(Ratificado pelo mantenedor em 2026-10-12, como construído e testado:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 
 - **O `read_note` devolve linhas numeradas.** Cada linha chega como
   `{ "n": 12, "text": "…" }`, então o número que um modelo cita é **lido do

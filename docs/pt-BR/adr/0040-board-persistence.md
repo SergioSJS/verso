@@ -28,7 +28,8 @@ próprio Verso (`"verso"`). Até esse dia: nenhuma.
   formato; substituí-lo não é ([0030](0030-base-dialect-obsidian-compatible.md)).
 - A camada semântica proposta (nós são notas, arestas são relações tipadas)
   depende da sintaxe de relação tipada, também `[ABERTO]`
-  (`docs/spec/dialect.md`).
+  (`docs/spec/dialect.md`). *(Decidida em 2026-09-30: Q10 da spec, ADR 0057
+  ponto 4.)*
 - Vaults com `.excalidraw.md` do plugin do Obsidian precisam de conversão
   explícita, o que torna o formato de destino parte desta decisão.
 

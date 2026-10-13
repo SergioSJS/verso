@@ -72,6 +72,11 @@ export type RenderCtx = {
   newNote(props: [string, PropertyValue][]): void;
   refresh(): void;
   key: string;
+  /** Values committed in a table's cell and not yet in the core's answer
+   *  (a live note's room writes its file a moment later): shown in their
+   *  cells until an answer agrees, the room saves, or the write fails. By
+   *  `cellKey` of the note and property. */
+  pending: Map<string, BaseCell>;
 };
 
 const LAYOUTS = ["table", "cards", "list", "kanban", "calendar"] as const;
@@ -256,6 +261,7 @@ export class BaseView {
   /** Taken down: asked nothing more. */
   private gone = false;
   private retry = 0;
+  private pending = new Map<string, BaseCell>();
   private search = "";
   private timer: number | undefined;
 
@@ -367,7 +373,32 @@ export class BaseView {
     }
     this.result = r.data;
     this.index = index;
+    // The cell that held the focus (a value just committed with Enter)
+    // holds it again in the table drawn anew.
+    const focused = document.activeElement;
+    const at = focused instanceof HTMLElement && this.body.contains(focused) ? focused.dataset.cell : undefined;
     this.render();
+    if (at !== undefined) {
+      for (const td of this.body.querySelectorAll<HTMLElement>("[data-cell]")) {
+        if (td.dataset.cell === at) {
+          td.focus();
+          break;
+        }
+      }
+    }
+  }
+
+  /** A live note's room wrote its file: what was committed into it is the
+   *  file's now, or what the room made of it — the next answer says. */
+  roomSaved(path: string): void {
+    let had = false;
+    for (const k of [...this.pending.keys()]) {
+      if (k.startsWith(`${path}\n`)) {
+        this.pending.delete(k);
+        had = true;
+      }
+    }
+    if (had) void this.refresh();
   }
 
   private get view(): Y.ViewConfig {
@@ -440,6 +471,7 @@ export class BaseView {
       newNote: (props) => this.newNote(props),
       refresh: () => void this.refresh(),
       key: this.src.key,
+      pending: this.pending,
     };
     const layout = (LAYOUTS as readonly string[]).includes(view.type) ? (view.type as Layout) : "table";
     const drawn =

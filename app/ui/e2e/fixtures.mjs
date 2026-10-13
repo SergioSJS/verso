@@ -5,6 +5,8 @@
 
 import { test as base, expect } from "@playwright/test";
 
+import { leakFixtures } from "./leaks.mjs";
+
 /** Console lines that are not the window's errors: WebKit's line for a
  *  response that failed, which the fixture reports itself, by address. */
 const NOISE = [/^Failed to load resource: the server responded with a status of \d+/];
@@ -80,6 +82,11 @@ export class App {
   /** Write a file of the folder as another app would: no event. */
   writeOutside(path, text) {
     return this.page.evaluate(([p, t]) => window.__harness.writeOutside(p, t), [path, text]);
+  }
+
+  /** Delete a file of the folder as another app would: no event. */
+  removeOutside(path) {
+    return this.page.evaluate((p) => window.__harness.removeOutside(p), path);
   }
 
   // ---- The board ---------------------------------------------------------
@@ -168,6 +175,7 @@ export class App {
 }
 
 export const test = base.extend({
+  ...leakFixtures,
   app: async ({ page }, use) => {
     const problems = [];
     // The window's work area fills the window, always: a draft a library

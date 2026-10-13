@@ -34,7 +34,11 @@
   segue o recomendado"*): os itens 2, 7, 9, 10 e 11, propostos até então,
   como escritos; a conexão do app desktop pelo navegador do item 8
   construída nesta rodada (K do plano, não a recomendação); a ordem de
-  trabalho das chaves de acesso no Status.
+  trabalho das chaves de acesso no Status. 2026-10-11 — item 8: o nome do
+  dispositivo, guardado com a sessão dele, pode ser definido pela pessoa
+  em Ajustes › Servidores, por padrão o nome do sistema — o *"Sim para
+  todos"* do mantenedor naquela noite, registrado no
+  [0079](0079-sync-a-local-folder-with-a-server.md) (Revisões, item 8).
 
 ## Contexto
 
@@ -192,7 +196,9 @@ em 2026-10-09, os itens marcados Proposto como escritos.)*
    **Construído nesta rodada**, decidido em 2026-10-09 (K do plano;
    [0073](0073-self-hosted-server-first.md) item 12): o "conectar a um
    servidor" do app desktop e este login saem com a primeira versão do
-   servidor.
+   servidor. O nome do dispositivo, guardado com a sessão dele, pode ser
+   definido pela pessoa em Ajustes › Servidores, por padrão o nome do
+   sistema (decidido em 2026-10-11, Revisões).
 9. *Proposto; aceito como escrito em 2026-10-09.* **Limites e o log de auditoria.** Tentativas de login limitadas por
    endereço e por conta, com espera crescente, nunca um bloqueio que um
    estranho possa usar para deixar o dono de fora; o mesmo para links de
@@ -274,8 +280,12 @@ O ambiente do `verso serve`, junto:
 
 ## Status
 
-Proposto, decidido em suas partes pelo mantenedor em 2026-10-09; a ser lido
-pela Fable 5.1 e aceito junto com o
+**Aceito em 2026-10-09** com o [0073](0073-self-hosted-server-first.md);
+as palavras da aceitação estão no parágrafo depois da lista abaixo.
+
+*(Histórico, o status antes da aceitação:)* Proposto, decidido em suas
+partes pelo mantenedor em 2026-10-09; a ser lido pela Fable 5.1 e aceito
+junto com o
 [0073](0073-self-hosted-server-first.md). O mantenedor levantou as três
 coisas da Fonte, depois respondeu cada questão:
 

@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { type ContractError, type NoteText } from "../bindings";
+import { host } from "../can";
 import { ask } from "../dialog";
 import { button, h, ui } from "../dom";
 import { errorSentence } from "../errors";
@@ -115,6 +116,7 @@ export abstract class Leaf {
   /** The file is gone from disk, deleted or moved outside the app: the
    *  name is crossed out and says so. */
   setGone(g: boolean): void {
+    this.tabGone.textContent = `, ${host() === "server" ? t.goneTabElsewhere : t.goneTab}`;
     this.tab.classList.toggle("gone", g);
     this.tabGone.hidden = !g;
   }
@@ -177,7 +179,7 @@ export abstract class Leaf {
     this.failure?.remove();
     const box = h("div", "load-failure");
     box.setAttribute("role", "alert");
-    box.append(h("p", "load-failure-title", t.loadFailed.replace("{name}", name(path))), h("p", "", errorSentence(error)));
+    box.append(h("p", "load-failure-title", t.loadFailed.replace("{name}", name(path))), h("p", "", failureSentence(error)));
     const again = button("ghost", t.tryAgain);
     again.addEventListener("click", retry);
     box.append(again);
@@ -185,6 +187,10 @@ export abstract class Leaf {
     this.failed = error.kind;
     this.el.classList.add("failed");
     this.el.append(box);
+  }
+  /** The status line's words for a failed open: the box's own. */
+  protected failureLine(path: string, error: ContractError): string {
+    return `${t.loadFailed.replace("{name}", name(path))} ${failureSentence(error)}`;
   }
   protected clearFailure(): void {
     this.failure?.remove();
@@ -206,4 +212,13 @@ export abstract class Leaf {
     pane.activate(this, false);
   }
   jumpTo(_line: number): void {}
+}
+
+/** Why a file did not open, in words. One no longer in the folder says
+ *  so — deleted or moved, on a server possibly on another device that
+ *  syncs it (ADR 0079) — never with the system's text of the failed read,
+ *  which the log keeps. */
+function failureSentence(error: ContractError): string {
+  if (error.kind === "not_found") return host() === "server" ? t.loadGoneElsewhere : t.loadGone;
+  return errorSentence(error);
 }

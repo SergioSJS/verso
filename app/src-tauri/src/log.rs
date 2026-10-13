@@ -58,6 +58,15 @@ pub(crate) fn path() -> Option<PathBuf> {
 /// `YYYY-MM-DDTHH:MM:SSZ` from the seconds since the Unix epoch, in UTC
 /// and without a date library: the civil-from-days algorithm, so the
 /// log gains no dependency of its own.
+/// Now, as the log writes it.
+pub(crate) fn now() -> String {
+    stamp(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(0)),
+    )
+}
+
 fn stamp(secs: i64) -> String {
     let days = secs.div_euclid(86_400);
     let rest = secs.rem_euclid(86_400);

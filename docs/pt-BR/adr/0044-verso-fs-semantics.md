@@ -40,6 +40,16 @@
   Registrado numa seção própria, "Num servidor", depois do grupo dos
   handles; a pasta local do desktop não muda, e as linhas que isso revê
   ficam, cada uma com uma nota.
+  2026-10-12 — um comportamento de "Num servidor" mudado pelo commit
+  4ffe8a9, a correção de uma corrida, e registrado naquela seção —
+  **confirmado pelo mantenedor** na mesma noite, "Ok": um symlink pendente
+  cujo alvo fica dentro da pasta é tratado como um arquivo novo dentro, e
+  não mais recusado como um link que sai. Decidido por essa confirmação
+  (Status).
+  2026-10-12 — os registros provisórios de 2026-09-22 ratificados pelo
+  mantenedor como construídos e testados, respondendo à auditoria dos
+  ADRs em sessão: *"Ajuste tudo que precisar. Está aprovado os ADRs"*; uma
+  nota datada ao lado de cada um.
 
 ## Contexto
 
@@ -104,7 +114,7 @@ Decidido pelo mantenedor em 2026-09-22, sobre o memo
   corrigido lá.
 
 **Provisório, registrado em 2026-09-22 a partir do código da feature 2, não
-decidido.** O mantenedor decide isto ao acordar; está aqui porque o código
+decidido.** *(Ratificado pelo mantenedor em 2026-10-12, como construído e testado: "Ajuste tudo que precisar. Está aprovado os ADRs".)* O mantenedor decide isto ao acordar; está aqui porque o código
 precisou escolher alguma coisa, e escolha não registrada é pior do que escolha
 registrada:
 
@@ -166,6 +176,8 @@ também a resposta da Q26 de [`docs/spec/dialect.md`](../spec/dialect.md):
 
 **Provisório, registrado em 2026-09-22 a partir do código da feature 2, não
 decidido.**
+*(Ratificado pelo mantenedor em 2026-10-12, como construído e testado:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 
 - **Handle é recusado para entrada oculta ou caminho ignorado.** `Root::handle`
   responde `ConfinementError::Hidden` ou `ConfinementError::Ignored`. O
@@ -393,6 +405,26 @@ resposta dele para o servidor, a opção (a) daquele plano:
   nomeados lá. A pasta local do desktop não muda: todo symlink é seguido,
   como decidido em 2026-09-22.
 
+*Mudado em 2026-10-12 pelo commit 4ffe8a9; **confirmado pelo
+mantenedor** na mesma noite, respondendo "Ok" à 01:15 BRT.* Veio de uma corrida. A
+verificação do servidor canonicalizava um caminho e, quando isso falhava
+com uma entrada no nome, recusava a entrada como um link que sai; um
+arquivo sendo substituído naquele instante — ausente por um momento, ou
+sem resolver enquanto um rename chega (o salvar de outro programa, um
+sistema de arquivos de rede, um arquivo com exclusão pendente no
+Windows) — era recusado assim, registrado como "um link que leva para
+fora da pasta", e o servidor mantinha o estado antigo do arquivo até a
+próxima varredura. A correção faz a verificação componente a componente,
+lendo cada entrada em si: só um symlink pode levar um caminho para fora
+da pasta; uma entrada comum, ou um arquivo final que não está lá, é
+julgado pela pasta dele; um link cujo fim falta é julgado por onde o
+texto dele aponta, os saltos limitados como o kernel limita um laço; um
+`..` que não se resolve é recusado. Um link que sai é recusado como
+antes, exista ou não o fim dele. O único comportamento que mudou junto:
+**um symlink pendente cujo alvo fica dentro da pasta não é mais recusado
+como um link que sai; é tratado como um arquivo novo dentro.** A pasta
+local do desktop não muda: lá todo symlink é seguido.
+
 ## Consequências
 
 - Nenhuma dessas respostas pode vir "no código": cada uma vira linha neste ADR
@@ -513,4 +545,8 @@ mantenedor, Aceito. O watcher: construído depois da
 feature 2 e decidido em 2026-09-24 pelo mantenedor, Aceito. Os itens marcados
 como **provisórios** dentro dos dois grupos decididos em 2026-09-22 não estão
 decididos: são o que o código da feature 2 faz, registrados para que nada seja
-resolvido por silêncio, e esperam o mantenedor.
+resolvido por silêncio, e esperam o mantenedor. *(Ratificados pelo mantenedor em 2026-10-12,
+como construídos e testados; Aceito.)* Um symlink pendente cujo alvo
+fica dentro da pasta, num servidor, tratado como um arquivo novo dentro desde o
+4ffe8a9 (2026-10-12, "Num servidor"): confirmado pelo mantenedor em
+2026-10-12, Aceito.

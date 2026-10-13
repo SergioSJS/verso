@@ -2,9 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { sharedUnder } from "./shares";
+import { sh } from "./shareStrings";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { commands, type PropertyValue } from "./bindings";
-import { bookmarks, saveBookmarks, setBookmarks } from "./bookmarks";
+import { changeBookmarks } from "./bookmarks";
 import { canWrite } from "./can";
 import { afterFileChange, flushed, stopped } from "./changes";
 import { templateText, today } from "./daily";
@@ -75,8 +77,7 @@ export function pathsMoved(from: string, to: string): void {
   tableWidthsMoved(currentFolder, from, to);
   selectionMoved(from, to);
   const follow = (p: string) => (p === from ? to : p.startsWith(`${from}/`) ? to + p.slice(from.length) : p);
-  setBookmarks(bookmarks.map(follow));
-  saveBookmarks();
+  changeBookmarks((list) => list.map(follow));
   let focusPathsChanged = false;
   for (const f of focusesList) {
     const updated = f.paths.map(follow);
@@ -96,8 +97,7 @@ export function pathsMoved(from: string, to: string): void {
 export function pathsRemoved(path: string): void {
   selectionMoved(path, null);
   const gone = (p: string) => p === path || p.startsWith(`${path}/`);
-  setBookmarks(bookmarks.filter((p) => !gone(p)));
-  saveBookmarks();
+  changeBookmarks((list) => list.filter((p) => !gone(p)));
   let focusPathsChanged = false;
   for (const f of focusesList) {
     const updated = f.paths.filter((p) => !gone(p));
@@ -273,7 +273,9 @@ export async function deleteNote(path: string): Promise<void> {
 export async function deleteEntry(path: string, kind: Kind): Promise<void> {
   if (!readable()) return;
   const label = kind === "folder" ? path.split("/").pop() ?? path : name(path);
-  if (!(await ask(kind === "folder" ? t.confirmDeleteFolder(label) : t.confirmDelete(label), { yes: t.deleteEntry, no: t.cancel }))) return;
+  // Deleting a shared folder ends its shares, said first (ADR 0081 item 13).
+  const question = kind === "folder" ? `${t.confirmDeleteFolder(label)}${sharedUnder(path) ? ` ${sh.deleteEndsShares}` : ""}` : t.confirmDelete(label);
+  if (!(await ask(question, { yes: t.deleteEntry, no: t.cancel }))) return;
   // What goes to the bin goes with its last words: saved first, or not moved.
   const unsaved = await flushed(leavesUnder(path));
   if (unsaved.length > 0) return stopped(unsaved);
@@ -345,7 +347,7 @@ export async function renameTo(from: string, to: string, done = ""): Promise<boo
  *  What moved with them by a rule of its own — a folder's note taking the
  *  folder's new name — goes where the core put it, not where the prefix
  *  says. */
-function followMoved(moved: { from: string; to: string }[], alsoMoved: { from: string; to: string }[]): void {
+export function followMoved(moved: { from: string; to: string }[], alsoMoved: { from: string; to: string }[]): void {
   const also = new Map(alsoMoved.map((m) => [m.from, m.to] as const));
   for (const [a, b] of also) pathsMoved(a, b);
   for (const { from, to } of moved) {

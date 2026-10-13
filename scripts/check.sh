@@ -8,13 +8,23 @@
 # Needs the Rust toolchain of rust-toolchain.toml, Node 22 for the UI and
 # cargo-deny (`cargo install cargo-deny --locked`); the wasm32 target is added
 # here if missing. The fuzzing and the benchmark are not run (see README.md).
-# One step CI does not run: the window's end-to-end tests in WebKit over the
-# browser harness (ADR 0058), local only; Playwright's WebKit is downloaded
-# on the first run.
+# One step CI does not run: the window's end-to-end tests in WebKit and
+# Chromium over the browser harness (ADR 0058), local only; Playwright's
+# browsers are downloaded on the first run. On a Mac they run with one
+# worker, without screen captures, after a pre-flight that refuses to start
+# while a browser or the Verso app is open, and under a watch that stops
+# them if the window server's surfaces climb (app/ui/e2e/preflight.mjs;
+# ADR 0069 item 8, revised 2026-10-12: four WindowServer aborts).
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# The commit checked, so that a kept log names it.
+printf 'checking %s\n' "$(git rev-parse --short HEAD 2>/dev/null || echo 'no git')"
 
 step() { printf '\n== %s\n' "$*"; }
+
+# The end-to-end steps come late: what would refuse them refuses now, before
+# the rest is built (app/ui/e2e/preflight.mjs; it does nothing off macOS).
+node app/ui/e2e/preflight.mjs
 
 step "docs mirror (ADR 0008)"
 bash scripts/check-docs-mirror.sh
@@ -69,8 +79,15 @@ step "UI: type check, bundle and unit tests"
 step "UI: end-to-end tests in the browser harness (ADR 0058, local only)"
 (
   cd app/ui
+  # Nothing else drawing on this Mac's window server while they run
+  # (ADR 0069 item 8, revised 2026-10-12); one worker on a Mac.
+  node e2e/preflight.mjs
   npx playwright install webkit chromium >/dev/null
-  npx playwright test --workers=3
+  if [ "$(uname -s)" = Darwin ]; then
+    npx playwright test --workers=1
+  else
+    npx playwright test --workers=3
+  fi
 )
 step "cargo clippy -D warnings"
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
@@ -80,6 +97,7 @@ step "the server's end-to-end tests: the window in a browser against verso serve
 cargo build -q --locked -p verso-cli
 (
   cd app/ui
+  node e2e/preflight.mjs
   npx playwright test -c playwright.server.config.mjs --workers=1
 )
 step "the committed bindings are the generated ones (ADR 0026 rule 3)"

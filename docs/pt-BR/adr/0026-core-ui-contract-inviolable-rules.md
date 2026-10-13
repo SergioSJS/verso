@@ -29,6 +29,10 @@
   [0045](0045-server-and-mcp-security.md) é respondida pelo item 11 do
   [0074](0074-accounts-and-access-on-the-server.md). Cada um é uma nota ao
   lado do texto a que se refere.
+  2026-10-12 — os registros provisórios de 2026-09-22 ratificados pelo
+  mantenedor como construídos e testados, respondendo à auditoria dos
+  ADRs em sessão: *"Ajuste tudo que precisar. Está aprovado os ADRs"*; uma
+  nota datada ao lado de cada um.
 
 ## Contexto
 
@@ -112,6 +116,7 @@ elas valem é esta:
   ([0009](0009-external-constraints.md)).
 - "Contrato primeiro" define a ordem de trabalho da Fase 2 e depende da escolha
   de geração de tipos TS ([0038](0038-ts-type-generation.md), `[ABERTO]`).
+  *(Decidida: o 0038 aceito em 2026-09-22.)*
 - A regra 5 é verificável mecanicamente em duas camadas: dependências de IO de
   arquivo (`walkdir`, `notify`, `tempfile` e afins) só em `verso-fs`, e chamadas
   a `std::fs` negadas por lint fora de `verso-fs`, com exceção declarada para o
@@ -148,6 +153,8 @@ fechar — a Decisão traz o texto novo — e o caminho relativo na borda do MCP
 a decisão que o [0045](0045-server-and-mcp-security.md) tomou então,
 confirmada como o texto que vale quando o grupo foi decidido em
 2026-09-24.)*
+*(Ratificado pelo mantenedor em 2026-10-12, como construído e testado:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 
 ## Alternativas descartadas
 

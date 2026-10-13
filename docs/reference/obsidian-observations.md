@@ -2094,3 +2094,26 @@ folder's labels in its folder note, created when missing,
 with no question (O2, D3) — and `banner_y` as a percentage (O3). `order:` and `pinned:` in the
 folder note are Verso's own (D4, D5) and do not depend on O4 and O5. O4–O7
 and O9–O12 still wait for someone at make.md's menus.
+
+## 18. A board edited hard together, opened in Obsidian 1.14.4 (2026-10-12)
+
+Observed from outside (ADR 0009) after the board stress of ADR 0082 item
+12 (`crates/verso-server/src/tests_board_stress.rs`, seed 2): the file the
+room wrote — 34 cards (11 of them groups), 12 edges (5 with a label), 55
+drawn elements under `verso`, and an unknown top-level key — copied into
+`Sandbox/verso-fixtures/`, read and opened with the CLI's `eval` on the
+public API (`app.vault.read`, `JSON.parse`, `workspace.getLeaf(true)`,
+`leaf.openFile`, `view.getViewType()`), then removed.
+
+| What | Seen |
+|---|---|
+| The file read and parsed | yes: 34 nodes, 12 edges, 55 drawn |
+| Opened in a tab | the `canvas` view, no error |
+| Written by Obsidian on opening | **yes**: each of the 12 edges, which had no `fromSide`/`toSide`, gained both; nothing else changed — every node as it was, `verso` (the drawing) equal as JSON, the unknown top-level key kept |
+
+So a canvas whose edges carry no sides is rewritten by Obsidian the first
+time its canvas view opens it. An edge the board draws gets its sides as
+it is attached (ADR 0057 points 14 and 20); the stress test's edges had
+none because the test makes the file itself. In a room, Obsidian's write
+over the mount is a change from outside: taken in, or the people in the
+board choose (ADR 0082 item 12).

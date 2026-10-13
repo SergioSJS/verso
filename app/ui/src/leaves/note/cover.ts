@@ -5,6 +5,8 @@
 import { Transaction } from "@codemirror/state";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { afterFileChange } from "../../changes";
+import { minimalEdit } from "../../edit";
+import { throughRoom } from "../../roomWrites";
 import { promptText } from "../../dialog";
 import { h } from "../../dom";
 import { allEntries } from "../../folder";
@@ -12,6 +14,7 @@ import { icon } from "../../icons";
 import { renderSticker, resolveColor, showStickerPicker } from "../../labels";
 import { bannerFraction, bannerPercent, pickerStrings } from "../../organize/cover";
 import { setFrontmatterProp } from "../../organize/frontmatter";
+import { host } from "../../can";
 import { st } from "../../screen/strings";
 import { heldImage } from "../../sanitize";
 import { settings } from "../../settings";
@@ -33,11 +36,16 @@ export function openStickerPicker(this: NoteLeaf): void {
   });
 }
 
+/** One property of this note set from its sticker, colour or cover: in a
+ *  live note into the room, as typing goes (ADR 0082, decided
+ *  2026-10-12); elsewhere into the editor and saved. Either way as the
+ *  one edit of the key's lines, never the whole text written again —
+ *  in a room that would be everyone's text deleted and typed anew. */
 export async function setProperty(this: NoteLeaf, key: string, value: string | null): Promise<void> {
-  let doc = this.editor.state.doc.toString();
-  doc = setFrontmatterProp(doc, key, value);
-  const curLen = this.editor.state.doc.length;
-  this.editor.dispatch({ changes: { from: 0, to: curLen, insert: doc }, annotations: Transaction.userEvent.of("input") });
+  if (throughRoom(this.roomHolder(), (text) => setFrontmatterProp(text, key, value)) !== "disk") return;
+  const was = this.editor.state.doc.toString();
+  const edit = minimalEdit(was, setFrontmatterProp(was, key, value));
+  if (edit) this.editor.dispatch({ changes: edit, annotations: Transaction.userEvent.of("input") });
   await this.save();
   await afterFileChange();
 }
@@ -243,7 +251,9 @@ export function paintFlags(this: NoteLeaf): void {
   if (note?.unverified) flags.push(t.unverified);
   if (this.mixedEol) flags.push(t.mixedEol);
   else if (this.readOnly) flags.push(st.readOnly);
-  if (this.gone) flags.push(t.goneOutside);
+  // On a server a note also goes on another device that syncs the folder.
+  // A save that found it gone says so above the text, with what to do.
+  if (this.gone && !this.goneBanner.up) flags.push(host() === "server" ? t.goneElsewhere : t.goneOutside);
   // A schema block of this note that types nothing says so here (ADR
   // 0052 points 3 and 5).
   for (const b of note?.schema_blocks ?? []) {

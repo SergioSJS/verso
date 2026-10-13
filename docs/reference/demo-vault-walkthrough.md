@@ -167,8 +167,10 @@ point 13).
    percent-encodes the address, and the window asked the core for
    `gr%C3%A1fico` (2026-10-01).
 6. A note changed on disk while text typed in its tab is unsaved: both
-   versions are shown, and the disk's stays (invariant 11). Level: H; E:
-   `notes.spec.mjs`.
+   versions are shown, and the disk's stays (invariant 11); *Guardar os
+   dois* keeps the disk's under the name and the tab's text in a copy
+   beside it, named as sync names a conflict's copy. Level: H; E:
+   `notes.spec.mjs` (a text file's, `tabs.spec.mjs`).
 7. A note embedded with `![[Note]]`, in Editar, looks as it does in Leitura:
    its headings, its paragraphs one step apart, its pictures within the
    pane, and the text around it wrapped at the pane. Level: H; E:
@@ -305,6 +307,11 @@ point 13).
    `Ideia?` or `a\b` is not made (`nota.` is: its file is `nota..md`); the status bar says Windows cannot keep that name.
    A rename to such a name is refused the same way. Level: H; E:
    `prompts.spec.mjs`; S: `crates/verso-fs/tests/ops.rs`.
+   Beside `Nota`, a new note `nota` is not made either, and the status
+   bar says a Mac or Windows would keep only one of the two; renaming
+   `Nota` to `nota` works (spec Q8, decided 2026-10-12). Level: A (the
+   harness does not refuse it); U: `crates/verso-fs/tests/ops.rs`,
+   `crates/verso-core/tests/workspace/rename.rs`.
 9. Note 14, "A Visão de Pasta": open a folder with its chevron and close
    another; open the app again — the tree is as it was left. A folder of
    thousands of notes opens with its top-level folders closed. Level: H;
@@ -318,6 +325,19 @@ point 13).
    scrolls it and moves nothing; a finger held on a row and lifted opens
    its menu; held and then moved, it drags the row into a folder. Level: H
    (touch moves only in Chromium); E: `touch.spec.mjs`.
+11. Note 14, "A Lixeira" ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)):
+   delete a note, make another with its name, and open the trash from the
+   palette ("Abrir a lixeira"), from the tree's right-click on empty space,
+   or from *Ajustes › Arquivos e links*, where the trash shows beside the
+   folder's space: the list has a header row, the note with when and where
+   it was; "Restaurar" puts it beside the new one as `<nota> (restaurado
+   <data>).md` and says so; *Manter arquivos apagados por* "7 dias" removes
+   at once what was deleted longer ago; "Apagar agora" and "Esvaziar a
+   lixeira" ask in the page with the size. Level: H; E: `trash.spec.mjs`
+   (also at a phone's and a tablet's size); S:
+   `crates/verso-core/tests/trash.rs` (the sweep's guardrail, the quota's
+   guard), `crates/verso-fs/src/trashbin/tests.rs` (no symlink followed);
+   A: the files on disk and the log's lines (`manual-checks.md`).
 
 ## 7. The web
 
@@ -360,7 +380,8 @@ point 13).
    was dropped with the tab (2026-10-01).
 5. The board's file changed on disk (by Obsidian) while nothing is unsaved:
    the board is drawn again from it; changed here too, both versions are
-   shown and nothing is written over the disk. Level: H; E:
+   shown and nothing is written over the disk; *Guardar os dois* puts this
+   board in a copy beside it. Level: H; E:
    `board-file.spec.mjs`. Caught: an open board never followed its file
    (2026-10-01).
 6. A canvas written in another layout (one line, or Windows line endings):
@@ -494,6 +515,24 @@ point 13).
    (`scripts/check-linux-vm.sh --install`, the app opened on Ubuntu's
    desktop; `--webkit`, the suite on Linux's WebKit); A (Debian, Fedora,
    the AppImage).
+9. The folder's settings (note 15, "Da pasta ou desta máquina"; [ADR
+   0070](../adr/0070-what-travels-with-the-folder.md) items 1–2): in a
+   folder just imported, Ajustes › Arquivos e links › "Ignorar pastas de
+   build" says *Desta máquina*, and the folder holds no `.verso/`;
+   turned off, it says *Da pasta* and `.verso/settings.json` appears with
+   `"ignoreBuildDirs": false`; a star on a note adds it to `bookmarks`
+   there; Organização › "Nome da nota da pasta" and "Favoritos" say *Da
+   pasta* too. In a folder whose bookmarks this computer kept before, the
+   first opening moves them into the file, once. Level: H; E:
+   `folder-settings.spec.mjs`; U (`cargo test -p verso-core --test
+   folder_settings`; the host's `tests_sync.rs`, "the folder's settings
+   cross like a file and a conflict keeps both", against a real server;
+   `npm test`'s `folderLayer.test.mjs`); A (two computers syncing one
+   folder, by hand). A reader of a server's folder stars a note on this
+   computer: "Favoritos" says *Desta máquina* for them, and the folder's
+   file is not changed (decided 2026-10-12). Level: U (`npm test`'s
+   `folderLayer.test.mjs`; `crates/verso-server/src/tests.rs`, "an
+   invited reader"); A.
 
 ## 11. Organizing: stickers, covers, folder pages, order
 
@@ -634,10 +673,15 @@ rest below and in `manual-checks.md`.
    address sends to *Entrar*; a wrong password says *E-mail ou senha
    errados.*; the right one opens the window (e2e-server, "the admin signs
    in").
-2. *Ajustes* › *Administração* › *Pastas* (the address `/admin` opens the
-   window with the settings there): the folder on the disk registered with an
-   owner; *Abrir pasta* lists it; a note made in the browser is there after
-   a reload (same test).
+2. The administration console, `/admin` › *Pastas* (Settings › Account ›
+   *Administrar este servidor* leads there): the folder on the disk registered
+   with an owner; its page sets a quota (*Definir*, *Sem limite*), which the
+   log lists (e2e-server, "the administration console"); *Abrir pasta* lists it; a note made in the browser is there after
+   a reload (same test). An account's page ends its sessions and tokens:
+   *Encerrar sessões e tokens*, after a confirm, says how many went, and
+   that account's browser is signed out (e2e-server, "an admin ends
+   another account's sessions"; a device told at once, `tests_console.rs`,
+   `an_admin_ends_another_accounts_sessions_and_tokens`).
 3. *Convites*: an invitation for an e-mail, a folder and *leitor*; the link
    in another browser creates the account, opens the folder, and the window
    says *Você só lê esta pasta*; the invitation shows *usado* and by whom; the
@@ -652,7 +696,134 @@ rest below and in `manual-checks.md`.
 6. The desktop app: *Ajustes* › *Servidores*, the server's address,
    *Conectar*; the browser asks to allow this computer; after *Permitir*, a
    folder of the server opens in the window (the host's test; by hand in
-   the installed app).
+   the installed app). In the same section, *Nome deste aparelho*: a name
+   saved there is the conflict copies' and this device's session's on each
+   server, and emptied the system's is back (e2e, `sync.spec.mjs`, "Servers
+   names this computer"; the host's test,
+   `a_window_on_a_servers_folder_is_answered_by_the_server`). The page
+   that approves the device says who asked — the device's name, the
+   address, the time — and asks *Foi você quem pediu, neste aparelho?*,
+   with *Aprovar este aparelho: <nome>* and *Não fui eu: recusar*; refused,
+   the app's code is gone (e2e-server, "the page that approves a device
+   says who asked"; `tests_threats.rs`).
+7. Sync ([ADR 0079](../adr/0079-sync-a-local-folder-with-a-server.md)): with
+   a folder of this computer open, *Ajustes* › *Sincronizar*; signed in to
+   no server it says *Conecte a um servidor em Servidores primeiro*; signed
+   in, the space is shown, *Sincronizar esta pasta* turns it on, and the
+   status bar says *Sincronizada*; a pass paused for many deletions asks
+   before *Apagar*; a conflict shows the difference between the server's
+   version and the copy; *Desligar* asks, and the bar's state goes (e2e,
+   `sync.spec.mjs`). What crosses — first sync, two devices, a deletion, a
+   rename, a conflict, a mass deletion, a 9 MiB file, a reader, offline —
+   the host's Rust tests against a real server (`tests_sync.rs`); two
+   real computers, by hand (`manual-checks.md`).
+8. Who changed what, and what needs a look: on the console's page of a
+   folder, *Últimas mudanças nos arquivos* shows a device's change with the
+   device's name in parentheses beside the account, and the server's log
+   names the device in a refused change (`tests_sync.rs`,
+   `a_devices_change_and_its_refusal_name_the_device`); a name held in two
+   files on the server's disk is listed under *Pede atenção*
+   (`tests_console.rs`,
+   `a_file_held_as_anothers_name_is_said_on_the_console`; the disk itself,
+   Linux only); a device's session ended in *Ajustes* › *Conta* closes that
+   device's connection at once, and its *Sincronizar* says to connect again
+   in *Servidores* (`tests_sync.rs`,
+   `an_ended_sessions_connection_is_closed_at_once`); two real computers,
+   by hand.
+9. The trash on a server ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)):
+   a device writes other bytes over a note; *Ajustes › Lixeira* lists the
+   version it replaced, "substituído por" the device, and "Restaurar" puts
+   it beside the note; the console's folder page shows the trash, "fora da
+   cota", and its days (e2e-server, "a device's write keeps what it
+   replaced"). An editor restores but deletes nothing for good, a reader
+   sees no trash, the owner shortens the days under the admin's, and the
+   console sets and empties it; the sweep expires what is past its days and
+   the oldest while a trash alone passes the quota (`tests_trash.rs`).
+10. Sharing between people ([ADR 0081](../adr/0081-sharing-between-people-on-one-universo.md)),
+   from note 23's "Compartilhar com outra pessoa" and the tour's stop: the
+   demo vault has one account, so the other side is followed with two
+   browsers on a UniVerso. The folder button at the top of the side bar
+   opens the switcher, *Neste computador*, *Meus*, *Compartilhados comigo*;
+   a share opens from it (e2e, `shares.spec.mjs`, "the folder switcher").
+   As the owner, a folder's menu › *Compartilhar…*: the dialog adds a person
+   by e-mail, changes the role by keyboard, and asks before *Tirar*; the
+   tree marks the folder "compartilhada com 1 pessoa" (e2e, "the owner
+   shares a folder"). A link of a shared note to a note outside reads *Não
+   está no que foi compartilhado com você.* and makes no note (e2e, "a link
+   out of what was shared"). What the receiver may reach — never above the
+   share, by `..`, a sibling, a rename, sync's listing, reads and writes,
+   `/f/`, the events — the server's Rust tests (`tests_shares.rs`); two
+   people and the attachments folder, by hand (`manual-checks.md`). The
+   owner removes a person whose computer syncs the share: that sync turns
+   off, the files kept, and the status bar and *Ajustes* › *Sincronizar*
+   say *quem compartilhou revogou o acesso* and when (e2e, `sync.spec.mjs`,
+   "a share revoked by its owner"; the host's Rust test against a real
+   server, `tests_shares.rs`). As the receiver, rename a note of the share
+   that a note of the owner's outside it links to; as the owner, that
+   note's link now has the new name, and the receiver's rename named only
+   notes inside the share (the server's Rust test, `tests_shares.rs`, "a
+   receivers rename rewrites the owners links outside the share", with a
+   note open in a room kept as it was; by hand with two browsers). The
+   receiver's status bar counts the share's notes, and a base through the
+   share counts, sums and lists only notes inside it (the server's Rust
+   test, `tests_shares.rs`, "a receivers counts are the shares").
+11. Editing together in a synced folder ([ADR
+    0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), from note 23's
+    section *Editar junto numa pasta sincronizada*: with the folder syncing,
+    a note opened in *Editar* says *ao vivo, só você* beside its title and
+    in the status bar; another person in it is named (*ao vivo, com Bia*)
+    and their text arrives; what is typed goes to the room, never to the
+    file, which follows the room's save; the link dropped, the note says
+    *local — sem conexão*, keeps its text and saves it here; back, *A nota
+    está ao vivo de novo* and what was typed is in the room; paused, *local
+    — sincronização pausada*; back in another room, the note is read anew
+    with its text; *Ajustes* › *Sincronizar* › *Editar notas junto enquanto
+    online* off, the note leaves the room and, opened again, joins nothing
+    (e2e, `live.spec.mjs`). A property set in the panel of a live note —
+    a value, a checkbox — goes into the room beside what another person
+    types there, never to the file, which follows the room's save; a
+    sticker, a base's cell and a PDF's quote into a live companion note go
+    the same way, with no `write_note` and no conflict copy, whether a tab
+    here holds the note or it is live only with someone else, the window
+    joining its room for the one write (e2e, `live.spec.mjs`, "a property
+    set in the panel"; `live-writes.spec.mjs`; `roomWrites.test.mjs`). Two devices and a browser in one room, a drop
+    and a return within the grace and after it, an outside program's edit,
+    a reader, a pause, and the property test that no edit is lost — the
+    host's Rust tests against a real server (`tests_live.rs`); a cursor
+    always wears its writer's account name, whatever the window sent
+    (`tests_threats.rs`); two real
+    computers, by hand (`manual-checks.md`). The demo vault has no server:
+    the steps run in the harness's room or by hand.
+12. Everything edited together, not only notes ([ADR
+    0082](../adr/0082-live-co-editing-of-a-synced-folder.md) item 12), from
+    note 23's *Editar junto* and the tour's stop "Num servidor": with the
+    demo vault on a UniVerso, open *Tour do Verso* — or a board of your
+    own — in two windows. Drag a card in one while the other draws a text
+    with the text tool: each window shows both, and the file holds both,
+    no conflict copy and no banner; the other window's pointer moves on
+    this one's board with its name, and the tab says *ao vivo, com* and the
+    name (e2e-server, "two windows on one board"; with the board kept out
+    of its room the test fails). Open a `.txt` in two windows and type in
+    each: each sees the other's letters, and the file follows; open
+    *Projetos.base* in two windows and add a sort with the toolbar's
+    *Ordenar* › *+ Adicionar ordenação*: the other window's base has it,
+    and so does the file (e2e-server, "two windows on a text file and on a
+    base's settings"). On a synced folder a board is live while the link is
+    up, goes *local — sem conexão* with what it holds saved here, and comes
+    back with *O quadro está ao vivo de novo* (e2e, `live.spec.mjs`, "a
+    synced folder's board is live"). The merge — two elements both land,
+    the same element the higher version, on a tie the lower nonce, a
+    deletion against a drag stays deleted, the file only of the room's own
+    state, opening writes nothing, a change from outside, the limits — the
+    server's Rust tests (`tests_board_rooms.rs`, `collab_board.rs`), the
+    window's (`boardRoom.test.mjs`), and two synced devices on a text file
+    and a board (`tests_live.rs`); two real computers, by hand
+    (`manual-checks.md`). Under load: five clients on a board against a
+    real server, seeded, with reordering, drops and a reader of the disk
+    (`tests_board_stress.rs`; the long run `board_stress_long`, ignored);
+    five windows with the window's own merge and converter
+    (`boardStress.test.mjs`); three windows in two engines working at
+    random for a minute (e2e-server, "three windows, two engines").
 
 ## 14. The end
 

@@ -17,7 +17,7 @@ use super::*;
 
 /// The test's runtime, built by hand: `#[tokio::test]` expands to an
 /// `expect` the workspace forbids (`CLAUDE.md` §3).
-fn block_on<F: std::future::Future>(f: F) -> F::Output {
+pub(crate) fn block_on<F: std::future::Future>(f: F) -> F::Output {
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -25,31 +25,67 @@ fn block_on<F: std::future::Future>(f: F) -> F::Output {
         .block_on(f)
 }
 
-struct Running {
-    server: Arc<state::Server>,
-    addr: SocketAddr,
+/// How many test servers may be alive at once. Each one's folder, once a
+/// test opens it, registers a native watcher, and on macOS that is an
+/// FSEvents stream started (and, when the folder closes, stopped) through
+/// `fseventsd`, which serves the registrations one after another: with a
+/// server per test thread (16 on the maintainer's Mac) the last ones queued
+/// past the 10 s wait of [`next`] and the tests failed for no fault of the
+/// code under test. Not a number to raise to make the suite faster: it is
+/// bounded by `fseventsd`. Measured on 2026-10-10 at the default 16 threads:
+/// 6 still left a folder's second open waiting past 10 s in 4 runs of 5; 4
+/// passed 6 runs of 6. The tests stay independent and parallel; only the
+/// number of them holding a server at once is capped.
+static SERVERS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(4);
+
+pub(crate) struct Running {
+    pub(crate) server: Arc<state::Server>,
+    pub(crate) addr: SocketAddr,
     _dirs: (tempfile::TempDir, tempfile::TempDir),
     _stop: tokio::sync::oneshot::Sender<()>,
+    /// One of [`SERVERS`], given back when the test drops its server; last,
+    /// so it is released after the server has been told to stop. `None` only
+    /// for a handle a test builds around a second server that opens no
+    /// folder, while its own [`start`] already holds a permit: a test that
+    /// waited for two could leave every permit held and every test waiting.
+    _permit: Option<tokio::sync::SemaphorePermit<'static>>,
 }
 
 impl Running {
-    fn url(&self, path: &str) -> String {
+    pub(crate) fn url(&self, path: &str) -> String {
         format!("http://localhost:{}{path}", self.addr.port())
     }
 
-    fn origin(&self) -> String {
+    pub(crate) fn addr(&self) -> SocketAddr {
+        self.addr
+    }
+
+    /// The test folder's directory on the server's disk.
+    pub(crate) fn campanha(&self) -> std::path::PathBuf {
+        self._dirs.1.path().join("Campanha")
+    }
+
+    pub(crate) fn origin(&self) -> String {
         format!("http://localhost:{}", self.addr.port())
     }
 }
 
+/// Every test server's configuration. The update check is off, as
+/// `VERSO_UPDATE_CHECK=off` turns it off but through this table rather than
+/// the process's environment: a test server never reaches the network
+/// (dozens of them asking the release feed at once were limited by GitHub).
 fn config(data: &std::path::Path, folders: &std::path::Path) -> Config {
     struct Loopback;
     impl config::Env for Loopback {
         fn var(&self, name: &str) -> Option<String> {
-            (name == "VERSO_LISTEN").then(|| "127.0.0.1:0".to_owned())
+            match name {
+                "VERSO_LISTEN" => Some("127.0.0.1:0".to_owned()),
+                "VERSO_UPDATE_CHECK" => Some("off".to_owned()),
+                _ => None,
+            }
         }
     }
-    Config::from_env(
+    let config = Config::from_env(
         &Loopback,
         &config::Defaults {
             data_dir: data.to_owned(),
@@ -57,11 +93,17 @@ fn config(data: &std::path::Path, folders: &std::path::Path) -> Config {
             ui_dir: data.join("ui"),
         },
     )
-    .unwrap()
+    .unwrap();
+    assert!(
+        !config.update_check,
+        "a test server never asks the release feed"
+    );
+    config
 }
 
 /// A server with an admin and one folder, "Campanha", owned by the admin.
-async fn start() -> Running {
+pub(crate) async fn start() -> Running {
+    let permit = SERVERS.acquire().await.unwrap();
     let data = tempfile::tempdir().unwrap();
     let folders = tempfile::tempdir().unwrap();
     verso_fs::server::make_folder(folders.path(), "Campanha").unwrap();
@@ -108,16 +150,22 @@ async fn start() -> Running {
         addr,
         _dirs: (data, folders),
         _stop: tx,
+        _permit: Some(permit),
     }
 }
 
 /// A browser signed in: its cookie and its CSRF token.
-struct Browser {
-    cookie: String,
-    csrf: String,
+pub(crate) struct Browser {
+    pub(crate) cookie: String,
+    pub(crate) csrf: String,
 }
 
-async fn post(r: &Running, path: &str, body: Value, b: Option<&Browser>) -> (u16, Value) {
+pub(crate) async fn post(
+    r: &Running,
+    path: &str,
+    body: Value,
+    b: Option<&Browser>,
+) -> (u16, Value) {
     let client = reqwest::Client::new();
     let mut req = client
         .post(r.url(path))
@@ -133,7 +181,7 @@ async fn post(r: &Running, path: &str, body: Value, b: Option<&Browser>) -> (u16
     (status, res.json().await.unwrap_or(Value::Null))
 }
 
-async fn get(r: &Running, path: &str, b: Option<&Browser>) -> (u16, Value) {
+pub(crate) async fn get(r: &Running, path: &str, b: Option<&Browser>) -> (u16, Value) {
     let mut req = reqwest::Client::new().get(r.url(path));
     if let Some(b) = b {
         req = req.header("cookie", &b.cookie);
@@ -143,7 +191,7 @@ async fn get(r: &Running, path: &str, b: Option<&Browser>) -> (u16, Value) {
     (status, res.json().await.unwrap_or(Value::Null))
 }
 
-async fn sign_in(r: &Running, email: &str, password: &str) -> Browser {
+pub(crate) async fn sign_in(r: &Running, email: &str, password: &str) -> Browser {
     let res = reqwest::Client::new()
         .post(r.url("/api/signin"))
         .header("origin", r.origin())
@@ -169,10 +217,10 @@ async fn sign_in(r: &Running, email: &str, password: &str) -> Browser {
     }
 }
 
-type Socket =
+pub(crate) type Socket =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
-async fn connect(
+pub(crate) async fn connect(
     r: &Running,
     cookie: Option<&str>,
     origin: Option<&str>,
@@ -199,9 +247,10 @@ async fn connect(
 }
 
 /// The next message that is not an event.
-async fn next(ws: &mut Socket) -> Value {
+pub(crate) async fn next(ws: &mut Socket) -> Value {
     loop {
-        let m = tokio::time::timeout(std::time::Duration::from_secs(10), ws.next())
+        // 30 s, not a product timeout: opening a folder waits on fseventsd, which queues under machine load.
+        let m = tokio::time::timeout(std::time::Duration::from_secs(30), ws.next())
             .await
             .expect("an answer in time")
             .unwrap()
@@ -215,7 +264,7 @@ async fn next(ws: &mut Socket) -> Value {
     }
 }
 
-async fn call(ws: &mut Socket, id: u64, cmd: &str, args: Value) -> Value {
+pub(crate) async fn call(ws: &mut Socket, id: u64, cmd: &str, args: Value) -> Value {
     ws.send(Message::Text(
         json!({ "id": id, "cmd": cmd, "args": args })
             .to_string()
@@ -231,7 +280,7 @@ async fn call(ws: &mut Socket, id: u64, cmd: &str, args: Value) -> Value {
     }
 }
 
-async fn folder_id(r: &Running, b: &Browser) -> String {
+pub(crate) async fn folder_id(r: &Running, b: &Browser) -> String {
     let (_, me) = get(r, "/api/folders", Some(b)).await;
     me["folders"][0]["id"].as_str().unwrap().to_owned()
 }
@@ -345,16 +394,32 @@ fn the_websocket_wants_a_session_and_this_servers_origin() {
             connect(&r, Some(&b.cookie), None, None).await.err(),
             Some(403)
         );
-        // A session ended elsewhere: the next command is refused and the
+        // A session gone without a word to its connections (ended on the
+        // machine, expired): the next command is refused and the
         // connection told.
+        let other = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let mut ws = connect(&r, Some(&other.cookie), Some(&r.origin()), None)
+            .await
+            .unwrap();
+        next(&mut ws).await;
+        let token = other.cookie.split_once('=').unwrap().1;
+        let session = r.server.db.session(token).unwrap().unwrap();
+        r.server
+            .db
+            .end_session(&session.account, &session.id)
+            .unwrap();
+        let after = call(&mut ws, 1, "list_notes", json!({})).await;
+        assert_eq!(after["err"]["message"], "signed out", "{after}");
+        // A session ended through the server (signing out): its connection
+        // is told at once, before any command.
         let mut ws = connect(&r, Some(&b.cookie), Some(&r.origin()), None)
             .await
             .unwrap();
         next(&mut ws).await;
         let (status, _) = post(&r, "/api/signout", json!({}), Some(&b)).await;
         assert_eq!(status, 200);
-        let after = call(&mut ws, 1, "list_notes", json!({})).await;
-        assert_eq!(after["err"]["message"], "signed out", "{after}");
+        let told = next(&mut ws).await;
+        assert_eq!(told["gone"], "session", "{told}");
     });
 }
 
@@ -396,8 +461,8 @@ fn an_invited_reader_reads_and_cannot_write() {
         .await;
         assert_eq!(again, 404);
         let (_, list) = get(&r, "/api/admin/invitations", Some(&admin)).await;
-        assert_eq!(list[0]["state"], "used");
-        assert_eq!(list[0]["usedBy"], "leitor@casa.lan");
+        assert_eq!(list["rows"][0]["state"], "used");
+        assert_eq!(list["rows"][0]["usedBy"], "leitor@casa.lan");
         let reader = sign_in(&r, "leitor@casa.lan", "outra senha longa").await;
         let mut ws = connect(&r, Some(&reader.cookie), Some(&r.origin()), None)
             .await
@@ -414,6 +479,36 @@ fn an_invited_reader_reads_and_cannot_write() {
         )
         .await;
         assert_eq!(write["err"]["kind"], "refused", "{write}");
+        // In a room a reader is present and sends nothing: no edit, and no
+        // board's file to write (ADR 0082 items 4 and 12).
+        let canvas = call(
+            &mut ws,
+            40,
+            "collab_canvas",
+            json!({ "path": "Mesa.canvas", "at": "AA==", "json": "{}" }),
+        )
+        .await;
+        assert_eq!(canvas["err"]["kind"], "refused", "{canvas}");
+        assert!(
+            canvas["err"]["message"]
+                .as_str()
+                .unwrap()
+                .contains("only read"),
+            "{canvas}"
+        );
+        // The folder's settings: read, never changed by a reader — whose
+        // window keeps its bookmarks on its machine (ADR 0070, decided
+        // 2026-10-12).
+        let layer = call(&mut ws, 30, "get_folder_settings", json!({})).await;
+        assert!(layer["ok"]["problem"].is_null(), "{layer}");
+        let star = call(
+            &mut ws,
+            31,
+            "set_folder_settings",
+            json!({ "change": { "bookmarks": ["Sessao.md"] }, "revision": null }),
+        )
+        .await;
+        assert_eq!(star["err"]["kind"], "refused", "{star}");
         let caps = call(&mut ws, 4, "capabilities", json!({})).await;
         assert!(
             !caps["ok"]["can"]
@@ -458,6 +553,19 @@ fn an_invited_reader_reads_and_cannot_write() {
         )
         .await;
         assert_eq!(made["ok"]["path"], "Minha.md", "{made}");
+        // The same change, now that they write: kept in the folder's file.
+        let star = call(
+            &mut ws,
+            32,
+            "set_folder_settings",
+            json!({ "change": { "bookmarks": ["Sessao.md"] }, "revision": null }),
+        )
+        .await;
+        assert_eq!(
+            star["ok"]["settings"]["bookmarks"],
+            json!(["Sessao.md"]),
+            "{star}"
+        );
         // The audit log has the invitation and the grant, for the owner.
         let (_, log) = get(&r, &format!("/api/folders/{id}/audit"), Some(&admin)).await;
         let actions: Vec<&str> = log
@@ -473,7 +581,7 @@ fn an_invited_reader_reads_and_cannot_write() {
     });
 }
 
-async fn put(r: &Running, path: &str, body: Value, b: &Browser) -> (u16, Value) {
+pub(crate) async fn put(r: &Running, path: &str, body: Value, b: &Browser) -> (u16, Value) {
     let res = reqwest::Client::new()
         .put(r.url(path))
         .header("origin", r.origin())
@@ -504,11 +612,11 @@ fn a_stranger_sees_no_folder_and_wrong_passwords_slow_down() {
         // An account that owns no folder takes 0 bytes — a whole 0, not
         // the -0.0 a sum of no float is, which a page shows as "-0 B".
         let (_, list) = get(&r, "/api/admin/accounts", Some(&admin)).await;
-        let new = list
+        let new = list["rows"]
             .as_array()
             .unwrap()
             .iter()
-            .find(|a| a["account"]["email"] == "outro@casa.lan")
+            .find(|a| a["email"] == "outro@casa.lan")
             .unwrap();
         assert_eq!(new["space"].as_u64(), Some(0), "{new}");
         let token = link.rsplit('/').next().unwrap();
@@ -602,6 +710,59 @@ fn the_desktop_signs_in_through_the_browser() {
                 .iter()
                 .any(|s| s["session"]["kind"] == "device")
         );
+    });
+}
+
+/// The person names this computer again in the app (ADR 0079 item 8, ADR
+/// 0074 item 8; decided 2026-10-11): its session takes the name, said in
+/// the list of sessions; only a device's own session names itself.
+#[test]
+fn a_device_names_its_session_again() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let account = r
+            .server
+            .db
+            .account_by_email("admin@casa.lan")
+            .unwrap()
+            .unwrap();
+        let (token, _) = r
+            .server
+            .db
+            .create_session(&account.id, "device", "Verso · MacBook", "127.0.0.1")
+            .unwrap();
+        let rename = |bearer: Option<String>, cookie: Option<&Browser>, name: &str| {
+            let mut req = reqwest::Client::new()
+                .put(r.url("/api/me/device"))
+                .header("origin", r.origin())
+                .json(&json!({ "device": name }));
+            if let Some(t) = bearer {
+                req = req.bearer_auth(t);
+            }
+            if let Some(b) = cookie {
+                req = req
+                    .header("cookie", &b.cookie)
+                    .header("x-verso-csrf", &b.csrf);
+            }
+            async move { req.send().await.unwrap().status().as_u16() }
+        };
+        assert_eq!(
+            rename(Some(token.clone()), None, "Verso · Estúdio").await,
+            200
+        );
+        let (_, sessions) = get(&r, "/api/me/sessions", Some(&admin)).await;
+        let devices: Vec<&Value> = sessions
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|s| s["session"]["kind"] == "device")
+            .collect();
+        assert_eq!(devices.len(), 1, "{sessions}");
+        assert_eq!(devices[0]["session"]["device"], "Verso · Estúdio");
+        // A browser's session has no device to name; nothing is no name.
+        assert_eq!(rename(None, Some(&admin), "Outro").await, 403);
+        assert_eq!(rename(Some(token), None, "  ").await, 400);
     });
 }
 
@@ -743,7 +904,7 @@ fn the_server_serves_its_own_tls() {
         let r = start().await;
         let tcp = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = tcp.local_addr().unwrap().port();
-        let listener = tls::TlsListener::new(tcp, acceptor).unwrap();
+        let listener = tls::TlsListener::new(tcp, acceptor, Arc::clone(&r.server.slots)).unwrap();
         let server = Arc::clone(&r.server);
         tokio::spawn(async move {
             let _ = run_on(server, listener, std::future::pending()).await;
@@ -760,7 +921,9 @@ fn the_server_serves_its_own_tls() {
             .json()
             .await
             .unwrap();
-        assert_eq!(state["contract"], contract_version());
+        assert_eq!(state["secure"], true);
+        // A stranger is not told the version (threat-model.md, gap 15).
+        assert!(state["version"].is_null() && state["contract"].is_null());
         // Plain HTTP to the TLS port gets nothing.
         assert!(
             reqwest::get(format!("http://localhost:{port}/api/state"))
@@ -771,9 +934,10 @@ fn the_server_serves_its_own_tls() {
 }
 
 /// The next event of `name` the socket hears.
-async fn event_named(ws: &mut Socket, name: &str) -> Value {
+pub(crate) async fn event_named(ws: &mut Socket, name: &str) -> Value {
     loop {
-        let m = tokio::time::timeout(std::time::Duration::from_secs(10), ws.next())
+        // 30 s, not a product timeout: opening a folder waits on fseventsd, which queues under machine load.
+        let m = tokio::time::timeout(std::time::Duration::from_secs(30), ws.next())
             .await
             .expect("an event in time")
             .unwrap()
@@ -1044,6 +1208,7 @@ fn without_web_a_browser_gets_no_window_and_the_app_still_connects() {
             addr: SocketAddr::from(([127, 0, 0, 1], port)),
             _dirs: (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()),
             _stop: tokio::sync::oneshot::channel().0,
+            _permit: None,
         };
         let (_, st) = get(&probe, "/api/state", None).await;
         assert_eq!(st["web"], false);
@@ -1118,6 +1283,16 @@ fn with_a_mail_server_links_go_by_mail_and_say_nothing_of_strangers() {
         )
         .await;
         assert_eq!((s1, s2), (200, 200));
+        // Sent after the answer (threat-model.md, gap 6): waited for.
+        let mut mails = sent();
+        for _ in 0..100 {
+            if !mails.is_empty() {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            mails = sent();
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
         let mails = sent();
         assert_eq!(mails.len(), 1);
         assert_eq!(mails[0].0, "admin@casa.lan");
@@ -1157,6 +1332,12 @@ fn with_a_mail_server_links_go_by_mail_and_say_nothing_of_strangers() {
             .0,
             200
         );
+        for _ in 0..100 {
+            if sent().len() > 1 {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
         assert!(sent().last().unwrap().2.contains("/reset/"));
         // An invitation to an address goes there too.
         let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
@@ -1206,4 +1387,71 @@ fn a_folder_name_taken_twice_says_so_in_its_own_words() {
         assert_eq!(status, 409);
         assert_eq!(adopted["error"], "folder_exists", "{adopted}");
     });
+}
+
+/// Many requests sent at once, more than a connection may have under way
+/// (R5 of 2026-10-11): the ones past the bound wait to be read, and every
+/// one is answered — none refused, none lost.
+#[test]
+fn requests_past_the_bound_wait_and_are_all_answered() {
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let mut ws = connect(&r, Some(&b.cookie), Some(&r.origin()), None)
+            .await
+            .unwrap();
+        next(&mut ws).await;
+        for id in 1..=40_u64 {
+            ws.send(Message::Text(
+                json!({ "id": id, "cmd": "app_info", "args": {} })
+                    .to_string()
+                    .into(),
+            ))
+            .await
+            .unwrap();
+        }
+        let mut answered = std::collections::BTreeSet::new();
+        while answered.len() < 40 {
+            let v = next(&mut ws).await;
+            assert!(v.get("ok").is_some(), "{v}");
+            answered.insert(v["id"].as_u64().unwrap());
+        }
+        assert_eq!(answered, (1..=40).collect());
+    });
+}
+
+/// The sync protocol's version (ADR 0079 item 5): a device says its own
+/// in the WebSocket's request, the hello says the server's, and a device
+/// older than the version before the server's is refused, in words that
+/// say what to do — its sync's commands too.
+#[test]
+fn the_hello_says_the_sync_the_server_speaks() {
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let mut req = format!("ws://localhost:{}/api/ws", r.addr.port())
+            .into_client_request()
+            .unwrap();
+        let headers = req.headers_mut();
+        headers.insert("cookie", b.cookie.parse().unwrap());
+        headers.insert("origin", r.origin().parse().unwrap());
+        headers.insert(
+            verso_core::sync::PROTOCOL_HEADER,
+            verso_core::sync::PROTOCOL.to_string().parse().unwrap(),
+        );
+        let (mut ws, _) = tokio_tungstenite::connect_async(req).await.unwrap();
+        let hello = next(&mut ws).await;
+        assert_eq!(
+            hello["hello"]["sync"],
+            verso_core::sync::PROTOCOL,
+            "{hello}"
+        );
+        assert!(hello["hello"].get("syncRefused").is_none(), "{hello}");
+    });
+    // A server two versions ahead of a device.
+    let why = crate::rpc::sync_refusal(Some(1), 3).unwrap();
+    assert!(why.contains("sync 1") && why.contains("sync 3"), "{why}");
+    assert!(why.ends_with("update the one that is behind"), "{why}");
+    assert_eq!(crate::rpc::sync_refusal(Some(2), 3), None);
+    assert_eq!(crate::rpc::sync_refusal(None, 3), None);
 }

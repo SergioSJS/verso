@@ -84,9 +84,14 @@ pub(crate) fn write_note<R: tauri::Runtime>(
     text: String,
     revision: String,
 ) -> Result<Written, ContractError> {
-    with(&state, &window, |ws| {
+    let (p, t) = (path.clone(), text.clone());
+    let written = with(&state, &window, |ws| {
         ops::write_note(ws, path, text, revision)
-    })
+    })?;
+    // A live note of a synced folder, written by its tab while out of its
+    // room: the tab's own text (ADR 0082 items 6 and 8).
+    wrote(window.app_handle(), window.label(), &p, &t);
+    Ok(written)
 }
 
 /// Every regular file of the folder that is not a note, for the tree.

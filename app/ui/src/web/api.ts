@@ -11,8 +11,9 @@ import { w } from "./strings";
 export type Account = { id: string; email: string; name: string; lang: string; admin: boolean; mayCreate: boolean };
 
 export type State = {
-  version: string;
-  contract: string;
+  /** Told only to someone signed in (threat-model.md, gap 15). */
+  version: string | null;
+  contract: string | null;
   secure: boolean;
   /** Whether the server serves the notes' window in a browser (`--web`). */
   web: boolean;

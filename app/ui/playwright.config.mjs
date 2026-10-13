@@ -5,10 +5,20 @@
 // WebView2 on Windows (ADR 0069, item 8) — what differs between the two is
 // most of what will differ in the Windows app. `npm run e2e` builds, then
 // runs them; scripts/check.sh runs them before every push.
+//
+// On macOS (ADR 0069 item 8, revised on 2026-10-12): one worker, no
+// screenshot and no trace screencast. Playwright's WebKit on a Mac takes
+// every screencast frame and every screenshot as a capture of its window
+// by the WindowServer, and the window server kept the surfaces: it ran out
+// of IOSurfaces and aborted four times in two days. A trace still records
+// the DOM of each step, which is what is read after a failure; Linux and
+// CI keep the screencast and the screenshots. e2e/preflight.mjs guards the
+// run (globalSetup).
 
 import { defineConfig, devices } from "@playwright/test";
 
 const port = Number(process.env.HARNESS_PORT ?? 4173);
+const mac = process.platform === "darwin";
 
 export default defineConfig({
   testDir: "e2e",
@@ -19,6 +29,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: true,
   retries: 0,
+  workers: mac ? 1 : undefined,
+  globalSetup: "./e2e/preflight.mjs",
   reporter: [["list"]],
   use: {
     ...devices["Desktop Safari"],
@@ -27,8 +39,8 @@ export default defineConfig({
     deviceScaleFactor: 1,
     locale: "pt-BR",
     timezoneId: "America/Sao_Paulo",
-    trace: "retain-on-failure",
-    screenshot: "only-on-failure",
+    trace: mac ? { mode: "retain-on-failure", screenshots: false, snapshots: true } : "retain-on-failure",
+    screenshot: mac ? "off" : "only-on-failure",
   },
   projects: [
     { name: "webkit", use: { browserName: "webkit" } },

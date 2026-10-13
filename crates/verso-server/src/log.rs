@@ -8,7 +8,8 @@
 //! prints, once, by design (item 1).
 
 /// The time as `YYYY-MM-DDTHH:MM:SSZ`, from the system clock.
-fn stamp() -> String {
+#[must_use]
+pub fn stamp() -> String {
     let secs = crate::db::now();
     let days = secs.div_euclid(86_400);
     let rest = secs.rem_euclid(86_400);
@@ -32,6 +33,23 @@ fn stamp() -> String {
 
 pub fn line(level: &str, message: &str) {
     eprintln!("{} {level} {message}", stamp());
+    #[cfg(test)]
+    if let Ok(mut said) = SAID.lock() {
+        said.push(format!("{level} {message}"));
+    }
+}
+
+/// Every line said while the tests run, for a test to look for its own
+/// (the tests share the process: each looks for a name only it uses).
+#[cfg(test)]
+static SAID: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+
+/// The lines said so far that name `what`.
+#[cfg(test)]
+pub(crate) fn said(what: &str) -> Vec<String> {
+    SAID.lock()
+        .map(|s| s.iter().filter(|l| l.contains(what)).cloned().collect())
+        .unwrap_or_default()
 }
 
 pub fn info(message: &str) {

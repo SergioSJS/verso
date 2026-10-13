@@ -9,8 +9,7 @@
 
 import { type Account } from "./api";
 import { accountEntries } from "./account";
-import { adminEntries } from "./admin";
-import { el, type Entry, type Item } from "./form";
+import { brand, el, type Entry, type Item } from "./form";
 import { setLang, w } from "./strings";
 import { icon } from "../icons";
 
@@ -36,15 +35,14 @@ export function settingsPage(me: Account, first: "account" | "admin", lead?: str
   const s = w();
   const sections: { id: "account" | "admin"; label: string; icon: string; entries: () => Entry[] }[] = [
     { id: "account", label: s.account, icon: "user", entries: () => accountEntries(me, item) },
-    ...(me.admin ? [{ id: "admin" as const, label: s.admin, icon: "shield", entries: () => adminEntries(me, item) }] : []),
   ];
   let current = sections.some((x) => x.id === first) ? first : "account";
   document.body.classList.add("web-mode");
   document.querySelector(".web-page")?.remove();
   const nav = el("nav", { class: "settings-nav", "aria-label": s.appName });
   const body = el("div", { class: "settings-body" });
-  const brand = el("div", { class: "web-brand" }, el("img", { src: "/icon-192.png", alt: "", width: "28", height: "28" }), el("span", {}, s.appName));
-  const side = el("div", { class: "settings-side" }, brand, nav);
+  const mark = brand(28);
+  const side = el("div", { class: "settings-side" }, mark, nav);
   const paint = () => {
     const sec = sections.find((x) => x.id === current) ?? sections[0];
     if (!sec) return;

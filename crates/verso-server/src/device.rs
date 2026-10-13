@@ -33,6 +33,12 @@ pub struct Pending {
     poll: Vec<u8>,
     made: Instant,
     approved: Option<(String, String)>,
+    /// Who asked, for the page that approves it (threat-model.md, gap
+    /// 12): the address the code was asked from, and when
+    /// (`YYYY-MM-DDTHH:MM:SSZ`). A person sent someone else's link sees a
+    /// request that is not theirs.
+    pub address: String,
+    pub asked: String,
 }
 
 fn code() -> Result<String, String> {
@@ -45,6 +51,18 @@ fn code() -> Result<String, String> {
     Ok(format!("{}-{}", &letters[..4], &letters[4..]))
 }
 
+/// A device's name as a session keeps it: on one line, trimmed, at most
+/// 80 characters; none when nothing is left.
+fn kept_name(name: &str) -> Option<String> {
+    let one_line: String = name
+        .chars()
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .collect();
+    let kept: String = one_line.trim().chars().take(80).collect();
+    let kept = kept.trim_end().to_owned();
+    (!kept.is_empty()).then_some(kept)
+}
+
 #[derive(Deserialize)]
 pub struct Start {
     device: String,
@@ -53,7 +71,7 @@ pub struct Start {
 /// The app asks for a code.
 pub async fn start(ctx: Ctx, Json(body): Json<Start>) -> ApiResult<Response> {
     ctx.secure()?;
-    let key = format!("device:{}", ctx.peer.addr);
+    let key = format!("device:{}", ctx.peer.key());
     let wait = ctx.server.limiter.wait(&key);
     if !wait.is_zero() {
         return Err(ApiError::wait(wait.as_secs() + 1));
@@ -61,22 +79,21 @@ pub async fn start(ctx: Ctx, Json(body): Json<Start>) -> ApiResult<Response> {
     // Each start counts: a flood of codes is slowed like a flood of
     // sign-ins.
     ctx.server.limiter.failed(&key);
-    let device: String = body.device.trim().chars().take(80).collect();
+    let device = kept_name(&body.device);
     let code = code()?;
     let poll = crate::crypto::token()?;
     let mut devices = lock(&ctx.server.devices);
     devices.retain(|_, p| p.made.elapsed() < LIFE);
+    crate::limit::make_room(&mut devices, crate::limit::PENDING, |p| p.made);
     devices.insert(
         code.clone(),
         Pending {
-            device: if device.is_empty() {
-                "Verso".to_owned()
-            } else {
-                device
-            },
+            device: device.unwrap_or_else(|| "Verso".to_owned()),
             poll: crate::crypto::hash(&poll),
             made: Instant::now(),
             approved: None,
+            address: ctx.address(),
+            asked: crate::log::stamp(),
         },
     );
     let base = crate::auth::expected_origin(&ctx.server, &ctx.headers).unwrap_or_default();
@@ -89,21 +106,53 @@ pub async fn start(ctx: Ctx, Json(body): Json<Start>) -> ApiResult<Response> {
     })))
 }
 
-/// What is asking, for the page that approves it.
+fn link_gone() -> ApiError {
+    ApiError::new(
+        StatusCode::NOT_FOUND,
+        "link_gone",
+        "this code is used or expired",
+    )
+}
+
+/// What is asking, for the page that approves it: the device's name as
+/// it gave it, and the address and time it asked from (gap 12).
 pub async fn describe(ctx: Ctx, Path(code): Path<String>) -> ApiResult<Response> {
     ctx.who()?;
     let devices = lock(&ctx.server.devices);
     let p = devices
         .get(&code.to_ascii_uppercase())
         .filter(|p| p.made.elapsed() < LIFE && p.approved.is_none())
-        .ok_or_else(|| {
-            ApiError::new(
-                StatusCode::NOT_FOUND,
-                "link_gone",
-                "this code is used or expired",
-            )
-        })?;
-    Ok(ok(json!({ "device": p.device })))
+        .ok_or_else(link_gone)?;
+    Ok(ok(json!({
+        "device": p.device,
+        "address": p.address,
+        "asked": p.asked,
+    })))
+}
+
+/// The person says it was not them: the code is gone, and the app that
+/// asked hears `link_gone` (gap 12).
+pub async fn refuse(ctx: Ctx, Path(code): Path<String>) -> ApiResult<Response> {
+    ctx.changes()?;
+    let who = ctx.who()?;
+    if !matches!(who.via, crate::auth::Via::Browser { .. }) {
+        return Err(ApiError::forbidden("refused in the browser"));
+    }
+    let code = code.to_ascii_uppercase();
+    let refused = {
+        let mut devices = lock(&ctx.server.devices);
+        let open = devices
+            .get(&code)
+            .is_some_and(|p| p.made.elapsed() < LIFE && p.approved.is_none());
+        if open { devices.remove(&code) } else { None }
+    }
+    .ok_or_else(link_gone)?;
+    crate::log::info(&format!(
+        "a device's sign-in refused: {} asked from {} at {}",
+        refused.device, refused.address, refused.asked
+    ));
+    ctx.audit("device_refused", Some(&refused.device), None, true);
+    Ok(ok(json!(null)))
 }
 
 /// The person approves the code, signed in in the browser.
@@ -120,13 +169,7 @@ pub async fn approve(ctx: Ctx, Path(code): Path<String>) -> ApiResult<Response> 
             .get(&code)
             .filter(|p| p.made.elapsed() < LIFE && p.approved.is_none())
             .map(|p| p.device.clone())
-            .ok_or_else(|| {
-                ApiError::new(
-                    StatusCode::NOT_FOUND,
-                    "link_gone",
-                    "this code is used or expired",
-                )
-            })?
+            .ok_or_else(link_gone)?
     };
     let (token, _) =
         ctx.server
@@ -185,4 +228,32 @@ pub async fn poll(ctx: Ctx, Json(body): Json<Poll>) -> ApiResult<Response> {
     Ok(ok(
         json!({ "token": token, "account": crate::api::account_json(&account) }),
     ))
+}
+
+#[derive(Deserialize)]
+pub struct Rename {
+    device: String,
+}
+
+/// The device names itself again (ADR 0079 item 8, ADR 0074 item 8;
+/// decided 2026-10-11): the person set this computer's name in the app's
+/// Settings › Servers, and the session the device signed in with takes it
+/// — the list of sessions and the folders' change log say it from now on.
+/// Only a device's own session, with its own token.
+pub async fn rename(ctx: Ctx, Json(body): Json<Rename>) -> ApiResult<Response> {
+    ctx.changes()?;
+    let who = ctx.who()?;
+    let crate::auth::Via::Device { session } = &who.via else {
+        return Err(ApiError::forbidden(
+            "a device names itself, with its own session",
+        ));
+    };
+    let Some(device) = kept_name(&body.device) else {
+        return Err(ApiError::bad("bad_request", "a name"));
+    };
+    if !ctx.server.db.rename_device(session, &device)? {
+        return Err(ApiError::not_found());
+    }
+    ctx.audit("device_renamed", Some(&device), None, true);
+    Ok(ok(json!({ "device": device })))
 }

@@ -96,7 +96,49 @@
   server, the rule unchanged) and [0028](0028-crate-structure.md) (two
   crates). Accepted with this ADR: [0074](0074-accounts-and-access-on-the-server.md),
   [0075](0075-server-packaging-and-storage.md) and
-  [0076](0076-the-window-on-every-screen.md).
+  [0076](0076-the-window-on-every-screen.md). 2026-10-11 (evening) —
+  item 10: conflicts have been seen in use (the sync campaign's soak of
+  2026-10-11 made 42 copies of one note edited from two devices every
+  30 s), and the first step of merge by block is decided — two appends
+  to a note's end joined instead of a copy,
+  [0079](0079-sync-a-local-folder-with-a-server.md) item 8; with it, a
+  sync protocol version in the hello (0079 item 5). The maintainer,
+  answering a memo of recommendations: *"Sim para todos"* (yes to all).
+  What follows the round is in `docs/roadmap.md`, revision 6.
+  2026-10-11 — the Status's `[OPEN]` on recovering another member's
+  deletion is answered by [0080](0080-the-trash-with-expiry-and-restore.md)
+  items 5 and 7, accepted by the maintainer that day: a deletion goes to
+  the folder's trash, seen by those who may write in it, any of whom
+  restores it. History and attribution of a **change** stay open.
+  2026-10-11 — the Status's `[OPEN]` on permissions finer than the folder
+  is answered for a folder inside a folder by
+  [0081](0081-sharing-between-people-on-one-universo.md) (accepted that
+  day): a share is a grant on a path of one folder, with an id of its own
+  the receiver opens and syncs as a folder; per note and per block (spec
+  Q9) stay open. The old wording of the Status is kept.
+  2026-10-12 — item 7, with [0082](0082-live-co-editing-of-a-synced-folder.md) built (accepted
+  2026-10-11; f0d7398, 807c8c9, 2de0737, cb7b29d and 5add311, merged into `feat/universo` by 817886e on 2026-10-12): the
+  desktop app on a **synced** local folder joins the rooms too. A note of
+  such a folder joins the server's room while the device is connected,
+  over the sync's own link, as the browser and the online desktop do;
+  while the note is live, sync alone writes the local file, downloading
+  the room's saves; a connection that drops in the middle of an edit takes
+  the note local with its text kept and saved on the computer, nothing
+  lost, and the return rejoins the room, or, when the room is another (the
+  grace passed, the server restarted), ends in a conflict copy beside the
+  server's version; a reader is present in the room, with cursor and
+  name, and its edits are refused. The item's words are unchanged; the
+  board's co-editing stays `[OPEN]` (0082 item 12).
+  2026-10-12 (evening) — item 7: **the board's co-editing is decided and
+  built** ([0082](0082-live-co-editing-of-a-synced-folder.md) item 12; the
+  maintainer, *"Deveria estar"*), and with it every text file's: a board is
+  a room of its elements merged by Excalidraw's own reconciliation, which
+  the package exports, over the server's room as the relay — the higher
+  `version` wins, a tie the lower `versionNonce`, a deletion a tombstone —
+  and the room writes the file a window's converter made of exactly the
+  state it holds; any text file of the folder is a room as a note is. The
+  item's words and item 12's order are kept; their `[OPEN]` on the board
+  is answered here.
 
 ## Context
 
@@ -330,6 +372,8 @@ the date; what stays `[OPEN]` is listed in the Status.
    **Decided on 2026-10-09**: simultaneous editing of notes is built in
    the same round as the server, and the first release of the server has
    it, with the browser window and the desktop app connecting (item 12).
+   *(Widened on 2026-10-12, a Revisions line: the desktop app on a synced
+   local folder joins too, while its sync is connected, [0082](0082-live-co-editing-of-a-synced-folder.md).)*
 8. **Phone and tablet: the browser first.** The window served by the server
    is the mobile client (PWA, installable on Android and iPadOS, as
    [0025](0025-own-server-and-mobile-pwa.md) proposed; on iPadOS it asks for
@@ -361,7 +405,9 @@ the date; what stays `[OPEN]` is listed in the Status.
     and stamp, conflicts kept as a copy beside the file — named as
     [0070](0070-what-travels-with-the-folder.md) item 3 allows on every OS —
     with the diff shown (invariant 11), nothing silent; merge by block comes
-    after conflicts have been seen in use, never before.
+    after conflicts have been seen in use, never before. *(Its first step
+    decided on 2026-10-11, Revisions: the append-merge of
+    [0079](0079-sync-a-local-folder-with-a-server.md) item 8.)*
     [0020](0020-sync-merge-in-core-transports-as-plugins.md) item 1 is
     proposed to be revised (revised so on 2026-10-09, a Revisions line
     there): the Drive and OneDrive integrations
@@ -526,8 +572,11 @@ embed origins (the reader's, item 6).
 `[OPEN]`: whether the phone in the browser, online only, meets the mobile
 sync the maintainer called essential, or offline on the phone moves earlier
 in item 12; permissions finer than the folder (per note or per block, spec
-Q9), and history, attribution and recovery of another member's change or
-deletion; whether a server used by one person may opt into end-to-end
+Q9) *(in part answered by [0081](0081-sharing-between-people-on-one-universo.md),
+accepted 2026-10-11: a grant on a path inside a folder; per note and per
+block stay open; the roadmap strikes the row)*, and history and attribution of another member's change (the
+recovery of a deletion answered by
+[0080](0080-the-trash-with-expiry-and-restore.md), 2026-10-11); whether a server used by one person may opt into end-to-end
 encryption later; the board's co-editing; the MCP transport and
 authorization over the network (item 11); whether the pre-signed URL of
 item 4 is rule 4's opaque handle or needs an amendment of

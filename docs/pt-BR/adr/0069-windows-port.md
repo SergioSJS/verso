@@ -18,11 +18,63 @@
 - Relacionados: [0022](0022-target-platforms-macos-first.md) (o Windows
   sai, antes do Linux), [0029](0029-guardrails-in-ci.md) (as verificações
   por plataforma e os scripts locais), [0043](0043-placeholder-guard.md) (o
-  placeholder do OneDrive, `[ABERTO]`),
+  placeholder do OneDrive, `[ABERTO]` — decidido em 2026-10-08, tratado
+  como o do iCloud, Status),
   [0051](0051-development-flow-and-releases.md) (as versões, e a assinatura
   de código no Windows adiada), [0055](0055-in-app-updater.md) (o caminho
   do atualizador no Windows, nunca exercitado).
 - Status no briefing: não presente
+- Revisões: 2026-10-11 — no macOS um arquivo novo ou renomeado agora
+  recebe o nome por `renamex_np` com `RENAME_EXCL`, um rename atômico que
+  falha com `EEXIST` em vez de substituir, e não mais por `link` e
+  `unlink`: o FSEvents nunca informa a remoção de um arquivo cujo nome foi
+  dado por `link`, então um arquivo que o Verso criou ou renomeou, depois
+  apagado fora do app (Finder, `rm`), ficava na árvore e só chegava ao sync
+  na varredura seguinte (visto em 2026-10-11). Um volume sem a flag volta
+  ao `link`. Linux e Windows sem mudança: o inotify e o
+  `ReadDirectoryChangesW` informam essa remoção. Pelo `rustix` (sem
+  `unsafe`); a guarda contra substituir um arquivo e o `fsync` do diretório
+  depois ficam como antes. A revisão de como o macOS coloca um arquivo foi
+  confirmada pelo mantenedor em 2026-10-11, em sessão: *"Mas eu tinha confirmado"* —
+  o *"Gostei das recomendações, pode seguir"* dele de 2026-10-10 cobre
+  toda opção recomendada, esta revisão entre elas.
+  2026-10-12 — os itens ainda Propostos aceitos pelo mantenedor como
+  construídos e lançados na 0.5.0-beta.1, em sessão, respondendo à
+  auditoria dos ADRs: *"Ajuste tudo que precisar. Está aprovado os ADRs"*:
+  o bootstrapper do WebView2 embutido (item 2), os itens 4, 6 a 9 e a
+  ordem do trabalho (Consequências).
+  2026-10-12 — o item 8 no Mac: depois do quarto abort do WindowServer em
+  dois dias, todos durante o passo de ponta a ponta do `scripts/check.sh`,
+  o mantenedor, em sessão: *"esse check.sh deve estar com pau, bugada ou
+  mal otimizada"* e *"resolver de uma vez por todas… para que não trave
+  meu Mac mais"*. A causa, pelos três relatórios de crash e pelo log
+  unificado: o WindowServer ficou sem IOSurfaces — tinha 64.084 das 65.536
+  do sistema às 15:39:49 de 2026-10-12 (o "IOSurface count of 65024
+  approaching limit of 65536" do kernel) e abortou ao criar mais uma para
+  uma captura de janela (`_XWindowListCreateImage` → `captureWindowList`
+  → `CompositorMetal::CreateCaptureSurface` →
+  `WSIOSurfaceDebugTallyAndAbort`) de uma janela de 1500 × 1000, a viewport
+  do harness, nos três. Quem pede essas capturas: o WebKit do Playwright,
+  que no macOS desenha numa janela real do window server e tira um
+  screenshot ou um quadro de screencast capturando-a (o WebKit dele importa
+  `CGSHWCaptureWindowList` e `WebCore::cgWindowListCreateImage`). As
+  suítes pediam uma por quadro: `trace: "retain-on-failure"` grava um
+  trace de todo teste e o descarta quando o teste passa, e o screencast
+  de um trace tira um quadro a cada 200 ms, e todos os quadros nos 500 ms
+  depois de cada ação, em cada página. O app Verso não captura nada. A
+  revisão, aplicada pela IA por ordem do mantenedor, para a confirmação
+  dele: no macOS as duas configs do Playwright gravam traces sem o
+  screencast (o DOM de cada passo fica) e não tiram screenshot na falha,
+  e a suíte do harness roda com um worker; o Linux mantém os dois. Um
+  pre-flight, `app/ui/e2e/preflight.mjs`, rodado pelo `scripts/check.sh`,
+  pelos scripts npm e pelas duas configs, se recusa a começar enquanto um
+  navegador, outra execução do Playwright ou o app Verso está vivo, ou
+  enquanto o sistema já tem mais de 16.000 IOSurfaces, e para uma
+  execução, como o Ctrl-C pararia, quando a contagem passa de 24.000. O
+  WebKit fica no Mac: rodá-lo só no Linux foi proposto no mesmo dia e
+  recusado pelo mantenedor (*"mandar rodar no linux é meio merda"*). E uma
+  fixture fecha e relata o que um teste deixa aberto
+  (`app/ui/e2e/leaks.mjs`).
 
 ## Contexto
 
@@ -103,7 +155,8 @@ harness de teste do host desktop morria na partida
 (`STATUS_ENTRYPOINT_NOT_FOUND`) sem o manifesto de aplicação que o
 tauri-build embute só no app. Uma nota é renomeada por `link` e `unlink`
 lá também (o NTFS tem hard links), e o Windows recusa renomear uma pasta
-enquanto algum arquivo dentro dela está aberto.
+enquanto algum arquivo dentro dela está aberto. (No macOS, desde
+2026-10-11, por um rename exclusivo: ver Revisões.)
 
 ## Decisão
 
@@ -120,7 +173,8 @@ enquanto algum arquivo dentro dela está aberto.
    só o NSIS como alvo. O Windows 11 traz o WebView2 e o Windows 10 pode não
    ter, então o instalador embute o bootstrapper do WebView2 (uns 1,8 MB), que
    o instala quando falta (proposto; o padrão do Tauri baixa o bootstrapper
-   na hora da instalação).
+   na hora da instalação). *(Aceito em 2026-10-12, como construído e
+   lançado.)*
 3. **Sem assinatura de código por enquanto.** O SmartScreen avisa na
    primeira execução de um instalador não assinado, e isso fica aceito até
    a distribuição pública, onde o
@@ -158,7 +212,8 @@ enquanto algum arquivo dentro dela está aberto.
    atualizador procura) e o `verso-cli-X.Y.Z-windows-x64.zip`, com a UI
    compilada no bash do Git, e os publica junto com os arquivos do macOS.
 7. **O app real testado por máquina no Windows, pela suíte ponta a ponta
-   que o repositório já tem** (proposto, pull request próprio). O WebView2 é
+   que o repositório já tem** (proposto, pull request próprio; aceito em
+   2026-10-12, como construído). O WebView2 é
    Chromium: iniciado com
    `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=<porta>`,
    a janela real aceita o Playwright pelo Chrome DevTools Protocol. A suíte
@@ -175,10 +230,14 @@ enquanto algum arquivo dentro dela está aberto.
    janela real também no Mac, com um servidor WebDriver embutido — decisão
    própria, não deste ADR.
 8. **Antes de qualquer máquina Windows: a suíte ponta a ponta em Chromium
-   no Mac** (proposto, o primeiro passo do porte). Um projeto `chromium` do
+   no Mac** (proposto, o primeiro passo do porte; aceito em 2026-10-12,
+   como construído). Um projeto `chromium` do
    Playwright ao lado do `webkit`, no `scripts/check.sh`; o que difere entre
    os dois motores é a maior parte do que vai diferir no WebView2, e não
-   custa runner nem SSH.
+   custa runner nem SSH. *(Revisado em 2026-10-12, para a confirmação do
+   mantenedor: no macOS nenhuma captura de janela — traces sem o
+   screencast, nenhum screenshot na falha — um worker, e um pre-flight e
+   uma vigia de IOSurfaces em volta da execução; ver Revisões.)*
 9. **O que o porte traz, cada item com um teste.**
    - Escrita atômica: `FlushFileBuffers` no arquivo temporário (`sync_all`),
      depois `MoveFileEx` com `MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH`
@@ -289,7 +348,8 @@ enquanto algum arquivo dentro dela está aberto.
 
 ## Consequências
 
-- **Ordem do trabalho** (recomendação registrada, decisão do mantenedor): o
+- **Ordem do trabalho** (recomendação registrada, decisão do mantenedor;
+  aceita em 2026-10-12, como seguida): o
   porte nasce de `main` depois do merge do pull request #37; o primeiro
   pull request dele é só infraestrutura — item 8, `scripts/check-windows.sh`,
   um build NSIS que instala e abre — e não toca código do `verso-fs`; o
@@ -357,7 +417,17 @@ enquanto algum arquivo dentro dela está aberto.
 
 ## Status
 
-Proposto. Decidido pelo mantenedor em 2026-10-07: o app de Windows começa
+**Decidido em partes (2026-10-07/09); o porte saiu na 0.5.0-beta.1**
+(2026-10-08, `CHANGELOG.md`; commit de release 98a2bf6). **Aceito em
+2026-10-12** no que ainda era Proposto: o bootstrapper do WebView2
+embutido (item 2), os itens 4, 6 a 9 e a ordem do trabalho, aceitos pelo
+mantenedor como construídos e lançados, respondendo à auditoria dos ADRs
+(*"Ajuste tudo que precisar. Está aprovado os ADRs"*). *(Até 2026-10-12
+esta abertura terminava: "Ainda Proposto: os itens nomeados como Proposto
+abaixo.")*
+
+*(A abertura até 2026-10-12, guardada como histórico: "Proposto.")*
+Decidido pelo mantenedor em 2026-10-07: o app de Windows começa
 agora e passa à frente do resto do trabalho da Fase 2 — faz parte do escopo
 da Fase 2, e sai antes de a Fase 2 fechar ("Vou passar windows na frente";
 ADR 0022 e roadmap revisados no mesmo dia); só x64, sem ARM64, e Windows 10
@@ -367,11 +437,16 @@ não assinado); `scripts/check-windows.sh` obrigatório quando o diff toca
 código de plataforma, opcional nos outros casos (item 5, "Recomendado"); a
 máquina com Windows 10 depois, o porte escrito com o Windows 10 em mente
 desde o início (Consequências). Proposto: o bootstrapper do WebView2
-embutido (item 2), os itens 4, 6 a 9, e a ordem do trabalho. `[ABERTO]`, o
+embutido (item 2), os itens 4, 6 a 9, e a ordem do trabalho *(aceitos em
+2026-10-12, como construídos)*. **Decidido
+pelo mantenedor em 2026-10-09** (item 9; `CLAUDE.md` §2 item 9): o
+`FlushFileBuffers` do diretório conta como o `fsync` do diretório; o
+separador de caminho num caminho relativo à pasta aberta é `/`,
+definitivo. *(Histórico: até então os dois estavam `[ABERTO]`, o
 mantenedor ainda sem saber ("Não sei") e o porte seguindo com a
 recomendação registrada como fato provisório até o pull request dele: o
 que o `fsync` do diretório significa no Windows (item 9); o separador de
-caminho num caminho relativo à pasta aberta (item 9). Decidido em
+caminho num caminho relativo à pasta aberta (item 9).)* Decidido em
 2026-10-08: o local da configuração, `%LOCALAPPDATA%\verso` (item 9, a
 escolha deixada ao porte); o placeholder do OneDrive tratado como o do
 iCloud (item 9, ADR 0043).

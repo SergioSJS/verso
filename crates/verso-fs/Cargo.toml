@@ -23,6 +23,13 @@ notify = "8.2"
 # own engine, instead of a partial matcher of ours that got `!` wrong.
 # Only the `gitignore` module is used; the crate's own walker is not.
 ignore = "0.4"
+# A new name is compared with its siblings as every device compares names:
+# case aside and its accents in one Unicode form (spec Q7, decided
+# 2026-10-10; Q8's creation side, 2026-10-12), so `Café.md` composed is
+# refused beside `CAFÉ.md` decomposed. std has no Unicode normalization;
+# already in the lockfile through verso-index, verso-core and verso-server,
+# same version and licence (MIT OR Apache-2.0).
+unicode-normalization = "0.1"
 
 [target.'cfg(windows)'.dependencies]
 # A file's identity (volume serial number and file index) and its hard link
@@ -45,6 +52,15 @@ xattr = "1.6"
 # for now: the initial platform (ADR 0022); elsewhere the report says
 # nothing (`None`: not detected).
 nix = { version = "0.31", default-features = false, features = ["fs", "mount"] }
+# `renamex_np` with `RENAME_EXCL`: a rename that fails instead of replacing
+# the destination, so a new or moved file takes its name in one step and
+# not by `link` and `unlink` — FSEvents never reports the removal of a file
+# named by `link` (ADR 0069, revised 2026-10-11). std has no such rename;
+# `nix` offers it only on Linux (`renameat2`); calling it ourselves needs
+# `unsafe`, which the workspace forbids. Already in the lockfile, at this
+# version, through `xattr` and `tempfile`. `fs` is the call; `std` lets it
+# take a `Path` and turns its error into `std::io::Error`.
+rustix = { version = "1.1", default-features = false, features = ["fs", "std"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # The same `statfs`, for the server's folders on Linux: a root on NFS or SMB

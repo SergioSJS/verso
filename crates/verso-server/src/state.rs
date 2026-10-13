@@ -8,10 +8,13 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use tokio::sync::mpsc;
+use axum::body::Bytes;
+use axum::extract::ws::Utf8Bytes;
+use tokio::sync::mpsc::error::TrySendError;
+use tokio::sync::{Notify, OwnedSemaphorePermit, mpsc};
 use verso_contract::{FolderChanged, IndexProgress};
 use verso_service::{Service, lock};
 
@@ -23,12 +26,218 @@ use crate::limit::Limiter;
 /// says about the connection itself.
 pub type Push = serde_json::Value;
 
+/// The messages a connection's queue holds, at most, besides the answers
+/// to its requests (those wait for room, and are bounded by the requests
+/// it may have under way, `crate::rpc`). A window that reads as the server
+/// writes never has more than a few waiting: the connection's loop writes
+/// each one as it comes. Events are small (a folder changed, a shared
+/// note's update, an index's progress at most every so often), so a full
+/// queue is at most a few megabytes, and means the client stopped reading:
+/// it is closed rather than the queue grown without end.
+pub const QUEUE: usize = 1024;
+
+/// The bytes of pushed messages a connection's queue holds, at most, beside
+/// [`QUEUE`] (threat-model.md, gap 3): a shared note's update and a
+/// presence are relayed as their sender wrote them, up to the message
+/// limit (`crate::rpc::MAX_MESSAGE`, 48 MB), so 1024 of them could be
+/// gigabytes. 64 MiB holds one message at the limit with room for the
+/// small ones; past it the client is too slow and is closed, as a full
+/// queue's is. Answers are not counted: the requests a connection may
+/// have under way bound them (`crate::rpc`).
+pub const QUEUE_BYTES: usize = 64 * 1024 * 1024;
+
+/// A message on its way to one connection, already in its frame's text —
+/// a message pushed to many is written once and shared — with whether the
+/// connection closes after it, and, for an answer, the permit of the
+/// request it answers, given back once it is written.
+pub struct Out {
+    pub text: Utf8Bytes,
+    /// An answer that carries a piece of a file to a device that speaks
+    /// sync 2 (ADR 0079 item 12): written as a binary message, its header
+    /// and its bytes (`verso_core::sync::frame`), instead of `text`.
+    pub binary: Option<Bytes>,
+    pub close: bool,
+    pub permit: Option<OwnedSemaphorePermit>,
+    /// A pushed message's bytes, given back to the queue's budget when it
+    /// is written or dropped.
+    _charge: Option<Charge>,
+}
+
+/// Bytes held of a queue's budget while a message waits in it.
+struct Charge {
+    queued: Arc<AtomicUsize>,
+    bytes: usize,
+}
+
+impl Drop for Charge {
+    fn drop(&mut self) {
+        self.queued.fetch_sub(self.bytes, Ordering::Relaxed);
+    }
+}
+
+/// A message in its frame's text, to send to one connection or more.
+#[derive(Clone)]
+pub struct Frame {
+    text: Utf8Bytes,
+    close: bool,
+}
+
+impl Frame {
+    #[must_use]
+    pub fn of(message: &Push) -> Self {
+        Self {
+            text: message.to_string().into(),
+            // A session ended: the connection is told, then closed.
+            close: message.get("gone").is_some_and(|g| g == "session"),
+        }
+    }
+}
+
+/// Where a connection's messages go: a bounded queue, read by the
+/// connection's loop.
+#[derive(Clone)]
+pub struct Outbox {
+    tx: mpsc::Sender<Out>,
+    /// Told when the queue was found full: the loop closes the connection.
+    slow: Arc<Notify>,
+    /// The bytes of pushed messages waiting, and the most it may hold.
+    queued: Arc<AtomicUsize>,
+    budget: usize,
+}
+
+impl Outbox {
+    /// A queue of `capacity` messages and [`QUEUE_BYTES`] of pushes, its
+    /// reading end, and what tells its loop that the client is too slow.
+    #[must_use]
+    pub fn new(capacity: usize) -> (Self, mpsc::Receiver<Out>, Arc<Notify>) {
+        Self::with_budget(capacity, QUEUE_BYTES)
+    }
+
+    /// The same, with a budget of `budget` bytes of pushes.
+    #[must_use]
+    pub fn with_budget(capacity: usize, budget: usize) -> (Self, mpsc::Receiver<Out>, Arc<Notify>) {
+        let (tx, rx) = mpsc::channel(capacity);
+        let slow = Arc::new(Notify::new());
+        (
+            Self {
+                tx,
+                slow: Arc::clone(&slow),
+                queued: Arc::new(AtomicUsize::new(0)),
+                budget,
+            },
+            rx,
+            slow,
+        )
+    }
+
+    /// Queue `message` without waiting. Returns whether it was queued: a
+    /// connection gone takes nothing, and one whose queue is full is too
+    /// slow — its loop is told to close it.
+    pub fn send(&self, message: &Push) -> bool {
+        self.send_frame(&Frame::of(message))
+    }
+
+    /// [`Outbox::send`], for a message already in its frame.
+    pub fn send_frame(&self, frame: &Frame) -> bool {
+        let bytes = frame.text.len();
+        let before = self.queued.fetch_add(bytes, Ordering::Relaxed);
+        let charge = Charge {
+            queued: Arc::clone(&self.queued),
+            bytes,
+        };
+        if before.saturating_add(bytes) > self.budget {
+            drop(charge);
+            self.slow.notify_one();
+            return false;
+        }
+        let out = Out {
+            text: frame.text.clone(),
+            binary: None,
+            close: frame.close,
+            permit: None,
+            _charge: Some(charge),
+        };
+        match self.tx.try_send(out) {
+            Ok(()) => true,
+            Err(TrySendError::Full(_)) => {
+                self.slow.notify_one();
+                false
+            }
+            Err(TrySendError::Closed(_)) => false,
+        }
+    }
+
+    /// Queue the answer to a request, waiting for room: the request's
+    /// permit goes with it and is given back once the answer is written,
+    /// so the answers waiting are bounded by the requests a connection may
+    /// have under way.
+    pub async fn answer(&self, message: Push, permit: OwnedSemaphorePermit) {
+        let frame = Frame::of(&message);
+        // Only the frame waits for room: one copy of the answer, not two.
+        drop(message);
+        let _ = self
+            .tx
+            .send(Out {
+                text: frame.text,
+                binary: None,
+                close: frame.close,
+                permit: Some(permit),
+                _charge: None,
+            })
+            .await;
+    }
+
+    /// [`Outbox::answer`] for an answer in a binary message: a piece of a
+    /// file and its header, framed (`verso_core::sync::frame`).
+    pub async fn answer_binary(&self, message: Vec<u8>, permit: OwnedSemaphorePermit) {
+        let _ = self
+            .tx
+            .send(Out {
+                text: Utf8Bytes::default(),
+                binary: Some(Bytes::from(message)),
+                close: false,
+                permit: Some(permit),
+                _charge: None,
+            })
+            .await;
+    }
+}
+
 /// A connected window: whose it is, which folder it shows and in which
 /// role, and where its pushes go.
 pub struct Client {
     pub account: String,
+    /// The session the connection was opened with; none for a token's.
+    pub session: Option<String>,
+    /// The folder it shows — the owner's, when it opened a share — and its
+    /// role there.
     pub folder: Option<(String, Role)>,
-    pub tx: mpsc::UnboundedSender<Push>,
+    /// The share it opened (ADR 0081 item 2): every path it sends and
+    /// hears goes through it.
+    pub scope: Option<crate::scope::Scope>,
+    /// Whether its credential may write at all: a token that only reads
+    /// may not, whatever the role.
+    pub token_write: bool,
+    pub tx: Outbox,
+}
+
+impl Client {
+    /// `message` as this window may hear it: re-rooted when it opened a
+    /// share, and nothing of an event that is not the share's (ADR 0081
+    /// item 2). A window that may no longer see its folder has left its
+    /// rooms and the folder itself (`Server::left`).
+    fn send_frame(&self, frame: &Frame, message: &Push) {
+        match &self.scope {
+            None => {
+                self.tx.send_frame(frame);
+            }
+            Some(scope) => {
+                if let Some(m) = scope.push(message) {
+                    self.tx.send(&m);
+                }
+            }
+        }
+    }
 }
 
 pub struct Server {
@@ -37,6 +246,12 @@ pub struct Server {
     pub service: Arc<Service>,
     pub clients: Mutex<HashMap<String, Client>>,
     pub limiter: Limiter,
+    /// What one member may hold of the server: connections, the pace of
+    /// commands (threat-model.md, gap 4).
+    pub fair: crate::fair::Fair,
+    /// The connections the listener holds, on the server and by address
+    /// (threat-model.md, gap 8).
+    pub slots: Arc<crate::listen::Slots>,
     /// The contract's version: a hash of the generated bindings (the
     /// maintainer's answer D of 2026-10-09), sent in the handshake.
     pub contract: String,
@@ -49,6 +264,15 @@ pub struct Server {
     /// The commit the server was built from (ADR 0051).
     pub commit: String,
     /// The notes being edited by several windows at once (ADR 0073 item 7).
+    /// The folder's id behind each folder key the server opened: the
+    /// quotas are the folder's, the writes know its key (ADR 0077).
+    pub keys: Mutex<HashMap<String, String>>,
+    /// One opening at a time per folder key: clients that open a folder
+    /// nobody has open yet, at once, wait for the first and join it,
+    /// instead of each walking the folder and opening its index.
+    pub opening: Mutex<HashMap<String, Arc<Mutex<()>>>>,
+    /// Files on their way in pieces, for sync (ADR 0079 item 12).
+    pub transfers: crate::sync::Transfers,
     pub rooms: crate::collab::Rooms,
     /// The host's mail server, when it has one (ADR 0074 item 2).
     pub mail: std::sync::OnceLock<crate::mail::Mail>,
@@ -59,27 +283,55 @@ pub struct Server {
     pub ceremonies: crate::passkeys::Ceremonies,
     /// The runtime, for what the watcher's thread hands over.
     pub runtime: std::sync::OnceLock<tokio::runtime::Handle>,
+    /// The sync this server speaks (ADR 0079 item 5): its own,
+    /// `verso_core::sync::PROTOCOL`, unless [`Server::speak_sync`] set an
+    /// older one.
+    sync: std::sync::atomic::AtomicU32,
 }
 
 impl Server {
+    /// The sync this server speaks: what its hello says, and whether a
+    /// piece of a file crosses as a binary message.
+    #[must_use]
+    pub fn sync(&self) -> u32 {
+        self.sync.load(Ordering::Relaxed)
+    }
+
+    /// Speak an older sync than this build's, as a server of the version
+    /// before would: a device of a newer sync is tested against it (ADR
+    /// 0079 item 5: the newer side follows the version before). Nothing
+    /// else changes: what the version before lacks, a device of it never
+    /// asks for.
+    pub fn speak_sync(&self, version: u32) {
+        self.sync
+            .store(version.min(verso_core::sync::PROTOCOL), Ordering::Relaxed);
+    }
+
     pub fn new(config: Config, db: Db, contract: String, commit: String) -> Arc<Self> {
         let service = Service::new(Some(config.data_dir.join("indexes")));
+        let slots = crate::listen::Slots::new(config.trusted_proxy);
         let server = Arc::new(Self {
             config,
             db,
             service: Arc::clone(&service),
             clients: Mutex::new(HashMap::new()),
             limiter: Limiter::default(),
+            fair: crate::fair::Fair::default(),
+            slots,
             contract,
             next: AtomicU64::new(1),
             devices: Mutex::new(HashMap::new()),
             newer: Mutex::new(None),
             commit,
+            keys: Mutex::new(HashMap::new()),
+            opening: Mutex::new(HashMap::new()),
+            transfers: crate::sync::Transfers::default(),
             rooms: crate::collab::Rooms::default(),
             ceremonies: crate::passkeys::Ceremonies::default(),
             mail: std::sync::OnceLock::new(),
             signin_links: Mutex::new(HashMap::new()),
             runtime: std::sync::OnceLock::new(),
+            sync: std::sync::atomic::AtomicU32::new(verso_core::sync::PROTOCOL),
         });
         service.set_events(Arc::new(ServerEvents {
             server: Arc::downgrade(&server),
@@ -100,50 +352,122 @@ impl Server {
 
     /// Push `message` to each of `clients` still connected.
     pub fn push(&self, clients: &[String], message: &Push) {
+        let frame = Frame::of(message);
         let table = lock(&self.clients);
         for id in clients {
             if let Some(c) = table.get(id) {
-                let _ = c.tx.send(message.clone());
+                c.send_frame(&frame, message);
             }
         }
     }
 
     /// Push to every window that shows folder `folder` (by its id).
     pub fn push_folder(&self, folder: &str, message: &Push) {
+        let frame = Frame::of(message);
         let table = lock(&self.clients);
         for c in table.values() {
             if c.folder.as_ref().is_some_and(|(f, _)| f == folder) {
-                let _ = c.tx.send(message.clone());
+                c.send_frame(&frame, message);
+            }
+        }
+    }
+
+    /// The folder's log moved on to `head` with changes at `paths`: every
+    /// window that shows the folder hears it. One that opened a share
+    /// hears it only when a change is the share's, and without the head —
+    /// the folder's number counts its changes outside the share too, which
+    /// are not the receiver's to know (3.18); a device asks the share for
+    /// its own.
+    pub fn push_sync_changed(&self, folder: &str, head: i64, paths: &[&str]) {
+        let whole = serde_json::json!({ "event": "sync-changed", "payload": { "head": head } });
+        let frame = Frame::of(&whole);
+        let bare = serde_json::json!({ "event": "sync-changed", "payload": {} });
+        let table = lock(&self.clients);
+        for c in table.values() {
+            if !c.folder.as_ref().is_some_and(|(f, _)| f == folder) {
+                continue;
+            }
+            match &c.scope {
+                None => {
+                    c.tx.send_frame(&frame);
+                }
+                Some(scope) => {
+                    if paths.iter().any(|p| scope.to_rel(p).is_some()) {
+                        c.tx.send(&bare);
+                    }
+                }
             }
         }
     }
 
     /// Every window of `account`: told to go when its sessions end.
     pub fn push_account(&self, account: &str, message: &Push) {
+        let frame = Frame::of(message);
         let table = lock(&self.clients);
         for c in table.values().filter(|c| c.account == account) {
-            let _ = c.tx.send(message.clone());
+            c.send_frame(&frame, message);
+        }
+    }
+
+    /// Sessions of `account` ended: the connections opened with them are
+    /// told and closed at once (the WebSocket's loop closes on `gone`), so
+    /// that a device hears it then, not at its next exchange (the live
+    /// campaign, 2026-10-10). `only` names the one session ended; without
+    /// it, every one of the account's but `keep`. A token's connection is
+    /// no session's and stays.
+    pub fn sessions_ended(&self, account: &str, only: Option<&str>, keep: Option<&str>) {
+        let table = lock(&self.clients);
+        for c in table.values().filter(|c| c.account == account) {
+            let Some(session) = c.session.as_deref() else {
+                continue;
+            };
+            if keep == Some(session) || only.is_some_and(|o| o != session) {
+                continue;
+            }
+            c.tx.send(&serde_json::json!({ "gone": "session" }));
         }
     }
 
     /// A member's role in a folder changed or ended: the windows of theirs
     /// that show it learn it, and one that may no longer see it is told to
-    /// leave.
-    pub fn role_changed(&self, folder: &str, account: &str, role: Option<Role>) {
-        let mut table = lock(&self.clients);
-        for c in table.values_mut() {
-            if c.account == account && c.folder.as_ref().is_some_and(|(f, _)| f == folder) {
-                match role {
-                    Some(r) => {
-                        c.folder = Some((folder.to_owned(), r));
-                        let _ = c.tx.send(serde_json::json!({ "role": r }));
-                    }
-                    None => {
-                        c.folder = None;
-                        let _ = c.tx.send(serde_json::json!({ "gone": "folder" }));
+    /// leave, and `why` (`revoked` by an owner, `left` by the member).
+    pub fn role_changed(&self, folder: &str, account: &str, role: Option<Role>, why: &str) {
+        let mut gone = Vec::new();
+        {
+            let mut table = lock(&self.clients);
+            for (id, c) in table.iter_mut() {
+                if c.account == account
+                    && c.scope.is_none()
+                    && c.folder.as_ref().is_some_and(|(f, _)| f == folder)
+                {
+                    match role {
+                        Some(r) => {
+                            c.folder = Some((folder.to_owned(), r));
+                            c.tx.send(&serde_json::json!({ "role": r }));
+                        }
+                        None => {
+                            c.folder = None;
+                            c.tx.send(&serde_json::json!({ "gone": "folder", "reason": why }));
+                            gone.push(id.clone());
+                        }
                     }
                 }
             }
+        }
+        self.left(&gone);
+        // A role of the whole folder counts in its shares too (ADR 0081
+        // item 14).
+        crate::shares::refresh(self, folder, why);
+    }
+
+    /// Windows that may no longer see their folder leave it: out of its
+    /// rooms, its transfers dropped, the folder no longer held for them —
+    /// nothing more of it reaches them.
+    pub fn left(&self, clients: &[String]) {
+        for client in clients {
+            self.transfers.forget(client);
+            crate::collab::gone_now(self, client);
+            self.service.release(client);
         }
     }
 }
@@ -172,6 +496,9 @@ impl verso_service::Events for ServerEvents {
                 let c = changed.clone();
                 rt.spawn_blocking(move || {
                     crate::collab::changed_outside(&server, &c.key, &c.changed, &c.removed);
+                    // And the folder's log for sync (ADR 0079 item 4).
+                    let paths: Vec<String> = c.changed.iter().chain(&c.removed).cloned().collect();
+                    crate::sync::reconcile_key(&server, &c.key, None, &paths);
                 });
             }
             s.push(
@@ -183,5 +510,63 @@ impl verso_service::Events for ServerEvents {
 
     fn log(&self, level: &str, message: &str) {
         crate::log::line(level, message);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use serde_json::json;
+
+    use super::Outbox;
+
+    /// A connection's queue is bounded (R5 of 2026-10-11): a message that
+    /// finds it full is not queued, and the connection's loop is told the
+    /// client reads too slowly; a session's end closes after it is written.
+    #[test]
+    fn a_full_queue_says_the_client_reads_too_slowly() {
+        crate::tests::block_on(async {
+            let (out, mut rx, slow) = Outbox::new(2);
+            assert!(out.send(&json!({ "event": "um" })));
+            assert!(out.send(&json!({ "gone": "session" })));
+            assert!(!out.send(&json!({ "event": "três" })));
+            tokio::time::timeout(Duration::from_secs(5), slow.notified())
+                .await
+                .unwrap();
+            let first = rx.recv().await.unwrap();
+            assert_eq!(first.text.as_str(), r#"{"event":"um"}"#);
+            assert!(!first.close);
+            assert!(rx.recv().await.unwrap().close);
+            // Room again: queued.
+            assert!(out.send(&json!({ "event": "quatro" })));
+            // The connection gone: nothing queued, nothing said.
+            drop(rx);
+            assert!(!out.send(&json!({ "event": "cinco" })));
+        });
+    }
+
+    /// The queue is bounded in bytes too (gap 3 of 2026-10-11): pushes
+    /// past the budget are not queued and the client is said too slow;
+    /// a message written gives its bytes back. Answers are not counted.
+    #[test]
+    fn a_queue_full_of_bytes_says_the_client_reads_too_slowly() {
+        crate::tests::block_on(async {
+            // {"event":"um"} is 14 bytes: two fit in 40, a third does not.
+            let (out, mut rx, slow) = Outbox::with_budget(1024, 40);
+            assert!(out.send(&json!({ "event": "um" })));
+            assert!(out.send(&json!({ "event": "um" })));
+            assert!(!out.send(&json!({ "event": "um" })));
+            tokio::time::timeout(Duration::from_secs(5), slow.notified())
+                .await
+                .unwrap();
+            drop(rx.recv().await.unwrap());
+            assert!(out.send(&json!({ "event": "um" })));
+            // An answer waits for room in messages, never for bytes.
+            let permits = std::sync::Arc::new(tokio::sync::Semaphore::new(1));
+            let permit = permits.try_acquire_owned().unwrap();
+            out.answer(json!({ "id": 1, "ok": "x".repeat(100) }), permit)
+                .await;
+        });
     }
 }

@@ -19,6 +19,155 @@ in the real app.
 
 ## Not yet checked
 
+### Everything edited together (ADR 0082 item 12, feat/coedit-everything, 2026-10-12)
+
+- [ ] **A board in two places at once** (21d096a, 5a027db): on a UniVerso,
+  one board open in the browser and in the installed app on the server's
+  folder; drag a card in one while drawing a shape and writing a text in
+  the other: both see both within a moment, the other's pointer moves
+  with its name, the file on the server's disk holds both, no conflict
+  banner, no copy; delete a shape in one while dragging it in the other:
+  it stays deleted, and ⌘Z where it was deleted brings it back in both.
+- [ ] **A synced folder's board between two computers**: the folder synced
+  on two Macs (or a Mac and the Windows VM), the same board open on both
+  while online: the same as above, and each computer's local file follows
+  the room's saves; pull the network on one, draw, the tab says *local —
+  sem conexão* and the local file has the drawing; back online, *O quadro
+  está ao vivo de novo* and the other computer gets what was drawn, no
+  copy.
+- [ ] **A `.txt` and a base in two places**: a text file typed in from the
+  browser and the app at once, letters merged; a base's *Ordenar* and
+  *Filtros* changed in one, the other's base view redraws with them, and
+  the `.base` on disk has them.
+- [ ] **A note in a board's card and in a tab of the same window**: the
+  note edited in its card while its tab is open beside it, and from a
+  browser at the same time: all three show the same text, nothing is
+  pushed out of the room, the file follows.
+- [ ] **Opening writes nothing**: a board opened in two places, looked at,
+  panned and zoomed, closed: the file's modification time is unchanged.
+
+### The decisions of 2026-10-12 (feat/decisions-2026-10-12)
+
+- [ ] **A name differing only in case is refused** (spec Q8, ADR 0070
+  item 3): in the installed app, beside a note `Nota`, a new note `nota`
+  is not made and the status bar says a Mac or Windows would keep only
+  one of the two; renaming `Nota` to `nota` works; a folder synced to a
+  UniVerso on Linux with a note `nota.md` made there beside `Nota.md`
+  (by hand on the server's disk) is listed in the sync's "Não
+  sincronizados" as a name taken.
+- [ ] **A reader's bookmarks stay on this computer** (ADR 0070 items
+  1–2): signed in as a reader of a UniVerso folder that has
+  `.verso/settings.json`, a star on a note shows at once, stays after
+  reopening the folder, and *Ajustes › Organização › Favoritos* says
+  *Desta máquina*; the server's `settings.json` is unchanged and no error
+  is said; the same folder synced to the desktop as a reader behaves the
+  same.
+
+### Sync and UniVerso (feat/universo, 2026-10-11)
+
+- [ ] **Two people share folders on one UniVerso** (ADR 0081, 2026-10-11):
+  two accounts, two browsers (and the desktop app). Sérgio right-clicks a
+  folder of his vault, *Compartilhar…*, Ana's e-mail, *edita*; Ana's
+  folder button lists it under *Compartilhados comigo* as "Pasta
+  (Sérgio)", it opens in a window of its own, a note made there appears in
+  Sérgio's folder, a link to a note of his outside reads *Não está no que
+  foi compartilhado com você.*; Ana shares one back with Sérgio, *lê*. In
+  the desktop app Ana syncs the share with an empty folder of her computer
+  (Ajustes › Servidores › *Sincronizar*), never inside her vault. Sérgio
+  renames the shared folder in his window: Ana's window and sync go on.
+  Notes that embed pictures from the vault's attachments folder: the
+  dialog offers *Incluir “…”, só leitura*, and Ana then sees the pictures
+  and cannot change them. Sérgio removes Ana: her window closes the
+  folder at once, her synced copy stays and its sync turns off, saying
+  the share was revoked and when (`6c7800e`). Both at a phone's width too. The console's folder page lists the
+  share with its people; the audit log has each step with its path.
+
+- [ ] **A revoked share's sync turns off with a notice** (ADR 0081 item 8,
+  `6c7800e`): in the installed app, Ana syncs a share of Sérgio's; Sérgio
+  removes her in *Compartilhar…*. Within seconds Ana's app shows a notice
+  "Quem compartilhou … revogou o seu acesso em …", the status bar reads
+  "Desligada: quem compartilhou revogou o acesso em …" (amber), and
+  *Ajustes › Sincronizar* opens on "Compartilhamento revogado" above the
+  form; her files are as they were; the app's log has a `WARN sync
+  turned off: … its owner revoked the share` line and no `ERROR`. Quit and
+  reopen the folder: the notice is still there and sync does not start.
+  Turn sync on again with another folder: the notice is gone.
+- [ ] **The device approval page says who asked** (threat model gap 12,
+  `5838c10`): *Ajustes › Servidores*, connect to the UniVerso; the page in
+  the browser shows *Quem pediu* — this computer's name, the address the
+  server sees for it, the time — then *Foi você quem pediu, neste
+  aparelho?*, *Aprovar este aparelho: <nome>* and *Não fui eu: recusar*.
+  Refuse: the app stops asking and is not signed in; connect again and
+  approve: signed in. With VoiceOver, the facts and the question
+  are read before the buttons. At a phone's width too.
+- [ ] **A cursor wears its writer's name** (threat model gap 11,
+  `3bc56ae`): two accounts in one note, in two browsers: each sees the
+  other's cursor under the other's account name and colour, as before.
+
+- [ ] **"Guardar os dois" in the editor's conflict** (`18da5c7`): with a
+  synced folder, keep a note open in Editar with unsaved text while another
+  device changes it; the view "O arquivo mudou em disco…" offers a third
+  button, "Guardar os dois" — the disk's version keeps the name, your text
+  goes to `<nota> (conflito, <este computador>, <data>).md`, the tab shows
+  the copy.
+- [ ] **A note deleted outside while its tab is dirty** (`e5b3ee0`): delete
+  the file in the Finder while typing in it; the tab says "Esta nota foi
+  apagada ou movida fora do Verso. O seu texto continua aqui." with "Salvar
+  de novo" and "Fechar sem salvar"; no ERROR in the app's log.
+- [ ] **Links a rename could not update** (`da6ac8e`): rename a note while
+  another program edits a note that links to it; the notice names the note
+  skipped, and "Tentar de novo" applies the change over the new text.
+- [ ] **One name in two accent forms** (spec Q7, `0cb6dd5`): on a Linux or
+  Windows device create `Café.md` beside a `Café.md` the server already has
+  in the other Unicode form; the second is listed under "nome de outro, só
+  mudando…" and never sent; the first keeps syncing.
+- [ ] **Window on a small screen** (`068215e`): on a 1280×800 display the
+  first window opens inside the screen, status bar visible.
+- [ ] **This device's name** (ADR 0079 item 8, 2026-10-11): in the
+  installed app, Ajustes › Servidores › "Nome deste aparelho" — empty, the
+  system's name as its placeholder; set "Estúdio", "Salvar nome": signed in
+  to a server, it says "os servidores já mostram o nome novo", and the
+  server's Ajustes › Conta lists the session as "Verso · Estúdio"; a
+  conflict made afterwards is `<nota> (conflito, Estúdio, <data>).md`;
+  emptied and saved, the system's name is back on both.
+- [ ] **An admin ends another account's sessions** (ADR 0077 item 3,
+  2026-10-11): in the console, the page of an account with a device
+  signed in and syncing and a token — "Encerrar sessões e tokens", confirm;
+  the page says how many went; the device's sync says it was signed out at
+  once (not at its next scan), that account's browser lands on the sign-in
+  page, its token stops answering, and the log lists "encerrou as sessões e
+  os tokens da conta" about that account.
+
+### The trash (ADR 0080, feat/universo, 2026-10-11)
+
+- [ ] **The trash of a folder of this computer** (`9c10495`, `173cf7e`):
+  in the installed app, delete a note, then *Ajustes › Lixeira* (or the
+  palette's "Abrir a lixeira", or the tree's right-click on empty space):
+  the note is listed with today's date; "Restaurar" puts the file back on
+  disk (the Finder shows it) and the log has a `trash` "restored" line.
+- [ ] **What an older trash held** (`8ad89d2`): open a folder whose `.trash`
+  Obsidian or an older Verso filled; its items are listed "antes de …
+  (data desconhecida)", nothing is deleted at once; *Manter arquivos
+  apagados por* "1 dia" a day later removes them, each an "expired" line of
+  the log; the sweep also runs a day after the folder was opened, while it
+  stays open.
+- [ ] **A deletion sync carried out here** (`9c10495`): with two computers
+  syncing one folder, delete a note on one; on the other, the trash lists it
+  "pela sincronização com <servidor>".
+- [ ] **The test server's trash** (`02903f1`): after the upgrade the 306 MB
+  already in a folder's `.trash` are listed with an unknown date and
+  nothing goes before 30 days from the first walk; the console's folder page
+  shows *Lixeira* (count, size, "fora da cota") and *Dias na lixeira*; the
+  Overview's totals add the trashes; an editor restores but sees no
+  "Apagar agora"; the owner shortens the days from the window and cannot
+  pass the admin's.
+- [ ] **A version a device's write replaced** (`02903f1`, F18): on a synced
+  computer, let another program save an old buffer over a note sync just
+  updated; on the server, *Lixeira* lists "substituído por <aparelho>", and
+  "Restaurar" puts it beside the note as `<nota> (restaurado <data>).md`.
+- [ ] **The desktop window on a server's folder** (`9c10495`): *Ajustes ›
+  Lixeira* shows the server's trash, with the role's limits.
+
 ### Version 0.5 (feat/windows-fs, feat/signed-updates)
 
 - [ ] **Verso for Linux** (ADR 0071, 2026-10-09), on the machines of
@@ -62,6 +211,13 @@ in the real app.
   first index downloads nothing (the cloud icons stay), and opening one
   note downloads that one alone and shows its text — no "the cloud did
   not give the file's content" in the log. Only `attrib +O` was tested.
+- [ ] **A folder inside a third-party sync client** (ADR 0029, feature 2's
+  atomic write; a manual check since 2026-10-12, gating nothing): put a
+  folder of notes inside iCloud Drive, Dropbox, OneDrive or Syncthing, open
+  it in Verso and save a note a few times; on another machine, or on the
+  client's own web page, the note arrives as the same file edited — not
+  deleted and created again, no conflicted copy, its version history kept
+  where the client keeps one.
 
 ### 0.4.0-beta.1
 
@@ -115,12 +271,54 @@ end-to-end tests cover the rest.
 - [ ] **CasaOS or ZimaOS**: the compose file installed from its app store
   screen, the admin's variables filled, the folders on the NAS.
 - [ ] **A `.deb` on a small machine without Docker**: installed, the
-  environment file edited, `systemctl enable --now verso`.
-- [ ] **The account and the administration in Settings**, in the browser on
-  the Mac and on the iPhone: the person's button beside the gear opens
-  *Ajustes* › *Conta*; an admin also has *Administração*; on the phone,
-  *Ajustes* and *Conta* at the foot of the side drawer; the sign-in card
-  in both themes.
+  environment file edited, `systemctl enable --now universo`.
+- [ ] **The account in Settings and the administration console**, in the
+  browser on the Mac and on the iPhone: the person's button beside the gear
+  opens *Ajustes* › *Conta*, which leads an admin to `/admin`; the console's
+  sections, a folder's quota, the menu on the phone; on the phone, *Ajustes*
+  and *Conta* at the foot of the side drawer; the sign-in card in both
+  themes.
+- [ ] **A folder near its quota**: a note added past 90 % shows the warning
+  in the window; a file past the quota is refused with the sentence, and
+  deleting a file is allowed.
+- [ ] **Sync between two computers** (ADR 0079), with the installed app
+  on the Mac and on another computer (the Windows VM), both signed in to
+  the same UniVerso: a folder synced from the Mac to a new folder there,
+  then the same server folder synced into an empty folder on the other
+  computer; an edit on one arrives on the other within seconds; a note
+  edited on both while one is offline comes back as the server's version
+  and a copy *(conflito, …)*, its difference in *Ajustes* › *Sincronizar*;
+  a large video crosses whole; Obsidian, on the Mac's folder, sees the
+  changes; the log says what crossed and has no `ERROR`.
+- [ ] **A folder's settings on two computers** (ADR 0070 items 1–2),
+  beside the check above: on the Mac, a note starred and *Ignorar pastas
+  de build* turned off in the synced folder; on the other computer, after
+  the sync, the star and the switch are there, each marked *Da pasta*, and
+  `.verso/settings.json` holds them; changed on both while one is offline,
+  the server's version keeps the name and `.verso/settings (conflito, …).json`
+  sits beside it; a folder never starred or changed has no `.verso/`; a
+  folder whose bookmarks the installed app kept before this version opens
+  with them, moved into `.verso/settings.json` once.
+- [ ] **A note live on two computers** (ADR 0082), beside the check
+  above: the same note open in Editar on the Mac's synced folder, on the
+  other computer's and in a browser; each sees the others' text as they
+  type, with their names beside the title (*ao vivo, com …*); the files on
+  both computers follow the room within seconds and no copy *(conflito,
+  …)* appears. Wi-Fi off on the Mac while typing: *local — sem conexão*,
+  the text stays and is in the Mac's file; back on, the note is *ao vivo*
+  again and the text typed offline is in the others' windows, once. With
+  two windows of the Mac on two synced folders that both hold a note of
+  the same name, typing in one never shows in the other (a window hears
+  its own room's events only). VoiceOver says who joins and leaves, and
+  the note going local and live. The log has no `ERROR`.
+- [ ] **A write to a note live only elsewhere** (ADR 0082, the writes
+  that are not keystrokes): the note open in Editar in the browser only;
+  on the Mac's synced folder, with the note in no tab, quote a PDF's
+  passage into it (its companion note), set a base's cell of it, and give
+  it a sticker in the tree. Each arrives in the browser's text as an edit
+  while it types there, the file follows within seconds, and no copy
+  *(conflito, …)* appears on either computer. Closed in the browser, the
+  same writes go to the file as before.
 - [ ] **A ribbon button hidden and brought back** in the installed app:
   right click › *Ocultar este botão*, the status bar says where; *Ajustes* ›
   *Aparência* › its switch brings it back; the gear has no *Ocultar*.

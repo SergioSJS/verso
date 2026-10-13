@@ -23,10 +23,63 @@
 - Related: [0022](0022-target-platforms-macos-first.md) (Windows ships,
   before Linux), [0029](0029-guardrails-in-ci.md) (the platform checks and
   the local scripts), [0043](0043-placeholder-guard.md) (OneDrive's
-  placeholder, `[OPEN]`), [0051](0051-development-flow-and-releases.md)
+  placeholder, `[OPEN]` — decided on 2026-10-08, handled as iCloud's,
+  Status), [0051](0051-development-flow-and-releases.md)
   (releases, and Windows code signing deferred),
   [0055](0055-in-app-updater.md) (the updater's Windows path, unexercised).
 - Status in the briefing: not present
+- Revisions: 2026-10-11 — on macOS a new or renamed file now takes its
+  name by `renamex_np` with `RENAME_EXCL`, an atomic rename that fails
+  with `EEXIST` instead of replacing, and no longer by `link` and `unlink`:
+  FSEvents never reports the removal of a file whose name was given by
+  `link`, so a file Verso created or renamed, then deleted outside the app
+  (Finder, `rm`), stayed in the tree and reached sync only at its next scan
+  (seen on 2026-10-11). A volume without the flag falls back to `link`.
+  Linux and Windows unchanged: inotify and `ReadDirectoryChangesW` report
+  that removal. Through `rustix` (no `unsafe`); the guard against replacing
+  a file and the directory `fsync` after it are as before. The macOS
+  placing revision was confirmed by the maintainer on 2026-10-11, in
+  session: *"Mas eu tinha confirmado"* (but I had confirmed) — their
+  *"Gostei das recomendações, pode seguir"* of 2026-10-10 covers every
+  recommended option, this revision among them.
+  2026-10-12 — the items still Proposed accepted by the maintainer as
+  built and shipped in 0.5.0-beta.1, in session, answering the ADR audit:
+  *"Ajuste tudo que precisar. Está aprovado os ADRs"* (adjust whatever
+  needs it; the ADRs are approved): the embedded WebView2 bootstrapper
+  (item 2), items 4, 6 to 9 and the order of the work (Consequences).
+  2026-10-12 — item 8 on the Mac: after the fourth WindowServer abort in
+  two days, every one during `scripts/check.sh`'s end-to-end step, the
+  maintainer, in session: *"esse check.sh deve estar com pau, bugada ou mal
+  otimizada"* (this check.sh must be broken, buggy or badly optimized), and
+  *"resolver de uma vez por todas… para que não trave meu Mac mais"* (solve
+  it once and for all… so that it does not freeze my Mac again). The
+  cause, from the three crash reports and the unified log: the
+  WindowServer ran out of IOSurfaces — it held 64,084 of the system's
+  65,536 at 15:39:49 on 2026-10-12 (the kernel's "IOSurface count of 65024
+  approaching limit of 65536"), and aborted creating one more for a window
+  capture (`_XWindowListCreateImage` → `captureWindowList` →
+  `CompositorMetal::CreateCaptureSurface` → `WSIOSurfaceDebugTallyAndAbort`)
+  of a 1500 × 1000 window, the harness's viewport, in all three. Who asks
+  for those captures: Playwright's WebKit, which on macOS draws in a real
+  window of the window server and takes a screenshot or a frame of a
+  screencast by capturing it (its WebKit imports `CGSHWCaptureWindowList`
+  and `WebCore::cgWindowListCreateImage`). The suites asked for one per
+  frame: `trace: "retain-on-failure"` records a trace for every test and
+  drops it when the test passes, and a trace's screencast takes a frame
+  every 200 ms, and every frame for 500 ms after each action, in every
+  page. The Verso app captures nothing. The revision, applied by the AI at
+  the maintainer's order, for their confirmation: on macOS the two
+  Playwright configs record traces without the screencast (the DOM of each
+  step is kept) and take no screenshot on failure, and the harness's
+  suite runs with one worker; Linux keeps both. A pre-flight,
+  `app/ui/e2e/preflight.mjs`, run by `scripts/check.sh`, the npm scripts
+  and both configs, refuses to start while a browser, another Playwright
+  run or the Verso app is alive, or while the system already holds more
+  than 16,000 IOSurfaces, and stops a run, as Ctrl-C would, when the count
+  passes 24,000. WebKit stays on the Mac: running it only on Linux was
+  proposed the same day and declined by the maintainer (*"mandar rodar no
+  linux é meio merda"*). And a fixture closes and reports what a test
+  leaves open (`app/ui/e2e/leaks.mjs`).
 
 ## Context
 
@@ -103,7 +156,8 @@ would have made every pass of the index start the next. The desktop host's
 test harness died at start (`STATUS_ENTRYPOINT_NOT_FOUND`) without the
 application manifest tauri-build embeds in the app alone. A note is
 renamed by `link` and `unlink` there too (NTFS has hard links), and Windows
-refuses to rename a folder while any file in it is open.
+refuses to rename a folder while any file in it is open. (On macOS, since
+2026-10-11, by an exclusive rename instead: see Revisions.)
 
 ## Decision
 
@@ -119,7 +173,8 @@ refuses to rename a folder while any file in it is open.
    Windows bundle targets NSIS only. Windows 11 ships WebView2 and Windows 10
    may lack it, so the installer embeds WebView2's bootstrapper (about 1.8 MB),
    which installs it when missing (proposed; Tauri's default downloads the
-   bootstrapper at install time instead).
+   bootstrapper at install time instead). *(Accepted on 2026-10-12, as
+   built and shipped.)*
 3. **Not code-signed for now.** SmartScreen warns on the first run of an
    unsigned installer, and that is accepted until public distribution, when
    [0051](0051-development-flow-and-releases.md) already places the code
@@ -155,7 +210,8 @@ refuses to rename a folder while any file in it is open.
    for it) and `verso-cli-X.Y.Z-windows-x64.zip`, the UI built in Git's
    bash, and publishes them with macOS's files.
 7. **The real app tested by machine on Windows, through the end-to-end
-   suite the repository already has** (proposed, its own pull request).
+   suite the repository already has** (proposed, its own pull request;
+   accepted on 2026-10-12, as built).
    WebView2 is Chromium: started with
    `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=<port>`,
    the real window takes Playwright over the Chrome DevTools Protocol. The
@@ -171,10 +227,14 @@ refuses to rename a folder while any file in it is open.
    window on the Mac too, with an embedded WebDriver server — a decision of
    its own, not this ADR's.
 8. **Before any Windows machine: the end-to-end suite in Chromium on the
-   Mac** (proposed, the port's first step). A Playwright `chromium` project
+   Mac** (proposed, the port's first step; accepted on 2026-10-12, as
+   built). A Playwright `chromium` project
    beside the `webkit` one, in `scripts/check.sh`; what differs between the
    two engines is most of what will differ in WebView2, and it costs no
-   runner and no SSH.
+   runner and no SSH. *(Revised on 2026-10-12, for the maintainer's
+   confirmation: on macOS no window captures — traces without the
+   screencast, no screenshot on failure — one worker, and a pre-flight and
+   an IOSurface watch around the run; see Revisions.)*
 9. **What the port brings, each item with a test.**
    - Atomic write: `FlushFileBuffers` on the temporary file (`sync_all`),
      then `MoveFileEx` with `MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH`
@@ -280,7 +340,8 @@ refuses to rename a folder while any file in it is open.
 
 ## Consequences
 
-- **Order of the work** (recorded recommendation, the maintainer's call):
+- **Order of the work** (recorded recommendation, the maintainer's call;
+  accepted on 2026-10-12, as followed):
   the port branches from `main` after pull request #37 merges; its first
   pull request is infrastructure only — item 8, `scripts/check-windows.sh`,
   an NSIS build that installs and opens — and touches no `verso-fs` code;
@@ -346,7 +407,16 @@ refuses to rename a folder while any file in it is open.
 
 ## Status
 
-Proposed. Decided by the maintainer on 2026-10-07: the Windows app starts
+**Decided in parts (2026-10-07/09); the port shipped in 0.5.0-beta.1**
+(2026-10-08, `CHANGELOG.md`; release commit 98a2bf6). **Accepted on
+2026-10-12** in what was still Proposed: the embedded WebView2
+bootstrapper (item 2), items 4, 6 to 9 and the order of the work,
+accepted by the maintainer as built and shipped, answering the ADR audit
+(*"Ajuste tudo que precisar. Está aprovado os ADRs"*). *(Until 2026-10-12
+this lead ended: "Still Proposed: the items named Proposed below.")*
+
+*(The lead until 2026-10-12, kept as history: "Proposed.")* Decided by
+the maintainer on 2026-10-07: the Windows app starts
 now and goes ahead of the rest of Phase 2's work — it is part of Phase 2's
 scope, and ships before Phase 2 closes ("Vou passar windows na frente";
 ADR 0022 and the roadmap revised the same day); x64 only, no ARM64, and
@@ -356,10 +426,15 @@ Windows 10 and 11 (item 1); NSIS per user (item 2); no code signing for now
 code, optional otherwise (item 5, "Recomendado"); the Windows 10 machine
 later, the port written with Windows 10 in mind from the start
 (Consequences). Proposed: the embedded WebView2 bootstrapper (item 2),
-items 4, 6 to 9, and the order of the work. `[OPEN]`, the maintainer not
-knowing yet ("Não sei") and the port proceeding on the recorded
-recommendation as a provisional fact until its pull request: what the
-directory `fsync` means on Windows (item 9); the path separator in a path
-relative to the open folder (item 9). Decided on 2026-10-08: the
+items 4, 6 to 9, and the order of the work *(accepted on 2026-10-12, as
+built)*. **Decided by the maintainer
+on 2026-10-09** (item 9; `CLAUDE.md` §2 item 9): the directory's
+`FlushFileBuffers` counts as the directory `fsync`; the path separator in
+a path relative to the open folder is `/`, definitive. *(History: until
+then both were `[OPEN]`, the maintainer not knowing yet ("Não sei") and
+the port proceeding on the recorded recommendation as a provisional fact
+until its pull request: what the directory `fsync` means on Windows
+(item 9); the path separator in a path relative to the open folder (item
+9).)* Decided on 2026-10-08: the
 configuration location, `%LOCALAPPDATA%\verso` (item 9, the choice left to
 the port); OneDrive's placeholder handled as iCloud's (item 9, ADR 0043).

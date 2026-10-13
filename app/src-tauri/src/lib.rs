@@ -32,34 +32,45 @@ use tauri_plugin_dialog::DialogExt;
 use verso_contract::{
     AppInfo, Backlink, BaseQuery, BaseResult, Can, Capabilities, CliState, CollabJoin, CollabState,
     CollabUpdate, ContractError, Edge, ErrorKind, FileEntry, Focus, FocusesSummary, FolderChanged,
-    FolderInfo, FolderSpace, Hit, Host, IndexProgress, IndexSummary, Link, McpAdded,
-    McpClientState, McpStatus, MovedEntries, NoteText, Renamed, ServerAccount, Tag, TextFile,
-    Trashed, UpdateProgress, WebNote, Written,
+    FolderInfo, FolderLayer, FolderSettings, FolderSpace, Hit, Host, IndexProgress, IndexSummary,
+    Link, McpAdded, McpClientState, McpStatus, MovedEntries, NoteText, Renamed, ServerAccount, Tag,
+    TextFile, Trashed, UpdateProgress, WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
 use verso_service::{OpError, Service, lock, no_folder, ops, refused};
 
 mod boards;
 mod cli;
+mod device;
 mod files;
 mod focuses;
+mod folder_layer;
 mod log;
 mod menu;
 mod notes;
 mod protocol;
 mod remote;
+mod shares;
+mod sync;
+mod sync_commands;
+mod trash;
 mod update;
 mod version;
 mod web;
 mod windows;
 use boards::*;
 use cli::*;
+use device::*;
 use files::*;
 use focuses::*;
+use folder_layer::*;
 use menu::*;
 use notes::*;
 use protocol::*;
 use remote::*;
+use shares::*;
+use sync_commands::*;
+use trash::*;
 use update::*;
 use web::*;
 use windows::*;
@@ -85,6 +96,8 @@ pub struct App {
     pub(crate) service: Arc<Service>,
     /// The windows that show a folder of a server: label → connection.
     pub(crate) remotes: Mutex<std::collections::HashMap<String, Arc<remote::Remote>>>,
+    /// The folders that sync with a server, by key: their tasks (ADR 0079).
+    pub(crate) syncs: Mutex<std::collections::HashMap<String, Arc<sync::Syncer>>>,
     /// Origins (`scheme://host[:port]`) of embedded pages the user
     /// approved by hand, mirrored from the window's settings. An embed
     /// renders in a child web view (`web_open`), so the app view itself
@@ -99,6 +112,12 @@ pub struct App {
     menu_recents: Mutex<Vec<PathBuf>>,
     /// The menu's language, pushed by the UI with its own ("pt" or "en").
     menu_language: Mutex<String>,
+    /// Set once the setup made the main window. On macOS the folder of
+    /// `open -a Verso <folder>` arrives as an open event before the setup
+    /// runs (tao hands `application:openURLs:` over before the launch
+    /// ends): the main window, made next, opens it — no other window is
+    /// made for it (`folder_handed`).
+    started: std::sync::atomic::AtomicBool,
 }
 
 impl App {
@@ -113,10 +132,12 @@ impl App {
             opening: Mutex::new(std::collections::HashSet::new()),
             service: Service::new(None),
             remotes: Mutex::new(std::collections::HashMap::new()),
+            syncs: Mutex::new(std::collections::HashMap::new()),
             embed_origins: Mutex::new(std::collections::HashSet::new()),
             #[cfg(target_os = "macos")]
             menu_recents: Mutex::new(Vec::new()),
             menu_language: Mutex::new("pt".to_owned()),
+            started: std::sync::atomic::AtomicBool::new(false),
         }
     }
 }
@@ -148,6 +169,12 @@ impl<R: tauri::Runtime> verso_service::Events for TauriEvents<R> {
 
     fn folder_changed(&self, _: &[String], changed: &FolderChanged) {
         let _ = self.app.emit("folder-changed", changed);
+        // A synced folder's changes cross on this batch (ADR 0079 item 6).
+        touched(
+            &self.app,
+            &changed.key,
+            changed.changed.iter().chain(&changed.removed).cloned(),
+        );
     }
 
     fn log(&self, level: &str, message: &str) {
@@ -225,12 +252,22 @@ async fn install<R: tauri::Runtime>(
     remote::release(app, window.label());
     let service = Arc::clone(&app.state::<App>().service);
     let (info, catch_up) = service.attach(window.label(), opened);
+    // The folder it showed may be shown by no window now; the one it
+    // shows syncs if it is set to (ADR 0079).
+    settle(app);
+    resume(app, &info.key);
     // A window is named after its folder (ADR 0065).
     let _ = window.set_title(&format!("{} — Verso", info.name));
     // A batch that came while the folder was being opened found no session
     // to bring up to date; it runs now.
     if let Some(catch_up) = catch_up {
+        let service = Arc::clone(&service);
         tauri::async_runtime::spawn_blocking(move || service.catch_up(&catch_up));
+    }
+    // Its bin is swept as it opens (ADR 0080 item 3), off the event loop.
+    {
+        let key = info.key.clone();
+        tauri::async_runtime::spawn_blocking(move || trash::sweep_now(&service, &key));
     }
     // The folder just opened is the freshest recent: the menu learns.
     #[cfg(target_os = "macos")]
@@ -308,10 +345,11 @@ async fn open_initial<R: tauri::Runtime>(
 /// settings. Host-only, like `open_url`: nothing of the folder.
 #[tauri::command]
 #[specta::specta]
-fn app_info() -> Result<AppInfo, ContractError> {
+fn app_info(state: State<'_, App>) -> Result<AppInfo, ContractError> {
     Ok(AppInfo {
         version: env!("CARGO_PKG_VERSION").to_owned(),
         commit: env!("VERSO_COMMIT").to_owned(),
+        device: Some(device::name(state.service.config())),
     })
 }
 
@@ -445,23 +483,35 @@ fn reindex<R: tauri::Runtime>(
 
 /// What this side can do (ADR 0027; ADR 0076 item 11): the desktop app,
 /// with a folder on this computer, does everything the window offers.
+// And, while the folder syncs with its link up, it edits its notes with the
+// people in the server's rooms, as far as the link says (ADR 0082 item 3).
+// Not in the doc comment: that is the bindings', whose hash is the
+// contract's version, and this answer changes no type (item 3).
 #[tauri::command]
 #[specta::specta]
-fn capabilities() -> Result<Capabilities, ContractError> {
+fn capabilities<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+) -> Result<Capabilities, ContractError> {
+    let live = live_latency(&app, window.label());
+    let mut can = vec![
+        Can::Write,
+        Can::Reveal,
+        Can::CopyPath,
+        Can::Windows,
+        Can::WebViews,
+        Can::Agents,
+        Can::Updates,
+        Can::Devtools,
+        Can::LocalFolders,
+    ];
+    if live.is_some() {
+        can.push(Can::Collab);
+    }
     Ok(Capabilities {
         host: Host::Desktop,
-        can: vec![
-            Can::Write,
-            Can::Reveal,
-            Can::CopyPath,
-            Can::Windows,
-            Can::WebViews,
-            Can::Agents,
-            Can::Updates,
-            Can::Devtools,
-            Can::LocalFolders,
-        ],
-        latency_ms: None,
+        can,
+        latency_ms: live,
     })
 }
 
@@ -521,6 +571,28 @@ fn collab_save(path: String) -> Result<String, ContractError> {
     Err(not_here())
 }
 
+/// Whether someone is in the note's room now (ADR 0082): a write that is
+/// not a keystroke — a base's cell, a PDF's quote, the tree's label —
+/// joins the room to be made there. On a server, or a synced folder's
+/// link, only.
+#[tauri::command]
+#[specta::specta]
+fn collab_present(path: String) -> Result<bool, ContractError> {
+    let _ = path;
+    Err(not_here())
+}
+
+/// A board's file, as this window's converter makes it of the room's state
+/// `at` (a Yjs state vector, base64): the room writes the one made of the
+/// state it holds (ADR 0082 item 12). On a server, or a synced folder's
+/// link, only.
+#[tauri::command]
+#[specta::specta]
+fn collab_canvas(path: String, at: String, json: String) -> Result<(), ContractError> {
+    let _ = (path, at, json);
+    Err(not_here())
+}
+
 /// A shared note that changed on disk while edits waited: keep the disk's
 /// text (`disk`) or write the shared one over it (`mine`).
 #[tauri::command]
@@ -565,6 +637,8 @@ macro_rules! commands_for {
                 graph::<$runtime>,
                 current_folder::<$runtime>,
                 app_info,
+                device_name,
+                set_device_name::<$runtime>,
                 open_window::<$runtime>,
                 popout_target::<$runtime>,
                 return_to_main::<$runtime>,
@@ -594,11 +668,13 @@ macro_rules! commands_for {
                 set_focuses::<$runtime>,
                 can_sync_focuses::<$runtime>,
                 set_sync_focuses::<$runtime>,
+                get_folder_settings::<$runtime>,
+                set_folder_settings::<$runtime>,
                 log_write,
                 log_read,
                 set_menu_language::<$runtime>,
                 reindex::<$runtime>,
-                capabilities,
+                capabilities::<$runtime>,
                 folder_space::<$runtime>,
                 collab_join,
                 collab_update,
@@ -606,11 +682,24 @@ macro_rules! commands_for {
                 collab_leave,
                 collab_save,
                 collab_resolve,
+                collab_present,
+                collab_canvas,
                 server_sign_in::<$runtime>,
                 server_accounts,
                 server_sign_out::<$runtime>,
                 server_folders::<$runtime>,
                 server_open::<$runtime>,
+                share_list::<$runtime>,
+                share_grant::<$runtime>,
+                share_revoke::<$runtime>,
+                share_attachments::<$runtime>,
+                recent_folders,
+                folder_sync::<$runtime>,
+                folder_sync_start::<$runtime>,
+                folder_sync_stop::<$runtime>,
+                folder_sync_pause::<$runtime>,
+                folder_sync_confirm::<$runtime>,
+                folder_sync_now::<$runtime>,
                 query_base::<$runtime>,
                 new_window::<$runtime>,
                 cli_status,
@@ -623,7 +712,12 @@ macro_rules! commands_for {
                 open_claude_download,
                 check_for_updates,
                 download_and_install_update::<$runtime>,
-                restart_app::<$runtime>
+                restart_app::<$runtime>,
+                trash_list::<$runtime>,
+                trash_restore::<$runtime>,
+                trash_delete::<$runtime>,
+                trash_empty::<$runtime>,
+                trash_set_days::<$runtime>
             ])
             // Not in any command: the payload of events.
             .typ::<FolderChanged>()
@@ -810,15 +904,24 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             // before any window opens (ADR 0004, decided 2026-10-07).
             migrate_web_data(&app.config().identifier);
             hear(app.handle());
+            // Each open folder's bin, swept once a day (ADR 0080 item 3).
+            trash::start_daily(app.handle());
             // The main window is made here, not from the configuration
             // alone: it needs the download hook every window of the app
             // has (`on_download`).
+            // Its size fits the screen it opens on (`fit_config`): a small
+            // screen's work area caps it, a large one keeps the default.
             if let Some(config) = app.config().app.windows.iter().find(|w| w.label == "main") {
+                let mut config = config.clone();
+                fit_config(app.handle(), &mut config);
                 open_frameless(
-                    tauri::WebviewWindowBuilder::from_config(app.handle(), config)?
+                    tauri::WebviewWindowBuilder::from_config(app.handle(), &config)?
                         .on_download(on_download),
                 )?;
             }
+            app.state::<App>()
+                .started
+                .store(true, std::sync::atomic::Ordering::SeqCst);
             Ok(())
         })
         .plugin(tauri_plugin_dialog::init())
@@ -829,7 +932,7 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             // A window on a server's folder sends the folder's commands to
             // the server (remote.rs); every other goes to this app.
             let handler = commands.invoke_handler();
-            move |invoke| match remote::forward(invoke) {
+            move |invoke| match remote::forward(invoke).and_then(live_forward) {
                 None => true,
                 Some(invoke) => handler(invoke),
             }
@@ -867,6 +970,7 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
             // Its folder closes when no other window shows it (ADR 0065).
             app.state::<App>().service.release(label);
             remote::release(app, label);
+            settle(app);
             lock(&app.state::<App>().opening).remove(label);
         }
         tauri::RunEvent::Exit => log::write("INFO", "host", "exiting"),
@@ -909,6 +1013,22 @@ fn folder_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, folder: PathBuf) 
         queue.push_back(folder);
         waiting
     };
+    // Handed before the setup made the main window (macOS's open event
+    // at launch): the main window, made next, opens it at start-up — a
+    // window made here as well left an empty "Verso" beside the folder's.
+    if !app
+        .state::<App>()
+        .started
+        .load(std::sync::atomic::Ordering::SeqCst)
+        && app.get_window("main").is_none()
+    {
+        log::write(
+            "INFO",
+            "host",
+            "a folder handed at launch: the main window opens it",
+        );
+        return;
+    }
     // A window of the app that shows no folder takes it; with none — or
     // when that window has a folder waiting for it already — a new window
     // does, which opens it as it starts (ADR 0065).
@@ -977,4 +1097,12 @@ fn ask_windows_to_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_live;
+#[cfg(test)]
 mod tests_remote;
+#[cfg(test)]
+mod tests_shares;
+#[cfg(test)]
+mod tests_sync;
+#[cfg(test)]
+mod tests_sync1;

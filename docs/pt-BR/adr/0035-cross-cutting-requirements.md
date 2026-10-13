@@ -10,6 +10,10 @@
 - Revisões: 2026-09-23 — como a janela da Fase 2 cumpre a decisão 1 registrado
   em Consequências, a pedido do mantenedor (`docs/review/phase-2.md` §6, item
   12); a Decisão não muda.
+  2026-10-12 — os registros provisórios de 2026-09-22 ratificados pelo
+  mantenedor como construídos e testados, respondendo à auditoria dos
+  ADRs em sessão: *"Ajuste tudo que precisar. Está aprovado os ADRs"*; uma
+  nota datada ao lado de cada um.
 
 ## Contexto
 
@@ -64,6 +68,8 @@ precisa"*. O que decorre disso:
 2026-09-22 a partir do código da feature 4 — provisório, o mantenedor decide ao
 acordar**, na linha 3 da §10 de `docs/reference/cli-decision.md`. É o que o
 código faz, não uma decisão.
+*(Ratificado pelo mantenedor em 2026-10-12, como construído e testado:
+"Ajuste tudo que precisar. Está aprovado os ADRs".)*
 
 - **Um enum `Msg`**, uma variante por mensagem voltada ao usuário, carregando
   seus dados como campos, e uma função `messages::text(msg, lang)` com um

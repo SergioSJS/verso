@@ -95,27 +95,10 @@ impl IntoResponse for ApiError {
 
 pub type ApiResult<T> = Result<T, ApiError>;
 
-/// The address a connection came from, over TCP or TLS alike.
+/// The address a connection came from, over TCP or TLS alike, set on each
+/// request by the listener (`crate::listen`).
 #[derive(Debug, Clone, Copy)]
 pub struct Remote(pub SocketAddr);
-
-impl
-    axum::extract::connect_info::Connected<axum::serve::IncomingStream<'_, tokio::net::TcpListener>>
-    for Remote
-{
-    fn connect_info(stream: axum::serve::IncomingStream<'_, tokio::net::TcpListener>) -> Self {
-        Self(*stream.remote_addr())
-    }
-}
-
-impl
-    axum::extract::connect_info::Connected<axum::serve::IncomingStream<'_, crate::tls::TlsListener>>
-    for Remote
-{
-    fn connect_info(stream: axum::serve::IncomingStream<'_, crate::tls::TlsListener>) -> Self {
-        Self(*stream.remote_addr())
-    }
-}
 
 /// What every handler of the API knows of its request.
 pub struct Ctx {
@@ -306,6 +289,7 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/api/me", get(crate::api::me).patch(crate::api::profile))
         .route("/api/me/password", post(crate::api::password))
         .route("/api/me/sessions", get(crate::api::sessions))
+        .route("/api/me/device", axum::routing::put(crate::device::rename))
         .route("/api/me/sessions/others", delete(crate::api::end_others))
         .route("/api/me/sessions/{id}", delete(crate::api::end_session))
         .route(
@@ -339,35 +323,74 @@ pub fn router(server: Arc<Server>) -> Router {
         )
         .route("/api/folders/{id}/audit", get(crate::folders::audit))
         .route(
+            "/api/folders/{id}/shares",
+            get(crate::shares::list).put(crate::shares::grant),
+        )
+        .route(
+            "/api/folders/{id}/shares/revoke",
+            post(crate::shares::revoke),
+        )
+        .route(
+            "/api/folders/{id}/shares/attachments",
+            axum::routing::put(crate::shares::attachments),
+        )
+        .route(
             "/api/admin/accounts",
-            get(crate::admin::accounts).post(crate::admin::create_account),
+            get(crate::console::accounts).post(crate::admin::create_account),
         )
         .route(
             "/api/admin/accounts/{id}",
-            axum::routing::patch(crate::admin::set_powers).delete(crate::admin::delete_account),
+            get(crate::console::account)
+                .patch(crate::admin::set_powers)
+                .delete(crate::admin::delete_account),
         )
         .route(
             "/api/admin/accounts/{id}/reset",
             post(crate::admin::reset_link),
         )
         .route(
+            "/api/admin/accounts/{id}/sessions",
+            delete(crate::admin::end_sessions),
+        )
+        .route(
             "/api/admin/invitations",
-            get(crate::admin::invitations).post(crate::admin::invite),
+            get(crate::console::invitations).post(crate::admin::invite),
         )
         .route(
             "/api/admin/invitations/{id}",
             delete(crate::admin::end_invitation),
         )
-        .route("/api/admin/folders", get(crate::admin::folders))
+        .route("/api/admin/folders", get(crate::console::folders))
+        .route(
+            "/api/admin/folders/unregistered",
+            get(crate::console::unregistered),
+        )
         .route("/api/admin/folders/adopt", post(crate::admin::adopt))
+        .route("/api/admin/folders/{id}", get(crate::console::folder))
+        .route(
+            "/api/admin/folders/{id}/quota",
+            axum::routing::put(crate::console::set_quota),
+        )
         .route("/api/admin/folders/{id}/enter", post(crate::admin::enter))
-        .route("/api/admin/audit", get(crate::admin::audit))
-        .route("/api/admin/server", get(crate::admin::server_info))
+        .route(
+            "/api/admin/folders/{id}/trash",
+            axum::routing::put(crate::console::set_trash),
+        )
+        .route(
+            "/api/admin/folders/{id}/trash/empty",
+            axum::routing::post(crate::console::empty_trash),
+        )
+        .route("/api/admin/audit", get(crate::console::audit))
+        .route("/api/admin/audit/actions", get(crate::console::actions))
+        .route("/api/admin/overview", get(crate::console::overview))
+        .route("/api/admin/config", get(crate::console::config))
         .route("/api/device/start", post(crate::device::start))
         .route("/api/device/poll", post(crate::device::poll))
         .route(
             "/api/device/{code}",
-            get(crate::device::describe).post(crate::device::approve),
+            get(crate::device::describe)
+                .post(crate::device::approve)
+                .delete(crate::device::refuse),
         );
     // The pages — signing in, approving the desktop app, the account — are
     // served always; the notes' window in a browser only with `--web`
@@ -379,12 +402,14 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/setup", page())
         .route("/account", page())
         .route("/admin", page())
+        .route("/admin/{*rest}", page())
         .route("/device", page())
         .route("/invite/{token}", page())
         .route("/reset/{token}", page())
         .route("/signin-link/{token}", page())
         .fallback_service(static_files)
         .layer(middleware::from_fn_with_state(Arc::clone(&server), guard))
+        .layer(middleware::from_fn(deadline))
         // A request's body: a form, a setting, a passkey — never a file,
         // which goes over the WebSocket under its own limit
         // (rpc::MAX_MESSAGE).
@@ -394,6 +419,25 @@ pub fn router(server: Arc<Server>) -> Router {
 
 /// The most a request's body takes: settings are 256 KB at most.
 const API_BODY: usize = 1024 * 1024;
+
+/// How long a request may take, its body's arrival included
+/// (threat-model.md, gap 8): a body of [`API_BODY`] at 32 KiB/s is half
+/// a minute; a client that trickles one in holds its connection no longer.
+/// A WebSocket's answer is its upgrade, at once; what it carries after is
+/// bounded by its own loop (`crate::rpc`).
+const REQUEST_WITHIN: std::time::Duration = std::time::Duration::from_secs(60);
+
+async fn deadline(request: Request, next: Next) -> Response {
+    match tokio::time::timeout(REQUEST_WITHIN, next.run(request)).await {
+        Ok(response) => response,
+        Err(_) => ApiError::new(
+            StatusCode::REQUEST_TIMEOUT,
+            "timeout",
+            "the request took too long",
+        )
+        .into_response(),
+    }
+}
 
 /// The window's own policy, sent as a header and narrower than the
 /// desktop's (ADR 0073 item 6): scripts, styles and connections from this
@@ -440,7 +484,13 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
         "permissions-policy",
         "camera=(), microphone=(), geolocation=(), payment=()",
     );
-    if !is_file {
+    if is_file {
+        // A folder's file is for this server's pages alone: another
+        // site's page may not embed or fetch it with the reader's cookie
+        // (threat-model.md, gap 14; SameSite=Lax already keeps the cookie
+        // off such a request — said twice).
+        set(h, "cross-origin-resource-policy", "same-origin");
+    } else {
         set(h, "content-security-policy", &page_policy(&ws_origin));
     }
     // The page is never cached: a new version of the server is a new

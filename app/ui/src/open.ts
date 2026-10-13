@@ -2,16 +2,19 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { loadShares } from "./shares";
 import { refreshBases } from "./bases";
 import { commands, type ContractError, type FolderInfo } from "./bindings";
 import { loadBookmarks } from "./bookmarks";
 import { flushed, recheckAll, refreshLists, setShownProblems, showProblems, stopped, tellOutcomes } from "./changes";
-import { button, h, ui } from "./dom";
+import { button, h, showToast, ui } from "./dom";
 import { fail } from "./errors";
 import { forgetFiles } from "./files";
+import { loadFolderLayer } from "./folderLayer";
 import { loadFocuses } from "./focuses";
 import { currentFolder, LAST_FOLDER, nameFolderButton, secondary, setCurrentFolder, setFolderName } from "./folder";
 import { layout, newSpace, openIn, setCurrent, showSpace, Space, spaces } from "./layout/spaces";
+import { beginRestore, endRestore } from "./layout/restoring";
 import { askDiscard } from "./leaves/leaf";
 import { panel, ribbon } from "./main";
 import { name } from "./paths";
@@ -30,6 +33,7 @@ export async function joinAsPopout(): Promise<void> {
   nameFolderButton();
   page?.classList.remove("empty");
   ui.search.disabled = false;
+  await loadFolderLayer();
   loadBookmarks();
   await loadFocuses();
   await listAll();
@@ -76,6 +80,22 @@ export async function openFolderBy(run: () => Promise<{ status: "ok"; data: Fold
   await showFolder(r.data);
   return true;
 }
+/** A folder on a volume where changes made by other programs may show
+ *  late (ADR 0048, revised 2026-10-12): said once per folder, the first
+ *  time it opens here — a property of the volume, not news; the host's
+ *  log has it at every opening. */
+function tellVolume(info: FolderInfo): void {
+  const fs = info.late_outside_changes;
+  if (!fs) return;
+  const key = `verso.lateOutsideChanges:${info.key}`;
+  try {
+    if (localStorage.getItem(key)) return;
+    localStorage.setItem(key, "1");
+  } catch {
+    // No storage: said each time, never lost.
+  }
+  showToast(t.lateOutsideChanges(fs), 12000);
+}
 export async function showFolder(info: FolderInfo): Promise<void> {
   setCurrentFolder(info.key);
   setFolderName(info.name);
@@ -88,24 +108,45 @@ export async function showFolder(info: FolderInfo): Promise<void> {
   }
   ui.folder.textContent = info.name;
   nameFolderButton();
+  // What follows the window's folder hears it changed (its sync's state).
+  dispatchEvent(new Event("verso:folder-shown"));
   const i = info.index ?? { indexed: 0, unchanged: 0, placeholders: 0, removed: 0, problems: [], unwatched: null, unindexed: null };
   ui.status.textContent = t.indexed(i.indexed, i.unchanged, i.placeholders);
   setShownProblems("");
   showProblems(i);
+  tellVolume(info);
   page?.classList.remove("empty");
   for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) l.destroy();
   spaces.length = 0;
   setCurrent(null);
+  // From here until the saved tabs are back, a file opened from the tree
+  // is opened after them, in front (layout/restoring.ts).
+  beginRestore();
+  try {
+    await showListsAndTabs(info);
+  } finally {
+    endRestore();
+  }
+  ui.search.focus();
+}
+/** The folder's lists, then its tabs as they were left. */
+async function showListsAndTabs(info: FolderInfo): Promise<void> {
   ui.collapse.disabled = false;
   ui.search.disabled = false;
   ribbon?.paint();
   ui.search.value = "";
+  // The folder's own settings (ADR 0070) before the tree is drawn: its
+  // folder note's name names the folders' notes.
+  await loadFolderLayer();
   loadBookmarks();
   await loadFocuses();
   panel.tagsCache = [];
   void panel.loadTags();
   showOutline(null);
   await listAll();
+  // Whether the person owns it on a server, and what of it is shared
+  // (ADR 0081 item 7).
+  void loadShares();
   let restored = false;
   try {
     const saved = secondary ? null : localStorage.getItem(`verso.spaces:${info.key}`);
@@ -126,7 +167,6 @@ export async function showFolder(info: FolderInfo): Promise<void> {
     // A layout that does not parse: start with one workspace.
   }
   if (!restored) newSpace();
-  ui.search.focus();
 }
 export async function openFolderDialog(): Promise<void> {
   await openFolderBy(() => commands.pickFolder());

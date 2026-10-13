@@ -72,6 +72,28 @@ test("a board changed here and on disk shows both, and writes nothing over the d
   expect(await app.file("Mesa.canvas")).toBe(outside);
 });
 
+test("a board changed here and on disk keeps both on a third choice: the disk's under the name, this board in a copy", async ({ app, page }) => {
+  await openBoard(app, "Mesa.canvas", TWO);
+  await drag(app, "b", 80, 40);
+  const outside = TWO.replace('"x":0,"y":0', '"x":-300,"y":0');
+  await app.writeOutside("Mesa.canvas", outside);
+  const conflict = page.locator(".conflict:visible");
+  await expect(conflict).toBeVisible();
+  await expect(conflict.getByRole("button")).toHaveText(["Descartar o meu e recarregar", "Gravar o meu por cima", "Guardar os dois"]);
+  await conflict.getByRole("button", { name: "Guardar os dois" }).click();
+  // Named as sync names a copy: this computer's name and the minute.
+  const named = /^Mesa \(conflito, Mac de Teste, \d{4}-\d{2}-\d{2} \d{2}\.\d{2}\)\.canvas$/;
+  await expect.poll(async () => (await app.files()).filter((f) => named.test(f)).length).toBe(1);
+  const copy = (await app.files()).find((f) => named.test(f));
+  // The disk's board kept its name; this one is in the copy, a new file.
+  expect(await app.file("Mesa.canvas")).toBe(outside);
+  const mine = await app.file(copy);
+  expect(nodeOf(mine, "b").x).not.toBe(400);
+  expect(nodeOf(mine, "a").x).toBe(0);
+  await expect(page.locator(".conflict:visible")).toHaveCount(0);
+  await expect(page.locator("#status")).toContainText("Os dois ficaram");
+});
+
 test("a canvas in another layout asks before its first save rewrites it", async ({ app, page }) => {
   const compact = '{"nodes":[{"id":"a","x":0,"y":0,"width":250,"height":60,"type":"text","text":"Alfa"},{"id":"b","x":400,"y":0,"width":250,"height":60,"type":"text","text":"Beta"}],"edges":[]}';
   await openBoard(app, "Outra.canvas", compact);

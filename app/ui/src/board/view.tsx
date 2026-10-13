@@ -59,9 +59,10 @@ import {
   type El
 } from "./model";
 import { PT_BR } from "./ptBR";
+import { mergeScene } from "./roomModel";
 import { relationKeyOk } from "./relation";
 import { InsertMenu, TopRightTools } from "./tools";
-import { BoardHandle, BoardHost } from "./types";
+import { BoardHandle, BoardHost, type BoardPane } from "./types";
 import { ext, IMAGE } from "../paths";
 import { MAC } from "../platform";
 import { fold } from "../text";
@@ -101,10 +102,13 @@ export type Api = ExcalidrawImperativeAPI;
 function Board({
   host,
   initial,
+  roomElements,
   bind,
 }: {
   host: BoardHost;
   initial: CanvasDoc;
+  /** In a room: the room's elements, drawn as they are (ADR 0082 item 12). */
+  roomElements?: readonly El[];
   bind: (load: (doc: CanvasDoc) => void, focus: () => void, refresh: () => void, find: () => void, flush: () => Promise<void>, addPath: (path: string, clientX?: number, clientY?: number) => void) => void;
 }): JSX.Element {
   const s = host.strings;
@@ -210,7 +214,12 @@ function Board({
   const restored = useCallback((d: CanvasDoc): ExcalidrawElement[] => {
     return restoreElements(toElements(d) as never, null, { refreshDimensions: true, repairBindings: true });
   }, []);
-  const initialElements = useMemo(() => restored(initial), [initial, restored]);
+  // A room's elements are drawn as the room holds them: measured again
+  // here, one would differ from the others' at the same version.
+  const initialElements = useMemo(
+    () => (roomElements ? restoreElements(roomElements as never, null, { refreshDimensions: false, repairBindings: false }) : restored(initial)),
+    [initial, restored, roomElements],
+  );
 
   const baseline = useCallback((els: readonly ExcalidrawElement[], d: CanvasDoc) => {
     doc.current = d;
@@ -327,6 +336,55 @@ function Board({
       },
       (path, x, y) => addPathRef.current(path, x, y),
     );
+    // In a room: the others' changes come in as the room's, merged over
+    // what this window is changing right now (roomModel.ts), and never
+    // counted as this person's edit; the others are drawn where they are.
+    const room = host.room;
+    const pane: BoardPane = {
+      apply: (remote, background) => {
+        const a = api.current;
+        // Not up yet: it is drawn from the room's elements as they are.
+        if (!a || !alive.current) return remote.map((e) => e.id);
+        const st = a.getAppState();
+        const busy = new Set<string>();
+        for (const id of [st.editingTextElement?.id, st.resizingElement?.id, st.newElement?.id, st.multiElement?.id, st.selectedLinearElement?.isEditing ? st.selectedLinearElement.elementId : undefined]) if (id) busy.add(id);
+        if (st.selectedElementsAreBeingDragged) for (const [id, on] of Object.entries(st.selectedElementIds)) if (on) busy.add(id);
+        const merged = mergeScene(a.getSceneElementsIncludingDeleted() as unknown as El[], remote, busy, (e) => room?.mine(e) ?? false);
+        // An element another person deleted leaves this window's selection
+        // with it: Excalidraw holds a deleted element selected as a broken
+        // invariant (seen on macOS, 2026-10-13, three windows on one board).
+        const gone = new Set(merged.filter((e) => e["isDeleted"] === true).map((e) => e.id));
+        const selected = Object.entries(st.selectedElementIds).filter(([, on]) => on);
+        const keep = selected.filter(([id]) => !gone.has(id));
+        own((b) => {
+          // The selection first, on its own: the scene drawn with the new
+          // elements must never find a deleted element still selected.
+          if (keep.length !== selected.length) {
+            b.updateScene({
+              appState: { selectedElementIds: Object.fromEntries(keep), selectedGroupIds: {} } as never,
+              captureUpdate: CaptureUpdateAction.NEVER,
+            });
+          }
+          b.updateScene({
+            elements: merged as never,
+            ...(background !== undefined ? { appState: { viewBackgroundColor: background ?? "transparent" } as never } : {}),
+            captureUpdate: CaptureUpdateAction.NEVER,
+          });
+        });
+        // Taken: the room's version is what the board now holds — the
+        // same object, or a copy of it with its index repaired, at the same
+        // version and nonce (roomModel.ts `repairedIndices`).
+        const now = new Map(merged.map((e) => [e.id, e] as const));
+        return remote
+          .filter((e) => {
+            const m = now.get(e.id);
+            return m === e || (m !== undefined && m["version"] === e["version"] && m["versionNonce"] === e["versionNonce"]);
+          })
+          .map((e) => e.id);
+      },
+      people: (people) => api.current?.updateScene({ collaborators: new Map(people) as never }),
+    };
+    room?.attach(pane, initialElements as unknown as El[]);
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const theme = (): void => setDark(host.dark());
     media.addEventListener("change", theme);
@@ -339,6 +397,7 @@ function Board({
       // `flush`); once Excalidraw has unmounted, its scene is empty, and a
       // save from here would write an empty board.
       alive.current = false;
+      host.room?.detach(pane);
       window.clearTimeout(timer.current);
       window.clearTimeout(outlineTimer.current);
     };
@@ -372,6 +431,14 @@ function Board({
     const a = api.current;
     if (!a || readOnly || !alive.current) return Promise.resolve();
     noteUser();
+    // In a room the board saves nothing itself: what it changed goes to the
+    // room, which writes the file.
+    if (host.room) {
+      host.room.scene(a.getSceneElementsIncludingDeleted() as unknown as El[], a.getAppState().viewBackgroundColor, edited.current);
+      edited.current = false;
+      host.room.push();
+      return Promise.resolve();
+    }
     const next = fromElements(a.getSceneElementsIncludingDeleted() as unknown as El[], doc.current, a.getAppState().viewBackgroundColor);
     const json = JSON.stringify(next);
     if (json === sent.current) {
@@ -543,6 +610,10 @@ function Board({
       if (key !== workKey.current) {
         workKey.current = key;
         noteUser();
+        if (host.room && !readOnly) {
+          host.room.scene(els as unknown as El[], state.viewBackgroundColor, edited.current);
+          edited.current = false;
+        }
         dropMarkers(els);
         syncCards(els);
         scheduleOverlays(els);
@@ -584,7 +655,11 @@ function Board({
       const entered = state.activeEmbeddable?.state === "active" ? state.activeEmbeddable.element.id : null;
       setActive((was) => (was === entered ? was : entered));
       const ids = Object.keys(state.selectedElementIds).filter((k) => state.selectedElementIds[k]);
-      setSelected((was) => (was.length === ids.length && was.every((v, i) => v === ids[i]) ? was : ids));
+      setSelected((was) => {
+        if (was.length === ids.length && was.every((v, i) => v === ids[i])) return was;
+        host.room?.selected(ids);
+        return ids;
+      });
     },
     [flush, noteUser, dropMarkers, syncCards, scheduleOverlays, liftDrawn, freeEdges, orbitOnCards, looseFresh, host, place],
   );
@@ -1066,6 +1141,12 @@ function Board({
                 syncCards(a.getSceneElements());
                 scheduleOverlays(a.getSceneElements());
                 remeasureWhenFontsIn(a.getSceneElements());
+                // The others already on the board, before any of them moves;
+                // and what the room changed while Excalidraw was starting.
+                if (host.room) {
+                  a.updateScene({ collaborators: new Map(host.room.people()) as never });
+                  host.room.resync();
+                }
                 const st = a.getAppState();
                 const v: View = { scrollX: st.scrollX, scrollY: st.scrollY, zoom: st.zoom.value, width: st.width, height: st.height };
                 settledRef.current = v;
@@ -1085,6 +1166,7 @@ function Board({
             }}
             aiEnabled={false}
             onChange={onChange}
+            onPointerUpdate={host.room ? (p) => host.room?.pointer(p.pointer.x, p.pointer.y, p.pointer.tool, p.button) : undefined}
             theme={dark ? "dark" : "light"}
             viewModeEnabled={readOnly}
             langCode={host.lang.toLowerCase().startsWith("pt") ? "pt-BR" : "en"}
@@ -1207,6 +1289,12 @@ function Board({
   );
 }
 
+/** The elements a canvas draws, as the board draws them when it opens: for
+ *  a change of the file given anew to a board in a room (roomModel.ts). */
+export function drawnOf(doc: CanvasDoc): El[] {
+  return restoreElements(toElements(doc) as never, null, { refreshDimensions: true, repairBindings: true }) as unknown as El[];
+}
+
 /** Show a drawing of the plugin in `el`; the function returned takes it away. */
 export function mountDrawing(el: HTMLElement, preview: DrawingPreview): () => void {
   const root = createRoot(el);
@@ -1216,7 +1304,7 @@ export function mountDrawing(el: HTMLElement, preview: DrawingPreview): () => vo
 
 /** Mount a board in `el`, showing the canvas `text`; null when the text is
  *  not JSON (the pane then says so and offers the text view). */
-export function mountBoard(el: HTMLElement, host: BoardHost, text: string): BoardHandle | null {
+export function mountBoard(el: HTMLElement, host: BoardHost, text: string, roomElements?: readonly El[]): BoardHandle | null {
   const initial = parseCanvas(text);
   if (!initial) return null;
   let load: (doc: CanvasDoc) => void = () => undefined;
@@ -1230,6 +1318,7 @@ export function mountBoard(el: HTMLElement, host: BoardHost, text: string): Boar
     <Board
       host={host}
       initial={initial}
+      roomElements={roomElements}
       bind={(l, f, r, fd, fl, ap) => {
         addPath = ap;
         load = l;

@@ -86,7 +86,8 @@ lida ao contrário — um diretório primeiro, um subcomando senão — com
 **O que o código da feature 4 faz com a colisão acima. Registrado em
 2026-09-22 — provisório, o mantenedor decide ao acordar**, na linha 1 da §10 de
 `docs/reference/cli-decision.md`. É o que o binário faz hoje, não uma decisão;
-a regra de desambiguação acima continua `[ABERTO]`.
+a regra de desambiguação acima continua `[ABERTO]`. *(Decidida pelo
+mantenedor em 2026-09-23 — Status; `docs/review/phase-2.md` §6, item 3.)*
 
 - **Na Fase 1 o primeiro argumento é sempre um subcomando.** O conjunto é
   `index`, `search` e `backlinks`, com `mcp` entrando na feature 6; `help`,

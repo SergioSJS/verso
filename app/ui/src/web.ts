@@ -10,11 +10,18 @@
 // person signed in, starts the window over the bridge (`web/bridge.ts`).
 
 import { state } from "./web/api";
-import { startBridge } from "./web/bridge";
+import { currentFolderId, startBridge } from "./web/bridge";
 import { pullSettings, pushSettings } from "./web/settingsSync";
 import { notice } from "./web/notice";
 import { chooseFolder, devicePage, invitePage, resetPage, setupPage, signInLinkPage, signInPage } from "./web/pages";
 import { setLang, w } from "./web/strings";
+import { holdClicks } from "./earlyClicks";
+
+// The folder button is on the page before the window's script, which this
+// one imports only after the server said who is signed in: a click on it
+// meanwhile is kept and made once the switcher is wired (the button shows
+// it is busy until then).
+const openHeld = holdClicks(document.getElementById("open"));
 
 async function start(): Promise<void> {
   const s = await state();
@@ -37,18 +44,29 @@ async function start(): Promise<void> {
     location.href = "/";
     return;
   }
-  // The account and the administration are sections of the window's
-  // settings: their addresses open the window with the settings there.
-  const section = path === "/account" ? "account" : path === "/admin" && s.account.admin ? "admin" : null;
-  // Without the window (`verso serve` without `--web`), the same sections
-  // on a page of their own.
-  if (!s.web) {
-    const { settingsPage } = await import("./web/standalone");
-    settingsPage(s.account, section ?? "account", w().noWeb);
-    if (path !== "/account" && path !== "/admin") history.replaceState(null, "", "/account");
+  // The administration is a console of its own (ADR 0077), served with or
+  // without the window.
+  if (path === "/admin" || path.startsWith("/admin/")) {
+    if (!s.account.admin) {
+      location.href = "/";
+      return;
+    }
+    const { consolePage } = await import("./web/console");
+    consolePage(s.account);
     return;
   }
-  if (path === "/account" || path === "/admin") history.replaceState(null, "", "/");
+  // The account is a section of the window's settings: its address opens
+  // the window with the settings there.
+  const section = path === "/account" ? "account" : null;
+  // Without the window (`verso serve` without `--web`), the account on a
+  // page of its own.
+  if (!s.web) {
+    const { settingsPage } = await import("./web/standalone");
+    settingsPage(s.account, "account", w().noWeb);
+    if (path !== "/account") history.replaceState(null, "", "/account");
+    return;
+  }
+  if (path === "/account") history.replaceState(null, "", "/");
   document.documentElement.dataset.host = "server";
   await pullSettings();
   pushSettings();
@@ -57,12 +75,28 @@ async function start(): Promise<void> {
   // refusal changes nothing today, when nothing is kept offline.
   void navigator.storage?.persist?.().catch(() => false);
   startBridge(chooseFolder);
+  // "You only read this folder" is said of a folder on screen: when one
+  // is shown with the reader's role, or the role of the one shown becomes
+  // the reader's — never over the start page, before a folder is there.
+  let role: string | null = null;
+  let shown = false;
+  const sayReader = () => {
+    if (shown && role === "reader" && currentFolderId()) notice(w().readOnlyBanner);
+  };
   addEventListener("verso:role", (e) => {
-    const role = (e as CustomEvent<string | null>).detail;
+    const next = currentFolderId() ? (e as CustomEvent<string | null>).detail : null;
+    const changed = next !== role;
+    role = next;
+    if (!next) shown = false;
     document.documentElement.dataset.role = role ?? "";
-    if (role === "reader") notice(w().readOnlyBanner);
+    if (changed) sayReader();
+  });
+  addEventListener("verso:folder-shown", () => {
+    shown = true;
+    sayReader();
   });
   const window_ = await import("./main");
+  openHeld();
   if (section) {
     const { loadCan } = await import("./can");
     await loadCan();

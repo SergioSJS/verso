@@ -169,8 +169,10 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    codifica o endereço em porcentagem, e a janela pedia ao core
    `gr%C3%A1fico` (2026-10-01).
 6. Uma nota mudada em disco enquanto o texto digitado na aba dela não foi
-   salvo: as duas versões aparecem, e a do disco fica (invariante 11).
-   Nível: H; E: `notes.spec.mjs`.
+   salvo: as duas versões aparecem, e a do disco fica (invariante 11);
+   *Guardar os dois* deixa a do disco com o nome e o texto da aba numa
+   cópia ao lado, com o nome que a sincronização dá à cópia de um conflito.
+   Nível: H; E: `notes.spec.mjs` (a de um arquivo de texto, `tabs.spec.mjs`).
 7. Uma nota embutida com `![[Nota]]`, no Editar, fica como no Leitura: os
    títulos, os parágrafos a um passo um do outro, as imagens dentro do
    painel, e o texto em volta quebrado na largura do painel. Nível: H; E:
@@ -314,6 +316,12 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    pauta`, `Ideia?` ou `a\b` não é criada (`nota.` é: o arquivo dela é `nota..md`); a barra de status diz que o Windows não
    guarda esse nome. Um renomear para um nome assim é recusado do mesmo
    jeito. Nível: H; E: `prompts.spec.mjs`; S: `crates/verso-fs/tests/ops.rs`.
+   Ao lado de `Nota`, uma nota nova `nota` também não é criada, e a barra
+   de status diz que um Mac ou o Windows guardaria só um dos dois;
+   renomear `Nota` para `nota` funciona (spec Q8, decidido em
+   2026-10-12). Nível: A (o harness não a recusa); U:
+   `crates/verso-fs/tests/ops.rs`,
+   `crates/verso-core/tests/workspace/rename.rs`.
 9. Nota 14, "A Visão de Pasta": abra uma pasta pela setinha e feche outra;
    abra o app de novo — a árvore está como ficou. Uma pasta de milhares de
    notas abre com as pastas de primeiro nível fechadas. Nível: H; E:
@@ -328,6 +336,19 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    árvore a rola e não move nada; um dedo segurado numa linha e solto abre
    o menu dela; segurado e depois movido, arrasta a linha para uma pasta.
    Nível: H (o toque só se move no Chromium); E: `touch.spec.mjs`.
+11. Nota 14, "A Lixeira" ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)):
+   apague uma nota, crie outra com o nome dela e abra a lixeira pela
+   paleta ("Abrir a lixeira"), pelo botão direito no espaço vazio da
+   árvore ou por *Ajustes › Arquivos e links*, onde a lixeira aparece ao
+   lado do espaço da pasta: a lista tem uma linha de cabeçalho, a nota com
+   quando e onde estava; "Restaurar" a põe ao lado da nova como `<nota>
+   (restaurado <data>).md` e diz isso; *Manter arquivos apagados por* "7
+   dias" remove na hora o que foi apagado antes disso; "Apagar agora" e
+   "Esvaziar a lixeira" perguntam na página, com o tamanho. Nível: H; E:
+   `trash.spec.mjs` (também no tamanho de celular e de tablet); S:
+   `crates/verso-core/tests/trash.rs` (a guarda da varredura, a da cota),
+   `crates/verso-fs/src/trashbin/tests.rs` (nenhum symlink seguido); A: os
+   arquivos no disco e as linhas do log (`manual-checks.md`).
 
 ## 7. A web
 
@@ -369,7 +390,8 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    esperava o seu atraso era descartado com a aba (2026-10-01).
 5. O arquivo do board mudado em disco (pelo Obsidian) sem nada não salvo:
    o board é desenhado de novo a partir dele; mudado aqui também, as duas
-   versões aparecem e nada é gravado por cima do disco. Nível: H; E:
+   versões aparecem e nada é gravado por cima do disco; *Guardar os dois*
+   põe este board numa cópia ao lado. Nível: H; E:
    `board-file.spec.mjs`. Pegou: um board aberto nunca seguia o seu arquivo
    (2026-10-01).
 6. Um canvas escrito em outro layout (uma linha só, ou fins de linha do
@@ -508,6 +530,24 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    (`scripts/check-linux-vm.sh --install`, o app aberto no desktop do
    Ubuntu; `--webkit`, a suíte no WebKit do Linux); A (Debian, Fedora, o
    AppImage).
+9. Os ajustes da pasta (nota 15, "Da pasta ou desta máquina"; [ADR
+   0070](../adr/0070-what-travels-with-the-folder.md) itens 1–2): numa
+   pasta recém-importada, Ajustes › Arquivos e links › "Ignorar pastas de
+   build" diz *Desta máquina*, e a pasta não tem `.verso/`; desligado,
+   diz *Da pasta* e aparece `.verso/settings.json` com
+   `"ignoreBuildDirs": false`; uma estrela numa nota a acrescenta a
+   `bookmarks` ali; Organização › "Nome da nota da pasta" e "Favoritos"
+   também dizem *Da pasta*. Numa pasta cujos favoritos este computador já
+   guardava, a primeira abertura os leva para o arquivo, uma vez. Nível:
+   H; E: `folder-settings.spec.mjs`; U (`cargo test -p verso-core --test
+   folder_settings`; o `tests_sync.rs` do host, "the folder's settings
+   cross like a file and a conflict keeps both", contra um servidor de
+   verdade; o `folderLayer.test.mjs` do `npm test`); A (dois computadores
+   sincronizando uma pasta, à mão). Um leitor de uma pasta de servidor
+   marca uma nota com estrela neste computador: "Favoritos" diz *Desta
+   máquina* para ele, e o arquivo da pasta não muda (decidido em
+   2026-10-12). Nível: U (o `folderLayer.test.mjs` do `npm test`;
+   `crates/verso-server/src/tests.rs`, "an invited reader"); A.
 
 ## 11. Organização: figurinhas, capas, páginas de pasta, ordem
 
@@ -649,10 +689,17 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
 1. Um servidor subido com `VERSO_ADMIN_EMAIL` e `VERSO_ADMIN_PASSWORD`: o
    endereço leva a *Entrar*; uma senha errada diz *E-mail ou senha
    errados.*; a certa abre a janela (e2e-server, "the admin signs in").
-2. *Ajustes* › *Administração* › *Pastas* (o endereço `/admin` abre a janela
-   com os ajustes ali): a pasta do disco registrada com um dono;
+2. O console de administração, `/admin` › *Pastas* (Ajustes › Conta ›
+   *Administrar este servidor* leva até lá): a pasta do disco registrada com
+   um dono; a página dela define uma cota (*Definir*, *Sem limite*), que o
+   registro lista (e2e-server, "the administration console");
    *Abrir pasta* a lista; uma nota criada no navegador continua lá depois de
-   recarregar (o mesmo teste).
+   recarregar (o mesmo teste). A página de uma conta encerra as sessões e
+   os tokens dela: *Encerrar sessões e tokens*, depois de confirmar, diz
+   quantas foram, e o navegador dessa conta sai (e2e-server, "an admin ends
+   another account's sessions"; um aparelho avisado na hora,
+   `tests_console.rs`,
+   `an_admin_ends_another_accounts_sessions_and_tokens`).
 3. *Convites*: um convite para um e-mail, uma pasta e *leitor*; o link em
    outro navegador cria a conta, abre a pasta, e a janela diz *Você só lê
    esta pasta*; o convite aparece *usado* e por quem; o link uma segunda vez
@@ -666,7 +713,143 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
 6. O app desktop: *Ajustes* › *Servidores*, o endereço do servidor,
    *Conectar*; o navegador pede para permitir este computador; depois de
    *Permitir*, uma pasta do servidor abre na janela (o teste do host; à mão
-   no app instalado).
+   no app instalado). Na mesma seção, *Nome deste aparelho*: um nome salvo
+   ali é o das cópias de conflito e o da sessão deste aparelho em cada
+   servidor, e esvaziado volta o do sistema (e2e, `sync.spec.mjs`, "Servers
+   names this computer"; o teste do host,
+   `a_window_on_a_servers_folder_is_answered_by_the_server`). A página
+   que aprova o aparelho diz quem pediu — o nome do aparelho, o endereço,
+   a hora — e pergunta *Foi você quem pediu, neste aparelho?*, com *Aprovar
+   este aparelho: <nome>* e *Não fui eu: recusar*; recusado, o código do
+   app acaba (e2e-server, "the page that approves a device says who
+   asked"; `tests_threats.rs`).
+7. Sincronização ([ADR 0079](../adr/0079-sync-a-local-folder-with-a-server.md)):
+   com uma pasta deste computador aberta, *Ajustes* › *Sincronizar*; sem
+   servidor conectado, diz *Conecte a um servidor em Servidores primeiro*;
+   conectado, o espaço aparece, *Sincronizar esta pasta* liga, e a barra de
+   status diz *Sincronizada*; uma passada pausada por muitas exclusões
+   pergunta antes de *Apagar*; um conflito mostra a diferença entre a
+   versão do servidor e a cópia; *Desligar* pergunta, e o estado some da
+   barra (e2e, `sync.spec.mjs`). O que cruza — primeira sincronização, dois
+   aparelhos, uma exclusão, uma renomeação, um conflito, uma exclusão em
+   massa, um arquivo de 9 MiB, um leitor, sem rede — os testes Rust do host
+   contra um servidor de verdade (`tests_sync.rs`); dois computadores de
+   verdade, à mão (`manual-checks.md`).
+8. Quem mudou o quê, e o que pede atenção: na página de uma pasta no
+   console, *Últimas mudanças nos arquivos* mostra a mudança de um aparelho
+   com o nome do aparelho entre parênteses ao lado da conta, e o registro
+   do servidor nomeia o aparelho numa mudança recusada (`tests_sync.rs`,
+   `a_devices_change_and_its_refusal_name_the_device`); um nome guardado em
+   dois arquivos no disco do servidor aparece em *Pede atenção*
+   (`tests_console.rs`,
+   `a_file_held_as_anothers_name_is_said_on_the_console`; o próprio disco,
+   só no Linux); a sessão de um aparelho encerrada em *Ajustes* › *Conta*
+   fecha a conexão desse aparelho na hora, e o *Sincronizar* dele pede para
+   conectar de novo em *Servidores* (`tests_sync.rs`,
+   `an_ended_sessions_connection_is_closed_at_once`); dois computadores de
+   verdade, à mão.
+9. A lixeira num servidor ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)):
+   um aparelho grava outros bytes por cima de uma nota; *Ajustes › Lixeira*
+   lista a versão substituída, "substituído por" o aparelho, e "Restaurar"
+   a põe ao lado da nota; a página da pasta no console mostra a lixeira,
+   "fora da cota", e os dias dela (e2e-server, "a device's write keeps
+   what it replaced"). Quem edita restaura mas não apaga de vez, quem só lê
+   não vê lixeira, a dona encurta os dias abaixo dos da administração, e o
+   console define e esvazia; a varredura expira o que passou dos dias e os
+   mais antigos enquanto a lixeira sozinha passa da cota
+   (`tests_trash.rs`).
+10. Compartilhar entre pessoas ([ADR 0081](../adr/0081-sharing-between-people-on-one-universo.md)),
+   a partir de "Compartilhar com outra pessoa" da nota 23 e da parada do
+   tour: o vault de demonstração tem uma conta só, então o outro lado se
+   segue com dois navegadores num UniVerso. O botão da pasta no topo da
+   barra lateral abre o seletor, *Neste computador*, *Meus*,
+   *Compartilhados comigo*; um compartilhamento abre por ele (e2e,
+   `shares.spec.mjs`, "the folder switcher"). Como dona, o menu de uma
+   pasta › *Compartilhar…*: o diálogo acrescenta uma pessoa pelo e-mail,
+   muda o papel pelo teclado e pergunta antes de *Tirar*; a árvore marca a
+   pasta "compartilhada com 1 pessoa" (e2e, "the owner shares a folder").
+   Um link de uma nota compartilhada para uma nota de fora diz *Não está no
+   que foi compartilhado com você.* e não cria nota (e2e, "a link out of
+   what was shared"). O que quem recebe alcança — nunca acima do
+   compartilhamento, por `..`, uma irmã, uma renomeação, a listagem do
+   sync, leituras e escritas, `/f/`, os eventos — os testes em Rust do
+   servidor (`tests_shares.rs`); duas pessoas e a pasta de anexos, à mão
+   (`manual-checks.md`). A dona tira uma pessoa cujo computador sincroniza
+   o compartilhamento: essa sincronização desliga, os arquivos ficam, e a
+   barra de status e *Ajustes* › *Sincronizar* dizem *quem compartilhou
+   revogou o acesso* e quando (e2e, `sync.spec.mjs`, "a share revoked by
+   its owner"; o teste Rust do host contra um servidor de verdade,
+   `tests_shares.rs`). Como quem recebe, renomeie uma nota do
+   compartilhamento para a qual aponta uma nota da dona de fora dele; como
+   dona, o link dessa nota tem agora o nome novo, e a renomeação de quem
+   recebe só citou notas de dentro do compartilhamento (o teste Rust do
+   servidor, `tests_shares.rs`, "a receivers rename rewrites the owners
+   links outside the share", com uma nota aberta numa sala mantida como
+   estava; à mão com dois navegadores). A barra de status de quem recebe
+   conta as notas do compartilhamento, e uma base pelo compartilhamento
+   conta, soma e lista só notas de dentro dele (o teste Rust do servidor,
+   `tests_shares.rs`, "a receivers counts are the shares").
+11. Editar junto numa pasta sincronizada ([ADR
+    0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), da seção
+    *Editar junto numa pasta sincronizada* da nota 23: com a pasta
+    sincronizando, uma nota aberta em *Editar* diz *ao vivo, só você* ao
+    lado do título e na barra de status; outra pessoa nela aparece pelo
+    nome (*ao vivo, com Bia*) e o texto dela chega; o que se digita vai para
+    a sala, nunca para o arquivo, que segue o salvamento da sala; a conexão
+    caída, a nota diz *local — sem conexão*, mantém o texto e o salva aqui;
+    de volta, *A nota está ao vivo de novo* e o que foi digitado está na
+    sala; pausada, *local — sincronização pausada*; de volta numa sala
+    outra, a nota é lida de novo com o seu texto; *Ajustes* ›
+    *Sincronizar* › *Editar notas junto enquanto online* desligado, a nota
+    sai da sala e, aberta de novo, não entra em nenhuma (e2e,
+    `live.spec.mjs`). Uma propriedade definida no painel de uma nota ao
+    vivo — um valor, uma caixa de marcar — entra na sala ao lado do que
+    outra pessoa digita ali, nunca no arquivo, que segue o salvamento da
+    sala; um adesivo, a célula de uma base e a citação de um PDF numa
+    nota de anotações ao vivo vão do mesmo jeito, sem `write_note` e sem
+    cópia de conflito, esteja a nota numa aba daqui ou ao vivo só com outra
+    pessoa, a janela entrando na sala dela para a única escrita (e2e,
+    `live.spec.mjs`, "a property set in the panel"; `live-writes.spec.mjs`;
+    `roomWrites.test.mjs`). Dois aparelhos e um navegador numa sala, uma queda e
+    uma volta dentro da carência e depois dela, a edição de um programa de
+    fora, um leitor, uma pausa, e o teste de propriedade de que nenhuma
+    edição se perde — os testes Rust do host contra um servidor de verdade
+    (`tests_live.rs`); um cursor sempre leva o nome da conta de quem
+    escreve, o que quer que a janela tenha mandado (`tests_threats.rs`);
+    dois computadores de verdade, à mão
+    (`manual-checks.md`). O cofre de demonstração não tem servidor: os
+    passos rodam na sala do harness ou à mão.
+12. Tudo editado junto, não só as notas (item 12 da [ADR
+    0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), da seção
+    *Editar junto* da nota 23 e da parada "Num servidor" do tour: com o
+    cofre de demonstração num UniVerso, abra o *Tour do Verso* — ou um
+    board seu — em duas janelas. Arraste um cartão numa enquanto a outra
+    escreve um texto com a ferramenta de texto: cada janela mostra os dois,
+    e o arquivo tem os dois, sem cópia de conflito e sem faixa; o ponteiro
+    da outra janela anda no board desta com o nome, e a aba diz *ao vivo,
+    com* e o nome (e2e-server, "two windows on one board"; com o board fora
+    da sala o teste falha). Abra um `.txt` em duas janelas e digite em cada
+    uma: cada uma vê as letras da outra, e o arquivo acompanha; abra
+    *Projetos.base* em duas janelas e acrescente uma ordenação pelo
+    *Ordenar* › *+ Adicionar ordenação* da barra: a base da outra janela a
+    tem, e o arquivo também (e2e-server, "two windows on a text file and on
+    a base's settings"). Numa pasta sincronizada um board fica ao vivo
+    enquanto o link está de pé, fica *local — sem conexão* com o que tem
+    salvo aqui, e volta com *O quadro está ao vivo de novo* (e2e,
+    `live.spec.mjs`, "a synced folder's board is live"). A fusão — dois
+    elementos, os dois ficam; o mesmo elemento, a versão maior, no empate o
+    nonce menor; apagar contra arrastar continua apagado; o arquivo só do
+    estado da própria sala; abrir não grava nada; uma mudança de fora; os
+    limites — os testes Rust do servidor (`tests_board_rooms.rs`,
+    `collab_board.rs`), os da janela (`boardRoom.test.mjs`), e dois
+    aparelhos sincronizados num arquivo de texto e num board
+    (`tests_live.rs`); dois computadores de verdade, à mão
+    (`manual-checks.md`). Sob carga: cinco clientes num board contra um
+    servidor de verdade, com semente, com reordenação, quedas e um leitor
+    do disco (`tests_board_stress.rs`; a rodada longa `board_stress_long`,
+    ignorada); cinco janelas com a fusão e o conversor da própria janela
+    (`boardStress.test.mjs`); três janelas em dois motores trabalhando ao
+    acaso por um minuto (e2e-server, "three windows, two engines").
 
 ## 14. O fim
 

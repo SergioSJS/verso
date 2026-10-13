@@ -26,7 +26,10 @@
 //!   and the walk stops at depth [`MAX_DEPTH`] with an error, never
 //!   silently;
 //! - hidden entries (name starting with `.`) are not walked at any depth,
-//!   nor are the relative paths the caller lists as ignored; an iCloud
+//!   nor are the relative paths the caller lists as ignored — the folder's
+//!   settings directory, `.verso/`, is not walked either, but its plain
+//!   entries are confined like files and listed apart for sync
+//!   ([`Root::settings_walk`], ADR 0070 items 1–2); an iCloud
 //!   Drive placeholder `.Name.ext.icloud` is recognized before the hidden
 //!   rule and reported as a placeholder for `Name.ext`;
 //! - a placeholder — that sibling name, or a file whose `st_flags` carry
@@ -39,18 +42,38 @@ mod ops;
 mod os;
 mod placeholder;
 pub mod server;
+mod settings;
+mod single;
+mod staged;
+mod sweep;
+pub mod trashbin;
 mod walk;
 mod watch;
 mod write;
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::SystemTime;
 
 pub use confine::ConfinementError;
+
+/// Whether every name of `relative` is one every OS can keep (ADR 0070
+/// item 3): no trailing dot or space, none of `< > : " | ? * \`, no
+/// device name such as `CON`. A create or a rename refuses the others; sync
+/// says so before it sends one (ADR 0079).
+#[must_use]
+pub fn is_portable(relative: &std::path::Path) -> bool {
+    relative.components().all(|c| match c {
+        std::path::Component::Normal(part) => !confine::unportable(part),
+        _ => true,
+    })
+}
 pub use ops::OpReport;
 pub use placeholder::Placeholder;
+pub use settings::{SETTINGS_DIR, SETTINGS_FILE, in_settings_dir, is_settings_path};
+pub use single::Single;
+pub use staged::Staged;
 pub use walk::{Entry, EntryKind, Problem, Walk};
 pub use watch::{Changes, MAX_WAIT, Watch};
 pub use write::{WriteError, WriteReport};
@@ -100,15 +123,68 @@ impl Stamp {
     }
 }
 
+/// A file's length and modified time, as a read in pieces takes them
+/// before each piece: the file changed between two pieces when they
+/// differ.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Mark {
+    pub len: u64,
+    pub modified: SystemTime,
+}
+
 /// FNV-1a, 64-bit: a few lines, no dependency, good enough to tell two
 /// contents apart for invariant 11.
 pub(crate) fn fnv1a(bytes: &[u8]) -> u64 {
-    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
-    for &b in bytes {
-        hash ^= u64::from(b);
-        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    let mut hash = Fnv::new();
+    hash.update(bytes);
+    hash.finish()
+}
+
+/// FNV-1a fed a piece at a time: over pieces that join into `bytes`, the
+/// same value as [`fnv1a`] of `bytes` — a file read or written in pieces
+/// is never whole in memory for its stamp.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Fnv(u64);
+
+impl Fnv {
+    pub(crate) const fn new() -> Self {
+        Self(0xcbf2_9ce4_8422_2325)
     }
-    hash
+
+    pub(crate) fn update(&mut self, bytes: &[u8]) {
+        for &b in bytes {
+            self.0 ^= u64::from(b);
+            self.0 = self.0.wrapping_mul(0x0000_0100_0000_01b3);
+        }
+    }
+
+    pub(crate) const fn finish(self) -> u64 {
+        self.0
+    }
+}
+
+/// How much of a file one read takes when the file is read in pieces: a
+/// stamp's hash, a sync's hash, a piece sent.
+pub(crate) const READ_PIECE: usize = 1 << 20;
+
+/// Read the file at `path` a piece at a time, each piece handed to
+/// `each`; the FNV-1a of the whole. One buffer of [`READ_PIECE`], reused.
+pub(crate) fn read_pieces(path: &Path, mut each: impl FnMut(&[u8])) -> std::io::Result<u64> {
+    use std::io::Read;
+    let mut file = std::fs::File::open(path)?;
+    let mut buffer = vec![0_u8; READ_PIECE];
+    let mut hash = Fnv::new();
+    loop {
+        let n = match file.read(&mut buffer) {
+            Ok(0) => return Ok(hash.finish()),
+            Ok(n) => n,
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(e) => return Err(e),
+        };
+        let piece = buffer.get(..n).unwrap_or_default();
+        hash.update(piece);
+        each(piece);
+    }
 }
 
 /// Why a read did not return content.
@@ -182,6 +258,54 @@ pub struct Root {
     by_path: HashMap<PathBuf, u32>,
 }
 
+/// How many links one check follows by their text before it gives up, as
+/// the kernel gives up on a loop (`ELOOP`).
+const LINK_HOPS: u32 = 40;
+
+/// Whether `probe`, an absolute path, lands in `root` (canonical) once
+/// every symlink on its way is followed. Only a symlink moves a place: a
+/// plain file or directory is where its parent is, and what is not there
+/// is judged by the deepest part that is. So the check reads each entry
+/// itself (`symlink_metadata`), never only the final file's existence: a
+/// file that another writer is replacing at this very instant — missing
+/// for a moment, or not resolvable while the rename lands — is judged by
+/// its folder, never taken for a link that leads out. A link whose end is
+/// not there now is judged by where its text points, which is a place
+/// like any other; a link that leaves is refused whether or not its end
+/// exists.
+fn lands_inside(root: &Path, mut probe: PathBuf, hops: u32) -> bool {
+    loop {
+        match std::fs::symlink_metadata(&probe) {
+            Ok(meta) if meta.file_type().is_symlink() => {
+                if let Ok(real) = std::fs::canonicalize(&probe) {
+                    return real.starts_with(root);
+                }
+                // Nothing at its end now (or a loop): follow the text.
+                if hops >= LINK_HOPS {
+                    return false;
+                }
+                let (Ok(target), Some(parent)) = (std::fs::read_link(&probe), probe.parent())
+                else {
+                    return false;
+                };
+                return lands_inside(root, parent.join(target), hops + 1);
+            }
+            Ok(_) => {
+                if let Ok(real) = std::fs::canonicalize(&probe) {
+                    return real.starts_with(root);
+                }
+            }
+            Err(_) => {}
+        }
+        // Not there, or not resolvable this instant: its place is its
+        // folder's. Only a plain name is stepped back from; a `..` in a
+        // link's text that cannot be resolved is refused, never guessed.
+        if !matches!(probe.components().next_back(), Some(Component::Normal(_))) || !probe.pop() {
+            return false;
+        }
+    }
+}
+
 impl Root {
     /// Open a folder. `path` is the one place a path string enters; it must
     /// be a directory. Every ignored path is confined like a request: an
@@ -241,6 +365,19 @@ impl Root {
         self.links_inside
     }
 
+    /// The name of the folder's file system when a file Verso creates or
+    /// moves there is named by `link` (macOS: a volume without the
+    /// exclusive rename and with hard links, some network volumes):
+    /// changes made there by other programs may show late; Verso's own
+    /// writes are as safe as anywhere (ADR 0048, revised 2026-10-12).
+    /// Asked of the volume each time it is called — a host asks once, when
+    /// it opens the folder; `None` when nothing is named by `link` there,
+    /// when it could not be told, and off macOS.
+    #[must_use]
+    pub fn names_by_link(&self) -> Option<String> {
+        ops::names_by_link(&self.path)
+    }
+
     /// Whether `relative`, resolved through every symlink on its way, stays
     /// in the folder. What does not exist yet is judged by the deepest
     /// part that does: a new file inside a linked directory that leaves is
@@ -249,21 +386,7 @@ impl Root {
         let Ok(root) = std::fs::canonicalize(&self.path) else {
             return false;
         };
-        let mut probe = self.path.join(relative);
-        loop {
-            match std::fs::canonicalize(&probe) {
-                Ok(real) => return real.starts_with(&root),
-                Err(_) => {
-                    // A broken link is a link: refused, not looked past.
-                    if std::fs::symlink_metadata(&probe).is_ok() {
-                        return false;
-                    }
-                    if !probe.pop() {
-                        return false;
-                    }
-                }
-            }
-        }
+        lands_inside(&root, self.path.join(relative), 0)
     }
 
     /// The rules the walk runs under.
@@ -274,7 +397,9 @@ impl Root {
 
     /// The handle for a path relative to the root, confined first: an
     /// absolute path, a `..` component or a NUL byte is refused; so is a
-    /// path the walk would not list — a hidden entry or an ignored path —
+    /// path the walk would not list — a hidden entry (but the folder's
+    /// settings directory and its plain entries, ADR 0070) or an ignored
+    /// path —
     /// because the only door plugins and agents have is this one
     /// (provisional: ADR 0044). Nothing on disk is checked here; a handle
     /// to a file that does not exist is legal and its read fails later with
@@ -296,13 +421,17 @@ impl Root {
     pub fn confine(&self, relative: &Path) -> Result<PathBuf, ConfinementError> {
         let relative = confine::confine(relative)?;
         // The placeholder name form outranks the hidden rule here as in the
-        // walk (ADR 0043), so a walked placeholder can be named again.
-        let hidden = relative.components().enumerate().any(|(i, c)| {
-            let name = c.as_os_str();
-            let last = i + 1 == relative.components().count();
-            name.as_encoded_bytes().starts_with(b".")
-                && !(last && placeholder::icloud_placeholder_of(name).is_some())
-        });
+        // walk (ADR 0043), so a walked placeholder can be named again. The
+        // folder's settings directory, `.verso/`, and its plain entries are
+        // the one exception (ADR 0070 items 1–2): the folder's layer lives
+        // there and sync carries it like any file.
+        let hidden = !settings::in_settings_dir(&relative)
+            && relative.components().enumerate().any(|(i, c)| {
+                let name = c.as_os_str();
+                let last = i + 1 == relative.components().count();
+                name.as_encoded_bytes().starts_with(b".")
+                    && !(last && placeholder::icloud_placeholder_of(name).is_some())
+            });
         if hidden {
             return Err(ConfinementError::Hidden);
         }
@@ -341,23 +470,24 @@ impl Root {
         Ok((meta.len(), meta.modified().ok()))
     }
 
+    /// Whether `handle` names a directory, a symlink followed as
+    /// [`Root::read`] follows it: a caller whose unit is a file asks before
+    /// reading a path it was only told changed. `false` for a file, for
+    /// nothing there, and for what cannot be asked about.
+    #[must_use]
+    pub fn is_dir(&self, handle: Handle) -> bool {
+        self.path_of(handle)
+            .is_some_and(|path| std::fs::metadata(path).is_ok_and(|m| m.is_dir()))
+    }
+
     /// Read a file's content and its [`Stamp`]. A placeholder — a dataless
     /// file, a `.Name.ext.icloud` entry, or `Name.ext` whose `.icloud`
     /// sibling stands in for it — is [`ReadError::Unavailable`] and is never
     /// opened (ADR 0043).
     pub fn read(&self, handle: Handle) -> Result<(Vec<u8>, Stamp), ReadError> {
-        let path = self
-            .path_of(handle)
-            .ok_or(ReadError::UnknownHandle(handle))?;
         // The guard runs on the name as given and, through a symlink, on
         // the target: both doors ask the same question as `write`.
-        if placeholder::stands_in(&path).map_err(ReadError::Io)? {
-            return Err(ReadError::Unavailable);
-        }
-        let target = placeholder::follow(&path).map_err(ReadError::Io)?;
-        if target != path && placeholder::stands_in(&target).map_err(ReadError::Io)? {
-            return Err(ReadError::Unavailable);
-        }
+        let target = self.readable(handle)?;
         // The stamp's time and length are taken before the bytes, as the
         // write takes them: a write that lands between the two leaves an
         // older time with the newer content, which the next index reads
@@ -366,6 +496,164 @@ impl Root {
         let bytes = std::fs::read(&target).map_err(ReadError::Io)?;
         let stamp = Stamp::of(&meta, &bytes).map_err(ReadError::Io)?;
         Ok((bytes, stamp))
+    }
+
+    /// The file `handle` names, a placeholder refused as [`Root::read`]
+    /// refuses it, and its target through a symlink.
+    fn readable(&self, handle: Handle) -> Result<PathBuf, ReadError> {
+        let path = self
+            .path_of(handle)
+            .ok_or(ReadError::UnknownHandle(handle))?;
+        if placeholder::stands_in(&path).map_err(ReadError::Io)? {
+            return Err(ReadError::Unavailable);
+        }
+        let target = placeholder::follow(&path).map_err(ReadError::Io)?;
+        if target != path && placeholder::stands_in(&target).map_err(ReadError::Io)? {
+            return Err(ReadError::Unavailable);
+        }
+        Ok(target)
+    }
+
+    /// Up to `max` bytes of the file `handle` names from `offset`, and the
+    /// file's length and modified time taken before the read, as
+    /// [`Root::read`] takes them: a file sent in pieces is never whole in
+    /// memory, and a caller that compares the length and time between
+    /// pieces sees the file change under it (ADR 0079 item 12, revised
+    /// 2026-10-12). Past the end, nothing.
+    pub fn read_range(
+        &self,
+        handle: Handle,
+        offset: u64,
+        max: usize,
+    ) -> Result<(Vec<u8>, Mark), ReadError> {
+        use std::io::{Read, Seek, SeekFrom};
+        let target = self.readable(handle)?;
+        let meta = std::fs::metadata(&target).map_err(ReadError::Io)?;
+        let mark = Mark {
+            len: meta.len(),
+            modified: meta.modified().map_err(ReadError::Io)?,
+        };
+        let left = mark.len.saturating_sub(offset);
+        let want = usize::try_from(left).unwrap_or(usize::MAX).min(max);
+        let mut bytes = Vec::with_capacity(want);
+        if want > 0 {
+            let mut file = std::fs::File::open(&target).map_err(ReadError::Io)?;
+            file.seek(SeekFrom::Start(offset)).map_err(ReadError::Io)?;
+            file.take(want as u64)
+                .read_to_end(&mut bytes)
+                .map_err(ReadError::Io)?;
+        }
+        Ok((bytes, mark))
+    }
+
+    /// Read the whole file `handle` names a piece at a time, each piece
+    /// handed to `each`, and return its [`Stamp`] — the same stamp
+    /// [`Root::read`] gives — without the file ever whole in memory: the
+    /// hash a sync compares, of a file of any size.
+    pub fn read_through(
+        &self,
+        handle: Handle,
+        each: impl FnMut(&[u8]),
+    ) -> Result<Stamp, ReadError> {
+        let target = self.readable(handle)?;
+        let meta = std::fs::metadata(&target).map_err(ReadError::Io)?;
+        let hash = read_pieces(&target, each).map_err(ReadError::Io)?;
+        Ok(Stamp {
+            modified: meta.modified().map_err(ReadError::Io)?,
+            len: meta.len(),
+            hash,
+        })
+    }
+
+    /// The temporary files of writes not finished, relative to the root:
+    /// a transfer in pieces under way, or what a process that stopped in
+    /// the middle of a write left behind. The walk never lists them (their
+    /// names are hidden); this says they are there.
+    pub fn temporaries(&self) -> std::io::Result<Vec<PathBuf>> {
+        let mut out = Vec::new();
+        let mut stack = vec![PathBuf::new()];
+        while let Some(rel) = stack.pop() {
+            for entry in std::fs::read_dir(on_disk(&self.path, &rel))? {
+                let entry = entry?;
+                let name = entry.file_name();
+                let kind = entry.file_type()?;
+                if kind.is_dir() {
+                    stack.push(rel_join(&rel, &name));
+                } else if name.as_encoded_bytes().starts_with(b".verso-tmp-") {
+                    out.push(rel_join(&rel, &name));
+                }
+            }
+        }
+        out.sort();
+        Ok(out)
+    }
+
+    /// Start a file that arrives in pieces at `relative`: a temporary file
+    /// beside where it will land, filled by [`Staged::append`], and given
+    /// its name by [`Root::create_staged`] or [`Root::write_staged`] —
+    /// the same atomic write as [`Root::create`] and [`Root::write`]
+    /// (invariant 9), never the file whole in memory. Dropped unfinished,
+    /// the temporary file goes. Confined like every path; a placeholder
+    /// is refused now rather than after the last piece (ADR 0043).
+    pub fn stage(&self, relative: &Path) -> Result<Staged, WriteError> {
+        let relative = self.confine(relative).map_err(WriteError::Confined)?;
+        let path = on_disk(&self.path, &relative);
+        if placeholder::stands_in(&path).map_err(WriteError::Io)? {
+            return Err(WriteError::Placeholder);
+        }
+        match std::fs::metadata(&path) {
+            Ok(meta) if meta.is_file() => {
+                // Over a file: beside its target, through a symlink, with
+                // its mode from the first instant, as `write` does.
+                let target = placeholder::follow(&path).map_err(WriteError::Io)?;
+                let original = std::fs::metadata(&target).map_err(WriteError::Io)?;
+                let dir = target.parent().unwrap_or(&self.path);
+                staged::Staged::beside(dir, Some(&original))
+            }
+            Ok(_) => Err(WriteError::Exists),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                self.new_names(&relative, None)?;
+                // A new file: in the nearest folder that exists on its way,
+                // so an abandoned transfer leaves no empty folder behind;
+                // the missing ones are made when it lands.
+                let mut dir = path.parent().unwrap_or(&self.path);
+                while !dir.is_dir() && dir != self.path {
+                    dir = dir.parent().unwrap_or(&self.path);
+                }
+                staged::Staged::beside(dir, None)
+            }
+            Err(e) => Err(WriteError::Io(e)),
+        }
+    }
+
+    /// Give a file that arrived in pieces ([`Root::stage`]) the name
+    /// `relative`, which must not exist yet: [`Root::create`]'s step, the
+    /// file synced first.
+    pub fn create_staged(
+        &mut self,
+        relative: &Path,
+        staged: Staged,
+    ) -> Result<(Handle, OpReport), WriteError> {
+        let relative = self.confine(relative).map_err(WriteError::Confined)?;
+        self.new_names(&relative, None)?;
+        let report = staged.create_at(&on_disk(&self.path, &relative))?;
+        Ok((self.intern(relative), report))
+    }
+
+    /// Put a file that arrived in pieces ([`Root::stage`]) over the file
+    /// `handle` names: [`Root::write`]'s step — refused when the file on
+    /// disk is not the one `expected` describes (invariant 11) or is a
+    /// placeholder (ADR 0043).
+    pub fn write_staged(
+        &self,
+        handle: Handle,
+        staged: Staged,
+        expected: &Stamp,
+    ) -> Result<WriteReport, WriteError> {
+        let path = self
+            .path_of(handle)
+            .ok_or(WriteError::UnknownHandle(handle))?;
+        staged.write_over(&path, expected)
     }
 
     /// The file `handle` names, when its content is only in the cloud in
@@ -409,8 +697,9 @@ impl Root {
 
     /// Create a file that does not exist yet, confined like every path,
     /// with `content`, atomically (ADR 0048): written under a temporary
-    /// name, synced, then linked to its name, which fails rather than
-    /// replacing what appeared there meanwhile. `WriteError::Exists` when
+    /// name, synced, then given its name by a step that fails rather than
+    /// replacing what appeared there meanwhile — an exclusive rename on
+    /// macOS, `link` elsewhere (ADR 0069, revised 2026-10-11). `WriteError::Exists` when
     /// something already stands there. The report carries the new file's
     /// stamp and what could not be confirmed once the file was in place.
     pub fn create(
@@ -419,7 +708,7 @@ impl Root {
         content: &[u8],
     ) -> Result<(Handle, OpReport), WriteError> {
         let relative = self.confine(relative).map_err(WriteError::Confined)?;
-        confine::unportable_new(&self.path, &relative).map_err(WriteError::Confined)?;
+        self.new_names(&relative, None)?;
         let report = ops::create_atomically(&on_disk(&self.path, &relative), content)?;
         Ok((self.intern(relative), report))
     }
@@ -428,21 +717,46 @@ impl Root {
     /// new directory synced into the one it hangs from.
     pub fn create_dir(&self, relative: &Path) -> Result<(PathBuf, OpReport), WriteError> {
         let relative = self.confine(relative).map_err(WriteError::Confined)?;
-        confine::unportable_new(&self.path, &relative).map_err(WriteError::Confined)?;
+        self.new_names(&relative, None)?;
         let report = ops::create_directory(&on_disk(&self.path, &relative))?;
         Ok((relative, report))
     }
 
+    /// Remove the folder at `relative` when it is empty, confined: `false`
+    /// when it holds anything — nothing in it is ever removed — or is the
+    /// root itself. Sync leaves no empty folder behind a move or a deletion
+    /// that came from another device (ADR 0079).
+    pub fn remove_empty_dir(&self, relative: &Path) -> Result<bool, WriteError> {
+        let relative = self.confine(relative).map_err(WriteError::Confined)?;
+        if relative.as_os_str().is_empty() {
+            return Ok(false);
+        }
+        ops::remove_empty_directory(&on_disk(&self.path, &relative))
+    }
+
+    /// The names a create or a rename makes along the confined `relative`,
+    /// checked as ADR 0070 item 3 says: one not every OS can keep, or one
+    /// that differs only in case from an entry its folder lists (spec Q8,
+    /// decided 2026-10-12) — case and the accents' Unicode form folded
+    /// together (spec Q7) — is refused; an entry that exists never is.
+    /// `from`: the entry a rename moves.
+    fn new_names(&self, relative: &Path, from: Option<&Path>) -> Result<(), WriteError> {
+        confine::unportable_new(&self.path, relative).map_err(WriteError::Confined)?;
+        confine::case_twin_new(&self.path, relative, from).map_err(WriteError::Confined)
+    }
+
     /// Move an entry to another path of the folder, both confined; refuses
     /// an occupied destination, unless it is the entry itself under another
-    /// spelling of its name (a case-only rename on APFS); creates the
-    /// destination's folders. A regular file is moved by `link` and
-    /// `unlink`, so nothing that appears at the destination meanwhile is
-    /// replaced; a directory or a symlink is renamed.
+    /// spelling of its name (a case-only rename on APFS), and a new name
+    /// that differs only in case from another entry there (spec Q8); creates the
+    /// destination's folders. A regular file is moved by an exclusive
+    /// rename on macOS and by `link` and `unlink` elsewhere, so nothing
+    /// that appears at the destination meanwhile is replaced; a directory
+    /// or a symlink is renamed.
     pub fn rename(&mut self, from: &Path, to: &Path) -> Result<(Handle, OpReport), WriteError> {
         let from = self.confine(from).map_err(WriteError::Confined)?;
         let to = self.confine(to).map_err(WriteError::Confined)?;
-        confine::unportable_new(&self.path, &to).map_err(WriteError::Confined)?;
+        self.new_names(&to, Some(&from))?;
         let report = ops::rename_path(&on_disk(&self.path, &from), &on_disk(&self.path, &to))?;
         Ok((self.intern(to), report))
     }
@@ -478,6 +792,53 @@ impl Root {
     pub fn trash(&mut self, relative: &Path) -> Result<(PathBuf, OpReport), WriteError> {
         let relative = self.confine(relative).map_err(WriteError::Confined)?;
         ops::trash(&self.path, &relative)
+    }
+
+    /// Everything in `.trash/` at the root, not following a symlink (ADR
+    /// 0080 item 2): the one walk that enters a hidden directory, by name.
+    pub fn trash_walk(&self) -> std::io::Result<Vec<trashbin::Binned>> {
+        trashbin::walk(&self.path)
+    }
+
+    /// Remove an entry of `.trash/` for good (ADR 0080 items 3 and 7):
+    /// only a path under the bin, a symlink removed as itself.
+    pub fn purge_trash(&self, relative: &Path) -> Result<(), WriteError> {
+        trashbin::purge(&self.path, relative)
+    }
+
+    /// Move an entry of `.trash/` back to `to`, confined as every path is;
+    /// `WriteError::Exists` when something stands there (ADR 0080 item 5).
+    /// A restore is a move inside the folder: the names it makes are
+    /// checked as a rename's are (ADR 0070 item 3) — one not every OS can
+    /// keep is refused, and so is one that differs only in case from an
+    /// entry of its folder (spec Q8), which the caller takes for a name
+    /// taken and restores beside.
+    pub fn restore_from_trash(&mut self, from: &Path, to: &Path) -> Result<OpReport, WriteError> {
+        let to = self.confine(to).map_err(WriteError::Confined)?;
+        self.new_names(&to, None)?;
+        trashbin::restore(&self.path, from, &to)
+    }
+
+    /// Whether an entry can be put into the folder `relative`: it is a
+    /// folder there — reached as the file system reaches it, so on a Mac
+    /// `Pasta` is the `pasta` that stands — or the folders it would make
+    /// pass ADR 0070 item 3's checks, refused with the reason a create
+    /// would give; nothing is made. A restore asks it of the folder it
+    /// puts an entry back into: one that only a case twin stands for on
+    /// Linux cannot be helped by a name beside.
+    pub fn check_new_folder(&self, relative: &Path) -> Result<(), WriteError> {
+        let relative = self.confine(relative).map_err(WriteError::Confined)?;
+        if std::fs::metadata(on_disk(&self.path, &relative)).is_ok_and(|m| m.is_dir()) {
+            return Ok(());
+        }
+        self.new_names(&relative, None)
+    }
+
+    /// Copy the file at `relative` into `.trash/` before a write replaces
+    /// it (ADR 0080 item 12); returns where the copy went.
+    pub fn keep_in_trash(&mut self, relative: &Path) -> Result<PathBuf, WriteError> {
+        let relative = self.confine(relative).map_err(WriteError::Confined)?;
+        trashbin::keep_copy(&self.path, &relative)
     }
 
     /// Read `.space/waypoints.json` at the root and its [`Stamp`] (ADR 0062 D7).

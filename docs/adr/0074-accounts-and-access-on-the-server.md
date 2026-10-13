@@ -34,7 +34,11 @@
   (*"… vc segue o recomendado"*): items 2, 7, 9, 10 and 11, proposed until
   then, as written; the desktop app's connection through the browser of
   item 8 built in this round (K of the plan, not the recommendation); the
-  order of work for passkeys in the Status.
+  order of work for passkeys in the Status. 2026-10-11 — item 8: the
+  device's name, kept with its session, may be set by the person in
+  Settings › Servers, the system's name by default — the maintainer's
+  *"Sim para todos"* of that evening, recorded in
+  [0079](0079-sync-a-local-folder-with-a-server.md) (Revisions, item 8).
 
 ## Context
 
@@ -188,7 +192,9 @@ Proposed; the maintainer decided the six questions on 2026-10-09
    sessions and revocable there. **Built in this round**, decided on
    2026-10-09 (K of the plan; [0073](0073-self-hosted-server-first.md)
    item 12): the desktop app's "connect to a server" and this sign-in ship
-   with the first release of the server.
+   with the first release of the server. The device's name, kept with its
+   session, may be set by the person in Settings › Servers, the system's
+   name by default (decided 2026-10-11, Revisions).
 9. *Proposed; accepted as written on 2026-10-09.* **Limits and the audit log.** Sign-in attempts limited by address and
    by account, with a growing delay, never a lock that a stranger can use
    to keep the owner out; the same for invitation and reset links. An
@@ -268,8 +274,12 @@ The environment of `verso serve`, together:
 
 ## Status
 
-Proposed, decided in its parts by the maintainer on 2026-10-09; to be
-read by Fable 5.1 and accepted together with
+**Accepted on 2026-10-09** with [0073](0073-self-hosted-server-first.md);
+the acceptance's words are in the paragraph after the list below.
+
+*(History, the status before the acceptance:)* Proposed, decided in its
+parts by the maintainer on 2026-10-09; to be read by Fable 5.1 and
+accepted together with
 [0073](0073-self-hosted-server-first.md). The maintainer raised the three
 things in the Source, then answered each question:
 

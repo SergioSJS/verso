@@ -762,7 +762,7 @@ export function fromElements(elements: readonly El[], doc: CanvasDoc, background
   for (const e of live) {
     if (nodeIds.has(e.id) || edgeIds.has(e.id) || labels.has(e.id)) continue;
     const under = cardAbove.get(e.id);
-    drawing.push(under === undefined ? e : { ...e, [UNDER]: under });
+    drawing.push(steady(under === undefined ? e : { ...e, [UNDER]: under }));
   }
   const out: CanvasDoc = { ...doc };
   // What the board could not draw — an entry with no id or type, an edge
@@ -784,6 +784,33 @@ export function fromElements(elements: readonly El[], doc: CanvasDoc, background
     put(verso, "background", bg ?? undefined);
     out.verso = verso;
   }
+  return out;
+}
+
+/** A drawn element as the file writes it: its own keys in the order it has
+ *  them, and every object inside it — a `boundElements` entry, a binding,
+ *  a roundness, its custom data — with its keys in one order, by name
+ *  (`{"id","type"}`). Equal elements then write equal bytes, however each
+ *  was put together: Excalidraw makes a binding `{type, id}` where a file
+ *  read back gives `{id, type}`, and a board edited together could
+ *  otherwise write the file anew with no one's change in it (seen in the
+ *  three-window e2e, 2026-10-13: the windows' file and the disk's differed
+ *  only there). An element's own order is the one it came with — the
+ *  file's, or Excalidraw's — so a board opened and saved unchanged writes
+ *  its drawing as it was (invariant 7). */
+function steady(e: El): El {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(e)) out[k] = sorted(v);
+  return out as El;
+}
+
+/** `v` with the keys of every object in it in order, by name; arrays keep
+ *  their order. */
+function sorted(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(sorted);
+  if (!isRecord(v)) return v;
+  const out: Record<string, unknown> = {};
+  for (const k of Object.keys(v).sort()) out[k] = sorted(v[k]);
   return out;
 }
 

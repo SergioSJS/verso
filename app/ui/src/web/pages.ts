@@ -207,31 +207,65 @@ export async function devicePage(account: Account | null): Promise<void> {
     return;
   }
   setLang(account.lang);
-  let what: { device: string };
+  const at = `/api/device/${encodeURIComponent(code)}`;
+  let what: { device: string; address: string; asked: string };
   try {
-    what = await api("GET", `/api/device/${encodeURIComponent(code)}`);
+    what = await api("GET", at);
   } catch (e) {
     page(s.deviceTitle, lead(explain(e)));
     return;
   }
+  // Who asked, before the question (threat-model.md, gap 12): a link
+  // someone else sent shows an address and a time that are not the
+  // person's, and the device's name as that someone gave it.
+  const asked = new Date(what.asked);
+  const when = Number.isNaN(asked.getTime())
+    ? what.asked
+    : asked.toLocaleString(account.lang.startsWith("pt") ? "pt-BR" : "en", { dateStyle: "long", timeStyle: "medium" });
+  const fact = (term: string, value: string) => [el("dt", {}, term), el("dd", {}, value)];
+  const who = el(
+    "section",
+    { class: "web-asked", "aria-labelledby": "device-who" },
+    el("h2", { id: "device-who", class: "web-subtitle" }, s.deviceWho),
+    el("dl", { class: "web-facts" }, ...fact(s.deviceName, what.device), ...fact(s.deviceAddress, what.address), ...fact(s.deviceWhen, when)),
+  );
   const f = form(
     [],
-    s.deviceApprove,
+    s.deviceApprove(what.device),
     async () => {
-      await api("POST", `/api/device/${encodeURIComponent(code)}`, {});
+      await api("POST", at, {});
       page(s.deviceTitle, lead(s.deviceDone));
     },
     explain,
   );
+  // The question is the form's name, read before its buttons.
+  const question = el("h2", { id: "device-ask", class: "web-subtitle" }, s.deviceAsk);
+  f.form.setAttribute("aria-labelledby", "device-ask");
+  f.form.setAttribute("aria-describedby", "device-ask-why");
+  const refuse = el("button", { type: "button", class: "web-secondary" }, s.deviceRefuse);
+  refuse.addEventListener("click", () => {
+    f.error.textContent = "";
+    refuse.disabled = true;
+    api("DELETE", at)
+      .then(() => page(s.deviceTitle, lead(s.deviceRefused)))
+      .catch((e: unknown) => {
+        f.error.textContent = explain(e);
+        refuse.disabled = false;
+      });
+  });
+  f.form.append(refuse);
   page(
     s.deviceTitle,
     lead(s.deviceLead(what.device)),
     el("p", { class: "web-code", "aria-label": s.deviceCode }, code),
+    who,
+    question,
+    el("p", { id: "device-ask-why", class: "web-lead" }, s.deviceAskWhy),
     f.form,
   );
 }
 
-type FolderRow = { id: string; name: string; role: string };
+type FolderRow = { id: string; name: string; role: string; owner?: { name: string } | null; share?: boolean; missing?: boolean };
 
 /** The folders the person may open, over the window, as the desktop's
  *  folder picker is: the id chosen, or null. */
@@ -255,11 +289,20 @@ export function chooseFolder(): Promise<string | null> {
     void api<{ folders: FolderRow[]; mayCreate: boolean }>("GET", "/api/folders")
       .then(({ folders, mayCreate }) => {
         if (!folders.length) list.append(el("li", {}, s.noFolders));
-        for (const f of folders) {
-          const b = el("button", { type: "button", class: "web-folder" }, icon("folder"), el("span", {}, f.name), el("small", {}, roleName(f.role)));
+        // Mine, then shared with me (ADR 0081 item 5): a folder someone
+        // else owns, or a folder inside one, with its owner.
+        const row = (f: FolderRow) => {
+          const note = f.owner ? `${roleName(f.role)} · ${s.ofOwner(f.owner.name)}${f.missing ? ` · ${s.shareGone}` : ""}` : roleName(f.role);
+          const b = el("button", { type: "button", class: "web-folder" }, icon(f.share ? "user" : "folder"), el("span", {}, f.name), el("small", {}, note));
           b.addEventListener("click", () => close(f.id));
-          list.append(el("li", {}, b));
-        }
+          return el("li", {}, b);
+        };
+        const mine = folders.filter((f) => !f.owner);
+        const theirs = folders.filter((f) => f.owner);
+        if (mine.length && theirs.length) list.append(el("li", { class: "web-folders-head", role: "presentation" }, s.mine));
+        for (const f of mine) list.append(row(f));
+        if (theirs.length) list.append(el("li", { class: "web-folders-head", role: "presentation" }, s.sharedWithMe));
+        for (const f of theirs) list.append(row(f));
         if (mayCreate) {
           const name = field(s.newFolderName, "text");
           const made = form(

@@ -18,7 +18,8 @@ function explain(e: unknown): string {
 
 type Session = { session: { id: string; kind: string; device: string; created: number; last_used: number; address: string }; current: boolean };
 type Token = { id: string; name: string; write: boolean; expires: number | null; created: number; last_used: number | null; folders: string[] };
-type Folder = { id: string; name: string; role: string; space: { total: number; notes: number; attachments: number; files: number; index: number } | null };
+type Folder = { id: string; name: string; role: string; space: { total: number; notes: number; attachments: number; files: number; index: number } | null; owner?: { name: string; email: string } | null; share?: boolean; missing?: boolean };
+type ByMe = { id: string; path: string; folder: string; folderName: string; people: { name: string; email: string; role: string }[]; missing: boolean };
 type Member = { id: string; email: string; name: string; role: string };
 type AuditEntry = { at: number; actor: string | null; action: string; subject: string | null; address: string | null; ok: boolean };
 type Key = { id: string; name: string; created: number; last_used: number | null };
@@ -35,6 +36,9 @@ const LANGS: [string, string][] = [["pt", "Português (Brasil)"], ["en", "Englis
 export function accountEntries(me: Account, item: Item): Entry[] {
   const s = w();
   return [
+    // An admin's way to the console, which is not part of Settings (ADR
+    // 0077 item 1).
+    ...(me.admin ? [{ group: s.admin, title: s.administer, desc: s.administerDesc, node: () => administer(item) }] : []),
     { group: s.profile, title: s.name, desc: `${s.email} ${s.language}`, node: () => profile(me, item) },
     { group: s.changePassword, title: s.password, desc: s.passwordHint, node: () => password(item) },
     { group: s.passkeys, title: s.passkeys, desc: s.passkeysLead, node: () => passkeys(item) },
@@ -43,6 +47,12 @@ export function accountEntries(me: Account, item: Item): Entry[] {
     { group: s.tokens, title: s.tokens, desc: s.tokensLead, node: () => tokens(item) },
     { group: s.signOut, title: s.signOut, desc: me.email, node: () => signOut(me, item) },
   ];
+}
+
+function administer(item: Item): HTMLElement {
+  const s = w();
+  const open = el("a", { class: "save web-link-button", href: "/admin" }, s.administer);
+  return el("div", { class: "web-block" }, item(s.administer, s.administerDesc, controls(open)));
 }
 
 function profile(me: Account, item: Item): HTMLElement {
@@ -162,9 +172,28 @@ function sessions(item: Item): HTMLElement {
 function folders(me: Account, item: Item): HTMLElement {
   const s = w();
   return block(async (box) => {
-    const mine = await api<{ folders: Folder[] }>("GET", "/api/folders");
+    const mine = await api<{ folders: Folder[]; byMe?: ByMe[] }>("GET", "/api/folders");
     if (mine.folders.length === 0) box.append(el("p", { class: "settings-hint" }, s.noFolders));
-    for (const f of mine.folders) {
+    // Shared with me, and shared by me (ADR 0081 item 5): regions with
+    // their headings, after the person's own folders.
+    const region = (id: string, title: string) => {
+      const head = el("h3", { class: "web-subtitle", id }, title);
+      const r = el("section", { role: "region", "aria-labelledby": id }, head);
+      return r;
+    };
+    const theirs = mine.folders.filter((f) => f.owner);
+    const shared = region("web-shared-with-me", s.sharedWithMe);
+    if (theirs.length === 0) shared.append(el("p", { class: "settings-hint" }, s.noneSharedWithMe));
+    for (const f of theirs) {
+      shared.append(item(f.name, `${roleName(f.role)} · ${s.ofOwner(f.owner?.name ?? "?")}${f.missing ? ` · ${s.shareGone}` : ""}`, null));
+    }
+    const byMe = mine.byMe ?? [];
+    const given = region("web-shared-by-me", s.sharedByMe);
+    for (const b of byMe) {
+      const people = b.people.map((p) => `${p.name} (${roleName(p.role)})`).join(", ");
+      given.append(item(s.sharedPath(b.folderName, b.path), `${s.sharedPeople(people)}${b.missing ? ` · ${s.shareGone}` : ""}`, null));
+    }
+    for (const f of mine.folders.filter((x) => !x.owner)) {
       box.append(item(f.name, s.folderDesc(roleName(f.role), spaceText(f.space)), null));
       if (f.role !== "owner") continue;
       const open = el("details", { class: "web-members" }, el("summary", {}, s.membersOf(f.name)));
@@ -176,6 +205,8 @@ function folders(me: Account, item: Item): HTMLElement {
       });
       box.append(open);
     }
+    box.append(shared);
+    if (byMe.length > 0) box.append(given);
   }, explain);
 }
 

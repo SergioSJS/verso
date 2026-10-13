@@ -52,6 +52,10 @@ None recorded: the briefing does not compare PWA with a native mobile app.
 
 ## Status
 
-Proposed. Items 1 and 2 accepted on 2026-10-09 in
+Nothing remains Proposed: items 1 and 2 accepted on 2026-10-09 in
+[0073](0073-self-hosted-server-first.md), item 3 superseded there.
+
+*(History, the lead until 2026-10-12:)* Proposed. Items 1 and 2 accepted
+on 2026-10-09 in
 [0073](0073-self-hosted-server-first.md); item 3 superseded there
 (Revisions).

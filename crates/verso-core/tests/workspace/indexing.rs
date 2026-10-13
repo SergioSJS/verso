@@ -203,7 +203,12 @@ fn a_note_under_an_unreadable_directory_is_not_removed() {
     let config = tempfile::tempdir().unwrap();
     let _root = note(vault.path(), "root.md", "[[a]]\n");
     let sub = subdir(vault.path(), "sub");
-    let _a = note(sub.path(), "a.md", "a\n");
+    let a = note(sub.path(), "a.md", "a\n");
+    // Never trusted by its stat, so the run below reads it: on a slow
+    // machine (Windows under the whole suite) more than two seconds passed
+    // between writing it and the first run, the second run trusted it, read
+    // nothing and had nothing to report (check-windows.sh, 2026-10-11).
+    crate::shell::future_mtime(a.path());
     let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
     let r = ws.index().unwrap();
     assert_eq!((r.indexed, r.removed), (2, 0), "{r:?}");
@@ -908,7 +913,8 @@ fn only_a_complete_run_lets_the_next_trust_a_note_by_its_stat() {
 }
 
 /// A batch of the watch that only changed notes is read path by path, not
-/// by a walk (ADR 0073 item 12); one that adds a note walks, as before.
+/// by a walk (ADR 0073 item 12); one that adds a note is too, since D4 of
+/// 2026-10-11.
 #[test]
 fn a_batch_of_changed_notes_reads_only_its_paths() {
     let vault = tempfile::tempdir().unwrap();
@@ -931,14 +937,14 @@ fn a_batch_of_changed_notes_reads_only_its_paths() {
     assert_eq!(report.changed, vec!["Uma.md".to_owned()]);
     assert_eq!(report.indexed, 1);
     assert_eq!(ws.search("dragão", 10).unwrap()[0].path, "Uma.md");
-    // A new note is a change of the listing: the walk runs.
+    // A new note is a change of the listing, made by its path.
     let _c = note(vault.path(), "Tres.md", "# Três\n");
     let changes = verso_core::Changes {
         paths: vec![std::path::PathBuf::from("Tres.md")],
         rescan: false,
     };
     let report = ws.index_changes(&changes, |_| {}).unwrap();
-    assert!(!report.narrowed);
+    assert!(report.narrowed);
     assert!(report.listing_changed);
     // The system asked for a rescan: the walk runs whatever the paths.
     let changes = verso_core::Changes {
@@ -946,4 +952,83 @@ fn a_batch_of_changed_notes_reads_only_its_paths() {
         rescan: true,
     };
     assert!(!ws.index_changes(&changes, |_| {}).unwrap().narrowed);
+}
+
+fn batch(paths: &[&str]) -> verso_core::Changes {
+    verso_core::Changes {
+        paths: paths.iter().map(std::path::PathBuf::from).collect(),
+        rescan: false,
+    }
+}
+
+/// A batch that creates and removes files is read by its paths too, not
+/// by a walk (D4 of 2026-10-11): every file a sync's download brings is a
+/// file created, and each batch of them walked the whole folder. A new
+/// note, a new file in a folder and a deletion enter or leave the listing
+/// where a walk puts them; a temporary file come and gone, a hidden one
+/// and one a `.gitignore` leaves out are passed over, as a walk passes
+/// them. What only a walk answers for — a file in a new folder, a
+/// `.gitignore`, a placeholder where a note was — still walks, and the
+/// placeholder is no deletion (ADR 0043).
+#[test]
+fn a_batch_of_new_and_removed_files_reads_only_its_paths() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _a = note(vault.path(), "Uma.md", "# Uma\n");
+    let some = note(vault.path(), "Some.md", "# Some\n\n[[Uma]]\n");
+    let pasta = subdir(vault.path(), "pasta");
+    let _b = note(pasta.path(), "Duas.md", "# Duas\n");
+    let _ignore = note(vault.path(), ".gitignore", "*.log\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+
+    let tres = note(vault.path(), "Tres.md", "# Três\n\n[[Uma]] e o dragão\n");
+    let _map = bytes(pasta.path(), "mapa.png", b"\x89PNG");
+    let _hidden = note(vault.path(), ".oculto.md", "# oculto\n");
+    let _log = note(vault.path(), "saida.log", "linha\n");
+    drop(some);
+    let r = ws
+        .index_changes(
+            &batch(&[
+                "Tres.md",
+                "pasta/mapa.png",
+                "Some.md",
+                ".oculto.md",
+                "saida.log",
+                "Tres.md.tmp",
+            ]),
+            |_| {},
+        )
+        .unwrap();
+    assert!(r.narrowed, "walked: {r:?}");
+    assert!(r.listing_changed, "{r:?}");
+    assert_eq!(r.changed, ["Tres.md"]);
+    assert_eq!((r.indexed, r.removed), (1, 1), "{r:?}");
+    assert_eq!(r.gone, ["Some.md"]);
+    assert_eq!(ws.search("dragão", 10).unwrap()[0].path, "Tres.md");
+    assert_eq!(ws.files(), ["pasta/mapa.png"]);
+    assert_eq!(ws.backlinks("Uma").unwrap().unwrap().len(), 1);
+    // The listing is the walk's, entry for entry and in its order.
+    let walked = ws.index().unwrap();
+    assert!(!walked.listing_changed, "{:?}", ws.entries());
+    assert_eq!(walked.indexed, 0, "{walked:?}");
+
+    // A file in a folder the last walk did not enter: walked.
+    let nova = subdir(vault.path(), "nova");
+    let _d = note(nova.path(), "Quatro.md", "# Quatro\n");
+    let r = ws
+        .index_changes(&batch(&["nova/Quatro.md"]), |_| {})
+        .unwrap();
+    assert!(!r.narrowed);
+    assert!(ws.notes().unwrap().contains(&"nova/Quatro.md".to_owned()));
+    // A `.gitignore` changes what the walk lists: walked.
+    let r = ws.index_changes(&batch(&[".gitignore"]), |_| {}).unwrap();
+    assert!(!r.narrowed);
+    // A note evicted to a placeholder: walked, and still known (ADR 0043).
+    drop(tres);
+    let _evicted = note(vault.path(), ".Tres.md.icloud", "<plist/>");
+    let r = ws.index_changes(&batch(&["Tres.md"]), |_| {}).unwrap();
+    assert!(!r.narrowed);
+    assert!(r.gone.is_empty(), "{r:?}");
+    assert!(ws.notes().unwrap().contains(&"Tres.md".to_owned()));
 }

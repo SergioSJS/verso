@@ -19,7 +19,13 @@
 //! data stream of another file; and the characters Windows does not allow
 //! in a name. On every other OS the same names are refused for what is
 //! made or renamed (ADR 0070: a folder synced to Windows must carry them),
-//! never for an entry that already exists ([`unportable_new`]).
+//! never for an entry that already exists ([`unportable_new`]). So is a new
+//! name that differs only in case from an entry its folder already lists
+//! (spec Q8, decided 2026-10-12; ADR 0070 item 3): a Mac or a Windows
+//! computer keeps the two as one file ([`case_twin_new`]). The comparison
+//! folds the accents' Unicode form too (spec Q7, decided 2026-10-10: one
+//! name is one file everywhere), so `Café.md` composed (NFC) beside
+//! `CAFÉ.md` decomposed (NFD) is the same refusal.
 
 use std::path::{Component, Path, PathBuf};
 
@@ -47,6 +53,14 @@ pub enum ConfinementError {
     /// name — `OBSIDI~1` for `.obsidian`: a second spelling that would get
     /// past the hidden and ignored rules (ADR 0069, item 9).
     ShortName,
+    /// A new name that differs only in case from an entry its folder
+    /// already lists — `nota.md` beside `Nota.md`: a Mac or Windows keeps
+    /// the two as one file (spec Q8, decided 2026-10-12); or in case and in
+    /// its accents' Unicode form — `Café.md` composed beside `CAFÉ.md`
+    /// decomposed, one name everywhere (spec Q7). It crosses the
+    /// contract as its own kind, `ErrorKind::CaseTwin`, which the window
+    /// says in the person's language and sync lists as a name taken.
+    CaseTwin,
 }
 
 impl std::fmt::Display for ConfinementError {
@@ -63,6 +77,9 @@ impl std::fmt::Display for ConfinementError {
             }
             Self::ShortName => "a short (8.3) name of another entry",
             Self::LeavesFolder => "a link that leads out of the folder",
+            Self::CaseTwin => {
+                "a name that differs only in case (or in how its accents are encoded) from another entry of its folder (a Mac or Windows keeps the two as one file)"
+            }
         };
         write!(
             f,
@@ -117,6 +134,88 @@ pub(crate) fn unportable_new(root: &Path, relative: &Path) -> Result<(), Confine
         }
     }
     Ok(())
+}
+
+/// The first new name of the confined `relative` that differs only in case
+/// from an entry its folder already lists, refused (spec Q8, decided
+/// 2026-10-12; ADR 0070 item 3): `nota.md` made beside `Nota.md`, or a file
+/// renamed to `NOTA.md` there, is a second file on Linux and on the server
+/// and one file on a Mac or Windows, which would keep only one of them.
+/// Names are compared [`folded`]: case aside and the accents in one
+/// Unicode form, as sync compares them (spec Q7) — `Café.md` composed
+/// beside `CAFÉ.md` decomposed is refused too, on ext4 as on APFS.
+/// `from` is the entry a rename moves: its own case variant is no twin of
+/// it (`nota.md` renamed `Nota.md` is allowed), however its name is spelled.
+/// What exists is never refused: a name listed exactly as asked is that
+/// entry, and a folder that a folding file system finds under another
+/// spelling is reached, not made. Only the folders on the way are listed,
+/// up to the first new name; below a new folder there is nothing to meet.
+pub(crate) fn case_twin_new(
+    root: &Path,
+    relative: &Path,
+    from: Option<&Path>,
+) -> Result<(), ConfinementError> {
+    let parts: Vec<&std::ffi::OsStr> = relative
+        .components()
+        .filter_map(|c| match c {
+            Component::Normal(part) => Some(part),
+            _ => None,
+        })
+        .collect();
+    let source = from.map(|f| crate::on_disk(root, f));
+    let mut at = PathBuf::new();
+    for (i, part) in parts.iter().enumerate() {
+        let Ok(listing) = std::fs::read_dir(crate::on_disk(root, &at)) else {
+            // A folder not there (made by this step) or not readable: the
+            // step itself says why, if anything.
+            return Ok(());
+        };
+        let wanted = folded(part);
+        let mut exact = false;
+        let mut twins = Vec::new();
+        for entry in listing.flatten() {
+            let name = entry.file_name();
+            if name == *part {
+                exact = true;
+                break;
+            }
+            if folded(&name) == wanted {
+                twins.push(name);
+            }
+        }
+        let next = crate::rel_join(&at, part);
+        let last = i + 1 == parts.len();
+        if exact
+            || (!last && std::fs::metadata(crate::on_disk(root, &next)).is_ok_and(|m| m.is_dir()))
+        {
+            at = next;
+            continue;
+        }
+        let twin = twins.iter().any(|name| {
+            let sibling = crate::on_disk(root, &crate::rel_join(&at, name));
+            !source
+                .as_deref()
+                .is_some_and(|s| crate::ops::same_entry_at(s, &sibling))
+        });
+        return if twin {
+            Err(ConfinementError::CaseTwin)
+        } else {
+            Ok(())
+        };
+    }
+    Ok(())
+}
+
+/// A name as every device compares names: its accents in the composed
+/// Unicode form (NFC), then lowercased — `verso_core::sync::folded`'s
+/// rule, here for one name. Two names of one folded form are one file on a
+/// Mac or Windows and one name to sync (spec Q7, Q8).
+pub(crate) fn folded(name: &std::ffi::OsStr) -> String {
+    use unicode_normalization::UnicodeNormalization;
+    name.to_string_lossy()
+        .nfc()
+        .collect::<String>()
+        .to_lowercase()
 }
 
 /// The first component of the confined `relative` that Windows found on

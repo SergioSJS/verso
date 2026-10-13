@@ -2,7 +2,50 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { type El } from "./model";
 import { type BoardStrings } from "./strings";
+
+/** One of the others on a board edited together, as Excalidraw draws a
+ *  collaborator: pointer, selection, name and colour (ADR 0082 item 12). */
+export type BoardPerson = {
+  username: string;
+  color: { background: string; stroke: string };
+  pointer?: { x: number; y: number; tool: "pointer" | "laser" };
+  button?: "up" | "down";
+  selectedElementIds?: Record<string, true>;
+  id: string;
+};
+
+/** What the board's pane gives a room. */
+export type BoardPane = {
+  /** The room's elements came in (and its background, when it changed):
+   *  the ids the board took in — not the ones it kept, its own or busy. */
+  apply: (remote: El[], background?: string | null) => string[];
+  /** The others on the board now. */
+  people: (people: Map<string, BoardPerson>) => void;
+};
+
+/** A board edited by several people at once (ADR 0082 item 12): the way
+ *  between the board and its room (boardRoom.ts). The board sends what it
+ *  changed and takes in what the others did; it saves nothing itself —
+ *  the room writes the file. */
+export type BoardRoomLink = {
+  /** The pane is up; `drawn`: what it drew, for a room no one drew yet. */
+  attach: (pane: BoardPane, drawn: readonly El[]) => void;
+  detach: (pane: BoardPane) => void;
+  /** The scene changed; `user`: a person's edit is in it. */
+  scene: (elements: readonly El[], background: string, user: boolean) => void;
+  /** What waits to go out, now. */
+  push: () => void;
+  /** Whether this window's version of an element is still on its way. */
+  mine: (e: El) => boolean;
+  pointer: (x: number, y: number, tool: "pointer" | "laser", button: "up" | "down") => void;
+  selected: (ids: readonly string[]) => void;
+  /** The others on the board now. */
+  people: () => Map<string, BoardPerson>;
+  /** Everything the room holds, into the board again. */
+  resync: () => void;
+};
 
 /** What the window gives the board: its contract calls and its dialogs. */
 export type BoardHost = {
@@ -62,6 +105,8 @@ export type BoardHost = {
   /** Write a picture of the board into the folder, beside the board; the
    *  path written, or null (said). */
   saveImage: (name: string, base64: string) => Promise<string | null>;
+  /** The board is in a room: edited together, written by the room. */
+  room?: BoardRoomLink;
 };
 
 /** What the settings say of boards. */

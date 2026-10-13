@@ -7,6 +7,23 @@ import { ui } from "./dom";
 import { t } from "./strings";
 
 export let indexProgressTimer: number | null = null;
+/** What the status bar said before a walk's progress took it, and the
+ *  progress line last written: once the walk is done, a bar still showing
+ *  that line goes back to what it said — "37/37 (100%)" stayed there for
+ *  good after a change made outside, or the example imported. */
+let before: string | null = null;
+let ours = "";
+function say(text: string): void {
+  if (before === null) before = ui.status.textContent ?? "";
+  ours = text;
+  ui.status.textContent = text;
+}
+/** Whether the walk's progress carries its count: a window on a share
+ *  gets none (the server leaves `current` and `total` out). */
+function counted(p: IndexProgress): boolean {
+  const v = p as { current?: unknown; total?: unknown };
+  return typeof v.current === "number" && typeof v.total === "number";
+}
 export function handleIndexProgress(p: IndexProgress): void {
   if (indexProgressTimer) {
     clearTimeout(indexProgressTimer);
@@ -23,7 +40,18 @@ export function handleIndexProgress(p: IndexProgress): void {
     ui.indexProgressBar.classList.add("indeterminate");
     ui.indexProgressBar.style.width = "40%";
     ui.indexProgressLabel.textContent = t.scanningVault;
-    ui.status.textContent = t.scanningVault;
+    say(t.scanningVault);
+  } else if (p.phase === "indexing" && !counted(p)) {
+    // A share's receiver is not told how far the owner's whole folder is
+    // (ADR 0081 item 11): the walk runs without a number.
+    ui.topProgressFill.classList.add("indeterminate");
+    ui.topProgressFill.style.width = "35%";
+    ui.indexProgressBar.classList.add("indeterminate");
+    ui.indexProgressBar.style.width = "40%";
+    const fName = p.file ? p.file.split("/").pop() ?? p.file : "";
+    const msg = t.indexingUncounted(fName);
+    ui.indexProgressLabel.textContent = msg;
+    say(msg);
   } else if (p.phase === "indexing") {
     ui.topProgressFill.classList.remove("indeterminate");
     ui.indexProgressBar.classList.remove("indeterminate");
@@ -33,13 +61,16 @@ export function handleIndexProgress(p: IndexProgress): void {
     const fName = p.file ? p.file.split("/").pop() ?? p.file : "";
     const msg = t.indexingNotes(p.current, p.total, pct, fName);
     ui.indexProgressLabel.textContent = msg;
-    ui.status.textContent = msg;
+    say(msg);
   } else if (p.phase === "done") {
     ui.topProgressFill.classList.remove("indeterminate");
     ui.indexProgressBar.classList.remove("indeterminate");
     ui.topProgressFill.style.width = "100%";
     ui.indexProgressBar.style.width = "100%";
     ui.indexProgressLabel.textContent = t.indexingDone;
+    if (before !== null && ui.status.textContent === ours) ui.status.textContent = before;
+    before = null;
+    ours = "";
     indexProgressTimer = window.setTimeout(() => {
       ui.topProgress.style.opacity = "0";
       window.setTimeout(() => {

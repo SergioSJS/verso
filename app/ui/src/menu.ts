@@ -26,6 +26,8 @@ import { getHiddenFromTree, setHiddenFromTree, settings } from "./settings";
 import { st } from "./screen/strings";
 import { placeInView, visibleBox } from "./screen/viewport";
 import { giveBack } from "./side";
+import { mayShare, openShareDialog } from "./shares";
+import { sh } from "./shareStrings";
 import { boardText, LOCALE, t } from "./strings";
 import { newFolderPrompt, newNotePrompt, newWebPagePrompt } from "./tree/prompts";
 import { listAll } from "./tree/tree";
@@ -113,6 +115,7 @@ export function entryMenu(x: number, y: number, path: string, kind: Kind, rename
     ...(folder ? orderMenuItems() : []),
     hideItem,
     sep,
+    ...(folder && mayShare() ? [[sh.share, () => openShareDialog(path), "user"] as MenuItem] : []),
     [t.createFocusHere, () => void createFocusHere(path), "compass"],
     [t.addToFocus, () => void showAddToFocusMenu(x, y, path), "compass"],
     sep,

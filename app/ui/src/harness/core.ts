@@ -20,6 +20,8 @@ import type {
   Capabilities,
   FolderSpace,
   AppInfo,
+  DeviceName,
+  DeviceRenamed,
   Backlink,
   BaseCell,
   BaseColumn,
@@ -52,7 +54,11 @@ import type {
   Written,
   Focus,
   FocusesSummary,
+  FolderLayer,
+  FolderSettings,
+  SyncStatus,
 } from "../bindings";
+import { Bin } from "./trash";
 import { blocksOf, fitsKind, headingsOf, propertiesOf, propertyList, readableLines, renderMarkdown, schemaBlocksOf } from "./markdown";
 
 export type Seed = { path: string; b64: string };
@@ -79,10 +85,17 @@ export const UNUSED_ARGS: Record<string, string[]> = {
   collab_leave: ["path"],
   collab_save: ["path"],
   collab_resolve: ["path", "keep"],
+  collab_present: ["path"],
+  collab_canvas: ["path", "at", "json"],
   server_sign_in: ["url"],
   server_sign_out: ["url"],
   server_folders: ["url"],
   server_open: ["url", "folder"],
+  // Sharing is a server's (ADR 0081): a folder of the harness is not on
+  // one; a test stands in for the server by replacing these.
+  share_grant: ["path", "email", "role"],
+  share_revoke: ["path", "account"],
+  share_attachments: ["path", "attachments"],
   reopen_folder: ["key"],
   open_window: ["path"],
   return_to_main: ["path"],
@@ -129,6 +142,10 @@ const stripMd = (p: string): string => p.replace(/\.md$/i, "");
 const hidden = (p: string): boolean => p.split("/").some((s) => s.startsWith("."));
 const isNote = (p: string): boolean => /\.md$/i.test(p);
 
+/** The folder's settings file (ADR 0070 items 1–2). */
+const SETTINGS_FILE = ".verso/settings.json";
+/** A path a bookmark may keep: relative, `/`-joined, no `..`, no `.`. */
+const plainPath = (p: string): boolean => p !== "" && !p.startsWith("/") && !p.endsWith("/") && p.split("/").every((s) => s !== "" && s !== "." && s !== "..");
 /** The core's `set_folder_note_name`: a plain file name, or empty. */
 const folderNoteSetting = (name: string): string => {
   const n = name.trim().replace(/\.md$/i, "");
@@ -295,8 +312,18 @@ export function canvasLayout(value: unknown, depth = 0): string {
 export class Core {
   readonly files = new Map<string, Stored>();
   readonly folders = new Set<string>();
-  /** The folder note name setting (`set_folder_note_name`). */
-  private folderNoteName = "";
+  /** The folder's trash and what is known of it (ADR 0080). */
+  readonly bin = new Bin(this);
+  /** This machine's folder note name setting (`set_folder_note_name`):
+   *  what applies while the folder has no `.verso/settings.json`. */
+  private machineNoteName = "";
+  /** The folder note name that applies: the folder's settings file's when
+   *  it has a usable one (ADR 0070), else this machine's. */
+  private get folderNoteName(): string {
+    const layer = this.folderLayer();
+    if (layer.exists && !layer.problem) return folderNoteSetting(layer.settings.folder_note_name ?? "");
+    return this.machineNoteName;
+  }
   private syncFocuses = false;
   /** Every command asked for, in order: what a test looks at. */
   readonly calls: { cmd: string; args: unknown }[] = [];
@@ -305,6 +332,16 @@ export class Core {
   private clock = 1_790_000_000;
   private revision = 1;
   private webViews = new Map<string, string>();
+  /** The folder's sync (ADR 0079), as a test sets it: the harness has no
+   *  server, so what crosses is whatever a test says (`sync-status`). */
+  sync: SyncStatus = Core.syncOff();
+  /** This computer's name as the person set it in Settings › Servers;
+   *  null, the system's ("Mac de Teste"). */
+  deviceName: string | null = null;
+
+  static syncOff(): SyncStatus {
+    return { key: "harness", on: false, server: "", folder: "", folder_name: "", role: "", state: "off", sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], log: [], last: null, message: null, problem: null, versions: null, revoked: null };
+  }
 
   constructor(
     seed: readonly Seed[],
@@ -358,6 +395,63 @@ export class Core {
     const was = this.stored(path);
     if (String(was.revision) !== revision) refuse("changed", `changed on disk: ${path}`);
     return this.put(path, encoder.encode(text));
+  }
+
+  /** The folder's layer of settings, `.verso/settings.json` (ADR 0070
+   *  items 1–2), as the core reads it. */
+  private folderLayer(): FolderLayer {
+    const stored = this.files.get(SETTINGS_FILE);
+    const empty: FolderSettings = { bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null };
+    if (!stored) return { exists: false, problem: null, revision: null, settings: empty, warnings: [] };
+    const revision = String(stored.revision);
+    let obj: unknown;
+    try {
+      obj = JSON.parse(strict.decode(stored.bytes));
+    } catch {
+      obj = null;
+    }
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) return { exists: true, problem: "invalid", revision, settings: empty, warnings: [] };
+    const o = obj as Record<string, unknown>;
+    const bool = (v: unknown): boolean | null => (typeof v === "boolean" ? v : null);
+    return {
+      exists: true,
+      problem: null,
+      revision,
+      settings: {
+        bookmarks: Array.isArray(o["bookmarks"]) ? o["bookmarks"].filter((p): p is string => typeof p === "string" && plainPath(p)) : null,
+        folder_note_name: typeof o["folderNoteName"] === "string" ? folderNoteSetting(o["folderNoteName"]) : null,
+        ignore_build_dirs: bool(o["ignoreBuildDirs"]),
+        respect_gitignore: bool(o["respectGitignore"]),
+      },
+      warnings: [],
+    };
+  }
+
+  /** A change of the folder's settings: created when there is no file
+   *  (`exists` when there is), else written over the revision read. */
+  private setFolderLayer(change: FolderSettings, revision: string | null): FolderLayer {
+    const stored = this.files.get(SETTINGS_FILE);
+    let obj: Record<string, unknown> = {};
+    if (revision === null) {
+      if (stored) refuse("exists", `already there: ${SETTINGS_FILE}`);
+    } else {
+      if (!stored) refuse("not_found", `no such file: ${SETTINGS_FILE}`);
+      if (String(stored.revision) !== revision) refuse("changed", `changed on disk: ${SETTINGS_FILE}`);
+      const parsed: unknown = JSON.parse(strict.decode(stored.bytes));
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) refuse("refused", "the folder's settings file is not a JSON object");
+      obj = parsed as Record<string, unknown>;
+    }
+    if (change.bookmarks) {
+      const bad = change.bookmarks.find((p) => !plainPath(p));
+      if (bad !== undefined) refuse("refused", `not a path of the folder: ${bad}`);
+      obj["bookmarks"] = change.bookmarks;
+    }
+    if (change.folder_note_name !== null && change.folder_note_name !== undefined) obj["folderNoteName"] = folderNoteSetting(change.folder_note_name);
+    if (change.ignore_build_dirs !== null && change.ignore_build_dirs !== undefined) obj["ignoreBuildDirs"] = change.ignore_build_dirs;
+    if (change.respect_gitignore !== null && change.respect_gitignore !== undefined) obj["respectGitignore"] = change.respect_gitignore;
+    const sorted = Object.fromEntries(Object.keys(obj).sort().map((k) => [k, obj[k]]));
+    this.put(SETTINGS_FILE, encoder.encode(`${JSON.stringify(sorted, null, 2)}\n`));
+    return this.folderLayer();
   }
 
   private getFocuses(): FocusesSummary {
@@ -554,7 +648,7 @@ export class Core {
   }
 
   folderInfo(): FolderInfo {
-    return { name: this.name, key: "harness", index: this.summary() };
+    return { name: this.name, key: "harness", index: this.summary(), late_outside_changes: null };
   }
 
   private summary(): IndexSummary {
@@ -779,8 +873,10 @@ export class Core {
     const path = this.confine(pathIn);
     if (!this.files.has(path) && !this.folders.has(path)) refuse("not_found", `no such entry: ${path}`);
     const to = this.free(`.trash/${path}`);
+    const folder = !this.files.has(path);
     this.move(path, to);
     this.folders.delete(path);
+    this.bin.record(to, path, folder);
     return { path: to, warnings: [] };
   }
 
@@ -1029,7 +1125,14 @@ export class Core {
       }
       return out;
     },
-    app_info: (): AppInfo => ({ version: "0.0.0-harness", commit: "harness" }),
+    app_info: (): AppInfo => ({ version: "0.0.0-harness", commit: "harness", device: this.deviceName ?? "Mac de Teste" }),
+    // This computer's name (ADR 0079 item 8): no server to tell here.
+    device_name: (): DeviceName => ({ name: this.deviceName ?? "Mac de Teste", system: "Mac de Teste", custom: this.deviceName !== null }),
+    set_device_name: (a): DeviceRenamed => {
+      const name = String(a["name"] ?? "").replace(/\p{Cc}/gu, " ").trim().slice(0, 60).trim();
+      this.deviceName = name && name !== "Mac de Teste" ? name : null;
+      return { device: { name: this.deviceName ?? "Mac de Teste", system: "Mac de Teste", custom: this.deviceName !== null }, unreached: [] };
+    },
     open_window: () => null,
     popout_target: () => null,
     return_to_main: () => null,
@@ -1076,10 +1179,12 @@ export class Core {
     set_embed_origins: () => null,
     set_walk_rules: () => null,
     set_folder_note_name: (a) => {
-      this.folderNoteName = folderNoteSetting(String(a["name"] ?? ""));
+      this.machineNoteName = folderNoteSetting(String(a["name"] ?? ""));
       return null;
     },
     get_focuses: () => this.getFocuses(),
+    get_folder_settings: () => this.folderLayer(),
+    set_folder_settings: (a) => this.setFolderLayer(a["change"] as FolderSettings, (a["revision"] as string | null | undefined) ?? null),
     can_sync_focuses: () => {
       const summary = this.getFocuses();
       return summary.has_file && summary.format_known;
@@ -1299,12 +1404,44 @@ export class Core {
     collab_leave: () => refuse("refused", "simultaneous editing is a server's"),
     collab_save: () => refuse("refused", "simultaneous editing is a server's"),
     collab_resolve: () => refuse("refused", "simultaneous editing is a server's"),
+    collab_present: () => refuse("refused", "simultaneous editing is a server's"),
+    collab_canvas: () => refuse("refused", "simultaneous editing is a server's"),
     // No server signed in to from the harness (ADR 0073 item 2).
     server_accounts: () => [],
     server_sign_in: () => refuse("unavailable", "no server in the harness"),
     server_sign_out: () => null,
     server_folders: () => [],
     server_open: () => refuse("unavailable", "no server in the harness"),
+    share_list: () => refuse("refused", "this folder is not on a server: sync it with one first"),
+    share_grant: () => refuse("refused", "this folder is not on a server: sync it with one first"),
+    share_revoke: () => refuse("refused", "this folder is not on a server: sync it with one first"),
+    share_attachments: () => refuse("refused", "this folder is not on a server: sync it with one first"),
+    // The folder switcher's "On this computer" (ADR 0081 item 5): the
+    // demo vault, opened before.
+    recent_folders: () => [{ key: "harness", name: this.name }],
+    // The folder's sync (ADR 0079): turned on against the server a test
+    // signs in to (`server_accounts`), synced at once — nothing to cross.
+    folder_sync: (): SyncStatus => this.sync,
+    folder_sync_start: (a): SyncStatus => {
+      const folder = (a["folder"] as string | null) ?? "nova";
+      const name = (a["name"] as string | null) ?? folder;
+      this.sync = { ...Core.syncOff(), on: true, server: a["url"] as string, folder, folder_name: name, role: "owner", state: "synced", last: "2026-10-10T12:00:00Z" };
+      return this.sync;
+    },
+    folder_sync_stop: (): SyncStatus => {
+      this.sync = Core.syncOff();
+      return this.sync;
+    },
+    folder_sync_pause: (a) => {
+      this.sync = { ...this.sync, state: a["paused"] ? "paused" : "synced", deletions: null };
+      return null;
+    },
+    folder_sync_confirm: () => {
+      this.sync = { ...this.sync, state: "synced", deletions: null };
+      return null;
+    },
+    folder_sync_now: () => null,
+    ...this.bin.handlers(),
     // The harness stands in for the desktop app (ADR 0058).
     capabilities: (): Capabilities => ({
       host: "desktop",
@@ -1353,5 +1490,11 @@ export class Core {
   /** Write a file as another program would. */
   writeOutside(path: string, text: string): void {
     this.put(path, encoder.encode(text));
+  }
+
+  /** Delete a file as another program would — or sync, for another
+   *  device. */
+  removeOutside(path: string): void {
+    this.files.delete(path);
   }
 }

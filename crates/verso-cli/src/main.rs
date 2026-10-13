@@ -23,6 +23,13 @@ use std::process::ExitCode;
 use messages::{Lang, Msg, text};
 use verso_core::{CoreError, WalkProblem, Workspace};
 
+/// The allocator of the `verso` binary (server and command line): mimalloc
+/// is faster under many writers than musl's and gives most memory back
+/// after a burst, which glibc's does not (`docs/reference/server-install.md`
+/// section 14; adopted by the maintainer 2026-10-11).
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 /// What the arguments asked for.
 #[derive(Debug, PartialEq, Eq)]
 enum Command {
@@ -961,9 +968,18 @@ fn serve(command: &Command, lang: Lang, mut out: Output) -> Output {
             return with_code(out, 3);
         }
     };
+    // Where the packages put the window, beside the binary: UniVerso's
+    // under share/universo (ADR 0078), the command line's under share/verso.
     let ui = std::env::current_exe()
         .ok()
-        .and_then(|exe| exe.parent().map(|bin| bin.join("../share/verso/ui")))
+        .and_then(|exe| {
+            let share = if exe.file_stem().is_some_and(|s| s == "universo") {
+                "../share/universo/ui"
+            } else {
+                "../share/verso/ui"
+            };
+            exe.parent().map(|bin| bin.join(share))
+        })
         .unwrap_or_else(|| PathBuf::from("ui"));
     let defaults = verso_server::config::Defaults {
         data_dir: base.join("server"),
@@ -1012,8 +1028,33 @@ fn emit(mut sink: impl Write, lines: &[String]) {
     let _ = sink.flush();
 }
 
+/// UniVerso is Verso as a server (ADR 0078): the binary started by that
+/// name — the server's packages install it as `universo` — runs `verso
+/// serve`, so `universo`, `universo --web` and `universo admin reset
+/// <e-mail>` are the server's own commands; `--help` and `--version` stay
+/// what they are.
+fn as_invoked(program: Option<&std::ffi::OsStr>, args: Vec<OsString>) -> Vec<OsString> {
+    let universo = program
+        .and_then(|p| Path::new(p).file_stem())
+        .is_some_and(|stem| stem == "universo");
+    let asks_about_itself = args.first().is_some_and(|a| {
+        matches!(
+            a.to_str(),
+            Some("--help" | "-h" | "help" | "--version" | "-V")
+        )
+    });
+    if !universo || asks_about_itself {
+        return args;
+    }
+    let mut serve = vec![OsString::from("serve")];
+    serve.extend(args);
+    serve
+}
+
 fn main() -> ExitCode {
-    let args: Vec<OsString> = std::env::args_os().skip(1).collect();
+    let mut all = std::env::args_os();
+    let program = all.next();
+    let args = as_invoked(program.as_deref(), all.collect());
     let out = run(&args);
     emit(std::io::stdout().lock(), &out.stdout);
     emit(std::io::stderr().lock(), &out.stderr);
@@ -1026,6 +1067,27 @@ mod tests {
 
     fn args(list: &[&str]) -> Vec<OsString> {
         list.iter().map(OsString::from).collect()
+    }
+
+    #[test]
+    fn started_as_universo_it_is_the_server() {
+        let as_universo =
+            |list: &[&str]| as_invoked(Some(std::ffi::OsStr::new("/usr/bin/universo")), args(list));
+        assert_eq!(as_universo(&[]), args(&["serve"]));
+        assert_eq!(as_universo(&["--web"]), args(&["serve", "--web"]));
+        assert_eq!(
+            as_universo(&["admin", "reset", "a@b.co"]),
+            args(&["serve", "admin", "reset", "a@b.co"])
+        );
+        assert_eq!(as_universo(&["--version"]), args(&["--version"]));
+        assert_eq!(as_universo(&["--help"]), args(&["--help"]));
+        // As verso, nothing changes.
+        assert_eq!(
+            as_invoked(Some(std::ffi::OsStr::new("verso")), args(&["index", "/v"])),
+            args(&["index", "/v"])
+        );
+        let (_, c) = parse(&as_universo(&["--web"]));
+        assert_eq!(c.unwrap(), Command::Serve { web: true });
     }
 
     #[test]

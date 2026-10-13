@@ -10,6 +10,9 @@ import { classHighlighter } from "@lezer/highlight";
 import { EditorView } from "codemirror";
 import { commands, type ContractError, type TextFile } from "../bindings";
 import { canWrite } from "../can";
+import { type CollabHandlers, type CollabSession, joinCollab, type RoomSession, ySyncAnnotation } from "../collab";
+import { type What } from "../coeditWords";
+import { methods } from "../methods";
 import { h, ui } from "../dom";
 import { fail } from "../errors";
 import { editorChrome } from "../keys";
@@ -20,12 +23,14 @@ import { opening } from "../opening";
 import { Kind, kindOf } from "../paths";
 import { st } from "../screen/strings";
 import { settings, sourceLineNumbers } from "../settings";
+import { name } from "../paths";
 import { t } from "../strings";
 import { markCurrent } from "../tree/tree";
-import { ConflictBanner } from "./conflict";
+import { ConflictBanner, fileMade, keepCopy } from "./conflict";
 import { htmlModes } from "./frame";
 import { askDiscard, Leaf } from "./leaf";
 import { lineSeparator, readOnlyText } from "./text";
+import * as textLive from "./textLive";
 
 /* A text file that is not a note: shown in the source editor, read-only. */
 /* Any text file that is not a note — .txt, .json, .csv, .canvas… —
@@ -38,13 +43,29 @@ export class TextLeaf extends Leaf {
   readonly crumbs = crumbsNav();
   /** For an HTML file, the way back to its page. */
   readonly modes = htmlModes(this, "source");
-  readonly conflict = new ConflictBanner(() => void this.load(this.path, true), () => void this.overwrite());
+  readonly conflict = new ConflictBanner(
+    () => void this.keepDisk(),
+    () => void this.overwrite(),
+    () => void this.keepBoth(),
+  );
   readonly editor: EditorView;
   revision = "";
   eol = "\n";
   /** The file mixes line endings: shown, never edited (lineSeparator). */
   private readOnly = false;
   private saveTimer: number | undefined;
+  /** The file's room when several people may edit it at once (ADR 0082
+   *  item 12): the server writes the file, not this tab. */
+  collab: CollabSession | null = null;
+  /** A synced folder's file waits for its local text to cross before it
+   *  joins its room (ADR 0082 item 7). */
+  catching = false;
+  /** The others in the file, as last said to a screen reader. */
+  liveOthers: string[] = [];
+  /** The file's live state in words: a synced folder's (item 14). */
+  readonly liveMark = h("span", "live-mark");
+  /** What the tab does when its room speaks, one object for its life. */
+  readonly roomHandlers: CollabHandlers;
   /** Writes run one at a time, each over the revision the last one left. */
   protected saving: Promise<void> = Promise.resolve();
   readonly lineNumbersCompartment = new Compartment();
@@ -55,8 +76,10 @@ export class TextLeaf extends Leaf {
   }
   constructor(pane: Pane) {
     super(pane);
+    this.roomHandlers = this.makeHandlers();
     const head = h("header", "leaf-head");
-    head.append(this.crumbs, this.modes);
+    this.liveMark.hidden = true;
+    head.append(this.crumbs, this.modes, this.liveMark);
     const sheet = h("div", "sheet");
     this.flags.hidden = true;
     sheet.append(this.flags, this.conflict.el, this.host);
@@ -67,7 +90,23 @@ export class TextLeaf extends Leaf {
   protected extras(): Extension {
     return [];
   }
-  protected state(doc: string, language: Extension[] = []): EditorState {
+  /** Which room the tab's file joins: a text's here; a board's tab joins
+   *  its board's itself. */
+  protected roomKind(): "text" | "board" {
+    return "text";
+  }
+  /** The session that holds the file live, whichever kind. */
+  liveSession(): RoomSession | null {
+    return this.collab;
+  }
+  /** What the tab's file is, as the sentences name it. */
+  liveWhat(): What {
+    return "file";
+  }
+  isReadOnly(): boolean {
+    return this.readOnly;
+  }
+  protected state(doc: string, language: Extension[] = [], room: Extension = []): EditorState {
     return EditorState.create({
       doc,
       extensions: [
@@ -82,17 +121,27 @@ export class TextLeaf extends Leaf {
         keymap.of([{ key: "Mod-s", run: () => (void this.save(), true) }]),
         editorChrome(["Mod-s"]),
         this.extras(),
+        room,
         EditorView.updateListener.of((u) => {
           if (u.docChanged) {
+            // The others' edits, brought in by the room: nothing of this
+            // tab's to save.
+            if (this.collab !== null && u.transactions.every((tr) => !tr.docChanged || tr.annotation(ySyncAnnotation) !== undefined)) return;
             this.setDirty(true);
-            window.clearTimeout(this.saveTimer);
-            this.saveTimer = window.setTimeout(() => {
-              if (!this.conflict.up) void this.save();
-            }, Math.max(0.3, settings.autosave) * 1000);
+            // In the room, the room writes the file once the edits settle.
+            if (this.collab?.live) return;
+            this.scheduleSave();
           }
         }),
       ],
     });
+  }
+  /** The autosave, after the setting's delay. */
+  scheduleSave(): void {
+    window.clearTimeout(this.saveTimer);
+    this.saveTimer = window.setTimeout(() => {
+      if (!this.conflict.up) void this.save();
+    }, Math.max(0.3, settings.autosave) * 1000);
   }
   /** Read `path` into the editor. Over unsaved text only when forced (the
    *  user chose to discard it) or on a yes. */
@@ -117,10 +166,27 @@ export class TextLeaf extends Leaf {
     window.clearTimeout(this.saveTimer);
     this.revision = r.data.revision;
     const sep = lineSeparator(r.data.text);
-    this.eol = sep ?? "\n";
-    // Mixed line endings, or a reader on a server (ADR 0076 item 11).
-    this.readOnly = sep === null || !canWrite();
-    this.editor.setState(this.state(r.data.text, support ? [support] : []));
+    // Several people in the file, where the side allows it (ADR 0082 item
+    // 12): the room's text, which may hold edits not written yet.
+    this.collab?.release(this.roomHandlers);
+    this.collab = null;
+    const shared =
+      sep !== null && this.roomKind() === "text"
+        ? await joinCollab(path, this.roomHandlers, () => {
+            this.catching = true;
+            this.paintLive();
+          })
+        : null;
+    this.catching = false;
+    if (this.path !== path) return shared?.release(this.roomHandlers);
+    this.collab = shared;
+    this.liveOthers = shared?.others() ?? [];
+    this.eol = shared ? (shared.crlf ? "\r\n" : "\n") : (sep ?? "\n");
+    // Mixed line endings, or a reader on a server (ADR 0076 item 11), or a
+    // reader of a synced folder, present and not typing (ADR 0082 item 4).
+    this.readOnly = sep === null || !canWrite() || (shared?.reader ?? false);
+    this.editor.setState(this.state(shared ? shared.initial() : r.data.text, support ? [support] : [], shared ? shared.extension() : []));
+    this.paintLive();
     this.conflict.hide();
     this.setDirty(false);
     this.flags.textContent = sep === null ? t.mixedEol : this.readOnly ? st.readOnly : "";
@@ -147,7 +213,18 @@ export class TextLeaf extends Leaf {
     const run = this.saving.then(async () => {
       if (!this.dirty) return;
       if (this.conflict.up) {
-        ui.status.textContent = t.conflictPending;
+        ui.status.textContent = t.conflictPendingBoth;
+        return;
+      }
+      if (this.collab?.live) {
+        // In the room: the server writes it now (⌘S, a closing tab).
+        const r = await commands.collabSave(this.path);
+        if (r.status === "ok") {
+          this.revision = r.data;
+          this.setDirty(false);
+          ui.status.textContent = t.saved;
+        } else if (r.error.kind === "changed") await this.roomConflict();
+        else fail(r.error);
         return;
       }
       const mine = this.text();
@@ -158,11 +235,29 @@ export class TextLeaf extends Leaf {
     this.saving = run.catch(() => undefined);
     return run;
   }
+  /** The banner's "reload": the disk's version — in a room, for everyone
+   *  in it. */
+  protected keepDisk(): Promise<void> {
+    if (!this.liveSession()?.live) return this.load(this.path, true);
+    return commands.collabResolve(this.path, "disk").then((r) => {
+      if (r.status !== "ok") return fail(r.error);
+      this.conflict.hide();
+      this.setDirty(false);
+    });
+  }
   /** Over the version the banner shows and no other (see NoteLeaf). */
   protected overwrite(): Promise<void> {
     const run = this.saving.then(async () => {
       const disk = this.conflict.disk;
       if (!disk) return;
+      if (this.collab?.live) {
+        const r = await commands.collabResolve(this.path, "mine");
+        if (r.status !== "ok") return fail(r.error);
+        this.conflict.hide();
+        this.revision = r.data;
+        this.setDirty(false);
+        return;
+      }
       const mine = this.text();
       const r = await commands.writeText(this.path, mine, disk.revision);
       if (r.status !== "ok") return this.refused(r.error);
@@ -171,6 +266,45 @@ export class TextLeaf extends Leaf {
     });
     this.saving = run.catch(() => undefined);
     return run;
+  }
+  /** What "keep both" puts in the copy: the editor's text (a board, the
+   *  canvas the banner showed against the disk's). */
+  protected async copyText(): Promise<string> {
+    return this.text();
+  }
+  /** The copy is made: what the tab held is in it (a board forgets the
+   *  canvas it was saving). */
+  protected keptCopy(): void {}
+  /** "Keep both", as a note's tab offers it: the disk's version stays
+   *  under the name, and this tab's text is written beside it as a new
+   *  file named as sync names a conflict's copy (ADR 0079 item 8) —
+   *  nothing is written over anything. The tab then shows the copy. */
+  protected async keepBoth(): Promise<void> {
+    const file = this.path;
+    const run = this.saving.then(async (): Promise<string | null> => {
+      if (!this.conflict.up) return null;
+      const mine = await this.copyText();
+      const copy = await keepCopy(file, (at) => commands.createFile(at, base64(mine)));
+      if (!copy) return null;
+      // In a room, the room goes back to the disk's version for everyone.
+      if (this.liveSession()?.live) {
+        const back = await commands.collabResolve(file, "disk");
+        if (back.status !== "ok") fail(back.error);
+      }
+      this.conflict.hide();
+      this.keptCopy();
+      this.setDirty(false);
+      return copy;
+    });
+    this.saving = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    const copy = await run;
+    if (!copy) return;
+    await fileMade();
+    await this.load(copy, true);
+    ui.status.textContent = t.keptBoth(name(file), name(copy));
   }
   protected written(f: TextFile, mine: string): void {
     this.revision = f.revision;
@@ -196,6 +330,31 @@ export class TextLeaf extends Leaf {
   }
   override destroy(): void {
     window.clearTimeout(this.saveTimer);
+    this.collab?.release(this.roomHandlers);
+    this.collab = null;
     this.editor.destroy();
   }
+  /** What the tab does when its room speaks (a board's tab: its board's). */
+  makeHandlers(): CollabHandlers {
+    return this.textHandlers();
+  }
+  declare textHandlers: typeof textLive.textHandlers;
+  declare roomConflict: typeof textLive.roomConflict;
+  declare roomText: typeof textLive.roomText;
+  declare roomClosed: typeof textLive.roomClosed;
+  declare liveState: typeof textLive.liveState;
+  declare paintLive: typeof textLive.paintLive;
+  declare presenceChanged: typeof textLive.presenceChanged;
+  declare textWentLocal: typeof textLive.textWentLocal;
+  declare textCameBack: typeof textLive.textCameBack;
+  declare textReadAnew: typeof textLive.textReadAnew;
+  declare roomHolder: typeof textLive.roomHolder;
+}
+methods(TextLeaf, textLive);
+
+/** A text's UTF-8 bytes in base64, as `createFile` takes them. */
+function base64(text: string): string {
+  let bin = "";
+  for (const b of new TextEncoder().encode(text)) bin += String.fromCharCode(b);
+  return btoa(bin);
 }
