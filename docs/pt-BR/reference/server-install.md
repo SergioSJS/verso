@@ -1058,9 +1058,12 @@ Ainda não verificado:
 - o filtro e a jail do fail2ban, o parser e os cenários do CrowdSec, e o
   exemplo de `rate_limit` do Caddy da seção 16, num host de verdade: a
   expressão do filtro roda nos testes do servidor sobre as próprias linhas
-  dele, como o fail2ban expande `<SUBNET>` e como ele lê um arquivo e o
-  journal, não pelo próprio fail2ban; os arquivos do CrowdSec e o exemplo
-  do Caddy não rodaram.
+  dele, como o fail2ban expande `<IP4>` e `<IP6>` e como ele lê um arquivo
+  e o journal; o próprio fail2ban 1.1.0 (Debian 13, num contêiner,
+  2026-10-13) a rodou com o `fail2ban-regex` sobre um arquivo dessas
+  linhas — o endereço IPv4 e o /64 de IPv6 pegos, `0.0.0.0/0`, um /48 e
+  um /24 não — e o `fail2ban-client -t` aceitou a jail, mas não sobre um
+  journal; os arquivos do CrowdSec e o exemplo do Caddy não rodaram.
 
 ## 16. Banimentos: fail2ban, CrowdSec e o rate_limit do Caddy
 
@@ -1104,8 +1107,13 @@ journalctl -u universo | grep 'sign-in failed'
 O `.deb` e o `.rpm` instalam um filtro,
 `/etc/fail2ban/filter.d/universo.conf`, e uma jail,
 `/etc/fail2ban/jail.d/universo.conf`: dez recusas de um endereço em dez
-minutos o banem por uma hora, lidas do journal do `universo.service`. Não
-fazem nada até o fail2ban ser instalado:
+minutos o banem por uma hora, lidas do journal do `universo.service`. O
+filtro aceita um endereço IPv4 sem prefixo ou um /64 de IPv6, as duas
+formas que o servidor escreve, e nenhuma outra faixa, então uma linha que
+nomeie `0.0.0.0/0` ou um /48 não bane ninguém. Um banimento fecha só
+`http` e `https` (o `port` da jail), então um endereço banido ainda chega
+ao SSH; um servidor que serve o próprio TLS em outra porta a acrescenta ao
+`port`. Não fazem nada até o fail2ban ser instalado:
 
 ```sh
 sudo apt install fail2ban        # ou: sudo dnf install fail2ban
@@ -1132,7 +1140,12 @@ No Docker, o fail2ban roda no host, e os dois arquivos são copiados de
 `logging: driver: journald` no arquivo compose, no lugar do bloco
 `json-file` publicado (o journald então faz a rotação delas pelos próprios limites,
 seção 5); a jail então lê
-`journalmatch = CONTAINER_NAME=universo` (o nome do contêiner). O Docker
+`journalmatch = _SYSTEMD_UNIT=docker.service CONTAINER_NAME=universo` (o
+nome do contêiner). Os dois campos, não só o nome: `CONTAINER_NAME` é um
+campo que qualquer programa da máquina pode escrever no journal, e o
+`_SYSTEMD_UNIT`, com o sublinhado, é do próprio journald, então só as
+linhas do Docker contam (o Docker rootless roda como unidade de um
+usuário: `_SYSTEMD_USER_UNIT=docker.service`). O Docker
 manda o tráfego de uma porta publicada por fora da chain `INPUT` do host:
 o banimento precisa de `chain = DOCKER-USER` na jail. Na rede do host
 (`network_mode: host`, `--network host`), nada é publicado e o tráfego
