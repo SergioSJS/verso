@@ -668,6 +668,7 @@ export class Core {
           const v = props[p.key];
           return { key: p.key, kind: p.kind, labels: labels(p.labels), present, fits: present && (v === null || v === "" || fitsKind(p.kind, v)) };
         }),
+        layout: b.layout,
       },
     };
   }

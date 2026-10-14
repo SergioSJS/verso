@@ -46,7 +46,7 @@ test("two schemas of one name type nothing; a schema that does not read says so 
     "PdM.md": SCHEMA,
     "PdM cópia.md": SCHEMA,
     "Barão.md": BARAO,
-    "Lugares.md": "# Lugares\n\n```verso-schema\ntype: lugar\nproperties:\n  - key: perigo\n    kind: link\n```\n",
+    "Lugares.md": "# Lugares\n\n```verso-schema\ntype: lugar\nproperties:\n  - key: perigo\n    kind: relation\n```\n",
   });
   await app.quickOpen("Barão");
   const line = page.locator(".props .props-type.problem");
