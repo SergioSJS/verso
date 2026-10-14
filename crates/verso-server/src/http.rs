@@ -275,7 +275,10 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/api/signin", post(crate::api::sign_in))
         .route("/api/signout", post(crate::api::sign_out))
         .route("/api/signin/link", post(crate::api::signin_link))
-        .route("/api/signin/link/{token}", post(crate::api::signin_by_link))
+        .route(
+            "/api/signin/link/{token}",
+            get(crate::api::signin_link_offer).post(crate::api::signin_by_link),
+        )
         .route("/api/forgot", post(crate::api::forgot))
         .route("/api/setup", post(crate::api::setup))
         .route(

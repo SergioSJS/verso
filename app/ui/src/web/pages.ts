@@ -377,15 +377,34 @@ export function chooseFolder(): Promise<string | null> {
   });
 }
 
-/** The link from a sign-in e-mail: used at once, then the window. */
+/** The link from a sign-in e-mail: whose it is, asked first — "sign in
+ *  as …?" — and used only on the click, so that a link someone else sent,
+ *  for their own account, does not sign the person in to it on a load. */
 export async function signInLinkPage(token: string): Promise<void> {
   const s = w();
+  const path = `/api/signin/link/${encodeURIComponent(token)}`;
   page(s.signInTitle, el("p", { class: "web-lead", role: "status" }, s.linkSigningIn));
+  let email: string;
   try {
-    const r = await api<{ csrf: string }>("POST", `/api/signin/link/${encodeURIComponent(token)}`, {});
-    setCsrf(r.csrf);
-    location.href = "/";
+    ({ email } = await api<{ email: string }>("GET", path));
   } catch (e) {
     page(s.signInTitle, lead(explain(e)));
+    return;
   }
+  const f = form(
+    [],
+    s.signIn,
+    async () => {
+      const r = await api<{ csrf: string }>("POST", path, {});
+      setCsrf(r.csrf);
+      location.href = "/";
+    },
+    explain,
+  );
+  const question = el("h2", { id: "link-ask", class: "web-subtitle" }, s.linkSignInAs(email));
+  f.form.setAttribute("aria-labelledby", "link-ask");
+  const go = f.form.querySelector<HTMLButtonElement>("button[type=submit]");
+  go?.setAttribute("aria-describedby", "link-ask link-ask-why");
+  page(s.signInTitle, question, el("p", { id: "link-ask-why", class: "web-lead" }, s.linkSignInWhy), f.form);
+  go?.focus();
 }

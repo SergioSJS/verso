@@ -793,6 +793,32 @@ async fn mailed(
     })
 }
 
+/// Whose a sign-in link is, before it is used: the page asks "sign in as
+/// …?" and waits for a click, so a link someone else sent — for their own
+/// account — is not taken in a load. Looking does not use the link; a
+/// wrong one counts against the address as a link's use does.
+pub async fn signin_link_offer(ctx: Ctx, Path(token): Path<String>) -> ApiResult<Response> {
+    let key = format!("link:{}", ctx.peer.key());
+    limited(&ctx, &[&key])?;
+    let found = verso_service::lock(&ctx.server.signin_links)
+        .get(&crate::crypto::hash(&token))
+        .filter(|(_, at)| at.elapsed() < SIGNIN_LINK_LIFE)
+        .map(|(account, _)| account.clone());
+    let account = match found {
+        Some(id) => ctx.server.db.account(&id)?,
+        None => None,
+    };
+    let Some(account) = account else {
+        ctx.server.limiter.failed(&key);
+        return Err(ApiError::new(
+            StatusCode::NOT_FOUND,
+            "link_gone",
+            "this link is used or expired",
+        ));
+    };
+    Ok(ok(json!({ "email": account.email })))
+}
+
 /// The link from the e-mail, used once: a session, as a password's.
 pub async fn signin_by_link(ctx: Ctx, Path(token): Path<String>) -> ApiResult<Response> {
     ctx.changes()?;
