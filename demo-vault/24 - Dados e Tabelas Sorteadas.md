@@ -72,6 +72,20 @@ Num [[23 - Verso num Servidor|UniVerso]], com outras pessoas na mesma nota, quem
 
 ---
 
+## O segredo do mestre
+
+Um callout do tipo `secret` guarda o que só quem escreve a nota deve ver. Digite `/` no Editar e escolha **Segredo**, ou escreva:
+
+> [!secret] O que os jogadores não sabem
+> A estalajadeira é irmã do barão, e a adega dá no túnel do porto.
+
+Num [[23 - Verso num Servidor|UniVerso]], quem só pode **ler** a nota a recebe **sem** esse bloco — na tela, na busca, nos links e nas tags, no que sincroniza para o aparelho dela, numa nota ao vivo. Quem pode editar vê tudo, com um cadeado e *Oculto para leitores*; o botão **Ver como leitor**, ao lado de Ler e Editar, mostra a nota como um leitor a recebe, e **Ver a nota inteira** volta. Numa pasta deste computador nada se esconde, e o bloco diz *Visível para quem tiver o arquivo*.
+
+> [!WARNING] Não é criptografia
+> Quem pode editar a nota vê o segredo — senão o apagaria na próxima edição. Quem tem o arquivo também: o Obsidian, um computador que sincroniza como editor, uma cópia dada à mão. O segredo é escondido dos leitores do servidor, não cifrado; e um leitor sabe que a nota mudou só quando muda o que ele vê.
+
+---
+
 ## Sem nota
 
 Na paleta de comandos (`⌘⇧P`), **Rolar dados…** abre um rolador: digite a notação, `Enter`, e o resultado aparece. Também não escreve nada.
