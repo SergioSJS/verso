@@ -59,7 +59,7 @@ import {
   type El
 } from "./model";
 import { PT_BR } from "./ptBR";
-import { type BoardState, remoteScene, stateOver } from "./roomModel";
+import { type BoardState, remeasureTargets, remoteScene, stateOver } from "./roomModel";
 import { relationKeyOk } from "./relation";
 import { InsertMenu, TopRightTools } from "./tools";
 import { BoardHandle, BoardHost, type BoardPane } from "./types";
@@ -147,6 +147,8 @@ function Board({
   const viewReady = useRef(false);
   const [exporting, setExporting] = useState(false);
   const timer = useRef<number | undefined>(undefined);
+  /** A font came in while a text was being typed or drawn (`remeasure`). */
+  const remeasureLater = useRef(false);
   const container = useRef<HTMLDivElement>(null);
   const [dark, setDark] = useState(host.dark());
   const [showOutline, setShowOutline] = useState(false);
@@ -274,11 +276,22 @@ function Board({
   const remeasure = useCallback(() => {
     const a = api.current;
     if (!a) return;
-    // A text being typed or drawn is Excalidraw's to measure.
+    // A text being typed or drawn is Excalidraw's to measure; the board
+    // measures again once that is over (`onChange`): a font that came in
+    // while the first text was typed would leave it measured with another.
     const st = a.getAppState();
-    if (st.editingTextElement || st.newElement || st.resizingElement) return;
+    if (st.editingTextElement || st.newElement || st.resizingElement) {
+      remeasureLater.current = true;
+      return;
+    }
+    remeasureLater.current = false;
     const els = a.getSceneElements();
-    const ready = new Set(els.filter((e) => e.type === "text" && fontReady(e)).map((e) => e.id));
+    // In a room, only the texts this window laid out: another engine's
+    // layout, measured here again, would be written again in this one's
+    // (roomModel.ts `remeasureTargets`).
+    const room = host.room;
+    const targets = remeasureTargets(els as unknown as El[], (e) => fontReady(e as never), room ? { mine: (e) => room.mine(e), layouts: room.layouts } : null);
+    const ready = new Set(targets.map((e) => e.id));
     if (ready.size === 0) return;
     // Excalidraw measures text again only while it repairs bindings (on
     // copies: the scene's elements are not touched), and from the text as
@@ -296,7 +309,7 @@ function Board({
       return newElementWith(e, { width: f.width, height: f.height, x: f.x, y: f.y, text: f.text });
     });
     if (changed) own((b) => b.updateScene({ elements: next, captureUpdate: CaptureUpdateAction.NEVER }));
-  }, [own]);
+  }, [own, host]);
   useEffect(() => {
     const fonts = document.fonts;
     fonts.addEventListener("loadingdone", remeasure);
@@ -602,6 +615,10 @@ function Board({
   const onChange = useCallback(
     (els: readonly ExcalidrawElement[], state: AppState) => {
       setArrowTool(state.activeTool.type === "arrow");
+      if (remeasureLater.current && !state.editingTextElement && !state.newElement && !state.resizingElement) {
+        remeasureLater.current = false;
+        window.setTimeout(() => alive.current && remeasure(), 0);
+      }
       // Excalidraw calls this on every frame the view moves. What reads the
       // elements — the cards, the overlays, the edges, the save, the
       // outline — runs only when they, an edit under way, or the background
@@ -670,7 +687,7 @@ function Board({
         return ids;
       });
     },
-    [flush, noteUser, dropMarkers, syncCards, scheduleOverlays, liftDrawn, freeEdges, orbitOnCards, looseFresh, host, place],
+    [flush, noteUser, dropMarkers, syncCards, scheduleOverlays, liftDrawn, freeEdges, orbitOnCards, looseFresh, host, place, remeasure],
   );
 
   const center = (): [number, number] => {
