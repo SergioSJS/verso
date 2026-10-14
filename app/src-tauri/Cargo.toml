@@ -40,6 +40,15 @@ tauri-plugin-dialog = "2"
 # Windows and Linux started a second app, and macOS too when a binary was
 # run directly.
 tauri-plugin-single-instance = "2"
+# The system's notifications (ADR 0084 item 9, decided 2026-10-14): a
+# notification also said by the system while the window is not in front,
+# on macOS, Windows and Linux, the permission asked when the person turns
+# it on. Tauri's own plugin (Apache-2.0 OR MIT); it replaces nothing of
+# ours: the app had no way to reach the system's notifications. Held at
+# 2.4, the last that runs on this app's Tauri 2.11 (2.5 and later ask for
+# 2.12), with its twin `@tauri-apps/plugin-notification` 2.4.x in
+# app/ui; on Linux it talks D-Bus through zbus, already in the tree.
+tauri-plugin-notification = "~2.4.0"
 tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
 specta = "=2.0.0-rc.25"
 specta-typescript = "=0.0.12"
