@@ -109,6 +109,16 @@ pub fn peer(server: &Server, headers: &HeaderMap, remote: SocketAddr) -> Peer {
             .iter()
             .filter_map(|v| v.to_str().ok()),
     );
+    // A proxy on this machine that is not in the list makes every visitor
+    // this machine's address, and lifts them past the pace: said once a
+    // minute, with what to set (ADR 0083 item 5).
+    if !client.from_proxy && remote.ip().is_loopback() && headers.contains_key("x-forwarded-for") {
+        server.untrusted_forward.warn(&format!(
+            "a request from {} carried X-Forwarded-For, but that address is not in VERSO_TRUSTED_PROXY: every visitor through a proxy on this machine counts as this machine; set VERSO_TRUSTED_PROXY={} if one forwards to UniVerso",
+            remote.ip(),
+            remote.ip()
+        ));
+    }
     if client.unforwarded {
         server.unforwarded.warn(
             "a request from the trusted proxy carried no X-Forwarded-For: is the proxy configured to forward it?",

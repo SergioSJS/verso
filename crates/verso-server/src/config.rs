@@ -261,6 +261,25 @@ impl Config {
     pub fn loopback_only(&self) -> bool {
         self.listen.ip().is_loopback()
     }
+
+    /// What to say at start when the public address is HTTPS but the
+    /// server listens on loopback with no TLS of its own and no trusted
+    /// proxy: the proxy in front of it, on this machine, is not believed,
+    /// and every visitor is this machine's address (ADR 0083 item 5).
+    #[must_use]
+    pub fn unproxied_https(&self) -> Option<String> {
+        let https = self
+            .public_url
+            .as_deref()
+            .is_some_and(|u| u.starts_with("https://"));
+        (https && self.loopback_only() && self.tls.is_none() && self.trusted_proxy.is_empty())
+            .then(|| {
+                format!(
+                    "VERSO_PUBLIC_URL is https but UniVerso listens on {} with no TLS of its own and no VERSO_TRUSTED_PROXY: the proxy in front of it is not believed, and every visitor counts as this machine — one address for every delay, none paced. Set VERSO_TRUSTED_PROXY=127.0.0.1 (::1 if the proxy connects over IPv6), or the proxy's address",
+                    self.listen
+                )
+            })
+    }
 }
 
 /// The directories when no variable names them.
@@ -395,6 +414,38 @@ mod tests {
         .unwrap();
         assert!(!c.loopback_only());
         assert_eq!(c.public_url.as_deref(), Some("https://notas.casa"));
+    }
+
+    /// An HTTPS public address served from loopback with no TLS of its
+    /// own is a proxy on this machine in front: with no trusted proxy, the
+    /// start says what to set; with one, own TLS, or another listen, it
+    /// says nothing.
+    #[test]
+    fn an_https_address_behind_an_untrusted_local_proxy_is_said_at_start() {
+        let https = [
+            ("VERSO_LISTEN", "127.0.0.1:7340"),
+            ("VERSO_PUBLIC_URL", "https://notas.casa"),
+        ];
+        let said = read(&https).unwrap().unproxied_https();
+        let said = said.expect("an https address on loopback with no trusted proxy is said");
+        assert!(said.contains("VERSO_TRUSTED_PROXY=127.0.0.1"), "{said}");
+        let mut trusted = https.to_vec();
+        trusted.push(("VERSO_TRUSTED_PROXY", "127.0.0.1"));
+        assert_eq!(read(&trusted).unwrap().unproxied_https(), None);
+        let mut own_tls = read(&https).unwrap();
+        own_tls.tls = Some(("/c".into(), "/k".into()));
+        assert_eq!(own_tls.unproxied_https(), None);
+        let plain = read(&[
+            ("VERSO_LISTEN", "127.0.0.1:7340"),
+            ("VERSO_PUBLIC_URL", "http://localhost:7340"),
+        ]);
+        assert_eq!(plain.unwrap().unproxied_https(), None);
+        let lan = read(&[
+            ("VERSO_LISTEN", "0.0.0.0:7340"),
+            ("VERSO_PUBLIC_URL", "https://notas.casa"),
+        ]);
+        assert_eq!(lan.unwrap().unproxied_https(), None);
+        assert_eq!(read(&[]).unwrap().unproxied_https(), None);
     }
 
     #[test]

@@ -480,6 +480,20 @@ tem ritmo. Quando uma requisição vem de um proxy confiável sem `X-Forwarded-F
 request from the trusted proxy carried no X-Forwarded-For: is the proxy
 configured to forward it?*
 
+Um proxy na mesma máquina deixado fora da lista também é dito, já que
+senão todo visitante seria o endereço desta máquina, fora do ritmo. Quando
+uma conexão do loopback que não é um proxy confiável traz
+`X-Forwarded-For`, o log diz, uma vez por minuto, *a request from
+127.0.0.1 carried X-Forwarded-For, but that address is not in
+VERSO_TRUSTED_PROXY: every visitor through a proxy on this machine counts
+as this machine; set VERSO_TRUSTED_PROXY=127.0.0.1 if one forwards to
+UniVerso*; e ao iniciar, quando o `VERSO_PUBLIC_URL` é `https://`, o Verso
+escuta no loopback sem certificado próprio e o `VERSO_TRUSTED_PROXY` está
+vazio, uma linha que começa com *VERSO_PUBLIC_URL is https but UniVerso
+listens on …* diz o mesmo e o que definir. Ao defini-lo, confira que o
+proxy manda `X-Forwarded-Proto: https` (o Caddy manda): por um proxy
+confiável só esse cabeçalho diz que o visitante veio por TLS.
+
 ### Atrás da Cloudflare
 
 A Cloudflare chega ao servidor por muitos endereços, que ela publica em

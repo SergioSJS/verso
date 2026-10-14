@@ -256,6 +256,9 @@ pub async fn run_on<L: listen::Incoming>(
         server.contract,
         server.config.folders_dir.display()
     ));
+    if let Some(said) = server.config.unproxied_https() {
+        log::warn(&said);
+    }
     let app = http::router(server);
     listen::serve(listener, app, stop).await;
     log::info("stopped");
