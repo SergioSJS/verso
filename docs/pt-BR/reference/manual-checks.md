@@ -40,6 +40,12 @@ app real.
   só a paleta, e o foco volta para *Ajustes*; Esc de novo fecha *Ajustes*.
   O mesmo com ⌘P e com *Ajuda › Relatar problema* sobre *Ajustes*.
   VoiceOver, com a paleta aberta: nada de *Ajustes* é lido atrás dela.
+- [ ] **A paleta sobre o diálogo de compartilhar** (B): numa pasta de
+  UniVerso que é sua, o menu de uma pasta › *Compartilhar…*, digite um
+  e-mail, depois ⌘⇧P: a paleta fica por cima com o cursor nela; Esc fecha
+  só a paleta, o e-mail ainda digitado e o cursor de volta no campo; Esc
+  de novo fecha o diálogo. VoiceOver: o diálogo não é lido atrás da
+  paleta.
 - [ ] **O console do DevTools diz uma falha** (C): o console aberto
   (⌥⌘I), o servidor parado, *Sincronizar esta pasta*: um aviso, `Verso:
   unreachable: localhost:7351`, e nenhum token ou senha em linha alguma.

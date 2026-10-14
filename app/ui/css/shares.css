@@ -36,3 +36,7 @@
 .folder-switcher button[aria-current="true"] span { font-weight: 600; }
 .folder-switcher .switcher-note { font-size: .82rem; color: var(--ink-3); padding: .3rem .5rem; margin: 0; }
 .srv-group { font: 600 .7rem var(--ui); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); padding: .6rem 0 .2rem; }
+/* The share dialog on its own layer (`.quick`, shares.ts): it scrolls
+   inside when the window is short. */
+.quick.share-overlay { padding-top: 8vh; }
+.quick.share-overlay .share-dialog { max-height: calc(100dvh - 8vh - 16px); overflow: auto; }
