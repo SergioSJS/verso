@@ -335,3 +335,31 @@ fn a_reset_takes_the_accounts_tokens_and_a_change_does_when_asked() {
         assert_eq!(changed["tokensKept"], json!(2), "{changed}");
     });
 }
+
+/// A sign-in to an account with no password yet — made by the admin, its
+/// link not used — takes a hash's time, as an unknown e-mail and a wrong
+/// password do: the answer's delay does not tell that the account exists
+/// and has no password.
+#[test]
+fn an_account_with_no_password_yet_costs_a_hash_too() {
+    block_on(async {
+        let r = start().await;
+        r.server
+            .db
+            .create_account("sem-senha@hash.example", "Sem", "pt", None, false)
+            .unwrap();
+        let tried = "a senha tentada numa conta sem senha";
+        let (status, body) = post(
+            &r,
+            "/api/signin",
+            json!({ "email": "sem-senha@hash.example", "password": tried }),
+            None,
+        )
+        .await;
+        assert_eq!(status, 401, "{body}");
+        assert!(
+            crate::crypto::wasted(tried),
+            "an account with no password answered without hashing"
+        );
+    });
+}

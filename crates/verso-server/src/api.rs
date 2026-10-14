@@ -133,16 +133,13 @@ pub async fn sign_in(ctx: Ctx, Json(body): Json<SignIn>) -> ApiResult<Response> 
     let server = std::sync::Arc::clone(&ctx.server);
     let email = body.email.clone();
     let password = body.password.clone();
-    // The account, and whether the password is its: an unknown e-mail
-    // costs a hash too.
+    // The account, and whether the password is its: an unknown e-mail,
+    // and an account with no password yet, cost a hash too.
     let found =
         tokio::task::spawn_blocking(move || -> Result<(Option<db::Account>, bool), String> {
             let account = server.db.account_by_email(&email)?;
-            let right = match &account {
-                Some(a) => a
-                    .password
-                    .as_deref()
-                    .is_some_and(|h| crate::crypto::verify_password(&password, h)),
+            let right = match account.as_ref().and_then(|a| a.password.as_deref()) {
+                Some(h) => crate::crypto::verify_password(&password, h),
                 None => {
                     crate::crypto::waste_time(&password);
                     false
