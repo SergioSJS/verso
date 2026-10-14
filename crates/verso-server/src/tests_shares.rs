@@ -1192,3 +1192,80 @@ fn a_notes_type_through_a_share_names_no_schema_outside_it() {
         says_nothing_outside(&made);
     });
 }
+
+/// A link through a share to a note outside it and a link to no note at
+/// all cross alike (ADR 0081 item 11): a receiver who writes links learns
+/// nothing of whether a note of that name exists outside.
+#[test]
+fn a_link_outside_the_share_and_an_unresolved_one_cross_alike() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let (id, mut owner) = furnished(&r, &admin).await;
+        for (name, text) in [
+            ("Existe", "fora\n"),
+            (
+                "Mesa/L",
+                "[[Existe]]\n[[NaoExiste]]\n![[Existe]]\n![[NaoExiste]]\n![[p.png]]\n![[nada.png]]\n",
+            ),
+        ] {
+            let made = owner
+                .call("create_note", json!({ "name": name, "text": text }))
+                .await;
+            assert!(made.get("ok").is_some(), "{made}");
+        }
+        let (ana, _) = ana(&r).await;
+        let (_, shared) = put(
+            &r,
+            &format!("/api/folders/{id}/shares"),
+            json!({ "path": "Mesa", "email": "ana@casa.lan", "role": "editor" }),
+            &admin,
+        )
+        .await;
+        let share = shared["id"].as_str().unwrap().to_owned();
+        let (mut w, _) = Win::open(&r, &ana, &share).await;
+        let links = w.call("links", json!({ "path": "L.md" })).await;
+        let list = links["ok"].as_array().unwrap();
+        assert_eq!(list.len(), 6, "{links}");
+        // Each entry without its target and its place in the note.
+        let bare = |l: &Value| {
+            let mut l = l.clone();
+            for k in ["target", "line", "col"] {
+                l.as_object_mut().unwrap().remove(k);
+            }
+            l
+        };
+        assert_eq!(list[0]["target"], "Existe");
+        assert_eq!(list[1]["target"], "NaoExiste");
+        assert_eq!(
+            bare(&list[0]),
+            bare(&list[1]),
+            "a link outside is told apart: {links}"
+        );
+        assert_eq!(
+            bare(&list[2]),
+            bare(&list[3]),
+            "an embed outside is told apart: {links}"
+        );
+        assert_eq!(list[0]["resolved"], Value::Null);
+        assert_eq!(list[0]["outside"], true, "{links}");
+        // A file outside and no file: alike too, and left to
+        // `resolve_attachment`, which answers both with nothing.
+        assert_eq!(
+            bare(&list[4]),
+            bare(&list[5]),
+            "a file outside is told apart: {links}"
+        );
+        assert_eq!(list[4]["outside"], false, "{links}");
+        for target in ["p.png", "nada.png"] {
+            let a = w
+                .call(
+                    "resolve_attachment",
+                    json!({ "source": "L.md", "target": target }),
+                )
+                .await;
+            assert_eq!(a["ok"], Value::Null, "{target}: {a}");
+        }
+        says_nothing_outside(&links);
+    });
+}

@@ -83,6 +83,19 @@ pub fn checked(rel: &str) -> Result<(), ContractError> {
     Ok(())
 }
 
+/// Whether a link's target, by its text alone, names a note or a board —
+/// what `links` resolves — rather than a file: its last part has no
+/// extension, or `.md`, `.canvas` or `.base`.
+fn names_a_note(target: &str) -> bool {
+    let last = target.rsplit('/').next().unwrap_or(target);
+    match last.rsplit_once('.') {
+        None => true,
+        Some((_, ext)) => ["md", "canvas", "base"]
+            .iter()
+            .any(|e| ext.eq_ignore_ascii_case(e)),
+    }
+}
+
 /// What a command may do at a path.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Use {
@@ -382,12 +395,20 @@ impl Scope {
                     });
                 }
             }
+            // A link that resolves outside the share and one that resolves
+            // nowhere cross alike: told apart, they would say whether a
+            // note of that name exists outside (ADR 0081 item 11). Both
+            // are "not in what was shared with you" when the target names
+            // a note, by its text alone; a file's target (`p.png`) is
+            // never resolved here, and `resolve_attachment` answers alike
+            // for outside and nowhere, so it stays as it was — a file
+            // inside the share still opens.
             "links" => {
                 if let Some(list) = v.as_array_mut() {
                     for l in list {
-                        if l["resolved"].is_string() && !self.field(l, "resolved") {
+                        if !(l["resolved"].is_string() && self.field(l, "resolved")) {
                             l["resolved"] = Value::Null;
-                            l["outside"] = json!(true);
+                            l["outside"] = json!(names_a_note(l["target"].as_str().unwrap_or("")));
                         }
                     }
                 }
@@ -821,7 +842,18 @@ mod tests {
         assert_eq!(links[0]["resolved"], "a.md");
         assert_eq!(links[1]["resolved"], Value::Null);
         assert_eq!(links[1]["outside"], true);
-        assert!(links[2].get("outside").is_none());
+        // Resolved nowhere: the same as outside.
+        assert_eq!(links[2]["resolved"], Value::Null);
+        assert_eq!(links[2]["outside"], true);
+        // A file's target is left to `resolve_attachment`, whatever is
+        // behind it.
+        let files = s.answer_out(
+            "links",
+            json!([{ "target": "p.png", "resolved": null }, { "target": "B.Canvas", "resolved": null }]),
+            0,
+        );
+        assert_eq!(files[0]["outside"], false, "{files}");
+        assert_eq!(files[1]["outside"], true, "{files}");
         let graph = s.answer_out(
             "graph",
             json!([
