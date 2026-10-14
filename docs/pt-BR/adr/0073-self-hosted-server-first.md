@@ -142,6 +142,17 @@
   janela fez exatamente do estado que ela tem; qualquer arquivo de texto
   da pasta é uma sala como a de uma nota. As palavras do item e a ordem
   do item 12 ficam; o `[ABERTO]` deles sobre o board é respondido aqui.
+  2026-10-14 — três `[ABERTO]` do Status respondidos por ADRs que o
+  mantenedor aceitou naquela noite (*"Sim, todas"*, todas as
+  recomendações): **o offline no celular vem mais cedo**, para a V1 — a
+  Fase 4 do roadmap — pelo [0092](0092-the-phone-offline.md), a ordem do
+  item 12 mantida no resto; **por bloco, para leitores**, pelo
+  [0087](0087-secret-blocks-hidden-from-readers.md) — um callout
+  `[!secret]` servido aos leitores como uma projeção sem ele, por nota
+  ainda aberto; **histórico e atribuição de uma mudança de outro membro**
+  pelo [0091](0091-version-history.md). A criptografia ponta a ponta e o
+  MCP pela rede vêm depois da V1 (o mantenedor, na mesma noite). As
+  palavras do Status ficam.
 
 ## Contexto
 

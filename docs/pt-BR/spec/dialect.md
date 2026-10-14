@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.37
+# Spec do dialeto do Verso — v0.38
 
-- Versão: v0.37 · 2026-10-12
+- Versão: v0.38 · 2026-10-14
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -384,8 +384,13 @@ callouts:
 Quais tipos de callout são reconhecidos, o comportamento de `-`/`+` (recolhido
 ou expandido) e o aninhamento: `[ABERTO]` (seção 9, Q5).
 
-Callout **não** é o mecanismo de segredo do mestre: a visibilidade por bloco tem
-sintaxe própria, ainda `[ABERTO]` (seção 9, Q9).
+Um callout do tipo `secret` é o segredo do mestre (seção 9, Q9,
+`DECIDIDO` em 2026-10-14, [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md)):
+no arquivo, no Obsidian e numa pasta do computador é um callout como
+qualquer outro, o significado dele inalterado; um UniVerso serve a nota a
+uma conta que só pode lê-la como uma projeção sem o bloco. *(Até a v0.38
+isto dizia que callout não é o mecanismo, a visibilidade por bloco tendo
+sintaxe própria, `[ABERTO]`.)*
 
 ### 5.9 Link dentro de código não é link
 
@@ -561,7 +566,7 @@ a nota tipada, os schemas dela e os rótulos deles por idioma
 | i18n de schema | chave neutra de idioma com rótulo traduzido (`type: npc` exibido como "PdM" ou "NPC") | `DECIDIDO` em 2026-09-24 ([ADR 0052](../adr/0052-typed-note.md): um `label` por idioma da interface) |
 | Relação tipada | uma propriedade do frontmatter da nota de origem cujo valor é um wikilink entre aspas ou uma lista deles; a chave é o tipo | `DECIDIDO` em 2026-09-30 (Q10, [ADR 0057](../adr/0057-board-json-canvas.md)) |
 | Schemas | um bloco cercado `verso-schema` numa nota, em qualquer lugar da pasta menos caminhos ocultos e ignorados | `DECIDIDO` em 2026-09-24 (Q11) |
-| Visibilidade por bloco | segredo do mestre | `[ABERTO]` (Q9) |
+| Visibilidade por bloco | segredo do mestre: um callout do tipo `secret` (`> [!secret]`), um callout no arquivo; um UniVerso serve aos leitores a nota sem ele | `DECIDIDO` em 2026-10-14 (Q9, [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md)) |
 | Figurinha e cor | `sticker:` nas formas do make.md — `emoji//<hex>`, `lucide//<nome>`, `ui//<nome>` — escritas pelo Verso como o make.md as escreve, ou um emoji escrito como ele mesmo, lido; outro valor não é figurinha. `color:` um hex, como o Verso escreve, ou uma cor CSS, lida. No frontmatter de uma nota ou nota de pasta | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 | Capa com reposicionamento | `banner:` (um caminho da pasta ou uma URL) e `banner_y:` (a posição vertical, uma porcentagem de 0 a 100 escrita como texto, `"42"` — como o reposicionar do make.md a escreve, lido no código dele e observado pelo escritor de propriedades dele, 2026-10-02) no frontmatter de uma nota ou nota de pasta | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 | Ordem manual na pasta | `order:` no frontmatter da nota de pasta, uma lista de nomes relativos definindo a ordem; sem `order:`, a alfabética; com a árvore em ordem alfabética, todo `order:` é mantido e ignorado. A da raiz, numa nota na raiz com o nome da pasta aberta (o lugar: `PROPOSTO`, do autor, a confirmar) | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
@@ -710,11 +715,34 @@ correspondente ser implementado. Nenhuma tem resposta no briefing.
 
 ### Do briefing (§11.3, §17)
 
-- **Q9. Sintaxe de visibilidade por bloco (segredo do mestre).** `[ABERTO]`
+- **Q9. Sintaxe de visibilidade por bloco (segredo do mestre).** `DECIDIDO`
+  em 2026-10-14.
   Decidir antes de compartilhamento e exportação (§17 item 8). Precisa
   sobreviver a abrir o arquivo no Obsidian sem vazar o segredo nem quebrar o
   texto. Depende disso a visão de jogador e o mapeamento para permissão de
   journal no Foundry ([ADR 0036](../adr/0036-tabletop-rpg-support.md)).
+
+  **Decidido em 2026-10-14 pelo mantenedor**, aceitando o
+  [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md) e o item 8
+  dele (*"Sim, todas"*, todas as recomendações): a visibilidade por bloco é
+  um callout do tipo `secret` — `> [!secret]`, com título, `+` ou `-` como
+  qualquer callout, o tipo comparado em minúsculas como a Q5 lê os tipos,
+  nenhuma outra palavra-chave. No arquivo ele continua um callout: o
+  Obsidian, outro editor e uma pasta do computador o mostram a quem tem o
+  arquivo, e o significado dele não muda (ADR 0030). Um UniVerso serve a
+  uma conta que só pode ler a nota uma **projeção** dela, as linhas de cada
+  callout secreto removidas e nada mais tocado, em todo lugar em que um
+  leitor lê — o texto, os bytes do sync, a busca, links, tags, tarefas e
+  contagens, o MCP; uma conta que pode escrevê-la recebe o texto inteiro.
+  "Sem vazar o segredo" se lê como **um leitor nunca tem os bytes**. Um
+  `[!secret]` dentro de outro callout é removido em qualquer profundidade
+  que a visualização de leitura desenha, com o que ele contém; um bloco
+  cujo fim não se consegue situar esconde até o fim do blockquote dele
+  (falha fechado). O aninhamento da Q5 continua `[ABERTO]` para o parser
+  que alimenta o índice. **Ainda sem fixture**: a fixture desta questão
+  vem com o PR que constrói o ADR 0087, rascunhada pela IA e aprovada pelo
+  mantenedor ali (ADR 0031); nenhum arquivo de `fixtures/**` mudou com
+  esta resposta.
 - **Q10. Sintaxe de relação tipada.** `DECIDIDA` em 2026-09-30.
   Decidir antes de implementar relações (§17 item 6). Requisitos já fixados:
   tipo e direção, várias relações entre os mesmos dois nós
@@ -1349,3 +1377,4 @@ ser escolhido.
 | v0.35 | 2026-10-09 | A fixture `fixtures/block/two-alone` aprovada pelo mantenedor em sessão ("aprovado"). |
 | v0.36 | 2026-10-10 | **Q7 `DECIDIDO`** pelo mantenedor em sessão, como recomendado, a partir do achado F20 da campanha de sync de 2026-10-10 (dois aparelhos no Windows e no Linux guardaram as duas formas de um nome, e um nunca enviou): um nome é um arquivo só em todo lugar — o servidor compara nomes em NFC, cada aparelho guarda a grafia que o próprio sistema de arquivos deu ao nome, um arquivo mudado dos dois lados sob as duas formas é uma cópia de conflito (item 8 da ADR 0079). A §5.10 diz isso; o fato provisório da v0.10 mantido como histórico. Sem fixture: o mantenedor não pediu uma. |
 | v0.37 | 2026-10-12 | O lado da criação da Q8 `DECIDIDO` pelo mantenedor em sessão (*"Todos aprovados"*, como recomendado): um nome novo que só difere em maiúsculas e minúsculas de uma entrada da pasta dele é recusado quando o Verso o cria ou renomeia, em todo sistema e no servidor (ADR 0070 item 3, revisado). A Q8 em si, a caixa na resolução de nome, continua `[ABERTO]`. Sem fixture: nomes criados, não o dialeto. |
+| v0.38 | 2026-10-14 | **Q9 `DECIDIDO`** pelo mantenedor, aceitando o ADR 0087 e o item 8 dele (*"Sim, todas"*): a visibilidade por bloco é um callout do tipo `secret`, um callout no arquivo, servido por um UniVerso aos leitores como uma projeção sem ele; a §5.8 e a linha da §6 revisadas. Sem fixture: a fixture da Q9 vem com o PR que constrói o ADR 0087, para a aprovação do mantenedor. |

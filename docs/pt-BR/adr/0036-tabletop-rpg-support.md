@@ -3,6 +3,19 @@
 - Data: 2026-09-21
 - Fonte: `docs/BRIEFING.md` §12, §16.2
 - Status no briefing: `DECIDIDO` (intenção); `PROPOSTO` (escopo)
+- Revisões: 2026-10-14 — o mantenedor aceitou naquela noite o
+  [0087](0087-secret-blocks-hidden-from-readers.md), o
+  [0088](0088-dice-and-random-tables.md) e o [0090](0090-maps-on-the-board.md)
+  (*"Sim, todas"*, todas as recomendações): dados, tabelas aleatórias,
+  blocos secretos e mapas entram no núcleo como **primitivas**
+  ([0003](0003-primitives-not-workarounds.md)), úteis além dos jogos, o
+  que as Consequências abaixo permitem. Da tabela de escopo: a tabela
+  aleatória é uma tabela ou lista Markdown com um `^id`, rolada por
+  `dice:` — sem tipo de nota (item 3 do 0088); a visão do jogador é um
+  callout `[!secret]` servido aos leitores sem ele, no compartilhamento,
+  e deixado de fora por padrão de uma exportação feita por quem escreve
+  (0087); atalhos nomeados de viewport não são decididos ali. O texto
+  abaixo fica como foi escrito.
 
 ## Contexto
 

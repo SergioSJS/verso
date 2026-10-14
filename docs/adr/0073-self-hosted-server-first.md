@@ -139,6 +139,17 @@
   state it holds; any text file of the folder is a room as a note is. The
   item's words and item 12's order are kept; their `[OPEN]` on the board
   is answered here.
+  2026-10-14 — three `[OPEN]` of the Status answered by ADRs the
+  maintainer accepted that night (*"Sim, todas"*, every recommendation):
+  **offline on the phone moves earlier**, into V1 — the roadmap's
+  Phase 4 — by [0092](0092-the-phone-offline.md), the order of item 12
+  otherwise kept; **per block, for readers**, by
+  [0087](0087-secret-blocks-hidden-from-readers.md) — a `[!secret]`
+  callout served to readers as a projection without it, per note still
+  open; **history and attribution of another member's change** by
+  [0091](0091-version-history.md). End-to-end encryption and the MCP over
+  the network come after V1 (the maintainer, the same night). The
+  Status's wording is kept.
 
 ## Context
 
