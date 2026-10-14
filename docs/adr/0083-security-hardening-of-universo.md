@@ -636,6 +636,26 @@ targets found, and what closed each:
   tests from 22 s to 33 s).
 - (g) `config::size` below one byte is an error, no longer a quota of 0
   bytes (bc2b9fc).
+- (h) 2026-10-14, the fuzz job on `main` and a 120 s run after it. An
+  update that names one Yjs client in two of its sections is refused by
+  `yjs_bounds.rs` (44561c8): yrs 0.28 read both into one list out of
+  clock order and freed an item a board's room still pointed to
+  (AddressSanitizer's heap-use-after-free); Yjs writes each client once.
+  Two updates that make the same item with different contents are not a
+  fault of the merge: Yjs keeps whichever came first, and the target
+  `board` compares the other order only when each item is made once
+  (dad8202).
+- (i) 2026-10-14, decided by the maintainer (*"sim para os 2"*): a room
+  ties each Yjs client to the account, and the connection, that first
+  wrote as it (`writers.rs`, as a presence ties its clients), and refuses
+  an update that makes items, or deletes clocks, past what the room holds
+  of a client another account writes as (4c387d9). This revises (d)'s
+  "other clients' items stay unjudged". What the room holds already is
+  judged by no one — another window's items in a whole state sent back,
+  the deletion of another person's item when an element moves — and the
+  same account's window on a new connection speaks for its clients from
+  then on. 64 clients per connection, 4096 per room, past which those of
+  connections gone are let go first.
 
 Final state: 60 s under `-O` on the `note` and `board` targets with no
 crash *(reported)*; the seeds, the six inputs once kept aside as open
