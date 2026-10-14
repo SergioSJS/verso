@@ -9,7 +9,7 @@
 
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { commands, type CollabState, type SyncStatus, type UpdateInfo } from "../bindings";
+import { commands, type CollabState, type FolderQuota, type ServerGone, type ShareGiven, type SyncStatus, type UpdateInfo } from "../bindings";
 import { can, canWrite } from "../can";
 import { stateText, syncStrings } from "../dialogs/sync";
 import { ui } from "../dom";
@@ -213,6 +213,12 @@ export function installSources(): void {
   );
   void listen<CollabState>("collab-saved", (e) => settle(`room:${currentFolder}:${e.payload.path}`, "saved"), opts);
   if (popout) return;
+  // A folder given to this account, by the server it is on, or one this
+  // device is signed in to (ADR 0084 item 7).
+  void listen<ShareGiven>("share-given", (e) => shareGivenHeard(e.payload));
+  // A folder at 90 % of its quota: the server's folder in this window, or
+  // this computer's folder that syncs with it.
+  void listen<FolderQuota>("folder-quota", (e) => quotaHeard(e.payload));
   // The trash at each opening, and once a day while open.
   addEventListener("verso:folder-shown", () => void trashCheck());
   window.setInterval(() => void trashCheck(), DAY_MS);
@@ -225,14 +231,10 @@ export function installSources(): void {
 
 /* ---------- The server a window's folder is on ---------- */
 
-/** What the host or the web bridge says of a connection that ended:
- *  `connection` (dropped), `unreachable` (a try found it out of reach),
- *  `session` (the server ended it), `folder` (the folder's share was
- *  revoked — `reason` "revoked" — or deleted). */
-export type GoneSaid = { url: string; what: string; address?: string | null; reason?: string | null };
-
-/** The status line's sentence for `p`, and the notification. */
-export function serverGoneHeard(p: GoneSaid, said: string): void {
+/** What the host or the web bridge says of a connection that ended
+ *  (`ServerGone`), said in `said` — the status line's sentence — as a
+ *  notification. */
+export function serverGoneHeard(p: ServerGone, said: string): void {
   const s = notifyStrings();
   if (p.what === "folder") {
     notify({
@@ -271,17 +273,40 @@ export function serverBackHeard(url: string, said: string): void {
 }
 
 /** The sentence a revocation of the window's server folder is said in. */
-export function revokedSentence(p: GoneSaid): string {
+export function revokedSentence(p: ServerGone): string {
   const s = notifyStrings();
   return p.reason === "deleted" ? s.deletedHere(hostOf(p.url)) : s.revokedHere(hostOf(p.url));
 }
 
+/* ---------- Sharing: a folder given to me ---------- */
+
+/** Another person gave this account a folder, or a share of one (the
+ *  server's `share-given`): said once per share on this machine, with
+ *  where to open it. */
+export function shareGivenHeard(g: ShareGiven): void {
+  const s = notifyStrings();
+  const host = g.server ? hostOf(g.server) : "";
+  notify({
+    kind: "sharing",
+    key: `given:${g.server ?? ""}:${g.id}`,
+    state: `given:${g.role}`,
+    persist: true,
+    level: "info",
+    title: s.given,
+    sentence: s.givenWhy(g.by, g.name, host, s.role(g.role)),
+    actions: [{ label: s.seeFolders, act: "folders" }],
+  });
+}
+
 /* ---------- Quota: a folder at 90 % ---------- */
 
-/** A folder at 90 % of its quota or more (ADR 0077 item 5): said once,
- *  in the status line and as a notification; again only after it fell
- *  under 90 % — a word under it settles that — and passed it again. */
-export function quotaHeard(used: number, quota: number, folder = currentFolder, name = folderName): void {
+/** A folder at 90 % of its quota or more (ADR 0077 item 5), on the
+ *  server or synced with it: said once, in the status line and as a
+ *  notification; again only after it fell under 90 % — a word under it
+ *  settles that — and passed it again. */
+export function quotaHeard(q: FolderQuota, folder = currentFolder, name = folderName): void {
+  if (q.used === null || q.quota === null) return;
+  const { used, quota } = q;
   const key = `quota:${folder}`;
   if (!quotaNear(used, quota)) {
     settle(key, "below");
