@@ -228,7 +228,11 @@ pub async fn describe_typed(ctx: Ctx, Json(body): Json<Typed>) -> ApiResult<Resp
 }
 
 fn describing(ctx: &Ctx, code: &str) -> ApiResult<Response> {
-    ctx.who()?;
+    // A signed-in session's, as approving and refusing are: a personal
+    // access token is refused before the code is looked at.
+    if ctx.who()?.session().is_none() {
+        return Err(ApiError::forbidden("not with an access token"));
+    }
     let code = open_code(ctx, code)?;
     let devices = lock(&ctx.server.devices);
     let p = devices.get(&code).ok_or_else(link_gone)?;
