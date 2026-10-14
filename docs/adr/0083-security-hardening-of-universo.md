@@ -711,6 +711,19 @@ another window (the order of (e)), item 6's dialog with a password and a
 passkey, item 17's typed code, Mermaid 12.2.0 (item 13), and
 `universo.sh`'s Caddy steps beside another site (7755802).
 
+**The maintainer's decisions of 2026-10-14.** Four points left by the
+second review of sign-in and access, sent with a recommendation each,
+answered on 2026-10-14: *"com exceção do 3, sim pra recomendado. O 3:
+Mudo a recomendação: deixa o app com acesso de admin"* (except for 3,
+yes to the recommended. On 3: I change the recommendation: leave the app
+with admin access).
+
+- (4) 2026-10-14 — the folder note's name is the folder owner's, as the
+  walk's rules are: a member who is not the owner changing the folder's
+  settings (`set_folder_settings`) leaves `folder_note_name` as it was,
+  as `set_folder_note_name` already did (`rpc.rs`,
+  `without_owners_settings`); the owner's change sets it.
+
 ## Consequences
 
 - What people feel: a password they chose refused at setup or at an

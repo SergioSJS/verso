@@ -825,11 +825,12 @@ async fn collab_command(
     }
 }
 
-/// A change of the folder's settings without the walk's rules: `null` is
-/// "not changed here".
-fn without_walk_rules(mut args: Value) -> Value {
+/// A change of the folder's settings without what only its owner sets —
+/// the walk's rules and the folder note's name (ADR 0070; ADR 0083,
+/// decided 2026-10-14): `null` is "not changed here".
+fn without_owners_settings(mut args: Value) -> Value {
     if let Some(change) = args.get_mut("change").and_then(Value::as_object_mut) {
-        for rule in ["ignore_build_dirs", "respect_gitignore"] {
+        for rule in ["ignore_build_dirs", "respect_gitignore", "folder_note_name"] {
             change.insert(rule.to_owned(), Value::Null);
         }
     }
@@ -861,11 +862,12 @@ async fn folder_command(
     if access == Access::Write && !(role.writes() && token_writes) {
         return Err(refused("you may only read this folder"));
     }
-    // The walk's rules are the owner's, as `set_walk_rules` keeps them
-    // (ADR 0070): an editor's change of the folder's settings keeps the
-    // rest and leaves them as they were.
+    // The walk's rules and the folder note's name are the owner's, as
+    // `set_walk_rules` and `set_folder_note_name` keep them (ADR 0070): an
+    // editor's change of the folder's settings keeps the rest and leaves
+    // them as they were.
     let args = if name == "set_folder_settings" && role != Role::Owner {
-        without_walk_rules(args)
+        without_owners_settings(args)
     } else {
         args
     };

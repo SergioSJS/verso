@@ -254,10 +254,11 @@ fn every_answer_carries_the_whole_set_of_headers() {
     });
 }
 
-/// The walk's rules are the folder owner's (ADR 0070): an editor's change
-/// of the folder's settings keeps the rest of it — the bookmarks — and
-/// leaves the rules as they were, as `set_walk_rules` does; the owner's
-/// change sets them.
+/// The walk's rules and the folder note's name are the folder owner's
+/// (ADR 0070; ADR 0083, decided 2026-10-14): an editor's change of the
+/// folder's settings keeps the rest of it — the bookmarks — and leaves
+/// them as they were, as `set_walk_rules` and `set_folder_note_name` do;
+/// the owner's change sets them.
 #[test]
 fn an_editor_changes_the_folders_settings_but_not_its_walk_rules() {
     block_on(async {
@@ -279,7 +280,7 @@ fn an_editor_changes_the_folders_settings_but_not_its_walk_rules() {
         let layer = call(&mut ed, 2, "get_folder_settings", json!({})).await;
         assert_eq!(layer["ok"]["exists"], false, "{layer}");
         let change = |gitignore: bool| {
-            json!({ "change": { "bookmarks": ["Sessao.md"], "folder_note_name": null,
+            json!({ "change": { "bookmarks": ["Sessao.md"], "folder_note_name": "Indice",
                 "ignore_build_dirs": false, "respect_gitignore": gitignore } })
         };
         let mut args = change(false);
@@ -300,6 +301,11 @@ fn an_editor_changes_the_folders_settings_but_not_its_walk_rules() {
             Value::Null,
             "{set}"
         );
+        assert_eq!(
+            set["ok"]["settings"]["folder_note_name"],
+            Value::Null,
+            "an editor changed the folder note's name: {set}"
+        );
         // The owner sets them.
         let mut own = connect(&r, Some(&admin.cookie), Some(&r.origin()), None)
             .await
@@ -311,5 +317,6 @@ fn an_editor_changes_the_folders_settings_but_not_its_walk_rules() {
         let set = call(&mut own, 2, "set_folder_settings", args).await;
         assert_eq!(set["ok"]["settings"]["respect_gitignore"], false, "{set}");
         assert_eq!(set["ok"]["settings"]["ignore_build_dirs"], false, "{set}");
+        assert_eq!(set["ok"]["settings"]["folder_note_name"], "Indice", "{set}");
     });
 }
