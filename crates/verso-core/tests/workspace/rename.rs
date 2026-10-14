@@ -597,12 +597,14 @@ fn a_rename_in_the_demo_vault_writes_the_same_bytes_on_every_os() {
             "a `\\` appeared in {}",
             w.path
         );
-        assert!(
-            w.after.contains("Personagens/Capitão Rui"),
-            "{}: {}",
-            w.path,
-            w.after
-        );
+        // A link written with its folder keeps it; one written by name
+        // alone (note 24's table) stays by name.
+        let kept = if w.before.contains("Personagens/Capitão Ruy") {
+            "Personagens/Capitão Rui"
+        } else {
+            "Capitão Rui"
+        };
+        assert!(w.after.contains(kept), "{}: {}", w.path, w.after);
         let _ = ws.write_note(&w.path, &w.after, &w.revision).unwrap();
     }
     ws.index().unwrap();
