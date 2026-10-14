@@ -80,7 +80,8 @@ const STOPS = [
     edges: [["e-links-grafo", "n-links", "right", "n-grafo", "left", "viram o grafo"]],
     tip:
       "Escreva [[ e o nome de uma nota para ligar as duas: a outra ganha um backlink, e ![[nota]] mostra a nota inteira dentro desta. " +
-      "⌘⇧G abre as relações da nota aberta; o grafo do cofre inteiro fica na faixa da esquerda.",
+      "⌘⇧G abre as relações da nota aberta; o grafo do cofre inteiro fica na faixa da esquerda. " +
+      "Menções sem link, no painel da direita: Linkar faz o link ali; Linkar todas mostra antes o que muda.",
   },
   {
     id: "organizar",

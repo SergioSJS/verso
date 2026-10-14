@@ -73,6 +73,18 @@ Todo link cria o caminho de volta. Abra o painel da direita (`⌘⌥→`, ou o b
 - **Links**: em cima, os **Backlinks** — as notas que apontam para a nota aberta — e, em **Menções sem link**, as que citam o nome dela sem ser link; embaixo, depois de um traço, os **Links de saída**: para onde esta nota aponta.
 - **Estrutura**: os títulos da nota, para pular entre eles.
 
+### Menções sem link
+
+Em **Menções sem link**, cada linha é um lugar onde outra nota escreve o nome desta sem ser link — o nome inteiro, maiúsculas ou minúsculas tanto faz, acentos contam ("Porto" acha "porto", não "Pôrto"), e cada um dos `aliases` da nota vale como nome. Código, comentários, tags e o que já é link ficam de fora. A linha mostra o trecho em volta, e:
+
+- **Linkar** troca aquele trecho por um link ali mesmo: `[[Nome]]`, ou `[[Nome|texto]]` quando o texto escrito é outro (outra caixa, um alias). Numa nota aberta numa aba, ⌘Z desfaz.
+- **Linkar todas** mostra antes, como um diff, cada nota e cada linha que vai mudar; nada é gravado até você confirmar, e uma nota que mudou nesse meio-tempo fica de fora, com o nome dito.
+
+Quem só lê uma pasta num servidor vê a lista, sem os botões.
+
+> [!example] Experimente
+> Esta frase escreve o nome Lia Torres sem link. Abra a nota dela (⌘P e o nome dela), vá em **Links** no painel da direita e, em **Menções sem link**, clique em **Linkar** na linha desta nota: a frase passa a ter o link.
+
 Renomear uma nota não quebra nada: o Verso mostra as notas que apontam para ela e atualiza os links quando você confirma (veja [[14 - Arquivos e Pastas]]).
 
 ---

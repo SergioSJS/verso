@@ -20,6 +20,30 @@ in the real app.
 
 ## Not yet checked
 
+### Linking unlinked mentions (ADR 0089, feat/link-mentions, 2026-10-14)
+
+- [ ] **Link and Link all in the app** (A): in the demo vault, open "Lia
+  Torres", right panel › *Links* › *Menções sem link*: the row of note 02,
+  *Linkar* — note 02's callout now reads `[[Lia Torres]]`, the row goes,
+  note 02 is among the backlinks. In a folder of your own, a note named
+  after a common word (say "Mesa") mentioned in several notes, one of them
+  in a table and one in a code block: the code block's is not listed; *Linkar
+  todas* shows each note's diff, *Linkar todas* in the plan writes them, and
+  the table's link is `[[Mesa\|mesa]]` with the table still whole. Change
+  one of the notes in another editor while the plan is open: it is named as
+  not written. With a mentioning note open in a tab, *Linkar*, then ⌘Z in
+  that tab: the link is undone and saved. `verso.log`: no ERROR, and no
+  "not allowed" for `unlinked_mentions`.
+- [ ] **On a UniVerso** (A): an owner and a reader in one folder; a note
+  with a mention inside `> [!secret]` and one outside. The owner sees both
+  rows with *Linkar*; the reader sees only the one outside, and no button.
+  The owner links a mention in a note another member has open: the link
+  appears in that member's editor beside what they type, and no conflict
+  copy appears.
+- [ ] **With VoiceOver** (A): each row's button is read as *Linkar “texto”
+  em Nota*; *Linkar todas* names how many; in the plan, Tab reaches each
+  note's diff and it is read as a list of changes.
+
 ### The window's feedback (fix/ui-feedback, 2026-10-14)
 
 - [ ] **A server out of reach is said where you acted** (A): a folder of

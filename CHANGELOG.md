@@ -12,7 +12,9 @@ test release.
 
 ## Unreleased
 
-Nothing yet.
+### Added
+
+- **Link an unlinked mention where it stands, or all of them at once** ([ADR 0089](docs/adr/0089-linking-unlinked-mentions.md)): in the right panel's *Links*, *Unlinked mentions* now lists each place another note writes the open note's name without a link — the whole name, any case, accents kept ("Porto" finds "porto", not "pôrto"), and each of its `aliases` too; never in code, comments, tags or what is already a link — with the words around it. *Link* turns that place into `[[Name]]`, or `[[Name|text]]` when the text is written otherwise or is an alias (`\|` in a table's cell), written over the revision read, through the room of a note being edited together, or in the editor of an open tab, where ⌘Z undoes it; a mention that moved since the list was drawn is refused and the list drawn again. *Link all* first shows every note and line it will change as a diff, and writes on confirmation note by note; a note changed meanwhile is left out, by name. Who only reads a server's folder sees the list without the buttons, and no mention inside a secret block. The contract has a new command, `unlinked_mentions`.
 
 ## 0.8.2-beta.1 — 2026-10-14
 
