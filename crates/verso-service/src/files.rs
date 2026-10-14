@@ -83,15 +83,11 @@ pub struct Policy<'a> {
     pub cors_origin: Option<&'a str>,
 }
 
-/// Serve `relative` from `ws`. `allowed` is the host's judgement of the
-/// requester — an app view on the desktop, a member with read access on
-/// the server; refused otherwise, whatever it asks for.
-pub fn serve(
-    ws: Option<&mut Workspace>,
-    allowed: bool,
-    relative: &str,
-    policy: &Policy<'_>,
-) -> Served {
+/// An answer's headers, by name.
+pub type Headers = Vec<(&'static str, String)>;
+
+/// The headers every answer carries, whatever it is.
+fn base_headers(policy: &Policy<'_>) -> Headers {
     let mut headers = vec![
         ("Content-Security-Policy", policy.csp.to_owned()),
         ("X-Content-Type-Options", "nosniff".to_owned()),
@@ -101,24 +97,49 @@ pub fn serve(
         headers.push(("Access-Control-Allow-Origin", o.to_owned()));
         headers.push(("Vary", "Origin".to_owned()));
     }
-    let refuse = |status: u16, why: &str, mut headers: Vec<(&'static str, String)>| {
-        headers.push(("Content-Type", "text/plain; charset=utf-8".to_owned()));
-        Served {
-            status,
-            headers,
-            body: why.as_bytes().to_vec(),
-        }
+    headers
+}
+
+/// A refusal: its status and why, as plain text.
+fn refuse(status: u16, why: &str, mut headers: Headers) -> Served {
+    headers.push(("Content-Type", "text/plain; charset=utf-8".to_owned()));
+    Served {
+        status,
+        headers,
+        body: why.as_bytes().to_vec(),
+    }
+}
+
+/// The refusal a failed read is answered with.
+fn refused_read(e: verso_core::CoreError, headers: Headers) -> Served {
+    let e = crate::convert(e);
+    let status = match e.kind {
+        ErrorKind::NotFound | ErrorKind::Refused | ErrorKind::NoFolder => 404,
+        _ => 500,
     };
+    refuse(status, &e.message, headers)
+}
+
+/// Whether `relative` may be served from `ws` at all: the requester
+/// allowed, the path not a note's, a folder open. The answer's headers
+/// when it may; the refusal when it may not.
+fn admitted<'w>(
+    ws: Option<&'w mut Workspace>,
+    allowed: bool,
+    relative: &str,
+    policy: &Policy<'_>,
+) -> Result<(&'w mut Workspace, Headers), Served> {
+    let headers = base_headers(policy);
     if !allowed {
-        return refuse(403, "not a view of this app", headers);
+        return Err(refuse(403, "not a view of this app", headers));
     }
     // A note's text crosses through `read_note`, with its revision; never
     // as a bare file.
     if relative.to_lowercase().ends_with(".md") {
-        return refuse(403, "a note is read through read_note", headers);
+        return Err(refuse(403, "a note is read through read_note", headers));
     }
     let Some(ws) = ws else {
-        return refuse(404, "no folder is open", headers);
+        return Err(refuse(404, "no folder is open", headers));
     };
     // And judged again on the path as confinement reads it: `Nota.md/` and
     // `./Nota.md` name the note too.
@@ -126,8 +147,25 @@ pub fn serve(
         .confined(relative)
         .is_ok_and(|key| key.to_lowercase().ends_with(".md"))
     {
-        return refuse(403, "a note is read through read_note", headers);
+        return Err(refuse(403, "a note is read through read_note", headers));
     }
+    Ok((ws, headers))
+}
+
+/// Serve `relative` from `ws`. `allowed` is the host's judgement of the
+/// requester — an app view on the desktop, a member with read access on
+/// the server; refused otherwise, whatever it asks for. The file whole in
+/// the answer: a host that sends it in pieces asks [`open`] instead.
+pub fn serve(
+    ws: Option<&mut Workspace>,
+    allowed: bool,
+    relative: &str,
+    policy: &Policy<'_>,
+) -> Served {
+    let (ws, mut headers) = match admitted(ws, allowed, relative, policy) {
+        Ok(admitted) => admitted,
+        Err(refused) => return refused,
+    };
     match ws.read_file(relative) {
         Ok(bytes) => {
             headers.push(("Content-Type", mime_of(relative).to_owned()));
@@ -137,14 +175,35 @@ pub fn serve(
                 body: bytes,
             }
         }
-        Err(e) => {
-            let e = crate::convert(e);
-            let status = match e.kind {
-                ErrorKind::NotFound | ErrorKind::Refused | ErrorKind::NoFolder => 404,
-                _ => 500,
-            };
-            refuse(status, &e.message, headers)
+        Err(e) => refused_read(e, headers),
+    }
+}
+
+/// A file a host sends in pieces, admitted as [`serve`] admits it: the
+/// answer's headers, its type among them, and the file's length and time
+/// before a byte of it is read, which each piece is read against
+/// ([`Workspace::read_piece`]): a file that changes while it is sent is
+/// seen to change.
+pub struct Opened {
+    pub headers: Headers,
+    pub mark: verso_core::Mark,
+}
+
+/// [`serve`]'s checks, and the file's [`Opened`] — nothing of its bytes
+/// read — or the refusal.
+pub fn open(
+    ws: Option<&mut Workspace>,
+    allowed: bool,
+    relative: &str,
+    policy: &Policy<'_>,
+) -> Result<Opened, Served> {
+    let (ws, mut headers) = admitted(ws, allowed, relative, policy)?;
+    match ws.read_piece(relative, 0, 0) {
+        Ok((_, mark)) => {
+            headers.push(("Content-Type", mime_of(relative).to_owned()));
+            Ok(Opened { headers, mark })
         }
+        Err(e) => Err(refused_read(e, headers)),
     }
 }
 

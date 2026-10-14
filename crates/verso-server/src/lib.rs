@@ -339,6 +339,8 @@ mod tests_pieces;
 #[cfg(test)]
 mod tests_prove;
 #[cfg(test)]
+mod tests_resources;
+#[cfg(test)]
 mod tests_room_inputs;
 #[cfg(test)]
 mod tests_rooms;
