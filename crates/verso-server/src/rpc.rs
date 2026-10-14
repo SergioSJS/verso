@@ -797,6 +797,17 @@ async fn collab_command(
     }
 }
 
+/// A change of the folder's settings without the walk's rules: `null` is
+/// "not changed here".
+fn without_walk_rules(mut args: Value) -> Value {
+    if let Some(change) = args.get_mut("change").and_then(Value::as_object_mut) {
+        for rule in ["ignore_build_dirs", "respect_gitignore"] {
+            change.insert(rule.to_owned(), Value::Null);
+        }
+    }
+    args
+}
+
 /// The role of the window's folder, or `no_folder`.
 pub(crate) fn role_here(server: &Server, client: &str) -> Result<(String, Role), ContractError> {
     lock(&server.clients)
@@ -822,6 +833,14 @@ async fn folder_command(
     if access == Access::Write && !(role.writes() && token_writes) {
         return Err(refused("you may only read this folder"));
     }
+    // The walk's rules are the owner's, as `set_walk_rules` keeps them
+    // (ADR 0070): an editor's change of the folder's settings keeps the
+    // rest and leaves them as they were.
+    let args = if name == "set_folder_settings" && role != Role::Owner {
+        without_walk_rules(args)
+    } else {
+        args
+    };
     let key = server
         .service
         .folder_of(client)
