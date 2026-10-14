@@ -1,11 +1,12 @@
 # Verso roadmap
 
-- Version: 2026-10-12, revision 7 (Phase 2 declared closed on 2026-10-09 by the maintainer, answering the ADR audit, *"Ajuste tudo que precisar. Está aprovado os ADRs"* — the `[OPEN]` at the head of Phase 3 answered, and what Phase 2's exit criterion and scope still lacked carried into Phase 3 as its pendencies; dated notes beside "a phase does not start before the previous one closes" and Phase 2's gate; rows 3.23 and 3.24 added the same day from the maintainer's *"Todos aprovados"*). Revision 6, 2026-10-11 (Phase 3's table gains what was built since revision 5 — [0077](adr/0077-the-server-administration-console-and-folder-quotas.md), [0078](adr/0078-universo-the-name-of-verso-as-a-server.md), [0079](adr/0079-sync-a-local-folder-with-a-server.md) — and the accepted [0080](adr/0080-the-trash-with-expiry-and-restore.md), [0081](adr/0081-sharing-between-people-on-one-universo.md) and [0082](adr/0082-live-co-editing-of-a-synced-folder.md) in the order the maintainer set on 2026-10-11, *"Sim para todos"*; finer permissions struck through as accepted with 0081; "After Phase 2" brought up to date on sync; the rows 3.10–3.16, which bear on the exit criterion, were written from the memo's recommendation, not from one of the maintainer's eight answers, and awaited the maintainer's acceptance — rule zero; on 2026-10-12, within this revision, rows 3.13, 3.14 and 3.16 marked built and 3.15 done, rows 3.10–3.16 **accepted by the maintainer** that night, "Ok", and rows 3.17–3.21 added from the maintainer's answers of the same night; rows 3.10, 3.14, 3.20 and 3.21 brought up to what was built by the audit of 2026-10-12). Revision 5, 2026-10-09 (Phase 3 written, from [ADR 0073](adr/0073-self-hosted-server-first.md) accepted by the maintainer with 0074, 0075 and 0076; the contract's session identity and the handles for `verso serve` struck through as decided). Revision 4, 2026-09-24 (the maintainer's decisions of 2026-09-24 struck through: the handles in both phases, and the typed note's two rows, with item 2.6 no longer waiting for them). Revision 3, 2026-09-23: Phase 2 as built; the Phase 1 decisions taken on 2026-09-22 struck through
+- Version: 2026-10-14, revision 8 (V1 written, after Phase 3, from the maintainer's word of 2026-10-14, *"VAI SER TUDO NA V1"*: eight features, each with an ADR Proposed that day — [0085](adr/0085-hover-preview.md) to [0092](adr/0092-the-phone-offline.md) — and the pendencies that block V1; ADR 0083 and ADR 0084 as they stand; what is still undecided about V1 marked `[OPEN]` with a recommendation; dated notes added to Phase 3's decisions on offline on the phone and on history, and to "After Phase 2"; nothing of the earlier phases rewritten). Revision 7, 2026-10-12 (Phase 2 declared closed on 2026-10-09 by the maintainer, answering the ADR audit, *"Ajuste tudo que precisar. Está aprovado os ADRs"* — the `[OPEN]` at the head of Phase 3 answered, and what Phase 2's exit criterion and scope still lacked carried into Phase 3 as its pendencies; dated notes beside "a phase does not start before the previous one closes" and Phase 2's gate; rows 3.23 and 3.24 added the same day from the maintainer's *"Todos aprovados"*). Revision 6, 2026-10-11 (Phase 3's table gains what was built since revision 5 — [0077](adr/0077-the-server-administration-console-and-folder-quotas.md), [0078](adr/0078-universo-the-name-of-verso-as-a-server.md), [0079](adr/0079-sync-a-local-folder-with-a-server.md) — and the accepted [0080](adr/0080-the-trash-with-expiry-and-restore.md), [0081](adr/0081-sharing-between-people-on-one-universo.md) and [0082](adr/0082-live-co-editing-of-a-synced-folder.md) in the order the maintainer set on 2026-10-11, *"Sim para todos"*; finer permissions struck through as accepted with 0081; "After Phase 2" brought up to date on sync; the rows 3.10–3.16, which bear on the exit criterion, were written from the memo's recommendation, not from one of the maintainer's eight answers, and awaited the maintainer's acceptance — rule zero; on 2026-10-12, within this revision, rows 3.13, 3.14 and 3.16 marked built and 3.15 done, rows 3.10–3.16 **accepted by the maintainer** that night, "Ok", and rows 3.17–3.21 added from the maintainer's answers of the same night; rows 3.10, 3.14, 3.20 and 3.21 brought up to what was built by the audit of 2026-10-12). Revision 5, 2026-10-09 (Phase 3 written, from [ADR 0073](adr/0073-self-hosted-server-first.md) accepted by the maintainer with 0074, 0075 and 0076; the contract's session identity and the handles for `verso serve` struck through as decided). Revision 4, 2026-09-24 (the maintainer's decisions of 2026-09-24 struck through: the handles in both phases, and the typed note's two rows, with item 2.6 no longer waiting for them). Revision 3, 2026-09-23: Phase 2 as built; the Phase 1 decisions taken on 2026-09-22 struck through
 - Source: `docs/BRIEFING.md` §15
 - ADR: [0034](adr/0034-roadmap-in-phases.md)
 
 Three phases, and since 2026-10-09 a fourth, Phase 3
-([ADR 0073](adr/0073-self-hosted-server-first.md)). Each one has a verifiable exit criterion: someone who did not take
+([ADR 0073](adr/0073-self-hosted-server-first.md)). *(Since 2026-10-14,
+V1, below; its place among the phases is `[OPEN]`.)* Each one has a verifiable exit criterion: someone who did not take
 part in the work can run the verification and conclude "passed" or "did not
 pass" without judging merit.
 
@@ -370,8 +371,8 @@ among its tasks:
 
 | Decision | ADR |
 |---|---|
-| Whether the phone in the browser, online only, meets the mobile need, or offline on the phone moves earlier | [0073](adr/0073-self-hosted-server-first.md) |
-| ~~Permissions finer than the folder~~ (accepted 2026-10-11: a grant on a path inside a folder, [0081](adr/0081-sharing-between-people-on-one-universo.md)); history, attribution and recovery of another member's change — still open, for an ADR of its own (0081 Status) | [0073](adr/0073-self-hosted-server-first.md), spec Q9, [0081](adr/0081-sharing-between-people-on-one-universo.md) |
+| Whether the phone in the browser, online only, meets the mobile need, or offline on the phone moves earlier *(2026-10-14: the maintainer's V1 list puts the phone offline in V1, [0092](adr/0092-the-phone-offline.md), Proposed; whether that answers this row is asked in V1's decisions, below)* | [0073](adr/0073-self-hosted-server-first.md) |
+| ~~Permissions finer than the folder~~ (accepted 2026-10-11: a grant on a path inside a folder, [0081](adr/0081-sharing-between-people-on-one-universo.md)); history, attribution and recovery of another member's change — still open, for an ADR of its own (0081 Status) *(2026-10-14: in V1 by the maintainer's answer; the ADR is [0091](adr/0091-version-history.md), Proposed)* | [0073](adr/0073-self-hosted-server-first.md), spec Q9, [0081](adr/0081-sharing-between-people-on-one-universo.md) |
 | End-to-end encryption, later, as an opt-in for a server of one person | [0073](adr/0073-self-hosted-server-first.md) |
 | The board's co-editing | [0073](adr/0073-self-hosted-server-first.md) item 7, [0082](adr/0082-live-co-editing-of-a-synced-folder.md) item 12 |
 | The MCP's transport and authorization over the network | [0073](adr/0073-self-hosted-server-first.md) item 11, [0045](adr/0045-server-and-mcp-security.md) |
@@ -388,6 +389,97 @@ it is pending and the maintainer declares it ended. ADR 0073's conditions
 on the work stand meanwhile: security in full before the first user who is
 not the maintainer, and the threat model before the server is announced
 (item 6).
+
+---
+
+## V1
+
+Decided by the maintainer on 2026-10-14. At 11:36 UTC they sent a plan
+of new features drafted with another assistant — the game master's
+secrets, links made from the names in the text, maps, an infobox, dice
+with their own Rolai — and asked for a critical reading of it, for what
+was still pending, and for a roadmap toward *"uma V1 bem sólida"* (a
+really solid V1). The reading in session that morning checked each
+feature against the code, listed what was pending, and proposed a V1
+without the maps. Their answer that evening: *"VAI SER TUDO NA V1"* (it
+will all be in V1) — every feature of the list, the maps included, with
+no V1.1; version history in V1; and the game master's secrets as a
+projection for readers ([0087](adr/0087-secret-blocks-hidden-from-readers.md),
+Source).
+
+V1 is the eight features below, each with its ADR, Proposed on
+2026-10-14, and the pendencies that block it. Plugins and the
+compatibility shim stay out, as before. How V1 is named among the phases,
+the order of the work and what else enters it are `[OPEN]`, the
+maintainer's to say ("Decisions", below).
+
+### Features
+
+| # | Feature | ADR | State on 2026-10-14 |
+|---|---|---|---|
+| V.1 | Hover preview: the note a link names, over links, the panels, the graph and the board | [0085](adr/0085-hover-preview.md) | Proposed; nothing previews on hover today |
+| V.2 | The infobox: `link` and `image` kinds in a schema, a layout named by the schema, the properties panel drawn as a card beside the text | [0086](adr/0086-infobox-a-typed-notes-card.md) | Proposed; typed notes, the properties panel, the cover banner and a base's card picture built |
+| V.3 | Secret blocks: a `> [!secret]` callout stays in the note; a UniVerso serves readers a projection without it everywhere; writers see everything | [0087](adr/0087-secret-blocks-hidden-from-readers.md), spec Q9 | Proposed, its direction decided by the maintainer on 2026-10-14; not built |
+| V.4 | Dice and random tables: `dice:` rolls and is never written; a roll seen by the room; Rolai's engine | [0088](adr/0088-dice-and-random-tables.md), [0036](adr/0036-tabletop-rpg-support.md) | Proposed; nothing rolls today |
+| V.5 | Linking unlinked mentions: "Link" on each mention and "Link all" with a diff | [0089](adr/0089-linking-unlinked-mentions.md) | Proposed; the panel lists the notes that mention a name, without positions |
+| V.6 | Maps on the board: a picture as the map, pins at a constant size, large pictures in tiles, secret pins | [0090](adr/0090-maps-on-the-board.md) | Proposed; depends on V.1 and V.3 |
+| V.7 | Version history: versions kept outside the folder, their authors, a diff and a restore | [0091](adr/0091-version-history.md), [0073](adr/0073-self-hosted-server-first.md) | Proposed; the change log keeps hashes and actors, no bytes |
+| V.8 | The phone offline: the installed window keeps chosen folders and syncs them by sync's rules | [0092](adr/0092-the-phone-offline.md), [0073](adr/0073-self-hosted-server-first.md) item 8 | Proposed; the page is installable, with no service worker |
+
+### What blocks V1
+
+Listed as blocking by the reading of 2026-10-14, and in V1 by the
+maintainer's *"VAI SER TUDO NA V1"*:
+
+| # | Pendency | Source | State on 2026-10-14 |
+|---|---|---|---|
+| V.9 | A penetration test of the lab server by a person outside the project | [0083](adr/0083-security-hardening-of-universo.md) item 16 | a condition of the announcement (decided 2026-10-13); not done |
+| V.10 | The bounds measured on the 1-core, 1 GB host, and a number the measurement contradicts changed | [0083](adr/0083-security-hardening-of-universo.md) item 18 | not done (0083 Status) |
+| V.11 | Mac notarization and Windows code signing | [0051](adr/0051-development-flow-and-releases.md) (the app signed ad hoc), [0069](adr/0069-windows-port.md) (no code signing for now) | not done; how, and at what cost, `[OPEN]` |
+| V.12 | The repository public, and the `versomd` name on GitHub | [0007](adr/0007-private-repo-until-license.md), [0004](adr/0004-project-name-verso.md) | not done; `versomd` is a dormant GitHub user, to be asked of GitHub's support (0004) |
+| V.13 | The pass with a screen reader, and the accessibility decisions pending the maintainer | [0035](adr/0035-cross-cutting-requirements.md), [`review/accessibility.md`](review/accessibility.md) §8, Phase 2 row 2.7 (carried) | not done |
+| V.14 | One month of real use, with no data loss in it | Phase 2's exit criteria 1 and 2, carried into Phase 3 | not recorded as met |
+| V.15 | The app's manual checks | `docs/reference/manual-checks.md` | 79 unchecked at `ccee7fec`; see "Recorded, not resolved", below |
+
+### In flight
+
+| # | Work | ADR | State on 2026-10-14 |
+|---|---|---|---|
+| V.16 | Security hardening of UniVerso | [0083](adr/0083-security-hardening-of-universo.md) | accepted 2026-10-13; items 1 to 15 and 17, and item 16's reading of the sanitizer, built (0083, As built) and released in 0.8.1-beta.1 and 0.8.2-beta.1 (`CHANGELOG.md`); before the announcement: item 16's pentest (V.9) and item 18's measurement (V.10); item 19's hostile lab, which 0083's Status on `main` records as not in the merges |
+| V.17 | Notifications in the window | ADR 0084, accepted 2026-10-14, on its own branch and not merged; its row in the ADR index lands with it | being built for 0.8.3-beta.1 |
+
+### Decisions that have to come out for V1
+
+Each `[OPEN]`, with a recommendation; the maintainer decides.
+
+| Decision | Recommendation | Source |
+|---|---|---|
+| How V1 is named among the phases | **"Phase 4 — V1"**, after Phase 3, which closes once its built rows are released and hands its carried pendencies (the month of use, the screen reader, the typed note's reading) to V1; the other way is a V1 section beside the phases, with no number | [0034](adr/0034-roadmap-in-phases.md) |
+| The order of the work inside V1 | the reading's order for its six features, by cost and dependency — V.1 hover preview (cheap, missing everywhere, the maps need it) → V.2 infobox (mostly built) → V.3 secrets (heavy on the server; the maps need its rule) → V.4 dice and tables → V.5 mentions → V.6 maps last (needs V.1 and V.3) — with V.7 history after V.3 and V.8 the phone offline after V.7 (placed by this revision's author: V.8 serves readers V.3's projection, and V.7 decides readers' history under the same rule); V.9 to V.15 alongside, the month of use (V.14) over a build that has V1's features | the reading of 2026-10-14 |
+| Whether the core gaps the reading listed enter V1 — periodic notes ([0014](adr/0014-primitives-catalog.md); the daily note is built, `app/ui/src/daily.ts`), the rest of bases (regular expressions, the map layout, [0053](adr/0053-views-bases.md)), the dialect questions still `[OPEN]` in whole or in part in spec §9, "this app is a server" with discovery on the network and a QR code ([0073](adr/0073-self-hosted-server-first.md) item 2), a bucket and WebDAV (0073 items 4 and 10), the Mac Intel and the Linux ARM64 apps ([0071](adr/0071-linux-port.md) item 1) | the maintainer's *"tudo"* answered the list presented as V1, which did not hold these. **In V1**: periodic notes and the bases' regular expressions (parity with Obsidian, small), the dialect questions V1's features touch (Q9 with V.3, Q5's nesting with V.3), and Linux ARM64, which 0071 ties to the public repository (V.12). **After V1**: "this app is a server", the bucket and WebDAV, the Mac Intel app, the bases' map layout, and the dialect questions no V1 feature touches | the reading of 2026-10-14 |
+| Whether the V1 list answers 0073's `[OPEN]` on offline on the phone (Phase 3's first decision row) | **yes**: the list moves it earlier; recorded in 0073 with a Revisions line once the maintainer confirms | [0073](adr/0073-self-hosted-server-first.md), [0092](adr/0092-the-phone-offline.md) |
+| Whether the manual checks gate V1 | they gate **V1's release** only, never a commit, a merge or a beta | `docs/reference/manual-checks.md` |
+| Mac notarization and Windows code signing: how, and at what cost | an ADR of its own, revising 0051 and 0069 | [0051](adr/0051-development-flow-and-releases.md), [0069](adr/0069-windows-port.md) |
+| V1's exit criterion | V1 ends when no row above is pending and the maintainer declares it, as Phase 3 does; the month of use with no data loss (V.14) is its part anyone can verify | [0034](adr/0034-roadmap-in-phases.md) |
+
+### Recorded, not resolved
+
+Contradictions found while writing this revision, for the maintainer:
+
+- `docs/reference/manual-checks.md` says nothing in it blocks a commit, a
+  merge or a release; the V1 list puts the app's manual checks among what
+  blocks V1 (V.15).
+- Spec §5.8 says a callout is not the mechanism for the game master's
+  secret; the decision of 2026-10-14 makes a callout of kind `secret` the
+  syntax. [0087](adr/0087-secret-blocks-hidden-from-readers.md) item 8
+  proposes the revision of §5.8 and Q9; Q9 stays `[OPEN]`.
+- [0036](adr/0036-tabletop-rpg-support.md)'s Consequences keep tabletop
+  features out of the core except as primitives, schema packs or a plugin;
+  dice, tables, secret blocks and maps are proposed as primitives
+  ([0088](adr/0088-dice-and-random-tables.md), Consequences).
+- Phase 3 ends when no task of it is pending, its carried pendencies
+  among them; V1 lists the same pendencies (V.13, V.14). One of the two
+  holds them once the first decision above is answered.
 
 ---
 
@@ -424,7 +516,7 @@ What stays after, since 2026-10-09: after the first release of the server,
 in the order of 0073 item 12 — ~~sync for the desktop's local folders~~
 *(built in the round right after that release, at the maintainer's word
 of 2026-10-10, [0079](adr/0079-sync-a-local-folder-with-a-server.md) Source and Status; Phase 3 item 3.12, above)*, the
-PWA offline, the user's bucket ([0073](adr/0073-self-hosted-server-first.md)
+PWA offline *(in V1 since 2026-10-14, [0092](adr/0092-the-phone-offline.md))*, the user's bucket ([0073](adr/0073-self-hosted-server-first.md)
 item 4) and a native mobile app if the browser's limits bite; and, with no
 order, plugins, the compatibility shim, the primitives still proposed and
 agent writing with a diff.
