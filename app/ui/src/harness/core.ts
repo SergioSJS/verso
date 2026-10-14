@@ -60,6 +60,7 @@ import type {
 } from "../bindings";
 import { Bin } from "./trash";
 import { blocksOf, fitsKind, headingsOf, propertiesOf, propertyList, readableLines, renderMarkdown, schemaBlocksOf } from "./markdown";
+import { unlinkedMentions } from "./mentions";
 
 export type Seed = { path: string; b64: string };
 
@@ -990,6 +991,7 @@ export class Core {
       });
     },
     backlinks: (a) => this.backlinksOf(String(a["path"])),
+    unlinked_mentions: (a) => unlinkedMentions(String(a["path"]), this.notes(), (p) => (this.files.has(p) ? this.text(p) : null)),
     write_note: (a): Written => {
       const path = this.confine(String(a["path"]));
       this.writeOver(path, String(a["text"]), String(a["revision"]));

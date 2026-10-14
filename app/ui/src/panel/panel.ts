@@ -18,9 +18,10 @@ import { NoteLeaf } from "../leaves/note";
 import { panel } from "../main";
 import { pickerStrings } from "../organize/cover";
 import { dirOf, iconFor, kindOf, name } from "../paths";
-import { searchNotes, snippetNode } from "../search";
+import { searchNotes } from "../search";
 import { baseStrings, LOCALE, t } from "../strings";
 import { allFolders, listAll } from "../tree/tree";
+import { mentionsSection } from "./mentions";
 
 /* ---------- The right panel: outline, backlinks, outgoing, tags, bookmarks, focuses ---------- */
 export type PanelTab = "outline" | "backlinks" | "tags" | "bookmarks" | "calendar" | "focuses";
@@ -110,30 +111,16 @@ export class Panel {
     this.markTabs();
     this.paint();
   }
-  /** Notes whose text has this note's name without linking to it: the
-   *  search finds the candidates by the name's words. */
+  /** The places where other notes write this note's name without
+   *  linking to it, each with "Link", and "Link all" (ADR 0089). */
   private async mentions(leaf: NoteLeaf): Promise<void> {
-    const path = leaf.path;
-    const words = name(path);
-    if (!words.trim()) return;
     const paint = this.painted;
-    const r = await commands.search(words, 40);
-    if (r.status !== "ok" || this.leaf !== leaf || this.current !== "backlinks" || this.painted !== paint) return;
-    const linked = new Set(leaf.backlinksData.map((b) => b.from));
-    const hits = r.data.filter((hit) => hit.path !== path && !linked.has(hit.path));
-    if (hits.length === 0) return;
-    const head = h("h3", "panel-sub", `${t.mentions} · ${hits.length}`);
-    const ul = h("ul", "panel-list");
-    ul.append(...hits.map((hit) => {
-      const li = this.row(name(hit.path), dirOf(hit.path) || undefined, () => openNote(hit.path, false, false, true), "search");
-      li.querySelector("button")?.addEventListener("dblclick", () => void openNote(hit.path, false));
-      li.querySelector("button")?.append(snippetNode(hit.snippet));
-      return li;
-    }));
+    const nodes = await mentionsSection(leaf, () => this.leaf === leaf && this.current === "backlinks" && this.painted === paint);
+    if (!nodes) return;
     // Under the backlinks, above the outgoing links.
     const out = this.body.querySelector(".links-out");
-    if (out) out.before(head, ul);
-    else this.body.append(head, ul);
+    if (out) out.before(...nodes);
+    else this.body.append(...nodes);
   }
   private list(items: HTMLElement[], empty: string): void {
     const ul = h("ul", "panel-list");
