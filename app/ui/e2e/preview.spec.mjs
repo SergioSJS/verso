@@ -174,6 +174,18 @@ test("an unlinked mention's row previews the note it is written in (ADR 0089)", 
   await expect(card(page)).toHaveCount(0);
 });
 
+test("an infobox's link previews the note it names (ADR 0086)", async ({ app, page }) => {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await app.open();
+  await app.quickOpen("Porto Cinzento");
+  const pill = page.locator('.props.infobox .prop[data-key="habitantes"] a.wikilink', { hasText: "Lia Torres" });
+  await expect(pill).toBeVisible();
+  await rest(page, pill);
+  await expect(card(page)).toHaveAttribute("aria-label", "Prévia de Lia Torres");
+  await away(page);
+  await expect(card(page)).toHaveCount(0);
+});
+
 test("a board's card previews its note from its name", async ({ app, page }) => {
   await app.open();
   await app.quickOpen("Board de Demonstração");
