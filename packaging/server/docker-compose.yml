@@ -184,13 +184,13 @@ x-casaos:
     before_install:
       en_US: |
         Fill VERSO_PUBLIC_URL with the https address people will use; the server does not start without it.
-        VERSO_ADMIN_EMAIL and VERSO_ADMIN_PASSWORD are read on the first start only; left empty, the container's log prints a one-hour setup link.
+        VERSO_ADMIN_EMAIL and VERSO_ADMIN_PASSWORD are read on the first start only: remove the password once the admin exists. Left empty, the container's log prints a one-hour setup link, which stays in that log: use it at once.
         A lost admin password: run `universo admin reset <e-mail>` in the container's terminal.
         Both directories must be writable by uid 1000.
         Back up both directories: the database in /data is not a cache, and the notes are in /folders. Keep /data on a local disk, never on a network share.
       pt_BR: |
         Preencha VERSO_PUBLIC_URL com o endereço https que as pessoas vão usar; o servidor não inicia sem ele.
-        VERSO_ADMIN_EMAIL e VERSO_ADMIN_PASSWORD são lidos só na primeira inicialização; vazios, o log do contêiner mostra um link de configuração válido por uma hora.
+        VERSO_ADMIN_EMAIL e VERSO_ADMIN_PASSWORD são lidos só na primeira inicialização: remova a senha quando o admin existir. Vazios, o log do contêiner mostra um link de configuração válido por uma hora, que fica nesse log: use-o logo.
         Senha do admin perdida: rode `universo admin reset <e-mail>` no terminal do contêiner.
         Os dois diretórios precisam permitir escrita ao uid 1000.
         Faça backup dos dois diretórios: o banco em /data não é cache, e as notas estão em /folders. Mantenha /data num disco local, nunca num compartilhamento de rede.
