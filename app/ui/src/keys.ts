@@ -13,6 +13,8 @@ import { bookmarks, toggleBookmark } from "./bookmarks";
 import { narrow, toggleRight, toggleSide } from "./chrome";
 import { dailyNote, insertTemplate, saveAsTemplate } from "./daily";
 import { importDemoVault } from "./demo";
+import { openRoller } from "./dice/roller";
+import { ds } from "./dice/strings";
 import { hotkeyRecorder } from "./dialogs/settings";
 import { ui } from "./dom";
 import { fail } from "./errors";
@@ -277,6 +279,8 @@ export function allCommands(all = false): Command[] {
     { id: "rename", label: t.rename, need: Boolean(note), run: () => note?.renameHere() },
     { id: "delete", label: t.deleteNote, need: Boolean(note), run: () => note && void deleteNote(note.path) },
     { id: "switch-focus", label: t.switchFocus, need: hasFolder, run: () => focusSwitcher.show() },
+    // A roller without a note (ADR 0088 item 6): nothing written.
+    { id: "roll-dice", label: ds.command, run: () => openRoller() },
   ];
   return cmds.filter((c) => all || (c.need !== false && possible(c.id))).map((c) => ({ id: c.id, label: c.label, keys: prettyKeys(keyOf(c.id)) || undefined, run: c.run, editorOnly: c.editorOnly }));
 }

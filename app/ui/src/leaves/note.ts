@@ -61,6 +61,7 @@ import { type CollabHandlers, type CollabSession, joinCollab, lostLine } from ".
 import { tableWidths } from "../tableWidths";
 import { applyChange, throughRoom } from "../roomWrites";
 import { currentFolder } from "../folder";
+import { diceWidget } from "../dice/live";
 
 /* A note: reading, Live Preview, source; saving through the atomic write. */
 export type Mode = "preview" | "live" | "source";
@@ -280,6 +281,7 @@ export class NoteLeaf extends Leaf {
       embedLabels: { edit: t.editInPlace, done: t.embedDone },
       copyLabels: { copy: t.copyCode, copied: t.codeCopied },
       canEditEmbed: () => settings.inlineEmbedEdit,
+      dice: diceWidget({ path: () => this.path, follow: (target) => this.follow(target) }),
       table: {
         labels: { ...t.tableEdit, cell: (r, c) => (r === 0 ? t.tableEdit.headerCell : t.tableEdit.cell.replace("{r}", String(r))).replace("{c}", String(c)) },
         menu: (x, y, items) => showMenu(x, y, items as MenuItem[]),

@@ -1,0 +1,294 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+// The die in a note (ADR 0088 items 2, 3, 4 and 8): a `dice:` code drawn,
+// in the reading view and in Live Preview, as a button named for its
+// notation; a click or Enter rolls and shows the result beside it in a
+// small card — the total, each die, the numbers added, a table's row —
+// with "Roll again". Nothing is written: the note's bytes are the same
+// before and after (invariant 7). In a room the server rolls and the
+// others see it; alone, offline or in a folder of this computer, the
+// window rolls. A result is said in a polite live region; another
+// member's roll is said with their name.
+
+import { commands, type CollabRoll, type DiceRoll } from "../bindings";
+import { liveRoom } from "../collab";
+import { h, showToast } from "../dom";
+import { icon } from "../icons";
+import { resolveNoteByName } from "../resolve";
+import { setHtml } from "../sanitize";
+import { type DiceCode, readCode, rollHere } from "./notation";
+import { ds } from "./strings";
+import { readTable, rowOf, type RandomTable } from "./table";
+
+/** Where a die is drawn: the note it is in — its room — and how a link
+ *  of a table's row is followed (`from`, the table's note). */
+export type DiceHost = {
+  path: () => string;
+  follow: (target: string, from: string) => void;
+};
+
+/** A roll as a card shows it: the table's row, when it was one; why it
+ *  is only this window's, or why it failed. */
+type Shown = { roll: DiceRoll | null; row: string | null; from: string | null; note: string | null; mine?: boolean };
+
+/** The last roll of each die of each note, by `path\nkey`: a die drawn
+ *  again — the reading view redrawn, a Live Preview line — shows it. */
+const last = new Map<string, Shown>();
+/** The dice drawn now, to show a roll heard from the room. */
+const drawn = new Set<{ el: HTMLElement; host: DiceHost; key: string; show: (s: Shown) => void }>();
+
+/** What a die is known by: its table, or its notation. */
+const keyOf = (code: DiceCode) => (code.kind === "table" ? code.source : code.notation);
+const slot = (path: string, key: string) => `${path}\n${key}`;
+
+let region: HTMLElement | null = null;
+/** Said to a screen reader, politely (item 8). */
+function say(text: string): void {
+  if (!region || !region.isConnected) {
+    region = h("div", "sr-only dice-said");
+    region.setAttribute("role", "status");
+    region.setAttribute("aria-live", "polite");
+    document.body.append(region);
+  }
+  // The same words again are said again.
+  region.textContent = "";
+  const r = region;
+  requestAnimationFrame(() => (r.textContent = text));
+}
+
+/** How a roll came out, in words: "14 plus 3", "3, 6, 6 (dropped 1)". */
+export function howSaid(roll: DiceRoll): string {
+  const parts = roll.terms.map((t, i) => {
+    let s = t.kept.join(", ");
+    if (t.dropped.length > 0) s += ` (${ds.dropped(t.dropped.join(", "))})`;
+    return i === 0 ? s : `${t.sign < 0 ? ds.minus : ds.plus} ${s}`;
+  });
+  if (roll.modifier !== 0) parts.push(`${roll.modifier < 0 ? ds.minus : ds.plus} ${Math.abs(roll.modifier)}`);
+  const single = roll.terms.length === 1 && roll.terms[0]?.kept.length === 1 && roll.terms[0].dropped.length === 0 && roll.modifier === 0;
+  return single ? "" : parts.join(" ");
+}
+
+/** The whole roll in words, who rolled it first when it was another. */
+function said(s: Shown, others: boolean): string {
+  const roll = s.roll;
+  if (!roll) return s.note ?? "";
+  const who = others && roll.by ? roll.by : null;
+  if (roll.source) {
+    const row = s.row ?? s.note ?? "";
+    return ds.said(who, roll.source, row, `${roll.notation}: ${roll.total}`);
+  }
+  return ds.said(who, roll.notation, String(roll.total), howSaid(roll));
+}
+
+/** The table a source names, read from its note: its rows, or why not. */
+async function tableOf(code: Extract<DiceCode, { kind: "table" }>, path: string): Promise<{ table: RandomTable; from: string } | string> {
+  const from = code.note === "" ? path : resolveNoteByName(code.note, path);
+  if (!from) return ds.noTable(code.source);
+  const r = await commands.readNote(from);
+  if (r.status !== "ok") return ds.noTable(code.source);
+  // With the id twice, the last (spec Q4).
+  const block = [...r.data.blocks].reverse().find((b) => b.id === code.id);
+  if (!block) return ds.noBlock(code.id);
+  const t = readTable(r.data.lines.slice(block.first_line - 1, block.last_line));
+  if (typeof t === "string") return t === "notTable" ? ds.notTable(code.id) : ds[t];
+  return { table: t, from };
+}
+
+/** `notation` rolled for the note `path`: by the server in its room, here
+ *  otherwise; here too when the room does not answer, and the card says
+ *  nobody else saw it. */
+async function rolled(path: string, notation: string, source: string | null): Promise<Shown> {
+  if (!liveRoom(path)) return { roll: rollHere(notation, source), row: null, from: null, note: null };
+  const r = await commands.collabRoll(path, notation, source);
+  if (r.status === "ok") return { roll: r.data, row: null, from: null, note: null, mine: true };
+  if (r.error.kind === "unavailable") return { roll: rollHere(notation, source), row: null, from: null, note: ds.here };
+  return { roll: null, row: null, from: null, note: ds.refused(r.error.message) };
+}
+
+/** A roll's table row filled in, from the table itself. */
+async function withRow(s: Shown, path: string): Promise<Shown> {
+  const source = s.roll?.source;
+  if (!s.roll || !source) return s;
+  const code = readCode(`dice: ${source}`);
+  if (code?.kind !== "table") return s;
+  const t = await tableOf(code, path);
+  if (typeof t === "string") return { ...s, note: s.note ?? t };
+  const row = rowOf(t.table, s.roll.total);
+  return row ? { ...s, row: row.text, from: t.from } : { ...s, note: s.note ?? ds.noRow(s.roll.total) };
+}
+
+/** Roll the die `code` of the note `path`. */
+async function rollCode(code: DiceCode, path: string): Promise<Shown> {
+  if (code.kind === "roll") return rolled(path, code.notation, null);
+  const t = await tableOf(code, path);
+  if (typeof t === "string") return { roll: null, row: null, from: null, note: t };
+  return withRow(await rolled(path, t.table.notation, code.source), path);
+}
+
+/** A face as a chip; a fudge die's as −, blank or +. */
+function chip(face: number, fudge: boolean, dropped: boolean): HTMLElement {
+  const text = fudge ? (face < 0 ? "−" : face > 0 ? "+" : "0") : String(face);
+  return h("span", dropped ? "dice-face dropped" : "dice-face", text);
+}
+
+/** The card's content for `s`. */
+function fill(card: HTMLElement, s: Shown, host: DiceHost): void {
+  card.replaceChildren();
+  const roll = s.roll;
+  if (roll) {
+    // Another's roll says whose it is; this window's own does not.
+    if (roll.by && !s.mine) card.append(h("span", "dice-who", ds.by(roll.by)));
+    card.append(h("strong", "dice-total", String(roll.total)));
+    const faces = h("span", "dice-faces");
+    roll.terms.forEach((t, i) => {
+      if (i > 0) faces.append(h("span", "dice-op", t.sign < 0 ? "−" : "+"));
+      for (const f of t.kept) faces.append(chip(f, t.fudge, false));
+      for (const f of t.dropped) faces.append(chip(f, t.fudge, true));
+    });
+    if (roll.modifier !== 0) faces.append(h("span", "dice-op", `${roll.modifier < 0 ? "−" : "+"} ${Math.abs(roll.modifier)}`));
+    card.append(faces);
+    if (s.row !== null) {
+      const row = h("span", "dice-row");
+      row.textContent = s.row;
+      card.append(row);
+      const from = s.from ?? host.path();
+      // The row's own Markdown — its links followed with a click.
+      void commands.renderMarkdown(s.row).then(
+        (html) => {
+          setHtml(row, html);
+          for (const a of row.querySelectorAll<HTMLElement>("a.wikilink")) {
+            a.tabIndex = 0;
+            a.setAttribute("role", "link");
+          }
+        },
+        () => undefined,
+      );
+      row.addEventListener("click", (e) => {
+        const a = (e.target as HTMLElement).closest<HTMLElement>("a.wikilink");
+        if (!a) return;
+        e.preventDefault();
+        e.stopPropagation();
+        host.follow(a.dataset["target"] ?? "", from);
+      });
+      // Enter on a link is its click, here as in the reading view.
+      row.addEventListener("keydown", (e) => {
+        const a = (e.target as HTMLElement).closest<HTMLElement>("a.wikilink");
+        if (!a || e.key !== "Enter") return;
+        e.preventDefault();
+        e.stopPropagation();
+        a.click();
+      });
+    }
+  }
+  if (s.note) card.append(h("span", roll ? "dice-note" : "dice-note dice-failed", s.note));
+}
+
+/** The die `code` drawn for a note, its last roll shown when it has one. */
+export function diceBox(code: DiceCode, host: DiceHost): HTMLElement {
+  const key = keyOf(code);
+  const box = h("span", "dice");
+  box.dataset["dice"] = key;
+  const label = code.kind === "table" ? ds.rollTable(code.source) : ds.roll(code.notation);
+  const roll = h("button", "dice-button");
+  roll.type = "button";
+  roll.setAttribute("aria-label", label);
+  roll.title = label;
+  roll.append(icon("dice"), h("span", "dice-notation", code.kind === "table" ? code.source.slice(2, -2) : code.notation));
+  const card = h("span", "dice-card");
+  card.hidden = true;
+  const body = h("span", "dice-body");
+  const again = h("button", "dice-again", ds.again);
+  again.type = "button";
+  const close = h("button", "dice-close");
+  close.type = "button";
+  close.setAttribute("aria-label", ds.close);
+  close.title = ds.close;
+  close.append(icon("close"));
+  card.append(body, again, close);
+  box.append(roll, card);
+  const show = (s: Shown) => {
+    fill(body, s, host);
+    card.hidden = false;
+  };
+  let busy = false;
+  const go = async () => {
+    if (busy) return;
+    busy = true;
+    roll.setAttribute("aria-busy", "true");
+    box.classList.add("rolling");
+    const path = host.path();
+    let s: Shown;
+    try {
+      s = await rollCode(code, path);
+    } catch (e) {
+      s = { roll: null, row: null, from: null, note: ds.refused(e instanceof Error ? e.message : String(e)) };
+    }
+    busy = false;
+    roll.removeAttribute("aria-busy");
+    box.classList.remove("rolling");
+    last.set(slot(path, key), s);
+    for (const d of drawn) if (d.el !== box && d.el.isConnected && d.host.path() === path && d.key === key) d.show(s);
+    show(s);
+    say(said(s, false));
+  };
+  roll.addEventListener("click", () => void go());
+  again.addEventListener("click", () => void go());
+  close.addEventListener("click", () => {
+    card.hidden = true;
+    last.delete(slot(host.path(), key));
+    roll.focus();
+  });
+  card.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    e.stopPropagation();
+    close.click();
+  });
+  // A die is not text to the editor: a press on it moves no caret.
+  box.addEventListener("mousedown", (e) => {
+    if (!(e.target as HTMLElement).closest("a")) e.preventDefault();
+  });
+  const known = last.get(slot(host.path(), key));
+  if (known) show(known);
+  for (const d of [...drawn]) if (!d.el.isConnected) drawn.delete(d);
+  drawn.add({ el: box, host, key, show });
+  return box;
+}
+
+/** The `dice:` codes of rendered HTML drawn as dice: inline code only,
+ *  never a code block. */
+export function wireDice(root: HTMLElement, host: DiceHost): void {
+  for (const code of root.querySelectorAll<HTMLElement>("code")) {
+    if (code.closest("pre, .dice")) continue;
+    const read = readCode(code.textContent ?? "");
+    if (read) code.replaceWith(diceBox(read, host));
+  }
+}
+
+/** A roll heard from the room (item 4): shown by its die where one is
+ *  drawn for the note, said with the roller's name; elsewhere a notice. */
+async function heard(e: CollabRoll): Promise<void> {
+  const key = e.roll.source ?? e.roll.notation;
+  const s = await withRow({ roll: e.roll, row: null, from: null, note: null }, e.path);
+  last.set(slot(e.path, key), s);
+  const here = [...drawn].filter((d) => d.el.isConnected && d.host.path() === e.path && d.key === key);
+  for (const d of here) d.show(s);
+  if (here.length > 0) say(said(s, true));
+  else showToast(said(s, true));
+}
+
+/** The room's last rolls, as a window that joins hears them: kept to show
+ *  by their dice, not said. */
+function joined(path: string, rolls: DiceRoll[]): void {
+  for (const roll of rolls) last.set(slot(path, roll.source ?? roll.notation), { roll, row: null, from: null, note: null });
+  for (const roll of rolls.filter((r) => r.source)) {
+    void withRow({ roll, row: null, from: null, note: null }, path).then((s) => last.set(slot(path, roll.source ?? ""), s));
+  }
+}
+
+addEventListener("verso:collab-roll", (e) => void heard((e as CustomEvent<CollabRoll>).detail));
+addEventListener("verso:room-rolls", (e) => {
+  const d = (e as CustomEvent<{ path: string; rolls: DiceRoll[] }>).detail;
+  joined(d.path, d.rolls);
+});

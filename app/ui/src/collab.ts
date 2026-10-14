@@ -25,7 +25,7 @@ import { keymap } from "@codemirror/view";
 import { yCollab, ySyncAnnotation, yUndoManagerKeymap } from "y-codemirror.next";
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from "y-protocols/awareness";
 import * as Y from "yjs";
-import { commands, type Capabilities, type CollabJoin, type CollabState, type CollabUpdate } from "./bindings";
+import { commands, type Capabilities, type CollabJoin, type CollabRoll, type CollabState, type CollabUpdate } from "./bindings";
 import type { RoomSide, TextChange, VisitedRoom } from "./roomWrites";
 import { UpdateQueue } from "./updateQueue";
 
@@ -420,12 +420,21 @@ function hear(): void {
     }
   }, opts);
   void listen<CollabState>("collab-conflict", (e) => sessions.get(e.payload.path)?.handlers.conflict(), opts);
+  // Dice rolled in a room by another (ADR 0088 item 4; dice/card.ts).
+  void listen<CollabRoll>("collab-roll", (e) => dispatchEvent(new CustomEvent<CollabRoll>("verso:collab-roll", { detail: e.payload })), opts);
   void listen<CollabState>("collab-closed", (e) => {
     const s = sessions.get(e.payload.path);
     if (!s) return;
     s.leave();
     s.handlers.closed();
   }, opts);
+}
+
+/** The room of `path` this window is in now, live: where dice are rolled
+ *  by the server (ADR 0088 item 4). */
+export function liveRoom(path: string): RoomSession | null {
+  const s = sessions.get(path);
+  return s && s.open && s.live ? s : null;
 }
 
 /** Whether the side the window talks to is this computer's synced folder:
@@ -460,6 +469,7 @@ export async function joinRoom<S extends RoomSession>(
   if (synced) catching?.();
   const r = await commands.collabJoin(path);
   if (r.status !== "ok" || r.data.read_only) return null;
+  dispatchEvent(new CustomEvent("verso:room-rolls", { detail: { path, rolls: r.data.rolls ?? [] } }));
   const made = make(r.data, synced);
   if (!made) void commands.collabLeave(path);
   return made;
