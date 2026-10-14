@@ -429,3 +429,66 @@ fn the_console_shows_the_history_and_sets_its_days() {
         assert!(t.early > 0);
     });
 }
+
+#[test]
+fn a_share_sees_the_history_of_its_own_files_only() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &admin).await;
+        let mut owner = window(&r, &admin, &id).await;
+        for (n, name, text) in [(2, "Mesa/Notas", "um\n"), (3, "Segredo", "segredo\n")] {
+            let made = call(
+                &mut owner,
+                n,
+                "create_note",
+                json!({ "name": name, "text": text }),
+            )
+            .await;
+            assert!(made.get("ok").is_some(), "{made}");
+        }
+        write(&mut owner, 4, "Mesa/Notas.md", "dois\n").await;
+        r.server
+            .db
+            .create_account("ana@casa.lan", "Ana", "pt", Some("a senha da ana"), false)
+            .unwrap();
+        let ana = sign_in(&r, "ana@casa.lan", "a senha da ana").await;
+        let (_, shared) = crate::tests::put(
+            &r,
+            &format!("/api/folders/{id}/shares"),
+            json!({ "path": "Mesa", "email": "ana@casa.lan", "role": "editor" }),
+            &admin,
+        )
+        .await;
+        let share = shared["id"].as_str().unwrap().to_owned();
+        let mut w = window(&r, &ana, &share).await;
+        let list = call(&mut w, 2, "history_list", json!({ "path": "Notas.md" })).await;
+        let v = versions(&list);
+        assert_eq!(v.len(), 2, "{list}");
+        assert_eq!(v[0]["path"], "Notas.md", "paths as the share names them");
+        assert_eq!(list["ok"]["can_delete"], false);
+        assert!(!list.to_string().contains("Mesa/"), "{list}");
+        // Nothing above the share, by any name.
+        for (n, path) in [(3, "../Segredo.md"), (4, "/Segredo.md")] {
+            let no = call(&mut w, n, "history_list", json!({ "path": path })).await;
+            assert!(no.get("err").is_some(), "{path}: {no}");
+        }
+        let read = call(&mut w, 5, "read_note", json!({ "path": "Notas.md" })).await;
+        let back = call(
+            &mut w,
+            6,
+            "history_restore",
+            json!({ "path": "Notas.md", "id": v[1]["id"], "revision": read["ok"]["revision"] }),
+        )
+        .await;
+        assert_eq!(back["ok"]["path"], "Notas.md", "{back}");
+        let mine = call(
+            &mut owner,
+            8,
+            "read_note",
+            json!({ "path": "Mesa/Notas.md" }),
+        )
+        .await;
+        assert_eq!(mine["ok"]["text"], "um\n");
+    });
+}
