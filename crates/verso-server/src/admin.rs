@@ -315,6 +315,9 @@ pub struct Adopt {
 pub async fn adopt(ctx: Ctx, Json(body): Json<Adopt>) -> ApiResult<Response> {
     ctx.changes()?;
     ctx.admin()?;
+    // It gives a folder on the disk to any owner, as entering one does
+    // (ADR 0083 item 6): a fresh proof before the request is read.
+    ctx.proved()?;
     let owner = match ctx.server.db.account(&body.owner)? {
         Some(a) => a,
         None => ctx

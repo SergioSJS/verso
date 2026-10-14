@@ -561,10 +561,11 @@ turn, hash and refusal (items 1 and 2) and answers 403 `signin_failed`;
 by passkey, `POST /api/me/prove/passkey` starts the ceremony. Gated
 beyond the Decision's list: the password change, the admin's reset link
 for another account, an owner giving or changing a member's role
-(`folders::set_member`) and a share's role (`shares::grant`). Left
-ungated: an invitation with no folder or share — one that carries either
-is gated since 3d79d9ad (the second review's S6) — creating accounts,
-adopting a folder, quotas, the trash, removing a member. The window asks on the spot through
+(`folders::set_member`), a share's role (`shares::grant`) and, since
+ce7f7655 (the /security-review of 2026-10-14, below), adopting a folder.
+Left ungated: an invitation with no folder or share — one that carries
+either is gated since 3d79d9ad (the second review's S6) — creating
+accounts, quotas, the trash, removing a member. The window asks on the spot through
 `web/proof.ts` and `web/proveDialog.ts` and retries once. A request with a
 personal access token answers 403 "not with an access token".
 
@@ -774,6 +775,29 @@ with admin access).
   settings (`set_folder_settings`) leaves `folder_note_name` as it was,
   as `set_folder_note_name` already did (`rpc.rs`,
   `without_owners_settings`); the owner's change sets it.
+
+**The /security-review of 2026-10-14.** A code review of the server for
+security, run on 2026-10-14 at b72940c7, reported no finding at
+confidence 8 or above. Four items it raised below that threshold were
+closed on sec/security-review-followups, each with a test seen failing
+first. 9906f2b9: schema 10's upgrade gave `scope = 'folder'` to every
+invitation whose `share` was already null, a share's invitation orphaned
+before it among them, which would then have granted the whole folder;
+in the same transaction as step 10, every pending invitation that names
+a folder and no share is now ended, the log says how many once, and the
+changelog tells the admin to send them again — used, expired and
+folderless links untouched. ce7f7655: `admin::adopt`, which gives a
+folder already on the disk to any owner, wants item 6's fresh proof, as
+`enter` and `set_member` do. e86ddbdd: `device::describe_typed` refuses
+a personal access token ("not with an access token") before the code is
+looked at, as approving and refusing want a session. 22e7eb84:
+`universo.sh restore` unpacks the checked entries into a fresh root-only
+directory inside the target, refuses when a path it would write is a
+link under the target (GNU tar followed a link planted in the middle of
+a name, such as `/var/lib/universo/folders`) or a directory above a
+backup path leads out of it, and only then puts the tree in place; the
+script test plants `folders -> /tmp/elsewhere` over `/` and in a
+scratch root.
 
 ## Consequences
 

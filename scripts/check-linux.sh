@@ -27,8 +27,10 @@
 # never holds (another path, a link, a set-id file, an absolute name)
 # refused with nothing written; a backup beside links planted at the
 # names the clock gives, and a directory inside the data through `..` or a
-# link, refused; the GitHub token's header file never open to others; a
-# package with no signature refused unless --no-signature; the next steps
+# link, refused; a restore through a link planted in the data or in a
+# scratch root refused, with nothing written through it; the GitHub
+# token's header file never open to others; a package with no signature
+# refused unless --no-signature; the next steps
 # saying the setup link stays in the journal and the password is to be
 # removed. `--script` runs that test alone.
 #
@@ -100,6 +102,7 @@ if [ "${1:-}" = "--universo-sh" ]; then
   echo /var/lib/universo | $u restore "$plain" >/dev/null || fail "a confirmed restore over /"
   snapshot / > /tmp/after
   diff -u /tmp/before /tmp/after || fail "the restore over / did not give the backup back"
+  for d in /var/lib/.universo-restore.*; do [ ! -e "$d" ] || fail "the restore left its staging directory in /var/lib: $d"; done
 
   printf '\n== a backup holding more than its own paths is refused, and nothing is written\n'
   # Each made from the good backup, plus one thing a backup never holds.
@@ -129,6 +132,37 @@ if [ "${1:-}" = "--universo-sh" ]; then
   [ ! -e /var/lib/universo/folders/Campanha/run ] || fail "a refused backup's set-id file was written"
   snapshot / > /tmp/after
   diff -u /tmp/before /tmp/after || fail "a refused backup changed the server"
+
+  printf '\n== a link planted in the data, or in a scratch root, is never followed: the restore refuses\n'
+  # A backup holding its files without their directories' own entries,
+  # which tar's check lets through: GNU tar then follows a link already on
+  # the disk in the middle of a name (the review of 2026-10-14).
+  (cd / && find var/lib/universo etc/universo ! -type d -print0 \
+    | tar -czpf /tmp/files-only.tar.gz --null --no-recursion -T -) || fail "the files-only backup"
+  mkdir -p /tmp/elsewhere
+  mv /var/lib/universo/folders /var/lib/universo/folders.real
+  ln -s /tmp/elsewhere /var/lib/universo/folders
+  for b in /tmp/files-only.tar.gz "$plain"; do
+    if echo /var/lib/universo | $u restore "$b" >/tmp/planted.out 2>&1; then
+      fail "$b was restored over / through a planted link: $(cat /tmp/planted.out)"
+    fi
+    grep -i 'refus' /tmp/planted.out || fail "the planted link's refusal does not say so: $(cat /tmp/planted.out)"
+    [ -z "$(ls -A /tmp/elsewhere)" ] || fail "a restore of $b wrote through a planted link: $(ls -A /tmp/elsewhere)"
+    [ -L /var/lib/universo/folders ] || fail "the refused restore of $b replaced the planted link"
+  done
+  for d in /var/lib/.universo-restore.*; do [ ! -e "$d" ] || fail "a refused restore left its staging directory in /var/lib: $d"; done
+  rm /var/lib/universo/folders && mv /var/lib/universo/folders.real /var/lib/universo/folders
+  mkdir -p /r-planted/var/lib/universo && ln -s /tmp/elsewhere /r-planted/var/lib/universo/folders
+  if $u restore /tmp/files-only.tar.gz --to /r-planted >/tmp/planted.out 2>&1; then
+    fail "a restore into a scratch root went through a planted link: $(cat /tmp/planted.out)"
+  fi
+  [ -z "$(ls -A /tmp/elsewhere)" ] || fail "a restore into a scratch root wrote through a planted link: $(ls -A /tmp/elsewhere)"
+  [ "$(ls -A /r-planted)" = var ] || fail "the refused restore left something in /r-planted: $(ls -A /r-planted)"
+  $u restore /tmp/files-only.tar.gz --to /restored-files-only >/dev/null || fail "restore of the files-only backup"
+  [ "$(cat '/restored-files-only/var/lib/universo/folders/Campanha/Sessão 1.md')" = "$(cat '/var/lib/universo/folders/Campanha/Sessão 1.md')" ] \
+    || fail "the files-only backup did not give its note back"
+  snapshot / > /tmp/after
+  diff -u /tmp/before /tmp/after || fail "a refused restore through a planted link changed the server"
 
   printf '\n== a backup is written under a name no one can guess, never inside what it copies\n'
   # Links planted at the names a backup took from the clock alone.
