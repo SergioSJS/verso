@@ -146,6 +146,51 @@ impl Slots {
     }
 }
 
+/// The requests in flight per client address, as the trusted proxies walk
+/// it (`crate::http`'s `guard`): a connection through a proxy counts only
+/// against the server's [`CONNECTIONS`], so the address the proxy
+/// forwarded is what bounds one client there.
+#[derive(Default)]
+pub struct Requests {
+    by_address: Arc<Mutex<HashMap<String, usize>>>,
+    /// Refusals said in the log once a minute.
+    pub said: crate::log::OnceAMinute,
+}
+
+/// A request's place among its address's, given back when it is answered.
+pub struct Request {
+    by_address: Arc<Mutex<HashMap<String, usize>>>,
+    key: String,
+}
+
+impl Drop for Request {
+    fn drop(&mut self) {
+        let mut by = lock(&self.by_address);
+        if let Some(n) = by.get_mut(&self.key) {
+            *n = n.saturating_sub(1);
+            if *n == 0 {
+                by.remove(&self.key);
+            }
+        }
+    }
+}
+
+impl Requests {
+    /// A place for one more request of `key`, or none past `most`.
+    pub fn take(&self, key: &str, most: usize) -> Option<Request> {
+        let mut by = lock(&self.by_address);
+        let n = by.entry(key.to_owned()).or_insert(0);
+        if *n >= most {
+            return None;
+        }
+        *n += 1;
+        Some(Request {
+            by_address: Arc::clone(&self.by_address),
+            key: key.to_owned(),
+        })
+    }
+}
+
 /// A socket with its [`Slot`]: the place is held as long as the socket.
 pub struct Counted<T> {
     io: T,

@@ -126,6 +126,18 @@ impl Board {
         }
     }
 
+    /// A note room's size, the state of `doc` measured: a note keeps none
+    /// of a board's own facts, only how large its room may have grown.
+    pub fn measured(doc: &Doc) -> Self {
+        Self {
+            bytes: doc
+                .transact()
+                .encode_state_as_update_v1(&StateVector::default())
+                .len(),
+            ..Self::default()
+        }
+    }
+
     /// Whether the room holds edits not yet written.
     pub fn waiting(&self, doc: &Doc) -> bool {
         edits(doc) != self.saved

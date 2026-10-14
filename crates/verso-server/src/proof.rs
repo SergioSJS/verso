@@ -107,17 +107,21 @@ async fn by_password(ctx: &Ctx, who: &Who, password: String) -> ApiResult<()> {
     if !turn.is_zero() {
         tokio::time::sleep(turn).await;
     }
+    let _turn = ctx.server.hashes.turn(&[&by_address, &by_account]).await?;
+    crate::api::limited(ctx, &[&by_address, &by_account])?;
     let hash = who.account.password.clone();
-    let right = tokio::task::spawn_blocking(move || match hash {
-        Some(h) => crate::crypto::verify_password(&password, &h),
-        // An account with no password yet costs a hash too.
-        None => {
-            crate::crypto::waste_time(&password);
-            false
-        }
-    })
-    .await
-    .map_err(|e| e.to_string())?;
+    let right = ctx
+        .server
+        .hashes
+        .run(move || match hash {
+            Some(h) => crate::crypto::verify_password(&password, &h),
+            // An account with no password yet costs a hash too.
+            None => {
+                crate::crypto::waste_time(&password);
+                false
+            }
+        })
+        .await?;
     if !right {
         ctx.server.limiter.failed(&by_address);
         ctx.server.limiter.failed(&by_account);
