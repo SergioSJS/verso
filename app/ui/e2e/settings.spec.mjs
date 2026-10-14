@@ -54,6 +54,9 @@ test("the bug report opens with no error of the session", async ({ app }) => {
   // The report is composed after the dialog shows: wait for the section,
   // do not read the box once.
   await expect(dialog.locator("textarea")).toHaveValue(/## Erros desta sessão\s+nenhum/);
+  // The computer's time and zone, once (the suite runs in São Paulo's,
+  // playwright.config.mjs): the log's lines below are in UTC.
+  await expect(dialog.locator("textarea")).toHaveValue(/- Hora deste computador: \d{4}-\d\d-\d\d \d\d:\d\d:\d\d \(UTC−03:00\)\. .*UTC \(Z\)/);
 });
 
 // A long answer beside a setting wraps under it, and the setting's own text

@@ -18,6 +18,13 @@ app real.
 
 ## Ainda não conferido
 
+### O retorno da janela (fix/ui-feedback, 2026-10-14)
+
+- [ ] **A hora do relatório é a do computador** (D): *Relatar problema*:
+  a linha *Hora deste computador: 2026-10-14 10:25:24 (UTC−03:00)* é o
+  relógio e o fuso do Mac; as linhas do registro abaixo dela estão em UTC
+  (`Z`), três horas à frente em São Paulo.
+
 ### Endurecimento de segurança (ADR 0083, 2026-10-13)
 
 - [ ] **Uma nota e um board compartilhados editados pelo app desktop

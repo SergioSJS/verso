@@ -12,7 +12,9 @@ test release.
 
 ## Unreleased
 
-Nothing yet.
+### Fixed
+
+- **The bug report's time is the computer's** (the maintainer's report, 2026-10-14): *Report a problem* says the computer's time with its offset — `2026-10-14 10:25:24 (UTC−03:00)` — and that the log's lines under it are in UTC (`Z`); the session's errors are on the computer's clock.
 
 ## 0.8.1-beta.1 — 2026-10-14
 

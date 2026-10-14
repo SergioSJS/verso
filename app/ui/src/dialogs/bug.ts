@@ -8,6 +8,7 @@ import { currentFolder } from "../folder";
 import { icon } from "../icons";
 import { layout } from "../layout/spaces";
 import { NoteLeaf } from "../leaves/note";
+import { localStamp } from "../clock";
 import { swallowed } from "../report";
 import { settings } from "../settings";
 import { t } from "../strings";
@@ -46,6 +47,9 @@ export class BugDialog {
       `## ${t.reportContext}`,
       "",
       `- Verso ${build} · ${navigator.platform} · ${settings.lang}`,
+      // The computer's time and zone, once: the session's errors are on
+      // this clock, the log's lines in UTC — the reader converts.
+      `- ${t.reportClock.replace("{now}", localStamp(new Date()))}`,
       `- folder: ${currentFolder === "" ? "—" : "ok"} · tab: ${where}`,
       `- remote ${onOff(settings.remoteContent)} · build dirs ${onOff(settings.ignoreBuildDirs)} · gitignore ${onOff(settings.respectGitignore)} · embeds ${settings.embedOrigins.length}`,
       "",
