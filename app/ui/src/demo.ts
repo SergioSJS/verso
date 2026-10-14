@@ -7,7 +7,8 @@ import { commands, type ContractError } from "./bindings";
 import { afterFileChange, refreshLists } from "./changes";
 import { DEMO_VAULT_FILES } from "./demoVault";
 import { ask, tell } from "./dialog";
-import { showToast, ui } from "./dom";
+import { ui } from "./dom";
+import { flash } from "./notify";
 import { fail } from "./errors";
 import { b64ToUtf8 } from "./files";
 import { currentFolder } from "./folder";
@@ -97,7 +98,9 @@ export async function importDemoVault(): Promise<void> {
     openNote("00 - Bem-vindo ao Verso.md", false, true);
     const msg = createdCount > 0 ? `${t.demoVaultImported} (${t.demoVaultNew(createdCount)})` : t.demoVaultImported;
     ui.status.textContent = msg;
-    showToast(msg);
+    // The feedback of the person's own action: a toast, not a
+    // notification — no kind, no line in the list (ADR 0084 item 1).
+    flash("success", t.importDemoVault, msg);
     if (failed.length > 0) await tell(`${t.demoVaultFailed}\n${failed.join("\n")}`, t.demoVaultKeptOk);
     if (kept.length > 0) await tell(`${t.demoVaultKept}\n${kept.join("\n")}`, t.demoVaultKeptOk);
   } catch (err: unknown) {

@@ -265,23 +265,14 @@ test("a share revoked by its owner turns sync off and says so, in the bar and th
   const bar = app.page.locator("#sync-state");
   await expect(bar).toHaveText("Sincronizada");
   await openSync(app);
-  // The toast fades on its own after a few seconds; under the whole suite's
-  // load it can be gone before the bar's checks finish. Every toast shown from
-  // here on is recorded as it enters the page, so its text is checked whenever.
-  await app.page.evaluate(() => {
-    window.__toasts = [];
-    new MutationObserver((records) => {
-      for (const r of records) for (const n of r.addedNodes) {
-        if (n instanceof HTMLElement && n.classList.contains("verso-toast")) window.__toasts.push(n.textContent);
-      }
-    }).observe(document.body, { childList: true });
-  });
   // The owner revokes it: off, with when and why.
   await say(app, { ...on, on: false, state: "off", role: "", last: null, problem: "revoked", message: "the folder's owner revoked the share: sync is off", revoked: "2026-10-12T21:30:00Z" });
   await expect(bar).toBeVisible();
   await expect(bar).toHaveText(/^Desligada: quem compartilhou revogou o acesso em /);
   await expect(bar).toHaveClass(/warn/);
-  await expect.poll(() => app.page.evaluate(() => window.__toasts)).toContainEqual(expect.stringContaining("Quem compartilhou Mesa (Ana), em notas.casa, revogou o seu acesso em"));
+  // Said as a notification (ADR 0084 item 7): a warning, whose toast stays
+  // until it is closed.
+  await expect(app.page.locator("#notify-toasts .notify-toast", { hasText: "Compartilhamento revogado" })).toContainText("Quem compartilhou Mesa (Ana), em notas.casa, revogou o seu acesso em");
   const notice = app.page.locator(".sync-revoked");
   await expect(notice.getByRole("heading", { name: "Compartilhamento revogado" })).toBeVisible();
   await expect(notice).toContainText("A sincronização desta pasta foi desligada; os arquivos continuam neste computador, como estavam.");

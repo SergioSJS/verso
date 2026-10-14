@@ -47,20 +47,3 @@ export const ui = {
   indexProgressBar: el<HTMLDivElement>("index-progress-bar"),
   indexProgressLabel: el<HTMLSpanElement>("index-progress-label"),
 };
-
-export function showToast(message: string, durationMs = 3500): void {
-  const existing = document.querySelector(".verso-toast");
-  if (existing) existing.remove();
-  const toast = h("div", "verso-update-banner verso-toast");
-  // Said to a screen reader as it appears (ADR 0035).
-  toast.setAttribute("role", "status");
-  toast.append(icon("sparkles"));
-  const span = h("span", "", message);
-  toast.append(span);
-  document.body.append(toast);
-  setTimeout(() => {
-    toast.style.opacity = "0";
-    toast.style.transition = "opacity .3s ease-out";
-    setTimeout(() => toast.remove(), 300);
-  }, durationMs);
-}

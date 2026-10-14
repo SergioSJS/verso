@@ -29,6 +29,8 @@ import { PdfLeaf } from "./leaves/pdf";
 import { TextLeaf } from "./leaves/textfile";
 import { bugDialog, closeWhereNoTab, focusSwitcher, openConsole, paletteDialog, quick, replaceDialog, ribbon, settingsDialog, updateController } from "./main";
 import { openFolderDialog, reindex } from "./open";
+import { openCentre } from "./notify";
+import { notifyStrings } from "./notify/strings";
 import { dirOf } from "./paths";
 import { ptPhrases } from "./phrases";
 import { settings } from "./settings";
@@ -241,6 +243,8 @@ export function allCommands(all = false): Command[] {
     // The folder's trash (ADR 0080 item 4): for whoever may change the folder.
     { id: "open-trash", label: trashStrings().open, need: hasFolder && canWrite(), run: () => settingsDialog.show("trash") },
     { id: "report-bug", label: t.reportBug, run: () => bugDialog.show() },
+    // The notification centre (ADR 0084 item 5).
+    { id: "notifications", label: notifyStrings().command, run: () => openCentre() },
     { id: "reload-window", label: t.reloadWindow, run: () => void reloadWindow().then((ok) => ok || (ui.status.textContent = t.reloadNotDone)) },
     { id: "nav-back", label: t.navBack, need: Boolean(pane?.canGo(-1)), run: () => pane?.go(-1) },
     { id: "nav-forward", label: t.navForward, need: Boolean(pane?.canGo(1)), run: () => pane?.go(1) },

@@ -12,7 +12,8 @@
 
 import { listen } from "@tauri-apps/api/event";
 import { commands, type ServerAccount, type ServerFolder, type SyncStatus, type SyncVersions } from "../bindings";
-import { h, showToast, ui } from "../dom";
+import { h, ui } from "../dom";
+import { syncHeard } from "../notify/sources";
 import { errorSentence, fail } from "../errors";
 import { addressOf, attempt, reachStrings } from "../reach";
 import { currentFolder, folderName } from "../folder";
@@ -327,17 +328,16 @@ async function refresh(): Promise<void> {
   if (r.status === "ok") took(r.data);
 }
 
-/** A status heard — by the event or by asking — becomes the window's. A
- *  share revoked while it synced is said at once, beside the status bar's
- *  line, by whichever of the two brings the change first: a question
+/** A status heard — by the event or by asking — becomes the window's.
+ *  What changed of it on its own — the sync failing or back, a share
+ *  revoked, a conflict copy — is a notification (ADR 0084 item 7), said
+ *  once per change by whichever of the two brings it first: a question
  *  answered before the event would otherwise take the change in silence. */
 function took(next: SyncStatus): void {
-  if (status?.on && !next.on && next.revoked) {
-    const s = syncStrings();
-    showToast(s.revokedWhy(next.folder_name || next.folder, hostOf(next.server), when(next.revoked)), 12000);
-  }
+  const prev = status;
   status = next;
   paint();
+  syncHeard(prev, next);
 }
 
 /** Hear the folder's sync from the start: the status bar shows it, and a

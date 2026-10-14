@@ -10,7 +10,7 @@
 // computer (ADR 0079 item 8, decided 2026-10-11).
 
 import { listen } from "@tauri-apps/api/event";
-import { commands, type ContractError, type ServerAccount, type ServerFolder } from "../bindings";
+import { commands, type ContractError, type ServerAccount, type ServerBack, type ServerFolder, type ServerGone } from "../bindings";
 import { h, ui } from "../dom";
 import { errorSentence, fail } from "../errors";
 import { addressOf, attempt, busy, clearFailure, reachStrings, sayFailure } from "../reach";
@@ -20,6 +20,7 @@ import { currentSync, openSettingsSection, preselectSync } from "./sync";
 import { openFolderBy } from "../open";
 import { sh } from "../shareStrings";
 import { copyWhenKnown, startSignIn } from "../serverSignIn";
+import { revokedSentence, serverBackHeard, serverGoneHeard } from "../notify/sources";
 
 /** A sentence whose names stand out: a name is `[name]`. */
 type Said = (string | [string])[];
@@ -133,23 +134,49 @@ export function parseServerKey(key: string): { url: string; folder: string } | n
 }
 
 let heard = false;
+/** The servers whose folder this window was refused (a share revoked or
+ *  deleted): the connection's end that follows is not a drop to retry. */
+const refusedAt = new Set<string>();
 
-/** What the host says of a connection that ended. */
+/** What the host says of a connection that ended — the web bridge says
+ *  the same of its own (ADR 0084 item 10): in the status line, and as a
+ *  notification. A share of the folder revoked is said as a revocation,
+ *  never as "the connection dropped" (ADR 0084 item 7). */
 export function hearServers(): void {
   if (heard) return;
   heard = true;
-  void listen<{ url: string; what: string; address?: string }>("server-gone", (e) => {
+  addEventListener("verso:folder-shown", () => refusedAt.clear());
+  void listen<ServerGone>("server-gone", (e) => {
     const s = serverStrings();
+    const p = e.payload;
+    if (p.what === "folder") {
+      refusedAt.add(p.url);
+      serverState()?.remove();
+      const said = revokedSentence(p);
+      ui.status.textContent = said;
+      serverGoneHeard(p, said);
+      return;
+    }
+    if (refusedAt.has(p.url)) return;
     // A try that found the server out of reach: said beside the status,
     // with a try now (the host tries again on its own, 5 s doubling to 5
     // min, reach.rs).
-    if (e.payload.what === "unreachable") return outOfReach(e.payload.address ?? addressOf(e.payload.url));
+    if (p.what === "unreachable") {
+      const address = p.address ?? addressOf(p.url);
+      outOfReach(address);
+      serverGoneHeard(p, reachStrings().unreachable(address));
+      return;
+    }
     serverState()?.remove();
-    ui.status.textContent = e.payload.what === "session" ? s.goneSession : s.gone;
+    const said = p.what === "session" ? s.goneSession : s.gone;
+    ui.status.textContent = said;
+    serverGoneHeard(p, said);
   });
-  void listen<{ url: string }>("server-back", () => {
+  void listen<ServerBack>("server-back", (e) => {
     serverState()?.remove();
-    ui.status.textContent = serverStrings().back;
+    const said = serverStrings().back;
+    ui.status.textContent = said;
+    serverBackHeard(e.payload.url, said);
     // The notes being edited together join their rooms again (collab.ts).
     dispatchEvent(new Event("verso:reconnected"));
   });
