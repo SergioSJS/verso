@@ -1,0 +1,40 @@
+/* Dice in a note (ADR 0088): a `dice:` code drawn as a die button, its
+   last roll in a small card beside it; the palette's roller. Nothing of
+   this is written to the note. */
+.dice { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: .3rem; vertical-align: baseline; max-width: 100%; }
+.dice-button { display: inline-flex; align-items: center; gap: .3em; font-family: var(--mono); font-size: .88em; line-height: 1.4; color: var(--brass-ink); background: var(--brass-wash); border: 1px solid color-mix(in oklch, var(--brass) 45%, transparent); border-radius: 5px; padding: .02em .4em; cursor: pointer; }
+.dice-button:hover { border-color: var(--brass); }
+.dice-button:focus-visible, .dice-card button:focus-visible { outline: 2px solid var(--seal); outline-offset: 2px; }
+.dice-button .icon { width: 1em; height: 1em; flex: none; }
+@media (prefers-reduced-motion: no-preference) { .dice.rolling .dice-button .icon { animation: dice-turn .45s var(--ease-out); } }
+@keyframes dice-turn { from { transform: rotate(-90deg); } to { transform: rotate(0); } }
+.dice-card { display: inline-flex; align-items: center; flex-wrap: wrap; gap: .35rem; font-family: var(--ui); font-size: .82em; color: var(--ink); background: var(--paper-2); border: 1px solid var(--hair); border-radius: 6px; padding: .1rem .2rem .1rem .45rem; max-width: 100%; }
+.dice-card[hidden] { display: none; }
+.dice-body { display: inline-flex; align-items: center; flex-wrap: wrap; gap: .35rem; min-width: 0; }
+.dice-who { color: var(--ink-2); }
+.dice-total { font-family: var(--display); font-size: 1.15em; color: var(--seal); }
+.dice-faces { display: inline-flex; flex-wrap: wrap; gap: .2rem; align-items: center; color: var(--ink-2); }
+.dice-face { font-family: var(--mono); font-size: .9em; min-width: 1.4em; text-align: center; border: 1px solid var(--hair); border-radius: 4px; padding: 0 .2em; background: var(--paper); }
+.dice-face.dropped { text-decoration: line-through; opacity: .6; }
+.dice-op { font-family: var(--mono); font-size: .9em; }
+.dice-row { color: var(--ink); overflow-wrap: anywhere; }
+.dice-row p { display: inline; margin: 0; }
+.dice-note { color: var(--ink-3); font-style: italic; }
+.dice-note.dice-failed { color: var(--seal); font-style: normal; }
+.dice-again, .dice-close { font: inherit; font-size: .9em; color: var(--ink-2); background: none; border: 1px solid transparent; border-radius: 4px; padding: .05rem .35rem; cursor: pointer; }
+.dice-again:hover, .dice-close:hover { color: var(--ink); border-color: var(--hair); }
+.dice-close { display: inline-flex; align-items: center; padding: .1rem; }
+.dice-close .icon { width: 12px; height: 12px; }
+
+/* The roller of the palette (item 6). */
+.dice-roller-box { position: relative; padding: 1rem 1.1rem 1.1rem; gap: .7rem; width: min(30rem, calc(100vw - 32px)); }
+.dice-roller-title { margin: 0; font-family: var(--display); font-size: 1.1rem; font-weight: 500; color: var(--heading-color); }
+.dice-roller-close { position: absolute; top: .6rem; right: .6rem; }
+.dice-roller-row { display: flex; gap: .5rem; }
+.dice-roller-row input { flex: 1; min-width: 0; font: inherit; font-family: var(--mono); padding: .45rem .6rem; color: var(--ink); background: var(--paper-2); border: 1px solid var(--hair); border-radius: 6px; }
+.dice-roller-go { display: inline-flex; align-items: center; gap: .4rem; }
+.dice-roller-go .icon { width: 13px; height: 13px; }
+.dice-roller-out { display: flex; align-items: baseline; gap: .6rem; min-height: 1.6rem; }
+.dice-roller-out .dice-total { font-size: 1.6rem; }
+.dice-roller-out.failed { color: var(--seal); }
+.dice-roller-hint { margin: 0; font-size: .8rem; color: var(--ink-3); }
