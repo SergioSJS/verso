@@ -133,8 +133,12 @@ manager or on another machine. Whoever holds it reads every backup;
 without it none can be restored. It refuses to replace an existing
 `backup.pub`: move it away first, keeping the old secret key for the old
 backups. `--passphrase` instead of a key asks a passphrase at the terminal.
-Without `age`, `--encrypt` says how to install it and makes the plain
-tarball, with a warning in capitals.
+Without `age`, `--encrypt` and `--passphrase` stop with an error and write
+nothing — neither a file nor, with `--to-stdout`, a byte of the stream —
+and say how to install `age` on this machine's family (`sudo apt install
+age` on Debian and Ubuntu, `sudo dnf install age` on Fedora, from EPEL on
+RHEL, Rocky, Alma and Oracle Linux). A backup without encryption is
+`sudo sh universo.sh backup`, with no option.
 
 `--to-stdout` writes the backup (encrypted or not) to standard output, for
 a pipeline of your own, for example

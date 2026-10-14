@@ -740,6 +740,13 @@ segunda revisão de entrada e acesso, enviados com uma recomendação cada,
 respondidos em 2026-10-14: *"com exceção do 3, sim pra recomendado. O 3:
 Mudo a recomendação: deixa o app com acesso de admin"*.
 
+- (2) 2026-10-14 — o `universo.sh backup --encrypt` ou `--passphrase`
+  sem o `age` para com um erro e não grava nada, nem arquivo nem fluxo,
+  dizendo como instalar o `age` na família desta máquina (`age_install`,
+  ao lado do `caddy_install` sobre o `dnf_install` comum); o backup
+  simples só é feito quando nenhuma criptografia é pedida. Isso substitui
+  o "sem o `age`, o script diz como instalá-lo e faz o tarball puro com
+  o aviso atual em maiúsculas" do item 12.
 - (4) 2026-10-14 — o nome da nota de pasta é do dono da pasta, como as
   regras de varredura: um membro que não é o dono mudando os ajustes da
   pasta (`set_folder_settings`) deixa o `folder_note_name` como estava,

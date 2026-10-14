@@ -718,6 +718,13 @@ Mudo a recomendação: deixa o app com acesso de admin"* (except for 3,
 yes to the recommended. On 3: I change the recommendation: leave the app
 with admin access).
 
+- (2) 2026-10-14 — `universo.sh backup --encrypt` or `--passphrase`
+  without `age` stops with an error and writes nothing, neither a file
+  nor a stream, saying how to install `age` on this machine's family
+  (`age_install`, beside `caddy_install` on the shared `dnf_install`);
+  the plain backup is made only when no encryption is asked. This
+  replaces item 12's "without `age`, the script says how to install it
+  and makes the plain tarball with the present warning in capitals".
 - (4) 2026-10-14 — the folder note's name is the folder owner's, as the
   walk's rules are: a member who is not the owner changing the folder's
   settings (`set_folder_settings`) leaves `folder_note_name` as it was,
