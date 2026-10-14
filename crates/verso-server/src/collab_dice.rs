@@ -60,5 +60,8 @@ pub fn roll(
         Some(who.client),
         &json!({ "event": "collab-roll", "payload": heard }),
     );
+    // The readers served the note's projection hear a roll that is not a
+    // secret block's (ADR 0087 item 4).
+    super::readers::roll(server, &r, who.client, &heard);
     Ok(rolled)
 }

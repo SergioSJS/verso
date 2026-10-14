@@ -129,6 +129,7 @@ pub fn refresh(server: &Server, folder: &str, why: &str) {
         })
         .collect();
     let mut gone = Vec::new();
+    let mut demoted = Vec::new();
     {
         let mut table = lock(&server.clients);
         for (client, now) in found {
@@ -142,6 +143,9 @@ pub fn refresh(server: &Server, folder: &str, why: &str) {
                     c.scope = Some(scope);
                     if changed {
                         c.tx.send(&json!({ "role": role }));
+                        if !role.writes() {
+                            demoted.push(client);
+                        }
                     }
                 }
                 None => {
@@ -154,6 +158,10 @@ pub fn refresh(server: &Server, folder: &str, why: &str) {
         }
     }
     server.left(&gone);
+    // One who may now only read leaves the rooms it wrote in (ADR 0087).
+    for client in demoted {
+        crate::collab::readers::demoted(server, &client);
+    }
 }
 
 /// Before a command of a window on a share: the share looked at again, so
@@ -304,8 +312,15 @@ pub fn listing(ctx: &Ctx, who: &Who) -> ApiResult<(Vec<Value>, Vec<Value>)> {
             owner_of(server, &f.id)?
                 .map_or(Value::Null, |a| json!({ "name": a.name, "email": a.email }))
         };
+        // The folder's bytes count its secret blocks' (ADR 0087): one who
+        // only reads it is not told them, as a share's receiver is not.
+        let space = if role.writes() && who.reaches(&f.id).1 {
+            crate::folders::space(ctx, &f.id)
+        } else {
+            Value::Null
+        };
         folders.push(json!({
-            "id": f.id, "name": f.dir, "role": role, "space": crate::folders::space(ctx, &f.id),
+            "id": f.id, "name": f.dir, "role": role, "space": space,
             "owner": owner, "share": false,
         }));
         if role == Role::Owner && person {

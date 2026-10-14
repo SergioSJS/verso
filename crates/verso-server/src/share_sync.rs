@@ -79,7 +79,8 @@ async fn run(
             // The share's own head: how many of the folder's changes up to
             // the folder's head are the share's (3.18).
             let upto = v["head"].as_i64().unwrap_or(0);
-            v["head"] = json!(share_count(server, client, scope, upto).await?);
+            let reader = crate::readers::reads_only(server, who, client)?;
+            v["head"] = json!(share_count(server, client, scope, (upto, reader)).await?);
             (v, None)
         }
         "sync_changes" => return Ok((changes(server, who, client, &args, scope).await?, None)),
@@ -146,13 +147,13 @@ async fn share_count(
     server: &Arc<Server>,
     client: &str,
     scope: &Scope,
-    upto: i64,
+    (upto, reader): (i64, bool),
 ) -> Result<i64, ContractError> {
     let (folder, _) = crate::rpc::role_here(server, client)?;
     let (s, roots) = (Arc::clone(server), roots(scope));
     crate::rpc::blocking(move || {
         let roots: Vec<&str> = roots.iter().map(String::as_str).collect();
-        s.db.share_seq(&folder, &roots, upto)
+        s.db.share_seq(&folder, &roots, upto, reader)
             .map_err(verso_service::failed)
     })
     .await
@@ -167,7 +168,7 @@ async fn cursor_at(
     server: &Arc<Server>,
     client: &str,
     scope: &Scope,
-    asked: i64,
+    (asked, reader): (i64, bool),
 ) -> Result<(i64, i64), ContractError> {
     if asked < 1 {
         return Ok((0, 0));
@@ -177,9 +178,13 @@ async fn cursor_at(
     crate::rpc::blocking(move || {
         let roots: Vec<&str> = roots.iter().map(String::as_str).collect();
         let fail = verso_service::failed;
-        let seen = s.db.share_seq(&folder, &roots, i64::MAX).map_err(fail)?;
+        let seen =
+            s.db.share_seq(&folder, &roots, i64::MAX, reader)
+                .map_err(fail)?;
         let n = asked.min(seen);
-        let at = s.db.share_change(&folder, &roots, n).map_err(fail)?;
+        let at =
+            s.db.share_change(&folder, &roots, n, reader)
+                .map_err(fail)?;
         Ok((at.unwrap_or(0), n))
     })
     .await
@@ -201,7 +206,10 @@ async fn changes(
     scope: &Scope,
 ) -> Result<Value, ContractError> {
     let asked: i64 = arg(args, "since")?;
-    let (mut since, mut n) = cursor_at(server, client, scope, asked).await?;
+    // A reader's count of the share's changes leaves out those only inside
+    // secret blocks, as its pages of the log do (ADR 0087).
+    let reader = crate::readers::reads_only(server, who, client)?;
+    let (mut since, mut n) = cursor_at(server, client, scope, (asked, reader)).await?;
     let mut out: Vec<Value> = Vec::new();
     let all: Arc<dyn Fn(&str) -> bool + Send + Sync> = Arc::new(|_: &str| true);
     loop {
