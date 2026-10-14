@@ -713,6 +713,45 @@ fn an_invitation_to_a_folder_wants_a_fresh_proof() {
     });
 }
 
+/// Registering a folder already on the disk gives it to any owner, as
+/// entering one or setting a member's role does: it wants a fresh proof
+/// before anything of the request is read.
+#[test]
+fn adopting_a_folder_wants_a_fresh_proof() {
+    use reqwest::Method;
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let me = id_of(&r, "admin@casa.lan");
+        verso_fs::server::make_folder(&r.server.config.folders_dir, "Achada").unwrap();
+        stale(&r, &me);
+        let said = send(
+            &r,
+            Method::POST,
+            "/api/admin/folders/adopt",
+            Some(json!({ "name": "Nenhuma", "owner": "ninguem@prova.example" })),
+            &admin,
+        )
+        .await;
+        assert_eq!(
+            said,
+            prove_first(),
+            "an aged proof adopted, or was told what it asked"
+        );
+        let (status, adopted) = gated(
+            &r,
+            &admin,
+            &me,
+            Method::POST,
+            "/api/admin/folders/adopt",
+            Some(json!({ "name": "Achada", "owner": "admin@casa.lan" })),
+        )
+        .await;
+        assert_eq!(status, 200, "{adopted}");
+        assert!(r.server.db.folder_by_dir("Achada").unwrap().is_some());
+    });
+}
+
 /// A device's session is born unproved: the approval proved the browser
 /// that approved it, not the app holding the token, which proves itself
 /// as any session does before a sensitive action (ADR 0083 item 6).
