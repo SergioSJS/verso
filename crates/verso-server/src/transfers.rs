@@ -136,4 +136,7 @@ pub(crate) struct Upload {
     pub(crate) size: u64,
     pub(crate) hash: String,
     pub(crate) base: Option<String>,
+    /// The room the file holds in its folder's quota until it lands or
+    /// goes (`crate::quota::reserve`).
+    pub(crate) hold: Option<crate::quota::Hold>,
 }

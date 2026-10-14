@@ -32,11 +32,15 @@ step "fixtures (ADR 0031)"
 bash scripts/check-fixtures.sh
 step "npm licenses (ADR 0029)"
 node scripts/check-npm-licenses.mjs
+step "npm advisories (ADR 0083 item 13)"
+node scripts/check-npm-audit.mjs
 step "source files under the size limit (ADR 0067)"
 node scripts/check-sizes.mjs
 
 step "demo vault built from its sources (ADR 0058)"
 node scripts/demo-vault.mjs check
+step "the release page names the files the release workflow builds (ADR 0051)"
+node --test scripts/release-page.test.mjs
 step "std::fs in verso-core only in src/sidecar.rs (ADR 0029)"
 if grep -rnE --include='*.rs' '(std::fs|\bfs::|std::\{[^}]*\bfs\b)' crates/verso-core/src \
    | grep -v '^crates/verso-core/src/sidecar.rs:' \

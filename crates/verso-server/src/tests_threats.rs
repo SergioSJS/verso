@@ -11,9 +11,7 @@ use base64::engine::general_purpose::STANDARD;
 use serde_json::{Value, json};
 
 use crate::db::Role;
-use crate::tests::{
-    block_on, call, connect, event_named, folder_id, get, next, post, sign_in, start,
-};
+use crate::tests::{block_on, call, connect, event_named, folder_id, next, post, sign_in, start};
 
 /// A Yjs awareness update of one client: count, id, clock, the state as
 /// a string — each number a variable-length integer.
@@ -119,14 +117,21 @@ fn a_device_code_says_who_asked_and_can_be_refused() {
             assert!(pending.asked >= before, "{}", pending.asked);
             assert_eq!(pending.asked.len(), "2026-10-12T21:30:00Z".len());
         }
-        let (_, what) = get(&r, &format!("/api/device/{code}"), Some(&admin)).await;
+        let (_, what) = post(
+            &r,
+            "/api/device/describe",
+            json!({ "code": code }),
+            Some(&admin),
+        )
+        .await;
         assert_eq!(what["device"], "Verso · MacBook");
         assert_eq!(what["address"], "127.0.0.1");
         assert!(what["asked"].as_str().unwrap() >= before.as_str(), "{what}");
         // Not from a page of this server: refused.
         let status = reqwest::Client::new()
-            .delete(r.url(&format!("/api/device/{code}")))
+            .post(r.url("/api/device/refuse"))
             .header("cookie", &admin.cookie)
+            .json(&json!({ "code": code }))
             .send()
             .await
             .unwrap()
@@ -134,10 +139,11 @@ fn a_device_code_says_who_asked_and_can_be_refused() {
             .as_u16();
         assert_eq!(status, 403);
         let status = reqwest::Client::new()
-            .delete(r.url(&format!("/api/device/{code}")))
+            .post(r.url("/api/device/refuse"))
             .header("origin", r.origin())
             .header("cookie", &admin.cookie)
             .header("x-verso-csrf", &admin.csrf)
+            .json(&json!({ "code": code }))
             .send()
             .await
             .unwrap()
@@ -152,7 +158,177 @@ fn a_device_code_says_who_asked_and_can_be_refused() {
         )
         .await;
         assert_eq!(gone, 410);
-        let (status, _) = get(&r, &format!("/api/device/{code}"), Some(&admin)).await;
+        let (status, _) = post(
+            &r,
+            "/api/device/describe",
+            json!({ "code": code }),
+            Some(&admin),
+        )
+        .await;
         assert_eq!(status, 404);
+    });
+}
+
+/// The server's headers, every one by name and value, on the page, the
+/// API and a folder's file (ADR 0083 item 9; the review's section 3.2): a
+/// header lost or changed in a refactor is seen here. `None` is a header
+/// that must not be there.
+#[test]
+fn every_answer_carries_the_whole_set_of_headers() {
+    const PERMISSIONS: &str = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), interest-cohort=()";
+    const FILE_CSP: &str = "sandbox; default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:";
+    let page_csp = |ws: &str| {
+        format!(
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; \
+             img-src 'self' data: blob: https:; media-src 'self' blob: https:; \
+             frame-src 'self' https:; object-src 'none'; connect-src 'self' {ws}; \
+             worker-src 'self' blob:; font-src 'self' data:; base-uri 'none'; \
+             form-action 'self'; frame-ancestors 'self'"
+        )
+    };
+    block_on(async {
+        // Over plain HTTP on this machine, and with an HTTPS address.
+        for public in [None, Some("https://notas.casa")] {
+            let r = crate::tests::start_with(|c| c.public_url = public.map(str::to_owned)).await;
+            crate::data::ensure_dir(&r.server.config.ui_dir).unwrap();
+            crate::data::write_for_tests(
+                &r.server.config.ui_dir.join("web.html"),
+                "<!doctype html><title>Verso</title>",
+            );
+            let admin = r
+                .server
+                .db
+                .account_by_email("admin@casa.lan")
+                .unwrap()
+                .unwrap();
+            let (token, csrf) = r
+                .server
+                .db
+                .create_session(&admin.id, "browser", "test", "127.0.0.1")
+                .unwrap();
+            let b = crate::tests::Browser {
+                cookie: format!("{}={token}", crate::auth::cookie_name(&r.server)),
+                csrf,
+            };
+            let id = folder_id(&r, &b).await;
+            // A folder's files are served while a window has it open.
+            let origin = public.map_or_else(|| r.origin(), str::to_owned);
+            let mut window = connect(&r, Some(&b.cookie), Some(&origin), None)
+                .await
+                .unwrap();
+            next(&mut window).await;
+            call(&mut window, 1, "open_server_folder", json!({ "id": id })).await;
+            let ws = public.map_or_else(
+                || format!("ws://localhost:{}", r.addr().port()),
+                |_| "wss://notas.casa".to_owned(),
+            );
+            let hsts = public.map(|_| "max-age=31536000; includeSubDomains");
+            let page = page_csp(&ws);
+            let common = |csp: &str, corp: Option<&'static str>, cache: Option<&'static str>| {
+                vec![
+                    ("x-content-type-options", Some("nosniff".to_owned())),
+                    ("referrer-policy", Some("no-referrer".to_owned())),
+                    ("x-frame-options", Some("SAMEORIGIN".to_owned())),
+                    ("cross-origin-opener-policy", Some("same-origin".to_owned())),
+                    ("permissions-policy", Some(PERMISSIONS.to_owned())),
+                    ("content-security-policy", Some(csp.to_owned())),
+                    ("cross-origin-resource-policy", corp.map(str::to_owned)),
+                    ("cache-control", cache.map(str::to_owned)),
+                    ("strict-transport-security", hsts.map(str::to_owned)),
+                ]
+            };
+            let routes = [
+                ("/", common(&page, None, Some("no-store"))),
+                ("/api/state", common(&page, None, None)),
+                (
+                    &*format!("/f/{id}/mapa.svg"),
+                    common(FILE_CSP, Some("same-origin"), Some("no-store")),
+                ),
+            ];
+            for (path, expected) in routes {
+                let res = reqwest::Client::new()
+                    .get(r.url(path))
+                    .header("cookie", &b.cookie)
+                    .send()
+                    .await
+                    .unwrap();
+                assert_eq!(res.status().as_u16(), 200, "{path}");
+                for (name, value) in expected {
+                    let got = res
+                        .headers()
+                        .get(name)
+                        .and_then(|v| v.to_str().ok())
+                        .map(str::to_owned);
+                    assert_eq!(got, value, "{public:?} {path} {name}");
+                }
+            }
+        }
+    });
+}
+
+/// The walk's rules and the folder note's name are the folder owner's
+/// (ADR 0070; ADR 0083, decided 2026-10-14): an editor's change of the
+/// folder's settings keeps the rest of it — the bookmarks — and leaves
+/// them as they were, as `set_walk_rules` and `set_folder_note_name` do;
+/// the owner's change sets them.
+#[test]
+fn an_editor_changes_the_folders_settings_but_not_its_walk_rules() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &admin).await;
+        let ana = r
+            .server
+            .db
+            .create_account("ana@casa.lan", "Ana", "pt", Some("a senha da ana"), false)
+            .unwrap();
+        r.server.db.grant(&id, &ana.id, Role::Editor).unwrap();
+        let ana_b = sign_in(&r, "ana@casa.lan", "a senha da ana").await;
+        let mut ed = connect(&r, Some(&ana_b.cookie), Some(&r.origin()), None)
+            .await
+            .unwrap();
+        next(&mut ed).await;
+        call(&mut ed, 1, "open_server_folder", json!({ "id": id })).await;
+        let layer = call(&mut ed, 2, "get_folder_settings", json!({})).await;
+        assert_eq!(layer["ok"]["exists"], false, "{layer}");
+        let change = |gitignore: bool| {
+            json!({ "change": { "bookmarks": ["Sessao.md"], "folder_note_name": "Indice",
+                "ignore_build_dirs": false, "respect_gitignore": gitignore } })
+        };
+        let mut args = change(false);
+        args["revision"] = Value::Null;
+        let set = call(&mut ed, 3, "set_folder_settings", args).await;
+        assert_eq!(
+            set["ok"]["settings"]["bookmarks"],
+            json!(["Sessao.md"]),
+            "{set}"
+        );
+        assert_eq!(
+            set["ok"]["settings"]["respect_gitignore"],
+            Value::Null,
+            "an editor changed the walk's rules: {set}"
+        );
+        assert_eq!(
+            set["ok"]["settings"]["ignore_build_dirs"],
+            Value::Null,
+            "{set}"
+        );
+        assert_eq!(
+            set["ok"]["settings"]["folder_note_name"],
+            Value::Null,
+            "an editor changed the folder note's name: {set}"
+        );
+        // The owner sets them.
+        let mut own = connect(&r, Some(&admin.cookie), Some(&r.origin()), None)
+            .await
+            .unwrap();
+        next(&mut own).await;
+        call(&mut own, 1, "open_server_folder", json!({ "id": id })).await;
+        let mut args = change(false);
+        args["revision"] = set["ok"]["revision"].clone();
+        let set = call(&mut own, 2, "set_folder_settings", args).await;
+        assert_eq!(set["ok"]["settings"]["respect_gitignore"], false, "{set}");
+        assert_eq!(set["ok"]["settings"]["ignore_build_dirs"], false, "{set}");
+        assert_eq!(set["ok"]["settings"]["folder_note_name"], "Indice", "{set}");
     });
 }

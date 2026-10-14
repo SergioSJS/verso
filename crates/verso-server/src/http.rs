@@ -275,7 +275,10 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/api/signin", post(crate::api::sign_in))
         .route("/api/signout", post(crate::api::sign_out))
         .route("/api/signin/link", post(crate::api::signin_link))
-        .route("/api/signin/link/{token}", post(crate::api::signin_by_link))
+        .route(
+            "/api/signin/link/{token}",
+            get(crate::api::signin_link_offer).post(crate::api::signin_by_link),
+        )
         .route("/api/forgot", post(crate::api::forgot))
         .route("/api/setup", post(crate::api::setup))
         .route(
@@ -288,6 +291,8 @@ pub fn router(server: Arc<Server>) -> Router {
         )
         .route("/api/me", get(crate::api::me).patch(crate::api::profile))
         .route("/api/me/password", post(crate::api::password))
+        .route("/api/me/prove", post(crate::proof::prove))
+        .route("/api/me/prove/passkey", post(crate::passkeys::prove_start))
         .route("/api/me/sessions", get(crate::api::sessions))
         .route("/api/me/device", axum::routing::put(crate::device::rename))
         .route("/api/me/sessions/others", delete(crate::api::end_others))
@@ -386,12 +391,14 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/api/admin/config", get(crate::console::config))
         .route("/api/device/start", post(crate::device::start))
         .route("/api/device/poll", post(crate::device::poll))
-        .route(
-            "/api/device/{code}",
-            get(crate::device::describe)
-                .post(crate::device::approve)
-                .delete(crate::device::refuse),
-        );
+        .route("/api/device/describe", post(crate::device::describe_typed))
+        .route("/api/device/approve", post(crate::device::approve_typed))
+        .route("/api/device/refuse", post(crate::device::refuse_typed))
+        // No route takes a device's code from the address: a link sent by
+        // someone else would carry it (decided 2026-10-14, ADR 0083 As
+        // built). An address under /api/ no route names is answered 404,
+        // never the page.
+        .route("/api/{*rest}", axum::routing::any(no_route));
     // The pages — signing in, approving the desktop app, the account — are
     // served always; the notes' window in a browser only with `--web`
     // (ADR 0073 item 2), which the WebSocket enforces (rpc.rs).
@@ -407,7 +414,10 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/invite/{token}", page())
         .route("/reset/{token}", page())
         .route("/signin-link/{token}", page())
+        // Where to report a vulnerability (RFC 9116; ADR 0083 item 15).
+        .route("/.well-known/security.txt", get(crate::security_txt::serve))
         .fallback_service(static_files)
+        .layer(middleware::from_fn_with_state(Arc::clone(&server), pace))
         .layer(middleware::from_fn_with_state(Arc::clone(&server), guard))
         .layer(middleware::from_fn(deadline))
         // A request's body: a form, a setting, a passkey — never a file,
@@ -415,6 +425,11 @@ pub fn router(server: Arc<Server>) -> Router {
         // (rpc::MAX_MESSAGE).
         .layer(axum::extract::DefaultBodyLimit::max(API_BODY))
         .with_state(server)
+}
+
+/// An address under `/api/` that no route names.
+async fn no_route() -> ApiError {
+    ApiError::not_found()
 }
 
 /// The most a request's body takes: settings are 256 KB at most.
@@ -427,6 +442,24 @@ const API_BODY: usize = 1024 * 1024;
 /// bounded by its own loop (`crate::rpc`).
 const REQUEST_WITHIN: std::time::Duration = std::time::Duration::from_secs(60);
 
+/// The requests one client address may have in flight at once (an IPv6
+/// /64 as one), directly or through a trusted proxy: a browser's six
+/// connections for each of a household's few devices, with room. Through
+/// a proxy, a connection counts only against the server's
+/// `crate::listen::CONNECTIONS`, and a client that trickled its bodies
+/// could hold them all from one address; past this it is answered 429.
+pub const IN_FLIGHT: usize = 32;
+
+/// How long a request's body may take to arrive (the review of
+/// 2026-10-13): a body here is a form, a setting, a passkey — [`API_BODY`]
+/// at most, never a file, which goes over the WebSocket — so a few
+/// seconds on a slow link; a client that trickles one in holds its place
+/// no longer. [`REQUEST_WITHIN`] still bounds the answer.
+#[cfg(not(test))]
+pub const BODY_WITHIN: std::time::Duration = std::time::Duration::from_secs(10);
+#[cfg(test)]
+pub const BODY_WITHIN: std::time::Duration = std::time::Duration::from_secs(2);
+
 async fn deadline(request: Request, next: Next) -> Response {
     match tokio::time::timeout(REQUEST_WITHIN, next.run(request)).await {
         Ok(response) => response,
@@ -437,6 +470,60 @@ async fn deadline(request: Request, next: Next) -> Response {
         )
         .into_response(),
     }
+}
+
+/// The pace of the REST routes, per address (ADR 0083 item 7): every
+/// route under `/api/` but the WebSocket's upgrade, which `crate::fair`
+/// counts once it is accepted. A direct connection from this machine is not
+/// paced; everything that comes through a trusted proxy is, under the
+/// address the proxy forwarded — a forwarded `127.0.0.1` is the client's
+/// word, never this machine — or, when it forwarded none, under the
+/// proxy's own: every visitor as one key, which the once-a-minute warning
+/// of `crate::auth::peer` explains. The window's files and the page are
+/// left to the connection limits (a page load is a burst of files).
+/// A refused upgrade is not counted by `crate::fair`: it takes a request
+/// from the pace like any other, and is refused 429 when the address is
+/// past it, so that a flood of upgrades with no credential is no way
+/// around the pace.
+async fn pace(State(server): State<Arc<Server>>, request: Request, next: Next) -> Response {
+    let path = request.uri().path();
+    if !path.starts_with("/api/") {
+        return next.run(request).await;
+    }
+    let Some(key) = client_key(&server, &request) else {
+        return next.run(request).await;
+    };
+    let too_many = |wait: u64| {
+        ApiError {
+            retry: Some(wait),
+            ..ApiError::new(
+                StatusCode::TOO_MANY_REQUESTS,
+                "too_many",
+                "too many requests",
+            )
+        }
+        .into_response()
+    };
+    let upgrade = path == "/api/ws"
+        && request
+            .headers()
+            .get(header::UPGRADE)
+            .and_then(|v| v.to_str().ok())
+            .is_some_and(|v| v.eq_ignore_ascii_case("websocket"));
+    if upgrade {
+        if let Some(wait) = server.pace.waiting(&key) {
+            return too_many(wait);
+        }
+        let response = next.run(request).await;
+        if response.status() != StatusCode::SWITCHING_PROTOCOLS {
+            let _ = server.pace.take(&key);
+        }
+        return response;
+    }
+    if let Some(wait) = server.pace.take(&key) {
+        return too_many(wait);
+    }
+    next.run(request).await
 }
 
 /// The window's own policy, sent as a header and narrower than the
@@ -453,9 +540,73 @@ fn page_policy(ws_origin: &str) -> String {
     )
 }
 
-/// Before every route: the `Host` named this server, or 421; after it, the
-/// server's headers on every answer.
+/// The key a request is counted under: the client's address as the
+/// trusted proxies walk it, an IPv6 /64 as one — the pace's key — or
+/// `None` for a direct connection from this machine, which speaks for
+/// everyone and is not counted.
+fn client_key(server: &Server, request: &Request) -> Option<String> {
+    let remote = request
+        .extensions()
+        .get::<ConnectInfo<Remote>>()
+        .map_or_else(|| SocketAddr::from(([127, 0, 0, 1], 0)), |c| c.0.0);
+    let client = server.config.trusted_proxy.client(
+        remote.ip(),
+        request
+            .headers()
+            .get_all("x-forwarded-for")
+            .iter()
+            .filter_map(|v| v.to_str().ok()),
+    );
+    if !client.from_proxy && remote.ip().is_loopback() {
+        return None;
+    }
+    Some(crate::limit::address_key(client.addr))
+}
+
+/// The request's body read whole within [`BODY_WITHIN`] and [`API_BODY`],
+/// or the answer that refuses it: 408 past the time, 413 past the size.
+async fn with_body(request: Request) -> Result<Request, ApiError> {
+    let (parts, body) = request.into_parts();
+    match tokio::time::timeout(BODY_WITHIN, axum::body::to_bytes(body, API_BODY)).await {
+        Ok(Ok(bytes)) => Ok(Request::from_parts(parts, axum::body::Body::from(bytes))),
+        Ok(Err(_)) => Err(ApiError::new(
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "too_large",
+            "a request's body is 1 MB at most",
+        )),
+        Err(_) => Err(ApiError::new(
+            StatusCode::REQUEST_TIMEOUT,
+            "timeout",
+            "the request's body took too long",
+        )),
+    }
+}
+
+/// The size of a request's head as it came: its line, and each header as
+/// `name: value` and a line end.
+fn head_size(request: &Request) -> usize {
+    let line = request.method().as_str().len() + request.uri().to_string().len() + 12;
+    request
+        .headers()
+        .iter()
+        .map(|(name, value)| name.as_str().len() + value.len() + 4)
+        .sum::<usize>()
+        + line
+}
+
+/// Before every route: the head within 64 KiB, or 431 (ADR 0083 item 8);
+/// the `Host` named this server, or 421; a place among its address's
+/// requests in flight, or 429; its body within [`BODY_WITHIN`], or 408;
+/// after it, the server's headers on every answer.
 async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) -> Response {
+    if head_size(&request) > crate::listen::HEAD_MOST {
+        return ApiError::new(
+            StatusCode::REQUEST_HEADER_FIELDS_TOO_LARGE,
+            "head_too_large",
+            "a request's headers are 64 KiB at most",
+        )
+        .into_response();
+    }
     if !auth::host_ok(&server, request.headers()) {
         return ApiError::new(
             StatusCode::MISDIRECTED_REQUEST,
@@ -464,6 +615,31 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
         )
         .into_response();
     }
+    // Its place among its address's requests, held until it is answered.
+    let _place = match client_key(&server, &request) {
+        Some(key) => match server.requests.take(&key, IN_FLIGHT) {
+            Some(place) => Some(place),
+            None => {
+                server.requests.said.warn(&format!(
+                    "requests refused: {key} has {IN_FLIGHT} in flight"
+                ));
+                return ApiError {
+                    retry: Some(1),
+                    ..ApiError::new(
+                        StatusCode::TOO_MANY_REQUESTS,
+                        "too_many",
+                        "too many requests at once",
+                    )
+                }
+                .into_response();
+            }
+        },
+        None => None,
+    };
+    let request = match with_body(request).await {
+        Ok(request) => request,
+        Err(refused) => return refused.into_response(),
+    };
     let ws_origin = auth::expected_origin(&server, request.headers())
         .map(|o| o.replacen("http", "ws", 1))
         .unwrap_or_default();
@@ -482,7 +658,8 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
     set(
         h,
         "permissions-policy",
-        "camera=(), microphone=(), geolocation=(), payment=()",
+        "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), \
+         interest-cohort=()",
     );
     if is_file {
         // A folder's file is for this server's pages alone: another
@@ -509,7 +686,14 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
             .as_deref()
             .is_some_and(|u| u.starts_with("https://"))
     {
-        set(h, "strict-transport-security", "max-age=31536000");
+        // A subdomain of the server's name could otherwise set a cookie
+        // for it over plain HTTP; `preload` is the host's own choice for
+        // their domain, never sent by default (ADR 0083 item 9).
+        set(
+            h,
+            "strict-transport-security",
+            "max-age=31536000; includeSubDomains",
+        );
     }
     response
 }

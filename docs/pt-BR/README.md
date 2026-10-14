@@ -74,15 +74,20 @@ O repositório fica privado enquanto o app amadurece; ele está na Fase 2 do
 
 ## Instalar
 
-Pela página de Releases do repositório. Uma versão de teste sai como
-"Verso Beta" — os arquivos dela começam com `Verso-Beta-` — e se instala
-ao lado do app de produção.
+Pela [página de Releases](https://github.com/SergioSJS/verso/releases) do
+repositório. Cada release abre com *Qual arquivo baixar?* — o arquivo de
+cada computador, como link — e *Como instalar*, em inglês e em português.
+Uma versão de teste sai como "Verso Beta" — os arquivos dela começam com
+`Verso-Beta-` — e se instala ao lado do app de produção.
 
-| Sistema | Arquivos | Primeira vez |
+| Seu computador | Arquivo | Primeira vez |
 |---|---|---|
-| macOS, Apple silicon | `Verso-X.Y.Z-macos-arm64.zip`: descompacte em `/Applications` | assinado ad hoc, não por um desenvolvedor registrado: permita uma vez em Ajustes do Sistema → Privacidade e Segurança → "Abrir Mesmo Assim" |
+| Mac com chip Apple (M1, M2, M3, M4…); um Mac com processador Intel não é suportado | `Verso-X.Y.Z-macos-arm64.zip`: descompacte em `/Applications` | assinado ad hoc, não por um desenvolvedor registrado: permita uma vez em Ajustes do Sistema → Privacidade e Segurança → "Abrir Mesmo Assim" |
 | Windows 10 e 11, x64 (rodado até agora no Windows 11) | `Verso-X.Y.Z-windows-x64-setup.exe`, um instalador para o seu usuário | sem assinatura: o SmartScreen pergunta uma vez: em Mais informações, mande executar |
-| Linux, x64 | `Verso-X.Y.Z-linux-x86_64.AppImage` para qualquer distribuição; `Verso-X.Y.Z-linux-amd64.deb` (Ubuntu 22.04, Debian 12 e posteriores); `Verso-X.Y.Z-linux-x86_64.rpm` (Fedora 36 e posteriores) | o AppImage: torne-o executável e rode. O ARM64 vem quando o repositório for público |
+| Linux, x64 | `Verso-X.Y.Z-linux-amd64.deb` para Ubuntu (22.04 e posteriores), Linux Mint, Debian (12 e posteriores), Pop!_OS; `Verso-X.Y.Z-linux-x86_64.rpm` para Fedora (36 e posteriores); `Verso-X.Y.Z-linux-x86_64.AppImage` para qualquer outro | o AppImage: torne-o executável e rode. O ARM64 vem quando o repositório for público |
+
+O `.sig` ao lado de cada arquivo é a assinatura dele, para o atualizador
+do app e o instalador do UniVerso: pode ignorá-lo.
 
 A linha de comando vem com o app. No macOS, Ajustes → Terminal e agentes →
 Instalar a liga como `/usr/local/bin/verso`; no Windows o `verso.exe` fica
@@ -189,3 +194,7 @@ de produção, `vX.Y.Z-beta.N` uma versão de teste
   questões abertas.
 - [reference/app-decision.md](reference/app-decision.md) — o que a janela
   faz, e como verificar sem ler código.
+- [reference/server-hands-on.md](reference/server-hands-on.md) — instalar o
+  UniVerso passo a passo, com Docker ou um pacote, ao lado de outros apps,
+  até o app de desktop conectado; a referência é
+  [reference/server-install.md](reference/server-install.md).

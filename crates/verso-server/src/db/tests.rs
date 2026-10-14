@@ -180,3 +180,72 @@ fn the_audit_log_keeps_who_did_what() {
     assert_eq!(of_f.len(), 1);
     assert!(!of_f[0].ok);
 }
+
+/// A database as schema 9 left it: every step up to 9, and none after.
+fn schema_9() -> Connection {
+    let conn = Connection::open_in_memory().unwrap();
+    conn.execute_batch(&format!(
+        "PRAGMA foreign_keys = ON; {CREATE}{PASSKEYS}{SETTINGS}{CONSOLE}{SYNC}{DEVICES}{}{SHARES}{} PRAGMA user_version = 9;",
+        trash::TRASH,
+        proof::PROOF
+    ))
+    .unwrap();
+    conn
+}
+
+#[test]
+fn no_folder_invitation_pending_at_the_upgrade_to_schema_10_grants_a_folder() {
+    let conn = schema_9();
+    let at = now();
+    conn.execute_batch(&format!(
+        "INSERT INTO accounts (id, email, email_fold, name, lang, password, admin, may_create, created) VALUES ('a1', 'a@b.co', 'a@b.co', 'A', 'en', NULL, 1, 1, {at});
+         INSERT INTO folders (id, dir, created) VALUES ('f1', 'f1', {at});
+         INSERT INTO shares (id, folder, path, attachments, created) VALUES ('s1', 'f1', 'Sub', NULL, {at});"
+    ))
+    .unwrap();
+    let invite = |id: &str,
+                  kind: &str,
+                  folder: Option<&str>,
+                  share: Option<&str>,
+                  used: Option<i64>| {
+        conn.execute(
+            "INSERT INTO invitations (id, hash, kind, email, account, folder, role, created, expires, used, share)
+             VALUES (?1, ?2, ?3, 'x@b.co', 'a1', ?4, 'editor', ?5, ?6, ?7, ?8)",
+            params![id, crypto::hash(id), kind, folder, at, at + INVITE_LIFE, used, share],
+        )
+        .unwrap();
+    };
+    // A share's invitation whose share went before the upgrade: the
+    // column is null, as a folder invitation's is.
+    invite("orphan", "invite", Some("f1"), Some("s1"), None);
+    conn.execute("DELETE FROM shares WHERE id = 's1'", [])
+        .unwrap();
+    invite("plain", "invite", Some("f1"), None, None);
+    invite("used", "invite", Some("f1"), None, Some(at));
+    invite("reset", "reset", None, None, None);
+    let db = Db::from(conn).unwrap();
+    assert!(
+        db.pending("orphan", "invite").unwrap().is_none(),
+        "an orphaned share invitation is still pending after the upgrade"
+    );
+    assert!(
+        db.pending("plain", "invite").unwrap().is_none(),
+        "a folder invitation from before the upgrade is still pending"
+    );
+    assert!(!db.use_invitation("orphan", "a1").unwrap());
+    assert!(!db.use_invitation("plain", "a1").unwrap());
+    assert_eq!(
+        db.invitation("plain").unwrap().unwrap().state(now()),
+        "ended"
+    );
+    let used = db.invitation("used").unwrap().unwrap();
+    assert_eq!(
+        (used.used, used.ended),
+        (Some(at), None),
+        "a used invitation changed"
+    );
+    assert!(
+        db.pending("reset", "reset").unwrap().is_some(),
+        "a link naming no folder was ended"
+    );
+}

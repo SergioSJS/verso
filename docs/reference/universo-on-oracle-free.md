@@ -76,7 +76,7 @@ While Verso's repository is private, downloading a release needs a GitHub
 token; the script explains how to make one when it is missing:
 
 ```sh
-export GITHUB_TOKEN=github_pat_...
+read -rs GITHUB_TOKEN && export GITHUB_TOKEN   # paste the token, then Enter
 sh universo.sh install --url https://notes.example.com
 ```
 
@@ -102,16 +102,27 @@ passes everything on to UniVerso:
 
 ```sh
 sudo apt install caddy
-printf '%s\n' 'notes.example.com' 'reverse_proxy 127.0.0.1:7340' | sudo tee /etc/caddy/Caddyfile
+sudo mkdir -p /etc/caddy/Caddyfile.d
+printf '%s {\n\treverse_proxy 127.0.0.1:%s\n}\n' 'notes.example.com' '7340' | sudo tee /etc/caddy/Caddyfile.d/universo.caddyfile
+sudo grep -qs 'import  *Caddyfile.d/' /etc/caddy/Caddyfile || printf '\nimport Caddyfile.d/*.caddyfile\n' | sudo tee -a /etc/caddy/Caddyfile
 sudo systemctl reload caddy
 ```
 
-The Caddyfile is those two lines:
+UniVerso's site goes in a file of its own,
+`/etc/caddy/Caddyfile.d/universo.caddyfile`:
 
 ```
-notes.example.com
-reverse_proxy 127.0.0.1:7340
+notes.example.com {
+	reverse_proxy 127.0.0.1:7340
+}
 ```
+
+and the main `/etc/caddy/Caddyfile` only gains the line
+`import Caddyfile.d/*.caddyfile` at its end, when it lacks it — the
+directory Fedora's and EPEL's Caddy already import. A Caddyfile already
+there, with other sites, is left as it is; one that is a single site
+without braces needs `{ }` around its lines first. These are the lines
+`sh universo.sh install` prints.
 
 Then tell UniVerso that Caddy, on this machine, is the proxy to believe
 (section 8 of the guide): set `VERSO_TRUSTED_PROXY=127.0.0.1` in
@@ -149,7 +160,11 @@ scp 'ubuntu@<public IP>:universo-backup-*.tar.gz' .                             
 ```
 
 The archive holds the accounts, the notes and `universo.env`, which may
-hold a password: keep it somewhere safe.
+hold a password: keep it somewhere safe. Better, encrypt it before it
+leaves: `sudo apt install age`, then `sh universo.sh backup --keygen` once
+(keep the secret key it prints elsewhere) and `sh universo.sh backup
+--encrypt` — the file ends in `.tar.gz.age` and only that key opens it
+([the installation guide](server-install.md), section 2).
 
 ## 7. Honest limits
 

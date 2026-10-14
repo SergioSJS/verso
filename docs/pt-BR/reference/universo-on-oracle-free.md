@@ -77,7 +77,7 @@ Enquanto o repositório do Verso é privado, baixar uma release pede um
 token do GitHub; o script explica como criar quando ele falta:
 
 ```sh
-export GITHUB_TOKEN=github_pat_...
+read -rs GITHUB_TOKEN && export GITHUB_TOKEN   # cole o token, depois Enter
 LANG=pt_BR.UTF-8 sh universo.sh install --url https://notas.exemplo.com
 ```
 
@@ -103,16 +103,27 @@ seu nome e repassa tudo ao UniVerso:
 
 ```sh
 sudo apt install caddy
-printf '%s\n' 'notas.exemplo.com' 'reverse_proxy 127.0.0.1:7340' | sudo tee /etc/caddy/Caddyfile
+sudo mkdir -p /etc/caddy/Caddyfile.d
+printf '%s {\n\treverse_proxy 127.0.0.1:%s\n}\n' 'notas.exemplo.com' '7340' | sudo tee /etc/caddy/Caddyfile.d/universo.caddyfile
+sudo grep -qs 'import  *Caddyfile.d/' /etc/caddy/Caddyfile || printf '\nimport Caddyfile.d/*.caddyfile\n' | sudo tee -a /etc/caddy/Caddyfile
 sudo systemctl reload caddy
 ```
 
-O Caddyfile são estas duas linhas:
+O site do UniVerso vai num arquivo próprio,
+`/etc/caddy/Caddyfile.d/universo.caddyfile`:
 
 ```
-notas.exemplo.com
-reverse_proxy 127.0.0.1:7340
+notas.exemplo.com {
+	reverse_proxy 127.0.0.1:7340
+}
 ```
+
+e o `/etc/caddy/Caddyfile` principal só ganha a linha
+`import Caddyfile.d/*.caddyfile` no fim, quando não a tiver — o diretório
+que o Caddy do Fedora e do EPEL já importa. Um Caddyfile que já exista,
+com outros sites, fica como está; um que seja um site só, sem chaves,
+precisa de `{ }` em volta das linhas antes. São as linhas que o
+`sh universo.sh install` imprime.
 
 Depois diga ao UniVerso que o Caddy, nesta máquina, é o proxy em que
 acreditar (seção 8 do manual): defina `VERSO_TRUSTED_PROXY=127.0.0.1` no
@@ -151,7 +162,11 @@ scp 'ubuntu@<IP público>:universo-backup-*.tar.gz' .                           
 ```
 
 O arquivo guarda as contas, as notas e o `universo.env`, que pode ter uma
-senha: guarde em lugar seguro.
+senha: guarde em lugar seguro. Melhor, criptografe antes de ele sair:
+`sudo apt install age`, depois `sh universo.sh backup --keygen` uma vez
+(guarde em outro lugar a chave secreta que ele imprime) e `sh universo.sh
+backup --encrypt` — o arquivo termina em `.tar.gz.age` e só essa chave o
+abre ([o guia de instalação](server-install.md), seção 2).
 
 ## 7. Limites, honestamente
 

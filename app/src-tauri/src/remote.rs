@@ -78,6 +78,13 @@ struct Questions {
 /// An answer, and the piece of a file it carried in a binary message
 /// (sync 2, ADR 0079 item 12).
 type Answer = (Value, Option<Vec<u8>>);
+/// A question on the connection: its id, where its answer comes, when it
+/// was put.
+pub(crate) type Asked = (
+    u64,
+    oneshot::Receiver<Result<Answer, Value>>,
+    std::time::Instant,
+);
 
 type Pending = Arc<Mutex<Questions>>;
 
@@ -209,9 +216,22 @@ impl Remote {
     pub(crate) async fn call_with(
         &self,
         cmd: &str,
-        mut args: Value,
+        args: Value,
         piece: Option<Vec<u8>>,
     ) -> Result<Answer, Value> {
+        let asked = self.ask(cmd, args, piece)?;
+        self.answer(cmd, asked).await
+    }
+
+    /// The question put on the connection now, in the order of the calls
+    /// (the server takes a window's room updates in the order they reach
+    /// it, ADR 0083 item 14); its answer is waited for with [`Self::answer`].
+    pub(crate) fn ask(
+        &self,
+        cmd: &str,
+        mut args: Value,
+        piece: Option<Vec<u8>>,
+    ) -> Result<Asked, Value> {
         let id = self.next.fetch_add(1, Ordering::Relaxed);
         let (tx, rx) = oneshot::channel();
         {
@@ -266,7 +286,11 @@ impl Remote {
                 return Err(unavailable("the server's connection is closed"));
             }
         }
-        let sent = std::time::Instant::now();
+        Ok((id, rx, std::time::Instant::now()))
+    }
+
+    /// The answer to a question [`Self::ask`] put.
+    pub(crate) async fn answer(&self, cmd: &str, (id, rx, sent): Asked) -> Result<Answer, Value> {
         let answer = match tokio::time::timeout(ANSWER_WITHIN, rx).await {
             Ok(Ok(answer)) => answer,
             Ok(Err(_)) => Err(unavailable("the server's connection closed")),
@@ -384,18 +408,29 @@ pub(crate) fn answer(response: reqwest::blocking::Response) -> Result<Value, Con
     if status.is_success() {
         return Ok(body);
     }
+    Err(error_of(status.as_u16(), &body))
+}
+
+/// A server's refusal as the contract says it: by its status, and, for a
+/// sensitive action past the session's ten minutes (ADR 0083 item 6), by
+/// its code — the window asks for the password and sends it once more.
+pub(crate) fn error_of(status: u16, body: &Value) -> ContractError {
     let message = body["message"]
         .as_str()
         .unwrap_or("the server refused")
         .to_owned();
-    Err(match status.as_u16() {
+    match status {
+        403 if body["error"] == "prove_first" => ContractError {
+            kind: ErrorKind::ProveFirst,
+            message,
+        },
         401 | 403 => refused(message),
         404 | 410 => ContractError {
             kind: ErrorKind::NotFound,
             message,
         },
         _ => failed(message),
-    })
+    }
 }
 
 fn open_in_browser(page: &str) -> Result<(), ContractError> {
@@ -412,9 +447,35 @@ fn open_in_browser(page: &str) -> Result<(), ContractError> {
         .map_err(|e| failed(e.to_string()))
 }
 
-/// Sign in to a server through the browser: the server's page opens for the
-/// person to approve this device; the app asks meanwhile, keeps the token
-/// when it comes, and says so (`server-signed-in`).
+/// The server's page the last sign-in was handed, waiting for the window
+/// to open it (`server_sign_in_page`) once it has copied the code.
+static SIGN_IN_PAGE: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
+/// The page a sign-in waits on, taken: opened once, and only one a server
+/// named under its own address.
+fn sign_in_page() -> Result<String, ContractError> {
+    lock(&SIGN_IN_PAGE)
+        .take()
+        .ok_or_else(|| refused("no server's page waits to be opened"))
+}
+
+/// Open in the browser the server's page the last `server_sign_in` was
+/// handed, once (decided 2026-10-14, ADR 0083 As built): the window calls
+/// it after copying the code, before the browser takes the focus a
+/// clipboard write asks for. The window names no address: it can open
+/// nothing a server did not name.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn server_sign_in_page() -> Result<(), ContractError> {
+    open_in_browser(&sign_in_page()?)
+}
+
+/// Sign in to a server through the browser (`gh auth login`'s way): the
+/// server gives a code, which the window copies to the clipboard before it
+/// opens the server's page (`server_sign_in_page`), where the person
+/// pastes it to approve this device — the page takes no code from its
+/// link (decided 2026-10-14, ADR 0083 As built). The app asks meanwhile,
+/// keeps the token when it comes, and says so (`server-signed-in`).
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn server_sign_in<R: tauri::Runtime>(
@@ -444,7 +505,7 @@ pub(crate) async fn server_sign_in<R: tauri::Runtime>(
     if !page.starts_with(&url) {
         return Err(refused("the server named a page elsewhere"));
     }
-    open_in_browser(&page)?;
+    *lock(&SIGN_IN_PAGE) = Some(page.clone());
     let (poll_code, poll_url) = (code.clone(), url.clone());
     tauri::async_runtime::spawn(async move {
         for _ in 0..(600 / interval) {
@@ -1042,8 +1103,16 @@ pub(crate) fn forward<R: tauri::Runtime>(
         tauri::ipc::InvokeBody::Raw(_) => Value::Null,
     };
     let resolver = invoke.resolver;
+    // Put on the connection here, in the order the window asked: a task's
+    // first turn comes in any order, and the server takes a window's room
+    // updates in the order they reach it (ADR 0083 item 14).
+    let asked = remote.ask(&cmd, args, None);
     tauri::async_runtime::spawn(async move {
-        match remote.call(&cmd, args).await {
+        let answer = match asked {
+            Ok(asked) => remote.answer(&cmd, asked).await.map(|(v, _)| v),
+            Err(e) => Err(e),
+        };
+        match answer {
             Ok(v) => resolver.resolve(v),
             Err(e) => resolver.reject(e),
         }

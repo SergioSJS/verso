@@ -69,15 +69,20 @@ The repository is private while the app matures; it is in Phase 2 of
 
 ## Installing
 
-From the repository's Releases page. A test release is published as
-"Verso Beta" — its files start with `Verso-Beta-` — and installs beside the
-production app.
+From the repository's [Releases page](https://github.com/SergioSJS/verso/releases).
+Each release opens with *Which file do I download?* — the file for each
+computer, as a link — and *How to install*, in English and in Portuguese.
+A test release is published as "Verso Beta" — its files start with
+`Verso-Beta-` — and installs beside the production app.
 
-| System | Files | First run |
+| Your computer | File | First run |
 |---|---|---|
-| macOS, Apple silicon | `Verso-X.Y.Z-macos-arm64.zip`: unzip into `/Applications` | signed ad hoc, not by a registered developer: allow it once in System Settings → Privacy & Security → "Open Anyway" |
+| Mac with an Apple chip (M1, M2, M3, M4…); a Mac with an Intel processor is not supported | `Verso-X.Y.Z-macos-arm64.zip`: unzip into `/Applications` | signed ad hoc, not by a registered developer: allow it once in System Settings → Privacy & Security → "Open Anyway" |
 | Windows 10 and 11, x64 (run so far on Windows 11) | `Verso-X.Y.Z-windows-x64-setup.exe`, an installer for your user | unsigned: SmartScreen asks once (More info → Run anyway) |
-| Linux, x64 | `Verso-X.Y.Z-linux-x86_64.AppImage` for any distribution; `Verso-X.Y.Z-linux-amd64.deb` (Ubuntu 22.04, Debian 12 and later); `Verso-X.Y.Z-linux-x86_64.rpm` (Fedora 36 and later) | the AppImage: make it executable and run it. ARM64 comes once the repository is public |
+| Linux, x64 | `Verso-X.Y.Z-linux-amd64.deb` for Ubuntu (22.04 and later), Linux Mint, Debian (12 and later), Pop!_OS; `Verso-X.Y.Z-linux-x86_64.rpm` for Fedora (36 and later); `Verso-X.Y.Z-linux-x86_64.AppImage` for any other | the AppImage: make it executable and run it. ARM64 comes once the repository is public |
+
+The `.sig` beside each file is its signature, for the app's updater and
+UniVerso's installer: you can ignore it.
 
 The command line comes with the app. On macOS, Settings → Terminal and
 agents → Install links it as `/usr/local/bin/verso`; on Windows `verso.exe`
@@ -181,3 +186,7 @@ released yet sits under "Unreleased". `vX.Y.Z` is a production release,
   open questions.
 - [docs/reference/app-decision.md](docs/reference/app-decision.md) — what the
   window does, and how to verify it without reading code.
+- [docs/reference/server-hands-on.md](docs/reference/server-hands-on.md) —
+  installing UniVerso step by step, with Docker or a package, beside other
+  apps, up to the desktop app connected; the reference is
+  [docs/reference/server-install.md](docs/reference/server-install.md).

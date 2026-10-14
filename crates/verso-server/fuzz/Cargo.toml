@@ -1,0 +1,104 @@
+# Fuzz harness for the server's inputs (ADR 0083 item 14, finding F6 of
+# docs/reference/security-review-2026-10-13.md): what a WebSocket, a
+# header or the environment hands `verso serve`. Its own package, excluded
+# from the workspace as the dialect's is: a dev tool that never ships, and
+# `libfuzzer-sys` needs the nightly toolchain.
+#
+#   cd crates/verso-server && cargo +nightly fuzz run request
+#
+# libfuzzer-sys is MIT OR Apache-2.0, with LLVM's libFuzzer (NCSA) bundled;
+# it is linked into this harness only, never into a product crate, which is
+# why it is outside the cargo-deny graph of the workspace. The server's
+# `fuzzing` feature opens its `fuzz_api` module to this harness; nothing
+# that ships turns it on.
+
+[package]
+name = "verso-server-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+# A workspace of its own, so that cargo never looks above this manifest for
+# one (see crates/verso-dialect/fuzz/Cargo.toml).
+[workspace]
+
+[dependencies]
+libfuzzer-sys = "0.4"
+verso-server = { path = "..", features = ["fuzzing"] }
+verso-core = { path = "../../verso-core" }
+# The server's own versions: the Yjs CRDT its rooms keep, the JSON its
+# requests and presences are, the headers its routes read.
+yrs = "0.28"
+serde_json = "1"
+http = "1"
+
+# The WebSocket's request, text and binary (rpc.rs).
+[[bin]]
+name = "request"
+path = "fuzz_targets/request.rs"
+test = false
+doc = false
+bench = false
+
+# A binary message's frame (verso_core::sync::unframe).
+[[bin]]
+name = "unframe"
+path = "fuzz_targets/unframe.rs"
+test = false
+doc = false
+bench = false
+
+# A Yjs update into a note's room (collab.rs).
+[[bin]]
+name = "note"
+path = "fuzz_targets/note.rs"
+test = false
+doc = false
+bench = false
+
+# A Yjs update into a board's room, and the board's merge (collab_board.rs).
+[[bin]]
+name = "board"
+path = "fuzz_targets/board.rs"
+test = false
+doc = false
+bench = false
+
+# A presence through the awareness reader (presence.rs).
+[[bin]]
+name = "presence"
+path = "fuzz_targets/presence.rs"
+test = false
+doc = false
+bench = false
+
+# `host_ok`, `expected_origin`, `origin_ok`, `peer` on arbitrary headers (auth.rs).
+[[bin]]
+name = "host"
+path = "fuzz_targets/host.rs"
+test = false
+doc = false
+bench = false
+
+# `config::size`.
+[[bin]]
+name = "size"
+path = "fuzz_targets/size.rs"
+test = false
+doc = false
+bench = false
+
+# The seeds' writer (examples/seeds.rs), never a target.
+[[example]]
+name = "seeds"
+test = false
+doc = false
+bench = false
+
+# Same patch as the workspace Cargo.toml: this harness is its own package,
+# so the patch has to be repeated here. Remove together (ADR 0037).
+[patch.crates-io]
+pulldown-cmark = { git = "https://github.com/pulldown-cmark/pulldown-cmark", rev = "c51a2a4cd8ed07a4b1467cc546edcc51eff40703" }

@@ -10,6 +10,7 @@
 import { ApiError, api, setSignedIn, type Account } from "./api";
 import { act, block, button, choice, controls, el, input, said, snippet, toggle, type Entry, type Item } from "./form";
 import { addPasskey, passkeysHere } from "./passkeys";
+import { forgetSettings } from "./settingsSync";
 import { bytes, roleName, w, when } from "./strings";
 
 function explain(e: unknown): string {
@@ -86,19 +87,22 @@ function password(item: Item): HTMLElement {
   const line = said();
   const current = input("password", { autocomplete: "current-password" });
   const next = input("password", { autocomplete: "new-password", minlength: "12" });
+  // Checked by default: whoever took the old password may have made a
+  // token (ADR 0083 item 4). Its row's title names it (aria-labelledby).
+  const revoke = toggle(true);
   const go = button(s.changePassword, "save");
   act(
     go,
     line,
     async () => {
-      await api("POST", "/api/me/password", { current: current.value, new: next.value });
+      const done = await api<{ tokensRevoked: number; tokensKept: number }>("POST", "/api/me/password", { current: current.value, new: next.value, revokeTokens: revoke.input.checked });
       current.value = "";
       next.value = "";
-      line.textContent = s.saved;
+      line.textContent = revoke.input.checked ? s.tokensRevoked(done.tokensRevoked) : s.tokensKept(done.tokensKept);
     },
     explain,
   );
-  return el("div", { class: "web-block" }, item(s.passwordCurrent, "", current), item(s.passwordNew, s.passwordHint, next), item("", s.passwordChangeDesc, controls(go)), line);
+  return el("div", { class: "web-block" }, item(s.passwordCurrent, "", current), item(s.passwordNew, s.passwordHint, next), item(s.revokeTokens, s.revokeTokensDesc, revoke.el), item("", s.passwordChangeDesc, controls(go)), line);
 }
 
 function passkeys(item: Item): HTMLElement {
@@ -154,7 +158,11 @@ function sessions(item: Item): HTMLElement {
         const kind = session.kind === "device" ? s.device : s.browser;
         const title = `${session.device} · ${kind}${current ? ` · ${s.thisSession}` : ""}`;
         end.setAttribute("aria-label", `${s.end}: ${title}`);
-        return item(title, `${s.lastUsed}: ${when(session.last_used)} · ${session.address}`, current ? null : controls(end));
+        const row = item(title, `${s.lastUsed}: ${when(session.last_used)} · ${session.address}`, current ? null : controls(end));
+        // The device's name as its app gave it, isolated: a name in another
+        // direction does not carry into the words after it.
+        row.querySelector(".setting-title")?.replaceChildren(el("bdi", {}, session.device), title.slice(session.device.length));
+        return row;
       }),
     );
   };
@@ -331,6 +339,7 @@ function signOut(me: Account, item: Item): HTMLElement {
   const out = button(s.signOut);
   act(out, line, async () => {
     await api("POST", "/api/signout", {});
+    forgetSettings();
     location.href = "/signin";
   }, explain);
   return el("div", { class: "web-block" }, item(s.signOut, s.signOutDesc(me.email), controls(out)), line);

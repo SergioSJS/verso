@@ -30,8 +30,32 @@ services:
     # folders belong to another user names it here (its numbers, from
     # `id`); the two directories below must be writable by it.
     # user: "1000:1000"
+    # Hardening (ADR 0083 item 11): the image's own files read-only, /tmp
+    # in memory, no Linux capability, nothing gained through a setuid
+    # program. The server writes under /data and /folders only.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    # The log rotated by Docker: three files of 10 MB at most (ADR 0083, As built).
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # The port is published on this machine's loopback only: TLS goes in
+    # front (Caddy, a tunnel, or `tailscale serve`; docs/reference/
+    # server-install.md, section 8), and the proxy reaches it here. To
+    # publish it on the home network instead (a CasaOS box reached from the
+    # LAN, say), change one line: the address on `host_ip` below becomes
+    # 0.0.0.0. Plain HTTP on the LAN still signs nobody in from
+    # another machine: the server signs in over HTTPS only (ADR 0073 item 6).
     ports:
       - target: 7340
+        host_ip: 127.0.0.1
         published: "7340"
         protocol: tcp
     volumes:
@@ -54,9 +78,27 @@ services:
       # (ADR 0074 item 1). Left empty, the log prints a setup link instead.
       # The password: 12 characters at least.
       VERSO_ADMIN_EMAIL: ""
+      # The password is best given as a Docker secret, which `docker
+      # inspect` does not show: write it to a file beside this one,
+      # admin-password, readable by uid 1000 alone (sudo install -m 0400
+      # -o 1000 /dev/null admin-password, then edit it), uncomment the next
+      # line, this service's `secrets:` below and the `secrets:` block at
+      # the end, and leave VERSO_ADMIN_PASSWORD empty. Only one of the two.
+      # VERSO_ADMIN_PASSWORD_FILE: /run/secrets/universo-admin
+      # Or the password itself, readable with `docker inspect`: remove it
+      # once the admin exists.
       VERSO_ADMIN_PASSWORD: ""
       # The reverse proxy's IP address, when one terminates TLS in front.
+      # A proxy on the host (Caddy installed on the machine) reaching the
+      # published port is seen coming from this project's network gateway,
+      # not from 127.0.0.1: put that gateway here, as
+      #   docker network inspect universo_default --format '{{(index .IPAM.Config 0).Gateway}}'
+      # says (often 172.18.0.1; 172.17.0.1 on Docker's default network).
+      # With 127.0.0.1 every sign-in is refused as not HTTPS
+      # (docs/reference/server-install.md, section 3).
       VERSO_TRUSTED_PROXY: ""
+    # secrets:
+    #   - universo-admin
     x-casaos:
       envs:
         - container: VERSO_PUBLIC_URL
@@ -78,8 +120,8 @@ services:
       ports:
         - container: "7340"
           description:
-            en_US: Web UI (HTTP; put TLS in front)
-            pt_BR: Interface web (HTTP; coloque TLS na frente)
+            en_US: Web UI (HTTP, on this machine only by default; put TLS in front)
+            pt_BR: Interface web (HTTP, por padrão só nesta máquina; coloque TLS na frente)
       volumes:
         - container: /data
           description:
@@ -89,6 +131,12 @@ services:
           description:
             en_US: The folders of notes. May be a NAS. Back it up.
             pt_BR: As pastas de notas. Pode ser um NAS. Faça backup.
+
+# The first admin's password as a Docker secret (above): uncomment with the
+# two lines of the service.
+# secrets:
+#   universo-admin:
+#     file: ./admin-password
 
 x-casaos:
   id: com.versomd.universo
@@ -105,7 +153,7 @@ x-casaos:
   category: Productivity
   author: Verso
   developer: Sérgio J. Sousa
-  version: "0.8.0-beta.1"
+  version: "0.8.1-beta.1"
   # A placeholder: the repository is private, so this address answers
   # nothing until it is public; the store submission (ADR 0075,
   # Consequences) brings an icon.svg of its own.
@@ -114,8 +162,8 @@ x-casaos:
     en_US: UniVerso
     pt_BR: UniVerso
   tagline:
-    en_US: The Verso server: Markdown notes, Obsidian-compatible, on your own server
-    pt_BR: O servidor do Verso: notas em Markdown, compatíveis com o Obsidian, no seu próprio servidor
+    en_US: "The Verso server: Markdown notes, Obsidian-compatible, on your own server"
+    pt_BR: "O servidor do Verso: notas em Markdown, compatíveis com o Obsidian, no seu próprio servidor"
   description:
     en_US: |
       Verso is a Markdown notes app compatible with Obsidian's folders. This is
@@ -136,13 +184,13 @@ x-casaos:
     before_install:
       en_US: |
         Fill VERSO_PUBLIC_URL with the https address people will use; the server does not start without it.
-        VERSO_ADMIN_EMAIL and VERSO_ADMIN_PASSWORD are read on the first start only; left empty, the container's log prints a one-hour setup link.
+        VERSO_ADMIN_EMAIL and VERSO_ADMIN_PASSWORD are read on the first start only: remove the password once the admin exists. Left empty, the container's log prints a one-hour setup link, which stays in that log: use it at once.
         A lost admin password: run `universo admin reset <e-mail>` in the container's terminal.
         Both directories must be writable by uid 1000.
         Back up both directories: the database in /data is not a cache, and the notes are in /folders. Keep /data on a local disk, never on a network share.
       pt_BR: |
         Preencha VERSO_PUBLIC_URL com o endereço https que as pessoas vão usar; o servidor não inicia sem ele.
-        VERSO_ADMIN_EMAIL e VERSO_ADMIN_PASSWORD são lidos só na primeira inicialização; vazios, o log do contêiner mostra um link de configuração válido por uma hora.
+        VERSO_ADMIN_EMAIL e VERSO_ADMIN_PASSWORD são lidos só na primeira inicialização: remova a senha quando o admin existir. Vazios, o log do contêiner mostra um link de configuração válido por uma hora, que fica nesse log: use-o logo.
         Senha do admin perdida: rode `universo admin reset <e-mail>` no terminal do contêiner.
         Os dois diretórios precisam permitir escrita ao uid 1000.
         Faça backup dos dois diretórios: o banco em /data não é cache, e as notas estão em /folders. Mantenha /data num disco local, nunca num compartilhamento de rede.

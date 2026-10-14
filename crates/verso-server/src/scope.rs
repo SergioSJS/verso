@@ -83,6 +83,19 @@ pub fn checked(rel: &str) -> Result<(), ContractError> {
     Ok(())
 }
 
+/// Whether a link's target, by its text alone, names a note or a board —
+/// what `links` resolves — rather than a file: its last part has no
+/// extension, or `.md`, `.canvas` or `.base`.
+fn names_a_note(target: &str) -> bool {
+    let last = target.rsplit('/').next().unwrap_or(target);
+    match last.rsplit_once('.') {
+        None => true,
+        Some((_, ext)) => ["md", "canvas", "base"]
+            .iter()
+            .any(|e| ext.eq_ignore_ascii_case(e)),
+    }
+}
+
 /// What a command may do at a path.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Use {
@@ -382,21 +395,31 @@ impl Scope {
                     });
                 }
             }
+            // A link that resolves outside the share and one that resolves
+            // nowhere cross alike: told apart, they would say whether a
+            // note of that name exists outside (ADR 0081 item 11). Both
+            // are "not in what was shared with you" when the target names
+            // a note, by its text alone; a file's target (`p.png`) is
+            // never resolved here, and `resolve_attachment` answers alike
+            // for outside and nowhere, so it stays as it was — a file
+            // inside the share still opens.
             "links" => {
                 if let Some(list) = v.as_array_mut() {
                     for l in list {
-                        if l["resolved"].is_string() && !self.field(l, "resolved") {
+                        if !(l["resolved"].is_string() && self.field(l, "resolved")) {
                             l["resolved"] = Value::Null;
-                            l["outside"] = json!(true);
+                            l["outside"] = json!(names_a_note(l["target"].as_str().unwrap_or("")));
                         }
                     }
                 }
             }
             "read_note" | "create_note" | "read_text" | "write_text" | "write_board" => {
                 self.field(&mut v, "path");
+                self.note_type(&mut v);
             }
             "write_note" => {
                 self.field(&mut v["note"], "path");
+                self.note_type(&mut v["note"]);
                 self.warnings(&mut v["warnings"]);
             }
             "resolve_attachment" | "create_file" | "create_folder" => {
@@ -419,6 +442,56 @@ impl Scope {
             "query_base" => self.base(&mut v),
             _ => {}
         }
+        v
+    }
+
+    /// A note's type, resolved over the share's schemas only
+    /// ([`Scope::typed_within`]): this is the second fence — the schemas
+    /// it names re-rooted at the share, and no type at all when one of
+    /// them is outside it (ADR 0081 item 11).
+    fn note_type(&self, note: &mut Value) {
+        let Some(t) = note.get_mut("note_type").filter(|t| !t.is_null()) else {
+            return;
+        };
+        let state = &mut t["state"];
+        let inside = match state.get_mut("schemas").and_then(Value::as_array_mut) {
+            Some(list) => list.iter_mut().all(|p| match self.rel_value(p) {
+                Some(rel) => {
+                    *p = rel;
+                    true
+                }
+                None => false,
+            }),
+            None => self.field(state, "schema"),
+        };
+        if !inside {
+            *t = Value::Null;
+        }
+    }
+
+    /// The answer of `cmd` (`read_note`, `create_note`, `write_note`) with
+    /// the note's type resolved again over the share's folders only (ADR
+    /// 0081 item 11): a schema the owner keeps outside the share types
+    /// nothing in it and is never named. In the owner's paths, before
+    /// [`Scope::answer_out`].
+    #[must_use]
+    pub fn typed_within(&self, ws: &verso_core::Workspace, cmd: &str, mut v: Value) -> Value {
+        let note = if cmd == "write_note" {
+            &mut v["note"]
+        } else {
+            &mut v
+        };
+        if note.get("note_type").is_none_or(Value::is_null) {
+            return v;
+        }
+        let text = note["text"].as_str().unwrap_or_default().to_owned();
+        note["note_type"] = ws
+            .note_type_within(&text, &self.roots())
+            .ok()
+            .flatten()
+            .map(verso_service::convert::note_type_out)
+            .and_then(|t| serde_json::to_value(t).ok())
+            .unwrap_or(Value::Null);
         v
     }
 
@@ -714,6 +787,35 @@ mod tests {
         assert!(s.args_in("anything_new", json!({})).is_err());
     }
 
+    /// The second fence of a note's type: a schema outside the share
+    /// takes the type with it; one inside is re-rooted.
+    #[test]
+    fn a_notes_type_names_no_schema_outside_the_share() {
+        let s = scope();
+        let typed = |schema: &str| {
+            json!({ "path": "Mesa/Campanha/x.md", "note_type": { "written": "pessoa",
+                "state": { "kind": "typed", "schema": schema, "name": "pessoa" } } })
+        };
+        let outside = s.answer_out("read_note", typed("Schemas/pessoa.md"), 0);
+        assert_eq!(outside["note_type"], Value::Null, "{outside}");
+        let inside = s.answer_out("read_note", typed("Mesa/Campanha/T/pessoa.md"), 0);
+        assert_eq!(inside["note_type"]["state"]["schema"], "T/pessoa.md");
+        let conflict = s.answer_out(
+            "write_note",
+            json!({ "note": { "path": "Mesa/Campanha/x.md", "note_type": { "written": "p",
+                "state": { "kind": "conflict", "schemas": ["Mesa/Campanha/a.md", "Mesa/b.md"] } } },
+                "warnings": [] }),
+            0,
+        );
+        assert_eq!(conflict["note"]["note_type"], Value::Null, "{conflict}");
+        let plain = s.answer_out(
+            "create_note",
+            json!({ "path": "Mesa/Campanha/x.md", "note_type": null }),
+            0,
+        );
+        assert_eq!(plain["note_type"], Value::Null);
+    }
+
     #[test]
     fn an_answer_says_nothing_outside_the_share() {
         let s = scope();
@@ -740,7 +842,18 @@ mod tests {
         assert_eq!(links[0]["resolved"], "a.md");
         assert_eq!(links[1]["resolved"], Value::Null);
         assert_eq!(links[1]["outside"], true);
-        assert!(links[2].get("outside").is_none());
+        // Resolved nowhere: the same as outside.
+        assert_eq!(links[2]["resolved"], Value::Null);
+        assert_eq!(links[2]["outside"], true);
+        // A file's target is left to `resolve_attachment`, whatever is
+        // behind it.
+        let files = s.answer_out(
+            "links",
+            json!([{ "target": "p.png", "resolved": null }, { "target": "B.Canvas", "resolved": null }]),
+            0,
+        );
+        assert_eq!(files[0]["outside"], false, "{files}");
+        assert_eq!(files[1]["outside"], true, "{files}");
         let graph = s.answer_out(
             "graph",
             json!([

@@ -1025,3 +1025,247 @@ fn changes_outside_the_share_do_not_move_the_receivers_head() {
         assert!(theirs["ok"]["head"].as_i64().unwrap() > folder_head + 3);
     });
 }
+
+/// An invitation to a share, accepted after the share is gone — its last
+/// person revoked, or its folder deleted: nothing of the folder is given
+/// in its place (ADR 0081 items 4 and 8), and the link answers as one
+/// that expired.
+#[test]
+fn an_invitation_to_a_share_that_is_gone_gives_nothing() {
+    block_on(async {
+        for how in ["revoked", "deleted"] {
+            let r = start().await;
+            let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+            let (id, mut owner) = furnished(&r, &admin).await;
+            let (_, ana_id) = ana(&r).await;
+            let (_, shared) = put(
+                &r,
+                &format!("/api/folders/{id}/shares"),
+                json!({ "path": "Mesa", "email": "ana@casa.lan", "role": "reader" }),
+                &admin,
+            )
+            .await;
+            let share = shared["id"].as_str().unwrap().to_owned();
+            let (status, inv) = post(
+                &r,
+                "/api/admin/invitations",
+                json!({ "email": "novo@casa.lan", "share": share, "role": "editor" }),
+                Some(&admin),
+            )
+            .await;
+            assert_eq!(status, 200, "{inv}");
+            let token = inv["link"].as_str().unwrap().rsplit('/').next().unwrap();
+            if how == "revoked" {
+                let (status, _) = post(
+                    &r,
+                    &format!("/api/folders/{id}/shares/revoke"),
+                    json!({ "path": "Mesa", "account": ana_id }),
+                    Some(&admin),
+                )
+                .await;
+                assert_eq!(status, 200);
+            } else {
+                let gone = owner.call("delete_entry", json!({ "path": "Mesa" })).await;
+                assert!(gone.get("ok").is_some(), "{gone}");
+            }
+            assert!(r.server.db.share(&share).unwrap().is_none(), "{how}");
+            let (status, said) = post(
+                &r,
+                &format!("/api/invite/{token}"),
+                json!({ "email": "x@y.z", "name": "Novo", "password": "outra senha longa", "lang": "pt" }),
+                None,
+            )
+            .await;
+            // Whatever the answer, nothing of the folder was given…
+            let members = r.server.db.members(&id).unwrap();
+            assert!(
+                !members.iter().any(|(a, _)| a.email == "novo@casa.lan"),
+                "{how}: the invitation to a share gave the whole folder: {:?}",
+                members
+                    .iter()
+                    .map(|(a, role)| (a.email.clone(), *role))
+                    .collect::<Vec<_>>()
+            );
+            if status == 200 {
+                let novo = sign_in(&r, "novo@casa.lan", "outra senha longa").await;
+                let (_, me) = get(&r, "/api/me", Some(&novo)).await;
+                assert_eq!(me["folders"], json!([]), "{how}: {me}");
+            }
+            // …and the link is gone, as an expired one is.
+            assert_eq!(status, 404, "{how}: {said}");
+            assert_eq!(said["error"], "link_gone", "{how}: {said}");
+            let (status, _) = get(&r, &format!("/api/invite/{token}"), None).await;
+            assert_eq!(status, 404, "{how}");
+            let (_, list) = get(&r, "/api/admin/invitations", Some(&admin)).await;
+            assert_eq!(list["rows"][0]["state"], "ended", "{how}: {list}");
+        }
+    });
+}
+
+/// A note's type through a share is resolved over the share's schemas
+/// only (ADR 0081 item 11, ADR 0052): a schema the owner keeps outside
+/// types nothing there and is never named — not its path, not that it
+/// exists — and one inside is named as the receiver knows it.
+#[test]
+fn a_notes_type_through_a_share_names_no_schema_outside_it() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let (id, mut owner) = furnished(&r, &admin).await;
+        let schema = |name: &str| {
+            format!(
+                "```verso-schema\ntype: {name}\nproperties:\n  - key: idade\n    kind: number\n```\n"
+            )
+        };
+        for (name, text) in [
+            ("Schemas/pessoa", schema("pessoa")),
+            ("Schemas/lugar", schema("lugar")),
+            ("Mesa/Tipos/lugar", schema("lugar")),
+            (
+                "Mesa/x",
+                "---\ntype: pessoa\nidade: 3\n---\n# X\n".to_owned(),
+            ),
+            ("Mesa/y", "---\ntype: lugar\n---\n# Y\n".to_owned()),
+        ] {
+            let made = owner
+                .call("create_note", json!({ "name": name, "text": text }))
+                .await;
+            assert!(made.get("ok").is_some(), "{made}");
+        }
+        // The owner sees the schema outside, and the two of one name.
+        let theirs = owner
+            .call("read_note", json!({ "path": "Mesa/x.md" }))
+            .await;
+        assert_eq!(
+            theirs["ok"]["note_type"]["state"]["schema"], "Schemas/pessoa.md",
+            "{theirs}"
+        );
+        let (ana, _) = ana(&r).await;
+        let (_, shared) = put(
+            &r,
+            &format!("/api/folders/{id}/shares"),
+            json!({ "path": "Mesa", "email": "ana@casa.lan", "role": "editor" }),
+            &admin,
+        )
+        .await;
+        let share = shared["id"].as_str().unwrap().to_owned();
+        let (mut w, _) = Win::open(&r, &ana, &share).await;
+        let x = w.call("read_note", json!({ "path": "x.md" })).await;
+        let mut all = Vec::new();
+        every_string(&x, &mut all);
+        for s in &all {
+            assert!(
+                !s.contains("Schemas"),
+                "a schema outside the share crossed: {x}"
+            );
+        }
+        says_nothing_outside(&x);
+        assert_eq!(x["ok"]["note_type"], Value::Null, "{x}");
+        // A schema inside types the note, named as the receiver knows it,
+        // and the one of the same name outside makes no conflict.
+        let y = w.call("read_note", json!({ "path": "y.md" })).await;
+        assert_eq!(y["ok"]["note_type"]["state"]["kind"], "typed", "{y}");
+        assert_eq!(
+            y["ok"]["note_type"]["state"]["schema"], "Tipos/lugar.md",
+            "{y}"
+        );
+        says_nothing_outside(&y);
+        // Writing and creating answer the same.
+        let revision = x["ok"]["revision"].as_str().unwrap();
+        let written = w
+            .call(
+                "write_note",
+                json!({ "path": "x.md", "text": "---\ntype: pessoa\n---\n# X2\n", "revision": revision }),
+            )
+            .await;
+        assert!(written.get("ok").is_some(), "{written}");
+        assert_eq!(written["ok"]["note"]["note_type"], Value::Null, "{written}");
+        says_nothing_outside(&written);
+        let made = w
+            .call(
+                "create_note",
+                json!({ "name": "z", "text": "---\ntype: pessoa\n---\n" }),
+            )
+            .await;
+        assert!(made.get("ok").is_some(), "{made}");
+        assert_eq!(made["ok"]["note_type"], Value::Null, "{made}");
+        says_nothing_outside(&made);
+    });
+}
+
+/// A link through a share to a note outside it and a link to no note at
+/// all cross alike (ADR 0081 item 11): a receiver who writes links learns
+/// nothing of whether a note of that name exists outside.
+#[test]
+fn a_link_outside_the_share_and_an_unresolved_one_cross_alike() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let (id, mut owner) = furnished(&r, &admin).await;
+        for (name, text) in [
+            ("Existe", "fora\n"),
+            (
+                "Mesa/L",
+                "[[Existe]]\n[[NaoExiste]]\n![[Existe]]\n![[NaoExiste]]\n![[p.png]]\n![[nada.png]]\n",
+            ),
+        ] {
+            let made = owner
+                .call("create_note", json!({ "name": name, "text": text }))
+                .await;
+            assert!(made.get("ok").is_some(), "{made}");
+        }
+        let (ana, _) = ana(&r).await;
+        let (_, shared) = put(
+            &r,
+            &format!("/api/folders/{id}/shares"),
+            json!({ "path": "Mesa", "email": "ana@casa.lan", "role": "editor" }),
+            &admin,
+        )
+        .await;
+        let share = shared["id"].as_str().unwrap().to_owned();
+        let (mut w, _) = Win::open(&r, &ana, &share).await;
+        let links = w.call("links", json!({ "path": "L.md" })).await;
+        let list = links["ok"].as_array().unwrap();
+        assert_eq!(list.len(), 6, "{links}");
+        // Each entry without its target and its place in the note.
+        let bare = |l: &Value| {
+            let mut l = l.clone();
+            for k in ["target", "line", "col"] {
+                l.as_object_mut().unwrap().remove(k);
+            }
+            l
+        };
+        assert_eq!(list[0]["target"], "Existe");
+        assert_eq!(list[1]["target"], "NaoExiste");
+        assert_eq!(
+            bare(&list[0]),
+            bare(&list[1]),
+            "a link outside is told apart: {links}"
+        );
+        assert_eq!(
+            bare(&list[2]),
+            bare(&list[3]),
+            "an embed outside is told apart: {links}"
+        );
+        assert_eq!(list[0]["resolved"], Value::Null);
+        assert_eq!(list[0]["outside"], true, "{links}");
+        // A file outside and no file: alike too, and left to
+        // `resolve_attachment`, which answers both with nothing.
+        assert_eq!(
+            bare(&list[4]),
+            bare(&list[5]),
+            "a file outside is told apart: {links}"
+        );
+        assert_eq!(list[4]["outside"], false, "{links}");
+        for target in ["p.png", "nada.png"] {
+            let a = w
+                .call(
+                    "resolve_attachment",
+                    json!({ "source": "L.md", "target": target }),
+                )
+                .await;
+            assert_eq!(a["ok"], Value::Null, "{target}: {a}");
+        }
+        says_nothing_outside(&links);
+    });
+}

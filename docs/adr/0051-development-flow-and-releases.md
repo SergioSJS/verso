@@ -17,7 +17,32 @@
   took a feature pull request, a release pull request and a tag, the
   maintainer: "esse processo de gerar versao ta ruim de mais", then "ta, melhore o fluxo de deploy entao, ai testamos na próxma versao". The version now travels in the
   pull request that releases, and its merge into `main` builds, publishes
-  and tags.
+  and tags. 2026-10-13 — Decision 4: how the numbers move. The
+  maintainer, on 2026-10-13: *"0.9 só quando estiver quase tudo pronto"*
+  (0.9 only when almost everything is ready). From 0.8.0-beta.1 on only
+  the last number moves — 0.8.1, 0.8.2, … — each still a `-beta.N` test
+  release until the line is stable; the next release is 0.8.1-beta.1.
+  2026-10-14 — Decision 6: the release page. Of the page of
+  0.8.0-beta.1 — 28 files under the raw changelog, nothing saying which one
+  to download — the maintainer, on 2026-10-14: *"do jeito que tá, tá muito
+  ruim … alguma instrução pra falar qual versão que a pessoa tem que
+  baixar"* (as it is, it is very bad … some instruction saying which
+  version a person has to download). The notes `release.mjs notes` builds
+  are now a page for someone who is not technical: what Verso is and, for a
+  test release, that it is one; *Which file do I download?*, a table per
+  audience — a Mac with an Apple chip (and how to tell), Windows, Linux by
+  distribution, the command line (almost nobody), UniVerso by processor —
+  each file named as a link at the version's tag; how to install on each
+  system, the first-open warning included; that the `.sig` files can be
+  ignored; what is new, each item's lead, at most twelve; and the full
+  changelog folded. English first, pt-BR right after
+  ([0008](0008-documentation-language.md)). The files come from one list,
+  in `scripts/release-page.mjs`, which a test checks against the names, the
+  uploads and the count of `.github/workflows/release.yml`;
+  `release.mjs preview` shows the next version's page before it is cut.
+  Each language's *what's new* is marked in the page, and the app's update
+  panel shows only that part, in the window's language, as plain lines
+  (`app/ui/src/updateNews.ts`).
 
 ## Context
 
@@ -59,7 +84,11 @@ modificações até gerar versão, considerando changelog inclusive"*.
    ruleset refuses deleting or moving a `v*` tag, with no one exempt —
    asked after the reading of the pull request that brought this ADR found
    it recorded without the maintainer's word, the maintainer answered
-   *"Manter"* (2026-09-24).
+   *"Manter"* (2026-09-24). *(2026-10-13: version 0.9 is reserved for
+   when almost everything is ready — the maintainer: "0.9 só quando
+   estiver quase tudo pronto" — so from 0.8.0-beta.1 on only the last
+   number moves, 0.8.1, 0.8.2, …, each still a `-beta.N` test release
+   until the line is stable; the next release is 0.8.1-beta.1.)*
 5. **A version is cut only when the maintainer asks** — by the maintainer, or
    by an agent on the maintainer's request — with `scripts/release.mjs
    prepare X.Y.Z[-beta.N]`, **on the branch of the pull request that

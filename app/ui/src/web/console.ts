@@ -24,6 +24,24 @@ type AuditRow = { at: number; who: string | null; action: string; subject: strin
 /** A change of a folder's files, with who made it: the account and, for a
  *  device's sync, the device (ADR 0079 item 4). */
 type Change = { seq: number; at: number; path: string; deleted: boolean; renamedFrom: string | null; who: string | null; device: string | null };
+
+type SessionRow = { id: string; kind: string; device: string; last_used: number; address: string };
+
+/** A session of an account, as its page lists it. Exported for its test. */
+export function sessionLine(x: SessionRow): HTMLElement {
+  const s = cw();
+  // The device's name as its app gave it, isolated: a name in another
+  // direction does not carry into the words after it.
+  return el("li", {}, el("bdi", {}, x.device), ` · ${x.kind === "device" ? s.device : s.browser} · ${s.lastSeen} ${when(x.last_used)} · ${x.address}`);
+}
+
+/** A change of a folder, as its page lists it. Exported for its test. */
+export function changeLine(ch: Change): HTMLElement {
+  const s = cw();
+  const what = ` — ${s.changeWhat(ch.deleted, ch.renamedFrom, ch.path)}`;
+  const who = `${when(ch.at)} · ${ch.who ?? s.onServerDisk}`;
+  return ch.device ? el("li", {}, `${who} (`, el("bdi", {}, ch.device), `)${what}`) : el("li", {}, `${who}${what}`);
+}
 type Space = { total: number; notes: number; attachments: number; files: number; index: number } | null;
 
 const SECTIONS = [
@@ -83,7 +101,7 @@ function usage(space: number, quota: number | null): HTMLElement {
 async function overview(c: Ctx, body: HTMLElement): Promise<void> {
   const s = cw();
   c.title(s.overview);
-  type Info = { version: string; newer: string | null; updateCheck: boolean; dataDir: string; foldersDir: string; dataOnNetwork: string | null; foldersOnNetwork: string | null; mail: boolean; tls: string; accounts: number; folders: number; space: number; trash?: { count: number; size: number }; nearQuota: { id: string; name: string; space: number; quota: number }[]; twins: { id: string; name: string; count: number }[]; defaultQuota: number | null };
+  type Info = { version: string; newer: string | null; updateCheck: boolean; dataDir: string; foldersDir: string; dataOnNetwork: string | null; foldersOnNetwork: string | null; mail: boolean; tls: string; accounts: number; folders: number; space: number; trash?: { count: number; size: number }; nearQuota: { id: string; name: string; space: number; quota: number }[]; twins: { id: string; name: string; count: number }[]; underAttack?: number; defaultQuota: number | null; auditDays?: number };
   const o = await api<Info>("GET", "/api/admin/overview");
   const card = (title: string, ...content: (Node | string)[]) => el("section", { class: "console-card" }, el("h2", {}, title), ...content);
   const attention: Node[] = [];
@@ -100,6 +118,16 @@ async function overview(c: Ctx, body: HTMLElement): Promise<void> {
   for (const f of o.nearQuota) attention.push(toFolder(f.id, s.nearQuota(f.name, bytes(f.space), bytes(f.quota))));
   // A name in two files on the server's disk: one of them does not sync.
   for (const f of o.twins ?? []) attention.push(toFolder(f.id, s.twinsIn(f.name, f.count)));
+  // Accounts told of 20 refused sign-ins within an hour (ADR 0083 item 2):
+  // the audit log says which, and from where.
+  if (o.underAttack) {
+    const a = el("a", { href: "/admin/audit" }, s.underAttack(o.underAttack));
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      c.go("/admin/audit");
+    });
+    attention.push(el("li", { class: "web-warn", "data-under-attack": "" }, a));
+  }
   const tls = ({ own: s.tlsOwn, proxy: s.tlsProxy, loopback: s.tlsLoopback } as Record<string, string>)[o.tls] ?? s.tlsNone;
   body.replaceChildren(
     el(
@@ -114,6 +142,7 @@ async function overview(c: Ctx, body: HTMLElement): Promise<void> {
         el("p", {}, el("strong", {}, s.foldersDir), el("br"), el("code", {}, o.foldersDir), o.foldersOnNetwork ? el("span", {}, ` — ${s.onNetwork(o.foldersOnNetwork)}`) : ""),
       ),
       card(s.mail, el("p", {}, o.mail ? s.mailOn : s.mailOff)),
+      card(s.audit, el("p", { "data-audit-days": "" }, s.auditKept(o.auditDays ?? 365))),
       card(s.tls, el("p", {}, tls)),
     ),
   );
@@ -235,7 +264,7 @@ async function accountPage(c: Ctx, body: HTMLElement, id: string, note = ""): Pr
     el("h2", { class: "settings-subheading" }, s.itsFolders),
     list(d.folders.map((f) => el("li", {}, el("a", { href: `/admin/folders/${f.id}` }, f.name), ` · ${roleName(f.role)} · ${bytes(f.space?.total ?? 0)}`))),
     el("h2", { class: "settings-subheading" }, s.sessions),
-    list(d.sessions.map((x) => el("li", {}, `${x.device} · ${x.kind === "device" ? s.device : s.browser} · ${s.lastSeen} ${when(x.last_used)} · ${x.address}`))),
+    list(d.sessions.map(sessionLine)),
     el("h2", { class: "settings-subheading" }, s.tokens),
     list(d.tokens.map((x) => el("li", {}, `${x.name} · ${x.write ? s.write : s.read} · ${x.folders.length} ${s.folders.toLowerCase()} · ${x.expires ? `${s.expires} ${when(x.expires)}` : s.never}`))),
   );
@@ -408,7 +437,7 @@ async function folderPage(c: Ctx, body: HTMLElement, id: string): Promise<void> 
       : el("p", { class: "settings-hint" }, s.none),
     el("h2", { class: "settings-subheading" }, s.latestChanges),
     f.changes?.length
-      ? el("ul", { class: "console-list", "data-changes": "" }, ...f.changes.map((ch) => el("li", {}, `${when(ch.at)} · ${ch.who ?? s.onServerDisk}${ch.device ? ` (${ch.device})` : ""} — ${s.changeWhat(ch.deleted, ch.renamedFrom, ch.path)}`)))
+      ? el("ul", { class: "console-list", "data-changes": "" }, ...f.changes.map(changeLine))
       : el("p", { class: "settings-hint" }, s.none),
     el("h2", { class: "settings-subheading" }, s.folderAudit),
     auditTable(c, { folder: f.id }).el,

@@ -1095,3 +1095,43 @@ fn a_contract_of_another_build_names_both_builds() {
         )
     );
 }
+
+/// A server's `prove_first` (ADR 0083 item 6) reaches the window as a kind
+/// of its own, for it to ask the person and send the command once more;
+/// every other refusal is said as before.
+#[test]
+fn a_servers_prove_first_is_its_own_kind() {
+    let prove = remote::error_of(
+        403,
+        &json!({ "error": "prove_first", "message": "prove it is you first" }),
+    );
+    assert_eq!(
+        prove.kind,
+        verso_contract::ErrorKind::ProveFirst,
+        "a fresh proof wanted is told apart from a refusal"
+    );
+    let other = remote::error_of(
+        403,
+        &json!({ "error": "forbidden", "message": "owners only" }),
+    );
+    assert_eq!(other.kind, verso_contract::ErrorKind::Refused);
+    assert_eq!(other.message, "owners only");
+    let wrong = remote::error_of(
+        403,
+        &json!({ "error": "signin_failed", "message": "wrong" }),
+    );
+    assert_eq!(wrong.kind, verso_contract::ErrorKind::Refused);
+    assert_eq!(
+        remote::error_of(410, &json!({})).kind,
+        verso_contract::ErrorKind::NotFound
+    );
+}
+
+/// The window opens the server's page only after it copied the code, and
+/// only the page a sign-in was handed (decided 2026-10-14, ADR 0083 As
+/// built): with none waiting, the command opens nothing.
+#[test]
+fn the_sign_in_page_opens_nothing_a_server_did_not_name() {
+    let none = remote::server_sign_in_page().unwrap_err();
+    assert_eq!(none.kind, verso_contract::ErrorKind::Refused, "{none:?}");
+}

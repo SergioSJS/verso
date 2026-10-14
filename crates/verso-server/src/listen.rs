@@ -34,7 +34,7 @@ pub const CONNECTIONS: usize = 512;
 /// The connections one address may hold at once (an IPv6 /64 as one):
 /// its WebSockets (`crate::fair::PER_ADDRESS`, 64) and a browser's few
 /// for each page, for a household behind one address. This machine and
-/// the trusted proxy are not counted: they speak for everyone.
+/// the trusted proxies are not counted: they speak for everyone.
 pub const PER_ADDRESS: u32 = 128;
 
 /// How long a request's headers may take to arrive, the wait for the next
@@ -46,13 +46,23 @@ pub const HEADERS_WITHIN: Duration = Duration::from_secs(30);
 #[cfg(test)]
 pub const HEADERS_WITHIN: Duration = Duration::from_secs(2);
 
+/// The most a request's head — its line and headers — may take (ADR 0083
+/// item 8, F12): hyper's read buffer, whose default is some 400 KiB, so
+/// that 512 connections held a fifth of a 1 GB host. 64 KiB is more than
+/// any browser sends; past it hyper answers 431 and closes. hyper checks
+/// its bound only while a head is incomplete, and a single read may fill
+/// the buffer's whole capacity (up to about twice the bound): a head
+/// that arrived in one read and is a little past 64 KiB is refused with
+/// 431 by the router instead (`crate::http`'s `guard`).
+pub const HEAD_MOST: usize = 64 * 1024;
+
 /// The connections held, on the server and by address.
 pub struct Slots {
     all: Arc<Semaphore>,
     most: usize,
     by_address: Mutex<HashMap<String, u32>>,
     per_address: u32,
-    trusted: Option<IpAddr>,
+    trusted: crate::proxy::Proxies,
     /// When a refusal was last said in the log.
     said: Mutex<Option<std::time::Instant>>,
 }
@@ -80,13 +90,13 @@ impl Drop for Slot {
 
 impl Slots {
     #[must_use]
-    pub fn new(trusted: Option<IpAddr>) -> Arc<Self> {
+    pub fn new(trusted: crate::proxy::Proxies) -> Arc<Self> {
         Self::bounded(trusted, CONNECTIONS, PER_ADDRESS)
     }
 
     /// With bounds of its own, for the tests.
     #[must_use]
-    pub fn bounded(trusted: Option<IpAddr>, most: usize, per_address: u32) -> Arc<Self> {
+    pub fn bounded(trusted: crate::proxy::Proxies, most: usize, per_address: u32) -> Arc<Self> {
         Arc::new(Self {
             all: Arc::new(Semaphore::new(most)),
             most,
@@ -104,7 +114,7 @@ impl Slots {
             self.refused(&format!("the server holds {} connections", self.most));
             return None;
         };
-        if ip.is_loopback() || Some(ip) == self.trusted {
+        if ip.is_loopback() || self.trusted.trusts(ip) {
             return Some(Slot {
                 _all: all,
                 address: None,
@@ -133,6 +143,51 @@ impl Slots {
             *said = Some(std::time::Instant::now());
             crate::log::warn(&format!("connections refused: {why}"));
         }
+    }
+}
+
+/// The requests in flight per client address, as the trusted proxies walk
+/// it (`crate::http`'s `guard`): a connection through a proxy counts only
+/// against the server's [`CONNECTIONS`], so the address the proxy
+/// forwarded is what bounds one client there.
+#[derive(Default)]
+pub struct Requests {
+    by_address: Arc<Mutex<HashMap<String, usize>>>,
+    /// Refusals said in the log once a minute.
+    pub said: crate::log::OnceAMinute,
+}
+
+/// A request's place among its address's, given back when it is answered.
+pub struct Request {
+    by_address: Arc<Mutex<HashMap<String, usize>>>,
+    key: String,
+}
+
+impl Drop for Request {
+    fn drop(&mut self) {
+        let mut by = lock(&self.by_address);
+        if let Some(n) = by.get_mut(&self.key) {
+            *n = n.saturating_sub(1);
+            if *n == 0 {
+                by.remove(&self.key);
+            }
+        }
+    }
+}
+
+impl Requests {
+    /// A place for one more request of `key`, or none past `most`.
+    pub fn take(&self, key: &str, most: usize) -> Option<Request> {
+        let mut by = lock(&self.by_address);
+        let n = by.entry(key.to_owned()).or_insert(0);
+        if *n >= most {
+            return None;
+        }
+        *n += 1;
+        Some(Request {
+            by_address: Arc::clone(&self.by_address),
+            key: key.to_owned(),
+        })
     }
 }
 
@@ -264,7 +319,8 @@ pub async fn serve<L: Incoming>(
             let mut builder = hyper::server::conn::http1::Builder::new();
             builder
                 .timer(TokioTimer::new())
-                .header_read_timeout(HEADERS_WITHIN);
+                .header_read_timeout(HEADERS_WITHIN)
+                .max_buf_size(HEAD_MOST);
             let conn = builder
                 .serve_connection(TokioIo::new(io), service)
                 .with_upgrades();
@@ -290,7 +346,7 @@ mod tests {
 
     #[test]
     fn places_are_counted_on_the_server_and_by_address() {
-        let slots = Slots::bounded(None, 3, 1);
+        let slots = Slots::bounded(crate::proxy::Proxies::default(), 3, 1);
         let a: IpAddr = "203.0.113.1".parse().unwrap();
         let b: IpAddr = "203.0.113.2".parse().unwrap();
         let one = slots.take(a).unwrap();
@@ -307,7 +363,11 @@ mod tests {
         drop(one);
         assert!(slots.take(a).is_some());
         drop((two, v6));
-        let trusted = Slots::bounded(Some(a), 4, 1);
+        let trusted = Slots::bounded(
+            crate::proxy::Proxies::parse("203.0.113.0/24").unwrap(),
+            4,
+            1,
+        );
         let held: Vec<_> = (0..4).filter_map(|_| trusted.take(a)).collect();
         assert_eq!(held.len(), 4, "the trusted proxy speaks for everyone");
     }

@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { type El } from "./model";
+import type { Layouts } from "./roomModel";
 import { type BoardStrings } from "./strings";
 
 /** One of the others on a board edited together, as Excalidraw draws a
@@ -39,6 +40,8 @@ export type BoardRoomLink = {
   push: () => void;
   /** Whether this window's version of an element is still on its way. */
   mine: (e: El) => boolean;
+  /** The texts this window laid out: the only ones it measures again. */
+  readonly layouts: Layouts;
   pointer: (x: number, y: number, tool: "pointer" | "laser", button: "up" | "down") => void;
   selected: (ids: readonly string[]) => void;
   /** The others on the board now. */

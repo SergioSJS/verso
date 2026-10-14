@@ -159,6 +159,27 @@ pub(crate) async fn share_attachments<R: tauri::Runtime>(
     Ok(share_of(&ask(login, "PUT", at, Some(body)).await?))
 }
 
+/// Prove to the server behind this window that it is the person (ADR 0083
+/// item 6): the device's session sends the account's password to
+/// `/api/me/prove`, which stamps that session's own mark — a browser's
+/// session is not touched. Asked when a sensitive action answered
+/// `prove_first`; the window sends the action once more after. The
+/// password is not kept. A passkey cannot be offered here: the window's
+/// origin is the app's own, never the server's, which a passkey is bound
+/// to.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn server_prove<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+    password: String,
+) -> Result<(), ContractError> {
+    let (login, _) = server_folder(&app, &window)?;
+    let body = json!({ "password": password });
+    ask(login, "POST", "/api/me/prove".to_owned(), Some(body)).await?;
+    Ok(())
+}
+
 /// The folders of this computer opened before, freshest first, for the
 /// folder switcher's "On this computer" (ADR 0081 item 5): names and keys,
 /// no path.
