@@ -131,9 +131,14 @@ function onMessage(data: string): void {
     setRole(m.role);
     return;
   }
+  // Said to the window as the desktop's host says it (`server-gone`, ADR
+  // 0084 item 10): the window's list keeps it across the page that
+  // follows — the event's listeners run before its promise settles.
   if (m.gone === "session") {
     notice(w().signedOut, "error");
-    location.href = `/signin?next=${encodeURIComponent(location.pathname + location.search)}`;
+    void emit("server-gone", { url: location.origin, what: "session", address: null, reason: null }).finally(() => {
+      location.href = `/signin?next=${encodeURIComponent(location.pathname + location.search)}`;
+    });
     return;
   }
   if (m.gone === "folder") {
@@ -142,7 +147,8 @@ function onMessage(data: string): void {
     remember(null);
     // No folder, no role in it.
     setRole(null);
-    location.reload();
+    const reason = typeof m.reason === "string" ? m.reason : null;
+    void emit("server-gone", { url: location.origin, what: "folder", address: null, reason }).finally(() => location.reload());
   }
 }
 
@@ -176,13 +182,13 @@ function connect(): void {
           // Dropped again meanwhile: what waits goes with the next one.
           if (socket !== ws || !open) return Promise.reject(new Error("dropped"));
           for (const text of waiting.splice(0)) ws.send(text);
-          // The notes being edited together join their rooms again and
-          // send what was typed meanwhile (collab.ts).
-          dispatchEvent(new Event("verso:reconnected"));
           return request("reindex", {});
         })
         .then((index) => emit("folder-changed", { key, changed: [], removed: [], listing: true, index }))
-        .then(() => notice(w().reconnected))
+        // Back, as the desktop's host says it: the window says so once and
+        // its live notes join their rooms again and send what was typed
+        // meanwhile (dialogs/servers.ts, collab.ts).
+        .then(() => emit("server-back", { url: location.origin }))
         .catch(() => undefined);
       return;
     }
@@ -199,7 +205,9 @@ function connect(): void {
       p.reject({ kind: "unavailable", message: w().offline } satisfies ContractError);
     }
     retry++;
-    if (retry === 1) notice(w().offline, "error");
+    // Dropped: said to the window as the desktop's host says it (ADR 0084
+    // items 7 and 10), once per drop.
+    if (retry === 1) void emit("server-gone", { url: location.origin, what: "connection", address: null, reason: null });
     setTimeout(connect, Math.min(30_000, 1000 * 2 ** Math.min(retry, 5)));
   });
 }
@@ -329,6 +337,30 @@ async function openFolder(id: string): Promise<unknown> {
   return info;
 }
 
+/** What Tauri's notification plugin asks of the desktop's host, answered
+ *  by the browser's Notification API (ADR 0084 item 9): the window asks
+ *  the same calls on either side (ADR 0026 rule 2). */
+async function notificationCall(cmd: string, a: Record<string, unknown>): Promise<unknown> {
+  const api = typeof window.Notification === "undefined" ? null : window.Notification;
+  switch (cmd) {
+    case "plugin:notification|is_permission_granted":
+      // None while the browser has not asked: as the host's "prompt".
+      return !api || api.permission === "denied" ? false : api.permission === "granted" ? true : null;
+    case "plugin:notification|request_permission": {
+      if (!api) return "denied";
+      const answer = await api.requestPermission();
+      return answer === "default" ? "prompt" : answer;
+    }
+    case "plugin:notification|notify": {
+      const o = (a.options ?? {}) as { title?: string; body?: string };
+      if (api && api.permission === "granted") new api(String(o.title ?? ""), { body: o.body });
+      return null;
+    }
+    default:
+      return null;
+  }
+}
+
 /** Install the bridge: the window's label (`main`, or `note-…` for a note
  *  opened in a tab of its own, `window-…` for a new window that starts on
  *  the start page), and how the person chooses a folder. */
@@ -339,6 +371,9 @@ export function startBridge(choose: () => Promise<string | null>): void {
   mockIPC(
     async (cmd, args) => {
       const a = (args ?? {}) as Record<string, unknown>;
+      // The system's notifications (ADR 0084 item 9): what Tauri's plugin
+      // asks of the desktop's host, the browser's API answers.
+      if (cmd.startsWith("plugin:notification|")) return notificationCall(cmd, a);
       // The window's own Tauri calls (its title, its close handler) mean
       // nothing in a tab.
       if (cmd.startsWith("plugin:")) return null;

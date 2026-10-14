@@ -20,6 +20,7 @@ import { layout } from "../layout/spaces";
 import { opening } from "../opening";
 import type { LiveHolder } from "../roomWrites";
 import { ui } from "../dom";
+import { presenceHeard } from "../notify/sources";
 import { bar, say } from "./note/live";
 import type { TextLeaf } from "./textfile";
 
@@ -107,7 +108,11 @@ export function paintLive(this: TextLeaf): void {
 export function presenceChanged(this: TextLeaf): void {
   const s: RoomSession | null = this.liveSession();
   const now = s?.others() ?? [];
-  if (s) for (const line of presenceSaid(this.liveOthers, now, lang(), this.liveWhat())) say(line);
+  if (s) {
+    for (const line of presenceSaid(this.liveOthers, now, lang(), this.liveWhat())) say(line);
+    // Someone joining is a notification too (ADR 0084 item 7).
+    presenceHeard(this.path, this.liveOthers, now);
+  }
   this.liveOthers = now;
   this.paintLive();
 }

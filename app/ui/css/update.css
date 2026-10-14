@@ -207,10 +207,6 @@
   background: var(--paper-3);
   color: var(--ink);
 }
-.verso-toast {
-  z-index: 2000;
-  pointer-events: none;
-}
 /* What an apply could not write, by name, until closed or tried again:
    the update banner's voice, at the foot, above the status line; it wraps
    instead of cutting the names short. */

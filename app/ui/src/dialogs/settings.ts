@@ -31,6 +31,9 @@ import { listAll } from "../tree/tree";
 import { updateNews } from "../updateNews";
 import { asDialog, closed, isTop, opened } from "./a11y";
 import { accountEntries } from "../web/account";
+import { KINDS, type Mode, MODES, modeOf } from "../notify/core";
+import { notifyStrings } from "../notify/strings";
+import { systemControl } from "../notify/system";
 import { signedIn } from "../web/api";
 
 /** A settings page is a list of items: a title, a line about it, a control. */
@@ -114,6 +117,8 @@ export class SettingsDialog {
   private sections(): { id: string; label: string; icon: string }[] {
     return [
       { id: "general", label: t.sGeneral, icon: "gear" },
+      // The notifications, kind by kind (ADR 0084 item 8).
+      { id: "notify", label: notifyStrings().section, icon: "bell" },
       { id: "appearance", label: t.sAppearance, icon: "palette" },
       { id: "editor", label: t.sEditor, icon: "edit" },
       { id: "organizing", label: t.sOrganizing, icon: "folder" },
@@ -358,6 +363,19 @@ export class SettingsDialog {
       for (const o of Array.from(sel.options)) if (o.value !== "auto") o.lang = o.value;
       return sel;
     });
+    // Each kind of notification: a toast and the list, the list only, or
+    // nothing (ADR 0084 item 8) — the person's layer, with the account on
+    // a server; then the system's notifications, this machine's (item 9).
+    const ns = notifyStrings();
+    for (const k of KINDS) {
+      add("notify", ns.kinds[k], ns.kindsDesc[k], () =>
+        this.select(MODES.map((m) => [m, ns.modes[m]] as [Mode, string]), modeOf(settings.notify, k), (v) => {
+          settings.notify = { ...settings.notify, [k]: v };
+          saveSettings();
+        }),
+      );
+    }
+    add("notify", ns.system, ns.systemDesc, () => systemControl());
     add("general", t.remoteContent, t.remoteContentDesc, () => this.toggle(settings.remoteContent, (v) => { settings.remoteContent = v; saveSettings(); remoteContentChanged(); }));
     add("general", t.embedAllowed, t.embedAllowedDesc, () => {
       const box = h("textarea", "embed-allowed") as unknown as HTMLTextAreaElement;
@@ -870,7 +888,8 @@ export class SettingsDialog {
     if (q && items.length === 0) frag.append(h("p", "settings-hint", t.noMatches));
     if (!q) {
       const title = h("h2", "settings-title", this.sections().find((sec) => sec.id === this.section)?.label ?? "");
-      this.body.replaceChildren(title, this.notice, ...(this.section === "hotkeys" ? [h("p", "settings-hint", t.hotkeysHint)] : []), frag);
+      const hint = this.section === "hotkeys" ? t.hotkeysHint : this.section === "notify" ? notifyStrings().sectionLead : "";
+      this.body.replaceChildren(title, this.notice, ...(hint ? [h("p", "settings-hint", hint)] : []), frag);
     } else this.body.replaceChildren(this.notice, frag);
   }
 }
