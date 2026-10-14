@@ -56,6 +56,7 @@ import type { BoardSession } from "../boardRoom";
 import { type CollabHandlers, type CollabSession, joinCollab, ySyncAnnotation } from "../collab";
 import { ordered } from "../board/roomModel";
 import * as boardLive from "./boardLive";
+import { preview } from "../preview/install";
 
 /** Every board on screen, told when the folder changes (ADR 0057). */
 export const liveBoards = new Set<BoardHandle>();
@@ -272,6 +273,7 @@ export class BoardLeaf extends TextLeaf {
       edited: (path) => this.cardHistory.has(listed(path)),
       openUrl: (url) => void commands.openUrl(url),
       appKey: (e) => runHotkey(e),
+      preview: { at: (el, x, y, mods) => preview.pointAt(el, x, y, mods), press: (el, x) => preview.press(el, x) },
       status: (text) => (ui.status.textContent = text),
       prefs: { stroke: settings.boardStroke, font: settings.boardFont, grid: settings.boardGrid, open: settings.boardOpen },
       lastView: () => {
@@ -989,7 +991,9 @@ export function readingClicks(el: HTMLElement, source: string): void {
   });
 }
 
-export async function renderReading(el: HTMLElement, html: string, source: string, depth = 0): Promise<void> {
+/** `quiet`: what it embeds is read without bringing a file down from
+ *  iCloud (a hover preview is not an opening, ADR 0085). */
+export async function renderReading(el: HTMLElement, html: string, source: string, depth = 0, quiet = false): Promise<void> {
   setHtml(el, html);
   wireCallouts(el);
   keyLinks(el);
@@ -1007,7 +1011,7 @@ export async function renderReading(el: HTMLElement, html: string, source: strin
       const spec = parsePdfSpec(span.dataset["target"] ?? "", span.textContent);
       const note = resolveNoteByName(spec.file, source);
       if (note && note.endsWith(".md") && depth < 1) {
-        const r = await opening.readNote(note);
+        const r = await opening.readNote(note, quiet);
         if (r.status !== "ok") return;
         const box = h("section", "embed-note");
         const head = h("a", "embed-note-title", name(note));
@@ -1019,7 +1023,7 @@ export async function renderReading(el: HTMLElement, html: string, source: strin
         const body = h("div", "embed-note-body");
         box.append(head, body);
         span.replaceWith(box);
-        await renderReading(body, r.data.html, note, depth + 1);
+        await renderReading(body, r.data.html, note, depth + 1, quiet);
         return;
       }
       const found = await commands.resolveAttachment(source, spec.file);

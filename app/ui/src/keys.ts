@@ -36,6 +36,8 @@ import { ptPhrases } from "./phrases";
 import { settings } from "./settings";
 import { boardText, pt, t } from "./strings";
 import { newFolderPrompt, newNotePrompt, newWebPagePrompt } from "./tree/prompts";
+import { previewUnderCursor } from "./preview/install";
+import { pv } from "./preview/strings";
 import { collapseAll } from "./tree/tree";
 
 /* ---------- Commands: one registry for the palette, the keys and the settings ---------- */
@@ -235,6 +237,8 @@ export function allCommands(all = false): Command[] {
     { id: "quick", label: t.quick, need: hasFolder, run: () => quick.show() },
     { id: "palette", label: t.commands, need: hasFolder, run: () => paletteDialog.show() },
     { id: "search", label: t.search, need: hasFolder, run: () => { if (document.body.classList.contains("no-side") || narrow.matches) toggleSide(); ui.search.focus(); ui.search.select(); } },
+    // ADR 0085 item 6: no default key, any can be bound in the settings.
+    { id: "preview-link", label: pv.command, need: hasFolder, run: () => previewUnderCursor() },
     { id: "find-in-note", label: t.findInNote, need: Boolean(leaf), run: () => openFindInActiveLeaf() },
     { id: "replace", label: `${t.replaceTitle}…`, need: hasFolder, run: () => replaceDialog.show() },
     { id: "new-web-page", label: t.newWebPage, need: hasFolder, run: () => newWebPagePrompt() },

@@ -2123,3 +2123,20 @@ desenha ganha os lados ao ser presa (ADR 0057 pontos 14 e 20); as arestas
 do teste de carga não tinham porque o teste faz o arquivo ele mesmo. Numa
 sala, a gravação do Obsidian pela montagem é uma mudança de fora: entra na
 sala, ou as pessoas no board escolhem (item 12 da ADR 0082).
+
+## 19. Prévia de página, na ajuda pública do Obsidian (2026-10-14)
+
+Lida antes de construir a prévia ao passar o mouse, como pede o item 3 da
+[ADR 0085](../adr/0085-hover-preview.md): a ajuda pública do Obsidian,
+<https://obsidian.md/help/plugins/page-preview>, lida em 2026-10-14 — só a
+ajuda, nunca o app ([ADR 0009](../adr/0009-external-constraints.md)).
+
+| O que a ajuda diz | Verso |
+|---|---|
+| Passar o mouse sobre um link interno mostra a prévia do arquivo, ligada por padrão, no explorador de arquivos, na busca, nos backlinks "e mais" | passar o mouse sem mais nada na Leitura, no painel Links, no grafo e no cartão de um board; não na árvore de arquivos na primeira versão (item 2 da ADR 0085) |
+| Na visão de edição, `Ctrl` (`Cmd` no macOS) apertado enquanto passa o mouse a mostra | o modo Editar mostra a prévia só com ⌘ ou Ctrl apertado (item 3, decidido) |
+| Uma opção exige a tecla em todo lugar | não construída: nenhuma opção assim foi decidida; o ajuste desliga o passar de mouse (item 8) |
+
+A ajuda não diz o que a visão de leitura faz além do padrão, quanto tempo o
+ponteiro para, nem se uma prévia abre dentro de outra; as respostas do Verso
+são as da ADR (meio segundo; nenhuma prévia dentro de uma prévia).

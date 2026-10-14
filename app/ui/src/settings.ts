@@ -36,6 +36,8 @@ export type Settings = {
   blockHandles: boolean;
   /** Enter in a paragraph starts a new block (ADR 0061 D9 b). */
   enterNewBlock: boolean;
+  /** The note a link names shown where the pointer rests (ADR 0085 item 8). */
+  hoverPreview: boolean;
   defaultMode: "preview" | "live";
   measure: "normal" | "wide";
   linkFormat: "shortest" | "relative" | "root";
@@ -107,6 +109,7 @@ export const DEFAULTS: Settings = {
   lineNumbersPreview: false,
   blockHandles: true,
   enterNewBlock: false,
+  hoverPreview: true,
   defaultMode: "preview",
   measure: "normal",
   linkFormat: "shortest",

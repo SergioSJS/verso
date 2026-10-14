@@ -96,6 +96,36 @@ app real.
   em `https://versomd.com/universo.sh` (versomd-site, `public/universo.sh`)
   é copiada de novo do `packaging/server/universo.sh`, ou o script do site
   não encontra assinatura nela.
+### A prévia ao passar o mouse (ADR 0085, feat/hover-preview, 2026-10-14)
+
+- [ ] **A nota de um link onde o ponteiro para, no app** (A): nota 02,
+  *Prévia ao Passar o Mouse*, na Leitura: o ponteiro sobre "as fórmulas do
+  Guia de Sintaxe" por meio segundo mostra o cartão, com o título marcado
+  no topo; o ponteiro dentro do cartão o rola; fora, ele some; no tema
+  escuro o cartão se lê como a nota. Uma nota com uma imagem da pasta
+  (nota 06): a imagem aparece no cartão (o protocolo `verso:`, que o
+  harness imita). `verso.log`: nenhum ERROR.
+- [ ] **⌘ no modo Editar no Mac, Ctrl no Windows** (A): nota 02 no Editar,
+  o ponteiro parado sobre um link: nada; ⌘ apertado (Ctrl no WebView2 do
+  Windows): o cartão; ⌘-clique ainda segue o link e nenhum cartão fica para
+  trás.
+- [ ] **Uma nota só no iCloud** (A, ADR 0043): um link para uma nota que o
+  macOS deixou sem dados (*Remover Download* no Finder): o cartão diz *A
+  nota só está na nuvem: abra-a para baixá-la — a prévia não baixa nada.*,
+  e o arquivo continua sem dados (`ls -lO` mostra `dataless`).
+- [ ] **Um PDF e uma imagem com link** (A): `[[arquivo.pdf]]` e
+  `[[imagem.png]]` com o ponteiro parado mostram o PDF (o pdf.js na web
+  view do app) e a imagem no cartão; o console fica limpo enquanto o
+  cartão abre e fecha.
+- [ ] **O board pelo toque, num iPad** (A): um cartão de um board, um dedo
+  parado sobre o nome dele: o cartão da nota; levantado, o board não
+  seleciona nada novo nem abre nada. (O toque longo do grafo roda por
+  máquina; o do board não.)
+- [ ] **VoiceOver** (B): associe uma tecla a *Ver a prévia do link sob o
+  cursor* em *Ajustes › Atalhos*, um link na Leitura com o foco pelo Tab,
+  a tecla: o cartão é lido como o diálogo *Prévia de …* e o texto dele se
+  lê; Esc o fecha e o foco volta ao link. O cartão de um passar de mouse
+  não é anunciado e não pega o foco.
 
 ### O retorno da janela (fix/ui-feedback, 2026-10-14)
 

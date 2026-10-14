@@ -220,6 +220,21 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     novo também; o arquivo não muda (ADR 0064 ponto 6). Nível: H; E:
     `tables.spec.mjs`, "a column dragged wider…" e "a column dragged in
     Reading…".
+13. Nota 02, "Prévia ao Passar o Mouse" ([ADR
+    0085](../adr/0085-hover-preview.md)): na Leitura, o ponteiro parado meio
+    segundo sobre "as fórmulas do Guia de Sintaxe" mostra um cartão com a
+    nota 01, o título marcado no topo; fora do link e do cartão, ele some;
+    um clique nele abre a nota 01. "a descoberta da escrita atômica" mostra
+    a nota de pesquisa com o bloco `^atomica` marcado; "Nova Ideia de
+    Projeto" diz que nenhuma nota responde ainda, e nenhuma nota é criada.
+    No Editar, passar o mouse sem mais nada não mostra nada, e ⌘ (Ctrl)
+    apertado mostra o cartão. "Ver a prévia do link sob o cursor" pela
+    paleta, o cursor num link: o cartão é um diálogo com o foco, e Esc
+    devolve o foco. Ajustes › Editor › "Prévia ao passar o mouse"
+    desligado: nenhum cartão ao passar o mouse, e o comando ainda abre um.
+    Uma linha do painel Links, um nó do grafo e o nome de um cartão no
+    "Board de Demonstração" mostram as suas notas. Nível: H; E:
+    `preview.spec.mjs`; U: `test/preview.test.mjs`.
 
 ## 4. Organizar: propriedades, bases, notas diárias
 
@@ -729,6 +744,11 @@ e 820 × 1180 (WebKit) além do tamanho do computador (`playwright.config.mjs`);
    Nível: H; E: `capabilities.spec.mjs`.
 9. VoiceOver no iPhone e no iPad, TalkBack no Android: as passadas de
    `manual-checks.md`. Nível: A.
+10. Nota 02 no Editar, pelo toque: um toque num link mostra a nota dele
+    acima de Abrir e Editar link; no grafo, um dedo parado sobre um nó
+    mostra a nota dele e não abre nada (item 5 da [ADR
+    0085](../adr/0085-hover-preview.md)). Nível: H; E: `preview.spec.mjs`,
+    "by touch" (o toque longo do board: à mão, `manual-checks.md`).
 
 ## 13. Num servidor
 
