@@ -242,3 +242,35 @@ proptest! {
         prop_assert_eq!(after.first(), Some(&newest));
     }
 }
+
+#[test]
+fn what_sync_brings_names_the_device_that_made_it() {
+    let (_folder, _config, mut ws) = opened();
+    ws.write_bytes("n.md", b"de outro\n", None).unwrap();
+    ws.history_flush();
+    let r = revision(&mut ws, "n.md");
+    ws.history_written_by(
+        vec![verso_core::history::Author::new("device", "iPad da Bia")],
+        Kind::Write,
+    );
+    ws.write_bytes("n.md", b"do iPad\n", Some(&r)).unwrap();
+    ws.history_flush();
+    // And only those writes: the next is this computer's again.
+    let r = revision(&mut ws, "n.md");
+    ws.write_bytes("n.md", b"daqui\n", Some(&r)).unwrap();
+    ws.history_flush();
+    let l = ws.history_store().unwrap().versions(LOCAL, "n.md").unwrap();
+    let who: Vec<(&str, Kind)> = l
+        .versions
+        .iter()
+        .map(|v| (v.authors[0].name.as_str(), v.kind))
+        .collect();
+    assert_eq!(
+        who,
+        vec![
+            ("Mac de Ana", Kind::Edit),
+            ("iPad da Bia", Kind::Write),
+            ("Mac de Ana", Kind::Edit)
+        ]
+    );
+}
