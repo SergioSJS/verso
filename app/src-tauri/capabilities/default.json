@@ -60,6 +60,7 @@
     "allow-board-text",
     "allow-board-preview",
     "allow-render-markdown",
+    "allow-project-secrets",
     "allow-rename-entry",
     "allow-move-entries",
     "allow-notes-of-type",

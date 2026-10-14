@@ -294,6 +294,13 @@ export const commands = {
 	 */
 	renderMarkdown: (text: string) => __TAURI_INVOKE<string>("render_markdown", { text }),
 	/**
+	 *  `text` as an account that may only read the note is served on a
+	 *  UniVerso: its secret callouts' lines taken out (ADR 0087 item 3). The
+	 *  "view as a reader" toggle of a writer draws it (item 5), from the one
+	 *  projection the server serves readers. Pure: it reads nothing.
+	 */
+	projectSecrets: (text: string) => __TAURI_INVOKE<string>("project_secrets", { text }),
+	/**
 	 *  Rename or move anything of the folder: a note, another file or a
 	 *  folder with everything under it. Links to what moved come back as
 	 *  rewrites, like `rename_note` (ADR 0048, option (b)).
