@@ -19,6 +19,7 @@ import type { Capabilities } from "./bindings";
 import { Core, type Seed } from "./harness/core";
 import { UNUSED_ARGS } from "./harness/unusedArgs";
 import { Rooms } from "./harness/room";
+import { SystemNotifications } from "./harness/notifications";
 import * as sanitize from "./sanitize";
 
 const vault = new URLSearchParams(location.search).get("vault");
@@ -67,7 +68,14 @@ if (params.get("sync") === "reader") {
 const TO_A_SERVER = new Set(["server_folders", "server_open", "server_sign_in", "folder_sync_start", "share_list", "share_grant", "share_revoke", "share_attachments", "server_prove"]);
 let serverDown: string | null = params.get("server") === "down" ? "localhost:7351" : null;
 const answer = core.invoke.bind(core);
+// The system's notifications (ADR 0084 item 9): the plugin's calls,
+// answered as the desktop's host answers them.
+const notifications = new SystemNotifications();
 core.invoke = (cmd: string, args: unknown): unknown => {
+  if (cmd.startsWith("plugin:notification|")) {
+    core.calls.push({ cmd, args: (args ?? {}) as Record<string, unknown> });
+    return notifications.handle(cmd, (args ?? {}) as Record<string, unknown>);
+  }
   if (serverDown === null || !TO_A_SERVER.has(cmd)) return answer(cmd, args);
   core.calls.push({ cmd, args: (args ?? {}) as Record<string, unknown> });
   throw { kind: "unreachable", message: serverDown };
@@ -94,6 +102,9 @@ mockIPC(
     ),
   { shouldMockEvents: true },
 );
+
+// The page's `Notification`, as the plugin's script makes it in the app.
+notifications.install((cmd, args) => (window as unknown as { __TAURI_INTERNALS__: { invoke: (c: string, a?: unknown) => Promise<unknown> } }).__TAURI_INTERNALS__.invoke(cmd, args));
 
 // A file of the folder, as the `verso:` protocol serves it: the harness's
 // server answers `/__vault/<path>` from the demo vault on disk, and a test
@@ -128,6 +139,9 @@ const harness = {
   serverDown: (address: string | null) => {
     serverDown = address;
   },
+  /** The system's notifications: its permission, its answer when asked,
+   *  what was sent, a click on the last (ADR 0084 item 9). */
+  notifications,
   /** The server says the person's role in the folder changed (web.ts). */
   setRole: (next: string) => {
     role = next;
