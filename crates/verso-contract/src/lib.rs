@@ -1028,6 +1028,40 @@ pub struct Backlink {
     pub col: u32,
 }
 
+/// A note's name written plainly in another note: one unlinked mention
+/// (ADR 0089 item 1), the name or one of its aliases as a phrase on word
+/// boundaries, case ignored and accents kept, in prose only.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct Mention {
+    /// The note that mentions.
+    pub path: String,
+    /// 1-based line, and 1-based column in Unicode scalar values (spec
+    /// §4.4), of the mention's first character.
+    pub line: u32,
+    pub col: u32,
+    /// The mention as written.
+    pub text: String,
+    /// Up to 60 characters of its line before it and after it.
+    pub before: String,
+    pub after: String,
+    /// The text is one of the note's aliases, not its name: the link
+    /// keeps it as the link's text.
+    pub alias: bool,
+    /// In a table's cell: the link's `|` is written `\|`.
+    pub table: bool,
+    /// Inside a `> [!secret]` callout (ADR 0087): never in a reader's
+    /// answer from a server.
+    pub secret: bool,
+}
+
+/// A note's unlinked mentions, in path and position order; `more` when
+/// there were more than the answer holds.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct Mentions {
+    pub mentions: Vec<Mention>,
+    pub more: bool,
+}
+
 /// Why a command could not answer, by what the UI can do about it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]

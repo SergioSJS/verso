@@ -126,6 +126,29 @@ app real.
   a tecla: o cartão é lido como o diálogo *Prévia de …* e o texto dele se
   lê; Esc o fecha e o foco volta ao link. O cartão de um passar de mouse
   não é anunciado e não pega o foco.
+### Linkar menções sem link (ADR 0089, feat/link-mentions, 2026-10-14)
+
+- [ ] **Linkar e Linkar todas no app** (A): no cofre de exemplo, abra "Lia
+  Torres", painel da direita › *Links* › *Menções sem link*: a linha da
+  nota 02, *Linkar* — o destaque da nota 02 passa a ter `[[Lia Torres]]`, a
+  linha some, a nota 02 aparece entre os backlinks. Numa pasta sua, uma
+  nota com nome de palavra comum (digamos "Mesa") mencionada em várias
+  notas, uma delas numa tabela e uma num bloco de código: a do bloco de
+  código não aparece; *Linkar todas* mostra o diff de cada nota, *Linkar
+  todas* no plano grava, e o link da tabela é `[[Mesa\|mesa]]` com a tabela
+  inteira. Mude uma das notas em outro editor com o plano aberto: ela é
+  dita como não gravada. Com uma nota que menciona aberta numa aba,
+  *Linkar*, e então ⌘Z nessa aba: o link é desfeito e salvo. `verso.log`:
+  nenhum ERROR, e nenhum "not allowed" para `unlinked_mentions`.
+- [ ] **Num UniVerso** (A): uma dona e um leitor na mesma pasta; uma nota
+  com uma menção dentro de `> [!secret]` e outra fora. A dona vê as duas
+  linhas com *Linkar*; o leitor vê só a de fora, e nenhum botão. A dona
+  linka uma menção numa nota que outro membro tem aberta: o link aparece
+  no editor desse membro ao lado do que ele digita, e nenhuma cópia de
+  conflito aparece.
+- [ ] **Com o VoiceOver** (A): o botão de cada linha é lido como *Linkar
+  “texto” em Nota*; *Linkar todas* diz quantas; no plano, o Tab alcança o
+  diff de cada nota e ele é lido como uma lista de mudanças.
 
 ### O retorno da janela (fix/ui-feedback, 2026-10-14)
 

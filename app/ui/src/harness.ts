@@ -15,7 +15,7 @@
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import { DEMO_VAULT_FILES } from "./demoVault";
-import type { Capabilities } from "./bindings";
+import type { Capabilities, Mentions } from "./bindings";
 import { Core, type Seed } from "./harness/core";
 import { UNUSED_ARGS } from "./harness/unusedArgs";
 import { Rooms } from "./harness/room";
@@ -47,6 +47,13 @@ if (onServer) {
   // No room for simultaneous editing in the harness: the server's `collab`
   // is left out, so a note opens as the desktop's does.
   core.handlers["capabilities"] = () => ({ ...serverCan(), can: serverCan().can.filter((c) => c !== "collab") });
+  // A reader's answer holds no mention inside a secret block, as the
+  // server's (ADR 0089 item 1, ADR 0087).
+  const mentions = core.handlers["unlinked_mentions"];
+  core.handlers["unlinked_mentions"] = (a) => {
+    const all = mentions?.(a) as Mentions;
+    return role === "reader" ? { ...all, mentions: all.mentions.filter((m) => !m.secret) } : all;
+  };
   document.documentElement.dataset["host"] = "server";
   document.documentElement.dataset["role"] = role;
 }

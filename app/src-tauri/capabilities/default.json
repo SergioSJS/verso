@@ -25,6 +25,7 @@
     "allow-search",
     "allow-links",
     "allow-backlinks",
+    "allow-unlinked-mentions",
     "allow-write-note",
     "allow-create-note",
     "allow-create-file",

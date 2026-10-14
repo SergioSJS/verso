@@ -25,7 +25,8 @@
 //!
 //! Two more things come out of the same base parser and are not part of the
 //! fixture contract: the reading view's HTML ([`to_html`], Phase 2) and the
-//! `#tag`s of a body ([`body_tags`]), one rule for the reader and the index.
+//! `#tag`s of a body ([`body_tags`]), one rule for the reader and the index;
+//! and the prose of a note ([`prose`]), where an unlinked mention may stand.
 
 pub mod bases;
 mod block_ids;
@@ -37,6 +38,7 @@ mod frontmatter;
 mod parse;
 mod position;
 mod properties;
+mod prose;
 mod render;
 mod schema;
 mod tags;
@@ -45,6 +47,7 @@ mod wikilink;
 pub use frontmatter::{Frontmatter, Value};
 pub use parse::parse;
 pub use position::{Pos, Span};
+pub use prose::{Prose, prose};
 pub use render::{to_html, to_html_with};
 pub use schema::{PropertyKind, Schema, SchemaBlock, SchemaError, SchemaErrorKind, SchemaProperty};
 pub use tags::{BodyTag, body_tags};
