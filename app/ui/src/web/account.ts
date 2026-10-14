@@ -10,6 +10,7 @@
 import { ApiError, api, setSignedIn, type Account } from "./api";
 import { act, block, button, choice, controls, el, input, said, snippet, toggle, type Entry, type Item } from "./form";
 import { addPasskey, passkeysHere } from "./passkeys";
+import { forgetSettings } from "./settingsSync";
 import { bytes, roleName, w, when } from "./strings";
 
 function explain(e: unknown): string {
@@ -334,6 +335,7 @@ function signOut(me: Account, item: Item): HTMLElement {
   const out = button(s.signOut);
   act(out, line, async () => {
     await api("POST", "/api/signout", {});
+    forgetSettings();
     location.href = "/signin";
   }, explain);
   return el("div", { class: "web-block" }, item(s.signOut, s.signOutDesc(me.email), controls(out)), line);
