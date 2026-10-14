@@ -73,7 +73,7 @@ async function start(): Promise<void> {
   }
   if (path === "/account") history.replaceState(null, "", "/");
   document.documentElement.dataset.host = "server";
-  await pullSettings();
+  await pullSettings(s.account);
   pushSettings();
   // Ask the browser to keep this site's storage (ADR 0073 item 8): WebKit
   // is likelier to grant it to a page installed on the home screen; a
