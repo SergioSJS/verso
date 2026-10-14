@@ -49,15 +49,15 @@ código onde quer que o plugin esteja ausente.
 
 ## Decisão
 
-Proposta (2026-10-14). Cada `[ABERTO]` traz uma recomendação; o
-mantenedor decide.
+Proposta (2026-10-14). Aceita em 2026-10-14 (Status): cada `[ABERTO]` foi decidido como
+recomendado e está marcado `[DECIDIDO 2026-10-14]`.
 
 1. **A sintaxe é a forma inline do Dice Roller**, `` `dice: <notation>` ``,
    para que um vault que já usa o plugin role no Verso, e uma nota escrita
    no Verso role no Obsidian com o plugin e se leia como código sem ele. É
    código inline: nada no dialeto muda de significado
-   ([0030](0030-base-dialect-obsidian-compatible.md)). `[ABERTO]`: a
-   notação lida além de `NdM±K`. Recomendado: **o que o parser do Rolai
+   ([0030](0030-base-dialect-obsidian-compatible.md)). `[DECIDIDO 2026-10-14]`: a
+   notação lida além de `NdM±K`. Decidido: **o que o parser do Rolai
    lê que o README do Dice Roller documenta com o mesmo significado** —
    manter e descartar, explodir, um dado fudge, `d%` — conferido contra o
    README antes de construir ([0009](0009-external-constraints.md):
@@ -73,29 +73,29 @@ mantenedor decide.
    conferida contra o README do Dice Roller com o item 1 — rola uma linha
    e a mostra, os links dela seguidos com um clique. Nenhum tipo de nota e
    nenhum formato de arquivo próprio do Verso: a tabela se lê como tabela
-   em todo lugar. `[ABERTO]`: linhas de chance desigual. Recomendado:
+   em todo lugar. `[DECIDIDO 2026-10-14]`: linhas de chance desigual. Decidido:
    **uma primeira coluna cujo cabeçalho é um dado (`d100`, `2d6`) guarda a
    faixa de cada linha** (`01–05`, `7`), como as tabelas impressas fazem;
    qualquer outra tabela, toda linha igualmente provável. Isso responde à
    "tabela aleatória como tipo de nota com ação de rolagem" da
    [0036](0036-tabletop-rpg-support.md) com uma tabela no lugar de um tipo
    — registrado lá quando aceita.
-4. **Uma rolagem numa sala é vista pela sala.** `[ABERTO]`: quem sorteia o
-   número quando há outros presentes. Recomendado: **o servidor**, numa
+4. **Uma rolagem numa sala é vista pela sala.** `[DECIDIDO 2026-10-14]`: quem sorteia o
+   número quando há outros presentes. Decidido: **o servidor**, numa
    sala — a janela pede, o servidor rola com o próprio gerador e repassa o
    resultado carimbado com a conta, como carimba a presença, então
    nenhuma janela pode mostrar uma rolagem que ela escolheu; sozinho,
    offline ou numa pasta do computador, a janela rola. Uma sala guarda as
    últimas rolagens na memória para quem entra, e nada é armazenado.
-5. **O motor do Rolai é reaproveitado.** `[ABERTO]`: como. Recomendado:
+5. **O motor do Rolai é reaproveitado.** `[DECIDIDO 2026-10-14]`: como. Decidido:
    **o parser e o rolador dele copiados para a janela**
    (`app/ui/src/dice/`), o aviso da MIT mantido nos arquivos, no lugar de
    uma dependência de um pacote não publicado no npm; nenhuma dependência
    de runtime nova. A rolagem 3D, as salas por link e o modo OBS ficam
    com o Rolai.
-6. **Um rolador sem nota.** `[ABERTO]`: um comando "Rolar dados…" que abre
+6. **Um rolador sem nota.** `[DECIDIDO 2026-10-14]`: um comando "Rolar dados…" que abre
    um rolador pequeno, uma notação digitada e rolada, nada escrito.
-   Recomendado: **sim**, na paleta de comandos; uma gaveta como a do Rolai
+   Decidido: **sim**, na paleta de comandos; uma gaveta como a do Rolai
    depois.
 7. **A aleatoriedade** vem do gerador criptográfico da plataforma
    (`crypto.getRandomValues` na janela, o do sistema no servidor),
@@ -128,7 +128,12 @@ mantenedor decide.
 
 ## Status
 
-**Proposta (2026-10-14).** Na V1 pela palavra do mantenedor de
+**Aceita (2026-10-14).** O mantenedor, naquela noite, respondendo a
+*"Aceita todas as recomendações (R1–R4 e os itens dos ADRs 0085–0092)?"* com *"Sim, todas"*: cada `[ABERTO]`
+decidido como recomendado, marcado `[DECIDIDO 2026-10-14]` no lugar. Na V1
+(`docs/roadmap.md`, Fase 4 — V1). A [0036](0036-tabletop-rpg-support.md) ganha uma linha de Revisões: dados, tabelas aleatórias, blocos secretos e mapas entram como primitivas.
+
+*(Histórico, antes da aceitação acima:)* Proposta (2026-10-14). Na V1 pela palavra do mantenedor de
 2026-10-14 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revisão 8). Para o
 mantenedor, cada um com uma recomendação: a notação (item 1), linhas
 desiguais (item 3), quem rola numa sala (item 4), como o motor do Rolai é

@@ -46,8 +46,8 @@ describes a core "File recovery" that keeps snapshots on the computer.
 
 ## Decision
 
-Proposed (2026-10-14). Each `[OPEN]` carries a recommendation; the
-maintainer decides.
+Proposed (2026-10-14). Accepted on 2026-10-14 (Status): each `[OPEN]` was decided as
+recommended and is marked `[DECIDED 2026-10-14]`.
 
 1. **A version is the bytes of a file at a write**, kept outside the
    folder ([0011](0011-config-outside-tree-index-as-cache.md)) — on the
@@ -56,11 +56,11 @@ maintainer decides.
    ([0012](0012-files-are-source-of-truth.md)); the history is never
    written into the folder and never syncs.
 2. **What is kept.** Every text file the window edits — notes, boards,
-   bases, `.txt`, `.json`, `.csv`. `[OPEN]`: pictures, PDFs and other
-   attachments. Recommended: **not in the history**; a replaced
+   bases, `.txt`, `.json`, `.csv`. `[DECIDED 2026-10-14]`: pictures, PDFs and other
+   attachments. Decided: **not in the history**; a replaced
    attachment goes to the trash, as [0080](0080-the-trash-with-expiry-and-restore.md)
    item 12 already does for a device's write.
-3. **How many.** `[OPEN]`: the thinning and the retention. Recommended:
+3. **How many.** `[DECIDED 2026-10-14]`: the thinning and the retention. Decided:
    a room's writes **coalesced** into one version per ten minutes of
    editing; every version kept for a day, one an hour for 30 days, one a
    day after that up to the folder's retention — `VERSO_HISTORY_DAYS`, 365
@@ -69,8 +69,8 @@ maintainer decides.
    the newest version of a file is never thinned away.
 4. **Who changed it.** Each version names its authors: the accounts whose
    edits a room's version holds, a device by its name, an agent's token,
-   or "outside Verso" for a change the watcher found. `[OPEN]`: who wrote
-   each line. Recommended: **not in V1**; the diff between two versions
+   or "outside Verso" for a change the watcher found. `[DECIDED 2026-10-14]`: who wrote
+   each line. Decided: **not in V1**; the diff between two versions
    and their authors answer "who changed this".
 5. **The view.** "History" on a note, a board or a base — from its menu,
    the command palette and the status bar — lists the versions, newest
@@ -82,17 +82,17 @@ maintainer decides.
    new note" puts it beside the file instead.
 6. **Who sees it, on a server.** Whoever may write the file sees its
    history and restores; the owner and the admin may delete a version.
-   `[OPEN]`: readers. Recommended: **no history for readers**, as they see
+   `[DECIDED 2026-10-14]`: readers. Decided: **no history for readers**, as they see
    no trash ([0080](0080-the-trash-with-expiry-and-restore.md) item 7) —
    a past version would otherwise need the projection of
    [0087](0087-secret-blocks-hidden-from-readers.md) applied to each.
    A share sees the history of the files inside it.
-7. **History and the quota.** `[OPEN]`. Recommended: **as the trash**
+7. **History and the quota.** `[DECIDED 2026-10-14]`: **as the trash**
    ([0080](0080-the-trash-with-expiry-and-restore.md) item 8): shown in
    the folder's page and not counted, the oldest versions thinned early
    when the history alone passes the folder's quota, said there.
-8. **A folder of the computer.** `[OPEN]`: whether the desktop keeps a
-   history of its local folders in V1. Recommended: **yes**, the same
+8. **A folder of the computer.** `[DECIDED 2026-10-14]`: whether the desktop keeps a
+   history of its local folders in V1. Decided: **yes**, the same
    store in the configuration directory and the same view, its retention
    a setting of the person's layer ([0070](0070-what-travels-with-the-folder.md));
    a synced folder shows the server's history, which holds every device's
@@ -131,7 +131,12 @@ None recorded.
 
 ## Status
 
-**Proposed (2026-10-14).** In V1 by the maintainer's word of 2026-10-14
+**Accepted (2026-10-14).** The maintainer, that night, answering
+*"Aceita todas as recomendações (R1–R4 e os itens dos ADRs 0085–0092)?"* with *"Sim, todas"* (yes, all): every `[OPEN]`
+decided as recommended, marked `[DECIDED 2026-10-14]` in place. In V1
+(`docs/roadmap.md`, Phase 4 — V1). [0073](0073-self-hosted-server-first.md) gains a Revisions line, and the roadmap's Phase 3 row is struck.
+
+*(History, before the acceptance above:)* Proposed (2026-10-14). In V1 by the maintainer's word of 2026-10-14
 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revision 8). For the
 maintainer, each with a recommendation: attachments (item 2), thinning
 and retention (item 3), line authorship (item 4), readers (item 6), the

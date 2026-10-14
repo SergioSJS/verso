@@ -51,8 +51,8 @@ uma heurística, não uma promessa; nenhum trabalho em segundo plano.
 
 ## Decisão
 
-Proposta (2026-10-14). Cada `[ABERTO]` traz uma recomendação; o
-mantenedor decide.
+Proposta (2026-10-14). Aceita em 2026-10-14 (Status): cada `[ABERTO]` foi decidido como
+recomendado e está marcado `[DECIDIDO 2026-10-14]`.
 
 1. **Offline é sync, no navegador.** A janela guarda pastas escolhidas
    de um UniVerso no armazenamento do navegador e as mantém em dia com o
@@ -70,10 +70,10 @@ mantenedor decide.
 3. **O que é guardado.** "Disponível offline", um ajuste de cada pasta
    neste aparelho, desligado por padrão; ligado, ele diz o espaço que vai
    ocupar e pede ao navegador armazenamento persistente, e diz quando o
-   sistema ainda pode despejá-lo (iPadOS, iOS). `[ABERTO]`: anexos.
-   Recomendado: notas, boards, bases e arquivos de texto guardados
+   sistema ainda pode despejá-lo (iPadOS, iOS). `[DECIDIDO 2026-10-14]`: anexos.
+   Decidido: notas, boards, bases e arquivos de texto guardados
    inteiros; imagens e PDFs guardados depois de abertos, com "Manter todos
-   os anexos" como escolha. `[ABERTO]`: o armazenamento. Recomendado:
+   os anexos" como escolha. `[DECIDIDO 2026-10-14]`: o armazenamento. Decidido:
    **IndexedDB**, o único armazenamento que todo navegador alvo oferece
    com persistência.
 4. **Trabalhar offline.** Uma nota, um board ou uma base abre, renderiza
@@ -82,8 +82,8 @@ mantenedor decide.
    se baseou, e sobe pelas regras do sync quando a rede volta. Uma nota
    que estava ao vivo numa sala quando a conexão caiu guarda o seu texto e
    passa pela comparação do sync na volta, como a do desktop
-   ([0082](0082-live-co-editing-of-a-synced-folder.md)). `[ABERTO]`: busca,
-   backlinks e o grafo offline. Recomendado: **calculados na página a
+   ([0082](0082-live-co-editing-of-a-synced-folder.md)). `[DECIDIDO 2026-10-14]`: busca,
+   backlinks e o grafo offline. Decidido: **calculados na página a
    partir das notas guardadas** — nomes e uma varredura simples para a
    busca, os links do parser para os backlinks e o grafo — e marcados
    "offline: das notas deste aparelho"; o índice do servidor volta a
@@ -95,8 +95,8 @@ mantenedor decide.
 6. **Deixar o aparelho.** Sair da conta apaga as pastas guardadas nele,
    depois de dizer quantas escritas não subiram; um admin encerrando as
    sessões do aparelho ([0077](0077-the-server-administration-console-and-folder-quotas.md))
-   as apaga na próxima conexão dele. `[ABERTO]`: criptografar o
-   armazenamento em repouso. Recomendado: **fora da V1** — o armazenamento
+   as apaga na próxima conexão dele. `[DECIDIDO 2026-10-14]`: criptografar o
+   armazenamento em repouso. Decidido: **fora da V1** — o armazenamento
    do navegador é tão seguro quanto o celular desbloqueado —, dito no
    ajuste.
 7. **O que a janela diz** ([0027](0027-runtime-capabilities.md)): online,
@@ -137,7 +137,12 @@ Nenhuma registrada.
 
 ## Status
 
-**Proposta (2026-10-14).** Na V1 pela palavra do mantenedor de 2026-10-14
+**Aceita (2026-10-14).** O mantenedor, naquela noite, respondendo a
+*"Aceita todas as recomendações (R1–R4 e os itens dos ADRs 0085–0092)?"* com *"Sim, todas"*: cada `[ABERTO]`
+decidido como recomendado, marcado `[DECIDIDO 2026-10-14]` no lugar. Na V1
+(`docs/roadmap.md`, Fase 4 — V1). A [0073](0073-self-hosted-server-first.md) ganha uma linha de Revisões, e a linha da Fase 3 no roadmap é riscada (R1).
+
+*(Histórico, antes da aceitação acima:)* Proposta (2026-10-14). Na V1 pela palavra do mantenedor de 2026-10-14
 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revisão 8). Para o
 mantenedor, cada um com uma recomendação: anexos e o armazenamento
 (item 3), busca e links offline (item 4), criptografia em repouso

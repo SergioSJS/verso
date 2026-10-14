@@ -41,8 +41,8 @@ hover ([0090](0090-maps-on-the-board.md)) needs it first.
 
 ## Decision
 
-Proposed (2026-10-14). Each `[OPEN]` carries a recommendation; the
-maintainer decides.
+Proposed (2026-10-14). Accepted on 2026-10-14 (Status): each `[OPEN]` was decided as
+recommended and is marked `[DECIDED 2026-10-14]`.
 
 1. **A preview is the note a link names, read-only, in a card beside the
    pointer.** It renders as an embed does — the same HTML of the core,
@@ -58,8 +58,8 @@ maintainer decides.
    first version. A link to a picture or a PDF previews the file as its
    embed does; a link to the web previews nothing (no request leaves for
    a hover, [0050](0050-outbound-network-access.md)).
-3. **In Edit mode, with the modifier.** `[OPEN]`: whether Edit mode
-   previews on a plain hover or only with ⌘/Ctrl held. Recommended: **with
+3. **In Edit mode, with the modifier.** `[DECIDED 2026-10-14]`: whether Edit mode
+   previews on a plain hover or only with ⌘/Ctrl held. Decided: **with
    ⌘/Ctrl**, the modifier that already follows a link there — a pointer
    resting on the text being written should not open cards; the reading
    view and the panels preview on a plain hover. Before building, what
@@ -68,14 +68,14 @@ maintainer decides.
 4. **Timing and dismissal.** The card opens after the pointer rests about
    half a second and closes when it leaves both the link and the card;
    the pointer may move into the card to scroll it. One card at a time.
-   `[OPEN]`: a preview inside a preview. Recommended: **not in the first
+   `[DECIDED 2026-10-14]`: a preview inside a preview. Decided: **not in the first
    version** — a link inside a card is followed with a click.
 5. **Touch.** There is no hover: the link card of [0076](0076-the-window-on-every-screen.md)
    item 4 gains the preview above "Open" and "Edit link"; on the board
    and the graph, a long press shows it.
 6. **Keyboard and screen readers** ([0035](0035-cross-cutting-requirements.md)).
    A command "Preview the link under the cursor", with a default key
-   `[OPEN]` (recommended: none, bindable, as the accessibility review's
+   `[DECIDED 2026-10-14]` (decided: none, bindable, as the accessibility review's
    item on following a link from the editor leaves default keys to the
    maintainer, `docs/review/accessibility.md` §8); the card takes the
    focus when opened this way, is a labelled dialog, and Escape closes it
@@ -107,7 +107,12 @@ None recorded.
 
 ## Status
 
-**Proposed (2026-10-14).** In V1 by the maintainer's word of 2026-10-14
+**Accepted (2026-10-14).** The maintainer, that night, answering
+*"Aceita todas as recomendações (R1–R4 e os itens dos ADRs 0085–0092)?"* with *"Sim, todas"* (yes, all): every `[OPEN]`
+decided as recommended, marked `[DECIDED 2026-10-14]` in place. In V1
+(`docs/roadmap.md`, Phase 4 — V1).
+
+*(History, before the acceptance above:)* Proposed (2026-10-14). In V1 by the maintainer's word of 2026-10-14
 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revision 8). For the
 maintainer, each with a recommendation: Edit mode with the modifier
 (item 3), no preview inside a preview (item 4), and the command's default

@@ -48,15 +48,15 @@ that uses it shows that code as code wherever the plugin is absent.
 
 ## Decision
 
-Proposed (2026-10-14). Each `[OPEN]` carries a recommendation; the
-maintainer decides.
+Proposed (2026-10-14). Accepted on 2026-10-14 (Status): each `[OPEN]` was decided as
+recommended and is marked `[DECIDED 2026-10-14]`.
 
 1. **The syntax is Dice Roller's inline form**, `` `dice: <notation>` ``,
    so a vault that already uses the plugin rolls in Verso, and a note
    written in Verso rolls in Obsidian with the plugin and reads as code
    without it. It is inline code: nothing in the dialect changes meaning
-   ([0030](0030-base-dialect-obsidian-compatible.md)). `[OPEN]`: the
-   notation read beyond `NdM±K`. Recommended: **what Rolai's parser reads
+   ([0030](0030-base-dialect-obsidian-compatible.md)). `[DECIDED 2026-10-14]`: the
+   notation read beyond `NdM±K`. Decided: **what Rolai's parser reads
    that Dice Roller's README documents with the same meaning** — keep and
    drop, explode, a fudge die, `d%` — checked against the README before
    building ([0009](0009-external-constraints.md): public documentation);
@@ -71,28 +71,28 @@ maintainer decides.
    is a random table; `` `dice: [[Note#^id]]` `` — the form checked
    against Dice Roller's README with item 1 — rolls one row and shows it,
    its links followed with a click. No note type and no file format
-   of Verso's own: the table reads as a table everywhere. `[OPEN]`: rows
-   of unequal chance. Recommended: **a first column whose header is a die
+   of Verso's own: the table reads as a table everywhere. `[DECIDED 2026-10-14]`: rows
+   of unequal chance. Decided: **a first column whose header is a die
    (`d100`, `2d6`) holds each row's range** (`01–05`, `7`), as printed
    tables do; any other table, every row equally likely. This answers
    [0036](0036-tabletop-rpg-support.md)'s "random table as a note type
    with a roll action" with a table instead of a type — recorded there
    when accepted.
-4. **A roll in a room is seen by the room.** `[OPEN]`: who draws the
-   number when others are present. Recommended: **the server**, in a room
+4. **A roll in a room is seen by the room.** `[DECIDED 2026-10-14]`: who draws the
+   number when others are present. Decided: **the server**, in a room
    — the window asks, the server rolls with its own generator and relays
    the result stamped with the account, as it stamps presence, so no
    window can show a roll it chose; alone, offline or in a folder of the
    computer, the window rolls. A room keeps its last rolls in memory for
    those who join, and nothing is stored.
-5. **Rolai's engine is reused.** `[OPEN]`: how. Recommended: **its parser
+5. **Rolai's engine is reused.** `[DECIDED 2026-10-14]`: how. Decided: **its parser
    and roller copied into the window** (`app/ui/src/dice/`), the MIT
    notice kept in the files, rather than a dependency on a package not
    published to npm; no new runtime dependency. The 3D roll, rooms by
    link and the OBS mode stay Rolai's.
-6. **A roller without a note.** `[OPEN]`: a "Roll dice…" command that
+6. **A roller without a note.** `[DECIDED 2026-10-14]`: a "Roll dice…" command that
    opens a small roller, a notation typed and rolled, nothing written.
-   Recommended: **yes**, in the command palette; a drawer as Rolai's
+   Decided: **yes**, in the command palette; a drawer as Rolai's
    later.
 7. **Randomness** comes from the platform's cryptographic generator
    (`crypto.getRandomValues` in the window, the system's in the server),
@@ -125,7 +125,12 @@ maintainer decides.
 
 ## Status
 
-**Proposed (2026-10-14).** In V1 by the maintainer's word of 2026-10-14
+**Accepted (2026-10-14).** The maintainer, that night, answering
+*"Aceita todas as recomendações (R1–R4 e os itens dos ADRs 0085–0092)?"* with *"Sim, todas"* (yes, all): every `[OPEN]`
+decided as recommended, marked `[DECIDED 2026-10-14]` in place. In V1
+(`docs/roadmap.md`, Phase 4 — V1). [0036](0036-tabletop-rpg-support.md) gains a Revisions line: dice, random tables, secret blocks and maps enter as primitives.
+
+*(History, before the acceptance above:)* Proposed (2026-10-14). In V1 by the maintainer's word of 2026-10-14
 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revision 8). For the
 maintainer, each with a recommendation: the notation (item 1), unequal
 rows (item 3), who rolls in a room (item 4), how Rolai's engine is

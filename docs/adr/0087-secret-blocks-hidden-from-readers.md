@@ -73,8 +73,8 @@ saying whether a note exists (`scope.rs`). Nothing hides part of a note.
 ## Decision
 
 Proposed (2026-10-14); the direction — items 1, 2, 3 and 5 — decided by
-the maintainer on 2026-10-14 (Source). Each `[OPEN]` carries a
-recommendation; the maintainer decides.
+the maintainer on 2026-10-14 (Source). Accepted on 2026-10-14 (Status): each `[OPEN]` was decided as
+recommended and is marked `[DECIDED 2026-10-14]`.
 
 1. **The syntax is a callout of kind `secret`.** `> [!secret]`, with a
    title, `+` or `-` as any callout; the kind compared lower-cased, as Q5
@@ -83,8 +83,8 @@ recommendation; the maintainer decides.
    holds the file. Nothing in the file changes meaning
    ([0030](0030-base-dialect-obsidian-compatible.md), invariant 12):
    what a UniVerso adds is a property of **serving** the file to a reader,
-   not of the text. `[OPEN]`: other keywords (`[!gm]`, `[!segredo]`).
-   Recommended: **`secret` only**, a key as `type:` is, its label
+   not of the text. `[DECIDED 2026-10-14]`: other keywords (`[!gm]`, `[!segredo]`).
+   Decided: **`secret` only**, a key as `type:` is, its label
    translated in the window ("Segredo", "Secret").
 2. **Who sees what, on a UniVerso.** An account whose role on the note is
    *reader* — on the folder ([0074](0074-accounts-and-access-on-the-server.md))
@@ -101,8 +101,8 @@ recommendation; the maintainer decides.
    requires), computed from the parser's callout ranges, with fixtures
    ([0031](0031-fixtures-as-contract.md)). It **fails closed**: a secret
    block whose end it cannot place hides through the end of the
-   blockquote that holds it. `[OPEN]`, with Q5's nesting: a `[!secret]`
-   inside another callout. Recommended: **removed at any depth the reading
+   blockquote that holds it. `[DECIDED 2026-10-14]`, with Q5's nesting: a `[!secret]`
+   inside another callout. Decided: **removed at any depth the reading
    view draws**, with its contents; and a callout inside a secret block
    goes with it.
 4. **Everywhere a reader reads.** Every command of the contract and every
@@ -120,8 +120,8 @@ recommendation; the maintainer decides.
      the hash its manifest and its change log name is the projection's,
      so a change made only inside a secret block is **no change** for a
      reader — no new version, no notice, no new modification time;
-   - the room: `[OPEN]` how a reader follows a live note that has secret
-     blocks. Recommended: **a reader does not join the note's Yjs
+   - the room: `[DECIDED 2026-10-14]` how a reader follows a live note that has secret
+     blocks. Decided: **a reader does not join the note's Yjs
      document**; the server sends the reader the projection each time the
      room writes the file (0082's quiet of 900 ms), and the reader's
      presence shows **who** is in the note, never the writers' cursors,
@@ -138,11 +138,11 @@ recommendation; the maintainer decides.
    the whole text — a block they could not see would be destroyed by their
    next edit — and the window draws a secret block with a lock and the
    words "Hidden from readers" (on a server) or "Visible to anyone with
-   the file" (in a local folder, where nothing is hidden). `[OPEN]`: a
-   "view as a reader" toggle for a writer. Recommended: **yes**, drawn
+   the file" (in a local folder, where nothing is hidden). `[DECIDED 2026-10-14]`: a
+   "view as a reader" toggle for a writer. Decided: **yes**, drawn
    from the same projection, read-only.
-6. **The index serves both.** `[OPEN]`: how the server's index answers a
-   reader without the secret text. Recommended: **one index, the secret
+6. **The index serves both.** `[DECIDED 2026-10-14]`: how the server's index answers a
+   reader without the secret text. Decided: **one index, the secret
    ranges recorded per note** — the text of secret blocks indexed apart
    from the rest and every link, tag and task inside one flagged — and a
    reader's query excluding them; two indexes per folder (whole and
@@ -182,8 +182,8 @@ recommendation; the maintainer decides.
   beside the lore shared for reading.
 - [0036](0036-tabletop-rpg-support.md)'s "player view: blocks marked as
   secret disappear in sharing and in export" is answered for sharing.
-  Export: there is no export of a note today; `[OPEN]` until one exists.
-  Recommended: an export by a writer asks whether to leave the secret
+  Export: there is no export of a note today; `[DECIDED 2026-10-14]` until one exists.
+  Decided: an export by a writer asks whether to leave the secret
   blocks out, left out by default.
 - [0073](0073-self-hosted-server-first.md)'s `[OPEN]` on permissions finer
   than the folder is answered "per block, for readers" when this ADR is
@@ -209,7 +209,12 @@ recommendation; the maintainer decides.
 
 ## Status
 
-**Proposed (2026-10-14)**, the direction decided by the maintainer the
+**Accepted (2026-10-14).** The maintainer, that night, answering
+*"Aceita todas as recomendações (R1–R4 e os itens dos ADRs 0085–0092)?"* with *"Sim, todas"* (yes, all): every `[OPEN]`
+decided as recommended, marked `[DECIDED 2026-10-14]` in place. In V1
+(`docs/roadmap.md`, Phase 4 — V1). Item 8 applied the same day: spec §5.8, §6 and §9 Q9 revised, Q9 `DECIDED` (spec v0.38), with no fixture — the fixture of Q9 comes with the PR that builds this ADR, for the maintainer's approval ([0031](0031-fixtures-as-contract.md)). [0073](0073-self-hosted-server-first.md) and [0036](0036-tabletop-rpg-support.md) gain their Revisions lines.
+
+*(History, before the acceptance above:)* Proposed (2026-10-14), the direction decided by the maintainer the
 same evening (Source). In V1 by the maintainer's word of 2026-10-14
 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revision 8). For the
 maintainer, each with a recommendation: other keywords (item 1), nesting

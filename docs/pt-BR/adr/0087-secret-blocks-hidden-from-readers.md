@@ -77,8 +77,8 @@ nota.
 ## Decisão
 
 Proposta (2026-10-14); a direção — itens 1, 2, 3 e 5 — decidida pelo
-mantenedor em 2026-10-14 (Fonte). Cada `[ABERTO]` traz uma recomendação;
-o mantenedor decide.
+mantenedor em 2026-10-14 (Fonte). Aceita em 2026-10-14 (Status): cada `[ABERTO]` foi decidido como
+recomendado e está marcado `[DECIDIDO 2026-10-14]`.
 
 1. **A sintaxe é um callout do tipo `secret`.** `> [!secret]`, com um
    título, `+` ou `-` como qualquer callout; o tipo comparado em
@@ -87,8 +87,8 @@ o mantenedor decide.
    para quem tem o arquivo. Nada no arquivo muda de significado
    ([0030](0030-base-dialect-obsidian-compatible.md), invariante 12): o
    que um UniVerso acrescenta é uma propriedade de **servir** o arquivo a
-   um leitor, não do texto. `[ABERTO]`: outras palavras-chave (`[!gm]`,
-   `[!segredo]`). Recomendado: **só `secret`**, uma chave como `type:` é,
+   um leitor, não do texto. `[DECIDIDO 2026-10-14]`: outras palavras-chave (`[!gm]`,
+   `[!segredo]`). Decidido: **só `secret`**, uma chave como `type:` é,
    o rótulo traduzido na janela ("Segredo", "Secret").
 2. **Quem vê o quê, num UniVerso.** Uma conta cujo papel na nota é
    *leitor* — na pasta ([0074](0074-accounts-and-access-on-the-server.md))
@@ -106,8 +106,8 @@ o mantenedor decide.
    calculada das faixas de callout do parser, com fixtures
    ([0031](0031-fixtures-as-contract.md)). Ela **falha fechada**: um bloco
    secreto cujo fim ela não consegue situar esconde até o fim da citação
-   que o contém. `[ABERTO]`, com o aninhamento da Q5: um `[!secret]`
-   dentro de outro callout. Recomendado: **removido em qualquer
+   que o contém. `[DECIDIDO 2026-10-14]`, com o aninhamento da Q5: um `[!secret]`
+   dentro de outro callout. Decidido: **removido em qualquer
    profundidade que a visualização de leitura desenha**, com o conteúdo;
    e um callout dentro de um bloco secreto vai junto.
 4. **Em todo lugar em que um leitor lê.** Todo comando do contrato e toda
@@ -127,8 +127,8 @@ o mantenedor decide.
      da projeção, então uma mudança feita só dentro de um bloco secreto
      **não é mudança** para um leitor — nenhuma versão nova, nenhum aviso,
      nenhuma data de modificação nova;
-   - a sala: `[ABERTO]` como um leitor acompanha uma nota ao vivo que tem
-     blocos secretos. Recomendado: **um leitor não entra no documento Yjs
+   - a sala: `[DECIDIDO 2026-10-14]` como um leitor acompanha uma nota ao vivo que tem
+     blocos secretos. Decidido: **um leitor não entra no documento Yjs
      da nota**; o servidor manda ao leitor a projeção cada vez que a sala
      escreve o arquivo (a quietude de 900 ms da 0082), e a presença do
      leitor mostra **quem** está na nota, nunca os cursores de quem
@@ -146,11 +146,11 @@ o mantenedor decide.
    destruído pela próxima edição dele — e a janela desenha um bloco
    secreto com um cadeado e as palavras "Oculto para leitores" (num
    servidor) ou "Visível para quem tiver o arquivo" (numa pasta local,
-   onde nada é escondido). `[ABERTO]`: um botão "ver como leitor" para
-   quem escreve. Recomendado: **sim**, desenhado a partir da mesma
+   onde nada é escondido). `[DECIDIDO 2026-10-14]`: um botão "ver como leitor" para
+   quem escreve. Decidido: **sim**, desenhado a partir da mesma
    projeção, só leitura.
-6. **O índice serve os dois.** `[ABERTO]`: como o índice do servidor
-   responde a um leitor sem o texto secreto. Recomendado: **um índice, as
+6. **O índice serve os dois.** `[DECIDIDO 2026-10-14]`: como o índice do servidor
+   responde a um leitor sem o texto secreto. Decidido: **um índice, as
    faixas secretas registradas por nota** — o texto dos blocos secretos
    indexado à parte do resto e todo link, tag e tarefa dentro de um
    marcado — e a consulta de um leitor os excluindo; dois índices por
@@ -193,7 +193,7 @@ o mantenedor decide.
 - A "visão de jogador: blocos marcados como secretos somem no
   compartilhamento e na exportação" da [0036](0036-tabletop-rpg-support.md)
   é respondida para o compartilhamento. Exportação: não há exportação de
-  nota hoje; `[ABERTO]` até existir uma. Recomendado: uma exportação por
+  nota hoje; `[DECIDIDO 2026-10-14]` até existir uma. Decidido: uma exportação por
   quem escreve pergunta se deixa os blocos secretos de fora, deixados de
   fora por padrão.
 - O `[ABERTO]` da [0073](0073-self-hosted-server-first.md) sobre
@@ -222,7 +222,12 @@ o mantenedor decide.
 
 ## Status
 
-**Proposta (2026-10-14)**, a direção decidida pelo mantenedor na mesma
+**Aceita (2026-10-14).** O mantenedor, naquela noite, respondendo a
+*"Aceita todas as recomendações (R1–R4 e os itens dos ADRs 0085–0092)?"* com *"Sim, todas"*: cada `[ABERTO]`
+decidido como recomendado, marcado `[DECIDIDO 2026-10-14]` no lugar. Na V1
+(`docs/roadmap.md`, Fase 4 — V1). O item 8 aplicado no mesmo dia: §5.8, §6 e Q9 da §9 da spec revisadas, Q9 `DECIDIDO` (spec v0.38), sem fixture — a fixture da Q9 vem com o PR que constrói esta ADR, para a aprovação do mantenedor ([0031](0031-fixtures-as-contract.md)). A [0073](0073-self-hosted-server-first.md) e a [0036](0036-tabletop-rpg-support.md) ganham as suas linhas de Revisões.
+
+*(Histórico, antes da aceitação acima:)* Proposta (2026-10-14), a direção decidida pelo mantenedor na mesma
 noite (Fonte). Na V1 pela palavra do mantenedor de 2026-10-14 (*"VAI SER
 TUDO NA V1"*; `docs/roadmap.md`, revisão 8). Para o mantenedor, cada um
 com uma recomendação: outras palavras-chave (item 1), o aninhamento com a

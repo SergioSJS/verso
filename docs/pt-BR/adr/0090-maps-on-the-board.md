@@ -60,8 +60,8 @@ código dele não é copiado.
 
 ## Decisão
 
-Proposta (2026-10-14). Cada `[ABERTO]` traz uma recomendação; o
-mantenedor decide.
+Proposta (2026-10-14). Aceita em 2026-10-14 (Status): cada `[ABERTO]` foi decidido como
+recomendado e está marcado `[DECIDIDO 2026-10-14]`.
 
 1. **Um mapa é um board.** Nenhum arquivo `.map` e nenhum tipo de nó
    próprio do Verso: um mapa abre no Obsidian como um canvas com uma
@@ -71,7 +71,7 @@ mantenedor decide.
    marca `"verso": {"map": true}`; "Deixar de usar como mapa" desfaz as
    três coisas. Um board pode ter vários (um mundo e um recorte em
    detalhe). "Enviar para trás" e "Trazer para a frente" são oferecidos
-   em todo cartão. `[ABERTO]`: o nome do campo. Recomendado: `map`.
+   em todo cartão. `[DECIDIDO 2026-10-14]`: o nome do campo. Decidido: `map`.
 3. **Alfinetes.** Um alfinete é um cartão de arquivo que nomeia uma nota,
    desenhado sobre um mapa como uma marca com a figurinha da nota ou um
    ícone padrão e o nome dela, num tamanho constante na tela, ancorado no
@@ -85,13 +85,13 @@ mantenedor decide.
    zoom mostrado, feitos a partir da imagem uma vez e guardados como
    cache **fora da pasta** ([0011](0011-config-outside-tree-index-as-cache.md);
    num servidor, no diretório de dados dele), nunca gravados ao lado da
-   imagem. `[ABERTO]`: como. Recomendado: **tiles próprios do Verso
+   imagem. `[DECIDIDO 2026-10-14]`: como. Decidido: **tiles próprios do Verso
    desenhados sob o canvas do Excalidraw**, com a câmera do board os
    conduzindo, medidos antes com uma imagem de 16.000 pixels no servidor
    de 1 GB e num celular; um segundo visualizador (Leaflet,
    OpenSeadragon, nomeados no plano) precisaria ter a câmera dele mantida
    em sincronia com a do Excalidraw.
-5. **Alfinetes secretos.** `[ABERTO]`: como um alfinete é escondido dos
+5. **Alfinetes secretos.** `[DECIDIDO 2026-10-14]`: como um alfinete é escondido dos
    leitores. Dois caminhos foram levantados:
    - (a) **a projeção da [0087](0087-secret-blocks-hidden-from-readers.md)
      aplicada ao board**: um nó marcado `"verso": {"secret": true}` — e as
@@ -105,7 +105,7 @@ mantenedor decide.
      com os jogadores, sobreposta ao mapa para quem puder lê-la — a
      leitura de 2026-10-14, escrita antes de o mantenedor escolher a
      projeção para as notas.
-   Recomendado: **(a)**, a mesma regra do bloco secreto de uma nota, de
+   Decidido: **(a)**, a mesma regra do bloco secreto de uma nota, de
    modo que uma ideia cubra os dois; (b) não mostra o lugar de um alfinete
    a ninguém, mas precisa de um segundo arquivo mantido em sincronia com o
    primeiro.
@@ -148,7 +148,12 @@ mantenedor decide.
 
 ## Status
 
-**Proposta (2026-10-14).** Na V1 pela palavra do mantenedor de
+**Aceita (2026-10-14).** O mantenedor, naquela noite, respondendo a
+*"Aceita todas as recomendações (R1–R4 e os itens dos ADRs 0085–0092)?"* com *"Sim, todas"*: cada `[ABERTO]`
+decidido como recomendado, marcado `[DECIDIDO 2026-10-14]` no lugar. Na V1
+(`docs/roadmap.md`, Fase 4 — V1). A [0036](0036-tabletop-rpg-support.md) ganha uma linha de Revisões.
+
+*(Histórico, antes da aceitação acima:)* Proposta (2026-10-14). Na V1 pela palavra do mantenedor de
 2026-10-14 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revisão 8). Para o
 mantenedor, cada um com uma recomendação: o nome do campo (item 2), os
 tiles (item 4), e alfinetes secretos por projeção ou por um board

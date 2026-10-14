@@ -43,8 +43,8 @@ disso antes.
 
 ## Decisão
 
-Proposta (2026-10-14). Cada `[ABERTO]` traz uma recomendação; o
-mantenedor decide.
+Proposta (2026-10-14). Aceita em 2026-10-14 (Status): cada `[ABERTO]` foi decidido como
+recomendado e está marcado `[DECIDIDO 2026-10-14]`.
 
 1. **Uma prévia é a nota que um link nomeia, só leitura, num cartão ao
    lado do ponteiro.** Ela renderiza como um embed renderiza — o mesmo
@@ -61,9 +61,9 @@ mantenedor decide.
    arquivo como o embed dele mostra; um link para a web não mostra prévia
    nenhuma (nenhuma requisição sai por um passar de ponteiro,
    [0050](0050-outbound-network-access.md)).
-3. **No modo Editar, com o modificador.** `[ABERTO]`: se o modo Editar
+3. **No modo Editar, com o modificador.** `[DECIDIDO 2026-10-14]`: se o modo Editar
    mostra a prévia ao simplesmente passar o ponteiro ou só com ⌘/Ctrl
-   pressionado. Recomendado: **com ⌘/Ctrl**, o modificador que já segue um
+   pressionado. Decidido: **com ⌘/Ctrl**, o modificador que já segue um
    link ali — um ponteiro parado sobre o texto sendo escrito não deveria
    abrir cartões; a visão de leitura e os painéis mostram a prévia ao
    simplesmente passar o ponteiro. Antes de construir, o que o Obsidian
@@ -72,7 +72,7 @@ mantenedor decide.
 4. **Tempo e fechamento.** O cartão abre depois de o ponteiro parar cerca
    de meio segundo e fecha quando ele sai tanto do link quanto do cartão;
    o ponteiro pode entrar no cartão para rolá-lo. Um cartão de cada vez.
-   `[ABERTO]`: uma prévia dentro de uma prévia. Recomendado: **não na
+   `[DECIDIDO 2026-10-14]`: uma prévia dentro de uma prévia. Decidido: **não na
    primeira versão** — um link dentro de um cartão é seguido com um
    clique.
 5. **Toque.** Não há passar de ponteiro: o cartão do link da
@@ -81,7 +81,7 @@ mantenedor decide.
    mostra.
 6. **Teclado e leitores de tela** ([0035](0035-cross-cutting-requirements.md)).
    Um comando "Mostrar a prévia do link sob o cursor", com uma tecla
-   padrão `[ABERTO]` (recomendado: nenhuma, atribuível, como o item da
+   padrão `[DECIDIDO 2026-10-14]` (decidido: nenhuma, atribuível, como o item da
    revisão de acessibilidade sobre seguir um link a partir do editor
    deixa as teclas padrão para o mantenedor, `docs/review/accessibility.md`
    §8); o cartão recebe o foco quando aberto assim, é um diálogo com
@@ -116,7 +116,12 @@ Nenhuma registrada.
 
 ## Status
 
-**Proposta (2026-10-14).** Na V1 pela palavra do mantenedor de 2026-10-14
+**Aceita (2026-10-14).** O mantenedor, naquela noite, respondendo a
+*"Aceita todas as recomendações (R1–R4 e os itens dos ADRs 0085–0092)?"* com *"Sim, todas"*: cada `[ABERTO]`
+decidido como recomendado, marcado `[DECIDIDO 2026-10-14]` no lugar. Na V1
+(`docs/roadmap.md`, Fase 4 — V1).
+
+*(Histórico, antes da aceitação acima:)* Proposta (2026-10-14). Na V1 pela palavra do mantenedor de 2026-10-14
 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revisão 8). Para o
 mantenedor, cada um com uma recomendação: o modo Editar com o modificador
 (item 3), nenhuma prévia dentro de uma prévia (item 4), e a tecla padrão
