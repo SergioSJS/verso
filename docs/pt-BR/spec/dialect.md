@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.40
+# Spec do dialeto do Verso — v0.41
 
-- Versão: v0.40 · 2026-10-14
+- Versão: v0.41 · 2026-10-14
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -204,8 +204,8 @@ imagem da pasta, um caminho da pasta que termina na extensão de uma
 imagem, ou um endereço `http(s)`; e a chave de topo `layout`, cujo único
 valor é `infobox`. Um valor que não cabe no seu tipo é mostrado como
 escrito e marcado (ADR 0052 ponto 6): um wikilink ou um caminho para uma
-nota não é uma imagem. A fixture rascunhada `fixtures/schema/infobox`
-aguarda a aprovação do mantenedor.
+nota não é uma imagem. A fixture `fixtures/schema/infobox` foi aprovada
+pelo mantenedor em 2026-10-14 (v0.41).
 
 ### 4.9 Itens de `prose`
 
@@ -227,8 +227,8 @@ texto que ela representa. Pedaços de um trecho que se tocam são um item só.
 | `pos` | posição do primeiro caractere do trecho (4.4) | quando a fixture testa posição |
 
 Acrescentado em 2026-10-14 pela resposta M6 do mantenedor (*"Sim,
-todas"*), com a fixture rascunhada `fixtures/prose/what-is-prose`, que
-aguarda aprovação.
+todas"*), com a fixture `fixtures/prose/what-is-prose`, aprovada pelo
+mantenedor no mesmo dia (v0.41).
 
 ---
 
@@ -731,7 +731,7 @@ Categorias acrescentadas na revisão da Fase 0, fora do mínimo do briefing:
 | heading | 5.12 | exigida pela feature 1 da Fase 1 |
 | link Markdown para arquivo local | 5.13 | `PROPOSTO` |
 | posição (`pos`) em pelo menos uma fixture por construção | 4.4 | exigida por [ADR 0018](../adr/0018-llm-native-mcp-in-core.md) |
-| schema (um bloco `verso-schema`) | 4.8, 6 | rascunhada em 2026-10-07 com a implementação do ADR 0052, aprovada no mesmo dia; `schema/infobox` rascunhada em 2026-10-14 com a do ADR 0086, aguardando aprovação |
+| schema (um bloco `verso-schema`) | 4.8, 6 | rascunhada em 2026-10-07 com a implementação do ADR 0052, aprovada no mesmo dia; `schema/infobox` rascunhada em 2026-10-14 com a do ADR 0086, aprovada no mesmo dia |
 
 Qualquer fixture pode ser rascunhada pela IA; só vale com a aprovação do
 mantenedor no PR que a adiciona (ADR 0031). Rascunho diz que é rascunho na
@@ -1420,3 +1420,4 @@ ser escolhido.
 | v0.38 | 2026-10-14 | **Q9 `DECIDIDO`** pelo mantenedor, aceitando o ADR 0087 e o item 8 dele (*"Sim, todas"*): a visibilidade por bloco é um callout do tipo `secret`, um callout no arquivo, servido por um UniVerso aos leitores como uma projeção sem ele; a §5.8 e a linha da §6 revisadas. Sem fixture: a fixture da Q9 vem com o PR que constrói o ADR 0087, para a aprovação do mantenedor. |
 | v0.39 | 2026-10-14 | O [ADR 0086](../adr/0086-infobox-a-typed-notes-card.md), aceito no mesmo dia, implementado: os tipos `link` e `image` de um schema e o seu `layout` de topo (`infobox`) entram na §4.8, na §6 e no formato da Q11; a fixture `fixtures/schema/infobox` rascunhada, aguardando a aprovação do mantenedor. A fixture aprovada `fixtures/schema/nested-and-invalid` escreve `kind: link` como o seu tipo desconhecido, o que `link` deixou de ser: a entrada dela espera o mantenedor (invariantes 14 e 16). Nenhuma questão fechada. |
 | v0.40 | 2026-10-14 | O schema ganha `prose` (§4.1, §4.9): os trechos de prosa do [ADR 0089](../adr/0089-linking-unlinked-mentions.md) item 1, onde as menções são procuradas, pela resposta M6 do mantenedor (*"Sim, todas"*); a fixture `fixtures/prose/what-is-prose` rascunhada, aguardando a aprovação do mantenedor. Nenhuma questão fechada. |
+| v0.41 | 2026-10-14 | As fixtures `fixtures/code/dice-inline`, `fixtures/prose/what-is-prose` e `fixtures/schema/infobox` **aprovadas pelo mantenedor** em sessão (*"Aprovo as 3"*), e com elas a chave `prose` do schema (§4.1, §4.9) da v0.40; a marca de rascunho delas removida. `code/dice-inline` observada no Obsidian 1.14.4 pelo CLI dele, sem o plugin Dice Roller, antes de a aprovação ser registrada: os links e o bloco dela são os do Obsidian, e o `observed:` dela diz como. Nada mais muda. |

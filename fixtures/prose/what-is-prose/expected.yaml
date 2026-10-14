@@ -1,4 +1,4 @@
-# AI draft by Opus 5.5 on 2026-10-14 (ADR 0031), for the maintainer's approval (ADR 0089, M6).
+# Approved by the maintainer on 2026-10-14 in session ("Aprovo as 3"); drafted by Opus 5.5 on 2026-10-14 (ADR 0031; ADR 0089, M6).
 # Construct: a note's prose (spec §4.9) — the runs of text the reading view
 # shows as words, where a note's name written plainly is an unlinked mention
 # of it (ADR 0089 item 1). Prose: a heading's text, a paragraph's, a table's

@@ -1,4 +1,4 @@
-# AI draft by Opus 5.5 on 2026-10-14 (ADR 0031), for the maintainer's approval; not yet observed in Obsidian.
+# Approved by the maintainer on 2026-10-14 in session ("Aprovo as 3"), after the observation in Obsidian; drafted by Opus 5.5 on 2026-10-14 (ADR 0031).
 # Construct: a `dice:` code (ADR 0088 item 1) is inline code, and the
 # dialect reads nothing inside it — the window draws it as a die, the parser
 # keeps it code (spec §5.9; CLAUDE.md rule 12): the link inside
@@ -16,3 +16,16 @@ blocks:
     pos: { line: 8, col: 1 }
     lines: [3, 6]
 source: ADR 0088 items 1 and 3 (spec §5.9, Q3, Q21)
+observed:
+  app: Obsidian
+  version: "1.14.4 (installer 1.11.5), macOS"
+  how: >-
+    Obsidian CLI on 2026-10-14 against a throwaway note in the Sandbox
+    vault, the Dice Roller plugin neither installed nor enabled, public API
+    only (ADR 0009; docs/reference/obsidian-cli.md): the note created with
+    `app.vault.create` holding this input byte for byte (read back equal),
+    then `obsidian eval` on `app.metadataCache.getCache(...)`, 0-based:
+    one link, `Lobos` at line 4 col 8, and none from either code span;
+    sections: paragraph 0..0, table 2..5 #encontros; blocks { encontros:
+    2..5 } — the `^encontros` line is no section. The note and its folder
+    were deleted afterwards (`app.vault.delete`).

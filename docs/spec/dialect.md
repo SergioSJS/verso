@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.40
+# Verso dialect spec — v0.41
 
-- Version: v0.40 · 2026-10-14
+- Version: v0.41 · 2026-10-14
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -205,8 +205,8 @@ folder, a path of the folder ending in a picture's extension, or an
 `http(s)` address; and the top-level key `layout`, whose one value is
 `infobox`. A value that does not fit its kind is shown as written and
 marked (ADR 0052 point 6): a wikilink or a path to a note is not a
-picture. The drafted fixture `fixtures/schema/infobox` awaits the
-maintainer's approval.
+picture. The fixture `fixtures/schema/infobox` was approved by the
+maintainer on 2026-10-14 (v0.41).
 
 ### 4.9 Items of `prose`
 
@@ -228,7 +228,8 @@ item.
 | `pos` | position of the run's first character (4.4) | when the fixture tests position |
 
 Added on 2026-10-14 by the maintainer's answer M6 (*"Sim, todas"*), with
-the drafted fixture `fixtures/prose/what-is-prose`, awaiting approval.
+the fixture `fixtures/prose/what-is-prose`, approved by the maintainer the
+same day (v0.41).
 
 ---
 
@@ -725,7 +726,7 @@ Categories added in the Phase 0 review, outside the briefing's minimum:
 | heading | 5.12 | required by feature 1 of Phase 1 |
 | Markdown link to a local file | 5.13 | `PROPOSED` |
 | position (`pos`) in at least one fixture per construct | 4.4 | required by [ADR 0018](../adr/0018-llm-native-mcp-in-core.md) |
-| schema (a `verso-schema` block) | 4.8, 6 | drafted on 2026-10-07 with ADR 0052's implementation, approved the same day; `schema/infobox` drafted on 2026-10-14 with ADR 0086's, awaiting approval |
+| schema (a `verso-schema` block) | 4.8, 6 | drafted on 2026-10-07 with ADR 0052's implementation, approved the same day; `schema/infobox` drafted on 2026-10-14 with ADR 0086's, approved the same day |
 
 Any fixture may be drafted by the AI; it only counts with the maintainer's
 approval in the PR that adds it (ADR 0031). A draft says so on the first line
@@ -1399,3 +1400,4 @@ the parser was chosen.
 | v0.38 | 2026-10-14 | **Q9 `DECIDED`** by the maintainer, accepting ADR 0087 and its item 8 (*"Sim, todas"*): per-block visibility is a callout of kind `secret`, a callout in the file, served by a UniVerso to readers as a projection without it; §5.8 and §6's row revised. No fixture: the fixture of Q9 comes with the PR that builds ADR 0087, for the maintainer's approval. |
 | v0.39 | 2026-10-14 | [ADR 0086](../adr/0086-infobox-a-typed-notes-card.md), accepted the same day, implemented: a schema's kinds `link` and `image` and its top-level `layout` (`infobox`) enter §4.8, §6 and Q11's format; the fixture `fixtures/schema/infobox` drafted, awaiting the maintainer's approval. The approved fixture `fixtures/schema/nested-and-invalid` writes `kind: link` as its unknown kind, which `link` no longer is: its input waits for the maintainer (invariants 14 and 16). No question closed. |
 | v0.40 | 2026-10-14 | The schema gains `prose` (§4.1, §4.9): the runs of prose of [ADR 0089](../adr/0089-linking-unlinked-mentions.md) item 1, what the mentions are looked for in, by the maintainer's answer M6 (*"Sim, todas"*); the fixture `fixtures/prose/what-is-prose` drafted, awaiting the maintainer's approval. No question closed. |
+| v0.41 | 2026-10-14 | The fixtures `fixtures/code/dice-inline`, `fixtures/prose/what-is-prose` and `fixtures/schema/infobox` **approved by the maintainer** in session (*"Aprovo as 3"*), and with them the schema's key `prose` (§4.1, §4.9) of v0.40; their draft mark removed. `code/dice-inline` observed in Obsidian 1.14.4 through its CLI, without the Dice Roller plugin, before the approval was recorded: its links and its block are Obsidian's, its `observed:` says how. Nothing else changes. |
