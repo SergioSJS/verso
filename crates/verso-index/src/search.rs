@@ -231,6 +231,31 @@ impl Index {
     }
 }
 
+impl Index {
+    /// The notes whose text holds `phrase` — its words in a row, accents
+    /// and case folded as the search folds them — at most `limit`: the
+    /// candidates of a note's unlinked mentions (ADR 0089 item 1), which
+    /// the core then reads and scans for the name as written. The phrase
+    /// goes in as one FTS5 string, bound, its quotes doubled: never the
+    /// grammar (feature 3 guardrail). A phrase with no letter or digit
+    /// holds no word the index knows: none.
+    pub fn notes_holding(&self, phrase: &str, limit: usize) -> Result<Vec<String>, IndexError> {
+        let clean: String = phrase.chars().filter(|c| !c.is_control()).collect();
+        if !clean.chars().any(char::is_alphanumeric) {
+            return Ok(Vec::new());
+        }
+        let expr = format!("\"{}\"", clean.replace('"', "\"\""));
+        let mut st = self
+            .conn
+            .prepare("SELECT path FROM notes_fts WHERE notes_fts MATCH ?1 LIMIT ?2")?;
+        let rows = st.query_map(
+            params![expr, i64::try_from(limit).unwrap_or(i64::MAX)],
+            |r| r.get(0),
+        )?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

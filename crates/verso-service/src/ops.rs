@@ -15,8 +15,8 @@
 use verso_contract::{
     Backlink, BaseColumn, BaseGroup, BaseProblem, BaseProblemKind, BaseQuery, BaseResult, BaseRow,
     BaseView, ContractError, Edge, EntryLabel, ErrorKind, FileEntry, FileKind, Focus,
-    FocusesSummary, FolderLayer, FolderSettings, FolderSpace, Hit, Link, MovedEntries, NoteText,
-    RefusedEntry, Renamed, Tag, TextFile, Trashed, WebNote, Written,
+    FocusesSummary, FolderLayer, FolderSettings, FolderSpace, Hit, Link, Mention, Mentions,
+    MovedEntries, NoteText, RefusedEntry, Renamed, Tag, TextFile, Trashed, WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
 
@@ -192,6 +192,31 @@ ops! {
                 col: b.col,
             })
             .collect())
+    }
+
+    /// The note's unlinked mentions, as occurrences (ADR 0089 item 1). It
+    /// reads: the link is written by the window, as any edit, over the
+    /// revision it read (invariant 11).
+    Read fn unlinked_mentions(ws, path: String) -> Mentions {
+        let found = ws.unlinked_mentions(&path)?;
+        Ok(Mentions {
+            mentions: found
+                .mentions
+                .into_iter()
+                .map(|m| Mention {
+                    path: m.path,
+                    line: m.line,
+                    col: m.col,
+                    text: m.text,
+                    before: m.before,
+                    after: m.after,
+                    alias: m.alias,
+                    table: m.table,
+                    secret: m.secret,
+                })
+                .collect(),
+            more: found.more,
+        })
     }
 
     /// Write a note's text over the revision that was read — atomically, no
