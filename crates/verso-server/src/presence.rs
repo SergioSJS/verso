@@ -154,13 +154,20 @@ pub fn stamped(
     claims.retain(|_, (_, c)| present.contains(c));
     let mut out = Vec::new();
     for e in entries {
+        let held = claims.values().filter(|(_, c)| c == who.client).count();
         match claims.get_mut(&e.id) {
             Some((account, _)) if account.as_str() != who.account => continue,
+            // Already this connection's.
+            Some((_, client)) if client.as_str() == who.client => {}
             // The same person's window again on a new connection: it
-            // speaks for its client from now on.
-            Some((_, client)) => who.client.clone_into(client),
+            // speaks for its client from now on, within its own bound.
+            Some((_, client)) => {
+                if held >= CLIENTS_MOST {
+                    continue;
+                }
+                who.client.clone_into(client);
+            }
             None => {
-                let held = claims.values().filter(|(_, c)| c == who.client).count();
                 if held >= CLIENTS_MOST {
                     continue;
                 }
@@ -278,6 +285,29 @@ mod tests {
         let many: Vec<(u64, &str)> = (0..20).map(|i| (i, "{}")).collect();
         let out = stamped(&update(&many), &BIA, &mut claims, &present(&["c-bia"])).unwrap();
         assert_eq!(states(&out).len(), CLIENTS_MOST);
+    }
+
+    /// Found by the fuzz target `presence` on main (2026-10-14): a window
+    /// of the same person on another connection took over the first's
+    /// clients past the bound, and one connection spoke for more than
+    /// `CLIENTS_MOST`.
+    #[test]
+    fn taking_over_a_persons_clients_keeps_the_bound() {
+        let mut claims = Claims::new();
+        let other = Sender {
+            client: "c-bia-2",
+            ..BIA
+        };
+        let room = present(&["c-bia", "c-bia-2"]);
+        let first: Vec<(u64, &str)> = (0..8).map(|i| (i, "{}")).collect();
+        let second: Vec<(u64, &str)> = (100..108).map(|i| (i, "{}")).collect();
+        stamped(&update(&first), &BIA, &mut claims, &room).unwrap();
+        stamped(&update(&second), &other, &mut claims, &room).unwrap();
+        // The second window speaks again for its own, and for the first's.
+        let both: Vec<(u64, &str)> = (0..8).chain(100..108).map(|i| (i, "{}")).collect();
+        stamped(&update(&both), &other, &mut claims, &room).unwrap();
+        let held = claims.values().filter(|(_, c)| c == "c-bia-2").count();
+        assert!(held <= CLIENTS_MOST, "{held} clients for one connection");
     }
 
     #[test]
