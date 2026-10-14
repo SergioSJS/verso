@@ -296,7 +296,7 @@ test("an update: a toast with its two actions, once per version, checked again e
   await expect.poll(() => app.calls("check_for_updates").then((c) => c.length)).toBeGreaterThanOrEqual(2);
 });
 
-test("the quota: said once at 90 %, again only after it fell under 90 % and passed it again", async ({ app, page }) => {
+test("the quota: said once at 90 %, again only after a daily measure found it under 90 % and it passed again", async ({ app, page }) => {
   await app.open();
   await app.emit("folder-quota", { used: 95, quota: 100 });
   await app.emit("folder-quota", { used: 96, quota: 100 });
@@ -307,7 +307,22 @@ test("the quota: said once at 90 %, again only after it fell under 90 % and pass
   await app.emit("folder-quota", { used: 97, quota: 100 });
   await page.waitForTimeout(300);
   await expect(toasts(page)).toHaveCount(0);
-  await app.emit("folder-quota", { used: 50, quota: 100 });
+  // The server never says the folder fell under 90 %: the window measures
+  // a folder said near once a day (folder_space, at the opening and every
+  // 24 h). Still near: nothing changes.
+  const space = (total) =>
+    page.evaluate((t) => {
+      window.__harness.core.handlers.folder_space = () => ({ total: t, notes: t, attachments: 0, files: 1, index: 0 });
+      dispatchEvent(new Event("verso:folder-shown"));
+    }, total);
+  await space(95);
+  await expect.poll(() => app.calls("folder_space").then((c) => c.length)).toBe(1);
+  await app.emit("folder-quota", { used: 96, quota: 100 });
+  await page.waitForTimeout(300);
+  await expect(toasts(page)).toHaveCount(0);
+  // Under 90 %: the next crossing is news again.
+  await space(40);
+  await expect.poll(() => app.calls("folder_space").then((c) => c.length)).toBe(2);
   await app.emit("folder-quota", { used: 92, quota: 100 });
   await expect(toasts(page)).toHaveCount(1);
   await expect(page.locator("#status")).toHaveText("Esta pasta usa 92 B de 100 B do espaço que o servidor dá a ela.");
@@ -365,6 +380,9 @@ test("the system's notifications: off at first; refused goes back to off and say
   await expect(box).not.toBeChecked();
   // Nothing asked before the person turns it on.
   expect(await app.calls("plugin:notification|request_permission")).toHaveLength(0);
+  // The desktop asks nothing and says where the system may block them.
+  await expect(page.locator(".notify-system-hint")).toContainText("O sistema pode bloqueá-las mesmo assim");
+  // A browser's refusal (the desktop's plugin always answers "granted").
   await page.evaluate(() => (window.__harness.notifications.answer = "denied"));
   await box.click();
   await expect(page.locator(".notify-system-said")).toHaveText("O sistema recusou a permissão. Libere as notificações do Verso nos ajustes do sistema (ou do navegador) e ligue de novo.");

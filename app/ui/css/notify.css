@@ -56,7 +56,9 @@
 .notify-item-sentence { margin: 0; color: var(--ink-2); line-height: 1.45; overflow-wrap: anywhere; }
 .notify-item-meta { margin: 0; font-size: max(12px, .74rem); color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .notify-empty { padding: 1.4rem 1rem; color: var(--ink-3); text-align: center; }
+.notify-system { flex-wrap: wrap; justify-content: flex-end; }
 .notify-system-said { max-width: 22rem; }
+.notify-system-hint { flex-basis: 100%; max-width: 24rem; margin-left: auto; font-size: max(12px, .76rem); color: var(--ink-3); text-align: right; }
 
 /* ---------- A phone (item 6) ---------- */
 @media (max-width: 760px) {

@@ -53,6 +53,8 @@ const pt = {
   systemNotSecure: "Só numa página servida por HTTPS: este endereço não é seguro, e o navegador não deixa.",
   systemPhone: "Neste celular, o navegador só mostra notificações de um app instalado na tela inicial.",
   systemFailed: (why: string) => `Não foi possível pedir a permissão: ${why}`,
+  systemDesktopHint: (os: string): string =>
+    `O sistema pode bloqueá-las mesmo assim: confira em ${os === "mac" ? "Ajustes do Sistema › Notificações › Verso" : os === "windows" ? "Configurações › Sistema › Notificações" : "nas configurações de notificações do sistema"}.`,
   // The kinds' notifications (item 7).
   syncFailed: "A sincronização falhou",
   syncOffline: "Sincronização sem conexão",
@@ -132,6 +134,8 @@ const en: typeof pt = {
   systemNotSecure: "Only on a page served over HTTPS: this address is not secure, and the browser does not allow it.",
   systemPhone: "On this phone, the browser shows notifications only for an app installed on the home screen.",
   systemFailed: (why) => `The permission could not be asked for: ${why}`,
+  systemDesktopHint: (os) =>
+    `The system may block them all the same: see ${os === "mac" ? "System Settings › Notifications › Verso" : os === "windows" ? "Settings › System › Notifications" : "the system's notification settings"}.`,
   syncFailed: "Sync failed",
   syncOffline: "Sync offline",
   syncBack: "Sync is back",
