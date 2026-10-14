@@ -730,6 +730,10 @@ impl Scope {
                 }
             }
             "folder-quota" => {}
+            // A folder given to the person (ADR 0084 item 7): theirs to
+            // know whichever folder this window shows, and nothing of the
+            // owner's folder beyond what was given.
+            "share-given" => {}
             _ => return None,
         }
         Some(m)

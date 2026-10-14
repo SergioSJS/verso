@@ -21,7 +21,9 @@ use serde_json::{Value, json};
 use tokio::sync::{mpsc, oneshot};
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
-use verso_contract::{ServerAccount, ServerFolder, ServerSignIn, SyncVersions};
+use verso_contract::{
+    ServerAccount, ServerBack, ServerFolder, ServerGone, ServerSignIn, ShareGiven, SyncVersions,
+};
 use verso_core::servers::{self, ServerLogin};
 use verso_service::files::Served;
 
@@ -987,13 +989,15 @@ async fn connect<R: tauri::Runtime>(
         while let Some(h) = heard.recv().await {
             match h {
                 Heard::Event(event, payload) => {
-                    let _ = app_r.emit_to(label_r.as_str(), &event, payload);
+                    if let Some(payload) = with_server(&event, payload, &url_r) {
+                        let _ = app_r.emit_to(label_r.as_str(), &event, payload);
+                    }
                 }
                 Heard::Gone(what, reason) => {
                     let _ = app_r.emit_to(
                         label_r.as_str(),
                         "server-gone",
-                        json!({ "url": url_r, "what": what, "reason": reason }),
+                        gone(&url_r, what.as_str().unwrap_or_default(), reason, None),
                     );
                 }
                 // A window on a server's folder asks its capabilities
@@ -1013,7 +1017,7 @@ async fn connect<R: tauri::Runtime>(
             let _ = app_r.emit_to(
                 label_r.as_str(),
                 "server-gone",
-                json!({ "url": url_r, "what": "connection" }),
+                gone(&url_r, "connection", None, None),
             );
             // The window keeps the server's folder and tries again: a laptop
             // that slept, a server that restarted (ADR 0073 item 2).
@@ -1027,6 +1031,33 @@ async fn connect<R: tauri::Runtime>(
         }
     });
     Ok(remote)
+}
+
+/// What a window on a server's folder hears when the server, or what it
+/// held there, is gone (ADR 0084 item 10).
+fn gone(url: &str, what: &str, reason: Option<String>, address: Option<String>) -> ServerGone {
+    ServerGone {
+        url: url.to_owned(),
+        what: what.to_owned(),
+        reason,
+        address,
+    }
+}
+
+/// A server's event as the window hears it: a share given names the
+/// server it was given on, which only this side knows (ADR 0084 item 7);
+/// every other goes as it came. A share given that does not read as its
+/// type is not said at all, never half.
+pub(crate) fn with_server(event: &str, payload: Value, url: &str) -> Option<Value> {
+    if event != "share-given" {
+        return Some(payload);
+    }
+    let given = serde_json::from_value::<ShareGiven>(payload).ok()?;
+    serde_json::to_value(ShareGiven {
+        server: Some(url.to_owned()),
+        ..given
+    })
+    .ok()
 }
 
 /// Connect again after the connection dropped, for as long as the window
@@ -1088,11 +1119,7 @@ async fn redial_once<R: tauri::Runtime>(
         Ok(r) => r,
         Err(e) if e.kind == ErrorKind::Refused => {
             release(app, label);
-            let _ = app.emit_to(
-                label,
-                "server-gone",
-                json!({ "url": url, "what": "session" }),
-            );
+            let _ = app.emit_to(label, "server-gone", gone(url, "session", None, None));
             return Step::Stop;
         }
         Err(e) => {
@@ -1100,7 +1127,7 @@ async fn redial_once<R: tauri::Runtime>(
                 let _ = app.emit_to(
                     label,
                     "server-gone",
-                    json!({ "url": url, "what": "unreachable", "address": e.message }),
+                    gone(url, "unreachable", None, Some(e.message)),
                 );
             }
             return Step::Again;
@@ -1123,7 +1150,13 @@ async fn redial_once<R: tauri::Runtime>(
             json!({ "key": key, "changed": [], "removed": [], "listing": true, "index": index }),
         );
     }
-    let _ = app.emit_to(label, "server-back", json!({ "url": url }));
+    let _ = app.emit_to(
+        label,
+        "server-back",
+        ServerBack {
+            url: url.to_owned(),
+        },
+    );
     Step::Done(())
 }
 

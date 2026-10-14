@@ -933,6 +933,9 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             Ok(())
         })
         .plugin(tauri_plugin_dialog::init())
+        // The system's notifications (ADR 0084 item 9): the window asks
+        // for them, and only while it is not in front.
+        .plugin(tauri_plugin_notification::init())
         .plugin(navigation_guard())
         .register_asynchronous_uri_scheme_protocol("verso", serve_file)
         .manage(App::new(initial_folder))
@@ -1106,6 +1109,8 @@ fn ask_windows_to_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
 mod tests;
 #[cfg(test)]
 mod tests_live;
+#[cfg(test)]
+mod tests_notify;
 #[cfg(test)]
 mod tests_remote;
 #[cfg(test)]
