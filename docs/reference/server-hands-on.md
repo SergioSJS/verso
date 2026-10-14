@@ -94,8 +94,10 @@ and "The installer script").
 | Oracle Linux, RHEL, Fedora, ARM64 (Oracle's Ampere) | `aarch64` | `universo-$V-aarch64.rpm` |
 | anything else | | `universo-$V-x86_64.tar.gz` or `-aarch64.tar.gz` (guide, section 6) |
 
-Each file has its signature beside it in the release, the same name ending
-in `.sig`. The installer script picks the file by itself.
+The release signs them all at once: `verso-$V-SHA256SUMS` lists each
+file's sha256, and `verso-$V-SHA256SUMS.sig` is its signature (up to
+0.8.3, each file also had a `.sig` beside it). The installer script picks
+the file and checks it by itself.
 
 ### A.2 Install with the script
 
@@ -115,8 +117,8 @@ address people will type, with `https://`; leave it out and the script
 asks for it (Enter leaves it empty: only this machine can then sign in).
 
 The script downloads this machine's package, checks it (with `minisign`
-and the release's `.sig` when `minisign` is installed, else the sha256
-GitHub publishes), installs it, writes `VERSO_PUBLIC_URL` into
+and the release's signed checksums list when `minisign` is installed, else
+the sha256 GitHub publishes), installs it, writes `VERSO_PUBLIC_URL` into
 `/etc/universo/universo.env`, runs `systemctl enable --now universo`, waits
 for the server to answer and prints the next steps. **Keep that output**:
 it holds the link that makes the first admin. Then go to A.4 for the
@@ -126,33 +128,41 @@ proxy line.
 
 ### A.3 Or by hand, the signature checked
 
-Copy the package and its `.sig` from the release page to the server first
-(for example with `scp` from your computer). Then, on Ubuntu or Debian:
+Copy the package, `verso-$V-SHA256SUMS` and `verso-$V-SHA256SUMS.sig`
+from the release page to the server first (for example with `scp` from
+your computer), into one folder. Then, on Ubuntu or Debian:
 
 ```sh
-V=0.8.0-beta.1
+V=0.8.3-beta.1
 ARCH=$(dpkg --print-architecture)          # amd64 or arm64
 sudo apt install minisign
-base64 -d < universo-$V-$ARCH.deb.sig > file.minisig
+base64 -d < verso-$V-SHA256SUMS.sig > list.minisig
 minisign -V -P RWS1zv2nvs/ng1hA0YspwOg7wGda98zkXjVfx8m9CtT5obRW5zabNHaT \
-  -m universo-$V-$ARCH.deb -x file.minisig
+  -m verso-$V-SHA256SUMS -x list.minisig
+sha256sum --check --ignore-missing verso-$V-SHA256SUMS
 sudo apt install ./universo-$V-$ARCH.deb
 ```
 
 On Oracle Linux, RHEL or Fedora:
 
 ```sh
-V=0.8.0-beta.1
+V=0.8.3-beta.1
 ARCH=$(uname -m)                           # x86_64 or aarch64
 sudo dnf install minisign
-base64 -d < universo-$V-$ARCH.rpm.sig > file.minisig
+base64 -d < verso-$V-SHA256SUMS.sig > list.minisig
 minisign -V -P RWS1zv2nvs/ng1hA0YspwOg7wGda98zkXjVfx8m9CtT5obRW5zabNHaT \
-  -m universo-$V-$ARCH.rpm -x file.minisig
+  -m verso-$V-SHA256SUMS -x list.minisig
+sha256sum --check --ignore-missing verso-$V-SHA256SUMS
 sudo dnf install ./universo-$V-$ARCH.rpm
 ```
 
 `minisign` must say the signature is verified, and its trusted comment
-names the file (`file:universo-…`); anything else, do not install it. The
+names the list of that version (`file:verso-$V-SHA256SUMS`); `sha256sum`
+must say `OK` for the package; anything else, do not install it. A
+release up to 0.8.3 has the package's own `.sig` too, checked with
+`base64 -d < universo-$V-$ARCH.deb.sig > file.minisig` and
+`minisign -V -P … -m universo-$V-$ARCH.deb -x file.minisig`, its trusted
+comment naming the file. The
 key is Verso's release key, the one the app carries (guide, section 6).
 **The package does not start the service**: it waits for its settings.
 

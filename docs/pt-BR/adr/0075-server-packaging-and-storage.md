@@ -45,6 +45,18 @@
   instalação continuam os caminhos manuais
   ([server-install.md](../reference/server-install.md), "O script de
   instalação").
+  2026-10-14 — a assinatura da release, para o instalador, é uma lista de
+  checksums assinada, `verso-<versão>-SHA256SUMS` e o `.sig` dela, no
+  lugar de um `.sig` ao lado de cada pacote, decidido pelo mantenedor para
+  a release inteira ([0055](0055-in-app-updater.md), revisto no mesmo dia:
+  *"Sim, já na 0.8.3"*). O `universo.sh` confere a assinatura da lista com
+  o minisign e a chave de release do Verso, o comentário assinado
+  nomeando a lista da versão do próprio pacote, e depois o sha256 do
+  pacote contra a única linha dele na lista; para uma release até a 0.8.3
+  ele ainda aceita o `.sig` do próprio pacote. A cópia em
+  `https://versomd.com/universo.sh` deve ser copiada de novo do
+  repositório antes da primeira release sem `.sig` por arquivo, ou não
+  encontra assinatura nela.
 - Revisões: 2026-10-09 (noite) — aceito pelo mantenedor junto com o
   [0073](0073-self-hosted-server-first.md), na resposta citada lá; os dois
   `[ABERTO]` dele respondidos — o caminho de atualização (item 7, a opção
