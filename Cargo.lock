@@ -6014,7 +6014,9 @@ dependencies = [
 name = "verso-index"
 version = "0.8.2-beta.1"
 dependencies = [
+ "flate2",
  "rusqlite",
+ "sha2",
  "tempfile",
  "unicode-normalization",
  "verso-dialect",

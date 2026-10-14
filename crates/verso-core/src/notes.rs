@@ -83,6 +83,7 @@ impl Workspace {
             .handle(Path::new(&path))
             .map_err(CoreError::Confined)?;
         let (bytes, stamp) = self.root.read(handle).map_err(CoreError::Read)?;
+        self.history_seen(&path, &bytes, stamp.modified);
         let text = String::from_utf8(bytes).map_err(|_| CoreError::NotText)?;
         let known = self.index.stamp_of(&path).map_err(CoreError::Index)?;
         let stale = known != Some(note_stamp(&stamp));

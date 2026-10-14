@@ -10,6 +10,8 @@ publish.workspace = true
 
 # Opens the index file only; never the open folder (ADR 0026, rule 5,
 # delimited scope). The index is a cache: deleting it loses no data (ADR 0011).
+# The version history (src/history.rs, ADR 0091) is the one store here that
+# is not a cache: its own SQLite file, outside the folder, never in it.
 [dependencies]
 # SQLite with FTS5 (ADR 0023). `bundled` compiles SQLite's own amalgamation
 # at build time, so every machine and CI use one SQLite version with FTS5
@@ -23,6 +25,13 @@ verso-dialect = { path = "../verso-dialect" }
 # (provisional, spec Q7: a folder that went through HFS+ or sync mixes NFC
 # and NFD; APFS itself looks names up normalization-insensitively).
 unicode-normalization = "0.1"
+# The version history (ADR 0091) keeps a file's bytes once per folder by
+# their SHA-256, as the server's change log names them, and deflated: text
+# shrinks to a third or less. Both already in the tree — sha2 through
+# verso-core and the apps, flate2 through tower-http and png — same
+# licences (MIT OR Apache-2.0); nothing of ours did either.
+sha2 = "0.10"
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 [target.'cfg(target_os = "macos")'.dependencies]
 # The index file is a cache and may hold everything the notes say: it is
 # excluded from Time Machine through the backup-exclusion extended
