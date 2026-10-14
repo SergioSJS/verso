@@ -63,6 +63,9 @@ pub struct VersionEntry {
     pub kind: VersionKind,
     /// The bytes of this version.
     pub size: f64,
+    /// Their SHA-256, lowercase hex: a synced folder's computer tells by
+    /// it what has crossed to the server (item 8).
+    pub hash: String,
     /// Lines added and removed against the version before it.
     pub added: u32,
     pub removed: u32,

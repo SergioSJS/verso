@@ -190,6 +190,9 @@ pub(crate) fn start_daily<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
                 for key in keys {
                     sweep_if_due(&service, &key);
                 }
+                // And the version histories (ADR 0091 item 3): a pass
+                // costs a few queries per file, once an hour.
+                service.thin_histories();
             })
             .await;
         }

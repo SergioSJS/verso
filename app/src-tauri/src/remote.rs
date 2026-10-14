@@ -47,6 +47,7 @@ pub(crate) fn contract_version() -> String {
 pub(crate) fn forwards(cmd: &str) -> bool {
     verso_service::ops::access(cmd).is_some()
         || verso_service::trash::COMMANDS.contains(&cmd)
+        || verso_service::history::COMMANDS.contains(&cmd)
         || matches!(
             cmd,
             "current_folder"

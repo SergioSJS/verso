@@ -77,7 +77,7 @@ impl Live {
         }
     }
 
-    fn remote(&self) -> Option<Arc<remote::Remote>> {
+    pub(crate) fn remote(&self) -> Option<Arc<remote::Remote>> {
         lock(&self.link).clone()
     }
 
