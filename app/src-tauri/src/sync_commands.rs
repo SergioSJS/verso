@@ -23,7 +23,7 @@ fn off(key: &str) -> SyncStatus {
 
 fn context<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Arc<Ctx> {
     let state = app.state::<App>();
-    let (language, shown, told) = (app.clone(), app.clone(), app.clone());
+    let (language, shown, told, all) = (app.clone(), app.clone(), app.clone(), app.clone());
     let config = state.service.config().map(Path::to_path_buf);
     let named = config.clone();
     Arc::new(Ctx {
@@ -40,6 +40,10 @@ fn context<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Arc<Ctx> {
             for label in windows {
                 let _ = told.emit_to(label.as_str(), event, payload);
             }
+        }),
+        // Every window: each says it, whatever folder it shows.
+        all: Box::new(move |event, payload| {
+            let _ = all.emit(event, payload);
         }),
     })
 }

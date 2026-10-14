@@ -17,7 +17,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
 
 use serde_json::{Value, json};
-use verso_contract::{SyncLogEntry, SyncRefused, SyncStatus, SyncVersions};
+use verso_contract::{FolderQuota, SyncLogEntry, SyncRefused, SyncStatus, SyncVersions};
 use verso_core::servers;
 use verso_core::sync::{self as engine, Action, FileState, Files, Seen};
 
@@ -51,12 +51,20 @@ pub(crate) struct Ctx {
     pub(crate) pt: Box<dyn Fn() -> bool + Send + Sync>,
     /// The status changed: the windows of the folder `key` hear it.
     pub(crate) shown: Shown,
-    /// A room's event, for the windows that hold its note (ADR 0082).
+    /// A room's event, for the windows that hold its note (ADR 0082); and
+    /// the folder near its quota, for the folder's windows (ADR 0084 item
+    /// 7).
     pub(crate) told: live::Told,
+    /// An event for every window of the app, whatever folder it shows: a
+    /// folder given to the account on the server (ADR 0084 item 7).
+    pub(crate) all: All,
 }
 
 /// Where a folder's status goes: its key and the status.
 pub(crate) type Shown = Box<dyn Fn(&str, &SyncStatus) + Send + Sync>;
+
+/// An event and its payload, for every window.
+pub(crate) type All = Box<dyn Fn(&str, &Value) + Send + Sync>;
 
 /// One synced folder's task.
 pub(crate) struct Syncer {
@@ -1105,6 +1113,32 @@ fn gone_line(path: &str, on: &str) {
     );
 }
 
+/// What the server pushed on the device's connection that a window says
+/// (ADR 0084 item 7): the folder near its quota, to this folder's windows
+/// (pushed only to connections on the server's folder, so it is this
+/// one's); a folder given to the account, to every window, naming the
+/// server. A pass needs neither. One that does not read as its type is
+/// not said.
+pub(crate) fn tell(ctx: &Ctx, s: &Syncer, event: &str, payload: Value) {
+    match event {
+        "folder-quota" => {
+            let windows = ctx.service.clients_of(&s.key);
+            let quota = serde_json::from_value::<FolderQuota>(payload)
+                .ok()
+                .and_then(|q| serde_json::to_value(q).ok());
+            if let (false, Some(quota)) = (windows.is_empty(), quota) {
+                (ctx.told)(&windows, event, &quota);
+            }
+        }
+        "share-given" => {
+            if let Some(given) = remote::with_server(event, payload, &s.url) {
+                (ctx.all)(event, &given);
+            }
+        }
+        _ => {}
+    }
+}
+
 /// Run a folder's sync until it is turned off or no window shows the
 /// folder: connected, a pass, then waiting for a reason — the watcher, the
 /// server's push, the person, the scan's five minutes — for the next;
@@ -1201,7 +1235,7 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
                             l.role = role;
                             break false;
                         }
-                        Some(remote::Heard::Event(..)) => {}
+                        Some(remote::Heard::Event(e, payload)) => tell(&ctx, &s, &e, payload),
                         Some(remote::Heard::Gone(what, _)) if what == "session" => {
                             log::write("INFO", "sync", "signed out: the server ended this device's session");
                             ended = true;
