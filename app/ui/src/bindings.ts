@@ -588,6 +588,39 @@ export const commands = {
 	 *  What is past the new time goes at once.
 	 */
 	trashSetDays: (days: number) => typedError<TrashListing, ContractError>(__TAURI_INVOKE("trash_set_days", { days })),
+	/**  A file's versions, newest first (item 5). */
+	historyList: (path: string) => typedError<HistoryListing, ContractError>(__TAURI_INVOKE("history_list", { path })),
+	/**
+	 *  A version's text, for its diff against the current text and the one
+	 *  before it.
+	 */
+	historyRead: (path: string, id: string) => typedError<VersionText, ContractError>(__TAURI_INVOKE("history_read", { path, id })),
+	/**
+	 *  Bring a version back (item 5): a new write over the revision the
+	 *  window read — refused, nothing written, when the file changed since
+	 *  (invariant 11) — or a new file when the file is gone. A version of the
+	 *  server is brought back on the server, through the note's room when it
+	 *  is live, once this computer's copy is the server's; sync brings it
+	 *  here.
+	 */
+	historyRestore: (path: string, id: string, revision: string | null) => typedError<VersionRestored, ContractError>(__TAURI_INVOKE("history_restore", { path, id, revision })),
+	/**
+	 *  A version put beside its file, as a new file (item 5, "Copy as a new
+	 *  note"): `stamp` the version's time as the window shows it, `lang` the
+	 *  person's language.
+	 */
+	historyCopy: (path: string, id: string, stamp: string, lang: string) => typedError<VersionRestored, ContractError>(__TAURI_INVOKE("history_copy", { path, id, stamp, lang })),
+	/**
+	 *  Delete a version (item 6: on the computer the person is the owner; a
+	 *  server's version as the server allows).
+	 */
+	historyDelete: (path: string, id: string) => typedError<HistoryListing, ContractError>(__TAURI_INVOKE("history_delete", { path, id })),
+	/**
+	 *  How many days this computer keeps versions, 0 for no limit: the
+	 *  person's setting (item 8), pushed by the window; every open folder
+	 *  thinned at once.
+	 */
+	setHistoryDays: (days: number) => typedError<null, ContractError>(__TAURI_INVOKE("set_history_days", { days })),
 };
 
 /* Types */
@@ -605,6 +638,19 @@ export type AppInfo = {
 	 */
 	device: string | null,
 };
+
+/**  Who a version names (item 4). */
+export type AuthorKind = 
+/**  An account of the server, by its name. */
+"account" | 
+/**  A device of an account, by the device's name. */
+"device" | 
+/**  An agent's token, by the token's name. */
+"agent" | 
+/**  This computer, by its name: a version of a folder of the computer. */
+"computer" | 
+/**  A change the watcher found, made outside Verso. */
+"outside";
 
 /**  A link into a note, from another. */
 export type Backlink = {
@@ -1319,6 +1365,39 @@ export type Heading = {
 	text: string,
 	line: number,
 	col: number,
+};
+
+/**  A file's history (items 5 to 8). */
+export type HistoryListing = {
+	path: string,
+	/**  Newest first. */
+	versions: VersionEntry[],
+	/**
+	 *  When the file went to the trash, in milliseconds; none while it is
+	 *  there (item 9).
+	 */
+	gone: number | null,
+	/**
+	 *  Whether this person may delete a version: the folder's owner and
+	 *  the admin on a server; on the computer, always (item 6).
+	 */
+	can_delete: boolean,
+	/**  How many days versions are kept; 0: no limit (item 3). */
+	days: number,
+	/**
+	 *  The bytes the folder's history takes — shown, not counted against
+	 *  the quota (item 7).
+	 */
+	size: number | null,
+	/**  The folder's quota on its server, in bytes; none without one. */
+	quota: number | null,
+	/**  The history alone passed the quota: its oldest versions go early. */
+	early: boolean,
+	/**
+	 *  Why part of the history could not be shown: a synced folder whose
+	 *  server is out of reach shows this computer's versions only.
+	 */
+	partial: string | null,
 };
 
 /**  One search hit. */
@@ -2074,6 +2153,74 @@ export type UpdateProgress = {
 	/**  "downloading" | "extracting" | "installing" | "done" | "error" */
 	status: string,
 	message: string | null,
+};
+
+export type VersionAuthor = {
+	kind: AuthorKind,
+	/**  Empty for [`AuthorKind::Outside`]. */
+	name: string,
+};
+
+/**  One version of a file. */
+export type VersionEntry = {
+	/**
+	 *  Opaque: what `history_read`, `history_restore` and
+	 *  `history_delete` take back.
+	 */
+	id: string,
+	/**  When it was written, in milliseconds since the epoch. */
+	at: number | null,
+	authors: VersionAuthor[],
+	kind: VersionKind,
+	/**  The bytes of this version. */
+	size: number | null,
+	/**
+	 *  Their SHA-256, lowercase hex: a synced folder's computer tells by
+	 *  it what has crossed to the server (item 8).
+	 */
+	hash: string,
+	/**  Lines added and removed against the version before it. */
+	added: number,
+	removed: number,
+	/**
+	 *  The file's path when this version was written (a rename since
+	 *  shows here).
+	 */
+	path: string,
+	/**
+	 *  Only on this computer: not yet crossed to the server of a synced
+	 *  folder (item 8).
+	 */
+	here_only: boolean,
+};
+
+/**  What made a version. */
+export type VersionKind = 
+/**  A write through Verso: a device's sync, a token, a panel. */
+"write" | 
+/**  The editor's saves, ten minutes of them in one version. */
+"edit" | 
+/**  Writing together in a note's room, ten minutes in one version. */
+"room" | 
+/**  A version brought back: itself a version. */
+"restore" | 
+/**  Changed outside Verso. */
+"outside" | 
+/**  The file as it was when its history began. */
+"found";
+
+/**  Where a version brought back landed, and its revision now. */
+export type VersionRestored = {
+	path: string,
+	revision: string,
+};
+
+/**  A version's text. */
+export type VersionText = {
+	id: string,
+	/**  None when its bytes are not UTF-8: shown by its size only. */
+	text: string | null,
+	size: number | null,
 };
 
 /**  A note that is a web page: its path and the address in its `url`. */

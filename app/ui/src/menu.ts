@@ -29,6 +29,8 @@ import { giveBack } from "./side";
 import { mayShare, openShareDialog } from "./shares";
 import { sh } from "./shareStrings";
 import { boardText, LOCALE, t } from "./strings";
+import { historyFor, openHistory } from "./dialogs/history";
+import { historyStrings } from "./dialogs/historyStrings";
 import { newFolderPrompt, newNotePrompt, newWebPagePrompt } from "./tree/prompts";
 import { listAll } from "./tree/tree";
 import { clearSelection, enterSelectMode } from "./tree/selection";
@@ -57,6 +59,8 @@ export function entryMenu(x: number, y: number, path: string, kind: Kind, rename
       ];
   if (kind === "note") items.push([t.graph, () => (layout().focused ?? layout().panes()[0])?.openGraph(path), "graph"]);
   if (kind === "note" && /\.excalidraw\.md$/i.test(path)) items.push([boardText.convert, () => void convertToBoard(path), "board"]);
+  // A file's version history (ADR 0091 item 5).
+  if (!folder && historyFor(path)) items.push([historyStrings().command, () => void openHistory(path), "history"]);
 
   const entry = allEntries.get(path);
   const currentSticker = entry?.label?.sticker ?? null;

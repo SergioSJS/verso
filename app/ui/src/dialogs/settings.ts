@@ -2,7 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { can } from "../can";
+import { can, host } from "../can";
+import { historyStrings } from "./historyStrings";
 import { serverStrings, serversBody } from "./servers";
 import { syncBody, syncStrings } from "./sync";
 import { trashBody, trashStrings, trashSummary } from "./trash";
@@ -25,7 +26,7 @@ import { walkRulesChanged } from "../open";
 import { pushFolderNoteName } from "../organize/folderNotes";
 import { orderModeChanged } from "../organize/order";
 import { allowEmbedOrigins } from "../sanitize";
-import { getHiddenFromTree, pushEmbedOrigins, pushMenuLanguage, saveSettings, setHiddenFromTree, settings } from "../settings";
+import { getHiddenFromTree, pushEmbedOrigins, pushHistoryDays, pushMenuLanguage, saveSettings, setHiddenFromTree, settings } from "../settings";
 import { boardText, LOCALE, t } from "../strings";
 import { listAll } from "../tree/tree";
 import { updateNews } from "../updateNews";
@@ -442,6 +443,20 @@ export class SettingsDialog {
     // items 4 and 8), and the way into it.
     if (currentFolder && can("write")) {
       add("files", trashStrings().section, trashStrings().notCounted, () => trashSummary(() => { this.section = "trash"; this.search.value = ""; this.paint(); }));
+    }
+    // How long this computer keeps versions (ADR 0091 item 8): the
+    // person's; a folder of a server keeps its own, set by its admin.
+    if (host() !== "server") {
+      const hs = historyStrings();
+      add("files", hs.keepFor, hs.keepForDesc, () => {
+        const options: [string, string][] = [7, 30, 90, 180, 365, 730].map((d) => [String(d), hs.days(d)]);
+        options.push(["0", hs.forever]);
+        return this.select(options, String(settings.historyDays ?? 365), (v) => {
+          settings.historyDays = Number(v);
+          saveSettings();
+          pushHistoryDays();
+        });
+      });
     }
     addScoped("files", t.ignoreBuildDirs, t.ignoreBuildDirsDesc, () => this.toggle(folderValues().ignoreBuildDirs, (v) => void walkRule({ ignore_build_dirs: v }, () => { settings.ignoreBuildDirs = v; })));
     addScoped("files", t.respectGitignore, t.respectGitignoreDesc, () => this.toggle(folderValues().respectGitignore, (v) => void walkRule({ respect_gitignore: v }, () => { settings.respectGitignore = v; })));

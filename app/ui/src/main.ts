@@ -70,7 +70,7 @@ import { watchWindow } from "./report";
 import { Ribbon } from "./ribbon";
 import { configureEmbeds } from "./sanitize";
 import { searchNotes } from "./search";
-import { loadSettings, pushEmbedOrigins, pushMenuLanguage, pushWalkRules, saveSettings, settings } from "./settings";
+import { loadSettings, pushEmbedOrigins, pushHistoryDays, pushMenuLanguage, pushWalkRules, saveSettings, settings } from "./settings";
 import { giveBack } from "./side";
 import { pt, t } from "./strings";
 import { collapseAll, collapsed, listAll, treeRows } from "./tree/tree";
@@ -83,6 +83,7 @@ export let updateLeavesLineNumbers: (() => void) | null = null;
 loadSettings();
 const embedOriginsPushed = pushEmbedOrigins();
 const walkRulesPushed = pushWalkRules();
+pushHistoryDays();
 const folderNoteNamePushed = pushFolderNoteName();
 pushMenuLanguage();
 configureEmbeds({

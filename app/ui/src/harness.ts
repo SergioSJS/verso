@@ -19,6 +19,7 @@ import type { Capabilities, Mentions } from "./bindings";
 import { Core, type Seed } from "./harness/core";
 import { UNUSED_ARGS } from "./harness/unusedArgs";
 import { Rooms } from "./harness/room";
+import { Versions } from "./harness/history";
 import { SystemNotifications } from "./harness/notifications";
 import * as sanitize from "./sanitize";
 
@@ -91,6 +92,8 @@ core.invoke = (cmd: string, args: unknown): unknown => {
 // A synced folder's live notes (ADR 0082): the server's room, played here
 // when a test says the sync's link is up.
 const rooms = onServer ? null : new Rooms(core);
+// A file's version history (ADR 0091): none for a reader on a server.
+const versions = new Versions(core, rooms, () => !onServer || role !== "reader");
 
 mockWindows("main");
 // Answered in a task of its own, as the app's IPC answers: never within the
@@ -138,6 +141,8 @@ const harness = {
   emit: (event: string, payload: unknown) => emit(event, payload),
   /** The server's room of a synced folder's notes (ADR 0082). */
   rooms,
+  /** The files' version histories (ADR 0091). */
+  versions,
   /** The window's own sanitizer — the instance main.ts configures, not a
    *  copy — for the hostile-HTML suite run in the browsers
    *  (e2e/sanitize.spec.mjs, ADR 0083 item 16). */

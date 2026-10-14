@@ -28,6 +28,8 @@ import { Kind, kindOf } from "../paths";
 import { st } from "../screen/strings";
 import { settings } from "../settings";
 import { t } from "../strings";
+import { historyFor, openHistory } from "../dialogs/history";
+import { historyStrings } from "../dialogs/historyStrings";
 import { markCurrent, revealInTree, showOutline } from "../tree/tree";
 import { moveTab, moveTabToPane, moveTabToSpace, movingFocus } from "./drag";
 import { current, layout, persistSoon, spaces } from "./spaces";
@@ -276,6 +278,7 @@ export class Pane {
       ...(file ? [
         sep,
         [t.revealInTree, () => void revealInTree(leaf.path), "folder"] as MenuItem,
+        ...(historyFor(leaf.path) ? [[historyStrings().command, () => void openHistory(leaf.path), "history"] as MenuItem] : []),
         ...(leaf instanceof NoteLeaf && write ? [[t.rename, () => leaf.renameHere(), "edit"] as MenuItem] : []),
         ...(write ? [[`${t.moveTo}…`, () => movePrompt(leaf.path), "folderPlus"] as MenuItem] : []),
         [t.copyRelativePath, () => void navigator.clipboard.writeText(leaf.path).then(() => (ui.status.textContent = t.copied)), "link"] as MenuItem,
