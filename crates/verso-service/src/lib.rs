@@ -32,6 +32,7 @@ use verso_core::{ConfinementError, CoreError, ReadError, Workspace, WriteError};
 
 pub mod convert;
 pub mod files;
+pub mod history;
 pub mod ops;
 pub mod trash;
 
@@ -114,6 +115,10 @@ pub struct Service {
     walk_rules: Mutex<verso_core::WalkRules>,
     folder_note_name: Mutex<String>,
     events: RwLock<Arc<dyn Events>>,
+    /// The computer's history of its folders (ADR 0091 item 8): this
+    /// computer's name for its versions and the days they are kept; `None`
+    /// on a server, which keeps its own.
+    history: Mutex<Option<(String, u32)>>,
 }
 
 /// Lock a mutex, poisoned or not: a panic in an earlier command must not
@@ -245,6 +250,7 @@ impl Service {
             walk_rules: Mutex::new(verso_core::WalkRules::default()),
             folder_note_name: Mutex::new(String::new()),
             events: RwLock::new(Arc::new(Silent)),
+            history: Mutex::new(None),
         })
     }
 
@@ -321,6 +327,7 @@ impl Service {
         let mut workspace = open(self.config()).map_err(convert)?;
         workspace.set_walk_rules(*lock(&self.walk_rules));
         workspace.set_folder_note_name(&lock(&self.folder_note_name));
+        self.keep_history(&mut workspace);
         // What a write or a transfer cut short by a crash left behind: no
         // write of this opening is in flight yet, and those of this
         // process under another opening are spared by verso-fs.
@@ -477,6 +484,14 @@ impl Service {
         };
         let payload = match report {
             Ok(report) => {
+                // What the watcher found changed was made outside Verso:
+                // a version of nobody's (ADR 0091 item 4).
+                for problem in session
+                    .workspace
+                    .history_outside(&report.changed, &report.gone)
+                {
+                    self.events().log("WARN", &problem);
+                }
                 // A narrowed run read a few paths: the counts and problems
                 // of the last walk still describe the folder.
                 if !report.narrowed {
@@ -529,7 +544,9 @@ impl Service {
     ) -> Result<T, ContractError> {
         let session = self.session_of(client).ok_or_else(no_folder)?;
         let mut session = lock(&session);
-        match std::panic::catch_unwind(AssertUnwindSafe(|| f(&mut session.workspace))) {
+        let done = std::panic::catch_unwind(AssertUnwindSafe(|| f(&mut session.workspace)));
+        self.history_flush(&mut session.workspace);
+        match done {
             Ok(result) => result.map_err(OpError::into_contract),
             Err(payload) => {
                 let message = format!("the core failed: {}", panic_text(payload.as_ref()));
@@ -553,7 +570,9 @@ impl Service {
             .map(Arc::clone)
             .ok_or_else(no_folder)?;
         let mut session = lock(&session);
-        match std::panic::catch_unwind(AssertUnwindSafe(|| f(&mut session.workspace))) {
+        let done = std::panic::catch_unwind(AssertUnwindSafe(|| f(&mut session.workspace)));
+        self.history_flush(&mut session.workspace);
+        match done {
             Ok(result) => result.map_err(OpError::into_contract),
             Err(payload) => {
                 let message = format!("the core failed: {}", panic_text(payload.as_ref()));
@@ -710,6 +729,115 @@ impl Service {
             if let Some(name) = folder_note_name {
                 session.workspace.set_folder_note_name(name);
             }
+        }
+    }
+
+    /// Keep the computer's history of every folder opened from now on,
+    /// this computer's writes named `name`, versions kept `days` (ADR 0091
+    /// item 8; the person's setting, 0: no limit). The desktop's; a server
+    /// never calls it.
+    pub fn keep_local_history(&self, name: &str, days: u32) {
+        *lock(&self.history) = Some((name.to_owned(), days));
+        for session in self.all_sessions() {
+            let mut session = lock(&session);
+            if session.workspace.keeps_history() {
+                session.workspace.set_history_name(name);
+            } else {
+                self.keep_history(&mut session.workspace);
+            }
+        }
+    }
+
+    /// How many days the computer's versions are kept; `None` when it
+    /// keeps none.
+    #[must_use]
+    pub fn history_days(&self) -> Option<u32> {
+        lock(&self.history).as_ref().map(|(_, d)| *d)
+    }
+
+    /// The days the computer's versions are kept, the person's setting:
+    /// each open folder thinned at once.
+    pub fn set_history_days(&self, days: u32) {
+        if let Some((_, d)) = lock(&self.history).as_mut() {
+            *d = days;
+        }
+        for session in self.all_sessions() {
+            let mut session = lock(&session);
+            self.thin_history(&mut session.workspace, days);
+        }
+    }
+
+    /// Thin every open folder's history (the host's daily round).
+    pub fn thin_histories(&self) {
+        let Some(days) = self.history_days() else {
+            return;
+        };
+        for session in self.all_sessions() {
+            let mut session = lock(&session);
+            self.thin_history(&mut session.workspace, days);
+        }
+    }
+
+    fn thin_history(&self, ws: &mut Workspace, days: u32) {
+        if !ws.keeps_history() {
+            return;
+        }
+        match history::thin_local(ws, days) {
+            Ok(t) if t.removed > 0 => self.events().log(
+                "INFO",
+                &format!(
+                    "folder {}: {} version(s) of the history thinned; {} kept, {} bytes",
+                    ws.name(),
+                    t.removed,
+                    t.count,
+                    t.size
+                ),
+            ),
+            Ok(_) => {}
+            Err(e) => self.events().log(
+                "WARN",
+                &format!(
+                    "folder {}: the history was not thinned: {}",
+                    ws.name(),
+                    e.into_contract().message
+                ),
+            ),
+        }
+    }
+
+    /// Open the computer's store of `ws`'s history, when it keeps one:
+    /// under the configuration directory, one file per folder; thinned at
+    /// the opening. A store that cannot be opened is said, and the folder
+    /// opens all the same.
+    fn keep_history(&self, ws: &mut Workspace) {
+        let Some((name, days)) = lock(&self.history).clone() else {
+            return;
+        };
+        let dir = match self.config() {
+            Some(d) => d.to_path_buf(),
+            None => match verso_core::config_dir() {
+                Ok(d) => d,
+                Err(e) => {
+                    self.events()
+                        .log("WARN", &format!("the history has no place: {e}"));
+                    return;
+                }
+            },
+        };
+        let file = dir.join("history").join(format!("{}.sqlite", ws.key()));
+        match ws.keep_history(&file, &name) {
+            Ok(()) => self.thin_history(ws, days),
+            Err(e) => self.events().log(
+                "WARN",
+                &format!("folder {}: its history could not be opened: {e}", ws.name()),
+            ),
+        }
+    }
+
+    /// Record what the last command wrote in the computer's history.
+    fn history_flush(&self, ws: &mut Workspace) {
+        for problem in ws.history_flush() {
+            self.events().log("WARN", &problem);
         }
     }
 

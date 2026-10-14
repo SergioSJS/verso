@@ -311,3 +311,99 @@ fn the_desktop_path_reads_and_writes_a_20_mb_text_whole() {
         .unwrap();
     assert!(made.is_ok(), "{:?}", made.err());
 }
+
+/// The computer's history through the service (ADR 0091 item 8): every
+/// command's write is a version, restored over the revision read, and a
+/// server's service, which never asks, keeps none.
+#[test]
+fn the_computers_history_records_each_commands_writes_and_restores() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let service = Service::new(Some(config.path().to_owned()));
+    service.keep_local_history("Mac de Ana", 365);
+    let path = dir.path().to_owned();
+    let opened = service
+        .open("a", move |c| Workspace::open(&path, c))
+        .unwrap();
+    service.attach("a", opened);
+    service
+        .dispatch(
+            "a",
+            "create_note",
+            serde_json::json!({"name": "Nota", "text": "um\n"}),
+        )
+        .unwrap()
+        .unwrap();
+    let policy = history::Policy::local(365);
+    let first = service
+        .with("a", |ws| history::list_local(ws, "Nota.md", policy, ""))
+        .unwrap();
+    assert_eq!(first.versions.len(), 1);
+    assert_eq!(first.versions[0].authors[0].name, "Mac de Ana");
+    let id = history::id_of(&first.versions[0].id, "").unwrap();
+    // Changed outside (the editor's next save is then a version of its
+    // own, not folded into the first), then by the editor, then the first
+    // version brought back.
+    {
+        let mut other = verso_fs::Root::open(dir.path(), vec![]).unwrap();
+        let h = other.handle(std::path::Path::new("Nota.md")).unwrap();
+        let (_, stamp) = other.read(h).unwrap();
+        let _ = other.write(h, b"fora\n", &stamp).unwrap();
+    }
+    service
+        .with("a", |ws| {
+            Ok(ws.history_outside(&["Nota.md".to_owned()], &[]))
+        })
+        .unwrap();
+    let read = service
+        .dispatch("a", "read_note", serde_json::json!({"path": "Nota.md"}))
+        .unwrap()
+        .unwrap();
+    let revision = read["revision"].as_str().unwrap().to_owned();
+    service
+        .with("a", |ws| {
+            ops::write_note(ws, "Nota.md".into(), "dois\n".into(), revision)
+        })
+        .unwrap();
+    let stale = service
+        .with("a", |ws| {
+            let bytes = history::bytes_local(ws, "Nota.md", id)?;
+            history::restore(
+                ws,
+                "Nota.md",
+                &bytes,
+                Some(read["revision"].as_str().unwrap_or("")),
+            )
+        })
+        .unwrap_err();
+    assert_eq!(stale.kind, ErrorKind::Changed, "invariant 11");
+    let now = service
+        .dispatch("a", "read_note", serde_json::json!({"path": "Nota.md"}))
+        .unwrap()
+        .unwrap();
+    let back = service
+        .with("a", |ws| {
+            let bytes = history::bytes_local(ws, "Nota.md", id)?;
+            history::restore(ws, "Nota.md", &bytes, now["revision"].as_str())
+        })
+        .unwrap();
+    let after = service
+        .dispatch("a", "read_note", serde_json::json!({"path": "Nota.md"}))
+        .unwrap()
+        .unwrap();
+    assert_eq!(after["text"], "um\n");
+    assert_eq!(after["revision"], back.revision.as_str());
+    let l = service
+        .with("a", |ws| history::list_local(ws, "Nota.md", policy, ""))
+        .unwrap();
+    assert_eq!(l.versions[0].kind, verso_contract::VersionKind::Restore);
+    // A server's service keeps none.
+    let plain = Service::new(Some(config.path().to_owned()));
+    let path = dir.path().to_owned();
+    let opened = plain.open("s", move |c| Workspace::open(&path, c)).unwrap();
+    plain.attach("s", opened);
+    let none = plain
+        .with("s", |ws| history::list_local(ws, "Nota.md", policy, ""))
+        .unwrap_err();
+    assert_eq!(none.kind, ErrorKind::Refused);
+}
