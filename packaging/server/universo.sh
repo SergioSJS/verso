@@ -75,6 +75,8 @@ Comandos:
                     /etc/universo/backup.pub; --passphrase, para uma
                     frase-senha digitada; --to-stdout escreve o backup na
                     saída padrão, para um pipe.
+                    Sem o age, --encrypt e --passphrase param e não
+                    gravam nada.
   backup --keygen   Cria a chave dos backups criptografados, uma vez: a
                     pública em /etc/universo/backup.pub, a secreta impressa
                     para você guardar em outro lugar (nunca nesta máquina).
@@ -134,6 +136,8 @@ Commands:
                     /etc/universo/backup.pub; --passphrase, to a typed
                     passphrase; --to-stdout writes it to standard output,
                     for a pipe.
+                    Without age, --encrypt and --passphrase stop and write
+                    nothing.
   backup --keygen   Makes the key of encrypted backups, once: the public
                     one in /etc/universo/backup.pub, the secret one printed
                     for you to keep elsewhere (never on this machine).
@@ -685,11 +689,11 @@ next_steps() {
   t "Guide: $DOCS" "Manual: $DOCS"
 }
 
-# caddy_install: the line that installs Caddy on this machine's family.
-# Debian and Ubuntu, and Fedora, carry it; Oracle Linux, RHEL, Rocky and
-# Alma only in EPEL (seen 2026-10-13 on Oracle Linux 9 and Rocky 9).
-caddy_install() {
-  if [ "$PM" = deb ]; then echo "sudo apt install caddy"; return 0; fi
+# dnf_install PKG: the line that installs PKG on this machine's family of
+# rpm systems: Fedora carries it; Oracle Linux, RHEL, Rocky and Alma only
+# in EPEL (seen 2026-10-13 on Oracle Linux 9 and Rocky 9, for Caddy). Fails,
+# after the EPEL line, for a family it does not know.
+dnf_install() {
   id='' major=''
   if [ -r "$OS_RELEASE" ]; then
     # shellcheck disable=SC1090 # the system's own file, read in a subshell.
@@ -698,15 +702,33 @@ caddy_install() {
     major=$(. "$OS_RELEASE" && echo "${VERSION_ID%%.*}")
   fi
   case "$id" in
-    fedora) echo "sudo dnf install caddy" ;;
-    ol) echo "sudo dnf install oracle-epel-release-el$major && sudo dnf install caddy" ;;
-    rhel) echo "sudo dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-$major.noarch.rpm && sudo dnf install caddy" ;;
-    rocky|almalinux|centos) echo "sudo dnf install epel-release && sudo dnf install caddy" ;;
-    *)
-      echo "sudo dnf install epel-release && sudo dnf install caddy"
-      t "(or Caddy's own repository: sudo dnf copr enable @caddy/caddy && sudo dnf install caddy)" \
-        "(ou o repositório do próprio Caddy: sudo dnf copr enable @caddy/caddy && sudo dnf install caddy)" ;;
+    fedora) echo "sudo dnf install $1" ;;
+    ol) echo "sudo dnf install oracle-epel-release-el$major && sudo dnf install $1" ;;
+    rhel) echo "sudo dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-$major.noarch.rpm && sudo dnf install $1" ;;
+    rocky|almalinux|centos) echo "sudo dnf install epel-release && sudo dnf install $1" ;;
+    *) echo "sudo dnf install epel-release && sudo dnf install $1"; return 1 ;;
   esac
+}
+
+# caddy_install: the line that installs Caddy on this machine's family.
+# Debian and Ubuntu carry it; the rpm families as dnf_install says.
+caddy_install() {
+  if [ "$PM" = deb ]; then echo "sudo apt install caddy"; return 0; fi
+  dnf_install caddy \
+    || t "(or Caddy's own repository: sudo dnf copr enable @caddy/caddy && sudo dnf install caddy)" \
+         "(ou o repositório do próprio Caddy: sudo dnf copr enable @caddy/caddy && sudo dnf install caddy)"
+}
+
+# age_install: the line that installs age on this machine's family — apt
+# on Debian and Ubuntu, the rpm families as dnf_install says — or nothing
+# on a machine with neither (age's own release then). Called where PM may
+# not be set yet (a backup), so it asks the system itself.
+age_install() {
+  if [ "${PM:-}" = deb ] || { [ -z "${PM:-}" ] && command -v apt-get >/dev/null 2>&1; }; then
+    echo "sudo apt install age"
+  elif [ "${PM:-}" = rpm ] || command -v dnf >/dev/null 2>&1; then
+    dnf_install age || :
+  fi
 }
 
 # caddy_steps HOST PORT: the commands that put HOST behind Caddy on this
@@ -928,10 +950,18 @@ kb() { if [ "$1" -lt 10240 ]; then echo "$1 KB"; else echo "$(($1 / 1024)) MB"; 
 # secret key is never kept on this machine: printed once, kept elsewhere.
 BACKUP_PUB=$ETC_DIR/backup.pub
 
-# age_missing: how to get age, said on standard error.
+# age_missing: how to get age on this machine, said on standard error.
 age_missing() {
-  warn "age is not installed. Install it: sudo apt install age (Debian, Ubuntu), sudo dnf install age (Fedora; on RHEL from EPEL), or a release from https://github.com/FiloSottile/age/releases" \
-       "O age não está instalado. Instale: sudo apt install age (Debian, Ubuntu), sudo dnf install age (Fedora; no RHEL pelo EPEL), ou uma versão de https://github.com/FiloSottile/age/releases"
+  line=$(age_install)
+  if [ -n "$line" ]; then
+    warn "age is not installed. Install it: $line
+    (or a release of age from https://github.com/FiloSottile/age/releases)" \
+         "O age não está instalado. Instale: $line
+    (ou uma versão do age de https://github.com/FiloSottile/age/releases)"
+  else
+    warn "age is not installed. Install it from your system's packages, or a release from https://github.com/FiloSottile/age/releases" \
+         "O age não está instalado. Instale pelos pacotes do seu sistema, ou uma versão de https://github.com/FiloSottile/age/releases"
+  fi
 }
 
 # is_age FILE: whether FILE is encrypted with age (its header, binary or
@@ -1071,12 +1101,14 @@ cmd_backup() {
     # The tarball on descriptor 3; every word of the script on standard error.
     exec 3>&1 1>&2
   fi
-  in_clear=asked
   if [ "$ENCRYPT" = 1 ]; then
+    # Encryption asked and age missing: nothing is written, neither a file
+    # nor a stream — never a plain backup in its place (decided
+    # 2026-10-14, ADR 0083 As built).
     if ! command -v age >/dev/null 2>&1; then
       age_missing
-      ENCRYPT=0
-      in_clear=no-age
+      die "No backup was made: encryption was asked for and age is missing (above). Install age and run again; a backup without encryption is sh universo.sh backup." \
+          "Nenhum backup foi feito: a criptografia foi pedida e falta o age (acima). Instale o age e rode de novo; um backup sem criptografia é sh universo.sh backup."
     elif [ "$PASSPHRASE" = 0 ] && [ ! -f "$BACKUP_PUB" ]; then
       die "No key to encrypt to: make one, once, with sh universo.sh backup --keygen — or use --passphrase." \
           "Nenhuma chave para criptografar: crie uma, uma vez, com sh universo.sh backup --keygen — ou use --passphrase."
@@ -1179,10 +1211,6 @@ To restore: sudo sh universo.sh restore $restore_file --identity KEY-FILE
 Copie para fora desta máquina (rclone, scp).
 Para restaurar: sudo sh universo.sh restore $restore_file --identity ARQUIVO-DA-CHAVE
 (à mão: sudo systemctl stop universo; age -d -i ARQUIVO-DA-CHAVE $restore_file | sudo tar -xzpf - -C /; sudo systemctl start universo)"
-  elif [ "$in_clear" = no-age ]; then
-    warn "THE BACKUP $where$size IS NOT ENCRYPTED: AGE IS MISSING (ABOVE). IT HOLDS THE ACCOUNTS, THE NOTES AND $ENV_FILE (WHICH MAY HOLD A PASSWORD): KEEP IT SOMEWHERE SAFE, READABLE BY ROOT ONLY, AND DO NOT COPY IT OFF THIS MACHINE AS IT IS." \
-         "O BACKUP $where$size NÃO ESTÁ CRIPTOGRAFADO: FALTA O AGE (ACIMA). ELE CONTÉM AS CONTAS, AS NOTAS E O $ENV_FILE (QUE PODE TER UMA SENHA): GUARDE EM LUGAR SEGURO, LEGÍVEL SÓ PELO ROOT, E NÃO O COPIE PARA FORA DESTA MÁQUINA ASSIM."
-    t "To restore: sudo sh universo.sh restore $restore_file" "Para restaurar: sudo sh universo.sh restore $restore_file"
   else
     t "Backup: $where$size, readable by root only.
 It holds the accounts, the notes and $ENV_FILE (which may hold a password):

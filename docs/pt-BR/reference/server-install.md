@@ -135,8 +135,13 @@ gerenciador de senhas ou em outra máquina. Quem a tem lê todos os backups;
 sem ela nenhum pode ser restaurado. Ele se recusa a substituir um
 `backup.pub` que já existe: tire-o do lugar antes, guardando a chave
 secreta antiga para os backups antigos. `--passphrase` no lugar de uma
-chave pede uma frase-senha no terminal. Sem o `age`, o `--encrypt` diz como
-instalá-lo e faz o tarball sem criptografia, com um aviso em maiúsculas.
+chave pede uma frase-senha no terminal. Sem o `age`, o `--encrypt` e o
+`--passphrase` param com um erro e não gravam nada — nem um arquivo nem,
+com `--to-stdout`, um byte do fluxo — e dizem como instalar o `age` na
+família desta máquina (`sudo apt install age` no Debian e no Ubuntu,
+`sudo dnf install age` no Fedora, pelo EPEL no RHEL, Rocky, Alma e Oracle
+Linux). Um backup sem criptografia é `sudo sh universo.sh backup`, sem
+opção.
 
 `--to-stdout` escreve o backup (criptografado ou não) na saída padrão, para
 um pipeline seu, por exemplo
