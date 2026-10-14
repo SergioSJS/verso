@@ -7,13 +7,14 @@
 // status bar's bell, by the phone's at the top of the pane, and by the
 // palette's "Notificações". Newest first, each with its time in the
 // computer's timezone, its folder when that is not the window's, and its
-// actions. Opening it marks everything read; "Limpar" empties it.
+// actions. Opening it marks everything read and closes the toasts, whose
+// notifications are all in it; "Limpar" empties it.
 
 import { h } from "../dom";
 import { icon } from "../icons";
 import { asDialog, closed, opened } from "../dialogs/a11y";
 import type { ActionRef, Book, Entry } from "./core";
-import { LEVEL_ICON } from "./toasts";
+import { dismissAll, LEVEL_ICON } from "./toasts";
 import { notifyStrings } from "./strings";
 
 export type CentreHooks = {
@@ -81,6 +82,7 @@ export class Centre {
     this.list.setAttribute("aria-labelledby", this.heading.id);
     this.storage.setAttribute("role", "note");
     this.storage.textContent = s.noStorage;
+    this.storage.hidden = true;
     this.box.append(head, this.storage, this.list);
     this.el.append(this.box);
     document.body.append(this.el);
@@ -95,6 +97,9 @@ export class Centre {
 
   /** Opened — on the entry `id`, when a system's notification was clicked. */
   show(id?: string): void {
+    // Everything is here, and read: the toasts step aside — on a phone
+    // they would cover the centre's own head.
+    dismissAll();
     opened(this.el);
     this.el.hidden = false;
     this.paint();

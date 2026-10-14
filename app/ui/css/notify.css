@@ -60,12 +60,15 @@
 
 /* ---------- A phone (item 6) ---------- */
 @media (max-width: 760px) {
-  /* The bell at the top of the pane, beside the failed line; the toasts at
-     the top, the whole width but the margins. */
-  .work-notices { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
-  .work-notices > :not(.notify-bell-phone) { grid-column: 1; }
-  .notify-bell-phone { display: inline-flex; grid-column: 2; grid-row: 1 / span 2; align-items: center; justify-content: center; min-width: 44px; min-height: 40px; color: var(--ink-2); }
+  /* The bell at the top of the pane, at the right end of its first row —
+     the failed line's when it shows, the tab bar's otherwise — taking no
+     row of its own: a phone's height is the text's. The toasts at the top,
+     the whole width but the margins. */
+  .work-notices { position: relative; }
+  .work-notices > :not(.notify-bell-phone) { padding-right: 48px; }
+  .notify-bell-phone { display: inline-flex; position: absolute; top: 0; right: 0; z-index: 6; align-items: center; justify-content: center; min-width: 44px; height: 2.45rem; color: var(--ink-2); background: var(--paper-2); }
   .notify-bell-phone .notify-count { top: .25rem; right: .3rem; }
+  .pane .tabs { padding-right: 48px; }
   .notify-toasts { top: calc(env(safe-area-inset-top) + 8px); bottom: auto; left: 16px; right: 16px; width: auto; }
   .notify-toast { animation-name: notify-in-top; }
   @keyframes notify-in-top { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
