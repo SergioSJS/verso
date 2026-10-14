@@ -145,20 +145,6 @@ fn scan(text: &str, names: &[Name]) -> Vec<Found> {
     out
 }
 
-/// The byte ranges of the `secret` callouts of `text` (ADR 0087 item 1,
-/// the kind compared lower-cased).
-fn secret_spans(text: &str) -> Vec<verso_dialect::Span> {
-    if !text.contains("[!") {
-        return Vec::new();
-    }
-    verso_dialect::parse(text)
-        .callouts
-        .into_iter()
-        .filter(|c| c.kind.to_lowercase() == "secret")
-        .map(|c| c.span)
-        .collect()
-}
-
 /// The `aliases` of a note's frontmatter: a list, or one value.
 fn aliases_of(text: &str) -> Vec<String> {
     let Some(Ok(verso_dialect::Value::Mapping(map))) =
@@ -181,7 +167,8 @@ fn aliases_of(text: &str) -> Vec<String> {
 
 /// The mentions found in one note's text, placed in lines and columns.
 fn placed(path: &str, text: &str, found: Vec<Found>) -> Vec<Mention> {
-    let secret = secret_spans(text);
+    // The one projection's blocks (ADR 0087): a reader's text has none.
+    let secret = verso_dialect::Secrets::of(text);
     found
         .into_iter()
         .map(|f| {
@@ -215,7 +202,7 @@ fn placed(path: &str, text: &str, found: Vec<Found>) -> Vec<Mention> {
                 after: tail.chars().take(AROUND).collect(),
                 alias: f.alias,
                 table: f.table,
-                secret: secret.iter().any(|s| s.start <= f.start && f.end <= s.end),
+                secret: secret.touches(f.start..f.end),
             }
         })
         .collect()
@@ -227,6 +214,17 @@ impl Workspace {
     /// names no note of the folder; a candidate that cannot be read now
     /// — gone, a placeholder, not UTF-8 — is passed over.
     pub fn unlinked_mentions(&mut self, note: &str) -> Result<Mentions, CoreError> {
+        self.mentions_as(note, false)
+    }
+
+    /// [`Self::unlinked_mentions`] as a reader asks them (ADR 0087): each
+    /// note read through its projection, so a mention inside a secret
+    /// block does not exist and every position is the projection's.
+    pub fn reader_unlinked_mentions(&mut self, note: &str) -> Result<Mentions, CoreError> {
+        self.mentions_as(note, true)
+    }
+
+    fn mentions_as(&mut self, note: &str, reader: bool) -> Result<Mentions, CoreError> {
         let path = self.note_key(note)?;
         let handle = self
             .root
@@ -274,6 +272,11 @@ impl Workspace {
             };
             let Ok(text) = String::from_utf8(bytes) else {
                 continue;
+            };
+            let text = if reader {
+                verso_dialect::project(&text).into_owned()
+            } else {
+                text
             };
             let found = scan(&text, &names);
             for m in placed(&candidate, &text, found) {

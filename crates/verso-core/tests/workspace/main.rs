@@ -24,5 +24,6 @@ mod agents;
 mod indexing;
 mod mentions;
 mod order;
+mod reader;
 mod rename;
 mod sweep;

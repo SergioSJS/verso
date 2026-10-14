@@ -57,6 +57,11 @@ pub struct BaseQuery {
     /// link to it resolves to nothing, and no formula or summary counts
     /// it — a backlink from outside included.
     pub within: Vec<String>,
+    /// Asked by an account that may only read the folder, on a UniVerso
+    /// (ADR 0087 item 4): every note as its projection — a tag or a link
+    /// inside a secret block is none, no count counts it — and a note's
+    /// size and time its projection's.
+    pub reader: bool,
 }
 
 impl BaseQuery {
