@@ -80,3 +80,46 @@ describe("The device page", () => {
     assert.equal(approve.textContent, `Aprovar este aparelho: ${name}`);
   });
 });
+
+describe("The sign-in link page", () => {
+  const token = "um-token-de-teste";
+  const path = `/api/signin/link/${token}`;
+
+  test("names the account and waits for a click before it signs in", async () => {
+    win.happyDOM.setURL(`https://verso.test/signin-link/${token}`);
+    answers[`GET ${path}`] = { body: { email: "bia@casa.example" } };
+    answers[`POST ${path}`] = { body: { csrf: "c" } };
+    await pages.signInLinkPage(token);
+    await until(() => document.querySelector("main button"), "the question is shown");
+    await settle(20);
+    assert.deepEqual(
+      sent.map((s) => s.key),
+      [`GET ${path}`],
+      "nothing is used before the click",
+    );
+    const main = document.querySelector("main");
+    assert.ok(main.textContent.includes("Entrar como bia@casa.example?"), main.innerHTML);
+    const go = main.querySelector("button");
+    assert.equal(document.activeElement, go, "the button has the focus");
+    assert.equal(go.textContent, "Entrar");
+    // The button is named by its words, and described by the question.
+    const described = go
+      .getAttribute("aria-describedby")
+      .split(" ")
+      .map((id) => document.getElementById(id)?.textContent ?? "")
+      .join(" ");
+    assert.ok(described.includes("Entrar como bia@casa.example?"), main.innerHTML);
+    go.click();
+    await until(() => sent.length === 2, "the click uses the link");
+    assert.equal(sent[1].key, `POST ${path}`);
+  });
+
+  test("says a used or expired link in the person's words, and sends nothing more", async () => {
+    win.happyDOM.setURL(`https://verso.test/signin-link/${token}`);
+    answers[`GET ${path}`] = { status: 404, body: { error: "link_gone", message: "gone" } };
+    await pages.signInLinkPage(token);
+    await until(() => document.querySelector("main")?.textContent.includes("link"), "the link is said gone");
+    assert.equal(document.querySelector("main button"), null);
+    assert.deepEqual(sent.map((s) => s.key), [`GET ${path}`]);
+  });
+});
