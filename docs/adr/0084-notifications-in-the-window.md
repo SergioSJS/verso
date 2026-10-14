@@ -75,8 +75,8 @@ folder's revocation falls into "connection dropped".
 
 ## Decision
 
-Proposed (2026-10-14). Each `[OPEN]` carries a recommendation; the
-maintainer decides.
+Accepted (2026-10-14). The open items were decided by the maintainer on
+the same day; each is marked in place (Status).
 
 1. **What a notification is.** A notification is a change of state that
    the person did not cause in that moment, or that outlasts the moment:
@@ -142,10 +142,10 @@ maintainer decides.
      folder, and its actions.
    - Opening it marks everything as read. "Limpar" empties it.
    - It keeps at most 100 entries, and none older than 30 days.
-   - `[OPEN]` **Where the list lives.**
-     - *Recommendation:* in the browser storage of this computer, or of
-       this browser for the web window. One list per machine, each entry
-       tagged with its folder. It is not synced to the account.
+   - **Where the list lives** `[DECIDED 2026-10-14]`:
+     - In the browser storage of this computer, or of this browser for
+       the web window. One list per machine, each entry tagged with its
+       folder. It is not synced to the account.
      - A notification is history, not a setting. Syncing it would make
        one device's sync failure appear on another.
 
@@ -162,9 +162,9 @@ maintainer decides.
    | Sync | a folder's sync fails, and when it is back; the window on a server folder loses the server, and gets it back; the web window goes offline, and comes back | `sync-status`, `server-gone` / `server-back`, the web bridge's notices | the web bridge's offline and reconnected notices move to this module |
    | Conflicts | sync made a conflict copy; a live room refused an edit as a conflict | `SyncStatus.conflicts`, `collab-conflict` | none. The banner in the note stays |
    | Sharing | a share was given to me; a share I had was revoked | revoked: `SyncStatus.revoked`, the `gone` frame | **given:** a new push to the grantee's open connections, added to the share scope's allowlist. **Revoked on a desktop window on a server folder:** said as a revocation, no longer as "connection dropped" |
-   | Updates | a new version is out | the check at start | `[OPEN]` a recheck while the app is open. *Recommendation:* every 24 h, under the same setting ("Verificar atualizações automaticamente", [0055](0055-in-app-updater.md)). One notification per version |
+   | Updates | a new version is out | the check at start | a recheck while the app is open `[DECIDED 2026-10-14]`: every 24 h, under the same setting ("Verificar atualizações automaticamente", [0055](0055-in-app-updater.md)). One notification per version |
    | Quota | a folder passes 90 % of its quota | `folder-quota`, server folders only | given a contract type, and forwarded to a synced local folder's window. Raised again only after the folder drops below 90 % and passes it again |
-   | Trash | entries of this folder leave the trash soon | nothing: `trash_list` has `expires` | `[OPEN]` the threshold. *Recommendation:* the window asks at open and once a day, and says "n itens saem da lixeira em até 3 dias" at most once a day per folder, with "Abrir a lixeira" |
+   | Trash | entries of this folder leave the trash soon | nothing: `trash_list` has `expires` | the threshold `[DECIDED 2026-10-14]`: the window asks at open and once a day, and says "n itens saem da lixeira em até 3 dias" at most once a day per folder, with "Abrir a lixeira" |
    | Presence | someone joins the note I am editing | `collab-awareness` → `presenceChanged` | none. Leaving is not notified: the live state already says it |
 
    Errors of an action (`verso:failed`) are not a kind. They stay where
@@ -173,8 +173,8 @@ maintainer decides.
 8. **Settings.**
    - A new Settings section, "Notificações", has one row per kind with
      three values: "Aviso e lista", "Só na lista", "Desligado".
-   - `[OPEN]` **The defaults.** *Recommendation:* "Aviso e lista" for
-     every kind.
+   - **The defaults** `[DECIDED 2026-10-14]`: "Aviso e lista" for every
+     kind.
    - Turning a kind off does not silence its state. The status bar still
      says the sync state, and the note still shows its conflict banner.
      Off only means no toast and no line in the list.
@@ -182,11 +182,30 @@ maintainer decides.
      ([0070](0070-what-travels-with-the-folder.md)): the window's
      `Settings`, synced to the account on a server.
 
-9. **The system's notifications.** `[OPEN]` Should a notification also go
-   to macOS, Windows or Linux notifications when the window is in the
-   background? *Recommendation:* not in this round. It needs a Tauri
-   plugin, a permission request and checks on three systems. This ADR's
-   module is the one place it would plug into later.
+9. **The system's notifications** `[DECIDED 2026-10-14]`: in this
+   round, on the desktop and in the browser.
+   - One more row in "Notificações": "Também nas notificações do
+     sistema". It starts **off**. The system's permission is asked at the
+     moment the person turns it on, never by surprise. If the permission
+     is refused, the row goes back to off and says why.
+   - When it is on, a notification whose kind is set to "Aviso e lista"
+     also goes to the system's notifications, but only while the window
+     is not in front: in the background, minimised, or in another tab.
+     A window in front shows the toast only.
+   - Activating the system's notification brings the window to the front
+     and opens the centre on that notification.
+   - Desktop: through Tauri's notification plugin, on macOS, Windows and
+     Linux. Its permission is added to the window's capabilities.
+   - Browser: through the browser's Notification API. The web bridge
+     answers the same calls the desktop's plugin answers, so the window
+     does not ask which side it runs on
+     ([0026](0026-core-ui-contract-inviolable-rules.md) rule 2).
+   - Where the system cannot do it, the row says so and stays off: a page
+     not served over HTTPS, a browser without the API, or a phone browser
+     that only allows it to an installed app.
+   - New dependencies, each justified in the pull request with its
+     licence checked: `tauri-plugin-notification` (Rust) and
+     `@tauri-apps/plugin-notification` (npm).
 
 10. **The contract.**
     - The payloads of the events this ADR uses get Rust types in
@@ -242,12 +261,16 @@ None recorded.
 
 ## Status
 
-**Proposed (2026-10-14).** Written by Opus 5.5 at the maintainer's
-request. Open for the maintainer, each with a recommendation:
+**Accepted (2026-10-14).** Written by Opus 5.5 at the maintainer's
+request. The maintainer accepted the four recommendations on the same
+day (*"Sim, todas"*): the list on this machine, not synced (item 5); the
+recheck every 24 h (item 7); the trash's threshold of 3 days, once a day
+per folder (item 7); "Aviso e lista" for every kind (item 8).
 
-- where the list lives (item 5; this machine's browser storage, not
-  synced);
-- the recheck for updates while open (item 7; every 24 h);
-- the trash's threshold (item 7; 3 days, once a day per folder);
-- the defaults (item 8; "Aviso e lista" for every kind);
-- the system's notifications (item 9; not in this round).
+The system's notifications (item 9) went against the recommendation,
+which was to leave them for a later round. The maintainer chose to have
+them in this round (*"Sim, já nesta"*), starting off, with the
+permission asked when the setting is turned on, and in the browser as
+well as on the desktop.
+
+To be built as 0.8.3-beta.1.
