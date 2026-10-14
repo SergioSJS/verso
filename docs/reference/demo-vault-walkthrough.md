@@ -726,8 +726,11 @@ rest below and in `manual-checks.md`.
    acted, with *Tentar de novo*, and a synced folder's bar says *Servidor
    fora de alcance: localhost:7351* (e2e, `server-down.spec.mjs`); a
    refused connection is the contract's `unreachable` (the host's test,
-   `reach.rs`); the installed app with its server stopped, by hand
-   (`manual-checks.md`).
+   `reach.rs`); a window on a server's folder whose server went down says
+   *Servidor fora de alcance: localhost:7351* in the status bar with
+   *Tentar de novo* (e2e, the same file), and tries again at 5 s doubling
+   to 5 min (the host's test, `reach.rs`); the installed app with its
+   server stopped, by hand (`manual-checks.md`).
 8. Who changed what, and what needs a look: on the console's page of a
    folder, *Últimas mudanças nos arquivos* shows a device's change with the
    device's name in parentheses beside the account, and the server's log

@@ -297,6 +297,11 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .status-sync { flex: none; padding: .1rem .45rem; font: inherit; font-size: .78rem; color: var(--ink-3); white-space: nowrap; border-radius: 4px; }
 .status-sync:hover { color: var(--ink); background: var(--paper-2); }
 .status-sync.warn { color: var(--seal); }
+/* A server's folder whose server is out of reach (dialogs/servers.ts): said
+   in the status bar, with a try now. */
+.status-server { flex: none; display: inline-flex; align-items: center; gap: .35rem; font-size: .78rem; color: var(--seal); white-space: nowrap; }
+.status-server-retry { padding: .1rem .45rem; font: inherit; color: var(--ink-2); border-radius: 4px; }
+.status-server-retry:hover { color: var(--ink); background: var(--paper-2); }
 .status-live { flex: none; padding: .1rem .45rem; font-size: .78rem; color: var(--ink-3); white-space: nowrap; }
 .panel-sub { margin: 1rem .6rem .3rem; font-family: var(--ui); font-size: .7rem; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
 .links-head { margin: .9rem .6rem .3rem; font-family: var(--ui); font-size: .7rem; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }

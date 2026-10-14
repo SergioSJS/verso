@@ -9,8 +9,9 @@
 //! A request that made no connection — refused, no such name, a TLS
 //! handshake that failed — or got no answer in time is the contract's
 //! `unreachable`, carrying the server's address; the log says why, at
-//! WARN, once a minute per server, not at ERROR on every try. And a sync
-//! that tries again waits longer each time (`Backoff`).
+//! WARN, once a minute per server, not at ERROR on every try. And a sync,
+//! or a window on a server's folder, that tries again waits longer each
+//! time (`Backoff`, `redial`), and tries at once when the person asks.
 
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
@@ -137,6 +138,80 @@ impl Backoff {
     }
 }
 
+/// What ended a wait: its time, or the person asking to try now.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Woken {
+    Elapsed,
+    Asked,
+}
+
+/// One try at a server: done, to be tried again, or no longer wanted.
+pub(crate) enum Step<T> {
+    Done(T),
+    Again,
+    Stop,
+}
+
+/// Try until done or no longer wanted: a wait, then a try, the waits
+/// growing as `backoff` says; a wait the person ends (`Woken::Asked`) is
+/// tried at once, and the waits start over. `wait` is the clock — the
+/// tests give a fake one.
+pub(crate) async fn redial<T, A, AF, W, WF>(
+    mut backoff: Backoff,
+    mut attempt: A,
+    mut wait: W,
+) -> Option<T>
+where
+    A: FnMut() -> AF,
+    AF: std::future::Future<Output = Step<T>>,
+    W: FnMut(Duration) -> WF,
+    WF: std::future::Future<Output = Woken>,
+{
+    loop {
+        if wait(backoff.next()).await == Woken::Asked {
+            backoff.reset();
+        }
+        match attempt().await {
+            Step::Done(t) => return Some(t),
+            Step::Stop => return None,
+            Step::Again => {}
+        }
+    }
+}
+
+/// Each window's reconnection waiting, by the window's label: the person's
+/// "Tentar de novo", or their opening the same folder again, ends its wait.
+static ASKED: Mutex<BTreeMap<String, Arc<tokio::sync::Notify>>> = Mutex::new(BTreeMap::new());
+
+/// The window's reconnection is waiting: what ends its wait.
+pub(crate) fn waiting(label: &str) -> Arc<tokio::sync::Notify> {
+    Arc::clone(lock(&ASKED).entry(label.to_owned()).or_default())
+}
+
+/// The window's reconnection is over.
+pub(crate) fn done_waiting(label: &str, asked: &Arc<tokio::sync::Notify>) {
+    let mut all = lock(&ASKED);
+    if all.get(label).is_some_and(|n| Arc::ptr_eq(n, asked)) {
+        all.remove(label);
+    }
+}
+
+/// The person asks the window's reconnection to try now; nothing when the
+/// window is not reconnecting.
+pub(crate) fn try_now(label: &str) {
+    if let Some(n) = lock(&ASKED).get(label) {
+        n.notify_one();
+    }
+}
+
+/// The real clock: `d`, or less when the person asks.
+pub(crate) async fn wait_or_asked(d: Duration, asked: Arc<tokio::sync::Notify>) -> Woken {
+    tokio::select! {
+        () = tokio::time::sleep(d) => Woken::Elapsed,
+        () = asked.notified() => Woken::Asked,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -198,6 +273,70 @@ mod tests {
         // Another server is its own.
         assert!(due(&mut said, "http://b", t0 + Duration::from_secs(30)));
         assert!(due(&mut said, "http://a", t0 + Duration::from_secs(61)));
+    }
+
+    /// A window's reconnection, on a fake clock: the waits it asked for,
+    /// and what each wait answered, scripted.
+    fn schedule(fails: usize, woken: &[(usize, Woken)]) -> (Vec<u64>, Option<&'static str>) {
+        let waits = std::cell::RefCell::new(Vec::new());
+        let tries = std::cell::Cell::new(0_usize);
+        let done = tauri::async_runtime::block_on(redial(
+            Backoff::within(Duration::from_secs(5), Duration::from_secs(300)),
+            || {
+                tries.set(tries.get() + 1);
+                let step = if tries.get() > fails {
+                    Step::Done("back")
+                } else {
+                    Step::Again
+                };
+                async move { step }
+            },
+            |d| {
+                let n = waits.borrow().len();
+                waits.borrow_mut().push(d.as_secs());
+                let w = woken
+                    .iter()
+                    .find(|(at, _)| *at == n)
+                    .map_or(Woken::Elapsed, |(_, w)| *w);
+                async move { w }
+            },
+        ));
+        (waits.into_inner(), done)
+    }
+
+    #[test]
+    fn a_window_tries_its_server_again_at_5_s_doubling_to_5_min() {
+        let (waits, done) = schedule(9, &[]);
+        assert_eq!(waits, [5, 10, 20, 40, 80, 160, 300, 300, 300, 300]);
+        assert_eq!(done, Some("back"));
+    }
+
+    #[test]
+    fn the_person_asking_tries_at_once_and_the_waits_start_over() {
+        // The fifth wait (80 s) ended by "Tentar de novo": that try fails,
+        // and the next wait is 5 s again.
+        let (waits, done) = schedule(6, &[(4, Woken::Asked)]);
+        assert_eq!(waits, [5, 10, 20, 40, 80, 5, 10]);
+        assert_eq!(done, Some("back"));
+    }
+
+    #[test]
+    fn a_window_that_moved_on_stops_trying() {
+        let tries = std::cell::Cell::new(0);
+        let done: Option<()> = tauri::async_runtime::block_on(redial(
+            Backoff::within(Duration::from_secs(5), Duration::from_secs(300)),
+            || {
+                tries.set(tries.get() + 1);
+                let step = if tries.get() == 3 {
+                    Step::Stop
+                } else {
+                    Step::Again
+                };
+                async move { step }
+            },
+            |_| async { Woken::Elapsed },
+        ));
+        assert_eq!((done, tries.get()), (None, 3));
     }
 
     #[test]

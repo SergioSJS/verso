@@ -35,6 +35,14 @@ app real.
   ERROR por clique. Não verificado por teste: as falhas do próprio sistema
   para um nome que não existe e um certificado TLS recusado — tente
   `https://naoexiste.invalid` em *Servidores › Conectar*.
+- [ ] **Uma janela numa pasta de servidor, com o servidor parado** (A):
+  abra uma pasta do UniVerso na janela, pare o servidor: a barra de status
+  diz *A conexão com o servidor caiu; tentando de novo…* e, em até 5 s,
+  *Servidor fora de alcance: localhost:7351* e *Tentar de novo*.
+  `verso.log`: as tentativas a 5, 10, 20, 40 s… (uma linha WARN por
+  minuto, não uma por tentativa). Ligue o servidor, *Tentar de novo*: em
+  um segundo, *Conectado ao servidor de novo.*, a pasta como está no
+  servidor.
 - [ ] **A paleta sobre os ajustes** (B): *Ajustes* aberto, um clique numa
   seção, depois ⌘⇧P: a paleta fica por cima com o cursor nela; Esc fecha
   só a paleta, e o foco volta para *Ajustes*; Esc de novo fecha *Ajustes*.

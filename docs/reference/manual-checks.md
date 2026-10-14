@@ -36,6 +36,13 @@ in the real app.
   ERROR a click. Not verified by a test: the system's own failures for a
   name that does not exist and a TLS certificate refused — try
   `https://naoexiste.invalid` in *Servidores › Conectar*.
+- [ ] **A window on a server's folder, its server stopped** (A): open a
+  folder of the UniVerso in the window, stop the server: the status bar
+  says *A conexão com o servidor caiu; tentando de novo…*, then, within
+  5 s, *Servidor fora de alcance: localhost:7351* and *Tentar de novo*.
+  `verso.log`: the tries at 5, 10, 20, 40 s… (one WARN line a minute,
+  not one a try). Start the server, *Tentar de novo*: within a second,
+  *Conectado ao servidor de novo.*, the folder as it is on the server.
 - [ ] **The palette over the settings** (B): *Ajustes* open, a click on
   a section, then ⌘⇧P: the palette is on top with the cursor in it;
   Escape closes the palette alone, the focus back in *Ajustes*; Escape

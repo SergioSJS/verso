@@ -93,3 +93,27 @@ test("the folder switcher says a server down under its groups, and tries again",
   await expect(switcher.getByRole("button", { name: /Campanha/ })).toBeVisible();
   await expect(switcher.getByRole("alert")).toHaveCount(0);
 });
+
+// A window showing a server's folder whose server went down (the
+// coordinator's second gap, 2026-10-14): the host tries again on its own,
+// 5 s doubling to 5 min (reach.rs), and says each try that found it out of
+// reach. The status bar says so, with "Tentar de novo", which asks the
+// host to try now; the server back, it goes.
+test("a server's folder whose server is down says so in the status bar, and tries again when asked", async ({ app, page }) => {
+  await app.open();
+  await app.emit("server-gone", { url: "http://localhost:7351", what: "connection" });
+  await app.emit("server-gone", { url: "http://localhost:7351", what: "unreachable", address: "localhost:7351" });
+  const state = page.locator("#server-state");
+  await expect(state).toContainText("Servidor fora de alcance: localhost:7351");
+  const again = state.getByRole("button", { name: "Tentar de novo" });
+  await again.click();
+  // The harness answers in a task of its own: the call lands a moment later.
+  await expect.poll(async () => (await app.calls("server_retry")).length).toBe(1);
+  // Busy until the host says how the try went.
+  await expect(again).toHaveAttribute("aria-busy", "true");
+  await app.emit("server-gone", { url: "http://localhost:7351", what: "unreachable", address: "localhost:7351" });
+  await expect(again).not.toHaveAttribute("aria-busy", "true");
+  await app.emit("server-back", { url: "http://localhost:7351" });
+  await expect(state).toBeHidden();
+  await expect(page.locator("#status")).toHaveText("Conectado ao servidor de novo.");
+});

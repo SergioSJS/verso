@@ -1372,6 +1372,7 @@ export class Core {
     server_sign_out: () => null,
     server_folders: () => [],
     server_open: () => refuse("unavailable", "no server in the harness"),
+    server_retry: () => null,
     share_list: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     share_grant: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     share_revoke: () => refuse("refused", "this folder is not on a server: sync it with one first"),

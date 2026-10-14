@@ -691,6 +691,7 @@ macro_rules! commands_for {
                 server_sign_out::<$runtime>,
                 server_folders::<$runtime>,
                 server_open::<$runtime>,
+                server_retry::<$runtime>,
                 share_list::<$runtime>,
                 share_grant::<$runtime>,
                 share_revoke::<$runtime>,
