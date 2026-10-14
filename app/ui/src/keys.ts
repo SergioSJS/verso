@@ -11,7 +11,7 @@ import { can, canWrite } from "./can";
 import { trashStrings } from "./dialogs/trash";
 import { bookmarks, toggleBookmark } from "./bookmarks";
 import { narrow, toggleRight, toggleSide } from "./chrome";
-import { dailyNote, insertTemplate, saveAsTemplate } from "./daily";
+import { insertTemplate, saveAsTemplate } from "./daily";
 import { importDemoVault } from "./demo";
 import { openRoller } from "./dice/roller";
 import { ds } from "./dice/strings";
@@ -34,6 +34,7 @@ import { openFolderDialog, reindex } from "./open";
 import { openCentre } from "./notify";
 import { notifyStrings } from "./notify/strings";
 import { dirOf } from "./paths";
+import { periodicCommands } from "./periodic/notes";
 import { ptPhrases } from "./phrases";
 import { settings } from "./settings";
 import { boardText, pt, t } from "./strings";
@@ -230,7 +231,9 @@ export function allCommands(all = false): Command[] {
     { id: "new-board", label: boardText.newBoard, need: hasFolder, run: () => void newBoard(settings.boardFolder.trim().replace(/^\/+|\/+$/g, "")) },
     { id: "new-base", label: t.newBase, need: hasFolder, run: () => void newBase(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "insert-base", label: t.insertBase, need: Boolean(note), run: () => insertBase() },
-    { id: "daily", label: t.daily.split(" (")[0] ?? t.daily, need: hasFolder, run: () => void dailyNote() },
+    // The periods' notes and Previous / Next (ADR 0093 items 7, 8, 10):
+    // ⌘⇧D stays the day's, the others have no default key.
+    ...periodicCommands(hasFolder, note?.path ?? null),
     { id: "insert-template", label: t.insertTemplate, need: hasFolder, run: () => insertTemplate() },
     { id: "save-template", label: t.saveAsTemplate, need: hasFolder, run: () => void saveAsTemplate() },
     { id: "fold-all-headings", label: t.foldAllHeadings, need: Boolean(note), run: () => note?.foldAllHeadings(true) },
@@ -294,7 +297,7 @@ export function allCommands(all = false): Command[] {
 }
 /** The commands that change the folder: absent for a reader on a server. */
 const WRITES = new Set([
-  "new-note", "new-note-named", "new-folder", "new-board", "new-base", "insert-base", "daily", "insert-template", "save-template",
+  "new-note", "new-note-named", "new-folder", "new-board", "new-base", "insert-base", "insert-template", "save-template",
   "import-demo-vault", "replace", "new-web-page", "move-file", "rename", "delete",
   "block-move-up", "block-move-down", "block-duplicate", "block-turn-into", "block-delete",
 ]);

@@ -25,6 +25,7 @@ import { PdfLeaf } from "../leaves/pdf";
 import { TextLeaf } from "../leaves/textfile";
 import { MenuItem, showMenu } from "../menu";
 import { Kind, kindOf } from "../paths";
+import { periodicMenu } from "../periodic/notes";
 import { st } from "../screen/strings";
 import { settings } from "../settings";
 import { t } from "../strings";
@@ -284,6 +285,8 @@ export class Pane {
         ...(can("reveal") ? [[t.reveal, () => void commands.reveal(leaf.path), "folderOpen"] as MenuItem] : []),
       ] : []),
       ...(leaf.kind === "note" ? [[t.graph, () => this.openGraph(leaf.path), "graph"] as MenuItem] : []),
+      // A periodic note's previous and next (ADR 0093 item 8).
+      ...(leaf.kind === "note" ? periodicMenu(leaf.path).map((m) => m as MenuItem) : []),
       // 5. Close actions
       sep,
       [t.close, () => void leaf.close(), "close"],
