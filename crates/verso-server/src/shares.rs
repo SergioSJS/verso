@@ -14,7 +14,7 @@ use axum::extract::Path;
 use axum::response::Response;
 use serde::Deserialize;
 use serde_json::{Value, json};
-use verso_contract::ContractError;
+use verso_contract::{ContractError, ShareGiven};
 use verso_service::lock;
 
 use crate::auth::Who;
@@ -415,6 +415,7 @@ pub async fn grant(
     }
     let role = body.role.min(Role::Editor);
     let share = ctx.server.db.make_share(&folder.id, &body.path)?;
+    let new = ctx.server.db.share_role(&share.id, &target.id)?.is_none();
     ctx.server.db.grant_share(&share.id, &target.id, role)?;
     audit(
         &ctx,
@@ -424,7 +425,38 @@ pub async fn grant(
         &share.path,
     );
     refresh(&ctx.server, &folder.id, "revoked");
+    if new {
+        given(
+            &ctx,
+            &target.id,
+            ShareGiven {
+                id: share.id.clone(),
+                name: last(&share.path).to_owned(),
+                role: role.as_str().to_owned(),
+                by: String::new(),
+                share: true,
+                server: None,
+            },
+        );
+    }
     Ok(ok(of_share(&ctx.server, &folder, &share)?))
+}
+
+/// A folder given to `account`, which had no access to it before (ADR 0084
+/// item 7): the account's windows and devices hear it at once, with who
+/// gave it — the person acting — so that a window can say it. A role
+/// changed later is not said here.
+pub(crate) fn given(ctx: &Ctx, account: &str, what: ShareGiven) {
+    let Some(by) = ctx.who.as_ref().map(|w| w.account.name.clone()) else {
+        return;
+    };
+    let Ok(payload) = serde_json::to_value(ShareGiven { by, ..what }) else {
+        return;
+    };
+    ctx.server.push_sessions(
+        account,
+        &json!({ "event": "share-given", "payload": payload }),
+    );
 }
 
 #[derive(Deserialize)]
