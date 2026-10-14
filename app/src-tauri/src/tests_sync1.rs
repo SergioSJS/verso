@@ -5,12 +5,13 @@
 //! This app, of sync 2, against a server of sync 1 (ADR 0079 item 5: the
 //! newer side follows the version before): a file of several pieces
 //! crosses both ways as base64 inside the JSON, the way of sync 1, never
-//! as the binary messages of sync 2 (item 12, revised 2026-10-12).
+//! as the binary messages of sync 2 (item 12, revised 2026-10-12). And a
+//! file of several pieces between two devices of this app's own sync.
 
 // The server is not built for Windows (crates/verso-cli/Cargo.toml).
 #![cfg(not(windows))]
 
-use super::tests_sync::{device, kept, on, read, serve, write};
+use super::tests_sync::{device, kept, on, read, serve, sync, write};
 
 /// A file of 3 MiB and a bit: four pieces of 1 MiB.
 fn big() -> Vec<u8> {
@@ -70,4 +71,21 @@ fn the_same_server_of_sync_2_takes_binary_pieces() {
     let a = device(&r, &r.owner, &[]);
     let la = kept(&a);
     assert!(la.remote.binary());
+}
+
+/// A file larger than a message, between two devices of this app's own
+/// sync: in pieces both ways (moved here from tests_sync.rs, which is at
+/// the size limit of ADR 0067).
+#[test]
+fn a_file_larger_than_a_message_crosses_in_pieces() {
+    let r = serve(&[]);
+    let a = device(&r, &r.owner, &[]);
+    let big: Vec<u8> = (0..(9_u32 << 20))
+        .map(|i| u8::try_from(i % 251).unwrap())
+        .collect();
+    write(&a, "anexos/mapa.bin", &big);
+    sync(&a);
+    let b = device(&r, &r.owner, &[]);
+    sync(&b);
+    assert_eq!(read(&b, "anexos/mapa.bin").as_deref(), Some(big.as_slice()));
 }

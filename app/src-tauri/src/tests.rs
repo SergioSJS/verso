@@ -93,6 +93,7 @@ fn app_alone(initial: Option<PathBuf>) -> tauri::App<MockRuntime> {
     let config = tempfile::tempdir().unwrap();
     let app = mock_builder()
         .plugin(navigation_guard())
+        .plugin(tauri_plugin_notification::init())
         .manage(App {
             service: Service::new(Some(config.path().to_path_buf())),
             ..App::new(initial)
@@ -1031,6 +1032,32 @@ fn the_window_controls_are_allowed() {
             "{permission} missing"
         );
     }
+}
+
+/// The system's notifications (ADR 0084 item 9) are the window's to ask
+/// and to send: without the plugin's permissions in the capability the
+/// app answers "not allowed" while the browser harness, which has its
+/// own, passes. Asked here through the app's own capability; a
+/// notification is not sent, which would show one on this computer.
+#[test]
+fn the_system_notifications_are_allowed() {
+    let (_app, webview) = app();
+    let granted = call(
+        &webview,
+        "plugin:notification|is_permission_granted",
+        json!({}),
+    );
+    assert_eq!(granted, Ok(json!(true)));
+    let asked = call(
+        &webview,
+        "plugin:notification|request_permission",
+        json!({}),
+    );
+    assert_eq!(asked, Ok(json!("granted")));
+    let capability = include_str!("../capabilities/default.json");
+    assert!(capability.contains("\"notification:allow-notify\""));
+    // The app's own builder has the plugin, as this test's has.
+    assert!(include_str!("lib.rs").contains(".plugin(tauri_plugin_notification::init())"));
 }
 
 /// Every command the bindings call is allowed by the window's capability

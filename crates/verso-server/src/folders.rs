@@ -138,9 +138,24 @@ pub(crate) fn grant_whole(ctx: &Ctx, id: &str, account: &str, role: Role) -> Api
     if role != Role::Owner && last_owner(ctx, id, &target.id)? {
         return Err(ApiError::bad("last_owner", "a folder keeps an owner"));
     }
+    let new = ctx.server.db.role(id, &target.id)?.is_none();
     ctx.server.db.grant(id, &target.id, role)?;
     ctx.server
         .role_changed(id, &target.id, Some(role), "revoked");
+    if new && let Some(folder) = ctx.server.db.folder(id)? {
+        crate::shares::given(
+            ctx,
+            &target.id,
+            verso_contract::ShareGiven {
+                id: folder.id,
+                name: folder.dir,
+                role: role.as_str().to_owned(),
+                by: String::new(),
+                share: false,
+                server: None,
+            },
+        );
+    }
     ctx.audit(
         &format!("grant_{}", role.as_str()),
         Some(&target.id),

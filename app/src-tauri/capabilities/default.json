@@ -1,6 +1,6 @@
 {
   "identifier": "default",
-  "description": "The app's own views — the main window, other windows of the same folder, and the notes popped out of them — and nothing else: the core's commands, window focus, closing its own window once its tabs are saved, and the window controls a window without the system's title bar draws itself — dragging, minimizing, maximizing, closing (ADR 0072). Listed by web view, not by window, so a web page shown inside a window (a child view labelled web-*) gets none of it. No fs plugin and no dialog permission: notes are reached only through verso-core, and the native folder picker runs on the host's side (pick_folder), so no path ever reaches the UI (ADR 0026 rule 4).",
+  "description": "The app's own views — the main window, other windows of the same folder, and the notes popped out of them — and nothing else: the core's commands, window focus, closing its own window once its tabs are saved, and the window controls a window without the system's title bar draws itself — dragging, minimizing, maximizing, closing (ADR 0072) — and the system's notifications, asked for and sent, while the window is not in front (ADR 0084 item 9). Listed by web view, not by window, so a web page shown inside a window (a child view labelled web-*) gets none of it. No fs plugin and no dialog permission: notes are reached only through verso-core, and the native folder picker runs on the host's side (pick_folder), so no path ever reaches the UI (ADR 0026 rule 4).",
   "webviews": [
     "main",
     "window-*",
@@ -14,6 +14,9 @@
     "core:window:allow-minimize",
     "core:window:allow-toggle-maximize",
     "core:window:allow-close",
+    "notification:allow-is-permission-granted",
+    "notification:allow-request-permission",
+    "notification:allow-notify",
     "allow-pick-folder",
     "allow-reopen-folder",
     "allow-open-initial",

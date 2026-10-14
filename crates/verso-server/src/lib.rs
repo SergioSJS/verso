@@ -351,6 +351,8 @@ mod tests_room_inputs;
 #[cfg(test)]
 mod tests_rooms;
 #[cfg(test)]
+mod tests_share_given;
+#[cfg(test)]
 mod tests_shares;
 #[cfg(test)]
 mod tests_signin;

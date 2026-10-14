@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use serde_json::{Value, json};
-use verso_contract::ContractError;
+use verso_contract::{ContractError, FolderQuota};
 use verso_service::lock;
 
 use crate::state::Server;
@@ -174,9 +174,15 @@ pub fn warn(server: &Server, folder: &str, used: u64) {
     // 90 % or more, in whole numbers.
     let near = quota > 0 && u128::from(used) * 10 >= u128::from(quota) * 9;
     if near {
+        // Typed by the contract (ADR 0084 item 10): bytes as numbers the
+        // window shows, whole below 2^53.
+        let payload = FolderQuota {
+            used: used as f64,
+            quota: quota as f64,
+        };
         server.push_folder(
             folder,
-            &json!({ "event": "folder-quota", "payload": { "used": used, "quota": quota } }),
+            &json!({ "event": "folder-quota", "payload": payload }),
         );
     }
 }
