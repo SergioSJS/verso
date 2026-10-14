@@ -34,6 +34,7 @@ import { TASK } from "../text";
 import { tableWidths, wireColumnGrips } from "../../tableWidths";
 import { currentFolder } from "../../folder";
 import { embeddedHtml } from "../../blockEmbed";
+import { wireDice } from "../../dice/card";
 import { fitWhenSizeless } from "../../imageFit";
 
 /** The note's links and backlinks from the index, fresh after every
@@ -460,6 +461,7 @@ export async function paintPreview(this: NoteLeaf): Promise<void> {
   this.wireTableResizers(this.preview);
   this.wireMermaidBlocks(this.preview);
   this.wireCodeBlocks(this.preview);
+  wireDice(this.preview, { path: () => this.path, follow: (target) => this.follow(target) });
   this.wirePreviewImages(this.preview);
   this.wireHeadingFolds(this.preview);
   this.wireListFolds(this.preview);

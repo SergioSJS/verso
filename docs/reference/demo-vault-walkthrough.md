@@ -242,6 +242,17 @@ point 13).
     mention inside a secret block. Level: S (the tutorial note), U
     (`cargo test -p verso-core mentions`, `test/mentionLink.test.mjs`), H;
     E: `mentions.spec.mjs`.
+15. Note 24 (ADR 0088): in Leitura each `dice:` code is a die button named
+    "Rolar 1d20+5" and so on; a click, or Tab to it and Enter, shows the
+    total, each die and what was added in a card beside it, with "Rolar de
+    novo", and the status region says it (*1d20+5: 17 — 12 mais 5*);
+    `dice: 1d20*2` stays code. "Quem aparece na estrada?" gives one row of
+    the `d6` table, its link to Capitão Ruy opening with a click; "O tempo
+    hoje" one item of the list. In Editar the dice off the caret's line are
+    dice too. The note in Fonte afterwards: its text as before, nothing
+    written. ⌘⇧P › "Rolar dados…": `2d6+1` and Enter rolls; `1d20*2` says
+    Verso does not read it. Level: H; E: `dice.spec.mjs`; U:
+    `test/dice.test.mjs`.
 
 ## 4. Organizing: properties, bases, daily notes
 

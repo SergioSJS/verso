@@ -94,6 +94,7 @@
     "allow-collab-resolve",
     "allow-collab-present",
     "allow-collab-canvas",
+    "allow-collab-roll",
     "allow-server-sign-in",
     "allow-server-sign-in-page",
     "allow-server-accounts",

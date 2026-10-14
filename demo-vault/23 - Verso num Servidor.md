@@ -123,4 +123,4 @@ Este vault de demonstração não tem duas contas: para ver o outro lado, use do
 
 ---
 
-Para o celular e o tablet, veja [[22 - Verso no Celular e no Tablet]]. Volte para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].
+Para o celular e o tablet, veja [[22 - Verso no Celular e no Tablet]]; para rolar dados e sortear numa tabela, [[24 - Dados e Tabelas Sorteadas]]. Volte para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].

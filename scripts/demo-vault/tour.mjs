@@ -352,6 +352,18 @@ const STOPS = [
       "No app desktop, Ajustes › Servidores conecta pelo navegador; Ajustes › Sincronizar mantém uma pasta deste computador igual a uma do servidor — e, com a rede, uma nota, um board ou um arquivo de texto aberto nela é editado junto, ao vivo. " +
       "Botão direito numa pasta › Compartilhar… divide só ela com outra pessoa, lendo ou editando; quem recebe a vê em Compartilhados comigo.",
   },
+  {
+    id: "dados",
+    label: "Dados",
+    heading: "🎲 Dados e tabelas sorteadas",
+    color: TEAL,
+    canvasColor: "5",
+    cards: [["n-dados", "24 - Dados e Tabelas Sorteadas.md", 640]],
+    tip:
+      "Um código `dice: 1d20+5` numa nota é um dado: um clique, ou Enter, rola e mostra o total e cada dado ao lado — nada é escrito na nota. " +
+      "`dice: [[Nota#^id]]` sorteia uma linha de uma tabela ou de uma lista com esse ^id; com um dado no cabeçalho da primeira coluna, valem as faixas. " +
+      "Numa nota compartilhada quem rola é o servidor, e todos veem quem rolou. Rolar dados…, na paleta, rola sem nota.",
+  },
 ];
 
 /** Where stop `i` stands: row by row, left to right. */

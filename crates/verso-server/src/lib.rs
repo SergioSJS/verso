@@ -21,6 +21,7 @@ pub mod crypto;
 pub mod data;
 pub mod db;
 pub mod device;
+pub mod dice;
 pub mod fair;
 pub mod files;
 pub mod folders;
@@ -338,6 +339,8 @@ mod tests_board_stress;
 mod tests_bounds;
 #[cfg(test)]
 mod tests_console;
+#[cfg(test)]
+mod tests_dice;
 #[cfg(test)]
 mod tests_hashes;
 #[cfg(test)]

@@ -19,6 +19,7 @@ export const UNUSED_ARGS: Record<string, string[]> = {
   collab_resolve: ["path", "keep"],
   collab_present: ["path"],
   collab_canvas: ["path", "at", "json"],
+  collab_roll: ["path", "notation", "source"],
   server_sign_in: ["url"],
   server_sign_out: ["url"],
   server_folders: ["url"],

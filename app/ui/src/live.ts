@@ -60,6 +60,8 @@ export type LiveOptions = {
   /** Tables edited as tables (ADR 0064): the editor's words and the
    *  window's menu and renderer. */
   table?: TableEditorOptions;
+  /** A `dice:` code drawn as its die (ADR 0088), or null. */
+  dice?: (code: string) => WidgetType | null;
 };
 
 /** Dispatch this when an image URL became known, so the view redraws. */
@@ -1097,8 +1099,10 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
             for (const m of node.node.getChildren(name === "Strikethrough" ? "StrikethroughMark" : "EmphasisMark")) hide(m.from, m.to);
           }
         } else if (name === "InlineCode") {
-          out.push({ from: node.from, to: node.to, deco: Decoration.mark({ class: "cm-lp-code" }) });
-          if (!shown) for (const m of node.node.getChildren("CodeMark")) hide(m.from, m.to);
+          const die = shown ? null : (opts.dice?.(doc.sliceString(node.from, node.to)) ?? null);
+          if (die) out.push({ from: node.from, to: node.to, deco: Decoration.replace({ widget: die }) });
+          else out.push({ from: node.from, to: node.to, deco: Decoration.mark({ class: "cm-lp-code" }) });
+          if (!shown && !die) for (const m of node.node.getChildren("CodeMark")) hide(m.from, m.to);
         } else if (name === "FencedCode") {
           const a = doc.lineAt(node.from).number;
           const b = doc.lineAt(node.to).number;

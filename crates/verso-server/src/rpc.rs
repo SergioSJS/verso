@@ -713,7 +713,7 @@ async fn command(
         "set_embed_origins" | "set_menu_language" => Ok(Value::Null),
         "fetch_file" => Ok(Value::Bool(false)),
         "collab_join" | "collab_update" | "collab_awareness" | "collab_leave" | "collab_save"
-        | "collab_resolve" | "collab_present" | "collab_canvas" => {
+        | "collab_resolve" | "collab_present" | "collab_canvas" | "collab_roll" => {
             collab_command(server, who, client, &r.cmd, &args).await
         }
         "trash_list" | "trash_restore" | "trash_delete" | "trash_empty" | "trash_set_days" => {
@@ -804,6 +804,19 @@ async fn collab_command(
         "collab_leave" => {
             crate::collab::leave(&s, &c, &key, &path);
             Ok(Value::Null)
+        }
+        // Dice (ADR 0088 item 4): the server rolls, a reader too.
+        "collab_roll" => {
+            let notation: String = arg(&args, "notation")?;
+            let source: Option<String> = arg(&args, "source")?;
+            let sender = crate::presence::Sender {
+                client: &c,
+                account: &account,
+                name: &user,
+            };
+            to_value(crate::collab::roll(
+                &s, &sender, &key, &path, &notation, source,
+            )?)
         }
         "collab_save" => to_value(crate::collab::save(&s, &key, &path)?),
         "collab_canvas" => {

@@ -1368,6 +1368,7 @@ export class Core {
     collab_resolve: () => refuse("refused", "simultaneous editing is a server's"),
     collab_present: () => refuse("refused", "simultaneous editing is a server's"),
     collab_canvas: () => refuse("refused", "simultaneous editing is a server's"),
+    collab_roll: () => refuse("refused", "simultaneous editing is a server's"),
     // No server signed in to from the harness (ADR 0073 item 2).
     server_accounts: () => [],
     server_sign_in: () => refuse("unavailable", "no server in the harness"),
