@@ -92,6 +92,10 @@ jobs:
       # copy is the folder's: built, never edited by hand. Node and git only.
       - name: demo vault built from its sources (ADR 0058)
         run: node scripts/demo-vault.mjs check
+      # The release page names every file the release workflow builds and
+      # uploads, and nothing else (ADR 0051, revised 2026-10-14). Node only.
+      - name: the release page names the release's files (ADR 0051)
+        run: node --test scripts/release-page.test.mjs
       # verso-core's std::fs exception is the configuration directory alone,
       # written by src/sidecar.rs. Its clippy.toml has to allow the four
       # calls crate-wide (clippy cannot scope a list to one file), so this
