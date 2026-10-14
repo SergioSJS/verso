@@ -14,7 +14,7 @@ await esbuild.build({
   outfile: "test/.bundles/errorKinds.test-bundle.mjs",
   logLevel: "error",
 });
-const { caseTwin, errorParts, levelOf } = await import("./.bundles/errorKinds.test-bundle.mjs");
+const { caseTwin, consoleLine, errorParts, levelOf, redact } = await import("./.bundles/errorKinds.test-bundle.mjs");
 
 describe("The case refusal is told by its kind", () => {
   test("the contract's case_twin is a case twin, whatever its text", () => {
@@ -35,5 +35,26 @@ describe("The case refusal is told by its kind", () => {
   test("a message of the window's own has no kind", () => {
     assert.deepEqual(errorParts("plain"), { kind: "", message: "plain" });
     assert.deepEqual(errorParts({ kind: "case_twin", message: "m" }), { kind: "case_twin", message: "m" });
+  });
+});
+
+// A command the person triggered that failed writes one line to DevTools'
+// console (the maintainer, 2026-10-14: "are you logging this?"): never
+// `console.error`, which the e2e suite fails a test on and the window takes
+// for an accident of its own; and never a secret.
+describe("The console's line for a failure", () => {
+  test("a fault is a warning, with its kind and the core's text", () => {
+    assert.deepEqual(consoleLine({ kind: "failed", message: "error sending request" }), { level: "warn", text: "Verso: failed: error sending request" });
+    assert.deepEqual(consoleLine("plain"), { level: "warn", text: "Verso: plain" });
+  });
+  test("an answer is information", () => {
+    assert.deepEqual(consoleLine({ kind: "exists", message: "a.md" }), { level: "info", text: "Verso: exists: a.md" });
+    assert.deepEqual(consoleLine({ kind: "not_found", message: "a.md" }), { level: "info", text: "Verso: not_found: a.md" });
+  });
+  test("nothing secret reaches it", () => {
+    assert.equal(redact("Authorization: Bearer abc.def"), "Authorization: Bearer …");
+    assert.equal(redact('{"token":"s3cr3t","name":"Ana"}'), '{"token":"…","name":"Ana"}');
+    assert.equal(redact("POST /api/device/poll?code=WXYZ-1234&poll=p1"), "POST /api/device/poll?code=…&poll=…");
+    assert.equal(consoleLine({ kind: "refused", message: "password=hunter2 refused" }).text, "Verso: refused: password=… refused");
   });
 });

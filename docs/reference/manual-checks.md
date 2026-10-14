@@ -27,6 +27,9 @@ in the real app.
   again closes *Ajustes*. The same with ⌘P and with *Ajuda › Relatar
   problema* over *Ajustes*. VoiceOver, the palette open: nothing of
   *Ajustes* is read behind it.
+- [ ] **DevTools' console says a failure** (C): the console open (⌥⌘I),
+  the server stopped, *Sincronizar esta pasta*: one warning, `Verso:
+  unreachable: localhost:7351`, and no token or password in any line.
 - [ ] **The report's time is the computer's** (D): *Relatar problema*:
   the line *Hora deste computador: 2026-10-14 10:25:24 (UTC−03:00)* is the
   Mac's clock and zone; the log's lines under it are in UTC (`Z`), three
