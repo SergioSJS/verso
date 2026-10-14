@@ -16,7 +16,6 @@ import { openFolderSwitcher } from "./panel/folderSwitcher";
 import { ready } from "./earlyClicks";
 import { mayShare, openShareDialog } from "./shares";
 import { sh } from "./shareStrings";
-import { bytes } from "./web/strings";
 import { redo, selectAll, undo } from "@codemirror/commands";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -39,6 +38,8 @@ import { fail } from "./errors";
 import { installFrame } from "./frame";
 import { installLongPress } from "./touch";
 import { installScreen } from "./screen/frame";
+import { installNotify } from "./notify";
+import { installSources } from "./notify/sources";
 import { can, loadCan } from "./can";
 import { copyFilesInto, newUntitled } from "./files";
 import { focusesList, loadFocuses, selectFocus } from "./focuses";
@@ -381,6 +382,10 @@ paintKeyHints();
 // The phone's frame, the keyboard's bar and what the side cannot do
 // (ADR 0076).
 installScreen();
+// Notifications (ADR 0084): the bells, the centre, where each kind comes
+// from.
+installNotify(() => settingsDialog.show("notify"));
+installSources();
 
 // The folder button opens the folder switcher (ADR 0081 item 5): wired,
 // it is no longer busy (a click made before is made again, `web.ts`).
@@ -701,16 +706,6 @@ void listen<[string, string]>("menu-edit", (e) => {
 const TEXT_INPUTS = new Set(["text", "search", "url", "email", "tel", "password", "number"]);
 void listen<FolderChanged>("folder-changed", (e) => void changedOutside(e.payload));
 void listen<IndexProgress>("index-progress", (e) => handleIndexProgress(e.payload));
-// On a server, a folder at 90 % of its quota or more (ADR 0077 item 5):
-// said after a write, at most once every ten minutes.
-let quotaSaid = 0;
-void listen<{ used: number; quota: number }>("folder-quota", (e) => {
-  if (Date.now() - quotaSaid < 600_000) return;
-  quotaSaid = Date.now();
-  const said = t.quotaNear.replace("{used}", bytes(e.payload.used)).replace("{quota}", bytes(e.payload.quota));
-  ui.status.textContent = said;
-  dispatchEvent(new CustomEvent("verso:failed", { detail: said }));
-});
 if (!popout && settings.checkUpdates) {
   setTimeout(() => void updateController.check(true), 2500);
 }

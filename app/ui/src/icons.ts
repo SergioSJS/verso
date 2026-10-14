@@ -107,6 +107,10 @@ const PATHS: Record<string, string> = {
   trash: "M2.5 4.5h11M6 4.5V3h4v1.5M4 4.5l.75 9h6.5l.75-9M6.75 7v4M9.25 7v4",
   user: "M8 8a2.75 2.75 0 1 0 0-5.5A2.75 2.75 0 0 0 8 8zM2.75 13.5c.6-2.6 2.75-4 5.25-4s4.65 1.4 5.25 4",
   shield: "M8 1.75 13 3.5v4c0 3.2-2.1 5.6-5 6.75-2.9-1.15-5-3.55-5-6.75v-4zM5.75 8l1.6 1.6L10.5 6.5",
+  // The notifications (ADR 0084): the bell, and the levels' marks.
+  bell: "M4 11V7.25a4 4 0 0 1 8 0V11l1.25 1.5H2.75zM6.5 13.5a1.6 1.6 0 0 0 3 0",
+  info: "M8 14.25a6.25 6.25 0 1 0 0-12.5 6.25 6.25 0 0 0 0 12.5zM8 7.25v4M8 4.9v.2",
+  alert: "M8 14.25a6.25 6.25 0 1 0 0-12.5 6.25 6.25 0 0 0 0 12.5zM8 4.5v4.25M8 10.9v.2",
 };
 
 /** A decorative line icon drawn by CSS — a mask over the text color — not
