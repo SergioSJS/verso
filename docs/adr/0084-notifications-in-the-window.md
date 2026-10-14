@@ -274,3 +274,22 @@ permission asked when the setting is turned on, and in the browser as
 well as on the desktop.
 
 To be built as 0.8.3-beta.1.
+
+**Answered while building (2026-10-14, the maintainer, as recommended):**
+
+- Activating a system notification (item 9). The desktop's notification
+  plugin that runs with this Tauri (2.4) tells the window nothing of a
+  click: on macOS and Windows the click brings the app to the front, on
+  Linux it usually only closes the notification. In the browser the click
+  opens the centre on that notification. The plugin's 2.6, which reports
+  the click, needs Tauri 2.12 and was released on 2026-10-10; it comes in
+  a later 0.8.x, once it is at least two weeks old, and then the click
+  opens the centre on the desktop too.
+- On the desktop the system answers every permission request with
+  "granted" and decides in its own settings, so "refused → back to off"
+  (item 9) happens only in the browser; on the desktop the row says the
+  system may block notifications, and where to allow them.
+- The quota's notification (item 7). The server tells a folder's windows
+  when it passes 90 %, never when it goes back under. The window asks for
+  the folder's space once a day, with the trash's check; under 90 %, the
+  next crossing notifies again.
