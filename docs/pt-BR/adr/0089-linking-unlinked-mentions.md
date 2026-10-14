@@ -38,8 +38,8 @@ transforma uma menção em link a não ser digitá-lo à mão.
 
 ## Decisão
 
-Proposta (2026-10-14). Cada `[ABERTO]` traz uma recomendação; o
-mantenedor decide.
+Proposta (2026-10-14). Aceita em 2026-10-14 (Status): cada `[ABERTO]` foi decidido como
+recomendado e está marcado `[DECIDIDO 2026-10-14]`.
 
 1. **Menções são ocorrências.** Um novo comando do contrato responde as
    menções sem link de uma nota como ocorrências — a nota, a linha, a
@@ -48,8 +48,8 @@ mantenedor decide.
    menção é o nome da nota como frase, em limites de palavra, fora de
    código, frontmatter, comentários, um link ou embed existente e, para
    um leitor, fora de um bloco secreto
-   ([0087](0087-secret-blocks-hidden-from-readers.md)). `[ABERTO]`:
-   caixa, acentos e aliases. Recomendado: **caixa ignorada, acentos
+   ([0087](0087-secret-blocks-hidden-from-readers.md)). `[DECIDIDO 2026-10-14]`:
+   caixa, acentos e aliases. Decidido: **caixa ignorada, acentos
    mantidos** ("Porto" encontra "porto", não "pôrto"), e cada um dos
    `aliases` da nota também um nome.
 2. **"Vincular" em cada menção** troca aquela ocorrência por `[[Name]]`,
@@ -67,8 +67,8 @@ mantenedor decide.
 4. **Quem pode vincular.** Os botões são mostrados a quem pode escrever a
    nota que menciona; um leitor vê a lista e nenhum botão (a regra da
    [0076](0076-the-window-on-every-screen.md)).
-5. **Uma sugestão durante a digitação.** `[ABERTO]`: se ela está na V1.
-   Recomendado: **não na V1**; quando construída, **desligada por
+5. **Uma sugestão durante a digitação.** `[DECIDIDO 2026-10-14]`: se ela está na V1.
+   Decidido: **não na V1**; quando construída, **desligada por
    padrão**, um ajuste em Ajustes › Editor com um comprimento mínimo e
    pastas a ignorar, como o plano de 2026-10-14 a descreveu — nomes que
    são palavras comuns ("Porto", "Mesa", "Ordem") a deixam ruidosa em
@@ -100,7 +100,12 @@ mantenedor decide.
 
 ## Status
 
-**Proposta (2026-10-14).** Na V1 pela palavra do mantenedor de
+**Aceita (2026-10-14).** O mantenedor, naquela noite, respondendo a
+*"Aceita todas as recomendações (R1–R4 e os itens dos ADRs 0085–0092)?"* com *"Sim, todas"*: cada `[ABERTO]`
+decidido como recomendado, marcado `[DECIDIDO 2026-10-14]` no lugar. Na V1
+(`docs/roadmap.md`, Fase 4 — V1).
+
+*(Histórico, antes da aceitação acima:)* Proposta (2026-10-14). Na V1 pela palavra do mantenedor de
 2026-10-14 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revisão 8). Para o
 mantenedor, cada um com uma recomendação: caixa, acentos e aliases
 (item 1), e a sugestão durante a digitação (item 5).

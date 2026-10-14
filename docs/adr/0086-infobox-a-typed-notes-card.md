@@ -56,8 +56,8 @@ facts and the related pages at the side, the text beside them:
 
 ## Decision
 
-Proposed (2026-10-14). Each `[OPEN]` carries a recommendation; the
-maintainer decides.
+Proposed (2026-10-14). Accepted on 2026-10-14 (Status): each `[OPEN]` was decided as
+recommended and is marked `[DECIDED 2026-10-14]`.
 
 1. **Two new kinds in a schema.**
    - `link`: a quoted wikilink or a list of them — the typed relation
@@ -68,7 +68,7 @@ maintainer decides.
    - `image`: a picture of the folder, written as a quoted wikilink
      (`"[[roderick.jpg]]"`, which Q24 already reads as a link, so the
      picture's backlinks count it) or as a path of the folder, as
-     `banner:` takes it. `[OPEN]`: a web address as a value. Recommended:
+     `banner:` takes it. `[DECIDED 2026-10-14]`: a web address as a value. Decided:
      **shown only from origins the person approved**, as an embedded page
      is ([0050](0050-outbound-network-access.md),
      [0056](0056-embedded-web-pages.md)); otherwise the address as text.
@@ -78,7 +78,7 @@ maintainer decides.
    at its top level, beside `type`, `label` and `properties`; with no
    `layout`, the panel stays as it is. The key is ignored by builds that
    do not read it, so a folder's schemas keep typing in an older Verso.
-   `[OPEN]`: the key's name and value. Recommended: `layout: infobox`.
+   `[DECIDED 2026-10-14]`: the key's name and value. Decided: `layout: infobox`.
 3. **The infobox** is the properties panel drawn as a card at the right of
    the text, in the reading view and in Edit mode: the first `image`
    property at its head, the type's label under it, then the declared
@@ -102,8 +102,8 @@ maintainer decides.
    `docs/spec/dialect.md` is revised in the same PR.
 6. **Accessibility** ([0035](0035-cross-cutting-requirements.md)): the
    infobox is a complementary region named after the note; the picture's
-   alternative text is `alt` when the property gives one (`[OPEN]`: where.
-   Recommended: the wikilink's alias, `"[[roderick.jpg|Lorde Roderick]]"`),
+   alternative text is `alt` when the property gives one (`[DECIDED 2026-10-14]`: where.
+   Decided: the wikilink's alias, `"[[roderick.jpg|Lorde Roderick]]"`),
    otherwise the note's title; the card keeps the panel's keyboard order.
 
 ## Consequences
@@ -133,7 +133,12 @@ maintainer decides.
 
 ## Status
 
-**Proposed (2026-10-14).** In V1 by the maintainer's word of 2026-10-14
+**Accepted (2026-10-14).** The maintainer, that night, answering
+*"Aceita todas as recomendações (R1–R4 e os itens dos ADRs 0085–0092)?"* with *"Sim, todas"* (yes, all): every `[OPEN]`
+decided as recommended, marked `[DECIDED 2026-10-14]` in place. In V1
+(`docs/roadmap.md`, Phase 4 — V1).
+
+*(History, before the acceptance above:)* Proposed (2026-10-14). In V1 by the maintainer's word of 2026-10-14
 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revision 8). For the
 maintainer, each with a recommendation: a web address as a picture
 (item 1), the layout key (item 2), and the picture's alternative text

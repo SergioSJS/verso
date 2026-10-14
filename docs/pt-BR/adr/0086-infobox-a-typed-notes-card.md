@@ -60,8 +60,8 @@ alguns fatos e as páginas relacionadas ao lado, o texto junto deles:
 
 ## Decisão
 
-Proposta (2026-10-14). Cada `[ABERTO]` traz uma recomendação; o
-mantenedor decide.
+Proposta (2026-10-14). Aceita em 2026-10-14 (Status): cada `[ABERTO]` foi decidido como
+recomendado e está marcado `[DECIDIDO 2026-10-14]`.
 
 1. **Dois tipos de valor novos num schema.**
    - `link`: um wikilink entre aspas ou uma lista deles — a relação
@@ -72,8 +72,8 @@ mantenedor decide.
    - `image`: uma imagem da pasta, escrita como um wikilink entre aspas
      (`"[[roderick.jpg]]"`, que a Q24 já lê como um link, então os
      backlinks da imagem o contam) ou como um caminho da pasta, como o
-     `banner:` o aceita. `[ABERTO]`: um endereço web como valor.
-     Recomendado: **mostrado só de origens que a pessoa aprovou**, como
+     `banner:` o aceita. `[DECIDIDO 2026-10-14]`: um endereço web como valor.
+     Decidido: **mostrado só de origens que a pessoa aprovou**, como
      uma página incorporada é ([0050](0050-outbound-network-access.md),
      [0056](0056-embedded-web-pages.md)); fora isso, o endereço como
      texto.
@@ -84,8 +84,8 @@ mantenedor decide.
    `layout: infobox` no nível de cima, ao lado de `type`, `label` e
    `properties`; sem `layout`, o painel fica como está. A chave é ignorada
    pelas versões que não a leem, então os schemas de uma pasta continuam
-   tipando num Verso mais antigo. `[ABERTO]`: o nome e o valor da chave.
-   Recomendado: `layout: infobox`.
+   tipando num Verso mais antigo. `[DECIDIDO 2026-10-14]`: o nome e o valor da chave.
+   Decidido: `layout: infobox`.
 3. **O infobox** é o painel de propriedades desenhado como um cartão à
    direita do texto, na visão de leitura e no modo Editar: a primeira
    propriedade `image` no topo, o rótulo do tipo embaixo dela, depois as
@@ -111,8 +111,8 @@ mantenedor decide.
    revisto no mesmo PR.
 6. **Acessibilidade** ([0035](0035-cross-cutting-requirements.md)): o
    infobox é uma região complementar nomeada pela nota; o texto
-   alternativo da imagem é o `alt` quando a propriedade dá um (`[ABERTO]`:
-   onde. Recomendado: o alias do wikilink,
+   alternativo da imagem é o `alt` quando a propriedade dá um (`[DECIDIDO 2026-10-14]`:
+   onde. Decidido: o alias do wikilink,
    `"[[roderick.jpg|Lorde Roderick]]"`), senão o título da nota; o cartão
    mantém a ordem de teclado do painel.
 
@@ -145,7 +145,12 @@ mantenedor decide.
 
 ## Status
 
-**Proposta (2026-10-14).** Na V1 pela palavra do mantenedor de 2026-10-14
+**Aceita (2026-10-14).** O mantenedor, naquela noite, respondendo a
+*"Aceita todas as recomendações (R1–R4 e os itens dos ADRs 0085–0092)?"* com *"Sim, todas"*: cada `[ABERTO]`
+decidido como recomendado, marcado `[DECIDIDO 2026-10-14]` no lugar. Na V1
+(`docs/roadmap.md`, Fase 4 — V1).
+
+*(Histórico, antes da aceitação acima:)* Proposta (2026-10-14). Na V1 pela palavra do mantenedor de 2026-10-14
 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revisão 8). Para o
 mantenedor, cada um com uma recomendação: um endereço web como imagem
 (item 1), a chave do layout (item 2), e o texto alternativo da imagem

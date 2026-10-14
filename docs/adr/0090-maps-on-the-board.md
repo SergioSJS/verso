@@ -57,8 +57,8 @@ not copied.
 
 ## Decision
 
-Proposed (2026-10-14). Each `[OPEN]` carries a recommendation; the
-maintainer decides.
+Proposed (2026-10-14). Accepted on 2026-10-14 (Status): each `[OPEN]` was decided as
+recommended and is marked `[DECIDED 2026-10-14]`.
 
 1. **A map is a board.** No `.map` file and no node type of Verso's own:
    a map opens in Obsidian as a canvas with a picture and cards.
@@ -66,8 +66,8 @@ maintainer decides.
    (`verso.locked`), sends it to the bottom of the stacking order and
    marks it `"verso": {"map": true}`; "Stop using as map" undoes the
    three. A board may hold several (a world and an inset). "Send to back"
-   and "Bring to front" are offered on every card. `[OPEN]`: the field's
-   name. Recommended: `map`.
+   and "Bring to front" are offered on every card. `[DECIDED 2026-10-14]`: the field's
+   name. Decided: `map`.
 3. **Pins.** A pin is a file card naming a note, drawn on a map as a mark
    with the note's sticker or a default icon and its name, at a constant
    size on screen, anchored at its point, whatever the zoom; hover shows
@@ -80,12 +80,12 @@ maintainer decides.
    shown, made from the picture once and kept as a cache **outside the
    folder** ([0011](0011-config-outside-tree-index-as-cache.md); on a
    server, in its data directory), never written beside the picture.
-   `[OPEN]`: how. Recommended: **tiles of Verso's own drawn under
+   `[DECIDED 2026-10-14]`: how. Decided: **tiles of Verso's own drawn under
    Excalidraw's canvas**, the board's camera driving them, measured
    first with a 16,000-pixel picture on the 1 GB server and on a phone;
    a second viewer (Leaflet, OpenSeadragon, named in the plan) would need
    its camera kept in step with Excalidraw's.
-5. **Secret pins.** `[OPEN]`: how a pin is hidden from readers. Two ways
+5. **Secret pins.** `[DECIDED 2026-10-14]`: how a pin is hidden from readers. Two ways
    were raised:
    - (a) **the projection of [0087](0087-secret-blocks-hidden-from-readers.md)
      applied to the board**: a node marked `"verso": {"secret": true}` —
@@ -98,7 +98,7 @@ maintainer decides.
      players, laid over the map for whoever may read it — the reading of
      2026-10-14, written before the maintainer chose the projection for
      notes.
-   Recommended: **(a)**, the same rule as a note's secret block, so one
+   Decided: **(a)**, the same rule as a note's secret block, so one
    idea covers both; (b) shows a pin's place to nobody but needs a second
    file kept in step with the first.
 6. **A board exported as a picture** by a writer asks whether to leave
@@ -137,7 +137,12 @@ maintainer decides.
 
 ## Status
 
-**Proposed (2026-10-14).** In V1 by the maintainer's word of 2026-10-14
+**Accepted (2026-10-14).** The maintainer, that night, answering
+*"Aceita todas as recomendações (R1–R4 e os itens dos ADRs 0085–0092)?"* with *"Sim, todas"* (yes, all): every `[OPEN]`
+decided as recommended, marked `[DECIDED 2026-10-14]` in place. In V1
+(`docs/roadmap.md`, Phase 4 — V1). [0036](0036-tabletop-rpg-support.md) gains a Revisions line.
+
+*(History, before the acceptance above:)* Proposed (2026-10-14). In V1 by the maintainer's word of 2026-10-14
 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revision 8). For the
 maintainer, each with a recommendation: the field's name (item 2), the
 tiles (item 4), and secret pins by projection or by a separate board

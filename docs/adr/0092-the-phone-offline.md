@@ -50,8 +50,8 @@ promise; no work in the background.
 
 ## Decision
 
-Proposed (2026-10-14). Each `[OPEN]` carries a recommendation; the
-maintainer decides.
+Proposed (2026-10-14). Accepted on 2026-10-14 (Status): each `[OPEN]` was decided as
+recommended and is marked `[DECIDED 2026-10-14]`.
 
 1. **Offline is sync, in the browser.** The window keeps chosen folders
    of a UniVerso in the browser's storage and keeps them in step with the
@@ -68,10 +68,10 @@ maintainer decides.
 3. **What is kept.** "Available offline", a setting of each folder on
    this device, off by default; turned on, it says the space it will
    take and asks the browser for persistent storage, and says when the
-   system may still evict it (iPadOS, iOS). `[OPEN]`: attachments.
-   Recommended: notes, boards, bases and text files kept whole; pictures
+   system may still evict it (iPadOS, iOS). `[DECIDED 2026-10-14]`: attachments.
+   Decided: notes, boards, bases and text files kept whole; pictures
    and PDFs kept once opened, with "Keep every attachment" as a choice.
-   `[OPEN]`: the store. Recommended: **IndexedDB**, the one store every
+   `[DECIDED 2026-10-14]`: the store. Decided: **IndexedDB**, the one store every
    target browser offers with persistence.
 4. **Working offline.** A note, a board or a base opens, renders — by
    `verso-dialect` compiled to WebAssembly — and is edited from the store;
@@ -79,8 +79,8 @@ maintainer decides.
    by sync's rules when the network returns. A note that was live in a
    room when the link dropped keeps its text and goes through sync's
    comparison on return, as the desktop's does
-   ([0082](0082-live-co-editing-of-a-synced-folder.md)). `[OPEN]`: search,
-   backlinks and the graph offline. Recommended: **computed from the kept
+   ([0082](0082-live-co-editing-of-a-synced-folder.md)). `[DECIDED 2026-10-14]`: search,
+   backlinks and the graph offline. Decided: **computed from the kept
    notes in the page** — names and a plain scan for search, the parser's
    links for backlinks and the graph — and marked "offline: from the
    notes on this device"; the server's index answers again once online.
@@ -91,8 +91,8 @@ maintainer decides.
 6. **Leaving the device.** Signing out clears the folders kept on it,
    after saying how many writes have not gone up; an admin ending the
    device's sessions ([0077](0077-the-server-administration-console-and-folder-quotas.md))
-   clears them at its next connection. `[OPEN]`: encrypting the store at
-   rest. Recommended: **not in V1** — the browser's storage is as safe as
+   clears them at its next connection. `[DECIDED 2026-10-14]`: encrypting the store at
+   rest. Decided: **not in V1** — the browser's storage is as safe as
    the unlocked phone — said in the setting.
 7. **What the window says** ([0027](0027-runtime-capabilities.md)): online,
    offline, syncing, and the count of writes waiting, in the status bar
@@ -130,7 +130,12 @@ None recorded.
 
 ## Status
 
-**Proposed (2026-10-14).** In V1 by the maintainer's word of 2026-10-14
+**Accepted (2026-10-14).** The maintainer, that night, answering
+*"Aceita todas as recomendações (R1–R4 e os itens dos ADRs 0085–0092)?"* with *"Sim, todas"* (yes, all): every `[OPEN]`
+decided as recommended, marked `[DECIDED 2026-10-14]` in place. In V1
+(`docs/roadmap.md`, Phase 4 — V1). [0073](0073-self-hosted-server-first.md) gains a Revisions line, and the roadmap's Phase 3 row is struck (R1).
+
+*(History, before the acceptance above:)* Proposed (2026-10-14). In V1 by the maintainer's word of 2026-10-14
 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revision 8). For the
 maintainer, each with a recommendation: attachments and the store
 (item 3), search and links offline (item 4), encryption at rest (item 6),

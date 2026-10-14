@@ -46,8 +46,8 @@ recovery" do núcleo que guarda instantâneos no computador.
 
 ## Decisão
 
-Proposta (2026-10-14). Cada `[ABERTO]` traz uma recomendação; o
-mantenedor decide.
+Proposta (2026-10-14). Aceita em 2026-10-14 (Status): cada `[ABERTO]` foi decidido como
+recomendado e está marcado `[DECIDIDO 2026-10-14]`.
 
 1. **Uma versão são os bytes de um arquivo numa escrita**, guardados fora
    da pasta ([0011](0011-config-outside-tree-index-as-cache.md)) — no
@@ -57,11 +57,11 @@ mantenedor decide.
    ([0012](0012-files-are-source-of-truth.md)); o histórico nunca é escrito
    na pasta e nunca sincroniza.
 2. **O que é guardado.** Todo arquivo de texto que a janela edita — notas,
-   boards, bases, `.txt`, `.json`, `.csv`. `[ABERTO]`: imagens, PDFs e
-   outros anexos. Recomendado: **fora do histórico**; um anexo substituído
+   boards, bases, `.txt`, `.json`, `.csv`. `[DECIDIDO 2026-10-14]`: imagens, PDFs e
+   outros anexos. Decidido: **fora do histórico**; um anexo substituído
    vai para a lixeira, como o item 12 da [0080](0080-the-trash-with-expiry-and-restore.md)
    já faz para a escrita de um aparelho.
-3. **Quantas.** `[ABERTO]`: o desbaste e a retenção. Recomendado: as
+3. **Quantas.** `[DECIDIDO 2026-10-14]`: o desbaste e a retenção. Decidido: as
    escritas de uma sala **agrupadas** em uma versão a cada dez minutos de
    edição; toda versão guardada por um dia, uma por hora por 30 dias, uma
    por dia depois disso até a retenção da pasta — `VERSO_HISTORY_DAYS`,
@@ -71,7 +71,7 @@ mantenedor decide.
 4. **Quem mudou.** Cada versão nomeia os seus autores: as contas cujas
    edições a versão de uma sala contém, um aparelho pelo nome, o token de
    um agente, ou "fora do Verso" para uma mudança que o watcher achou.
-   `[ABERTO]`: quem escreveu cada linha. Recomendado: **fora da V1**; a
+   `[DECIDIDO 2026-10-14]`: quem escreveu cada linha. Decidido: **fora da V1**; a
    diferença entre duas versões e os autores delas respondem "quem mudou
    isto".
 5. **A visão.** "Histórico" numa nota, num board ou numa base — pelo menu
@@ -85,17 +85,17 @@ mantenedor decide.
    em vez disso.
 6. **Quem vê, num servidor.** Quem pode escrever o arquivo vê o histórico
    dele e restaura; o dono e o admin podem apagar uma versão.
-   `[ABERTO]`: leitores. Recomendado: **sem histórico para leitores**, como
+   `[DECIDIDO 2026-10-14]`: leitores. Decidido: **sem histórico para leitores**, como
    eles não veem lixeira ([0080](0080-the-trash-with-expiry-and-restore.md)
    item 7) — senão uma versão passada precisaria da projeção da
    [0087](0087-secret-blocks-hidden-from-readers.md) aplicada a cada uma.
    Um compartilhamento vê o histórico dos arquivos dentro dele.
-7. **O histórico e a cota.** `[ABERTO]`. Recomendado: **como a lixeira**
+7. **O histórico e a cota.** `[DECIDIDO 2026-10-14]`: **como a lixeira**
    ([0080](0080-the-trash-with-expiry-and-restore.md) item 8): mostrado na
    página da pasta e não contado, as versões mais antigas desbastadas
    antes da hora quando só o histórico passa da cota da pasta, dito lá.
-8. **Uma pasta do computador.** `[ABERTO]`: se o desktop guarda um
-   histórico das suas pastas locais na V1. Recomendado: **sim**, o mesmo
+8. **Uma pasta do computador.** `[DECIDIDO 2026-10-14]`: se o desktop guarda um
+   histórico das suas pastas locais na V1. Decidido: **sim**, o mesmo
    armazenamento no diretório de configuração e a mesma visão, a retenção
    um ajuste da camada da pessoa ([0070](0070-what-travels-with-the-folder.md));
    uma pasta sincronizada mostra o histórico do servidor, que contém as
@@ -135,7 +135,12 @@ Nenhuma registrada.
 
 ## Status
 
-**Proposta (2026-10-14).** Na V1 pela palavra do mantenedor de 2026-10-14
+**Aceita (2026-10-14).** O mantenedor, naquela noite, respondendo a
+*"Aceita todas as recomendações (R1–R4 e os itens dos ADRs 0085–0092)?"* com *"Sim, todas"*: cada `[ABERTO]`
+decidido como recomendado, marcado `[DECIDIDO 2026-10-14]` no lugar. Na V1
+(`docs/roadmap.md`, Fase 4 — V1). A [0073](0073-self-hosted-server-first.md) ganha uma linha de Revisões, e a linha da Fase 3 no roadmap é riscada.
+
+*(Histórico, antes da aceitação acima:)* Proposta (2026-10-14). Na V1 pela palavra do mantenedor de 2026-10-14
 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revisão 8). Para o
 mantenedor, cada um com uma recomendação: anexos (item 2), desbaste e
 retenção (item 3), autoria por linha (item 4), leitores (item 6), a cota

@@ -37,8 +37,8 @@ Nothing turns a mention into a link but typing it by hand.
 
 ## Decision
 
-Proposed (2026-10-14). Each `[OPEN]` carries a recommendation; the
-maintainer decides.
+Proposed (2026-10-14). Accepted on 2026-10-14 (Status): each `[OPEN]` was decided as
+recommended and is marked `[DECIDED 2026-10-14]`.
 
 1. **Mentions are occurrences.** A new command of the contract answers a
    note's unlinked mentions as occurrences — the note, the line, the
@@ -46,8 +46,8 @@ maintainer decides.
    candidates and a scan of their text. A mention is the note's name as a
    phrase, on word boundaries, outside code, frontmatter, comments, an
    existing link or embed, and, for a reader, outside a secret block
-   ([0087](0087-secret-blocks-hidden-from-readers.md)). `[OPEN]`: case,
-   accents and aliases. Recommended: **case ignored, accents kept**
+   ([0087](0087-secret-blocks-hidden-from-readers.md)). `[DECIDED 2026-10-14]`: case,
+   accents and aliases. Decided: **case ignored, accents kept**
    ("Porto" finds "porto", not "pôrto"), and each of the note's `aliases`
    a name too.
 2. **"Link" on each mention** replaces that occurrence with `[[Name]]`, or
@@ -64,8 +64,8 @@ maintainer decides.
 4. **Who may link.** The buttons are shown to whoever may write the
    mentioning note; a reader sees the list and no button
    ([0076](0076-the-window-on-every-screen.md)'s rule).
-5. **A suggestion while typing.** `[OPEN]`: whether it is in V1.
-   Recommended: **not in V1**; when built, **off by default**, a setting
+5. **A suggestion while typing.** `[DECIDED 2026-10-14]`: whether it is in V1.
+   Decided: **not in V1**; when built, **off by default**, a setting
    in Settings › Editor with a minimum length and folders to ignore, as
    the plan of 2026-10-14 described it — names that are common words
    ("Porto", "Mesa", "Ordem") make it noisy in Portuguese.
@@ -94,7 +94,12 @@ maintainer decides.
 
 ## Status
 
-**Proposed (2026-10-14).** In V1 by the maintainer's word of 2026-10-14
+**Accepted (2026-10-14).** The maintainer, that night, answering
+*"Aceita todas as recomendações (R1–R4 e os itens dos ADRs 0085–0092)?"* with *"Sim, todas"* (yes, all): every `[OPEN]`
+decided as recommended, marked `[DECIDED 2026-10-14]` in place. In V1
+(`docs/roadmap.md`, Phase 4 — V1).
+
+*(History, before the acceptance above:)* Proposed (2026-10-14). In V1 by the maintainer's word of 2026-10-14
 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revision 8). For the
 maintainer, each with a recommendation: case, accents and aliases
 (item 1), and the suggestion while typing (item 5).
