@@ -716,7 +716,7 @@ impl Scope {
                 }
             }
             "collab-update" | "collab-awareness" | "collab-saved" | "collab-conflict"
-            | "collab-closed" => {
+            | "collab-closed" | "collab-roll" => {
                 if !self.field(&mut m["payload"], "path") {
                     return None;
                 }
@@ -983,6 +983,15 @@ mod tests {
         assert_eq!(seen["payload"]["file"], Value::Null);
         let room = json!({ "event": "collab-update", "payload": { "path": "Mesa/Segredo.md" } });
         assert_eq!(s.push(&room), None);
+        // A roll of dice in a shared note (ADR 0088 item 4), in the
+        // share's path; one outside it never reaches the window.
+        let roll = json!({ "event": "collab-roll", "payload": {
+            "path": "Mesa/Campanha/a.md", "roll": { "total": 7 } } });
+        let seen = s.push(&roll).unwrap();
+        assert_eq!(seen["payload"]["path"], "a.md");
+        assert_eq!(seen["payload"]["roll"]["total"], 7);
+        let roll = json!({ "event": "collab-roll", "payload": { "path": "Mesa/Segredo.md" } });
+        assert_eq!(s.push(&roll), None);
         assert_eq!(
             s.push(&json!({ "event": "something-new", "payload": { "path": "x" } })),
             None

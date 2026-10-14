@@ -86,6 +86,7 @@ fn main() {
         "collab_resolve",
         "collab_present",
         "collab_canvas",
+        "collab_roll",
         "server_sign_in",
         "server_sign_in_page",
         "server_accounts",
