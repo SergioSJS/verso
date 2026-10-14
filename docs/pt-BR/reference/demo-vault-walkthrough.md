@@ -583,7 +583,8 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     "Ir para Servidores"; uma cópia de conflito e um conflito numa sala ao
     vivo, uma vez; uma atualização com "Baixar e atualizar" e "Ver nos
     Ajustes", uma vez por versão, verificada de novo depois de 24 h; a
-    cota a 90 %, uma vez, de novo só depois de cair abaixo; o "n itens
+    cota a 90 %, uma vez, de novo só depois que uma medida ao abrir ou um
+    dia depois a acha abaixo de 90 %; o "n itens
     saem da lixeira em até 3 dias" da lixeira ao abrir a pasta, uma vez
     por dia, com "Abrir a lixeira"; alguém que entra na nota, não quem
     sai; uma pasta compartilhada com você, com "Ver as pastas". Nível: H;
@@ -591,10 +592,13 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     compartilhamento revogado. A (o app de verdade, listado em
     [`manual-checks.md`](manual-checks.md)).
 15. "Também nas notificações do sistema" começa desligado e não pede nada
-    até ser ligado; recusado, volta a desligado e diz por quê; permitido,
+    até ser ligado; no computador a linha diz onde os ajustes do próprio
+    sistema podem bloqueá-las; uma recusa do navegador a desliga de novo
+    e diz por quê; permitido,
     uma notificação de um tipo em "Aviso e lista" vai também para o
     sistema só enquanto a janela não está na frente, e um clique nela
-    (onde o sistema avisa a página) abre a central nela. Uma lista que o
+    (onde o sistema avisa a página: um navegador; no computador, vem com o
+    plugin 2.6) abre a central nela. Uma lista que o
     armazenamento do navegador recusa vive na janela, e a central diz
     isso. Nível: H; E: `notify.spec.mjs`, "the system's notifications" e
     "a storage that refuses"; A (o pedido de cada sistema e a notificação

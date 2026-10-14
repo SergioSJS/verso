@@ -47,27 +47,31 @@ app real.
   dita.
 - [ ] **A cota numa pasta sincronizada**: uma pasta deste computador
   sincronizada passando de 90 % da cota no servidor, depois de salvar:
-  *Pasta quase cheia*, uma vez; de novo só depois de cair abaixo de 90 %
-  e passar de novo.
+  *Pasta quase cheia*, uma vez; apague arquivos até ficar abaixo de
+  90 %, reabra a pasta (ou espere um dia), passe de novo: dito de novo.
 - [ ] **As notificações do sistema, pedidas e recusadas, em cada sistema**
   (macOS, Windows, Linux, e um navegador por HTTPS): *Ajustes ›
-  Notificações › Também nas notificações do sistema* desligado de início;
-  ligado, o pedido do navegador (no computador o plugin 2.4 do Tauri
-  responde "permitido" sozinho; veja se o macOS pergunta na primeira
-  notificação) — permitido, *Ligado.*; recusado (ou
-  desligado depois nos ajustes do sistema, e o app reaberto), a linha
-  volta a desligado dizendo por quê. Num navegador por HTTP simples a
-  linha diz que precisa de HTTPS e não liga; no Safari de um iPhone fora
-  da tela inicial, que precisa do app instalado.
+  Notificações › Também nas notificações do sistema* desligado de
+  início. No computador o plugin 2.4 do Tauri não pergunta nada e
+  responde "permitido"; os ajustes do próprio sistema decidem em
+  silêncio, e a linha diz onde ficam (macOS: *Ajustes do Sistema ›
+  Notificações › Verso*; Windows: *Configurações › Sistema ›
+  Notificações*) — bloqueie o Verso ali e veja que nada aparece. No
+  navegador: o pedido dele; permitido, *Ligado.*; recusado (ou bloqueado
+  depois nos ajustes do site, e a página recarregada), a linha volta a
+  desligado dizendo por quê. Num navegador por HTTP simples a linha diz
+  que precisa de HTTPS e não liga; no Safari de um iPhone fora da tela
+  inicial, que precisa do app instalado.
 - [ ] **Uma notificação com a janela atrás**: as notificações do sistema
   ligadas, a janela atrás de outro app (ou minimizada, ou em outra aba do
   navegador), e então pare o servidor: uma notificação do sistema
   *Sincronização sem conexão*. Com a janela na frente: só o aviso. Um
   clique na notificação do sistema: no navegador a janela vem para a
-  frente e a central abre nela. No computador, confira o que o clique faz
-  em cada sistema — o plugin de notificações do Tauri não avisa a página
-  de clique ali, então a central não abre sozinha (o sino tem a
-  contagem).
+  frente e a central abre nela. No computador o plugin 2.4 não avisa a
+  página do clique — o clique só traz o app para a frente no macOS e no
+  Windows, e a central não abre sozinha (o sino tem a contagem); abri-la
+  no clique vem com o plugin 2.6 e o Tauri 2.12, num 0.8.x seguinte
+  (decidido em 2026-10-14).
 - [ ] **VoiceOver e o teclado**: um aviso é lido uma vez quando chega (um
   erro na hora), o foco ficando onde estava; Tab alcança os botões do
   aviso, Esc o fecha e o foco volta; o sino é lido com a contagem; a

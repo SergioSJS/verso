@@ -568,17 +568,20 @@ point 13).
     Servidores"; a conflict copy and a live room's conflict once; an
     update with "Baixar e atualizar" and "Ver nos Ajustes", once per
     version, checked again after 24 h; the quota at 90 % once, again only
-    after falling under it; the trash's "n itens saem da lixeira em até 3
+    after a measure at the opening or a day later finds it under 90 %; the trash's "n itens saem da lixeira em até 3
     dias" at the folder's opening, once a day, with "Abrir a lixeira";
     someone joining the note, not leaving; a folder shared with you, with
     "Ver as pastas". Level: H; E: `notify.spec.mjs`, one test per kind;
     `sync.spec.mjs`, the revoked share. A (the real app, listed in
     [`manual-checks.md`](manual-checks.md)).
 15. "Também nas notificações do sistema" starts off and asks nothing until
-    turned on; refused, it goes back to off and says why; allowed, a
+    turned on; on the desktop the row says where the system's own
+    settings may block them; a browser's refusal turns it back off and
+    says why; allowed, a
     notification of a kind on "Aviso e lista" also goes to the system only
     while the window is not in front, and a click on it (where the system
-    tells the page) opens the centre on it. A list the browser's storage
+    tells the page: a browser; on the desktop it comes with the plugin 2.6)
+    opens the centre on it. A list the browser's storage
     refuses lives in the window, and the centre says so. Level: H; E:
     `notify.spec.mjs`, "the system's notifications" and "a storage that
     refuses"; A (each system's own prompt and its notification).

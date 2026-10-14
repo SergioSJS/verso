@@ -46,26 +46,30 @@ in the real app.
   it). Left open for a day, a release published meanwhile is said.
 - [ ] **The quota on a synced folder**: a synced folder of this computer
   past 90 % of its quota on the server, after a save: *Pasta quase
-  cheia*, once; again only after it falls under 90 % and passes it again.
+  cheia*, once; delete files under 90 %, reopen the folder (or wait a
+  day), pass it again: said again.
 - [ ] **The system's notifications, asked and refused, on each OS**
   (macOS, Windows, Linux, and a browser over HTTPS): *Ajustes ›
-  Notificações › Também nas notificações do sistema* off at first; turned
-  on, the browser's prompt (on the desktop Tauri's plugin 2.4 answers
-  "allowed" itself; see whether macOS asks at the first notification) —
-  allowed, *Ligado.*; refused (or turned
-  off later in the system's settings, then the app restarted), the row
-  back to off with why. In a browser over plain HTTP the row says it
-  needs HTTPS and cannot be turned on; on an iPhone's Safari outside the
-  home screen, that it needs the installed app.
+  Notificações › Também nas notificações do sistema* off at first. On
+  the desktop Tauri's plugin 2.4 asks nothing and answers "allowed"; the
+  system's own settings decide in silence, and the row says where they
+  are (macOS: *Ajustes do Sistema › Notificações › Verso*; Windows:
+  *Configurações › Sistema › Notificações*) — block Verso there and see
+  that nothing shows. In a browser: its prompt; allowed, *Ligado.*;
+  refused (or blocked later in the site's settings, then the page
+  reloaded), the row back to off with why. In a browser over plain HTTP
+  the row says it needs HTTPS and cannot be turned on; on an iPhone's
+  Safari outside the home screen, that it needs the installed app.
 - [ ] **A notification while the window is in the background**: the
   system's notifications on, the window behind another app (or
   minimised, or another browser tab), then stop the server: a system
   notification *Sincronização sem conexão*. With the window in front:
   the toast only. A click on the system's notification: in a browser the
-  window comes to the front and the centre opens on it. On the desktop,
-  check what the click does on each OS — Tauri's notification plugin
-  tells the page of no click there, so the centre does not open by
-  itself (the bell has the count).
+  window comes to the front and the centre opens on it. On the desktop
+  the plugin 2.4 tells the page of no click — a click only brings the app
+  forward on macOS and Windows, and the centre does not open by itself
+  (the bell has the count); opening it on the click comes with the plugin
+  2.6 and Tauri 2.12, in a later 0.8.x (decided 2026-10-14).
 - [ ] **VoiceOver and the keyboard**: a toast is read once as it comes
   (an error at once), the focus staying where it was; Tab reaches the
   toast's buttons, Escape closes it and the focus goes back; the bell is
