@@ -32,3 +32,14 @@ pub(crate) fn set_folder_settings<R: tauri::Runtime>(
         ops::set_folder_settings(ws, change, revision)
     })
 }
+
+/// Obsidian's settings for daily and periodic notes (ADR 0093 item 11),
+/// read once and never written, for Settings to offer.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn get_obsidian_periodic<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+) -> Result<ObsidianPeriodic, ContractError> {
+    with(&state, &window, ops::get_obsidian_periodic)
+}

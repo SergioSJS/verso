@@ -65,6 +65,53 @@ pub fn append_merge(base: &str, local: &[u8], remote: &[u8]) -> Option<Vec<u8>> 
     None
 }
 
+/// The longest prefix [`template_merge`] hashes in search of the
+/// template: a template is a page of text, never a megabyte.
+const TEMPLATE_MAX: usize = 1 << 20;
+
+/// Two versions of a note that both sides made apart, each from the same
+/// filled template (ADR 0093 item 12, revising 0079 item 8): the template
+/// is their base, each side's additions after it are appends, and they are
+/// joined — the template, the server's additions (`remote`), then this
+/// computer's (`local`). `template` is the SHA-256, lowercase hex, of the
+/// text this computer made the note with; the join holds only when both
+/// versions begin with exactly those bytes. Unlike [`append_merge`], a
+/// side may have added nothing: the other side's version is then the
+/// result, and nothing is lost either way. `None`: not both from that
+/// template, or the join would not fall at a line boundary — a conflict's
+/// copy, as before.
+#[must_use]
+pub fn template_merge(template: &str, local: &[u8], remote: &[u8]) -> Option<Vec<u8>> {
+    use sha2::{Digest, Sha256};
+    if local == remote {
+        return None;
+    }
+    let common = local.iter().zip(remote).take_while(|(a, b)| a == b).count();
+    let mut hasher = Sha256::new();
+    let mut hashed = 0;
+    for k in 0..=common.min(TEMPLATE_MAX) {
+        let (here, there) = (local.get(k..)?, remote.get(k..)?);
+        let one_empty = here.is_empty() || there.is_empty();
+        let ends_line = k == 0 || local.get(k - 1) == Some(&b'\n');
+        let tails_start_line = here.first() == Some(&b'\n') && there.first() == Some(&b'\n');
+        if !(one_empty || ends_line || tails_start_line) {
+            continue;
+        }
+        hasher.update(local.get(hashed..k)?);
+        hashed = k;
+        let hex: String = hasher
+            .clone()
+            .finalize()
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        if hex == template {
+            return Some([local.get(..k)?, there, here].concat());
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -228,5 +275,99 @@ mod tests {
             let merged = append_merge(&hash(base.as_bytes()), local.as_bytes(), remote.as_bytes());
             prop_assert_eq!(merged, Some(format!("{base}{there}{here}").into_bytes()));
         }
+
+        /// Two devices made the same periodic note offline from one
+        /// template (ADR 0093 item 12): joined, the template once, then
+        /// the server's lines and this computer's — every line of either
+        /// side kept, none twice; a side that added nothing gives the
+        /// other's version.
+        #[test]
+        fn two_notes_made_apart_from_one_template_are_joined(
+            template in "[a-z#{}: \n]{0,40}",
+            there in proptest::collection::vec("[a-z ]{0,8}", 0..5),
+            here in proptest::collection::vec("[a-z ]{0,8}", 0..5),
+        ) {
+            let tail = |ls: &Vec<String>| ls.iter().map(|l| format!("{l}\n")).collect::<String>();
+            // What each side wrote begins a line of its own.
+            let lead = if template.is_empty() || template.ends_with('\n') { "" } else { "\n" };
+            let (there, here) = (tail(&there), tail(&here));
+            let remote = format!("{template}{}{there}", if there.is_empty() { "" } else { lead });
+            let local = format!("{template}{}{here}", if here.is_empty() { "" } else { lead });
+            let merged = template_merge(&hash(template.as_bytes()), local.as_bytes(), remote.as_bytes());
+            if local == remote {
+                prop_assert_eq!(merged, None);
+                return Ok(());
+            }
+            let merged = String::from_utf8(merged.expect("joined")).unwrap();
+            let rtail = &remote[template.len()..];
+            let ltail = &local[template.len()..];
+            prop_assert_eq!(&merged, &format!("{template}{rtail}{ltail}"));
+            // Every line either side added is there, in its order.
+            let added: Vec<&str> = merged[template.len()..].lines().filter(|l| !l.is_empty()).collect();
+            let want: Vec<&str> = there.lines().chain(here.lines()).filter(|l| !l.is_empty()).collect();
+            prop_assert_eq!(added, want);
+            if here.is_empty() {
+                prop_assert_eq!(&merged, &remote);
+            }
+            if there.is_empty() {
+                prop_assert_eq!(&merged, &local);
+            }
+        }
+
+        /// A note not made from that template, on either side, is never
+        /// joined: its copy is kept, as before.
+        #[test]
+        fn another_template_is_not_joined(
+            template in "[a-z\n]{1,20}",
+            other in "[A-Z\n]{1,20}",
+            here in "[a-z\n]{1,20}",
+        ) {
+            let local = format!("{template}{here}");
+            let remote = format!("{other}{here}x");
+            prop_assume!(!remote.starts_with(&template));
+            prop_assert_eq!(template_merge(&hash(template.as_bytes()), local.as_bytes(), remote.as_bytes()), None);
+        }
+    }
+
+    #[test]
+    fn the_template_cases() {
+        let t = "---\ndate: 2026-10-12\n---\n# 2026-W42\n\n";
+        let h = hash(t.as_bytes());
+        let here = format!("{t}- daqui\n");
+        let there = format!("{t}- de lá\n");
+        assert_eq!(
+            template_merge(&h, here.as_bytes(), there.as_bytes()).as_deref(),
+            Some(format!("{t}- de lá\n- daqui\n").as_bytes())
+        );
+        // One side only filled the template: the other's version.
+        assert_eq!(
+            template_merge(&h, t.as_bytes(), there.as_bytes()).as_deref(),
+            Some(there.as_bytes())
+        );
+        assert_eq!(
+            template_merge(&h, here.as_bytes(), t.as_bytes()).as_deref(),
+            Some(here.as_bytes())
+        );
+        // The other device filled the template at another time (`{{time}}`):
+        // not the same bytes, a copy.
+        let later = "---\ndate: 2026-10-13\n---\n# 2026-W42\n\n- de lá\n";
+        assert_eq!(template_merge(&h, here.as_bytes(), later.as_bytes()), None);
+        // One side rewrote the template's text.
+        let edited = "---\ndate: 2026-10-12\n---\n# Semana\n\n- daqui\n";
+        assert_eq!(
+            template_merge(&h, edited.as_bytes(), there.as_bytes()),
+            None
+        );
+        // Equal versions are no conflict.
+        assert_eq!(template_merge(&h, here.as_bytes(), here.as_bytes()), None);
+        // A template without its last newline: the sides joined only when
+        // both begin a line.
+        let bare = "# 2026-W42";
+        let hb = hash(bare.as_bytes());
+        assert_eq!(
+            template_merge(&hb, b"# 2026-W42\na", b"# 2026-W42\nb").as_deref(),
+            Some(&b"# 2026-W42\nb\na"[..])
+        );
+        assert_eq!(template_merge(&hb, b"# 2026-W42a", b"# 2026-W42\nb"), None);
     }
 }

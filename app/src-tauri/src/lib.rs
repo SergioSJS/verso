@@ -34,7 +34,8 @@ use verso_contract::{
     CollabState, CollabUpdate, ContractError, DiceRoll, Edge, ErrorKind, FileEntry, Focus,
     FocusesSummary, FolderChanged, FolderInfo, FolderLayer, FolderSettings, FolderSpace, Hit, Host,
     IndexProgress, IndexSummary, Link, McpAdded, McpClientState, McpStatus, Mentions, MovedEntries,
-    NoteText, Renamed, ServerAccount, Tag, TextFile, Trashed, UpdateProgress, WebNote, Written,
+    NoteText, ObsidianPeriodic, Renamed, ServerAccount, Tag, TextFile, Trashed, UpdateProgress,
+    WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
 use verso_service::{OpError, Service, lock, no_folder, ops, refused};
@@ -687,6 +688,7 @@ macro_rules! commands_for {
                 set_sync_focuses::<$runtime>,
                 get_folder_settings::<$runtime>,
                 set_folder_settings::<$runtime>,
+                get_obsidian_periodic::<$runtime>,
                 log_write,
                 log_read,
                 set_menu_language::<$runtime>,
@@ -721,6 +723,7 @@ macro_rules! commands_for {
                 folder_sync_pause::<$runtime>,
                 folder_sync_confirm::<$runtime>,
                 folder_sync_now::<$runtime>,
+                note_made_from_template::<$runtime>,
                 query_base::<$runtime>,
                 new_window::<$runtime>,
                 cli_status,
@@ -1129,6 +1132,8 @@ mod tests;
 mod tests_live;
 #[cfg(test)]
 mod tests_notify;
+#[cfg(test)]
+mod tests_periodic;
 #[cfg(test)]
 mod tests_remote;
 #[cfg(test)]
