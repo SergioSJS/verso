@@ -161,6 +161,19 @@ test("the panel's backlinks and the graph's nodes preview their notes", async ({
   await expect(card(page)).toHaveAttribute("aria-label", `Prévia de ${LINKS}`);
 });
 
+test("an unlinked mention's row previews the note it is written in (ADR 0089)", async ({ app, page }) => {
+  await app.open();
+  await app.quickOpen("Lia Torres");
+  await app.key("Mod+Alt+ArrowRight");
+  await page.locator("#verso-right-backlinks").click();
+  const row = page.locator(".mentions-list li.mention button.row", { hasText: LINKS }).first();
+  await expect(row).toBeVisible();
+  await rest(page, row);
+  await expect(card(page)).toHaveAttribute("aria-label", `Prévia de ${LINKS}`);
+  await away(page);
+  await expect(card(page)).toHaveCount(0);
+});
+
 test("a board's card previews its note from its name", async ({ app, page }) => {
   await app.open();
   await app.quickOpen("Board de Demonstração");
