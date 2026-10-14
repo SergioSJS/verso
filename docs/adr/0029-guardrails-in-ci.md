@@ -3,7 +3,13 @@
 - Date: 2026-09-21
 - Source: `docs/BRIEFING.md` §14.3, §10.3
 - Status in the briefing: `DECIDED`
-- Revisions: 2026-09-21 — guardrails split into "workspace" and "feature" ones;
+- Revisions: 2026-10-13 — the benchmark measures a time past its baseline
+  again, up to twice, and keeps the lowest median before it counts it as a
+  regression: on 2026-10-13 the CI runner's noise reached 1.7× on one
+  operation (watch_batch_walk, 10 000 notes; green on the rerun, flat on a
+  Mac), and the maintainer: *"Se é normal, não é falha"*. The tolerance
+  stays 1.5×; the index size and memory are not re-measured;
+  2026-09-21 — guardrails split into "workspace" and "feature" ones;
   lines for checking WASM, generated types and `std::fs` added; atomic write
   requirements and advisory policy recorded (Phase 0 review, C3, C9, R1, R10);
   2026-09-22 — where each operating system runs, after the cost incident;

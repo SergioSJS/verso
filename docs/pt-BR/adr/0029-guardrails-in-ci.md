@@ -3,7 +3,12 @@
 - Data: 2026-09-21
 - Fonte: `docs/BRIEFING.md` §14.3, §10.3
 - Status no briefing: `DECIDIDO`
-- Revisões: 2026-09-21 — guardrails separados em "de workspace" e "de feature";
+- Revisões: 2026-10-13 — o benchmark mede de novo, até duas vezes, um
+  tempo além da sua referência e fica com a menor mediana antes de contá-lo
+  como regressão: em 2026-10-13 o ruído da máquina do CI chegou a 1,7× numa
+  operação (watch_batch_walk, 10 000 notas; verde na nova rodada, igual num
+  Mac), e o mantenedor: *"Se é normal, não é falha"*. A tolerância continua
+  1,5×; tamanho do índice e memória não são medidos de novo; 2026-09-21 — guardrails separados em "de workspace" e "de feature";
   linhas de verificação de WASM, tipos gerados e `std::fs` acrescentadas;
   requisitos da escrita atômica e política de advisories registrados (revisão da
   Fase 0, C3, C9, R1, R10); 2026-09-22 — onde cada sistema operacional roda,
