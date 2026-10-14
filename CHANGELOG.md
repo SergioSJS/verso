@@ -43,6 +43,7 @@ test release.
 - **The compose file parses again**: an unquoted colon in its CasaOS tagline made `docker compose` refuse the whole file; `scripts/check-server-image.sh` now checks it with `docker compose config`.
 - **A window's edits reach a shared note or board in the order they were made** ([ADR 0083](docs/adr/0083-security-hardening-of-universo.md) item 14): UniVerso took one window's edits side by side and could shuffle them, and the room could be left short of what the windows held. It now takes each window's edits in the order sent; an edit that depends on something the room never received is refused, and the room is read again from its file.
 - **UniVerso sends a folder's pictures, PDFs and videos a piece at a time**: a file under `/f/` is read from the disk 256 KiB at a time as the connection takes it, never whole in memory, so a large video no longer holds its size of the server's memory per viewer; a single `Range` is answered 206, so a video or a sound plays from where you seek. A file that changes while it is sent cuts the answer rather than mixing two versions.
+- **A note or a text file opens as text up to 16 MB**: past it, opening it as a note, in the text view or in the HTML viewer says the file is too large to open as text, before it is read — in the app and on a server alike — and a save of more than 16 MB of text is refused the same way. The file stays in the folder: listed, synced and served as a file. Before, one read held several times the file's size in memory.
 
 ## 0.8.0-beta.1 — 2026-10-13
 
