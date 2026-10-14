@@ -248,6 +248,20 @@ point 13).
    the arrows move along the list. A folder whose note sets
    `items_template` makes the note from it, with no list. Level: H; E:
    `templates.spec.mjs`.
+7. The infobox (note 21, "O Infobox", ADR 0086): `Lugares/Porto Cinzento`
+   shows its properties as a card at the right of the text, in the
+   reading view and in Edit mode — the harbour's picture at its head (a
+   screen reader reads "O Porto Cinzento visto do farol", the link's
+   alias), "Tipo: Lugar", Mapa, Região, Perigo, Habitantes and Governante
+   in that order, "Outras propriedades (2)" folded below; opening it
+   writes nothing. A habitant is a link that opens the person's note;
+   "Adicionar link…" offers the folder's notes and writes the one picked
+   as a quoted wikilink. A narrow window (or a split pane) puts the card
+   above the text, folded to the picture and three properties, with
+   "Mostrar todas as propriedades". In Edit mode a value changed in the
+   card reaches the file. Level: S (`crates/verso-core/tests/typed.rs`,
+   `fixtures/schema/infobox`), H; E: `infobox.spec.mjs`,
+   `test/infobox.test.mjs`.
 
 ## 5. Finding
 
