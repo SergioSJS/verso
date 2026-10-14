@@ -279,3 +279,22 @@ rodada (*"Sim, já nesta"*), começando desligadas, com a permissão pedida
 quando o ajuste é ligado, e no navegador além do desktop.
 
 A construir como 0.8.3-beta.1.
+
+**Respondido durante a construção (2026-10-14, o mantenedor, como recomendado):**
+
+- Ativar uma notificação do sistema (item 9). O plugin de notificação do
+  desktop que roda com este Tauri (2.4) não diz nada à janela sobre um
+  clique: no macOS e no Windows o clique traz o app para a frente, no
+  Linux em geral só fecha a notificação. No navegador o clique abre a
+  central naquela notificação. A versão 2.6 do plugin, que informa o
+  clique, exige o Tauri 2.12 e saiu em 2026-10-10; entra numa 0.8.x
+  seguinte, quando tiver pelo menos duas semanas, e aí o clique abre a
+  central também no desktop.
+- No desktop o sistema responde a todo pedido de permissão com
+  "concedida" e decide nos próprios ajustes, então "negada → volta a
+  desligada" (item 9) só acontece no navegador; no desktop a linha diz que
+  o sistema pode bloquear as notificações, e onde permiti-las.
+- A notificação de cota (item 7). O servidor avisa as janelas de uma pasta
+  quando ela passa de 90 %, nunca quando volta para baixo. A janela pede o
+  espaço da pasta uma vez por dia, junto com a checagem da lixeira; abaixo
+  de 90 %, a próxima passagem notifica de novo.
