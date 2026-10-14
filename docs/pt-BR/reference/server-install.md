@@ -41,7 +41,7 @@ sh universo.sh install --url https://notas.exemplo.com
 | `uninstall [--purge]` | remove o pacote e diz o que deixou: `/var/lib/universo`, `/etc/universo`, o usuário `universo`. O `--purge` remove esses também, depois de você digitar `/var/lib/universo` de volta |
 | `status` | o estado do serviço, a versão, o endereço em que escuta, o tamanho dos dois diretórios, as últimas 5 linhas do log |
 | `logs [-f]` | `journalctl -u universo` |
-| `backup [PASTA] [--encrypt \| --passphrase] [--to-stdout]` | para o serviço, empacota `/var/lib/universo` e `/etc/universo` em `universo-backup-<data>-<hora>.tar.gz` na `PASTA` (`/var/backups/universo` por padrão), liga de novo; recusa quando a `PASTA` tem menos espaço livre do que os dois diretórios ocupam. `--encrypt` criptografa com o `age` (`.tar.gz.age`), `--passphrase` para uma frase-senha digitada, `--to-stdout` escreve na saída padrão para um pipe (seção 2) |
+| `backup [PASTA] [--encrypt \| --passphrase] [--to-stdout]` | para o serviço, empacota `/var/lib/universo` e `/etc/universo` em `universo-backup-<data>-<hora>-<aleatório>.tar.gz` na `PASTA` (um arquivo novo, `0600`, com um nome que ninguém adivinha antes; a `PASTA` não pode ficar dentro do que ele copia, com `..` e links resolvidos) (`/var/backups/universo` por padrão), liga de novo; recusa quando a `PASTA` tem menos espaço livre do que os dois diretórios ocupam. `--encrypt` criptografa com o `age` (`.tar.gz.age`), `--passphrase` para uma frase-senha digitada, `--to-stdout` escreve na saída padrão para um pipe (seção 2) |
 | `backup --keygen` | cria a chave dos backups criptografados, uma vez: a pública em `/etc/universo/backup.pub`, a secreta impressa, nunca guardada na máquina (seção 2) |
 | `restore ARQUIVO [--identity ARQUIVO-DA-CHAVE] [--to PASTA]` | põe um backup de volta sobre `/var/lib/universo` e `/etc/universo` depois de você digitar `/var/lib/universo`, com o serviço parado enquanto isso; um criptografado com a chave secreta ou a frase-senha; `--to PASTA` desempacota na `PASTA`, sem tocar no servidor (seção 2) |
 | `reset-admin [E-MAIL]` | o comando da seção 10 |
@@ -49,13 +49,20 @@ sh universo.sh install --url https://notas.exemplo.com
 
 Como um download é conferido: com o `minisign` instalado, o `.sig` da
 release contra a chave de release do Verso (seção 6), o comentário
-assinado nomeando o arquivo; sem ele, o `sha256` que o GitHub publica para
-cada arquivo da release; sem nenhum dos dois, recusa, a menos que receba
-`--insecure-no-verify`, que diz em voz alta que nada foi conferido. Um
-pacote de `--package ARQ` é conferido com o `ARQ.sig` ao lado. Enquanto o
-repositório é privado, baixar pede um token do GitHub em `GITHUB_TOKEN`
-(fine-grained, Contents: Read-only no repositório); sem ele o script diz
-como criar, ou aceita `--package`. Uma máquina sem apt nem dnf é mandada
+assinado nomeando o arquivo; sem o `minisign`, o `sha256` que o GitHub
+publica para cada arquivo da release; sem nenhum dos dois, recusa, a menos
+que receba `--insecure-no-verify`, que diz em voz alta que nada foi
+conferido. Um `.sig` faltando — nenhum na release, o download dele falhou,
+nenhum ao lado do `--package ARQ` — é um erro: o script para e diz por
+quê, a menos que receba `--no-signature`, que se contenta com o `sha256`
+publicado (prova de que o arquivo é o enviado à release, não de quem o
+fez). Um pacote de `--package ARQ` é conferido com o `ARQ.sig` ao lado.
+Enquanto o repositório é privado, baixar pede um token do GitHub em
+`GITHUB_TOKEN` (fine-grained, Contents: Read-only no repositório); sem ele
+o script diz como criar, ou aceita `--package`. Dê o token com
+`read -rs GITHUB_TOKEN && export GITHUB_TOKEN` (bash ou zsh: cole, Enter),
+que o deixa fora da tela e do histórico do shell, em vez de
+`export GITHUB_TOKEN=…` na linha de comando. Uma máquina sem apt nem dnf é mandada
 para o arquivo compactado (seção 6). As seções 5 e 6 continuam os
 caminhos manuais.
 
@@ -139,14 +146,32 @@ Para restaurar, com o serviço parado enquanto isso e depois de você
 digitar `/var/lib/universo`:
 
 ```sh
-sudo sh universo.sh restore universo-backup-<data>-<hora>.tar.gz.age --identity chave.txt
+sudo sh universo.sh restore universo-backup-<data>-<hora>-<aleatório>.tar.gz.age --identity chave.txt
 ```
 
 com a chave secreta em `chave.txt` só naquela hora (ou o `age` pede a
-frase-senha); um backup sem criptografia não precisa de `--identity`.
+frase-senha); um backup sem criptografia não precisa de `--identity`. Esse
+arquivo é a chave de todos os backups: deixe-o legível só pelo dono
+(`umask 077` antes de escrevê-lo, ou `chmod 600 chave.txt`), nunca o
+guarde no servidor, e apague-o assim que a restauração terminar
+(`shred -u chave.txt` onde o `shred` vale alguma coisa; num sistema de
+arquivos copy-on-write ou em flash, `rm`).
 `--to /uma/pasta` desempacota lá, para olhar antes, sem tocar no servidor.
+Antes de gravar qualquer coisa, o `restore` copia o backup (ou o
+descriptografa) para uma pasta só sua e o lista: recusa o backup inteiro
+quando alguma entrada não é um arquivo comum ou uma pasta sob
+`/var/lib/universo`, `/etc/universo` ou o `VERSO_DATA_DIR` e o
+`VERSO_FOLDERS_DIR` que as configurações desta máquina nomeiam — um
+caminho absoluto, um `..`, um link, um dispositivo ou um arquivo set-id — e
+então desempacota exatamente as entradas que conferiu. Um backup guardado
+onde outra pessoa pode escrever (um bucket compartilhado, uma pasta
+compartilhada) não consegue assim pôr um arquivo em outro lugar da máquina
+como root. Um backup cujas pastas ficavam fora de `/var/lib/universo` as
+restaura depois que o `universo.env` desta máquina nomear as mesmas; até
+lá, `--to`.
 À mão: `age -d -i chave.txt ARQUIVO | sudo tar -xzpf - -C /` com o serviço
-parado.
+parado — sem nenhuma dessas conferências, então só para um backup que você
+fez.
 
 ### Bancos de dados num NAS
 
@@ -469,6 +494,31 @@ de um endereço fora da lista tem o `X-Forwarded-For` ignorado. Ponha na
 lista só os proxies: uma faixa de endereços que também tem pessoas deixa
 que elas digam o endereço que quiserem.
 
+**O `127.0.0.1` nomeia todo programa da máquina, não só o proxy.** Com
+`VERSO_TRUSTED_PROXY=127.0.0.1`, qualquer usuário ou processo local que
+se conecte à porta do servidor é acreditado como o proxy: o
+`X-Forwarded-For` dele pode nomear qualquer endereço — um novo a cada
+tentativa, passando pelos atrasos por endereço (o atraso por conta
+continua valendo), ou o de outra pessoa, que então enche as recusas do log
+para o fail2ban banir — e o `X-Forwarded-Proto: https` dele é aceito como
+veio. Numa máquina que só você usa, isso é só você. Num host
+compartilhado — contas, serviços ou contêineres de outras pessoas na
+mesma máquina — reserve a porta do servidor ao proxy. O servidor escuta só
+em TCP (sem socket unix), então faça isso por usuário: o proxy roda com um
+usuário próprio (os pacotes do Caddy o rodam como `caddy`), e uma regra de
+firewall deixa só esse usuário, e o root (cujo `universo.sh status`
+pergunta ao servidor), alcançar a porta, por exemplo
+
+```sh
+sudo iptables -A OUTPUT -o lo -p tcp --dport 7340 -m owner --uid-owner root -j ACCEPT
+sudo iptables -A OUTPUT -o lo -p tcp --dport 7340 -m owner ! --uid-owner caddy -j REJECT
+```
+
+(o mesmo com `ip6tables` quando o servidor escuta em `::1`; mantidas
+entre reinicializações com o `netfilter-persistent`, como o
+`universo.sh firewall` mantém as dele). Ou dê ao proxy e ao servidor uma
+máquina, ou uma rede de contêineres, só deles.
+
 **Um proxy fora da lista faz de todo visitante um endereço só.** Toda
 requisição parece então vir do proxy, e toda espera por endereço conta
 para ele: três logins errados de um estranho atrasam o de todo mundo, e
@@ -493,6 +543,31 @@ vazio, uma linha que começa com *VERSO_PUBLIC_URL is https but UniVerso
 listens on …* diz o mesmo e o que definir. Ao defini-lo, confira que o
 proxy manda `X-Forwarded-Proto: https` (o Caddy manda): por um proxy
 confiável só esse cabeçalho diz que o visitante veio por TLS.
+
+**Requisições em andamento, e corpos que chegam a conta-gotas.** Através
+de um proxy, toda conexão conta só contra as 512 do servidor, então o
+Verso limita o que um cliente segura pelo endereço que o proxy
+repassou: 32 requisições em andamento ao mesmo tempo de um endereço (um
+/64 de IPv6 como um só), além das quais ele responde 429 com
+`Retry-After`; e o corpo de uma requisição — um formulário, uma
+configuração, nunca um arquivo, que vai pelo WebSocket — precisa chegar
+em 10 segundos, ou recebe 408. Um proxy que não repassa nada faz todo
+visitante dividir essas 32 também. O Caddy pode tirar um corpo lento do
+Verso de vez: com `request_buffers`, ele mesmo lê o corpo antes de abrir
+a requisição para o Verso, e um cliente que o manda a conta-gotas segura
+uma conexão do Caddy, não um dos lugares do Verso:
+
+```
+notes.example.com {
+    reverse_proxy 127.0.0.1:7340 {
+        request_buffers 1MiB
+    }
+}
+```
+
+1 MiB é o maior corpo que a API do Verso aceita. A opção é do Caddy
+(documentação do `reverse_proxy`); não foi testada aqui contra um Caddy
+de verdade.
 
 ### Atrás da Cloudflare
 
@@ -552,13 +627,20 @@ criada de um de dois jeitos (0074 item 1):
 - **Pelas variáveis**, `VERSO_ADMIN_EMAIL` e `VERSO_ADMIN_PASSWORD` (ou
   `_FILE`), lidas **só na primeira inicialização**, quando o servidor ainda
   não tem conta. Depois são ignoradas e o log diz isso numa linha: mudá-las
-  nunca redefine uma senha. Podem ser removidas depois da primeira
-  inicialização.
+  nunca redefine uma senha. Remova-as quando o admin existir: do
+  `/etc/universo/universo.env` num pacote, do arquivo compose ou do
+  comando `docker run` no Docker (e o arquivo do segredo, com `_FILE`).
+  Deixadas ali, são a primeira senha do admin num arquivo, valendo até
+  ser trocada.
 - **Pelo link de configuração**: sem nenhuma das duas variáveis, o
   servidor imprime uma vez no log um link válido por uma hora, cuja página
   cria o admin. Quem consegue ler o log é quem roda o servidor:
   `docker logs universo`, o log do contêiner no CasaOS ou no ZimaOS, ou
-  `journalctl -u universo`.
+  `journalctl -u universo` (o root e os grupos `adm` e `systemd-journal`).
+  O link fica nesse log até a rotação descartá-lo: depois que o admin
+  existe, ou passada a hora, ele não abre nada, mas dentro da hora quem
+  ler o log primeiro pode usá-lo — então use-o assim que sair. O
+  `universo.sh install` diz isso ao lado do link.
 
 ## 10. Senha do admin perdida
 
@@ -1062,9 +1144,15 @@ Ainda não verificado:
 - o filtro e a jail do fail2ban, o parser e os cenários do CrowdSec, e o
   exemplo de `rate_limit` do Caddy da seção 16, num host de verdade: a
   expressão do filtro roda nos testes do servidor sobre as próprias linhas
-  dele, como o fail2ban expande `<SUBNET>` e como ele lê um arquivo e o
-  journal, não pelo próprio fail2ban; os arquivos do CrowdSec e o exemplo
-  do Caddy não rodaram.
+  dele, como o fail2ban expande `<IP4>` e `<IP6>` e como ele lê um arquivo
+  e o journal; o próprio fail2ban 1.1.0 (Debian 13, num contêiner,
+  2026-10-13) a rodou com o `fail2ban-regex` sobre um arquivo dessas
+  linhas — o endereço IPv4 e o /64 de IPv6 pegos, `0.0.0.0/0`, um /48 e
+  um /24 não — e o `fail2ban-client -t` aceitou a jail, mas não sobre um
+  journal; os arquivos do CrowdSec e o exemplo do Caddy não rodaram;
+- a regra de firewall da seção 8 que reserva a porta do servidor ao
+  usuário do proxy num host compartilhado, escrita a partir do owner match
+  do iptables, sem rodar.
 
 ## 16. Banimentos: fail2ban, CrowdSec e o rate_limit do Caddy
 
@@ -1108,8 +1196,13 @@ journalctl -u universo | grep 'sign-in failed'
 O `.deb` e o `.rpm` instalam um filtro,
 `/etc/fail2ban/filter.d/universo.conf`, e uma jail,
 `/etc/fail2ban/jail.d/universo.conf`: dez recusas de um endereço em dez
-minutos o banem por uma hora, lidas do journal do `universo.service`. Não
-fazem nada até o fail2ban ser instalado:
+minutos o banem por uma hora, lidas do journal do `universo.service`. O
+filtro aceita um endereço IPv4 sem prefixo ou um /64 de IPv6, as duas
+formas que o servidor escreve, e nenhuma outra faixa, então uma linha que
+nomeie `0.0.0.0/0` ou um /48 não bane ninguém. Um banimento fecha só
+`http` e `https` (o `port` da jail), então um endereço banido ainda chega
+ao SSH; um servidor que serve o próprio TLS em outra porta a acrescenta ao
+`port`. Não fazem nada até o fail2ban ser instalado:
 
 ```sh
 sudo apt install fail2ban        # ou: sudo dnf install fail2ban
@@ -1136,7 +1229,12 @@ No Docker, o fail2ban roda no host, e os dois arquivos são copiados de
 `logging: driver: journald` no arquivo compose, no lugar do bloco
 `json-file` publicado (o journald então faz a rotação delas pelos próprios limites,
 seção 5); a jail então lê
-`journalmatch = CONTAINER_NAME=universo` (o nome do contêiner). O Docker
+`journalmatch = _SYSTEMD_UNIT=docker.service CONTAINER_NAME=universo` (o
+nome do contêiner). Os dois campos, não só o nome: `CONTAINER_NAME` é um
+campo que qualquer programa da máquina pode escrever no journal, e o
+`_SYSTEMD_UNIT`, com o sublinhado, é do próprio journald, então só as
+linhas do Docker contam (o Docker rootless roda como unidade de um
+usuário: `_SYSTEMD_USER_UNIT=docker.service`). O Docker
 manda o tráfego de uma porta publicada por fora da chain `INPUT` do host:
 o banimento precisa de `chain = DOCKER-USER` na jail. Na rede do host
 (`network_mode: host`, `--network host`), nada é publicado e o tráfego

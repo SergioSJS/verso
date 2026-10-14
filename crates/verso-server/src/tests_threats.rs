@@ -253,3 +253,63 @@ fn every_answer_carries_the_whole_set_of_headers() {
         }
     });
 }
+
+/// The walk's rules are the folder owner's (ADR 0070): an editor's change
+/// of the folder's settings keeps the rest of it — the bookmarks — and
+/// leaves the rules as they were, as `set_walk_rules` does; the owner's
+/// change sets them.
+#[test]
+fn an_editor_changes_the_folders_settings_but_not_its_walk_rules() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &admin).await;
+        let ana = r
+            .server
+            .db
+            .create_account("ana@casa.lan", "Ana", "pt", Some("a senha da ana"), false)
+            .unwrap();
+        r.server.db.grant(&id, &ana.id, Role::Editor).unwrap();
+        let ana_b = sign_in(&r, "ana@casa.lan", "a senha da ana").await;
+        let mut ed = connect(&r, Some(&ana_b.cookie), Some(&r.origin()), None)
+            .await
+            .unwrap();
+        next(&mut ed).await;
+        call(&mut ed, 1, "open_server_folder", json!({ "id": id })).await;
+        let layer = call(&mut ed, 2, "get_folder_settings", json!({})).await;
+        assert_eq!(layer["ok"]["exists"], false, "{layer}");
+        let change = |gitignore: bool| {
+            json!({ "change": { "bookmarks": ["Sessao.md"], "folder_note_name": null,
+                "ignore_build_dirs": false, "respect_gitignore": gitignore } })
+        };
+        let mut args = change(false);
+        args["revision"] = Value::Null;
+        let set = call(&mut ed, 3, "set_folder_settings", args).await;
+        assert_eq!(
+            set["ok"]["settings"]["bookmarks"],
+            json!(["Sessao.md"]),
+            "{set}"
+        );
+        assert_eq!(
+            set["ok"]["settings"]["respect_gitignore"],
+            Value::Null,
+            "an editor changed the walk's rules: {set}"
+        );
+        assert_eq!(
+            set["ok"]["settings"]["ignore_build_dirs"],
+            Value::Null,
+            "{set}"
+        );
+        // The owner sets them.
+        let mut own = connect(&r, Some(&admin.cookie), Some(&r.origin()), None)
+            .await
+            .unwrap();
+        next(&mut own).await;
+        call(&mut own, 1, "open_server_folder", json!({ "id": id })).await;
+        let mut args = change(false);
+        args["revision"] = set["ok"]["revision"].clone();
+        let set = call(&mut own, 2, "set_folder_settings", args).await;
+        assert_eq!(set["ok"]["settings"]["respect_gitignore"], false, "{set}");
+        assert_eq!(set["ok"]["settings"]["ignore_build_dirs"], false, "{set}");
+    });
+}

@@ -246,3 +246,43 @@ fn a_type_is_compared_after_nfc_and_a_broken_copy_still_conflicts() {
         Some(TypeState::Conflict { .. })
     ));
 }
+
+/// What a share sees (ADR 0081 item 11): a note's type by the schemas
+/// held under the given folders only — one outside types nothing and
+/// makes no conflict with one inside.
+#[test]
+fn a_type_within_folders_sees_only_the_schemas_under_them() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let mesa = Builder::new()
+        .prefix("Mesa")
+        .rand_bytes(0)
+        .tempdir_in(vault.path())
+        .unwrap();
+    let _s = file(vault.path(), "PdM.md", SCHEMA);
+    let _m = file(mesa.path(), "PdM.md", SCHEMA);
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    let whole = ws.note_type_within(BARAO, &[]).unwrap().unwrap();
+    assert!(
+        matches!(whole.state, TypeState::Conflict { .. }),
+        "{whole:?}"
+    );
+    let inside = ws
+        .note_type_within(BARAO, &["Mesa".to_owned()])
+        .unwrap()
+        .unwrap();
+    assert!(
+        matches!(&inside.state, TypeState::Typed(t) if t.schema == "Mesa/PdM.md"),
+        "{inside:?}"
+    );
+    // A sibling whose name begins as the folder's is not under it.
+    assert_eq!(
+        ws.note_type_within(BARAO, &["Mes".to_owned()]).unwrap(),
+        None
+    );
+    assert_eq!(
+        ws.note_type_within(BARAO, &["Outra".to_owned()]).unwrap(),
+        None
+    );
+}

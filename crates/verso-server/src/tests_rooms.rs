@@ -322,3 +322,40 @@ fn a_windows_updates_sent_at_once_are_taken_in_order() {
         );
     });
 }
+
+/// One file, one room: a path written another way — `./Sessao.md` — is
+/// the same note, and reaches the same room (ADR 0073 item 7).
+#[test]
+fn a_path_written_another_way_reaches_the_same_room() {
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &b).await;
+        let mut one = window(&r, &b, &id).await;
+        let mut two = window(&r, &b, &id).await;
+        let joined = call(&mut one, 2, "collab_join", json!({ "path": "./Sessao.md" })).await;
+        assert!(joined.get("ok").is_some(), "{joined}");
+        let now = call(
+            &mut two,
+            3,
+            "collab_present",
+            json!({ "path": "Sessao.md" }),
+        )
+        .await;
+        assert_eq!(
+            now["ok"].as_bool(),
+            Some(true),
+            "`./Sessao.md` and `Sessao.md` are two rooms: {now}"
+        );
+        let again = call(&mut two, 4, "collab_join", json!({ "path": "Sessao.md" })).await;
+        assert!(again.get("ok").is_some(), "{again}");
+        let back = call(
+            &mut one,
+            5,
+            "collab_present",
+            json!({ "path": "./Sessao.md" }),
+        )
+        .await;
+        assert_eq!(back["ok"].as_bool(), Some(true), "{back}");
+    });
+}

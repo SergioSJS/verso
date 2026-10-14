@@ -940,9 +940,13 @@ pub struct Link {
     pub alias: Option<String>,
     pub line: u32,
     pub col: u32,
-    /// The note or file it resolves to is not in what was shared with the
-    /// person (ADR 0081 item 11): shown like an unresolved link, and never
-    /// made into a note. Nothing else of it crosses.
+    /// Through a share, a link to a note reaches nothing the person sees
+    /// (ADR 0081 item 11): a note outside what was shared with them and a
+    /// note that does not exist answer alike, so that whether a note of
+    /// that name exists outside never crosses. Shown like an unresolved
+    /// link, as "not in what was shared with you", and never made into a
+    /// note. A file's target (`p.png`) is left to `resolve_attachment`.
+    /// Always false outside a share.
     #[serde(default)]
     pub outside: bool,
 }
