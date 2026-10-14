@@ -5,7 +5,7 @@
 import { sh } from "../../shareStrings";
 import { ensureSyntaxTree, foldAll, syntaxTree, unfoldAll } from "@codemirror/language";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { baseHost, liveBases } from "../../bases";
+import { baseHost, embeddedBase, liveBases } from "../../bases";
 import { BaseView, type BaseSource } from "../../bases/view";
 import { commands } from "../../bindings";
 import { type CardEditing } from "../../board/types";
@@ -696,8 +696,7 @@ export function liveBase(this: NoteLeaf, text: string, embed: string | null, mou
         mount.textContent = baseStrings.baseEmbedFailed;
         return;
       }
-      const body = f.data.text;
-      start({ path: rel, thisPath: this.path, folder: dirOf(rel), text: () => body, edit: null, viewName, key: rel });
+      start(embeddedBase(rel, this.path, f.data, viewName));
     });
   }
   return () => {
@@ -893,8 +892,8 @@ export async function embedImages(this: NoteLeaf, forPath: string, root: HTMLEle
       span.replaceWith(box);
       void opening.readText(rel).then((f) => {
         if (f.status !== "ok" || this.path !== forPath || this.destroyed) return;
-        const text = f.data.text;
-        const view = new BaseView(baseHost(), { path: rel, thisPath: source, folder: dirOf(rel), text: () => text, edit: null, viewName, key: rel });
+        // Edited in place: its menus write the `.base` file (ADR 0094 item 13).
+        const view = new BaseView(baseHost(), embeddedBase(rel, source, f.data, viewName));
         box.append(view.el);
         this.embeds.push(view);
         liveBases.add(view);

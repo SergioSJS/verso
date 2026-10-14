@@ -179,6 +179,7 @@ const pt = {
   openDaily: (d: string) => `Abrir a nota de ${d}`,
   createDaily: (d: string) => `Criar a nota de ${d}`,
   baseEmbedFailed: "Não foi possível carregar a base.",
+  embedChanged: "A base mudou em outro lugar: a mudança não foi gravada. A visão mostra o arquivo como ele está agora.",
 };
 
 type Strings = typeof pt;
@@ -358,6 +359,7 @@ const en: Strings = {
   openDaily: (d: string) => `Open the note of ${d}`,
   createDaily: (d: string) => `Create the note of ${d}`,
   baseEmbedFailed: "The base could not be loaded.",
+  embedChanged: "The base changed elsewhere: the change was not written. The view shows the file as it is now.",
 };
 
 export type BaseStrings = Strings;

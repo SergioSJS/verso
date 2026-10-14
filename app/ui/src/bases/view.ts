@@ -53,6 +53,9 @@ export type BaseSource = {
   edit: ((next: string) => void) | null;
   /** The view an embed names (`![[x.base#Nome]]`). */
   viewName: string | null;
+  /** Read the base again before each question: a `.base` file embedded
+   *  in a note, which another tab or window may have changed. */
+  reload?: () => Promise<void>;
   /** What the chosen view and the calendar's month are remembered by. */
   key: string;
 };
@@ -354,6 +357,10 @@ export class BaseView {
       return;
     }
     const seq = ++this.seq;
+    if (this.src.reload) {
+      await this.src.reload();
+      if (seq !== this.seq || this.gone) return;
+    }
     const text = this.src.text();
     const { cfg, index } = this.config(text);
     const r = await commands.queryBase({
