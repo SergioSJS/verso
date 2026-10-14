@@ -8,6 +8,8 @@
 // theirs, how to install it, that the `.sig` files can be ignored — in
 // English, then in pt-BR (English is the source, ADR 0008), and each
 // language ends with a short "what's new" and the full changelog folded.
+// Each "what's new" is marked (`<!-- verso:news:en -->` …
+// `<!-- verso:news:end -->`, and `pt-BR`) for the app's update panel.
 //
 // The files the guide names come from `releaseFiles`, the one list of what
 // .github/workflows/release.yml builds and uploads; scripts/release-page.test.mjs
@@ -240,6 +242,11 @@ function guide(lang, { version, changelog, linkOnly }) {
   const handsOn = `${GITHUB}/blob/main/${docs}reference/server-hands-on.md`;
   const news = highlights(changelog);
   const out = [
+    // An explicit anchor for the header's link: GitHub's Markdown API
+    // renders this heading with no id (`gh api markdown`, 2026-10-14),
+    // and keeps the anchor as `user-content-qual-arquivo-baixar`, which a
+    // `#qual-arquivo-baixar` link reaches as in a README.
+    ...(lang === "pt" ? ['<a id="qual-arquivo-baixar"></a>', ""] : []),
     `## ${w.which}`,
     "",
     w.oneFile,
@@ -310,7 +317,12 @@ function guide(lang, { version, changelog, linkOnly }) {
     `## ${w.news(version)}`,
     "",
   ];
+  // The app's update panel shows this part alone, in the window's
+  // language (app/ui/src/updateNews.ts): it is marked, and what follows
+  // it ("…and N more", the folded changelog) is outside the mark.
+  out.push(`<!-- verso:news:${lang === "en" ? "en" : "pt-BR"} -->`, "");
   for (const g of news.groups) out.push(`### ${g.name}`, "", ...g.items.map((item) => `- ${item}`), "");
+  out.push("<!-- verso:news:end -->", "");
   if (news.more > 0) out.push(`*${w.more(news.more)}*`, "");
   const changelogFile = lang === "en" ? "CHANGELOG.md" : "docs/pt-BR/CHANGELOG.md";
   if (linkOnly) {

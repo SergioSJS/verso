@@ -40,6 +40,9 @@
   in `scripts/release-page.mjs`, which a test checks against the names, the
   uploads and the count of `.github/workflows/release.yml`;
   `release.mjs preview` shows the next version's page before it is cut.
+  Each language's *what's new* is marked in the page, and the app's update
+  panel shows only that part, in the window's language, as plain lines
+  (`app/ui/src/updateNews.ts`).
 
 ## Context
 
