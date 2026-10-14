@@ -119,43 +119,6 @@ macro_rules! ops {
     };
 }
 
-/// The most of a file's text one answer or one write carries whole: 16 MB.
-/// A text is read whole, escaped into JSON and sent in one message, so
-/// one read of a file of any size held several times its size on a host
-/// of 1 GB (the review of 2026-10-13); no note or text a person edits by
-/// hand comes near it. A larger file is still a file of the folder:
-/// synced, served under `/f/`, listed — only not opened as text.
-pub const TEXT_MOST: u64 = 16 * 1024 * 1024;
-
-fn too_large_as_text(len: u64) -> OpError {
-    OpError::Contract(ContractError {
-        kind: ErrorKind::Refused,
-        message: format!(
-            "a file of {} MB is too large to open as text: 16 MB at most",
-            len.div_ceil(1024 * 1024)
-        ),
-    })
-}
-
-/// The file `path` within [`TEXT_MOST`], by its length on disk, before a
-/// byte of it is read. A path the folder refuses or that names nothing is
-/// left to the read, which says why.
-fn readable_as_text(ws: &mut Workspace, path: &str) -> Result<(), OpError> {
-    match ws.file_len(path) {
-        Some(len) if len > TEXT_MOST => Err(too_large_as_text(len)),
-        _ => Ok(()),
-    }
-}
-
-/// A text to write within [`TEXT_MOST`]: what is written must read back.
-fn writable_as_text(text: &str) -> Result<(), OpError> {
-    let len = u64::try_from(text.len()).unwrap_or(u64::MAX);
-    if len > TEXT_MOST {
-        return Err(too_large_as_text(len));
-    }
-    Ok(())
-}
-
 /// What command `name` does to the folder; `None` when it is not one.
 #[must_use]
 pub fn access(name: &str) -> Option<Access> {
@@ -174,8 +137,6 @@ ops! {
     /// A note's text as it is on disk, with what the index knows of it;
     /// `not_text` when its bytes are not UTF-8.
     Read fn read_note(ws, path: String) -> NoteText {
-        let key = ws.source_key(&path)?;
-        readable_as_text(ws, &key)?;
         Ok(note_out(ws.read_note(&path)?))
     }
 
@@ -237,7 +198,6 @@ ops! {
     /// normalization — and index it; `changed` when the file moved on
     /// meanwhile (invariant 11).
     Write fn write_note(ws, path: String, text: String, revision: String) -> Written {
-        writable_as_text(&text)?;
         let w = ws.write_note(&path, &text, &revision)?;
         Ok(Written {
             note: note_out(w.note),
@@ -285,7 +245,6 @@ ops! {
     /// The bytes of a text file that is not a note (UTF-8, lossily), for
     /// viewing only.
     Read fn read_file_text(ws, path: String) -> String {
-        readable_as_text(ws, &path)?;
         Ok(String::from_utf8_lossy(&ws.read_file(&path)?).into_owned())
     }
 
@@ -298,7 +257,6 @@ ops! {
     /// Create a note (`name`, with or without `.md`, folders created) with
     /// `text`; `exists` when something stands there (ADR 0048).
     Write fn create_note(ws, name: String, text: String) -> NoteText {
-        writable_as_text(&text)?;
         Ok(note_out(ws.create_note(&name, &text)?))
     }
 
@@ -420,19 +378,16 @@ ops! {
     /// Any file as text with its revision; `not_text` when its bytes are not
     /// UTF-8.
     Read fn read_text(ws, path: String) -> TextFile {
-        readable_as_text(ws, &path)?;
         Ok(text_out(ws.read_text(&path)?))
     }
 
     /// Write any file's text over the revision that was read (invariant 11).
     Write fn write_text(ws, path: String, text: String, revision: String) -> TextFile {
-        writable_as_text(&text)?;
         Ok(text_out(ws.write_text(&path, &text, &revision)?))
     }
 
     /// Save a board over the revision that was read (ADR 0057 point 2).
     Write fn write_board(ws, path: String, json: String, revision: String) -> TextFile {
-        writable_as_text(&json)?;
         Ok(text_out(ws.write_board(&path, &json, &revision)?))
     }
 

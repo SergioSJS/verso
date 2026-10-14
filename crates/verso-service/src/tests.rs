@@ -269,12 +269,12 @@ fn the_temporary_files_of_a_crash_go_when_the_folder_opens() {
     );
 }
 
-/// A file's text answered whole is 16 MB at most (the review of
-/// 2026-10-13): past it, `read_file_text`, `read_text` and `read_note`
-/// refuse, before the file is read, in words that say why; a smaller file
-/// is read as before.
+/// The 16 MB bound on a file's text is UniVerso's (ADR 0083; the server's
+/// `texts.rs`), never the desktop's: the commands called directly — as
+/// the app calls them on the person's own folder — read and write a 20 MB
+/// note and a 20 MB text file whole.
 #[test]
-fn a_text_answer_past_16_mb_is_refused_before_the_file_is_read() {
+fn the_desktop_path_reads_and_writes_a_20_mb_text_whole() {
     use std::io::Write;
     let dir = tempfile::tempdir().unwrap();
     let config = tempfile::tempdir().unwrap();
@@ -290,41 +290,24 @@ fn a_text_answer_past_16_mb_is_refused_before_the_file_is_read() {
         .open("a", move |c| Workspace::open(&path, c))
         .unwrap();
     service.attach("a", opened);
-    for (cmd, path) in [
-        ("read_file_text", "grande.txt"),
-        ("read_text", "grande.txt"),
-        ("read_note", "Grande.md"),
+    for (cmd, path, field) in [
+        ("read_file_text", "grande.txt", None),
+        ("read_text", "grande.txt", Some("text")),
+        ("read_note", "Grande.md", Some("text")),
     ] {
-        let answer = service
+        let read = service
             .dispatch("a", cmd, serde_json::json!({ "path": path }))
-            .unwrap();
-        let refused = answer
-            .as_ref()
-            .err()
-            .unwrap_or_else(|| panic!("{cmd} of a 20 MB file answered it whole"));
-        assert_eq!(refused.kind, ErrorKind::Refused, "{cmd}: {refused:?}");
-        assert!(refused.message.contains("16 MB"), "{cmd}: {refused:?}");
+            .unwrap()
+            .unwrap_or_else(|e| panic!("{cmd} of a 20 MB file on the desktop: {e:?}"));
+        let text = field.map_or(&read, |f| &read[f]);
+        assert_eq!(text.as_str().map(str::len), Some(big.len()), "{cmd}");
     }
-    // What is written must read back: a text past it is not written.
-    let written = service
+    let made = service
         .dispatch(
             "a",
             "create_note",
             serde_json::json!({"name": "Outra", "text": big.as_str()}),
         )
         .unwrap();
-    assert_eq!(written.unwrap_err().kind, ErrorKind::Refused);
-    let made = service
-        .dispatch(
-            "a",
-            "create_note",
-            serde_json::json!({"name": "Pequena", "text": "# Pequena\n"}),
-        )
-        .unwrap()
-        .unwrap();
-    let read = service
-        .dispatch("a", "read_note", serde_json::json!({"path": made["path"]}))
-        .unwrap()
-        .unwrap();
-    assert_eq!(read["text"], "# Pequena\n");
+    assert!(made.is_ok(), "{:?}", made.err());
 }

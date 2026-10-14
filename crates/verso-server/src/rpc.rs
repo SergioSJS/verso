@@ -957,6 +957,7 @@ async fn folder_run(
             && crate::collab::kind_of(&path) != crate::collab::Kind::Board
         {
             let text: String = arg(&args, "text")?;
+            crate::texts::writable(&text)?;
             let revision: String = arg(&args, "revision")?;
             let s = Arc::clone(server);
             let c = client.to_owned();
@@ -1006,6 +1007,11 @@ async fn folder_run(
                     to_value(verso_service::convert::trashed_out(gone))
                 })
         } else {
+            // A text past the server's bound, read or written: refused
+            // before the core reads or writes it (`crate::texts`).
+            service.with(&c, |ws| {
+                crate::texts::judged(ws, &n, &args).map_err(verso_service::OpError::Contract)
+            })?;
             service
                 .dispatch(&c, &n, args)
                 .unwrap_or_else(|| Err(refused("no such command")))

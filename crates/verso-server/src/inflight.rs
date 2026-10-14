@@ -34,7 +34,7 @@ use crate::state::Server;
 pub const SMALL: usize = 1024 * 1024;
 
 /// The most a command that carries a note's or a board's text may be: a
-/// text of 16 MB (`verso_service::ops::TEXT_MOST`, `collab_board`'s
+/// text of 16 MB (`crate::texts::TEXT_MOST`, `collab_board`'s
 /// `CANVAS_MOST`), escaped into JSON, with room; a room's update of 4 MB
 /// as base64 fits too.
 pub const TEXT: usize = 32 * 1024 * 1024;
