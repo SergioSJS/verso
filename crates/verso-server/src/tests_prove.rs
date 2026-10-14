@@ -147,7 +147,7 @@ fn every_sensitive_route_wants_a_proof_of_the_last_ten_minutes() {
         )
         .await;
         assert_eq!(status, 200, "{removed}");
-        // A device approved, by its link.
+        // A device approved, by the code entered.
         let (_, device) = post(
             &r,
             "/api/device/start",
@@ -161,8 +161,8 @@ fn every_sensitive_route_wants_a_proof_of_the_last_ten_minutes() {
             &admin,
             &me,
             Method::POST,
-            &format!("/api/device/{code}"),
-            Some(json!({})),
+            "/api/device/approve",
+            Some(json!({ "code": code })),
         )
         .await;
         assert_eq!(status, 200, "{approved}");
@@ -244,14 +244,34 @@ fn prove_first_says_nothing_of_what_was_asked() {
         let (_, device) = post(&r, "/api/device/start", json!({ "device": "Verso" }), None).await;
         let code = device["code"].as_str().unwrap();
         stale(&r, &me);
-        for (method, path) in [
-            (Method::POST, format!("/api/device/{code}")),
-            (Method::POST, "/api/device/ZZZZ-ZZZZ".to_owned()),
-            (Method::DELETE, format!("/api/admin/accounts/{me}")),
-            (Method::DELETE, "/api/admin/accounts/nobody".to_owned()),
-            (Method::DELETE, "/api/me/passkeys/nobody".to_owned()),
+        for (method, path, body) in [
+            (
+                Method::POST,
+                "/api/device/approve".to_owned(),
+                json!({ "code": code }),
+            ),
+            (
+                Method::POST,
+                "/api/device/approve".to_owned(),
+                json!({ "code": "ZZZZ-ZZZZ" }),
+            ),
+            (
+                Method::DELETE,
+                format!("/api/admin/accounts/{me}"),
+                json!({}),
+            ),
+            (
+                Method::DELETE,
+                "/api/admin/accounts/nobody".to_owned(),
+                json!({}),
+            ),
+            (
+                Method::DELETE,
+                "/api/me/passkeys/nobody".to_owned(),
+                json!({}),
+            ),
         ] {
-            let said = send(&r, method.clone(), &path, Some(json!({})), &admin).await;
+            let said = send(&r, method.clone(), &path, Some(body), &admin).await;
             assert_eq!(said, prove_first(), "{method} {path}");
         }
     });
@@ -411,11 +431,12 @@ fn a_passkey_proves_only_through_its_own_ceremony() {
     });
 }
 
-/// A code typed on the device's page (ADR 0083 item 17) and a code in the
-/// link are one door: a wrong one, either way, counts against the
-/// `device:` key of the address, and past the free failures waits.
+/// A wrong code entered on the device's page (ADR 0083 item 17) counts
+/// against the `device:` key of the address, and past the free failures
+/// waits — the only door since the code left the address (decided
+/// 2026-10-14; `a_code_in_the_address_approves_nothing`).
 #[test]
-fn a_typed_wrong_code_is_delayed_like_a_wrong_link() {
+fn a_typed_wrong_code_is_delayed() {
     use reqwest::Method;
     block_on(async {
         let r = start().await;
@@ -446,21 +467,10 @@ fn a_typed_wrong_code_is_delayed_like_a_wrong_link() {
         ];
         r.server.limiter.succeeded("device:127.0.0.1");
         let mut typed = Vec::new();
-        for (method, path, body) in tries.clone() {
+        for (method, path, body) in tries {
             typed.push(send(&r, method, path, Some(body), &admin).await.0);
         }
         assert_eq!(typed, [404, 404, 404, 429], "a typed code");
-        r.server.limiter.succeeded("device:127.0.0.1");
-        let mut linked = Vec::new();
-        for (method, path) in [
-            (Method::POST, "/api/device/BCDF-GHJK"),
-            (Method::GET, "/api/device/BCDF-GHJK"),
-            (Method::DELETE, "/api/device/BCDF-GHJK"),
-            (Method::POST, "/api/device/ZZZZ-ZZZZ"),
-        ] {
-            linked.push(send(&r, method, path, Some(json!({})), &admin).await.0);
-        }
-        assert_eq!(linked, [404, 404, 404, 429], "a code in the link");
     });
 }
 
@@ -526,6 +536,58 @@ fn a_typed_right_code_approves_the_device() {
             done["token"].as_str().is_some_and(|t| !t.is_empty()),
             "{done}"
         );
+    });
+}
+
+/// A device is approved only with the code the person entered (decided
+/// 2026-10-14, ADR 0083 As built): the routes that took the code from the
+/// address — `GET`, `POST` and `DELETE /api/device/{code}`, which a link
+/// sent by someone else filled in — are gone, for a code that exists as
+/// for one that does not, with a fresh proof and all; the code stays
+/// pending, and the body's routes still describe it.
+#[test]
+fn a_code_in_the_address_approves_nothing() {
+    use reqwest::Method;
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let (_, device) = post(
+            &r,
+            "/api/device/start",
+            json!({ "device": "Verso · Link" }),
+            None,
+        )
+        .await;
+        let code = device["code"].as_str().unwrap().to_owned();
+        let poll = device["poll"].as_str().unwrap().to_owned();
+        for path in [
+            format!("/api/device/{code}"),
+            "/api/device/BCDF-GHJK".to_owned(),
+        ] {
+            for method in [Method::GET, Method::POST, Method::DELETE] {
+                let (status, said) = send(&r, method.clone(), &path, Some(json!({})), &admin).await;
+                assert!(
+                    status == 404 || status == 405,
+                    "{method} {path} answered {status}: {said}"
+                );
+            }
+        }
+        let (_, waiting) = post(
+            &r,
+            "/api/device/poll",
+            json!({ "code": code, "poll": poll }),
+            None,
+        )
+        .await;
+        assert_eq!(waiting["pending"], true, "{waiting}");
+        let (status, what) = post(
+            &r,
+            "/api/device/describe",
+            json!({ "code": code }),
+            Some(&admin),
+        )
+        .await;
+        assert_eq!(status, 200, "{what}");
     });
 }
 
@@ -683,8 +745,8 @@ fn a_device_session_is_not_proved_by_its_approval() {
         let (status, approved) = send(
             &r,
             Method::POST,
-            &format!("/api/device/{code}"),
-            Some(json!({})),
+            "/api/device/approve",
+            Some(json!({ "code": code })),
             &admin,
         )
         .await;

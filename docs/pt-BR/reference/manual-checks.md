@@ -42,11 +42,22 @@ app real.
   mesmo no *Aprovar este aparelho* da página do aparelho. O Escape fecha
   o diálogo e nada é criado; o VoiceOver lê o título e a linha do
   diálogo.
+- [ ] **Conectar o app copia o código, e a página o pede** (decidido em
+  2026-10-14, ADR 0083 Como construído): no app instalado, *Ajustes ›
+  Servidores*, o endereço do servidor, *Conectar*: a linha diz *Código
+  copiado — cole na página que abriu:* com o código, e o navegador abre a
+  `/device` do servidor com o campo *Código do aplicativo* vazio; ⌘V
+  (Ctrl+V no Windows e no Linux) cola o código, *Continuar* mostra quem
+  pediu, *Aprovar este aparelho* conecta o app. No Windows (WebView2) e
+  no Linux (WebKitGTK) como no Mac; onde o sistema recusa a cópia, a linha
+  diz *Digite este código na página que abriu:* no lugar e o código é
+  digitado. Um link `/device?code=…` aberto à mão mostra o mesmo campo
+  vazio e não envia nada.
 - [ ] **A página do aparelho com um código digitado** (item 17 da ADR
-  0083, 73807d2): `/device` aberta à mão, sem o código no endereço, pede
-  *Digite o código que o aplicativo mostra na tela dele.*; o código que o
-  app mostra, digitado em minúsculas e sem o traço, é aceito, e a página
-  mostra *Código que você digitou* ao lado de quem pediu antes de
+  0083, 73807d2): `/device` aberta à mão pede *Cole o código que o
+  aplicativo copiou, ou digite o que ele mostra na tela dele.*; o código
+  que o app mostra, digitado em minúsculas e sem o traço, é aceito, e a
+  página mostra *Código que você informou* ao lado de quem pediu antes de
   *Aprovar* ou *Não fui eu: recusar*; um código digitado errado diz *Um
   código tem oito letras…* ou responde como desconhecido, e alguns
   errados seguidos fazem a página esperar antes do próximo; o app então

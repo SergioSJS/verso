@@ -408,11 +408,22 @@ export const commands = {
 	 */
 	collabCanvas: (path: string, at: string, json: string) => typedError<null, ContractError>(__TAURI_INVOKE("collab_canvas", { path, at, json })),
 	/**
-	 *  Sign in to a server through the browser: the server's page opens for the
-	 *  person to approve this device; the app asks meanwhile, keeps the token
-	 *  when it comes, and says so (`server-signed-in`).
+	 *  Sign in to a server through the browser (`gh auth login`'s way): the
+	 *  server gives a code, which the window copies to the clipboard before it
+	 *  opens the server's page (`server_sign_in_page`), where the person
+	 *  pastes it to approve this device — the page takes no code from its
+	 *  link (decided 2026-10-14, ADR 0083 As built). The app asks meanwhile,
+	 *  keeps the token when it comes, and says so (`server-signed-in`).
 	 */
 	serverSignIn: (url: string) => typedError<ServerSignIn, ContractError>(__TAURI_INVOKE("server_sign_in", { url })),
+	/**
+	 *  Open in the browser the server's page the last `server_sign_in` was
+	 *  handed, once (decided 2026-10-14, ADR 0083 As built): the window calls
+	 *  it after copying the code, before the browser takes the focus a
+	 *  clipboard write asks for. The window names no address: it can open
+	 *  nothing a server did not name.
+	 */
+	serverSignInPage: () => typedError<null, ContractError>(__TAURI_INVOKE("server_sign_in_page")),
 	/**  The servers this app is signed in to. */
 	serverAccounts: () => typedError<ServerAccount[], ContractError>(__TAURI_INVOKE("server_accounts")),
 	/**

@@ -73,6 +73,7 @@ um servidor com a próxima release (`CHANGELOG.md`, Unreleased):
 | o filtro e a jail do fail2ban instalados pelos pacotes, e a linha do log que eles leem (item 1) | não |
 | senha recusada quando está entre as mais comuns, ou quando é o e-mail da conta (item 3) | não: 12 caracteres no mínimo é a única regra |
 | "Confirme que é você" antes de aprovar um aparelho, e a página que aceita um código digitado (itens 6 e 17) | não: o aparelho é aprovado sem isso |
+| o app copiando o código e a página que sempre o pede, nunca do link (decidido em 2026-10-14) | não: o app mostra o código, e a página aberta pelo link do app o aprova com um clique |
 | uma lista de endereços em `VERSO_TRUSTED_PROXY`, e a linha do log quando o proxy não repassa endereço (item 5) | não: um endereço |
 | o endurecimento do arquivo compose (`read_only` e o resto, item 11) | não; e a cópia do `docker-compose.yml` da v0.8.0-beta.1 não é YAML válido (dois-pontos sem aspas no tagline do CasaOS), e por isso o caminho B escreve o arquivo inteiro. O endurecimento foi verificado com o código de depois da v0.8.0-beta.1, não com a imagem da v0.8.0-beta.1 (manual, seção 15) |
 | `VERSO_AUDIT_DAYS` (item 10) | não |
@@ -695,20 +696,30 @@ No app Verso do seu computador:
    `https://notas.exemplo.com` — com `https://`; o app recusa `http://`
    para qualquer coisa que não seja `localhost` ("a server is reached over
    https").
-4. Clique em **Conectar** (*Connect*). O app mostra *No navegador, confira
-   o código* **XXXX-XXXX** *e permita. Esperando…*, e abre a página do
-   servidor no seu navegador.
+4. Clique em **Conectar** (*Connect*). O app copia o código para a área
+   de transferência, mostra *Código copiado — cole na página que abriu:*
+   **XXXX-XXXX***. Esperando…*, e abre a página do servidor no seu
+   navegador. (Quando o sistema recusa a cópia, a linha diz *Digite este
+   código na página que abriu:* no lugar.)
 
-<!-- screenshot: Ajustes › Servidores do app, o campo "Endereço do servidor" com https://notas.exemplo.com e o botão Conectar; e a linha "No navegador, confira o código … e permita. Esperando…" com um código -->
+<!-- screenshot: Ajustes › Servidores do app, o campo "Endereço do servidor" com https://notas.exemplo.com e o botão Conectar; e a linha "Código copiado — cole na página que abriu: … Esperando…" com um código -->
 
 ### Aprovando o aparelho no navegador
 
 5. Se o navegador não está conectado ao servidor, a página de entrada vem
    antes: **E-mail**, **Senha**, **Entrar**; depois ela volta à página do
    aparelho.
-6. A página **Conectar um aplicativo** (*Connect an app*) diz qual
-   aparelho pede e mostra **Quem pediu**, **Aparelho**, **Endereço** e
-   **Quando**. Confira se o código é o mesmo que o app mostra.
+6. A página **Conectar um aplicativo** (*Connect an app*) pede o código
+   do app, no campo **Código do aplicativo** (*The app's code*): cole-o
+   (⌘V, ou Ctrl+V) — ou digite o que o app mostra — e clique em
+   **Continuar** (*Continue*). A página nunca preenche o código sozinha,
+   nem a partir de um link: um link que outra pessoa lhe manda, com o
+   código dela, não aprova nada até você informar o código do app à sua
+   frente (decidido em 2026-10-14,
+   [ADR 0083](../adr/0083-security-hardening-of-universo.md), Como
+   construído). Ela então diz qual aparelho pede e mostra **Código que
+   você informou**, **Quem pediu**, **Aparelho**, **Endereço** e
+   **Quando**.
 7. Clique em **Aprovar este aparelho: …** (*Approve this device: …*), ou
    em **Não fui eu: recusar** se você não pediu.
 8. A partir da versão de depois da v0.8.0-beta.1: se a sua última entrada
@@ -726,6 +737,16 @@ igual à do servidor). O código vale 10 minutos; depois disso, clique em
 Conectar de novo. O nome do aparelho, que aparece na lista de sessões do
 servidor, se define na mesma seção, **Nome deste aparelho**.
 
+A sessão do app leva os poderes da conta, os de admin inclusive (decidido
+em 2026-10-14, [ADR 0083](../adr/0083-security-hardening-of-universo.md),
+Como construído). Uma ação sensível feita com ela — compartilhar uma pasta
+e, para um admin, os atos do console sobre outras contas ou entrar numa
+pasta — pede a senha de novo antes, como o navegador pede: a sessão do app
+começa sem confirmação, então a primeira ação dessas sempre pede, e de novo
+sempre que a última confirmação passou de 10 minutos (item 6). No app só a
+senha confirma; uma passkey é do navegador.
+
+<!-- screenshot: a página "Conectar um aplicativo" no navegador pedindo o código: o campo "Código do aplicativo", vazio, e Continuar -->
 <!-- screenshot: a página "Conectar um aplicativo" no navegador: Quem pediu, Aparelho, Endereço, Quando, e os botões "Aprovar este aparelho: …" e "Não fui eu: recusar" -->
 <!-- screenshot: a janela "Confirme que é você" sobre a página do aparelho (versão de depois da v0.8.0-beta.1) -->
 <!-- screenshot: Ajustes › Servidores do app depois de conectar: "Conectado como …" e "Pastas em notas.exemplo.com" com Abrir aqui e Sincronizar -->

@@ -735,6 +735,46 @@ ao lado de outra janela (a ordem do (e)), o diálogo do item 6 com senha e
 com passkey, o código digitado do item 17, o Mermaid 12.2.0 (item 13) e
 os passos do Caddy do `universo.sh` ao lado de outro site (7755802).
 
+**As decisões do mantenedor de 2026-10-14.** Quatro pontos deixados pela
+segunda revisão de entrada e acesso, enviados com uma recomendação cada,
+respondidos em 2026-10-14: *"com exceção do 3, sim pra recomendado. O 3:
+Mudo a recomendação: deixa o app com acesso de admin"*.
+
+- (1) 2026-10-14 — um aparelho só é aprovado com o código da tela da
+  própria pessoa, como faz a CLI do GitHub: o app desktop copia o código
+  para a área de transferência quando começa o fluxo, diz "Código copiado
+  — cole na página que abriu", e só então abre a página
+  (`serverSignIn.ts`; o novo `server_sign_in_page` do host abre a página
+  que o servidor nomeou, uma vez, para que a cópia aconteça enquanto a
+  janela ainda tem o foco); a página nunca preenche nem aprova a partir do
+  link e sempre mostra o campo do código, com rótulo; o `start` responde o
+  endereço da página sem `?code=`, e as rotas de caminho
+  `/api/device/{code}` do servidor saem — um endereço sob `/api/` que
+  nenhuma rota nomeia responde 404 —, então descrever, aprovar e recusar
+  só existem pelas rotas de corpo com o código informado, atrás da mesma
+  espera e da comparação em tempo constante. Isso revisa o "a página de
+  aparelho mantém o link" do item 17 e o "as rotas com o código no
+  caminho continuam" do seu Como construído.
+- (2) 2026-10-14 — o `universo.sh backup --encrypt` ou `--passphrase`
+  sem o `age` para com um erro e não grava nada, nem arquivo nem fluxo,
+  dizendo como instalar o `age` na família desta máquina (`age_install`,
+  ao lado do `caddy_install` sobre o `dnf_install` comum); o backup
+  simples só é feito quando nenhuma criptografia é pedida. Isso substitui
+  o "sem o `age`, o script diz como instalá-lo e faz o tarball puro com
+  o aviso atual em maiúsculas" do item 12.
+- (3) 2026-10-14 — a recomendação mudada pelo mantenedor: a sessão de
+  aparelho do app desktop mantém as rotas de admin, cada uma sensível
+  atrás da prova recente do item 6, como está desde o 463ed1a (a sessão
+  de um aparelho nasce sem prova) e o 0e9175d (o app prova com a senha).
+  Nenhum código muda; a seção 9 do `server-install.md` e o
+  `server-hands-on.md` dizem que uma ação de admin pelo app pede a senha
+  de novo.
+- (4) 2026-10-14 — o nome da nota de pasta é do dono da pasta, como as
+  regras de varredura: um membro que não é o dono mudando os ajustes da
+  pasta (`set_folder_settings`) deixa o `folder_note_name` como estava,
+  como o `set_folder_note_name` já fazia (`rpc.rs`,
+  `without_owners_settings`); a mudança do dono o define.
+
 ## Consequências
 
 - O que as pessoas sentem: uma senha que escolheram recusada no setup ou

@@ -1368,6 +1368,7 @@ export class Core {
     // No server signed in to from the harness (ADR 0073 item 2).
     server_accounts: () => [],
     server_sign_in: () => refuse("unavailable", "no server in the harness"),
+    server_sign_in_page: () => refuse("refused", "no server's page waits to be opened"),
     server_sign_out: () => null,
     server_folders: () => [],
     server_open: () => refuse("unavailable", "no server in the harness"),

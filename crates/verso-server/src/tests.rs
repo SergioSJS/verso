@@ -684,9 +684,21 @@ fn the_desktop_signs_in_through_the_browser() {
         )
         .await;
         assert_eq!(waiting["pending"], true);
-        let (_, what) = get(&r, &format!("/api/device/{code}"), Some(&admin)).await;
+        let (_, what) = post(
+            &r,
+            "/api/device/describe",
+            json!({ "code": code }),
+            Some(&admin),
+        )
+        .await;
         assert_eq!(what["device"], "Verso · MacBook");
-        let (status, _) = post(&r, &format!("/api/device/{code}"), json!({}), Some(&admin)).await;
+        let (status, _) = post(
+            &r,
+            "/api/device/approve",
+            json!({ "code": code }),
+            Some(&admin),
+        )
+        .await;
         assert_eq!(status, 200);
         let (_, done) = post(
             &r,

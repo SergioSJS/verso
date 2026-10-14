@@ -711,6 +711,47 @@ another window (the order of (e)), item 6's dialog with a password and a
 passkey, item 17's typed code, Mermaid 12.2.0 (item 13), and
 `universo.sh`'s Caddy steps beside another site (7755802).
 
+**The maintainer's decisions of 2026-10-14.** Four points left by the
+second review of sign-in and access, sent with a recommendation each,
+answered on 2026-10-14: *"com exceção do 3, sim pra recomendado. O 3:
+Mudo a recomendação: deixa o app com acesso de admin"* (except for 3,
+yes to the recommended. On 3: I change the recommendation: leave the app
+with admin access).
+
+- (1) 2026-10-14 — a device is approved only with the code from the
+  person's own screen, as GitHub's CLI does: the desktop app copies the
+  code to the clipboard when it starts the flow, says "Code copied —
+  paste it on the page that opened", and only then opens the page
+  (`serverSignIn.ts`; the host's new `server_sign_in_page` opens the page
+  the server named, once, so that the copy happens while the window still
+  has the focus); the page never pre-fills or approves from its link and
+  always shows the labelled code field; `start` answers the page's
+  address without `?code=`, and the server's path routes
+  `/api/device/{code}` are removed — an address under `/api/` no route
+  names answers 404 — so describing, approving and refusing exist only
+  through the body's routes with the entered code, behind the same delay
+  and constant-time comparison. This revises item 17's "the device page
+  keeps its link" and its As built "the path routes stay".
+- (2) 2026-10-14 — `universo.sh backup --encrypt` or `--passphrase`
+  without `age` stops with an error and writes nothing, neither a file
+  nor a stream, saying how to install `age` on this machine's family
+  (`age_install`, beside `caddy_install` on the shared `dnf_install`);
+  the plain backup is made only when no encryption is asked. This
+  replaces item 12's "without `age`, the script says how to install it
+  and makes the plain tarball with the present warning in capitals".
+- (3) 2026-10-14 — the recommendation changed by the maintainer: a
+  desktop app's device session keeps the admin's routes, each sensitive
+  one behind item 6's fresh proof, as it is since 463ed1a (a device's
+  session born unproved) and 0e9175d (the app proves with the password).
+  No code changes; `server-install.md` section 9 and
+  `server-hands-on.md` say that an admin action from the app asks for the
+  password again.
+- (4) 2026-10-14 — the folder note's name is the folder owner's, as the
+  walk's rules are: a member who is not the owner changing the folder's
+  settings (`set_folder_settings`) leaves `folder_note_name` as it was,
+  as `set_folder_note_name` already did (`rpc.rs`,
+  `without_owners_settings`); the owner's change sets it.
+
 ## Consequences
 
 - What people feel: a password they chose refused at setup or at an

@@ -73,6 +73,7 @@ reaches a server with the next release (`CHANGELOG.md`, Unreleased):
 | the fail2ban filter and jail installed by the packages, and the log line they read (item 1) | no |
 | a password refused when it is among the commonest, or the account's e-mail (item 3) | no: 12 characters at least is the only rule |
 | "Confirm it is you" before approving a device, and the page that takes a typed code (items 6 and 17) | no: the device is approved without it |
+| the app copying the code and the page that always asks for it, never from its link (decided 2026-10-14) | no: the app shows the code, and the page opened from the app's link approves it with one click |
 | a list of addresses in `VERSO_TRUSTED_PROXY`, and the log's line when the proxy forwards no address (item 5) | no: one address |
 | the compose file's hardening (`read_only` and the rest, item 11) | no; and the v0.8.0-beta.1 copy of `docker-compose.yml` does not parse (an unquoted colon in its CasaOS tagline), which is why Path B writes the file out whole. The hardening was verified with the code after v0.8.0-beta.1, not with the v0.8.0-beta.1 image (guide, section 15) |
 | `VERSO_AUDIT_DAYS` (item 10) | no |
@@ -691,20 +692,28 @@ In the Verso app on your computer:
    `https://notes.example.com` — with `https://`; the app refuses
    `http://` for anything but `localhost` ("a server is reached over
    https").
-4. Click **Connect** (*Conectar*). The app shows *In the browser, check
-   the code* **XXXX-XXXX** *and allow it. Waiting…*, and opens the
-   server's page in your browser.
+4. Click **Connect** (*Conectar*). The app copies the code to the
+   clipboard, shows *Code copied — paste it on the page that opened:*
+   **XXXX-XXXX***. Waiting…*, and opens the server's page in your
+   browser. (When the system refuses the copy, the line says *Type this
+   code on the page that opened:* instead.)
 
-<!-- screenshot: the app's Settings › Servers, the "Server address" field filled with https://notes.example.com and the Connect button; and the line "In the browser, check the code … and allow it. Waiting…" with a code -->
+<!-- screenshot: the app's Settings › Servers, the "Server address" field filled with https://notes.example.com and the Connect button; and the line "Code copied — paste it on the page that opened: … Waiting…" with a code -->
 
 ### Approving the device in the browser
 
 5. If the browser is not signed in to the server, the sign-in page comes
    first: **E-mail**, **Password**, **Sign in**; it then returns to the
    device's page.
-6. The page **Connect an app** (*Conectar um aplicativo*) says which device
-   asks and shows **Who asked**, **Device**, **Address** and **When**.
-   Check that the code is the one the app shows.
+6. The page **Connect an app** (*Conectar um aplicativo*) asks for the
+   app's code, in the field **The app's code** (*Código do aplicativo*):
+   paste it (⌘V, or Ctrl+V) — or type the one the app shows — and click
+   **Continue** (*Continuar*). The page never fills the code in by itself,
+   not even from a link: a link someone else sends you, with their code,
+   approves nothing until you enter the code of the app in front of you
+   (decided 2026-10-14, [ADR 0083](../adr/0083-security-hardening-of-universo.md),
+   As built). It then says which device asks and shows **Code you
+   entered**, **Who asked**, **Device**, **Address** and **When**.
 7. Click **Approve this device: …** (*Aprovar este aparelho: …*), or
    **It was not me: refuse** if you did not ask.
 8. From the version after v0.8.0-beta.1: if your last sign-in or
@@ -721,6 +730,16 @@ same as the server's). The code is valid for 10 minutes; past that, click
 Connect again. The device's name, shown in the server's list of sessions,
 is set in the same section, **This device's name**.
 
+The app's session carries the account's powers, an admin's included
+(decided 2026-10-14, [ADR 0083](../adr/0083-security-hardening-of-universo.md),
+As built). A sensitive action made with it — sharing a folder, and, for an
+admin, the console's acts on other accounts or entering a folder — asks for
+the password again first, as the browser does: the app's session starts
+unconfirmed, so its first such action always asks, and again whenever the
+last confirmation is more than 10 minutes old (item 6). In the app only
+the password confirms; a passkey belongs to the browser.
+
+<!-- screenshot: the browser's "Connect an app" page asking for the code: the field "The app's code", empty, and Continue -->
 <!-- screenshot: the browser's "Connect an app" page: Who asked, Device, Address, When, and the buttons "Approve this device: …" and "It was not me: refuse" -->
 <!-- screenshot: the "Confirm it is you" dialog over the device page (version after v0.8.0-beta.1) -->
 <!-- screenshot: the app's Settings › Servers after connecting: "Connected as …" and "Folders on notes.example.com" with Open here and Sync -->

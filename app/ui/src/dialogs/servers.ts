@@ -18,6 +18,7 @@ import { currentFolder, folderName, LAST_FOLDER } from "../folder";
 import { currentSync, openSettingsSection, preselectSync } from "./sync";
 import { openFolderBy } from "../open";
 import { sh } from "../shareStrings";
+import { copyWhenKnown, startSignIn } from "../serverSignIn";
 
 /** A sentence whose names stand out: a name is `[name]`. */
 type Said = (string | [string])[];
@@ -25,11 +26,14 @@ type Said = (string | [string])[];
 const pt = {
   section: "Servidores",
   connect: "Conectar a um servidor",
-  connectDesc: "Um UniVerso — um servidor Verso — onde você tem conta. O navegador abre a página dele para você entrar e permitir este computador; ninguém cola senha aqui.",
+  connectDesc: "Um UniVerso — um servidor Verso — onde você tem conta. O navegador abre a página dele para você entrar, colar o código que este app copia e permitir este computador; ninguém cola senha aqui.",
   addressLabel: "Endereço do servidor",
   connectButton: "Conectar",
-  waitingBefore: "No navegador, confira o código ",
-  waitingAfter: " e permita. Esperando…",
+  // The code is copied before the page opens (decided 2026-10-14, ADR
+  // 0083 As built); shown as well, to type when the copy was refused.
+  copied: "Código copiado — cole na página que abriu: ",
+  notCopied: "Digite este código na página que abriu: ",
+  waiting: ". Esperando…",
   signedIn: (who: string) => `Conectado como ${who}.`,
   account: (a: ServerAccount) => `${a.name} <${a.email}>`,
   as: (name: string, email: string) => `Você entra como ${name} · ${email}`,
@@ -63,11 +67,12 @@ const pt = {
 const en: typeof pt = {
   section: "Servers",
   connect: "Connect to a server",
-  connectDesc: "A UniVerso — a Verso server — where you have an account. The browser opens its page for you to sign in and allow this computer; no password is pasted here.",
+  connectDesc: "A UniVerso — a Verso server — where you have an account. The browser opens its page for you to sign in, paste the code this app copies and allow this computer; no password is pasted here.",
   addressLabel: "Server address",
   connectButton: "Connect",
-  waitingBefore: "In the browser, check the code ",
-  waitingAfter: " and allow it. Waiting…",
+  copied: "Code copied — paste it on the page that opened: ",
+  notCopied: "Type this code on the page that opened: ",
+  waiting: ". Waiting…",
   signedIn: (who: string) => `Connected as ${who}.`,
   account: (a: ServerAccount) => `${a.name} <${a.email}>`,
   as: (name: string, email: string) => `You sign in as ${name} · ${email}`,
@@ -181,10 +186,12 @@ export function serversBody(_item: (title: string, desc: string, control: HTMLEl
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     go.disabled = true;
-    void commands.serverSignIn(url.value).then((r) => {
+    // The clipboard is asked inside the click, the page opened after the
+    // copy (serverSignIn.ts).
+    void startSignIn(url.value, { signIn: commands.serverSignIn, open: commands.serverSignInPage, copy: copyWhenKnown }).then((r) => {
       go.disabled = false;
       if (r.status !== "ok") return fail(r.error);
-      said.replaceChildren(s.waitingBefore, h("strong", "srv-code", r.data.code), s.waitingAfter);
+      said.replaceChildren(r.copied ? s.copied : s.notCopied, h("strong", "srv-code", r.code), s.waiting);
     });
   });
   void listen<ServerAccount>("server-signed-in", (e) => {

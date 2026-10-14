@@ -18,8 +18,9 @@
 #
 # Then the script test (ADR 0083 item 12): packaging/server/universo.sh's
 # backup and restore, run as root in a Debian container on a server's
-# directories laid out as the package leaves them — without age first (the
-# plain tarball and its warning), then with age: a throw-away key made by
+# directories laid out as the package leaves them — without age first
+# (--encrypt and --passphrase refused with nothing written, the plain
+# tarball when no encryption is asked), then with age: a throw-away key made by
 # `backup --keygen`, an encrypted backup, a restore into a scratch root
 # compared file by file, mode and owner with the original; a restore over
 # / that gives a changed note back, and backups holding something a backup
@@ -70,11 +71,21 @@ if [ "${1:-}" = "--universo-sh" ]; then
   chown root:universo /etc/universo/universo.env && chmod 0640 /etc/universo/universo.env
   mkdir -p /elsewhere
 
-  printf '\n== without age: --encrypt says how to get it, and the plain tarball is warned in capitals\n'
-  out="$($u backup --encrypt /backups 2>&1)" || fail "backup without age: $out"
-  printf '%s\n' "$out"
-  grep -q 'apt install age' <<<"$out" || fail "no word of installing age"
-  grep -q 'IS NOT ENCRYPTED' <<<"$out" || fail "no warning in capitals"
+  printf '\n== without age: --encrypt and --passphrase stop, say how to install age, and write nothing\n'
+  # Decided 2026-10-14 (ADR 0083, As built): no plain backup in place of an
+  # encrypted one asked for, neither a file nor a stream.
+  for flag in --encrypt --passphrase; do
+    if $u backup $flag /backups > /tmp/noage.out 2>&1; then fail "backup $flag without age went ahead: $(cat /tmp/noage.out)"; fi
+    cat /tmp/noage.out
+    grep -q 'sudo apt install age' /tmp/noage.out || fail "backup $flag without age does not say how to install it"
+    [ -z "$(ls -A /backups 2>/dev/null)" ] || fail "backup $flag without age wrote $(ls /backups)"
+    if $u backup --to-stdout $flag > /tmp/noage.stdout 2> /tmp/noage.out; then fail "backup --to-stdout $flag without age went ahead"; fi
+    [ ! -s /tmp/noage.stdout ] || fail "backup --to-stdout $flag without age wrote $(wc -c < /tmp/noage.stdout) bytes to standard output"
+    grep -q 'sudo apt install age' /tmp/noage.out || fail "backup --to-stdout $flag without age does not say how to install it"
+  done
+  printf '\n== without age and no encryption asked: the plain backup\n'
+  $u backup /backups > /tmp/plain.out 2>&1 || fail "plain backup: $(cat /tmp/plain.out)"
+  cat /tmp/plain.out
   plain="$(ls /backups/*.tar.gz)"
   tar -tzf "$plain" > /tmp/listed || fail "$plain is no tarball"
   grep -q '^var/lib/universo/folders/Campanha/mapa.png$' /tmp/listed || fail "$plain lacks the notes"
@@ -245,6 +256,15 @@ EOF
   family rocky 9.5 | grep -qx 'sudo dnf install epel-release && sudo dnf install caddy' || fail "Rocky's line"
   family rhel 9.4 | grep -qF 'epel-release-latest-9.noarch.rpm' || fail "RHEL's line"
   family opensuse 15 | grep -qF 'copr enable @caddy/caddy' || fail "the fallback's alternatives"
+  # age, by the same families (what --encrypt says when age is missing).
+  age_family() {
+    printf 'ID=%s\nVERSION_ID=%s\n' "$1" "$2" > /tmp/os-release
+    OS_RELEASE=/tmp/os-release UNIVERSO_SH_FUNCTIONS=1 sh -c '. /src/packaging/server/universo.sh; PM=rpm; age_install'
+  }
+  age_family fedora 42 | grep -qx 'sudo dnf install age' || fail "Fedora's age line"
+  age_family ol 9.8 | grep -qx 'sudo dnf install oracle-epel-release-el9 && sudo dnf install age' || fail "Oracle Linux's age line"
+  age_family rocky 9.5 | grep -qx 'sudo dnf install epel-release && sudo dnf install age' || fail "Rocky's age line"
+  age_family rhel 9.4 | grep -qF 'epel-release-latest-9.noarch.rpm && sudo dnf install age' || fail "RHEL's age line"
 
   printf '\nthe backup script makes, encrypts and restores backups; its Caddy steps keep the sites there\n'
   exit 0

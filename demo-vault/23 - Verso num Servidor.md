@@ -71,7 +71,7 @@ Numa nota, num board ou num arquivo de texto que mudou em disco enquanto você d
 
 ## Do app desktop
 
-Em **Ajustes › Servidores**, escreva o endereço do servidor e conecte: o navegador abre a página do servidor para você **permitir este computador** — ninguém cola token. A página diz **quem pediu** — o nome do aparelho, o endereço e a hora do pedido — e pergunta: *Foi você quem pediu, neste aparelho?* **Aprovar este aparelho** ou **Não fui eu: recusar**. Um link que alguém mandou para você aprovar o aparelho dele mostra um endereço e uma hora que não são os seus: recuse. Depois, escolha uma pasta do servidor, e a janela a mostra como se estivesse aqui.
+Em **Ajustes › Servidores**, escreva o endereço do servidor e conecte: o app **copia um código** para a área de transferência e o navegador abre a página do servidor, onde você **cola o código** (ou digita o que o app mostra) para **permitir este computador** — ninguém cola token. A página nunca pega o código de um link: um link que alguém mandou para você, com o código do aparelho dele, não aprova nada até você colar o código do app à sua frente. Depois do código, a página diz **quem pediu** — o nome do aparelho, o endereço e a hora do pedido — e pergunta: *Foi você quem pediu, neste aparelho?* **Aprovar este aparelho** ou **Não fui eu: recusar**. Um endereço e uma hora que não são os seus: recuse. Depois, escolha uma pasta do servidor, e a janela a mostra como se estivesse aqui.
 
 Ali também fica o **nome deste aparelho** — por padrão, o nome do sistema. Dê um nome seu (dois computadores com o mesmo nome de sistema deixam de se confundir): ele vai no nome das cópias de conflito, na lista de sessões do servidor e nas últimas mudanças de cada pasta.
 

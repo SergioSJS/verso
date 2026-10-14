@@ -1126,3 +1126,12 @@ fn a_servers_prove_first_is_its_own_kind() {
         verso_contract::ErrorKind::NotFound
     );
 }
+
+/// The window opens the server's page only after it copied the code, and
+/// only the page a sign-in was handed (decided 2026-10-14, ADR 0083 As
+/// built): with none waiting, the command opens nothing.
+#[test]
+fn the_sign_in_page_opens_nothing_a_server_did_not_name() {
+    let none = remote::server_sign_in_page().unwrap_err();
+    assert_eq!(none.kind, verso_contract::ErrorKind::Refused, "{none:?}");
+}
