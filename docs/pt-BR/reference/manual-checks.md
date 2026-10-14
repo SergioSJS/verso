@@ -8,7 +8,9 @@
 O que os testes automáticos não alcançam por inteiro — o host real, o
 macOS, o app instalado — fica listado aqui, uma linha por mudança, para o
 mantenedor experimentar no app instalado quando puder. **Nada aqui segura
-um commit, um merge ou uma versão.** Cada item diz o que fazer, o que ver
+um commit, um merge ou um beta; as checagens são condição só da
+publicação da V1** (o mantenedor, 2026-10-14, `docs/roadmap.md`, Fase 4 —
+V1, linha V.15). Cada item diz o que fazer, o que ver
 e o commit; um item marcado diz quando. Uma checagem que acha problema
 vira conserto, e o item aponta para ele.
 
