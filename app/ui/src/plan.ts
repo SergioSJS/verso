@@ -15,6 +15,7 @@ import { writeBoardLive } from "./leaves/boardLive";
 import { name } from "./paths";
 import { replay } from "./replay";
 import { t } from "./strings";
+import { writeInTab } from "./tabWrites";
 
 type Rewrite = { path: string; revision: string; before: string; after: string };
 
@@ -39,14 +40,19 @@ export class Plan {
    *  of the plan's own. */
   private answer: ((applied: boolean) => void) | null = null;
   private custom: (() => Promise<boolean>) | null = null;
+  /** A note open in a tab takes its rewrite in the tab's editor, where ⌘Z
+   *  undoes it (`writeInTab`), instead of being saved first and read
+   *  again: "Link all" asks for it (ADR 0089). */
+  private inTabs = false;
   constructor() {
     this.el.hidden = true;
     asDialog(this.el, "", () => this.hide(), "plan-title");
     document.body.append(this.el);
   }
   /** `detail`: what the plan was drawn from, said under the title. */
-  show(rewrites: Plan["rewrites"], title = t.planTitle(rewrites.length), applyLabel = t.planApply, detail = ""): void {
+  show(rewrites: Plan["rewrites"], title = t.planTitle(rewrites.length), applyLabel = t.planApply, detail = "", opts: { inTabs?: boolean } = {}): void {
     this.rewrites = rewrites;
+    this.inTabs = opts.inTabs ?? false;
     const box = h("div", "plan-box");
     const heading = h("h2", "", title);
     heading.id = "plan-title";
@@ -55,7 +61,14 @@ export class Plan {
     for (const w of rewrites) {
       const d = h("details");
       d.open = rewrites.length <= 3;
-      d.append(h("summary", "", w.path), diffNode(w.before, w.after, true));
+      // Each changed line an item of a list, the diff reachable by Tab
+      // and read as a list of changes (ADR 0089 item 6).
+      const diff = diffNode(w.before, w.after, true);
+      diff.tabIndex = 0;
+      diff.setAttribute("role", "list");
+      diff.setAttribute("aria-label", w.path);
+      for (const line of diff.children) line.setAttribute("role", "listitem");
+      d.append(h("summary", "", w.path), diff);
       box.append(d);
     }
     const apply = button("save", applyLabel);
@@ -107,6 +120,21 @@ export class Plan {
     const changed: Rewrite[] = [];
     const left: Rewrite[] = [];
     for (const w of this.rewrites) {
+      if (this.inTabs) {
+        // In the tab's editor when it shows the note as the plan read it;
+        // a tab with other text goes the way below: saved, then refused
+        // by the disk's check and named.
+        const read = w.before.replace(/\r\n/g, "\n");
+        const tab = await writeInTab(w.path, (now) => (now === read ? w.after : null));
+        if (tab === "saved") {
+          ok++;
+          continue;
+        }
+        if (tab === "unsaved") {
+          left.push(w);
+          continue;
+        }
+      }
       // A tab of this note saves first; one that cannot is left out, named.
       if ((await flushed(leavesOf(w.path))).length > 0) {
         left.push(w);
@@ -192,7 +220,7 @@ export class Plan {
       else if (after !== now.data.text) again.push({ path: w.path, revision: now.data.revision, before: now.data.text, after });
     }
     const cannot = stuck.length > 0 ? t.planCannotRetry(stuck.join(", "), stuck.length) : "";
-    if (again.length > 0) this.show(again, t.planRetryTitle(again.length), t.applyChanges, cannot);
+    if (again.length > 0) this.show(again, t.planRetryTitle(again.length), t.applyChanges, cannot, { inTabs: this.inTabs });
     else if (cannot) this.tell([cannot], []);
     else ui.status.textContent = t.planRetryNothing;
   }
