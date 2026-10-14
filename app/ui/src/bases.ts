@@ -2,23 +2,25 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { type BaseHost, BaseView } from "./bases/view";
-import { commands } from "./bindings";
+import { type BaseHost, type BaseSource, BaseView } from "./bases/view";
+import { commands, type TextFile } from "./bindings";
 import { canWrite } from "./can";
-import { afterFileChange } from "./changes";
+import { afterFileChange, flushed, stopped } from "./changes";
 import { ask } from "./dialog";
 import { ui } from "./dom";
 import { fail, nameTaken } from "./errors";
 import { freeName, newNoteWith, saveMarkdownNote, textBase64 } from "./files";
 import { imageUrl } from "./images";
-import { layout, openNote } from "./layout/spaces";
+import { layout, leavesOf, openNote } from "./layout/spaces";
 import { liveBoards } from "./leaves/board";
 import { NoteLeaf } from "./leaves/note";
 import { panel } from "./main";
 import { showMenu } from "./menu";
+import { opening } from "./opening";
 import { setNoteProperty } from "./organize/frontmatter";
 import { settings } from "./settings";
 import { baseStrings, LOCALE, t } from "./strings";
+import { dirOf } from "./paths";
 
 /** Every base on screen — a tab, a block, an embed — drawn again when the
  *  folder changes. */
@@ -82,4 +84,61 @@ export function insertBase(): void {
   const block = `${lead}\`\`\`base\n${baseTemplate()}\`\`\`\n`;
   leaf.editor.dispatch({ changes: { from: line.to, insert: block }, selection: { anchor: line.to + block.length } });
   leaf.editor.focus();
+}
+/** A `.base` file embedded in a note (`![[x.base#View]]`), its menus
+ *  writing the file in place (ADR 0094 item 13): through the ordinary
+ *  write over the revision read (invariant 11), as the base's own tab
+ *  does, after the file's open tabs are saved; read again before each
+ *  question, so that a change made elsewhere is what the menus change. A
+ *  file changed under the menus is not written: the view says so and
+ *  shows the file as it is. A reader sees no menu (BaseView). */
+export function embeddedBase(rel: string, thisPath: string, file: TextFile, viewName: string | null): BaseSource {
+  let text = file.text;
+  let revision = file.revision;
+  /** Writes not yet answered: a reload in between would undo them. */
+  let writing = 0;
+  let queue: Promise<void> = Promise.resolve();
+  const reload = async (): Promise<void> => {
+    if (writing > 0) return;
+    const r = await opening.readText(rel, true);
+    if (r.status === "ok" && writing === 0) {
+      text = r.data.text;
+      revision = r.data.revision;
+    }
+  };
+  const write = async (next: string): Promise<void> => {
+    const left = await flushed(leavesOf(rel));
+    if (left.length > 0) {
+      stopped(left);
+      return;
+    }
+    const w = await commands.writeText(rel, next, revision);
+    if (w.status === "ok") {
+      revision = w.data.revision;
+      return;
+    }
+    if (w.error.kind === "changed") ui.status.textContent = baseStrings.embedChanged;
+    else fail(w.error);
+  };
+  return {
+    path: rel,
+    thisPath,
+    folder: dirOf(rel),
+    text: () => text,
+    edit: (next) => {
+      text = next;
+      writing++;
+      queue = queue
+        .then(() => write(next))
+        .catch((e: unknown) => fail(e))
+        .finally(() => {
+          writing--;
+          // The file as it now is, whatever the write did.
+          if (writing === 0) refreshBases();
+        });
+    },
+    viewName,
+    reload,
+    key: rel,
+  };
 }
