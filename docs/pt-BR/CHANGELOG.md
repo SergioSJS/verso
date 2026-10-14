@@ -12,6 +12,11 @@ versão de teste.
 
 ## Não lançado
 
+### Acrescentado
+
+- **O infobox: as propriedades de uma nota tipada num cartão ao lado do texto** ([ADR 0086](adr/0086-infobox-a-typed-notes-card.md)): um schema que diz `layout: infobox` desenha as propriedades das suas notas num cartão à direita do texto, na leitura e no modo Editar — a primeira imagem no alto, o tipo embaixo dela, as propriedades declaradas na ordem do schema, as outras chaves da nota dobradas embaixo. É o painel de propriedades com outro arranjo: uma edição no cartão é a mesma edição, nas mesmas linhas do frontmatter, e abrir a nota não grava nada. Num painel estreito ou num celular o cartão vai para cima do texto, dobrado na imagem e nas três primeiras propriedades, com *Mostrar todas as propriedades*. Para um leitor de tela o cartão é uma região complementar com o nome da nota; o texto alternativo da imagem é o alias do link (`"[[roderick.jpg|Lorde Roderick]]"`), senão o título da nota. A nota `Lugares/Porto Cinzento` do cofre de demonstração mostra um.
+- **Dois tipos novos num schema, `link` e `image`** ([ADR 0086](adr/0086-infobox-a-typed-notes-card.md) item 1): uma propriedade `link` mostra os seus wikilinks entre aspas como links que se seguem com um clique, e o campo dela oferece as notas da pasta como o `[[` oferece; uma propriedade `image` mostra a sua imagem — um link para uma imagem da pasta, um caminho, ou um endereço da web. Um endereço da web só aparece se a origem foi aprovada por você, como uma página incorporada: senão o endereço fica como texto, com o porquê e *Aprovar*. Um valor que não cabe no tipo aparece como está escrito, marcado. Um Verso mais antigo não conhece esses tipos e não tipa nada com um schema que os usa.
+
 ### Corrigido
 
 - **Uma propriedade editada no painel no modo Editar chega ao arquivo** (2026-10-14): a linha mostrava o valor novo, mas a guarda do Live Preview para o frontmatter dobrado descartava a mudança como se fosse digitada ali, e o arquivo ficava com o antigo; o mesmo para uma figurinha, uma cor ou uma capa escolhidas no modo Editar.

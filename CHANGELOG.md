@@ -12,6 +12,11 @@ test release.
 
 ## Unreleased
 
+### Added
+
+- **The infobox: a typed note's properties as a card beside its text** ([ADR 0086](docs/adr/0086-infobox-a-typed-notes-card.md)): a schema that says `layout: infobox` draws its notes' properties as a card at the right of the text, in the reading view and in Edit mode — the first picture at its head, the type under it, the declared properties in the schema's order, the note's other keys folded below. It is the properties panel laid out differently: an edit in the card is the same edit, to the same lines of the frontmatter, and opening the note writes nothing. On a narrow pane or a phone the card goes above the text, folded to the picture and the first three properties, with *Show every property*. For a screen reader the card is a complementary region named after the note; the picture's alternative text is the link's alias (`"[[roderick.jpg|Lorde Roderick]]"`), otherwise the note's title. The demo vault's `Lugares/Porto Cinzento` shows one.
+- **Two new kinds in a schema, `link` and `image`** ([ADR 0086](docs/adr/0086-infobox-a-typed-notes-card.md) item 1): a `link` property shows its quoted wikilinks as links you follow with a click, and its field offers the folder's notes as `[[` does; an `image` property shows its picture — a link to a picture of the folder, a path, or a web address. A web address is shown only from an origin you approved, as an embedded page is: otherwise the address stays as text, with why and *Approve*. A value that does not fit its kind is shown as written and marked. An older Verso does not know these kinds and types nothing with a schema that uses them.
+
 ### Fixed
 
 - **A property edited in the panel in Edit mode reaches the file** (2026-10-14): the row showed the new value, but Live Preview's guard for the folded frontmatter dropped the change as if it were typed there, so the file kept the old one; the same for a sticker, a colour or a cover set in Edit mode.
