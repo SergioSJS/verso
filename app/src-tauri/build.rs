@@ -87,6 +87,7 @@ fn main() {
         "collab_present",
         "collab_canvas",
         "server_sign_in",
+        "server_sign_in_page",
         "server_accounts",
         "server_sign_out",
         "device_name",

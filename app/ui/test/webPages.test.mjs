@@ -52,6 +52,15 @@ async function until(check, what, ms = 2000) {
   }
 }
 
+/** The person enters `code` in the device page's field, as typed or
+ *  pasted from the app's screen, and sends it. */
+async function enter(code) {
+  await until(() => document.querySelector("main form input"), "the code's field is shown");
+  const input = document.querySelector("main form input");
+  input.value = code;
+  document.querySelector("main form button[type=submit]").click();
+}
+
 beforeEach(() => {
   answers = {};
   sent = [];
@@ -59,16 +68,36 @@ beforeEach(() => {
 });
 
 describe("The device page", () => {
+  // A link carries no code the page takes (decided 2026-10-14, ADR 0083
+  // As built): a link sent by someone else names their device, and a
+  // click must not stand for having looked at one's own app.
+  test("with a code in its address, shows the field empty and sends nothing until a code is entered", async () => {
+    win.happyDOM.setURL("https://verso.test/device?code=TVWX-ZBCD");
+    answers["POST /api/device/describe"] = { body: { code: "CDFG-HJKL", device: "Verso · MacBook", address: "127.0.0.1", asked: "2026-10-13T12:00:00Z" } };
+    await pages.devicePage(account);
+    await until(() => document.querySelector("main form input"), "the code's field is shown");
+    await settle(20);
+    const input = document.querySelector("main form input");
+    assert.equal(input.value, "", "the field is not filled from the address");
+    assert.ok(input.labels?.length || document.querySelector(`label[for="${input.id}"]`), "the field has a label");
+    assert.ok(!document.querySelector("main").textContent.includes("TVWX-ZBCD"), "the address's code is not shown");
+    assert.deepEqual(sent, [], "nothing is sent before a code is entered");
+    await enter("cdfg hjkl");
+    await until(() => sent.length === 1, "the entered code is sent");
+    assert.deepEqual(sent, [{ key: "POST /api/device/describe", body: { code: "CDFG-HJKL" } }], "only the entered code");
+  });
+
   // A name in a right-to-left script, inside a left-to-right sentence:
   // unisolated, its direction would carry into the words around it.
   const name = "Verso · מחשב 2";
   const asked = { code: "BCDF-GHJK", device: name, address: "203.0.113.5", asked: "2026-10-13T12:00:00Z" };
 
   test("puts the device's name, wherever it says it, in a <bdi> of its own", async () => {
-    win.happyDOM.setURL("https://verso.test/device?code=BCDF-GHJK");
+    win.happyDOM.setURL("https://verso.test/device");
     answers["POST /api/device/describe"] = { body: asked };
     await pages.devicePage(account);
-    await until(() => document.querySelector("form"), "the question is shown");
+    await enter("BCDF-GHJK");
+    await until(() => document.querySelector("#device-ask"), "the question is shown");
     const main = document.querySelector("main");
     const isolated = [...main.querySelectorAll("bdi")].filter((b) => b.textContent === name);
     // The lead, the facts, the approve button.
@@ -87,14 +116,14 @@ describe("The device page told to wait", () => {
   const status = () => [...document.querySelectorAll("[role=status]")].map((n) => n.textContent).join(" ");
 
   test("says it is waiting, and asks again by itself", async () => {
-    win.happyDOM.setURL("https://verso.test/device?code=BCDF-GHJK");
+    win.happyDOM.setURL("https://verso.test/device");
     answers["POST /api/device/describe"] = [wait, { body: asked }];
     answers["POST /api/device/approve"] = [wait, { body: null }];
-    const shown = pages.devicePage(account);
+    await pages.devicePage(account);
+    await enter("BCDF-GHJK");
     await until(() => status().includes("1 s"), "the wait is said");
     assert.ok(!document.body.textContent.includes("Tente de novo"), "not a dead end");
-    await shown;
-    await until(() => document.querySelector("form"), "the question, once the wait is past", 3000);
+    await until(() => document.querySelector("#device-ask"), "the question, once the wait is past", 3000);
     document.querySelector("button[type=submit]").click();
     await until(() => status().includes("1 s"), "the approval's wait is said");
     await until(() => document.body.textContent.includes("Pronto."), "approved after the wait", 3000);

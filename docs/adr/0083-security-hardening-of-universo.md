@@ -718,6 +718,20 @@ Mudo a recomendação: deixa o app com acesso de admin"* (except for 3,
 yes to the recommended. On 3: I change the recommendation: leave the app
 with admin access).
 
+- (1) 2026-10-14 — a device is approved only with the code from the
+  person's own screen, as GitHub's CLI does: the desktop app copies the
+  code to the clipboard when it starts the flow, says "Code copied —
+  paste it on the page that opened", and only then opens the page
+  (`serverSignIn.ts`; the host's new `server_sign_in_page` opens the page
+  the server named, once, so that the copy happens while the window still
+  has the focus); the page never pre-fills or approves from its link and
+  always shows the labelled code field; `start` answers the page's
+  address without `?code=`, and the server's path routes
+  `/api/device/{code}` are removed — an address under `/api/` no route
+  names answers 404 — so describing, approving and refusing exist only
+  through the body's routes with the entered code, behind the same delay
+  and constant-time comparison. This revises item 17's "the device page
+  keeps its link" and its As built "the path routes stay".
 - (2) 2026-10-14 — `universo.sh backup --encrypt` or `--passphrase`
   without `age` stops with an error and writes nothing, neither a file
   nor a stream, saying how to install `age` on this machine's family

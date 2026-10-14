@@ -218,43 +218,28 @@ function device<T>(path: string, body: unknown, told: (seconds: number) => void)
   return afterWaits(() => api<T>("POST", path, body), told);
 }
 
-/** What is asking under `code`: the server reads the code, from the link
- *  or typed, and a wrong one costs a try of the address's delay. */
+/** What is asking under `code`: the server reads the code the person
+ *  entered, and a wrong one costs a try of the address's delay. */
 function describeCode(code: string, told: (seconds: number) => void): Promise<Asked> {
   return device<Asked>("/api/device/describe", { code }, told);
 }
 
 export async function devicePage(account: Account | null): Promise<void> {
-  const s = w();
-  const linked = (new URLSearchParams(location.search).get("code") ?? "").trim();
   if (!account) {
-    location.href = `/signin?next=${encodeURIComponent(location.pathname + location.search)}`;
+    location.href = `/signin?next=${encodeURIComponent(location.pathname)}`;
     return;
   }
   setLang(account.lang);
-  // Without a code in the link, the person types the one the device shows
-  // (ADR 0083 item 17), as GitHub asks; the link keeps the app's own flow.
-  if (!linked) {
-    typeCodePage(account);
-    return;
-  }
-  const waiting = waitLine();
-  const told = (seconds: number) => {
-    if (!waiting.node.isConnected) page(s.deviceTitle, waiting.node);
-    waiting.told(seconds);
-  };
-  let what: Asked;
-  try {
-    what = await describeCode(linked, told);
-  } catch (e) {
-    page(s.deviceTitle, lead(explain(e)));
-    return;
-  }
-  askPage(account, what, false);
+  // The person always enters the code their app shows — pasted, since the
+  // app copied it, or typed (ADR 0083 item 17). A code in the address is
+  // never read: a link sent by someone else would approve their device
+  // with one click from a person who never looked at their own app
+  // (decided 2026-10-14, ADR 0083 As built; `gh auth login`'s way).
+  typeCodePage(account);
 }
 
-/** The code typed from the device's screen; the question once the server
- *  knows it, the error said in place otherwise. */
+/** The code entered from the device's screen; the question once the
+ *  server knows it, the error said in place otherwise. */
 function typeCodePage(account: Account): void {
   const s = w();
   const code = field(s.deviceTypeLabel, "text", { autocomplete: "off", autocapitalize: "characters", spellcheck: "false", maxlength: "20", required: "" }, s.deviceTypeHint);
@@ -267,7 +252,7 @@ function typeCodePage(account: Account): void {
       const read = readCode(code.input.value);
       if (!read) throw bad;
       try {
-        askPage(account, await describeCode(read, waiting.told), true);
+        askPage(account, await describeCode(read, waiting.told));
       } finally {
         waiting.done();
       }
@@ -280,13 +265,13 @@ function typeCodePage(account: Account): void {
 }
 
 /** Who asked, and the question: approve — with a fresh proof, asked on the
- *  spot (ADR 0083 item 6) — or refuse. A typed code is shown beside who
- *  asked, as the server read it. */
-function askPage(account: Account, what: Asked, typed: boolean): void {
+ *  spot (ADR 0083 item 6) — or refuse. The code entered is shown beside
+ *  who asked, as the server read it. */
+function askPage(account: Account, what: Asked): void {
   const s = w();
   const sent = { code: what.code };
-  // Who asked, before the question (threat-model.md, gap 12): a link
-  // someone else sent shows an address and a time that are not the
+  // Who asked, before the question (threat-model.md, gap 12): a code
+  // someone else dictated shows an address and a time that are not the
   // person's, and the device's name as that someone gave it.
   const asked = new Date(what.asked);
   const when = Number.isNaN(asked.getTime())
@@ -304,7 +289,7 @@ function askPage(account: Account, what: Asked, typed: boolean): void {
     el(
       "dl",
       { class: "web-facts" },
-      ...(typed ? fact(s.deviceCodeTyped, what.code) : []),
+      ...fact(s.deviceCodeTyped, what.code),
       ...fact(s.deviceName, named()),
       ...fact(s.deviceAddress, what.address),
       ...fact(s.deviceWhen, when),
@@ -344,14 +329,13 @@ function askPage(account: Account, what: Asked, typed: boolean): void {
   page(
     s.deviceTitle,
     el("p", { class: "web-lead" }, ...s.deviceLead(named())),
-    typed ? el("span") : el("p", { class: "web-code", "aria-label": s.deviceCode }, what.code),
     who,
     question,
     el("p", { id: "device-ask-why", class: "web-lead" }, s.deviceAskWhy),
     f.form,
   );
   // The page changed under the person's hands: they land on who asked.
-  if (typed) heading.focus();
+  heading.focus();
 }
 
 type FolderRow = { id: string; name: string; role: string; owner?: { name: string } | null; share?: boolean; missing?: boolean };

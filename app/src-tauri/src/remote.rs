@@ -447,9 +447,35 @@ fn open_in_browser(page: &str) -> Result<(), ContractError> {
         .map_err(|e| failed(e.to_string()))
 }
 
-/// Sign in to a server through the browser: the server's page opens for the
-/// person to approve this device; the app asks meanwhile, keeps the token
-/// when it comes, and says so (`server-signed-in`).
+/// The server's page the last sign-in was handed, waiting for the window
+/// to open it (`server_sign_in_page`) once it has copied the code.
+static SIGN_IN_PAGE: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
+/// The page a sign-in waits on, taken: opened once, and only one a server
+/// named under its own address.
+fn sign_in_page() -> Result<String, ContractError> {
+    lock(&SIGN_IN_PAGE)
+        .take()
+        .ok_or_else(|| refused("no server's page waits to be opened"))
+}
+
+/// Open in the browser the server's page the last `server_sign_in` was
+/// handed, once (decided 2026-10-14, ADR 0083 As built): the window calls
+/// it after copying the code, before the browser takes the focus a
+/// clipboard write asks for. The window names no address: it can open
+/// nothing a server did not name.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn server_sign_in_page() -> Result<(), ContractError> {
+    open_in_browser(&sign_in_page()?)
+}
+
+/// Sign in to a server through the browser (`gh auth login`'s way): the
+/// server gives a code, which the window copies to the clipboard before it
+/// opens the server's page (`server_sign_in_page`), where the person
+/// pastes it to approve this device — the page takes no code from its
+/// link (decided 2026-10-14, ADR 0083 As built). The app asks meanwhile,
+/// keeps the token when it comes, and says so (`server-signed-in`).
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn server_sign_in<R: tauri::Runtime>(
@@ -479,7 +505,7 @@ pub(crate) async fn server_sign_in<R: tauri::Runtime>(
     if !page.starts_with(&url) {
         return Err(refused("the server named a page elsewhere"));
     }
-    open_in_browser(&page)?;
+    *lock(&SIGN_IN_PAGE) = Some(page.clone());
     let (poll_code, poll_url) = (code.clone(), url.clone());
     tauri::async_runtime::spawn(async move {
         for _ in 0..(600 / interval) {

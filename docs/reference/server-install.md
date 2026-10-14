@@ -630,6 +630,14 @@ made in one of two ways (0074 item 1):
   first can use it — so use it as soon as it is printed. `universo.sh
   install` says so beside the link.
 
+Then connect the desktop app: **Settings › Servers**, the server's
+address, **Connect**. The app copies a code to the clipboard and opens
+the server's page in the browser, where you paste it (or type the one the
+app shows) and approve this computer; the page never takes a code from
+its link, so a link someone else sends approves nothing (decided
+2026-10-14, ADR 0083, As built). [UniVerso hands on](server-hands-on.md)
+shows each step.
+
 The admin's powers go with every session of the account, the desktop
 app's included (decided 2026-10-14, ADR 0083, As built): an admin action
 made with the app's session — the console's acts on other accounts,

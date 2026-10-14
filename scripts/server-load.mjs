@@ -93,7 +93,7 @@ async function deviceToken(browser, name) {
     console.log(`starting a device's sign-in is limited: waiting ${wait}s`);
     await new Promise((res) => setTimeout(res, wait * 1000));
   }
-  const ok = await http("POST", `/api/device/${start.code}`, {}, browser);
+  const ok = await http("POST", "/api/device/approve", { code: start.code }, browser);
   if (ok.status !== 200) throw new Error(`approving ${name}: ${ok.status} ${JSON.stringify(ok.json)}`);
   return (await http("POST", "/api/device/poll", { code: start.code, poll: start.poll })).json.token;
 }
