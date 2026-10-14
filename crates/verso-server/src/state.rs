@@ -492,6 +492,20 @@ impl Server {
         }
     }
 
+    /// Every window and device of `account` signed in as the person — not
+    /// a token's connection, whose folders were named when it was made:
+    /// what is the person's to know (a folder given, ADR 0084 item 7).
+    pub fn push_sessions(&self, account: &str, message: &Push) {
+        let frame = Frame::of(message);
+        let table = lock(&self.clients);
+        for c in table
+            .values()
+            .filter(|c| c.account == account && c.session.is_some())
+        {
+            c.send_frame(&frame, message);
+        }
+    }
+
     /// Sessions of `account` ended: the connections opened with them are
     /// told and closed at once (the WebSocket's loop closes on `gone`), so
     /// that a device hears it then, not at its next exchange (the live
