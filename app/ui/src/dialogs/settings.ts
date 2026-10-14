@@ -26,8 +26,9 @@ import { pushFolderNoteName } from "../organize/folderNotes";
 import { orderModeChanged } from "../organize/order";
 import { allowEmbedOrigins } from "../sanitize";
 import { getHiddenFromTree, pushEmbedOrigins, pushMenuLanguage, saveSettings, setHiddenFromTree, settings } from "../settings";
-import { boardText, t } from "../strings";
+import { boardText, LOCALE, t } from "../strings";
 import { listAll } from "../tree/tree";
+import { updateNews } from "../updateNews";
 import { asDialog, closed, opened } from "./a11y";
 import { accountEntries } from "../web/account";
 import { signedIn } from "../web/api";
@@ -323,9 +324,12 @@ export class SettingsDialog {
           actions.append(dlBtn, notesBtn);
           card.append(actions);
 
-          if (showNotes && info.release_notes) {
+          // What is new, in the window's language, as plain lines — not
+          // the release page's download guide (ADR 0051, 2026-10-14).
+          const news = showNotes ? updateNews(info.release_notes, LOCALE) : "";
+          if (news) {
             const notesBox = h("div", "update-notes-box");
-            notesBox.textContent = info.release_notes;
+            notesBox.textContent = news;
             card.append(notesBox);
           }
         }

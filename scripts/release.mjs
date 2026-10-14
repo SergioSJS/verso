@@ -20,8 +20,13 @@
 //     that brought the version and pushes the tag, which starts the same
 //     workflow.
 //   node scripts/release.mjs notes 0.3.0-beta.4
-//     Prints the version's changelog, English then pt-BR: the release notes.
-//     A production version also carries the test releases that led to it.
+//     Prints the release page (scripts/release-page.mjs): which file to
+//     download and how to install it, then what is new and the version's
+//     changelog, English then pt-BR. A production version also carries the
+//     test releases that led to it.
+//   node scripts/release.mjs preview 0.8.1-beta.1
+//     The page the next version would get, from the changelog's
+//     "Unreleased" entries: to read it before cutting the version.
 //   node scripts/release.mjs verify v0.3.0-beta.4
 //     The release workflow's first step: the tag names the version the
 //     sources carry, in the shape of a version, with its changelog.
@@ -34,11 +39,12 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { releasePage } from "./release-page.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const [command, version, ...rest] = process.argv.slice(2);
 const dryRun = rest.includes("--dry-run");
-const USAGE = "usage: release.mjs prepare|tag|notes X.Y.Z[-beta.N] [--dry-run] | verify vX.Y.Z[-beta.N]";
+const USAGE = "usage: release.mjs prepare|tag|notes|preview X.Y.Z[-beta.N] [--dry-run] | verify vX.Y.Z[-beta.N]";
 
 const CHANGELOGS = [
   { file: "CHANGELOG.md", unreleased: "## Unreleased", empty: "Nothing yet." },
@@ -113,12 +119,23 @@ function sectionsOf(text, v) {
 }
 
 function notesFrom(texts, v) {
-  const parts = CHANGELOGS.map(({ file }, i) => {
+  const [en, pt] = CHANGELOGS.map(({ file }, i) => {
     const body = sectionsOf(texts[i], v);
     if (!body) fail(`${file} has no section for ${v}`);
     return body;
   });
-  return `${parts[0]}\n\n---\n\n**Português (Brasil)**\n\n${parts[1]}\n`;
+  return releasePage({ version: v, en, pt });
+}
+
+/** The page version `v` would get from the "Unreleased" entries. */
+function previewFrom(texts, v) {
+  const [en, pt] = CHANGELOGS.map(({ file, unreleased, empty }, i) => {
+    const s = section(texts[i], unreleased);
+    const body = s && texts[i].slice(s.from, s.to).trim();
+    if (!body || body === empty) fail(`${file}: nothing under "${unreleased}" to preview`);
+    return body;
+  });
+  return releasePage({ version: v, en, pt });
 }
 
 function prepare(v) {
@@ -237,4 +254,5 @@ else if (!parse(version)) fail(USAGE);
 else if (command === "prepare") prepare(version);
 else if (command === "tag") tag(version);
 else if (command === "notes") process.stdout.write(notesFrom(CHANGELOGS.map(({ file }) => readHere(file)), version));
+else if (command === "preview") process.stdout.write(previewFrom(CHANGELOGS.map(({ file }) => readHere(file)), version));
 else fail(USAGE);
