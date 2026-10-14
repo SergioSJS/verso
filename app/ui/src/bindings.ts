@@ -448,6 +448,17 @@ export const commands = {
 	 */
 	shareAttachments: (path: string, attachments: string | null) => typedError<FolderShare, ContractError>(__TAURI_INVOKE("share_attachments", { path, attachments })),
 	/**
+	 *  Prove to the server behind this window that it is the person (ADR 0083
+	 *  item 6): the device's session sends the account's password to
+	 *  `/api/me/prove`, which stamps that session's own mark — a browser's
+	 *  session is not touched. Asked when a sensitive action answered
+	 *  `prove_first`; the window sends the action once more after. The
+	 *  password is not kept. A passkey cannot be offered here: the window's
+	 *  origin is the app's own, never the server's, which a passkey is bound
+	 *  to.
+	 */
+	serverProve: (password: string) => typedError<null, ContractError>(__TAURI_INVOKE("server_prove", { password })),
+	/**
 	 *  The folders of this computer opened before, freshest first, for the
 	 *  folder switcher's "On this computer" (ADR 0081 item 5): names and keys,
 	 *  no path.
@@ -954,6 +965,12 @@ export type ErrorKind =
  *  0077 item 5).
  */
 "quota" | 
+/**
+ *  A server's sensitive action wants a fresh proof that it is the
+ *  person (ADR 0083 item 6): the window asks for the password and
+ *  sends the action once more.
+ */
+"prove_first" | 
 /**  The core could not answer. */
 "failed";
 

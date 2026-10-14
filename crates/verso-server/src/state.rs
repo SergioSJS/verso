@@ -313,6 +313,9 @@ pub struct Server {
     /// A trusted proxy that forwarded no `X-Forwarded-For`, said once a
     /// minute (ADR 0083 item 5).
     pub unforwarded: crate::log::OnceAMinute,
+    /// A peer on this machine, not a trusted proxy, that sent
+    /// `X-Forwarded-For`, said once a minute (ADR 0083 item 5).
+    pub untrusted_forward: crate::log::OnceAMinute,
     /// The REST routes' pace per address (ADR 0083 item 7).
     pub pace: crate::pace::Pace,
     /// The requests in flight per client address (`crate::http`).
@@ -393,6 +396,7 @@ impl Server {
             hashes: crate::hashes::Hashes::default(),
             slots,
             unforwarded: crate::log::OnceAMinute::default(),
+            untrusted_forward: crate::log::OnceAMinute::default(),
             pace: crate::pace::Pace::default(),
             requests: crate::listen::Requests::default(),
             inflight: crate::inflight::Inflight::default(),

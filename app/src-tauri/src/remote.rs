@@ -408,18 +408,29 @@ pub(crate) fn answer(response: reqwest::blocking::Response) -> Result<Value, Con
     if status.is_success() {
         return Ok(body);
     }
+    Err(error_of(status.as_u16(), &body))
+}
+
+/// A server's refusal as the contract says it: by its status, and, for a
+/// sensitive action past the session's ten minutes (ADR 0083 item 6), by
+/// its code — the window asks for the password and sends it once more.
+pub(crate) fn error_of(status: u16, body: &Value) -> ContractError {
     let message = body["message"]
         .as_str()
         .unwrap_or("the server refused")
         .to_owned();
-    Err(match status.as_u16() {
+    match status {
+        403 if body["error"] == "prove_first" => ContractError {
+            kind: ErrorKind::ProveFirst,
+            message,
+        },
         401 | 403 => refused(message),
         404 | 410 => ContractError {
             kind: ErrorKind::NotFound,
             message,
         },
         _ => failed(message),
-    })
+    }
 }
 
 fn open_in_browser(page: &str) -> Result<(), ContractError> {

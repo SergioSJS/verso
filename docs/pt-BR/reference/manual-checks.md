@@ -51,6 +51,18 @@ app real.
   código tem oito letras…* ou responde como desconhecido, e alguns
   errados seguidos fazem a página esperar antes do próximo; o app então
   entra depois de aprovado.
+- [ ] **Compartilhar uma pasta do servidor pelo app pede "Confirme que
+  é você"** (item 6 da ADR 0083): no app instalado com login num
+  UniVerso, numa pasta de que a conta é dona, *Compartilhar…* numa pasta
+  da árvore, o e-mail de outra conta e *Compartilhar*: o diálogo *Confirme
+  que é você* abre sobre o diálogo de compartilhar, só com a senha (sem
+  *Usar uma passkey*: a janela do app não responde pelas passkeys do
+  servidor) e o foco no campo; uma senha errada diz *Senha errada.*; a
+  certa adiciona a pessoa sem perguntar de novo, e mudar o papel dela em
+  dez minutos não pergunta nada. Cancelar a deixa de fora e o diálogo de
+  compartilhar diz *Dar ou mudar um papel pede que você confirme que é
+  você; nada mudou.* O VoiceOver lê o título e a linha do diálogo; o foco
+  volta ao diálogo de compartilhar quando ele fecha.
 - [ ] **Os diagramas Mermaid depois da 12.2.0** (item 13 da ADR 0083,
   cda7500): a nota "08 - Diagramas Mermaid" do vault de demonstração no
   app instalado e no navegador: todo diagrama desenha, no claro e no

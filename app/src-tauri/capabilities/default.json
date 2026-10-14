@@ -101,6 +101,7 @@
     "allow-share-grant",
     "allow-share-revoke",
     "allow-share-attachments",
+    "allow-server-prove",
     "allow-recent-folders",
     "allow-folder-sync",
     "allow-folder-sync-start",

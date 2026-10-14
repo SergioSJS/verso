@@ -149,18 +149,15 @@ pub async fn sign_in(ctx: Ctx, Json(body): Json<SignIn>) -> ApiResult<Response> 
     let server = std::sync::Arc::clone(&ctx.server);
     let email = body.email.clone();
     let password = body.password.clone();
-    // The account, and whether the password is its: an unknown e-mail
-    // costs a hash too.
+    // The account, and whether the password is its: an unknown e-mail,
+    // and an account with no password yet, cost a hash too.
     let found = ctx
         .server
         .hashes
         .run(move || -> Result<(Option<db::Account>, bool), String> {
             let account = server.db.account_by_email(&email)?;
-            let right = match &account {
-                Some(a) => a
-                    .password
-                    .as_deref()
-                    .is_some_and(|h| crate::crypto::verify_password(&password, h)),
+            let right = match account.as_ref().and_then(|a| a.password.as_deref()) {
+                Some(h) => crate::crypto::verify_password(&password, h),
                 None => {
                     crate::crypto::waste_time(&password);
                     false
@@ -835,6 +832,32 @@ async fn mailed(
         address: Some(address),
         ok: true,
     })
+}
+
+/// Whose a sign-in link is, before it is used: the page asks "sign in as
+/// …?" and waits for a click, so a link someone else sent — for their own
+/// account — is not taken in a load. Looking does not use the link; a
+/// wrong one counts against the address as a link's use does.
+pub async fn signin_link_offer(ctx: Ctx, Path(token): Path<String>) -> ApiResult<Response> {
+    let key = format!("link:{}", ctx.peer.key());
+    limited(&ctx, &[&key])?;
+    let found = verso_service::lock(&ctx.server.signin_links)
+        .get(&crate::crypto::hash(&token))
+        .filter(|(_, at, _)| at.elapsed() < SIGNIN_LINK_LIFE)
+        .map(|(account, _, _)| account.clone());
+    let account = match found {
+        Some(id) => ctx.server.db.account(&id)?,
+        None => None,
+    };
+    let Some(account) = account else {
+        ctx.server.limiter.failed(&key);
+        return Err(ApiError::new(
+            StatusCode::NOT_FOUND,
+            "link_gone",
+            "this link is used or expired",
+        ));
+    };
+    Ok(ok(json!({ "email": account.email })))
 }
 
 /// The link from the e-mail, used once: a session, as a password's.

@@ -10,6 +10,7 @@
 import { ApiError, api, setSignedIn, type Account } from "./api";
 import { act, block, button, choice, controls, el, input, said, snippet, toggle, type Entry, type Item } from "./form";
 import { addPasskey, passkeysHere } from "./passkeys";
+import { forgetSettings } from "./settingsSync";
 import { bytes, roleName, w, when } from "./strings";
 
 function explain(e: unknown): string {
@@ -157,7 +158,11 @@ function sessions(item: Item): HTMLElement {
         const kind = session.kind === "device" ? s.device : s.browser;
         const title = `${session.device} · ${kind}${current ? ` · ${s.thisSession}` : ""}`;
         end.setAttribute("aria-label", `${s.end}: ${title}`);
-        return item(title, `${s.lastUsed}: ${when(session.last_used)} · ${session.address}`, current ? null : controls(end));
+        const row = item(title, `${s.lastUsed}: ${when(session.last_used)} · ${session.address}`, current ? null : controls(end));
+        // The device's name as its app gave it, isolated: a name in another
+        // direction does not carry into the words after it.
+        row.querySelector(".setting-title")?.replaceChildren(el("bdi", {}, session.device), title.slice(session.device.length));
+        return row;
       }),
     );
   };
@@ -334,6 +339,7 @@ function signOut(me: Account, item: Item): HTMLElement {
   const out = button(s.signOut);
   act(out, line, async () => {
     await api("POST", "/api/signout", {});
+    forgetSettings();
     location.href = "/signin";
   }, explain);
   return el("div", { class: "web-block" }, item(s.signOut, s.signOutDesc(me.email), controls(out)), line);
