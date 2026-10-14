@@ -761,6 +761,20 @@ async fn collab_command(
         Some(s) => s.to_full(&path)?,
         None => path,
     };
+    // One room per file: the path as confinement reads it, so that
+    // `./n.md` and `n.md` are one room.
+    let path = {
+        let (s, k) = (Arc::clone(server), key.clone());
+        let confined = blocking(move || {
+            s.service
+                .with_key(&k, |ws| ws.confined(&path).map_err(Into::into))
+        })
+        .await;
+        match &scope {
+            Some(s) => confined.map_err(|e| s.error(e))?,
+            None => confined?,
+        }
+    };
     let s = Arc::clone(server);
     let c = client.to_owned();
     let cmd = cmd.to_owned();
@@ -811,6 +825,17 @@ async fn collab_command(
     }
 }
 
+/// A change of the folder's settings without the walk's rules: `null` is
+/// "not changed here".
+fn without_walk_rules(mut args: Value) -> Value {
+    if let Some(change) = args.get_mut("change").and_then(Value::as_object_mut) {
+        for rule in ["ignore_build_dirs", "respect_gitignore"] {
+            change.insert(rule.to_owned(), Value::Null);
+        }
+    }
+    args
+}
+
 /// The role of the window's folder, or `no_folder`.
 pub(crate) fn role_here(server: &Server, client: &str) -> Result<(String, Role), ContractError> {
     lock(&server.clients)
@@ -836,6 +861,14 @@ async fn folder_command(
     if access == Access::Write && !(role.writes() && token_writes) {
         return Err(refused("you may only read this folder"));
     }
+    // The walk's rules are the owner's, as `set_walk_rules` keeps them
+    // (ADR 0070): an editor's change of the folder's settings keeps the
+    // rest and leaves them as they were.
+    let args = if name == "set_folder_settings" && role != Role::Owner {
+        without_walk_rules(args)
+    } else {
+        args
+    };
     let key = server
         .service
         .folder_of(client)
@@ -901,6 +934,21 @@ async fn folder_command(
     let mut answer = folder_run(server, who, client, (name, access), (&folder, &key), args)
         .await
         .map_err(|e| scope.error(e))?;
+    // A note's type through the share names the share's schemas only
+    // (ADR 0081 item 11).
+    if matches!(name, "read_note" | "create_note" | "write_note") && answer.is_object() {
+        let (s, k, sc, cmd) = (
+            Arc::clone(server),
+            key.clone(),
+            scope.clone(),
+            name.to_owned(),
+        );
+        answer = blocking(move || {
+            s.service
+                .with_key(&k, |ws| Ok(sc.typed_within(ws, &cmd, answer)))
+        })
+        .await?;
+    }
     // A rename through the share keeps the owner's links outside it: the
     // server writes those rewrites itself, and the window hears only of
     // the ones inside (ADR 0081 item 11, decided 2026-10-12).
