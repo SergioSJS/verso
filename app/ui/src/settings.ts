@@ -50,6 +50,9 @@ export type Settings = {
    *  own copy, handed over before a folder opens. */
   ignoreBuildDirs: boolean;
   respectGitignore: boolean;
+  /** How many days this computer keeps its folders' versions, 0 for no
+   *  limit (ADR 0091 items 3 and 8): the person's, handed to the host. */
+  historyDays?: number;
   /** Origins on the local network whose pages may be embedded, approved
    *  one by one (`scheme://host[:port]`); the host keeps its own copy. */
   embedOrigins: string[];
@@ -276,6 +279,15 @@ export function pushWalkRules(): Promise<boolean> {
   return commands.setWalkRules(settings.ignoreBuildDirs, settings.respectGitignore).then(
     (r) => r.status === "ok" || (fail(r.error), false),
     () => false,
+  );
+}
+/** How long this computer keeps versions (ADR 0091 item 8), handed to the
+ *  host, which thins each open folder's history at once. A server keeps
+ *  its folders' by its own setting, and answers nothing. */
+export function pushHistoryDays(): void {
+  void commands.setHistoryDays(settings.historyDays ?? 365).then(
+    (r) => r.status === "ok" || fail(r.error),
+    () => undefined,
   );
 }
 /** The native menu's language ("pt" or "en"): the setting when it names
