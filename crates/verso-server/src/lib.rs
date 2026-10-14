@@ -52,6 +52,7 @@ pub mod shares;
 pub mod signin;
 pub mod state;
 pub mod sync;
+pub mod texts;
 pub mod tls;
 pub mod transfers;
 pub mod trash;

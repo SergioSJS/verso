@@ -427,3 +427,39 @@ fn one_address_keeps_a_bounded_number_of_sign_in_links_waiting() {
         );
     });
 }
+
+/// A file's text crosses UniVerso 16 MB at most (`crate::texts`): past it,
+/// `read_file_text`, `read_text` and `read_note` refuse before the file is
+/// read, in words that say why, and a room is not made of it; a smaller
+/// note is read as before. (A write past it is refused too: `texts.rs`'s
+/// own test, since a message of that size does not fit one WebSocket
+/// frame of the server.)
+#[test]
+fn a_text_past_16_mb_is_refused_on_the_server_before_it_is_read() {
+    block_on(async {
+        let r = start().await;
+        let big = "a".repeat(20 * 1024 * 1024);
+        put_file(&r, "grande.txt", big.as_bytes());
+        put_file(&r, "Grande.md", big.as_bytes());
+        let (mut ws, _, _) = joined(&r, &[]).await;
+        for (i, (cmd, path)) in [
+            ("read_file_text", "grande.txt"),
+            ("read_text", "grande.txt"),
+            ("read_note", "Grande.md"),
+            ("collab_join", "Grande.md"),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let answer = call(&mut ws, 20 + i as u64, cmd, json!({ "path": path })).await;
+            let said: String = answer.to_string().chars().take(200).collect();
+            assert_eq!(
+                answer["err"]["kind"], "refused",
+                "{cmd} of a 20 MB file: {said}"
+            );
+            assert!(said.contains("16 MB"), "{cmd}: {said}");
+        }
+        let small = call(&mut ws, 31, "read_note", json!({ "path": "Sessao.md" })).await;
+        assert_eq!(small["ok"]["text"], "# Sessao\n", "{small}");
+    });
+}

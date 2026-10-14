@@ -322,7 +322,13 @@ struct Read {
 
 fn read(server: &Server, key: &str, path: &str) -> Result<Read, ContractError> {
     let p = path.to_owned();
-    if kind_of(path) == Kind::Note {
+    let note = kind_of(path) == Kind::Note;
+    // A room holds its text whole: past the server's bound it is not made
+    // (`crate::texts`).
+    server.service.with_key(key, |ws| {
+        crate::texts::readable(ws, note, path).map_err(verso_service::OpError::Contract)
+    })?;
+    if note {
         let n = server
             .service
             .with_key(key, move |ws| ops::read_note(ws, p))?;
