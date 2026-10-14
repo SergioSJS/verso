@@ -28,7 +28,7 @@ O que muda sem você ter pedido aparece num aviso no canto de baixo, à direita 
 
 - **O sino**, na barra de status antes de **Relatar problema** (no celular, no alto da área), conta o que você não viu. Clique nele — ou use **Notificações** na paleta (`⌘⇧P`) — para abrir a lista: o mais novo primeiro, com a hora, a pasta quando não é a desta janela e o que dá para fazer. Abrir marca tudo como visto; **Limpar** esvazia. A lista fica neste computador (até 100, por 30 dias), não vai para a conta.
 - **Ajustes › Notificações**: para cada tipo, **Aviso e lista**, **Só na lista** ou **Desligado**. Desligar não esconde o estado: a barra de status continua dizendo a sincronização, e a nota, o conflito.
-- **Também nas notificações do sistema** começa desligado. Ao ligar, o sistema (ou o navegador) pede a permissão; recusada, a opção volta a desligado e diz por quê. Ligada, o que está em **Aviso e lista** aparece também nas notificações do sistema enquanto a janela está atrás de outras, minimizada ou em outra aba.
+- **Também nas notificações do sistema** começa desligado. No navegador, ao ligar, ele pede a permissão; recusada, a opção volta a desligado e diz por quê. No computador nada é perguntado: os ajustes de notificações do sistema decidem, e a opção diz onde ficam. Ligada, o que está em **Aviso e lista** aparece também nas notificações do sistema enquanto a janela está atrás de outras, minimizada ou em outra aba.
 
 Experimente: abra **Ajustes › Notificações**, ponha **Presença** em **Só na lista** e veja a escolha ficar guardada; depois abra o sino.
 
