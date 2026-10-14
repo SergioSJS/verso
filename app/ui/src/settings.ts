@@ -85,6 +85,10 @@ export type Settings = {
    *  item 15), by folder: on unless the person turned it off — their
    *  layer, never written into the folder. */
   liveTogether: Record<string, boolean>;
+  /** Each kind of notification, as the person chose it (ADR 0084 item 8):
+   *  "toast" ("Aviso e lista"), "list" ("Só na lista") or "off"; a kind
+   *  not named here is "Aviso e lista". */
+  notify: Partial<Record<string, "toast" | "list" | "off">>;
 };
 export const DEFAULTS: Settings = {
   lang: "auto",
@@ -138,6 +142,7 @@ export const DEFAULTS: Settings = {
   syncFocusesAsked: {},
   localFocuses: {},
   liveTogether: {},
+  notify: {},
 };
 export let settings: Settings = { ...DEFAULTS };
 export function loadSettings(): void {
@@ -157,6 +162,7 @@ export function loadSettings(): void {
       if (!settings.syncFocusesAsked || typeof settings.syncFocusesAsked !== "object") settings.syncFocusesAsked = {};
       if (!settings.localFocuses || typeof settings.localFocuses !== "object") settings.localFocuses = {};
       if (!settings.liveTogether || typeof settings.liveTogether !== "object") settings.liveTogether = {};
+      if (!settings.notify || typeof settings.notify !== "object" || Array.isArray(settings.notify)) settings.notify = {};
     }
   } catch {
     settings = { ...DEFAULTS };
