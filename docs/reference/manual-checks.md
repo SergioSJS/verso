@@ -92,6 +92,36 @@ in the real app.
   at `https://versomd.com/universo.sh` (versomd-site, `public/universo.sh`)
   is copied again from `packaging/server/universo.sh`, or the site's
   script finds no signature in it.
+### The hover preview (ADR 0085, feat/hover-preview, 2026-10-14)
+
+- [ ] **A link's note where the pointer rests, in the app** (A): note 02,
+  *Prévia ao Passar o Mouse*, in Leitura: the pointer on "as fórmulas do
+  Guia de Sintaxe" for half a second shows the card, its heading marked
+  at the top; the pointer into the card scrolls it; away, it goes; in the
+  dark theme the card reads as the note does. A note with a picture of the
+  folder in it (note 06): the picture shows in the card (the `verso:`
+  protocol, which the harness stands in for). `verso.log`: no ERROR.
+- [ ] **⌘ in Edit mode on the Mac, Ctrl on Windows** (A): note 02 in
+  Editar, the pointer resting on a link: nothing; ⌘ pressed (Ctrl in
+  WebView2 on Windows): the card; ⌘-click still follows the link and no
+  card is left behind.
+- [ ] **A note only in iCloud** (A, ADR 0043): a link to a note made
+  dataless by macOS (*Remove Download* in Finder): the card says *A nota
+  só está na nuvem: abra-a para baixá-la — a prévia não baixa nada.*, and
+  the file stays dataless (`ls -lO` shows `dataless`).
+- [ ] **A PDF and a picture linked** (A): `[[file.pdf]]` and
+  `[[picture.png]]` rested on show the PDF (pdf.js in the app's web view)
+  and the picture in the card; the console stays clean as the card opens
+  and closes.
+- [ ] **The board by touch, on an iPad** (A): a board's card, a finger
+  held still on its name: the card of its note; lifted, the board selects
+  nothing new and opens nothing. (The graph's long press runs by machine;
+  the board's does not.)
+- [ ] **VoiceOver** (B): bind *Ver a prévia do link sob o cursor* in
+  *Ajustes › Atalhos*, a link in Leitura focused with Tab, the key: the
+  card is read as the dialog *Prévia de …* and its text can be read; Esc
+  closes it and the focus is back on the link. A hover's card is not
+  announced and takes no focus.
 
 ### The window's feedback (fix/ui-feedback, 2026-10-14)
 

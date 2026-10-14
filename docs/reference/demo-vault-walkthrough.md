@@ -215,6 +215,20 @@ point 13).
     shows the column as wide, and so does the note opened again; the file
     does not change (ADR 0064 point 6). Level: H; E: `tables.spec.mjs`, "a
     column dragged wider…" and "a column dragged in Reading…".
+13. Note 02, "Prévia ao Passar o Mouse" ([ADR
+    0085](../adr/0085-hover-preview.md)): in Leitura, the pointer resting
+    half a second on "as fórmulas do Guia de Sintaxe" shows a card with
+    note 01, its heading marked at the top; away from the link and the
+    card, it goes; a click in it opens note 01. "a descoberta da escrita
+    atômica" shows the research note with the block `^atomica` marked;
+    "Nova Ideia de Projeto" says no note answers yet, and no note is made.
+    In Editar a plain hover shows nothing, and ⌘ (Ctrl) pressed shows the
+    card. "Ver a prévia do link sob o cursor" from the palette, the cursor
+    in a link: the card is a dialog with the focus, and Esc gives the focus
+    back. Settings › Editor › "Prévia ao passar o mouse" off: no card on a
+    hover, the command still opens one. A row of the Links panel, a node of
+    the graph and a card's name on "Board de Demonstração" show their
+    notes. Level: H; E: `preview.spec.mjs`; U: `test/preview.test.mjs`.
 
 ## 4. Organizing: properties, bases, daily notes
 
@@ -709,6 +723,12 @@ hand, on a phone and an iPad, the server's window in the browser.
    H; E: `capabilities.spec.mjs`.
 9. VoiceOver on the iPhone and the iPad, TalkBack on Android: the passes of
    `manual-checks.md`. Level: A.
+10. Note 02 in Editar, by touch: a tap on a link shows its note above
+    Abrir and Editar link; on the graph, a finger held still on a node
+    shows its note and opens nothing ([ADR
+    0085](../adr/0085-hover-preview.md) item 5). Level: H; E:
+    `preview.spec.mjs`, "by touch" (the board's long press: by hand,
+    `manual-checks.md`).
 
 ## 13. On a server
 

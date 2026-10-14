@@ -2117,3 +2117,20 @@ it is attached (ADR 0057 points 14 and 20); the stress test's edges had
 none because the test makes the file itself. In a room, Obsidian's write
 over the mount is a change from outside: taken in, or the people in the
 board choose (ADR 0082 item 12).
+
+## 19. Page preview, in Obsidian's public help (2026-10-14)
+
+Read before building the hover preview, as [ADR
+0085](../adr/0085-hover-preview.md) item 3 asks: Obsidian's public help,
+<https://obsidian.md/help/plugins/page-preview>, read on 2026-10-14 — the
+help only, never the app ([ADR 0009](../adr/0009-external-constraints.md)).
+
+| What the help says | Verso |
+|---|---|
+| Hovering over an internal link previews the file, on by default, in the file explorer, search, backlinks "and more" | a plain hover in Reading, the Links panel, the graph and a board's card; not the file tree in the first version (ADR 0085 item 2) |
+| In Editing view, `Ctrl` (`Cmd` on macOS) pressed while hovering shows it | Edit mode previews only with ⌘ or Ctrl held (item 3, decided) |
+| An option requires the modifier everywhere | not built: no such option was decided; the setting turns the hover off (item 8) |
+
+The help does not say what Reading view does beyond the default, how long
+the pointer rests, or whether a preview opens inside a preview; Verso's
+answers are the ADR's (half a second; no preview inside a preview).

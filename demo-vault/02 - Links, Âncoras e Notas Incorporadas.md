@@ -26,6 +26,13 @@ Link para uma nota existente pelo nome. Ao digitar `[[`, o Verso sugere as notas
 
 Outro jeito: arraste uma nota da árvore de arquivos para o texto — entra um link para ela no ponto onde você soltar (uma imagem ou um PDF entram como embed).
 
+### Prévia ao Passar o Mouse
+Pare o ponteiro sobre um link por meio segundo, no modo **Leitura**: aparece um cartão com a nota que ele nomeia, já rolada até o título ou o bloco do link — sem sair desta nota. Leve o ponteiro para dentro do cartão para rolar o texto; um clique nele abre a nota. No modo **Editar**, segure `⌘` (`Ctrl` no Windows e no Linux) enquanto para sobre o link. Experimente nestes dois:
+- [[01 - Guia de Markdown e Sintaxe#Fórmulas Matemáticas em KaTeX|as fórmulas do Guia de Sintaxe]]
+- [[Projetos/Pesquisa e Descobertas#^atomica|a descoberta da escrita atômica]]
+
+A prévia também aparece sobre as linhas do painel **Links**, sobre os nós do grafo e sobre o nome de um cartão no board. Num celular ou tablet, onde não há ponteiro: um toque num link no modo Editar mostra a prévia acima de **Abrir** e **Editar link**; no grafo e no board, segure o dedo parado sobre a nota. Pelo teclado, o comando **Ver a prévia do link sob o cursor** (⌘⇧P) abre o cartão com o foco nele, e `Esc` o fecha e devolve o foco — ele não tem tecla própria: escolha uma em **Ajustes › Atalhos**. Para não ver o cartão ao passar o mouse: **Ajustes › Editor › Prévia ao passar o mouse**.
+
 ### Link com Apelido (Alias)
 Altere o texto visível mantendo o destino original com a barra vertical `|`:
 - [[00 - Bem-vindo ao Verso|Ir para a Página Inicial]]

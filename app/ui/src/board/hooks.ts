@@ -148,3 +148,70 @@ export function useToolsBelow(canvas: RefObject<HTMLDivElement | null>): boolean
   }, [canvas]);
   return below;
 }
+
+/** What the board tells the window's hover preview (ADR 0085 items 2 and
+ *  5): the cards lie under Excalidraw's canvas, which takes the pointer,
+ *  so the board says which card's name the pointer rests on — the topmost
+ *  card under it, as the eye sees — and a finger held still on one. */
+export type BoardPreview = {
+  at: (el: Element | null, x: number, y: number, mods: boolean) => void;
+  press: (el: Element, x: number) => boolean;
+};
+
+const PRESS_MS = 450;
+const STILL_PX = 8;
+
+export function useCardPreview(canvas: RefObject<HTMLDivElement | null>, preview: BoardPreview | undefined): void {
+  useEffect(() => {
+    const root = canvas.current;
+    if (!root || !preview) return;
+    const inside = (r: DOMRect, x: number, y: number): boolean => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    const nameAt = (x: number, y: number): Element | null => {
+      const slots = root.querySelectorAll<HTMLElement>(".board-card-slot:not(.is-far)");
+      for (let i = slots.length - 1; i >= 0; i--) {
+        const slot = slots[i]!;
+        if (!inside(slot.getBoundingClientRect(), x, y)) continue;
+        // An entered card is being read or edited: its own pointer.
+        if (slot.classList.contains("is-active")) return null;
+        for (const el of slot.querySelectorAll("[data-preview-path]")) if (inside(el.getBoundingClientRect(), x, y)) return el;
+        return null;
+      }
+      return null;
+    };
+    const move = (e: PointerEvent): void => {
+      if (e.pointerType === "touch") return;
+      preview.at(e.buttons ? null : nameAt(e.clientX, e.clientY), e.clientX, e.clientY, e.metaKey || e.ctrlKey);
+    };
+    const leave = (e: PointerEvent): void => preview.at(null, e.clientX, e.clientY, false);
+    let held: { id: number; x: number; y: number; timer: number } | null = null;
+    const down = (e: PointerEvent): void => {
+      if (e.pointerType !== "touch" || !e.isPrimary) return;
+      const el = nameAt(e.clientX, e.clientY);
+      if (!el) return;
+      const x = e.clientX;
+      held = { id: e.pointerId, x, y: e.clientY, timer: window.setTimeout(() => preview.press(el, x), PRESS_MS) };
+    };
+    const still = (e: PointerEvent): void => {
+      if (held && e.pointerId === held.id && Math.hypot(e.clientX - held.x, e.clientY - held.y) >= STILL_PX) lift();
+    };
+    const lift = (): void => {
+      if (held) window.clearTimeout(held.timer);
+      held = null;
+    };
+    root.addEventListener("pointermove", move, true);
+    root.addEventListener("pointerleave", leave);
+    root.addEventListener("pointerdown", down, true);
+    root.addEventListener("pointermove", still, true);
+    root.addEventListener("pointerup", lift, true);
+    root.addEventListener("pointercancel", lift, true);
+    return () => {
+      lift();
+      root.removeEventListener("pointermove", move, true);
+      root.removeEventListener("pointerleave", leave);
+      root.removeEventListener("pointerdown", down, true);
+      root.removeEventListener("pointermove", still, true);
+      root.removeEventListener("pointerup", lift, true);
+      root.removeEventListener("pointercancel", lift, true);
+    };
+  }, [canvas, preview]);
+}

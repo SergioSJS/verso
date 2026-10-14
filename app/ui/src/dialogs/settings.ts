@@ -35,6 +35,7 @@ import { KINDS, type Mode, MODES, modeOf } from "../notify/core";
 import { notifyStrings } from "../notify/strings";
 import { systemControl } from "../notify/system";
 import { signedIn } from "../web/api";
+import { pv } from "../preview/strings";
 
 /** A settings page is a list of items: a title, a line about it, a control. */
 export let hotkeyRecorder: ((e: KeyboardEvent) => void) | null = null;
@@ -596,6 +597,7 @@ export class SettingsDialog {
     add("editor", t.defaultMode, t.defaultModeDesc, () => this.select([["preview", t.reading], ["live", t.edit]], settings.defaultMode, (v) => { settings.defaultMode = v; saveSettings(); }));
     add("editor", t.spellcheck, t.spellcheckDesc, () => this.toggle(settings.spellcheck, (v) => { settings.spellcheck = v; saveSettings(); }));
     add("editor", t.blocks.handles, t.blocks.handlesDesc, () => this.toggle(settings.blockHandles, (v) => { settings.blockHandles = v; saveSettings(); }));
+    add("editor", pv.setting, pv.settingDesc, () => this.toggle(settings.hoverPreview, (v) => { settings.hoverPreview = v; saveSettings(); }));
     add("editor", t.blocks.enterNewBlock, t.blocks.enterNewBlockDesc, () => this.toggle(settings.enterNewBlock, (v) => { settings.enterNewBlock = v; saveSettings(); }));
     // Sub-division for Line Numbers, in the exact order of the mode buttons on screen:
     // 1. Reading mode (Leitura)

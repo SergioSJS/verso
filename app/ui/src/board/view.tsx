@@ -35,7 +35,7 @@ import { CardLayer, drawQueue, isBarePicture, OutlinePanel, View } from "./cards
 import { CropDialog, ExportDialog } from "./dialogs";
 import { DrawingPreview, DrawingView } from "./drawing";
 import { FONT_ID, fontReady, fontsOf } from "./fonts";
-import { useHintSlot, useTidyContextMenu, useToolbarSlot, useToolsBelow } from "./hooks";
+import { useCardPreview, useHintSlot, useTidyContextMenu, useToolbarSlot, useToolsBelow } from "./hooks";
 import { useOverlays } from "./overlays";
 import { useSceneFixes } from "./arrows";
 import {
@@ -524,6 +524,7 @@ function Board({
   }, []);
 
   const { overlays, scheduleOverlays } = useOverlays(api, dark);
+  useCardPreview(container, host.preview);
 
   // A card's buttons (open, swap), under Excalidraw's selection canvas, are pressed
   // here: the topmost card under the pointer decides, as the eye does.
@@ -1136,6 +1137,8 @@ function Board({
           // editing it would break the card: hidden while a card is selected.
           data-card-selected={selectedNode && isNode(selectedNode) ? "" : undefined}
           ref={container}
+          // The board says itself what lies under the pointer (useCardPreview).
+          data-preview-surface=""
           onDoubleClickCapture={onDoubleClick}
           onPointerDownCapture={(e) => {
             touched.current = true;

@@ -5,6 +5,7 @@
 import { type El } from "./model";
 import type { Layouts } from "./roomModel";
 import { type BoardStrings } from "./strings";
+import type { BoardPreview } from "./hooks";
 
 /** One of the others on a board edited together, as Excalidraw draws a
  *  collaborator: pointer, selection, name and colour (ADR 0082 item 12). */
@@ -110,6 +111,9 @@ export type BoardHost = {
   saveImage: (name: string, base64: string) => Promise<string | null>;
   /** The board is in a room: edited together, written by the room. */
   room?: BoardRoomLink;
+  /** The window's hover preview: a card's note where the pointer rests
+   *  on its name, or under a finger held still (ADR 0085 item 2). */
+  preview?: BoardPreview;
 };
 
 /** What the settings say of boards. */

@@ -126,6 +126,7 @@ export class Panel {
     const ul = h("ul", "panel-list");
     ul.append(...hits.map((hit) => {
       const li = this.row(name(hit.path), dirOf(hit.path) || undefined, () => openNote(hit.path, false, false, true), "search");
+      previews(li, hit.path);
       li.querySelector("button")?.addEventListener("dblclick", () => void openNote(hit.path, false));
       li.querySelector("button")?.append(snippetNode(hit.snippet));
       return li;
@@ -327,7 +328,7 @@ export class Panel {
           section(
             "links-back",
             t.backlinks,
-            back.map((b) => this.row(name(b.from), `${dirOf(b.from) ? dirOf(b.from) + " · " : ""}${t.line} ${b.line}`, () => openNote(b.from, false), "note")),
+            back.map((b) => previews(this.row(name(b.from), `${dirOf(b.from) ? dirOf(b.from) + " · " : ""}${t.line} ${b.line}`, () => openNote(b.from, false), "note"), b.from)),
           ),
           section(
             "links-out",
@@ -336,7 +337,7 @@ export class Panel {
               const li = this.row(l.target, l.resolved ? dirOf(l.resolved) : l.outside ? sh.notShared : "?", () => (l.resolved ? openNote(l.resolved, false) : undefined), l.resolved ? "note" : "link");
               if (!l.resolved) li.classList.add("unresolved");
               if (l.outside) li.classList.add("outside");
-              return li;
+              return previews(li, l.resolved, l.target, l.outside);
             }),
           ),
         );
@@ -375,4 +376,16 @@ export class Panel {
       }
     }
   }
+}
+
+/** A row whose note shows in the hover preview (ADR 0085 item 2): its
+ *  path, the link as written (a heading, a `^id`), or the link alone when
+ *  nothing answers or it leaves what was shared. */
+function previews(li: HTMLLIElement, path: string | null, target?: string, outside?: boolean): HTMLLIElement {
+  const b = li.querySelector("button");
+  if (!b) return li;
+  if (path) b.dataset["previewPath"] = path;
+  if (target) b.dataset["previewTarget"] = target;
+  if (outside) b.dataset["previewOutside"] = "";
+  return li;
 }
