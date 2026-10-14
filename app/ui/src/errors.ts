@@ -4,7 +4,7 @@
 
 import { type ContractError } from "./bindings";
 import { ui } from "./dom";
-import { ANSWERS, caseTwin, errorParts, levelOf } from "./errorKinds";
+import { ANSWERS, caseTwin, errorParts, levelOf, toConsole } from "./errorKinds";
 import { note } from "./report";
 import { boardText, t } from "./strings";
 
@@ -20,6 +20,8 @@ export function fail(e: ContractError | unknown): void {
   // A phone has no status bar: the failure is said at the top of its
   // pane instead (ADR 0076 item 6, screen/frame.ts).
   if (!ANSWERS.has(kind)) dispatchEvent(new CustomEvent("verso:failed", { detail: said }));
+  // DevTools' console has its line too (errorKinds.ts).
+  toConsole(e);
   note(levelOf(kind), kind ? `${kind}: ${message}` : message);
 }
 /** A failure said in `words` of the window's own, not the core's
@@ -30,6 +32,7 @@ export function failSaid(words: string, e: ContractError | unknown): void {
   const { kind, message } = errorParts(e);
   ui.status.textContent = words;
   if (!ANSWERS.has(kind)) dispatchEvent(new CustomEvent("verso:failed", { detail: words }));
+  toConsole(e);
   note(levelOf(kind), kind ? `${kind}: ${message}` : message);
 }
 /** A name already taken, said in the status bar as `text`: an answer, so

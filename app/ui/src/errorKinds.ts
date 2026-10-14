@@ -36,3 +36,30 @@ export function caseTwin(e: ContractError | unknown): boolean {
 export function levelOf(kind: string): "INFO" | "ERROR" {
   return ANSWERS.has(kind) || STATE.has(kind) ? "INFO" : "ERROR";
 }
+
+/** A text that may carry a secret, without it: a bearer token, a token,
+ *  password or code given as a parameter. */
+export function redact(text: string): string {
+  return text
+    .replace(/\b(Bearer)\s+\S+/gi, "$1 …")
+    .replace(/\b(token|password|senha|code|poll)(["']?\s*[=:]\s*["']?)[^\s&"',}]+/gi, "$1$2…");
+}
+
+/** The line a failed command writes to the browser's console (DevTools),
+ *  beside the status bar and the app's log (the maintainer, 2026-10-14:
+ *  "are you logging this?"). Never `console.error`: the window passes
+ *  that to the app's log as its own accident (report.ts), and the
+ *  end-to-end suite fails a test on it (e2e/fixtures.mjs) — a failure the
+ *  person can mend is no accident. A warning for a fault, information
+ *  for an answer. */
+export function consoleLine(e: ContractError | unknown): { level: "info" | "warn"; text: string } {
+  const { kind, message } = errorParts(e);
+  const level = levelOf(kind) === "INFO" ? "info" : "warn";
+  return { level, text: `Verso: ${kind ? `${kind}: ` : ""}${redact(message)}` };
+}
+
+/** Write that line. */
+export function toConsole(e: ContractError | unknown): void {
+  const { level, text } = consoleLine(e);
+  console[level](text);
+}
