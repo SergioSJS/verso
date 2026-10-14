@@ -47,16 +47,20 @@ sh universo.sh install --url https://notes.example.com
 | `reset-admin [E-MAIL]` | the command of section 10 |
 | `firewall` | opens 80 and 443 with ufw, firewalld or iptables (kept across reboots with `netfilter-persistent` when present), and reminds that a cloud's own firewall (Oracle's VCN security list) is opened in its console. Only when asked: `install` never touches the firewall |
 
-How a download is checked: with `minisign` installed, the release's `.sig`
+How a download is checked: with `minisign` installed, the release's
+signed checksums list — `verso-<version>-SHA256SUMS` and its `.sig` —
 against Verso's release key (section 6), the signed comment naming the
-file; without `minisign`, the `sha256` GitHub publishes for each release
-file; with neither, it refuses unless given `--insecure-no-verify`, which
-says loudly that nothing was checked. A missing `.sig` — none in the
-release, its download failed, none beside `--package FILE` — is an error:
-the script stops and says so, unless given `--no-signature`, which settles
-for the published `sha256` (proof that the file is the one uploaded to the
-release, not of who made it). A package from `--package FILE` is checked
-with `FILE.sig` beside it. While the repository is private, downloading
+list of the package's version, then the package's `sha256` against its
+line in the list (a release up to 0.8.3: the package's own `.sig`, the
+signed comment naming the file); without `minisign`, the `sha256` GitHub
+publishes for each release file; with neither, it refuses unless given
+`--insecure-no-verify`, which says loudly that nothing was checked. A
+missing signature — none in the release, its download failed, none beside
+`--package FILE` — is an error: the script stops and says so, unless given
+`--no-signature`, which settles for the published `sha256` (proof that the
+file is the one uploaded to the release, not of who made it). A package
+from `--package FILE` is checked with the list and its `.sig` beside it,
+else with `FILE.sig`. While the repository is private, downloading
 needs a GitHub token in `GITHUB_TOKEN` (fine-grained, Contents: Read-only
 on the repository); without one the script says how to make it, or takes
 `--package`. Give it with `read -rs GITHUB_TOKEN && export GITHUB_TOKEN`
@@ -393,8 +397,20 @@ under the user's configuration directory (`VERSO_CONFIG_DIR`, else
 `$XDG_CONFIG_HOME/verso`, else `~/.config/verso`): `server` and
 `server-folders`.
 
-A file's signature can be checked with minisign and Verso's public key,
-the one the app carries (`app/src-tauri/src/update.rs`):
+A file can be checked with minisign and Verso's public key, the one the
+app carries (`app/src-tauri/src/update.rs`): the release's checksums list
+first, its signed comment naming the list (`file:verso-<version>-SHA256SUMS`),
+then the file against the list, which must say `OK` for it:
+
+```sh
+base64 -d < verso-0.8.3-beta.1-SHA256SUMS.sig > list.minisig
+minisign -V -P RWS1zv2nvs/ng1hA0YspwOg7wGda98zkXjVfx8m9CtT5obRW5zabNHaT \
+  -m verso-0.8.3-beta.1-SHA256SUMS -x list.minisig
+sha256sum --check --ignore-missing verso-0.8.3-beta.1-SHA256SUMS
+```
+
+A release up to 0.8.3 has a `.sig` beside each file too, checked on its
+own:
 
 ```sh
 base64 -d < universo-0.8.0-beta.1-x86_64.tar.gz.sig > file.minisig

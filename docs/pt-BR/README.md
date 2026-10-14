@@ -86,8 +86,11 @@ Uma versão de teste sai como "Verso Beta" — os arquivos dela começam com
 | Windows 10 e 11, x64 (rodado até agora no Windows 11) | `Verso-X.Y.Z-windows-x64-setup.exe`, um instalador para o seu usuário | sem assinatura: o SmartScreen pergunta uma vez: em Mais informações, mande executar |
 | Linux, x64 | `Verso-X.Y.Z-linux-amd64.deb` para Ubuntu (22.04 e posteriores), Linux Mint, Debian (12 e posteriores), Pop!_OS; `Verso-X.Y.Z-linux-x86_64.rpm` para Fedora (36 e posteriores); `Verso-X.Y.Z-linux-x86_64.AppImage` para qualquer outro | o AppImage: torne-o executável e rode. O ARM64 vem quando o repositório for público |
 
-O `.sig` ao lado de cada arquivo é a assinatura dele, para o atualizador
-do app e o instalador do UniVerso: pode ignorá-lo.
+O `verso-X.Y.Z-SHA256SUMS` lista o sha256 de cada arquivo, e o `.sig`
+dele assina a lista com a chave acima: o atualizador do app e o
+instalador do UniVerso conferem cada arquivo com eles, e você pode
+ignorar os dois. (A 0.8.3 também leva um `.sig` ao lado de cada arquivo,
+para os apps anteriores a ela; as releases depois dela, não.)
 
 A linha de comando vem com o app. No macOS, Ajustes → Terminal e agentes →
 Instalar a liga como `/usr/local/bin/verso`; no Windows o `verso.exe` fica
