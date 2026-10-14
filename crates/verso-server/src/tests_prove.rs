@@ -539,6 +539,57 @@ fn a_typed_right_code_approves_the_device() {
     });
 }
 
+/// Saying who asked for a code is for a signed-in session, as approving
+/// and refusing it are: a personal access token is refused before the
+/// code is looked at.
+#[test]
+fn a_token_cannot_describe_a_device_code() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let folder = crate::tests::folder_id(&r, &admin).await;
+        let (_, made) = post(
+            &r,
+            "/api/me/tokens",
+            json!({ "name": "script", "write": true, "days": 30, "folders": [folder] }),
+            Some(&admin),
+        )
+        .await;
+        let secret = made["secret"].as_str().unwrap().to_owned();
+        let (_, device) = post(
+            &r,
+            "/api/device/start",
+            json!({ "device": "Verso · Token" }),
+            None,
+        )
+        .await;
+        let code = device["code"].as_str().unwrap().to_owned();
+        let res = reqwest::Client::new()
+            .post(r.url("/api/device/describe"))
+            .bearer_auth(&secret)
+            .json(&json!({ "code": code }))
+            .send()
+            .await
+            .unwrap();
+        let status = res.status().as_u16();
+        let said: Value = res.json().await.unwrap_or(Value::Null);
+        assert_eq!(
+            (status, &said["message"]),
+            (403, &json!("not with an access token")),
+            "a personal access token described a device's code: {said}"
+        );
+        let (status, what) = post(
+            &r,
+            "/api/device/describe",
+            json!({ "code": code }),
+            Some(&admin),
+        )
+        .await;
+        assert_eq!(status, 200, "{what}");
+        assert_eq!(what["device"], "Verso · Token");
+    });
+}
+
 /// A device is approved only with the code the person entered (decided
 /// 2026-10-14, ADR 0083 As built): the routes that took the code from the
 /// address — `GET`, `POST` and `DELETE /api/device/{code}`, which a link
@@ -710,6 +761,45 @@ fn an_invitation_to_a_folder_wants_a_fresh_proof() {
         )
         .await;
         assert_eq!(status, 200, "{made}");
+    });
+}
+
+/// Registering a folder already on the disk gives it to any owner, as
+/// entering one or setting a member's role does: it wants a fresh proof
+/// before anything of the request is read.
+#[test]
+fn adopting_a_folder_wants_a_fresh_proof() {
+    use reqwest::Method;
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let me = id_of(&r, "admin@casa.lan");
+        verso_fs::server::make_folder(&r.server.config.folders_dir, "Achada").unwrap();
+        stale(&r, &me);
+        let said = send(
+            &r,
+            Method::POST,
+            "/api/admin/folders/adopt",
+            Some(json!({ "name": "Nenhuma", "owner": "ninguem@prova.example" })),
+            &admin,
+        )
+        .await;
+        assert_eq!(
+            said,
+            prove_first(),
+            "an aged proof adopted, or was told what it asked"
+        );
+        let (status, adopted) = gated(
+            &r,
+            &admin,
+            &me,
+            Method::POST,
+            "/api/admin/folders/adopt",
+            Some(json!({ "name": "Achada", "owner": "admin@casa.lan" })),
+        )
+        .await;
+        assert_eq!(status, 200, "{adopted}");
+        assert!(r.server.db.folder_by_dir("Achada").unwrap().is_some());
     });
 }
 
