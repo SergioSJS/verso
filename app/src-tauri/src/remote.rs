@@ -493,7 +493,7 @@ pub(crate) async fn server_sign_in<R: tauri::Runtime>(
                 .post(format!("{start_url}/api/device/start"))
                 .json(&json!({ "device": session }))
                 .send()
-                .map_err(|e| failed(e.to_string()))?,
+                .map_err(|e| reach::unsent(&start_url, &e))?,
         )
     })
     .await
@@ -518,7 +518,7 @@ pub(crate) async fn server_sign_in<R: tauri::Runtime>(
                             .post(format!("{u}/api/device/poll"))
                             .json(&json!({ "code": c, "poll": p }))
                             .send()
-                            .map_err(|e| failed(e.to_string()))?,
+                            .map_err(|e| reach::unsent(&u, &e))?,
                     )
                 })
                 .await;
@@ -595,7 +595,7 @@ pub(crate) async fn server_sign_out<R: tauri::Runtime>(
                 .bearer_auth(token)
                 .json(&json!({}))
                 .send()
-                .map_err(|e| failed(e.to_string()))
+                .map_err(|e| reach::unsent(&login.url, &e))
         })
     })
     .await;
@@ -617,7 +617,7 @@ pub(crate) async fn server_folders<R: tauri::Runtime>(
                 .get(format!("{}/api/folders", login.url))
                 .bearer_auth(login.token)
                 .send()
-                .map_err(|e| failed(e.to_string()))?,
+                .map_err(|e| reach::unsent(&login.url, &e))?,
         )
     })
     .await
@@ -652,6 +652,11 @@ pub(crate) async fn server_open<R: tauri::Runtime>(
     may_switch(&app, &window)?;
     let login = login_for(&app.state::<App>(), &url)?;
     let label = window.label().to_owned();
+    // The same folder opened again while its connection is being tried
+    // again: the person acted — that try is now, its waits start over.
+    if of(&app, &label).is_some_and(|r| r.url == login.url && r.folder == folder) {
+        reach::try_now(&label);
+    }
     let remote = connect(&app, &label, login, folder.clone()).await?;
     let opened = remote
         .call("open_server_folder", json!({ "id": folder }))
@@ -809,10 +814,7 @@ pub(crate) async fn dial_hello(
             tokio_tungstenite::tungstenite::Error::Http(r) if r.status().as_u16() == 401 => {
                 refused("the server ended this device's session: sign in again")
             }
-            other => ContractError {
-                kind: ErrorKind::Unavailable,
-                message: other.to_string(),
-            },
+            other => reach::not_dialed(&login.url, &other),
         })?;
     let (mut write, mut read) = socket.split();
     let (tx, mut rx) = mpsc::channel::<Message>(QUEUE);
@@ -976,6 +978,8 @@ async fn connect<R: tauri::Runtime>(
     folder: String,
 ) -> Result<Arc<Remote>, ContractError> {
     let (remote, mut heard) = dial(&login, folder).await?;
+    // This connection, to tell it from the one that may replace it.
+    let this = Arc::downgrade(&remote);
     let app_r = app.clone();
     let label_r = label.to_owned();
     let url_r = login.url;
@@ -999,9 +1003,11 @@ async fn connect<R: tauri::Runtime>(
                 Heard::Closed => break,
             }
         }
+        // Still the window's connection: not one the person opened since,
+        // nor one a reconnection made since.
         let still = lock(&app_r.state::<App>().remotes)
             .get(&label_r)
-            .filter(|r| r.url == url_r)
+            .filter(|r| std::ptr::eq(Arc::as_ptr(r), this.as_ptr()))
             .map(|r| r.folder.clone());
         if let Some(folder) = still {
             let _ = app_r.emit_to(
@@ -1016,71 +1022,121 @@ async fn connect<R: tauri::Runtime>(
                 label_r.clone(),
                 url_r.clone(),
                 folder,
+                this,
             ));
         }
     });
     Ok(remote)
 }
 
-/// Connect again after the connection dropped, with a growing wait, for as
-/// long as the window still shows the server's folder; then open the
-/// folder again, tell the window the folder may have changed meanwhile,
-/// and say the server is back. A session the server ended stops it.
-/// Boxed: it and `connect` start each other.
+/// Connect again after the connection dropped, for as long as the window
+/// still shows the server's folder on the connection that dropped
+/// (`dead`): a wait of 5 s doubling to 5 min (`reach::redial`), cut short
+/// when the person asks ("Tentar de novo", `server_retry`, or opening the
+/// same folder again), the waits then starting over. Each try that finds
+/// the server out of reach says so to the window (`server-gone`, `what`
+/// "unreachable", with its address); the log says it once a minute
+/// (reach.rs). Connected, the folder is opened again, the window told the
+/// folder may have changed meanwhile, and that the server is back. A
+/// session the server ended stops it. Boxed: it and `connect` start each
+/// other.
 fn reconnect<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     label: String,
     url: String,
     folder: String,
+    dead: std::sync::Weak<Remote>,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>> {
     Box::pin(async move {
-        let mut wait = 1_u64;
-        loop {
-            tokio::time::sleep(std::time::Duration::from_secs(wait)).await;
-            wait = (wait * 2).min(30);
-            let mine = lock(&app.state::<App>().remotes)
-                .get(&label)
-                .is_some_and(|r| r.url == url && r.folder == folder);
-            if !mine {
-                return;
-            }
-            let Ok(Some(login)) = servers::find(app.state::<App>().service.config(), &url) else {
-                return;
-            };
-            let remote = match connect(&app, &label, login, folder.clone()).await {
-                Ok(r) => r,
-                Err(e) if e.kind == ErrorKind::Refused => {
-                    release(&app, &label);
-                    let _ = app.emit_to(
-                        label.as_str(),
-                        "server-gone",
-                        json!({ "url": url, "what": "session" }),
-                    );
-                    return;
-                }
-                Err(_) => continue,
-            };
-            // The folder's key, from the answer: the window hears a change
-            // of its own folder only.
-            let Ok(info) = remote
-                .call("open_server_folder", json!({ "id": folder }))
-                .await
-            else {
-                continue;
-            };
-            let key = info.get("key").cloned().unwrap_or(json!(""));
-            lock(&app.state::<App>().remotes).insert(label.clone(), Arc::clone(&remote));
-            if let Ok(index) = remote.call("reindex", json!({})).await {
+        let asked = reach::waiting(&label);
+        let attempt = || {
+            let (app, label, url, folder, dead) = (
+                app.clone(),
+                label.clone(),
+                url.clone(),
+                folder.clone(),
+                dead.clone(),
+            );
+            async move { redial_once(&app, &label, &url, &folder, &dead).await }
+        };
+        let wait = |d| reach::wait_or_asked(d, Arc::clone(&asked));
+        reach::redial(reach::Backoff::new(), attempt, wait).await;
+        reach::done_waiting(&label, &asked);
+    })
+}
+
+/// One try of [`reconnect`].
+async fn redial_once<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    label: &str,
+    url: &str,
+    folder: &str,
+    dead: &std::sync::Weak<Remote>,
+) -> reach::Step<()> {
+    use reach::Step;
+    // The window moved on: another folder, this one opened again, or gone.
+    let mine = lock(&app.state::<App>().remotes)
+        .get(label)
+        .is_some_and(|r| std::ptr::eq(Arc::as_ptr(r), dead.as_ptr()));
+    if !mine {
+        return Step::Stop;
+    }
+    let Ok(Some(login)) = servers::find(app.state::<App>().service.config(), url) else {
+        return Step::Stop;
+    };
+    let remote = match connect(app, label, login, folder.to_owned()).await {
+        Ok(r) => r,
+        Err(e) if e.kind == ErrorKind::Refused => {
+            release(app, label);
+            let _ = app.emit_to(
+                label,
+                "server-gone",
+                json!({ "url": url, "what": "session" }),
+            );
+            return Step::Stop;
+        }
+        Err(e) => {
+            if e.kind == ErrorKind::Unreachable {
                 let _ = app.emit_to(
-                    label.as_str(),
-                    "folder-changed",
-                    json!({ "key": key, "changed": [], "removed": [], "listing": true, "index": index }),
+                    label,
+                    "server-gone",
+                    json!({ "url": url, "what": "unreachable", "address": e.message }),
                 );
             }
-            let _ = app.emit_to(label.as_str(), "server-back", json!({ "url": url }));
-            return;
+            return Step::Again;
         }
-    })
+    };
+    // The folder's key, from the answer: the window hears a change of its
+    // own folder only.
+    let Ok(info) = remote
+        .call("open_server_folder", json!({ "id": folder }))
+        .await
+    else {
+        return Step::Again;
+    };
+    let key = info.get("key").cloned().unwrap_or(json!(""));
+    lock(&app.state::<App>().remotes).insert(label.to_owned(), Arc::clone(&remote));
+    if let Ok(index) = remote.call("reindex", json!({})).await {
+        let _ = app.emit_to(
+            label,
+            "folder-changed",
+            json!({ "key": key, "changed": [], "removed": [], "listing": true, "index": index }),
+        );
+    }
+    let _ = app.emit_to(label, "server-back", json!({ "url": url }));
+    Step::Done(())
+}
+
+/// The window's reconnection tries now, its waits starting over: the
+/// person's "Tentar de novo" while the window's server is out of reach.
+/// Nothing when the window is not reconnecting.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn server_retry<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+) -> Result<(), ContractError> {
+    reach::try_now(window.label());
+    Ok(())
 }
 
 /// Before the app's own handler: a window on a server's folder sends the

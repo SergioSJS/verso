@@ -13,6 +13,7 @@
 // into the window's own file.
 
 import { commands } from "./bindings";
+import { localTime } from "./clock";
 
 export type Swallowed = { at: string; level: string; text: string };
 
@@ -28,7 +29,8 @@ export function swallowed(): readonly Swallowed[] {
 export function note(level: string, text: string): void {
   const clean = text.trim().slice(0, 2000);
   if (clean === "") return;
-  kept.push({ at: new Date().toTimeString().slice(0, 8), level, text: clean });
+  // The computer's time: the report says its zone once (dialogs/bug.ts).
+  kept.push({ at: localTime(new Date()), level, text: clean });
   if (kept.length > 40) kept.shift();
   document.getElementById("report-bug")?.classList.add("has-news");
   // The log is the host's file; a window that cannot reach it still runs.

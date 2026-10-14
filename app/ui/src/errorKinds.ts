@@ -32,7 +32,50 @@ export function caseTwin(e: ContractError | unknown): boolean {
   return errorParts(e).kind === "case_twin";
 }
 
+/** A server that could not be reached (the contract's `unreachable`):
+ *  not the window's fault, nor the server's answer — down, or no network.
+ *  WARN in the log, once a minute per server (`dueToSay`). */
+export const REACH = "unreachable";
+
 /** The log's level for a failure of this kind. */
-export function levelOf(kind: string): "INFO" | "ERROR" {
+export function levelOf(kind: string): "INFO" | "WARN" | "ERROR" {
+  if (kind === REACH) return "WARN";
   return ANSWERS.has(kind) || STATE.has(kind) ? "INFO" : "ERROR";
+}
+
+/** Whether something keyed `key`, last said at the time `said` keeps,
+ *  may be said again at `now` (milliseconds): once a minute. Recorded
+ *  when it may. */
+export function dueToSay(said: Map<string, number>, key: string, now: number, every = 60_000): boolean {
+  const last = said.get(key);
+  if (last !== undefined && now - last < every) return false;
+  said.set(key, now);
+  return true;
+}
+
+/** A text that may carry a secret, without it: a bearer token, a token,
+ *  password or code given as a parameter. */
+export function redact(text: string): string {
+  return text
+    .replace(/\b(Bearer)\s+\S+/gi, "$1 …")
+    .replace(/\b(token|password|senha|code|poll)(["']?\s*[=:]\s*["']?)[^\s&"',}]+/gi, "$1$2…");
+}
+
+/** The line a failed command writes to the browser's console (DevTools),
+ *  beside the status bar and the app's log (the maintainer, 2026-10-14:
+ *  "are you logging this?"). Never `console.error`: the window passes
+ *  that to the app's log as its own accident (report.ts), and the
+ *  end-to-end suite fails a test on it (e2e/fixtures.mjs) — a failure the
+ *  person can mend is no accident. A warning for a fault, information
+ *  for an answer. */
+export function consoleLine(e: ContractError | unknown): { level: "info" | "warn"; text: string } {
+  const { kind, message } = errorParts(e);
+  const level = levelOf(kind) === "INFO" ? "info" : "warn";
+  return { level, text: `Verso: ${kind ? `${kind}: ` : ""}${redact(message)}` };
+}
+
+/** Write that line. */
+export function toConsole(e: ContractError | unknown): void {
+  const { level, text } = consoleLine(e);
+  console[level](text);
 }

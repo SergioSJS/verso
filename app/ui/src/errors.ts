@@ -4,7 +4,8 @@
 
 import { type ContractError } from "./bindings";
 import { ui } from "./dom";
-import { ANSWERS, caseTwin, errorParts, levelOf } from "./errorKinds";
+import { ANSWERS, REACH, caseTwin, dueToSay, errorParts, levelOf, toConsole } from "./errorKinds";
+import { keepFailuresWith, reachStrings } from "./reach";
 import { note } from "./report";
 import { boardText, t } from "./strings";
 
@@ -20,8 +21,22 @@ export function fail(e: ContractError | unknown): void {
   // A phone has no status bar: the failure is said at the top of its
   // pane instead (ADR 0076 item 6, screen/frame.ts).
   if (!ANSWERS.has(kind)) dispatchEvent(new CustomEvent("verso:failed", { detail: said }));
+  told(kind, message, e);
+}
+/** When each server out of reach was last written to the log. */
+const reachSaid = new Map<string, number>();
+/** A failure kept for the report and the app's log, and one line in the
+ *  console. A server out of reach is written once a minute, at WARN: the
+ *  maintainer's log had two ERROR lines a click (2026-10-14). */
+export function told(kind: string, message: string, e: ContractError | unknown): void {
+  toConsole(e);
+  if (kind === REACH && !dueToSay(reachSaid, message, Date.now())) return;
   note(levelOf(kind), kind ? `${kind}: ${message}` : message);
 }
+keepFailuresWith((e) => {
+  const { kind, message } = errorParts(e);
+  told(kind, message, e);
+});
 /** A failure said in `words` of the window's own, not the core's
  *  sentence (a file no longer there, without the system's text of the
  *  failed read); the log keeps the core's text, at the level `fail` would
@@ -30,7 +45,7 @@ export function failSaid(words: string, e: ContractError | unknown): void {
   const { kind, message } = errorParts(e);
   ui.status.textContent = words;
   if (!ANSWERS.has(kind)) dispatchEvent(new CustomEvent("verso:failed", { detail: words }));
-  note(levelOf(kind), kind ? `${kind}: ${message}` : message);
+  told(kind, message, e);
 }
 /** A name already taken, said in the status bar as `text`: an answer, so
  *  the log has it as INFO. */
@@ -42,6 +57,8 @@ export function nameTaken(text: string): void {
 export function errorSentence(e: ContractError | unknown): string {
   if (caseTwin(e)) return `${t.error}: ${t.caseTwinName}`;
   const { kind, message } = errorParts(e);
+  // The address is the whole message: said once, in the sentence.
+  if (kind === REACH) return `${t.error}: ${reachStrings().unreachable(message)}`;
   const sentence: Record<string, string> = { no_folder: t.errNoFolder, refused: t.errRefused, not_found: t.errNotFound, unavailable: t.errUnavailable, not_text: t.errNotText, not_canvas: boardText.notABoard, changed: t.errChanged, exists: t.exists, quota: t.errQuota, prove_first: t.errProveFirst, failed: t.errFailed };
   const said = sentence[kind];
   return said ? `${t.error}: ${said}${message ? ` (${message})` : ""}` : `${t.error}: ${message}`;

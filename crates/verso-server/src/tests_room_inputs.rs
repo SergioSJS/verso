@@ -516,6 +516,31 @@ fn runs_of_no_length_or_past_the_last_clock_are_refused() {
     }
 }
 
+/// Found by the fuzz target `board` under `-O` on 2026-10-14
+/// (`seeds-board/a-client-named-twice.bin`): an update that names one Yjs
+/// client in two of its sections, each from the same clock. `yrs` 0.28
+/// reads both into one list out of clock order, frees an item the room's
+/// board still points to as it integrates them, and the board read next
+/// reads freed memory (AddressSanitizer's heap-use-after-free; a release
+/// build reads it silently). Yjs writes each client once, and its own
+/// reader keeps only a client's last section, so no window sends one and
+/// a window would read it otherwise than the room: refused before `yrs`
+/// reads it.
+#[test]
+fn an_update_that_names_a_client_twice_is_refused() {
+    let input = include_bytes!("../fuzz/seeds-board/a-client-named-twice.bin");
+    let twice = records(input)[6];
+    let e = collab::readable(twice).expect_err("refused");
+    assert_eq!(e.message, "an update the room cannot read");
+    // By hand: client 5 twice, a GC run of one clock in each, the second
+    // after the first.
+    let e = collab::readable(&[2, 1, 5, 0, 0, 1, 1, 5, 1, 0, 1, 0]).expect_err("refused");
+    assert_eq!(e.message, "an update the room cannot read");
+    // Two clients, once each: read.
+    assert!(collab::readable(&[2, 1, 5, 0, 0, 1, 1, 6, 0, 0, 1, 0]).is_ok());
+    board_elements_through(input);
+}
+
 /// Found by the fuzz target `note` under `-O`
 /// (`seeds-note/room-client-forged.bin`): a window's update made an item
 /// as the room's own Yjs client, ahead of the room; the room's next own

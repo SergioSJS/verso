@@ -92,7 +92,7 @@ Com a pasta aberta, em **Ajustes › Sincronizar**, escolha o servidor e **uma p
 - se a sincronização fosse apagar **muitos arquivos** de uma vez — mais de um quinto da pasta, ou mais de 50, e ao menos 3 —, ela **para e pergunta**: uma pasta movida ou um disco que não montou parecem exclusões;
 - o que fica de fora (a cota do servidor, um arquivo que não está no computador) aparece com o motivo, e **Atividade recente** lista o que foi e veio — o que veio do servidor diz por quem e em qual aparelho, como "por Ana em MacBook de Ana".
 
-A barra de status mostra o estado — *Sincronizada*, *enviando 3*, *Sem conexão*, *Pausada*, *1 conflito* — e um clique nela abre a seção. Quem só **lê** a pasta no servidor recebe as mudanças; as feitas aqui ficam aqui. Desligar deixa os dois lados como estão.
+A barra de status mostra o estado — *Sincronizada*, *enviando 3*, *Sem conexão*, *Servidor fora de alcance*, *Pausada*, *1 conflito* — e um clique nela abre a seção. Com o servidor fora do ar, a seção diz qual servidor não respondeu, e *Sincronizar agora* tenta de novo; *Sincronizar esta pasta* e a lista de pastas em Ajustes › Servidores dizem o mesmo ali mesmo, com **Tentar de novo**. Quem só **lê** a pasta no servidor recebe as mudanças; as feitas aqui ficam aqui. Desligar deixa os dois lados como estão.
 
 ### Editar junto numa pasta sincronizada
 
