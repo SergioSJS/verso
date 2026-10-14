@@ -25,6 +25,8 @@ import { walkRulesChanged } from "../open";
 import { pushFolderNoteName } from "../organize/folderNotes";
 import { orderModeChanged } from "../organize/order";
 import { allowEmbedOrigins } from "../sanitize";
+import { refreshBases } from "../bases";
+import { tileControl, tileStrings } from "../bases/tileSettings";
 import { getHiddenFromTree, pushEmbedOrigins, pushMenuLanguage, saveSettings, setHiddenFromTree, settings } from "../settings";
 import { boardText, LOCALE, t } from "../strings";
 import { listAll } from "../tree/tree";
@@ -415,6 +417,18 @@ export class SettingsDialog {
       wrap.append(box, note);
       return wrap;
     });
+    // The maps' background (ADR 0094 items 8 and 9): the shipped world by
+    // default; a source only by the person's choice.
+    const ts = tileStrings(LOCALE);
+    add("general", ts.title, ts.desc, () =>
+      tileControl(LOCALE, settings, (next) => {
+        settings.mapTiles = next.mapTiles;
+        settings.mapTilesDark = next.mapTilesDark;
+        settings.mapTileOrigins = next.mapTileOrigins;
+        saveSettings();
+        refreshBases();
+      }, document.querySelector('meta[name="verso-contract"]') !== null),
+    );
     // The space the open folder takes (ADR 0075 item 4), from the walk the
     // index already made.
     if (currentFolder) {
