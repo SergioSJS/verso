@@ -44,6 +44,15 @@ import { releasePage } from "./release-page.mjs";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const [command, version, ...rest] = process.argv.slice(2);
 const dryRun = rest.includes("--dry-run");
+/** The fuzz crates, each outside the workspace with a lockfile of its own
+ *  that names the workspace crate it fuzzes: its version moves with the
+ *  workspace's (the dialect's parser and canvas reader; the server's inputs,
+ *  ADR 0083 item 14). */
+const FUZZ = [
+  ["crates/verso-dialect/fuzz/Cargo.toml", "crates/verso-dialect/fuzz/Cargo.lock", "verso-dialect"],
+  ["crates/verso-server/fuzz/Cargo.toml", "crates/verso-server/fuzz/Cargo.lock", "verso-server"],
+];
+
 const USAGE = "usage: release.mjs prepare|tag|notes|preview X.Y.Z[-beta.N] [--dry-run] | verify vX.Y.Z[-beta.N]";
 
 const CHANGELOGS = [
@@ -192,21 +201,22 @@ function prepare(v) {
   if (dryRun) {
     console.log(`would set ${v} on ${branch} (now ${current}) and commit`);
     for (const [file] of writes) console.log(`would write ${file}`);
-    console.log("would update Cargo.lock and crates/verso-dialect/fuzz/Cargo.lock");
+    console.log(`would update Cargo.lock and ${FUZZ.map(([, lock]) => lock).join(" and ")}`);
     console.log(`\nthe release notes would be:\n\n${notes}`);
     return;
   }
 
   for (const [file, text] of writes) writeFileSync(join(root, file), text);
   run("cargo", ["update", "--workspace", "--offline", "--quiet"]);
-  const fuzz = ["crates/verso-dialect/fuzz/Cargo.toml", "crates/verso-dialect/fuzz/Cargo.lock"];
-  try {
-    run("cargo", ["update", "-p", "verso-dialect", "--offline", "--quiet", "--manifest-path", fuzz[0]], { stdio: ["ignore", "pipe", "pipe"] });
-  } catch {
-    console.error("release: the fuzz lockfile was left as it was (its dependencies are not in the local cache)");
+  for (const [manifest, lock, crate] of FUZZ) {
+    try {
+      run("cargo", ["update", "-p", crate, "--offline", "--quiet", "--manifest-path", manifest], { stdio: ["ignore", "pipe", "pipe"] });
+    } catch {
+      console.error(`release: ${lock} was left as it was (its dependencies are not in the local cache)`);
+    }
   }
 
-  run("git", ["add", "Cargo.toml", "Cargo.lock", fuzz[1], "app/ui/package.json", "app/ui/package-lock.json", "packaging/server/docker-compose.yml", ...CHANGELOGS.map((c) => c.file)]);
+  run("git", ["add", "Cargo.toml", "Cargo.lock", ...FUZZ.map(([, lock]) => lock), "app/ui/package.json", "app/ui/package-lock.json", "packaging/server/docker-compose.yml", ...CHANGELOGS.map((c) => c.file)]);
   run("git", ["commit", "--quiet", "-s", "-m", `release: v${v}`,
     "-m", `Sets the version to ${v} and moves the changelog's unreleased\nentries under it (ADR 0051).`,
     "-m", "Merging this commit into main releases it: the release workflow\nbuilds the app, publishes the release and creates the tag."]);
