@@ -137,3 +137,12 @@ export function sliceHeading(body: HTMLElement, heading: string): void {
   }
   body.replaceChildren(...keep);
 }
+
+/** What a typed note's `link` or `image` field offers (ADR 0086 item 1),
+ *  as `[[` does: the folder's notes, or its pictures, each as the link
+ *  `source` would write to it (the link format setting), labelled with
+ *  its path. */
+export function propertySuggestions(source: string, kind: "link" | "image"): { value: string; label: string }[] {
+  const paths = kind === "link" ? allNotes : allFiles.filter((p) => kindOf(p) === "image");
+  return paths.map((p) => ({ value: `[[${linkText(source, p)}]]`, label: p }));
+}

@@ -292,6 +292,41 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .prop-new:hover { color: var(--ink); background: var(--paper-2); }
 .prop-new .icon { width: 13px; height: 13px; }
 .editor .cm-lp-frontmatter { display: none; }
+/* A typed note's links and pictures (ADR 0086 item 1). */
+.link-pill .prop-link { color: var(--seal); text-decoration: none; }
+.link-pill .prop-link:hover, .link-pill .prop-link:focus-visible { text-decoration: underline; }
+.link-pill .prop-link.unresolved { color: var(--ink-3); text-decoration: underline dotted; }
+.prop-thumb-box { display: inline-flex; flex: none; }
+.prop-thumb { width: 1.8rem; height: 1.8rem; object-fit: cover; border-radius: 4px; border: 1px solid var(--hair); }
+.prop-picture-missing { font-size: .78rem; color: var(--brass-ink); }
+.prop-picture-held { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .2rem .5rem; font-size: .78rem; color: var(--ink-2); min-width: 0; }
+.prop-picture-address { overflow-wrap: anywhere; font-family: var(--mono, monospace); }
+.prop-picture-why { color: var(--brass-ink); }
+.prop-picture-allow { font: inherit; font-size: .76rem; padding: .1rem .45rem; border: 1px solid var(--hair); border-radius: 4px; color: var(--ink); background: var(--paper); cursor: pointer; }
+.prop-picture-allow:hover { background: var(--paper-3); }
+/* The infobox (ADR 0086 item 3): the panel as a card at the right of the
+   text, the text beside it; on a very wide pane the card stays by the
+   text's measure. Narrow, it goes above the text at full width, folded
+   to the picture and the first three properties. */
+.props.infobox { float: right; clear: right; width: 18rem; margin: .8rem max(0px, calc(100% - 52rem - 19.5rem)) 1rem 1.5rem; padding: .55rem .6rem .45rem; border: 1px solid var(--hair); border-radius: 8px; background: var(--paper-2); }
+/* The text keeps clear of the card, in every engine: a column of its own
+   (a float and a box beside it lay out differently in WebKit). */
+.sheet.with-infobox > .preview, .sheet.with-infobox > .editor { max-width: 52rem; margin-right: 19.5rem; }
+.props.infobox .prop { grid-template-columns: minmax(5rem, 7.5rem) minmax(0, 1fr) auto; }
+.props.infobox .prop:hover { background: var(--paper-3); }
+.props.infobox .props-type { justify-content: center; text-align: center; padding: .1rem .1rem .45rem; border-bottom: 1px solid var(--hair); margin-bottom: .3rem; }
+.ib-picture { margin: 0 0 .5rem; }
+.ib-picture-img-box { display: block; }
+.ib-picture-img { display: block; width: 100%; max-height: 22rem; object-fit: contain; border-radius: 6px; }
+.ib-picture .prop-picture-held { padding: .5rem; border: 1px dashed var(--hair); border-radius: 6px; }
+.ib-others { margin: .35rem 0 .1rem; }
+.ib-others > summary { cursor: pointer; padding: .2rem .1rem; font-size: .78rem; color: var(--ink-3); }
+.ib-others > summary:hover { color: var(--ink); }
+.ib-expand { display: none; font: inherit; font-size: .78rem; margin: .2rem 0; padding: .25rem .5rem; color: var(--seal); background: none; border: 1px solid var(--hair); border-radius: 5px; cursor: pointer; }
+.props.infobox.narrow { float: none; width: auto; margin: .8rem 0 1rem; }
+.props.infobox.narrow .ib-expand { display: inline-flex; }
+.props.infobox.narrow:not(.expanded) .ib-more { display: none; }
+.props.infobox.narrow .ib-picture-img { max-height: 14rem; }
 .status-words { color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* The folder's sync (ADR 0079 item 13): its state, a click away from its section. */
 .status-sync { flex: none; padding: .1rem .45rem; font: inherit; font-size: .78rem; color: var(--ink-3); white-space: nowrap; border-radius: 4px; }
