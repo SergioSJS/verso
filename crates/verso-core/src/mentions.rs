@@ -7,12 +7,16 @@
 //! row, accents and case folded — and each candidate is read from the disk
 //! and scanned for the name as written. A mention is the note's name, or
 //! one of its `aliases`, as a phrase on word boundaries, case ignored and
-//! accents kept ("Porto" finds "porto", not "pôrto"), in the note's prose
+//! accents kept ("Porto" finds "porto", not "pôrto") — an accent written
+//! composed (NFC) or decomposed (NFD) is one accent, as it is one file
+//! name (ADR 0089, M5) — in the note's prose
 //! only (`verso_dialect::prose`): never in the frontmatter, code, a
 //! comment, a link, an embed or a tag. This reads; the window writes the
 //! link, through the contract, over the revision it read (invariant 11).
 
 use super::*;
+use unicode_normalization::UnicodeNormalization;
+use unicode_normalization::char::{decompose_canonical, is_combining_mark};
 
 /// Candidates asked of the index for each name: the notes holding it.
 const CANDIDATES: usize = 200;
@@ -68,21 +72,39 @@ struct Found {
     table: bool,
 }
 
+/// A letter, a digit, `_`, or a mark that belongs to the letter before it.
 fn wordy(c: char) -> bool {
-    c.is_alphanumeric() || c == '_'
+    c.is_alphanumeric() || c == '_' || is_combining_mark(c)
 }
 
 /// The end of `name` written at `at` in `text`, case ignored and accents
-/// kept, if it is there.
+/// kept, if it is there. Both sides are compared decomposed (NFD), each
+/// character of the text decomposed as it is read, so `ô` written as one
+/// character or as `o` and its mark is the same `ô`; a character of the
+/// text is taken whole or not at all. The text's offsets stay its own.
 fn written_at(text: &str, at: usize, name: &str) -> Option<usize> {
+    let want: Vec<char> = name.nfd().flat_map(char::to_lowercase).collect();
+    let mut i = 0;
     let mut rest = text.get(at..)?.char_indices();
-    for n in name.chars() {
-        let (_, t) = rest.next()?;
-        if !t.to_lowercase().eq(n.to_lowercase()) {
-            return None;
+    let mut end = at;
+    while i < want.len() {
+        let (k, t) = rest.next()?;
+        let mut parts = Vec::new();
+        decompose_canonical(t, |c| parts.push(c));
+        for c in parts.iter().flat_map(|c| c.to_lowercase()) {
+            if want.get(i) != Some(&c) {
+                return None;
+            }
+            i += 1;
         }
+        end = at + k + t.len_utf8();
     }
-    Some(rest.next().map_or(text.len(), |(k, _)| at + k))
+    Some(end)
+}
+
+/// A name as compared for sameness: composed, lower-cased.
+fn folded(name: &str) -> String {
+    name.nfc().collect::<String>().to_lowercase()
 }
 
 /// Every mention of `names` in the prose of `text`, in order; where two
@@ -220,11 +242,7 @@ impl Workspace {
         }];
         for alias in aliases_of(&own) {
             let alias = alias.trim().to_owned();
-            if !alias.is_empty()
-                && !names
-                    .iter()
-                    .any(|n| n.text.to_lowercase() == alias.to_lowercase())
-            {
+            if !alias.is_empty() && !names.iter().any(|n| folded(&n.text) == folded(&alias)) {
                 names.push(Name {
                     text: alias,
                     alias: true,
@@ -315,5 +333,37 @@ mod tests {
             .filter_map(|f| text.get(f.start..f.end))
             .collect();
         assert_eq!(found, ["AÇÃO", "ação"]);
+    }
+
+    /// The same accent written composed (NFC) or decomposed (NFD) is one
+    /// name, as it is one file (the maintainer, 2026-10-10; ADR 0089, M5).
+    #[test]
+    fn nfc_and_nfd_of_one_accent_are_one_name() {
+        let nfc = "P\u{f4}rto";
+        let nfd = "Po\u{302}rto";
+        for (name, written) in [
+            (nfc, nfd),
+            (nfd, nfc),
+            (nfc, nfc),
+            (nfd, nfd),
+            (nfc, "PO\u{302}RTO"),
+        ] {
+            let n = names(&[(name, false)]);
+            let text = format!("Fomos a {written} hoje.\n");
+            let found: Vec<&str> = scan(&text, &n)
+                .iter()
+                .filter_map(|f| text.get(f.start..f.end))
+                .collect();
+            assert_eq!(found, [written], "{name:?} in {written:?}");
+        }
+        // An accent is still an accent, in either form: "Porto" is not
+        // "Pôrto", and a mark after its last letter makes it "Portó".
+        let n = names(&[("Porto", false)]);
+        let text = "Po\u{302}rto, P\u{f4}rto, Porto\u{301}, Port\u{f3} e Porto.\n";
+        let found: Vec<&str> = scan(text, &n)
+            .iter()
+            .filter_map(|f| text.get(f.start..f.end))
+            .collect();
+        assert_eq!(found, ["Porto"]);
     }
 }
