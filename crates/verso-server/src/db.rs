@@ -709,9 +709,11 @@ impl Db {
 
     /* ---------- sessions ---------- */
 
-    /// A new session for `account`, proved now — a sign-in, or a device's
-    /// approval (ADR 0083 item 6): the token to hand over, once, and the
-    /// session's CSRF token.
+    /// A new session for `account`: the token to hand over, once, and the
+    /// session's CSRF token. A browser's is proved now — it is a sign-in
+    /// (ADR 0083 item 6); a device's is not: its approval proved the
+    /// browser that approved it, not the app that holds the token, which
+    /// proves itself before a sensitive action as any session does.
     pub fn create_session(
         &self,
         account: &str,
@@ -722,11 +724,12 @@ impl Db {
         let token = crypto::token()?;
         let csrf = crypto::token()?;
         let at = now();
+        let proved = if kind == "device" { 0 } else { at };
         self.conn()
             .execute(
                 "INSERT INTO sessions (id, hash, account, kind, device, csrf, created, last_used, address, proved_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7, ?8, ?7)",
-                params![crypto::id()?, crypto::hash(&token), account, kind, device, csrf, at, address],
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7, ?8, ?9)",
+                params![crypto::id()?, crypto::hash(&token), account, kind, device, csrf, at, address, proved],
             )
             .map_err(e)?;
         Ok((token, csrf))

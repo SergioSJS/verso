@@ -4,10 +4,11 @@
 
 //! When each session last proved who it is (ADR 0083 item 6): its sign-in
 //! — a password, a passkey, a link — or its last `POST /api/me/prove`. A
-//! device's session is stamped when the person approves it, which itself
-//! needs a fresh proof, and proves again like any other session after. The
-//! mark lives here, on the server, and only here: the window is told
-//! `prove_first`, never the time.
+//! device's session is born unproved (0): its approval, which itself needs
+//! a fresh proof, proved the browser that approved it, not the app that
+//! holds the token; the app proves like any other session before a
+//! sensitive action. The mark lives here, on the server, and only here: the
+//! window is told `prove_first`, never the time.
 
 use rusqlite::{OptionalExtension, params};
 

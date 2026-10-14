@@ -51,6 +51,18 @@ in the real app.
   or *Não fui eu: recusar*; a mistyped code says *Um código tem oito
   letras…* or answers as unknown, and a few wrong ones in a row make the
   page wait before the next; the app then signs in once approved.
+- [ ] **Sharing a server folder from the desktop app asks "Confirme que
+  é você"** (ADR 0083 item 6): in the installed app signed in to a
+  UniVerso, on a folder the account owns, *Compartilhar…* on a folder of
+  the tree, an e-mail of another account and *Compartilhar*: the dialog
+  *Confirme que é você* opens over the share dialog, with the password
+  alone (no *Usar uma passkey*: the app's window cannot answer for the
+  server's passkeys) and the focus in its field; a wrong password says
+  *Senha errada.*; the right one adds the person without asking again,
+  and changing their role within ten minutes asks nothing. Cancel leaves
+  them out and the share dialog says *Dar ou mudar um papel pede que você
+  confirme que é você; nada mudou.* VoiceOver reads the dialog's title
+  and line; the focus goes back to the share dialog when it closes.
 - [ ] **Mermaid diagrams after 12.2.0** (ADR 0083 item 13, cda7500): the
   demo vault's "08 - Diagramas Mermaid" in the installed app and in the
   browser: every diagram draws, in light and dark; a diagram with a

@@ -429,8 +429,11 @@ Without `VERSO_SMTP_URL` nothing is sent: the admin copies the invitation and re
 
 The server refuses to sign anyone in over plain HTTP (0073 item 6). A
 request counts as secure when Verso serves TLS itself, when it comes from
-`VERSO_TRUSTED_PROXY` with `X-Forwarded-Proto: https`, or when Verso
-listens on loopback and the request comes from this machine. A browser
+`VERSO_TRUSTED_PROXY` with `X-Forwarded-Proto: https` — through a trusted
+proxy that header alone decides, so a proxy that sends none, or `http`,
+has its visitors refused (`tls_required`) — or when Verso listens on
+loopback and the request comes directly from this machine, not through a
+trusted proxy. A browser
 also needs HTTPS for the window's secure features (passkeys among them).
 Three ways, decided in 0073 item 6:
 
@@ -511,6 +514,20 @@ request comes from a trusted proxy with no `X-Forwarded-For`, it is served
 with the proxy's address and the log says, once a minute, *a request from
 the trusted proxy carried no X-Forwarded-For: is the proxy configured to
 forward it?*
+
+A proxy on the same machine left out of the list is said too, since every
+visitor would otherwise be this machine's address, past the pace. When a
+connection from loopback that is not a trusted proxy carries
+`X-Forwarded-For`, the log says, once a minute, *a request from 127.0.0.1
+carried X-Forwarded-For, but that address is not in VERSO_TRUSTED_PROXY:
+every visitor through a proxy on this machine counts as this machine; set
+VERSO_TRUSTED_PROXY=127.0.0.1 if one forwards to UniVerso*; and at start,
+when `VERSO_PUBLIC_URL` is `https://`, Verso listens on loopback with no
+certificate of its own and `VERSO_TRUSTED_PROXY` is empty, a line beginning
+*VERSO_PUBLIC_URL is https but UniVerso listens on …* says the same and
+what to set. Setting it, check that the proxy sends `X-Forwarded-Proto:
+https` (Caddy does): through a trusted proxy that header alone says the
+visitor came over TLS.
 
 **Requests in flight, and bodies that trickle in.** Through a proxy every
 connection counts against the server's 512 alone, so Verso bounds what

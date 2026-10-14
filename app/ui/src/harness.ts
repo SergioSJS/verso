@@ -16,7 +16,8 @@ import { emit } from "@tauri-apps/api/event";
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import { DEMO_VAULT_FILES } from "./demoVault";
 import type { Capabilities } from "./bindings";
-import { Core, UNUSED_ARGS, type Seed } from "./harness/core";
+import { Core, type Seed } from "./harness/core";
+import { UNUSED_ARGS } from "./harness/unusedArgs";
 import { Rooms } from "./harness/room";
 import * as sanitize from "./sanitize";
 

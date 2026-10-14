@@ -600,3 +600,180 @@ fn a_reset_link_and_a_members_role_want_a_fresh_proof() {
         );
     });
 }
+
+/// An invitation that carries a folder or a share hands that folder over,
+/// with any role up to owner: the admin's invitation wants a fresh proof
+/// then, as entering a folder does; one that carries none is a link to sign
+/// up and still goes without.
+#[test]
+fn an_invitation_to_a_folder_wants_a_fresh_proof() {
+    use reqwest::Method;
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let me = id_of(&r, "admin@casa.lan");
+        let folder = crate::tests::folder_id(&r, &admin).await;
+        stale(&r, &me);
+        for body in [
+            json!({ "folder": folder, "role": "owner" }),
+            json!({ "email": "nova@prova.example", "folder": folder }),
+            json!({ "share": "nobody", "role": "editor" }),
+        ] {
+            let said = send(
+                &r,
+                Method::POST,
+                "/api/admin/invitations",
+                Some(body.clone()),
+                &admin,
+            )
+            .await;
+            assert_eq!(said, prove_first(), "an aged proof invited with {body}");
+        }
+        let (status, plain) = send(
+            &r,
+            Method::POST,
+            "/api/admin/invitations",
+            Some(json!({ "email": "nova@prova.example" })),
+            &admin,
+        )
+        .await;
+        assert_eq!(status, 200, "an invitation with no folder: {plain}");
+        let (status, made) = gated(
+            &r,
+            &admin,
+            &me,
+            Method::POST,
+            "/api/admin/invitations",
+            Some(json!({ "folder": folder, "role": "owner" })),
+        )
+        .await;
+        assert_eq!(status, 200, "{made}");
+    });
+}
+
+/// A device's session is born unproved: the approval proved the browser
+/// that approved it, not the app holding the token, which proves itself
+/// as any session does before a sensitive action (ADR 0083 item 6).
+#[test]
+fn a_device_session_is_not_proved_by_its_approval() {
+    use reqwest::Method;
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let other = r
+            .server
+            .db
+            .create_account(
+                "outra@aparelho.example",
+                "Outra",
+                "pt",
+                Some("a senha da outra conta"),
+                false,
+            )
+            .unwrap();
+        let (_, device) = post(
+            &r,
+            "/api/device/start",
+            json!({ "device": "Verso · Aparelho" }),
+            None,
+        )
+        .await;
+        let code = device["code"].as_str().unwrap().to_owned();
+        let poll = device["poll"].as_str().unwrap().to_owned();
+        let (status, approved) = send(
+            &r,
+            Method::POST,
+            &format!("/api/device/{code}"),
+            Some(json!({})),
+            &admin,
+        )
+        .await;
+        assert_eq!(status, 200, "{approved}");
+        let (_, done) = post(
+            &r,
+            "/api/device/poll",
+            json!({ "code": code, "poll": poll }),
+            None,
+        )
+        .await;
+        let token = done["token"].as_str().unwrap().to_owned();
+        let res = reqwest::Client::new()
+            .delete(r.url(&format!("/api/admin/accounts/{}/sessions", other.id)))
+            .bearer_auth(&token)
+            .send()
+            .await
+            .unwrap();
+        let said = (
+            res.status().as_u16(),
+            res.json::<Value>().await.unwrap_or(Value::Null),
+        );
+        assert_eq!(
+            said,
+            prove_first(),
+            "a device's bearer right after its approval"
+        );
+    });
+}
+
+/// The desktop app proves through its device's session (ADR 0083 item 6):
+/// the share grant it sends with its bearer answers `prove_first`, the
+/// account's password at `/api/me/prove` with the same bearer stamps that
+/// session — and only that one: the browser's session of the same account
+/// still wants its own proof — and the grant goes through within the ten
+/// minutes.
+#[test]
+fn a_device_session_proves_with_the_password_and_then_shares() {
+    use reqwest::Method;
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let me = id_of(&r, "admin@casa.lan");
+        let folder = crate::tests::folder_id(&r, &admin).await;
+        r.server
+            .db
+            .create_account(
+                "leitora@aparelho.example",
+                "Leitora",
+                "pt",
+                Some("a senha da leitora aqui"),
+                false,
+            )
+            .unwrap();
+        let (device, _) = r
+            .server
+            .db
+            .create_session(&me, "device", "Verso · Mesa", "127.0.0.1")
+            .unwrap();
+        stale(&r, &me);
+        let bearer = |method: Method, path: &str, body: Value| {
+            reqwest::Client::new()
+                .request(method, r.url(path))
+                .bearer_auth(&device)
+                .json(&body)
+                .send()
+        };
+        let shares = format!("/api/folders/{folder}/shares");
+        let grant = json!({ "path": "", "email": "leitora@aparelho.example", "role": "reader" });
+        let res = bearer(Method::PUT, &shares, grant.clone()).await.unwrap();
+        let said = (res.status().as_u16(), res.json::<Value>().await.unwrap());
+        assert_eq!(said, prove_first(), "the device's grant, unproved");
+        let res = bearer(
+            Method::POST,
+            "/api/me/prove",
+            json!({ "password": "senha muito longa" }),
+        )
+        .await
+        .unwrap();
+        assert_eq!(res.status().as_u16(), 200, "the device proves itself");
+        let res = bearer(Method::PUT, &shares, grant).await.unwrap();
+        let status = res.status().as_u16();
+        assert_eq!(status, 200, "{}", res.text().await.unwrap_or_default());
+        // The browser's session of the same account was not proved by it.
+        let said = send(&r, Method::DELETE, "/api/me/passkeys/nobody", None, &admin).await;
+        assert_eq!(
+            said,
+            prove_first(),
+            "the browser's session keeps its own mark"
+        );
+    });
+}

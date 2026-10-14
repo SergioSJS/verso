@@ -23,9 +23,28 @@ function explain(e: unknown): string {
   return s.passkeyFailed;
 }
 
-/** Asks the person to prove who they are; true once the server took the
- *  proof, false when they cancel. */
-export const askProof: Prover = () => {
+/** How a dialog sends what the person gave: the password, and a passkey
+ *  when this window may offer one. Each throws what the server answered. */
+export type ProofWays = {
+  password: (typed: string) => Promise<void>;
+  passkey: (() => Promise<void>) | null;
+};
+
+/** The pages' prover: the password, or a passkey, to `/api/me/prove`
+ *  with this browser's session. */
+export const askProof: Prover = () =>
+  proofDialog({
+    password: async (typed) => {
+      await request("POST", "/api/me/prove", { password: typed });
+    },
+    passkey: passkeysHere() ? provePasskey : null,
+  });
+
+/** Asks the person to prove who they are, sent by `ways`; true once the
+ *  server took the proof, false when they cancel. The desktop app's
+ *  window asks with it too, its password sent through the host
+ *  (`serverProver.ts`). */
+export function proofDialog(ways: ProofWays): Promise<boolean> {
   const s = w();
   return new Promise<boolean>((resolve) => {
     const back = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -48,7 +67,7 @@ export const askProof: Prover = () => {
         const typed = password.input.value;
         password.input.value = "";
         try {
-          await request("POST", "/api/me/prove", { password: typed });
+          await ways.password(typed);
         } catch (e) {
           password.input.focus();
           throw e;
@@ -58,11 +77,13 @@ export const askProof: Prover = () => {
       explain,
     );
     const withKey = el("button", { type: "button", class: "web-secondary" }, s.provePasskey);
-    withKey.hidden = !passkeysHere();
+    const passkey = ways.passkey;
+    withKey.hidden = !passkey;
     withKey.addEventListener("click", () => {
+      if (!passkey) return;
       f.error.textContent = "";
       withKey.disabled = true;
-      provePasskey()
+      passkey()
         .then(() => close(true))
         .catch((e: unknown) => {
           f.error.textContent = explain(e);
@@ -82,7 +103,7 @@ export const askProof: Prover = () => {
     dialog.addEventListener("keydown", (e) => e.stopPropagation());
     dialog.append(
       el("h2", { id: "web-prove-title", class: "web-dialog-title" }, s.proveTitle),
-      el("p", { id: "web-prove-lead", class: "settings-hint" }, s.proveLead),
+      el("p", { id: "web-prove-lead", class: "settings-hint" }, passkey ? s.proveLead : s.proveLeadPassword),
       f.form,
       el("div", { class: "web-actions" }, withKey, cancel),
     );
@@ -90,4 +111,4 @@ export const askProof: Prover = () => {
     dialog.showModal();
     password.input.focus();
   });
-};
+}

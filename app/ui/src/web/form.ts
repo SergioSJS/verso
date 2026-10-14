@@ -85,15 +85,16 @@ export function select(label: string, options: [string, string][], value?: strin
 }
 
 /** A form that runs `submit`, its button busy meanwhile, and announces
- *  what went wrong. */
+ *  what went wrong. The button's words may hold a node (a name in a
+ *  `<bdi>`). */
 export function form(
   fields: Field[],
-  button: string,
+  button: string | (string | Node)[],
   submit: () => Promise<void>,
   explain: (e: unknown) => string,
 ): { form: HTMLFormElement; error: HTMLElement } {
   const error = el("p", { class: "web-error", role: "alert" });
-  const go = el("button", { type: "submit", class: "web-primary" }, button);
+  const go = el("button", { type: "submit", class: "web-primary" }, ...(typeof button === "string" ? [button] : button));
   const f = el("form", { class: "web-form", novalidate: "" }, ...fields.map((x) => x.row), error, go);
   f.addEventListener("submit", (e) => {
     e.preventDefault();

@@ -225,6 +225,12 @@ pub struct Invite {
 pub async fn invite(ctx: Ctx, Json(body): Json<Invite>) -> ApiResult<Response> {
     ctx.changes()?;
     let admin = ctx.admin()?.account.id.clone();
+    // One that carries a folder or a share hands it over, with any role up
+    // to owner: a fresh proof first (ADR 0083 item 6), as entering a folder
+    // wants, and before the folder or the share is looked at.
+    if body.folder.is_some() || body.share.is_some() {
+        ctx.proved()?;
+    }
     let email = body
         .email
         .as_deref()

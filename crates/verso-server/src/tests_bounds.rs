@@ -375,6 +375,91 @@ fn a_forwarded_loopback_or_an_unforwarding_proxy_is_paced() {
     });
 }
 
+/// Through a trusted proxy, `X-Forwarded-Proto` alone says whether the
+/// visitor came over TLS: a proxy on this machine that says `http` is not
+/// made secure by the server's loopback listen, and a sign-in is refused
+/// there (ADR 0073 item 6, ADR 0083 item 5). A direct connection from this
+/// machine, no proxy set, is still secure, as `http://localhost` is.
+#[test]
+fn a_trusted_proxy_saying_http_is_not_made_secure_by_the_loopback() {
+    block_on(async {
+        let r = behind_proxy().await;
+        assert!(
+            r.server.config.loopback_only(),
+            "the test server listens on loopback"
+        );
+        let client = reqwest::Client::new();
+        let sign_in = |proto: Option<&str>| {
+            let mut req = client
+                .post(r.url("/api/signin"))
+                .header("origin", r.origin())
+                .header("x-forwarded-for", "203.0.113.20");
+            if let Some(p) = proto {
+                req = req.header("x-forwarded-proto", p);
+            }
+            req.json(
+                &serde_json::json!({ "email": "admin@casa.lan", "password": "senha muito longa" }),
+            )
+            .send()
+        };
+        for proto in [Some("http"), None] {
+            let res = sign_in(proto).await.unwrap();
+            let status = res.status().as_u16();
+            let body: serde_json::Value = res.json().await.unwrap_or_default();
+            assert_eq!(
+                (status, body["error"].as_str()),
+                (403, Some("tls_required")),
+                "a trusted proxy on 127.0.0.1 forwarding {proto:?}: {body}"
+            );
+        }
+        let res = sign_in(Some("https")).await.unwrap();
+        assert_eq!(res.status().as_u16(), 200, "forwarded https");
+        // A direct connection from this machine, no proxy set.
+        let direct = start().await;
+        let (status, body) = crate::tests::post(
+            &direct,
+            "/api/signin",
+            serde_json::json!({ "email": "admin@casa.lan", "password": "senha muito longa" }),
+            None,
+        )
+        .await;
+        assert_eq!(status, 200, "direct loopback: {body}");
+    });
+}
+
+/// A proxy on this machine that is not in `VERSO_TRUSTED_PROXY` makes
+/// every visitor this machine's address, silently: the first request from
+/// an untrusted loopback peer carrying `X-Forwarded-For` is said in the log
+/// with what to set, and the next ones within the minute are not (ADR 0083
+/// item 5). A peer elsewhere, or a request with no such header, says
+/// nothing.
+#[test]
+fn an_untrusted_local_proxy_is_said_once_a_minute() {
+    block_on(async {
+        let r = start().await;
+        let mut forwarded = axum::http::HeaderMap::new();
+        forwarded.insert("x-forwarded-for", "203.0.113.30".parse().unwrap());
+        let plain = axum::http::HeaderMap::new();
+        let local: std::net::SocketAddr = "127.0.0.77:5000".parse().unwrap();
+        let away: std::net::SocketAddr = "198.51.100.77:5000".parse().unwrap();
+        crate::auth::peer(&r.server, &plain, local);
+        crate::auth::peer(&r.server, &forwarded, away);
+        assert!(
+            crate::log::said("from 127.0.0.77").is_empty(),
+            "nothing forwarded from here"
+        );
+        for _ in 0..3 {
+            let peer = crate::auth::peer(&r.server, &forwarded, local);
+            assert_eq!(peer.addr, local.ip(), "the header is still not believed");
+        }
+        let lines = crate::log::said("from 127.0.0.77");
+        assert_eq!(lines.len(), 1, "{lines:?}");
+        assert!(lines[0].starts_with("WARN "), "{lines:?}");
+        assert!(lines[0].contains("VERSO_TRUSTED_PROXY"), "{lines:?}");
+        assert!(crate::log::said("from 198.51.100.77").is_empty());
+    });
+}
+
 /// A request's headers are 64 KiB at most (ADR 0083 item 8, F12): one
 /// past it is refused with 431 before it is read whole, and one well
 /// within it is served.
@@ -527,6 +612,9 @@ fn a_mailbox_is_not_flooded_from_many_addresses() {
                 .post(r.url(route))
                 .header("origin", r.origin())
                 .header("x-forwarded-for", from)
+                // As a proxy in front of TLS says it: through a trusted
+                // proxy, this header alone makes a request secure.
+                .header("x-forwarded-proto", "https")
                 .json(&json!({ "email": email }))
                 .send()
         };

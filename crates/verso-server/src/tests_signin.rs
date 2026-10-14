@@ -335,3 +335,72 @@ fn a_reset_takes_the_accounts_tokens_and_a_change_does_when_asked() {
         assert_eq!(changed["tokensKept"], json!(2), "{changed}");
     });
 }
+
+/// A sign-in to an account with no password yet — made by the admin, its
+/// link not used — takes a hash's time, as an unknown e-mail and a wrong
+/// password do: the answer's delay does not tell that the account exists
+/// and has no password.
+#[test]
+fn an_account_with_no_password_yet_costs_a_hash_too() {
+    block_on(async {
+        let r = start().await;
+        r.server
+            .db
+            .create_account("sem-senha@hash.example", "Sem", "pt", None, false)
+            .unwrap();
+        let tried = "a senha tentada numa conta sem senha";
+        let (status, body) = post(
+            &r,
+            "/api/signin",
+            json!({ "email": "sem-senha@hash.example", "password": tried }),
+            None,
+        )
+        .await;
+        assert_eq!(status, 401, "{body}");
+        assert!(
+            crate::crypto::wasted(tried),
+            "an account with no password answered without hashing"
+        );
+    });
+}
+
+/// The link from a sign-in mail names its account before it is used: the
+/// page asks "sign in as …?" first, so a link someone else sent — for
+/// their own account — is not taken without a click that says whose it
+/// is. Looking does not use it; using it once ends it.
+#[test]
+fn a_sign_in_link_names_its_account_before_it_is_used() {
+    block_on(async {
+        let r = start().await;
+        let admin = r
+            .server
+            .db
+            .account_by_email("admin@casa.lan")
+            .unwrap()
+            .unwrap();
+        let token = "um-link-de-entrada-de-teste";
+        verso_service::lock(&r.server.signin_links).insert(
+            crate::crypto::hash(token),
+            (
+                admin.id.clone(),
+                std::time::Instant::now(),
+                "127.0.0.1".to_owned(),
+            ),
+        );
+        let path = format!("/api/signin/link/{token}");
+        for _ in 0..2 {
+            let (status, offer) = get(&r, &path, None).await;
+            assert_eq!(
+                (status, offer),
+                (200, json!({ "email": "admin@casa.lan" })),
+                "a link names its account, and looking does not use it"
+            );
+        }
+        let (status, used) = post(&r, &path, json!({}), None).await;
+        assert_eq!(status, 200, "{used}");
+        let (status, gone) = get(&r, &path, None).await;
+        assert_eq!((status, &gone["error"]), (404, &json!("link_gone")));
+        let (status, _) = get(&r, "/api/signin/link/nenhum", None).await;
+        assert_eq!(status, 404);
+    });
+}

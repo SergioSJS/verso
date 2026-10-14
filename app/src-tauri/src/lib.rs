@@ -693,6 +693,7 @@ macro_rules! commands_for {
                 share_grant::<$runtime>,
                 share_revoke::<$runtime>,
                 share_attachments::<$runtime>,
+                server_prove::<$runtime>,
                 recent_folders,
                 folder_sync::<$runtime>,
                 folder_sync_start::<$runtime>,
