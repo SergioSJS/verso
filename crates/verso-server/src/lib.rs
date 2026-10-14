@@ -344,6 +344,8 @@ mod tests_dice;
 #[cfg(test)]
 mod tests_hashes;
 #[cfg(test)]
+mod tests_map_tiles;
+#[cfg(test)]
 mod tests_mentions;
 #[cfg(test)]
 mod tests_pieces;
