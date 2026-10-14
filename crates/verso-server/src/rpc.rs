@@ -213,11 +213,26 @@ pub(crate) fn sync_refusal(theirs: Option<u32>, ours: u32) -> Option<String> {
 }
 
 #[derive(Deserialize)]
-struct Request {
-    id: u64,
-    cmd: String,
+pub(crate) struct Request {
+    pub(crate) id: u64,
+    pub(crate) cmd: String,
     #[serde(default)]
-    args: Value,
+    pub(crate) args: Value,
+}
+
+/// A text message's request, as the connection's loop reads it.
+pub(crate) fn text_request(text: &str) -> Option<Request> {
+    serde_json::from_str(text).ok()
+}
+
+/// A binary message's request and piece (sync 2, [`verso_core::sync::frame`]):
+/// the request of its header — a `sync_put`'s only, the one command that
+/// carries a piece — and the piece, a slice of `message`; `None` when the
+/// message is no frame.
+pub(crate) fn binary_request(message: &[u8]) -> Option<(Option<Request>, &[u8])> {
+    let (header, piece) = verso_core::sync::unframe(message)?;
+    let request = serde_json::from_slice::<Request>(header).ok();
+    Some((request.filter(|r| r.cmd == "sync_put"), piece))
 }
 
 async fn run(
@@ -228,6 +243,7 @@ async fn run(
 ) {
     let client = server.client_id();
     let (tx, mut rx, slow) = Outbox::new(QUEUE);
+    let tx = tx.counted_by(server.inflight.budget());
     let mut hello = json!({ "hello": {
         "version": env!("CARGO_PKG_VERSION"),
         "commit": server.commit,
@@ -261,6 +277,9 @@ async fn run(
     let account = who.account.id.clone();
     let who = Arc::new(who);
     let mut log_budget = (std::time::Instant::now(), 0_u32);
+    // The last room update of this connection still being taken: the next
+    // waits for it (`collab_update` in order, below).
+    let mut last_update: Option<tokio::sync::oneshot::Receiver<()>> = None;
     let requests = Arc::new(Semaphore::new(REQUESTS));
     let mut ping = tokio::time::interval_at(tokio::time::Instant::now() + PING_EVERY, PING_EVERY);
     ping.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -319,14 +338,34 @@ async fn run(
                 // Parsed where it arrived: a piece of a file is a megabyte.
                 // A binary message is a piece a device sends (sync 2): its
                 // request's header, then the piece's bytes as they are.
-                let (parsed, data) = match message {
-                    Message::Text(t) => (serde_json::from_str::<Request>(t.as_str()).ok(), None),
-                    Message::Binary(b) => match verso_core::sync::unframe(&b) {
-                        Some((header, piece)) => {
-                            let request = serde_json::from_slice::<Request>(header).ok();
-                            let piece = b.slice_ref(piece);
-                            (request.filter(|r| r.cmd == "sync_put"), Some(piece))
+                // A large one is judged first by its command's name and its
+                // window's role, its bytes taken from the server's budget,
+                // before it is made a value (`crate::inflight`).
+                let admitted = match &message {
+                    Message::Text(t) => crate::inflight::admit_text(&server, &client, t.as_str()),
+                    Message::Binary(b) => match binary_request(b) {
+                        Some((Some(r), _)) => {
+                            crate::inflight::admit(&server, &client, Some(r.id), &r.cmd, b.len())
                         }
+                        _ => Ok(None),
+                    },
+                    _ => Ok(None),
+                };
+                let bytes = match admitted {
+                    Ok(bytes) => bytes,
+                    Err(refusal) => {
+                        drop(message);
+                        tx.send(&match refusal.id {
+                            Some(id) => json!({ "id": id, "err": refusal.error }),
+                            None => json!({ "err": refusal.error }),
+                        });
+                        continue;
+                    }
+                };
+                let (parsed, data) = match message {
+                    Message::Text(t) => (text_request(t.as_str()), None),
+                    Message::Binary(b) => match binary_request(&b) {
+                        Some((request, piece)) => (request, Some(b.slice_ref(piece))),
                         None => (None, None),
                     },
                     Message::Close(_) => break,
@@ -378,12 +417,34 @@ async fn run(
                 } else {
                     server.fair.command(&who.account.id)
                 };
+                // A window's room updates are taken in the order it sent
+                // them (ADR 0083 item 14): each waits for the one before
+                // to be taken, so the room never holds one aside for an
+                // earlier one still on its way. The connection's other
+                // commands stay side by side.
+                let in_order = (request.cmd == "collab_update").then(|| {
+                    let (done, taken) = tokio::sync::oneshot::channel::<()>();
+                    (last_update.replace(taken), done)
+                });
                 tokio::spawn(async move {
                     if !turn.is_zero() {
                         tokio::time::sleep(turn).await;
                     }
+                    let done = match in_order {
+                        Some((before, done)) => {
+                            if let Some(before) = before {
+                                let _ = before.await;
+                            }
+                            Some(done)
+                        }
+                        None => None,
+                    };
                     let id = request.id;
                     let answer = handle(&server, &who, &client, request, data).await;
+                    // The request's bytes are given back; a large answer
+                    // takes its own (`Outbox::answer`).
+                    drop(bytes);
+                    drop(done);
                     let signed_out = answer.as_ref().is_err_and(|e| e.message == SIGNED_OUT);
                     match answer {
                         // A piece of a file (ADR 0079 item 12): in a binary
@@ -393,7 +454,7 @@ async fn run(
                             let header = json!({ "id": id, "ok": value }).to_string();
                             let message = verso_core::sync::frame(header.as_bytes(), &piece);
                             drop(piece);
-                            tx.answer_binary(message, permit).await;
+                            tx.answer_binary(id, message, permit).await;
                         }
                         Ok((mut value, Some(piece))) => {
                             value["data"] = json!(base64::engine::general_purpose::STANDARD.encode(&piece));
@@ -700,6 +761,20 @@ async fn collab_command(
         Some(s) => s.to_full(&path)?,
         None => path,
     };
+    // One room per file: the path as confinement reads it, so that
+    // `./n.md` and `n.md` are one room.
+    let path = {
+        let (s, k) = (Arc::clone(server), key.clone());
+        let confined = blocking(move || {
+            s.service
+                .with_key(&k, |ws| ws.confined(&path).map_err(Into::into))
+        })
+        .await;
+        match &scope {
+            Some(s) => confined.map_err(|e| s.error(e))?,
+            None => confined?,
+        }
+    };
     let s = Arc::clone(server);
     let c = client.to_owned();
     let cmd = cmd.to_owned();
@@ -713,7 +788,7 @@ async fn collab_command(
         "collab_join" => to_value(crate::collab::join(&s, &c, &key, &path, &user)?),
         "collab_update" => {
             let update: String = arg(&args, "update")?;
-            crate::collab::update(&s, &c, &key, &path, &update)?;
+            crate::collab::update(&s, (&c, &account), &key, &path, &update)?;
             Ok(Value::Null)
         }
         "collab_awareness" => {
@@ -750,6 +825,18 @@ async fn collab_command(
     }
 }
 
+/// A change of the folder's settings without what only its owner sets —
+/// the walk's rules and the folder note's name (ADR 0070; ADR 0083,
+/// decided 2026-10-14): `null` is "not changed here".
+fn without_owners_settings(mut args: Value) -> Value {
+    if let Some(change) = args.get_mut("change").and_then(Value::as_object_mut) {
+        for rule in ["ignore_build_dirs", "respect_gitignore", "folder_note_name"] {
+            change.insert(rule.to_owned(), Value::Null);
+        }
+    }
+    args
+}
+
 /// The role of the window's folder, or `no_folder`.
 pub(crate) fn role_here(server: &Server, client: &str) -> Result<(String, Role), ContractError> {
     lock(&server.clients)
@@ -775,6 +862,15 @@ async fn folder_command(
     if access == Access::Write && !(role.writes() && token_writes) {
         return Err(refused("you may only read this folder"));
     }
+    // The walk's rules and the folder note's name are the owner's, as
+    // `set_walk_rules` and `set_folder_note_name` keep them (ADR 0070): an
+    // editor's change of the folder's settings keeps the rest and leaves
+    // them as they were.
+    let args = if name == "set_folder_settings" && role != Role::Owner {
+        without_owners_settings(args)
+    } else {
+        args
+    };
     let key = server
         .service
         .folder_of(client)
@@ -840,6 +936,21 @@ async fn folder_command(
     let mut answer = folder_run(server, who, client, (name, access), (&folder, &key), args)
         .await
         .map_err(|e| scope.error(e))?;
+    // A note's type through the share names the share's schemas only
+    // (ADR 0081 item 11).
+    if matches!(name, "read_note" | "create_note" | "write_note") && answer.is_object() {
+        let (s, k, sc, cmd) = (
+            Arc::clone(server),
+            key.clone(),
+            scope.clone(),
+            name.to_owned(),
+        );
+        answer = blocking(move || {
+            s.service
+                .with_key(&k, |ws| Ok(sc.typed_within(ws, &cmd, answer)))
+        })
+        .await?;
+    }
     // A rename through the share keeps the owner's links outside it: the
     // server writes those rewrites itself, and the window hears only of
     // the ones inside (ADR 0081 item 11, decided 2026-10-12).
@@ -877,11 +988,15 @@ async fn folder_run(
     let args_for_log = args.clone();
     // A write that would pass the folder's quota is refused before
     // anything is written (ADR 0077 item 5).
-    if let Some((path, len)) = crate::quota::written(name, &args) {
-        let s = Arc::clone(server);
-        let k = key.clone();
-        blocking(move || crate::quota::check(&s, &k, &path, len)).await?;
-    }
+    // Its room held until the write is in the folder's record, below.
+    let _hold = match crate::quota::written(name, &args) {
+        Some((path, len)) => {
+            let s = Arc::clone(server);
+            let k = key.clone();
+            blocking(move || crate::quota::reserve(&s, &k, &path, len)).await?
+        }
+        None => None,
+    };
     // A write to a note being edited together goes through its room
     // (ADR 0073 item 7); so does a write to any text file in a room (ADR
     // 0082 item 12). A board's room takes its changes as elements only:
@@ -892,6 +1007,7 @@ async fn folder_run(
             && crate::collab::kind_of(&path) != crate::collab::Kind::Board
         {
             let text: String = arg(&args, "text")?;
+            crate::texts::writable(&text)?;
             let revision: String = arg(&args, "revision")?;
             let s = Arc::clone(server);
             let c = client.to_owned();
@@ -941,6 +1057,11 @@ async fn folder_run(
                     to_value(verso_service::convert::trashed_out(gone))
                 })
         } else {
+            // A text past the server's bound, read or written: refused
+            // before the core reads or writes it (`crate::texts`).
+            service.with(&c, |ws| {
+                crate::texts::judged(ws, &n, &args).map_err(verso_service::OpError::Contract)
+            })?;
             service
                 .dispatch(&c, &n, args)
                 .unwrap_or_else(|| Err(refused("no such command")))

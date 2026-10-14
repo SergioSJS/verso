@@ -214,3 +214,148 @@ describe("indices repaired before the board takes the room's elements", () => {
     assert.equal(merged[1], moved);
   });
 });
+
+// Another window deletes an element this one has selected: the board must
+// never be handed a scene whose state still points at it — Excalidraw logs
+// "[NONDELETED][INVARIANT] getSelectedElements skipping deleted selected
+// element" (the board stress test, 2 runs in 16, 2026-10-14).
+describe("the room's change into the scene, and what the board points at", () => {
+  const alive = (els) => new Set(els.filter((e) => e.isDeleted !== true).map((e) => e.id));
+  /** The selection the board holds after the change selects nothing deleted. */
+  const pointsAtNothingDeleted = (elements, appState, before) => {
+    const live = alive(elements);
+    const ids = "selectedElementIds" in appState ? appState.selectedElementIds : before.selectedElementIds;
+    for (const [id, on] of Object.entries(ids)) if (on) assert.ok(live.has(id), `${id} deleted and still selected`);
+  };
+
+  test("a selected element another window deleted leaves the selection in the same change; the others stay selected", () => {
+    const local = [el("a", 2, 1), el("b", 3, 1), el("c", 1, 1)];
+    const remote = [el("a", 2, 1), el("b", 4, 7, { isDeleted: true }), el("c", 1, 1)];
+    const state = { selectedElementIds: { a: true, b: true }, selectedGroupIds: {} };
+    const { elements, appState } = m.remoteScene(local, remote, state, () => false);
+    assert.equal(elements.find((e) => e.id === "b").isDeleted, true, "the room's deletion is what the board draws");
+    pointsAtNothingDeleted(elements, appState, state);
+    assert.deepEqual(appState.selectedElementIds, { a: true });
+  });
+
+  test("nothing selected is deleted: the board's state is left alone", () => {
+    const local = [el("a", 2, 1), el("b", 3, 1)];
+    const remote = [el("a", 2, 1), el("b", 4, 7, { isDeleted: true })];
+    const { appState } = m.remoteScene(local, remote, { selectedElementIds: { a: true }, selectedGroupIds: {} }, () => false);
+    assert.deepEqual(appState, {});
+  });
+
+  test("a group, a line being pointed at, a crop, a hover: none of them is left on a deleted element", () => {
+    const local = [el("a", 1, 1, { groupIds: ["g"] }), el("b", 1, 1, { groupIds: ["g"] }), el("l", 1, 1, { type: "arrow" }), el("k", 1, 1, { groupIds: ["h"] })];
+    const remote = [
+      el("a", 9, 1, { groupIds: ["g"], isDeleted: true }),
+      el("b", 9, 1, { groupIds: ["g"], isDeleted: true }),
+      el("l", 9, 1, { type: "arrow", isDeleted: true }),
+      el("k", 1, 1, { groupIds: ["h"] }),
+    ];
+    const state = {
+      selectedElementIds: { a: true, b: true, l: true, k: true },
+      selectedGroupIds: { g: true, h: true },
+      editingGroupId: "g",
+      selectedLinearElement: { elementId: "l", isEditing: false },
+      croppingElementId: "a",
+      hoveredElementIds: { b: true, k: true },
+    };
+    const { elements, appState } = m.remoteScene(local, remote, state, () => false);
+    pointsAtNothingDeleted(elements, appState, state);
+    assert.deepEqual(appState.selectedElementIds, { k: true });
+    assert.deepEqual(appState.selectedGroupIds, { h: true });
+    assert.equal(appState.editingGroupId, null);
+    assert.equal(appState.selectedLinearElement, null);
+    assert.equal(appState.croppingElementId, null);
+    assert.deepEqual(appState.hoveredElementIds, { k: true });
+  });
+
+  test("an element being dragged or typed here keeps its own version, and stays selected", () => {
+    const local = [el("a", 2, 1), el("t", 2, 1, { type: "text" })];
+    const remote = [el("a", 9, 1, { isDeleted: true }), el("t", 9, 1, { type: "text", isDeleted: true })];
+    const dragging = { selectedElementIds: { a: true }, selectedGroupIds: {}, selectedElementsAreBeingDragged: true };
+    const d = m.remoteScene(local, remote, dragging, () => false);
+    assert.equal(d.elements.find((e) => e.id === "a").isDeleted, false);
+    assert.deepEqual(d.appState, {});
+    const typing = { selectedElementIds: {}, selectedGroupIds: {}, editingTextElement: local[1] };
+    const t = m.remoteScene(local, remote, typing, () => false);
+    assert.equal(t.elements.find((e) => e.id === "t").isDeleted, false);
+    assert.deepEqual(t.appState, {});
+  });
+
+  test("the shape whose text is being typed stays while it is typed: Excalidraw selects it when the typing ends", () => {
+    // Seen in the board stress test (WebKit, 2026-10-14): a text typed in a
+    // shape, the shape deleted by another window meanwhile, Escape — and
+    // Excalidraw selected the deleted shape.
+    const local = [el("box", 2, 1), el("t", 3, 1, { type: "text", containerId: "box" })];
+    const remote = [el("box", 9, 1, { isDeleted: true }), el("t", 9, 1, { type: "text", containerId: "box", isDeleted: true })];
+    const typing = { selectedElementIds: {}, selectedGroupIds: {}, editingTextElement: { id: "t", containerId: "box" } };
+    const { elements, appState } = m.remoteScene(local, remote, typing, () => false);
+    assert.equal(elements.find((e) => e.id === "box").isDeleted, false);
+    assert.equal(elements.find((e) => e.id === "t").isDeleted, false);
+    assert.deepEqual(appState, {});
+  });
+
+  test("a text being typed or an element being drawn that is deleted in the scene is let go", () => {
+    const els = [el("t", 9, 1, { type: "text", isDeleted: true }), el("n", 9, 1, { isDeleted: true })];
+    const st = m.stateOver(els, { selectedElementIds: { t: true }, selectedGroupIds: {}, editingTextElement: { id: "t" }, newElement: { id: "n" } });
+    assert.deepEqual(st.selectedElementIds, {});
+    assert.equal(st.editingTextElement, null);
+    assert.equal(st.newElement, null);
+  });
+});
+
+// Two engines lay the same text out each their own way: Excalifont's "t849"
+// at 20 px is 49.00 wide in Chromium and 48.06 in WebKit (measured in the
+// board stress test, 2026-10-14). A window that measured every text again
+// once a font came in re-laid the other engine's texts its own way and wrote
+// the board again after the windows had agreed (the stress test's file
+// check, about 1 run in 10). A text is measured again only by the window
+// that laid it out.
+describe("which texts a window measures again", () => {
+  const text = (id, version, width, more = {}) => el(id, version, version, { type: "text", text: "t849", originalText: "t849", fontSize: 20, fontFamily: 5, lineHeight: 1.25, width, height: 25, ...more });
+  const ready = () => true;
+
+  test("with no room, every text whose font is in", () => {
+    const els = [text("a", 1, 49), text("b", 1, 48.06), el("r", 1, 1)];
+    assert.deepEqual(m.remeasureTargets(els, ready, null).map((e) => e.id), ["a", "b"]);
+  });
+
+  test("in a room, a text another window laid out is left as it measured it; one laid out here is measured again", () => {
+    const layouts = new m.Layouts();
+    const mineHere = text("a", 3, 5.56);
+    const theirs = text("b", 7, 48.06);
+    layouts.sent(mineHere, undefined);
+    const room = { mine: () => false, layouts };
+    assert.deepEqual(m.remeasureTargets([mineHere, theirs], ready, room).map((e) => e.id), ["a"]);
+  });
+
+  test("a text this window only moved stays the other window's to lay out; one it edited becomes its own", () => {
+    const layouts = new m.Layouts();
+    const theirs = text("b", 7, 48.06);
+    const moved = { ...theirs, version: 8, x: 40 };
+    layouts.sent(moved, theirs);
+    const room = { mine: () => false, layouts };
+    assert.deepEqual(m.remeasureTargets([moved], ready, room), []);
+    const typed = { ...moved, version: 9, text: "t8490", originalText: "t8490", width: 61 };
+    layouts.sent(typed, moved);
+    assert.deepEqual(m.remeasureTargets([typed], ready, room).map((e) => e.id), ["b"]);
+    // Laid out again by another window: theirs once more.
+    const relaid = { ...typed, version: 10, width: 60.07 };
+    assert.deepEqual(m.remeasureTargets([relaid], ready, room), []);
+  });
+
+  test("a change of this window's not sent yet, and the texts it put into the room from the file, are its own", () => {
+    const layouts = new m.Layouts();
+    const seeded = text("s", 1, 38.93);
+    layouts.seeded([seeded, el("r", 1, 1)]);
+    const unsentHere = text("u", 4, 5.56);
+    const room = { mine: (e) => e.id === "u", layouts };
+    assert.deepEqual(m.remeasureTargets([seeded, unsentHere, text("o", 2, 48.06)], ready, room).map((e) => e.id), ["s", "u"]);
+  });
+
+  test("a text whose font is not in yet waits", () => {
+    assert.deepEqual(m.remeasureTargets([text("a", 1, 49)], () => false, null), []);
+  });
+});

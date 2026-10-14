@@ -25,6 +25,11 @@ pub struct Share {
     pub created: i64,
 }
 
+/// The pending invitations of share `?1` ended at `?2`, before the share
+/// goes and its id in them is set to null.
+const END_INVITATIONS: &str = "UPDATE invitations SET ended = ?2
+     WHERE share = ?1 AND used IS NULL AND ended IS NULL";
+
 /// Whether `path` is `root` or inside it; the root `""` covers everything.
 #[must_use]
 pub fn covers(root: &str, path: &str) -> bool {
@@ -96,10 +101,15 @@ impl Db {
         })
     }
 
+    /// A share removed, with its pending invitations ended: an invitation
+    /// made for it gives nothing once it is gone (item 8).
     pub fn delete_share(&self, id: &str) -> R<()> {
-        self.conn()
-            .execute("DELETE FROM shares WHERE id = ?1", [id])
+        let mut conn = self.conn();
+        let tx = conn.transaction().map_err(e)?;
+        tx.execute(END_INVITATIONS, params![id, now()]).map_err(e)?;
+        tx.execute("DELETE FROM shares WHERE id = ?1", [id])
             .map_err(e)?;
+        tx.commit().map_err(e)?;
         Ok(())
     }
 
@@ -172,11 +182,19 @@ impl Db {
             )
             .map_err(e)?
             > 0;
-        tx.execute(
-            "DELETE FROM shares WHERE id = ?1 AND NOT EXISTS (SELECT 1 FROM share_grants WHERE share = ?1)",
-            [share],
-        )
-        .map_err(e)?;
+        let last = tx
+            .query_row(
+                "SELECT NOT EXISTS (SELECT 1 FROM share_grants WHERE share = ?1)",
+                [share],
+                |r| r.get::<_, bool>(0),
+            )
+            .map_err(e)?;
+        if last {
+            tx.execute(END_INVITATIONS, params![share, now()])
+                .map_err(e)?;
+            tx.execute("DELETE FROM shares WHERE id = ?1", [share])
+                .map_err(e)?;
+        }
         tx.commit().map_err(e)?;
         Ok(gone)
     }

@@ -79,6 +79,15 @@ fn empty(v: &Value) -> bool {
     }
 }
 
+/// Whether `path` is `root` or inside it; the root `""` holds everything.
+pub(crate) fn under(root: &str, path: &str) -> bool {
+    root.is_empty()
+        || path == root
+        || path
+            .strip_prefix(root)
+            .is_some_and(|rest| rest.starts_with('/'))
+}
+
 /// The `type` of a note's frontmatter, when it holds one text.
 pub(crate) fn written_type(frontmatter: &[(String, Value)]) -> Option<String> {
     frontmatter

@@ -73,47 +73,6 @@ const strict = new TextDecoder("utf-8", { fatal: true });
 const lossy = new TextDecoder("utf-8");
 
 /** A contract error, thrown: the window's typed command answers it as one. */
-/** Arguments a handler takes and has no use for: windows, web views, the
- *  menu and the system are the host's, and do nothing in a browser. Named,
- *  so that `e2e/harness.spec.mjs` tells them from an argument the core
- *  renamed, which a handler would read as `undefined`. */
-export const UNUSED_ARGS: Record<string, string[]> = {
-  // The server's: refused here whatever they carry.
-  collab_join: ["path"],
-  collab_update: ["path", "update"],
-  collab_awareness: ["path", "update"],
-  collab_leave: ["path"],
-  collab_save: ["path"],
-  collab_resolve: ["path", "keep"],
-  collab_present: ["path"],
-  collab_canvas: ["path", "at", "json"],
-  server_sign_in: ["url"],
-  server_sign_out: ["url"],
-  server_folders: ["url"],
-  server_open: ["url", "folder"],
-  // Sharing is a server's (ADR 0081): a folder of the harness is not on
-  // one; a test stands in for the server by replacing these.
-  share_grant: ["path", "email", "role"],
-  share_revoke: ["path", "account"],
-  share_attachments: ["path", "attachments"],
-  reopen_folder: ["key"],
-  open_window: ["path"],
-  return_to_main: ["path"],
-  open_url: ["url"],
-  fetch_file: ["path"],
-  web_open: ["x", "y", "w", "h"],
-  web_bounds: ["label", "x", "y", "w", "h"],
-  web_visible: ["label", "visible"],
-  web_nav: ["action"],
-  reveal: ["path"],
-  copy_full_path: ["path"],
-  set_embed_origins: ["origins"],
-  set_walk_rules: ["builtinIgnores", "gitignore"],
-  set_menu_language: ["language"],
-  install_cli: ["replace"],
-  new_window: ["sameFolder"],
-};
-
 function refuse(kind: ErrorKind, message: string): never {
   const error: ContractError = { kind, message };
   throw error;
@@ -1409,6 +1368,7 @@ export class Core {
     // No server signed in to from the harness (ADR 0073 item 2).
     server_accounts: () => [],
     server_sign_in: () => refuse("unavailable", "no server in the harness"),
+    server_sign_in_page: () => refuse("refused", "no server's page waits to be opened"),
     server_sign_out: () => null,
     server_folders: () => [],
     server_open: () => refuse("unavailable", "no server in the harness"),
@@ -1416,6 +1376,7 @@ export class Core {
     share_grant: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     share_revoke: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     share_attachments: () => refuse("refused", "this folder is not on a server: sync it with one first"),
+    server_prove: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     // The folder switcher's "On this computer" (ADR 0081 item 5): the
     // demo vault, opened before.
     recent_folders: () => [{ key: "harness", name: this.name }],

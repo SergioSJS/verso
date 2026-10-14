@@ -563,10 +563,15 @@ test("a device's write keeps what it replaced in the trash, restored from the wi
 });
 
 test("the page that approves a device says who asked, and refuses (threat model, gap 12)", async ({ page, request }) => {
+  // Every start, and every lookup of a code, counts for the limiter of the
+  // address (ADR 0083 items 8 and 17), and the three projects ask from one:
+  // past its free tries the page says it waits — up to a minute — and asks
+  // again by itself, so what follows a lookup is given that long.
+  test.setTimeout(300_000);
+  const waited = { timeout: 90_000 };
   const errors = watch(page);
   await signedIn(page, ADMIN.email, ADMIN.password);
-  // Every start counts for the limiter, by address: the three projects ask
-  // from one, so a start may be told to wait, and asks again.
+  // A start told to wait asks again, as the app does.
   const ask = async (device) => {
     for (let i = 0; ; i++) {
       const res = await request.post("/api/device/start", { data: { device } });
@@ -578,11 +583,23 @@ test("the page that approves a device says who asked, and refuses (threat model,
       await new Promise((r) => setTimeout(r, (body.retry ?? 1) * 1000));
     }
   };
-  // Refused: the app that asked hears the code gone.
+  // The person enters the code from the app's screen (decided 2026-10-14,
+  // ADR 0083 As built): a code in the page's address is never taken, so a
+  // link someone else sent approves nothing with one click.
+  const enter = async (code) => {
+    const field = page.getByLabel("Código do aplicativo");
+    await expect(field).toHaveValue("");
+    await field.fill(code);
+    await page.getByRole("button", { name: "Continuar" }).click();
+  };
+  // Refused: the app that asked hears the code gone. The old link's shape,
+  // with the code in it, shows the empty field all the same.
   const first = await ask("Verso · Estranho");
   await page.goto(`/device?code=${first.code}`);
+  await expect(page.getByRole("region", { name: "Quem pediu" })).toHaveCount(0);
+  await enter(first.code);
   const who = page.getByRole("region", { name: "Quem pediu" });
-  await expect(who).toContainText("Verso · Estranho");
+  await expect(who).toContainText("Verso · Estranho", waited);
   await expect(who).toContainText("127.0.0.1");
   const question = page.getByRole("heading", { name: "Foi você quem pediu, neste aparelho?", level: 2 });
   await expect(question).toBeVisible();
@@ -591,14 +608,19 @@ test("the page that approves a device says who asked, and refuses (threat model,
   await expect(form.getByRole("button", { name: "Aprovar este aparelho: Verso · Estranho" })).toBeVisible();
   await form.getByRole("button", { name: "Não fui eu: recusar" }).click();
   // The answer replaces the question's two paragraphs with one.
+  await expect(page.getByText("Recusado. O aplicativo que pediu não entra na sua conta.")).toBeVisible(waited);
   await expect(page.locator(".web-lead")).toHaveCount(1);
   await expect(page.locator(".web-lead")).toHaveText("Recusado. O aplicativo que pediu não entra na sua conta.");
   const polled = await request.post("/api/device/poll", { data: { code: first.code, poll: first.poll } });
   expect(polled.status()).toBe(410);
   // Approved: by the button named for the device.
   const second = await ask("Verso · MacBook");
-  await page.goto(`/device?code=${second.code}`);
-  await page.getByRole("button", { name: "Aprovar este aparelho: Verso · MacBook" }).click();
+  await page.goto("/device");
+  await enter(second.code.replace("-", "").toLowerCase());
+  const approve = page.getByRole("button", { name: "Aprovar este aparelho: Verso · MacBook" });
+  await expect(approve).toBeVisible(waited);
+  await approve.click();
+  await expect(page.getByText("Pronto. Pode voltar ao aplicativo.")).toBeVisible(waited);
   await expect(page.locator(".web-lead")).toHaveCount(1);
   await expect(page.locator(".web-lead")).toHaveText("Pronto. Pode voltar ao aplicativo.");
   const done = await (await request.post("/api/device/poll", { data: { code: second.code, poll: second.poll } })).json();
@@ -913,14 +935,24 @@ async function workOnBoard(page, next, ms) {
   const until = Date.now() + ms;
   const box = await page.locator(".board-canvas, .excalidraw canvas.interactive").first().boundingBox();
   const spot = () => ({ x: box.x + 80 + (next() % Math.max(1, box.width - 160)), y: box.y + 80 + (next() % Math.max(1, box.height - 160)) });
+  // An element is pressed only where `spot` draws: its centre on the board,
+  // away from the board's edges. One dragged off the board's view has its
+  // centre over the window around it — the tree, the tabs, the status
+  // bar's "new note" — and a press there opened other files, until the
+  // window drew on another board (2026-10-14).
+  const inside = (p) => p.x >= box.x + 80 && p.x <= box.x + box.width - 80 && p.y >= box.y + 80 && p.y <= box.y + box.height - 80;
   while (Date.now() < until) {
     const scene = await sceneOf(page);
-    const live = scene.filter((e) => e.type !== "embeddable");
+    const centres = await page.evaluate((els) => {
+      const s = window.__VERSO_TEST__.board.getAppState();
+      return els.map((e) => ({ x: (e.x + e.width / 2 + s.scrollX) * s.zoom.value + s.offsetLeft, y: (e.y + e.height / 2 + s.scrollY) * s.zoom.value + s.offsetTop }));
+    }, scene);
+    const live = scene.map((e, i) => ({ ...e, at: centres[i] })).filter((e) => e.type !== "embeddable" && inside(e.at));
     const pick = live.length ? live[next() % live.length] : null;
     const what = next() % 100;
     try {
       if (what < 30 && pick) {
-        const at = await onBoard(page, pick.x + pick.width / 2, pick.y + pick.height / 2);
+        const at = pick.at;
         await page.mouse.move(at.x, at.y);
         await page.mouse.down();
         await page.mouse.move(at.x + (next() % 160) - 80, at.y + (next() % 160) - 80, { steps: 4 + (next() % 6) });
@@ -942,11 +974,11 @@ async function workOnBoard(page, next, ms) {
         await page.keyboard.type(`t${next() % 1000}`);
         await page.keyboard.press("Escape");
       } else if (what < 87 && pick) {
-        const at = await onBoard(page, pick.x + pick.width / 2, pick.y + pick.height / 2);
+        const at = pick.at;
         await page.mouse.click(at.x, at.y);
         await page.keyboard.press("Delete");
       } else if (pick && pick.type === "text") {
-        const at = await onBoard(page, pick.x + pick.width / 2, pick.y + pick.height / 2);
+        const at = pick.at;
         await page.mouse.dblclick(at.x, at.y);
         await page.keyboard.type(` +${next() % 100}`);
         await page.keyboard.press("Escape");
@@ -1002,6 +1034,9 @@ test("three windows, two engines, edit one board hard for a minute: one board ev
   const seed = Number(process.env.BOARD_E2E_SEED ?? 20261012);
   console.log(`board three windows: seed ${seed}`);
   await Promise.all(windows.map((p, i) => workOnBoard(p, seeded(seed + i * 7919), 60_000)));
+  // Every window still on the board edited: one that drew on another board
+  // would hold none of the others' elements.
+  for (const p of windows) expect(await p.evaluate(() => window.__VERSO_TEST__.boardRoom.path)).toBe(path);
   // Quiet: every window draws the room's board, and each makes the same file.
   let last = null;
   const quietAt = Date.now();
@@ -1126,4 +1161,57 @@ test("an element another window deletes while this one presses it, selected, is 
   await other.close();
   expect(errors).toEqual([]);
   expect(otherErrors).toEqual([]);
+});
+
+test("an element another window deletes leaves this window's selection at once, before a key or a pointer reads it", async ({ page }) => {
+  await page.context().addInitScript(() => {
+    window.__VERSO_TEST__ = {};
+  });
+  const errors = watch(page);
+  await signedIn(page, ADMIN.email, ADMIN.password);
+  await demoRegistered(page);
+  await openDemo(page);
+  const folder = new URL(page.url()).searchParams.get("folder");
+  const path = `Mesa selecionada ${test.info().project.name} ${Date.now()}.canvas`;
+  await made(page, path, TWO_CARDS);
+  await windowOn(page, folder, path);
+  await page.waitForFunction(() => (window.__VERSO_TEST__?.board?.getSceneElements().length ?? 0) >= 2 && window.__VERSO_TEST__.boardRoom && window.__VERSO_TEST__.board.getAppState().width > 0);
+  // A rectangle drawn here, in the room, and selected.
+  const a = await onBoard(page, 0, 250);
+  await page.mouse.click(a.x, a.y);
+  await page.keyboard.press("r");
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down();
+  await page.mouse.move(a.x + 80, a.y + 60, { steps: 4 });
+  await page.mouse.up();
+  await page.keyboard.press("Escape");
+  const id = await page.evaluate(() => window.__VERSO_TEST__.board.getSceneElements().find((e) => e.type === "rectangle").id);
+  await expect.poll(() => page.evaluate((i) => window.__VERSO_TEST__.boardRoom.resolved().has(i), id), { timeout: 20_000 }).toBe(true);
+  const r = (await sceneOf(page)).find((e) => e.id === id);
+  const at = await onBoard(page, r.x + 4, r.y + r.height / 2);
+  await page.mouse.click(at.x, at.y);
+  await expect.poll(() => page.evaluate((i) => window.__VERSO_TEST__.board.getAppState().selectedElementIds[i] === true, id)).toBe(true);
+  // The room hands the board another window's deletion of it; in the same
+  // task, before React renders, a key is pressed: what the board reads then
+  // must not select the deleted element (Excalidraw: "[NONDELETED]
+  // [INVARIANT] getSelectedElements skipping deleted selected element").
+  const seen = await page.evaluate((i) => {
+    const b = window.__VERSO_TEST__.board;
+    const room = window.__VERSO_TEST__.boardRoom;
+    const remote = [...room.resolved().values()].map((e) => (e.id === i ? { ...e, isDeleted: true, version: e.version + 1_000_000, versionNonce: 1 } : e));
+    for (const pane of room.panes) pane.apply(remote, undefined);
+    const selected = b.getAppState().selectedElementIds[i] === true;
+    const deleted = b.getSceneElementsIncludingDeleted().find((e) => e.id === i)?.isDeleted === true;
+    document.querySelector(".excalidraw")?.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", code: "Delete", bubbles: true }));
+    return { selected, deleted };
+  }, id);
+  expect.soft(seen).toEqual({ selected: false, deleted: true });
+  await page.waitForTimeout(500);
+  expect(await page.evaluate((i) => window.__VERSO_TEST__.board.getAppState().selectedElementIds[i] === true, id)).toBe(false);
+  // The deletion written into the file before the test lets go: a board
+  // left with edits not written yet is said to every later window.
+  await page.evaluate(async (p) => window.__TAURI_INTERNALS__.invoke("collab_save", { path: p }), path).catch(() => undefined);
+  await expect.poll(() => page.evaluate(() => window.__VERSO_TEST__.boardRoom.waiting), { timeout: 20_000 }).toBe(false);
+  await expect.poll(async () => JSON.stringify(JSON.parse(await onDisk(page, path))).includes(id), { timeout: 20_000 }).toBe(false);
+  expect(errors).toEqual([]);
 });

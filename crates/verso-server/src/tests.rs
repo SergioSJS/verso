@@ -103,6 +103,12 @@ fn config(data: &std::path::Path, folders: &std::path::Path) -> Config {
 
 /// A server with an admin and one folder, "Campanha", owned by the admin.
 pub(crate) async fn start() -> Running {
+    start_with(|_| {}).await
+}
+
+/// The same, its configuration changed by `edit` first (a trusted proxy,
+/// a public address).
+pub(crate) async fn start_with(edit: impl FnOnce(&mut Config)) -> Running {
     let permit = SERVERS.acquire().await.unwrap();
     let data = tempfile::tempdir().unwrap();
     let folders = tempfile::tempdir().unwrap();
@@ -119,10 +125,11 @@ pub(crate) async fn start() -> Running {
         f.persist(folders.path().join("Campanha").join("mapa.svg"))
             .unwrap();
     }
-    let config = Config {
+    let mut config = Config {
         web: true,
         ..config(data.path(), folders.path())
     };
+    edit(&mut config);
     let db = prepare(&config).unwrap();
     let admin = db
         .create_account(
@@ -677,9 +684,21 @@ fn the_desktop_signs_in_through_the_browser() {
         )
         .await;
         assert_eq!(waiting["pending"], true);
-        let (_, what) = get(&r, &format!("/api/device/{code}"), Some(&admin)).await;
+        let (_, what) = post(
+            &r,
+            "/api/device/describe",
+            json!({ "code": code }),
+            Some(&admin),
+        )
+        .await;
         assert_eq!(what["device"], "Verso · MacBook");
-        let (status, _) = post(&r, &format!("/api/device/{code}"), json!({}), Some(&admin)).await;
+        let (status, _) = post(
+            &r,
+            "/api/device/approve",
+            json!({ "code": code }),
+            Some(&admin),
+        )
+        .await;
         assert_eq!(status, 200);
         let (_, done) = post(
             &r,

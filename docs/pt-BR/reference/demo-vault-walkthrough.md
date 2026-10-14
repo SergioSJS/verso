@@ -518,11 +518,14 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    última release, Ajustes › Geral › Versão › "Verificar atualizações", e
    depois "Baixar e atualizar": o checksum e a assinatura do arquivo são
    conferidos antes de instalar qualquer coisa; um arquivo cuja assinatura
-   falte ou não confira não instala nada e diz isso. Uma segunda pasta de
-   mesmo nome adicionada ao Claude Desktop (nota 17) ganha
+   falte ou não confira não instala nada e diz isso. "Ver notas da versão"
+   mostra as novidades dessa release no idioma da janela, em linhas
+   simples — nunca as tabelas de download da página da release. Uma
+   segunda pasta de mesmo nome adicionada ao Claude Desktop (nota 17) ganha
    `verso-<pai>-<nome>`. Nível: S (`an_update_installs_only_with_its_signature`,
-   `a_folder_of_a_name_already_added_takes_its_parent_s_name`); A (a
-   primeira release assinada, no macOS e no Windows).
+   `a_folder_of_a_name_already_added_takes_its_parent_s_name`); U
+   (`test/updateNews.test.mjs`); A (a primeira release assinada, no macOS e
+   no Windows).
 8. No Linux (nota 17): o `.deb` instala o `verso-app` e o `verso` em
    /usr/bin, e Terminal e agentes diz que o comando veio com o pacote; o
    "Instalar" de um AppImage põe o `verso` em `~/.local/bin`; "Mostrar no

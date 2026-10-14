@@ -44,8 +44,10 @@ pub const ELEMENTS: &str = "elements";
 /// edits (`edit:<client>`), and the count written last (`saved`).
 pub const META: &str = "meta";
 
-/// The largest board update taken in, decoded (threat-model.md, the board
-/// room's limits): a paste of a large drawing fits; more is refused.
+/// The largest update taken in, decoded (threat-model.md, the board
+/// room's limits): a paste of a large drawing fits; more is refused. A
+/// note room shares it (ADR 0083 item 8), checked before decoding
+/// (`crate::collab::update`).
 pub const UPDATE_MOST: usize = 4 * 1024 * 1024;
 /// The most element entries one update may put in.
 pub const INSERTS_MOST: u32 = 10_000;
@@ -81,7 +83,11 @@ fn refused(message: &str) -> ContractError {
 
 /// A new board room's document: the file it is made from, nothing drawn.
 pub fn new_doc(base: &str) -> Doc {
-    let doc = Doc::new();
+    based(Doc::new(), base)
+}
+
+/// `doc` made a new board room's, of the file `base`.
+pub(crate) fn based(doc: Doc, base: &str) -> Doc {
     {
         let meta = doc.get_or_insert_map(META);
         let mut txn = doc.transact_mut();
@@ -117,6 +123,18 @@ impl Board {
                 .transact()
                 .encode_state_as_update_v1(&StateVector::default())
                 .len(),
+        }
+    }
+
+    /// A note room's size, the state of `doc` measured: a note keeps none
+    /// of a board's own facts, only how large its room may have grown.
+    pub fn measured(doc: &Doc) -> Self {
+        Self {
+            bytes: doc
+                .transact()
+                .encode_state_as_update_v1(&StateVector::default())
+                .len(),
+            ..Self::default()
         }
     }
 
@@ -159,7 +177,9 @@ impl Board {
         if json.len() > CANVAS_MOST {
             return Err(refused("a board's file of 16 MB at most"));
         }
-        let at = StateVector::decode_v1(at).map_err(|_| refused("not a state vector"))?;
+        crate::collab::readable_vector(at)?;
+        let at = crate::collab::caught(|| StateVector::decode_v1(at))?
+            .map_err(|_| refused("not a state vector"))?;
         self.canvases.retain(|(sv, _)| *sv != at);
         self.canvases.push((at, json));
         if self.canvases.len() > CANVASES_KEPT {

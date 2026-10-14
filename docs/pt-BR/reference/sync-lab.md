@@ -37,8 +37,8 @@ Um aparelho do app desktop entra na bancada sem cliques, como a campanha de
 2026-10-10 fez: o app abre a pasta uma vez (a chave dela é o nome de
 `<config>/index/<nome>-<hex>.json` sem a extensão), depois o
 `<config>/servers.json` recebe um token de aparelho — aprovado para uma
-conta pela API (`/api/device/start`, `/api/device/<código>`,
-`/api/device/poll`) — e o `<config>/sync-<chave>.json` nomeia o servidor e
+conta pela API (`/api/device/start`, `/api/device/approve` com o código
+no corpo, `/api/device/poll`) — e o `<config>/sync-<chave>.json` nomeia o servidor e
 a pasta; o app, aberto de novo na pasta, sincroniza. O `VERSO_CONFIG_DIR` dá
 a uma segunda cópia do app uma configuração própria; uma cópia compilada
 com outro identificador (`tauri build --config

@@ -20,7 +20,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::crypto;
 
 /// The schema's version, in `PRAGMA user_version`.
-const SCHEMA: i64 = 8;
+const SCHEMA: i64 = 10;
 
 /// Schema 8: sharing a folder inside a folder (ADR 0081 items 1, 2, 9, 11
 /// and 15): a share is a path of one folder with an id of its own, its
@@ -51,6 +51,24 @@ CREATE TABLE token_shares (
 ALTER TABLE invitations ADD COLUMN share TEXT REFERENCES shares(id) ON DELETE SET NULL;
 ALTER TABLE audit ADD COLUMN path TEXT;
 ";
+
+/// Schema 10: what an invitation was made for, kept apart from the share
+/// it names (ADR 0081 items 4 and 8): `invitations.share` is set to null
+/// when its share goes, and an invitation to a share must not then read as
+/// one to the whole folder. Invitations made before it that still name
+/// their share are marked as a share's.
+const INVITATION_SCOPE: &str = r"
+ALTER TABLE invitations ADD COLUMN scope TEXT NOT NULL DEFAULT 'folder' CHECK (scope IN ('folder', 'share'));
+UPDATE invitations SET scope = 'share' WHERE share IS NOT NULL;
+";
+
+/// Run with schema 10, in its transaction: a share's invitation orphaned
+/// before it (its share deleted, `share` set to null) cannot be told from
+/// a folder's, and would grant the whole folder. Every invitation still
+/// pending that names a folder and no share is ended; the admin sends it
+/// again. Used, expired and folderless links are left as they are.
+const END_UNSCOPED: &str = "UPDATE invitations SET ended = ?1
+ WHERE folder IS NOT NULL AND share IS NULL AND used IS NULL AND ended IS NULL AND expires > ?1";
 
 /// Schema 6: the device that made a change of a folder's log, by its name
 /// (ADR 0079 item 4, "who made it"): two devices of one account told apart.
@@ -331,6 +349,10 @@ pub struct Invitation {
     pub ended: Option<i64>,
     /// The share it carries, when it carries one (ADR 0081 item 4).
     pub share: Option<String>,
+    /// Whether it was made for a share: `share` is null once the share is
+    /// gone, and the invitation then gives nothing.
+    #[serde(skip)]
+    pub for_share: bool,
 }
 
 impl Invitation {
@@ -339,7 +361,7 @@ impl Invitation {
     pub fn state(&self, now: i64) -> &'static str {
         if self.used.is_some() {
             "used"
-        } else if self.ended.is_some() {
+        } else if self.ended.is_some() || (self.for_share && self.share.is_none()) {
             "ended"
         } else if now >= self.expires {
             "expired"
@@ -473,7 +495,7 @@ impl Db {
         Self::from(Connection::open_in_memory().map_err(e)?)
     }
 
-    fn from(conn: Connection) -> R<Self> {
+    fn from(mut conn: Connection) -> R<Self> {
         // NORMAL in WAL: a crash or a power cut never corrupts the
         // database, and may lose the last commits before it — what a
         // reconciliation finds again on the disk for sync's log, and a
@@ -502,16 +524,29 @@ impl Db {
             (6, DEVICES),
             (7, trash::TRASH),
             (8, SHARES),
+            (9, proof::PROOF),
+            (10, INVITATION_SCOPE),
         ]
         .iter()
         .filter(|(at, _)| *at > version)
         .map(|(_, sql)| *sql)
         .collect();
         if !steps.is_empty() {
-            conn.execute_batch(&format!(
-                "BEGIN; {steps} PRAGMA user_version = {SCHEMA}; COMMIT;"
-            ))
-            .map_err(e)?;
+            let tx = conn.transaction().map_err(e)?;
+            tx.execute_batch(&steps).map_err(e)?;
+            let ended = if version < 10 {
+                tx.execute(END_UNSCOPED, [now()]).map_err(e)?
+            } else {
+                0
+            };
+            tx.execute_batch(&format!("PRAGMA user_version = {SCHEMA};"))
+                .map_err(e)?;
+            tx.commit().map_err(e)?;
+            if ended > 0 {
+                crate::log::info(&format!(
+                    "{ended} pending folder invitations ended at upgrade; send them again"
+                ));
+            }
         }
         Ok(Self {
             conn: Mutex::new(conn),
@@ -558,8 +593,21 @@ impl Db {
         password: Option<&str>,
         admin: bool,
     ) -> R<Account> {
-        let id = crypto::id()?;
         let hashed = password.map(crypto::hash_password).transpose()?;
+        self.create_account_hashed(email, name, lang, hashed, admin)
+    }
+
+    /// [`Db::create_account`] with the password already hashed — by a
+    /// request, in one of the hashes' places (`crate::hashes`).
+    pub fn create_account_hashed(
+        &self,
+        email: &str,
+        name: &str,
+        lang: &str,
+        hashed: Option<String>,
+        admin: bool,
+    ) -> R<Account> {
+        let id = crypto::id()?;
         let created = now();
         self.conn()
             .execute(
@@ -629,7 +677,11 @@ impl Db {
     }
 
     pub fn set_password(&self, account: &str, password: &str) -> R<()> {
-        let hashed = crypto::hash_password(password)?;
+        self.set_hashed_password(account, &crypto::hash_password(password)?)
+    }
+
+    /// [`Db::set_password`] with the password already hashed.
+    pub fn set_hashed_password(&self, account: &str, hashed: &str) -> R<()> {
         self.conn()
             .execute(
                 "UPDATE accounts SET password = ?2 WHERE id = ?1",
@@ -677,7 +729,10 @@ impl Db {
     /* ---------- sessions ---------- */
 
     /// A new session for `account`: the token to hand over, once, and the
-    /// session's CSRF token.
+    /// session's CSRF token. A browser's is proved now — it is a sign-in
+    /// (ADR 0083 item 6); a device's is not: its approval proved the
+    /// browser that approved it, not the app that holds the token, which
+    /// proves itself before a sensitive action as any session does.
     pub fn create_session(
         &self,
         account: &str,
@@ -688,11 +743,12 @@ impl Db {
         let token = crypto::token()?;
         let csrf = crypto::token()?;
         let at = now();
+        let proved = if kind == "device" { 0 } else { at };
         self.conn()
             .execute(
-                "INSERT INTO sessions (id, hash, account, kind, device, csrf, created, last_used, address)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7, ?8)",
-                params![crypto::id()?, crypto::hash(&token), account, kind, device, csrf, at, address],
+                "INSERT INTO sessions (id, hash, account, kind, device, csrf, created, last_used, address, proved_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7, ?8, ?9)",
+                params![crypto::id()?, crypto::hash(&token), account, kind, device, csrf, at, address, proved],
             )
             .map_err(e)?;
         Ok((token, csrf))
@@ -986,8 +1042,8 @@ impl Db {
         let at = now();
         self.conn()
             .execute(
-                "INSERT INTO invitations (id, hash, kind, email, account, folder, role, created_by, created, expires, share)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                "INSERT INTO invitations (id, hash, kind, email, account, folder, role, created_by, created, expires, share, scope)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
                 params![
                     id,
                     crypto::hash(&token),
@@ -999,7 +1055,8 @@ impl Db {
                     created_by,
                     at,
                     at + life,
-                    share
+                    share,
+                    if share.is_some() { "share" } else { "folder" }
                 ],
             )
             .map_err(e)?;
@@ -1009,7 +1066,7 @@ impl Db {
         Ok((token, invitation))
     }
 
-    const INVITATION: &'static str = "SELECT id, kind, email, account, folder, role, created_by, created, expires, used, used_by, ended, share FROM invitations";
+    const INVITATION: &'static str = "SELECT id, kind, email, account, folder, role, created_by, created, expires, used, used_by, ended, share, scope FROM invitations";
 
     fn invitation_from(r: &rusqlite::Row<'_>) -> rusqlite::Result<Invitation> {
         Ok(Invitation {
@@ -1026,6 +1083,7 @@ impl Db {
             used_by: r.get(10)?,
             ended: r.get(11)?,
             share: r.get(12)?,
+            for_share: r.get::<_, String>(13)? == "share",
         })
     }
 
@@ -1119,55 +1177,7 @@ impl Db {
             .map_err(e)
     }
 
-    /* ---------- personal access tokens ---------- */
-
-    pub fn create_token(
-        &self,
-        account: &str,
-        name: &str,
-        write: bool,
-        expires: Option<i64>,
-        folders: &[String],
-    ) -> R<(String, TokenInfo)> {
-        let secret = format!("verso_pat_{}", crypto::token()?);
-        let id = crypto::id()?;
-        let at = now();
-        let mut conn = self.conn();
-        let tx = conn.transaction().map_err(e)?;
-        tx.execute(
-            "INSERT INTO tokens (id, hash, account, name, write, expires, created) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![id, crypto::hash(&secret), account, name.trim(), write, expires, at],
-        )
-        .map_err(e)?;
-        for folder in folders {
-            // A share is named beside the folders (ADR 0081 item 15).
-            let share: Option<String> = tx
-                .query_row("SELECT id FROM shares WHERE id = ?1", [folder], |r| {
-                    r.get(0)
-                })
-                .optional()
-                .map_err(e)?;
-            let sql = if share.is_some() {
-                "INSERT INTO token_shares (token, share) VALUES (?1, ?2)"
-            } else {
-                "INSERT INTO token_folders (token, folder) VALUES (?1, ?2)"
-            };
-            tx.execute(sql, params![id, folder]).map_err(e)?;
-        }
-        tx.commit().map_err(e)?;
-        Ok((
-            secret,
-            TokenInfo {
-                id,
-                name: name.trim().to_owned(),
-                write,
-                expires,
-                created: at,
-                last_used: None,
-                folders: folders.to_vec(),
-            },
-        ))
-    }
+    /* ---------- a session's device, and whether it stands (the tokens: db/tokens.rs) ---------- */
 
     /// The name of the device behind session `id`, when it is a device's.
     pub fn session_device(&self, id: &str) -> R<Option<String>> {
@@ -1226,110 +1236,6 @@ impl Db {
                 .map_err(e)?;
         }
         Ok(alive)
-    }
-
-    /// Whether token `id` still stands.
-    pub fn token_alive(&self, id: &str) -> R<bool> {
-        let expires: Option<Option<i64>> = self
-            .conn()
-            .query_row("SELECT expires FROM tokens WHERE id = ?1", [id], |r| {
-                r.get(0)
-            })
-            .optional()
-            .map_err(e)?;
-        Ok(expires.is_some_and(|x| x.is_none_or(|x| now() < x)))
-    }
-
-    /// The id, the account, the write bit and the folders of a live token.
-    pub fn token(&self, secret: &str) -> R<Option<TokenGrant>> {
-        let conn = self.conn();
-        let row: Option<(String, String, bool, Option<i64>)> = conn
-            .query_row(
-                "SELECT id, account, write, expires FROM tokens WHERE hash = ?1",
-                [crypto::hash(secret)],
-                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
-            )
-            .optional()
-            .map_err(e)?;
-        let Some((id, account, write, expires)) = row else {
-            return Ok(None);
-        };
-        let at = now();
-        if expires.is_some_and(|x| at >= x) {
-            return Ok(None);
-        }
-        conn.execute(
-            "UPDATE tokens SET last_used = ?2 WHERE id = ?1",
-            params![id, at],
-        )
-        .map_err(e)?;
-        let mut st = conn
-            .prepare(
-                "SELECT folder FROM token_folders WHERE token = ?1
-                 UNION ALL SELECT share FROM token_shares WHERE token = ?1",
-            )
-            .map_err(e)?;
-        let folders = st
-            .query_map([&id], |r| r.get(0))
-            .map_err(e)?
-            .collect::<rusqlite::Result<_>>()
-            .map_err(e)?;
-        Ok(Some(TokenGrant {
-            id,
-            account,
-            write,
-            folders,
-        }))
-    }
-
-    pub fn tokens_of(&self, account: &str) -> R<Vec<TokenInfo>> {
-        let conn = self.conn();
-        let mut st = conn
-            .prepare(
-                "SELECT id, name, write, expires, created, last_used FROM tokens
-                 WHERE account = ?1 ORDER BY created DESC",
-            )
-            .map_err(e)?;
-        let mut tokens: Vec<TokenInfo> = st
-            .query_map([account], |r| {
-                Ok(TokenInfo {
-                    id: r.get(0)?,
-                    name: r.get(1)?,
-                    write: r.get(2)?,
-                    expires: r.get(3)?,
-                    created: r.get(4)?,
-                    last_used: r.get(5)?,
-                    folders: Vec::new(),
-                })
-            })
-            .map_err(e)?
-            .collect::<rusqlite::Result<_>>()
-            .map_err(e)?;
-        let mut st = conn
-            .prepare(
-                "SELECT folder FROM token_folders WHERE token = ?1
-                 UNION ALL SELECT share FROM token_shares WHERE token = ?1",
-            )
-            .map_err(e)?;
-        for t in &mut tokens {
-            t.folders = st
-                .query_map([&t.id], |r| r.get(0))
-                .map_err(e)?
-                .collect::<rusqlite::Result<_>>()
-                .map_err(e)?;
-        }
-        Ok(tokens)
-    }
-
-    pub fn revoke_token(&self, account: &str, id: &str) -> R<bool> {
-        Ok(self
-            .conn()
-            .execute(
-                "DELETE FROM tokens WHERE account = ?1 AND id = ?2",
-                params![account, id],
-            )
-            .map_err(e)?
-            > 0)
     }
 
     /* ---------- the person's settings (ADR 0073 item 5) ---------- */
@@ -1473,9 +1379,12 @@ impl Db {
     }
 }
 
+mod audit;
 mod console;
+mod proof;
 mod shares;
 mod sync;
+mod tokens;
 mod trash;
 pub use console::{AccountRow, AuditFilter, FolderRow, Page, PageQuery};
 pub use shares::{Share, covers};

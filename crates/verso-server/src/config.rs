@@ -34,9 +34,10 @@ pub struct Config {
     pub web: bool,
     /// The first admin, read on the first start only (ADR 0074 item 1).
     pub admin: Option<(String, String)>,
-    /// The reverse proxy whose forwarded headers are believed
-    /// (`VERSO_TRUSTED_PROXY`, ADR 0073 item 6).
-    pub trusted_proxy: Option<std::net::IpAddr>,
+    /// The reverse proxies whose forwarded headers are believed
+    /// (`VERSO_TRUSTED_PROXY`, ADR 0073 item 6): addresses and CIDRs,
+    /// separated by commas (ADR 0083 item 5); empty when unset.
+    pub trusted_proxy: crate::proxy::Proxies,
     /// The certificate and key the server serves TLS with itself
     /// (`VERSO_TLS_CERT_FILE`, `VERSO_TLS_KEY_FILE`; the maintainer's answer
     /// F of 2026-10-09).
@@ -58,10 +59,36 @@ pub struct Config {
     /// says otherwise (`VERSO_TRASH_DAYS`, ADR 0080 item 3): 30 when unset,
     /// 0 for ever.
     pub trash_days: u32,
+    /// How many days the audit log keeps a row (`VERSO_AUDIT_DAYS`, ADR
+    /// 0083 item 10): 365 when unset, 0 for ever. Swept once a day by time
+    /// alone (`crate::audit`); nothing else deletes a row.
+    pub audit_days: u32,
+}
+
+/// The audit log's retention when `VERSO_AUDIT_DAYS` is unset (ADR 0083
+/// item 10, decided 2026-10-13).
+pub const DEFAULT_AUDIT_DAYS: u32 = 365;
+
+/// A number of days, 0 for never, at most a century — `VERSO_TRASH_DAYS`
+/// and `VERSO_AUDIT_DAYS` alike; `default` when unset.
+fn days(env: &dyn Env, name: &str, default: u32) -> Result<u32, ConfigError> {
+    value(env, name)?
+        .map(|v| {
+            v.trim()
+                .parse::<u32>()
+                .ok()
+                .filter(|d| *d <= 36_500)
+                .ok_or_else(|| {
+                    ConfigError(format!("{name}: a number of days, 0 for never, not {v}"))
+                })
+        })
+        .transpose()
+        .map(|d| d.unwrap_or(default))
 }
 
 /// A size as a person writes it: bytes, or a number with KB, MB, GB or TB
-/// (powers of 1024, as the console shows them); `None` when it is none.
+/// (powers of 1024, as the console shows them); `None` when it is none,
+/// or under one byte.
 #[must_use]
 pub fn size(text: &str) -> Option<i64> {
     let t = text.trim().to_ascii_uppercase();
@@ -80,7 +107,9 @@ pub fn size(text: &str) -> Option<i64> {
     if !value.is_finite() || value <= 0.0 {
         return None;
     }
-    Some((value * factor as f64).round() as i64)
+    // Under a byte is no size: it would read as a quota of 0.
+    let bytes = value * factor as f64;
+    (bytes >= 1.0).then(|| bytes.round() as i64)
 }
 
 /// What went wrong reading the environment, naming the variable.
@@ -149,9 +178,11 @@ impl Config {
         let password = value(env, "VERSO_ADMIN_PASSWORD")?;
         let admin = match (email, password) {
             (Some(e), Some(p)) => {
-                if p.chars().count() < MIN_PASSWORD {
+                // As a password chosen in the window is (ADR 0083 item 3).
+                if let Some(why) = crate::passwords::weak(&p, &e) {
                     return Err(ConfigError(format!(
-                        "VERSO_ADMIN_PASSWORD: at least {MIN_PASSWORD} characters"
+                        "VERSO_ADMIN_PASSWORD: {}",
+                        why.words()
                     )));
                 }
                 Some((e, p))
@@ -170,10 +201,11 @@ impl Config {
         };
         let trusted_proxy = value(env, "VERSO_TRUSTED_PROXY")?
             .map(|a| {
-                a.parse()
+                crate::proxy::Proxies::parse(&a)
                     .map_err(|e| ConfigError(format!("VERSO_TRUSTED_PROXY: {e}")))
             })
-            .transpose()?;
+            .transpose()?
+            .unwrap_or_default();
         let tls = match (
             value(env, "VERSO_TLS_CERT_FILE")?,
             value(env, "VERSO_TLS_KEY_FILE")?,
@@ -218,20 +250,8 @@ impl Config {
                     })
                 })
                 .transpose()?,
-            trash_days: value(env, "VERSO_TRASH_DAYS")?
-                .map(|v| {
-                    v.trim()
-                        .parse::<u32>()
-                        .ok()
-                        .filter(|d| *d <= 36_500)
-                        .ok_or_else(|| {
-                            ConfigError(format!(
-                                "VERSO_TRASH_DAYS: a number of days, 0 for never, not {v}"
-                            ))
-                        })
-                })
-                .transpose()?
-                .unwrap_or(verso_core::trash::DEFAULT_DAYS),
+            trash_days: days(env, "VERSO_TRASH_DAYS", verso_core::trash::DEFAULT_DAYS)?,
+            audit_days: days(env, "VERSO_AUDIT_DAYS", DEFAULT_AUDIT_DAYS)?,
         })
     }
 
@@ -240,6 +260,25 @@ impl Config {
     #[must_use]
     pub fn loopback_only(&self) -> bool {
         self.listen.ip().is_loopback()
+    }
+
+    /// What to say at start when the public address is HTTPS but the
+    /// server listens on loopback with no TLS of its own and no trusted
+    /// proxy: the proxy in front of it, on this machine, is not believed,
+    /// and every visitor is this machine's address (ADR 0083 item 5).
+    #[must_use]
+    pub fn unproxied_https(&self) -> Option<String> {
+        let https = self
+            .public_url
+            .as_deref()
+            .is_some_and(|u| u.starts_with("https://"));
+        (https && self.loopback_only() && self.tls.is_none() && self.trusted_proxy.is_empty())
+            .then(|| {
+                format!(
+                    "VERSO_PUBLIC_URL is https but UniVerso listens on {} with no TLS of its own and no VERSO_TRUSTED_PROXY: the proxy in front of it is not believed, and every visitor counts as this machine — one address for every delay, none paced. Set VERSO_TRUSTED_PROXY=127.0.0.1 (::1 if the proxy connects over IPv6), or the proxy's address",
+                    self.listen
+                )
+            })
     }
 }
 
@@ -294,6 +333,19 @@ mod tests {
             ("VERSO_ADMIN_PASSWORD", "curta"),
         ]);
         assert!(short.unwrap_err().0.contains("VERSO_ADMIN_PASSWORD"));
+        // From the lists attackers try first, or the e-mail itself (ADR
+        // 0083 item 3): refused, naming the variable.
+        for common in ["password1234", "A.Long.Admin@b.c"] {
+            let refused = read(&[
+                ("VERSO_ADMIN_EMAIL", "a.long.admin@b.c"),
+                ("VERSO_ADMIN_PASSWORD", common),
+            ]);
+            let why = refused.err().map(|e| e.0).unwrap_or_default();
+            assert!(
+                why.contains("VERSO_ADMIN_PASSWORD") && why.contains("lists attackers try first"),
+                "{common}: {why}"
+            );
+        }
         let ok = read(&[
             ("VERSO_ADMIN_EMAIL", "a@b.c"),
             ("VERSO_ADMIN_PASSWORD", "uma senha longa"),
@@ -324,6 +376,32 @@ mod tests {
         );
     }
 
+    /// Seen writing the fuzz target `size` (ADR 0083 item 14): a size under
+    /// one byte read as a quota of 0 bytes, which refuses every write.
+    #[test]
+    fn a_size_under_one_byte_is_none() {
+        assert_eq!(size("0.3"), None);
+        assert_eq!(size("0,4 B"), None);
+        assert_eq!(size("1"), Some(1));
+        assert_eq!(size("0.5KB"), Some(512));
+    }
+
+    #[test]
+    fn the_audit_log_keeps_a_year_unless_told_and_is_bounded_as_the_trash() {
+        assert_eq!(read(&[]).unwrap().audit_days, 365);
+        assert_eq!(read(&[("VERSO_AUDIT_DAYS", "0")]).unwrap().audit_days, 0);
+        assert_eq!(
+            read(&[("VERSO_AUDIT_DAYS", " 90 ")]).unwrap().audit_days,
+            90
+        );
+        for bad in ["-1", "36501", "um ano", "1.5"] {
+            let e = read(&[("VERSO_AUDIT_DAYS", bad)]).unwrap_err().0;
+            assert!(e.starts_with("VERSO_AUDIT_DAYS:"), "{e}");
+            assert!(read(&[("VERSO_TRASH_DAYS", bad)]).is_err());
+        }
+        assert_eq!(read(&[]).unwrap().trash_days, 30);
+    }
+
     #[test]
     fn update_check_and_tls_and_addresses() {
         assert!(!read(&[("VERSO_UPDATE_CHECK", "off")]).unwrap().update_check);
@@ -336,5 +414,54 @@ mod tests {
         .unwrap();
         assert!(!c.loopback_only());
         assert_eq!(c.public_url.as_deref(), Some("https://notas.casa"));
+    }
+
+    /// An HTTPS public address served from loopback with no TLS of its
+    /// own is a proxy on this machine in front: with no trusted proxy, the
+    /// start says what to set; with one, own TLS, or another listen, it
+    /// says nothing.
+    #[test]
+    fn an_https_address_behind_an_untrusted_local_proxy_is_said_at_start() {
+        let https = [
+            ("VERSO_LISTEN", "127.0.0.1:7340"),
+            ("VERSO_PUBLIC_URL", "https://notas.casa"),
+        ];
+        let said = read(&https).unwrap().unproxied_https();
+        let said = said.expect("an https address on loopback with no trusted proxy is said");
+        assert!(said.contains("VERSO_TRUSTED_PROXY=127.0.0.1"), "{said}");
+        let mut trusted = https.to_vec();
+        trusted.push(("VERSO_TRUSTED_PROXY", "127.0.0.1"));
+        assert_eq!(read(&trusted).unwrap().unproxied_https(), None);
+        let mut own_tls = read(&https).unwrap();
+        own_tls.tls = Some(("/c".into(), "/k".into()));
+        assert_eq!(own_tls.unproxied_https(), None);
+        let plain = read(&[
+            ("VERSO_LISTEN", "127.0.0.1:7340"),
+            ("VERSO_PUBLIC_URL", "http://localhost:7340"),
+        ]);
+        assert_eq!(plain.unwrap().unproxied_https(), None);
+        let lan = read(&[
+            ("VERSO_LISTEN", "0.0.0.0:7340"),
+            ("VERSO_PUBLIC_URL", "https://notas.casa"),
+        ]);
+        assert_eq!(lan.unwrap().unproxied_https(), None);
+        assert_eq!(read(&[]).unwrap().unproxied_https(), None);
+    }
+
+    #[test]
+    fn the_trusted_proxies_are_a_list_or_one_address() {
+        assert!(read(&[]).unwrap().trusted_proxy.is_empty());
+        let one = read(&[("VERSO_TRUSTED_PROXY", "127.0.0.1")]).unwrap();
+        assert!(one.trusted_proxy.trusts("127.0.0.1".parse().unwrap()));
+        let many = read(&[(
+            "VERSO_TRUSTED_PROXY",
+            "127.0.0.1, 10.0.0.0/8, 2001:db8::/32",
+        )])
+        .unwrap()
+        .trusted_proxy;
+        assert!(many.trusts("10.1.2.3".parse().unwrap()));
+        assert!(many.trusts("2001:db8::9".parse().unwrap()));
+        let bad = read(&[("VERSO_TRUSTED_PROXY", "10.0.0.0/40")]).unwrap_err();
+        assert!(bad.0.starts_with("VERSO_TRUSTED_PROXY"), "{bad}");
     }
 }

@@ -16,8 +16,10 @@ import { emit } from "@tauri-apps/api/event";
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import { DEMO_VAULT_FILES } from "./demoVault";
 import type { Capabilities } from "./bindings";
-import { Core, UNUSED_ARGS, type Seed } from "./harness/core";
+import { Core, type Seed } from "./harness/core";
+import { UNUSED_ARGS } from "./harness/unusedArgs";
 import { Rooms } from "./harness/room";
+import * as sanitize from "./sanitize";
 
 const vault = new URLSearchParams(location.search).get("vault");
 const big = (): Seed[] =>
@@ -103,6 +105,10 @@ const harness = {
   emit: (event: string, payload: unknown) => emit(event, payload),
   /** The server's room of a synced folder's notes (ADR 0082). */
   rooms,
+  /** The window's own sanitizer — the instance main.ts configures, not a
+   *  copy — for the hostile-HTML suite run in the browsers
+   *  (e2e/sanitize.spec.mjs, ADR 0083 item 16). */
+  sanitize,
   /** The server says the person's role in the folder changed (web.ts). */
   setRole: (next: string) => {
     role = next;

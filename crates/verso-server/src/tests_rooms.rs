@@ -171,3 +171,191 @@ fn an_edit_that_changes_nothing_leaves_nothing_waiting_for_a_change_from_outside
         assert!(saved["ok"].is_string(), "{saved}");
     });
 }
+
+/// An update `yrs` 0.28 panics on as it applies it — the room's own Yjs
+/// client named with no runs (ADR 0083 item 14, the fuzz target `note`'s
+/// `client-of-no-runs.bin`) — is refused; the room is closed and made
+/// again from its file, which the windows read: what was typed since the
+/// room last wrote is lost, nothing else.
+#[test]
+fn an_update_yrs_panics_on_is_refused_and_the_room_is_made_again() {
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &b).await;
+        let mut one = window(&r, &b, &id).await;
+        let mut two = window(&r, &b, &id).await;
+        let join = |p: serde_json::Value| {
+            let state = base64::engine::general_purpose::STANDARD
+                .decode(p["ok"]["update"].as_str().unwrap())
+                .unwrap();
+            yrs::Update::decode_v1(&state).unwrap()
+        };
+        let first = join(call(&mut one, 2, "collab_join", json!({ "path": "Sessao.md" })).await);
+        call(&mut two, 2, "collab_join", json!({ "path": "Sessao.md" })).await;
+        // The room's client: the one its state holds.
+        let room = first
+            .state_vector()
+            .iter()
+            .next()
+            .map(|(c, _)| c.get())
+            .unwrap();
+        let mut bad = vec![1, 0];
+        let mut n = room;
+        while n >= 0x80 {
+            bad.push(u8::try_from(n & 0x7f).unwrap() | 0x80);
+            n >>= 7;
+        }
+        bad.push(u8::try_from(n).unwrap());
+        bad.extend([0, 0]);
+        let sent = call(
+            &mut two,
+            3,
+            "collab_update",
+            json!({ "path": "Sessao.md",
+                "update": base64::engine::general_purpose::STANDARD.encode(&bad) }),
+        )
+        .await;
+        assert_eq!(sent["err"]["message"], collab::BROKEN, "{sent}");
+        // Said in the log: the folder, the note, the member's account.
+        let said = crate::log::said("the room could not integrate");
+        assert!(
+            said.iter().any(|l| l.starts_with(&format!(
+                "WARN room {id}/Sessao.md: an update from account "
+            ))),
+            "{said:?}"
+        );
+        // Every window hears the room closed, and joins one made anew.
+        let closed = crate::tests::event_named(&mut one, "collab-closed").await;
+        assert_eq!(closed["path"], "Sessao.md");
+        let again = call(&mut one, 3, "collab_join", json!({ "path": "Sessao.md" })).await;
+        let doc = yrs::Doc::with_options(yrs::Options {
+            offset_kind: yrs::OffsetKind::Utf16,
+            ..Default::default()
+        });
+        doc.transact_mut().apply_update(join(again)).unwrap();
+        let text = doc.get_or_insert_text(collab::TEXT);
+        let read = call(&mut one, 4, "read_note", json!({ "path": "Sessao.md" })).await;
+        assert_eq!(
+            text.get_string(&doc.transact()),
+            read["ok"]["text"].as_str().unwrap()
+        );
+        // And it still takes an edit.
+        let edit = {
+            let mut txn = doc.transact_mut();
+            text.insert(&mut txn, 0, "> ");
+            txn.encode_update_v1()
+        };
+        let ok = call(
+            &mut one,
+            5,
+            "collab_update",
+            json!({ "path": "Sessao.md",
+                "update": base64::engine::general_purpose::STANDARD.encode(edit) }),
+        )
+        .await;
+        assert!(ok.get("ok").is_some(), "{ok}");
+    });
+}
+
+/// A window's updates sent fast, without waiting for the answers, are
+/// taken in the order they were sent (ADR 0083 item 14): the room holds
+/// none aside, so each is taken and the room's text is the window's. Half
+/// of them delete what the one before typed: a deletion that depends on
+/// an earlier update of the same connection applies because it comes
+/// after it, not because the room kept it aside.
+#[test]
+fn a_windows_updates_sent_at_once_are_taken_in_order() {
+    use futures_util::SinkExt;
+    use tokio_tungstenite::tungstenite::Message;
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &b).await;
+        let mut ws = window(&r, &b, &id).await;
+        let joined = call(&mut ws, 2, "collab_join", json!({ "path": "Sessao.md" })).await;
+        let doc = yrs::Doc::with_options(yrs::Options {
+            offset_kind: yrs::OffsetKind::Utf16,
+            ..Default::default()
+        });
+        let state = base64::engine::general_purpose::STANDARD
+            .decode(joined["ok"]["update"].as_str().unwrap())
+            .unwrap();
+        doc.transact_mut()
+            .apply_update(yrs::Update::decode_v1(&state).unwrap())
+            .unwrap();
+        let text = doc.get_or_insert_text(collab::TEXT);
+        let mut updates = Vec::new();
+        for i in 0..60_u32 {
+            let mut txn = doc.transact_mut();
+            if i % 2 == 0 {
+                text.insert(&mut txn, 0, &format!("<{i}>"));
+            } else {
+                // What the update before typed, deleted again but its
+                // first character.
+                let len = format!("<{}>", i - 1).encode_utf16().count() as u32;
+                text.remove_range(&mut txn, 1, len - 1);
+            }
+            updates.push(txn.encode_update_v1());
+        }
+        for (n, u) in updates.iter().enumerate() {
+            let args = json!({ "path": "Sessao.md",
+                "update": base64::engine::general_purpose::STANDARD.encode(u) });
+            ws.send(Message::Text(
+                json!({ "id": 100 + n, "cmd": "collab_update", "args": args })
+                    .to_string()
+                    .into(),
+            ))
+            .await
+            .unwrap();
+        }
+        for _ in &updates {
+            let answer = next(&mut ws).await;
+            assert!(answer.get("ok").is_some(), "{answer}");
+        }
+        let saved = call(&mut ws, 3, "collab_save", json!({ "path": "Sessao.md" })).await;
+        assert!(saved["ok"].is_string(), "{saved}");
+        let read = call(&mut ws, 4, "read_note", json!({ "path": "Sessao.md" })).await;
+        assert_eq!(
+            read["ok"]["text"].as_str().unwrap(),
+            text.get_string(&doc.transact())
+        );
+    });
+}
+
+/// One file, one room: a path written another way — `./Sessao.md` — is
+/// the same note, and reaches the same room (ADR 0073 item 7).
+#[test]
+fn a_path_written_another_way_reaches_the_same_room() {
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &b).await;
+        let mut one = window(&r, &b, &id).await;
+        let mut two = window(&r, &b, &id).await;
+        let joined = call(&mut one, 2, "collab_join", json!({ "path": "./Sessao.md" })).await;
+        assert!(joined.get("ok").is_some(), "{joined}");
+        let now = call(
+            &mut two,
+            3,
+            "collab_present",
+            json!({ "path": "Sessao.md" }),
+        )
+        .await;
+        assert_eq!(
+            now["ok"].as_bool(),
+            Some(true),
+            "`./Sessao.md` and `Sessao.md` are two rooms: {now}"
+        );
+        let again = call(&mut two, 4, "collab_join", json!({ "path": "Sessao.md" })).await;
+        assert!(again.get("ok").is_some(), "{again}");
+        let back = call(
+            &mut one,
+            5,
+            "collab_present",
+            json!({ "path": "./Sessao.md" }),
+        )
+        .await;
+        assert_eq!(back["ok"].as_bool(), Some(true), "{back}");
+    });
+}

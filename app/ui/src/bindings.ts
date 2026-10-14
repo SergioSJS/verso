@@ -408,11 +408,22 @@ export const commands = {
 	 */
 	collabCanvas: (path: string, at: string, json: string) => typedError<null, ContractError>(__TAURI_INVOKE("collab_canvas", { path, at, json })),
 	/**
-	 *  Sign in to a server through the browser: the server's page opens for the
-	 *  person to approve this device; the app asks meanwhile, keeps the token
-	 *  when it comes, and says so (`server-signed-in`).
+	 *  Sign in to a server through the browser (`gh auth login`'s way): the
+	 *  server gives a code, which the window copies to the clipboard before it
+	 *  opens the server's page (`server_sign_in_page`), where the person
+	 *  pastes it to approve this device — the page takes no code from its
+	 *  link (decided 2026-10-14, ADR 0083 As built). The app asks meanwhile,
+	 *  keeps the token when it comes, and says so (`server-signed-in`).
 	 */
 	serverSignIn: (url: string) => typedError<ServerSignIn, ContractError>(__TAURI_INVOKE("server_sign_in", { url })),
+	/**
+	 *  Open in the browser the server's page the last `server_sign_in` was
+	 *  handed, once (decided 2026-10-14, ADR 0083 As built): the window calls
+	 *  it after copying the code, before the browser takes the focus a
+	 *  clipboard write asks for. The window names no address: it can open
+	 *  nothing a server did not name.
+	 */
+	serverSignInPage: () => typedError<null, ContractError>(__TAURI_INVOKE("server_sign_in_page")),
 	/**  The servers this app is signed in to. */
 	serverAccounts: () => typedError<ServerAccount[], ContractError>(__TAURI_INVOKE("server_accounts")),
 	/**
@@ -447,6 +458,17 @@ export const commands = {
 	 *  stop showing it (item 11).
 	 */
 	shareAttachments: (path: string, attachments: string | null) => typedError<FolderShare, ContractError>(__TAURI_INVOKE("share_attachments", { path, attachments })),
+	/**
+	 *  Prove to the server behind this window that it is the person (ADR 0083
+	 *  item 6): the device's session sends the account's password to
+	 *  `/api/me/prove`, which stamps that session's own mark — a browser's
+	 *  session is not touched. Asked when a sensitive action answered
+	 *  `prove_first`; the window sends the action once more after. The
+	 *  password is not kept. A passkey cannot be offered here: the window's
+	 *  origin is the app's own, never the server's, which a passkey is bound
+	 *  to.
+	 */
+	serverProve: (password: string) => typedError<null, ContractError>(__TAURI_INVOKE("server_prove", { password })),
 	/**
 	 *  The folders of this computer opened before, freshest first, for the
 	 *  folder switcher's "On this computer" (ADR 0081 item 5): names and keys,
@@ -954,6 +976,12 @@ export type ErrorKind =
  *  0077 item 5).
  */
 "quota" | 
+/**
+ *  A server's sensitive action wants a fresh proof that it is the
+ *  person (ADR 0083 item 6): the window asks for the password and
+ *  sends the action once more.
+ */
+"prove_first" | 
 /**  The core could not answer. */
 "failed";
 
@@ -1279,9 +1307,13 @@ export type Link = {
 	line: number,
 	col: number,
 	/**
-	 *  The note or file it resolves to is not in what was shared with the
-	 *  person (ADR 0081 item 11): shown like an unresolved link, and never
-	 *  made into a note. Nothing else of it crosses.
+	 *  Through a share, a link to a note reaches nothing the person sees
+	 *  (ADR 0081 item 11): a note outside what was shared with them and a
+	 *  note that does not exist answer alike, so that whether a note of
+	 *  that name exists outside never crosses. Shown like an unresolved
+	 *  link, as "not in what was shared with you", and never made into a
+	 *  note. A file's target (`p.png`) is left to `resolve_attachment`.
+	 *  Always false outside a share.
 	 */
 	outside?: boolean,
 };

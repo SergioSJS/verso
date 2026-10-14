@@ -64,6 +64,22 @@ pub fn verify_password(password: &str, hashed: &str) -> bool {
 /// account.
 pub fn waste_time(password: &str) {
     let _ = hash_password(password);
+    #[cfg(test)]
+    if let Ok(mut wasted) = WASTED.lock() {
+        wasted.push(password.to_owned());
+    }
+}
+
+/// Every password [`waste_time`] hashed while the tests run, for a test to
+/// see that a refusal took a hash's time (the tests share the process:
+/// each looks for a password only it uses).
+#[cfg(test)]
+static WASTED: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+
+/// Whether [`waste_time`] hashed `password`.
+#[cfg(test)]
+pub(crate) fn wasted(password: &str) -> bool {
+    WASTED.lock().is_ok_and(|w| w.iter().any(|p| p == password))
 }
 
 /// Two secrets compared in time that does not depend on where they differ.

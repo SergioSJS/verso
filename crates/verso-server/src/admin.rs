@@ -88,6 +88,9 @@ pub async fn set_powers(
 ) -> ApiResult<Response> {
     ctx.changes()?;
     let me = ctx.admin()?.account.id.clone();
+    // A fresh proof first (ADR 0083 item 6), as for each of the admin's
+    // acts on an account or a folder below.
+    ctx.proved()?;
     let target = ctx
         .server
         .db
@@ -118,6 +121,7 @@ pub async fn set_powers(
 pub async fn delete_account(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
     ctx.changes()?;
     let me = ctx.admin()?.account.id.clone();
+    ctx.proved()?;
     if id == me {
         return Err(ApiError::bad("last_admin", "another admin removes you"));
     }
@@ -158,6 +162,7 @@ pub async fn delete_account(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Respo
 pub async fn end_sessions(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
     ctx.changes()?;
     let me = ctx.admin()?.account.id.clone();
+    ctx.proved()?;
     if id == me {
         return Err(ApiError::bad(
             "own_account",
@@ -179,6 +184,9 @@ pub async fn end_sessions(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Respons
 pub async fn reset_link(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
     ctx.changes()?;
     let admin = ctx.admin()?.account.id.clone();
+    // A fresh proof first (ADR 0083 item 6): a link that sets another
+    // account's password is the way to take it over.
+    ctx.proved()?;
     ctx.server
         .db
         .account(&id)?
@@ -217,6 +225,12 @@ pub struct Invite {
 pub async fn invite(ctx: Ctx, Json(body): Json<Invite>) -> ApiResult<Response> {
     ctx.changes()?;
     let admin = ctx.admin()?.account.id.clone();
+    // One that carries a folder or a share hands it over, with any role up
+    // to owner: a fresh proof first (ADR 0083 item 6), as entering a folder
+    // wants, and before the folder or the share is looked at.
+    if body.folder.is_some() || body.share.is_some() {
+        ctx.proved()?;
+    }
     let email = body
         .email
         .as_deref()
@@ -301,6 +315,9 @@ pub struct Adopt {
 pub async fn adopt(ctx: Ctx, Json(body): Json<Adopt>) -> ApiResult<Response> {
     ctx.changes()?;
     ctx.admin()?;
+    // It gives a folder on the disk to any owner, as entering one does
+    // (ADR 0083 item 6): a fresh proof before the request is read.
+    ctx.proved()?;
     let owner = match ctx.server.db.account(&body.owner)? {
         Some(a) => a,
         None => ctx
@@ -347,6 +364,7 @@ pub async fn enter(
 ) -> ApiResult<Response> {
     ctx.changes()?;
     let me = ctx.admin()?.account.id.clone();
+    ctx.proved()?;
     ctx.server.db.folder(&id)?.ok_or_else(ApiError::not_found)?;
     ctx.server.db.grant(&id, &me, body.role)?;
     ctx.audit(
