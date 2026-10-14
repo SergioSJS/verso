@@ -20,6 +20,27 @@ in the real app.
 
 ## Not yet checked
 
+### Dice and random tables (ADR 0088, feat/dice, 2026-10-14)
+
+- [ ] **A die in a note rolls and writes nothing** (A): in the installed
+  app, note 24 of the demo vault in Leitura, then in Editar: each `dice:`
+  code is a die; a click and Enter roll it, the card shows the total and
+  each die, VoiceOver says *1d20+5: …* once per roll. The table's roll
+  gives a row whose link opens Capitão Ruy. Close the note and look at the
+  file on disk: the same bytes (`shasum` before and after), and no `write`
+  line for it in `verso.log`.
+- [ ] **In a room the server rolls** (A): two browsers on a UniVerso, two
+  accounts in the same note with `` `dice: 1d20+3` ``. One rolls: the
+  other sees the same total with *X rolou* beside the die, and VoiceOver
+  says the name; a third window that opens the note then shows that roll.
+  A reader rolls too. The server's log has no ERROR. Stop the server and
+  roll: the card says it rolled in this window only.
+- [ ] **A synced folder's note on the desktop** (A): a folder of this
+  computer that syncs, its note open in two windows of the app and in a
+  browser: a roll in one window shows in the other window and in the
+  browser.
+- [ ] **⌘⇧P › Rolar dados…** (A): rolls a typed notation; nothing written.
+
 ### The window's feedback (fix/ui-feedback, 2026-10-14)
 
 - [ ] **A server out of reach is said where you acted** (A): a folder of

@@ -12,7 +12,9 @@ test release.
 
 ## Unreleased
 
-Nothing yet.
+### Added
+
+- **Dice and random tables in a note** ([ADR 0088](docs/adr/0088-dice-and-random-tables.md)): `` `dice: 1d20+3` `` — the Obsidian Dice Roller plugin's form — is drawn as a die in the reading view and in Live Preview; a click or Enter rolls it and shows the total, each die and the numbers added in a small card beside it, with *Roll again*. Verso reads dice (`2d6`, `d20`), sums and differences (`1d12+1d10+5`), keep and drop (`4d6kh3`, `2d20kl1`, `4d6dl1`) and the fudge die (`4dF`); a form it does not read stays code. `` `dice: [[Tables#^encounters]]` `` rolls one row of a table or a list with that `^id`: a table whose first column's header is a die (`d100`, `2d6`) chooses by the ranges in it (`01–05`, `7`), any other table or list every row alike; the row's links open with a click. The roll is never written to the file. In a shared note the server rolls, and everyone in it sees the roll with the name of who rolled it; a window that joins sees the room's last rolls. *Roll dice…* in the command palette rolls a notation typed, without a note. A screen reader hears each result (*1d20+3: 17 — 14 plus 3*), and another person's with their name.
 
 ## 0.8.2-beta.1 — 2026-10-14
 
