@@ -132,8 +132,28 @@ impl Index {
     /// matter (tokenizer, ADR 0046, provisional). A note found by its name
     /// keeps the excerpt of its content when the content matched too.
     pub fn search(&self, query: &str, limit: usize) -> Result<Vec<Hit>, IndexError> {
+        self.search_as(query, limit, false)
+    }
+
+    /// [`Index::search`] as a reader asks it (ADR 0087 item 6): the words
+    /// looked for in the title and the public text only — never in the
+    /// secret blocks' text, which the index holds apart — and each excerpt
+    /// cut from the public text.
+    pub fn reader_search(&self, query: &str, limit: usize) -> Result<Vec<Hit>, IndexError> {
+        self.search_as(query, limit, true)
+    }
+
+    fn search_as(&self, query: &str, limit: usize, reader: bool) -> Result<Vec<Hit>, IndexError> {
         let Some(expr) = match_expression(query) else {
             return Ok(Vec::new());
+        };
+        // The columns: a reader's words never reach `secret`. The user's
+        // words are still only quoted strings (feature 3 guardrail); the
+        // column filter is ours.
+        let expr = if reader {
+            format!("{{title content}} : ({expr})")
+        } else {
+            expr
         };
         let words: Vec<String> = query
             .split_whitespace()
@@ -187,11 +207,14 @@ impl Index {
             }
         }
         let named = best.into_sorted_vec();
-        let mut st = self.conn.prepare(
-            "SELECT path, snippet(notes_fts, -1, '[', ']', '…', 12)
+        // A reader's excerpt from the public text (column 2), whatever
+        // matched; anyone else's from the column that matched best.
+        let column = if reader { 2 } else { -1 };
+        let mut st = self.conn.prepare(&format!(
+            "SELECT path, snippet(notes_fts, {column}, '[', ']', '…', 12)
              FROM notes_fts WHERE notes_fts MATCH ?1
-             ORDER BY rank LIMIT ?2",
-        )?;
+             ORDER BY rank LIMIT ?2"
+        ))?;
         // `limit` rows are enough: at most as many as were named are named
         // again, and those places are taken already.
         let rows = st.query_map(
