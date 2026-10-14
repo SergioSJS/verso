@@ -51,11 +51,13 @@ fn code() -> Result<String, String> {
     Ok(format!("{}-{}", &letters[..4], &letters[4..]))
 }
 
-/// Whether `c` is a Unicode format character (general category Cf, as of
-/// Unicode 16.0's `DerivedGeneralCategory.txt`): the bidi controls and
-/// isolates, the zero-width space, joiners and marks, the byte-order mark,
-/// the soft hyphen, the tags. The standard library has no category table,
-/// and the set is small and stable.
+/// Whether `c` is a Unicode format character a device's name drops
+/// (general category Cf, as of Unicode 16.0's `DerivedGeneralCategory.txt`):
+/// the bidi controls and isolates, the zero-width space and non-joiner, the
+/// byte-order mark, the soft hyphen, the tags. The zero-width joiner,
+/// U+200D, stays: it joins an emoji's parts into one picture and turns no
+/// text around. The standard library has no category table, and the set
+/// is small and stable.
 fn is_format(c: char) -> bool {
     matches!(
         u32::from(c),
@@ -67,7 +69,8 @@ fn is_format(c: char) -> bool {
             | 0x0890..=0x0891
             | 0x08E2
             | 0x180E
-            | 0x200B..=0x200F
+            | 0x200B..=0x200C
+            | 0x200E..=0x200F
             | 0x202A..=0x202E
             | 0x2060..=0x2064
             | 0x2066..=0x206F
@@ -84,9 +87,9 @@ fn is_format(c: char) -> bool {
 }
 
 /// A device's name as a session keeps it: on one line, trimmed, at most
-/// 80 characters, with no format character — a bidi override or a
-/// zero-width one would turn or hide the sentence the approval page puts
-/// it in; none when nothing is left.
+/// 80 characters, with no format character but the emoji's joiner — a
+/// bidi override or a zero-width one would turn or hide the sentence the
+/// approval page puts it in; none when nothing is left.
 fn kept_name(name: &str) -> Option<String> {
     let one_line: String = name
         .chars()
@@ -425,7 +428,7 @@ mod tests {
         for (given, kept) in [
             ("Verso\u{202E}kooBcaM", Some("VersokooBcaM")),
             ("\u{2066}Verso\u{2069} · Mac", Some("Verso · Mac")),
-            ("Ver\u{200B}so\u{200D}\u{FEFF}", Some("Verso")),
+            ("Ver\u{200B}so\u{FEFF}", Some("Verso")),
             ("\u{200F}\u{200E}\u{061C}", None),
             ("Mac\u{E0041}\u{E007F}", Some("Mac")),
             ("Verso\u{00AD}Mac", Some("VersoMac")),
@@ -436,6 +439,32 @@ mod tests {
 
     /// What was kept before stays: a control character becomes a space,
     /// the ends are trimmed, 80 characters at most.
+    /// The zero-width joiner joins an emoji's parts and turns no text
+    /// around: a family, a flag of a region, a profession keep their one
+    /// picture; the bidi controls beside it still go.
+    #[test]
+    fn a_joined_emoji_survives_and_a_bidi_control_does_not() {
+        let family = "Verso · \u{1F469}\u{200D}\u{1F467}\u{200D}\u{1F466}";
+        assert_eq!(kept_name(family).as_deref(), Some(family), "a joined emoji");
+        let cook = "\u{1F9D1}\u{200D}\u{1F373} Mac";
+        assert_eq!(kept_name(cook).as_deref(), Some(cook));
+        assert_eq!(
+            kept_name("\u{1F469}\u{200D}\u{1F4BB}\u{202E}caM").as_deref(),
+            Some("\u{1F469}\u{200D}\u{1F4BB}caM"),
+            "an RLO beside a joined emoji"
+        );
+        for bidi in [
+            '\u{061C}', '\u{200E}', '\u{200F}', '\u{202A}', '\u{202B}', '\u{202C}', '\u{202D}',
+            '\u{202E}', '\u{2066}', '\u{2067}', '\u{2068}', '\u{2069}',
+        ] {
+            assert_eq!(
+                kept_name(&format!("a{bidi}b")).as_deref(),
+                Some("ab"),
+                "{bidi:?}"
+            );
+        }
+    }
+
     #[test]
     fn a_device_name_is_one_trimmed_line() {
         assert_eq!(kept_name(" Verso\n· Mac ").as_deref(), Some("Verso · Mac"));
