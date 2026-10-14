@@ -84,7 +84,11 @@ export class NoteLeaf extends Leaf {
     doc: () => this.editor.state.doc.toString(),
     apply: (change) => {
       if (throughRoom(this.roomHolder(), (text) => applyChange(text, change)) !== "disk") return;
-      this.editor.dispatch({ changes: change, annotations: Transaction.userEvent.of("input") });
+      // Not an `input`: Live Preview's guard keeps keys out of the folded
+      // frontmatter and lets the panel's own edits through (`keepFrontmatter`),
+      // and an `input` there was dropped — the row showed the value, the
+      // file never got it.
+      this.editor.dispatch({ changes: change, annotations: Transaction.userEvent.of("props") });
       if (this.mode === "preview") void this.save();
     },
     // The key moved in the text since the panel was drawn: the save that
