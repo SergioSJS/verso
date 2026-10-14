@@ -12,6 +12,10 @@ test release.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.8.1-beta.1 — 2026-10-14
+
 ### Added
 
 - **UniVerso says every refused sign-in in its log, for fail2ban and CrowdSec** ([ADR 0083](docs/adr/0083-security-hardening-of-universo.md) item 1): one line each — `WARN sign-in failed from <address> for a***@example.org (<n> in a row)` — for a wrong password, a passkey refused, a device's wrong poll secret or a wrong current password, and `WARN sign-in limited from <address>` once a minute when the delay refuses; the address as the trusted proxy forwarded it (an IPv6 address by its /64), the e-mail masked. The `.deb` and the `.rpm` install a fail2ban filter and jail (ten refusals in ten minutes ban the address for an hour, from the http and https ports only, so SSH stays open; the filter takes an IPv4 address or an IPv6 /64 and no wider range), which do nothing until fail2ban is installed and an upgrade keeps once edited; a CrowdSec parser and scenarios are in `packaging/server/crowdsec/`. In Docker, the guide's jail matches the container's lines by `_SYSTEMD_UNIT=docker.service` beside its name, which any program could otherwise write into the journal. The installation guide's new section 16 explains both, and Caddy's `rate_limit`. A line of the log no longer spans two lines, whatever its message holds.
