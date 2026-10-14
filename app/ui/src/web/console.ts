@@ -101,7 +101,7 @@ function usage(space: number, quota: number | null): HTMLElement {
 async function overview(c: Ctx, body: HTMLElement): Promise<void> {
   const s = cw();
   c.title(s.overview);
-  type Info = { version: string; newer: string | null; updateCheck: boolean; dataDir: string; foldersDir: string; dataOnNetwork: string | null; foldersOnNetwork: string | null; mail: boolean; tls: string; accounts: number; folders: number; space: number; trash?: { count: number; size: number }; nearQuota: { id: string; name: string; space: number; quota: number }[]; twins: { id: string; name: string; count: number }[]; underAttack?: number; defaultQuota: number | null; auditDays?: number };
+  type Info = { version: string; newer: string | null; updateCheck: boolean; dataDir: string; foldersDir: string; dataOnNetwork: string | null; foldersOnNetwork: string | null; mail: boolean; tls: string; accounts: number; folders: number; space: number; trash?: { count: number; size: number }; history?: { count: number; size: number }; nearQuota: { id: string; name: string; space: number; quota: number }[]; twins: { id: string; name: string; count: number }[]; underAttack?: number; defaultQuota: number | null; auditDays?: number };
   const o = await api<Info>("GET", "/api/admin/overview");
   const card = (title: string, ...content: (Node | string)[]) => el("section", { class: "console-card" }, el("h2", {}, title), ...content);
   const attention: Node[] = [];
@@ -134,7 +134,7 @@ async function overview(c: Ctx, body: HTMLElement): Promise<void> {
       "div",
       { class: "console-cards" },
       card(s.attention, attention.length ? el("ul", { class: "console-list" }, ...attention) : el("p", { class: "settings-hint" }, s.allGood)),
-      card(s.totals, el("p", { class: "console-big" }, s.totalsLine(o.accounts, o.folders, bytes(o.space))), el("p", { class: "settings-hint" }, `${s.defaultQuota}: ${o.defaultQuota ? bytes(o.defaultQuota) : s.noQuota}`), el("p", { class: "settings-hint", "data-trash-total": "" }, s.trashTotal(o.trash?.count ?? 0, bytes(o.trash?.size ?? 0)))),
+      card(s.totals, el("p", { class: "console-big" }, s.totalsLine(o.accounts, o.folders, bytes(o.space))), el("p", { class: "settings-hint" }, `${s.defaultQuota}: ${o.defaultQuota ? bytes(o.defaultQuota) : s.noQuota}`), el("p", { class: "settings-hint", "data-trash-total": "" }, s.trashTotal(o.trash?.count ?? 0, bytes(o.trash?.size ?? 0))), el("p", { class: "settings-hint", "data-history-total": "" }, s.historyTotal(o.history?.count ?? 0, bytes(o.history?.size ?? 0)))),
       card(s.version, el("p", { class: "console-big" }, o.version), el("p", { class: "settings-hint" }, o.newer ? s.newer(o.newer) : o.updateCheck ? s.upToDate : s.checkOff)),
       card(
         s.storage,
@@ -330,7 +330,8 @@ function folders(c: Ctx, body: HTMLElement): void {
 async function folderPage(c: Ctx, body: HTMLElement, id: string): Promise<void> {
   const s = cw();
   type Trash = { count: number; size: number; days: number; adminDays: number | null; ownerDays: number | null; defaultDays: number; ceiling: number; early: boolean };
-  type Detail = { id: string; name: string; created: number; trash?: Trash; members: { id: string; name: string; email: string; role: string }[]; shares?: { id: string; path: string; attachments: string | null; people: { name: string; email: string; role: string }[] }[]; space: Space; quota: number | null; twins?: { kept: string; held: string }[]; tooLarge?: { path: string; size: number }[]; changes?: Change[] };
+  type Hist = { count: number; size: number; days: number; adminDays: number | null; defaultDays: number; early: boolean };
+  type Detail = { id: string; name: string; created: number; trash?: Trash; history?: Hist; members: { id: string; name: string; email: string; role: string }[]; shares?: { id: string; path: string; attachments: string | null; people: { name: string; email: string; role: string }[] }[]; space: Space; quota: number | null; twins?: { kept: string; held: string }[]; tooLarge?: { path: string; size: number }[]; changes?: Change[] };
   const f = await api<Detail>("GET", `/api/admin/folders/${id}`);
   c.title(f.name);
   const said = line();
@@ -406,6 +407,27 @@ async function folderPage(c: Ctx, body: HTMLElement, id: string): Promise<void> 
     no.focus();
   });
   if (f.trash) paintTrash(f.trash);
+  // The folder's version history (ADR 0091 items 3 and 7): shown, not
+  // counted; its days set here, as the trash's.
+  const histSaid = el("p", { class: "settings-hint", "data-history": "" });
+  const histDays = input("number", { min: "0", max: "36500", placeholder: "", "aria-label": s.historyDays });
+  const paintHist = (hi: Hist) => {
+    histSaid.textContent = [s.historyLine(hi.count, bytes(hi.size)), s.historyKept(hi.days), hi.early ? s.historyEarly : ""].filter(Boolean).join(" ");
+    histDays.value = hi.adminDays === null ? "" : String(hi.adminDays);
+    histDays.placeholder = s.historyDefault(hi.defaultDays);
+  };
+  const setHist = (value: number | null) =>
+    void api<Hist>("PUT", `/api/admin/folders/${f.id}/history`, { days: value })
+      .then((r) => {
+        said.textContent = s.saved;
+        paintHist(r);
+      })
+      .catch((e: unknown) => (said.textContent = explain(e)));
+  const setH = button(s.setTrashDays, "save");
+  setH.addEventListener("click", () => setHist(histDays.value.trim() === "" ? null : Math.max(0, Math.floor(Number(histDays.value)))));
+  const defH = button(s.defaultTrashDays);
+  defH.addEventListener("click", () => setHist(null));
+  if (f.history) paintHist(f.history);
   const sp = f.space;
   body.replaceChildren(
     el("p", { class: "console-sub" }, `${s.created} ${when(f.created)}`),
@@ -415,6 +437,8 @@ async function folderPage(c: Ctx, body: HTMLElement, id: string): Promise<void> 
     row(s.trashDays, s.trashDaysDesc, controls(days, setD, defD)),
     row(s.emptyTrash, "", controls(emptyB)),
     trashAsk,
+    row(s.historyTitle, "", histSaid),
+    row(s.historyDays, s.historyDaysDesc, controls(histDays, setH, defH)),
     row(s.enter, s.enterDesc, controls(enter)),
     said,
     // Files its last walk held: another's name in another form.
@@ -534,6 +558,7 @@ function subjectCell(r: AuditRow): Node | string {
   else if (a?.kind === "named") shown = a.name;
   else if (!raw) return "";
   else if (r.action === "trash_days") shown = raw === "default" ? s.defaultTrashDays : raw === "0" ? s.trashKept(0) : s.trashKept(Number(raw));
+  else if (r.action === "history_days") shown = raw === "default" ? s.defaultTrashDays : s.historyKept(Number(raw));
   else if (r.action === "folder_quota") shown = raw === "none" ? s.noQuota : /^\d+$/.test(raw) ? bytes(Number(raw)) : raw;
   else if (r.action === "sessions_ended" && /^\d+$/.test(raw)) shown = s.sessionsCount(Number(raw));
   // An id the server no longer knows (a session ended, a token revoked,
