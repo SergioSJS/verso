@@ -76,7 +76,7 @@ While Verso's repository is private, downloading a release needs a GitHub
 token; the script explains how to make one when it is missing:
 
 ```sh
-export GITHUB_TOKEN=github_pat_...
+read -rs GITHUB_TOKEN && export GITHUB_TOKEN   # paste the token, then Enter
 sh universo.sh install --url https://notes.example.com
 ```
 

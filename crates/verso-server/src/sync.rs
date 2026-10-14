@@ -1268,7 +1268,7 @@ fn put(
         // it, rather than after its last piece; its temporary file beside
         // where it will land.
         let (p, _) = as_kept(server, folder, &path, inside)?;
-        crate::quota::check(server, key, &p, size)?;
+        let hold = crate::quota::reserve(server, key, &p, size)?;
         let staged = server.service.with_key(key, move |ws| Ok(ws.stage(&p)?))?;
         let upload = Arc::new(Mutex::new(Upload {
             staged: Some(staged),
@@ -1277,6 +1277,7 @@ fn put(
             size,
             hash: hash.clone(),
             base: base.clone(),
+            hold,
         }));
         let mut up = lock(&server.transfers.up);
         up.retain(|_, (_, at)| at.elapsed() < IDLE);
@@ -1331,11 +1332,12 @@ fn put(
             None
         } else {
             let sha = std::mem::take(&mut u.sha);
-            u.staged.take().map(|staged| (staged, sha))
+            let hold = u.hold.take();
+            u.staged.take().map(|staged| (staged, sha, hold))
         }
     };
     drop(piece);
-    let Some((staged, sha)) = complete else {
+    let Some((staged, sha, hold)) = complete else {
         return Ok(json!({ "done": false }));
     };
     drop_it();
@@ -1346,7 +1348,7 @@ fn put(
     let one = one_at_a_time(server, folder);
     let only = lock(&one);
     let (path, other) = as_kept(server, folder, &path, inside)?;
-    crate::quota::check(server, key, &path, size)?;
+    crate::quota::check_holding(server, key, &path, size, hold.as_ref())?;
     let p = path.clone();
     let new_hash = hash.clone();
     let (head, landed) = {
@@ -1391,7 +1393,8 @@ fn put(
         )?;
         (head, landed)
     };
-    drop(only);
+    // Landed and counted in the folder's record: its room given back.
+    drop((only, hold));
     told(server, key, std::slice::from_ref(&landed), &[], &[]);
     // Where it landed: the spelling the server keeps for the name — in
     // another case too, where the disk folds names ([`as_spelled`]): a

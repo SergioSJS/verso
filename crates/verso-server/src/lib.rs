@@ -28,7 +28,9 @@ pub mod folders;
 #[cfg(feature = "fuzzing")]
 #[doc(hidden)]
 pub mod fuzz_api;
+pub mod hashes;
 pub mod http;
+pub mod inflight;
 pub mod large;
 pub mod limit;
 pub mod listen;
@@ -50,6 +52,7 @@ pub mod shares;
 pub mod signin;
 pub mod state;
 pub mod sync;
+pub mod texts;
 pub mod tls;
 pub mod transfers;
 pub mod trash;
@@ -335,9 +338,13 @@ mod tests_bounds;
 #[cfg(test)]
 mod tests_console;
 #[cfg(test)]
+mod tests_hashes;
+#[cfg(test)]
 mod tests_pieces;
 #[cfg(test)]
 mod tests_prove;
+#[cfg(test)]
+mod tests_resources;
 #[cfg(test)]
 mod tests_room_inputs;
 #[cfg(test)]

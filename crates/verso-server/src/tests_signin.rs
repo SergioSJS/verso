@@ -381,7 +381,11 @@ fn a_sign_in_link_names_its_account_before_it_is_used() {
         let token = "um-link-de-entrada-de-teste";
         verso_service::lock(&r.server.signin_links).insert(
             crate::crypto::hash(token),
-            (admin.id.clone(), std::time::Instant::now()),
+            (
+                admin.id.clone(),
+                std::time::Instant::now(),
+                "127.0.0.1".to_owned(),
+            ),
         );
         let path = format!("/api/signin/link/{token}");
         for _ in 0..2 {

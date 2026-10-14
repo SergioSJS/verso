@@ -641,9 +641,10 @@ fn a_mailbox_is_not_flooded_from_many_addresses() {
 const FAIL2BAN_FILTER: &str = include_str!("../../../packaging/server/fail2ban/universo.conf");
 
 /// The filter's `failregex`, as fail2ban reads it — its configuration
-/// reader trims the value — with `<HOST>`, `<ADDR>` and `<SUBNET>` expanded
-/// as fail2ban 1.1 expands them (fail2ban/server/failregex.py, `R_HOST`,
-/// and ipdns.py, `IP_4_RE` and `IP_6_RE`). The one change: Python's
+/// reader trims the value — with `<HOST>`, `<ADDR>`, `<SUBNET>`, `<IP4>`
+/// and `<IP6>` expanded as fail2ban 1.1 expands them
+/// (fail2ban/server/failregex.py, `R_HOST` and `RH4TAG`, and ipdns.py,
+/// `IP_4_RE` and `IP_6_RE`). The one change: Python's
 /// look-behind `(?<=:)` before IPv6's last `:` is dropped, which the
 /// `regex` crate has not; it always holds there, since every repetition
 /// before it ends in `:`.
@@ -663,7 +664,9 @@ fn fail2ban_regex(filter: &str) -> regex::Regex {
     let expanded = failregex
         .replace("<HOST>", &host)
         .replace("<ADDR>", &addr)
-        .replace("<SUBNET>", &subnet);
+        .replace("<SUBNET>", &subnet)
+        .replace("<IP4>", ip4)
+        .replace("<IP6>", ip6);
     regex::Regex::new(&expanded).unwrap()
 }
 
@@ -702,8 +705,9 @@ fn banned(lines: &[String]) -> Vec<[Option<String>; 2]> {
 
 /// fail2ban's filter catches exactly the refused sign-ins, IPv4 and IPv6
 /// (its /64, as the server keys it), in a log file and in the journal; a
-/// window's own line saying the same words, and the limiter's line, pass
-/// (ADR 0083 item 1).
+/// window's own line saying the same words, and the limiter's line, pass;
+/// so does a line naming any other range — `0.0.0.0/0` would ban everyone,
+/// a /48 or a /24 more than the server ever counts as one (ADR 0083 item 1).
 #[test]
 fn the_fail2ban_filter_catches_exactly_the_refused_sign_ins() {
     let lines: Vec<String> = [
@@ -713,6 +717,10 @@ fn the_fail2ban_filter_catches_exactly_the_refused_sign_ins() {
         "2026-10-13T12:00:03Z WARN window 7 (acc1): sign-in failed from 198.51.100.7 for c***@example.org (1 in a row)",
         "2026-10-13T12:00:04Z INFO window 7 (acc1): WARN sign-in failed from 198.51.100.8 for c***@example.org (1 in a row)",
         "2026-10-13T12:00:05Z INFO the first admin was made from the setup link",
+        "2026-10-13T12:00:06Z WARN sign-in failed from 0.0.0.0/0 for d***@example.org (1 in a row)",
+        "2026-10-13T12:00:07Z WARN sign-in failed from 2001:db8:1::/48 for e***@example.org (1 in a row)",
+        "2026-10-13T12:00:08Z WARN sign-in failed from 203.0.113.0/24 for f***@example.org (1 in a row)",
+        "2026-10-13T12:00:09Z WARN sign-in failed from 2001:db8:1:2::1 for g***@example.org (1 in a row)",
     ]
     .map(str::to_owned)
     .to_vec();
@@ -723,6 +731,10 @@ fn the_fail2ban_filter_catches_exactly_the_refused_sign_ins() {
         vec![
             both("203.0.113.9"),
             both("2001:db8:1:2::/64"),
+            [None, None],
+            [None, None],
+            [None, None],
+            [None, None],
             [None, None],
             [None, None],
             [None, None],

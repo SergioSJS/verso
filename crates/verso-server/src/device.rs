@@ -39,6 +39,9 @@ pub struct Pending {
     /// request that is not theirs.
     pub address: String,
     pub asked: String,
+    /// The address's key (`crate::limit::address_key`), for the entries
+    /// one address may keep (`crate::limit::PENDING_PER_ADDRESS`).
+    key: String,
 }
 
 fn code() -> Result<String, String> {
@@ -123,6 +126,10 @@ pub async fn start(ctx: Ctx, Json(body): Json<Start>) -> ApiResult<Response> {
     let poll = crate::crypto::token()?;
     let mut devices = lock(&ctx.server.devices);
     devices.retain(|_, p| p.made.elapsed() < LIFE);
+    let by = ctx.peer.key();
+    if !crate::limit::room_for(&devices, &by, |p| &p.key) {
+        return Err(ApiError::wait(LIFE.as_secs() / 10));
+    }
     crate::limit::make_room(&mut devices, crate::limit::PENDING, |p| p.made);
     devices.insert(
         code.clone(),
@@ -133,6 +140,7 @@ pub async fn start(ctx: Ctx, Json(body): Json<Start>) -> ApiResult<Response> {
             approved: None,
             address: ctx.address(),
             asked: crate::log::stamp(),
+            key: by,
         },
     );
     let base = crate::auth::expected_origin(&ctx.server, &ctx.headers).unwrap_or_default();

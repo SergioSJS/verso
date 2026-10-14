@@ -20,7 +20,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::crypto;
 
 /// The schema's version, in `PRAGMA user_version`.
-const SCHEMA: i64 = 9;
+const SCHEMA: i64 = 10;
 
 /// Schema 8: sharing a folder inside a folder (ADR 0081 items 1, 2, 9, 11
 /// and 15): a share is a path of one folder with an id of its own, its
@@ -50,6 +50,16 @@ CREATE TABLE token_shares (
 );
 ALTER TABLE invitations ADD COLUMN share TEXT REFERENCES shares(id) ON DELETE SET NULL;
 ALTER TABLE audit ADD COLUMN path TEXT;
+";
+
+/// Schema 10: what an invitation was made for, kept apart from the share
+/// it names (ADR 0081 items 4 and 8): `invitations.share` is set to null
+/// when its share goes, and an invitation to a share must not then read as
+/// one to the whole folder. Invitations made before it that still name
+/// their share are marked as a share's.
+const INVITATION_SCOPE: &str = r"
+ALTER TABLE invitations ADD COLUMN scope TEXT NOT NULL DEFAULT 'folder' CHECK (scope IN ('folder', 'share'));
+UPDATE invitations SET scope = 'share' WHERE share IS NOT NULL;
 ";
 
 /// Schema 6: the device that made a change of a folder's log, by its name
@@ -331,6 +341,10 @@ pub struct Invitation {
     pub ended: Option<i64>,
     /// The share it carries, when it carries one (ADR 0081 item 4).
     pub share: Option<String>,
+    /// Whether it was made for a share: `share` is null once the share is
+    /// gone, and the invitation then gives nothing.
+    #[serde(skip)]
+    pub for_share: bool,
 }
 
 impl Invitation {
@@ -339,7 +353,7 @@ impl Invitation {
     pub fn state(&self, now: i64) -> &'static str {
         if self.used.is_some() {
             "used"
-        } else if self.ended.is_some() {
+        } else if self.ended.is_some() || (self.for_share && self.share.is_none()) {
             "ended"
         } else if now >= self.expires {
             "expired"
@@ -503,6 +517,7 @@ impl Db {
             (7, trash::TRASH),
             (8, SHARES),
             (9, proof::PROOF),
+            (10, INVITATION_SCOPE),
         ]
         .iter()
         .filter(|(at, _)| *at > version)
@@ -559,8 +574,21 @@ impl Db {
         password: Option<&str>,
         admin: bool,
     ) -> R<Account> {
-        let id = crypto::id()?;
         let hashed = password.map(crypto::hash_password).transpose()?;
+        self.create_account_hashed(email, name, lang, hashed, admin)
+    }
+
+    /// [`Db::create_account`] with the password already hashed — by a
+    /// request, in one of the hashes' places (`crate::hashes`).
+    pub fn create_account_hashed(
+        &self,
+        email: &str,
+        name: &str,
+        lang: &str,
+        hashed: Option<String>,
+        admin: bool,
+    ) -> R<Account> {
+        let id = crypto::id()?;
         let created = now();
         self.conn()
             .execute(
@@ -630,7 +658,11 @@ impl Db {
     }
 
     pub fn set_password(&self, account: &str, password: &str) -> R<()> {
-        let hashed = crypto::hash_password(password)?;
+        self.set_hashed_password(account, &crypto::hash_password(password)?)
+    }
+
+    /// [`Db::set_password`] with the password already hashed.
+    pub fn set_hashed_password(&self, account: &str, hashed: &str) -> R<()> {
         self.conn()
             .execute(
                 "UPDATE accounts SET password = ?2 WHERE id = ?1",
@@ -991,8 +1023,8 @@ impl Db {
         let at = now();
         self.conn()
             .execute(
-                "INSERT INTO invitations (id, hash, kind, email, account, folder, role, created_by, created, expires, share)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                "INSERT INTO invitations (id, hash, kind, email, account, folder, role, created_by, created, expires, share, scope)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
                 params![
                     id,
                     crypto::hash(&token),
@@ -1004,7 +1036,8 @@ impl Db {
                     created_by,
                     at,
                     at + life,
-                    share
+                    share,
+                    if share.is_some() { "share" } else { "folder" }
                 ],
             )
             .map_err(e)?;
@@ -1014,7 +1047,7 @@ impl Db {
         Ok((token, invitation))
     }
 
-    const INVITATION: &'static str = "SELECT id, kind, email, account, folder, role, created_by, created, expires, used, used_by, ended, share FROM invitations";
+    const INVITATION: &'static str = "SELECT id, kind, email, account, folder, role, created_by, created, expires, used, used_by, ended, share, scope FROM invitations";
 
     fn invitation_from(r: &rusqlite::Row<'_>) -> rusqlite::Result<Invitation> {
         Ok(Invitation {
@@ -1031,6 +1064,7 @@ impl Db {
             used_by: r.get(10)?,
             ended: r.get(11)?,
             share: r.get(12)?,
+            for_share: r.get::<_, String>(13)? == "share",
         })
     }
 
