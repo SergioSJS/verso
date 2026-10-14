@@ -258,7 +258,10 @@ function askPage(account: Account, what: Asked, typed: boolean): void {
   const when = Number.isNaN(asked.getTime())
     ? what.asked
     : asked.toLocaleString(account.lang.startsWith("pt") ? "pt-BR" : "en", { dateStyle: "long", timeStyle: "medium" });
-  const fact = (term: string, value: string) => [el("dt", {}, term), el("dd", {}, value)];
+  const fact = (term: string, value: string | Node) => [el("dt", {}, term), el("dd", {}, value)];
+  // The device's name as its app gave it, isolated wherever it is said: a
+  // name in another direction does not carry into the words around it.
+  const named = () => el("bdi", {}, what.device);
   const heading = el("h2", { id: "device-who", class: "web-subtitle", tabindex: "-1" }, s.deviceWho);
   const who = el(
     "section",
@@ -268,14 +271,14 @@ function askPage(account: Account, what: Asked, typed: boolean): void {
       "dl",
       { class: "web-facts" },
       ...(typed ? fact(s.deviceCodeTyped, what.code) : []),
-      ...fact(s.deviceName, what.device),
+      ...fact(s.deviceName, named()),
       ...fact(s.deviceAddress, what.address),
       ...fact(s.deviceWhen, when),
     ),
   );
   const f = form(
     [],
-    s.deviceApprove(what.device),
+    s.deviceApprove(named()),
     async () => {
       await api("POST", "/api/device/approve", sent);
       page(s.deviceTitle, lead(s.deviceDone));
@@ -300,7 +303,7 @@ function askPage(account: Account, what: Asked, typed: boolean): void {
   f.form.append(refuse);
   page(
     s.deviceTitle,
-    lead(s.deviceLead(what.device)),
+    el("p", { class: "web-lead" }, ...s.deviceLead(named())),
     typed ? el("span") : el("p", { class: "web-code", "aria-label": s.deviceCode }, what.code),
     who,
     question,
