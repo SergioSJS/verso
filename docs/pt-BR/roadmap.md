@@ -1,11 +1,12 @@
 # Roadmap do Verso
 
-- Versão: 2026-10-12, revisão 7 (a Fase 2 declarada fechada em 2026-10-09 pelo mantenedor, respondendo à auditoria dos ADRs, *"Ajuste tudo que precisar. Está aprovado os ADRs"* — o `[ABERTO]` no começo da Fase 3 respondido, e o que ainda faltava ao critério de saída e ao escopo da Fase 2 passado para a Fase 3 como pendências dela; notas datadas ao lado de "uma fase não começa antes de a anterior fechar" e do portão da Fase 2; as linhas 3.23 e 3.24 acrescentadas no mesmo dia a partir do *"Todos aprovados"* do mantenedor). Revisão 6, 2026-10-11 (a tabela da Fase 3 ganha o que foi construído desde a revisão 5 — [0077](adr/0077-the-server-administration-console-and-folder-quotas.md), [0078](adr/0078-universo-the-name-of-verso-as-a-server.md), [0079](adr/0079-sync-a-local-folder-with-a-server.md) — e os aceitos [0080](adr/0080-the-trash-with-expiry-and-restore.md), [0081](adr/0081-sharing-between-people-on-one-universo.md) e [0082](adr/0082-live-co-editing-of-a-synced-folder.md) na ordem que o mantenedor definiu em 2026-10-11, *"Sim para todos"*; as permissões mais finas riscadas como aceitas com o 0081; "Depois da Fase 2" posto em dia quanto ao sync; as linhas 3.10–3.16, que afetam o critério de saída, foram escritas a partir da recomendação do memorando, não de uma das oito respostas do mantenedor, e aguardavam a aceitação do mantenedor — regra zero; em 2026-10-12, dentro desta revisão, as linhas 3.13, 3.14 e 3.16 marcadas como construídas e a 3.15 como feita, as linhas 3.10–3.16 **aceitas pelo mantenedor** naquela noite, "Ok", e as linhas 3.17–3.21 acrescentadas a partir das respostas do mantenedor da mesma noite; as linhas 3.10, 3.14, 3.20 e 3.21 postas em dia com o que foi construído pela auditoria de 2026-10-12). Revisão 5, 2026-10-09 (a Fase 3 escrita, a partir do [ADR 0073](adr/0073-self-hosted-server-first.md) aceito pelo mantenedor com o 0074, o 0075 e o 0076; a identidade de sessão do contrato e os handles para o `verso serve` riscados como decididos). Revisão 4, 2026-09-24 (as decisões do mantenedor de 2026-09-24 riscadas: os handles nas duas fases, e as duas linhas da nota tipada, com o item 2.6 sem esperar mais por elas). Revisão 3, 2026-09-23: a Fase 2 como construída; as decisões da Fase 1 tomadas em 2026-09-22 riscadas
+- Versão: 2026-10-14, revisão 8 (a V1 escrita, depois da Fase 3, a partir da palavra do mantenedor de 2026-10-14, *"VAI SER TUDO NA V1"*: oito funcionalidades, cada uma com um ADR proposto naquele dia — do [0085](adr/0085-hover-preview.md) ao [0092](adr/0092-the-phone-offline.md) — e as pendências que bloqueiam a V1; o ADR 0083 e o ADR 0084 como estão; o que ainda não está decidido sobre a V1 marcado `[ABERTO]` com uma recomendação; notas datadas acrescentadas às decisões da Fase 3 sobre o offline no celular e sobre o histórico, e a "Depois da Fase 2"; nada das fases anteriores reescrito). Revisão 7, 2026-10-12 (a Fase 2 declarada fechada em 2026-10-09 pelo mantenedor, respondendo à auditoria dos ADRs, *"Ajuste tudo que precisar. Está aprovado os ADRs"* — o `[ABERTO]` no começo da Fase 3 respondido, e o que ainda faltava ao critério de saída e ao escopo da Fase 2 passado para a Fase 3 como pendências dela; notas datadas ao lado de "uma fase não começa antes de a anterior fechar" e do portão da Fase 2; as linhas 3.23 e 3.24 acrescentadas no mesmo dia a partir do *"Todos aprovados"* do mantenedor). Revisão 6, 2026-10-11 (a tabela da Fase 3 ganha o que foi construído desde a revisão 5 — [0077](adr/0077-the-server-administration-console-and-folder-quotas.md), [0078](adr/0078-universo-the-name-of-verso-as-a-server.md), [0079](adr/0079-sync-a-local-folder-with-a-server.md) — e os aceitos [0080](adr/0080-the-trash-with-expiry-and-restore.md), [0081](adr/0081-sharing-between-people-on-one-universo.md) e [0082](adr/0082-live-co-editing-of-a-synced-folder.md) na ordem que o mantenedor definiu em 2026-10-11, *"Sim para todos"*; as permissões mais finas riscadas como aceitas com o 0081; "Depois da Fase 2" posto em dia quanto ao sync; as linhas 3.10–3.16, que afetam o critério de saída, foram escritas a partir da recomendação do memorando, não de uma das oito respostas do mantenedor, e aguardavam a aceitação do mantenedor — regra zero; em 2026-10-12, dentro desta revisão, as linhas 3.13, 3.14 e 3.16 marcadas como construídas e a 3.15 como feita, as linhas 3.10–3.16 **aceitas pelo mantenedor** naquela noite, "Ok", e as linhas 3.17–3.21 acrescentadas a partir das respostas do mantenedor da mesma noite; as linhas 3.10, 3.14, 3.20 e 3.21 postas em dia com o que foi construído pela auditoria de 2026-10-12). Revisão 5, 2026-10-09 (a Fase 3 escrita, a partir do [ADR 0073](adr/0073-self-hosted-server-first.md) aceito pelo mantenedor com o 0074, o 0075 e o 0076; a identidade de sessão do contrato e os handles para o `verso serve` riscados como decididos). Revisão 4, 2026-09-24 (as decisões do mantenedor de 2026-09-24 riscadas: os handles nas duas fases, e as duas linhas da nota tipada, com o item 2.6 sem esperar mais por elas). Revisão 3, 2026-09-23: a Fase 2 como construída; as decisões da Fase 1 tomadas em 2026-09-22 riscadas
 - Fonte: `docs/BRIEFING.md` §15
 - ADR: [0034](adr/0034-roadmap-in-phases.md)
 
 Três fases, e desde 2026-10-09 uma quarta, a Fase 3
-([ADR 0073](adr/0073-self-hosted-server-first.md)). Cada uma tem um critério de saída verificável: alguém que não
+([ADR 0073](adr/0073-self-hosted-server-first.md)). *(Desde 2026-10-14,
+a V1, abaixo; o lugar dela entre as fases está `[ABERTO]`.)* Cada uma tem um critério de saída verificável: alguém que não
 participou do trabalho consegue executar a verificação e concluir "passou" ou
 "não passou" sem julgar mérito.
 
@@ -374,8 +375,8 @@ estas estão entre as tarefas dela:
 
 | Decisão | ADR |
 |---|---|
-| Se o celular no navegador, só online, atende à necessidade de mobile, ou se o offline no celular vem mais cedo | [0073](adr/0073-self-hosted-server-first.md) |
-| ~~Permissões mais finas que a pasta~~ (aceitas em 2026-10-11: uma concessão num caminho dentro de uma pasta, [0081](adr/0081-sharing-between-people-on-one-universo.md)); histórico, atribuição e recuperação de uma mudança de outro membro — ainda aberto, para um ADR próprio (Status do 0081) | [0073](adr/0073-self-hosted-server-first.md), Q9 da spec, [0081](adr/0081-sharing-between-people-on-one-universo.md) |
+| Se o celular no navegador, só online, atende à necessidade de mobile, ou se o offline no celular vem mais cedo *(2026-10-14: a lista da V1 do mantenedor põe o celular offline na V1, [0092](adr/0092-the-phone-offline.md), proposto; se isso responde a esta linha é perguntado nas decisões da V1, abaixo)* | [0073](adr/0073-self-hosted-server-first.md) |
+| ~~Permissões mais finas que a pasta~~ (aceitas em 2026-10-11: uma concessão num caminho dentro de uma pasta, [0081](adr/0081-sharing-between-people-on-one-universo.md)); histórico, atribuição e recuperação de uma mudança de outro membro — ainda aberto, para um ADR próprio (Status do 0081) *(2026-10-14: na V1 pela resposta do mantenedor; o ADR é o [0091](adr/0091-version-history.md), proposto)* | [0073](adr/0073-self-hosted-server-first.md), Q9 da spec, [0081](adr/0081-sharing-between-people-on-one-universo.md) |
 | Criptografia ponta a ponta, depois, como opção para um servidor de uma pessoa só | [0073](adr/0073-self-hosted-server-first.md) |
 | A coedição do board | [0073](adr/0073-self-hosted-server-first.md) item 7, [0082](adr/0082-live-co-editing-of-a-synced-folder.md) item 12 |
 | O transporte e a autorização do MCP pela rede | [0073](adr/0073-self-hosted-server-first.md) item 11, [0045](adr/0045-server-and-mcp-security.md) |
@@ -392,6 +393,98 @@ dela estiver pendente e o mantenedor declarar o fim. As condições do ADR
 0073 sobre o trabalho valem enquanto isso: segurança por inteiro antes do
 primeiro usuário que não seja o mantenedor, e o modelo de ameaças antes de
 o servidor ser anunciado (item 6).
+
+---
+
+## V1
+
+Decidida pelo mantenedor em 2026-10-14. Às 11:36 UTC ele mandou um plano
+de funcionalidades novas rascunhado com outro assistente — os segredos do
+mestre, links feitos a partir dos nomes no texto, mapas, um infobox,
+dados com o Rolai dele — e pediu uma leitura crítica, o que ainda estava
+pendente e um roadmap rumo a *"uma V1 bem sólida"*. A leitura em sessão
+naquela manhã conferiu cada funcionalidade no código, listou o que
+estava pendente e propôs uma V1 sem os mapas. A resposta dele naquela
+noite: *"VAI SER TUDO NA V1"* — toda funcionalidade da lista, os mapas
+incluídos, sem V1.1; o histórico de versões na V1; e os segredos do
+mestre como uma projeção para leitores
+([0087](adr/0087-secret-blocks-hidden-from-readers.md), Fonte).
+
+A V1 é as oito funcionalidades abaixo, cada uma com o seu ADR, proposto
+em 2026-10-14, e as pendências que a bloqueiam. Plugins e o shim de
+compatibilidade continuam de fora, como antes. Como a V1 se chama entre
+as fases, a ordem do trabalho e o que mais entra nela estão `[ABERTO]`,
+para o mantenedor dizer ("Decisões", abaixo).
+
+### Funcionalidades
+
+| # | Funcionalidade | ADR | Estado em 2026-10-14 |
+|---|---|---|---|
+| V.1 | Prévia ao passar o ponteiro: a nota que um link nomeia, sobre links, os painéis, o grafo e o board | [0085](adr/0085-hover-preview.md) | proposto; nada mostra prévia ao passar o ponteiro hoje |
+| V.2 | O infobox: os tipos `link` e `image` num esquema, um layout nomeado pelo esquema, o painel de propriedades desenhado como um cartão ao lado do texto | [0086](adr/0086-infobox-a-typed-notes-card.md) | proposto; notas tipadas, o painel de propriedades, a capa e a imagem do cartão de uma base construídos |
+| V.3 | Blocos secretos: um callout `> [!secret]` fica na nota; um UniVerso serve aos leitores uma projeção sem ele em todo lugar; quem escreve vê tudo | [0087](adr/0087-secret-blocks-hidden-from-readers.md), Q9 da spec | proposto, a direção decidida pelo mantenedor em 2026-10-14; não construído |
+| V.4 | Dados e tabelas aleatórias: `dice:` rola e nunca é escrito; uma rolagem vista pela sala; o motor do Rolai | [0088](adr/0088-dice-and-random-tables.md), [0036](adr/0036-tabletop-rpg-support.md) | proposto; nada rola hoje |
+| V.5 | Vincular menções sem link: "Vincular" em cada menção e "Vincular todas" com um diff | [0089](adr/0089-linking-unlinked-mentions.md) | proposto; o painel lista as notas que mencionam um nome, sem posições |
+| V.6 | Mapas no board: uma imagem como mapa, alfinetes de tamanho constante, imagens grandes em blocos, alfinetes secretos | [0090](adr/0090-maps-on-the-board.md) | proposto; depende de V.1 e V.3 |
+| V.7 | Histórico de versões: versões guardadas fora da pasta, os autores delas, um diff e uma restauração | [0091](adr/0091-version-history.md), [0073](adr/0073-self-hosted-server-first.md) | proposto; o registro de mudanças guarda hashes e autores, nenhum byte |
+| V.8 | O celular offline: a janela instalada guarda pastas escolhidas e as sincroniza pelas regras do sync | [0092](adr/0092-the-phone-offline.md), [0073](adr/0073-self-hosted-server-first.md) item 8 | proposto; a página é instalável, sem service worker |
+
+### O que bloqueia a V1
+
+Listadas como bloqueantes pela leitura de 2026-10-14, e na V1 pelo
+*"VAI SER TUDO NA V1"* do mantenedor:
+
+| # | Pendência | Fonte | Estado em 2026-10-14 |
+|---|---|---|---|
+| V.9 | Um teste de invasão do servidor do laboratório por uma pessoa de fora do projeto | [0083](adr/0083-security-hardening-of-universo.md) item 16 | condição do anúncio (decidido em 2026-10-13); não feito |
+| V.10 | Os limites medidos no host de 1 núcleo e 1 GB, e um número que a medição contradiga mudado | [0083](adr/0083-security-hardening-of-universo.md) item 18 | não feito (Status do 0083) |
+| V.11 | Notarização no Mac e assinatura de código no Windows | [0051](adr/0051-development-flow-and-releases.md) (o app assinado ad hoc), [0069](adr/0069-windows-port.md) (sem assinatura de código por enquanto) | não feito; como, e a que custo, `[ABERTO]` |
+| V.12 | O repositório público, e o nome `versomd` no GitHub | [0007](adr/0007-private-repo-until-license.md), [0004](adr/0004-project-name-verso.md) | não feito; `versomd` é um usuário dormente do GitHub, a pedir ao suporte do GitHub (0004) |
+| V.13 | A passada com um leitor de tela, e as decisões de acessibilidade pendentes com o mantenedor | [0035](adr/0035-cross-cutting-requirements.md), [`review/accessibility.md`](review/accessibility.md) §8, linha 2.7 da Fase 2 (herdada) | não feito |
+| V.14 | Um mês de uso real, sem perda de dados nele | os critérios de saída 1 e 2 da Fase 2, herdados pela Fase 3 | não registrado como cumprido |
+| V.15 | As verificações manuais do app | `docs/reference/manual-checks.md` | 79 não marcadas no `ccee7fec`; ver "Registrado, não resolvido", abaixo |
+
+### Em andamento
+
+| # | Trabalho | ADR | Estado em 2026-10-14 |
+|---|---|---|---|
+| V.16 | Endurecimento de segurança do UniVerso | [0083](adr/0083-security-hardening-of-universo.md) | aceito em 2026-10-13; os itens 1 a 15 e 17, e a leitura do sanitizador do item 16, construídos (0083, Como construído) e publicados na 0.8.1-beta.1 e na 0.8.2-beta.1 (`CHANGELOG.md`); antes do anúncio: o teste de invasão do item 16 (V.9) e a medição do item 18 (V.10); o laboratório hostil do item 19, que o Status do 0083 na `main` registra como fora das mesclagens |
+| V.17 | Notificações na janela | ADR 0084, aceito em 2026-10-14, no seu próprio branch e não mesclado; a linha dele no índice dos ADRs chega com ele | em construção para a 0.8.3-beta.1 |
+
+### Decisões que precisam sair para a V1
+
+Cada uma `[ABERTO]`, com uma recomendação; o mantenedor decide.
+
+| Decisão | Recomendação | Fonte |
+|---|---|---|
+| Como a V1 se chama entre as fases | **"Fase 4 — V1"**, depois da Fase 3, que fecha quando as linhas construídas dela forem publicadas e passa as pendências herdadas (o mês de uso, o leitor de tela, a leitura da nota tipada) para a V1; o outro caminho é uma seção V1 ao lado das fases, sem número | [0034](adr/0034-roadmap-in-phases.md) |
+| A ordem do trabalho dentro da V1 | a ordem da leitura para as seis funcionalidades dela, por custo e dependência — V.1 prévia ao passar o ponteiro (barata, falta em todo lugar, os mapas precisam dela) → V.2 infobox (quase toda construída) → V.3 segredos (pesada no servidor; os mapas precisam da regra dela) → V.4 dados e tabelas → V.5 menções → V.6 mapas por último (precisa de V.1 e V.3) — com V.7 histórico depois de V.3 e V.8 o celular offline depois de V.7 (postas pelo autor desta revisão: V.8 serve aos leitores a projeção de V.3, e V.7 decide o histórico dos leitores pela mesma regra); V.9 a V.15 em paralelo, o mês de uso (V.14) sobre uma versão que tenha as funcionalidades da V1 | a leitura de 2026-10-14 |
+| Se as lacunas de núcleo que a leitura listou entram na V1 — notas periódicas ([0014](adr/0014-primitives-catalog.md); a nota diária está construída, `app/ui/src/daily.ts`), o resto das bases (expressões regulares, o layout de mapa, [0053](adr/0053-views-bases.md)), as questões do dialeto ainda `[ABERTO]` no todo ou em parte na §9 da spec, "este app é um servidor" com descoberta na rede e um QR code ([0073](adr/0073-self-hosted-server-first.md) item 2), um bucket e WebDAV (itens 4 e 10 do 0073), os apps de Mac Intel e de Linux ARM64 ([0071](adr/0071-linux-port.md) item 1) | o *"tudo"* do mantenedor respondeu à lista apresentada como V1, que não as continha. **Na V1**: notas periódicas e as expressões regulares das bases (paridade com o Obsidian, pequenas), as questões do dialeto que as funcionalidades da V1 tocam (Q9 com V.3, o aninhamento da Q5 com V.3), e o Linux ARM64, que o 0071 amarra ao repositório público (V.12). **Depois da V1**: "este app é um servidor", o bucket e o WebDAV, o app de Mac Intel, o layout de mapa das bases, e as questões do dialeto que nenhuma funcionalidade da V1 toca | a leitura de 2026-10-14 |
+| Se a lista da V1 responde ao `[ABERTO]` do 0073 sobre o offline no celular (a primeira linha de decisões da Fase 3) | **sim**: a lista o traz para mais cedo; registrado no 0073 com uma linha de Revisões quando o mantenedor confirmar | [0073](adr/0073-self-hosted-server-first.md), [0092](adr/0092-the-phone-offline.md) |
+| Se as verificações manuais são condição da V1 | são condição só **da publicação da V1**, nunca de um commit, de uma mesclagem ou de um beta | `docs/reference/manual-checks.md` |
+| Notarização no Mac e assinatura de código no Windows: como, e a que custo | um ADR próprio, revisando o 0051 e o 0069 | [0051](adr/0051-development-flow-and-releases.md), [0069](adr/0069-windows-port.md) |
+| O critério de saída da V1 | a V1 acaba quando nenhuma linha acima estiver pendente e o mantenedor declarar o fim, como na Fase 3; o mês de uso sem perda de dados (V.14) é a parte que qualquer um consegue verificar | [0034](adr/0034-roadmap-in-phases.md) |
+
+### Registrado, não resolvido
+
+Contradições encontradas ao escrever esta revisão, para o mantenedor:
+
+- `docs/reference/manual-checks.md` diz que nada nele bloqueia um commit,
+  uma mesclagem ou uma publicação; a lista da V1 põe as verificações
+  manuais do app entre o que bloqueia a V1 (V.15).
+- A §5.8 da spec diz que um callout não é o mecanismo do segredo do
+  mestre; a decisão de 2026-10-14 faz de um callout do tipo `secret` a
+  sintaxe. O item 8 do [0087](adr/0087-secret-blocks-hidden-from-readers.md)
+  propõe a revisão da §5.8 e da Q9; a Q9 continua `[ABERTO]`.
+- As Consequências do [0036](adr/0036-tabletop-rpg-support.md) deixam as
+  funcionalidades de RPG de mesa fora do núcleo, exceto como primitivas,
+  pacotes de esquemas ou um plugin; dados, tabelas, blocos secretos e
+  mapas são propostos como primitivas
+  ([0088](adr/0088-dice-and-random-tables.md), Consequências).
+- A Fase 3 acaba quando nenhuma tarefa dela estiver pendente, as
+  pendências herdadas entre elas; a V1 lista as mesmas pendências (V.13,
+  V.14). Uma das duas fica com elas quando a primeira decisão acima for
+  respondida.
 
 ---
 
@@ -429,7 +522,7 @@ O que fica para depois, desde 2026-10-09: depois da primeira versão do
 servidor, na ordem do item 12 do 0073 — ~~sync para as pastas locais do
 desktop~~ *(construído na rodada logo depois dessa versão, pela palavra do
 mantenedor de 2026-10-10, [0079](adr/0079-sync-a-local-folder-with-a-server.md) Fonte e Status; item 3.12 da Fase 3,
-acima)*, a PWA offline, o bucket do usuário
+acima)*, a PWA offline *(na V1 desde 2026-10-14, [0092](adr/0092-the-phone-offline.md))*, o bucket do usuário
 ([0073](adr/0073-self-hosted-server-first.md) item 4) e um app mobile
 nativo se os limites do navegador morderem; e, sem ordem, plugins, o shim
 de compatibilidade, as primitivas ainda propostas e a escrita por agente
