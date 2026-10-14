@@ -530,7 +530,10 @@ pub async fn command(
                 let stamp: String = arg(&args, "stamp")?;
                 let lang: String = arg(&args, "lang").unwrap_or_default();
                 let len = u64::try_from(bytes.len()).unwrap_or(u64::MAX);
-                crate::quota::check(&s, &key, &path, len)?;
+                // A new file: the whole of it against the quota.
+                let new = history::copy_name(&path, &stamp, lang.starts_with("pt"), 1)
+                    .map_err(OpError::into_contract)?;
+                crate::quota::check(&s, &key, &new, len)?;
                 let done = s.service.with(&c, |ws| {
                     history::copy_beside(ws, &path, &bytes, &stamp, lang.starts_with("pt"))
                 })?;
