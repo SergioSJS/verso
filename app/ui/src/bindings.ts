@@ -554,7 +554,8 @@ export const commands = {
 	 * 
 	 *  The command takes no URL: the host asks `UPDATE_REPO`'s API for the
 	 *  releases again, picks the asset for this platform itself, and
-	 *  verifies the download against the `sha256` digest the API reports,
+	 *  verifies the download against the `sha256` digest the API reports and
+	 *  against the release's checksums list, signed with Verso's release key,
 	 *  before anything is installed. A compromised web view can therefore
 	 *  ask *that* an update run, but never *what* it installs or from where.
 	 */
