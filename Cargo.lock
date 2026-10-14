@@ -6068,6 +6068,7 @@ dependencies = [
  "tempfile",
  "verso-contract",
  "verso-core",
+ "verso-fs",
 ]
 
 [[package]]
