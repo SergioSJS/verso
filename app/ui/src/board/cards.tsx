@@ -207,7 +207,7 @@ export function Card({
     >
       {node.type === "file" && !picture && (
         <div className="board-card-head">
-          <span className="board-card-title">{nodeName(node, s)}</span>
+          <span className="board-card-title" data-preview-path={note ? file : undefined}>{nodeName(node, s)}</span>
           <button type="button" className="board-card-open board-card-swap" title={s.swapTitle} aria-label={`${s.swap}: ${nodeName(node, s)}`} onClick={() => swap(id)}>
             <SwapIcon />
           </button>

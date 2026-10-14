@@ -23,7 +23,9 @@ export const HOLD_MS = 450;
 /** How far a finger may wander and still be held still, in CSS pixels. */
 export const STILL_PX = 8;
 
-const OWN_PRESS = "input, textarea, select, [contenteditable], .cm-editor, .excalidraw, .preview, .pdf-page, canvas";
+// A node of the graph shows its note's preview on a long press (ADR 0085
+// item 5, preview/hover.ts), not a menu.
+const OWN_PRESS = "input, textarea, select, [contenteditable], .cm-editor, .excalidraw, .preview, .pdf-page, canvas, [data-preview-press]";
 
 export function installLongPress(): void {
   document.addEventListener("pointerdown", (down) => {
