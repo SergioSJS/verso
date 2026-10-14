@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import type { MapHost } from "./bases/map";
 import { type BaseHost, type BaseSource, BaseView } from "./bases/view";
 import { commands, type TextFile } from "./bindings";
 import { canWrite } from "./can";
@@ -18,7 +19,7 @@ import { panel } from "./main";
 import { showMenu } from "./menu";
 import { opening } from "./opening";
 import { setNoteProperty } from "./organize/frontmatter";
-import { settings } from "./settings";
+import { saveSettings, settings } from "./settings";
 import { baseStrings, LOCALE, t } from "./strings";
 import { dirOf } from "./paths";
 
@@ -59,8 +60,41 @@ export function baseHost(): BaseHost {
     copy: (text) => navigator.clipboard.writeText(text),
     saveNote: saveMarkdownNote,
     readOnly: () => !canWrite(),
+    maps: mapHost,
   };
 }
+/** The window's side of a map view (ADR 0094 items 8 to 10): the source
+ *  the person chose in Settings and the origins approved for tiles —
+ *  their layer, with the account on a server. */
+const mapHost: MapHost = {
+  sources: () => ({ light: settings.mapTiles, dark: settings.mapTilesDark }),
+  approved: () => settings.mapTileOrigins,
+  approve: (origin) => {
+    if (settings.mapTileOrigins.includes(origin)) return;
+    settings.mapTileOrigins = [...settings.mapTileOrigins, origin];
+    saveSettings();
+  },
+  dark: () => {
+    const theme = document.documentElement.dataset["theme"];
+    return theme === "dark" || (theme !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  },
+  // A server's page (`web.html` carries the contract's version): its
+  // policy names the approved origins when it loads.
+  reloadToReach: () => document.querySelector('meta[name="verso-contract"]') !== null,
+  reload: () => {
+    // The settings reach the account first (web/settingsSync.ts), then
+    // the page loads again with a policy that names the new origin.
+    let done = false;
+    const go = () => {
+      if (done) return;
+      done = true;
+      location.reload();
+    };
+    addEventListener("verso:settings-pushed", go, { once: true });
+    dispatchEvent(new Event("verso:settings-flush"));
+    window.setTimeout(go, 3000);
+  },
+};
 /** What a new base holds: every file of the folder, in one table. */
 export function baseTemplate(): string {
   return `views:\n  - type: table\n    name: ${baseStrings.table}\n    order:\n      - file.name\n`;

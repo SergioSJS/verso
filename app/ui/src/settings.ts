@@ -53,6 +53,15 @@ export type Settings = {
   /** Origins on the local network whose pages may be embedded, approved
    *  one by one (`scheme://host[:port]`); the host keeps its own copy. */
   embedOrigins: string[];
+  /** A map view's background (ADR 0094 item 8): a style or tile address
+   *  the person chose, for light and dark; empty, the world outline
+   *  shipped with the app — nothing from the network. */
+  mapTiles: string;
+  mapTilesDark: string;
+  /** Origins map tiles may load from, approved one by one
+   *  (`https://host[:port]`); a server's page lets the window reach these
+   *  and no other (item 10). Never filled by itself. */
+  mapTileOrigins: string[];
   headingFont?: "serif" | "sans" | "editorial" | "mono" | "system";
   bodyFont?: "sans" | "serif" | "mono" | "system";
   headingColor?: "default" | "brass" | "seal" | "moss" | "slate" | "royal" | "amethyst";
@@ -118,6 +127,9 @@ export const DEFAULTS: Settings = {
   ignoreBuildDirs: true,
   respectGitignore: true,
   embedOrigins: [],
+  mapTiles: "",
+  mapTilesDark: "",
+  mapTileOrigins: [],
   headingFont: "serif",
   bodyFont: "sans",
   headingColor: "brass",
@@ -159,6 +171,10 @@ export function loadSettings(): void {
       }
       settings = { ...DEFAULTS, ...parsed };
       if (!Array.isArray(settings.embedOrigins)) settings.embedOrigins = [];
+      if (!Array.isArray(settings.mapTileOrigins)) settings.mapTileOrigins = [];
+      settings.mapTileOrigins = settings.mapTileOrigins.filter((o) => typeof o === "string");
+      if (typeof settings.mapTiles !== "string") settings.mapTiles = "";
+      if (typeof settings.mapTilesDark !== "string") settings.mapTilesDark = "";
       if (settings.mcpMode !== "all") settings.mcpMode = "folder";
       if (!settings.hiddenFromTree || Array.isArray(settings.hiddenFromTree)) settings.hiddenFromTree = {};
       if (!settings.syncFocuses || typeof settings.syncFocuses !== "object") settings.syncFocuses = {};

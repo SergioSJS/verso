@@ -14,6 +14,7 @@ import { renderCalendar } from "./calendar";
 import { renderCards } from "./cards";
 import { renderKanban } from "./kanban";
 import { renderList } from "./list";
+import { renderMap, type MapHost } from "./map";
 import { stringsFor, type BaseStrings } from "./strings";
 import { renderTable } from "./table";
 import * as Y from "./yaml";
@@ -36,6 +37,9 @@ export type BaseHost = CellHost & {
   /** The person only reads the folder (a reader on a server, ADR 0076
    *  item 11): the base and its notes change nothing. */
   readOnly?: () => boolean;
+  /** What a map view needs (ADR 0094): the tile sources and their
+   *  approval. Absent, a map view lists its places only. */
+  maps?: MapHost;
 };
 
 /** Where a base comes from. */
@@ -80,9 +84,14 @@ export type RenderCtx = {
    *  cells until an answer agrees, the room saves, or the write fails. By
    *  `cellKey` of the note and property. */
   pending: Map<string, BaseCell>;
+  /** What a layout keeps between drawings of this view (a map, with its
+   *  MapLibre map); an entry with `destroy` is destroyed with the view. */
+  keep: Map<string, unknown>;
+  /** Drawn inside a note (a block or an embed), not in a tab of its own. */
+  embedded: boolean;
 };
 
-const LAYOUTS = ["table", "cards", "list", "kanban", "calendar"] as const;
+const LAYOUTS = ["table", "cards", "list", "kanban", "calendar", "map"] as const;
 type Layout = (typeof LAYOUTS)[number];
 const LAYOUT_ICONS: Record<string, string> = { table: "table", cards: "grid", list: "list", kanban: "kanban", calendar: "calendar", map: "globe" };
 
@@ -119,6 +128,8 @@ function extraFor(view: Y.ViewConfig): string[] {
     if (str("startDate")) out.push(str("startDate"));
     if (str("endDate")) out.push(str("endDate"));
   }
+  // A map's markers: their place, icon and colour (the Maps plugin's keys).
+  if (view.type === "map") for (const k of ["coordinates", "markerIcon", "markerColor"]) if (str(k)) out.push(str(k));
   const g = view["groupBy"];
   const groupProp = typeof g === "string" ? g : (g && typeof g === "object" && typeof (g as { property?: unknown }).property === "string" ? (g as { property: string }).property : "");
   if (view.type === "kanban" && groupProp) out.push(groupProp);
@@ -265,6 +276,7 @@ export class BaseView {
   private gone = false;
   private retry = 0;
   private pending = new Map<string, BaseCell>();
+  private keep = new Map<string, unknown>();
   private search = "";
   private timer: number | undefined;
 
@@ -481,10 +493,23 @@ export class BaseView {
       refresh: () => void this.refresh(),
       key: this.src.key,
       pending: this.pending,
+      keep: this.keep,
+      embedded: this.src.path === null || this.src.thisPath !== this.src.path,
     };
     const layout = (LAYOUTS as readonly string[]).includes(view.type) ? (view.type as Layout) : "table";
+    if (layout !== "map") this.forget("map");
     const drawn =
-      layout === "cards" ? renderCards(ctx) : layout === "list" ? renderList(ctx) : layout === "kanban" ? renderKanban(ctx) : layout === "calendar" ? renderCalendar(ctx) : renderTable(ctx);
+      layout === "cards"
+        ? renderCards(ctx)
+        : layout === "list"
+          ? renderList(ctx)
+          : layout === "kanban"
+            ? renderKanban(ctx)
+            : layout === "calendar"
+              ? renderCalendar(ctx)
+              : layout === "map"
+                ? renderMap(ctx, this.host.maps)
+                : renderTable(ctx);
     this.body.replaceChildren(drawn);
     this.body.dataset["layout"] = layout;
   }
@@ -795,7 +820,44 @@ export class BaseView {
       );
     }
     if (v.type === "kanban") pop.el.append(h("p", "base-hint", s.chooseGroup));
+    if (v.type === "map") this.mapSettings(pop.el, v, set, props);
     pop.open();
+  }
+
+  /** A map view's settings, the Maps plugin's keys (ADR 0094 item 6). */
+  private mapSettings(el: HTMLElement, v: Y.ViewConfig, set: (key: string, value: unknown) => void, props: [string, string][]): void {
+    const s = this.s;
+    const str = (k: string) => (typeof v[k] === "string" ? (v[k] as string) : "");
+    const num = (k: string) => (typeof v[k] === "number" ? (v[k] as number) : null);
+    const notFile = props.filter(([id]) => !id.startsWith("file."));
+    const zoom = (key: string, label: string) => numberField(label, num(key), "", (n) => set(key, n === null ? undefined : Math.min(Math.max(n, 0), 24)));
+    const center = v["center"];
+    // One address or several (a list, as the plugin's "multitext").
+    const addresses = (k: string) => (Array.isArray(v[k]) ? (v[k] as unknown[]).map(String).join(" ") : str(k));
+    const asAddresses = (x: string) => {
+      const parts = x.split(/\s+/).filter((p) => p !== "");
+      return parts.length === 0 ? undefined : parts.length === 1 ? parts[0] : parts;
+    };
+    el.append(
+      select(s.mapCoordinates, [["", "—"], ...notFile], str("coordinates"), (x) => set("coordinates", x || undefined)),
+      select(s.mapIcon, [["", "—"], ...notFile], str("markerIcon"), (x) => set("markerIcon", x || undefined)),
+      select(s.mapColor, [["", "—"], ...notFile], str("markerColor"), (x) => set("markerColor", x || undefined)),
+      textField(s.mapCenter, Array.isArray(center) ? `[${center.join(", ")}]` : str("center"), (x) => set("center", x.trim() === "" ? undefined : x.trim())),
+      zoom("defaultZoom", s.mapZoom),
+      zoom("minZoom", s.mapMinZoom),
+      zoom("maxZoom", s.mapMaxZoom),
+      numberField(s.mapHeight, num("mapHeight"), "400", (n) => set("mapHeight", n === null ? undefined : Math.min(Math.max(Math.round(n), 100), 2000))),
+      textField(s.mapTiles, addresses("mapTiles"), (x) => set("mapTiles", asAddresses(x))),
+      textField(s.mapTilesDark, addresses("mapTilesDark"), (x) => set("mapTilesDark", asAddresses(x))),
+      h("p", "base-hint", s.mapTilesHint),
+    );
+  }
+
+  /** Destroy what a layout kept under `key`. */
+  private forget(key: string): void {
+    const kept = this.keep.get(key) as { destroy?: () => void } | undefined;
+    kept?.destroy?.();
+    this.keep.delete(key);
   }
 
   /** A new note in the base's folder, holding `props` — a column's value,
@@ -852,5 +914,6 @@ export class BaseView {
     window.clearTimeout(this.timer);
     window.clearTimeout(this.retry);
     Popover.current?.close();
+    for (const k of [...this.keep.keys()]) this.forget(k);
   }
 }
