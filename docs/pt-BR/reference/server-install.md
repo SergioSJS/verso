@@ -647,6 +647,14 @@ criada de um de dois jeitos (0074 item 1):
   ler o log primeiro pode usá-lo — então use-o assim que sair. O
   `universo.sh install` diz isso ao lado do link.
 
+Depois conecte o app desktop: **Ajustes › Servidores**, o endereço do
+servidor, **Conectar**. O app copia um código para a área de
+transferência e abre a página do servidor no navegador, onde você o cola
+(ou digita o que o app mostra) e aprova este computador; a página nunca
+pega um código do link, então um link que outra pessoa manda não aprova
+nada (decidido em 2026-10-14, ADR 0083, Como construído).
+[UniVerso na prática](server-hands-on.md) mostra cada passo.
+
 Os poderes do admin vão com toda sessão da conta, a do app desktop
 inclusive (decidido em 2026-10-14, ADR 0083, Como construído): uma ação de
 admin feita com a sessão do app — os atos do console sobre outras contas,

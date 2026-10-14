@@ -36,7 +36,7 @@ A device of the desktop app joins the lab without clicking, as the campaign
 of 2026-10-10 did: the app opens the folder once (its key is the stem of
 `<config>/index/<name>-<hex>.json`), then `<config>/servers.json` gets a
 device token — approved for an account through the API (`/api/device/start`,
-`/api/device/<code>`, `/api/device/poll`) — and `<config>/sync-<key>.json`
+`/api/device/approve` with the code in the body, `/api/device/poll`) — and `<config>/sync-<key>.json`
 names the server and the folder; the app, opened again on the folder, syncs.
 `VERSO_CONFIG_DIR` gives a second copy of the app a configuration of its
 own; a copy built with another identifier (`tauri build --config

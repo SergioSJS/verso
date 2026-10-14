@@ -11,9 +11,7 @@ use base64::engine::general_purpose::STANDARD;
 use serde_json::{Value, json};
 
 use crate::db::Role;
-use crate::tests::{
-    block_on, call, connect, event_named, folder_id, get, next, post, sign_in, start,
-};
+use crate::tests::{block_on, call, connect, event_named, folder_id, next, post, sign_in, start};
 
 /// A Yjs awareness update of one client: count, id, clock, the state as
 /// a string — each number a variable-length integer.
@@ -119,14 +117,21 @@ fn a_device_code_says_who_asked_and_can_be_refused() {
             assert!(pending.asked >= before, "{}", pending.asked);
             assert_eq!(pending.asked.len(), "2026-10-12T21:30:00Z".len());
         }
-        let (_, what) = get(&r, &format!("/api/device/{code}"), Some(&admin)).await;
+        let (_, what) = post(
+            &r,
+            "/api/device/describe",
+            json!({ "code": code }),
+            Some(&admin),
+        )
+        .await;
         assert_eq!(what["device"], "Verso · MacBook");
         assert_eq!(what["address"], "127.0.0.1");
         assert!(what["asked"].as_str().unwrap() >= before.as_str(), "{what}");
         // Not from a page of this server: refused.
         let status = reqwest::Client::new()
-            .delete(r.url(&format!("/api/device/{code}")))
+            .post(r.url("/api/device/refuse"))
             .header("cookie", &admin.cookie)
+            .json(&json!({ "code": code }))
             .send()
             .await
             .unwrap()
@@ -134,10 +139,11 @@ fn a_device_code_says_who_asked_and_can_be_refused() {
             .as_u16();
         assert_eq!(status, 403);
         let status = reqwest::Client::new()
-            .delete(r.url(&format!("/api/device/{code}")))
+            .post(r.url("/api/device/refuse"))
             .header("origin", r.origin())
             .header("cookie", &admin.cookie)
             .header("x-verso-csrf", &admin.csrf)
+            .json(&json!({ "code": code }))
             .send()
             .await
             .unwrap()
@@ -152,7 +158,13 @@ fn a_device_code_says_who_asked_and_can_be_refused() {
         )
         .await;
         assert_eq!(gone, 410);
-        let (status, _) = get(&r, &format!("/api/device/{code}"), Some(&admin)).await;
+        let (status, _) = post(
+            &r,
+            "/api/device/describe",
+            json!({ "code": code }),
+            Some(&admin),
+        )
+        .await;
         assert_eq!(status, 404);
     });
 }

@@ -685,6 +685,7 @@ macro_rules! commands_for {
                 collab_present,
                 collab_canvas,
                 server_sign_in::<$runtime>,
+                server_sign_in_page,
                 server_accounts,
                 server_sign_out::<$runtime>,
                 server_folders::<$runtime>,

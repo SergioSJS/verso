@@ -43,11 +43,22 @@ in the real app.
   is made. The same on the device page's *Aprovar este aparelho*. Escape
   closes the dialog and nothing is made; the dialog reads its title and
   line in VoiceOver.
+- [ ] **Connecting the app copies the code, and the page asks for it**
+  (decided 2026-10-14, ADR 0083 As built): in the installed app,
+  *Ajustes › Servidores*, the server's address, *Conectar*: the line says
+  *Código copiado — cole na página que abriu:* with the code, and the
+  browser opens the server's `/device` with the field *Código do
+  aplicativo* empty; ⌘V (Ctrl+V on Windows and Linux) pastes the code,
+  *Continuar* shows who asked, *Aprovar este aparelho* signs the app in.
+  On Windows (WebView2) and Linux (WebKitGTK) as on the Mac; where the
+  system refuses the copy, the line says *Digite este código na página
+  que abriu:* instead and the code is typed. A link `/device?code=…`
+  opened by hand shows the same empty field and sends nothing.
 - [ ] **The device page with a typed code** (ADR 0083 item 17, 73807d2):
-  `/device` opened by hand, without the code in its address, asks
-  *Digite o código que o aplicativo mostra na tela dele.*; the code the
+  `/device` opened by hand asks *Cole o código que o aplicativo copiou,
+  ou digite o que ele mostra na tela dele.*; the code the
   app shows typed in lower case and without the dash is taken, and the
-  page shows *Código que você digitou* beside who asked before *Aprovar*
+  page shows *Código que você informou* beside who asked before *Aprovar*
   or *Não fui eu: recusar*; a mistyped code says *Um código tem oito
   letras…* or answers as unknown, and a few wrong ones in a row make the
   page wait before the next; the app then signs in once approved.

@@ -3,16 +3,17 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 //! The desktop app signs in through the browser (ADR 0074 item 8; the
-//! maintainer's answer K of 2026-10-09): the app asks for a code, opens
-//! the server's page with it, the person — signed in there — approves, and
-//! the app, asking meanwhile, receives a token for that device, listed
-//! among the sessions and revocable there. Nobody pastes a token. The
-//! flow is `gh auth login`'s (OAuth 2.0's device authorization grant).
+//! maintainer's answer K of 2026-10-09): the app asks for a code, copies
+//! it to the clipboard and opens the server's page; the person — signed in
+//! there — enters the code from the app's screen and approves, and the
+//! app, asking meanwhile, receives a token for that device, listed among
+//! the sessions and revocable there. Nobody pastes a token. The flow is
+//! `gh auth login`'s (OAuth 2.0's device authorization grant), the code
+//! never taken from a link (decided 2026-10-14, ADR 0083 As built).
 
 use std::time::{Duration, Instant};
 
 use axum::Json;
-use axum::extract::Path;
 use axum::http::StatusCode;
 use axum::response::Response;
 use serde::Deserialize;
@@ -147,7 +148,9 @@ pub async fn start(ctx: Ctx, Json(body): Json<Start>) -> ApiResult<Response> {
     Ok(ok(json!({
         "code": code,
         "poll": poll,
-        "url": format!("{base}/device?code={code}"),
+        // The page alone: the person enters the code the app shows (decided
+        // 2026-10-14, ADR 0083 As built).
+        "url": format!("{base}/device"),
         "interval": INTERVAL,
         "expires": LIFE.as_secs(),
     })))
@@ -161,8 +164,8 @@ fn link_gone() -> ApiError {
     )
 }
 
-/// A code as the link carried it or the person typed it from the device's
-/// screen (ADR 0083 item 17): spaces and the dash dropped, upper-cased,
+/// A code as the person typed or pasted it from the device's screen (ADR
+/// 0083 item 17): spaces and the dash dropped, upper-cased,
 /// eight letters of [`ALPHABET`] written `XXXX-XXXX`; anything else is no
 /// code.
 fn read_code(code: &str) -> Option<String> {
@@ -176,8 +179,7 @@ fn read_code(code: &str) -> Option<String> {
         .then(|| format!("{}-{}", &letters[..4], &letters[4..]))
 }
 
-/// The open code — not expired, not yet approved — that `code` names, from
-/// the link or typed, the same way: compared with each pending code in
+/// The open code — not expired, not yet approved — that `code` names: compared with each pending code in
 /// constant time, so that how long a wrong guess takes says nothing of how
 /// near it was. Every lookup first waits out the `device:` delay of the
 /// address, and a wrong code counts against it, as a wrong poll secret does
@@ -208,8 +210,10 @@ fn open_code(ctx: &Ctx, code: &str) -> ApiResult<String> {
     })
 }
 
-/// A code in a request's body: typed on the page, which keeps it out of
-/// the address (ADR 0083 item 17).
+/// A code in a request's body, as the person entered it on the page from
+/// the device's own screen: never taken from the address, where a link
+/// sent by someone else would put it (ADR 0083 item 17; decided
+/// 2026-10-14, As built).
 #[derive(Deserialize)]
 pub struct Typed {
     code: String,
@@ -218,11 +222,6 @@ pub struct Typed {
 /// What is asking, for the page that approves it: the device's name as
 /// it gave it, and the address and time it asked from (gap 12), with the
 /// code as the server read it, for the page to show beside them.
-pub async fn describe(ctx: Ctx, Path(code): Path<String>) -> ApiResult<Response> {
-    describing(&ctx, &code)
-}
-
-/// The same, for a code the person typed.
 pub async fn describe_typed(ctx: Ctx, Json(body): Json<Typed>) -> ApiResult<Response> {
     ctx.changes()?;
     describing(&ctx, &body.code)
@@ -243,12 +242,6 @@ fn describing(ctx: &Ctx, code: &str) -> ApiResult<Response> {
 
 /// The person says it was not them: the code is gone, and the app that
 /// asked hears `link_gone` (gap 12).
-pub async fn refuse(ctx: Ctx, Path(code): Path<String>) -> ApiResult<Response> {
-    ctx.changes()?;
-    refusing(&ctx, &code)
-}
-
-/// The same, for a code the person typed.
 pub async fn refuse_typed(ctx: Ctx, Json(body): Json<Typed>) -> ApiResult<Response> {
     ctx.changes()?;
     refusing(&ctx, &body.code)
@@ -276,13 +269,7 @@ fn refusing(ctx: &Ctx, code: &str) -> ApiResult<Response> {
     Ok(ok(json!(null)))
 }
 
-/// The person approves the code, signed in in the browser.
-pub async fn approve(ctx: Ctx, Path(code): Path<String>) -> ApiResult<Response> {
-    ctx.changes()?;
-    approving(&ctx, &code)
-}
-
-/// The same, for a code the person typed.
+/// The person approves the code they entered, signed in in the browser.
 pub async fn approve_typed(ctx: Ctx, Json(body): Json<Typed>) -> ApiResult<Response> {
     ctx.changes()?;
     approving(&ctx, &body.code)

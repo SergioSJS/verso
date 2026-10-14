@@ -394,12 +394,11 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/api/device/describe", post(crate::device::describe_typed))
         .route("/api/device/approve", post(crate::device::approve_typed))
         .route("/api/device/refuse", post(crate::device::refuse_typed))
-        .route(
-            "/api/device/{code}",
-            get(crate::device::describe)
-                .post(crate::device::approve)
-                .delete(crate::device::refuse),
-        );
+        // No route takes a device's code from the address: a link sent by
+        // someone else would carry it (decided 2026-10-14, ADR 0083 As
+        // built). An address under /api/ no route names is answered 404,
+        // never the page.
+        .route("/api/{*rest}", axum::routing::any(no_route));
     // The pages — signing in, approving the desktop app, the account — are
     // served always; the notes' window in a browser only with `--web`
     // (ADR 0073 item 2), which the WebSocket enforces (rpc.rs).
@@ -426,6 +425,11 @@ pub fn router(server: Arc<Server>) -> Router {
         // (rpc::MAX_MESSAGE).
         .layer(axum::extract::DefaultBodyLimit::max(API_BODY))
         .with_state(server)
+}
+
+/// An address under `/api/` that no route names.
+async fn no_route() -> ApiError {
+    ApiError::not_found()
 }
 
 /// The most a request's body takes: settings are 256 KB at most.
