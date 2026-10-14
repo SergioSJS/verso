@@ -215,6 +215,19 @@ point 13).
     shows the column as wide, and so does the note opened again; the file
     does not change (ADR 0064 point 6). Level: H; E: `tables.spec.mjs`, "a
     column dragged wider…" and "a column dragged in Reading…".
+13. Note 02, "Menções sem link" ([ADR 0089](../adr/0089-linking-unlinked-mentions.md)):
+    open "Lia Torres" (⌘P), right panel › Links: under "Menções sem link",
+    the row of note 02 with the words around the name; "Linkar" writes
+    `[[Lia Torres]]` into the "Experimente" callout and the row goes, the
+    note now among the backlinks. On a seeded folder: a mention in another
+    case or an alias is written `[[Name|text]]`; "Linkar todas" shows the
+    plan as a diff, a list a keyboard reaches, and skips by name a note
+    changed meanwhile; a mention that moved is refused and the list drawn
+    again; in a note open in a tab, ⌘Z undoes the link; a note live with
+    someone else takes it through its room; a reader sees no button and no
+    mention inside a secret block. Level: S (the tutorial note), U
+    (`cargo test -p verso-core mentions`, `test/mentionLink.test.mjs`), H;
+    E: `mentions.spec.mjs`.
 
 ## 4. Organizing: properties, bases, daily notes
 

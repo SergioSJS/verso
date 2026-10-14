@@ -220,6 +220,19 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     novo também; o arquivo não muda (ADR 0064 ponto 6). Nível: H; E:
     `tables.spec.mjs`, "a column dragged wider…" e "a column dragged in
     Reading…".
+13. Nota 02, "Menções sem link" ([ADR 0089](../adr/0089-linking-unlinked-mentions.md)):
+    abra "Lia Torres" (⌘P), painel da direita › Links: em "Menções sem
+    link", a linha da nota 02 com as palavras em volta do nome; "Linkar"
+    escreve `[[Lia Torres]]` no destaque "Experimente" e a linha some, a
+    nota agora entre os backlinks. Numa pasta preparada: uma menção em
+    outra caixa ou um alias é escrita `[[Nome|texto]]`; "Linkar todas"
+    mostra o plano como um diff, uma lista que o teclado alcança, e pula
+    pelo nome uma nota que mudou nesse meio-tempo; uma menção que mudou é
+    recusada e a lista refeita; numa nota aberta numa aba, ⌘Z desfaz o
+    link; uma nota ao vivo com outra pessoa recebe o link pela sala; quem
+    só lê não vê botão nem menção dentro de um bloco secreto. Nível: S (a
+    nota do tutorial), U (`cargo test -p verso-core mentions`,
+    `test/mentionLink.test.mjs`), H; E: `mentions.spec.mjs`.
 
 ## 4. Organizar: propriedades, bases, notas diárias
 

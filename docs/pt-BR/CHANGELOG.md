@@ -12,7 +12,9 @@ versão de teste.
 
 ## Não lançado
 
-Nada ainda.
+### Adicionado
+
+- **Linkar uma menção sem link onde ela está, ou todas de uma vez** ([ADR 0089](adr/0089-linking-unlinked-mentions.md)): em *Links*, no painel da direita, *Menções sem link* agora lista cada lugar onde outra nota escreve o nome da nota aberta sem link — o nome inteiro, maiúsculas ou minúsculas, acentos contam ("Porto" acha "porto", não "pôrto"), e cada um dos `aliases` dela também; nunca em código, comentários, tags ou no que já é link — com as palavras em volta. *Linkar* troca aquele lugar por `[[Nome]]`, ou `[[Nome|texto]]` quando o texto está escrito de outro jeito ou é um alias (`\|` numa célula de tabela), gravado sobre a revisão lida, pela sala de uma nota editada em conjunto, ou no editor de uma aba aberta, onde ⌘Z desfaz; uma menção que mudou desde que a lista foi feita é recusada e a lista refeita. *Linkar todas* mostra antes, como um diff, cada nota e cada linha que vai mudar, e grava ao confirmar, nota por nota; uma nota que mudou nesse meio-tempo fica de fora, com o nome dito. Quem só lê uma pasta de servidor vê a lista sem os botões, e nenhuma menção dentro de um bloco secreto. O contrato ganha um comando, `unlinked_mentions`.
 
 ## 0.8.2-beta.1 — 2026-10-14
 

@@ -174,3 +174,12 @@ test("the owner sees the mention inside a secret block, marked as any other", as
   await expect(rows(page)).toHaveCount(3);
   await expect(page.getByRole("button", { name: "Linkar “Porto” em Mesa" })).toBeVisible();
 });
+
+test("the tutorial: Lia Torres named in note 02 becomes a link from her note's panel", async ({ app, page }) => {
+  await app.open();
+  await app.quickOpen("Lia Torres");
+  await showLinks(app);
+  const note = "02 - Links, Âncoras e Notas Incorporadas.md";
+  await page.getByRole("button", { name: "Linkar “Lia Torres” em 02 - Links, Âncoras e Notas Incorporadas" }).click();
+  await expect.poll(() => app.file(note)).toContain("> Esta frase escreve o nome [[Lia Torres]] sem link.");
+});
