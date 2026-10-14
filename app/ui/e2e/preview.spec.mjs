@@ -69,6 +69,20 @@ test("Reading: a link to a block shows the block marked; a missing note is said,
   expect(await app.file("Nova Ideia de Projeto.md")).toBeNull();
 });
 
+test("a note with dice previews read-only: its dice codes are code, nothing rolls (ADR 0088)", async ({ app, page }) => {
+  const MESA = "# Mesa\n\nAtaque: `dice: 1d20+3`.\n";
+  await app.open();
+  await app.writeOutside("Mesa.md", MESA);
+  await app.writeOutside("Ligações.md", "Veja [[Mesa]] aqui.\n");
+  await app.folderChanged(["Mesa.md", "Ligações.md"], true);
+  await app.quickOpen("Ligações");
+  await rest(page, page.locator(".leaf:not([hidden]) .preview a.wikilink", { hasText: "Mesa" }));
+  await expect(card(page)).toHaveAttribute("aria-label", "Prévia de Mesa");
+  await expect(card(page).locator("code", { hasText: "dice: 1d20+3" })).toBeVisible();
+  await expect(card(page).locator(".hover-preview-body .dice, .hover-preview-body button")).toHaveCount(0);
+  expect(await app.file("Mesa.md")).toBe(MESA);
+});
+
 test("Edit mode: a plain hover shows nothing; with ⌘ or Ctrl held, the card", async ({ app, page }) => {
   const TEXT = "Veja [[00 - Bem-vindo ao Verso]] aqui.\n\nE [o guia](01%20-%20Guia%20de%20Markdown%20e%20Sintaxe.md) também.\n";
   await app.open();
