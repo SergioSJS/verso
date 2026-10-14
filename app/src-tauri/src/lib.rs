@@ -1107,6 +1107,8 @@ mod tests;
 #[cfg(test)]
 mod tests_live;
 #[cfg(test)]
+mod tests_notify;
+#[cfg(test)]
 mod tests_remote;
 #[cfg(test)]
 mod tests_shares;
