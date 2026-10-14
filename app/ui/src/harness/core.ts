@@ -925,7 +925,7 @@ export class Core {
       const parsed: unknown = YAML.parse(text);
       if (parsed !== null && typeof parsed === "object") base = parsed as Record<string, unknown>;
     } catch {
-      return { views: [], view: null, columns: [], groups: [], total: 0, problems: [{ kind: "notABase", detail: "" }], properties: [] };
+      return { views: [], view: null, columns: [], groups: [], total: 0, problems: [{ kind: "notABase", detail: "", error: null }], properties: [] };
     }
     const views = (Array.isArray(base["views"]) ? base["views"] : []) as Record<string, unknown>[];
     const at = q.view === null ? 0 : Math.max(0, views.findIndex((v) => v["name"] === q.view));
