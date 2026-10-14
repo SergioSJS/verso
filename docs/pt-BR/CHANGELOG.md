@@ -12,7 +12,9 @@ versão de teste.
 
 ## Não lançado
 
-Nada ainda.
+### Corrigido
+
+- **Uma nota ou um board compartilhado recusa uma edição que diz vir da janela de outra pessoa, e uma edição malformada antes que ela corrompa a memória do servidor** ([ADR 0083](adr/0083-security-hardening-of-universo.md) item 14): um membro podia enviar uma edição com a identidade da janela de outra pessoa; a sala ficava com ela e a janela dessa pessoa com a sua, e as duas mostravam coisas diferentes até a janela entrar de novo. Agora a sala liga a identidade de cada janela à conta que primeiro escreveu com ela e recusa as edições de outra conta com essa identidade; a janela da mesma pessoa, de volta numa nova conexão, segue como antes. Uma edição montada de um jeito que nenhuma janela monta, na qual a biblioteca de edição do servidor lia memória que já tinha liberado, é recusada antes de ser lida.
 
 ## 0.8.1-beta.1 — 2026-10-14
 
