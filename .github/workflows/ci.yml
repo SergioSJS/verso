@@ -247,7 +247,7 @@ jobs:
     # a presence, the Host and Origin checks and a size, each 60 s from its
     # versioned seeds in `fuzz/seeds-<target>`, the same way, built as the
     # server ships (`-O`, see the step).
-    name: verso-dialect, canvas and server fuzz, 60s each (main, ADR 0029, ADR 0083)
+    name: verso-dialect, canvas, pattern and server fuzz, 60s each (main, ADR 0029, ADR 0083, ADR 0094)
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     steps:
@@ -276,6 +276,14 @@ jobs:
         run: |
           mkdir -p fuzz/corpus/canvas
           cargo +nightly fuzz run --target x86_64-unknown-linux-gnu canvas fuzz/corpus/canvas fuzz/seeds-canvas -- -max_total_time=60 -max_len=65536 -timeout=20
+      # A base's regular expressions (ADR 0094, Consequences): verso-core's
+      # pattern translation and its searches, compiled from their own source
+      # in the same harness, as the canvas is.
+      - name: fuzz pattern for 60 seconds
+        working-directory: crates/verso-dialect
+        run: |
+          mkdir -p fuzz/corpus/pattern
+          cargo +nightly fuzz run --target x86_64-unknown-linux-gnu pattern fuzz/corpus/pattern fuzz/seeds-pattern -- -max_total_time=60 -max_len=4096 -timeout=20
       # The server's inputs (ADR 0083 item 14, F6), one target after the
       # other in one step: a crash ends it, and its input is kept below.
       # What each target feeds and what a crash means is in its doc comment.

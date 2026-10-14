@@ -135,7 +135,17 @@ const pt = {
     unknownMethod: (n: string) => `Método desconhecido: .${n}()`,
     arguments: (n: string) => `Argumentos inválidos em ${n}()`,
     type: (n: string) => `Tipo inválido para ${n}`,
-    regex: () => "Expressões regulares ainda não são avaliadas pelo Verso.",
+    regex: (n: string) => `.${n}() recebe um texto, não uma expressão regular.`,
+    regexInvalid: (n: string) => `A expressão regular ${n} não é válida.`,
+    regexUnsupported: (n: string) => {
+      const what: Record<string, string> = {
+        lookahead: "lookahead — (?= ou (?!",
+        lookbehind: "lookbehind — (?<= ou (?<!",
+        backreference: "uma referência a um grupo — \\1 ou \\k<nome>",
+      };
+      return `A expressão regular usa ${what[n] ?? `a ${n}`}, que o Verso não avalia.`;
+    },
+    regexTooLarge: (n: string) => `A expressão regular ${n} é grande demais: até 1.000 caracteres, e um programa compilado de até 1 MB.`,
     cycle: (n: string) => `A fórmula ${n} depende dela mesma.`,
     budget: () => "Contas demais: a avaliação parou.",
     tooLarge: (n: string) => `Resultado grande demais em ${n}`,
@@ -304,7 +314,17 @@ const en: Strings = {
     unknownMethod: (n: string) => `Unknown method: .${n}()`,
     arguments: (n: string) => `Invalid arguments to ${n}()`,
     type: (n: string) => `Invalid type for ${n}`,
-    regex: () => "Regular expressions are not evaluated by Verso yet.",
+    regex: (n: string) => `.${n}() takes a text, not a regular expression.`,
+    regexInvalid: (n: string) => `The regular expression ${n} is not valid.`,
+    regexUnsupported: (n: string) => {
+      const what: Record<string, string> = {
+        lookahead: "look-ahead — (?= or (?!",
+        lookbehind: "look-behind — (?<= or (?<!",
+        backreference: "a back-reference — \\1 or \\k<name>",
+      };
+      return `The regular expression uses ${what[n] ?? `the ${n}`}, which Verso does not evaluate.`;
+    },
+    regexTooLarge: (n: string) => `The regular expression ${n} is too large: up to 1,000 characters, and a compiled program of up to 1 MB.`,
     cycle: (n: string) => `The formula ${n} depends on itself.`,
     budget: () => "Too much work: evaluation stopped.",
     tooLarge: (n: string) => `Result too large in ${n}`,

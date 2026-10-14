@@ -29,6 +29,12 @@ libfuzzer-sys = "0.4"
 [dependencies.verso-dialect]
 path = ".."
 
+# The regular expressions of a base (ADR 0094), compiled from verso-core's
+# `bases/pattern.rs` (fuzz_targets/pattern.rs): the engine that file runs
+# on, MIT OR Apache-2.0, as in the workspace.
+[dependencies.regex]
+version = "1"
+
 [[bin]]
 name = "parse"
 path = "fuzz_targets/parse.rs"
@@ -42,6 +48,15 @@ bench = false
 [[bin]]
 name = "canvas"
 path = "fuzz_targets/canvas.rs"
+test = false
+doc = false
+bench = false
+
+# A base's regular expressions (ADR 0094, Consequences): verso-core's
+# `bases/pattern.rs` compiled from its own source, as the canvas is.
+[[bin]]
+name = "pattern"
+path = "fuzz_targets/pattern.rs"
 test = false
 doc = false
 bench = false

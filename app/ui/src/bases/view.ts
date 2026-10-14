@@ -9,7 +9,7 @@
 
 import { commands, type BaseCell, type BaseGroup, type BaseResult, type PropertyValue } from "../bindings";
 import { icon } from "../icons";
-import { cellText, columnLabel, csv, h, markdownTable, type CellHost } from "./cells";
+import { cellText, columnLabel, csv, errorText, h, markdownTable, type CellHost } from "./cells";
 import { renderCalendar } from "./calendar";
 import { renderCards } from "./cards";
 import { renderKanban } from "./kanban";
@@ -446,7 +446,9 @@ export class BaseView {
     // Problems, once each, above the view.
     const notes: HTMLElement[] = r.problems.map((p) => {
       const f = s.problems[p.kind];
-      return h("p", "base-problem", f ? f(p.detail) : p.detail);
+      // An evaluation's line says why, as a sentence (ADR 0094 item 14).
+      const why = p.error ? ` — ${errorText(p.error.kind, p.error.name, s)}` : "";
+      return h("p", "base-problem", `${f ? f(p.detail) : p.detail}${why}`);
     });
     if (!(LAYOUTS as readonly string[]).includes(view.type) && this.index !== null) notes.push(h("p", "base-problem", s.unknownLayout(view.type)));
     this.notices.replaceChildren(...notes);
