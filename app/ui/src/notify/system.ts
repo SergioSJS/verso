@@ -15,14 +15,24 @@
 // `new Notification`, not the plugin's `sendNotification`, which drops
 // the notification and so its click: where the system tells the page of
 // a click (a browser), the window comes to the front and the centre opens
-// on that notification.
+// on that notification. On the desktop the plugin 2.4 (Tauri 2.11) has no
+// click callback — its `onAction` is the phones' — and a click only brings
+// the app forward on macOS and Windows; opening the centre on it comes
+// with the plugin 2.6 and Tauri 2.12, in a later 0.8.x (decided
+// 2026-10-14). Nothing here guesses a click from the window's focus.
+//
+// On the desktop the plugin answers "granted" and asks nothing: the
+// system's own settings decide in silence, and the row says where they
+// are. A refusal turning the row off happens in a browser.
 //
 // Whether the person turned it on is this machine's, never the account's:
 // the permission is the system's of this computer, or of this browser.
 
 import { isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notification";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { host } from "../can";
 import { h } from "../dom";
+import { MAC, WINDOWS } from "../platform";
 import type { Entry } from "./core";
 import { notifyStrings } from "./strings";
 
@@ -196,5 +206,10 @@ export function systemControl(): HTMLElement {
     });
   });
   wrap.append(l, said);
+  // The desktop asks nothing: where the system may block them anyway.
+  if (host() === "desktop") {
+    const hint = h("span", "setting-note notify-system-hint", s.systemDesktopHint(MAC ? "mac" : WINDOWS ? "windows" : "linux"));
+    wrap.append(hint);
+  }
   return wrap;
 }

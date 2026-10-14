@@ -46,7 +46,7 @@ export function syncHeard(prev: SyncStatus | null, next: SyncStatus): void {
   if (!next.on && next.revoked) {
     notify({
       kind: "sharing",
-      key: `share:${next.key}`,
+      key: `revoked:${next.key}`,
       state: `revoked:${next.revoked}`,
       // Once per revocation on this machine, not again at each start.
       persist: true,
@@ -144,7 +144,35 @@ export function updateFound(info: UpdateInfo): void {
   });
 }
 
-/* ---------- The trash: entries of this folder that leave soon ---------- */
+/* ---------- Once a day: the quota re-armed, the trash ---------- */
+
+/** At the folder's opening and once a day: the quota's warning re-armed
+ *  when the folder fell under 90 %, and the trash's. */
+export async function dailyCheck(): Promise<void> {
+  await quotaRearm();
+  await trashCheck();
+}
+
+/** The server says a folder is at 90 % after a write, never when it falls
+ *  under (decided 2026-10-14): a folder said near is measured once a day
+ *  (`folder_space`), against the quota last heard, or the trash's; under
+ *  90 %, the next crossing is news again. */
+async function quotaRearm(): Promise<void> {
+  const folder = currentFolder;
+  const key = `quota:${folder}`;
+  if (!folder || stateOf(key) !== "near") return;
+  const r = await commands.folderSpace();
+  if (r.status !== "ok" || r.data.total === null || folder !== currentFolder) return;
+  let quota = quotas.get(folder) ?? null;
+  if (quota === null && canWrite()) {
+    const bin = await commands.trashList();
+    if (bin.status === "ok") quota = bin.data.quota;
+  }
+  if (quota !== null && !quotaNear(r.data.total, quota)) settle(key, "below");
+}
+
+/** The quota each folder was last said to have (`folder-quota`). */
+const quotas = new Map<string, number>();
 
 /** Asked at the folder's opening and once a day (item 7): "n itens saem
  *  da lixeira em até 3 dias", at most once a day per folder. */
@@ -225,8 +253,8 @@ export function installSources(): void {
   // this computer's folder that syncs with it.
   void listen<FolderQuota>("folder-quota", (e) => quotaHeard(e.payload));
   // The trash at each opening, and once a day while open.
-  addEventListener("verso:folder-shown", () => void trashCheck());
-  window.setInterval(() => void trashCheck(), DAY_MS);
+  addEventListener("verso:folder-shown", () => void dailyCheck());
+  window.setInterval(() => void dailyCheck(), DAY_MS);
   // The update checked again every 24 h while the app is open, under the
   // same setting as the check at start (decided 2026-10-14).
   window.setInterval(() => {
@@ -244,7 +272,7 @@ export function serverGoneHeard(p: ServerGone, said: string): void {
   if (p.what === "folder") {
     notify({
       kind: "sharing",
-      key: `share:${p.url}:${currentFolder}`,
+      key: `revoked:${p.url}:${currentFolder}`,
       state: p.reason === "deleted" ? "deleted" : "revoked",
       level: "warning",
       title: s.revoked,
@@ -293,7 +321,10 @@ export function shareGivenHeard(g: ShareGiven): void {
   const host = g.server ? hostOf(g.server) : "";
   notify({
     kind: "sharing",
-    key: `given:${g.server ?? ""}:${g.id}`,
+    // Heard more than once on the desktop — from the server window's own
+    // connection and from each synced folder of that server, in every
+    // window: one key per share, said once.
+    key: `share:${g.server ?? ""}#${g.id}`,
     state: `given:${g.role}`,
     persist: true,
     level: "info",
@@ -312,6 +343,7 @@ export function shareGivenHeard(g: ShareGiven): void {
 export function quotaHeard(q: FolderQuota, folder = currentFolder, name = folderName): void {
   if (q.used === null || q.quota === null) return;
   const { used, quota } = q;
+  quotas.set(folder, quota);
   const key = `quota:${folder}`;
   if (!quotaNear(used, quota)) {
     settle(key, "below");
