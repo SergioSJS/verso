@@ -8,6 +8,7 @@
 // write gives it back.
 
 import type { BaseCell, BaseColumn, PropertyValue } from "../bindings";
+import { cleanHtml } from "../sanitize";
 import type { BaseStrings } from "./strings";
 
 /** What a cell needs from the window around it. */
@@ -194,9 +195,13 @@ export function renderCell(c: BaseCell | null | undefined, host: CellHost, sourc
     case "icon":
       return h("span", "base-icon", c.value);
     case "html": {
-      // Shown as its text: a base is content from the folder, and the
-      // window runs no markup a file brings with it.
-      return document.createTextNode(c.value);
+      // `html()` drawn as HTML (ADR 0094 item 12), through the sanitizer a
+      // note's HTML goes through: no script, no event attribute, remote
+      // content under the setting of ADR 0050. A base is content from the
+      // folder, and the window runs no markup a file brings with it.
+      const box = h("span", "base-html");
+      box.append(cleanHtml(c.value));
+      return box;
     }
     case "error": {
       const e = h("span", "base-error", "⚠");

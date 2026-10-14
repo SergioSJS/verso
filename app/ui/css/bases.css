@@ -391,3 +391,6 @@ tfoot .base-summary td { border-top: 1px solid var(--hair); border-bottom: 0; }
   .base-table { min-width: calc(var(--cols, 1) * 7rem); }
   .base-table td { overflow-wrap: break-word; }
 }
+
+/* `html()` drawn as HTML in a cell (ADR 0094 item 12). */
+.base-html { display: inline; }

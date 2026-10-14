@@ -899,8 +899,15 @@ export class Core {
     return isNote(path) && linksIn(this.text(path)).some((l) => this.resolve(l.target, path) === this.resolve(arg, path));
   }
 
-  private cell(path: string, id: string): BaseCell {
+  private cell(path: string, id: string, formulas: Record<string, unknown> = {}): BaseCell {
     if (id === "file.name") return { kind: "text", value: stripMd(baseOf(path)) };
+    // The one formula the harness evaluates: `html("…")`, a literal, as
+    // the core gives it (ADR 0094 item 12); any other is left empty.
+    if (id.startsWith("formula.")) {
+      const f = formulas[id.slice(8)];
+      const m = typeof f === "string" ? /^html\((["'])([\s\S]*)\1\)$/.exec(f.trim()) : null;
+      return m ? { kind: "html", value: m[2] ?? "" } : { kind: "empty" };
+    }
     if (id === "file.path") return { kind: "text", value: path };
     if (id === "file.folder") return { kind: "text", value: dirOf(path) };
     if (!isNote(path)) return { kind: "empty" };
@@ -935,7 +942,8 @@ export class Core {
     const ids = [...new Set([...order, ...q.extra])];
     const columns: BaseColumn[] = ids.map((id) => ({ id, name: props[id]?.displayName ?? null }));
     const paths = [...this.notes(), ...this.others()].filter((p) => this.passes(base["filters"], p) && this.passes(view?.["filters"], p));
-    const rows: BaseRow[] = paths.map((p) => ({ path: p, note: isNote(p), cells: ids.map((id) => this.cell(p, id)) }));
+    const formulas = (base["formulas"] ?? {}) as Record<string, unknown>;
+    const rows: BaseRow[] = paths.map((p) => ({ path: p, note: isNote(p), cells: ids.map((id) => this.cell(p, id, formulas)) }));
     const by = view?.["groupBy"];
     const groupBy = typeof by === "string" ? by : by !== null && typeof by === "object" ? String((by as Record<string, unknown>)["property"] ?? "") : "";
     let groups: BaseGroup[] = [{ key: null, rows, summaries: ids.map(() => null) }];
