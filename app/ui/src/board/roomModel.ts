@@ -281,7 +281,7 @@ export type BoardState = {
   selectedElementIds: Readonly<Record<string, boolean>>;
   selectedGroupIds?: Readonly<Record<string, boolean>>;
   editingGroupId?: string | null;
-  editingTextElement?: { id: string } | null;
+  editingTextElement?: { id: string; containerId?: string | null } | null;
   newElement?: { id: string } | null;
   resizingElement?: { id: string } | null;
   multiElement?: { id: string } | null;
@@ -330,15 +330,64 @@ export function stateOver(elements: readonly El[], state: BoardState): Partial<B
 
 /** The room's elements `remote` into a board whose scene is `local` and
  *  whose state is `state`: the scene to hand it (`mergeScene`, what this
- *  window is changing right now kept: a text typed, a shape drawn, resized
- *  or dragged, a line edited), and what of its state to change with it, in
+ *  window is changing right now kept: a text typed and the shape it is
+ *  typed in, a shape drawn, resized or dragged, a line edited), and what of its state to change with it, in
  *  the same change (`stateOver`): a scene with a deleted element still
  *  selected is never handed to Excalidraw. `mine` as `mergeScene`'s. */
 export function remoteScene(local: readonly El[], remote: Iterable<El>, state: BoardState, mine: (e: El) => boolean): { elements: El[]; appState: Partial<BoardState> } {
   const busy = new Set<string>();
   const line = state.selectedLinearElement;
-  for (const id of [state.editingTextElement?.id, state.resizingElement?.id, state.newElement?.id, state.multiElement?.id, line?.isEditing ? line.elementId : undefined]) if (id) busy.add(id);
+  // The shape a text is typed in is part of that edit: Excalidraw selects
+  // it once the typing ends, deleted or not.
+  for (const id of [state.editingTextElement?.id, state.editingTextElement?.containerId, state.resizingElement?.id, state.newElement?.id, state.multiElement?.id, line?.isEditing ? line.elementId : undefined]) if (id) busy.add(id);
   if (state.selectedElementsAreBeingDragged) for (const [id, on] of Object.entries(state.selectedElementIds)) if (on) busy.add(id);
   const elements = mergeScene(local, remote, busy, mine);
   return { elements, appState: stateOver(elements, state) };
+}
+
+/** A text's layout: what Excalidraw measures it from, and what it measured.
+ *  Null for an element that is not a text. */
+export function layoutOf(e: El | undefined): string | null {
+  if (!e || e.type !== "text") return null;
+  return JSON.stringify([e["text"], e["fontSize"], e["fontFamily"], e["lineHeight"], e.width, e.height]);
+}
+
+/** The texts this window laid out: two engines measure the same text each
+ *  their own way (Excalifont's "t849" at 20 px: 49.00 wide in Chromium,
+ *  48.06 in WebKit), and a text is the window's to measure again only
+ *  while its layout is the one this window gave it. */
+export class Layouts {
+  private readonly here = new Map<string, string>();
+
+  /** This window sent `e` over the room's `held`: a layout of its own when
+   *  it differs from the one it replaces (a text typed, its font changed —
+   *  not a text moved, which keeps whoever's layout it had). */
+  sent(e: El, held: El | undefined): void {
+    const l = layoutOf(e);
+    if (l !== null && l !== layoutOf(held)) this.here.set(e.id, l);
+  }
+
+  /** The file, drawn here, put into the room: laid out here. */
+  seeded(els: readonly El[]): void {
+    for (const e of els) {
+      const l = layoutOf(e);
+      if (l !== null) this.here.set(e.id, l);
+    }
+  }
+
+  /** Whether `e`'s layout is the one this window gave it. */
+  ours(e: El): boolean {
+    const l = layoutOf(e);
+    return l !== null && this.here.get(e.id) === l;
+  }
+}
+
+/** The texts to measure again once their fonts are in (`ready`). On a
+ *  board of its own, every one; in a room, only those this window laid out
+ *  — sent with a layout of its own (`Layouts`), or changed here and not
+ *  sent yet (`mine`). Another window's text is left as that window
+ *  measured it: measured here again, it would be laid out this engine's way
+ *  and written again, after the windows had agreed. */
+export function remeasureTargets(els: readonly El[], ready: (e: El) => boolean, room: { mine: (e: El) => boolean; layouts: Layouts } | null): El[] {
+  return els.filter((e) => e.type === "text" && ready(e) && (!room || room.mine(e) || room.layouts.ours(e)));
 }
