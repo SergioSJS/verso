@@ -293,3 +293,17 @@ To be built as 0.8.3-beta.1.
   when it passes 90 %, never when it goes back under. The window asks for
   the folder's space once a day, with the trash's check; under 90 %, the
   next crossing notifies again.
+
+**Choices of the building, accepted by the maintainer on 2026-10-14**
+(*"Sim, as 4"*):
+
+- The demo's import and outside changes that arrived late are said in a
+  toast with no kind and no line in the list: none of the seven kinds fits
+  them.
+- The switch "Também nas notificações do sistema" is kept on this machine,
+  not in the account's settings: the permission belongs to the machine.
+- A sync that fails and a server out of reach are said again at each start
+  while they last; a revocation, a conflict copy, an update, the trash and
+  a share given are remembered across starts.
+- "The sync is back" is said only after a failure, never after a pause the
+  person made.

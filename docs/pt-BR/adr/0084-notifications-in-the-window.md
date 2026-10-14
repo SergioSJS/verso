@@ -298,3 +298,18 @@ A construir como 0.8.3-beta.1.
   quando ela passa de 90 %, nunca quando volta para baixo. A janela pede o
   espaço da pasta uma vez por dia, junto com a checagem da lixeira; abaixo
   de 90 %, a próxima passagem notifica de novo.
+
+**Escolhas da construção, aceitas pelo mantenedor em 2026-10-14**
+(*"Sim, as 4"*):
+
+- A importação da demonstração e mudanças de fora que chegaram atrasadas
+  são ditas num aviso sem tipo e sem linha na lista: nenhum dos sete tipos
+  se encaixa.
+- O ajuste "Também nas notificações do sistema" fica nesta máquina, não
+  nos ajustes da conta: a permissão é da máquina.
+- Um sync que falha e um servidor fora de alcance são ditos de novo a cada
+  abertura enquanto durarem; uma revogação, uma cópia de conflito, uma
+  atualização, a lixeira e um compartilhamento recebido são lembrados
+  entre aberturas.
+- "O sync voltou" só é dito depois de uma falha, nunca depois de uma pausa
+  feita pela pessoa.
