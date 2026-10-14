@@ -51,6 +51,11 @@
   own once every platform is built; the publish job checks the files by
   name against `release.mjs assets` in place of a count; the page says the
   list and the `.sig` can be ignored.
+  2026-10-14 — the Consequence on the ad hoc signature answered by
+  [0095](0095-mac-notarization-and-windows-code-signing.md), accepted by
+  the maintainer that night (*"Sim, todas"*): a Developer ID and
+  notarization for every release once the certificate exists, the betas
+  too, and a separate x64 Mac build once the repository is public.
 
 ## Context
 

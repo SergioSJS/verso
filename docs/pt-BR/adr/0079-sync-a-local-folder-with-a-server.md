@@ -93,6 +93,11 @@
   2026-10-12 — item 12, o tamanho dos pedaços: **1 MiB fica**, decidido
   pelo mantenedor naquele dia, por volta das 16:00 BRT, entre as sete
   decisões da rodada, todas como recomendado: *"Todos aprovados"*.
+  2026-10-14 — o append-merge do item 8 toma o template preenchido como
+  base de uma nota periódica que os dois lados criaram sem base, quando as
+  duas versões começam com os bytes que o template fez, pelo item 12 do
+  [0093](0093-periodic-notes.md), aceito pelo mantenedor naquela noite
+  (*"Sim, todas"*).
 
 ## Contexto
 

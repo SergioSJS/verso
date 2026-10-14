@@ -154,8 +154,8 @@ repositories that use standard GitHub-hosted runners"*
 
 ## Decision
 
-Proposed (2026-10-14). Each `[OPEN]` below carries the author's
-recommendation; the maintainer decides. This ADR revises
+Proposed (2026-10-14). Accepted on 2026-10-14 (Status): each `[DECIDED 2026-10-14]` was decided as
+recommended and is marked `[DECIDED 2026-10-14]`. This ADR revises
 [0051](0051-development-flow-and-releases.md) (its Consequence on the ad
 hoc signature) and [0069](0069-windows-port.md) (item 3) when accepted.
 
@@ -172,12 +172,12 @@ hoc signature) and [0069](0069-windows-port.md) (item 3) when accepted.
    notarized build shows one is needed, and then the narrowest. The zip
    stays ([0051](0051-development-flow-and-releases.md), Discarded: a
    `.dmg`).
-2. **Who enrolls and pays.** `[OPEN]`. Recommended: **the maintainer, as
+2. **Who enrolls and pays.** `[DECIDED 2026-10-14]`. Decided: **the maintainer, as
    an individual**, 99 USD a year (in reais at checkout): an organization
    needs a D-U-N-S number and a legal entity the project does not have
    ([0001](0001-open-tool-no-company.md)), and no waiver applies to a
    person. The certificate names the maintainer as the developer.
-3. **Windows: which signing.** `[OPEN]`. The options open to a person in
+3. **Windows: which signing.** `[DECIDED 2026-10-14]`. The options open to a person in
    Brazil: (a) **unsigned**, as now — "Run anyway" under SmartScreen, and
    **blocked with no way around** where Smart App Control is on;
    (b) **SignPath Foundation**, free, publisher "SignPath Foundation",
@@ -188,7 +188,7 @@ hoc signature) and [0069](0069-windows-port.md) (item 3) when accepted.
    (d) **a commercial certificate with cloud signing**, about $129 a year
    plus about $240 a year of eSigner's smallest plan (SSL.com, list
    prices), publisher the maintainer. Azure Artifact Signing is not
-   open to the maintainer (Context). Recommended: **(b)**, applied for as
+   open to the maintainer (Context). Decided: **(b)**, applied for as
    soon as the repository is public; **(c)** if SignPath declines or
    cannot sign inside Tauri's build; **(d)** only if neither works. Not
    (a) at V1: Smart App Control turns a warning into a refusal.
@@ -200,19 +200,19 @@ hoc signature) and [0069](0069-windows-port.md) (item 3) when accepted.
    until the certificate gathers reputation; the release page says so.
 5. **Linux: no operating-system signing.** The signed checksums list
    ([0055](0055-in-app-updater.md)) stays what proves a Linux file.
-   `[OPEN]`: whether the `.rpm` (and the AppImage) are signed with an
-   OpenPGP key as well. Recommended: **not in V1** — nothing checks an
+   `[DECIDED 2026-10-14]`: whether the `.rpm` (and the AppImage) are signed with an
+   OpenPGP key as well. Decided: **not in V1** — nothing checks an
    AppImage's signature, and an `.rpm`'s helps only someone who imported
    the key; an APT or RPM repository, if one is ever published, signs
    its index then.
-6. **When.** `[OPEN]`. Recommended: **enroll in Apple's programme now**
+6. **When.** `[DECIDED 2026-10-14]`. Decided: **enroll in Apple's programme now**
    — its identity check takes days — and sign and notarize **every
    release from the first one after the certificate exists, the betas
    too**, so that the path is proven long before V1; Windows signing
    **when the repository is public** (V.12), as (b) and (c) require; both
    before the announcement and V1's release. A rehearsal run of the
    release workflow signs and notarizes as a release does.
-7. **The secrets in CI.** `[OPEN]`. Recommended: a GitHub environment
+7. **The secrets in CI.** `[DECIDED 2026-10-14]`. Decided: a GitHub environment
    `release`, its secrets usable only by jobs running on `main` — the
    Developer ID certificate (`.p12`, base64) and its password, and **an
    App Store Connect API key** (issuer, key id, `.p8`) for the notary,
@@ -232,11 +232,11 @@ hoc signature) and [0069](0069-windows-port.md) (item 3) when accepted.
    ([0051](0051-development-flow-and-releases.md), revised 2026-10-14)
    loses "Open Anyway" for macOS and says what Windows shows; the README
    too.
-9. **The Mac Intel app** (V.21). `[OPEN]`: a universal binary or a
+9. **The Mac Intel app** (V.21). `[DECIDED 2026-10-14]`: a universal binary or a
    separate x64 build. A universal app holds both and doubles every Mac
    download; Verso's updater picks a file by its architecture word, and a
    `universal` name matches neither (Context), so it would change too.
-   Recommended: **a separate `macos-x64` build**, cross-compiled for
+   Decided: **a separate `macos-x64` build**, cross-compiled for
    `x86_64-apple-darwin` in the same macOS job on the arm64 runner, as
    Tauri's example does — no Intel runner, which GitHub retires in 2027 —
    signed and notarized like the arm64 one, named so the updater finds it
@@ -271,14 +271,18 @@ None recorded.
 
 ## Status
 
-Proposed (2026-10-14). R3 of `docs/roadmap.md`, revision 8, decided
-that this ADR exists; its content is the maintainer's to decide. For the
+**Accepted (2026-10-14).** The maintainer, that night, answered the
+questions of 0093, 0094 and 0095 with *"Sim, todas"* (yes, all): every
+`[OPEN]` decided as recommended, marked `[DECIDED 2026-10-14]` in place. R3
+of `docs/roadmap.md`, revision 8, decided that this ADR exists; this
+answer decided its content. Revisions lines in
+[0051](0051-development-flow-and-releases.md) (its Consequence on the ad
+hoc signature) and [0069](0069-windows-port.md) (item 3). The Mac Intel
+build (item 9) comes when the repository is public (V.12), as the wave of
+V.21 was decided on 2026-10-14 (`docs/roadmap.md`, "Core gaps in V1").
+
+*(History, before the acceptance above:)* Proposed (2026-10-14). For the
 maintainer, each with a recommendation: who enrolls and pays (item 2),
 the Windows option (item 3), Linux package signatures (item 5), when
 (item 6), the secrets (item 7), a universal or a separate x64 Mac build
 (item 9).
-
-Recorded, not resolved: the roadmap's table of decisions still open
-lists the wave of V.21 and V.22 — "once the repository is public" — as a
-recommendation, not a decision; the request that asked for this ADR
-calls V.21's timing decided.

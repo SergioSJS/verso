@@ -89,6 +89,11 @@
   item 12, the pieces' size: **1 MiB stays**, decided by the maintainer
   that day, about 16:00 BRT, among the round's seven decisions, all as
   recommended: *"Todos aprovados"* (all approved).
+  2026-10-14 — item 8's append-merge takes the filled template as the base
+  of a periodic note both sides made with no base, when both versions
+  begin with the bytes the template made, by
+  [0093](0093-periodic-notes.md) item 12, accepted by the maintainer that
+  night (*"Sim, todas"*).
 
 ## Context
 

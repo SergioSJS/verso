@@ -80,6 +80,11 @@
   proposed the same day and declined by the maintainer (*"mandar rodar no
   linux é meio merda"*). And a fixture closes and reports what a test
   leaves open (`app/ui/e2e/leaks.mjs`).
+  2026-10-14 — item 3 answered by
+  [0095](0095-mac-notarization-and-windows-code-signing.md), accepted by
+  the maintainer that night (*"Sim, todas"*): the Windows app signed
+  through SignPath Foundation once the repository is public, Certum's
+  open-source certificate the fallback; unsigned no longer accepted at V1.
 
 ## Context
 

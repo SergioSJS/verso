@@ -15,6 +15,9 @@
   2026-09-30 no [0057](0057-board-json-canvas.md) (ponto 4, Q10 da spec), é
   apontada aqui, pela decisão do mantenedor sobre a revisão crítica
   [`docs/review/board.md`](../review/board.md), §6 item 16.
+  2026-10-14 — as notas periódicas da linha do tempo aceitas pelo
+  mantenedor num ADR próprio, [0093](0093-periodic-notes.md) (*"Sim,
+  todas"*): a linha do tempo fica aceita por inteiro.
 
 ## Contexto
 

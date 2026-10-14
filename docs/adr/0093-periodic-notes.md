@@ -90,13 +90,13 @@ locale"* ([README](https://github.com/liamcain/obsidian-calendar-plugin)).
 
 ## Decision
 
-Proposed (2026-10-14). Each `[OPEN]` below carries the author's
-recommendation; the maintainer decides.
+Proposed (2026-10-14). Accepted on 2026-10-14 (Status): each `[DECIDED 2026-10-14]` was decided as
+recommended and is marked `[DECIDED 2026-10-14]`.
 
 1. **Five periods**: the day, the week, the month, the quarter and the
    year, each a note named by a format and kept in a folder, made from a
    template when missing — the day as built, the others the same way.
-   `[OPEN]`: which are on in a folder that never set them. Recommended:
+   `[DECIDED 2026-10-14]`: which are on in a folder that never set them. Decided:
    **the day, the week and the month on**, the quarter and the year off
    until turned on in Settings — all five built, three shown.
 2. **Names and folders, as the Periodic Notes plugin writes them.** Each
@@ -109,11 +109,11 @@ recommendation; the maintainer decides.
    saying which. A periodic note is found by the path its format makes,
    never by reading text; a note named by an earlier format is not found,
    and Settings says so when a format changes.
-3. **The folder of each period.** `[OPEN]`: the default. Recommended:
+3. **The folder of each period.** `[DECIDED 2026-10-14]`: the default. Decided:
    **the day's folder for every period** (`Diário/2026-W42.md` beside
    `Diário/2026-10-14.md`): one place to look, and the default formats
    never collide. The plugin's own default is the folder's root.
-4. **Where the settings live.** `[OPEN]`. Recommended: **the folder's
+4. **Where the settings live.** `[DECIDED 2026-10-14]`. Decided: **the folder's
    layer**, `.verso/settings.json` ([0070](0070-what-travels-with-the-folder.md)
    item 2, revised in the same PR) — the formats, the folders, the
    templates, which periods are on and the week's start —, because they
@@ -122,7 +122,7 @@ recommendation; the maintainer decides.
    there once, as the bookmarks did. A person who cannot write the
    folder's layer reads it; unlike a reader's bookmarks (Phase 3 row
    3.24), these settings have no fallback on this machine.
-5. **The week, and names in a language.** `[OPEN]`. Recommended: the
+5. **The week, and names in a language.** `[DECIDED 2026-10-14]`. Decided: the
    week's start is a setting of the folder's (item 4), **Sunday by
    default** — the side panel's month already starts on Sunday — and
    `gggg`/`ww` are counted with it, never with the machine's locale;
@@ -140,10 +140,10 @@ recommendation; the maintainer decides.
    `{{sunday:FORMAT}}` … `{{saturday:FORMAT}}`, the day's `{{yesterday}}`
    and `{{tomorrow}}`, and arithmetic on the period's date
    (`{{date+1d:FORMAT}}`, `{{date-1w}}`), as the plugin's 1.0 source
-   fills them; a tag Verso does not know stays as written. `[OPEN]`: what
+   fills them; a tag Verso does not know stays as written. `[DECIDED 2026-10-14]`: what
    `{{date}}` alone means in a week, a month, a quarter or a year — the
    plugin's README reads it as the period's first day, its 1.0 source
-   puts the note's name there. Recommended: **the period's first day, as
+   puts the note's name there. Decided: **the period's first day, as
    `YYYY-MM-DD`**, as the core Templates plugin documents `{{date}}` and
    as Verso's daily note fills it.
 7. **Opening.** A command per period — "This week's note", "This month's
@@ -161,10 +161,10 @@ recommendation; the maintainer decides.
    it the year's; each marked when its note exists, for the periods that
    are on.
 10. **Keys.** ⌘⇧D stays the daily note's ([0061](0061-blocks-in-edit-mode.md)).
-    `[OPEN]`: default keys for the others. Recommended: **none by
+    `[DECIDED 2026-10-14]`: default keys for the others. Decided: **none by
     default**; every command bindable in Settings › Keys.
-11. **Obsidian's settings.** `[OPEN]`: whether Verso reads them.
-    Recommended: **once, read-only, offered**: when the folder's layer
+11. **Obsidian's settings.** `[DECIDED 2026-10-14]`: whether Verso reads them.
+    Decided: **once, read-only, offered**: when the folder's layer
     holds no periodic settings and `.obsidian/daily-notes.json` or
     `.obsidian/plugins/periodic-notes/data.json` exists (in either of its
     two shapes), Settings offers "Use Obsidian's settings" with the values
@@ -181,12 +181,12 @@ recommendation; the maintainer decides.
     exist and is offered none to make ([0076](0076-the-window-on-every-screen.md)).
     Two devices that made the same periodic note offline meet in a
     conflict copy: 0079 item 8's append-merge needs a base, and a file
-    both sides made has none. `[OPEN]`. Recommended: **the filled
+    both sides made has none. `[DECIDED 2026-10-14]`. Decided: **the filled
     template is the base** when both versions begin with the bytes the
     template made — each side's additions are then appends, and are
     joined; a revision of 0079 item 8 in the same PR.
-13. **Opening at start.** `[OPEN]`: whether a period's note opens when the
-    app starts (the plugin's `openAtStartup`). Recommended: **not in V1**;
+13. **Opening at start.** `[DECIDED 2026-10-14]`: whether a period's note opens when the
+    app starts (the plugin's `openAtStartup`). Decided: **not in V1**;
     the window restores its tabs.
 14. **Accessibility and languages** ([0035](0035-cross-cutting-requirements.md)):
     each week number is a button named "Week 42 of 2026"; the month's grid
@@ -218,14 +218,22 @@ None recorded.
 
 ## Status
 
-Proposed (2026-10-14). In V1 by the maintainer's answer of 2026-10-14
-(`docs/roadmap.md`, Phase 4 — V1, row V.18). For the maintainer, each
-with a recommendation: the periods on by default (item 1), the folder
-(item 3), where the settings live (item 4), the week and the language of
-names (item 5), `{{date}}` in a period (item 6), default keys (item 10),
-Obsidian's settings (item 11), the note both devices made (item 12),
-opening at start (item 13).
+**Accepted (2026-10-14).** The maintainer, that night, answered the
+questions of 0093, 0094 and 0095 with *"Sim, todas"* (yes, all): every
+`[OPEN]` decided as recommended, marked `[DECIDED 2026-10-14]` in place. In
+V1 (`docs/roadmap.md`, Phase 4 — V1, row V.18, wave A). Revisions lines
+in [0014](0014-primitives-catalog.md) (the time row accepted in full),
+[0070](0070-what-travels-with-the-folder.md) item 2 (item 4) and
+[0079](0079-sync-a-local-folder-with-a-server.md) item 8 (item 12).
 
 Recorded, not resolved: spec §7 says that what Verso does not define yet
 and Obsidian does — periodic notes among it — "is in section 9", and
 §9 holds no question on periodic notes.
+
+*(History, before the acceptance above:)* Proposed (2026-10-14). In V1
+by the maintainer's answer of 2026-10-14 (`docs/roadmap.md`, Phase 4 —
+V1, row V.18). For the maintainer, each with a recommendation: the
+periods on by default (item 1), the folder (item 3), where the settings
+live (item 4), the week and the language of names (item 5), `{{date}}`
+in a period (item 6), default keys (item 10), Obsidian's settings (item
+11), the note both devices made (item 12), opening at start (item 13).
