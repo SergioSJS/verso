@@ -788,3 +788,90 @@ filhas são do desktop, não do servidor), o tratamento de um board hostil
 pelo bundle do Excalidraw além do normalizador de links, o build Windows
 do arquivo do token de aparelho (lacuna 17). Não medido: os números da
 seção 2.5 no host de 1 GB.
+
+## 10. A segunda revisão (2026-10-13, noite)
+
+- Data: a noite de 2026-10-13, depois de construídos os itens 1 a 17 do
+  ADR 0083.
+- Feita por Opus 5.5 numa sessão só de leitura que não teve parte em
+  escrever o código que leu, com duas sessões auxiliares próprias para o
+  código da janela e o empacotamento, cujas afirmações principais ela
+  conferiu de novo no código. O código do servidor desta rodada também foi
+  escrito por sessões de Opus 5.5: é uma leitura por outra sessão, não a
+  leitura pelo outro modelo do
+  [ADR 0032](../adr/0032-author-and-reviewer-roles.md).
+- Contra o e699b57 de `docs/security-hardening`. Fechada nos merges de
+  sec/shares (c816ca5b), sec/pkg (af554af2), sec/bounds (39181303) e
+  sec/auth2 (83066f61) nesse branch, e nas decisões do mantenedor de
+  2026-10-14, trazidas de sec/decided (c2454064; ADR 0083, Como
+  construído).
+
+A revisão supôs um atacante que leu o código público. Leu o código área
+por área — entrada e sessões, autorização e compartilhamento, caminhos e
+arquivos, tratamento de entradas e limites, pedidos de saída, o código da
+janela fora do sanitizador, o empacotamento — e perguntou de cada
+checagem que entrada ou sequência passa por ela, em que ela confia sem
+dever, e o que acontece nos limites: vazio, enorme, malformado,
+concorrente, repetido, fora de ordem, depois de um reinício. Não repetiu
+F1 a F23. Nada foi construído, editado ou rodado contra um servidor; uma
+auxiliar rodou no node a lógica do `next()` da página de entrada para
+confirmar o S8. Cada achado veio com uma correção e um teste a escrever.
+O commit de cada correção nomeia o teste que a segura, a maioria visto
+falhando antes. Os níveis são os do
+[ADR 0033](../adr/0033-pr-workflow.md), como na seção 1.
+
+| # | Achado | Nível | Fechado por |
+|---|---|---|---|
+| S1 | Um convite para um compartilhamento, aceito depois de o compartilhamento ser removido, dava a pasta inteira em que ele estava: o `ON DELETE SET NULL` da chave estrangeira apagava o compartilhamento que ele nomeava, e o aceite tomava o ramo da pasta inteira | BLOQUEANTE | b90587cd: um convite guarda para o que foi feito (schema 10); um cujo compartilhamento sumiu não está pendente e não dá nada; remover um compartilhamento encerra os convites pendentes dele |
+| S2 | Uma nota lida, escrita ou criada por um compartilhamento levava o tipo resolvido sobre a pasta inteira do dono: o caminho de um esquema fora do compartilhamento, com os rótulos e as propriedades dele, chegava a quem recebe ([ADR 0081](../adr/0081-sharing-between-people-on-one-universo.md) item 11) | BLOQUEANTE | 4f5e1e30: o tipo resolvido só sobre as raízes do compartilhamento; o `answer_out` re-enraíza os caminhos de esquema de um tipo e descarta um tipo que nomeie um de fora |
+| S3 | O `links` por um compartilhamento respondia um link que resolve fora dele diferente de um link que não resolve em lugar nenhum: quem recebe e escreve links ficava sabendo se uma nota de um dado nome existia fora (ADR 0081 item 11); a revisão anotou que talvez merecesse um nível menor | BLOQUEANTE | 6ac42757: os dois respondem `outside: true`; a janela diz as mesmas palavras para os dois |
+| S4 | O Argon2id não tinha limite de quantos rodavam ao mesmo tempo — uns 19 MiB cada, até as 512 threads bloqueantes do runtime, então uma rajada de entradas de um endereço podia tomar a memória do host de 1 GB — e a espera por conta era lida antes do hash e escrita depois dele, então senhas erradas mandadas juntas passavam todas por ela | IMPORTANTE | 8d3982b3: dois lugares por núcleo (dois no mínimo), 503 depois de esperar 5 s; uma tentativa em andamento por chave de entrada, 429 depois de 10 s |
+| S5 | Memória por pedido: o `/f/` e as leituras de texto seguravam um arquivo inteiro, e uma cópia escapada, na memória; as respostas ficavam fora do orçamento de bytes da fila; toda mensagem, até 48 MB, era interpretada antes da checagem de papel, 8 por conexão; uma sala de nota não tinha tamanho total, e uma janela podia entrar em toda nota | IMPORTANTE | 74bf5b51 (o `/f/` mandado 256 KiB por vez, um `Range` só); 9868eb00, levado só para o servidor pelo 68745a92 (um texto de 16 MB no máximo); f7917083 (um tamanho por comando, lido antes da interpretação; 128 MB divididos pelas mensagens e respostas acima de 1 MB); 5274f9d4 (uma sala de nota 64 MB, uma janela em 64 salas) |
+| S6 | O convite do admin podia levar uma pasta ou um compartilhamento, com qualquer papel até dono, sem a prova recente que entrar numa pasta pede | IMPORTANTE | 3d79d9ad: exige a prova sempre que o corpo nomeia uma pasta ou um compartilhamento |
+| S7 | A sessão de um aparelho nascia provada: por dez minutos depois da aprovação, o bearer do app passava por toda rota sensível, as de um admin incluídas, com a prova feita no navegador; e um link com um código levava a uma aprovação de um clique | IMPORTANTE | 463ed1ad (nasce sem prova); 0e9175de (o app desktop prova com a senha quando o servidor pede); 3e39e23c (aprovação só com o código informado a partir da tela do app, decidido em 2026-10-14) |
+| S8 | O `next` da entrada conferia a origem do endereço interpretado mas devolvia o caminho dele, que pode ser lido como outro host (`/.//host/`): depois de uma entrada de verdade, o navegador saía do servidor | IMPORTANTE | 307a648d: o caminho lido de novo contra a origem da página; qualquer outro vai para `/` |
+| S9 | Escutar em loopback tornava um pedido seguro dissesse o que dissesse um proxy confiável na mesma máquina: por um proxy que repassava `X-Forwarded-Proto: http`, as entradas e o cookie delas passavam por HTTP simples | IMPORTANTE | e1e4629b: por um proxy confiável, só o `X-Forwarded-Proto` decide |
+| S10 | Um proxy na mesma máquina deixado fora do `VERSO_TRUSTED_PROXY` fazia de todo visitante `127.0.0.1` sem uma palavra: uma chave para toda espera, e nenhum ritmo | IMPORTANTE | 1a33435e: duas linhas `WARN` que dizem o que definir |
+| S11 | As conexões por um proxy confiável contavam só contra as 512 do servidor, e um corpo podia chegar a conta-gotas por 60 s: um cliente atrás do proxy podia ocupar todos os lugares | IMPORTANTE | 33574fe5: 32 pedidos em andamento por endereço percorrido, um corpo em até 10 s |
+| S12 | Envios começados juntos eram cada um julgados contra a cota de uma pasta no primeiro pedaço, sem nada reservado: juntos, passavam dela no disco | IMPORTANTE | eff8dd87: uma escrita em andamento reserva o seu espaço na cota até chegar ou ser largada |
+| S13 | O `universo.sh restore` extraía o que o arquivo tivesse, como root, sobre `/`: um backup guardado onde outra pessoa pudesse trocá-lo podia levar um arquivo fora dos caminhos do próprio backup, um link ou um arquivo set-id | IMPORTANTE | 6dd0d265: o backup listado antes e recusado inteiro, nada gravado, a não ser que toda entrada seja um arquivo comum ou um diretório sob os caminhos dele |
+| S14 | O `backup --encrypt` ou `--passphrase` sem o `age` fazia o tarball simples no lugar, e com `--to-stdout` o mandava antes do aviso | IMPORTANTE | a60ccac2: para e não grava nada (decidido em 2026-10-14) |
+| S15 | A jail do fail2ban da receita de Docker casava as linhas por um campo do journal que qualquer programa local pode escrever; o filtro aceitava qualquer prefixo, então uma linha nomeando `0.0.0.0/0` teria banido todo endereço; a jail não nomeava porta, então um banimento fechava o SSH também | IMPORTANTE | 270ff4ad: `_SYSTEMD_UNIT` no casamento, só um endereço IPv4 ou um /64 de IPv6, só http e https |
+| S16 | Uma entrada numa conta que o admin criou, ainda sem senha, respondia sem hash: o tempo dizia que tal conta existe | MENOR | ab59886d |
+| S17 | As salas de coedição eram indexadas pelo caminho como chegava: `./n.md` e `n.md` eram duas salas para um arquivo, cada uma gravando por cima das edições da outra | MENOR | d12036a4: indexadas pelo caminho confinado |
+| S18 | Os mapas de códigos de aparelho, links de entrada e cerimônias de passkey (10 000 cada, saindo o décimo mais antigo) podiam ser girados de muitos endereços, empurrando para fora a cerimônia em andamento de uma pessoa | MENOR | 91e3e0af: 8 entradas por endereço em cada um; muitos endereços ainda enchem um mapa, a um custo maior |
+| S19 | O nome de um aparelho guardava caracteres bidirecionais e de largura zero e era dito dentro da frase da página de aprovação, onde podia inverter ou esconder as palavras em volta | MENOR | fa44fb19, 0768690d (o ligador de um emoji mantido), b5a5bc2f (um `<bdi>` nas listas de sessões também) |
+| S20 | A página do link de entrada de um e-mail o usava ao carregar: um link que outra pessoa mandou, da conta dela, punha quem o abriu na conta dela sem clique e sem nome (login CSRF por e-mail) | MENOR | 5af9de2c: a página nomeia a conta e espera um clique |
+| S21 | Um navegador guardava as configurações da janela de uma conta depois de sair, as origens de página aprovadas entre elas; a próxima conta começava com elas e as salvava como suas | MENOR | 6df0727f: as configurações levam o dono; sair as esquece |
+| S22 | Higiene do pacote: o arquivo do cabeçalho do token nascia `0644`; uma assinatura ausente caía no checksum sem aviso; o nome de um backup vinha só do relógio, e a checagem "dentro do que copia" comparava strings; nenhum conselho para o arquivo de identidade do restore; o token digitado onde o histórico do shell o guarda | MENOR | ecf077cc |
+| S23 | `VERSO_TRUSTED_PROXY=127.0.0.1` acredita em todo programa local que se conecta à porta, não só no proxy | MENOR | 19ab906e: documentado, com uma regra que deixa a porta só para o usuário do proxy (não rodada) |
+| S24 | As sobras do primeiro admin: o link de configuração continua legível no journal, e nada dizia para tirar a senha do admin do ambiente depois que o admin existe | MENOR | 19ab906e: os próximos passos da instalação, o guia e a nota do compose dizem as duas coisas |
+| S25 | Um editor podia mudar as regras da varredura, e o nome da nota de pasta, pelos ajustes da pasta, embora só o dono as defina nos outros caminhos | MENOR | 38a47289; 3ff9c2b4 (decidido em 2026-10-14) |
+
+Não é achado da revisão, fechado na mesma rodada: a página de aparelhos
+parava num 429 sem nada com que tentar de novo, depois que um endereço
+usava as tentativas livres (716d6a12: ela espera os segundos e pergunta
+de novo sozinha, dez vezes no máximo).
+
+O que ela achou sólido: tokens de sessão de 256 bits, guardados como
+SHA-256 e novos a cada entrada, sob `HttpOnly`, `Lax`, e `Secure` e
+`__Host-` em HTTPS, com o token CSRF comparado em tempo constante; links
+de senha nova, convite e configuração de uso único, com validade, a senha
+nova presa à conta dela; tokens de acesso limitados às pastas deles e a
+ler ou escrever, nunca as páginas da própria pessoa nem as rotas do
+admin, revogados por uma redefinição, os WebSockets deles conferidos de
+novo antes de cada comando; papéis conferidos no REST, no WebSocket, no
+`/f/` e no sync, o escopo de um compartilhamento nos argumentos e nos
+envios dele (fora o S2 e o S3), o último dono e o último admin mantidos;
+o confinamento de caminhos e o percurso dos symlinks, arquivos
+temporários criados novos, uma pasta `0750` e o banco `0600`; o percurso
+do proxy a partir da direita; destinatários de e-mail tirados de
+endereços guardados, com assuntos fixos, e a checagem de versão num
+endereço fixo, sem redirecionamento; nenhum segredo no log além do link de
+configuração; nenhum ponto de inserção de HTML na janela fora do
+`sanitize.ts`, nenhum handler de `message`, `open_url` só para http(s); o
+endurecimento da unidade do systemd e do arquivo compose. Ela julgou
+sólida a borda do servidor e apontou os três achados BLOQUEANTES como
+vazamentos entre pessoas que compartilham uma pasta, nenhum aberto a um
+estranho; o pentest do item 16 por uma pessoa de fora do projeto
+continua, como ela disse, para essa classe.

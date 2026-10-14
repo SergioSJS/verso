@@ -569,15 +569,19 @@ mantenedor confirmar.
 
 **Item 6** (40de8b5, 1d7c4e4). A sessão guarda `proved_at` (schema 9),
 carimbado por toda criação de sessão — um sign-in por senha, passkey ou
-link de e-mail, uma redefinição, um convite, a aprovação de um aparelho.
+link de e-mail, uma redefinição, um convite, e até o 463ed1ad a aprovação
+de um aparelho: a sessão de um aparelho nasce sem prova desde então (o S7
+da segunda revisão, abaixo).
 `POST /api/me/prove` por senha passa pelas chaves, pela vez, pelo hash e
 pela recusa do próprio sign-in (itens 1 e 2) e responde 403
 `signin_failed`; por passkey, `POST /api/me/prove/passkey` inicia a
 cerimônia. Exigem a prova além da lista da Decisão: a troca de senha, o
 link de redefinição que o admin faz para outra conta, um dono dando ou
 mudando o papel de um membro (`folders::set_member`) e o papel de um
-compartilhamento (`shares::grant`). Ficam sem a prova: convites, criar
-contas, adotar uma pasta, cotas, a lixeira, remover um membro. A janela
+compartilhamento (`shares::grant`). Ficam sem a prova: um convite sem pasta
+nem compartilhamento — um que leve um dos dois exige a prova desde o
+3d79d9ad (o S6 da segunda revisão) —, criar contas, adotar uma pasta,
+cotas, a lixeira, remover um membro. A janela
 pergunta na hora por `web/proof.ts` e `web/proveDialog.ts` e tenta de
 novo uma vez. Um pedido com um token de acesso pessoal responde 403 "not
 with an access token".
@@ -734,6 +738,27 @@ bloqueando: uma nota e um board compartilhados editados pelo app desktop
 ao lado de outra janela (a ordem do (e)), o diálogo do item 6 com senha e
 com passkey, o código digitado do item 17, o Mermaid 12.2.0 (item 13) e
 os passos do Caddy do `universo.sh` ao lado de outro site (7755802).
+
+**A segunda revisão (2026-10-13).** Na noite de 2026-10-13, depois de
+construídos os itens 1 a 17, uma sessão de Opus 5.5 que não escreveu nada
+do código leu o servidor de novo no e699b57, só lendo, supondo um
+atacante que leu o código público: 25 achados, nenhum repetindo F1 a F23
+— três BLOQUEANTES, todos vazamentos entre pessoas que compartilham uma
+pasta, doze IMPORTANTES e dez MENORES. O
+[`security-review-2026-10-13.md`](../reference/security-review-2026-10-13.md),
+seção 10, os lista como S1 a S25, com o que fechou cada um. Os 25 foram
+fechados nesta rodada, nos merges de sec/shares (c816ca5b), sec/pkg
+(af554af2), sec/bounds (39181303) e sec/auth2 (83066f61), e nas decisões
+do mantenedor abaixo, trazidas de sec/decided (c2454064). Duas das
+correções mudam o contrato. O 0e9175de acrescenta `ErrorKind::ProveFirst`, que o host dá
+para um 403 `prove_first` do servidor, e o comando do host
+`server_prove`, que manda a senha ao `/api/me/prove` do servidor da
+janela com o bearer do aparelho. O 3e39e23c remove as rotas de aparelho
+que pegavam o código do caminho (`GET`, `POST` e
+`DELETE /api/device/{code}`), de modo que um endereço sob `/api/` que
+nenhuma rota nomeia responde 404 em vez da página, e acrescenta o comando
+do host `server_sign_in_page`, que abre, uma vez, a página que o servidor
+nomeou, depois que o app copiou o código.
 
 **As decisões do mantenedor de 2026-10-14.** Quatro pontos deixados pela
 segunda revisão de entrada e acesso, enviados com uma recomendação cada,

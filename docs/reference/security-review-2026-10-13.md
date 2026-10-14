@@ -754,3 +754,86 @@ desktop's, not the server's), the Excalidraw bundle's handling of a
 hostile board beyond its link normalizer, the Windows build of the device
 token's file (gap 17). Not measured: the numbers of section 2.5 on the
 1 GB host.
+
+## 10. The second review (2026-10-13, night)
+
+- Date: the night of 2026-10-13, after ADR 0083's items 1 to 17 were
+  built.
+- Made by Opus 5.5 in a read-only session that took no part in writing
+  the code it read, with two helper sessions of its own for the window's
+  code and the packaging, whose main claims it checked again in the code.
+  The server's code of this round was written by Opus 5.5 sessions too:
+  this is a reading by another session, not the other model's reading of
+  [ADR 0032](../adr/0032-author-and-reviewer-roles.md).
+- Against e699b57 of `docs/security-hardening`. Closed in the merges of
+  sec/shares (c816ca5b), sec/pkg (af554af2), sec/bounds (39181303) and
+  sec/auth2 (83066f61) into that branch, and in the maintainer's
+  decisions of 2026-10-14, merged from sec/decided (c2454064; ADR 0083,
+  As built).
+
+The review assumed an attacker who has read the public source. It read
+the code area by area — sign-in and sessions, authorization and sharing,
+paths and files, input handling and bounds, outbound requests, the
+window's code outside the sanitizer, the packaging — and asked of each
+check what input or sequence gets past it, what it trusts that it should
+not, and what happens at the limits: empty, huge, malformed, concurrent,
+repeated, out of order, after a restart. It did not repeat F1 to F23.
+Nothing was built, edited or run against a server; one helper ran the
+logic of the sign-in page's `next()` in node to confirm S8. Each finding
+came with a fix and a test to write. Each fix's commit names the test
+that holds it, most of them seen failing first. The levels are
+[ADR 0033](../adr/0033-pr-workflow.md)'s, as in section 1.
+
+| # | Finding | Level | Closed by |
+|---|---|---|---|
+| S1 | An invitation to a share, accepted after the share was removed, granted the whole folder the share was in: the foreign key's `ON DELETE SET NULL` erased the share it named, and acceptance took the whole folder's branch | BLOCKING | b90587cd: an invitation records what it was made for (schema 10); one whose share is gone is not pending and grants nothing; removing a share ends its pending invitations |
+| S2 | A note read, written or made through a share carried its type resolved over the owner's whole folder: the path of a schema outside the share, with its labels and properties, reached the receiver ([ADR 0081](../adr/0081-sharing-between-people-on-one-universo.md) item 11) | BLOCKING | 4f5e1e30: the type resolved over the share's roots alone; `answer_out` re-roots a type's schema paths and drops a type that names one outside |
+| S3 | `links` through a share answered a link resolving outside it unlike a link resolving nowhere: a receiver who writes links learned whether a note of a given name existed outside (ADR 0081 item 11); the review noted it might deserve a lower level | BLOCKING | 6ac42757: both answer `outside: true`; the window says the same words for both |
+| S4 | Argon2id had no bound on how many ran at once — some 19 MiB each, up to the runtime's 512 blocking threads, so a burst of sign-ins from one address could take the 1 GB host's memory — and the per-account delay was read before the hash and written after it, so wrong passwords sent together all passed it | IMPORTANT | 8d3982b3: two places per core (two at least), 503 past a 5 s wait; one attempt in flight per sign-in key, 429 past 10 s |
+| S5 | Memory per request: `/f/` and the text reads held a whole file, and an escaped copy, in memory; answers were outside the queue's byte budget; every message, up to 48 MB, was parsed before the role check, 8 per connection; a note room had no total size, and one window could join every note | IMPORTANT | 74bf5b51 (`/f/` sent 256 KiB at a time, a single `Range`); 9868eb00, moved to the server alone by 68745a92 (a text 16 MB at most); f7917083 (a size per command, read before the parse; 128 MB shared by the messages and answers above 1 MB); 5274f9d4 (a note room 64 MB, a window in 64 rooms) |
+| S6 | The admin's invitation could carry a folder or a share, with any role up to owner, without the fresh proof that entering a folder asks for | IMPORTANT | 3d79d9ad: gated whenever the body names a folder or a share |
+| S7 | A device's session was born proved: for ten minutes after its approval the app's bearer passed every sensitive route, an admin's included, on the proof made in the browser; and a link carrying a code led to a one-click approval | IMPORTANT | 463ed1ad (born unproved); 0e9175de (the desktop app proves with the password when its server asks); 3e39e23c (approval only with the code entered from the app's screen, decided 2026-10-14) |
+| S8 | Sign-in's `next` checked the parsed address's origin but returned its path, which can read as another host (`/.//host/`): after a real sign-in the browser left the server | IMPORTANT | 307a648d: the path read again against the page's origin; anything else goes to `/` |
+| S9 | Listening on loopback made a request secure whatever a trusted proxy on the same machine said: through a proxy forwarding `X-Forwarded-Proto: http`, sign-ins and their cookie crossed over plain HTTP | IMPORTANT | e1e4629b: through a trusted proxy, `X-Forwarded-Proto` alone decides |
+| S10 | A proxy on the same machine left out of `VERSO_TRUSTED_PROXY` made every visitor `127.0.0.1` without a word: one key for every delay, and none paced | IMPORTANT | 1a33435e: two `WARN` lines that say what to set |
+| S11 | Connections through a trusted proxy counted only against the server's 512, and a body could trickle for 60 s: one client behind the proxy could hold every place | IMPORTANT | 33574fe5: 32 requests in flight per walked address, a body within 10 s |
+| S12 | Uploads started together were each judged against a folder's quota at their first piece, with nothing reserved: together they passed it on disk | IMPORTANT | eff8dd87: a write under way holds its room in the quota until it lands or is dropped |
+| S13 | `universo.sh restore` extracted whatever the archive held, as root, onto `/`: a backup kept where someone else could replace it could carry a file outside the backup's own paths, a link or a set-id file | IMPORTANT | 6dd0d265: the backup listed first and refused whole, nothing written, unless every entry is a plain file or a directory under its own paths |
+| S14 | `backup --encrypt` or `--passphrase` without `age` made the plain tarball in its place, and with `--to-stdout` streamed it before the warning | IMPORTANT | a60ccac2: it stops and writes nothing (decided 2026-10-14) |
+| S15 | The Docker recipe's fail2ban jail matched lines by a journal field any local program can write; the filter took any prefix, so a line naming `0.0.0.0/0` would have banned every address; the jail named no port, so a ban closed SSH too | IMPORTANT | 270ff4ad: `_SYSTEMD_UNIT` in the match, an IPv4 address or an IPv6 /64 only, http and https only |
+| S16 | A sign-in to an account the admin had made, with no password set yet, answered without a hash: its time told that such an account exists | MINOR | ab59886d |
+| S17 | Collab rooms were keyed by the path as sent: `./n.md` and `n.md` were two rooms for one file, each writing over the other's edits | MINOR | d12036a4: keyed by the confined path |
+| S18 | The maps of device codes, sign-in links and passkey ceremonies (10 000 each, the oldest tenth evicted) could be churned from many addresses, pushing out a person's ceremony under way | MINOR | 91e3e0af: 8 entries per address in each; many addresses still fill a map, at a higher cost |
+| S19 | A device's name kept bidi and zero-width characters and was said inside the approval page's sentence, where it could reverse or hide the words around it | MINOR | fa44fb19, 0768690d (the joiner of an emoji kept), b5a5bc2f (a `<bdi>` in the session lists too) |
+| S20 | The page of an e-mail's sign-in link used it on load: a link someone else sent, for their own account, signed the reader in to it with no click and no name (login CSRF by mail) | MINOR | 5af9de2c: the page names the account and waits for a click |
+| S21 | A browser kept one account's window settings after sign-out, approved embed origins among them; the next account started with them and saved them as its own | MINOR | 6df0727f: the settings carry their owner; sign-out forgets them |
+| S22 | Package hygiene: the token's header file born `0644`; a missing signature falling back to the checksum silently; a backup's name from the clock alone, and its "inside what it copies" check comparing strings; no advice for the restore's identity file; the token typed where the shell's history keeps it | MINOR | ecf077cc |
+| S23 | `VERSO_TRUSTED_PROXY=127.0.0.1` believes every local program that connects to the port, not only the proxy | MINOR | 19ab906e: documented, with a rule that keeps the port to the proxy's user (not run) |
+| S24 | The first admin's leftovers: the setup link stays readable in the journal, and nothing said to remove the admin's password from the environment once the admin exists | MINOR | 19ab906e: the install's next steps, the guide and the compose note say both |
+| S25 | An editor could change the walk's rules, and the folder note's name, through the folder's settings, though the owner alone sets them elsewhere | MINOR | 38a47289; 3ff9c2b4 (decided 2026-10-14) |
+
+Not a finding of the review, closed in the same round: the device page
+stopped on a 429 with nothing to try again with, once an address had
+used its free tries (716d6a12: it waits the seconds and asks again by
+itself, ten times at most).
+
+What it found sound: session tokens of 256 bits, kept as SHA-256 and new
+at every sign-in, under `HttpOnly`, `Lax`, and `Secure` and `__Host-`
+over HTTPS, with the CSRF token compared in constant time; reset,
+invitation and setup links single-use, with an expiry, a reset bound to
+its account; access tokens scoped to their folders and to reading or
+writing, never the person's own pages or the admin's routes, revoked by
+a reset, their WebSockets checked again before every command; roles
+checked on REST, the WebSocket, `/f/` and sync, a share's scope on its
+arguments and its pushes (S2 and S3 apart), the last owner and the last
+admin kept; path confinement and the symlink walk, temporary files made
+new, a folder `0750` and the database `0600`; the proxy walk from the
+right; mail recipients from stored addresses with fixed subjects, and
+the update check at a fixed address with no redirect; no secret in the
+log but the setup link; no HTML sink in the window outside
+`sanitize.ts`, no `message` handler, `open_url` for http(s) only; the
+systemd unit's and the compose file's hardening. It judged the server's
+edge solid and named the three BLOCKING findings as leaks between
+people sharing a folder, none of them open to a stranger; item 16's
+pentest by a person outside the project stays, as it said, for that
+class.

@@ -553,15 +553,18 @@ confirm.
 
 **Item 6** (40de8b5, 1d7c4e4). The session keeps `proved_at` (schema 9),
 stamped by every session's creation — a sign-in by password, passkey or
-e-mail link, a reset, an invitation, a device's approval.
+e-mail link, a reset, an invitation, and until 463ed1ad a device's
+approval: a device's session is born unproved since (the second review's
+S7, below).
 `POST /api/me/prove` by password goes through the sign-in's own keys,
 turn, hash and refusal (items 1 and 2) and answers 403 `signin_failed`;
 by passkey, `POST /api/me/prove/passkey` starts the ceremony. Gated
 beyond the Decision's list: the password change, the admin's reset link
 for another account, an owner giving or changing a member's role
 (`folders::set_member`) and a share's role (`shares::grant`). Left
-ungated: invitations, creating accounts, adopting a folder, quotas, the
-trash, removing a member. The window asks on the spot through
+ungated: an invitation with no folder or share — one that carries either
+is gated since 3d79d9ad (the second review's S6) — creating accounts,
+adopting a folder, quotas, the trash, removing a member. The window asks on the spot through
 `web/proof.ts` and `web/proveDialog.ts` and retries once. A request with a
 personal access token answers 403 "not with an access token".
 
@@ -710,6 +713,26 @@ blocking: a shared note and board edited from the desktop app beside
 another window (the order of (e)), item 6's dialog with a password and a
 passkey, item 17's typed code, Mermaid 12.2.0 (item 13), and
 `universo.sh`'s Caddy steps beside another site (7755802).
+
+**The second review (2026-10-13).** On the night of 2026-10-13, after
+items 1 to 17 were built, an Opus 5.5 session that wrote none of the code
+read the server again at e699b57, read-only, assuming an attacker who has
+read the public source: 25 findings, none a repetition of F1 to F23 —
+three BLOCKING, all leaks between people sharing a folder, twelve
+IMPORTANT and ten MINOR. [`security-review-2026-10-13.md`](../reference/security-review-2026-10-13.md),
+section 10, lists them as S1 to S25, with what closed each. All 25 were
+closed in this round, in the merges of sec/shares (c816ca5b), sec/pkg
+(af554af2), sec/bounds (39181303) and sec/auth2 (83066f61), and in the
+maintainer's decisions below, merged from sec/decided (c2454064). Two
+of the fixes change the contract. 0e9175de adds `ErrorKind::ProveFirst`, which the
+host gives for a server's 403 `prove_first`, and the host command
+`server_prove`, which sends the password to the window's server's
+`/api/me/prove` with the device's bearer. 3e39e23c removes the device
+routes that took the code from the path (`GET`, `POST` and
+`DELETE /api/device/{code}`), so that an address under `/api/` that no
+route names answers 404 instead of the page, and adds the host command
+`server_sign_in_page`, which opens, once, the page the server named,
+after the app has copied the code.
 
 **The maintainer's decisions of 2026-10-14.** Four points left by the
 second review of sign-in and access, sent with a recommendation each,
