@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.39
+# Spec do dialeto do Verso — v0.40
 
-- Versão: v0.39 · 2026-10-14
+- Versão: v0.40 · 2026-10-14
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -68,6 +68,7 @@ fixtures). Fixture que não segue o schema é inválida.
 | `callouts` | lista, em ordem de documento | não afirmado |
 | `property_links` | lista dos links que as propriedades do frontmatter guardam (Q10), na ordem escrita (§4.7) | não afirmado |
 | `schemas` | lista dos blocos cercados `verso-schema`, os aninhados inclusive, na ordem do documento (§4.8) | não afirmado |
+| `prose` | lista dos trechos de prosa da nota, na ordem do documento (§4.9) | não afirmado |
 | `observed` | como o comportamento foi verificado no Obsidian | ver 4.5 |
 | `source` | ADR ou questão que autoriza um comportamento próprio do Verso | ver 4.5 |
 
@@ -205,6 +206,29 @@ valor é `infobox`. Um valor que não cabe no seu tipo é mostrado como
 escrito e marcado (ADR 0052 ponto 6): um wikilink ou um caminho para uma
 nota não é uma imagem. A fixture rascunhada `fixtures/schema/infobox`
 aguarda a aprovação do mantenedor.
+
+### 4.9 Itens de `prose`
+
+Os trechos de texto que a Leitura mostra como palavras — onde o nome de
+uma nota escrito sem link é uma menção dela
+([ADR 0089](../adr/0089-linking-unlinked-mentions.md) item 1;
+`verso_dialect::prose`). É prosa o texto de um título, de um parágrafo, das
+células de uma tabela e o texto dentro de HTML inline; não é o
+frontmatter, código (inline ou cercado), um `%%comentário%%`, um wikilink,
+um embed, o rótulo de um link Markdown, matemática (inline ou em bloco), um
+bloco de HTML, uma `#tag` (as palavras em volta continuam prosa), nem uma
+entidade (`&amp;`), deixada de fora inteira porque os bytes dela não são o
+texto que ela representa. Pedaços de um trecho que se tocam são um item só.
+
+| Campo | Significado | Obrigatório |
+|---|---|---|
+| `text` | o trecho como escrito na fonte | sim |
+| `table` | `true` para um trecho numa célula de tabela, onde o `\|` de um link encerraria a célula; ausente afirma fora de tabela | para um trecho em tabela |
+| `pos` | posição do primeiro caractere do trecho (4.4) | quando a fixture testa posição |
+
+Acrescentado em 2026-10-14 pela resposta M6 do mantenedor (*"Sim,
+todas"*), com a fixture rascunhada `fixtures/prose/what-is-prose`, que
+aguarda aprovação.
 
 ---
 
@@ -1395,3 +1419,4 @@ ser escolhido.
 | v0.37 | 2026-10-12 | O lado da criação da Q8 `DECIDIDO` pelo mantenedor em sessão (*"Todos aprovados"*, como recomendado): um nome novo que só difere em maiúsculas e minúsculas de uma entrada da pasta dele é recusado quando o Verso o cria ou renomeia, em todo sistema e no servidor (ADR 0070 item 3, revisado). A Q8 em si, a caixa na resolução de nome, continua `[ABERTO]`. Sem fixture: nomes criados, não o dialeto. |
 | v0.38 | 2026-10-14 | **Q9 `DECIDIDO`** pelo mantenedor, aceitando o ADR 0087 e o item 8 dele (*"Sim, todas"*): a visibilidade por bloco é um callout do tipo `secret`, um callout no arquivo, servido por um UniVerso aos leitores como uma projeção sem ele; a §5.8 e a linha da §6 revisadas. Sem fixture: a fixture da Q9 vem com o PR que constrói o ADR 0087, para a aprovação do mantenedor. |
 | v0.39 | 2026-10-14 | O [ADR 0086](../adr/0086-infobox-a-typed-notes-card.md), aceito no mesmo dia, implementado: os tipos `link` e `image` de um schema e o seu `layout` de topo (`infobox`) entram na §4.8, na §6 e no formato da Q11; a fixture `fixtures/schema/infobox` rascunhada, aguardando a aprovação do mantenedor. A fixture aprovada `fixtures/schema/nested-and-invalid` escreve `kind: link` como o seu tipo desconhecido, o que `link` deixou de ser: a entrada dela espera o mantenedor (invariantes 14 e 16). Nenhuma questão fechada. |
+| v0.40 | 2026-10-14 | O schema ganha `prose` (§4.1, §4.9): os trechos de prosa do [ADR 0089](../adr/0089-linking-unlinked-mentions.md) item 1, onde as menções são procuradas, pela resposta M6 do mantenedor (*"Sim, todas"*); a fixture `fixtures/prose/what-is-prose` rascunhada, aguardando a aprovação do mantenedor. Nenhuma questão fechada. |

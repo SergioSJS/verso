@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.39
+# Verso dialect spec — v0.40
 
-- Version: v0.39 · 2026-10-14
+- Version: v0.40 · 2026-10-14
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -69,6 +69,7 @@ does not follow the schema is invalid.
 | `callouts` | list, in document order | not asserted |
 | `property_links` | list of the links frontmatter properties hold (Q10), in the order written (§4.7) | not asserted |
 | `schemas` | list of the fenced `verso-schema` blocks, nested ones included, in document order (§4.8) | not asserted |
+| `prose` | list of the note's runs of prose, in document order (§4.9) | not asserted |
 | `observed` | how the behavior was verified in Obsidian | see 4.5 |
 | `source` | ADR or question that authorizes a behavior that is Verso's own | see 4.5 |
 
@@ -206,6 +207,28 @@ folder, a path of the folder ending in a picture's extension, or an
 marked (ADR 0052 point 6): a wikilink or a path to a note is not a
 picture. The drafted fixture `fixtures/schema/infobox` awaits the
 maintainer's approval.
+
+### 4.9 Items of `prose`
+
+The runs of text the reading view shows as words — where a note's name
+written plainly is an unlinked mention of it
+([ADR 0089](../adr/0089-linking-unlinked-mentions.md) item 1;
+`verso_dialect::prose`). Prose is a heading's text, a paragraph's, a
+table's cells and the text inside inline HTML; it is not the frontmatter,
+code (inline or fenced), a `%%comment%%`, a wikilink, an embed, a Markdown
+link's label, math (inline or block), an HTML block, a `#tag` (the words
+around it stay prose), nor an entity (`&amp;`), left out whole because its
+bytes are not the text it stands for. Pieces of one run that touch are one
+item.
+
+| Field | Meaning | Required |
+|---|---|---|
+| `text` | the run as written in the source | yes |
+| `table` | `true` for a run in a table's cell, where a link's `\|` would end the cell; absent asserts outside a table | for a run in a table |
+| `pos` | position of the run's first character (4.4) | when the fixture tests position |
+
+Added on 2026-10-14 by the maintainer's answer M6 (*"Sim, todas"*), with
+the drafted fixture `fixtures/prose/what-is-prose`, awaiting approval.
 
 ---
 
@@ -1375,3 +1398,4 @@ the parser was chosen.
 | v0.37 | 2026-10-12 | Q8's creation side `DECIDED` by the maintainer in session (*"Todos aprovados"*, as recommended): a new name differing only in case from an entry of its folder is refused when Verso makes or renames it, on every OS and on the server (ADR 0070 item 3, revised). Q8 itself, case in name resolution, stays `[OPEN]`. No fixture: names made, not the dialect. |
 | v0.38 | 2026-10-14 | **Q9 `DECIDED`** by the maintainer, accepting ADR 0087 and its item 8 (*"Sim, todas"*): per-block visibility is a callout of kind `secret`, a callout in the file, served by a UniVerso to readers as a projection without it; §5.8 and §6's row revised. No fixture: the fixture of Q9 comes with the PR that builds ADR 0087, for the maintainer's approval. |
 | v0.39 | 2026-10-14 | [ADR 0086](../adr/0086-infobox-a-typed-notes-card.md), accepted the same day, implemented: a schema's kinds `link` and `image` and its top-level `layout` (`infobox`) enter §4.8, §6 and Q11's format; the fixture `fixtures/schema/infobox` drafted, awaiting the maintainer's approval. The approved fixture `fixtures/schema/nested-and-invalid` writes `kind: link` as its unknown kind, which `link` no longer is: its input waits for the maintainer (invariants 14 and 16). No question closed. |
+| v0.40 | 2026-10-14 | The schema gains `prose` (§4.1, §4.9): the runs of prose of [ADR 0089](../adr/0089-linking-unlinked-mentions.md) item 1, what the mentions are looked for in, by the maintainer's answer M6 (*"Sim, todas"*); the fixture `fixtures/prose/what-is-prose` drafted, awaiting the maintainer's approval. No question closed. |

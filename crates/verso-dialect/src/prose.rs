@@ -7,9 +7,9 @@
 //! item 1). One rule, from the same passes as the reader and the tags, so
 //! that a mention is never found where the reading view shows no words —
 //! in the frontmatter, in code, in a `%%comment%%`, inside a link or an
-//! embed, in math or raw HTML — nor inside a `#tag`. Not part of the
-//! fixture contract, as [`crate::body_tags`] is not: it reports where, and
-//! changes nothing about what any construct is.
+//! embed, in math or raw HTML — nor inside a `#tag`. Part of the fixture
+//! contract since 2026-10-14 (spec §4.9, the maintainer's answer M6): it
+//! reports where, and changes nothing about what any construct is.
 
 use pulldown_cmark::{Event, Tag, TagEnd};
 
