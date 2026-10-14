@@ -21,8 +21,15 @@
 # directories laid out as the package leaves them — without age first (the
 # plain tarball and its warning), then with age: a throw-away key made by
 # `backup --keygen`, an encrypted backup, a restore into a scratch root
-# compared file by file, mode and owner with the original. `--script` runs
-# that test alone.
+# compared file by file, mode and owner with the original; a restore over
+# / that gives a changed note back, and backups holding something a backup
+# never holds (another path, a link, a set-id file, an absolute name)
+# refused with nothing written; a backup beside links planted at the
+# names the clock gives, and a directory inside the data through `..` or a
+# link, refused; the GitHub token's header file never open to others; a
+# package with no signature refused unless --no-signature; the next steps
+# saying the setup link stays in the journal and the password is to be
+# removed. `--script` runs that test alone.
 #
 # Last, the server's packaging (ADR 0083 item 11): scripts/check-server-
 # image.sh builds the static musl server in a container of this machine's
@@ -76,6 +83,60 @@ if [ "${1:-}" = "--universo-sh" ]; then
   if $u backup --keygen >/dev/null 2>&1; then fail "--keygen without age"; fi
   if echo nope | $u restore "$plain" >/dev/null 2>&1; then fail "a restore over / not confirmed went ahead"; fi
 
+  printf '\n== restore over /, confirmed: a changed note comes back\n'
+  snapshot / > /tmp/before
+  printf 'mudou\n' > '/var/lib/universo/folders/Campanha/Sessão 1.md'
+  echo /var/lib/universo | $u restore "$plain" >/dev/null || fail "a confirmed restore over /"
+  snapshot / > /tmp/after
+  diff -u /tmp/before /tmp/after || fail "the restore over / did not give the backup back"
+
+  printf '\n== a backup holding more than its own paths is refused, and nothing is written\n'
+  # Each made from the good backup, plus one thing a backup never holds.
+  evil() { rm -rf /tmp/evil && mkdir /tmp/evil && tar -xzpf "$plain" -C /tmp/evil; }
+  evil; mkdir -p /tmp/evil/etc/cron.d && printf '* * * * * root touch /pwned\n' > /tmp/evil/etc/cron.d/x
+  tar -czpf /tmp/bad-cron.tar.gz -C /tmp/evil var/lib/universo etc/universo etc/cron.d/x
+  evil; ln -s /etc /tmp/evil/var/lib/universo/folders/Campanha/etc
+  tar -czpf /tmp/bad-link.tar.gz -C /tmp/evil var/lib/universo etc/universo
+  evil; cp /bin/true /tmp/evil/var/lib/universo/folders/Campanha/run
+  chmod 4755 /tmp/evil/var/lib/universo/folders/Campanha/run
+  tar -czpf /tmp/bad-setid.tar.gz -C /tmp/evil var/lib/universo etc/universo
+  evil; mkdir -p /tmp/abs-src && printf 'x\n' > /tmp/abs-src/y
+  tar -czpPf /tmp/bad-abs.tar.gz -C /tmp/evil var/lib/universo etc/universo /tmp/abs-src/y
+  rm -rf /tmp/abs-src
+  for bad in cron link setid abs; do
+    if $u restore "/tmp/bad-$bad.tar.gz" --to "/r-bad-$bad" >/tmp/bad.out 2>&1; then
+      fail "the $bad backup was unpacked into a scratch root: $(cat /tmp/bad.out)"
+    fi
+    [ ! -e "/r-bad-$bad" ] || [ -z "$(ls -A "/r-bad-$bad")" ] || fail "the refused $bad backup wrote into /r-bad-$bad"
+    if echo /var/lib/universo | $u restore "/tmp/bad-$bad.tar.gz" >/tmp/bad.out 2>&1; then
+      fail "the $bad backup was restored over /: $(cat /tmp/bad.out)"
+    fi
+    grep -i 'refus' /tmp/bad.out || fail "the $bad backup's refusal does not say so: $(cat /tmp/bad.out)"
+  done
+  [ ! -e /etc/cron.d/x ] && [ ! -e /tmp/abs-src ] || fail "a refused backup wrote outside its paths"
+  [ ! -L /var/lib/universo/folders/Campanha/etc ] || fail "a refused backup's link was written"
+  [ ! -e /var/lib/universo/folders/Campanha/run ] || fail "a refused backup's set-id file was written"
+  snapshot / > /tmp/after
+  diff -u /tmp/before /tmp/after || fail "a refused backup changed the server"
+
+  printf '\n== a backup is written under a name no one can guess, never inside what it copies\n'
+  # Links planted at the names a backup took from the clock alone.
+  mkdir -p /shared && printf 'original\n' > /etc/victim
+  for i in 0 1 2 3 4 5 6 7 8 9; do
+    ln -s /etc/victim "/shared/universo-backup-$(date -d "+$i sec" +%Y%m%d-%H%M%S).tar.gz"
+  done
+  $u backup /shared >/dev/null 2>&1 || fail "a backup beside planted links"
+  [ "$(cat /etc/victim)" = original ] || fail "a backup wrote through a planted link"
+  ls /shared/universo-backup-*-??????.tar.gz >/dev/null 2>&1 || fail "the backup's name has no random part"
+  rm -rf /shared /etc/victim
+  ln -s /var/lib/universo /inside
+  for d in /var/lib/x/../universo/bk /inside/bk /etc/universo/./bk; do
+    if $u backup "$d" >/tmp/inside.out 2>&1; then fail "a backup went inside what it copies: $d"; fi
+    grep -q 'cannot go inside' /tmp/inside.out || fail "$d refused for another reason: $(cat /tmp/inside.out)"
+  done
+  [ ! -e /var/lib/universo/bk ] || fail "a refused backup left a directory inside the data"
+  rm -f /inside
+
   printf '\n== age installed; --keygen keeps the public key and prints the secret one only\n'
   apt-get install -y -qq age >/dev/null
   $u backup --keygen > /elsewhere/key.txt 2>/tmp/keygen.err || fail "--keygen: $(cat /tmp/keygen.err)"
@@ -108,6 +169,50 @@ if [ "${1:-}" = "--universo-sh" ]; then
   $u backup --to-stdout 2>/dev/null > /elsewhere/clear.tar.gz || fail "--to-stdout in the clear"
   tar -tzf /elsewhere/clear.tar.gz > /tmp/listed || fail "--to-stdout gave no tarball"
   grep -q '^etc/universo/backup.pub$' /tmp/listed || fail "--to-stdout's tarball lacks the settings"
+
+  printf '\n== the token header is never open to others; a missing signature stops the install\n'
+  cat > /tmp/hdr-test.sh <<'EOF'
+. /src/packaging/server/universo.sh
+umask 022
+TMPD=$(mktemp -d)
+# Every mode the header file has when chmod or curl sees it.
+chmod() { [ -e "$2" ] && stat -c '%a' "$2" >> /tmp/hdr-modes; command chmod "$@"; }
+curl() { for a in "$@"; do case "$a" in @*) stat -c '%a' "${a#@}" >> /tmp/hdr-modes ;; esac; done; printf 200; }
+GITHUB_TOKEN=github_pat_test gh_get https://api.github.com/x /tmp/hdr-out >/dev/null
+EOF
+  rm -f /tmp/hdr-modes
+  UNIVERSO_SH_FUNCTIONS=1 sh /tmp/hdr-test.sh || fail "gh_get with a stub curl"
+  [ -s /tmp/hdr-modes ] || fail "curl never saw the header file"
+  if grep -qv '^600$' /tmp/hdr-modes; then fail "the token's header file was open to others: $(tr '\n' ' ' < /tmp/hdr-modes)"; fi
+  UNIVERSO_SH_FUNCTIONS=1 sh -c '. /src/packaging/server/universo.sh; token_help' > /tmp/token-help 2>&1
+  if grep -q 'export GITHUB_TOKEN=' /tmp/token-help; then fail "the token is to be typed where the shell's history keeps it"; fi
+  grep -q 'read -rs GITHUB_TOKEN' /tmp/token-help || fail "no hidden way to give the token"
+  # A package with a published checksum but no signature.
+  verify_with() {
+    UNIVERSO_SH_FUNCTIONS=1 sh -c '. /src/packaging/server/universo.sh
+      TMPD=$(mktemp -d); PKG=/tmp/universo-0.0.0-amd64.deb; printf x > "$PKG"
+      SIG=; DIGEST="sha256:$(sha256sum "$PKG" | cut -d" " -f1)"; INSECURE=0; NOSIG=$1
+      verify' sh "$1"
+  }
+  if verify_with 0 > /tmp/verify.out 2>&1; then fail "a package with no signature was taken on its checksum alone: $(cat /tmp/verify.out)"; fi
+  grep -q -- '--no-signature' /tmp/verify.out || fail "the refusal does not name --no-signature: $(cat /tmp/verify.out)"
+  verify_with 1 > /tmp/verify.out 2>&1 || fail "--no-signature with a good checksum: $(cat /tmp/verify.out)"
+  grep -q 'Checksum good' /tmp/verify.out || fail "--no-signature did not check the checksum: $(cat /tmp/verify.out)"
+  if $u update --no-signature 2>&1 | grep -q 'Unknown option'; then fail "update does not take --no-signature"; fi
+
+  printf '\n== the next steps say the setup link stays in the log, and the password is to be removed\n'
+  steps() {
+    printf 'VERSO_PUBLIC_URL=https://notes.example.com\n%s' "$1" > /tmp/next.env
+    UNIVERSO_SH_FUNCTIONS=1 sh -c '. /src/packaging/server/universo.sh; PM=deb; ENV_FILE=/tmp/next.env
+      journalctl() { echo "INFO open http://127.0.0.1:7340/setup?token=abc to make the first admin"; }
+      next_steps'
+  }
+  steps '' > /tmp/next.out 2>&1
+  grep -q 'setup?token=abc' /tmp/next.out || fail "no setup link in the next steps: $(cat /tmp/next.out)"
+  grep -q 'stays in the journal' /tmp/next.out || fail "the next steps do not say the link stays in the journal"
+  steps 'VERSO_ADMIN_EMAIL=you@example.com
+' > /tmp/next.out 2>&1
+  grep -q 'remove VERSO_ADMIN_PASSWORD' /tmp/next.out || fail "the next steps do not say to remove the password: $(cat /tmp/next.out)"
 
   printf '\n== the Caddy steps install prints, run beside another site (twice)\n'
   apt-get install -y -qq caddy >/dev/null

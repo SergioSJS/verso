@@ -77,7 +77,7 @@ Enquanto o repositório do Verso é privado, baixar uma release pede um
 token do GitHub; o script explica como criar quando ele falta:
 
 ```sh
-export GITHUB_TOKEN=github_pat_...
+read -rs GITHUB_TOKEN && export GITHUB_TOKEN   # cole o token, depois Enter
 LANG=pt_BR.UTF-8 sh universo.sh install --url https://notas.exemplo.com
 ```
 

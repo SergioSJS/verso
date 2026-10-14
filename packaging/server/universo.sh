@@ -54,12 +54,12 @@ universo.sh — instala e cuida do UniVerso, o servidor do Verso.
 Uso: sh universo.sh <comando> [opções]
 
 Comandos:
-  install [--version X] [--package ARQ] [--url https://notas.exemplo]
+  install [--version X] [--package ARQ] [--url https://notas.exemplo] [--no-signature]
       Baixa o pacote da release (a mais recente, sem --version) para esta
       arquitetura, confere a assinatura, instala com apt ou dnf, grava o
       endereço público em /etc/universo/universo.env, liga o serviço e diz
       o que fazer depois (o primeiro admin, HTTPS, as portas).
-  update [--version X] [--package ARQ]
+  update [--version X] [--package ARQ] [--no-signature]
       Baixa, confere e instala por cima; configurações e dados ficam.
   uninstall [--purge]
       Remove o pacote. Com --purge também /var/lib/universo, /etc/universo
@@ -93,6 +93,9 @@ Opções:
   --version X       Uma release em vez da mais recente (0.7.0 ou v0.7.0).
   --package ARQ     Um .deb ou .rpm já baixado; ARQ.sig ao lado é conferido.
   --url URL         O endereço que as pessoas digitam no navegador.
+  --no-signature    Sem o .sig da release, confia no sha256 que o GitHub
+                    publicou (prova o arquivo, não quem o fez). Sem esta
+                    opção, uma assinatura faltando é um erro.
   --insecure-no-verify
                     Instala sem conferir assinatura nem checksum. Perigoso.
 
@@ -108,13 +111,13 @@ universo.sh — installs and looks after UniVerso, the Verso server.
 Usage: sh universo.sh <command> [options]
 
 Commands:
-  install [--version X] [--package FILE] [--url https://notes.example]
+  install [--version X] [--package FILE] [--url https://notes.example] [--no-signature]
       Downloads the release's package (the latest, without --version) for
       this architecture, checks its signature, installs it with apt or
       dnf, writes the public address into /etc/universo/universo.env,
       starts the service and says what to do next (the first admin,
       HTTPS, the ports).
-  update [--version X] [--package FILE]
+  update [--version X] [--package FILE] [--no-signature]
       Downloads, checks and installs over it; settings and data are kept.
   uninstall [--purge]
       Removes the package. With --purge also /var/lib/universo,
@@ -150,6 +153,9 @@ Options:
   --package FILE    A .deb or .rpm already downloaded; FILE.sig beside it
                     is checked.
   --url URL         The address people type in the browser.
+  --no-signature    Without the release's .sig, relies on the sha256 GitHub
+                    published (it proves the file, not who made it).
+                    Without it, a missing signature is an error.
   --insecure-no-verify
                     Installs without checking a signature or checksum.
                     Dangerous.
@@ -329,7 +335,9 @@ token_help() {
      with an account that can see $REPO).
   2. Repository access: Only select repositories › $REPO.
      Permissions › Repository › Contents: Read-only. Generate.
-  3. On this machine:  export GITHUB_TOKEN=github_pat_...   then run again.
+  3. On this machine, in bash or zsh:  read -rs GITHUB_TOKEN && export GITHUB_TOKEN
+     paste the token and press Enter (it is not shown, nor kept in the
+     shell's history), then run again in the same shell.
 Or download the .deb/.rpm and its .sig from the release page yourself and
 use --package FILE." \
     "O repositório $REPO está privado por enquanto: baixar as releases pede um token do GitHub.
@@ -337,7 +345,9 @@ use --package FILE." \
      conta que vê o $REPO).
   2. Repository access: Only select repositories › $REPO.
      Permissions › Repository › Contents: Read-only. Generate.
-  3. Nesta máquina:  export GITHUB_TOKEN=github_pat_...   e rode de novo.
+  3. Nesta máquina, no bash ou no zsh:  read -rs GITHUB_TOKEN && export GITHUB_TOKEN
+     cole o token e tecle Enter (ele não aparece, nem fica no histórico do
+     shell), e rode de novo no mesmo shell.
 Ou baixe o .deb/.rpm e o .sig da página da release você mesmo e use
 --package ARQ." >&2
 }
@@ -345,10 +355,15 @@ Ou baixe o .deb/.rpm e o .sig da página da release você mesmo e use
 # gh_get URL OUT [ACCEPT]: a GitHub API request; the token, when given,
 # goes in a header file, never on the command line. Prints the HTTP code.
 gh_get() {
-  : > "$TMPD/hdr"
-  chmod 600 "$TMPD/hdr"
-  [ -n "${GITHUB_TOKEN:-}" ] && printf 'Authorization: Bearer %s\n' "$GITHUB_TOKEN" > "$TMPD/hdr"
-  printf 'Accept: %s\nX-GitHub-Api-Version: 2022-11-28\n' "${3:-application/vnd.github+json}" >> "$TMPD/hdr"
+  # Made 0600 from the start (umask 077), never open to others even empty:
+  # a file opened while readable stays readable to whoever opened it.
+  (
+    umask 077
+    {
+      [ -n "${GITHUB_TOKEN:-}" ] && printf 'Authorization: Bearer %s\n' "$GITHUB_TOKEN"
+      printf 'Accept: %s\nX-GitHub-Api-Version: 2022-11-28\n' "${3:-application/vnd.github+json}"
+    } > "$TMPD/hdr"
+  ) || die "Could not write into $TMPD." "Não foi possível gravar em $TMPD."
   curl -sS -L --proto '=https' --retry 3 -H @"$TMPD/hdr" -o "$2" -w '%{http_code}' "$1" 2>"$TMPD/curl.err" || {
     cat "$TMPD/curl.err" >&2
     die "Could not reach GitHub ($1). Check this machine's network and DNS." \
@@ -444,9 +459,15 @@ fetch_package() {
                            "O download falhou (HTTP $code). Rode de novo; se continuar, use --package."
   chmod 644 "$PKG"
   SIG=
+  SIG_WHY=$(t "the release has no $name.sig" "a release não tem $name.sig")
   if [ -n "$sigurl" ]; then
     code=$(gh_get "$sigurl" "$PKG.sig" application/octet-stream)
-    if [ "$code" = 200 ]; then SIG="$PKG.sig"; else rm -f "$PKG.sig"; fi
+    if [ "$code" = 200 ]; then
+      SIG="$PKG.sig"
+    else
+      rm -f "$PKG.sig"
+      SIG_WHY=$(t "downloading $name.sig failed (HTTP $code)" "o download de $name.sig falhou (HTTP $code)")
+    fi
   fi
 }
 
@@ -466,6 +487,7 @@ local_package() {
   fi
   SIG=
   [ -f "$1.sig" ] && SIG="$1.sig"
+  SIG_WHY=$(t "no $1.sig beside it" "nenhum $1.sig ao lado")
   DIGEST=
   TAG=
   step "Using the package $1." "Usando o pacote $1."
@@ -473,9 +495,16 @@ local_package() {
 
 # verify: the signature with minisign (Verso's release key, the signed
 # comment naming the file), else the sha256 GitHub published, else refuse
-# unless --insecure-no-verify.
+# unless --insecure-no-verify. A missing signature (none in the release,
+# its download failed, none beside --package) is an error, unless
+# --no-signature says the published sha256 is enough.
 verify() {
   name=$(basename "$PKG")
+  if [ -z "$SIG" ] && [ "$NOSIG" = 0 ] && [ "$INSECURE" = 0 ]; then
+    why=${SIG_WHY:-$(t "no $name.sig" "nenhum $name.sig")}
+    die "No signature to check $name with: $why. Run again (a download can fail), or put the release's $name.sig beside the package. To rely on the sha256 GitHub published instead — it proves the file is the one uploaded to the release, not who made it — pass --no-signature." \
+        "Nenhuma assinatura com que conferir $name: $why. Rode de novo (um download pode falhar), ou ponha o $name.sig da release ao lado do pacote. Para confiar no sha256 que o GitHub publicou — ele prova que o arquivo é o enviado à release, não quem o fez — passe --no-signature."
+  fi
   if [ -n "$SIG" ] && command -v minisign >/dev/null 2>&1; then
     step "Checking the signature with minisign and Verso's release key." \
          "Conferindo a assinatura com o minisign e a chave de release do Verso."
@@ -595,18 +624,26 @@ next_steps() {
   t "1. The first admin (section 9 of the guide)." "1. O primeiro admin (seção 9 do manual)."
   if [ -n "$admin" ]; then
     t "   It is $admin, with the password set in $ENV_FILE (VERSO_ADMIN_PASSWORD),
-   read on the first start only. Sign in, then remove the password from that file." \
+   read on the first start only. Sign in, then remove VERSO_ADMIN_PASSWORD from
+   that file: left there, it is the admin's first password in a file." \
       "   É $admin, com a senha definida no $ENV_FILE (VERSO_ADMIN_PASSWORD),
-   lida só na primeira partida. Entre, depois tire a senha desse arquivo."
+   lida só na primeira partida. Entre, depois tire o VERSO_ADMIN_PASSWORD desse
+   arquivo: deixado ali, é a primeira senha do admin num arquivo."
   elif [ -n "$link" ]; then
     t "   Open this link (valid for one hour, once) and make the admin's account:
      $link
    It was printed in the log (sudo journalctl -u universo). If the hour passes,
-   restart the service for a new one: sudo systemctl restart universo" \
+   restart the service for a new one: sudo systemctl restart universo
+   The link stays in the journal until the journal rotates it away, readable
+   by root and the adm and systemd-journal groups: use it now. Once the admin
+   exists, or past its hour, it opens nothing." \
       "   Abra este link (vale uma hora, uma vez) e crie a conta do admin:
      $link
    Ele saiu no log (sudo journalctl -u universo). Se a hora passar,
-   reinicie o serviço para ter outro: sudo systemctl restart universo"
+   reinicie o serviço para ter outro: sudo systemctl restart universo
+   O link fica no journal até o journal descartá-lo na rotação, legível pelo
+   root e pelos grupos adm e systemd-journal: use-o agora. Depois que o admin
+   existe, ou passada a hora, ele não abre nada."
     case "$link" in
       http://localhost*|http://127.0.0.1*) t "   From another computer, through SSH: ssh -L $port:127.0.0.1:$port <this machine>, then open the link there." \
                                              "   De outro computador, por SSH: ssh -L $port:127.0.0.1:$port <esta máquina>, e abra o link lá." ;;
@@ -907,10 +944,10 @@ is_age() {
   return 1
 }
 
-# age_enc [ARGS]: age, to the key in BACKUP_PUB or to a passphrase typed at
-# the terminal.
+# age_enc: standard input encrypted to standard output with age, to the
+# key in BACKUP_PUB or to a passphrase typed at the terminal.
 age_enc() {
-  if [ "$PASSPHRASE" = 1 ]; then age -p "$@"; else age -R "$BACKUP_PUB" "$@"; fi
+  if [ "$PASSPHRASE" = 1 ]; then age -p; else age -R "$BACKUP_PUB"; fi
 }
 
 # age_dec FILE: FILE decrypted to standard output, with the key file given
@@ -950,6 +987,67 @@ só naquela hora:
   key=
 }
 
+# backup_paths: what a backup holds, one path a line, relative to / (tar
+# -C /): the data root and the settings, plus each directory of the
+# settings that lies outside them. A restore takes nothing else back.
+backup_paths() {
+  printf '%s\n' "${DATA_ROOT#/}" "${ETC_DIR#/}"
+  for d in "$(env_get VERSO_DATA_DIR)" "$(env_get VERSO_FOLDERS_DIR)"; do
+    d=${d%/}
+    case "$d" in ''|"$DATA_ROOT"|"$DATA_ROOT"/*) ;; *) printf '%s\n' "${d#/}" ;; esac
+  done
+}
+
+# check_members TARBALL NAME: lists TARBALL and refuses it, NAME being the
+# backup's file, unless every entry is a directory or a plain file under
+# backup_paths: no absolute name, no "..", no link, no device or other
+# special file, no set-id bit. The names, as tar quotes them, go to
+# $TMPD/members, for tar -T to unquote.
+check_members() {
+  # The notes' names are root's only too.
+  (umask 077 && : > "$TMPD/listing" && : > "$TMPD/members" && : > "$TMPD/prefixes") \
+    || die "Could not write into $TMPD." "Não foi possível gravar em $TMPD."
+  LC_ALL=C tar -tvzf "$1" --numeric-owner > "$TMPD/listing" 2> "$TMPD/tar.err" || {
+    cat "$TMPD/tar.err" >&2
+    die "Could not read $2 (above): is it a backup made by universo.sh?" \
+        "Não foi possível ler $2 (acima): é um backup feito pelo universo.sh?"
+  }
+  backup_paths > "$TMPD/prefixes"
+  # A line of tar -tv: mode, owner, size, date, time, then the name (and
+  # " -> target" for a link, refused before its name is read).
+  bad=$(LC_ALL=C awk -v pf="$TMPD/prefixes" -v out="$TMPD/members" '
+    BEGIN { while ((getline p < pf) > 0) if (p != "") prefix[p] = 1; printf "" > out }
+    {
+      mode = $1; name = $0
+      for (i = 0; i < 4; i++) sub(/^[^ ]+ +/, "", name)
+      sub(/^[^ ]+ /, "", name)
+      t = substr(mode, 1, 1); why = ""
+      if (t != "-" && t != "d") why = "special"
+      else if (substr(mode, 4, 1) ~ /[sS]/ || substr(mode, 7, 1) ~ /[sS]/) why = "setid"
+      else if (name ~ /^\//) why = "absolute"
+      else if (name ~ /(^|\/)\.\.(\/|$)/) why = "dotdot"
+      else {
+        ok = 0
+        for (p in prefix) if (name == p || index(name, p "/") == 1) ok = 1
+        if (!ok) why = "outside"
+      }
+      if (why != "") { print why " " name; exit }
+      print name > out
+    }' "$TMPD/listing")
+  [ -n "$bad" ] || return 0
+  name=${bad#* }
+  case "${bad%% *}" in
+    special) why=$(t "a link, a device or another special file" "um link, um dispositivo ou outro arquivo especial") ;;
+    setid) why=$(t "a set-id file" "um arquivo set-id") ;;
+    absolute) why=$(t "an absolute path" "um caminho absoluto") ;;
+    dotdot) why=$(t "a path with .." "um caminho com ..") ;;
+    *) why=$(t "a path no backup holds" "um caminho que nenhum backup contém") ;;
+  esac
+  paths=$(backup_paths | sed 's#^#/#' | tr '\n' ' ')
+  die "REFUSED: $2 holds $why, $name. A backup made by universo.sh holds only plain files and directories under ${paths}(the paths this machine's $ENV_FILE sets). Nothing was written." \
+      "RECUSADO: $2 contém $why, $name. Um backup feito pelo universo.sh contém só arquivos e pastas comuns em ${paths}(os caminhos que o $ENV_FILE desta máquina define). Nada foi gravado."
+}
+
 # pack PATH...: the tarball of PATH... (relative to /), encrypted when
 # asked, into $file or to descriptor 3.
 pack() {
@@ -961,7 +1059,7 @@ pack() {
   rm -f "$TMPD/tar-failed"
   # POSIX sh has no pipefail: tar's failure is kept in a file.
   { tar -czpf - -C / "$@" || : > "$TMPD/tar-failed"; } \
-    | if [ "$TO_STDOUT" = 1 ]; then age_enc >&3; else age_enc -o "$file"; fi || return 1
+    | if [ "$TO_STDOUT" = 1 ]; then age_enc >&3; else age_enc > "$file"; fi || return 1
   [ ! -e "$TMPD/tar-failed" ]
 }
 
@@ -993,20 +1091,26 @@ cmd_backup() {
   data=$(env_get VERSO_DATA_DIR); [ -n "$data" ] || data=$DATA_ROOT/data
   folders=$(env_get VERSO_FOLDERS_DIR); [ -n "$folders" ] || folders=$DATA_ROOT/folders
   if [ "$TO_STDOUT" = 0 ]; then
-    case "$dir/" in
-      "$DATA_ROOT"/*|"$data"/*|"$folders"/*|"$ETC_DIR"/*)
-        die "The backup cannot go inside what it copies ($dir). Choose another directory." \
-            "O backup não pode ir para dentro do que ele copia ($dir). Escolha outra pasta." ;;
-    esac
+    # Compared as the file system resolves them (.., ., links), not as
+    # written: /var/lib/x/../universo is /var/lib/universo.
+    real=$(realpath -m -- "$dir") || die "Could not resolve $dir." "Não foi possível resolver $dir."
+    for p in "$DATA_ROOT" "$data" "$folders" "$ETC_DIR"; do
+      inside=$(realpath -m -- "$p") || inside=$p
+      case "$real/" in
+        "$inside"/*)
+          die "The backup cannot go inside what it copies ($dir is in $inside). Choose another directory." \
+              "O backup não pode ir para dentro do que ele copia ($dir fica em $inside). Escolha outra pasta." ;;
+      esac
+    done
     mkdir -p "$dir" || die "Could not make $dir." "Não foi possível criar $dir."
   fi
-  # What goes in, as paths relative to / (tar -C /): the data root and the
-  # settings, plus each directory of the settings that lies outside them.
-  set -- "${DATA_ROOT#/}"
-  [ -d "$ETC_DIR" ] && set -- "$@" "${ETC_DIR#/}"
-  for d in "$data" "$folders"; do
-    case "$d" in "$DATA_ROOT"/*) ;; *) [ -d "$d" ] && set -- "$@" "${d#/}" ;; esac
-  done
+  # What goes in: backup_paths, those that exist.
+  set --
+  while IFS= read -r p; do
+    [ -d "/$p" ] && set -- "$@" "$p"
+  done <<EOF
+$(backup_paths)
+EOF
   if [ "$TO_STDOUT" = 0 ]; then
     need_k=0
     for p in "$@"; do
@@ -1021,9 +1125,16 @@ cmd_backup() {
   fi
   ext=.tar.gz
   [ "$ENCRYPT" = 1 ] && ext=.tar.gz.age
-  file="$dir/universo-backup-$(date +%Y%m%d-%H%M%S)$ext"
-  where=$file
-  [ "$TO_STDOUT" = 1 ] && where=$(t "standard output" "a saída padrão")
+  if [ "$TO_STDOUT" = 1 ]; then
+    file=
+    where=$(t "standard output" "a saída padrão")
+  else
+    # The time, then a random part: a name no one can guess and plant a
+    # link at beforehand, made by mktemp itself (new, 0600, ours).
+    file=$(mktemp --suffix="$ext" "$dir/universo-backup-$(date +%Y%m%d-%H%M%S)-XXXXXX") \
+      || die "Could not make a file in $dir." "Não foi possível criar um arquivo em $dir."
+    where=$file
+  fi
   was_active=0
   if systemctl is-active --quiet "$SERVICE" 2>/dev/null; then
     was_active=1
@@ -1109,6 +1220,23 @@ cmd_restore() {
   fi
   target=${RESTORE_TO:-/}
   case "$target" in /*) ;; *) target="$(pwd)/$target" ;; esac
+  # The backup is copied (or decrypted) once into this script's own
+  # directory, root's only, and read from there: a file someone else can
+  # replace (a shared bucket, a shared directory) is not read twice. Then
+  # every entry is checked before anything is written.
+  make_tmp
+  staged=$TMPD/restore.tar.gz
+  step "Reading $file." "Lendo $file."
+  if [ "$encrypted" = 1 ]; then
+    (umask 077 && age_dec "$file" > "$staged") \
+      || die "Could not decrypt $file (above): the right key, or passphrase?" \
+             "Não foi possível descriptografar $file (acima): a chave, ou a frase-senha, certa?"
+  else
+    (umask 077 && cat "$file" > "$staged") \
+      || die "Could not copy $file into $TMPD (above): with too little room there, set TMPDIR to a directory with room." \
+             "Não foi possível copiar $file para $TMPD (acima): com pouco espaço ali, defina TMPDIR para uma pasta com espaço."
+  fi
+  check_members "$staged" "$file"
   was_active=0
   if [ "$target" = / ]; then
     t "This puts the backup's copy of $DATA_ROOT and $ETC_DIR back in place: every file the backup holds replaces the one here (a file made since stays). The service is stopped meanwhile. To look at a backup first: --to /some/empty/dir" \
@@ -1125,16 +1253,10 @@ cmd_restore() {
     mkdir -p "$target" || die "Could not make $target." "Não foi possível criar $target."
   fi
   step "Unpacking $file into $target." "Desempacotando $file em $target."
-  if [ "$encrypted" = 1 ]; then
-    make_tmp
-    rm -f "$TMPD/age-failed"
-    if ! { age_dec "$file" || : > "$TMPD/age-failed"; } | tar -xzpf - -C "$target" || [ -e "$TMPD/age-failed" ]; then
-      die "Could not decrypt or unpack $file (above): the right key, or passphrase?" \
-          "Não foi possível descriptografar ou desempacotar $file (acima): a chave, ou a frase-senha, certa?"
-    fi
-  else
-    tar -xzpf "$file" -C "$target" || die "Could not unpack $file (above)." "Não foi possível desempacotar $file (acima)."
-  fi
+  # Exactly the entries checked, each by its own name: no pattern, and a
+  # directory's name stands for itself only.
+  LC_ALL=C tar -xzpf "$staged" -C "$target" --no-wildcards --no-recursion -T "$TMPD/members" \
+    || die "Could not unpack $file (above)." "Não foi possível desempacotar $file (acima)."
   if [ "$was_active" = 1 ]; then
     step "Starting the service again." "Ligando o serviço de novo."
     systemctl start "$SERVICE" || warn "It did not start: sudo journalctl -u universo -n 50" "Ele não ligou: sudo journalctl -u universo -n 50"
@@ -1254,7 +1376,7 @@ case "$CMD" in
 esac
 shift
 
-VERSION='' PKGFILE='' URL='' INSECURE=0 PURGE=0 FOLLOW=0 BACKUP_DIR='' EMAIL=
+VERSION='' PKGFILE='' URL='' INSECURE=0 NOSIG=0 PURGE=0 FOLLOW=0 BACKUP_DIR='' EMAIL=
 ENCRYPT=0 PASSPHRASE=0 KEYGEN=0 TO_STDOUT=0 IDENTITY='' RESTORE_FILE='' RESTORE_TO=''
 while [ "$#" -gt 0 ]; do
   case "$CMD:$1" in
@@ -1262,6 +1384,7 @@ while [ "$#" -gt 0 ]; do
     install:--package|update:--package) [ "$#" -ge 2 ] || die "--package needs a file." "--package precisa de um arquivo."; PKGFILE=$2; shift ;;
     install:--url) [ "$#" -ge 2 ] || die "--url needs an address." "--url precisa de um endereço."; URL=$2; shift ;;
     install:--insecure-no-verify|update:--insecure-no-verify) INSECURE=1 ;;
+    install:--no-signature|update:--no-signature) NOSIG=1 ;;
     uninstall:--purge) PURGE=1 ;;
     logs:-f|logs:--follow) FOLLOW=1 ;;
     backup:--encrypt) ENCRYPT=1 ;;
