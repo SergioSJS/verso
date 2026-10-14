@@ -725,6 +725,10 @@ async fn command(
                 None => crate::trash::command(server, who, client, &r.cmd, args).await,
             }
         }
+        // A file's version history (ADR 0091): those who may write it.
+        "history_list" | "history_read" | "history_restore" | "history_copy" | "history_delete" => {
+            crate::history::command(server, who, client, &r.cmd, args).await
+        }
         _ => Err(refused("not on a server")),
     }
 }

@@ -17,6 +17,7 @@
 use std::path::Path;
 use std::time::UNIX_EPOCH;
 
+pub use verso_index::IndexError as StoreError;
 pub use verso_index::history::{
     Author, DAY, DEFAULT_DAYS, Kind, Listing, Recorded, Store, Thinned, Version, line_change,
     sha256, thinning,

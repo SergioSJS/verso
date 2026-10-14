@@ -30,6 +30,7 @@ pub mod folders;
 #[doc(hidden)]
 pub mod fuzz_api;
 pub mod hashes;
+pub mod history;
 pub mod http;
 pub mod inflight;
 pub mod large;
@@ -252,6 +253,9 @@ pub async fn run_on<L: listen::Incoming>(
     }
     // Every folder's bin swept now and once a day (ADR 0080 item 3).
     tokio::spawn(trash::daily(Arc::clone(&server)));
+    // Every folder's version history thinned at start and once a day
+    // (ADR 0091 item 3).
+    tokio::spawn(history::daily(Arc::clone(&server)));
     // The audit log's rows past VERSO_AUDIT_DAYS, now and once a day (ADR
     // 0083 item 10).
     tokio::spawn(audit::daily(Arc::clone(&server)));
@@ -343,6 +347,8 @@ mod tests_console;
 mod tests_dice;
 #[cfg(test)]
 mod tests_hashes;
+#[cfg(test)]
+mod tests_history;
 #[cfg(test)]
 mod tests_mentions;
 #[cfg(test)]

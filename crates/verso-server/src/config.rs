@@ -59,6 +59,10 @@ pub struct Config {
     /// says otherwise (`VERSO_TRASH_DAYS`, ADR 0080 item 3): 30 when unset,
     /// 0 for ever.
     pub trash_days: u32,
+    /// How many days a folder's version history keeps versions unless the
+    /// console says otherwise (`VERSO_HISTORY_DAYS`, ADR 0091 item 3): 365
+    /// when unset, 0 for no limit.
+    pub history_days: u32,
     /// How many days the audit log keeps a row (`VERSO_AUDIT_DAYS`, ADR
     /// 0083 item 10): 365 when unset, 0 for ever. Swept once a day by time
     /// alone (`crate::audit`); nothing else deletes a row.
@@ -251,6 +255,7 @@ impl Config {
                 })
                 .transpose()?,
             trash_days: days(env, "VERSO_TRASH_DAYS", verso_core::trash::DEFAULT_DAYS)?,
+            history_days: days(env, "VERSO_HISTORY_DAYS", verso_core::history::DEFAULT_DAYS)?,
             audit_days: days(env, "VERSO_AUDIT_DAYS", DEFAULT_AUDIT_DAYS)?,
         })
     }
@@ -400,6 +405,12 @@ mod tests {
             assert!(read(&[("VERSO_TRASH_DAYS", bad)]).is_err());
         }
         assert_eq!(read(&[]).unwrap().trash_days, 30);
+        assert_eq!(read(&[]).unwrap().history_days, 365);
+        assert_eq!(
+            read(&[("VERSO_HISTORY_DAYS", "0")]).unwrap().history_days,
+            0
+        );
+        assert!(read(&[("VERSO_HISTORY_DAYS", "um ano")]).is_err());
     }
 
     #[test]
