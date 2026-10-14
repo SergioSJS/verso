@@ -284,6 +284,19 @@ describe("the room's change into the scene, and what the board points at", () =>
     assert.deepEqual(t.appState, {});
   });
 
+  test("the shape whose text is being typed stays while it is typed: Excalidraw selects it when the typing ends", () => {
+    // Seen in the board stress test (WebKit, 2026-10-14): a text typed in a
+    // shape, the shape deleted by another window meanwhile, Escape — and
+    // Excalidraw selected the deleted shape.
+    const local = [el("box", 2, 1), el("t", 3, 1, { type: "text", containerId: "box" })];
+    const remote = [el("box", 9, 1, { isDeleted: true }), el("t", 9, 1, { type: "text", containerId: "box", isDeleted: true })];
+    const typing = { selectedElementIds: {}, selectedGroupIds: {}, editingTextElement: { id: "t", containerId: "box" } };
+    const { elements, appState } = m.remoteScene(local, remote, typing, () => false);
+    assert.equal(elements.find((e) => e.id === "box").isDeleted, false);
+    assert.equal(elements.find((e) => e.id === "t").isDeleted, false);
+    assert.deepEqual(appState, {});
+  });
+
   test("a text being typed or an element being drawn that is deleted in the scene is let go", () => {
     const els = [el("t", 9, 1, { type: "text", isDeleted: true }), el("n", 9, 1, { isDeleted: true })];
     const st = m.stateOver(els, { selectedElementIds: { t: true }, selectedGroupIds: {}, editingTextElement: { id: "t" }, newElement: { id: "n" } });

@@ -281,7 +281,7 @@ export type BoardState = {
   selectedElementIds: Readonly<Record<string, boolean>>;
   selectedGroupIds?: Readonly<Record<string, boolean>>;
   editingGroupId?: string | null;
-  editingTextElement?: { id: string } | null;
+  editingTextElement?: { id: string; containerId?: string | null } | null;
   newElement?: { id: string } | null;
   resizingElement?: { id: string } | null;
   multiElement?: { id: string } | null;
@@ -330,14 +330,16 @@ export function stateOver(elements: readonly El[], state: BoardState): Partial<B
 
 /** The room's elements `remote` into a board whose scene is `local` and
  *  whose state is `state`: the scene to hand it (`mergeScene`, what this
- *  window is changing right now kept: a text typed, a shape drawn, resized
- *  or dragged, a line edited), and what of its state to change with it, in
+ *  window is changing right now kept: a text typed and the shape it is
+ *  typed in, a shape drawn, resized or dragged, a line edited), and what of its state to change with it, in
  *  the same change (`stateOver`): a scene with a deleted element still
  *  selected is never handed to Excalidraw. `mine` as `mergeScene`'s. */
 export function remoteScene(local: readonly El[], remote: Iterable<El>, state: BoardState, mine: (e: El) => boolean): { elements: El[]; appState: Partial<BoardState> } {
   const busy = new Set<string>();
   const line = state.selectedLinearElement;
-  for (const id of [state.editingTextElement?.id, state.resizingElement?.id, state.newElement?.id, state.multiElement?.id, line?.isEditing ? line.elementId : undefined]) if (id) busy.add(id);
+  // The shape a text is typed in is part of that edit: Excalidraw selects
+  // it once the typing ends, deleted or not.
+  for (const id of [state.editingTextElement?.id, state.editingTextElement?.containerId, state.resizingElement?.id, state.newElement?.id, state.multiElement?.id, line?.isEditing ? line.elementId : undefined]) if (id) busy.add(id);
   if (state.selectedElementsAreBeingDragged) for (const [id, on] of Object.entries(state.selectedElementIds)) if (on) busy.add(id);
   const elements = mergeScene(local, remote, busy, mine);
   return { elements, appState: stateOver(elements, state) };
