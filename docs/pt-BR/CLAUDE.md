@@ -73,9 +73,11 @@ Violação de invariante é BLOQUEANTE por definição, sem discussão de mérit
 12. O Verso estende o dialeto do Obsidian; nunca o contradiz. Nenhuma extensão
     muda o significado de construção existente.
 13. Fontes admissíveis sobre o comportamento do Obsidian: API pública
-    (`obsidian.d.ts`, MIT), documentação pública e comportamento observado de
-    fora. **Proibido** inspecionar, descompilar ou desminificar o app
-    ([ADR 0009](adr/0009-external-constraints.md)).
+    (`obsidian.d.ts`, MIT), documentação pública, comportamento observado de
+    fora, e o código público de um plugin de código aberto que o Obsidian
+    publica sob licença própria (ex.: `obsidianmd/obsidian-maps`, MIT;
+    acrescentado em 2026-10-14). **Proibido** inspecionar, descompilar ou
+    desminificar o app ([ADR 0009](adr/0009-external-constraints.md)).
 
 ### 2.4 Fixtures — [ADR 0031](adr/0031-fixtures-as-contract.md)
 
