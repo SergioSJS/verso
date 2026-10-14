@@ -30,6 +30,14 @@
 //   node scripts/release.mjs verify v0.3.0-beta.4
 //     The release workflow's first step: the tag names the version the
 //     sources carry, in the shape of a version, with its changelog.
+//   node scripts/release.mjs files 0.8.3-beta.1
+//   node scripts/release.mjs assets 0.8.3-beta.1
+//   node scripts/release.mjs per-file-signatures
+//     For the release workflow (ADR 0055, revised 2026-10-14): the files a
+//     release's checksums list covers; every file it publishes, the list
+//     and the signatures included; and whether each file still gets its
+//     own `.sig` (`true` in the 0.8.3 bridge, then `false`: the switch is
+//     PER_FILE_SIGNATURES in scripts/release-page.mjs).
 //
 // `--dry-run` shows what `prepare` or `tag` would do and changes nothing.
 // A production version is X.Y.Z; a test release is X.Y.Z-beta.N.
@@ -39,7 +47,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { releasePage } from "./release-page.mjs";
+import { PER_FILE_SIGNATURES, releaseAssets, releaseFiles, releasePage } from "./release-page.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const [command, version, ...rest] = process.argv.slice(2);
@@ -53,7 +61,7 @@ const FUZZ = [
   ["crates/verso-server/fuzz/Cargo.toml", "crates/verso-server/fuzz/Cargo.lock", "verso-server"],
 ];
 
-const USAGE = "usage: release.mjs prepare|tag|notes|preview X.Y.Z[-beta.N] [--dry-run] | verify vX.Y.Z[-beta.N]";
+const USAGE = "usage: release.mjs prepare|tag|notes|preview|files|assets X.Y.Z[-beta.N] [--dry-run] | verify vX.Y.Z[-beta.N] | per-file-signatures";
 
 const CHANGELOGS = [
   { file: "CHANGELOG.md", unreleased: "## Unreleased", empty: "Nothing yet." },
@@ -260,7 +268,10 @@ function verify(tagName) {
 }
 
 if (command === "verify") verify(version);
+else if (command === "per-file-signatures") console.log(String(PER_FILE_SIGNATURES));
 else if (!parse(version)) fail(USAGE);
+else if (command === "files") console.log(Object.values(releaseFiles(version)).join("\n"));
+else if (command === "assets") console.log(releaseAssets(version).join("\n"));
 else if (command === "prepare") prepare(version);
 else if (command === "tag") tag(version);
 else if (command === "notes") process.stdout.write(notesFrom(CHANGELOGS.map(({ file }) => readHere(file)), version));
