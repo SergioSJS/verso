@@ -733,6 +733,20 @@ async fn collab_command(
         Some(s) => s.to_full(&path)?,
         None => path,
     };
+    // One room per file: the path as confinement reads it, so that
+    // `./n.md` and `n.md` are one room.
+    let path = {
+        let (s, k) = (Arc::clone(server), key.clone());
+        let confined = blocking(move || {
+            s.service
+                .with_key(&k, |ws| ws.confined(&path).map_err(Into::into))
+        })
+        .await;
+        match &scope {
+            Some(s) => confined.map_err(|e| s.error(e))?,
+            None => confined?,
+        }
+    };
     let s = Arc::clone(server);
     let c = client.to_owned();
     let cmd = cmd.to_owned();
