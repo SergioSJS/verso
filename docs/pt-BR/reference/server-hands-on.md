@@ -104,7 +104,7 @@ No servidor, com o seu usuário comum (o próprio script pede `sudo`):
 V=0.8.0-beta.1
 curl -fsSLO https://versomd.com/universo.sh
 less universo.sh                          # opcional: ler o que ele faz
-export GITHUB_TOKEN=github_pat_...        # enquanto o repositório é privado
+read -rs GITHUB_TOKEN && export GITHUB_TOKEN   # cole o token, Enter; enquanto o repositório é privado
 sh universo.sh install --version "$V" --url https://notas.exemplo.com
 ```
 
@@ -294,7 +294,7 @@ v0.8.0-beta.1; o `age` vem de `sudo apt install age`, ou
 
 ```sh
 sh universo.sh backup --keygen     # uma vez: imprime a chave SECRETA; guarde fora desta máquina
-sh universo.sh backup --encrypt    # a cada vez: universo-backup-<data>-<hora>.tar.gz.age
+sh universo.sh backup --encrypt    # a cada vez: universo-backup-<data>-<hora>-<aleatório>.tar.gz.age
 ```
 
 A chave secreta — três linhas, `AGE-SECRET-KEY-1…` entre elas — vai para
@@ -304,7 +304,7 @@ computador (o arquivo é do root, então antes é copiado para a home do seu
 usuário; `ubuntu` é o usuário das imagens de nuvem do Ubuntu):
 
 ```sh
-sudo install -o ubuntu -m 600 /var/backups/universo/universo-backup-<data>-<hora>.tar.gz.age ~/   # no servidor
+sudo install -o ubuntu -m 600 /var/backups/universo/universo-backup-<data>-<hora>-<aleatório>.tar.gz.age ~/   # no servidor
 scp 'ubuntu@<IP do servidor>:universo-backup-*.tar.gz.age' .                                     # no seu computador
 ```
 
@@ -313,7 +313,7 @@ pede que você digite `/var/lib/universo` para confirmar, e para o serviço
 enquanto isso):
 
 ```sh
-sh universo.sh restore universo-backup-<data>-<hora>.tar.gz.age --identity key.txt
+sh universo.sh restore universo-backup-<data>-<hora>-<aleatório>.tar.gz.age --identity key.txt
 ```
 
 `--to /uma/pasta/vazia` desempacota lá, sem tocar no servidor. Com um
@@ -321,7 +321,7 @@ script que não tem `restore` (o da v0.8.0-beta.1), à mão:
 
 ```sh
 sudo systemctl stop universo
-sudo tar -xzpf universo-backup-<data>-<hora>.tar.gz -C /
+sudo tar -xzpf universo-backup-<data>-<hora>-<aleatório>.tar.gz -C /
 sudo systemctl start universo
 ```
 

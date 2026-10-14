@@ -104,7 +104,7 @@ On the server, as your ordinary user (the script asks for `sudo` itself):
 V=0.8.0-beta.1
 curl -fsSLO https://versomd.com/universo.sh
 less universo.sh                          # optional: read what it does
-export GITHUB_TOKEN=github_pat_...        # while the repository is private
+read -rs GITHUB_TOKEN && export GITHUB_TOKEN   # paste the token, Enter; while the repository is private
 sh universo.sh install --version "$V" --url https://notes.example.com
 ```
 
@@ -292,7 +292,7 @@ v0.8.0-beta.1; `age` from `sudo apt install age`, or `sudo dnf install age`
 
 ```sh
 sh universo.sh backup --keygen     # once: prints the SECRET key; keep it off this machine
-sh universo.sh backup --encrypt    # each time: universo-backup-<date>-<time>.tar.gz.age
+sh universo.sh backup --encrypt    # each time: universo-backup-<date>-<time>-<random>.tar.gz.age
 ```
 
 The secret key — three lines, `AGE-SECRET-KEY-1…` among them — goes into
@@ -302,7 +302,7 @@ so it is first copied to your user's home; `ubuntu` is the user of
 Ubuntu's cloud images):
 
 ```sh
-sudo install -o ubuntu -m 600 /var/backups/universo/universo-backup-<date>-<time>.tar.gz.age ~/   # on the server
+sudo install -o ubuntu -m 600 /var/backups/universo/universo-backup-<date>-<time>-<random>.tar.gz.age ~/   # on the server
 scp 'ubuntu@<server IP>:universo-backup-*.tar.gz.age' .                                         # on your computer
 ```
 
@@ -311,7 +311,7 @@ asks you to type `/var/lib/universo` to confirm, and stops the service
 meanwhile):
 
 ```sh
-sh universo.sh restore universo-backup-<date>-<time>.tar.gz.age --identity key.txt
+sh universo.sh restore universo-backup-<date>-<time>-<random>.tar.gz.age --identity key.txt
 ```
 
 `--to /some/empty/dir` unpacks it there instead, the server untouched.
@@ -319,7 +319,7 @@ With a script that has no `restore` (v0.8.0-beta.1's), by hand:
 
 ```sh
 sudo systemctl stop universo
-sudo tar -xzpf universo-backup-<date>-<time>.tar.gz -C /
+sudo tar -xzpf universo-backup-<date>-<time>-<random>.tar.gz -C /
 sudo systemctl start universo
 ```
 

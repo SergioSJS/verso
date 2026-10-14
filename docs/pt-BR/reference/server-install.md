@@ -41,7 +41,7 @@ sh universo.sh install --url https://notas.exemplo.com
 | `uninstall [--purge]` | remove o pacote e diz o que deixou: `/var/lib/universo`, `/etc/universo`, o usuário `universo`. O `--purge` remove esses também, depois de você digitar `/var/lib/universo` de volta |
 | `status` | o estado do serviço, a versão, o endereço em que escuta, o tamanho dos dois diretórios, as últimas 5 linhas do log |
 | `logs [-f]` | `journalctl -u universo` |
-| `backup [PASTA] [--encrypt \| --passphrase] [--to-stdout]` | para o serviço, empacota `/var/lib/universo` e `/etc/universo` em `universo-backup-<data>-<hora>.tar.gz` na `PASTA` (`/var/backups/universo` por padrão), liga de novo; recusa quando a `PASTA` tem menos espaço livre do que os dois diretórios ocupam. `--encrypt` criptografa com o `age` (`.tar.gz.age`), `--passphrase` para uma frase-senha digitada, `--to-stdout` escreve na saída padrão para um pipe (seção 2) |
+| `backup [PASTA] [--encrypt \| --passphrase] [--to-stdout]` | para o serviço, empacota `/var/lib/universo` e `/etc/universo` em `universo-backup-<data>-<hora>-<aleatório>.tar.gz` na `PASTA` (um arquivo novo, `0600`, com um nome que ninguém adivinha antes; a `PASTA` não pode ficar dentro do que ele copia, com `..` e links resolvidos) (`/var/backups/universo` por padrão), liga de novo; recusa quando a `PASTA` tem menos espaço livre do que os dois diretórios ocupam. `--encrypt` criptografa com o `age` (`.tar.gz.age`), `--passphrase` para uma frase-senha digitada, `--to-stdout` escreve na saída padrão para um pipe (seção 2) |
 | `backup --keygen` | cria a chave dos backups criptografados, uma vez: a pública em `/etc/universo/backup.pub`, a secreta impressa, nunca guardada na máquina (seção 2) |
 | `restore ARQUIVO [--identity ARQUIVO-DA-CHAVE] [--to PASTA]` | põe um backup de volta sobre `/var/lib/universo` e `/etc/universo` depois de você digitar `/var/lib/universo`, com o serviço parado enquanto isso; um criptografado com a chave secreta ou a frase-senha; `--to PASTA` desempacota na `PASTA`, sem tocar no servidor (seção 2) |
 | `reset-admin [E-MAIL]` | o comando da seção 10 |
@@ -49,13 +49,20 @@ sh universo.sh install --url https://notas.exemplo.com
 
 Como um download é conferido: com o `minisign` instalado, o `.sig` da
 release contra a chave de release do Verso (seção 6), o comentário
-assinado nomeando o arquivo; sem ele, o `sha256` que o GitHub publica para
-cada arquivo da release; sem nenhum dos dois, recusa, a menos que receba
-`--insecure-no-verify`, que diz em voz alta que nada foi conferido. Um
-pacote de `--package ARQ` é conferido com o `ARQ.sig` ao lado. Enquanto o
-repositório é privado, baixar pede um token do GitHub em `GITHUB_TOKEN`
-(fine-grained, Contents: Read-only no repositório); sem ele o script diz
-como criar, ou aceita `--package`. Uma máquina sem apt nem dnf é mandada
+assinado nomeando o arquivo; sem o `minisign`, o `sha256` que o GitHub
+publica para cada arquivo da release; sem nenhum dos dois, recusa, a menos
+que receba `--insecure-no-verify`, que diz em voz alta que nada foi
+conferido. Um `.sig` faltando — nenhum na release, o download dele falhou,
+nenhum ao lado do `--package ARQ` — é um erro: o script para e diz por
+quê, a menos que receba `--no-signature`, que se contenta com o `sha256`
+publicado (prova de que o arquivo é o enviado à release, não de quem o
+fez). Um pacote de `--package ARQ` é conferido com o `ARQ.sig` ao lado.
+Enquanto o repositório é privado, baixar pede um token do GitHub em
+`GITHUB_TOKEN` (fine-grained, Contents: Read-only no repositório); sem ele
+o script diz como criar, ou aceita `--package`. Dê o token com
+`read -rs GITHUB_TOKEN && export GITHUB_TOKEN` (bash ou zsh: cole, Enter),
+que o deixa fora da tela e do histórico do shell, em vez de
+`export GITHUB_TOKEN=…` na linha de comando. Uma máquina sem apt nem dnf é mandada
 para o arquivo compactado (seção 6). As seções 5 e 6 continuam os
 caminhos manuais.
 
@@ -139,11 +146,16 @@ Para restaurar, com o serviço parado enquanto isso e depois de você
 digitar `/var/lib/universo`:
 
 ```sh
-sudo sh universo.sh restore universo-backup-<data>-<hora>.tar.gz.age --identity chave.txt
+sudo sh universo.sh restore universo-backup-<data>-<hora>-<aleatório>.tar.gz.age --identity chave.txt
 ```
 
 com a chave secreta em `chave.txt` só naquela hora (ou o `age` pede a
-frase-senha); um backup sem criptografia não precisa de `--identity`.
+frase-senha); um backup sem criptografia não precisa de `--identity`. Esse
+arquivo é a chave de todos os backups: deixe-o legível só pelo dono
+(`umask 077` antes de escrevê-lo, ou `chmod 600 chave.txt`), nunca o
+guarde no servidor, e apague-o assim que a restauração terminar
+(`shred -u chave.txt` onde o `shred` vale alguma coisa; num sistema de
+arquivos copy-on-write ou em flash, `rm`).
 `--to /uma/pasta` desempacota lá, para olhar antes, sem tocar no servidor.
 Antes de gravar qualquer coisa, o `restore` copia o backup (ou o
 descriptografa) para uma pasta só sua e o lista: recusa o backup inteiro
