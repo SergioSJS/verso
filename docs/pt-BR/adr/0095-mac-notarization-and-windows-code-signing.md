@@ -164,8 +164,8 @@ repositories that use standard GitHub-hosted runners"*
 
 ## Decisão
 
-Proposta (2026-10-14). Cada `[ABERTO]` abaixo traz a recomendação do
-autor; o mantenedor decide. Este ADR revisa o
+Proposta (2026-10-14). Aceita em 2026-10-14 (Status): cada `[DECIDIDO 2026-10-14]` foi decidido como
+recomendado e está marcado `[DECIDIDO 2026-10-14]`. Este ADR revisa o
 [0051](0051-development-flow-and-releases.md) (a Consequência dele sobre
 a assinatura ad hoc) e o [0069](0069-windows-port.md) (item 3) quando
 aceito.
@@ -183,13 +183,13 @@ aceito.
    que o primeiro build notarizado mostre que um é preciso, e então o mais
    estreito. O zip continua ([0051](0051-development-flow-and-releases.md),
    Descartadas: um `.dmg`).
-2. **Quem se inscreve e paga.** `[ABERTO]`. Recomendado: **o mantenedor,
+2. **Quem se inscreve e paga.** `[DECIDIDO 2026-10-14]`. Decidido: **o mantenedor,
    como pessoa física**, 99 USD por ano (em reais no pagamento): uma
    organização precisa de um número D-U-N-S e de uma pessoa jurídica que
    o projeto não tem ([0001](0001-open-tool-no-company.md)), e nenhuma
    isenção vale para uma pessoa. O certificado nomeia o mantenedor como
    desenvolvedor.
-3. **Windows: qual assinatura.** `[ABERTO]`. As opções abertas a uma pessoa
+3. **Windows: qual assinatura.** `[DECIDIDO 2026-10-14]`. As opções abertas a uma pessoa
    no Brasil: (a) **sem assinatura**, como agora — "Run anyway" sob o
    SmartScreen, e **bloqueado sem saída** onde o Smart App Control está
    ligado; (b) **SignPath Foundation**, sem custo, publicador "SignPath
@@ -201,7 +201,7 @@ aceito.
    nuvem**, cerca de US$ 129 por ano mais cerca de US$ 240 por ano do
    menor plano do eSigner (SSL.com, preços de tabela), publicador o
    mantenedor. O Azure Artifact Signing não está aberto ao mantenedor
-   (Contexto). Recomendado: **(b)**, pedido assim que o repositório for
+   (Contexto). Decidido: **(b)**, pedido assim que o repositório for
    público; **(c)** se a SignPath recusar ou não conseguir assinar dentro
    do build do Tauri; **(d)** só se nenhuma das duas funcionar. Não (a) na
    V1: o Smart App Control transforma um aviso numa recusa.
@@ -214,12 +214,12 @@ aceito.
    isso.
 5. **Linux: nenhuma assinatura de sistema operacional.** A lista de
    checksums assinada ([0055](0055-in-app-updater.md)) continua sendo o
-   que prova um arquivo de Linux. `[ABERTO]`: se o `.rpm` (e o AppImage)
-   também são assinados com uma chave OpenPGP. Recomendado: **fora da
+   que prova um arquivo de Linux. `[DECIDIDO 2026-10-14]`: se o `.rpm` (e o AppImage)
+   também são assinados com uma chave OpenPGP. Decidido: **fora da
    V1** — nada confere a assinatura de um AppImage, e a de um `.rpm` só
    ajuda quem importou a chave; um repositório APT ou RPM, se um dia for
    publicado, assina o índice dele então.
-6. **Quando.** `[ABERTO]`. Recomendado: **inscrever-se no programa da
+6. **Quando.** `[DECIDIDO 2026-10-14]`. Decidido: **inscrever-se no programa da
    Apple agora** — a verificação de identidade leva dias — e assinar e
    notarizar **todo release a partir do primeiro depois que o certificado
    existir, os betas também**, para que o caminho esteja provado muito
@@ -227,7 +227,7 @@ aceito.
    público** (V.12), como (b) e (c) exigem; as duas antes do anúncio e do
    release da V1. Um ensaio do workflow de release assina e notariza como
    um release faz.
-7. **Os segredos na CI.** `[ABERTO]`. Recomendado: um environment do GitHub
+7. **Os segredos na CI.** `[DECIDIDO 2026-10-14]`. Decidido: um environment do GitHub
    `release`, com os segredos usáveis só por jobs rodando na `main` — o
    certificado Developer ID (`.p12`, em base64) e a senha dele, e **uma
    chave de API do App Store Connect** (issuer, key id, `.p8`) para o
@@ -247,11 +247,11 @@ aceito.
    ([0051](0051-development-flow-and-releases.md), revisado em
    2026-10-14) perde o "Abrir Mesmo Assim" do macOS e diz o que o Windows
    mostra; o README também.
-9. **O app de Mac Intel** (V.21). `[ABERTO]`: um binário universal ou um
+9. **O app de Mac Intel** (V.21). `[DECIDIDO 2026-10-14]`: um binário universal ou um
    build x64 separado. Um app universal leva os dois e dobra todo download
    de Mac; o atualizador do Verso escolhe um arquivo pela palavra de
    arquitetura, e um nome `universal` não casa com nenhuma (Contexto),
-   então ele também mudaria. Recomendado: **um build `macos-x64`
+   então ele também mudaria. Decidido: **um build `macos-x64`
    separado**, compilado de forma cruzada para `x86_64-apple-darwin` no
    mesmo job de macOS no runner arm64, como faz o exemplo do Tauri — sem
    runner Intel, que o GitHub aposenta em 2027 —, assinado e notarizado
@@ -289,14 +289,19 @@ Nenhuma registrada.
 
 ## Status
 
-Proposta (2026-10-14). A R3 do `docs/roadmap.md`, revisão 8, decidiu
-que este ADR existe; o conteúdo dele é do mantenedor decidir. Para o
+**Aceita (2026-10-14).** O mantenedor, naquela noite, respondeu às
+perguntas do 0093, do 0094 e do 0095 com *"Sim, todas"*: cada `[ABERTO]`
+decidido como recomendado, marcado `[DECIDIDO 2026-10-14]` no lugar. A R3
+do `docs/roadmap.md`, revisão 8, decidiu que este ADR existe; esta
+resposta decidiu o conteúdo dele. Linhas de Revisões no
+[0051](0051-development-flow-and-releases.md) (a Consequência dele sobre
+a assinatura ad hoc) e no [0069](0069-windows-port.md) (item 3). O build
+para Mac Intel (item 9) vem quando o repositório for público (V.12), como
+a onda da V.21 foi decidida em 2026-10-14 (`docs/roadmap.md`, "Lacunas
+de núcleo na V1").
+
+*(Histórico, antes da aceitação acima:)* Proposta (2026-10-14). Para o
 mantenedor, cada uma com uma recomendação: quem se inscreve e paga (item
 2), a opção do Windows (item 3), assinaturas de pacote no Linux (item 5),
 quando (item 6), os segredos (item 7), um build de Mac universal ou x64
 separado (item 9).
-
-Registrado, não resolvido: a tabela de decisões ainda abertas do roadmap
-lista a onda da V.21 e da V.22 — "quando o repositório for público" —
-como recomendação, não como decisão; o pedido que encomendou este ADR
-chama de decidido o momento da V.21.

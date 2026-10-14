@@ -91,14 +91,14 @@ Monday … or locale"* ([README](https://github.com/liamcain/obsidian-calendar-p
 
 ## Decisão
 
-Proposta (2026-10-14). Cada `[ABERTO]` abaixo traz a recomendação do
-autor; o mantenedor decide.
+Proposta (2026-10-14). Aceita em 2026-10-14 (Status): cada `[DECIDIDO 2026-10-14]` foi decidido como
+recomendado e está marcado `[DECIDIDO 2026-10-14]`.
 
 1. **Cinco períodos**: o dia, a semana, o mês, o trimestre e o ano, cada
    um uma nota nomeada por um formato e guardada numa pasta, criada a
    partir de um template quando falta — o dia como construído, os outros
-   do mesmo jeito. `[ABERTO]`: quais ficam ligados numa pasta que nunca os
-   ajustou. Recomendado: **o dia, a semana e o mês ligados**, o
+   do mesmo jeito. `[DECIDIDO 2026-10-14]`: quais ficam ligados numa pasta que nunca os
+   ajustou. Decidido: **o dia, a semana e o mês ligados**, o
    trimestre e o ano desligados até serem ligados nos Ajustes — os cinco
    construídos, três mostrados.
 2. **Nomes e pastas, como o plugin Periodic Notes os escreve.** O
@@ -112,11 +112,11 @@ autor; o mantenedor decide.
    pelo caminho que o formato dela faz, nunca lendo texto; uma nota
    nomeada por um formato anterior não é achada, e os Ajustes dizem isso
    quando um formato muda.
-3. **A pasta de cada período.** `[ABERTO]`: o padrão. Recomendado: **a
+3. **A pasta de cada período.** `[DECIDIDO 2026-10-14]`: o padrão. Decidido: **a
    pasta do dia para todos os períodos** (`Diário/2026-W42.md` ao lado de
    `Diário/2026-10-14.md`): um lugar só para procurar, e os formatos
    padrão nunca colidem. O padrão do próprio plugin é a raiz da pasta.
-4. **Onde os ajustes vivem.** `[ABERTO]`. Recomendado: **a camada da
+4. **Onde os ajustes vivem.** `[DECIDIDO 2026-10-14]`. Decidido: **a camada da
    pasta**, `.verso/settings.json` ([0070](0070-what-travels-with-the-folder.md)
    item 2, revisado no mesmo PR) — os formatos, as pastas, os templates,
    quais períodos estão ligados e o início da semana —, porque eles
@@ -126,7 +126,7 @@ autor; o mantenedor decide.
    escrever a camada da pasta a lê; diferentemente dos favoritos de um
    leitor (linha 3.24 da Fase 3), estes ajustes não têm recurso nesta
    máquina.
-5. **A semana, e nomes num idioma.** `[ABERTO]`. Recomendado: o início da
+5. **A semana, e nomes num idioma.** `[DECIDIDO 2026-10-14]`. Decidido: o início da
    semana é um ajuste da pasta (item 4), **domingo por padrão** — o mês
    do painel lateral já começa no domingo — e `gggg`/`ww` são contados com
    ele, nunca com o locale da máquina; nomes de mês e de dia da semana
@@ -144,10 +144,10 @@ autor; o mantenedor decide.
    `{{sunday:FORMAT}}` … `{{saturday:FORMAT}}`, os do dia `{{yesterday}}`
    e `{{tomorrow}}`, e aritmética sobre a data do período
    (`{{date+1d:FORMAT}}`, `{{date-1w}}`), como o código 1.0 do plugin os
-   preenche; uma tag que o Verso não conhece fica como escrita. `[ABERTO]`:
+   preenche; uma tag que o Verso não conhece fica como escrita. `[DECIDIDO 2026-10-14]`:
    o que `{{date}}` sozinho significa numa semana, num mês, num trimestre
    ou num ano — o README do plugin o lê como o primeiro dia do período, o
-   código 1.0 põe ali o nome da nota. Recomendado: **o primeiro dia do
+   código 1.0 põe ali o nome da nota. Decidido: **o primeiro dia do
    período, como `YYYY-MM-DD`**, como o plugin nativo Templates documenta
    `{{date}}` e como a nota diária do Verso o preenche.
 7. **Abrir.** Um comando por período — "Nota desta semana", "Nota deste
@@ -165,9 +165,9 @@ autor; o mantenedor decide.
    dele a do ano; cada um marcado quando a nota existe, para os períodos
    ligados.
 10. **Teclas.** ⌘⇧D continua sendo da nota diária ([0061](0061-blocks-in-edit-mode.md)).
-    `[ABERTO]`: teclas padrão para os outros. Recomendado: **nenhuma por
+    `[DECIDIDO 2026-10-14]`: teclas padrão para os outros. Decidido: **nenhuma por
     padrão**; todo comando atribuível em Ajustes › Teclas.
-11. **Os ajustes do Obsidian.** `[ABERTO]`: se o Verso os lê. Recomendado:
+11. **Os ajustes do Obsidian.** `[DECIDIDO 2026-10-14]`: se o Verso os lê. Decidido:
     **uma vez, só leitura, oferecido**: quando a camada da pasta não tem
     ajustes periódicos e `.obsidian/daily-notes.json` ou
     `.obsidian/plugins/periodic-notes/data.json` existe (em qualquer das
@@ -187,12 +187,12 @@ autor; o mantenedor decide.
     Dois aparelhos que criaram a mesma nota periódica offline se
     encontram numa cópia de conflito: o append-merge do item 8 do 0079
     precisa de uma base, e um arquivo que os dois lados criaram não tem
-    nenhuma. `[ABERTO]`. Recomendado: **o template preenchido é a base**
+    nenhuma. `[DECIDIDO 2026-10-14]`. Decidido: **o template preenchido é a base**
     quando as duas versões começam com os bytes que o template fez — os
     acréscimos de cada lado são então appends, e são juntados; uma
     revisão do item 8 do 0079 no mesmo PR.
-13. **Abrir ao iniciar.** `[ABERTO]`: se a nota de um período abre quando o
-    app inicia (o `openAtStartup` do plugin). Recomendado: **fora da
+13. **Abrir ao iniciar.** `[DECIDIDO 2026-10-14]`: se a nota de um período abre quando o
+    app inicia (o `openAtStartup` do plugin). Decidido: **fora da
     V1**; a janela restaura as abas.
 14. **Acessibilidade e idiomas** ([0035](0035-cross-cutting-requirements.md)):
     cada número de semana é um botão chamado "Semana 42 de 2026"; a grade
@@ -226,14 +226,24 @@ Nenhuma registrada.
 
 ## Status
 
-Proposta (2026-10-14). Na V1 pela resposta do mantenedor de 2026-10-14
-(`docs/roadmap.md`, Fase 4 — V1, linha V.18). Para o mantenedor, cada
-uma com uma recomendação: os períodos ligados por padrão (item 1), a
-pasta (item 3), onde os ajustes vivem (item 4), a semana e o idioma dos
-nomes (item 5), `{{date}}` num período (item 6), teclas padrão (item
-10), os ajustes do Obsidian (item 11), a nota que os dois aparelhos
-criaram (item 12), abrir ao iniciar (item 13).
+**Aceita (2026-10-14).** O mantenedor, naquela noite, respondeu às
+perguntas do 0093, do 0094 e do 0095 com *"Sim, todas"*: cada `[ABERTO]`
+decidido como recomendado, marcado `[DECIDIDO 2026-10-14]` no lugar. Na
+V1 (`docs/roadmap.md`, Fase 4 — V1, linha V.18, onda A). Linhas de
+Revisões no [0014](0014-primitives-catalog.md) (a linha do tempo aceita
+por inteiro), no item 2 do [0070](0070-what-travels-with-the-folder.md)
+(item 4) e no item 8 do [0079](0079-sync-a-local-folder-with-a-server.md)
+(item 12).
 
 Registrado, não resolvido: a spec §7 diz que o que o Verso ainda não
 define e o Obsidian define — notas periódicas entre isso — "está na
 seção 9", e a §9 não tem pergunta sobre notas periódicas.
+
+*(Histórico, antes da aceitação acima:)* Proposta (2026-10-14). Na V1
+pela resposta do mantenedor de 2026-10-14 (`docs/roadmap.md`, Fase 4 —
+V1, linha V.18). Para o mantenedor, cada uma com uma recomendação: os
+períodos ligados por padrão (item 1), a pasta (item 3), onde os ajustes
+vivem (item 4), a semana e o idioma dos nomes (item 5), `{{date}}` num
+período (item 6), teclas padrão (item 10), os ajustes do Obsidian (item
+11), a nota que os dois aparelhos criaram (item 12), abrir ao iniciar
+(item 13).

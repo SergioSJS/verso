@@ -82,8 +82,11 @@ view `type: map`. A página de ajuda:
 As chaves da view num arquivo `.base` (`coordinates`, `markerIcon`,
 `markerColor`, `center`, `defaultZoom`, `minZoom`, `maxZoom`,
 `mapHeight`, `mapTiles`, `mapTilesDark`) são lidas do código público MIT
-do plugin (`src/map-view.ts`), não da ajuda: são observadas numa base que
-o plugin escreve antes do PR ([0009](0009-external-constraints.md)). O
+do plugin (`src/map-view.ts`), não da ajuda — uma fonte admissível desde
+a revisão do [0009](0009-external-constraints.md) de 2026-10-14 (o
+*"Sim, todas"* do mantenedor: o código público de um plugin de código
+aberto que o Obsidian publica, como o `obsidian.d.ts`) — e conferidas
+numa base que o plugin escreve antes do PR. O
 manifesto do plugin pede o Obsidian 1.13.1 enquanto a ajuda diz 1.10;
 registrado, não resolvido.
 
@@ -95,8 +98,8 @@ olha.
 
 ## Decisão
 
-Proposta (2026-10-14). Cada `[ABERTO]` abaixo traz a recomendação do
-autor; o mantenedor decide.
+Proposta (2026-10-14). Aceita em 2026-10-14 (Status): cada `[DECIDIDO 2026-10-14]` foi decidido como
+recomendado e está marcado `[DECIDIDO 2026-10-14]`.
 
 ### Expressões regulares
 
@@ -107,14 +110,14 @@ autor; o mantenedor decide.
    Uma expressão regular em qualquer outro lugar (`contains`,
    `startsWith`) continua um erro, já que a ajuda dá a esses métodos só
    strings.
-2. **O motor.** `[ABERTO]`. Opções: (a) o crate `regex` (MIT ou
+2. **O motor.** `[DECIDIDO 2026-10-14]`. Opções: (a) o crate `regex` (MIT ou
    Apache-2.0, já no lock do workspace pelos testes do `verso-server`),
    cujo tempo de casamento é linear no padrão e no texto — não existe
    backtracking catastrófico para ele; não tem look-around nem
    back-references; (b) o `fancy-regex`, que acrescenta os dois por
    backtracking, com um limite de passos; (c) o `RegExp` do próprio
    JavaScript da janela — fora de alcance para uma base que o núcleo
-   avalia, num servidor também, e sem limite. Recomendado: **(a)**, só no
+   avalia, num servidor também, e sem limite. Decidido: **(a)**, só no
    `verso-core` — o `verso-dialect` guarda o literal como texto e não
    ganha dependência (um parser puro que compila para WASM,
    [0028](0028-crate-structure.md), [0029](0029-guardrails-in-ci.md));
@@ -152,16 +155,16 @@ autor; o mantenedor decide.
    instalado; sem ele, o Obsidian não desenha essa view, o que é
    comportamento dele, não do Verso. Os marcadores e os ajustes da view
    mudam pelos menus da view como nos layouts do 0053; um marcador não é
-   arrastado para novas coordenadas na V1. `[ABERTO]`: se "Nova nota aqui"
+   arrastado para novas coordenadas na V1. `[DECIDIDO 2026-10-14]`: se "Nova nota aqui"
    no mapa — uma nota criada com as coordenadas clicadas — está na V1.
-   Recomendado: **fora da V1**; não está na view documentada do Obsidian.
-7. **A biblioteca de desenho.** `[ABERTO]`. Recomendado: **MapLibre GL JS**
+   Decidido: **fora da V1**; não está na view documentada do Obsidian.
+7. **A biblioteca de desenho.** `[DECIDIDO 2026-10-14]`. Decidido: **MapLibre GL JS**
    (BSD-3-Clause, o que o plugin usa, então uma URL de estilo em
    `mapTiles` que funciona lá funciona aqui), carregada só quando uma
    view de mapa abre; a licença conferida pela allowlist do npm, a
    dependência justificada no PR.
-8. **Tiles: nenhum de terceiro por padrão.** `[ABERTO]`: o que um mapa
-   mostra sem fonte escolhida. Recomendado: **um mundo desenhado com
+8. **Tiles: nenhum de terceiro por padrão.** `[DECIDIDO 2026-10-14]`: o que um mapa
+   mostra sem fonte escolhida. Decidido: **um mundo desenhado com
    dados que vêm com o app** — um contorno de pouco detalhe de costas e
    fronteiras (o do Natural Earth, de domínio público pelos termos dele, a
    confirmar no PR que o acrescenta), sem rede —; **uma fonte de tiles só
@@ -175,7 +178,7 @@ autor; o mantenedor decide.
 9. **O `mapTiles` da própria base.** Um endereço de tiles escrito num
    arquivo `.base` é um endereço escrito na pasta, e uma base numa pasta
    compartilhada faria a janela de cada leitor pedir àquele servidor.
-   `[ABERTO]`. Recomendado: **usado só quando a origem dele está aprovada**
+   `[DECIDIDO 2026-10-14]`. Decidido: **usado só quando a origem dele está aprovada**
    (item 8) — na primeira vez, a view diz qual origem a base nomeia e
    oferece aprová-la; até lá o mundo que vem com o app é desenhado.
 10. **Num UniVerso e no celular.** Os tiles nunca passam pelo servidor: a
@@ -190,20 +193,20 @@ autor; o mantenedor decide.
     [0081](0081-sharing-between-people-on-one-universo.md) diz.
 11. **Imagens como mapas.** Uma view de mapa sobre uma imagem da pasta,
     coordenadas em pixels dela — um mundo de ficção numa base — é uma
-    extensão do Verso que o plugin do Obsidian não documenta. `[ABERTO]`.
-    Recomendado: **fora da V1**: os alfinetes num board do
+    extensão do Verso que o plugin do Obsidian não documenta. `[DECIDIDO 2026-10-14]`.
+    Decidido: **fora da V1**: os alfinetes num board do
     [0090](0090-maps-on-the-board.md) são os mapas de ficção da V1.
 
 ### O resto que o 0053 deixou sem construir
 
 12. **`html()` renderizado como HTML.** Hoje ele mostra o texto.
-    `[ABERTO]`: se a V1 o renderiza. Recomendado: **sim, pelo sanitizador
+    `[DECIDIDO 2026-10-14]`: se a V1 o renderiza. Decidido: **sim, pelo sanitizador
     da janela** (`app/ui/src/sanitize.ts`), o mesmo por onde passa o HTML
     de uma nota — nenhum script, nenhum atributo de evento, conteúdo
     remoto sob o ajuste do 0050 —, num servidor como no desktop.
 13. **Edição por view de uma base incorporada de outro arquivo.** Hoje
-    `![[Arquivo.base#View]]` só troca de view. `[ABERTO]`: se a V1 a edita
-    no lugar. Recomendado: **sim**: os menus da incorporação escrevem o
+    `![[Arquivo.base#View]]` só troca de view. `[DECIDIDO 2026-10-14]`: se a V1 a edita
+    no lugar. Decidido: **sim**: os menus da incorporação escrevem o
     arquivo `.base` que mostram, pela escrita comum e a verificação de
     revisão dela (invariante 11), como a aba da própria base faz; um
     leitor não vê menu ([0076](0076-the-window-on-every-screen.md)).
@@ -242,12 +245,23 @@ Nenhuma registrada.
 
 ## Status
 
-Proposta (2026-10-14). Na V1 pela resposta do mantenedor de 2026-10-14
-(`docs/roadmap.md`, Fase 4 — V1, linha V.19). Para o mantenedor, cada
-uma com uma recomendação: o motor (item 2), "Nova nota aqui" (item 6), a
-biblioteca de desenho (item 7), o que um mapa mostra sem fonte (item 8),
-o endereço de tiles da própria base (item 9), imagens como mapas (item
-11), `html()` (item 12), editar uma base incorporada (item 13).
+**Aceita (2026-10-14).** O mantenedor, naquela noite, respondeu às
+perguntas do 0093, do 0094 e do 0095 com *"Sim, todas"*: cada `[ABERTO]`
+decidido como recomendado, marcado `[DECIDIDO 2026-10-14]` no lugar. Na
+V1 (`docs/roadmap.md`, Fase 4 — V1, linha V.19, onda A). A mesma
+resposta tornou o código público de um plugin de código aberto que o
+Obsidian publica — `obsidianmd/obsidian-maps` — uma fonte admissível
+([0009](0009-external-constraints.md), revisado em 2026-10-14), de que
+depende a leitura das chaves da view no Contexto. Uma linha de Revisões
+no [0053](0053-views-bases.md) responde à lista "Não construído" dele.
 
 Registrado, não resolvido: o manifesto do plugin Maps pede o Obsidian
 1.13.1, a página de ajuda dele diz 1.10.
+
+*(Histórico, antes da aceitação acima:)* Proposta (2026-10-14). Na V1
+pela resposta do mantenedor de 2026-10-14 (`docs/roadmap.md`, Fase 4 —
+V1, linha V.19). Para o mantenedor, cada uma com uma recomendação: o
+motor (item 2), "Nova nota aqui" (item 6), a biblioteca de desenho (item
+7), o que um mapa mostra sem fonte (item 8), o endereço de tiles da
+própria base (item 9), imagens como mapas (item 11), `html()` (item 12),
+editar uma base incorporada (item 13).

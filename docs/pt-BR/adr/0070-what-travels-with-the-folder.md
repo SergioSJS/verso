@@ -81,6 +81,11 @@
   entrada que a pasta dele já lista também é recusado (a revisão do item
   3; spec Q8). Construído no mesmo dia (branch
   `feat/decisions-2026-10-12`).
+  2026-10-14 — a camada da pasta do item 2 ganha os ajustes das notas
+  periódicas — os formatos, as pastas, os templates, os períodos ligados e
+  o início da semana —, pelo item 4 do [0093](0093-periodic-notes.md),
+  aceito pelo mantenedor naquela noite (*"Sim, todas"*); a pasta das notas
+  diárias se muda para lá uma vez.
 
 ## Contexto
 

@@ -52,6 +52,12 @@
   de publicação confere os arquivos pelo nome contra o `release.mjs
   assets` no lugar de uma contagem; a página diz que a lista e o `.sig`
   podem ser ignorados.
+  2026-10-14 — a Consequência sobre a assinatura ad hoc respondida pelo
+  [0095](0095-mac-notarization-and-windows-code-signing.md), aceito pelo
+  mantenedor naquela noite (*"Sim, todas"*): um Developer ID e a
+  notarização para todo release a partir de quando o certificado existir,
+  os betas também, e um build de Mac x64 separado quando o repositório for
+  público.
 
 ## Contexto
 

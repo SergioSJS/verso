@@ -15,6 +15,9 @@
   2026-09-30 in [0057](0057-board-json-canvas.md) (point 4, spec Q10), is
   pointed at here, by the maintainer's decision on the critical review
   [`docs/review/board.md`](../review/board.md), §6 item 16.
+  2026-10-14 — the periodic notes of the time row accepted by the
+  maintainer in an ADR of their own, [0093](0093-periodic-notes.md)
+  (*"Sim, todas"*): the time row is accepted in full.
 
 ## Context
 
