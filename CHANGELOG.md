@@ -12,7 +12,9 @@ test release.
 
 ## Unreleased
 
-Nothing yet.
+### Fixed
+
+- **A property edited in the panel in Edit mode reaches the file** (2026-10-14): the row showed the new value, but Live Preview's guard for the folded frontmatter dropped the change as if it were typed there, so the file kept the old one; the same for a sticker, a colour or a cover set in Edit mode.
 
 ## 0.8.2-beta.1 — 2026-10-14
 

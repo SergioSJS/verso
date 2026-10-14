@@ -12,7 +12,9 @@ versão de teste.
 
 ## Não lançado
 
-Nada ainda.
+### Corrigido
+
+- **Uma propriedade editada no painel no modo Editar chega ao arquivo** (2026-10-14): a linha mostrava o valor novo, mas a guarda do Live Preview para o frontmatter dobrado descartava a mudança como se fosse digitada ali, e o arquivo ficava com o antigo; o mesmo para uma figurinha, uma cor ou uma capa escolhidas no modo Editar.
 
 ## 0.8.2-beta.1 — 2026-10-14
 
