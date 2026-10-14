@@ -178,6 +178,53 @@ in the real app.
   Cinzento`'s properties show as Obsidian shows them, the habitants as
   links, the schema's note as a code block.
 
+### Version history (ADR 0091, feat/version-history, 2026-10-14)
+
+- [ ] **A note's history and a restore, in the app** (A): in the installed
+  app, a folder of this computer: open a note, type two paragraphs, wait,
+  then *⌘⇧P › Histórico de versões* (also the tab's menu, the file tree's
+  menu, and the clock in the status bar). The list says *como estava
+  quando o histórico começou* for the note as it was, and *<computer's
+  name> (este computador)* for the edits, at the time this Mac's clock
+  shows. Choose the first: the diff shows the two paragraphs as `- `
+  lines. *Restaurar esta versão* asks, restores, says *Versão de …
+  restaurada.*, and the editor shows the old text; the history now has a
+  *restauração* on top. VoiceOver reads the table's header row, each
+  version's button, and the change as *N linhas adicionadas, M
+  removidas*. The history file is under the configuration directory
+  (`~/Library/Application Support/verso/history/<key>.sqlite`), never in
+  the folder: `ls -a` the folder before and after. `verso.log` has no
+  ERROR.
+- [ ] **A file changed by another program while the diff is open** (A):
+  open a note's history, choose a version, then change the note in
+  another editor and save; *Restaurar esta versão*: the window says the
+  file changed and nothing was written, the diff is made again, and the
+  other editor's text is on disk.
+- [ ] **A restore in a note edited together** (A): two browsers on a
+  UniVerso, two accounts in the same note, both typing for a while. The
+  history names both accounts on one version (ten minutes of the room in
+  one). One restores an older version: the other sees the text change at
+  once, with no conflict banner; the restore is on top of the history,
+  named by who restored. The server's audit log (console › Registro) has
+  *restaurou uma versão*.
+- [ ] **A reader has no history** (A): the reader of a UniVerso folder has
+  no *Histórico de versões* in the palette, the menus or the status bar.
+- [ ] **A synced folder on the desktop** (A): a folder of this computer
+  synced with a UniVerso; open a note's history: the versions are the
+  server's (other devices and accounts named) plus, marked *só neste
+  computador*, an edit made while the server was off. Stop the server and
+  open it again: the window says it shows this computer's versions only.
+  Restore a server's version: the window says it was restored on the
+  server and sync brings it.
+- [ ] **The console** (A): `/admin` › a folder: *Histórico de versões*
+  with its versions and size *fora da cota*; set *Dias no histórico* to 1
+  and apply: the older versions go (the server's log says how many);
+  *Usar o padrão* goes back to `VERSO_HISTORY_DAYS`. Overview shows the
+  histories' total.
+- [ ] **A large folder's growth** (B): on the maintainer's real vault
+  synced to a UniVerso for a week, `du -h $VERSO_DATA_DIR/history.sqlite`
+  against the folder's text size, and the console's figure.
+
 ### Dice and random tables (ADR 0088, feat/dice, 2026-10-14)
 
 - [ ] **A die in a note rolls and writes nothing** (A): in the installed
