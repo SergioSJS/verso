@@ -747,6 +747,13 @@ Mudo a recomendação: deixa o app com acesso de admin"*.
   simples só é feito quando nenhuma criptografia é pedida. Isso substitui
   o "sem o `age`, o script diz como instalá-lo e faz o tarball puro com
   o aviso atual em maiúsculas" do item 12.
+- (3) 2026-10-14 — a recomendação mudada pelo mantenedor: a sessão de
+  aparelho do app desktop mantém as rotas de admin, cada uma sensível
+  atrás da prova recente do item 6, como está desde o 463ed1a (a sessão
+  de um aparelho nasce sem prova) e o 0e9175d (o app prova com a senha).
+  Nenhum código muda; a seção 9 do `server-install.md` e o
+  `server-hands-on.md` dizem que uma ação de admin pelo app pede a senha
+  de novo.
 - (4) 2026-10-14 — o nome da nota de pasta é do dono da pasta, como as
   regras de varredura: um membro que não é o dono mudando os ajustes da
   pasta (`set_folder_settings`) deixa o `folder_note_name` como estava,
