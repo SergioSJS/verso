@@ -42,8 +42,9 @@ pub const QUEUE: usize = 1024;
 /// limit (`crate::rpc::MAX_MESSAGE`, 48 MB), so 1024 of them could be
 /// gigabytes. 64 MiB holds one message at the limit with room for the
 /// small ones; past it the client is too slow and is closed, as a full
-/// queue's is. Answers are not counted: the requests a connection may
-/// have under way bound them (`crate::rpc`).
+/// queue's is. Answers are not counted here: the requests a connection
+/// may have under way bound them (`crate::rpc`), and one above 1 MB takes
+/// its bytes from the server's budget while it waits (`crate::inflight`).
 pub const QUEUE_BYTES: usize = 64 * 1024 * 1024;
 
 /// A message on its way to one connection, already in its frame's text —
@@ -61,6 +62,9 @@ pub struct Out {
     /// A pushed message's bytes, given back to the queue's budget when it
     /// is written or dropped.
     _charge: Option<Charge>,
+    /// A large answer's bytes, given back to the server's budget
+    /// (`crate::inflight`) when it is written or dropped.
+    _bytes: Option<OwnedSemaphorePermit>,
 }
 
 /// Bytes held of a queue's budget while a message waits in it.
@@ -103,6 +107,10 @@ pub struct Outbox {
     /// The bytes of pushed messages waiting, and the most it may hold.
     queued: Arc<AtomicUsize>,
     budget: usize,
+    /// The server's budget of large messages and answers, which this
+    /// queue's answers above `crate::inflight::SMALL` take from while they
+    /// wait (`crate::inflight`); none for a queue that counts no answer.
+    server_bytes: Option<Arc<tokio::sync::Semaphore>>,
 }
 
 impl Outbox {
@@ -124,10 +132,34 @@ impl Outbox {
                 slow: Arc::clone(&slow),
                 queued: Arc::new(AtomicUsize::new(0)),
                 budget,
+                server_bytes: None,
             },
             rx,
             slow,
         )
+    }
+
+    /// The same queue, its large answers counted in the server's budget.
+    #[must_use]
+    pub fn counted_by(mut self, budget: Arc<tokio::sync::Semaphore>) -> Self {
+        self.server_bytes = Some(budget);
+        self
+    }
+
+    /// `bytes` of the server's budget for an answer, when it is large and
+    /// this queue counts answers: `Err` when the budget has not that much
+    /// free — the answer is then said busy instead of held.
+    fn answer_bytes(&self, bytes: usize) -> Result<Option<OwnedSemaphorePermit>, ()> {
+        match &self.server_bytes {
+            Some(budget) if bytes > crate::inflight::SMALL => {
+                let n = u32::try_from(bytes).map_err(|_| ())?;
+                Arc::clone(budget)
+                    .try_acquire_many_owned(n)
+                    .map(Some)
+                    .map_err(|_| ())
+            }
+            _ => Ok(None),
+        }
     }
 
     /// Queue `message` without waiting. Returns whether it was queued: a
@@ -156,6 +188,7 @@ impl Outbox {
             close: frame.close,
             permit: None,
             _charge: Some(charge),
+            _bytes: None,
         };
         match self.tx.try_send(out) {
             Ok(()) => true,
@@ -172,9 +205,17 @@ impl Outbox {
     /// so the answers waiting are bounded by the requests a connection may
     /// have under way.
     pub async fn answer(&self, message: Push, permit: OwnedSemaphorePermit) {
-        let frame = Frame::of(&message);
+        let id = message.get("id").cloned();
+        let mut frame = Frame::of(&message);
         // Only the frame waits for room: one copy of the answer, not two.
         drop(message);
+        let bytes = match self.answer_bytes(frame.text.len()) {
+            Ok(bytes) => bytes,
+            Err(()) => {
+                frame = Frame::of(&serde_json::json!({ "id": id, "err": crate::inflight::busy() }));
+                None
+            }
+        };
         let _ = self
             .tx
             .send(Out {
@@ -183,13 +224,24 @@ impl Outbox {
                 close: frame.close,
                 permit: Some(permit),
                 _charge: None,
+                _bytes: bytes,
             })
             .await;
     }
 
-    /// [`Outbox::answer`] for an answer in a binary message: a piece of a
-    /// file and its header, framed (`verso_core::sync::frame`).
-    pub async fn answer_binary(&self, message: Vec<u8>, permit: OwnedSemaphorePermit) {
+    /// [`Outbox::answer`] for an answer in a binary message to request
+    /// `id`: a piece of a file and its header, framed
+    /// (`verso_core::sync::frame`).
+    pub async fn answer_binary(&self, id: u64, message: Vec<u8>, permit: OwnedSemaphorePermit) {
+        let Ok(bytes) = self.answer_bytes(message.len()) else {
+            drop(message);
+            self.answer(
+                serde_json::json!({ "id": id, "err": crate::inflight::busy() }),
+                permit,
+            )
+            .await;
+            return;
+        };
         let _ = self
             .tx
             .send(Out {
@@ -198,6 +250,7 @@ impl Outbox {
                 close: false,
                 permit: Some(permit),
                 _charge: None,
+                _bytes: bytes,
             })
             .await;
     }
@@ -262,6 +315,9 @@ pub struct Server {
     pub unforwarded: crate::log::OnceAMinute,
     /// The REST routes' pace per address (ADR 0083 item 7).
     pub pace: crate::pace::Pace,
+    /// The bytes of the WebSocket's large messages and answers under way
+    /// (`crate::inflight`).
+    pub inflight: crate::inflight::Inflight,
     /// The contract's version: a hash of the generated bindings (the
     /// maintainer's answer D of 2026-10-09), sent in the handshake.
     pub contract: String,
@@ -332,6 +388,7 @@ impl Server {
             slots,
             unforwarded: crate::log::OnceAMinute::default(),
             pace: crate::pace::Pace::default(),
+            inflight: crate::inflight::Inflight::default(),
             contract,
             next: AtomicU64::new(1),
             devices: Mutex::new(HashMap::new()),

@@ -30,6 +30,7 @@ pub mod folders;
 pub mod fuzz_api;
 pub mod hashes;
 pub mod http;
+pub mod inflight;
 pub mod large;
 pub mod limit;
 pub mod listen;

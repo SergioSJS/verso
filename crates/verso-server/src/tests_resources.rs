@@ -81,3 +81,41 @@ fn a_large_file_is_served_a_piece_at_a_time() {
         );
     });
 }
+
+/// A command that is no upload is 1 MB at most, judged before its
+/// arguments are parsed: 2 MB of `list_notes` is refused in words that
+/// say the size; an upload of the same size is taken.
+#[test]
+fn a_large_message_that_is_no_upload_is_refused_before_it_is_parsed() {
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = crate::tests::folder_id(&r, &b).await;
+        let mut ws = connect(&r, Some(&b.cookie), Some(&r.origin()), None)
+            .await
+            .unwrap();
+        next(&mut ws).await;
+        call(&mut ws, 1, "open_server_folder", json!({ "id": id })).await;
+        let padding = "x".repeat(2 * 1024 * 1024);
+        let listed = call(&mut ws, 2, "list_notes", json!({ "padding": padding })).await;
+        assert!(
+            listed["err"]["message"]
+                .as_str()
+                .is_some_and(|m| m.contains("1 MB")),
+            "2 MB of list_notes was taken: {}",
+            listed.to_string().chars().take(200).collect::<String>()
+        );
+        let base64 = base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            content(1536 * 1024),
+        );
+        let made = call(
+            &mut ws,
+            3,
+            "create_file",
+            json!({ "path": "anexo.bin", "base64": base64 }),
+        )
+        .await;
+        assert!(made.get("ok").is_some(), "{made}");
+    });
+}
