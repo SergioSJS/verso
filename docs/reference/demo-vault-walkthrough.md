@@ -257,7 +257,7 @@ point 13).
 
 ## 4. Organizing: properties, bases, daily notes
 
-1. `Projetos.base`: the five views (table, kanban, Cards, list, calendar);
+1. `Projetos.base`: the six views (table, kanban, Cards, list, calendar, map);
    only the notes of `projetos/`; the formula's column and the budget's sum;
    the kanban in a column per status; the calendar back in September 2026
    shows the three projects. Level: H. Caught: with no filter the base
@@ -301,6 +301,27 @@ point 13).
    card reaches the file. Level: S (`crates/verso-core/tests/typed.rs`,
    `fixtures/schema/infobox`), H; E: `infobox.spec.mjs`,
    `test/infobox.test.mjs`.
+8. The map (note 04, "O Mapa", ADR 0094): *Projetos.base › Mapa* draws the
+   world outline shipped with the app and three pins — São Paulo, Lisbon,
+   Recife; a pin's click opens its project, resting on it shows the note;
+   below, "Lugares do mapa" lists the three in the view's order with their
+   coordinates, each reached by Tab and opened with Enter. Nothing is asked
+   of the network. *Ajustes › Fundo dos mapas* offers OpenFreeMap by name,
+   off; a base naming its own `mapTiles` says "Esta base pede o fundo do
+   mapa a …" and fetches nothing until *Aprovar*. A right click on the map:
+   "Copiar coordenadas", "Usar como centro da visão", "Usar este zoom na
+   visão". Level: S (`crates/verso-core/tests/demo_base.rs`,
+   `tests_map_tiles.rs` of the server), H; E: `base-map.spec.mjs`; U:
+   `test/baseMap.test.mjs`.
+9. Regular expressions (note 04, "Expressões Regulares nas Fórmulas"): the
+   *Mês* column of *Todos os Projetos* shows `09/2026` for the three
+   projects — evaluated by the core, not by the harness, which leaves a
+   formula empty. Level: S (`crates/verso-core/src/bases/tests_regex.rs`,
+   `crates/verso-core/tests/demo_base.rs`), A.
+10. The embedded *Todos os Projetos* of note 04 has the view's tools; a
+    sort added there is written to `Projetos.base` and the rest of the file
+    is kept. `html()` in a base draws HTML, cleaned (no script, no
+    `onerror`). Level: H; E: `base-map.spec.mjs`.
 
 ## 5. Finding
 
