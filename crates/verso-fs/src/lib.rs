@@ -38,6 +38,7 @@
 //!   download it.
 
 mod confine;
+mod obsidian;
 mod ops;
 mod os;
 mod placeholder;
@@ -69,6 +70,7 @@ pub fn is_portable(relative: &std::path::Path) -> bool {
         _ => true,
     })
 }
+pub use obsidian::{OBSIDIAN_SETTINGS_MAX, ObsidianRead, ObsidianSettings};
 pub use ops::OpReport;
 pub use placeholder::Placeholder;
 pub use settings::{SETTINGS_DIR, SETTINGS_FILE, in_settings_dir, is_settings_path};
