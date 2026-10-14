@@ -23,7 +23,7 @@ import { commands } from "./bindings";
 import { type CollabHandlers, fromB64, joinRoom, REMOTE, RoomSession, roomSide, toB64 } from "./collab";
 import { backgroundOf, type CanvasDoc, type El, parseCanvas } from "./board/model";
 import type { BoardPane, BoardPerson as Person, BoardRoomLink } from "./board/types";
-import { canvasOf, changedElements, entryKey, mergeScene, outrankedKeys, parseKey, type Rank, rankOf, resolve, sendable, unsent } from "./board/roomModel";
+import { canvasOf, changedElements, entryKey, Layouts, mergeScene, outrankedKeys, parseKey, type Rank, rankOf, resolve, sendable, unsent } from "./board/roomModel";
 
 /** The origin of this window's own changes to the room's document. */
 const LOCAL = "board";
@@ -54,6 +54,9 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
   /** Per element: how many times in a row the board changed by itself
    *  the room's version it took in. A person's change resets it. */
   private readonly selfMade = new Map<string, number>();
+  /** The texts this window laid out, the only ones it measures again
+   *  (roomModel.ts `Layouts`). */
+  readonly layouts = new Layouts();
   /** Per element: passes in a row the room held it and the board did not
    *  draw it. */
   private readonly missing = new Map<string, number>();
@@ -164,6 +167,7 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
         this.put(e);
         this.known.set(e.id, rankOf(e));
       }
+      this.layouts.seeded(drawn);
       this.meta.set("seeded", true);
       this.meta.set("background", backgroundOf(this.base()) ?? "");
     }, LOCAL);
@@ -222,6 +226,7 @@ export class BoardSession extends RoomSession implements BoardRoomLink {
       // A deletion jumps ahead of any move made meanwhile (roomModel.ts).
       this.doc.transact(() => {
         for (const e of changed) {
+          this.layouts.sent(e, held.get(e.id));
           this.put(sendable(e, held.get(e.id)));
           this.known.set(e.id, rankOf(e));
         }
