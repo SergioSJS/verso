@@ -56,6 +56,7 @@ pub use folder_settings::{FolderLayer, FolderSettings, LayerProblem};
 mod entries;
 mod folder_settings;
 mod indexing;
+mod mentions;
 mod narrow;
 mod notes;
 mod rename;
@@ -63,6 +64,7 @@ mod sidecar;
 mod sync_io;
 mod views;
 use entries::*;
+pub use mentions::{Mention, Mentions};
 use rename::*;
 pub use sidecar::Sidecar;
 

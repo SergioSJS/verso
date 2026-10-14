@@ -229,6 +229,19 @@ point 13).
     hover, the command still opens one. A row of the Links panel, a node of
     the graph and a card's name on "Board de Demonstração" show their
     notes. Level: H; E: `preview.spec.mjs`; U: `test/preview.test.mjs`.
+14. Note 02, "Menções sem link" ([ADR 0089](../adr/0089-linking-unlinked-mentions.md)):
+    open "Lia Torres" (⌘P), right panel › Links: under "Menções sem link",
+    the row of note 02 with the words around the name; "Linkar" writes
+    `[[Lia Torres]]` into the "Experimente" callout and the row goes, the
+    note now among the backlinks. On a seeded folder: a mention in another
+    case or an alias is written `[[Name|text]]`; "Linkar todas" shows the
+    plan as a diff, a list a keyboard reaches, and skips by name a note
+    changed meanwhile; a mention that moved is refused and the list drawn
+    again; in a note open in a tab, ⌘Z undoes the link; a note live with
+    someone else takes it through its room; a reader sees no button and no
+    mention inside a secret block. Level: S (the tutorial note), U
+    (`cargo test -p verso-core mentions`, `test/mentionLink.test.mjs`), H;
+    E: `mentions.spec.mjs`.
 
 ## 4. Organizing: properties, bases, daily notes
 

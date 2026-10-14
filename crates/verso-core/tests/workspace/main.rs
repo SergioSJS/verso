@@ -22,6 +22,7 @@ mod shell;
 
 mod agents;
 mod indexing;
+mod mentions;
 mod order;
 mod rename;
 mod sweep;

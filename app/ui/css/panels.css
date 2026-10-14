@@ -429,6 +429,17 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .panel-list li > button.level-3 { padding-left: 1.2rem; }
 .panel-list li > button.level-4, .panel-list li > button.level-5, .panel-list li > button.level-6 { padding-left: 1.9rem; color: var(--ink-3); }
 .panel-list .empty { padding: .4rem .5rem; font-size: .85rem; color: var(--ink-3); font-family: var(--book); font-style: italic; }
+/* Unlinked mentions (ADR 0089): a row per occurrence, its line around it,
+   and "Link" beside it; "Link all" beside the heading. No motion. */
+.mentions-head { display: flex; align-items: center; gap: .4rem; margin-right: .4rem; }
+.mentions-head .panel-sub { margin-right: auto; }
+.mentions-list li.mention { display: flex; align-items: flex-start; gap: .2rem; }
+.mentions-list li.mention > button.row { flex-wrap: wrap; min-width: 0; }
+.mentions-list li.mention > button.row .snippet { flex-basis: 100%; font-family: var(--book); font-size: .82rem; color: var(--ink-2); line-height: 1.4; overflow-wrap: anywhere; }
+.mentions-list li.mention > button.row .snippet mark { background: var(--paper-3); color: var(--ink); border-radius: 3px; padding: 0 .1rem; }
+.mentions-list .mention-link, .mentions-head .mentions-all { flex: none; white-space: nowrap; }
+.mentions-list .mention-link:disabled { opacity: .5; }
+.mentions-note { margin: .2rem .6rem; font-size: .8rem; color: var(--ink-3); }
 .star { display: inline-flex; padding: .3rem; border-radius: 5px; color: var(--ink-3); }
 .star:hover { color: var(--brass); background: var(--paper-3); }
 .star.on { color: var(--brass); }
