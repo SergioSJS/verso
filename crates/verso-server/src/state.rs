@@ -349,7 +349,8 @@ pub struct Server {
     pub mail: std::sync::OnceLock<crate::mail::Mail>,
     /// Sign-in links sent by e-mail and not used: their hash → the account
     /// and when it was made (fifteen minutes, ADR 0074 item 3).
-    pub signin_links: Mutex<HashMap<Vec<u8>, (String, std::time::Instant)>>,
+    /// With the key of the address that asked (`crate::limit::room_for`).
+    pub signin_links: Mutex<HashMap<Vec<u8>, (String, std::time::Instant, String)>>,
     /// The passkey ceremonies under way (ADR 0074 item 3).
     pub ceremonies: crate::passkeys::Ceremonies,
     /// The runtime, for what the watcher's thread hands over.

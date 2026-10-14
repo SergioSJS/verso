@@ -371,3 +371,59 @@ fn concurrent_uploads_do_not_pass_the_folders_quota() {
         }
     });
 }
+
+/// One address keeps a bounded number of device codes waiting: past it,
+/// the next start is answered 429, and the codes of others are not pushed
+/// out by it.
+#[test]
+fn one_address_keeps_a_bounded_number_of_device_codes_waiting() {
+    block_on(async {
+        let r = start().await;
+        let most = crate::limit::PENDING_PER_ADDRESS;
+        for i in 0..most {
+            // The per-address delay of a start is not this test's subject.
+            r.server.limiter.succeeded("device:127.0.0.1");
+            let (status, _) =
+                crate::tests::post(&r, "/api/device/start", json!({ "device": "Mac" }), None).await;
+            assert_eq!(status, 200, "code {}", i + 1);
+        }
+        r.server.limiter.succeeded("device:127.0.0.1");
+        let (status, _) =
+            crate::tests::post(&r, "/api/device/start", json!({ "device": "Mac" }), None).await;
+        assert_eq!(status, 429, "code {} of one address was kept", most + 1);
+        assert_eq!(verso_service::lock(&r.server.devices).len(), most);
+    });
+}
+
+/// One address keeps a bounded number of sign-in links waiting, however
+/// often it asks: the next is not made.
+#[test]
+fn one_address_keeps_a_bounded_number_of_sign_in_links_waiting() {
+    block_on(async {
+        let r = start().await;
+        let _ = r
+            .server
+            .mail
+            .set(crate::mail::Mail::Memory(std::sync::Mutex::new(Vec::new())));
+        let most = crate::limit::PENDING_PER_ADDRESS;
+        for _ in 0..=most {
+            r.server.limiter.succeeded("mail:127.0.0.1");
+            r.server.limiter.succeeded("mail:admin@casa.lan");
+            let (status, _) = crate::tests::post(
+                &r,
+                "/api/signin/link",
+                json!({ "email": "admin@casa.lan" }),
+                None,
+            )
+            .await;
+            assert_eq!(status, 200);
+            // The link is made after the answer, on its own.
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+        let kept = verso_service::lock(&r.server.signin_links).len();
+        assert!(
+            kept <= most,
+            "{kept} sign-in links of one address were kept; {most} at most"
+        );
+    });
+}

@@ -769,7 +769,7 @@ enum Mailed {
 fn mail_later(ctx: &Ctx, email: String, what: Mailed) {
     let server = std::sync::Arc::clone(&ctx.server);
     let base = auth::expected_origin(&ctx.server, &ctx.headers).unwrap_or_default();
-    let address = ctx.address();
+    let address = (ctx.address(), ctx.peer.key());
     tokio::spawn(async move {
         if let Err(e) = mailed(&server, &email, &base, &address, what).await {
             crate::log::error(&format!("a mail route: {e}"));
@@ -781,7 +781,7 @@ async fn mailed(
     server: &crate::state::Server,
     email: &str,
     base: &str,
-    address: &str,
+    (address, by): &(String, String),
     what: Mailed,
 ) -> Result<(), String> {
     let (Some(mail), Some(account)) = (server.mail.get(), server.db.account_by_email(email)?)
@@ -792,11 +792,21 @@ async fn mailed(
         Mailed::SignIn => {
             let token = crate::crypto::token()?;
             let mut links = verso_service::lock(&server.signin_links);
-            links.retain(|_, (_, at)| at.elapsed() < SIGNIN_LINK_LIFE);
-            crate::limit::make_room(&mut links, crate::limit::PENDING, |(_, at)| *at);
+            links.retain(|_, (_, at, _)| at.elapsed() < SIGNIN_LINK_LIFE);
+            // An address with its links waiting gets none more: the
+            // answer already left, the same for every address.
+            if !crate::limit::room_for(&links, by, |(_, _, k)| k) {
+                drop(links);
+                crate::log::info(&format!(
+                    "a sign-in link not made: {by} has {} waiting",
+                    crate::limit::PENDING_PER_ADDRESS
+                ));
+                return Ok(());
+            }
+            crate::limit::make_room(&mut links, crate::limit::PENDING, |(_, at, _)| *at);
             links.insert(
                 crate::crypto::hash(&token),
-                (account.id.clone(), std::time::Instant::now()),
+                (account.id.clone(), std::time::Instant::now(), by.clone()),
             );
             ("signin-link", token, "signin_link_sent", "signin")
         }
@@ -831,8 +841,8 @@ pub async fn signin_by_link(ctx: Ctx, Path(token): Path<String>) -> ApiResult<Re
     limited(&ctx, &[&key])?;
     let found = verso_service::lock(&ctx.server.signin_links)
         .remove(&crate::crypto::hash(&token))
-        .filter(|(_, at)| at.elapsed() < SIGNIN_LINK_LIFE);
-    let Some((account, _)) = found else {
+        .filter(|(_, at, _)| at.elapsed() < SIGNIN_LINK_LIFE);
+    let Some((account, _, _)) = found else {
         ctx.server.limiter.failed(&key);
         return Err(ApiError::new(
             StatusCode::NOT_FOUND,

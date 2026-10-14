@@ -65,6 +65,21 @@ const KEYS: usize = 100_000;
 /// state is a few kilobytes, so 10 000 of them are tens of megabytes.
 pub const PENDING: usize = 10_000;
 
+/// The entries one address (an IPv6 /64 as one) may keep at once in each
+/// of those maps: a person's own few — a code for each device being
+/// connected, a link asked again, a passkey tried twice — with room. Past
+/// it the address is refused another, so that it cannot fill a map alone
+/// and push out, as the oldest tenth, the ceremony a person has under way
+/// (the review of 2026-10-13); many addresses still can, at
+/// [`PENDING`] / 8 of them.
+pub const PENDING_PER_ADDRESS: usize = 8;
+
+/// Whether `address` may add one more entry to `map`, `of` giving the
+/// address key each entry was made from.
+pub fn room_for<K, V>(map: &HashMap<K, V>, address: &str, of: impl Fn(&V) -> &str) -> bool {
+    map.values().filter(|v| of(v) == address).count() < PENDING_PER_ADDRESS
+}
+
 /// Failures heard without delay.
 pub(crate) const FREE: u32 = 3;
 /// The longest wait between two attempts.
@@ -127,6 +142,20 @@ impl Limiter {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The rule every map strangers fill shares — device codes, sign-in
+    /// links, both passkey ceremonies: an address past its entries gets
+    /// none more; another address still does.
+    #[test]
+    fn an_address_keeps_a_bounded_number_of_entries() {
+        let mut map: HashMap<u32, String> = HashMap::new();
+        for i in 0..PENDING_PER_ADDRESS {
+            assert!(room_for(&map, "a", String::as_str));
+            map.insert(u32::try_from(i).unwrap(), "a".to_owned());
+        }
+        assert!(!room_for(&map, "a", String::as_str));
+        assert!(room_for(&map, "b", String::as_str));
+    }
 
     #[test]
     fn the_delay_grows_and_a_success_clears_it() {
