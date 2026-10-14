@@ -41,7 +41,7 @@ sh universo.sh install --url https://notes.example.com
 | `uninstall [--purge]` | removes the package and says what it left: `/var/lib/universo`, `/etc/universo`, the `universo` user. `--purge` removes them too, after you type `/var/lib/universo` back |
 | `status` | the service's state, the version, the address it listens on, the size of the two directories, the last 5 lines of the log |
 | `logs [-f]` | `journalctl -u universo` |
-| `backup [DIR] [--encrypt \| --passphrase] [--to-stdout]` | stops the service, packs `/var/lib/universo` and `/etc/universo` into `universo-backup-<date>-<time>.tar.gz` in `DIR` (`/var/backups/universo` by default), starts it again; refuses when `DIR` has less free space than the two directories take. `--encrypt` encrypts it with `age` (`.tar.gz.age`), `--passphrase` to a typed passphrase, `--to-stdout` writes it to standard output for a pipe (section 2) |
+| `backup [DIR] [--encrypt \| --passphrase] [--to-stdout]` | stops the service, packs `/var/lib/universo` and `/etc/universo` into `universo-backup-<date>-<time>-<random>.tar.gz` in `DIR` (a new file, `0600`, under a name no one can guess beforehand; `DIR` must not lie inside what it copies, `..` and links resolved) (`/var/backups/universo` by default), starts it again; refuses when `DIR` has less free space than the two directories take. `--encrypt` encrypts it with `age` (`.tar.gz.age`), `--passphrase` to a typed passphrase, `--to-stdout` writes it to standard output for a pipe (section 2) |
 | `backup --keygen` | makes the key of encrypted backups, once: the public one in `/etc/universo/backup.pub`, the secret one printed, never kept on the machine (section 2) |
 | `restore FILE [--identity KEY-FILE] [--to DIR]` | puts a backup back over `/var/lib/universo` and `/etc/universo` after you type `/var/lib/universo`, the service stopped meanwhile; an encrypted one with its secret key or passphrase; `--to DIR` unpacks it into `DIR` instead, the server untouched (section 2) |
 | `reset-admin [E-MAIL]` | the command of section 10 |
@@ -49,13 +49,20 @@ sh universo.sh install --url https://notes.example.com
 
 How a download is checked: with `minisign` installed, the release's `.sig`
 against Verso's release key (section 6), the signed comment naming the
-file; without it, the `sha256` GitHub publishes for each release file;
-with neither, it refuses unless given `--insecure-no-verify`, which says
-loudly that nothing was checked. A package from `--package FILE` is
-checked with `FILE.sig` beside it. While the repository is private,
-downloading needs a GitHub token in `GITHUB_TOKEN` (fine-grained,
-Contents: Read-only on the repository); without one the script says how to
-make it, or takes `--package`. A machine with neither apt nor dnf is told
+file; without `minisign`, the `sha256` GitHub publishes for each release
+file; with neither, it refuses unless given `--insecure-no-verify`, which
+says loudly that nothing was checked. A missing `.sig` — none in the
+release, its download failed, none beside `--package FILE` — is an error:
+the script stops and says so, unless given `--no-signature`, which settles
+for the published `sha256` (proof that the file is the one uploaded to the
+release, not of who made it). A package from `--package FILE` is checked
+with `FILE.sig` beside it. While the repository is private, downloading
+needs a GitHub token in `GITHUB_TOKEN` (fine-grained, Contents: Read-only
+on the repository); without one the script says how to make it, or takes
+`--package`. Give it with `read -rs GITHUB_TOKEN && export GITHUB_TOKEN`
+(bash or zsh: paste, Enter), which keeps it out of the screen and of the
+shell's history, rather than `export GITHUB_TOKEN=…` on the command
+line. A machine with neither apt nor dnf is told
 to use the archive (section 6). Sections 5 and 6 stay the manual paths.
 
 A walk-through on a free cloud machine, from creating it to the app
@@ -137,11 +144,15 @@ To restore, the service stopped meanwhile and after you type
 `/var/lib/universo`:
 
 ```sh
-sudo sh universo.sh restore universo-backup-<date>-<time>.tar.gz.age --identity key.txt
+sudo sh universo.sh restore universo-backup-<date>-<time>-<random>.tar.gz.age --identity key.txt
 ```
 
 with the secret key in `key.txt` for the moment (or `age` asks the
-passphrase); a plain backup needs no `--identity`. `--to /some/dir`
+passphrase); a plain backup needs no `--identity`. That file is the key to
+every backup: make it readable by its owner only (`umask 077` before
+writing it, or `chmod 600 key.txt`), never keep it on the server, and
+delete it once the restore is done (`shred -u key.txt` where `shred`
+means something; on a copy-on-write or flash file system, `rm`). `--to /some/dir`
 unpacks it there instead, to look at it first, leaving the server alone.
 Before writing anything, `restore` copies the backup (or decrypts it) into
 a directory of its own and lists it: it refuses the whole backup when any

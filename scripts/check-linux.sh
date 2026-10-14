@@ -24,7 +24,11 @@
 # compared file by file, mode and owner with the original; a restore over
 # / that gives a changed note back, and backups holding something a backup
 # never holds (another path, a link, a set-id file, an absolute name)
-# refused with nothing written. `--script` runs that test alone.
+# refused with nothing written; a backup beside links planted at the
+# names the clock gives, and a directory inside the data through `..` or a
+# link, refused; the GitHub token's header file never open to others; a
+# package with no signature refused unless --no-signature. `--script` runs
+# that test alone.
 #
 # Last, the server's packaging (ADR 0083 item 11): scripts/check-server-
 # image.sh builds the static musl server in a container of this machine's
@@ -114,6 +118,24 @@ if [ "${1:-}" = "--universo-sh" ]; then
   snapshot / > /tmp/after
   diff -u /tmp/before /tmp/after || fail "a refused backup changed the server"
 
+  printf '\n== a backup is written under a name no one can guess, never inside what it copies\n'
+  # Links planted at the names a backup took from the clock alone.
+  mkdir -p /shared && printf 'original\n' > /etc/victim
+  for i in 0 1 2 3 4 5 6 7 8 9; do
+    ln -s /etc/victim "/shared/universo-backup-$(date -d "+$i sec" +%Y%m%d-%H%M%S).tar.gz"
+  done
+  $u backup /shared >/dev/null 2>&1 || fail "a backup beside planted links"
+  [ "$(cat /etc/victim)" = original ] || fail "a backup wrote through a planted link"
+  ls /shared/universo-backup-*-??????.tar.gz >/dev/null 2>&1 || fail "the backup's name has no random part"
+  rm -rf /shared /etc/victim
+  ln -s /var/lib/universo /inside
+  for d in /var/lib/x/../universo/bk /inside/bk /etc/universo/./bk; do
+    if $u backup "$d" >/tmp/inside.out 2>&1; then fail "a backup went inside what it copies: $d"; fi
+    grep -q 'cannot go inside' /tmp/inside.out || fail "$d refused for another reason: $(cat /tmp/inside.out)"
+  done
+  [ ! -e /var/lib/universo/bk ] || fail "a refused backup left a directory inside the data"
+  rm -f /inside
+
   printf '\n== age installed; --keygen keeps the public key and prints the secret one only\n'
   apt-get install -y -qq age >/dev/null
   $u backup --keygen > /elsewhere/key.txt 2>/tmp/keygen.err || fail "--keygen: $(cat /tmp/keygen.err)"
@@ -146,6 +168,36 @@ if [ "${1:-}" = "--universo-sh" ]; then
   $u backup --to-stdout 2>/dev/null > /elsewhere/clear.tar.gz || fail "--to-stdout in the clear"
   tar -tzf /elsewhere/clear.tar.gz > /tmp/listed || fail "--to-stdout gave no tarball"
   grep -q '^etc/universo/backup.pub$' /tmp/listed || fail "--to-stdout's tarball lacks the settings"
+
+  printf '\n== the token header is never open to others; a missing signature stops the install\n'
+  cat > /tmp/hdr-test.sh <<'EOF'
+. /src/packaging/server/universo.sh
+umask 022
+TMPD=$(mktemp -d)
+# Every mode the header file has when chmod or curl sees it.
+chmod() { [ -e "$2" ] && stat -c '%a' "$2" >> /tmp/hdr-modes; command chmod "$@"; }
+curl() { for a in "$@"; do case "$a" in @*) stat -c '%a' "${a#@}" >> /tmp/hdr-modes ;; esac; done; printf 200; }
+GITHUB_TOKEN=github_pat_test gh_get https://api.github.com/x /tmp/hdr-out >/dev/null
+EOF
+  rm -f /tmp/hdr-modes
+  UNIVERSO_SH_FUNCTIONS=1 sh /tmp/hdr-test.sh || fail "gh_get with a stub curl"
+  [ -s /tmp/hdr-modes ] || fail "curl never saw the header file"
+  if grep -qv '^600$' /tmp/hdr-modes; then fail "the token's header file was open to others: $(tr '\n' ' ' < /tmp/hdr-modes)"; fi
+  UNIVERSO_SH_FUNCTIONS=1 sh -c '. /src/packaging/server/universo.sh; token_help' > /tmp/token-help 2>&1
+  if grep -q 'export GITHUB_TOKEN=' /tmp/token-help; then fail "the token is to be typed where the shell's history keeps it"; fi
+  grep -q 'read -rs GITHUB_TOKEN' /tmp/token-help || fail "no hidden way to give the token"
+  # A package with a published checksum but no signature.
+  verify_with() {
+    UNIVERSO_SH_FUNCTIONS=1 sh -c '. /src/packaging/server/universo.sh
+      TMPD=$(mktemp -d); PKG=/tmp/universo-0.0.0-amd64.deb; printf x > "$PKG"
+      SIG=; DIGEST="sha256:$(sha256sum "$PKG" | cut -d" " -f1)"; INSECURE=0; NOSIG=$1
+      verify' sh "$1"
+  }
+  if verify_with 0 > /tmp/verify.out 2>&1; then fail "a package with no signature was taken on its checksum alone: $(cat /tmp/verify.out)"; fi
+  grep -q -- '--no-signature' /tmp/verify.out || fail "the refusal does not name --no-signature: $(cat /tmp/verify.out)"
+  verify_with 1 > /tmp/verify.out 2>&1 || fail "--no-signature with a good checksum: $(cat /tmp/verify.out)"
+  grep -q 'Checksum good' /tmp/verify.out || fail "--no-signature did not check the checksum: $(cat /tmp/verify.out)"
+  if $u update --no-signature 2>&1 | grep -q 'Unknown option'; then fail "update does not take --no-signature"; fi
 
   printf '\n== the Caddy steps install prints, run beside another site (twice)\n'
   apt-get install -y -qq caddy >/dev/null
