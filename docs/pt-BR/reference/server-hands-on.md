@@ -726,6 +726,15 @@ igual à do servidor). O código vale 10 minutos; depois disso, clique em
 Conectar de novo. O nome do aparelho, que aparece na lista de sessões do
 servidor, se define na mesma seção, **Nome deste aparelho**.
 
+A sessão do app leva os poderes da conta, os de admin inclusive (decidido
+em 2026-10-14, [ADR 0083](../adr/0083-security-hardening-of-universo.md),
+Como construído). Uma ação sensível feita com ela — compartilhar uma pasta
+e, para um admin, os atos do console sobre outras contas ou entrar numa
+pasta — pede a senha de novo antes, como o navegador pede: a sessão do app
+começa sem confirmação, então a primeira ação dessas sempre pede, e de novo
+sempre que a última confirmação passou de 10 minutos (item 6). No app só a
+senha confirma; uma passkey é do navegador.
+
 <!-- screenshot: a página "Conectar um aplicativo" no navegador: Quem pediu, Aparelho, Endereço, Quando, e os botões "Aprovar este aparelho: …" e "Não fui eu: recusar" -->
 <!-- screenshot: a janela "Confirme que é você" sobre a página do aparelho (versão de depois da v0.8.0-beta.1) -->
 <!-- screenshot: Ajustes › Servidores do app depois de conectar: "Conectado como …" e "Pastas em notas.exemplo.com" com Abrir aqui e Sincronizar -->

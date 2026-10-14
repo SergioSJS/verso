@@ -647,6 +647,14 @@ criada de um de dois jeitos (0074 item 1):
   ler o log primeiro pode usá-lo — então use-o assim que sair. O
   `universo.sh install` diz isso ao lado do link.
 
+Os poderes do admin vão com toda sessão da conta, a do app desktop
+inclusive (decidido em 2026-10-14, ADR 0083, Como construído): uma ação de
+admin feita com a sessão do app — os atos do console sobre outras contas,
+entrar numa pasta — pede a senha de novo antes, como no navegador. A
+sessão de um aparelho começa sem confirmação, então a primeira ação
+sensível dela sempre pede, e de novo quando a última confirmação passou de
+10 minutos (ADR 0083 item 6).
+
 ## 10. Senha do admin perdida
 
 Quem roda o servidor recupera a conta do admin (0074 item 5):

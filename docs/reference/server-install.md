@@ -630,6 +630,14 @@ made in one of two ways (0074 item 1):
   first can use it — so use it as soon as it is printed. `universo.sh
   install` says so beside the link.
 
+The admin's powers go with every session of the account, the desktop
+app's included (decided 2026-10-14, ADR 0083, As built): an admin action
+made with the app's session — the console's acts on other accounts,
+entering a folder — asks for the password again first, as in the browser.
+A device's session starts unconfirmed, so its first sensitive action always
+asks, and again once the last confirmation is more than 10 minutes old
+(ADR 0083 item 6).
+
 ## 10. A lost admin password
 
 Whoever runs the server recovers the admin's account (0074 item 5):

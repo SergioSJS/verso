@@ -725,6 +725,13 @@ with admin access).
   the plain backup is made only when no encryption is asked. This
   replaces item 12's "without `age`, the script says how to install it
   and makes the plain tarball with the present warning in capitals".
+- (3) 2026-10-14 — the recommendation changed by the maintainer: a
+  desktop app's device session keeps the admin's routes, each sensitive
+  one behind item 6's fresh proof, as it is since 463ed1a (a device's
+  session born unproved) and 0e9175d (the app proves with the password).
+  No code changes; `server-install.md` section 9 and
+  `server-hands-on.md` say that an admin action from the app asks for the
+  password again.
 - (4) 2026-10-14 — the folder note's name is the folder owner's, as the
   walk's rules are: a member who is not the owner changing the folder's
   settings (`set_folder_settings`) leaves `folder_note_name` as it was,

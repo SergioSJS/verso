@@ -721,6 +721,15 @@ same as the server's). The code is valid for 10 minutes; past that, click
 Connect again. The device's name, shown in the server's list of sessions,
 is set in the same section, **This device's name**.
 
+The app's session carries the account's powers, an admin's included
+(decided 2026-10-14, [ADR 0083](../adr/0083-security-hardening-of-universo.md),
+As built). A sensitive action made with it — sharing a folder, and, for an
+admin, the console's acts on other accounts or entering a folder — asks for
+the password again first, as the browser does: the app's session starts
+unconfirmed, so its first such action always asks, and again whenever the
+last confirmation is more than 10 minutes old (item 6). In the app only
+the password confirms; a passkey belongs to the browser.
+
 <!-- screenshot: the browser's "Connect an app" page: Who asked, Device, Address, When, and the buttons "Approve this device: …" and "It was not me: refuse" -->
 <!-- screenshot: the "Confirm it is you" dialog over the device page (version after v0.8.0-beta.1) -->
 <!-- screenshot: the app's Settings › Servers after connecting: "Connected as …" and "Folders on notes.example.com" with Open here and Sync -->
