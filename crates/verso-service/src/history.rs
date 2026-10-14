@@ -106,6 +106,7 @@ pub fn entry(v: &Version, prefix: &str, here_only: bool) -> VersionEntry {
         authors: v.authors.iter().map(author).collect(),
         kind: kind(v.kind),
         size: v.size as f64,
+        hash: v.hash.clone(),
         added: v.added,
         removed: v.removed,
         path: v.path.clone(),

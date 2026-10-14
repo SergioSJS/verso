@@ -711,6 +711,9 @@ async fn command(
         // The person's own, kept by the window: the approved embed origins
         // are the reader's (answer I), the menu is the desktop's.
         "set_embed_origins" | "set_menu_language" => Ok(Value::Null),
+        // The computer's own history's retention (ADR 0091 item 8): a
+        // server keeps its folders' by VERSO_HISTORY_DAYS and the console.
+        "set_history_days" => Ok(Value::Null),
         "fetch_file" => Ok(Value::Bool(false)),
         "collab_join" | "collab_update" | "collab_awareness" | "collab_leave" | "collab_save"
         | "collab_resolve" | "collab_present" | "collab_canvas" | "collab_roll" => {

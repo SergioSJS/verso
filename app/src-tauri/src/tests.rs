@@ -1162,3 +1162,60 @@ fn the_sign_in_page_opens_nothing_a_server_did_not_name() {
     let none = remote::server_sign_in_page().unwrap_err();
     assert_eq!(none.kind, verso_contract::ErrorKind::Refused, "{none:?}");
 }
+
+/// A file's history through the contract (ADR 0091 item 8): a folder of
+/// this computer keeps its versions under the configuration directory,
+/// named by this computer; a restore is a new write over the revision the
+/// window read, refused when the file moved on (invariant 11).
+#[test]
+fn a_folder_of_this_computer_keeps_and_restores_its_versions() {
+    let vault = tempfile::tempdir().unwrap();
+    let _nota = note(vault.path(), "Nota.md", "um\n");
+    let (app, webview) = app_with(Some(vault.path().to_path_buf()));
+    app.state::<App>()
+        .service
+        .keep_local_history("Mac de Teste", 365);
+    call(&webview, "open_initial", json!({})).unwrap();
+    let read = call(&webview, "read_note", json!({ "path": "Nota.md" })).unwrap();
+    let first = read["revision"].clone();
+    call(
+        &webview,
+        "write_note",
+        json!({ "path": "Nota.md", "text": "dois\n", "revision": first }),
+    )
+    .unwrap();
+    let list = call(&webview, "history_list", json!({ "path": "Nota.md" })).unwrap();
+    let versions = list["versions"].as_array().unwrap().clone();
+    // As found at the reading, then this computer's edit.
+    assert_eq!(versions.len(), 2, "{list}");
+    assert_eq!(versions[0]["authors"][0]["name"], "Mac de Teste");
+    assert_eq!(versions[1]["kind"], "found");
+    let found = versions[1]["id"].clone();
+    assert!(found.as_str().unwrap().starts_with("c:"));
+    let text = call(
+        &webview,
+        "history_read",
+        json!({ "path": "Nota.md", "id": found }),
+    )
+    .unwrap();
+    assert_eq!(text["text"], "um\n");
+    let stale = call(
+        &webview,
+        "history_restore",
+        json!({ "path": "Nota.md", "id": found, "revision": first }),
+    )
+    .unwrap_err();
+    assert_eq!(stale["kind"], "changed", "{stale}");
+    let now = call(&webview, "read_note", json!({ "path": "Nota.md" })).unwrap();
+    let back = call(
+        &webview,
+        "history_restore",
+        json!({ "path": "Nota.md", "id": found, "revision": now["revision"] }),
+    )
+    .unwrap();
+    let after = call(&webview, "read_note", json!({ "path": "Nota.md" })).unwrap();
+    assert_eq!(after["text"], "um\n");
+    assert_eq!(after["revision"], back["revision"]);
+    call(&webview, "set_history_days", json!({ "days": 30 })).unwrap();
+    assert!(call(&webview, "set_history_days", json!({ "days": 40_000 })).is_err());
+}
