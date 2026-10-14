@@ -10,7 +10,7 @@
 // computer (ADR 0079 item 8, decided 2026-10-11).
 
 import { listen } from "@tauri-apps/api/event";
-import { commands, type ContractError, type ServerAccount, type ServerFolder } from "../bindings";
+import { commands, type ContractError, type ServerAccount, type ServerBack, type ServerFolder, type ServerGone } from "../bindings";
 import { h, ui } from "../dom";
 import { errorSentence, fail } from "../errors";
 import { addressOf, attempt, busy, clearFailure, reachStrings, sayFailure } from "../reach";
@@ -20,7 +20,7 @@ import { currentSync, openSettingsSection, preselectSync } from "./sync";
 import { openFolderBy } from "../open";
 import { sh } from "../shareStrings";
 import { copyWhenKnown, startSignIn } from "../serverSignIn";
-import { type GoneSaid, revokedSentence, serverBackHeard, serverGoneHeard } from "../notify/sources";
+import { revokedSentence, serverBackHeard, serverGoneHeard } from "../notify/sources";
 
 /** A sentence whose names stand out: a name is `[name]`. */
 type Said = (string | [string])[];
@@ -146,7 +146,7 @@ export function hearServers(): void {
   if (heard) return;
   heard = true;
   addEventListener("verso:folder-shown", () => refusedAt.clear());
-  void listen<GoneSaid>("server-gone", (e) => {
+  void listen<ServerGone>("server-gone", (e) => {
     const s = serverStrings();
     const p = e.payload;
     if (p.what === "folder") {
@@ -172,7 +172,7 @@ export function hearServers(): void {
     ui.status.textContent = said;
     serverGoneHeard(p, said);
   });
-  void listen<{ url: string }>("server-back", (e) => {
+  void listen<ServerBack>("server-back", (e) => {
     serverState()?.remove();
     const said = serverStrings().back;
     ui.status.textContent = said;

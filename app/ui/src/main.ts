@@ -39,7 +39,7 @@ import { installFrame } from "./frame";
 import { installLongPress } from "./touch";
 import { installScreen } from "./screen/frame";
 import { installNotify } from "./notify";
-import { installSources, quotaHeard } from "./notify/sources";
+import { installSources } from "./notify/sources";
 import { can, loadCan } from "./can";
 import { copyFilesInto, newUntitled } from "./files";
 import { focusesList, loadFocuses, selectFocus } from "./focuses";
@@ -706,10 +706,6 @@ void listen<[string, string]>("menu-edit", (e) => {
 const TEXT_INPUTS = new Set(["text", "search", "url", "email", "tel", "password", "number"]);
 void listen<FolderChanged>("folder-changed", (e) => void changedOutside(e.payload));
 void listen<IndexProgress>("index-progress", (e) => handleIndexProgress(e.payload));
-// A folder at 90 % of its quota or more (ADR 0077 item 5), said after a
-// write: once, and again only after it fell under 90 % and passed it
-// again (ADR 0084 item 7).
-void listen<{ used: number; quota: number }>("folder-quota", (e) => quotaHeard(e.payload.used, e.payload.quota));
 if (!popout && settings.checkUpdates) {
   setTimeout(() => void updateController.check(true), 2500);
 }
