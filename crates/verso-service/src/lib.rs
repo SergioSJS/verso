@@ -33,6 +33,7 @@ use verso_core::{ConfinementError, CoreError, ReadError, Workspace, WriteError};
 pub mod convert;
 pub mod files;
 pub mod ops;
+pub mod reader;
 pub mod trash;
 
 pub use ops::{Access, OpError};
@@ -575,6 +576,22 @@ impl Service {
         ops::access(name)?;
         Some(self.with(client, |ws| {
             ops::dispatch(ws, name, args).unwrap_or_else(|| Err(OpError::unknown(name)))
+        }))
+    }
+
+    /// [`Self::dispatch`] for an account that may only read the folder
+    /// (ADR 0087): answered from the notes' projections, by
+    /// [`reader::READER_COMMANDS`]; `None` when a reader may not call
+    /// `name`.
+    pub fn dispatch_reader(
+        &self,
+        client: &str,
+        name: &str,
+        args: serde_json::Value,
+    ) -> Option<Result<serde_json::Value, ContractError>> {
+        reader::for_reader(name)?;
+        Some(self.with(client, |ws| {
+            reader::dispatch_reader(ws, name, args).unwrap_or_else(|| Err(OpError::unknown(name)))
         }))
     }
 
