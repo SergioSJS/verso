@@ -254,6 +254,16 @@ point 13).
     Verso does not read it. `dice: 3d6!` rolls one more die for each 6,
     and `dice: d%` is a d100. Level: H; E: `dice.spec.mjs`; U:
     `test/dice.test.mjs`.
+16. Note 24, "O segredo do mestre" ([ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md)):
+    in Leitura the `[!secret]` callout has a lock and *Visível para quem
+    tiver o arquivo* in its title (a folder of this computer hides
+    nothing). *Ver como leitor*, beside Ler and Editar, shows the note
+    without the block, a strip saying *Vendo como um leitor* with *Ver a
+    nota inteira*, which brings it back; Editar leaves the reader's view.
+    In Editar, `/` › Destaques › *Segredo* writes `> [!secret] ` and says
+    it is no encryption. A note with no secret block offers no toggle.
+    Opening and toggling write nothing. Level: H; E: `secret.spec.mjs`;
+    U: `test/secret.test.mjs`.
 
 ## 4. Organizing: properties, bases, daily notes
 
@@ -946,6 +956,24 @@ rest below and in `manual-checks.md`.
     five windows with the window's own merge and converter
     (`boardStress.test.mjs`); three windows in two engines working at
     random for a minute (e2e-server, "three windows, two engines").
+13. Secret blocks ([ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md)):
+    the owner of a folder copies note 24's secret block into a note and
+    gives another account *leitor*. The reader's window shows the note
+    without the block — in Leitura, a hover preview, an embed of it, the
+    search (*estalajadeira* finds nothing), the backlinks, the tags and
+    the graph, a base; the owner's shows it with a lock and *Oculto para
+    leitores*, and *Ver como leitor* shows what the reader gets. Both in
+    the note at once: the owner types inside the block and outside it; the
+    reader's note follows what is outside once the room writes, with the
+    owner's name present and no cursor; the owner pastes a new secret into
+    a note the reader has open, and the reader's tab reads the note again
+    without it. A reader's device that syncs the folder holds the note
+    without the block, and a change only inside it is no change there.
+    Level: H; R: `tests_secret.rs` (every command of the contract as a
+    reader, a live note, sync, a share, a role made reader), the core's
+    `tests/workspace/reader.rs`, the index's `tests/secret.rs`, the
+    dialect's `tests/secret.rs` and `fixtures/callout/secret` (an AI
+    draft); A: `manual-checks.md`.
 
 ## 14. The end
 
