@@ -12,7 +12,9 @@ versão de teste.
 
 ## Não lançado
 
-Nada ainda.
+### Acrescentado
+
+- **A nota de um link onde o ponteiro para** ([ADR 0085](adr/0085-hover-preview.md)): pare o ponteiro sobre um link por meio segundo e um cartão mostra a nota que ele nomeia, só para ler, rolada até o título ou o `^id` que o link nomeia — na Leitura, sobre uma linha do painel *Links* (backlinks, links de saída, menções sem link), sobre um nó do grafo e sobre o nome de um cartão num board; no modo Editar, com ⌘ (Ctrl no Windows e no Linux) apertado. O ponteiro pode entrar no cartão para rolá-lo; um clique nele abre a nota, e um link dentro dele se segue com um clique. Um link para uma imagem ou um PDF a mostra; um link para a web não mostra nada (nenhum pedido sai por um passar de mouse); uma nota que não existe e um link para fora de um compartilhamento são ditos no cartão, e passar o mouse não cria nada nem baixa nada do iCloud. No celular ou no tablet, um toque num link no modo Editar mostra a nota acima de *Abrir* e *Editar link*, e no grafo e no board um dedo parado sobre uma nota a mostra. Pelo teclado, o comando *Ver a prévia do link sob o cursor* (sem tecla padrão; escolha uma em *Ajustes › Atalhos*) abre o cartão como um diálogo com o foco, e Esc o fecha e devolve o foco. *Ajustes › Editor › Prévia ao passar o mouse* desliga o passar de mouse.
 
 ## 0.8.2-beta.1 — 2026-10-14
 

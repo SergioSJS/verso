@@ -12,7 +12,9 @@ test release.
 
 ## Unreleased
 
-Nothing yet.
+### Added
+
+- **A link's note where the pointer rests** ([ADR 0085](docs/adr/0085-hover-preview.md)): rest the pointer on a link for half a second and a card shows the note it names, read-only, scrolled to the heading or the `^id` the link names — in Reading, over a row of the *Links* panel (backlinks, outgoing links, unlinked mentions), over a node of the graph and over a card's name on a board; in Edit mode, with ⌘ (Ctrl on Windows and Linux) held. The pointer may move into the card to scroll it; a click in it opens the note, a link in it is followed with a click. A link to a picture or a PDF shows it; a link to the web shows nothing (no request leaves for a hover); a missing note and a link out of a share are said in the card, and a hover creates nothing and downloads nothing from iCloud. On a phone or a tablet, a tap on a link in Edit mode shows the note above *Open* and *Edit link*, and on the graph and the board a finger held still on a note shows it. From the keyboard, the command *Preview the link under the cursor* (no default key; bind one in *Settings › Hotkeys*) opens the card as a dialog with the focus, and Escape closes it and gives the focus back. *Settings › Editor › Preview on hover* turns the hover off.
 
 ## 0.8.2-beta.1 — 2026-10-14
 
