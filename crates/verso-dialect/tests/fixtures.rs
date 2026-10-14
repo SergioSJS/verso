@@ -67,6 +67,7 @@ fixture_tests! {
     // of each expected.yaml).
     schema_top_level => "schema/top-level",
     schema_nested_and_invalid => "schema/nested-and-invalid",
+    schema_infobox => "schema/infobox",
 }
 
 fn check(name: &str, input: &str, expected: &str) {
@@ -194,6 +195,12 @@ fn check_schema(ctx: &mut Ctx<'_>, item: &Yaml<'_>, block: &verso_dialect::Schem
     let type_field = fields.get("type");
     let labels = fields.get("labels");
     let properties = fields.get("properties");
+    // `layout` (ADR 0086 item 2): absent asserts none.
+    let layout = match &block.definition {
+        Some(Ok(schema)) => schema.layout.map(verso_dialect::Layout::as_str),
+        _ => None,
+    };
+    fields.optional_text("layout", layout);
     match &block.definition {
         Some(Ok(schema)) => {
             match type_field.map(as_str) {

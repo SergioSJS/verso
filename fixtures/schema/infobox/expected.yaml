@@ -1,0 +1,30 @@
+# AI draft by Opus 5.5 on 2026-10-14, awaiting the maintainer's approval (ADR 0031).
+# Construct: a schema's `layout` and its `link` and `image` kinds (ADR 0086
+# items 1, 2 and 5; spec §4.8, Q11). `layout: infobox` at the top level is
+# read; a layout this version does not know is no layout and no error — the
+# key is ignored by builds that do not read it (ADR 0086 item 2), so the
+# second schema still types its notes. `link` and `image` are kinds like the
+# first six.
+schemas:
+  - type: npc
+    labels: { pt-BR: PdM, en: NPC }
+    layout: infobox
+    properties:
+      - key: retrato
+        kind: image
+        labels: { pt-BR: Retrato, en: Portrait }
+      - key: aliados
+        kind: link
+        labels: { pt-BR: Aliados, en: Allies }
+      - key: nível
+        kind: number
+    pos: { line: 5, col: 1 }
+  - type: lugar
+    properties:
+      - key: mapa
+        kind: image
+    pos: { line: 23, col: 1 }
+headings:
+  - level: 1
+    text: PdM
+source: ADR 0086 (spec §4.8, Q11)

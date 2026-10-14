@@ -1828,7 +1828,13 @@ name: string;
 /**  The type's name per interface language. */
 labels: Label[]; 
 /**  The declared properties, in the schema's order. */
-properties: TypedProperty[] } | { kind: "conflict"; 
+properties: TypedProperty[]; 
+/**
+ *  The layout the schema names: `infobox`, the properties as a
+ *  card beside the text (ADR 0086 item 2); null, the panel as it
+ *  is.
+ */
+layout: string | null } | { kind: "conflict"; 
 /**  The notes that hold a schema of that name, in path order. */
 schemas: string[] } | { kind: "invalid"; schema: string; 
 /**  Why, as spec §4.8 names the kinds (`unknown_kind`, `yaml`, …). */
@@ -1837,7 +1843,10 @@ error: string };
 /**  A property a schema declares, as the note holds it. */
 export type TypedProperty = {
 	key: string,
-	/**  `text`, `list`, `number`, `checkbox`, `date` or `datetime`. */
+	/**
+	 *  `text`, `list`, `number`, `checkbox`, `date`, `datetime`, `link` or
+	 *  `image` (ADR 0086 item 1).
+	 */
 	kind: string,
 	labels: Label[],
 	/**  The note has the key. */

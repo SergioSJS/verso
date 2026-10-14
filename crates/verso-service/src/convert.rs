@@ -133,6 +133,7 @@ pub fn note_type_out(t: verso_core::typed::NoteType) -> NoteType {
                         fits: p.fits,
                     })
                     .collect(),
+                layout: s.layout,
             },
             Core::Conflict { schemas } => TypeState::Conflict { schemas },
             Core::Invalid { schema, error } => TypeState::Invalid { schema, error },
