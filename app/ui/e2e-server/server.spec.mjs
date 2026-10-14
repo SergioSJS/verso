@@ -1162,3 +1162,56 @@ test("an element another window deletes while this one presses it, selected, is 
   expect(errors).toEqual([]);
   expect(otherErrors).toEqual([]);
 });
+
+test("an element another window deletes leaves this window's selection at once, before a key or a pointer reads it", async ({ page }) => {
+  await page.context().addInitScript(() => {
+    window.__VERSO_TEST__ = {};
+  });
+  const errors = watch(page);
+  await signedIn(page, ADMIN.email, ADMIN.password);
+  await demoRegistered(page);
+  await openDemo(page);
+  const folder = new URL(page.url()).searchParams.get("folder");
+  const path = `Mesa selecionada ${test.info().project.name} ${Date.now()}.canvas`;
+  await made(page, path, TWO_CARDS);
+  await windowOn(page, folder, path);
+  await page.waitForFunction(() => (window.__VERSO_TEST__?.board?.getSceneElements().length ?? 0) >= 2 && window.__VERSO_TEST__.boardRoom && window.__VERSO_TEST__.board.getAppState().width > 0);
+  // A rectangle drawn here, in the room, and selected.
+  const a = await onBoard(page, 0, 250);
+  await page.mouse.click(a.x, a.y);
+  await page.keyboard.press("r");
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down();
+  await page.mouse.move(a.x + 80, a.y + 60, { steps: 4 });
+  await page.mouse.up();
+  await page.keyboard.press("Escape");
+  const id = await page.evaluate(() => window.__VERSO_TEST__.board.getSceneElements().find((e) => e.type === "rectangle").id);
+  await expect.poll(() => page.evaluate((i) => window.__VERSO_TEST__.boardRoom.resolved().has(i), id), { timeout: 20_000 }).toBe(true);
+  const r = (await sceneOf(page)).find((e) => e.id === id);
+  const at = await onBoard(page, r.x + 4, r.y + r.height / 2);
+  await page.mouse.click(at.x, at.y);
+  await expect.poll(() => page.evaluate((i) => window.__VERSO_TEST__.board.getAppState().selectedElementIds[i] === true, id)).toBe(true);
+  // The room hands the board another window's deletion of it; in the same
+  // task, before React renders, a key is pressed: what the board reads then
+  // must not select the deleted element (Excalidraw: "[NONDELETED]
+  // [INVARIANT] getSelectedElements skipping deleted selected element").
+  const seen = await page.evaluate((i) => {
+    const b = window.__VERSO_TEST__.board;
+    const room = window.__VERSO_TEST__.boardRoom;
+    const remote = [...room.resolved().values()].map((e) => (e.id === i ? { ...e, isDeleted: true, version: e.version + 1_000_000, versionNonce: 1 } : e));
+    for (const pane of room.panes) pane.apply(remote, undefined);
+    const selected = b.getAppState().selectedElementIds[i] === true;
+    const deleted = b.getSceneElementsIncludingDeleted().find((e) => e.id === i)?.isDeleted === true;
+    document.querySelector(".excalidraw")?.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", code: "Delete", bubbles: true }));
+    return { selected, deleted };
+  }, id);
+  expect.soft(seen).toEqual({ selected: false, deleted: true });
+  await page.waitForTimeout(500);
+  expect(await page.evaluate((i) => window.__VERSO_TEST__.board.getAppState().selectedElementIds[i] === true, id)).toBe(false);
+  // The deletion written into the file before the test lets go: a board
+  // left with edits not written yet is said to every later window.
+  await page.evaluate(async (p) => window.__TAURI_INTERNALS__.invoke("collab_save", { path: p }), path).catch(() => undefined);
+  await expect.poll(() => page.evaluate(() => window.__VERSO_TEST__.boardRoom.waiting), { timeout: 20_000 }).toBe(false);
+  await expect.poll(async () => JSON.stringify(JSON.parse(await onDisk(page, path))).includes(id), { timeout: 20_000 }).toBe(false);
+  expect(errors).toEqual([]);
+});
