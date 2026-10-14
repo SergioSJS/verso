@@ -11,9 +11,7 @@ use base64::engine::general_purpose::STANDARD;
 use serde_json::{Value, json};
 
 use crate::db::Role;
-use crate::tests::{
-    block_on, call, connect, event_named, folder_id, get, next, post, sign_in, start,
-};
+use crate::tests::{block_on, call, connect, event_named, folder_id, next, post, sign_in, start};
 
 /// A Yjs awareness update of one client: count, id, clock, the state as
 /// a string — each number a variable-length integer.
@@ -119,14 +117,21 @@ fn a_device_code_says_who_asked_and_can_be_refused() {
             assert!(pending.asked >= before, "{}", pending.asked);
             assert_eq!(pending.asked.len(), "2026-10-12T21:30:00Z".len());
         }
-        let (_, what) = get(&r, &format!("/api/device/{code}"), Some(&admin)).await;
+        let (_, what) = post(
+            &r,
+            "/api/device/describe",
+            json!({ "code": code }),
+            Some(&admin),
+        )
+        .await;
         assert_eq!(what["device"], "Verso · MacBook");
         assert_eq!(what["address"], "127.0.0.1");
         assert!(what["asked"].as_str().unwrap() >= before.as_str(), "{what}");
         // Not from a page of this server: refused.
         let status = reqwest::Client::new()
-            .delete(r.url(&format!("/api/device/{code}")))
+            .post(r.url("/api/device/refuse"))
             .header("cookie", &admin.cookie)
+            .json(&json!({ "code": code }))
             .send()
             .await
             .unwrap()
@@ -134,10 +139,11 @@ fn a_device_code_says_who_asked_and_can_be_refused() {
             .as_u16();
         assert_eq!(status, 403);
         let status = reqwest::Client::new()
-            .delete(r.url(&format!("/api/device/{code}")))
+            .post(r.url("/api/device/refuse"))
             .header("origin", r.origin())
             .header("cookie", &admin.cookie)
             .header("x-verso-csrf", &admin.csrf)
+            .json(&json!({ "code": code }))
             .send()
             .await
             .unwrap()
@@ -152,7 +158,13 @@ fn a_device_code_says_who_asked_and_can_be_refused() {
         )
         .await;
         assert_eq!(gone, 410);
-        let (status, _) = get(&r, &format!("/api/device/{code}"), Some(&admin)).await;
+        let (status, _) = post(
+            &r,
+            "/api/device/describe",
+            json!({ "code": code }),
+            Some(&admin),
+        )
+        .await;
         assert_eq!(status, 404);
     });
 }
@@ -254,10 +266,11 @@ fn every_answer_carries_the_whole_set_of_headers() {
     });
 }
 
-/// The walk's rules are the folder owner's (ADR 0070): an editor's change
-/// of the folder's settings keeps the rest of it — the bookmarks — and
-/// leaves the rules as they were, as `set_walk_rules` does; the owner's
-/// change sets them.
+/// The walk's rules and the folder note's name are the folder owner's
+/// (ADR 0070; ADR 0083, decided 2026-10-14): an editor's change of the
+/// folder's settings keeps the rest of it — the bookmarks — and leaves
+/// them as they were, as `set_walk_rules` and `set_folder_note_name` do;
+/// the owner's change sets them.
 #[test]
 fn an_editor_changes_the_folders_settings_but_not_its_walk_rules() {
     block_on(async {
@@ -279,7 +292,7 @@ fn an_editor_changes_the_folders_settings_but_not_its_walk_rules() {
         let layer = call(&mut ed, 2, "get_folder_settings", json!({})).await;
         assert_eq!(layer["ok"]["exists"], false, "{layer}");
         let change = |gitignore: bool| {
-            json!({ "change": { "bookmarks": ["Sessao.md"], "folder_note_name": null,
+            json!({ "change": { "bookmarks": ["Sessao.md"], "folder_note_name": "Indice",
                 "ignore_build_dirs": false, "respect_gitignore": gitignore } })
         };
         let mut args = change(false);
@@ -300,6 +313,11 @@ fn an_editor_changes_the_folders_settings_but_not_its_walk_rules() {
             Value::Null,
             "{set}"
         );
+        assert_eq!(
+            set["ok"]["settings"]["folder_note_name"],
+            Value::Null,
+            "an editor changed the folder note's name: {set}"
+        );
         // The owner sets them.
         let mut own = connect(&r, Some(&admin.cookie), Some(&r.origin()), None)
             .await
@@ -311,5 +329,6 @@ fn an_editor_changes_the_folders_settings_but_not_its_walk_rules() {
         let set = call(&mut own, 2, "set_folder_settings", args).await;
         assert_eq!(set["ok"]["settings"]["respect_gitignore"], false, "{set}");
         assert_eq!(set["ok"]["settings"]["ignore_build_dirs"], false, "{set}");
+        assert_eq!(set["ok"]["settings"]["folder_note_name"], "Indice", "{set}");
     });
 }

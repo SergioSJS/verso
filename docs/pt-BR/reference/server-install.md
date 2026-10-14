@@ -135,8 +135,13 @@ gerenciador de senhas ou em outra máquina. Quem a tem lê todos os backups;
 sem ela nenhum pode ser restaurado. Ele se recusa a substituir um
 `backup.pub` que já existe: tire-o do lugar antes, guardando a chave
 secreta antiga para os backups antigos. `--passphrase` no lugar de uma
-chave pede uma frase-senha no terminal. Sem o `age`, o `--encrypt` diz como
-instalá-lo e faz o tarball sem criptografia, com um aviso em maiúsculas.
+chave pede uma frase-senha no terminal. Sem o `age`, o `--encrypt` e o
+`--passphrase` param com um erro e não gravam nada — nem um arquivo nem,
+com `--to-stdout`, um byte do fluxo — e dizem como instalar o `age` na
+família desta máquina (`sudo apt install age` no Debian e no Ubuntu,
+`sudo dnf install age` no Fedora, pelo EPEL no RHEL, Rocky, Alma e Oracle
+Linux). Um backup sem criptografia é `sudo sh universo.sh backup`, sem
+opção.
 
 `--to-stdout` escreve o backup (criptografado ou não) na saída padrão, para
 um pipeline seu, por exemplo
@@ -641,6 +646,22 @@ criada de um de dois jeitos (0074 item 1):
   existe, ou passada a hora, ele não abre nada, mas dentro da hora quem
   ler o log primeiro pode usá-lo — então use-o assim que sair. O
   `universo.sh install` diz isso ao lado do link.
+
+Depois conecte o app desktop: **Ajustes › Servidores**, o endereço do
+servidor, **Conectar**. O app copia um código para a área de
+transferência e abre a página do servidor no navegador, onde você o cola
+(ou digita o que o app mostra) e aprova este computador; a página nunca
+pega um código do link, então um link que outra pessoa manda não aprova
+nada (decidido em 2026-10-14, ADR 0083, Como construído).
+[UniVerso na prática](server-hands-on.md) mostra cada passo.
+
+Os poderes do admin vão com toda sessão da conta, a do app desktop
+inclusive (decidido em 2026-10-14, ADR 0083, Como construído): uma ação de
+admin feita com a sessão do app — os atos do console sobre outras contas,
+entrar numa pasta — pede a senha de novo antes, como no navegador. A
+sessão de um aparelho começa sem confirmação, então a primeira ação
+sensível dela sempre pede, e de novo quando a última confirmação passou de
+10 minutos (ADR 0083 item 6).
 
 ## 10. Senha do admin perdida
 

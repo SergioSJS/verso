@@ -583,9 +583,21 @@ test("the page that approves a device says who asked, and refuses (threat model,
       await new Promise((r) => setTimeout(r, (body.retry ?? 1) * 1000));
     }
   };
-  // Refused: the app that asked hears the code gone.
+  // The person enters the code from the app's screen (decided 2026-10-14,
+  // ADR 0083 As built): a code in the page's address is never taken, so a
+  // link someone else sent approves nothing with one click.
+  const enter = async (code) => {
+    const field = page.getByLabel("Código do aplicativo");
+    await expect(field).toHaveValue("");
+    await field.fill(code);
+    await page.getByRole("button", { name: "Continuar" }).click();
+  };
+  // Refused: the app that asked hears the code gone. The old link's shape,
+  // with the code in it, shows the empty field all the same.
   const first = await ask("Verso · Estranho");
   await page.goto(`/device?code=${first.code}`);
+  await expect(page.getByRole("region", { name: "Quem pediu" })).toHaveCount(0);
+  await enter(first.code);
   const who = page.getByRole("region", { name: "Quem pediu" });
   await expect(who).toContainText("Verso · Estranho", waited);
   await expect(who).toContainText("127.0.0.1");
@@ -603,7 +615,8 @@ test("the page that approves a device says who asked, and refuses (threat model,
   expect(polled.status()).toBe(410);
   // Approved: by the button named for the device.
   const second = await ask("Verso · MacBook");
-  await page.goto(`/device?code=${second.code}`);
+  await page.goto("/device");
+  await enter(second.code.replace("-", "").toLowerCase());
   const approve = page.getByRole("button", { name: "Aprovar este aparelho: Verso · MacBook" });
   await expect(approve).toBeVisible(waited);
   await approve.click();

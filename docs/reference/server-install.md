@@ -133,8 +133,12 @@ manager or on another machine. Whoever holds it reads every backup;
 without it none can be restored. It refuses to replace an existing
 `backup.pub`: move it away first, keeping the old secret key for the old
 backups. `--passphrase` instead of a key asks a passphrase at the terminal.
-Without `age`, `--encrypt` says how to install it and makes the plain
-tarball, with a warning in capitals.
+Without `age`, `--encrypt` and `--passphrase` stop with an error and write
+nothing — neither a file nor, with `--to-stdout`, a byte of the stream —
+and say how to install `age` on this machine's family (`sudo apt install
+age` on Debian and Ubuntu, `sudo dnf install age` on Fedora, from EPEL on
+RHEL, Rocky, Alma and Oracle Linux). A backup without encryption is
+`sudo sh universo.sh backup`, with no option.
 
 `--to-stdout` writes the backup (encrypted or not) to standard output, for
 a pipeline of your own, for example
@@ -625,6 +629,22 @@ made in one of two ways (0074 item 1):
   its hour, it opens nothing, but within the hour whoever reads the log
   first can use it — so use it as soon as it is printed. `universo.sh
   install` says so beside the link.
+
+Then connect the desktop app: **Settings › Servers**, the server's
+address, **Connect**. The app copies a code to the clipboard and opens
+the server's page in the browser, where you paste it (or type the one the
+app shows) and approve this computer; the page never takes a code from
+its link, so a link someone else sends approves nothing (decided
+2026-10-14, ADR 0083, As built). [UniVerso hands on](server-hands-on.md)
+shows each step.
+
+The admin's powers go with every session of the account, the desktop
+app's included (decided 2026-10-14, ADR 0083, As built): an admin action
+made with the app's session — the console's acts on other accounts,
+entering a folder — asks for the password again first, as in the browser.
+A device's session starts unconfirmed, so its first sensitive action always
+asks, and again once the last confirmation is more than 10 minutes old
+(ADR 0083 item 6).
 
 ## 10. A lost admin password
 
