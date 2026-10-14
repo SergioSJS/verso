@@ -119,3 +119,123 @@ fn a_large_message_that_is_no_upload_is_refused_before_it_is_parsed() {
         assert!(made.get("ok").is_some(), "{made}");
     });
 }
+
+/// A window's collab room joined on `path`: the socket, and a function
+/// that types `words` at the end of the note and gives the update.
+async fn joined(
+    r: &crate::tests::Running,
+    paths: &[&str],
+) -> (crate::tests::Socket, yrs::Doc, serde_json::Value) {
+    use base64::Engine;
+    use yrs::Transact;
+    use yrs::updates::decoder::Decode;
+    let b = sign_in(r, "admin@casa.lan", "senha muito longa").await;
+    let id = crate::tests::folder_id(r, &b).await;
+    let mut ws = connect(r, Some(&b.cookie), Some(&r.origin()), None)
+        .await
+        .unwrap();
+    next(&mut ws).await;
+    call(&mut ws, 1, "open_server_folder", json!({ "id": id })).await;
+    let mut last = serde_json::Value::Null;
+    for (i, path) in paths.iter().enumerate() {
+        last = call(
+            &mut ws,
+            10 + i as u64,
+            "collab_join",
+            json!({ "path": path }),
+        )
+        .await;
+    }
+    let doc = yrs::Doc::with_options(yrs::Options {
+        offset_kind: yrs::OffsetKind::Utf16,
+        ..Default::default()
+    });
+    if let Some(state) = last["ok"]["update"].as_str() {
+        let state = base64::engine::general_purpose::STANDARD
+            .decode(state)
+            .unwrap();
+        doc.transact_mut()
+            .apply_update(yrs::Update::decode_v1(&state).unwrap())
+            .unwrap();
+    }
+    (ws, doc, last)
+}
+
+/// `words` typed at the end of `doc`'s text, as the update a window sends.
+fn typed(doc: &yrs::Doc, words: &str) -> String {
+    use base64::Engine;
+    use yrs::{GetString, ReadTxn, Text, Transact};
+    let text = doc.get_or_insert_text(crate::collab::TEXT);
+    let mut txn = doc.transact_mut();
+    let len = text.get_string(&txn).encode_utf16().count() as u32;
+    let before = txn.state_vector();
+    text.insert(&mut txn, len, words);
+    drop(txn);
+    let txn = doc.transact();
+    base64::engine::general_purpose::STANDARD.encode(txn.encode_state_as_update_v1(&before))
+}
+
+/// A note room has a size, as a board room has (`ROOM_MOST`): an update
+/// that would take it past is refused, and the room keeps what it had.
+#[test]
+fn a_note_room_past_its_size_refuses_the_update() {
+    block_on(async {
+        let r = start().await;
+        let (mut ws, doc, _) = joined(&r, &["Sessao.md"]).await;
+        let small = typed(&doc, " um");
+        let taken = call(
+            &mut ws,
+            2,
+            "collab_update",
+            json!({ "path": "Sessao.md", "update": small }),
+        )
+        .await;
+        assert!(taken.get("ok").is_some(), "{taken}");
+        crate::collab::fill(&r.server, "Sessao.md", crate::collab_board::ROOM_MOST);
+        let past = typed(&doc, " dois");
+        let refused = call(
+            &mut ws,
+            3,
+            "collab_update",
+            json!({ "path": "Sessao.md", "update": past }),
+        )
+        .await;
+        assert!(
+            refused["err"]["message"]
+                .as_str()
+                .is_some_and(|m| m.contains("64 MB")),
+            "a note room past its size took the update: {refused}"
+        );
+    });
+}
+
+/// One window is in a bounded number of rooms at once: past it, the next
+/// join is refused; leaving one makes room.
+#[test]
+fn a_window_joins_a_bounded_number_of_rooms() {
+    block_on(async {
+        let r = start().await;
+        let most = crate::collab::JOINED_MOST;
+        let names: Vec<String> = (0..=most).map(|i| format!("Nota {i}.md")).collect();
+        for name in &names {
+            put_file(&r, name, b"# nota\n");
+        }
+        let first: Vec<&str> = names[..most].iter().map(String::as_str).collect();
+        let (mut ws, _, last) = joined(&r, &first).await;
+        assert!(last.get("ok").is_some(), "{last}");
+        let past = call(&mut ws, 2, "collab_join", json!({ "path": names[most] })).await;
+        assert!(
+            past["err"]["message"]
+                .as_str()
+                .is_some_and(|m| m.contains(&most.to_string())),
+            "a window joined room {} : {past}",
+            most + 1
+        );
+        // Joining a room it is in again is no new room.
+        let again = call(&mut ws, 3, "collab_join", json!({ "path": names[0] })).await;
+        assert!(again.get("ok").is_some(), "{again}");
+        call(&mut ws, 4, "collab_leave", json!({ "path": names[0] })).await;
+        let after = call(&mut ws, 5, "collab_join", json!({ "path": names[most] })).await;
+        assert!(after.get("ok").is_some(), "{after}");
+    });
+}

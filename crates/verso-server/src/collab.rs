@@ -273,6 +273,19 @@ impl Rooms {
             .is_some_and(|room| !lock(&room).clients.is_empty())
     }
 
+    /// The rooms `client` is in, but the one of `path` in `key`.
+    fn joined_elsewhere(&self, client: &str, key: &str, path: &str) -> usize {
+        let rooms: Vec<Arc<Mutex<Room>>> = lock(&self.map)
+            .iter()
+            .filter(|((k, p), _)| !(k == key && p == path))
+            .map(|(_, r)| Arc::clone(r))
+            .collect();
+        rooms
+            .iter()
+            .filter(|r| lock(r).clients.contains(client))
+            .count()
+    }
+
     /// Every room of a folder.
     fn of_folder(&self, key: &str) -> Vec<Arc<Mutex<Room>>> {
         lock(&self.map)
@@ -377,6 +390,12 @@ pub fn join(
     }
 }
 
+/// The rooms one window may be in at once: the notes and boards a window
+/// shows side by side, with room. Each room holds a document of up to
+/// `collab_board::ROOM_MOST`; a connection that joined every note of a
+/// folder would hold them all (the review of 2026-10-13).
+pub const JOINED_MOST: usize = 64;
+
 fn join_room(
     server: &Arc<Server>,
     client: &str,
@@ -384,6 +403,11 @@ fn join_room(
     path: &str,
     user: &str,
 ) -> Result<CollabJoin, ContractError> {
+    if server.rooms.joined_elsewhere(client, key, path) >= JOINED_MOST {
+        return Err(refused(&format!(
+            "a window is in {JOINED_MOST} shared notes at most at once: close one first"
+        )));
+    }
     let kind = kind_of(path);
     let wire = if kind == Kind::Board {
         CollabKind::Board
@@ -412,7 +436,8 @@ fn join_room(
                     });
                 };
                 let doc = holding(new_doc(), &text);
-                (doc, crlf, text, crate::collab_board::Board::default())
+                let size = crate::collab_board::Board::measured(&doc);
+                (doc, crlf, text, size)
             };
             let room = Arc::new(Mutex::new(Room {
                 key: key.to_owned(),
@@ -554,8 +579,12 @@ pub(crate) fn take(
         }
         if kind == Kind::Board {
             board.admits(doc, bytes, &decoded)?;
-            board.bytes = board.bytes.saturating_add(bytes.len());
+        } else if board.bytes.saturating_add(bytes.len()) > crate::collab_board::ROOM_MOST {
+            // A note's room has the board's size (the review of
+            // 2026-10-13): its updates are 4 MB each, but without end.
+            return Err(refused("a note edited together holds 64 MB at most"));
         }
+        board.bytes = board.bytes.saturating_add(bytes.len());
         // An update `yrs` stopped applying halfway (the fuzz target
         // `board`: a parent that is no type), or one that left what the
         // room has not seen aside: the document is not what any window
@@ -768,7 +797,12 @@ pub fn write(server: &Server, room: &Arc<Mutex<Room>>) -> Result<String, Contrac
             r.revision = revision;
             let path = r.path.clone();
             match text {
-                Some(text) => r.saved = text,
+                Some(text) => {
+                    r.saved = text;
+                    // Measured again once written, as a board's is.
+                    let size = crate::collab_board::Board::measured(&r.doc).bytes;
+                    r.board.bytes = size;
+                }
                 None => {
                     // What was written is said in the document too: the
                     // windows see that nothing waits any more.
@@ -1246,6 +1280,17 @@ pub(crate) fn merge_into(
     let merged = diffy::merge(saved, &theirs, &mine)
         .map_err(|_| changed("the same lines changed in the note meanwhile"))?;
     Ok(apply_text(doc, &merged))
+}
+
+/// Every room of `path` said to have grown to `bytes`, for the tests of
+/// the room's size.
+#[cfg(test)]
+pub(crate) fn fill(server: &Server, path: &str, bytes: usize) {
+    for ((_, p), room) in lock(&server.rooms.map).iter() {
+        if p == path {
+            lock(room).board.bytes = bytes;
+        }
+    }
 }
 
 #[cfg(test)]
