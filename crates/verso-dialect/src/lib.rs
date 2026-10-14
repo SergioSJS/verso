@@ -41,6 +41,7 @@ mod properties;
 mod prose;
 mod render;
 mod schema;
+mod secret;
 mod tags;
 mod wikilink;
 
@@ -52,6 +53,7 @@ pub use render::{to_html, to_html_with};
 pub use schema::{
     Layout, PropertyKind, Schema, SchemaBlock, SchemaError, SchemaErrorKind, SchemaProperty,
 };
+pub use secret::{Secrets, is_secret_kind, project, project_line};
 pub use tags::{BodyTag, body_tags};
 
 /// Everything the parser found in one note, in document order per list.
