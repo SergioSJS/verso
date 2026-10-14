@@ -530,6 +530,11 @@ export class PropertiesView {
       a.classList.add("unresolved");
       a.title = this.opts.strings.typed?.unresolved ?? "";
     } else a.title = to ?? parts.target;
+    // The note it names shows where the pointer rests (ADR 0085 item 2),
+    // through the window's finder: the panel and the infobox lie outside
+    // the reading view, whose own finder reads `data-target`.
+    a.dataset["previewTarget"] = parts.target;
+    if (to) a.dataset["previewPath"] = to;
     // The focus stays in the panel's field until the click lands.
     a.addEventListener("mousedown", (e) => e.preventDefault());
     a.addEventListener("click", (e) => {
