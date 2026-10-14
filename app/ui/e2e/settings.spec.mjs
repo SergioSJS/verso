@@ -54,6 +54,9 @@ test("the bug report opens with no error of the session", async ({ app }) => {
   // The report is composed after the dialog shows: wait for the section,
   // do not read the box once.
   await expect(dialog.locator("textarea")).toHaveValue(/## Erros desta sessão\s+nenhum/);
+  // The computer's time and zone, once (the suite runs in São Paulo's,
+  // playwright.config.mjs): the log's lines below are in UTC.
+  await expect(dialog.locator("textarea")).toHaveValue(/- Hora deste computador: \d{4}-\d\d-\d\d \d\d:\d\d:\d\d \(UTC−03:00\)\. .*UTC \(Z\)/);
 });
 
 // A long answer beside a setting wraps under it, and the setting's own text
@@ -86,4 +89,44 @@ test("the server for all of Verso writes --all and starts with the folder hidden
   await expect(app.page.locator(".setting-code").first()).toContainText("claude mcp add verso -- /usr/local/bin/verso mcp --all");
   await app.page.getByRole("button", { name: "Adicionar ao Claude Desktop" }).click();
   await expect(app.page.locator(".dialog, [role=dialog]").last()).toContainText("--all");
+});
+
+// What opens last is on top (the maintainer, 2026-10-14: ⌘⇧P with the
+// settings open opened the palette behind them): the palette above the
+// settings, with the focus, the settings inert under it; Escape closes the
+// palette alone, and the settings are alive again.
+test("the palette opens above the settings, and Escape closes the palette only", async ({ app }) => {
+  await app.open();
+  await app.key("Mod+,");
+  // By its class: inert, it is out of the accessibility tree, and so out
+  // of reach of a role.
+  const settings = app.page.locator(".quick.settings");
+  await expect(settings).toBeVisible();
+  await expect(settings).toHaveAttribute("aria-label", "Ajustes");
+  // The focus on a section of the settings, as after a click on it.
+  await app.page.locator(".settings-nav-item", { hasText: "Aparência" }).click();
+  await app.key("Mod+Shift+p");
+  const palette = app.page.locator(".quick.palette");
+  const field = palette.getByRole("combobox");
+  await expect(field).toBeVisible();
+  await expect(field).toBeFocused();
+  // On top: what is under the middle of the palette's field is the field.
+  const onTop = await field.evaluate((f) => {
+    const r = f.getBoundingClientRect();
+    const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return Boolean(at && f.closest(".quick.palette")?.contains(at));
+  });
+  expect(onTop).toBe(true);
+  // The settings under it take no focus and are read by no screen reader.
+  await expect(settings).toHaveJSProperty("inert", true);
+  await app.page.keyboard.press("Escape");
+  await expect(field).toBeHidden();
+  await expect(settings).toBeVisible();
+  await expect(settings).toHaveJSProperty("inert", false);
+  // The focus is back in the settings: where it was, or — WebKit gives a
+  // clicked button no focus — their first field.
+  expect(await app.page.evaluate(() => document.querySelector(".quick.settings").contains(document.activeElement))).toBe(true);
+  // A second Escape closes the settings.
+  await app.page.keyboard.press("Escape");
+  await expect(settings).toBeHidden();
 });

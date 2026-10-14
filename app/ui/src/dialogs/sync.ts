@@ -13,7 +13,8 @@
 import { listen } from "@tauri-apps/api/event";
 import { commands, type ServerAccount, type ServerFolder, type SyncStatus, type SyncVersions } from "../bindings";
 import { h, showToast, ui } from "../dom";
-import { fail } from "../errors";
+import { errorSentence, fail } from "../errors";
+import { addressOf, attempt, reachStrings } from "../reach";
 import { currentFolder, folderName } from "../folder";
 import { liveTogether } from "../settings";
 import { drawSyncOn } from "./syncView";
@@ -274,6 +275,8 @@ export function stateText(st: SyncStatus): string {
     const said = problemText(st);
     if (said) text = `${s.states["error"]}: ${said}`;
   }
+  // Offline because the server, not the network, did not answer.
+  if (st.state === "offline" && st.problem === "unreachable") text = reachStrings().unreachableShort(addressOf(st.server));
   if (st.conflicts.length) text += ` · ${s.conflictsShort(st.conflicts.length)}`;
   return text;
 }
@@ -430,12 +433,16 @@ async function drawOff(box: HTMLElement, item: Item): Promise<void> {
   name.value = folderName;
   name.addEventListener("keydown", (e) => e.stopPropagation());
   const nameRow = item(s.newName, "", name);
+  // A failure said here, beside the button the person pressed or the list
+  // that did not come: which server, why it may be, and a try again.
+  const failure = h("div", "sync-failure");
+  failure.hidden = true;
   const fill = async () => {
     where.replaceChildren();
     const fresh = h("option", "", s.newFolder(name.value || folderName));
     fresh.value = "";
     where.append(fresh);
-    const r = await commands.serverFolders(serverUrl());
+    const r = await attempt(failure, () => commands.serverFolders(serverUrl()), { other: errorSentence, retry: () => void fill() });
     if (r.status === "ok") {
       for (const f of r.data as ServerFolder[]) {
         const o = h("option", "", `${f.name} · ${s.role(f.role)}`);
@@ -462,17 +469,16 @@ async function drawOff(box: HTMLElement, item: Item): Promise<void> {
   const start = h("button", "btn primary", s.start);
   start.type = "button";
   start.addEventListener("click", () => {
-    start.disabled = true;
     const folder = where.value || null;
-    void commands.folderSyncStart(serverUrl(), folder, folder ? null : name.value.trim() || folderName).then((r) => {
-      start.disabled = false;
-      if (r.status !== "ok") return fail(r.error);
+    const run = () => commands.folderSyncStart(serverUrl(), folder, folder ? null : name.value.trim() || folderName);
+    void attempt(failure, run, { button: start, other: errorSentence, retry: () => start.click() }).then((r) => {
+      if (r.status !== "ok") return;
       status = r.data;
       paint();
     });
   });
   const go = h("div", "sync-go");
-  go.append(space, first, start);
+  go.append(space, first, failure, start);
   box.append(item(s.server, "", serverControl), item(s.where, s.whereDesc, where), nameRow, go);
   await fill();
   if (preselected && [...where.options].some((o) => o.value === preselected!.folder)) {

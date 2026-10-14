@@ -737,7 +737,18 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
    aparelhos, uma exclusão, uma renomeação, um conflito, uma exclusão em
    massa, um arquivo de 9 MiB, um leitor, sem rede — os testes Rust do host
    contra um servidor de verdade (`tests_sync.rs`); dois computadores de
-   verdade, à mão (`manual-checks.md`).
+   verdade, à mão (`manual-checks.md`). Com o servidor fora do ar,
+   *Sincronizar esta pasta*, a lista das pastas dele em *Servidores* e o
+   seletor de pastas dizem *Não foi possível alcançar o servidor
+   localhost:7351 — ele está fora do ar ou sem rede.* onde a pessoa agiu,
+   com *Tentar de novo*, e a barra de uma pasta sincronizada diz *Servidor
+   fora de alcance: localhost:7351* (e2e, `server-down.spec.mjs`); uma
+   conexão recusada é o `unreachable` do contrato (o teste do host,
+   `reach.rs`); uma janela numa pasta de servidor cujo servidor caiu diz
+   *Servidor fora de alcance: localhost:7351* na barra de status, com
+   *Tentar de novo* (e2e, o mesmo arquivo), e tenta de novo a 5 s
+   dobrando até 5 min (o teste do host, `reach.rs`); o app instalado com o
+   servidor parado, à mão (`manual-checks.md`).
 8. Quem mudou o quê, e o que pede atenção: na página de uma pasta no
    console, *Últimas mudanças nos arquivos* mostra a mudança de um aparelho
    com o nome do aparelho entre parênteses ao lado da conta, e o registro

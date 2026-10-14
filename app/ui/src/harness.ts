@@ -58,6 +58,21 @@ if (params.get("sync") === "reader") {
   core.sync = { ...Core.syncOff(), on: true, server: "https://notas.casa", folder: "f1", folder_name: "Campanha", role: "reader", state: "synced", last: "2026-10-12T12:00:00Z" };
 }
 
+// A server that cannot be reached (the maintainer, 2026-10-14): while a
+// test says so (`serverDown("localhost:7351")`), every command that goes to
+// a server answers as the app's host does when no connection is made —
+// the contract's `unreachable`, carrying the address — whatever the test
+// set its handler to; `serverDown(null)` brings it back. `?server=down`
+// starts with it down at localhost:7351.
+const TO_A_SERVER = new Set(["server_folders", "server_open", "server_sign_in", "folder_sync_start", "share_list", "share_grant", "share_revoke", "share_attachments", "server_prove"]);
+let serverDown: string | null = params.get("server") === "down" ? "localhost:7351" : null;
+const answer = core.invoke.bind(core);
+core.invoke = (cmd: string, args: unknown): unknown => {
+  if (serverDown === null || !TO_A_SERVER.has(cmd)) return answer(cmd, args);
+  core.calls.push({ cmd, args: (args ?? {}) as Record<string, unknown> });
+  throw { kind: "unreachable", message: serverDown };
+};
+
 // A synced folder's live notes (ADR 0082): the server's room, played here
 // when a test says the sync's link is up.
 const rooms = onServer ? null : new Rooms(core);
@@ -109,6 +124,10 @@ const harness = {
    *  copy — for the hostile-HTML suite run in the browsers
    *  (e2e/sanitize.spec.mjs, ADR 0083 item 16). */
   sanitize,
+  /** The servers out of reach at `address`, or back (`null`). */
+  serverDown: (address: string | null) => {
+    serverDown = address;
+  },
   /** The server says the person's role in the folder changed (web.ts). */
   setRole: (next: string) => {
     role = next;

@@ -98,6 +98,7 @@
     "allow-set-device-name",
     "allow-server-folders",
     "allow-server-open",
+    "allow-server-retry",
     "allow-share-list",
     "allow-share-grant",
     "allow-share-revoke",

@@ -171,7 +171,7 @@ pub(crate) async fn folder_sync_start<R: tauri::Runtime>(
                         .bearer_auth(token)
                         .json(&json!({ "name": name }))
                         .send()
-                        .map_err(|e| failed(e.to_string()))?,
+                        .map_err(|e| reach::unsent(&url, &e))?,
                 )
             })
             .await
@@ -262,7 +262,7 @@ pub(crate) fn folder_sync_now<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     window: tauri::Window<R>,
 ) -> Result<(), ContractError> {
-    syncer(&app, &window)?.poke();
+    syncer(&app, &window)?.retry();
     Ok(())
 }
 
