@@ -29,7 +29,7 @@ import { getHiddenFromTree, pushEmbedOrigins, pushMenuLanguage, saveSettings, se
 import { boardText, LOCALE, t } from "../strings";
 import { listAll } from "../tree/tree";
 import { updateNews } from "../updateNews";
-import { asDialog, closed, opened } from "./a11y";
+import { asDialog, closed, isTop, opened } from "./a11y";
 import { accountEntries } from "../web/account";
 import { signedIn } from "../web/api";
 
@@ -81,7 +81,9 @@ export class SettingsDialog {
     this.el.append(this.box);
     document.body.append(this.el);
     this.el.addEventListener("mousedown", (e) => { if (e.target === this.el) this.hide(); });
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !this.el.hidden && !hotkeyRecorder) this.hide(); });
+    // Escape anywhere closes the settings — unless a dialog above them took
+    // it (the palette over the settings closes alone, a11y.ts).
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !e.defaultPrevented && !this.el.hidden && isTop(this.el) && !hotkeyRecorder) this.hide(); });
   }
   show(section?: string): void {
     if (section) this.section = section;

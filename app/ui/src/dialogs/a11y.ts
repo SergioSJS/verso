@@ -32,16 +32,70 @@ export function asDialog(el: HTMLElement, label: string, close: () => void, labe
     }
   });
 }
-/** A dialog opens: where the focus was, to give it back. */
+/* ---------- Overlays: the last opened is on top, and the only one alive ----------
+ * The settings, the palette, the quick switcher, the bug report… are
+ * layers of the page (`.quick`, one z-index for all), so the one later in
+ * the page was on top whatever opened last: ⌘⇧P with the settings open
+ * opened the palette behind them (the maintainer, 2026-10-14). Each
+ * overlay that opens goes above every one open, and those under it are
+ * `inert` — no click, no focus, nothing read by a screen reader — until it
+ * closes: one modal dialog alive at a time, as `aria-modal` promises.
+ * Not the top layer of `<dialog>.showModal()`: the palette and the switcher
+ * are built on their own `.quick` layer, and a page of `<dialog>`s would
+ * stack by the order of their `showModal` alone, with menus (z-index 20)
+ * under any of them. Escape closes the top one only (`isTop`). */
+const stack: HTMLElement[] = [];
+const shownNow = (x: HTMLElement): boolean => x.isConnected && !x.hidden && x.getClientRects().length > 0;
+/** The overlays open now, oldest first: one hidden or removed without
+ *  `closed` leaves the list here. */
+function openNow(): HTMLElement[] {
+  for (let i = stack.length - 1; i >= 0; i--) {
+    const x = stack[i]!;
+    if (!x.isConnected || x.hidden) {
+      x.inert = false;
+      x.style.zIndex = "";
+      stack.splice(i, 1);
+    }
+  }
+  return stack;
+}
+/** Whether `el` is the overlay on top: the one Escape closes. */
+export function isTop(el: HTMLElement): boolean {
+  const open = openNow().filter(shownNow);
+  return open.length === 0 || open[open.length - 1] === el;
+}
+/** A dialog opens: where the focus was, to give it back; above every
+ *  overlay open, which goes inert under it. */
 export function opened(el: HTMLElement): void {
   if (!focusBefore.has(el)) focusBefore.set(el, document.activeElement);
+  const under = openNow().filter((x) => x !== el);
+  stack.splice(0, stack.length, ...under, el);
+  el.inert = false;
+  el.style.zIndex = "";
+  let top = 0;
+  for (const x of under) top = Math.max(top, Number.parseInt(getComputedStyle(x).zIndex, 10) || 0);
+  const own = Number.parseInt(getComputedStyle(el).zIndex, 10) || 0;
+  if (under.length > 0 && own <= top) el.style.zIndex = String(top + 1);
+  if (el.getAttribute("aria-modal") === "true") for (const x of under) x.inert = true;
 }
-/** A dialog closes: the focus goes back where it was, when that is still
- *  there (`restore` false when the dialog opened something else). */
+/** A dialog closes: the overlay under it is alive again, and the focus
+ *  goes back where it was, when that is still there (`restore` false when
+ *  the dialog opened something else). */
 export function closed(el: HTMLElement, restore = true): void {
+  const at = stack.indexOf(el);
+  if (at >= 0) stack.splice(at, 1);
+  el.style.zIndex = "";
+  const open = openNow();
+  const below = open[open.length - 1];
+  if (below) below.inert = false;
   const back = focusBefore.get(el);
   focusBefore.delete(el);
   if (restore && back instanceof HTMLElement && back.isConnected) back.focus();
+  // The focus stays in the dialog now on top: a click on a button gives it
+  // no focus in WebKit, so where it was may be the page behind.
+  if (restore && below && shownNow(below) && !below.contains(document.activeElement)) {
+    below.querySelector<HTMLElement>("input, select, textarea, button, [tabindex]:not([tabindex='-1'])")?.focus();
+  }
 }
 /** A list whose highlighted option is announced: the field keeps the
  *  focus and points at the option (`aria-activedescendant`). */
