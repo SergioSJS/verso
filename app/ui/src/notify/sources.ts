@@ -68,9 +68,14 @@ export function syncHeard(prev: SyncStatus | null, next: SyncStatus): void {
       actions: [see],
     });
   } else if (next.on && (next.state === "synced" || next.state === "syncing")) {
-    const was = stateOf(key);
-    if (was !== undefined && was !== "ok") notify({ kind: "sync", key, state: "ok", level: "success", title: s.syncBack, sentence: s.syncBackWhy(name), actions: [see] });
+    // Back after a failure is news; after a pause the person made, not.
+    const was = stateOf(key) ?? "";
+    if (was.startsWith("error:") || was.startsWith("offline:")) notify({ kind: "sync", key, state: "ok", level: "success", title: s.syncBack, sentence: s.syncBackWhy(name), actions: [see] });
     else settle(key, "ok");
+  } else if (next.state === "paused" || next.state === "off") {
+    // Paused or turned off: a failure's toast goes; "starting", on the way
+    // back, leaves it until the sync says how that went.
+    settle(key, next.state);
   }
   // Each conflict copy once on this machine (ADR 0079 item 8), not again
   // at each start; one deleted goes quiet.

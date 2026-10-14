@@ -42,13 +42,15 @@ function build(): HTMLElement {
   region.setAttribute("aria-label", s.region);
   // The sentences said once, from two regions that are always on the page
   // (a region added with its text is not read by every screen reader).
+  // Live regions without a role: an empty `alert` or `status` always on
+  // the page would stand beside the window's own as a second one.
   polite = h("div", "sr-only");
-  polite.setAttribute("role", "status");
   polite.setAttribute("aria-live", "polite");
+  polite.setAttribute("aria-atomic", "true");
   polite.id = "notify-polite";
   assertive = h("div", "sr-only");
-  assertive.setAttribute("role", "alert");
   assertive.setAttribute("aria-live", "assertive");
+  assertive.setAttribute("aria-atomic", "true");
   assertive.id = "notify-assertive";
   region.addEventListener("focusin", (e) => {
     const from = e.relatedTarget;
