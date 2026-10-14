@@ -62,6 +62,14 @@ ALTER TABLE invitations ADD COLUMN scope TEXT NOT NULL DEFAULT 'folder' CHECK (s
 UPDATE invitations SET scope = 'share' WHERE share IS NOT NULL;
 ";
 
+/// Run with schema 10, in its transaction: a share's invitation orphaned
+/// before it (its share deleted, `share` set to null) cannot be told from
+/// a folder's, and would grant the whole folder. Every invitation still
+/// pending that names a folder and no share is ended; the admin sends it
+/// again. Used, expired and folderless links are left as they are.
+const END_UNSCOPED: &str = "UPDATE invitations SET ended = ?1
+ WHERE folder IS NOT NULL AND share IS NULL AND used IS NULL AND ended IS NULL AND expires > ?1";
+
 /// Schema 6: the device that made a change of a folder's log, by its name
 /// (ADR 0079 item 4, "who made it"): two devices of one account told apart.
 const DEVICES: &str = r"
@@ -487,7 +495,7 @@ impl Db {
         Self::from(Connection::open_in_memory().map_err(e)?)
     }
 
-    fn from(conn: Connection) -> R<Self> {
+    fn from(mut conn: Connection) -> R<Self> {
         // NORMAL in WAL: a crash or a power cut never corrupts the
         // database, and may lose the last commits before it — what a
         // reconciliation finds again on the disk for sync's log, and a
@@ -524,10 +532,21 @@ impl Db {
         .map(|(_, sql)| *sql)
         .collect();
         if !steps.is_empty() {
-            conn.execute_batch(&format!(
-                "BEGIN; {steps} PRAGMA user_version = {SCHEMA}; COMMIT;"
-            ))
-            .map_err(e)?;
+            let tx = conn.transaction().map_err(e)?;
+            tx.execute_batch(&steps).map_err(e)?;
+            let ended = if version < 10 {
+                tx.execute(END_UNSCOPED, [now()]).map_err(e)?
+            } else {
+                0
+            };
+            tx.execute_batch(&format!("PRAGMA user_version = {SCHEMA};"))
+                .map_err(e)?;
+            tx.commit().map_err(e)?;
+            if ended > 0 {
+                crate::log::info(&format!(
+                    "{ended} pending folder invitations ended at upgrade; send them again"
+                ));
+            }
         }
         Ok(Self {
             conn: Mutex::new(conn),
