@@ -220,6 +220,17 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     novo também; o arquivo não muda (ADR 0064 ponto 6). Nível: H; E:
     `tables.spec.mjs`, "a column dragged wider…" e "a column dragged in
     Reading…".
+13. Nota 24 (ADR 0088): na Leitura cada código `dice:` é um botão de dado
+    chamado "Rolar 1d20+5" e assim por diante; um clique, ou Tab até ele e
+    Enter, mostra o total, cada dado e o que foi somado num cartão ao lado,
+    com "Rolar de novo", e a região de status diz (*1d20+5: 17 — 12 mais
+    5*); `dice: 1d20*2` continua código. "Quem aparece na estrada?" dá uma
+    linha da tabela `d6`, o link para o Capitão Ruy abrindo com um clique;
+    "O tempo hoje", um item da lista. No Editar, os dados fora da linha do
+    cursor também são dados. A nota no Fonte depois: o texto como antes,
+    nada escrito. ⌘⇧P › "Rolar dados…": `2d6+1` e Enter rola; `1d20*2` diz
+    que o Verso não lê isso. Nível: H; E: `dice.spec.mjs`; U:
+    `test/dice.test.mjs`.
 
 ## 4. Organizar: propriedades, bases, notas diárias
 

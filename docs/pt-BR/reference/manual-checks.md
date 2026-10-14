@@ -20,6 +20,26 @@ app real.
 
 ## Ainda não conferido
 
+### Dados e tabelas sorteadas (ADR 0088, feat/dice, 2026-10-14)
+
+- [ ] **Um dado numa nota rola e não escreve nada** (A): no app
+  instalado, a nota 24 do cofre de exemplo na Leitura, depois no Editar:
+  cada código `dice:` é um dado; um clique e Enter rolam, o cartão mostra o
+  total e cada dado, o VoiceOver diz *1d20+5: …* uma vez por rolagem. A
+  rolagem da tabela dá uma linha cujo link abre o Capitão Ruy. Feche a
+  nota e olhe o arquivo no disco: os mesmos bytes (`shasum` antes e
+  depois), e nenhuma linha de `write` dele no `verso.log`.
+- [ ] **Numa sala quem rola é o servidor** (A): dois navegadores num
+  UniVerso, duas contas na mesma nota com `` `dice: 1d20+3` ``. Uma rola: a
+  outra vê o mesmo total com *X rolou* ao lado do dado, e o VoiceOver diz o
+  nome; uma terceira janela que abre a nota depois mostra essa rolagem.
+  Quem só lê também rola. O log do servidor não tem ERROR. Pare o servidor
+  e role: o cartão diz que rolou só nesta janela.
+- [ ] **A nota de uma pasta sincronizada, no desktop** (A): uma pasta deste
+  computador que sincroniza, a nota aberta em duas janelas do app e num
+  navegador: uma rolagem numa janela aparece na outra e no navegador.
+- [ ] **⌘⇧P › Rolar dados…** (A): rola uma notação digitada; nada escrito.
+
 ### O retorno da janela (fix/ui-feedback, 2026-10-14)
 
 - [ ] **Um servidor fora de alcance é dito onde você agiu** (A): uma

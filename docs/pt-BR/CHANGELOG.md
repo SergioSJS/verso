@@ -12,7 +12,9 @@ versão de teste.
 
 ## Não lançado
 
-Nada ainda.
+### Adicionado
+
+- **Dados e tabelas sorteadas numa nota** ([ADR 0088](adr/0088-dice-and-random-tables.md)): `` `dice: 1d20+3` `` — a forma do plugin Dice Roller do Obsidian — aparece como um dado na leitura e no Live Preview; um clique ou Enter rola e mostra o total, cada dado e os números somados num cartão pequeno ao lado, com *Rolar de novo*. O Verso lê dados (`2d6`, `d20`), somas e diferenças (`1d12+1d10+5`), manter e descartar (`4d6kh3`, `2d20kl1`, `4d6dl1`) e o dado fudge (`4dF`); uma forma que ele não lê continua código. `` `dice: [[Tabelas#^encontros]]` `` sorteia uma linha de uma tabela ou de uma lista com esse `^id`: uma tabela cuja primeira coluna tem um dado no cabeçalho (`d100`, `2d6`) escolhe pelas faixas dela (`01–05`, `7`), qualquer outra tabela ou lista com todas as linhas iguais; os links da linha abrem com um clique. A rolagem nunca é escrita no arquivo. Numa nota compartilhada quem rola é o servidor, e todos nela veem a rolagem com o nome de quem rolou; uma janela que entra vê as últimas rolagens da sala. *Rolar dados…* na paleta de comandos rola uma notação digitada, sem nota. Um leitor de tela ouve cada resultado (*1d20+3: 17 — 14 mais 3*), e o de outra pessoa com o nome dela.
 
 ## 0.8.2-beta.1 — 2026-10-14
 
