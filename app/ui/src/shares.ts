@@ -128,7 +128,12 @@ function askFirst(where: HTMLElement, question: string, yes: () => Promise<void>
 /** The share dialog of the folder at `path` (`""` the whole folder). */
 export function openShareDialog(path: string): void {
   const whole = path === "";
-  const dialog = h("dialog", "web-dialog share-dialog");
+  // A layer of the page like the window's other dialogs, not a `<dialog>`
+  // in the browser's top layer: what opens over it — the palette, a menu —
+  // is above it, and it is inert under them (dialogs/a11y.ts).
+  const overlay = h("div", "quick share-overlay");
+  const dialog = h("div", "web-dialog share-dialog");
+  overlay.append(dialog);
   const titleId = "share-title";
   const title = h("h2", "web-dialog-title", whole ? sh.titleWhole(folderName) : sh.title(name(path)));
   title.id = titleId;
@@ -142,16 +147,12 @@ export function openShareDialog(path: string): void {
   missing.setAttribute("role", "alert");
   missing.hidden = true;
   const close = () => {
-    dialog.close();
-    dialog.remove();
-    closed(dialog);
+    overlay.remove();
+    closed(overlay);
     void loadShares();
   };
-  asDialog(dialog, "", close, titleId);
-  dialog.addEventListener("cancel", (e) => {
-    e.preventDefault();
-    close();
-  });
+  // Named by its title; Tab kept inside, Escape closes it.
+  asDialog(overlay, "", close, titleId);
 
   // Add a person, or change their role.
   const form = h("form", "share-form");
@@ -275,9 +276,8 @@ export function openShareDialog(path: string): void {
   };
 
   dialog.append(title, h("p", "settings-hint", sh.kept), missing, list, form, attachments, status, footer);
-  document.body.append(dialog);
-  opened(dialog);
-  dialog.showModal();
+  document.body.append(overlay);
+  opened(overlay);
   email.focus();
   void commands.shareList().then((r) => {
     if (r.status !== "ok") {

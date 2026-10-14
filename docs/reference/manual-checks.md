@@ -42,6 +42,12 @@ in the real app.
   again closes *Ajustes*. The same with ⌘P and with *Ajuda › Relatar
   problema* over *Ajustes*. VoiceOver, the palette open: nothing of
   *Ajustes* is read behind it.
+- [ ] **The palette over the share dialog** (B): on a UniVerso folder you
+  own, a folder's menu › *Compartilhar…*, type an e-mail, then ⌘⇧P: the
+  palette is on top with the cursor in it; Escape closes the palette
+  alone, the e-mail still typed and the cursor back in its field; Escape
+  again closes the dialog. VoiceOver: the dialog is not read behind the
+  palette.
 - [ ] **DevTools' console says a failure** (C): the console open (⌥⌘I),
   the server stopped, *Sincronizar esta pasta*: one warning, `Verso:
   unreachable: localhost:7351`, and no token or password in any line.
