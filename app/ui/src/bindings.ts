@@ -1184,6 +1184,20 @@ export type FolderLayer = {
 };
 
 /**
+ *  A folder at 90 % of its quota or more (event `folder-quota`, ADR 0077
+ *  item 5, ADR 0084 item 7): pushed by the server after a write, to the
+ *  windows on the server's folder and to a device that syncs a folder of
+ *  its computer with it, which tells that folder's windows. Bytes, as
+ *  numbers the window can show.
+ */
+export type FolderQuota = {
+	/**  What the folder takes now. */
+	used: number | null,
+	/**  Its quota. */
+	quota: number | null,
+};
+
+/**
  *  The folder's settings that travel with it (ADR 0070 items 1–2), as
  *  `.verso/settings.json` holds them, or a change to them: `None` is "not
  *  set here". Every path is relative to the folder, joined by `/`.
@@ -1552,6 +1566,14 @@ export type ServerAccount = {
 	name: string,
 };
 
+/**
+ *  The window's server is back after it was gone (event `server-back`,
+ *  ADR 0084 item 10): the folder was opened again.
+ */
+export type ServerBack = {
+	url: string,
+};
+
 /**  A folder of a server the account may open, and the role in it. */
 export type ServerFolder = {
 	id: string,
@@ -1572,12 +1594,73 @@ export type ServerFolder = {
 };
 
 /**
+ *  The window's server, or what it held there, is gone (event
+ *  `server-gone`, ADR 0084 item 10): said by the desktop app to a window
+ *  on a server's folder.
+ */
+export type ServerGone = {
+	/**  The server, as signed in to (Settings › Servers). */
+	url: string,
+	/**
+	 *  What ended: `session` (the server ended this device's session, or
+	 *  refused it on reconnecting), `folder` (this account no longer
+	 *  reaches the folder or the share: `reason` says why), `connection`
+	 *  (the connection dropped; the app tries again) or `unreachable` (a
+	 *  try found the server out of reach: `address` names it).
+	 */
+	what: string,
+	/**
+	 *  With `folder`, when the server says it: `revoked` by its owner,
+	 *  `deleted` (the shared folder went), `left` by the person.
+	 */
+	reason: string | null,
+	/**  With `unreachable`: the server's address, `host[:port]`. */
+	address: string | null,
+};
+
+/**
  *  A sign-in under way: the code the server's page shows, to compare, and
  *  the page the app opened in the browser.
  */
 export type ServerSignIn = {
 	code: string,
 	page: string,
+};
+
+/**
+ *  A folder given to this account by another person (event `share-given`,
+ *  ADR 0084 item 7): a share of a folder inside theirs (ADR 0081), or
+ *  their whole folder. Pushed by the server to the account's open
+ *  connections — its browser windows and its devices, never a token's —
+ *  when the account had no access to it before; a role changed later is
+ *  not this event.
+ */
+export type ShareGiven = {
+	/**
+	 *  What opens it: the id of a share, or of the whole folder
+	 *  (`ServerFolder::id`).
+	 */
+	id: string,
+	/**
+	 *  The folder's own name: the shared folder's last component, or the
+	 *  whole folder's name.
+	 */
+	name: string,
+	/**
+	 *  `editor` (writes) or `reader` (reads only); `owner` for a whole
+	 *  folder given with that role.
+	 */
+	role: string,
+	/**  The display name of the person who gave it. */
+	by: string,
+	/**  A share inside someone's folder, not their whole folder. */
+	share: boolean,
+	/**
+	 *  The server, as signed in to (Settings › Servers): the desktop app
+	 *  fills it, being signed in to any number of servers; none from the
+	 *  server itself, whose windows are on it.
+	 */
+	server: string | null,
 };
 
 /**
