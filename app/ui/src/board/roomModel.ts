@@ -272,3 +272,73 @@ export function patchFromCanvas(room: ReadonlyMap<string, El>, drawn: readonly E
   }
   return out;
 }
+
+/** What of the board's state names elements: the selection, the groups,
+ *  what is being drawn, typed, pointed at, cropped or hovered. Excalidraw's
+ *  `AppState`, the part a change of the room can leave pointing at an
+ *  element it deleted. */
+export type BoardState = {
+  selectedElementIds: Readonly<Record<string, boolean>>;
+  selectedGroupIds?: Readonly<Record<string, boolean>>;
+  editingGroupId?: string | null;
+  editingTextElement?: { id: string } | null;
+  newElement?: { id: string } | null;
+  resizingElement?: { id: string } | null;
+  multiElement?: { id: string } | null;
+  selectedLinearElement?: { elementId: string; isEditing?: boolean } | null;
+  selectedElementsAreBeingDragged?: boolean;
+  croppingElementId?: string | null;
+  hoveredElementIds?: Readonly<Record<string, boolean>>;
+};
+
+/** What of `state` names an element `elements` holds deleted, let go: the
+ *  fields to change, none when nothing does. Excalidraw holds a deleted
+ *  element selected as a broken invariant ("[NONDELETED][INVARIANT]
+ *  getSelectedElements skipping deleted selected element"). A selection or
+ *  a hover also lets go of an element `elements` does not hold at all;
+ *  what is being drawn, typed or cropped only of one it holds deleted. */
+export function stateOver(elements: readonly El[], state: BoardState): Partial<BoardState> {
+  const alive = elements.filter((e) => e.isDeleted !== true);
+  const live = new Set(alive.map((e) => e.id));
+  const deleted = new Set(elements.filter((e) => e.isDeleted === true).map((e) => e.id));
+  const groupsOf = (e: El): string[] => (Array.isArray(e["groupIds"]) ? (e["groupIds"] as unknown[]).filter((g): g is string => typeof g === "string") : []);
+  const out: Partial<BoardState> = {};
+  const pick = (ids: Readonly<Record<string, boolean>> | undefined, keep: (id: string) => boolean): Record<string, boolean> | null => {
+    if (!ids) return null;
+    const on = Object.entries(ids).filter(([, v]) => v);
+    const kept = on.filter(([id]) => keep(id));
+    return kept.length === on.length ? null : Object.fromEntries(kept);
+  };
+  const selected = pick(state.selectedElementIds, (id) => live.has(id));
+  if (selected) out.selectedElementIds = selected;
+  // A group stays selected while an element of it still does.
+  const sel = selected ?? state.selectedElementIds;
+  const inSelection = new Set(alive.filter((e) => sel[e.id] === true).flatMap(groupsOf));
+  const selectedGroups = pick(state.selectedGroupIds, (g) => inSelection.has(g));
+  if (selectedGroups) out.selectedGroupIds = selectedGroups;
+  if (state.editingGroupId && !alive.some((e) => groupsOf(e).includes(state.editingGroupId as string))) out.editingGroupId = null;
+  for (const k of ["editingTextElement", "newElement", "resizingElement", "multiElement"] as const) {
+    const e = state[k];
+    if (e && deleted.has(e.id)) out[k] = null;
+  }
+  if (state.selectedLinearElement && deleted.has(state.selectedLinearElement.elementId)) out.selectedLinearElement = null;
+  if (state.croppingElementId && deleted.has(state.croppingElementId)) out.croppingElementId = null;
+  const hovered = pick(state.hoveredElementIds, (id) => live.has(id));
+  if (hovered) out.hoveredElementIds = hovered;
+  return out;
+}
+
+/** The room's elements `remote` into a board whose scene is `local` and
+ *  whose state is `state`: the scene to hand it (`mergeScene`, what this
+ *  window is changing right now kept: a text typed, a shape drawn, resized
+ *  or dragged, a line edited), and what of its state to change with it, in
+ *  the same change (`stateOver`): a scene with a deleted element still
+ *  selected is never handed to Excalidraw. `mine` as `mergeScene`'s. */
+export function remoteScene(local: readonly El[], remote: Iterable<El>, state: BoardState, mine: (e: El) => boolean): { elements: El[]; appState: Partial<BoardState> } {
+  const busy = new Set<string>();
+  const line = state.selectedLinearElement;
+  for (const id of [state.editingTextElement?.id, state.resizingElement?.id, state.newElement?.id, state.multiElement?.id, line?.isEditing ? line.elementId : undefined]) if (id) busy.add(id);
+  if (state.selectedElementsAreBeingDragged) for (const [id, on] of Object.entries(state.selectedElementIds)) if (on) busy.add(id);
+  const elements = mergeScene(local, remote, busy, mine);
+  return { elements, appState: stateOver(elements, state) };
+}

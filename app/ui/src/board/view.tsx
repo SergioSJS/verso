@@ -29,7 +29,7 @@ import {
 import type { ExcalidrawElement, ExcalidrawEmbeddableElement, NonDeleted } from "@excalidraw/excalidraw/element/types";
 import type { AppState, ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type JSX, type MouseEvent } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { CardLayer, drawQueue, isBarePicture, OutlinePanel, View } from "./cards";
 import { CropDialog, ExportDialog } from "./dialogs";
@@ -59,7 +59,7 @@ import {
   type El
 } from "./model";
 import { PT_BR } from "./ptBR";
-import { mergeScene } from "./roomModel";
+import { type BoardState, remoteScene, stateOver } from "./roomModel";
 import { relationKeyOk } from "./relation";
 import { InsertMenu, TopRightTools } from "./tools";
 import { BoardHandle, BoardHost, type BoardPane } from "./types";
@@ -317,7 +317,15 @@ function Board({
         window.clearTimeout(timer.current);
         touched.current = false;
         baseline(els, d);
-        own((a) => a.updateScene({ elements: els, appState: { viewBackgroundColor: backgroundOf(d) ?? "transparent" } as never, captureUpdate: CaptureUpdateAction.NEVER }));
+        // What of the board's state named an element the file no longer
+        // draws lets go of it in the same change (`stateOver`).
+        own((a) =>
+          a.updateScene({
+            elements: els,
+            appState: { ...stateOver(els as unknown as El[], a.getAppState() as unknown as BoardState), viewBackgroundColor: backgroundOf(d) ?? "transparent" } as never,
+            captureUpdate: CaptureUpdateAction.NEVER,
+          }),
+        );
         remeasureWhenFontsIn(els);
         // The file as it is now: nothing of the user's is left over.
         edited.current = false;
@@ -345,32 +353,33 @@ function Board({
         const a = api.current;
         // Not up yet: it is drawn from the room's elements as they are.
         if (!a || !alive.current) return remote.map((e) => e.id);
-        const st = a.getAppState();
-        const busy = new Set<string>();
-        for (const id of [st.editingTextElement?.id, st.resizingElement?.id, st.newElement?.id, st.multiElement?.id, st.selectedLinearElement?.isEditing ? st.selectedLinearElement.elementId : undefined]) if (id) busy.add(id);
-        if (st.selectedElementsAreBeingDragged) for (const [id, on] of Object.entries(st.selectedElementIds)) if (on) busy.add(id);
-        const merged = mergeScene(a.getSceneElementsIncludingDeleted() as unknown as El[], remote, busy, (e) => room?.mine(e) ?? false);
-        // An element another person deleted leaves this window's selection
-        // with it: Excalidraw holds a deleted element selected as a broken
-        // invariant (seen on macOS, 2026-10-13, three windows on one board).
-        const gone = new Set(merged.filter((e) => e["isDeleted"] === true).map((e) => e.id));
-        const selected = Object.entries(st.selectedElementIds).filter(([, on]) => on);
-        const keep = selected.filter(([id]) => !gone.has(id));
-        own((b) => {
-          // The selection first, on its own: the scene drawn with the new
-          // elements must never find a deleted element still selected.
-          if (keep.length !== selected.length) {
+        // The scene merged (what this window is changing right now kept),
+        // and what of the board's state names an element the room deleted
+        // let go — a selection, a group, a line — in the same change.
+        const { elements: merged, appState: fixed } = remoteScene(
+          a.getSceneElementsIncludingDeleted() as unknown as El[],
+          remote,
+          a.getAppState() as unknown as BoardState,
+          (e) => room?.mine(e) ?? false,
+        );
+        const appState = { ...fixed, ...(background !== undefined ? { viewBackgroundColor: background ?? "transparent" } : {}) };
+        // Committed at once. Excalidraw changes its scene there and then,
+        // but its state only when React renders, in a task of its own: in
+        // between, a key or a pointer handled — Delete on the selection, a
+        // press — read the deleted element still selected, and a render
+        // for them drew it so ("[NONDELETED][INVARIANT] getSelectedElements
+        // skipping deleted selected element", the board stress test,
+        // 2026-10-14). Called from a task of the room's own (`pull`), never
+        // from inside a render.
+        flushSync(() =>
+          own((b) =>
             b.updateScene({
-              appState: { selectedElementIds: Object.fromEntries(keep), selectedGroupIds: {} } as never,
+              elements: merged as never,
+              ...(Object.keys(appState).length > 0 ? { appState: appState as never } : {}),
               captureUpdate: CaptureUpdateAction.NEVER,
-            });
-          }
-          b.updateScene({
-            elements: merged as never,
-            ...(background !== undefined ? { appState: { viewBackgroundColor: background ?? "transparent" } as never } : {}),
-            captureUpdate: CaptureUpdateAction.NEVER,
-          });
-        });
+            }),
+          ),
+        );
         // Taken: the room's version is what the board now holds — the
         // same object, or a copy of it with its index repaired, at the same
         // version and nonce (roomModel.ts `repairedIndices`).
