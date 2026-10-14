@@ -61,6 +61,7 @@ import { type CollabHandlers, type CollabSession, joinCollab, lostLine } from ".
 import { tableWidths } from "../tableWidths";
 import { applyChange, throughRoom } from "../roomWrites";
 import { currentFolder } from "../folder";
+import { fillLinkCard, wireNotePreview } from "../preview/install";
 
 /* A note: reading, Live Preview, source; saving through the atomic write. */
 export type Mode = "preview" | "live" | "source";
@@ -166,6 +167,7 @@ export class NoteLeaf extends Leaf {
       navigate: (target) => this.follow(target),
       openUrl: (url) => void commands.openUrl(url),
       strings: { card: st.linkCard, open: st.linkOpen, edit: st.linkEdit },
+      preview: (link, box) => fillLinkCard(this, link, box),
     }),
   ];
   shouldShowLineNumbers(): boolean {
@@ -225,6 +227,8 @@ export class NoteLeaf extends Leaf {
    *  redrawn. */
   embeds: (PdfView | BaseView)[] = [];
   readonly cardHistory = new Map<string, KeptCard>();
+  /** Takes the note's places back from the hover preview. */
+  private unpreview: () => void = () => {};
   readonly cards = new Set<CardEditing>();
   readonly readingSearch: ReadingSearch;
 
@@ -358,6 +362,8 @@ export class NoteLeaf extends Leaf {
     });
     this.setDirty(false);
     this.applyMode();
+    // The note a link names, where the pointer rests (ADR 0085).
+    this.unpreview = wireNotePreview(this);
   }
   declare modeButton: typeof editing.modeButton;
   declare editorState: typeof editing.editorState;
@@ -1161,6 +1167,7 @@ export class NoteLeaf extends Leaf {
   }
   override destroy(): void {
     this.destroyed = true;
+    this.unpreview();
     this.unmountDrawing();
     this.cancelReposition?.();
     window.clearTimeout(this.saveTimer);

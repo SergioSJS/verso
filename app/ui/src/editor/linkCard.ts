@@ -24,6 +24,9 @@ export type LinkCardOptions = {
   /** Open a web address outside the window. */
   openUrl: (url: string) => void;
   strings: { card: (target: string) => string; open: string; edit: string };
+  /** The note the link names, drawn into `box` above the buttons (ADR 0085
+   *  item 5: a finger has no hover); the function returned lets it go. */
+  preview?: (link: LinkAt, box: HTMLElement) => () => void;
 };
 
 const WIKI = /(!?)\[\[([^\]\n]+)\]\]/g;
@@ -92,7 +95,17 @@ export function linkCard(opts: LinkCardOptions) {
                   b.addEventListener("click", run);
                   return b;
                 };
-                dom.append(
+                const actions = document.createElement("div");
+                actions.className = "cm-link-card-actions";
+                let letGo = () => {};
+                if (opts.preview) {
+                  const box = document.createElement("div");
+                  box.className = "cm-link-card-preview";
+                  dom.append(box);
+                  letGo = opts.preview(link, box);
+                }
+                dom.append(actions);
+                actions.append(
                   make(opts.strings.open, () => {
                     view.dispatch({ effects: setCard.of(null) });
                     if (link.url) opts.openUrl(link.target);
@@ -103,7 +116,7 @@ export function linkCard(opts: LinkCardOptions) {
                     view.focus();
                   }),
                 );
-                return { dom };
+                return { dom, destroy: () => letGo() };
               },
             }
           : null,
