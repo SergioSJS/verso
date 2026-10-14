@@ -5,7 +5,7 @@ import { test, expect } from "./fixtures.mjs";
 test("the settings have the sections the tutorial names", async ({ app }) => {
   await app.open();
   await app.key("Mod+,");
-  await expect(app.page.locator(".settings-nav-item")).toHaveText(["Geral", "Aparência", "Editor", "Organização", "Arquivos e links", "Lixeira", "Board", "Atalhos", "Terminal e agentes", "Servidores", "Sincronizar"]);
+  await expect(app.page.locator(".settings-nav-item")).toHaveText(["Geral", "Notificações", "Aparência", "Editor", "Organização", "Arquivos e links", "Lixeira", "Board", "Atalhos", "Terminal e agentes", "Servidores", "Sincronizar"]);
   await app.page.locator(".settings-nav-item", { hasText: "Aparência" }).click();
   for (const label of ["Tema", "Paleta de cores", "Tamanho da fonte", "Fonte dos títulos", "Fonte do texto", "Cor de destaque dos títulos", "Largura do texto"]) {
     await expect(app.page.getByText(label, { exact: true }).first()).toBeVisible();
@@ -88,7 +88,9 @@ test("the server for all of Verso writes --all and starts with the folder hidden
   await expect(visible).toBeChecked();
   await expect(app.page.locator(".setting-code").first()).toContainText("claude mcp add verso -- /usr/local/bin/verso mcp --all");
   await app.page.getByRole("button", { name: "Adicionar ao Claude Desktop" }).click();
-  await expect(app.page.locator(".dialog, [role=dialog]").last()).toContainText("--all");
+  // The question on screen: the last dialog shown (the notification
+  // centre, hidden, is one of the page's too).
+  await expect(app.page.locator(".dialog, [role=dialog]").filter({ visible: true }).last()).toContainText("--all");
 });
 
 // What opens last is on top (the maintainer, 2026-10-14: ⌘⇧P with the

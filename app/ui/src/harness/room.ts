@@ -139,6 +139,8 @@ export class Rooms {
   /** `name` is in the note: their presence told to the window. */
   present(path: string, name: string): void {
     const p = this.person(name, path);
+    // Back after `absent`, which cleared their presence.
+    if (p.awareness.getLocalState() === null) p.awareness.setLocalState({ user: { name, color: "#1565c0", colorLight: "#1565c033" } });
     const names = this.inside.get(path) ?? new Set<string>();
     names.add(name);
     this.inside.set(path, names);
