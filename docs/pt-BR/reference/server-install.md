@@ -47,16 +47,21 @@ sh universo.sh install --url https://notas.exemplo.com
 | `reset-admin [E-MAIL]` | o comando da seção 10 |
 | `firewall` | abre 80 e 443 com ufw, firewalld ou iptables (mantidas entre reboots com o `netfilter-persistent` quando ele existe), e lembra que o firewall da própria nuvem (a security list da VCN da Oracle) se abre no console dela. Só quando pedido: o `install` nunca mexe no firewall |
 
-Como um download é conferido: com o `minisign` instalado, o `.sig` da
-release contra a chave de release do Verso (seção 6), o comentário
-assinado nomeando o arquivo; sem o `minisign`, o `sha256` que o GitHub
-publica para cada arquivo da release; sem nenhum dos dois, recusa, a menos
-que receba `--insecure-no-verify`, que diz em voz alta que nada foi
-conferido. Um `.sig` faltando — nenhum na release, o download dele falhou,
-nenhum ao lado do `--package ARQ` — é um erro: o script para e diz por
-quê, a menos que receba `--no-signature`, que se contenta com o `sha256`
-publicado (prova de que o arquivo é o enviado à release, não de quem o
-fez). Um pacote de `--package ARQ` é conferido com o `ARQ.sig` ao lado.
+Como um download é conferido: com o `minisign` instalado, a lista de
+checksums assinada da release — `verso-<versão>-SHA256SUMS` e o `.sig`
+dela — contra a chave de release do Verso (seção 6), o comentário
+assinado nomeando a lista da versão do pacote, e depois o `sha256` do
+pacote contra a linha dele na lista (numa release até a 0.8.3: o `.sig`
+do próprio pacote, o comentário assinado nomeando o arquivo); sem o
+`minisign`, o `sha256` que o GitHub publica para cada arquivo da release;
+sem nenhum dos dois, recusa, a menos que receba `--insecure-no-verify`,
+que diz em voz alta que nada foi conferido. Uma assinatura faltando —
+nenhuma na release, o download dela falhou, nenhuma ao lado do
+`--package ARQ` — é um erro: o script para e diz por quê, a menos que
+receba `--no-signature`, que se contenta com o `sha256` publicado (prova
+de que o arquivo é o enviado à release, não de quem o fez). Um pacote de
+`--package ARQ` é conferido com a lista e o `.sig` dela ao lado, senão
+com o `ARQ.sig`.
 Enquanto o repositório é privado, baixar pede um token do GitHub em
 `GITHUB_TOKEN` (fine-grained, Contents: Read-only no repositório); sem ele
 o script diz como criar, ou aceita `--package`. Dê o token com
@@ -406,9 +411,21 @@ sob o diretório de configuração do usuário (`VERSO_CONFIG_DIR`, senão
 `$XDG_CONFIG_HOME/verso`, senão `~/.config/verso`): `server` e
 `server-folders`.
 
-A assinatura de um arquivo pode ser conferida com o minisign e a chave
-pública do Verso, a mesma que o app carrega
-(`app/src-tauri/src/update.rs`):
+Um arquivo pode ser conferido com o minisign e a chave pública do
+Verso, a mesma que o app carrega (`app/src-tauri/src/update.rs`): primeiro
+a lista de checksums da release, o comentário assinado nomeando a lista
+(`file:verso-<versão>-SHA256SUMS`), depois o arquivo contra a lista, que
+precisa dizer `OK` para ele:
+
+```sh
+base64 -d < verso-0.8.3-beta.1-SHA256SUMS.sig > list.minisig
+minisign -V -P RWS1zv2nvs/ng1hA0YspwOg7wGda98zkXjVfx8m9CtT5obRW5zabNHaT \
+  -m verso-0.8.3-beta.1-SHA256SUMS -x list.minisig
+sha256sum --check --ignore-missing verso-0.8.3-beta.1-SHA256SUMS
+```
+
+Uma release até a 0.8.3 também tem um `.sig` ao lado de cada arquivo,
+conferido sozinho:
 
 ```sh
 base64 -d < universo-0.8.0-beta.1-x86_64.tar.gz.sig > file.minisig

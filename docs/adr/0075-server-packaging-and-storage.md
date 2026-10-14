@@ -44,6 +44,17 @@
   being the source. Sections 5 and 6 of the install guide stay the manual
   paths ([server-install.md](../reference/server-install.md), "The
   installer script").
+  2026-10-14 — the release's signature, for the installer, is one signed
+  checksums list, `verso-<version>-SHA256SUMS` and its `.sig`, in place of
+  a `.sig` beside each package, decided by the maintainer for the whole
+  release ([0055](0055-in-app-updater.md), revised that day: *"Sim, já
+  na 0.8.3"*). `universo.sh` verifies the list's signature with minisign
+  and Verso's release key, the signed comment naming the list of the
+  package's own version, then the package's sha256 against its one line
+  in the list; for a release up to 0.8.3 it still takes the package's own
+  `.sig`. The copy at `https://versomd.com/universo.sh` is to be copied
+  again from the repository before the first release without per-file
+  `.sig`, or it finds no signature there.
 - Revisions: 2026-10-09 (night) — accepted by the maintainer together with
   [0073](0073-self-hosted-server-first.md), in the answer quoted there;
   its two `[OPEN]` answered — the update path (item 7, the maintainer's

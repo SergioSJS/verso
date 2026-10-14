@@ -5,7 +5,8 @@
 // The maintainer, on 2026-10-14: the page was the raw changelog above 28
 // files, with nothing saying which one to download. It now opens with a
 // guide for someone who is not technical — what Verso is, which file is
-// theirs, how to install it, that the `.sig` files can be ignored — in
+// theirs, how to install it, that the checksums list and the `.sig` files
+// can be ignored — in
 // English, then in pt-BR (English is the source, ADR 0008), and each
 // language ends with a short "what's new" and the full changelog folded.
 // Each "what's new" is marked (`<!-- verso:news:en -->` …
@@ -28,9 +29,27 @@ export const PAGE_LIMIT = 120_000;
 
 export const isBeta = (v) => /-beta\.\d+$/.test(v);
 
+/** The signatures of a release (ADR 0055, revised 2026-10-14, the
+ *  maintainer: "Sim, já na 0.8.3"). A release carries one signed list,
+ *  `verso-<version>-SHA256SUMS` and its `.sig`, the sha256 of each of its
+ *  files signed once with the release key, in place of a `.sig` beside
+ *  every file. 0.8.3 is the bridge: it publishes both, so the apps up to
+ *  0.8.2, which read only a file's own `.sig`, still update to it, and from
+ *  0.8.3 on the app reads the list. **The version cut after the bridge sets
+ *  this to `false`** — that line is the whole switch: the release
+ *  workflow's per-file signing steps (`release.mjs per-file-signatures`),
+ *  the publish job's list of files (`release.mjs assets`) and this page
+ *  follow it. An app older than the bridge that skipped it then updates by
+ *  hand, once. */
+export const PER_FILE_SIGNATURES = true;
+
+/** The signed checksums list of release `v`, as the release workflow's
+ *  `checksums` job names it; its signature is `<list>.sig`. */
+export const checksumsList = (v) => `verso-${v}-SHA256SUMS`;
+
 /** The files of release `v`, by what each is for, named exactly as the
  *  release workflow names them (`slug` is "Verso-Beta" for a test
- *  release). Each one is published with its signature, `<file>.sig`. */
+ *  release). The checksums list holds each one's sha256. */
 export function releaseFiles(v) {
   const app = isBeta(v) ? "Verso-Beta" : "Verso";
   return {
@@ -51,9 +70,13 @@ export function releaseFiles(v) {
   };
 }
 
-/** Every file the release publishes: each of `releaseFiles` and its `.sig`. */
-export function releaseAssets(v) {
-  return Object.values(releaseFiles(v)).flatMap((f) => [f, `${f}.sig`]);
+/** Every file the release publishes: each of `releaseFiles`, the signed
+ *  checksums list and its `.sig`, and, while `perFile` (the bridge), each
+ *  file's own `.sig`. */
+export function releaseAssets(v, perFile = PER_FILE_SIGNATURES) {
+  const files = Object.values(releaseFiles(v));
+  const list = checksumsList(v);
+  return [...files, ...(perFile ? files.map((f) => `${f}.sig`) : []), list, `${list}.sig`];
 }
 
 /** A changelog's relative links made absolute, at the release's tag: the
@@ -163,7 +186,8 @@ const WORDS = {
       `\`.AppImage\`: right-click it › **Properties** › **Permissions**, allow it to run as a program (or \`chmod +x ${f.appImage}\` in a terminal), then double-click it.`,
     ],
     serverInstall: "**UniVerso**: the installer above does everything; by hand, follow the guide linked there.",
-    sig: "**You can ignore the `.sig` files.** Each one lets the app's updater and UniVerso's installer check that the file beside it is genuine.",
+    sig: (list, perFile) =>
+      `**You can ignore \`${list}\` and the \`.sig\` ${perFile ? "files" : "file"}.** The list holds every file's checksum, signed with Verso's key: with it the app's updater and UniVerso's installer check that each file is genuine.`,
     news: (v) => `What's new in ${v}`,
     more: (n) => `…and ${n} more changes, in the full list below.`,
     full: (v) => `Every change in ${v}`,
@@ -220,7 +244,8 @@ const WORDS = {
       `\`.AppImage\`: clique nele com o botão direito › **Propriedades** › **Permissões**, permita executá-lo como programa (ou \`chmod +x ${f.appImage}\` num terminal) e dê dois cliques nele.`,
     ],
     serverInstall: "**UniVerso**: o instalador acima faz tudo; à mão, siga o guia indicado lá.",
-    sig: "**Pode ignorar os arquivos `.sig`.** Cada um deixa o atualizador do app e o instalador do UniVerso conferirem que o arquivo ao lado é o verdadeiro.",
+    sig: (list, perFile) =>
+      `**Pode ignorar o \`${list}\` e ${perFile ? "os arquivos" : "o arquivo"} \`.sig\`.** A lista traz o checksum de cada arquivo, assinada com a chave do Verso: com ela o atualizador do app e o instalador do UniVerso conferem que cada arquivo é o verdadeiro.`,
     news: (v) => `Novidades da ${v}`,
     more: (n) => `…e mais ${n} mudanças, na lista completa abaixo.`,
     full: (v) => `Todas as mudanças da ${v}`,
@@ -232,7 +257,7 @@ const row = (...cells) => `| ${cells.join(" | ")} |`;
 
 /** One language's part of the page: the guide, then what is new, then the
  *  changelog folded (or linked, when `linkOnly`). */
-function guide(lang, { version, changelog, linkOnly }) {
+function guide(lang, { version, changelog, linkOnly, perFile }) {
   const w = WORDS[lang];
   const tag = `v${version}`;
   const name = isBeta(version) ? "Verso Beta" : "Verso";
@@ -312,7 +337,7 @@ function guide(lang, { version, changelog, linkOnly }) {
     "",
     w.serverInstall,
     "",
-    w.sig,
+    w.sig(checksumsList(version), perFile),
     "",
     `## ${w.news(version)}`,
     "",
@@ -334,8 +359,9 @@ function guide(lang, { version, changelog, linkOnly }) {
 }
 
 /** The release page of `version`, from its changelog in English (`en`)
- *  and in pt-BR (`pt`), each the body under the version's heading. */
-export function releasePage({ version, en, pt }) {
+ *  and in pt-BR (`pt`), each the body under the version's heading;
+ *  `perFileSignatures` as the release publishes them. */
+export function releasePage({ version, en, pt, perFileSignatures = PER_FILE_SIGNATURES }) {
   const name = isBeta(version) ? "Verso Beta" : "Verso";
   const header = (lang) => {
     const w = WORDS[lang];
@@ -347,10 +373,10 @@ export function releasePage({ version, en, pt }) {
       "",
       `${header("pt")} **[Em português: qual arquivo baixar ↓](#qual-arquivo-baixar)**`,
       "",
-      guide("en", { version, changelog: en, linkOnly }),
+      guide("en", { version, changelog: en, linkOnly, perFile: perFileSignatures }),
       "---",
       "",
-      guide("pt", { version, changelog: pt, linkOnly }),
+      guide("pt", { version, changelog: pt, linkOnly, perFile: perFileSignatures }),
     ].join("\n").trimEnd() + "\n";
   const page = build(false);
   return page.length <= PAGE_LIMIT ? page : build(true);

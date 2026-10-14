@@ -75,6 +75,23 @@ in the real app.
   toast's buttons, Escape closes it and the focus goes back; the bell is
   read with its count; the centre is a dialog, Escape closes it.
 
+### The signed checksums list (ADR 0055, revised 2026-10-14; feat/release-checksums)
+
+- [ ] **0.8.3 is the bridge** (once 0.8.3-beta.1 is published): its
+  release page has 30 files, `verso-0.8.3-beta.1-SHA256SUMS` and its
+  `.sig` among them, and says they can be ignored; an installed
+  0.8.2-beta.1 updates to it from *Ajustes › Atualizações* as before (it
+  reads the file's own `.sig`), with no ERROR in `verso.log`.
+- [ ] **From 0.8.3 the app updates through the list** (once the version
+  after the bridge is published, with `PER_FILE_SIGNATURES` set to
+  `false` in `scripts/release-page.mjs`): its page has 16 files; the
+  installed 0.8.3-beta.1 updates to it, with no ERROR in `verso.log`. On
+  a server, `sh universo.sh update` says *Signature and checksum good:
+  universo-…deb is in verso-…-SHA256SUMS*. Before that release, the copy
+  at `https://versomd.com/universo.sh` (versomd-site, `public/universo.sh`)
+  is copied again from `packaging/server/universo.sh`, or the site's
+  script finds no signature in it.
+
 ### The window's feedback (fix/ui-feedback, 2026-10-14)
 
 - [ ] **A server out of reach is said where you acted** (A): a folder of

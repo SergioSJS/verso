@@ -10,7 +10,10 @@
 - Status no briefing: não consta
 - Revisões: 2026-09-29 — o padrão da verificação, ligado, ratificado pelo
   mantenedor na sessão ("Ratifique o que precisar", respondendo à lista do
-  que estava pendente); o ADR fica Aceito como está escrito.
+  que estava pendente); o ADR fica Aceito como está escrito. 2026-10-14 —
+  uma lista de checksums assinada por release no lugar de um `.sig` ao
+  lado de cada arquivo, com a 0.8.3 como ponte que publica os dois,
+  decidido pelo mantenedor (o ponto da assinatura na Decisão; Status).
 
 ## Contexto
 
@@ -83,6 +86,44 @@ Como o autor construiu a instalação sob essa decisão
   é instalado sob uma tag mais nova. O workflow de release confere cada
   assinatura com a chave do próprio app (`verso-app --verify-signature`)
   antes de publicar, então um segredo que não é essa chave para a release.
+
+  *(Revisto em 2026-10-14, o mantenedor: "Sim, já na 0.8.3", respondendo a
+  uma pergunta que descrevia esta mudança: uma release com menos arquivos,
+  28 → 16.)* Uma release não leva mais um `.sig` ao lado de cada arquivo.
+  Leva uma lista, `verso-<versão>-SHA256SUMS`, com o sha256 de cada um dos
+  seus arquivos como o `sha256sum` escreve, assinada uma vez com a mesma
+  chave de release e pelo mesmo `tauri signer sign`:
+  `verso-<versão>-SHA256SUMS.sig`. O app baixa a lista e a assinatura
+  dela, confere a assinatura contra a `UPDATE_PUBLIC_KEY` com o
+  `minisign-verify`, e só instala um arquivo que esteja na lista
+  exatamente uma vez e cujo download tenha o sha256 que a lista dá
+  (`app/src-tauri/src/release_sums.rs`); o digest que o GitHub informa
+  continua exigido e comparado, como antes. O vínculo com a versão se
+  mantém: o comentário assinado nomeia a lista,
+  `file:verso-<versão>-SHA256SUMS`, o app exige a lista da release de que
+  instala, e a lista nomeia arquivos que levam a versão deles — uma lista
+  legítima de outra release não confere como a desta, e um arquivo antigo
+  e legítimo não está na lista desta release. O workflow de release faz a
+  lista quando todas as plataformas estão construídas (o job `checksums`)
+  e a confere com a chave do app antes de publicar qualquer coisa; o
+  instalador do UniVerso a confere do mesmo jeito
+  ([0075](0075-server-packaging-and-storage.md), revisto no mesmo dia).
+  **A 0.8.3 é a ponte**: publica os dois, a lista e o `.sig` de cada
+  arquivo, para que os apps até a 0.8.2, que só leem o `.sig` do próprio
+  arquivo, se atualizem para ela; da 0.8.3 em diante, o app lê a lista. Da
+  versão depois da ponte em diante os `.sig` por arquivo param — uma chave
+  só, `PER_FILE_SIGNATURES` em `scripts/release-page.mjs`, que o workflow,
+  a lista de arquivos do job de publicação e a página da release seguem —
+  e um app anterior à ponte que a pulou se atualiza à mão, uma vez, pela
+  página de releases. Construído pelo autor sob essa decisão: o nome da
+  lista, a chave, e que o atualizador da própria 0.8.3 só lê a lista
+  (toda release para a qual ele pode se atualizar tem uma). `[OPEN]`: qual
+  versão é "a versão depois da ponte" quando a 0.8.3 tiver mais de uma
+  release de teste — a cortada logo depois da 0.8.3-beta.1, ou a primeira
+  depois da linha 0.8.3. Recomendado: a cortada logo depois da
+  0.8.3-beta.1, a primeira release que publica os dois; uma ponte mais
+  longa mantém catorze arquivos em cada página para apps que se atualizam
+  na próxima abertura de qualquer jeito.
 - **Limites de tamanho.** O download e a extração têm cada um um teto de
   1 GiB (`UPDATE_MAX_BYTES`); um asset que a API já informa maior é recusado
   antes do download. Cada entrada do arquivo compactado só é extraída com o
@@ -168,7 +209,10 @@ Como o autor construiu a instalação sob essa decisão
 Aceito em 2026-09-29 pelo mantenedor, na sessão: os pontos 1 e 2 da Decisão
 — manter o atualizador e consertá-lo. Revisto em 2026-10-09: os arquivos de
 release são assinados e o app confere a assinatura (o mantenedor: "assinar
-nossa aplicação"). O endurecimento sob eles é do autor,
+nossa aplicação"). Revisto em 2026-10-14: uma lista de checksums assinada
+por release no lugar de um `.sig` ao lado de cada arquivo, com a 0.8.3
+como ponte que publica os dois (o mantenedor: "Sim, já na 0.8.3"). O
+endurecimento sob eles é do autor,
 construído sob essa decisão e identificado como tal acima. Revisto em
 2026-09-29: o padrão ligado da verificação ratificado pelo mantenedor; o ADR
 fica Aceito.

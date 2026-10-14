@@ -24,6 +24,10 @@ versão de teste.
 - **Um compartilhamento revogado é dito como revogação**: uma janela do app do computador numa pasta de servidor cujo compartilhamento foi revogado dizia *A conexão com o servidor caiu; tentando de novo…*; agora diz que quem compartilhou a pasta revogou o seu acesso, e não toma o fim da conexão que vem depois por uma queda.
 - **Uma pasta perto da cota é dita uma vez**: o aviso dos 90 % voltava a cada dez minutos enquanto você escrevia; agora é dito uma vez, e de novo só depois que a pasta caiu abaixo de 90 % — medido ao abrir a pasta e uma vez por dia — e passou de novo; também para uma pasta deste computador que sincroniza.
 
+### Alterado
+
+- **Uma release tem menos arquivos: 16 no lugar de 28, da versão depois desta em diante** ([ADR 0055](adr/0055-in-app-updater.md), revisto em 2026-10-14): uma lista, `verso-<versão>-SHA256SUMS`, traz o checksum de cada arquivo e é assinada uma vez com a chave do Verso, no lugar de um `.sig` ao lado de cada arquivo; o atualizador do app e o instalador do UniVerso conferem cada download com ela. Nada a fazer: esta versão leva os dois — 30 arquivos, uma vez — então os apps anteriores se atualizam para ela como sempre. Um app que a pular — ainda na 0.8.2 ou anterior quando sair a versão seguinte — se atualiza à mão uma vez, pela página de releases.
+
 ## 0.8.2-beta.1 — 2026-10-14
 
 ### Corrigido

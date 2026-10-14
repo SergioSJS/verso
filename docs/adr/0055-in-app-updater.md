@@ -9,7 +9,10 @@
 - Status in the briefing: not present
 - Revisions: 2026-09-29 — the check's default, on, ratified by the maintainer
   in session ("Ratifique o que precisar", answering the list of what was
-  pending); the ADR stands Accepted as written.
+  pending); the ADR stands Accepted as written. 2026-10-14 — one signed
+  checksums list per release in place of a `.sig` beside each file, 0.8.3
+  the bridge that publishes both, decided by the maintainer (the
+  signature point of the Decision; Status).
 
 ## Context
 
@@ -80,6 +83,42 @@ How the author built the install under that decision
   not installed under a newer tag. The release workflow checks each
   signature with the app's own key (`verso-app --verify-signature`) before
   it publishes, so a secret that is not that key stops the release.
+
+  *(Revised on 2026-10-14, the maintainer: "Sim, já na 0.8.3" — yes,
+  already in 0.8.3 — answering a question that described this change: a
+  release with fewer files, 28 → 16.)* A release no longer carries a
+  `.sig` beside each file. It carries one list,
+  `verso-<version>-SHA256SUMS`, the sha256 of each of its files as
+  `sha256sum` writes it, signed once with the same release key and by the
+  same `tauri signer sign`: `verso-<version>-SHA256SUMS.sig`. The app
+  downloads the list and its signature, verifies the signature against
+  `UPDATE_PUBLIC_KEY` with `minisign-verify`, and installs only a file that
+  is in the list exactly once and whose download has the sha256 the list
+  gives (`app/src-tauri/src/release_sums.rs`); the digest GitHub reports is
+  still required and compared, as before. The binding to the version
+  holds: the signed comment names the list, `file:verso-<version>-SHA256SUMS`,
+  the app requires the list of the release it installs from, and the list
+  names files that carry their version — a genuine list of another release
+  does not verify as this one's, and an older genuine file is not in this
+  release's list. The release workflow makes the list once every platform
+  is built (its `checksums` job) and checks it with the app's key before
+  anything is published; UniVerso's installer checks it the same way
+  ([0075](0075-server-packaging-and-storage.md), revised that day).
+  **0.8.3 is the bridge**: it publishes both, the list and each file's
+  `.sig`, so the apps up to 0.8.2, which read only a file's own `.sig`,
+  update to it; from 0.8.3 on, the app reads the list. From the version
+  after the bridge the per-file `.sig` stop — one switch,
+  `PER_FILE_SIGNATURES` in `scripts/release-page.mjs`, which the workflow,
+  the publish job's list of files and the release page follow — and an app
+  older than the bridge that skipped it updates by hand, once, from the
+  releases page. Built by the author under that decision: the list's name,
+  the switch, and that 0.8.3's own updater reads the list only (every
+  release it can update to carries one). `[OPEN]`: which version is "the
+  version after the bridge" when 0.8.3 has more than one test release —
+  the one cut right after 0.8.3-beta.1, or the first after the 0.8.3 line.
+  Recommended: the one cut right after 0.8.3-beta.1, the first release
+  that publishes both; a longer bridge keeps fourteen files on each page
+  for apps that update at their next start anyway.
 - **Size caps.** The download and the extraction are each capped at 1 GiB
   (`UPDATE_MAX_BYTES`); an asset the API already reports as larger is refused
   before the download. Each entry of the archive is extracted only under the
@@ -164,7 +203,10 @@ How the author built the install under that decision
 Accepted on 2026-09-29 by the maintainer, in session: points 1 and 2 of the
 Decision — keep the updater and fix it. Revised on 2026-10-09: the release
 files are signed and the app verifies the signature (the maintainer:
-"assinar nossa aplicação"). The hardening under them is the
-author's, built under that decision and labelled as such above. Revised on
+"assinar nossa aplicação"). Revised on 2026-10-14: one signed checksums
+list per release in place of a `.sig` beside each file, 0.8.3 the bridge
+that publishes both (the maintainer: "Sim, já na 0.8.3"). The hardening
+under them is the author's, built under that decision and labelled as
+such above. Revised on
 2026-09-29: the default-on check ratified by the maintainer; the ADR stands
 Accepted.
