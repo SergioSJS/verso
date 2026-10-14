@@ -1,0 +1,143 @@
+# ADR 0092 — The phone offline: the window served by a UniVerso keeps chosen folders and syncs them
+
+- Date: 2026-10-14
+- Source: [0073](0073-self-hosted-server-first.md) item 8 (offline on the
+  phone a later step: a local cache, a queue of writes, reconciliation on
+  return) and its `[OPEN]` "whether the phone in the browser, online only,
+  meets the mobile sync the maintainer called essential, or offline on
+  the phone moves earlier", carried in the roadmap's Phase 3 decisions.
+  The reading of 2026-10-14 in session listed it among the open decisions
+  ("Celular: só online ou offline (PWA)?") and proposed it for V1; the
+  maintainer's answer that evening, on the whole list: *"VAI SER TUDO NA
+  V1"* (it will all be in V1). Written by Opus 5.5; to be read by the
+  other model before it is accepted ([0032](0032-author-and-reviewer-roles.md)).
+- Related: [0025](0025-own-server-and-mobile-pwa.md) (the PWA as the first
+  mobile client; a web client is not offline-first), [0073](0073-self-hosted-server-first.md)
+  (items 6, 8 and 12: HTTPS, the browser first, the order), [0076](0076-the-window-on-every-screen.md)
+  (the window on a phone), [0079](0079-sync-a-local-folder-with-a-server.md)
+  (sync's protocol and rules), [0080](0080-the-trash-with-expiry-and-restore.md),
+  [0082](0082-live-co-editing-of-a-synced-folder.md) (a live note when the
+  link drops), [0087](0087-secret-blocks-hidden-from-readers.md) (a
+  reader's bytes), [0027](0027-runtime-capabilities.md) (availability
+  through the capabilities), [0077](0077-the-server-administration-console-and-folder-quotas.md)
+  (an admin ends a device's sessions), [0035](0035-cross-cutting-requirements.md).
+- Status in the briefing: not present; on acceptance.
+
+## Context
+
+What exists. A UniVerso started with `--web` serves the window, and the
+page is installable on Android and iPadOS: a web manifest, icons and the
+meta tags that open it full screen (`app/ui/web-assets/manifest.webmanifest`,
+`app/ui/build-index.mjs`). The window lays itself out for a phone
+([0076](0076-the-window-on-every-screen.md)). It has no service worker
+and keeps no note in the browser: without the network, the installed
+page does not open, and a note open when the network drops cannot be
+saved anywhere but the server. `verso-dialect` compiles to WebAssembly
+(a guardrail since Phase 1), so the parser can run in the page.
+
+Sync for the desktop exists ([0079](0079-sync-a-local-folder-with-a-server.md)):
+per file by hash against a base, a change log read from a cursor over the
+device session's WebSocket, conflicts as a copy beside the file with the
+server's version keeping the name, two appends to a note's end joined,
+deletions to the trash, the first sync never deleting, a pause on mass
+deletions — built and campaigned on 2026-10-10 and 11.
+
+Limits of the browser, recorded in [0073](0073-self-hosted-server-first.md):
+a service worker only in a secure context (HTTPS); on iPadOS and iOS,
+storage the system may evict unless the page is granted persistence,
+which an installed web app is more likely to get — a heuristic, not a
+promise; no work in the background.
+
+## Decision
+
+Proposed (2026-10-14). Accepted on 2026-10-14 (Status): each `[OPEN]` was decided as
+recommended and is marked `[DECIDED 2026-10-14]`.
+
+1. **Offline is sync, in the browser.** The window keeps chosen folders
+   of a UniVerso in the browser's storage and keeps them in step with the
+   server by **sync's own protocol and rules** ([0079](0079-sync-a-local-folder-with-a-server.md)),
+   over the session it already has: the same manifest, cursor, hashes,
+   conflict copy, append-merge, trash, first-sync and pause rules, the
+   same property test run against the browser's store. No second
+   protocol.
+2. **The window opens without the network.** A service worker keeps the
+   window's own code, versioned with the server's, so the installed page
+   opens offline and shows the folders kept. Over plain HTTP there is no
+   service worker: the folder's setting says offline needs HTTPS, and
+   why ([0073](0073-self-hosted-server-first.md) item 6).
+3. **What is kept.** "Available offline", a setting of each folder on
+   this device, off by default; turned on, it says the space it will
+   take and asks the browser for persistent storage, and says when the
+   system may still evict it (iPadOS, iOS). `[DECIDED 2026-10-14]`: attachments.
+   Decided: notes, boards, bases and text files kept whole; pictures
+   and PDFs kept once opened, with "Keep every attachment" as a choice.
+   `[DECIDED 2026-10-14]`: the store. Decided: **IndexedDB**, the one store every
+   target browser offers with persistence.
+4. **Working offline.** A note, a board or a base opens, renders — by
+   `verso-dialect` compiled to WebAssembly — and is edited from the store;
+   each write waits in a queue with the hash it was based on, and goes up
+   by sync's rules when the network returns. A note that was live in a
+   room when the link dropped keeps its text and goes through sync's
+   comparison on return, as the desktop's does
+   ([0082](0082-live-co-editing-of-a-synced-folder.md)). `[DECIDED 2026-10-14]`: search,
+   backlinks and the graph offline. Decided: **computed from the kept
+   notes in the page** — names and a plain scan for search, the parser's
+   links for backlinks and the graph — and marked "offline: from the
+   notes on this device"; the server's index answers again once online.
+5. **Readers.** A reader's kept bytes are what the server serves that
+   reader — the projection of [0087](0087-secret-blocks-hidden-from-readers.md)
+   when it applies; a reader's offline edits are refused, as sync refuses
+   them ([0079](0079-sync-a-local-folder-with-a-server.md) item 1).
+6. **Leaving the device.** Signing out clears the folders kept on it,
+   after saying how many writes have not gone up; an admin ending the
+   device's sessions ([0077](0077-the-server-administration-console-and-folder-quotas.md))
+   clears them at its next connection. `[DECIDED 2026-10-14]`: encrypting the store at
+   rest. Decided: **not in V1** — the browser's storage is as safe as
+   the unlocked phone — said in the setting.
+7. **What the window says** ([0027](0027-runtime-capabilities.md)): online,
+   offline, syncing, and the count of writes waiting, in the status bar
+   and the folder's settings; a write that cannot go up says why where it
+   was made.
+8. **Every browser, not only phones.** The same feature works in a desktop
+   browser; the desktop app keeps [0079](0079-sync-a-local-folder-with-a-server.md)'s
+   sync of a local folder, unchanged.
+9. **Accessibility and languages** ([0035](0035-cross-cutting-requirements.md)):
+   the offline state is announced when it changes; pt-BR and English.
+
+## Consequences
+
+- The window gains the service worker, the browser's store, the queue and
+  sync's client for it; the server gains nothing new beyond serving the
+  worker — sync's commands are the device's; the contract's types are
+  generated as always (invariant 3).
+- [0073](0073-self-hosted-server-first.md)'s `[OPEN]` on offline on the
+  phone, and the Phase 3 row that carries it, are answered when the
+  maintainer confirms that the V1 list of 2026-10-14 moves it earlier —
+  `docs/roadmap.md`, revision 8, asks; 0073 item 12's order ("the PWA
+  offline" after sync) is kept, sync being built.
+- Tests: sync's property test against the browser's store; e2e at phone
+  width in the harness and on the server's suite for offline open, edit,
+  return and conflict; a manual check on an installed iPhone and an
+  Android phone (`docs/reference/manual-checks.md`); the changelog gets
+  its line.
+- A native app from the same code ([0073](0073-self-hosted-server-first.md)
+  item 8) stays the way out if the browser's eviction or background
+  limits bite.
+
+## Discarded alternatives
+
+None recorded.
+
+## Status
+
+**Accepted (2026-10-14).** The maintainer, that night, answering
+*"Aceita todas as recomendações (R1–R4 e os itens dos ADRs 0085–0092)?"* with *"Sim, todas"* (yes, all): every `[OPEN]`
+decided as recommended, marked `[DECIDED 2026-10-14]` in place. In V1
+(`docs/roadmap.md`, Phase 4 — V1). [0073](0073-self-hosted-server-first.md) gains a Revisions line, and the roadmap's Phase 3 row is struck (R1).
+
+*(History, before the acceptance above:)* Proposed (2026-10-14). In V1 by the maintainer's word of 2026-10-14
+(*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revision 8). For the
+maintainer, each with a recommendation: attachments and the store
+(item 3), search and links offline (item 4), encryption at rest (item 6),
+and whether the V1 list closes [0073](0073-self-hosted-server-first.md)'s
+`[OPEN]` (Consequences).

@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.37
+# Verso dialect spec — v0.38
 
-- Version: v0.37 · 2026-10-12
+- Version: v0.38 · 2026-10-14
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -383,8 +383,13 @@ callouts:
 Which callout kinds are recognized, the behavior of `-`/`+` (collapsed or
 expanded) and nesting: `[OPEN]` (section 9, Q5).
 
-A callout is **not** the mechanism for the game master's secret: per-block
-visibility has its own syntax, still `[OPEN]` (section 9, Q9).
+A callout of kind `secret` is the game master's secret (section 9, Q9,
+`DECIDED` on 2026-10-14, [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md)):
+in the file, in Obsidian and in a folder of the computer it is a callout
+like any other, its meaning unchanged; a UniVerso serves the note to an
+account that may only read it as a projection without the block. *(Until
+v0.38 this said a callout is not the mechanism, per-block visibility
+having a syntax of its own, `[OPEN]`.)*
 
 ### 5.9 A link inside code is not a link
 
@@ -555,7 +560,7 @@ decided the typed note, its schemas and their labels per language
 | Schema i18n | language-neutral key with a translated label (`type: npc` displayed as "PdM" or "NPC") | `DECIDED` on 2026-09-24 ([ADR 0052](../adr/0052-typed-note.md): a `label` per interface language) |
 | Typed relation | a frontmatter property of the source note whose value is a quoted wikilink or a list of them; the key is the type | `DECIDED` on 2026-09-30 (Q10, [ADR 0057](../adr/0057-board-json-canvas.md)) |
 | Schemas | a fenced `verso-schema` block in a note, anywhere in the folder but hidden and ignored paths | `DECIDED` on 2026-09-24 (Q11) |
-| Per-block visibility | game master's secret | `[OPEN]` (Q9) |
+| Per-block visibility | game master's secret: a callout of kind `secret` (`> [!secret]`), a callout in the file; a UniVerso serves readers the note without it | `DECIDED` on 2026-10-14 (Q9, [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md)) |
 | Sticker and color | `sticker:` in make.md's forms — `emoji//<hex>`, `lucide//<name>`, `ui//<name>` — written by Verso as make.md writes them, or an emoji written as itself, read; another value is no sticker. `color:` a hex, as Verso writes it, or a CSS color, read. In the frontmatter of a note or a folder note | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 | Cover banner | `banner:` (a path of the folder or a URL) and `banner_y:` (the vertical position, a percentage from 0 to 100 written as text, `"42"` — as make.md's reposition writes it, read in its source and observed through its property writer, 2026-10-02) in the frontmatter of a note or a folder note | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 | Manual folder order | `order:` in the folder note's frontmatter, a list of relative child names defining sort order; no `order:`, the alphabetical one; with the tree set to alphabetical, every `order:` is kept and ignored. The root's, in a note at the root named after the open folder (its place: `PROPOSED`, the author's, to confirm) | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
@@ -705,11 +710,33 @@ behavior is implemented. None of them has an answer in the briefing.
 
 ### From the briefing (§11.3, §17)
 
-- **Q9. Per-block visibility syntax (game master's secret).** `[OPEN]`
+- **Q9. Per-block visibility syntax (game master's secret).** `DECIDED` on
+  2026-10-14.
   Decide before sharing and export (§17 item 8). It has to survive opening the
   file in Obsidian without leaking the secret and without breaking the text. The
   player view and the mapping to journal permission in Foundry depend on it
   ([ADR 0036](../adr/0036-tabletop-rpg-support.md)).
+
+  **Decided on 2026-10-14 by the maintainer**, accepting
+  [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md) and its item
+  8 (*"Sim, todas"*, every recommendation): per-block visibility is a
+  callout of kind `secret` — `> [!secret]`, with a title, `+` or `-` as any
+  callout, the kind compared lower-cased as Q5 reads kinds, no other
+  keyword. In the file it stays a callout: Obsidian, another editor and a
+  folder of the computer show it to whoever holds the file, and its meaning
+  is unchanged (ADR 0030). A UniVerso serves an account that may only read
+  the note a **projection** of it, the lines of each secret callout removed
+  and nothing else touched, everywhere a reader reads — the text, sync's
+  bytes, search, links, tags, tasks and counts, the MCP; an account that may
+  write it gets the whole text. "Without leaking the secret" reads as **a
+  reader never holds the bytes**. A `[!secret]` inside another callout is
+  removed at any depth the reading view draws, with what it holds; a block
+  whose end cannot be placed hides through the end of its blockquote (it
+  fails closed). Q5's nesting stays `[OPEN]` for the parser that feeds the
+  index. **No fixture yet**: the fixture of this question comes with the
+  PR that builds ADR 0087, drafted by the AI and approved by the
+  maintainer there (ADR 0031); no `fixtures/**` file changed with this
+  answer.
 - **Q10. Typed relation syntax.** `DECIDED` on 2026-09-30.
   Decide before implementing relations (§17 item 6). Requirements already fixed:
   type and direction, several relations between the same two nodes
@@ -1330,3 +1357,4 @@ the parser was chosen.
 | v0.35 | 2026-10-09 | The fixture `fixtures/block/two-alone` approved by the maintainer in session ("aprovado"). |
 | v0.36 | 2026-10-10 | **Q7 `DECIDED`** by the maintainer in session, as recommended, from finding F20 of the sync campaign of 2026-10-10 (two devices on Windows and Linux kept both forms of a name, and one never uploaded): one name is one file everywhere — the server compares names in NFC, each device keeps the spelling its own file system gave the name, a file changed on both sides under the two forms is a conflict copy (ADR 0079 item 8). §5.10 says so; the provisional fact of v0.10 kept as history. No fixture: the maintainer did not ask for one. |
 | v0.37 | 2026-10-12 | Q8's creation side `DECIDED` by the maintainer in session (*"Todos aprovados"*, as recommended): a new name differing only in case from an entry of its folder is refused when Verso makes or renames it, on every OS and on the server (ADR 0070 item 3, revised). Q8 itself, case in name resolution, stays `[OPEN]`. No fixture: names made, not the dialect. |
+| v0.38 | 2026-10-14 | **Q9 `DECIDED`** by the maintainer, accepting ADR 0087 and its item 8 (*"Sim, todas"*): per-block visibility is a callout of kind `secret`, a callout in the file, served by a UniVerso to readers as a projection without it; §5.8 and §6's row revised. No fixture: the fixture of Q9 comes with the PR that builds ADR 0087, for the maintainer's approval. |
