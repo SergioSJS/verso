@@ -302,3 +302,72 @@ fn one_address_holds_a_bounded_number_of_requests_through_the_proxy() {
         assert_eq!(&answer, b"HTTP/1.1 408");
     });
 }
+
+/// The first piece of a file of `size` bytes a device sends to `path`.
+async fn first_piece(
+    ws: &mut crate::tests::Socket,
+    id: u64,
+    path: &str,
+    size: usize,
+) -> serde_json::Value {
+    use base64::Engine;
+    let bytes = content(size);
+    let piece = &bytes[..crate::sync::PIECE.min(size)];
+    call(
+        ws,
+        id,
+        "sync_put",
+        json!({
+            "path": path,
+            "offset": 0,
+            "size": size,
+            "hash": crate::sync::sha256(&bytes),
+            "base": null,
+            "data": base64::engine::general_purpose::STANDARD.encode(piece),
+        }),
+    )
+    .await
+}
+
+/// Uploads under way hold the room they declared (ADR 0077 item 5): with
+/// a quota of 10 MB, a second upload of 8 MB that starts while the first
+/// is still on its way is refused as over the quota, though nothing of
+/// either has landed; when the first goes, its room comes back.
+#[test]
+fn concurrent_uploads_do_not_pass_the_folders_quota() {
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = crate::tests::folder_id(&r, &b).await;
+        r.server.db.set_quota(&id, Some(10 * 1024 * 1024)).unwrap();
+        let mut ws = connect(&r, Some(&b.cookie), Some(&r.origin()), None)
+            .await
+            .unwrap();
+        next(&mut ws).await;
+        call(&mut ws, 1, "open_server_folder", json!({ "id": id })).await;
+        let eight = 8 * 1024 * 1024;
+        let first = first_piece(&mut ws, 2, "um.bin", eight).await;
+        assert_eq!(first["ok"]["done"], false, "{first}");
+        let second = first_piece(&mut ws, 3, "dois.bin", eight).await;
+        assert_eq!(
+            second["err"]["kind"], "quota",
+            "two uploads of 8 MB under way in a folder of 10 MB: {second}"
+        );
+        // The first gone, its room comes back.
+        drop(ws);
+        let mut ws = connect(&r, Some(&b.cookie), Some(&r.origin()), None)
+            .await
+            .unwrap();
+        next(&mut ws).await;
+        call(&mut ws, 1, "open_server_folder", json!({ "id": id })).await;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        loop {
+            let again = first_piece(&mut ws, 4, "dois.bin", eight).await;
+            if again["ok"]["done"] == false {
+                break;
+            }
+            assert!(std::time::Instant::now() < deadline, "{again}");
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+    });
+}

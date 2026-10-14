@@ -341,6 +341,9 @@ pub struct Server {
     pub opening: Mutex<HashMap<String, Arc<Mutex<()>>>>,
     /// Files on their way in pieces, for sync (ADR 0079 item 12).
     pub transfers: crate::sync::Transfers,
+    /// The room writes under way hold in their folders' quotas
+    /// (`crate::quota`).
+    pub reserved: crate::quota::Reserved,
     pub rooms: crate::collab::Rooms,
     /// The host's mail server, when it has one (ADR 0074 item 2).
     pub mail: std::sync::OnceLock<crate::mail::Mail>,
@@ -400,6 +403,7 @@ impl Server {
             keys: Mutex::new(HashMap::new()),
             opening: Mutex::new(HashMap::new()),
             transfers: crate::sync::Transfers::default(),
+            reserved: crate::quota::Reserved::default(),
             rooms: crate::collab::Rooms::default(),
             ceremonies: crate::passkeys::Ceremonies::default(),
             mail: std::sync::OnceLock::new(),
