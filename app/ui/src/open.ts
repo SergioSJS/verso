@@ -59,7 +59,13 @@ export async function joinAsPopout(): Promise<void> {
  *  close; one that cannot save stops the switch. Answers whether a folder
  *  was opened. `quiet`: a folder that is gone says nothing (the last one,
  *  reopened at start, may have moved). */
-export async function openFolderBy(run: () => Promise<{ status: "ok"; data: FolderInfo | null } | { status: "error"; error: ContractError }>, quiet = false): Promise<boolean> {
+export async function openFolderBy(
+  run: () => Promise<{ status: "ok"; data: FolderInfo | null } | { status: "error"; error: ContractError }>,
+  quiet = false,
+  /** Where a failure is said instead of the status bar: beside the button
+   *  the person pressed (reach.ts). */
+  said: ((e: ContractError) => void) | null = null,
+): Promise<boolean> {
   const unsaved = await flushed(spaces.flatMap((s) => s.layout.panes().flatMap((p) => p.leaves)));
   if (unsaved.length > 0) {
     stopped(unsaved);
@@ -72,6 +78,7 @@ export async function openFolderBy(run: () => Promise<{ status: "ok"; data: Fold
     // A note window names notes by path: the host will not switch the
     // folder under it, and says so.
     if (r.error.kind === "refused" && r.error.message.includes("note windows")) ui.status.textContent = t.closeNoteWindows;
+    else if (said) said(r.error);
     else if (!(quiet && r.error.kind === "not_found")) fail(r.error);
     return false;
   }

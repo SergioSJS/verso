@@ -22,6 +22,11 @@
 //! arithmetic wraps, and a run whose last clock wrapped to 0 made it
 //! divide by zero — in the update, and again in the transaction's drop as
 //! the panic unwound: two panics, which end the process, past any catch.
+//! So is an update that names one client in two of its sections: Yjs
+//! writes each client once, and its reader keeps only the last section,
+//! while `yrs` reads both into one list out of clock order and, on one
+//! the fuzz target `board` found, freed an item a room's board still
+//! pointed to.
 //! Whatever the walk cannot read — an ending cut short, a kind it does not
 //! know — is left to `yrs`, which refuses it on its own: the walk only
 //! ever refuses what it read.
@@ -34,8 +39,8 @@ pub const DEPTH: usize = 64;
 /// Why a walk stopped.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Stop {
-    /// A count past the bytes left, or a value nested past [`DEPTH`]:
-    /// refused.
+    /// A count past the bytes left, a value nested past [`DEPTH`], or a
+    /// shape Yjs never writes: refused.
     Bomb,
     /// Something `yrs` will refuse by itself.
     Unreadable,
@@ -286,10 +291,13 @@ impl<'a> Walk<'a> {
     fn update(&mut self) -> Result<(), Stop> {
         let clients = self.var_u32()?;
         let clients = self.count(u64::from(clients))?;
+        let mut named = std::collections::HashSet::new();
         for _ in 0..clients {
             let runs = self.var_u32()?;
             let runs = self.count(u64::from(runs))?;
-            self.var_u64()?;
+            if !named.insert(self.var_u64()?) {
+                return Err(Stop::Bomb);
+            }
             let mut clock = u64::from(self.var_u32()?);
             for _ in 0..runs {
                 clock += self.block()?;

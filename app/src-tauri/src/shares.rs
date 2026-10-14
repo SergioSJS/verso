@@ -46,6 +46,7 @@ async fn ask(
     tauri::async_runtime::spawn_blocking(move || {
         let client = remote::http()?;
         let url = format!("{}{path}", login.url);
+        let server = login.url;
         let request = match method {
             "PUT" => client.put(url),
             "POST" => client.post(url),
@@ -56,10 +57,7 @@ async fn ask(
             Some(b) => request.json(&b),
             None => request,
         };
-        remote::answer(request.send().map_err(|e| ContractError {
-            kind: verso_contract::ErrorKind::Unavailable,
-            message: e.to_string(),
-        })?)
+        remote::answer(request.send().map_err(|e| reach::unsent(&server, &e))?)
     })
     .await
     .map_err(|e| verso_service::failed(e.to_string()))?

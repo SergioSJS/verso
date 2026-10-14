@@ -10,6 +10,7 @@
 // origin is the app's own, so the webview cannot answer for one.
 
 import { commands, type ContractError } from "./bindings";
+import { failureText, unreachableAt } from "./reach";
 import { LANG } from "./strings";
 import { ApiError } from "./web/api";
 import type { Prover } from "./web/proof";
@@ -17,8 +18,11 @@ import { proofDialog } from "./web/proveDialog";
 import { setLang } from "./web/strings";
 
 /** The host's refusal as the dialog says it: a refusal is the wrong
- *  password; anything else, the server's own words. */
+ *  password; a server out of reach, said as such; anything else, the
+ *  server's own words. */
 function said(e: ContractError): ApiError {
+  // The server did not answer: said as such, in the dialog (reach.ts).
+  if (unreachableAt(e) !== null) return new ApiError(503, "unreachable", failureText(e), null);
   return e.kind === "refused" ? new ApiError(403, "signin_failed", e.message, null) : new ApiError(500, "failed", e.message, null);
 }
 

@@ -575,7 +575,10 @@ fn offline_is_said_and_the_folder_is_compared_from_its_base_when_back() {
     let e = tauri::async_runtime::block_on(link(&gone.ctx, &gone.s))
         .err()
         .unwrap();
-    assert_eq!(e.kind, ErrorKind::Unavailable, "{e:?}");
+    // Out of reach, said as such with the server's address (2026-10-14):
+    // offline to the sync, which tries again.
+    assert_eq!(e.kind, ErrorKind::Unreachable, "{e:?}");
+    assert_eq!(e.message, "localhost:9");
     // Changes made while out of reach are a difference from the base,
     // found on the next pass whenever it comes.
     let r = serve(&[]);

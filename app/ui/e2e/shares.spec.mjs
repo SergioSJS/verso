@@ -134,3 +134,52 @@ test("a link out of what was shared says so and makes no note", async ({ app }) 
   await expect(app.page.locator("#status")).toHaveText("Não está no que foi compartilhado com você.");
   expect(await app.file("Segredo.md")).toBeNull();
 });
+
+// What opens last is on top, over the share dialog too (2026-10-14): it
+// was a `<dialog>` in the browser's top layer, above any layer of the page,
+// so ⌘⇧P opened the palette under it, and the palette's field could not
+// even take the focus. Escape closes the palette alone, and the dialog
+// keeps what was typed in it.
+test("the palette opens above the share dialog, and Escape closes the palette only", async ({ app }) => {
+  await app.open();
+  const folder = await aFolder(app);
+  await app.page.evaluate((path) => {
+    const h = window.__harness.core.handlers;
+    const it = { id: "s1", path, people: [{ id: "a1", name: "Ana", email: "ana@casa.lan", role: "reader" }], attachments: null, missing: false };
+    h.share_list = () => [{ id: null, path: "", people: [], attachments: null, missing: false }, it];
+  }, folder);
+  // The window learns it owns the folder when the folder is shown again.
+  await app.page.locator("#open").click();
+  await app.page.getByRole("dialog", { name: "Trocar de pasta" }).getByRole("region", { name: "Neste computador" }).getByRole("button").first().click();
+  await expect(app.page.locator(`summary[data-folder="${folder}"] .share-mark`)).toBeVisible();
+  await app.page.locator(`summary[data-folder="${folder}"]`).click({ button: "right" });
+  await app.page.getByRole("menuitem", { name: "Compartilhar…" }).click();
+  // By its class: inert, it is out of the accessibility tree.
+  const share = app.page.locator(".share-dialog");
+  const inert = () => share.evaluate((el) => Boolean(el.closest("[inert]")));
+  await expect(share.getByRole("list", { name: "Quem tem acesso" })).toContainText("ana@casa.lan");
+  const email = share.getByLabel("E-mail");
+  await email.fill("bruno@casa.lan");
+  await app.key("Mod+Shift+p");
+  const field = app.page.locator(".quick.palette").getByRole("combobox");
+  await expect(field).toBeVisible();
+  await expect(field).toBeFocused();
+  const onTop = await field.evaluate((f) => {
+    const r = f.getBoundingClientRect();
+    const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return Boolean(at && f.closest(".quick.palette")?.contains(at));
+  });
+  expect(onTop).toBe(true);
+  expect(await inert()).toBe(true);
+  await app.page.keyboard.press("Escape");
+  await expect(field).toBeHidden();
+  // The share dialog is still there, alive, with what was typed in it.
+  await expect(share).toBeVisible();
+  expect(await inert()).toBe(false);
+  await expect(email).toHaveValue("bruno@casa.lan");
+  await expect(email).toBeFocused();
+  await expect(share.getByRole("list", { name: "Quem tem acesso" })).toContainText("ana@casa.lan");
+  // Escape again closes the share dialog.
+  await app.page.keyboard.press("Escape");
+  await expect(share).toHaveCount(0);
+});

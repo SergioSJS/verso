@@ -64,6 +64,9 @@ pub(crate) struct Syncer {
     url: String,
     folder: String,
     wake: tokio::sync::Notify,
+    /// The person asked for a pass (Sync now): a server out of reach is
+    /// tried at once, and its wait starts over.
+    asked: AtomicBool,
     stopped: AtomicBool,
     paused: AtomicBool,
     /// How many deletions the person said yes to, as the pause showed them
@@ -102,6 +105,7 @@ impl Syncer {
             url: state.server.clone(),
             folder: state.folder.clone(),
             wake: tokio::sync::Notify::new(),
+            asked: AtomicBool::new(false),
             stopped: AtomicBool::new(false),
             paused: AtomicBool::new(state.paused),
             confirmed: AtomicUsize::new(0),
@@ -132,6 +136,12 @@ impl Syncer {
     }
 
     pub(crate) fn poke(&self) {
+        self.wake.notify_one();
+    }
+
+    /// A pass the person asked for (Sync now).
+    pub(crate) fn retry(&self) {
+        self.asked.store(true, Ordering::Relaxed);
         self.wake.notify_one();
     }
 
@@ -322,6 +332,8 @@ pub(crate) fn off_status(config: Option<&Path>, key: &str) -> SyncStatus {
 fn problem_of(e: &ContractError) -> &'static str {
     match e.kind {
         ErrorKind::NotFound => "folder_gone",
+        // Offline, because the server did not answer: the window names it.
+        ErrorKind::Unreachable => "unreachable",
         ErrorKind::Refused if e.message.starts_with("not signed in") => "not_signed_in",
         ErrorKind::Refused if e.message.contains("update the one that is behind") => "version",
         ErrorKind::Refused => "signed_out",
@@ -718,10 +730,7 @@ pub(crate) async fn link(ctx: &Ctx, s: &Syncer) -> Result<Link, ContractError> {
                 .get(format!("{url}/api/folders"))
                 .bearer_auth(token)
                 .send()
-                .map_err(|e| ContractError {
-                    kind: ErrorKind::Unavailable,
-                    message: e.to_string(),
-                })?,
+                .map_err(|e| reach::unsent(&url, &e))?,
         )
     })
     .await
@@ -1099,18 +1108,23 @@ fn gone_line(path: &str, on: &str) {
 /// Run a folder's sync until it is turned off or no window shows the
 /// folder: connected, a pass, then waiting for a reason — the watcher, the
 /// server's push, the person, the scan's five minutes — for the next;
-/// offline, trying again with a growing wait.
+/// offline, trying again with a growing wait (`reach::Backoff`: 5 s to 5
+/// min), from the start again once connected or when the person asks.
 pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
-    let mut wait = 1_u64;
+    let mut wait = reach::Backoff::new();
     let gone = |s: &Syncer| s.stopped() || ctx.service.clients_of(&s.key).is_empty();
     while !gone(&s) {
+        if s.asked.swap(false, Ordering::Relaxed) {
+            wait.reset();
+        }
         let mut l = match link(&ctx, &s).await {
             Ok(l) => {
-                wait = 1;
+                wait.reset();
                 l
             }
             Err(e) => {
-                let offline = e.kind == ErrorKind::Unavailable;
+                // The network is down, or the server: offline either way.
+                let offline = matches!(e.kind, ErrorKind::Unavailable | ErrorKind::Unreachable);
                 // Said once per state, not on every try.
                 let was = lock(&s.status).state.clone();
                 let now = if offline { "offline" } else { "error" };
@@ -1132,12 +1146,7 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
                     };
                     st.problem = Some(problem.to_owned());
                 });
-                let pause = if offline {
-                    Duration::from_secs(wait)
-                } else {
-                    SCAN
-                };
-                wait = (wait * 2).min(60);
+                let pause = if offline { wait.next() } else { SCAN };
                 tokio::select! {
                     () = s.wake.notified() => {}
                     () = tokio::time::sleep(pause) => {}
@@ -1163,7 +1172,9 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
                     &format!("a pass carried out {} changes", p.actions),
                 ),
                 Ok(_) => {}
-                Err(e) if e.kind == ErrorKind::Unavailable => break,
+                Err(e) if matches!(e.kind, ErrorKind::Unavailable | ErrorKind::Unreachable) => {
+                    break;
+                }
                 Err(e) => {
                     log::write("ERROR", "sync", &e.message);
                     s.set(&ctx, |st| {

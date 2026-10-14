@@ -58,6 +58,7 @@ pub mod transfers;
 pub mod trash;
 pub mod twins;
 pub mod update;
+pub mod writers;
 mod yjs_bounds;
 
 use std::sync::Arc;
@@ -359,3 +360,5 @@ mod tests_sync;
 mod tests_threats;
 #[cfg(test)]
 mod tests_trash;
+#[cfg(test)]
+mod tests_writers;
