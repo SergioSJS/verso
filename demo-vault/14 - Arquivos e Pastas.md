@@ -58,6 +58,19 @@ O que você apaga fica na **Lixeira** da pasta por 30 dias, e depois some de vez
 
 ---
 
+## O Histórico de Versões
+
+Cada nota, quadro e base guarda as suas **versões**: o que estava escrito a cada mudança, quem mudou e quando. Para ver: **Histórico de versões** na paleta de comandos, no menu da aba (botão direito), no menu da nota na árvore, ou no relógio da barra de status.
+
+- A lista mostra cada versão, a mais recente primeiro, com **quando** (na hora deste computador), **quem** — este computador, uma pessoa ou um aparelho numa pasta de servidor, ou *fora do Verso* quando outro programa mudou o arquivo — e quantas **linhas** entraram e saíram.
+- Escolha uma versão para ver a **diferença** para o texto atual, ou para a versão anterior: as linhas que saem vêm com `−`, as que entram com `+`.
+- **Restaurar esta versão** pergunta antes e escreve aquela versão como uma versão nova: o texto atual continua no histórico, nada se perde. Se o arquivo mudou enquanto você olhava, nada é escrito e a diferença é refeita.
+- **Copiar como nova nota** põe a versão ao lado do arquivo, como `Nome (versão 2026-10-14 15h04).md`.
+- As escritas seguidas viram uma versão a cada dez minutos de edição. Todas ficam por um dia, uma por hora até 30 dias e uma por dia depois, por um ano — **Ajustes › Arquivos e links › Manter versões por** muda isso. O histórico fica fora da pasta, na configuração do Verso: nada dele aparece entre os seus arquivos. Imagens e PDFs não entram; um anexo substituído vai para a [[#A Lixeira|lixeira]].
+- Numa pasta de servidor ([[23 - Verso num Servidor]]), quem pode editar vê o histórico e restaura — também numa nota que outras pessoas estão editando junto, que todos veem mudar —, e quem só lê não vê histórico.
+
+---
+
 ## A Visão de Pasta
 
 A setinha ao lado de uma pasta abre e fecha a pasta na árvore. O Verso lembra quais pastas você deixou abertas: ao abrir o app de novo, a árvore volta como estava. Num cofre grande, as pastas de primeiro nível começam fechadas, para a árvore não desenhar milhares de linhas de uma vez.

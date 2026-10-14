@@ -391,6 +391,27 @@ point 13).
    `crates/verso-core/tests/trash.rs` (the sweep's guardrail, the quota's
    guard), `crates/verso-fs/src/trashbin/tests.rs` (no symlink followed);
    A: the files on disk and the log's lines (`manual-checks.md`).
+12. Note 14, "O Histórico de Versões" ([ADR 0091](../adr/0091-version-history.md)):
+   open a note, type a line, wait for its save, and open *Histórico de
+   versões* from the palette, the tab's menu, the tree's menu or the clock
+   in the status bar: the list has a header row, the edit named *(este
+   computador)* at this computer's time, the note as it was below it;
+   choose the older one — the diff shows the line typed as `- `; "a versão
+   anterior" says the first has none; *Restaurar esta versão* asks, then
+   says *Versão de … restaurada.*, and the editor shows the old text, a
+   *restauração* on top of the list. Changed by another program while the
+   diff is open, the restore writes nothing and says so. *Copiar como nova
+   nota* makes `<nota> (versão <data> <hora>).md` beside it. Level: H; E:
+   `history.spec.mjs` (also the reader without a history, a restore over a
+   live note through its room, a synced folder with its server out of
+   reach, and at a phone's and a tablet's size); U:
+   `app/ui/test/history.test.mjs`; S: `crates/verso-core/tests/history.rs`
+   (the guardrail: a restore writes exactly a version's bytes, thinning
+   never removes the newest, nothing lands in the folder),
+   `crates/verso-index/src/history_tests.rs` (thinning with a moved clock),
+   `crates/verso-server/src/tests_history.rs` (the server's: roles, rooms,
+   renames, the console); A: the history file outside the folder and a
+   room's restore in two browsers (`manual-checks.md`).
 
 ## 7. The web
 

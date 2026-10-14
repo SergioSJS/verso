@@ -182,6 +182,55 @@ app real.
   do `Porto Cinzento` aparecem como o Obsidian as mostra, os habitantes
   como links, a nota do schema como um bloco de código.
 
+### Histórico de versões (ADR 0091, feat/version-history, 2026-10-14)
+
+- [ ] **O histórico de uma nota e uma restauração, no app** (A): no app
+  instalado, uma pasta deste computador: abra uma nota, digite dois
+  parágrafos, espere, e *⌘⇧P › Histórico de versões* (também no menu da
+  aba, no menu da árvore de arquivos e no relógio da barra de status). A
+  lista diz *como estava quando o histórico começou* para a nota como
+  era, e *<nome do computador> (este computador)* para as edições, na
+  hora que o relógio deste Mac mostra. Escolha a primeira: a diferença
+  mostra os dois parágrafos como linhas `- `. *Restaurar esta versão*
+  pergunta, restaura, diz *Versão de … restaurada.*, e o editor mostra o
+  texto antigo; o histórico agora tem uma *restauração* no topo. O
+  VoiceOver lê a linha de cabeçalho da tabela, o botão de cada versão, e
+  a mudança como *N linhas adicionadas, M removidas*. O arquivo do
+  histórico fica no diretório de configuração
+  (`~/Library/Application Support/verso/history/<chave>.sqlite`), nunca
+  na pasta: `ls -a` na pasta antes e depois. O `verso.log` não tem ERROR.
+- [ ] **Um arquivo mudado por outro programa com a diferença aberta**
+  (A): abra o histórico de uma nota, escolha uma versão, mude a nota em
+  outro editor e salve; *Restaurar esta versão*: a janela diz que o
+  arquivo mudou e nada foi escrito, a diferença é refeita, e o texto do
+  outro editor está no disco.
+- [ ] **Uma restauração numa nota editada junto** (A): dois navegadores
+  num UniVerso, duas contas na mesma nota, as duas digitando um tempo. O
+  histórico nomeia as duas contas numa versão (dez minutos da sala numa
+  só). Uma restaura uma versão antiga: a outra vê o texto mudar na hora,
+  sem aviso de conflito; a restauração fica no topo do histórico, com o
+  nome de quem restaurou. O registro de auditoria do servidor (console ›
+  Registro) tem *restaurou uma versão*.
+- [ ] **Quem só lê não tem histórico** (A): quem só lê uma pasta de um
+  UniVerso não tem *Histórico de versões* na paleta, nos menus nem na
+  barra de status.
+- [ ] **Uma pasta sincronizada no computador** (A): uma pasta deste
+  computador sincronizada com um UniVerso; abra o histórico de uma nota:
+  as versões são as do servidor (outros aparelhos e contas com nome)
+  mais, marcada *só neste computador*, uma edição feita com o servidor
+  desligado. Desligue o servidor e abra de novo: a janela diz que mostra
+  só as versões deste computador. Restaure uma versão do servidor: a
+  janela diz que foi restaurada no servidor e que a sincronização a traz.
+- [ ] **O console** (A): `/admin` › uma pasta: *Histórico de versões*
+  com as versões e o tamanho *fora da cota*; ponha *Dias no histórico*
+  em 1 e aplique: as versões mais antigas saem (o log do servidor diz
+  quantas); *Usar o padrão* volta ao `VERSO_HISTORY_DAYS`. A visão geral
+  mostra o total dos históricos.
+- [ ] **O crescimento numa pasta grande** (B): no cofre real do mantenedor
+  sincronizado com um UniVerso por uma semana, `du -h
+  $VERSO_DATA_DIR/history.sqlite` contra o tamanho do texto da pasta, e o
+  número do console.
+
 ### Dados e tabelas sorteadas (ADR 0088, feat/dice, 2026-10-14)
 
 - [ ] **Um dado numa nota rola e não escreve nada** (A): no app

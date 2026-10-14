@@ -403,6 +403,29 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    `crates/verso-core/tests/trash.rs` (a guarda da varredura, a da cota),
    `crates/verso-fs/src/trashbin/tests.rs` (nenhum symlink seguido); A: os
    arquivos no disco e as linhas do log (`manual-checks.md`).
+12. Nota 14, "O Histórico de Versões" ([ADR 0091](../adr/0091-version-history.md)):
+   abra uma nota, digite uma linha, espere salvar, e abra *Histórico de
+   versões* pela paleta, pelo menu da aba, pelo menu da árvore ou pelo
+   relógio da barra de status: a lista tem linha de cabeçalho, a edição com
+   *(este computador)* na hora deste computador, a nota como era abaixo
+   dela; escolha a mais antiga — a diferença mostra a linha digitada como
+   `- `; "a versão anterior" diz que a primeira não tem nenhuma;
+   *Restaurar esta versão* pergunta, depois diz *Versão de … restaurada.*,
+   e o editor mostra o texto antigo, com uma *restauração* no topo da
+   lista. Mudado por outro programa com a diferença aberta, a restauração
+   não escreve nada e diz isso. *Copiar como nova nota* cria `<nota>
+   (versão <data> <hora>).md` ao lado. Nível: H; E: `history.spec.mjs`
+   (também quem só lê sem histórico, uma restauração numa nota ao vivo
+   pela sala, uma pasta sincronizada com o servidor fora de alcance, e no
+   tamanho de um celular e de um tablet); U:
+   `app/ui/test/history.test.mjs`; S: `crates/verso-core/tests/history.rs`
+   (a guarda: restaurar escreve exatamente os bytes de uma versão, o
+   desbaste nunca tira a mais nova, nada cai na pasta),
+   `crates/verso-index/src/history_tests.rs` (o desbaste com o relógio
+   adiantado), `crates/verso-server/src/tests_history.rs` (o do servidor:
+   papéis, salas, renomeações, o console); A: o arquivo do histórico fora
+   da pasta e a restauração de uma sala em dois navegadores
+   (`manual-checks.md`).
 
 ## 7. A web
 
