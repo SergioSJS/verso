@@ -536,6 +536,52 @@ point 13).
    file is not changed (decided 2026-10-12). Level: U (`npm test`'s
    `folderLayer.test.mjs`; `crates/verso-server/src/tests.rs`, "an
    invited reader"); A.
+10. Notifications (note 18, "Notificações"; [ADR
+    0084](../adr/0084-notifications-in-the-window.md)): a sync that fails
+    is said once in a toast at the bottom right — "A sincronização
+    falhou", its level a word and a mark — and again only when it is back,
+    whose toast takes its place in the list; an error is announced at
+    once, the rest politely. Level: H; E: `notify.spec.mjs`, "a sync that
+    fails is said once".
+11. The toasts: three at most, the newest on top; information leaves after
+    6 s unless the pointer is over it; a warning stays; the keyboard
+    reaches a toast and Escape closes it, the focus going back where it
+    was; a toast never takes the focus. With Settings open a toast stays
+    above it and its action works. On a phone the toasts are at the top,
+    the whole width but the margins. Level: H; E: `notify.spec.mjs`, "the
+    toasts" and "toasts sit above Settings" (phone and tablet too).
+12. The bell, before "Relatar problema" (on a phone, at the top of the
+    pane): named "Notificações" or "n notificações não lidas"; it opens
+    the centre, as the palette's "Notificações" does — newest first, each
+    with its time in the computer's zone and its kind; opened, everything
+    is read; "Limpar" empties it, and a cleared failure is not said again
+    until it changes. Level: H; E: `notify.spec.mjs`, "the bell" (phone
+    and tablet too).
+13. Ajustes › Notificações: one row per kind, each "Aviso e lista" at
+    first; "Só na lista" lists without a toast, "Desligado" neither, and
+    the status bar still says the sync's state; the choice is kept in the
+    window's settings, with the account on a server. Level: H; E:
+    `notify.spec.mjs`, "each kind as chosen".
+14. Each kind from its source: a window on a server's folder dropped and
+    back once each, a revoked share said as a revocation and never as
+    "A conexão com o servidor caiu", a session ended with "Ir para
+    Servidores"; a conflict copy and a live room's conflict once; an
+    update with "Baixar e atualizar" and "Ver nos Ajustes", once per
+    version, checked again after 24 h; the quota at 90 % once, again only
+    after falling under it; the trash's "n itens saem da lixeira em até 3
+    dias" at the folder's opening, once a day, with "Abrir a lixeira";
+    someone joining the note, not leaving; a folder shared with you, with
+    "Ver as pastas". Level: H; E: `notify.spec.mjs`, one test per kind;
+    `sync.spec.mjs`, the revoked share. A (the real app, listed in
+    [`manual-checks.md`](manual-checks.md)).
+15. "Também nas notificações do sistema" starts off and asks nothing until
+    turned on; refused, it goes back to off and says why; allowed, a
+    notification of a kind on "Aviso e lista" also goes to the system only
+    while the window is not in front, and a click on it (where the system
+    tells the page) opens the centre on it. A list the browser's storage
+    refuses lives in the window, and the centre says so. Level: H; E:
+    `notify.spec.mjs`, "the system's notifications" and "a storage that
+    refuses"; A (each system's own prompt and its notification).
 
 ## 11. Organizing: stickers, covers, folder pages, order
 

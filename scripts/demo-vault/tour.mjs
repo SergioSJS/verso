@@ -270,7 +270,7 @@ const STOPS = [
     color: PINK,
     canvasColor: "1",
     cards: [],
-    tip: "Relatar problema, na barra de status, prepara um relato para você copiar; ⌥⌘I abre o console. No Windows e no Linux, Ctrl no lugar de ⌘.",
+    tip: "O sino, na barra de status, guarda as notificações; Relatar problema, ao lado, prepara um relato para você copiar; ⌥⌘I abre o console. No Windows e no Linux, Ctrl no lugar de ⌘.",
     tipWidth: 620,
     tipY: 760,
     extra(b, x, y, f) {

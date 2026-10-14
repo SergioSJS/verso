@@ -12,7 +12,17 @@ test release.
 
 ## Unreleased
 
-Nothing yet.
+### Added
+
+- **Notifications in the window** ([ADR 0084](docs/adr/0084-notifications-in-the-window.md)): what changes without your asking is said once, in a toast at the bottom right (at the top on a phone), and kept in a list: a folder's sync failing and coming back, the connection to the server dropping and coming back, a conflict copy, a live note's conflict, a folder shared with you, a share revoked, a new version, a folder past 90 % of its quota, items leaving the trash within 3 days, someone joining the note you edit. Information leaves after 6 s, a warning or an error stays until closed or its state changes back; a pointer over a toast or the keyboard in it holds it, and Escape closes it. A toast never takes the focus; it is read to a screen reader, an error at once. The bell in the status bar, before *Report a problem* (on a phone, at the top of the pane), counts what is unread and opens the list, as *Notifications* in the palette does: newest first, with the time and the folder, and what can be done; *Clear* empties it. The list is this computer's — up to 100 entries, 30 days — never the account's.
+- ***Settings › Notifications***: for each kind, *Notice and list*, *List only* or *Off* (*Notice and list* by default), kept with your settings and with the account on a server. Turning a kind off does not hide the state: the status bar and the notes still say it.
+- **The system's notifications, if you turn them on**: *Also in the system's notifications* starts off; turned on, the system or the browser asks for the permission, and a refusal turns it back off and says why. On, a notification set to *Notice and list* also goes to the system while the window is behind others, minimised or in another tab; in a browser a click on it brings the window to the front with the list open on it. A browser over plain HTTP, or a phone's browser outside an installed app, says it cannot.
+- **A new version is checked for every 24 h while the app is open**, under *Check for updates automatically*, and said once per version, as a notification with *Download and update* and *View in Settings* — no longer a banner at the top, shown at every start.
+
+### Fixed
+
+- **A share revoked is said as a revocation**: a window of the desktop app on a server's folder whose share was revoked said *The connection to the server dropped; trying again…*; it now says that whoever shared the folder revoked your access, and does not take the connection's end that follows for a drop.
+- **A folder near its quota is said once**: the warning at 90 % came back every ten minutes while you wrote; it is now said once, and again only after the folder fell under 90 % and passed it again — for a synced folder of this computer too.
 
 ## 0.8.2-beta.1 — 2026-10-14
 

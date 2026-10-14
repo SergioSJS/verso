@@ -17,6 +17,7 @@ status: ativo
 ## As Seções
 
 - **Geral**: o idioma (**Sistema**, **Português (Brasil)** ou **English**), o tempo do salvamento automático, as atualizações, o console do desenvolvedor, o conteúdo remoto e os sites permitidos nas notas.
+- **Notificações**: para cada tipo — sincronização, conflitos, compartilhamento, atualizações, cota, lixeira, presença — **Aviso e lista**, **Só na lista** ou **Desligado**, e as notificações do sistema (veja [[18 - Ajuda, Atualizações e Diagnóstico#Notificações]]).
 - **Aparência**: tema, paleta, fontes, tamanho do texto, cor dos títulos e largura do texto.
 - **Editor**: abas de pré-visualização, o modo em que as notas abrem, a correção ortográfica e os números de linha.
 - **Arquivos e links**: pastas de build e `.gitignore`, o formato dos links novos, e as pastas de anexos, das notas diárias e dos templates.

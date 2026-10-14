@@ -551,6 +551,54 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    máquina* para ele, e o arquivo da pasta não muda (decidido em
    2026-10-12). Nível: U (o `folderLayer.test.mjs` do `npm test`;
    `crates/verso-server/src/tests.rs`, "an invited reader"); A.
+10. Notificações (nota 18, "Notificações"; [ADR
+    0084](../adr/0084-notifications-in-the-window.md)): uma sincronização
+    que falha é dita uma vez num aviso embaixo à direita — "A
+    sincronização falhou", o nível numa palavra e num sinal — e de novo só
+    quando volta, cujo aviso toma o lugar dela na lista; um erro é
+    anunciado na hora, o resto com educação. Nível: H; E:
+    `notify.spec.mjs`, "a sync that fails is said once".
+11. Os avisos: três no máximo, o mais novo em cima; um de informação some
+    em 6 s, a não ser com o ponteiro em cima; um de atenção fica; o
+    teclado alcança um aviso e Esc o fecha, o foco voltando para onde
+    estava; um aviso nunca toma o foco. Com os Ajustes abertos, o aviso
+    fica por cima e a ação dele funciona. No celular os avisos ficam no
+    alto, na largura toda menos as margens. Nível: H; E:
+    `notify.spec.mjs`, "the toasts" e "toasts sit above Settings" (celular
+    e tablet também).
+12. O sino, antes de "Relatar problema" (no celular, no alto da área):
+    chamado "Notificações" ou "n notificações não lidas"; abre a central,
+    como "Notificações" na paleta — o mais novo primeiro, cada um com a
+    hora no fuso do computador e o tipo; aberta, tudo fica visto; "Limpar"
+    esvazia, e uma falha apagada não é dita de novo até mudar. Nível: H;
+    E: `notify.spec.mjs`, "the bell" (celular e tablet também).
+13. Ajustes › Notificações: uma linha por tipo, todas em "Aviso e lista"
+    de início; "Só na lista" lista sem aviso, "Desligado" nem uma coisa
+    nem outra, e a barra de status continua dizendo o estado da
+    sincronização; a escolha fica nos ajustes da janela, com a conta num
+    servidor. Nível: H; E: `notify.spec.mjs`, "each kind as chosen".
+14. Cada tipo da sua fonte: uma janela numa pasta de servidor que cai e
+    volta, uma vez cada; um compartilhamento revogado dito como revogação
+    e nunca como "A conexão com o servidor caiu"; uma sessão encerrada com
+    "Ir para Servidores"; uma cópia de conflito e um conflito numa sala ao
+    vivo, uma vez; uma atualização com "Baixar e atualizar" e "Ver nos
+    Ajustes", uma vez por versão, verificada de novo depois de 24 h; a
+    cota a 90 %, uma vez, de novo só depois de cair abaixo; o "n itens
+    saem da lixeira em até 3 dias" da lixeira ao abrir a pasta, uma vez
+    por dia, com "Abrir a lixeira"; alguém que entra na nota, não quem
+    sai; uma pasta compartilhada com você, com "Ver as pastas". Nível: H;
+    E: `notify.spec.mjs`, um teste por tipo; `sync.spec.mjs`, o
+    compartilhamento revogado. A (o app de verdade, listado em
+    [`manual-checks.md`](manual-checks.md)).
+15. "Também nas notificações do sistema" começa desligado e não pede nada
+    até ser ligado; recusado, volta a desligado e diz por quê; permitido,
+    uma notificação de um tipo em "Aviso e lista" vai também para o
+    sistema só enquanto a janela não está na frente, e um clique nela
+    (onde o sistema avisa a página) abre a central nela. Uma lista que o
+    armazenamento do navegador recusa vive na janela, e a central diz
+    isso. Nível: H; E: `notify.spec.mjs`, "the system's notifications" e
+    "a storage that refuses"; A (o pedido de cada sistema e a notificação
+    dele).
 
 ## 11. Organização: figurinhas, capas, páginas de pasta, ordem
 
