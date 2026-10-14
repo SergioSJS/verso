@@ -10,6 +10,7 @@ import { ApiError, api, setCsrf, type Account } from "./api";
 import { divider, el, field, form, lead, page, select } from "./form";
 import { readCode } from "./deviceCode";
 import { nextPath } from "./nextPath";
+import { afterWaits } from "./retry";
 import { passkeysHere, signInWithPasskey } from "./passkeys";
 import { roleName, setLang, w } from "./strings";
 import { icon } from "../icons";
@@ -195,10 +196,32 @@ export async function resetPage(token: string): Promise<void> {
 
 type Asked = { code: string; device: string; address: string; asked: string };
 
+/** A line that says, as it happens, that the page waits the delay the
+ *  server asked for before it asks again (`web/retry.ts`). */
+function waitLine(): { node: HTMLElement; told: (seconds: number) => void; done: () => void } {
+  const node = el("p", { class: "web-wait", role: "status" });
+  return {
+    node,
+    told: (seconds) => {
+      node.textContent = w().deviceWaiting(seconds);
+    },
+    done: () => {
+      node.textContent = "";
+    },
+  };
+}
+
+/** A request of the device page: past the address's free tries the server
+ *  answers 429 with the seconds to wait (ADR 0083 item 17), and the page
+ *  says so and asks again by itself — every try still counted there. */
+function device<T>(path: string, body: unknown, told: (seconds: number) => void): Promise<T> {
+  return afterWaits(() => api<T>("POST", path, body), told);
+}
+
 /** What is asking under `code`: the server reads the code, from the link
  *  or typed, and a wrong one costs a try of the address's delay. */
-function describeCode(code: string): Promise<Asked> {
-  return api<Asked>("POST", "/api/device/describe", { code });
+function describeCode(code: string, told: (seconds: number) => void): Promise<Asked> {
+  return device<Asked>("/api/device/describe", { code }, told);
 }
 
 export async function devicePage(account: Account | null): Promise<void> {
@@ -215,9 +238,14 @@ export async function devicePage(account: Account | null): Promise<void> {
     typeCodePage(account);
     return;
   }
+  const waiting = waitLine();
+  const told = (seconds: number) => {
+    if (!waiting.node.isConnected) page(s.deviceTitle, waiting.node);
+    waiting.told(seconds);
+  };
   let what: Asked;
   try {
-    what = await describeCode(linked);
+    what = await describeCode(linked, told);
   } catch (e) {
     page(s.deviceTitle, lead(explain(e)));
     return;
@@ -231,16 +259,22 @@ function typeCodePage(account: Account): void {
   const s = w();
   const code = field(s.deviceTypeLabel, "text", { autocomplete: "off", autocapitalize: "characters", spellcheck: "false", maxlength: "20", required: "" }, s.deviceTypeHint);
   const bad = new Error(s.deviceCodeBad);
+  const waiting = waitLine();
   const f = form(
     [code],
     s.deviceContinue,
     async () => {
       const read = readCode(code.input.value);
       if (!read) throw bad;
-      askPage(account, await describeCode(read), true);
+      try {
+        askPage(account, await describeCode(read, waiting.told), true);
+      } finally {
+        waiting.done();
+      }
     },
     (e) => (e === bad ? bad.message : explain(e)),
   );
+  f.form.append(waiting.node);
   page(s.deviceTitle, lead(s.deviceTypeLead), f.form);
   code.input.focus();
 }
@@ -276,11 +310,16 @@ function askPage(account: Account, what: Asked, typed: boolean): void {
       ...fact(s.deviceWhen, when),
     ),
   );
+  const waiting = waitLine();
   const f = form(
     [],
     s.deviceApprove(named()),
     async () => {
-      await api("POST", "/api/device/approve", sent);
+      try {
+        await device("/api/device/approve", sent, waiting.told);
+      } finally {
+        waiting.done();
+      }
       page(s.deviceTitle, lead(s.deviceDone));
     },
     explain,
@@ -293,14 +332,15 @@ function askPage(account: Account, what: Asked, typed: boolean): void {
   refuse.addEventListener("click", () => {
     f.error.textContent = "";
     refuse.disabled = true;
-    api("POST", "/api/device/refuse", sent)
+    device("/api/device/refuse", sent, waiting.told)
       .then(() => page(s.deviceTitle, lead(s.deviceRefused)))
       .catch((e: unknown) => {
+        waiting.done();
         f.error.textContent = explain(e);
         refuse.disabled = false;
       });
   });
-  f.form.append(refuse);
+  f.form.append(refuse, waiting.node);
   page(
     s.deviceTitle,
     el("p", { class: "web-lead" }, ...s.deviceLead(named())),
