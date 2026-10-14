@@ -33,7 +33,7 @@ test("the forms both read are read, spaces removed", () => {
 
 test("a form only one of the two reads stays code (item 1)", () => {
   for (const n of [
-    "", "3", "3+1d6", "-1d6", "1d20*2", "(1d6)", "2^1d4", "1d%", "d%", "1d", "2d6!", "2d6!!", "1d6r",
+    "", "3", "3+1d6", "-1d6", "1d20*2", "(1d6)", "2^1d4", "1d", "2d6!!", "1d6r", "4dF!", "1d6kh1!", "1d%%", "1d%6",
     "4d6!r<2", "1d20adv", "1d20dis", "2c", "[2d6]", "{2d6}", "1d6 vs 1d6", "2d20k", "2d20kh", "4d6kh3kh2",
     "4d6+3kh3", "1d[3,5]", "1dS", "4df", "2D6", "1d20>10", "0d6", "101d6", "1d1", "1d1001", "1d6|avg", "1d6+",
     "50d6+51d6", "1d6+".repeat(30), "1d6+12345678",
@@ -57,6 +57,13 @@ test("a link to a block is a table; any other link stays code", () => {
   assert.equal(readCode("dice: [[Tabelas^e]]|Header 2"), null);
 });
 
+test("explode and percentile, as the README writes them (D1, answered 2026-10-14)", () => {
+  for (const n of ["1d%", "d%", "2d%+5", "2d6!", "d6!", "4d6!kh3", "1d20!+1d4", "1d%!"]) {
+    assert.equal(readNotation(n), n, n);
+  }
+  assert.deepEqual(readCode("dice: 1d6!"), { kind: "roll", notation: "1d6!" });
+});
+
 /** Draws in order, as 32-bit values. */
 const draws = (...values) => {
   let i = 0;
@@ -76,6 +83,23 @@ test("a roll's breakdown: each term, kept and dropped, the numbers, the total", 
   const f = rollHere("3dF", null, draws(0, 1, 2));
   assert.deepEqual([f.terms[0].fudge, f.terms[0].kept, f.total], [true, [-1, 0, 1], 0]);
   assert.equal(rollHere("1d20+3", "[[T#^x]]").source, "[[T#^x]]");
+});
+
+test("a die at its highest face explodes: one more of it, which may explode in turn, at most 100 more in a roll (D1)", () => {
+  // 2d6!: 6,3; the 6 adds a 6, which adds a 1.
+  const r = rollHere("2d6!", null, draws(5, 2, 5, 0));
+  assert.deepEqual([r.terms[0].sides, r.terms[0].kept, r.total], [6, [6, 3, 6, 1], 16]);
+  // With keep: the dice the explosion added are kept or dropped as the others.
+  const k = rollHere("3d6!kh2", null, draws(5, 0, 2, 3));
+  assert.deepEqual([k.terms[0].kept, k.terms[0].dropped, k.total], [[6, 4], [1, 3], 10]);
+  // d% is a d100.
+  const p = rollHere("d%", null, draws(99));
+  assert.deepEqual([p.terms[0].sides, p.total], [100, 100]);
+  // Every die at its highest: 100 more dice in the whole roll, then none.
+  const top = () => (2 ** 32 - 1) / 2 ** 32;
+  const all = rollHere("50d2!+50d2!", null, top);
+  assert.equal(all.terms.reduce((n, t) => n + t.kept.length, 0), 200);
+  assert.equal(all.total, 400);
 });
 
 test("no modulo bias: a draw past the last whole multiple of the sides is drawn again (item 7)", () => {

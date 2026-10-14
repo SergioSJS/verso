@@ -13,11 +13,15 @@
 //     numbers, the first term a die; the README removes spaces before it
 //     reads, and so does this;
 //   - keep and drop with their count: `kh2`, `kl1`, `dh1`, `dl1`;
-//   - the fudge die, `dF`.
+//   - the fudge die, `dF`;
+//   - the percentile die, `d%`, a d100; and a die that explodes, `!` right
+//     after it (`1d6!`, `4d6!kh3`): at its highest face it adds one more of
+//     it, which may explode in turn, at most 100 more dice in a roll (D1,
+//     answered by the maintainer on 2026-10-14; not on `dF`).
 //
 // What one reads and the other does not stays code, never a different
-// roll: the README's `k` and counts left out (`2d20k`), explode (`!`),
-// `d%`, re-roll (`r`), conditions, `*`, `/`, `^` and parentheses; Rolai's
+// roll: the README's `k` and counts left out (`2d20k`), `!!`, re-roll
+// (`r`), conditions, `*`, `/`, `^` and parentheses; Rolai's
 // `adv`, `!r<2`, groups in brackets, `vs`, cards. And a link to a table
 // or a list with an `^id`, `` `dice: [[Note#^id]]` `` — the README writes
 // `[[Note^id]]`, read too — rolls one of its rows (item 3).
@@ -42,8 +46,8 @@ const NUMBER_MOST = 999_999;
 export type DiceCode = { kind: "roll"; notation: string } | { kind: "table"; source: string; note: string; id: string };
 
 /** A term of dice, its parts captured; the whole notation's shape. */
-const TERM = /^(\d*)d(\d+|F)(?:(kh|kl|dh|dl)(\d+))?$/;
-const DIE = String.raw`\d*d(?:\d+|F)(?:(?:kh|kl|dh|dl)\d+)?`;
+const TERM = /^(\d*)d(\d+|F|%)(!)?(?:(kh|kl|dh|dl)(\d+))?$/;
+const DIE = String.raw`\d*d(?:\d+|F|%)!?(?:(?:kh|kl|dh|dl)\d+)?`;
 const SHAPE = new RegExp(String.raw`^${DIE}(?:[+-](?:${DIE}|\d+))*$`);
 
 /** The notation `raw` without its spaces, when Verso reads it; null
@@ -63,10 +67,11 @@ export function readNotation(raw: string): string | null {
       continue;
     }
     const count = m[1] === "" ? 1 : Number(m[1]);
-    const sides = m[2] === "F" ? 3 : Number(m[2]);
+    const sides = m[2] === "F" ? 3 : m[2] === "%" ? 100 : Number(m[2]);
     if (count < 1 || count > DICE_MOST || m[1]!.length > 7) return null;
     if (m[2] !== "F" && (sides < 2 || sides > SIDES_MOST || m[2]!.length > 7)) return null;
-    if (m[4] !== undefined && (Number(m[4]) < 1 || m[4].length > 7)) return null;
+    if (m[2] === "F" && m[3] !== undefined) return null;
+    if (m[5] !== undefined && (Number(m[5]) < 1 || m[5].length > 7)) return null;
     dice += count;
     if (dice > DICE_MOST) return null;
   }

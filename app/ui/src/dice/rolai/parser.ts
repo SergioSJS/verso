@@ -2,7 +2,10 @@
 // (https://github.com/SergioSJS/rolai), packages/rules-engine/src/parser.ts, at
 // commit 368d677c8347609c243473046d4f06a1126ddb74 (2026-08-21), for ADR 0088
 // item 5: its parser and roller copied into the window, the MIT notice kept.
-// Verso's changes: the imports name their modules without `.js`.
+// Verso's changes: the imports name their modules without `.js`; the
+// percentile die `d%` (a d100) and the exploding die `!` after a die
+// (`1d6!`), with the Dice Roller README's meaning (ADR 0088, D1, answered
+// by the maintainer on 2026-10-14).
 //
 // MIT License
 //
@@ -57,6 +60,9 @@ export interface DiceSpec {
   fudge?: true;
   // Cartas de baralho ("2c"): valores 1..10 (ou 1..13).
   card?: true;
+  // Verso: the exploding die ("1d6!"): a die at its highest face adds one
+  // more of it, which may explode in turn (the roller caps the chain).
+  explode?: true;
 }
 
 // Um termo de dado dentro de um grupo multi-termo ("2d6+1d4-1d20").
@@ -99,12 +105,14 @@ const GROUP_BLOCK_PATTERN = new RegExp(`^${GROUP_BLOCK_STR}$`);
 const VS_PATTERN = new RegExp(`^${GROUP_BLOCK_STR}\\s+vs\\s+${GROUP_BLOCK_STR}$`, "i");
 const PLUS_GROUPS_TEST = new RegExp(`^${GROUP_BLOCK_STR}(?:\\s*\\+\\s*${GROUP_BLOCK_STR})+$`);
 const PLUS_GROUPS_EXTRACT = new RegExp(GROUP_BLOCK_STR, "g");
-// "2d6", "d20", "4dF", "2c" (cartas de baralho).
-const DICE_HEAD = /^(\d*)(?:d(\d+|f)|c)/i;
+// "2d6", "d20", "4dF", "2c" (cartas de baralho); Verso: "d%", a d100.
+const DICE_HEAD = /^(\d*)(?:d(\d+|f|%)|c)/i;
 const NUMBER = /^(\d+)/;
 const TOKEN_PATTERNS: [RegExp, string][] = [
   [/^(kh|kl|dh|dl)(\d+)/i, "keepdrop"],
   [/^!r(<=|>=|<|>|=)(\d+)/i, "reroll"],
+  // Verso: "!" alone after the die explodes it ("!!" is not read).
+  [/^!(?![r!])/i, "explode"],
   [/^(adv|dis)/i, "advantage"],
   [/^([+-])(\d+)/, "modifier"],
 ];
@@ -121,7 +129,7 @@ function parseHead(rest: string, expr: string): { spec: DiceSpec; rest: string }
   const count = head[1] === "" ? 1 : Number(head[1]);
   const isCard = head[0].toLowerCase().endsWith("c");
   const fudge = !isCard && head[2]?.toLowerCase() === "f";
-  const sides = isCard ? 13 : fudge ? 3 : Number(head[2]);
+  const sides = isCard ? 13 : fudge ? 3 : head[2] === "%" ? 100 : Number(head[2]);
   // count 0 e VALIDO: "0d6" e um pool vazio, nao um erro de digitacao. Vem
   // de sistema onde a quantidade de dados e calculada (Year Zero: uma
   // rolagem forcada pode nao ter sobrado dado nenhum num dos pools). A
@@ -187,6 +195,13 @@ function consumeSuffixes(
             throw new NotationError(`reroll invalido em "${expr}"`);
           }
           spec.reroll = { op: m[1] as ComparisonOp, value };
+          break;
+        }
+        case "explode": {
+          if (spec.explode || spec.fudge || spec.card) {
+            throw new NotationError(`explode invalido em "${expr}"`);
+          }
+          spec.explode = true;
           break;
         }
         case "advantage": {
