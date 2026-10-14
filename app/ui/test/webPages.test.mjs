@@ -81,6 +81,30 @@ describe("The device page", () => {
   });
 });
 
+describe("The device page told to wait", () => {
+  const asked = { code: "BCDF-GHJK", device: "Verso · MacBook", address: "127.0.0.1", asked: "2026-10-13T12:00:00Z" };
+  const wait = { status: 429, body: { error: "too_many", message: "wait", retry: 1 } };
+  const status = () => [...document.querySelectorAll("[role=status]")].map((n) => n.textContent).join(" ");
+
+  test("says it is waiting, and asks again by itself", async () => {
+    win.happyDOM.setURL("https://verso.test/device?code=BCDF-GHJK");
+    answers["POST /api/device/describe"] = [wait, { body: asked }];
+    answers["POST /api/device/approve"] = [wait, { body: null }];
+    const shown = pages.devicePage(account);
+    await until(() => status().includes("1 s"), "the wait is said");
+    assert.ok(!document.body.textContent.includes("Tente de novo"), "not a dead end");
+    await shown;
+    await until(() => document.querySelector("form"), "the question, once the wait is past", 3000);
+    document.querySelector("button[type=submit]").click();
+    await until(() => status().includes("1 s"), "the approval's wait is said");
+    await until(() => document.body.textContent.includes("Pronto."), "approved after the wait", 3000);
+    assert.deepEqual(
+      sent.map((x) => x.key),
+      ["POST /api/device/describe", "POST /api/device/describe", "POST /api/device/approve", "POST /api/device/approve"],
+    );
+  });
+});
+
 describe("The sign-in link page", () => {
   const token = "um-token-de-teste";
   const path = `/api/signin/link/${token}`;
