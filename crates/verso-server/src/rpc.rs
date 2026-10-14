@@ -243,6 +243,7 @@ async fn run(
 ) {
     let client = server.client_id();
     let (tx, mut rx, slow) = Outbox::new(QUEUE);
+    let tx = tx.counted_by(server.inflight.budget());
     let mut hello = json!({ "hello": {
         "version": env!("CARGO_PKG_VERSION"),
         "commit": server.commit,
@@ -337,6 +338,30 @@ async fn run(
                 // Parsed where it arrived: a piece of a file is a megabyte.
                 // A binary message is a piece a device sends (sync 2): its
                 // request's header, then the piece's bytes as they are.
+                // A large one is judged first by its command's name and its
+                // window's role, its bytes taken from the server's budget,
+                // before it is made a value (`crate::inflight`).
+                let admitted = match &message {
+                    Message::Text(t) => crate::inflight::admit_text(&server, &client, t.as_str()),
+                    Message::Binary(b) => match binary_request(b) {
+                        Some((Some(r), _)) => {
+                            crate::inflight::admit(&server, &client, Some(r.id), &r.cmd, b.len())
+                        }
+                        _ => Ok(None),
+                    },
+                    _ => Ok(None),
+                };
+                let bytes = match admitted {
+                    Ok(bytes) => bytes,
+                    Err(refusal) => {
+                        drop(message);
+                        tx.send(&match refusal.id {
+                            Some(id) => json!({ "id": id, "err": refusal.error }),
+                            None => json!({ "err": refusal.error }),
+                        });
+                        continue;
+                    }
+                };
                 let (parsed, data) = match message {
                     Message::Text(t) => (text_request(t.as_str()), None),
                     Message::Binary(b) => match binary_request(&b) {
@@ -416,6 +441,9 @@ async fn run(
                     };
                     let id = request.id;
                     let answer = handle(&server, &who, &client, request, data).await;
+                    // The request's bytes are given back; a large answer
+                    // takes its own (`Outbox::answer`).
+                    drop(bytes);
                     drop(done);
                     let signed_out = answer.as_ref().is_err_and(|e| e.message == SIGNED_OUT);
                     match answer {
@@ -426,7 +454,7 @@ async fn run(
                             let header = json!({ "id": id, "ok": value }).to_string();
                             let message = verso_core::sync::frame(header.as_bytes(), &piece);
                             drop(piece);
-                            tx.answer_binary(message, permit).await;
+                            tx.answer_binary(id, message, permit).await;
                         }
                         Ok((mut value, Some(piece))) => {
                             value["data"] = json!(base64::engine::general_purpose::STANDARD.encode(&piece));
@@ -958,11 +986,15 @@ async fn folder_run(
     let args_for_log = args.clone();
     // A write that would pass the folder's quota is refused before
     // anything is written (ADR 0077 item 5).
-    if let Some((path, len)) = crate::quota::written(name, &args) {
-        let s = Arc::clone(server);
-        let k = key.clone();
-        blocking(move || crate::quota::check(&s, &k, &path, len)).await?;
-    }
+    // Its room held until the write is in the folder's record, below.
+    let _hold = match crate::quota::written(name, &args) {
+        Some((path, len)) => {
+            let s = Arc::clone(server);
+            let k = key.clone();
+            blocking(move || crate::quota::reserve(&s, &k, &path, len)).await?
+        }
+        None => None,
+    };
     // A write to a note being edited together goes through its room
     // (ADR 0073 item 7); so does a write to any text file in a room (ADR
     // 0082 item 12). A board's room takes its changes as elements only:
@@ -973,6 +1005,7 @@ async fn folder_run(
             && crate::collab::kind_of(&path) != crate::collab::Kind::Board
         {
             let text: String = arg(&args, "text")?;
+            crate::texts::writable(&text)?;
             let revision: String = arg(&args, "revision")?;
             let s = Arc::clone(server);
             let c = client.to_owned();
@@ -1022,6 +1055,11 @@ async fn folder_run(
                     to_value(verso_service::convert::trashed_out(gone))
                 })
         } else {
+            // A text past the server's bound, read or written: refused
+            // before the core reads or writes it (`crate::texts`).
+            service.with(&c, |ws| {
+                crate::texts::judged(ws, &n, &args).map_err(verso_service::OpError::Contract)
+            })?;
             service
                 .dispatch(&c, &n, args)
                 .unwrap_or_else(|| Err(refused("no such command")))

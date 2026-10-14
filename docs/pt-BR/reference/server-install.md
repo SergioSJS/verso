@@ -527,6 +527,31 @@ tem ritmo. Quando uma requisição vem de um proxy confiável sem `X-Forwarded-F
 request from the trusted proxy carried no X-Forwarded-For: is the proxy
 configured to forward it?*
 
+**Requisições em andamento, e corpos que chegam a conta-gotas.** Através
+de um proxy, toda conexão conta só contra as 512 do servidor, então o
+Verso limita o que um cliente segura pelo endereço que o proxy
+repassou: 32 requisições em andamento ao mesmo tempo de um endereço (um
+/64 de IPv6 como um só), além das quais ele responde 429 com
+`Retry-After`; e o corpo de uma requisição — um formulário, uma
+configuração, nunca um arquivo, que vai pelo WebSocket — precisa chegar
+em 10 segundos, ou recebe 408. Um proxy que não repassa nada faz todo
+visitante dividir essas 32 também. O Caddy pode tirar um corpo lento do
+Verso de vez: com `request_buffers`, ele mesmo lê o corpo antes de abrir
+a requisição para o Verso, e um cliente que o manda a conta-gotas segura
+uma conexão do Caddy, não um dos lugares do Verso:
+
+```
+notes.example.com {
+    reverse_proxy 127.0.0.1:7340 {
+        request_buffers 1MiB
+    }
+}
+```
+
+1 MiB é o maior corpo que a API do Verso aceita. A opção é do Caddy
+(documentação do `reverse_proxy`); não foi testada aqui contra um Caddy
+de verdade.
+
 ### Atrás da Cloudflare
 
 A Cloudflare chega ao servidor por muitos endereços, que ela publica em

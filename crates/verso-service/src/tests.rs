@@ -268,3 +268,46 @@ fn the_temporary_files_of_a_crash_go_when_the_folder_opens() {
         lock(&lines.0)
     );
 }
+
+/// The 16 MB bound on a file's text is UniVerso's (ADR 0083; the server's
+/// `texts.rs`), never the desktop's: the commands called directly — as
+/// the app calls them on the person's own folder — read and write a 20 MB
+/// note and a 20 MB text file whole.
+#[test]
+fn the_desktop_path_reads_and_writes_a_20_mb_text_whole() {
+    use std::io::Write;
+    let dir = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let big = "a".repeat(20 * 1024 * 1024);
+    for name in ["grande.txt", "Grande.md"] {
+        let mut f = tempfile::NamedTempFile::new_in(dir.path()).unwrap();
+        f.write_all(big.as_bytes()).unwrap();
+        f.persist(dir.path().join(name)).unwrap();
+    }
+    let service = Service::new(Some(config.path().to_owned()));
+    let path = dir.path().to_owned();
+    let opened = service
+        .open("a", move |c| Workspace::open(&path, c))
+        .unwrap();
+    service.attach("a", opened);
+    for (cmd, path, field) in [
+        ("read_file_text", "grande.txt", None),
+        ("read_text", "grande.txt", Some("text")),
+        ("read_note", "Grande.md", Some("text")),
+    ] {
+        let read = service
+            .dispatch("a", cmd, serde_json::json!({ "path": path }))
+            .unwrap()
+            .unwrap_or_else(|e| panic!("{cmd} of a 20 MB file on the desktop: {e:?}"));
+        let text = field.map_or(&read, |f| &read[f]);
+        assert_eq!(text.as_str().map(str::len), Some(big.len()), "{cmd}");
+    }
+    let made = service
+        .dispatch(
+            "a",
+            "create_note",
+            serde_json::json!({"name": "Outra", "text": big.as_str()}),
+        )
+        .unwrap();
+    assert!(made.is_ok(), "{:?}", made.err());
+}

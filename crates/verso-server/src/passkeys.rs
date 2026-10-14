@@ -34,8 +34,10 @@ const LIFE: Duration = Duration::from_secs(300);
 /// The ceremonies under way.
 #[derive(Default)]
 pub struct Ceremonies {
-    registering: Mutex<HashMap<String, (Instant, String, PasskeyRegistration)>>,
-    signing_in: Mutex<HashMap<String, (Instant, String, PasskeyAuthentication)>>,
+    /// Each with when it began, its account, and the key of the address
+    /// that began it (`crate::limit::room_for`).
+    registering: Mutex<HashMap<String, (Instant, String, String, PasskeyRegistration)>>,
+    signing_in: Mutex<HashMap<String, (Instant, String, String, PasskeyAuthentication)>>,
 }
 
 /// The relying party: this server, by the address people use.
@@ -97,9 +99,16 @@ pub async fn register_start(ctx: Ctx) -> ApiResult<Response> {
         .map_err(|e| ApiError::bad("passkey", e.to_string()))?;
     let id = crate::crypto::id()?;
     let mut map = lock(&ctx.server.ceremonies.registering);
-    map.retain(|_, (at, _, _)| at.elapsed() < LIFE);
-    crate::limit::make_room(&mut map, crate::limit::PENDING, |(at, _, _)| *at);
-    map.insert(id.clone(), (Instant::now(), who.account.id.clone(), state));
+    map.retain(|_, (at, _, _, _)| at.elapsed() < LIFE);
+    let by = ctx.peer.key();
+    if !crate::limit::room_for(&map, &by, |(_, _, k, _)| k) {
+        return Err(ApiError::wait(LIFE.as_secs() / 10));
+    }
+    crate::limit::make_room(&mut map, crate::limit::PENDING, |(at, _, _, _)| *at);
+    map.insert(
+        id.clone(),
+        (Instant::now(), who.account.id.clone(), by, state),
+    );
     Ok(ok(json!({ "ceremony": id, "options": options })))
 }
 
@@ -116,9 +125,9 @@ pub async fn register_finish(ctx: Ctx, Json(body): Json<Registered>) -> ApiResul
     let who = ctx.person()?.clone();
     // Before the ceremony is used: a proof asked for leaves it to finish.
     ctx.proved()?;
-    let (_, account, state) = lock(&ctx.server.ceremonies.registering)
+    let (_, account, _, state) = lock(&ctx.server.ceremonies.registering)
         .remove(&body.ceremony)
-        .filter(|(at, account, _)| at.elapsed() < LIFE && *account == who.account.id)
+        .filter(|(at, account, _, _)| at.elapsed() < LIFE && *account == who.account.id)
         .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "link_gone", "start again"))?;
     let w = webauthn(&ctx)?;
     let passkey = w
@@ -182,9 +191,13 @@ fn assertion(ctx: &Ctx, account: String, keys: Vec<(String, Passkey)>) -> ApiRes
         .map_err(|e| ApiError::bad("passkey", e.to_string()))?;
     let id = crate::crypto::id()?;
     let mut map = lock(&ctx.server.ceremonies.signing_in);
-    map.retain(|_, (at, _, _)| at.elapsed() < LIFE);
-    crate::limit::make_room(&mut map, crate::limit::PENDING, |(at, _, _)| *at);
-    map.insert(id.clone(), (Instant::now(), account, state));
+    map.retain(|_, (at, _, _, _)| at.elapsed() < LIFE);
+    let by = ctx.peer.key();
+    if !crate::limit::room_for(&map, &by, |(_, _, k, _)| k) {
+        return Err(ApiError::wait(LIFE.as_secs() / 10));
+    }
+    crate::limit::make_room(&mut map, crate::limit::PENDING, |(at, _, _, _)| *at);
+    map.insert(id.clone(), (Instant::now(), account, by, state));
     Ok(ok(json!({ "ceremony": id, "options": options })))
 }
 
@@ -236,9 +249,9 @@ fn answered(
     credential: &PublicKeyCredential,
     of: Option<&str>,
 ) -> ApiResult<(String, Result<(), String>)> {
-    let (_, account, state) = lock(&ctx.server.ceremonies.signing_in)
+    let (_, account, _, state) = lock(&ctx.server.ceremonies.signing_in)
         .remove(ceremony)
-        .filter(|(at, account, _)| at.elapsed() < LIFE && of.is_none_or(|a| a == account))
+        .filter(|(at, account, _, _)| at.elapsed() < LIFE && of.is_none_or(|a| a == account))
         .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "link_gone", "start again"))?;
     let w = webauthn(ctx)?;
     let result = match w.finish_passkey_authentication(credential, &state) {
