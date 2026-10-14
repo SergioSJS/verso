@@ -14,7 +14,7 @@
 type: local
 properties:
   - key: perigo
-    kind: link
+    kind: relation
 ```
 
 ```verso-schema

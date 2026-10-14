@@ -282,6 +282,20 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    gravam nada; as setas andam pela lista. Uma pasta cuja nota define
    `items_template` cria a nota a partir dele, sem lista. Nível: H; E:
    `templates.spec.mjs`.
+7. O infobox (nota 21, "O Infobox", ADR 0086): `Lugares/Porto Cinzento`
+   mostra as suas propriedades num cartão à direita do texto, na leitura e
+   no modo Editar — a imagem do porto no alto (um leitor de tela lê "O
+   Porto Cinzento visto do farol", o alias do link), "Tipo: Lugar", Mapa,
+   Região, Perigo, Habitantes e Governante nessa ordem, "Outras
+   propriedades (2)" dobradas embaixo; abri-la não grava nada. Um
+   habitante é um link que abre a nota da pessoa; "Adicionar link…"
+   oferece as notas da pasta e grava a escolhida como um wikilink entre
+   aspas. Uma janela estreita (ou um painel dividido) põe o cartão acima
+   do texto, dobrado na imagem e em três propriedades, com "Mostrar todas
+   as propriedades". No modo Editar, um valor mudado no cartão chega ao
+   arquivo. Nível: S (`crates/verso-core/tests/typed.rs`,
+   `fixtures/schema/infobox`), H; E: `infobox.spec.mjs`,
+   `test/infobox.test.mjs`.
 
 ## 5. Encontrar
 

@@ -307,6 +307,10 @@ pub enum TypeState {
         labels: Vec<Label>,
         /// The declared properties, in the schema's order.
         properties: Vec<TypedProperty>,
+        /// The layout the schema names: `infobox`, the properties as a
+        /// card beside the text (ADR 0086 item 2); null, the panel as it
+        /// is.
+        layout: Option<String>,
     },
     Conflict {
         /// The notes that hold a schema of that name, in path order.
@@ -330,7 +334,8 @@ pub struct Label {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct TypedProperty {
     pub key: String,
-    /// `text`, `list`, `number`, `checkbox`, `date` or `datetime`.
+    /// `text`, `list`, `number`, `checkbox`, `date`, `datetime`, `link` or
+    /// `image` (ADR 0086 item 1).
     pub kind: String,
     pub labels: Vec<Label>,
     /// The note has the key.

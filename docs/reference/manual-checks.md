@@ -92,6 +92,7 @@ in the real app.
   at `https://versomd.com/universo.sh` (versomd-site, `public/universo.sh`)
   is copied again from `packaging/server/universo.sh`, or the site's
   script finds no signature in it.
+
 ### The hover preview (ADR 0085, feat/hover-preview, 2026-10-14)
 
 - [ ] **A link's note where the pointer rests, in the app** (A): note 02,
@@ -122,6 +123,7 @@ in the real app.
   card is read as the dialog *Prévia de …* and its text can be read; Esc
   closes it and the focus is back on the link. A hover's card is not
   announced and takes no focus.
+
 ### Linking unlinked mentions (ADR 0089, feat/link-mentions, 2026-10-14)
 
 - [ ] **Link and Link all in the app** (A): in the demo vault, open "Lia
@@ -145,6 +147,36 @@ in the real app.
 - [ ] **With VoiceOver** (A): each row's button is read as *Linkar “texto”
   em Nota*; *Linkar todas* names how many; in the plan, Tab reaches each
   note's diff and it is read as a list of changes.
+
+### The infobox (ADR 0086, feat/infobox, 2026-10-14)
+
+- [ ] **A typed note as a card beside its text** (A): open
+  `Lugares/Porto Cinzento` in the demo vault. The card is at the right of
+  the text, the harbour's picture at its head, in Reading and in Edit;
+  VoiceOver (⌃⌥U, Landmarks) lists a complementary region "Porto
+  Cinzento" and reads the picture as "O Porto Cinzento visto do farol".
+  Tab goes "Abrir o schema" → each property in order →
+  "Outras propriedades" → "Adicionar propriedade". Opening it writes
+  nothing (`git status` in the vault, or the file's date).
+- [ ] **An edit in the card reaches the file, in both modes** (A): in
+  Edit mode, add a habitant with "Adicionar link…" (the list offers the
+  folder's notes), change "Perigo"; the file has `- "[[…]]"` and the new
+  number, nothing else changed; ⌘Z takes it back. The same in Reading.
+  Also a sticker or a cover set in Edit mode now reaches the file (the
+  fix of this branch).
+- [ ] **A narrow pane** (A): split the pane (⌘\) until the card goes
+  above the text, folded to the picture and three properties; "Mostrar
+  todas as propriedades" opens the rest and says it is expanded.
+- [ ] **A web picture** (A): set `mapa:` to an `https://` picture of an
+  origin not approved: the card shows the address as text, why, and
+  "Aprovar <origin>"; nothing is fetched (`verso.log`, no request).
+  Approve: the picture shows, and the origin is in *Ajustes*' approved
+  origins. With "load remote content" off, an approved origin shows
+  "Carregar" instead. In the web window (UniVerso) an `https:` picture
+  of an approved origin shows; the page's CSP is unchanged.
+- [ ] **Obsidian** (A): open the same vault in Obsidian: `Porto
+  Cinzento`'s properties show as Obsidian shows them, the habitants as
+  links, the schema's note as a code block.
 
 ### The window's feedback (fix/ui-feedback, 2026-10-14)
 

@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.38
+# Spec do dialeto do Verso — v0.39
 
-- Versão: v0.38 · 2026-10-14
+- Versão: v0.39 · 2026-10-14
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -183,7 +183,8 @@ aninhado, e não é lido.
 |---|---|---|
 | `type` | o nome que as notas escrevem no seu próprio `type:`, como escrito | para um bloco lido |
 | `labels` | o nome do tipo por idioma da interface, um mapa como escrito (`{ pt-BR: PdM, en: NPC }`); ausente afirma nenhum | não |
-| `properties` | as propriedades declaradas, em ordem, cada uma com `key`, `kind` (`text`, `list`, `number`, `checkbox`, `date`, `datetime`) e `labels` (como acima); ausente afirma nenhuma | não |
+| `layout` | o layout que o schema nomeia no topo: `infobox` ([ADR 0086](../adr/0086-infobox-a-typed-notes-card.md) item 2); um valor que esta versão não conhece não é layout nem erro; ausente afirma nenhum | não |
+| `properties` | as propriedades declaradas, em ordem, cada uma com `key`, `kind` (`text`, `list`, `number`, `checkbox`, `date`, `datetime`, `link`, `image`) e `labels` (como acima); ausente afirma nenhuma | não |
 | `error` | por que um bloco no topo não tipa nada: `yaml`, `not_a_mapping`, `no_type`, `label`, `properties`, `property` (sem `key` ou sem `kind`), `unknown_kind`, `duplicate_key` | quando não tipa |
 | `nested` | `true` para um bloco dentro de um item de lista ou de uma citação; ausente afirma o topo | para um bloco aninhado |
 | `pos` | posição do primeiro caractere da cerca de abertura (4.4) | quando a fixture testa posição |
@@ -193,6 +194,17 @@ Um bloco aninhado ou que não tipa nada não tem `type`, `labels` nem
 (`docs/reference/typed-note-decision.md` §8, linhas 1 e 2), com as
 fixtures rascunhadas `fixtures/schema/top-level` e
 `fixtures/schema/nested-and-invalid`, aprovadas em 2026-10-07.
+
+Revisado em 2026-10-14 com a implementação do
+[ADR 0086](../adr/0086-infobox-a-typed-notes-card.md) (itens 1, 2 e 5):
+dois tipos de valor, `link` — um wikilink entre aspas ou uma lista deles,
+a relação tipada da Q10 — e `image` — um wikilink entre aspas para uma
+imagem da pasta, um caminho da pasta que termina na extensão de uma
+imagem, ou um endereço `http(s)`; e a chave de topo `layout`, cujo único
+valor é `infobox`. Um valor que não cabe no seu tipo é mostrado como
+escrito e marcado (ADR 0052 ponto 6): um wikilink ou um caminho para uma
+nota não é uma imagem. A fixture rascunhada `fixtures/schema/infobox`
+aguarda a aprovação do mantenedor.
 
 ---
 
@@ -566,6 +578,7 @@ a nota tipada, os schemas dela e os rótulos deles por idioma
 | i18n de schema | chave neutra de idioma com rótulo traduzido (`type: npc` exibido como "PdM" ou "NPC") | `DECIDIDO` em 2026-09-24 ([ADR 0052](../adr/0052-typed-note.md): um `label` por idioma da interface) |
 | Relação tipada | uma propriedade do frontmatter da nota de origem cujo valor é um wikilink entre aspas ou uma lista deles; a chave é o tipo | `DECIDIDO` em 2026-09-30 (Q10, [ADR 0057](../adr/0057-board-json-canvas.md)) |
 | Schemas | um bloco cercado `verso-schema` numa nota, em qualquer lugar da pasta menos caminhos ocultos e ignorados | `DECIDIDO` em 2026-09-24 (Q11) |
+| Tipos `link` e `image` de um schema, e o seu layout | uma propriedade do schema do tipo `link` (um wikilink entre aspas ou uma lista deles) ou `image` (o wikilink, o caminho ou o endereço da web de uma imagem); `layout: infobox` no topo do schema desenha as propriedades da nota como um cartão ao lado do texto. Frontmatter comum: uma nota aberta no Obsidian mostra as suas propriedades como o Obsidian mostra | `DECIDIDO` em 2026-10-14 ([ADR 0086](../adr/0086-infobox-a-typed-notes-card.md)) |
 | Visibilidade por bloco | segredo do mestre: um callout do tipo `secret` (`> [!secret]`), um callout no arquivo; um UniVerso serve aos leitores a nota sem ele | `DECIDIDO` em 2026-10-14 (Q9, [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md)) |
 | Figurinha e cor | `sticker:` nas formas do make.md — `emoji//<hex>`, `lucide//<nome>`, `ui//<nome>` — escritas pelo Verso como o make.md as escreve, ou um emoji escrito como ele mesmo, lido; outro valor não é figurinha. `color:` um hex, como o Verso escreve, ou uma cor CSS, lida. No frontmatter de uma nota ou nota de pasta | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 | Capa com reposicionamento | `banner:` (um caminho da pasta ou uma URL) e `banner_y:` (a posição vertical, uma porcentagem de 0 a 100 escrita como texto, `"42"` — como o reposicionar do make.md a escreve, lido no código dele e observado pelo escritor de propriedades dele, 2026-10-02) no frontmatter de uma nota ou nota de pasta | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
@@ -693,7 +706,7 @@ Categorias acrescentadas na revisão da Fase 0, fora do mínimo do briefing:
 | heading | 5.12 | exigida pela feature 1 da Fase 1 |
 | link Markdown para arquivo local | 5.13 | `PROPOSTO` |
 | posição (`pos`) em pelo menos uma fixture por construção | 4.4 | exigida por [ADR 0018](../adr/0018-llm-native-mcp-in-core.md) |
-| schema (um bloco `verso-schema`) | 4.8, 6 | rascunhada em 2026-10-07 com a implementação do ADR 0052, aprovada no mesmo dia |
+| schema (um bloco `verso-schema`) | 4.8, 6 | rascunhada em 2026-10-07 com a implementação do ADR 0052, aprovada no mesmo dia; `schema/infobox` rascunhada em 2026-10-14 com a do ADR 0086, aguardando aprovação |
 
 Qualquer fixture pode ser rascunhada pela IA; só vale com a aprovação do
 mantenedor no PR que a adiciona (ADR 0031). Rascunho diz que é rascunho na
@@ -778,7 +791,9 @@ correspondente ser implementado. Nenhuma tem resposta no briefing.
      escrevem no próprio `type:`), `label` por idioma da interface, e
      `properties`, uma lista ordenada de `key`, `kind` e `label`, com os tipos
      de valor `text`, `list`, `number`, `checkbox`, `date` e `datetime`. Nada
-     nele executa. É lido sob os limites do frontmatter (Q17).
+     nele executa. É lido sob os limites do frontmatter (Q17). Em 2026-10-14
+     o [ADR 0086](../adr/0086-infobox-a-typed-notes-card.md) acrescentou os
+     tipos `link` e `image` e um `layout` no topo (§4.8).
   2. **Localização:** qualquer nota da pasta aberta, menos sob caminhos
      ocultos e ignorados (Q26; [ADR 0044](../adr/0044-verso-fs-semantics.md)).
      A identidade de um schema é o `type` que ele traz dentro, não o nome nem
@@ -1378,3 +1393,4 @@ ser escolhido.
 | v0.36 | 2026-10-10 | **Q7 `DECIDIDO`** pelo mantenedor em sessão, como recomendado, a partir do achado F20 da campanha de sync de 2026-10-10 (dois aparelhos no Windows e no Linux guardaram as duas formas de um nome, e um nunca enviou): um nome é um arquivo só em todo lugar — o servidor compara nomes em NFC, cada aparelho guarda a grafia que o próprio sistema de arquivos deu ao nome, um arquivo mudado dos dois lados sob as duas formas é uma cópia de conflito (item 8 da ADR 0079). A §5.10 diz isso; o fato provisório da v0.10 mantido como histórico. Sem fixture: o mantenedor não pediu uma. |
 | v0.37 | 2026-10-12 | O lado da criação da Q8 `DECIDIDO` pelo mantenedor em sessão (*"Todos aprovados"*, como recomendado): um nome novo que só difere em maiúsculas e minúsculas de uma entrada da pasta dele é recusado quando o Verso o cria ou renomeia, em todo sistema e no servidor (ADR 0070 item 3, revisado). A Q8 em si, a caixa na resolução de nome, continua `[ABERTO]`. Sem fixture: nomes criados, não o dialeto. |
 | v0.38 | 2026-10-14 | **Q9 `DECIDIDO`** pelo mantenedor, aceitando o ADR 0087 e o item 8 dele (*"Sim, todas"*): a visibilidade por bloco é um callout do tipo `secret`, um callout no arquivo, servido por um UniVerso aos leitores como uma projeção sem ele; a §5.8 e a linha da §6 revisadas. Sem fixture: a fixture da Q9 vem com o PR que constrói o ADR 0087, para a aprovação do mantenedor. |
+| v0.39 | 2026-10-14 | O [ADR 0086](../adr/0086-infobox-a-typed-notes-card.md), aceito no mesmo dia, implementado: os tipos `link` e `image` de um schema e o seu `layout` de topo (`infobox`) entram na §4.8, na §6 e no formato da Q11; a fixture `fixtures/schema/infobox` rascunhada, aguardando a aprovação do mantenedor. A fixture aprovada `fixtures/schema/nested-and-invalid` escreve `kind: link` como o seu tipo desconhecido, o que `link` deixou de ser: a entrada dela espera o mantenedor (invariantes 14 e 16). Nenhuma questão fechada. |

@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.38
+# Verso dialect spec — v0.39
 
-- Version: v0.38 · 2026-10-14
+- Version: v0.39 · 2026-10-14
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -184,7 +184,8 @@ quote is reported as nested, and not read.
 |---|---|---|
 | `type` | the name notes write in their own `type:`, as written | for a block read |
 | `labels` | the type's name per interface language, a map as written (`{ pt-BR: PdM, en: NPC }`); absent asserts none | no |
-| `properties` | the declared properties, in order, each with `key`, `kind` (`text`, `list`, `number`, `checkbox`, `date`, `datetime`) and `labels` (as above); absent asserts none | no |
+| `layout` | the layout the schema names at its top level: `infobox` ([ADR 0086](../adr/0086-infobox-a-typed-notes-card.md) item 2); a value this version does not know is no layout and no error; absent asserts none | no |
+| `properties` | the declared properties, in order, each with `key`, `kind` (`text`, `list`, `number`, `checkbox`, `date`, `datetime`, `link`, `image`) and `labels` (as above); absent asserts none | no |
 | `error` | why a block at the top level types nothing: `yaml`, `not_a_mapping`, `no_type`, `label`, `properties`, `property` (no `key` or no `kind`), `unknown_kind`, `duplicate_key` | when it does |
 | `nested` | `true` for a block inside a list item or a quote; absent asserts the top level | for a nested block |
 | `pos` | position of the first character of the opening fence (4.4) | when the fixture tests position |
@@ -194,6 +195,17 @@ A block that is nested or that types nothing has no `type`, `labels` or
 (`docs/reference/typed-note-decision.md` §8, rows 1 and 2), with the drafted
 fixtures `fixtures/schema/top-level` and `fixtures/schema/nested-and-invalid`,
 approved on 2026-10-07.
+
+Revised on 2026-10-14 with the implementation of
+[ADR 0086](../adr/0086-infobox-a-typed-notes-card.md) (items 1, 2 and 5):
+two kinds, `link` — a quoted wikilink or a list of them, the typed
+relation of Q10 — and `image` — a quoted wikilink to a picture of the
+folder, a path of the folder ending in a picture's extension, or an
+`http(s)` address; and the top-level key `layout`, whose one value is
+`infobox`. A value that does not fit its kind is shown as written and
+marked (ADR 0052 point 6): a wikilink or a path to a note is not a
+picture. The drafted fixture `fixtures/schema/infobox` awaits the
+maintainer's approval.
 
 ---
 
@@ -560,6 +572,7 @@ decided the typed note, its schemas and their labels per language
 | Schema i18n | language-neutral key with a translated label (`type: npc` displayed as "PdM" or "NPC") | `DECIDED` on 2026-09-24 ([ADR 0052](../adr/0052-typed-note.md): a `label` per interface language) |
 | Typed relation | a frontmatter property of the source note whose value is a quoted wikilink or a list of them; the key is the type | `DECIDED` on 2026-09-30 (Q10, [ADR 0057](../adr/0057-board-json-canvas.md)) |
 | Schemas | a fenced `verso-schema` block in a note, anywhere in the folder but hidden and ignored paths | `DECIDED` on 2026-09-24 (Q11) |
+| Schema kinds `link` and `image`, and its layout | a schema's property of kind `link` (a quoted wikilink or a list of them) or `image` (a picture's wikilink, path or web address); `layout: infobox` at the schema's top level draws the note's properties as a card beside its text. Plain frontmatter: a note opened in Obsidian shows its properties as Obsidian does | `DECIDED` on 2026-10-14 ([ADR 0086](../adr/0086-infobox-a-typed-notes-card.md)) |
 | Per-block visibility | game master's secret: a callout of kind `secret` (`> [!secret]`), a callout in the file; a UniVerso serves readers the note without it | `DECIDED` on 2026-10-14 (Q9, [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md)) |
 | Sticker and color | `sticker:` in make.md's forms — `emoji//<hex>`, `lucide//<name>`, `ui//<name>` — written by Verso as make.md writes them, or an emoji written as itself, read; another value is no sticker. `color:` a hex, as Verso writes it, or a CSS color, read. In the frontmatter of a note or a folder note | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 | Cover banner | `banner:` (a path of the folder or a URL) and `banner_y:` (the vertical position, a percentage from 0 to 100 written as text, `"42"` — as make.md's reposition writes it, read in its source and observed through its property writer, 2026-10-02) in the frontmatter of a note or a folder note | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
@@ -688,7 +701,7 @@ Categories added in the Phase 0 review, outside the briefing's minimum:
 | heading | 5.12 | required by feature 1 of Phase 1 |
 | Markdown link to a local file | 5.13 | `PROPOSED` |
 | position (`pos`) in at least one fixture per construct | 4.4 | required by [ADR 0018](../adr/0018-llm-native-mcp-in-core.md) |
-| schema (a `verso-schema` block) | 4.8, 6 | drafted on 2026-10-07 with ADR 0052's implementation, approved the same day |
+| schema (a `verso-schema` block) | 4.8, 6 | drafted on 2026-10-07 with ADR 0052's implementation, approved the same day; `schema/infobox` drafted on 2026-10-14 with ADR 0086's, awaiting approval |
 
 Any fixture may be drafted by the AI; it only counts with the maintainer's
 approval in the PR that adds it (ADR 0031). A draft says so on the first line
@@ -773,7 +786,9 @@ behavior is implemented. None of them has an answer in the briefing.
      own `type:`), `label` per interface language, and `properties`, an
      ordered list of `key`, `kind` and `label`, the kinds being `text`,
      `list`, `number`, `checkbox`, `date` and `datetime`. Nothing in it runs.
-     It is read under the frontmatter's limits (Q17).
+     It is read under the frontmatter's limits (Q17). On 2026-10-14
+     [ADR 0086](../adr/0086-infobox-a-typed-notes-card.md) added the kinds
+     `link` and `image` and a top-level `layout` (§4.8).
   2. **Location:** any note of the open folder, except under hidden and ignored
      paths (Q26; [ADR 0044](../adr/0044-verso-fs-semantics.md)). A schema's
      identity is the `type` inside it, not the note's name or place. This is
@@ -1358,3 +1373,4 @@ the parser was chosen.
 | v0.36 | 2026-10-10 | **Q7 `DECIDED`** by the maintainer in session, as recommended, from finding F20 of the sync campaign of 2026-10-10 (two devices on Windows and Linux kept both forms of a name, and one never uploaded): one name is one file everywhere — the server compares names in NFC, each device keeps the spelling its own file system gave the name, a file changed on both sides under the two forms is a conflict copy (ADR 0079 item 8). §5.10 says so; the provisional fact of v0.10 kept as history. No fixture: the maintainer did not ask for one. |
 | v0.37 | 2026-10-12 | Q8's creation side `DECIDED` by the maintainer in session (*"Todos aprovados"*, as recommended): a new name differing only in case from an entry of its folder is refused when Verso makes or renames it, on every OS and on the server (ADR 0070 item 3, revised). Q8 itself, case in name resolution, stays `[OPEN]`. No fixture: names made, not the dialect. |
 | v0.38 | 2026-10-14 | **Q9 `DECIDED`** by the maintainer, accepting ADR 0087 and its item 8 (*"Sim, todas"*): per-block visibility is a callout of kind `secret`, a callout in the file, served by a UniVerso to readers as a projection without it; §5.8 and §6's row revised. No fixture: the fixture of Q9 comes with the PR that builds ADR 0087, for the maintainer's approval. |
+| v0.39 | 2026-10-14 | [ADR 0086](../adr/0086-infobox-a-typed-notes-card.md), accepted the same day, implemented: a schema's kinds `link` and `image` and its top-level `layout` (`infobox`) enter §4.8, §6 and Q11's format; the fixture `fixtures/schema/infobox` drafted, awaiting the maintainer's approval. The approved fixture `fixtures/schema/nested-and-invalid` writes `kind: link` as its unknown kind, which `link` no longer is: its input waits for the maintainer (invariants 14 and 16). No question closed. |

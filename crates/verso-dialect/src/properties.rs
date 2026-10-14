@@ -99,7 +99,7 @@ pub(crate) fn property_links(
 }
 
 /// Whether a string is one wikilink and nothing else, spaces around allowed.
-fn is_one_link(s: &str) -> bool {
+pub(crate) fn is_one_link(s: &str) -> bool {
     let t = s.trim();
     t.len() > 4
         && t.starts_with("[[")

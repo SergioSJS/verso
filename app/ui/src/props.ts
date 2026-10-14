@@ -14,10 +14,16 @@
 // panel refuses and the note saves, which draws it again. A value the
 // panel cannot rewrite without loss — a comment in it, several lines, a
 // nested value, an anchor — is shown read-only: Source mode edits it.
+//
+// A schema that says `layout: infobox` (ADR 0086) draws the same panel —
+// the same rows, widgets and writes — as a card beside the text: the
+// first picture at its head, the type under it, the declared properties,
+// the note's other keys folded below.
 
 import type { Label, NoteType, Property, PropertyValue, TypedProperty } from "./bindings";
 import { frontmatterClose, opensWithFence } from "./frontmatter";
 import { icon } from "./icons";
+import { asLink, linkParts, pictureNode, type PictureHost, type PictureStrings, suggestions } from "./infobox";
 
 export type PropsStrings = {
   addProperty: string;
@@ -49,6 +55,17 @@ export type TypedStrings = {
   kinds: Record<string, string>;
   /** Why a schema types nothing, by kind (spec §4.8). */
   errors: Record<string, string>;
+  /** A picture that is not shown, and why (ADR 0086 item 1). */
+  picture: PictureStrings;
+  /** A link whose note does not exist. */
+  unresolved: string;
+  /** The field that adds a link. */
+  addLink: string;
+  /** The infobox's fold of the note's other keys. */
+  others: (n: number) => string;
+  /** The narrow infobox's button that shows every property, and back. */
+  more: (n: number) => string;
+  less: string;
 };
 
 export type Change = { from: number; to: number; insert: string };
@@ -73,6 +90,21 @@ export type PropsOptions = {
   onOpen?: (path: string) => void;
   /** The interface language (`pt-BR`, `en`), for a schema's labels. */
   lang?: string;
+  /** A link of a `link` property followed (ADR 0086 item 1). */
+  onFollow?: (target: string) => void;
+  /** The note a link's target reaches: its path, null when none, or
+   *  undefined when not known. */
+  resolveLink?: (target: string) => string | null | undefined;
+  /** A picture of the folder, asked of the core: its address, or null. */
+  picture?: (target: string) => Promise<string | null>;
+  /** The note's title: names the infobox; a picture's alternative text
+   *  when its link gives none (ADR 0086 item 6). */
+  title?: () => string;
+  /** The folder's notes (`link`) or pictures (`image`), offered as `[[`
+   *  offers them; each value as it is written (`[[Barão]]`). */
+  suggest?: (kind: "link" | "image") => { value: string; label: string }[];
+  /** Something to say on the status line. */
+  status?: (message: string) => void;
 };
 
 /** A label for `lang` among a schema's labels: the language itself, its
@@ -88,7 +120,12 @@ const LIST_KEYS = new Set(["tags", "tag", "aliases", "alias", "cssclasses", "css
 const TAG_KEYS = new Set(["tags", "tag"]);
 const KINDS = new Set(["text", "number", "checkbox", "list", "empty"]);
 /** A declared kind's icon (ADR 0052). */
-const KIND_ICON: Record<string, string> = { text: "text", list: "bullets", number: "hash", checkbox: "task", date: "calendar", datetime: "calendar" };
+const KIND_ICON: Record<string, string> = { text: "text", list: "bullets", number: "hash", checkbox: "task", date: "calendar", datetime: "calendar", link: "link", image: "image" };
+/** Under this width the infobox goes above the text, collapsed to the
+ *  picture and the first three properties (ADR 0086 item 3). */
+const NARROW = 760;
+/** The properties the narrow infobox shows before "show all". */
+const FIRST = 3;
 
 function iconOf(key: string, v: PropertyValue): string {
   if (TAG_KEYS.has(key.toLowerCase())) return "tag";
@@ -120,10 +157,17 @@ export class PropertiesView {
   /** A redraw asked for while an input of the panel has the focus: it
    *  waits for the focus to leave, so nothing typed there is lost. */
   private pending: (() => void) | null = null;
+  /** The strip's own folding, as the person left it: the infobox does
+   *  not fold, and gives it back when the note is a strip again. */
+  private collapsed = false;
+  /** The narrow infobox shows every property. */
+  private expanded = false;
+  private watching: ResizeObserver | null = null;
   constructor(private readonly opts: PropsOptions) {
     this.el.hidden = true;
     try {
       if (localStorage.getItem("verso.props.collapsed") === "true") {
+        this.collapsed = true;
         this.el.classList.add("collapsed");
       }
     } catch {
@@ -224,7 +268,23 @@ export class PropertiesView {
     for (const p of this.items) if (!declared.has(p.key)) out.push(this.row(p));
     return out;
   }
+  /** Whether the schema lays this note out as an infobox (ADR 0086). */
+  private infobox(): boolean {
+    const st = this.type?.state;
+    return st?.kind === "typed" && st.layout === "infobox" && this.opts.strings.typed !== undefined;
+  }
   private paint(focusKey?: string): void {
+    const card = this.infobox();
+    this.el.classList.toggle("infobox", card);
+    this.placeText();
+    if (card) {
+      this.paintInfobox(focusKey);
+      return;
+    }
+    this.el.classList.toggle("collapsed", this.collapsed);
+    this.el.classList.remove("narrow", "expanded");
+    this.el.removeAttribute("role");
+    this.el.removeAttribute("aria-label");
     const rows = this.rows();
     const typeLine = this.typeLine();
     if (typeLine) rows.unshift(typeLine);
@@ -240,6 +300,7 @@ export class PropertiesView {
       toggle.append(icon("chevron"), h("span", "", this.opts.strings.propertiesTitle ?? "Propriedades"));
       toggle.addEventListener("click", () => {
         const collapsed = !this.el.classList.contains("collapsed");
+        this.collapsed = collapsed;
         this.el.classList.toggle("collapsed", collapsed);
         try { localStorage.setItem("verso.props.collapsed", String(collapsed)); } catch {}
       });
@@ -250,10 +311,108 @@ export class PropertiesView {
     }
     this.el.hidden = false;
     this.el.classList.toggle("empty", this.items.length === 0 && !typeLine);
-    if (focusKey !== undefined) {
-      const target = this.el.querySelector<HTMLElement>(`[data-key="${CSS.escape(focusKey)}"] input, [data-key="${CSS.escape(focusKey)}"] .prop-add`);
-      target?.focus();
+    this.focusRow(focusKey);
+  }
+  private focusRow(focusKey?: string): void {
+    if (focusKey === undefined) return;
+    const target = this.el.querySelector<HTMLElement>(`[data-key="${CSS.escape(focusKey)}"] input, [data-key="${CSS.escape(focusKey)}"] .prop-add`);
+    target?.focus();
+  }
+  /** The infobox (ADR 0086 item 3): a complementary region named after
+   *  the note, in the panel's keyboard order — the first picture, the
+   *  type, the declared properties in the schema's order, the note's
+   *  other keys folded, the button that adds a key. On a narrow pane it
+   *  goes above the text, collapsed to the picture and the first three
+   *  properties, with a button for the rest. */
+  private paintInfobox(focusKey?: string): void {
+    const st = this.type?.state;
+    const s = this.opts.strings.typed;
+    if (!st || st.kind !== "typed" || !s) return;
+    this.watchWidth();
+    this.el.classList.remove("collapsed", "empty", "adding");
+    this.el.classList.toggle("expanded", this.expanded);
+    this.el.setAttribute("role", "complementary");
+    this.el.setAttribute("aria-label", this.opts.title?.() ?? labelFor(st.labels, this.opts.lang ?? "en") ?? st.name);
+    const parts: HTMLElement[] = [];
+    const head = st.properties.find((d) => d.kind === "image" && d.present && d.fits);
+    const headValue = head ? this.items.find((p) => p.key === head.key)?.value : undefined;
+    if (head && headValue?.kind === "text") {
+      const picture = pictureNode(headValue.value, this.pictureHost(), "ib-picture-img");
+      if (picture) {
+        const figure = h("figure", "ib-picture");
+        figure.append(picture);
+        parts.push(figure);
+      }
     }
+    const typeLine = this.typeLine();
+    if (typeLine) parts.push(typeLine);
+    const declared = new Set(st.properties.map((d) => d.key));
+    const more: HTMLElement[] = [];
+    st.properties.forEach((d, i) => {
+      const p = this.items.find((x) => x.key === d.key);
+      const row = p ? this.row(p, d, true) : this.absentRow(d);
+      if (i >= FIRST) row.classList.add("ib-more");
+      (i < FIRST ? parts : more).push(row);
+    });
+    const others = this.items.filter((p) => !declared.has(p.key));
+    if (others.length > 0) {
+      const fold = h("details", "ib-others ib-more");
+      const summary = h("summary", "", s.others(others.length));
+      fold.append(summary, ...others.map((p) => this.row(p)));
+      // A key of the fold asked for (just added): the fold opens on it.
+      if (focusKey !== undefined && others.some((p) => p.key === focusKey)) fold.open = true;
+      more.push(fold);
+    }
+    const add = h("button", "prop-new ib-more");
+    add.type = "button";
+    add.append(icon("plus"), h("span", "", this.opts.strings.addProperty));
+    add.addEventListener("click", () => this.newRow(add));
+    add.hidden = this.readOnly;
+    more.push(add);
+    if (more.some((e) => !e.hidden)) {
+      const toggle = h("button", "ib-expand", this.expanded ? s.less : s.more(st.properties.length + others.length));
+      toggle.type = "button";
+      toggle.setAttribute("aria-expanded", String(this.expanded));
+      toggle.addEventListener("click", () => {
+        this.expanded = !this.expanded;
+        this.el.classList.toggle("expanded", this.expanded);
+        toggle.setAttribute("aria-expanded", String(this.expanded));
+        toggle.textContent = this.expanded ? s.less : s.more(st.properties.length + others.length);
+      });
+      parts.push(toggle);
+    }
+    this.el.replaceChildren(...parts, ...more);
+    this.el.hidden = false;
+    this.focusRow(focusKey);
+  }
+  /** The card's place follows the pane's width, not the window's: a
+   *  split pane is narrow on a wide screen. */
+  private watchWidth(): void {
+    if (this.watching || typeof ResizeObserver === "undefined") return;
+    const host = this.el.parentElement;
+    if (!host) return;
+    const set = () => {
+      this.el.classList.toggle("narrow", host.clientWidth > 0 && host.clientWidth < NARROW);
+      this.placeText();
+    };
+    this.watching = new ResizeObserver(set);
+    this.watching.observe(host);
+    set();
+  }
+  /** The text beside a wide card keeps a column clear of it; above a
+   *  narrow one, or with no card, the text is as it always was. */
+  private placeText(): void {
+    const beside = this.el.classList.contains("infobox") && !this.el.classList.contains("narrow");
+    this.el.parentElement?.classList.toggle("with-infobox", beside);
+  }
+  private pictureHost(): PictureHost {
+    const s = this.opts.strings.typed;
+    return {
+      strings: s?.picture ?? { pictureOrigin: (o) => o, pictureRemote: "", approve: (o) => o, approveFailed: "", load: "", pictureMissing: (t) => t },
+      resolve: (target) => this.opts.picture?.(target) ?? Promise.resolve(null),
+      title: this.opts.title?.() ?? "",
+      status: (m) => this.opts.status?.(m),
+    };
   }
   /** One edit of `key`, against the editor's text now. */
   private edit(key: string, edit: Edit, focus = true): void {
@@ -332,11 +491,12 @@ export class PropertiesView {
       const input = h("input", "prop-input");
       input.type = d.kind === "number" ? "number" : d.kind === "date" ? "date" : d.kind === "datetime" ? "datetime-local" : "text";
       if (d.kind === "number") input.step = "any";
-      input.placeholder = this.opts.strings.emptyValue;
+      input.placeholder = d.kind === "link" ? (this.opts.strings.typed?.addLink ?? this.opts.strings.emptyValue) : this.opts.strings.emptyValue;
       input.disabled = this.readOnly;
       input.setAttribute("aria-label", label);
+      if (d.kind === "link" || d.kind === "image") value.append(this.suggestFor(input, d.kind));
       const commit = () => {
-        const v = input.value.trim();
+        const v = d.kind === "link" ? asLink(input.value) : input.value.trim();
         if (v === "") return;
         give(d.kind === "number" ? { kind: "number", value: v } : { kind: "text", value: v });
       };
@@ -350,7 +510,82 @@ export class PropertiesView {
     row.append(key, value);
     return row;
   }
-  private row(p: Property, d?: TypedProperty): HTMLElement {
+  /** The folder's notes or pictures for `input`, as `[[` offers them. */
+  private suggestFor(input: HTMLInputElement, kind: "link" | "image"): HTMLDataListElement {
+    return suggestions(input, () => this.opts.suggest?.(kind) ?? []);
+  }
+  /** A link of a `link` property: followed with a click (or Enter), an
+   *  unresolved one said as such. Its class and `data-target` are the
+   *  reading view's own, so what a wikilink there gets, it gets too. */
+  private linkEl(item: string): HTMLElement {
+    const parts = linkParts(item);
+    if (!parts) return h("span", "pill-label", item);
+    // Named by its alias, else by the note's name — the path's last part,
+    // a `#heading` kept; the whole target is the link's title.
+    const a = h("a", "pill-label wikilink prop-link", parts.alias ?? parts.target.split("/").pop() ?? parts.target);
+    a.href = "#";
+    a.dataset["target"] = parts.target;
+    const to = this.opts.resolveLink?.(parts.target);
+    if (to === null) {
+      a.classList.add("unresolved");
+      a.title = this.opts.strings.typed?.unresolved ?? "";
+    } else a.title = to ?? parts.target;
+    // The focus stays in the panel's field until the click lands.
+    a.addEventListener("mousedown", (e) => e.preventDefault());
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      this.opts.onFollow?.(parts.target);
+    });
+    return a;
+  }
+  /** A declared `link` whose value fits (ADR 0086 item 1): its links as
+   *  pills, each followed with a click; a list takes more, a single link
+   *  is cleared with its ×, an empty one takes one. */
+  private linkValue(value: HTMLElement, p: Property, fixed: boolean, label: string): void {
+    const v = p.value;
+    const items = v.kind === "list" ? v.value : v.kind === "text" ? [v.value] : [];
+    for (const [i, item] of items.entries()) {
+      const pill = h("span", "pill link-pill");
+      pill.append(this.linkEl(item));
+      if (!fixed) {
+        const x = h("button", "pill-x");
+        x.type = "button";
+        x.title = this.opts.strings.remove;
+        x.setAttribute("aria-label", `${this.opts.strings.remove}: ${linkParts(item)?.target ?? item}`);
+        x.append(icon("close"));
+        x.addEventListener("click", () => this.edit(p.key, v.kind === "list" ? { op: "drop", index: i } : { op: "set", value: { kind: "empty" } }));
+        pill.append(x);
+      }
+      value.append(pill);
+    }
+    if (fixed || v.kind === "text") return;
+    const add = h("input", "prop-add");
+    add.type = "text";
+    add.placeholder = this.opts.strings.typed?.addLink ?? this.opts.strings.addItem;
+    add.setAttribute("aria-label", `${label}: ${add.placeholder}`);
+    value.append(this.suggestFor(add, "link"));
+    const push = () => {
+      const link = asLink(add.value);
+      add.value = "";
+      if (link === "") return;
+      if (v.kind === "list") this.edit(p.key, { op: "add", values: [link] });
+      else this.edit(p.key, { op: "set", value: { kind: "text", value: link } }, false);
+    };
+    add.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key === "Enter") {
+        e.preventDefault();
+        push();
+      } else if (e.key === "Escape") add.blur();
+    });
+    add.addEventListener("change", () => {
+      // A suggestion picked from the list: taken at once.
+      if (linkParts(add.value)) push();
+    });
+    add.addEventListener("blur", push);
+    value.append(add);
+  }
+  private row(p: Property, d?: TypedProperty, inCard = false): HTMLElement {
     const fixed = !this.editable(p);
     const misfit = d !== undefined && !d.fits;
     const row = h("div", `prop kind-${p.value.kind}${fixed ? " fixed" : ""}${d ? " declared" : ""}${misfit ? " misfit" : ""}`);
@@ -364,7 +599,10 @@ export class PropertiesView {
     key.append(icon(d ? (KIND_ICON[d.kind] ?? "text") : iconOf(p.key, p.value)), h("span", "prop-key-text", label));
     const value = h("div", "prop-value");
     const isList = p.value.kind === "list" || (p.value.kind === "empty" && LIST_KEYS.has(p.key.toLowerCase()));
-    if (isList) this.listEditor(value, p.key, p.value.kind === "list" ? p.value.value : [], fixed);
+    if (d && d.kind === "link" && d.fits) {
+      row.classList.add("links");
+      this.linkValue(value, p, fixed, label);
+    } else if (isList) this.listEditor(value, p.key, p.value.kind === "list" ? p.value.value : [], fixed);
     else if (p.value.kind === "checkbox") {
       const box = h("input");
       box.type = "checkbox";
@@ -404,6 +642,14 @@ export class PropertiesView {
         }
       });
       value.append(input);
+      if (d && d.kind === "image") {
+        value.append(this.suggestFor(input, "image"));
+        // The picture beside its address; in the infobox the head shows it.
+        if (d.fits && !inCard && p.value.kind === "text") {
+          const thumb = pictureNode(p.value.value, this.pictureHost(), "prop-thumb");
+          if (thumb) value.prepend(thumb);
+        }
+      }
       if (p.value.kind === "text" && /^https?:\/\//i.test(p.value.value)) {
         const go = h("button", "prop-go");
         go.type = "button";
