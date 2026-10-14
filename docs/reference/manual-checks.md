@@ -9,7 +9,8 @@
 What the automated tests cannot fully reach — the real host, macOS, the
 installed app — is listed here, one line per change, for the maintainer
 to try in the installed app when they can. **Nothing here blocks a
-commit, a merge or a release.** Each item says what to do, what to see,
+commit, a merge or a beta; the checks gate only the release of V1**
+(the maintainer, 2026-10-14, `docs/roadmap.md`, Phase 4 — V1, row V.15). Each item says what to do, what to see,
 and the commit; a checked item says when. A check that finds a problem
 becomes a fix, and the item points to it.
 
