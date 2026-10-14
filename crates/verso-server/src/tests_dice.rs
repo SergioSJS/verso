@@ -118,8 +118,9 @@ fn a_roll_the_server_cannot_make_is_refused() {
         for notation in [
             "",
             "1d20*2",
-            "2d6!",
-            "d%",
+            // Read since D1 (2026-10-14): `2d6!` and `d%`; still not these.
+            "2d6!!",
+            "4dF!",
             "101d6",
             "1d1",
             "1d1001",

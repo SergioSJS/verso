@@ -23,8 +23,10 @@ Um código `dice:` numa nota é um **dado**: na **Leitura** e no **Editar**, for
 - Com vantagem, o maior de dois d20: `dice: 2d20kh1`
 - Dados fudge, do Fate: `dice: 4dF`
 - Somas e diferenças: `dice: 1d12+1d10-1d4+2`
+- Um dado que explode — no 6, rola outro e soma: `dice: 3d6!`
+- Percentil, um d100: `dice: d%`
 
-O Verso lê dados (`2d6`, `d20` é um só), somas e diferenças de dados e números, **manter** e **descartar** com a quantidade (`kh2` mantém os 2 maiores, `kl1` o menor, `dh1` descarta o maior, `dl1` o menor) e o dado fudge (`dF`). Espaços não contam: `dice: 3d4 + 3` é `3d4+3`.
+O Verso lê dados (`2d6`, `d20` é um só), somas e diferenças de dados e números, **manter** e **descartar** com a quantidade (`kh2` mantém os 2 maiores, `kl1` o menor, `dh1` descarta o maior, `dl1` o menor) o dado fudge (`dF`), o percentil (`d%`, um d100) e o dado que **explode** (`!` logo depois do dado: na face mais alta ele rola mais um, que pode explodir de novo, até 100 dados a mais numa rolagem). Espaços não contam: `dice: 3d4 + 3` é `3d4+3`.
 
 Uma forma que o Verso não lê continua **código**, nunca vira outra rolagem: `dice: 1d20*2` aqui embaixo é só código.
 

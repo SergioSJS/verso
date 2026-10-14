@@ -2,7 +2,9 @@
 // (https://github.com/SergioSJS/rolai), packages/rules-engine/src/roller.ts, at
 // commit 368d677c8347609c243473046d4f06a1126ddb74 (2026-08-21), for ADR 0088
 // item 5: its parser and roller copied into the window, the MIT notice kept.
-// Verso's changes: the imports name their modules without `.js`.
+// Verso's changes: the imports name their modules without `.js`; the
+// exploding die (`1d6!`), its chain capped at EXPLODE_MOST dice in a roll
+// (ADR 0088, D1, answered by the maintainer on 2026-10-14).
 //
 // MIT License
 //
@@ -51,12 +53,19 @@ export interface RollOptions {
 export interface RollState {
   rng: RandomSource;
   queue: number[];
+  /** Verso: the dice explosions added so far in this roll. */
+  exploded: number;
 }
+
+/** Verso: the most dice explosions add to one roll, all its terms
+ *  together — the server's `EXPLODE_MOST` (crates/verso-server/src/dice.rs). */
+export const EXPLODE_MOST = 100;
 
 export function createRollState(options: RollOptions = {}): RollState {
   return {
     rng: options.rng ?? cryptoRandomSource,
     queue: options.deterministic ? [...options.deterministic] : [],
+    exploded: 0,
   };
 }
 
@@ -113,6 +122,18 @@ export function rollDice(spec: DiceSpec, state: RollState): RollGroup {
     for (let i = 0; i < rolls.length; i++) {
       if (matches(spec.reroll.op, rolls[i]!, spec.reroll.value)) {
         rolls[i] = takeValue(state, spec);
+      }
+    }
+  }
+
+  // Verso: explode — a die at its highest face adds one more, in the
+  // order they fall, each new one able to explode too, until the roll has
+  // added EXPLODE_MOST. The added dice are kept or dropped as the others.
+  if (spec.explode) {
+    for (let i = 0; i < rolls.length && state.exploded < EXPLODE_MOST; i++) {
+      if (rolls[i] === spec.sides) {
+        rolls.push(takeValue(state, spec));
+        state.exploded++;
       }
     }
   }

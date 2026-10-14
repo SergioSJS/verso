@@ -251,7 +251,8 @@ point 13).
     hoje" one item of the list. In Editar the dice off the caret's line are
     dice too. The note in Fonte afterwards: its text as before, nothing
     written. ⌘⇧P › "Rolar dados…": `2d6+1` and Enter rolls; `1d20*2` says
-    Verso does not read it. Level: H; E: `dice.spec.mjs`; U:
+    Verso does not read it. `dice: 3d6!` rolls one more die for each 6,
+    and `dice: d%` is a d100. Level: H; E: `dice.spec.mjs`; U:
     `test/dice.test.mjs`.
 
 ## 4. Organizing: properties, bases, daily notes

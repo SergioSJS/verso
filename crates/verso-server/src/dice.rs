@@ -6,10 +6,13 @@
 //! notation is the one the window reads (`app/ui/src/dice/notation.ts`):
 //! what Rolai's parser reads that the Obsidian Dice Roller plugin's README
 //! documents with the same meaning — terms of dice `NdM` (`dM` is one
-//! die), the fudge die `dF`, keep and drop (`kh`, `kl`, `dh`, `dl` with
-//! their count), and whole numbers, joined by `+` and `-`, the first term
-//! a die, spaces removed before reading. Anything else is refused; the
-//! window shows such a code as code.
+//! die), the fudge die `dF`, the percentile die `d%` (a d100), a die
+//! that explodes (`!` right after it: at its highest face it adds one more
+//! of it, which may explode in turn, at most [`EXPLODE_MOST`] more in a
+//! roll; not on `dF` — D1, answered by the maintainer on 2026-10-14), keep
+//! and drop (`kh`, `kl`, `dh`, `dl` with their count), and whole numbers,
+//! joined by `+` and `-`, the first term a die, spaces removed before
+//! reading. Anything else is refused; the window shows such a code as code.
 //!
 //! Each die comes from the operating system's generator, uniform, with no
 //! modulo bias: a 32-bit draw past the last whole multiple of the sides is
@@ -27,6 +30,9 @@ pub const TERMS_MOST: usize = 20;
 pub const NOTATION_MOST: usize = 200;
 /// The largest number added to the dice.
 const NUMBER_MOST: u32 = 999_999;
+/// The most dice explosions add to one roll, all its terms together; the
+/// window's `EXPLODE_MOST` (`app/ui/src/dice/rolai/roller.ts`).
+pub const EXPLODE_MOST: u32 = 100;
 
 /// Keep or drop, and how many.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -45,6 +51,8 @@ pub struct Term {
     /// 3 for a fudge die.
     pub sides: u32,
     pub fudge: bool,
+    /// `!`: a die at its highest face adds one more.
+    pub explode: bool,
     pub keep: Option<KeepDrop>,
 }
 
@@ -116,6 +124,9 @@ pub fn read(raw: &str) -> Result<Notation, String> {
             let sides = if fudge {
                 at += 1;
                 3
+            } else if at < s.len() && s[at] == b'%' {
+                at += 1;
+                100
             } else {
                 let sides = digits(s, &mut at).ok_or_else(unread)?;
                 if !(2..=SIDES_MOST).contains(&sides) {
@@ -123,6 +134,13 @@ pub fn read(raw: &str) -> Result<Notation, String> {
                 }
                 sides
             };
+            let explode = at < s.len() && s[at] == b'!';
+            if explode {
+                at += 1;
+                if fudge {
+                    return Err(unread());
+                }
+            }
             let keep = if s.len() >= at + 2 {
                 let kind = &s[at..at + 2];
                 let make: Option<fn(u32) -> KeepDrop> = match kind {
@@ -155,6 +173,7 @@ pub fn read(raw: &str) -> Result<Notation, String> {
                 count,
                 sides,
                 fudge,
+                explode,
                 keep,
             });
         } else {
@@ -237,11 +256,26 @@ pub fn roll(
 ) -> Result<DiceRoll, String> {
     let mut terms = Vec::new();
     let mut total = notation.modifier;
+    let mut exploded = 0_u32;
     for t in &notation.terms {
         let mut faces = Vec::new();
         for _ in 0..t.count {
             let face = i32::try_from(uniform(t.sides, next)?).map_err(|e| e.to_string())?;
             faces.push(if t.fudge { face - 2 } else { face });
+        }
+        // A die at its highest face adds one more, in the order they fall,
+        // each new one able to explode too, until the roll has added
+        // EXPLODE_MOST; the added dice are kept or dropped as the others.
+        if t.explode {
+            let highest = i32::try_from(t.sides).map_err(|e| e.to_string())?;
+            let mut i = 0;
+            while i < faces.len() && exploded < EXPLODE_MOST {
+                if faces[i] == highest {
+                    faces.push(i32::try_from(uniform(t.sides, next)?).map_err(|e| e.to_string())?);
+                    exploded += 1;
+                }
+                i += 1;
+            }
         }
         let (k, d) = kept(&faces, t.keep);
         total += t.sign * k.iter().sum::<i32>();
@@ -332,11 +366,12 @@ mod tests {
             "1d20*2",
             "(1d6)",
             "2^1d4",
-            "1d%",
-            "d%",
             "1d",
-            "2d6!",
             "2d6!!",
+            "4dF!",
+            "1d6kh1!",
+            "1d%%",
+            "1d%6",
             "1d6r",
             "4d6!r<2",
             "1d20adv",
@@ -366,6 +401,53 @@ mod tests {
         assert!(read(&"1d6+".repeat(30)).is_err());
         assert!(read(&format!("1d6{}", "+1d1".repeat(5))).is_err());
         assert!(read("50d6+51d6").is_err());
+    }
+
+    /// Explode and percentile, as the README writes them (D1, answered by
+    /// the maintainer on 2026-10-14).
+    #[test]
+    fn explode_and_percentile_are_read() {
+        for text in [
+            "1d%",
+            "d%",
+            "2d%+5",
+            "2d6!",
+            "d6!",
+            "4d6!kh3",
+            "1d20!+1d4",
+            "1d%!",
+        ] {
+            assert_eq!(read(text).map(|n| n.text), Ok(text.to_owned()), "{text}");
+        }
+        let p = of("d%");
+        assert_eq!((p.terms[0].sides, p.terms[0].explode), (100, false));
+        let e = of("4d6!kh3");
+        assert!(e.terms[0].explode);
+        assert_eq!(e.terms[0].keep, Some(KeepDrop::KeepHighest(3)));
+    }
+
+    /// A die at its highest face explodes: one more of it, which may
+    /// explode in turn, at most `EXPLODE_MOST` more in a roll — the
+    /// window's same dice for the same draws.
+    #[test]
+    fn a_die_at_its_highest_face_explodes() {
+        // 2d6!: 6,3; the 6 adds a 6, which adds a 1.
+        let r = roll(&of("2d6!"), None, "", "t", &mut draws(&[5, 2, 5, 0])).unwrap();
+        assert_eq!(r.terms[0].kept, [6, 3, 6, 1]);
+        assert_eq!(r.total, 16);
+        let k = roll(&of("3d6!kh2"), None, "", "t", &mut draws(&[5, 0, 2, 3])).unwrap();
+        assert_eq!(
+            (k.terms[0].kept.clone(), k.terms[0].dropped.clone(), k.total),
+            (vec![6, 4], vec![1, 3], 10)
+        );
+        let p = roll(&of("d%"), None, "", "t", &mut draws(&[99])).unwrap();
+        assert_eq!((p.terms[0].sides, p.total), (100, 100));
+        // Every die at its highest: 100 more in the whole roll, then none.
+        let mut top = || Ok(1_u32);
+        let all = roll(&of("50d2!+50d2!"), None, "", "t", &mut top).unwrap();
+        let dice: usize = all.terms.iter().map(|t| t.kept.len()).sum();
+        assert_eq!((dice, all.total), (200, 400));
+        assert_eq!(EXPLODE_MOST, 100);
     }
 
     #[test]
