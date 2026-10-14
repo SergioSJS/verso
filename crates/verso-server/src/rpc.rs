@@ -938,11 +938,15 @@ async fn folder_run(
     let args_for_log = args.clone();
     // A write that would pass the folder's quota is refused before
     // anything is written (ADR 0077 item 5).
-    if let Some((path, len)) = crate::quota::written(name, &args) {
-        let s = Arc::clone(server);
-        let k = key.clone();
-        blocking(move || crate::quota::check(&s, &k, &path, len)).await?;
-    }
+    // Its room held until the write is in the folder's record, below.
+    let _hold = match crate::quota::written(name, &args) {
+        Some((path, len)) => {
+            let s = Arc::clone(server);
+            let k = key.clone();
+            blocking(move || crate::quota::reserve(&s, &k, &path, len)).await?
+        }
+        None => None,
+    };
     // A write to a note being edited together goes through its room
     // (ADR 0073 item 7); so does a write to any text file in a room (ADR
     // 0082 item 12). A board's room takes its changes as elements only:
