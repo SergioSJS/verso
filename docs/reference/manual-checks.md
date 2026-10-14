@@ -19,6 +19,13 @@ in the real app.
 
 ## Not yet checked
 
+### The window's feedback (fix/ui-feedback, 2026-10-14)
+
+- [ ] **The report's time is the computer's** (D): *Relatar problema*:
+  the line *Hora deste computador: 2026-10-14 10:25:24 (UTC−03:00)* is the
+  Mac's clock and zone; the log's lines under it are in UTC (`Z`), three
+  hours ahead in São Paulo.
+
 ### Security hardening (ADR 0083, 2026-10-13)
 
 - [ ] **A shared note and a shared board edited from the desktop app while

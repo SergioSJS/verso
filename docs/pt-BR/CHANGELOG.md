@@ -12,7 +12,9 @@ versão de teste.
 
 ## Não lançado
 
-Nada ainda.
+### Corrigido
+
+- **A hora do relatório de problema é a do computador** (relato do mantenedor, 2026-10-14): *Relatar problema* diz a hora do computador com o fuso — `2026-10-14 10:25:24 (UTC−03:00)` — e que as linhas do registro abaixo estão em UTC (`Z`); os erros da sessão estão no relógio do computador.
 
 ## 0.8.1-beta.1 — 2026-10-14
 
