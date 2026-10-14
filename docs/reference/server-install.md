@@ -477,6 +477,30 @@ the client — is never believed. A connection from an address not in the
 list has its `X-Forwarded-For` ignored. Name only the proxies: an address
 range that also holds people lets them say any address they like.
 
+**`127.0.0.1` names every program on the machine, not only the proxy.**
+With `VERSO_TRUSTED_PROXY=127.0.0.1`, any local user or process that
+connects to the server's port is believed like the proxy: its
+`X-Forwarded-For` can name any address — a new one for each guess, past
+the per-address delays (the per-account delay still holds), or someone
+else's, which then fills the log's refusals for fail2ban to ban — and its
+`X-Forwarded-Proto: https` is taken as given. On a machine only you use,
+that is only you. On a shared host — other people's accounts, services or
+containers on the same machine — keep the server's port to the proxy. The
+server listens on TCP only (no unix socket), so do it by user: the proxy
+runs as its own user (Caddy's packages run it as `caddy`), and a firewall
+rule lets only that user, and root (whose `universo.sh status` asks the
+server), reach the port, for example
+
+```sh
+sudo iptables -A OUTPUT -o lo -p tcp --dport 7340 -m owner --uid-owner root -j ACCEPT
+sudo iptables -A OUTPUT -o lo -p tcp --dport 7340 -m owner ! --uid-owner caddy -j REJECT
+```
+
+(the same with `ip6tables` when the server listens on `::1`; kept across
+reboots with `netfilter-persistent`, as `universo.sh firewall` keeps its
+own). Or give the proxy and the server a machine, or a container network,
+of their own.
+
 **A proxy not in the list makes every visitor one address.** Every
 request then seems to come from the proxy, and every per-address delay
 keys it: three failed sign-ins by a stranger slow everyone's, and the
@@ -546,12 +570,20 @@ made in one of two ways (0074 item 1):
 - **From the variables**, `VERSO_ADMIN_EMAIL` and `VERSO_ADMIN_PASSWORD`
   (or `_FILE`), read **on the first start only**, when the server has no
   account yet. Afterwards they are ignored and the log says so in one line:
-  changing them never resets a password. They can be removed after the
-  first start.
+  changing them never resets a password. Remove them once the admin
+  exists: from `/etc/universo/universo.env` for a package, from the
+  compose file or the `docker run` command for Docker (and the secret's
+  file, with `_FILE`). Left there, they are the admin's first password in
+  a file, still good until it is changed.
 - **From the setup link**: with neither variable set, the server prints
   once in its log a link valid for one hour, whose page creates the admin.
   Whoever can read the log is whoever runs the server: `docker logs universo`,
-  the container's log in CasaOS or ZimaOS, or `journalctl -u universo`.
+  the container's log in CasaOS or ZimaOS, or `journalctl -u universo`
+  (root, and the `adm` and `systemd-journal` groups). The link stays in
+  that log until the log is rotated away: once the admin exists, or past
+  its hour, it opens nothing, but within the hour whoever reads the log
+  first can use it — so use it as soon as it is printed. `universo.sh
+  install` says so beside the link.
 
 ## 10. A lost admin password
 
@@ -1033,7 +1065,10 @@ Not verified yet:
   ran it with `fail2ban-regex` over a file of such lines — the IPv4
   address and the IPv6 /64 caught, `0.0.0.0/0`, a /48 and a /24 not — and
   `fail2ban-client -t` accepted the jail, but not over a journal; the
-  CrowdSec files and the Caddy example are not run at all.
+  CrowdSec files and the Caddy example are not run at all;
+- the firewall rule of section 8 that keeps the server's port to the
+  proxy's user on a shared host, written from iptables' owner match, not
+  run.
 
 ## 16. Bans: fail2ban, CrowdSec and Caddy's rate_limit
 

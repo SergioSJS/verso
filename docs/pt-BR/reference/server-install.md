@@ -491,6 +491,31 @@ de um endereço fora da lista tem o `X-Forwarded-For` ignorado. Ponha na
 lista só os proxies: uma faixa de endereços que também tem pessoas deixa
 que elas digam o endereço que quiserem.
 
+**O `127.0.0.1` nomeia todo programa da máquina, não só o proxy.** Com
+`VERSO_TRUSTED_PROXY=127.0.0.1`, qualquer usuário ou processo local que
+se conecte à porta do servidor é acreditado como o proxy: o
+`X-Forwarded-For` dele pode nomear qualquer endereço — um novo a cada
+tentativa, passando pelos atrasos por endereço (o atraso por conta
+continua valendo), ou o de outra pessoa, que então enche as recusas do log
+para o fail2ban banir — e o `X-Forwarded-Proto: https` dele é aceito como
+veio. Numa máquina que só você usa, isso é só você. Num host
+compartilhado — contas, serviços ou contêineres de outras pessoas na
+mesma máquina — reserve a porta do servidor ao proxy. O servidor escuta só
+em TCP (sem socket unix), então faça isso por usuário: o proxy roda com um
+usuário próprio (os pacotes do Caddy o rodam como `caddy`), e uma regra de
+firewall deixa só esse usuário, e o root (cujo `universo.sh status`
+pergunta ao servidor), alcançar a porta, por exemplo
+
+```sh
+sudo iptables -A OUTPUT -o lo -p tcp --dport 7340 -m owner --uid-owner root -j ACCEPT
+sudo iptables -A OUTPUT -o lo -p tcp --dport 7340 -m owner ! --uid-owner caddy -j REJECT
+```
+
+(o mesmo com `ip6tables` quando o servidor escuta em `::1`; mantidas
+entre reinicializações com o `netfilter-persistent`, como o
+`universo.sh firewall` mantém as dele). Ou dê ao proxy e ao servidor uma
+máquina, ou uma rede de contêineres, só deles.
+
 **Um proxy fora da lista faz de todo visitante um endereço só.** Toda
 requisição parece então vir do proxy, e toda espera por endereço conta
 para ele: três logins errados de um estranho atrasam o de todo mundo, e
@@ -560,13 +585,20 @@ criada de um de dois jeitos (0074 item 1):
 - **Pelas variáveis**, `VERSO_ADMIN_EMAIL` e `VERSO_ADMIN_PASSWORD` (ou
   `_FILE`), lidas **só na primeira inicialização**, quando o servidor ainda
   não tem conta. Depois são ignoradas e o log diz isso numa linha: mudá-las
-  nunca redefine uma senha. Podem ser removidas depois da primeira
-  inicialização.
+  nunca redefine uma senha. Remova-as quando o admin existir: do
+  `/etc/universo/universo.env` num pacote, do arquivo compose ou do
+  comando `docker run` no Docker (e o arquivo do segredo, com `_FILE`).
+  Deixadas ali, são a primeira senha do admin num arquivo, valendo até
+  ser trocada.
 - **Pelo link de configuração**: sem nenhuma das duas variáveis, o
   servidor imprime uma vez no log um link válido por uma hora, cuja página
   cria o admin. Quem consegue ler o log é quem roda o servidor:
   `docker logs universo`, o log do contêiner no CasaOS ou no ZimaOS, ou
-  `journalctl -u universo`.
+  `journalctl -u universo` (o root e os grupos `adm` e `systemd-journal`).
+  O link fica nesse log até a rotação descartá-lo: depois que o admin
+  existe, ou passada a hora, ele não abre nada, mas dentro da hora quem
+  ler o log primeiro pode usá-lo — então use-o assim que sair. O
+  `universo.sh install` diz isso ao lado do link.
 
 ## 10. Senha do admin perdida
 
@@ -1075,7 +1107,10 @@ Ainda não verificado:
   2026-10-13) a rodou com o `fail2ban-regex` sobre um arquivo dessas
   linhas — o endereço IPv4 e o /64 de IPv6 pegos, `0.0.0.0/0`, um /48 e
   um /24 não — e o `fail2ban-client -t` aceitou a jail, mas não sobre um
-  journal; os arquivos do CrowdSec e o exemplo do Caddy não rodaram.
+  journal; os arquivos do CrowdSec e o exemplo do Caddy não rodaram;
+- a regra de firewall da seção 8 que reserva a porta do servidor ao
+  usuário do proxy num host compartilhado, escrita a partir do owner match
+  do iptables, sem rodar.
 
 ## 16. Banimentos: fail2ban, CrowdSec e o rate_limit do Caddy
 
