@@ -20,6 +20,36 @@ app real.
 
 ## Ainda não conferido
 
+### O infobox (ADR 0086, feat/infobox, 2026-10-14)
+
+- [ ] **Uma nota tipada num cartão ao lado do texto** (A): abra
+  `Lugares/Porto Cinzento` no cofre de demonstração. O cartão fica à
+  direita do texto, a imagem do porto no alto, na Leitura e no Editar; o
+  VoiceOver (⌃⌥U, Pontos de referência) lista uma região complementar
+  "Porto Cinzento" e lê a imagem como "O Porto Cinzento visto do farol".
+  O Tab vai de "Abrir o schema" → cada propriedade em
+  ordem → "Outras propriedades" → "Adicionar propriedade". Abri-la não
+  grava nada (`git status` no cofre, ou a data do arquivo).
+- [ ] **Uma edição no cartão chega ao arquivo, nos dois modos** (A): no
+  modo Editar, acrescente um habitante com "Adicionar link…" (a lista
+  oferece as notas da pasta), mude "Perigo"; o arquivo tem `- "[[…]]"` e
+  o número novo, nada mais mudou; ⌘Z desfaz. O mesmo na Leitura. Uma
+  figurinha ou uma capa escolhida no modo Editar agora também chega ao
+  arquivo (a correção deste ramo).
+- [ ] **Um painel estreito** (A): divida o painel (⌘\) até o cartão ir
+  para cima do texto, dobrado na imagem e em três propriedades; "Mostrar
+  todas as propriedades" abre o resto e diz que está expandido.
+- [ ] **Uma imagem da web** (A): ponha em `mapa:` uma imagem `https://`
+  de uma origem não aprovada: o cartão mostra o endereço como texto, o
+  porquê e "Aprovar <origem>"; nada é buscado (`verso.log`, nenhuma
+  requisição). Aprove: a imagem aparece, e a origem está nas origens
+  aprovadas dos *Ajustes*. Com "carregar conteúdo remoto" desligado, uma
+  origem aprovada mostra "Carregar". Na janela web (UniVerso) uma imagem
+  `https:` de origem aprovada aparece; a CSP da página não mudou.
+- [ ] **Obsidian** (A): abra o mesmo cofre no Obsidian: as propriedades
+  do `Porto Cinzento` aparecem como o Obsidian as mostra, os habitantes
+  como links, a nota do schema como um bloco de código.
+
 ### O retorno da janela (fix/ui-feedback, 2026-10-14)
 
 - [ ] **Um servidor fora de alcance é dito onde você agiu** (A): uma

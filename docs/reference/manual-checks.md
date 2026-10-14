@@ -20,6 +20,36 @@ in the real app.
 
 ## Not yet checked
 
+### The infobox (ADR 0086, feat/infobox, 2026-10-14)
+
+- [ ] **A typed note as a card beside its text** (A): open
+  `Lugares/Porto Cinzento` in the demo vault. The card is at the right of
+  the text, the harbour's picture at its head, in Reading and in Edit;
+  VoiceOver (⌃⌥U, Landmarks) lists a complementary region "Porto
+  Cinzento" and reads the picture as "O Porto Cinzento visto do farol".
+  Tab goes "Abrir o schema" → each property in order →
+  "Outras propriedades" → "Adicionar propriedade". Opening it writes
+  nothing (`git status` in the vault, or the file's date).
+- [ ] **An edit in the card reaches the file, in both modes** (A): in
+  Edit mode, add a habitant with "Adicionar link…" (the list offers the
+  folder's notes), change "Perigo"; the file has `- "[[…]]"` and the new
+  number, nothing else changed; ⌘Z takes it back. The same in Reading.
+  Also a sticker or a cover set in Edit mode now reaches the file (the
+  fix of this branch).
+- [ ] **A narrow pane** (A): split the pane (⌘\) until the card goes
+  above the text, folded to the picture and three properties; "Mostrar
+  todas as propriedades" opens the rest and says it is expanded.
+- [ ] **A web picture** (A): set `mapa:` to an `https://` picture of an
+  origin not approved: the card shows the address as text, why, and
+  "Aprovar <origin>"; nothing is fetched (`verso.log`, no request).
+  Approve: the picture shows, and the origin is in *Ajustes*' approved
+  origins. With "load remote content" off, an approved origin shows
+  "Carregar" instead. In the web window (UniVerso) an `https:` picture
+  of an approved origin shows; the page's CSP is unchanged.
+- [ ] **Obsidian** (A): open the same vault in Obsidian: `Porto
+  Cinzento`'s properties show as Obsidian shows them, the habitants as
+  links, the schema's note as a code block.
+
 ### The window's feedback (fix/ui-feedback, 2026-10-14)
 
 - [ ] **A server out of reach is said where you acted** (A): a folder of

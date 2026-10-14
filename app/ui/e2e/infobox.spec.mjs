@@ -102,3 +102,17 @@ test("a picture or a link that does not fit its kind is shown as written and mar
   await expect(card.locator('.prop[data-key="aliados"]')).toHaveClass(/misfit/);
   await expect(card.locator('.prop[data-key="aliados"] input')).toHaveValue("Barão");
 });
+
+test("the demo vault's Porto Cinzento: the tutorial's infobox (note 21)", async ({ app, page }) => {
+  await app.open();
+  await app.quickOpen("Porto Cinzento");
+  const card = page.getByRole("complementary", { name: "Porto Cinzento" });
+  await expect(card).toBeVisible();
+  const picture = card.locator(".ib-picture img");
+  await expect(picture).toHaveAttribute("alt", "O Porto Cinzento visto do farol");
+  await expect.poll(() => picture.evaluate((i) => i.complete && i.naturalWidth)).toBe(320);
+  await expect(card.locator(".props-type")).toContainText("Tipo: Lugar");
+  expect(await card.locator(':scope > .prop[data-key="habitantes"] a.wikilink').allTextContents()).toEqual(["Lia Torres", "Capitão Ruy"]);
+  await expect(card.locator("details.ib-others > summary")).toHaveText("Outras propriedades (2)");
+  expect(await app.calls("write_note")).toEqual([]);
+});
