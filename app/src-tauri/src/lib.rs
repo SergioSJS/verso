@@ -50,6 +50,7 @@ mod menu;
 mod notes;
 mod protocol;
 mod reach;
+mod release_sums;
 mod remote;
 mod shares;
 mod sync;
