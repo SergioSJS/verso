@@ -1,0 +1,18 @@
+# AI draft by Opus 5.5 on 2026-10-14 (ADR 0031), for the maintainer's approval; not yet observed in Obsidian.
+# Construct: a `dice:` code (ADR 0088 item 1) is inline code, and the
+# dialect reads nothing inside it — the window draws it as a die, the parser
+# keeps it code (spec §5.9; CLAUDE.md rule 12): the link inside
+# `dice: [[Tabelas#^encontros]]` is no link, the only link is the one in the
+# table's row. A table with an `^id` alone after a blank line is a block, as
+# any table (Q3, Q21): what a random table is (item 3). "1–3" puts a
+# non-ASCII character before the link: col 9 in characters, 11 in bytes.
+# To observe on approval: Obsidian without the Dice Roller plugin shows the
+# code as code, and its links and blocks are these.
+links:
+  - target: Lobos
+    pos: { line: 5, col: 9 }
+blocks:
+  - id: encontros
+    pos: { line: 8, col: 1 }
+    lines: [3, 6]
+source: ADR 0088 items 1 and 3 (spec §5.9, Q3, Q21)
