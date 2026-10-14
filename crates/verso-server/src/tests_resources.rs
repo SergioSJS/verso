@@ -239,3 +239,66 @@ fn a_window_joins_a_bounded_number_of_rooms() {
         assert!(after.get("ok").is_some(), "{after}");
     });
 }
+
+/// A request from `address` through the trusted proxy whose body never
+/// comes: its headers, a byte of its body, and nothing more.
+async fn slow_body(r: &crate::tests::Running, address: &str) -> tokio::net::TcpStream {
+    use tokio::io::AsyncWriteExt;
+    let mut tcp = tokio::net::TcpStream::connect(r.addr()).await.unwrap();
+    tcp.write_all(
+        format!(
+            "POST /api/signin HTTP/1.1\r\nHost: localhost\r\nOrigin: {}\r\nX-Forwarded-For: {address}\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n{{",
+            r.origin()
+        )
+        .as_bytes(),
+    )
+    .await
+    .unwrap();
+    tcp
+}
+
+/// Requests through a trusted proxy count against the address it
+/// forwarded: past 32 in flight from one, the next is answered 429 while
+/// another address is served; a body that does not come is let go after
+/// the short deadline of a small body.
+#[test]
+fn one_address_holds_a_bounded_number_of_requests_through_the_proxy() {
+    use tokio::io::AsyncReadExt;
+    block_on(async {
+        let r = crate::tests::start_with(|c| {
+            c.trusted_proxy = crate::proxy::Proxies::parse("127.0.0.1").unwrap();
+        })
+        .await;
+        let mut held = Vec::new();
+        for _ in 0..crate::http::IN_FLIGHT {
+            held.push(slow_body(&r, "198.51.100.7").await);
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        let client = reqwest::Client::new();
+        let from = |address: &str| {
+            client
+                .get(r.url("/api/state"))
+                .header("x-forwarded-for", address)
+                .send()
+        };
+        let next_one = from("198.51.100.7").await.unwrap().status().as_u16();
+        assert_eq!(
+            next_one,
+            429,
+            "request {} from one address was served",
+            crate::http::IN_FLIGHT + 1
+        );
+        let other = from("198.51.100.8").await.unwrap().status().as_u16();
+        assert_eq!(other, 200);
+        // The bodies that never came are let go, answered 408.
+        let mut answer = [0_u8; 12];
+        tokio::time::timeout(
+            crate::http::BODY_WITHIN + std::time::Duration::from_secs(5),
+            held[0].read_exact(&mut answer),
+        )
+        .await
+        .expect("a body that never came still held its request")
+        .unwrap();
+        assert_eq!(&answer, b"HTTP/1.1 408");
+    });
+}

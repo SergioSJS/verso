@@ -315,6 +315,8 @@ pub struct Server {
     pub unforwarded: crate::log::OnceAMinute,
     /// The REST routes' pace per address (ADR 0083 item 7).
     pub pace: crate::pace::Pace,
+    /// The requests in flight per client address (`crate::http`).
+    pub requests: crate::listen::Requests,
     /// The bytes of the WebSocket's large messages and answers under way
     /// (`crate::inflight`).
     pub inflight: crate::inflight::Inflight,
@@ -388,6 +390,7 @@ impl Server {
             slots,
             unforwarded: crate::log::OnceAMinute::default(),
             pace: crate::pace::Pace::default(),
+            requests: crate::listen::Requests::default(),
             inflight: crate::inflight::Inflight::default(),
             contract,
             next: AtomicU64::new(1),

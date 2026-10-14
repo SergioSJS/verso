@@ -467,6 +467,30 @@ with the proxy's address and the log says, once a minute, *a request from
 the trusted proxy carried no X-Forwarded-For: is the proxy configured to
 forward it?*
 
+**Requests in flight, and bodies that trickle in.** Through a proxy every
+connection counts against the server's 512 alone, so Verso bounds what
+one client holds by the address the proxy forwarded: 32 requests in
+flight at once from one address (an IPv6 /64 as one), past which it
+answers 429 with `Retry-After`; and a request's body — a form, a setting,
+never a file, which goes over the WebSocket — must arrive within 10
+seconds, or it is answered 408. A proxy that forwards nothing makes every
+visitor share those 32 too. Caddy can take a slow body off Verso
+altogether: with `request_buffers`, it reads the body itself before it
+opens the request to Verso, so a client that trickles one holds a Caddy
+connection, not one of Verso's places:
+
+```
+notes.example.com {
+    reverse_proxy 127.0.0.1:7340 {
+        request_buffers 1MiB
+    }
+}
+```
+
+1 MiB is the largest body Verso's API takes. The option is Caddy's
+(`reverse_proxy`'s documentation); it has not been tried against a live
+Caddy here.
+
 ### Behind Cloudflare
 
 Cloudflare reaches the server from many addresses, which it publishes at

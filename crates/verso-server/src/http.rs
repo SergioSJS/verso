@@ -435,6 +435,24 @@ const API_BODY: usize = 1024 * 1024;
 /// bounded by its own loop (`crate::rpc`).
 const REQUEST_WITHIN: std::time::Duration = std::time::Duration::from_secs(60);
 
+/// The requests one client address may have in flight at once (an IPv6
+/// /64 as one), directly or through a trusted proxy: a browser's six
+/// connections for each of a household's few devices, with room. Through
+/// a proxy, a connection counts only against the server's
+/// `crate::listen::CONNECTIONS`, and a client that trickled its bodies
+/// could hold them all from one address; past this it is answered 429.
+pub const IN_FLIGHT: usize = 32;
+
+/// How long a request's body may take to arrive (the review of
+/// 2026-10-13): a body here is a form, a setting, a passkey — [`API_BODY`]
+/// at most, never a file, which goes over the WebSocket — so a few
+/// seconds on a slow link; a client that trickles one in holds its place
+/// no longer. [`REQUEST_WITHIN`] still bounds the answer.
+#[cfg(not(test))]
+pub const BODY_WITHIN: std::time::Duration = std::time::Duration::from_secs(10);
+#[cfg(test)]
+pub const BODY_WITHIN: std::time::Duration = std::time::Duration::from_secs(2);
+
 async fn deadline(request: Request, next: Next) -> Response {
     match tokio::time::timeout(REQUEST_WITHIN, next.run(request)).await {
         Ok(response) => response,
@@ -465,23 +483,9 @@ async fn pace(State(server): State<Arc<Server>>, request: Request, next: Next) -
     if !path.starts_with("/api/") {
         return next.run(request).await;
     }
-    let remote = request
-        .extensions()
-        .get::<ConnectInfo<Remote>>()
-        .map_or_else(|| SocketAddr::from(([127, 0, 0, 1], 0)), |c| c.0.0);
-    let proxies = &server.config.trusted_proxy;
-    let client = proxies.client(
-        remote.ip(),
-        request
-            .headers()
-            .get_all("x-forwarded-for")
-            .iter()
-            .filter_map(|v| v.to_str().ok()),
-    );
-    if !client.from_proxy && remote.ip().is_loopback() {
+    let Some(key) = client_key(&server, &request) else {
         return next.run(request).await;
-    }
-    let key = crate::limit::address_key(client.addr);
+    };
     let too_many = |wait: u64| {
         ApiError {
             retry: Some(wait),
@@ -529,6 +533,48 @@ fn page_policy(ws_origin: &str) -> String {
     )
 }
 
+/// The key a request is counted under: the client's address as the
+/// trusted proxies walk it, an IPv6 /64 as one — the pace's key — or
+/// `None` for a direct connection from this machine, which speaks for
+/// everyone and is not counted.
+fn client_key(server: &Server, request: &Request) -> Option<String> {
+    let remote = request
+        .extensions()
+        .get::<ConnectInfo<Remote>>()
+        .map_or_else(|| SocketAddr::from(([127, 0, 0, 1], 0)), |c| c.0.0);
+    let client = server.config.trusted_proxy.client(
+        remote.ip(),
+        request
+            .headers()
+            .get_all("x-forwarded-for")
+            .iter()
+            .filter_map(|v| v.to_str().ok()),
+    );
+    if !client.from_proxy && remote.ip().is_loopback() {
+        return None;
+    }
+    Some(crate::limit::address_key(client.addr))
+}
+
+/// The request's body read whole within [`BODY_WITHIN`] and [`API_BODY`],
+/// or the answer that refuses it: 408 past the time, 413 past the size.
+async fn with_body(request: Request) -> Result<Request, ApiError> {
+    let (parts, body) = request.into_parts();
+    match tokio::time::timeout(BODY_WITHIN, axum::body::to_bytes(body, API_BODY)).await {
+        Ok(Ok(bytes)) => Ok(Request::from_parts(parts, axum::body::Body::from(bytes))),
+        Ok(Err(_)) => Err(ApiError::new(
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "too_large",
+            "a request's body is 1 MB at most",
+        )),
+        Err(_) => Err(ApiError::new(
+            StatusCode::REQUEST_TIMEOUT,
+            "timeout",
+            "the request's body took too long",
+        )),
+    }
+}
+
 /// The size of a request's head as it came: its line, and each header as
 /// `name: value` and a line end.
 fn head_size(request: &Request) -> usize {
@@ -542,8 +588,9 @@ fn head_size(request: &Request) -> usize {
 }
 
 /// Before every route: the head within 64 KiB, or 431 (ADR 0083 item 8);
-/// the `Host` named this server, or 421; after it, the
-/// server's headers on every answer.
+/// the `Host` named this server, or 421; a place among its address's
+/// requests in flight, or 429; its body within [`BODY_WITHIN`], or 408;
+/// after it, the server's headers on every answer.
 async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) -> Response {
     if head_size(&request) > crate::listen::HEAD_MOST {
         return ApiError::new(
@@ -561,6 +608,31 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
         )
         .into_response();
     }
+    // Its place among its address's requests, held until it is answered.
+    let _place = match client_key(&server, &request) {
+        Some(key) => match server.requests.take(&key, IN_FLIGHT) {
+            Some(place) => Some(place),
+            None => {
+                server.requests.said.warn(&format!(
+                    "requests refused: {key} has {IN_FLIGHT} in flight"
+                ));
+                return ApiError {
+                    retry: Some(1),
+                    ..ApiError::new(
+                        StatusCode::TOO_MANY_REQUESTS,
+                        "too_many",
+                        "too many requests at once",
+                    )
+                }
+                .into_response();
+            }
+        },
+        None => None,
+    };
+    let request = match with_body(request).await {
+        Ok(request) => request,
+        Err(refused) => return refused.into_response(),
+    };
     let ws_origin = auth::expected_origin(&server, request.headers())
         .map(|o| o.replacen("http", "ws", 1))
         .unwrap_or_default();
