@@ -21,6 +21,21 @@ in the real app.
 
 ### The window's feedback (fix/ui-feedback, 2026-10-14)
 
+- [ ] **A server out of reach is said where you acted** (A): a folder of
+  this computer open, signed in to a UniVerso, then stop the server. In
+  *Ajustes › Sincronizar*, above the button: *Não foi possível alcançar o
+  servidor localhost:7351 — ele está fora do ar ou sem rede.* and *Tentar
+  de novo*; press *Sincronizar esta pasta*: it turns busy for a moment and
+  the message stays. Start the server, *Tentar de novo*: the folder syncs.
+  The same in *Ajustes › Servidores* (in place of the server's folders,
+  and under *Abrir aqui*) and in the folder switcher. A folder that syncs,
+  its server stopped: the status bar says *Servidor fora de alcance:
+  localhost:7351* within seconds, and its section says why with
+  *Sincronizar agora*. `verso.log`: one `WARN host unreachable: the
+  server at http://localhost:7351: … Connection refused …` a minute, no
+  ERROR a click. Not verified by a test: the system's own failures for a
+  name that does not exist and a TLS certificate refused — try
+  `https://naoexiste.invalid` in *Servidores › Conectar*.
 - [ ] **The palette over the settings** (B): *Ajustes* open, a click on
   a section, then ⌘⇧P: the palette is on top with the cursor in it;
   Escape closes the palette alone, the focus back in *Ajustes*; Escape

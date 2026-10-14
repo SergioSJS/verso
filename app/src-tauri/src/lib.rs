@@ -49,6 +49,7 @@ mod log;
 mod menu;
 mod notes;
 mod protocol;
+mod reach;
 mod remote;
 mod shares;
 mod sync;
