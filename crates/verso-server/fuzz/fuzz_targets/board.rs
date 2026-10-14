@@ -47,9 +47,11 @@
 //! both updates and end at the same state vector with different
 //! elements. No window makes an item twice; a window that writes as
 //! another window's client does, and then the room keeps its item and
-//! the other window its own. `[OPEN]`: the room does not tie a Yjs client
-//! to the connection that speaks for it in updates, as it does in
-//! presences (`presence.rs`) — a decision for the maintainer.
+//! the other window its own: a room now ties each Yjs client to the
+//! account that first wrote as it and refuses another account's items
+//! under it (`writers.rs`; decided by the maintainer on 2026-10-14, "sim
+//! para os 2"). This target feeds the room one window's updates, so the
+//! order is still compared only when each item is made once.
 //! And `a-client-named-twice.bin` (2026-10-14): an update that names one
 //! client in two sections, on which `yrs` freed an item the room's board
 //! still pointed to (AddressSanitizer); refused by `yjs_bounds.rs`.
