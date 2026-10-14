@@ -18,6 +18,61 @@ app real.
 
 ## Ainda não conferido
 
+### Notificações na janela (ADR 0084, feat/notify-ui, 2026-10-14)
+
+- [ ] **O servidor parado e iniciado de novo**: uma pasta deste
+  computador que sincroniza com um UniVerso, e então pare o servidor. Em
+  segundos, um aviso embaixo à direita, *Sincronização sem conexão*, que
+  fica; o sino na barra de status diz *1 notificação não lida*. Inicie o
+  servidor: o aviso vira *A sincronização voltou* e some em 6 s; a lista
+  do sino tem uma linha, a mais nova. O mesmo com uma pasta do servidor
+  aberta na janela: *Conexão com o servidor perdida*, depois *Servidor
+  de volta* — uma vez cada, quantas tentativas o host fizer.
+- [ ] **Um compartilhamento revogado, numa janela na pasta do servidor**:
+  abra, no app do computador, uma pasta que outra conta compartilha com
+  você; essa conta revoga. A linha de status e um aviso dizem *Quem
+  compartilhou esta pasta, em …, revogou o seu acesso*, nunca *A conexão
+  com o servidor caiu; tentando de novo…*.
+- [ ] **Um compartilhamento dado por outra conta**: conectado a um
+  UniVerso em *Ajustes › Servidores* (ou no navegador), outra conta
+  compartilha uma pasta com você: um aviso *Uma pasta foi compartilhada
+  com você* — quem, qual, o papel — com *Ver as pastas*, que abre
+  *Ajustes › Servidores* (no navegador, o seletor de pastas). Uma vez por
+  compartilhamento.
+- [ ] **Uma atualização encontrada**: uma versão instalada mais velha que
+  a última: um aviso *Nova versão disponível* alguns segundos depois de
+  abrir, com *Baixar e atualizar* e *Ver nos Ajustes*; feche e abra de
+  novo: nenhum segundo aviso para a mesma versão (a lista do sino ainda a
+  tem). Deixado aberto por um dia, uma versão publicada no meio-tempo é
+  dita.
+- [ ] **A cota numa pasta sincronizada**: uma pasta deste computador
+  sincronizada passando de 90 % da cota no servidor, depois de salvar:
+  *Pasta quase cheia*, uma vez; de novo só depois de cair abaixo de 90 %
+  e passar de novo.
+- [ ] **As notificações do sistema, pedidas e recusadas, em cada sistema**
+  (macOS, Windows, Linux, e um navegador por HTTPS): *Ajustes ›
+  Notificações › Também nas notificações do sistema* desligado de início;
+  ligado, o pedido do navegador (no computador o plugin 2.4 do Tauri
+  responde "permitido" sozinho; veja se o macOS pergunta na primeira
+  notificação) — permitido, *Ligado.*; recusado (ou
+  desligado depois nos ajustes do sistema, e o app reaberto), a linha
+  volta a desligado dizendo por quê. Num navegador por HTTP simples a
+  linha diz que precisa de HTTPS e não liga; no Safari de um iPhone fora
+  da tela inicial, que precisa do app instalado.
+- [ ] **Uma notificação com a janela atrás**: as notificações do sistema
+  ligadas, a janela atrás de outro app (ou minimizada, ou em outra aba do
+  navegador), e então pare o servidor: uma notificação do sistema
+  *Sincronização sem conexão*. Com a janela na frente: só o aviso. Um
+  clique na notificação do sistema: no navegador a janela vem para a
+  frente e a central abre nela. No computador, confira o que o clique faz
+  em cada sistema — o plugin de notificações do Tauri não avisa a página
+  de clique ali, então a central não abre sozinha (o sino tem a
+  contagem).
+- [ ] **VoiceOver e o teclado**: um aviso é lido uma vez quando chega (um
+  erro na hora), o foco ficando onde estava; Tab alcança os botões do
+  aviso, Esc o fecha e o foco volta; o sino é lido com a contagem; a
+  central é um diálogo, Esc a fecha.
+
 ### O retorno da janela (fix/ui-feedback, 2026-10-14)
 
 - [ ] **Um servidor fora de alcance é dito onde você agiu** (A): uma

@@ -12,7 +12,17 @@ versão de teste.
 
 ## Não lançado
 
-Nada ainda.
+### Adicionado
+
+- **Notificações na janela** ([ADR 0084](adr/0084-notifications-in-the-window.md)): o que muda sem você ter pedido é dito uma vez, num aviso embaixo à direita (no alto, no celular), e fica numa lista: a sincronização de uma pasta que falha e volta, a conexão com o servidor que cai e volta, uma cópia de conflito, um conflito numa nota ao vivo, uma pasta compartilhada com você, um compartilhamento revogado, uma versão nova, uma pasta passando de 90 % da cota, itens saindo da lixeira em até 3 dias, alguém que entra na nota que você edita. Um aviso de informação some em 6 s; um de atenção ou de erro fica até ser fechado ou até o estado voltar; o ponteiro em cima ou o teclado dentro o seguram, e Esc o fecha. Um aviso nunca toma o foco; é lido para um leitor de tela, um erro na hora. O sino na barra de status, antes de *Relatar problema* (no celular, no alto da área), conta o que não foi visto e abre a lista, como *Notificações* na paleta: o mais novo primeiro, com a hora e a pasta, e o que dá para fazer; *Limpar* esvazia. A lista é deste computador — até 100, por 30 dias —, nunca da conta.
+- ***Ajustes › Notificações***: para cada tipo, *Aviso e lista*, *Só na lista* ou *Desligado* (*Aviso e lista* de início), guardados com os seus ajustes e com a conta num servidor. Desligar um tipo não esconde o estado: a barra de status e as notas continuam dizendo.
+- **As notificações do sistema, se você ligar**: *Também nas notificações do sistema* começa desligado; ao ligar, o sistema ou o navegador pede a permissão, e uma recusa desliga de novo e diz por quê. Ligado, o que está em *Aviso e lista* vai também para o sistema enquanto a janela está atrás de outras, minimizada ou em outra aba; no navegador, um clique nela traz a janela para a frente com a lista aberta nela. Um navegador por HTTP simples, ou o navegador de um celular fora de um app instalado, diz que não dá.
+- **Uma versão nova é procurada a cada 24 h com o app aberto**, sob *Verificar atualizações automaticamente*, e dita uma vez por versão, como notificação com *Baixar e atualizar* e *Ver nos Ajustes* — não mais uma faixa no alto, mostrada a cada abertura.
+
+### Corrigido
+
+- **Um compartilhamento revogado é dito como revogação**: uma janela do app do computador numa pasta de servidor cujo compartilhamento foi revogado dizia *A conexão com o servidor caiu; tentando de novo…*; agora diz que quem compartilhou a pasta revogou o seu acesso, e não toma o fim da conexão que vem depois por uma queda.
+- **Uma pasta perto da cota é dita uma vez**: o aviso dos 90 % voltava a cada dez minutos enquanto você escrevia; agora é dito uma vez, e de novo só depois que a pasta caiu abaixo de 90 % e passou de novo — também para uma pasta deste computador que sincroniza.
 
 ## 0.8.2-beta.1 — 2026-10-14
 
