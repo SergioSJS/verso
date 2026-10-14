@@ -94,6 +94,7 @@ fn main() {
         "set_device_name",
         "server_folders",
         "server_open",
+        "server_retry",
         "share_list",
         "share_grant",
         "share_revoke",

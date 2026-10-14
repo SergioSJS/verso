@@ -108,7 +108,7 @@ pub(crate) async fn set_device_name<R: tauri::Runtime>(
                             .bearer_auth(&login.token)
                             .json(&json!({ "device": session }))
                             .send()
-                            .map_err(|e| failed(e.to_string()))?,
+                            .map_err(|e| reach::unsent(&login.url, &e))?,
                     )
                 });
                 match told {

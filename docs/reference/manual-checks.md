@@ -19,6 +19,50 @@ in the real app.
 
 ## Not yet checked
 
+### The window's feedback (fix/ui-feedback, 2026-10-14)
+
+- [ ] **A server out of reach is said where you acted** (A): a folder of
+  this computer open, signed in to a UniVerso, then stop the server. In
+  *Ajustes › Sincronizar*, above the button: *Não foi possível alcançar o
+  servidor localhost:7351 — ele está fora do ar ou sem rede.* and *Tentar
+  de novo*; press *Sincronizar esta pasta*: it turns busy for a moment and
+  the message stays. Start the server, *Tentar de novo*: the folder syncs.
+  The same in *Ajustes › Servidores* (in place of the server's folders,
+  and under *Abrir aqui*) and in the folder switcher. A folder that syncs,
+  its server stopped: the status bar says *Servidor fora de alcance:
+  localhost:7351* within seconds, and its section says why with
+  *Sincronizar agora*. `verso.log`: one `WARN host unreachable: the
+  server at http://localhost:7351: … Connection refused …` a minute, no
+  ERROR a click. Not verified by a test: the system's own failures for a
+  name that does not exist and a TLS certificate refused — try
+  `https://naoexiste.invalid` in *Servidores › Conectar*.
+- [ ] **A window on a server's folder, its server stopped** (A): open a
+  folder of the UniVerso in the window, stop the server: the status bar
+  says *A conexão com o servidor caiu; tentando de novo…*, then, within
+  5 s, *Servidor fora de alcance: localhost:7351* and *Tentar de novo*.
+  `verso.log`: the tries at 5, 10, 20, 40 s… (one WARN line a minute,
+  not one a try). Start the server, *Tentar de novo*: within a second,
+  *Conectado ao servidor de novo.*, the folder as it is on the server.
+- [ ] **The palette over the settings** (B): *Ajustes* open, a click on
+  a section, then ⌘⇧P: the palette is on top with the cursor in it;
+  Escape closes the palette alone, the focus back in *Ajustes*; Escape
+  again closes *Ajustes*. The same with ⌘P and with *Ajuda › Relatar
+  problema* over *Ajustes*. VoiceOver, the palette open: nothing of
+  *Ajustes* is read behind it.
+- [ ] **The palette over the share dialog** (B): on a UniVerso folder you
+  own, a folder's menu › *Compartilhar…*, type an e-mail, then ⌘⇧P: the
+  palette is on top with the cursor in it; Escape closes the palette
+  alone, the e-mail still typed and the cursor back in its field; Escape
+  again closes the dialog. VoiceOver: the dialog is not read behind the
+  palette.
+- [ ] **DevTools' console says a failure** (C): the console open (⌥⌘I),
+  the server stopped, *Sincronizar esta pasta*: one warning, `Verso:
+  unreachable: localhost:7351`, and no token or password in any line.
+- [ ] **The report's time is the computer's** (D): *Relatar problema*:
+  the line *Hora deste computador: 2026-10-14 10:25:24 (UTC−03:00)* is the
+  Mac's clock and zone; the log's lines under it are in UTC (`Z`), three
+  hours ahead in São Paulo.
+
 ### Security hardening (ADR 0083, 2026-10-13)
 
 - [ ] **A shared note and a shared board edited from the desktop app while

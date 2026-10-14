@@ -1,0 +1,124 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+// A failure said where the person acted (the maintainer, 2026-10-14,
+// clicking "Sincronizar esta pasta" with the server down: nothing on the
+// screen, two ERROR lines in the log per click). Every place the window
+// talks to a server — Settings › Sync and Servers, the folder switcher —
+// says a failure beside the button or the list it came from: what went
+// wrong in the person's language, and a button to try again. A server
+// that could not be reached (the contract's `unreachable`, whose message
+// is the server's address) is said as such; anything else in the
+// window's sentence for its kind. While a try runs, its button is
+// disabled and busy.
+//
+// A module without the page — only `document` — so the unit tests reach
+// it (test/reach.test.mjs).
+
+import type { ContractError } from "./bindings";
+import { REACH, errorParts, toConsole } from "./errorKinds";
+
+const pt = {
+  unreachable: (address: string) => `Não foi possível alcançar o servidor ${address} — ele está fora do ar ou sem rede.`,
+  unreachableShort: (address: string) => `Servidor fora de alcance: ${address}`,
+  tryAgain: "Tentar de novo",
+};
+const en: typeof pt = {
+  unreachable: (address: string) => `Couldn't reach the server ${address} — it is down or the network is off.`,
+  unreachableShort: (address: string) => `Server unreachable: ${address}`,
+  tryAgain: "Try again",
+};
+
+export function reachStrings(): typeof pt {
+  return document.documentElement.lang.startsWith("pt") ? pt : en;
+}
+
+/** The server's address when `e` says it could not be reached. */
+export function unreachableAt(e: ContractError | unknown): string | null {
+  const { kind, message } = errorParts(e);
+  return kind === REACH ? message : null;
+}
+
+/** A server's address from its URL: `host[:port]`. */
+export function addressOf(url: string): string {
+  return url.replace(/^[a-z]+:\/\//i, "").split("/")[0] ?? url;
+}
+
+type Said = (e: ContractError | unknown) => string;
+
+/** Where a failure said in a panel is also kept: the console's line, and,
+ *  once the window has started, the report and the app's log (errors.ts
+ *  installs `told`). */
+let keep: (e: ContractError | unknown) => void = toConsole;
+export function keepFailuresWith(f: (e: ContractError | unknown) => void): void {
+  keep = f;
+}
+
+/** The window's sentence for `e`: a server out of reach said as such;
+ *  any other, by `other` (errors.ts's `errorSentence`, or its message). */
+export function failureText(e: ContractError | unknown, other: Said = (x) => errorParts(x).message): string {
+  const at = unreachableAt(e);
+  return at !== null ? reachStrings().unreachable(at) : other(e);
+}
+
+/** Say `e` in `where`, an alert the screen reader reads at once, with a
+ *  button that runs `retry`; kept as every failure is (`keep`). */
+export function sayFailure(where: HTMLElement, e: ContractError | unknown, retry: (() => void) | null, other?: Said): void {
+  const s = reachStrings();
+  const box = document.createElement("div");
+  box.className = "reach-failure";
+  box.setAttribute("role", "alert");
+  const text = document.createElement("p");
+  text.textContent = failureText(e, other);
+  box.append(text);
+  if (retry) {
+    const again = document.createElement("button");
+    again.type = "button";
+    again.className = "btn quiet reach-retry";
+    again.textContent = s.tryAgain;
+    again.addEventListener("click", () => retry());
+    box.append(again);
+  }
+  where.hidden = false;
+  where.replaceChildren(box);
+  keep(e);
+}
+
+/** Nothing to say in `where` any more. */
+export function clearFailure(where: HTMLElement): void {
+  where.replaceChildren();
+  where.hidden = true;
+}
+
+/** `button` while its try runs: disabled and busy, said to a screen
+ *  reader; as before once it ends. */
+export function busy(button: HTMLButtonElement, on: boolean): void {
+  button.disabled = on;
+  button.classList.toggle("is-busy", on);
+  if (on) button.setAttribute("aria-busy", "true");
+  else button.removeAttribute("aria-busy");
+}
+
+type Answer<T> = { status: "ok"; data: T } | { status: "error"; error: ContractError };
+
+/** Run `call` for the person: `button` busy while it runs, a failure said
+ *  in `where` with a button to try again (`retry`, or `call` once more
+ *  with the same button), and the answer returned either way. */
+export async function attempt<T>(
+  where: HTMLElement,
+  call: () => Promise<Answer<T>>,
+  opts: { button?: HTMLButtonElement | null; retry?: () => void; other?: Said } = {},
+): Promise<Answer<T>> {
+  const { button = null, other } = opts;
+  if (button) busy(button, true);
+  let r: Answer<T>;
+  try {
+    r = await call();
+  } finally {
+    if (button) busy(button, false);
+  }
+  if (r.status === "ok") clearFailure(where);
+  else sayFailure(where, r.error, opts.retry ?? (() => void attempt(where, call, opts)), other);
+  return r;
+}

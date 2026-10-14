@@ -14,6 +14,7 @@ import { ask } from "../dialog";
 import { diffNode } from "../diff";
 import { h } from "../dom";
 import { errorSentence, fail } from "../errors";
+import { addressOf, reachStrings } from "../reach";
 import { liveHolder, openNote } from "../layout/spaces";
 import { roomSide, syncedSessions } from "../collab";
 import { writeLive } from "../roomWrites";
@@ -31,6 +32,7 @@ const pt = {
   },
   connecting: "Conectando ao servidor…",
   offline: "Sem conexão. As mudanças esperam e cruzam quando a rede voltar.",
+  serverBack: "As mudanças esperam e cruzam quando ele voltar.",
   paused: "Pausada. Nada cruza até você retomar.",
   stoppedBefore: (n: number) => `Parada antes de apagar ${n} arquivos.`,
   error: "A sincronização não está funcionando.",
@@ -121,6 +123,7 @@ const en: typeof pt = {
   },
   connecting: "Connecting to the server…",
   offline: "Offline. Changes wait, and cross when the network is back.",
+  serverBack: "Changes wait, and cross when it is back.",
   paused: "Paused. Nothing crosses until you resume.",
   stoppedBefore: (n) => `Stopped before deleting ${n} files.`,
   error: "Sync is not working.",
@@ -240,6 +243,8 @@ function headline(st: SyncStatus, waiting: number): { text: string; tone: "ok" |
   const s = words();
   if (st.state === "paused" && st.deletions) return { text: s.stoppedBefore(st.deletions), tone: "attention" };
   if (st.state === "paused") return { text: s.paused, tone: "quiet" };
+  // The server, not the network, did not answer: named, and why it may be.
+  if (st.state === "offline" && st.problem === "unreachable") return { text: `${reachStrings().unreachable(addressOf(st.server))} ${s.serverBack}`, tone: "attention" };
   if (st.state === "offline") return { text: s.offline, tone: "quiet" };
   if (st.state === "starting") return { text: s.connecting, tone: "busy" };
   if (st.state === "error") return { text: s.error, tone: "attention" };

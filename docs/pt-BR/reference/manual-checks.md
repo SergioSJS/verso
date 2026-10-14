@@ -18,6 +18,50 @@ app real.
 
 ## Ainda não conferido
 
+### O retorno da janela (fix/ui-feedback, 2026-10-14)
+
+- [ ] **Um servidor fora de alcance é dito onde você agiu** (A): uma
+  pasta deste computador aberta, conectado a um UniVerso, e então pare o
+  servidor. Em *Ajustes › Sincronizar*, acima do botão: *Não foi possível
+  alcançar o servidor localhost:7351 — ele está fora do ar ou sem rede.* e
+  *Tentar de novo*; aperte *Sincronizar esta pasta*: ele fica ocupado por
+  um instante e a mensagem fica. Ligue o servidor, *Tentar de novo*: a
+  pasta sincroniza. O mesmo em *Ajustes › Servidores* (no lugar das pastas
+  do servidor, e sob *Abrir aqui*) e no seletor de pastas. Uma pasta que
+  sincroniza, com o servidor parado: a barra de status diz *Servidor fora
+  de alcance: localhost:7351* em segundos, e a seção dela diz por quê, com
+  *Sincronizar agora*. `verso.log`: um `WARN host unreachable: the server
+  at http://localhost:7351: … Connection refused …` por minuto, nenhum
+  ERROR por clique. Não verificado por teste: as falhas do próprio sistema
+  para um nome que não existe e um certificado TLS recusado — tente
+  `https://naoexiste.invalid` em *Servidores › Conectar*.
+- [ ] **Uma janela numa pasta de servidor, com o servidor parado** (A):
+  abra uma pasta do UniVerso na janela, pare o servidor: a barra de status
+  diz *A conexão com o servidor caiu; tentando de novo…* e, em até 5 s,
+  *Servidor fora de alcance: localhost:7351* e *Tentar de novo*.
+  `verso.log`: as tentativas a 5, 10, 20, 40 s… (uma linha WARN por
+  minuto, não uma por tentativa). Ligue o servidor, *Tentar de novo*: em
+  um segundo, *Conectado ao servidor de novo.*, a pasta como está no
+  servidor.
+- [ ] **A paleta sobre os ajustes** (B): *Ajustes* aberto, um clique numa
+  seção, depois ⌘⇧P: a paleta fica por cima com o cursor nela; Esc fecha
+  só a paleta, e o foco volta para *Ajustes*; Esc de novo fecha *Ajustes*.
+  O mesmo com ⌘P e com *Ajuda › Relatar problema* sobre *Ajustes*.
+  VoiceOver, com a paleta aberta: nada de *Ajustes* é lido atrás dela.
+- [ ] **A paleta sobre o diálogo de compartilhar** (B): numa pasta de
+  UniVerso que é sua, o menu de uma pasta › *Compartilhar…*, digite um
+  e-mail, depois ⌘⇧P: a paleta fica por cima com o cursor nela; Esc fecha
+  só a paleta, o e-mail ainda digitado e o cursor de volta no campo; Esc
+  de novo fecha o diálogo. VoiceOver: o diálogo não é lido atrás da
+  paleta.
+- [ ] **O console do DevTools diz uma falha** (C): o console aberto
+  (⌥⌘I), o servidor parado, *Sincronizar esta pasta*: um aviso, `Verso:
+  unreachable: localhost:7351`, e nenhum token ou senha em linha alguma.
+- [ ] **A hora do relatório é a do computador** (D): *Relatar problema*:
+  a linha *Hora deste computador: 2026-10-14 10:25:24 (UTC−03:00)* é o
+  relógio e o fuso do Mac; as linhas do registro abaixo dela estão em UTC
+  (`Z`), três horas à frente em São Paulo.
+
 ### Endurecimento de segurança (ADR 0083, 2026-10-13)
 
 - [ ] **Uma nota e um board compartilhados editados pelo app desktop
