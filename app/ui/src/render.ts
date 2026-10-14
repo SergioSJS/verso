@@ -8,6 +8,7 @@ import { classHighlighter, highlightCode } from "@lezer/highlight";
 import katex from "katex";
 import { h } from "./dom";
 import { icon } from "./icons";
+import { markSecrets } from "./secret/blocks";
 import { t } from "./strings";
 
 /** Code blocks colored by their language and math typeset, in rendered
@@ -53,6 +54,8 @@ export function typeset(root: HTMLElement): void {
  *  stays a link. */
 export function wireCallouts(root: ParentNode, open: readonly boolean[] = []): void {
   let at = 0;
+  // A secret block says what it does (ADR 0087 item 5).
+  markSecrets(root);
   for (const box of root.querySelectorAll<HTMLElement>(".callout[data-fold]")) {
     const was = open[at++];
     const title = box.querySelector<HTMLElement>(":scope > .callout-title");
