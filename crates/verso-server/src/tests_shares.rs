@@ -57,7 +57,7 @@ async fn furnished(r: &Running, admin: &Browser) -> (String, Win) {
             "Segredo",
             "# Segredo\n\npalavrachave segredissima [[Notas]]\n\n#mesa\n",
         ),
-        ("Mesa2/Fora", "Fora da mesa palavrachave\n"),
+        ("Mesa2/Fora", "Fora da mesa palavrachave, Notas\n"),
     ] {
         let made = w
             .call("create_note", json!({ "name": name, "text": text }))
@@ -188,6 +188,12 @@ fn a_reader_sees_the_shared_folder_and_nothing_above_or_beside_it() {
         says_nothing_outside(&found);
         let backlinks = w.call("backlinks", json!({ "path": "Notas.md" })).await;
         assert_eq!(backlinks["ok"], json!([]), "{backlinks}");
+        // A mention in a note outside the share is not said (ADR 0089).
+        let mentions = w
+            .call("unlinked_mentions", json!({ "path": "Notas.md" }))
+            .await;
+        assert_eq!(mentions["ok"]["mentions"], json!([]), "{mentions}");
+        says_nothing_outside(&mentions);
         // A link out of the share: the name written, nothing else — not
         // whether it exists, not where.
         let links = w.call("links", json!({ "path": "Notas.md" })).await;

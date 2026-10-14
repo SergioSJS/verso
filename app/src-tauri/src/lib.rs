@@ -33,8 +33,8 @@ use verso_contract::{
     AppInfo, Backlink, BaseQuery, BaseResult, Can, Capabilities, CliState, CollabJoin, CollabState,
     CollabUpdate, ContractError, Edge, ErrorKind, FileEntry, Focus, FocusesSummary, FolderChanged,
     FolderInfo, FolderLayer, FolderSettings, FolderSpace, Hit, Host, IndexProgress, IndexSummary,
-    Link, McpAdded, McpClientState, McpStatus, MovedEntries, NoteText, Renamed, ServerAccount, Tag,
-    TextFile, Trashed, UpdateProgress, WebNote, Written,
+    Link, McpAdded, McpClientState, McpStatus, Mentions, MovedEntries, NoteText, Renamed,
+    ServerAccount, Tag, TextFile, Trashed, UpdateProgress, WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
 use verso_service::{OpError, Service, lock, no_folder, ops, refused};
@@ -621,6 +621,7 @@ macro_rules! commands_for {
                 search::<$runtime>,
                 links::<$runtime>,
                 backlinks::<$runtime>,
+                unlinked_mentions::<$runtime>,
                 write_note::<$runtime>,
                 create_note::<$runtime>,
                 create_file::<$runtime>,

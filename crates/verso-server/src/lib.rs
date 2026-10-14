@@ -341,6 +341,8 @@ mod tests_console;
 #[cfg(test)]
 mod tests_hashes;
 #[cfg(test)]
+mod tests_mentions;
+#[cfg(test)]
 mod tests_pieces;
 #[cfg(test)]
 mod tests_prove;

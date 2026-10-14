@@ -878,8 +878,10 @@ async fn folder_command(
     // A window on a share (ADR 0081 item 2): its paths joined to the
     // shared folder's and confined there before the core acts; the answer
     // filtered to the share and re-rooted at it.
+    let reads_only = !(role.writes() && token_writes);
     let Some(scope) = scope else {
-        return folder_run(server, who, client, (name, access), (&folder, &key), args).await;
+        let answer = folder_run(server, who, client, (name, access), (&folder, &key), args).await?;
+        return Ok(for_reader(name, reads_only, answer));
     };
     let limit = args["limit"]
         .as_u64()
@@ -971,7 +973,23 @@ async fn folder_command(
             .await;
         }
     }
-    Ok(scope.answer_out(name, answer, limit))
+    Ok(for_reader(
+        name,
+        reads_only,
+        scope.answer_out(name, answer, limit),
+    ))
+}
+
+/// An answer as one who only reads receives it: a mention inside a
+/// secret block is not theirs to see (ADR 0089 item 1, ADR 0087).
+fn for_reader(name: &str, reads_only: bool, mut answer: Value) -> Value {
+    if reads_only
+        && name == "unlinked_mentions"
+        && let Some(list) = answer["mentions"].as_array_mut()
+    {
+        list.retain(|m| m["secret"] != Value::Bool(true));
+    }
+    answer
 }
 
 /// A command of the folder, its paths the folder's own.

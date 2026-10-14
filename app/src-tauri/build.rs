@@ -19,6 +19,7 @@ fn main() {
         "search",
         "links",
         "backlinks",
+        "unlinked_mentions",
         "write_note",
         "create_note",
         "create_file",

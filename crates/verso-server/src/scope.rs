@@ -319,7 +319,7 @@ impl Scope {
             | "list_folders" | "list_entries" | "notes_of_type" => {}
             "search" => args["limit"] = json!(200),
             "read_note" | "links" | "backlinks" | "read_file_text" | "read_text"
-            | "board_preview" => set(&mut args, "path", Use::Read)?,
+            | "board_preview" | "unlinked_mentions" => set(&mut args, "path", Use::Read)?,
             "resolve_attachment" => set(&mut args, "source", Use::Read)?,
             "write_note" | "create_file" | "create_folder" | "write_text" | "write_board" => {
                 set(&mut args, "path", Use::Below)?;
@@ -382,6 +382,8 @@ impl Scope {
             }
             "list_web_notes" => self.keep(&mut v, "path"),
             "backlinks" => self.keep(&mut v, "from"),
+            // A mention in a note outside the share is not said (ADR 0089).
+            "unlinked_mentions" => self.keep(&mut v["mentions"], "path"),
             "graph" => {
                 if let Some(list) = v.as_array_mut() {
                     list.retain_mut(|e| self.field(e, "from") && self.field(e, "to"));

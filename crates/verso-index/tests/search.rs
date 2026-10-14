@@ -295,3 +295,23 @@ fn a_word_most_names_hold_gives_the_same_order_as_a_rare_one() {
     assert_eq!(paths("sessão 599", 3), ["Sessões/Sessão 599.md"]);
     assert_eq!(paths("sessao", 1000).len(), 601);
 }
+
+#[test]
+fn the_notes_holding_a_phrase_are_the_candidates_of_a_mention() {
+    // ADR 0089 item 1: the index's candidates, by the name as a phrase,
+    // accents and case folded as the search folds them; the scan that
+    // follows keeps the accents.
+    let mut index = Index::in_memory().unwrap();
+    put(&mut index, "a.md", "Fomos ao Porto Alegre ontem.\n");
+    put(&mut index, "b.md", "Alegre, voltamos do porto.\n");
+    put(&mut index, "c.md", "O PÔRTO ALEGRE de antes.\n");
+    put(&mut index, "d.md", "Nada aqui.\n");
+    let mut found = index.notes_holding("Porto Alegre", 10).unwrap();
+    found.sort();
+    assert_eq!(found, ["a.md", "c.md"]);
+    // The words are a phrase, never the grammar.
+    assert!(index.notes_holding("\" OR nada", 10).unwrap().is_empty());
+    assert!(index.notes_holding("!!!", 10).unwrap().is_empty());
+    assert!(index.notes_holding("", 10).unwrap().is_empty());
+    assert_eq!(index.notes_holding("porto", 1).unwrap().len(), 1);
+}

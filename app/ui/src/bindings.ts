@@ -88,6 +88,8 @@ export const commands = {
 	links: (path: string) => typedError<Link[], ContractError>(__TAURI_INVOKE("links", { path })),
 	/**  The notes that link to this one; empty when the index does not know it. */
 	backlinks: (path: string) => typedError<Backlink[], ContractError>(__TAURI_INVOKE("backlinks", { path })),
+	/**  The note's unlinked mentions, as occurrences (ADR 0089 item 1). */
+	unlinkedMentions: (path: string) => typedError<Mentions, ContractError>(__TAURI_INVOKE("unlinked_mentions", { path })),
 	/**
 	 *  Write a note's text over the revision that was read — atomically, no
 	 *  normalization — and index it. `changed` when the file moved on
@@ -1379,6 +1381,48 @@ export type McpStatus = {
 	 *  path — shown to the person before it is written (ADR 0054).
 	 */
 	command: string,
+};
+
+/**
+ *  A note's name written plainly in another note: one unlinked mention
+ *  (ADR 0089 item 1), the name or one of its aliases as a phrase on word
+ *  boundaries, case ignored and accents kept, in prose only.
+ */
+export type Mention = {
+	/**  The note that mentions. */
+	path: string,
+	/**
+	 *  1-based line, and 1-based column in Unicode scalar values (spec
+	 *  §4.4), of the mention's first character.
+	 */
+	line: number,
+	col: number,
+	/**  The mention as written. */
+	text: string,
+	/**  Up to 60 characters of its line before it and after it. */
+	before: string,
+	after: string,
+	/**
+	 *  The text is one of the note's aliases, not its name: the link
+	 *  keeps it as the link's text.
+	 */
+	alias: boolean,
+	/**  In a table's cell: the link's `|` is written `\|`. */
+	table: boolean,
+	/**
+	 *  Inside a `> [!secret]` callout (ADR 0087): never in a reader's
+	 *  answer from a server.
+	 */
+	secret: boolean,
+};
+
+/**
+ *  A note's unlinked mentions, in path and position order; `more` when
+ *  there were more than the answer holds.
+ */
+export type Mentions = {
+	mentions: Mention[],
+	more: boolean,
 };
 
 /**  A file that moved, from one relative path to another. */
