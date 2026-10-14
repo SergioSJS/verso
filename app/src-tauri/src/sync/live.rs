@@ -4,7 +4,7 @@
 
 //! A note of a synced folder, live in the server's room while the sync's
 //! link is up (ADR 0082). The room's traffic goes over the sync's own
-//! connection (item 2): the window's six `collab_*` commands are answered
+//! connection (item 2): the window's `collab_*` commands are answered
 //! by it, and what the server pushes whose name starts with `collab-` goes
 //! to the windows that hold the note. While a note is in its room, sync is
 //! the only writer of its local file in Verso (item 6): the room's saves
@@ -117,19 +117,33 @@ pub(crate) async fn command(
             "the folder's sync is not connected: the note is edited on this computer",
         ));
     };
+    // The server tells the other connections; another window of this app
+    // in the same room hears it here.
+    let others = || -> Vec<String> {
+        lock(&s.live.rooms)
+            .get(&path)
+            .map(|h| h.windows.iter().filter(|w| *w != window).cloned().collect())
+            .unwrap_or_default()
+    };
     match cmd {
         "collab_join" => join(ctx, s, &remote, window, &path).await,
         "collab_update" => {
             let answer = remote.call(cmd, args.clone()).await?;
-            // The server tells the other connections; another window of
-            // this app in the same room hears it here.
-            let others: Vec<String> = lock(&s.live.rooms)
-                .get(&path)
-                .map(|h| h.windows.iter().filter(|w| *w != window).cloned().collect())
-                .unwrap_or_default();
+            let others = others();
             if !others.is_empty() {
                 let payload = json!({ "path": path, "update": args["update"] });
                 (ctx.told)(&others, "collab-update", &payload);
+            }
+            Ok(answer)
+        }
+        // Dice (ADR 0088 item 4): the server's roll, heard as the others
+        // hear it.
+        "collab_roll" => {
+            let answer = remote.call(cmd, args).await?;
+            let others = others();
+            if !others.is_empty() {
+                let payload = json!({ "path": path, "roll": answer });
+                (ctx.told)(&others, "collab-roll", &payload);
             }
             Ok(answer)
         }

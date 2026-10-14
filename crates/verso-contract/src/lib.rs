@@ -633,6 +633,53 @@ pub struct CollabJoin {
     /// dropped sends what it typed meanwhile only into the room it left,
     /// never into one made again from the disk.
     pub epoch: String,
+    /// The room's last rolls of dice, oldest first, for whoever joins
+    /// (ADR 0088 item 4): kept in the server's memory, never stored.
+    #[serde(default)]
+    pub rolls: Vec<DiceRoll>,
+}
+
+/// A roll of dice (ADR 0088): the notation rolled, the table it chose a
+/// row of when it was one, what each die showed, and the total. In a room
+/// the server rolls and names who asked; alone, the window rolls and
+/// `by` is empty. Never written to a file (item 2).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct DiceRoll {
+    /// What was rolled, without spaces: `1d20+3`, `4d6kh3`.
+    pub notation: String,
+    /// The random table rolled, as the note writes it (`[[Tabelas#^id]]`):
+    /// the window that hears the roll reads the row from the table itself.
+    pub source: Option<String>,
+    /// Each term of dice in the notation's order.
+    pub terms: Vec<DiceTermRoll>,
+    /// The numbers added to the dice, summed.
+    pub modifier: i32,
+    pub total: i32,
+    /// The name of the account that rolled; empty when the window rolled.
+    pub by: String,
+    /// When, RFC 3339 in UTC.
+    pub at: String,
+}
+
+/// One term of dice in a roll: `-1d4` is `sign` -1 and `sides` 4; a
+/// fudge die (`dF`) has three sides, -1, 0 and +1. `kept` count in the
+/// total, `dropped` were taken off by keep or drop, each in the order the
+/// dice fell.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct DiceTermRoll {
+    pub sign: i32,
+    pub sides: u32,
+    pub fudge: bool,
+    pub kept: Vec<i32>,
+    pub dropped: Vec<i32>,
+}
+
+/// A roll in a room, heard by the others in it (event `collab-roll`).
+/// The roll carries no path: the event's is the window's own.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct CollabRoll {
+    pub path: String,
+    pub roll: DiceRoll,
 }
 
 /// An edit or a presence of another person in a note (events
