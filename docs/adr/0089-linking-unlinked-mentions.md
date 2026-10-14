@@ -99,6 +99,8 @@ recommended and is marked `[DECIDED 2026-10-14]`.
 decided as recommended, marked `[DECIDED 2026-10-14]` in place. In V1
 (`docs/roadmap.md`, Phase 4 — V1).
 
+**Answered while building (2026-10-14, the maintainer: "Sim, todas").** The questions the build raised, answered as recommended (*"Aceita todas as recomendações acima (P1–P5, M1–M6, I1–I7, D1–D11, G1–G4)?"*): M1 — a note that already links the target still lists its unlinked mentions; M2 — at most 200 candidate notes per name and 500 mentions; M3 — in a table's cell the link is written with `\|`; M4 — the whole secret filter comes with [0087](0087-secret-blocks-hidden-from-readers.md); M5 — an accent written composed (NFC) or decomposed (NFD) is one accent when mentions are matched, as it names one file (the decision of 2026-10-10), the link keeping the note's name as the index has it (built that night); M6 — `verso_dialect::prose` gains a fixture, `fixtures/prose/what-is-prose`, an AI draft for the maintainer's approval (spec §4.9, built that night). M1 to M4 as built.
+
 *(History, before the acceptance above:)* Proposed (2026-10-14). In V1 by the maintainer's word of 2026-10-14
 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revision 8). For the
 maintainer, each with a recommendation: case, accents and aliases

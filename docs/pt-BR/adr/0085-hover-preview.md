@@ -121,6 +121,8 @@ Nenhuma registrada.
 decidido como recomendado, marcado `[DECIDIDO 2026-10-14]` no lugar. Na V1
 (`docs/roadmap.md`, Fase 4 — V1).
 
+**Respondido durante a construção (2026-10-14, o mantenedor: "Sim, todas").** As perguntas que a construção levantou, respondidas como recomendado (*"Aceita todas as recomendações acima (P1–P5, M1–M6, I1–I7, D1–D11, G1–G4)?"*): P1 — um link Markdown para uma nota, `[x](nota.md)` ou `[x](pasta/nota.md#Título)`, é seguido e mostrado na prévia na Leitura: a janela o desenha como um wikilink antes do sanitizador, cuja política não muda, e um endereço que não nomeia um arquivo da pasta, ou sai dela, continua descartado (construído naquela noite); P2 — num board a prévia abre sobre o nome do cartão, não sobre o cartão inteiro; P3 — sem prévia no modo Fonte; P4 — a prévia de uma nota que não existe diz que um clique a cria; P5 — a prévia fecha com qualquer tecla, uma rolagem ou uma perda de foco. P2 a P5 como construído.
+
 *(Histórico, antes da aceitação acima:)* Proposta (2026-10-14). Na V1 pela palavra do mantenedor de 2026-10-14
 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revisão 8). Para o
 mantenedor, cada um com uma recomendação: o modo Editar com o modificador

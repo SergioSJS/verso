@@ -130,6 +130,8 @@ recommended and is marked `[DECIDED 2026-10-14]`.
 decided as recommended, marked `[DECIDED 2026-10-14]` in place. In V1
 (`docs/roadmap.md`, Phase 4 — V1). [0036](0036-tabletop-rpg-support.md) gains a Revisions line: dice, random tables, secret blocks and maps enter as primitives.
 
+**Answered while building (2026-10-14, the maintainer: "Sim, todas").** The questions the build raised, answered as recommended (*"Aceita todas as recomendações acima (P1–P5, M1–M6, I1–I7, D1–D11, G1–G4)?"*): D1 — the ADR named explode (`1d6!`) and `d%` while Rolai read neither: both are read, in the window's parser and the server's, with the Dice Roller README's meaning, an explosion chain capped at 100 added dice in a roll, the same on both sides (built that night); D2 to D11, as built — both forms of a table's link, `[[Note^id]]` and `[[Note#^id]]`; the header `dice: 1d20`; `00` is 100, and lists like `13,14` are read; a one-row table is refused; in a room the server rolls even when you are alone; a reader may roll; the palette's roller rolls in your window only; your own roll does not show your name; the bounds of 100 dice and 1000 sides.
+
 *(History, before the acceptance above:)* Proposed (2026-10-14). In V1 by the maintainer's word of 2026-10-14
 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revision 8). For the
 maintainer, each with a recommendation: the notation (item 1), unequal

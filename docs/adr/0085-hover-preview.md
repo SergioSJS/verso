@@ -112,6 +112,8 @@ None recorded.
 decided as recommended, marked `[DECIDED 2026-10-14]` in place. In V1
 (`docs/roadmap.md`, Phase 4 — V1).
 
+**Answered while building (2026-10-14, the maintainer: "Sim, todas").** The questions the build raised, answered as recommended (*"Aceita todas as recomendações acima (P1–P5, M1–M6, I1–I7, D1–D11, G1–G4)?"*): P1 — a Markdown link to a note, `[x](note.md)` or `[x](folder/note.md#Heading)`, is followed and previewed in Reading: the window draws it as a wikilink before the sanitizer, whose policy does not change, and an address that names no file of the folder, or climbs out of it, stays dropped (built that night); P2 — on a board the preview opens over the card's name, not the whole card; P3 — no preview in Source mode; P4 — the preview of a note that does not exist says that a click creates it; P5 — the preview closes on any key, a scroll or a loss of focus. P2 to P5 as built.
+
 *(History, before the acceptance above:)* Proposed (2026-10-14). In V1 by the maintainer's word of 2026-10-14
 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revision 8). For the
 maintainer, each with a recommendation: Edit mode with the modifier

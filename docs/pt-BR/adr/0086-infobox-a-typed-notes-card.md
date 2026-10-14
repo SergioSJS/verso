@@ -150,6 +150,8 @@ recomendado e está marcado `[DECIDIDO 2026-10-14]`.
 decidido como recomendado, marcado `[DECIDIDO 2026-10-14]` no lugar. Na V1
 (`docs/roadmap.md`, Fase 4 — V1).
 
+**Respondido durante a construção (2026-10-14, o mantenedor: "Sim, todas").** As sete escolhas que a construção fez, mantidas como recomendado (*"Aceita todas as recomendações acima (P1–P5, M1–M6, I1–I7, D1–D11, G1–G4)?"*): um layout que esta versão não conhece é ignorado; uma imagem só é imagem com a extensão de uma; uma imagem da web espera um clique enquanto *Carregar conteúdo remoto* está desligado; um link mostra o alias dele; o cartão fica estreito abaixo de 760 px; a prévia ao passar o mouse é ligada aos links do cartão na integração (feito naquela noite); os cartões das bases ficam como estão.
+
 *(Histórico, antes da aceitação acima:)* Proposta (2026-10-14). Na V1 pela palavra do mantenedor de 2026-10-14
 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revisão 8). Para o
 mantenedor, cada um com uma recomendação: um endereço web como imagem

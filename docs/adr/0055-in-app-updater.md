@@ -113,12 +113,12 @@ How the author built the install under that decision
   older than the bridge that skipped it updates by hand, once, from the
   releases page. Built by the author under that decision: the list's name,
   the switch, and that 0.8.3's own updater reads the list only (every
-  release it can update to carries one). `[OPEN]`: which version is "the
-  version after the bridge" when 0.8.3 has more than one test release —
-  the one cut right after 0.8.3-beta.1, or the first after the 0.8.3 line.
-  Recommended: the one cut right after 0.8.3-beta.1, the first release
-  that publishes both; a longer bridge keeps fourteen files on each page
-  for apps that update at their next start anyway.
+  release it can update to carries one). `[DECIDED 2026-10-14]`: "the
+  version after the bridge", when 0.8.3 has more than one test release,
+  is the one cut right after 0.8.3-beta.1, the first release that
+  publishes both — as recommended, the alternative being the first after
+  the 0.8.3 line; a longer bridge keeps fourteen files on each page for
+  apps that update at their next start anyway.
 - **Size caps.** The download and the extraction are each capped at 1 GiB
   (`UPDATE_MAX_BYTES`); an asset the API already reports as larger is refused
   before the download. Each entry of the archive is extracted only under the
@@ -205,7 +205,9 @@ Decision — keep the updater and fix it. Revised on 2026-10-09: the release
 files are signed and the app verifies the signature (the maintainer:
 "assinar nossa aplicação"). Revised on 2026-10-14: one signed checksums
 list per release in place of a `.sig` beside each file, 0.8.3 the bridge
-that publishes both (the maintainer: "Sim, já na 0.8.3"). The hardening
+that publishes both (the maintainer: "Sim, já na 0.8.3"); and, answered
+while building (2026-10-14, the maintainer: "Sim, todas", G1), the bridge
+ends with the version cut right after 0.8.3-beta.1. The hardening
 under them is the author's, built under that decision and labelled as
 such above. Revised on
 2026-09-29: the default-on check ratified by the maintainer; the ADR stands

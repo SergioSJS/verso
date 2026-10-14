@@ -105,6 +105,8 @@ recomendado e está marcado `[DECIDIDO 2026-10-14]`.
 decidido como recomendado, marcado `[DECIDIDO 2026-10-14]` no lugar. Na V1
 (`docs/roadmap.md`, Fase 4 — V1).
 
+**Respondido durante a construção (2026-10-14, o mantenedor: "Sim, todas").** As perguntas que a construção levantou, respondidas como recomendado (*"Aceita todas as recomendações acima (P1–P5, M1–M6, I1–I7, D1–D11, G1–G4)?"*): M1 — uma nota que já linka o alvo continua listando as menções sem link dela; M2 — no máximo 200 notas candidatas por nome e 500 menções; M3 — numa célula de tabela o link é escrito com `\|`; M4 — o filtro de segredo completo vem com a [0087](0087-secret-blocks-hidden-from-readers.md); M5 — um acento escrito composto (NFC) ou decomposto (NFD) é um acento só ao casar as menções, como nomeia um arquivo só (a decisão de 2026-10-10), o link mantendo o nome da nota como o índice o tem (construído naquela noite); M6 — `verso_dialect::prose` ganha uma fixture, `fixtures/prose/what-is-prose`, um rascunho da IA para a aprovação do mantenedor (spec §4.9, construída naquela noite). M1 a M4 como construído.
+
 *(Histórico, antes da aceitação acima:)* Proposta (2026-10-14). Na V1 pela palavra do mantenedor de
 2026-10-14 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revisão 8). Para o
 mantenedor, cada um com uma recomendação: caixa, acentos e aliases
