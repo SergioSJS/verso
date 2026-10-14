@@ -41,7 +41,7 @@ sh universo.sh install --url https://notes.example.com
 | `uninstall [--purge]` | removes the package and says what it left: `/var/lib/universo`, `/etc/universo`, the `universo` user. `--purge` removes them too, after you type `/var/lib/universo` back |
 | `status` | the service's state, the version, the address it listens on, the size of the two directories, the last 5 lines of the log |
 | `logs [-f]` | `journalctl -u universo` |
-| `backup [DIR] [--encrypt \| --passphrase] [--to-stdout]` | stops the service, packs `/var/lib/universo` and `/etc/universo` into `universo-backup-<date>-<time>.tar.gz` in `DIR` (`/var/backups/universo` by default), starts it again; refuses when `DIR` has less free space than the two directories take. `--encrypt` encrypts it with `age` (`.tar.gz.age`), `--passphrase` to a typed passphrase, `--to-stdout` writes it to standard output for a pipe (section 2) |
+| `backup [DIR] [--encrypt \| --passphrase] [--to-stdout]` | stops the service, packs `/var/lib/universo` and `/etc/universo` into `universo-backup-<date>-<time>-<random>.tar.gz` in `DIR` (a new file, `0600`, under a name no one can guess beforehand; `DIR` must not lie inside what it copies, `..` and links resolved) (`/var/backups/universo` by default), starts it again; refuses when `DIR` has less free space than the two directories take. `--encrypt` encrypts it with `age` (`.tar.gz.age`), `--passphrase` to a typed passphrase, `--to-stdout` writes it to standard output for a pipe (section 2) |
 | `backup --keygen` | makes the key of encrypted backups, once: the public one in `/etc/universo/backup.pub`, the secret one printed, never kept on the machine (section 2) |
 | `restore FILE [--identity KEY-FILE] [--to DIR]` | puts a backup back over `/var/lib/universo` and `/etc/universo` after you type `/var/lib/universo`, the service stopped meanwhile; an encrypted one with its secret key or passphrase; `--to DIR` unpacks it into `DIR` instead, the server untouched (section 2) |
 | `reset-admin [E-MAIL]` | the command of section 10 |
@@ -49,13 +49,20 @@ sh universo.sh install --url https://notes.example.com
 
 How a download is checked: with `minisign` installed, the release's `.sig`
 against Verso's release key (section 6), the signed comment naming the
-file; without it, the `sha256` GitHub publishes for each release file;
-with neither, it refuses unless given `--insecure-no-verify`, which says
-loudly that nothing was checked. A package from `--package FILE` is
-checked with `FILE.sig` beside it. While the repository is private,
-downloading needs a GitHub token in `GITHUB_TOKEN` (fine-grained,
-Contents: Read-only on the repository); without one the script says how to
-make it, or takes `--package`. A machine with neither apt nor dnf is told
+file; without `minisign`, the `sha256` GitHub publishes for each release
+file; with neither, it refuses unless given `--insecure-no-verify`, which
+says loudly that nothing was checked. A missing `.sig` — none in the
+release, its download failed, none beside `--package FILE` — is an error:
+the script stops and says so, unless given `--no-signature`, which settles
+for the published `sha256` (proof that the file is the one uploaded to the
+release, not of who made it). A package from `--package FILE` is checked
+with `FILE.sig` beside it. While the repository is private, downloading
+needs a GitHub token in `GITHUB_TOKEN` (fine-grained, Contents: Read-only
+on the repository); without one the script says how to make it, or takes
+`--package`. Give it with `read -rs GITHUB_TOKEN && export GITHUB_TOKEN`
+(bash or zsh: paste, Enter), which keeps it out of the screen and of the
+shell's history, rather than `export GITHUB_TOKEN=…` on the command
+line. A machine with neither apt nor dnf is told
 to use the archive (section 6). Sections 5 and 6 stay the manual paths.
 
 A walk-through on a free cloud machine, from creating it to the app
@@ -137,14 +144,28 @@ To restore, the service stopped meanwhile and after you type
 `/var/lib/universo`:
 
 ```sh
-sudo sh universo.sh restore universo-backup-<date>-<time>.tar.gz.age --identity key.txt
+sudo sh universo.sh restore universo-backup-<date>-<time>-<random>.tar.gz.age --identity key.txt
 ```
 
 with the secret key in `key.txt` for the moment (or `age` asks the
-passphrase); a plain backup needs no `--identity`. `--to /some/dir`
+passphrase); a plain backup needs no `--identity`. That file is the key to
+every backup: make it readable by its owner only (`umask 077` before
+writing it, or `chmod 600 key.txt`), never keep it on the server, and
+delete it once the restore is done (`shred -u key.txt` where `shred`
+means something; on a copy-on-write or flash file system, `rm`). `--to /some/dir`
 unpacks it there instead, to look at it first, leaving the server alone.
+Before writing anything, `restore` copies the backup (or decrypts it) into
+a directory of its own and lists it: it refuses the whole backup when any
+entry is not a plain file or a directory under `/var/lib/universo`,
+`/etc/universo` or the `VERSO_DATA_DIR` and `VERSO_FOLDERS_DIR` this
+machine's settings name — an absolute path, a `..`, a link, a device or a
+set-id file — and then unpacks exactly the entries it checked. A backup
+kept where someone else can write (a shared bucket, a shared directory)
+cannot so put a file anywhere else on the machine as root. A backup whose
+directories lay outside `/var/lib/universo` restores them once this
+machine's `universo.env` names the same ones; until then, `--to`.
 By hand: `age -d -i key.txt FILE | sudo tar -xzpf - -C /` with the service
-stopped.
+stopped — with none of these checks, so only for a backup you made.
 
 ### Databases on a NAS
 
@@ -456,6 +477,30 @@ the client — is never believed. A connection from an address not in the
 list has its `X-Forwarded-For` ignored. Name only the proxies: an address
 range that also holds people lets them say any address they like.
 
+**`127.0.0.1` names every program on the machine, not only the proxy.**
+With `VERSO_TRUSTED_PROXY=127.0.0.1`, any local user or process that
+connects to the server's port is believed like the proxy: its
+`X-Forwarded-For` can name any address — a new one for each guess, past
+the per-address delays (the per-account delay still holds), or someone
+else's, which then fills the log's refusals for fail2ban to ban — and its
+`X-Forwarded-Proto: https` is taken as given. On a machine only you use,
+that is only you. On a shared host — other people's accounts, services or
+containers on the same machine — keep the server's port to the proxy. The
+server listens on TCP only (no unix socket), so do it by user: the proxy
+runs as its own user (Caddy's packages run it as `caddy`), and a firewall
+rule lets only that user, and root (whose `universo.sh status` asks the
+server), reach the port, for example
+
+```sh
+sudo iptables -A OUTPUT -o lo -p tcp --dport 7340 -m owner --uid-owner root -j ACCEPT
+sudo iptables -A OUTPUT -o lo -p tcp --dport 7340 -m owner ! --uid-owner caddy -j REJECT
+```
+
+(the same with `ip6tables` when the server listens on `::1`; kept across
+reboots with `netfilter-persistent`, as `universo.sh firewall` keeps its
+own). Or give the proxy and the server a machine, or a container network,
+of their own.
+
 **A proxy not in the list makes every visitor one address.** Every
 request then seems to come from the proxy, and every per-address delay
 keys it: three failed sign-ins by a stranger slow everyone's, and the
@@ -525,12 +570,20 @@ made in one of two ways (0074 item 1):
 - **From the variables**, `VERSO_ADMIN_EMAIL` and `VERSO_ADMIN_PASSWORD`
   (or `_FILE`), read **on the first start only**, when the server has no
   account yet. Afterwards they are ignored and the log says so in one line:
-  changing them never resets a password. They can be removed after the
-  first start.
+  changing them never resets a password. Remove them once the admin
+  exists: from `/etc/universo/universo.env` for a package, from the
+  compose file or the `docker run` command for Docker (and the secret's
+  file, with `_FILE`). Left there, they are the admin's first password in
+  a file, still good until it is changed.
 - **From the setup link**: with neither variable set, the server prints
   once in its log a link valid for one hour, whose page creates the admin.
   Whoever can read the log is whoever runs the server: `docker logs universo`,
-  the container's log in CasaOS or ZimaOS, or `journalctl -u universo`.
+  the container's log in CasaOS or ZimaOS, or `journalctl -u universo`
+  (root, and the `adm` and `systemd-journal` groups). The link stays in
+  that log until the log is rotated away: once the admin exists, or past
+  its hour, it opens nothing, but within the hour whoever reads the log
+  first can use it — so use it as soon as it is printed. `universo.sh
+  install` says so beside the link.
 
 ## 10. A lost admin password
 
@@ -1007,9 +1060,15 @@ Not verified yet:
 - fail2ban's filter and jail, the CrowdSec parser and scenarios, and the
   Caddy `rate_limit` example of section 16, on a real host: the filter's
   expression is run in the server's tests over the server's own lines, as
-  fail2ban expands `<SUBNET>` and as it reads a file and the journal, not
-  by fail2ban itself; the CrowdSec files and the Caddy example are not run
-  at all.
+  fail2ban expands `<IP4>` and `<IP6>` and as it reads a file and the
+  journal; fail2ban 1.1.0 itself (Debian 13, in a container, 2026-10-13)
+  ran it with `fail2ban-regex` over a file of such lines — the IPv4
+  address and the IPv6 /64 caught, `0.0.0.0/0`, a /48 and a /24 not — and
+  `fail2ban-client -t` accepted the jail, but not over a journal; the
+  CrowdSec files and the Caddy example are not run at all;
+- the firewall rule of section 8 that keeps the server's port to the
+  proxy's user on a shared host, written from iptables' owner match, not
+  run.
 
 ## 16. Bans: fail2ban, CrowdSec and Caddy's rate_limit
 
@@ -1053,7 +1112,12 @@ The `.deb` and the `.rpm` install a filter,
 `/etc/fail2ban/filter.d/universo.conf`, and a jail,
 `/etc/fail2ban/jail.d/universo.conf`: ten refusals from one address in
 ten minutes ban it for an hour, read from the journal of
-`universo.service`. They do nothing until fail2ban is installed:
+`universo.service`. The filter takes an IPv4 address with no prefix or an
+IPv6 /64, the two shapes the server writes, and no other range, so a line
+naming `0.0.0.0/0` or a /48 bans no one. A ban closes `http` and `https`
+only (the jail's `port`), so a banned address still reaches SSH; a server
+that serves its own TLS on another port adds it to `port`. They do
+nothing until fail2ban is installed:
 
 ```sh
 sudo apt install fail2ban        # or: sudo dnf install fail2ban
@@ -1080,7 +1144,12 @@ In Docker, fail2ban runs on the host, and the two files are copied from
 `logging: driver: journald` in the compose file, in place of the shipped
 `json-file` block (journald then rotates them by its own limits, section
 5); the jail then reads
-`journalmatch = CONTAINER_NAME=universo` (the container's name). Docker
+`journalmatch = _SYSTEMD_UNIT=docker.service CONTAINER_NAME=universo` (the
+container's name). Both fields, not the name alone: `CONTAINER_NAME` is a
+field any program on the machine can write into the journal, and
+`_SYSTEMD_UNIT`, with its underscore, is journald's own, so only Docker's
+lines count (rootless Docker runs as a user's unit:
+`_SYSTEMD_USER_UNIT=docker.service`). Docker
 sends a published port's traffic past the host's `INPUT` chain: the ban
 needs `chain = DOCKER-USER` in the jail. On the host's network
 (`network_mode: host`, `--network host`), nothing is published and the
