@@ -730,6 +730,10 @@ macro_rules! commands_for {
             .typ::<CollabUpdate>()
             .typ::<CollabState>()
             .typ::<ServerAccount>()
+            .typ::<verso_contract::ServerGone>()
+            .typ::<verso_contract::ServerBack>()
+            .typ::<verso_contract::FolderQuota>()
+            .typ::<verso_contract::ShareGiven>()
     };
 }
 
