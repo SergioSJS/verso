@@ -16,6 +16,9 @@ import { commands, type TrashEntry, type TrashListing } from "../bindings";
 import { afterFileChange } from "../changes";
 import { button, h, ui } from "../dom";
 import { errorSentence } from "../errors";
+import { hasHistory } from "../historyFiles";
+import { openHistory } from "./history";
+import { historyStrings } from "./historyStrings";
 
 const pt = {
   section: "Lixeira",
@@ -296,6 +299,15 @@ export function trashBody(item: Item): HTMLElement {
         back.addEventListener("click", () => void restore(e));
         const actions = h("td", "trash-actions");
         actions.append(back);
+        // A deleted file's history is reached from its entry (ADR 0091
+        // item 9).
+        if (!e.folder && hasHistory(e.original)) {
+          const past = button("ghost", historyStrings().command);
+          past.type = "button";
+          past.setAttribute("aria-label", historyStrings().titleOf(name));
+          past.addEventListener("click", () => void openHistory(e.original));
+          actions.append(past);
+        }
         if (l.can_purge) {
           const del = button("ghost danger", s.deleteNow);
           del.type = "button";

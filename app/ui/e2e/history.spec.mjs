@@ -169,3 +169,21 @@ test("a synced folder whose server is out of reach shows this computer's version
   await expect(dialog(page).locator(".history-partial")).toHaveText("Mostrando só as versões deste computador: o servidor está fora de alcance. As versões dele voltam quando ele voltar.");
   await expect(dialog(page).locator("tbody tr")).toHaveCount(1);
 });
+
+test("a deleted note's history is reached from its entry in the trash, and a version brings it back", async ({ app, page }) => {
+  await note(app);
+  await typed(app, "dois\n");
+  await page.evaluate((p) => window.__harness.core.invoke("delete_note", { path: p }), NOTE);
+  await app.command("Abrir a lixeira");
+  const row = page.locator(".settings-body tr[data-path='.trash/Diario.md']");
+  await row.getByRole("button", { name: "Histórico de versões — Diario" }).click();
+  const d = dialog(page);
+  await expect(d.locator(".web-warn")).toContainText("Este arquivo está na lixeira desde");
+  await expect(d.locator("tbody tr")).toHaveCount(2);
+  await d.locator("tbody tr").nth(0).getByRole("button", { name: /^Ver a versão de / }).click();
+  await expect(d.locator(".history-diff")).toContainText("O arquivo não está na pasta agora.");
+  await d.getByRole("button", { name: "Restaurar esta versão" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Restaurar" }).click();
+  await expect(d.locator(".history-said")).toHaveText(/restaurada\.$/);
+  expect(await app.file(NOTE)).toContain("dois");
+});
