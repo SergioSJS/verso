@@ -92,6 +92,8 @@ pub struct Room {
     epoch: String,
     /// The Yjs clients each connection speaks for in presence (gap 11).
     claims: crate::presence::Claims,
+    /// The Yjs clients each account writes as (`writers.rs`).
+    writers: crate::writers::Writers,
     /// A board's own state: what was written, the files windows made.
     board: crate::collab_board::Board,
 }
@@ -459,6 +461,7 @@ fn join_room(
                 clients: HashSet::new(),
                 epoch: crate::crypto::id().map_err(verso_service::failed)?,
                 claims: crate::presence::Claims::new(),
+                writers: crate::writers::Writers::new(),
                 board,
             }));
             let mut map = lock(&server.rooms.map);
@@ -508,6 +511,21 @@ pub fn update(
     if !r.clients.contains(client) {
         return Err(refused("join the note first"));
     }
+    let who = crate::writers::Writer {
+        connection: client,
+        account,
+    };
+    let judged = caught(|| crate::writers::judged(&r.doc, &decoded, who, &r.writers, &r.clients))?;
+    let clients = match judged {
+        Ok(clients) => clients,
+        Err(why) => {
+            crate::log::warn(&format!(
+                "room {}/{path}: an update from account {account} refused: {why}",
+                folder_name(server, key)
+            ));
+            return Err(refused(&why));
+        }
+    };
     let taken = {
         let Room {
             kind, doc, board, ..
@@ -525,6 +543,14 @@ pub fn update(
             );
         }
         return Err(e);
+    }
+    {
+        let Room {
+            writers,
+            clients: present,
+            ..
+        } = &mut *r;
+        crate::writers::claim(who, &clients, writers, present);
     }
     tell(
         server,
@@ -691,12 +717,16 @@ pub(crate) fn written(
 /// join makes the room anew from it. What was typed in the room since it
 /// last wrote is lost.
 fn reload(server: &Server, key: &str, path: &str, why: &str) {
-    let folder = lock(&server.keys)
+    crate::log::warn(&format!("room {}/{path}: {why}", folder_name(server, key)));
+    close(server, key, path);
+}
+
+/// The folder of `key`, as the log names it.
+fn folder_name(server: &Server, key: &str) -> String {
+    lock(&server.keys)
         .get(key)
         .cloned()
-        .unwrap_or_else(|| key.to_owned());
-    crate::log::warn(&format!("room {folder}/{path}: {why}"));
-    close(server, key, path);
+        .unwrap_or_else(|| key.to_owned())
 }
 
 /// The largest presence relayed (threat-model.md, gap 3): a window's is

@@ -12,7 +12,9 @@ test release.
 
 ## Unreleased
 
-Nothing yet.
+### Fixed
+
+- **A shared note or board refuses an edit that claims to come from another person's window, and a malformed edit before it can corrupt the server's memory** ([ADR 0083](docs/adr/0083-security-hardening-of-universo.md) item 14): a member could send an edit under the identity of someone else's window; the room kept it and that person's window kept its own, so the two showed different things until the window joined again. A room now ties each window's identity to the account that first wrote with it, and refuses another account's edits under it; the same person's window back on a new connection goes on as before. An edit built in a way no window builds, on which the server's editing library read memory it had already freed, is refused before it is read.
 
 ## 0.8.1-beta.1 — 2026-10-14
 

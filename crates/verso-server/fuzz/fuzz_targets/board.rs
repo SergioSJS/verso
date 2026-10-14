@@ -19,8 +19,10 @@
 //! room, or that a window that joins, or one that got the same edits in
 //! the other order, reads other elements than the room — the merge's one
 //! promise — or that a file made of the room's own state is not the one it
-//! writes. Seeds in `../seeds-board/`: `two-windows.bin`, written by
-//! `examples/seeds.rs` from two windows' real edits; and the inputs this
+//! writes. The other order is compared only when no two updates make the
+//! same Yjs item (`one_content_per_item`). Seeds in `../seeds-board/`:
+//! `two-windows.bin`, written by `examples/seeds.rs` from two windows'
+//! real edits; and the inputs this
 //! target found on 2026-10-13 (ADR 0083 item 14), on which `yrs` 0.28
 //! panics in a release build too and the room now catches
 //! (`collab::BROKEN`), made again from its file: `client-of-no-runs.bin`
@@ -38,6 +40,21 @@
 //! And `use-after-free.bin`, `window-reads-other-elements.bin` and
 //! `order-matters.bin`: the note's findings on the path where `yrs` keeps
 //! an update aside, which a room no longer takes (see the `note` target).
+//! And `one-item-two-contents.bin` (the job on `main`, 2026-10-14): two
+//! updates that make the same item, client 2 at clock 0, each with its
+//! own element. Yjs names an item by its client and clock and skips one
+//! it already holds, so whichever comes first stays: both orders take
+//! both updates and end at the same state vector with different
+//! elements. No window makes an item twice; a window that writes as
+//! another window's client does, and then the room keeps its item and
+//! the other window its own: a room now ties each Yjs client to the
+//! account that first wrote as it and refuses another account's items
+//! under it (`writers.rs`; decided by the maintainer on 2026-10-14, "sim
+//! para os 2"). This target feeds the room one window's updates, so the
+//! order is still compared only when each item is made once.
+//! And `a-client-named-twice.bin` (2026-10-14): an update that names one
+//! client in two sections, on which `yrs` freed an item the room's board
+//! still pointed to (AddressSanitizer); refused by `yjs_bounds.rs`.
 //! Run:
 //! `cargo +nightly fuzz run board fuzz/corpus/board fuzz/seeds-board`.
 
@@ -51,7 +68,7 @@ use records::{record, records};
 use verso_server::collab_board::{edits, elements, state_vector};
 use verso_server::fuzz_api::{BROKEN, BoardRoom};
 use yrs::updates::decoder::Decode;
-use yrs::{Doc, Transact, Update};
+use yrs::{ClientID, Doc, Transact, Update};
 
 /// The room's Yjs client and a window's: fixed, so that a run replays.
 const ROOM: u64 = 1;
@@ -65,6 +82,26 @@ fn joined(state: &[u8]) -> Doc {
         .apply_update(update)
         .expect("the room's state applies");
     doc
+}
+
+/// Whether no two of `updates` make the same Yjs item (a client and a
+/// clock). A document skips an item it already holds, so two updates that
+/// make one with different contents end as whichever came first; a
+/// window's own edits make each item once, and only those the order
+/// cannot change.
+fn one_content_per_item(updates: &[&[u8]]) -> bool {
+    let mut made: Vec<(ClientID, u32, u32)> = Vec::new();
+    for bytes in updates {
+        let Ok(update) = Update::decode_v1(bytes) else {
+            return false;
+        };
+        for (client, ranges) in update.insertions(true).iter() {
+            made.extend(ranges.iter().map(|r| (*client, r.start, r.end)));
+        }
+    }
+    made.sort_unstable();
+    made.windows(2)
+        .all(|pair| pair[0].0 != pair[1].0 || pair[0].2 <= pair[1].1)
 }
 
 fuzz_target!(|data: &[u8]| {
@@ -100,9 +137,10 @@ fuzz_target!(|data: &[u8]| {
         merged,
         "a window joins the room's board"
     );
-    // The same edits in the other order: the same board.
+    // The same edits in the other order: the same board, when each item
+    // is made once.
     let mut other = BoardRoom::open(&base, ROOM);
-    if taken.iter().rev().all(|u| other.update(u).is_ok()) {
+    if one_content_per_item(&taken) && taken.iter().rev().all(|u| other.update(u).is_ok()) {
         assert_eq!(
             elements(&other.doc),
             merged,

@@ -658,6 +658,26 @@ alvos acharam, e o que fechou cada achado:
   de board (os testes do servidor de 22 s para 33 s).
 - (g) `config::size` abaixo de um byte é um erro, não mais uma cota de 0
   bytes (bc2b9fc).
+- (h) 2026-10-14, o job de fuzzing no `main` e uma rodada de 120 s
+  depois dele. Uma atualização que nomeia um cliente Yjs em duas das suas
+  seções é recusada pelo `yjs_bounds.rs` (44561c8): o yrs 0.28 lia as
+  duas numa só lista fora da ordem dos relógios e liberava um item para o
+  qual a sala de um board ainda apontava (heap-use-after-free do
+  AddressSanitizer); o Yjs escreve cada cliente uma vez. Duas
+  atualizações que criam o mesmo item com conteúdos diferentes não são
+  falha do merge: o Yjs fica com a que chegou primeiro, e o alvo `board`
+  compara a outra ordem só quando cada item é criado uma vez (dad8202).
+- (i) 2026-10-14, decidido pelo mantenedor (*"sim para os 2"*): uma sala
+  liga cada cliente Yjs à conta, e à conexão, que primeiro escreveu como
+  ele (`writers.rs`, como uma presença liga os seus clientes), e recusa
+  uma atualização que cria itens, ou apaga relógios, além do que a sala
+  tem de um cliente como o qual outra conta escreve (4c387d9). Isto revê
+  o "os itens de outros clientes continuam sem julgamento" de (d). O que
+  a sala já tem não é julgado — os itens de outra janela num estado
+  inteiro reenviado, a deleção do item de outra pessoa quando um elemento
+  se move — e a janela da mesma conta numa nova conexão passa a falar
+  pelos seus clientes. 64 clientes por conexão, 4096 por sala; além
+  disso, os de conexões que saíram são soltos primeiro.
 
 Estado final: 60 s sob `-O` nos alvos `note` e `board` sem nenhum crash
 *(relatado)*; as sementes, entre elas as seis entradas antes guardadas à
