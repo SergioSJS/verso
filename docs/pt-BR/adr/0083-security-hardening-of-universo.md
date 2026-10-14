@@ -735,6 +735,17 @@ ao lado de outra janela (a ordem do (e)), o diálogo do item 6 com senha e
 com passkey, o código digitado do item 17, o Mermaid 12.2.0 (item 13) e
 os passos do Caddy do `universo.sh` ao lado de outro site (7755802).
 
+**As decisões do mantenedor de 2026-10-14.** Quatro pontos deixados pela
+segunda revisão de entrada e acesso, enviados com uma recomendação cada,
+respondidos em 2026-10-14: *"com exceção do 3, sim pra recomendado. O 3:
+Mudo a recomendação: deixa o app com acesso de admin"*.
+
+- (4) 2026-10-14 — o nome da nota de pasta é do dono da pasta, como as
+  regras de varredura: um membro que não é o dono mudando os ajustes da
+  pasta (`set_folder_settings`) deixa o `folder_note_name` como estava,
+  como o `set_folder_note_name` já fazia (`rpc.rs`,
+  `without_owners_settings`); a mudança do dono o define.
+
 ## Consequências
 
 - O que as pessoas sentem: uma senha que escolheram recusada no setup ou
