@@ -410,6 +410,12 @@ export const commands = {
 	 */
 	collabCanvas: (path: string, at: string, json: string) => typedError<null, ContractError>(__TAURI_INVOKE("collab_canvas", { path, at, json })),
 	/**
+	 *  Dice rolled in the note's room by the server, heard by the others in
+	 *  it (ADR 0088 item 4): on a server, or a synced folder's link, only;
+	 *  here the window rolls itself.
+	 */
+	collabRoll: (path: string, notation: string, source: string | null) => typedError<DiceRoll, ContractError>(__TAURI_INVOKE("collab_roll", { path, notation, source })),
+	/**
 	 *  Sign in to a server through the browser (`gh auth login`'s way): the
 	 *  server gives a code, which the window copies to the clipboard before it
 	 *  opens the server's page (`server_sign_in_page`), where the person
@@ -840,6 +846,11 @@ export type CollabJoin = {
 	 *  never into one made again from the disk.
 	 */
 	epoch: string,
+	/**
+	 *  The room's last rolls of dice, oldest first, for whoever joins
+	 *  (ADR 0088 item 4): kept in the server's memory, never stored.
+	 */
+	rolls?: DiceRoll[],
 };
 
 /**
@@ -848,6 +859,15 @@ export type CollabJoin = {
  *  `board` as its elements, one entry per element and version.
  */
 export type CollabKind = "text" | "board";
+
+/**
+ *  A roll in a room, heard by the others in it (event `collab-roll`).
+ *  The roll carries no path: the event's is the window's own.
+ */
+export type CollabRoll = {
+	path: string,
+	roll: DiceRoll,
+};
 
 /**
  *  What became of a shared note (events `collab-saved`, `collab-conflict`,
@@ -903,6 +923,45 @@ export type DeviceRenamed = {
 	device: DeviceName,
 	/**  The addresses of the servers not reached. */
 	unreached: string[],
+};
+
+/**
+ *  A roll of dice (ADR 0088): the notation rolled, the table it chose a
+ *  row of when it was one, what each die showed, and the total. In a room
+ *  the server rolls and names who asked; alone, the window rolls and
+ *  `by` is empty. Never written to a file (item 2).
+ */
+export type DiceRoll = {
+	/**  What was rolled, without spaces: `1d20+3`, `4d6kh3`. */
+	notation: string,
+	/**
+	 *  The random table rolled, as the note writes it (`[[Tabelas#^id]]`):
+	 *  the window that hears the roll reads the row from the table itself.
+	 */
+	source: string | null,
+	/**  Each term of dice in the notation's order. */
+	terms: DiceTermRoll[],
+	/**  The numbers added to the dice, summed. */
+	modifier: number,
+	total: number,
+	/**  The name of the account that rolled; empty when the window rolled. */
+	by: string,
+	/**  When, RFC 3339 in UTC. */
+	at: string,
+};
+
+/**
+ *  One term of dice in a roll: `-1d4` is `sign` -1 and `sides` 4; a
+ *  fudge die (`dF`) has three sides, -1, 0 and +1. `kept` count in the
+ *  total, `dropped` were taken off by keep or drop, each in the order the
+ *  dice fell.
+ */
+export type DiceTermRoll = {
+	sign: number,
+	sides: number,
+	fudge: boolean,
+	kept: number[],
+	dropped: number[],
 };
 
 /**  One resolved link of the vault, for the graph. */

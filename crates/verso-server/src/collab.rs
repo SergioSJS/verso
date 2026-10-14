@@ -43,6 +43,11 @@ const QUIET: Duration = Duration::from_millis(900);
 /// How long a room outlives a connection that dropped, so that a window
 /// coming back finds it and sends what it typed meanwhile.
 const GRACE: Duration = Duration::from_secs(120);
+/// How many rolls of dice a room keeps for whoever joins (ADR 0088 item 4).
+pub const ROLLS_KEPT: usize = 20;
+#[path = "collab_dice.rs"]
+mod rolls;
+pub use rolls::roll;
 /// The text's name inside the document, as the window's binding names it.
 pub const TEXT: &str = "verso";
 
@@ -96,6 +101,8 @@ pub struct Room {
     writers: crate::writers::Writers,
     /// A board's own state: what was written, the files windows made.
     board: crate::collab_board::Board,
+    /// The last rolls of dice in it (ADR 0088 item 4; `collab_dice.rs`).
+    rolls: std::collections::VecDeque<verso_contract::DiceRoll>,
 }
 
 impl Room {
@@ -441,6 +448,7 @@ fn join_room(
                         crlf: false,
                         user: user.to_owned(),
                         epoch: String::new(),
+                        rolls: Vec::new(),
                     });
                 };
                 let doc = holding(new_doc(), &text);
@@ -463,6 +471,7 @@ fn join_room(
                 claims: crate::presence::Claims::new(),
                 writers: crate::writers::Writers::new(),
                 board,
+                rolls: std::collections::VecDeque::new(),
             }));
             let mut map = lock(&server.rooms.map);
             // Two windows joining at once: the first room made stays.
@@ -480,6 +489,7 @@ fn join_room(
         crlf: r.crlf,
         user: user.to_owned(),
         epoch: r.epoch.clone(),
+        rolls: r.rolls.iter().cloned().collect(),
     })
 }
 

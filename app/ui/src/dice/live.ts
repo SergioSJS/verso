@@ -1,0 +1,40 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+// A `dice:` code in Live Preview (ADR 0088 item 2): on a line the caret is
+// not on, the code is the die; on the caret's line, its source. The
+// document never changes (ADR 0012).
+
+import { WidgetType } from "@codemirror/view";
+import { type DiceHost, diceBox } from "./card";
+import { type DiceCode, readCode } from "./notation";
+
+class DiceWidget extends WidgetType {
+  constructor(
+    readonly code: DiceCode,
+    readonly text: string,
+    readonly host: DiceHost,
+  ) {
+    super();
+  }
+  override eq(other: DiceWidget): boolean {
+    return other.text === this.text;
+  }
+  override toDOM(): HTMLElement {
+    return diceBox(this.code, this.host);
+  }
+  /** The die's own buttons take their clicks and keys. */
+  override ignoreEvent(): boolean {
+    return true;
+  }
+}
+
+/** The widget of an inline code's text (its backticks with it), or null
+ *  when it is no `dice:` code Verso rolls. */
+export function diceWidget(host: DiceHost): (code: string) => WidgetType | null {
+  return (code) => {
+    const read = readCode(code);
+    return read ? new DiceWidget(read, code, host) : null;
+  };
+}
