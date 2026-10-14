@@ -470,6 +470,20 @@ with the proxy's address and the log says, once a minute, *a request from
 the trusted proxy carried no X-Forwarded-For: is the proxy configured to
 forward it?*
 
+A proxy on the same machine left out of the list is said too, since every
+visitor would otherwise be this machine's address, past the pace. When a
+connection from loopback that is not a trusted proxy carries
+`X-Forwarded-For`, the log says, once a minute, *a request from 127.0.0.1
+carried X-Forwarded-For, but that address is not in VERSO_TRUSTED_PROXY:
+every visitor through a proxy on this machine counts as this machine; set
+VERSO_TRUSTED_PROXY=127.0.0.1 if one forwards to UniVerso*; and at start,
+when `VERSO_PUBLIC_URL` is `https://`, Verso listens on loopback with no
+certificate of its own and `VERSO_TRUSTED_PROXY` is empty, a line beginning
+*VERSO_PUBLIC_URL is https but UniVerso listens on …* says the same and
+what to set. Setting it, check that the proxy sends `X-Forwarded-Proto:
+https` (Caddy does): through a trusted proxy that header alone says the
+visitor came over TLS.
+
 ### Behind Cloudflare
 
 Cloudflare reaches the server from many addresses, which it publishes at

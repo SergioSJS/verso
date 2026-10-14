@@ -427,6 +427,39 @@ fn a_trusted_proxy_saying_http_is_not_made_secure_by_the_loopback() {
     });
 }
 
+/// A proxy on this machine that is not in `VERSO_TRUSTED_PROXY` makes
+/// every visitor this machine's address, silently: the first request from
+/// an untrusted loopback peer carrying `X-Forwarded-For` is said in the log
+/// with what to set, and the next ones within the minute are not (ADR 0083
+/// item 5). A peer elsewhere, or a request with no such header, says
+/// nothing.
+#[test]
+fn an_untrusted_local_proxy_is_said_once_a_minute() {
+    block_on(async {
+        let r = start().await;
+        let mut forwarded = axum::http::HeaderMap::new();
+        forwarded.insert("x-forwarded-for", "203.0.113.30".parse().unwrap());
+        let plain = axum::http::HeaderMap::new();
+        let local: std::net::SocketAddr = "127.0.0.77:5000".parse().unwrap();
+        let away: std::net::SocketAddr = "198.51.100.77:5000".parse().unwrap();
+        crate::auth::peer(&r.server, &plain, local);
+        crate::auth::peer(&r.server, &forwarded, away);
+        assert!(
+            crate::log::said("from 127.0.0.77").is_empty(),
+            "nothing forwarded from here"
+        );
+        for _ in 0..3 {
+            let peer = crate::auth::peer(&r.server, &forwarded, local);
+            assert_eq!(peer.addr, local.ip(), "the header is still not believed");
+        }
+        let lines = crate::log::said("from 127.0.0.77");
+        assert_eq!(lines.len(), 1, "{lines:?}");
+        assert!(lines[0].starts_with("WARN "), "{lines:?}");
+        assert!(lines[0].contains("VERSO_TRUSTED_PROXY"), "{lines:?}");
+        assert!(crate::log::said("from 198.51.100.77").is_empty());
+    });
+}
+
 /// A request's headers are 64 KiB at most (ADR 0083 item 8, F12): one
 /// past it is refused with 431 before it is read whole, and one well
 /// within it is served.
