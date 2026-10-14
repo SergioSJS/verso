@@ -663,6 +663,73 @@ pub struct ServerAccount {
     pub name: String,
 }
 
+/// The window's server, or what it held there, is gone (event
+/// `server-gone`, ADR 0084 item 10): said by the desktop app to a window
+/// on a server's folder.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct ServerGone {
+    /// The server, as signed in to (Settings › Servers).
+    pub url: String,
+    /// What ended: `session` (the server ended this device's session, or
+    /// refused it on reconnecting), `folder` (this account no longer
+    /// reaches the folder or the share: `reason` says why), `connection`
+    /// (the connection dropped; the app tries again) or `unreachable` (a
+    /// try found the server out of reach: `address` names it).
+    pub what: String,
+    /// With `folder`, when the server says it: `revoked` by its owner,
+    /// `deleted` (the shared folder went), `left` by the person.
+    pub reason: Option<String>,
+    /// With `unreachable`: the server's address, `host[:port]`.
+    pub address: Option<String>,
+}
+
+/// The window's server is back after it was gone (event `server-back`,
+/// ADR 0084 item 10): the folder was opened again.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct ServerBack {
+    pub url: String,
+}
+
+/// A folder at 90 % of its quota or more (event `folder-quota`, ADR 0077
+/// item 5, ADR 0084 item 7): pushed by the server after a write, to the
+/// windows on the server's folder and to a device that syncs a folder of
+/// its computer with it, which tells that folder's windows. Bytes, as
+/// numbers the window can show.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct FolderQuota {
+    /// What the folder takes now.
+    pub used: f64,
+    /// Its quota.
+    pub quota: f64,
+}
+
+/// A folder given to this account by another person (event `share-given`,
+/// ADR 0084 item 7): a share of a folder inside theirs (ADR 0081), or
+/// their whole folder. Pushed by the server to the account's open
+/// connections — its browser windows and its devices, never a token's —
+/// when the account had no access to it before; a role changed later is
+/// not this event.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct ShareGiven {
+    /// What opens it: the id of a share, or of the whole folder
+    /// (`ServerFolder::id`).
+    pub id: String,
+    /// The folder's own name: the shared folder's last component, or the
+    /// whole folder's name.
+    pub name: String,
+    /// `editor` (writes) or `reader` (reads only); `owner` for a whole
+    /// folder given with that role.
+    pub role: String,
+    /// The display name of the person who gave it.
+    pub by: String,
+    /// A share inside someone's folder, not their whole folder.
+    pub share: bool,
+    /// The server, as signed in to (Settings › Servers): the desktop app
+    /// fills it, being signed in to any number of servers; none from the
+    /// server itself, whose windows are on it.
+    pub server: Option<String>,
+}
+
 /// A sign-in under way: the code the server's page shows, to compare, and
 /// the page the app opened in the browser.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
