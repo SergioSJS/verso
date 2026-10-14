@@ -94,8 +94,10 @@ script de instalação").
 | Oracle Linux, RHEL, Fedora, ARM64 (a Ampere da Oracle) | `aarch64` | `universo-$V-aarch64.rpm` |
 | qualquer outra | | `universo-$V-x86_64.tar.gz` ou `-aarch64.tar.gz` (manual, seção 6) |
 
-Cada arquivo tem a sua assinatura ao lado na release, o mesmo nome
-terminado em `.sig`. O script de instalação escolhe o arquivo sozinho.
+A release assina todos de uma vez: o `verso-$V-SHA256SUMS` lista o sha256
+de cada arquivo, e o `verso-$V-SHA256SUMS.sig` é a assinatura dele (até a
+0.8.3, cada arquivo também tinha um `.sig` ao lado). O script de
+instalação escolhe o arquivo e o confere sozinho.
 
 ### A.2 Instalar com o script
 
@@ -114,9 +116,9 @@ repositório; sem ele, o script explica como criar. `--url` é o endereço
 que as pessoas vão digitar, com `https://`; sem ele o script pergunta
 (Enter deixa vazio: só esta máquina consegue entrar).
 
-O script baixa o pacote desta máquina, confere (com o `minisign` e o
-`.sig` da release quando o `minisign` está instalado, senão com o sha256
-que o GitHub publica), instala, grava o `VERSO_PUBLIC_URL` em
+O script baixa o pacote desta máquina, confere (com o `minisign` e a
+lista de checksums assinada da release quando o `minisign` está
+instalado, senão com o sha256 que o GitHub publica), instala, grava o `VERSO_PUBLIC_URL` em
 `/etc/universo/universo.env`, roda `systemctl enable --now universo`,
 espera o servidor responder e imprime os próximos passos. **Guarde essa
 saída**: ela traz o link que cria o primeiro admin. Depois vá ao A.4 para
@@ -126,35 +128,42 @@ a linha do proxy.
 
 ### A.3 Ou à mão, com a assinatura conferida
 
-Copie antes o pacote e o `.sig` da página da release para o servidor (por
-exemplo com `scp` a partir do seu computador). Depois, no Ubuntu ou
-Debian:
+Copie antes o pacote, o `verso-$V-SHA256SUMS` e o
+`verso-$V-SHA256SUMS.sig` da página da release para o servidor (por
+exemplo com `scp` a partir do seu computador), numa mesma pasta. Depois,
+no Ubuntu ou Debian:
 
 ```sh
-V=0.8.0-beta.1
+V=0.8.3-beta.1
 ARCH=$(dpkg --print-architecture)          # amd64 ou arm64
 sudo apt install minisign
-base64 -d < universo-$V-$ARCH.deb.sig > file.minisig
+base64 -d < verso-$V-SHA256SUMS.sig > list.minisig
 minisign -V -P RWS1zv2nvs/ng1hA0YspwOg7wGda98zkXjVfx8m9CtT5obRW5zabNHaT \
-  -m universo-$V-$ARCH.deb -x file.minisig
+  -m verso-$V-SHA256SUMS -x list.minisig
+sha256sum --check --ignore-missing verso-$V-SHA256SUMS
 sudo apt install ./universo-$V-$ARCH.deb
 ```
 
 No Oracle Linux, RHEL ou Fedora:
 
 ```sh
-V=0.8.0-beta.1
+V=0.8.3-beta.1
 ARCH=$(uname -m)                           # x86_64 ou aarch64
 sudo dnf install minisign
-base64 -d < universo-$V-$ARCH.rpm.sig > file.minisig
+base64 -d < verso-$V-SHA256SUMS.sig > list.minisig
 minisign -V -P RWS1zv2nvs/ng1hA0YspwOg7wGda98zkXjVfx8m9CtT5obRW5zabNHaT \
-  -m universo-$V-$ARCH.rpm -x file.minisig
+  -m verso-$V-SHA256SUMS -x list.minisig
+sha256sum --check --ignore-missing verso-$V-SHA256SUMS
 sudo dnf install ./universo-$V-$ARCH.rpm
 ```
 
 O `minisign` precisa dizer que a assinatura confere, e o comentário
-confiável dele nomeia o arquivo (`file:universo-…`); qualquer outra coisa,
-não instale. A chave é a chave de release do Verso, a mesma que o app
+confiável dele nomeia a lista daquela versão (`file:verso-$V-SHA256SUMS`);
+o `sha256sum` precisa dizer `OK` para o pacote; qualquer outra coisa, não
+instale. Uma release até a 0.8.3 tem também o `.sig` do próprio pacote,
+conferido com `base64 -d < universo-$V-$ARCH.deb.sig > file.minisig` e
+`minisign -V -P … -m universo-$V-$ARCH.deb -x file.minisig`, o comentário
+confiável nomeando o arquivo. A chave é a chave de release do Verso, a mesma que o app
 carrega (manual, seção 6). **O pacote não liga o serviço**: ele espera as
 configurações.
 

@@ -43,6 +43,14 @@
   Each language's *what's new* is marked in the page, and the app's update
   panel shows only that part, in the window's language, as plain lines
   (`app/ui/src/updateNews.ts`).
+  2026-10-14 — Decision 6: the release's files. One signed checksums list,
+  `verso-<version>-SHA256SUMS` and its `.sig`, in place of a `.sig` beside
+  each file ([0055](0055-in-app-updater.md), revised that day, the
+  maintainer: *"Sim, já na 0.8.3"*): a release publishes 16 files, 30 in
+  0.8.3, the bridge that publishes both. The list is made by a job of its
+  own once every platform is built; the publish job checks the files by
+  name against `release.mjs assets` in place of a count; the page says the
+  list and the `.sig` can be ignored.
 
 ## Context
 
@@ -116,7 +124,8 @@ modificações até gerar versão, considerando changelog inclusive"*.
    job publishes the release once both are built — a version is published
    whole or not at all. Since 2026-10-09 each file is signed with the
    release key of [0055](0055-in-app-updater.md), its `.sig` published
-   beside it.)*
+   beside it; since 2026-10-14 one signed checksums list in place of the
+   `.sig` files, 0.8.3 publishing both.)*
 7. **The app says which it is**: the version and the commit it was built from,
    in the settings and the macOS About panel, and from `verso --version`.
 

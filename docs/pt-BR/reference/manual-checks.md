@@ -77,6 +77,24 @@ app real.
   aviso, Esc o fecha e o foco volta; o sino é lido com a contagem; a
   central é um diálogo, Esc a fecha.
 
+### A lista de checksums assinada (ADR 0055, revisto em 2026-10-14; feat/release-checksums)
+
+- [ ] **A 0.8.3 é a ponte** (quando a 0.8.3-beta.1 for publicada): a
+  página da release dela tem 30 arquivos, o `verso-0.8.3-beta.1-SHA256SUMS`
+  e o `.sig` dele entre eles, e diz que podem ser ignorados; uma
+  0.8.2-beta.1 instalada se atualiza para ela por *Ajustes ›
+  Atualizações* como antes (ela lê o `.sig` do próprio arquivo), sem ERROR
+  no `verso.log`.
+- [ ] **Da 0.8.3 em diante o app se atualiza pela lista** (quando a versão
+  depois da ponte for publicada, com `PER_FILE_SIGNATURES` em `false` no
+  `scripts/release-page.mjs`): a página dela tem 16 arquivos; a
+  0.8.3-beta.1 instalada se atualiza para ela, sem ERROR no `verso.log`.
+  Num servidor, `sh universo.sh update` diz *Assinatura e checksum válidos:
+  universo-…deb está em verso-…-SHA256SUMS*. Antes dessa release, a cópia
+  em `https://versomd.com/universo.sh` (versomd-site, `public/universo.sh`)
+  é copiada de novo do `packaging/server/universo.sh`, ou o script do site
+  não encontra assinatura nela.
+
 ### O retorno da janela (fix/ui-feedback, 2026-10-14)
 
 - [ ] **Um servidor fora de alcance é dito onde você agiu** (A): uma

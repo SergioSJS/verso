@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { PAGE_LIMIT, absoluteLinks, highlights, releaseAssets, releaseFiles, releasePage } from "./release-page.mjs";
+import { PAGE_LIMIT, PER_FILE_SIGNATURES, absoluteLinks, checksumsList, highlights, releaseAssets, releaseFiles, releasePage } from "./release-page.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const workflow = readFileSync(join(root, ".github/workflows/release.yml"), "utf8");
@@ -72,18 +72,56 @@ for (const v of ["0.8.1-beta.1", "1.0.0"]) {
   });
 }
 
-test("the publish job's count is every file and its signature", () => {
-  const count = /\$\{#files\[@\]\}" -ne (\d+)/.exec(job("publish"));
-  assert.ok(count, "no count check in the publish job");
-  assert.equal(releaseAssets("0.8.1-beta.1").length, Number(count[1]));
+// ADR 0055, revised 2026-10-14: one signed checksums list in place of a
+// `.sig` per file, with 0.8.3 the bridge that publishes both.
+test("a release publishes its fourteen files and the signed list; the bridge, each file's .sig too", () => {
+  const v = "0.8.3-beta.1";
+  const after = releaseAssets(v, false);
+  assert.equal(after.length, 16);
+  assert.ok(after.includes("verso-0.8.3-beta.1-SHA256SUMS") && after.includes("verso-0.8.3-beta.1-SHA256SUMS.sig"));
+  assert.equal(after.filter((a) => a.endsWith(".sig")).length, 1, "after the bridge, the list's .sig alone");
+  const bridge = releaseAssets(v, true);
+  assert.equal(bridge.length, 30);
+  for (const f of Object.values(releaseFiles(v))) assert.ok(bridge.includes(`${f}.sig`), `${f}.sig in the bridge`);
+  assert.deepEqual(releaseAssets(v), releaseAssets(v, PER_FILE_SIGNATURES));
+});
+
+test("the publish job publishes exactly the files release.mjs names", () => {
+  const publish = job("publish");
+  assert.match(publish, /node scripts\/release\.mjs assets "\$version"/);
+  assert.match(publish, /needs: \[[^\]]*\bchecksums\b[^\]]*\]/, "publish waits for the checksums list");
+  assert.doesNotMatch(publish, /-ne \d+/, "no count of its own beside the names");
+});
+
+test("the checksums job lists the files release.mjs names, under the list's name, and checks the signed comment", () => {
+  const sums = job("checksums");
+  assert.match(sums, /node scripts\/release\.mjs files "\$VERSION"/);
+  const name = /list="(verso-\$VERSION-SHA256SUMS)"/.exec(sums);
+  assert.ok(name, "the list's name is not set in the checksums job");
+  for (const v of ["0.8.3-beta.1", "1.0.0"]) assert.equal(name[1].replace("$VERSION", v), checksumsList(v));
+  assert.match(sums, /tauri signer sign "verso-\$VERSION-SHA256SUMS"/);
+  assert.match(sums, /grep -qxF "file:\$list"/);
+  assert.match(sums, /sha256sum --check --strict/);
+});
+
+test("each file is signed on its own only while release.mjs says so", () => {
+  for (const name of ["macos", "windows", "linux", "server"]) {
+    const j = job(name);
+    assert.match(j, /echo "sigs=\$\(node scripts\/release\.mjs per-file-signatures\)" >> "\$GITHUB_OUTPUT"/, `${name} does not ask`);
+    const steps = [...j.matchAll(/- name: (sign the release's files|verify the signatures with the app's key)\n\s+if: steps\.version\.outputs\.sigs == 'true'\n/g)];
+    assert.equal(steps.length, 2, `${name}: its signing and verifying steps do not follow the switch`);
+  }
 });
 
 test("every file is uploaded by one of the workflow's globs, and every glob uploads one", () => {
   const globs = uploadGlobs();
   assert.ok(globs.length >= 8, `too few upload globs found: ${globs}`);
-  const assets = releaseAssets("0.8.1-beta.1");
-  for (const a of assets) assert.ok(globs.some((g) => globRe(g).test(a)), `${a} matches no upload glob`);
-  for (const g of globs) assert.ok(assets.some((a) => globRe(g).test(a)), `${g} uploads none of the files`);
+  // The bridge's files are the most there are; after it, a subset.
+  for (const perFile of [true, false]) {
+    for (const a of releaseAssets("0.8.1-beta.1", perFile)) assert.ok(globs.some((g) => globRe(g).test(a)), `${a} matches no upload glob`);
+  }
+  const bridge = releaseAssets("0.8.1-beta.1", true);
+  for (const g of globs) assert.ok(bridge.some((a) => globRe(g).test(a)), `${g} uploads none of the files`);
 });
 
 const changelog = (n, prefix) =>
@@ -98,13 +136,22 @@ for (const v of ["0.8.1-beta.1", "1.0.0"]) {
     const files = Object.values(releaseFiles(v));
     assert.deepEqual([...new Set(named)].sort(), [...files].sort());
     for (const f of files) assert.equal(named.filter((n) => n === f).length, 2, `${f} once in each language`);
-    assert.ok(!page.includes(".sig]"), "no signature is offered for download");
+    assert.ok(!page.includes(".sig]") && !page.includes("SHA256SUMS]"), "no signature or list is offered for download");
     for (const m of page.matchAll(/https:\/\/github\.com\/SergioSJS\/verso\/blob\/([^/]+)\/(\S+?)\)/g)) {
       if (m[2].endsWith("reference/server-hands-on.md")) assert.equal(m[1], "main");
       else assert.equal(m[1], `v${v}`, m[0]);
     }
   });
 }
+
+test("the page says the checksums list and the .sig files can be ignored, as the release publishes them", () => {
+  const bridge = releasePage({ version: "0.8.3-beta.1", en: changelog(1, "en"), pt: changelog(1, "pt"), perFileSignatures: true });
+  assert.match(bridge, /You can ignore `verso-0\.8\.3-beta\.1-SHA256SUMS` and the `\.sig` files\./);
+  assert.match(bridge, /Pode ignorar o `verso-0\.8\.3-beta\.1-SHA256SUMS` e os arquivos `\.sig`\./);
+  const after = releasePage({ version: "0.8.4-beta.1", en: changelog(1, "en"), pt: changelog(1, "pt"), perFileSignatures: false });
+  assert.match(after, /You can ignore `verso-0\.8\.4-beta\.1-SHA256SUMS` and the `\.sig` file\./);
+  assert.match(after, /Pode ignorar o `verso-0\.8\.4-beta\.1-SHA256SUMS` e o arquivo `\.sig`\./);
+});
 
 test("a test release says it is one; a production version does not", () => {
   const beta = releasePage({ version: "0.8.1-beta.1", en: changelog(1, "en"), pt: changelog(1, "pt") });
