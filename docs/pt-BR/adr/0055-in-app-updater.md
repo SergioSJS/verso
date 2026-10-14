@@ -117,13 +117,13 @@ Como o autor construiu a instalação sob essa decisão
   e um app anterior à ponte que a pulou se atualiza à mão, uma vez, pela
   página de releases. Construído pelo autor sob essa decisão: o nome da
   lista, a chave, e que o atualizador da própria 0.8.3 só lê a lista
-  (toda release para a qual ele pode se atualizar tem uma). `[OPEN]`: qual
-  versão é "a versão depois da ponte" quando a 0.8.3 tiver mais de uma
-  release de teste — a cortada logo depois da 0.8.3-beta.1, ou a primeira
-  depois da linha 0.8.3. Recomendado: a cortada logo depois da
-  0.8.3-beta.1, a primeira release que publica os dois; uma ponte mais
-  longa mantém catorze arquivos em cada página para apps que se atualizam
-  na próxima abertura de qualquer jeito.
+  (toda release para a qual ele pode se atualizar tem uma).
+  `[DECIDIDO 2026-10-14]`: "a versão depois da ponte", quando a 0.8.3 tiver mais de
+  uma release de teste, é a cortada logo depois da 0.8.3-beta.1, a
+  primeira release que publica os dois — como recomendado, sendo a
+  alternativa a primeira depois da linha 0.8.3; uma ponte mais longa
+  mantém catorze arquivos em cada página para apps que se atualizam na
+  próxima abertura de qualquer jeito.
 - **Limites de tamanho.** O download e a extração têm cada um um teto de
   1 GiB (`UPDATE_MAX_BYTES`); um asset que a API já informa maior é recusado
   antes do download. Cada entrada do arquivo compactado só é extraída com o
@@ -211,7 +211,9 @@ Aceito em 2026-09-29 pelo mantenedor, na sessão: os pontos 1 e 2 da Decisão
 release são assinados e o app confere a assinatura (o mantenedor: "assinar
 nossa aplicação"). Revisto em 2026-10-14: uma lista de checksums assinada
 por release no lugar de um `.sig` ao lado de cada arquivo, com a 0.8.3
-como ponte que publica os dois (o mantenedor: "Sim, já na 0.8.3"). O
+como ponte que publica os dois (o mantenedor: "Sim, já na 0.8.3"); e,
+respondido durante a construção (2026-10-14, o mantenedor: "Sim, todas",
+G1), a ponte termina na versão cortada logo depois da 0.8.3-beta.1. O
 endurecimento sob eles é do autor,
 construído sob essa decisão e identificado como tal acima. Revisto em
 2026-09-29: o padrão ligado da verificação ratificado pelo mantenedor; o ADR

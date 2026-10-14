@@ -138,6 +138,8 @@ recommended and is marked `[DECIDED 2026-10-14]`.
 decided as recommended, marked `[DECIDED 2026-10-14]` in place. In V1
 (`docs/roadmap.md`, Phase 4 — V1).
 
+**Answered while building (2026-10-14, the maintainer: "Sim, todas").** The seven choices the build made, kept as recommended (*"Aceita todas as recomendações acima (P1–P5, M1–M6, I1–I7, D1–D11, G1–G4)?"*): a layout this version does not know is ignored; a picture is one only with a picture's extension; a picture on the web waits for a click while *Load remote content* is off; a link shows its alias; the card goes narrow below 760 px; the hover preview is wired to the card's links at integration (done that night); the cards of the bases stay as they are.
+
 *(History, before the acceptance above:)* Proposed (2026-10-14). In V1 by the maintainer's word of 2026-10-14
 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revision 8). For the
 maintainer, each with a recommendation: a web address as a picture

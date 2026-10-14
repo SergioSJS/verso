@@ -133,6 +133,8 @@ recomendado e está marcado `[DECIDIDO 2026-10-14]`.
 decidido como recomendado, marcado `[DECIDIDO 2026-10-14]` no lugar. Na V1
 (`docs/roadmap.md`, Fase 4 — V1). A [0036](0036-tabletop-rpg-support.md) ganha uma linha de Revisões: dados, tabelas aleatórias, blocos secretos e mapas entram como primitivas.
 
+**Respondido durante a construção (2026-10-14, o mantenedor: "Sim, todas").** As perguntas que a construção levantou, respondidas como recomendado (*"Aceita todas as recomendações acima (P1–P5, M1–M6, I1–I7, D1–D11, G1–G4)?"*): D1 — o ADR citava explodir (`1d6!`) e `d%` enquanto o Rolai não lia nenhum dos dois: os dois são lidos, no parser da janela e no do servidor, com o sentido do README do Dice Roller, uma cadeia de explosões limitada a 100 dados acrescentados numa rolagem, o mesmo nos dois lados (construído naquela noite); D2 a D11, como construído — as duas formas do link de uma tabela, `[[Nota^id]]` e `[[Nota#^id]]`; o cabeçalho `dice: 1d20`; `00` vale 100, e listas como `13,14` são lidas; uma tabela de uma linha é recusada; numa sala o servidor rola mesmo com você sozinho; quem só lê pode rolar; o rolador da paleta rola só na sua janela; a sua rolagem não mostra o seu nome; os limites de 100 dados e 1000 lados.
+
 *(Histórico, antes da aceitação acima:)* Proposta (2026-10-14). Na V1 pela palavra do mantenedor de
 2026-10-14 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revisão 8). Para o
 mantenedor, cada um com uma recomendação: a notação (item 1), linhas
