@@ -439,6 +439,12 @@ export const commands = {
 	 */
 	serverOpen: (url: string, folder: string) => typedError<FolderInfo, ContractError>(__TAURI_INVOKE("server_open", { url, folder })),
 	/**
+	 *  The window's reconnection tries now, its waits starting over: the
+	 *  person's "Tentar de novo" while the window's server is out of reach.
+	 *  Nothing when the window is not reconnecting.
+	 */
+	serverRetry: () => typedError<null, ContractError>(__TAURI_INVOKE("server_retry")),
+	/**
 	 *  The shares of the window's folder: the whole folder's people first,
 	 *  then each folder inside it shared, by path (ADR 0081 item 7).
 	 */

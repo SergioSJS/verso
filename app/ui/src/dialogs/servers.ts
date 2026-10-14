@@ -13,7 +13,7 @@ import { listen } from "@tauri-apps/api/event";
 import { commands, type ContractError, type ServerAccount, type ServerFolder } from "../bindings";
 import { h, ui } from "../dom";
 import { errorSentence, fail } from "../errors";
-import { attempt, busy, clearFailure, sayFailure } from "../reach";
+import { addressOf, attempt, busy, clearFailure, reachStrings, sayFailure } from "../reach";
 import { can } from "../can";
 import { currentFolder, folderName, LAST_FOLDER } from "../folder";
 import { currentSync, openSettingsSection, preselectSync } from "./sync";
@@ -138,15 +138,55 @@ let heard = false;
 export function hearServers(): void {
   if (heard) return;
   heard = true;
-  void listen<{ url: string; what: string }>("server-gone", (e) => {
+  void listen<{ url: string; what: string; address?: string }>("server-gone", (e) => {
     const s = serverStrings();
+    // A try that found the server out of reach: said beside the status,
+    // with a try now (the host tries again on its own, 5 s doubling to 5
+    // min, reach.rs).
+    if (e.payload.what === "unreachable") return outOfReach(e.payload.address ?? addressOf(e.payload.url));
+    serverState()?.remove();
     ui.status.textContent = e.payload.what === "session" ? s.goneSession : s.gone;
   });
   void listen<{ url: string }>("server-back", () => {
+    serverState()?.remove();
     ui.status.textContent = serverStrings().back;
     // The notes being edited together join their rooms again (collab.ts).
     dispatchEvent(new Event("verso:reconnected"));
   });
+}
+
+function serverState(): HTMLElement | null {
+  return document.getElementById("server-state");
+}
+
+/** The window's server out of reach, beside the status bar's text: which
+ *  one, and "Tentar de novo", busy until the host says how that try went. */
+function outOfReach(address: string): void {
+  let box = serverState();
+  if (!box) {
+    box = h("span", "status-server");
+    box.id = "server-state";
+    const text = h("span", "status-server-text");
+    text.setAttribute("role", "status");
+    const again = h("button", "ghost status-server-retry", reachStrings().tryAgain);
+    again.type = "button";
+    again.addEventListener("click", () => {
+      busy(again, true);
+      void commands.serverRetry().then((r) => {
+        if (r.status !== "ok") {
+          busy(again, false);
+          fail(r.error);
+        }
+      });
+    });
+    box.append(text, again);
+    ui.status.after(box);
+  }
+  ui.status.textContent = "";
+  const text = box.querySelector<HTMLElement>(".status-server-text");
+  if (text) text.textContent = reachStrings().unreachableShort(address);
+  const again = box.querySelector<HTMLButtonElement>("button");
+  if (again) busy(again, false);
 }
 
 /** The section's body: connect, and each server signed in to — its
