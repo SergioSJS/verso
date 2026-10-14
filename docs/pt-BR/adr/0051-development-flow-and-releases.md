@@ -22,6 +22,27 @@
   0.8.0-beta.1 só o último número anda — 0.8.1, 0.8.2, … — cada uma ainda
   uma release de teste `-beta.N` até a linha ficar estável; a próxima
   release é a 0.8.1-beta.1.
+  2026-10-14 — Decisão 6: a página da release. Da página da
+  0.8.0-beta.1 — 28 arquivos sob o changelog cru, nada dizendo qual
+  baixar — o mantenedor, em 2026-10-14: *"do jeito que tá, tá muito ruim …
+  alguma instrução pra falar qual versão que a pessoa tem que baixar"*. As
+  notas que o `release.mjs notes` monta agora são uma página para quem não
+  é técnico: o que é o Verso e, numa release de teste, que ela é uma;
+  *Qual arquivo baixar?*, uma tabela por público — um Mac com chip Apple (e
+  como saber), Windows, Linux por distribuição, a linha de comando (quase
+  ninguém), o UniVerso por processador — cada arquivo nomeado como link na
+  tag da versão; como instalar em cada sistema, o aviso da primeira
+  abertura incluído; que os arquivos `.sig` podem ser ignorados; as
+  novidades, a abertura de cada item, no máximo doze; e o changelog
+  completo recolhido. Inglês primeiro, pt-BR logo depois
+  ([0008](0008-documentation-language.md)). Os arquivos vêm de uma lista
+  só, em `scripts/release-page.mjs`, que um teste confere contra os nomes,
+  os uploads e a contagem do `.github/workflows/release.yml`; o
+  `release.mjs preview` mostra a página da próxima versão antes de ela ser
+  cortada.
+  As novidades de cada idioma vão marcadas na página, e o painel de
+  atualização do app mostra só essa parte, no idioma da janela, em linhas
+  simples (`app/ui/src/updateNews.ts`).
 
 ## Contexto
 

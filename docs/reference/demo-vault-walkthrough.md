@@ -503,11 +503,14 @@ point 13).
    release, Ajustes › Geral › Versão › "Verificar atualizações", then
    "Baixar e atualizar": the file's checksum and its signature are checked
    before anything is installed; a file whose signature is missing or does
-   not verify installs nothing and says so. A second folder of the same
+   not verify installs nothing and says so. "Ver notas da versão" shows
+   that release's news in the window's language, as plain lines — never
+   the release page's download tables. A second folder of the same
    name added to Claude Desktop (note 17) gets `verso-<parent>-<name>`.
    Level: S (`an_update_installs_only_with_its_signature`,
-   `a_folder_of_a_name_already_added_takes_its_parent_s_name`); A (the
-   first signed release, on macOS and Windows).
+   `a_folder_of_a_name_already_added_takes_its_parent_s_name`); U
+   (`test/updateNews.test.mjs`); A (the first signed release, on macOS and
+   Windows).
 8. On Linux (note 17): the `.deb` installs `verso-app` and `verso` in
    /usr/bin, and Terminal e agentes says the command came with the
    package; an AppImage's "Instalar" puts `verso` in `~/.local/bin`; "Mostrar
