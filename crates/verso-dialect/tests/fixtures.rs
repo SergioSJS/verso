@@ -40,6 +40,9 @@ fixture_tests! {
     // All approved by the maintainer on 2026-09-21 (PR #1: the first five;
     // PR #7: the other six). The first line of each expected.yaml says so.
     code_no_link_in_code => "code/no-link-in-code",
+    // AI draft of ADR 0088 (dice), awaiting approval (first line of its
+    // expected.yaml).
+    code_dice_inline => "code/dice-inline",
     wikilink_alias => "wikilink/alias",
     wikilink_block_reference => "wikilink/block-reference",
     wikilink_heading => "wikilink/heading",
