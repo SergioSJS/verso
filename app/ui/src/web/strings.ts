@@ -226,6 +226,7 @@ const pt = {
   // A fresh proof before a sensitive action (ADR 0083 item 6).
   proveTitle: "Confirme que é você",
   proveLead: "Esta ação pede a sua senha de novo, ou uma passkey: a última confirmação foi há mais de 10 minutos.",
+  proveLeadPassword: "Esta ação pede a sua senha de novo: a última confirmação foi há mais de 10 minutos.",
   proveConfirm: "Confirmar",
   provePasskey: "Usar uma passkey",
   proveWrong: "Senha errada.",
@@ -448,6 +449,7 @@ const en: WebStrings = {
   badRequest: "Check the fields: something is missing, or over the limit.",
   proveTitle: "Confirm it is you",
   proveLead: "This action asks for your password again, or a passkey: you last confirmed more than 10 minutes ago.",
+  proveLeadPassword: "This action asks for your password again: you last confirmed more than 10 minutes ago.",
   proveConfirm: "Confirm",
   provePasskey: "Use a passkey",
   proveWrong: "Wrong password.",

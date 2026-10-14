@@ -97,6 +97,7 @@ fn main() {
         "share_grant",
         "share_revoke",
         "share_attachments",
+        "server_prove",
         "recent_folders",
         "folder_sync",
         "folder_sync_start",

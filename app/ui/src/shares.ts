@@ -17,6 +17,8 @@ import { h, ui } from "./dom";
 import { allNotes, folderName } from "./folder";
 import { icon } from "./icons";
 import { dirOf, name } from "./paths";
+import { withServerProof } from "./serverProof";
+import { askServerProof } from "./serverProver";
 import { roleWord, sh } from "./shareStrings";
 
 /** The folders of the open folder shared with someone, by path. */
@@ -64,7 +66,16 @@ export function markShared(): void {
 }
 
 function said(e: ContractError): string {
+  if (e.kind === "prove_first") return sh.proveFirst;
   return /no account has that e-mail/i.test(e.message) ? sh.noAccount : e.message;
+}
+
+/** A share command the server may want a fresh proof for (ADR 0083 item
+ *  6; giving or changing a role does): in the desktop app the person is
+ *  asked on the spot and the command sent once more; a browser's pages
+ *  ask on their own (`web/proof.ts`), so there it goes as it is. */
+function proved<T>(call: () => Promise<{ status: "ok"; data: T } | { status: "error"; error: ContractError }>) {
+  return withServerProof(call, document.documentElement.dataset.host === "server" ? null : askServerProof);
 }
 
 /** The attachments the notes under `path` embed that lie outside it: the
@@ -153,7 +164,7 @@ export function openShareDialog(path: string): void {
   form.append(emailLabel, email, roleLabel, role, add);
   form.addEventListener("submit", (e) => {
     e.preventDefault();
-    void commands.shareGrant(path, email.value.trim(), role.value).then((r) => {
+    void proved(() => commands.shareGrant(path, email.value.trim(), role.value)).then((r) => {
       if (r.status !== "ok") return void (status.textContent = said(r.error));
       status.textContent = sh.added(email.value.trim());
       email.value = "";
@@ -174,7 +185,7 @@ export function openShareDialog(path: string): void {
             const select = roleSelect(whole, p.role);
             select.setAttribute("aria-label", sh.roleOf(p.name, roleWord(p.role)));
             select.addEventListener("change", () => {
-              void commands.shareGrant(path, p.email, select.value).then((r) => {
+              void proved(() => commands.shareGrant(path, p.email, select.value)).then((r) => {
                 if (r.status !== "ok") return void (status.textContent = said(r.error));
                 status.textContent = sh.saved;
                 draw(r.data);
@@ -185,7 +196,7 @@ export function openShareDialog(path: string): void {
             remove.setAttribute("aria-label", sh.removeNamed(p.name));
             remove.addEventListener("click", () =>
               askFirst(actions, sh.confirmRemove(p.name), async () => {
-                const r = await commands.shareRevoke(path, p.id);
+                const r = await proved(() => commands.shareRevoke(path, p.id));
                 if (r.status !== "ok") {
                   status.textContent = said(r.error);
                   return;
@@ -206,7 +217,7 @@ export function openShareDialog(path: string): void {
       stop.type = "button";
       stop.addEventListener("click", () =>
         askFirst(footer, sh.confirmStop, async () => {
-          const r = await commands.shareRevoke(path, null);
+          const r = await proved(() => commands.shareRevoke(path, null));
           if (r.status !== "ok") {
             status.textContent = said(r.error);
             return;
@@ -230,7 +241,7 @@ export function openShareDialog(path: string): void {
       const off = h("button", "btn quiet", sh.attachmentsRemove);
       off.type = "button";
       off.addEventListener("click", () => {
-        void commands.shareAttachments(path, null).then((r) => (r.status === "ok" ? draw(r.data) : void (status.textContent = said(r.error))));
+        void proved(() => commands.shareAttachments(path, null)).then((r) => (r.status === "ok" ? draw(r.data) : void (status.textContent = said(r.error))));
       });
       attachments.replaceChildren(h("p", "", sh.attachmentsShown(s.attachments)), off);
       return;
@@ -250,7 +261,7 @@ export function openShareDialog(path: string): void {
     // Only once someone has the share: the share is made with its first person.
     include.disabled = !s.id;
     include.addEventListener("click", () => {
-      void commands.shareAttachments(path, out.folder).then((r) => (r.status === "ok" ? draw(r.data) : void (status.textContent = said(r.error))));
+      void proved(() => commands.shareAttachments(path, out.folder)).then((r) => (r.status === "ok" ? draw(r.data) : void (status.textContent = said(r.error))));
     });
     attachments.replaceChildren(h("p", "", sh.attachmentsOutside(out.count, out.folder)), include);
   };

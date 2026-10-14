@@ -991,6 +991,10 @@ pub enum ErrorKind {
     /// written; a write that shrinks the folder is always allowed (ADR
     /// 0077 item 5).
     Quota,
+    /// A server's sensitive action wants a fresh proof that it is the
+    /// person (ADR 0083 item 6): the window asks for the password and
+    /// sends the action once more.
+    ProveFirst,
     /// The core could not answer.
     Failed,
 }
