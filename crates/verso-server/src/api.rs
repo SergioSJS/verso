@@ -344,9 +344,12 @@ pub async fn accept(
             Some(share) if ctx.server.db.share(share)?.is_some() => {
                 ctx.server.db.grant_share(share, &account.id, role)?;
             }
-            // The share went before the invitation was used: nothing of
-            // the folder is given in its place.
+            // The share went while the invitation was being used: nothing
+            // of the folder is given in its place. An invitation made for
+            // a share whose share is gone is not pending (`Invitation::
+            // state`), so it does not reach here.
             Some(_) => {}
+            None if link.for_share => {}
             None => ctx.server.db.grant(folder, &account.id, role)?,
         }
     }
