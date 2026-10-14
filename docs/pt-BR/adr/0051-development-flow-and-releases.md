@@ -40,6 +40,9 @@
   os uploads e a contagem do `.github/workflows/release.yml`; o
   `release.mjs preview` mostra a página da próxima versão antes de ela ser
   cortada.
+  As novidades de cada idioma vão marcadas na página, e o painel de
+  atualização do app mostra só essa parte, no idioma da janela, em linhas
+  simples (`app/ui/src/updateNews.ts`).
 
 ## Contexto
 

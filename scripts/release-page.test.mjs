@@ -149,3 +149,23 @@ test("a changelog too long for GitHub is linked instead of folded in", () => {
   assert.match(page, /blob\/v1\.0\.0\/CHANGELOG\.md/);
   assert.match(page, /blob\/v1\.0\.0\/docs\/pt-BR\/CHANGELOG\.md/);
 });
+
+test("each language's news is marked for the app's update panel, before its folded changelog", () => {
+  const page = releasePage({ version: "0.8.1-beta.1", en: changelog(3, "en"), pt: changelog(3, "pt") });
+  for (const lang of ["en", "pt-BR"]) {
+    const start = page.indexOf(`<!-- verso:news:${lang} -->`);
+    assert.ok(start >= 0, `no news marker for ${lang}`);
+    assert.equal(page.indexOf(`<!-- verso:news:${lang} -->`, start + 1), -1, `one news marker for ${lang}`);
+    const end = page.indexOf("<!-- verso:news:end -->", start);
+    assert.ok(end > start, `the news of ${lang} is closed`);
+    const block = page.slice(start, end);
+    assert.match(block, new RegExp(`${lang === "en" ? "en" : "pt"} added 0`));
+    assert.doesNotMatch(block, /<details>|\| ---/);
+  }
+});
+
+test("the Portuguese guide has an explicit anchor the header links to", () => {
+  const page = releasePage({ version: "0.8.1-beta.1", en: changelog(1, "en"), pt: changelog(1, "pt") });
+  assert.match(page, /<a id="qual-arquivo-baixar"><\/a>\n\n## Qual arquivo baixar\?/);
+  assert.match(page, /\]\(#qual-arquivo-baixar\)/);
+});
