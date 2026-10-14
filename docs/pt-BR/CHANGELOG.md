@@ -14,6 +14,7 @@ versão de teste.
 
 ### Corrigido
 
+- **O que abre por último fica por cima** (relato do mantenedor, 2026-10-14): a paleta de comandos (⌘⇧P), o seletor rápido, o relatório de problema e os outros diálogos abrem acima de *Ajustes* aberto, com o foco, e o que fica embaixo fica inerte — sem clique, sem foco, nada lido pelo leitor de tela — até eles fecharem; Esc fecha só o de cima, e o foco volta para dentro do de baixo. Antes a paleta abria atrás dos ajustes.
 - **A hora do relatório de problema é a do computador** (relato do mantenedor, 2026-10-14): *Relatar problema* diz a hora do computador com o fuso — `2026-10-14 10:25:24 (UTC−03:00)` — e que as linhas do registro abaixo estão em UTC (`Z`); os erros da sessão estão no relógio do computador.
 
 ## 0.8.1-beta.1 — 2026-10-14

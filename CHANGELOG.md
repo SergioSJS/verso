@@ -14,6 +14,7 @@ test release.
 
 ### Fixed
 
+- **What opens last is on top** (the maintainer's report, 2026-10-14): the command palette (⌘⇧P), the quick switcher, the bug report and the other dialogs open above an open *Settings*, with the focus, and what is under them is inert — no click, no focus, nothing read by a screen reader — until they close; Escape closes the one on top only, and the focus goes back into the one under it. Before, the palette opened behind the settings.
 - **The bug report's time is the computer's** (the maintainer's report, 2026-10-14): *Report a problem* says the computer's time with its offset — `2026-10-14 10:25:24 (UTC−03:00)` — and that the log's lines under it are in UTC (`Z`); the session's errors are on the computer's clock.
 
 ## 0.8.1-beta.1 — 2026-10-14

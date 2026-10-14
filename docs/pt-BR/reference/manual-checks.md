@@ -20,6 +20,11 @@ app real.
 
 ### O retorno da janela (fix/ui-feedback, 2026-10-14)
 
+- [ ] **A paleta sobre os ajustes** (B): *Ajustes* aberto, um clique numa
+  seção, depois ⌘⇧P: a paleta fica por cima com o cursor nela; Esc fecha
+  só a paleta, e o foco volta para *Ajustes*; Esc de novo fecha *Ajustes*.
+  O mesmo com ⌘P e com *Ajuda › Relatar problema* sobre *Ajustes*.
+  VoiceOver, com a paleta aberta: nada de *Ajustes* é lido atrás dela.
 - [ ] **A hora do relatório é a do computador** (D): *Relatar problema*:
   a linha *Hora deste computador: 2026-10-14 10:25:24 (UTC−03:00)* é o
   relógio e o fuso do Mac; as linhas do registro abaixo dela estão em UTC

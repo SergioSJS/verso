@@ -21,6 +21,12 @@ in the real app.
 
 ### The window's feedback (fix/ui-feedback, 2026-10-14)
 
+- [ ] **The palette over the settings** (B): *Ajustes* open, a click on
+  a section, then ⌘⇧P: the palette is on top with the cursor in it;
+  Escape closes the palette alone, the focus back in *Ajustes*; Escape
+  again closes *Ajustes*. The same with ⌘P and with *Ajuda › Relatar
+  problema* over *Ajustes*. VoiceOver, the palette open: nothing of
+  *Ajustes* is read behind it.
 - [ ] **The report's time is the computer's** (D): *Relatar problema*:
   the line *Hora deste computador: 2026-10-14 10:25:24 (UTC−03:00)* is the
   Mac's clock and zone; the log's lines under it are in UTC (`Z`), three
