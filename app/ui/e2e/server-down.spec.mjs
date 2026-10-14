@@ -37,7 +37,7 @@ test("Sync this folder with the server down says so where the button is, and tri
   const start = page.getByRole("button", { name: "Sincronizar esta pasta" });
   await start.click();
   await expect(failure.getByRole("alert")).toContainText(SAID);
-  expect(await app.calls("folder_sync_start")).toHaveLength(1);
+  await expect.poll(async () => (await app.calls("folder_sync_start")).length).toBe(1);
   await expect(page.locator("#sync-state")).toBeHidden();
   // DevTools' console has a line for each failure (a warning: the suite
   // fails a test on an error), and the app's log one WARN for the server,
@@ -50,7 +50,7 @@ test("Sync this folder with the server down says so where the button is, and tri
   await page.evaluate(() => window.__harness.serverDown(null));
   await failure.getByRole("button", { name: "Tentar de novo" }).click();
   await expect(page.locator("#sync-state")).toHaveText("Sincronizada");
-  expect(await app.calls("folder_sync_start")).toHaveLength(2);
+  await expect.poll(async () => (await app.calls("folder_sync_start")).length).toBe(2);
 });
 
 test("a synced folder whose server does not answer says so in the status bar and the section", async ({ app, page }) => {
