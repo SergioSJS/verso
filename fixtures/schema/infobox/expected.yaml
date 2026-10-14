@@ -1,4 +1,4 @@
-# AI draft by Opus 5.5 on 2026-10-14, awaiting the maintainer's approval (ADR 0031).
+# Approved by the maintainer on 2026-10-14 in session ("Aprovo as 3"); drafted by Opus 5.5 on 2026-10-14 (ADR 0031).
 # Construct: a schema's `layout` and its `link` and `image` kinds (ADR 0086
 # items 1, 2 and 5; spec §4.8, Q11). `layout: infobox` at the top level is
 # read; a layout this version does not know is no layout and no error — the
