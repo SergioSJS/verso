@@ -40,7 +40,7 @@ import { fetchFirst, opening } from "../opening";
 import { dirOf, Kind, kindOf, name } from "../paths";
 import { parsePdfSpec, PdfView } from "../pdf";
 import { keyLinks, typeset, wireCallouts } from "../render";
-import { resolveNoteByName } from "../resolve";
+import { resolveNoteByName, withNoteLinks } from "../resolve";
 import { setHtml } from "../sanitize";
 import { searchNotes } from "../search";
 import { settings } from "../settings";
@@ -994,7 +994,7 @@ export function readingClicks(el: HTMLElement, source: string): void {
 /** `quiet`: what it embeds is read without bringing a file down from
  *  iCloud (a hover preview is not an opening, ADR 0085). */
 export async function renderReading(el: HTMLElement, html: string, source: string, depth = 0, quiet = false): Promise<void> {
-  setHtml(el, html);
+  setHtml(el, withNoteLinks(html, source));
   wireCallouts(el);
   keyLinks(el);
   typeset(el);

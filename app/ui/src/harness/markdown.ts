@@ -271,7 +271,8 @@ function formatMarks(text: string): string {
     const [to = "", label] = target.split("|");
     return `<a class="wikilink" data-target="${to.trim()}">${(label ?? to).trim()}</a>`;
   });
-  s = s.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2">$1</a>');
+  // A link to the web or to a path, its address as the core writes it.
+  s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, label: string, to: string) => `<a href="${escapeHref(to)}">${label}</a>`);
   s = s.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
   s = s.replace(/\*(.*?)\*/g, "<em>$1</em>");
   s = s.replace(/~~(.*?)~~/g, "<del>$1</del>");

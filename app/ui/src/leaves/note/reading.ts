@@ -22,7 +22,7 @@ import { opening } from "../../opening";
 import { dirOf, kindOf, name } from "../../paths";
 import { parsePdfSpec, PdfView } from "../../pdf";
 import { keyLinks, ownText, typeset, wireCallouts } from "../../render";
-import { linkText, resolveNoteByName, sliceHeading } from "../../resolve";
+import { linkText, resolveNoteByName, sliceHeading, withNoteLinks } from "../../resolve";
 import { setHtml, webFrame } from "../../sanitize";
 import { settings } from "../../settings";
 import { baseStrings, t } from "../../strings";
@@ -447,7 +447,7 @@ export async function paintPreview(this: NoteLeaf): Promise<void> {
     if (e instanceof BaseView) liveBases.delete(e);
   }
   this.embeds = [];
-  setHtml(this.preview, note.html);
+  setHtml(this.preview, withNoteLinks(note.html, note.path));
   wireCallouts(this.preview, open);
   keyLinks(this.preview);
   this.shownText = note.text;
