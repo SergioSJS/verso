@@ -17,7 +17,7 @@
 //! element when it is moved or removed — is judged by no one. The room's
 //! own client is `collab::ahead_of_room`'s.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use yrs::{ClientID, Doc, IdSet, ReadTxn, Transact, Update};
 
@@ -43,22 +43,23 @@ pub struct Writer<'a> {
 pub const NOT_YOURS: &str = "an edit that writes as another person's window";
 
 /// The clients `update` makes items of, or deletes clocks of, past what
-/// `doc` holds — the room's own client left out.
+/// `doc` holds — the room's own client left out. A set: an update of 4 MB
+/// can name a million clients.
 fn ahead(doc: &Doc, update: &Update) -> Vec<ClientID> {
     let own = doc.client_id();
     let held = doc.transact().state_vector();
-    let mut out = Vec::new();
+    let mut out = BTreeSet::new();
     let mut past = |set: &IdSet| {
         for (client, ranges) in set.iter() {
             let made = held.get(client);
-            if *client != own && !out.contains(client) && ranges.iter().any(|r| r.end > made) {
-                out.push(*client);
+            if *client != own && ranges.iter().any(|r| r.end > made) {
+                out.insert(*client);
             }
         }
     };
     past(&update.insertions(true));
     past(update.delete_set());
-    out
+    out.into_iter().collect()
 }
 
 /// Whether `who` may send `update` to the room of `doc`: the clients it
