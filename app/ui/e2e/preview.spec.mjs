@@ -60,6 +60,31 @@ test("Reading: a link rested on shows its note, at its heading; away, the card g
   await expect(page.locator('.pane.focused .tab[aria-selected="true"]')).toContainText("01 - Guia de Markdown");
 });
 
+test("Reading: a Markdown link to a note is previewed at its heading and followed; one out of the folder stays dropped (P1)", async ({ app, page }) => {
+  const TEXT = "Veja [o guia](01%20-%20Guia%20de%20Markdown%20e%20Sintaxe.md#Fórmulas%20Matemáticas%20em%20KaTeX) e [fora](../../fora.md) e [web](https://example.com/x.md).\n";
+  await app.open();
+  await app.writeOutside("Ligações.md", TEXT);
+  await app.folderChanged(["Ligações.md"], true);
+  await app.quickOpen("Ligações");
+  const link = page.locator(".leaf:not([hidden]) .preview a.wikilink", { hasText: "o guia" });
+  await expect(link).toBeVisible();
+  await expect(link).not.toHaveAttribute("href");
+  // Out of the folder: no address, no link to follow — as before.
+  const out = page.locator(".leaf:not([hidden]) .preview a", { hasText: "fora" });
+  await expect(out).not.toHaveAttribute("href");
+  await expect(out).not.toHaveClass(/wikilink/);
+  // The web keeps its address.
+  await expect(page.locator(".leaf:not([hidden]) .preview a", { hasText: "web" })).toHaveAttribute("href", "https://example.com/x.md");
+  await rest(page, link);
+  await expect(card(page)).toHaveAttribute("aria-label", "Prévia de 01 - Guia de Markdown e Sintaxe › Fórmulas Matemáticas em KaTeX");
+  await expect(card(page).locator(".hover-preview-target")).toHaveText(/Fórmulas Matemáticas em KaTeX/);
+  await away(page);
+  await expect(card(page)).toHaveCount(0);
+  await link.click();
+  await expect(page.locator('.pane.focused .tab[aria-selected="true"]')).toContainText("01 - Guia de Markdown");
+  expect(await app.file("Ligações.md")).toBe(TEXT);
+});
+
 test("Reading: a link to a block shows the block marked; a missing note is said, and no note is made", async ({ app, page }) => {
   await links(app, page);
   await rest(page, page.locator(".leaf:not([hidden]) .preview a.wikilink", { hasText: "a descoberta da escrita atômica" }));

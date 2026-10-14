@@ -29,6 +29,7 @@ test release.
 - **A share revoked is said as a revocation**: a window of the desktop app on a server's folder whose share was revoked said *The connection to the server dropped; trying again…*; it now says that whoever shared the folder revoked your access, and does not take the connection's end that follows for a drop.
 - **A folder near its quota is said once**: the warning at 90 % came back every ten minutes while you wrote; it is now said once, and again only after the folder fell under 90 % — measured when the folder opens and once a day — and passed it again; for a synced folder of this computer too.
 - **A property edited in the panel in Edit mode reaches the file** (2026-10-14): the row showed the new value, but Live Preview's guard for the folded frontmatter dropped the change as if it were typed there, so the file kept the old one; the same for a sticker, a colour or a cover set in Edit mode.
+- **A Markdown link to a note opens from the reading view, and shows its note on a hover** ([ADR 0085](docs/adr/0085-hover-preview.md), answered 2026-10-14): `[text](note.md)` or `[text](folder/note.md#Heading)` drew nothing to click in Reading; it is now followed and previewed as a `[[wikilink]]` is. A link that names no file of the folder, or climbs out of it with `..`, still leads nowhere.
 
 ### Changed
 

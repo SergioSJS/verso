@@ -29,6 +29,7 @@ versão de teste.
 - **Um compartilhamento revogado é dito como revogação**: uma janela do app do computador numa pasta de servidor cujo compartilhamento foi revogado dizia *A conexão com o servidor caiu; tentando de novo…*; agora diz que quem compartilhou a pasta revogou o seu acesso, e não toma o fim da conexão que vem depois por uma queda.
 - **Uma pasta perto da cota é dita uma vez**: o aviso dos 90 % voltava a cada dez minutos enquanto você escrevia; agora é dito uma vez, e de novo só depois que a pasta caiu abaixo de 90 % — medido ao abrir a pasta e uma vez por dia — e passou de novo; também para uma pasta deste computador que sincroniza.
 - **Uma propriedade editada no painel no modo Editar chega ao arquivo** (2026-10-14): a linha mostrava o valor novo, mas a guarda do Live Preview para o frontmatter dobrado descartava a mudança como se fosse digitada ali, e o arquivo ficava com o antigo; o mesmo para uma figurinha, uma cor ou uma capa escolhidas no modo Editar.
+- **Um link Markdown para uma nota abre a partir da Leitura, e mostra a nota ao passar o mouse** ([ADR 0085](adr/0085-hover-preview.md), respondida em 2026-10-14): `[texto](nota.md)` ou `[texto](pasta/nota.md#Título)` não desenhava nada para clicar na Leitura; agora é seguido e mostrado como um `[[wikilink]]`. Um link que não nomeia um arquivo da pasta, ou sai dela com `..`, continua sem levar a lugar nenhum.
 
 ### Alterado
 
