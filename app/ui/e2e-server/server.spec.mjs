@@ -935,14 +935,24 @@ async function workOnBoard(page, next, ms) {
   const until = Date.now() + ms;
   const box = await page.locator(".board-canvas, .excalidraw canvas.interactive").first().boundingBox();
   const spot = () => ({ x: box.x + 80 + (next() % Math.max(1, box.width - 160)), y: box.y + 80 + (next() % Math.max(1, box.height - 160)) });
+  // An element is pressed only where `spot` draws: its centre on the board,
+  // away from the board's edges. One dragged off the board's view has its
+  // centre over the window around it — the tree, the tabs, the status
+  // bar's "new note" — and a press there opened other files, until the
+  // window drew on another board (2026-10-14).
+  const inside = (p) => p.x >= box.x + 80 && p.x <= box.x + box.width - 80 && p.y >= box.y + 80 && p.y <= box.y + box.height - 80;
   while (Date.now() < until) {
     const scene = await sceneOf(page);
-    const live = scene.filter((e) => e.type !== "embeddable");
+    const centres = await page.evaluate((els) => {
+      const s = window.__VERSO_TEST__.board.getAppState();
+      return els.map((e) => ({ x: (e.x + e.width / 2 + s.scrollX) * s.zoom.value + s.offsetLeft, y: (e.y + e.height / 2 + s.scrollY) * s.zoom.value + s.offsetTop }));
+    }, scene);
+    const live = scene.map((e, i) => ({ ...e, at: centres[i] })).filter((e) => e.type !== "embeddable" && inside(e.at));
     const pick = live.length ? live[next() % live.length] : null;
     const what = next() % 100;
     try {
       if (what < 30 && pick) {
-        const at = await onBoard(page, pick.x + pick.width / 2, pick.y + pick.height / 2);
+        const at = pick.at;
         await page.mouse.move(at.x, at.y);
         await page.mouse.down();
         await page.mouse.move(at.x + (next() % 160) - 80, at.y + (next() % 160) - 80, { steps: 4 + (next() % 6) });
@@ -964,11 +974,11 @@ async function workOnBoard(page, next, ms) {
         await page.keyboard.type(`t${next() % 1000}`);
         await page.keyboard.press("Escape");
       } else if (what < 87 && pick) {
-        const at = await onBoard(page, pick.x + pick.width / 2, pick.y + pick.height / 2);
+        const at = pick.at;
         await page.mouse.click(at.x, at.y);
         await page.keyboard.press("Delete");
       } else if (pick && pick.type === "text") {
-        const at = await onBoard(page, pick.x + pick.width / 2, pick.y + pick.height / 2);
+        const at = pick.at;
         await page.mouse.dblclick(at.x, at.y);
         await page.keyboard.type(` +${next() % 100}`);
         await page.keyboard.press("Escape");
@@ -1024,6 +1034,9 @@ test("three windows, two engines, edit one board hard for a minute: one board ev
   const seed = Number(process.env.BOARD_E2E_SEED ?? 20261012);
   console.log(`board three windows: seed ${seed}`);
   await Promise.all(windows.map((p, i) => workOnBoard(p, seeded(seed + i * 7919), 60_000)));
+  // Every window still on the board edited: one that drew on another board
+  // would hold none of the others' elements.
+  for (const p of windows) expect(await p.evaluate(() => window.__VERSO_TEST__.boardRoom.path)).toBe(path);
   // Quiet: every window draws the room's board, and each makes the same file.
   let last = null;
   const quietAt = Date.now();
