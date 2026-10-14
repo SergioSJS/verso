@@ -27,8 +27,9 @@
 # refused with nothing written; a backup beside links planted at the
 # names the clock gives, and a directory inside the data through `..` or a
 # link, refused; the GitHub token's header file never open to others; a
-# package with no signature refused unless --no-signature. `--script` runs
-# that test alone.
+# package with no signature refused unless --no-signature; the next steps
+# saying the setup link stays in the journal and the password is to be
+# removed. `--script` runs that test alone.
 #
 # Last, the server's packaging (ADR 0083 item 11): scripts/check-server-
 # image.sh builds the static musl server in a container of this machine's
@@ -198,6 +199,20 @@ EOF
   verify_with 1 > /tmp/verify.out 2>&1 || fail "--no-signature with a good checksum: $(cat /tmp/verify.out)"
   grep -q 'Checksum good' /tmp/verify.out || fail "--no-signature did not check the checksum: $(cat /tmp/verify.out)"
   if $u update --no-signature 2>&1 | grep -q 'Unknown option'; then fail "update does not take --no-signature"; fi
+
+  printf '\n== the next steps say the setup link stays in the log, and the password is to be removed\n'
+  steps() {
+    printf 'VERSO_PUBLIC_URL=https://notes.example.com\n%s' "$1" > /tmp/next.env
+    UNIVERSO_SH_FUNCTIONS=1 sh -c '. /src/packaging/server/universo.sh; PM=deb; ENV_FILE=/tmp/next.env
+      journalctl() { echo "INFO open http://127.0.0.1:7340/setup?token=abc to make the first admin"; }
+      next_steps'
+  }
+  steps '' > /tmp/next.out 2>&1
+  grep -q 'setup?token=abc' /tmp/next.out || fail "no setup link in the next steps: $(cat /tmp/next.out)"
+  grep -q 'stays in the journal' /tmp/next.out || fail "the next steps do not say the link stays in the journal"
+  steps 'VERSO_ADMIN_EMAIL=you@example.com
+' > /tmp/next.out 2>&1
+  grep -q 'remove VERSO_ADMIN_PASSWORD' /tmp/next.out || fail "the next steps do not say to remove the password: $(cat /tmp/next.out)"
 
   printf '\n== the Caddy steps install prints, run beside another site (twice)\n'
   apt-get install -y -qq caddy >/dev/null

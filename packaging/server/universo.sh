@@ -624,18 +624,26 @@ next_steps() {
   t "1. The first admin (section 9 of the guide)." "1. O primeiro admin (seção 9 do manual)."
   if [ -n "$admin" ]; then
     t "   It is $admin, with the password set in $ENV_FILE (VERSO_ADMIN_PASSWORD),
-   read on the first start only. Sign in, then remove the password from that file." \
+   read on the first start only. Sign in, then remove VERSO_ADMIN_PASSWORD from
+   that file: left there, it is the admin's first password in a file." \
       "   É $admin, com a senha definida no $ENV_FILE (VERSO_ADMIN_PASSWORD),
-   lida só na primeira partida. Entre, depois tire a senha desse arquivo."
+   lida só na primeira partida. Entre, depois tire o VERSO_ADMIN_PASSWORD desse
+   arquivo: deixado ali, é a primeira senha do admin num arquivo."
   elif [ -n "$link" ]; then
     t "   Open this link (valid for one hour, once) and make the admin's account:
      $link
    It was printed in the log (sudo journalctl -u universo). If the hour passes,
-   restart the service for a new one: sudo systemctl restart universo" \
+   restart the service for a new one: sudo systemctl restart universo
+   The link stays in the journal until the journal rotates it away, readable
+   by root and the adm and systemd-journal groups: use it now. Once the admin
+   exists, or past its hour, it opens nothing." \
       "   Abra este link (vale uma hora, uma vez) e crie a conta do admin:
      $link
    Ele saiu no log (sudo journalctl -u universo). Se a hora passar,
-   reinicie o serviço para ter outro: sudo systemctl restart universo"
+   reinicie o serviço para ter outro: sudo systemctl restart universo
+   O link fica no journal até o journal descartá-lo na rotação, legível pelo
+   root e pelos grupos adm e systemd-journal: use-o agora. Depois que o admin
+   existe, ou passada a hora, ele não abre nada."
     case "$link" in
       http://localhost*|http://127.0.0.1*) t "   From another computer, through SSH: ssh -L $port:127.0.0.1:$port <this machine>, then open the link there." \
                                              "   De outro computador, por SSH: ssh -L $port:127.0.0.1:$port <esta máquina>, e abra o link lá." ;;
