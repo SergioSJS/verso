@@ -73,6 +73,9 @@ pub(crate) struct Local {
     pub(crate) store: Store,
     /// Who this computer's writes name: its name.
     pub(crate) author: Author,
+    /// Who the writes until the next flush are, when not this computer's
+    /// editing: sync bringing another device's change.
+    pub(crate) next: Option<(Vec<Author>, Kind)>,
 }
 
 impl std::fmt::Debug for Local {
@@ -92,6 +95,7 @@ impl Workspace {
         self.history = Some(Local {
             store,
             author: Author::new("computer", name),
+            next: None,
         });
         Ok(())
     }
@@ -106,6 +110,14 @@ impl Workspace {
     pub fn set_history_name(&mut self, name: &str) {
         if let Some(h) = &mut self.history {
             h.author = Author::new("computer", name);
+        }
+    }
+
+    /// The writes until the next [`Workspace::history_flush`] are `authors`'
+    /// of `kind`: sync carrying a change another device made (item 4).
+    pub fn history_written_by(&mut self, authors: Vec<Author>, kind: Kind) {
+        if let Some(h) = &mut self.history {
+            h.next = Some((authors, kind));
         }
     }
 
@@ -125,12 +137,19 @@ impl Workspace {
         let touched = self.root.take_journal();
         let mut problems = Vec::new();
         let at = now_ms();
+        let (authors, kind) = match self.history.as_mut().and_then(|h| h.next.take()) {
+            Some(by) => by,
+            None => (
+                self.history
+                    .as_ref()
+                    .map(|h| vec![h.author.clone()])
+                    .unwrap_or_default(),
+                Kind::Edit,
+            ),
+        };
         for t in touched {
             let done = match t {
-                verso_fs::Touched::Written(path) => {
-                    let author = self.history.as_ref().map(|h| h.author.clone());
-                    self.history_record(&path, at, author.as_slice(), Kind::Edit)
-                }
+                verso_fs::Touched::Written(path) => self.history_record(&path, at, &authors, kind),
                 verso_fs::Touched::Moved(from, to) => match self.history_store() {
                     Some(s) => s.moved(LOCAL, &from, &to, at).map_err(|e| e.to_string()),
                     None => Ok(()),
