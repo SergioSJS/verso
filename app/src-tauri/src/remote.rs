@@ -493,7 +493,7 @@ pub(crate) async fn server_sign_in<R: tauri::Runtime>(
                 .post(format!("{start_url}/api/device/start"))
                 .json(&json!({ "device": session }))
                 .send()
-                .map_err(|e| failed(e.to_string()))?,
+                .map_err(|e| reach::unsent(&start_url, &e))?,
         )
     })
     .await
@@ -518,7 +518,7 @@ pub(crate) async fn server_sign_in<R: tauri::Runtime>(
                             .post(format!("{u}/api/device/poll"))
                             .json(&json!({ "code": c, "poll": p }))
                             .send()
-                            .map_err(|e| failed(e.to_string()))?,
+                            .map_err(|e| reach::unsent(&u, &e))?,
                     )
                 })
                 .await;
@@ -595,7 +595,7 @@ pub(crate) async fn server_sign_out<R: tauri::Runtime>(
                 .bearer_auth(token)
                 .json(&json!({}))
                 .send()
-                .map_err(|e| failed(e.to_string()))
+                .map_err(|e| reach::unsent(&login.url, &e))
         })
     })
     .await;
@@ -617,7 +617,7 @@ pub(crate) async fn server_folders<R: tauri::Runtime>(
                 .get(format!("{}/api/folders", login.url))
                 .bearer_auth(login.token)
                 .send()
-                .map_err(|e| failed(e.to_string()))?,
+                .map_err(|e| reach::unsent(&login.url, &e))?,
         )
     })
     .await
@@ -809,10 +809,7 @@ pub(crate) async fn dial_hello(
             tokio_tungstenite::tungstenite::Error::Http(r) if r.status().as_u16() == 401 => {
                 refused("the server ended this device's session: sign in again")
             }
-            other => ContractError {
-                kind: ErrorKind::Unavailable,
-                message: other.to_string(),
-            },
+            other => reach::not_dialed(&login.url, &other),
         })?;
     let (mut write, mut read) = socket.split();
     let (tx, mut rx) = mpsc::channel::<Message>(QUEUE);

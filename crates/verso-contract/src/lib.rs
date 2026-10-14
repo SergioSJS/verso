@@ -975,6 +975,12 @@ pub enum ErrorKind {
     NotFound,
     /// A placeholder: present, content not downloaded (ADR 0043).
     Unavailable,
+    /// A server that could not be reached: no connection made — refused,
+    /// no such name, a TLS handshake that failed — or no answer in time.
+    /// `message` is the server's address, `host[:port]`, as the window
+    /// names it to the person; why it could not be reached goes to the
+    /// app's log (the maintainer, 2026-10-14: a server down said nothing).
+    Unreachable,
     /// The file's bytes are not UTF-8: no text to edit (spec Q25 is
     /// `[OPEN]`; this is the least that keeps the file safe).
     NotText,

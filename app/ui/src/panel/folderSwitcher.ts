@@ -14,6 +14,8 @@ import { asDialog, closed, opened } from "../dialogs/a11y";
 import { openServerFolder, serverStrings } from "../dialogs/servers";
 import { openSettingsSection } from "../dialogs/sync";
 import { h } from "../dom";
+import { errorSentence } from "../errors";
+import { attempt } from "../reach";
 import { currentFolder, folderName } from "../folder";
 import { openFolderBy, openFolderDialog } from "../open";
 import { roleWord, sh } from "../shareStrings";
@@ -97,25 +99,31 @@ export async function openFolderSwitcher(anchor: HTMLElement): Promise<void> {
   const many = list.length > 1;
   for (const a of list) {
     const hostName = a.url.replace(/^https?:\/\//, "");
-    const folders = await commands.serverFolders(a.url);
-    if (folders.status !== "ok") {
-      theirs.section.append(h("p", "switcher-note", sh.unreachable(hostName)));
-      continue;
-    }
-    for (const f of folders.data) {
-      const where = many ? ` · ${hostName}` : "";
-      const isHere = f.name === folderName;
-      if (f.owner) {
-        const note = `${f.missing ? sh.gone : roleWord(f.role)}${where}`;
-        theirs.list.append(entry(f.name, note, isHere, () => openThere(a.url, f)));
-      } else {
-        mine.list.append(entry(f.name, `${roleWord(f.role)}${where}`, isHere, () => openThere(a.url, f)));
+    // A server that did not answer is said under the groups, with a try
+    // again that asks it once more (reach.ts).
+    const failure = h("div", "switcher-failure");
+    failure.hidden = true;
+    theirs.section.append(failure);
+    const fill = async (): Promise<void> => {
+      const folders = await attempt(failure, () => commands.serverFolders(a.url), { other: errorSentence, retry: () => void fill() });
+      if (folders.status !== "ok") return;
+      for (const f of folders.data) {
+        const where = many ? ` · ${hostName}` : "";
+        const isHere = f.name === folderName;
+        if (f.owner) {
+          const note = `${f.missing ? sh.gone : roleWord(f.role)}${where}`;
+          theirs.list.append(entry(f.name, note, isHere, () => openThere(a.url, f)));
+        } else {
+          mine.list.append(entry(f.name, `${roleWord(f.role)}${where}`, isHere, () => openThere(a.url, f)));
+        }
       }
-    }
+      theirs.list.querySelector(".switcher-none")?.remove();
+    };
+    await fill();
   }
   loading.remove();
   if (mine.list.children.length === 0 && list.length === 0) mine.section.remove();
-  if (theirs.list.children.length === 0) theirs.list.append(h("li", "switcher-note", "—"));
+  if (theirs.list.children.length === 0) theirs.list.append(h("li", "switcher-note switcher-none", "—"));
   const tail = h("ul");
   // In a browser, the server's own list of folders, where a new one is
   // made; on the desktop, the servers signed in to.

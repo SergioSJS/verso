@@ -14,6 +14,8 @@
 import { commands, type ContractError, type FolderShare } from "./bindings";
 import { asDialog, closed, opened } from "./dialogs/a11y";
 import { h, ui } from "./dom";
+import { told } from "./errors";
+import { failureText, unreachableAt } from "./reach";
 import { allNotes, folderName } from "./folder";
 import { icon } from "./icons";
 import { dirOf, name } from "./paths";
@@ -67,6 +69,12 @@ export function markShared(): void {
 
 function said(e: ContractError): string {
   if (e.kind === "prove_first") return sh.proveFirst;
+  // The server did not answer: which one, and why it may be; the console
+  // and the log have it too (errors.ts).
+  if (unreachableAt(e) !== null) {
+    told(e.kind, e.message, e);
+    return failureText(e);
+  }
   return /no account has that e-mail/i.test(e.message) ? sh.noAccount : e.message;
 }
 

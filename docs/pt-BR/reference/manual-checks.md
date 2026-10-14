@@ -20,6 +20,21 @@ app real.
 
 ### O retorno da janela (fix/ui-feedback, 2026-10-14)
 
+- [ ] **Um servidor fora de alcance é dito onde você agiu** (A): uma
+  pasta deste computador aberta, conectado a um UniVerso, e então pare o
+  servidor. Em *Ajustes › Sincronizar*, acima do botão: *Não foi possível
+  alcançar o servidor localhost:7351 — ele está fora do ar ou sem rede.* e
+  *Tentar de novo*; aperte *Sincronizar esta pasta*: ele fica ocupado por
+  um instante e a mensagem fica. Ligue o servidor, *Tentar de novo*: a
+  pasta sincroniza. O mesmo em *Ajustes › Servidores* (no lugar das pastas
+  do servidor, e sob *Abrir aqui*) e no seletor de pastas. Uma pasta que
+  sincroniza, com o servidor parado: a barra de status diz *Servidor fora
+  de alcance: localhost:7351* em segundos, e a seção dela diz por quê, com
+  *Sincronizar agora*. `verso.log`: um `WARN host unreachable: the server
+  at http://localhost:7351: … Connection refused …` por minuto, nenhum
+  ERROR por clique. Não verificado por teste: as falhas do próprio sistema
+  para um nome que não existe e um certificado TLS recusado — tente
+  `https://naoexiste.invalid` em *Servidores › Conectar*.
 - [ ] **A paleta sobre os ajustes** (B): *Ajustes* aberto, um clique numa
   seção, depois ⌘⇧P: a paleta fica por cima com o cursor nela; Esc fecha
   só a paleta, e o foco volta para *Ajustes*; Esc de novo fecha *Ajustes*.

@@ -719,7 +719,15 @@ rest below and in `manual-checks.md`.
    `sync.spec.mjs`). What crosses — first sync, two devices, a deletion, a
    rename, a conflict, a mass deletion, a 9 MiB file, a reader, offline —
    the host's Rust tests against a real server (`tests_sync.rs`); two
-   real computers, by hand (`manual-checks.md`).
+   real computers, by hand (`manual-checks.md`). With the server down,
+   *Sincronizar esta pasta*, the list of its folders in *Servidores* and the
+   folder switcher say *Não foi possível alcançar o servidor
+   localhost:7351 — ele está fora do ar ou sem rede.* where the person
+   acted, with *Tentar de novo*, and a synced folder's bar says *Servidor
+   fora de alcance: localhost:7351* (e2e, `server-down.spec.mjs`); a
+   refused connection is the contract's `unreachable` (the host's test,
+   `reach.rs`); the installed app with its server stopped, by hand
+   (`manual-checks.md`).
 8. Who changed what, and what needs a look: on the console's page of a
    folder, *Últimas mudanças nos arquivos* shows a device's change with the
    device's name in parentheses beside the account, and the server's log

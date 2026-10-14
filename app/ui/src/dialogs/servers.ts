@@ -10,9 +10,10 @@
 // computer (ADR 0079 item 8, decided 2026-10-11).
 
 import { listen } from "@tauri-apps/api/event";
-import { commands, type ServerAccount, type ServerFolder } from "../bindings";
+import { commands, type ContractError, type ServerAccount, type ServerFolder } from "../bindings";
 import { h, ui } from "../dom";
-import { fail } from "../errors";
+import { errorSentence, fail } from "../errors";
+import { attempt, busy, clearFailure, sayFailure } from "../reach";
 import { can } from "../can";
 import { currentFolder, folderName, LAST_FOLDER } from "../folder";
 import { currentSync, openSettingsSection, preselectSync } from "./sync";
@@ -39,7 +40,6 @@ const pt = {
   as: (name: string, email: string) => `Você entra como ${name} · ${email}`,
   foldersOf: (host: string) => `Pastas em ${host}`,
   loading: "Carregando as pastas…",
-  unreachable: "O servidor não respondeu agora; as pastas aparecem quando ele voltar.",
   noFolders: "Nenhuma pasta para você neste servidor ainda. Peça um convite a quem o administra.",
   noneYet: "Nenhum servidor ainda. Com um UniVerso, suas pastas ficam no navegador, no celular e em outros computadores.",
   role: (r: string): string => (r === "owner" ? "dona" : r === "editor" ? "edita" : "só lê"),
@@ -78,7 +78,6 @@ const en: typeof pt = {
   as: (name: string, email: string) => `You sign in as ${name} · ${email}`,
   foldersOf: (host: string) => `Folders on ${host}`,
   loading: "Loading the folders…",
-  unreachable: "The server did not answer now; its folders show when it is back.",
   noFolders: "No folder for you on this server yet. Ask whoever runs it for an invitation.",
   noneYet: "No server yet. With a UniVerso, your folders are in the browser, on the phone and on other computers.",
   role: (r: string): string => (r === "owner" ? "owner" : r === "editor" ? "edits" : "reads only"),
@@ -111,9 +110,10 @@ export function serverKey(url: string, folder: string): string {
   return `server:${url}#${folder}`;
 }
 
-/** Open the server's folder `folder` in this window. */
-export async function openServerFolder(url: string, folder: string, quiet = false): Promise<boolean> {
-  const opened = await openFolderBy(() => commands.serverOpen(url, folder), quiet);
+/** Open the server's folder `folder` in this window; a failure said by
+ *  `said` when given, in the status bar otherwise. */
+export async function openServerFolder(url: string, folder: string, quiet = false, said: ((e: ContractError) => void) | null = null): Promise<boolean> {
+  const opened = await openFolderBy(() => commands.serverOpen(url, folder), quiet, said);
   if (opened) {
     try {
       localStorage.setItem(LAST_FOLDER, serverKey(url, folder));
@@ -181,16 +181,21 @@ export function serversBody(_item: (title: string, desc: string, control: HTMLEl
   said.setAttribute("role", "status");
   const help = h("p", "srv-help", s.connectDesc);
   const field = h("div", "srv-field");
+  // A failure said here, under the address (reach.ts).
+  const failure = h("div", "srv-failure");
+  failure.hidden = true;
   field.append(url, go);
-  form.append(label, field, help, said);
+  form.append(label, field, help, failure, said);
   form.addEventListener("submit", (e) => {
     e.preventDefault();
-    go.disabled = true;
+    busy(go, true);
+    said.textContent = "";
     // The clipboard is asked inside the click, the page opened after the
     // copy (serverSignIn.ts).
     void startSignIn(url.value, { signIn: commands.serverSignIn, open: commands.serverSignInPage, copy: copyWhenKnown }).then((r) => {
-      go.disabled = false;
-      if (r.status !== "ok") return fail(r.error);
+      busy(go, false);
+      if (r.status !== "ok") return sayFailure(failure, r.error, () => form.requestSubmit(), errorSentence);
+      clearFailure(failure);
       said.replaceChildren(r.copied ? s.copied : s.notCopied, h("strong", "srv-code", r.code), s.waiting);
     });
   });
@@ -273,34 +278,39 @@ function serverBlock(a: ServerAccount, redraw: () => Promise<void>): HTMLElement
     folders.setAttribute("aria-describedby", pair.id);
   }
   const loading = h("li", "srv-empty", s.loading);
+  // The list that did not come, said in its place, with a try again.
+  const failure = h("div", "srv-failure");
+  failure.hidden = true;
   folders.append(loading);
-  void commands.serverFolders(a.url).then((r) => {
-    if (r.status !== "ok") {
-      loading.textContent = s.unreachable;
-      return;
-    }
-    if (r.data.length === 0) {
-      loading.textContent = s.noFolders;
-      return;
-    }
-    // Mine, then shared with me (ADR 0081 item 5): a folder someone else
-    // owns, or a folder inside one — synced, a share is a folder of this
-    // computer of its own (item 6).
-    const all = r.data as ServerFolder[];
-    const mine = all.filter((f) => !f.owner);
-    const theirs = all.filter((f) => f.owner);
-    const head = (text: string) => {
-      const li = h("li", "srv-group", text);
-      li.setAttribute("role", "presentation");
-      return li;
-    };
-    folders.replaceChildren(
-      ...(mine.length && theirs.length ? [head(sh.mine)] : []),
-      ...mine.map((f) => folderRow(a, f)),
-      ...(theirs.length ? [head(sh.sharedWithMe)] : []),
-      ...theirs.map((f) => folderRow(a, f)),
-    );
-  });
+  const load = (): void =>
+    void attempt(failure, () => commands.serverFolders(a.url), { other: errorSentence, retry: load }).then((r) => {
+      if (r.status !== "ok") {
+        loading.replaceChildren(failure);
+        return;
+      }
+      if (r.data.length === 0) {
+        loading.textContent = s.noFolders;
+        return;
+      }
+      // Mine, then shared with me (ADR 0081 item 5): a folder someone else
+      // owns, or a folder inside one — synced, a share is a folder of this
+      // computer of its own (item 6).
+      const all = r.data as ServerFolder[];
+      const mine = all.filter((f) => !f.owner);
+      const theirs = all.filter((f) => f.owner);
+      const head = (text: string) => {
+        const li = h("li", "srv-group", text);
+        li.setAttribute("role", "presentation");
+        return li;
+      };
+      folders.replaceChildren(
+        ...(mine.length && theirs.length ? [head(sh.mine)] : []),
+        ...mine.map((f) => folderRow(a, f)),
+        ...(theirs.length ? [head(sh.sharedWithMe)] : []),
+        ...theirs.map((f) => folderRow(a, f)),
+      );
+    });
+  load();
   block.append(head, ...(pair ? [pair] : []), folders);
   return block;
 }
@@ -326,7 +336,17 @@ function folderRow(a: ServerAccount, f: ServerFolder): HTMLElement {
   const open = h("button", "btn", s.openHere);
   open.type = "button";
   open.setAttribute("aria-label", s.openHereNamed(f.name));
-  open.addEventListener("click", () => void openServerFolder(a.url, f.id));
+  // A failure said under the row (reach.ts).
+  const failure = h("div", "srv-failure");
+  failure.hidden = true;
+  const openIt = (): void => {
+    busy(open, true);
+    void openServerFolder(a.url, f.id, false, (e) => sayFailure(failure, e, openIt, errorSentence)).then((done) => {
+      busy(open, false);
+      if (done) clearFailure(failure);
+    });
+  };
+  open.addEventListener("click", openIt);
   actions.append(open);
   if (pairable()) {
     const pair = h("button", "btn quiet", s.sync);
@@ -338,6 +358,6 @@ function folderRow(a: ServerAccount, f: ServerFolder): HTMLElement {
     });
     actions.append(pair);
   }
-  li.append(text, actions);
+  li.append(text, actions, failure);
   return li;
 }
