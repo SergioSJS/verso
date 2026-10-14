@@ -26,7 +26,7 @@ mod support {
 }
 use support::*;
 
-const PDM: &str = "# PdM\n\n```verso-schema\ntype: NPC\nproperties:\n  - key: nível\n    kind: number\n```\n\n- ```verso-schema\n  type: exemplo\n  ```\n\n```verso-schema\ntype: x\nproperties:\n  - key: a\n    kind: link\n```\n";
+const PDM: &str = "# PdM\n\n```verso-schema\ntype: NPC\nproperties:\n  - key: nível\n    kind: number\n```\n\n- ```verso-schema\n  type: exemplo\n  ```\n\n```verso-schema\ntype: x\nproperties:\n  - key: a\n    kind: relation\n```\n";
 
 #[test]
 fn a_note_keeps_its_type_and_a_note_its_schema_blocks() {

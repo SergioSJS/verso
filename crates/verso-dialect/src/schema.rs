@@ -10,6 +10,8 @@
 
 use crate::frontmatter::{Value, parse_yaml};
 use crate::position::{Pos, Span};
+use crate::properties::is_one_link;
+use crate::wikilink::split;
 
 /// A `verso-schema` block as the parser found it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,6 +37,39 @@ pub struct Schema {
     pub labels: Vec<(String, String)>,
     /// The declared properties, in order.
     pub properties: Vec<SchemaProperty>,
+    /// How the window lays the typed note's properties out (ADR 0086
+    /// item 2); `None`, the panel as it is.
+    pub layout: Option<Layout>,
+}
+
+/// A layout a schema names at its top level, `layout: infobox` (ADR 0086
+/// item 2, decided 2026-10-14).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Layout {
+    /// The properties as a card beside the text (ADR 0086 item 3).
+    Infobox,
+}
+
+impl Layout {
+    /// The layout as a schema writes it.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Infobox => "infobox",
+        }
+    }
+
+    /// A value this build does not know — another name, another case, not
+    /// a text — is no layout, never an error: the key is ignored by builds
+    /// that do not read it (ADR 0086 item 2), so a later layout must not
+    /// untype a schema here either. The author's reading, for the
+    /// maintainer: the ADR names only `infobox`.
+    fn from_value(value: Option<&Value>) -> Option<Self> {
+        match value {
+            Some(Value::String(s)) if s == "infobox" => Some(Self::Infobox),
+            _ => None,
+        }
+    }
 }
 
 /// A property a schema declares.
@@ -45,8 +80,9 @@ pub struct SchemaProperty {
     pub labels: Vec<(String, String)>,
 }
 
-/// The kinds of the first version: the property types Obsidian documents
-/// (memo `typed-note-decision.md` §5.4).
+/// The kinds of the first version — the property types Obsidian documents
+/// (memo `typed-note-decision.md` §5.4) — and, since ADR 0086 item 1, a
+/// link and a picture.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PropertyKind {
     Text,
@@ -55,6 +91,12 @@ pub enum PropertyKind {
     Checkbox,
     Date,
     Datetime,
+    /// A quoted wikilink, or a list of them: the typed relation of spec
+    /// Q10 (ADR 0086 item 1).
+    Link,
+    /// A picture: a quoted wikilink to a picture of the folder, a path of
+    /// the folder, or a web address (ADR 0086 item 1).
+    Image,
 }
 
 impl PropertyKind {
@@ -68,6 +110,8 @@ impl PropertyKind {
             Self::Checkbox => "checkbox",
             Self::Date => "date",
             Self::Datetime => "datetime",
+            Self::Link => "link",
+            Self::Image => "image",
         }
     }
 
@@ -79,6 +123,8 @@ impl PropertyKind {
             "checkbox" => Self::Checkbox,
             "date" => Self::Date,
             "datetime" => Self::Datetime,
+            "link" => Self::Link,
+            "image" => Self::Image,
             _ => return None,
         })
     }
@@ -86,7 +132,10 @@ impl PropertyKind {
     /// Does a frontmatter value fit this kind, as the memo's §5.4 says it?
     /// A date is a string `YYYY-MM-DD`; a date and time a string
     /// `YYYY-MM-DDTHH:mm`, with seconds or not. Under YAML 1.2 `yes` is not
-    /// a boolean and a date is a string: nothing is converted.
+    /// a boolean and a date is a string: nothing is converted. A link is a
+    /// string that is one wikilink, or a list of such strings (spec Q10);
+    /// a picture is one wikilink to a picture, a path to one, or a web
+    /// address (`is_picture`).
     #[must_use]
     pub fn fits(self, value: &Value) -> bool {
         match (self, value) {
@@ -98,6 +147,11 @@ impl PropertyKind {
             }
             (Self::Date, Value::String(s)) => is_date(s),
             (Self::Datetime, Value::String(s)) => is_datetime(s),
+            (Self::Link, Value::String(s)) => is_one_link(s),
+            (Self::Link, Value::Sequence(items)) => items
+                .iter()
+                .all(|i| matches!(i, Value::String(s) if is_one_link(s))),
+            (Self::Image, Value::String(s)) => is_picture(s),
             _ => false,
         }
     }
@@ -105,6 +159,40 @@ impl PropertyKind {
 
 fn digits(s: &str) -> bool {
     !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit())
+}
+
+/// The extensions of a picture, as the window shows one (`live.ts`,
+/// `IMAGE_EXT`).
+const PICTURE_EXTENSIONS: [&str; 8] = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"];
+
+/// The last segment of a path or link target ends in a picture's extension.
+fn picture_name(name: &str) -> bool {
+    let file = name.rsplit('/').next().unwrap_or(name);
+    file.rsplit_once('.').is_some_and(|(stem, ext)| {
+        !stem.is_empty()
+            && PICTURE_EXTENSIONS
+                .iter()
+                .any(|e| e.eq_ignore_ascii_case(ext))
+    })
+}
+
+/// A picture as an `image` property holds it (ADR 0086 item 1): a quoted
+/// wikilink to a picture (`"[[roderick.jpg]]"`, with an alias or not), a
+/// path of the folder ending in a picture's extension, as `banner:` takes
+/// one, or an `http(s)` web address. A wikilink or a path to a note is not
+/// a picture: shown as written and marked. The extension rule is the
+/// author's reading, for the maintainer.
+fn is_picture(s: &str) -> bool {
+    let t = s.trim();
+    if is_one_link(t) {
+        let inner = &t[2..t.len() - 2];
+        return picture_name(&split(inner).target);
+    }
+    let lower = t.to_ascii_lowercase();
+    if lower.starts_with("https://") || lower.starts_with("http://") {
+        return t.len() > "https://".len();
+    }
+    !t.contains("[[") && !t.contains("]]") && picture_name(t)
 }
 
 /// `YYYY-MM-DD`, with a month 01–12 and a day 01–31.
@@ -280,6 +368,7 @@ fn read_value(value: Value) -> Result<Schema, SchemaError> {
         name,
         labels: type_labels,
         properties,
+        layout: Layout::from_value(get(&entries, "layout")),
     })
 }
 
@@ -335,7 +424,7 @@ mod tests {
             SchemaErrorKind::Property
         );
         assert_eq!(
-            kind("type: npc\nproperties:\n  - key: a\n    kind: link"),
+            kind("type: npc\nproperties:\n  - key: a\n    kind: relation"),
             SchemaErrorKind::UnknownKind
         );
         assert_eq!(
@@ -367,5 +456,56 @@ mod tests {
         assert!(PropertyKind::Datetime.fits(&s("2026-10-07T14:30:05")));
         assert!(!PropertyKind::Datetime.fits(&s("2026-10-07 14:30")));
         assert!(!PropertyKind::Date.fits(&Value::Null));
+    }
+
+    #[test]
+    fn a_schema_reads_link_and_image_kinds_and_its_layout() {
+        let s = read(
+            "type: npc\nlayout: infobox\nproperties:\n  - key: retrato\n    kind: image\n  - key: aliados\n    kind: link\n",
+        )
+        .unwrap();
+        assert_eq!(s.layout, Some(Layout::Infobox));
+        assert_eq!(s.properties[0].kind, PropertyKind::Image);
+        assert_eq!(s.properties[1].kind, PropertyKind::Link);
+        assert_eq!(PropertyKind::Link.as_str(), "link");
+        assert_eq!(PropertyKind::Image.as_str(), "image");
+    }
+
+    #[test]
+    fn a_layout_this_build_does_not_know_is_no_layout_and_no_error() {
+        let layout = |t: &str| read(t).unwrap().layout;
+        assert_eq!(layout("type: npc"), None);
+        assert_eq!(layout("type: npc\nlayout: galeria"), None);
+        assert_eq!(layout("type: npc\nlayout: Infobox"), None);
+        assert_eq!(layout("type: npc\nlayout: [infobox]"), None);
+        assert_eq!(layout("type: npc\nlayout: infobox"), Some(Layout::Infobox));
+    }
+
+    #[test]
+    fn a_link_is_one_quoted_wikilink_or_a_list_of_them() {
+        let s = |t: &str| Value::String(t.to_owned());
+        assert!(PropertyKind::Link.fits(&s("[[Barão]]")));
+        assert!(PropertyKind::Link.fits(&s("[[Barão|o barão]]")));
+        assert!(PropertyKind::Link.fits(&Value::Sequence(vec![s("[[A]]"), s("[[B#Casa]]")])));
+        assert!(PropertyKind::Link.fits(&Value::Sequence(vec![])));
+        assert!(!PropertyKind::Link.fits(&s("Barão")));
+        assert!(!PropertyKind::Link.fits(&s("[[A]] e [[B]]")));
+        assert!(!PropertyKind::Link.fits(&Value::Sequence(vec![s("[[A]]"), s("B")])));
+        assert!(!PropertyKind::Link.fits(&Value::Integer(3)));
+    }
+
+    #[test]
+    fn a_picture_is_a_wikilink_a_path_or_a_web_address() {
+        let s = |t: &str| Value::String(t.to_owned());
+        assert!(PropertyKind::Image.fits(&s("[[roderick.jpg]]")));
+        assert!(PropertyKind::Image.fits(&s("[[roderick.JPG|Lorde Roderick]]")));
+        assert!(PropertyKind::Image.fits(&s("assets/roderick.png")));
+        assert!(PropertyKind::Image.fits(&s("https://example.org/r")));
+        assert!(!PropertyKind::Image.fits(&s("[[Roderick]]")));
+        assert!(!PropertyKind::Image.fits(&s("Roderick")));
+        assert!(!PropertyKind::Image.fits(&s(".png")));
+        assert!(!PropertyKind::Image.fits(&s("assets/.png")));
+        assert!(!PropertyKind::Image.fits(&s("https://")));
+        assert!(!PropertyKind::Image.fits(&Value::Sequence(vec![s("a.png")])));
     }
 }

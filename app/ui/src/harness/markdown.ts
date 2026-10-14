@@ -369,9 +369,12 @@ export type SchemaBlock = {
   error: string | null;
   labels: [string, string][];
   properties: { key: string; kind: string; labels: [string, string][] }[];
+  /** `infobox` when the schema says it (ADR 0086 item 2); another value
+   *  is no layout and no error. */
+  layout: string | null;
 };
 
-const KINDS = ["text", "list", "number", "checkbox", "date", "datetime"];
+const KINDS = ["text", "list", "number", "checkbox", "date", "datetime", "link", "image"];
 
 function labelsOf(v: unknown): [string, string][] | null {
   if (v === undefined || v === null) return [];
@@ -420,7 +423,7 @@ export function schemaBlocksOf(text: string): SchemaBlock[] {
     }
     if (open.info.split(/\s+/)[0] === "verso-schema") {
       if (open.nested) {
-        out.push({ line: i + 1, nested: true, name: null, error: null, labels: [], properties: [] });
+        out.push({ line: i + 1, nested: true, name: null, error: null, labels: [], properties: [], layout: null });
       } else {
         out.push(readSchema(lines.slice(i + 1, end).join("\n"), i + 1));
       }
@@ -432,7 +435,7 @@ export function schemaBlocksOf(text: string): SchemaBlock[] {
 
 /** A top-level block's text, read as the core reads it. */
 function readSchema(body: string, line: number): SchemaBlock {
-  const block: SchemaBlock = { line, nested: false, name: null, error: null, labels: [], properties: [] };
+  const block: SchemaBlock = { line, nested: false, name: null, error: null, labels: [], properties: [], layout: null };
   let v: unknown;
   try {
     // As the core's reader: the first document of several, and a key
@@ -455,6 +458,7 @@ function readSchema(body: string, line: number): SchemaBlock {
   const items = m["properties"] ?? [];
   if (!Array.isArray(items)) return { ...block, error: "properties" };
   block.labels = labels;
+  block.layout = m["layout"] === "infobox" ? "infobox" : null;
   for (const item of items as unknown[]) {
     if (item === null || typeof item !== "object" || Array.isArray(item)) return { ...block, error: "property" };
     const p = item as Record<string, unknown>;
@@ -472,6 +476,25 @@ function readSchema(body: string, line: number): SchemaBlock {
 const DATE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 const DATETIME = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])T([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
 
+/** One wikilink and nothing else, as `is_one_link` (verso-dialect). */
+function oneLink(v: unknown): boolean {
+  if (typeof v !== "string") return false;
+  const t = v.trim();
+  const inner = t.slice(2, -2);
+  return t.length > 4 && t.startsWith("[[") && t.endsWith("]]") && !inner.includes("[[") && !inner.includes("]]");
+}
+const PICTURE = /^.+\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i;
+/** A picture, as `is_picture` (verso-dialect): a wikilink to one, a path
+ *  to one, or a web address. */
+function picture(v: unknown): boolean {
+  if (typeof v !== "string") return false;
+  const t = v.trim();
+  const named = (p: string) => PICTURE.test(p.split("/").pop() ?? p);
+  if (oneLink(t)) return named(t.slice(2, -2).split("|")[0]!.split("#")[0]!);
+  if (/^https?:\/\//i.test(t)) return t.length > "https://".length;
+  return !t.includes("[[") && !t.includes("]]") && named(t);
+}
+
 /** Does a frontmatter value fit a kind, as `PropertyKind::fits` says. */
 export function fitsKind(kind: string, v: unknown): boolean {
   switch (kind) {
@@ -481,6 +504,8 @@ export function fitsKind(kind: string, v: unknown): boolean {
     case "list": return Array.isArray(v) && v.every((x) => typeof x === "string");
     case "date": return typeof v === "string" && DATE.test(v);
     case "datetime": return typeof v === "string" && DATETIME.test(v);
+    case "link": return oneLink(v) || (Array.isArray(v) && v.every(oneLink));
+    case "image": return picture(v);
     default: return false;
   }
 }

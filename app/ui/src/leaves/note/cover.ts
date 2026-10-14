@@ -45,7 +45,9 @@ export async function setProperty(this: NoteLeaf, key: string, value: string | n
   if (throughRoom(this.roomHolder(), (text) => setFrontmatterProp(text, key, value)) !== "disk") return;
   const was = this.editor.state.doc.toString();
   const edit = minimalEdit(was, setFrontmatterProp(was, key, value));
-  if (edit) this.editor.dispatch({ changes: edit, annotations: Transaction.userEvent.of("input") });
+  // The panel's kind of edit, not a key's: Live Preview's guard drops an
+  // `input` in the folded frontmatter (`keepFrontmatter`).
+  if (edit) this.editor.dispatch({ changes: edit, annotations: Transaction.userEvent.of("props") });
   await this.save();
   await afterFileChange();
 }

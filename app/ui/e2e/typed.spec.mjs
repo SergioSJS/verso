@@ -46,7 +46,7 @@ test("two schemas of one name type nothing; a schema that does not read says so 
     "PdM.md": SCHEMA,
     "PdM cópia.md": SCHEMA,
     "Barão.md": BARAO,
-    "Lugares.md": "# Lugares\n\n```verso-schema\ntype: lugar\nproperties:\n  - key: perigo\n    kind: link\n```\n",
+    "Lugares.md": "# Lugares\n\n```verso-schema\ntype: lugar\nproperties:\n  - key: perigo\n    kind: relation\n```\n",
   });
   await app.quickOpen("Barão");
   const line = page.locator(".props .props-type.problem");
@@ -77,4 +77,17 @@ test("each kind's empty row writes once, when given a value: a list, a checkbox,
   await level.fill("3");
   await level.press("Enter");
   await expect.poll(async () => app.file("N.md")).toBe("---\ntype: t\nvazio:\naliados:\n  - Lia\n  - Ruy\nativo: true\nnível: 3\n---\n");
+});
+
+test("a property edited in the panel in Edit mode reaches the file", async ({ app, page }) => {
+  // Live Preview keeps keys out of the folded frontmatter; the panel's own
+  // edits pass (they were dropped as typing until 2026-10-14).
+  await folder(app, { "PdM.md": SCHEMA, "Barão.md": BARAO });
+  await app.quickOpen("Barão");
+  await app.key("Mod+e");
+  await expect(page.locator(".editor:visible")).toBeVisible();
+  const faction = page.locator('.props .prop[data-key="facção"] input');
+  await faction.fill("Guilda");
+  await faction.press("Enter");
+  await expect.poll(async () => app.file("Barão.md")).toBe(BARAO.replace("facção: Coroa", "facção: Guilda"));
 });

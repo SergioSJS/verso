@@ -26,7 +26,7 @@ import { fail, failSaid } from "../errors";
 import { createNote, renameNote } from "../files";
 import { calm } from "../format";
 import { icon } from "../icons";
-import { imageUrl } from "../images";
+import { imageUrl, pictureAddress } from "../images";
 import { comboOf, prettyKeys } from "../keys";
 import { Pane } from "../layout/pane";
 import { crumbsFor, crumbsNav, layout, openIn, openNote, persistSoon } from "../layout/spaces";
@@ -38,6 +38,7 @@ import { opening } from "../opening";
 import { dirOf, Kind, name } from "../paths";
 import { PdfView } from "../pdf";
 import { PropertiesView } from "../props";
+import { propertySuggestions } from "../resolve";
 import { st } from "../screen/strings";
 import { cleanHtmlText } from "../sanitize";
 import { searchNotes } from "../search";
@@ -85,7 +86,11 @@ export class NoteLeaf extends Leaf {
     doc: () => this.editor.state.doc.toString(),
     apply: (change) => {
       if (throughRoom(this.roomHolder(), (text) => applyChange(text, change)) !== "disk") return;
-      this.editor.dispatch({ changes: change, annotations: Transaction.userEvent.of("input") });
+      // Not an `input`: Live Preview's guard keeps keys out of the folded
+      // frontmatter and lets the panel's own edits through (`keepFrontmatter`),
+      // and an `input` there was dropped — the row showed the value, the
+      // file never got it.
+      this.editor.dispatch({ changes: change, annotations: Transaction.userEvent.of("props") });
       if (this.mode === "preview") void this.save();
     },
     // The key moved in the text since the panel was drawn: the save that
@@ -100,6 +105,13 @@ export class NoteLeaf extends Leaf {
       void searchNotes(ui.search.value);
     },
     onLink: (url) => void commands.openUrl(url),
+    // A typed note's links and pictures (ADR 0086 item 1).
+    onFollow: (target) => this.follow(target),
+    resolveLink: (target) => this.resolve(target),
+    picture: (target) => pictureAddress(this.path, target),
+    title: () => name(this.path),
+    suggest: (kind) => propertySuggestions(this.path, kind),
+    status: (message) => (ui.status.textContent = message),
   });
   readonly conflict = new ConflictBanner(() => void this.keepDisk(), () => void this.overwrite(), () => void this.keepBoth());
   /** A save that found the note gone from disk: the text stays until the

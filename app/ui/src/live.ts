@@ -862,7 +862,8 @@ export const outOfFrontmatter = EditorState.transactionFilter.of((tr) => {
  *  panel, never by a key: typing, pasting or deleting that reaches into it
  *  — Backspace at the start of the body, which would join the first line
  *  to the closing fence and undo the whole block, ⌘⌫, a cut — leaves it
- *  as it is. The panel's own edits carry no user event and pass. */
+ *  as it is. The panel's own edits carry the `props` user event, not a
+ *  key's, and pass. */
 export const keepFrontmatter = EditorState.changeFilter.of((tr) => {
   if (!(tr.isUserEvent("input") || tr.isUserEvent("delete") || tr.isUserEvent("move"))) return true;
   const end = frontmatterEnd(tr.startState.doc);
