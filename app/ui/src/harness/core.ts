@@ -59,6 +59,7 @@ import type {
   SyncStatus,
 } from "../bindings";
 import { Bin } from "./trash";
+import { applyPeriodic, obsidianPeriodic, readPeriodic, sortedDeep } from "./periodic";
 import { blocksOf, fitsKind, headingsOf, propertiesOf, propertyList, readableLines, renderMarkdown, schemaBlocksOf } from "./markdown";
 import { unlinkedMentions } from "./mentions";
 
@@ -361,7 +362,7 @@ export class Core {
    *  items 1–2), as the core reads it. */
   private folderLayer(): FolderLayer {
     const stored = this.files.get(SETTINGS_FILE);
-    const empty: FolderSettings = { bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null };
+    const empty: FolderSettings = { bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null, periodic: null };
     if (!stored) return { exists: false, problem: null, revision: null, settings: empty, warnings: [] };
     const revision = String(stored.revision);
     let obj: unknown;
@@ -382,6 +383,7 @@ export class Core {
         folder_note_name: typeof o["folderNoteName"] === "string" ? folderNoteSetting(o["folderNoteName"]) : null,
         ignore_build_dirs: bool(o["ignoreBuildDirs"]),
         respect_gitignore: bool(o["respectGitignore"]),
+        periodic: readPeriodic(o),
       },
       warnings: [],
     };
@@ -409,8 +411,8 @@ export class Core {
     if (change.folder_note_name !== null && change.folder_note_name !== undefined) obj["folderNoteName"] = folderNoteSetting(change.folder_note_name);
     if (change.ignore_build_dirs !== null && change.ignore_build_dirs !== undefined) obj["ignoreBuildDirs"] = change.ignore_build_dirs;
     if (change.respect_gitignore !== null && change.respect_gitignore !== undefined) obj["respectGitignore"] = change.respect_gitignore;
-    const sorted = Object.fromEntries(Object.keys(obj).sort().map((k) => [k, obj[k]]));
-    this.put(SETTINGS_FILE, encoder.encode(`${JSON.stringify(sorted, null, 2)}\n`));
+    if (change.periodic) applyPeriodic(obj, change.periodic);
+    this.put(SETTINGS_FILE, encoder.encode(`${JSON.stringify(sortedDeep(obj), null, 2)}\n`));
     return this.folderLayer();
   }
 
@@ -1146,6 +1148,8 @@ export class Core {
     },
     get_focuses: () => this.getFocuses(),
     get_folder_settings: () => this.folderLayer(),
+    get_obsidian_periodic: () => obsidianPeriodic(this.files),
+    note_made_from_template: () => null,
     set_folder_settings: (a) => this.setFolderLayer(a["change"] as FolderSettings, (a["revision"] as string | null | undefined) ?? null),
     can_sync_focuses: () => {
       const summary = this.getFocuses();
