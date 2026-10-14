@@ -77,8 +77,8 @@ então a revogação da pasta cai em "conexão caiu".
 
 ## Decisão
 
-Proposto (2026-10-14). Cada `[OPEN]` traz uma recomendação; o mantenedor
-decide.
+Aceito (2026-10-14). Os itens em aberto foram decididos pelo mantenedor
+no mesmo dia; cada um está marcado no lugar (Status).
 
 1. **O que é uma notificação.** Uma notificação é uma mudança de estado
    que a pessoa não causou naquele momento, ou que dura além do momento:
@@ -146,10 +146,10 @@ decide.
      suas ações.
    - Abri-la marca tudo como lido. "Limpar" esvazia.
    - Guarda no máximo 100 entradas, nenhuma com mais de 30 dias.
-   - `[OPEN]` **Onde a lista mora.**
-     - *Recomendação:* no armazenamento do navegador deste computador, ou
-       deste navegador para a janela web. Uma lista por máquina, cada
-       entrada marcada com sua pasta. Não sincroniza com a conta.
+   - **Onde a lista mora** `[DECIDED 2026-10-14]`:
+     - No armazenamento do navegador deste computador, ou deste navegador
+       para a janela web. Uma lista por máquina, cada entrada marcada com
+       sua pasta. Não sincroniza com a conta.
      - Uma notificação é histórico, não ajuste. Sincronizá-la faria a
        falha de sync de um aparelho aparecer em outro.
 
@@ -167,9 +167,9 @@ decide.
    | Sync | o sync de uma pasta falha, e quando volta; a janela numa pasta do servidor perde o servidor, e o recupera; a janela web fica offline, e volta | `sync-status`, `server-gone` / `server-back`, os avisos da ponte web | os avisos de offline e reconectado da ponte web passam a este módulo |
    | Conflitos | o sync fez uma cópia de conflito; uma sala ao vivo recusou uma edição como conflito | `SyncStatus.conflicts`, `collab-conflict` | nenhum. O banner na nota fica |
    | Compartilhamento | recebi um compartilhamento; um compartilhamento que eu tinha foi revogado | revogado: `SyncStatus.revoked`, o quadro `gone` | **recebido:** um novo envio às conexões abertas de quem recebe, incluído na lista permitida do escopo de compartilhamento. **Revogado numa janela do desktop numa pasta do servidor:** dito como revogação, não mais como "conexão caiu" |
-   | Atualizações | saiu uma versão nova | a verificação ao abrir | `[OPEN]` uma nova verificação com o app aberto. *Recomendação:* a cada 24 h, sob o mesmo ajuste ("Verificar atualizações automaticamente", [0055](0055-in-app-updater.md)). Uma notificação por versão |
+   | Atualizações | saiu uma versão nova | a verificação ao abrir | uma nova verificação com o app aberto `[DECIDED 2026-10-14]`: a cada 24 h, sob o mesmo ajuste ("Verificar atualizações automaticamente", [0055](0055-in-app-updater.md)). Uma notificação por versão |
    | Cota | uma pasta passa de 90 % da cota | `folder-quota`, só pastas do servidor | ganha um tipo no contrato e é repassado à janela de uma pasta local sincronizada. Levantada de novo só depois que a pasta cai abaixo de 90 % e passa outra vez |
-   | Lixeira | itens desta pasta saem da lixeira em breve | nada: `trash_list` tem `expires` | `[OPEN]` o limiar. *Recomendação:* a janela pergunta ao abrir e uma vez por dia, e diz "n itens saem da lixeira em até 3 dias" no máximo uma vez por dia por pasta, com "Abrir a lixeira" |
+   | Lixeira | itens desta pasta saem da lixeira em breve | nada: `trash_list` tem `expires` | o limiar `[DECIDED 2026-10-14]`: a janela pergunta ao abrir e uma vez por dia, e diz "n itens saem da lixeira em até 3 dias" no máximo uma vez por dia por pasta, com "Abrir a lixeira" |
    | Presença | alguém entra na nota que estou editando | `collab-awareness` → `presenceChanged` | nenhum. A saída não é notificada: o estado ao vivo já diz |
 
    Erros de uma ação (`verso:failed`) não são um tipo. Ficam onde a
@@ -178,8 +178,8 @@ decide.
 8. **Ajustes.**
    - Uma seção nova dos Ajustes, "Notificações", tem uma linha por tipo
      com três valores: "Aviso e lista", "Só na lista", "Desligado".
-   - `[OPEN]` **Os padrões.** *Recomendação:* "Aviso e lista" para todos
-     os tipos.
+   - **Os padrões** `[DECIDED 2026-10-14]`: "Aviso e lista" para todos os
+     tipos.
    - Desligar um tipo não silencia seu estado. A barra de status continua
      dizendo o estado do sync, e a nota continua mostrando seu banner de
      conflito. Desligado só quer dizer sem aviso e sem linha na lista.
@@ -187,12 +187,30 @@ decide.
      ([0070](0070-what-travels-with-the-folder.md)): os `Settings` da
      janela, sincronizados com a conta num servidor.
 
-9. **As notificações do sistema.** `[OPEN]` Uma notificação deve ir
-   também para as notificações do macOS, do Windows ou do Linux quando a
-   janela está em segundo plano? *Recomendação:* não nesta rodada. Exige
-   um plugin do Tauri, um pedido de permissão e verificações em três
-   sistemas. O módulo deste ADR é o único lugar onde isso se encaixaria
-   depois.
+9. **As notificações do sistema** `[DECIDED 2026-10-14]`: nesta rodada,
+   no desktop e no navegador.
+   - Mais uma linha em "Notificações": "Também nas notificações do
+     sistema". Começa **desligada**. A permissão do sistema é pedida no
+     momento em que a pessoa liga, nunca de surpresa. Se a permissão é
+     negada, a linha volta a desligada e diz por quê.
+   - Ligada, uma notificação cujo tipo está em "Aviso e lista" vai também
+     para as notificações do sistema, mas só enquanto a janela não está
+     na frente: em segundo plano, minimizada ou em outra aba. Uma janela
+     na frente mostra só o aviso.
+   - Ativar a notificação do sistema traz a janela para a frente e abre a
+     central naquela notificação.
+   - Desktop: pelo plugin de notificação do Tauri, no macOS, no Windows e
+     no Linux. A permissão dele entra nas capabilities da janela.
+   - Navegador: pela Notification API do navegador. A ponte web responde
+     às mesmas chamadas que o plugin do desktop responde, então a janela
+     não pergunta de que lado roda
+     ([0026](0026-core-ui-contract-inviolable-rules.md) regra 2).
+   - Onde o sistema não consegue, a linha diz e fica desligada: uma
+     página que não é servida por HTTPS, um navegador sem a API, ou um
+     navegador de celular que só permite a um app instalado.
+   - Dependências novas, cada uma justificada no pull request com a
+     licença verificada: `tauri-plugin-notification` (Rust) e
+     `@tauri-apps/plugin-notification` (npm).
 
 10. **O contrato.**
     - Os payloads dos eventos que este ADR usa ganham tipos Rust em
@@ -249,13 +267,15 @@ Nenhuma registrada.
 
 ## Status
 
-**Proposto (2026-10-14).** Escrito pelo Opus 5.5 a pedido do
-mantenedor. Em aberto para o mantenedor, cada um com recomendação:
+**Aceito (2026-10-14).** Escrito pelo Opus 5.5 a pedido do mantenedor.
+O mantenedor aceitou as quatro recomendações no mesmo dia (*"Sim,
+todas"*): a lista nesta máquina, sem sincronizar (item 5); a nova
+verificação a cada 24 h (item 7); o limiar da lixeira de 3 dias, uma vez
+por dia por pasta (item 7); "Aviso e lista" para todos os tipos (item 8).
 
-- onde a lista mora (item 5; o armazenamento do navegador desta máquina,
-  sem sincronizar);
-- a nova verificação de atualizações com o app aberto (item 7; a cada
-  24 h);
-- o limiar da lixeira (item 7; 3 dias, uma vez por dia por pasta);
-- os padrões (item 8; "Aviso e lista" para todos os tipos);
-- as notificações do sistema (item 9; não nesta rodada).
+As notificações do sistema (item 9) foram contra a recomendação, que era
+deixá-las para uma rodada seguinte. O mantenedor escolheu tê-las nesta
+rodada (*"Sim, já nesta"*), começando desligadas, com a permissão pedida
+quando o ajuste é ligado, e no navegador além do desktop.
+
+A construir como 0.8.3-beta.1.
