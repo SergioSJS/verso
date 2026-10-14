@@ -577,11 +577,12 @@ pela recusa do próprio sign-in (itens 1 e 2) e responde 403
 `signin_failed`; por passkey, `POST /api/me/prove/passkey` inicia a
 cerimônia. Exigem a prova além da lista da Decisão: a troca de senha, o
 link de redefinição que o admin faz para outra conta, um dono dando ou
-mudando o papel de um membro (`folders::set_member`) e o papel de um
-compartilhamento (`shares::grant`). Ficam sem a prova: um convite sem pasta
-nem compartilhamento — um que leve um dos dois exige a prova desde o
-3d79d9ad (o S6 da segunda revisão) —, criar contas, adotar uma pasta,
-cotas, a lixeira, remover um membro. A janela
+mudando o papel de um membro (`folders::set_member`), o papel de um
+compartilhamento (`shares::grant`) e, desde o ce7f7655 (a /security-review
+de 2026-10-14, abaixo), adotar uma pasta. Ficam sem a prova: um convite sem
+pasta nem compartilhamento — um que leve um dos dois exige a prova desde o
+3d79d9ad (o S6 da segunda revisão) —, criar contas, cotas, a lixeira,
+remover um membro. A janela
 pergunta na hora por `web/proof.ts` e `web/proveDialog.ts` e tenta de
 novo uma vez. Um pedido com um token de acesso pessoal responde 403 "not
 with an access token".
@@ -799,6 +800,30 @@ Mudo a recomendação: deixa o app com acesso de admin"*.
   pasta (`set_folder_settings`) deixa o `folder_note_name` como estava,
   como o `set_folder_note_name` já fazia (`rpc.rs`,
   `without_owners_settings`); a mudança do dono o define.
+
+**A /security-review de 2026-10-14.** Uma revisão de código do servidor
+voltada à segurança, feita em 2026-10-14 sobre o b72940c7, não relatou
+nenhum achado com confiança 8 ou mais. Quatro pontos que ela levantou
+abaixo desse limite foram fechados em sec/security-review-followups, cada
+um com um teste visto falhando antes. 9906f2b9: a atualização para o
+schema 10 dava `scope = 'folder'` a todo convite cujo `share` já era nulo,
+entre eles um convite para um compartilhamento órfão de antes dela, que
+então daria a pasta inteira; na mesma transação do passo 10, todo convite
+pendente que nomeia uma pasta e nenhum compartilhamento agora é encerrado,
+o log diz quantos uma vez, e o registro de mudanças diz ao admin para
+mandá-los de novo — links usados, expirados e sem pasta ficam como
+estavam. ce7f7655: o `admin::adopt`, que dá uma pasta já existente no
+disco a qualquer dono, exige a prova recente do item 6, como o `enter` e
+o `set_member`. e86ddbdd: o `device::describe_typed` recusa um token de
+acesso pessoal ("not with an access token") antes de olhar o código, como
+aprovar e recusar exigem uma sessão. 22e7eb84: o `universo.sh restore`
+desempacota as entradas conferidas numa pasta nova, só do root, dentro do
+destino, recusa quando um caminho que gravaria é um link sob o destino (o
+GNU tar seguia um link plantado no meio de um nome, como
+`/var/lib/universo/folders`) ou quando uma pasta acima de um caminho do
+backup leva para fora dele, e só então põe a árvore no lugar; o teste do
+script planta `folders -> /tmp/elsewhere` sobre `/` e numa raiz de
+rascunho.
 
 ## Consequências
 

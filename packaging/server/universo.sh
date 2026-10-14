@@ -248,7 +248,9 @@ running_version() {
 # --- temporary files --------------------------------------------------------
 
 TMPD=
-cleanup() { [ -n "$TMPD" ] && rm -rf "$TMPD"; }
+# A restore's staging directory, inside the place it restores to.
+STAGE=
+cleanup() { [ -z "$TMPD" ] || rm -rf "$TMPD"; [ -z "$STAGE" ] || rm -rf "$STAGE"; }
 trap cleanup EXIT
 trap 'exit 130' INT TERM
 
@@ -1078,6 +1080,66 @@ check_members() {
       "RECUSADO: $2 contém $why, $name. Um backup feito pelo universo.sh contém só arquivos e pastas comuns em ${paths}(os caminhos que o $ENV_FILE desta máquina define). Nada foi gravado."
 }
 
+# stage_restore TARBALL TARGET: the entries check_members listed, unpacked
+# into a fresh directory of root's only, $STAGE, inside TARGET — beside
+# the data root when TARGET holds it, so that putting a new tree in place
+# is a rename. Nothing is on the disk there yet, so no link can be on the
+# way of a name, as one under TARGET may be (GNU tar follows a link it
+# finds in the middle of a name).
+stage_restore() {
+  in=${2%/}${DATA_ROOT%/*}
+  { [ -d "$in" ] && [ ! -L "$in" ]; } || in=$2
+  STAGE=$(mktemp -d "${in%/}/.universo-restore.XXXXXX") \
+    || die "Could not make a directory in $in to unpack into." "Não foi possível criar uma pasta em $in para desempacotar."
+  LC_ALL=C tar -xzpf "$1" -C "$STAGE" --no-wildcards --no-recursion -T "$TMPD/members" \
+    || die "Could not unpack the backup (above); nothing was restored." "Não foi possível desempacotar o backup (acima); nada foi restaurado."
+}
+
+# check_places TARGET: refuses, before anything is put in place, when a
+# path the backup holds is a link under TARGET — a directory on the way to
+# a file, or the file itself — or when a directory above one of
+# backup_paths leads out of TARGET. The package makes no link there: one
+# found was put there by someone else, and writing would go through it.
+check_places() {
+  root=$(realpath "$1") || die "Could not resolve $1." "Não foi possível resolver $1."
+  while IFS= read -r p; do
+    [ -n "$p" ] && [ -e "$STAGE/$p" ] || continue
+    bad=
+    d=${1%/}/${p%/*}
+    while [ ! -e "$d" ] && [ ! -L "$d" ]; do d=${d%/*}; [ -n "$d" ] || d=/; done
+    real=$(realpath "$d") || die "Could not resolve $d." "Não foi possível resolver $d."
+    case "$root" in
+      /) ;;
+      *) case "$real" in "$root"|"$root"/*) ;; *) bad=$d ;; esac ;;
+    esac
+    [ -n "$bad" ] || bad=$(find "$STAGE/$p" -exec sh -c '
+      s=$1 t=$2; shift 2
+      for f; do r=${f#"$s"/}; if [ -L "$t/$r" ]; then printf "%s\n" "$t/$r"; exit 0; fi; done' \
+      sh "$STAGE" "${1%/}" {} + | head -n 1)
+    [ -z "$bad" ] || die "REFUSED: $bad is a link on the way of what the backup holds; the package makes none there, and the restore would write through it. Remove it (and check who made it), then restore again. Nothing was restored." \
+                         "RECUSADO: $bad é um link no caminho do que o backup contém; o pacote não cria nenhum ali, e a restauração gravaria através dele. Remova-o (e veja quem o criou), depois restaure de novo. Nada foi restaurado."
+  done < "$TMPD/prefixes"
+}
+
+# place TARGET: the checked tree put in place, path by path of
+# backup_paths: renamed when nothing is there yet, else copied over what is
+# there with its modes, owners and times (a file made since stays).
+place() {
+  while IFS= read -r p; do
+    [ -n "$p" ] && [ -e "$STAGE/$p" ] || continue
+    dest=${1%/}/$p
+    if [ ! -e "$dest" ]; then
+      mkdir -p "${dest%/*}" && mv "$STAGE/$p" "$dest"
+    elif [ -d "$STAGE/$p" ]; then
+      cp -a --no-dereference "$STAGE/$p/." "$dest/"
+    else
+      cp -a --no-dereference --remove-destination "$STAGE/$p" "$dest"
+    fi || die "Could not put $dest in place (above)." "Não foi possível pôr $dest no lugar (acima)."
+  done < "$TMPD/prefixes"
+  rm -rf "$STAGE"
+  STAGE=
+}
+
 # pack PATH...: the tarball of PATH... (relative to /), encrypted when
 # asked, into $file or to descriptor 3.
 pack() {
@@ -1281,10 +1343,12 @@ cmd_restore() {
     mkdir -p "$target" || die "Could not make $target." "Não foi possível criar $target."
   fi
   step "Unpacking $file into $target." "Desempacotando $file em $target."
-  # Exactly the entries checked, each by its own name: no pattern, and a
-  # directory's name stands for itself only.
-  LC_ALL=C tar -xzpf "$staged" -C "$target" --no-wildcards --no-recursion -T "$TMPD/members" \
-    || die "Could not unpack $file (above)." "Não foi possível desempacotar $file (acima)."
+  # Exactly the entries checked, each by its own name (no pattern, and a
+  # directory's name stands for itself only), into a fresh directory
+  # first; no link on their way under the target; then put in place.
+  stage_restore "$staged" "$target"
+  check_places "$target"
+  place "$target"
   if [ "$was_active" = 1 ]; then
     step "Starting the service again." "Ligando o serviço de novo."
     systemctl start "$SERVICE" || warn "It did not start: sudo journalctl -u universo -n 50" "Ele não ligou: sudo journalctl -u universo -n 50"
