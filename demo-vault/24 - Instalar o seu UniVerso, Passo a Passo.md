@@ -201,7 +201,7 @@ services:
 `/DATA/AppData/universo/data` guarda as contas e precisa ficar num disco local; `/DATA/Documents/Verso` guarda as notas e pode ficar num NAS (troque pelo caminho que quiser). A porta 7340 só abre na própria máquina: o HTTPS (próximo passo) vem na frente dela. Se o proxy rodar no próprio CasaOS, o `VERSO_TRUSTED_PROXY` leva o endereço do gateway da rede do Docker, que este comando mostra:
 
 ```bash
-docker network inspect universo_default --format '{{(index .IPAM.Config 0).Gateway}}'
+sudo docker network inspect universo_default --format '{{(index .IPAM.Config 0).Gateway}}'
 ```
 
 ---
