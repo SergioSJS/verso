@@ -35,6 +35,10 @@ sha2 = "0.10"
 # Already in the tree through verso-server's tests, same licence (MIT OR
 # Apache-2.0). In verso-core only: verso-dialect keeps the literal as text.
 regex = "1"
+# A map's large picture is cut into tiles (ADR 0090 item 4) by decoding the
+# PNG one row at a time and encoding the tiles: pure Rust, MIT OR Apache-2.0,
+# already in the tree through Tauri (muda) — no new crate, no new licence.
+png = "0.18"
 
 [dev-dependencies]
 tempfile = "3.27"

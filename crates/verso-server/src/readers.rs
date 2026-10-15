@@ -38,6 +38,7 @@ pub const SERVER_READS: &[(&str, &str)] = &[
     ("render_markdown", "the window's own text"),
     ("project_secrets", "the window's own text, projected"),
     ("board_text", "the window's own board"),
+    ("project_board", "the window's own board, projected"),
     ("log_write", "nothing: a line of the window's"),
     ("pick_folder", "nothing"),
     ("open_initial", "nothing"),
@@ -94,13 +95,27 @@ pub fn split(server: &Server, clients: &[String]) -> (Vec<String>, Vec<String>) 
         .partition(|c| table.get(c).is_some_and(window_reads_only))
 }
 
-/// Whether `path` names a note, the only file with secret blocks here:
-/// case ignored, and trailing dots and spaces, which a file system may
-/// drop from a name (fails closed).
+/// Whether `path` names a note, a file with secret blocks: case ignored,
+/// and trailing dots and spaces, which a file system may drop from a name
+/// (fails closed).
 pub fn is_note(path: &str) -> bool {
     path.trim_end_matches(['.', ' '])
         .to_lowercase()
         .ends_with(".md")
+}
+
+/// Whether `path` names a board, the other file with something hidden
+/// from readers: its secret pins (ADR 0090 item 5). Judged as [`is_note`].
+pub fn is_board(path: &str) -> bool {
+    path.trim_end_matches(['.', ' '])
+        .to_lowercase()
+        .ends_with(".canvas")
+}
+
+/// Whether a reader is served `path` as a projection of it: a note or a
+/// board by its name.
+pub fn is_served(path: &str) -> bool {
+    is_note(path) || is_board(path)
 }
 
 /// What a reader is told of a note it is not served at all (past
@@ -109,10 +124,10 @@ pub fn is_note(path: &str) -> bool {
 /// secret block holds.
 pub const HIDDEN: i64 = -1;
 
-/// What a reader is told of the note at `path`: its projection's hash and
-/// size when it holds a secret block, [`HIDDEN`] for a note too large to be
-/// served; `None` when it holds none (or is no note), and a reader is told
-/// the file as it is.
+/// What a reader is told of the note or board at `path`: its projection's
+/// hash and size when it holds a secret block or a secret pin, [`HIDDEN`]
+/// for a file too large to be served; `None` when it holds none (or is
+/// neither), and a reader is told the file as it is.
 pub fn reader_of(
     server: &Server,
     key: &str,
@@ -132,11 +147,9 @@ pub fn reader_of(
         }
         let bytes = ws.read_file(&p)?;
         let text = String::from_utf8_lossy(&bytes);
-        let secrets = verso_core::secret::Secrets::of(&text);
-        if secrets.is_empty() {
+        let Some(shown) = ws.reader_view(&p, &text) else {
             return Ok(None);
-        }
-        let shown = secrets.project(&text);
+        };
         Ok(Some((
             crate::sync::sha256(shown.as_bytes()),
             i64::try_from(shown.len()).unwrap_or(i64::MAX),
@@ -249,7 +262,7 @@ pub fn push_folder_changed(server: &Server, key: &str, clients: &[String], chang
         let paths: Vec<String> = list
             .iter()
             .filter_map(Value::as_str)
-            .filter(|p| is_note(p))
+            .filter(|p| is_served(p))
             .map(str::to_owned)
             .collect();
         let quiet = server

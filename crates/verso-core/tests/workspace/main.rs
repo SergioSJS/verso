@@ -25,5 +25,6 @@ mod indexing;
 mod mentions;
 mod order;
 mod reader;
+mod reader_board;
 mod rename;
 mod sweep;

@@ -324,6 +324,21 @@ export const commands = {
 	 */
 	projectSecrets: (text: string) => __TAURI_INVOKE<string>("project_secrets", { text }),
 	/**
+	 *  `text`, a board, as an account that may only read it is served on a
+	 *  UniVerso: without its secret pins and what belongs to them (ADR 0090
+	 *  item 5). The "view as a reader" toggle of a writer draws it, from the one
+	 *  projection the server serves readers. Pure: it reads nothing.
+	 */
+	projectBoard: (text: string) => __TAURI_INVOKE<string>("project_board", { text }),
+	/**
+	 *  How the tiles of a map's picture stand (ADR 0090 item 4), starting to
+	 *  cut a large PNG that is not yet; the cutting runs on a thread of its
+	 *  own and the answer does not wait for it.
+	 */
+	mapOpen: (path: string) => typedError<MapInfo, ContractError>(__TAURI_INVOKE("map_open", { path })),
+	/**  One tile of a map's picture, a PNG as base64; none when it is not there. */
+	mapTile: (path: string, level: number, x: number, y: number) => typedError<string | null, ContractError>(__TAURI_INVOKE("map_tile", { path, level, x, y })),
+	/**
 	 *  Rename or move anything of the folder: a note, another file or a
 	 *  folder with everything under it. Links to what moved come back as
 	 *  rewrites, like `rename_note` (ADR 0048, option (b)).
@@ -1570,6 +1585,45 @@ export type LinkRewrite = {
 	before: string,
 	after: string,
 };
+
+/**  The tiles of a map's picture. */
+export type MapInfo = {
+	state: MapState,
+	/**  The picture's size in pixels; 0 when it is not known. */
+	width: number,
+	height: number,
+	/**  The side of a tile. */
+	tile: number,
+	/**
+	 *  The levels of the pyramid: level 0 is the picture at its own size,
+	 *  each one above half the one below, the last small enough for one
+	 *  tile.
+	 */
+	levels: number,
+	/**
+	 *  The tiles cut so far and in all (a count of `f64` for the
+	 *  TypeScript side, as sizes are).
+	 */
+	done: number | null,
+	total: number | null,
+	message: string,
+};
+
+/**  How a map's picture stands. */
+export type MapState = 
+/**  Small enough to be drawn whole, as any picture is. */
+"whole" | 
+/**  Being cut into tiles: ask again. */
+"cutting" | 
+/**  Cut: the tiles are there. */
+"ready" | 
+/**
+ *  Large, and in a format that cannot be cut (only a PNG can): drawn
+ *  whole, with a warning.
+ */
+"unsupported" | 
+/**  Could not be cut (`message` says why): drawn whole. */
+"failed";
 
 /**  What adding the folder's server to Claude Desktop did. */
 export type McpAdded = {

@@ -71,6 +71,43 @@ pub(crate) fn project_secrets(text: String) -> String {
     verso_core::secret::project(&text).into_owned()
 }
 
+/// `text`, a board, as an account that may only read it is served on a
+/// UniVerso: without its secret pins and what belongs to them (ADR 0090
+/// item 5). The "view as a reader" toggle of a writer draws it, from the one
+/// projection the server serves readers. Pure: it reads nothing.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn project_board(text: String) -> String {
+    verso_core::canvas_secret::project(&text).into_owned()
+}
+
+/// How the tiles of a map's picture stand (ADR 0090 item 4), starting to
+/// cut a large PNG that is not yet; the cutting runs on a thread of its
+/// own and the answer does not wait for it.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn map_open<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    path: String,
+) -> Result<MapInfo, ContractError> {
+    with(&state, &window, |ws| ops::map_open(ws, path))
+}
+
+/// One tile of a map's picture, a PNG as base64; none when it is not there.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn map_tile<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    path: String,
+    level: u32,
+    x: u32,
+    y: u32,
+) -> Result<Option<String>, ContractError> {
+    with(&state, &window, |ws| ops::map_tile(ws, path, level, x, y))
+}
+
 /// A base evaluated over the folder (ADR 0053): the rows of the view the
 /// window draws, as a table, cards, a list, a kanban or a calendar.
 #[tauri::command]

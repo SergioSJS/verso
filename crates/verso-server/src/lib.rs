@@ -367,6 +367,8 @@ mod tests_rooms;
 #[cfg(test)]
 mod tests_secret;
 #[cfg(test)]
+mod tests_secret_pins;
+#[cfg(test)]
 mod tests_secret_review;
 #[cfg(test)]
 mod tests_share_given;
