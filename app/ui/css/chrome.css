@@ -160,6 +160,12 @@ input.rename:focus, .new-note-row input:focus { outline: none; }
 .editor .cm-tooltip-autocomplete ul li[aria-selected] { background: var(--seal-wash); color: var(--seal); outline: 2px solid var(--brass-ink); outline-offset: -2px; }
 .editor .cm-tooltip.cm-tooltip-autocomplete > ul { max-height: 18em; min-width: 22ch; max-width: 48ch; font-family: var(--ui); }
 .editor .cm-tooltip-autocomplete ul li { display: flex; align-items: center; gap: .5rem; line-height: 1.5; }
+/* The suggestion while typing (ADR 0089 item 5): a chip at the cursor in the completion's own style; on a touch screen it is the thing to tap. */
+.editor .cm-tooltip.cm-link-suggest { background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; box-shadow: 0 10px 30px -10px oklch(0% 0 0 / .35); font-family: var(--ui); font-size: .88rem; overflow: hidden; }
+.link-suggest-chip { display: flex; align-items: center; gap: .6rem; min-height: 2rem; padding: .3rem .6rem; border: 0; background: transparent; color: var(--ink); font: inherit; line-height: 1.5; cursor: pointer; }
+.link-suggest-chip:hover { background: var(--seal-wash); color: var(--seal); }
+.link-suggest-chip kbd { font: inherit; font-size: .72rem; color: var(--ink-3); border: 1px solid var(--hair); border-radius: 4px; padding: 0 .35rem; }
+@media (pointer: coarse) { .link-suggest-chip { min-height: 44px; padding: .5rem 1rem; font-size: .95rem; } }
 .editor .cm-completionLabel { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .editor .cm-completionMatchedText { text-decoration: none; color: var(--seal); font-weight: 600; }
 .editor .cm-completionDetail { font-style: normal; font-size: .78rem; color: var(--ink-3); margin-left: auto; max-width: 16ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
