@@ -47,6 +47,7 @@ import { focusesList, loadFocuses, selectFocus } from "./focuses";
 import { LAST_FOLDER, nameFolderButton, popout, secondary } from "./folder";
 import { hearServers, openServerFolder, parseServerKey } from "./dialogs/servers";
 import { hearSync } from "./dialogs/sync";
+import { offline } from "./web/offline/manager";
 import { icon } from "./icons";
 import { allCommands, keyHint, keyOf, MAC, paintKeyHints, prettyKeys, runHotkey } from "./keys";
 import { clearDropHints, ghost } from "./layout/drag";
@@ -729,7 +730,8 @@ export const started: Promise<void> = (async () => {
   // A folder of this computer that syncs with a server says so in the
   // status bar (ADR 0079 item 13); a server's own folder does not sync.
   void loadCan().then(() => {
-    if (!popout && can("local_folders")) hearSync((section) => settingsDialog.show(section));
+    // (and a browser that keeps a server's folder offline says so the same way, ADR 0092 item 7)
+    if (!popout && (can("local_folders") || offline.available)) hearSync((section) => settingsDialog.show(section));
   });
   await Promise.all([embedOriginsPushed, walkRulesPushed, folderNoteNamePushed]);
   if (popout) return void joinAsPopout();

@@ -1,6 +1,7 @@
 ---
 title: Verso no Celular e no Tablet
 date: 2026-10-09
+updated: 2026-10-15
 tags:
   - celular
   - tablet
@@ -64,6 +65,20 @@ O que é o servidor e como instalá-lo: [[23 - Verso num Servidor]].
 - **Quem só lê** a pasta vê a linha *Você só lê esta pasta*, e nada que muda a pasta aparece.
 - **Copiar link** dá o endereço da nota no servidor, e **Abrir numa nova aba do navegador** faz o papel da nova janela.
 - **Uma página web** de uma nota aparece dentro da nota, com um link para abri-la numa aba quando o site não deixa ser mostrado dentro de outro.
+
+---
+
+## Sem Rede
+
+Num servidor com HTTPS, uma pasta pode ficar **disponível sem rede** neste aparelho — no celular, no tablet ou num navegador de computador. É uma escolha de cada pasta, só deste aparelho, e começa desligada.
+
+1. Abra a pasta e vá em **Ajustes › Sem rede**. Antes de guardar, o Verso diz quanto espaço vai ocupar — as notas e os arquivos de texto inteiros, os anexos, o código da janela — e pede ao navegador que não apague a cópia. Se ele não prometer, isso aparece escrito (é mais provável no iPhone; instalar a página na tela de início — **Compartilhar › Adicionar à Tela de Início** — ajuda).
+2. **Anexos**: figuras e PDFs ficam guardados **depois de abertos**, ou todos de uma vez, em **Guardar todos os anexos**.
+3. Pronto: a janela abre **sem conexão**, mostra as pastas guardadas, e você lê e escreve nas notas. A busca, os links e o grafo se calculam a partir das notas guardadas, e dizem isso: *sem rede: a partir das notas deste aparelho*.
+4. O que você muda espera, e a barra de status diz quantas mudanças esperam. Quando a rede volta, elas sobem **pelas mesmas regras de sincronização do app de computador**: duas notas que só ganharam linhas no fim viram uma só; uma nota mudada nos dois lados fica com a versão do servidor e a sua numa cópia, listada em **Ajustes › Sem rede**; apagar muitos arquivos de uma vez pede a sua confirmação. Um aviso diz *Voltou a rede: n mudanças enviadas*.
+5. **Sair** da conta apaga a cópia deste aparelho, depois de dizer quantas mudanças ainda não subiram; se o servidor encerrar a sessão, a cópia some na próxima conexão. A cópia **não é cifrada**: o armazenamento do navegador é tão seguro quanto o aparelho desbloqueado.
+
+Quem só lê a pasta guarda o que o servidor lhe entrega — sem o que está escondido dos leitores ([[23 - Verso num Servidor]]).
 
 ---
 

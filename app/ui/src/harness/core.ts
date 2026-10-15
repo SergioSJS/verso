@@ -355,10 +355,18 @@ export class Core {
     }
   }
 
+  /** Whether `given` names the file as the caller read it: the stored
+   *  revision. The window kept offline (ADR 0092; src/web/offline/core.ts)
+   *  also knows revisions a server gave a note before the connection
+   *  dropped. */
+  protected accepts(_path: string, was: Stored, given: string): boolean {
+    return String(was.revision) === given;
+  }
+
   /** Write over the revision that was read (invariant 11). */
   private writeOver(path: string, text: string, revision: string): Stored {
     const was = this.stored(path);
-    if (String(was.revision) !== revision) refuse("changed", `changed on disk: ${path}`);
+    if (!this.accepts(path, was, revision)) refuse("changed", `changed on disk: ${path}`);
     return this.put(path, encoder.encode(text));
   }
 
@@ -402,7 +410,7 @@ export class Core {
       if (stored) refuse("exists", `already there: ${SETTINGS_FILE}`);
     } else {
       if (!stored) refuse("not_found", `no such file: ${SETTINGS_FILE}`);
-      if (String(stored.revision) !== revision) refuse("changed", `changed on disk: ${SETTINGS_FILE}`);
+      if (!this.accepts(SETTINGS_FILE, stored, revision)) refuse("changed", `changed on disk: ${SETTINGS_FILE}`);
       const parsed: unknown = JSON.parse(strict.decode(stored.bytes));
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) refuse("refused", "the folder's settings file is not a JSON object");
       obj = parsed as Record<string, unknown>;
@@ -1211,7 +1219,7 @@ export class Core {
       });
 
       let finalFocuses = clean;
-      if (String(stored.revision) !== stamp) {
+      if (!this.accepts(".space/waypoints.json", stored, stamp)) {
         // Concurrent modification on disk: attempt merge (ADR 0062 D7)
         const baseFocuses = a["baseFocuses"] as Focus[] | null;
         if (!baseFocuses) {

@@ -20,6 +20,47 @@ app real.
 
 ## Ainda não conferido
 
+### O celular sem rede (ADR 0092, feat/phone-offline, 2026-10-15)
+
+Precisa de um UniVerso com **HTTPS** (um service worker não roda em HTTP
+simples, salvo em `localhost`) e de um celular de verdade; os testes de
+ponta a ponta imitam a rede com o modo offline do navegador e uma rota do
+WebSocket.
+
+- [ ] **Instalado num iPhone** (A): no Safari, abra o servidor, entre,
+  Compartilhar › Adicionar à Tela de Início, abra pelo ícone. Ajustes › Sem
+  rede numa pasta: o espaço é dito, *Guardar neste aparelho* funciona, e a
+  página diz se o sistema prometeu guardar a cópia (*persisted*). Modo
+  avião, feche o app, abra pelo ícone: a janela abre e lista a pasta; uma
+  nota abre e é editada; a barra de status diz *Sem conexão* e *1 mudança
+  esperando*. Modo avião desligado: *Voltou a rede: 1 mudança enviada*, e a
+  nota no servidor tem o texto.
+- [ ] **O despejo no iPhone** (A): com a cópia guardada e o armazenamento do
+  celular quase cheio (ou passados sete dias sem abrir a página no Safari,
+  sem instalar), abra a página sem rede: ou a cópia está lá ou sumiu — diga
+  qual, e se a página avisou (*persistDenied*). O que se perde são as
+  escritas que não tinham subido; nada no servidor.
+- [ ] **Android** (A): Chrome, *Instalar app* (ou Adicionar à tela
+  inicial); as mesmas passadas; o *Armazenamento persistente* dos ajustes do
+  site no Chrome diz que a cópia não é apagada por falta de espaço.
+- [ ] **Um conflito no celular** (A): uma nota editada no celular sem rede
+  e num computador enquanto isso; de volta à rede: a versão do servidor
+  tem o nome, a do celular é `… (conflito, iPhone · Safari, …).md`, listada
+  em Ajustes › Sem rede com a diferença; uma notificação diz.
+- [ ] **Sair e um celular perdido** (A): *Sair* diz quantas escritas não
+  subiram; depois, Ajustes › Avançado › Dados de Sites do Safari não mostra
+  nada do servidor além do código da página. O *Encerrar sessões e tokens*
+  do console num celular sem rede: na próxima conexão a cópia é apagada e
+  a página diz.
+- [ ] **O celular de quem só lê** (A): quem só lê guarda uma pasta com um
+  bloco secreto; sem rede, a nota não tem o bloco, e *Ver como leitor* do
+  lado do dono mostra o mesmo texto.
+- [ ] **O leitor de tela** (A): o VoiceOver/TalkBack leem o estado sem rede
+  quando muda (*Sem rede: você edita as notas guardadas…*) e os controles da
+  seção pelo nome, nos dois idiomas.
+- [ ] **O Mac, WebKit** (A): o Safari no Mac, a mesma primeira passada; o
+  WebKit da imagem de e2e não é o Safari.
+
 ### Uma página embutida como frame de verdade (fix/web-embed-clip, 2026-10-15)
 
 Precisa do app instalado: a checagem, a política do frame e o guard de
