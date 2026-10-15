@@ -150,6 +150,16 @@
   [0091](0091-version-history.md). End-to-end encryption and the MCP over
   the network come after V1 (the maintainer, the same night). The
   Status's wording is kept.
+  2026-10-15 — "this app is a server" is decided in full by
+  [0096](0096-this-app-is-a-server.md) (its Status: every item as
+  recommended). Two sentences of this record are revised by it: the
+  Consequences' "runs on macOS and Windows as well" is **macOS and Linux
+  first, Windows after** (0096 item 17, option (a): `verso-server` is not
+  built for Windows, [0075](0075-server-packaging-and-storage.md) item 2,
+  and compiling the local mode without the passkeys was not cheap), and
+  the `[OPEN]` of the app updating while phones are connected is answered
+  (0096 item 18: the restart drops the phones, the page reloads on the
+  contract hash). Item 2's one sentence, and the old words, are kept.
 
 ## Context
 

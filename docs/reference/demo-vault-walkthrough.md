@@ -1102,6 +1102,24 @@ rest below and in `manual-checks.md`.
     contas* land on their headings. Level: H; R: `scripts/demo-vault.mjs
     check` (links and headings of the vault).
 
+15. This app is a server (note 22, *Parear o Celular com o Seu Computador*;
+    [ADR 0096](../adr/0096-this-app-is-a-server.md)): *Ajustes* › *Este app é
+    um servidor* offers the folders opened on this computer, none ticked; the
+    one that also syncs with a server cannot be ticked. Nothing ticked,
+    *Ligar o servidor* refuses and says so; ticked, the first turn-on
+    explains what the system will ask, serves, and the status bar shows
+    *Servindo* with *Parar*. *Parear um celular* shows a QR, the address and
+    a code of eight letters, and a countdown; a phone presenting the token
+    raises *Foi você quem leu este QR?* with its name, address and time;
+    *Permitir* (with *Pode editar as notas* for an editor) lists it, *Não fui
+    eu: recusar* ends the token; *Revogar* removes it; *Esquecer todos os
+    celulares* asks first. By machine: `app/ui/e2e/local-server.spec.mjs`
+    (the harness answers in memory) and the Rust tests of
+    `crates/verso-server/src/local` (the real server over TLS, the pairing,
+    the allowlist, the limits); by hand, with a real phone, the checks in
+    `manual-checks.md`. Level: H for the section, A for the phone; R:
+    `scripts/demo-vault.mjs check` for the note.
+
 ## 14. The end
 
 1. The log after the line noted: no `ERROR`. The app's stderr: empty. The
