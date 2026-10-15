@@ -47,6 +47,7 @@ pub mod board;
 pub mod canvas;
 pub mod clients;
 pub mod focuses;
+pub mod history;
 pub mod servers;
 pub mod sync;
 pub mod trash;
@@ -653,6 +654,9 @@ pub struct Workspace {
     last_focuses: Option<Vec<Focus>>,
     /// Whether focuses are synced to .space/waypoints.json for this workspace (ADR 0062 D5, D9).
     sync_focuses: bool,
+    /// The computer's history of the folder's files, when kept (ADR 0091
+    /// item 8; `history.rs`).
+    history: Option<history::Local>,
 }
 
 impl std::fmt::Debug for Workspace {
@@ -796,6 +800,7 @@ impl Workspace {
             stamped_focuses: HashMap::new(),
             last_focuses: None,
             sync_focuses: false,
+            history: None,
         };
         // The folder's own settings, read before anything is walked: the
         // walk's rules may be the folder's (ADR 0070). Read only.

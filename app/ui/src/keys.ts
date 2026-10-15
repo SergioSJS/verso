@@ -9,6 +9,8 @@ import { insertBase, newBase } from "./bases";
 import { commands } from "./bindings";
 import { can, canWrite } from "./can";
 import { trashStrings } from "./dialogs/trash";
+import { historyFor, openHistory } from "./dialogs/history";
+import { historyStrings } from "./dialogs/historyStrings";
 import { bookmarks, toggleBookmark } from "./bookmarks";
 import { narrow, toggleRight, toggleSide } from "./chrome";
 import { insertTemplate, saveAsTemplate } from "./daily";
@@ -251,6 +253,8 @@ export function allCommands(all = false): Command[] {
     { id: "graph-vault", label: t.graphWhole, need: hasFolder, run: () => (pane ?? paneToOpenIn()).openGraph("") },
     // The folder's trash (ADR 0080 item 4): for whoever may change the folder.
     { id: "open-trash", label: trashStrings().open, need: hasFolder && canWrite(), run: () => settingsDialog.show("trash") },
+    // A file's version history (ADR 0091 item 5): for whoever may write it.
+    { id: "version-history", label: historyStrings().command, need: historyFor(leaf?.path), run: () => leaf?.path && void openHistory(leaf.path) },
     { id: "report-bug", label: t.reportBug, run: () => bugDialog.show() },
     // The notification centre (ADR 0084 item 5).
     { id: "notifications", label: notifyStrings().command, run: () => openCentre() },

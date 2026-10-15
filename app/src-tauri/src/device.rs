@@ -96,6 +96,15 @@ pub(crate) async fn set_device_name<R: tauri::Runtime>(
     servers::set_device_name(config.as_deref(), wanted.as_deref())
         .map_err(verso_service::convert)?;
     let device = described(config.as_deref());
+    // The versions this computer writes from now on carry its new name
+    // (ADR 0091 item 4).
+    {
+        let service = &app.state::<App>().service;
+        let days = service
+            .history_days()
+            .unwrap_or(verso_core::history::DEFAULT_DAYS);
+        service.keep_local_history(&device.name, days);
+    }
     let session = session_name(config.as_deref());
     let logins = servers::list(config.as_deref()).map_err(verso_service::convert)?;
     let unreached = tauri::async_runtime::spawn_blocking(move || {

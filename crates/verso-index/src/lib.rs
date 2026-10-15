@@ -22,6 +22,7 @@
 //! - the index file at mode `0600` in a `0700` directory, excluded from
 //!   Time Machine.
 
+pub mod history;
 mod keys;
 mod moves;
 mod schema;

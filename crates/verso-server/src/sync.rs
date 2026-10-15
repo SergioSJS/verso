@@ -107,17 +107,23 @@ fn refused(message: &str) -> ContractError {
 /// Who made a change, as the folder's log keeps it (ADR 0079 item 4): the
 /// account, and the device's name when a device's sync made it — two
 /// devices of one account told apart.
+///
+/// The version history (ADR 0091 item 4) names more: an agent's token by
+/// its name, and the accounts whose edits a room's save holds.
 #[derive(Clone, Copy, Default)]
 pub struct Author<'a> {
     pub account: Option<&'a str>,
     pub device: Option<&'a str>,
+    pub token: Option<&'a str>,
+    pub room: Option<&'a [String]>,
 }
 
 impl<'a> Author<'a> {
-    fn of(account: Option<&'a str>) -> Self {
+    #[must_use]
+    pub fn of(account: Option<&'a str>) -> Self {
         Self {
             account,
-            device: None,
+            ..Self::default()
         }
     }
 }
@@ -150,9 +156,20 @@ pub fn reconcile(
     actor: Option<&str>,
     paths: &[String],
 ) -> Result<i64, ContractError> {
+    reconcile_by(server, folder, key, Author::of(actor), paths)
+}
+
+/// [`reconcile`], naming who made the change as the history names it.
+pub fn reconcile_by(
+    server: &Server,
+    folder: &str,
+    key: &str,
+    by: Author<'_>,
+    paths: &[String],
+) -> Result<i64, ContractError> {
     let one = one_at_a_time(server, folder);
     let _only = lock(&one);
-    reconcile_held(server, folder, key, actor, paths)
+    reconcile_held(server, folder, key, by, paths)
 }
 
 /// The folder's lock: one reconciliation at a time, and a device's change
@@ -171,7 +188,7 @@ fn reconcile_held(
     server: &Server,
     folder: &str,
     key: &str,
-    actor: Option<&str>,
+    by: Author<'_>,
     paths: &[String],
 ) -> Result<i64, ContractError> {
     let fail = |e: String| verso_service::failed(e);
@@ -306,7 +323,7 @@ fn reconcile_held(
     record_changes(
         server,
         (folder, key),
-        Author::of(actor),
+        by,
         (&known, &gone),
         created,
         &quick_only,
@@ -428,6 +445,11 @@ fn record_changes(
             (&readers, &recheck),
         )
         .map_err(verso_service::failed)?;
+    // Each text file's new bytes a version, a rename followed, a deletion
+    // kept reachable (ADR 0091 items 1, 4 and 9).
+    // The log's first look at the folder finds its files as they are: the
+    // versions its history begins with.
+    crate::history::recorded(server, (folder, key), by, &changes, known.is_empty());
     if !changes.is_empty() {
         let paths: Vec<&str> = changes
             .iter()
@@ -607,11 +629,20 @@ fn as_spelled(
 }
 
 /// [`reconcile_written`] for the folder behind a key the server opened: a
-/// room's save, whose one path is known.
-pub fn reconcile_saved(server: &Server, key: &str, path: &str) {
+/// room's save, whose one path is known, and the accounts whose edits it
+/// holds (the history's authors, ADR 0091 item 4).
+pub fn reconcile_saved(server: &Server, key: &str, path: &str, authors: &[String]) {
     let folder = lock(&server.keys).get(key).cloned();
     if let Some(folder) = folder
-        && let Err(e) = reconcile_written(server, &folder, key, None, &[path.to_owned()])
+        && let Err(e) = {
+            let one = one_at_a_time(server, &folder);
+            let _only = lock(&one);
+            let by = Author {
+                room: Some(authors),
+                ..Author::default()
+            };
+            reconcile_paths(server, &folder, key, by, &[(path.to_owned(), Now::Read)])
+        }
     {
         crate::log::warn(&format!(
             "keeping a folder's changes for sync: {}",
@@ -637,9 +668,14 @@ pub fn reconcile_written(
 
 /// The same, for the folder behind a key the server opened.
 pub fn reconcile_key(server: &Server, key: &str, actor: Option<&str>, paths: &[String]) {
+    reconcile_key_by(server, key, Author::of(actor), paths);
+}
+
+/// [`reconcile_key`], naming who made the change as the history names it.
+pub fn reconcile_key_by(server: &Server, key: &str, by: Author<'_>, paths: &[String]) {
     let folder = lock(&server.keys).get(key).cloned();
     if let Some(folder) = folder
-        && let Err(e) = reconcile(server, &folder, key, actor, paths)
+        && let Err(e) = reconcile_by(server, &folder, key, by, paths)
     {
         crate::log::warn(&format!(
             "keeping a folder's changes for sync: {}",
@@ -846,6 +882,7 @@ pub(crate) async fn command_in(
                 Author {
                     account: Some(&actor),
                     device: device.as_deref(),
+                    ..Author::default()
                 },
                 (&replacer, &said_by),
                 (args, &*inside),
@@ -874,6 +911,7 @@ pub(crate) async fn command_in(
                         Author {
                             account: Some(&actor),
                             device: device.as_deref(),
+                            ..Author::default()
                         },
                         &[(path.clone(), Now::Gone)],
                     )?;
@@ -941,6 +979,7 @@ pub(crate) async fn command_in(
                     Author {
                         account: Some(&actor),
                         device: device.as_deref(),
+                        ..Author::default()
                     },
                     &[(from.clone(), Now::Gone), (to.clone(), Now::Read)],
                 )?;

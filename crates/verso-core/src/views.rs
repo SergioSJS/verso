@@ -14,6 +14,7 @@ impl Workspace {
             .handle(Path::new(&key))
             .map_err(CoreError::Confined)?;
         let (bytes, stamp) = self.root.read(handle).map_err(CoreError::Read)?;
+        self.history_seen(&key, &bytes, stamp.modified);
         let text = String::from_utf8(bytes).map_err(|_| CoreError::NotText)?;
         Ok(TextFile {
             path: key,

@@ -21,6 +21,11 @@ use specta::Type;
 
 mod periodic;
 pub use periodic::{ObsidianPeriodic, PeriodSettings, PeriodicSettings};
+mod history;
+pub use history::{
+    AuthorKind, HistoryListing, VersionAuthor, VersionEntry, VersionKind, VersionRestored,
+    VersionText,
+};
 
 /// The folder that is open, and what indexing it did.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]

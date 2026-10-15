@@ -54,6 +54,9 @@ pub const READER_COMMANDS: &[(&str, ForReader)] = &[
     ("can_sync_focuses", ForReader::Same),
     ("folder_space", ForReader::Projected),
     ("get_folder_settings", ForReader::Same),
+    // Obsidian's daily and periodic notes settings (ADR 0093 item 6): the
+    // text of two configuration files, no byte of a note.
+    ("get_obsidian_periodic", ForReader::Same),
 ];
 
 /// How command `name` answers a reader; `None` for one a reader may not

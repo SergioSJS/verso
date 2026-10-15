@@ -358,6 +358,10 @@ pub struct Server {
     pub ceremonies: crate::passkeys::Ceremonies,
     /// The runtime, for what the watcher's thread hands over.
     pub runtime: std::sync::OnceLock<tokio::runtime::Handle>,
+    /// The folders' version histories (ADR 0091), in the data directory.
+    pub history: crate::history::Book,
+    /// The server itself, for what a write starts later (`crate::history`).
+    this: std::sync::OnceLock<std::sync::Weak<Server>>,
     /// The sync this server speaks (ADR 0079 item 5): its own,
     /// `verso_core::sync::PROTOCOL`, unless [`Server::speak_sync`] set an
     /// older one.
@@ -384,6 +388,7 @@ impl Server {
 
     pub fn new(config: Config, db: Db, contract: String, commit: String) -> Arc<Self> {
         let service = Service::new(Some(config.data_dir.join("indexes")));
+        let history = crate::history::Book::open(&config.data_dir);
         let slots = crate::listen::Slots::new(config.trusted_proxy.clone());
         let server = Arc::new(Self {
             config,
@@ -415,11 +420,19 @@ impl Server {
             signin_links: Mutex::new(HashMap::new()),
             runtime: std::sync::OnceLock::new(),
             sync: std::sync::atomic::AtomicU32::new(verso_core::sync::PROTOCOL),
+            history,
+            this: std::sync::OnceLock::new(),
         });
+        let _ = server.this.set(Arc::downgrade(&server));
         service.set_events(Arc::new(ServerEvents {
             server: Arc::downgrade(&server),
         }));
         server
+    }
+
+    /// The server, owned: what a write hands a later task.
+    pub fn me(&self) -> Option<Arc<Self>> {
+        self.this.get().and_then(std::sync::Weak::upgrade)
     }
 
     /// A name for a new connection, never reused while the server runs.

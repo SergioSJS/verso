@@ -127,6 +127,26 @@ export class Rooms {
     return room.revision;
   }
 
+  /** The live room of `path`, when the note has one: a restore goes
+   *  through it (ADR 0091 item 5) — its text replaced whole, as the
+   *  server's room takes it, and told to the window as the server relays
+   *  it. */
+  live(path: string): { replace: (text: string) => void } | null {
+    const room = this.rooms.get(path);
+    if (!room || room.board) return null;
+    return {
+      replace: (text: string) => {
+        const before = Y.encodeStateVector(room.doc);
+        const t = room.doc.getText("verso");
+        room.doc.transact(() => {
+          t.delete(0, t.length);
+          t.insert(0, text);
+        }, "server");
+        void emit("collab-update", { path, update: toBase64(Y.encodeStateAsUpdate(room.doc, before)) });
+      },
+    };
+  }
+
   /** The room's text now. */
   text(path: string): string {
     return this.rooms.get(path)?.doc.getText("verso").toString() ?? "";
