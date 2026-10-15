@@ -30,6 +30,7 @@ fn labels_indexed_and_queried() {
             sticker: Some("emoji//1f3b2".to_string()),
             color: Some("#e06c75".to_string()),
             alias: Some("Primeiro Alias".to_string()),
+            aliases: vec!["Primeiro Alias".to_string(), "Segundo Alias".to_string()],
             order: None,
             pinned: None,
         })
@@ -42,6 +43,7 @@ fn labels_indexed_and_queried() {
             sticker: Some("emoji//1f3b2".to_string()),
             color: Some("#e06c75".to_string()),
             alias: Some("Primeiro Alias".to_string()),
+            aliases: vec!["Primeiro Alias".to_string(), "Segundo Alias".to_string()],
             order: None,
             pinned: None,
         })
@@ -66,6 +68,7 @@ fn labels_indexed_and_queried() {
             sticker: None,
             color: None,
             alias: None,
+            aliases: vec![],
             order: Some(vec!["a.md".to_string(), "b.md".to_string()]),
             pinned: Some(vec!["[[a]]".to_string()]),
         })
@@ -86,6 +89,7 @@ fn labels_indexed_and_queried() {
             sticker: Some("emoji//1f3b2".to_string()),
             color: Some("#e06c75".to_string()),
             alias: Some("Primeiro Alias".to_string()),
+            aliases: vec!["Primeiro Alias".to_string(), "Segundo Alias".to_string()],
             order: None,
             pinned: None,
         })
