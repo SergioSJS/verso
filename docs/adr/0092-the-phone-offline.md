@@ -135,6 +135,9 @@ None recorded.
 decided as recommended, marked `[DECIDED 2026-10-14]` in place. In V1
 (`docs/roadmap.md`, Phase 4 — V1). [0073](0073-self-hosted-server-first.md) gains a Revisions line, and the roadmap's Phase 3 row is struck (R1).
 
+
+**Accepted (2026-10-15), the build's two deviations and its known risks.** The maintainer, answering the recommendation with *"bora"* (let us go), accepted two deviations of the build from this ADR. (1) The offline core is the browser harness's TypeScript core, not `verso-dialect` compiled to wasm: `wasm-bindgen` would write `unsafe`, which the workspace forbids outside `web_clip`. (2) The browser's sync engine is a TypeScript port held to the Rust engine's vectors (`crates/verso-core/src/sync/vectors.rs` to `app/ui/test/sync-vectors.json`), so two engines exist. Known risks the builder listed: the offline-edit e2e runs on Chromium only; a fresh server database, or an anonymous load, wipes the edits not yet sent, and the notice counts them.
+
 *(History, before the acceptance above:)* Proposed (2026-10-14). In V1 by the maintainer's word of 2026-10-14
 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revision 8). For the
 maintainer, each with a recommendation: attachments and the store
