@@ -64,7 +64,13 @@ async function refreshMark(): Promise<void> {
     stop.setAttribute("aria-label", w.markStopLabel);
     stop.addEventListener("click", () => {
       busy(stop, true);
-      void commands.localServerStop().then(() => busy(stop, false));
+      void commands.localServerStop().then(() => {
+        busy(stop, false);
+        // The host tells of a stop by itself, not of this one: the mark and
+        // the section follow what the person did.
+        void refreshMark();
+        for (const redraw of redraws) redraw();
+      });
     });
     mark.append(icon("globe"), text, stop);
     ui.status.after(mark);
