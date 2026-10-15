@@ -103,9 +103,16 @@ pub fn is_note(path: &str) -> bool {
         .ends_with(".md")
 }
 
+/// What a reader is told of a note it is not served at all (past
+/// [`crate::texts::TEXT_MOST`]): a size below zero, which its manifest and
+/// its log leave out. The file's own size and hash would tell it how much a
+/// secret block holds.
+pub const HIDDEN: i64 = -1;
+
 /// What a reader is told of the note at `path`: its projection's hash and
-/// size when it holds a secret block; `None` when it holds none (or is no
-/// note), and a reader is told the file as it is.
+/// size when it holds a secret block, [`HIDDEN`] for a note too large to be
+/// served; `None` when it holds none (or is no note), and a reader is told
+/// the file as it is.
 pub fn reader_of(
     server: &Server,
     key: &str,
@@ -120,7 +127,7 @@ pub fn reader_of(
             .file_len(&p)
             .is_some_and(|len| len > crate::texts::TEXT_MOST)
         {
-            return Ok(None);
+            return Ok(Some((String::new(), HIDDEN)));
         }
         let bytes = ws.read_file(&p)?;
         let text = String::from_utf8_lossy(&bytes);
