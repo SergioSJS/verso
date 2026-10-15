@@ -14,7 +14,7 @@ status: ativo
 Esta nota leva você, sem pressa, de uma máquina vazia a um **UniVerso** funcionando: o Verso num servidor seu, aberto no navegador do computador, do celular e do tablet. O que o UniVerso faz depois de instalado está em [[23 - Verso num Servidor]]; aqui é só o caminho até lá. Não precisa ser programador: precisa copiar e colar com atenção.
 
 > [!WARNING] O Verso está em testes
-> Ainda **não há um download público**: o repositório do Verso é privado enquanto o app amadurece, e os comandos abaixo baixam o programa de lá com um **token** do GitHub que o mantenedor lhe dá. Sem esse acesso, ainda não dá para instalar. Os comandos são os do guia de referência do projeto (`docs/reference/server-hands-on.md`), escritos a partir da versão **0.8.0-beta.1**, mas ainda não foram rodados passo a passo numa máquina de verdade: se algo não bater, vá a [[#Se algo der errado]] e conte ao mantenedor.
+> Ainda **não há um download público**: o repositório do Verso é privado enquanto o app amadurece, e os comandos abaixo baixam o programa de lá com um **token** do GitHub que o mantenedor lhe dá. Sem esse acesso, ainda não dá para instalar. Os comandos são os do guia de referência do projeto (`docs/reference/server-hands-on.md`), escritos a partir da versão **0.8.0-beta.1** e conferidos passo a passo, em 2026-10-15, numa máquina Ubuntu 26.04 de 1 núcleo e 1 GB com a **0.8.2-beta.1** (o Caminho 1 inteiro; o Caminho 2 com a imagem montada à mão). O que ficou sem rodar num navegador de verdade: o HTTPS com nome ou Tailscale, o app de desktop e o celular. Se algo não bater, vá a [[#Se algo der errado]] e conte ao mantenedor.
 
 ---
 
