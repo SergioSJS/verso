@@ -244,8 +244,15 @@ test("the root's notes are ordered by dragging, in the root's note", async ({ ap
   // The root's note, named after the open folder, made at once.
   await expect.poll(async () => (await app.files()).filter((p) => !before.includes(p) && !p.includes("/")).length).toBe(1);
   const rootNote = (await app.files()).find((p) => !before.includes(p) && !p.includes("/"));
-  const text = await app.file(rootNote);
-  expect(text.indexOf(`- ${second}`)).toBeLessThan(text.indexOf(`- ${first}`));
+  // The note may be made before its order is written into it: wait for
+  // both names, then compare their places.
+  await expect
+    .poll(async () => {
+      const text = await app.file(rootNote);
+      const [s, f] = [text.indexOf(`- ${second}`), text.indexOf(`- ${first}`)];
+      return s >= 0 && f >= 0 && s < f;
+    })
+    .toBe(true);
   await expect.poll(async () => app.page.locator("#notes > li[data-path]").evaluateAll((els) => els.slice(0, 2).map((e) => e.dataset.path))).toEqual([second, first]);
   // Redrawn in place: the rows do not rise again, top to bottom.
   await expect(app.page.locator("#notes")).not.toHaveClass(/reveal/);
