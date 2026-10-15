@@ -297,6 +297,8 @@ O link é `https://notas.exemplo.com/setup?token=…`, por isso o HTTPS precisa 
 
 Na página **Primeiro acesso**, preencha **E-mail**, **Nome**, **Senha nova** (12 caracteres no mínimo) e **Idioma**, e clique em **Criar conta**. Dali em diante você entra com esse e-mail e essa senha, e o console de administração (`/admin`) é seu.
 
+![[assets/servidor-primeiro-acesso.png|320]]
+
 ### No computador, com o app
 
 No app Verso, abra os ajustes (**Verso › Ajustes…**, ⌘, no macOS; **Ctrl+,** no Windows e no Linux) e vá a **Servidores**:
@@ -306,7 +308,11 @@ No app Verso, abra os ajustes (**Verso › Ajustes…**, ⌘, no macOS; **Ctrl+,
 3. Entre com a sua conta se o navegador pedir; na página **Conectar um aplicativo**, cole o código em **Código do aplicativo** e clique em **Continuar**.
 4. Clique em **Aprovar este aparelho**. A página diz *Pronto. Pode voltar ao aplicativo.*
 
+![[assets/servidor-aprovar-aparelho.png|320]]
+
 O app passa a dizer *Conectado como* o seu nome e lista as pastas do servidor, cada uma com **Abrir aqui** e **Sincronizar**. O código vale 10 minutos; passou, clique em **Conectar** de novo.
+
+![[assets/servidor-app-conectado.png|560]]
 
 ### No celular e no tablet
 
