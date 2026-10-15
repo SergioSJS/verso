@@ -221,3 +221,29 @@ fn an_index_of_version_14_is_carried_over_with_its_secrets_found() {
     assert_eq!(index.is_unverified("Cofre.md").unwrap(), Some(true));
     index.check().unwrap();
 }
+
+#[test]
+fn the_order_of_a_reader_s_hits_does_not_move_with_the_length_of_a_secret_block() {
+    // Review of ADR 0087 (M3): the rank of a hit weighs the length of the
+    // note, so a rank over the secret column would tell a reader how long
+    // a secret block grew.
+    let filler = "um dois três quatro cinco seis sete oito nove dez ".repeat(3);
+    let a = format!("# A\n\nbarão porto {filler}\n");
+    let small = "# B\n\nbarão porto\n\n> [!secret]\n> zqx\n";
+    let big = format!("{small}> {}\n", "zqx ".repeat(50_000));
+    let mut index = Index::in_memory().unwrap();
+    put(&mut index, "A.md", &a, 1);
+    put(&mut index, "B.md", small, 1);
+    let order = |index: &Index| -> Vec<String> {
+        let mut hits = index.reader_search("barão porto", 10).unwrap();
+        // Name ranks are no matter here: neither name holds the words.
+        hits.iter_mut()
+            .map(|h| std::mem::take(&mut h.path))
+            .collect()
+    };
+    let before = order(&index);
+    assert_eq!(before.len(), 2);
+    put(&mut index, "B.md", &big, 2);
+    assert_eq!(order(&index), before);
+    index.check().unwrap();
+}
