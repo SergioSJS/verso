@@ -28,7 +28,7 @@
 # beside the production app with its own window settings, and its command
 # line opens that app. The app is signed ad hoc, not with a Developer ID:
 # macOS asks once, on first open, to allow it (README.md); a Developer ID is
-# a decision for before public distribution.
+# never to be had: no Apple Developer Program, ever (ADR 0095, 2026-10-15).
 #
 # The server (ADR 0075): `verso serve`, static for x64 and ARM64 (ARM64
 # cross-compiled, ADR 0075 item 2), as an archive, a `.deb` and an `.rpm`

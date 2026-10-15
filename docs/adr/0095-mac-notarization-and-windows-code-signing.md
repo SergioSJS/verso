@@ -21,6 +21,13 @@
   (the repository private until the licence; roadmap V.12),
   [0029](0029-guardrails-in-ci.md) (CI's cost), [0005](0005-license.md).
 - Status in the briefing: not present.
+- Revisions: 2026-10-15 — **Mac notarization dropped.** The maintainer:
+  *"NÃO VOU ME INSCREVER NESSA MERDA DE APPLE DEVELOPER PROGRAM, NÃO VOU
+  PAGAR NADA"* (I will not enroll in that Apple Developer Program, I will
+  pay nothing). No enrollment and no payment to Apple, ever. Items 1, 2,
+  7 (the Apple secrets), 8 (the macOS steps) and 10 are **superseded**
+  (marked below); the Mac app stays signed ad hoc, as built; items 3, 4,
+  5, 6 (Windows), 9 stand. See the Status.
 
 ## Context
 
@@ -159,7 +166,9 @@ recommended and is marked `[DECIDED 2026-10-14]`. This ADR revises
 [0051](0051-development-flow-and-releases.md) (its Consequence on the ad
 hoc signature) and [0069](0069-windows-port.md) (item 3) when accepted.
 
-1. **macOS: Developer ID and notarization.** The app is signed with a
+1. **macOS: Developer ID and notarization.** *(Dropped 2026-10-15: see the
+   Revisions and the Status; the Mac app stays signed ad hoc, and a
+   person installs it with "Open Anyway".)* The app is signed with a
    Developer ID Application certificate, the hardened runtime on, with a
    secure timestamp, notarized with `notarytool` and stapled — by `tauri
    build` itself, given the certificate and the notary's credentials.
@@ -172,7 +181,8 @@ hoc signature) and [0069](0069-windows-port.md) (item 3) when accepted.
    notarized build shows one is needed, and then the narrowest. The zip
    stays ([0051](0051-development-flow-and-releases.md), Discarded: a
    `.dmg`).
-2. **Who enrolls and pays.** `[DECIDED 2026-10-14]`. Decided: **the maintainer, as
+2. **Who enrolls and pays.** *(Dropped 2026-10-15 for Apple: no
+   enrollment, no payment, ever.)* `[DECIDED 2026-10-14]`. Decided: **the maintainer, as
    an individual**, 99 USD a year (in reais at checkout): an organization
    needs a D-U-N-S number and a legal entity the project does not have
    ([0001](0001-open-tool-no-company.md)), and no waiver applies to a
@@ -205,14 +215,17 @@ hoc signature) and [0069](0069-windows-port.md) (item 3) when accepted.
    AppImage's signature, and an `.rpm`'s helps only someone who imported
    the key; an APT or RPM repository, if one is ever published, signs
    its index then.
-6. **When.** `[DECIDED 2026-10-14]`. Decided: **enroll in Apple's programme now**
+6. **When.** *(The Apple half dropped 2026-10-15; Windows signing stands,
+   when the repository is public.)* `[DECIDED 2026-10-14]`. Decided: **enroll in Apple's programme now**
    — its identity check takes days — and sign and notarize **every
    release from the first one after the certificate exists, the betas
    too**, so that the path is proven long before V1; Windows signing
    **when the repository is public** (V.12), as (b) and (c) require; both
    before the announcement and V1's release. A rehearsal run of the
    release workflow signs and notarizes as a release does.
-7. **The secrets in CI.** `[DECIDED 2026-10-14]`. Decided: a GitHub environment
+7. **The secrets in CI.** *(Dropped 2026-10-15 for the Apple secrets — the
+   certificate and the App Store Connect key; the environment `release` and
+   the Windows credentials stand.)* `[DECIDED 2026-10-14]`. Decided: a GitHub environment
    `release`, its secrets usable only by jobs running on `main` — the
    Developer ID certificate (`.p12`, base64) and its password, and **an
    App Store Connect API key** (issuer, key id, `.p8`) for the notary,
@@ -224,7 +237,9 @@ hoc signature) and [0069](0069-windows-port.md) (item 3) when accepted.
    A certificate expires or is revoked: the next release signs with the
    new one; installed apps are unaffected, since the updater trusts the
    release key, not the certificate.
-8. **The release workflow** changes: the macOS job builds with the
+8. **The release workflow** changes *(2026-10-15: the macOS part is
+   dropped — the ad hoc re-signing step stays, and the release page keeps
+   "Open Anyway"; the Windows part stands)*: the macOS job builds with the
    secrets and checks its result with `codesign --verify --strict`,
    `xcrun stapler validate` and `spctl --assess --type execute`; the
    ad hoc re-signing step goes; the Windows job signs through
@@ -232,7 +247,8 @@ hoc signature) and [0069](0069-windows-port.md) (item 3) when accepted.
    ([0051](0051-development-flow-and-releases.md), revised 2026-10-14)
    loses "Open Anyway" for macOS and says what Windows shows; the README
    too.
-9. **The Mac Intel app** (V.21). `[DECIDED 2026-10-14]`: a universal binary or a
+9. **The Mac Intel app** (V.21). *(2026-10-15: unaffected, except that it
+   is signed ad hoc like the arm64 one, not notarized.)* `[DECIDED 2026-10-14]`: a universal binary or a
    separate x64 build. A universal app holds both and doubles every Mac
    download; Verso's updater picks a file by its architecture word, and a
    `universal` name matches neither (Context), so it would change too.
@@ -243,7 +259,8 @@ hoc signature) and [0069](0069-windows-port.md) (item 3) when accepted.
    as it is; the release page gains its row ("a Mac with an Intel
    processor"). With no Intel Mac at hand, it is tested by running it
    under Rosetta on the maintainer's Mac, and its results said as such.
-10. **What a person sees once.** The first Developer ID release replaces
+10. **What a person sees once.** *(Dropped 2026-10-15: there is no
+    Developer ID release.)* The first Developer ID release replaces
     an ad hoc app: macOS may ask again for permissions it gave the ad hoc
     one (access to a folder in Documents, for instance). Seen on that
     release and said in its notes, not assumed here.
@@ -270,6 +287,17 @@ hoc signature) and [0069](0069-windows-port.md) (item 3) when accepted.
 None recorded.
 
 ## Status
+
+**Revised 2026-10-15: Mac notarization dropped.** The maintainer will
+not enroll in the Apple Developer Program and will pay Apple nothing
+(Revisions). The Mac app stays signed ad hoc, as built; installing it
+means *Open Anyway* (System Settings › Privacy & Security, scroll down,
+*Open Anyway* beside the app, confirm; on macOS 14 or earlier, right-click
+the app › *Open*), which the release page (`scripts/release-page.mjs`) and
+the README already say. Windows signing through **SignPath Foundation**
+(free, once the repository is public, item 3 (b)) stays, and so does the
+separate Mac Intel build (item 9), ad hoc signed. Roadmap V.11 is now
+"Windows code signing" only.
 
 **Accepted (2026-10-14).** The maintainer, that night, answered the
 questions of 0093, 0094 and 0095 with *"Sim, todas"* (yes, all): every

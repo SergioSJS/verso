@@ -582,8 +582,17 @@ fn a_wrong_poll_secret_is_delayed_like_a_failed_sign_in() {
             .await;
             statuses.push(status);
         }
-        // The start counted one; two wrong secrets make the free three.
-        assert_eq!(statuses, [410, 410, 429]);
+        // A start counts nothing (ADR 0083 item 18, 2026-10-15): the three
+        // free failures are the three wrong secrets, the fourth waits.
+        assert_eq!(statuses, [410, 410, 410]);
+        let (status, _) = crate::tests::post(
+            &r,
+            "/api/device/poll",
+            json!({ "code": code, "poll": "not the secret" }),
+            None,
+        )
+        .await;
+        assert_eq!(status, 429);
         let (status, right) = crate::tests::post(
             &r,
             "/api/device/poll",
@@ -593,6 +602,33 @@ fn a_wrong_poll_secret_is_delayed_like_a_failed_sign_in() {
         .await;
         assert_eq!((status, &right["pending"]), (200, &json!(true)), "{right}");
     });
+}
+
+/// A household pairing its devices in one evening is never delayed: only
+/// failed attempts grow the delay of the `device:` key, not the starts and
+/// the pairings that succeed (ADR 0083 item 18, decided 2026-10-15).
+#[test]
+fn pairings_that_succeed_do_not_grow_the_delay() {
+    block_on(async {
+        let r = start().await;
+        for i in 0..6 {
+            let (status, started) =
+                crate::tests::post(&r, "/api/device/start", json!({ "device": "Mac" }), None).await;
+            assert_eq!(status, 200, "start {}", i + 1);
+            // The code is answered: its poll, once approved, ends it.
+            let code = started["code"].as_str().unwrap().to_owned();
+            lock_remove(&r, &code);
+            assert!(
+                r.server.limiter.wait("device:127.0.0.1").is_zero(),
+                "after start {}",
+                i + 1
+            );
+        }
+    });
+}
+
+fn lock_remove(r: &crate::tests::Running, code: &str) {
+    verso_service::lock(&r.server.devices).remove(code);
 }
 
 /// The mail routes take a second key, the e-mail mailed to (ADR 0083

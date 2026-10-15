@@ -1089,8 +1089,8 @@ rest below and in `manual-checks.md`.
     Level: H; R: `tests_secret.rs` (every command of the contract as a
     reader, a live note, sync, a share, a role made reader), the core's
     `tests/workspace/reader.rs`, the index's `tests/secret.rs`, the
-    dialect's `tests/secret.rs` and `fixtures/callout/secret` (an AI
-    draft); A: `manual-checks.md`.
+    dialect's `tests/secret.rs` and `fixtures/callout/secret` (approved
+    2026-10-15); A: `manual-checks.md`.
 
 14. The installation lesson (note 24, "Instalar o seu UniVerso, Passo a
     Passo"): the tour's "Num servidor" stop shows notes 23 and 25 side by

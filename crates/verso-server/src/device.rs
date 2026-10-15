@@ -119,9 +119,11 @@ pub async fn start(ctx: Ctx, Json(body): Json<Start>) -> ApiResult<Response> {
         ctx.server.signins.limited(&key, &ctx.peer.key());
         return Err(ApiError::wait(wait.as_secs() + 1));
     }
-    // Each start counts: a flood of codes is slowed like a flood of
-    // sign-ins.
-    ctx.server.limiter.failed(&key);
+    // A start counts nothing (ADR 0083 item 18, decided 2026-10-15): only
+    // failed attempts grow the delay, so a household pairing its devices
+    // in one evening is never made to wait. A flood of codes is bounded
+    // by the codes one address may keep waiting (`limit::room_for`) and
+    // by the REST pace per address.
     let device = kept_name(&body.device);
     let code = code()?;
     let poll = crate::crypto::token()?;

@@ -969,6 +969,31 @@ folder in the console, and `VERSO_FOLDER_QUOTA` gives one to new folders.
 space than the two directories take, and says so; `sh universo.sh backup
 /other/dir` writes elsewhere.
 
+### Writes are slow, and the disk is the reason
+
+Reads are fast on any disk; **writes are bounded by how long the disk takes
+to confirm one**, because the server writes a file to be safe before it
+answers (a temporary file, then a flush, then a rename). Measured on a
+1-core host whose disk took about 26 ms for a synchronous 4 KiB write,
+writes topped out near **15 a second**, whatever the number of devices:
+the wait grew with the queue, and the process was waiting for the disk, not
+computing. A cloud machine with an SSD is several times faster. To check a
+disk, run this on the machine, in the folder that holds the data:
+
+```sh
+cd /var/lib/universo                        # or the data directory you chose
+dd if=/dev/zero of=./disk-check bs=4k count=200 oflag=dsync
+rm ./disk-check
+```
+
+`dd` prints the total time; divide it by 200 for the time of one write.
+Under about 2 ms is a good disk; 5 to 10 ms is slow but enough for one
+household; 25 ms or more (a network drive, a busy shared disk, a USB stick)
+means about 15 writes a second at most, and an edit that waits behind a
+big sync is the disk, not the server. The fix is a local SSD for the data
+directory; the notes' folders may stay on a NAS, but each write there pays
+the NAS's confirmation too.
+
 ### Nothing answers after a reboot
 
 - The package: `systemctl is-enabled universo` must say `enabled`

@@ -169,6 +169,21 @@ pub(crate) fn auto_start<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     platform::auto_start(app);
 }
 
+/// Whether it serves, how many folders and how many phones are connected
+/// now; none before the server was first used.
+#[cfg(any(target_os = "macos", windows))]
+pub(crate) fn serving_now<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Option<(bool, usize, u32)> {
+    platform::serving_now(app)
+}
+
+/// Stop serving now, from the menu-bar mark's *Stop*.
+#[cfg(any(target_os = "macos", windows))]
+pub(crate) fn stop_now<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    platform::stop_on_exit(app);
+}
+
 /// At the app's end: stop, so the port closes and the goodbye is sent.
 pub(crate) fn stop_on_exit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     platform::stop_on_exit(app);
