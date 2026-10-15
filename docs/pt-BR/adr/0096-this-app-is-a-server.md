@@ -437,7 +437,13 @@ precisa de uma linha, o item diz.
     V.20 espera o Windows. Recomendação: **(b)** se o custo for pequeno (o
     modo local não tem passkeys — não tem página de login), senão (a); uma
     decisão do mantenedor de qualquer jeito, e a frase da 0073 ganha uma
-    linha de Revisões.
+    linha de Revisões. **Revisado em 2026-10-15:** o mantenedor decidiu
+    *"OpenSSL embutido no Windows"* — um quarto caminho, nenhum de (a) a
+    (c): o `verso-server` constrói inteiro no Windows, com o OpenSSL
+    compilado dentro como no Unix
+    ([0075](0075-server-packaging-and-storage.md) item 2, revisado), e o
+    modo local serve no Windows com o mesmo código. A frase da 0073 "roda
+    em macOS e Windows também" fica como está.
 
 18. **`[DECIDIDO 2026-10-15]` O app se atualizando com celulares conectados** (o `[ABERTO]`
     das Consequências da 0073). Recomendação: o atualizador
@@ -499,16 +505,28 @@ alternativas já consideradas e descartadas.)
 ## Como foi construído
 
 Construído em 2026-10-15 em `feat/local-server-build`, para **macOS e
-Linux**. O que o código resolveu onde os itens deixavam espaço (nada disso
+Linux**; o Windows foi acrescentado no mesmo dia (item 17, revisado,
+abaixo). O que o código resolveu onde os itens deixavam espaço (nada disso
 muda uma decisão; cada ponto é uma pergunta ao mantenedor se for para ser
 de outro jeito):
 
-- **Windows** (item 17): a opção (a). O `verso-server` não é construído
-  para Windows, e os tipos de passkey atravessam o estado dele e o módulo
-  de prova, então compilar o modo local sem eles não era barato. A seção
-  diz que ainda não está no Windows e não oferece nada; os comandos
-  existem e respondem isso. O perfil *Privado* do Windows, do item 3,
-  portanto também não é lido.
+- **Windows** (item 17, revisado em 2026-10-15): a primeira construção
+  tomou a opção (a) — o `verso-server` não era construído para Windows, e
+  compilar o modo local sem os tipos de passkey não era barato. O
+  mantenedor então decidiu *"OpenSSL embutido no Windows"* (OpenSSL
+  embutido lá, como no Unix; a construção precisa de Perl, não de NASM),
+  de modo que o `verso-server` constrói no Windows e o mesmo código do
+  servidor local serve lá; o substituto do Windows acabou. O perfil
+  *Privado* do Windows, do item 3, **não é lido**: exigiria uma chamada COM
+  (`INetworkListManager`; o `unsafe` é proibido no workspace e seria uma
+  dependência nova), o registro (ele liga um perfil a uma interface só por
+  GUIDs, sem interface documentada) ou um subprocesso de saída localizada.
+  O que mantém a garantia no Windows é o resto do item 3 — só endereços
+  privados, um par numa sub-rede da máquina e a parada quando o conjunto
+  de endereços muda — e o próprio Firewall do Windows Defender, que
+  pergunta no primeiro bind e, com a caixa que a janela manda deixar
+  desmarcada, só deixa entrar redes Privadas (item 9). A ajuda de "o
+  firewall recusa" do diálogo tem um parágrafo para o Windows.
 - **O servidor** é o mesmo crate e o mesmo despacho do `verso serve`
   (`crates/verso-server/src/local`), com uma tabela de rotas menor — sem
   login, convite, página de conta, console, token, passkey nem fluxo de

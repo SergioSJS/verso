@@ -160,6 +160,11 @@
   the `[OPEN]` of the app updating while phones are connected is answered
   (0096 item 18: the restart drops the phones, the page reloads on the
   contract hash). Item 2's one sentence, and the old words, are kept.
+  Later the same day (2026-10-15) the first of those two was revised again:
+  the maintainer decided *"OpenSSL embutido no Windows"*, so `verso-server`
+  builds on Windows and "runs on macOS and Windows as well" is true as
+  written ([0096](0096-this-app-is-a-server.md) item 17 and
+  [0075](0075-server-packaging-and-storage.md) item 2, both revised).
 
 ## Context
 

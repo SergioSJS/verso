@@ -433,6 +433,18 @@ minisign -V -P RWS1zv2nvs/ng1hA0YspwOg7wGda98zkXjVfx8m9CtT5obRW5zabNHaT \
   -m universo-0.8.0-beta.1-x86_64.tar.gz -x file.minisig
 ```
 
+### Windows
+
+A mesma linha de comando `verso` que o release do Windows carrega (`verso-cli-<versão>-windows-x64.zip`, ou a que vai junto do app) roda o servidor, com o OpenSSL compilado dentro como no Linux e no macOS ([0075](../adr/0075-server-packaging-and-storage.md) item 2, revisado em 2026-10-15). Não há pacote, serviço nem instalador do Windows para ele: serve para experimentar num PC e para uma máquina doméstica que você mesmo liga. No PowerShell:
+
+```powershell
+$env:VERSO_DATA_DIR = "$HOME\verso\data"
+$env:VERSO_FOLDERS_DIR = "$HOME\verso\folders"
+.\verso.exe serve
+```
+
+Sem nenhuma variável, guarda `server` e `server-folders` em `%LOCALAPPDATA%\verso`. Ctrl-C o para. O Firewall do Windows Defender pergunta na primeira vez que ele escuta: permita só em redes *Particulares*, como no app de desktop. Mantenha o `VERSO_DATA_DIR` num disco NTFS local, como a seção 2 diz. A janela que ele serve é procurada em `..\share\verso\ui` a partir da pasta do executável, ou em `VERSO_UI_DIR`; o zip do Windows não carrega nenhuma, então aponte `VERSO_UI_DIR` para um `app/ui/dist` construído, ou use o *Este app é um servidor* do app de desktop, que a carrega. Para qualquer coisa que outras pessoas usem, um host Linux (seções 3 a 5) continua sendo a recomendação.
+
 ## 7. As variáveis
 
 Qualquer uma pode ser dada como `NOME_FILE`, o caminho de um arquivo com o
