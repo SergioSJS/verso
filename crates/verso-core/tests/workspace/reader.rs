@@ -166,6 +166,61 @@ fn every_answer_derived_from_the_notes_leaves_the_secret_out() {
     assert_eq!(entry.len, shown.text.len() as u64);
 }
 
+/// ADR 0094 with ADR 0087: a base's regular expressions, its map layout and
+/// its aggregates run over the projection for a reader — a pattern written
+/// to find a secret word finds nothing, and no cell or marker shows it.
+#[test]
+fn a_regex_or_a_map_in_a_base_never_finds_or_shows_a_secret_for_a_reader() {
+    let (_v, _c, _k, mut ws) = folder();
+    let base = concat!(
+        "formulas:\n",
+        "  hit: '/(Vampiro|Mapa|Abismo|zumbificado|morto|cripta)/i.matches(file.links.join(\" \") + \" \" + file.tags.join(\" \"))'\n",
+        "  seen: 'file.tags.join(\" \").replace(/o/g, \"0\")'\n",
+        "  parts: 'file.links.join(\",\").split(/,/).length'\n",
+        "filters: file.name == \"Taverna.md\"\n",
+        "views:\n",
+        "  - type: table\n",
+        "    name: T\n",
+        "    order: [formula.hit, formula.seen, formula.parts]\n",
+        "    summaries:\n",
+        "      formula.parts: Sum\n",
+        "  - type: map\n",
+        "    name: M\n",
+        "    order: [file.name, formula.hit]\n",
+    );
+    let ask = |ws: &mut Workspace, reader: bool, view: Option<&str>| {
+        let r = ws
+            .query_base(&verso_core::bases::BaseQuery {
+                text: Some(base.to_owned()),
+                view: view.map(str::to_owned),
+                reader,
+                ..Default::default()
+            })
+            .unwrap();
+        format!("{r:?}")
+    };
+    for view in [None, Some("M")] {
+        let writer = ask(&mut ws, false, view);
+        let reader = ask(&mut ws, true, view);
+        // The writer's pattern finds the secret links and tag; the reader's
+        // finds nothing, and no secret word is in any cell or problem.
+        assert!(writer.contains("Bool(true)"), "{view:?}: {writer}");
+        assert!(!reader.contains("Bool(true)"), "{view:?}: {reader}");
+        assert!(reader.contains("Bool(false)"), "{view:?}: {reader}");
+        for s in SECRETS {
+            assert!(
+                !reader.contains(s),
+                "{view:?}: {s:?} reached a reader in {reader}"
+            );
+        }
+    }
+    // The count of links and tags is the projection's, not the file's.
+    let w = ask(&mut ws, false, None);
+    let r = ask(&mut ws, true, None);
+    assert_ne!(w, r);
+    assert!(r.contains("#public0"), "{r}");
+}
+
 #[test]
 fn a_change_only_inside_a_secret_block_is_none_for_a_reader_and_reading_writes_nothing() {
     let (vault, _c, _k, mut ws) = folder();
