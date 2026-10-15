@@ -145,3 +145,34 @@ test("the pairing dialog names the address and interface, and picking another ma
   await expect(pick).toBeFocused();
   await expect(pick).toHaveValue("10.147.11.197");
 });
+
+test("when a phone asks, the dialog's actions are one row: refuse and allow, no Close apart", async ({ app, page }) => {
+  await app.open();
+  await section(app);
+  const body = page.locator(".settings-body");
+  await body.getByRole("checkbox", { name: "Vault" }).check();
+  await body.getByRole("button", { name: "Ligar o servidor" }).click();
+  await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
+  await body.getByRole("button", { name: "Parear um celular" }).click();
+  const dialog = page.getByRole("dialog", { name: "Parear um celular" });
+  // Before a phone asks: the code, the QR, the fingerprint and one Close.
+  await expect(dialog.getByRole("img", { name: "QR de pareamento" })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Fechar" })).toBeVisible();
+  await page.evaluate(() => window.__harness.core.localServer.askAsPhone("iPhone da Ana"));
+  await expect(dialog.getByText("Foi você quem leu este QR?")).toBeVisible();
+  const refuse = dialog.getByRole("button", { name: "Não fui eu: recusar" });
+  const allow = dialog.getByRole("button", { name: "Permitir" });
+  // The two answers close the dialog themselves; a third button under them
+  // was the bug (2026-10-15).
+  await expect(dialog.getByRole("button", { name: "Fechar" })).toBeHidden();
+  const [r, a, box] = await Promise.all([refuse.boundingBox(), allow.boundingBox(), dialog.locator(".ls-dialog, .plan-box").first().boundingBox()]);
+  expect(Math.abs(r.y - a.y)).toBeLessThanOrEqual(2);
+  expect(r.x + r.width).toBeLessThanOrEqual(a.x);
+  // Both inside the dialog, which does not scroll sideways.
+  for (const b of [r, a]) {
+    expect(b.x).toBeGreaterThanOrEqual(box.x);
+    expect(b.x + b.width).toBeLessThanOrEqual(box.x + box.width + 1);
+  }
+  const sideways = await dialog.locator(".plan-box").evaluate((el) => el.scrollWidth > el.clientWidth + 1);
+  expect(sideways).toBe(false);
+});
