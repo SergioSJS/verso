@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.44
+# Spec do dialeto do Verso — v0.45
 
-- Versão: v0.44 · 2026-10-15
+- Versão: v0.45 · 2026-10-15
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -770,7 +770,7 @@ Categorias acrescentadas na revisão da Fase 0, fora do mínimo do briefing:
 | link Markdown para arquivo local | 5.13 | `PROPOSTO` |
 | posição (`pos`) em pelo menos uma fixture por construção | 4.4 | exigida por [ADR 0018](../adr/0018-llm-native-mcp-in-core.md) |
 | schema (um bloco `verso-schema`) | 4.8, 6 | rascunhada em 2026-10-07 com a implementação do ADR 0052, aprovada no mesmo dia; `schema/infobox` rascunhada em 2026-10-14 com a do ADR 0086, aprovada no mesmo dia |
-| visibilidade por bloco (um callout `[!secret]`) | 4.1, 5.8, 6 | `callout/secret` rascunhada em 2026-10-14 com a implementação do ADR 0087, esperando aprovação |
+| visibilidade por bloco (um callout `[!secret]`) | 4.1, 5.8, 6 | `callout/secret` rascunhada em 2026-10-14 com a implementação do ADR 0087, aprovada pelo mantenedor em 2026-10-15 |
 
 Qualquer fixture pode ser rascunhada pela IA; só vale com a aprovação do
 mantenedor no PR que a adiciona (ADR 0031). Rascunho diz que é rascunho na
@@ -822,7 +822,8 @@ correspondente ser implementado. Nenhuma tem resposta no briefing.
   esta resposta. *(v0.42: esse PR rascunhou `fixtures/callout/secret`,
   cuja chave `reader` afirma a projeção — um bloco no nível de cima, um
   dentro de outro callout com o tipo em maiúsculas, um num item de lista,
-  um `[!secrets]` mantido — para a aprovação do mantenedor.)*
+  um `[!secrets]` mantido — para a aprovação do mantenedor; v0.45:
+  aprovada em 2026-10-15.)*
 - **Q10. Sintaxe de relação tipada.** `DECIDIDA` em 2026-09-30.
   Decidir antes de implementar relações (§17 item 6). Requisitos já fixados:
   tipo e direção, várias relações entre os mesmos dois nós
@@ -1466,3 +1467,4 @@ ser escolhido.
 | v0.42 | 2026-10-14 | O schema ganha `reader` (§4.1, §4.6): a nota como um UniVerso a serve a um leitor, a projeção da Q9 e do [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md) item 3. A fixture rascunhada `fixtures/callout/secret`, com o PR que constrói o ADR 0087, espera a aprovação do mantenedor; o parágrafo da Q9 o diz. Nenhuma decisão mudou |
 | v0.43 | 2026-10-15 | §5.11 item 5 e um novo item 6: mapas no board ([ADR 0090](../adr/0090-maps-on-the-board.md)) — o `verso` de um nó ganha `map`, `pin` e `secret`, e um nó secreto fica de fora do que um leitor recebe. Sem fixture: o schema das fixtures (§4) descreve uma nota Markdown, e um canvas não é parseado pelo dialeto; a guarda é o teste de propriedade da projeção no núcleo. Nenhuma questão fechada |
 | v0.44 | 2026-10-15 | §5.11 item 7: um callout `> [!secret]` dentro do nó de texto de um board fica escondido dos leitores como numa nota, e um `.txt` (qualquer arquivo que não é Markdown) não é projetado ([ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md), a decisão do mantenedor sobre o achado I3). Sem fixture (um canvas não é parseado pelo dialeto); a guarda é o teste de propriedade do núcleo e a sonda de leitor do servidor. Nenhuma questão fechada |
+| v0.45 | 2026-10-15 | A fixture `fixtures/callout/secret` **aprovada pelo mantenedor** em 2026-10-15 em sessão (*"aceito todas recomendações"*); a marca de rascunho dela removida. Ela afirma o `reader` (§4.1, §4.6) da Q9 e do [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md): um bloco no nível de cima, um dentro de outro callout com o tipo em maiúsculas, um num item de lista, um `[!secrets]` mantido. Nada mais muda |
