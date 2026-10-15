@@ -255,7 +255,16 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     link; uma nota ao vivo com outra pessoa recebe o link pela sala; quem
     só lê não vê botão nem menção dentro de um bloco secreto. Nível: S (a
     nota do tutorial), U (`cargo test -p verso-core mentions`,
-    `test/mentionLink.test.mjs`), H; E: `mentions.spec.mjs`.
+    `test/mentionLink.test.mjs`), H; E: `mentions.spec.mjs`. A
+    "Sugestões enquanto escrevo" da mesma nota (item 5, revisado em
+    2026-10-15): Ajustes › Editor › "Sugerir links enquanto escrevo" está
+    desligado; ligado, numa nota sua, digitar o nome inteiro de uma nota (ou
+    um apelido) mostra "Ligar a [[Nome]]" junto ao cursor, Tab ou Enter
+    escreve o link, Esc ou seguir digitando dispensa e o nome não é
+    oferecido de novo naquele parágrafo; nada aparece dentro de código, de
+    um link ou do cabeçalho de propriedades, nem para a própria nota; no
+    celular o aviso é tocado. Nível: S, U (`test/linkSuggest.test.mjs`, com
+    o benchmark de 10.000 notas), H; E: `typing-links.spec.mjs`.
 15. Nota 24 (ADR 0088): na Leitura cada código `dice:` é um botão de dado
     chamado "Rolar 1d20+5" e assim por diante; um clique, ou Tab até ele e
     Enter, mostra o total, cada dado e o que foi somado num cartão ao lado,

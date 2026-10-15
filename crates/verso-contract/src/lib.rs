@@ -211,6 +211,10 @@ pub struct EntryLabel {
     pub sticker: Option<String>,
     pub color: Option<String>,
     pub alias: Option<String>,
+    /// Every alias, the first included (ADR 0089 item 5: the suggestion
+    /// while typing matches them).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub aliases: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub order: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

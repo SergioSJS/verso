@@ -536,6 +536,7 @@ pub(crate) fn entries_out(
                 sticker: l.sticker.clone(),
                 color: l.color.clone(),
                 alias: l.alias.clone(),
+                aliases: l.aliases.clone(),
                 order: l.order.clone(),
                 pinned: l.pinned.clone(),
             });

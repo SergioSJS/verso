@@ -250,7 +250,15 @@ point 13).
     someone else takes it through its room; a reader sees no button and no
     mention inside a secret block. Level: S (the tutorial note), U
     (`cargo test -p verso-core mentions`, `test/mentionLink.test.mjs`), H;
-    E: `mentions.spec.mjs`.
+    E: `mentions.spec.mjs`. The same note's "Sugestões enquanto escrevo"
+    (item 5, revised 2026-10-15): Settings › Editor › "Sugerir links
+    enquanto escrevo" is off; turned on, in a note of your own typing a
+    note's whole name (or an alias) shows "Ligar a [[Nome]]" at the cursor,
+    Tab or Enter writes the link, Esc or typing on dismisses it and the name
+    is not offered again in that paragraph; nothing shows inside code, a
+    link or the properties header, nor for the note itself; on a phone the
+    chip is tapped. Level: S, U (`test/linkSuggest.test.mjs`, with the
+    10,000-note benchmark), H; E: `typing-links.spec.mjs`.
 15. Note 24 (ADR 0088): in Leitura each `dice:` code is a die button named
     "Rolar 1d20+5" and so on; a click, or Tab to it and Enter, shows the
     total, each die and what was added in a card beside it, with "Rolar de

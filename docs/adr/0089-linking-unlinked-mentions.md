@@ -69,6 +69,29 @@ recommended and is marked `[DECIDED 2026-10-14]`.
    in Settings › Editor with a minimum length and folders to ignore, as
    the plan of 2026-10-14 described it — names that are common words
    ("Porto", "Mesa", "Ordem") make it noisy in Portuguese.
+   **Revised 2026-10-15 `[DECIDED 2026-10-15]`:** the maintainer, answering
+   *"Sim, na V1, desligada por padrão"* (yes, in V1, off by default): the
+   suggestion while typing **is in V1**, **off by default**. Built as
+   follows. A setting in Settings › Editor, "Sugerir links enquanto
+   escrevo" (off), in the person's layer, with two lists beside it,
+   "Pastas ignoradas" and "Nomes ignorados" (for example "Mesa"). While
+   typing prose — never in code, the frontmatter, a link, an embed, math,
+   HTML or a tag, the same prose rule the mentions follow — when the words
+   just typed are a **whole** note name or alias of the folder (case
+   ignored, accents kept, NFC = NFD, three characters at least, the longest
+   name winning, names of several words included), a small chip in the
+   style of the `[[` completion says "Ligar a [[Name]]". It never changes
+   the text by itself: Tab or Enter writes `[[Name]]`, or `[[Name|typed]]`
+   when the case differs or the words are an alias, as "Link" does
+   (item 2); Escape, or typing on, dismisses it, and a name dismissed is
+   not suggested again in the same paragraph. The note being written is
+   never suggested. The folder's names come from the list the `[[`
+   completion draws on, with the aliases the entries now carry, in a map
+   built once per walk of the folder, so a keystroke is a few lookups at
+   10,000 notes. On a touch screen the chip is tapped; in a live note an
+   accepted suggestion is an ordinary edit through the room; a reader gets
+   none; a screen reader hears "Sugestão de link: Name, Tab para aceitar"
+   politely.
 6. **Accessibility and languages** ([0035](0035-cross-cutting-requirements.md)):
    each mention is a row whose button is named "Link *text* in *note*";
    the plan's diff is reachable by keyboard and read as a list of
@@ -90,7 +113,10 @@ recommended and is marked `[DECIDED 2026-10-14]`.
 
 - **An in-memory prefix tree of the folder's names** for the suggestion
   (raised in the plan of 2026-10-14 for folders of 2,000 notes): the index
-  already holds the names, and 2,000 names do not need one.
+  already holds the names, and 2,000 names do not need one. (Item 5, as
+  revised on 2026-10-15, keeps a map of the folded names, built once per
+  walk of the folder; it is not a prefix tree, and the benchmark of the
+  revision says what it costs.)
 
 ## Status
 
@@ -100,6 +126,8 @@ decided as recommended, marked `[DECIDED 2026-10-14]` in place. In V1
 (`docs/roadmap.md`, Phase 4 — V1).
 
 **Answered while building (2026-10-14, the maintainer: "Sim, todas").** The questions the build raised, answered as recommended (*"Aceita todas as recomendações acima (P1–P5, M1–M6, I1–I7, D1–D11, G1–G4)?"*): M1 — a note that already links the target still lists its unlinked mentions; M2 — at most 200 candidate notes per name and 500 mentions; M3 — in a table's cell the link is written with `\|`; M4 — the whole secret filter comes with [0087](0087-secret-blocks-hidden-from-readers.md); M5 — an accent written composed (NFC) or decomposed (NFD) is one accent when mentions are matched, as it names one file (the decision of 2026-10-10), the link keeping the note's name as the index has it (built that night); M6 — `verso_dialect::prose` gains a fixture, `fixtures/prose/what-is-prose`, an AI draft for the maintainer's approval (spec §4.9, built that night). M1 to M4 as built.
+
+**Revised (2026-10-15).** The maintainer, answering *"Sim, na V1, desligada por padrão"* to the question whether the suggestion while typing (item 5) belongs in V1: item 5 is revised above — in V1, off by default. Nothing else of the ADR changes.
 
 *(History, before the acceptance above:)* Proposed (2026-10-14). In V1 by the maintainer's word of 2026-10-14
 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revision 8). For the

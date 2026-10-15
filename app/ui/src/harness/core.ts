@@ -1069,13 +1069,14 @@ export class Core {
           const props = propertiesOf(this.text(p));
           const sticker = scalar(props["sticker"]);
           const color = scalar(props["color"]);
-          const alias = strings(props["aliases"])[0] ?? null;
+          const aliases = strings(props["aliases"]);
+          const alias = aliases[0] ?? null;
           const orderList = strings(props["order"]);
           const pinnedList = strings(props["pinned"]);
           const order = orderList.length > 0 ? orderList : null;
           const pinned = pinnedList.length > 0 ? pinnedList : null;
           if (sticker === null && color === null && alias === null && !order && !pinned) return null;
-          return { sticker, color, alias, order, pinned };
+          return { sticker, color, alias, ...(aliases.length > 0 ? { aliases } : {}), order, pinned };
         } catch {
           return null;
         }
