@@ -263,8 +263,8 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
 
 ## 4. Organizar: propriedades, bases, notas diárias
 
-1. `Projetos.base`: as cinco visões (tabela, kanban, Cards, lista,
-   calendário); só as notas de `projetos/`; a coluna da fórmula e a soma do
+1. `Projetos.base`: as seis visões (tabela, kanban, Cards, lista,
+   calendário, mapa); só as notas de `projetos/`; a coluna da fórmula e a soma do
    orçamento; o kanban com uma coluna por status; o calendário, voltado a
    setembro de 2026, mostra os três projetos. Nível: H. Pegou: sem filtro, a
    base listava o cofre inteiro (`26c3b06`).
@@ -308,6 +308,27 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    arquivo. Nível: S (`crates/verso-core/tests/typed.rs`,
    `fixtures/schema/infobox`), H; E: `infobox.spec.mjs`,
    `test/infobox.test.mjs`.
+8. O mapa (nota 04, "O Mapa", ADR 0094): *Projetos.base › Mapa* desenha o
+   contorno do mundo que vem com o app e três marcadores — São Paulo,
+   Lisboa, Recife; um clique num marcador abre o projeto, o ponteiro parado
+   nele mostra a nota; embaixo, "Lugares do mapa" lista os três na ordem da
+   visão com as coordenadas, cada um alcançado pelo Tab e aberto com Enter.
+   Nada é pedido à rede. *Ajustes › Fundo dos mapas* oferece o OpenFreeMap
+   pelo nome, desligado; uma base que nomeie o próprio `mapTiles` diz "Esta
+   base pede o fundo do mapa a …" e não busca nada até *Aprovar*. Botão
+   direito no mapa: "Copiar coordenadas", "Usar como centro da visão",
+   "Usar este zoom na visão". Nível: S (`crates/verso-core/tests/demo_base.rs`,
+   `tests_map_tiles.rs` do servidor), H; E: `base-map.spec.mjs`; U:
+   `test/baseMap.test.mjs`.
+9. Expressões regulares (nota 04, "Expressões Regulares nas Fórmulas"): a
+   coluna *Mês* de *Todos os Projetos* mostra `09/2026` para os três
+   projetos — avaliada pelo núcleo, não pelo harness, que deixa uma fórmula
+   vazia. Nível: S (`crates/verso-core/src/bases/tests_regex.rs`,
+   `crates/verso-core/tests/demo_base.rs`), A.
+10. A *Todos os Projetos* incorporada na nota 04 tem as ferramentas da
+    visão; uma ordenação acrescentada ali é gravada na `Projetos.base` e o
+    resto do arquivo é mantido. `html()` numa base desenha HTML, limpo (sem
+    script, sem `onerror`). Nível: H; E: `base-map.spec.mjs`.
 
 ## 5. Encontrar
 

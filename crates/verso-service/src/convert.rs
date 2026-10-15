@@ -192,7 +192,7 @@ pub fn text_out(t: verso_core::TextFile) -> TextFile {
 }
 
 pub fn base_cell(c: verso_core::bases::Cell) -> BaseCell {
-    use verso_core::bases::{Cell as C, EvalErrorKind as E};
+    use verso_core::bases::Cell as C;
     match c {
         C::Empty => BaseCell::Empty,
         C::Text(s) => BaseCell::Text(s),
@@ -224,19 +224,29 @@ pub fn base_cell(c: verso_core::bases::Cell) -> BaseCell {
         C::Icon(s) => BaseCell::Icon(s),
         C::Html(s) => BaseCell::Html(s),
         C::Error(e) => BaseCell::Error {
-            kind: match e.kind {
-                E::Syntax => BaseErrorKind::Syntax,
-                E::UnknownFunction => BaseErrorKind::UnknownFunction,
-                E::UnknownMethod => BaseErrorKind::UnknownMethod,
-                E::Arguments => BaseErrorKind::Arguments,
-                E::Type => BaseErrorKind::Type,
-                E::Regex => BaseErrorKind::Regex,
-                E::Cycle => BaseErrorKind::Cycle,
-                E::Budget => BaseErrorKind::Budget,
-                E::TooLarge => BaseErrorKind::TooLarge,
-            },
+            kind: base_error_kind(e.kind),
             name: e.name,
         },
+    }
+}
+
+/// An evaluation error's kind, as the contract names it.
+#[must_use]
+pub fn base_error_kind(kind: verso_core::bases::EvalErrorKind) -> BaseErrorKind {
+    use verso_core::bases::EvalErrorKind as E;
+    match kind {
+        E::Syntax => BaseErrorKind::Syntax,
+        E::UnknownFunction => BaseErrorKind::UnknownFunction,
+        E::UnknownMethod => BaseErrorKind::UnknownMethod,
+        E::Arguments => BaseErrorKind::Arguments,
+        E::Type => BaseErrorKind::Type,
+        E::Regex => BaseErrorKind::Regex,
+        E::RegexInvalid => BaseErrorKind::RegexInvalid,
+        E::RegexUnsupported => BaseErrorKind::RegexUnsupported,
+        E::RegexTooLarge => BaseErrorKind::RegexTooLarge,
+        E::Cycle => BaseErrorKind::Cycle,
+        E::Budget => BaseErrorKind::Budget,
+        E::TooLarge => BaseErrorKind::TooLarge,
     }
 }
 

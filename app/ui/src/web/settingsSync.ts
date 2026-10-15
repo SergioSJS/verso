@@ -57,18 +57,25 @@ export function forgetSettings(): void {
 
 let timer = 0;
 
-/** Each change written back to the account, a moment after the last. */
+/** Each change written back to the account, a moment after the last; at
+ *  once when the window asks (`verso:settings-flush`: a page about to
+ *  reload, ADR 0094 item 10), then `verso:settings-pushed`. */
 export function pushSettings(): void {
+  const push = async (): Promise<void> => {
+    let text: string | null = null;
+    try {
+      text = localStorage.getItem(KEY);
+    } catch {
+      return;
+    }
+    if (text) await api("PUT", "/api/me/settings", { settings: text }).catch(() => undefined);
+  };
   addEventListener("verso:settings-saved", () => {
     clearTimeout(timer);
-    timer = window.setTimeout(() => {
-      let text: string | null = null;
-      try {
-        text = localStorage.getItem(KEY);
-      } catch {
-        return;
-      }
-      if (text) void api("PUT", "/api/me/settings", { settings: text }).catch(() => undefined);
-    }, 800);
+    timer = window.setTimeout(() => void push(), 800);
+  });
+  addEventListener("verso:settings-flush", () => {
+    clearTimeout(timer);
+    void push().finally(() => dispatchEvent(new Event("verso:settings-pushed")));
   });
 }

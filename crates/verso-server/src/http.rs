@@ -530,14 +530,87 @@ async fn pace(State(server): State<Arc<Server>>, request: Request, next: Next) -
 /// desktop's (ADR 0073 item 6): scripts, styles and connections from this
 /// server only; pictures, sound and embedded pages from the web as the
 /// reader allows them (the maintainer's answer I of 2026-10-09).
-fn page_policy(ws_origin: &str) -> String {
+fn page_policy(ws_origin: &str, tiles: &[String]) -> String {
+    // The origins the person approved for a map's tiles (ADR 0094 item
+    // 10): the window fetches them itself — the page's script and the map's
+    // worker, whose own answer carries this policy — and reaches no other.
+    let tiles: String = tiles.iter().map(|o| format!(" {o}")).collect();
     format!(
         "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; \
          img-src 'self' data: blob: https:; media-src 'self' blob: https:; \
-         frame-src 'self' https:; object-src 'none'; connect-src 'self' {ws_origin}; \
+         frame-src 'self' https:; object-src 'none'; connect-src 'self' {ws_origin}{tiles}; \
          worker-src 'self' blob:; font-src 'self' data:; base-uri 'none'; \
          form-action 'self'; frame-ancestors 'self'"
     )
+}
+
+/// The most tile origins a page's policy names.
+const TILE_ORIGINS_MOST: usize = 32;
+
+/// The map worker the window loads from this server: its policy is its
+/// own answer's, so it names the approved tile origins as the page does.
+const MAP_WORKER: &str = "/maplibre-worker.mjs";
+
+/// The origins the person signed in has approved for maps' tiles, from
+/// their settings (`mapTileOrigins`), each written back only as
+/// `scheme://host[:port]` of http(s), letters, digits, dots and hyphens:
+/// anything else — a space, a quote, a semicolon, a wildcard, a path —
+/// would change the policy it is written into, and is left out.
+fn tile_origins(server: &Server, headers: &HeaderMap) -> Vec<String> {
+    let Ok(Some(who)) = auth::who(server, headers) else {
+        return Vec::new();
+    };
+    if matches!(who.via, auth::Via::Token { .. }) {
+        return Vec::new();
+    }
+    let Ok(Some(text)) = server.db.person_settings(&who.account.id) else {
+        return Vec::new();
+    };
+    let Ok(settings) = serde_json::from_str::<serde_json::Value>(&text) else {
+        return Vec::new();
+    };
+    let mut out: Vec<String> = Vec::new();
+    for o in settings
+        .get("mapTileOrigins")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(serde_json::Value::as_str)
+        .filter_map(policy_origin)
+    {
+        if !out.contains(&o) && out.len() < TILE_ORIGINS_MOST {
+            out.push(o);
+        }
+    }
+    out
+}
+
+/// `o` as a source of a content security policy, or `None`.
+fn policy_origin(o: &str) -> Option<String> {
+    let (scheme, rest) = o.split_once("://")?;
+    if scheme != "https" && scheme != "http" {
+        return None;
+    }
+    let (host, port) = match rest.rsplit_once(':') {
+        Some((h, p)) if !p.is_empty() && p.len() <= 5 && p.bytes().all(|b| b.is_ascii_digit()) => {
+            (h, Some(p))
+        }
+        _ => (rest, None),
+    };
+    let fine = |b: u8| b.is_ascii_alphanumeric() || b == b'.' || b == b'-';
+    if host.is_empty()
+        || host.len() > 253
+        || !host.bytes().all(fine)
+        || host.starts_with(['.', '-'])
+        || host.ends_with(['.', '-'])
+    {
+        return None;
+    }
+    let host = host.to_ascii_lowercase();
+    Some(match port {
+        Some(p) => format!("{scheme}://{host}:{p}"),
+        None => format!("{scheme}://{host}"),
+    })
 }
 
 /// The key a request is counted under: the client's address as the
@@ -644,6 +717,8 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
         .map(|o| o.replacen("http", "ws", 1))
         .unwrap_or_default();
     let is_file = request.uri().path().starts_with("/f/");
+    let is_worker = request.uri().path() == MAP_WORKER;
+    let asked_by = request.headers().clone();
     let mut response = next.run(request).await;
     let h = response.headers_mut();
     let set = |h: &mut HeaderMap, name: &'static str, value: &str| {
@@ -667,16 +742,30 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
         // (threat-model.md, gap 14; SameSite=Lax already keeps the cookie
         // off such a request — said twice).
         set(h, "cross-origin-resource-policy", "same-origin");
-    } else {
-        set(h, "content-security-policy", &page_policy(&ws_origin));
     }
     // The page is never cached: a new version of the server is a new
-    // window. The rest carries `?v=<version>` (build-index.mjs).
+    // window. The rest carries `?v=<version>` (build-index.mjs). The map's
+    // worker is not cached either: its policy names the person's approved
+    // tile origins as they are when it loads (ADR 0094 item 10).
     let html = h
         .get(header::CONTENT_TYPE)
         .and_then(|v| v.to_str().ok())
         .is_some_and(|v| v.starts_with("text/html"));
-    if html && !is_file {
+    if !is_file {
+        // The settings are read only where the policy is a document's or a
+        // worker's: the page and the map's worker.
+        let tiles = if html || is_worker {
+            tile_origins(&server, &asked_by)
+        } else {
+            Vec::new()
+        };
+        set(
+            h,
+            "content-security-policy",
+            &page_policy(&ws_origin, &tiles),
+        );
+    }
+    if (html || is_worker) && !is_file {
         h.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     }
     if server.config.tls.is_some()

@@ -9,6 +9,9 @@ tags:
   - interface
   - beta
 orcamento: 8500
+local:
+  - 38.7223
+  - -9.1393
 ---
 
 # Projeto Beta

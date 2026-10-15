@@ -1302,8 +1302,19 @@ pub enum BaseErrorKind {
     UnknownMethod,
     Arguments,
     Type,
-    /// Regular expressions are not evaluated yet.
+    /// A regular expression where the method takes a text (`contains`,
+    /// `startsWith`); `name` is the method (ADR 0094 item 1).
     Regex,
+    /// Not a regular expression, or a flag that is no flag; `name` is the
+    /// literal as written.
+    RegexInvalid,
+    /// What the engine does not have; `name` is `lookahead`,
+    /// `lookbehind`, `backreference`, `flag y`, `flag d` or `flag v`
+    /// (ADR 0094 items 2 and 4).
+    RegexUnsupported,
+    /// A pattern past 1,000 characters or its compiled size, or one too
+    /// many in a query; `name` is the literal (ADR 0094 item 3).
+    RegexTooLarge,
     Cycle,
     Budget,
     TooLarge,
@@ -1315,6 +1326,15 @@ pub enum BaseErrorKind {
 pub struct BaseProblem {
     pub kind: BaseProblemKind,
     pub detail: String,
+    /// Why an evaluation failed, as its cells say it (ADR 0094 item 5).
+    pub error: Option<BaseError>,
+}
+
+/// An evaluation's error: its kind and what it concerns.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct BaseError {
+    pub kind: BaseErrorKind,
+    pub name: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]

@@ -202,6 +202,50 @@ app real.
   navegador: uma rolagem numa janela aparece na outra e no navegador.
 - [ ] **⌘⇧P › Rolar dados…** (A): rola uma notação digitada; nada escrito.
 
+### O resto das bases (ADR 0094, feat/bases-rest, 2026-10-14)
+
+- [ ] **O mapa desenha nas web views de verdade** (A): no app instalado no
+  macOS (WKWebView), no Windows (WebView2) e no Linux (WebKitGTK), a nota
+  04 do cofre de demonstração, *Projetos.base › Mapa*: o contorno do mundo
+  nas cores da janela, três marcadores (São Paulo, Lisboa, Recife); um
+  clique num marcador abre o projeto; o ponteiro parado nele mostra a
+  nota; a lista embaixo nomeia os três. Nenhuma linha `maplibre` ou
+  `Failed` no `verso.log`, e o app não fez pedido nenhum para fora (Little
+  Snitch ou o log do firewall, se houver). Uma máquina sem WebGL diz *Esta
+  tela não consegue desenhar mapas* e mantém a lista. Tema escuro: o
+  contorno acompanha.
+- [ ] **Tiles só com a sua escolha** (A): *Ajustes › Fundo dos mapas ›
+  OpenFreeMap*: o mapa passa a mostrar as ruas do OpenFreeMap; de volta a
+  *Contorno do mundo*: o contorno de novo, e nenhum pedido a
+  `tiles.openfreemap.org`. Uma base com `mapTiles:
+  https://tile.openstreetmap.org/{z}/{x}/{y}.png` pergunta *Esta base pede
+  o fundo do mapa a …* antes de buscar qualquer coisa; *Aprovar* carrega.
+  *Carregar conteúdo remoto* desligado: só o contorno, dito acima do mapa.
+- [ ] **Num UniVerso** (A): a mesma aprovação num navegador no servidor:
+  *Recarregar* depois de aprovar, e as tiles carregam; os cabeçalhos da
+  resposta de `/` e de `/maplibre-worker.mjs` (o painel de rede do
+  navegador) nomeiam a origem aprovada em `connect-src`, e nenhuma outra;
+  outra conta no mesmo navegador não aprovou nada e a página dela não nomeia
+  nenhuma.
+- [ ] **Uma base feita pelo plugin Maps do Obsidian abre como mapa** (A):
+  no Obsidian com o plugin Maps, faça uma visão de mapa (ela grava
+  `coordinates`, `markerIcon`, `markerColor`, `center`, `defaultZoom`); a
+  mesma pasta no Verso mostra os marcadores, ícones e cores; defina o
+  centro pelo menu do botão direito do Verso e o Obsidian abre lá. As
+  chaves vieram do código público do plugin (`obsidianmd/obsidian-maps` em
+  `a5bf456`, `src/map-view.ts`), ainda não vistas numa base que o plugin
+  gravou.
+- [ ] **Uma expressão regular no núcleo de verdade** (A): nota 04, a coluna
+  *Mês* de *Todos os Projetos* mostra `09/2026`; uma fórmula
+  `/(?<=a)b/.matches(file.name)` diz *A expressão regular usa
+  lookbehind…* nas células e acima da visão.
+- [ ] **Uma base incorporada editada no lugar** (A): nota 04 em Leitura, a
+  *Todos os Projetos* incorporada: acrescente uma ordenação pela barra
+  dela; a *Projetos.base* no disco ganha a ordenação e nada mais muda
+  (`git diff`). Com a *Projetos.base* aberta noutra aba e editada sem
+  salvar, a mudança da incorporada espera essa aba ou diz que não foi
+  gravada. Um leitor num servidor não vê a barra.
+
 ### O retorno da janela (fix/ui-feedback, 2026-10-14)
 
 - [ ] **Um servidor fora de alcance é dito onde você agiu** (A): uma

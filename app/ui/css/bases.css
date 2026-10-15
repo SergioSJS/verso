@@ -391,3 +391,30 @@ tfoot .base-summary td { border-top: 1px solid var(--hair); border-bottom: 0; }
   .base-table { min-width: calc(var(--cols, 1) * 7rem); }
   .base-table td { overflow-wrap: break-word; }
 }
+
+/* `html()` drawn as HTML in a cell (ADR 0094 item 12). */
+.base-html { display: inline; }
+
+/* The map layout (ADR 0094): the map, its pins, and its places as a list
+   — the map's text equivalent. */
+.base-map-wrap { display: flex; flex-direction: column; gap: .45rem; }
+.base-map-lines:empty, .base-map-notices:empty { display: none; }
+.base-map-lines, .base-map-notices { display: flex; flex-direction: column; gap: .3rem; }
+.base-map { position: relative; height: clamp(260px, 62vh, 760px); border: 1px solid var(--hair); border-radius: 6px; overflow: hidden; background: var(--paper-3); }
+.base-map:focus-visible { outline: 2px solid var(--seal); outline-offset: 2px; }
+.base-map.failed { height: auto; padding: .7rem .8rem; }
+.base-map-failed { margin: 0; color: var(--ink-2); font-size: .9rem; }
+.base-map-marker { cursor: pointer; }
+.base-map-pin { --pin: var(--seal); width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--pin); color: var(--seal-ink); border: 2px solid var(--paper); box-shadow: 0 1px 3px rgb(0 0 0 / .35); cursor: pointer; }
+.base-map-pin > svg { transform: rotate(45deg); }
+.base-map-pin.dot::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--paper); }
+.base-map-pin.focused { outline: 3px solid var(--brass); outline-offset: 2px; }
+.base-map-list-head { margin: .3rem 0 0; color: var(--ink-3); font: 600 .78rem var(--ui); letter-spacing: .04em; text-transform: uppercase; }
+.base-map-list { margin: .15rem 0 1rem; padding-left: 1.4rem; font-family: var(--book); }
+.base-map-list li { margin: .15rem 0; }
+.base-map-coords { color: var(--ink-3); font-size: .85em; font-variant-numeric: tabular-nums; }
+.base-map-ask .base-link-button { margin-left: .2rem; }
+.map-tiles-setting { display: flex; flex-direction: column; gap: .35rem; }
+.map-tiles-setting select, .map-tiles-setting input, .map-tiles-setting textarea { width: 100%; box-sizing: border-box; }
+.map-tiles-field { display: flex; flex-direction: column; gap: .2rem; color: var(--ink-2); font-size: .85rem; }
+.map-tiles-field[hidden] { display: none; }

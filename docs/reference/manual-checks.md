@@ -199,6 +199,47 @@ in the real app.
   browser.
 - [ ] **⌘⇧P › Rolar dados…** (A): rolls a typed notation; nothing written.
 
+### The rest of bases (ADR 0094, feat/bases-rest, 2026-10-14)
+
+- [ ] **The map draws in the real web views** (A): in the installed app on
+  macOS (WKWebView), Windows (WebView2) and Linux (WebKitGTK), note 04 of
+  the demo vault, *Projetos.base › Mapa*: the world outline in the
+  window's colours, three pins (São Paulo, Lisbon, Recife); a click on a
+  pin opens its project; resting on it shows the note; the list below
+  names the three. No line `maplibre` or `Failed` in `verso.log`, and the
+  app made no request outside it (Little Snitch or the firewall's log, if
+  at hand). A machine without WebGL says *Esta tela não consegue desenhar
+  mapas* and keeps the list. Dark theme: the outline follows it.
+- [ ] **Tiles only by your choice** (A): *Ajustes › Fundo dos mapas ›
+  OpenFreeMap*: the map now shows OpenFreeMap's streets; back to *Contorno
+  do mundo*: the outline again, and no request to `tiles.openfreemap.org`.
+  A base with `mapTiles: https://tile.openstreetmap.org/{z}/{x}/{y}.png`
+  asks *Esta base pede o fundo do mapa a …* before anything is fetched;
+  *Aprovar* loads it. *Carregar conteúdo remoto* off: the outline only,
+  said above the map.
+- [ ] **On a UniVerso** (A): the same approval in a browser on the server:
+  *Recarregar* after approving, and the tiles load; the response headers
+  of `/` and of `/maplibre-worker.mjs` (the browser's network panel) name
+  the approved origin in `connect-src`, and no other; another account in
+  the same browser approves nothing and its page names none.
+- [ ] **A base made by Obsidian's Maps plugin opens as a map** (A): in
+  Obsidian with the Maps plugin, make a map view (it writes `coordinates`,
+  `markerIcon`, `markerColor`, `center`, `defaultZoom`); the same folder
+  in Verso shows the markers, icons and colours; set the centre from
+  Verso's right-click menu and Obsidian opens there. The keys were taken
+  from the plugin's public source (`obsidianmd/obsidian-maps` at
+  `a5bf456`, `src/map-view.ts`), not yet seen on a base the plugin wrote.
+- [ ] **A regular expression in the real core** (A): note 04, the
+  *Mês* column of *Todos os Projetos* shows `09/2026`; a formula
+  `/(?<=a)b/.matches(file.name)` says *A expressão regular usa
+  lookbehind…* in its cells and above the view.
+- [ ] **An embedded base edited in place** (A): note 04 in Leitura, the
+  embedded *Todos os Projetos*: add a sort from its toolbar; *Projetos.base*
+  on disk gains the sort and nothing else changes (`git diff`). With
+  *Projetos.base* open in another tab and edited unsaved, the embed's
+  change waits for that tab or says it was not written. A reader on a
+  server sees no toolbar.
+
 ### The window's feedback (fix/ui-feedback, 2026-10-14)
 
 - [ ] **A server out of reach is said where you acted** (A): a folder of

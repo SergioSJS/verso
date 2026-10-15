@@ -95,7 +95,7 @@ const STOPS = [
       ["n-bases", "04 - Visualização de Bases e Dados.md", 420],
       ["n-diarias", "07 - Notas Diárias, Calendário e Templates.md", 420],
     ],
-    tip: "As propriedades no topo de uma nota viram colunas de uma base: tabela, fichas, lista, kanban ou calendário. ⌘⇧D abre a nota de hoje, feita do template Diário.",
+    tip: "As propriedades no topo de uma nota viram colunas de uma base: tabela, fichas, lista, kanban, calendário ou mapa. ⌘⇧D abre a nota de hoje, feita do template Diário.",
     tipWidth: 860,
     extra(b, x, y, f) {
       b.file("n-base", "Projetos.base", x + 940, y + 740, 420, 64);

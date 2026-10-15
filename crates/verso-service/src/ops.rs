@@ -13,9 +13,9 @@
 //! them.
 
 use verso_contract::{
-    Backlink, BaseColumn, BaseGroup, BaseProblem, BaseProblemKind, BaseQuery, BaseResult, BaseRow,
-    BaseView, ContractError, Edge, EntryLabel, ErrorKind, FileEntry, FileKind, Focus,
-    FocusesSummary, FolderLayer, FolderSettings, FolderSpace, Hit, Link, Mention, Mentions,
+    Backlink, BaseColumn, BaseError, BaseGroup, BaseProblem, BaseProblemKind, BaseQuery,
+    BaseResult, BaseRow, BaseView, ContractError, Edge, EntryLabel, ErrorKind, FileEntry, FileKind,
+    Focus, FocusesSummary, FolderLayer, FolderSettings, FolderSpace, Hit, Link, Mention, Mentions,
     MovedEntries, NoteText, RefusedEntry, Renamed, Tag, TextFile, Trashed, WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
@@ -608,6 +608,10 @@ fn base_result(r: verso_core::bases::BaseResult) -> BaseResult {
                         K::Budget => BaseProblemKind::Budget,
                     },
                     detail: p.detail,
+                    error: p.error.map(|e| BaseError {
+                        kind: crate::convert::base_error_kind(e.kind),
+                        name: e.name,
+                    }),
                 }
             })
             .collect(),

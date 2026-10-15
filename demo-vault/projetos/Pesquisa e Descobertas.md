@@ -9,6 +9,7 @@ tags:
   - arquitetura
   - core
 orcamento: 5000
+local: "-8.0476, -34.877"
 ---
 
 # Pesquisa e Descobertas
