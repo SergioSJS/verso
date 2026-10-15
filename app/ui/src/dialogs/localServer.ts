@@ -544,9 +544,14 @@ export function openPairing(): void {
     const a = state.asked;
     if (!a) {
       ask.hidden = true;
+      actions.hidden = false;
       askedKey = "";
       return;
     }
+    // The two answers are the dialog's actions while a phone waits (each
+    // ends the window); a Close under them was a third button alone on a
+    // row of its own.
+    actions.hidden = true;
     const key = `${a.device}|${a.asked}`;
     if (key === askedKey) return;
     askedKey = key;

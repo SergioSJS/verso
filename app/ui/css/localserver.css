@@ -48,3 +48,5 @@
 .ls-pick { display: flex; flex-direction: column; gap: .25rem; margin: .6rem 0 .2rem; text-align: start; width: 100%; }
 .ls-pick select { font: inherit; font-size: .9rem; width: 100%; min-height: 36px; padding: .2rem .4rem; }
 .ls-only { font-size: .9rem; overflow-wrap: anywhere; }
+.ls-dialog .confirm-actions { flex-wrap: wrap; }
+.ls-ask .confirm-actions { justify-content: flex-end; }
