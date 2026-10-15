@@ -430,6 +430,11 @@ if [ ! -f app/ui/dist/index.html ]; then
   echo "no UI bundle: run scripts/check.sh first (or: cd app/ui && npm ci && npm run build)"
   exit 1
 fi
+# On the host, before the container: node and git only. Linux's own
+# clipping (app/src-tauri/src/web_clip/linux.rs) has no `unsafe`, and this
+# holds it so (ADR 0029, revision of 2026-10-15).
+printf '\n== unsafe only in app/src-tauri/src/web_clip/{macos,windows}.rs (ADR 0029)\n'
+node scripts/check-unsafe.mjs
 dir="${VERSO_LINUX_DIR:-$HOME/.cache/verso-linux}"
 mkdir -p "$dir"
 rsync -a --delete --exclude target --exclude node_modules --exclude .git ./ "$dir/src/"
