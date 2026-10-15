@@ -338,6 +338,8 @@ pub fn admin_reset(config: &Config, email: &str) -> Result<String, String> {
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_attach;
+#[cfg(test)]
 mod tests_board_rooms;
 #[cfg(test)]
 mod tests_board_stress;
