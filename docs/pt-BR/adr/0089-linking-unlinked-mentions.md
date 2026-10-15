@@ -73,6 +73,30 @@ recomendado e está marcado `[DECIDIDO 2026-10-14]`.
    pastas a ignorar, como o plano de 2026-10-14 a descreveu — nomes que
    são palavras comuns ("Porto", "Mesa", "Ordem") a deixam ruidosa em
    português.
+   **Revisado em 2026-10-15 `[DECIDIDO 2026-10-15]`:** o mantenedor,
+   respondendo *"Sim, na V1, desligada por padrão"*: a sugestão durante a
+   digitação **está na V1**, **desligada por padrão**. Construída assim.
+   Um ajuste em Ajustes › Editor, "Sugerir links enquanto escrevo"
+   (desligado), na camada da pessoa, com duas listas ao lado, "Pastas
+   ignoradas" e "Nomes ignorados" (por exemplo "Mesa"). Enquanto se
+   escreve prosa — nunca em código, no cabeçalho de propriedades, num
+   link, num embed, em fórmula, em HTML ou numa tag, a mesma regra de
+   prosa que as menções seguem — quando as palavras recém-digitadas são um
+   nome **inteiro** de nota ou apelido da pasta (maiúsculas ignoradas,
+   acentos mantidos, NFC = NFD, três caracteres no mínimo, o nome mais
+   longo vence, nomes de várias palavras incluídos), um pequeno aviso no
+   estilo da conclusão de `[[` diz "Ligar a [[Nome]]". Ele nunca muda o
+   texto sozinho: Tab ou Enter escreve `[[Nome]]`, ou `[[Nome|digitado]]`
+   quando a caixa difere ou as palavras são um apelido, como "Vincular"
+   faz (item 2); Esc, ou seguir digitando, dispensa, e um nome dispensado
+   não é sugerido de novo no mesmo parágrafo. A nota que está sendo
+   escrita nunca é sugerida. Os nomes da pasta vêm da lista em que a
+   conclusão de `[[` se apoia, com os apelidos que as entradas agora
+   carregam, num mapa montado uma vez por varredura da pasta, de modo que
+   uma tecla custa poucas consultas com 10.000 notas. No toque o aviso é
+   tocado; numa nota ao vivo, uma sugestão aceita é uma edição comum pela
+   sala; um leitor não recebe nenhuma; um leitor de tela ouve "Sugestão de
+   link: Nome, Tab para aceitar" sem interromper (polite).
 6. **Acessibilidade e idiomas** ([0035](0035-cross-cutting-requirements.md)):
    cada menção é uma linha cujo botão se chama "Vincular *texto* em
    *nota*"; o diff do plano é alcançável pelo teclado e lido como uma
@@ -96,7 +120,9 @@ recomendado e está marcado `[DECIDIDO 2026-10-14]`.
 - **Uma árvore de prefixos em memória com os nomes da pasta** para a
   sugestão (levantada no plano de 2026-10-14 para pastas de 2.000
   notas): o índice já guarda os nomes, e 2.000 nomes não precisam de
-  uma.
+  uma. (O item 5, como revisado em 2026-10-15, guarda um mapa dos nomes
+  normalizados, montado uma vez por varredura da pasta; não é uma árvore
+  de prefixos, e o benchmark da revisão diz quanto custa.)
 
 ## Status
 
@@ -106,6 +132,8 @@ decidido como recomendado, marcado `[DECIDIDO 2026-10-14]` no lugar. Na V1
 (`docs/roadmap.md`, Fase 4 — V1).
 
 **Respondido durante a construção (2026-10-14, o mantenedor: "Sim, todas").** As perguntas que a construção levantou, respondidas como recomendado (*"Aceita todas as recomendações acima (P1–P5, M1–M6, I1–I7, D1–D11, G1–G4)?"*): M1 — uma nota que já linka o alvo continua listando as menções sem link dela; M2 — no máximo 200 notas candidatas por nome e 500 menções; M3 — numa célula de tabela o link é escrito com `\|`; M4 — o filtro de segredo completo vem com a [0087](0087-secret-blocks-hidden-from-readers.md); M5 — um acento escrito composto (NFC) ou decomposto (NFD) é um acento só ao casar as menções, como nomeia um arquivo só (a decisão de 2026-10-10), o link mantendo o nome da nota como o índice o tem (construído naquela noite); M6 — `verso_dialect::prose` ganha uma fixture, `fixtures/prose/what-is-prose`, um rascunho da IA para a aprovação do mantenedor (spec §4.9, construída naquela noite). M1 a M4 como construído.
+
+**Revisado (2026-10-15).** O mantenedor, respondendo *"Sim, na V1, desligada por padrão"* à pergunta se a sugestão durante a digitação (item 5) pertence à V1: o item 5 está revisado acima — na V1, desligada por padrão. Nada mais do ADR muda.
 
 *(Histórico, antes da aceitação acima:)* Proposta (2026-10-14). Na V1 pela palavra do mantenedor de
 2026-10-14 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revisão 8). Para o

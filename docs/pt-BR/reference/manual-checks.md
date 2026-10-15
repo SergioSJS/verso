@@ -392,6 +392,32 @@ mostrado ficar óbvio), numa nota longa o bastante para rolar.
   “texto” em Nota*; *Linkar todas* diz quantas; no plano, o Tab alcança o
   diff de cada nota e ele é lido como uma lista de mudanças.
 
+### Sugestões de link enquanto se digita (ADR 0089 item 5, feat/typing-links, 2026-10-15)
+
+- [ ] **No app, numa pasta sua** (A): Ajustes › Editor mostra "Sugerir links
+  enquanto escrevo" desligado, com "Pastas ignoradas" e "Nomes ignorados"
+  embaixo. Digitar o nome de uma nota numa nota não mostra nada. Ligue, sem
+  reiniciar: digite o nome inteiro de uma nota, depois um apelido, depois o
+  nome em outra caixa: "Ligar a [[Nome]]" junto ao cursor a cada vez, o
+  texto intacto; Tab escreve `[[Nome]]` ou `[[Nome|texto]]` com o cursor
+  depois dele e ⌘Z devolve as palavras digitadas; Enter faz o mesmo; Esc e
+  seguir digitando dispensam, e o mesmo nome digitado de novo no parágrafo
+  não mostra nada, no parágrafo seguinte mostra. Nada dentro de `` `código` ``,
+  de um bloco cercado, de `[[…`, de uma fórmula `$…$`, nem para o nome da
+  própria nota. Um nome em "Nomes ignorados" e uma nota numa pasta ignorada
+  não são oferecidos. `verso.log`: nenhum ERROR.
+- [ ] **Num UniVerso** (A): numa nota ao vivo com outra pessoa nela, aceite
+  uma sugestão: o link aparece no editor da outra pessoa e nenhuma cópia de
+  conflito surge. Para quem só lê a pasta, digitar é impossível e nenhum
+  aviso aparece.
+- [ ] **No celular** (A): o aviso aparece acima do cursor, grande o
+  bastante para um dedo, sem "Tab"; um toque escreve o link e o teclado
+  continua aberto.
+- [ ] **Com o VoiceOver** (A): quando o aviso aparece ele é lido uma vez,
+  sem interromper, "Sugestão de link: Nome, Tab para aceitar" (no celular
+  "toque para aceitar"); depois do Tab, "Link criado para Nome."; ele nunca
+  tira o foco do texto.
+
 ### O infobox (ADR 0086, feat/infobox, 2026-10-14)
 
 - [ ] **Uma nota tipada num cartão ao lado do texto** (A): abra

@@ -142,6 +142,9 @@ pub struct EntryLabel {
     pub sticker: Option<String>,
     pub color: Option<String>,
     pub alias: Option<String>,
+    /// Every alias, the first included: what the suggestion while typing
+    /// matches (ADR 0089 item 5).
+    pub aliases: Vec<String>,
     pub order: Option<Vec<String>>,
     pub pinned: Option<Vec<String>>,
 }
@@ -1110,7 +1113,8 @@ impl Index {
             let sticker: Option<String> = r.get(1)?;
             let color: Option<String> = r.get(2)?;
             let aliases_json: String = r.get(3)?;
-            let alias = json_strings(&aliases_json).into_iter().next();
+            let aliases = json_strings(&aliases_json);
+            let alias = aliases.first().cloned();
             let order_json: Option<String> = r.get(4)?;
             let order = order_json
                 .map(|j| json_strings(&j))
@@ -1125,6 +1129,7 @@ impl Index {
                     sticker,
                     color,
                     alias,
+                    aliases,
                     order,
                     pinned,
                 },
@@ -1154,7 +1159,8 @@ impl Index {
             let sticker: Option<String> = r.get(0)?;
             let color: Option<String> = r.get(1)?;
             let aliases_json: String = r.get(2)?;
-            let alias = json_strings(&aliases_json).into_iter().next();
+            let aliases = json_strings(&aliases_json);
+            let alias = aliases.first().cloned();
             let order_json: Option<String> = r.get(3)?;
             let order = order_json
                 .map(|j| json_strings(&j))
@@ -1167,6 +1173,7 @@ impl Index {
                 sticker,
                 color,
                 alias,
+                aliases,
                 order,
                 pinned,
             })
