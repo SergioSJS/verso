@@ -57,7 +57,7 @@ O que cada linha faz:
 4. `sh universo.sh install` baixa o pacote desta máquina, confere a assinatura, instala, liga o serviço e espera ele responder. O `--url` é o endereço que as pessoas vão digitar, **com `https://`**; troque `notas.exemplo.com` pelo seu nome. Sem `--url`, o script pergunta (Enter deixa vazio: só a própria máquina consegue entrar).
 
 > [!IMPORTANT] Guarde a saída do script
-> No fim ele imprime "O UniVerso está rodando. Agora:" com o **link que cria o primeiro admin**. Copie-o para um lugar seguro antes de fechar o terminal.
+> No fim ele imprime "O UniVerso está rodando. Agora:" (num sistema em inglês: `UniVerso is running. Next:`; o script fala a língua do sistema) com o **link que cria o primeiro admin**. Copie-o para um lugar seguro antes de fechar o terminal.
 
 Para conferir que está de pé, agora e depois de qualquer reboot:
 
@@ -65,7 +65,7 @@ Para conferir que está de pé, agora e depois de qualquer reboot:
 sh universo.sh status
 ```
 
-Ele diz `Serviço: active, enabled na partida`, a versão, o endereço em que escuta e as últimas linhas do log. O serviço volta sozinho depois de um reboot.
+Ele diz `Serviço: active, enabled na partida` (em inglês, `Service: active, enabled at boot`), a versão, o endereço em que escuta e as últimas linhas do log. O serviço volta sozinho depois de um reboot.
 
 > [!NOTE] Existe também a instalação à mão
 > O guia tem a instalação do pacote (`.deb` ou `.rpm`) com a assinatura conferida por você, sem o script. É mais trabalho e dá o mesmo resultado; fica para quem quiser.
