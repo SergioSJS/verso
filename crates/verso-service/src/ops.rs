@@ -16,7 +16,8 @@ use verso_contract::{
     Backlink, BaseColumn, BaseError, BaseGroup, BaseProblem, BaseProblemKind, BaseQuery,
     BaseResult, BaseRow, BaseView, ContractError, Edge, EntryLabel, ErrorKind, FileEntry, FileKind,
     Focus, FocusesSummary, FolderLayer, FolderSettings, FolderSpace, Hit, Link, Mention, Mentions,
-    MovedEntries, NoteText, RefusedEntry, Renamed, Tag, TextFile, Trashed, WebNote, Written,
+    MovedEntries, NoteText, ObsidianPeriodic, PeriodSettings, PeriodicSettings, RefusedEntry,
+    Renamed, Tag, TextFile, Trashed, WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
 
@@ -497,8 +498,22 @@ ops! {
             folder_note_name: change.folder_note_name,
             ignore_build_dirs: change.ignore_build_dirs,
             respect_gitignore: change.respect_gitignore,
+            periodic: change.periodic.map(periodic_in),
         };
         Ok(layer_out(ws.set_folder_settings(&change, revision.as_deref())?))
+    }
+
+    /// Obsidian's settings for daily and periodic notes (ADR 0093 item
+    /// 11): `.obsidian/daily-notes.json` and
+    /// `.obsidian/plugins/periodic-notes/data.json`, each file's text when
+    /// it is there — read once, for Settings to offer, never written.
+    Read fn get_obsidian_periodic(ws) -> ObsidianPeriodic {
+        let o = ws.obsidian_periodic();
+        Ok(ObsidianPeriodic {
+            daily_notes: o.daily_notes,
+            periodic_notes: o.periodic_notes,
+            unavailable: o.unavailable,
+        })
     }
 
     /// Set whether focuses sync to `.space/waypoints.json` (ADR 0062 D5, D9).
@@ -549,8 +564,51 @@ fn layer_out(l: verso_core::FolderLayer) -> FolderLayer {
             folder_note_name: l.settings.folder_note_name,
             ignore_build_dirs: l.settings.ignore_build_dirs,
             respect_gitignore: l.settings.respect_gitignore,
+            periodic: l.settings.periodic.map(periodic_out),
         },
         warnings: l.warnings,
+    }
+}
+
+fn period_in(p: PeriodSettings) -> verso_core::Period {
+    verso_core::Period {
+        on: p.on,
+        format: p.format,
+        folder: p.folder,
+        template: p.template,
+    }
+}
+
+fn period_out(p: verso_core::Period) -> PeriodSettings {
+    PeriodSettings {
+        on: p.on,
+        format: p.format,
+        folder: p.folder,
+        template: p.template,
+    }
+}
+
+fn periodic_in(p: PeriodicSettings) -> verso_core::Periodic {
+    verso_core::Periodic {
+        day: p.day.map(period_in),
+        week: p.week.map(period_in),
+        month: p.month.map(period_in),
+        quarter: p.quarter.map(period_in),
+        year: p.year.map(period_in),
+        week_start: p.week_start,
+        language: p.language,
+    }
+}
+
+fn periodic_out(p: verso_core::Periodic) -> PeriodicSettings {
+    PeriodicSettings {
+        day: p.day.map(period_out),
+        week: p.week.map(period_out),
+        month: p.month.map(period_out),
+        quarter: p.quarter.map(period_out),
+        year: p.year.map(period_out),
+        week_start: p.week_start,
+        language: p.language,
     }
 }
 

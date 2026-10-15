@@ -19,6 +19,9 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
+mod periodic;
+pub use periodic::{ObsidianPeriodic, PeriodSettings, PeriodicSettings};
+
 /// The folder that is open, and what indexing it did.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct FolderInfo {
@@ -153,6 +156,8 @@ pub struct FolderSettings {
     pub ignore_build_dirs: Option<bool>,
     /// Honour each `.gitignore` (ADR 0044).
     pub respect_gitignore: Option<bool>,
+    /// The periodic notes' settings (ADR 0093 item 4).
+    pub periodic: Option<PeriodicSettings>,
 }
 
 /// The folder's layer of settings as read now (ADR 0070 items 1–2).

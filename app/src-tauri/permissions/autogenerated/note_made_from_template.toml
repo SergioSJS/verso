@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-note-made-from-template"
+description = "Enables the note_made_from_template command without any pre-configured scope."
+commands.allow = ["note_made_from_template"]
+
+[[permission]]
+identifier = "deny-note-made-from-template"
+description = "Denies the note_made_from_template command without any pre-configured scope."
+commands.deny = ["note_made_from_template"]

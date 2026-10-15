@@ -101,6 +101,10 @@ pub(crate) struct Syncer {
     /// person and the device (sync 2) — for the recent activity of what
     /// came from there.
     authors: Mutex<HashMap<String, Author>>,
+    /// Notes this window made from a template since the last pass, and
+    /// the hash of the text they were made with (ADR 0093 item 12): moved
+    /// into the state by the pass, kept here until the base has the path.
+    made: Mutex<BTreeMap<String, String>>,
 }
 
 /// Who made a change on the server: the person, the device.
@@ -132,7 +136,16 @@ impl Syncer {
             live: Arc::default(),
             settings_said: AtomicBool::new(false),
             authors: Mutex::new(HashMap::new()),
+            made: Mutex::new(BTreeMap::new()),
         })
+    }
+
+    /// A note made here from its template, with the text it was made with
+    /// (ADR 0093 item 12): if the server holds one of the same name another
+    /// device made apart from the same template, the two are joined
+    /// instead of a conflict's copy.
+    pub(crate) fn made_from_template(&self, path: &str, text: &str) {
+        lock(&self.made).insert(path.to_owned(), sha256(text.as_bytes()));
     }
 
     pub(crate) fn status(&self) -> SyncStatus {
@@ -833,6 +846,16 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
     let mut state = synced(ctx.config.as_deref(), &s.key).unwrap_or_default();
     state.server.clone_from(&s.url);
     state.folder.clone_from(&s.folder);
+    // The notes made from a template since: the base of a join should the
+    // server hold one of the same name (ADR 0093 item 12).
+    for (path, hash) in lock(&s.made).iter() {
+        if !state.base.contains_key(path) {
+            state
+                .made
+                .entry(path.clone())
+                .or_insert_with(|| hash.clone());
+        }
+    }
     // A share carries no settings of the folder's: none of the server's
     // is fetched over this computer's own (ADR 0070).
     if l.share {
@@ -1096,6 +1119,11 @@ fn save(ctx: &Ctx, s: &Syncer, state: &mut engine::State, head: i64) {
     }
     state.cursor = head;
     state.paused = s.paused.load(Ordering::Relaxed);
+    // A note made from a template that both sides agree on, or that the
+    // server holds since, needs no template base any more.
+    let base = &state.base;
+    state.made.retain(|p, _| !base.contains_key(p));
+    lock(&s.made).retain(|p, _| !base.contains_key(p));
     if let Err(e) = engine::save(ctx.config.as_deref(), &s.key, state) {
         log::write("ERROR", "sync", &format!("keeping the sync's state: {e}"));
     }

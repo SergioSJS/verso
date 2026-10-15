@@ -354,6 +354,11 @@ export const commands = {
 	 */
 	setFolderSettings: (change: FolderSettings, revision: string | null) => typedError<FolderLayer, ContractError>(__TAURI_INVOKE("set_folder_settings", { change, revision })),
 	/**
+	 *  Obsidian's settings for daily and periodic notes (ADR 0093 item 11),
+	 *  read once and never written, for Settings to offer.
+	 */
+	getObsidianPeriodic: () => typedError<ObsidianPeriodic, ContractError>(__TAURI_INVOKE("get_obsidian_periodic")),
+	/**
 	 *  A line from the window into the app's log: what `fail()` shows for a
 	 *  moment there, and what the browser would otherwise swallow — a
 	 *  script error, a rejected promise. The source is the window's, the
@@ -505,6 +510,14 @@ export const commands = {
 	folderSyncConfirm: () => typedError<null, ContractError>(__TAURI_INVOKE("folder_sync_confirm")),
 	/**  Compare now, without waiting for a change or the scan. */
 	folderSyncNow: () => typedError<null, ContractError>(__TAURI_INVOKE("folder_sync_now")),
+	/**
+	 *  A note the window just made from its template, and the text it was
+	 *  made with (ADR 0093 item 12): when the folder syncs and the server
+	 *  holds a note of the same name another device made apart from the same
+	 *  template, the two are joined instead of a conflict's copy. Nothing for
+	 *  a folder that does not sync, nor for a server's folder.
+	 */
+	noteMadeFromTemplate: (path: string, text: string) => typedError<null, ContractError>(__TAURI_INVOKE("note_made_from_template", { path, text })),
 	/**
 	 *  A base evaluated over the folder (ADR 0053): the rows of the view the
 	 *  window draws, as a table, cards, a list, a kanban or a calendar.
@@ -1302,6 +1315,8 @@ export type FolderSettings = {
 	ignore_build_dirs: boolean | null,
 	/**  Honour each `.gitignore` (ADR 0044). */
 	respect_gitignore: boolean | null,
+	/**  The periodic notes' settings (ADR 0093 item 4). */
+	periodic: PeriodicSettings | null,
 };
 
 /**
@@ -1605,6 +1620,62 @@ export type NoteText = {
 export type NoteType = {
 	written: string,
 	state: TypeState,
+};
+
+/**
+ *  Obsidian's settings for daily and periodic notes, as their files hold
+ *  them (ADR 0093 item 11): the core Daily notes plugin's
+ *  `.obsidian/daily-notes.json` and the Periodic Notes plugin's
+ *  `.obsidian/plugins/periodic-notes/data.json`, read once and never
+ *  written. Each is its file's text, `None` when it is not there, not
+ *  readable now or not text; `unavailable` names the ones that are a
+ *  placeholder of on-demand storage.
+ */
+export type ObsidianPeriodic = {
+	daily_notes: string | null,
+	periodic_notes: string | null,
+	unavailable: string[],
+};
+
+/**  One period's settings, or a change to them: `None` is "not set here". */
+export type PeriodSettings = {
+	/**  Whether the period is on: its command, its marks in the calendar. */
+	on: boolean | null,
+	/**
+	 *  A Moment.js format string of the subset Verso reads (item 2); a `/`
+	 *  in it makes folders.
+	 */
+	format: string | null,
+	/**
+	 *  The folder its notes are kept in, relative to the folder and joined
+	 *  by `/`; empty: the folder's root. Not set: the day's folder (item 3).
+	 */
+	folder: string | null,
+	/**
+	 *  The template note, by its path relative to the folder or its name
+	 *  in the templates folder; empty or not set: the built rule (item 6).
+	 */
+	template: string | null,
+};
+
+/**
+ *  The periodic notes' settings of a folder (ADR 0093 items 1–6), or a
+ *  change to them: what a change sets replaces what the file says, every
+ *  other key kept.
+ */
+export type PeriodicSettings = {
+	day: PeriodSettings | null,
+	week: PeriodSettings | null,
+	month: PeriodSettings | null,
+	quarter: PeriodSettings | null,
+	year: PeriodSettings | null,
+	/**  The week's first day, `sunday` … `saturday` (item 5). */
+	week_start: string | null,
+	/**
+	 *  The language month and weekday names are written in, `pt-BR` or
+	 *  `en` (item 5).
+	 */
+	language: string | null,
 };
 
 /**  One frontmatter key and its value. */

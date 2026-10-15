@@ -246,6 +246,44 @@ app real.
   salvar, a mudança da incorporada espera essa aba ou diz que não foi
   gravada. Um leitor num servidor não vê a barra.
 
+### Notas periódicas (ADR 0093, feat/periodic-notes, 2026-10-14)
+
+- [ ] **A semana e o mês no app** (A): no app instalado, no cofre de
+  demonstração, ⌘⇧P › Nota desta semana e Nota deste mês criam
+  `Diário/2026-W42.md` (do `Templates/Semanal.md`) e `Diário/2026-10.md` no
+  disco; o `verso.log` tem as linhas de `create` e nenhum ERROR; o ⌘⇧D
+  ainda cria a de hoje. No Calendário do painel da direita, o VoiceOver lê o
+  número de uma semana como *Semana 42 de 2026*, ← num domingo chega a ele,
+  → volta.
+- [ ] **Os ajustes são da pasta** (A): Ajustes › Notas periódicas diz
+  *Desta máquina*; mude o início da semana: o `.verso/settings.json` no
+  disco ganha `periodic` com a pasta das diárias, o idioma e o `weekStart`;
+  a linha diz *Da pasta*. Abra a mesma pasta num segundo computador (ou numa
+  cópia sincronizada): as mesmas notas são encontradas. Um formato com `HH`
+  é recusado, dizendo qual, e o arquivo não muda (`shasum`).
+- [ ] **Os ajustes do Obsidian, oferecidos e nunca gravados** (A): numa
+  cópia de um cofre em que as Notas diárias do Obsidian têm pasta e formato
+  definidos (e, se houver, uma com o plugin Periodic Notes), Ajustes › Notas
+  periódicas oferece *Usar os ajustes do Obsidian* com esses valores;
+  aceitar os grava no `.verso/settings.json`. `shasum` de
+  `.obsidian/daily-notes.json` e `.obsidian/plugins/periodic-notes/data.json`
+  antes e depois: iguais. Com o `.obsidian/` só no iCloud (placeholder), a
+  oferta diz que os ajustes estão só na nuvem e nada é baixado.
+- [ ] **Dois aparelhos criam a mesma semana sem rede** (A): uma pasta
+  sincronizada com um UniVerso em dois computadores; os dois sem rede, cada
+  um cria a nota desta semana (template sem `{{time}}`) e escreve uma linha
+  sob ele; de volta à rede, os dois têm uma nota com o template uma vez e
+  as duas linhas, a do servidor primeiro — sem cópia de conflito, *merged*
+  na atividade da sincronização. Com um template que tem `{{time}}`, criado
+  em minutos diferentes: uma cópia de conflito, como antes.
+- [ ] **Quem só lê** (A): a janela de quem só lê num UniVerso: sem "Nota
+  desta semana" na paleta enquanto a semana não tem nota; a semana no
+  Calendário diz que ainda não existe; a nota de uma semana que existe abre.
+- [ ] **Windows** (A; o `scripts/check-windows.sh` não rodou — nenhum
+  código de plataforma mudou): na VM do Windows, o caminho da nota da
+  semana com `/` no formato (`gggg/[Semana] ww`) vira pastas, e o
+  `.obsidian\daily-notes.json` de um cofre é oferecido.
+
 ### O retorno da janela (fix/ui-feedback, 2026-10-14)
 
 - [ ] **Um servidor fora de alcance é dito onde você agiu** (A): uma

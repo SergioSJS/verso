@@ -240,6 +240,44 @@ in the real app.
   change waits for that tab or says it was not written. A reader on a
   server sees no toolbar.
 
+### Periodic notes (ADR 0093, feat/periodic-notes, 2026-10-14)
+
+- [ ] **The week and the month in the app** (A): in the installed app, on
+  the demo vault, ⌘⇧P › Nota desta semana and Nota deste mês make
+  `Diário/2026-W42.md` (from `Templates/Semanal.md`) and `Diário/2026-10.md`
+  on disk; `verso.log` has their `create` lines and no ERROR; ⌘⇧D still
+  makes today's. The right panel's Calendário: VoiceOver reads a week's
+  number as *Semana 42 de 2026*, ← from a Sunday reaches it, → comes back.
+- [ ] **Settings are the folder's** (A): Ajustes › Notas periódicas says
+  *Desta máquina*; change the week's start: `.verso/settings.json` on disk
+  gains `periodic` with the daily folder, the language and `weekStart`; the
+  row says *Da pasta*. Open the same folder on a second computer (or a
+  synced copy): the same notes are found. A format with `HH` is refused,
+  naming it, and the file is unchanged (`shasum`).
+- [ ] **Obsidian's settings, offered and never written** (A): in a copy of
+  a vault where Obsidian's Daily notes have a folder and a format set (and,
+  if at hand, one with the Periodic Notes plugin), Ajustes › Notas
+  periódicas offers *Usar os ajustes do Obsidian* with those values;
+  accepting writes them into `.verso/settings.json`. `shasum` of
+  `.obsidian/daily-notes.json` and `.obsidian/plugins/periodic-notes/data.json`
+  before and after: the same. With `.obsidian/` evicted to iCloud (a
+  placeholder), the offer says the settings are only in the cloud and
+  nothing is downloaded.
+- [ ] **Two devices make the same week offline** (A): a folder synced with
+  a UniVerso on two computers; both offline, each makes this week's note
+  (template without `{{time}}`) and writes a line under it; back online,
+  both have one note with the template once and both lines, the server's
+  first — no conflict copy, *merged* in the sync's activity. With a
+  template holding `{{time}}` made at different minutes: a conflict copy,
+  as before.
+- [ ] **A reader** (A): a reader's window on a UniVerso: no "Nota desta
+  semana" in the palette while the week has no note; the Calendário's week
+  says it does not exist yet; an existing week's note opens.
+- [ ] **Windows** (A, `scripts/check-windows.sh` was not run — no platform
+  code changed): on the Windows VM, the week note's path with a `/` in the
+  format (`gggg/[Semana] ww`) is made as folders, and a vault's
+  `.obsidian\daily-notes.json` is offered.
+
 ### The window's feedback (fix/ui-feedback, 2026-10-14)
 
 - [ ] **A server out of reach is said where you acted** (A): a folder of
