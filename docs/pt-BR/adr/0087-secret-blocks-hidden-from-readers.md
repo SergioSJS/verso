@@ -227,6 +227,8 @@ recomendado e está marcado `[DECIDIDO 2026-10-14]`.
 decidido como recomendado, marcado `[DECIDIDO 2026-10-14]` no lugar. Na V1
 (`docs/roadmap.md`, Fase 4 — V1). O item 8 aplicado no mesmo dia: §5.8, §6 e Q9 da §9 da spec revisadas, Q9 `DECIDIDO` (spec v0.38), sem fixture — a fixture da Q9 vem com o PR que constrói esta ADR, para a aprovação do mantenedor ([0031](0031-fixtures-as-contract.md)). A [0073](0073-self-hosted-server-first.md) e a [0036](0036-tabletop-rpg-support.md) ganham as suas linhas de Revisões.
 
+*Revisada (2026-10-15):* uma revisão defensiva independente do item 4 achou oito caminhos que diziam a um leitor de um bloco secreto (o tamanho do índice da pasta, uma marca de ordem de bytes, os números das mudanças, uma nota acima de 16 MB, a ordem da busca, `stale` e `reindex`, `[!secret|x]`, um link para uma nota); todos corrigidos com testes, registrados em `docs/reference/threat-model.md`. Um callout secreto dentro do nó de texto de um quadro ou de um `.txt` fica para o mantenedor.
+
 *(Histórico, antes da aceitação acima:)* Proposta (2026-10-14), a direção decidida pelo mantenedor na mesma
 noite (Fonte). Na V1 pela palavra do mantenedor de 2026-10-14 (*"VAI SER
 TUDO NA V1"*; `docs/roadmap.md`, revisão 8). Para o mantenedor, cada um

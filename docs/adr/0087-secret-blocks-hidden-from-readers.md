@@ -214,6 +214,8 @@ recommended and is marked `[DECIDED 2026-10-14]`.
 decided as recommended, marked `[DECIDED 2026-10-14]` in place. In V1
 (`docs/roadmap.md`, Phase 4 — V1). Item 8 applied the same day: spec §5.8, §6 and §9 Q9 revised, Q9 `DECIDED` (spec v0.38), with no fixture — the fixture of Q9 comes with the PR that builds this ADR, for the maintainer's approval ([0031](0031-fixtures-as-contract.md)). [0073](0073-self-hosted-server-first.md) and [0036](0036-tabletop-rpg-support.md) gain their Revisions lines.
 
+*Reviewed (2026-10-15):* an independent defensive review of item 4 found eight paths that told a reader of a secret block (a folder's index size, a byte order mark, change numbers, a note past 16 MB, search order, `stale` and `reindex`, `[!secret|x]`, a link to a note); all fixed with tests, recorded in `docs/reference/threat-model.md`. A secret callout inside a board's text node or a `.txt` file stays for the maintainer.
+
 *(History, before the acceptance above:)* Proposed (2026-10-14), the direction decided by the maintainer the
 same evening (Source). In V1 by the maintainer's word of 2026-10-14
 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revision 8). For the

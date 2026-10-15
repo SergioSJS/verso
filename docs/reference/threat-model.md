@@ -338,6 +338,35 @@ reasoning below is read from Tauri 2.11 and wry 0.55 (the versions in
 | The frame check as a probe of the local network | One `HEAD` (a `GET` read only as far as its headers when that fails) to an address a note wrote and the reader approved, six seconds at most, at most five redirects, the final response judged; nothing of the body is read, and the answer is a yes or a no. A redirect from a public page to a local name or address (loopback, private ranges, link-local, carrier-grade NAT, `.local`, a name without a dot) ends the check with a no; a name that a public DNS answer points at a private address is not caught (the same limit ADR 0056 recorded for the proxy). An error, a timeout, an unreadable header: no, and the child view takes the page. Answered once per origin for the session. |
 | A wrong yes: an empty frame | The headers are read as a browser reads them, conservatively: any `X-Frame-Options` value (`DENY`, `SAMEORIGIN`, `ALLOW-FROM`, an unreadable one) says no, even when a `frame-ancestors` is there to override it; `frame-ancestors` says yes only to `*` (a network-scheme app origin only: `tauri://localhost` is not covered by `*`), a matching scheme, host or wildcard host, and every policy on the response must allow. A site that answers the check one way and the frame another shows an empty frame, the site's decision as it is anywhere. |
 
+### A review of the secret blocks (2026-10-15)
+
+An independent defensive review of ADR 0087 item 4 (a reader receives no
+secret block "or anything derived from it", failing closed) found the
+paths below; each is fixed and has a test in the crate it belongs to
+(`tests_secret_review.rs` in `verso-server`, the dialect's `tests/secret.rs`,
+the index's `tests/secret.rs`, `verso-fs`'s `tests/ops.rs`).
+
+| Finding | What it told a reader | The fix |
+|---|---|---|
+| I1: the folder's space | `folder_space` carried the index's size, which grows with the secret text | A reader is told an index of 0, as a share is |
+| I2: a byte order mark | A leading U+FEFF before a first-line `> [!secret]` made the projection miss it | The callout is found on the text after the mark, its range kept on the original; the property test's generator has the mark |
+| M1: change numbers | A reader's sync log kept the folder's numbers, so gaps counted the changes only inside secret blocks | A reader's cursor, changes and head are numbered in its own count (`reader_command`) |
+| M2: a note past 16 MB | A reader's manifest told it the whole file's size and hash for a note it is refused | Such a note is left out of a reader's manifest and log |
+| M3: the order of search | The rank of FTS5 weighs the length of the whole row, the secret column with it (a weight of 0 does not change that), so the order moved with a secret block | A reader's content hits come ordered by path (its name hits keep their own rank); a cost in relevance for readers, for the maintainer to weigh |
+| M4: `stale` and `reindex` | After an edit inside a secret block made outside the server, a reader saw `stale: true` and a reindex of `indexed: 1` | A reader's `stale` compares the projection with the index's public text; its reindex counts nothing |
+| M5: `[!secret\|x]` | A kind followed by metadata was not read as secret | The projection reads the kind up to the bar and fails closed; the renderer may draw it as it did |
+| A link to a note | A symlink inside the folder under a name that is no note's (`espelho.txt` to `Nota.md`) was read, synced and served by `/f/` as a plain file, the note whole | What a reader reads is judged by the file it is (`Root::resolved_name`, and `hard_linked` for a second name): its projection through the contract and sync, a refusal on `/f/` |
+
+Not changed, the maintainer decides: a secret callout inside a board's
+text node (`.canvas`) or a `.txt` file is not a note and is served as it
+is (finding I3).
+
+The history tests also flaked under load, and the cause was in the
+product: the history kept the file as it was at the time it was recorded,
+not the bytes the change was hashed from, so a write that won the race
+against the log's first look lost the found version and took its name.
+A version is now recorded only when the bytes match the change.
+
 ## Gaps found on 2026-10-11
 
 Found by reading the code at HEAD 7729940; findings, not fixes. Classified
