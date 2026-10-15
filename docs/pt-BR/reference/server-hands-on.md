@@ -934,6 +934,33 @@ novas. O próprio `sh universo.sh backup` se recusa quando o diretório dele
 tem menos espaço livre do que os dois diretórios ocupam, e diz isso;
 `sh universo.sh backup /outra/pasta` grava em outro lugar.
 
+### As escritas estão lentas, e o motivo é o disco
+
+A leitura é rápida em qualquer disco; **a escrita é limitada pelo tempo
+que o disco leva para confirmar uma**, porque o servidor grava o arquivo
+com segurança antes de responder (um arquivo temporário, depois um flush,
+depois um rename). Medido num host de 1 núcleo cujo disco levava uns
+26 ms por escrita síncrona de 4 KiB, as escritas chegaram ao teto de uns
+**15 por segundo**, fosse qual fosse o número de aparelhos: a espera
+crescia com a fila, e o processo esperava pelo disco, não calculava. Uma
+máquina de nuvem com SSD é várias vezes mais rápida. Para verificar um
+disco, rode isto na máquina, na pasta que guarda os dados:
+
+```sh
+cd /var/lib/universo                        # ou o diretório de dados que você escolheu
+dd if=/dev/zero of=./disk-check bs=4k count=200 oflag=dsync
+rm ./disk-check
+```
+
+O `dd` imprime o tempo total; divida por 200 para o tempo de uma escrita.
+Abaixo de uns 2 ms é um bom disco; de 5 a 10 ms é lento, mas basta para
+uma casa; 25 ms ou mais (um disco de rede, um disco compartilhado
+ocupado, um pendrive) quer dizer umas 15 escritas por segundo no máximo, e
+uma edição que espera atrás de uma sincronização grande é o disco, não o
+servidor. O remédio é um SSD local para o diretório de dados; as pastas
+das notas podem ficar num NAS, mas cada escrita ali também paga a
+confirmação do NAS.
+
 ### Nada responde depois de um reboot
 
 - O pacote: `systemctl is-enabled universo` precisa dizer `enabled`

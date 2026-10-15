@@ -439,6 +439,24 @@ as written. Sizes: S is hours, M a day or two, L more.
     Tailscale cannot be done in the lab), a browser, a phone, a flood of
     connections or sign-ins, the 4 MB room-update bound.
 
+    *Decided 2026-10-15* (the maintainer, "aceito todas recomendações"),
+    built on `feat/decisions-1015`: (a) the failed-sign-in bucket is 4 a
+    second sustained and 20 at once (`signin.rs`: `FAILED_RATE`,
+    `FAILED_BURST`); (b) the `sync_read`s of an account have an allowance
+    of their own, 1 000 a second and 4 000 at once (`fair.rs`:
+    `READ_RATE`, `READ_BURST`), apart from the 100 and 400 of its other
+    commands, which they neither wait behind nor spend; the server's pace
+    (1 000 and 2 000) still counts every one, and a flood of reads past
+    the allowance waits like any other command, so a hostile account stays
+    bounded; a first sync of 3 000 files is then paced by the server's
+    burst (about a second), not 26 s; (c) only failed attempts grow the
+    pairing delay of a `device:` key: a start counts nothing, a wrong
+    code or poll secret still does, and a flood of codes is bounded by
+    the codes one address may keep waiting and by the REST pace; (d) the
+    install guide says that a slow disk bounds writes (about 15 a second
+    on a disk doing 26 ms per synchronous 4 KiB write) and how to check a
+    disk.
+
 19. **Validation in a hostile lab.** Decided by the maintainer on
     2026-10-13, in the same answer that accepted the recommendations:
     *"em seguida você deve emular um ambiente de ataque um ambiente hostil
