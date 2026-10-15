@@ -6,9 +6,6 @@
 //! that also syncs with a UniVerso is never served by the app. The serving
 //! itself is tested in `verso_server::local`.
 
-// The local mode is not built for Windows yet (ADR 0096 item 17).
-#![cfg(not(windows))]
-
 use serde_json::json;
 use verso_core::sync as engine;
 

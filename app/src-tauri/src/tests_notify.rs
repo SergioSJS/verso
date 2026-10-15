@@ -7,9 +7,6 @@
 //! near its quota goes to that folder's windows, a folder given on the
 //! server to every window, naming the server.
 
-// The server is not built for Windows (crates/verso-cli/Cargo.toml).
-#![cfg(not(windows))]
-
 use std::time::Duration;
 
 use serde_json::{Value, json};

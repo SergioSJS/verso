@@ -9,9 +9,6 @@
 //! template at another time, or one a device made without telling sync
 //! it came from a template, keeps the copy, as before.
 
-// The server is not built for Windows (crates/verso-cli/Cargo.toml).
-#![cfg(not(windows))]
-
 use super::tests_sync::{changed, copy_of, device, files, serve, sync, text, write};
 use super::*;
 

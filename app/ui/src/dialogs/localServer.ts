@@ -354,7 +354,9 @@ export function localServerBody(_item: Item): HTMLElement {
     blocked.hidden = !(s.serving && s.unreachable);
     if (!blocked.hidden) {
       const mac = /mac/i.test(navigator.platform);
-      blocked.replaceChildren(h("p", "", w.unreachable), h("p", "ls-help", mac ? w.unreachableMac : w.unreachableLinux(s.port)));
+      const windows = /win/i.test(navigator.platform);
+      const steps = mac ? w.unreachableMac : windows ? w.unreachableWindows : w.unreachableLinux(s.port);
+      blocked.replaceChildren(h("p", "", w.unreachable), h("p", "ls-help", steps));
     }
     pair.disabled = !s.serving;
     pairHelp.hidden = s.serving;

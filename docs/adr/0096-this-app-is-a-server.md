@@ -424,6 +424,12 @@ it changes an Accepted ADR; where one needs a line, the item says so.
     Recommendation: **(b)** if the cost is small (the local mode has no
     passkeys — it has no sign-in page), otherwise (a); a decision of the
     maintainer either way, and 0073's sentence gets a Revisions line.
+    **Revised 2026-10-15:** the maintainer decided *"OpenSSL embutido no
+    Windows"* — a fourth way, none of (a) to (c): `verso-server` builds on
+    Windows whole, OpenSSL compiled in as on Unix
+    ([0075](0075-server-packaging-and-storage.md) item 2, revised), and the
+    local mode serves on Windows with the same code. 0073's sentence "runs
+    on macOS and Windows as well" stands as written.
 
 18. **`[DECIDED 2026-10-15]` The app updating while phones are connected** (the `[OPEN]` of
     0073's Consequences). Recommendation: the updater ([0055](0055-in-app-updater.md))
@@ -482,16 +488,28 @@ not alternatives already considered and discarded.)
 
 ## As built
 
-Built on 2026-10-15 on `feat/local-server-build`, for **macOS and Linux**.
+Built on 2026-10-15 on `feat/local-server-build`, for **macOS and Linux**;
+Windows was added the same day (item 17, revised, below).
 What the code settled where the items left room (none of it changes a
 decision; each is a question for the maintainer if it should be otherwise):
 
-- **Windows** (item 17): option (a). `verso-server` is not built for
-  Windows, and the passkey types run through its state and its proof
-  module, so compiling the local mode without them was not cheap. The
-  section says it is not on Windows yet and offers nothing; the commands
-  exist and answer that. Item 3's Windows *Private* profile is therefore
-  not read either.
+- **Windows** (item 17, revised 2026-10-15): the first build took option
+  (a) — `verso-server` was not built for Windows, and compiling the local
+  mode without the passkey types was not cheap. The maintainer then
+  decided *"OpenSSL embutido no Windows"* (vendored OpenSSL there, as on
+  Unix; the build needs Perl, not NASM), so `verso-server` builds on
+  Windows and the same local-server code serves there; the Windows stub is
+  gone. Item 3's Windows *Private* profile is **not read**: it would need
+  either a COM call (`INetworkListManager`; `unsafe` is forbidden in the
+  workspace and it would be a new dependency), the registry (it maps a
+  profile to an interface only through GUIDs, not a documented interface) or
+  a subprocess whose output is localized. What keeps the guarantee on
+  Windows is the rest of item 3 — private addresses only, a peer on a
+  subnet of the machine, and stopping when the set of addresses changes —
+  plus Windows Defender Firewall itself, which asks on the first bind and,
+  with the box the window tells the person to leave unticked, lets only
+  Private networks in (item 9). The dialog's "firewall refuses" help has
+  a Windows paragraph.
 - **The server** is the same crate and the same dispatch as `verso serve`
   (`crates/verso-server/src/local`), with a smaller table of routes — no
   sign-in, invitation, account page, console, token, passkey or device

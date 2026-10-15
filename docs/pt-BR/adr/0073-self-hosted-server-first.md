@@ -163,7 +163,12 @@
   sem as passkeys não era barato), e o `[ABERTO]` do app atualizando com
   celulares conectados é respondido (item 18 do 0096: o reinício derruba
   os celulares, a página recarrega pelo hash do contrato). A frase única
-  do item 2, e as palavras antigas, ficam.
+  do item 2, e as palavras antigas, ficam. Mais tarde, no mesmo dia
+  (2026-10-15), a primeira das duas foi revista de novo: o mantenedor
+  decidiu *"OpenSSL embutido no Windows"*, então o `verso-server` constrói
+  no Windows e "roda em macOS e Windows também" é verdade como está
+  escrito ([0096](0096-this-app-is-a-server.md) item 17 e
+  [0075](0075-server-packaging-and-storage.md) item 2, ambos revistos).
 
 ## Contexto
 

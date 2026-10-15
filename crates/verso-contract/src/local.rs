@@ -15,9 +15,8 @@ use specta::Type;
 /// Where "this app is a server" stands.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct LocalServerStatus {
-    /// Whether this build of the app can serve: macOS and Linux today; the
-    /// section says so on Windows and offers nothing (ADR 0096 item 17,
-    /// option a).
+    /// Whether this build of the app can serve: every system (ADR 0096
+    /// item 17, revised 2026-10-15); `false` only in a stand-in that cannot.
     pub supported: bool,
     pub serving: bool,
     pub port: Option<u32>,

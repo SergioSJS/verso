@@ -73,6 +73,12 @@ base64 = "0.22"
 # tree through rmcp, with the same feature (MIT OR Apache-2.0).
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 
+# "This app is a server" (ADR 0096): the desktop starts the same service
+# `verso serve` runs, in this process, on the local network, on every system
+# (Windows too, ADR 0096 item 17 revised 2026-10-15). Already a
+# dev-dependency of the tests of a window on a server.
+verso-server = { path = "../../crates/verso-server" }
+
 [target.'cfg(target_os = "macos")'.dependencies]
 # Clearing the download quarantine from the CLI binary and an extracted
 # update, without shelling out to `xattr` (ADR 0029, the subprocess rule).
@@ -94,13 +100,6 @@ objc2-foundation = { version = "0.3", default-features = false, features = ["std
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSResponder", "NSView", "NSGraphics", "NSUserInterfaceItemIdentification", "objc2-quartz-core"] }
 objc2-quartz-core = { version = "0.3", default-features = false, features = ["std", "CALayer"] }
 
-[target.'cfg(not(windows))'.dependencies]
-# "This app is a server" (ADR 0096): the desktop starts the same service
-# `verso serve` runs, in this process, on the local network. macOS and
-# Linux; Windows follows (verso-server is not built there, ADR 0075 item
-# 2). Already a dev-dependency of the tests of a window on a server.
-verso-server = { path = "../../crates/verso-server" }
-
 [target.'cfg(windows)'.dependencies]
 # The same on Windows (src/web_clip/windows.rs): WebView2's host window
 # moved into a clipping child window. The Win32 and WebView2 bindings wry
@@ -116,7 +115,7 @@ webview2-com = "0.38"
 # ours.
 gtk = "0.18"
 
-[target.'cfg(not(windows))'.dev-dependencies]
+[dev-dependencies]
 # A synced folder's live notes (ADR 0082 item 16): the tests' tabs are Yjs
 # documents, as the window's, and the feature's guardrail is a property
 # test. Both already in the tree, at these versions, through verso-server
@@ -124,8 +123,6 @@ gtk = "0.18"
 # nothing of ours.
 yrs = "0.28"
 proptest = { version = "1.11", default-features = false, features = ["std"] }
-
-[dev-dependencies]
 # The commands exercised through Tauri's mock runtime, as the UI calls
 # them (ADR 0029: the contract's guardrail runs without a window).
 tauri = { version = "2", features = ["unstable", "test"] }

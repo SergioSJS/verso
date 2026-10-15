@@ -8,9 +8,6 @@
 //! document, as the window's — and a third connection playing the browser,
 //! all in the room of one note.
 
-// The server is not built for Windows (crates/verso-cli/Cargo.toml).
-#![cfg(not(windows))]
-
 use std::collections::BTreeSet;
 use std::time::Duration;
 

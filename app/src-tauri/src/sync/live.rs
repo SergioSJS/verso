@@ -82,8 +82,7 @@ impl Live {
     }
 
     /// Whether a window holds `path` in a room now.
-    // Its tests need a `verso serve`, not built for Windows.
-    #[cfg(all(test, not(windows)))]
+    #[cfg(test)]
     pub(crate) fn holds(&self, path: &str) -> bool {
         lock(&self.rooms).get(path).is_some_and(|h| h.joined)
     }

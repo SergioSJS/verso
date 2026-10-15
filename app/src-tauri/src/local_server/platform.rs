@@ -1,4 +1,4 @@
-//! macOS and Linux: the commands over `verso_server::local::LocalServer`.
+//! The commands over `verso_server::local::LocalServer`, on every system.
 
 use verso_server::db::Role;
 use verso_server::local::{Event, LocalServer, LocalSettings};
