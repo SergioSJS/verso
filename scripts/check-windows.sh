@@ -94,7 +94,7 @@ copy_tree() {
   # the untracked files that are not ignored, and the UI bundle.
   {
     git ls-files -z --cached --others --exclude-standard
-    find app/ui/dist -type f -print0
+    find app/ui/dist app/ui/dist-web -type f -print0
   } | while IFS= read -r -d '' f; do [ -f "$f" ] && printf '%s\0' "$f"; done \
     | sort -zu \
     | COPYFILE_DISABLE=1 tar --no-xattrs --null -T - -cf - \

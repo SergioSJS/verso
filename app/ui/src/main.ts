@@ -641,6 +641,9 @@ if (!popout) void listen<string>("folder-handed", (e) => {
 if (!popout) {
   void listen<string>("menu-open-folder", (e) => void (e.payload === getCurrentWindow().label && openFolderDialog()));
   void listen<string>("menu-settings", (e) => void (e.payload === getCurrentWindow().label && settingsDialog.show()));
+  // The menu-bar mark's "Open Settings" (ADR 0096 item 1): the section of
+  // "this app is a server", in the window the host brought forward.
+  void listen<string>("tray-settings", (e) => void (e.payload === getCurrentWindow().label && settingsDialog.show("localserver")));
 }
 /** The window's inspector (View › Open console, ⌥⌘I, the palette), when
  *  the setting allows it; otherwise said where to turn it on. */

@@ -34,7 +34,7 @@
       "icons/icon.ico",
       "icons/icon.png"
     ],
-    "resources": { "../ui/dist/": "ui-web/" },
+    "resources": { "../ui/dist-web/": "ui-web/" },
     "category": "Productivity",
     "shortDescription": "Notes in Markdown, in plain files you own",
     "linux": {

@@ -532,9 +532,11 @@ decision; each is a question for the maintainer if it should be otherwise):
   (item 5 (d)) are read as `VERSO_TLS_CERT_FILE` is, with the name they are
   for.
 - **The window's files** come from the app's resources
-  (`bundle.resources`: `app/ui/dist` as `ui-web`), which adds the size of
-  `dist` to the installed app; trimming it (no sourcemaps) is a build step
-  for the maintainer to decide once the release is measured.
+  (`bundle.resources`: `app/ui/dist-web` as `ui-web`). Revised 2026-10-15:
+  `dist-web` is `dist` without its `*.map` files (`app/ui/build-web.mjs`,
+  run last by `npm run build`), measured at 103.4 MB in 1 461 files for
+  `dist` against 49.0 MB in 1 022 for `dist-web`; the desktop window still
+  embeds `dist` whole.
 - **Folders** are shown to a phone by the name of their directory (made
   unique), never a path; the ticked list is kept in the local database,
   and a change needs serving off. A second index of each served folder is
@@ -544,6 +546,30 @@ decision; each is a question for the maintainer if it should be otherwise):
   added to *Settings › Notifications*.
 
 ## Status
+
+**The open points of "As built" decided on 2026-10-15** (the maintainer,
+*"aceito todas recomendações"*), all four:
+
+- **(a) The menu-bar mark is built** (item 1: *"a mark in the status bar and
+  in the menu bar or tray with the number of phones connected and a
+  'Stop'"*). While the app serves, a tray icon carries the app's mark — a
+  monochrome template image on macOS, the app's own icon on Windows — with a
+  menu *Serving N folders… / Stop / Open Settings* (*Servindo N pastas… /
+  Parar / Abrir Ajustes*), in the window's language, and a tooltip that
+  says what it serves and how many phones are connected (the icon's
+  accessible name); it exists only while serving. Through Tauri's tray API
+  (`app/src-tauri/src/tray.rs`; the `tray-icon` feature, whose crates were
+  already in the lockfile). **On macOS and Windows.** **Not on Linux**:
+  Tauri's tray there loads `libayatana-appindicator` at run time, a
+  native library the packages do not depend on, and GNOME shows no tray
+  without an extension — a new native dependency, so the Linux app keeps
+  the status bar's mark and Settings only. *Open Settings* brings a window
+  forward on the *This app is a server* section.
+- **(b) The served window is trimmed**: no source maps in `ui-web` (see
+  *As built*): 103.4 MB to 49.0 MB.
+- **(c) The certificate's 398 days and its key in the local database**:
+  accepted as built.
+- **(d) IPv6 link-local is not served**: accepted as built.
 
 **Accepted (2026-10-15).** Written by Sonnet 5.5 at the request of the
 session that holds the roadmap (Proposed the same day). The maintainer,

@@ -79,6 +79,17 @@ chrono = { version = "0.4", default-features = false, features = ["clock"] }
 # dev-dependency of the tests of a window on a server.
 verso-server = { path = "../../crates/verso-server" }
 
+# The menu-bar mark of "this app is a server" (src/tray.rs; ADR 0096 item 1,
+# built on 2026-10-15): Tauri's own tray API, on macOS and Windows only. Not
+# on Linux: its tray loads libayatana-appindicator at run time, a native
+# library the packages do not depend on and that GNOME does not show without
+# an extension. `tray-icon` is Tauri's own feature (tray-icon 0.24.2 and
+# muda 0.19.3 are already in the lockfile); it replaces nothing of ours. The
+# mark is shipped as raw RGBA, so that `image-png` and the `image` crate it
+# pulls in stay out of the tree.
+[target.'cfg(any(target_os = "macos", windows))'.dependencies]
+tauri = { version = "2", features = ["unstable", "devtools", "tray-icon"] }
+
 [target.'cfg(target_os = "macos")'.dependencies]
 # Clearing the download quarantine from the CLI binary and an extracted
 # update, without shelling out to `xattr` (ADR 0029, the subprocess rule).
