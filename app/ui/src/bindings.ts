@@ -551,7 +551,7 @@ export const commands = {
 	localServerSettings: (keepOn: boolean, certFile: string | null, keyFile: string | null, hostName: string | null) => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_settings", { keepOn, certFile, keyFile, hostName })),
 	localServerStart: () => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_start")),
 	localServerStop: () => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_stop")),
-	localServerPairOpen: () => typedError<LocalPairing, ContractError>(__TAURI_INVOKE("local_server_pair_open")),
+	localServerPairOpen: (address: string | null) => typedError<LocalPairing, ContractError>(__TAURI_INVOKE("local_server_pair_open", { address })),
 	localServerPairClose: () => typedError<null, ContractError>(__TAURI_INVOKE("local_server_pair_close")),
 	localServerPairState: () => typedError<LocalPairState, ContractError>(__TAURI_INVOKE("local_server_pair_state")),
 	/**
@@ -1616,6 +1616,22 @@ export type LinkRewrite = {
 	after: string,
 };
 
+/**  One address the pairing dialog may show. */
+export type LocalAddressChoice = {
+	address: string,
+	/**  The interface's name (`en7`, `feth237`). */
+	interface: string,
+	/**  `lan` (Wi-Fi, Ethernet) or `virtual` (a VPN, ZeroTier, a bridge...). */
+	kind: string,
+	/**
+	 *  What a virtual interface probably is (`ZeroTier`, `VPN`): a guess
+	 *  from its name, shown with a question mark.
+	 */
+	hint: string | null,
+	/**  The address the system uses for its default route. */
+	default_route: boolean,
+};
+
 /**  A phone that presented the token and waits for the laptop's answer. */
 export type LocalAsked = {
 	/**  The phone's name, as it sent it, made safe. */
@@ -1663,6 +1679,14 @@ export type LocalPairing = {
 	url: string,
 	/**  `address:port`, to type. */
 	address: string,
+	/**
+	 *  Every address that could be shown, best first (the default route's,
+	 *  then real networks, then virtual ones), so the person can pick
+	 *  another. Empty when the host's own certificate and name are used.
+	 */
+	choices: LocalAddressChoice[],
+	/**  The address (no port) this QR and link are for. */
+	chosen: string,
 	/**  The code to type when the phone cannot scan: eight letters. */
 	code: string,
 	/**  The QR as rows of `1` (dark) and `0`; the window draws it. */

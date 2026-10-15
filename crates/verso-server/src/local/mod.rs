@@ -422,11 +422,31 @@ pub struct Status {
 pub struct PairView {
     pub url: String,
     pub address: String,
+    /// Every address that can be shown, best first, with what each is.
+    /// Empty when the host's own certificate and name are used: then the
+    /// name is the only address.
+    pub choices: Vec<AddressChoice>,
+    /// The address (no port) the QR and the link are for.
+    pub chosen: String,
     pub code: String,
     pub qr: Vec<String>,
     pub expires_in: u64,
     pub fingerprint: String,
     pub certificate: String,
+}
+
+/// One address the pairing dialog may show (ADR 0096 item 3, as built).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AddressChoice {
+    pub address: String,
+    pub interface: String,
+    /// `lan` (Wi-Fi, Ethernet) or `virtual` (a VPN, ZeroTier, a bridge...).
+    pub kind: String,
+    /// What a virtual interface probably is, a guess (`ZeroTier`, `VPN`).
+    pub hint: Option<String>,
+    /// The address of the system's default route.
+    pub default_route: bool,
 }
 
 /// The dialog's state, polled while it is open.
@@ -645,7 +665,9 @@ impl LocalServer {
                 "this build of the app has no web files for the phone (web.html): reinstall the app, or build the window first (npm run build in app/ui)".to_owned()
             })?;
         let all = self.shared.ifaces.list();
-        let nets = self.addresses(&all);
+        // Best first: the default route's address, then real networks, then
+        // virtual ones (a VPN's, ZeroTier's): `nets[0]` is what is shown.
+        let nets = net::rank(&self.addresses(&all), self.shared.ifaces.default_route());
         if nets.is_empty() {
             return Err(
                 "this computer has no private network address: join a Wi-Fi or Ethernet network, then turn it on again"
@@ -893,6 +915,14 @@ impl LocalServer {
     /// Open the pairing window and say what the dialog shows. Needs serving
     /// to be on.
     pub fn pair_open(&self) -> Result<PairView, String> {
+        self.pair_open_on(None)
+    }
+
+    /// As [`Self::pair_open`], for the address the person picked (`None`:
+    /// the best one). The certificate names every address served, so any
+    /// of them is valid; a new window (a new one-time token and code)
+    /// replaces the one that was open.
+    pub fn pair_open_on(&self, address: Option<&str>) -> Result<PairView, String> {
         let running = lock(&self.shared.inner);
         let r = running
             .as_ref()
@@ -902,13 +932,44 @@ impl LocalServer {
                 "{PAIRED} phones are paired already: revoke one before pairing another"
             ));
         }
+        let chosen_net = match address.filter(|a| !a.is_empty()) {
+            None => &r.nets[0],
+            Some(a) => r
+                .nets
+                .iter()
+                .find(|n| n.ip.to_string() == a)
+                .ok_or_else(|| format!("{a} is not an address this computer serves now"))?,
+        };
+        let default = self.shared.ifaces.default_route();
         let opened = r.policy.pairing().open(Instant::now())?;
         let settings_name = read_settings(&r.server.db)
             .host_name
             .filter(|h| !h.is_empty());
         let authority = match settings_name {
             Some(h) if r.certificate == "files" => format!("{h}:{}", r.port),
-            _ => net::authority(r.nets[0].ip, r.port),
+            _ => net::authority(chosen_net.ip, r.port),
+        };
+        let named = r.certificate == "files"
+            && authority
+                .rsplit_once(':')
+                .is_some_and(|(h, _)| h.parse::<IpAddr>().is_err());
+        let choices: Vec<AddressChoice> = if named {
+            Vec::new()
+        } else {
+            r.nets
+                .iter()
+                .map(|n| AddressChoice {
+                    address: n.ip.to_string(),
+                    interface: n.name.clone(),
+                    kind: match net::kind_of(&n.name) {
+                        net::Kind::Lan => "lan",
+                        net::Kind::Virtual => "virtual",
+                    }
+                    .to_owned(),
+                    hint: net::hint_of(&n.name).map(str::to_owned),
+                    default_route: Some(n.ip) == default,
+                })
+                .collect()
         };
         let payload = qr::Payload {
             authority: authority.clone(),
@@ -925,6 +986,8 @@ impl LocalServer {
         Ok(PairView {
             url,
             address: authority,
+            choices,
+            chosen: chosen_net.ip.to_string(),
             code: opened.code,
             qr: matrix,
             expires_in: opened.expires_in.as_secs(),

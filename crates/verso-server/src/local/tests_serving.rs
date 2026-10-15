@@ -881,3 +881,38 @@ fn a_serving_app_reaches_itself() {
         assert!(!said(&lab).contains(&Event::Unreachable));
     });
 }
+
+/// The pairing dialog says which address the QR is for, with its interface,
+/// lists every address served so the person can pick another, and refuses
+/// an address that is not served. The certificate names every address
+/// served, so any pick is valid and none needs a new certificate.
+#[test]
+fn the_pairing_dialog_names_its_address_and_takes_a_pick() {
+    run(async {
+        let mut lab = lab();
+        *lab.table.1.lock().unwrap() = Some("127.0.0.1".parse().unwrap());
+        lab.serve();
+        let view = lab.local.pair_open().unwrap();
+        assert_eq!(view.chosen, "127.0.0.1");
+        assert_eq!(view.choices.len(), 1);
+        let c = &view.choices[0];
+        assert_eq!(
+            (c.address.as_str(), c.interface.as_str()),
+            ("127.0.0.1", "en0")
+        );
+        assert_eq!(c.kind, "lan");
+        assert!(c.default_route);
+        assert!(view.url.contains("127.0.0.1"), "{}", view.url);
+        // Picking an address again opens a new window: a new token.
+        let again = lab.local.pair_open_on(Some("127.0.0.1")).unwrap();
+        assert_ne!(Lab::token(&view), Lab::token(&again));
+        // The old token no longer pairs; the new one does.
+        let (old, _) = lab
+            .post("/api/pair", json!({ "token": Lab::token(&view) }), None)
+            .await;
+        assert_eq!(old, 410);
+        // An address that is not served is refused, in words.
+        let err = lab.local.pair_open_on(Some("10.0.0.9")).unwrap_err();
+        assert!(err.contains("10.0.0.9"), "{err}");
+    });
+}

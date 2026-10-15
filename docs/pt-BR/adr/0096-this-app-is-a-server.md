@@ -527,6 +527,22 @@ de outro jeito):
   pergunta no primeiro bind e, com a caixa que a janela manda deixar
   desmarcada, só deixa entrar redes Privadas (item 9). A ajuda de "o
   firewall recusa" do diálogo tem um parágrafo para o Windows.
+- **Qual endereço o pareamento mostra** (item 3, como construído em
+  2026-10-15): a primeira versão mostrava o primeiro endereço privado que
+  listava, que num Mac era a interface virtual do ZeroTier. Agora os
+  endereços são ordenados: primeiro o que o sistema usaria na rota padrão —
+  achado ao conectar um socket UDP a um endereço de documentação
+  (`192.0.2.1`), o que só consulta a tabela de rotas e não envia nada, sem
+  dependência nova —, depois as interfaces que parecem reais, depois as
+  virtuais pelo nome (`utun*`, `feth*`, `zt*`, `tailscale*`, `wg*`, `tun*`,
+  `tap*`, `docker*`, `br-*`, `vbox*`, `vmnet*`, `bridge*`, `veth*`, e
+  adaptadores do Windows chamados ZeroTier, Tailscale, VPN, Hyper-V,
+  VirtualBox, vEthernet). O diálogo de pareamento diz para qual endereço e
+  interface é o QR ("192.168.3.122 — en7 (rede local)") e uma lista deixa
+  escolher outro ("10.147.11.197 — feth237 (rede virtual: ZeroTier?)");
+  escolher abre uma nova janela de pareamento — novo token de uso único e
+  novo código. O certificado não muda: ele já nomeia **todos** os endereços
+  servidos, então qualquer escolha é válida.
 - **O servidor** é o mesmo crate e o mesmo despacho do `verso serve`
   (`crates/verso-server/src/local`), com uma tabela de rotas menor — sem
   login, convite, página de conta, console, token, passkey nem fluxo de

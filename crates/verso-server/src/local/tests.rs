@@ -20,11 +20,15 @@ use crate::db::Role;
 use crate::tests::block_on;
 
 /// The machine's interfaces, as a test table the test can change.
-pub(super) struct Table(pub Mutex<Vec<IfNet>>);
+pub(super) struct Table(pub Mutex<Vec<IfNet>>, pub Mutex<Option<std::net::IpAddr>>);
 
 impl Interfaces for Table {
     fn list(&self) -> Vec<IfNet> {
         self.0.lock().unwrap().clone()
+    }
+
+    fn default_route(&self) -> Option<std::net::IpAddr> {
+        *self.1.lock().unwrap()
     }
 }
 
@@ -62,9 +66,10 @@ pub(super) fn lab_with(addresses: &[&str], loopback: bool) -> Lab {
     let folder = notes.path().join("Campanha");
     crate::data::ensure_dir(&folder).unwrap();
     crate::data::write_for_tests(&folder.join("Sessao.md"), "# Sessao\n");
-    let table = Arc::new(Table(Mutex::new(
-        addresses.iter().map(|a| net(a)).collect(),
-    )));
+    let table = Arc::new(Table(
+        Mutex::new(addresses.iter().map(|a| net(a)).collect()),
+        Mutex::new(None),
+    ));
     let events = Arc::new(Mutex::new(Vec::new()));
     let sink = Arc::clone(&events);
     let local = LocalServer::for_tests(

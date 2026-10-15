@@ -56,7 +56,7 @@ test("a phone is paired only when the laptop says Allow, and can then be revoked
   const dialog = page.getByRole("dialog", { name: "Parear um celular" });
   // The QR, the address and the code as text, for a person who cannot scan.
   await expect(dialog.getByRole("img", { name: "QR de pareamento" })).toBeVisible();
-  await expect(dialog.getByText("https://192.168.1.20:51234/pair")).toBeVisible();
+  await expect(dialog.getByText("https://192.168.3.122:51234/pair")).toBeVisible();
   await expect(dialog.getByText("BCDF-GHJK")).toBeVisible();
   await expect(dialog.getByText("Para uma rede em que você confia", { exact: false })).toBeVisible();
   await expect(dialog.getByText(/Vale por mais \d+:\d\d/)).toBeVisible();
@@ -118,4 +118,30 @@ test("closing the pairing dialog ends the window", async ({ app, page }) => {
   await expect
     .poll(async () => (await page.evaluate(() => window.__harness.core.invoke("local_server_pair_state", {}))).open)
     .toBe(false);
+});
+
+test("the pairing dialog names the address and interface, and picking another makes a new QR", async ({ app, page }) => {
+  await app.open();
+  await section(app);
+  const body = page.locator(".settings-body");
+  await body.getByRole("checkbox", { name: "Vault" }).check();
+  await body.getByRole("button", { name: "Ligar o servidor" }).click();
+  await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
+  await body.getByRole("button", { name: "Parear um celular" }).click();
+  const dialog = page.getByRole("dialog", { name: "Parear um celular" });
+  // The real network first, not ZeroTier's or the VPN's.
+  const pick = dialog.getByRole("combobox", { name: "Endereço que o celular vai usar" });
+  await expect(pick).toHaveValue("192.168.3.122");
+  await expect(pick.locator("option")).toHaveText([
+    "192.168.3.122 — en7 (rede local)",
+    "10.147.11.197 — feth237 (rede virtual: ZeroTier?)",
+    "10.217.1.73 — utun4 (rede virtual: VPN?)",
+  ]);
+  await expect(dialog.getByText("https://192.168.3.122:51234/pair")).toBeVisible();
+  // Picking another address by keyboard asks for a new window and says so.
+  await pick.selectOption("10.147.11.197");
+  await expect(dialog.getByText("https://10.147.11.197:51234/pair")).toBeVisible();
+  await expect(dialog.getByText("Novo QR para 10.147.11.197.")).toBeVisible();
+  await expect(pick).toBeFocused();
+  await expect(pick).toHaveValue("10.147.11.197");
 });
