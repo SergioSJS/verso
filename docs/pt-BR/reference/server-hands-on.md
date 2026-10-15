@@ -19,9 +19,13 @@
   2026-10-13, sem rodar estes blocos numa máquina de verdade. As
   verificações que existem são as da seção 15 do manual; as receitas de
   Caddy, nginx e Tailscale estão entre o que ela lista como não
-  verificado. Os lugares onde uma captura de tela ajudaria estão marcados
-  no fonte desta página (`<!-- screenshot: … -->`) para o mantenedor
-  capturar.
+  verificado. As capturas de tela foram feitas em
+  2026-10-15 contra um `verso serve` de verdade (0.8.2-beta.1) num
+  container, com dados de exemplo: as páginas do servidor e o console; o
+  bloco do terminal é o que o `universo.sh` imprime. As duas imagens de
+  Ajustes › Servidores do app vêm da janela do app no harness de testes do
+  navegador, respondendo como um servidor conectado. O passo do console da
+  Oracle fica sem imagem.
 
 ## O que você ganha
 
@@ -124,7 +128,42 @@ espera o servidor responder e imprime os próximos passos. **Guarde essa
 saída**: ela traz o link que cria o primeiro admin. Depois vá ao A.4 para
 a linha do proxy.
 
-<!-- screenshot: o terminal no fim do `sh universo.sh install` (com LANG em pt): "O UniVerso está rodando. Agora:" com o link de configuração, as linhas do Caddy e as portas -->
+O fim do que ele imprime é assim (o código do link é de exemplo; o seu é outro):
+
+```text
+O UniVerso está rodando. Agora:
+
+1. O primeiro admin (seção 9 do manual).
+   Abra este link (vale uma hora, uma vez) e crie a conta do admin:
+     https://notas.exemplo.com/setup?token=Zk3pX0aQv7LmN2rT9yBc
+   Ele saiu no log (sudo journalctl -u universo). Se a hora passar,
+   reinicie o serviço para ter outro: sudo systemctl restart universo
+   O link fica no journal até o journal descartá-lo na rotação, legível pelo
+   root e pelos grupos adm e systemd-journal: use-o agora. Depois que o admin
+   existe, ou passada a hora, ele não abre nada.
+
+2. HTTPS (seção 8). O servidor não deixa ninguém entrar por HTTP puro de outra máquina. Ou:
+   a. Caddy, com um domínio cujo DNS aponta para esta máquina:
+        sudo apt install caddy
+        sudo mkdir -p /etc/caddy/Caddyfile.d
+        printf '%s {\n\treverse_proxy 127.0.0.1:%s\n}\n' 'notas.exemplo.com' '7340' | sudo tee /etc/caddy/Caddyfile.d/universo.caddyfile
+        sudo grep -qs 'import  *Caddyfile.d/' /etc/caddy/Caddyfile || printf '\nimport Caddyfile.d/*.caddyfile\n' | sudo tee -a /etc/caddy/Caddyfile
+        sudo systemctl reload caddy
+      Um Caddyfile que já exista fica como está: o site vai num arquivo próprio,
+      e o Caddyfile só ganha a linha de import, no fim, quando não a tiver.
+      (Um Caddyfile que seja um site só, sem chaves, precisa de { } em volta das linhas antes.)
+      e no /etc/universo/universo.env: VERSO_PUBLIC_URL=https://notas.exemplo.com e VERSO_TRUSTED_PROXY=127.0.0.1,
+      depois: sudo systemctl restart universo
+   b. Tailscale, para os seus aparelhos: tailscale serve --bg 7340
+      e VERSO_PUBLIC_URL=https://<máquina>.<tailnet>.ts.net
+
+3. Portas. Para o Caddy, 80 e 443 precisam chegar a esta máquina: sh universo.sh firewall
+   abre aqui; uma nuvem tem também as suas (na Oracle: a security list da VCN).
+   A porta 7340 fica fechada: o Caddy chega nela nesta máquina.
+
+Depois conecte o app: Ajustes › Servidores, o endereço https://notas.exemplo.com. Backup com: sh universo.sh backup
+Manual: https://github.com/SergioSJS/verso/blob/main/docs/reference/server-install.md
+```
 
 ### A.3 Ou à mão, com a assinatura conferida
 
@@ -262,8 +301,6 @@ dela. Na Oracle Cloud: *Networking › Virtual cloud networks* › a sua VCN ›
 CIDR `0.0.0.0/0`, IP protocol TCP, destination port range `80,443`
 ([o passo a passo da Oracle](universo-on-oracle-free.md), escrito a partir
 da documentação da Oracle, não conferido num console de verdade).
-
-<!-- screenshot: o console da Oracle Cloud, Add Ingress Rules na Default Security List, com 0.0.0.0/0, TCP e 80,443 preenchidos -->
 
 ### A.7 O log
 
@@ -693,7 +730,7 @@ antes do `@` ([ADR 0083](../adr/0083-security-hardening-of-universo.md)
 item 3) — a página diz *Essa senha está nas listas que atacantes tentam
 primeiro* e pede outra.
 
-<!-- screenshot: o navegador em https://notas.exemplo.com/setup?token=…, a página "Primeiro acesso" com E-mail, Nome, Senha nova e Criar conta -->
+![A página Primeiro acesso do servidor no navegador, com E-mail (ana@exemplo.com), Nome (Ana Souza), Senha nova (oculta) e Idioma preenchidos, e o botão Criar conta embaixo.](img/server-hands-on/01-first-start.png)
 
 ### E-mail, opcional
 
@@ -724,7 +761,7 @@ No app Verso do seu computador:
    navegador. (Quando o sistema recusa a cópia, a linha diz *Digite este
    código na página que abriu:* no lugar.)
 
-<!-- screenshot: Ajustes › Servidores do app, o campo "Endereço do servidor" com https://notas.exemplo.com e o botão Conectar; e a linha "Código copiado — cole na página que abriu: … Esperando…" com um código -->
+![Ajustes › Servidores do app: o campo Endereço do servidor com https://notas.exemplo.com e o botão Conectar, e embaixo a linha "Código copiado — cole na página que abriu: BCDF-GHJK. Esperando…". Captura da janela do app no harness de testes do navegador, que responde como um servidor; o app de verdade é igual.](img/server-hands-on/02-app-connect.png)
 
 ### Aprovando o aparelho no navegador
 
@@ -768,10 +805,13 @@ começa sem confirmação, então a primeira ação dessas sempre pede, e de nov
 sempre que a última confirmação passou de 10 minutos (item 6). No app só a
 senha confirma; uma passkey é do navegador.
 
-<!-- screenshot: a página "Conectar um aplicativo" no navegador pedindo o código: o campo "Código do aplicativo", vazio, e Continuar -->
-<!-- screenshot: a página "Conectar um aplicativo" no navegador: Quem pediu, Aparelho, Endereço, Quando, e os botões "Aprovar este aparelho: …" e "Não fui eu: recusar" -->
-<!-- screenshot: a janela "Confirme que é você" sobre a página do aparelho (versão de depois da v0.8.0-beta.1) -->
-<!-- screenshot: Ajustes › Servidores do app depois de conectar: "Conectado como …" e "Pastas em notas.exemplo.com" com Abrir aqui e Sincronizar -->
+![A página Conectar um aplicativo no navegador pedindo o código: o campo Código do aplicativo, vazio, com a dica (oito letras, como BCDF-GHJK) e o botão Continuar.](img/server-hands-on/03-device-code.png)
+
+![A página Conectar um aplicativo depois de digitado o código: Quem pediu, com o código informado, o aparelho (Verso · MacBook de Ana), o endereço e a hora, e os botões "Aprovar este aparelho: Verso · MacBook de Ana" e "Não fui eu: recusar".](img/server-hands-on/04-device-approve.png)
+
+![A janela "Confirme que é você" sobre a página do aparelho, dizendo que a última confirmação foi há mais de 10 minutos e pedindo a senha, com os botões Confirmar, Usar uma passkey e Cancelar.](img/server-hands-on/05-device-confirm.png)
+
+![Ajustes › Servidores depois de conectar: "Conectado como Ana Souza <ana@exemplo.com>.", depois o servidor notas.exemplo.com com a pasta Campanha, o papel (edita) e os botões Abrir aqui e Sincronizar. Captura da janela do app no harness de testes do navegador, que responde como um servidor; o app de verdade é igual.](img/server-hands-on/06-app-connected.png)
 
 ### Uma pasta, e uma segunda pessoa
 
@@ -800,8 +840,9 @@ antes e a põe no convite:
 A página de convites lista cada um como pendente, usado (e por quem),
 expirado ou encerrado, e **Encerrar** cancela um ainda não usado.
 
-<!-- screenshot: a página Convites do console: a linha Novo convite (E-mail, Pasta, Papel, Convidar) e o link mostrado com Copiar -->
-<!-- screenshot: o navegador da pessoa convidada na página "Convite", com a linha da pasta e do papel e Criar conta -->
+![A página Convites do console: a linha Novo convite com E-mail, Pasta (Campanha), Papel (editor) e o botão Convidar, o link do convite com o botão Copiar, e embaixo a lista com um convite pendente para bruno@exemplo.com.](img/server-hands-on/07-invitations.png)
+
+![A página Convite que a pessoa convidada vê no navegador: "Você foi convidado para este servidor Verso. Com acesso à pasta “Campanha” como editor.", com o E-mail já preenchido (bruno@exemplo.com), Nome, Senha nova, Idioma e o botão Criar conta.](img/server-hands-on/08-invite-page.png)
 
 ### O que o console mostra
 
@@ -823,8 +864,9 @@ expirado ou encerrado, e **Encerrar** cancela um ainda não usado.
 - **Servidor**: a configuração em vigor, que se muda no ambiente (as
   variáveis `VERSO_*`), não ali.
 
-<!-- screenshot: a Visão geral do console com Versão, Conexão segura "atrás de um proxy reverso" e E-mail -->
-<!-- screenshot: o Registro do console com uma linha "entrou" e uma "aprovou o aparelho", a coluna Endereço mostrando um endereço público -->
+![A Visão geral do console com os cartões: pede atenção, totais, Versão, Armazenamento, E-mail (não configurado: os links são copiados à mão), Registro e Conexão segura dizendo "atrás de um proxy reverso".](img/server-hands-on/09-overview.png)
+
+![O Registro do console: linhas "setup", "registrou a pasta", "entrou", "criou um convite", "usou o convite", "confirmou que é ela mesma" e "aprovou o aparelho", com a coluna Endereço mostrando o endereço público 203.0.113.42 e não 127.0.0.1.](img/server-hands-on/10-log.png)
 
 ## Quando quebra
 
