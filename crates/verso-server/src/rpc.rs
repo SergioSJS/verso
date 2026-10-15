@@ -203,8 +203,9 @@ fn places(
     // (a second tab) without taking another place.
     let phone = match (&ctx.server.local, who.phone, who.session()) {
         (Some(local), Some(_), Some(session)) => {
+            let name = local.name_of(&ctx.server, session);
             let guard = local
-                .enter(session)
+                .enter(session, &name)
                 .ok_or_else(|| too_many("the phones connected", crate::local::CONNECTED))?;
             local.first_seen(&ctx.server, session);
             Some(guard)

@@ -47,9 +47,30 @@ pub fn line(level: &str, message: &str) {
         .collect();
     let said = format!("{level} {message}");
     eprintln!("{} {said}", stamp());
+    // A host that keeps a log of its own (the desktop app's file) hears
+    // the line too (ADR 0096 item 14).
+    if let Some(sink) = SINK.lock().ok().and_then(|s| *s) {
+        sink(level, &message);
+    }
     #[cfg(test)]
     if let Ok(mut kept) = SAID.lock() {
         kept.push(said);
+    }
+}
+
+/// Where a host wants every line as well: the desktop app's log file,
+/// which has no standard error to read ("this app is a server" serves from
+/// inside it).
+static SINK: std::sync::Mutex<Option<Sink>> = std::sync::Mutex::new(None);
+
+/// A host's hearing of a line: `(level, message)`.
+pub type Sink = fn(&str, &str);
+
+/// Hand every line said from now on to `sink`, `(level, message)`; `None`
+/// stops it.
+pub fn set_sink(sink: Option<Sink>) {
+    if let Ok(mut s) = SINK.lock() {
+        *s = sink;
     }
 }
 
