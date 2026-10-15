@@ -555,6 +555,12 @@ const TILE_ORIGINS_MOST: usize = 32;
 /// own answer's, so it names the approved tile origins as the page does.
 const MAP_WORKER: &str = "/maplibre-worker.mjs";
 
+/// The service worker that keeps the window and the folders made available
+/// offline (ADR 0092 item 2): the server's own file, at the root so that its
+/// scope is the whole window. Never kept by the browser's HTTP cache: a new
+/// build of the window is a new worker, and the browser must see it.
+const SERVICE_WORKER: &str = "/sw.js";
+
 /// The origins the person signed in has approved for maps' tiles, from
 /// their settings (`mapTileOrigins`), each written back only as
 /// `scheme://host[:port]` of http(s), letters, digits, dots and hyphens:
@@ -722,6 +728,7 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
         .unwrap_or_default();
     let is_file = request.uri().path().starts_with("/f/");
     let is_worker = request.uri().path() == MAP_WORKER;
+    let is_service_worker = request.uri().path() == SERVICE_WORKER;
     let asked_by = request.headers().clone();
     let mut response = next.run(request).await;
     let h = response.headers_mut();
@@ -769,7 +776,7 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
             &page_policy(&ws_origin, &tiles),
         );
     }
-    if (html || is_worker) && !is_file {
+    if (html || is_worker || is_service_worker) && !is_file {
         h.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     }
     if server.config.tls.is_some()
