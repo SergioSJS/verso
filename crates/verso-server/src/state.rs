@@ -575,6 +575,31 @@ impl Server {
         }
     }
 
+    /// A paired phone's role was changed from the computer (ADR 0096): its
+    /// open windows learn it at once, and one that may now only read leaves
+    /// the rooms it wrote in, as a member demoted in a share does.
+    pub fn phone_role_changed(&self, session: &str, role: Role) {
+        let mut demoted = Vec::new();
+        {
+            let mut table = lock(&self.clients);
+            for (id, c) in table.iter_mut() {
+                if c.session.as_deref() != Some(session) {
+                    continue;
+                }
+                if let Some((folder, _)) = c.folder.take() {
+                    c.folder = Some((folder, role));
+                }
+                c.tx.send(&serde_json::json!({ "role": role }));
+                if !role.writes() {
+                    demoted.push(id.clone());
+                }
+            }
+        }
+        for client in demoted {
+            crate::collab::readers::demoted(self, &client);
+        }
+    }
+
     /// A member's role in a folder changed or ended: the windows of theirs
     /// that show it learn it, and one that may no longer see it is told to
     /// leave, and `why` (`revoked` by an owner, `left` by the member).

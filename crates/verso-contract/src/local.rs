@@ -83,6 +83,12 @@ pub struct LocalPairing {
     pub url: String,
     /// `address:port`, to type.
     pub address: String,
+    /// Every address that could be shown, best first (the default route's,
+    /// then real networks, then virtual ones), so the person can pick
+    /// another. Empty when the host's own certificate and name are used.
+    pub choices: Vec<LocalAddressChoice>,
+    /// The address (no port) this QR and link are for.
+    pub chosen: String,
     /// The code to type when the phone cannot scan: eight letters.
     pub code: String,
     /// The QR as rows of `1` (dark) and `0`; the window draws it.
@@ -92,6 +98,21 @@ pub struct LocalPairing {
     /// `own` or `files`: with `own`, the dialog says the limit in words
     /// (trust on first use, for a network the person trusts).
     pub certificate: String,
+}
+
+/// One address the pairing dialog may show.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LocalAddressChoice {
+    pub address: String,
+    /// The interface's name (`en7`, `feth237`).
+    pub interface: String,
+    /// `lan` (Wi-Fi, Ethernet) or `virtual` (a VPN, ZeroTier, a bridge...).
+    pub kind: String,
+    /// What a virtual interface probably is (`ZeroTier`, `VPN`): a guess
+    /// from its name, shown with a question mark.
+    pub hint: Option<String>,
+    /// The address the system uses for its default route.
+    pub default_route: bool,
 }
 
 /// A phone that presented the token and waits for the laptop's answer.

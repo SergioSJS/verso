@@ -100,7 +100,15 @@ export class LocalServerHarness {
       this.asked = null;
       return this.status();
     },
-    local_server_pair_open: (): LocalPairing => {
+    local_server_pair_open: (a): LocalPairing => {
+      const address = typeof a["address"] === "string" ? a["address"] : null;
+      const choices = [
+        { address: "192.168.3.122", interface: "en7", kind: "lan", hint: null, default_route: true },
+        { address: "10.147.11.197", interface: "feth237", kind: "virtual", hint: "ZeroTier", default_route: false },
+        { address: "10.217.1.73", interface: "utun4", kind: "virtual", hint: "VPN", default_route: false },
+      ];
+      if (address !== null && !choices.some((c) => c.address === address)) refuse(`${address} is not an address this computer serves now`);
+      const chosen = address ?? "192.168.3.122";
       if (!this.serving) refuse("turn serving on first");
       if (this.paired.length >= 4) refuse("4 phones are paired already: revoke one before pairing another");
       this.open = true;
@@ -111,8 +119,10 @@ export class LocalServerHarness {
       const n = 29 + 8;
       const rows = Array.from({ length: n }, (_, y) => Array.from({ length: n }, (_, x) => (x >= 4 && y >= 4 && x < n - 4 && y < n - 4 && ((x * 7 + y * 3) % 5 < 2 || (x < 11 && y < 11)) ? "1" : "0")).join(""));
       return {
-        url: "https://192.168.1.20:51234/pair#t=harness&fp=abcd&c=0123456789abcdef",
-        address: "192.168.1.20:51234",
+        url: `https://${chosen}:51234/pair#t=harness&fp=abcd&c=0123456789abcdef`,
+        address: `${chosen}:51234`,
+        choices,
+        chosen,
         code: "BCDF-GHJK",
         qr: rows,
         expires_in: 120,
@@ -140,6 +150,13 @@ export class LocalServerHarness {
       return null;
     },
     local_server_phones: (): LocalPhone[] => this.paired.map((p) => ({ ...p })),
+    local_server_phone_role: (a): null => {
+      const phone = this.paired.find((p) => p.id === String(a["id"]));
+      if (!phone) refuse("that phone is not paired");
+      phone.role = a["editor"] === true ? "editor" : "reader";
+      this.log(`phone_role_${phone.role}`, phone.name);
+      return null;
+    },
     local_server_revoke: (a): null => {
       const at = this.paired.findIndex((p) => p.id === String(a["id"]));
       if (at < 0) refuse("that phone is not paired");

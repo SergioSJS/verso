@@ -64,6 +64,100 @@ pub fn servable(all: &[IfNet]) -> Vec<IfNet> {
     out
 }
 
+/// What an interface looks like by its name: a real network of the room
+/// (Wi-Fi, Ethernet) or a virtual one (a VPN, a bridge, a container's).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Kind {
+    Lan,
+    Virtual,
+}
+
+/// Name prefixes (compared in lower case) of virtual interfaces, and the
+/// program each usually means, for a hint the person reads with a question
+/// mark: a name is a guess, not a fact.
+const VIRTUAL: &[(&str, &str)] = &[
+    ("feth", "ZeroTier"),
+    ("zt", "ZeroTier"),
+    ("zerotier", "ZeroTier"),
+    ("tailscale", "Tailscale"),
+    ("utun", "VPN"),
+    ("tun", "VPN"),
+    ("tap", "VPN"),
+    ("ppp", "VPN"),
+    ("wg", "WireGuard"),
+    ("docker", "Docker"),
+    ("br-", "Docker"),
+    ("vethernet", "Hyper-V"),
+    ("hyper-v", "Hyper-V"),
+    ("veth", "Docker"),
+    ("vboxnet", "VirtualBox"),
+    ("virtualbox", "VirtualBox"),
+    ("vmnet", "VMware"),
+    ("vmware", "VMware"),
+    ("bridge", "bridge"),
+    ("vpn", "VPN"),
+    ("virbr", "libvirt"),
+    ("lxc", "container"),
+    ("cni", "container"),
+    ("flannel", "container"),
+];
+
+/// The hint of a virtual interface's name: the program it probably is.
+fn virtual_hint(name: &str) -> Option<&'static str> {
+    let low = name.to_lowercase();
+    VIRTUAL
+        .iter()
+        .find(|(p, _)| low.starts_with(p) || (p.len() > 3 && low.contains(p)))
+        .map(|(_, what)| *what)
+}
+
+/// Whether an interface of this name is a real network or a virtual one.
+#[must_use]
+pub fn kind_of(name: &str) -> Kind {
+    if virtual_hint(name).is_some() {
+        Kind::Virtual
+    } else {
+        Kind::Lan
+    }
+}
+
+/// What a virtual interface probably is (`ZeroTier`, `VPN`...), for the
+/// hint beside its address; none for a real network.
+#[must_use]
+pub fn hint_of(name: &str) -> Option<&'static str> {
+    virtual_hint(name)
+}
+
+/// The addresses ordered for choosing one to show: the one the system
+/// would use for its default route first, then the real networks, then the
+/// virtual ones; within a group, by address, so the order is stable. A
+/// default route that is not among `nets` (public, or not served) counts
+/// for nothing.
+#[must_use]
+pub fn rank(nets: &[IfNet], default_route: Option<IpAddr>) -> Vec<IfNet> {
+    let mut out = nets.to_vec();
+    out.sort_by_key(|n| {
+        (
+            Some(n.ip) != default_route,
+            kind_of(&n.name) == Kind::Virtual,
+            n.ip,
+        )
+    });
+    out
+}
+
+/// The address the system would send from towards the internet, found
+/// without sending anything: a UDP socket "connected" to an address of the
+/// documentation range (RFC 5737) only asks the routing table, and no
+/// packet leaves. IPv4 only (IPv6 link-local is not served).
+#[must_use]
+pub fn default_route_v4() -> Option<IpAddr> {
+    let socket = std::net::UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).ok()?;
+    socket.connect((Ipv4Addr::new(192, 0, 2, 1), 9)).ok()?;
+    let ip = socket.local_addr().ok()?.ip();
+    (!ip.is_unspecified()).then_some(ip)
+}
+
 /// Whether `ip` is inside `net`'s subnet.
 #[must_use]
 pub fn same_subnet(net: &IfNet, ip: IpAddr) -> bool {
@@ -132,12 +226,22 @@ pub fn tailscale_seen(all: &[IfNet]) -> bool {
 /// test.
 pub trait Interfaces: Send + Sync {
     fn list(&self) -> Vec<IfNet>;
+
+    /// The address of the default route, when known (a test's table says
+    /// it without asking the system).
+    fn default_route(&self) -> Option<IpAddr> {
+        None
+    }
 }
 
 /// The system's interfaces.
 pub struct System;
 
 impl Interfaces for System {
+    fn default_route(&self) -> Option<IpAddr> {
+        default_route_v4()
+    }
+
     fn list(&self) -> Vec<IfNet> {
         let Ok(found) = if_addrs::get_if_addrs() else {
             return Vec::new();
@@ -282,6 +386,72 @@ mod tests {
         assert!(!same_set(&a, &other));
         assert!(!same_set(&a, &a[..1]));
         assert!(!same_set(&a, &[]));
+    }
+
+    /// The maintainer's Mac: ZeroTier's `feth237`, a VPN's `utun4` and the
+    /// real network `en7`. The real one comes first, with or without the
+    /// default-route answer; the default route wins over the names.
+    #[test]
+    fn the_real_network_comes_before_the_virtual_ones() {
+        let nets = |a: &str, b: &str, c: &str| {
+            [("feth237", a), ("utun4", b), ("en7", c)]
+                .map(|(name, ip)| IfNet {
+                    ip: ip.parse().unwrap(),
+                    prefix: 24,
+                    name: name.to_owned(),
+                })
+                .to_vec()
+        };
+        let set = nets("10.147.11.197", "10.217.1.73", "192.168.3.122");
+        let order = |l: &[IfNet]| l.iter().map(|n| n.name.clone()).collect::<Vec<_>>();
+        assert_eq!(order(&rank(&set, None)), ["en7", "feth237", "utun4"]);
+        let default = "192.168.3.122".parse().ok();
+        assert_eq!(order(&rank(&set, default)), ["en7", "feth237", "utun4"]);
+        // The default route beats the names: here it is the VPN's.
+        let vpn = "10.217.1.73".parse().ok();
+        assert_eq!(order(&rank(&set, vpn)), ["utun4", "en7", "feth237"]);
+        // A default route that is not served counts for nothing.
+        let public = "203.0.113.9".parse().ok();
+        assert_eq!(order(&rank(&set, public)), ["en7", "feth237", "utun4"]);
+    }
+
+    #[test]
+    fn interfaces_are_told_real_from_virtual_by_name() {
+        for real in [
+            "en0", "en7", "eth0", "enp3s0", "wlan0", "wlp2s0", "Ethernet", "Wi-Fi",
+        ] {
+            assert_eq!(kind_of(real), Kind::Lan, "{real}");
+        }
+        for (name, hint) in [
+            ("feth237", "ZeroTier"),
+            ("zt5u4abc", "ZeroTier"),
+            ("utun4", "VPN"),
+            ("tailscale0", "Tailscale"),
+            ("wg0", "WireGuard"),
+            ("tun0", "VPN"),
+            ("docker0", "Docker"),
+            ("br-1a2b3c", "Docker"),
+            ("veth12ab", "Docker"),
+            ("vboxnet0", "VirtualBox"),
+            ("vmnet8", "VMware"),
+            ("bridge100", "bridge"),
+            ("vEthernet (WSL)", "Hyper-V"),
+            ("ZeroTier One [abc]", "ZeroTier"),
+            ("Tailscale", "Tailscale"),
+            ("VirtualBox Host-Only Network", "VirtualBox"),
+        ] {
+            assert_eq!(kind_of(name), Kind::Virtual, "{name}");
+            assert_eq!(hint_of(name), Some(hint), "{name}");
+        }
+    }
+
+    /// The routing-table question sends nothing and, on a machine with a
+    /// route, answers with one of the machine's own addresses.
+    #[test]
+    fn the_default_route_is_asked_without_sending() {
+        if let Some(ip) = default_route_v4() {
+            assert!(ip.is_ipv4() && !ip.is_unspecified());
+        }
     }
 
     #[test]

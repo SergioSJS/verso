@@ -514,11 +514,18 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .settings-heading { font-family: var(--ui); font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin: 1.2rem 0 .3rem; }
 .settings-subheading { font-family: var(--ui); font-size: .74rem; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-2); margin: 1.6rem 0 .4rem; padding-bottom: .35rem; border-bottom: 1px solid var(--hair); font-weight: 600; }
 .settings-hint { font-size: .82rem; color: var(--ink-3); margin: 0 0 .6rem; }
-.setting { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; padding: .8rem 0; border-bottom: 1px solid var(--hair); }
+.setting { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1.5rem; padding: .8rem 0; border-bottom: 1px solid var(--hair); }
 /* The text keeps a width of its own: a long status beside it (the MCP's
    "Added… copy of the previous one: …") squeezed it into a column a word
    wide (seen 2026-10-08). */
-.setting-text { min-width: 0; flex: 1 1 16rem; }
+.setting-text { min-width: min(14rem, 100%); flex: 1 1 16rem; }
+/* The control beside the text never takes the text's width: a value too
+   long to sit beside it wraps under the title (the row stacks) and wraps
+   its own words in its own column (seen 2026-10-15: "Lixeira" and "Espaço"
+   had a description one word per line). */
+.setting > :not(.setting-text) { min-width: 0; max-width: 100%; margin-inline-start: auto; }
+.trash-summary .setting-value { white-space: normal; overflow-wrap: anywhere; flex: 1 1 14rem; text-align: start; }
+.setting > .setting-value, .setting > .trash-summary { white-space: normal; overflow-wrap: anywhere; }
 .setting-actions { min-width: 0; max-width: 60%; }
 .setting-actions .setting-value { white-space: normal; overflow-wrap: anywhere; text-align: right; }
 .setting-title { font-size: .93rem; color: var(--ink); }

@@ -113,6 +113,19 @@ impl Db {
         Ok(role.as_deref().and_then(Role::parse))
     }
 
+    /// Phone `id` now has `role` (a reader or an editor, never above):
+    /// true when it was a phone.
+    pub fn set_phone_role(&self, id: &str, role: &str) -> R<bool> {
+        Ok(self
+            .conn()
+            .execute(
+                "UPDATE phones SET role = ?2 WHERE session = ?1",
+                params![id, role],
+            )
+            .map_err(e)?
+            > 0)
+    }
+
     /// The phones paired and still standing (not idle for 14 days, not
     /// older than 90), freshest use first.
     pub fn phones(&self) -> R<Vec<Phone>> {

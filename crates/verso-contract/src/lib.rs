@@ -21,8 +21,8 @@ use specta::Type;
 
 mod local;
 pub use local::{
-    LocalAsked, LocalAudit, LocalFolder, LocalPairState, LocalPairing, LocalPhone,
-    LocalServerStatus,
+    LocalAddressChoice, LocalAsked, LocalAudit, LocalFolder, LocalPairState, LocalPairing,
+    LocalPhone, LocalServerStatus,
 };
 mod maps;
 pub use maps::{MapInfo, MapState};
@@ -1177,6 +1177,14 @@ pub enum ErrorKind {
     ProveFirst,
     /// The core could not answer.
     Failed,
+    /// A paired phone asked for a command that acts on the computer it is
+    /// paired with, or that is the owner's (ADR 0096 item 12): no phone
+    /// runs it, whatever its role.
+    NotOnPhone,
+    /// A phone that may only read asked for a command that changes
+    /// something (ADR 0096 items 6 and 12): the person lets it edit from
+    /// the computer.
+    PhoneReads,
 }
 
 /// An error as the UI receives it. `message` is the core's text, in

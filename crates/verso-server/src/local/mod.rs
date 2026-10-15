@@ -87,6 +87,8 @@ type Sink = Arc<dyn Fn(Event) + Send + Sync>;
 pub struct PhoneGuard {
     map: Arc<Mutex<HashMap<String, u32>>>,
     session: String,
+    /// The phone's name, for the log's line when its last connection ends.
+    name: String,
 }
 
 impl Drop for PhoneGuard {
@@ -96,6 +98,8 @@ impl Drop for PhoneGuard {
             *n = n.saturating_sub(1);
             if *n == 0 {
                 held.remove(&self.session);
+                drop(held);
+                crate::log::info(&format!("a paired phone disconnected: {}", self.name));
             }
         }
     }
@@ -213,16 +217,34 @@ impl Policy {
     /// a phone connected already takes another connection without taking
     /// another place.
     #[must_use]
-    pub fn enter(&self, session: &str) -> Option<PhoneGuard> {
+    pub fn enter(&self, session: &str, name: &str) -> Option<PhoneGuard> {
         let mut held = lock(&self.connected);
         if !held.contains_key(session) && held.len() >= CONNECTED as usize {
             return None;
         }
+        let first = !held.contains_key(session);
         *held.entry(session.to_owned()).or_insert(0) += 1;
+        drop(held);
+        if first {
+            crate::log::info(&format!("a paired phone connected: {name}"));
+        }
         Some(PhoneGuard {
             map: Arc::clone(&self.connected),
             session: session.to_owned(),
+            name: name.to_owned(),
         })
+    }
+
+    /// A phone's name, for the log; empty when it is not found.
+    #[must_use]
+    pub fn name_of(&self, server: &Server, session: &str) -> String {
+        server
+            .db
+            .phones()
+            .ok()
+            .and_then(|p| p.into_iter().find(|p| p.id == session))
+            .map(|p| p.name)
+            .unwrap_or_default()
     }
 
     /// How many phones are connected now.
@@ -422,11 +444,31 @@ pub struct Status {
 pub struct PairView {
     pub url: String,
     pub address: String,
+    /// Every address that can be shown, best first, with what each is.
+    /// Empty when the host's own certificate and name are used: then the
+    /// name is the only address.
+    pub choices: Vec<AddressChoice>,
+    /// The address (no port) the QR and the link are for.
+    pub chosen: String,
     pub code: String,
     pub qr: Vec<String>,
     pub expires_in: u64,
     pub fingerprint: String,
     pub certificate: String,
+}
+
+/// One address the pairing dialog may show (ADR 0096 item 3, as built).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AddressChoice {
+    pub address: String,
+    pub interface: String,
+    /// `lan` (Wi-Fi, Ethernet) or `virtual` (a VPN, ZeroTier, a bridge...).
+    pub kind: String,
+    /// What a virtual interface probably is, a guess (`ZeroTier`, `VPN`).
+    pub hint: Option<String>,
+    /// The address of the system's default route.
+    pub default_route: bool,
 }
 
 /// The dialog's state, polled while it is open.
@@ -645,7 +687,9 @@ impl LocalServer {
                 "this build of the app has no web files for the phone (web.html): reinstall the app, or build the window first (npm run build in app/ui)".to_owned()
             })?;
         let all = self.shared.ifaces.list();
-        let nets = self.addresses(&all);
+        // Best first: the default route's address, then real networks, then
+        // virtual ones (a VPN's, ZeroTier's): `nets[0]` is what is shown.
+        let nets = net::rank(&self.addresses(&all), self.shared.ifaces.default_route());
         if nets.is_empty() {
             return Err(
                 "this computer has no private network address: join a Wi-Fi or Ethernet network, then turn it on again"
@@ -738,9 +782,14 @@ impl LocalServer {
         }
         let id = self.shared.next.fetch_add(1, Ordering::Relaxed);
         let tailscale = net::tailscale_seen(&all_for_hint(&self.shared));
+        let on: Vec<String> = nets
+            .iter()
+            .map(|n| format!("{} ({})", n.ip, n.name))
+            .collect();
         crate::log::info(&format!(
-            "UniVerso-compatible local server on {} address(es), port {port}, certificate: {certificate}",
-            nets.len()
+            "local server on: {}; port {port}; certificate: {certificate}; {} folder(s)",
+            on.join(", "),
+            settings.folders.len()
         ));
         policy.audit(
             &server,
@@ -893,6 +942,14 @@ impl LocalServer {
     /// Open the pairing window and say what the dialog shows. Needs serving
     /// to be on.
     pub fn pair_open(&self) -> Result<PairView, String> {
+        self.pair_open_on(None)
+    }
+
+    /// As [`Self::pair_open`], for the address the person picked (`None`:
+    /// the best one). The certificate names every address served, so any
+    /// of them is valid; a new window (a new one-time token and code)
+    /// replaces the one that was open.
+    pub fn pair_open_on(&self, address: Option<&str>) -> Result<PairView, String> {
         let running = lock(&self.shared.inner);
         let r = running
             .as_ref()
@@ -902,13 +959,44 @@ impl LocalServer {
                 "{PAIRED} phones are paired already: revoke one before pairing another"
             ));
         }
+        let chosen_net = match address.filter(|a| !a.is_empty()) {
+            None => &r.nets[0],
+            Some(a) => r
+                .nets
+                .iter()
+                .find(|n| n.ip.to_string() == a)
+                .ok_or_else(|| format!("{a} is not an address this computer serves now"))?,
+        };
+        let default = self.shared.ifaces.default_route();
         let opened = r.policy.pairing().open(Instant::now())?;
         let settings_name = read_settings(&r.server.db)
             .host_name
             .filter(|h| !h.is_empty());
         let authority = match settings_name {
             Some(h) if r.certificate == "files" => format!("{h}:{}", r.port),
-            _ => net::authority(r.nets[0].ip, r.port),
+            _ => net::authority(chosen_net.ip, r.port),
+        };
+        let named = r.certificate == "files"
+            && authority
+                .rsplit_once(':')
+                .is_some_and(|(h, _)| h.parse::<IpAddr>().is_err());
+        let choices: Vec<AddressChoice> = if named {
+            Vec::new()
+        } else {
+            r.nets
+                .iter()
+                .map(|n| AddressChoice {
+                    address: n.ip.to_string(),
+                    interface: n.name.clone(),
+                    kind: match net::kind_of(&n.name) {
+                        net::Kind::Lan => "lan",
+                        net::Kind::Virtual => "virtual",
+                    }
+                    .to_owned(),
+                    hint: net::hint_of(&n.name).map(str::to_owned),
+                    default_route: Some(n.ip) == default,
+                })
+                .collect()
         };
         let payload = qr::Payload {
             authority: authority.clone(),
@@ -920,11 +1008,13 @@ impl LocalServer {
         let matrix = qr::matrix(&url)?;
         r.policy.start_announcing();
         r.policy.audit(&r.server, "pair_open", None, None);
-        crate::log::info("the pairing window opened");
+        crate::log::info(&format!("the pairing window opened, for {}", chosen_net.ip));
         (self.shared.events)(Event::Changed);
         Ok(PairView {
             url,
             address: authority,
+            choices,
+            chosen: chosen_net.ip.to_string(),
             code: opened.code,
             qr: matrix,
             expires_in: opened.expires_in.as_secs(),
@@ -994,7 +1084,10 @@ impl LocalServer {
                 Some(&asked.device),
                 Some(&asked.address),
             );
-            crate::log::info("a pairing was refused at the computer");
+            crate::log::info(&format!(
+                "a pairing was refused at the computer: {} ({})",
+                asked.device, asked.address
+            ));
             drop(running);
             (self.shared.events)(Event::Changed);
             return Ok(());
@@ -1029,7 +1122,12 @@ impl LocalServer {
             Some(&asked.device),
             Some(&asked.address),
         );
-        crate::log::info(&format!("a phone was allowed as {}", role.as_str()));
+        crate::log::info(&format!(
+            "a pairing was approved at the computer: {} ({}) as {}",
+            asked.device,
+            asked.address,
+            role.as_str()
+        ));
         drop(running);
         (self.shared.events)(Event::Changed);
         Ok(())
@@ -1041,6 +1139,43 @@ impl LocalServer {
             db.purge_phones()?;
             db.phones()
         })
+    }
+
+    /// Let a paired phone edit, or only read, without pairing it again. A
+    /// phone is a reader or an editor, never above; the change holds from
+    /// its next command, its open windows are told, and an editor made a
+    /// reader leaves the live rooms it wrote in. Logged and in the audit.
+    pub fn set_phone_role(&self, id: &str, editor: bool) -> Result<(), String> {
+        let running = lock(&self.shared.inner);
+        let r = running
+            .as_ref()
+            .ok_or_else(|| "serving is off".to_owned())?;
+        let role = if editor { Role::Editor } else { Role::Reader };
+        let name = r
+            .server
+            .db
+            .phones()?
+            .into_iter()
+            .find(|p| p.id == id)
+            .map(|p| p.name)
+            .ok_or_else(|| "that phone is not paired".to_owned())?;
+        if !r.server.db.set_phone_role(id, role.as_str())? {
+            return Err("that phone is not paired".to_owned());
+        }
+        r.server.phone_role_changed(id, role);
+        r.policy.audit(
+            &r.server,
+            &format!("phone_role_{}", role.as_str()),
+            Some(&name),
+            None,
+        );
+        crate::log::info(&format!(
+            "a paired phone's role is now {}: {name}",
+            role.as_str()
+        ));
+        drop(running);
+        (self.shared.events)(Event::Changed);
+        Ok(())
     }
 
     /// Revoke one phone: its session ends and its open connection closes at
@@ -1081,8 +1216,10 @@ impl LocalServer {
             })?;
             (ended, name)
         };
-        let _ = name;
-        crate::log::info("a phone was revoked");
+        crate::log::info(&format!(
+            "a paired phone was revoked: {}",
+            name.as_deref().unwrap_or("unknown")
+        ));
         (self.shared.events)(Event::Changed);
         if ended {
             Ok(())

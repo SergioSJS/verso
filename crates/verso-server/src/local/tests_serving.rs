@@ -287,14 +287,13 @@ fn a_command_off_the_allowlist_is_refused() {
             "sync_state",
             "sync_put",
             "trash_empty",
-            "set_walk_rules",
             "local_server_start",
             "local_server_pair_open",
             "a_command_added_tomorrow",
         ] {
             id += 1;
             let answer = call(&mut ws, id, cmd, json!({})).await;
-            assert_eq!(answer["err"]["kind"], "refused", "{cmd}: {answer}");
+            assert_eq!(answer["err"]["kind"], "not_on_phone", "{cmd}: {answer}");
             assert!(answer.get("ok").is_none(), "{cmd} was run: {answer}");
         }
         // And what is on the list still works, for this editor.
@@ -325,7 +324,7 @@ fn a_reader_phone_cannot_write() {
             (6, "collab_update", json!({})),
         ] {
             let answer = call(&mut ws, id, cmd, args).await;
-            assert_eq!(answer["err"]["kind"], "refused", "{cmd}: {answer}");
+            assert_eq!(answer["err"]["kind"], "phone_reads", "{cmd}: {answer}");
         }
         let notes = call(&mut ws, 7, "list_notes", json!({})).await;
         assert_eq!(
@@ -364,14 +363,8 @@ fn an_editor_phone_writes_and_is_never_an_owner() {
         // A phone is paired as a reader or an editor and never above it.
         let phones = lab.local.phones().unwrap();
         assert_eq!(phones[0].role, Role::Editor);
-        let owner_only = call(
-            &mut ws,
-            4,
-            "set_walk_rules",
-            json!({ "builtinIgnores": true, "gitignore": true }),
-        )
-        .await;
-        assert_eq!(owner_only["err"]["kind"], "refused");
+        let owner_only = call(&mut ws, 4, "trash_empty", json!({})).await;
+        assert_eq!(owner_only["err"]["kind"], "not_on_phone");
         // The role chosen for a pairing is clamped: asking for the owner's
         // is an editor's.
         let cookie2 = lab.pair("iPad", true, Role::Owner).await.unwrap();
@@ -879,5 +872,249 @@ fn a_serving_app_reaches_itself() {
         assert_eq!(tried, 1, "the try was made and the address answered");
         assert!(!lab.local.status().unwrap().unreachable);
         assert!(!said(&lab).contains(&Event::Unreachable));
+    });
+}
+
+/// The pairing dialog says which address the QR is for, with its interface,
+/// lists every address served so the person can pick another, and refuses
+/// an address that is not served. The certificate names every address
+/// served, so any pick is valid and none needs a new certificate.
+#[test]
+fn the_pairing_dialog_names_its_address_and_takes_a_pick() {
+    run(async {
+        let mut lab = lab();
+        *lab.table.1.lock().unwrap() = Some("127.0.0.1".parse().unwrap());
+        lab.serve();
+        let view = lab.local.pair_open().unwrap();
+        assert_eq!(view.chosen, "127.0.0.1");
+        assert_eq!(view.choices.len(), 1);
+        let c = &view.choices[0];
+        assert_eq!(
+            (c.address.as_str(), c.interface.as_str()),
+            ("127.0.0.1", "en0")
+        );
+        assert_eq!(c.kind, "lan");
+        assert!(c.default_route);
+        assert!(view.url.contains("127.0.0.1"), "{}", view.url);
+        // Picking an address again opens a new window: a new token.
+        let again = lab.local.pair_open_on(Some("127.0.0.1")).unwrap();
+        assert_ne!(Lab::token(&view), Lab::token(&again));
+        // The old token no longer pairs; the new one does.
+        let (old, _) = lab
+            .post("/api/pair", json!({ "token": Lab::token(&view) }), None)
+            .await;
+        assert_eq!(old, 410);
+        // An address that is not served is refused, in words.
+        let err = lab.local.pair_open_on(Some("10.0.0.9")).unwrap_err();
+        assert!(err.contains("10.0.0.9"), "{err}");
+    });
+}
+
+/// The web window, loading on a paired phone, asks a few commands of its
+/// own before anything else (`main.ts`): the embed origins, the walk's
+/// rules, the history days, the folder note's name, the menu's language, the
+/// capabilities and the folder. None of them may be refused — the maintainer
+/// saw "Erro: ... (not from a phone)" the first time a phone paired
+/// (2026-10-15). The two that would change the laptop's folder settings
+/// (the walk's rules and the folder note's name) are heard and change
+/// nothing; the window's log lines are heard and dropped.
+#[test]
+fn the_web_window_loads_on_a_phone_with_no_refusal() {
+    run(async {
+        for role in [Role::Reader, Role::Editor] {
+            let mut lab = lab();
+            lab.serve();
+            let cookie = lab.pair("Android", true, role).await.unwrap();
+            let mut ws = open(&lab, &cookie).await;
+            let mut id = 20;
+            for (cmd, args) in [
+                ("set_embed_origins", json!({ "origins": [] })),
+                (
+                    "set_walk_rules",
+                    json!({ "builtinIgnores": false, "gitignore": false }),
+                ),
+                ("set_history_days", json!({ "days": 365 })),
+                ("set_folder_note_name", json!({ "name": "index" })),
+                ("set_menu_language", json!({ "language": "pt" })),
+                ("log_write", json!({ "level": "INFO", "message": "x" })),
+                ("open_initial", json!({})),
+                ("capabilities", json!({})),
+                ("app_info", json!({})),
+                ("current_folder", json!({})),
+                ("reindex", json!({})),
+                ("list_notes", json!({})),
+            ] {
+                id += 1;
+                let answer = call(&mut ws, id, cmd, args).await;
+                assert!(answer.get("err").is_none(), "{cmd} as {role:?}: {answer}");
+            }
+        }
+    });
+}
+
+static LOGGED: std::sync::Mutex<Vec<(String, String)>> = std::sync::Mutex::new(Vec::new());
+
+fn keep_line(level: &str, message: &str) {
+    LOGGED
+        .lock()
+        .unwrap()
+        .push((level.to_owned(), message.to_owned()));
+}
+
+/// ADR 0096 item 14: the app's own log has the mode's life — on and off
+/// with the addresses and the port, the pairing's events, the phones'
+/// sessions and the refusals — and never a token, a code, the QR's text, the
+/// fingerprint, a cookie or a note's words. The host's log file hears the
+/// same lines through the server's log sink.
+#[test]
+fn the_log_has_the_modes_life_and_no_secret() {
+    run(async {
+        crate::log::set_sink(Some(keep_line));
+        let mut lab = lab();
+        lab.serve();
+        // A pairing refused at the computer, one approved, a command refused
+        // and the phone revoked.
+        assert!(
+            lab.pair("Moto Refusado", false, Role::Reader)
+                .await
+                .is_none()
+        );
+        let view = lab.local.pair_open().unwrap();
+        let wrong = lab
+            .post("/api/pair", json!({ "token": "not-the-token" }), None)
+            .await;
+        assert_eq!(wrong.0, 410);
+        let cookie = lab.pair("Moto Aprovado", true, Role::Reader).await.unwrap();
+        let mut ws = open(&lab, &cookie).await;
+        let note = call(&mut ws, 2, "read_note", json!({ "path": "Sessao.md" })).await;
+        assert!(note.get("ok").is_some());
+        let refused = call(&mut ws, 3, "reveal", json!({ "path": "Sessao.md" })).await;
+        assert_eq!(refused["err"]["kind"], "not_on_phone");
+        drop(ws);
+        // The server notices the closed socket on its own time.
+        for _ in 0..100 {
+            let gone = LOGGED
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|(_, m)| m.contains("a paired phone disconnected: Moto Aprovado"));
+            if gone {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+        let phones = lab.local.phones().unwrap();
+        let aprovado = phones.iter().find(|p| p.name == "Moto Aprovado").unwrap();
+        lab.local.revoke(&aprovado.id).unwrap();
+        lab.local.stop();
+        crate::log::set_sink(None);
+
+        let lines: Vec<(String, String)> = LOGGED
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(_, m)| !m.contains("test-other"))
+            .cloned()
+            .collect();
+        let has = |level: &str, what: &str| {
+            assert!(
+                lines.iter().any(|(l, m)| l == level && m.contains(what)),
+                "no {level} line with {what:?} in {lines:#?}"
+            );
+        };
+        has("INFO", "local server on: 127.0.0.1 (en0); port ");
+        has("INFO", "the pairing window opened, for 127.0.0.1");
+        has(
+            "INFO",
+            "a pairing was refused at the computer: Moto Refusado",
+        );
+        has(
+            "INFO",
+            "a pairing was approved at the computer: Moto Aprovado",
+        );
+        has("INFO", "a paired phone connected: Moto Aprovado");
+        has("INFO", "a paired phone disconnected: Moto Aprovado");
+        has("INFO", "a paired phone was revoked: Moto Aprovado");
+        has("INFO", "local server stopped");
+        has(
+            "WARN",
+            "a paired phone ran a command that is not its to run: reveal",
+        );
+        has("WARN", "a wrong or reused pairing token");
+        // Secrets: the token and the code of the window, the QR's text, the
+        // fingerprint (both forms), the session cookie and the note's text.
+        let parsed = super::qr::parse(&view.url).unwrap();
+        let secrets = [
+            parsed.token.as_str(),
+            view.code.as_str(),
+            view.url.as_str(),
+            view.fingerprint.as_str(),
+            parsed.fingerprint.as_str(),
+            cookie.as_str(),
+            cookie.split_once('=').map_or("", |c| c.1),
+            "# Sessao",
+            "not-the-token",
+        ];
+        for (level, message) in &lines {
+            for secret in secrets {
+                assert!(
+                    secret.is_empty() || !message.contains(secret),
+                    "{level} line carries a secret ({secret:?}): {message}"
+                );
+            }
+        }
+    });
+}
+
+/// A paired phone's role is changed from the computer without pairing again
+/// (the maintainer paired as a reader and had to forget the device to edit):
+/// at once for a phone that is connected — its next write is accepted, and
+/// after the demotion refused, with the window told its role — logged and
+/// listed in the audit.
+#[test]
+fn a_paired_phones_role_changes_at_once() {
+    run(async {
+        let mut lab = lab();
+        lab.serve();
+        let cookie = lab.pair("Pixel", true, Role::Reader).await.unwrap();
+        let mut ws = open(&lab, &cookie).await;
+        let note = call(&mut ws, 2, "read_note", json!({ "path": "Sessao.md" })).await;
+        let revision = note["ok"]["revision"].as_str().unwrap().to_owned();
+        let write = |text: &str, revision: &str| json!({ "path": "Sessao.md", "text": text, "revision": revision });
+        let denied = call(&mut ws, 3, "write_note", write("# a\n", &revision)).await;
+        assert_eq!(denied["err"]["kind"], "phone_reads", "{denied}");
+        let id = lab.local.phones().unwrap()[0].id.clone();
+
+        lab.local.set_phone_role(&id, true).unwrap();
+        assert_eq!(lab.local.phones().unwrap()[0].role, Role::Editor);
+        let told = next(&mut ws).await;
+        assert_eq!(told["role"], "editor", "{told}");
+        let done = call(&mut ws, 4, "write_note", write("# b\n", &revision)).await;
+        assert!(done.get("ok").is_some(), "{done}");
+        let revision = done["ok"]["note"]["revision"].as_str().unwrap().to_owned();
+
+        lab.local.set_phone_role(&id, false).unwrap();
+        let told = next(&mut ws).await;
+        assert_eq!(told["role"], "reader", "{told}");
+        let denied = call(&mut ws, 5, "write_note", write("# c\n", &revision)).await;
+        assert_eq!(denied["err"]["kind"], "phone_reads", "{denied}");
+
+        // Listed in the audit, and a phone that is not paired is refused.
+        let actions: Vec<String> = lab
+            .local
+            .audit()
+            .unwrap()
+            .into_iter()
+            .map(|a| a.action)
+            .collect();
+        assert!(
+            actions.contains(&"phone_role_editor".to_owned()),
+            "{actions:?}"
+        );
+        assert!(
+            actions.contains(&"phone_role_reader".to_owned()),
+            "{actions:?}"
+        );
+        assert!(lab.local.set_phone_role("nobody", true).is_err());
     });
 }

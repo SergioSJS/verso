@@ -94,7 +94,10 @@ export function form(
   explain: (e: unknown) => string,
 ): { form: HTMLFormElement; error: HTMLElement } {
   const error = el("p", { class: "web-error", role: "alert" });
-  const go = el("button", { type: "submit", class: "web-primary" }, ...(typeof button === "string" ? [button] : button));
+  // One inline span: the button is a flex row, and without it each piece
+  // of a label ("Approve this device: " and the name) would be a column.
+  const label = el("span", { class: "web-btn-text" }, ...(typeof button === "string" ? [button] : button));
+  const go = el("button", { type: "submit", class: "web-primary" }, label);
   const f = el("form", { class: "web-form", novalidate: "" }, ...fields.map((x) => x.row), error, go);
   f.addEventListener("submit", (e) => {
     e.preventDefault();

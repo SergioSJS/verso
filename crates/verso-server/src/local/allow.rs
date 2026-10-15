@@ -81,6 +81,9 @@ pub const READ: &[&str] = &[
     "note_made_from_template",
     "set_history_days",
     "fetch_file",
+    "set_walk_rules",
+    "set_folder_note_name",
+    "log_write",
 ];
 
 /// Commands only a phone the person let edit runs: those that change a
@@ -167,9 +170,6 @@ pub const REFUSED: &[&str] = &[
     "share_list",
     "share_revoke",
     "log_read",
-    "log_write",
-    "set_walk_rules",
-    "set_folder_note_name",
     "set_folder_settings",
     "set_sync_focuses",
     "trash_empty",
@@ -203,12 +203,20 @@ pub fn verdict(cmd: &str) -> Verdict {
     }
 }
 
-fn refused(message: &str) -> ContractError {
+fn refused(kind: ErrorKind, message: &str) -> ContractError {
     ContractError {
-        kind: ErrorKind::Refused,
+        kind,
         message: message.to_owned(),
     }
 }
+
+/// Commands the web window asks while it loads or reports that a phone
+/// answers **without acting** (`rpc.rs`): the walk's rules and the folder
+/// note's name are the folder's own, set from the computer; the window's
+/// log lines are not written into the computer's log from a phone. They are
+/// on the reader's list so that the window's start is not refused (the
+/// maintainer saw "not from a phone" on the first pairing, 2026-10-15).
+pub const HEARD: &[&str] = &["set_walk_rules", "set_folder_note_name", "log_write"];
 
 /// Whether a phone of `role` may run `cmd`; the refusal says why, in the
 /// contract's own words.
@@ -217,9 +225,10 @@ pub fn check(cmd: &str, role: Role) -> Result<(), ContractError> {
         Verdict::Allow => Ok(()),
         Verdict::Editor if role.writes() => Ok(()),
         Verdict::Editor => Err(refused(
+            ErrorKind::PhoneReads,
             "this phone only reads: let it edit from the computer's Settings",
         )),
-        Verdict::Refuse => Err(refused("not from a phone")),
+        Verdict::Refuse => Err(refused(ErrorKind::NotOnPhone, "not from a phone")),
     }
 }
 
@@ -330,6 +339,17 @@ mod tests {
         }
     }
 
+    /// What the window asks while it loads is answered, and what would
+    /// change the laptop's folder settings is heard without acting.
+    #[test]
+    fn what_the_window_asks_while_loading_is_not_refused() {
+        for cmd in HEARD {
+            for role in [Role::Reader, Role::Editor] {
+                assert!(check(cmd, role).is_ok(), "{cmd} as {role:?}");
+            }
+        }
+    }
+
     /// What acts on the laptop is refused to every role: even an owner's
     /// role on the folder opens none of it (a phone is never an owner).
     #[test]
@@ -344,7 +364,6 @@ mod tests {
             "download_and_install_update",
             "restart_app",
             "log_read",
-            "log_write",
             "install_cli",
             "mcp_add_claude",
             "share_grant",
@@ -353,7 +372,6 @@ mod tests {
             "sync_put",
             "sync_state",
             "trash_empty",
-            "set_walk_rules",
             "local_server_start",
             "local_server_pair_open",
             "local_server_answer",

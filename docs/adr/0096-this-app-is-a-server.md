@@ -510,6 +510,51 @@ decision; each is a question for the maintainer if it should be otherwise):
   with the box the window tells the person to leave unticked, lets only
   Private networks in (item 9). The dialog's "firewall refuses" help has
   a Windows paragraph.
+- **Which address the pairing shows** (item 3, as built 2026-10-15): the
+  first build showed the first private address it listed, which on one Mac
+  was ZeroTier's virtual interface. Now the addresses are ranked: the one
+  the system would use for its default route first — found by connecting a
+  UDP socket to a documentation address (`192.0.2.1`), which asks the
+  routing table and sends nothing, with no new dependency —, then
+  interfaces that look real, then virtual ones by name (`utun*`, `feth*`,
+  `zt*`, `tailscale*`, `wg*`, `tun*`, `tap*`, `docker*`, `br-*`, `vbox*`,
+  `vmnet*`, `bridge*`, `veth*`, and Windows adapters named ZeroTier,
+  Tailscale, VPN, Hyper-V, VirtualBox, vEthernet). The pairing dialog says
+  which address and interface the QR is for ("192.168.3.122 — en7 (local
+  network)") and a list lets the person pick another ("10.147.11.197 —
+  feth237 (virtual network: ZeroTier?)"); picking opens a new pairing
+  window — a new one-time token and code. The certificate needs no change:
+  it already names **every** address served, so any pick is valid.
+- **A paired phone's role can be changed** (items 6 and 15, as built
+  2026-10-15): the first build fixed the role at pairing, so letting a
+  reader edit meant forgetting the phone and pairing again. Each row of
+  *Paired phones* has a *Can edit* switch (reader or editor, never above).
+  The change holds from the phone's next command (the server reads the
+  role again for every command), the phone's open windows are told, and an
+  editor made a reader leaves the live rooms it wrote in through the same
+  path as a member demoted in a share. It is logged (`verso.log`) and in
+  *What happened* (`phone_role_editor`, `phone_role_reader`).
+- **What the log holds** (item 14, as built 2026-10-15): the server crate's
+  log lines also go to the app's `verso.log` (source `local`): serving on
+  and off with the addresses and the port, the pairing window opening,
+  ending, expiring, a pairing approved or refused, a phone connected,
+  disconnected and revoked, a phone's role changed, and a command refused
+  to a phone (WARN, at most once a minute). Never a token, a code, the QR's
+  text, the fingerprint, a cookie or a note's words; a test looks for each.
+- **What a phone's window asks while it loads** (item 12, as built
+  2026-10-15): `set_walk_rules`, `set_folder_note_name` and `log_write` are
+  answered and do nothing for a phone (they are the folder settings' and
+  the log's, set from the computer); refusals carry their own error kinds
+  (`not_on_phone`, `phone_reads`) so the window says them in its language.
+- **A copyable pairing link** (item 7, as built 2026-10-15): beside the
+  QR, *Copy link* copies the same `https://<address>:<port>/pair#…` the QR
+  encodes, for the address chosen in the list, and says *Link copied — good
+  for 2 minutes, once*. The link carries the **same one-time 2-minute
+  token** as the QR; the token and the fingerprint are in the fragment, which
+  a browser never sends to any server, so a messenger's link preview cannot
+  read it; and the computer's *Was it you?* approval still gates the
+  pairing, as for the QR. Anyone who gets the link inside the two minutes
+  and opens it first is the one the computer asks about.
 - **The server** is the same crate and the same dispatch as `verso serve`
   (`crates/verso-server/src/local`), with a smaller table of routes — no
   sign-in, invitation, account page, console, token, passkey or device
