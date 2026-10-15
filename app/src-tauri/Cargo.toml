@@ -105,5 +105,21 @@ tempfile = "3.27"
 ring = "0.17"
 blake2 = "0.10"
 
-[lints]
-workspace = true
+# The workspace's lints, written out rather than inherited, for one
+# difference: `unsafe_code` is `deny` here, not `forbid`, so that the two
+# files of src/web_clip that clip an embedded page natively can allow it
+# (ADR 0029, revision of 2026-10-15, the maintainer's decision "A e B
+# juntos"). A `forbid` cannot be allowed anywhere, and Cargo cannot
+# inherit the workspace's lints but one. scripts/check-unsafe.mjs holds
+# this table to the workspace's and `unsafe` to those two files. Every
+# `unsafe` block says why it is sound (`undocumented_unsafe_blocks`) and
+# does one unsafe thing (`multiple_unsafe_ops_per_block`).
+[lints.rust]
+unsafe_code = "deny"
+
+[lints.clippy]
+unwrap_used = "forbid"
+expect_used = "forbid"
+disallowed_methods = "forbid"
+undocumented_unsafe_blocks = "forbid"
+multiple_unsafe_ops_per_block = "forbid"
