@@ -365,6 +365,31 @@ in a note long enough to scroll.
   em Nota*; *Linkar todas* names how many; in the plan, Tab reaches each
   note's diff and it is read as a list of changes.
 
+### Link suggestions while typing (ADR 0089 item 5, feat/typing-links, 2026-10-15)
+
+- [ ] **In the app, on a folder of your own** (A): Settings › Editor shows
+  "Sugerir links enquanto escrevo" off, with "Pastas ignoradas" and
+  "Nomes ignorados" under it. Typing a note's name in a note shows nothing.
+  Turn it on, with no restart: type the whole name of a note, then an
+  alias, then the name in another case: "Ligar a [[Nome]]" at the cursor
+  each time, the text untouched; Tab writes `[[Nome]]` or `[[Nome|texto]]`
+  with the cursor after it and ⌘Z takes the link back to the typed words;
+  Enter does the same; Esc and typing on dismiss it, and the same name
+  typed again in the paragraph shows nothing, in the next paragraph shows
+  it. Nothing inside `` `code` ``, a fenced block, `[[…`, a `$…$` formula,
+  or the note's own name. A name in "Nomes ignorados" and a note in an
+  ignored folder are not offered. `verso.log`: no ERROR.
+- [ ] **On a UniVerso** (A): in a live note with another person in it,
+  accept a suggestion: the link appears in the other person's editor and no
+  conflict copy comes. A reader of the folder, typing is impossible and no
+  chip shows.
+- [ ] **On a phone** (A): the chip appears above the cursor, big enough for
+  a finger, with no "Tab"; a tap writes the link and the keyboard stays up.
+- [ ] **With VoiceOver** (A): when the chip appears it is read once,
+  politely, "Sugestão de link: Nome, Tab para aceitar" (on a phone "toque
+  para aceitar"); after Tab, "Link criado para Nome."; it never takes the
+  focus from the text.
+
 ### The infobox (ADR 0086, feat/infobox, 2026-10-14)
 
 - [ ] **A typed note as a card beside its text** (A): open

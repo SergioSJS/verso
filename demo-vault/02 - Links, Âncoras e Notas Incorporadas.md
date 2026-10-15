@@ -92,6 +92,10 @@ Quem só lê uma pasta num servidor vê a lista, sem os botões.
 > [!example] Experimente
 > Esta frase escreve o nome Lia Torres sem link. Abra a nota dela (⌘P e o nome dela), vá em **Links** no painel da direita e, em **Menções sem link**, clique em **Linkar** na linha desta nota: a frase passa a ter o link.
 
+### Sugestões enquanto escrevo
+
+Em **Ajustes › Editor**, **Sugerir links enquanto escrevo** (desligado por padrão) faz o Verso oferecer o link no instante em que você acaba de digitar o nome inteiro de uma nota, ou um dos apelidos dela: junto ao cursor aparece `Ligar a [[Nome]]`. **Tab** ou **Enter** aceitam e escrevem o link (`[[Nome]]`, ou `[[Nome|texto]]` quando o que você digitou é outra caixa ou um apelido); **Esc**, ou seguir escrevendo, dispensam — o texto nunca muda sozinho, e um nome dispensado não volta a ser oferecido no mesmo parágrafo. No celular o aviso é um botão para tocar. Nunca aparece dentro de código, de um link ou do cabeçalho de propriedades, nunca oferece a própria nota, e as listas **Pastas ignoradas** e **Nomes ignorados** tiram do caminho o que for ruído, como nomes que são palavras comuns.
+
 Renomear uma nota não quebra nada: o Verso mostra as notas que apontam para ela e atualiza os links quando você confirma (veja [[14 - Arquivos e Pastas]]).
 
 ---
