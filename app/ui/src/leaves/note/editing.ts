@@ -19,6 +19,7 @@ import { afterFileChange } from "../../changes";
 import { button, h, ui } from "../../dom";
 import { completeMarkdown } from "../../editor/complete";
 import { baseEditorExtensions } from "../../editor/extensions";
+import { linkSuggestFor } from "../../editor/linkSuggestWire";
 import { fail } from "../../errors";
 import { allFiles } from "../../folder";
 import { icon } from "../../icons";
@@ -66,6 +67,12 @@ export function editorState(this: NoteLeaf, doc: string, shared: Extension = [])
   return EditorState.create({
     doc,
     extensions: [
+      // The suggestion while typing (ADR 0089 item 5); a reader's editor
+      // is read-only, cannot be typed in and gets none, whatever the
+      // role does later. First, so that its keys (Esc above all) come
+      // before the completion's, which answers an Esc whenever it is
+      // asking, not only when its list is open.
+      linkSuggestFor(() => this.path),
       baseEditorExtensions,
       this.lineNumbersCompartment.of(this.shouldShowLineNumbers() ? lineNumbers() : []),
       md.language.data.of({ autocomplete: completeMarkdown }),

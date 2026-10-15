@@ -45,6 +45,7 @@ import { KINDS, type Mode, MODES, modeOf } from "../notify/core";
 import { notifyStrings } from "../notify/strings";
 import { systemControl } from "../notify/system";
 import { signedIn } from "../web/api";
+import { ls } from "../editor/suggestStrings";
 import { pv } from "../preview/strings";
 
 /** A settings page is a list of items: a title, a line about it, a control. */
@@ -223,6 +224,23 @@ export class SettingsDialog {
     i.addEventListener("change", () => onChange(i.value.trim()));
     i.addEventListener("keydown", (e) => e.stopPropagation());
     return i;
+  }
+  /** A list of lines, one value per line, kept when the box loses the
+   *  focus: blank lines and repeats dropped. */
+  private lines(value: string[], onChange: (v: string[]) => void, example: string): HTMLTextAreaElement {
+    const box = h("textarea", "embed-allowed") as unknown as HTMLTextAreaElement;
+    box.rows = 4;
+    box.spellcheck = false;
+    box.value = value.join("\n");
+    box.placeholder = example;
+    box.addEventListener("keydown", (e) => e.stopPropagation());
+    box.addEventListener("change", () => {
+      const seen = new Set<string>();
+      for (const line of box.value.split("\n")) if (line.trim()) seen.add(line.trim());
+      onChange([...seen]);
+      box.value = [...seen].join("\n");
+    });
+    return box;
   }
   /** Every item of every section, for the search; the section otherwise. */
   private items(): { section: string; title: string; desc: string; node: () => HTMLElement; group?: string }[] {
@@ -653,6 +671,11 @@ export class SettingsDialog {
     add("editor", t.spellcheck, t.spellcheckDesc, () => this.toggle(settings.spellcheck, (v) => { settings.spellcheck = v; saveSettings(); }));
     add("editor", t.blocks.handles, t.blocks.handlesDesc, () => this.toggle(settings.blockHandles, (v) => { settings.blockHandles = v; saveSettings(); }));
     add("editor", pv.setting, pv.settingDesc, () => this.toggle(settings.hoverPreview, (v) => { settings.hoverPreview = v; saveSettings(); }));
+    // The suggestion while typing (ADR 0089 item 5): off until the person
+    // turns it on; the folders and names it never offers.
+    add("editor", ls.setting, ls.settingDesc, () => this.toggle(settings.suggestLinks, (v) => { settings.suggestLinks = v; saveSettings(); }));
+    add("editor", ls.ignoredFolders, ls.ignoredFoldersDesc, () => this.lines(settings.suggestIgnoreFolders, (v) => { settings.suggestIgnoreFolders = v.map((l) => l.replace(/^\/+|\/+$/g, "")).filter(Boolean); saveSettings(); }, "Arquivo"));
+    add("editor", ls.ignoredNames, ls.ignoredNamesDesc, () => this.lines(settings.suggestIgnoreNames, (v) => { settings.suggestIgnoreNames = v; saveSettings(); }, "Mesa"));
     add("editor", t.blocks.enterNewBlock, t.blocks.enterNewBlockDesc, () => this.toggle(settings.enterNewBlock, (v) => { settings.enterNewBlock = v; saveSettings(); }));
     // Sub-division for Line Numbers, in the exact order of the mode buttons on screen:
     // 1. Reading mode (Leitura)
