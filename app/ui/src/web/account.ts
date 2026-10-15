@@ -338,9 +338,14 @@ function signOut(me: Account, item: Item): HTMLElement {
   const line = said();
   const out = button(s.signOut);
   act(out, line, async () => {
-    await api("POST", "/api/signout", {});
-    forgetSettings();
-    location.href = "/signin";
+    // What this device kept for use offline goes with the session (ADR 0092
+    // item 6), after saying how many writes have not gone up.
+    const { leave } = await import("./offline/leave");
+    const left = await leave(async () => {
+      await api("POST", "/api/signout", {});
+      forgetSettings();
+    });
+    if (left) location.href = "/signin";
   }, explain);
   return el("div", { class: "web-block" }, item(s.signOut, s.signOutDesc(me.email), controls(out)), line);
 }

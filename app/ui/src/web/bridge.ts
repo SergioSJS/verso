@@ -15,8 +15,10 @@
 
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
-import type { ContractError } from "../bindings";
+import type { ContractError, FolderInfo } from "../bindings";
 import { api, ApiError, pageContract, signedIn } from "./api";
+import { noNetwork, offline } from "./offline/manager";
+import { o } from "./offline/strings";
 import { notice } from "./notice";
 import { w } from "./strings";
 
@@ -27,14 +29,29 @@ let socket: WebSocket | null = null;
 let open = false;
 let nextId = 1;
 const pending = new Map<number, Pending>();
-/** Requests made while the connection was down, sent once it is back. */
-const waiting: string[] = [];
+/** Requests made while the connection was down, sent once it is back — or,
+ *  for a folder kept on this device (ADR 0092), answered from its copy when
+ *  the connection is found to be gone. */
+const waiting: { id: number; text: string; cmd: string; args: unknown }[] = [];
+/** When the page started: a connection that has not come up within a few
+ *  seconds is taken as down, for a folder that can be opened without it. */
+const startedAt = Date.now();
+const GIVE_UP = 4000;
+/** Whether the folder shown was answered from this device's copy since the
+ *  connection went: the window has to be put right when it returns. */
+let routedOffline = false;
+let gaveUp = false;
+/** Who is waiting to know whether the connection is up or down. */
+const verdicts: ((v: "up" | "down") => void)[] = [];
 /** The folder this tab shows: its id on the server, and the role. */
 let folderId: string | null = params.get("folder");
 let role: string | null = null;
 let openedOnce = false;
 let retry = 0;
 let chooser: (() => Promise<string | null>) | null = null;
+/** The reconnection waiting its turn; a socket being made. */
+let reconnect = 0;
+let connecting = false;
 
 /** The folder the tab shows, for the pages around the window. */
 export function currentFolderId(): string | null {
@@ -66,21 +83,80 @@ function remember(id: string | null): void {
  *  window asks waits behind it. */
 let reopening = false;
 
-function send(text: string): void {
+function send(id: number, cmd: string, args: unknown): void {
+  const text = JSON.stringify({ id, cmd, args: args ?? {} });
   if (socket && open && !reopening) socket.send(text);
-  else waiting.push(text);
+  else waiting.push({ id, text, cmd, args });
+}
+
+/** Whether the connection is down: closed and tried again, the browser says
+ *  there is no network, or it has not come up in a few seconds. */
+function isDown(): boolean {
+  if (open) return false;
+  return retry > 0 || navigator.onLine === false || gaveUp || Date.now() - startedAt > GIVE_UP;
+}
+
+/** Whether the window's commands are answered from this device's copy: the
+ *  folder shown is kept here and the connection is down. */
+function onThisDevice(): boolean {
+  return folderId !== null && offline.keeps(folderId) && isDown();
 }
 
 function request(cmd: string, args: unknown): Promise<unknown> {
   const id = nextId++;
   return new Promise((resolve, reject) => {
     pending.set(id, { resolve, reject });
-    send(JSON.stringify({ id, cmd, args: args ?? {} }));
+    send(id, cmd, args);
   });
+}
+
+/** The connection is found to be gone: a folder kept on this device goes on
+ *  from its copy, what was asked meanwhile is answered from it, and the
+ *  window is told once. */
+function wentDown(): void {
+  offline.connectionDown(folderId);
+  for (const v of verdicts.splice(0)) v("down");
+  if (!onThisDevice()) return;
+  if (!routedOffline) {
+    routedOffline = true;
+    offline.mark(true);
+    notice(o().nowOffline);
+  }
+  const held = waiting.splice(0);
+  for (const w_ of held) {
+    const p = pending.get(w_.id);
+    if (!p) continue;
+    pending.delete(w_.id);
+    offline.answer(folderId!, w_.cmd, (w_.args ?? {}) as Record<string, unknown>).then(p.resolve, p.reject);
+  }
+}
+
+// A connection that does not come up is a connection that is down: a kept
+// folder opens from the device, without waiting for the browser's own
+// timeout (a minute or more on a phone that is on a train).
+window.setTimeout(() => {
+  if (!open) {
+    gaveUp = true;
+    wentDown();
+  }
+}, GIVE_UP);
+addEventListener("offline", () => {
+  if (!open) wentDown();
+});
+addEventListener("online", () => {
+  gaveUp = false;
+});
+
+/** Up or down, as soon as it is known. */
+function verdict(): Promise<"up" | "down"> {
+  if (open) return Promise.resolve("up");
+  if (isDown()) return Promise.resolve("down");
+  return new Promise((resolve) => verdicts.push(resolve));
 }
 
 function setRole(next: string | null): void {
   role = next;
+  if (folderId && next) offline.roleIs(folderId, next);
   dispatchEvent(new CustomEvent("verso:role", { detail: next }));
 }
 
@@ -156,65 +232,106 @@ function connect(): void {
   const scheme = location.protocol === "https:" ? "wss" : "ws";
   const ws = new WebSocket(`${scheme}://${location.host}/api/ws`);
   socket = ws;
+  connecting = true;
   ws.addEventListener("open", () => {
+    connecting = false;
     open = true;
-    const back = retry > 0;
+    const back = retry > 0 || routedOffline;
     retry = 0;
+    gaveUp = false;
+    for (const v of verdicts.splice(0)) v("up");
     if (back && folderId && openedOnce) {
       // The folder again first: a new connection shows no folder, and a
       // save queued while offline would be answered "no folder" if it went
       // before. Then what waited, and the window told the folder may have
       // changed while it was away: it checks its open notes.
       reopening = true;
-      const id = nextId++;
-      const reopened = new Promise((resolve, reject) => pending.set(id, { resolve, reject }));
-      ws.send(JSON.stringify({ id, cmd: "open_server_folder", args: { id: folderId } }));
-      // The folder's key, from the answer: the window hears a change of
-      // its own folder only (changes.ts).
-      let key = "";
-      void reopened
-        .then((info) => {
-          key = (info as { key?: string } | null)?.key ?? "";
-        })
-        .catch(() => undefined)
-        .then(() => {
+      // A folder kept on this device first sends what was written there
+      // while the connection was gone (ADR 0092 item 1), and takes what
+      // changed on the server: the window reads from the server only once
+      // the two are alike.
+      void offline.connectionUp(offline.keeps(folderId) ? folderId : null).then(() => {
+        if (socket !== ws || !open) {
           reopening = false;
-          // Dropped again meanwhile: what waits goes with the next one.
-          if (socket !== ws || !open) return Promise.reject(new Error("dropped"));
-          for (const text of waiting.splice(0)) ws.send(text);
-          return request("reindex", {});
-        })
-        .then((index) => emit("folder-changed", { key, changed: [], removed: [], listing: true, index }))
-        // Back, as the desktop's host says it: the window says so once and
-        // its live notes join their rooms again and send what was typed
-        // meanwhile (dialogs/servers.ts, collab.ts).
-        .then(() => emit("server-back", { url: location.origin }))
-        .catch(() => undefined);
+          return;
+        }
+        routedOffline = false;
+        offline.mark(false);
+        const id = nextId++;
+        const reopened = new Promise((resolve, reject) => pending.set(id, { resolve, reject }));
+        ws.send(JSON.stringify({ id, cmd: "open_server_folder", args: { id: folderId } }));
+        // The folder's key, from the answer: the window hears a change of
+        // its own folder only (changes.ts).
+        let key = "";
+        void reopened
+          .then((info) => {
+            key = (info as { key?: string } | null)?.key ?? "";
+            offline.folderOpened(folderId!, info as FolderInfo | null, role);
+          })
+          .catch(() => undefined)
+          .then(() => {
+            reopening = false;
+            // Dropped again meanwhile: what waits goes with the next one.
+            if (socket !== ws || !open) return Promise.reject(new Error("dropped"));
+            for (const w_ of waiting.splice(0)) ws.send(w_.text);
+            return request("reindex", {});
+          })
+          .then((index) => emit("folder-changed", { key, changed: [], removed: [], listing: true, index }))
+          // Back, as the desktop's host says it: the window says so once and
+          // its live notes join their rooms again and send what was typed
+          // meanwhile (dialogs/servers.ts, collab.ts).
+          .then(() => emit("server-back", { url: location.origin }))
+          .catch(() => undefined);
+      });
       return;
     }
-    for (const text of waiting.splice(0)) ws.send(text);
+    routedOffline = false;
+    for (const w_ of waiting.splice(0)) ws.send(w_.text);
   });
   ws.addEventListener("message", (e) => onMessage(String(e.data)));
   ws.addEventListener("close", () => {
+    connecting = false;
     open = false;
     reopening = false;
     // What was asked and not answered may or may not have happened: it is
     // refused as unavailable, never sent again (a write twice is worse).
+    // (A request not sent yet, for a folder kept on this device, waits to be
+    // answered from the copy: it has not happened anywhere.)
+    const unsent = new Set(folderId !== null && offline.keeps(folderId) ? waiting.map((q) => q.id) : []);
     for (const [id, p] of pending) {
+      if (unsent.has(id)) continue;
       pending.delete(id);
-      p.reject({ kind: "unavailable", message: w().offline } satisfies ContractError);
+      p.reject({ kind: "unavailable", message: w().offline, transport: true } satisfies ContractError & { transport: boolean });
     }
     retry++;
     // Dropped: said to the window as the desktop's host says it (ADR 0084
     // items 7 and 10), once per drop.
     if (retry === 1) void emit("server-gone", { url: location.origin, what: "connection", address: null, reason: null });
-    setTimeout(connect, Math.min(30_000, 1000 * 2 ** Math.min(retry, 5)));
+    // A folder kept on this device goes on from its copy (ADR 0092).
+    wentDown();
+    reconnect = window.setTimeout(connect, Math.min(30_000, 1000 * 2 ** Math.min(retry, 5)));
   });
 }
+
+// The browser says the network is back: tried now, not after the wait.
+addEventListener("online", () => {
+  if (open || connecting || socket === null) return;
+  clearTimeout(reconnect);
+  connect();
+});
 
 /** Commands only the browser answers; the rest go to the server. */
 async function local(cmd: string, a: Record<string, unknown>): Promise<{ answered: true; value: unknown } | { answered: false }> {
   const done = (value: unknown) => ({ answered: true as const, value });
+  // The sync of a folder kept in this browser (ADR 0092): its status and
+  // its buttons are the browser's own.
+  if (cmd.startsWith("folder_sync") || cmd === "note_made_from_template") {
+    const mine = await offline.syncCommand(folderId, cmd, a);
+    if (mine.answered) return mine;
+  }
+  // With no folder open and no connection there is nothing to ask: the
+  // window starts as a server's window that can only read the folder list.
+  if (cmd === "capabilities" && folderId === null && isDown()) return done({ host: "server", can: ["account"], latency_ms: null });
   switch (cmd) {
     case "pick_folder": {
       const id = chooser ? await chooser() : null;
@@ -286,8 +403,16 @@ async function local(cmd: string, a: Record<string, unknown>): Promise<{ answere
       return done(me ? [{ url: location.origin, email: me.email, name: me.name }] : []);
     }
     case "server_folders": {
-      const r = await api<{ folders: { id: string; name: string; role: string; owner: { name: string } | null; share: boolean; missing?: boolean }[] }>("GET", "/api/folders");
-      return done(r.folders.map((f) => ({ id: f.id, name: f.name, role: f.role, owner: f.owner?.name ?? null, share: f.share, missing: f.missing ?? false })));
+      try {
+        const r = await api<{ folders: { id: string; name: string; role: string; owner: { name: string } | null; share: boolean; missing?: boolean }[] }>("GET", "/api/folders");
+        return done(r.folders.map((f) => ({ id: f.id, name: f.name, role: f.role, owner: f.owner?.name ?? null, share: f.share, missing: f.missing ?? false })));
+      } catch (e) {
+        // No network: the folders kept on this device, which open without it.
+        if (noNetwork(e) && offline.keptFolders().length > 0) {
+          return done(offline.keptFolders().map((k) => ({ id: k.id, name: k.name, role: k.role, owner: null, share: false, missing: false })));
+        }
+        throw e;
+      }
     }
     case "server_open":
       return done(await openFolder(String(a.folder ?? "")));
@@ -330,10 +455,24 @@ async function shareCall(cmd: string, a: Record<string, unknown>): Promise<unkno
 }
 
 async function openFolder(id: string): Promise<unknown> {
+  // A folder kept on this device opens at once when the connection is down,
+  // and is not waited for when it is not up yet (ADR 0092 item 2).
+  if (offline.keeps(id) && (await verdict()) === "down") {
+    routedOffline = true;
+    folderId = id;
+    remember(id);
+    openedOnce = true;
+    const kept = offline.keptFolder(id);
+    if (kept) setRole(kept.role);
+    offline.mark(true);
+    notice(o().nowOffline);
+    return offline.answer(id, "current_folder", {});
+  }
   const info = await request("open_server_folder", { id });
   openedOnce = true;
   folderId = id;
   remember(id);
+  offline.folderOpened(id, info as FolderInfo | null, role);
   return info;
 }
 
@@ -379,6 +518,9 @@ export function startBridge(choose: () => Promise<string | null>): void {
       if (cmd.startsWith("plugin:")) return null;
       const mine = await local(cmd, a);
       if (mine.answered) return mine.value;
+      // The connection is down and the folder shown is kept on this device:
+      // its copy answers (ADR 0092 item 4).
+      if (onThisDevice()) return offline.answer(folderId!, cmd, a);
       return request(cmd, a);
     },
     { shouldMockEvents: true },
