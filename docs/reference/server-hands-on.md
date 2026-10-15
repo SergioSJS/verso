@@ -19,9 +19,12 @@
   2026-10-13, without running these blocks on a live machine. The
   verifications that exist are those of the installation guide's
   section 15; the Caddy, nginx and Tailscale recipes are among what it
-  lists as not verified. The places where a screenshot would help are
-  marked in the source of this page (`<!-- screenshot: … -->`) for the
-  maintainer to capture.
+  lists as not verified. The screenshots were taken on 2026-10-15
+  against a real `verso serve` (0.8.2-beta.1) in a container, with example
+  data: the server's pages and the console; the terminal block is what
+  `universo.sh` prints. The two pictures of the app's Settings › Servers
+  come from the app's window in the browser test harness, answering as a
+  connected server. The Oracle console step has no picture.
 
 ## What you get
 
@@ -124,7 +127,42 @@ for the server to answer and prints the next steps. **Keep that output**:
 it holds the link that makes the first admin. Then go to A.4 for the
 proxy line.
 
-<!-- screenshot: the terminal at the end of `sh universo.sh install`: "UniVerso is running. Next:" with the setup link, the Caddy lines and the ports -->
+The end of what it prints looks like this (the link's token is an example; yours is different):
+
+```text
+UniVerso is running. Next:
+
+1. The first admin (section 9 of the guide).
+   Open this link (valid for one hour, once) and make the admin's account:
+     https://notes.example.com/setup?token=Zk3pX0aQv7LmN2rT9yBc
+   It was printed in the log (sudo journalctl -u universo). If the hour passes,
+   restart the service for a new one: sudo systemctl restart universo
+   The link stays in the journal until the journal rotates it away, readable
+   by root and the adm and systemd-journal groups: use it now. Once the admin
+   exists, or past its hour, it opens nothing.
+
+2. HTTPS (section 8). The server signs no one in over plain HTTP from another machine. Either:
+   a. Caddy, with a domain whose DNS points at this machine:
+        sudo apt install caddy
+        sudo mkdir -p /etc/caddy/Caddyfile.d
+        printf '%s {\n\treverse_proxy 127.0.0.1:%s\n}\n' 'notes.example.com' '7340' | sudo tee /etc/caddy/Caddyfile.d/universo.caddyfile
+        sudo grep -qs 'import  *Caddyfile.d/' /etc/caddy/Caddyfile || printf '\nimport Caddyfile.d/*.caddyfile\n' | sudo tee -a /etc/caddy/Caddyfile
+        sudo systemctl reload caddy
+      A Caddyfile already there is left as it is: the site goes in a file of its own,
+      and the Caddyfile only gains the import line, at its end, when it lacks it.
+      (A Caddyfile that is one site without braces needs { } around its lines first.)
+      and in /etc/universo/universo.env: VERSO_PUBLIC_URL=https://notes.example.com and VERSO_TRUSTED_PROXY=127.0.0.1,
+      then: sudo systemctl restart universo
+   b. Tailscale, for your own devices: tailscale serve --bg 7340
+      and VERSO_PUBLIC_URL=https://<machine>.<tailnet>.ts.net
+
+3. Ports. For Caddy, 80 and 443 must reach this machine: sh universo.sh firewall
+   opens them here; a cloud also has its own (on Oracle: the VCN's security list).
+   Port 7340 stays closed: Caddy reaches it on this machine.
+
+Then connect the app: Settings › Servers, the address https://notes.example.com. Back up with: sh universo.sh backup
+Guide: https://github.com/SergioSJS/verso/blob/main/docs/reference/server-install.md
+```
 
 ### A.3 Or by hand, the signature checked
 
@@ -262,8 +300,6 @@ VCN › *Security Lists* › *Default Security List* › *Add Ingress Rules*:
 source CIDR `0.0.0.0/0`, IP protocol TCP, destination port range
 `80,443` ([the Oracle walkthrough](universo-on-oracle-free.md), written
 from Oracle's documentation, not checked in a live console).
-
-<!-- screenshot: Oracle Cloud console, Add Ingress Rules on the Default Security List, with 0.0.0.0/0, TCP and 80,443 filled in -->
 
 ### A.7 The log
 
@@ -692,7 +728,7 @@ at least; from the version after v0.8.0-beta.1, also not one of the
 page says *This password is on the lists attackers try first* and asks for
 another.
 
-<!-- screenshot: the browser at https://notes.example.com/setup?token=…, the "First start" page with E-mail, Name, New password and Create account -->
+![The server's First start page in a browser, with the fields E-mail (ana@exemplo.com), Name (Ana Souza), New password (hidden) and Language filled in, and the Create account button below.](img/server-hands-on/01-first-start.png)
 
 ### Mail, optional
 
@@ -723,7 +759,7 @@ In the Verso app on your computer:
    browser. (When the system refuses the copy, the line says *Type this
    code on the page that opened:* instead.)
 
-<!-- screenshot: the app's Settings › Servers, the "Server address" field filled with https://notes.example.com and the Connect button; and the line "Code copied — paste it on the page that opened: … Waiting…" with a code -->
+![The desktop app's Settings, Servers section: the Server address field holding https://notes.example.com with the Connect button, and under it the line "Code copied — paste it on the page that opened: BCDF-GHJK. Waiting…". Taken from the app's window in the browser test harness, which answers as a server would; the real app looks the same.](img/server-hands-on/02-app-connect.png)
 
 ### Approving the device in the browser
 
@@ -764,10 +800,13 @@ unconfirmed, so its first such action always asks, and again whenever the
 last confirmation is more than 10 minutes old (item 6). In the app only
 the password confirms; a passkey belongs to the browser.
 
-<!-- screenshot: the browser's "Connect an app" page asking for the code: the field "The app's code", empty, and Continue -->
-<!-- screenshot: the browser's "Connect an app" page: Who asked, Device, Address, When, and the buttons "Approve this device: …" and "It was not me: refuse" -->
-<!-- screenshot: the "Confirm it is you" dialog over the device page (version after v0.8.0-beta.1) -->
-<!-- screenshot: the app's Settings › Servers after connecting: "Connected as …" and "Folders on notes.example.com" with Open here and Sync -->
+![The Connect an app page in the browser asking for the code: the field The app's code, empty, with a hint (eight letters, like BCDF-GHJK) and the Continue button.](img/server-hands-on/03-device-code.png)
+
+![The Connect an app page after the code is typed: Who asked, with the code entered, the device (Verso · Ana's MacBook), the address and the time, then the buttons "Approve this device: Verso · Ana's MacBook" and "It was not me: refuse".](img/server-hands-on/04-device-approve.png)
+
+![The "Confirm it is you" dialog over the device page, saying the last confirmation was more than 10 minutes ago and asking for the password, with the buttons Confirm, Use a passkey and Cancel.](img/server-hands-on/05-device-confirm.png)
+
+![Settings › Servers after connecting: "Connected as Ana Souza <ana@exemplo.com>.", then the server notes.example.com with the folder Campaign, the role (edits) and the buttons Open here and Sync. Taken from the app's window in the browser test harness, which answers as a server would; the real app looks the same.](img/server-hands-on/06-app-connected.png)
 
 ### A folder, and a second person
 
@@ -797,8 +836,9 @@ folder first and puts it in the invitation:
 The invitations page lists each one as pending, used (and by whom),
 expired or ended, and **End** stops one not yet used.
 
-<!-- screenshot: the console's Invitations page: the New invitation row (E-mail, Folder, Role, Invite) and the link shown with Copy -->
-<!-- screenshot: the invited person's browser on the "Invitation" page with the folder and role line and Create account -->
+![The console's Invitations page: the New invitation row with E-mail, Folder (Campaign), Role (editor) and the Invite button, the invitation link shown with a Copy button, and below it the list with one pending invitation for bruno@exemplo.com.](img/server-hands-on/07-invitations.png)
+
+![The Invitation page the invited person sees in their browser: "You were invited to this Verso server. With access to the folder “Campaign” as editor.", with E-mail already filled in (bruno@exemplo.com), Name, New password, Language and the Create account button.](img/server-hands-on/08-invite-page.png)
 
 ### What the console shows
 
@@ -819,8 +859,9 @@ expired or ended, and **End** stops one not yet used.
 - **Server**: the configuration in force, which is changed in the
   environment (the `VERSO_*` variables), not there.
 
-<!-- screenshot: the console's Overview with Version, Secure connection "behind a reverse proxy" and E-mail -->
-<!-- screenshot: the console's Log with a "signed in" and an "approved the device" row, the Address column showing a public address -->
+![The console's Overview with its cards: attention, totals, Version, Storage, E-mail (not configured: links are copied by hand), Log, and Secure connection saying "behind a reverse proxy".](img/server-hands-on/09-overview.png)
+
+![The console's Log: rows for "setup", "registered the folder", "signed in", "created an invitation", "used the invitation", "confirmed it is the same person" and "approved the device", the Address column showing the public address 203.0.113.42 rather than 127.0.0.1.](img/server-hands-on/10-log.png)
 
 ## When it breaks
 
