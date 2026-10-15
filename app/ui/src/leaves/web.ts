@@ -76,7 +76,7 @@ export function tickEmbedViews(): void {
       if (visible && !v.opening && url) {
         v.opening = true;
         const want = v;
-        void commands.webOpen(url, { x: left, y: top, w: Math.max(1, w), h: Math.max(1, hgt), scrollX: place.hiddenLeft, scrollY: place.hiddenTop }).then((res) => {
+        void commands.webOpen(url, { x: left, y: top, w: Math.max(1, w), h: Math.max(1, hgt), scrollX: 0, scrollY: 0 }).then((res) => {
           want.opening = false;
           want.scrolled = place.hiddenTop;
           want.scrolledX = place.hiddenLeft;
@@ -101,12 +101,9 @@ export function tickEmbedViews(): void {
         v.still = 0;
         const label = v.label;
         if (visible) {
-          // The page follows by the change in what is cut off above.
-          const dx = place.hiddenLeft - v.scrolledX;
-          const dy = place.hiddenTop - v.scrolled;
-          v.scrolledX = place.hiddenLeft;
-          v.scrolled = place.hiddenTop;
-          void commands.webBounds(label, { x: left, y: top, w, h: hgt, scrollX: dx, scrollY: dy }).then(() => commands.webVisible(label, true));
+          // The page keeps its own scroll: a child view is cut to what
+          // shows, never scrolled by the note (iframes do this right).
+          void commands.webBounds(label, { x: left, y: top, w, h: hgt, scrollX: 0, scrollY: 0 }).then(() => commands.webVisible(label, true));
         }
         else void commands.webVisible(label, false);
       } else v.still++;
