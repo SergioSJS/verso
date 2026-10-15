@@ -38,6 +38,7 @@ body.web-mode { display: block; overflow: auto; height: auto; min-height: 100dvh
   font: inherit; font-size: .93rem; width: 100%; min-height: 42px; padding: .5rem 1rem; border-radius: 8px; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
 }
+.web-btn-text { text-align: center; overflow-wrap: anywhere; }
 .web-primary { font-weight: 600; color: var(--seal-ink); background: var(--seal); border: 1px solid var(--seal); margin-top: .2rem; }
 .web-primary:hover:not(:disabled) { filter: brightness(1.08); }
 .web-secondary { color: var(--ink); background: var(--paper); border: 1px solid var(--hair); }
