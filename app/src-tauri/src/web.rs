@@ -67,6 +67,25 @@ pub(crate) fn may_navigate(label: &str, url: &tauri::Url, dev_url: Option<&tauri
     }
 }
 
+/// The guard with one more allowance (ADR 0056, revised 2026-10-15): an
+/// app view's frame may load an origin that the frameability check judged
+/// frameable and recorded in `framed`, and no other page of the web. The
+/// handler is asked for every frame and cannot tell a frame from the
+/// window itself (wry passes it the address only), so the allowance is as
+/// narrow as it can be made: the exact origins of pages the user already
+/// approved to embed and whose servers allow framing.
+pub(crate) fn may_navigate_framed(
+    label: &str,
+    url: &tauri::Url,
+    dev_url: Option<&tauri::Url>,
+    framed: &std::collections::HashSet<String>,
+) -> bool {
+    may_navigate(label, url, dev_url)
+        || (is_app_view(label)
+            && web_only(url)
+            && embed_origin_of(url).is_some_and(|o| framed.contains(&o)))
+}
+
 /// The navigation guard as a plugin: a plugin's `on_navigation` is asked
 /// for every web view, the main window included, which a builder's own
 /// handler cannot reach.
@@ -74,7 +93,12 @@ pub(crate) fn navigation_guard<R: tauri::Runtime>() -> tauri::plugin::TauriPlugi
     tauri::plugin::Builder::new("verso-navigation")
         .on_navigation(|webview, url| {
             let dev_url = webview.app_handle().config().build.dev_url.clone();
-            may_navigate(webview.label(), url, dev_url.as_ref())
+            let app = webview.app_handle();
+            let framed = app
+                .try_state::<App>()
+                .map(|state| lock(&state.framed_origins).clone())
+                .unwrap_or_default();
+            may_navigate_framed(webview.label(), url, dev_url.as_ref(), &framed)
         })
         .build()
 }
@@ -296,6 +320,51 @@ pub(crate) fn web_close<R: tauri::Runtime>(
     let wv = own_web_view(&window, &state, &label)?;
     lock(&state.web_views).remove(&label);
     wv.close().map_err(|e| failed(e.to_string()))
+}
+
+/// Whether the page at `url` may be shown in a real `<iframe>` of the
+/// window: its server's headers allow being framed by the window's origin
+/// (`X-Frame-Options`, `frame-ancestors`, judged on the final response of
+/// a short chain of redirects). The window then draws the embed as a
+/// frame, which scrolls and clips with the note; otherwise it keeps the
+/// child web view. One request (`HEAD`, a `GET` read only as far as its
+/// headers when that fails), to an address a note wrote and the user
+/// approved to embed (ADR 0050, 0056); answered once per origin for the
+/// session. A timeout or an error answers no.
+///
+/// An origin judged frameable is also what the navigation guard lets an
+/// app view's frame load, and nothing else of the web.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn embed_frameable<R: tauri::Runtime>(
+    webview: tauri::Webview<R>,
+    state: State<'_, App>,
+    url: String,
+) -> Result<bool, ContractError> {
+    if !is_app_view(webview.label()) {
+        return Err(refused("only the app's own views ask this"));
+    }
+    let parsed = http_url(&url)?;
+    let origin = embed_origin_of(&parsed).ok_or_else(|| refused("the address has no host"))?;
+    let cached = lock(&state.frame_verdicts).get(&origin).copied();
+    if let Some(answer) = cached {
+        return Ok(answer);
+    }
+    let app = webview
+        .url()
+        .ok()
+        .and_then(|u| crate::framing::Ancestor::of(&u))
+        .ok_or_else(|| failed("the window has no address"))?;
+    let verdict = tauri::async_runtime::spawn_blocking(move || {
+        crate::framing::check(&parsed, &app, WEB_USER_AGENT)
+    })
+    .await
+    .map_err(|e| failed(e.to_string()))?;
+    if verdict.frameable {
+        lock(&state.framed_origins).extend(verdict.origins);
+    }
+    lock(&state.frame_verdicts).insert(origin, verdict.frameable);
+    Ok(verdict.frameable)
 }
 
 /// Back, forward, reload, or go to another http(s) address.

@@ -265,6 +265,21 @@ export const commands = {
 	/**  The address a web page's view is at now. */
 	webUrl: (label: string) => typedError<string, ContractError>(__TAURI_INVOKE("web_url", { label })),
 	/**
+	 *  Whether the page at `url` may be shown in a real `<iframe>` of the
+	 *  window: its server's headers allow being framed by the window's origin
+	 *  (`X-Frame-Options`, `frame-ancestors`, judged on the final response of
+	 *  a short chain of redirects). The window then draws the embed as a
+	 *  frame, which scrolls and clips with the note; otherwise it keeps the
+	 *  child web view. One request (`HEAD`, a `GET` read only as far as its
+	 *  headers when that fails), to an address a note wrote and the user
+	 *  approved to embed (ADR 0050, 0056); answered once per origin for the
+	 *  session. A timeout or an error answers no.
+	 * 
+	 *  An origin judged frameable is also what the navigation guard lets an
+	 *  app view's frame load, and nothing else of the web.
+	 */
+	embedFrameable: (url: string) => typedError<boolean, ContractError>(__TAURI_INVOKE("embed_frameable", { url })),
+	/**
 	 *  Any file as text with its revision, for the editor of files that are
 	 *  not notes; `not_text` when its bytes are not UTF-8.
 	 */
