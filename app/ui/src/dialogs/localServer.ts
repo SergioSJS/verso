@@ -1,0 +1,637 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+// "This app is a server" (ADR 0096): the settings' section that turns it
+// on and off, ticks the folders served, lists the paired phones with
+// Revoke, and shows the log; the pairing dialog (a QR, the address and a
+// code to type, a countdown, and "Was it you?"); and the mark in the
+// status bar while it serves. Every action says what happened, failures
+// included, where the person acted.
+
+import { listen } from "@tauri-apps/api/event";
+import { commands, type ContractError, type LocalFolder, type LocalPairState, type LocalPairing, type LocalServerStatus } from "../bindings";
+import { button, h, ui } from "../dom";
+import { errorSentence } from "../errors";
+import { icon } from "../icons";
+import { phoneConnectedHeard, serveStoppedHeard } from "../notify/sources";
+import { busy } from "../reach";
+import { asDialog, closed, opened } from "./a11y";
+import { localStrings } from "./localServerStrings";
+
+/** What the host emits as `local-server` (verso_server::local::Event). */
+type Heard =
+  | { kind: "changed" }
+  | { kind: "asked" }
+  | { kind: "phoneConnected"; name: string }
+  | { kind: "stopped"; why: string }
+  | { kind: "unreachable" }
+  | { kind: "pairingEnded"; why: string };
+
+const EXPLAINED = "verso-local-server-explained";
+
+function when(seconds: number): string {
+  return new Date(seconds * 1000).toLocaleString(document.documentElement.lang.startsWith("pt") ? "pt-BR" : "en");
+}
+
+/** `address:port` as a person types it. */
+function where(s: LocalServerStatus): string {
+  const a = s.addresses[0] ?? "?";
+  return `${a.includes(":") ? `[${a}]` : a}:${s.port ?? "?"}`;
+}
+
+/* ---------- The status bar's mark, and what the host tells ---------- */
+
+let heard = false;
+let mark: HTMLElement | null = null;
+const redraws = new Set<() => void>();
+
+/** Refresh what shows the mode's state: the mark, and the section if it
+ *  is on screen. */
+async function refreshMark(): Promise<void> {
+  const r = await commands.localServerStatus();
+  if (r.status !== "ok" || !r.data.supported) return markOff();
+  const s = r.data;
+  if (!s.serving) return markOff();
+  const w = localStrings();
+  if (!mark) {
+    mark = h("span", "ls-mark");
+    mark.id = "local-mark";
+    mark.setAttribute("role", "status");
+    const text = h("span", "ls-mark-text");
+    const stop = button("ghost ls-mark-stop", w.markStop);
+    stop.textContent = w.markStop;
+    stop.setAttribute("aria-label", w.markStopLabel);
+    stop.addEventListener("click", () => {
+      busy(stop, true);
+      void commands.localServerStop().then(() => busy(stop, false));
+    });
+    mark.append(icon("globe"), text, stop);
+    ui.status.after(mark);
+  }
+  const text = mark.querySelector<HTMLElement>(".ls-mark-text");
+  if (text) text.textContent = w.mark(s.phones_connected);
+  mark.title = where(s);
+}
+
+function markOff(): void {
+  mark?.remove();
+  mark = null;
+}
+
+/** Listen to the host, once: the mark follows, a phone's first connection
+ *  and a stop by itself are notifications (ADR 0084), a phone asking opens
+ *  the question wherever the person is. */
+export function hearLocalServer(): void {
+  if (heard) return;
+  heard = true;
+  void listen<Heard>("local-server", (e) => {
+    const p = e.payload;
+    void refreshMark();
+    for (const redraw of redraws) redraw();
+    if (p.kind === "phoneConnected") phoneConnectedHeard(p.name);
+    else if (p.kind === "stopped") serveStoppedHeard(localStrings().stoppedNet);
+    else if (p.kind === "asked") openPairing();
+  });
+  void refreshMark();
+}
+
+/** How many phones are connected now, for the updater's restart dialog
+ *  (ADR 0096 item 18); 0 when it does not serve. */
+export async function phonesConnected(): Promise<number> {
+  const r = await commands.localServerStatus();
+  return r.status === "ok" && r.data.serving ? r.data.phones_connected : 0;
+}
+
+export function restartNote(n: number): string {
+  return localStrings().restartPhones(n);
+}
+
+/* ---------- The section ---------- */
+
+type Item = (title: string, desc: string, control: HTMLElement | null) => HTMLElement;
+
+export function localServerBody(_item: Item): HTMLElement {
+  const w = localStrings();
+  const box = h("div", "ls");
+  const said = h("p", "ls-said");
+  said.setAttribute("role", "status");
+  const say = (text: string): void => {
+    said.textContent = text;
+  };
+  const failed = (e: ContractError | unknown) => say(errorSentence(e) || w.failed);
+
+  const lead = h("p", "ls-lead", w.lead);
+  const unsupported = h("p", "ls-warn", w.unsupported);
+  unsupported.hidden = true;
+
+  // Folders.
+  const foldersHead = h("h3", "ls-h", w.foldersTitle);
+  const foldersLead = h("p", "ls-help", w.foldersLead);
+  const folders = h("ul", "ls-folders");
+  // Run.
+  const run = h("button", "btn primary", w.turnOn);
+  run.type = "button";
+  const state = h("p", "ls-state");
+  state.setAttribute("role", "status");
+  // The system refusing what comes in, with the steps to allow it.
+  const blocked = h("div", "ls-warn");
+  blocked.setAttribute("role", "alert");
+  blocked.hidden = true;
+  const keep = h("input");
+  keep.type = "checkbox";
+  keep.id = "ls-keep";
+  const keepLabel = h("label", "ls-check");
+  keepLabel.htmlFor = keep.id;
+  keepLabel.append(keep, h("span", "", w.keepOn));
+  const keepHelp = h("p", "ls-help", w.keepOnDesc);
+  const pair = h("button", "btn", w.pair);
+  pair.type = "button";
+  const pairHelp = h("p", "ls-help", w.pairNeedsOn);
+  // Phones.
+  const phonesHead = h("h3", "ls-h", w.pairedTitle);
+  const phones = h("ul", "ls-phones");
+  const danger = h("div", "ls-danger");
+  // Certificate.
+  const cert = h("div", "ls-cert");
+  // Log.
+  const log = h("details", "ls-log");
+
+  let status: LocalServerStatus | null = null;
+
+  const confirmRow = (ask: string, yes: () => void, back: HTMLElement): HTMLElement => {
+    const row = h("div", "ls-confirm");
+    row.setAttribute("role", "alertdialog");
+    row.setAttribute("aria-label", ask);
+    const yesBtn = h("button", "btn danger", w.yes);
+    yesBtn.type = "button";
+    const no = h("button", "btn", w.cancel);
+    no.type = "button";
+    row.append(h("span", "", ask), yesBtn, no);
+    yesBtn.addEventListener("click", () => {
+      row.replaceWith(back);
+      yes();
+    });
+    no.addEventListener("click", () => {
+      row.replaceWith(back);
+      back.focus();
+    });
+    queueMicrotask(() => no.focus());
+    return row;
+  };
+
+  const drawFolders = (list: LocalFolder[], serving: boolean) => {
+    folders.replaceChildren();
+    if (list.length === 0) folders.append(h("li", "ls-help", w.noFolders));
+    for (const f of list) {
+      const li = h("li", "ls-folder");
+      const input = h("input");
+      input.type = "checkbox";
+      input.id = `ls-f-${f.key}`;
+      input.checked = f.ticked;
+      input.disabled = serving || f.syncs_with !== null;
+      const label = h("label", "ls-check");
+      label.htmlFor = input.id;
+      label.append(input, h("span", "", f.name));
+      li.append(label);
+      if (f.syncs_with !== null) li.append(h("small", "ls-help", w.syncsWith(f.syncs_with)));
+      input.addEventListener("change", () => {
+        void commands.localServerTick(f.key, input.checked).then((r) => {
+          if (r.status !== "ok") {
+            input.checked = !input.checked;
+            return failed(r.error);
+          }
+          drawFolders(r.data, serving);
+        });
+      });
+      folders.append(li);
+    }
+    if (serving && list.length > 0) folders.append(h("li", "ls-help", w.foldersLocked));
+  };
+
+  const drawCert = (s: LocalServerStatus) => {
+    cert.replaceChildren(h("h3", "ls-h", w.certTitle), h("p", "ls-help", s.certificate === "files" ? w.certFiles : w.certOwn));
+    if (s.fingerprint) {
+      const fp = h("p", "ls-fp");
+      fp.append(h("strong", "", `${w.fingerprint}: `), h("code", "", s.fingerprint));
+      cert.append(fp);
+    }
+    if (s.tailscale) cert.append(h("p", "ls-help", w.tailscale));
+    const details = h("details", "ls-adv");
+    details.append(h("summary", "", w.advanced));
+    const form = h("form", "ls-adv-form");
+    const field = (label: string, value: string | null, id: string): HTMLInputElement => {
+      const l = h("label", "srv-label", label);
+      l.htmlFor = id;
+      const i = h("input");
+      i.id = id;
+      i.type = "text";
+      i.value = value ?? "";
+      i.spellcheck = false;
+      i.setAttribute("autocomplete", "off");
+      i.addEventListener("keydown", (e) => e.stopPropagation());
+      form.append(l, i);
+      return i;
+    };
+    const c = field(w.certFile, s.cert_file, "ls-cert-file");
+    const k = field(w.keyFile, s.key_file, "ls-key-file");
+    const n = field(w.hostName, s.host_name, "ls-host-name");
+    const save = h("button", "btn", w.saveCert);
+    save.type = "submit";
+    form.append(save);
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      busy(save, true);
+      void commands.localServerSettings(s.keep_on, c.value, k.value, n.value).then((r) => {
+        busy(save, false);
+        if (r.status !== "ok") return failed(r.error);
+        say(w.saved);
+        void redraw();
+      });
+    });
+    details.append(form);
+    cert.append(details);
+  };
+
+  const drawPhones = async (s: LocalServerStatus) => {
+    const r = await commands.localServerPhones();
+    phones.replaceChildren();
+    if (r.status !== "ok") return failed(r.error);
+    if (r.data.length === 0) phones.append(h("li", "ls-help", w.pairedNone));
+    for (const p of r.data) {
+      const li = h("li", "ls-phone");
+      const who = h("div", "ls-phone-who");
+      who.append(h("strong", "", w.phone(p.name, p.role)), h("small", "", w.phoneWhen(when(p.paired), when(p.last_seen), p.address)));
+      const revoke = h("button", "btn", w.revoke);
+      revoke.type = "button";
+      revoke.setAttribute("aria-label", w.revokeNamed(p.name));
+      revoke.addEventListener("click", () => {
+        busy(revoke, true);
+        void commands.localServerRevoke(p.id).then((res) => {
+          busy(revoke, false);
+          if (res.status !== "ok") return failed(res.error);
+          say(w.revoked);
+          void redraw();
+        });
+      });
+      li.append(who, revoke);
+      phones.append(li);
+    }
+    state.textContent = s.serving ? `${w.serving(where(s))} ${w.phones(s.phones_paired, s.phones_connected)}.` : `${w.off} ${w.phones(s.phones_paired, 0)}.`;
+  };
+
+  const drawDanger = () => {
+    danger.replaceChildren();
+    const forget = h("button", "btn", w.forgetAll);
+    forget.type = "button";
+    forget.addEventListener("click", () => {
+      forget.replaceWith(
+        confirmRow(
+          w.forgetAsk,
+          () =>
+            void commands.localServerForget().then((r) => {
+              if (r.status !== "ok") return failed(r.error);
+              say(w.forgotten(r.data));
+              void redraw();
+            }),
+          forget,
+        ),
+      );
+    });
+    const replace = h("button", "btn", w.replaceId);
+    replace.type = "button";
+    replace.addEventListener("click", () => {
+      replace.replaceWith(
+        confirmRow(
+          w.replaceAsk,
+          () =>
+            void commands.localServerReplaceIdentity().then((r) => {
+              if (r.status !== "ok") return failed(r.error);
+              say(w.replaced);
+              void redraw();
+            }),
+          replace,
+        ),
+      );
+    });
+    danger.append(forget, replace, h("p", "ls-help", w.replaceIdDesc));
+  };
+
+  const drawLog = async () => {
+    const r = await commands.localServerAudit();
+    log.replaceChildren(h("summary", "", w.logTitle));
+    if (r.status !== "ok") return;
+    const list = h("ul", "ls-log-list");
+    if (r.data.length === 0) list.append(h("li", "ls-help", w.logEmpty));
+    for (const e of r.data.slice(0, 60)) {
+      const li = h("li");
+      const what = w.actions[e.action] ?? e.action;
+      li.append(h("time", "", when(e.at)), ` · ${what}`);
+      if (e.subject) li.append(` · ${e.subject}`);
+      if (e.address) li.append(` · ${e.address}`);
+      list.append(li);
+    }
+    log.append(list, h("p", "ls-help", w.logKept));
+  };
+
+  const redraw = async (): Promise<void> => {
+    const r = await commands.localServerStatus();
+    if (r.status !== "ok") return failed(r.error);
+    status = r.data;
+    const s = r.data;
+    void refreshMark();
+    unsupported.hidden = s.supported;
+    for (const el of [foldersHead, foldersLead, folders, run, state, keepLabel, keepHelp, pair, pairHelp, phonesHead, phones, danger, cert, log]) el.hidden = !s.supported;
+    if (!s.supported) return;
+    keep.checked = s.keep_on;
+    run.textContent = s.serving ? w.turnOff : w.turnOn;
+    blocked.hidden = !(s.serving && s.unreachable);
+    if (!blocked.hidden) {
+      const mac = /mac/i.test(navigator.platform);
+      blocked.replaceChildren(h("p", "", w.unreachable), h("p", "ls-help", mac ? w.unreachableMac : w.unreachableLinux(s.port)));
+    }
+    pair.disabled = !s.serving;
+    pairHelp.hidden = s.serving;
+    if (!s.serving && s.stopped_because) say(w.stoppedNet);
+    const f = await commands.localServerFolders();
+    if (f.status === "ok") drawFolders(f.data, s.serving);
+    await drawPhones(s);
+    drawCert(s);
+    drawDanger();
+    await drawLog();
+  };
+  redraws.add(() => void redraw());
+
+  run.addEventListener("click", () => {
+    void (async () => {
+      if (status?.serving) {
+        busy(run, true);
+        const r = await commands.localServerStop();
+        busy(run, false);
+        if (r.status !== "ok") return failed(r.error);
+        say(w.off);
+        return redraw();
+      }
+      if (!(await explainFirst())) return;
+      busy(run, true);
+      const r = await commands.localServerStart();
+      busy(run, false);
+      if (r.status !== "ok") return failed(r.error);
+      say(w.serving(where(r.data)));
+      return redraw();
+    })();
+  });
+  keep.addEventListener("change", () => {
+    const s = status;
+    if (!s) return;
+    void commands.localServerSettings(keep.checked, s.cert_file, s.key_file, s.host_name).then((r) => {
+      if (r.status !== "ok") {
+        keep.checked = !keep.checked;
+        return failed(r.error);
+      }
+      status = r.data;
+    });
+  });
+  pair.addEventListener("click", () => openPairing());
+
+  box.append(lead, unsupported, foldersHead, foldersLead, folders, run, state, blocked, keepLabel, keepHelp, pair, pairHelp, said, phonesHead, phones, danger, cert, log);
+  void redraw();
+  return box;
+}
+
+/* ---------- Before the first turn-on (item 9) ---------- */
+
+/** Say what the system will ask and why, once; false when the person
+ *  backs out. */
+function explainFirst(): Promise<boolean> {
+  const w = localStrings();
+  let known = false;
+  try {
+    known = localStorage.getItem(EXPLAINED) === "1";
+  } catch {
+    // No storage: asked each time.
+  }
+  if (known) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const el = h("div", "quick");
+    const box = h("div", "plan-box ls-dialog");
+    const title = h("h2", "", w.firstTitle);
+    title.id = "ls-first-title";
+    const body = w.firstBody.map((t) => h("p", "ls-help", t));
+    const go = h("button", "btn primary", w.firstGo);
+    go.type = "button";
+    const no = h("button", "btn", w.cancel);
+    no.type = "button";
+    const actions = h("div", "confirm-actions");
+    actions.append(no, go);
+    box.append(title, ...body, actions);
+    el.append(box);
+    document.body.append(el);
+    const done = (ok: boolean) => {
+      closed(el);
+      el.remove();
+      if (ok) {
+        try {
+          localStorage.setItem(EXPLAINED, "1");
+        } catch {
+          // Asked again next time.
+        }
+      }
+      resolve(ok);
+    };
+    asDialog(el, w.firstTitle, () => done(false), "ls-first-title");
+    go.addEventListener("click", () => done(true));
+    no.addEventListener("click", () => done(false));
+    opened(el);
+    go.focus();
+  });
+}
+
+/* ---------- The pairing dialog ---------- */
+
+let dialog: HTMLElement | null = null;
+
+/** The QR as an SVG built here from rows of 1 and 0: no markup comes from
+ *  the host. */
+function drawQr(rows: string[], label: string): SVGSVGElement {
+  const ns = "http://www.w3.org/2000/svg";
+  const n = rows.length;
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", `0 0 ${n} ${n}`);
+  svg.setAttribute("class", "ls-qr");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", label);
+  svg.setAttribute("shape-rendering", "crispEdges");
+  const back = document.createElementNS(ns, "rect");
+  back.setAttribute("width", String(n));
+  back.setAttribute("height", String(n));
+  back.setAttribute("fill", "#fff");
+  let d = "";
+  rows.forEach((row, y) => {
+    for (let x = 0; x < row.length; ) {
+      if (row[x] !== "1") {
+        x++;
+        continue;
+      }
+      let run = 1;
+      while (row[x + run] === "1") run++;
+      d += `M${x} ${y}h${run}v1h-${run}z`;
+      x += run;
+    }
+  });
+  const path = document.createElementNS(ns, "path");
+  path.setAttribute("d", d);
+  path.setAttribute("fill", "#000");
+  svg.append(back, path);
+  return svg;
+}
+
+/** Open the pairing dialog: a window of two minutes while it stays open;
+ *  closing it ends the window. A phone that presents the token raises the
+ *  question here — "Was it you?" — and only Allow lets it in. */
+export function openPairing(): void {
+  if (dialog) return;
+  const w = localStrings();
+  const el = h("div", "quick");
+  dialog = el;
+  const box = h("div", "plan-box ls-dialog");
+  const title = h("h2", "", w.pairTitle);
+  title.id = "ls-pair-title";
+  const body = h("div", "ls-pair-body");
+  const live = h("p", "ls-state");
+  live.setAttribute("role", "status");
+  live.setAttribute("aria-live", "polite");
+  const ask = h("section", "ls-ask");
+  ask.hidden = true;
+  const close = h("button", "btn", w.closeDialog);
+  close.type = "button";
+  const actions = h("div", "confirm-actions");
+  actions.append(close);
+  box.append(title, body, live, ask, actions);
+  el.append(box);
+  document.body.append(el);
+  let timer = 0;
+  let alive = true;
+  const finish = (say?: string) => {
+    if (!alive) return;
+    alive = false;
+    window.clearInterval(timer);
+    void commands.localServerPairClose();
+    closed(el);
+    el.remove();
+    dialog = null;
+    if (say) ui.status.textContent = say;
+    // The section shows who is paired now; in the app the host's event
+    // says so too, in a harness nothing else does.
+    for (const redraw of redraws) redraw();
+  };
+  asDialog(el, w.pairTitle, () => finish(), "ls-pair-title");
+  close.addEventListener("click", () => finish());
+  opened(el);
+  close.focus();
+
+  let shown = false;
+  let askedKey = "";
+  const drawAsk = (state: LocalPairState) => {
+    const a = state.asked;
+    if (!a) {
+      ask.hidden = true;
+      askedKey = "";
+      return;
+    }
+    const key = `${a.device}|${a.asked}`;
+    if (key === askedKey) return;
+    askedKey = key;
+    ask.hidden = false;
+    ask.replaceChildren(h("h3", "ls-h", w.asked));
+    const facts = h("dl", "ls-facts");
+    // The phone's name as it gave it, isolated: a name in another
+    // direction does not turn the words around it.
+    const named = h("dd");
+    named.append(h("bdi", "", a.device));
+    const when_ = new Date(a.asked);
+    facts.append(
+      h("dt", "", w.askedDevice),
+      named,
+      h("dt", "", w.askedAddress), h("dd", "", a.address), h("dt", "", w.askedWhen), h("dd", "", Number.isNaN(when_.getTime()) ? a.asked : when_.toLocaleString()));
+    const editor = h("input");
+    editor.type = "checkbox";
+    editor.id = "ls-editor";
+    const editorLabel = h("label", "ls-check");
+    editorLabel.htmlFor = editor.id;
+    editorLabel.append(editor, h("span", "", w.canEdit));
+    const allow = h("button", "btn primary", w.allow);
+    allow.type = "button";
+    const refuse = h("button", "btn", w.refuse);
+    refuse.type = "button";
+    const answer = (yes: boolean) => {
+      busy(allow, true);
+      busy(refuse, true);
+      void commands.localServerAnswer(yes, editor.checked).then((r) => {
+        if (r.status !== "ok") {
+          busy(allow, false);
+          busy(refuse, false);
+          live.textContent = errorSentence(r.error) || w.failed;
+          return;
+        }
+        finish(yes ? w.allowed : w.refusedDone);
+      });
+    };
+    allow.addEventListener("click", () => answer(true));
+    refuse.addEventListener("click", () => answer(false));
+    const row = h("div", "confirm-actions");
+    row.append(refuse, allow);
+    ask.append(facts, editorLabel, h("p", "ls-help", w.canEditDesc), row);
+    refuse.focus();
+  };
+
+  const poll = async () => {
+    const r = await commands.localServerPairState();
+    if (!alive) return;
+    if (r.status !== "ok") {
+      live.textContent = errorSentence(r.error) || w.failed;
+      return;
+    }
+    const s = r.data;
+    if (!s.open && !s.asked) {
+      window.clearInterval(timer);
+      live.textContent = shown ? w.expired : w.failed;
+      return;
+    }
+    if (s.open) live.textContent = s.asked ? "" : `${w.waitingPhone} ${w.expires(s.remaining)}`;
+    drawAsk(s);
+  };
+
+  void commands.localServerPairOpen().then((r) => {
+    if (!alive) {
+      void commands.localServerPairClose();
+      return;
+    }
+    if (r.status !== "ok") {
+      live.textContent = errorSentence(r.error) || w.failed;
+      return;
+    }
+    shown = true;
+    drawPairing(body, r.data);
+    timer = window.setInterval(() => void poll(), 1000);
+    void poll();
+  });
+}
+
+function drawPairing(body: HTMLElement, p: LocalPairing): void {
+  const w = localStrings();
+  body.replaceChildren(h("p", "ls-help", w.pairSteps), drawQr(p.qr, w.qrLabel));
+  const facts = h("dl", "ls-facts");
+  const addr = h("dd", "ls-big");
+  addr.append(h("code", "", `https://${p.address}/pair`));
+  const code = h("dd", "ls-big");
+  code.append(h("code", "ls-code", p.code));
+  facts.append(h("dt", "", w.address), addr, h("dt", "", w.code), code);
+  body.append(facts);
+  if (p.certificate === "own") {
+    body.append(h("p", "ls-help", w.trustOwn));
+    const fp = h("p", "ls-fp");
+    fp.append(h("strong", "", `${w.fingerprint}: `), h("code", "", p.fingerprint));
+    body.append(fp);
+  }
+}

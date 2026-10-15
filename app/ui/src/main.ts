@@ -46,6 +46,7 @@ import { copyFilesInto, newUntitled } from "./files";
 import { focusesList, loadFocuses, selectFocus } from "./focuses";
 import { LAST_FOLDER, nameFolderButton, popout, secondary } from "./folder";
 import { hearServers, openServerFolder, parseServerKey } from "./dialogs/servers";
+import { hearLocalServer } from "./dialogs/localServer";
 import { hearSync } from "./dialogs/sync";
 import { offline } from "./web/offline/manager";
 import { icon } from "./icons";
@@ -727,6 +728,9 @@ if (!popout && settings.checkUpdates) {
  *  `board.md`, second reading, finding 9). */
 export const started: Promise<void> = (async () => {
   hearServers();
+  // The desktop serving to a phone: its status mark, a phone asking, a
+  // stop by itself (ADR 0096).
+  if (can("local_folders")) hearLocalServer();
   // A folder of this computer that syncs with a server says so in the
   // status bar (ADR 0079 item 13); a server's own folder does not sync.
   void loadCan().then(() => {

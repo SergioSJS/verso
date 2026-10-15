@@ -539,6 +539,36 @@ export const commands = {
 	 *  no path.
 	 */
 	recentFolders: () => __TAURI_INVOKE<RecentFolder[]>("recent_folders"),
+	localServerStatus: () => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_status")),
+	/**  The folders this computer has opened, to tick the ones to serve. */
+	localServerFolders: () => typedError<LocalFolder[], ContractError>(__TAURI_INVOKE("local_server_folders")),
+	/**
+	 *  Tick or untick a folder (by its key). A folder that also syncs with a
+	 *  UniVerso cannot be ticked in V1 (item 11).
+	 */
+	localServerTick: (key: string, ticked: boolean) => typedError<LocalFolder[], ContractError>(__TAURI_INVOKE("local_server_tick", { key, ticked })),
+	/**  Keep on at start, and the host's own certificate (item 5 (d)). */
+	localServerSettings: (keepOn: boolean, certFile: string | null, keyFile: string | null, hostName: string | null) => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_settings", { keepOn, certFile, keyFile, hostName })),
+	localServerStart: () => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_start")),
+	localServerStop: () => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_stop")),
+	localServerPairOpen: () => typedError<LocalPairing, ContractError>(__TAURI_INVOKE("local_server_pair_open")),
+	localServerPairClose: () => typedError<null, ContractError>(__TAURI_INVOKE("local_server_pair_close")),
+	localServerPairState: () => typedError<LocalPairState, ContractError>(__TAURI_INVOKE("local_server_pair_state")),
+	/**
+	 *  The laptop's answer to "Was it you?": allow (as an editor, or as a
+	 *  reader) or refuse.
+	 */
+	localServerAnswer: (allow: boolean, editor: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("local_server_answer", { allow, editor })),
+	localServerPhones: () => typedError<LocalPhone[], ContractError>(__TAURI_INVOKE("local_server_phones")),
+	localServerRevoke: (id: string) => typedError<null, ContractError>(__TAURI_INVOKE("local_server_revoke", { id })),
+	/**  Forget every device: every phone's session ends. */
+	localServerForget: () => typedError<number, ContractError>(__TAURI_INVOKE("local_server_forget")),
+	/**
+	 *  "Replace this computer's identity": serving stops, the key is made
+	 *  anew, every pairing ends.
+	 */
+	localServerReplaceIdentity: () => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_replace_identity")),
+	localServerAudit: () => typedError<LocalAudit[], ContractError>(__TAURI_INVOKE("local_server_audit")),
 	/**  The window's folder's sync: off, or its state. */
 	folderSync: () => typedError<SyncStatus, ContractError>(__TAURI_INVOKE("folder_sync")),
 	/**
@@ -1584,6 +1614,127 @@ export type LinkRewrite = {
 	revision: string,
 	before: string,
 	after: string,
+};
+
+/**  A phone that presented the token and waits for the laptop's answer. */
+export type LocalAsked = {
+	/**  The phone's name, as it sent it, made safe. */
+	device: string,
+	address: string,
+	/**  When it asked, `YYYY-MM-DDTHH:MM:SSZ`. */
+	asked: string,
+};
+
+/**  One line of the log of what happened, kept 365 days. */
+export type LocalAudit = {
+	at: number,
+	action: string,
+	subject: string | null,
+	address: string | null,
+};
+
+/**  A folder the person may tick to serve. */
+export type LocalFolder = {
+	/**  The folder's opaque key (`FolderInfo.key`). */
+	key: string,
+	name: string,
+	ticked: boolean,
+	/**
+	 *  The server this folder also syncs with: such a folder cannot be
+	 *  served in V1 (item 11), and the row says to open that address on
+	 *  the phone instead.
+	 */
+	syncs_with: string | null,
+};
+
+/**  The dialog's state, asked while it is open. */
+export type LocalPairState = {
+	open: boolean,
+	remaining: number,
+	asked: LocalAsked | null,
+};
+
+/**  What the pairing dialog shows. */
+export type LocalPairing = {
+	/**
+	 *  The text the QR encodes (also copied by hand when the phone cannot
+	 *  scan).
+	 */
+	url: string,
+	/**  `address:port`, to type. */
+	address: string,
+	/**  The code to type when the phone cannot scan: eight letters. */
+	code: string,
+	/**  The QR as rows of `1` (dark) and `0`; the window draws it. */
+	qr: string[],
+	expires_in: number,
+	fingerprint: string,
+	/**
+	 *  `own` or `files`: with `own`, the dialog says the limit in words
+	 *  (trust on first use, for a network the person trusts).
+	 */
+	certificate: string,
+};
+
+/**  A phone paired with this computer. */
+export type LocalPhone = {
+	id: string,
+	name: string,
+	/**  `reader` or `editor`; never more. */
+	role: string,
+	/**  Seconds since the epoch (a `u32` lasts until 2106). */
+	paired: number,
+	last_seen: number,
+	address: string,
+};
+
+/**  Where "this app is a server" stands. */
+export type LocalServerStatus = {
+	/**
+	 *  Whether this build of the app can serve: macOS and Linux today; the
+	 *  section says so on Windows and offers nothing (ADR 0096 item 17,
+	 *  option a).
+	 */
+	supported: boolean,
+	serving: boolean,
+	port: number | null,
+	/**  The private addresses it listens on. */
+	addresses: string[],
+	phones_paired: number,
+	phones_connected: number,
+	pairing_open: boolean,
+	/**
+	 *  The certificate's SHA-256, in pairs and upper case, for the person
+	 *  to compare.
+	 */
+	fingerprint: string | null,
+	/**  `own` (self-signed: trust on first use) or `files` (the host's). */
+	certificate: string,
+	/**
+	 *  Tailscale seems to run here: its own `tailscale serve` gives a
+	 *  certificate a phone trusts (ADR 0073 item 6).
+	 */
+	tailscale: boolean,
+	/**
+	 *  Why serving last stopped by itself (the network changed), for the
+	 *  person to read; none once it was turned on or off by hand.
+	 */
+	stopped_because: string | null,
+	/**
+	 *  This computer could not connect to its own address: a firewall is
+	 *  refusing what comes in, and the section shows the steps to allow it
+	 *  (item 9). The app never adds the rule itself.
+	 */
+	unreachable: boolean,
+	/**  "Keep on at start" (item 1's separate, off-by-default switch). */
+	keep_on: boolean,
+	/**
+	 *  The host's own certificate and key, when given (item 5 (d)), and the
+	 *  name it is for.
+	 */
+	cert_file: string | null,
+	key_file: string | null,
+	host_name: string | null,
 };
 
 /**  The tiles of a map's picture. */

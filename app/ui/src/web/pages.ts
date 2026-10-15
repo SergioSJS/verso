@@ -445,3 +445,69 @@ export async function signInLinkPage(token: string): Promise<void> {
   page(s.signInTitle, question, el("p", { id: "link-ask-why", class: "web-lead" }, s.linkSignInWhy), f.form);
   go?.focus();
 }
+
+/* ---------- Pairing a phone with the computer that serves it (ADR 0096) ---------- */
+
+/** How often a phone asks whether the computer answered. */
+const PAIR_POLL_MS = 2000;
+
+/** The pairing page: the QR's address carries the token in its fragment,
+ *  which the browser never sends in a request; it is read here and taken
+ *  out of the address bar at once. Without a token, the code is typed. */
+export function pairPage(): void {
+  const s = w();
+  const token = new URLSearchParams(location.hash.slice(1)).get("t");
+  // The secret leaves the address bar, the history and the screen.
+  history.replaceState(null, "", "/pair");
+  if (token) {
+    void redeem(token);
+    return;
+  }
+  const code = field(s.pairCodeLabel, "text", { autocomplete: "off", autocapitalize: "characters", spellcheck: "false", maxlength: "20", required: "" }, s.pairCodeHint);
+  const f = form(
+    [code],
+    s.pairContinue,
+    async () => {
+      await redeem(code.input.value);
+    },
+    explainPair,
+  );
+  page(s.pairTitle, lead(s.pairLead), el("p", { class: "web-lead" }, s.pairHow), f.form, el("p", { class: "web-note" }, s.pairTofu));
+  code.input.focus();
+}
+
+function explainPair(e: unknown): string {
+  const s = w();
+  if (e instanceof ApiError) {
+    if (e.status === 404) return s.pairClosed;
+    if (e.code === "link_gone") return s.pairGone;
+  }
+  return explain(e);
+}
+
+/** Show the computer's question on the phone and wait for its answer. */
+async function redeem(presented: string): Promise<void> {
+  const s = w();
+  const status = el("p", { class: "web-lead", role: "status", "aria-live": "polite" }, s.pairAsking);
+  const why = el("p", { class: "web-lead" }, s.pairAskingWhy);
+  page(s.pairTitle, status, why);
+  try {
+    const asked = await api<{ poll: string; interval: number }>("POST", "/api/pair", { token: presented });
+    for (;;) {
+      await new Promise((r) => setTimeout(r, Math.max(PAIR_POLL_MS, asked.interval * 1000)));
+      const r = await api<{ state: string; csrf?: string }>("POST", "/api/pair/poll", { poll: asked.poll });
+      if (r.state === "allowed") {
+        setCsrf(r.csrf ?? null);
+        status.textContent = s.pairAllowed;
+        location.replace("/");
+        return;
+      }
+    }
+  } catch (e) {
+    const refused = e instanceof ApiError && e.code === "link_gone";
+    status.textContent = refused ? s.pairGone : explainPair(e);
+    why.textContent = "";
+    status.classList.add("web-error");
+    status.setAttribute("role", "alert");
+  }
+}
