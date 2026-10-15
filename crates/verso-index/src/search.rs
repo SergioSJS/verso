@@ -210,10 +210,20 @@ impl Index {
         // A reader's excerpt from the public text (column 2), whatever
         // matched; anyone else's from the column that matched best.
         let column = if reader { 2 } else { -1 };
+        // A reader's hits come in the order of their paths: the rank of
+        // FTS5 weighs the length of the whole row, the secret column's
+        // text with it, even with the column's weight at zero, so the
+        // order would tell a reader how long a secret block grew (ADR 0087
+        // item 4). The names are ranked above, apart from this.
+        let order = if reader {
+            "path COLLATE NOCASE, path"
+        } else {
+            "rank"
+        };
         let mut st = self.conn.prepare(&format!(
             "SELECT path, snippet(notes_fts, {column}, '[', ']', '…', 12)
              FROM notes_fts WHERE notes_fts MATCH ?1
-             ORDER BY rank LIMIT ?2"
+             ORDER BY {order} LIMIT ?2"
         ))?;
         // `limit` rows are enough: at most as many as were named are named
         // again, and those places are taken already.
