@@ -46,6 +46,12 @@ export const ICO = {
   search: "M7 11.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zM10.3 10.3 14 14",
   outline: "M3 4h10M5 8h8M7 12h6",
   crop: "M4.5 1.5v10h10M1.5 4.5h10v10",
+  map: "M1.5 4l4-1.5 5 1.5 4-1.5v9.5l-4 1.5-5-1.5-4 1.5zM5.5 2.5v9.5M10.5 4v9.5",
+  pin: "M8 14.5s4.5-4 4.5-7.5a4.5 4.5 0 0 0-9 0c0 3.5 4.5 7.5 4.5 7.5zM8 7.5h.01",
+  back: "M5.5 5.5h7v7h-7zM3.5 10.5v-7h7",
+  front: "M3.5 3.5h7v7h-7zM5.5 12.5h7v-7",
+  lock: "M3.5 7.5h9v6h-9zM5.5 7.5v-2a2.5 2.5 0 0 1 5 0v2",
+  reader: "M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8zM8 9.7a1.7 1.7 0 1 0 0-3.4 1.7 1.7 0 0 0 0 3.4z",
 };
 
 export type ToolButtonProps = {
@@ -188,6 +194,8 @@ export type TopRightProps = {
   insert: JSX.Element | null;
   /** The selected picture card's crop, when one is selected. */
   cropPicture: (() => void) | null;
+  /** The map and secret tools (ADR 0090), drawn after the crop. */
+  maps?: JSX.Element | null;
   selectedNode: El | undefined;
   selectedData: CanvasNode | null | undefined;
   openable: boolean | undefined;
@@ -214,6 +222,7 @@ export function TopRightTools({
   s,
   insert,
   cropPicture,
+  maps,
   selectedNode,
   selectedData,
   openable,
@@ -275,10 +284,11 @@ export function TopRightTools({
           </span>
         )}
       </span>
-      {(openable || ends || file || cropPicture) && <div className="App-toolbar__divider" />}
+      {(openable || ends || file || cropPicture || maps) && <div className="App-toolbar__divider" />}
       {openable && <ToolButton label={s.open} title={s.openTitle} onClick={() => selectedNode && openNode(selectedNode, false)} icon={ICO.open} testId="board-tool-open" />}
       {file && <ToolButton label={s.swap} title={s.swapTitle} onClick={() => selectedNode && selectedData && void relink(selectedNode, selectedData)} icon={ICO.swap} testId="board-tool-swap" />}
       {cropPicture && <ToolButton label={s.crop} title={s.cropTitle} onClick={cropPicture} icon={ICO.crop} testId="board-tool-crop" />}
+      {maps}
       {ends && <ToolButton label={s.promote} title={s.promoteTitle} onClick={() => void promote()} icon={ICO.relation} testId="board-tool-promote" />}
       <div className="App-toolbar__divider" />
       <ToolButton label={s.outline} title={s.outlineTitle} onClick={() => setShowOutline((v) => !v)} icon={ICO.outline} pressed={showOutline} testId="board-tool-outline" />

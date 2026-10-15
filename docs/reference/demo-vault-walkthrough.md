@@ -592,6 +592,29 @@ point 13).
     screen), and says when Setas soltas is on. Level: H; E:
     `board-arrows.spec.mjs`.
 
+12. Lesson 13, maps (ADR 0090): select the picture, "Usar como mapa": it is
+    locked (a drag over it pans nothing of the map), at the back, and the
+    file holds `"verso": {"map": true, "locked": true}`; the outline's
+    "Mapas" lists it with "Deixar de usar como mapa", which takes the three
+    off. Drag "Porto Cinzento" from the tree onto the picture: a pin, in the
+    picture's group, never a card; "Fixar uma nota aqui…" does the same in the
+    middle of the view. Zoom out and in: the pin keeps its size and stays on
+    its point; a click opens the note; the pointer rested on it shows the
+    note in a card, and a finger held still on a phone does too; Tab walks
+    the pins and Enter opens one; the outline lists them in reading order as
+    links. "Enviar para trás" and "Trazer para a frente" on any card reorder
+    it in the file. A PNG of 16,000 pixels a side as a map: "Preparando o
+    mapa…", then the tiles in view, never the whole picture (the app's log
+    open; the memory of the window stays small); a JPEG of that size is drawn
+    whole, with the note that says to save it as a PNG. On a server: a
+    secret pin shows the lock "Oculto para leitores", "Ver como leitor" draws
+    the board without it and nothing is written, a reader account sees no
+    secret pin in the board, the search, the backlinks of its note or the
+    synced file, and an exported picture asks about the secret cards. Level:
+    H (the pins, the tools, the tiles on the harness's tile answers, the
+    reader's board on its projection), A (the real tiles, the real server,
+    a phone); E: `maps.spec.mjs`.
+
 ## 10. Settings, help, the command line
 
 1. ⌘,: the sections as note 15 names them; Aparência's options; Terminal e

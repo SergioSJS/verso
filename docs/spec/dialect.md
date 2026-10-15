@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.42
+# Verso dialect spec — v0.43
 
-- Version: v0.42 · 2026-10-14
+- Version: v0.43 · 2026-10-15
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -501,7 +501,9 @@ How Verso extends JSON Canvas and persists the board: `DECIDED` on
    - an element of `verso.drawing`: `under`, the id of the node it lies
      under;
    - a node's own `verso`: `background`, `fill`, `corners`, `strokeWidth`,
-     `roughness`, `angle`, `strokeStyle`, `opacity`, `locked`, `groups`;
+     `roughness`, `angle`, `strokeStyle`, `opacity`, `locked`, `groups`,
+     and, for maps ([ADR 0090](../adr/0090-maps-on-the-board.md)), `map`,
+     `pin`, `secret` (item 6);
    - an edge's own `verso`: `relation`, `line` (`curved` or `elbow`),
      `strokeWidth`, `roughness`, `startHead`, `endHead`, `bends`,
      `labelSize`, `labelFont`, `strokeStyle`, `opacity`, `locked`,
@@ -509,6 +511,30 @@ How Verso extends JSON Canvas and persists the board: `DECIDED` on
 
    A `verso.version` above the one a build writes is a board of a later
    Verso: shown, never written.
+6. Maps ([ADR 0090](../adr/0090-maps-on-the-board.md), `DECIDED` on
+   2026-10-14). A map is a board: no `.map` file and no node type of
+   Verso's own, so Obsidian opens it as a canvas with a picture and cards.
+   - A file node of a picture marked `"verso": {"map": true}` is a map's
+     picture. "Use as map" sets that, `"locked": true` and the node's place
+     at the bottom of the order of nodes (the stacking order); "Stop using
+     as map" takes the three off. A board may hold several.
+   - A file node of a note marked `"verso": {"pin": true}` is a pin: the
+     window draws it at one size on the screen at any zoom, at the middle
+     of its box, and a click opens its note. The pins of a map are in its
+     group (`verso.groups`), so moving the map moves them.
+   - A node marked `"verso": {"secret": true}` is not served to those who
+     may only read the board on a UniVerso (ADR 0087's rule, applied to a
+     board): the reader is served the board without that node, the edges
+     that touch it, and the drawn elements that lie under it, are bound to
+     it or hold a group only secret nodes hold (a group that also holds a
+     node that is not secret, such as the map a pin is grouped with, hides
+     nothing). Any value of `secret` but `false` or `null` counts. A board
+     with no secret node is served byte for byte; one that is not JSON and
+     mentions a secret is served empty. Whoever holds the file, and
+     Obsidian, sees the node: it is a guard against readers on a server,
+     not encryption.
+   - A large PNG is drawn from tiles of Verso's own, cut once and kept
+     outside the folder; the file holds no tile.
 
 ### 5.12 Headings
 
@@ -1409,3 +1435,4 @@ the parser was chosen.
 | v0.40 | 2026-10-14 | The schema gains `prose` (§4.1, §4.9): the runs of prose of [ADR 0089](../adr/0089-linking-unlinked-mentions.md) item 1, what the mentions are looked for in, by the maintainer's answer M6 (*"Sim, todas"*); the fixture `fixtures/prose/what-is-prose` drafted, awaiting the maintainer's approval. No question closed. |
 | v0.41 | 2026-10-14 | The fixtures `fixtures/code/dice-inline`, `fixtures/prose/what-is-prose` and `fixtures/schema/infobox` **approved by the maintainer** in session (*"Aprovo as 3"*), and with them the schema's key `prose` (§4.1, §4.9) of v0.40; their draft mark removed. `code/dice-inline` observed in Obsidian 1.14.4 through its CLI, without the Dice Roller plugin, before the approval was recorded: its links and its block are Obsidian's, its `observed:` says how. Nothing else changes. |
 | v0.42 | 2026-10-14 | The schema gains `reader` (§4.1, §4.6): the note as a UniVerso serves a reader, the projection of Q9 and [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md) item 3. The drafted fixture `fixtures/callout/secret`, with the PR that builds ADR 0087, awaits the maintainer's approval; Q9's paragraph says so. No decision changed |
+| v0.43 | 2026-10-15 | §5.11 item 5 and a new item 6: maps on the board ([ADR 0090](../adr/0090-maps-on-the-board.md)) — a node's `verso` gains `map`, `pin` and `secret`, and a secret node is left out of what a reader is served. No fixture: the fixture schema (§4) describes a Markdown note, and a canvas is not parsed by the dialect; the guardrail is the core's property test of the projection. No question closed |

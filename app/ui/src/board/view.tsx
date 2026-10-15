@@ -32,6 +32,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent,
 import { createPortal, flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { CardLayer, drawQueue, isBarePicture, OutlinePanel, View } from "./cards";
+import { hasSecret, keptIds, mapAt, mapsOf, pinsOf } from "./maps";
+import { mapActions, readerActions } from "./mapsActions";
+import { MapsPanel } from "./mapsPanel";
+import { MapTools } from "./mapsTools";
+import { mapStrings } from "./mapStrings";
+import { PinLayer, usePinPointer, ViewWatch, type Watch } from "./mapsView";
 import { CropDialog, ExportDialog } from "./dialogs";
 import { DrawingPreview, DrawingView } from "./drawing";
 import { FONT_ID, fontReady, fontsOf } from "./fonts";
@@ -44,6 +50,7 @@ import {
   cardCrop,
   fromElements,
   isNode,
+  isSecret,
   MARKER,
   newNode,
   nodeData,
@@ -161,7 +168,17 @@ function Board({
   // The cards Verso draws over the canvas (CardLayer): which, where the
   // view is when it last settled, which one is entered.
   const [cards, setCards] = useState<readonly El[]>([]);
+  /** The pins (ADR 0090), drawn by `PinLayer` at one size at any zoom. */
+  const [pins, setPins] = useState<readonly El[]>([]);
   const cardsKey = useRef("");
+  /** Who asked to hear the view move (`ViewWatch`), and the pins' place. */
+  const watchers = useRef(new Set<(v: View) => void>());
+  const pinsPlace = useRef<((v: View) => void) | null>(null);
+  /** The board's own elements, kept while it is shown as a reader receives
+   *  it (ADR 0090 item 5): never written, nothing of it sent to a room. */
+  const [asReader, setAsReader] = useState<readonly ExcalidrawElement[] | null>(null);
+  const reading = useRef(false);
+  const ms = mapStrings(host.lang);
   const settledRef = useRef<View>({ scrollX: 0, scrollY: 0, zoom: 1, width: 0, height: 0 });
   const [settled, setSettled] = useState<View>(settledRef.current);
   const settleTimer = useRef<number | undefined>(undefined);
@@ -326,6 +343,11 @@ function Board({
     setElements(initialElements as unknown as El[]);
     bind(
       (d) => {
+        // The file changed under a reader's view of it: the whole board again.
+        if (reading.current) {
+          reading.current = false;
+          setAsReader(null);
+        }
         const els = restored(d);
         window.clearTimeout(timer.current);
         touched.current = false;
@@ -451,7 +473,7 @@ function Board({
 
   const flush = useCallback((): Promise<void> => {
     const a = api.current;
-    if (!a || readOnly || !alive.current) return Promise.resolve();
+    if (!a || readOnly || reading.current || !alive.current) return Promise.resolve();
     noteUser();
     // In a room the board saves nothing itself: what it changed goes to the
     // room, which writes the file.
@@ -520,7 +542,10 @@ function Board({
     const key = list.map((e) => `${e.id}:${String(e["version"])}`).join("|");
     if (key === cardsKey.current) return;
     cardsKey.current = key;
-    setCards(list);
+    // A pin is drawn by its own layer, not among the cards.
+    const pinned = new Set(pinsOf(list).map((p) => p.id));
+    setCards(list.filter((e) => !pinned.has(e.id)));
+    setPins(pinsOf(list));
   }, []);
 
   const { overlays, scheduleOverlays } = useOverlays(api, dark);
@@ -637,7 +662,7 @@ function Board({
       if (key !== workKey.current) {
         workKey.current = key;
         noteUser();
-        if (host.room && !readOnly) {
+        if (host.room && !readOnly && !reading.current) {
           host.room.scene(els as unknown as El[], state.viewBackgroundColor, edited.current);
           edited.current = false;
         }
@@ -663,6 +688,8 @@ function Board({
         liveRef.current = v;
         place();
         cullRef.current?.(v);
+        pinsPlace.current?.(v);
+        for (const cb of watchers.current) cb(v);
         const s0 = settledRef.current;
         const settle = (): void => {
           settledRef.current = liveRef.current;
@@ -918,22 +945,32 @@ function Board({
   };
   // A picture comes in at its own proportions, its longer side as long as
   // a new card's: a box of another shape would show the paper round it.
-  const pictureSize = (path: string): Promise<[number, number] | null> =>
-    new Promise((resolve) => {
-      if (!IMAGE.test(ext(path))) return resolve(null);
+  const pictureSize = async (path: string): Promise<[number, number] | null> => {
+    if (!IMAGE.test(ext(path))) return null;
+    const boxed = (w: number, h: number): [number, number] => {
+      const k = 400 / Math.max(w, h);
+      return [Math.max(40, Math.round(w * k)), Math.max(40, Math.round(h * k))];
+    };
+    // A large picture is never loaded whole to be measured: the core reads
+    // its size from the file (ADR 0090 item 4).
+    const told = host.maps ? await host.maps.open(path).catch(() => null) : null;
+    if (told && told.width > 0 && told.height > 0) return boxed(told.width, told.height);
+    return new Promise((resolve) => {
       const img = new Image();
-      img.onload = () => {
-        const w = img.naturalWidth;
-        const h = img.naturalHeight;
-        if (!w || !h) return resolve(null);
-        const k = 400 / Math.max(w, h);
-        resolve([Math.max(40, Math.round(w * k)), Math.max(40, Math.round(h * k))]);
-      };
+      img.onload = () => (img.naturalWidth && img.naturalHeight ? resolve(boxed(img.naturalWidth, img.naturalHeight)) : resolve(null));
       img.onerror = () => resolve(null);
       img.src = host.fileSrc(path);
     });
+  };
   const addPath = async (path: string, clientX?: number, clientY?: number, nth = 0): Promise<void> => {
     const [x, y] = sceneAt(clientX, clientY);
+    // A note dropped on a map is pinned there (ADR 0090 item 3).
+    const onMap = ext(path) === "md" ? mapAt((api.current?.getSceneElements() ?? []) as unknown as El[], x, y) : undefined;
+    const target = onMap ? byId(onMap.id) : undefined;
+    if (target) {
+      mapAct.pin(path, [x + nth * 32, y + nth * 32], target as never);
+      return;
+    }
     const size = await pictureSize(path);
     const node = newNode("file", path, [x + nth * 32, y + nth * 32], randomId());
     if (size) {
@@ -979,6 +1016,62 @@ function Board({
     const at = "dataTransfer" in ev ? ev : null;
     void takeFiles(Array.from(list), at?.clientX, at?.clientY);
   };
+
+  // Maps (ADR 0090): the commands, the pointer on the pins, and the
+  // writer's "view as a reader".
+  const dragFrom = useRef(new Map<string, [number, number]>());
+  const mapAct = mapActions({ api, host, touched, center, dragFrom });
+  const watch = useCallback<Watch>((cb) => {
+    watchers.current.add(cb);
+    if (liveRef.current.width > 0) cb(liveRef.current);
+    return () => {
+      watchers.current.delete(cb);
+    };
+  }, []);
+  const pinAct = useRef({ writable: false, open: (_id: string, _aside: boolean): void => undefined, move: (_id: string, _dx: number, _dy: number, _done: boolean): void => undefined });
+  pinAct.current = {
+    writable: !readOnly && asReader === null,
+    open: (id, aside) => {
+      const e = byId(id);
+      if (e) openNode(e, aside);
+    },
+    move: mapAct.movePin,
+  };
+  usePinPointer(container, pinAct);
+  const everything = useMemo(() => [...cards, ...pins], [cards, pins]);
+  const mapEls = useMemo(() => mapsOf(everything), [everything]);
+  const holdsSecret = host.secret !== undefined && hasSecret(everything);
+  const reader = readerActions({ api, host, doc, flush: () => flushRef.current(), own, restored, rekey: () => void (workKey.current = ""), remeasure: remeasureWhenFontsIn, asReader, setAsReader, reading, notABoard: s.notABoard });
+  const toggleReader = reader.toggle;
+  const secretIds = reader.secretIds;
+  const mapTools = (
+    <MapTools
+      ms={ms}
+      host={host}
+      selected={selectedNode && isNode(selectedNode) ? selectedNode : undefined}
+      data={selectedData}
+      hasMap={mapEls.length > 0}
+      writable={!readOnly && asReader === null}
+      holdsSecret={holdsSecret || asReader !== null}
+      viewing={asReader !== null}
+      actions={mapAct}
+      toggleReader={() => void toggleReader()}
+    />
+  );
+  const mapsPanel = (
+    <MapsPanel
+      ms={ms}
+      maps={mapEls.map((m) => ({ id: m.id, label: nodeName(nodeData(m) ?? ({} as CanvasNode), s) }))}
+      pins={pins.map((p) => ({ id: p.id, label: nodeName(nodeData(p) ?? ({} as CanvasNode), s), secret: isSecret(nodeData(p) ?? ({} as CanvasNode)) }))}
+      writable={!readOnly && asReader === null}
+      onFocus={focusElement}
+      onOpenPin={(id) => {
+        const e = byId(id);
+        if (e) openNode(e, false);
+      }}
+      stopMap={mapAct.stopMap}
+    />
+  );
 
   const slot = useToolbarSlot(container);
   const toolsBelow = useToolsBelow(container);
@@ -1181,6 +1274,8 @@ function Board({
                 settledRef.current = v;
                 liveRef.current = v;
                 setSettled(v);
+                pinsPlace.current?.(v);
+                for (const cb of watchers.current) cb(v);
               });
             }}
             initialData={{
@@ -1197,7 +1292,7 @@ function Board({
             onChange={onChange}
             onPointerUpdate={host.room ? (p) => host.room?.pointer(p.pointer.x, p.pointer.y, p.pointer.tool, p.button) : undefined}
             theme={dark ? "dark" : "light"}
-            viewModeEnabled={readOnly}
+            viewModeEnabled={readOnly || asReader !== null}
             langCode={host.lang.toLowerCase().startsWith("pt") ? "pt-BR" : "en"}
             validateEmbeddable={(link: string) => link === MARKER}
             onLinkOpen={(element, event) => {
@@ -1222,6 +1317,7 @@ function Board({
                 s={s}
                 insert={slot ? null : insertMenu}
                 cropPicture={cropPicture}
+                maps={mapTools}
                 selectedNode={selectedNode}
                 selectedData={selectedData}
                 openable={openable}
@@ -1251,6 +1347,7 @@ function Board({
                   s={s}
                   insert={slot ? null : insertMenu}
                   cropPicture={cropPicture}
+                  maps={mapTools}
                   selectedNode={selectedNode}
                   selectedData={selectedData}
                   openable={openable}
@@ -1289,6 +1386,7 @@ function Board({
           )}
           {layerHost &&
             createPortal(
+              <ViewWatch.Provider value={watch}>
               <CardLayer
                 editing={editing}
                 setEditing={setEditing}
@@ -1304,14 +1402,28 @@ function Board({
                 host={host}
                 tick={tick}
                 plane={plane}
-              />,
+              />
+              </ViewWatch.Provider>,
               layerHost,
             )}
+          {layerHost &&
+            createPortal(
+              <PinLayer pins={pins} host={host} strings={ms} live={liveRef} place={pinsPlace} selected={selected} served={host.secret?.served() ?? false} open={pinAct.current.open} />,
+              layerHost,
+            )}
+          {asReader !== null && (
+            <div className="reader-banner board-reader-banner" role="status" data-testid="board-reader-banner">
+              <span>{ms.viewing}</span>
+              <button type="button" className="reader-back" onClick={() => void toggleReader()}>
+                {ms.back}
+              </button>
+            </div>
+          )}
         </div>
-        {exporting && api.current && <ExportDialog api={api.current} host={host} selected={selected} onClose={() => setExporting(false)} />}
+        {exporting && api.current && <ExportDialog api={api.current} host={host} selected={selected} secretIds={holdsSecret && asReader === null ? secretIds : undefined} onClose={() => setExporting(false)} />}
         {cropping && <CropDialog src={host.fileSrc(cropping.file)} crop={cropping.crop} strings={s} onApply={applyCrop} onClose={() => setCropping(null)} />}
         {showOutline && (
-          <OutlinePanel outline={outline} strings={s} annotations={annotations} onAnnotations={setAnnotations} onFocus={focusElement} onOpen={openFromOutline} />
+          <OutlinePanel outline={outline} strings={s} maps={mapsPanel} annotations={annotations} onAnnotations={setAnnotations} onFocus={focusElement} onOpen={openFromOutline} />
         )}
       </div>
     </div>
