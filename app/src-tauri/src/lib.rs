@@ -959,6 +959,10 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
         }
     });
     log::open();
+    // "This app is a server" says its life in the app's own log (ADR 0096
+    // item 14): the server crate's lines, which go to standard error
+    // where there is a terminal, come here too.
+    verso_server::log::set_sink(Some(|level, message| log::write(level, "local", message)));
     log::install_panic_hook();
     log::write(
         "INFO",

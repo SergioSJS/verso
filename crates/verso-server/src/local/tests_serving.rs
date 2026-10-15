@@ -951,3 +951,117 @@ fn the_web_window_loads_on_a_phone_with_no_refusal() {
         }
     });
 }
+
+static LOGGED: std::sync::Mutex<Vec<(String, String)>> = std::sync::Mutex::new(Vec::new());
+
+fn keep_line(level: &str, message: &str) {
+    LOGGED
+        .lock()
+        .unwrap()
+        .push((level.to_owned(), message.to_owned()));
+}
+
+/// ADR 0096 item 14: the app's own log has the mode's life — on and off
+/// with the addresses and the port, the pairing's events, the phones'
+/// sessions and the refusals — and never a token, a code, the QR's text, the
+/// fingerprint, a cookie or a note's words. The host's log file hears the
+/// same lines through the server's log sink.
+#[test]
+fn the_log_has_the_modes_life_and_no_secret() {
+    run(async {
+        crate::log::set_sink(Some(keep_line));
+        let mut lab = lab();
+        lab.serve();
+        // A pairing refused at the computer, one approved, a command refused
+        // and the phone revoked.
+        assert!(
+            lab.pair("Moto Refusado", false, Role::Reader)
+                .await
+                .is_none()
+        );
+        let view = lab.local.pair_open().unwrap();
+        let wrong = lab
+            .post("/api/pair", json!({ "token": "not-the-token" }), None)
+            .await;
+        assert_eq!(wrong.0, 410);
+        let cookie = lab.pair("Moto Aprovado", true, Role::Reader).await.unwrap();
+        let mut ws = open(&lab, &cookie).await;
+        let note = call(&mut ws, 2, "read_note", json!({ "path": "Sessao.md" })).await;
+        assert!(note.get("ok").is_some());
+        let refused = call(&mut ws, 3, "reveal", json!({ "path": "Sessao.md" })).await;
+        assert_eq!(refused["err"]["kind"], "not_on_phone");
+        drop(ws);
+        // The server notices the closed socket on its own time.
+        for _ in 0..100 {
+            let gone = LOGGED
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|(_, m)| m.contains("a paired phone disconnected: Moto Aprovado"));
+            if gone {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+        let phones = lab.local.phones().unwrap();
+        let aprovado = phones.iter().find(|p| p.name == "Moto Aprovado").unwrap();
+        lab.local.revoke(&aprovado.id).unwrap();
+        lab.local.stop();
+        crate::log::set_sink(None);
+
+        let lines: Vec<(String, String)> = LOGGED
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(_, m)| !m.contains("test-other"))
+            .cloned()
+            .collect();
+        let has = |level: &str, what: &str| {
+            assert!(
+                lines.iter().any(|(l, m)| l == level && m.contains(what)),
+                "no {level} line with {what:?} in {lines:#?}"
+            );
+        };
+        has("INFO", "local server on: 127.0.0.1 (en0); port ");
+        has("INFO", "the pairing window opened, for 127.0.0.1");
+        has(
+            "INFO",
+            "a pairing was refused at the computer: Moto Refusado",
+        );
+        has(
+            "INFO",
+            "a pairing was approved at the computer: Moto Aprovado",
+        );
+        has("INFO", "a paired phone connected: Moto Aprovado");
+        has("INFO", "a paired phone disconnected: Moto Aprovado");
+        has("INFO", "a paired phone was revoked: Moto Aprovado");
+        has("INFO", "local server stopped");
+        has(
+            "WARN",
+            "a paired phone ran a command that is not its to run: reveal",
+        );
+        has("WARN", "a wrong or reused pairing token");
+        // Secrets: the token and the code of the window, the QR's text, the
+        // fingerprint (both forms), the session cookie and the note's text.
+        let parsed = super::qr::parse(&view.url).unwrap();
+        let secrets = [
+            parsed.token.as_str(),
+            view.code.as_str(),
+            view.url.as_str(),
+            view.fingerprint.as_str(),
+            parsed.fingerprint.as_str(),
+            cookie.as_str(),
+            cookie.split_once('=').map_or("", |c| c.1),
+            "# Sessao",
+            "not-the-token",
+        ];
+        for (level, message) in &lines {
+            for secret in secrets {
+                assert!(
+                    secret.is_empty() || !message.contains(secret),
+                    "{level} line carries a secret ({secret:?}): {message}"
+                );
+            }
+        }
+    });
+}

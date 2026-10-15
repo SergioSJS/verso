@@ -87,6 +87,8 @@ type Sink = Arc<dyn Fn(Event) + Send + Sync>;
 pub struct PhoneGuard {
     map: Arc<Mutex<HashMap<String, u32>>>,
     session: String,
+    /// The phone's name, for the log's line when its last connection ends.
+    name: String,
 }
 
 impl Drop for PhoneGuard {
@@ -96,6 +98,8 @@ impl Drop for PhoneGuard {
             *n = n.saturating_sub(1);
             if *n == 0 {
                 held.remove(&self.session);
+                drop(held);
+                crate::log::info(&format!("a paired phone disconnected: {}", self.name));
             }
         }
     }
@@ -213,16 +217,34 @@ impl Policy {
     /// a phone connected already takes another connection without taking
     /// another place.
     #[must_use]
-    pub fn enter(&self, session: &str) -> Option<PhoneGuard> {
+    pub fn enter(&self, session: &str, name: &str) -> Option<PhoneGuard> {
         let mut held = lock(&self.connected);
         if !held.contains_key(session) && held.len() >= CONNECTED as usize {
             return None;
         }
+        let first = !held.contains_key(session);
         *held.entry(session.to_owned()).or_insert(0) += 1;
+        drop(held);
+        if first {
+            crate::log::info(&format!("a paired phone connected: {name}"));
+        }
         Some(PhoneGuard {
             map: Arc::clone(&self.connected),
             session: session.to_owned(),
+            name: name.to_owned(),
         })
+    }
+
+    /// A phone's name, for the log; empty when it is not found.
+    #[must_use]
+    pub fn name_of(&self, server: &Server, session: &str) -> String {
+        server
+            .db
+            .phones()
+            .ok()
+            .and_then(|p| p.into_iter().find(|p| p.id == session))
+            .map(|p| p.name)
+            .unwrap_or_default()
     }
 
     /// How many phones are connected now.
@@ -760,9 +782,14 @@ impl LocalServer {
         }
         let id = self.shared.next.fetch_add(1, Ordering::Relaxed);
         let tailscale = net::tailscale_seen(&all_for_hint(&self.shared));
+        let on: Vec<String> = nets
+            .iter()
+            .map(|n| format!("{} ({})", n.ip, n.name))
+            .collect();
         crate::log::info(&format!(
-            "UniVerso-compatible local server on {} address(es), port {port}, certificate: {certificate}",
-            nets.len()
+            "local server on: {}; port {port}; certificate: {certificate}; {} folder(s)",
+            on.join(", "),
+            settings.folders.len()
         ));
         policy.audit(
             &server,
@@ -981,7 +1008,7 @@ impl LocalServer {
         let matrix = qr::matrix(&url)?;
         r.policy.start_announcing();
         r.policy.audit(&r.server, "pair_open", None, None);
-        crate::log::info("the pairing window opened");
+        crate::log::info(&format!("the pairing window opened, for {}", chosen_net.ip));
         (self.shared.events)(Event::Changed);
         Ok(PairView {
             url,
@@ -1057,7 +1084,10 @@ impl LocalServer {
                 Some(&asked.device),
                 Some(&asked.address),
             );
-            crate::log::info("a pairing was refused at the computer");
+            crate::log::info(&format!(
+                "a pairing was refused at the computer: {} ({})",
+                asked.device, asked.address
+            ));
             drop(running);
             (self.shared.events)(Event::Changed);
             return Ok(());
@@ -1092,7 +1122,12 @@ impl LocalServer {
             Some(&asked.device),
             Some(&asked.address),
         );
-        crate::log::info(&format!("a phone was allowed as {}", role.as_str()));
+        crate::log::info(&format!(
+            "a pairing was approved at the computer: {} ({}) as {}",
+            asked.device,
+            asked.address,
+            role.as_str()
+        ));
         drop(running);
         (self.shared.events)(Event::Changed);
         Ok(())
@@ -1144,8 +1179,10 @@ impl LocalServer {
             })?;
             (ended, name)
         };
-        let _ = name;
-        crate::log::info("a phone was revoked");
+        crate::log::info(&format!(
+            "a paired phone was revoked: {}",
+            name.as_deref().unwrap_or("unknown")
+        ));
         (self.shared.events)(Event::Changed);
         if ended {
             Ok(())
