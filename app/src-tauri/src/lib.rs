@@ -134,6 +134,8 @@ pub struct App {
     /// made for it (`folder_handed`).
     started: std::sync::atomic::AtomicBool,
     /// "This app is a server" (ADR 0096), made on first use.
+    /// The local server (ADR 0096); not on Windows yet (item 17).
+    #[cfg(not(windows))]
     pub(crate) local_server: local_server::LocalSlot,
 }
 
@@ -157,6 +159,7 @@ impl App {
             menu_recents: Mutex::new(Vec::new()),
             menu_language: Mutex::new("pt".to_owned()),
             started: std::sync::atomic::AtomicBool::new(false),
+            #[cfg(not(windows))]
             local_server: local_server::LocalSlot::default(),
         }
     }

@@ -14,17 +14,18 @@
 //! says so on Windows and offers nothing (ADR 0096 item 17, option (a);
 //! reported).
 
+#[cfg(not(windows))]
+use verso_contract::LocalAsked;
 use verso_contract::{
-    LocalAsked, LocalAudit, LocalFolder, LocalPairState, LocalPairing, LocalPhone,
-    LocalServerStatus,
+    LocalAudit, LocalFolder, LocalPairState, LocalPairing, LocalPhone, LocalServerStatus,
 };
 
 use super::*;
 
-/// The mode's server, made on first use.
+/// The mode's server, made on first use (not on Windows yet, item 17).
+#[cfg(not(windows))]
 #[derive(Default)]
 pub(crate) struct LocalSlot {
-    #[cfg(not(windows))]
     server: std::sync::OnceLock<verso_server::local::LocalServer>,
 }
 
