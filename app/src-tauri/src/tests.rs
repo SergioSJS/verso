@@ -688,6 +688,70 @@ fn a_web_view_answers_only_the_window_that_opened_it() {
     assert_eq!(e["kind"], "refused", "{e}");
 }
 
+/// A web page's place is its slot — the page's whole box, which may
+/// reach outside the window — and the part of it that shows (ADR 0056,
+/// revised 2026-10-15): the host lays the page out at the slot and draws
+/// only the visible part. The old place, one rectangle and a scroll, is
+/// not one any more, and what is not a place on a screen is refused.
+#[test]
+fn a_web_page_is_placed_by_its_slot_and_the_part_that_shows() {
+    let (app, main) = app();
+    main.as_ref()
+        .window()
+        .add_child(
+            tauri::webview::WebviewBuilder::new(
+                "web-4",
+                tauri::WebviewUrl::External("https://example.com".parse().unwrap()),
+            ),
+            tauri::LogicalPosition::new(0.0, 0.0),
+            tauri::LogicalSize::new(10.0, 10.0),
+        )
+        .unwrap();
+    lock(&app.state::<App>().web_views).insert("web-4".to_owned(), "main".to_owned());
+    let rect = |x: f64, y: f64, w: f64, h: f64| json!({ "x": x, "y": y, "w": w, "h": h });
+    let bounds = |place: Value| {
+        call(
+            &main,
+            "web_bounds",
+            json!({ "label": "web-4", "place": place }),
+        )
+    };
+    // Half above its pane: 300 tall, the top 100 out of sight.
+    let half = json!({ "slot": rect(100.0, -60.0, 800.0, 300.0), "visible": rect(100.0, 40.0, 800.0, 200.0) });
+    assert!(bounds(half).is_ok());
+    assert!(
+        call(
+            &main,
+            "web_visible",
+            json!({ "label": "web-4", "visible": true })
+        )
+        .is_ok()
+    );
+
+    let old = json!({ "x": 0.0, "y": 0.0, "w": 10.0, "h": 10.0, "scrollX": 0.0, "scrollY": 0.0 });
+    assert!(
+        bounds(old).is_err(),
+        "a rectangle and a scroll is no longer a place"
+    );
+    let negative =
+        json!({ "slot": rect(0.0, 0.0, -1.0, 10.0), "visible": rect(0.0, 0.0, 1.0, 1.0) });
+    let far = json!({ "slot": rect(0.0, 0.0, 10.0, 10.0), "visible": rect(0.0, 2e6, 1.0, 1.0) });
+    for bad in [negative.clone(), far] {
+        let e = bounds(bad.clone()).unwrap_err();
+        assert_eq!(e["kind"], "refused", "{bad}: {e}");
+    }
+    // Refused before any view is made, too.
+    let e = call(
+        &main,
+        "web_open",
+        json!({ "url": "https://example.com", "place": negative }),
+    )
+    .unwrap_err();
+    assert_eq!(e["kind"], "refused", "{e}");
+
+    assert!(call(&main, "web_close", json!({ "label": "web-4" })).is_ok());
+}
+
 /// A window that shows a site inside it (a web note, an embed) holds
 /// child web views, and Tauri stops counting it as a `WebviewWindow`:
 /// the console still opens there, a quit still asks it to save, and a

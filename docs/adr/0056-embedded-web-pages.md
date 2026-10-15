@@ -18,6 +18,13 @@
   at the end of the Decision, with its Consequences, its discarded
   alternative and two `[OPEN]` items; the text of the first decision is kept,
   each superseded part with a note.
+  2026-10-15 — **revised by the maintainer**, in session: an embedded
+  page that stays a child web view is drawn as a frame is — laid out at its
+  box's whole size and place, drawn only in the part that shows — by a
+  native clipping container per operating system, under the one exception
+  to `unsafe_code = "forbid"` of
+  [0029](0029-guardrails-in-ci.md) (*"A e B juntos"*). Recorded at the end
+  of the Decision.
 
 ## Context
 
@@ -288,6 +295,69 @@ The gate and the settings list are unchanged: the child view is only
 made for an origin the user approved. Verified on 2026-09-29 with
 huggingface.co and rolai.app rendering whole, X-Frame-Options and all.
 
+### Revised again: the page clipped as a frame is — decided on 2026-10-15
+
+The child web view kept one fault an iframe does not have. A native view
+floats over the window's page, and CSS cannot clip it; so the view was
+shrunk to the visible part of its box, and when the note was scrolled
+until the box was half above its pane, the page showed its top again in a
+shorter view, instead of moving up with the note. The maintainer, trying
+it in the app on 2026-10-15: *"era para funcionar como iframe normal…
+qual a dificuldade de fazer a página respeitar o tamanho da janela que
+ela foi renderizada"* (it should work as a normal iframe; what is hard
+about making the page respect the size of the window it was rendered
+in). His own sites all refuse to be framed, measured that day —
+olddragon.com.br (`X-Frame-Options: SAMEORIGIN`; `frame-ancestors 'self'
+*.owlbear.rodeo`), rolai.app (`DENY`), a Calibre-Web on the local network
+(`SAMEORIGIN`) — so they stay child web views.
+
+**Decided by the maintainer on 2026-10-15**, in session: *"A e B
+juntos"*. A: a real `<iframe>` where a site allows framing, built beside
+this and recorded with its own change. B: for the pages that stay child
+web views, a native clipping container, under an exception to
+`unsafe_code = "forbid"` confined to one module, one small file per
+system, each `unsafe` block with its `SAFETY` comment, tested, in its own
+pull request ([0029](0029-guardrails-in-ci.md), revision of the same
+day).
+
+**B, as built** (`app/src-tauri/src/web_clip/`):
+
+- The window sends two rectangles (`WebPlace`): the **slot**, the box's
+  whole size and true place, which may reach outside the pane and the
+  window; and the **visible** part, where the box shows — inside every
+  scroller, the window, and clear of the tab bar and the status bar
+  (`embedPlace`, `app/ui/src/leaves/embedClip.ts`). The scroll fields of
+  the first place are gone: nothing the window sends scrolls the page.
+- The host puts the page's view inside a container whose frame is the
+  visible part, at the slot's offset inside it, with the slot's size: the
+  page is laid out for the whole box (its `100vh` is the box's height),
+  moves up with the note, and is drawn only inside the container. The
+  note's scroll never scrolls the page; the page's own scroll and clicks
+  work in the part that shows.
+- macOS: a layer-backed `NSView` that clips to its bounds, in the
+  window's content view just above where wry put the page, the page's
+  `WKWebView` moved into it; AppKit's unflipped coordinates and the
+  screen's scale handled (`geometry.rs`, `macos.rs`). Windows: WebView2's
+  host window moved into a child window of ours
+  (`WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS`) at the visible part, in
+  the window's physical pixels (`windows.rs`). Linux: GTK's safe API —
+  the window's page moved once into a `GtkOverlay`, each page in a
+  `GtkLayout` laid over it at the visible part, no `unsafe`
+  (`linux.rs`).
+- A web note's own view goes the same way, with one rectangle for both.
+- If a platform cannot build the container, that view falls back to the
+  place before this revision — cut to the visible part, the page's top
+  shown — with one WARN line in the log.
+- A window moved to a screen of another scale keeps its CSS size; the
+  window looks again when the scale changes, so the page is placed in the
+  new screen's pixels.
+
+What only the real app shows — the clipping on each system — is listed in
+`docs/reference/manual-checks.md`; no test without a window reaches a
+native view. Linux had not been seen with child web views at all
+([0071](0071-linux-port.md)); its container is built and compiled, and
+waits for that check like the rest.
+
 ## Status
 
 Accepted on 2026-09-29 by the maintainer, in session: points 1 and 2 of the
@@ -297,3 +367,6 @@ ADR stands Accepted. Revised on 2026-09-29 by the maintainer, in session:
 point 3, option A, Accepted; the mechanism under it is the author's, and
 supersedes the proxy. One item stays `[OPEN]`: a warning at approval time;
 the web view's cache after an update was decided on 2026-10-07 (above).
+Revised on 2026-10-15 by the maintainer, in session: the child web view
+drawn as a frame is, by a native clipping container (*"A e B juntos"*); the
+mechanism is the author's.

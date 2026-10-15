@@ -59,6 +59,7 @@ mod trash;
 mod update;
 mod version;
 mod web;
+mod web_clip;
 mod windows;
 use boards::*;
 use cli::*;
