@@ -153,6 +153,8 @@ recomendado e está marcado `[DECIDIDO 2026-10-14]`.
 decidido como recomendado, marcado `[DECIDIDO 2026-10-14]` no lugar. Na V1
 (`docs/roadmap.md`, Fase 4 — V1). A [0036](0036-tabletop-rpg-support.md) ganha uma linha de Revisões.
 
+*Revisada (2026-10-15):* o mantenedor aceitou, como recomendado, as quatro escolhas feitas na construção: (1) **só um PNG é cortado em ladrilhos**; um JPEG ou WebP é desenhado inteiro, com um aviso de que é grande; (2) **um leitor é recusado na sala de um board** e acompanha o arquivo salvo; (3) **`secret` vale em qualquer nó**, não só num alfinete; (4) **os ladrilhos são desenhados na camada dos cards**.
+
 *(Histórico, antes da aceitação acima:)* Proposta (2026-10-14). Na V1 pela palavra do mantenedor de
 2026-10-14 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revisão 8). Para o
 mantenedor, cada um com uma recomendação: o nome do campo (item 2), os

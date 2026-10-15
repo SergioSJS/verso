@@ -453,3 +453,4 @@ embeds são `<iframe>`s quando o site permite ser embutido, child web views
 quando não. Revisto de novo em 2026-10-15, na sessão (*"A e B juntos"*): a
 web view filha desenhada como um quadro é, por um contêiner nativo de
 recorte (B); o mecanismo é do autor.
+Revisto em 2026-10-15, na sessão, aceito como recomendado: a verificação de embutibilidade pelo host (um `HEAD`, ou um `GET` lido só até os cabeçalhos, uma vez por origem) está **aceita**, o que revisa a linha anterior de que "nada é buscado do lado do host" para uma origem aprovada; os links da própria página para outra origem e os quadros aninhados dentro de uma página embutida continuam `[ABERTO]`, como registrado acima.
