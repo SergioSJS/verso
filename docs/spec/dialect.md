@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.43
+# Verso dialect spec — v0.44
 
-- Version: v0.43 · 2026-10-15
+- Version: v0.44 · 2026-10-15
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -535,6 +535,13 @@ How Verso extends JSON Canvas and persists the board: `DECIDED` on
      not encryption.
    - A large PNG is drawn from tiles of Verso's own, cut once and kept
      outside the folder; the file holds no tile.
+7. A Markdown card on a board is a Markdown card ([ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md),
+   decided by the maintainer on 2026-10-15): a `> [!secret]` callout inside
+   the `text` of a `text` node is hidden from those who may only read, by
+   the same projection as in a note (§5.8), at every exit that serves the
+   board. A card whose text becomes empty stays, empty, with its place and
+   its edges. A `.txt` file, and any file that is not Markdown, is not
+   projected: it is served as it is.
 
 ### 5.12 Headings
 
@@ -1436,3 +1443,4 @@ the parser was chosen.
 | v0.41 | 2026-10-14 | The fixtures `fixtures/code/dice-inline`, `fixtures/prose/what-is-prose` and `fixtures/schema/infobox` **approved by the maintainer** in session (*"Aprovo as 3"*), and with them the schema's key `prose` (§4.1, §4.9) of v0.40; their draft mark removed. `code/dice-inline` observed in Obsidian 1.14.4 through its CLI, without the Dice Roller plugin, before the approval was recorded: its links and its block are Obsidian's, its `observed:` says how. Nothing else changes. |
 | v0.42 | 2026-10-14 | The schema gains `reader` (§4.1, §4.6): the note as a UniVerso serves a reader, the projection of Q9 and [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md) item 3. The drafted fixture `fixtures/callout/secret`, with the PR that builds ADR 0087, awaits the maintainer's approval; Q9's paragraph says so. No decision changed |
 | v0.43 | 2026-10-15 | §5.11 item 5 and a new item 6: maps on the board ([ADR 0090](../adr/0090-maps-on-the-board.md)) — a node's `verso` gains `map`, `pin` and `secret`, and a secret node is left out of what a reader is served. No fixture: the fixture schema (§4) describes a Markdown note, and a canvas is not parsed by the dialect; the guardrail is the core's property test of the projection. No question closed |
+| v0.44 | 2026-10-15 | §5.11 item 7: a `> [!secret]` callout inside a board's text node is hidden from readers as in a note, and a `.txt` (any non-Markdown file) is not projected ([ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md), the maintainer's decision of finding I3). No fixture (a canvas is not parsed by the dialect); the guardrail is the core's property test and the server's reader probe. No question closed |

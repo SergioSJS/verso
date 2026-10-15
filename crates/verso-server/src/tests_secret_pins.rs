@@ -11,7 +11,9 @@
 //! drawing that belongs to it. Then the paths where a reader follows a
 //! board: sync (the bytes, the hashes, a change only inside a secret pin
 //! that is none), the index (search, backlinks), the room (a reader is
-//! not in it) and `/f/`.
+//! not in it) and `/f/`. A `> [!secret]` callout inside a text card is
+//! hidden the way a note's is (ADR 0087, decided 2026-10-15): the card
+//! stays, its text projected.
 
 use base64::Engine;
 use futures_util::{SinkExt, StreamExt};
@@ -32,6 +34,7 @@ const SECRET: &[&str] = &[
     "9000011",
     "9100022",
     "zqcripta",
+    "zqcallout",
 ];
 
 /// A map, an open pin to a note, and secret pins of three kinds: a file,
@@ -41,6 +44,7 @@ const BOARD: &str = r#"{
 		{"id":"mapa","type":"file","file":"Mapa.png","x":0,"y":0,"width":1000,"height":800,"verso":{"map":true,"locked":true,"groups":["gmapa"]}},
 		{"id":"aberto","type":"file","file":"Taverna.md","x":100,"y":120,"width":24,"height":24,"verso":{"pin":true,"groups":["gmapa"]}},
 		{"id":"praca","type":"text","text":"praca aberta ao povo","x":300,"y":300,"width":200,"height":60},
+		{"id":"cartao","type":"text","text":"cartao aberto\n\n> [!secret]\n> zqcallout vive [[Cripta]]\n\nfim do cartao","x":400,"y":400,"width":200,"height":80},
 		{"id":"zqpinid","type":"file","file":"Cripta.md","x":9000011,"y":9100022,"width":24,"height":24,"verso":{"pin":true,"secret":true,"groups":["gmapa","gzq"]}},
 		{"id":"txt","type":"text","text":"zqpintext","x":9000012,"y":9100023,"width":24,"height":24,"verso":{"secret":true}},
 		{"id":"zqpinfile","type":"link","url":"https://zqpinurl.example","x":9000013,"y":9100024,"width":24,"height":24,"verso":{"secret":true}}
@@ -179,7 +183,7 @@ fn no_command_of_the_contract_hands_a_reader_a_secret_pin() {
         assert!(preview.get("ok").is_some(), "{preview}");
         // The index: the words of a secret pin are not found, a public
         // node's are; the link of a secret pin is no backlink.
-        for word in ["zqpintext", "zqpinurl", "zqpinlabel", "zqdrawn"] {
+        for word in ["zqpintext", "zqpinurl", "zqpinlabel", "zqdrawn", "zqcallout"] {
             n += 1;
             let found = ask(
                 &mut reader,
@@ -205,10 +209,24 @@ fn no_command_of_the_contract_hands_a_reader_a_secret_pin() {
             "{found}"
         );
         n += 1;
+        let found = ask(
+            &mut reader,
+            n,
+            "search",
+            json!({ "words": "cartao", "limit": 50 }),
+        )
+        .await;
+        assert!(
+            found["ok"]
+                .as_array()
+                .is_some_and(|a| a.iter().any(|h| h["path"] == "Mapa.canvas")),
+            "{found}"
+        );
+        n += 1;
         let cripta = ask(&mut reader, n, "backlinks", json!({ "path": "Cripta.md" })).await;
         assert_eq!(cripta["ok"], json!([]), "{cripta}");
         let mine = call(&mut owner, 43, "backlinks", json!({ "path": "Cripta.md" })).await;
-        assert_eq!(mine["ok"].as_array().map(Vec::len), Some(1), "{mine}");
+        assert_eq!(mine["ok"].as_array().map(Vec::len), Some(2), "{mine}");
         n += 1;
         let taverna = ask(&mut reader, n, "backlinks", json!({ "path": "Taverna.md" })).await;
         assert!(
@@ -314,7 +332,9 @@ fn a_change_only_inside_a_secret_pin_is_none_for_a_reader() {
             json!({ "path": "Mapa.canvas" }),
         )
         .await;
-        let moved = BOARD.replace("9000011", "9000099");
+        let moved = BOARD
+            .replace("9000011", "9000099")
+            .replace("zqcallout", "zqcalloux");
         let written = call(
             &mut owner,
             61,
