@@ -189,39 +189,64 @@ fn http_url(url: &str) -> Result<tauri::Url, ContractError> {
     Ok(parsed)
 }
 
-/// Where a web view goes (logical pixels from the window's top-left) and
-/// how far its page is scrolled: `scroll_x`/`scroll_y` is, for `web_open`,
-/// how far the page is scrolled once it has loaded (the first load only);
-/// for `web_bounds`, the change in it since the last call. Zero for a web
-/// note's own view, which shows its page whole.
+/// A rectangle in the window's logical pixels, from the top-left of the
+/// window's page.
 #[derive(Debug, Clone, Copy, serde::Deserialize, specta::Type)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct WebPlace {
+pub(crate) struct WebRect {
     x: f64,
     y: f64,
     w: f64,
     h: f64,
-    scroll_x: f64,
-    scroll_y: f64,
 }
 
-/// The script that scrolls a page by `(dx, dy)`: only two finite numbers
-/// go into it, nothing the page or the UI wrote as text.
-fn scroll_script(dx: f64, dy: f64) -> Option<String> {
-    (dx.is_finite() && dy.is_finite() && (dx != 0.0 || dy != 0.0))
-        .then(|| format!("window.scrollBy({dx}, {dy})"))
+impl From<WebRect> for web_clip::geometry::Rect {
+    fn from(r: WebRect) -> Self {
+        Self {
+            x: r.x,
+            y: r.y,
+            w: r.w,
+            h: r.h,
+        }
+    }
+}
+
+/// Where a web page goes, as an iframe would put it. `slot` is the
+/// page's whole box: its size is the page's viewport (`100vh` is its
+/// height), and it may reach outside its pane or the window. `visible` is
+/// the part of the slot that shows — inside every scroller around it and
+/// the window, clear of the tab bar and the status bar (`embedPlace`,
+/// app/ui/src/leaves/embedClip.ts). The page is drawn at `slot` and only
+/// inside `visible` (`web_clip`); scrolling the note moves the slot and
+/// never scrolls the page. A web note's own view sends one rectangle
+/// twice.
+#[derive(Debug, Clone, Copy, serde::Deserialize, specta::Type)]
+pub(crate) struct WebPlace {
+    slot: WebRect,
+    visible: WebRect,
+}
+
+/// The place's two rectangles, or `refused` when either is not a place on
+/// a screen (not finite, negative in size, or past any screen).
+fn rects(
+    place: WebPlace,
+) -> Result<(web_clip::geometry::Rect, web_clip::geometry::Rect), ContractError> {
+    let (slot, visible) = (place.slot.into(), place.visible.into());
+    if web_clip::geometry::sane(slot) && web_clip::geometry::sane(visible) {
+        Ok((slot, visible))
+    } else {
+        Err(refused("not a place for a web page"))
+    }
 }
 
 /// A web page inside the window, as a child web view over the area the
-/// UI names (logical pixels from the window's top-left): the browser
-/// behind a tab whose note holds the address. Only `http(s)`; the page
-/// cannot navigate anywhere else, nor open windows. Answers with the
-/// label the other `web_*` commands take.
+/// UI names: the browser behind a tab whose note holds the address, or an
+/// embedded page. Only `http(s)`; the page cannot navigate anywhere else,
+/// nor open windows. Answers with the label the other `web_*` commands
+/// take.
 ///
-/// An embed partly scrolled out of its note is cut to what shows, and its
-/// page must show the same part: `scroll_x`/`scroll_y` is how far the page
-/// is scrolled once it has loaded (the first load only, not the pages the
-/// embed later navigates to).
+/// The view is made over the visible part, as it was before the page
+/// could be clipped, and then put at its slot inside a clipping container
+/// (`web_clip`): never over the window's chrome, even for a frame.
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn web_open<R: tauri::Runtime>(
@@ -230,45 +255,36 @@ pub(crate) async fn web_open<R: tauri::Runtime>(
     url: String,
     place: WebPlace,
 ) -> Result<String, ContractError> {
-    let WebPlace {
-        x,
-        y,
-        w,
-        h,
-        scroll_x,
-        scroll_y,
-    } = place;
+    let (slot, visible) = rects(place)?;
     let url = http_url(&url)?;
-    let first_load = std::sync::atomic::AtomicBool::new(true);
     let label = next_web_label();
     // The window that asks hosts the page: the main one, or a note's own.
-    let y = y + chrome_offset(&window);
-    window
+    let chrome = chrome_offset(&window);
+    let wv = window
         .add_child(
             tauri::webview::WebviewBuilder::new(&label, tauri::WebviewUrl::External(url))
                 .user_agent(WEB_USER_AGENT)
                 .on_navigation(web_only)
-                .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny)
-                .on_page_load(move |wv, payload| {
-                    if matches!(payload.event(), tauri::webview::PageLoadEvent::Finished)
-                        && first_load.swap(false, std::sync::atomic::Ordering::Relaxed)
-                        && let Some(script) = scroll_script(scroll_x, scroll_y)
-                    {
-                        let _ = wv.eval(script);
-                    }
-                }),
-            tauri::LogicalPosition::new(x, y),
-            tauri::LogicalSize::new(w.max(1.0), h.max(1.0)),
+                .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny),
+            tauri::LogicalPosition::new(visible.x, visible.y + chrome),
+            tauri::LogicalSize::new(visible.w.max(1.0), visible.h.max(1.0)),
         )
         .map_err(|e| failed(e.to_string()))?;
     lock(&state.web_views).insert(label.clone(), window.label().to_owned());
+    web_clip::place(
+        &wv,
+        slot,
+        visible,
+        chrome,
+        window.scale_factor().unwrap_or(1.0),
+    )
+    .map_err(failed)?;
     Ok(label)
 }
 
-/// Move and size a web page's view to follow its tab, and scroll its page
-/// by `(scroll_x, scroll_y)` — the change in how much of the page lies
-/// above/left of the view (an embed cut at its pane's top shows the page
-/// from there, as an iframe would). Zero for a web note's own view.
+/// Move a web page's view to follow its box: the page at `slot`, drawn
+/// only inside `visible` (`WebPlace`). The page's own scroll is never
+/// touched.
 #[tauri::command]
 #[specta::specta]
 pub(crate) fn web_bounds<R: tauri::Runtime>(
@@ -277,23 +293,16 @@ pub(crate) fn web_bounds<R: tauri::Runtime>(
     label: String,
     place: WebPlace,
 ) -> Result<(), ContractError> {
-    let WebPlace {
-        x,
-        y,
-        w,
-        h,
-        scroll_x,
-        scroll_y,
-    } = place;
+    let (slot, visible) = rects(place)?;
     let wv = own_web_view(&window, &state, &label)?;
-    let y = y + chrome_offset(&window);
-    wv.set_position(tauri::LogicalPosition::new(x, y))
-        .and_then(|()| wv.set_size(tauri::LogicalSize::new(w.max(1.0), h.max(1.0))))
-        .and_then(|()| match scroll_script(scroll_x, scroll_y) {
-            Some(script) => wv.eval(script),
-            None => Ok(()),
-        })
-        .map_err(|e| failed(e.to_string()))
+    web_clip::place(
+        &wv,
+        slot,
+        visible,
+        chrome_offset(&window),
+        window.scale_factor().unwrap_or(1.0),
+    )
+    .map_err(failed)
 }
 
 /// Show or hide a web page's view (its tab left the front, an overlay opened).
@@ -306,6 +315,7 @@ pub(crate) fn web_visible<R: tauri::Runtime>(
     visible: bool,
 ) -> Result<(), ContractError> {
     let wv = own_web_view(&window, &state, &label)?;
+    web_clip::show(&wv, visible);
     (if visible { wv.show() } else { wv.hide() }).map_err(|e| failed(e.to_string()))
 }
 
@@ -319,6 +329,8 @@ pub(crate) fn web_close<R: tauri::Runtime>(
 ) -> Result<(), ContractError> {
     let wv = own_web_view(&window, &state, &label)?;
     lock(&state.web_views).remove(&label);
+    // Out of its container first: the container is ours to remove.
+    web_clip::release(&wv);
     wv.close().map_err(|e| failed(e.to_string()))
 }
 
@@ -400,20 +412,4 @@ pub(crate) fn web_url<R: tauri::Runtime>(
         .url()
         .map(|u| u.to_string())
         .map_err(|e| failed(e.to_string()))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::scroll_script;
-
-    #[test]
-    fn the_scroll_script_carries_two_finite_numbers_or_nothing() {
-        assert_eq!(
-            scroll_script(0.0, 120.5).as_deref(),
-            Some("window.scrollBy(0, 120.5)")
-        );
-        assert_eq!(scroll_script(0.0, 0.0), None);
-        assert_eq!(scroll_script(f64::NAN, 1.0), None);
-        assert_eq!(scroll_script(1.0, f64::INFINITY), None);
-    }
 }

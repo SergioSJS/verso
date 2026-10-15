@@ -77,6 +77,31 @@ chrono = { version = "0.4", default-features = false, features = ["clock"] }
 # Clearing the download quarantine from the CLI binary and an extracted
 # update, without shelling out to `xattr` (ADR 0029, the subprocess rule).
 xattr = "1.6"
+# An embedded page clipped as an iframe is (src/web_clip/macos.rs; ADR
+# 0056 and ADR 0029, revisions of 2026-10-15): the page's WKWebView moved
+# into an NSView that clips to its bounds. AppKit's bindings that wry and
+# tao already build, at the versions in the lockfile (objc2 0.6.4,
+# objc2-foundation and objc2-app-kit 0.3.2; MIT), with features they
+# already enable but NSUserInterfaceItemIdentification. They replace
+# nothing of ours: the window had no way to clip a native view.
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSString", "NSGeometry"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSResponder", "NSView", "NSGraphics", "NSUserInterfaceItemIdentification"] }
+
+[target.'cfg(windows)'.dependencies]
+# The same on Windows (src/web_clip/windows.rs): WebView2's host window
+# moved into a clipping child window. The Win32 and WebView2 bindings wry
+# and Tauri already build, at the lockfile's versions (windows 0.61.3,
+# webview2-com 0.38.2; MIT OR Apache-2.0, MIT); they replace nothing of
+# ours.
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_System_LibraryLoader", "Win32_UI_WindowsAndMessaging"] }
+webview2-com = "0.38"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# The same on Linux (src/web_clip/linux.rs), with GTK's safe API: the GTK
+# bindings Tauri already builds (gtk 0.18.2, MIT); they replace nothing of
+# ours.
+gtk = "0.18"
 
 [target.'cfg(not(windows))'.dev-dependencies]
 # A real `verso serve` for the tests of a window on a server's folder; the
@@ -105,5 +130,21 @@ tempfile = "3.27"
 ring = "0.17"
 blake2 = "0.10"
 
-[lints]
-workspace = true
+# The workspace's lints, written out rather than inherited, for one
+# difference: `unsafe_code` is `deny` here, not `forbid`, so that the two
+# files of src/web_clip that clip an embedded page natively can allow it
+# (ADR 0029, revision of 2026-10-15, the maintainer's decision "A e B
+# juntos"). A `forbid` cannot be allowed anywhere, and Cargo cannot
+# inherit the workspace's lints but one. scripts/check-unsafe.mjs holds
+# this table to the workspace's and `unsafe` to those two files. Every
+# `unsafe` block says why it is sound (`undocumented_unsafe_blocks`) and
+# does one unsafe thing (`multiple_unsafe_ops_per_block`).
+[lints.rust]
+unsafe_code = "deny"
+
+[lints.clippy]
+unwrap_used = "forbid"
+expect_used = "forbid"
+disallowed_methods = "forbid"
+undocumented_unsafe_blocks = "forbid"
+multiple_unsafe_ops_per_block = "forbid"

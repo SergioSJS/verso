@@ -19,9 +19,14 @@
   alternative and two `[OPEN]` items; the text of the first decision is kept,
   each superseded part with a note. 2026-10-14 — **revised by the maintainer**
   in session ("A agora, B depois"): an embed is an `<iframe>` when its site
-  allows being framed, the child web view otherwise; a native clipping
-  container is a later pull request. Recorded as the last section of the
-  Decision, "Revised: an `<iframe>` when the site allows".
+  allows being framed, the child web view otherwise. 2026-10-15 — **revised
+  again** by the maintainer, in session (*"A e B juntos"*): the child web
+  view is drawn as a frame is — laid out at its box's whole size and place,
+  drawn only in the part that shows — by a native clipping container per
+  operating system, under the one exception to `unsafe_code = "forbid"` of
+  [0029](0029-guardrails-in-ci.md). Recorded as the last two sections of the
+  Decision, "Revised: an `<iframe>` when the site allows" and "Revised again:
+  the page clipped as a frame is".
 
 ## Context
 
@@ -305,12 +310,12 @@ chrome, and scrolling the note never scrolls the page inside.
 
 - **A.** (this revision) An embed is a real `<iframe>` in the note's
   document whenever its site allows being framed by the window's origin;
-  a site that refuses keeps the child web view, cut to the visible area
-  with no page scrolling (the fallback). A web page opened as a tab (the
+  a site that refuses keeps the child web view (the fallback), clipped as
+  the next section says. A web page opened as a tab (the
   web note's own view) stays a child web view: it fills its pane.
-- **B.** (later, a pull request of its own, not decided here) A native
-  clipping container for the fallback. It needs an `unsafe` exception, which
-  `CLAUDE.md` forbids without one recorded.
+- **B.** (decided on 2026-10-15, *"A e B juntos"*; built in the next
+  section) A native clipping container for the fallback, under the exception
+  to `unsafe_code = "forbid"` that [0029](0029-guardrails-in-ci.md) records.
 
 How the author built A (`app/src-tauri/src/framing.rs`, `web.rs`,
 `app/ui/src/leaves/web.ts`):
@@ -356,8 +361,70 @@ How the author built A (`app/src-tauri/src/framing.rs`, `web.rs`,
   blank until the maintainer chooses how to widen it (its cost is the same
   one: the guard cannot tell a frame from the window).
 
-Discarded in this revision: none recorded beyond B, which the maintainer
-set for later.
+Discarded in this revision: none recorded.
+
+### Revised again: the page clipped as a frame is — decided on 2026-10-15
+
+The child web view kept one fault an iframe does not have. A native view
+floats over the window's page, and CSS cannot clip it; so the view was
+shrunk to the visible part of its box, and when the note was scrolled
+until the box was half above its pane, the page showed its top again in a
+shorter view, instead of moving up with the note. The maintainer, trying
+it in the app on 2026-10-15: *"era para funcionar como iframe normal…
+qual a dificuldade de fazer a página respeitar o tamanho da janela que
+ela foi renderizada"* (it should work as a normal iframe; what is hard
+about making the page respect the size of the window it was rendered
+in). His own sites all refuse to be framed, measured that day —
+olddragon.com.br (`X-Frame-Options: SAMEORIGIN`; `frame-ancestors 'self'
+*.owlbear.rodeo`), rolai.app (`DENY`), a Calibre-Web on the local network
+(`SAMEORIGIN`) — so they stay child web views.
+
+**Decided by the maintainer on 2026-10-15**, in session: *"A e B
+juntos"*. A: a real `<iframe>` where a site allows framing, recorded in the
+section above. B: for the pages that stay child
+web views, a native clipping container, under an exception to
+`unsafe_code = "forbid"` confined to one module, one small file per
+system, each `unsafe` block with its `SAFETY` comment, tested, in its own
+pull request ([0029](0029-guardrails-in-ci.md), revision of the same
+day).
+
+**B, as built** (`app/src-tauri/src/web_clip/`):
+
+- The window sends two rectangles (`WebPlace`): the **slot**, the box's
+  whole size and true place, which may reach outside the pane and the
+  window; and the **visible** part, where the box shows — inside every
+  scroller, the window, and clear of the tab bar and the status bar
+  (`embedPlace`, `app/ui/src/leaves/embedClip.ts`). The scroll fields of
+  the first place are gone: nothing the window sends scrolls the page.
+- The host puts the page's view inside a container whose frame is the
+  visible part, at the slot's offset inside it, with the slot's size: the
+  page is laid out for the whole box (its `100vh` is the box's height),
+  moves up with the note, and is drawn only inside the container. The
+  note's scroll never scrolls the page; the page's own scroll and clicks
+  work in the part that shows.
+- macOS: a layer-backed `NSView` that clips to its bounds, in the
+  window's content view just above where wry put the page, the page's
+  `WKWebView` moved into it; AppKit's unflipped coordinates and the
+  screen's scale handled (`geometry.rs`, `macos.rs`). Windows: WebView2's
+  host window moved into a child window of ours
+  (`WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS`) at the visible part, in
+  the window's physical pixels (`windows.rs`). Linux: GTK's safe API —
+  the window's page moved once into a `GtkOverlay`, each page in a
+  `GtkLayout` laid over it at the visible part, no `unsafe`
+  (`linux.rs`).
+- A web note's own view goes the same way, with one rectangle for both.
+- If a platform cannot build the container, that view falls back to the
+  place before this revision — cut to the visible part, the page's top
+  shown — with one WARN line in the log.
+- A window moved to a screen of another scale keeps its CSS size; the
+  window looks again when the scale changes, so the page is placed in the
+  new screen's pixels.
+
+What only the real app shows — the clipping on each system — is listed in
+`docs/reference/manual-checks.md`; no test without a window reaches a
+native view. Linux had not been seen with child web views at all
+([0071](0071-linux-port.md)); its container is built and compiled, and
+waits for that check like the rest.
 
 ## Status
 
@@ -370,4 +437,6 @@ supersedes the proxy. One item stays `[OPEN]`: a warning at approval time;
 the web view's cache after an update was decided on 2026-10-07 (above).
 Revised on 2026-10-14 by the maintainer, in session ("A agora, B depois"):
 embeds are `<iframe>`s when the site allows framing, child web views
-otherwise; the native clipping container (B) is a later pull request.
+otherwise. Revised again on 2026-10-15, in session (*"A e B juntos"*): the
+child web view is drawn as a frame is, by a native clipping container
+(B); the mechanism is the author's.

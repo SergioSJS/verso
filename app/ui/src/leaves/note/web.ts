@@ -12,6 +12,7 @@ import { fail } from "../../errors";
 import { allFiles, allNotes } from "../../folder";
 import { withNoteImages } from "../../images";
 import { overlayOpen } from "../../layout/drag";
+import { wholePlace } from "../embedClip";
 import { frontmatterEnd, redraw } from "../../live";
 import { opening } from "../../opening";
 import { cleanHtmlText } from "../../sanitize";
@@ -222,7 +223,7 @@ export async function openWeb(this: NoteLeaf): Promise<void> {
   this.webOpening = true;
   const url = this.webUrl;
   const r = this.webHost.getBoundingClientRect();
-  const res = await commands.webOpen(url, { x: r.left, y: r.top, w: Math.max(1, r.width), h: Math.max(1, r.height), scrollX: 0, scrollY: 0 });
+  const res = await commands.webOpen(url, wholePlace(r));
   this.webOpening = false;
   if (res.status !== "ok") return fail(res.error);
   // The host names the view. The tab may have closed, or moved to
@@ -249,11 +250,12 @@ export function tickWeb(this: NoteLeaf): void {
   if (!label) return;
   const r = this.webHost.getBoundingClientRect();
   const visible = this.webShown && this.el.isConnected && this.webHost.offsetParent !== null && r.width > 1 && r.height > 1 && !overlayOpen();
-  const key = visible ? `1|${Math.round(r.left)}|${Math.round(r.top)}|${Math.round(r.width)}|${Math.round(r.height)}` : "0";
+  // The screen's scale too: the host places the view in device pixels.
+  const key = visible ? `1|${Math.round(r.left)}|${Math.round(r.top)}|${Math.round(r.width)}|${Math.round(r.height)}|${window.devicePixelRatio}` : "0";
   if (key !== this.webLast) {
     this.webLast = key;
     this.webStill = 0;
-    if (visible) void commands.webBounds(label, { x: r.left, y: r.top, w: r.width, h: r.height, scrollX: 0, scrollY: 0 }).then(() => commands.webVisible(label, true));
+    if (visible) void commands.webBounds(label, wholePlace(r)).then(() => commands.webVisible(label, true));
     else void commands.webVisible(label, false);
   } else this.webStill++;
   // Still for a few frames: a transition or a drag has ended.

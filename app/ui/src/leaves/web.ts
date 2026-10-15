@@ -7,7 +7,7 @@ import { can } from "../can";
 import { h } from "../dom";
 import { framedPage } from "../screen/framed";
 import { overlayOpen } from "../layout/drag";
-import { embedPlace, type Rect } from "./embedClip";
+import { embedPlace, webPlace, type Rect } from "./embedClip";
 import type { NoteLeaf } from "./note";
 
 /* The web views of open web notes follow their hosts only while
@@ -26,9 +26,11 @@ export function syncWebViews(): void {
  * an error, a timeout), the fallback: a child web view of the host
  * overlaid on the box (web_open) — a top-level view, which those headers
  * do not bind. The view follows its box frame by frame while something
- * moves, cut to what shows of the pane it scrolls in, hidden with the
- * overlays, closed when the box leaves the DOM. */
-export type EmbedView = { label: string | null; opening: boolean; last: string; still: number; scrolled: number; scrolledX: number };
+ * moves: the page laid out at the box's whole size and place, drawn only
+ * inside the part that shows in its pane (the host clips it natively, as
+ * an iframe is clipped), hidden with the overlays, closed when the box
+ * leaves the DOM. */
+export type EmbedView = { label: string | null; opening: boolean; last: string; still: number };
 export const embedViews = new Map<HTMLElement, EmbedView>();
 export let embedRaf = 0;
 
@@ -128,13 +130,12 @@ export function tickEmbedViews(): void {
     }
     let v = embedViews.get(el);
     if (!v) {
-      v = { label: null, opening: false, last: "", still: 0, scrolled: 0, scrolledX: 0 };
+      v = { label: null, opening: false, last: "", still: 0 };
       embedViews.set(el, v);
     }
-    // Cut to what shows: every ancestor that clips the box, the window,
-    // and the chrome around the panes. A child view floats over
-    // everything, so it keeps only the visible part and its page is
-    // scrolled by the part cut off above/left (embedClip.ts).
+    // What shows: every ancestor that clips the box, the window, and the
+    // chrome around the panes. A child view floats over everything, so
+    // the host draws the page only there (embedClip.ts).
     const clips: Rect[] = [];
     for (let p = el.parentElement; p; p = p.parentElement) {
       const cs = getComputedStyle(p);
@@ -143,17 +144,16 @@ export function tickEmbedViews(): void {
     const avoid = Array.from(document.querySelectorAll<HTMLElement>(".status-bar, .tabs"))
       .filter((c) => c.offsetParent !== null || getComputedStyle(c).position === "fixed")
       .map((c) => c.getBoundingClientRect());
-    const place = embedPlace(el.getBoundingClientRect(), clips, avoid, { width: window.innerWidth, height: window.innerHeight });
-    const { left, top, width: w, height: hgt } = place;
+    const slot = el.getBoundingClientRect();
+    const place = embedPlace(slot, clips, avoid, { width: window.innerWidth, height: window.innerHeight });
+    const where = webPlace(slot, place);
     const visible = el.isConnected && el.offsetParent !== null && place.visible && !overlayOpen();
     if (!v.label) {
       if (visible && !v.opening && url) {
         v.opening = true;
         const want = v;
-        void commands.webOpen(url, { x: left, y: top, w: Math.max(1, w), h: Math.max(1, hgt), scrollX: 0, scrollY: 0 }).then((res) => {
+        void commands.webOpen(url, where).then((res) => {
           want.opening = false;
-          want.scrolled = place.hiddenTop;
-          want.scrolledX = place.hiddenLeft;
           if (res.status !== "ok") {
             el.removeAttribute("data-embed-web");
             return;
@@ -169,15 +169,17 @@ export function tickEmbedViews(): void {
       }
       busy = true;
     } else {
-      const key = visible ? `1|${Math.round(left)}|${Math.round(top)}|${Math.round(w)}|${Math.round(hgt)}|${Math.round(place.hiddenLeft)}|${Math.round(place.hiddenTop)}` : "0";
+      // The screen's scale too: the host places the page in device
+      // pixels, and a window moved to another screen keeps its CSS size.
+      const key = visible ? [where.slot, where.visible].map((b) => `${Math.round(b.x ?? 0)}|${Math.round(b.y ?? 0)}|${Math.round(b.w ?? 0)}|${Math.round(b.h ?? 0)}`).join("|") + `|${window.devicePixelRatio}` : "0";
       if (key !== v.last) {
         v.last = key;
         v.still = 0;
         const label = v.label;
         if (visible) {
-          // The page keeps its own scroll: a child view is cut to what
-          // shows, never scrolled by the note (iframes do this right).
-          void commands.webBounds(label, { x: left, y: top, w, h: hgt, scrollX: 0, scrollY: 0 }).then(() => commands.webVisible(label, true));
+          // The page keeps its own scroll: the note's scroll moves the
+          // slot, never the page inside it, as with an iframe.
+          void commands.webBounds(label, where).then(() => commands.webVisible(label, true));
         }
         else void commands.webVisible(label, false);
       } else v.still++;

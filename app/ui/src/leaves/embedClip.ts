@@ -2,15 +2,17 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-/* Where an embedded page's child web view goes, and how far its page is
- * scrolled, for a slot that is partly out of sight. Pure geometry: the
- * caller measures the DOM and hands the rectangles here.
+/* Where an embedded page's child web view goes, for a slot that is
+ * partly out of sight. Pure geometry: the caller measures the DOM and
+ * hands the rectangles here.
  *
- * A native child view floats over the DOM and cannot be clipped by CSS,
- * and a safe clipping container per OS needs `unsafe` (forbidden). So the
- * view is cut to the part of its slot that is visible, and the page is
- * scrolled by the amount cut from the top/left, which is what an iframe
- * shows: the page moves up with the note and is clipped at the pane. */
+ * A native child view floats over the DOM and cannot be clipped by CSS.
+ * The host clips it natively instead (app/src-tauri/src/web_clip; ADR
+ * 0056, revised 2026-10-15): it lays the page out at the slot's whole
+ * size and place and draws only the visible part — what an iframe does.
+ * So the window sends both: the slot, and the part of it that shows. */
+import type { WebPlace } from "../bindings";
+
 export type Rect = { left: number; top: number; right: number; bottom: number };
 
 export type EmbedPlace = {
@@ -21,10 +23,6 @@ export type EmbedPlace = {
   top: number;
   width: number;
   height: number;
-  /** How far the slot's top / left lies outside the visible rectangle:
-   *  the amount the page is scrolled to show the same part. */
-  hiddenTop: number;
-  hiddenLeft: number;
 };
 
 /** `slot` is the embed's box; `clips` are the rectangles of every
@@ -58,7 +56,23 @@ export function embedPlace(slot: Rect, clips: Rect[], avoid: Rect[], win: { widt
     top,
     width: Math.max(0, width),
     height: Math.max(0, height),
-    hiddenTop: visible ? Math.max(0, top - slot.top) : 0,
-    hiddenLeft: visible ? Math.max(0, left - slot.left) : 0,
   };
+}
+
+/** The place the host takes (`web_open`, `web_bounds`): the slot whole —
+ *  the page's viewport, which may reach outside the pane and the window —
+ *  and the part of it `embedPlace` found showing. Nothing in it scrolls
+ *  the page: the note's scroll moves the slot, and the page keeps its own. */
+export function webPlace(slot: Rect, place: EmbedPlace): WebPlace {
+  return {
+    slot: { x: slot.left, y: slot.top, w: Math.max(1, slot.right - slot.left), h: Math.max(1, slot.bottom - slot.top) },
+    visible: { x: place.left, y: place.top, w: place.width, h: place.height },
+  };
+}
+
+/** A web note's own view: its host is shown whole, so the slot and the
+ *  visible part are one rectangle. */
+export function wholePlace(r: Rect): WebPlace {
+  const box = { x: r.left, y: r.top, w: Math.max(1, r.right - r.left), h: Math.max(1, r.bottom - r.top) };
+  return { slot: box, visible: { ...box } };
 }

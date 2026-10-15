@@ -125,7 +125,7 @@ the test.
 | Guardrail | Prevents | Group |
 |---|---|---|
 | `cargo fmt --check` | a formatting diff hiding a logic diff | workspace |
-| `unsafe_code = "forbid"` via `[workspace.lints]` | memory corruption | workspace |
+| `unsafe_code = "forbid"` via `[workspace.lints]`, with one exception, the native clipping of an embedded page: `app/src-tauri` at `deny`, `unsafe` only in `src/web_clip/macos.rs` and `windows.rs`, each block with its `SAFETY:` comment, held there by `scripts/check-unsafe.mjs` ([ADR 0029](docs/adr/0029-guardrails-in-ci.md), revised 2026-10-15) | memory corruption | workspace |
 | clippy with `-D warnings`; `unwrap_used` and `expect_used` denied, allowed only in tests | a panic taking the app down | workspace |
 | clippy `disallowed_methods` denying `std::fs` outside `verso-fs` (exceptions: index, config) | access to the open folder outside `verso-fs` | workspace |
 | `cargo-deny`: license allowlist, advisories denied | incompatible or vulnerable dependency | workspace |

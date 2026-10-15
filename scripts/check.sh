@@ -62,6 +62,9 @@ if grep -rnE --include='*.rs' '(std::fs|\bfs::|std::\{[^}]*\bfs\b)' app/src-taur
   echo 'std::fs outside app/src-tauri/src/update.rs and src/log.rs (ADR 0029)'
   exit 1
 fi
+step "unsafe only in app/src-tauri/src/web_clip/{macos,windows}.rs (ADR 0029)"
+node --test scripts/check-unsafe.test.mjs
+node scripts/check-unsafe.mjs
 step "cargo fmt --check"
 cargo fmt --all --check
 step "cargo deny"
