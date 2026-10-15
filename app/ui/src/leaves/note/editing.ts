@@ -15,12 +15,17 @@ import { commands } from "../../bindings";
 import { ySyncAnnotation } from "../../collab";
 import { type Block, type Edit as BlockEdit, type TurnKind, blockLink, blocksOfSelection, deleteBlocks, duplicateBlocks, moveBy, randomBlockId, turnInto, turnTargets } from "../../blocks/model";
 import { blocksOf } from "../../blocks/view";
+import { startCompletion } from "@codemirror/autocomplete";
+import { a, pickImages, touchScreen } from "../../attach";
+import { cameraName, extensionOf, fitName, freeAttachment, MAX_IMAGE_BYTES } from "../../attachName";
+import { host } from "../../can";
 import { afterFileChange } from "../../changes";
 import { button, h, ui } from "../../dom";
 import { completeMarkdown } from "../../editor/complete";
 import { baseEditorExtensions } from "../../editor/extensions";
 import { fail } from "../../errors";
-import { allFiles } from "../../folder";
+import { readable, fileBase64 } from "../../files";
+import { allFiles, allNotes } from "../../folder";
 import { icon } from "../../icons";
 import { editorChrome, withKeys } from "../../keys";
 import { listKeymap } from "../../listKeymap";
@@ -30,7 +35,7 @@ import { linkText } from "../../resolve";
 import { visibleBox } from "../../screen/viewport";
 import { settings } from "../../settings";
 import { slashKeymap } from "../../slash";
-import { t } from "../../strings";
+import { LOCALE, t } from "../../strings";
 import { formatUnderCaret, tableKeymap, template as tableTemplate } from "../../table";
 import { focusedAlign, focusTableCell, tableAction, tableHasFocus } from "../../tableEditor";
 import { Mode, NoteLeaf } from "../note";
@@ -187,7 +192,15 @@ export function buildToolbar(this: NoteLeaf): void {
   add("rule", t.rule, () => this.wrap("\n---\n", ""));
   add("table", t.table, () => (formatUnderCaret(this.editor) ? void 0 : this.insertTable()));
   sep();
-  add("image", t.pasteHint, () => (ui.status.textContent = t.pasteHint));
+  // Opens a small menu under the button (insertImageMenu): the system's
+  // picker, a photo on a phone, or a file already in the folder. A paste
+  // or a drop of an image still attaches it, as before.
+  const image = button("tool", a.menu, "image");
+  image.setAttribute("aria-haspopup", "menu");
+  image.dataset["insertImage"] = "";
+  image.addEventListener("mousedown", (e) => e.preventDefault());
+  image.addEventListener("click", () => this.insertImageMenu(image));
+  this.toolbar.append(image);
   // A table's tools (ADR 0064), shown while one of its cells has the
   // focus: what the cell's menu does, a click away.
   const tools = h("span", "tool-table");
@@ -247,6 +260,43 @@ export function insertTable(this: NoteLeaf): void {
   if (this.mode === "live") focusTableCell(v, at, -1, 0);
 }
 
+/** The toolbar's "insert image": a small menu under the button. */
+export function insertImageMenu(this: NoteLeaf, anchor: HTMLElement): void {
+  if (!readable()) return;
+  if (this.readOnly) {
+    ui.status.textContent = t.readOnly;
+    return;
+  }
+  const phone = touchScreen();
+  const box = anchor.getBoundingClientRect();
+  const items: MenuItem[] = [[phone ? a.fromDevice : a.fromComputer, () => void this.attachFromPicker(false), "image"]];
+  // The camera is a choice of its own, so that the gallery stays one.
+  if (phone) items.push([a.takePhoto, () => void this.attachFromPicker(true), "camera"]);
+  items.push([a.fromFolder, () => this.embedFromFolder(), "folderOpen"]);
+  showMenu(box.left, box.bottom + 4, items);
+}
+
+/** "From the folder": the old way, `![[` and the completion of the files
+ *  already there. */
+export function embedFromFolder(this: NoteLeaf): void {
+  const v = this.editor;
+  const pos = v.state.selection.main.to;
+  v.dispatch({
+    changes: { from: pos, insert: "![[" },
+    selection: { anchor: pos + 3 },
+    annotations: Transaction.userEvent.of("input"),
+  });
+  v.focus();
+  startCompletion(v);
+}
+
+/** The system's picker, then each image chosen attached. */
+export async function attachFromPicker(this: NoteLeaf, camera: boolean): Promise<void> {
+  // Before any await: the picker opens from the click (pickImages).
+  const files = await pickImages(camera);
+  for (const f of files) await this.attachImage(f, { camera });
+}
+
 /** Images pasted or dropped become files beside the note and an embed
  *  at the caret; the core writes them, confined (ADR 0026 rule 5). */
 export function takeFiles(this: NoteLeaf, files: FileList | null, e: Event): boolean {
@@ -256,42 +306,75 @@ export function takeFiles(this: NoteLeaf, files: FileList | null, e: Event): boo
   e.preventDefault();
   void (async () => {
     for (const f of images) {
-      const b64 = await new Promise<string>((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve(String(r.result).split(",")[1] ?? "");
-        r.onerror = () => reject(r.error);
-        r.readAsDataURL(f);
-      });
-      const extOf = f.type.split("/")[1]?.replace("jpeg", "jpg").replace("svg+xml", "svg") ?? "png";
       const stamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14);
-      // Named so that the embed written for it can reach it: no `[`, `]`,
-      // `|`, `#` or `^`, which a note's own name may still hold.
-      const raw = f.name && !/^image\.(png|jpe?g|gif|webp)$/i.test(f.name) && !/^blob/i.test(f.name) ? f.name : `${name(this.path)} ${stamp}.${extOf}`;
-      const base = raw.replace(/[[\]|#^]/g, " ").replace(/ {2,}/g, " ").trim();
-      // Beside the note, in its own assets/ folder — not loose among the notes.
-      const folder = dirOf(this.path);
-      const sub = settings.attachments.trim().replace(/^\/+|\/+$/g, "");
-      const r = await commands.createFile(`${folder ? folder + "/" : ""}${sub ? sub + "/" : ""}${base}`, b64);
-      if (r.status !== "ok") {
-        fail(r.error);
-        continue;
-      }
-      allFiles.push(r.data);
-      const target = linkText(this.path, r.data);
-      const pos = this.editor.state.selection.main.to;
-      const top = this.sheet.scrollTop;
-      this.editor.dispatch({
-        changes: { from: pos, insert: `![[${target}]]` },
-        selection: { anchor: pos + target.length + 5 },
-        annotations: Transaction.userEvent.of("input"),
-      });
-      this.sheet.scrollTop = top;
-      ui.status.textContent = t.pasted;
-      await afterFileChange();
-      this.sheet.scrollTop = top;
+      // A browser names a pasted picture `image.png` or `blob`: named by
+      // the note and the moment instead.
+      const generic = !f.name || /^image\.(png|jpe?g|gif|webp)$/i.test(f.name) || /^blob/i.test(f.name);
+      await this.attachImage(f, { name: generic ? `${name(this.path)} ${stamp}.${extensionOf(f.type, "")}` : f.name });
     }
   })();
   return true;
+}
+
+/** One image copied into the folder's attachments folder beside the note
+ *  (the setting `attachments`) under a name nothing holds, and its embed
+ *  written at the caret as one edit (one ⌘Z; in a room, as any edit). The
+ *  bytes are the file's, as they are: no re-encoding, no resize. Says
+ *  what happened where the person is looking; the path, or null. */
+export async function attachImage(this: NoteLeaf, f: File, opts: { camera?: boolean; name?: string } = {}): Promise<string | null> {
+  const said = f.name || opts.name || "";
+  // A phone may give no type for a HEIC picture: its extension says.
+  if (!f.type.startsWith("image/") && !/\.(png|jpe?g|gif|webp|svg|avif|bmp|heic|heif)$/i.test(f.name)) {
+    ui.status.textContent = a.notImage(said);
+    return null;
+  }
+  if (!readable()) return null;
+  if (host() === "server" && f.size > MAX_IMAGE_BYTES) {
+    const words = a.tooBig(said, Math.floor(MAX_IMAGE_BYTES / (1024 * 1024)));
+    ui.status.textContent = words;
+    // A phone has no status bar: said at the top of its pane (errors.ts).
+    dispatchEvent(new CustomEvent("verso:failed", { detail: words }));
+    return null;
+  }
+  const raw = opts.camera ? cameraName(new Date(), extensionOf(f.type, f.name), LOCALE.startsWith("pt") ? "Foto" : "Photo") : (opts.name ?? f.name);
+  const shown = fitName(raw) || raw;
+  ui.status.textContent = a.copying(shown);
+  let b64: string;
+  try {
+    b64 = await fileBase64(f);
+  } catch {
+    ui.status.textContent = a.unreadable(shown);
+    return null;
+  }
+  const sub = settings.attachments.trim().replace(/^\/+|\/+$/g, "");
+  const folder = [dirOf(this.path), sub].filter(Boolean).join("/");
+  // Another window or device may take the name between the choosing and the
+  // writing: the core refuses to overwrite (`exists`), and the next free
+  // name is tried.
+  const taken = new Set([...allNotes, ...allFiles].map((p) => p.toLowerCase()));
+  let r = await commands.createFile(freeAttachment(folder, raw, taken), b64);
+  for (let tries = 0; r.status !== "ok" && r.error.kind === "exists" && tries < 5; tries++) {
+    taken.add(freeAttachment(folder, raw, taken).toLowerCase());
+    r = await commands.createFile(freeAttachment(folder, raw, taken), b64);
+  }
+  if (r.status !== "ok") {
+    fail(r.error);
+    return null;
+  }
+  allFiles.push(r.data);
+  const target = linkText(this.path, r.data);
+  const pos = this.editor.state.selection.main.to;
+  const top = this.sheet.scrollTop;
+  this.editor.dispatch({
+    changes: { from: pos, insert: `![[${target}]]` },
+    selection: { anchor: pos + target.length + 5 },
+    annotations: Transaction.userEvent.of("input"),
+  });
+  this.sheet.scrollTop = top;
+  ui.status.textContent = a.done(name(r.data), sub);
+  await afterFileChange();
+  this.sheet.scrollTop = top;
+  return r.data;
 }
 
 /* ---------- Blocks (ADR 0061) ---------- */
