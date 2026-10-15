@@ -179,8 +179,9 @@ fn an_edit_made_outside_the_server_inside_a_secret_block_is_not_stale_or_indexed
 }
 
 /// A symlink inside the folder to a note, under a name that is no note's:
-/// confinement keeps the name, the file system follows the link.
-#[cfg(unix)]
+/// confinement keeps the name, the file system follows the link. On
+/// Windows a symlink needs Developer Mode (ADR 0069), as the other tests
+/// that make one.
 #[test]
 fn a_link_inside_the_folder_to_a_note_hands_a_reader_no_secret_block() {
     block_on(async {

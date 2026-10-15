@@ -176,8 +176,7 @@ pub(crate) struct Remote {
 
 impl Remote {
     /// Whether pieces cross this connection as binary messages.
-    // Its tests need a `verso serve`, not built for Windows.
-    #[cfg(all(test, not(windows)))]
+    #[cfg(test)]
     pub(crate) fn binary(&self) -> bool {
         self.binary
     }
@@ -199,8 +198,7 @@ impl Remote {
 
     /// The connection let go at once, as a network that drops it: the
     /// server sees it closed once the last holder lets the `Remote` go.
-    // Its tests need a `verso serve`, not built for Windows.
-    #[cfg(all(test, not(windows)))]
+    #[cfg(test)]
     pub(crate) fn hang_up(&self) {
         close(&self.pending);
         self.dead.notify_one();

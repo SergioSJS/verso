@@ -8,9 +8,6 @@
 //! as the binary messages of sync 2 (item 12, revised 2026-10-12). And a
 //! file of several pieces between two devices of this app's own sync.
 
-// The server is not built for Windows (crates/verso-cli/Cargo.toml).
-#![cfg(not(windows))]
-
 use super::tests_sync::{device, kept, on, read, serve, sync, write};
 
 /// A file of 3 MiB and a bit: four pieces of 1 MiB.
