@@ -131,8 +131,6 @@ pub enum Msg {
     /// `verso serve` could not start, or stopped with an error.
     ServeFailed(String),
     /// `verso serve admin reset`: the link to give the account's owner.
-    /// Only where the server is built: not on Windows (ADR 0075 item 2).
-    #[cfg(not(windows))]
     ResetLink(String),
 }
 
@@ -235,7 +233,6 @@ lista); ainda não há como esconder um bloco ou uma nota. Escolha a pasta."
             Msg::Space { total, notes, attachments, files, index } => format!(
                 "espaço: {total} — notas {notes}, anexos {attachments}, {files} arquivos; índice {index}"
             ),
-            #[cfg(not(windows))]
             Msg::ResetLink(link) => format!(
                 "as sessões da conta terminaram; o link para criar uma senha nova (vale 24 horas, uma vez):\n{link}"
             ),
@@ -337,7 +334,6 @@ lists); there is no way to hide a block or a note yet. Choose the folder."
             Msg::Space { total, notes, attachments, files, index } => format!(
                 "space: {total} — notes {notes}, attachments {attachments}, {files} files; index {index}"
             ),
-            #[cfg(not(windows))]
             Msg::ResetLink(link) => format!(
                 "the account's sessions ended; the link to set a new password (valid 24 hours, once):\n{link}"
             ),
@@ -437,7 +433,6 @@ mod tests {
                 files: 1,
                 index: "4 KB".into(),
             },
-            #[cfg(not(windows))]
             Msg::ResetLink("http://x/reset/y".into()),
             Msg::Opening {
                 folder: "/v".into(),
@@ -483,7 +478,6 @@ mod tests {
             Msg::McpFailed(_) => 25,
             Msg::McpServingAll => 30,
             Msg::ServeFailed(_) => 31,
-            #[cfg(not(windows))]
             Msg::ResetLink(_) => 32,
             Msg::Space { .. } => 33,
             Msg::Opening { .. } => 26,
@@ -499,10 +493,7 @@ mod tests {
         seen.sort_unstable();
         // `ordinal` is exhaustive, so its highest arm is the variant count
         // minus one; the samples must reach it without a gap.
-        // ResetLink (32) exists only where the server is built.
-        let expected: Vec<usize> = (0..=33)
-            .filter(|n| cfg!(not(windows)) || *n != 32)
-            .collect();
+        let expected: Vec<usize> = (0..=33).collect();
         assert_eq!(seen, expected, "a variant has no sample in every()");
     }
 
