@@ -138,6 +138,13 @@ async function network(page) {
       await page.context().setOffline(false);
       await page.evaluate(() => dispatchEvent(new Event("online"))).catch(() => undefined);
     },
+    /** Requests go through again, but no socket connects: a sync pass
+     *  cannot run, so what waits keeps waiting. */
+    async requestsOnly() {
+      off = true;
+      await page.context().setOffline(false);
+      await page.evaluate(() => dispatchEvent(new Event("online"))).catch(() => undefined);
+    },
   };
 }
 
@@ -488,9 +495,10 @@ test("signing out deletes the copy, after saying how many writes have not gone u
   await expect(page.locator("#notes li").first()).toBeVisible({ timeout: 60_000 });
   await typeIn(page, "a.md", "feito sem rede\n");
   await expect.poll(() => kept(page, folder, "a.md"), { timeout: 30_000 }).toContain("feito sem rede");
-  await net.on();
-  // The pass would send it: stop it by sending nothing, so that one waits.
-  // (The connection is back; sign out at once, before the pass runs.)
+  // Signing out is a request; the sync pass needs a socket. With requests
+  // back and sockets still refused, the write keeps waiting, whatever the
+  // timing (it raced the pass before, and lost on a busy machine).
+  await net.requestsOnly();
   await page.locator("#sync-state").waitFor({ state: "attached" }).catch(() => undefined);
   await page.keyboard.press("ControlOrMeta+,");
   await page.locator(".settings-nav-item", { hasText: "Conta" }).click();
