@@ -145,12 +145,10 @@ fn chrome_offset<R: tauri::Runtime>(window: &tauri::Window<R>) -> f64 {
         (Ok(outer), Ok(inner)) => f64::from(inner.y.saturating_sub(outer.y).max(0)) / scale,
         _ => 0.0,
     };
-    // macOS reports the same point for both; the standard title bar is 28 pt.
-    if measured == 0.0 && cfg!(target_os = "macos") {
-        28.0
-    } else {
-        measured
-    }
+    // macOS reports the same point for both. Its windows have had no
+    // title bar since ADR 0072 (the overlay style): the content starts
+    // at the window's top, so nothing is added there.
+    measured
 }
 
 /// The user agent a web page's view presents: Safari's own, current
