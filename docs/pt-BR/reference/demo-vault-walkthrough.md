@@ -1103,7 +1103,7 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
     (`boardStress.test.mjs`); três janelas em dois motores trabalhando ao
     acaso por um minuto (e2e-server, "three windows, two engines").
 13. Blocos secretos ([ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md)):
-    a dona de uma pasta copia o bloco secreto da nota 24 para uma nota e dá
+    a dona de uma pasta copia o bloco secreto da nota 25 para uma nota e dá
     *leitor* a outra conta. A janela de quem lê mostra a nota sem o bloco —
     na Leitura, na prévia ao passar o mouse, numa incorporação dela, na
     busca (*estalajadeira* não acha nada), nos backlinks, nas tags e no
@@ -1120,6 +1120,16 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
     o `tests/workspace/reader.rs` do núcleo, o `tests/secret.rs` do índice,
     o `tests/secret.rs` do dialeto e `fixtures/callout/secret` (rascunho da
     IA); A: `manual-checks.md`.
+
+14. A lição de instalação (nota 24, "Instalar o seu UniVerso, Passo a
+    Passo"): a parada "Num servidor" do tour mostra as notas 23 e 25 lado a
+    lado, e o *Instalar* da nota 23 liga à 25. Na 25 cada bloco de código
+    (`bash`, `yaml`) copia inteiro, e cada comando, caminho, porta e
+    variável se lê igual ao de `docs/reference/server-hands-on.md`; a nota
+    diz que o Verso está em testes, sem download público ainda; e os links
+    para `#Se algo der errado` e para *O primeiro admin e as contas* da nota
+    23 caem nos títulos. Nível: H; R: `scripts/demo-vault.mjs check`
+    (links e títulos do vault).
 
 ## 14. O fim
 
