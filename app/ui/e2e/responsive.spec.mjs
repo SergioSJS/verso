@@ -476,8 +476,12 @@ for (const [title, steps] of [
   ["a bracket committed by the next composition", [["[", null], ["[[", "[["]]],
 ]) {
   test(`\`[[\` typed through the keyboard's composition lists the notes: ${title} @layout`, async ({ app, page, browserName }) => {
-    test.skip(browserName !== "chromium", "the input method is driven through the DevTools protocol");
     await app.open();
+    // The input method is driven through the DevTools protocol: Chromium only.
+    if (browserName !== "chromium") {
+      test.info().annotations.push({ type: "skip", description: "the input method is driven through the DevTools protocol" });
+      return;
+    }
     await app.quickOpen("11 - Escrevendo");
     await app.key("Mod+e");
     const editor = page.locator(".pane.focused .cm-content").first();

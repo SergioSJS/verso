@@ -186,6 +186,7 @@ test("a paired phone can be let edit, or only read, without pairing again", asyn
   await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
   await body.getByRole("button", { name: "Parear um celular" }).click();
   const dialog = page.getByRole("dialog", { name: "Parear um celular" });
+  await expect(dialog.getByRole("img", { name: "QR de pareamento" })).toBeVisible();
   await page.evaluate(() => window.__harness.core.localServer.askAsPhone("Pixel do Caio"));
   await dialog.getByRole("button", { name: "Permitir" }).click();
   await expect(body.getByText("Pixel do Caio · só lê")).toBeVisible();
