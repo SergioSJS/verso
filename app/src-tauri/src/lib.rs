@@ -47,6 +47,7 @@ mod files;
 mod focuses;
 mod folder_layer;
 mod history;
+mod framing;
 mod log;
 mod menu;
 mod notes;
@@ -104,11 +105,17 @@ pub struct App {
     /// The folders that sync with a server, by key: their tasks (ADR 0079).
     pub(crate) syncs: Mutex<std::collections::HashMap<String, Arc<sync::Syncer>>>,
     /// Origins (`scheme://host[:port]`) of embedded pages the user
-    /// approved by hand, mirrored from the window's settings. An embed
-    /// renders in a child web view (`web_open`), so the app view itself
-    /// never navigates to the web; the gate in the window is what asks,
-    /// and this list is its record on this side (ADR 0056, revised).
+    /// approved by hand, mirrored from the window's settings. The gate in
+    /// the window is what asks, and this list is its record on this side.
+    /// An app view navigates to the web only to `framed_origins` below
+    /// (ADR 0056, revised 2026-10-15).
     embed_origins: Mutex<std::collections::HashSet<String>>,
+    /// What the frameability check found, by the origin it was asked
+    /// about, for the session (ADR 0056, revised 2026-10-15).
+    frame_verdicts: Mutex<std::collections::HashMap<String, bool>>,
+    /// The origins a page judged frameable visits (its own, and where its
+    /// redirects end): the only web origins an app view's frame may load.
+    framed_origins: Mutex<std::collections::HashSet<String>>,
     /// The folders behind the menu's "Open Recent" items, in the order
     /// the menu shows: item `verso-recent-<i>` opens `menu_recents[i]`.
     /// Paths at the edge, on this side; they never cross to the UI. The
@@ -139,6 +146,8 @@ impl App {
             remotes: Mutex::new(std::collections::HashMap::new()),
             syncs: Mutex::new(std::collections::HashMap::new()),
             embed_origins: Mutex::new(std::collections::HashSet::new()),
+            frame_verdicts: Mutex::new(std::collections::HashMap::new()),
+            framed_origins: Mutex::new(std::collections::HashSet::new()),
             #[cfg(target_os = "macos")]
             menu_recents: Mutex::new(Vec::new()),
             menu_language: Mutex::new("pt".to_owned()),
@@ -671,6 +680,7 @@ macro_rules! commands_for {
                 web_close::<$runtime>,
                 web_nav::<$runtime>,
                 web_url::<$runtime>,
+                embed_frameable::<$runtime>,
                 read_text::<$runtime>,
                 write_text::<$runtime>,
                 write_board::<$runtime>,

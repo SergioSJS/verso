@@ -20,6 +20,99 @@ app real.
 
 ## Ainda não conferido
 
+### Uma página embutida como frame de verdade (fix/web-embed-clip, 2026-10-15)
+
+Precisa do app instalado: a checagem, a política do frame e o guard de
+navegação vivem no host, que o harness no navegador não tem. Faça cada uma
+no macOS e no Windows. Cabeçalhos lidos com `curl -sI` em 2026-10-15:
+`https://example.com/` e `https://en.wikipedia.org/` não enviam
+`X-Frame-Options` nem `frame-ancestors` (embutíveis); `https://rolai.app/`
+e `https://huggingface.co/` enviam `X-Frame-Options: DENY` (não embutíveis,
+então usam a view nativa, como o rolai.app antes desta mudança). Use uma
+nota longa com um embed aprovado de cada, alto o bastante para rolar.
+
+- [ ] **Um site embutível** (example.com, ou um artigo da Wikipédia): ele
+  aparece na nota como um frame; o tamanho é o da caixa, sem folga e sem
+  barra própria além da da página. Rolar a nota o move como qualquer bloco
+  da nota.
+- [ ] **Um site que recusa** (rolai.app): aparece, na view nativa, como
+  antes desta mudança. Diga se está cortado certo nas bordas do painel.
+- [ ] **Meio por cima, meio por baixo, na barra de status**: role a nota
+  até um embed embutível ficar meio acima do painel, meio abaixo dele, e
+  logo sobre a barra de status: a página é cortada nas bordas do painel e a
+  barra de status, a barra de abas e o sino ficam descobertos; sem
+  piscar, sem atraso (é um frame, nada o segue).
+- [ ] **Rolar a nota nunca rola a página**: com o ponteiro sobre o embed,
+  role com a roda e com o trackpad: a nota e a página rolam como num
+  navegador (a página primeiro enquanto pode, depois a nota); a página
+  nunca se move com o ponteiro sobre o texto da nota.
+- [ ] **A rolagem própria da página**: role dentro da página e depois role
+  a nota: a página mantém a posição.
+- [ ] **Painel dividido, Ajustes abertos**: divida a janela e ponha o embed
+  perto do divisor: nada o atravessa; abra os Ajustes ou a paleta: a página
+  não aparece por baixo (um frame fica sob o overlay como o resto da nota).
+- [ ] **Um link e um vídeo dentro da página**: clique num link para outro
+  site dentro da página embutida, e toque um vídeo que a própria página
+  embute. Espera-se que os dois fiquem em branco por enquanto (o guard de
+  navegação não conhece frames; ADR 0056 `[ABERTO]`). Diga o que acontece, e
+  se a janela e a página continuaram usáveis.
+- [ ] **Redirecionamento**: embuta `http://example.com/` (redireciona para
+  https) e a forma com `www.` de um site que redireciona para o nome puro: a
+  página carrega, ou usa a view nativa; nunca fica em branco.
+- [ ] **Um endereço na rede** (um Calibre-Web, um painel em
+  `192.168.x.x`): aparece, num frame ou na view nativa; diga qual.
+- [ ] **Sem rede**: sem rede, um embed novo toma o caminho da view nativa
+  (a checagem responde não) e não diz nada errado; ao voltar a rede,
+  reinicie o app e a página vira frame.
+- [ ] **Uma página como aba** (uma nota só com `url`): não muda, uma view
+  nativa enchendo o painel.
+- [ ] **O log** (`~/Library/Application Support/verso/logs/verso.log`):
+  nenhum `ERROR` ao fazer o acima, e nenhum "not allowed" para
+  `embed_frameable`.
+
+### Uma página incorporada cortada pelo seu painel (fix/web-embed-clip, 2026-10-15)
+
+Precisa do app instalado: a página é uma visão web filha nativa, que o
+harness do navegador não tem. Faça cada item no macOS e no Windows. Use
+uma nota com uma página incorporada aprovada, alta o bastante para
+rolar (um artigo longo, com linhas ou títulos numerados para o trecho
+mostrado ficar óbvio), numa nota longa o bastante para rolar.
+
+- [ ] **Metade acima do painel**: role a nota até a borda de cima da
+  incorporação ficar mais ou menos na metade, acima do topo do painel.
+  Veja o *meio* da página (as linhas 3, 4… e não 1, 2, 3), cortada na
+  borda de cima do painel, com a barra de abas e a barra de ferramentas
+  descobertas. Continue rolando: a página sobe com a nota, sem salto e
+  sem piscar; role de volta: a página desce de volta ao começo.
+- [ ] **Metade abaixo do painel**: role para o outro lado até o fim da
+  incorporação ficar abaixo do painel. O começo da página aparece,
+  cortado no fundo do painel; a **barra de status** não é coberta, nem o
+  sino dela.
+- [ ] **Mais alta que o painel**: uma incorporação mais alta que o
+  painel, com o topo e o fim fora da vista: a página mostra o meio, sem
+  cobrir nenhuma barra.
+- [ ] **A rolagem da própria página**: com a incorporação inteira à vista,
+  role dentro da página com a roda; depois role a nota um pouco: a página
+  guarda a posição dela somada à da nota, e ainda rola por dentro.
+- [ ] **Em um painel dividido**: divida a janela em duas; a nota no painel
+  da direita, a incorporação perto da linha divisória e da borda do
+  painel da esquerda: a página nunca passa por cima do outro painel, do
+  divisor nem dos painéis laterais (abra e feche os painéis da esquerda e
+  da direita com a página à vista).
+- [ ] **Com os Ajustes (ou a paleta) abertos**: role até o caso da metade,
+  abra os Ajustes: a página some, e volta no mesmo trecho quando eles
+  fecham.
+- [ ] **Abrindo já rolada**: role a nota antes, de modo que o topo da
+  incorporação fique meio fora da vista, e então abra a aba (ou troque
+  para ela): a página aparece já mostrando a parte de baixo.
+- [ ] **Uma página de altura cheia** (que ajusta o tamanho à altura da
+  janela, como um player de vídeo): no caso da metade ela aparece
+  desenhada para a altura visível; diga se isso é aceitável (um iframe a
+  desenharia para a caixa inteira).
+- [ ] **Windows**: tudo acima, e mais a janela arrastada para outro
+  monitor e redimensionada com a página na metade: a página acompanha sem
+  se deslocar.
+
 ### Notificações na janela (ADR 0084, feat/notify-ui, 2026-10-14)
 
 - [ ] **O servidor parado e iniciado de novo**: uma pasta deste

@@ -18,6 +18,11 @@
   de script. Registrado numa seção própria no fim da Decisão, com as suas
   Consequências, a sua alternativa descartada e dois itens `[ABERTO]`; o
   texto da primeira decisão fica, cada parte substituída com uma nota.
+  2026-10-14 — **revisto pelo mantenedor** na sessão ("A agora, B depois"):
+  um embed é um `<iframe>` quando o site permite ser embutido, a child web
+  view quando não; um contêiner nativo de recorte é um pull request
+  posterior. Registrado como a última seção da Decisão, "Revisto: um
+  `<iframe>` quando o site permite".
 
 ## Contexto
 
@@ -297,6 +302,75 @@ O gate e a lista nos ajustes não mudam: a child view só nasce para uma
 origem que o usuário aprovou. Verificado em 2026-09-29 com huggingface.co
 e rolai.app renderizando inteiros, X-Frame-Options e tudo.
 
+### Revisto: um `<iframe>` quando o site permite, a child view quando não — decidido em 2026-10-14
+
+**Decidido em 2026-10-14 pelo mantenedor**, na sessão, depois de testar a
+child web view no app instalado ("A agora, B depois"): a child view flutua
+sobre a janela, então um embed meio fora do painel podia ser desenhado por
+cima da barra de status, a página rolava com a roda da nota, e o tamanho
+dela não era o da caixa. A exigência dele: um embed se comporta como um
+`<iframe>` normal — a página respeita o tamanho da caixa em que é
+renderizada, rola com a nota, é recortada pelo painel, nunca desenha por
+cima de outro elemento da janela, e rolar a nota nunca rola a página dentro.
+
+- **A.** (esta revisão) Um embed é um `<iframe>` de verdade no documento da
+  nota sempre que o site permite ser embutido pela origem da janela; um site
+  que recusa mantém a child web view, recortada à área visível e sem rolar a
+  página (o plano B de contingência). Uma página aberta como aba (a view da
+  própria nota web) continua sendo uma child web view: ela enche o painel.
+- **B.** (depois, num pull request próprio, não decidido aqui) Um contêiner
+  nativo de recorte para a contingência. Precisa de uma exceção de `unsafe`,
+  que o `CLAUDE.md` proíbe sem uma registrada.
+
+Como o autor construiu A (`app/src-tauri/src/framing.rs`, `web.rs`,
+`app/ui/src/leaves/web.ts`):
+
+- **Uma checagem de embutibilidade no host**, `embed_frameable(url)`: um
+  `HEAD` (um `GET` lido só até os cabeçalhos quando o `HEAD` dá erro ou
+  responde 4xx ou 5xx), a um endereço que uma nota escreveu e quem lê
+  aprovou ([0050](0050-outbound-network-access.md) item 1), seis segundos no
+  máximo, no máximo cinco redirecionamentos seguidos à mão, a resposta final
+  julgada. A resposta pode ser embutida, a menos que: haja qualquer valor de
+  `X-Frame-Options` (`DENY`, `SAMEORIGIN`, `ALLOW-FROM`, em qualquer caixa,
+  ou um que ninguém lê); ou um `Content-Security-Policy` tenha um
+  `frame-ancestors` que não permita a origem da janela (`*` só para uma
+  origem de esquema de rede, então não `tauri://localhost`; um esquema,
+  host, host com curinga e porta que combinem; não `'none'`, `'self'` nem
+  lista vazia); toda política da resposta precisa permitir. Um
+  redirecionamento de uma página pública para um nome ou endereço local, um
+  tempo esgotado, um erro: não embutível. Respondida uma vez por origem na
+  sessão. É uma requisição do lado do host que a revisão de 2026-09-29 tinha
+  removido ("nada é buscado do lado do host"): uma requisição por origem
+  aprovada, só cabeçalhos, e a resposta é um bit que cruza até a janela. É o
+  "aviso na hora de aprovar" que o item `[ABERTO]` acima deixou em aberto,
+  usado para outro fim.
+- **O embed.** Embutível: a caixa guarda `<iframe sandbox="allow-scripts
+  allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+  referrerpolicy="no-referrer" loading="lazy">`, sem `allow`, 100 % da
+  caixa. Não embutível, ou a resposta um erro: a child web view da revisão
+  acima. A janela no navegador mantém o frame dela com o link para abrir a
+  página numa aba ([0076](0076-the-window-on-every-screen.md), item 11,
+  como o código o cita).
+- **A política da janela** já tinha `frame-src https: http: verso:
+  http://verso.localhost` dos dias da child view; não muda. A política do
+  servidor para a janela no navegador também não muda
+  (`frame-src 'self' https:`).
+- **O guard de navegação** muda por uma licença: o frame de uma view do app
+  pode carregar as origens exatas que a checagem julgou embutíveis (e onde
+  terminam os redirecionamentos delas) e nenhuma outra página da web. O wry
+  entrega ao guard um endereço e nenhum frame, então ele não distingue um
+  frame da janela; a licença é tão estreita quanto o tratador deixa. O custo
+  está registrado no modelo de ameaças
+  (`docs/reference/threat-model.md`, "A web page embedded in a note"), com o
+  raciocínio de que uma página embutida não alcança os comandos do app.
+- **`[ABERTO]`, não decidido aqui.** Os links da própria página para outra
+  origem, e os frames dentro dela (um vídeo, um anúncio), são recusados pelo
+  guard e ficam em branco até o mantenedor escolher como alargá-lo (o custo
+  é o mesmo: o guard não distingue um frame da janela).
+
+Descartadas nesta revisão: nenhuma registrada além da B, que o mantenedor
+deixou para depois.
+
 ## Status
 
 Aceito em 2026-09-29 pelo mantenedor, na sessão: os pontos 1 e 2 da Decisão.
@@ -306,3 +380,7 @@ Aceito. Revisto em 2026-09-29 pelo mantenedor, na sessão: o ponto 3, opção
 A, Aceito; o mecanismo sob ele é do autor e substitui o proxy. Um item
 fica `[ABERTO]`: um aviso na hora de aprovar; o cache da web view
 depois de uma atualização foi decidido em 2026-10-07 (acima).
+Revisto em 2026-10-14 pelo mantenedor, na sessão ("A agora, B depois"): os
+embeds são `<iframe>`s quando o site permite ser embutido, child web views
+quando não; o contêiner nativo de recorte (B) fica para um pull request
+posterior.

@@ -282,8 +282,13 @@
 /* The allowed-embeds field in the settings: one origin per line. */
 textarea.embed-allowed { width: 100%; min-width: 16rem; font-family: var(--mono); font-size: .85em; line-height: 1.5; resize: vertical; }
 
-/* The embedded page's box: the child web view is overlaid exactly on it. */
+/* The embedded page's box: a frame fills it, or, for a site that refuses
+   framing, the child web view is overlaid exactly on it. */
 .embed-web { border: 1px solid var(--line, #d8cfc2); border-radius: 8px; background: var(--panel, #f7f1e8); }
+/* A site that allows it is shown in a real frame: the box's size exactly,
+   clipped by the box's corners, scrolling with the note. */
+.embed-web[data-embed-framed] { overflow: hidden; }
+.embed-frame { display: block; width: 100%; height: 100%; border: 0; background: white; }
 
 /* The bug button, and the dot it wears when the window swallowed an
    error since it was last opened. */

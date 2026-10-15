@@ -1119,6 +1119,8 @@ export class Core {
     },
     web_bounds: () => null,
     web_visible: () => null,
+    // A site that refuses framing is one whose address says so.
+    embed_frameable: (a) => !/frames-no/.test(String(a["url"])),
     web_close: (a) => void this.webViews.delete(String(a["label"])),
     web_nav: (a) => {
       if (typeof a["url"] === "string") this.webViews.set(String(a["label"]), a["url"]);

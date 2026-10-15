@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-embed-frameable"
+description = "Enables the embed_frameable command without any pre-configured scope."
+commands.allow = ["embed_frameable"]
+
+[[permission]]
+identifier = "deny-embed-frameable"
+description = "Denies the embed_frameable command without any pre-configured scope."
+commands.deny = ["embed_frameable"]
