@@ -140,18 +140,18 @@ test("the palette's roller rolls a typed notation and says what it does not read
 
 test("the tutorial's note 24 rolls its dice and its tables, and stays as it was (walkthrough 3.13)", async ({ app, page }) => {
   await app.open();
-  const path = "24 - Dados e Tabelas Sorteadas.md";
+  const path = "25 - Dados e Tabelas Sorteadas.md";
   const before = await app.file(path);
   await app.quickOpen("24 - Dados e Tabelas");
   const preview = page.locator(".preview:visible");
   await preview.getByRole("button", { name: "Rolar 1d20+5" }).click();
   await expect(preview.locator('.dice[data-dice="1d20+5"] .dice-total')).toHaveText(/^\d+$/);
   await expect(preview.locator("code", { hasText: "dice: 1d20*2" }).first()).toBeVisible();
-  await preview.getByRole("button", { name: "Rolar na tabela [[24 - Dados e Tabelas Sorteadas#^encontros]]" }).click();
-  const row = preview.locator('.dice[data-dice="[[24 - Dados e Tabelas Sorteadas#^encontros]]"] .dice-row');
+  await preview.getByRole("button", { name: "Rolar na tabela [[25 - Dados e Tabelas Sorteadas#^encontros]]" }).click();
+  const row = preview.locator('.dice[data-dice="[[25 - Dados e Tabelas Sorteadas#^encontros]]"] .dice-row');
   await expect(row).toHaveText(/^(Uma patrulha da guarda, desconfiada|Um mercador com a carroça atolada|Lobos famintos, e Capitão Ruy chega para ajudar|Nada; só o vento)$/);
-  await preview.getByRole("button", { name: "Rolar na tabela [[24 - Dados e Tabelas Sorteadas#^tempo]]" }).click();
-  await expect(preview.locator('.dice[data-dice="[[24 - Dados e Tabelas Sorteadas#^tempo]]"] .dice-row')).toHaveText(/^(Sol forte|Garoa fina|Neblina até o meio-dia|Tempestade à noite)$/);
+  await preview.getByRole("button", { name: "Rolar na tabela [[25 - Dados e Tabelas Sorteadas#^tempo]]" }).click();
+  await expect(preview.locator('.dice[data-dice="[[25 - Dados e Tabelas Sorteadas#^tempo]]"] .dice-row')).toHaveText(/^(Sol forte|Garoa fina|Neblina até o meio-dia|Tempestade à noite)$/);
   await page.waitForTimeout(1000);
   expect(await app.file(path)).toBe(before);
   expect(await app.calls("write_note")).toHaveLength(0);

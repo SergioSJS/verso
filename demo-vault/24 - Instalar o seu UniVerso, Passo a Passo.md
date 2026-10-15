@@ -42,7 +42,7 @@ O UniVerso é **livre e seu**: roda numa máquina sua, as notas continuam arquiv
 Serve para uma máquina Linux com `apt` ou `dnf`, com ou sem Docker. No servidor, com o seu usuário comum (o script pede `sudo` quando precisar):
 
 ```bash
-V=0.8.0-beta.1
+V=0.8.2-beta.1
 curl -fsSLO https://versomd.com/universo.sh
 less universo.sh                          # opcional: ler o que ele faz (q para sair)
 read -rs GITHUB_TOKEN && export GITHUB_TOKEN   # cole o token, Enter; enquanto o repositório é privado
@@ -95,7 +95,7 @@ Ponha `sudo` antes de `docker` se o seu usuário não está no grupo `docker`.
 **Passo 3: a versão e o arquivo compose.**
 
 ```bash
-V=0.8.0-beta.1
+V=0.8.2-beta.1
 echo "V=$V" | sudo tee /srv/universo/.env
 sudoedit /srv/universo/compose.yaml
 ```
@@ -311,18 +311,17 @@ sudo tar -czpf ~/universo-backup-$(date +%Y%m%d-%H%M%S).tar.gz -C /srv universo
 docker compose start
 ```
 
-**Atualizar**, com o pacote: faça o backup acima e rode (a versão nova em `V`; sem `--version` ele pega a mais recente). Configurações e dados ficam:
+**Atualizar**, com o pacote: faça o backup acima e rode (sem `--version` ele pega a mais recente; com `--version` você escolhe uma). Configurações e dados ficam:
 
 ```bash
-V=0.8.1
-sh universo.sh update --version "$V"
+sh universo.sh update
 ```
 
 Com **Docker**, troque a versão no `.env` e recrie o contêiner (os dados ficam nos dois diretórios):
 
 ```bash
 cd /srv/universo
-echo "V=0.8.1" | sudo tee .env
+echo "V=0.8.2-beta.1" | sudo tee .env   # troque pelo número da versão nova
 docker compose pull
 docker compose up -d
 ```
@@ -360,4 +359,4 @@ Mais fundo: o manual completo do projeto é o `docs/reference/server-install.md`
 
 ---
 
-Para o que fazer com o servidor no ar, volte a [[23 - Verso num Servidor]]; para o celular, [[22 - Verso no Celular e no Tablet]]. Volte para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].
+Para o que fazer com o servidor no ar, volte a [[23 - Verso num Servidor]]; para o celular, [[22 - Verso no Celular e no Tablet]]. A próxima nota, [[25 - Dados e Tabelas Sorteadas]], rola dados e sorteia em tabelas — numa mesa com o seu UniVerso, todos veem a mesma rolagem. Volte para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].
