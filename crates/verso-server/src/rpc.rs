@@ -146,6 +146,11 @@ pub async fn upgrade(ctx: Ctx, ws: WebSocketUpgrade) -> ApiResult<Response> {
     let server = Arc::clone(&ctx.server);
     Ok(ws
         .max_message_size(MAX_MESSAGE)
+        // A browser sends a message as one frame, and a frame is 16 MiB by
+        // default: a picture over 12 MiB (16 MiB as base64) was cut off
+        // whatever the message limit said (measured 2026-10-15 with a
+        // 13 MiB image, `tests_attach.rs`).
+        .max_frame_size(MAX_MESSAGE)
         .on_upgrade(move |socket| async move {
             // Held as long as the connection.
             let _places = places;
