@@ -323,6 +323,28 @@ A documentação diz isso onde os agentes são configurados. Enquanto isso, um
 token de acesso pessoal é o único jeito de um programa chegar ao servidor,
 limitado como acima.
 
+### Uma página da web embutida numa nota
+
+O `<iframe>` de uma nota, ou uma nota web embutida, mostra uma página de um
+site que quem lê aprovou (ADR 0056). Desde 2026-10-15 essa página é um
+`<iframe>` de verdade dentro do documento da janela quando o site permite
+ser embutido, e uma visão web filha do host quando não permite (ADR 0056,
+revisado). O raciocínio abaixo foi lido no Tauri 2.11 e no wry 0.55 (as
+versões do `Cargo.lock`); o que só o app real mostra está listado em
+`docs/reference/manual-checks.md`.
+
+| Ameaça | Resposta como construída |
+|---|---|
+| Uma página embutida chama os comandos do app | O Tauri decide pela origem da requisição, não pelo frame: `Webview::on_message` toma o endereço da requisição, `is_local_url` é falso para qualquer endereço `http(s)` que não seja o do próprio app, e uma origem remota é resolvida contra capacidades que nomeiem uma url `remote`. `capabilities/default.json` não tem nenhuma, então todo comando, o de um plugin inclusive, é recusado (`Command … not allowed by ACL`). Seguro por `the_frame_check_answers_the_apps_views_and_refuses_a_remote_origin` (uma chamada de `https://evil.example/…` a `embed_frameable` e a `web_open` é recusada) e, para um comando que já existia, por `only_the_apps_own_views_reach_the_commands`. |
+| Uma página embutida acha `__TAURI_INTERNALS__` e a chave de invocação | O Tauri põe seus próprios scripts só no frame principal (`for_main_frame_only: true` em `manager/webview.rs`), então um frame de outra origem no macOS e no Linux não tem nem um nem outra. O wry documenta a exceção: no Windows (WebView2) os scripts de inicialização chegam a todo frame. Um frame ali poderia ver o objeto e a chave, e as chamadas dele continuam recusadas pela linha acima, já que a chave nunca substitui a checagem de origem. A janela não põe script próprio em frames. |
+| Uma página embutida lê o DOM, o armazenamento ou os arquivos do app | Ela é de outra origem: a origem dela é a do site (`allow-same-origin` dá isso, nunca a da janela), então o navegador a mantém fora do DOM, do armazenamento e dos cookies da janela. O `verso://` responde só às visões do próprio app e nunca à origem de uma nota (ADR 0056); a página não pede os arquivos da pasta. |
+| Uma página embutida conduz a janela | O frame não tem `allow-top-navigation`; os scripts dela não navegam a janela. Popups: `allow-popups` está ligado, mas a visão do host não tem tratador de janela nova e a visão web do sistema não abre nenhuma (a visão filha também as nega, `on_new_window` → `Deny`). Um link que ela abre não vai a lugar nenhum no app, como não ia a partir da visão filha. |
+| Uma página embutida pede câmera, microfone, localização | O frame não tem atributo `allow`: nada é emprestado a um frame de outra origem, e o app não concedeu nenhuma dessas. |
+| A página descobre de onde quem lê veio | `referrerpolicy="no-referrer"`. |
+| Uma nota faz o app carregar uma página na própria janela | O guarda de navegação é consultado para todo frame, e o wry lhe entrega só o endereço, então ele não distingue um frame da janela. O guarda continua fechado para a web numa visão do app, com uma licença: as origens exatas (esquema, host e porta) que a checagem de frame julgou embutíveis e registrou na sessão, que são origens de páginas que quem lê aprovou. Uma navegação da própria janela para uma delas (um meta refresh que uma nota não consegue escrever; o sanitizador o descarta) carregaria essa página na janela; a política da própria janela (`form-action 'none'`, scripts só do app, nenhum script numa nota) não deixa à nota meio de causá-la. Registrado como o custo de um iframe em relação à visão filha, cuja visão o guarda nunca precisou abrir (ADR 0056, revisado em 2026-10-15). Os links da própria página para outra origem, e os frames dentro dela (um anúncio, um vídeo), são recusados pelo mesmo guarda: ficam em branco. |
+| A checagem de frame como sonda da rede local | Um `HEAD` (um `GET` lido só até os cabeçalhos quando ele falha) a um endereço que uma nota escreveu e quem lê aprovou, seis segundos no máximo, no máximo cinco redirecionamentos, a resposta final julgada; nada do corpo é lido, e a resposta é um sim ou um não. Um redirecionamento de uma página pública para um nome ou endereço local (loopback, faixas privadas, link-local, CGNAT, `.local`, um nome sem ponto) encerra a checagem com não; um nome que um DNS público aponta para um endereço privado não é pego (o mesmo limite que o ADR 0056 registrou para o proxy). Um erro, um tempo esgotado, um cabeçalho ilegível: não, e a visão filha toma a página. Respondida uma vez por origem na sessão. |
+| Um sim errado: um frame vazio | Os cabeçalhos são lidos como um navegador os lê, com cautela: qualquer valor de `X-Frame-Options` (`DENY`, `SAMEORIGIN`, `ALLOW-FROM`, um ilegível) diz não, mesmo quando há um `frame-ancestors` para sobrepô-lo; `frame-ancestors` só diz sim a `*` (só para a origem do app com esquema de rede: `tauri://localhost` não é coberto por `*`), a um esquema, host ou host com curinga que combine, e toda política da resposta precisa permitir. Um site que responde à checagem de um jeito e ao frame de outro mostra um frame vazio, decisão do site como em qualquer lugar. |
+
 ## Lacunas encontradas em 2026-10-11
 
 Encontradas lendo o código no HEAD 7729940; achados, não correções.

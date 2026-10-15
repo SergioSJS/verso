@@ -20,6 +20,56 @@ in the real app.
 
 ## Not yet checked
 
+### An embedded page as a real frame (fix/web-embed-clip, 2026-10-15)
+
+Needs the installed app: the check, the frame's policy and the navigation
+guard live in the host, which the browser harness does not have. Do each
+on macOS and on Windows. Headers read with `curl -sI` on 2026-10-15:
+`https://example.com/` and `https://en.wikipedia.org/` send no
+`X-Frame-Options` and no `frame-ancestors` (frameable); `https://rolai.app/`
+and `https://huggingface.co/` send `X-Frame-Options: DENY` (not frameable,
+so they take the native view, as rolai.app did before). Use a long note
+with an approved embed of each, tall enough to scroll.
+
+- [ ] **A frameable site** (example.com, or a Wikipedia article): it shows
+  in the note as a frame; its size is the box's, with no gap and no bar of
+  its own beyond the page's. Scrolling the note moves it like any block of
+  the note.
+- [ ] **A refusing site** (rolai.app): it shows, in the native view, as
+  before this change. Say whether it is cut right at the pane's edges.
+- [ ] **Half above, half below, at the status bar**: scroll the note until
+  a frameable embed is half above the pane, half below it, and just over
+  the status bar: the page is cut at the pane's edges and the status bar,
+  the tab bar and the bell stay uncovered; no flicker, no lag (it is a
+  frame, nothing follows it).
+- [ ] **Scrolling the note never scrolls the page**: with the pointer over
+  the embed, scroll with the wheel and the trackpad: the note and the page
+  scroll as in a browser (the page first while it can, then the note); the
+  page is never moved when the pointer is over the note's text.
+- [ ] **The page's own scroll**: scroll inside the page, then scroll the
+  note: the page keeps its position.
+- [ ] **A split pane, Settings open**: split the window and put the embed
+  near the divider: nothing crosses it; open Settings or the palette: the
+  page does not show through (a frame is under the overlay as the rest of
+  the note is).
+- [ ] **A link and a video inside the page**: click a link to another site
+  inside the framed page, and play a video that the page itself embeds. Both
+  are expected to stay blank for now (the navigation guard does not know
+  frames; ADR 0056 `[OPEN]`). Say what happens, and whether the window or
+  the page stayed usable.
+- [ ] **Redirect**: embed `http://example.com/` (it redirects to https)
+  and a `www.` form of a site that redirects to its bare name: the page
+  loads, or takes the native view; it is never blank.
+- [ ] **An address on the network** (a Calibre-Web, a dashboard on
+  `192.168.x.x`): it shows, in a frame or in the native view; say which.
+- [ ] **Offline**: with no network, a new embed takes the native view's
+  path (the check answers no) and says nothing wrong; coming back online,
+  restart the app and the page frames.
+- [ ] **A page as a tab** (a note with only a `url`): unchanged, a native
+  view filling the pane.
+- [ ] **The log** (`~/Library/Application Support/verso/logs/verso.log`):
+  no `ERROR` while doing the above, and no "not allowed" for `embed_frameable`.
+
 ### An embedded page cut by its pane (fix/web-embed-clip, 2026-10-15)
 
 Needs the installed app: the page is a native child web view, which the
