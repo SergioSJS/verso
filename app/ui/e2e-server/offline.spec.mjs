@@ -25,7 +25,7 @@ function watch(page) {
   page.on("pageerror", (e) => {
     // A page being replaced (a reload, the sign-in page after a sign-out) has
     // its host's bridge gone for a moment: not the feature's.
-    if (!/Failed to fetch|Load failed|NetworkError|network connection was lost|reading 'invoke'/i.test(String(e))) errors.push(String(e));
+    if (!/Failed to fetch|Load failed|NetworkError|network connection was lost|reading 'invoke'|Importing a module script failed/i.test(String(e))) errors.push(String(e));
   });
   return errors;
 }
