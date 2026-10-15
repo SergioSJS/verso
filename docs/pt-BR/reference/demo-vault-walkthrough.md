@@ -289,7 +289,7 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    `typed.spec.mjs`.
 6. Nota 07, "Começar uma nota nova por um template" (ADR 0068): o ⌘N
    mostra "Começar com" sob o título — Em branco, Diário, Nota de Reunião,
-   Novo Projeto; "Nota de Reunião" preenche a nota, com `{{title}}` e
+   Novo Projeto, Semanal; "Nota de Reunião" preenche a nota, com `{{title}}` e
    `{{date}}` trocados; Em branco, Esc ou digitar guardam a lista e não
    gravam nada; as setas andam pela lista. Uma pasta cuja nota define
    `items_template` cria a nota a partir dele, sem lista. Nível: H; E:
@@ -308,6 +308,32 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    arquivo. Nível: S (`crates/verso-core/tests/typed.rs`,
    `fixtures/schema/infobox`), H; E: `infobox.spec.mjs`,
    `test/infobox.test.mjs`.
+8. Notas periódicas (nota 07, "A Semana, o Mês, o Trimestre e o Ano", ADR
+   0093): "Nota desta semana" na paleta cria `Diário/<gggg-[W]ww>.md` do
+   `Templates/Semanal.md` — `{{date}}` o domingo da semana, os sete dias
+   por `{{date+Nd:…}}`, `{{saturday:DD/MM}}` — e "Nota deste mês" cria
+   `Diário/<YYYY-MM>.md` com o nome como título; o trimestre e o ano não
+   são oferecidos até serem ligados em Ajustes › Notas periódicas. Em
+   `2026-W42`, "Nota periódica anterior" vai para `2026-W39`, pulando as
+   semanas sem nota, e diz quando não há nenhuma antes; o menu da aba tem
+   as duas. No Calendário do painel da direita, a coluna "Sem." numera as
+   semanas — "Semana 42 de 2026" cria ou abre a sua nota, a semana 39 de
+   setembro aparece marcada —, o nome do mês cria ou abre a nota do mês;
+   ← no primeiro dia de uma semana chega ao número dela. Ajustes › Notas
+   periódicas diz "Desta máquina" até a primeira mudança, que grava
+   `periodic` em `.verso/settings.json` com a pasta das diárias; um
+   formato com um código que o Verso não lê (`HH`) é recusado, dizendo
+   qual, e nada é gravado; um formato mudado avisa que as notas do
+   anterior não são mais encontradas. Uma pasta com
+   `.obsidian/daily-notes.json` recebe a oferta "Usar os ajustes do
+   Obsidian", que os grava nos ajustes da pasta e deixa `.obsidian/` como
+   estava. Quem só lê abre a semana 39 e ouve que a semana 42 ainda não
+   existe. Nível: S (`crates/verso-core/tests/periodic.rs`,
+   `crates/verso-fs/src/obsidian.rs`, `app/src-tauri/src/tests_periodic.rs`),
+   U (`test/periodic.test.mjs`), H; E: `periodic.spec.mjs`. A no app: os
+   dois arquivos do Obsidian lidos do disco, um placeholder deles, e dois
+   aparelhos sincronizados criando a mesma semana sem rede
+   (`docs/pt-BR/reference/manual-checks.md`).
 
 ## 5. Encontrar
 
