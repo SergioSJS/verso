@@ -357,3 +357,7 @@ export function quotaHeard(q: FolderQuota, folder = currentFolder, name = folder
   // On a phone, at the top of the pane (screen/frame.ts).
   dispatchEvent(new CustomEvent("verso:failed", { detail: said }));
 }
+
+/** A notification a layer that does not import the window asks for (the
+ *  window kept offline in a browser, web/offline/manager.ts, ADR 0092). */
+addEventListener("verso:notify", (e) => notify((e as CustomEvent<Parameters<typeof notify>[0]>).detail));

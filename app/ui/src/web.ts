@@ -9,7 +9,9 @@
 // invitation, a reset, a device, the account, the admin page — or, for a
 // person signed in, starts the window over the bridge (`web/bridge.ts`).
 
-import { state } from "./web/api";
+import { setStateFallback, state, stateWasKept } from "./web/api";
+import { offline } from "./web/offline/manager";
+import { o } from "./web/offline/strings";
 import { currentFolderId, startBridge } from "./web/bridge";
 import { pullSettings, pushSettings } from "./web/settingsSync";
 import { notice } from "./web/notice";
@@ -29,8 +31,24 @@ async function start(): Promise<void> {
   // A sensitive action the server wants proved again asks here, on any
   // page (ADR 0083 item 6).
   setProver(askProof);
+  // What this browser keeps for use offline (ADR 0092), opened first: the
+  // page that opens with no network is told who it is from it.
+  await offline.init();
+  setStateFallback(() => offline.cachedState());
   const s = await state();
   setLang(s.account?.lang);
+  if (stateWasKept()) {
+    // Offline: the folders kept open the window; nothing else is asked.
+    notice(offline.keptFolders().length > 0 ? o().startOffline : o().nothingKept);
+  } else if (s.account) {
+    void offline.rememberState({ ...s, csrf: null });
+  } else if (offline.keptFolders().length > 0) {
+    // The server says nobody is signed in here: the session ended (signed
+    // out in another tab, or the server ended it), and what this device
+    // kept for the account goes (ADR 0092 item 6).
+    const lost = await offline.wipe();
+    notice(o().wipedByServer(lost), "error");
+  }
   const path = location.pathname;
   const token = (prefix: string) => decodeURIComponent(path.slice(prefix.length));
   if (path.startsWith("/invite/")) return invitePage(token("/invite/"));
