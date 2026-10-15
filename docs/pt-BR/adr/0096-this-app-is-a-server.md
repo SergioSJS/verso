@@ -1,0 +1,508 @@
+# ADR 0096 — Este app é um servidor: o desktop servindo sua pasta na rede local
+
+- Data: 2026-10-15
+- Fonte: a decisão do mantenedor de 2026-10-14 de que "este app é um
+  servidor" (roadmap V.20) entra na V1, na onda C, ao lado do celular
+  offline ([0092](0092-the-phone-offline.md));
+  o item 2 da [0073](0073-self-hosted-server-first.md) (decidido em
+  2026-10-09), que nomeia o recurso numa frase. A leitura de 2026-10-15
+  achou que a frase decide a forma e nada da segurança, então as perguntas
+  abaixo foram escritas antes de alguém construir. Escrita por Sonnet 5.5
+  (não é o autor que o [0032](0032-author-and-reviewer-roles.md) nomeia para
+  documentos; registrado aqui); a ser lida por outro modelo antes de ser aceita.
+- Relacionadas: [0073](0073-self-hosted-server-first.md) (itens 2, 6, 8, 12
+  e as Consequências), [0074](0074-accounts-and-access-on-the-server.md)
+  (itens 4, 8, 9, 11: convites, a sessão de dispositivo, o log de auditoria,
+  o contrato), [0075](0075-server-packaging-and-storage.md) (item 2: as
+  plataformas), [0076](0076-the-window-on-every-screen.md) (a janela num
+  celular), [0079](0079-sync-a-local-folder-with-a-server.md) e
+  [0082](0082-live-co-editing-of-a-synced-folder.md) (uma pasta que
+  sincroniza), [0083](0083-security-hardening-of-universo.md) (os limites, a
+  prova, a página de aprovação do dispositivo), [0045](0045-server-and-mcp-security.md)
+  (o dono implícito; `Host` e `Origin`), [0050](0050-outbound-network-access.md)
+  (entrada e mDNS), [0056](0056-embedded-web-pages.md) (o host buscando
+  para uma nota), [0092](0092-the-phone-offline.md) (um service worker pede
+  contexto seguro), [0055](0055-in-app-updater.md), [0069](0069-windows-port.md),
+  [0011](0011-config-outside-tree-index-as-cache.md),
+  [0027](0027-runtime-capabilities.md), `docs/reference/threat-model.md`.
+- Status no briefing: ausente; na aceitação.
+
+## Contexto
+
+**O que o item 2 da 0073 decide.** Uma frase, e mais algumas em outros
+pontos. O app desktop ganha "este app é um servidor": *um interruptor nas
+Configurações que inicia o mesmo serviço na rede local, anunciado por mDNS
+aos apps nativos, pareado por um QR code que carrega o endereço*; como o
+navegador do celular passa a confiar no certificado é do item 6. Do resto
+da 0073: é **o mesmo serviço e o mesmo código** do `verso serve`
+(`crates/verso-service` guarda as sessões e o despacho, chamados pelo host
+Tauri e pelo servidor); passar do app para um servidor dedicado é uma
+troca de endereço, nunca de protocolo; o celular é navegador primeiro
+(item 8); TLS em toda parte, a rede local inclusive (item 6): o servidor
+recusa servir um login sem TLS, exceto em loopback ou atrás de um proxy
+configurado, e aceita certificado e chave próprios (`VERSO_TLS_CERT_FILE`,
+`VERSO_TLS_KEY_FILE`); a receita do Tailscale é o caminho documentado
+para um celular; ACME embutido vem depois. A [0050](0050-outbound-network-access.md)
+(revisada em 2026-10-09) permite que "este app é um servidor" receba
+conexões e use mDNS. A 0073 lista uma coisa sobre ele como `[ABERTO]`: o
+app se atualizando pela [0055](0055-in-app-updater.md) com celulares
+conectados. Suas Consequências dizem que ele "roda também no macOS e no
+Windows".
+
+**O que não decide, e o que o código mostra.** Não decidido: se vem
+desligado, em que interface escuta, que pastas serve, quem pode conectar e
+com qual conta, o que um QR carrega e quanto dura, o certificado (as
+receitas do item 6 são para um host que tem domínio ou Tailscale, não para
+um notebook num Wi-Fi de casa), o nome mDNS e o que ele anuncia, os avisos
+dos sistemas operacionais, o repouso, uma pasta que também sincroniza com
+um UniVerso, quais comandos um celular pareado roda, o que se registra e
+como um pareamento termina. No código: o `verso serve` existe
+(`crates/verso-server`, com TLS próprio em `tls.rs`, o fluxo de dispositivo
+em `device.rs`, os limites em `listen.rs`, `limit.rs`, `pace.rs`,
+`fair.rs`), e o app desktop já liga `verso-service` e fala com um servidor
+remoto como cliente (`app/src-tauri/src/remote.rs`, `sync.rs`); o app
+**não escuta em porta nenhuma** hoje (só os testes abrem), e não existe
+código nem dependência para mDNS ou QR code. O `verso-server` é construído
+só para Linux e macOS: `crates/verso-cli/Cargo.toml` e
+`crates/verso-server/Cargo.toml` dizem que o Windows não tem servidor
+porque o `webauthn-rs` precisa do OpenSSL lá — o que contradiz o "no macOS
+e no Windows também" da 0073 (item 17 abaixo; pela regra zero, contradição
+se registra, não se resolve).
+
+**A superfície de ataque que isto abre.** Hoje o app desktop é cliente:
+nenhum socket escutando, nada para a rede alcançar. Com este recurso o
+notebook vira um servidor numa rede que a pessoa não controla — a de um
+café, de um hotel, de um congresso. Qualquer um nessa rede pode então
+tentar: alcançar a porta (uma varredura a acha), ler o que o mDNS anuncia
+(o nome do computador, o nome da pessoa se o nome do sistema o carrega, que
+o Verso está rodando), adivinhar ou disputar um pareamento, ficar entre o
+celular e o notebook (um ponto de acesso falso, ARP spoofing) enquanto um
+pareamento sem senha acontece, usar a sessão de um celular pareado depois
+que o celular se perde, fazer o notebook algo que não deveria (ler uma
+pasta que não foi oferecida, buscar um endereço da rede interna em nome de
+uma nota — o proxy de páginas embutidas da [0056](0056-embedded-web-pages.md)
+alcança a rede a partir do host — ou chegar aos comandos só do desktop:
+abrir um arquivo no sistema, revelar no Finder, o atualizador), esgotar o
+notebook (conexões, memória — os próprios limites da
+[0083](0083-security-hardening-of-universo.md), que isto reaproveita), e
+voltar depois por um nome que o navegador lembrou. Um notebook sem VPN
+também ganha o risco de rebinding da [0045](0045-server-and-mcp-security.md)
+para uma página aberta na mesma máquina. Do outro lado do balanço, três
+coisas já construídas valem sem mudança: a checagem de sessão e papel antes
+de o `verso-fs` agir, os limites de conexão e cabeçalho, as checagens de
+`Host` e `Origin`, a regra da prova recente e as sessões de dispositivo
+revogáveis.
+
+## Decisão
+
+Proposto (2026-10-15). Nada abaixo está decidido: cada item é um `[ABERTO]`
+com suas opções e uma recomendação, para o mantenedor. O que os outros ADRs
+já decidem e este só aplica está no Contexto. Em todo o texto, **a
+recomendação é o padrão mais seguro que ainda deixa um celular no mesmo
+Wi-Fi ler e escrever suas notas.** Nada disso muda um ADR Aceito; onde um
+precisa de uma linha, o item diz.
+
+1. **`[ABERTO]` Desligado por padrão, e por quanto tempo fica ligado.**
+   - (a) Desligado por padrão; ligar dura até o app fechar, e o
+     interruptor volta desligado no próximo início.
+   - (b) Desligado por padrão; o interruptor é lembrado entre inícios.
+   - (c) Ligado por padrão. (Não recomendado: um primeiro início
+     escutaria em qualquer rede em que o notebook estivesse.)
+   - Recomendação: **(a)**, com "manter ligado ao iniciar" como um segundo
+     interruptor, separado e desligado por padrão, para quem quer (b).
+     Também para sozinho quando a rede muda (item 3). Ligado, a janela
+     mostra sempre — uma marca na barra de status e na barra de menus ou
+     bandeja com o número de celulares conectados e um "Parar" — para que
+     nada escute sem estar visível.
+
+2. **`[ABERTO]` O que é servido, e quais contas existem.** O desktop tem um
+   dono implícito e nenhuma conta ([0045](0045-server-and-mcp-security.md),
+   [0074](0074-accounts-and-access-on-the-server.md) item 11); o serviço
+   que ele iniciaria checa sessão e papel em todo comando.
+   - (a) Só as pastas que a pessoa marca nas Configurações, nenhuma por
+     padrão; uma conta de dono local criada pelo app, sem senha e sem
+     página de login (entra só por pareamento, item 6); cada celular
+     pareado é uma sessão de dispositivo desse dono, com o papel escolhido
+     no pareamento (item 12). Nenhuma segunda pessoa, nenhum convite,
+     nenhum console de admin, nenhum compartilhamento entre pessoas.
+   - (b) O modelo completo do UniVerso (contas por e-mail, convites,
+     papéis por pasta, o console de admin): outras pessoas no Wi-Fi ganham
+     contas.
+   - (c) Toda pasta que o app tem aberta.
+   - Recomendação: **(a)**. É a menor superfície e é para o que o recurso
+     serve ("meu celular e meu notebook"); (b) é trabalho de um servidor
+     dedicado, que o UniVerso já é; (c) oferece o que a pessoa não
+     escolheu. Construído pelo código do próprio servidor com um modo de
+     conta única, não uma segunda implementação.
+
+3. **`[ABERTO]` Em que interface escuta, e em quais redes.**
+   - (a) Todas as interfaces (`0.0.0.0`/`::`). Simples, e alcançável pela
+     internet se a máquina tiver endereço público.
+   - (b) Só os endereços de interfaces em faixas privadas (RFC 1918, IPv6
+     local único, link-local), nunca um público, nunca o curinga; o
+     conjunto é recalculado quando a rede muda, e **quando o conjunto de
+     endereços muda — outro Wi-Fi, a VPN ligando — o serviço para e
+     pergunta de novo**, para que um notebook levado da casa para um café
+     não continue servindo ali em silêncio.
+   - (c) Como (b), e no Windows só quando o perfil da rede é Privado (o
+     perfil que o próprio Windows pede à pessoa para escolher).
+   - Recomendação: **(b)**, e **(c)** no Windows se o perfil puder ser lido
+     sem permissão extra (a verificar). Ler o nome de um Wi-Fi para
+     distinguir "casa" de "café" não é recomendado: o macOS exige a
+     permissão de localização para isso. A parada na mudança de rede é a
+     resposta mais barata e sem permissão. A checagem, no handshake, de que
+     o endereço do par está numa faixa privada da mesma sub-rede faz parte
+     de (b).
+
+4. **`[ABERTO]` A porta.**
+   - (a) A 7340, do próprio servidor.
+   - (b) Uma porta sorteada uma vez, na primeira vez que se liga, mantida
+     na configuração depois (assim um favorito, e a origem de um celular
+     pareado, sobrevivem a um reinício).
+   - (c) Uma porta nova sorteada a cada início.
+   - Recomendação: **(b)**, da faixa dinâmica, mostrada nas Configurações.
+     Tira do notebook a varredura usual da 7340; não é uma defesa e não é
+     apresentada como uma. (c) quebra todo celular pareado.
+
+5. **`[ABERTO]` O certificado, e o endereço que o celular usa.** A
+   pergunta mais difícil. O item 6 da 0073 proíbe login sem TLS e nomeia
+   receitas para um host com domínio ou Tailscale; um notebook num Wi-Fi
+   não tem nem domínio nem certificado público, e um navegador de celular
+   não consegue fixar nada a partir de um QR code. As opções:
+   - (a) **Um certificado do próprio app**, autoassinado, gerado na
+     primeira vez que se liga (chave guardada com `0600` no diretório de
+     configuração do app, [0011](0011-config-outside-tree-index-as-cache.md)),
+     com os endereços privados do notebook. O QR também carrega a
+     impressão digital do certificado, que um cliente Verso nativo fixa. O
+     navegador do celular mostra seu aviso uma vez; a pessoa aceita. Custos:
+     o navegador não trata a origem como contexto seguro confiável (um
+     service worker, portanto o celular offline da [0092](0092-the-phone-offline.md);
+     passkeys; `crypto.subtle` pode ser recusado — a verificar por
+     navegador), e a primeira conexão é confiança no primeiro uso:
+     **alguém no meio no momento do pareamento, oferecendo o próprio
+     certificado, é indistinguível do notebook para o navegador.** A
+     confirmação no notebook ao parear (item 6) limita isso, não elimina.
+   - (b) **Uma autoridade certificadora local** que o app cria e que a
+     pessoa instala no celular (um perfil no iOS, um certificado de
+     usuário no Android). Uma âncora de confiança real, com muito atrito, e
+     uma chave de CA num notebook que passa a poder assinar qualquer nome
+     para o qual o celular a aceita: não recomendado.
+   - (c) **Um nome sob o domínio do próprio projeto**, cujo certificado o
+     app obtém por um desafio DNS rodado por um pequeno serviço do projeto
+     (o modelo do Plex ou dos nomes do Tailscale): certificado válido e
+     contexto seguro no celular, nada instalado. Precisa de um serviço que
+     o projeto roda e paga, do app alcançando a rede de saída (uma mudança
+     na [0050](0050-outbound-network-access.md)), e o nome aparece nos
+     logs públicos de certificados. Uma decisão própria, sobre custo e
+     operação, no espírito do item 4(c) da 0073.
+   - (d) **O certificado e a chave do próprio host**
+     (`VERSO_TLS_CERT_FILE`), ou o `tailscale serve` na frente, exatamente
+     como o item 6 da 0073: o app aceita arquivos e, ao achar o Tailscale
+     rodando, diz como. O caminho seguro para quem o tem.
+   - Recomendação: **entregar (a) e (d) juntos na V1**: (d) como o caminho
+     que as Configurações recomendam primeiro quando se aplica, (a) como
+     alternativa sem configuração, **rotulada nas Configurações e no
+     diálogo de pareamento como para uma rede em que a pessoa confia**, com
+     o limite do primeiro uso escrito nas palavras que a pessoa lê. O
+     celular offline (V.8) num notebook servido com (a) é declarado
+     indisponível até (c) existir. Se (c) será construído depois da V1 é
+     uma pergunta à parte para o mantenedor; o roadmap não precisa dele
+     para a V.20.
+   - O endereço é uma segunda pergunta dentro desta. A origem do celular é
+     o endereço privado atual do notebook, que muda com o DHCP, e o cookie
+     de sessão e a checagem de `Host` estão presos a essa origem
+     ([0045](0045-server-and-mcp-security.md), o modelo de ameaças):
+     **endereço novo é origem nova, e o celular precisa ser pareado de
+     novo.** Opções: (i) aceitar e dizer; (ii) um nome `.local` anunciado
+     por mDNS (estável, mas o navegador de um celular Android resolver
+     `.local` é pouco confiável — a verificar); (iii) o nome de (c).
+     Recomendação: **(i) na V1**, o QR sendo barato de mostrar de novo, com
+     (ii) testado e mantido só se resolver nos celulares que o mantenedor
+     tem (um Android e um iPad).
+
+6. **`[ABERTO]` Pareamento: como um celular entra.** Reaproveitando o que
+   existe: o **convite** do item 4 da [0074](0074-accounts-and-access-on-the-server.md)
+   (uso único, 256 bits, uma validade) e a **página de aprovação** do
+   item 8 da 0074 e do item 17 da [0083](0083-security-hardening-of-universo.md)
+   (nome, endereço e hora do pedido, *Foi você?*, nunca um código tirado de
+   um link). Aqui o lado confiável é o notebook, então a direção é a do
+   convite, com a confirmação da página de aprovação:
+   1. Nas Configurações, "Parear um celular" abre um diálogo e gera um
+      token (256 bits). O diálogo mostra o QR code e, abaixo, o endereço e
+      um código curto para digitar à mão, e uma contagem regressiva visível.
+   2. O QR carrega `https://<endereço>:<porta>/pair#<token>`: o token no
+      **fragmento**, que o navegador nunca envia numa requisição (não chega
+      ao log de um proxy nem ao `Referer`; chega ao script da página,
+      então, com a opção 5(a), alguém ativo no meio pode lê-lo — o limite
+      declarado).
+   3. O celular abre o link; a página envia o token. O servidor registra
+      um **pareamento pendente** e o notebook mostra, num diálogo que o app
+      levanta: o nome do dispositivo (o do navegador, como o celular o
+      mandou, tornado seguro como no item 17 da 0083), o endereço de onde
+      veio e a hora, *Foi você que leu isto?*, **Permitir** ou **Recusar**,
+      e o papel (item 12). Só Permitir cria a sessão de dispositivo; uma
+      recusa encerra o token.
+   4. O token é de **uso único** e dura **2 minutos** com o diálogo
+      aberto; fechar o diálogo o encerra; no máximo um pareamento pendente
+      por vez; **três** tentativas erradas ou repetidas fecham a janela de
+      pareamento e dizem isso no notebook. Nada do pareamento é alcançável
+      sem um diálogo aberto: a rota responde como qualquer rota
+      desconhecida.
+   5. A sessão resultante é a sessão de dispositivo do item 8 da 0074, com
+      seus limites (14 dias ocioso, 90 no máximo) e revogação.
+   - Opções para os números: a vida do token (recomendo 2 minutos; 10 é a
+     do código de dispositivo em `device.rs`, feito para uma pessoa
+     digitando e uma aprovação longe do teclado, o que isto não é), as
+     tentativas (recomendo 3; o fluxo de dispositivo é freado por endereço),
+     e se o notebook também deve confirmar (recomendo sim, sempre — é o que
+     transforma a foto de um QR vazado num pedido que o dono vê).
+   - Não recomendado: um QR permanente ou um link de pareamento de longa
+     vida (os sete dias do convite são para uma pessoa distante; isto é
+     uma pessoa com o celular na mão), e aprovação por um código lido em
+     voz alta só no celular (nada no notebook para ver).
+   - Uma prova recente ([0083](0083-security-hardening-of-universo.md)
+     item 6) para permitir um dispositivo: quem está no notebook é o
+     usuário do sistema que o destravou; recomendo **sem pedir senha**, o
+     clique no diálogo levantado sendo a prova. A alternativa (o próprio
+     prompt de autenticação do sistema) é possível depois e não é
+     recomendada para a V1.
+
+7. **`[ABERTO]` O que o QR carrega, e nada além.** O endereço e a porta, o
+   token de uso único no fragmento, a impressão digital do certificado do
+   app (para um cliente nativo; um navegador a ignora), o hash da versão do
+   contrato ([0073](0073-self-hosted-server-first.md) item 2). **Não**
+   carrega caminho de pasta, conta, nome da pessoa nem segredo de longa
+   vida. Recomendação: exatamente isto; a salvaguarda é um teste que
+   decodifica um QR e afirma a lista de campos.
+
+8. **`[ABERTO]` mDNS: se, quando e o quê.** A 0073 diz "anunciado por mDNS
+   aos apps nativos". O navegador de um celular não consegue procurar
+   mDNS; só outro desktop Verso ("conectar a um servidor", item 8 da 0074)
+   poderia.
+   - (a) Nunca anunciar; o QR ou o endereço digitado é o único caminho.
+   - (b) Anunciar enquanto serve, com um registro mínimo.
+   - (c) Anunciar só enquanto o diálogo de pareamento está aberto.
+   - Recomendação: **(c)**, que dá a um segundo desktop sua descoberta
+     no único momento em que ele também pode parear, e mantém o notebook
+     invisível o resto do tempo. Tipo de serviço `_verso-local._tcp` (o
+     nome é meu; nada está registrado); o nome da instância `Verso-` e
+     quatro dígitos hexadecimais aleatórios, **nunca o nome do computador
+     nem da pessoa**; o registro TXT só a versão do protocolo e a porta.
+     Nenhum nome de pasta, nenhuma conta. Um registro de despedida é
+     enviado ao parar, ao repousar e ao sair. Um segundo desktop que o
+     achou pareia pelo mesmo QR ou código digitado — a descoberta lista,
+     nunca confia.
+   - A [0050](0050-outbound-network-access.md) permite mDNS "só para
+     endereços que o usuário escreveu numa configuração", o que multicast
+     não é: precisa de uma revisão de uma linha (uma correção de escopo, a
+     fazer na aceitação, não uma mudança de decisão).
+   - Uma biblioteca de mDNS e uma de QR são dependências novas; cada uma
+     é justificada no pull request que a adiciona (CLAUDE.md §4), não aqui.
+
+9. **`[ABERTO]` Os avisos dos sistemas operacionais.** A confirmar nas
+   máquinas reais (nada aqui foi executado): o macOS 15 em diante pede a
+   permissão de **Rede Local** na primeira vez que um app anuncia ou
+   procura nela (a descrição de uso e as chaves `NSBonjourServices` no
+   `Info.plist` do app), e seu firewall de aplicativos pode perguntar
+   *Permitir conexões de entrada?* para uma build não assinada nem
+   notarizada ([0095](0095-mac-notarization-and-windows-code-signing.md));
+   o Firewall do Windows Defender pergunta o mesmo no primeiro bind, com a
+   escolha entre redes Privadas e Públicas. Opções: (a) deixar o aviso do
+   sistema aparecer sem explicação; (b) **explicar antes**, depois
+   disparar: um diálogo antes do primeiro ligar diz o que será pedido e
+   por quê, e que *redes Públicas devem ficar desmarcadas*; (c) criar a
+   regra nós mesmos (exige direitos de administrador). Recomendação:
+   **(b)**; nunca (c), e o app não pede elevação. Se a resposta for uma
+   negação, uma conexão de teste do app ao próprio endereço na rede falha e
+   o interruptor diz isso com os passos para permitir (o retorno visível de
+   toda ação).
+
+10. **`[ABERTO]` Repouso, tampa fechada, rede perdida.** Um notebook em
+    repouso não serve nada; o processo é suspenso, os sockets morrem.
+    - (a) Nada de especial: ao acordar, recalcular os endereços; se forem
+      os mesmos, retomar e reanunciar; senão, parar e perguntar (item 3).
+      O celular vê o servidor indisponível pelas capacidades
+      ([0027](0027-runtime-capabilities.md)) e, com o celular offline da
+      [0092](0092-the-phone-offline.md), continua trabalhando.
+    - (b) Manter o notebook acordado enquanto serve (uma asserção de
+      energia).
+    - Recomendação: **(a)**. Manter um notebook acordado numa mochila é
+      risco de bateria e calor e mantém vivo um servidor que ninguém está
+      olhando. Um interruptor "manter acordado enquanto um celular está
+      conectado", desligado por padrão, fica para depois.
+
+11. **`[ABERTO]` Uma pasta que o notebook também sincroniza com um UniVerso.**
+    A [0079](0079-sync-a-local-folder-with-a-server.md) e a
+    [0082](0082-live-co-editing-of-a-synced-folder.md) fazem do arquivo
+    local uma cópia mantida pelo sync, com **um escritor no Verso** enquanto
+    uma nota está viva: a sala do servidor. Um celular escrevendo pelo
+    serviço do próprio notebook seria uma segunda sala e um segundo
+    escritor, longe do UniVerso: duas pessoas editando a mesma nota, uma
+    pelo notebook, outra pelo UniVerso, não se encontrariam.
+    - (a) Permitido; as edições do celular são mudanças locais que o sync
+      envia pelas regras comuns (hash contra a base, cópia de conflito, a
+      fusão de acréscimos), sem sala viva entre os dois.
+    - (b) **Uma pasta que sincroniza com um UniVerso não pode ser servida
+      pelo app na V1**; o interruptor diz "esta pasta sincroniza com
+      <servidor>: abra esse endereço no celular".
+    - (c) O serviço do notebook faz proxy do celular para o UniVerso.
+    - Recomendação: **(b)** para a V1. O celular alcança o UniVerso
+      diretamente quando há um; o recurso é para uma pasta que não tem. (a)
+      pode ser oferecido depois com o limite escrito.
+
+12. **`[ABERTO]` Quais comandos um celular pareado pode rodar.** O princípio
+    é **negar por padrão, por papel, o despacho do próprio UniVerso e nada
+    mais.** O papel do celular é escolhido no notebook, no pareamento.
+    - Papéis: **leitor** (vale a projeção dos blocos secretos da
+      [0087](0087-secret-blocks-hidden-from-readers.md)), **editor**. Nunca
+      dono, nunca admin; nenhum comando de conta, token, compartilhamento
+      ou convite, nenhum console, nenhum MCP, nenhum `sync_*`, nenhuma
+      abertura ou criação de pasta, nenhuma exclusão da pasta, nenhum
+      esvaziamento da lixeira.
+    - Nunca alcançáveis por um celular nem como editor: os comandos só do
+      desktop que agem sobre o notebook fora da pasta — abrir ou revelar no
+      sistema, o atualizador, as configurações do app, os comandos do
+      próprio diálogo de pareamento, o proxy de páginas embutidas e a
+      sonda de alcance da [0056](0056-embedded-web-pages.md) (uma nota não
+      pode fazer o notebook buscar, para o celular, um endereço da rede
+      interna), o log, o relato de bug.
+    - Papel padrão: (a) editor; (b) **leitor, com "pode editar" a um toque
+      na confirmação do notebook**. Recomendação: **(b)**: o padrão seguro
+      que ainda funciona; um editor está a um toque e um celular perdido
+      guarda só o que foi dado.
+    - A lista é uma lista de permitidos no código, com um teste de que todo
+      comando do contrato está nela ou é recusado, para que um comando novo
+      seja recusado até alguém o adicionar (a recusa do item 11 da
+      [0074](0074-accounts-and-access-on-the-server.md), nos dois idiomas).
+
+13. **`[ABERTO]` Limites.** Reaproveitar os limites da
+    [0083](0083-security-hardening-of-universo.md) sem mudança — 512
+    conexões e 128 por endereço, cabeçalhos de 64 KiB, 30 segundos para
+    cabeçalhos, o ritmo de 20 requisições por segundo, os atrasos, os
+    limites do WebSocket — e acrescentar: os da própria janela de
+    pareamento (item 6); **no máximo 4 celulares** pareados ao mesmo tempo
+    e **2** conectados; um teto menor de conexões num notebook que num host
+    (recomendo 64 no total, 16 por endereço). Recomendação: como escrito;
+    os números são medidos no benchmark com a carga do próprio app como o
+    item 18 da 0083 faz, depois fixados.
+
+14. **`[ABERTO]` O que se registra, e o que a pessoa vê.**
+    - O log do app (`verso.log`): servir ligado ou desligado, os endereços
+      e a porta, o diálogo de pareamento aberto e fechado, um token
+      resgatado, permitido, recusado ou expirado, uma sessão de
+      dispositivo criada ou encerrada, uma conexão recusada pelos limites
+      (uma vez por minuto, como o item 1 da 0083), a rede mudando.
+      **Nunca** um token, o conteúdo do QR, o fragmento, uma senha ou o
+      conteúdo de uma nota; o nome do dispositivo tornado seguro como na
+      0083.
+    - O log de auditoria do servidor ([0074](0074-accounts-and-access-on-the-server.md)
+      item 9), no diretório de configuração do app, guardado 365 dias como
+      `VERSO_AUDIT_DAYS`, visível nas Configurações ao lado da lista de
+      dispositivos.
+    - Recomendação: como escrito; e uma notificação (do próprio app, não do
+      sistema) na primeira vez que um dispositivo novo conecta depois de um
+      pareamento.
+
+15. **`[ABERTO]` Revogar um pareamento.** Configurações › Este app é um
+    servidor lista os celulares pareados — nome, papel, quando foi pareado,
+    visto por último, endereço — cada um com **Revogar** (a sessão termina
+    e suas conexões abertas se fecham na hora, como o item 8 da 0074 e o
+    console da [0077](0077-the-server-administration-console-and-folder-quotas.md)
+    fazem), **Parar de servir** (fecha tudo e a porta) e **Esquecer todos
+    os dispositivos**. Opções ao desligar: (a) os dispositivos pareados
+    ficam para a próxima vez; (b) desligar os esquece. Recomendação:
+    **(a)** com o limite ocioso de 14 dias; uma chave de certificado
+    regenerada (um botão, "Trocar a identidade deste computador") encerra
+    todos os pareamentos de uma vez. Um celular perdido se encerra pelo
+    notebook; um notebook perdido é problema dos próprios celulares (suas
+    sessões morrem com a chave do notebook).
+
+16. **`[ABERTO]` Onde vive o seu estado.** O banco do servidor local (a
+    conta do dono, as sessões de dispositivo, o log de auditoria) e a
+    chave do certificado, fora das pastas e fora do índice das notas, no
+    diretório de configuração do app
+    ([0011](0011-config-outside-tree-index-as-cache.md)), `0600`; no macOS
+    a chave no Keychain é uma opção para depois. Nada disso está na pasta
+    servida, então nunca sincroniza. Recomendação: os arquivos, como o
+    token de dispositivo em `servers.json` é guardado hoje.
+
+17. **`[ABERTO]` Windows, e a contradição.** A [0073](0073-self-hosted-server-first.md)
+    diz que o recurso roda no macOS e no Windows; a [0075](0075-server-packaging-and-storage.md)
+    item 2 e os manifestos dizem que o `verso-server` não é construído
+    para Windows (passkeys precisam do OpenSSL lá). Não resolvido aqui.
+    Opções: (a) a V.20 sai no macOS e no Linux e o Windows vem depois;
+    (b) o código de passkeys é um recurso que o modo local não compila, e
+    o serviço constrói no Windows ([0069](0069-windows-port.md)); (c) a
+    V.20 espera o Windows. Recomendação: **(b)** se o custo for pequeno (o
+    modo local não tem passkeys — não tem página de login), senão (a); uma
+    decisão do mantenedor de qualquer jeito, e a frase da 0073 ganha uma
+    linha de Revisões.
+
+18. **`[ABERTO]` O app se atualizando com celulares conectados** (o `[ABERTO]`
+    das Consequências da 0073). Recomendação: o atualizador
+    ([0055](0055-in-app-updater.md)) se comporta como hoje — pede-se à
+    pessoa que reinicie; o reinício encerra as conexões; os celulares veem
+    o servidor indisponível e, quando ele volta numa versão nova do
+    contrato, a página recarrega (o hash do item 2 da 0073). O diálogo de
+    reinício diz "N celulares estão conectados". Nada é retido por causa de
+    um celular.
+
+19. **Acessibilidade e idiomas** ([0035](0035-cross-cutting-requirements.md)).
+    O interruptor, o diálogo de pareamento (o QR tem o endereço e o código
+    digitável ao lado, como texto, para quem não consegue ler o código), a
+    contagem regressiva, a explicação dos avisos e a lista de dispositivos
+    operam por teclado e são anunciados; pt-BR e inglês.
+
+## Consequências
+
+- O app ganha um socket de escuta pela primeira vez, com tudo o que
+  segue: as Configurações ganham uma seção, a janela uma marca de status,
+  o modelo de ameaças uma seção ("O notebook como servidor") e uma linha em
+  cada tabela, o guia de instalação uma página para quem o liga.
+- Código novo, se aceito como recomendado: um modo de conta única do
+  `verso-server` (item 2); o host iniciando-o no mesmo processo; um
+  endpoint de pareamento e seu diálogo; um gerador de certificado
+  autoassinado (item 5); um anunciador mDNS e um codificador de QR (duas
+  dependências, cada uma justificada em seu pull request); uma lista de
+  permitidos e seu teste (item 12); as chaves de Rede Local no bundle do
+  macOS. Nada no `verso-dialect`, nada no `verso-fs`: o serviço alcança a
+  pasta só pelo `verso-core` e `verso-fs`, como o `verso serve` (invariante 5).
+- A [0050](0050-outbound-network-access.md) ganha uma correção de uma
+  linha sobre o mDNS (item 8); a [0073](0073-self-hosted-server-first.md)
+  ganha uma linha de Revisões (a frase do Windows, item 17; o `[ABERTO]`
+  da atualização, item 18); a linha V.20 do roadmap aponta para cá.
+- Testes: as salvaguardas são escritas com o recurso e vistas falhando
+  primeiro (CLAUDE.md §3): um teste de unidade de que nenhum endereço fora
+  das faixas privadas é aberto; um de que um token vive 2 minutos, uma
+  vez; um de que três falhas fecham a janela; um de que o QR carrega só os
+  campos do item 7; um da lista de comandos permitidos; o benchmark com a
+  carga do app; o harness responde pelos comandos novos; uma verificação
+  manual num celular e num iPad de verdade numa rede doméstica e numa rede
+  com isolamento de clientes, onde o recurso não funciona e diz isso
+  (`docs/reference/manual-checks.md`). O changelog e o tutorial ganham suas
+  linhas.
+- O que continua verdade, decida-se como se decidir: um notebook que serve
+  é um notebook que pode ser alcançado. Os limites honestos ficam escritos
+  onde a pessoa lê — a confiança no primeiro uso de um certificado
+  autoassinado (item 5), e que o Wi-Fi de um café com isolamento não
+  roteará um celular até o notebook de forma alguma, que é a falha mais
+  segura.
+
+## Alternativas descartadas
+
+Nenhuma registrada. (HTTP puro na rede local foi descartado pelo item 6 da
+[0073](0073-self-hosted-server-first.md) antes deste ADR; as opções
+listadas sob cada `[ABERTO]` são para o mantenedor escolher, não
+alternativas já consideradas e descartadas.)
+
+## Status
+
+**Proposto (2026-10-15).** Escrito por Sonnet 5.5 a pedido da sessão que
+guarda o roadmap, para o mantenedor responder. Cada item numerado acima é
+um `[ABERTO]` com uma recomendação; com as respostas do mantenedor cada um
+é marcado `[DECIDIDO <data>]` no lugar e o ADR passa a Aceito, aplicando-se
+então as linhas das Consequências. A linha V.20 do roadmap
+([`docs/roadmap.md`](../roadmap.md)) diz "decidido 2026-10-09; não
+construído" e continua na V1, onda C (`[DECIDIDO 2026-10-14]`). A ser lido
+por outro modelo antes de ser aceito. Nada foi construído nem executado
+para escrevê-lo.
