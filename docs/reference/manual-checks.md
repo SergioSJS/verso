@@ -20,6 +20,47 @@ in the real app.
 
 ## Not yet checked
 
+### An embedded page cut by its pane (fix/web-embed-clip, 2026-10-15)
+
+Needs the installed app: the page is a native child web view, which the
+browser harness does not have. Do each on macOS and on Windows. Use a note
+with an approved embedded page tall enough to need scrolling (a long
+article, with numbered lines or headings so the part shown is obvious),
+in a note long enough to scroll.
+
+- [ ] **Half above the pane**: scroll the note until the embed's top edge
+  is about half-way above the pane's top. See the page's *middle* (its
+  lines 3, 4… and not 1, 2, 3), the page cut at the pane's top edge, the
+  tab bar and the toolbar uncovered. Scroll on: the page moves up with
+  the note, no jump, no flicker; scroll back: the page goes back down to
+  its beginning.
+- [ ] **Half below the pane**: scroll the other way until the embed's
+  bottom is below the pane. The page's beginning shows, cut at the pane's
+  bottom; the **status bar** is not covered, nor the bell in it.
+- [ ] **Taller than the pane**: an embed taller than the pane, its top
+  and bottom both out of view: the page shows its middle, with neither
+  chrome covered.
+- [ ] **The page's own scrolling**: with the embed fully in view, scroll
+  inside the page with the wheel; then scroll the note a little: the page
+  keeps its own position plus the note's, and still scrolls inside.
+- [ ] **In a split pane**: split the window in two; the note in the right
+  pane, the embed near the dividing line, and the left pane's edge: the
+  page never goes over the other pane, the divider or the side panels
+  (open and close the left and right panels with the page in view).
+- [ ] **With Settings (or the palette) open**: scroll to the half-way
+  case, open Settings: the page disappears, and it comes back at the
+  same part when it closes.
+- [ ] **Opening already scrolled**: scroll the note first so that the
+  embed's top is half out of view, then open the tab (or switch to it):
+  the page appears already showing its lower part.
+- [ ] **A full-height page** (one that sizes itself to the window's
+  height, such as a video player): at the half-way case it shows laid out
+  for the visible height; say whether that looks acceptable (an iframe
+  would lay it out for the full box).
+- [ ] **Windows**: all of the above, plus the window dragged to another
+  monitor and resized while the page is half-way: the page follows
+  without drifting.
+
 ### Notifications in the window (ADR 0084, feat/notify-ui, 2026-10-14)
 
 - [ ] **The server stopped and started again**: a folder of this computer

@@ -20,6 +20,49 @@ app real.
 
 ## Ainda não conferido
 
+### Uma página incorporada cortada pelo seu painel (fix/web-embed-clip, 2026-10-15)
+
+Precisa do app instalado: a página é uma visão web filha nativa, que o
+harness do navegador não tem. Faça cada item no macOS e no Windows. Use
+uma nota com uma página incorporada aprovada, alta o bastante para
+rolar (um artigo longo, com linhas ou títulos numerados para o trecho
+mostrado ficar óbvio), numa nota longa o bastante para rolar.
+
+- [ ] **Metade acima do painel**: role a nota até a borda de cima da
+  incorporação ficar mais ou menos na metade, acima do topo do painel.
+  Veja o *meio* da página (as linhas 3, 4… e não 1, 2, 3), cortada na
+  borda de cima do painel, com a barra de abas e a barra de ferramentas
+  descobertas. Continue rolando: a página sobe com a nota, sem salto e
+  sem piscar; role de volta: a página desce de volta ao começo.
+- [ ] **Metade abaixo do painel**: role para o outro lado até o fim da
+  incorporação ficar abaixo do painel. O começo da página aparece,
+  cortado no fundo do painel; a **barra de status** não é coberta, nem o
+  sino dela.
+- [ ] **Mais alta que o painel**: uma incorporação mais alta que o
+  painel, com o topo e o fim fora da vista: a página mostra o meio, sem
+  cobrir nenhuma barra.
+- [ ] **A rolagem da própria página**: com a incorporação inteira à vista,
+  role dentro da página com a roda; depois role a nota um pouco: a página
+  guarda a posição dela somada à da nota, e ainda rola por dentro.
+- [ ] **Em um painel dividido**: divida a janela em duas; a nota no painel
+  da direita, a incorporação perto da linha divisória e da borda do
+  painel da esquerda: a página nunca passa por cima do outro painel, do
+  divisor nem dos painéis laterais (abra e feche os painéis da esquerda e
+  da direita com a página à vista).
+- [ ] **Com os Ajustes (ou a paleta) abertos**: role até o caso da metade,
+  abra os Ajustes: a página some, e volta no mesmo trecho quando eles
+  fecham.
+- [ ] **Abrindo já rolada**: role a nota antes, de modo que o topo da
+  incorporação fique meio fora da vista, e então abra a aba (ou troque
+  para ela): a página aparece já mostrando a parte de baixo.
+- [ ] **Uma página de altura cheia** (que ajusta o tamanho à altura da
+  janela, como um player de vídeo): no caso da metade ela aparece
+  desenhada para a altura visível; diga se isso é aceitável (um iframe a
+  desenharia para a caixa inteira).
+- [ ] **Windows**: tudo acima, e mais a janela arrastada para outro
+  monitor e redimensionada com a página na metade: a página acompanha sem
+  se deslocar.
+
 ### Notificações na janela (ADR 0084, feat/notify-ui, 2026-10-14)
 
 - [ ] **O servidor parado e iniciado de novo**: uma pasta deste
