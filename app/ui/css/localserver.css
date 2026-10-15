@@ -50,3 +50,4 @@
 .ls-only { font-size: .9rem; overflow-wrap: anywhere; }
 .ls-dialog .confirm-actions { flex-wrap: wrap; }
 .ls-ask .confirm-actions { justify-content: flex-end; }
+.ls-phone-acts { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; }

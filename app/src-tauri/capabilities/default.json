@@ -125,6 +125,7 @@
     "allow-local-server-status",
     "allow-local-server-folders",
     "allow-local-server-tick",
+    "allow-local-server-phone-role",
     "allow-local-server-settings",
     "allow-local-server-start",
     "allow-local-server-stop",

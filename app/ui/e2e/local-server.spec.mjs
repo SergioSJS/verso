@@ -176,3 +176,28 @@ test("when a phone asks, the dialog's actions are one row: refuse and allow, no 
   const sideways = await dialog.locator(".plan-box").evaluate((el) => el.scrollWidth > el.clientWidth + 1);
   expect(sideways).toBe(false);
 });
+
+test("a paired phone can be let edit, or only read, without pairing again", async ({ app, page }) => {
+  await app.open();
+  await section(app);
+  const body = page.locator(".settings-body");
+  await body.getByRole("checkbox", { name: "Vault" }).check();
+  await body.getByRole("button", { name: "Ligar o servidor" }).click();
+  await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
+  await body.getByRole("button", { name: "Parear um celular" }).click();
+  const dialog = page.getByRole("dialog", { name: "Parear um celular" });
+  await page.evaluate(() => window.__harness.core.localServer.askAsPhone("Pixel do Caio"));
+  await dialog.getByRole("button", { name: "Permitir" }).click();
+  await expect(body.getByText("Pixel do Caio · só lê")).toBeVisible();
+  const toggle = body.getByRole("checkbox", { name: "Pixel do Caio: pode editar as notas" });
+  await expect(toggle).not.toBeChecked();
+  await toggle.check();
+  await expect(body.getByText("Pixel do Caio agora pode editar as notas.")).toBeVisible();
+  await expect(body.getByText("Pixel do Caio · edita")).toBeVisible();
+  await expect(body.getByRole("checkbox", { name: "Pixel do Caio: pode editar as notas" })).toBeChecked();
+  await body.getByRole("checkbox", { name: "Pixel do Caio: pode editar as notas" }).uncheck();
+  await expect(body.getByText("Pixel do Caio · só lê")).toBeVisible();
+  await body.getByText("O que aconteceu").click();
+  await expect(body.locator(".ls-log-list")).toContainText("Celular passou a editar");
+  await expect(body.locator(".ls-log-list")).toContainText("Celular passou a só ler");
+});

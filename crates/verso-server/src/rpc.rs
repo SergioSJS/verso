@@ -559,6 +559,22 @@ async fn handle(
             message: SIGNED_OUT.to_owned(),
         });
     }
+    // A phone's role as it stands now: the person may have let it edit (or
+    // only read) since the connection opened (ADR 0096, as built).
+    let refreshed;
+    let who = match (who.phone, who.session()) {
+        (Some(was), Some(session)) => match server.db.phone_role(session) {
+            Ok(Some(now)) if now != was => {
+                refreshed = Arc::new(Who {
+                    phone: Some(now),
+                    ..(**who).clone()
+                });
+                &refreshed
+            }
+            _ => who,
+        },
+        _ => who,
+    };
     // A paired phone runs the commands on the allowlist and no other (ADR
     // 0096 item 12): default deny, before anything else looks at the
     // command.

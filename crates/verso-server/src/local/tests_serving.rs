@@ -1065,3 +1065,56 @@ fn the_log_has_the_modes_life_and_no_secret() {
         }
     });
 }
+
+/// A paired phone's role is changed from the computer without pairing again
+/// (the maintainer paired as a reader and had to forget the device to edit):
+/// at once for a phone that is connected — its next write is accepted, and
+/// after the demotion refused, with the window told its role — logged and
+/// listed in the audit.
+#[test]
+fn a_paired_phones_role_changes_at_once() {
+    run(async {
+        let mut lab = lab();
+        lab.serve();
+        let cookie = lab.pair("Pixel", true, Role::Reader).await.unwrap();
+        let mut ws = open(&lab, &cookie).await;
+        let note = call(&mut ws, 2, "read_note", json!({ "path": "Sessao.md" })).await;
+        let revision = note["ok"]["revision"].as_str().unwrap().to_owned();
+        let write = |text: &str, revision: &str| json!({ "path": "Sessao.md", "text": text, "revision": revision });
+        let denied = call(&mut ws, 3, "write_note", write("# a\n", &revision)).await;
+        assert_eq!(denied["err"]["kind"], "phone_reads", "{denied}");
+        let id = lab.local.phones().unwrap()[0].id.clone();
+
+        lab.local.set_phone_role(&id, true).unwrap();
+        assert_eq!(lab.local.phones().unwrap()[0].role, Role::Editor);
+        let told = next(&mut ws).await;
+        assert_eq!(told["role"], "editor", "{told}");
+        let done = call(&mut ws, 4, "write_note", write("# b\n", &revision)).await;
+        assert!(done.get("ok").is_some(), "{done}");
+        let revision = done["ok"]["note"]["revision"].as_str().unwrap().to_owned();
+
+        lab.local.set_phone_role(&id, false).unwrap();
+        let told = next(&mut ws).await;
+        assert_eq!(told["role"], "reader", "{told}");
+        let denied = call(&mut ws, 5, "write_note", write("# c\n", &revision)).await;
+        assert_eq!(denied["err"]["kind"], "phone_reads", "{denied}");
+
+        // Listed in the audit, and a phone that is not paired is refused.
+        let actions: Vec<String> = lab
+            .local
+            .audit()
+            .unwrap()
+            .into_iter()
+            .map(|a| a.action)
+            .collect();
+        assert!(
+            actions.contains(&"phone_role_editor".to_owned()),
+            "{actions:?}"
+        );
+        assert!(
+            actions.contains(&"phone_role_reader".to_owned()),
+            "{actions:?}"
+        );
+        assert!(lab.local.set_phone_role("nobody", true).is_err());
+    });
+}

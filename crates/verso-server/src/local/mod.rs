@@ -1141,6 +1141,43 @@ impl LocalServer {
         })
     }
 
+    /// Let a paired phone edit, or only read, without pairing it again. A
+    /// phone is a reader or an editor, never above; the change holds from
+    /// its next command, its open windows are told, and an editor made a
+    /// reader leaves the live rooms it wrote in. Logged and in the audit.
+    pub fn set_phone_role(&self, id: &str, editor: bool) -> Result<(), String> {
+        let running = lock(&self.shared.inner);
+        let r = running
+            .as_ref()
+            .ok_or_else(|| "serving is off".to_owned())?;
+        let role = if editor { Role::Editor } else { Role::Reader };
+        let name = r
+            .server
+            .db
+            .phones()?
+            .into_iter()
+            .find(|p| p.id == id)
+            .map(|p| p.name)
+            .ok_or_else(|| "that phone is not paired".to_owned())?;
+        if !r.server.db.set_phone_role(id, role.as_str())? {
+            return Err("that phone is not paired".to_owned());
+        }
+        r.server.phone_role_changed(id, role);
+        r.policy.audit(
+            &r.server,
+            &format!("phone_role_{}", role.as_str()),
+            Some(&name),
+            None,
+        );
+        crate::log::info(&format!(
+            "a paired phone's role is now {}: {name}",
+            role.as_str()
+        ));
+        drop(running);
+        (self.shared.events)(Event::Changed);
+        Ok(())
+    }
+
     /// Revoke one phone: its session ends and its open connection closes at
     /// once (item 15).
     pub fn revoke(&self, id: &str) -> Result<(), String> {
