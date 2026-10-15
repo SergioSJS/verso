@@ -54,6 +54,7 @@
     "allow-web-close",
     "allow-web-nav",
     "allow-web-url",
+    "allow-embed-frameable",
     "allow-read-text",
     "allow-write-text",
     "allow-write-board",

@@ -964,6 +964,102 @@ fn app_views_never_navigate_to_the_web_even_approved() {
     assert!(may_navigate("web-1", &url("https://rolai.app/x"), None));
 }
 
+/// The frameability check answers the app's own views only, from the
+/// session's record once it has one, and refuses what is not a web page.
+/// A page loaded from the internet — an embedded one included — gets no
+/// answer to this or any other command: Tauri's ACL gives a remote
+/// origin nothing (the capability has no `remote` urls), and a frame of
+/// the window is a remote origin to it (ADR 0056, revised 2026-10-15).
+#[test]
+fn the_frame_check_answers_the_apps_views_and_refuses_a_remote_origin() {
+    let (app, main) = app();
+    {
+        let state = app.state::<App>();
+        let mut seen = lock(&state.frame_verdicts);
+        seen.insert("https://open.example".to_owned(), true);
+        seen.insert("https://shut.example".to_owned(), false);
+    }
+    let ask = |url: &str| call(&main, "embed_frameable", json!({ "url": url }));
+    assert_eq!(ask("https://open.example/a/page").unwrap(), json!(true));
+    assert_eq!(ask("https://shut.example/").unwrap(), json!(false));
+    for bad in [
+        "file:///etc/passwd",
+        "verso://localhost/x",
+        "javascript:1",
+        "nonsense",
+    ] {
+        assert!(ask(bad).is_err(), "{bad}");
+    }
+    // A frame of the window, or any page of the web, is a remote origin.
+    for origin in ["https://open.example", "https://evil.example/frame.html"] {
+        let e = call_from(
+            &main,
+            origin,
+            "embed_frameable",
+            json!({ "url": "https://open.example/" }),
+        );
+        assert!(e.is_err(), "{origin}: {e:?}");
+        let e = call_from(
+            &main,
+            origin,
+            "web_open",
+            json!({ "url": "https://x.test" }),
+        );
+        assert!(e.is_err(), "{origin}: {e:?}");
+    }
+    // A web view is no app view.
+    let page = tauri::WebviewWindowBuilder::new(&app, "web-8", Default::default())
+        .build()
+        .unwrap();
+    assert!(
+        call(
+            &page,
+            "embed_frameable",
+            json!({ "url": "https://open.example/" })
+        )
+        .is_err()
+    );
+}
+
+/// An app view's frame loads the origins the frame check judged
+/// frameable, exactly, and no other page of the web; a web view keeps to
+/// the web as before.
+#[test]
+fn an_app_view_frames_only_the_origins_judged_frameable() {
+    let url = |s: &str| tauri::Url::parse(s).unwrap();
+    let mut framed = std::collections::HashSet::new();
+    framed.insert("https://open.example".to_owned());
+    framed.insert("http://192.168.3.100:8083".to_owned());
+    for label in ["main", "window-2", "note-3"] {
+        let may = |s: &str| may_navigate_framed(label, &url(s), None, &framed);
+        assert!(may("https://open.example/a?b=1"));
+        assert!(may("http://192.168.3.100:8083/x"));
+        // Another site, scheme, port or subdomain is refused.
+        assert!(!may("https://shut.example/"));
+        assert!(!may("http://open.example/"));
+        assert!(!may("https://open.example:8443/"));
+        assert!(!may("https://www.open.example/"));
+        assert!(!may("http://192.168.3.100:9000/"));
+        // The app's own pages still load; nothing but the web is added.
+        assert!(may("tauri://localhost/index.html"));
+        assert!(!may("file:///etc/passwd"));
+        assert!(!may("verso://evil/x"));
+        // With nothing judged, the guard is the closed one.
+        assert!(!may_navigate_framed(
+            label,
+            &url("https://open.example/"),
+            None,
+            &Default::default()
+        ));
+    }
+    assert!(!may_navigate_framed(
+        "other",
+        &url("https://open.example/"),
+        None,
+        &framed
+    ));
+}
+
 /// Several entries moved through the contract (ADR 0048, revised
 /// 2026-10-07): those that move come back with where they went, one the
 /// disk refuses with the contract's error kind, and the plan once.
