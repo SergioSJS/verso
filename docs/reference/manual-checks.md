@@ -20,6 +20,19 @@ in the real app.
 
 ## Not yet checked
 
+### Insert image in the editor's toolbar (feat/insert-image, 2026-10-15)
+
+Needs the installed app on a Mac, a Linux and a Windows computer, an iPhone (Safari) and an Android (Chrome), through a UniVerso and through *This app is a server*; the picker and the camera are the system's and no test reaches them (the end-to-end tests stub the file chooser).
+
+- [ ] **The desktop's file picker** (A): in a note in Edit mode, the toolbar's last button opens a menu with *From this computer…* and *From the folder…* (no *Take a photo*). *From this computer…* opens the system's panel (the Finder's on macOS, the Explorer's on Windows, GTK's on Linux), filtered to images; choose one: it appears in `assets/` (or the *Attachments* setting's folder) with its name, `![[name.png]]` is at the caret, the status line says so, ⌘Z takes the embed back (the file stays). On Windows and Linux too: the panel opens, and a file with a space or an accent in its name is embedded and shown. Choose the same file again: `name (2).png`.
+- [ ] **A big picture and a HEIC** (A): a 20 MB photo on the desktop is copied and shown; on macOS a `.heic` is copied as it is (the editor shows it only where the web view can).
+- [ ] **The phone's gallery and camera, iPhone Safari** (A, through a UniVerso over HTTPS and through *This app is a server*): the menu has *Photos and files…*, *Take a photo* and *From the folder…*. *Photos and files…* offers the photo library, *Take Photo or Video* and *Choose File*; the photo chosen is copied (`IMG_1234.jpeg` or `image.jpeg`, as Safari names it) and embedded. *Take a photo* opens the camera straight away; the shot is saved as `Foto AAAA-MM-DD HHMMSS.jpg` and embedded. Denying the camera permission leaves the note unchanged and the gallery still works.
+- [ ] **The phone's gallery and camera, Android Chrome** (A): the same two choices; *Photos and files…* offers the camera and the gallery; *Take a photo* opens the camera.
+- [ ] **Over 32 MB on a server** (A): a picture over 32 MB through a UniVerso or *This app is a server* is refused in the status line (at the top of the pane on a phone) with nothing copied.
+- [ ] **A reader** (A): as a reader of a shared folder, the button says *You can only read this folder* and copies nothing.
+- [ ] **The server out of reach** (A): stop the server while a note is open and insert an image: the status line says the server could not be reached, and no embed is written. With the folder kept offline on the phone, the image is kept with the other changes and goes up when the network returns.
+- [ ] **The screen reader** (A): the button is announced as *Insert image*, a menu; the items are read; the result is read from the status line.
+
 ### This app is a server (ADR 0096, feat/local-server-build, 2026-10-15)
 
 Needs the installed app on a Mac, a Linux or a Windows computer, a real phone (an iPhone and an Android), an iPad, and a home network; nothing here was run on a phone or in the installed app when it was built.

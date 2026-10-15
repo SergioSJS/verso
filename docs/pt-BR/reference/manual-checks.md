@@ -20,6 +20,19 @@ app real.
 
 ## Ainda não conferido
 
+### Inserir imagem na barra de ferramentas do editor (feat/insert-image, 2026-10-15)
+
+Precisa do app instalado num Mac, num Linux e num Windows, de um iPhone (Safari) e de um Android (Chrome), por um UniVerso e por *Este app é um servidor*; o seletor e a câmera são do sistema e nenhum teste os alcança (os testes de ponta a ponta trocam o seletor de arquivos por um falso).
+
+- [ ] **O seletor de arquivos do computador** (A): numa nota no modo Editar, o último botão da barra abre um menu com *Do computador…* e *Da pasta…* (sem *Tirar foto*). *Do computador…* abre o painel do sistema (o do Finder no macOS, o do Explorer no Windows, o do GTK no Linux), filtrado para imagens; escolha uma: ela aparece em `assets/` (ou na pasta do ajuste *Anexos*) com o nome dela, `![[nome.png]]` está no cursor, a linha de status diz isso, ⌘Z desfaz o embed (o arquivo fica). No Windows e no Linux também: o painel abre, e um arquivo com espaço ou acento no nome é embutido e aparece. Escolha o mesmo arquivo de novo: `nome (2).png`.
+- [ ] **Uma imagem grande e um HEIC** (A): uma foto de 20 MB no computador é copiada e aparece; no macOS um `.heic` é copiado como está (o editor só o mostra onde a visualização web consegue).
+- [ ] **A galeria e a câmera do celular, Safari no iPhone** (A, por um UniVerso com HTTPS e por *Este app é um servidor*): o menu tem *Fotos e arquivos…*, *Tirar foto* e *Da pasta…*. *Fotos e arquivos…* oferece a fototeca, *Fotografar ou gravar vídeo* e *Escolher arquivo*; a foto escolhida é copiada (`IMG_1234.jpeg` ou `image.jpeg`, como o Safari a nomeia) e embutida. *Tirar foto* abre a câmera direto; a foto é salva como `Foto AAAA-MM-DD HHMMSS.jpg` e embutida. Negar a permissão da câmera deixa a nota como está e a galeria continua funcionando.
+- [ ] **A galeria e a câmera do celular, Chrome no Android** (A): as mesmas duas escolhas; *Fotos e arquivos…* oferece a câmera e a galeria; *Tirar foto* abre a câmera.
+- [ ] **Mais de 32 MB num servidor** (A): uma imagem de mais de 32 MB por um UniVerso ou por *Este app é um servidor* é recusada na linha de status (no alto do painel, no celular) e nada é copiado.
+- [ ] **Quem só lê** (A): como leitor de uma pasta compartilhada, o botão diz *Você só lê esta pasta* e não copia nada.
+- [ ] **O servidor fora de alcance** (A): pare o servidor com uma nota aberta e insira uma imagem: a linha de status diz que não foi possível alcançar o servidor, e nenhum embed é escrito. Com a pasta guardada sem rede no celular, a imagem fica guardada com as outras mudanças e sobe quando a rede volta.
+- [ ] **O leitor de tela** (A): o botão é anunciado como *Inserir imagem*, um menu; os itens são lidos; o resultado é lido na linha de status.
+
 ### Este app é um servidor (ADR 0096, feat/local-server-build, 2026-10-15)
 
 Precisa do app instalado num Mac, num computador Linux ou num Windows, de um celular de verdade (um iPhone e um Android), de um iPad e de uma rede doméstica; nada disto foi rodado num celular nem no app instalado quando foi construído.
