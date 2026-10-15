@@ -14,6 +14,7 @@ versão de teste.
 
 ### Acrescentado
 
+- **Copiar o link de pareamento** ([ADR 0096](adr/0096-this-app-is-a-server.md)): o diálogo de pareamento tem *Copiar link*, ao lado do QR, que copia o mesmo link que o QR guarda, para o endereço escolhido, e diz que vale 2 minutos, uma vez. O computador continua perguntando *Foi você?* antes de o celular entrar.
 - **Um celular pareado pode passar a editar, ou só ler, sem parear de novo** ([ADR 0096](adr/0096-this-app-is-a-server.md)): cada celular em *Configurações › Este app é um servidor › Celulares pareados* tem um interruptor *Pode editar*. Vale a partir do próximo comando do celular; um celular que passa a só ler sai das notas ao vivo que estava editando. A mudança fica no log e em *O que aconteceu*.
 - **`verso serve` e "este app é um servidor" no Windows** ([ADR 0075](adr/0075-server-packaging-and-storage.md) item 2 e [ADR 0096](adr/0096-this-app-is-a-server.md) item 17, revisados): o código do servidor constrói no Windows, com o OpenSSL compilado dentro como no Linux e no macOS, então o `verso.exe serve` roda lá e o app do Windows serve as suas pastas a um celular como os outros. Continua sem pacote nem serviço do Windows para um servidor dedicado (Docker e Linux seguem sendo isso), e o app do Windows não lê se o Wi-Fi está como Particular: as guardas de endereço privado, mesma sub-rede e troca de rede valem como em todo lugar, e o Firewall do Windows Defender pergunta em quais redes na primeira vez.
 
