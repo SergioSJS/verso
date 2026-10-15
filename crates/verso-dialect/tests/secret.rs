@@ -321,6 +321,22 @@ fn a_byte_order_mark_before_a_first_line_secret_does_not_hide_it_from_the_projec
 }
 
 #[test]
+fn a_callout_kind_followed_by_metadata_is_secret_for_the_projection() {
+    // Review of ADR 0087 (M5): `[!secret|x]` carries metadata after the
+    // bar; the projection reads the kind up to it and fails closed.
+    for text in [
+        "> [!secret|x]\n> escondido\n",
+        "> [!Secret|a|b]- título\n> escondido\n",
+        "- item\n  > [!secret | x]\n  > escondido\n",
+    ] {
+        let once = project(text);
+        assert!(!once.contains("escondido"), "{once:?}");
+    }
+    // A longer kind that merely starts with it is not secret.
+    assert!(project("> [!secrets|x]\n> visível\n").contains("visível"));
+}
+
+#[test]
 fn a_callout_whose_header_is_on_its_second_line_is_still_found() {
     // The reading view draws it as a callout (its first paragraph opens
     // with the header), so the projection removes it too.

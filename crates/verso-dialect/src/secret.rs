@@ -293,7 +293,9 @@ fn kind_secret(text: &str) -> bool {
     let line = after.lines().next().unwrap_or("");
     line.find(']')
         .and_then(|close| line.get(..close))
-        .is_some_and(is_secret_kind)
+        // Metadata after a bar (`[!secret|x]`) is not part of the kind:
+        // the projection reads the kind up to it and fails closed.
+        .is_some_and(|kind| is_secret_kind(kind.split('|').next().unwrap_or(kind)))
 }
 
 /// `range` widened to the start of its first line and past the line break
