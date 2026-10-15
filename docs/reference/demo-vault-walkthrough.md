@@ -1024,7 +1024,7 @@ rest below and in `manual-checks.md`.
     (`boardStress.test.mjs`); three windows in two engines working at
     random for a minute (e2e-server, "three windows, two engines").
 13. Secret blocks ([ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md)):
-    the owner of a folder copies note 24's secret block into a note and
+    the owner of a folder copies note 25's secret block into a note and
     gives another account *leitor*. The reader's window shows the note
     without the block — in Leitura, a hover preview, an embed of it, the
     search (*estalajadeira* finds nothing), the backlinks, the tags and
@@ -1042,7 +1042,7 @@ rest below and in `manual-checks.md`.
     dialect's `tests/secret.rs` and `fixtures/callout/secret` (an AI
     draft); A: `manual-checks.md`.
 
-14. The installation lesson (note 25, "Instalar o seu UniVerso, Passo a
+14. The installation lesson (note 24, "Instalar o seu UniVerso, Passo a
     Passo"): the tour's "Num servidor" stop shows notes 23 and 25 side by
     side, and note 23's *Instalar* links to 25. In 25 every fenced block
     (`bash`, `yaml`) copies whole, and each command, path, port and

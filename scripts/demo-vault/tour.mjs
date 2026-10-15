@@ -349,7 +349,7 @@ const STOPS = [
     canvasColor: "5",
     cards: [
       ["n-servidor", "23 - Verso num Servidor.md", 420],
-      ["n-instalar", "25 - Instalar o seu UniVerso, Passo a Passo.md", 420],
+      ["n-instalar", "24 - Instalar o seu UniVerso, Passo a Passo.md", 420],
     ],
     tip:
       "O UniVerso, o Verso num servidor seu, guarda as pastas e as abre no navegador: contas por convite, dono, editores e leitores, várias pessoas na mesma nota, no mesmo board ou arquivo, ao vivo, com o ponteiro e o nome de cada um. " +
@@ -363,7 +363,7 @@ const STOPS = [
     heading: "🎲 Dados e tabelas sorteadas",
     color: TEAL,
     canvasColor: "5",
-    cards: [["n-dados", "24 - Dados e Tabelas Sorteadas.md", 640]],
+    cards: [["n-dados", "25 - Dados e Tabelas Sorteadas.md", 640]],
     tip:
       "Um código `dice: 1d20+5` numa nota é um dado: um clique, ou Enter, rola e mostra o total e cada dado ao lado — nada é escrito na nota. " +
       "`dice: [[Nota#^id]]` sorteia uma linha de uma tabela ou de uma lista com esse ^id; com um dado no cabeçalho da primeira coluna, valem as faixas. " +

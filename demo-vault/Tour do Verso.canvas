@@ -51,8 +51,8 @@
 		{"id":"n-focos","type":"file","file":"19 - Organizando com figurinhas, capas e páginas.md","x":40,"y":6630,"width":640,"height":560,"subpath":"#8. Focos (raízes nomeadas)"},
 		{"id":"n-celular","type":"file","file":"22 - Verso no Celular e no Tablet.md","x":1690,"y":6630,"width":640,"height":560},
 		{"id":"n-servidor","type":"file","file":"23 - Verso num Servidor.md","x":3340,"y":6630,"width":420,"height":560},
-		{"id":"n-instalar","type":"file","file":"25 - Instalar o seu UniVerso, Passo a Passo.md","x":3840,"y":6630,"width":420,"height":560},
-		{"id":"n-dados","type":"file","file":"24 - Dados e Tabelas Sorteadas.md","x":40,"y":7930,"width":640,"height":560}
+		{"id":"n-instalar","type":"file","file":"24 - Instalar o seu UniVerso, Passo a Passo.md","x":3840,"y":6630,"width":420,"height":560},
+		{"id":"n-dados","type":"file","file":"25 - Dados e Tabelas Sorteadas.md","x":40,"y":7930,"width":640,"height":560}
 	],
 	"edges":[
 		{"id":"e-links-grafo","fromNode":"n-links","fromSide":"right","toNode":"n-grafo","toSide":"left","color":"5","label":"viram o grafo"},

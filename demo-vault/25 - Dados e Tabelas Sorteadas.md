@@ -40,7 +40,7 @@ Com um leitor de tela, o botão se chama *Rolar 1d20+5*, e o resultado é dito: 
 
 Uma tabela ou uma lista com um `^id` é uma **tabela sorteada**. Um código `dice:` com um link para ela sorteia uma linha:
 
-Quem aparece na estrada? `dice: [[24 - Dados e Tabelas Sorteadas#^encontros]]`
+Quem aparece na estrada? `dice: [[25 - Dados e Tabelas Sorteadas#^encontros]]`
 
 | d6 | Encontro |
 | --- | --- |
@@ -55,7 +55,7 @@ A primeira coluna tem um **dado no cabeçalho** (`d6`, `d100`, `2d6`): cada linh
 
 Numa tabela sem dado no cabeçalho, ou numa lista, cada linha tem a mesma chance:
 
-O tempo hoje: `dice: [[24 - Dados e Tabelas Sorteadas#^tempo]]`
+O tempo hoje: `dice: [[25 - Dados e Tabelas Sorteadas#^tempo]]`
 
 - Sol forte
 - Garoa fina
@@ -92,4 +92,4 @@ Na paleta de comandos (`⌘⇧P`), **Rolar dados…** abre um rolador: digite a 
 
 ---
 
-Para montar o seu próprio servidor, passo a passo, veja [[25 - Instalar o seu UniVerso, Passo a Passo]]. Volte para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].
+Para jogar com outras pessoas na mesma nota, monte o seu servidor com [[24 - Instalar o seu UniVerso, Passo a Passo]]. Volte para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].
