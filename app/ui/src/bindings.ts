@@ -242,10 +242,20 @@ export const commands = {
 	 *  behind a tab whose note holds the address. Only `http(s)`; the page
 	 *  cannot navigate anywhere else, nor open windows. Answers with the
 	 *  label the other `web_*` commands take.
+	 * 
+	 *  An embed partly scrolled out of its note is cut to what shows, and its
+	 *  page must show the same part: `scroll_x`/`scroll_y` is how far the page
+	 *  is scrolled once it has loaded (the first load only, not the pages the
+	 *  embed later navigates to).
 	 */
-	webOpen: (url: string, x: number | null, y: number | null, w: number | null, h: number | null) => typedError<string, ContractError>(__TAURI_INVOKE("web_open", { url, x, y, w, h })),
-	/**  Move and size a web page's view to follow its tab. */
-	webBounds: (label: string, x: number | null, y: number | null, w: number | null, h: number | null) => typedError<null, ContractError>(__TAURI_INVOKE("web_bounds", { label, x, y, w, h })),
+	webOpen: (url: string, place: WebPlace) => typedError<string, ContractError>(__TAURI_INVOKE("web_open", { url, place })),
+	/**
+	 *  Move and size a web page's view to follow its tab, and scroll its page
+	 *  by `(scroll_x, scroll_y)` — the change in how much of the page lies
+	 *  above/left of the view (an embed cut at its pane's top shows the page
+	 *  from there, as an iframe would). Zero for a web note's own view.
+	 */
+	webBounds: (label: string, place: WebPlace) => typedError<null, ContractError>(__TAURI_INVOKE("web_bounds", { label, place })),
 	/**  Show or hide a web page's view (its tab left the front, an overlay opened). */
 	webVisible: (label: string, visible: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("web_visible", { label, visible })),
 	/**  Close a web page's view (its tab closed). */
@@ -254,6 +264,21 @@ export const commands = {
 	webNav: (label: string, action: string, url: string | null) => typedError<null, ContractError>(__TAURI_INVOKE("web_nav", { label, action, url })),
 	/**  The address a web page's view is at now. */
 	webUrl: (label: string) => typedError<string, ContractError>(__TAURI_INVOKE("web_url", { label })),
+	/**
+	 *  Whether the page at `url` may be shown in a real `<iframe>` of the
+	 *  window: its server's headers allow being framed by the window's origin
+	 *  (`X-Frame-Options`, `frame-ancestors`, judged on the final response of
+	 *  a short chain of redirects). The window then draws the embed as a
+	 *  frame, which scrolls and clips with the note; otherwise it keeps the
+	 *  child web view. One request (`HEAD`, a `GET` read only as far as its
+	 *  headers when that fails), to an address a note wrote and the user
+	 *  approved to embed (ADR 0050, 0056); answered once per origin for the
+	 *  session. A timeout or an error answers no.
+	 * 
+	 *  An origin judged frameable is also what the navigation guard lets an
+	 *  app view's frame load, and nothing else of the web.
+	 */
+	embedFrameable: (url: string) => typedError<boolean, ContractError>(__TAURI_INVOKE("embed_frameable", { url })),
 	/**
 	 *  Any file as text with its revision, for the editor of files that are
 	 *  not notes; `not_text` when its bytes are not UTF-8.
@@ -2332,6 +2357,22 @@ export type VersionText = {
 export type WebNote = {
 	path: string,
 	url: string,
+};
+
+/**
+ *  Where a web view goes (logical pixels from the window's top-left) and
+ *  how far its page is scrolled: `scroll_x`/`scroll_y` is, for `web_open`,
+ *  how far the page is scrolled once it has loaded (the first load only);
+ *  for `web_bounds`, the change in it since the last call. Zero for a web
+ *  note's own view, which shows its page whole.
+ */
+export type WebPlace = {
+	x: number | null,
+	y: number | null,
+	w: number | null,
+	h: number | null,
+	scrollX: number | null,
+	scrollY: number | null,
 };
 
 /**

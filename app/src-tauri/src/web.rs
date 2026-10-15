@@ -67,6 +67,25 @@ pub(crate) fn may_navigate(label: &str, url: &tauri::Url, dev_url: Option<&tauri
     }
 }
 
+/// The guard with one more allowance (ADR 0056, revised 2026-10-15): an
+/// app view's frame may load an origin that the frameability check judged
+/// frameable and recorded in `framed`, and no other page of the web. The
+/// handler is asked for every frame and cannot tell a frame from the
+/// window itself (wry passes it the address only), so the allowance is as
+/// narrow as it can be made: the exact origins of pages the user already
+/// approved to embed and whose servers allow framing.
+pub(crate) fn may_navigate_framed(
+    label: &str,
+    url: &tauri::Url,
+    dev_url: Option<&tauri::Url>,
+    framed: &std::collections::HashSet<String>,
+) -> bool {
+    may_navigate(label, url, dev_url)
+        || (is_app_view(label)
+            && web_only(url)
+            && embed_origin_of(url).is_some_and(|o| framed.contains(&o)))
+}
+
 /// The navigation guard as a plugin: a plugin's `on_navigation` is asked
 /// for every web view, the main window included, which a builder's own
 /// handler cannot reach.
@@ -74,7 +93,12 @@ pub(crate) fn navigation_guard<R: tauri::Runtime>() -> tauri::plugin::TauriPlugi
     tauri::plugin::Builder::new("verso-navigation")
         .on_navigation(|webview, url| {
             let dev_url = webview.app_handle().config().build.dev_url.clone();
-            may_navigate(webview.label(), url, dev_url.as_ref())
+            let app = webview.app_handle();
+            let framed = app
+                .try_state::<App>()
+                .map(|state| lock(&state.framed_origins).clone())
+                .unwrap_or_default();
+            may_navigate_framed(webview.label(), url, dev_url.as_ref(), &framed)
         })
         .build()
 }
@@ -145,12 +169,10 @@ fn chrome_offset<R: tauri::Runtime>(window: &tauri::Window<R>) -> f64 {
         (Ok(outer), Ok(inner)) => f64::from(inner.y.saturating_sub(outer.y).max(0)) / scale,
         _ => 0.0,
     };
-    // macOS reports the same point for both; the standard title bar is 28 pt.
-    if measured == 0.0 && cfg!(target_os = "macos") {
-        28.0
-    } else {
-        measured
-    }
+    // macOS reports the same point for both. Its windows have had no
+    // title bar since ADR 0072 (the overlay style): the content starts
+    // at the window's top, so nothing is added there.
+    measured
 }
 
 /// The user agent a web page's view presents: Safari's own, current
@@ -167,23 +189,57 @@ fn http_url(url: &str) -> Result<tauri::Url, ContractError> {
     Ok(parsed)
 }
 
+/// Where a web view goes (logical pixels from the window's top-left) and
+/// how far its page is scrolled: `scroll_x`/`scroll_y` is, for `web_open`,
+/// how far the page is scrolled once it has loaded (the first load only);
+/// for `web_bounds`, the change in it since the last call. Zero for a web
+/// note's own view, which shows its page whole.
+#[derive(Debug, Clone, Copy, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct WebPlace {
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+    scroll_x: f64,
+    scroll_y: f64,
+}
+
+/// The script that scrolls a page by `(dx, dy)`: only two finite numbers
+/// go into it, nothing the page or the UI wrote as text.
+fn scroll_script(dx: f64, dy: f64) -> Option<String> {
+    (dx.is_finite() && dy.is_finite() && (dx != 0.0 || dy != 0.0))
+        .then(|| format!("window.scrollBy({dx}, {dy})"))
+}
+
 /// A web page inside the window, as a child web view over the area the
 /// UI names (logical pixels from the window's top-left): the browser
 /// behind a tab whose note holds the address. Only `http(s)`; the page
 /// cannot navigate anywhere else, nor open windows. Answers with the
 /// label the other `web_*` commands take.
+///
+/// An embed partly scrolled out of its note is cut to what shows, and its
+/// page must show the same part: `scroll_x`/`scroll_y` is how far the page
+/// is scrolled once it has loaded (the first load only, not the pages the
+/// embed later navigates to).
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn web_open<R: tauri::Runtime>(
     window: tauri::Window<R>,
     state: State<'_, App>,
     url: String,
-    x: f64,
-    y: f64,
-    w: f64,
-    h: f64,
+    place: WebPlace,
 ) -> Result<String, ContractError> {
+    let WebPlace {
+        x,
+        y,
+        w,
+        h,
+        scroll_x,
+        scroll_y,
+    } = place;
     let url = http_url(&url)?;
+    let first_load = std::sync::atomic::AtomicBool::new(true);
     let label = next_web_label();
     // The window that asks hosts the page: the main one, or a note's own.
     let y = y + chrome_offset(&window);
@@ -192,7 +248,15 @@ pub(crate) async fn web_open<R: tauri::Runtime>(
             tauri::webview::WebviewBuilder::new(&label, tauri::WebviewUrl::External(url))
                 .user_agent(WEB_USER_AGENT)
                 .on_navigation(web_only)
-                .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny),
+                .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny)
+                .on_page_load(move |wv, payload| {
+                    if matches!(payload.event(), tauri::webview::PageLoadEvent::Finished)
+                        && first_load.swap(false, std::sync::atomic::Ordering::Relaxed)
+                        && let Some(script) = scroll_script(scroll_x, scroll_y)
+                    {
+                        let _ = wv.eval(script);
+                    }
+                }),
             tauri::LogicalPosition::new(x, y),
             tauri::LogicalSize::new(w.max(1.0), h.max(1.0)),
         )
@@ -201,22 +265,34 @@ pub(crate) async fn web_open<R: tauri::Runtime>(
     Ok(label)
 }
 
-/// Move and size a web page's view to follow its tab.
+/// Move and size a web page's view to follow its tab, and scroll its page
+/// by `(scroll_x, scroll_y)` — the change in how much of the page lies
+/// above/left of the view (an embed cut at its pane's top shows the page
+/// from there, as an iframe would). Zero for a web note's own view.
 #[tauri::command]
 #[specta::specta]
 pub(crate) fn web_bounds<R: tauri::Runtime>(
     window: tauri::Window<R>,
     state: State<'_, App>,
     label: String,
-    x: f64,
-    y: f64,
-    w: f64,
-    h: f64,
+    place: WebPlace,
 ) -> Result<(), ContractError> {
+    let WebPlace {
+        x,
+        y,
+        w,
+        h,
+        scroll_x,
+        scroll_y,
+    } = place;
     let wv = own_web_view(&window, &state, &label)?;
     let y = y + chrome_offset(&window);
     wv.set_position(tauri::LogicalPosition::new(x, y))
         .and_then(|()| wv.set_size(tauri::LogicalSize::new(w.max(1.0), h.max(1.0))))
+        .and_then(|()| match scroll_script(scroll_x, scroll_y) {
+            Some(script) => wv.eval(script),
+            None => Ok(()),
+        })
         .map_err(|e| failed(e.to_string()))
 }
 
@@ -244,6 +320,51 @@ pub(crate) fn web_close<R: tauri::Runtime>(
     let wv = own_web_view(&window, &state, &label)?;
     lock(&state.web_views).remove(&label);
     wv.close().map_err(|e| failed(e.to_string()))
+}
+
+/// Whether the page at `url` may be shown in a real `<iframe>` of the
+/// window: its server's headers allow being framed by the window's origin
+/// (`X-Frame-Options`, `frame-ancestors`, judged on the final response of
+/// a short chain of redirects). The window then draws the embed as a
+/// frame, which scrolls and clips with the note; otherwise it keeps the
+/// child web view. One request (`HEAD`, a `GET` read only as far as its
+/// headers when that fails), to an address a note wrote and the user
+/// approved to embed (ADR 0050, 0056); answered once per origin for the
+/// session. A timeout or an error answers no.
+///
+/// An origin judged frameable is also what the navigation guard lets an
+/// app view's frame load, and nothing else of the web.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn embed_frameable<R: tauri::Runtime>(
+    webview: tauri::Webview<R>,
+    state: State<'_, App>,
+    url: String,
+) -> Result<bool, ContractError> {
+    if !is_app_view(webview.label()) {
+        return Err(refused("only the app's own views ask this"));
+    }
+    let parsed = http_url(&url)?;
+    let origin = embed_origin_of(&parsed).ok_or_else(|| refused("the address has no host"))?;
+    let cached = lock(&state.frame_verdicts).get(&origin).copied();
+    if let Some(answer) = cached {
+        return Ok(answer);
+    }
+    let app = webview
+        .url()
+        .ok()
+        .and_then(|u| crate::framing::Ancestor::of(&u))
+        .ok_or_else(|| failed("the window has no address"))?;
+    let verdict = tauri::async_runtime::spawn_blocking(move || {
+        crate::framing::check(&parsed, &app, WEB_USER_AGENT)
+    })
+    .await
+    .map_err(|e| failed(e.to_string()))?;
+    if verdict.frameable {
+        lock(&state.framed_origins).extend(verdict.origins);
+    }
+    lock(&state.frame_verdicts).insert(origin, verdict.frameable);
+    Ok(verdict.frameable)
 }
 
 /// Back, forward, reload, or go to another http(s) address.
@@ -279,4 +400,20 @@ pub(crate) fn web_url<R: tauri::Runtime>(
         .url()
         .map(|u| u.to_string())
         .map_err(|e| failed(e.to_string()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::scroll_script;
+
+    #[test]
+    fn the_scroll_script_carries_two_finite_numbers_or_nothing() {
+        assert_eq!(
+            scroll_script(0.0, 120.5).as_deref(),
+            Some("window.scrollBy(0, 120.5)")
+        );
+        assert_eq!(scroll_script(0.0, 0.0), None);
+        assert_eq!(scroll_script(f64::NAN, 1.0), None);
+        assert_eq!(scroll_script(1.0, f64::INFINITY), None);
+    }
 }

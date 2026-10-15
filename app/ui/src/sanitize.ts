@@ -301,9 +301,10 @@ function gateOf(url: string): { kind: "local" | "public" | "remote"; origin: str
  *  `style` says — tamed, so the frame cannot lift itself out of the pane —
  *  and not loaded: `data-embed-web` is what loads it. */
 function webHost(doc: Document, style: string): HTMLElement {
-  // The page renders in a child web view the window overlays on this
-  // box — a top-level view, which X-Frame-Options does not bind, unlike
-  // an iframe (ADR 0056). The note's <iframe> only donates its size.
+  // The page renders in a real frame in this box when its site allows
+  // being framed, and otherwise in a child web view the window overlays on
+  // it (leaves/web.ts; ADR 0056, revised 2026-10-15). The note's <iframe>
+  // only donates its size.
   const host = doc.createElement("div");
   host.className = "embed-web";
   if (style) {

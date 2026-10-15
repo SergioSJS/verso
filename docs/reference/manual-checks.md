@@ -20,6 +20,97 @@ in the real app.
 
 ## Not yet checked
 
+### An embedded page as a real frame (fix/web-embed-clip, 2026-10-15)
+
+Needs the installed app: the check, the frame's policy and the navigation
+guard live in the host, which the browser harness does not have. Do each
+on macOS and on Windows. Headers read with `curl -sI` on 2026-10-15:
+`https://example.com/` and `https://en.wikipedia.org/` send no
+`X-Frame-Options` and no `frame-ancestors` (frameable); `https://rolai.app/`
+and `https://huggingface.co/` send `X-Frame-Options: DENY` (not frameable,
+so they take the native view, as rolai.app did before). Use a long note
+with an approved embed of each, tall enough to scroll.
+
+- [ ] **A frameable site** (example.com, or a Wikipedia article): it shows
+  in the note as a frame; its size is the box's, with no gap and no bar of
+  its own beyond the page's. Scrolling the note moves it like any block of
+  the note.
+- [ ] **A refusing site** (rolai.app): it shows, in the native view, as
+  before this change. Say whether it is cut right at the pane's edges.
+- [ ] **Half above, half below, at the status bar**: scroll the note until
+  a frameable embed is half above the pane, half below it, and just over
+  the status bar: the page is cut at the pane's edges and the status bar,
+  the tab bar and the bell stay uncovered; no flicker, no lag (it is a
+  frame, nothing follows it).
+- [ ] **Scrolling the note never scrolls the page**: with the pointer over
+  the embed, scroll with the wheel and the trackpad: the note and the page
+  scroll as in a browser (the page first while it can, then the note); the
+  page is never moved when the pointer is over the note's text.
+- [ ] **The page's own scroll**: scroll inside the page, then scroll the
+  note: the page keeps its position.
+- [ ] **A split pane, Settings open**: split the window and put the embed
+  near the divider: nothing crosses it; open Settings or the palette: the
+  page does not show through (a frame is under the overlay as the rest of
+  the note is).
+- [ ] **A link and a video inside the page**: click a link to another site
+  inside the framed page, and play a video that the page itself embeds. Both
+  are expected to stay blank for now (the navigation guard does not know
+  frames; ADR 0056 `[OPEN]`). Say what happens, and whether the window or
+  the page stayed usable.
+- [ ] **Redirect**: embed `http://example.com/` (it redirects to https)
+  and a `www.` form of a site that redirects to its bare name: the page
+  loads, or takes the native view; it is never blank.
+- [ ] **An address on the network** (a Calibre-Web, a dashboard on
+  `192.168.x.x`): it shows, in a frame or in the native view; say which.
+- [ ] **Offline**: with no network, a new embed takes the native view's
+  path (the check answers no) and says nothing wrong; coming back online,
+  restart the app and the page frames.
+- [ ] **A page as a tab** (a note with only a `url`): unchanged, a native
+  view filling the pane.
+- [ ] **The log** (`~/Library/Application Support/verso/logs/verso.log`):
+  no `ERROR` while doing the above, and no "not allowed" for `embed_frameable`.
+
+### An embedded page cut by its pane (fix/web-embed-clip, 2026-10-15)
+
+Needs the installed app: the page is a native child web view, which the
+browser harness does not have. Do each on macOS and on Windows. Use a note
+with an approved embedded page tall enough to need scrolling (a long
+article, with numbered lines or headings so the part shown is obvious),
+in a note long enough to scroll.
+
+- [ ] **Half above the pane**: scroll the note until the embed's top edge
+  is about half-way above the pane's top. See the page's *middle* (its
+  lines 3, 4… and not 1, 2, 3), the page cut at the pane's top edge, the
+  tab bar and the toolbar uncovered. Scroll on: the page moves up with
+  the note, no jump, no flicker; scroll back: the page goes back down to
+  its beginning.
+- [ ] **Half below the pane**: scroll the other way until the embed's
+  bottom is below the pane. The page's beginning shows, cut at the pane's
+  bottom; the **status bar** is not covered, nor the bell in it.
+- [ ] **Taller than the pane**: an embed taller than the pane, its top
+  and bottom both out of view: the page shows its middle, with neither
+  chrome covered.
+- [ ] **The page's own scrolling**: with the embed fully in view, scroll
+  inside the page with the wheel; then scroll the note a little: the page
+  keeps its own position plus the note's, and still scrolls inside.
+- [ ] **In a split pane**: split the window in two; the note in the right
+  pane, the embed near the dividing line, and the left pane's edge: the
+  page never goes over the other pane, the divider or the side panels
+  (open and close the left and right panels with the page in view).
+- [ ] **With Settings (or the palette) open**: scroll to the half-way
+  case, open Settings: the page disappears, and it comes back at the
+  same part when it closes.
+- [ ] **Opening already scrolled**: scroll the note first so that the
+  embed's top is half out of view, then open the tab (or switch to it):
+  the page appears already showing its lower part.
+- [ ] **A full-height page** (one that sizes itself to the window's
+  height, such as a video player): at the half-way case it shows laid out
+  for the visible height; say whether that looks acceptable (an iframe
+  would lay it out for the full box).
+- [ ] **Windows**: all of the above, plus the window dragged to another
+  monitor and resized while the page is half-way: the page follows
+  without drifting.
+
 ### Notifications in the window (ADR 0084, feat/notify-ui, 2026-10-14)
 
 - [ ] **The server stopped and started again**: a folder of this computer

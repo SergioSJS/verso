@@ -47,6 +47,7 @@ fn main() {
         "web_close",
         "web_nav",
         "web_url",
+        "embed_frameable",
         "read_text",
         "write_text",
         "write_board",
