@@ -148,76 +148,25 @@ ops! {
 
     /// Full-text search: every word must occur, accents and case ignored.
     Read fn search(ws, words: String, limit: u32) -> Vec<Hit> {
-        Ok(ws
-            .search(&words, usize::try_from(limit.clamp(1, 200)).unwrap_or(20))?
-            .into_iter()
-            .map(|h| Hit {
-                path: h.path,
-                snippet: h.snippet,
-            })
-            .collect())
+        Ok(hits_out(ws.search(&words, search_limit(limit))?))
     }
 
     /// The links a note makes; empty when the index does not know it.
     Read fn links(ws, path: String) -> Vec<Link> {
-        Ok(ws
-            .links(&path)?
-            .unwrap_or_default()
-            .into_iter()
-            .map(|l| Link {
-                target: l.target,
-                resolved: l.resolved,
-                embed: l.embed,
-                heading: l.heading,
-                block: l.block,
-                alias: l.alias,
-                line: l.line,
-                col: l.col,
-                outside: false,
-            })
-            .collect())
+        Ok(links_out(ws.links(&path)?))
     }
 
     /// The notes that link to this one; empty when the index does not know
     /// it.
     Read fn backlinks(ws, path: String) -> Vec<Backlink> {
-        Ok(ws
-            .backlinks(&path)?
-            .unwrap_or_default()
-            .into_iter()
-            .map(|b| Backlink {
-                from: b.from,
-                target: b.target,
-                embed: b.embed,
-                line: b.line,
-                col: b.col,
-            })
-            .collect())
+        Ok(backlinks_out(ws.backlinks(&path)?))
     }
 
     /// The note's unlinked mentions, as occurrences (ADR 0089 item 1). It
     /// reads: the link is written by the window, as any edit, over the
     /// revision it read (invariant 11).
     Read fn unlinked_mentions(ws, path: String) -> Mentions {
-        let found = ws.unlinked_mentions(&path)?;
-        Ok(Mentions {
-            mentions: found
-                .mentions
-                .into_iter()
-                .map(|m| Mention {
-                    path: m.path,
-                    line: m.line,
-                    col: m.col,
-                    text: m.text,
-                    before: m.before,
-                    after: m.after,
-                    alias: m.alias,
-                    table: m.table,
-                    secret: m.secret,
-                })
-                .collect(),
-            more: found.more,
-        })
+        Ok(mentions_out(ws.unlinked_mentions(&path)?))
     }
 
     /// Write a note's text over the revision that was read — atomically, no
@@ -238,11 +187,7 @@ ops! {
 
     /// Every tag of the folder, by count, with the notes that carry it.
     Read fn list_tags(ws) -> Vec<Tag> {
-        Ok(ws
-            .tags()?
-            .into_iter()
-            .map(|(name, notes)| Tag { name, notes })
-            .collect())
+        Ok(tags_out(ws.tags()?))
     }
 
     /// The notes that are web pages, with their addresses.
@@ -256,11 +201,7 @@ ops! {
 
     /// Every resolved link of the folder: its graph.
     Read fn graph(ws) -> Vec<Edge> {
-        Ok(ws
-            .graph()?
-            .into_iter()
-            .map(|(from, to)| Edge { from, to })
-            .collect())
+        Ok(edges_out(ws.graph()?))
     }
 
     /// Every folder of the open folder, empty ones included.
@@ -313,49 +254,7 @@ ops! {
     /// Every entry of the folder as the last walk saw it, with kind, size
     /// and date.
     Read fn list_entries(ws) -> Vec<FileEntry> {
-        let labels = ws.labels()?;
-        // A folder's labels are its folder note's: the first of the core's
-        // candidates that is a note, compared without case.
-        let notes: std::collections::HashMap<String, &str> = ws
-            .entries()
-            .iter()
-            .filter(|e| matches!(e.kind, verso_core::FileKind::Note))
-            .map(|e| (e.path.to_lowercase(), e.path.as_str()))
-            .collect();
-        Ok(ws
-            .entries()
-            .iter()
-            .map(|e| {
-                let label = match e.kind {
-                    verso_core::FileKind::Folder => {
-                        verso_core::folder_note_candidates(&e.path, ws.folder_note_name())
-                            .iter()
-                            .find_map(|c| notes.get(&c.to_lowercase()))
-                            .and_then(|found| labels.get(*found))
-                    }
-                    _ => labels.get(&e.path),
-                }
-                .map(|l| EntryLabel {
-                    sticker: l.sticker.clone(),
-                    color: l.color.clone(),
-                    alias: l.alias.clone(),
-                    order: l.order.clone(),
-                    pinned: l.pinned.clone(),
-                });
-                FileEntry {
-                    path: e.path.clone(),
-                    kind: match e.kind {
-                        verso_core::FileKind::Note => FileKind::Note,
-                        verso_core::FileKind::File => FileKind::File,
-                        verso_core::FileKind::Folder => FileKind::Folder,
-                        verso_core::FileKind::Placeholder => FileKind::Placeholder,
-                    },
-                    size: e.len as f64,
-                    modified: e.modified as f64,
-                    label,
-                }
-            })
-            .collect())
+        entries_out(ws, ws.entries())
     }
 
     /// Rename or move anything of the folder; links to what moved come back
@@ -454,26 +353,7 @@ ops! {
 
     /// The space the folder takes (ADR 0075 item 4), from the last walk.
     Read fn folder_space(ws) -> FolderSpace {
-        let mut space = FolderSpace {
-            total: 0.0,
-            notes: 0.0,
-            attachments: 0.0,
-            files: 0,
-            index: ws.index_bytes()? as f64,
-        };
-        for e in ws.entries() {
-            let len = e.len as f64;
-            match e.kind {
-                verso_core::FileKind::Note => space.notes += len,
-                verso_core::FileKind::File | verso_core::FileKind::Placeholder => {
-                    space.attachments += len;
-                }
-                verso_core::FileKind::Folder => continue,
-            }
-            space.total += len;
-            space.files = space.files.saturating_add(1);
-        }
-        Ok(space)
+        space_of(ws, ws.entries())
     }
 
     /// The folder's layer of settings, `.verso/settings.json` (ADR 0070
@@ -532,6 +412,172 @@ pub fn query_base_within(
     query: BaseQuery,
     within: Vec<String>,
 ) -> Result<BaseResult, OpError> {
+    query_base_as(ws, query, within, false)
+}
+
+/// The bound of a search's answers.
+pub(crate) fn search_limit(limit: u32) -> usize {
+    usize::try_from(limit.clamp(1, 200)).unwrap_or(20)
+}
+
+pub(crate) fn hits_out(hits: Vec<verso_core::IndexHit>) -> Vec<Hit> {
+    hits.into_iter()
+        .map(|h| Hit {
+            path: h.path,
+            snippet: h.snippet,
+        })
+        .collect()
+}
+
+pub(crate) fn links_out(links: Option<Vec<verso_core::IndexLink>>) -> Vec<Link> {
+    links
+        .unwrap_or_default()
+        .into_iter()
+        .map(|l| Link {
+            target: l.target,
+            resolved: l.resolved,
+            embed: l.embed,
+            heading: l.heading,
+            block: l.block,
+            alias: l.alias,
+            line: l.line,
+            col: l.col,
+            outside: false,
+        })
+        .collect()
+}
+
+pub(crate) fn backlinks_out(links: Option<Vec<verso_core::IndexBacklink>>) -> Vec<Backlink> {
+    links
+        .unwrap_or_default()
+        .into_iter()
+        .map(|b| Backlink {
+            from: b.from,
+            target: b.target,
+            embed: b.embed,
+            line: b.line,
+            col: b.col,
+        })
+        .collect()
+}
+
+pub(crate) fn mentions_out(found: verso_core::Mentions) -> Mentions {
+    Mentions {
+        mentions: found
+            .mentions
+            .into_iter()
+            .map(|m| Mention {
+                path: m.path,
+                line: m.line,
+                col: m.col,
+                text: m.text,
+                before: m.before,
+                after: m.after,
+                alias: m.alias,
+                table: m.table,
+                secret: m.secret,
+            })
+            .collect(),
+        more: found.more,
+    }
+}
+
+pub(crate) fn tags_out(tags: Vec<(String, Vec<String>)>) -> Vec<Tag> {
+    tags.into_iter()
+        .map(|(name, notes)| Tag { name, notes })
+        .collect()
+}
+
+pub(crate) fn edges_out(edges: Vec<(String, String)>) -> Vec<Edge> {
+    edges
+        .into_iter()
+        .map(|(from, to)| Edge { from, to })
+        .collect()
+}
+
+/// `entries` — the last walk's, or a reader's — with their labels.
+pub(crate) fn entries_out(
+    ws: &Workspace,
+    entries: &[verso_core::FileEntry],
+) -> Result<Vec<FileEntry>, OpError> {
+    let labels = ws.labels()?;
+    // A folder's labels are its folder note's: the first of the core's
+    // candidates that is a note, compared without case.
+    let notes: std::collections::HashMap<String, &str> = entries
+        .iter()
+        .filter(|e| matches!(e.kind, verso_core::FileKind::Note))
+        .map(|e| (e.path.to_lowercase(), e.path.as_str()))
+        .collect();
+    Ok(entries
+        .iter()
+        .map(|e| {
+            let label = match e.kind {
+                verso_core::FileKind::Folder => {
+                    verso_core::folder_note_candidates(&e.path, ws.folder_note_name())
+                        .iter()
+                        .find_map(|c| notes.get(&c.to_lowercase()))
+                        .and_then(|found| labels.get(*found))
+                }
+                _ => labels.get(&e.path),
+            }
+            .map(|l| EntryLabel {
+                sticker: l.sticker.clone(),
+                color: l.color.clone(),
+                alias: l.alias.clone(),
+                order: l.order.clone(),
+                pinned: l.pinned.clone(),
+            });
+            FileEntry {
+                path: e.path.clone(),
+                kind: match e.kind {
+                    verso_core::FileKind::Note => FileKind::Note,
+                    verso_core::FileKind::File => FileKind::File,
+                    verso_core::FileKind::Folder => FileKind::Folder,
+                    verso_core::FileKind::Placeholder => FileKind::Placeholder,
+                },
+                size: e.len as f64,
+                modified: e.modified as f64,
+                label,
+            }
+        })
+        .collect())
+}
+
+/// The space `entries` take, with the index's.
+pub(crate) fn space_of(
+    ws: &Workspace,
+    entries: &[verso_core::FileEntry],
+) -> Result<FolderSpace, OpError> {
+    let mut space = FolderSpace {
+        total: 0.0,
+        notes: 0.0,
+        attachments: 0.0,
+        files: 0,
+        index: ws.index_bytes()? as f64,
+    };
+    for e in entries {
+        let len = e.len as f64;
+        match e.kind {
+            verso_core::FileKind::Note => space.notes += len,
+            verso_core::FileKind::File | verso_core::FileKind::Placeholder => {
+                space.attachments += len;
+            }
+            verso_core::FileKind::Folder => continue,
+        }
+        space.total += len;
+        space.files = space.files.saturating_add(1);
+    }
+    Ok(space)
+}
+
+/// [`query_base_within`]; `reader`: as an account that may only read the
+/// folder asks it (ADR 0087 item 4).
+pub fn query_base_as(
+    ws: &mut Workspace,
+    query: BaseQuery,
+    within: Vec<String>,
+    reader: bool,
+) -> Result<BaseResult, OpError> {
     let core = verso_core::bases::BaseQuery {
         path: query.path,
         text: query.text,
@@ -543,6 +589,7 @@ pub fn query_base_within(
         offset_minutes: query.offset,
         lang: query.lang,
         within,
+        reader,
     };
     let r = ws.query_base(&core)?;
     Ok(base_result(r))

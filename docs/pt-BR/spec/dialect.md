@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.41
+# Spec do dialeto do Verso — v0.42
 
-- Versão: v0.41 · 2026-10-14
+- Versão: v0.42 · 2026-10-14
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -69,6 +69,7 @@ fixtures). Fixture que não segue o schema é inválida.
 | `property_links` | lista dos links que as propriedades do frontmatter guardam (Q10), na ordem escrita (§4.7) | não afirmado |
 | `schemas` | lista dos blocos cercados `verso-schema`, os aninhados inclusive, na ordem do documento (§4.8) | não afirmado |
 | `prose` | lista dos trechos de prosa da nota, na ordem do documento (§4.9) | não afirmado |
+| `reader` | a nota como um UniVerso a serve a uma conta que só pode lê-la — a projeção dela, as linhas de cada callout secreto removidas (Q9; [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md) item 3) — como texto, byte a byte | não afirmado |
 | `observed` | como o comportamento foi verificado no Obsidian | ver 4.5 |
 | `source` | ADR ou questão que autoriza um comportamento próprio do Verso | ver 4.5 |
 
@@ -151,10 +152,12 @@ cita o ADR ou a questão que a autoriza em `source:`.
 
 ### 4.6 Fora do schema
 
-Não existe campo para visibilidade por bloco, tags inline nem resolução de
-link: cada um entra no schema quando a questão correspondente fechar, com PR
-que atualiza esta seção. A relação tipada entrou com a Q10, como
-`property_links` (§4.7, v0.23).
+Não existe campo para tags inline nem resolução de link: cada um entra no
+schema quando a questão correspondente fechar, com PR que atualiza esta
+seção. A relação tipada entrou com a Q10, como `property_links` (§4.7,
+v0.23); a visibilidade por bloco com a Q9, como `reader` (§4.1, v0.42): um
+callout secreto aparece em `callouts` como qualquer callout, e `reader` é o
+que um leitor recebe da nota.
 
 ### 4.7 Itens de `property_links`
 
@@ -732,6 +735,7 @@ Categorias acrescentadas na revisão da Fase 0, fora do mínimo do briefing:
 | link Markdown para arquivo local | 5.13 | `PROPOSTO` |
 | posição (`pos`) em pelo menos uma fixture por construção | 4.4 | exigida por [ADR 0018](../adr/0018-llm-native-mcp-in-core.md) |
 | schema (um bloco `verso-schema`) | 4.8, 6 | rascunhada em 2026-10-07 com a implementação do ADR 0052, aprovada no mesmo dia; `schema/infobox` rascunhada em 2026-10-14 com a do ADR 0086, aprovada no mesmo dia |
+| visibilidade por bloco (um callout `[!secret]`) | 4.1, 5.8, 6 | `callout/secret` rascunhada em 2026-10-14 com a implementação do ADR 0087, esperando aprovação |
 
 Qualquer fixture pode ser rascunhada pela IA; só vale com a aprovação do
 mantenedor no PR que a adiciona (ADR 0031). Rascunho diz que é rascunho na
@@ -780,7 +784,10 @@ correspondente ser implementado. Nenhuma tem resposta no briefing.
   que alimenta o índice. **Ainda sem fixture**: a fixture desta questão
   vem com o PR que constrói o ADR 0087, rascunhada pela IA e aprovada pelo
   mantenedor ali (ADR 0031); nenhum arquivo de `fixtures/**` mudou com
-  esta resposta.
+  esta resposta. *(v0.42: esse PR rascunhou `fixtures/callout/secret`,
+  cuja chave `reader` afirma a projeção — um bloco no nível de cima, um
+  dentro de outro callout com o tipo em maiúsculas, um num item de lista,
+  um `[!secrets]` mantido — para a aprovação do mantenedor.)*
 - **Q10. Sintaxe de relação tipada.** `DECIDIDA` em 2026-09-30.
   Decidir antes de implementar relações (§17 item 6). Requisitos já fixados:
   tipo e direção, várias relações entre os mesmos dois nós
@@ -1421,3 +1428,4 @@ ser escolhido.
 | v0.39 | 2026-10-14 | O [ADR 0086](../adr/0086-infobox-a-typed-notes-card.md), aceito no mesmo dia, implementado: os tipos `link` e `image` de um schema e o seu `layout` de topo (`infobox`) entram na §4.8, na §6 e no formato da Q11; a fixture `fixtures/schema/infobox` rascunhada, aguardando a aprovação do mantenedor. A fixture aprovada `fixtures/schema/nested-and-invalid` escreve `kind: link` como o seu tipo desconhecido, o que `link` deixou de ser: a entrada dela espera o mantenedor (invariantes 14 e 16). Nenhuma questão fechada. |
 | v0.40 | 2026-10-14 | O schema ganha `prose` (§4.1, §4.9): os trechos de prosa do [ADR 0089](../adr/0089-linking-unlinked-mentions.md) item 1, onde as menções são procuradas, pela resposta M6 do mantenedor (*"Sim, todas"*); a fixture `fixtures/prose/what-is-prose` rascunhada, aguardando a aprovação do mantenedor. Nenhuma questão fechada. |
 | v0.41 | 2026-10-14 | As fixtures `fixtures/code/dice-inline`, `fixtures/prose/what-is-prose` e `fixtures/schema/infobox` **aprovadas pelo mantenedor** em sessão (*"Aprovo as 3"*), e com elas a chave `prose` do schema (§4.1, §4.9) da v0.40; a marca de rascunho delas removida. `code/dice-inline` observada no Obsidian 1.14.4 pelo CLI dele, sem o plugin Dice Roller, antes de a aprovação ser registrada: os links e o bloco dela são os do Obsidian, e o `observed:` dela diz como. Nada mais muda. |
+| v0.42 | 2026-10-14 | O schema ganha `reader` (§4.1, §4.6): a nota como um UniVerso a serve a um leitor, a projeção da Q9 e do [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md) item 3. A fixture rascunhada `fixtures/callout/secret`, com o PR que constrói o ADR 0087, espera a aprovação do mantenedor; o parágrafo da Q9 o diz. Nenhuma decisão mudou |

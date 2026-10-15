@@ -18,7 +18,10 @@
 //! client another account holds, lets a connection speak for more than
 //! `CLIENTS_MOST` clients, or drops a client when relayed again. The
 //! relayed bytes are read here by a decoder of the target's own, not the
-//! server's. Seeds in `../seeds-presence/`. Run:
+//! server's. What a reader in a note with secret blocks hears of it
+//! (`presence::named_only`, ADR 0087 item 4) is checked on the same
+//! bytes: the same clients, each state its `user` alone — never a cursor.
+//! Seeds in `../seeds-presence/`. Run:
 //! `cargo +nightly fuzz run presence fuzz/corpus/presence fuzz/seeds-presence`.
 
 #![no_main]
@@ -32,7 +35,7 @@ use std::collections::HashSet;
 use libfuzzer_sys::fuzz_target;
 use records::records;
 use serde_json::Value;
-use verso_server::presence::{CLIENTS_MOST, Claims, Sender, stamped};
+use verso_server::presence::{CLIENTS_MOST, Claims, Sender, named_only, stamped};
 
 const SENDERS: [Sender<'static>; 3] = [
     Sender {
@@ -110,6 +113,18 @@ fuzz_target!(|data: &[u8]| {
             let colour = user["color"].as_str().expect("a colour");
             assert!(is_colour(colour), "{colour:?}");
             assert_eq!(user["colorLight"], format!("{colour}33"));
+        }
+        // A reader in a note with secret blocks: who, never where.
+        let named = named_only(&out).expect("a relayed presence is read again");
+        let ids_of = |b: &[u8]| entries(b).into_iter().map(|(id, _)| id).collect::<Vec<_>>();
+        assert_eq!(ids_of(&named), ids_of(&out), "the same clients, named");
+        for (_, state) in entries(&named) {
+            if state == "null" {
+                continue;
+            }
+            let v: Value = serde_json::from_str(&state).expect("a named state is JSON");
+            let keys: Vec<&String> = v.as_object().expect("an object").keys().collect();
+            assert_eq!(keys, ["user"], "nothing but who: {state}");
         }
         let held = claims.values().filter(|(_, c)| c == who.client).count();
         assert!(held <= CLIENTS_MOST, "{held} clients for one connection");

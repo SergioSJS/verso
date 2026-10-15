@@ -182,6 +182,42 @@ app real.
   do `Porto Cinzento` aparecem como o Obsidian as mostra, os habitantes
   como links, a nota do schema como um bloco de código.
 
+### Blocos secretos (ADR 0087, feat/secret-blocks, 2026-10-14)
+
+- [ ] **Um leitor nunca vê um bloco secreto** (A): um UniVerso, dois
+  navegadores, a dona e uma conta com *leitor*. Uma nota com um bloco
+  `> [!secret]`, um link, uma tag e um título dentro dele. O leitor: a
+  Leitura, a prévia ao passar o mouse num link para ela, uma incorporação
+  dela noutra nota, uma incorporação do título de dentro do bloco (*não
+  encontrado*, nunca *secreto*), a busca por uma palavra do bloco, os
+  backlinks da nota para a qual o bloco aponta, o painel de tags, o grafo,
+  uma base listando `file.tags`: nada do bloco em lugar nenhum. A dona vê
+  tudo, o bloco com um cadeado e *Oculto para leitores*.
+- [ ] **Uma nota ao vivo** (A): os dois na nota. A dona digita dentro do
+  bloco: nada chega ao leitor; fora dele: a nota do leitor acompanha um
+  instante depois que a dona para (o salvamento da sala), e o leitor vê o
+  nome da dona entre os presentes, mas nenhum cursor. A dona cola um bloco
+  secreto novo numa nota que o leitor tem aberta sem nenhum: a aba do
+  leitor lê a nota de novo, sem ele. O log do servidor não tem ERROR.
+- [ ] **O aparelho de um leitor** (A): o app desktop da conta do leitor
+  sincronizando a pasta: o arquivo no disco dele não tem o bloco (`grep`
+  por uma palavra dele); a dona muda só o de dentro do bloco: o aparelho
+  do leitor não mostra mudança nova; a dona muda uma linha fora dele: o
+  aparelho a traz.
+- [ ] **Um token que só lê** (A): `verso mcp` ou um programa com um token
+  que só lê a pasta: `read_note` e `search` dão a nota sem o bloco.
+- [ ] **Um editor que vira leitor estando na nota** (A): a dona torna um
+  editor leitor, nos membros da pasta, com a janela dele numa nota com
+  bloco secreto: a aba dele lê a nota de novo, sem o bloco.
+- [ ] **Um servidor atualizado** (A): um servidor de uma versão anterior
+  com uma nota que já tem bloco secreto, atualizado: depois da primeira
+  pergunta de sincronização de um aparelho (a pasta percorrida de novo), o
+  aparelho de um leitor guarda a nota sem o bloco.
+- [ ] **Ver como leitor** (A): no app instalado, uma pasta deste
+  computador: o bloco diz *Visível para quem tiver o arquivo*; *Ver como
+  leitor* e *Ver a nota inteira*, pelo ponteiro e por Tab e Enter, o
+  VoiceOver dizendo a faixa.
+
 ### Dados e tabelas sorteadas (ADR 0088, feat/dice, 2026-10-14)
 
 - [ ] **Um dado numa nota rola e não escreve nada** (A): no app

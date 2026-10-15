@@ -121,6 +121,8 @@ Quem recebe vê a pasta como uma pasta **sua**, com o nome dela e o da dona — 
 
 Este vault de demonstração não tem duas contas: para ver o outro lado, use dois navegadores num UniVerso.
 
+Quem só **lê** uma nota não recebe os blocos `[!secret]` dela: o segredo do mestre fica na nota para quem a edita (veja [[24 - Dados e Tabelas Sorteadas#O segredo do mestre|o segredo do mestre]]).
+
 ---
 
 Para o celular e o tablet, veja [[22 - Verso no Celular e no Tablet]]; para rolar dados e sortear numa tabela, [[24 - Dados e Tabelas Sorteadas]]. Volte para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].

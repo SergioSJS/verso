@@ -41,6 +41,14 @@ pub struct Made {
 /// quick key) or none for a deletion, and the path it was renamed from.
 pub type Recorded = (String, Option<(String, i64, String)>, Option<String>);
 
+/// What a reader is told of the notes that hold secret blocks (ADR 0087
+/// item 4): by path, the hash and size of the projection. A path not in
+/// it is told as the file is.
+pub type ReaderOf = HashMap<String, (String, i64)>;
+
+/// One who may only read is told the projection's hash and size.
+const READER_FILE: &str = "COALESCE(reader_hash, hash), COALESCE(reader_size, size)";
+
 /// One change of a folder's log.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -132,14 +140,19 @@ impl Db {
     /// Record what changed, in one transaction: the manifest follows and
     /// each change gets the next number. `quick` refreshes a file whose
     /// bytes did not change.
+    /// `readers`: what a reader is told of the notes among `changes` and
+    /// `recheck` that hold secret blocks; `recheck`, notes read again whose
+    /// bytes did not change, their reader's hash kept up to date. Returns
+    /// the head and, per change, whether a reader sees none (ADR 0087).
     pub fn record(
         &self,
         folder: &str,
-        actor: Option<&str>,
-        device: Option<&str>,
+        (actor, device): (Option<&str>, Option<&str>),
         changes: &[Recorded],
         quick: &[(String, String)],
-    ) -> R<i64> {
+        (readers, recheck): (&ReaderOf, &[String]),
+    ) -> R<(i64, Vec<bool>)> {
+        let mut same_for_reader = Vec::with_capacity(changes.len());
         let mut conn = self.conn();
         let tx = conn.transaction().map_err(e)?;
         let mut seq: i64 = tx
@@ -154,19 +167,35 @@ impl Db {
             seq += 1;
             match now_is {
                 Some((hash, size, q)) => {
+                    let reader = readers.get(path);
+                    // What a reader held of the path, and holds now: the
+                    // same, and not moved, is no change for a reader.
+                    let before: Option<String> = tx
+                        .query_row(
+                            "SELECT COALESCE(reader_hash, hash) FROM manifest WHERE folder = ?1 AND path = ?2",
+                            params![folder, path],
+                            |r| r.get(0),
+                        )
+                        .optional()
+                        .map_err(e)?;
+                    let shown = reader.map_or(hash, |(h, _)| h);
+                    let same = renamed_from.is_none() && before.as_ref() == Some(shown);
+                    same_for_reader.push(same);
+                    let (rh, rs) = (reader.map(|r| &r.0), reader.map(|r| r.1));
                     tx.execute(
-                        "INSERT INTO manifest (folder, path, hash, size, quick, seq) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-                         ON CONFLICT (folder, path) DO UPDATE SET hash = ?3, size = ?4, quick = ?5, seq = ?6",
-                        params![folder, path, hash, size, q, seq],
+                        "INSERT INTO manifest (folder, path, hash, size, quick, seq, reader_hash, reader_size) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                         ON CONFLICT (folder, path) DO UPDATE SET hash = ?3, size = ?4, quick = ?5, seq = ?6, reader_hash = ?7, reader_size = ?8",
+                        params![folder, path, hash, size, q, seq, rh, rs],
                     )
                     .map_err(e)?;
                     tx.execute(
-                        "INSERT INTO changes (folder, seq, path, hash, size, deleted, renamed_from, actor, at, device) VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, ?9)",
-                        params![folder, seq, path, hash, size, renamed_from, actor, at, device],
+                        "INSERT INTO changes (folder, seq, path, hash, size, deleted, renamed_from, actor, at, device, reader_hash, reader_size, reader_same) VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                        params![folder, seq, path, hash, size, renamed_from, actor, at, device, rh, rs, same],
                     )
                     .map_err(e)?;
                 }
                 None => {
+                    same_for_reader.push(false);
                     tx.execute(
                         "DELETE FROM manifest WHERE folder = ?1 AND path = ?2",
                         params![folder, path],
@@ -187,8 +216,94 @@ impl Db {
             )
             .map_err(e)?;
         }
+        for path in recheck {
+            let reader = readers.get(path);
+            tx.execute(
+                "UPDATE manifest SET reader_hash = ?3, reader_size = ?4 WHERE folder = ?1 AND path = ?2",
+                params![folder, path, reader.map(|r| &r.0), reader.map(|r| r.1)],
+            )
+            .map_err(e)?;
+        }
         tx.commit().map_err(e)?;
-        Ok(seq)
+        Ok((seq, same_for_reader))
+    }
+
+    /// The folder's files as a reader is told of them (ADR 0087): a note's
+    /// hash and size its projection's.
+    pub fn reader_manifest(&self, folder: &str) -> R<Vec<(String, String, i64)>> {
+        let conn = self.reader();
+        let mut st = conn
+            .prepare(&format!(
+                "SELECT path, {READER_FILE} FROM manifest WHERE folder = ?1"
+            ))
+            .map_err(e)?;
+        st.query_map([folder], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+            .map_err(e)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(e)
+    }
+
+    /// The last change a reader sees: one only inside a secret block is
+    /// none (ADR 0087). 0 for none.
+    pub fn reader_head(&self, folder: &str) -> R<i64> {
+        self.reader()
+            .query_row(
+                "SELECT COALESCE(MAX(seq), 0) FROM changes WHERE folder = ?1 AND reader_same = 0",
+                [folder],
+                |r| r.get(0),
+            )
+            .map_err(e)
+    }
+
+    /// [`Db::changes_since`] as a reader sees them: without the changes
+    /// only inside secret blocks, a note's hash and size its projection's.
+    pub fn reader_changes_since(&self, folder: &str, since: i64, limit: i64) -> R<Vec<Change>> {
+        let conn = self.reader();
+        let mut st = conn
+            .prepare(
+                "SELECT c.seq, c.path, CASE WHEN c.deleted = 1 THEN NULL ELSE COALESCE(c.reader_hash, c.hash) END,
+                        COALESCE(c.reader_size, c.size), c.deleted, c.renamed_from, c.device,
+                        COALESCE(NULLIF(a.name, ''), a.email)
+                 FROM changes c LEFT JOIN accounts a ON a.id = c.actor
+                 WHERE c.folder = ?1 AND c.seq > ?2 AND c.reader_same = 0 ORDER BY c.seq LIMIT ?3",
+            )
+            .map_err(e)?;
+        st.query_map(params![folder, since, limit], |r| {
+            Ok(Change {
+                seq: r.get(0)?,
+                path: r.get(1)?,
+                hash: r.get(2)?,
+                size: r.get(3)?,
+                deleted: r.get(4)?,
+                renamed_from: r.get(5)?,
+                device: r.get(6)?,
+                by: r.get(7)?,
+            })
+        })
+        .map_err(e)?
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(e)
+    }
+
+    /// Of `paths`, those whose last change a reader does not see: a change
+    /// only inside a secret block (ADR 0087).
+    pub fn reader_unchanged(&self, folder: &str, paths: &[String]) -> R<Vec<String>> {
+        let conn = self.reader();
+        let mut out = Vec::new();
+        for path in paths {
+            let same: Option<bool> = conn
+                .query_row(
+                    "SELECT reader_same FROM changes WHERE folder = ?1 AND path = ?2 ORDER BY seq DESC LIMIT 1",
+                    params![folder, path],
+                    |r| r.get(0),
+                )
+                .optional()
+                .map_err(e)?;
+            if same == Some(true) {
+                out.push(path.clone());
+            }
+        }
+        Ok(out)
     }
 
     /// The changes after `since`, oldest first, at most `limit`.
@@ -224,12 +339,12 @@ impl Db {
     /// `roots` — the shared folder's path and the attachments folder it
     /// shows (ADR 0081 items 6 and 11). The share's own count of changes:
     /// its head, never the folder's (3.18).
-    pub fn share_seq(&self, folder: &str, roots: &[&str], upto: i64) -> R<i64> {
+    pub fn share_seq(&self, folder: &str, roots: &[&str], upto: i64, reader: bool) -> R<i64> {
         let (a, b) = two_roots(roots);
         self.reader()
             .query_row(
-                &format!("SELECT COUNT(*) FROM changes WHERE folder = ?1 AND seq <= ?2 AND {SEEN}"),
-                params![folder, upto, a, b],
+                &format!("SELECT COUNT(*) FROM changes WHERE folder = ?1 AND seq <= ?2 AND {SEEN} AND (?5 = 0 OR reader_same = 0)"),
+                params![folder, upto, a, b, reader],
                 |r| r.get(0),
             )
             .map_err(e)
@@ -238,7 +353,13 @@ impl Db {
     /// The folder's number of the `n`-th change a share sees (counted
     /// from 1, as [`Db::share_seq`] counts them); `None` when it sees
     /// fewer.
-    pub fn share_change(&self, folder: &str, roots: &[&str], n: i64) -> R<Option<i64>> {
+    pub fn share_change(
+        &self,
+        folder: &str,
+        roots: &[&str],
+        n: i64,
+        reader: bool,
+    ) -> R<Option<i64>> {
         if n < 1 {
             return Ok(None);
         }
@@ -246,9 +367,10 @@ impl Db {
         self.reader()
             .query_row(
                 &format!(
-                    "SELECT seq FROM changes WHERE folder = ?1 AND {SEEN} ORDER BY seq LIMIT 1 OFFSET ?2"
+                    "SELECT seq FROM changes WHERE folder = ?1 AND {SEEN} AND (?5 = 0 OR reader_same = 0)
+                     ORDER BY seq LIMIT 1 OFFSET ?2"
                 ),
-                params![folder, n - 1, a, b],
+                params![folder, n - 1, a, b, reader],
                 |r| r.get(0),
             )
             .optional()

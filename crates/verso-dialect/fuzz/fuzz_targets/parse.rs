@@ -19,7 +19,10 @@
 //! `</blockquote>` on a callout's title line, on which `to_html` sliced the
 //! HTML backwards and panicked (Opus reading of Phase 2, finding 1). The
 //! same input is read as a base and as one expression of a base's
-//! language, which must return as well (ADR 0053). Seeds
+//! language, which must return as well (ADR 0053). The projection a
+//! UniVerso serves a reader (ADR 0087 item 3) returns too, keeps only
+//! whole lines of the input in their order, and settles: the projection
+//! of a projection is itself, with no secret callout left in it. Seeds
 //! run smallest first, so a seed that fails ends the job before any
 //! mutation: a seed is only added once it passes. Run:
 //! `cargo +nightly fuzz run parse fuzz/corpus/parse fuzz/seeds`.
@@ -97,4 +100,13 @@ fuzz_target!(|data: &[u8]| {
         let _ = verso_dialect::bases::parse_expression(text);
     }
     let _ = verso_dialect::bases::parse_expression(source);
+    // A reader's projection (ADR 0087): whole lines of the input, in order,
+    // and nothing left to remove.
+    let projected = verso_dialect::project(source);
+    let mut kept = source.split_inclusive('\n');
+    for line in projected.split_inclusive('\n') {
+        assert!(kept.any(|l| l == line), "{line:?} is not a line of the input");
+    }
+    assert!(verso_dialect::Secrets::of(&projected).is_empty());
+    assert_eq!(verso_dialect::project(&projected), projected);
 });

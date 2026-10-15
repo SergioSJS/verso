@@ -260,6 +260,16 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     que o Verso não lê isso. `dice: 3d6!` rola mais um dado a cada 6, e
     `dice: d%` é um d100. Nível: H; E: `dice.spec.mjs`; U:
     `test/dice.test.mjs`.
+16. Nota 24, "O segredo do mestre" ([ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md)):
+    na Leitura o callout `[!secret]` tem um cadeado e *Visível para quem
+    tiver o arquivo* no título (uma pasta deste computador não esconde
+    nada). *Ver como leitor*, ao lado de Ler e Editar, mostra a nota sem o
+    bloco, uma faixa dizendo *Vendo como um leitor* com *Ver a nota
+    inteira*, que o traz de volta; o Editar sai da visão do leitor. No
+    Editar, `/` › Destaques › *Segredo* escreve `> [!secret] ` e diz que
+    não é criptografia. Uma nota sem bloco secreto não oferece o botão.
+    Abrir e alternar não escrevem nada. Nível: H; E: `secret.spec.mjs`;
+    U: `test/secret.test.mjs`.
 
 ## 4. Organizar: propriedades, bases, notas diárias
 
@@ -1022,6 +1032,24 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
     ignorada); cinco janelas com a fusão e o conversor da própria janela
     (`boardStress.test.mjs`); três janelas em dois motores trabalhando ao
     acaso por um minuto (e2e-server, "three windows, two engines").
+13. Blocos secretos ([ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md)):
+    a dona de uma pasta copia o bloco secreto da nota 24 para uma nota e dá
+    *leitor* a outra conta. A janela de quem lê mostra a nota sem o bloco —
+    na Leitura, na prévia ao passar o mouse, numa incorporação dela, na
+    busca (*estalajadeira* não acha nada), nos backlinks, nas tags e no
+    grafo, numa base; a da dona o mostra com um cadeado e *Oculto para
+    leitores*, e *Ver como leitor* mostra o que o leitor recebe. As duas
+    na nota ao mesmo tempo: a dona digita dentro do bloco e fora dele; a
+    nota do leitor segue o que está fora assim que a sala grava, com o nome
+    da dona presente e sem cursor; a dona cola um segredo novo numa nota
+    que o leitor tem aberta, e a aba do leitor lê a nota de novo sem ele. Um
+    aparelho do leitor que sincroniza a pasta guarda a nota sem o bloco, e
+    uma mudança só dentro dele não é mudança ali. Nível: H; R:
+    `tests_secret.rs` (todo comando do contrato como leitor, uma nota ao
+    vivo, a sincronização, um compartilhamento, um papel que vira leitor),
+    o `tests/workspace/reader.rs` do núcleo, o `tests/secret.rs` do índice,
+    o `tests/secret.rs` do dialeto e `fixtures/callout/secret` (rascunho da
+    IA); A: `manual-checks.md`.
 
 ## 14. O fim
 

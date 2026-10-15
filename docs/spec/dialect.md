@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.41
+# Verso dialect spec — v0.42
 
-- Version: v0.41 · 2026-10-14
+- Version: v0.42 · 2026-10-14
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -70,6 +70,7 @@ does not follow the schema is invalid.
 | `property_links` | list of the links frontmatter properties hold (Q10), in the order written (§4.7) | not asserted |
 | `schemas` | list of the fenced `verso-schema` blocks, nested ones included, in document order (§4.8) | not asserted |
 | `prose` | list of the note's runs of prose, in document order (§4.9) | not asserted |
+| `reader` | the note as a UniVerso serves it to an account that may only read it — its projection, the lines of each secret callout removed (Q9; [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md) item 3) — as a text, byte for byte | not asserted |
 | `observed` | how the behavior was verified in Obsidian | see 4.5 |
 | `source` | ADR or question that authorizes a behavior that is Verso's own | see 4.5 |
 
@@ -153,10 +154,12 @@ cites the ADR or the question that authorizes it in `source:`.
 
 ### 4.6 Outside the schema
 
-There is no field for per-block visibility, inline tags or link resolution:
-each one enters the schema when the corresponding question closes, with a PR
-that updates this section. The typed relation entered with Q10, as
-`property_links` (§4.7, v0.23).
+There is no field for inline tags or link resolution: each one enters the
+schema when the corresponding question closes, with a PR that updates this
+section. The typed relation entered with Q10, as `property_links` (§4.7,
+v0.23); per-block visibility with Q9, as `reader` (§4.1, v0.42): a secret
+callout is listed in `callouts` as any callout is, and `reader` is what a
+reader receives of the note.
 
 ### 4.7 Items of `property_links`
 
@@ -727,6 +730,7 @@ Categories added in the Phase 0 review, outside the briefing's minimum:
 | Markdown link to a local file | 5.13 | `PROPOSED` |
 | position (`pos`) in at least one fixture per construct | 4.4 | required by [ADR 0018](../adr/0018-llm-native-mcp-in-core.md) |
 | schema (a `verso-schema` block) | 4.8, 6 | drafted on 2026-10-07 with ADR 0052's implementation, approved the same day; `schema/infobox` drafted on 2026-10-14 with ADR 0086's, approved the same day |
+| per-block visibility (a `[!secret]` callout) | 4.1, 5.8, 6 | `callout/secret` drafted on 2026-10-14 with ADR 0087's implementation, awaiting approval |
 
 Any fixture may be drafted by the AI; it only counts with the maintainer's
 approval in the PR that adds it (ADR 0031). A draft says so on the first line
@@ -774,7 +778,10 @@ behavior is implemented. None of them has an answer in the briefing.
   index. **No fixture yet**: the fixture of this question comes with the
   PR that builds ADR 0087, drafted by the AI and approved by the
   maintainer there (ADR 0031); no `fixtures/**` file changed with this
-  answer.
+  answer. *(v0.42: that PR drafted `fixtures/callout/secret`, whose
+  `reader` key asserts the projection — a block at the top level, one
+  inside another callout with the kind in capitals, one in a list item, a
+  `[!secrets]` kept — for the maintainer's approval.)*
 - **Q10. Typed relation syntax.** `DECIDED` on 2026-09-30.
   Decide before implementing relations (§17 item 6). Requirements already fixed:
   type and direction, several relations between the same two nodes
@@ -1401,3 +1408,4 @@ the parser was chosen.
 | v0.39 | 2026-10-14 | [ADR 0086](../adr/0086-infobox-a-typed-notes-card.md), accepted the same day, implemented: a schema's kinds `link` and `image` and its top-level `layout` (`infobox`) enter §4.8, §6 and Q11's format; the fixture `fixtures/schema/infobox` drafted, awaiting the maintainer's approval. The approved fixture `fixtures/schema/nested-and-invalid` writes `kind: link` as its unknown kind, which `link` no longer is: its input waits for the maintainer (invariants 14 and 16). No question closed. |
 | v0.40 | 2026-10-14 | The schema gains `prose` (§4.1, §4.9): the runs of prose of [ADR 0089](../adr/0089-linking-unlinked-mentions.md) item 1, what the mentions are looked for in, by the maintainer's answer M6 (*"Sim, todas"*); the fixture `fixtures/prose/what-is-prose` drafted, awaiting the maintainer's approval. No question closed. |
 | v0.41 | 2026-10-14 | The fixtures `fixtures/code/dice-inline`, `fixtures/prose/what-is-prose` and `fixtures/schema/infobox` **approved by the maintainer** in session (*"Aprovo as 3"*), and with them the schema's key `prose` (§4.1, §4.9) of v0.40; their draft mark removed. `code/dice-inline` observed in Obsidian 1.14.4 through its CLI, without the Dice Roller plugin, before the approval was recorded: its links and its block are Obsidian's, its `observed:` says how. Nothing else changes. |
+| v0.42 | 2026-10-14 | The schema gains `reader` (§4.1, §4.6): the note as a UniVerso serves a reader, the projection of Q9 and [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md) item 3. The drafted fixture `fixtures/callout/secret`, with the PR that builds ADR 0087, awaits the maintainer's approval; Q9's paragraph says so. No decision changed |

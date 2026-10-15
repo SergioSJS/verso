@@ -44,6 +44,7 @@ pub mod presence;
 pub mod proof;
 pub mod proxy;
 pub mod quota;
+pub mod readers;
 pub mod rpc;
 pub mod scope;
 pub mod security_txt;
@@ -357,6 +358,8 @@ mod tests_resources;
 mod tests_room_inputs;
 #[cfg(test)]
 mod tests_rooms;
+#[cfg(test)]
+mod tests_secret;
 #[cfg(test)]
 mod tests_share_given;
 #[cfg(test)]

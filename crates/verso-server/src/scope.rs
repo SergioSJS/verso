@@ -580,7 +580,7 @@ impl Scope {
     /// The space the share's files take (ADR 0075 item 4): the shared
     /// folder's, never the owner's whole folder's.
     #[must_use]
-    pub fn space(&self, ws: &verso_core::Workspace) -> verso_contract::FolderSpace {
+    pub fn space(&self, entries: &[verso_core::FileEntry]) -> verso_contract::FolderSpace {
         let mut space = verso_contract::FolderSpace {
             total: 0.0,
             notes: 0.0,
@@ -588,7 +588,7 @@ impl Scope {
             files: 0,
             index: 0.0,
         };
-        for e in ws.entries() {
+        for e in entries {
             if !covers(&self.root, &e.path) {
                 continue;
             }

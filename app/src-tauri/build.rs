@@ -53,6 +53,7 @@ fn main() {
         "board_text",
         "board_preview",
         "render_markdown",
+        "project_secrets",
         "rename_entry",
         "move_entries",
         "notes_of_type",

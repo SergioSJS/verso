@@ -48,6 +48,8 @@ pub const ROLLS_KEPT: usize = 20;
 #[path = "collab_dice.rs"]
 mod rolls;
 pub use rolls::roll;
+#[path = "collab_readers.rs"]
+pub(crate) mod readers;
 /// The text's name inside the document, as the window's binding names it.
 pub const TEXT: &str = "verso";
 
@@ -103,6 +105,9 @@ pub struct Room {
     board: crate::collab_board::Board,
     /// The last rolls of dice in it (ADR 0088 item 4; `collab_dice.rs`).
     rolls: std::collections::VecDeque<verso_contract::DiceRoll>,
+    /// Who may only read the note, and what they are served when it holds
+    /// secret blocks (ADR 0087 item 4; `collab_readers.rs`).
+    readers: readers::Readers,
 }
 
 impl Room {
@@ -305,12 +310,14 @@ impl Rooms {
     }
 }
 
-/// Push `message` to the room's windows but `except`.
+/// Push `message` to the room's windows but `except` — and but the
+/// readers served its projection (ADR 0087), who hear nothing of its
+/// document (`collab_readers.rs`).
 fn tell(server: &Server, room: &Room, except: Option<&str>, message: &serde_json::Value) {
     let to: Vec<String> = room
         .clients
         .iter()
-        .filter(|c| Some(c.as_str()) != except)
+        .filter(|c| Some(c.as_str()) != except && !room.readers.hides(c))
         .cloned()
         .collect();
     server.push(&to, message);
@@ -391,15 +398,15 @@ fn write_file(
 /// made again from the file ([`reload`]) and joined.
 pub fn join(
     server: &Arc<Server>,
-    client: &str,
+    (client, reader): (&str, bool),
     key: &str,
     path: &str,
     user: &str,
 ) -> Result<CollabJoin, ContractError> {
-    match join_room(server, client, key, path, user) {
+    match join_room(server, (client, reader), key, path, user) {
         Err(e) if e.message == BROKEN => {
             reload(server, key, path, "its state could not be made");
-            join_room(server, client, key, path, user)
+            join_room(server, (client, reader), key, path, user)
         }
         joined => joined,
     }
@@ -413,7 +420,7 @@ pub const JOINED_MOST: usize = 64;
 
 fn join_room(
     server: &Arc<Server>,
-    client: &str,
+    (client, reader): (&str, bool),
     key: &str,
     path: &str,
     user: &str,
@@ -443,7 +450,8 @@ fn join_room(
                     return Ok(CollabJoin {
                         kind: wire,
                         update: String::new(),
-                        revision: note.revision,
+                        // A reader is not told the file's (ADR 0087).
+                        revision: if reader { String::new() } else { note.revision },
                         read_only: true,
                         crlf: false,
                         user: user.to_owned(),
@@ -472,6 +480,7 @@ fn join_room(
                 writers: crate::writers::Writers::new(),
                 board,
                 rolls: std::collections::VecDeque::new(),
+                readers: readers::Readers::default(),
             }));
             let mut map = lock(&server.rooms.map);
             // Two windows joining at once: the first room made stays.
@@ -479,6 +488,11 @@ fn join_room(
         }
     };
     let mut r = lock(&room);
+    // A reader of a note with secret blocks joins its projection's own
+    // document (ADR 0087 item 4).
+    if reader && let Some(joined) = readers::join(server, &mut r, client, user)? {
+        return Ok(joined);
+    }
     let state = state(&r.doc, r.kind)?;
     r.clients.insert(client.to_owned());
     Ok(CollabJoin {
@@ -562,6 +576,7 @@ pub fn update(
         } = &mut *r;
         crate::writers::claim(who, &clients, writers, present);
     }
+    readers::guard(server, &mut r);
     tell(
         server,
         &r,
@@ -774,6 +789,7 @@ pub fn awareness(
     } = &mut *r;
     let stamped =
         crate::presence::stamped(&bytes, who, claims, clients).map_err(|e| refused(&e))?;
+    let stamped = readers::presence(server, &r, who.client, stamped);
     tell(
         server,
         &r,
@@ -845,6 +861,7 @@ pub fn write(server: &Server, room: &Arc<Mutex<Room>>) -> Result<String, Contrac
             match text {
                 Some(text) => {
                     r.saved = text;
+                    readers::written(server, &mut r);
                     // Measured again once written, as a board's is.
                     let size = crate::collab_board::Board::measured(&r.doc).bytes;
                     r.board.bytes = size;
@@ -905,6 +922,7 @@ pub fn leave(server: &Server, client: &str, key: &str, path: &str) {
     let empty = {
         let mut r = lock(&room);
         r.clients.remove(client);
+        r.readers.forget(client);
         r.clients.is_empty()
     };
     if empty && settled(server, &room) {
@@ -956,6 +974,7 @@ pub fn gone(server: &Arc<Server>, client: &str) {
         let empty = {
             let mut r = lock(&room);
             r.clients.remove(client);
+            r.readers.forget(client);
             r.clients.is_empty()
         };
         if !empty {
@@ -1008,6 +1027,7 @@ pub fn gone_now(server: &Server, client: &str) {
         let empty = {
             let mut r = lock(&room);
             r.clients.remove(client);
+            r.readers.forget(client);
             r.clients.is_empty()
         };
         if empty && settled(server, &room) {
@@ -1112,6 +1132,7 @@ pub fn resolve(
                 return Ok(note.revision);
             };
             if let Some(update) = apply_text(&r.doc, &text) {
+                readers::guard(server, &mut r);
                 tell(
                     server,
                     &r,
@@ -1121,6 +1142,7 @@ pub fn resolve(
             }
             r.crlf = crlf;
             r.saved = text;
+            readers::written(server, &mut r);
             r.revision = note.revision;
             r.conflict = false;
             tell(
@@ -1150,13 +1172,9 @@ pub fn resolve(
 pub fn close(server: &Server, key: &str, path: &str) {
     let room = lock(&server.rooms.map).remove(&(key.to_owned(), path.to_owned()));
     if let Some(room) = room {
-        let r = lock(&room);
-        tell(
-            server,
-            &r,
-            None,
-            &event("collab-closed", path, "revision", &json!(null)),
-        );
+        // Every window, its readers too: each reads the file again.
+        let to: Vec<String> = lock(&room).clients.iter().cloned().collect();
+        server.push(&to, &event("collab-closed", path, "revision", &json!(null)));
     }
 }
 
@@ -1252,6 +1270,7 @@ pub fn changed_outside(server: &Server, key: &str, changed: &[String], removed: 
             continue;
         }
         if let Some(update) = apply_text(&r.doc, &text) {
+            readers::guard(server, &mut r);
             tell(
                 server,
                 &r,
@@ -1261,6 +1280,7 @@ pub fn changed_outside(server: &Server, key: &str, changed: &[String], removed: 
         }
         r.crlf = crlf;
         r.saved = text;
+        readers::written(server, &mut r);
         r.revision = note.revision;
         tell(
             server,
@@ -1287,7 +1307,7 @@ pub fn write_through(
         .get(key, path)
         .ok_or_else(|| refused("not shared"))?;
     {
-        let r = lock(&room);
+        let mut r = lock(&room);
         if r.kind == Kind::Board {
             return Err(changed(
                 "the board is being edited together: its changes go through its room",
@@ -1300,6 +1320,7 @@ pub fn write_through(
             return Err(changed("the note changed since it was read"));
         }
         if let Some(update) = merge_into(&r.doc, &r.saved, text)? {
+            readers::guard(server, &mut r);
             tell(
                 server,
                 &r,

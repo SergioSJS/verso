@@ -178,6 +178,45 @@ in the real app.
   Cinzento`'s properties show as Obsidian shows them, the habitants as
   links, the schema's note as a code block.
 
+### Secret blocks (ADR 0087, feat/secret-blocks, 2026-10-14)
+
+- [ ] **A reader never sees a secret block** (A): a UniVerso, two
+  browsers, the owner and an account given *leitor*. A note with a
+  `> [!secret]` block, a link, a tag and a heading inside it. The reader:
+  Leitura, the hover preview of a link to it, an embed of it in another
+  note, an embed of the heading inside the block (*not found*, never
+  *secret*), the search for a word of the block, the backlinks of the note
+  the block links to, the tags pane, the graph, a base listing
+  `file.tags`: nothing of the block anywhere. The owner sees all of it,
+  the block with a lock and *Oculto para leitores*.
+- [ ] **A live note** (A): both in the note. The owner types inside the
+  block: nothing reaches the reader; outside it: the reader's note follows
+  a moment after the owner stops (the room's save), and the reader sees
+  the owner's name among those present but no cursor. The owner pastes a
+  new secret block into a note the reader has open without one: the
+  reader's tab reads the note again, without it. The server's log has no
+  ERROR.
+- [ ] **A reader's device** (A): the desktop app of the reader's account
+  syncing the folder: the file on its disk has no block (`grep` for a
+  word of it); the owner changes only the inside of the block: the
+  reader's device shows no new change; the owner changes a line outside
+  it: the device brings it.
+- [ ] **A read-only token** (A): `verso mcp` or a program with a token that
+  only reads the folder: `read_note` and `search` give the note without
+  the block.
+- [ ] **An editor made a reader while in the note** (A): the owner turns an
+  editor into a reader in the folder's members while the editor's window
+  is in a note with a secret block: its tab reads the note again, without
+  the block.
+- [ ] **An upgraded server** (A): a server of an earlier version with a
+  note that already holds a secret block, updated: after the first sync
+  question of a device (the folder walked again), a reader's device holds
+  the note without the block.
+- [ ] **View as a reader** (A): in the installed app, a folder of this
+  computer: the block says *Visível para quem tiver o arquivo*; *Ver como
+  leitor* and *Ver a nota inteira*, by the pointer and by Tab and Enter,
+  VoiceOver saying the strip.
+
 ### Dice and random tables (ADR 0088, feat/dice, 2026-10-14)
 
 - [ ] **A die in a note rolls and writes nothing** (A): in the installed

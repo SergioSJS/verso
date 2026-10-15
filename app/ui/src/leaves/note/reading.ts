@@ -447,7 +447,11 @@ export async function paintPreview(this: NoteLeaf): Promise<void> {
     if (e instanceof BaseView) liveBases.delete(e);
   }
   this.embeds = [];
-  setHtml(this.preview, withNoteLinks(note.html, note.path));
+  // A writer's "view as a reader" (ADR 0087 item 5): the projection, from
+  // the core, read-only.
+  this.readerView.offer(note.path, note.text);
+  const reader = this.readerView.on ? await this.readerView.html(note.text) : null;
+  setHtml(this.preview, withNoteLinks(reader?.html ?? note.html, note.path));
   wireCallouts(this.preview, open);
   keyLinks(this.preview);
   this.shownText = note.text;
@@ -456,9 +460,9 @@ export async function paintPreview(this: NoteLeaf): Promise<void> {
   this.mountBases(note.path);
   void this.embedImages(note.path);
   void noteImages(this.preview, note.path);
-  this.wireTasks();
+  if (!reader) this.wireTasks();
   this.dressLinks(note.path);
-  this.wireTableResizers(this.preview);
+  if (!reader) this.wireTableResizers(this.preview);
   this.wireMermaidBlocks(this.preview);
   this.wireCodeBlocks(this.preview);
   wireDice(this.preview, { path: () => this.path, follow: (target) => this.follow(target) });
@@ -466,7 +470,7 @@ export async function paintPreview(this: NoteLeaf): Promise<void> {
   this.wireHeadingFolds(this.preview);
   this.wireListFolds(this.preview);
   this.wireBlockquoteFolds(this.preview);
-  this.wireReadingLineNumbers(this.preview, note.text);
+  this.wireReadingLineNumbers(this.preview, reader?.text ?? note.text);
   if (this.readingSearch?.isOpen) this.readingSearch.find();
   if (key) byFocusKey(this.preview, key)?.focus({ preventScroll: true });
 }
