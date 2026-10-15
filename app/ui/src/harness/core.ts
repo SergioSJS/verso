@@ -59,6 +59,7 @@ import type {
   SyncStatus,
 } from "../bindings";
 import { Bin } from "./trash";
+import { Maps } from "./maps";
 import { applyPeriodic, obsidianPeriodic, readPeriodic, sortedDeep } from "./periodic";
 import { blocksOf, fitsKind, headingsOf, propertiesOf, propertyList, readableLines, renderMarkdown, schemaBlocksOf } from "./markdown";
 import { projectSecrets } from "./secret";
@@ -276,6 +277,8 @@ export class Core {
   readonly folders = new Set<string>();
   /** The folder's trash and what is known of it (ADR 0080). */
   readonly bin = new Bin(this);
+  /** A large picture's tiles and a reader's board (ADR 0090). */
+  readonly maps = new Maps();
   /** This machine's folder note name setting (`set_folder_note_name`):
    *  what applies while the folder has no `.verso/settings.json`. */
   private machineNoteName = "";
@@ -1424,6 +1427,7 @@ export class Core {
     },
     folder_sync_now: () => null,
     ...this.bin.handlers(),
+    ...this.maps.handlers(),
     // The harness stands in for the desktop app (ADR 0058).
     capabilities: (): Capabilities => ({
       host: "desktop",

@@ -1,0 +1,40 @@
+/* Maps on the board (ADR 0090): the tiles of a large picture, the pins at
+   one size on the screen at any zoom, the lock on a secret card, and the
+   strip that says the board is shown as a reader receives it. */
+
+/* The tiles: laid out inside the picture's card by percentages of the
+   picture, so the card's zoom (a CSS zoom or a scale) never matters. */
+.board-card-image.board-map { overflow: hidden; background: var(--paper-3); }
+.map-tiles { position: absolute; inset: 0; }
+.map-tiles-fit { position: absolute; overflow: hidden; }
+.map-tile { position: absolute; display: block; max-width: none; user-select: none; -webkit-user-drag: none; }
+.map-tiles-wait { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); margin: 0; padding: .35rem .7rem; border-radius: 6px; background: var(--paper); color: var(--ink-2); border: 1px solid var(--hair); font: .85rem var(--ui); }
+.board-map-note { position: absolute; left: .5rem; right: .5rem; bottom: .5rem; margin: 0; padding: .35rem .6rem; border-radius: 6px; background: var(--seal-wash); color: var(--ink); border: 1px solid color-mix(in oklch, var(--seal) 35%, transparent); font: .8rem var(--ui); z-index: 1; }
+
+/* The pins: a layer of their own over the cards, each mark placed by the
+   board on every move of the view, so a zoom never stretches it. */
+.board-pins { position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
+.board-cards.has-active ~ .board-pins { z-index: 3; }
+.board-pin { position: absolute; left: 0; top: 0; display: inline-flex; align-items: center; gap: .3rem; margin: -14px 0 0 -14px; padding: 0; border: 0; background: none; color: var(--ink); font: 600 .78rem var(--ui); cursor: pointer; will-change: transform; max-width: 16rem; }
+.board-pin.is-far { display: none; }
+.board-pin-mark { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--seal); color: var(--paper); border: 2px solid var(--paper); box-shadow: 0 1px 4px oklch(0% 0 0 / .4); }
+.board-pin-sticker { display: grid; place-items: center; line-height: 1; font-size: 15px; }
+.board-pin-label { padding: .1rem .4rem; border-radius: 4px; background: color-mix(in oklch, var(--paper) 92%, transparent); border: 1px solid var(--hair); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 1px 3px oklch(0% 0 0 / .25); }
+.board-pin.is-selected .board-pin-mark { outline: 2px solid var(--brass); outline-offset: 2px; }
+.board-pin.is-missing .board-pin-mark { background: var(--ink-3); }
+.board-pin.is-missing .board-pin-label { text-decoration: line-through; }
+.board-pin.is-secret .board-pin-mark { border-style: dashed; }
+.board-pin:focus-visible { outline: none; }
+.board-pin:focus-visible .board-pin-mark { outline: 3px solid var(--brass); outline-offset: 2px; }
+.board-canvas.is-over-pin .excalidraw canvas.interactive { cursor: pointer !important; }
+@media (prefers-reduced-motion: no-preference) { .board-pin-mark { transition: outline-offset .12s ease; } }
+
+/* A secret card (ADR 0090 item 5): a lock in its corner. */
+.board-secret-badge { position: absolute; top: .25rem; right: .25rem; z-index: 2; margin: 0; padding: .1rem .3rem; border-radius: 4px; background: var(--seal-wash); border: 1px solid color-mix(in oklch, var(--seal) 35%, transparent); font: .7rem var(--ui); }
+.board-pin .board-secret-badge { position: static; padding: .1rem .25rem; }
+.board-reader-banner { position: absolute; left: .5rem; right: .5rem; bottom: .5rem; z-index: 5; margin: 0; }
+
+/* The side panel's maps and pins. */
+.board-maps-panel .board-outline-map { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem; }
+.board-outline-act { padding: .15rem .45rem; border-radius: 4px; border: 1px solid var(--hair); background: var(--paper); color: var(--ink-2); font-size: .78rem; cursor: pointer; }
+.board-outline-act:hover { border-color: var(--seal); color: var(--seal); }

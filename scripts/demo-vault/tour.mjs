@@ -210,6 +210,7 @@ const STOPS = [
       "• ⇄ troca o arquivo de um cartão\n" +
       "• ⌘⇧E exporta o board como imagem\n" +
       "• ⌘F busca no board\n" +
+      "• Uma imagem vira mapa, com alfinetes que abrem notas\n" +
       "• Texto, no canto da aba, mostra o JSON",
     tipX: 760,
     tipY: 430,

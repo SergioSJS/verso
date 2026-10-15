@@ -4,6 +4,7 @@
 
 import { exportToBlob, exportToSvg } from "@excalidraw/excalidraw";
 import { type JSX, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useRef, useState } from "react";
+import { mapStrings } from "./mapStrings";
 import { type Crop } from "./model";
 import { dataUrlOf, PICTURE, pictureScene } from "./pictures";
 import { type BoardStrings } from "./strings";
@@ -132,8 +133,12 @@ export function CropDialog({ src, crop, strings: s, onApply, onClose }: { src: s
 /** Excalidraw's export dialog drew each card as an empty web embed; this
  *  one draws the board as it reads (`pictureScene`), and saves the picture
  *  in the folder, in Downloads, or copies it. */
-export function ExportDialog({ api, host, selected, onClose }: { api: Api; host: BoardHost; selected: readonly string[]; onClose: () => void }): JSX.Element {
+export function ExportDialog({ api, host, selected, secretIds, onClose }: { api: Api; host: BoardHost; selected: readonly string[]; secretIds?: () => Promise<ReadonlySet<string>>; onClose: () => void }): JSX.Element {
   const s = host.strings;
+  const ms = mapStrings(host.lang);
+  // A board with secret cards asks whether to leave them out of the
+  // picture, left out by default (ADR 0090 item 6).
+  const [leaveOut, setLeaveOut] = useState(true);
   const [format, setFormat] = useState<"png" | "svg">("png");
   const [scale, setScale] = useState(2);
   const [background, setBackground] = useState(true);
@@ -146,7 +151,8 @@ export function ExportDialog({ api, host, selected, onClose }: { api: Api; host:
 
   const render = useCallback(
     async (fmt: "png" | "svg", k: number): Promise<Blob> => {
-      const { elements, files } = await pictureScene(api, host, only && hasSelection ? selected : null);
+      const omit = secretIds && leaveOut ? await secretIds() : null;
+      const { elements, files } = await pictureScene(api, host, only && hasSelection ? selected : null, omit);
       const bg = api.getAppState().viewBackgroundColor;
       const appState = {
         exportBackground: background,
@@ -167,7 +173,7 @@ export function ExportDialog({ api, host, selected, onClose }: { api: Api; host:
         getDimensions: (w: number, h: number) => ({ width: w * k, height: h * k, scale: k }),
       });
     },
-    [api, host, only, hasSelection, selected, background, dark],
+    [api, host, only, hasSelection, selected, background, dark, secretIds, leaveOut],
   );
 
   useEffect(() => {
@@ -274,6 +280,11 @@ export function ExportDialog({ api, host, selected, onClose }: { api: Api; host:
           <label className={hasSelection ? "" : "is-off"}>
             <input type="checkbox" disabled={!hasSelection} checked={only && hasSelection} onChange={(e) => setOnly(e.currentTarget.checked)} /> {s.exportSelection}
           </label>
+          {secretIds && (
+            <label>
+              <input type="checkbox" checked={leaveOut} onChange={(e) => setLeaveOut(e.currentTarget.checked)} data-testid="board-export-secret" /> {ms.exportSecret}
+            </label>
+          )}
         </div>
         <div className="board-export-actions">
           <button type="button" className="primary" disabled={busy} title={s.exportToFolderTitle} onClick={toFolder}>
