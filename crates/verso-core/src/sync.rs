@@ -41,7 +41,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::{Deserialize, Serialize};
 
 mod append;
-pub use append::{append_merge, merges_by_append};
+pub use append::{append_merge, merges_by_append, template_merge};
 
 /// A file as one side holds it: its bytes' SHA-256 and size.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -80,6 +80,13 @@ pub struct State {
     /// it until the person turns sync on again.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub revoked: Option<Revoked>,
+    /// Path → the SHA-256 of the text a note was made with on this
+    /// computer from its template — a periodic note filled from its
+    /// template (ADR 0093 item 12) — kept until the server has the path:
+    /// the base of [`template_merge`] when the server holds a note of the
+    /// same name another device made apart.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub made: BTreeMap<String, String>,
 }
 
 /// A share revoked by its owner, as the device heard it.

@@ -15,6 +15,8 @@ import { bookmarks } from "../bookmarks";
 import { currentFolder } from "../folder";
 import { changeFolder, folderValues, folderWritable } from "../folderLayer";
 import type { Scope } from "../organize/layerRules";
+import { periodicBody } from "../periodic/settingsView";
+import { ps } from "../periodic/strings";
 import { icon } from "../icons";
 import { allCommands, comboOf, DEFAULT_KEYS, keyOf, MAC, paintKeyHints, prettyKeys, reloadWindow, RESERVED } from "../keys";
 import { LINUX, WINDOWS } from "../platform";
@@ -126,6 +128,8 @@ export class SettingsDialog {
       { id: "editor", label: t.sEditor, icon: "edit" },
       { id: "organizing", label: t.sOrganizing, icon: "folder" },
       { id: "files", label: t.sFiles, icon: "folder" },
+      // Periodic notes, the folder's settings (ADR 0093 item 4).
+      ...(currentFolder ? [{ id: "periodic", label: ps.section, icon: "calendar" }] : []),
       // The folder's trash (ADR 0080 item 4), for whoever may change it.
       ...(currentFolder && can("write") ? [{ id: "trash", label: trashStrings().section, icon: "trash" }] : []),
       { id: "board", label: boardText.sBoard, icon: "board" },
@@ -625,7 +629,10 @@ export class SettingsDialog {
     add("editor", t.lineNumbersSource, t.lineNumbersSourceDesc, () => this.toggle(settings.lineNumbersSource, (v) => { settings.lineNumbersSource = v; saveSettings(); }), t.lineNumbers);
     add("files", t.linkFormat, t.linkFormatDesc, () => this.select([["shortest", t.linkShortest], ["relative", t.linkRelative], ["root", t.linkRoot]], settings.linkFormat, (v) => { settings.linkFormat = v; saveSettings(); }));
     add("files", t.attachments, t.attachmentsDesc, () => this.text(settings.attachments, (v) => { settings.attachments = v; saveSettings(); }));
-    add("files", t.dailyFolder, t.dailyDesc, () => this.text(settings.daily, (v) => { settings.daily = v; saveSettings(); }));
+    // The daily notes' folder is the folder's now, with the other periods
+    // (ADR 0093 item 4); without a folder open, this machine's, as before.
+    if (!currentFolder) add("files", t.dailyFolder, t.dailyDesc, () => this.text(settings.daily, (v) => { settings.daily = v; saveSettings(); }));
+    if (currentFolder) out.push({ section: "periodic", title: ps.section, desc: ps.sectionDesc, node: () => periodicBody((a, b, c, d) => this.item(a, b, c, d), () => this.paint()) });
     add("files", t.templates, t.templatesDesc, () => this.text(settings.templates, (v) => { settings.templates = v; saveSettings(); }));
     // Tab indents in an editor: how the keyboard leaves one, said where
     // the keys are (CodeMirror's own way out: Esc then Tab, or its

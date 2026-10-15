@@ -17,7 +17,7 @@ const { effective, firstWrite, seed, shouldMove, toggled, usable, writable } = a
   return import("./.bundles/layerRules.test-bundle.mjs");
 });
 
-const none = { bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null };
+const none = { bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null, periodic: null };
 const absent = { exists: false, problem: null, revision: null, settings: none, warnings: [] };
 const file = (settings) => ({ exists: true, problem: null, revision: "1:2:3", settings: { ...none, ...settings }, warnings: [] });
 const machine = { bookmarks: ["Daqui.md"], folderNoteName: "README", ignoreBuildDirs: true, respectGitignore: false };
@@ -91,10 +91,12 @@ describe("A reader's bookmarks (decided 2026-10-12)", () => {
 
 describe("The file's first write", () => {
   test("carries this machine's values that differ from the defaults, under the change", () => {
-    assert.deepEqual(seed(machine), { bookmarks: ["Daqui.md"], folder_note_name: "README", ignore_build_dirs: null, respect_gitignore: false });
+    // The periodic notes' settings move in by their own first change
+    // (ADR 0093 item 4), never with another setting's.
+    assert.deepEqual(seed(machine), { bookmarks: ["Daqui.md"], folder_note_name: "README", ignore_build_dirs: null, respect_gitignore: false, periodic: null });
     assert.deepEqual(seed({ bookmarks: [], folderNoteName: " ", ignoreBuildDirs: true, respectGitignore: true }), none);
     const first = firstWrite(absent, machine, { ...none, ignore_build_dirs: false });
-    assert.deepEqual(first, { bookmarks: ["Daqui.md"], folder_note_name: "README", ignore_build_dirs: false, respect_gitignore: false });
+    assert.deepEqual(first, { bookmarks: ["Daqui.md"], folder_note_name: "README", ignore_build_dirs: false, respect_gitignore: false, periodic: null });
     // So the values that apply are the same before and after it.
     const after = effective(file(first), machine);
     assert.deepEqual({ ...after, scope: "machine", bookmarksScope: "machine" }, { ...effective(absent, machine), ignoreBuildDirs: false });

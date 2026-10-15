@@ -172,6 +172,8 @@ const pt = {
   cellWriteFailed: "Não foi possível gravar a propriedade.",
   refusedShape: "Esta propriedade tem um formato que o Verso não reescreve: edite no código da nota.",
   weekdaysShort: ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"],
+  /** The calendar's column of week numbers (ADR 0093 item 9). */
+  weekShort: "Sem.",
   months: ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"],
   newNoteOn: (d: string) => `Nova nota em ${d}`,
   moreItems: (n: number) => `+${n}`,
@@ -386,6 +388,7 @@ const en: Strings = {
   cellWriteFailed: "The property could not be written.",
   refusedShape: "This property has a shape Verso does not rewrite: edit it in the note's source.",
   weekdaysShort: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+  weekShort: "Wk",
   months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
   newNoteOn: (d: string) => `New note on ${d}`,
   moreItems: (n: number) => `+${n} more`,

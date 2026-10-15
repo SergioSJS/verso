@@ -7,6 +7,8 @@ import { DailyCalendar } from "../bases/daily";
 import { commands } from "../bindings";
 import { bookmarks } from "../bookmarks";
 import { dailyNote, dailyPath } from "../daily";
+import { onFolderLayer } from "../folderLayer";
+import { calendarPeriods } from "../periodic/notes";
 import { button, el, h, ui } from "../dom";
 import { activeFocusItem, addFocusPrompt, deleteFocus, focusesConflictBanner, focusesList, focusesSummary, formatReadOnlyReason, getDisplayFocuses, getSyncFocuses, isHomeActive, isHomeFocusName, loadFocuses, moveFocusOrder, renameFocusPrompt, saveFocuses, selectFocus } from "../focuses";
 import { allFiles, allNotes, iconOfPath } from "../folder";
@@ -41,6 +43,11 @@ export class Panel {
       ["focuses", "compass", t.focusesTab],
       ["calendar", "calendar", t.calendarTab],
     ];
+    // The periodic settings changed (the folder's layer read again): the
+    // calendar's weeks, month and year follow (ADR 0093 item 9).
+    onFolderLayer(() => {
+      if (this.current === "calendar") this.paint();
+    });
     // A tablist and its one panel: the arrows, Home and End choose a tab,
     // and only the chosen one is in the Tab order.
     this.el.setAttribute("aria-label", t.rightPanel);
@@ -145,6 +152,8 @@ export class Panel {
     s: baseStrings,
     has: (day) => allNotes.includes(dailyPath(day)),
     open: (day) => void dailyNote(day),
+    // The week, the month and the year beside the day (ADR 0093 item 9).
+    ...calendarPeriods(),
   });
   /** Counts the paints: a search for mentions that comes back after a
    *  newer paint has nothing to add (two in flight drew the list twice). */
@@ -283,7 +292,9 @@ export class Panel {
     switch (this.current) {
       case "calendar": {
         this.daily.render();
-        this.body.replaceChildren(this.daily.el);
+        // Already there: left in place, so a redraw keeps the keyboard's
+        // focus (taking it out and back would drop it, in WebKit).
+        if (this.daily.el.parentElement !== this.body || this.body.childElementCount !== 1) this.body.replaceChildren(this.daily.el);
         break;
       }
       case "outline": {

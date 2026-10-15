@@ -33,6 +33,9 @@
 //! }
 //! ```
 //!
+//! The periodic notes' settings live there too, under `periodic` (ADR
+//! 0093 item 4; `periodic.rs`).
+//!
 //! Which value applies: when the folder has a usable settings file, the
 //! file's — a key it does not set takes the default (no bookmarks, the
 //! build folders and `.gitignore` honoured, a folder's note named after
@@ -63,6 +66,8 @@ pub struct FolderSettings {
     pub folder_note_name: Option<String>,
     pub ignore_build_dirs: Option<bool>,
     pub respect_gitignore: Option<bool>,
+    /// The periodic notes' settings (ADR 0093 item 4).
+    pub periodic: Option<super::periodic::Periodic>,
 }
 
 /// Why a settings file that stands in the folder is not used now.
@@ -130,7 +135,7 @@ pub(crate) struct LayerRefresh {
 /// the names Windows would not let Verso make (`Reunião: pauta.md`, a `\`
 /// on macOS, which is part of the name, item 4) are kept, on every system.
 /// Checked as text, never through the OS's path rules.
-fn bookmark_path(p: &str) -> Result<(), ConfinementError> {
+pub(crate) fn bookmark_path(p: &str) -> Result<(), ConfinementError> {
     if p.is_empty() {
         return Err(ConfinementError::Empty);
     }
@@ -192,6 +197,7 @@ fn settings_of(map: &serde_json::Map<String, Value>) -> FolderSettings {
             .map(plain_name),
         ignore_build_dirs: map.get(IGNORE_BUILD_DIRS).and_then(Value::as_bool),
         respect_gitignore: map.get(RESPECT_GITIGNORE).and_then(Value::as_bool),
+        periodic: super::periodic::read(map),
     }
 }
 
@@ -228,6 +234,9 @@ fn apply(map: &mut serde_json::Map<String, Value>, change: &FolderSettings) {
     if let Some(on) = change.respect_gitignore {
         map.insert(RESPECT_GITIGNORE.to_owned(), Value::Bool(on));
     }
+    if let Some(periodic) = &change.periodic {
+        super::periodic::apply(map, periodic);
+    }
 }
 
 impl Workspace {
@@ -254,6 +263,9 @@ impl Workspace {
     ) -> Result<FolderLayer, CoreError> {
         for bookmark in change.bookmarks.iter().flatten() {
             bookmark_path(bookmark).map_err(CoreError::Confined)?;
+        }
+        if let Some(periodic) = &change.periodic {
+            super::periodic::check(periodic)?;
         }
         let file = Path::new(SETTINGS_FILE);
         let warnings = match revision {

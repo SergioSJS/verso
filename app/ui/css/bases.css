@@ -176,6 +176,15 @@ tfoot .base-summary td { border-top: 1px solid var(--hair); border-bottom: 0; }
 .daily-day.has::after { content: ""; position: absolute; left: 50%; bottom: .2rem; width: 4px; height: 4px; margin-left: -2px; border-radius: 999px; background: var(--brass); }
 .daily-day.today { background: var(--seal); color: var(--seal-ink); font-weight: 600; }
 .daily-day.today.has::after { background: var(--seal-ink); }
+/* Periodic notes (ADR 0093 item 9): the week numbers' column, the
+   month's and the year's notes in the title, marked when they exist. */
+.daily-grid.with-weeks .daily-row { grid-template-columns: 1.7rem repeat(7, minmax(0, 1fr)); }
+.daily-week { position: relative; width: 1.6rem; height: 2rem; border-radius: 6px; font-size: .66rem; font-variant-numeric: tabular-nums; color: var(--ink-3); }
+.daily-week:hover, .daily-week:focus-visible { background: var(--paper-3); color: var(--ink); }
+.daily-week.has { color: var(--ink-2); }
+.daily-week.has::after, .daily-period.has::after { content: ""; position: absolute; left: 50%; bottom: .15rem; width: 4px; height: 4px; margin-left: -2px; border-radius: 999px; background: var(--brass); }
+.daily-period { position: relative; padding: .05rem .25rem .3rem; border-radius: 6px; font: inherit; color: inherit; }
+.daily-period:hover, .daily-period:focus-visible { background: var(--paper-3); }
 @media (prefers-reduced-motion: no-preference) {
   .base-card, .base-column, .base-cal-day { transition: border-color .15s var(--ease-out), background-color .15s var(--ease-out); }
 }

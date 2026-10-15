@@ -270,6 +270,32 @@ pub(crate) fn folder_sync_now<R: tauri::Runtime>(
     Ok(())
 }
 
+/// A note the window just made from its template, and the text it was
+/// made with (ADR 0093 item 12): when the folder syncs and the server
+/// holds a note of the same name another device made apart from the same
+/// template, the two are joined instead of a conflict's copy. Nothing for
+/// a folder that does not sync, nor for a server's folder.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn note_made_from_template<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+    path: String,
+    text: String,
+) -> Result<(), ContractError> {
+    if path.is_empty()
+        || path.starts_with('/')
+        || path.contains('\0')
+        || path.split('/').any(|p| p == ".." || p.is_empty())
+    {
+        return Err(refused("not a path of the folder"));
+    }
+    if let Some(s) = synced_of(&app, window.label()) {
+        s.made_from_template(&path, &text);
+    }
+    Ok(())
+}
+
 /* ---------- A synced folder's live notes (ADR 0082) ---------- */
 
 /// The running sync of the folder a window of this computer shows.

@@ -710,7 +710,9 @@ async fn command(
         }
         // The person's own, kept by the window: the approved embed origins
         // are the reader's (answer I), the menu is the desktop's.
-        "set_embed_origins" | "set_menu_language" => Ok(Value::Null),
+        // A note made from its template: what joins two made apart is the
+        // desktop sync's (ADR 0093 item 12); a server's folder is one copy.
+        "set_embed_origins" | "set_menu_language" | "note_made_from_template" => Ok(Value::Null),
         "fetch_file" => Ok(Value::Bool(false)),
         "collab_join" | "collab_update" | "collab_awareness" | "collab_leave" | "collab_save"
         | "collab_resolve" | "collab_present" | "collab_canvas" | "collab_roll" => {
@@ -938,6 +940,11 @@ async fn folder_command(
                 problem: Some("share".to_owned()),
                 ..verso_contract::FolderLayer::default()
             });
+        }
+        // Obsidian's settings are the whole folder's too (ADR 0093 item
+        // 11): a share is offered none.
+        "get_obsidian_periodic" => {
+            return to_value(verso_contract::ObsidianPeriodic::default());
         }
         "folder_space" => {
             let k = key.clone();

@@ -7,13 +7,14 @@ import { afterFileChange } from "./changes";
 import { ui } from "./dom";
 import { fail, nameTaken } from "./errors";
 import { allNotes } from "./folder";
-import { layout, openNote } from "./layout/spaces";
+import { layout } from "./layout/spaces";
 import { NoteLeaf } from "./leaves/note";
 import { showMenu } from "./menu";
 import { opening } from "./opening";
 import { name } from "./paths";
+import { openPeriodNote, periodPath, whenOf } from "./periodic/notes";
 import { settings } from "./settings";
-import { en, pt, t } from "./strings";
+import { t } from "./strings";
 
 /* ---------- Daily note and templates ---------- */
 export function today(): string {
@@ -27,28 +28,14 @@ export async function templateText(nameWanted: string): Promise<string | null> {
   const r = await opening.readNote(path);
   return r.status === "ok" ? r.data.text : null;
 }
-/** Where the daily note of `day` (`YYYY-MM-DD`) is, or would be. */
+/** Where the daily note of `day` (`YYYY-MM-DD`) is, or would be: the
+ *  day's folder and format (ADR 0093). */
 export function dailyPath(day: string): string {
-  const folder = settings.daily.trim().replace(/^\/+|\/+$/g, "");
-  return `${folder ? folder + "/" : ""}${day}.md`;
+  return periodPath("day", whenOf(day));
 }
+/** The day's note, opened or made from its template (ADR 0093 item 7). */
 export async function dailyNote(day = today()): Promise<void> {
-  const folder = settings.daily.trim().replace(/^\/+|\/+$/g, "");
-  const path = dailyPath(day);
-  if (allNotes.includes(path)) {
-    openNote(path, false);
-    return;
-  }
-  // A template named like the daily folder, else by the folder's default
-  // name in either language.
-  let tpl: string | null = null;
-  for (const n of new Set([folder || t.dailyName, pt.dailyName, en.dailyName])) tpl ??= await templateText(n);
-  const body = (tpl ?? `# ${day}\n\n`).replaceAll("{{date}}", day).replaceAll("{{title}}", day);
-  const r = await commands.createNote(path, body);
-  if (r.status !== "ok") return fail(r.error);
-  await afterFileChange();
-  const leaf = openNote(r.data.path, false);
-  if (leaf instanceof NoteLeaf) { await leaf.loading; leaf.editAtEnd(); }
+  await openPeriodNote("day", whenOf(day));
 }
 /** A copy of the current note in the templates folder: that is all a
  *  template is — any note there. `{{date}}` and `{{title}}` are filled

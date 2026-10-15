@@ -282,7 +282,7 @@ point 13).
    `fixtures/schema/`), H; E: `typed.spec.mjs`.
 6. Note 07, "Começar uma nota nova por um template" (ADR 0068): ⌘N shows
    "Começar com" under the title — Em branco, Diário, Nota de Reunião, Novo
-   Projeto; "Nota de Reunião" fills the note, `{{title}}` and `{{date}}`
+   Projeto, Semanal; "Nota de Reunião" fills the note, `{{title}}` and `{{date}}`
    replaced; Em branco, Esc or typing put the list away and write nothing;
    the arrows move along the list. A folder whose note sets
    `items_template` makes the note from it, with no list. Level: H; E:
@@ -322,6 +322,31 @@ point 13).
     sort added there is written to `Projetos.base` and the rest of the file
     is kept. `html()` in a base draws HTML, cleaned (no script, no
     `onerror`). Level: H; E: `base-map.spec.mjs`.
+11. Periodic notes (note 07, "A Semana, o Mês, o Trimestre e o Ano", ADR
+   0093): "Nota desta semana" in the palette makes `Diário/<gggg-[W]ww>.md`
+   from `Templates/Semanal.md` — `{{date}}` the week's Sunday, the seven
+   days by `{{date+Nd:…}}`, `{{saturday:DD/MM}}` — and "Nota deste mês"
+   makes `Diário/<YYYY-MM>.md` with its name as a heading; the quarter and
+   the year are not offered until turned on in Settings › Notas
+   periódicas. In `2026-W42`, "Nota periódica anterior" goes to `2026-W39`,
+   skipping the weeks with no note, and says when there is none before;
+   the tab's menu has both. In the right panel's Calendário, the "Sem."
+   column numbers the weeks — "Semana 42 de 2026" makes or opens its note,
+   week 39 of September is marked —, the month's name makes or opens the
+   month's note; ← from a week's first day reaches its number. Settings ›
+   Notas periódicas says "Desta máquina" until the first change, which
+   writes `periodic` into `.verso/settings.json` with the daily folder;
+   a format with a token Verso does not read (`HH`) is refused, naming it,
+   and nothing is written; a changed format says the notes of the earlier
+   one are no longer found. A folder with `.obsidian/daily-notes.json` is
+   offered "Usar os ajustes do Obsidian", which writes them into the
+   folder's settings and leaves `.obsidian/` as it was. A reader opens
+   week 39 and is told week 42 does not exist yet. Level: S
+   (`crates/verso-core/tests/periodic.rs`, `crates/verso-fs/src/obsidian.rs`,
+   `app/src-tauri/src/tests_periodic.rs`), U (`test/periodic.test.mjs`), H;
+   E: `periodic.spec.mjs`. A in the app: the two Obsidian files read from
+   disk, a placeholder of them, and two synced devices making the same week
+   offline (`docs/reference/manual-checks.md`).
 
 ## 5. Finding
 
