@@ -355,6 +355,8 @@ mod tests_map_tiles;
 #[cfg(test)]
 mod tests_mentions;
 #[cfg(test)]
+mod tests_offline;
+#[cfg(test)]
 mod tests_pieces;
 #[cfg(test)]
 mod tests_prove;

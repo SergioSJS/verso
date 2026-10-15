@@ -12,6 +12,8 @@ import { readCode } from "./deviceCode";
 import { nextPath } from "./nextPath";
 import { afterWaits } from "./retry";
 import { passkeysHere, signInWithPasskey } from "./passkeys";
+import { noNetwork, offline } from "./offline/manager";
+import { o } from "./offline/strings";
 import { roleName, setLang, w } from "./strings";
 import { icon } from "../icons";
 
@@ -393,7 +395,18 @@ export function chooseFolder(): Promise<string | null> {
         list.querySelector("button")?.focus();
       })
       .catch((e: unknown) => {
-        list.append(el("li", { role: "alert" }, explain(e)));
+        // No network: the folders kept on this device open without it (ADR
+        // 0092 item 2).
+        const kept = noNetwork(e) ? offline.choices() : [];
+        if (kept.length > 0) {
+          list.append(el("li", { class: "web-folders-head", role: "presentation" }, o().chooseOffline));
+          for (const f of kept) {
+            const b = el("button", { type: "button", class: "web-folder" }, icon("folder"), el("span", {}, f.name), el("small", {}, roleName(f.role)));
+            b.addEventListener("click", () => close(f.id));
+            list.append(el("li", {}, b));
+          }
+          list.querySelector("button")?.focus();
+        } else list.append(el("li", { role: "alert" }, noNetwork(e) ? o().nothingKept : explain(e)));
         dialog.append(el("div", { class: "web-actions" }, cancel));
       });
     document.body.append(dialog);

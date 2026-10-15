@@ -266,7 +266,7 @@ function capitalized(text: string): string {
 
 /** Draw the section for a folder that syncs. `openServers` opens the
  *  Servers section, where a computer signs in again. */
-export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, problemText: ProblemText, openServers: () => void): void {
+export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, problemText: ProblemText, openServers: () => void, own?: { turnOff: boolean }): void {
   const s = words();
   // Conflicts by the note they are of; files left out by why.
   const byNote = new Map<string, string[]>();
@@ -305,14 +305,18 @@ export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, p
   else if (userPaused) actions.append(button(s.resume, "primary", () => void commands.folderSyncPause(false).then(() => refresh())));
   else if (deletionsPaused) actions.append(syncNow());
   else actions.append(syncNow(), button(s.pause, "", () => void commands.folderSyncPause(true).then(() => refresh())));
-  actions.append(
-    button(s.turnOff, "quiet", () => {
-      void ask(s.turnOffAsk, { yes: s.turnOffYes, no: s.no }).then((yes) => {
-        if (!yes) return;
-        void commands.folderSyncStop().then((r) => (r.status === "ok" ? refresh() : fail(r.error)));
-      });
-    }),
-  );
+  // A folder kept in a browser (ADR 0092) turns off in its own section,
+  // which says what turning off deletes here.
+  if (own?.turnOff !== false) {
+    actions.append(
+      button(s.turnOff, "quiet", () => {
+        void ask(s.turnOffAsk, { yes: s.turnOffYes, no: s.no }).then((yes) => {
+          if (!yes) return;
+          void commands.folderSyncStop().then((r) => (r.status === "ok" ? refresh() : fail(r.error)));
+        });
+      }),
+    );
+  }
   top.append(sentence, metaLine);
   if (problem) top.append(h("p", "sync-problem", capitalized(problem)));
   top.append(actions, togetherRow(refresh));

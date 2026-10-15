@@ -53,6 +53,8 @@ const pt = {
   } as Record<string, string>,
   moving: (up: number, down: number) => [up ? `enviando ${up}` : "", down ? `recebendo ${down}` : ""].filter(Boolean).join(", "),
   conflictsShort: (n: number) => (n === 1 ? "1 conflito" : `${n} conflitos`),
+  // Offline in a browser (ADR 0092 item 7): what waits to go up.
+  waitingShort: (n: number) => (n === 1 ? "1 mudança esperando" : `${n} mudanças esperando`),
   toDelete: (n: number) => `${n} a apagar`,
   last: (when: string) => `Última vez: ${when}`,
   readerNote: "Você só lê esta pasta no servidor: as mudanças de lá chegam; as feitas aqui ficam aqui, listadas abaixo.",
@@ -147,6 +149,7 @@ const en: typeof pt = {
   },
   moving: (up: number, down: number) => [up ? `sending ${up}` : "", down ? `receiving ${down}` : ""].filter(Boolean).join(", "),
   conflictsShort: (n: number) => (n === 1 ? "1 conflict" : `${n} conflicts`),
+  waitingShort: (n: number) => (n === 1 ? "1 change waiting" : `${n} changes waiting`),
   toDelete: (n: number) => `${n} to delete`,
   last: (when: string) => `Last time: ${when}`,
   readerNote: "You only read this folder on the server: its changes arrive; those made here stay here, listed below.",
@@ -278,6 +281,8 @@ export function stateText(st: SyncStatus): string {
   }
   // Offline because the server, not the network, did not answer.
   if (st.state === "offline" && st.problem === "unreachable") text = reachStrings().unreachableShort(addressOf(st.server));
+  // Offline, the writes waiting to go up (a browser's folder, ADR 0092).
+  if (st.state === "offline" && st.sending > 0) text += ` · ${s.waitingShort(st.sending)}`;
   if (st.conflicts.length) text += ` · ${s.conflictsShort(st.conflicts.length)}`;
   return text;
 }

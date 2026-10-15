@@ -6,6 +6,9 @@ import { can, host } from "../can";
 import { historyStrings } from "./historyStrings";
 import { serverStrings, serversBody } from "./servers";
 import { syncBody, syncStrings } from "./sync";
+import { offline } from "../web/offline/manager";
+import { offlineBody } from "../web/offline/section";
+import { o as offlineWords } from "../web/offline/strings";
 import { trashBody, trashStrings, trashSummary } from "./trash";
 import { type CliState, commands, type McpStatus } from "../bindings";
 import { remoteContentChanged } from "../changes";
@@ -120,6 +123,10 @@ export class SettingsDialog {
     this.notice.hidden = false;
     ui.status.textContent = t.languageNotReloaded;
   }
+  /** A folder of a server shown in a browser that can keep it offline (ADR 0092). */
+  private offlineHere(): boolean {
+    return host() === "server" && offline.available && currentFolder !== "";
+  }
   private sections(): { id: string; label: string; icon: string }[] {
     return [
       { id: "general", label: t.sGeneral, icon: "gear" },
@@ -142,6 +149,9 @@ export class SettingsDialog {
       ...(can("local_folders") ? [{ id: "servers", label: serverStrings().section, icon: "globe" }] : []),
       // A folder of this computer syncs with a server's (ADR 0079 item 1).
       ...(can("local_folders") && currentFolder ? [{ id: "sync", label: syncStrings().section, icon: "refresh" }] : []),
+      // A folder kept in a browser (ADR 0092): the section takes the same
+      // place, with the same status behind it.
+      ...(this.offlineHere() ? [{ id: "sync", label: offlineWords().section, icon: "refresh" }] : []),
       // On a server: the person's account (ADR 0074 items 7 and 9); the
       // server's administration is a console of its own (ADR 0077).
       ...(can("account") && signedIn() ? [{ id: "account", label: t.sAccount, icon: "user" }] : []),
@@ -661,6 +671,7 @@ export class SettingsDialog {
     if (can("local_folders")) out.push({ section: "servers", title: serverStrings().connect, desc: serverStrings().connectDesc, node: () => serversBody((a, b, c) => this.item(a, b, c)) });
     if (currentFolder && can("write")) out.push({ section: "trash", title: trashStrings().section, desc: trashStrings().lead, node: () => trashBody((a, b, c) => this.item(a, b, c)) });
     if (can("local_folders") && currentFolder) out.push({ section: "sync", title: syncStrings().title, desc: syncStrings().desc, node: () => syncBody((a, b, c) => this.item(a, b, c)) });
+    if (this.offlineHere()) out.push({ section: "sync", title: offlineWords().title, desc: offlineWords().desc, node: () => offlineBody((a, b, c) => this.item(a, b, c)) });
     add("cli", t.cliTitle, WINDOWS ? t.cliDescWindows : LINUX ? t.cliDescLinux : t.cliDesc, () => this.cliControl());
     // One server per folder, or one for all of Verso (ADR 0054, 2026-10-08).
     add("cli", t.mcpModeTitle, t.mcpModeDesc, () => this.select([["folder", t.mcpModeFolder], ["all", t.mcpModeAll]], settings.mcpMode, (v) => { settings.mcpMode = v; saveSettings(); this.paint(); }));
