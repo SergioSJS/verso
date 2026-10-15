@@ -877,3 +877,5 @@ pub fn save(
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod vectors;
