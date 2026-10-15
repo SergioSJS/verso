@@ -171,7 +171,7 @@ const WORDS = {
     macSteps: (name) => [
       `Open the \`.zip\` you downloaded (Safari may have opened it already): it becomes **${name}**.`,
       `Drag **${name}** into the **Applications** folder, and open it from there.`,
-      `The first time, macOS says it could not verify the app: Verso is not yet signed by a registered Apple developer. Close the message, open **System Settings › Privacy & Security**, scroll down, click **Open Anyway** beside "${name}" and confirm. On macOS 14 or earlier, right-click the app › **Open** does the same. This happens only once.`,
+      `The first time, macOS says it could not verify the app: Verso is signed ad hoc, not by a registered Apple developer. Close the message, open **System Settings › Privacy & Security**, scroll down, click **Open Anyway** beside "${name}" and confirm. On macOS 14 or earlier, right-click the app › **Open** does the same. This happens only once.`,
     ],
     windows: "Windows",
     windowsSteps: [
@@ -229,7 +229,7 @@ const WORDS = {
     macSteps: (name) => [
       `Abra o \`.zip\` que você baixou (o Safari pode já tê-lo aberto): ele vira o **${name}**.`,
       `Arraste o **${name}** para a pasta **Aplicativos** e abra-o de lá.`,
-      `Na primeira vez, o macOS diz que não pôde verificar o app: o Verso ainda não é assinado por um desenvolvedor registrado na Apple. Feche a mensagem, abra **Ajustes do Sistema › Privacidade e Segurança**, role até o fim, clique em **Abrir Mesmo Assim** ao lado de "${name}" e confirme. No macOS 14 ou anterior, clicar no app com o botão direito › **Abrir** faz o mesmo. Isso acontece uma vez só.`,
+      `Na primeira vez, o macOS diz que não pôde verificar o app: o Verso é assinado ad hoc, não por um desenvolvedor registrado na Apple. Feche a mensagem, abra **Ajustes do Sistema › Privacidade e Segurança**, role até o fim, clique em **Abrir Mesmo Assim** ao lado de "${name}" e confirme. No macOS 14 ou anterior, clicar no app com o botão direito › **Abrir** faz o mesmo. Isso acontece uma vez só.`,
     ],
     windows: "Windows",
     windowsSteps: [

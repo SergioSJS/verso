@@ -58,6 +58,10 @@
   notarização para todo release a partir de quando o certificado existir,
   os betas também, e um build de Mac x64 separado quando o repositório for
   público.
+  2026-10-15 — o Developer ID e a notarização **abandonados**: o
+  mantenedor não vai se inscrever no Apple Developer Program nem pagar à
+  Apple (0095, Revisões). O app do Mac continua assinado ad hoc, como diz a
+  Consequência deste ADR; o build de Mac x64 vale.
 
 ## Contexto
 

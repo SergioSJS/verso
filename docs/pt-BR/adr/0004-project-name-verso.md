@@ -10,6 +10,9 @@
   pelo mantenedor, aceitando a auditoria dos ADRs em sessão:
   *"Ajuste tudo que precisar. Está aprovado os ADRs"*: o nome do pacote,
   do crate e no npm é **`versomd`**.
+  2026-10-15 — o mantenedor decidiu **não buscar o nome `versomd` no
+  GitHub**: o repositório fica em `SergioSJS/verso`, e o usuário `versomd`,
+  dormente, não é pedido ao suporte do GitHub (roadmap V.12).
 
 ## Contexto
 

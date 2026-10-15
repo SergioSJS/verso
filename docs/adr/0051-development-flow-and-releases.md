@@ -56,6 +56,10 @@
   the maintainer that night (*"Sim, todas"*): a Developer ID and
   notarization for every release once the certificate exists, the betas
   too, and a separate x64 Mac build once the repository is public.
+  2026-10-15 — the Developer ID and notarization **dropped**: the
+  maintainer will not enroll in the Apple Developer Program nor pay Apple
+  (0095, Revisions). The Mac app stays signed ad hoc, as this ADR's
+  Consequence says; the Mac x64 build stands.
 
 ## Context
 
