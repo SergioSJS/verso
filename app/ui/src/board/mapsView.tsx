@@ -210,6 +210,7 @@ export function PinLayer({
   selected,
   served,
   open,
+  remove,
 }: {
   pins: readonly El[];
   host: BoardHost;
@@ -220,6 +221,8 @@ export function PinLayer({
   selected: readonly string[];
   served: boolean;
   open: (id: string, aside: boolean) => void;
+  /** Take a pin off the board with Delete, where the board may be written. */
+  remove?: (id: string) => void;
 }): JSX.Element {
   const root = useRef<HTMLDivElement>(null);
   const byId = useRef(new Map<string, El>());
@@ -262,6 +265,13 @@ export function PinLayer({
             data-preview-path={missing ? undefined : file}
             aria-label={strings.pinOpen(name) + (secret ? ` (${strings.secretCard})` : "")}
             onClick={(e) => open(p.id, e.metaKey || e.ctrlKey)}
+            onKeyDown={(e) => {
+              if (remove && (e.key === "Delete" || e.key === "Backspace")) {
+                e.preventDefault();
+                e.stopPropagation();
+                remove(p.id);
+              }
+            }}
           >
             <span className="board-pin-mark" aria-hidden="true">
               {sticker ? <Sticker host={host} file={file} /> : <PinIcon />}

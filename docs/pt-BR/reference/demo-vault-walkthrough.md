@@ -617,8 +617,8 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     meio da vista. Afaste e aproxime: o alfinete mantém o tamanho e fica no
     seu ponto; um clique abre a nota; o ponteiro parado nele mostra a nota
     num cartão, e um dedo parado no celular também; Tab percorre os
-    alfinetes e Enter abre um; o sumário os lista na ordem de leitura como
-    links. "Enviar para trás" e "Trazer para a frente" em qualquer cartão o
+    alfinetes, Enter abre um e Delete o remove (⌘Z o traz de volta); o sumário os
+    lista na ordem de leitura como links. "Enviar para trás" e "Trazer para a frente" em qualquer cartão o
     reordenam no arquivo. Um PNG de 16.000 pixels de lado como mapa:
     "Preparando o mapa…", depois os ladrilhos à vista, nunca a imagem
     inteira (o log do app aberto; a memória da janela fica pequena); um JPEG

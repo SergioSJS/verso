@@ -149,6 +149,19 @@ test("a pin dragged moves where the board is written; a click that does not move
   await expect(page.locator(".tab")).toHaveCount(1);
 });
 
+test("Delete on a focused pin removes it, and the history brings it back", async ({ app, page }) => {
+  await openBoard(app);
+  await expect(page.locator(".board-pin")).toHaveCount(2);
+  await page.getByRole("button", { name: "Abrir Taverna" }).focus();
+  await page.keyboard.press("Delete");
+  await expect(page.locator(".board-pin")).toHaveCount(1);
+  await expect(page.locator("#status")).toContainText("removido do mapa");
+  await bySave(app, async () => !(await nodesOf(app)).some((n) => n.id === "taverna"));
+  // The focus is back on the board: ⌘Z reaches it.
+  await app.key("Mod+z");
+  await expect(page.locator(".board-pin")).toHaveCount(2);
+});
+
 test("a picture used as a map is locked, at the back and marked; stopping undoes the three", async ({ app, page }) => {
   const picture = { id: "foto", type: "file", file: "Mapa.png", x: 0, y: 0, width: 600, height: 400 };
   const card = { id: "nota", type: "text", text: "Uma nota", x: 700, y: 0, width: 200, height: 80 };
@@ -360,9 +373,16 @@ test("an exported picture asks whether to leave the secret cards out, left out b
   await app.key("Mod+Shift+e");
   const box = page.getByTestId("board-export-secret");
   await expect(box).toBeChecked();
-  await expect(page.locator(".board-export-preview img")).toBeVisible({ timeout: 15000 });
+  // The preview is drawn, then drawn again without the secret cards: one
+  // preview at a time, so none is revoked while it loads.
+  const preview = page.locator(".board-export-preview img");
+  const drawn = () => preview.evaluate((i) => i.complete && i.naturalWidth > 0);
+  await expect(preview).toBeVisible({ timeout: 15000 });
+  await expect.poll(drawn).toBe(true);
+  const first = await preview.getAttribute("src");
   await box.uncheck();
-  await expect(page.locator(".board-export-preview img")).toBeVisible({ timeout: 15000 });
+  await expect(preview).not.toHaveAttribute("src", first ?? "", { timeout: 15000 });
+  await expect.poll(drawn).toBe(true);
 });
 
 test("@layout on a phone a pin is one size on the screen, and a tap on it opens its note", async ({ app, page, isMobile, browserName }) => {

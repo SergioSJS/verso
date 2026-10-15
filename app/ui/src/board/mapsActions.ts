@@ -89,6 +89,20 @@ export function mapActions({ api, host, touched, center, dragFrom }: MapDeps) {
       change(id, (x, n) => withNode(x, flagged(n, { secret: !isSecret(n) })));
     },
     pin,
+    /** A pin taken off the board, one step of the history. */
+    removePin(id: string): void {
+      const a = api.current;
+      const e = find(id);
+      const node = e ? nodeData(e as unknown as El) : null;
+      if (!a || !e || !node) return;
+      touched.current = true;
+      a.updateScene({
+        elements: scene().map((x) => (x.id === id ? newElementWith(x, { isDeleted: true }) : x)),
+        appState: { selectedElementIds: {} } as never,
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+      });
+      host.status(ms.pinRemoved(nodeName(node, host.strings)));
+    },
     /** "Pin a note here…": a note chosen, pinned in the middle of what is
      *  in view, on the map there (or the first map). */
     async pinHere(): Promise<void> {

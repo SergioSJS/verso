@@ -1408,7 +1408,12 @@ function Board({
             )}
           {layerHost &&
             createPortal(
-              <PinLayer pins={pins} host={host} strings={ms} live={liveRef} place={pinsPlace} selected={selected} served={host.secret?.served() ?? false} open={pinAct.current.open} />,
+              <PinLayer pins={pins} host={host} strings={ms} live={liveRef} place={pinsPlace} selected={selected} served={host.secret?.served() ?? false} open={pinAct.current.open} remove={readOnly || asReader !== null ? undefined : (id) => {
+                mapAct.removePin(id);
+                // The focus was on the pin, which is gone: on the board, so
+                // ⌘Z reaches it (`focusBoard` finds it already inside).
+                container.current?.querySelector<HTMLElement>(".excalidraw")?.focus({ preventScroll: true });
+              }} />,
               layerHost,
             )}
           {asReader !== null && (
