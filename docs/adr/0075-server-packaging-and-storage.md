@@ -66,6 +66,11 @@
   `verso serve` runs on Windows from the `verso` command line the Windows
   release already carries, and the desktop app's "this app is a server"
   ([0096](0096-this-app-is-a-server.md)) works there too.
+  2026-10-15 — **confirmed by the maintainer** (*"aceito todas
+  recomendações"*): there is no server package, service or installer for
+  Windows. On Windows the server runs only inside the desktop app
+  ([0096](0096-this-app-is-a-server.md)) or as `verso serve` from the
+  command line.
 - Revisions: 2026-10-09 (night) — accepted by the maintainer together with
   [0073](0073-self-hosted-server-first.md), in the answer quoted there;
   its two `[OPEN]` answered — the update path (item 7, the maintainer's

@@ -69,6 +69,11 @@
   de comando `verso` que o release do Windows já carrega, e o "este app é
   um servidor" do app de desktop ([0096](0096-this-app-is-a-server.md))
   funciona lá também.
+  2026-10-15 — **confirmado pelo mantenedor** (*"aceito todas
+  recomendações"*): não há pacote, serviço nem instalador do servidor para
+  o Windows. No Windows o servidor roda só dentro do app de desktop
+  ([0096](0096-this-app-is-a-server.md)) ou como `verso serve` na linha de
+  comando.
 - Revisões: 2026-10-09 (noite) — aceito pelo mantenedor junto com o
   [0073](0073-self-hosted-server-first.md), na resposta citada lá; os dois
   `[ABERTO]` dele respondidos — o caminho de atualização (item 7, a opção
