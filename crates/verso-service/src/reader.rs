@@ -135,7 +135,11 @@ fn projected(
         }
         "folder_space" => {
             let entries = ws.reader_entries()?;
-            json(ops::space_of(ws, &entries)?)
+            let mut space = ops::space_of(ws, &entries)?;
+            // The index grows with the secret text it holds (ADR 0087
+            // item 4): a reader is told no index size.
+            space.index = 0.0;
+            json(space)
         }
         "query_base" => {
             let query: BaseQuery = arg(args, name, "query")?;
