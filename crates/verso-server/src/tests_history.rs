@@ -25,6 +25,17 @@ async fn window(r: &crate::tests::Running, b: &crate::tests::Browser, id: &str) 
     next(&mut ws).await;
     let o = call(&mut ws, 1, "open_server_folder", json!({ "id": id })).await;
     assert!(o.get("ok").is_some(), "{o}");
+    // The folder's log looks at it once before anyone writes: the files as
+    // they were found are versions, and the writes after are the next. Left
+    // to the log's own look, in the background, a write that wins the race
+    // finds the file already changed and the found version is lost (the
+    // product keeps the bytes it hashed, see
+    // `a_change_hashed_from_other_bytes_than_the_file_now_holds_is_no_version`).
+    // A share's id names no folder: its folder has been looked at already.
+    if let Some(folder) = r.server.db.folder(id).unwrap() {
+        let key = crate::access::key(&r.server, &folder).unwrap();
+        crate::sync::reconcile(&r.server, id, &key, None, &[]).unwrap();
+    }
     ws
 }
 
@@ -569,5 +580,45 @@ fn the_history_of_a_secret_note_is_the_writers_alone_and_whole() {
         }
         let shown = call(&mut reader, 9, "read_note", json!({ "path": "Sessao.md" })).await;
         assert!(!shown.to_string().contains("zqsegredo"), "{shown}");
+    });
+}
+
+#[test]
+fn a_change_hashed_from_other_bytes_than_the_file_now_holds_is_no_version() {
+    // The log's first look hashes a file; before it records the version,
+    // the file is written again. The new bytes are the next change's, with
+    // its author — not a version of the first.
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &b).await;
+        let _ws = window(&r, &b, &id).await;
+        let key =
+            crate::access::key(&r.server, &r.server.db.folder(&id).unwrap().unwrap()).unwrap();
+        let before = r.server.history.with(|s| s.size(&id)).unwrap().0;
+        let seen = crate::sync::sha256(b"# Sessao\n");
+        let change = vec![(
+            "Sessao.md".to_owned(),
+            Some((seen, 9, "9:1".to_owned())),
+            None,
+        )];
+        {
+            use std::io::Write;
+            let mut f = tempfile::NamedTempFile::new_in(r.campanha()).unwrap();
+            f.write_all(b"outra coisa\n").unwrap();
+            f.persist(r.campanha().join("Sessao.md")).unwrap();
+        }
+        crate::history::recorded(
+            &r.server,
+            (&id, &key),
+            crate::sync::Author::default(),
+            &change,
+            true,
+        );
+        let after = r.server.history.with(|s| s.size(&id)).unwrap().0;
+        assert_eq!(
+            after, before,
+            "a version of bytes the change was not hashed from"
+        );
     });
 }

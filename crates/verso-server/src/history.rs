@@ -164,7 +164,7 @@ pub fn recorded(
         let done = match (now, from) {
             (None, _) if froms.contains(path.as_str()) => Ok(()),
             (None, _) => server.history.with(|s| s.gone(folder, path, at)),
-            (Some((_, size, _)), from) => {
+            (Some((hash, size, _)), from) => {
                 if let Some(from) = from
                     && let Err(e) = server.history.with(|s| s.moved(folder, from, path, at))
                 {
@@ -179,6 +179,12 @@ pub fn recorded(
                     .service
                     .with_key(key, move |ws| Ok(ws.read_file(&p)?))
                 {
+                    // The file is not what the change was hashed from: it
+                    // changed again since, and that change is a version of
+                    // its own, with its own author. These bytes under this
+                    // change would name the wrong one (and the later
+                    // change, equal to them, would make none).
+                    Ok(bytes) if crate::sync::sha256(&bytes) != *hash => Ok(()),
                     Ok(bytes) => server
                         .history
                         .with(|s| s.record(folder, path, &bytes, at, &names, kind))
