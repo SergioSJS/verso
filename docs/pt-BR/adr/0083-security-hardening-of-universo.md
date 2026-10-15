@@ -458,6 +458,26 @@ decidido como escrito. Tamanhos: S são horas, M um ou dois dias, L mais.
     navegador, um celular, uma inundação de conexões ou de entradas, o
     limite de 4 MB da atualização de uma sala.
 
+    *Decidido em 2026-10-15* (o mantenedor, "aceito todas
+    recomendações"), construído em `feat/decisions-1015`: (a) o bucket de
+    entradas falhas é de 4 por segundo contínuo e 20 de uma vez
+    (`signin.rs`: `FAILED_RATE`, `FAILED_BURST`); (b) os `sync_read` de
+    uma conta têm uma cota própria, 1 000 por segundo e 4 000 de uma vez
+    (`fair.rs`: `READ_RATE`, `READ_BURST`), à parte dos 100 e 400 dos
+    outros comandos, atrás dos quais não esperam e que não gastam; o
+    ritmo do servidor (1 000 e 2 000) ainda conta cada um, e uma
+    inundação de leituras além da cota espera como qualquer outro
+    comando, então uma conta hostil continua limitada; a primeira
+    sincronização de 3 000 arquivos passa a ser limitada pelo burst do
+    servidor (cerca de um segundo), não 26 s; (c) só as tentativas
+    falhas aumentam o atraso do pareamento de uma chave `device:`: um
+    início não conta nada, um código ou segredo de consulta errado
+    continua contando, e uma inundação de códigos é limitada pelos
+    códigos que um endereço pode manter esperando e pelo ritmo REST; (d)
+    o guia de instalação diz que um disco lento limita as escritas (cerca
+    de 15 por segundo num disco que leva 26 ms por escrita síncrona de 4
+    KiB) e como verificar um disco.
+
 19. **Validação num laboratório hostil.** Decidida pelo mantenedor em
     2026-10-13, na mesma resposta que aceitou as recomendações: *"em
     seguida você deve emular um ambiente de ataque um ambiente hostil para

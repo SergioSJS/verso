@@ -37,6 +37,17 @@ pub const PER_ADDRESS: u32 = 64;
 pub const ACCOUNT_RATE: f64 = 100.0;
 pub const ACCOUNT_BURST: f64 = 400.0;
 
+/// The `sync_read`s one account may send a second, sustained, and at once
+/// (ADR 0083 item 18, decided 2026-10-15): a fresh device's first sync of
+/// a folder asks for every file in turn, and measured on the 1-core host
+/// 3 000 reads under [`ACCOUNT_RATE`] took 26 s. The reads have an
+/// allowance of their own, so they neither wait behind nor spend the
+/// account's pace for its other commands; the server's pace still counts
+/// every one, and a flood of reads past this allowance waits like any
+/// other command.
+pub const READ_RATE: f64 = 1000.0;
+pub const READ_BURST: f64 = 4000.0;
+
 /// The commands the whole server takes a second, sustained, and at once:
 /// ten accounts at their full pace. On the 1-core, 1 GB host of the
 /// installation notes a command is a few milliseconds of the blocking
@@ -195,6 +206,7 @@ pub struct Fair {
     pub connections: Counts,
     server: Mutex<Bucket>,
     accounts: Mutex<HashMap<String, Bucket>>,
+    reads: Mutex<HashMap<String, Bucket>>,
     said: Mutex<HashMap<String, Instant>>,
 }
 
@@ -204,6 +216,7 @@ impl Default for Fair {
             connections: Counts::default(),
             server: Mutex::new(Bucket::full(SERVER_BURST)),
             accounts: Mutex::new(HashMap::new()),
+            reads: Mutex::new(HashMap::new()),
             said: Mutex::new(HashMap::new()),
         }
     }
@@ -213,16 +226,28 @@ impl Fair {
     /// How long a command of `account` waits for its turn: the longer of
     /// the account's pace and the server's. A pace passed is said in the
     /// log, once a minute each.
-    pub fn command(&self, account: &str) -> Duration {
-        let mine = lock(&self.accounts)
-            .entry(account.to_owned())
-            .or_insert_with(|| Bucket::full(ACCOUNT_BURST))
-            .take(ACCOUNT_RATE, ACCOUNT_BURST);
+    pub fn command(&self, account: &str, cmd: &str) -> Duration {
+        let (mine, rate) = if cmd == "sync_read" {
+            let wait = lock(&self.reads)
+                .entry(account.to_owned())
+                .or_insert_with(|| Bucket::full(READ_BURST))
+                .take(READ_RATE, READ_BURST);
+            (wait, READ_RATE)
+        } else {
+            let wait = lock(&self.accounts)
+                .entry(account.to_owned())
+                .or_insert_with(|| Bucket::full(ACCOUNT_BURST))
+                .take(ACCOUNT_RATE, ACCOUNT_BURST);
+            (wait, ACCOUNT_RATE)
+        };
         let all = lock(&self.server).take(SERVER_RATE, SERVER_BURST);
         if !mine.is_zero() {
-            self.say(account, &format!(
-                "account {account} sends commands past {ACCOUNT_RATE} a second: they wait their turn"
-            ));
+            self.say(
+                account,
+                &format!(
+                    "account {account} sends {cmd} past {rate} a second: they wait their turn"
+                ),
+            );
         }
         if !all.is_zero() {
             self.say(
@@ -289,7 +314,7 @@ mod tests {
         // An account past its pace: presences dropped, commands still served.
         let fair = Fair::default();
         for _ in 0..(ACCOUNT_BURST as usize) {
-            let _ = fair.command("a");
+            let _ = fair.command("a", "list");
         }
         assert!(!fair.droppable("a"));
         assert!(fair.droppable("b"));
@@ -337,11 +362,34 @@ mod tests {
         assert!(fifth > fourth);
         let fair = Fair::default();
         let waits: Vec<Duration> = (0..(ACCOUNT_BURST as usize + 2))
-            .map(|_| fair.command("a"))
+            .map(|_| fair.command("a", "list"))
             .collect();
         assert!(waits[0].is_zero());
         assert!(!waits[waits.len() - 1].is_zero());
         // Another account is not behind the first.
-        assert!(fair.command("b").is_zero());
+        assert!(fair.command("b", "list").is_zero());
+    }
+
+    #[test]
+    fn a_first_sync_of_three_thousand_files_is_not_paced_and_a_flood_still_is() {
+        let fair = Fair::default();
+        // 3 000 reads of a fresh device: the last waits for the server's
+        // own pace only (about a second past its burst of 2 000), not the
+        // 26 s the account's pace made it wait.
+        let slowest = (0..3000)
+            .map(|_| fair.command("a", "sync_read"))
+            .max()
+            .unwrap_or_default();
+        assert!(slowest < Duration::from_secs(2), "{slowest:?}");
+        // The reads spent none of the account's own pace for its other
+        // commands: what one waits now is the server's debt, a second at
+        // most, not the account's.
+        assert!(fair.command("a", "list") < Duration::from_secs(2));
+        // A flood of single commands is still paced...
+        let waits: Vec<Duration> = (0..1000).map(|_| fair.command("b", "list")).collect();
+        assert!(waits[waits.len() - 1] > Duration::from_secs(4));
+        // ...and so is a flood of reads, past its own allowance.
+        let reads: Vec<Duration> = (0..6000).map(|_| fair.command("c", "sync_read")).collect();
+        assert!(reads[reads.len() - 1] > Duration::from_secs(1));
     }
 }

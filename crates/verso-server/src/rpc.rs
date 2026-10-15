@@ -431,7 +431,7 @@ async fn run(
                 let turn = if request.cmd == "collab_awareness" {
                     Duration::ZERO
                 } else {
-                    server.fair.command(&who.account.id)
+                    server.fair.command(&who.account.id, &request.cmd)
                 };
                 // A window's room updates are taken in the order it sent
                 // them (ADR 0083 item 14): each waits for the one before
