@@ -33,9 +33,9 @@ use verso_contract::{
     AppInfo, Backlink, BaseQuery, BaseResult, Can, Capabilities, CliState, CollabJoin, CollabRoll,
     CollabState, CollabUpdate, ContractError, DiceRoll, Edge, ErrorKind, FileEntry, Focus,
     FocusesSummary, FolderChanged, FolderInfo, FolderLayer, FolderSettings, FolderSpace, Hit, Host,
-    IndexProgress, IndexSummary, Link, McpAdded, McpClientState, McpStatus, Mentions, MovedEntries,
-    NoteText, ObsidianPeriodic, Renamed, ServerAccount, Tag, TextFile, Trashed, UpdateProgress,
-    WebNote, Written,
+    IndexProgress, IndexSummary, Link, MapInfo, McpAdded, McpClientState, McpStatus, Mentions,
+    MovedEntries, NoteText, ObsidianPeriodic, Renamed, ServerAccount, Tag, TextFile, Trashed,
+    UpdateProgress, WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
 use verso_service::{OpError, Service, lock, no_folder, ops, refused};
@@ -689,6 +689,9 @@ macro_rules! commands_for {
                 board_preview::<$runtime>,
                 render_markdown,
                 project_secrets,
+                project_board,
+                map_open::<$runtime>,
+                map_tile::<$runtime>,
                 rename_entry::<$runtime>,
                 delete_entry::<$runtime>,
                 reveal::<$runtime>,

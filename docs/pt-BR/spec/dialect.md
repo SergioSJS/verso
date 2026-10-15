@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.42
+# Spec do dialeto do Verso — v0.43
 
-- Versão: v0.42 · 2026-10-14
+- Versão: v0.43 · 2026-10-15
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -505,7 +505,9 @@ Como o Verso estende o JSON Canvas e persiste o board: `DECIDIDO` em
      fica;
    - o `verso` próprio de um nó: `background`, `fill`, `corners`,
      `strokeWidth`, `roughness`, `angle`, `strokeStyle`, `opacity`,
-     `locked`, `groups`;
+     `locked`, `groups` e, para mapas
+     ([ADR 0090](../adr/0090-maps-on-the-board.md)), `map`, `pin`,
+     `secret` (item 6);
    - o `verso` próprio de uma aresta: `relation`, `line` (`curved` ou
      `elbow`), `strokeWidth`, `roughness`, `startHead`, `endHead`, `bends`,
      `labelSize`, `labelFont`, `strokeStyle`, `opacity`, `locked`,
@@ -513,6 +515,32 @@ Como o Verso estende o JSON Canvas e persiste o board: `DECIDIDO` em
 
    Um `verso.version` acima do que um build escreve é um board de um Verso
    mais novo: mostrado, nunca escrito.
+6. Mapas ([ADR 0090](../adr/0090-maps-on-the-board.md), `DECIDIDO` em
+   2026-10-14). Um mapa é um board: nenhum arquivo `.map` e nenhum tipo de
+   nó do próprio Verso, de modo que o Obsidian o abre como um canvas com uma
+   imagem e cartões.
+   - Um nó `file` de uma imagem marcado `"verso": {"map": true}` é a imagem
+     de um mapa. "Usar como mapa" põe essa marca, `"locked": true` e o nó no
+     fundo da ordem dos nós (a ordem de empilhamento); "Deixar de usar como
+     mapa" tira as três. Um board pode ter vários.
+   - Um nó `file` de uma nota marcado `"verso": {"pin": true}` é um
+     alfinete: a janela o desenha num só tamanho na tela, em qualquer zoom,
+     no meio da sua caixa, e um clique abre a nota. Os alfinetes de um mapa
+     estão no grupo dele (`verso.groups`), então mover o mapa os move.
+   - Um nó marcado `"verso": {"secret": true}` não é servido a quem só pode
+     ler o board num UniVerso (a regra do ADR 0087, aplicada a um board): o
+     leitor recebe o board sem esse nó, sem as arestas que o tocam e sem os
+     elementos do desenho que ficam sob ele, estão presos a ele ou têm um
+     grupo que só nós secretos têm (um grupo que também tem um nó que não é
+     secreto, como o mapa a que um alfinete está agrupado, não esconde
+     nada). Qualquer valor de `secret` que não seja `false` ou `null`
+     conta. Um board sem nó secreto é servido byte a byte; um que não é
+     JSON e menciona um segredo é servido vazio. Quem tem o arquivo, e o
+     Obsidian, vê o nó: é uma guarda contra leitores num servidor, não
+     criptografia.
+   - Uma imagem PNG grande é desenhada de ladrilhos do próprio Verso,
+     cortados uma vez e guardados fora da pasta; o arquivo não tem nenhum
+     ladrilho.
 
 ### 5.12 Headings
 
@@ -1429,3 +1457,4 @@ ser escolhido.
 | v0.40 | 2026-10-14 | O schema ganha `prose` (§4.1, §4.9): os trechos de prosa do [ADR 0089](../adr/0089-linking-unlinked-mentions.md) item 1, onde as menções são procuradas, pela resposta M6 do mantenedor (*"Sim, todas"*); a fixture `fixtures/prose/what-is-prose` rascunhada, aguardando a aprovação do mantenedor. Nenhuma questão fechada. |
 | v0.41 | 2026-10-14 | As fixtures `fixtures/code/dice-inline`, `fixtures/prose/what-is-prose` e `fixtures/schema/infobox` **aprovadas pelo mantenedor** em sessão (*"Aprovo as 3"*), e com elas a chave `prose` do schema (§4.1, §4.9) da v0.40; a marca de rascunho delas removida. `code/dice-inline` observada no Obsidian 1.14.4 pelo CLI dele, sem o plugin Dice Roller, antes de a aprovação ser registrada: os links e o bloco dela são os do Obsidian, e o `observed:` dela diz como. Nada mais muda. |
 | v0.42 | 2026-10-14 | O schema ganha `reader` (§4.1, §4.6): a nota como um UniVerso a serve a um leitor, a projeção da Q9 e do [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md) item 3. A fixture rascunhada `fixtures/callout/secret`, com o PR que constrói o ADR 0087, espera a aprovação do mantenedor; o parágrafo da Q9 o diz. Nenhuma decisão mudou |
+| v0.43 | 2026-10-15 | §5.11 item 5 e um novo item 6: mapas no board ([ADR 0090](../adr/0090-maps-on-the-board.md)) — o `verso` de um nó ganha `map`, `pin` e `secret`, e um nó secreto fica de fora do que um leitor recebe. Sem fixture: o schema das fixtures (§4) descreve uma nota Markdown, e um canvas não é parseado pelo dialeto; a guarda é o teste de propriedade da projeção no núcleo. Nenhuma questão fechada |

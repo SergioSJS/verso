@@ -29,6 +29,7 @@ mod schema;
 mod search;
 mod secret;
 mod store;
+pub mod tiles;
 mod trash;
 
 use std::path::{Path, PathBuf};
@@ -38,8 +39,8 @@ use rusqlite::{Connection, OptionalExtension};
 pub use keys::{file_key, note_keys, target_key, type_key};
 pub use search::Hit;
 pub use store::{
-    Backlink, Block, EntryLabel, Heading, Link, NoteStamp, SchemaRow, SourceLink, Unresolved,
-    VaultLink,
+    Backlink, Block, BoardSplit, EntryLabel, Heading, Link, NoteStamp, SchemaRow, SourceLink,
+    Unresolved, VaultLink,
 };
 pub use trash::TrashRow;
 

@@ -1004,6 +1004,58 @@ se vê aqui. Antes de o servidor ser anunciado (ADR 0073 item 6).
 - [ ] **Números de linha**: no celular, uma nota no Fonte não tem; ligados
   em Ajustes › Editor, aparecem.
 
+### Mapas no board (feat/board-maps, 2026-10-15)
+
+Precisa do app instalado, de um servidor, de um celular e de uma segunda
+conta: o corte dos ladrilhos roda no host, o board do leitor é do servidor, e
+o que um dedo e um mapa de verdade parecem não está no harness do navegador
+(ADR 0090). Faça o mapa antes: um PNG de uns 16.000 pixels de lado (um
+continente, ou qualquer imagem grande salva como PNG; um JPEG do mesmo
+tamanho para a última conferência), posto numa pasta; um board com ele, e
+duas notas.
+
+- [ ] **Um mapa grande de verdade, no app desktop**: solte o PNG num board,
+  selecione, "Usar como mapa". O cartão diz "Preparando o mapa…" com uma
+  porcentagem que cresce, depois a imagem aparece; aproxime a 100 % e
+  arraste: ladrilhos nítidos chegam enquanto você anda, sem pausa, e a
+  memória da janela fica pequena (Monitor de Atividade: algumas centenas de
+  MB, não um gigabyte). Feche o app e abra de novo: o mapa é desenhado na
+  hora, nada é cortado de novo. Diga quanto durou o corte e quanto cresceu
+  `~/Library/Application Support/verso/index/*.tiles`.
+- [ ] **Um mapa grande no servidor**, o host de 1 GB: o mesmo mapa numa pasta
+  do servidor, aberto num navegador; "Preparando o mapa…", depois os
+  ladrilhos. A memória do servidor (`docker stats` ou `free`) fica abaixo
+  do limite enquanto corta; o `VERSO_DATA_DIR` guarda o arquivo `.tiles` e a
+  pasta não guarda nenhum ladrilho. Outra pessoa que abra o mesmo board
+  enquanto corta vê o mesmo cartão.
+- [ ] **Um JPEG desse tamanho** é desenhado inteiro, com o aviso "Imagem
+  grande demais…" pedindo um PNG; num celular a página pode recarregar —
+  diga o que aconteceu.
+- [ ] **Alfinetes**: arraste uma nota da árvore para o mapa (um alfinete, não
+  um cartão); "Fixar uma nota aqui…"; aproxime e afaste: o alfinete mantém o
+  tamanho e fica no seu ponto; um clique abre a nota; o ponteiro parado nele
+  mostra a nota (prévia ao passar o mouse); arrastar o move; "Deixar de
+  usar como mapa" (sumário, Mapas) solta a imagem.
+- [ ] **Num celular** (iPhone e Android): faça a pinça no mapa — os alfinetes
+  não crescem; um toque num alfinete abre a nota; um dedo parado num
+  alfinete mostra a nota e a retirada não abre nada; os ladrilhos chegam
+  enquanto você arrasta, sem engasgos; leitura: o VoiceOver ou o TalkBack lê
+  cada alfinete como "Abrir <nota>" na ordem de leitura, e o sumário os lista
+  como links.
+- [ ] **Uma conta de leitor**: num servidor, marque um alfinete como "Oculto
+  dos leitores". Entre como leitor em outro navegador: o board não tem o
+  alfinete secreto; a busca não acha a nota dele pelo texto do alfinete, os
+  backlinks da nota não listam o board, e a pasta sincronizada num app
+  desktop como esse leitor (um compartilhamento de leitura) tem um arquivo de
+  board sem o alfinete (abra num editor de texto). O "Ver como leitor" do
+  escritor mostra o mesmo board. Um leitor com o board aberto quando ele é
+  marcado o vê mudar, sem o alfinete (ele não está na sala).
+- [ ] **O Obsidian abre o mapa**: o board no Obsidian mostra a imagem e os
+  alfinetes como cartões de arquivo (o secreto também); edite e salve lá,
+  depois abra no Verso: `map`, `pin`, `secret`, `locked` e os grupos continuam
+  sob o `verso` de cada nó (a nova observação do O4 na versão do dia, ADR 0090
+  Consequências).
+
 ## Para reproduzir
 
 Relatados no backlog, mudados desde então, mas sem teste que os cubra; se

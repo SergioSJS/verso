@@ -18,18 +18,64 @@
 
 use super::*;
 
-/// Whether `path` names a note, the only kind of file with secret blocks
-/// (a board's secret pins are ADR 0090's, a later wave). Case ignored, and
-/// trailing dots and spaces too, which a file system may drop from a name
-/// (Windows): a name that reaches a note is a note's (fails closed).
+/// Whether `path` names a note, a file with secret blocks (ADR 0087). Case
+/// ignored, and trailing dots and spaces too, which a file system may drop
+/// from a name (Windows): a name that reaches a note is a note's (fails
+/// closed).
 pub(crate) fn is_note(path: &str) -> bool {
     path.trim_end_matches(['.', ' '])
         .to_lowercase()
         .ends_with(".md")
 }
 
+/// Whether `path` names a board, the other file with something hidden from
+/// readers: its secret pins (ADR 0090 item 5), judged by the same rules as
+/// [`is_note`].
+pub(crate) fn is_board(path: &str) -> bool {
+    path.trim_end_matches(['.', ' '])
+        .to_lowercase()
+        .ends_with(".canvas")
+}
+
+/// What a file is served as to a reader.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Served {
+    /// A note: its secret callouts are taken out.
+    Note,
+    /// A board: its secret pins are taken out.
+    Board,
+    /// A file under a name that says nothing — a hard link — which could be
+    /// either: both are looked for in its bytes.
+    Either,
+}
+
+/// `text` as a reader is served the file `served` says it is.
+fn shown(served: Served, text: &str) -> std::borrow::Cow<'_, str> {
+    use std::borrow::Cow;
+    match served {
+        Served::Note => {
+            let secrets = verso_dialect::Secrets::of(text);
+            if secrets.is_empty() {
+                Cow::Borrowed(text)
+            } else {
+                Cow::Owned(secrets.project(text).into_owned())
+            }
+        }
+        Served::Board => crate::canvas_secret::project(text),
+        Served::Either => {
+            let first = shown(Served::Note, text);
+            // A file that only might be a board is judged as one only when
+            // it reads as one: a text that mentions a secret stays a text.
+            match crate::canvas::Canvas::parse(&first) {
+                Ok(canvas) if !canvas.hidden().is_empty() => Cow::Owned(canvas.projected().write()),
+                _ => first,
+            }
+        }
+    }
+}
+
 /// FNV-1a of what a reader receives, as `verso_fs::Stamp` hashes a file.
-fn fnv(bytes: &[u8]) -> u64 {
+pub(crate) fn fnv(bytes: &[u8]) -> u64 {
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
     for b in bytes {
         h ^= u64::from(*b);
@@ -49,10 +95,50 @@ impl Workspace {
     /// reads of it is judged by its bytes, never by the name it is asked
     /// under (ADR 0087 item 4).
     fn note_by_another_name(&self, key: &str) -> bool {
+        self.served_by_another_name(key).is_some()
+    }
+
+    /// What the file at `key` is served as when its own name does not say
+    /// (see [`Self::note_by_another_name`]): by the file a link ends at, or
+    /// [`Served::Either`] for a hard link.
+    fn served_by_another_name(&self, key: &str) -> Option<Served> {
+        if let Some(real) = self.root.resolved_name(Path::new(key)) {
+            let real = real.to_string_lossy();
+            if is_note(&real) {
+                return Some(Served::Note);
+            }
+            if is_board(&real) {
+                return Some(Served::Board);
+            }
+        }
         self.root
-            .resolved_name(Path::new(key))
-            .is_some_and(|real| is_note(&real.to_string_lossy()))
-            || self.root.hard_linked(Path::new(key))
+            .hard_linked(Path::new(key))
+            .then_some(Served::Either)
+    }
+
+    /// What a reader is served the file at `relative` as: by its name, or
+    /// by the file it really is; `None` for a file with nothing hidden.
+    fn served_as(&self, relative: &str, key: &str) -> Option<Served> {
+        if is_note(relative) || is_note(key) {
+            return Some(Served::Note);
+        }
+        if is_board(relative) || is_board(key) {
+            return Some(Served::Board);
+        }
+        self.served_by_another_name(key)
+    }
+
+    /// The text of the file at `relative` as a reader is served it, if it
+    /// is not the file's own: a note's projection, a board without its
+    /// secret pins. `None` when a reader is served the file as it is.
+    #[must_use]
+    pub fn reader_view(&self, relative: &str, text: &str) -> Option<String> {
+        let key = self.confined(relative).ok()?;
+        let served = self.served_as(relative, &key)?;
+        match shown(served, text) {
+            std::borrow::Cow::Borrowed(_) => None,
+            std::borrow::Cow::Owned(own) => Some(own),
+        }
     }
 
     /// Whether `relative` names a note for what a reader is told of it: by
@@ -61,9 +147,10 @@ impl Workspace {
     #[must_use]
     pub fn reader_names_note(&self, relative: &str) -> bool {
         is_note(relative)
+            || is_board(relative)
             || self
                 .confined(relative)
-                .is_ok_and(|key| is_note(&key) || self.note_by_another_name(&key))
+                .is_ok_and(|key| is_note(&key) || is_board(&key) || self.note_by_another_name(&key))
     }
 
     /// Whether a file must not be sent to a reader as it is on disk, a
@@ -74,13 +161,17 @@ impl Workspace {
         let Ok(key) = self.entry_key(relative) else {
             return false;
         };
-        if is_note(&key) {
+        // A board is judged by its bytes too, and always read whole: a
+        // piece of it would carry a secret pin's.
+        if is_note(&key) || is_board(&key) {
             return true;
         }
         let linked = self
             .root
             .resolved_name(Path::new(&key))
-            .is_some_and(|real| is_note(&real.to_string_lossy()));
+            .is_some_and(|real| {
+                is_note(&real.to_string_lossy()) || is_board(&real.to_string_lossy())
+            });
         if linked {
             return true;
         }
@@ -89,7 +180,8 @@ impl Workspace {
         }
         match self.read_file(&key) {
             Ok(bytes) if (bytes.len() as u64) <= NOTE_MOST => {
-                !verso_dialect::Secrets::of(&String::from_utf8_lossy(&bytes)).is_empty()
+                let text = String::from_utf8_lossy(&bytes);
+                matches!(shown(Served::Either, &text), std::borrow::Cow::Owned(_))
             }
             _ => false,
         }
@@ -119,7 +211,7 @@ impl Workspace {
     /// its own headings, ids, HTML and properties.
     pub fn reader_read_note(&mut self, note: &str) -> Result<NoteText, CoreError> {
         let path = self.source_key(note)?;
-        if !is_note(&path) && !self.note_by_another_name(&path) {
+        if !is_note(&path) && self.served_as(note, &path).is_none() {
             return self.read_note(note);
         }
         let handle = self
@@ -128,6 +220,20 @@ impl Workspace {
             .map_err(CoreError::Confined)?;
         let (bytes, stamp) = self.root.read(handle).map_err(CoreError::Read)?;
         let text = String::from_utf8(bytes).map_err(|_| CoreError::NotText)?;
+        // A board (or a file that may be one) read as text: its projection.
+        if !is_note(&path)
+            && let Some(served) = self.served_as(note, &path)
+            && served != Served::Note
+            && let std::borrow::Cow::Owned(own) = shown(served, &text)
+        {
+            let unverified = self
+                .index
+                .is_unverified(&path)
+                .map_err(CoreError::Index)?
+                .unwrap_or(false);
+            let revision = self.reader_revision(&path, &own, &stamp)?;
+            return self.note_text(path, own, revision, false, unverified);
+        }
         let known = self.index.stamp_of(&path).map_err(CoreError::Index)?;
         let mut stale = known != Some(note_stamp(&stamp));
         let unverified = self
@@ -195,28 +301,30 @@ impl Workspace {
         })
     }
 
-    /// [`Self::read_text`] as a reader receives it: a note's projection.
+    /// [`Self::read_text`] as a reader receives it: a note's projection, a
+    /// board without its secret pins.
     pub fn reader_read_text(&mut self, relative: &str) -> Result<TextFile, CoreError> {
         let key = self.entry_key(relative)?;
-        if !is_note(&key) && !is_note(relative) && !self.note_by_another_name(&key) {
+        let Some(served) = self.served_as(relative, &key) else {
             return self.read_text(relative);
-        }
+        };
         let handle = self
             .root
             .handle(Path::new(&key))
             .map_err(CoreError::Confined)?;
         let (bytes, stamp) = self.root.read(handle).map_err(CoreError::Read)?;
         let text = String::from_utf8(bytes).map_err(|_| CoreError::NotText)?;
-        let secrets = verso_dialect::Secrets::of(&text);
-        if secrets.is_empty() {
-            return Ok(TextFile {
-                path: key,
-                text,
-                revision: revision::encode(&stamp),
-                warnings: Vec::new(),
-            });
-        }
-        let shown = secrets.project(&text).into_owned();
+        let shown = match shown(served, &text) {
+            std::borrow::Cow::Borrowed(_) => {
+                return Ok(TextFile {
+                    path: key,
+                    text,
+                    revision: revision::encode(&stamp),
+                    warnings: Vec::new(),
+                });
+            }
+            std::borrow::Cow::Owned(own) => own,
+        };
         let revision = self.reader_revision(&key, &shown, &stamp)?;
         Ok(TextFile {
             path: key,
@@ -233,15 +341,14 @@ impl Workspace {
         let bytes = self.read_file(relative)?;
         // By the name asked and by the name confinement reads.
         let confined = self.confined(relative)?;
-        if !is_note(relative) && !is_note(&confined) && !self.note_by_another_name(&confined) {
+        let Some(served) = self.served_as(relative, &confined) else {
             return Ok(bytes);
-        }
+        };
         let text = String::from_utf8_lossy(&bytes);
-        let secrets = verso_dialect::Secrets::of(&text);
-        if secrets.is_empty() {
-            return Ok(bytes);
-        }
-        Ok(secrets.project(&text).into_owned().into_bytes())
+        Ok(match shown(served, &text) {
+            std::borrow::Cow::Borrowed(_) => bytes,
+            std::borrow::Cow::Owned(own) => own.into_bytes(),
+        })
     }
 
     /// [`Self::search`] as a reader asks it: the secret blocks' words are
@@ -297,11 +404,13 @@ impl Workspace {
             .entries
             .iter()
             .map(|e| match stats.get(&e.path) {
-                Some(&(len, modified)) if e.kind == FileKind::Note => FileEntry {
-                    len,
-                    modified,
-                    ..e.clone()
-                },
+                Some(&(len, modified)) if e.kind == FileKind::Note || is_board(&e.path) => {
+                    FileEntry {
+                        len,
+                        modified,
+                        ..e.clone()
+                    }
+                }
                 _ => e.clone(),
             })
             .collect())

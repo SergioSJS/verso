@@ -319,7 +319,9 @@ impl Scope {
             | "list_folders" | "list_entries" | "notes_of_type" => {}
             "search" => args["limit"] = json!(200),
             "read_note" | "links" | "backlinks" | "read_file_text" | "read_text"
-            | "board_preview" | "unlinked_mentions" => set(&mut args, "path", Use::Read)?,
+            | "board_preview" | "unlinked_mentions" | "map_open" | "map_tile" => {
+                set(&mut args, "path", Use::Read)?;
+            }
             "resolve_attachment" => set(&mut args, "source", Use::Read)?,
             "write_note" | "create_file" | "create_folder" | "write_text" | "write_board" => {
                 set(&mut args, "path", Use::Below)?;

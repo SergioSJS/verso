@@ -19,6 +19,7 @@ import type { Capabilities, Mentions } from "./bindings";
 import { Core, type Seed } from "./harness/core";
 import { UNUSED_ARGS } from "./harness/unusedArgs";
 import { Rooms } from "./harness/room";
+import { projectBoard } from "./harness/maps";
 import { Versions } from "./harness/history";
 import { SystemNotifications } from "./harness/notifications";
 import * as sanitize from "./sanitize";
@@ -55,6 +56,16 @@ if (onServer) {
     const all = mentions?.(a) as Mentions;
     return role === "reader" ? { ...all, mentions: all.mentions.filter((m) => !m.secret) } : all;
   };
+  // A reader's board is the core's projection of it: without its secret
+  // pins (ADR 0090 item 5).
+  for (const command of ["read_text", "read_file_text"]) {
+    const read = core.handlers[command];
+    core.handlers[command] = (a) => {
+      const text = read?.(a);
+      if (role !== "reader" || !/\.canvas$/i.test(String(a["path"]))) return text;
+      return typeof text === "string" ? projectBoard(text) : { ...(text as { text: string }), text: projectBoard((text as { text: string }).text) };
+    };
+  }
   document.documentElement.dataset["host"] = "server";
   document.documentElement.dataset["role"] = role;
 }

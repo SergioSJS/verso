@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import type { MapInfo } from "../bindings";
 import { type El } from "./model";
 import type { Layouts } from "./roomModel";
 import { type BoardStrings } from "./strings";
@@ -114,6 +115,25 @@ export type BoardHost = {
   /** The window's hover preview: a card's note where the pointer rests
    *  on its name, or under a finger held still (ADR 0085 item 2). */
   preview?: BoardPreview;
+  /** The tiles of a map's picture (ADR 0090 item 4): how they stand —
+   *  asked again while the core cuts them — and one tile, a PNG as base64
+   *  (null: not there). Where the host cuts none, a large picture is drawn
+   *  whole, as any is. */
+  maps?: {
+    open: (path: string) => Promise<MapInfo>;
+    tile: (path: string, level: number, x: number, y: number) => Promise<string | null>;
+  };
+  /** Secret cards (ADR 0090 item 5): whether a UniVerso serves the folder
+   *  (a lock says "hidden from readers" there, "visible to anyone with the
+   *  file" in a folder of this computer), and the board as one who may only
+   *  read it is served it (the core's projection) for the writer's "view as
+   *  a reader". */
+  secret?: {
+    served: () => boolean;
+    project: (json: string) => Promise<string>;
+  };
+  /** A note's sticker drawn at `size`, for its pin; null for none. */
+  sticker?: (path: string, size: number) => HTMLElement | null;
 };
 
 /** What the settings say of boards. */

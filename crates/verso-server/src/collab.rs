@@ -437,6 +437,15 @@ fn join_room(
         )));
     }
     let kind = kind_of(path);
+    // A reader never joins a board's room (ADR 0090 item 5): the room holds
+    // every element, a secret pin's among them, and a reader would be told
+    // them all. It follows the board by its file, as the server serves it
+    // the board — without its secret pins — each time the room writes it.
+    if reader && kind == Kind::Board {
+        return Err(refused(
+            "a board is followed live by those who may edit it: you see it as it is saved",
+        ));
+    }
     let wire = if kind == Kind::Board {
         CollabKind::Board
     } else {

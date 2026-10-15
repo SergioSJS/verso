@@ -26,7 +26,9 @@ pub enum ForReader {
     Projected,
     /// The same answer as anyone's: nothing in it comes from a note's
     /// body — paths, the frontmatter's type and address, the folder's
-    /// settings, a board (its secret pins are ADR 0090's, a later wave).
+    /// settings. A board is never here: its secret pins are ADR 0090's, and
+    /// every command that carries a board's text answers from its
+    /// projection.
     Same,
 }
 
@@ -48,7 +50,11 @@ pub const READER_COMMANDS: &[(&str, ForReader)] = &[
     ("resolve_attachment", ForReader::Same),
     ("list_entries", ForReader::Projected),
     ("read_text", ForReader::Projected),
-    ("board_preview", ForReader::Same),
+    ("board_preview", ForReader::Projected),
+    // The tiles of a map's picture: bytes of a picture of the folder, as
+    // `resolve_attachment` gives them; no note's body.
+    ("map_open", ForReader::Same),
+    ("map_tile", ForReader::Same),
     ("query_base", ForReader::Projected),
     ("get_focuses", ForReader::Same),
     ("can_sync_focuses", ForReader::Same),
@@ -83,6 +89,10 @@ fn arg<T: serde::de::DeserializeOwned>(
             message: format!("{name}: {key}: {e}"),
         })
     })
+}
+
+fn json_of(text: String) -> Result<serde_json::Value, OpError> {
+    Ok(serde_json::Value::String(text))
 }
 
 fn json<T: serde::Serialize>(value: T) -> Result<serde_json::Value, OpError> {
@@ -132,6 +142,10 @@ fn projected(
         "list_entries" => {
             let entries = ws.reader_entries()?;
             json(ops::entries_out(ws, &entries)?)
+        }
+        "board_preview" => {
+            let json = path("json")?;
+            json_of(ws.reader_board_preview(&path("path")?, &json)?)
         }
         "folder_space" => {
             let entries = ws.reader_entries()?;

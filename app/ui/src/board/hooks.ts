@@ -167,6 +167,9 @@ export function useCardPreview(canvas: RefObject<HTMLDivElement | null>, preview
     if (!root || !preview) return;
     const inside = (r: DOMRect, x: number, y: number): boolean => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
     const nameAt = (x: number, y: number): Element | null => {
+      // A pin (ADR 0090 item 3) is above the cards: its mark is the name.
+      const pins = root.querySelectorAll<HTMLElement>(".board-pin[data-preview-path]:not(.is-far)");
+      for (let i = pins.length - 1; i >= 0; i--) if (inside(pins[i]!.getBoundingClientRect(), x, y)) return pins[i]!;
       const slots = root.querySelectorAll<HTMLElement>(".board-card-slot:not(.is-far)");
       for (let i = slots.length - 1; i >= 0; i--) {
         const slot = slots[i]!;
