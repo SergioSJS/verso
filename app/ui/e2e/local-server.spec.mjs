@@ -36,9 +36,13 @@ test("it is off, serves only the ticked folders, and says what the system will a
   // The folders are locked while it serves, and the mark is in the status bar.
   await expect(vault).toBeDisabled();
   await expect(page.locator("#local-mark")).toContainText("Servindo");
+  // Settings is modal: the mark's Stop is reached with it closed.
+  await app.key("Escape");
+  await expect(page.locator(".quick.settings")).toBeHidden();
   await page.locator("#local-mark").getByRole("button", { name: "Parar de servir ao celular" }).click();
   await expect(page.locator("#local-mark")).toHaveCount(0);
-  await expect(body.getByText("Desligado.").first()).toBeVisible();
+  await section(app);
+  await expect(page.locator(".settings-body").getByText("Desligado.").first()).toBeVisible();
 });
 
 test("a phone is paired only when the laptop says Allow, and can then be revoked", async ({ app, page }) => {
@@ -83,11 +87,14 @@ test("refusing a phone, and forgetting all, ask and say what they did", async ({
   await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
   await body.getByRole("button", { name: "Parear um celular" }).click();
   const dialog = page.getByRole("dialog", { name: "Parear um celular" });
+  // The window is open once the code shows: only then can a phone ask.
+  await expect(dialog.getByText("BCDF-GHJK")).toBeVisible();
   await page.evaluate(() => window.__harness.core.localServer.askAsPhone("Estranho"));
   await dialog.getByRole("button", { name: "Não fui eu: recusar" }).click();
   await expect(body.getByText("Nenhum ainda.")).toBeVisible();
   // Forget all: asked first.
   await body.getByRole("button", { name: "Parear um celular" }).click();
+  await expect(page.getByRole("dialog", { name: "Parear um celular" }).getByText("BCDF-GHJK")).toBeVisible();
   await page.evaluate(() => window.__harness.core.localServer.askAsPhone("Celular A"));
   await page.getByRole("dialog", { name: "Parear um celular" }).getByRole("button", { name: "Permitir" }).click();
   await body.getByRole("button", { name: "Esquecer todos os celulares" }).click();
@@ -107,6 +114,8 @@ test("closing the pairing dialog ends the window", async ({ app, page }) => {
   await expect(dialog.getByText("BCDF-GHJK")).toBeVisible();
   await dialog.getByRole("button", { name: "Fechar" }).click();
   await expect(dialog).toHaveCount(0);
-  const open = await page.evaluate(() => window.__harness.core.invoke("local_server_pair_state", {}));
-  expect(open.open).toBe(false);
+  // The host is told after the dialog goes: poll the content asserted.
+  await expect
+    .poll(async () => (await page.evaluate(() => window.__harness.core.invoke("local_server_pair_state", {}))).open)
+    .toBe(false);
 });
