@@ -200,6 +200,19 @@ async function keptPaths(page, folder) {
   );
 }
 
+/** The tests that go offline and edit there need the network to be cut
+ *  under the page: Chromium does it (offline mode, and a WebSocket route that
+ *  closes the page's sockets). Playwright's WebKit does not: it cannot open a
+ *  page while its network is off, and its WebSocket route leaves the window's
+ *  own socket delivering, so the window never finds itself offline (seen:
+ *  the offline status shows, the writes do not reach the store). What the
+ *  e2e cannot show there is checked by hand on a real iPhone and in Safari
+ *  (manual-checks.md); the engine, the syncer and the server's side are
+ *  tested in every browser's absence (test/offlineSync.test.mjs). */
+function chromiumOnly() {
+  test.skip(test.info().project.name !== "chromium", "Playwright's WebKit cannot cut the network under a page (see chromiumOnly)");
+}
+
 /** The page opens again with no network — where the browser can show it:
  *  Playwright's WebKit fails a navigation made while its network is off
  *  before the service worker can answer, so there the window stays open and
@@ -280,6 +293,7 @@ async function open(page, folder) {
 }
 
 test("a folder kept opens with no network, is edited there, and goes up when the network returns", async ({ page }, info) => {
+  chromiumOnly();
   test.setTimeout(240_000);
   const errors = watch(page);
   await signedIn(page);
@@ -316,6 +330,7 @@ test("a folder kept opens with no network, is edited there, and goes up when the
 });
 
 test("a note both sides appended to is joined; one both changed is kept as a copy, both listed", async ({ page, browser }, info) => {
+  chromiumOnly();
   test.setTimeout(240_000);
   const errors = watch(page);
   await signedIn(page);
@@ -402,6 +417,7 @@ test("a picture is kept once opened; every attachment on the person's word", asy
 });
 
 test("the browser's refusals are said: no promise to keep, a full store, plain HTTP", async ({ page }, info) => {
+  chromiumOnly();
   test.setTimeout(180_000);
   const errors = watch(page);
   await signedIn(page);
@@ -456,6 +472,7 @@ test("over plain HTTP the setting says offline needs HTTPS, and why", async ({ p
 });
 
 test("signing out deletes the copy, after saying how many writes have not gone up", async ({ page }, info) => {
+  chromiumOnly();
   test.setTimeout(240_000);
   const errors = watch(page);
   await signedIn(page);
