@@ -85,3 +85,48 @@ fn a_reader_s_change_numbers_have_no_gaps_for_secret_only_changes() {
         assert_eq!(none["ok"]["changes"], json!([]), "{none}");
     });
 }
+
+#[test]
+fn a_note_too_large_to_serve_a_reader_is_not_in_its_manifest() {
+    // M2: past 16 MB a note is refused to a reader; its manifest and its
+    // log must not tell it the whole file's size and hash instead.
+    block_on(async {
+        let (r, _owner, mut reader, id) = folder_with_a_reader().await;
+        let body = format!(
+            "# Grande\n\n> [!secret]\n> zqbig\n\n{}\n",
+            "pub ".repeat(5_000_000)
+        );
+        std::fs::write(r.campanha().join("Grande.md"), &body).unwrap();
+        // The folder's walk finds it on a question; wait until it did.
+        let mut recorded = false;
+        for k in 0..10u64 {
+            let state = ask(&mut reader, 2 + k * 2, "sync_state", json!({})).await;
+            let files = state["ok"]["files"].as_array().unwrap().clone();
+            assert!(
+                !files.iter().any(|f| f["path"] == "Grande.md"),
+                "a reader is told of a note it cannot read: {state}"
+            );
+            let log = ask(
+                &mut reader,
+                3 + k * 2,
+                "sync_changes",
+                json!({ "since": 0 }),
+            )
+            .await;
+            let changes = log["ok"]["changes"].as_array().unwrap().clone();
+            assert!(!changes.iter().any(|c| c["path"] == "Grande.md"), "{log}");
+            recorded = r
+                .server
+                .db
+                .manifest_paths(&id)
+                .unwrap()
+                .iter()
+                .any(|p| p == "Grande.md");
+            if recorded {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+        }
+        assert!(recorded, "the walk never recorded the large note");
+    });
+}

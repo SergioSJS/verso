@@ -179,7 +179,9 @@ impl Db {
                         .optional()
                         .map_err(e)?;
                     let shown = reader.map_or(hash, |(h, _)| h);
-                    let same = renamed_from.is_none() && before.as_ref() == Some(shown);
+                    // A note not served to a reader is none of its changes.
+                    let hidden = reader.is_some_and(|(_, s)| *s < 0);
+                    let same = hidden || (renamed_from.is_none() && before.as_ref() == Some(shown));
                     same_for_reader.push(same);
                     let (rh, rs) = (reader.map(|r| &r.0), reader.map(|r| r.1));
                     tx.execute(
@@ -234,7 +236,8 @@ impl Db {
         let conn = self.reader();
         let mut st = conn
             .prepare(&format!(
-                "SELECT path, {READER_FILE} FROM manifest WHERE folder = ?1"
+                "SELECT path, {READER_FILE} FROM manifest WHERE folder = ?1
+                 AND COALESCE(reader_size, size) >= 0"
             ))
             .map_err(e)?;
         st.query_map([folder], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
