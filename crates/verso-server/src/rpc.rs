@@ -680,6 +680,14 @@ async fn command(
                 verso_core::secret::project(&text).into_owned(),
             ))
         }
+        // The window's own board as a reader is served it (ADR 0090 item
+        // 5): a writer's "view as a reader".
+        "project_board" => {
+            let text: String = arg(&args, "text")?;
+            Ok(Value::String(
+                verso_core::canvas_secret::project(&text).into_owned(),
+            ))
+        }
         "board_text" => {
             let json: String = arg(&args, "json")?;
             to_value(ops::board_text(&json)?)
