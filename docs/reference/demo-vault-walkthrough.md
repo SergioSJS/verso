@@ -83,7 +83,10 @@ point 13).
 3. Import again into a folder that holds an earlier version's demo. Expect:
    what is missing is created, a file that is the untouched copy of an
    earlier version's demo (its bytes are one the demo carries the hash of)
-   is replaced by the current one, a file with other content — the
+   is replaced by the current one, the untouched old copy of a note the
+   tutorial renamed (`24 - Dados e Tabelas Sorteadas.md`, now 25) goes to
+   the folder's trash — restorable — once the current note is there, a
+   file with other content — the
    person's edit — is kept as it is and named, the toast and the status
    bar say how many were created, updated and kept, and the app's log has
    `import demo:` lines saying how many were created, updated, kept and

@@ -80,7 +80,10 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
 3. Importe de novo numa pasta que tem o exemplo de uma versão anterior.
    Esperado: o que falta é criado, um arquivo que é a cópia intacta do exemplo de uma
    versão anterior (seus bytes são um dos que o exemplo guarda o hash) é
-   substituído pelo atual, um arquivo com outro conteúdo — edição da pessoa
+   substituído pelo atual, a cópia antiga intacta de uma nota que o
+   tutorial renomeou (`24 - Dados e Tabelas Sorteadas.md`, agora 25) vai
+   para a lixeira da pasta — restaurável — assim que a nota atual está lá,
+   um arquivo com outro conteúdo — edição da pessoa
    — fica como está e é nomeado, o aviso e a barra de status dizem quantos
    foram criados, atualizados e mantidos, e o log do app tem linhas
    `import demo:` dizendo quantos foram criados, atualizados, mantidos e

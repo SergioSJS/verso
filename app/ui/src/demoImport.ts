@@ -40,3 +40,18 @@ export function decide(have: string | null | undefined, current: string, past: r
 export function replaceable(path: string): boolean {
   return /\.(md|base|canvas|svg|html)$/i.test(path);
 }
+
+/** A path the demo had under another name (`DEMO_RETIRED`): what to do
+ *  with the file the folder holds there. `have` is its hash (`null`: there
+ *  is none, or it cannot be read), `counterpart` whether the current file
+ *  that replaces it is now in the folder (created, updated or the same).
+ *  The tutorial's untouched old copy goes to the trash — restorable
+ *  (ADR 0080), never deleted — and the person's edit of it stays, named. A
+ *  name that differs only by case or Unicode form is the same file on some
+ *  disks and is never touched. */
+export type RetiredVerdict = "trash" | "keep" | "none";
+export function decideRetired(have: string | null, past: readonly string[], counterpart: boolean, oldPath: string, newPath: string): RetiredVerdict {
+  const fold = (s: string) => s.normalize("NFC").toLowerCase();
+  if (have === null || !counterpart || fold(oldPath) === fold(newPath)) return "none";
+  return past.includes(have) ? "trash" : "keep";
+}
