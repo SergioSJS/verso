@@ -201,3 +201,29 @@ test("a paired phone can be let edit, or only read, without pairing again", asyn
   await expect(body.locator(".ls-log-list")).toContainText("Celular passou a editar");
   await expect(body.locator(".ls-log-list")).toContainText("Celular passou a só ler");
 });
+
+test("the pairing dialog copies the link the QR encodes, for the address picked", async ({ app, page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]).catch(() => undefined);
+  await page.addInitScript(() => {
+    // The clipboard stubbed: what is written is what the test reads, in
+    // every engine.
+    window.__copied = null;
+    Object.defineProperty(navigator, "clipboard", { value: { writeText: (t) => { window.__copied = t; return Promise.resolve(); } }, configurable: true });
+  });
+  await app.open();
+  await section(app);
+  const body = page.locator(".settings-body");
+  await body.getByRole("checkbox", { name: "Vault" }).check();
+  await body.getByRole("button", { name: "Ligar o servidor" }).click();
+  await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
+  await body.getByRole("button", { name: "Parear um celular" }).click();
+  const dialog = page.getByRole("dialog", { name: "Parear um celular" });
+  await dialog.getByRole("button", { name: "Copiar link" }).click();
+  await expect(dialog.getByText("Link copiado — vale 2 minutos, uma vez.")).toBeVisible();
+  expect(await page.evaluate(() => window.__copied)).toBe("https://192.168.3.122:51234/pair#t=harness&fp=abcd&c=0123456789abcdef");
+  // It follows the address picker.
+  await dialog.getByRole("combobox", { name: "Endereço que o celular vai usar" }).selectOption("10.217.1.73");
+  await expect(dialog.getByText("Novo QR para 10.217.1.73.")).toBeVisible();
+  await dialog.getByRole("button", { name: "Copiar link" }).click();
+  expect(await page.evaluate(() => window.__copied)).toBe("https://10.217.1.73:51234/pair#t=harness&fp=abcd&c=0123456789abcdef");
+});

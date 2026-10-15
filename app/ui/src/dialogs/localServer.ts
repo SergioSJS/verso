@@ -714,6 +714,20 @@ function drawPairing(body: HTMLElement, p: LocalPairing, pick: (address: string)
   code.append(h("code", "ls-code", p.code));
   facts.append(h("dt", "", w.address), addr, h("dt", "", w.code), code);
   body.append(facts);
+  // The same link the QR encodes, for a phone that cannot scan or a
+  // message to oneself: it carries the same one-time token, in the part
+  // after `#` that no server (nor a messenger's preview) receives.
+  const copy = h("button", "btn", w.copyLink);
+  copy.type = "button";
+  const copied = h("p", "ls-help");
+  copied.setAttribute("role", "status");
+  copy.addEventListener("click", () => {
+    void navigator.clipboard.writeText(p.url).then(
+      () => { copied.textContent = w.linkCopied; },
+      () => { copied.textContent = w.linkNotCopied; },
+    );
+  });
+  body.append(copy, copied);
   if (p.certificate === "own") {
     body.append(h("p", "ls-help", w.trustOwn));
     const fp = h("p", "ls-fp");

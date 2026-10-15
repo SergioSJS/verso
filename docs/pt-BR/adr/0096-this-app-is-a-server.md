@@ -567,6 +567,16 @@ de outro jeito):
   pasta e do log, definidos no computador); as recusas têm tipos de erro
   próprios (`not_on_phone`, `phone_reads`) para a janela dizê-las no seu
   idioma.
+- **Um link de pareamento copiável** (item 7, como construído em
+  2026-10-15): ao lado do QR, *Copiar link* copia o mesmo
+  `https://<endereço>:<porta>/pair#…` que o QR codifica, para o endereço
+  escolhido na lista, e diz *Link copiado — vale 2 minutos, uma vez*. O link
+  leva o **mesmo token de uso único de 2 minutos** do QR; o token e a
+  impressão digital ficam no fragmento, que o navegador nunca envia a
+  servidor nenhum, então a prévia de um mensageiro não consegue lê-lo; e a
+  aprovação *Foi você?* no computador continua sendo o portão do pareamento,
+  como no QR. Quem receber o link nos dois minutos e abri-lo primeiro é
+  quem o computador pergunta.
 - **O servidor** é o mesmo crate e o mesmo despacho do `verso serve`
   (`crates/verso-server/src/local`), com uma tabela de rotas menor — sem
   login, convite, página de conta, console, token, passkey nem fluxo de

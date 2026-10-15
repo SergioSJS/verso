@@ -546,6 +546,15 @@ decision; each is a question for the maintainer if it should be otherwise):
   answered and do nothing for a phone (they are the folder settings' and
   the log's, set from the computer); refusals carry their own error kinds
   (`not_on_phone`, `phone_reads`) so the window says them in its language.
+- **A copyable pairing link** (item 7, as built 2026-10-15): beside the
+  QR, *Copy link* copies the same `https://<address>:<port>/pair#…` the QR
+  encodes, for the address chosen in the list, and says *Link copied — good
+  for 2 minutes, once*. The link carries the **same one-time 2-minute
+  token** as the QR; the token and the fingerprint are in the fragment, which
+  a browser never sends to any server, so a messenger's link preview cannot
+  read it; and the computer's *Was it you?* approval still gates the
+  pairing, as for the QR. Anyone who gets the link inside the two minutes
+  and opens it first is the one the computer asks about.
 - **The server** is the same crate and the same dispatch as `verso serve`
   (`crates/verso-server/src/local`), with a smaller table of routes — no
   sign-in, invitation, account page, console, token, passkey or device

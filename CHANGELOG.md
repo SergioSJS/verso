@@ -14,6 +14,7 @@ test release.
 
 ### Added
 
+- **Copy the pairing link** ([ADR 0096](docs/adr/0096-this-app-is-a-server.md)): the pairing dialog has *Copy link*, beside the QR, which copies the same link the QR holds, for the address you picked, and says it is good for 2 minutes, once. The computer still asks *Was it you?* before the phone gets in.
 - **A paired phone can be let edit, or only read, without pairing again** ([ADR 0096](docs/adr/0096-this-app-is-a-server.md)): each phone under *Settings › This app is a server › Paired phones* has a *Can edit* switch. It holds from the phone's next command; a phone made a reader leaves the live notes it was editing. The change is logged and listed in *What happened*.
 - **`verso serve` and "this app is a server" on Windows** ([ADR 0075](docs/adr/0075-server-packaging-and-storage.md) item 2 and [ADR 0096](docs/adr/0096-this-app-is-a-server.md) item 17, revised): the server's code builds on Windows, with OpenSSL compiled in as on Linux and macOS, so `verso.exe serve` runs there and the Windows app serves its folders to a phone like the others. There is still no Windows package or service for a dedicated server (Docker and Linux stay that), and the Windows app does not read whether the Wi-Fi is set to Private: the private-address, same-subnet and network-change guards hold as everywhere, and Windows Defender Firewall asks for which networks on the first start.
 
