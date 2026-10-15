@@ -225,14 +225,27 @@ pub(super) async fn stop<R: tauri::Runtime>(
 
 pub(super) async fn pair_open<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
+    address: Option<String>,
 ) -> Result<LocalPairing, ContractError> {
     let local = server(&app)?;
     blocking(move || {
         check_not_synced(&app, &local)?;
-        let v = local.pair_open()?;
+        let v = local.pair_open_on(address.as_deref())?;
         Ok(LocalPairing {
             url: v.url,
             address: v.address,
+            choices: v
+                .choices
+                .into_iter()
+                .map(|c| LocalAddressChoice {
+                    address: c.address,
+                    interface: c.interface,
+                    kind: c.kind,
+                    hint: c.hint,
+                    default_route: c.default_route,
+                })
+                .collect(),
+            chosen: v.chosen,
             code: v.code,
             qr: v.qr,
             expires_in: u32::try_from(v.expires_in).unwrap_or(120),
@@ -305,6 +318,15 @@ pub(super) async fn phones<R: tauri::Runtime>(
             .collect())
     })
     .await
+}
+
+pub(super) async fn phone_role<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+    editor: bool,
+) -> Result<(), ContractError> {
+    let local = server(&app)?;
+    blocking(move || local.set_phone_role(&id, editor)).await
 }
 
 pub(super) async fn revoke<R: tauri::Runtime>(

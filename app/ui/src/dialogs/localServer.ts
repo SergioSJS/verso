@@ -10,7 +10,7 @@
 // included, where the person acted.
 
 import { listen } from "@tauri-apps/api/event";
-import { commands, type ContractError, type LocalFolder, type LocalPairState, type LocalPairing, type LocalServerStatus } from "../bindings";
+import { commands, type ContractError, type LocalAddressChoice, type LocalFolder, type LocalPairState, type LocalPairing, type LocalServerStatus } from "../bindings";
 import { button, h, ui } from "../dom";
 import { errorSentence } from "../errors";
 import { icon } from "../icons";
@@ -280,7 +280,32 @@ export function localServerBody(_item: Item): HTMLElement {
           void redraw();
         });
       });
-      li.append(who, revoke);
+      // Reader or editor, changed here without pairing again; a phone that
+      // is connected has it from its next command.
+      const mayEdit = h("input");
+      mayEdit.type = "checkbox";
+      mayEdit.id = `ls-edit-${p.id}`;
+      mayEdit.checked = p.role === "editor";
+      mayEdit.setAttribute("aria-label", w.mayEditNamed(p.name));
+      const mayLabel = h("label", "ls-check", w.mayEdit);
+      mayLabel.htmlFor = mayEdit.id;
+      mayLabel.prepend(mayEdit);
+      mayEdit.addEventListener("change", () => {
+        const editor = mayEdit.checked;
+        mayEdit.disabled = true;
+        void commands.localServerPhoneRole(p.id, editor).then((res) => {
+          mayEdit.disabled = false;
+          if (res.status !== "ok") {
+            mayEdit.checked = !editor;
+            return failed(res.error);
+          }
+          say(w.roleNow(p.name, editor));
+          void redraw();
+        });
+      });
+      const acts = h("div", "ls-phone-acts");
+      acts.append(mayLabel, revoke);
+      li.append(who, acts);
       phones.append(li);
     }
     state.textContent = s.serving ? `${w.serving(where(s))} ${w.phones(s.phones_paired, s.phones_connected)}.` : `${w.off} ${w.phones(s.phones_paired, 0)}.`;
@@ -544,9 +569,14 @@ export function openPairing(): void {
     const a = state.asked;
     if (!a) {
       ask.hidden = true;
+      actions.hidden = false;
       askedKey = "";
       return;
     }
+    // The two answers are the dialog's actions while a phone waits (each
+    // ends the window); a Close under them was a third button alone on a
+    // row of its own.
+    actions.hidden = true;
     const key = `${a.device}|${a.asked}`;
     if (key === askedKey) return;
     askedKey = key;
@@ -610,32 +640,94 @@ export function openPairing(): void {
     drawAsk(s);
   };
 
-  void commands.localServerPairOpen().then((r) => {
-    if (!alive) {
-      void commands.localServerPairClose();
-      return;
-    }
-    if (r.status !== "ok") {
-      live.textContent = errorSentence(r.error) || w.failed;
-      return;
-    }
-    shown = true;
-    drawPairing(body, r.data);
-    timer = window.setInterval(() => void poll(), 1000);
-    void poll();
-  });
+  // Opens the window for `address` (none: the best one). Picking another
+  // address opens a new window — a new token and code — and redraws.
+  const load = (address: string | null, again: boolean) =>
+    commands.localServerPairOpen(address).then((r) => {
+      if (!alive) {
+        void commands.localServerPairClose();
+        return;
+      }
+      if (r.status !== "ok") {
+        live.textContent = errorSentence(r.error) || w.failed;
+        return;
+      }
+      shown = true;
+      drawPairing(body, r.data, (a) => {
+        void load(a, true);
+      });
+      if (again) {
+        live.textContent = w.addressNew(r.data.chosen);
+        body.querySelector<HTMLElement>("#ls-address")?.focus();
+      } else {
+        window.clearInterval(timer);
+        timer = window.setInterval(() => void poll(), 1000);
+        void poll();
+      }
+    });
+  void load(null, false);
 }
 
-function drawPairing(body: HTMLElement, p: LocalPairing): void {
+/** "192.168.3.122 — en7 (rede local)": what a choice says, for the list. */
+export function choiceLabel(c: LocalAddressChoice): string {
+  const w = localStrings();
+  const what = c.kind === "virtual" ? w.addressVirtual(c.hint) : w.addressLan;
+  return `${c.address} — ${c.interface} (${what})`;
+}
+
+function drawPairing(body: HTMLElement, p: LocalPairing, pick: (address: string) => void): void {
   const w = localStrings();
   body.replaceChildren(h("p", "ls-help", w.pairSteps), drawQr(p.qr, w.qrLabel));
   const facts = h("dl", "ls-facts");
   const addr = h("dd", "ls-big");
   addr.append(h("code", "", `https://${p.address}/pair`));
+  // Which address, on which interface; the list lets the person pick
+  // another (a native list: keyboard and screen reader for free).
+  if (p.choices.length > 0) {
+    const row = h("p", "ls-pick");
+    const label = h("label", "ls-help", w.addressPick);
+    label.htmlFor = "ls-address";
+    row.append(label);
+    if (p.choices.length > 1) {
+      const sel = h("select");
+      sel.id = "ls-address";
+      sel.setAttribute("aria-describedby", "ls-address-help");
+      for (const c of p.choices) {
+        const o = h("option", "", choiceLabel(c));
+        o.value = c.address;
+        o.selected = c.address === p.chosen;
+        sel.append(o);
+      }
+      sel.addEventListener("change", () => pick(sel.value));
+      row.append(sel);
+    } else {
+      const only = h("span", "ls-only", p.choices.map(choiceLabel).join(""));
+      only.id = "ls-address";
+      only.tabIndex = -1;
+      row.append(only);
+    }
+    const help = h("span", "ls-help", w.addressHelp);
+    help.id = "ls-address-help";
+    body.append(row, help);
+  }
   const code = h("dd", "ls-big");
   code.append(h("code", "ls-code", p.code));
   facts.append(h("dt", "", w.address), addr, h("dt", "", w.code), code);
   body.append(facts);
+  // The same link the QR encodes, for a phone that cannot scan or a
+  // message to oneself: it carries the same one-time token, in the part
+  // after `#` that no server (nor a messenger's preview) receives.
+  const copy = h("button", "btn", w.copyLink);
+  copy.type = "button";
+  const copied = h("p", "ls-help");
+  copied.setAttribute("role", "status");
+  copy.addEventListener("click", () => {
+    void navigator.clipboard.writeText(p.url).then(
+      () => { copied.textContent = w.linkCopied; },
+      () => { copied.textContent = w.linkNotCopied; },
+    );
+  });
+  body.append(copy, copied);
   if (p.certificate === "own") {
     body.append(h("p", "ls-help", w.trustOwn));
     const fp = h("p", "ls-fp");

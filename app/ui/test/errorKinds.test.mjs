@@ -14,7 +14,7 @@ await esbuild.build({
   outfile: "test/.bundles/errorKinds.test-bundle.mjs",
   logLevel: "error",
 });
-const { caseTwin, consoleLine, errorParts, levelOf, redact } = await import("./.bundles/errorKinds.test-bundle.mjs");
+const { PHONE, caseTwin, consoleLine, errorParts, levelOf, redact } = await import("./.bundles/errorKinds.test-bundle.mjs");
 
 describe("The case refusal is told by its kind", () => {
   test("the contract's case_twin is a case twin, whatever its text", () => {
@@ -30,6 +30,10 @@ describe("The case refusal is told by its kind", () => {
     assert.equal(levelOf("case_twin"), "INFO");
     assert.equal(levelOf("exists"), "INFO");
     assert.equal(levelOf("refused"), "ERROR");
+    // A phone told a command is not for it is told an answer, not a fault.
+    assert.equal(levelOf("not_on_phone"), "INFO");
+    assert.equal(levelOf("phone_reads"), "INFO");
+    assert.deepEqual([...PHONE].sort(), ["not_on_phone", "phone_reads"]);
     assert.equal(levelOf(""), "ERROR");
   });
   test("a message of the window's own has no kind", () => {

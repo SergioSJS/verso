@@ -527,6 +527,56 @@ de outro jeito):
   pergunta no primeiro bind e, com a caixa que a janela manda deixar
   desmarcada, só deixa entrar redes Privadas (item 9). A ajuda de "o
   firewall recusa" do diálogo tem um parágrafo para o Windows.
+- **Qual endereço o pareamento mostra** (item 3, como construído em
+  2026-10-15): a primeira versão mostrava o primeiro endereço privado que
+  listava, que num Mac era a interface virtual do ZeroTier. Agora os
+  endereços são ordenados: primeiro o que o sistema usaria na rota padrão —
+  achado ao conectar um socket UDP a um endereço de documentação
+  (`192.0.2.1`), o que só consulta a tabela de rotas e não envia nada, sem
+  dependência nova —, depois as interfaces que parecem reais, depois as
+  virtuais pelo nome (`utun*`, `feth*`, `zt*`, `tailscale*`, `wg*`, `tun*`,
+  `tap*`, `docker*`, `br-*`, `vbox*`, `vmnet*`, `bridge*`, `veth*`, e
+  adaptadores do Windows chamados ZeroTier, Tailscale, VPN, Hyper-V,
+  VirtualBox, vEthernet). O diálogo de pareamento diz para qual endereço e
+  interface é o QR ("192.168.3.122 — en7 (rede local)") e uma lista deixa
+  escolher outro ("10.147.11.197 — feth237 (rede virtual: ZeroTier?)");
+  escolher abre uma nova janela de pareamento — novo token de uso único e
+  novo código. O certificado não muda: ele já nomeia **todos** os endereços
+  servidos, então qualquer escolha é válida.
+- **O papel de um celular pareado pode mudar** (itens 6 e 15, como
+  construído em 2026-10-15): a primeira versão fixava o papel no pareamento,
+  então deixar um leitor editar exigia esquecer o celular e parear de novo.
+  Cada linha de *Celulares pareados* tem um interruptor *Pode editar* (leitor
+  ou editor, nunca acima). A mudança vale a partir do próximo comando do
+  celular (o servidor lê o papel de novo a cada comando), as janelas abertas
+  do celular são avisadas, e um editor que passa a leitor sai das salas ao
+  vivo em que escrevia pelo mesmo caminho de um membro rebaixado num
+  compartilhamento. Fica no log (`verso.log`) e em *O que aconteceu*
+  (`phone_role_editor`, `phone_role_reader`).
+- **O que o log guarda** (item 14, como construído em 2026-10-15): as linhas
+  de log do crate do servidor também vão para o `verso.log` do app (origem
+  `local`): servir ligado e desligado com os endereços e a porta, a janela de
+  pareamento abrindo, terminando, expirando, um pareamento aprovado ou
+  recusado, um celular conectado, desconectado e revogado, o papel de um
+  celular mudando, e um comando recusado a um celular (WARN, no máximo uma
+  vez por minuto). Nunca um token, um código, o texto do QR, a impressão
+  digital, um cookie ou palavras de uma nota; um teste procura cada um.
+- **O que a janela do celular pede ao carregar** (item 12, como construído
+  em 2026-10-15): `set_walk_rules`, `set_folder_note_name` e `log_write` são
+  respondidos e não fazem nada para um celular (são das configurações da
+  pasta e do log, definidos no computador); as recusas têm tipos de erro
+  próprios (`not_on_phone`, `phone_reads`) para a janela dizê-las no seu
+  idioma.
+- **Um link de pareamento copiável** (item 7, como construído em
+  2026-10-15): ao lado do QR, *Copiar link* copia o mesmo
+  `https://<endereço>:<porta>/pair#…` que o QR codifica, para o endereço
+  escolhido na lista, e diz *Link copiado — vale 2 minutos, uma vez*. O link
+  leva o **mesmo token de uso único de 2 minutos** do QR; o token e a
+  impressão digital ficam no fragmento, que o navegador nunca envia a
+  servidor nenhum, então a prévia de um mensageiro não consegue lê-lo; e a
+  aprovação *Foi você?* no computador continua sendo o portão do pareamento,
+  como no QR. Quem receber o link nos dois minutos e abri-lo primeiro é
+  quem o computador pergunta.
 - **O servidor** é o mesmo crate e o mesmo despacho do `verso serve`
   (`crates/verso-server/src/local`), com uma tabela de rotas menor — sem
   login, convite, página de conta, console, token, passkey nem fluxo de

@@ -605,7 +605,12 @@ test("the page that approves a device says who asked, and refuses (threat model,
   await expect(question).toBeVisible();
   // The question names the form; its buttons come after it.
   const form = page.getByRole("form", { name: "Foi você quem pediu, neste aparelho?" });
-  await expect(form.getByRole("button", { name: "Aprovar este aparelho: Verso · Estranho" })).toBeVisible();
+  const approveButton = form.getByRole("button", { name: "Aprovar este aparelho: Verso · Estranho" });
+  await expect(approveButton).toBeVisible();
+  // One sentence that wraps, not two columns of a flex row: the label is a
+  // single child of the button, and the device's name sits inside it.
+  await expect(approveButton.locator("> *")).toHaveCount(1);
+  await expect(approveButton.locator("> .web-btn-text bdi")).toHaveText("Verso · Estranho");
   await form.getByRole("button", { name: "Não fui eu: recusar" }).click();
   // The answer replaces the question's two paragraphs with one.
   await expect(page.getByText("Recusado. O aplicativo que pediu não entra na sua conta.")).toBeVisible(waited);

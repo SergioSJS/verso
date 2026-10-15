@@ -752,6 +752,7 @@ macro_rules! commands_for {
                 local_server_pair_state::<$runtime>,
                 local_server_answer::<$runtime>,
                 local_server_phones::<$runtime>,
+                local_server_phone_role::<$runtime>,
                 local_server_revoke::<$runtime>,
                 local_server_forget::<$runtime>,
                 local_server_replace_identity::<$runtime>,
@@ -961,6 +962,10 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
         }
     });
     log::open();
+    // "This app is a server" says its life in the app's own log (ADR 0096
+    // item 14): the server crate's lines, which go to standard error
+    // where there is a terminal, come here too.
+    verso_server::log::set_sink(Some(|level, message| log::write(level, "local", message)));
     log::install_panic_hook();
     log::write(
         "INFO",

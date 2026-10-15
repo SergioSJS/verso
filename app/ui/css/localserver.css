@@ -43,3 +43,11 @@
 /* The phone's page of pairing, beside the other pages of the server. */
 .web-note { margin: .8rem 0 0; font-size: .85rem; color: var(--ink-3); }
 @media (prefers-reduced-motion: reduce) { .ls-mark, .ls-qr { transition: none; } }
+
+/* The pairing dialog's address list: the label above, the list full width. */
+.ls-pick { display: flex; flex-direction: column; gap: .25rem; margin: .6rem 0 .2rem; text-align: start; width: 100%; }
+.ls-pick select { font: inherit; font-size: .9rem; width: 100%; min-height: 36px; padding: .2rem .4rem; }
+.ls-only { font-size: .9rem; overflow-wrap: anywhere; }
+.ls-dialog .confirm-actions { flex-wrap: wrap; }
+.ls-ask .confirm-actions { justify-content: flex-end; }
+.ls-phone-acts { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; }

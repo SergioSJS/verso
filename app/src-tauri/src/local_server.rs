@@ -11,8 +11,8 @@
 //! `verso-server` builds on Windows with OpenSSL compiled in, as elsewhere).
 
 use verso_contract::{
-    LocalAsked, LocalAudit, LocalFolder, LocalPairState, LocalPairing, LocalPhone,
-    LocalServerStatus,
+    LocalAddressChoice, LocalAsked, LocalAudit, LocalFolder, LocalPairState, LocalPairing,
+    LocalPhone, LocalServerStatus,
 };
 
 use super::*;
@@ -87,8 +87,9 @@ pub(crate) async fn local_server_stop<R: tauri::Runtime>(
 #[specta::specta]
 pub(crate) async fn local_server_pair_open<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
+    address: Option<String>,
 ) -> Result<LocalPairing, ContractError> {
-    platform::pair_open(app).await
+    platform::pair_open(app, address).await
 }
 
 #[tauri::command]
@@ -117,6 +118,17 @@ pub(crate) async fn local_server_answer<R: tauri::Runtime>(
     editor: bool,
 ) -> Result<(), ContractError> {
     platform::answer(app, allow, editor).await
+}
+
+/// Let a paired phone edit (or only read) without pairing it again.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_phone_role<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+    editor: bool,
+) -> Result<(), ContractError> {
+    platform::phone_role(app, id, editor).await
 }
 
 #[tauri::command]
