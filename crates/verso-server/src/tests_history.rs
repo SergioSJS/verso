@@ -492,3 +492,82 @@ fn a_share_sees_the_history_of_its_own_files_only() {
         assert_eq!(mine["ok"]["text"], "um\n");
     });
 }
+
+/// ADR 0091 with ADR 0087: a note holding a secret block has a history only
+/// for those who may write it, and they see it whole; a reader is refused
+/// every history command and no word of the secret is in the refusal.
+#[test]
+fn the_history_of_a_secret_note_is_the_writers_alone_and_whole() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &admin).await;
+        for (email, role) in [("ed@casa.lan", Role::Editor), ("le@casa.lan", Role::Reader)] {
+            let a = r
+                .server
+                .db
+                .create_account(email, email, "en", Some("senha muito longa"), false)
+                .unwrap();
+            r.server.db.grant(&id, &a.id, role).unwrap();
+        }
+        let ed = sign_in(&r, "ed@casa.lan", "senha muito longa").await;
+        let mut ws = window(&r, &ed, &id).await;
+        let first = "Aberto.\n\n> [!secret]\n> zqsegredo um\n";
+        let second = "Aberto.\n\n> [!secret]\n> zqsegredo dois\n";
+        assert!(
+            write(&mut ws, 2, "Sessao.md", first)
+                .await
+                .get("ok")
+                .is_some()
+        );
+        assert!(
+            write(&mut ws, 4, "Sessao.md", second)
+                .await
+                .get("ok")
+                .is_some()
+        );
+        let list = call(&mut ws, 6, "history_list", json!({ "path": "Sessao.md" })).await;
+        let v = versions(&list);
+        assert_eq!(v.len(), 3, "{list}");
+        // The writer's diff and restore are whole and unaffected.
+        let old = call(
+            &mut ws,
+            7,
+            "history_read",
+            json!({ "path": "Sessao.md", "id": v[1]["id"] }),
+        )
+        .await;
+        assert!(old.to_string().contains("zqsegredo"), "{old}");
+        let now = call(&mut ws, 10, "read_note", json!({ "path": "Sessao.md" })).await;
+        let back = call(
+            &mut ws,
+            8,
+            "history_restore",
+            json!({ "path": "Sessao.md", "id": v[1]["id"], "revision": now["ok"]["revision"] }),
+        )
+        .await;
+        assert!(back.get("ok").is_some(), "{back}");
+        let read = call(&mut ws, 9, "read_note", json!({ "path": "Sessao.md" })).await;
+        assert!(read["ok"]["text"].as_str().unwrap().contains("zqsegredo"));
+        // A reader is refused every history command, and told nothing.
+        let le = sign_in(&r, "le@casa.lan", "senha muito longa").await;
+        let mut reader = window(&r, &le, &id).await;
+        for (n, cmd) in [
+            "history_list",
+            "history_read",
+            "history_restore",
+            "history_copy",
+            "history_delete",
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let args = json!({ "path": "Sessao.md", "id": v[0]["id"], "revision": null });
+            let no = call(&mut reader, 2 + n as u64, cmd, args).await;
+            assert_eq!(no["err"]["kind"], "refused", "{cmd}: {no}");
+            assert!(!no.to_string().contains("zqsegredo"), "{cmd}: {no}");
+        }
+        let shown = call(&mut reader, 9, "read_note", json!({ "path": "Sessao.md" })).await;
+        assert!(!shown.to_string().contains("zqsegredo"), "{shown}");
+    });
+}
