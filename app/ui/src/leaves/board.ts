@@ -26,8 +26,10 @@ import { completeMarkdown } from "../editor/complete";
 import { baseEditorExtensions } from "../editor/extensions";
 import { fail } from "../errors";
 import { freeName, textBase64 } from "../files";
-import { allFiles, allNotes, currentFolder } from "../folder";
+import { allEntries, allFiles, allNotes, currentFolder } from "../folder";
 import { icon } from "../icons";
+import { renderSticker } from "../labels";
+import { served } from "../secret/blocks";
 import { imageUrl, noteImages } from "../images";
 import { runHotkey } from "../keys";
 import { Pane } from "../layout/pane";
@@ -274,6 +276,21 @@ export class BoardLeaf extends TextLeaf {
       openUrl: (url) => void commands.openUrl(url),
       appKey: (e) => runHotkey(e),
       preview: { at: (el, x, y, mods) => preview.pointAt(el, x, y, mods), press: (el, x) => preview.press(el, x) },
+      // Maps (ADR 0090): a large picture is cut into tiles by the core, and
+      // the board as a reader is served it is the core's projection.
+      maps: {
+        open: async (path) => {
+          const r = await commands.mapOpen(listed(path));
+          if (r.status !== "ok") throw new Error(r.error.message);
+          return r.data;
+        },
+        tile: async (path, level, x, y) => {
+          const r = await commands.mapTile(listed(path), level, x, y);
+          return r.status === "ok" ? r.data : null;
+        },
+      },
+      secret: { served, project: (json) => commands.projectBoard(json) },
+      sticker: (path, size) => (settings.stickers ? renderSticker(allEntries.get(listed(path))?.label?.sticker, size) : null),
       status: (text) => (ui.status.textContent = text),
       prefs: { stroke: settings.boardStroke, font: settings.boardFont, grid: settings.boardGrid, open: settings.boardOpen },
       lastView: () => {

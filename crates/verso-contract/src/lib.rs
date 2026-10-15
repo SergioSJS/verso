@@ -19,6 +19,8 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
+mod maps;
+pub use maps::{MapInfo, MapState};
 mod periodic;
 pub use periodic::{ObsidianPeriodic, PeriodSettings, PeriodicSettings};
 mod history;

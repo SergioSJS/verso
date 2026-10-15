@@ -608,6 +608,30 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     Setas soltas" (só o menu numa tela de toque) e avisa quando Setas soltas
     está ligado. Nível: H; E: `board-arrows.spec.mjs`.
 
+12. Lição 13, mapas (ADR 0090): selecione a imagem, "Usar como mapa": ela
+    fica travada (um arrasto sobre ela não move nada do mapa), no fundo, e o
+    arquivo guarda `"verso": {"map": true, "locked": true}`; o sumário lista
+    em "Mapas" a imagem com "Deixar de usar como mapa", que tira as três
+    coisas. Arraste "Porto Cinzento" da árvore para a imagem: um alfinete, no
+    grupo da imagem, nunca um cartão; "Fixar uma nota aqui…" faz o mesmo no
+    meio da vista. Afaste e aproxime: o alfinete mantém o tamanho e fica no
+    seu ponto; um clique abre a nota; o ponteiro parado nele mostra a nota
+    num cartão, e um dedo parado no celular também; Tab percorre os
+    alfinetes, Enter abre um e Delete o remove (⌘Z o traz de volta); o sumário os
+    lista na ordem de leitura como links. "Enviar para trás" e "Trazer para a frente" em qualquer cartão o
+    reordenam no arquivo. Um PNG de 16.000 pixels de lado como mapa:
+    "Preparando o mapa…", depois os ladrilhos à vista, nunca a imagem
+    inteira (o log do app aberto; a memória da janela fica pequena); um JPEG
+    desse tamanho é desenhado inteiro, com o aviso que manda salvar como PNG.
+    Num servidor: um alfinete secreto mostra o cadeado "Oculto para
+    leitores", "Ver como leitor" desenha o board sem ele e nada é gravado,
+    uma conta de leitor não vê alfinete secreto no board, na busca, nos
+    backlinks da nota dele nem no arquivo sincronizado, e uma imagem
+    exportada pergunta pelos cartões secretos. Nível: H (os alfinetes, as
+    ferramentas, os ladrilhos nas respostas de ladrilho do harness, o board
+    do leitor na projeção dele), A (os ladrilhos de verdade, o servidor de
+    verdade, um celular); E: `maps.spec.mjs`.
+
 ## 10. Ajustes, ajuda, a linha de comando
 
 1. ⌘,: as seções como a nota 15 as nomeia; as opções de Aparência; Terminal

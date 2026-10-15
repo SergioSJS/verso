@@ -22,8 +22,10 @@ mod shell;
 
 mod agents;
 mod indexing;
+mod map_tiles;
 mod mentions;
 mod order;
 mod reader;
+mod reader_board;
 mod rename;
 mod sweep;

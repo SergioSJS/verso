@@ -251,7 +251,7 @@ impl Index {
     pub fn reader_stats(&self) -> Result<HashMap<String, (u64, i64)>, IndexError> {
         let mut st = self.conn.prepare(
             "SELECT path, public_len, public_modified FROM notes
-             WHERE kind = 'note' AND public_len IS NOT NULL AND public_modified IS NOT NULL
+             WHERE kind IN ('note', 'canvas') AND public_len IS NOT NULL AND public_modified IS NOT NULL
                AND (hidden IS NOT NULL OR public_modified <> modified)",
         )?;
         let rows = st.query_map([], |r| {

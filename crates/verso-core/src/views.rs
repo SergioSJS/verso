@@ -2,6 +2,7 @@
 //! and indexed, a base evaluated over the folder's facts.
 
 use super::*;
+use crate::canvas_secret;
 
 impl Workspace {
     /// Any file's content as text with its revision, for an editor; bytes
@@ -255,6 +256,9 @@ impl Workspace {
         stamp: NoteStamp,
     ) -> Result<(), CoreError> {
         let text = String::from_utf8_lossy(bytes);
+        // The secret nodes of the board (ADR 0090 item 5): what a reader's
+        // search and counts are answered from leaves them out.
+        let split = canvas_secret::index_split(&text);
         let (content, links) = match canvas::Canvas::parse(&text) {
             Ok(board) => {
                 let lines = LineStarts::of(&text);
@@ -266,6 +270,7 @@ impl Workspace {
                         verso_index::SourceLink {
                             embed: l.embed,
                             exact: l.place == canvas::Place::FileNode,
+                            secret: split.as_ref().is_some_and(|s| s.nodes.contains(&l.node)),
                             target: l.target,
                             heading: l.heading,
                             block: l.block,
@@ -281,8 +286,20 @@ impl Workspace {
             }
             Err(_) => (String::new(), Vec::new()),
         };
+        let split = split.map(|s| verso_index::BoardSplit {
+            public: s.public,
+            secret: s.secret,
+            len: s.served.0,
+            hash: s.served.1,
+            hidden: s
+                .lines
+                .iter()
+                .map(|(a, b)| format!("{a}-{b}"))
+                .collect::<Vec<_>>()
+                .join(","),
+        });
         self.index
-            .upsert_canvas(relative, stamp, &content, &links)
+            .upsert_board(relative, stamp, &content, &links, split.as_ref())
             .map_err(CoreError::Index)
     }
 
@@ -299,7 +316,7 @@ impl Workspace {
         json: &str,
         revision: &str,
     ) -> Result<TextFile, CoreError> {
-        let (key, now, text) = self.board_over_disk(relative, json)?;
+        let (key, now, text) = self.board_over_disk(relative, json, false)?;
         if text == now.text && now.revision == revision {
             return Ok(now);
         }
@@ -311,7 +328,18 @@ impl Workspace {
     /// conflict, and what the first save of a canvas in another layout
     /// shows before it rewrites the file (review `board.md` §6 item 4).
     pub fn board_preview(&mut self, relative: &str, json: &str) -> Result<String, CoreError> {
-        self.board_over_disk(relative, json)
+        self.board_over_disk(relative, json, false)
+            .map(|(_, _, text)| text)
+    }
+
+    /// [`Self::board_preview`] as a reader asks it: laid over the board as
+    /// the reader is served it, without its secret pins (ADR 0090 item 5).
+    pub fn reader_board_preview(
+        &mut self,
+        relative: &str,
+        json: &str,
+    ) -> Result<String, CoreError> {
+        self.board_over_disk(relative, json, true)
             .map(|(_, _, text)| text)
     }
 
@@ -321,12 +349,17 @@ impl Workspace {
         &mut self,
         relative: &str,
         json: &str,
+        reader: bool,
     ) -> Result<(String, TextFile, String), CoreError> {
         let key = self.entry_key(relative)?;
         if !is_canvas(&key) {
             return Err(CoreError::NotCanvas);
         }
-        let now = self.read_text(&key)?;
+        let now = if reader {
+            self.reader_read_text(&key)?
+        } else {
+            self.read_text(&key)?
+        };
         let old = canvas::Canvas::parse(&now.text).map_err(|_| CoreError::NotCanvas)?;
         let new = canvas::Canvas::parse(json).map_err(|_| CoreError::NotCanvas)?;
         let text = old.merged(new.root).write();

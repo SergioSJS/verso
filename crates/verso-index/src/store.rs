@@ -107,6 +107,26 @@ pub struct SourceLink {
     pub col: u32,
     pub start: usize,
     pub end: usize,
+    /// The link is written in a secret node of the board (ADR 0090 item
+    /// 5): a reader's backlinks and counts do not have it.
+    pub secret: bool,
+}
+
+/// What the index keeps of a board with secret nodes, as it keeps a
+/// note's secret blocks (ADR 0087 item 6): the board's searchable text as
+/// a reader is served it, the text of what was taken out, and what a
+/// reader receives of the file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BoardSplit {
+    pub public: String,
+    pub secret: String,
+    /// The length and FNV-1a hash of the projection a reader is served.
+    pub len: usize,
+    pub hash: u64,
+    /// The lines the secret nodes take, `first-last,...`: a reader's line
+    /// numbers are the projection's (the same list a note's secret blocks
+    /// keep).
+    pub hidden: String,
 }
 
 /// A target no note answers to, with how many links name it.
@@ -478,14 +498,44 @@ impl Index {
         content: &str,
         links: &[SourceLink],
     ) -> Result<(), IndexError> {
+        self.upsert_board(relative, stamp, content, links, None)
+    }
+
+    /// [`Index::upsert_canvas`] for a board that may hold secret nodes
+    /// (ADR 0090 item 5): with `split`, a reader's search and counts are
+    /// answered from the public text and the links not flagged secret, and
+    /// its length and time are the projection's, as a note's are.
+    pub fn upsert_board(
+        &mut self,
+        relative: &str,
+        stamp: NoteStamp,
+        content: &str,
+        links: &[SourceLink],
+        split: Option<&BoardSplit>,
+    ) -> Result<(), IndexError> {
         let (path_key, name_key) = note_keys(relative);
         let name = relative.rsplit('/').next().unwrap_or(relative);
         let title = name.strip_suffix(".canvas").unwrap_or(name);
         let tx = self.conn.savepoint()?;
+        let before: Option<(Option<i64>, Option<i64>)> = tx
+            .query_row(
+                "SELECT public_hash, public_modified FROM notes WHERE path = ?1",
+                params![relative],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?;
+        let hash = split.map(|b| i64::from_le_bytes(b.hash.to_le_bytes()));
+        // When a reader last saw the board change: kept while what it is
+        // served stays the same.
+        let public_modified = match (before, hash) {
+            (Some((Some(was), Some(at))), Some(now)) if was == now => Some(at),
+            (_, Some(_)) => Some(stamp.modified),
+            _ => None,
+        };
         forget(&tx, relative)?;
         tx.execute(
-            "INSERT INTO notes (path, kind, path_key, name_key, dir, title, modified, len, hash, unverified, content, name_fold)
-             VALUES (?1, 'canvas', ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, ?9, ?10)",
+            "INSERT INTO notes (path, kind, path_key, name_key, dir, title, modified, len, hash, unverified, content, name_fold, public, secret, hidden, public_hash, public_len, public_modified)
+             VALUES (?1, 'canvas', ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
             params![
                 relative,
                 path_key,
@@ -497,13 +547,21 @@ impl Index {
                 i64::from_le_bytes(stamp.hash.to_le_bytes()),
                 content,
                 crate::search::name_fold(relative),
+                split.map(|b| b.public.as_str()),
+                split.map(|b| b.secret.as_str()),
+                // The lines of the secret nodes; even an empty list marks
+                // the row as one that hides something.
+                split.map(|b| b.hidden.as_str()),
+                hash,
+                split.map(|b| i64::try_from(b.len).unwrap_or(i64::MAX)),
+                public_modified,
             ],
         )?;
         let source = tx.last_insert_rowid();
         {
             let mut ins = tx.prepare(
-                "INSERT INTO links (note, kind, target, target_key, rel_key, heading, block, alias, line, col, start, end)
-                 VALUES (?1, ?2, ?3, ?4, ?12, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                "INSERT INTO links (note, kind, target, target_key, rel_key, heading, block, alias, line, col, start, end, secret)
+                 VALUES (?1, ?2, ?3, ?4, ?12, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?13)",
             )?;
             for l in links {
                 ins.execute(params![
@@ -524,7 +582,8 @@ impl Index {
                     l.col,
                     offset(l.start),
                     offset(l.end),
-                    relative_key(relative, &l.target)
+                    relative_key(relative, &l.target),
+                    l.secret
                 ])?;
             }
         }

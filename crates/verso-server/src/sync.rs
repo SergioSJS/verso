@@ -747,8 +747,8 @@ pub(crate) async fn command_in(
             "sync_read" if reader => {
                 let named: String = arg(&args, "path")?;
                 let (path, _) = as_kept(&s, &folder, &named, &*inside)?;
-                let note = crate::readers::is_note(&named)
-                    || crate::readers::is_note(&path)
+                let note = crate::readers::is_served(&named)
+                    || crate::readers::is_served(&path)
                     || s.service
                         .with_key(&key, |ws| Ok(ws.reader_names_note(&path)))?;
                 let (answer, bytes) = if note {

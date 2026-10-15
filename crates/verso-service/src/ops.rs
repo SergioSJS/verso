@@ -15,9 +15,9 @@
 use verso_contract::{
     Backlink, BaseColumn, BaseError, BaseGroup, BaseProblem, BaseProblemKind, BaseQuery,
     BaseResult, BaseRow, BaseView, ContractError, Edge, EntryLabel, ErrorKind, FileEntry, FileKind,
-    Focus, FocusesSummary, FolderLayer, FolderSettings, FolderSpace, Hit, Link, Mention, Mentions,
-    MovedEntries, NoteText, ObsidianPeriodic, PeriodSettings, PeriodicSettings, RefusedEntry,
-    Renamed, Tag, TextFile, Trashed, WebNote, Written,
+    Focus, FocusesSummary, FolderLayer, FolderSettings, FolderSpace, Hit, Link, MapInfo, MapState,
+    Mention, Mentions, MovedEntries, NoteText, ObsidianPeriodic, PeriodSettings, PeriodicSettings,
+    RefusedEntry, Renamed, Tag, TextFile, Trashed, WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
 
@@ -320,6 +320,18 @@ ops! {
     /// as it is on disk now, writing nothing.
     Read fn board_preview(ws, path: String, json: String) -> String {
         Ok(ws.board_preview(&path, &json)?)
+    }
+
+    /// How the tiles of a map's picture stand (ADR 0090 item 4), starting
+    /// to cut a large PNG that is not yet. Never waits for the cutting.
+    Read fn map_open(ws, path: String) -> MapInfo {
+        Ok(map_info_out(ws.map_open(&path)?))
+    }
+
+    /// One tile of a map's picture, a PNG as base64; none when it is not
+    /// there (not cut yet, or outside the pyramid).
+    Read fn map_tile(ws, path: String, level: u32, x: u32, y: u32) -> Option<String> {
+        Ok(ws.map_tile(&path, level, x, y)?.map(|png| encode_base64(&png)))
     }
 
     /// A base evaluated over the folder (ADR 0053).
@@ -734,6 +746,46 @@ pub fn board_text(json: &str) -> Result<String, ContractError> {
         })
 }
 
+fn map_info_out(m: verso_core::maptiles::MapInfo) -> MapInfo {
+    use verso_core::maptiles::MapState as Core;
+    MapInfo {
+        state: match m.state {
+            Core::Whole => MapState::Whole,
+            Core::Cutting => MapState::Cutting,
+            Core::Ready => MapState::Ready,
+            Core::Unsupported => MapState::Unsupported,
+            Core::Failed => MapState::Failed,
+        },
+        width: m.width,
+        height: m.height,
+        tile: m.tile,
+        levels: m.levels,
+        done: m.done as f64,
+        total: m.total as f64,
+        message: m.message,
+    }
+}
+
+/// Bytes to standard base64, padded.
+#[must_use]
+pub fn encode_base64(bytes: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let n = (u32::from(chunk[0]) << 16)
+            | (u32::from(chunk.get(1).copied().unwrap_or(0)) << 8)
+            | u32::from(chunk.get(2).copied().unwrap_or(0));
+        for (i, shift) in [18, 12, 6, 0].into_iter().enumerate() {
+            if i <= chunk.len() {
+                out.push(char::from(ALPHABET[((n >> shift) & 63) as usize]));
+            } else {
+                out.push('=');
+            }
+        }
+    }
+    out
+}
+
 /// Standard base64 (with or without padding) to bytes; `None` on a
 /// character outside the alphabet. Small enough to own, so no crate.
 #[must_use]
@@ -759,4 +811,21 @@ pub fn decode_base64(s: &str) -> Option<Vec<u8>> {
         }
     }
     Some(out)
+}
+
+#[cfg(test)]
+mod base64_tests {
+    use super::{decode_base64, encode_base64};
+
+    #[test]
+    fn bytes_go_to_base64_and_back() {
+        assert_eq!(encode_base64(b""), "");
+        assert_eq!(encode_base64(b"f"), "Zg==");
+        assert_eq!(encode_base64(b"fo"), "Zm8=");
+        assert_eq!(encode_base64(b"foo"), "Zm9v");
+        for n in 0..40u8 {
+            let bytes: Vec<u8> = (0..n).map(|i| i.wrapping_mul(37)).collect();
+            assert_eq!(decode_base64(&encode_base64(&bytes)), Some(bytes));
+        }
+    }
 }

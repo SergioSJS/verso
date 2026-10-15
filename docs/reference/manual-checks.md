@@ -970,6 +970,56 @@ seen only here. Before the server is announced (ADR 0073 item 6).
 - [ ] **Line numbers**: on the phone, a note in Fonte has none; turned on in
   Ajustes › Editor, they show.
 
+### Maps on the board (feat/board-maps, 2026-10-15)
+
+Needs the installed app, a server, a phone and a second account: the tiles'
+cutting runs in the host, the reader's board is the server's, and what a
+finger and a real map feel like is not in the browser harness (ADR 0090).
+Make the map first: a PNG of about 16,000 pixels a side (a continent, or any
+large picture saved as PNG; a JPEG of the same size for the last check), put
+in a folder; a board with it, and two notes.
+
+- [ ] **A real big map, on the desktop app**: drop the PNG on a board, select
+  it, "Usar como mapa". The card says "Preparando o mapa…" with a percentage
+  that grows, then the picture appears; zoom to 100 % and pan: sharp tiles
+  come in as you go, without a pause, and the window's memory stays small
+  (Activity Monitor: a few hundred MB, not a gigabyte). Close the app, open
+  it again: the map is drawn at once, nothing is cut again. Say how long the
+  cutting took and how big `~/Library/Application Support/verso/index/*.tiles`
+  grew.
+- [ ] **A big map on the server**, the 1 GB host: the same map in a folder of
+  the server, opened in a browser; "Preparando o mapa…", then tiles. The
+  server's memory (`docker stats` or `free`) stays under the limit while it
+  cuts; `VERSO_DATA_DIR` holds the `.tiles` file and the folder holds no
+  tile. Another person opening the same board while it cuts sees the same
+  card.
+- [ ] **A JPEG of that size** is drawn whole, with the note "Imagem grande
+  demais…" asking for a PNG; on a phone the page may reload — say what
+  happened.
+- [ ] **Pins**: drag a note from the tree onto the map (a pin, not a card);
+  "Fixar uma nota aqui…"; zoom in and out: the pin keeps its size and stays on
+  its point; a click opens the note; the pointer rested on it shows the
+  note (hover preview); a drag moves it; "Deixar de usar como mapa" (outline,
+  Mapas) frees the picture.
+- [ ] **On a phone** (iPhone and Android): pinch the map — the pins do not
+  grow; a tap on a pin opens its note; a finger held still on a pin shows
+  the note and the lift opens nothing; the tiles come in while panning with
+  no stutter; Tab-like reading: VoiceOver or TalkBack reads each pin as
+  "Abrir <nota>" in reading order, and the outline lists them as links.
+- [ ] **A reader account**: on a server, mark a pin "Oculto dos leitores".
+  Sign in as a reader in another browser: the board has no secret pin; the
+  search does not find its note by the pin's text, the note's backlinks do not
+  list the board, and the folder synced to a desktop app as that reader (a
+  read share) holds a board file without the pin (open it in a text
+  editor). The writer's "Ver como leitor" shows the same board. A reader
+  that has the board open when it is marked sees it change without the pin
+  (it is not in the room).
+- [ ] **Obsidian opens the map**: the board in Obsidian shows the picture and
+  the pins as file cards (the secret one too); edit and save there, then
+  open it in Verso: `map`, `pin`, `secret`, `locked` and the groups are still
+  under each node's `verso` (the re-observation of O4 on the version of the
+  day, ADR 0090 Consequences).
+
 ## To reproduce
 
 Reported in the backlog, changed since, but with no test that covers

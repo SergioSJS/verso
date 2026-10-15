@@ -39,6 +39,7 @@ mod support {
             col: 3,
             start: 10,
             end: 20,
+            secret: false,
         }
     }
 }

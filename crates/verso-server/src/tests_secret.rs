@@ -37,7 +37,7 @@ pub(crate) const PORTO: &str = "# Porto\n\nO barão desembarca.\n";
 
 /// A text heard by a reader: the JSON and, for a piece of a file sent as
 /// base64 or a room's update, its bytes decoded too.
-fn heard(text: &str) -> String {
+pub(crate) fn heard(text: &str) -> String {
     let mut all = text.to_owned();
     if let Ok(v) = serde_json::from_str::<Value>(text) {
         let b64 = |s: &str| {
@@ -109,7 +109,7 @@ pub(crate) async fn listen(ws: &mut Socket, ms: u64) -> Vec<Value> {
 
 /// Every command a window may send: the generated bindings', and the
 /// server's own a window or a device sends that the bindings do not name.
-fn every_command() -> Vec<String> {
+pub(crate) fn every_command() -> Vec<String> {
     let bindings = include_str!("../../../app/ui/src/bindings.ts");
     // `__TAURI_INVOKE("name"` or `__TAURI_INVOKE<Type>("name"`.
     let mut names: Vec<String> = bindings
@@ -136,7 +136,7 @@ fn every_command() -> Vec<String> {
 
 /// Arguments that reach the secret blocks for any command that reads a
 /// note: unknown fields are ignored by each command.
-fn reaching(id: &str) -> Value {
+pub(crate) fn reaching(id: &str) -> Value {
     json!({
         "id": id, "path": "Taverna.md", "words": "zqbody", "limit": 50, "since": 0, "offset": 0,
         "name": "Taverna", "text": "nada", "json": "{}", "notation": "3d7", "source": "Taverna.md",
