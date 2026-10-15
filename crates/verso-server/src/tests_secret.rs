@@ -26,14 +26,14 @@ use crate::db::Role;
 use crate::tests::{Socket, block_on, call, connect, folder_id, next, sign_in, start};
 
 /// Words only the secret blocks of [`TAVERNA`] and [`PORTO`] hold.
-const SECRET: &[&str] = &[
+pub(crate) const SECRET: &[&str] = &[
     "zqtitle", "zqhead", "zqbody", "zqlink", "zqtag", "zqtable", "zqid", "zqnested", "zqlazy",
     "zqitem", "zqdeep",
 ];
 
-const TAVERNA: &str = "# Taverna\n\nO barão governa. [[Porto]] #publico\n\n> [!secret] zqtitle\n> # zqhead\n> zqbody [[zqlink]] [[Alvo]] ![[Alvo]] #zqtag `dice: 3d7`\n> | d6 | zqtable |\n> ^zqid\nzqlazy\n\n> [!note] Rumores\n> O barão não come.\n>\n> > [!SECRET]-\n> > zqnested [[Alvo#Fundo]]\n> >\n> > > [!tip] zqdeep\n>\n> Fim dos rumores. `dice: 1d20`\n\n- Mansão\n  > [!secret]\n  > zqitem\n\nFim. ^fim\n";
+pub(crate) const TAVERNA: &str = "# Taverna\n\nO barão governa. [[Porto]] #publico\n\n> [!secret] zqtitle\n> # zqhead\n> zqbody [[zqlink]] [[Alvo]] ![[Alvo]] #zqtag `dice: 3d7`\n> | d6 | zqtable |\n> ^zqid\nzqlazy\n\n> [!note] Rumores\n> O barão não come.\n>\n> > [!SECRET]-\n> > zqnested [[Alvo#Fundo]]\n> >\n> > > [!tip] zqdeep\n>\n> Fim dos rumores. `dice: 1d20`\n\n- Mansão\n  > [!secret]\n  > zqitem\n\nFim. ^fim\n";
 
-const PORTO: &str = "# Porto\n\nO barão desembarca.\n";
+pub(crate) const PORTO: &str = "# Porto\n\nO barão desembarca.\n";
 
 /// A text heard by a reader: the JSON and, for a piece of a file sent as
 /// base64 or a room's update, its bytes decoded too.
@@ -67,7 +67,7 @@ fn clean(what: &str, text: &str) {
 }
 
 /// Every message the socket hears until the answer to `id`, each checked.
-async fn ask(ws: &mut Socket, id: u64, cmd: &str, args: Value) -> Value {
+pub(crate) async fn ask(ws: &mut Socket, id: u64, cmd: &str, args: Value) -> Value {
     ws.send(Message::Text(
         json!({ "id": id, "cmd": cmd, "args": args })
             .to_string()
@@ -95,7 +95,7 @@ async fn ask(ws: &mut Socket, id: u64, cmd: &str, args: Value) -> Value {
 }
 
 /// What the reader hears for `ms` milliseconds, each checked; the events.
-async fn listen(ws: &mut Socket, ms: u64) -> Vec<Value> {
+pub(crate) async fn listen(ws: &mut Socket, ms: u64) -> Vec<Value> {
     let mut out = Vec::new();
     let until = tokio::time::Instant::now() + std::time::Duration::from_millis(ms);
     while let Ok(Some(Ok(m))) = tokio::time::timeout_at(until, ws.next()).await {
@@ -151,7 +151,7 @@ fn reaching(id: &str) -> Value {
     })
 }
 
-async fn folder_with_a_reader() -> (crate::tests::Running, Socket, Socket, String) {
+pub(crate) async fn folder_with_a_reader() -> (crate::tests::Running, Socket, Socket, String) {
     let r = start().await;
     let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
     let id = folder_id(&r, &admin).await;
