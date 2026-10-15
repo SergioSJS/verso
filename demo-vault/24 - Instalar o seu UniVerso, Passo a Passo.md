@@ -320,13 +320,13 @@ Copie o nome que o comando imprimiu (ou veja com `ls /var/backups/universo`): nu
 
 O guia também ensina a **criptografar** o backup (`backup --keygen` e `backup --encrypt`) antes de ele sair da máquina, numa versão mais nova do script.
 
-Com **Docker**, pare o servidor, copie os dois diretórios e ligue de novo:
+Com **Docker**, pare o servidor, copie os dois diretórios e ligue de novo. O `umask 077` e o `>` fazem o arquivo nascer seu e legível só por você (ele guarda as contas e as senhas em hash; sem isso o `tar` com `sudo` o deixa do root e aberto a qualquer usuário da máquina):
 
 ```bash
 cd /srv/universo
-docker compose stop
-sudo tar -czpf ~/universo-backup-$(date +%Y%m%d-%H%M%S).tar.gz -C /srv universo
-docker compose start
+sudo docker compose stop
+( umask 077; sudo tar -czpf - -C /srv universo > ~/universo-backup-$(date +%Y%m%d-%H%M%S).tar.gz )
+sudo docker compose start
 ```
 
 **Atualizar**, com o pacote: faça o backup acima e rode (sem `--version` ele pega a mais recente; com `--version` você escolhe uma). Configurações e dados ficam:
