@@ -407,7 +407,7 @@ pub fn router(server: Arc<Server>) -> Router {
     // served always; the notes' window in a browser only with `--web`
     // (ADR 0073 item 2), which the WebSocket enforces (rpc.rs).
     let page = || get_service(tower_http::services::ServeFile::new(ui.join(PAGE)));
-    router
+    let router = router
         .route("/", page())
         .route("/signin", page())
         .route("/setup", page())
@@ -420,7 +420,16 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/signin-link/{token}", page())
         // Where to report a vulnerability (RFC 9116; ADR 0083 item 15).
         .route("/.well-known/security.txt", get(crate::security_txt::serve))
-        .fallback_service(static_files)
+        .fallback_service(static_files);
+    guarded(router, server)
+}
+
+/// The layers every route of every server has, from the outside in: the
+/// body's limit, the deadline, the guard (`Host`, head, places, headers),
+/// the pace. "This app is a server" (`crate::local`) wraps its own, smaller
+/// table of routes in the same.
+pub(crate) fn guarded(router: Router<Arc<Server>>, server: Arc<Server>) -> Router {
+    router
         .layer(middleware::from_fn_with_state(Arc::clone(&server), pace))
         .layer(middleware::from_fn_with_state(Arc::clone(&server), guard))
         .layer(middleware::from_fn(deadline))
@@ -432,7 +441,7 @@ pub fn router(server: Arc<Server>) -> Router {
 }
 
 /// An address under `/api/` that no route names.
-async fn no_route() -> ApiError {
+pub(crate) async fn no_route() -> ApiError {
     ApiError::not_found()
 }
 

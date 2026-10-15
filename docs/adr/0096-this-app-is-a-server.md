@@ -480,6 +480,51 @@ None recorded. (Plain HTTP on the local network was ruled out by
 options listed under each `[OPEN]` are for the maintainer to choose from,
 not alternatives already considered and discarded.)
 
+## As built
+
+Built on 2026-10-15 on `feat/local-server-build`, for **macOS and Linux**.
+What the code settled where the items left room (none of it changes a
+decision; each is a question for the maintainer if it should be otherwise):
+
+- **Windows** (item 17): option (a). `verso-server` is not built for
+  Windows, and the passkey types run through its state and its proof
+  module, so compiling the local mode without them was not cheap. The
+  section says it is not on Windows yet and offers nothing; the commands
+  exist and answer that. Item 3's Windows *Private* profile is therefore
+  not read either.
+- **The server** is the same crate and the same dispatch as `verso serve`
+  (`crates/verso-server/src/local`), with a smaller table of routes — no
+  sign-in, invitation, account page, console, token, passkey or device
+  flow —, 64 connections and 16 per address, and a peer admitted only from
+  a private address on a subnet of the machine. A phone is a *browser*
+  session of the one local owner, with its role (reader or editor) in a
+  table of its own (schema 12); a session without that row opens nothing.
+- **The QR** is `https://<address>:<port>/pair#t=<token>&fp=<fingerprint>&c=<contract>`
+  (the item gave `#<token>`; the fingerprint and the contract hash need
+  names). The typed code is the token's other form, eight letters, with
+  the same single use and the same three attempts.
+- **Addresses**: RFC 1918, IPv4 link-local and IPv6 unique-local. IPv6
+  link-local is not bound: a browser needs a zone id in it (`fe80::1%en0`)
+  that no QR gives it. The set is looked at every two seconds and on a
+  wake; a different set stops serving.
+- **The certificate** is ECDSA, valid 398 days (Apple's limit for a
+  certificate not chained to a root they ship), made again over the same
+  key when the addresses change or it nears its end; its key lives in the
+  local database, `0600`, not in a file of its own. The host's own files
+  (item 5 (d)) are read as `VERSO_TLS_CERT_FILE` is, with the name they are
+  for.
+- **The window's files** come from the app's resources
+  (`bundle.resources`: `app/ui/dist` as `ui-web`), which adds the size of
+  `dist` to the installed app; trimming it (no sourcemaps) is a build step
+  for the maintainer to decide once the release is measured.
+- **Folders** are shown to a phone by the name of their directory (made
+  unique), never a path; the ticked list is kept in the local database,
+  and a change needs serving off. A second index of each served folder is
+  kept in the local directory's `indexes/`, apart from the desktop's.
+- **Notifications** use the existing *Sharing* kind for a phone's first
+  connection and for serving stopped by itself, so that no new row is
+  added to *Settings › Notifications*.
+
 ## Status
 
 **Accepted (2026-10-15).** Written by Sonnet 5.5 at the request of the

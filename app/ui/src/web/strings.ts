@@ -229,6 +229,20 @@ const pt = {
   provePasskey: "Usar uma passkey",
   proveWrong: "Senha errada.",
   proveFirst: "Esta ação pede que você confirme que é você. Tente de novo e confirme.",
+  // Pairing a phone with the computer that serves it (ADR 0096).
+  pairTitle: "Conectar este celular",
+  pairLead: "Este endereço é de um computador que serve as notas dele só para a sua rede. Para entrar, o computador precisa mostrar um QR ou um código de pareamento.",
+  pairHow: "No computador: Ajustes › Este app é um servidor › Parear um celular. Leia o QR com a câmera, ou digite aqui o código que ele mostra.",
+  pairCodeLabel: "Código de pareamento",
+  pairCodeHint: "Oito letras, como BCDF-GHJK. Vale por 2 minutos.",
+  pairContinue: "Parear",
+  pairAsking: "Aguardando o computador…",
+  pairAskingWhy: "O computador está perguntando se foi você. Olhe a tela dele e toque em Permitir.",
+  pairAllowed: "Pronto. Entrando…",
+  pairRefused: "O computador recusou este celular.",
+  pairGone: "Este pareamento já foi usado, errou ou expirou. No computador, abra Parear um celular outra vez e leia o QR de novo.",
+  pairClosed: "O computador não está aceitando pareamento agora. Abra Parear um celular nele e tente de novo.",
+  pairTofu: "Seu navegador avisou que o certificado não é de uma autoridade conhecida: é o certificado que o próprio app fez para este computador. Isso é esperado, e só vale numa rede em que você confia.",
 };
 
 export type WebStrings = typeof pt;
@@ -450,6 +464,19 @@ const en: WebStrings = {
   provePasskey: "Use a passkey",
   proveWrong: "Wrong password.",
   proveFirst: "This action needs you to confirm it is you. Try again and confirm.",
+  pairTitle: "Connect this phone",
+  pairLead: "This address is a computer serving its notes to your network only. To get in, the computer has to show a pairing QR or code.",
+  pairHow: "On the computer: Settings › This app is a server › Pair a phone. Scan the QR with the camera, or type here the code it shows.",
+  pairCodeLabel: "Pairing code",
+  pairCodeHint: "Eight letters, like BCDF-GHJK. Good for 2 minutes.",
+  pairContinue: "Pair",
+  pairAsking: "Waiting for the computer…",
+  pairAskingWhy: "The computer is asking whether it was you. Look at its screen and tap Allow.",
+  pairAllowed: "Done. Going in…",
+  pairRefused: "The computer refused this phone.",
+  pairGone: "This pairing was used, wrong or expired. On the computer, open Pair a phone again and scan the QR again.",
+  pairClosed: "The computer is not accepting a pairing now. Open Pair a phone on it and try again.",
+  pairTofu: "Your browser warned that the certificate is not from a known authority: it is the certificate the app itself made for this computer. That is expected, and only fine on a network you trust.",
 };
 
 let current: Lang = navigator.language.toLowerCase().startsWith("pt") ? "pt" : "en";

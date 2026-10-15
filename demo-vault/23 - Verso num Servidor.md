@@ -79,6 +79,8 @@ Ali também fica o **nome deste aparelho** — por padrão, o nome do sistema. D
 
 ---
 
+**Sem servidor nenhum**: o app do computador também pode servir as pastas que você marcar direto ao celular, na sua rede, sem conta e sem senha — o celular é pareado por um QR e você permite no computador. Veja [[22 - Verso no Celular e no Tablet#Parear o Celular com o Seu Computador|Parear o celular com o seu computador]].
+
 ## Sincronizar uma pasta deste computador
 
 Abrir uma pasta do servidor numa janela é trabalhar **online**: tudo passa pela rede. **Sincronizar** é o outro jeito: a pasta mora neste computador — abre sem rede, o Obsidian lê, o backup copia — e o servidor guarda os mesmos arquivos para os seus outros aparelhos, o navegador e quem divide a pasta com você.

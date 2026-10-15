@@ -155,7 +155,10 @@ pub async fn upgrade(ctx: Ctx, ws: WebSocketUpgrade) -> ApiResult<Response> {
 
 /// The connection's places among its account's and its address's
 /// (threat-model.md, gap 4), or 429.
-fn places(ctx: &Ctx, who: &Who) -> ApiResult<Vec<crate::fair::Held>> {
+fn places(
+    ctx: &Ctx,
+    who: &Who,
+) -> ApiResult<(Vec<crate::fair::Held>, Option<crate::local::PhoneGuard>)> {
     let counts = &ctx.server.fair.connections;
     let too_many = |what: &str, most: u32| {
         crate::log::warn(&format!(
@@ -195,7 +198,20 @@ fn places(ctx: &Ctx, who: &Who) -> ApiResult<Vec<crate::fair::Held>> {
                 })?,
         );
     }
-    Ok(held)
+    // "This app is a server": at most two phones connected at once (ADR
+    // 0096 item 13). A phone already connected opens another connection
+    // (a second tab) without taking another place.
+    let phone = match (&ctx.server.local, who.phone, who.session()) {
+        (Some(local), Some(_), Some(session)) => {
+            let guard = local
+                .enter(session)
+                .ok_or_else(|| too_many("the phones connected", crate::local::CONNECTED))?;
+            local.first_seen(&ctx.server, session);
+            Some(guard)
+        }
+        _ => None,
+    };
+    Ok((held, phone))
 }
 
 /// Why a device that speaks sync `theirs` is refused by a server that
@@ -541,6 +557,15 @@ async fn handle(
             kind: ErrorKind::Refused,
             message: SIGNED_OUT.to_owned(),
         });
+    }
+    // A paired phone runs the commands on the allowlist and no other (ADR
+    // 0096 item 12): default deny, before anything else looks at the
+    // command.
+    if let Some(role) = who.phone
+        && let Err(refused) = crate::local::allow::check(&r.cmd, role)
+    {
+        crate::local::refused_command(server, &r.cmd);
+        return Err(refused);
     }
     // A window on a share: the share looked at again first (ADR 0081
     // item 8).

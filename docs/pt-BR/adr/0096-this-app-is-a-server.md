@@ -496,6 +496,53 @@ Nenhuma registrada. (HTTP puro na rede local foi descartado pelo item 6 da
 listadas sob cada `[ABERTO]` são para o mantenedor escolher, não
 alternativas já consideradas e descartadas.)
 
+## Como foi construído
+
+Construído em 2026-10-15 em `feat/local-server-build`, para **macOS e
+Linux**. O que o código resolveu onde os itens deixavam espaço (nada disso
+muda uma decisão; cada ponto é uma pergunta ao mantenedor se for para ser
+de outro jeito):
+
+- **Windows** (item 17): a opção (a). O `verso-server` não é construído
+  para Windows, e os tipos de passkey atravessam o estado dele e o módulo
+  de prova, então compilar o modo local sem eles não era barato. A seção
+  diz que ainda não está no Windows e não oferece nada; os comandos
+  existem e respondem isso. O perfil *Privado* do Windows, do item 3,
+  portanto também não é lido.
+- **O servidor** é o mesmo crate e o mesmo despacho do `verso serve`
+  (`crates/verso-server/src/local`), com uma tabela de rotas menor — sem
+  login, convite, página de conta, console, token, passkey nem fluxo de
+  dispositivo —, 64 conexões e 16 por endereço, e um par admitido só de um
+  endereço privado numa sub-rede da máquina. Um celular é uma sessão de
+  *navegador* do único dono local, com o papel dele (leitor ou editor)
+  numa tabela própria (esquema 12); uma sessão sem essa linha não abre
+  nada.
+- **O QR** é `https://<endereço>:<porta>/pair#t=<token>&fp=<impressão>&c=<contrato>`
+  (o item dava `#<token>`; a impressão digital e o hash do contrato
+  precisam de nomes). O código digitado é a outra forma do token, oito
+  letras, com o mesmo uso único e as mesmas três tentativas.
+- **Endereços**: RFC 1918, link-local IPv4 e local único IPv6. O
+  link-local IPv6 não é usado: o navegador precisa de um id de zona nele
+  (`fe80::1%en0`) que nenhum QR dá. O conjunto é olhado a cada dois
+  segundos e ao acordar; um conjunto diferente para de servir.
+- **O certificado** é ECDSA, válido por 398 dias (o limite da Apple para
+  um certificado sem raiz que ela entrega), refeito sobre a mesma chave
+  quando os endereços mudam ou ele chega perto do fim; a chave mora no
+  banco local, `0600`, não num arquivo próprio. Os arquivos do próprio
+  anfitrião (item 5 (d)) são lidos como o `VERSO_TLS_CERT_FILE` é, com o
+  nome para o qual valem.
+- **Os arquivos da janela** vêm dos recursos do app (`bundle.resources`:
+  `app/ui/dist` como `ui-web`), o que soma o tamanho de `dist` ao app
+  instalado; enxugá-lo (sem sourcemaps) é um passo de build para o
+  mantenedor decidir depois de medir o release.
+- **As pastas** aparecem para o celular pelo nome do diretório (tornado
+  único), nunca um caminho; a lista marcada fica no banco local, e mudar
+  pede o servidor desligado. Um segundo índice de cada pasta servida fica
+  em `indexes/` do diretório local, à parte do do desktop.
+- **As notificações** usam o tipo *Compartilhamento* que já existe para a
+  primeira conexão de um celular e para o servidor que parou sozinho, para
+  não acrescentar uma linha a *Ajustes › Notificações*.
+
 ## Status
 
 **Aceito (2026-10-15).** Escrito por Sonnet 5.5 a pedido da sessão que

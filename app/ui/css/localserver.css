@@ -1,0 +1,45 @@
+/* "This app is a server" (ADR 0096): the settings' section, the pairing
+   dialog, the status mark; and the phone's page of pairing (web-note). */
+.ls { display: flex; flex-direction: column; gap: .7rem; max-width: 40rem; }
+.ls-lead { margin: 0; color: var(--ink-2); font-size: .92rem; }
+.ls-warn { margin: 0; padding: .5rem .7rem; border: 1px dashed var(--hair); border-radius: 8px; color: var(--ink-2); }
+.ls-h { font: 600 .9rem var(--ui); color: var(--ink); margin: .6rem 0 0; }
+.ls-help { margin: 0; font-size: .84rem; color: var(--ink-3); }
+.ls-state { margin: 0; font-size: .92rem; color: var(--ink); min-height: 1.3em; }
+.ls-said { margin: 0; min-height: 1.3em; font-size: .88rem; color: var(--ink-2); }
+.ls-check { display: inline-flex; align-items: center; gap: .5rem; font-size: .92rem; color: var(--ink); }
+.ls-check input { width: 16px; height: 16px; }
+.ls-folders, .ls-phones, .ls-log-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; }
+.ls-folder { display: flex; flex-direction: column; gap: .1rem; padding: .25rem 0; border-bottom: 1px solid var(--hair); }
+.ls-phone { display: flex; align-items: center; justify-content: space-between; gap: .6rem; flex-wrap: wrap; padding: .4rem 0; border-bottom: 1px solid var(--hair); }
+.ls-phone-who { display: flex; flex-direction: column; min-width: 0; }
+.ls-phone-who small { color: var(--ink-3); font-size: .8rem; overflow-wrap: anywhere; }
+.ls-danger { display: flex; flex-direction: column; align-items: flex-start; gap: .5rem; padding-top: .6rem; border-top: 1px solid var(--hair); }
+.ls-confirm { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; font-size: .9rem; }
+.ls-cert { display: flex; flex-direction: column; gap: .4rem; }
+.ls-fp { margin: 0; font-size: .84rem; overflow-wrap: anywhere; }
+.ls-fp code, .ls-big code { font-family: var(--mono, ui-monospace, monospace); }
+.ls-adv-form { display: flex; flex-direction: column; gap: .35rem; max-width: 34rem; padding-top: .4rem; }
+.ls-adv-form input { font: inherit; font-size: .9rem; padding: .4rem .6rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 7px; }
+.ls-adv-form button { align-self: flex-start; margin-top: .3rem; }
+.ls-log summary, .ls-adv summary { cursor: pointer; font: 600 .9rem var(--ui); color: var(--ink); }
+.ls-log-list { font-size: .84rem; color: var(--ink-2); padding-top: .4rem; }
+.ls-log-list time { color: var(--ink-3); }
+/* The pairing dialog. */
+.ls-dialog { width: min(30rem, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; }
+.ls-pair-body { display: flex; flex-direction: column; align-items: center; gap: .7rem; text-align: center; }
+.ls-qr { width: min(18rem, 70vw); height: auto; border: 1px solid var(--hair); border-radius: 8px; background: #fff; }
+.ls-facts { display: grid; grid-template-columns: auto 1fr; gap: .2rem .8rem; margin: 0; text-align: start; font-size: .9rem; width: 100%; }
+.ls-facts dt { color: var(--ink-3); }
+.ls-facts dd { margin: 0; overflow-wrap: anywhere; }
+.ls-big code { font-size: 1.05rem; }
+.ls-code { font-size: 1.5rem; letter-spacing: .12em; font-weight: 600; }
+.ls-ask { border-top: 1px solid var(--hair); margin-top: .8rem; padding-top: .6rem; display: flex; flex-direction: column; gap: .5rem; }
+/* The status bar's mark: nothing listens without being visible. */
+.ls-mark { display: inline-flex; align-items: center; gap: .35rem; margin-inline-start: .6rem; padding: .05rem .2rem .05rem .5rem; border: 1px solid var(--brass-ink); border-radius: 999px; color: var(--brass-ink); font-size: .8rem; }
+.ls-mark .icon { width: 12px; height: 12px; }
+.ls-mark-stop { font-size: .78rem; padding: .05rem .5rem; border-radius: 999px; }
+.update-phones { margin: .5rem 0 0; font-size: .86rem; color: var(--seal); }
+/* The phone's page of pairing, beside the other pages of the server. */
+.web-note { margin: .8rem 0 0; font-size: .85rem; color: var(--ink-3); }
+@media (prefers-reduced-motion: reduce) { .ls-mark, .ls-qr { transition: none; } }

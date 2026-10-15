@@ -153,6 +153,17 @@
   pelo [0091](0091-version-history.md). A criptografia ponta a ponta e o
   MCP pela rede vêm depois da V1 (o mantenedor, na mesma noite). As
   palavras do Status ficam.
+  2026-10-15 — "este app é um servidor" é decidido por inteiro pelo
+  [0096](0096-this-app-is-a-server.md) (o Status dele: cada item como
+  recomendado). Duas frases deste registro são revistas por ele: o
+  "roda em macOS e Windows também" das Consequências é **macOS e Linux
+  primeiro, Windows depois** (item 17 do 0096, opção (a): o
+  `verso-server` não é construído para Windows, item 2 do
+  [0075](0075-server-packaging-and-storage.md), e compilar o modo local
+  sem as passkeys não era barato), e o `[ABERTO]` do app atualizando com
+  celulares conectados é respondido (item 18 do 0096: o reinício derruba
+  os celulares, a página recarrega pelo hash do contrato). A frase única
+  do item 2, e as palavras antigas, ficam.
 
 ## Contexto
 

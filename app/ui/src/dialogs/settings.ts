@@ -5,6 +5,8 @@
 import { can, host } from "../can";
 import { historyStrings } from "./historyStrings";
 import { serverStrings, serversBody } from "./servers";
+import { localServerBody, phonesConnected, restartNote } from "./localServer";
+import { localStrings } from "./localServerStrings";
 import { syncBody, syncStrings } from "./sync";
 import { offline } from "../web/offline/manager";
 import { offlineBody } from "../web/offline/section";
@@ -147,6 +149,9 @@ export class SettingsDialog {
       // and so is opening a server's folder from it (ADR 0073 item 2).
       ...(can("agents") ? [{ id: "cli", label: t.sCli, icon: "terminal" }] : []),
       ...(can("local_folders") ? [{ id: "servers", label: serverStrings().section, icon: "globe" }] : []),
+      // The desktop app serving its folders to the phone on the local
+      // network (ADR 0096): the desktop's own, like opening a server's.
+      ...(can("local_folders") ? [{ id: "localserver", label: localStrings().section, icon: "globe" }] : []),
       // A folder of this computer syncs with a server's (ADR 0079 item 1).
       ...(can("local_folders") && currentFolder ? [{ id: "sync", label: syncStrings().section, icon: "refresh" }] : []),
       // A folder kept in a browser (ADR 0092): the section takes the same
@@ -328,6 +333,13 @@ export class SettingsDialog {
           card.append(resBox);
 
           if (res.requires_restart) {
+            // The phones connected go with the restart (ADR 0096 item 18).
+            const phones = h("p", "update-phones");
+            phones.setAttribute("role", "status");
+            void phonesConnected().then((n) => {
+              if (n > 0) phones.textContent = restartNote(n);
+            });
+            card.append(phones);
             const restartBtn = h("button", "update-btn-primary", t.restartNow);
             restartBtn.prepend(icon("refresh"));
             restartBtn.addEventListener("click", () => void updateController.restart());
@@ -669,6 +681,7 @@ export class SettingsDialog {
     const me = signedIn();
     if (can("account") && me) for (const e of accountEntries(me, (a, b, c) => this.item(a, b, c))) out.push({ section: "account", ...e });
     if (can("local_folders")) out.push({ section: "servers", title: serverStrings().connect, desc: serverStrings().connectDesc, node: () => serversBody((a, b, c) => this.item(a, b, c)) });
+    if (can("local_folders")) out.push({ section: "localserver", title: localStrings().title, desc: "", node: () => localServerBody((a, b, c) => this.item(a, b, c)) });
     if (currentFolder && can("write")) out.push({ section: "trash", title: trashStrings().section, desc: trashStrings().lead, node: () => trashBody((a, b, c) => this.item(a, b, c)) });
     if (can("local_folders") && currentFolder) out.push({ section: "sync", title: syncStrings().title, desc: syncStrings().desc, node: () => syncBody((a, b, c) => this.item(a, b, c)) });
     if (this.offlineHere()) out.push({ section: "sync", title: offlineWords().title, desc: offlineWords().desc, node: () => offlineBody((a, b, c) => this.item(a, b, c)) });
