@@ -6,9 +6,6 @@
 //! serve` on this machine (ADR 0081 item 8): its owner revokes it, and the
 //! device's sync turns off with a notice, the files kept.
 
-// The server is not built for Windows (crates/verso-cli/Cargo.toml).
-#![cfg(not(windows))]
-
 use std::time::{Duration, Instant};
 
 use serde_json::json;

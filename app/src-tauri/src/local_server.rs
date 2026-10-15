@@ -7,31 +7,22 @@
 //! host's own commands are desktop-only: a phone's allowlist refuses the
 //! `local_server_` prefix whole (`verso_server::local::allow`).
 //!
-//! macOS and Linux serve today. Windows does not yet: `verso-server` is
-//! not built there (the passkey code needs OpenSSL, ADR 0075 item 2), and
-//! compiling the local mode without it was not cheap — the passkey types
-//! are woven through the server's state and its proof module. The section
-//! says so on Windows and offers nothing (ADR 0096 item 17, option (a);
-//! reported).
+//! macOS, Linux and Windows serve (ADR 0096 item 17, revised 2026-10-15:
+//! `verso-server` builds on Windows with OpenSSL compiled in, as elsewhere).
 
-#[cfg(not(windows))]
-use verso_contract::LocalAsked;
 use verso_contract::{
-    LocalAudit, LocalFolder, LocalPairState, LocalPairing, LocalPhone, LocalServerStatus,
+    LocalAsked, LocalAudit, LocalFolder, LocalPairState, LocalPairing, LocalPhone,
+    LocalServerStatus,
 };
 
 use super::*;
 
-/// The mode's server, made on first use (not on Windows yet, item 17).
-#[cfg(not(windows))]
+/// The mode's server, made on first use.
 #[derive(Default)]
 pub(crate) struct LocalSlot {
     server: std::sync::OnceLock<verso_server::local::LocalServer>,
 }
 
-// One file for the systems that serve, one for the one that does not yet.
-#[cfg_attr(windows, path = "local_server/windows.rs")]
-#[cfg_attr(not(windows), path = "local_server/unix.rs")]
 mod platform;
 
 #[tauri::command]

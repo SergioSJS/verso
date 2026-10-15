@@ -6,9 +6,6 @@
 //! folders of this computer, each a device of its own, and a folder of the
 //! server between them.
 
-// The server is not built for Windows (crates/verso-cli/Cargo.toml).
-#![cfg(not(windows))]
-
 use std::io::Write;
 
 use verso_contract::SyncStatus;
@@ -1020,6 +1017,7 @@ fn a_moved_folder_leaves_no_empty_folder_behind() {
 /// A file made outside Verso with a name not every system can keep is
 /// listed here with its reason and never sent: the server would refuse it
 /// (ADR 0070 item 3; found in the four-device campaign, 2026-10-10).
+// Windows cannot make a file named "hora 10:30.md" to begin with.
 #[cfg(not(windows))]
 #[test]
 fn a_name_not_every_system_keeps_is_said_here_not_sent() {

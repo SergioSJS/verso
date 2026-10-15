@@ -44,15 +44,13 @@ serde_json = "1"
 # build already has.
 mimalloc = "0.1"
 
+# `verso serve` (ADR 0073 item 2; the maintainer's answer C of 2026-10-09:
+# a subcommand of this binary, not a binary of its own), on Linux, macOS and
+# Windows (ADR 0075 item 2, revised 2026-10-15).
+verso-server = { path = "../verso-server" }
+
 [dev-dependencies]
 tempfile = "3.27"
 
 [lints]
 workspace = true
-
-# `verso serve` (ADR 0073 item 2; the maintainer's answer C of 2026-10-09:
-# a subcommand of this binary, not a binary of its own), on Linux and macOS. Windows is no server platform
-# (ADR 0075 item 2: Docker, CasaOS, .deb/.rpm), and webauthn-rs's OpenSSL
-# would need a build of its own there: `verso serve` says so instead.
-[target.'cfg(not(windows))'.dependencies]
-verso-server = { path = "../verso-server" }

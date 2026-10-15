@@ -78,12 +78,13 @@ base64 = "0.22"
 # verso-index (MIT OR Apache-2.0).
 unicode-normalization = "0.1"
 
-# webauthn-rs speaks OpenSSL: built into the binary on every Unix, so the
+# webauthn-rs speaks OpenSSL: built into the binary on every system, so the
 # `verso` a package or the app carries never looks for a system or
 # Homebrew libssl that a user's machine may not have (the release
 # rehearsal of 2026-10-10 found the macOS one linked to
-# /opt/homebrew/opt/openssl@3). Windows has no server (ADR 0075 item 2):
-# verso-cli leaves this crate out there.
+# /opt/homebrew/opt/openssl@3). On Windows too (ADR 0075 item 2, revised
+# 2026-10-15): the build needs Perl, which `openssl-src` runs to configure
+# OpenSSL (NASM is not needed: assembly is off when it is missing).
 # "This app is a server" (ADR 0096; the local mode of the desktop app, crates
 # verso-server/src/local). Each is justified where it is used:
 # - rcgen (MIT OR Apache-2.0): the app's own self-signed certificate (item 5
@@ -102,7 +103,6 @@ qrcode = { version = "0.14", default-features = false }
 mdns-sd = { version = "0.21", default-features = false }
 if-addrs = "0.15"
 
-[target.'cfg(unix)'.dependencies]
 openssl = { version = "0.10", features = ["vendored"] }
 
 [dev-dependencies]
