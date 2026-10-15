@@ -209,6 +209,15 @@ window.addEventListener("resize", syncEmbedViews);
 document.addEventListener("scroll", syncEmbedViews, { capture: true, passive: true });
 // New boxes appear after async renders; a cheap sweep catches them.
 window.setInterval(syncEmbedViews, 700);
+// A window moved to a screen of another scale keeps its CSS size, and the
+// host places the pages in device pixels (app/src-tauri/src/web_clip).
+const watchScale = (): void =>
+  window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`).addEventListener("change", () => {
+    syncWebViews();
+    syncEmbedViews();
+    watchScale();
+  }, { once: true });
+watchScale();
 new MutationObserver((records) => {
   if (webLeaves.size === 0 && embedViews.size === 0) return;
   // An editor, a PDF or the graph redraws itself: nothing moves outside.

@@ -1,7 +1,8 @@
 // Where an embedded page's child view goes when its slot is partly out of
-// sight: cut to the visible part, with the page scrolled by what is cut
-// from the top, never over the pane's neighbours (the bottom status bar,
-// the tab bar, another pane).
+// sight: the part that shows, never over the pane's neighbours (the bottom
+// status bar, the tab bar, another pane); and the place sent to the host —
+// the slot whole, where the page is laid out, and that visible part, where
+// it is drawn, as an iframe is (ADR 0056, revised 2026-10-15).
 
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
@@ -15,7 +16,7 @@ await esbuild.build({
   outfile: "test/.bundles/embedClip.test-bundle.mjs",
   logLevel: "error",
 });
-const { embedPlace } = await import("./.bundles/embedClip.test-bundle.mjs");
+const { embedPlace, webPlace, wholePlace } = await import("./.bundles/embedClip.test-bundle.mjs");
 
 const r = (left, top, right, bottom) => ({ left, top, right, bottom });
 const win = { width: 1000, height: 800 };
@@ -26,30 +27,27 @@ const status = r(0, 770, 1000, 800);
 const place = (slot, clips = [pane], avoid = [tabs, status], w = win) => embedPlace(slot, clips, avoid, w);
 
 describe("An embed's view", () => {
-  test("fully visible: the slot itself, page not scrolled", () => {
+  test("fully visible: the slot itself", () => {
     const p = place(r(100, 200, 900, 500));
-    assert.deepEqual(p, { visible: true, left: 100, top: 200, width: 800, height: 300, hiddenTop: 0, hiddenLeft: 0 });
+    assert.deepEqual(p, { visible: true, left: 100, top: 200, width: 800, height: 300 });
   });
 
-  test("partly above the pane: cut at its top, the page scrolled by the hidden part", () => {
+  test("partly above the pane: cut at its top", () => {
     const p = place(r(100, -60, 900, 240)); // 300 tall, 100 above the pane's top at 40
     assert.equal(p.top, 40);
     assert.equal(p.height, 200);
-    assert.equal(p.hiddenTop, 100);
   });
 
-  test("partly below the pane: cut at its bottom, the page not scrolled", () => {
+  test("partly below the pane: cut at its bottom", () => {
     const p = place(r(100, 600, 900, 900));
     assert.equal(p.top, 600);
     assert.equal(p.height, 170);
-    assert.equal(p.hiddenTop, 0);
   });
 
-  test("taller than the pane: both ends cut, scrolled by the top part", () => {
+  test("taller than the pane: both ends cut", () => {
     const p = place(r(100, -200, 900, 1000));
     assert.equal(p.top, 40);
     assert.equal(p.height, 730);
-    assert.equal(p.hiddenTop, 240);
   });
 
   test("scrolled out: nothing to show", () => {
@@ -66,15 +64,13 @@ describe("An embed's view", () => {
   test("never over the tab bar, even when no ancestor clips it", () => {
     const p = place(r(100, 0, 900, 300), []);
     assert.equal(p.top, 40);
-    assert.equal(p.hiddenTop, 40);
   });
 
-  test("inside a split pane: cut to the pane's sides, scrolled by the left part", () => {
+  test("inside a split pane: cut to the pane's sides", () => {
     const right = r(500, 40, 1000, 770);
     const p = place(r(400, 100, 900, 400), [right]);
     assert.equal(p.left, 500);
     assert.equal(p.width, 400);
-    assert.equal(p.hiddenLeft, 100);
     // And never into the left pane.
     const left = r(0, 40, 500, 770);
     const q = place(r(100, 100, 700, 400), [left]);
@@ -90,5 +86,42 @@ describe("An embed's view", () => {
 
   test("a sliver of a pixel is not shown", () => {
     assert.equal(place(r(100, -299, 900, 41)).visible, false);
+  });
+});
+
+describe("The place sent to the host (WebPlace)", () => {
+  test("half above the pane: the slot whole — the page's viewport — and the part that shows", () => {
+    const slot = r(100, -60, 900, 240); // 300 tall, 100 of it above the pane
+    assert.deepEqual(webPlace(slot, place(slot)), {
+      slot: { x: 100, y: -60, w: 800, h: 300 },
+      visible: { x: 100, y: 40, w: 800, h: 200 },
+    });
+  });
+
+  test("taller than the pane: the page keeps its whole height, both ends out of sight", () => {
+    const slot = r(100, -200, 900, 1000);
+    const p = webPlace(slot, place(slot));
+    assert.deepEqual(p.slot, { x: 100, y: -200, w: 800, h: 1200 });
+    assert.deepEqual(p.visible, { x: 100, y: 40, w: 800, h: 730 });
+  });
+
+  test("in a split pane: cut at the pane's left side, the page laid out whole", () => {
+    const slot = r(400, 100, 900, 400);
+    const p = webPlace(slot, place(slot, [r(500, 40, 1000, 770)]));
+    assert.deepEqual(p.slot, { x: 400, y: 100, w: 500, h: 300 });
+    assert.deepEqual(p.visible, { x: 500, y: 100, w: 400, h: 300 });
+  });
+
+  test("a web note's own view: one rectangle, twice, never smaller than a pixel", () => {
+    assert.deepEqual(wholePlace(r(10, 20, 410, 320)), {
+      slot: { x: 10, y: 20, w: 400, h: 300 },
+      visible: { x: 10, y: 20, w: 400, h: 300 },
+    });
+    assert.deepEqual(wholePlace(r(10, 20, 10, 20)).slot, { x: 10, y: 20, w: 1, h: 1 });
+  });
+
+  test("nothing in it scrolls the page: no scroll, only two rectangles", () => {
+    const slot = r(100, -60, 900, 240);
+    assert.deepEqual(Object.keys(webPlace(slot, place(slot))).sort(), ["slot", "visible"]);
   });
 });

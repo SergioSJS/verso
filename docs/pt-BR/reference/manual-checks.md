@@ -20,7 +20,70 @@ app real.
 
 ## Ainda não conferido
 
+### Uma página incorporada recortada como um quadro (feat/web-embed-native-clip, 2026-10-15)
+
+Precisa do app instalado: a página é uma visão web filha nativa recortada
+por um contêiner nativo (`app/src-tauri/src/web_clip`; ADR 0056 e ADR
+0029, revistos em 2026-10-15), que nem o harness do navegador nem teste
+algum alcança. Faça cada item no **macOS**, no **Windows** e no
+**Linux** (X11 e Wayland; o Linux nunca tinha mostrado uma visão web
+filha, então comece por abrir uma). Use uma página incorporada aprovada
+de um site que recusa quadros (olddragon.com.br, rolai.app, o
+Calibre-Web), alta o bastante para rolar por dentro, numa nota longa o
+bastante para rolar. Deixe o log aberto (*Relatar problema*, ou o
+`verso.log`): nenhuma linha *cannot be clipped like a frame* deve
+aparecer — uma quer dizer que aquela view voltou ao corte antigo, que
+mostra o topo da página.
+
+- [ ] **Metade acima do painel**: role a nota até o topo da incorporação
+  ficar mais ou menos na metade, acima do topo do painel. Aparece o
+  *meio* da página (não o topo de novo), cortado na borda de cima do
+  painel; a barra de abas e a barra de ferramentas descobertas. Role
+  mais e volte: a página anda com a nota, linha a linha, sem salto, sem
+  piscar, e a sua primeira linha volta à vista quando o espaço volta.
+- [ ] **Metade abaixo do painel**: o fundo da incorporação abaixo do
+  painel: aparece o topo da página, cortado no fundo do painel; a
+  **barra de status** (e o sino nela) não fica coberta.
+- [ ] **Na barra de status**: role até a borda de baixo da incorporação
+  ficar logo abaixo do topo da barra de status: nem um pixel da página
+  por cima da barra de status.
+- [ ] **Montada para o espaço inteiro**: uma página que ajusta o tamanho
+  à altura da sua janela (um player de vídeo, um app de altura inteira):
+  no caso da metade, ela é montada para o espaço inteiro e mostra a sua
+  metade de baixo — não espremida na parte visível.
+- [ ] **A rolagem e os cliques da própria página**: com a incorporação
+  meio acima do painel, role dentro da página com a roda ou o trackpad
+  sobre a parte visível, clique num link e num botão ali, digite num
+  campo: tudo funciona. Depois role a nota (sobre a nota, fora da
+  página): a página não rola por dentro, só se move.
+- [ ] **Um painel dividido**: divida a janela; a nota no painel da
+  direita, a incorporação cortada pelo divisor: a página nunca por cima
+  do outro painel, do divisor ou dos painéis laterais; abra e feche os
+  painéis da esquerda e da direita com a página à vista.
+- [ ] **Ajustes por cima**: no caso da metade, abra os Ajustes (e a
+  paleta): a página some; fechados, ela volta no mesmo lugar, ainda
+  cortada no painel.
+- [ ] **Redimensionar a janela**: arraste um canto com a incorporação
+  meio acima do painel: a página acompanha, cortada onde o painel
+  termina, e nunca desenhada fora da janela durante o arraste.
+- [ ] **Duas telas de escalas diferentes** (uma tela Retina e um monitor
+  1×; no Windows 100 % e 150 %): leve a janela de uma para a outra com a
+  incorporação na metade: a página mantém lugar e tamanho, nítida em
+  cada uma, sem uma faixa dela fora do painel.
+- [ ] **Duas incorporações numa nota**: as duas meio visíveis ao mesmo
+  tempo (uma cortada em cima, outra embaixo): cada uma mostra a sua
+  parte, nenhuma por cima do espaço da outra nem da moldura; feche a
+  aba: as duas somem, nada fica por cima da janela.
+- [ ] **Uma nota da web** (uma nota com `url`, *Ver página*): a página
+  dela preenche a área como antes, acompanha divisões e
+  redimensionamentos, some sob os Ajustes.
+
 ### Uma página incorporada cortada pelo seu painel (fix/web-embed-clip, 2026-10-15)
+
+*(As verificações do corte que veio antes do recorte nativo. Onde o
+recorte nativo está construído, as verificações dele acima substituem
+estas; um item aqui que diz que a página é montada para a altura visível
+não vale mais.)*
 
 Precisa do app instalado: a página é uma visão web filha nativa, que o
 harness do navegador não tem. Faça cada item no macOS e no Windows. Use
