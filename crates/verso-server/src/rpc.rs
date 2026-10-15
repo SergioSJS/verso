@@ -643,6 +643,20 @@ async fn command(
             let c = client.to_owned();
             let summary = blocking(move || service.reindex(&c)).await?;
             record_space(server, client).await;
+            // What a run indexed would tell a reader a file changed, a
+            // secret-only edit among them (ADR 0087 item 4).
+            let summary = if crate::readers::reads_only(server, who, client)? {
+                verso_contract::IndexSummary {
+                    indexed: 0,
+                    unchanged: 0,
+                    removed: 0,
+                    placeholders: 0,
+                    problems: Vec::new(),
+                    ..summary
+                }
+            } else {
+                summary
+            };
             let mut summary = to_value(summary)?;
             if let Some(scope) = crate::shares::scope_here(server, client) {
                 let counts = share_counts(server, client, &scope).await;

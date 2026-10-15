@@ -73,13 +73,24 @@ impl Workspace {
         let (bytes, stamp) = self.root.read(handle).map_err(CoreError::Read)?;
         let text = String::from_utf8(bytes).map_err(|_| CoreError::NotText)?;
         let known = self.index.stamp_of(&path).map_err(CoreError::Index)?;
-        let stale = known != Some(note_stamp(&stamp));
+        let mut stale = known != Some(note_stamp(&stamp));
         let unverified = self
             .index
             .is_unverified(&path)
             .map_err(CoreError::Index)?
             .unwrap_or(false);
         let secrets = verso_dialect::Secrets::of(&text);
+        // A reader is told the note is stale when the projection differs
+        // from the public text the index holds, never because the file's
+        // stamp moved: an edit made inside a secret block outside the
+        // server must not show (ADR 0087 item 4).
+        let public = self
+            .index
+            .reader_content_of(&path)
+            .map_err(CoreError::Index)?;
+        if !secrets.is_empty() || public.as_deref().is_some_and(|c| c != text) {
+            stale = public.as_deref() != Some(secrets.project(&text).as_ref());
+        }
         if secrets.is_empty() {
             return self.note_text(path, text, revision::encode(&stamp), stale, unverified);
         }

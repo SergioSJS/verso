@@ -10,7 +10,16 @@
 use serde_json::json;
 
 use crate::tests::{block_on, call};
-use crate::tests_secret::{ask, folder_with_a_reader};
+
+/// `text` written to `path` as an editor outside the server writes it.
+fn put_file(path: &std::path::Path, text: &str) {
+    use std::io::Write;
+    let dir = path.parent().unwrap();
+    let mut f = tempfile::NamedTempFile::new_in(dir).unwrap();
+    f.write_all(text.as_bytes()).unwrap();
+    f.persist(path).unwrap();
+}
+use crate::tests_secret::{ask, folder_with_a_reader, listen};
 
 #[test]
 fn a_reader_is_told_no_index_size() {
@@ -96,7 +105,7 @@ fn a_note_too_large_to_serve_a_reader_is_not_in_its_manifest() {
             "# Grande\n\n> [!secret]\n> zqbig\n\n{}\n",
             "pub ".repeat(5_000_000)
         );
-        std::fs::write(r.campanha().join("Grande.md"), &body).unwrap();
+        put_file(&r.campanha().join("Grande.md"), &body);
         // The folder's walk finds it on a question; wait until it did.
         let mut recorded = false;
         for k in 0..10u64 {
@@ -128,5 +137,36 @@ fn a_note_too_large_to_serve_a_reader_is_not_in_its_manifest() {
             tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
         }
         assert!(recorded, "the walk never recorded the large note");
+    });
+}
+
+#[test]
+fn an_edit_made_outside_the_server_inside_a_secret_block_is_not_stale_or_indexed_for_a_reader() {
+    // M4: a reader's `stale` is the projection's, and the summary of a
+    // reindex it asks counts nothing.
+    block_on(async {
+        let (r, _owner, mut reader, _id) = folder_with_a_reader().await;
+        tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+        listen(&mut reader, 300).await;
+        let before = ask(&mut reader, 2, "read_note", json!({ "path": "Taverna.md" })).await;
+        let path = r.campanha().join("Taverna.md");
+        let text = std::fs::read_to_string(&path)
+            .unwrap()
+            .replace("zqbody", "zqbody segue");
+        put_file(&path, &text);
+        let after = ask(&mut reader, 3, "read_note", json!({ "path": "Taverna.md" })).await;
+        assert_eq!(before["ok"]["stale"], json!(false), "{before}");
+        assert_eq!(after["ok"]["stale"], json!(false), "{after}");
+        assert_eq!(before["ok"]["revision"], after["ok"]["revision"]);
+        let re = ask(&mut reader, 4, "reindex", json!({})).await;
+        assert_eq!(re["ok"]["indexed"], json!(0), "{re}");
+        assert_eq!(re["ok"]["removed"], json!(0), "{re}");
+        // A public edit made outside is still stale for the reader.
+        let text = std::fs::read_to_string(&path)
+            .unwrap()
+            .replace("Fim.", "Fim, enfim.");
+        put_file(&path, &text);
+        let public = ask(&mut reader, 5, "read_note", json!({ "path": "Taverna.md" })).await;
+        assert_eq!(public["ok"]["stale"], json!(true), "{public}");
     });
 }
