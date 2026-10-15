@@ -194,6 +194,14 @@ class MapState {
           minZoom: cfg.minZoom,
           maxZoom: cfg.maxZoom,
           attributionControl: { compact: true },
+          // MapLibre's own names, in the window's language.
+          locale: {
+            "Map.Title": s.map,
+            "NavigationControl.ZoomIn": s.zoomIn,
+            "NavigationControl.ZoomOut": s.zoomOut,
+            "NavigationControl.ResetBearing": s.resetNorth,
+            "AttributionControl.ToggleAttribution": s.credits,
+          },
           // Only what the person approved is asked for (items 8 and 9);
           // anything a style names elsewhere is not.
           transformRequest: (url) => {
@@ -210,6 +218,8 @@ class MapState {
         this.fail(s.noWebGL);
         return;
       }
+      // Zoom by button too, not only by wheel, pinch or + and -.
+      this.map.addControl(new ml.NavigationControl({ showCompass: false }), "top-right");
       this.map.on("error", (e) => {
         // A tile or a style that did not load: said once, never thrown.
         const msg = (e as { error?: { message?: string } }).error?.message ?? "";

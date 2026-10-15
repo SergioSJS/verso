@@ -64,6 +64,8 @@ test("a marker on the map opens its note", async ({ app, page }) => {
   test.skip((await box.locator(".base-map-failed").count()) > 0, "no WebGL in this browser: the list is the map");
   const pins = page.locator(".base-map-pin");
   await expect(pins).toHaveCount(3);
+  // Zoom by button too, named in the window's language.
+  await expect(box.getByRole("button", { name: "Aproximar" })).toBeVisible();
   // Named for the hover preview, hidden from assistive technology (the
   // list names them).
   const beta = page.locator('.base-map-pin[data-preview-path="projetos/Projeto Beta.md"]');
