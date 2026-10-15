@@ -17,6 +17,8 @@ O **UniVerso** é o Verso sem janela, numa máquina sua — um servidor em casa,
 
 ## Instalar
 
+Um passo a passo para quem nunca montou um servidor, com os comandos para copiar, está em [[25 - Instalar o seu UniVerso, Passo a Passo]]. O resumo:
+
 Três jeitos, do mesmo programa (o guia completo está em `docs/reference/server-install.md`):
 
 - **Docker**, para amd64 e arm64;

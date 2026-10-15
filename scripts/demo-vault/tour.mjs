@@ -347,11 +347,15 @@ const STOPS = [
     heading: "🖥️ Num servidor",
     color: TEAL,
     canvasColor: "5",
-    cards: [["n-servidor", "23 - Verso num Servidor.md", 640]],
+    cards: [
+      ["n-servidor", "23 - Verso num Servidor.md", 420],
+      ["n-instalar", "25 - Instalar o seu UniVerso, Passo a Passo.md", 420],
+    ],
     tip:
       "O UniVerso, o Verso num servidor seu, guarda as pastas e as abre no navegador: contas por convite, dono, editores e leitores, várias pessoas na mesma nota, no mesmo board ou arquivo, ao vivo, com o ponteiro e o nome de cada um. " +
       "No app desktop, Ajustes › Servidores conecta pelo navegador; Ajustes › Sincronizar mantém uma pasta deste computador igual a uma do servidor — e, com a rede, uma nota, um board ou um arquivo de texto aberto nela é editado junto, ao vivo. " +
-      "Botão direito numa pasta › Compartilhar… divide só ela com outra pessoa, lendo ou editando; quem recebe a vê em Compartilhados comigo.",
+      "Botão direito numa pasta › Compartilhar… divide só ela com outra pessoa, lendo ou editando; quem recebe a vê em Compartilhados comigo. " +
+      "Para montar o seu, a nota 25 é o passo a passo: o script de instalação ou o Docker, o HTTPS, o primeiro admin e o backup.",
   },
   {
     id: "dados",

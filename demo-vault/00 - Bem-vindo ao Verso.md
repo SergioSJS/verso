@@ -73,6 +73,7 @@ Explore os módulos organizados abaixo para conferir cada funcionalidade em deta
 22. [[22 - Verso no Celular e no Tablet]] — A barra de baixo, uma área por vez, segurar como clique direito, o cartão de um link, a barra do teclado e os leitores de tela.
 23. [[23 - Verso num Servidor]] — O `verso serve`: instalar, contas por convite, dono, editores e leitores, editar junto e o app desktop conectado.
 24. [[24 - Dados e Tabelas Sorteadas]] — `dice:` numa nota rola dados, uma tabela ou lista com `^id` sorteia uma linha; nada escrito, e numa nota compartilhada todos veem.
+25. [[25 - Instalar o seu UniVerso, Passo a Passo]] — Do zero a um servidor seu, para quem nunca montou um: o script de instalação ou o Docker, o HTTPS, o primeiro admin, o backup.
 
 ---
 

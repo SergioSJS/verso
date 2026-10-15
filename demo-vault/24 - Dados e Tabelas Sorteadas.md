@@ -92,4 +92,4 @@ Na paleta de comandos (`⌘⇧P`), **Rolar dados…** abre um rolador: digite a 
 
 ---
 
-Volte para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].
+Para montar o seu próprio servidor, passo a passo, veja [[25 - Instalar o seu UniVerso, Passo a Passo]]. Volte para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].
