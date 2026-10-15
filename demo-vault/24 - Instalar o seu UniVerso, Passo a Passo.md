@@ -78,6 +78,22 @@ Antes de abrir o endereço, falta o HTTPS: vá a [[#5. HTTPS, o passo em que tod
 
 Para uma máquina onde o Docker já roda. Os dados ficam em dois diretórios seus; o contêiner pode ser trocado sem perdê-los.
 
+**Passo 0: o Docker e o Compose.** Confira que os dois respondem (uma máquina nova de nuvem não os traz):
+
+```bash
+docker --version
+docker compose version
+```
+
+Se der `command not found`, no Ubuntu instale os dois do repositório da distribuição (no Debian e em outras distribuições, siga <https://docs.docker.com/engine/install/>):
+
+```bash
+sudo apt install docker.io docker-compose-v2
+systemctl is-enabled docker          # deve dizer enabled
+```
+
+Seu usuário não fica no grupo `docker`: ponha `sudo` antes de todo `docker` e `docker compose` abaixo.
+
 **Passo 1: os diretórios.** O contêiner roda como o usuário 1000 e só escreve nestes dois:
 
 ```bash
@@ -89,8 +105,6 @@ sudo install -d -o 1000 -g 1000 /srv/universo/data /srv/universo/folders
 ```bash
 echo "$TOKEN" | docker login ghcr.io -u <seu-usuario-github> --password-stdin
 ```
-
-Ponha `sudo` antes de `docker` se o seu usuário não está no grupo `docker`.
 
 **Passo 3: a versão e o arquivo compose.**
 

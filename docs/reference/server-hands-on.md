@@ -341,6 +341,12 @@ the same two lines (guide, section 2).
 
 ### B.1 The directories
 
+First, `docker --version` and `docker compose version` must both answer; a
+fresh cloud machine ships neither. On Ubuntu,
+`sudo apt install docker.io docker-compose-v2` installs both (checked on
+Ubuntu 26.04); on other distributions,
+<https://docs.docker.com/engine/install/>.
+
 The container runs as uid 1000 and writes only to two directories of the
 host, which must be writable by it (Docker makes a missing one owned by
 root, which the server cannot write):
