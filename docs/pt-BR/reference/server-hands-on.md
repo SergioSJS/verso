@@ -342,6 +342,11 @@ entre as mesmas duas linhas (manual, seção 2).
 
 ### B.1 Os diretórios
 
+Antes de tudo, `docker --version` e `docker compose version` precisam
+responder; uma máquina nova de nuvem não traz nenhum dos dois. No Ubuntu,
+`sudo apt install docker.io docker-compose-v2` instala ambos (conferido no
+Ubuntu 26.04); nas outras distribuições, <https://docs.docker.com/engine/install/>.
+
 O contêiner roda como uid 1000 e escreve só em dois diretórios do host,
 que precisam permitir escrita a ele (o Docker cria um que falta com dono
 root, onde o servidor não consegue escrever):
