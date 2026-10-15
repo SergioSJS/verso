@@ -20,7 +20,7 @@ test("a new note offers Blank and the templates, and a template fills it", async
   await newNote(app);
   await expect(picker(app)).toHaveAttribute("role", "group");
   const names = await picker(app).locator(".template-choice-name").allTextContents();
-  expect(names).toEqual(["Em branco", "Diário", "Nota de Reunião", "Novo Projeto"]);
+  expect(names).toEqual(["Em branco", "Diário", "Nota de Reunião", "Novo Projeto", "Semanal"]);
   await choice(app, "Nota de Reunião").click();
   await expect(picker(app)).toHaveCount(0);
   // The template's text, {{title}} and {{date}} filled, saved as an edit.
