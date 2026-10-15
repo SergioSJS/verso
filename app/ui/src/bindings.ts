@@ -1145,6 +1145,11 @@ export type EntryLabel_Deserialize = {
 	sticker: string | null,
 	color: string | null,
 	alias: string | null,
+	/**
+	 *  Every alias, the first included (ADR 0089 item 5: the suggestion
+	 *  while typing matches them).
+	 */
+	aliases?: string[],
 	order?: string[] | null,
 	pinned?: string[] | null,
 };
@@ -1157,6 +1162,11 @@ export type EntryLabel_Serialize = {
 	sticker: string | null,
 	color: string | null,
 	alias: string | null,
+	/**
+	 *  Every alias, the first included (ADR 0089 item 5: the suggestion
+	 *  while typing matches them).
+	 */
+	aliases?: string[],
 	order?: string[] | null,
 	pinned?: string[] | null,
 };
