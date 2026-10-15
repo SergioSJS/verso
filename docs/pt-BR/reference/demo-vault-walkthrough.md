@@ -78,11 +78,16 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
 2. A nota de boas-vindas mostra o destaque "Comece pelo tour" com os dois
    links. Nível: S (os links), H.
 3. Importe de novo numa pasta que tem o exemplo de uma versão anterior.
-   Esperado: o que falta é criado, um arquivo com outro conteúdo fica como
-   está e é nomeado, e o log do app tem linhas `import demo:` dizendo
-   quantos foram criados, mantidos e falharam. Nível: H; E:
-   `import.spec.mjs`. Pegou: uma importação que não escrevia nada dizia
-   "importado" e não deixava rastro.
+   Esperado: o que falta é criado, um arquivo que é a cópia intacta do exemplo de uma
+   versão anterior (seus bytes são um dos que o exemplo guarda o hash) é
+   substituído pelo atual, um arquivo com outro conteúdo — edição da pessoa
+   — fica como está e é nomeado, o aviso e a barra de status dizem quantos
+   foram criados, atualizados e mantidos, e o log do app tem linhas
+   `import demo:` dizendo quantos foram criados, atualizados, mantidos e
+   falharam. Nível: H; E: `import.spec.mjs`, `test/demoImport.test.mjs`.
+   Pegou: uma importação que não escrevia nada dizia "importado" e não
+   deixava rastro; uma pasta importada de um exemplo antigo nunca recebia
+   as seções novas do tutorial ("0 criados, 28 mantidos").
 
 ## 2. O tour
 
