@@ -2134,3 +2134,33 @@ help only, never the app ([ADR 0009](../adr/0009-external-constraints.md)).
 The help does not say what Reading view does beyond the default, how long
 the pointer rests, or whether a preview opens inside a preview; Verso's
 answers are the ADR's (half a second; no preview inside a preview).
+
+## 20. Daily and periodic notes' settings files (2026-10-14)
+
+Observed before building [ADR 0093](../adr/0093-periodic-notes.md) item 11,
+from outside ([ADR 0009](../adr/0009-external-constraints.md)): the
+`Sandbox` test vault, Obsidian 1.14.4 (installer 1.11.5) on macOS, read only
+— nothing was created or changed in it.
+
+| What | Found |
+|---|---|
+| `.obsidian/core-plugins.json` | `"daily-notes": true`, `"templates": true` |
+| `.obsidian/daily-notes.json` | absent: the core plugin on, its settings never changed |
+| `obsidian vault=Sandbox daily:path` (the CLI) | `2026-10-14.md`: no file means the defaults — the vault's root, `YYYY-MM-DD` |
+| `.obsidian/plugins/` | `make-md`, `obsidian-livesync`, `task-list-kanban`: no `periodic-notes` |
+
+None of the maintainer's other vaults holds either file, so their shape
+with values was not observed in a file Obsidian wrote. It is taken from
+the public, MIT-licensed source of the community Periodic Notes plugin
+(`liamcain/obsidian-periodic-notes`, read 2026-10-14 through GitHub's API —
+a third party's plugin, not the app): in 0.0.17 `data.json` holds one object
+per period, `daily` … `yearly`, each `{enabled, format, folder, template}`;
+in 1.0 it holds `calendarSets`, each with `day` … `year` as
+`{enabled, openAtStartup, format, folder, templatePath}`, the active one
+named by `activeCalendarSet`, and a `weekStart` of `sunday` … `saturday` or
+`locale` among its defaults (the plugin also reads the week's start from the
+vault's configuration, which Verso does not read). The core plugin's
+`daily-notes.json` keys, `folder`, `format` and `template`, are those
+community code reads (ADR 0093, Context). Verso reads both shapes; a
+`daily-notes.json` with values, and a vault with the plugin, are left to
+the manual checks.
