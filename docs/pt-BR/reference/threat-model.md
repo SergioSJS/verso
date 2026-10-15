@@ -350,6 +350,36 @@ versões do `Cargo.lock`); o que só o app real mostra está listado em
 | A checagem de frame como sonda da rede local | Um `HEAD` (um `GET` lido só até os cabeçalhos quando ele falha) a um endereço que uma nota escreveu e quem lê aprovou, seis segundos no máximo, no máximo cinco redirecionamentos, a resposta final julgada; nada do corpo é lido, e a resposta é um sim ou um não. Um redirecionamento de uma página pública para um nome ou endereço local (loopback, faixas privadas, link-local, CGNAT, `.local`, um nome sem ponto) encerra a checagem com não; um nome que um DNS público aponta para um endereço privado não é pego (o mesmo limite que o ADR 0056 registrou para o proxy). Um erro, um tempo esgotado, um cabeçalho ilegível: não, e a visão filha toma a página. Respondida uma vez por origem na sessão. |
 | Um sim errado: um frame vazio | Os cabeçalhos são lidos como um navegador os lê, com cautela: qualquer valor de `X-Frame-Options` (`DENY`, `SAMEORIGIN`, `ALLOW-FROM`, um ilegível) diz não, mesmo quando há um `frame-ancestors` para sobrepô-lo; `frame-ancestors` só diz sim a `*` (só para a origem do app com esquema de rede: `tauri://localhost` não é coberto por `*`), a um esquema, host ou host com curinga que combine, e toda política da resposta precisa permitir. Um site que responde à checagem de um jeito e ao frame de outro mostra um frame vazio, decisão do site como em qualquer lugar. |
 
+### Uma revisão dos blocos secretos (2026-10-15)
+
+Uma revisão defensiva independente do item 4 da ADR 0087 (um leitor não
+recebe bloco secreto "nem nada derivado dele", falhando fechado) achou os
+caminhos abaixo; cada um está corrigido e tem teste no crate a que
+pertence (`tests_secret_review.rs` no `verso-server`, o `tests/secret.rs`
+do dialeto, o do índice, o `tests/ops.rs` do `verso-fs`).
+
+| Achado | O que dizia a um leitor | A correção |
+|---|---|---|
+| I1: o espaço da pasta | `folder_space` levava o tamanho do índice, que cresce com o texto secreto | Um leitor recebe um índice de 0, como um compartilhamento |
+| I2: marca de ordem de bytes | Um U+FEFF antes de um `> [!secret]` na primeira linha fazia a projeção não o achar | O callout é achado no texto depois da marca, com o intervalo mantido no original; o gerador do teste de propriedade tem a marca |
+| M1: números das mudanças | O registro de sync de um leitor mantinha os números da pasta, e os saltos contavam as mudanças só dentro de blocos secretos | O cursor, as mudanças e a cabeça de um leitor são numerados na contagem dele (`reader_command`) |
+| M2: nota acima de 16 MB | O manifesto de um leitor dizia o tamanho e o hash do arquivo inteiro de uma nota que lhe é recusada | Essa nota fica fora do manifesto e do registro de um leitor |
+| M3: ordem da busca | O rank do FTS5 pesa o tamanho da linha toda, a coluna secreta junto (peso 0 não muda isso), e a ordem se movia com um bloco secreto | Os resultados de conteúdo de um leitor vêm ordenados por caminho (os de nome mantêm o rank deles); um custo de relevância para leitores, para o mantenedor pesar |
+| M4: `stale` e `reindex` | Depois de uma edição dentro de um bloco secreto feita fora do servidor, um leitor via `stale: true` e um reindex de `indexed: 1` | O `stale` de um leitor compara a projeção com o texto público do índice; o reindex dele não conta nada |
+| M5: `[!secret\|x]` | Um tipo seguido de metadados não era lido como secreto | A projeção lê o tipo até a barra e falha fechado; o renderizador pode desenhá-lo como antes |
+| Um link para uma nota | Um symlink dentro da pasta com nome que não é de nota (`espelho.txt` para `Nota.md`) era lido, sincronizado e servido por `/f/` como arquivo comum, a nota inteira | O que um leitor lê é julgado pelo arquivo que é (`Root::resolved_name`, e `hard_linked` para um segundo nome): a projeção pelo contrato e pelo sync, uma recusa em `/f/` |
+
+Não alterado, o mantenedor decide: um callout secreto dentro do texto de um
+nó de quadro (`.canvas`) ou de um arquivo `.txt` não é nota e é servido
+como está (achado I3).
+
+Os testes do histórico também falhavam sob carga, e a causa estava no
+produto: o histórico guardava o arquivo como estava na hora de registrar,
+não os bytes de que a mudança foi calculada, e uma escrita que ganhava a
+corrida contra a primeira olhada do registro perdia a versão encontrada e
+levava o nome dela. Agora uma versão só é registrada quando os bytes
+batem com a mudança.
+
 ## Lacunas encontradas em 2026-10-11
 
 Encontradas lendo o código no HEAD 7729940; achados, não correções.
