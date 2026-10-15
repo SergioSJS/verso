@@ -147,12 +147,15 @@ fn an_edit_made_outside_the_server_inside_a_secret_block_is_not_stale_or_indexed
     // M4: a reader's `stale` is the projection's, and the summary of a
     // reindex it asks counts nothing.
     block_on(async {
-        let (r, _owner, mut reader, _id) = folder_with_a_reader().await;
+        let (r, mut owner, mut reader, _id) = folder_with_a_reader().await;
         tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
         listen(&mut reader, 300).await;
         let before = ask(&mut reader, 2, "read_note", json!({ "path": "Taverna.md" })).await;
         let path = r.campanha().join("Taverna.md");
-        let text = std::fs::read_to_string(&path)
+        // The whole text, as its owner reads it (the folder is read in data.rs only).
+        let whole = call(&mut owner, 20, "read_note", json!({ "path": "Taverna.md" })).await;
+        let text = whole["ok"]["text"]
+            .as_str()
             .unwrap()
             .replace("zqbody", "zqbody segue");
         put_file(&path, &text);
@@ -164,7 +167,9 @@ fn an_edit_made_outside_the_server_inside_a_secret_block_is_not_stale_or_indexed
         assert_eq!(re["ok"]["indexed"], json!(0), "{re}");
         assert_eq!(re["ok"]["removed"], json!(0), "{re}");
         // A public edit made outside is still stale for the reader.
-        let text = std::fs::read_to_string(&path)
+        let whole = call(&mut owner, 21, "read_note", json!({ "path": "Taverna.md" })).await;
+        let text = whole["ok"]["text"]
+            .as_str()
             .unwrap()
             .replace("Fim.", "Fim, enfim.");
         put_file(&path, &text);
