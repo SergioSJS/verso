@@ -20,6 +20,46 @@ in the real app.
 
 ## Not yet checked
 
+### The phone offline (ADR 0092, feat/phone-offline, 2026-10-15)
+
+Needs a UniVerso over **HTTPS** (a service worker does not run over plain
+HTTP, except on `localhost`) and a real phone; the e2e tests stand in for
+the network with the browser's offline mode and a WebSocket route.
+
+- [ ] **Installed on an iPhone** (A): in Safari, open the server, sign in,
+  Share › Add to Home Screen, open it from the icon. Settings › Offline in a
+  folder: the space is said, *Keep on this device* works, and the page says
+  whether the system promised to keep the copy (*persisted*). Airplane mode,
+  quit the app, open it from the icon: the window opens and lists the
+  folder; a note opens and is edited; the status bar says *Sem conexão* and
+  *1 mudança esperando*. Airplane mode off: *Voltou a rede: 1 mudança
+  enviada*, and the note on the server has the text.
+- [ ] **iPhone's eviction** (A): with the copy kept and the phone's storage
+  nearly full (or after seven days without opening the page in Safari, not
+  installed), open the page offline: either the copy is there or it is gone —
+  say which, and whether the page told you (*persistDenied*). Writes that
+  had not gone up are what is lost; nothing on the server is.
+- [ ] **Android** (A): Chrome, *Install app* (or Add to Home screen); the
+  same passes; the *Persistent storage* of Chrome's site settings says the
+  copy is not cleared when space runs short.
+- [ ] **A conflict on a phone** (A): a note edited on the phone offline and
+  on a computer meanwhile; back online: the server's version has the name,
+  the phone's is `… (conflito, iPhone · Safari, …).md`, listed in Settings ›
+  Offline with its difference; a notification says it.
+- [ ] **Sign-out and a lost phone** (A): *Sair* says how many writes have
+  not gone up; after it, Safari's Settings › Advanced › Website Data shows
+  nothing for the server beyond the page's code. The console's *End sessions
+  and tokens* on a phone that is offline: at its next connection the copy is
+  deleted and the page says so.
+- [ ] **A reader's phone** (A): a reader keeps a folder with a secret
+  block; offline, the note has no block, and *View as a reader* on the
+  owner's side shows the same text.
+- [ ] **The screen reader** (A): VoiceOver/TalkBack read the offline state
+  when it changes (*Sem rede: você edita as notas guardadas…*) and the
+  section's controls by name, in both languages.
+- [ ] **The Mac, WebKit** (A): Safari on the Mac, the same first pass; the
+  WebKit of the e2e image is not Safari.
+
 ### An embedded page as a real frame (fix/web-embed-clip, 2026-10-15)
 
 Needs the installed app: the check, the frame's policy and the navigation

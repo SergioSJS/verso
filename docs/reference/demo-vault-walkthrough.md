@@ -846,6 +846,24 @@ hand, on a phone and an iPad, the server's window in the browser.
     `preview.spec.mjs`, "by touch" (the board's long press: by hand,
     `manual-checks.md`).
 
+11. Offline on the phone ([ADR
+    0092](../adr/0092-the-phone-offline.md); note 22, "Sem Rede"): on a
+    server over HTTPS, a folder's *Settings › Offline* says the space first and
+    keeps the folder on this device; with the network off the page still
+    opens, lists the folder, a note is read and edited, the status bar says
+    *Sem conexão* and how many writes wait, and search, links and the graph say
+    *sem rede*; with the network back the writes go up (a note both sides
+    appended to is joined, one both changed keeps a listed copy) and a
+    notification says how many were sent; signing out says how many writes
+    have not gone up and deletes the copy; the server ending the session
+    deletes it at the next connection; a full store is refused where the
+    write was made; plain HTTP says offline needs HTTPS. Level: H; E:
+    `e2e-server/offline.spec.mjs` (Chromium, WebKit and a phone), the sync's
+    property test (`test/offlineSync.test.mjs`) and the engine's cases made
+    by the Rust engine (`test/offlineEngine.test.mjs`); an installed iPhone
+    and an Android phone, the eviction and the home-screen install: by hand,
+    `manual-checks.md`.
+
 ## 13. On a server
 
 From the tour's stop "Num servidor" and note 23 ([ADR

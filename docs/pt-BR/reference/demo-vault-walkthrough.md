@@ -869,6 +869,24 @@ e 820 × 1180 (WebKit) além do tamanho do computador (`playwright.config.mjs`);
     0085](../adr/0085-hover-preview.md)). Nível: H; E: `preview.spec.mjs`,
     "by touch" (o toque longo do board: à mão, `manual-checks.md`).
 
+11. O celular sem rede ([ADR
+    0092](../adr/0092-the-phone-offline.md); nota 22, "Sem Rede"): num
+    servidor com HTTPS, **Ajustes › Sem rede** de uma pasta diz o espaço antes
+    e guarda a pasta neste aparelho; com a rede desligada a página ainda
+    abre, lista a pasta, uma nota é lida e editada, a barra de status diz
+    *Sem conexão* e quantas escritas esperam, e a busca, os links e o grafo
+    dizem *sem rede*; com a rede de volta as escritas sobem (uma nota que os
+    dois lados acrescentaram é juntada, uma que os dois mudaram guarda uma
+    cópia listada) e uma notificação diz quantas foram enviadas; sair da
+    conta diz quantas escritas não subiram e apaga a cópia; o servidor
+    encerrando a sessão a apaga na próxima conexão; um armazenamento cheio
+    recusa onde a escrita foi feita; HTTP simples diz que o uso sem rede
+    precisa de HTTPS. Nível: H; E: `e2e-server/offline.spec.mjs` (Chromium,
+    WebKit e um celular), o teste de propriedade da sincronização
+    (`test/offlineSync.test.mjs`) e os casos do motor feitos pelo motor em
+    Rust (`test/offlineEngine.test.mjs`); um iPhone e um Android instalados,
+    o despejo e a instalação na tela de início: à mão, `manual-checks.md`.
+
 ## 13. Num servidor
 
 Da parada "Num servidor" do tour e da nota 23 ([ADR

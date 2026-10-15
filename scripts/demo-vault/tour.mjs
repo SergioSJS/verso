@@ -339,7 +339,7 @@ const STOPS = [
     cards: [["n-celular", "22 - Verso no Celular e no Tablet.md", 640]],
     tip:
       "No navegador do celular, a barra de baixo traz Arquivos, Buscar, Nova nota, Voltar e Comandos; um layout dividido mostra uma área por vez. " +
-      "Segurar e soltar abre o menu, segurar e arrastar move, e o … ao lado da linha faz o mesmo sem gesto. No Editar, o toque num link mostra Abrir e Editar link.",
+      "Segurar e soltar abre o menu, segurar e arrastar move, e o … ao lado da linha faz o mesmo sem gesto. No Editar, o toque num link mostra Abrir e Editar link. Com HTTPS, Ajustes › Sem rede deixa uma pasta abrir e editar sem conexão, e o que mudou sobe quando a rede volta.",
   },
   {
     id: "servidor",
