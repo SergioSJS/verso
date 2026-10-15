@@ -182,7 +182,9 @@ VERSO_PUBLIC_URL=https://notas.exemplo.com
 VERSO_TRUSTED_PROXY=127.0.0.1
 ```
 
-`VERSO_LISTEN` já é isso por padrão: o UniVerso só é alcançado desta
+O arquivo já traz essas variáveis (a `VERSO_TRUSTED_PROXY` vem vazia): troque
+o valor na linha que existe; repetida, vale a última (conferido), mas o
+arquivo fica confuso. `VERSO_LISTEN` já é isso por padrão: o UniVerso só é alcançado desta
 máquina, e o proxy leva o resto. `VERSO_TRUSTED_PROXY` nomeia o proxy cujos
 cabeçalhos repassados são aceitos; sem ele, todo visitante parece
 `127.0.0.1` e divide um só conjunto de limites (manual, seção 8). As duas
@@ -342,6 +344,11 @@ entre as mesmas duas linhas (manual, seção 2).
 
 ### B.1 Os diretórios
 
+Antes de tudo, `docker --version` e `docker compose version` precisam
+responder; uma máquina nova de nuvem não traz nenhum dos dois. No Ubuntu,
+`sudo apt install docker.io docker-compose-v2` instala ambos (conferido no
+Ubuntu 26.04); nas outras distribuições, <https://docs.docker.com/engine/install/>.
+
 O contêiner roda como uid 1000 e escreve só em dois diretórios do host,
 que precisam permitir escrita a ele (o Docker cria um que falta com dono
 root, onde o servidor não consegue escrever):
@@ -356,6 +363,12 @@ um token classic que tenha `read:packages` (manual, seção 11):
 ```sh
 echo "$TOKEN" | docker login ghcr.io -u <github-user> --password-stdin
 ```
+
+O `Login Succeeded` não prova que o token serve: o registro só o confere ao
+puxar a imagem. Um `403 Forbidden` no `docker compose up` quer dizer que o
+token não tem `read:packages` (só `repo` não basta). O Docker guarda o token
+sem criptografia em `/root/.docker/config.json`; `sudo docker logout ghcr.io`
+o apaga.
 
 Ponha `sudo` antes de `docker` em todos os comandos se o seu usuário não
 está no grupo `docker`.
