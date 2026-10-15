@@ -183,7 +183,13 @@ fn no_command_of_the_contract_hands_a_reader_a_secret_pin() {
         assert!(preview.get("ok").is_some(), "{preview}");
         // The index: the words of a secret pin are not found, a public
         // node's are; the link of a secret pin is no backlink.
-        for word in ["zqpintext", "zqpinurl", "zqpinlabel", "zqdrawn", "zqcallout"] {
+        for word in [
+            "zqpintext",
+            "zqpinurl",
+            "zqpinlabel",
+            "zqdrawn",
+            "zqcallout",
+        ] {
             n += 1;
             let found = ask(
                 &mut reader,
