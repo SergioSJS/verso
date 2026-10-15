@@ -181,7 +181,10 @@ VERSO_PUBLIC_URL=https://notes.example.com
 VERSO_TRUSTED_PROXY=127.0.0.1
 ```
 
-`VERSO_LISTEN` is already that by default: UniVerso is reached only from
+The file already carries these variables (`VERSO_TRUSTED_PROXY` comes
+empty): change the value on the line that exists; repeated, the last one
+wins (checked), but the file gets confusing. `VERSO_LISTEN` is already that
+by default: UniVerso is reached only from
 this machine, and the proxy carries the rest. `VERSO_TRUSTED_PROXY` names
 the proxy whose forwarded headers are believed; without it, every visitor
 looks like `127.0.0.1` and shares one set of limits (guide, section 8).

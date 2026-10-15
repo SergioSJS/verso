@@ -268,7 +268,7 @@ com o **HTTPS ligado para a sua rede** no console de administração do Tailscal
    VERSO_TRUSTED_PROXY=127.0.0.1
    ```
 
-   e reinicie: `sudo systemctl restart universo` (ou `docker compose up -d`).
+   O `universo.env` já traz estas três variáveis (a `VERSO_TRUSTED_PROXY` vem vazia): troque o valor na linha que existe, em vez de acrescentar outra. Se repetir a linha, vale a última, mas o arquivo fica confuso. Reinicie: `sudo systemctl restart universo` (ou `docker compose up -d`).
 
 Pronto: `https://notas.exemplo.com` abre a página de entrada do UniVerso. Outros proxies (nginx, Cloudflare) existem; o guia os descreve.
 

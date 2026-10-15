@@ -182,7 +182,9 @@ VERSO_PUBLIC_URL=https://notas.exemplo.com
 VERSO_TRUSTED_PROXY=127.0.0.1
 ```
 
-`VERSO_LISTEN` já é isso por padrão: o UniVerso só é alcançado desta
+O arquivo já traz essas variáveis (a `VERSO_TRUSTED_PROXY` vem vazia): troque
+o valor na linha que existe; repetida, vale a última (conferido), mas o
+arquivo fica confuso. `VERSO_LISTEN` já é isso por padrão: o UniVerso só é alcançado desta
 máquina, e o proxy leva o resto. `VERSO_TRUSTED_PROXY` nomeia o proxy cujos
 cabeçalhos repassados são aceitos; sem ele, todo visitante parece
 `127.0.0.1` e divide um só conjunto de limites (manual, seção 8). As duas
