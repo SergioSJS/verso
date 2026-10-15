@@ -233,6 +233,12 @@ test("the root's notes are ordered by dragging, in the root's note", async ({ ap
   const first = "00 - Bem-vindo ao Verso.md";
   const second = "01 - Guia de Markdown e Sintaxe.md";
   await expect(row(second)).toBeVisible();
+  // The root's notes sit below the folders, which the demo vault keeps
+  // growing (the tutorial's pictures, its folders): bring the pair into the
+  // window before reading where they are, never assume it fits unscrolled.
+  await row(second).scrollIntoViewIfNeeded();
+  await row(first).scrollIntoViewIfNeeded();
+  await row(second).scrollIntoViewIfNeeded();
   const a = await row(second).boundingBox();
   const b = await row(first).boundingBox();
   await app.page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
