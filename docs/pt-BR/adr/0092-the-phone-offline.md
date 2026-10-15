@@ -142,6 +142,9 @@ Nenhuma registrada.
 decidido como recomendado, marcado `[DECIDIDO 2026-10-14]` no lugar. Na V1
 (`docs/roadmap.md`, Fase 4 — V1). A [0073](0073-self-hosted-server-first.md) ganha uma linha de Revisões, e a linha da Fase 3 no roadmap é riscada (R1).
 
+
+**Aceita (2026-10-15), os dois desvios da construção e seus riscos conhecidos.** O mantenedor, respondendo à recomendação com *"bora"*, aceitou dois desvios da construção em relação a este ADR. (1) O núcleo offline é o núcleo TypeScript do harness do navegador, não o `verso-dialect` compilado para wasm: o `wasm-bindgen` escreveria `unsafe`, que o workspace proíbe fora de `web_clip`. (2) O motor de sync do navegador é um port em TypeScript preso aos vetores do motor em Rust (`crates/verso-core/src/sync/vectors.rs` para `app/ui/test/sync-vectors.json`), então existem dois motores. Riscos conhecidos que o construtor listou: o e2e de edição offline roda só no Chromium; um banco novo no servidor, ou uma carga anônima, apaga as edições ainda não enviadas, e o aviso as conta.
+
 *(Histórico, antes da aceitação acima:)* Proposta (2026-10-14). Na V1 pela palavra do mantenedor de 2026-10-14
 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revisão 8). Para o
 mantenedor, cada um com uma recomendação: anexos e o armazenamento
