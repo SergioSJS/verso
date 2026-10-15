@@ -15,7 +15,7 @@ import { o } from "./web/offline/strings";
 import { currentFolderId, startBridge } from "./web/bridge";
 import { pullSettings, pushSettings } from "./web/settingsSync";
 import { notice } from "./web/notice";
-import { chooseFolder, devicePage, invitePage, resetPage, setupPage, signInLinkPage, signInPage } from "./web/pages";
+import { chooseFolder, devicePage, invitePage, pairPage, resetPage, setupPage, signInLinkPage, signInPage } from "./web/pages";
 import { setLang, w } from "./web/strings";
 import { setProver } from "./web/proof";
 import { askProof } from "./web/proveDialog";
@@ -56,6 +56,14 @@ async function start(): Promise<void> {
   if (path.startsWith("/signin-link/")) return signInLinkPage(token("/signin-link/"));
   if (path === "/setup") return setupPage();
   if (path === "/device") return devicePage(s.account);
+  // "This app is a server" (ADR 0096): nobody signs in here, a phone is
+  // paired. Its page is the way in; any other address without a session
+  // is sent to it.
+  if (s.local && !s.account) return pairPage();
+  if (s.local && path === "/pair") {
+    location.replace("/");
+    return;
+  }
   if (!s.account) {
     if (path !== "/signin") {
       location.href = `/signin?next=${encodeURIComponent(path + location.search)}`;

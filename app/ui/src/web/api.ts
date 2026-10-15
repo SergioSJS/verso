@@ -20,6 +20,9 @@ export type State = {
   web: boolean;
   /** Whether the server has a mail server (links by e-mail). */
   mail: boolean;
+  /** "This app is a server" (ADR 0096): a desktop app serving a phone;
+   *  there is no sign-in, only pairing. */
+  local?: boolean;
   setup: boolean;
   account: Account | null;
   csrf: string | null;
