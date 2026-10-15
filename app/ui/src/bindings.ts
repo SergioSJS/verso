@@ -649,10 +649,35 @@ export type BaseColumn = {
 	name: string | null,
 };
 
+/**  An evaluation's error: its kind and what it concerns. */
+export type BaseError = {
+	kind: BaseErrorKind,
+	name: string,
+};
+
 /**  Why a value could not be computed. */
 export type BaseErrorKind = "syntax" | "unknownFunction" | "unknownMethod" | "arguments" | "type" | 
-/**  Regular expressions are not evaluated yet. */
-"regex" | "cycle" | "budget" | "tooLarge";
+/**
+ *  A regular expression where the method takes a text (`contains`,
+ *  `startsWith`); `name` is the method (ADR 0094 item 1).
+ */
+"regex" | 
+/**
+ *  Not a regular expression, or a flag that is no flag; `name` is the
+ *  literal as written.
+ */
+"regexInvalid" | 
+/**
+ *  What the engine does not have; `name` is `lookahead`,
+ *  `lookbehind`, `backreference`, `flag y`, `flag d` or `flag v`
+ *  (ADR 0094 items 2 and 4).
+ */
+"regexUnsupported" | 
+/**
+ *  A pattern past 1,000 characters or its compiled size, or one too
+ *  many in a query; `name` is the literal (ADR 0094 item 3).
+ */
+"regexTooLarge" | "cycle" | "budget" | "tooLarge";
 
 export type BaseGroup = {
 	/**  The grouping property's value; `None` when the view is not grouped. */
@@ -669,6 +694,8 @@ export type BaseGroup = {
 export type BaseProblem = {
 	kind: BaseProblemKind,
 	detail: string,
+	/**  Why an evaluation failed, as its cells say it (ADR 0094 item 5). */
+	error: BaseError | null,
 };
 
 export type BaseProblemKind = "notABase" | "tooLong" | "shape" | "expression" | "evaluation" | "unknownView" | "budget";

@@ -13,6 +13,7 @@
 //! note's revision (invariant 11).
 
 mod eval;
+mod pattern;
 mod time;
 mod value;
 
@@ -159,13 +160,13 @@ pub enum Cell {
 
 /// Why a value could not be computed; `name` is the function, method,
 /// formula or operator concerned.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EvalError {
     pub kind: EvalErrorKind,
     pub name: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EvalErrorKind {
     /// The formula is not an expression.
     Syntax,
@@ -173,8 +174,19 @@ pub enum EvalErrorKind {
     UnknownMethod,
     Arguments,
     Type,
-    /// Regular expressions are not evaluated yet.
+    /// A regular expression where the method takes a text (`contains`,
+    /// `startsWith`): `name` is the method (ADR 0094 item 1).
     Regex,
+    /// A regular expression that is not one, or with a flag that is no
+    /// flag: `name` is the literal as written.
+    RegexInvalid,
+    /// What the engine does not have (ADR 0094 items 2 and 4): `name` is
+    /// `lookahead`, `lookbehind`, `backreference` or `flag y`, `flag d`,
+    /// `flag v`.
+    RegexUnsupported,
+    /// A pattern past 1,000 characters or past the compiled size (ADR
+    /// 0094 item 3), or one too many for a query: `name` is the literal.
+    RegexTooLarge,
     /// A formula that needs itself.
     Cycle,
     /// The query ran out of steps.
@@ -188,8 +200,11 @@ pub enum EvalErrorKind {
 pub struct Problem {
     pub kind: ProblemKind,
     /// What it concerns: the YAML's message, a key's path, an expression
-    /// and its error, a view's name.
+    /// and its error, a view's name; for an evaluation, the statement or
+    /// the column whose value failed.
     pub detail: String,
+    /// Why an evaluation failed, as its cells say it.
+    pub error: Option<EvalError>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -484,24 +499,34 @@ fn holds(env: &Env<'_>, filter: &Compiled, row: usize, problems: &mut Problems) 
 #[derive(Default)]
 struct Problems {
     list: Vec<Problem>,
-    seen: HashSet<(u8, String)>,
+    seen: HashSet<(u8, String, Option<EvalError>)>,
 }
 
 impl Problems {
     fn add(&mut self, kind: ProblemKind, detail: String) {
-        if self.seen.insert((kind as u8, detail.clone())) {
-            self.list.push(Problem { kind, detail });
+        self.push(kind, detail, None);
+    }
+
+    fn push(&mut self, kind: ProblemKind, detail: String, error: Option<EvalError>) {
+        if self
+            .seen
+            .insert((kind as u8, detail.clone(), error.clone()))
+        {
+            self.list.push(Problem {
+                kind,
+                detail,
+                error,
+            });
         }
     }
 
+    /// A statement or a column that failed: a line above the view naming
+    /// it, with the cell's error (ADR 0053; ADR 0094 item 5).
     fn evaluation(&mut self, text: &str, e: &EvalError) {
         if e.kind == EvalErrorKind::Budget {
             self.add(ProblemKind::Budget, String::new());
         } else {
-            self.add(
-                ProblemKind::Evaluation,
-                format!("{text}: {:?} {}", e.kind, e.name),
-            );
+            self.push(ProblemKind::Evaluation, text.to_owned(), Some(e.clone()));
         }
     }
 }
@@ -693,9 +718,7 @@ fn run_with(base: &Base, query: &BaseQuery, facts: &Facts<'_>, budget: u64) -> B
                     }
                 }
                 Err(e) => {
-                    if e.kind == EvalErrorKind::Budget {
-                        problems.add(ProblemKind::Budget, String::new());
-                    }
+                    problems.evaluation(id, &e);
                     cells.push(error_cell(&e));
                     if let Some(slot) = raw.last_mut().and_then(|g| g.get_mut(c)) {
                         slot.push(V::Null);
@@ -873,3 +896,5 @@ fn summary(
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_regex;
