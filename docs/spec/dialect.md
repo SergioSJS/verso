@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.44
+# Verso dialect spec — v0.45
 
-- Version: v0.44 · 2026-10-15
+- Version: v0.45 · 2026-10-15
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -763,7 +763,7 @@ Categories added in the Phase 0 review, outside the briefing's minimum:
 | Markdown link to a local file | 5.13 | `PROPOSED` |
 | position (`pos`) in at least one fixture per construct | 4.4 | required by [ADR 0018](../adr/0018-llm-native-mcp-in-core.md) |
 | schema (a `verso-schema` block) | 4.8, 6 | drafted on 2026-10-07 with ADR 0052's implementation, approved the same day; `schema/infobox` drafted on 2026-10-14 with ADR 0086's, approved the same day |
-| per-block visibility (a `[!secret]` callout) | 4.1, 5.8, 6 | `callout/secret` drafted on 2026-10-14 with ADR 0087's implementation, awaiting approval |
+| per-block visibility (a `[!secret]` callout) | 4.1, 5.8, 6 | `callout/secret` drafted on 2026-10-14 with ADR 0087's implementation, approved by the maintainer on 2026-10-15 |
 
 Any fixture may be drafted by the AI; it only counts with the maintainer's
 approval in the PR that adds it (ADR 0031). A draft says so on the first line
@@ -814,7 +814,8 @@ behavior is implemented. None of them has an answer in the briefing.
   answer. *(v0.42: that PR drafted `fixtures/callout/secret`, whose
   `reader` key asserts the projection — a block at the top level, one
   inside another callout with the kind in capitals, one in a list item, a
-  `[!secrets]` kept — for the maintainer's approval.)*
+  `[!secrets]` kept — for the maintainer's approval; v0.45: approved on
+  2026-10-15.)*
 - **Q10. Typed relation syntax.** `DECIDED` on 2026-09-30.
   Decide before implementing relations (§17 item 6). Requirements already fixed:
   type and direction, several relations between the same two nodes
@@ -1444,3 +1445,4 @@ the parser was chosen.
 | v0.42 | 2026-10-14 | The schema gains `reader` (§4.1, §4.6): the note as a UniVerso serves a reader, the projection of Q9 and [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md) item 3. The drafted fixture `fixtures/callout/secret`, with the PR that builds ADR 0087, awaits the maintainer's approval; Q9's paragraph says so. No decision changed |
 | v0.43 | 2026-10-15 | §5.11 item 5 and a new item 6: maps on the board ([ADR 0090](../adr/0090-maps-on-the-board.md)) — a node's `verso` gains `map`, `pin` and `secret`, and a secret node is left out of what a reader is served. No fixture: the fixture schema (§4) describes a Markdown note, and a canvas is not parsed by the dialect; the guardrail is the core's property test of the projection. No question closed |
 | v0.44 | 2026-10-15 | §5.11 item 7: a `> [!secret]` callout inside a board's text node is hidden from readers as in a note, and a `.txt` (any non-Markdown file) is not projected ([ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md), the maintainer's decision of finding I3). No fixture (a canvas is not parsed by the dialect); the guardrail is the core's property test and the server's reader probe. No question closed |
+| v0.45 | 2026-10-15 | The fixture `fixtures/callout/secret` **approved by the maintainer** on 2026-10-15 in session (*"aceito todas recomendações"*); its draft mark removed. It asserts `reader` (§4.1, §4.6) of Q9 and [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md): a block at the top level, one inside another callout with the kind in capitals, one in a list item, a `[!secrets]` kept. Nothing else changes |

@@ -60,6 +60,8 @@ mod shares;
 mod sync;
 mod sync_commands;
 mod trash;
+#[cfg(any(target_os = "macos", windows))]
+mod tray;
 mod update;
 mod version;
 mod web;

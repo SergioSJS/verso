@@ -14,7 +14,10 @@ pub(crate) fn set_menu_language<R: tauri::Runtime>(
     *lock(&state.menu_language) = language;
     #[cfg(target_os = "macos")]
     refresh_menu(&app);
-    #[cfg(not(target_os = "macos"))]
+    // The tray's words follow the language too (when it is showing).
+    #[cfg(any(target_os = "macos", windows))]
+    crate::tray::follow(&app);
+    #[cfg(not(any(target_os = "macos", windows)))]
     let _ = app;
     Ok(())
 }

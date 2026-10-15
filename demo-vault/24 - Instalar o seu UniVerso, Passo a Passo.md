@@ -388,6 +388,7 @@ docker logs universo                     # Docker
   ```
 
   Ele imprime um link de uso único; abra-o e escolha uma senha nova.
+- **As escritas estão lentas, mas as leituras não.** Em geral é o disco: o servidor grava com segurança antes de responder, e num disco que leva uns 26 ms por escrita síncrona (medido) o teto é de umas 15 escritas por segundo, fosse qual fosse o número de aparelhos. Para verificar o disco, na pasta dos dados: `dd if=/dev/zero of=./disk-check bs=4k count=200 oflag=dsync; rm ./disk-check`, e divida o tempo total por 200. Abaixo de uns 2 ms é bom; de 5 a 10 ms basta para uma casa; 25 ms ou mais pede um SSD local para os dados (as pastas das notas podem ficar num NAS).
 - **Nada responde depois de um reboot**: `systemctl is-enabled universo` precisa dizer `enabled` (Docker: `systemctl is-enabled docker`, depois `docker compose ps` em `/srv/universo`); o proxy, `systemctl status caddy`. Uma máquina de nuvem recriada pode ter outro IP, e o registro DNS precisa acompanhar.
 
 Mais fundo: o manual completo do projeto é o `docs/reference/server-install.md` e o guia deste passo a passo é o `docs/reference/server-hands-on.md`, ambos no repositório do Verso.

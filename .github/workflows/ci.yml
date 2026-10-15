@@ -201,8 +201,10 @@ jobs:
       # not versioned. Clippy and the tests do not look at the UI, so an empty
       # page stands in for it here instead of installing Node on a runner
       # billed ten times over; the Linux job builds and checks the real one.
+      # `dist-web` (the files served to a phone, `ui-web` in the app) is an
+      # empty folder here for the same reason.
       - name: a stand-in for the UI bundle
-        run: mkdir -p app/ui/dist && printf '<!doctype html><title>Verso</title>\n' > app/ui/dist/index.html
+        run: mkdir -p app/ui/dist app/ui/dist-web && printf '<!doctype html><title>Verso</title>\n' > app/ui/dist/index.html
       - name: cargo clippy -D warnings
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
       - name: cargo test
@@ -230,7 +232,7 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       # As on macOS: an empty page stands in for the UI bundle.
       - name: a stand-in for the UI bundle
-        run: mkdir -p app/ui/dist && printf '<!doctype html><title>Verso</title>\n' > app/ui/dist/index.html
+        run: mkdir -p app/ui/dist app/ui/dist-web && printf '<!doctype html><title>Verso</title>\n' > app/ui/dist/index.html
       # The server builds here too (ADR 0075 item 2, revised 2026-10-15):
       # webauthn-rs's OpenSSL is compiled from source (the `openssl` crate's
       # `vendored` feature, on every target), which runs Perl. The image

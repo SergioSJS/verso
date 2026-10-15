@@ -70,7 +70,7 @@ O que é o servidor e como instalá-lo: [[23 - Verso num Servidor]].
 
 ## Parear o Celular com o Seu Computador
 
-Sem instalar nada: o próprio Verso do computador pode servir as pastas que você marcar ao navegador do celular, **pela rede em que os dois estão** (a sua casa, por exemplo). É o mesmo servidor do `verso serve`, dentro do app; fica **desligado** até você ligar, e desliga de novo quando o app fecha.
+Sem instalar nada: o próprio Verso do computador pode servir as pastas que você marcar ao navegador do celular, **pela rede em que os dois estão** (a sua casa, por exemplo). É o mesmo servidor do `verso serve`, dentro do app; fica **desligado** até você ligar, e desliga de novo quando o app fecha. Enquanto serve, um **ícone do livro** aparece na barra de menus do Mac (ou na área de notificação do Windows), com um menu **Servindo N pastas… / Parar / Abrir Ajustes**; no Linux a marca fica na barra de status do app.
 
 1. No computador, **Ajustes › Este app é um servidor**. Marque as pastas que o celular pode ver — nenhuma vem marcada — e toque em **Ligar o servidor**. Na primeira vez o Verso explica o que o sistema vai perguntar (rede local, firewall) antes de pedir; se você negar, ele diz como liberar, sem mexer no firewall por conta própria.
 2. Toque em **Parear um celular**. O computador mostra um **QR**, o endereço e um **código de oito letras**, que valem **2 minutos** e uma vez só.

@@ -27,6 +27,9 @@ fn server<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<LocalServer, C
     let events = app.clone();
     let sink = Arc::new(move |event: Event| {
         let _ = events.emit("local-server", &event);
+        // The mark in the menu bar or the tray follows (macOS, Windows).
+        #[cfg(any(target_os = "macos", windows))]
+        crate::tray::follow(&events);
     });
     let made = LocalServer::new(config.join("local-server"), ui, env!("VERSO_COMMIT"), sink);
     Ok(state.local_server.server.get_or_init(|| made).clone())
@@ -371,6 +374,21 @@ pub(super) fn auto_start<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
             ),
         }
     });
+}
+
+/// What the tray follows; `None` while the server was never made.
+#[cfg(any(target_os = "macos", windows))]
+pub(super) fn serving_now<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Option<(bool, usize, u32)> {
+    let local = app.state::<App>().local_server.server.get()?.clone();
+    let status = local.status().ok()?;
+    let folders = local.settings().ok()?.folders.len();
+    Some((
+        status.serving,
+        folders,
+        u32::try_from(status.phones_connected).unwrap_or(u32::MAX),
+    ))
 }
 
 pub(super) fn stop_on_exit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
