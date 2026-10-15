@@ -61,6 +61,7 @@ import type {
 import { Bin } from "./trash";
 import { applyPeriodic, obsidianPeriodic, readPeriodic, sortedDeep } from "./periodic";
 import { blocksOf, fitsKind, headingsOf, propertiesOf, propertyList, readableLines, renderMarkdown, schemaBlocksOf } from "./markdown";
+import { projectSecrets } from "./secret";
 import { unlinkedMentions } from "./mentions";
 
 export type Seed = { path: string; b64: string };
@@ -1146,6 +1147,7 @@ export class Core {
     },
     board_text: (a) => canvasLayout(JSON.parse(String(a["json"]))),
     render_markdown: (a) => renderMarkdown(String(a["text"])),
+    project_secrets: (a) => projectSecrets(String(a["text"])),
     reveal: () => null,
     copy_full_path: () => null,
     set_embed_origins: () => null,

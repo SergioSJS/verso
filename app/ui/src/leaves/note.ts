@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { ReaderView } from "../secret/view";
 import { sh } from "../shareStrings";
 import { isolateHistory } from "@codemirror/commands";
 import { closeSearchPanel, getSearchQuery, openSearchPanel, searchPanelOpen, SearchQuery, setSearchQuery } from "@codemirror/search";
@@ -71,6 +72,12 @@ export class NoteLeaf extends Leaf {
   readonly kind: Kind = "note";
   readonly crumbs = crumbsNav();
   readonly modes = h("div", "modes");
+  /** "View as a reader" (ADR 0087 item 5): turned on, the reading view. */
+  readonly readerView = new ReaderView(() => {
+    this.previewStale = true;
+    if (this.readerView.on && this.mode !== "preview") this.setMode("preview");
+    else if (this.mode === "preview") void this.paintPreview();
+  });
   readonly modeButtons: Record<Mode, HTMLButtonElement>;
   readonly title = h("h1", "note-title");
   readonly dirtyMark = h("span", "dirty-mark", "•");
@@ -252,6 +259,8 @@ export class NoteLeaf extends Leaf {
       live: this.modeButton("live", "edit", t.edit),
       source: this.modeButton("source", "source", t.source),
     };
+    // A writer's "view as a reader" of a note with secret blocks (ADR 0087).
+    this.modes.append(this.readerView.button);
     const head = h("header", "leaf-head");
     head.append(this.crumbs, this.modes);
     // Drawn, not said: the Save button beside it and the tab say it.
@@ -278,7 +287,7 @@ export class NoteLeaf extends Leaf {
     titleRow.append(this.stickerBtn, this.title, this.dirtyMark, this.saveButton, this.star, this.liveMark);
     this.buildToolbar();
     const sheet = this.sheet;
-    sheet.append(this.coverBox, this.addCoverBtn, titleRow, this.flags, this.props.el, this.conflict.el, this.goneBanner.el, this.preview, this.editorHost);
+    sheet.append(this.coverBox, this.addCoverBtn, titleRow, this.flags, this.props.el, this.conflict.el, this.goneBanner.el, this.readerView.banner, this.preview, this.editorHost);
     this.readingSearch = new ReadingSearch(this.sheet, this.preview, searchStrings());
     this.buildWebBar();
     this.webBar.hidden = true;
@@ -508,6 +517,8 @@ export class NoteLeaf extends Leaf {
   }
   applyMode(): void {
     const m = this.mode;
+    // Editing is the whole note's: the reader's view is left.
+    if (m !== "preview" && this.readerView.on) this.readerView.set(false);
     this.preview.hidden = m !== "preview";
     this.toolbar.hidden = m === "preview" || this.drawingShown;
     this.editorHost.hidden = m === "preview";

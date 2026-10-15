@@ -744,6 +744,9 @@ impl Server {
                     offset_minutes: 0,
                     lang: "en".to_owned(),
                     within: Vec::new(),
+                    // The MCP of `verso mcp` reads a folder of this
+                    // computer: its person is its owner (ADR 0087 item 2).
+                    reader: false,
                 })
                 .map_err(|e| fail(&e, Some(&path)))?;
             let view = result

@@ -98,6 +98,7 @@ impl Workspace {
     pub fn query_base(&mut self, query: &bases::BaseQuery) -> Result<bases::BaseResult, CoreError> {
         let text = match (&query.text, &query.path) {
             (Some(text), _) => text.clone(),
+            (None, Some(path)) if query.reader => self.reader_read_text(path)?.text,
             (None, Some(path)) => self.read_text(path)?.text,
             (None, None) => String::new(),
         };
@@ -105,8 +106,26 @@ impl Workspace {
         self.refresh_base_facts()?;
         let offset = i64::from(query.offset_minutes) * 60_000;
         let local = |secs: i64| (secs > 0).then(|| secs * 1_000 + offset);
-        let files: Vec<bases::FileFacts> = self
-            .entries
+        // A reader's notes (ADR 0087 item 4): sizes and times of the
+        // projections, the facts of each note with a secret block read
+        // from its projection, the links inside secret blocks left out.
+        let entries: std::borrow::Cow<'_, [FileEntry]> = if query.reader {
+            std::borrow::Cow::Owned(self.reader_entries()?)
+        } else {
+            std::borrow::Cow::Borrowed(&self.entries)
+        };
+        let mut projected: HashMap<String, bases::NoteFacts> = HashMap::new();
+        if query.reader {
+            for path in self.index.notes_with_secrets().map_err(CoreError::Index)? {
+                let shown = self
+                    .index
+                    .reader_content_of(&path)
+                    .map_err(CoreError::Index)?
+                    .unwrap_or_default();
+                projected.insert(path, bases::NoteFacts::of(&shown));
+            }
+        }
+        let files: Vec<bases::FileFacts> = entries
             .iter()
             .filter(|e| e.kind != FileKind::Folder && query.sees(&e.path))
             .map(|e| bases::FileFacts {
@@ -121,27 +140,29 @@ impl Workspace {
             .base_facts
             .iter()
             .filter(|(path, _)| query.sees(path))
-            .map(|(path, (_, facts))| (path.clone(), facts))
+            .map(|(path, (_, facts))| (path.clone(), projected.get(path).unwrap_or(facts)))
             .collect();
-        let links = self
-            .index
-            .all_links()
-            .map_err(CoreError::Index)?
-            .into_iter()
-            .filter(|l| query.sees(&l.from))
-            .map(|l| {
-                (
-                    l.from,
-                    bases::LinkFact {
-                        target: l.target,
-                        alias: l.alias,
-                        embed: l.embed,
-                        // A note the query does not see is not reached.
-                        resolved: l.resolved.filter(|p| query.sees(p)),
-                    },
-                )
-            })
-            .collect();
+        let links = if query.reader {
+            self.index.reader_all_links()
+        } else {
+            self.index.all_links()
+        }
+        .map_err(CoreError::Index)?
+        .into_iter()
+        .filter(|l| query.sees(&l.from))
+        .map(|l| {
+            (
+                l.from,
+                bases::LinkFact {
+                    target: l.target,
+                    alias: l.alias,
+                    embed: l.embed,
+                    // A note the query does not see is not reached.
+                    resolved: l.resolved.filter(|p| query.sees(p)),
+                },
+            )
+        })
+        .collect();
         let index = &self.index;
         let resolver = |from: &str, target: &str| -> Option<String> {
             index

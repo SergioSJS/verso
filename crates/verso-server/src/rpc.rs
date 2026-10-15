@@ -658,6 +658,14 @@ async fn command(
             let text: String = arg(&args, "text")?;
             Ok(Value::String(verso_core::render_markdown(&text)))
         }
+        // The window's own text as a reader is served it (ADR 0087 item 5):
+        // a writer's "view as a reader".
+        "project_secrets" => {
+            let text: String = arg(&args, "text")?;
+            Ok(Value::String(
+                verso_core::secret::project(&text).into_owned(),
+            ))
+        }
         "board_text" => {
             let json: String = arg(&args, "json")?;
             to_value(ops::board_text(&json)?)
@@ -787,7 +795,7 @@ async fn collab_command(
         // Whether someone is in the note: a write that is not a keystroke
         // joins the room to be made there (ADR 0082).
         "collab_present" => Ok(Value::Bool(s.rooms.occupied(&key, &path))),
-        "collab_join" => to_value(crate::collab::join(&s, &c, &key, &path, &user)?),
+        "collab_join" => to_value(crate::collab::join(&s, (&c, !writes), &key, &path, &user)?),
         "collab_update" => {
             let update: String = arg(&args, "update")?;
             crate::collab::update(&s, (&c, &account), &key, &path, &update)?;
@@ -893,10 +901,19 @@ async fn folder_command(
     // A window on a share (ADR 0081 item 2): its paths joined to the
     // shared folder's and confined there before the core acts; the answer
     // filtered to the share and re-rooted at it.
+    // One who may only read is answered from the notes' projections (ADR
+    // 0087): `folder_run` dispatches by the reader's list of commands.
     let reads_only = !(role.writes() && token_writes);
     let Some(scope) = scope else {
-        let answer = folder_run(server, who, client, (name, access), (&folder, &key), args).await?;
-        return Ok(for_reader(name, reads_only, answer));
+        return folder_run(
+            server,
+            who,
+            client,
+            (name, access, reads_only),
+            (&folder, &key),
+            args,
+        )
+        .await;
     };
     let limit = args["limit"]
         .as_u64()
@@ -925,7 +942,7 @@ async fn folder_command(
             let within = scope.roots();
             let answer = blocking(move || {
                 s.service
-                    .with(&c, |ws| ops::query_base_within(ws, query, within))
+                    .with(&c, |ws| ops::query_base_as(ws, query, within, reads_only))
                     .and_then(to_value)
             })
             .await
@@ -949,15 +966,33 @@ async fn folder_command(
         "folder_space" => {
             let k = key.clone();
             let sc = scope.clone();
-            let space = blocking(move || s.service.with_key(&k, |ws| Ok(sc.space(ws)))).await?;
+            let space = blocking(move || {
+                s.service.with_key(&k, |ws| {
+                    // A reader's sizes are the projections' (ADR 0087).
+                    let entries = if reads_only {
+                        ws.reader_entries()?
+                    } else {
+                        ws.entries().to_vec()
+                    };
+                    Ok(sc.space(&entries))
+                })
+            })
+            .await?;
             return to_value(space);
         }
         _ => {}
     }
     let args = scope.args_in(name, args)?;
-    let mut answer = folder_run(server, who, client, (name, access), (&folder, &key), args)
-        .await
-        .map_err(|e| scope.error(e))?;
+    let mut answer = folder_run(
+        server,
+        who,
+        client,
+        (name, access, reads_only),
+        (&folder, &key),
+        args,
+    )
+    .await
+    .map_err(|e| scope.error(e))?;
     // A note's type through the share names the share's schemas only
     // (ADR 0081 item 11).
     if matches!(name, "read_note" | "create_note" | "write_note") && answer.is_object() {
@@ -993,23 +1028,7 @@ async fn folder_command(
             .await;
         }
     }
-    Ok(for_reader(
-        name,
-        reads_only,
-        scope.answer_out(name, answer, limit),
-    ))
-}
-
-/// An answer as one who only reads receives it: a mention inside a
-/// secret block is not theirs to see (ADR 0089 item 1, ADR 0087).
-fn for_reader(name: &str, reads_only: bool, mut answer: Value) -> Value {
-    if reads_only
-        && name == "unlinked_mentions"
-        && let Some(list) = answer["mentions"].as_array_mut()
-    {
-        list.retain(|m| m["secret"] != Value::Bool(true));
-    }
-    answer
+    Ok(scope.answer_out(name, answer, limit))
 }
 
 /// A command of the folder, its paths the folder's own.
@@ -1017,7 +1036,7 @@ async fn folder_run(
     server: &Arc<Server>,
     who: &Who,
     client: &str,
-    (name, access): (&str, Access),
+    (name, access, reader): (&str, Access, bool),
     (folder, key): (&str, &str),
     args: Value,
 ) -> Result<Value, ContractError> {
@@ -1100,9 +1119,17 @@ async fn folder_run(
             service.with(&c, |ws| {
                 crate::texts::judged(ws, &n, &args).map_err(verso_service::OpError::Contract)
             })?;
-            service
-                .dispatch(&c, &n, args)
-                .unwrap_or_else(|| Err(refused("no such command")))
+            // A reader's answer from the projections; a command a
+            // reader may not call, refused (ADR 0087 item 9).
+            if reader {
+                service
+                    .dispatch_reader(&c, &n, args)
+                    .unwrap_or_else(|| Err(refused("you may only read this folder")))
+            } else {
+                service
+                    .dispatch(&c, &n, args)
+                    .unwrap_or_else(|| Err(refused("no such command")))
+            }
         };
         if moves && let Ok(notes) = service.with(&c, ops::list_notes) {
             crate::collab::close_missing(&s, &key, &notes);

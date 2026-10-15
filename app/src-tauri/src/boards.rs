@@ -61,6 +61,16 @@ pub(crate) fn render_markdown(text: String) -> String {
     verso_core::render_markdown(&text)
 }
 
+/// `text` as an account that may only read the note is served on a
+/// UniVerso: its secret callouts' lines taken out (ADR 0087 item 3). The
+/// "view as a reader" toggle of a writer draws it (item 5), from the one
+/// projection the server serves readers. Pure: it reads nothing.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn project_secrets(text: String) -> String {
+    verso_core::secret::project(&text).into_owned()
+}
+
 /// A base evaluated over the folder (ADR 0053): the rows of the view the
 /// window draws, as a table, cards, a list, a kanban or a calendar.
 #[tauri::command]

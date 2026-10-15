@@ -6,7 +6,7 @@ use super::*;
 impl Workspace {
     /// The note as a caller sees it from a text this core has in hand —
     /// just read, or just written — with the positions the index has.
-    fn note_text(
+    pub(crate) fn note_text(
         &self,
         path: String,
         text: String,

@@ -61,14 +61,22 @@ mod mentions;
 mod narrow;
 mod notes;
 mod periodic;
+mod reader;
 mod rename;
 mod sidecar;
 mod sync_io;
 mod views;
 use entries::*;
 pub use mentions::{Mention, Mentions};
+/// The one projection a UniVerso serves a reader of a note (ADR 0087),
+/// for every exit of the server that serves one.
+pub mod secret {
+    pub use verso_dialect::{Secrets, is_secret_kind, project};
+}
 use rename::*;
 pub use sidecar::Sidecar;
+/// The index's answers, as the core hands them out (its reader's too).
+pub use verso_index::{Backlink as IndexBacklink, Hit as IndexHit, Link as IndexLink};
 
 /// The opaque revision token of a note: its `verso_fs::Stamp`, encoded so
 /// the UI can hand it back without knowing what is in it.

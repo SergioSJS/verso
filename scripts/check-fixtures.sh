@@ -39,7 +39,7 @@ problem() { fail=1; printf 'FIXTURE: %s\n' "$*" >&2; }
 # not checked. `pos` is an inline map with line and col.
 allowed_under() {
   case "$1" in
-    top)       echo 'frontmatter|headings|links|embeds|blocks|callouts|property_links|schemas|prose|observed|source' ;;
+    top)       echo 'frontmatter|headings|links|embeds|blocks|callouts|property_links|schemas|prose|reader|observed|source' ;;
     schemas)   echo 'type|labels|layout|properties|error|nested|pos|key|kind' ;;
     labels)    echo '.*' ;;
     links|embeds) echo 'target|heading|block|alias|syntax|pos' ;;
@@ -62,7 +62,7 @@ check_keys() {
   awk -v file="$1" '
     function report(msg) { print "FIXTURE: " file ": " msg; bad = 1 }
     function allowed(parent, key,   list) {
-      if (parent == "top") list = "frontmatter|headings|links|embeds|blocks|callouts|property_links|schemas|prose|observed|source"
+      if (parent == "top") list = "frontmatter|headings|links|embeds|blocks|callouts|property_links|schemas|prose|reader|observed|source"
       else if (parent == "schemas") list = "type|labels|layout|properties|error|nested|pos|key|kind"
       else if (parent == "labels") return 1
       else if (parent == "links" || parent == "embeds") list = "target|heading|block|alias|syntax|pos"

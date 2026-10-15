@@ -26,6 +26,7 @@ mod keys;
 mod moves;
 mod schema;
 mod search;
+mod secret;
 mod store;
 mod trash;
 

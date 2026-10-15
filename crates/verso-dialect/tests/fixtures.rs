@@ -58,6 +58,9 @@ fixture_tests! {
     block_alone_top => "block/alone-top",
     block_two_alone => "block/two-alone",
     callout_simple => "callout/simple",
+    // AI draft of ADR 0087 (secret blocks, spec Q9), awaiting approval
+    // (first line of its expected.yaml).
+    callout_secret => "callout/secret",
     embed_simple => "embed/simple",
     frontmatter_tags_aliases => "frontmatter/tags-aliases",
     // AI draft of the board's PR, awaiting approval (first line of its
@@ -122,6 +125,19 @@ fn check(name: &str, input: &str, expected: &str) {
                     check_list(&mut ctx, value, &runs, check_prose);
                 }
             }
+            // The note as a reader of a UniVerso receives it (spec §4.1,
+            // Q9; ADR 0087 item 3): the projection, byte for byte.
+            "reader" => match value {
+                Yaml::Value(Scalar::String(text)) => {
+                    let projected = verso_dialect::project(input);
+                    if projected != text.as_ref() {
+                        ctx.fail(format!(
+                            "the reader's text differs:\n--- expected\n{text}\n--- projection\n{projected}"
+                        ));
+                    }
+                }
+                _ => ctx.fail("`reader` is the projected text, a string".to_owned()),
+            },
             // Provenance, not behavior (spec §4.5); the lint script checks them.
             "observed" | "source" => {}
             other => ctx.fail(format!("unknown top-level key `{other}` (spec §4.1)")),

@@ -185,6 +185,30 @@ pub fn stamped(
     Ok(encode(&out))
 }
 
+/// A presence already stamped, each state kept to its `user` alone — who
+/// is there, never where their cursor or selection is: what a reader in a
+/// note with secret blocks hears, and what the others hear of it (ADR
+/// 0087 item 4). A window gone (`null`) stays gone.
+pub fn named_only(bytes: &[u8]) -> Result<Vec<u8>, String> {
+    let entries = decode(bytes)?
+        .into_iter()
+        .filter_map(|e| {
+            let v: Value = serde_json::from_str(&e.state).ok()?;
+            let state = if v.is_null() {
+                "null".to_owned()
+            } else {
+                json!({ "user": v.get("user")? }).to_string()
+            };
+            Some(Entry {
+                id: e.id,
+                clock: e.clock,
+                state,
+            })
+        })
+        .collect::<Vec<_>>();
+    Ok(encode(&entries))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -308,6 +332,34 @@ mod tests {
         stamped(&update(&both), &other, &mut claims, &room).unwrap();
         let held = claims.values().filter(|(_, c)| c == "c-bia-2").count();
         assert!(held <= CLIENTS_MOST, "{held} clients for one connection");
+    }
+
+    #[test]
+    fn a_reader_hears_who_is_there_and_never_where() {
+        let state =
+            r##"{"user":{"name":"Ana","color":"#2e7d32"},"cursor":{"anchor":"x","head":"y"}}"##;
+        let bytes = encode(&[
+            Entry {
+                id: 7,
+                clock: 3,
+                state: state.to_owned(),
+            },
+            Entry {
+                id: 8,
+                clock: 1,
+                state: "null".to_owned(),
+            },
+        ]);
+        let named = named_only(&bytes).unwrap();
+        let back = decode(&named).unwrap();
+        assert_eq!(back.len(), 2);
+        let kept: Value = serde_json::from_str(&back[0].state).unwrap();
+        assert_eq!(
+            kept,
+            json!({ "user": { "name": "Ana", "color": "#2e7d32" } })
+        );
+        assert!(!back[0].state.contains("cursor"));
+        assert_eq!(back[1].state, "null");
     }
 
     #[test]

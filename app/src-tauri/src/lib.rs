@@ -675,6 +675,7 @@ macro_rules! commands_for {
                 board_text,
                 board_preview::<$runtime>,
                 render_markdown,
+                project_secrets,
                 rename_entry::<$runtime>,
                 delete_entry::<$runtime>,
                 reveal::<$runtime>,

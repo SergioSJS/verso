@@ -72,6 +72,9 @@ pub struct Transfers {
     pub(crate) twins: Mutex<HashMap<String, (Vec<crate::twins::Twin>, Instant)>>,
     /// Per folder, the files too large for sync (`crate::large`).
     pub(crate) large: crate::large::Large,
+    /// A note a reader's device reads in pieces, by client and path: the
+    /// hash of its projection at the first piece (`crate::readers::read`).
+    pub(crate) reader_reads: Mutex<HashMap<(String, String), String>>,
 }
 
 impl Transfers {
@@ -81,6 +84,7 @@ impl Transfers {
     pub fn forget(&self, client: &str) {
         lock(&self.up).retain(|(c, _), _| c != client);
         lock(&self.down).retain(|(c, _), _| c != client);
+        lock(&self.reader_reads).retain(|(c, _), _| c != client);
         self.prune();
     }
 
