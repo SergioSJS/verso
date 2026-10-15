@@ -118,11 +118,12 @@ pub fn reader_of(
     key: &str,
     path: &str,
 ) -> Result<Option<(String, i64)>, ContractError> {
-    if !is_note(path) {
-        return Ok(None);
-    }
     let p = path.to_owned();
     server.service.with_key(key, move |ws| {
+        // A note by its name, or the file it really is (a link to one).
+        if !ws.reader_names_note(&p) {
+            return Ok(None);
+        }
         if ws
             .file_len(&p)
             .is_some_and(|len| len > crate::texts::TEXT_MOST)

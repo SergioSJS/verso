@@ -403,17 +403,8 @@ fn record_changes(
     // projection's hash and size, when it holds a secret block — the new
     // and changed ones, and those read again whose bytes did not change.
     let mut readers = crate::db::ReaderOf::new();
-    let recheck: Vec<String> = quick_only
-        .iter()
-        .map(|(p, _)| p.clone())
-        .filter(|p| crate::readers::is_note(p))
-        .collect();
-    for path in created
-        .iter()
-        .map(|(p, _, _, _)| p)
-        .chain(&recheck)
-        .filter(|p| crate::readers::is_note(p))
-    {
+    let recheck: Vec<String> = quick_only.iter().map(|(p, _)| p.clone()).collect();
+    for path in created.iter().map(|(p, _, _, _)| p).chain(&recheck) {
         if let Some(r) = crate::readers::reader_of(server, key, path)? {
             readers.insert(path.clone(), r);
         }
@@ -756,12 +747,15 @@ pub(crate) async fn command_in(
             "sync_read" if reader => {
                 let named: String = arg(&args, "path")?;
                 let (path, _) = as_kept(&s, &folder, &named, &*inside)?;
-                let (answer, bytes) =
-                    if crate::readers::is_note(&named) || crate::readers::is_note(&path) {
-                        crate::readers::read(&s, &c, &key, &path, arg(&args, "offset")?)?
-                    } else {
-                        read(&s, &c, (&folder, &key), &args, &*inside)?
-                    };
+                let note = crate::readers::is_note(&named)
+                    || crate::readers::is_note(&path)
+                    || s.service
+                        .with_key(&key, |ws| Ok(ws.reader_names_note(&path)))?;
+                let (answer, bytes) = if note {
+                    crate::readers::read(&s, &c, &key, &path, arg(&args, "offset")?)?
+                } else {
+                    read(&s, &c, (&folder, &key), &args, &*inside)?
+                };
                 piece = Some(bytes);
                 Ok(answer)
             }

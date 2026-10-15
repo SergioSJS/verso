@@ -7,6 +7,8 @@
 //! a probe of the review turned permanent: the sizes, the counters, the
 //! order and the flags a reader sees do not move with a secret block.
 
+use std::path::Path;
+
 use serde_json::json;
 
 use crate::tests::{block_on, call};
@@ -168,5 +170,63 @@ fn an_edit_made_outside_the_server_inside_a_secret_block_is_not_stale_or_indexed
         put_file(&path, &text);
         let public = ask(&mut reader, 5, "read_note", json!({ "path": "Taverna.md" })).await;
         assert_eq!(public["ok"]["stale"], json!(true), "{public}");
+    });
+}
+
+/// A symlink inside the folder to a note, under a name that is no note's:
+/// confinement keeps the name, the file system follows the link.
+#[cfg(unix)]
+#[test]
+fn a_link_inside_the_folder_to_a_note_hands_a_reader_no_secret_block() {
+    block_on(async {
+        let (r, _owner, mut reader, id) = folder_with_a_reader().await;
+        verso_fs::link_for_tests(Path::new("Taverna.md"), &r.campanha().join("espelho.txt"))
+            .unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+        // Whatever the contract does with the name, no word only a secret
+        // block holds comes back (`ask` checks every message).
+        for (n, cmd) in ["read_file_text", "read_text", "read_note"]
+            .into_iter()
+            .enumerate()
+        {
+            ask(
+                &mut reader,
+                2 + n as u64,
+                cmd,
+                json!({ "path": "espelho.txt" }),
+            )
+            .await;
+        }
+        let le = crate::tests::sign_in(&r, "le@casa.lan", "senha muito longa").await;
+        let res = reqwest::Client::new()
+            .get(r.url(&format!("/f/{id}/espelho.txt")))
+            .header("cookie", &le.cookie)
+            .send()
+            .await
+            .unwrap();
+        let body = res.text().await.unwrap();
+        for word in crate::tests_secret::SECRET {
+            assert!(
+                !body.contains(word),
+                "{word:?} reached a reader through /f/: {body}"
+            );
+        }
+        ask(
+            &mut reader,
+            20,
+            "sync_read",
+            json!({ "path": "espelho.txt", "offset": 0 }),
+        )
+        .await;
+        // Its size and hash in the manifest are the projection's too.
+        let state = ask(&mut reader, 21, "sync_state", json!({})).await;
+        let shown = verso_core::secret::project(crate::tests_secret::TAVERNA).len();
+        let listed = state["ok"]["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|f| f["path"] == "espelho.txt")
+            .map(|f| f["size"].as_u64().unwrap());
+        assert_eq!(listed, Some(shown as u64), "{state}");
     });
 }

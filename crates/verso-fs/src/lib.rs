@@ -312,6 +312,21 @@ fn lands_inside(root: &Path, mut probe: PathBuf, hops: u32) -> bool {
     }
 }
 
+/// A symbolic link at `at` to `target`, for the tests of the crates above,
+/// which may not touch the disk themselves (ADR 0026 rule 5): a folder
+/// with a link in it is how a note is reached under another name.
+#[doc(hidden)]
+pub fn link_for_tests(target: &Path, at: &Path) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink(target, at)
+    }
+    #[cfg(windows)]
+    {
+        std::os::windows::fs::symlink_file(target, at)
+    }
+}
+
 impl Root {
     /// Open a folder. `path` is the one place a path string enters; it must
     /// be a directory. Every ignored path is confined like a request: an
@@ -383,6 +398,41 @@ impl Root {
     #[must_use]
     pub fn names_by_link(&self) -> Option<String> {
         ops::names_by_link(&self.path)
+    }
+
+    /// The path `relative` really is at, relative to the folder, when it is
+    /// reached through a symlink (the file itself, or a directory on its
+    /// way) and the link ends inside the folder; `None` for a path that is
+    /// its own, one that does not exist and one that leaves the folder. The
+    /// name a file has is not always the name it is kept under: a link
+    /// called `espelho.txt` to `Nota.md` is the note.
+    #[must_use]
+    pub fn resolved_name(&self, relative: &Path) -> Option<PathBuf> {
+        let relative = confine::confine(relative).ok()?;
+        let root = std::fs::canonicalize(&self.path).ok()?;
+        let real = std::fs::canonicalize(self.path.join(&relative)).ok()?;
+        let inside = real.strip_prefix(&root).ok()?.to_path_buf();
+        (inside != relative).then_some(inside)
+    }
+
+    /// Whether the file `relative` names has more than one name on disk (a
+    /// hard link: another name, under any extension, for the same bytes).
+    /// Where the file system does not say, `false`.
+    #[must_use]
+    pub fn hard_linked(&self, relative: &Path) -> bool {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            confine::confine(relative)
+                .ok()
+                .and_then(|r| std::fs::metadata(self.path.join(r)).ok())
+                .is_some_and(|m| m.is_file() && m.nlink() > 1)
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = relative;
+            false
+        }
     }
 
     /// Whether `relative`, resolved through every symlink on its way, stays
