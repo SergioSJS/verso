@@ -601,8 +601,8 @@ point 13).
     middle of the view. Zoom out and in: the pin keeps its size and stays on
     its point; a click opens the note; the pointer rested on it shows the
     note in a card, and a finger held still on a phone does too; Tab walks
-    the pins and Enter opens one; the outline lists them in reading order as
-    links. "Enviar para trás" and "Trazer para a frente" on any card reorder
+    the pins and Enter opens one, Delete removes it (⌘Z brings it back); the
+    outline lists them in reading order as links. "Enviar para trás" and "Trazer para a frente" on any card reorder
     it in the file. A PNG of 16,000 pixels a side as a map: "Preparando o
     mapa…", then the tiles in view, never the whole picture (the app's log
     open; the memory of the window stays small); a JPEG of that size is drawn
