@@ -550,9 +550,11 @@ de outro jeito):
   anfitrião (item 5 (d)) são lidos como o `VERSO_TLS_CERT_FILE` é, com o
   nome para o qual valem.
 - **Os arquivos da janela** vêm dos recursos do app (`bundle.resources`:
-  `app/ui/dist` como `ui-web`), o que soma o tamanho de `dist` ao app
-  instalado; enxugá-lo (sem sourcemaps) é um passo de build para o
-  mantenedor decidir depois de medir o release.
+  `app/ui/dist-web` como `ui-web`). Revisto em 2026-10-15: `dist-web` é o
+  `dist` sem os arquivos `*.map` (`app/ui/build-web.mjs`, rodado por último
+  pelo `npm run build`), medido em 103,4 MB em 1 461 arquivos para o `dist`
+  contra 49,0 MB em 1 022 para o `dist-web`; a janela do desktop continua
+  embutindo o `dist` inteiro.
 - **As pastas** aparecem para o celular pelo nome do diretório (tornado
   único), nunca um caminho; a lista marcada fica no banco local, e mudar
   pede o servidor desligado. Um segundo índice de cada pasta servida fica
@@ -562,6 +564,30 @@ de outro jeito):
   não acrescentar uma linha a *Ajustes › Notificações*.
 
 ## Status
+
+**Os pontos abertos do "Como foi construído" decididos em 2026-10-15** (o
+mantenedor, *"aceito todas recomendações"*), os quatro:
+
+- **(a) A marca na barra de menus é construída** (item 1: *"uma marca na
+  barra de status e na barra de menus ou bandeja com o número de celulares
+  conectados e um 'Parar'"*). Enquanto o app serve, um ícone de bandeja leva
+  a marca do app — uma imagem de modelo (template) monocromática no macOS, o
+  ícone do próprio app no Windows — com um menu *Servindo N pastas… /
+  Parar / Abrir Ajustes*, na língua da janela, e uma dica que diz o que
+  serve e quantos celulares estão conectados (o nome acessível do ícone); ele
+  só existe enquanto serve. Pela API de bandeja do Tauri
+  (`app/src-tauri/src/tray.rs`; a feature `tray-icon`, cujos crates já
+  estavam no lockfile). **No macOS e no Windows.** **No Linux não**: a
+  bandeja do Tauri ali carrega a `libayatana-appindicator` em tempo de
+  execução, uma biblioteca nativa de que os pacotes não dependem, e o GNOME
+  não mostra bandeja sem uma extensão — uma dependência nativa nova, então o
+  app do Linux fica só com a marca da barra de status e os Ajustes. *Abrir
+  Ajustes* traz uma janela para a frente na seção *Este app é um servidor*.
+- **(b) A janela servida é enxugada**: sem source maps no `ui-web` (veja
+  *Como foi construído*): 103,4 MB para 49,0 MB.
+- **(c) Os 398 dias do certificado e a chave dele no banco local**:
+  aceitos como construídos.
+- **(d) O IPv6 link-local não é servido**: aceito como construído.
 
 **Aceito (2026-10-15).** Escrito por Sonnet 5.5 a pedido da sessão que
 guarda o roadmap (Proposto no mesmo dia). O mantenedor, respondendo às 18
