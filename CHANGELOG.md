@@ -54,6 +54,7 @@ test release.
 
 ### Changed
 
+- **A new icon**: an open book with a ribbon, on a dark tile — the app on macOS, Windows and Linux, the window in a browser and on a phone (also as an adaptive icon on Android).
 - **A release has fewer files: 16 in place of 28, from the version after this one** ([ADR 0055](docs/adr/0055-in-app-updater.md), revised 2026-10-14): one list, `verso-<version>-SHA256SUMS`, holds the checksum of every file and is signed once with Verso's key, in place of a `.sig` beside each file; the app's updater and UniVerso's installer check each download against it. Nothing to do: this version carries both — 30 files, once — so the apps before it update to it as always. An app that skips it — still on 0.8.2 or earlier when the next version comes out — updates by hand once, from the releases page.
 
 ## 0.8.2-beta.1 — 2026-10-14

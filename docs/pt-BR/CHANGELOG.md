@@ -54,6 +54,7 @@ versão de teste.
 
 ### Alterado
 
+- **Um ícone novo**: um livro aberto com uma fita, num quadrado escuro — o app no macOS, no Windows e no Linux, a janela no navegador e no celular (também como ícone adaptável no Android).
 - **Uma release tem menos arquivos: 16 no lugar de 28, da versão depois desta em diante** ([ADR 0055](adr/0055-in-app-updater.md), revisto em 2026-10-14): uma lista, `verso-<versão>-SHA256SUMS`, traz o checksum de cada arquivo e é assinada uma vez com a chave do Verso, no lugar de um `.sig` ao lado de cada arquivo; o atualizador do app e o instalador do UniVerso conferem cada download com ela. Nada a fazer: esta versão leva os dois — 30 arquivos, uma vez — então os apps anteriores se atualizam para ela como sempre. Um app que a pular — ainda na 0.8.2 ou anterior quando sair a versão seguinte — se atualiza à mão uma vez, pela página de releases.
 
 ## 0.8.2-beta.1 — 2026-10-14
