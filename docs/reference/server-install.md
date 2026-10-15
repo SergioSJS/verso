@@ -418,6 +418,18 @@ minisign -V -P RWS1zv2nvs/ng1hA0YspwOg7wGda98zkXjVfx8m9CtT5obRW5zabNHaT \
   -m universo-0.8.0-beta.1-x86_64.tar.gz -x file.minisig
 ```
 
+### Windows
+
+The same `verso` command line the Windows release carries (`verso-cli-<version>-windows-x64.zip`, or the one beside the app) runs the server, with OpenSSL compiled in as on Linux and macOS ([0075](../adr/0075-server-packaging-and-storage.md) item 2, revised 2026-10-15). There is no Windows package, service or installer for it: it is for trying it on a PC and for a home machine you start yourself. In PowerShell:
+
+```powershell
+$env:VERSO_DATA_DIR = "$HOME\verso\data"
+$env:VERSO_FOLDERS_DIR = "$HOME\verso\folders"
+.\verso.exe serve
+```
+
+With no variable it keeps `server` and `server-folders` under `%LOCALAPPDATA%\verso`. Ctrl-C stops it. Windows Defender Firewall asks the first time it listens: allow it on *Private* networks only, as on the desktop app. Keep `VERSO_DATA_DIR` on a local NTFS disk, as section 2 says. The window it serves is looked for in `..\share\verso\ui` from the executable's folder, or in `VERSO_UI_DIR`; the Windows zip carries none, so set `VERSO_UI_DIR` to a built `app/ui/dist`, or use the desktop app's *This app is a server*, which carries it. For anything other people use, a Linux host (sections 3 to 5) stays the recommendation.
+
 ## 7. The variables
 
 Any of them may be given as `NAME_FILE`, the path of a file holding the

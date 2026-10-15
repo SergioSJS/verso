@@ -57,6 +57,18 @@
   `https://versomd.com/universo.sh` deve ser copiada de novo do
   repositório antes da primeira release sem `.sig` por arquivo, ou não
   encontra assinatura nela.
+  2026-10-15 — item 2: **o código do servidor constrói no Windows**, com o
+  OpenSSL compilado lá como no Unix (a feature `vendored` do crate
+  `openssl` em todo alvo; a construção precisa de Perl, que o `openssl-src`
+  executa, e não de NASM), decidido pelo mantenedor (*"OpenSSL embutido no
+  Windows"*). Revisa a afirmação, em `crates/verso-cli/Cargo.toml`,
+  `crates/verso-server/Cargo.toml` e no CI, de que o Windows não tem
+  servidor. Os pacotes e a imagem continuam como o item 2 os lista — Linux,
+  Docker, CasaOS; nenhum instalador ou serviço do Windows é acrescentado
+  para o servidor —, mas o `verso serve` roda no Windows a partir da linha
+  de comando `verso` que o release do Windows já carrega, e o "este app é
+  um servidor" do app de desktop ([0096](0096-this-app-is-a-server.md))
+  funciona lá também.
 - Revisões: 2026-10-09 (noite) — aceito pelo mantenedor junto com o
   [0073](0073-self-hosted-server-first.md), na resposta citada lá; os dois
   `[ABERTO]` dele respondidos — o caminho de atualização (item 7, a opção
@@ -114,6 +126,8 @@ Proposta; decidida em suas partes pelo mantenedor em 2026-10-09 (Status).
    - um **arquivo compactado e pacotes `.deb`/`.rpm` com uma unit do
      systemd**, para uma máquina sem Docker: o serviço roda como um usuário
      `verso`, com as configurações num arquivo de ambiente que a unit lê.
+   (O binário também roda no Windows, revisado em 2026-10-15: sem pacote
+   para ele, veja as Revisões.)
    O ARM64 é construído por compilação cruzada nos runners x86-64, não num
    runner ARM, o que o mantém possível enquanto o repositório é privado —
    servidores de casa e caixas NAS são muitas vezes ARM. Decidido: o ARM64
