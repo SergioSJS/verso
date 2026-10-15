@@ -255,6 +255,36 @@ impl Db {
             .map_err(e)
     }
 
+    /// How many changes of the folder a reader sees up to its number `upto`:
+    /// the reader's own count, which numbers its log with no gap for a
+    /// change only inside a secret block (ADR 0087 item 4).
+    pub fn reader_count(&self, folder: &str, upto: i64) -> R<i64> {
+        self.reader()
+            .query_row(
+                "SELECT COUNT(*) FROM changes WHERE folder = ?1 AND seq <= ?2 AND reader_same = 0",
+                params![folder, upto],
+                |r| r.get(0),
+            )
+            .map_err(e)
+    }
+
+    /// The folder's number of the `n`-th change a reader sees (from 1, as
+    /// [`Db::reader_count`] counts them); `None` when it sees fewer.
+    pub fn reader_nth(&self, folder: &str, n: i64) -> R<Option<i64>> {
+        if n < 1 {
+            return Ok(None);
+        }
+        self.reader()
+            .query_row(
+                "SELECT seq FROM changes WHERE folder = ?1 AND reader_same = 0
+                 ORDER BY seq LIMIT 1 OFFSET ?2",
+                params![folder, n - 1],
+                |r| r.get(0),
+            )
+            .optional()
+            .map_err(e)
+    }
+
     /// [`Db::changes_since`] as a reader sees them: without the changes
     /// only inside secret blocks, a note's hash and size its projection's.
     pub fn reader_changes_since(&self, folder: &str, since: i64, limit: i64) -> R<Vec<Change>> {
