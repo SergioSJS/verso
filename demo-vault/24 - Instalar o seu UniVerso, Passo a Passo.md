@@ -311,10 +311,12 @@ Para uma segunda pessoa, o admin cria a pasta, depois um convite no console (`/a
 **Backup**, com o pacote do Caminho 1: um comando guarda as contas, as notas e as configurações em `/var/backups/universo`; o outro par leva uma cópia para o seu computador (o arquivo é do root, então antes é copiado para a pasta pessoal; `ubuntu` é o usuário das imagens de nuvem do Ubuntu, troque pelo seu):
 
 ```bash
-sh universo.sh backup
-sudo install -o ubuntu -m 600 /var/backups/universo/universo-backup-<data>-<hora>-<aleatório>.tar.gz ~/   # no servidor
-scp 'ubuntu@<IP do servidor>:universo-backup-*.tar.gz' .                                                  # no seu computador
+sh universo.sh backup        # a última linha imprime "Backup: /var/backups/universo/universo-backup-….tar.gz"
+sudo install -o ubuntu -m 600 /var/backups/universo/<o arquivo que ele imprimiu> ~/   # no servidor
+scp 'ubuntu@<IP do servidor>:universo-backup-*.tar.gz' .                              # no seu computador
 ```
+
+Copie o nome que o comando imprimiu (ou veja com `ls /var/backups/universo`): numa cópia mais nova do script ele traz no fim uma parte aleatória (`-a1b2c3`), numa mais antiga termina na hora.
 
 O guia também ensina a **criptografar** o backup (`backup --keygen` e `backup --encrypt`) antes de ele sair da máquina, numa versão mais nova do script.
 
