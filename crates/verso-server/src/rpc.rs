@@ -717,6 +717,9 @@ async fn command(
             let json: String = arg(&args, "json")?;
             to_value(ops::board_text(&json)?)
         }
+        // A phone's window reports nothing into the computer's log (ADR
+        // 0096 item 12: heard, dropped).
+        "log_write" if who.phone.is_some() => Ok(Value::Null),
         "log_write" => {
             let level: String = arg(&args, "level")?;
             let message: String = arg(&args, "message")?;
@@ -740,8 +743,12 @@ async fn command(
         // On a server the walk's rules and the folder note's name are the
         // folder's (ADR 0070): its owner's window sets them; another
         // member's is heard and changes nothing.
+        // A paired phone's window asks them while it loads and changes
+        // nothing here (ADR 0096 item 12).
         "set_walk_rules" | "set_folder_note_name" => {
-            if let Ok((_, Role::Owner)) = role_here(server, client) {
+            if who.phone.is_none()
+                && let Ok((_, Role::Owner)) = role_here(server, client)
+            {
                 let rules = (r.cmd == "set_walk_rules")
                     .then(|| -> Result<_, ContractError> {
                         Ok(verso_core::WalkRules {
