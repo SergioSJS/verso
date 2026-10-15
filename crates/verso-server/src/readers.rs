@@ -216,7 +216,7 @@ pub fn push_sync_changed(
     }
     server.push_sync_changed(folder, head, paths, &writers);
     if !seen.is_empty() && !readers.is_empty() {
-        match server.db.reader_head(folder) {
+        match server.db.reader_count(folder, i64::MAX) {
             Ok(reader_head) => server.push_sync_changed(folder, reader_head, seen, &readers),
             Err(e) => crate::log::warn(&format!("a reader's head: {e}")),
         }
