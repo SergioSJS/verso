@@ -463,3 +463,40 @@ test("the settings' sections on a phone: opened straight to one, its tab is in v
   // The page itself never scrolls sideways for it.
   expect(await page.evaluate(() => document.scrollingElement.scrollLeft)).toBe(0);
 });
+
+// Android keyboards (Gboard, Samsung) type through composition: the `[[` that
+// opens the list of notes arrives as composing text the keyboard then
+// commits, not as two key presses (the maintainer, 2026-10-15: on a phone
+// nothing listed after `[[`). Chromium only: it is the engine that lets a
+// test drive the input method.
+for (const [title, steps] of [
+  ["each bracket composed, then committed", [["[", "["], ["[", "["]]],
+  ["both brackets composed as one word, then committed", [["[[", "[["]]],
+  ["the second bracket still composing when the list is due", [["[", "["], ["[", null]]],
+  ["a bracket committed by the next composition", [["[", null], ["[[", "[["]]],
+]) {
+  test(`\`[[\` typed through the keyboard's composition lists the notes: ${title} @layout`, async ({ app, page, browserName }) => {
+    test.skip(browserName !== "chromium", "the input method is driven through the DevTools protocol");
+    await app.open();
+    await app.quickOpen("11 - Escrevendo");
+    await app.key("Mod+e");
+    const editor = page.locator(".pane.focused .cm-content").first();
+    await editor.click();
+    await page.keyboard.press("ControlOrMeta+End");
+    await page.keyboard.press("Enter");
+    const cdp = await page.context().newCDPSession(page);
+    for (const [composing, commit] of steps) {
+      await cdp.send("Input.imeSetComposition", { text: composing, selectionStart: composing.length, selectionEnd: composing.length });
+      if (commit !== null) await cdp.send("Input.insertText", { text: commit });
+    }
+    await expect.poll(() => editor.textContent()).toContain("[[");
+    const tooltip = page.locator(".cm-tooltip-autocomplete");
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip.getByRole("option").first()).toBeVisible();
+    // Inside the screen, not under the keyboard or off its edge.
+    const box = await tooltip.boundingBox();
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(Math.round(box.x + box.width)).toBeLessThanOrEqual(page.viewportSize().width);
+    expect(Math.round(box.y + box.height)).toBeLessThanOrEqual(page.viewportSize().height);
+  });
+}

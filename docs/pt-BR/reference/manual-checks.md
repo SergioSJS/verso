@@ -44,6 +44,10 @@ Precisa do app instalado num Mac, num computador Linux ou num Windows, de um cel
 - [ ] **O pacote instalado** (A): o app leva `ui-web` (os arquivos da janela para o celular): sem ele o servidor se recusa a ligar e diz. Diga o tamanho que o pacote ganhou, e se vale enxugar os sourcemaps de `dist`.
 - [ ] **O leitor de tela** (A): o VoiceOver lê o diálogo de pareamento (o QR tem nome; o endereço e o código são texto), a contagem conforme muda, a pergunta *Foi você?* quando aparece, e os botões *Revogar* dos celulares pelo nome.
 - [ ] **Uma rede incomum** (A): um computador com o Tailscale rodando: os Ajustes mostram a dica do `tailscale serve`; com o certificado e a chave de `tailscale cert` preenchidos (*Usar meu próprio certificado*), o celular conecta sem aviso, pelo nome dado.
+- [ ] **O endereço no diálogo de pareamento** (2026-10-15): num Mac com ZeroTier ou uma VPN, o diálogo nomeia o endereço do Wi-Fi ou do cabo e a interface (por exemplo `192.168.3.122 — en7 (rede local)`), não o virtual; a lista oferece os outros, e escolher um gera um novo QR e código com o qual o celular ainda pareia quando está nessa rede.
+- [ ] **Digitar `[[` no teclado do celular** (2026-10-15): numa nota aberta no celular, digite `[[` com o Gboard (Android), com o teclado da Samsung e com o teclado do iOS, uma vez com sugestões de palavras ligadas e outra desligadas: a lista de notas aparece acima do teclado, dentro da tela, e um nome escolhido é escrito. Digite também `/`, `#` e `![[`.
+- [ ] **O papel de um celular** (2026-10-15): pareie um celular como leitor, abra uma nota nele; em *Celulares pareados* marque *Pode editar* para ele — sem recarregar, o celular consegue digitar; desmarque — não consegue, e uma nota que ele editava ao vivo volta a ser lida; os dois aparecem em *O que aconteceu* e no `verso.log`.
+- [ ] **O log** (2026-10-15): depois de ligar o servidor, parear, conectar, revogar e desligar, o `~/Library/Application Support/verso/logs/verso.log` tem uma linha para cada (origem `local`) e nenhum token, código, texto do QR ou texto de nota.
 
 ### O celular sem rede (ADR 0092, feat/phone-offline, 2026-10-15)
 
