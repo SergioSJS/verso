@@ -1121,8 +1121,8 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
     `tests_secret.rs` (todo comando do contrato como leitor, uma nota ao
     vivo, a sincronização, um compartilhamento, um papel que vira leitor),
     o `tests/workspace/reader.rs` do núcleo, o `tests/secret.rs` do índice,
-    o `tests/secret.rs` do dialeto e `fixtures/callout/secret` (rascunho da
-    IA); A: `manual-checks.md`.
+    o `tests/secret.rs` do dialeto e `fixtures/callout/secret` (aprovada
+    em 2026-10-15); A: `manual-checks.md`.
 
 14. A lição de instalação (nota 24, "Instalar o seu UniVerso, Passo a
     Passo"): a parada "Num servidor" do tour mostra as notas 23 e 25 lado a
