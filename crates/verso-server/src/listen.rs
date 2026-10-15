@@ -37,6 +37,12 @@ pub const CONNECTIONS: usize = 512;
 /// the trusted proxies are not counted: they speak for everyone.
 pub const PER_ADDRESS: u32 = 128;
 
+/// A laptop that serves holds fewer (ADR 0096 item 13): 64 in all…
+pub const LOCAL_CONNECTIONS: usize = 64;
+
+/// …and 16 from one address.
+pub const LOCAL_PER_ADDRESS: u32 = 16;
+
 /// How long a request's headers may take to arrive, the wait for the next
 /// request on a kept-alive connection included: hyper's own default, which
 /// it applies only with a timer. A client that sends a byte at a time
@@ -63,9 +69,16 @@ pub struct Slots {
     by_address: Mutex<HashMap<String, u32>>,
     per_address: u32,
     trusted: crate::proxy::Proxies,
+    /// Who may connect at all, asked before a place is counted: "this app
+    /// is a server" lets in only peers on a private subnet of the machine
+    /// (ADR 0096 item 3). None on a server, where anyone may.
+    admit: Option<Admit>,
     /// When a refusal was last said in the log.
     said: Mutex<Option<std::time::Instant>>,
 }
+
+/// The test of a peer's address, answered true to let it in.
+pub type Admit = Arc<dyn Fn(IpAddr) -> bool + Send + Sync>;
 
 /// A connection's place, given back when its socket closes — after a
 /// WebSocket's end, since it travels with the socket ([`Counted`]).
@@ -103,6 +116,24 @@ impl Slots {
             by_address: Mutex::new(HashMap::new()),
             per_address,
             trusted,
+            admit: None,
+            said: Mutex::new(None),
+        })
+    }
+
+    /// The bounds of a laptop that serves, and who may connect (ADR 0096
+    /// items 3 and 13): 64 connections in all, 16 per address, and only
+    /// the peers `admit` lets in — refused before a place is taken or a
+    /// byte is read.
+    #[must_use]
+    pub fn for_local(admit: Admit) -> Arc<Self> {
+        Arc::new(Self {
+            all: Arc::new(Semaphore::new(LOCAL_CONNECTIONS)),
+            most: LOCAL_CONNECTIONS,
+            by_address: Mutex::new(HashMap::new()),
+            per_address: LOCAL_PER_ADDRESS,
+            trusted: crate::proxy::Proxies::default(),
+            admit: Some(admit),
             said: Mutex::new(None),
         })
     }
@@ -110,6 +141,15 @@ impl Slots {
     /// A place for a connection from `ip`, or none — the connection is
     /// then closed before anything is read from it.
     pub fn take(self: &Arc<Self>, ip: IpAddr) -> Option<Slot> {
+        if let Some(admit) = &self.admit
+            && !admit(ip)
+        {
+            self.refused(&format!(
+                "{} is not on a network this computer serves",
+                crate::limit::address_key(ip)
+            ));
+            return None;
+        }
         let Ok(all) = Arc::clone(&self.all).try_acquire_owned() else {
             self.refused(&format!("the server holds {} connections", self.most));
             return None;

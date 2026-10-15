@@ -1,0 +1,369 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+//! Which commands a paired phone may run (ADR 0096 item 12): **default
+//! deny, an allowlist in the code**. A phone is a reader or an editor,
+//! never an owner or an admin; it runs the commands of a folder it was
+//! given and nothing that acts on the laptop outside it.
+//!
+//! The lists name every command of the contract and of the server's own
+//! dispatch. A test reads the generated bindings and fails when a command
+//! is on no list — so a command added tomorrow is refused until someone
+//! decides about it, here, in a diff a reviewer reads — and when a command
+//! is on two lists, or when a command that writes sits on the reader's.
+
+use verso_contract::{ContractError, ErrorKind};
+
+use crate::db::Role;
+
+/// What a phone of a given role may do with a command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Verdict {
+    /// Any paired phone.
+    Allow,
+    /// Only a phone the person let edit.
+    Editor,
+    /// No phone, whatever its role.
+    Refuse,
+}
+
+/// Commands any paired phone runs: reading the folders it was given, and
+/// the window's own bookkeeping that touches nothing outside them.
+/// `set_embed_origins`, `set_menu_language`, `note_made_from_template`,
+/// `set_history_days` and `fetch_file` are answered by the server without
+/// acting (`rpc.rs`): the window calls them, and refusing them would only
+/// make its calls fail.
+pub const READ: &[&str] = &[
+    "open_server_folder",
+    "reopen_folder",
+    "pick_folder",
+    "open_initial",
+    "current_folder",
+    "capabilities",
+    "app_info",
+    "reindex",
+    "render_markdown",
+    "project_secrets",
+    "project_board",
+    "board_text",
+    "list_notes",
+    "read_note",
+    "notes_of_type",
+    "search",
+    "links",
+    "backlinks",
+    "unlinked_mentions",
+    "list_files",
+    "list_tags",
+    "list_web_notes",
+    "graph",
+    "list_folders",
+    "read_file_text",
+    "resolve_attachment",
+    "list_entries",
+    "read_text",
+    "board_preview",
+    "map_open",
+    "map_tile",
+    "query_base",
+    "get_focuses",
+    "can_sync_focuses",
+    "folder_space",
+    "get_folder_settings",
+    "get_obsidian_periodic",
+    "collab_join",
+    "collab_leave",
+    "collab_awareness",
+    "collab_present",
+    "set_embed_origins",
+    "set_menu_language",
+    "note_made_from_template",
+    "set_history_days",
+    "fetch_file",
+];
+
+/// Commands only a phone the person let edit runs: those that change a
+/// note, a board, a picture or the bin of a folder it was given. The
+/// server checks the folder's role again before the core acts.
+pub const EDIT: &[&str] = &[
+    "write_note",
+    "create_note",
+    "create_file",
+    "create_folder",
+    "delete_note",
+    "rename_note",
+    "rename_entry",
+    "move_entries",
+    "delete_entry",
+    "write_text",
+    "write_board",
+    "set_focuses",
+    "collab_update",
+    "collab_save",
+    "collab_resolve",
+    "collab_canvas",
+    "collab_roll",
+    "trash_list",
+    "trash_restore",
+    "trash_delete",
+    "history_list",
+    "history_read",
+    "history_restore",
+    "history_copy",
+];
+
+/// Commands no phone runs, however it was paired. Each acts on the laptop
+/// outside the folders served, or is the owner's: the system's (open,
+/// reveal, copy a path, windows), the updater and the command-line tool,
+/// the app's settings and the agent's, the log and the bug report, the
+/// pairing's own commands, accounts, shares, servers and sync, the MCP,
+/// the web-embed proxy and its frameability probe (ADR 0056: a note must
+/// not make the laptop fetch an address on the network for a phone), the
+/// folder's own settings and rules, emptying the bin, deleting history.
+pub const REFUSED: &[&str] = &[
+    "agent_visible",
+    "set_agent_visible",
+    "check_for_updates",
+    "download_and_install_update",
+    "restart_app",
+    "install_cli",
+    "uninstall_cli",
+    "mcp_add_claude",
+    "mcp_status",
+    "open_claude_download",
+    "copy_full_path",
+    "reveal",
+    "open_url",
+    "open_window",
+    "new_window",
+    "popout_target",
+    "return_to_main",
+    "web_open",
+    "web_bounds",
+    "web_visible",
+    "web_close",
+    "web_nav",
+    "web_url",
+    "embed_frameable",
+    "device_name",
+    "set_device_name",
+    "folder_sync",
+    "folder_sync_confirm",
+    "folder_sync_now",
+    "folder_sync_pause",
+    "folder_sync_start",
+    "folder_sync_stop",
+    "server_accounts",
+    "server_folders",
+    "server_open",
+    "server_prove",
+    "server_retry",
+    "server_sign_in",
+    "server_sign_in_page",
+    "server_sign_out",
+    "share_attachments",
+    "share_grant",
+    "share_list",
+    "share_revoke",
+    "log_read",
+    "log_write",
+    "set_walk_rules",
+    "set_folder_note_name",
+    "set_folder_settings",
+    "set_sync_focuses",
+    "trash_empty",
+    "trash_set_days",
+    "history_delete",
+    "sync_state",
+    "sync_changes",
+    "sync_read",
+    "sync_put",
+    "sync_delete",
+    "sync_rename",
+    "recent_folders",
+    "cli_status",
+    "open_devtools",
+];
+
+/// The prefix of the commands that run this mode itself.
+pub const LOCAL_PREFIX: &str = "local_server_";
+
+/// The verdict on `cmd`: on a list, that list's; on none, refused.
+#[must_use]
+pub fn verdict(cmd: &str) -> Verdict {
+    if cmd.starts_with(LOCAL_PREFIX) {
+        Verdict::Refuse
+    } else if READ.contains(&cmd) {
+        Verdict::Allow
+    } else if EDIT.contains(&cmd) {
+        Verdict::Editor
+    } else {
+        Verdict::Refuse
+    }
+}
+
+fn refused(message: &str) -> ContractError {
+    ContractError {
+        kind: ErrorKind::Refused,
+        message: message.to_owned(),
+    }
+}
+
+/// Whether a phone of `role` may run `cmd`; the refusal says why, in the
+/// contract's own words.
+pub fn check(cmd: &str, role: Role) -> Result<(), ContractError> {
+    match verdict(cmd) {
+        Verdict::Allow => Ok(()),
+        Verdict::Editor if role.writes() => Ok(()),
+        Verdict::Editor => Err(refused(
+            "this phone only reads: let it edit from the computer's Settings",
+        )),
+        Verdict::Refuse => Err(refused("not from a phone")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The server's own commands, which the bindings (the desktop's) do not
+    /// list: the window opens a folder by id, and the sync devices speak.
+    const SERVER_ONLY: &[&str] = &[
+        "open_server_folder",
+        "sync_state",
+        "sync_changes",
+        "sync_read",
+        "sync_put",
+        "sync_delete",
+        "sync_rename",
+    ];
+
+    /// Every command the contract has: the generated bindings' invokes, and
+    /// the server's own.
+    fn every_command() -> Vec<String> {
+        let bindings = include_str!("../../../../app/ui/src/bindings.ts");
+        // `__TAURI_INVOKE("name"` and `__TAURI_INVOKE<Type>("name"`; the
+        // import line names it too and is skipped.
+        let mut all: Vec<String> = bindings
+            .split("__TAURI_INVOKE")
+            .skip(1)
+            .filter(|rest| !rest.starts_with(" }"))
+            .filter_map(|rest| rest.split_once("(\"")?.1.split('"').next())
+            .map(str::to_owned)
+            .collect();
+        all.extend(SERVER_ONLY.iter().map(|s| (*s).to_owned()));
+        all.sort();
+        all.dedup();
+        all
+    }
+
+    fn listed(cmd: &str) -> usize {
+        usize::from(READ.contains(&cmd))
+            + usize::from(EDIT.contains(&cmd))
+            + usize::from(REFUSED.contains(&cmd))
+            + usize::from(cmd.starts_with(LOCAL_PREFIX))
+    }
+
+    /// The guardrail of item 12: every command of the contract is either on
+    /// the allowlist or refused by name, none on two lists. A command added
+    /// without a decision fails this test, and is refused meanwhile.
+    #[test]
+    fn every_command_of_the_contract_is_on_the_allowlist_or_refused() {
+        let all = every_command();
+        assert!(all.len() > 100, "the bindings were read: {}", all.len());
+        let unlisted: Vec<_> = all.iter().filter(|c| listed(c) == 0).collect();
+        assert!(unlisted.is_empty(), "no decision yet for {unlisted:?}");
+        let twice: Vec<_> = all.iter().filter(|c| listed(c) > 1).collect();
+        assert!(twice.is_empty(), "on two lists: {twice:?}");
+    }
+
+    /// A name on a list that no command has is a typo that decides nothing.
+    #[test]
+    fn every_listed_name_is_a_command() {
+        let all = every_command();
+        // Commands the server answers that the desktop's bindings do not
+        // list, and one the host has and the window calls.
+        let extra = ["pick_folder", "open_initial", "reopen_folder"];
+        for name in READ.iter().chain(EDIT).chain(REFUSED) {
+            assert!(
+                all.iter().any(|c| c == name) || extra.contains(name),
+                "{name} is on a list and is no command"
+            );
+        }
+    }
+
+    /// A command that changes a folder is never on the reader's list, and
+    /// one that only reads is never refused for being a write: the folder
+    /// commands' own `Access` decides which list they may be on.
+    #[test]
+    fn a_command_that_writes_is_not_a_reader_s() {
+        use verso_service::ops::{Access, FOLDER_COMMANDS};
+        for (name, access) in FOLDER_COMMANDS {
+            if *access == Access::Write {
+                assert!(
+                    !READ.contains(name),
+                    "{name} writes and is on the list any phone runs"
+                );
+            }
+            assert!(
+                listed(name) == 1,
+                "{name} is a folder command and is not on exactly one list"
+            );
+        }
+    }
+
+    /// The collaboration commands that write a note are the editor's.
+    #[test]
+    fn what_edits_needs_an_editor() {
+        for cmd in [
+            "write_note",
+            "collab_update",
+            "collab_save",
+            "trash_restore",
+        ] {
+            assert!(check(cmd, Role::Reader).is_err(), "{cmd} as a reader");
+            assert!(check(cmd, Role::Editor).is_ok(), "{cmd} as an editor");
+        }
+        for cmd in ["read_note", "search", "list_notes", "collab_join"] {
+            assert!(check(cmd, Role::Reader).is_ok(), "{cmd} as a reader");
+        }
+    }
+
+    /// What acts on the laptop is refused to every role: even an owner's
+    /// role on the folder opens none of it (a phone is never an owner).
+    #[test]
+    fn what_acts_on_the_laptop_is_refused_to_every_role() {
+        for cmd in [
+            "reveal",
+            "open_url",
+            "copy_full_path",
+            "embed_frameable",
+            "web_open",
+            "check_for_updates",
+            "download_and_install_update",
+            "restart_app",
+            "log_read",
+            "log_write",
+            "install_cli",
+            "mcp_add_claude",
+            "share_grant",
+            "server_sign_in",
+            "folder_sync_start",
+            "sync_put",
+            "sync_state",
+            "trash_empty",
+            "set_walk_rules",
+            "local_server_start",
+            "local_server_pair_open",
+            "local_server_answer",
+            "local_server_forget",
+            "a_command_added_tomorrow",
+        ] {
+            for role in [Role::Reader, Role::Editor, Role::Owner] {
+                assert!(check(cmd, role).is_err(), "{cmd} as {role:?}");
+            }
+            assert_eq!(verdict(cmd), Verdict::Refuse, "{cmd}");
+        }
+    }
+}

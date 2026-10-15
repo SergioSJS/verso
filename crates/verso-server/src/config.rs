@@ -260,6 +260,34 @@ impl Config {
         })
     }
 
+    /// The configuration of "this app is a server" (ADR 0096): the local
+    /// database and indexes in `data_dir`, the window's files in `ui_dir`,
+    /// no accounts to make, no mail, no update check, no proxy — the
+    /// addresses it listens on are the mode's own (`crate::local`), not
+    /// `listen`, which only names the first of them.
+    #[must_use]
+    pub fn for_local(data_dir: PathBuf, ui_dir: PathBuf, listen: SocketAddr) -> Self {
+        Self {
+            listen,
+            public_url: None,
+            folders_dir: data_dir.join("no-folders-here"),
+            data_dir,
+            ui_dir,
+            web: true,
+            admin: None,
+            trusted_proxy: crate::proxy::Proxies::default(),
+            tls: None,
+            update_check: false,
+            update_token: None,
+            smtp_url: None,
+            mail_from: None,
+            folder_quota: None,
+            trash_days: verso_core::trash::DEFAULT_DAYS,
+            history_days: verso_core::history::DEFAULT_DAYS,
+            audit_days: DEFAULT_AUDIT_DAYS,
+        }
+    }
+
     /// Whether the server is reached only from this machine: loopback, no
     /// public address given.
     #[must_use]

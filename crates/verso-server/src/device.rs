@@ -94,7 +94,7 @@ fn is_format(c: char) -> bool {
 /// 80 characters, with no format character but the emoji's joiner — a
 /// bidi override or a zero-width one would turn or hide the sentence the
 /// approval page puts it in; none when nothing is left.
-fn kept_name(name: &str) -> Option<String> {
+pub(crate) fn kept_name(name: &str) -> Option<String> {
     let one_line: String = name
         .chars()
         .filter(|c| !is_format(*c))

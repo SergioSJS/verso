@@ -366,6 +366,10 @@ pub struct Server {
     /// `verso_core::sync::PROTOCOL`, unless [`Server::speak_sync`] set an
     /// older one.
     sync: std::sync::atomic::AtomicU32,
+    /// Set when this is "this app is a server" (ADR 0096) and not a
+    /// dedicated server: the one local owner, the phones paired to it, the
+    /// folders ticked, the addresses served.
+    pub local: Option<Arc<crate::local::Policy>>,
 }
 
 impl Server {
@@ -387,9 +391,33 @@ impl Server {
     }
 
     pub fn new(config: Config, db: Db, contract: String, commit: String) -> Arc<Self> {
+        let slots = crate::listen::Slots::new(config.trusted_proxy.clone());
+        Self::build(config, db, contract, commit, slots, None)
+    }
+
+    /// The server of "this app is a server" (ADR 0096): the same service
+    /// and the same code, with the laptop's bounds and its policy.
+    pub fn new_local(
+        config: Config,
+        db: Db,
+        contract: String,
+        commit: String,
+        policy: Arc<crate::local::Policy>,
+    ) -> Arc<Self> {
+        let slots = crate::listen::Slots::for_local(policy.admit_fn());
+        Self::build(config, db, contract, commit, slots, Some(policy))
+    }
+
+    fn build(
+        config: Config,
+        db: Db,
+        contract: String,
+        commit: String,
+        slots: Arc<crate::listen::Slots>,
+        local: Option<Arc<crate::local::Policy>>,
+    ) -> Arc<Self> {
         let service = Service::new(Some(config.data_dir.join("indexes")));
         let history = crate::history::Book::open(&config.data_dir);
-        let slots = crate::listen::Slots::new(config.trusted_proxy.clone());
         let server = Arc::new(Self {
             config,
             db,
@@ -422,6 +450,7 @@ impl Server {
             sync: std::sync::atomic::AtomicU32::new(verso_core::sync::PROTOCOL),
             history,
             this: std::sync::OnceLock::new(),
+            local,
         });
         let _ = server.this.set(Arc::downgrade(&server));
         service.set_events(Arc::new(ServerEvents {
@@ -443,6 +472,12 @@ impl Server {
     /// The directory of a registered folder; the path is formed here and
     /// never crosses (ADR 0026 rule 4).
     pub fn folder_path(&self, dir: &str) -> Option<PathBuf> {
+        // "This app is a server": the folders the person ticked, wherever
+        // they are, named here by the name they were given — never a path
+        // a phone sent (ADR 0096 item 2).
+        if let Some(local) = &self.local {
+            return local.folder_path(dir);
+        }
         verso_fs::server::folder_path(&self.config.folders_dir, dir)
     }
 

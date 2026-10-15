@@ -10,7 +10,12 @@
 /// The time as `YYYY-MM-DDTHH:MM:SSZ`, from the system clock.
 #[must_use]
 pub fn stamp() -> String {
-    let secs = crate::db::now();
+    stamp_at(crate::db::now())
+}
+
+/// `secs` since the epoch as `YYYY-MM-DDTHH:MM:SSZ`.
+#[must_use]
+pub fn stamp_at(secs: i64) -> String {
     let days = secs.div_euclid(86_400);
     let rest = secs.rem_euclid(86_400);
     // Civil date from days since the epoch (Howard Hinnant's algorithm).
