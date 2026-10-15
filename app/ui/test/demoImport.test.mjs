@@ -8,7 +8,7 @@ import * as esbuild from "esbuild";
 
 await esbuild.build({
   stdin: {
-    contents: `export { decide, replaceable, sha256Hex } from "./src/demoImport";`,
+    contents: `export { decide, decideRetired, replaceable, sha256Hex } from "./src/demoImport";`,
     resolveDir: ".",
     loader: "ts",
   },
@@ -18,7 +18,7 @@ await esbuild.build({
   outfile: "test/.bundles/demoImport.test-bundle.mjs",
   logLevel: "error",
 });
-const { decide, replaceable, sha256Hex } = await import("./.bundles/demoImport.test-bundle.mjs");
+const { decide, decideRetired, replaceable, sha256Hex } = await import("./.bundles/demoImport.test-bundle.mjs");
 
 const enc = new TextEncoder();
 
@@ -48,6 +48,26 @@ test("the embedded demo carries the earlier versions of a note that changed", as
   const src = readFileSync(new URL("../src/demoVault.ts", import.meta.url), "utf8");
   const welcome = src.slice(src.indexOf('"path": "00 - Bem-vindo ao Verso.md"'));
   const block = welcome.slice(0, welcome.indexOf('"b64"'));
-  const old = readFileSync(new URL("../e2e/data/welcome-8c8df942.md", import.meta.url));
+  const old = readFileSync(new URL("../e2e/data/welcome-8c8df942.md.txt", import.meta.url));
   assert.ok(block.includes(await sha256Hex(old)), "the first welcome note is among the past versions");
+});
+
+test("a note the tutorial renamed: the untouched old copy goes to the trash, an edit stays, nothing without the new note", async () => {
+  const old = await sha256Hex(enc.encode("dados antigos\n"));
+  const edit = await sha256Hex(enc.encode("dados do usuário\n"));
+  const a = "24 - Dados e Tabelas Sorteadas.md";
+  const b = "25 - Dados e Tabelas Sorteadas.md";
+  assert.equal(decideRetired(old, [old], true, a, b), "trash");
+  assert.equal(decideRetired(edit, [old], true, a, b), "keep");
+  assert.equal(decideRetired(null, [old], true, a, b), "none");
+  // The new note is not there (kept as an edit, or failed): the old stays.
+  assert.equal(decideRetired(old, [old], false, a, b), "none");
+  // A rename that only changes case is the same file on some disks.
+  assert.equal(decideRetired(old, [old], true, "templates/Diário.md", "Templates/Diário.md"), "none");
+});
+
+test("the embedded demo knows the renamed dice note", () => {
+  const src = readFileSync(new URL("../src/demoVault.ts", import.meta.url), "utf8");
+  const at = src.indexOf('"path": "24 - Dados e Tabelas Sorteadas.md"');
+  assert.ok(at > 0 && src.slice(at, at + 200).includes('"to": "25 - Dados e Tabelas Sorteadas.md"'));
 });

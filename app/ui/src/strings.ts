@@ -117,6 +117,7 @@ export type Strings = Record<
   openingFolder: string;
   demoVaultNew: (n: number) => string;
   demoVaultSummary: (created: number, updated: number, kept: number) => string;
+  demoVaultTrashed: (n: number) => string;
 };
 
 export const pt: Strings = {
@@ -129,6 +130,7 @@ export const pt: Strings = {
   indexingDone: "Indexação concluída.",
   openingFolder: "Abrindo pasta e escaneando arquivos…",
   demoVaultNew: (n) => (n === 1 ? "1 novo" : `${n} novos`),
+  demoVaultTrashed: (n) => (n === 1 ? "1 nota antiga do tutorial foi para a lixeira" : `${n} notas antigas do tutorial foram para a lixeira`),
   demoVaultSummary: (c, u, k) => `${c} ${c === 1 ? "criado" : "criados"}, ${u} ${u === 1 ? "atualizado" : "atualizados"}, ${k} ${k === 1 ? "mantido" : "mantidos"}`,
   cancel: "Cancelar", discardYes: "Descartar", conflictPending: "Nada gravado: o arquivo mudou em disco — escolha acima entre recarregar e gravar o seu por cima.", taskMoved: "Essa tarefa mudou desde que a leitura foi desenhada; nada foi marcado.", notSaved: "Nada feito: há mudanças que não puderam ser salvas em", closeUnsaved: "Estas abas têm mudanças que não puderam ser salvas e se perdem se a janela fechar:", closeAnyway: "Fechar mesmo assim", mixedEol: "Só leitura: este arquivo mistura finais de linha (CRLF e LF, ou CR sozinho); editá-lo aqui converteria todos sem você ver.", propChanged: "Essa propriedade mudou no texto desde que o painel foi desenhado; nada foi alterado — o painel se atualiza ao salvar, repita a edição.", propFixed: "Edite no modo Fonte: este valor tem comentário, várias linhas ou uma forma que o painel não reescreve sem perda.", propExists: "Essa propriedade já está no texto.",
   keepBoth: "Guardar os dois", conflictPendingBoth: "Nada gravado: o arquivo mudou em disco — escolha acima entre recarregar, gravar o seu por cima e guardar os dois.", thisComputer: "este computador",
@@ -293,6 +295,7 @@ export const en: Strings = {
   indexingDone: "Indexing complete.",
   openingFolder: "Opening folder and scanning files…",
   demoVaultNew: (n) => (n === 1 ? "1 new" : `${n} new`),
+  demoVaultTrashed: (n) => (n === 1 ? "1 old tutorial note went to the trash" : `${n} old tutorial notes went to the trash`),
   demoVaultSummary: (c, u, k) => `${c} created, ${u} updated, ${k} kept`,
   cancel: "Cancel", discardYes: "Discard", conflictPending: "Nothing written: the file changed on disk — choose above between reloading and writing yours over it.", taskMoved: "That task changed since the reading view was drawn; nothing was checked.", notSaved: "Nothing done: there are changes that could not be saved in", closeUnsaved: "These tabs have changes that could not be saved; they are lost if the window closes:", closeAnyway: "Close anyway", mixedEol: "Read-only: this file mixes line endings (CRLF and LF, or a lone CR); editing it here would convert them all without you seeing it.", propChanged: "That property changed in the text since the panel was drawn; nothing was changed — the panel updates on saving, make the edit again.", propFixed: "Edit it in Source mode: this value has a comment, several lines or a shape the panel cannot rewrite without loss.", propExists: "That property is already in the text.",
   keepBoth: "Keep both", conflictPendingBoth: "Nothing written: the file changed on disk — choose above between reloading, writing yours over it and keeping both.", thisComputer: "this computer",

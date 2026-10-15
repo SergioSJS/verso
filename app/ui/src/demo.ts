@@ -5,13 +5,13 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { commands, type ContractError } from "./bindings";
 import { afterFileChange, refreshLists } from "./changes";
-import { DEMO_VAULT_FILES } from "./demoVault";
+import { DEMO_RETIRED, DEMO_VAULT_FILES } from "./demoVault";
 import { ask, tell } from "./dialog";
 import { ui } from "./dom";
 import { flash } from "./notify";
 import { fail } from "./errors";
 import { b64ToUtf8 } from "./files";
-import { decide, replaceable, sha256Hex, type Verdict } from "./demoImport";
+import { decide, decideRetired, replaceable, sha256Hex, type Verdict } from "./demoImport";
 import { currentFolder } from "./folder";
 import { openNote } from "./layout/spaces";
 import { openFolderBy } from "./open";
@@ -28,7 +28,7 @@ const encoder = new TextEncoder();
 export async function hashOfFile(path: string): Promise<string | null> {
   try {
     if (path.endsWith(".md") || path.endsWith(".base")) {
-      const r = await opening.readText(path);
+      const r = await opening.readText(path, true);
       return r.status === "ok" ? await sha256Hex(encoder.encode(r.data.text)) : null;
     }
     const res = await fetch(convertFileSrc(path, "verso"));
@@ -86,6 +86,9 @@ export async function importDemoVault(): Promise<void> {
     void commands.logWrite("INFO", `import demo: ${DEMO_VAULT_FILES.length} files`).catch(() => undefined);
     let createdCount = 0;
     const updated: string[] = [];
+    // The files of the demo now in the folder, current: what an old name's
+    // counterpart has to be before the old copy goes.
+    const settled = new Set<string>();
     const kept: string[] = [];
     const failed: string[] = [];
     for (const [i, item] of DEMO_VAULT_FILES.entries()) {
@@ -94,13 +97,16 @@ export async function importDemoVault(): Promise<void> {
         const res = await commands.createFile(item.path, item.b64);
         if (res.status === "ok") {
           createdCount++;
+          settled.add(item.path);
         } else if (res.error.kind === "exists") {
           const verdict: Verdict = decide(await hashOfFile(item.path), await sha256Hex(bytesOf(item.b64)), item.past);
           if (verdict === "keep") kept.push(item.path);
           else if (verdict === "update") {
-            if (replaceable(item.path) && (await replaceFile(item.path, item.b64))) updated.push(item.path);
-            else kept.push(item.path);
-          }
+            if (replaceable(item.path) && (await replaceFile(item.path, item.b64))) {
+              updated.push(item.path);
+              settled.add(item.path);
+            } else kept.push(item.path);
+          } else settled.add(item.path);
         } else {
           failed.push(item.path);
           console.error(`import demo: ${item.path}: ${res.error.kind}: ${res.error.message}`);
@@ -110,12 +116,34 @@ export async function importDemoVault(): Promise<void> {
         console.error(`import demo: ${item.path}: ${String(e)}`);
       }
     }
-    void commands.logWrite("INFO", `import demo: ${createdCount} created, ${updated.length} updated, ${kept.length} kept, ${failed.length} failed`).catch(() => undefined);
+    // A note the tutorial renamed: the person's untouched copy under the
+    // old name goes to the trash (restorable, ADR 0080) once the current
+    // note is there; an edited one stays and is named.
+    let trashed = 0;
+    for (const old of DEMO_RETIRED) {
+      const verdict = decideRetired(await hashOfFile(old.path), old.past, settled.has(old.to), old.path, old.to);
+      if (verdict === "keep") kept.push(old.path);
+      else if (verdict === "trash") {
+        try {
+          const res = await commands.deleteEntry(old.path);
+          if (res.status === "ok") trashed++;
+          else {
+            failed.push(old.path);
+            console.error(`import demo: ${old.path}: ${res.error.kind}: ${res.error.message}`);
+          }
+        } catch (e) {
+          failed.push(old.path);
+          console.error(`import demo: ${old.path}: ${String(e)}`);
+        }
+      }
+    }
+    void commands.logWrite("INFO", `import demo: ${createdCount} created, ${updated.length} updated, ${kept.length} kept, ${trashed} trashed, ${failed.length} failed`).catch(() => undefined);
 
     await afterFileChange();
     refreshLists();
     openNote("00 - Bem-vindo ao Verso.md", false, true);
-    const msg = `${t.demoVaultImported} (${t.demoVaultSummary(createdCount, updated.length, kept.length)})`;
+    const summary = t.demoVaultSummary(createdCount, updated.length, kept.length);
+    const msg = `${t.demoVaultImported} (${trashed > 0 ? `${summary}; ${t.demoVaultTrashed(trashed)}` : summary})`;
     ui.status.textContent = msg;
     // The feedback of the person's own action: a toast, not a
     // notification — no kind, no line in the list (ADR 0084 item 1).
