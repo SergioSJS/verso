@@ -142,6 +142,8 @@ recommended and is marked `[DECIDED 2026-10-14]`.
 decided as recommended, marked `[DECIDED 2026-10-14]` in place. In V1
 (`docs/roadmap.md`, Phase 4 — V1). [0036](0036-tabletop-rpg-support.md) gains a Revisions line.
 
+*Revised (2026-10-15):* the maintainer accepted, as recommended, the four picks made in the build: (1) **only a PNG is cut into tiles**; a JPEG or WebP is drawn whole, with a warning that it is large; (2) **a reader is refused a board's room** and follows the saved file; (3) **`secret` works on any node**, not only a pin; (4) **the tiles are drawn in the card layer**.
+
 *(History, before the acceptance above:)* Proposed (2026-10-14). In V1 by the maintainer's word of 2026-10-14
 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revision 8). For the
 maintainer, each with a recommendation: the field's name (item 2), the

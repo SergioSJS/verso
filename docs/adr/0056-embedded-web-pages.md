@@ -440,3 +440,4 @@ embeds are `<iframe>`s when the site allows framing, child web views
 otherwise. Revised again on 2026-10-15, in session (*"A e B juntos"*): the
 child web view is drawn as a frame is, by a native clipping container
 (B); the mechanism is the author's.
+Revised on 2026-10-15, in session, accepted as recommended: the host's frameability check (one `HEAD`, or a `GET` read only as far as its headers, once per origin) is **accepted**, which revises the earlier line that "nothing is fetched on the host's side" for an approved origin; a page's own links to another origin and the frames nested inside a framed page stay `[OPEN]`, as recorded above.
