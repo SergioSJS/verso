@@ -84,9 +84,15 @@ xattr = "1.6"
 # objc2-foundation and objc2-app-kit 0.3.2; MIT), with features they
 # already enable but NSUserInterfaceItemIdentification. They replace
 # nothing of ours: the window had no way to clip a native view.
+# objc2-quartz-core (0.3.2, MIT, already in the lockfile through
+# objc2-app-kit) is a direct dependency for one call: the container's
+# layer masks to its bounds (`CALayer.masksToBounds`, macOS 10.5 and up),
+# because `NSView.clipsToBounds` is public only from macOS 14 and the app
+# supports macOS 11 and up. It replaces nothing of ours.
 objc2 = "0.6"
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSString", "NSGeometry"] }
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSResponder", "NSView", "NSGraphics", "NSUserInterfaceItemIdentification"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSResponder", "NSView", "NSGraphics", "NSUserInterfaceItemIdentification", "objc2-quartz-core"] }
+objc2-quartz-core = { version = "0.3", default-features = false, features = ["std", "CALayer"] }
 
 [target.'cfg(windows)'.dependencies]
 # The same on Windows (src/web_clip/windows.rs): WebView2's host window

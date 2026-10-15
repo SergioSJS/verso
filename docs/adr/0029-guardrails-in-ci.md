@@ -573,6 +573,17 @@ allows framing; B, the native clipping, with this exception.
   `verso-fs`, an `allow(unsafe_code)` beside it, and `verso-app`'s
   `unsafe_code` set to `allow` each turned it red; put back, green.
 
+**Supports macOS 11 and up (2026-10-15, accepted as recommended).** The
+first build of the macOS container clipped with `NSView.clipsToBounds`,
+public only from macOS 14. It now clips with the layer's `masksToBounds`
+(`setWantsLayer(true)`, then the view's `layer()`), available since macOS
+10.5, so the clipping works on every macOS the app supports (11 and up).
+`objc2-quartz-core` (0.3.2, already in the lockfile) became a direct
+dependency of `verso-app` for that call, and `unsafe` stays only in
+`web_clip/macos.rs` and `windows.rs`, each block with its `SAFETY` comment
+(`check-unsafe` unchanged). A unit test keeps the macOS 14 call from coming
+back.
+
 What it costs, stated plainly: `unsafe` is the code the compiler cannot
 check, in a project whose review is mechanical (Context). The two files
 are small, they are read by the model that did not write them, and the
