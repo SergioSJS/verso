@@ -464,7 +464,7 @@ each, accepted that night — [0093](adr/0093-periodic-notes.md), [0094](adr/009
 |---|---|---|---|
 | V.18 | Periodic notes — weekly, monthly — beside the daily note | [0014](adr/0014-primitives-catalog.md) (the time row; periodic notes Proposed); [0093](adr/0093-periodic-notes.md), Accepted 2026-10-14 | the daily note built (`app/ui/src/daily.ts`); periodic notes not built |
 | V.19 | The rest of bases: regular expressions and the map layout | [0053](adr/0053-views-bases.md) ("Not built: regular expressions, the map layout…"); [0094](adr/0094-the-rest-of-bases.md), Accepted 2026-10-14 | not built |
-| V.20 | "This app is a server": the desktop app serving its folder on the local network, found by mDNS and paired by a QR code | [0073](adr/0073-self-hosted-server-first.md) item 2; [0096](adr/0096-this-app-is-a-server.md), Proposed 2026-10-15 | the shape decided 2026-10-09; the security, pairing and certificate are 0096's `[OPEN]`; not built |
+| V.20 | "This app is a server": the desktop app serving its folder on the local network, found by mDNS and paired by a QR code | [0073](adr/0073-self-hosted-server-first.md) item 2; [0096](adr/0096-this-app-is-a-server.md), Accepted 2026-10-15 | the shape decided 2026-10-09; the security, pairing and certificate decided 2026-10-15 as 0096 recommends (`[DECIDED 2026-10-15]`); not built |
 | V.21 | The Mac Intel app | [0022](adr/0022-target-platforms-macos-first.md), [0051](adr/0051-development-flow-and-releases.md) (the macOS job builds arm64); [0095](adr/0095-mac-notarization-and-windows-code-signing.md) item 9, Accepted 2026-10-14 | not built |
 | V.22 | The Linux ARM64 app | [0071](adr/0071-linux-port.md) item 1 (built beside x64 once the repository is public, V.12) | not built |
 
