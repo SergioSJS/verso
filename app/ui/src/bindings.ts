@@ -238,22 +238,20 @@ export const commands = {
 	openDevtools: () => __TAURI_INVOKE<void>("open_devtools"),
 	/**
 	 *  A web page inside the window, as a child web view over the area the
-	 *  UI names (logical pixels from the window's top-left): the browser
-	 *  behind a tab whose note holds the address. Only `http(s)`; the page
-	 *  cannot navigate anywhere else, nor open windows. Answers with the
-	 *  label the other `web_*` commands take.
+	 *  UI names: the browser behind a tab whose note holds the address, or an
+	 *  embedded page. Only `http(s)`; the page cannot navigate anywhere else,
+	 *  nor open windows. Answers with the label the other `web_*` commands
+	 *  take.
 	 * 
-	 *  An embed partly scrolled out of its note is cut to what shows, and its
-	 *  page must show the same part: `scroll_x`/`scroll_y` is how far the page
-	 *  is scrolled once it has loaded (the first load only, not the pages the
-	 *  embed later navigates to).
+	 *  The view is made over the visible part, as it was before the page
+	 *  could be clipped, and then put at its slot inside a clipping container
+	 *  (`web_clip`): never over the window's chrome, even for a frame.
 	 */
 	webOpen: (url: string, place: WebPlace) => typedError<string, ContractError>(__TAURI_INVOKE("web_open", { url, place })),
 	/**
-	 *  Move and size a web page's view to follow its tab, and scroll its page
-	 *  by `(scroll_x, scroll_y)` — the change in how much of the page lies
-	 *  above/left of the view (an embed cut at its pane's top shows the page
-	 *  from there, as an iframe would). Zero for a web note's own view.
+	 *  Move a web page's view to follow its box: the page at `slot`, drawn
+	 *  only inside `visible` (`WebPlace`). The page's own scroll is never
+	 *  touched.
 	 */
 	webBounds: (label: string, place: WebPlace) => typedError<null, ContractError>(__TAURI_INVOKE("web_bounds", { label, place })),
 	/**  Show or hide a web page's view (its tab left the front, an overlay opened). */
@@ -2360,19 +2358,30 @@ export type WebNote = {
 };
 
 /**
- *  Where a web view goes (logical pixels from the window's top-left) and
- *  how far its page is scrolled: `scroll_x`/`scroll_y` is, for `web_open`,
- *  how far the page is scrolled once it has loaded (the first load only);
- *  for `web_bounds`, the change in it since the last call. Zero for a web
- *  note's own view, which shows its page whole.
+ *  Where a web page goes, as an iframe would put it. `slot` is the
+ *  page's whole box: its size is the page's viewport (`100vh` is its
+ *  height), and it may reach outside its pane or the window. `visible` is
+ *  the part of the slot that shows — inside every scroller around it and
+ *  the window, clear of the tab bar and the status bar (`embedPlace`,
+ *  app/ui/src/leaves/embedClip.ts). The page is drawn at `slot` and only
+ *  inside `visible` (`web_clip`); scrolling the note moves the slot and
+ *  never scrolls the page. A web note's own view sends one rectangle
+ *  twice.
  */
 export type WebPlace = {
+	slot: WebRect,
+	visible: WebRect,
+};
+
+/**
+ *  A rectangle in the window's logical pixels, from the top-left of the
+ *  window's page.
+ */
+export type WebRect = {
 	x: number | null,
 	y: number | null,
 	w: number | null,
 	h: number | null,
-	scrollX: number | null,
-	scrollY: number | null,
 };
 
 /**

@@ -123,6 +123,16 @@ jobs:
             echo 'std::fs outside app/src-tauri/src/update.rs and src/log.rs (ADR 0029)'
             exit 1
           fi
+      # `unsafe` in two files and nowhere else: the native clipping of an
+      # embedded page (app/src-tauri/src/web_clip/macos.rs and windows.rs).
+      # The workspace forbids it; verso-app's lint table says `deny` so that
+      # those two files can allow it, and this holds the table to the
+      # workspace's and the code to those files (ADR 0029, revision of
+      # 2026-10-15). Node and git only.
+      - name: unsafe only in web_clip's platform files (ADR 0029)
+        run: |
+          node --test scripts/check-unsafe.test.mjs
+          node scripts/check-unsafe.mjs
 
       # --- The toolchain, the WASM target, one cache for everything below. ---
       - name: toolchain from rust-toolchain.toml

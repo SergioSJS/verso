@@ -20,9 +20,14 @@
   texto da primeira decisão fica, cada parte substituída com uma nota.
   2026-10-14 — **revisto pelo mantenedor** na sessão ("A agora, B depois"):
   um embed é um `<iframe>` quando o site permite ser embutido, a child web
-  view quando não; um contêiner nativo de recorte é um pull request
-  posterior. Registrado como a última seção da Decisão, "Revisto: um
-  `<iframe>` quando o site permite".
+  view quando não. 2026-10-15 — **revisto de novo** pelo mantenedor, na
+  sessão (*"A e B juntos"*): a child web view é desenhada como um quadro
+  (frame) é — montada com o tamanho e o lugar inteiros do seu espaço,
+  desenhada só na parte que aparece — por um contêiner nativo de recorte
+  em cada sistema, sob a única exceção a `unsafe_code = "forbid"` da
+  [0029](0029-guardrails-in-ci.md). Registrado como as duas últimas seções
+  da Decisão, "Revisto: um `<iframe>` quando o site permite" e "Revisto de
+  novo: a página recortada como um quadro é".
 
 ## Contexto
 
@@ -315,12 +320,12 @@ cima de outro elemento da janela, e rolar a nota nunca rola a página dentro.
 
 - **A.** (esta revisão) Um embed é um `<iframe>` de verdade no documento da
   nota sempre que o site permite ser embutido pela origem da janela; um site
-  que recusa mantém a child web view, recortada à área visível e sem rolar a
-  página (o plano B de contingência). Uma página aberta como aba (a view da
+  que recusa mantém a child web view (a contingência), recortada como a
+  próxima seção diz. Uma página aberta como aba (a view da
   própria nota web) continua sendo uma child web view: ela enche o painel.
-- **B.** (depois, num pull request próprio, não decidido aqui) Um contêiner
-  nativo de recorte para a contingência. Precisa de uma exceção de `unsafe`,
-  que o `CLAUDE.md` proíbe sem uma registrada.
+- **B.** (decidido em 2026-10-15, *"A e B juntos"*; construído na próxima
+  seção) Um contêiner nativo de recorte para a contingência, sob a exceção a
+  `unsafe_code = "forbid"` que a [0029](0029-guardrails-in-ci.md) registra.
 
 Como o autor construiu A (`app/src-tauri/src/framing.rs`, `web.rs`,
 `app/ui/src/leaves/web.ts`):
@@ -368,8 +373,71 @@ Como o autor construiu A (`app/src-tauri/src/framing.rs`, `web.rs`,
   guard e ficam em branco até o mantenedor escolher como alargá-lo (o custo
   é o mesmo: o guard não distingue um frame da janela).
 
-Descartadas nesta revisão: nenhuma registrada além da B, que o mantenedor
-deixou para depois.
+Descartadas nesta revisão: nenhuma registrada.
+
+### Revisto de novo: a página recortada como um quadro é — decidido em 2026-10-15
+
+A web view filha guardava um defeito que um iframe não tem. Uma view
+nativa flutua sobre a página da janela, e o CSS não a recorta; então a
+view era encolhida para a parte visível do seu espaço, e quando a nota
+era rolada até o espaço ficar meio acima do painel, a página mostrava de
+novo o seu topo numa view mais curta, em vez de subir com a nota. O
+mantenedor, testando no app em 2026-10-15: *"era para funcionar como
+iframe normal… qual a dificuldade de fazer a página respeitar o tamanho
+da janela que ela foi renderizada"*. Os sites dele recusam todos ser
+enquadrados, medido naquele dia — olddragon.com.br
+(`X-Frame-Options: SAMEORIGIN`; `frame-ancestors 'self'
+*.owlbear.rodeo`), rolai.app (`DENY`), um Calibre-Web na rede local
+(`SAMEORIGIN`) — então continuam web views filhas.
+
+**Decidido pelo mantenedor em 2026-10-15**, na sessão: *"A e B
+juntos"*. A: um `<iframe>` de verdade onde o site permite, registrado na
+seção acima. B: para as páginas que
+continuam web views filhas, um contêiner nativo de recorte, sob uma
+exceção a `unsafe_code = "forbid"` confinada a um módulo, um arquivo
+pequeno por sistema, cada bloco `unsafe` com o seu comentário `SAFETY`,
+testada, num pull request só dela ([0029](0029-guardrails-in-ci.md),
+revisão do mesmo dia).
+
+**B, como construído** (`app/src-tauri/src/web_clip/`):
+
+- A janela manda dois retângulos (`WebPlace`): o **espaço** (`slot`), com
+  o tamanho e o lugar inteiros do quadro, que pode passar do painel e da
+  janela; e a parte **visível** (`visible`), onde o espaço aparece —
+  dentro de todo contêiner com rolagem, da janela, e fora da barra de
+  abas e da barra de status (`embedPlace`,
+  `app/ui/src/leaves/embedClip.ts`). Os campos de rolagem do primeiro
+  lugar saíram: nada que a janela manda rola a página.
+- O host põe a view da página dentro de um contêiner cujo quadro é a
+  parte visível, no deslocamento do espaço dentro dele, com o tamanho do
+  espaço: a página é montada para o espaço inteiro (o seu `100vh` é a
+  altura do espaço), sobe com a nota e só é desenhada dentro do
+  contêiner. A rolagem da nota nunca rola a página; a rolagem própria da
+  página e os cliques funcionam na parte que aparece.
+- macOS: um `NSView` com camada que recorta nos seus limites, na view de
+  conteúdo da janela logo acima de onde o wry pôs a página, com a
+  `WKWebView` da página levada para dentro; as coordenadas não invertidas
+  do AppKit e a escala da tela tratadas (`geometry.rs`, `macos.rs`).
+  Windows: a janela hospedeira do WebView2 levada para dentro de uma
+  janela filha nossa (`WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS`) na
+  parte visível, em pixels físicos da janela (`windows.rs`). Linux: a
+  API segura do GTK — a página da janela levada uma vez para um
+  `GtkOverlay`, cada página num `GtkLayout` posto por cima dela na parte
+  visível, sem `unsafe` (`linux.rs`).
+- A view de uma nota da web vai do mesmo jeito, com um retângulo só para
+  os dois.
+- Se um sistema não consegue montar o contêiner, aquela view volta ao
+  lugar de antes desta revisão — cortada na parte visível, mostrando o
+  topo da página — com uma linha WARN no log.
+- Uma janela levada para uma tela de outra escala mantém o seu tamanho
+  em CSS; a janela olha de novo quando a escala muda, e a página é posta
+  nos pixels da tela nova.
+
+O que só o app de verdade mostra — o recorte em cada sistema — está em
+`docs/reference/manual-checks.md`; nenhum teste sem janela alcança uma
+view nativa. O Linux ainda não tinha sido visto com web views filhas
+([0071](0071-linux-port.md)); o contêiner dele está construído e
+compilado, e espera essa verificação como o resto.
 
 ## Status
 
@@ -382,5 +450,6 @@ fica `[ABERTO]`: um aviso na hora de aprovar; o cache da web view
 depois de uma atualização foi decidido em 2026-10-07 (acima).
 Revisto em 2026-10-14 pelo mantenedor, na sessão ("A agora, B depois"): os
 embeds são `<iframe>`s quando o site permite ser embutido, child web views
-quando não; o contêiner nativo de recorte (B) fica para um pull request
-posterior.
+quando não. Revisto de novo em 2026-10-15, na sessão (*"A e B juntos"*): a
+web view filha desenhada como um quadro é, por um contêiner nativo de
+recorte (B); o mecanismo é do autor.

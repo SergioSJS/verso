@@ -70,7 +70,67 @@ with an approved embed of each, tall enough to scroll.
 - [ ] **The log** (`~/Library/Application Support/verso/logs/verso.log`):
   no `ERROR` while doing the above, and no "not allowed" for `embed_frameable`.
 
+### An embedded page clipped as a frame (feat/web-embed-native-clip, 2026-10-15)
+
+Needs the installed app: the page is a native child web view clipped by
+a native container (`app/src-tauri/src/web_clip`; ADR 0056 and ADR 0029,
+revised 2026-10-15), which neither the browser harness nor any test
+reaches. Do every item on **macOS**, on **Windows** and on **Linux**
+(X11 and Wayland; Linux had never shown a child web view, so start
+there by opening one). Use an approved embedded page from a site that
+refuses frames (olddragon.com.br, rolai.app, the Calibre-Web), tall
+enough to scroll inside, in a note long enough to scroll. Keep the log
+open (*Report a problem*, or `verso.log`): no line *cannot be clipped
+like a frame* should appear — one means that view fell back to the old
+cut, which says the page's top.
+
+- [ ] **Half above the pane**: scroll the note until the embed's top is
+  about half above the pane's top. The page's *middle* shows (not its
+  top again), cut at the pane's top edge; the tab bar and the toolbar
+  uncovered. Scroll on and back: the page moves with the note, line for
+  line, no jump, no flicker, and its first line comes back into view
+  when the box does.
+- [ ] **Half below the pane**: the embed's bottom below the pane: the
+  page's top shows, cut at the pane's bottom; the **status bar** (and
+  the bell in it) is not covered.
+- [ ] **At the status bar**: scroll so that the embed's bottom edge sits
+  just under the status bar's top: not a pixel of the page over the
+  status bar.
+- [ ] **Laid out for the whole box**: a page that sizes itself to its
+  window's height (a video player, a full-height app): at the half-way
+  case it is laid out for the whole box and shows its lower half — not
+  squeezed into the visible part.
+- [ ] **The page's own scroll and clicks**: with the embed half above the
+  pane, scroll inside the page with the wheel or the trackpad over its
+  visible part, click a link and a button there, type in a field: all
+  work. Then scroll the note (over the note, outside the page): the page
+  does not scroll inside, it only moves.
+- [ ] **A split pane**: split the window; the note in the right pane,
+  the embed cut by the divider: the page never over the other pane, the
+  divider or the side panels; open and close the left and right panels
+  with the page in view.
+- [ ] **Settings over it**: at the half-way case, open Settings (and the
+  palette): the page disappears; closed, it comes back at the same
+  place, still cut at the pane.
+- [ ] **Resizing the window**: drag a corner while the embed is half
+  above the pane: the page follows, cut where the pane ends, and never
+  drawn outside the window during the drag.
+- [ ] **Two screens of different scales** (a Retina screen and a 1×
+  monitor; on Windows 100 % and 150 %): move the window from one to the
+  other with the embed half-way: the page keeps its place and size, sharp
+  on each, with no strip of it outside the pane.
+- [ ] **Two embeds in one note**: both half visible at once (one cut at
+  the top, one at the bottom): each shows its own part, neither over the
+  other's slot nor the chrome; close the tab: both go, nothing left over
+  the window.
+- [ ] **A web note** (a note with a `url`, *Show page*): its page fills
+  its area as before, follows splits and resizes, hides under Settings.
+
 ### An embedded page cut by its pane (fix/web-embed-clip, 2026-10-15)
+
+*(The checks of the cut that came before the native clipping. Where the
+native clipping is built, its checks above replace these; an item here
+that says the page is laid out for the visible height no longer holds.)*
 
 Needs the installed app: the page is a native child web view, which the
 browser harness does not have. Do each on macOS and on Windows. Use a note

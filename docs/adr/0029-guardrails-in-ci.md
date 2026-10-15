@@ -87,6 +87,13 @@
   `app/ui/test/sanitize-cases.mjs`, run in node by `npm test` and in
   WebKit and Chromium by `npm run e2e` (item 16, 1e25bcf; seen failing
   first with a wrong assertion in both browsers).
+  2026-10-15 — one exception to `unsafe_code = "forbid"`, the maintainer's
+  decision in session (*"A e B juntos"*): the native clipping of an
+  embedded page ([0056](0056-embedded-web-pages.md), revised the same
+  day), `unsafe` confined to `app/src-tauri/src/web_clip/macos.rs` and
+  `windows.rs`, and a new workspace guardrail that holds it there,
+  `scripts/check-unsafe.mjs` (Decision, "One exception to
+  `unsafe_code = "forbid"`").
 
 ## Context
 
@@ -107,7 +114,7 @@ it. The two groups are separated below.
 | Guardrail | Prevents |
 |---|---|
 | `cargo fmt --check` | a formatting diff hiding a logic diff |
-| `unsafe_code = "forbid"` via `[workspace.lints]` | memory corruption |
+| `unsafe_code = "forbid"` via `[workspace.lints]`; one exception, held to two files by `scripts/check-unsafe.mjs` (revision of 2026-10-15, below) | memory corruption |
 | clippy with `-D warnings`; `unwrap_used` and `expect_used` denied, allowed only in tests | a panic taking the app down |
 | clippy `disallowed_methods` denying `std::fs` outside `verso-fs` (declared exceptions: index file in `verso-index`, config in `verso-core`) | access to the open folder outside `verso-fs` ([0026](0026-core-ui-contract-inviolable-rules.md), rule 5) |
 | `cargo-deny`: license allowlist compatible with the chosen license; advisories denied | incompatible or vulnerable dependency |
@@ -150,7 +157,8 @@ the billing page showed for the cycle, in a quota that counts each as ten.
 
 - **A pull request** runs every guardrail but the fuzzing in **one Linux
   job**, cheapest first, over one cache: the documents' mirror, the fixtures,
-  the npm licenses, the demo vault's check, the `std::fs` grep, `cargo fmt
+  the npm licenses, the demo vault's check, the `std::fs` grep, the `unsafe`
+  guard, `cargo fmt
   --check`, `cargo deny check`, clippy, the tests, the generated types, the
   UI's type check, bundle and unit tests, the WASM check. The window's
   end-to-end tests run on the author's machine only
@@ -508,6 +516,72 @@ and accepted as the one subprocess of the command line's link. The
 `[OPEN]` of [0054](0054-terminal-and-agents-from-the-app.md) on the same
 question is closed by this.
 
+### One exception to `unsafe_code = "forbid"` — revision of 2026-10-15
+
+**Why.** An embedded page whose site refuses to be framed
+(`X-Frame-Options`, `frame-ancestors`) is shown in a native child web view
+([0056](0056-embedded-web-pages.md)). The maintainer's own sites all
+refuse framing, measured on 2026-10-15: olddragon.com.br (`SAMEORIGIN`;
+`frame-ancestors 'self' *.owlbear.rodeo`), rolai.app (`DENY`), a
+Calibre-Web on the local network (`SAMEORIGIN`). A native view floats over
+the window's page, where CSS cannot clip it; unclipped, it could only be
+shrunk to the visible part of its box, which showed the page's top in a
+shorter view. The maintainer, trying it in the app: *"era para funcionar
+como iframe normal"* (it should work as a normal iframe). Clipping a
+native view needs the platform's own views — an `NSView` on macOS, a
+child window on Windows — and every call to them is `unsafe` in Rust. The
+workspace forbade it, and a `forbid` cannot be allowed in one file.
+
+**Decided by the maintainer on 2026-10-15**, in session, after being told
+the exception would be confined to one module, one small file per
+operating system, each block with a `SAFETY` comment, tested, in a pull
+request of its own: *"A e B juntos"* — A, a real `<iframe>` where a site
+allows framing; B, the native clipping, with this exception.
+
+**The exception, as built:**
+
+- The workspace keeps `unsafe_code = "forbid"` in
+  `[workspace.lints.rust]`, and every member but `verso-app` inherits it
+  unchanged.
+- `app/src-tauri/Cargo.toml` writes the workspace's lints out instead of
+  inheriting them — Cargo cannot inherit all of them but one — with
+  `unsafe_code = "deny"`, the workspace's clippy lints at the workspace's
+  levels, and two more, both `forbid`: `undocumented_unsafe_blocks` (every
+  `unsafe` block says in a `// SAFETY:` comment why it is sound) and
+  `multiple_unsafe_ops_per_block` (every block does one unsafe thing).
+- `#![allow(unsafe_code)]` is written in two files only:
+  `app/src-tauri/src/web_clip/macos.rs` and
+  `app/src-tauri/src/web_clip/windows.rs`. The module's `mod.rs`, its
+  geometry and Linux's `linux.rs` (GTK's safe API) have no `unsafe`.
+- What is `unsafe` there: on macOS, taking the `WKWebView` from the raw
+  pointer wry hands out, and asking a view for its superview; on Windows,
+  the Win32 and WebView2 calls. All run on the main thread inside Tauri's
+  `with_webview`, and no raw pointer or handle outlives the call: each
+  call finds the container again from the page's view.
+- **The guard, `scripts/check-unsafe.mjs`**, a new workspace guardrail.
+  It fails when a Rust file of the repository outside those two files
+  writes `unsafe` as code — a block, a function, an impl, a trait, an
+  extern block, an attribute — or names the `unsafe_code` lint (comments
+  and strings are not code); when the workspace's `unsafe_code` is not
+  `forbid`; when `verso-app`'s table is not the workspace's, with `deny`
+  and the two lints above; when another member does not inherit the
+  workspace's lints; and when a Cargo configuration turns the lint off.
+  Its tests are `scripts/check-unsafe.test.mjs`. It runs in the pull
+  request's Linux job, in `scripts/check.sh` and, on the host, in
+  `scripts/check-linux.sh` — Node and git only. **Seen failing** on
+  2026-10-15: an `unsafe` block planted in `web_clip/mod.rs` and in
+  `verso-fs`, an `allow(unsafe_code)` beside it, and `verso-app`'s
+  `unsafe_code` set to `allow` each turned it red; put back, green.
+
+What it costs, stated plainly: `unsafe` is the code the compiler cannot
+check, in a project whose review is mechanical (Context). The two files
+are small, they are read by the model that did not write them, and the
+clipping is checked on each system in the real app
+(`docs/reference/manual-checks.md`), since no test without a window
+reaches a native view. A second exception is a decision of its own, with
+a revision here; never an `#[allow]` in the middle of a diff
+(`CLAUDE.md` §3).
+
 ## Consequences
 
 - Phase 0 does not close while the **workspace** guardrails have not been seen
@@ -563,3 +637,6 @@ full scan it had before commit `4e99082`, which took 4 000 notes from 0.71 s to
 Accepted. On 2026-10-12 the maintainer ratified the provisional records
 of 2026-09-22 (the atomic write, FTS5) as built and tested, and left the
 sync-client test open as a manual check that gates nothing (Revisions).
+On 2026-10-15 the maintainer decided the one exception to
+`unsafe_code = "forbid"`, the native clipping of an embedded page, and its
+guard (Decision).
