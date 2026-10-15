@@ -413,6 +413,10 @@ export class NoteLeaf extends Leaf {
   declare buildToolbar: typeof editing.buildToolbar;
   declare insertTable: typeof editing.insertTable;
   declare takeFiles: typeof editing.takeFiles;
+  declare insertImageMenu: typeof editing.insertImageMenu;
+  declare embedFromFolder: typeof editing.embedFromFolder;
+  declare attachFromPicker: typeof editing.attachFromPicker;
+  declare attachImage: typeof editing.attachImage;
   override setDirty(d: boolean): void {
     super.setDirty(d);
     this.dirtyMark.hidden = !d;
