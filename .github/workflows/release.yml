@@ -282,6 +282,18 @@ jobs:
       - name: the UI bundle
         working-directory: app/ui
         run: npm ci && npm run build
+      # The server's code builds on Windows too (ADR 0075 item 2, revised
+      # 2026-10-15): webauthn-rs's OpenSSL is compiled from source (the
+      # `openssl` crate's `vendored` feature), and that runs Perl. The image
+      # ships Strawberry Perl; this step checks it and names it for
+      # openssl-src (OPENSSL_SRC_PERL). No NASM: openssl-src builds `no-asm`
+      # without it. No installer change: the binary is the same file.
+      - name: Strawberry Perl for the vendored OpenSSL
+        run: |
+          perl_exe="$(cygpath -u 'C:\Strawberry\perl\bin\perl.exe')"
+          test -x "$perl_exe" || { echo "::error::no Strawberry Perl on this image: install it (choco install strawberryperl)"; exit 1; }
+          "$perl_exe" -v | sed -n 2p
+          echo "OPENSSL_SRC_PERL=C:\\Strawberry\\perl\\bin\\perl.exe" >> "$GITHUB_ENV"
       # The command line first: the installer carries it beside the app
       # (Tauri's externalBin, named with the target), and "Add to Claude"
       # writes its path (ADR 0069, 2026-10-08). Given at bundle time, as
