@@ -75,6 +75,22 @@ pub fn node_is_secret(node: &Json) -> bool {
     all(node, "verso").any(flags_secret)
 }
 
+/// The secret callouts of a text node's `text`: none for any other node.
+/// A node's text is Markdown, so the note's projection applies to it as it
+/// stands (`verso_dialect::Secrets`); a file node's note is served by its
+/// own path, projected on its own.
+#[must_use]
+pub fn text_secrets(node: &Json) -> verso_dialect::Secrets {
+    if node.get("type").and_then(Json::as_str) != Some("text") {
+        return verso_dialect::Secrets::default();
+    }
+    all(node, "text")
+        .filter_map(Json::as_str)
+        .map(verso_dialect::Secrets::of)
+        .find(|s| !s.is_empty())
+        .unwrap_or_default()
+}
+
 fn id_of(node: &Json) -> Option<&str> {
     node.get("id").and_then(Json::as_str)
 }
@@ -112,13 +128,18 @@ pub struct Hidden {
     pub anonymous: bool,
     /// The groups only secret nodes carry.
     pub groups: BTreeSet<String>,
+    /// Whether some text node that is not secret holds a `> [!secret]`
+    /// callout: a Markdown card on a board is a Markdown card (ADR 0087,
+    /// decided 2026-10-15), so a reader is served the card's text as a
+    /// note's projection.
+    pub texts: bool,
 }
 
 impl Hidden {
     /// Whether nothing is hidden.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.nodes.is_empty() && !self.anonymous
+        self.nodes.is_empty() && !self.anonymous && !self.texts
     }
 }
 
@@ -131,6 +152,9 @@ pub fn hidden_of(root: &Json) -> Hidden {
     let mut shut: BTreeSet<&str> = BTreeSet::new();
     for node in &nodes {
         let secret = node_is_secret(node);
+        if !secret && !text_secrets(node).is_empty() {
+            hidden.texts = true;
+        }
         if secret {
             match id_of(node) {
                 Some(id) => {
@@ -212,6 +236,32 @@ fn hidden_drawing(drawing: &[Json], hidden: &Hidden) -> Vec<bool> {
     }
 }
 
+/// A text node's `text` as a note's projection has it. A card whose text
+/// is all secret stays, empty, with its place and its edges: a wholly
+/// secret note is served the same way (an empty note that exists), and
+/// removing the card instead would show the edges that ended at it
+/// ending nowhere, which says more.
+fn project_text(node: &mut Json) {
+    if node.get("type").and_then(Json::as_str) != Some("text") {
+        return;
+    }
+    let Json::Object(entries) = node else {
+        return;
+    };
+    for (key, value) in entries.iter_mut() {
+        if key != "text" {
+            continue;
+        }
+        if let Json::String(s) = value {
+            let secrets = verso_dialect::Secrets::of(&s.value);
+            if !secrets.is_empty() {
+                let projected = secrets.project(&s.value).into_owned();
+                *value = Json::String(crate::canvas::Str::new(projected));
+            }
+        }
+    }
+}
+
 /// `root` without the secret nodes and what belongs to them.
 fn project_root(root: &mut Json, hidden: &Hidden) {
     let Json::Object(entries) = root else {
@@ -219,7 +269,12 @@ fn project_root(root: &mut Json, hidden: &Hidden) {
     };
     for (key, value) in entries.iter_mut() {
         match (key.as_str(), value) {
-            ("nodes", Json::Array(items)) => items.retain(|n| !node_is_secret(n)),
+            ("nodes", Json::Array(items)) => {
+                items.retain(|n| !node_is_secret(n));
+                for node in items.iter_mut() {
+                    project_text(node);
+                }
+            }
             ("edges", Json::Array(items)) => items.retain(|e| {
                 let touches = |side: &str| {
                     all(e, side)
@@ -525,6 +580,48 @@ mod tests {
         assert!(!project(twice).contains("\"a\""));
         let anonymous = r#"{"nodes":[{"type":"text","text":"sigilo","verso":{"secret":true}}]}"#;
         assert!(!project(anonymous).contains("sigilo"));
+    }
+
+    const CARD: &str = "{\"nodes\":[\
+		{\"id\":\"a\",\"type\":\"text\",\"text\":\"aberto\\n\\n> [!secret]\\n> zqcallout\\n\\nfim\",\"x\":1,\"y\":2,\"width\":9,\"height\":9},\
+		{\"id\":\"b\",\"type\":\"text\",\"text\":\"> [!secret]\\n> tudo zqtudo\",\"x\":3,\"y\":4,\"width\":9,\"height\":9}\
+	],\"edges\":[{\"id\":\"e\",\"fromNode\":\"a\",\"toNode\":\"b\"}]}";
+
+    #[test]
+    fn a_secret_callout_in_a_text_card_is_hidden_as_in_a_note() {
+        assert!(has_secret(CARD));
+        let shown = project(CARD).into_owned();
+        assert!(
+            !shown.contains("zqcallout") && !shown.contains("zqtudo"),
+            "{shown}"
+        );
+        assert!(!shown.contains("[!secret]"), "{shown}");
+        let read = Canvas::parse(&shown).unwrap();
+        // Both cards stay, with their geometry and the edge between them;
+        // a card that was all secret is an empty card, as a note is an
+        // empty note (the projection says no more than a note's does).
+        assert_eq!(read.nodes().len(), 2);
+        let text = |i: usize| {
+            read.nodes()[i]
+                .get("text")
+                .and_then(Json::as_str)
+                .unwrap()
+                .to_owned()
+        };
+        assert_eq!(
+            text(0),
+            verso_dialect::project("aberto\n\n> [!secret]\n> zqcallout\n\nfim")
+        );
+        assert!(text(0).contains("aberto") && text(0).contains("fim"));
+        assert_eq!(text(1), "");
+        assert!(
+            shown.contains("\"fromNode\"") && shown.contains("\"x\": 3")
+                || shown.contains("\"x\":3")
+        );
+        assert_eq!(project(&shown), shown);
+        let split = index_split(CARD).unwrap();
+        assert!(split.secret.contains("zqcallout") && !split.public.contains("zqcallout"));
+        assert!(split.public.contains("aberto"));
     }
 
     #[test]

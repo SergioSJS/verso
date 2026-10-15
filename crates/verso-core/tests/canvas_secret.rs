@@ -20,6 +20,15 @@ struct Pin {
     secret: bool,
     kind: u8,
     groups: Vec<u8>,
+    /// An open text card that holds a `> [!secret]` callout (ADR 0087, a
+    /// Markdown card on a board is a Markdown card).
+    callout: bool,
+}
+
+impl Pin {
+    fn callout_in_text(&self) -> bool {
+        self.callout && !self.secret && self.kind == 0
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -37,13 +46,18 @@ struct Drawn {
 }
 
 fn board() -> impl Strategy<Value = (Vec<Pin>, Vec<Edge>, Vec<Drawn>)> {
-    let pin = (any::<bool>(), 0u8..3, prop::collection::vec(0u8..3, 0..3)).prop_map(
-        |(secret, kind, groups)| Pin {
+    let pin = (
+        any::<bool>(),
+        0u8..3,
+        prop::collection::vec(0u8..3, 0..3),
+        any::<bool>(),
+    )
+        .prop_map(|(secret, kind, groups, callout)| Pin {
             secret,
             kind,
             groups,
-        },
-    );
+            callout,
+        });
     prop::collection::vec(pin, 1..8).prop_flat_map(|pins| {
         let n = pins.len();
         let edge = (0..n, 0..n).prop_map(|(from, to)| Edge { from, to });
@@ -82,6 +96,9 @@ fn text_of(pins: &[Pin], edges: &[Edge], drawn: &[Drawn], compact: bool) -> Stri
             9_100_000 + i
         );
         let body = match p.kind {
+            0 if p.callout_in_text() => format!(
+                "\"type\":\"text\",\"text\":\"corpo-aberto-{i}\\n\\n> [!secret]\\n> CALLOUTSEG-{i}\\n\\nfim-{i}\""
+            ),
             0 => format!(
                 "\"type\":\"text\",\"text\":\"corpo-{}-{i}\"",
                 if p.secret { "SEGREDO" } else { "aberto" }
@@ -155,9 +172,9 @@ proptest! {
     fn a_reader_never_receives_a_secret_node((pins, edges, drawn) in board(), compact in any::<bool>()) {
         let text = text_of(&pins, &edges, &drawn, compact);
         let shown = project(&text).into_owned();
-        let any_secret = pins.iter().any(|p| p.secret);
+        let any_secret = pins.iter().any(|p| p.secret || p.callout_in_text());
         prop_assert_eq!(has_secret(&text), any_secret);
-        for word in ["pin-S-", "SEGREDO", "Cripta", "segredo"] {
+        for word in ["pin-S-", "SEGREDO", "Cripta", "segredo", "CALLOUTSEG"] {
             prop_assert!(!shown.contains(word), "{} reached the reader: {}", word, shown);
         }
         for (i, p) in pins.iter().enumerate() {
@@ -177,7 +194,22 @@ proptest! {
         let whole = Canvas::parse(&text).unwrap();
         let read = Canvas::parse(&shown).unwrap();
         let open: Vec<_> = whole.nodes().iter().filter(|n| !n.get("verso").and_then(|v| v.get("secret")).is_some()).cloned().collect();
-        prop_assert_eq!(read.nodes().to_vec(), open);
+        let read_nodes = read.nodes().to_vec();
+        prop_assert_eq!(read_nodes.len(), open.len());
+        for (got, was) in read_nodes.iter().zip(&open) {
+            let text = was.get("text").and_then(verso_core::canvas::Json::as_str).unwrap_or("");
+            if text.contains("[!secret]") {
+                // The card stays, its geometry as it was, its text a note's
+                // projection (the callout's lines gone, the rest kept).
+                let shown_text = got.get("text").and_then(verso_core::canvas::Json::as_str).unwrap_or("");
+                prop_assert!(shown_text.contains("corpo-aberto-") && shown_text.contains("fim-"));
+                for key in ["id", "x", "y", "width", "height"] {
+                    prop_assert_eq!(got.get(key), was.get(key));
+                }
+            } else {
+                prop_assert_eq!(got, was);
+            }
+        }
         // Every edge that touches no secret node, as it was.
         let edges_of = |c: &Canvas| match c.root.get("edges") { Some(verso_core::canvas::Json::Array(a)) => a.clone(), _ => Vec::new() };
         let kept = edges_of(&read);
@@ -190,6 +222,10 @@ proptest! {
         let split = index_split(&text).unwrap();
         prop_assert_eq!(split.nodes.len(), pins.iter().filter(|p| p.secret).count());
         prop_assert!(!split.public.contains("SEGREDO"));
+        prop_assert!(!split.public.contains("CALLOUTSEG"));
+        if pins.iter().any(Pin::callout_in_text) {
+            prop_assert!(split.secret.contains("CALLOUTSEG"));
+        }
     }
 
     #[test]

@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.43
+# Spec do dialeto do Verso — v0.44
 
-- Versão: v0.43 · 2026-10-15
+- Versão: v0.44 · 2026-10-15
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -541,6 +541,13 @@ Como o Verso estende o JSON Canvas e persiste o board: `DECIDIDO` em
    - Uma imagem PNG grande é desenhada de ladrilhos do próprio Verso,
      cortados uma vez e guardados fora da pasta; o arquivo não tem nenhum
      ladrilho.
+7. Um card de Markdown num board é um card de Markdown ([ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md),
+   decidido pelo mantenedor em 2026-10-15): um callout `> [!secret]` dentro
+   do `text` de um nó `text` fica escondido de quem só pode ler, pela mesma
+   projeção de uma nota (§5.8), em toda saída que serve o board. Um card cujo
+   texto fica vazio permanece, vazio, com seu lugar e suas arestas. Um
+   arquivo `.txt`, e qualquer arquivo que não é Markdown, não é projetado:
+   é servido como está.
 
 ### 5.12 Headings
 
@@ -1458,3 +1465,4 @@ ser escolhido.
 | v0.41 | 2026-10-14 | As fixtures `fixtures/code/dice-inline`, `fixtures/prose/what-is-prose` e `fixtures/schema/infobox` **aprovadas pelo mantenedor** em sessão (*"Aprovo as 3"*), e com elas a chave `prose` do schema (§4.1, §4.9) da v0.40; a marca de rascunho delas removida. `code/dice-inline` observada no Obsidian 1.14.4 pelo CLI dele, sem o plugin Dice Roller, antes de a aprovação ser registrada: os links e o bloco dela são os do Obsidian, e o `observed:` dela diz como. Nada mais muda. |
 | v0.42 | 2026-10-14 | O schema ganha `reader` (§4.1, §4.6): a nota como um UniVerso a serve a um leitor, a projeção da Q9 e do [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md) item 3. A fixture rascunhada `fixtures/callout/secret`, com o PR que constrói o ADR 0087, espera a aprovação do mantenedor; o parágrafo da Q9 o diz. Nenhuma decisão mudou |
 | v0.43 | 2026-10-15 | §5.11 item 5 e um novo item 6: mapas no board ([ADR 0090](../adr/0090-maps-on-the-board.md)) — o `verso` de um nó ganha `map`, `pin` e `secret`, e um nó secreto fica de fora do que um leitor recebe. Sem fixture: o schema das fixtures (§4) descreve uma nota Markdown, e um canvas não é parseado pelo dialeto; a guarda é o teste de propriedade da projeção no núcleo. Nenhuma questão fechada |
+| v0.44 | 2026-10-15 | §5.11 item 7: um callout `> [!secret]` dentro do nó de texto de um board fica escondido dos leitores como numa nota, e um `.txt` (qualquer arquivo que não é Markdown) não é projetado ([ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md), a decisão do mantenedor sobre o achado I3). Sem fixture (um canvas não é parseado pelo dialeto); a guarda é o teste de propriedade do núcleo e a sonda de leitor do servidor. Nenhuma questão fechada |

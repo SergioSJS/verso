@@ -262,6 +262,13 @@ impl Workspace {
         let (content, links) = match canvas::Canvas::parse(&text) {
             Ok(board) => {
                 let lines = LineStarts::of(&text);
+                // A link written inside a `> [!secret]` callout of a text
+                // card is as secret as the callout (decided 2026-10-15).
+                let callouts: Vec<verso_dialect::Secrets> = board
+                    .nodes()
+                    .iter()
+                    .map(canvas_secret::text_secrets)
+                    .collect();
                 let links = board
                     .links()
                     .into_iter()
@@ -270,7 +277,9 @@ impl Workspace {
                         verso_index::SourceLink {
                             embed: l.embed,
                             exact: l.place == canvas::Place::FileNode,
-                            secret: split.as_ref().is_some_and(|s| s.nodes.contains(&l.node)),
+                            secret: split.as_ref().is_some_and(|s| s.nodes.contains(&l.node))
+                                || matches!(l.place, canvas::Place::Text { start, end }
+                                    if callouts.get(l.node).is_some_and(|c| c.touches(start..end))),
                             target: l.target,
                             heading: l.heading,
                             block: l.block,
