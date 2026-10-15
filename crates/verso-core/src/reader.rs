@@ -38,7 +38,63 @@ fn fnv(bytes: &[u8]) -> u64 {
     h
 }
 
+/// The longest file whose bytes are read to look for a secret block when
+/// it has no note's name: a note is served to a reader up to this.
+const NOTE_MOST: u64 = 16 * 1024 * 1024;
+
 impl Workspace {
+    /// Whether the file at `key`, which has no note's name, is a note
+    /// under another: a symlink (or a directory on its way) that ends at a
+    /// note, or a hard link, whose other name could be one. What a reader
+    /// reads of it is judged by its bytes, never by the name it is asked
+    /// under (ADR 0087 item 4).
+    fn note_by_another_name(&self, key: &str) -> bool {
+        self.root
+            .resolved_name(Path::new(key))
+            .is_some_and(|real| is_note(&real.to_string_lossy()))
+            || self.root.hard_linked(Path::new(key))
+    }
+
+    /// Whether `relative` names a note for what a reader is told of it: by
+    /// its name, or by the file it really is (a link to a note, a hard
+    /// link). A path confinement refuses is none.
+    #[must_use]
+    pub fn reader_names_note(&self, relative: &str) -> bool {
+        is_note(relative)
+            || self
+                .confined(relative)
+                .is_ok_and(|key| is_note(&key) || self.note_by_another_name(&key))
+    }
+
+    /// Whether a file must not be sent to a reader as it is on disk, a
+    /// piece at a time: it is a note under another name (see
+    /// [`Self::note_by_another_name`]) and holds a secret block — a link to
+    /// a note always does, for what its bytes hold is not looked for.
+    pub fn reader_may_not_stream(&mut self, relative: &str) -> bool {
+        let Ok(key) = self.entry_key(relative) else {
+            return false;
+        };
+        if is_note(&key) {
+            return true;
+        }
+        let linked = self
+            .root
+            .resolved_name(Path::new(&key))
+            .is_some_and(|real| is_note(&real.to_string_lossy()));
+        if linked {
+            return true;
+        }
+        if !self.root.hard_linked(Path::new(&key)) {
+            return false;
+        }
+        match self.read_file(&key) {
+            Ok(bytes) if (bytes.len() as u64) <= NOTE_MOST => {
+                !verso_dialect::Secrets::of(&String::from_utf8_lossy(&bytes)).is_empty()
+            }
+            _ => false,
+        }
+    }
+
     /// The revision a reader is given of a note whose public text is
     /// `shown`: of the projection — its length, its hash, and when the
     /// index last saw it change — so a change only inside a secret block
@@ -63,7 +119,7 @@ impl Workspace {
     /// its own headings, ids, HTML and properties.
     pub fn reader_read_note(&mut self, note: &str) -> Result<NoteText, CoreError> {
         let path = self.source_key(note)?;
-        if !is_note(&path) {
+        if !is_note(&path) && !self.note_by_another_name(&path) {
             return self.read_note(note);
         }
         let handle = self
@@ -142,7 +198,7 @@ impl Workspace {
     /// [`Self::read_text`] as a reader receives it: a note's projection.
     pub fn reader_read_text(&mut self, relative: &str) -> Result<TextFile, CoreError> {
         let key = self.entry_key(relative)?;
-        if !is_note(&key) && !is_note(relative) {
+        if !is_note(&key) && !is_note(relative) && !self.note_by_another_name(&key) {
             return self.read_text(relative);
         }
         let handle = self
@@ -177,7 +233,7 @@ impl Workspace {
         let bytes = self.read_file(relative)?;
         // By the name asked and by the name confinement reads.
         let confined = self.confined(relative)?;
-        if !is_note(relative) && !is_note(&confined) {
+        if !is_note(relative) && !is_note(&confined) && !self.note_by_another_name(&confined) {
             return Ok(bytes);
         }
         let text = String::from_utf8_lossy(&bytes);
