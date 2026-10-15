@@ -81,10 +81,16 @@ point 13).
 2. The welcome note shows the "Comece pelo tour" callout with its two links.
    Level: S (the links), H.
 3. Import again into a folder that holds an earlier version's demo. Expect:
-   what is missing is created, a file with other content is kept as it is
-   and named, and the app's log has `import demo:` lines saying how many
-   were created, kept and failed. Level: H; E: `import.spec.mjs`. Caught:
-   an import that wrote nothing said "imported" and left no trace.
+   what is missing is created, a file that is the untouched copy of an
+   earlier version's demo (its bytes are one the demo carries the hash of)
+   is replaced by the current one, a file with other content — the
+   person's edit — is kept as it is and named, the toast and the status
+   bar say how many were created, updated and kept, and the app's log has
+   `import demo:` lines saying how many were created, updated, kept and
+   failed. Level: H; E: `import.spec.mjs`, `test/demoImport.test.mjs`.
+   Caught: an import that wrote nothing said "imported" and left no trace;
+   a folder imported from an older demo never got the tutorial's new
+   sections ("0 created, 28 kept").
 
 ## 2. The tour
 

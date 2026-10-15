@@ -38,5 +38,29 @@ test("importing again over an earlier version's demo adds what is missing and na
   await app.page.locator(".confirm-box button.save").click();
   // What happened is in the app's log, for a report.
   const log = await app.page.evaluate(() => window.__harness.log.filter((l) => l.message.startsWith("import demo:")).map((l) => l.message));
-  expect(log).toEqual(["import demo: asked", `import demo: ${DEMO_FILES.length} files`, `import demo: ${DEMO_FILES.length - 1} created, 1 kept, 0 failed`]);
+  expect(log).toEqual(["import demo: asked", `import demo: ${DEMO_FILES.length} files`, `import demo: ${DEMO_FILES.length - 1} created, 0 updated, 1 kept, 0 failed`]);
+});
+
+test("importing over an untouched older demo note updates it and says how many were created, updated and kept", async ({ app }) => {
+  await app.open("?vault=empty");
+  // The first welcome note ever shipped (git 8c8df942): the person's
+  // untouched copy of an older tutorial, not an edit. The folder also holds
+  // a note of the person's own under a demo file's name.
+  const old = readFileSync(new URL("./data/welcome-8c8df942.md", import.meta.url), "utf8");
+  const want = Buffer.from(demo.slice(demo.indexOf('"path": "00 - Bem-vindo ao Verso.md"')).match(/"b64": "([^"]*)"/)?.[1] ?? "", "base64").toString("utf8");
+  expect(old).not.toBe(want);
+  await app.writeOutside("00 - Bem-vindo ao Verso.md", old);
+  await app.writeOutside("01 - Guia de Markdown e Sintaxe.md", "# O meu guia\n");
+  await app.folderChanged(["00 - Bem-vindo ao Verso.md", "01 - Guia de Markdown e Sintaxe.md"], true);
+  await app.command("Importar cofre de exemplo");
+  await app.page.locator(".confirm-box button.save").click();
+  await expect(app.page.locator("#status")).toContainText("1 atualizado");
+  // The edit is named, the old copy is not: it was replaced.
+  await expect(app.page.locator(".confirm-box")).toContainText("01 - Guia de Markdown e Sintaxe.md");
+  await expect(app.page.locator(".confirm-box")).not.toContainText("00 - Bem-vindo ao Verso.md");
+  await app.page.locator(".confirm-box button.save").click();
+  await expect.poll(() => app.file("00 - Bem-vindo ao Verso.md")).toBe(want);
+  expect(await app.file("01 - Guia de Markdown e Sintaxe.md")).toBe("# O meu guia\n");
+  const log = await app.page.evaluate(() => window.__harness.log.filter((l) => l.message.startsWith("import demo:")).map((l) => l.message));
+  expect(log.at(-1)).toBe(`import demo: ${DEMO_FILES.length - 2} created, 1 updated, 1 kept, 0 failed`);
 });
