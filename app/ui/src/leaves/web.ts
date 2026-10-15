@@ -6,6 +6,7 @@ import { commands } from "../bindings";
 import { can } from "../can";
 import { framedPage } from "../screen/framed";
 import { overlayOpen } from "../layout/drag";
+import { embedPlace, type Rect } from "./embedClip";
 import { NoteLeaf } from "./note";
 
 /* The web views of open web notes follow their hosts only while
@@ -22,7 +23,7 @@ export function syncWebViews(): void {
  * view follows its box frame by frame while something moves, clipped to
  * the pane it scrolls in, hidden with the overlays, closed when the box
  * leaves the DOM. */
-export type EmbedView = { label: string | null; opening: boolean; last: string; still: number };
+export type EmbedView = { label: string | null; opening: boolean; last: string; still: number; scrolled: number; scrolledX: number };
 export const embedViews = new Map<HTMLElement, EmbedView>();
 export let embedRaf = 0;
 export function syncEmbedViews(): void {
@@ -52,40 +53,33 @@ export function tickEmbedViews(): void {
   for (const el of hosts) {
     let v = embedViews.get(el);
     if (!v) {
-      v = { label: null, opening: false, last: "", still: 0 };
+      v = { label: null, opening: false, last: "", still: 0, scrolled: 0, scrolledX: 0 };
       embedViews.set(el, v);
     }
     const url = el.dataset["embedWeb"] ?? "";
-    // Clipped to the nearest scrolling ancestor and to the window: a
-    // child view floats over everything, so past an edge it is cut,
-    // not carried over the pane's chrome.
-    let pane: HTMLElement | null = el.parentElement;
-    while (pane && !/(auto|scroll|hidden)/.test(getComputedStyle(pane).overflowY)) pane = pane.parentElement;
-    const r = el.getBoundingClientRect();
-    let left = r.left;
-    let top = r.top;
-    let right = r.right;
-    let bottom = r.bottom;
-    if (pane) {
-      const c = pane.getBoundingClientRect();
-      left = Math.max(left, c.left);
-      top = Math.max(top, c.top);
-      right = Math.min(right, c.right);
-      bottom = Math.min(bottom, c.bottom);
+    // Cut to what shows: every ancestor that clips the box, the window,
+    // and the chrome around the panes. A child view floats over
+    // everything, so it keeps only the visible part and its page is
+    // scrolled by the part cut off above/left (embedClip.ts).
+    const clips: Rect[] = [];
+    for (let p = el.parentElement; p; p = p.parentElement) {
+      const cs = getComputedStyle(p);
+      if (/(auto|scroll|hidden|clip)/.test(cs.overflowY) || /(auto|scroll|hidden|clip)/.test(cs.overflowX)) clips.push(p.getBoundingClientRect());
     }
-    left = Math.max(left, 0);
-    top = Math.max(top, 0);
-    right = Math.min(right, window.innerWidth);
-    bottom = Math.min(bottom, window.innerHeight);
-    const w = right - left;
-    const hgt = bottom - top;
-    const visible = el.isConnected && el.offsetParent !== null && w > 1 && hgt > 1 && !overlayOpen();
+    const avoid = Array.from(document.querySelectorAll<HTMLElement>(".status-bar, .tabs"))
+      .filter((c) => c.offsetParent !== null || getComputedStyle(c).position === "fixed")
+      .map((c) => c.getBoundingClientRect());
+    const place = embedPlace(el.getBoundingClientRect(), clips, avoid, { width: window.innerWidth, height: window.innerHeight });
+    const { left, top, width: w, height: hgt } = place;
+    const visible = el.isConnected && el.offsetParent !== null && place.visible && !overlayOpen();
     if (!v.label) {
       if (visible && !v.opening && url) {
         v.opening = true;
         const want = v;
-        void commands.webOpen(url, left, top, Math.max(1, w), Math.max(1, hgt)).then((res) => {
+        void commands.webOpen(url, { x: left, y: top, w: Math.max(1, w), h: Math.max(1, hgt), scrollX: place.hiddenLeft, scrollY: place.hiddenTop }).then((res) => {
           want.opening = false;
+          want.scrolled = place.hiddenTop;
+          want.scrolledX = place.hiddenLeft;
           if (res.status !== "ok") {
             el.removeAttribute("data-embed-web");
             return;
@@ -101,12 +95,19 @@ export function tickEmbedViews(): void {
       }
       busy = true;
     } else {
-      const key = visible ? `1|${Math.round(left)}|${Math.round(top)}|${Math.round(w)}|${Math.round(hgt)}` : "0";
+      const key = visible ? `1|${Math.round(left)}|${Math.round(top)}|${Math.round(w)}|${Math.round(hgt)}|${Math.round(place.hiddenLeft)}|${Math.round(place.hiddenTop)}` : "0";
       if (key !== v.last) {
         v.last = key;
         v.still = 0;
         const label = v.label;
-        if (visible) void commands.webBounds(label, left, top, w, hgt).then(() => commands.webVisible(label, true));
+        if (visible) {
+          // The page follows by the change in what is cut off above.
+          const dx = place.hiddenLeft - v.scrolledX;
+          const dy = place.hiddenTop - v.scrolled;
+          v.scrolledX = place.hiddenLeft;
+          v.scrolled = place.hiddenTop;
+          void commands.webBounds(label, { x: left, y: top, w, h: hgt, scrollX: dx, scrollY: dy }).then(() => commands.webVisible(label, true));
+        }
         else void commands.webVisible(label, false);
       } else v.still++;
       if (v.still < 10) busy = true;

@@ -222,7 +222,7 @@ export async function openWeb(this: NoteLeaf): Promise<void> {
   this.webOpening = true;
   const url = this.webUrl;
   const r = this.webHost.getBoundingClientRect();
-  const res = await commands.webOpen(url, r.left, r.top, Math.max(1, r.width), Math.max(1, r.height));
+  const res = await commands.webOpen(url, { x: r.left, y: r.top, w: Math.max(1, r.width), h: Math.max(1, r.height), scrollX: 0, scrollY: 0 });
   this.webOpening = false;
   if (res.status !== "ok") return fail(res.error);
   // The host names the view. The tab may have closed, or moved to
@@ -253,7 +253,7 @@ export function tickWeb(this: NoteLeaf): void {
   if (key !== this.webLast) {
     this.webLast = key;
     this.webStill = 0;
-    if (visible) void commands.webBounds(label, r.left, r.top, r.width, r.height).then(() => commands.webVisible(label, true));
+    if (visible) void commands.webBounds(label, { x: r.left, y: r.top, w: r.width, h: r.height, scrollX: 0, scrollY: 0 }).then(() => commands.webVisible(label, true));
     else void commands.webVisible(label, false);
   } else this.webStill++;
   // Still for a few frames: a transition or a drag has ended.

@@ -167,23 +167,57 @@ fn http_url(url: &str) -> Result<tauri::Url, ContractError> {
     Ok(parsed)
 }
 
+/// Where a web view goes (logical pixels from the window's top-left) and
+/// how far its page is scrolled: `scroll_x`/`scroll_y` is, for `web_open`,
+/// how far the page is scrolled once it has loaded (the first load only);
+/// for `web_bounds`, the change in it since the last call. Zero for a web
+/// note's own view, which shows its page whole.
+#[derive(Debug, Clone, Copy, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct WebPlace {
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+    scroll_x: f64,
+    scroll_y: f64,
+}
+
+/// The script that scrolls a page by `(dx, dy)`: only two finite numbers
+/// go into it, nothing the page or the UI wrote as text.
+fn scroll_script(dx: f64, dy: f64) -> Option<String> {
+    (dx.is_finite() && dy.is_finite() && (dx != 0.0 || dy != 0.0))
+        .then(|| format!("window.scrollBy({dx}, {dy})"))
+}
+
 /// A web page inside the window, as a child web view over the area the
 /// UI names (logical pixels from the window's top-left): the browser
 /// behind a tab whose note holds the address. Only `http(s)`; the page
 /// cannot navigate anywhere else, nor open windows. Answers with the
 /// label the other `web_*` commands take.
+///
+/// An embed partly scrolled out of its note is cut to what shows, and its
+/// page must show the same part: `scroll_x`/`scroll_y` is how far the page
+/// is scrolled once it has loaded (the first load only, not the pages the
+/// embed later navigates to).
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn web_open<R: tauri::Runtime>(
     window: tauri::Window<R>,
     state: State<'_, App>,
     url: String,
-    x: f64,
-    y: f64,
-    w: f64,
-    h: f64,
+    place: WebPlace,
 ) -> Result<String, ContractError> {
+    let WebPlace {
+        x,
+        y,
+        w,
+        h,
+        scroll_x,
+        scroll_y,
+    } = place;
     let url = http_url(&url)?;
+    let first_load = std::sync::atomic::AtomicBool::new(true);
     let label = next_web_label();
     // The window that asks hosts the page: the main one, or a note's own.
     let y = y + chrome_offset(&window);
@@ -192,7 +226,15 @@ pub(crate) async fn web_open<R: tauri::Runtime>(
             tauri::webview::WebviewBuilder::new(&label, tauri::WebviewUrl::External(url))
                 .user_agent(WEB_USER_AGENT)
                 .on_navigation(web_only)
-                .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny),
+                .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny)
+                .on_page_load(move |wv, payload| {
+                    if matches!(payload.event(), tauri::webview::PageLoadEvent::Finished)
+                        && first_load.swap(false, std::sync::atomic::Ordering::Relaxed)
+                        && let Some(script) = scroll_script(scroll_x, scroll_y)
+                    {
+                        let _ = wv.eval(script);
+                    }
+                }),
             tauri::LogicalPosition::new(x, y),
             tauri::LogicalSize::new(w.max(1.0), h.max(1.0)),
         )
@@ -201,22 +243,34 @@ pub(crate) async fn web_open<R: tauri::Runtime>(
     Ok(label)
 }
 
-/// Move and size a web page's view to follow its tab.
+/// Move and size a web page's view to follow its tab, and scroll its page
+/// by `(scroll_x, scroll_y)` — the change in how much of the page lies
+/// above/left of the view (an embed cut at its pane's top shows the page
+/// from there, as an iframe would). Zero for a web note's own view.
 #[tauri::command]
 #[specta::specta]
 pub(crate) fn web_bounds<R: tauri::Runtime>(
     window: tauri::Window<R>,
     state: State<'_, App>,
     label: String,
-    x: f64,
-    y: f64,
-    w: f64,
-    h: f64,
+    place: WebPlace,
 ) -> Result<(), ContractError> {
+    let WebPlace {
+        x,
+        y,
+        w,
+        h,
+        scroll_x,
+        scroll_y,
+    } = place;
     let wv = own_web_view(&window, &state, &label)?;
     let y = y + chrome_offset(&window);
     wv.set_position(tauri::LogicalPosition::new(x, y))
         .and_then(|()| wv.set_size(tauri::LogicalSize::new(w.max(1.0), h.max(1.0))))
+        .and_then(|()| match scroll_script(scroll_x, scroll_y) {
+            Some(script) => wv.eval(script),
+            None => Ok(()),
+        })
         .map_err(|e| failed(e.to_string()))
 }
 
@@ -279,4 +333,20 @@ pub(crate) fn web_url<R: tauri::Runtime>(
         .url()
         .map(|u| u.to_string())
         .map_err(|e| failed(e.to_string()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::scroll_script;
+
+    #[test]
+    fn the_scroll_script_carries_two_finite_numbers_or_nothing() {
+        assert_eq!(
+            scroll_script(0.0, 120.5).as_deref(),
+            Some("window.scrollBy(0, 120.5)")
+        );
+        assert_eq!(scroll_script(0.0, 0.0), None);
+        assert_eq!(scroll_script(f64::NAN, 1.0), None);
+        assert_eq!(scroll_script(1.0, f64::INFINITY), None);
+    }
 }
