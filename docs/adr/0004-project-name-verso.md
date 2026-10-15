@@ -11,6 +11,9 @@
   maintainer, accepting the ADR audit in session:
   *"Ajuste tudo que precisar. Está aprovado os ADRs"*: the package, crate
   and npm name is **`versomd`**.
+  2026-10-15 — the maintainer decided **not to pursue the `versomd` name on
+  GitHub**: the repository stays at `SergioSJS/verso`, and the dormant
+  `versomd` user is not asked of GitHub's support (roadmap V.12).
 
 ## Context
 
