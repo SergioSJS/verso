@@ -16,7 +16,10 @@
 # The repository assumes one thing: an SSH host named verso-win in your
 # ~/.ssh/config (VERSO_WIN_HOST names another), reachable with a key, running
 # Windows 10 or 11 with OpenSSH and Windows PowerShell as the SSH shell, the
-# MSVC Build Tools, rustup, Node 22 and Git with core.autocrlf false. How that
+# MSVC Build Tools, rustup, Node 22, Strawberry Perl (OpenSSL is compiled
+# from source for the server, ADR 0075 item 2, revised 2026-10-15; the script
+# names C:\Strawberry\perl\bin\perl.exe for it) and Git with core.autocrlf
+# false. How that
 # machine is built stays outside the repository. Exclude VERSO_WIN_DIR from
 # Windows Defender: scanning every object file makes cargo several times
 # slower.
@@ -129,13 +132,14 @@ fi
 # The tree goes without its .git: the build is told the commit, or the
 # app's About and log say "unknown" (app/src-tauri/build.rs).
 commit=$(git rev-parse --short=7 HEAD 2>/dev/null || echo unknown)
-cargo_env="Set-Location '$base/src'; \$env:CARGO_TARGET_DIR='$base/target'; \$env:VERSO_COMMIT='$commit'"
-# Without the server, which is not built for Windows (ADR 0075 item 2;
-# crates/verso-cli/Cargo.toml).
+cargo_env="Set-Location '$base/src'; \$env:CARGO_TARGET_DIR='$base/target'; \$env:VERSO_COMMIT='$commit'; \$env:OPENSSL_SRC_PERL='C:\\Strawberry\\perl\\bin\\perl.exe'"
+# The whole workspace, the server included (ADR 0075 item 2, revised
+# 2026-10-15). OPENSSL_SRC_PERL names Strawberry Perl for openssl-src, not
+# the Perl of Git for Windows that is also on a PATH.
 step "cargo clippy -D warnings (Windows)" on_host \
-  "$cargo_env; cargo clippy --workspace --exclude verso-server --all-targets --all-features --locked -- -D warnings"
+  "$cargo_env; cargo clippy --workspace --all-targets --all-features --locked -- -D warnings"
 step "cargo test (Windows)" on_host \
-  "$cargo_env; cargo test --workspace --exclude verso-server --all-features --locked --no-fail-fast"
+  "$cargo_env; cargo test --workspace --all-features --locked --no-fail-fast"
 
 if [ "$bundle" = 1 ]; then
   # The bundle's settings as a file (a JSON argument would not survive
