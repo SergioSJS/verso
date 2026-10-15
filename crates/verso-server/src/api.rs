@@ -31,6 +31,9 @@ pub async fn state(ctx: Ctx) -> ApiResult<Response> {
         "contract": known.then_some(&ctx.server.contract),
         "secure": ctx.peer.secure,
         "web": ctx.server.config.web,
+        // "This app is a server" (ADR 0096): there is no sign-in here, only
+        // pairing; the page says so instead of asking for a password.
+        "local": ctx.server.local.is_some(),
         "mail": ctx.server.mail.get().is_some(),
         "setup": setup,
         "account": ctx.who.as_ref().map(|w| account_json(&w.account)),

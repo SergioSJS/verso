@@ -39,13 +39,24 @@ pub fn acceptor(cert: &Path, key: &Path) -> Result<TlsAcceptor, String> {
     }
     let key = PrivateKeyDer::from_pem_file(key)
         .map_err(|e| format!("VERSO_TLS_KEY_FILE ({}): {e}", key.display()))?;
+    acceptor_from(chain, key)
+        .map_err(|e| format!("VERSO_TLS_CERT_FILE and VERSO_TLS_KEY_FILE: {e}"))
+}
+
+/// The acceptor for a certificate chain and key already in memory: the
+/// app's own certificate, kept in its database rather than in files
+/// ("this app is a server", ADR 0096 items 5 and 16).
+pub fn acceptor_from(
+    chain: Vec<CertificateDer<'static>>,
+    key: PrivateKeyDer<'static>,
+) -> Result<TlsAcceptor, String> {
     let provider = Arc::new(tokio_rustls::rustls::crypto::ring::default_provider());
     let mut config = tokio_rustls::rustls::ServerConfig::builder_with_provider(provider)
         .with_safe_default_protocol_versions()
         .map_err(|e| e.to_string())?
         .with_no_client_auth()
         .with_single_cert(chain, key)
-        .map_err(|e| format!("VERSO_TLS_CERT_FILE and VERSO_TLS_KEY_FILE: {e}"))?;
+        .map_err(|e| e.to_string())?;
     config.alpn_protocols = vec![b"http/1.1".to_vec()];
     Ok(TlsAcceptor::from(Arc::new(config)))
 }
