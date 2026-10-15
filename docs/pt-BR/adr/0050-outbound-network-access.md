@@ -103,4 +103,14 @@ atualização) e pela [0056](0056-embedded-web-pages.md) (páginas web
 embutidas). Revisado em 2026-10-09 pelo
 [0073](0073-self-hosted-server-first.md) e pelo item 7 do
 [0075](0075-server-packaging-and-storage.md) (o tráfego de um servidor, e
-a checagem de atualização dele).
+a checagem de atualização dele). Revisado em 2026-10-15 pelo
+[0096](0096-this-app-is-a-server.md) item 8 (uma correção de escopo, não
+uma mudança de decisão): o "mDNS na rede local" da revisão de 2026-10-09
+é multicast, que não é "um endereço que o usuário escreveu numa
+configuração". "Este app é um servidor" pode se anunciar por mDNS
+(`_verso-local._tcp`) **só enquanto o diálogo de pareamento está
+aberto**, com um nome de instância de quatro dígitos hexadecimais
+aleatórios e um registro com a versão do protocolo e a porta, e escuta
+conexões de entrada nos endereços privados da máquina, só enquanto a
+pessoa o ligou; nada mais da 0050 muda: o núcleo não alcança rede
+nenhuma.

@@ -1134,6 +1134,25 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
     23 caem nos títulos. Nível: H; R: `scripts/demo-vault.mjs check`
     (links e títulos do vault).
 
+15. Este app é um servidor (nota 22, *Parear o Celular com o Seu
+    Computador*; [ADR 0096](../adr/0096-this-app-is-a-server.md)):
+    *Ajustes* › *Este app é um servidor* oferece as pastas abertas neste
+    computador, nenhuma marcada; a que também sincroniza com um servidor
+    não pode ser marcada. Sem nada marcado, *Ligar o servidor* recusa e
+    diz; marcada, a primeira vez explica o que o sistema vai perguntar,
+    serve, e a barra de status mostra *Servindo* com *Parar*. *Parear um
+    celular* mostra um QR, o endereço, um código de oito letras e uma
+    contagem; um celular que apresenta o token levanta *Foi você quem leu
+    este QR?* com o nome, o endereço e a hora; *Permitir* (com *Pode editar
+    as notas* para um editor) o lista, *Não fui eu: recusar* encerra o
+    token; *Revogar* o tira; *Esquecer todos os celulares* pergunta antes.
+    Por máquina: `app/ui/e2e/local-server.spec.mjs` (o harness responde em
+    memória) e os testes Rust de `crates/verso-server/src/local` (o
+    servidor de verdade sobre TLS, o pareamento, a lista de comandos, os
+    limites); à mão, com um celular de verdade, as verificações do
+    `manual-checks.md`. Nível: H para a seção, A para o celular; R:
+    `scripts/demo-vault.mjs check` para a nota.
+
 ## 14. O fim
 
 1. O log depois da linha anotada: nenhum `ERROR`. O stderr do app: vazio. O
