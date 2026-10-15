@@ -103,8 +103,10 @@ sudo install -d -o 1000 -g 1000 /srv/universo/data /srv/universo/folders
 **Passo 2: entrar no registro de imagens** (uma vez; enquanto o repositório é privado, com um token *classic* do GitHub que tenha `read:packages`):
 
 ```bash
-echo "$TOKEN" | docker login ghcr.io -u <seu-usuario-github> --password-stdin
+echo "$TOKEN" | sudo docker login ghcr.io -u <seu-usuario-github> --password-stdin
 ```
+
+O `Login Succeeded` **não prova** que o token serve: o registro só o confere ao puxar a imagem. Se o `docker compose up` do passo 4 responder `403 Forbidden`, o token não tem `read:packages` (um token com só `repo` ou Contents não basta). O Docker guarda o token sem criptografia em `/root/.docker/config.json`; quando não precisar mais puxar versões novas, `sudo docker logout ghcr.io` o apaga.
 
 **Passo 3: a versão e o arquivo compose.**
 

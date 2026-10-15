@@ -362,6 +362,12 @@ classic token that has `read:packages` (guide, section 11):
 echo "$TOKEN" | docker login ghcr.io -u <github-user> --password-stdin
 ```
 
+`Login Succeeded` does not prove the token works: the registry checks it
+only when the image is pulled. A `403 Forbidden` on `docker compose up`
+means the token lacks `read:packages` (`repo` alone is not enough). Docker
+stores the token unencrypted in `/root/.docker/config.json`;
+`sudo docker logout ghcr.io` removes it.
+
 Prefix `docker` with `sudo` throughout if your user is not in the `docker`
 group.
 
