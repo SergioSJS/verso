@@ -1074,6 +1074,16 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
     o `tests/secret.rs` do dialeto e `fixtures/callout/secret` (rascunho da
     IA); A: `manual-checks.md`.
 
+14. A lição de instalação (nota 25, "Instalar o seu UniVerso, Passo a
+    Passo"): a parada "Num servidor" do tour mostra as notas 23 e 25 lado a
+    lado, e o *Instalar* da nota 23 liga à 25. Na 25 cada bloco de código
+    (`bash`, `yaml`) copia inteiro, e cada comando, caminho, porta e
+    variável se lê igual ao de `docs/reference/server-hands-on.md`; a nota
+    diz que o Verso está em testes, sem download público ainda; e os links
+    para `#Se algo der errado` e para *O primeiro admin e as contas* da nota
+    23 caem nos títulos. Nível: H; R: `scripts/demo-vault.mjs check`
+    (links e títulos do vault).
+
 ## 14. O fim
 
 1. O log depois da linha anotada: nenhum `ERROR`. O stderr do app: vazio. O

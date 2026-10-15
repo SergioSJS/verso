@@ -1042,6 +1042,16 @@ rest below and in `manual-checks.md`.
     dialect's `tests/secret.rs` and `fixtures/callout/secret` (an AI
     draft); A: `manual-checks.md`.
 
+14. The installation lesson (note 25, "Instalar o seu UniVerso, Passo a
+    Passo"): the tour's "Num servidor" stop shows notes 23 and 25 side by
+    side, and note 23's *Instalar* links to 25. In 25 every fenced block
+    (`bash`, `yaml`) copies whole, and each command, path, port and
+    variable reads the same as in `docs/reference/server-hands-on.md`; the
+    note says Verso is in testing, with no public download yet; and the
+    links to `#Se algo der errado` and to note 23's *O primeiro admin e as
+    contas* land on their headings. Level: H; R: `scripts/demo-vault.mjs
+    check` (links and headings of the vault).
+
 ## 14. The end
 
 1. The log after the line noted: no `ERROR`. The app's stderr: empty. The
