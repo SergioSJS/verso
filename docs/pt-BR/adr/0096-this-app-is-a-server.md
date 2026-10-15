@@ -95,14 +95,15 @@ revogáveis.
 
 ## Decisão
 
-Proposto (2026-10-15). Nada abaixo está decidido: cada item é um `[ABERTO]`
-com suas opções e uma recomendação, para o mantenedor. O que os outros ADRs
+Aceito (2026-10-15): cada item era um `[ABERTO]` com suas opções e uma
+recomendação, e cada um agora é `[DECIDIDO 2026-10-15]` **como sua
+recomendação** (Status). O que os outros ADRs
 já decidem e este só aplica está no Contexto. Em todo o texto, **a
 recomendação é o padrão mais seguro que ainda deixa um celular no mesmo
 Wi-Fi ler e escrever suas notas.** Nada disso muda um ADR Aceito; onde um
 precisa de uma linha, o item diz.
 
-1. **`[ABERTO]` Desligado por padrão, e por quanto tempo fica ligado.**
+1. **`[DECIDIDO 2026-10-15]` Desligado por padrão, e por quanto tempo fica ligado.**
    - (a) Desligado por padrão; ligar dura até o app fechar, e o
      interruptor volta desligado no próximo início.
    - (b) Desligado por padrão; o interruptor é lembrado entre inícios.
@@ -115,7 +116,7 @@ precisa de uma linha, o item diz.
      bandeja com o número de celulares conectados e um "Parar" — para que
      nada escute sem estar visível.
 
-2. **`[ABERTO]` O que é servido, e quais contas existem.** O desktop tem um
+2. **`[DECIDIDO 2026-10-15]` O que é servido, e quais contas existem.** O desktop tem um
    dono implícito e nenhuma conta ([0045](0045-server-and-mcp-security.md),
    [0074](0074-accounts-and-access-on-the-server.md) item 11); o serviço
    que ele iniciaria checa sessão e papel em todo comando.
@@ -135,7 +136,7 @@ precisa de uma linha, o item diz.
      escolheu. Construído pelo código do próprio servidor com um modo de
      conta única, não uma segunda implementação.
 
-3. **`[ABERTO]` Em que interface escuta, e em quais redes.**
+3. **`[DECIDIDO 2026-10-15]` Em que interface escuta, e em quais redes.**
    - (a) Todas as interfaces (`0.0.0.0`/`::`). Simples, e alcançável pela
      internet se a máquina tiver endereço público.
    - (b) Só os endereços de interfaces em faixas privadas (RFC 1918, IPv6
@@ -154,7 +155,7 @@ precisa de uma linha, o item diz.
      o endereço do par está numa faixa privada da mesma sub-rede faz parte
      de (b).
 
-4. **`[ABERTO]` A porta.**
+4. **`[DECIDIDO 2026-10-15]` A porta.**
    - (a) A 7340, do próprio servidor.
    - (b) Uma porta sorteada uma vez, na primeira vez que se liga, mantida
      na configuração depois (assim um favorito, e a origem de um celular
@@ -164,7 +165,7 @@ precisa de uma linha, o item diz.
      Tira do notebook a varredura usual da 7340; não é uma defesa e não é
      apresentada como uma. (c) quebra todo celular pareado.
 
-5. **`[ABERTO]` O certificado, e o endereço que o celular usa.** A
+5. **`[DECIDIDO 2026-10-15]` O certificado, e o endereço que o celular usa.** A
    pergunta mais difícil. O item 6 da 0073 proíbe login sem TLS e nomeia
    receitas para um host com domínio ou Tailscale; um notebook num Wi-Fi
    não tem nem domínio nem certificado público, e um navegador de celular
@@ -220,7 +221,7 @@ precisa de uma linha, o item diz.
      (ii) testado e mantido só se resolver nos celulares que o mantenedor
      tem (um Android e um iPad).
 
-6. **`[ABERTO]` Pareamento: como um celular entra.** Reaproveitando o que
+6. **`[DECIDIDO 2026-10-15]` Pareamento: como um celular entra.** Reaproveitando o que
    existe: o **convite** do item 4 da [0074](0074-accounts-and-access-on-the-server.md)
    (uso único, 256 bits, uma validade) e a **página de aprovação** do
    item 8 da 0074 e do item 17 da [0083](0083-security-hardening-of-universo.md)
@@ -267,7 +268,7 @@ precisa de uma linha, o item diz.
      prompt de autenticação do sistema) é possível depois e não é
      recomendada para a V1.
 
-7. **`[ABERTO]` O que o QR carrega, e nada além.** O endereço e a porta, o
+7. **`[DECIDIDO 2026-10-15]` O que o QR carrega, e nada além.** O endereço e a porta, o
    token de uso único no fragmento, a impressão digital do certificado do
    app (para um cliente nativo; um navegador a ignora), o hash da versão do
    contrato ([0073](0073-self-hosted-server-first.md) item 2). **Não**
@@ -275,7 +276,7 @@ precisa de uma linha, o item diz.
    vida. Recomendação: exatamente isto; a salvaguarda é um teste que
    decodifica um QR e afirma a lista de campos.
 
-8. **`[ABERTO]` mDNS: se, quando e o quê.** A 0073 diz "anunciado por mDNS
+8. **`[DECIDIDO 2026-10-15]` mDNS: se, quando e o quê.** A 0073 diz "anunciado por mDNS
    aos apps nativos". O navegador de um celular não consegue procurar
    mDNS; só outro desktop Verso ("conectar a um servidor", item 8 da 0074)
    poderia.
@@ -299,7 +300,7 @@ precisa de uma linha, o item diz.
    - Uma biblioteca de mDNS e uma de QR são dependências novas; cada uma
      é justificada no pull request que a adiciona (CLAUDE.md §4), não aqui.
 
-9. **`[ABERTO]` Os avisos dos sistemas operacionais.** A confirmar nas
+9. **`[DECIDIDO 2026-10-15]` Os avisos dos sistemas operacionais.** A confirmar nas
    máquinas reais (nada aqui foi executado): o macOS 15 em diante pede a
    permissão de **Rede Local** na primeira vez que um app anuncia ou
    procura nela (a descrição de uso e as chaves `NSBonjourServices` no
@@ -317,7 +318,7 @@ precisa de uma linha, o item diz.
    o interruptor diz isso com os passos para permitir (o retorno visível de
    toda ação).
 
-10. **`[ABERTO]` Repouso, tampa fechada, rede perdida.** Um notebook em
+10. **`[DECIDIDO 2026-10-15]` Repouso, tampa fechada, rede perdida.** Um notebook em
     repouso não serve nada; o processo é suspenso, os sockets morrem.
     - (a) Nada de especial: ao acordar, recalcular os endereços; se forem
       os mesmos, retomar e reanunciar; senão, parar e perguntar (item 3).
@@ -331,7 +332,7 @@ precisa de uma linha, o item diz.
       olhando. Um interruptor "manter acordado enquanto um celular está
       conectado", desligado por padrão, fica para depois.
 
-11. **`[ABERTO]` Uma pasta que o notebook também sincroniza com um UniVerso.**
+11. **`[DECIDIDO 2026-10-15]` Uma pasta que o notebook também sincroniza com um UniVerso.**
     A [0079](0079-sync-a-local-folder-with-a-server.md) e a
     [0082](0082-live-co-editing-of-a-synced-folder.md) fazem do arquivo
     local uma cópia mantida pelo sync, com **um escritor no Verso** enquanto
@@ -350,7 +351,7 @@ precisa de uma linha, o item diz.
       diretamente quando há um; o recurso é para uma pasta que não tem. (a)
       pode ser oferecido depois com o limite escrito.
 
-12. **`[ABERTO]` Quais comandos um celular pareado pode rodar.** O princípio
+12. **`[DECIDIDO 2026-10-15]` Quais comandos um celular pareado pode rodar.** O princípio
     é **negar por padrão, por papel, o despacho do próprio UniVerso e nada
     mais.** O papel do celular é escolhido no notebook, no pareamento.
     - Papéis: **leitor** (vale a projeção dos blocos secretos da
@@ -375,7 +376,7 @@ precisa de uma linha, o item diz.
       seja recusado até alguém o adicionar (a recusa do item 11 da
       [0074](0074-accounts-and-access-on-the-server.md), nos dois idiomas).
 
-13. **`[ABERTO]` Limites.** Reaproveitar os limites da
+13. **`[DECIDIDO 2026-10-15]` Limites.** Reaproveitar os limites da
     [0083](0083-security-hardening-of-universo.md) sem mudança — 512
     conexões e 128 por endereço, cabeçalhos de 64 KiB, 30 segundos para
     cabeçalhos, o ritmo de 20 requisições por segundo, os atrasos, os
@@ -386,7 +387,7 @@ precisa de uma linha, o item diz.
     os números são medidos no benchmark com a carga do próprio app como o
     item 18 da 0083 faz, depois fixados.
 
-14. **`[ABERTO]` O que se registra, e o que a pessoa vê.**
+14. **`[DECIDIDO 2026-10-15]` O que se registra, e o que a pessoa vê.**
     - O log do app (`verso.log`): servir ligado ou desligado, os endereços
       e a porta, o diálogo de pareamento aberto e fechado, um token
       resgatado, permitido, recusado ou expirado, uma sessão de
@@ -403,7 +404,7 @@ precisa de uma linha, o item diz.
       sistema) na primeira vez que um dispositivo novo conecta depois de um
       pareamento.
 
-15. **`[ABERTO]` Revogar um pareamento.** Configurações › Este app é um
+15. **`[DECIDIDO 2026-10-15]` Revogar um pareamento.** Configurações › Este app é um
     servidor lista os celulares pareados — nome, papel, quando foi pareado,
     visto por último, endereço — cada um com **Revogar** (a sessão termina
     e suas conexões abertas se fecham na hora, como o item 8 da 0074 e o
@@ -417,7 +418,7 @@ precisa de uma linha, o item diz.
     notebook; um notebook perdido é problema dos próprios celulares (suas
     sessões morrem com a chave do notebook).
 
-16. **`[ABERTO]` Onde vive o seu estado.** O banco do servidor local (a
+16. **`[DECIDIDO 2026-10-15]` Onde vive o seu estado.** O banco do servidor local (a
     conta do dono, as sessões de dispositivo, o log de auditoria) e a
     chave do certificado, fora das pastas e fora do índice das notas, no
     diretório de configuração do app
@@ -426,7 +427,7 @@ precisa de uma linha, o item diz.
     servida, então nunca sincroniza. Recomendação: os arquivos, como o
     token de dispositivo em `servers.json` é guardado hoje.
 
-17. **`[ABERTO]` Windows, e a contradição.** A [0073](0073-self-hosted-server-first.md)
+17. **`[DECIDIDO 2026-10-15]` Windows, e a contradição.** A [0073](0073-self-hosted-server-first.md)
     diz que o recurso roda no macOS e no Windows; a [0075](0075-server-packaging-and-storage.md)
     item 2 e os manifestos dizem que o `verso-server` não é construído
     para Windows (passkeys precisam do OpenSSL lá). Não resolvido aqui.
@@ -438,7 +439,7 @@ precisa de uma linha, o item diz.
     decisão do mantenedor de qualquer jeito, e a frase da 0073 ganha uma
     linha de Revisões.
 
-18. **`[ABERTO]` O app se atualizando com celulares conectados** (o `[ABERTO]`
+18. **`[DECIDIDO 2026-10-15]` O app se atualizando com celulares conectados** (o `[ABERTO]`
     das Consequências da 0073). Recomendação: o atualizador
     ([0055](0055-in-app-updater.md)) se comporta como hoje — pede-se à
     pessoa que reinicie; o reinício encerra as conexões; os celulares veem
@@ -497,11 +498,13 @@ alternativas já consideradas e descartadas.)
 
 ## Status
 
-**Proposto (2026-10-15).** Escrito por Sonnet 5.5 a pedido da sessão que
-guarda o roadmap, para o mantenedor responder. Cada item numerado acima é
-um `[ABERTO]` com uma recomendação; com as respostas do mantenedor cada um
-é marcado `[DECIDIDO <data>]` no lugar e o ADR passa a Aceito, aplicando-se
-então as linhas das Consequências. A linha V.20 do roadmap
+**Aceito (2026-10-15).** Escrito por Sonnet 5.5 a pedido da sessão que
+guarda o roadmap (Proposto no mesmo dia). O mantenedor, respondendo às 18
+recomendações com *"vamos seguir as suas recomendações"*, decidiu todos os
+itens numerados como a recomendação, cada um marcado `[DECIDIDO 2026-10-15]`
+no lugar; as linhas das Consequências valem a partir de agora (as linhas de
+Revisões da 0050 e da 0073 são escritas com a feature). **Não construído:**
+a feature continua na V1, onda C, para o próprio pull request. A linha V.20 do roadmap
 ([`docs/roadmap.md`](../roadmap.md)) diz "decidido 2026-10-09; não
 construído" e continua na V1, onda C (`[DECIDIDO 2026-10-14]`). A ser lido
 por outro modelo antes de ser aceito. Nada foi construído nem executado

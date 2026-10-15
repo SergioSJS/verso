@@ -94,14 +94,15 @@ sessions.
 
 ## Decision
 
-Proposed (2026-10-15). Nothing below is decided: every item is an
-`[OPEN]` with its options and a recommendation, for the maintainer. What
+Accepted (2026-10-15): every item was an `[OPEN]` with its options and a
+recommendation, and each is now `[DECIDED 2026-10-15]` **as its
+recommendation** (Status). What
 the other ADRs already decide and this one only applies is in the
 Context. Throughout, **the recommendation is the most secure default that
 still lets a phone on the same Wi-Fi read and write its notes.** None of
 it changes an Accepted ADR; where one needs a line, the item says so.
 
-1. **`[OPEN]` Off by default, and for how long it stays on.**
+1. **`[DECIDED 2026-10-15]` Off by default, and for how long it stays on.**
    - (a) Off by default; turning it on lasts until the app quits, and the
      toggle is off again at the next start.
    - (b) Off by default; the toggle is remembered across starts.
@@ -114,7 +115,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
      menu bar or tray with the number of phones connected and a "Stop"
      — so that nothing listens without being visible.
 
-2. **`[OPEN]` What is served, and which accounts exist.** The desktop has
+2. **`[DECIDED 2026-10-15]` What is served, and which accounts exist.** The desktop has
    an implicit owner and no accounts ([0045](0045-server-and-mcp-security.md),
    [0074](0074-accounts-and-access-on-the-server.md) item 11); the service
    it would start checks a session and a role on every command.
@@ -133,7 +134,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
      did not choose. It is built by the server's own code with a
      single-account mode, not a second implementation.
 
-3. **`[OPEN]` Which interface it listens on, and on which networks.**
+3. **`[DECIDED 2026-10-15]` Which interface it listens on, and on which networks.**
    - (a) Every interface (`0.0.0.0`/`::`). Simple, and reachable from the
      internet if the machine has a public address.
    - (b) Only the addresses of interfaces in private ranges (RFC 1918,
@@ -151,7 +152,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
      permission-free answer. The check in the handshake that the peer's
      address is in a private range of the same subnet is part of (b).
 
-4. **`[OPEN]` The port.**
+4. **`[DECIDED 2026-10-15]` The port.**
    - (a) The server's own 7340.
    - (b) A port chosen at random once, on the first time it is turned on,
      kept in the configuration afterwards (so a bookmark, and a paired
@@ -161,7 +162,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
      It keeps the usual scan of 7340 away from the laptop; it is not a
      defence and is not presented as one. (c) breaks every paired phone.
 
-5. **`[OPEN]` The certificate, and the address the phone uses.** The
+5. **`[DECIDED 2026-10-15]` The certificate, and the address the phone uses.** The
    hardest question. 0073 item 6 forbids a login without TLS and names
    recipes for a host with a domain or Tailscale; a laptop on a Wi-Fi
    has neither a domain nor a public certificate, and a browser on a phone
@@ -216,7 +217,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
      with (ii) tried and kept only if it resolves on the phones the
      maintainer owns (an Android phone and an iPad).
 
-6. **`[OPEN]` Pairing: how a phone gets in.** Reusing what exists: the
+6. **`[DECIDED 2026-10-15]` Pairing: how a phone gets in.** Reusing what exists: the
    **invitation** of [0074](0074-accounts-and-access-on-the-server.md)
    item 4 (single use, 256 bits, an expiry) and the **approval page** of
    0074 item 8 and [0083](0083-security-hardening-of-universo.md) item 17
@@ -262,7 +263,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
      authentication prompt) is possible later and is not recommended
      for V1.
 
-7. **`[OPEN]` What the QR carries, and nothing else.** The address and
+7. **`[DECIDED 2026-10-15]` What the QR carries, and nothing else.** The address and
    port, the one-time token in the fragment, the app's certificate
    fingerprint (for a native client; a browser ignores it), the contract
    version's hash ([0073](0073-self-hosted-server-first.md) item 2). It
@@ -270,7 +271,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
    long-lived secret. Recommendation: exactly this; a reviewer's
    guardrail is a test that decodes a QR and asserts the field list.
 
-8. **`[OPEN]` mDNS: whether, when and what.** 0073 says "announced by mDNS
+8. **`[DECIDED 2026-10-15]` mDNS: whether, when and what.** 0073 says "announced by mDNS
    to the native apps". A phone's browser cannot browse mDNS; only
    another Verso desktop ("connect to a server", 0074 item 8) could.
    - (a) Never announce; the QR/typed address is the only way.
@@ -293,7 +294,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
      justified in the pull request that adds it (CLAUDE.md
      §4), not here.
 
-9. **`[OPEN]` The operating systems' prompts.** To confirm on the real
+9. **`[DECIDED 2026-10-15]` The operating systems' prompts.** To confirm on the real
    machines (nothing here was run): macOS 15 and later asks for the
    **Local Network** permission the first time an app announces or
    browses on it (the usage description and the `NSBonjourServices` keys
@@ -311,7 +312,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
    and the toggle says so with the steps to allow it (the visible
    feedback of every action).
 
-10. **`[OPEN]` Sleep, lid closed, network lost.** A sleeping laptop serves
+10. **`[DECIDED 2026-10-15]` Sleep, lid closed, network lost.** A sleeping laptop serves
     nothing; the process is suspended, the sockets die.
     - (a) Do nothing special: on waking, recompute the addresses; if they
       are the same, resume and re-announce; otherwise stop and ask (item
@@ -324,7 +325,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
       A "keep awake while a phone is connected" switch, off by default,
       is left for later.
 
-11. **`[OPEN]` A folder the laptop also syncs with a UniVerso.**
+11. **`[DECIDED 2026-10-15]` A folder the laptop also syncs with a UniVerso.**
     [0079](0079-sync-a-local-folder-with-a-server.md) and
     [0082](0082-live-co-editing-of-a-synced-folder.md) make the local
     file a copy kept by sync, with **one writer in Verso** while a note is
@@ -343,7 +344,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
       when there is one; the feature is for a folder that has none. (a)
       can be offered later with the limit written down.
 
-12. **`[OPEN]` Which commands a paired phone may run.** The principle is
+12. **`[DECIDED 2026-10-15]` Which commands a paired phone may run.** The principle is
     **default deny, by role, the UniVerso's own dispatch and nothing
     more.** The phone's role is chosen on the laptop at pairing.
     - Roles: **reader** (the secret-blocks projection of
@@ -367,7 +368,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
       refused until someone adds it ([0074](0074-accounts-and-access-on-the-server.md)
       item 11's refusal, in both languages).
 
-13. **`[OPEN]` Limits.** Reuse the bounds of
+13. **`[DECIDED 2026-10-15]` Limits.** Reuse the bounds of
     [0083](0083-security-hardening-of-universo.md) unchanged — 512
     connections and 128 per address, 64 KiB heads, 30 seconds for headers,
     the 20 requests a second pace, the delays, the WebSocket limits — and
@@ -377,7 +378,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
     as written; the numbers are measured in the benchmark with the app's
     own load as 0083 item 18 does, then fixed.
 
-14. **`[OPEN]` What is logged, and what the person sees.**
+14. **`[DECIDED 2026-10-15]` What is logged, and what the person sees.**
     - The app's log (`verso.log`): serving turned on or off, the addresses
       and the port, the pairing dialog opened and closed, a token redeemed,
       allowed, refused or expired, a device session created or ended, a
@@ -391,7 +392,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
     - Recommendation: as written; and a notification (the app's own, not
       the system's) the first time a new device connects after a pairing.
 
-15. **`[OPEN]` Revoking a pairing.** Settings › This app is a server lists
+15. **`[DECIDED 2026-10-15]` Revoking a pairing.** Settings › This app is a server lists
     the paired phones — name, role, when paired, last seen, address —
     each with **Revoke** (the session ends and its open connections close
     at once, as 0074 item 8 and the console of
@@ -404,7 +405,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
     once. A lost phone is ended from the laptop; a lost laptop is the
     phones' own problem (their sessions die with the laptop's key).
 
-16. **`[OPEN]` Where its state lives.** The local server's database
+16. **`[DECIDED 2026-10-15]` Where its state lives.** The local server's database
     (the owner account, device sessions, the audit log) and the
     certificate key, outside the folders and outside the notes' index,
     in the app's configuration directory
@@ -413,7 +414,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
     it is in the folder served, so it never syncs. Recommendation: the
     files, as the device token in `servers.json` is kept today.
 
-17. **`[OPEN]` Windows, and the contradiction.** [0073](0073-self-hosted-server-first.md)
+17. **`[DECIDED 2026-10-15]` Windows, and the contradiction.** [0073](0073-self-hosted-server-first.md)
     says the feature runs on macOS and Windows; [0075](0075-server-packaging-and-storage.md)
     item 2 and the manifests say `verso-server` is not built for Windows
     (passkeys need OpenSSL there). Not resolved here. Options: (a) V.20
@@ -424,7 +425,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
     passkeys — it has no sign-in page), otherwise (a); a decision of the
     maintainer either way, and 0073's sentence gets a Revisions line.
 
-18. **`[OPEN]` The app updating while phones are connected** (the `[OPEN]` of
+18. **`[DECIDED 2026-10-15]` The app updating while phones are connected** (the `[OPEN]` of
     0073's Consequences). Recommendation: the updater ([0055](0055-in-app-updater.md))
     behaves as today — the person is asked to restart; the restart ends
     the connections; the phones see the server unavailable, and when it
@@ -481,11 +482,14 @@ not alternatives already considered and discarded.)
 
 ## Status
 
-**Proposed (2026-10-15).** Written by Sonnet 5.5 at the request of the
-session that holds the roadmap, for the maintainer to answer. Every
-numbered item above is an `[OPEN]` with a recommendation; on the
-maintainer's answers each is marked `[DECIDED <date>]` in place and the
-ADR becomes Accepted, with the lines of the Consequences applied then.
+**Accepted (2026-10-15).** Written by Sonnet 5.5 at the request of the
+session that holds the roadmap (Proposed the same day). The maintainer,
+answering the 18 recommendations with *"vamos seguir as suas
+recomendações"* (let us follow your recommendations), decided every
+numbered item as its recommendation, each marked `[DECIDED 2026-10-15]`
+in place; the lines of the Consequences apply from now (the Revisions
+lines of 0050 and 0073 are written with the feature). **Not built:** the
+feature stays in V1, wave C, for its own pull request.
 The roadmap's V.20 row ([`docs/roadmap.md`](../roadmap.md)) is "decided
 2026-10-09; not built" and stays in V1, wave C
 (`[DECIDED 2026-10-14]`). To be read by the other model before it is
