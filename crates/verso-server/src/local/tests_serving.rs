@@ -287,14 +287,13 @@ fn a_command_off_the_allowlist_is_refused() {
             "sync_state",
             "sync_put",
             "trash_empty",
-            "set_walk_rules",
             "local_server_start",
             "local_server_pair_open",
             "a_command_added_tomorrow",
         ] {
             id += 1;
             let answer = call(&mut ws, id, cmd, json!({})).await;
-            assert_eq!(answer["err"]["kind"], "refused", "{cmd}: {answer}");
+            assert_eq!(answer["err"]["kind"], "not_on_phone", "{cmd}: {answer}");
             assert!(answer.get("ok").is_none(), "{cmd} was run: {answer}");
         }
         // And what is on the list still works, for this editor.
@@ -325,7 +324,7 @@ fn a_reader_phone_cannot_write() {
             (6, "collab_update", json!({})),
         ] {
             let answer = call(&mut ws, id, cmd, args).await;
-            assert_eq!(answer["err"]["kind"], "refused", "{cmd}: {answer}");
+            assert_eq!(answer["err"]["kind"], "phone_reads", "{cmd}: {answer}");
         }
         let notes = call(&mut ws, 7, "list_notes", json!({})).await;
         assert_eq!(
@@ -364,14 +363,8 @@ fn an_editor_phone_writes_and_is_never_an_owner() {
         // A phone is paired as a reader or an editor and never above it.
         let phones = lab.local.phones().unwrap();
         assert_eq!(phones[0].role, Role::Editor);
-        let owner_only = call(
-            &mut ws,
-            4,
-            "set_walk_rules",
-            json!({ "builtinIgnores": true, "gitignore": true }),
-        )
-        .await;
-        assert_eq!(owner_only["err"]["kind"], "refused");
+        let owner_only = call(&mut ws, 4, "trash_empty", json!({})).await;
+        assert_eq!(owner_only["err"]["kind"], "not_on_phone");
         // The role chosen for a pairing is clamped: asking for the owner's
         // is an editor's.
         let cookie2 = lab.pair("iPad", true, Role::Owner).await.unwrap();
@@ -914,5 +907,47 @@ fn the_pairing_dialog_names_its_address_and_takes_a_pick() {
         // An address that is not served is refused, in words.
         let err = lab.local.pair_open_on(Some("10.0.0.9")).unwrap_err();
         assert!(err.contains("10.0.0.9"), "{err}");
+    });
+}
+
+/// The web window, loading on a paired phone, asks a few commands of its
+/// own before anything else (`main.ts`): the embed origins, the walk's
+/// rules, the history days, the folder note's name, the menu's language, the
+/// capabilities and the folder. None of them may be refused — the maintainer
+/// saw "Erro: ... (not from a phone)" the first time a phone paired
+/// (2026-10-15). The two that would change the laptop's folder settings
+/// (the walk's rules and the folder note's name) are heard and change
+/// nothing; the window's log lines are heard and dropped.
+#[test]
+fn the_web_window_loads_on_a_phone_with_no_refusal() {
+    run(async {
+        for role in [Role::Reader, Role::Editor] {
+            let mut lab = lab();
+            lab.serve();
+            let cookie = lab.pair("Android", true, role).await.unwrap();
+            let mut ws = open(&lab, &cookie).await;
+            let mut id = 20;
+            for (cmd, args) in [
+                ("set_embed_origins", json!({ "origins": [] })),
+                (
+                    "set_walk_rules",
+                    json!({ "builtinIgnores": false, "gitignore": false }),
+                ),
+                ("set_history_days", json!({ "days": 365 })),
+                ("set_folder_note_name", json!({ "name": "index" })),
+                ("set_menu_language", json!({ "language": "pt" })),
+                ("log_write", json!({ "level": "INFO", "message": "x" })),
+                ("open_initial", json!({})),
+                ("capabilities", json!({})),
+                ("app_info", json!({})),
+                ("current_folder", json!({})),
+                ("reindex", json!({})),
+                ("list_notes", json!({})),
+            ] {
+                id += 1;
+                let answer = call(&mut ws, id, cmd, args).await;
+                assert!(answer.get("err").is_none(), "{cmd} as {role:?}: {answer}");
+            }
+        }
     });
 }

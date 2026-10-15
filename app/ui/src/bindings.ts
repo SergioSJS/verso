@@ -1220,7 +1220,19 @@ export type ErrorKind =
  */
 "prove_first" | 
 /**  The core could not answer. */
-"failed";
+"failed" | 
+/**
+ *  A paired phone asked for a command that acts on the computer it is
+ *  paired with, or that is the owner's (ADR 0096 item 12): no phone
+ *  runs it, whatever its role.
+ */
+"not_on_phone" | 
+/**
+ *  A phone that may only read asked for a command that changes
+ *  something (ADR 0096 items 6 and 12): the person lets it edit from
+ *  the computer.
+ */
+"phone_reads";
 
 /**
  *  One entry of the open folder as the last walk saw it: what a folder

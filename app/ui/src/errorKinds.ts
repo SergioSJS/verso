@@ -15,7 +15,10 @@ export const ANSWERS = new Set(["exists", "case_twin", "quota"]);
 /** Kinds that tell the window's own state, not a fault: a file it named
  *  is no longer there — deleted or moved elsewhere, on a server possibly
  *  on another device. Said all the same; INFO in the log. */
-export const STATE = new Set(["not_found"]);
+export const STATE = new Set(["not_found", "not_on_phone", "phone_reads"]);
+/** A paired phone refused by the computer it is paired with (ADR 0096
+ *  item 12): said in the window's own sentence, an answer, not a fault. */
+export const PHONE = new Set(["not_on_phone", "phone_reads"]);
 
 export function errorParts(e: ContractError | unknown): { kind: string; message: string } {
   const message =
