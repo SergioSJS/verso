@@ -20,6 +20,56 @@ app real.
 
 ## Ainda não conferido
 
+### Uma página embutida como frame de verdade (fix/web-embed-clip, 2026-10-15)
+
+Precisa do app instalado: a checagem, a política do frame e o guard de
+navegação vivem no host, que o harness no navegador não tem. Faça cada uma
+no macOS e no Windows. Cabeçalhos lidos com `curl -sI` em 2026-10-15:
+`https://example.com/` e `https://en.wikipedia.org/` não enviam
+`X-Frame-Options` nem `frame-ancestors` (embutíveis); `https://rolai.app/`
+e `https://huggingface.co/` enviam `X-Frame-Options: DENY` (não embutíveis,
+então usam a view nativa, como o rolai.app antes desta mudança). Use uma
+nota longa com um embed aprovado de cada, alto o bastante para rolar.
+
+- [ ] **Um site embutível** (example.com, ou um artigo da Wikipédia): ele
+  aparece na nota como um frame; o tamanho é o da caixa, sem folga e sem
+  barra própria além da da página. Rolar a nota o move como qualquer bloco
+  da nota.
+- [ ] **Um site que recusa** (rolai.app): aparece, na view nativa, como
+  antes desta mudança. Diga se está cortado certo nas bordas do painel.
+- [ ] **Meio por cima, meio por baixo, na barra de status**: role a nota
+  até um embed embutível ficar meio acima do painel, meio abaixo dele, e
+  logo sobre a barra de status: a página é cortada nas bordas do painel e a
+  barra de status, a barra de abas e o sino ficam descobertos; sem
+  piscar, sem atraso (é um frame, nada o segue).
+- [ ] **Rolar a nota nunca rola a página**: com o ponteiro sobre o embed,
+  role com a roda e com o trackpad: a nota e a página rolam como num
+  navegador (a página primeiro enquanto pode, depois a nota); a página
+  nunca se move com o ponteiro sobre o texto da nota.
+- [ ] **A rolagem própria da página**: role dentro da página e depois role
+  a nota: a página mantém a posição.
+- [ ] **Painel dividido, Ajustes abertos**: divida a janela e ponha o embed
+  perto do divisor: nada o atravessa; abra os Ajustes ou a paleta: a página
+  não aparece por baixo (um frame fica sob o overlay como o resto da nota).
+- [ ] **Um link e um vídeo dentro da página**: clique num link para outro
+  site dentro da página embutida, e toque um vídeo que a própria página
+  embute. Espera-se que os dois fiquem em branco por enquanto (o guard de
+  navegação não conhece frames; ADR 0056 `[ABERTO]`). Diga o que acontece, e
+  se a janela e a página continuaram usáveis.
+- [ ] **Redirecionamento**: embuta `http://example.com/` (redireciona para
+  https) e a forma com `www.` de um site que redireciona para o nome puro: a
+  página carrega, ou usa a view nativa; nunca fica em branco.
+- [ ] **Um endereço na rede** (um Calibre-Web, um painel em
+  `192.168.x.x`): aparece, num frame ou na view nativa; diga qual.
+- [ ] **Sem rede**: sem rede, um embed novo toma o caminho da view nativa
+  (a checagem responde não) e não diz nada errado; ao voltar a rede,
+  reinicie o app e a página vira frame.
+- [ ] **Uma página como aba** (uma nota só com `url`): não muda, uma view
+  nativa enchendo o painel.
+- [ ] **O log** (`~/Library/Application Support/verso/logs/verso.log`):
+  nenhum `ERROR` ao fazer o acima, e nenhum "not allowed" para
+  `embed_frameable`.
+
 ### Uma página incorporada cortada pelo seu painel (fix/web-embed-clip, 2026-10-15)
 
 Precisa do app instalado: a página é uma visão web filha nativa, que o

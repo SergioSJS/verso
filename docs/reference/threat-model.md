@@ -311,6 +311,28 @@ with a local agent brings that risk to their own machine. The documentation
 says so where agents are set up. A personal access token is the one way a
 program reaches the server meanwhile, scoped as above.
 
+### A web page embedded in a note
+
+A note's `<iframe>`, or an embedded web note, shows a page of a site the
+reader approved (ADR 0056). Since 2026-10-15 that page is a real `<iframe>`
+inside the window's document when its site allows being framed, and a
+child web view of the host when it does not (ADR 0056, revised). The
+reasoning below is read from Tauri 2.11 and wry 0.55 (the versions in
+`Cargo.lock`); what only the real app can show is listed in
+`docs/reference/manual-checks.md`.
+
+| Threat | Answer as built |
+|---|---|
+| A framed page calls the app's commands | Tauri decides on the origin of the request, not on the frame: `Webview::on_message` takes the request's address, `is_local_url` is false for any `http(s)` address that is not the app's own, and a remote origin is resolved against capabilities that name a `remote` url. `capabilities/default.json` has none, so every command, a plugin's included, is refused (`Command … not allowed by ACL`). Held by `the_frame_check_answers_the_apps_views_and_refuses_a_remote_origin` (a call from `https://evil.example/…` to `embed_frameable` and to `web_open` is refused) and, for a command that was already there, by `only_the_apps_own_views_reach_the_commands`. |
+| A framed page finds `__TAURI_INTERNALS__` and the invoke key | Tauri adds its own scripts to the main frame only (`for_main_frame_only: true` in `manager/webview.rs`), so a cross-origin frame on macOS and Linux has neither. wry documents the exception: on Windows (WebView2) initialization scripts reach every frame. A frame there could see the object and the key, and its calls are still refused by the row above, since the key never replaces the origin check. The window adds no script of its own to frames. |
+| A framed page reads the app's DOM, storage or files | It is cross-origin: its origin is its site's (`allow-same-origin` gives it that, never the window's), so the browser keeps it out of the window's DOM, storage and cookies. `verso://` answers only the app's own views and a note's origin never (ADR 0056); the page cannot request the folder's files. |
+| A framed page steers the window | The frame has no `allow-top-navigation`; its scripts cannot navigate the window. Popups: `allow-popups` is set, but the host's view has no new-window handler and the system web view opens none (the child view denies them too, `on_new_window` → `Deny`). A link it opens goes nowhere in the app, as it went nowhere from the child view. |
+| A framed page asks for the camera, the microphone, the location | The frame has no `allow` attribute: nothing is lent to a cross-origin frame, and the app has granted none of those. |
+| The page learns where the reader comes from | `referrerpolicy="no-referrer"`. |
+| A note gets the app to load a page into the window itself | The navigation guard asks for every frame, and wry hands it the address only, so it cannot tell a frame from the window. The guard stays closed to the web for an app view, with one allowance: the exact origins (scheme, host and port) that the frame check judged frameable and recorded for the session, which are origins of pages the reader approved. A navigation of the window itself to one of them (a meta refresh a note cannot write; the sanitizer drops it) would load that page in the window; the window's own policy (`form-action 'none'`, scripts from the app only, no script in a note) leaves a note with no way to cause it. Recorded as the cost of an iframe over the child view, whose view the guard never had to open (ADR 0056, revised 2026-10-15). A page's own links to another origin, and the frames inside it (an advertisement, a video), are refused by the same guard: they stay blank. |
+| The frame check as a probe of the local network | One `HEAD` (a `GET` read only as far as its headers when that fails) to an address a note wrote and the reader approved, six seconds at most, at most five redirects, the final response judged; nothing of the body is read, and the answer is a yes or a no. A redirect from a public page to a local name or address (loopback, private ranges, link-local, carrier-grade NAT, `.local`, a name without a dot) ends the check with a no; a name that a public DNS answer points at a private address is not caught (the same limit ADR 0056 recorded for the proxy). An error, a timeout, an unreadable header: no, and the child view takes the page. Answered once per origin for the session. |
+| A wrong yes: an empty frame | The headers are read as a browser reads them, conservatively: any `X-Frame-Options` value (`DENY`, `SAMEORIGIN`, `ALLOW-FROM`, an unreadable one) says no, even when a `frame-ancestors` is there to override it; `frame-ancestors` says yes only to `*` (a network-scheme app origin only: `tauri://localhost` is not covered by `*`), a matching scheme, host or wildcard host, and every policy on the response must allow. A site that answers the check one way and the frame another shows an empty frame, the site's decision as it is anywhere. |
+
 ## Gaps found on 2026-10-11
 
 Found by reading the code at HEAD 7729940; findings, not fixes. Classified
