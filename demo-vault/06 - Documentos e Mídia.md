@@ -26,7 +26,9 @@ Inclua uma imagem com wikilink (`![[arquivo]]`) ou com Markdown, e dê a largura
 ![Diagrama|320](assets/diagrama.svg)
 
 - Arraste o **canto** de uma imagem para mudar o tamanho: o Verso escreve a medida no embed.
-- **Cole** ou **arraste** uma imagem para dentro de uma nota (modo Editar): ela é salva na pasta `assets` ao lado da nota, e o embed é inserido onde está o cursor.
+- No modo Editar, o botão **Inserir imagem** da barra de ferramentas (o último) abre um menu: **Do computador…** abre o seletor de arquivos do sistema, e a imagem escolhida é **copiada** para a pasta `assets` ao lado da nota (o nome da pasta está em Ajustes › Anexos) e o embed `![[nome.png]]` é inserido onde está o cursor. Se já existe uma imagem com esse nome, a nova fica como `nome (2).png`; nada é sobrescrito, e os bytes não são alterados. **Da pasta…** continua mostrando os arquivos que já estão na pasta. No celular e no tablet, o menu oferece **Fotos e arquivos…** e **Tirar foto** (a câmera; a foto entra como `Foto 2026-10-15 142530.jpg`).
+- **Cole** ou **arraste** uma imagem para dentro de uma nota (modo Editar) faz o mesmo caminho: ela é salva em `assets` ao lado da nota, e o embed é inserido onde está o cursor.
+- Num servidor, uma imagem passa de **32 MB** não é enviada, e quem só lê a pasta não insere imagens.
 - Numa aba de imagem, um clique alterna entre caber na tela e o tamanho real.
 
 ---
