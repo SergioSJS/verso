@@ -78,7 +78,7 @@ struct TestConfig {
 
 /// The app with the folder the command line would have named, and its
 /// indexes in a temporary directory: never the user's.
-fn app_with(
+pub(super) fn app_with(
     initial: Option<PathBuf>,
 ) -> (tauri::App<MockRuntime>, tauri::WebviewWindow<MockRuntime>) {
     let app = app_alone(initial);
@@ -348,7 +348,7 @@ const APP_ORIGIN: &str = if cfg!(windows) {
     "tauri://localhost"
 };
 
-fn call(
+pub(super) fn call(
     webview: &tauri::WebviewWindow<MockRuntime>,
     cmd: &str,
     body: Value,
@@ -379,7 +379,7 @@ fn call_from(
 }
 
 /// A note with exactly this name in `dir`, kept until dropped.
-fn note(dir: &std::path::Path, name: &str, content: &str) -> tempfile::NamedTempFile {
+pub(super) fn note(dir: &std::path::Path, name: &str, content: &str) -> tempfile::NamedTempFile {
     let mut file = tempfile::Builder::new()
         .prefix(name)
         .rand_bytes(0)
