@@ -209,7 +209,7 @@ docker network inspect universo_default --format '{{(index .IPAM.Config 0).Gatew
 ## 5. HTTPS, o passo em que todo mundo tropeça
 
 > [!WARNING] Só o IP não deixa ninguém entrar
-> `http://<IP>:7340` **não funciona, de propósito**. A porta 7340 só escuta dentro da máquina; o UniVerso só responde ao nome que você pôs no `VERSO_PUBLIC_URL`; e ele não deixa ninguém entrar por HTTP puro vindo de outra máquina (a página diz *Este servidor só aceita entrar por HTTPS*). É para sua senha nunca viajar aberta. Então, a partir do IP, escolha **um** dos dois jeitos.
+> `http://<IP>:7340` **não funciona, de propósito**. A porta 7340 só escuta dentro da máquina; o UniVerso só responde ao nome que você pôs no `VERSO_PUBLIC_URL`; e ele não deixa ninguém entrar por HTTP puro vindo de outra máquina (a página diz *Este servidor só aceita entrar por HTTPS*). É para sua senha nunca viajar aberta. Então, a partir do IP, escolha **um** dos três jeitos.
 
 ### Só para os seus aparelhos: Tailscale
 
@@ -226,6 +226,16 @@ VERSO_PUBLIC_URL=https://<máquina>.<tailnet>.ts.net
 ```
 
 com o **HTTPS ligado para a sua rede** no console de administração do Tailscale. As opções do Tailscale mudam de versão em versão: `tailscale serve --help` é a referência. Para aplicar a mudança, reinicie o UniVerso (`sudo systemctl restart universo`, ou `docker compose up -d` na pasta `/srv/universo`).
+
+### Só para experimentar, sem nome e sem Tailscale: um túnel SSH
+
+Sem domínio e sem Tailscale, ainda dá para ver o UniVerso funcionando, sozinho, do seu computador. Instale sem `--url` (aperte Enter quando o script perguntar) e deixe `VERSO_PUBLIC_URL` e `VERSO_TRUSTED_PROXY` **vazios** no `/etc/universo/universo.env`. No seu computador:
+
+```bash
+ssh -L 7340:127.0.0.1:7340 seu-usuario@<IP da máquina>
+```
+
+Deixe esse terminal aberto e abra `http://localhost:7340` no navegador **do seu computador**; o link de configuração do admin (passo 6) é o do log, com `http://localhost:7340` no lugar do nome. Só você chega lá. Isto **não** funciona com o `VERSO_PUBLIC_URL` preenchido (o UniVerso só aceita a página do nome que está nele) nem com o `compose.yaml` do Caminho 2 como está escrito, que já supõe um proxy: para outras pessoas, use um dos dois jeitos acima.
 
 ### Para outras pessoas: um nome e o Caddy
 
