@@ -39,8 +39,11 @@ pub const PIECE: usize = 1 << 20;
 /// listed, not synced.
 pub const LARGEST: u64 = 1 << 30;
 
+#[path = "sync_paths.rs"]
+mod paths;
 pub use crate::transfers::Transfers;
 use crate::transfers::{Being, IDLE, Reading, Upload, room};
+use paths::{Now, reconcile_paths};
 
 /// How often a device's question walks the folder again.
 pub(crate) const WALK_EVERY: Duration = Duration::from_secs(60);
@@ -465,167 +468,6 @@ fn record_changes(
         crate::readers::push_sync_changed(server, folder, (head, &paths), &seen);
     }
     Ok(head)
-}
-
-/// Bring the folder's log up to date with `paths` alone — the files a
-/// change through the server just wrote, deleted or renamed, which the
-/// caller knows — without walking the rest of the folder: a device's
-/// write costs the paths it touched, not the folder's size. The folder's
-/// lock is held by the caller.
-/// What the caller knows of a path it changed: nothing (it is read), the
-/// bytes it wrote (their hash, size and quick key), or that it is gone.
-#[derive(Clone)]
-enum Now {
-    Read,
-    Written(String, i64, String),
-    Gone,
-}
-
-fn reconcile_paths(
-    server: &Server,
-    folder: &str,
-    key: &str,
-    by: Author<'_>,
-    paths: &[(String, Now)],
-) -> Result<i64, ContractError> {
-    // A file held as the twin of another (`crate::twins`) never enters the
-    // log through a write that names it: the walk keeps it out too.
-    let held = crate::twins::held(server, folder);
-    let unheld: Vec<(String, Now)>;
-    let paths = if held.is_empty() {
-        paths
-    } else {
-        unheld = paths
-            .iter()
-            .filter(|(p, _)| !held.contains(p))
-            .cloned()
-            .collect();
-        unheld.as_slice()
-    };
-    let spelled;
-    let paths = if verso_core::sync::FOLDS_NAMES {
-        spelled = as_spelled(server, key, paths)?;
-        spelled.as_slice()
-    } else {
-        paths
-    };
-    let mut known: HashMap<String, crate::db::Known> = HashMap::new();
-    for (p, _) in paths {
-        if let Some(k) = server.db.known(folder, p).map_err(verso_service::failed)? {
-            known.insert(p.clone(), k);
-        }
-    }
-    let to_read: Vec<&str> = paths
-        .iter()
-        .filter(|(_, now)| matches!(now, Now::Read))
-        .map(|(p, _)| p.as_str())
-        .collect();
-    let sizes = listed_sizes(server, key, &to_read)?;
-    let mut present: HashSet<String> = HashSet::new();
-    let mut created = Vec::new();
-    let mut quick_only = Vec::new();
-    for (path, now) in paths {
-        let (hash, size, quick) = match now {
-            Now::Gone => continue,
-            Now::Written(hash, size, quick) => (hash.clone(), *size, quick.clone()),
-            // Larger than sync carries: never read, kept as it was.
-            Now::Read if sizes.get(path).is_some_and(|len| *len > LARGEST) => {
-                let len = sizes.get(path).copied().unwrap_or_default();
-                server.transfers.large.add(server, folder, path, len);
-                present.insert(path.clone());
-                continue;
-            }
-            Now::Read => {
-                match read_file(server, key, path) {
-                    Ok(Some(read)) => {
-                        server.transfers.large.remove(folder, path);
-                        (
-                            read.hash,
-                            i64::try_from(read.len).unwrap_or(i64::MAX),
-                            quick_of(&read.revision, read.len)
-                                .unwrap_or_else(|| format!("{}:0", read.len)),
-                        )
-                    }
-                    // A folder: no entry of the log.
-                    Ok(None) => continue,
-                    Err(e) if e.kind == ErrorKind::NotFound => continue,
-                    // A placeholder or a file not readable now: as it was.
-                    Err(_) => {
-                        present.insert(path.clone());
-                        continue;
-                    }
-                }
-            }
-        };
-        present.insert(path.clone());
-        if known.get(path).is_some_and(|k| k.hash == hash) {
-            quick_only.push((path.clone(), quick));
-        } else {
-            created.push((path.clone(), hash, size, quick));
-        }
-    }
-    let gone: Vec<(String, String)> = known
-        .iter()
-        .filter(|(p, _)| !present.contains(p.as_str()))
-        .map(|(p, k)| (p.clone(), k.hash.clone()))
-        .collect();
-    record_changes(
-        server,
-        (folder, key),
-        by,
-        (&known, &gone),
-        created,
-        &quick_only,
-    )
-}
-
-/// Where the server's file system folds names: a path written or read
-/// through another spelling of a listed file's name reached that file,
-/// whose name the disk keeps (a write over a file keeps its name) — the log
-/// follows the disk's spelling, and the other spelling, if the log knew
-/// it, is gone. A device that had not yet heard of a respelling sends its
-/// edit under the old one; without this the manifest would hold both.
-fn as_spelled(
-    server: &Server,
-    key: &str,
-    paths: &[(String, Now)],
-) -> Result<Vec<(String, Now)>, ContractError> {
-    let named: Vec<(String, bool)> = paths
-        .iter()
-        .map(|(p, now)| (p.clone(), matches!(now, Now::Gone)))
-        .collect();
-    let gone: HashSet<String> = named
-        .iter()
-        .filter(|(_, g)| *g)
-        .map(|(p, _)| p.clone())
-        .collect();
-    let disk: Vec<Option<String>> = server.service.with_key(key, move |ws| {
-        let entries = ws.entries();
-        Ok(named
-            .iter()
-            .map(|(p, is_gone)| {
-                if *is_gone || entries.iter().any(|e| &e.path == p) {
-                    return None;
-                }
-                let k = verso_core::sync::folded(p);
-                entries
-                    .iter()
-                    .find(|e| one_name(p, &k, &e.path) && !gone.contains(&e.path))
-                    .map(|e| e.path.clone())
-            })
-            .collect())
-    })?;
-    let mut out = Vec::with_capacity(paths.len());
-    for ((path, now), on_disk) in paths.iter().zip(disk) {
-        match on_disk {
-            Some(d) => {
-                out.push((d, now.clone()));
-                out.push((path.clone(), Now::Gone));
-            }
-            None => out.push((path.clone(), now.clone())),
-        }
-    }
-    Ok(out)
 }
 
 /// [`reconcile_written`] for the folder behind a key the server opened: a
