@@ -48,6 +48,7 @@ mod focuses;
 mod folder_layer;
 mod framing;
 mod history;
+mod local_server;
 mod log;
 mod menu;
 mod notes;
@@ -71,6 +72,7 @@ use files::*;
 use focuses::*;
 use folder_layer::*;
 use history::*;
+use local_server::*;
 use menu::*;
 use notes::*;
 use protocol::*;
@@ -131,6 +133,8 @@ pub struct App {
     /// ends): the main window, made next, opens it — no other window is
     /// made for it (`folder_handed`).
     started: std::sync::atomic::AtomicBool,
+    /// "This app is a server" (ADR 0096), made on first use.
+    pub(crate) local_server: local_server::LocalSlot,
 }
 
 impl App {
@@ -153,6 +157,7 @@ impl App {
             menu_recents: Mutex::new(Vec::new()),
             menu_language: Mutex::new("pt".to_owned()),
             started: std::sync::atomic::AtomicBool::new(false),
+            local_server: local_server::LocalSlot::default(),
         }
     }
 }
@@ -734,6 +739,21 @@ macro_rules! commands_for {
                 share_attachments::<$runtime>,
                 server_prove::<$runtime>,
                 recent_folders,
+                local_server_status::<$runtime>,
+                local_server_folders::<$runtime>,
+                local_server_tick::<$runtime>,
+                local_server_settings::<$runtime>,
+                local_server_start::<$runtime>,
+                local_server_stop::<$runtime>,
+                local_server_pair_open::<$runtime>,
+                local_server_pair_close::<$runtime>,
+                local_server_pair_state::<$runtime>,
+                local_server_answer::<$runtime>,
+                local_server_phones::<$runtime>,
+                local_server_revoke::<$runtime>,
+                local_server_forget::<$runtime>,
+                local_server_replace_identity::<$runtime>,
+                local_server_audit::<$runtime>,
                 folder_sync::<$runtime>,
                 folder_sync_start::<$runtime>,
                 folder_sync_stop::<$runtime>,
@@ -952,6 +972,9 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
     );
     builder
         .setup(|app| {
+            // Serving to a phone is off at every start unless the person
+            // asked it to keep on (ADR 0096 item 1).
+            local_server::auto_start(app.handle());
             // The window's data under the former identifier comes along,
             // before any window opens (ADR 0004, decided 2026-10-07).
             migrate_web_data(&app.config().identifier);
@@ -1039,7 +1062,11 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
             settle(app);
             lock(&app.state::<App>().opening).remove(label);
         }
-        tauri::RunEvent::Exit => log::write("INFO", "host", "exiting"),
+        tauri::RunEvent::Exit => {
+            // The port closes and the goodbye is sent (ADR 0096 item 8).
+            local_server::stop_on_exit(app);
+            log::write("INFO", "host", "exiting");
+        }
         _ => {}
     }
     match event {
@@ -1164,6 +1191,8 @@ fn ask_windows_to_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
 mod tests;
 #[cfg(test)]
 mod tests_live;
+#[cfg(test)]
+mod tests_local;
 #[cfg(test)]
 mod tests_notify;
 #[cfg(test)]

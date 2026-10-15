@@ -19,6 +19,11 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
+mod local;
+pub use local::{
+    LocalAsked, LocalAudit, LocalFolder, LocalPairState, LocalPairing, LocalPhone,
+    LocalServerStatus,
+};
 mod maps;
 pub use maps::{MapInfo, MapState};
 mod periodic;

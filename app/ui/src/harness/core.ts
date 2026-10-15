@@ -59,6 +59,7 @@ import type {
   SyncStatus,
 } from "../bindings";
 import { Bin } from "./trash";
+import { LocalServerHarness } from "./localServer";
 import { Maps } from "./maps";
 import { applyPeriodic, obsidianPeriodic, readPeriodic, sortedDeep } from "./periodic";
 import { blocksOf, fitsKind, headingsOf, propertiesOf, propertyList, readableLines, renderMarkdown, schemaBlocksOf } from "./markdown";
@@ -277,6 +278,7 @@ export class Core {
   readonly folders = new Set<string>();
   /** The folder's trash and what is known of it (ADR 0080). */
   readonly bin = new Bin(this);
+  readonly localServer = new LocalServerHarness();
   /** A large picture's tiles and a reader's board (ADR 0090). */
   readonly maps = new Maps();
   /** This machine's folder note name setting (`set_folder_note_name`):
@@ -1396,6 +1398,7 @@ export class Core {
     collab_present: () => refuse("refused", "simultaneous editing is a server's"),
     collab_canvas: () => refuse("refused", "simultaneous editing is a server's"),
     collab_roll: () => refuse("refused", "simultaneous editing is a server's"),
+    ...this.localServer.handlers, // ADR 0096
     // No server signed in to from the harness (ADR 0073 item 2).
     server_accounts: () => [],
     server_sign_in: () => refuse("unavailable", "no server in the harness"),

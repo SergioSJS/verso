@@ -361,3 +361,37 @@ export function quotaHeard(q: FolderQuota, folder = currentFolder, name = folder
 /** A notification a layer that does not import the window asks for (the
  *  window kept offline in a browser, web/offline/manager.ts, ADR 0092). */
 addEventListener("verso:notify", (e) => notify((e as CustomEvent<Parameters<typeof notify>[0]>).detail));
+
+/* ---------- This app serving to a phone (ADR 0096 item 14) ---------- */
+
+/** A paired phone connected for the first time: the app's own
+ *  notification, not the system's. Kept under "sharing": a phone is let
+ *  into the folders. */
+export function phoneConnectedHeard(name: string): void {
+  const s = notifyStrings();
+  notify({
+    kind: "sharing",
+    key: `phone:${name}`,
+    state: "connected",
+    level: "info",
+    title: s.phoneConnected,
+    sentence: s.phoneConnectedWhy(name),
+    actions: [{ label: s.toLocalServer, act: "settings", arg: "localserver" }],
+  });
+}
+
+/** Serving stopped by itself (the network changed): said where the person
+ *  reads, so that a laptop that went from home to a café says that it
+ *  stopped. */
+export function serveStoppedHeard(said: string): void {
+  const s = notifyStrings();
+  notify({
+    kind: "sharing",
+    key: "local-server",
+    state: `stopped:${Date.now()}`,
+    level: "warning",
+    title: s.serveStopped,
+    sentence: said,
+    actions: [{ label: s.toLocalServer, act: "settings", arg: "localserver" }],
+  });
+}

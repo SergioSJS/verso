@@ -68,6 +68,22 @@ O que é o servidor e como instalá-lo: [[23 - Verso num Servidor]].
 
 ---
 
+## Parear o Celular com o Seu Computador
+
+Sem instalar nada: o próprio Verso do computador pode servir as pastas que você marcar ao navegador do celular, **pela rede em que os dois estão** (a sua casa, por exemplo). É o mesmo servidor do `verso serve`, dentro do app; fica **desligado** até você ligar, e desliga de novo quando o app fecha.
+
+1. No computador, **Ajustes › Este app é um servidor**. Marque as pastas que o celular pode ver — nenhuma vem marcada — e toque em **Ligar o servidor**. Na primeira vez o Verso explica o que o sistema vai perguntar (rede local, firewall) antes de pedir; se você negar, ele diz como liberar, sem mexer no firewall por conta própria.
+2. Toque em **Parear um celular**. O computador mostra um **QR**, o endereço e um **código de oito letras**, que valem **2 minutos** e uma vez só.
+3. No celular, aponte a câmera para o QR (ou abra o endereço no navegador e digite o código). O navegador avisa que o certificado não é de uma autoridade conhecida: é o certificado que o próprio app fez para o seu computador. Aceite — **só numa rede em que você confia**.
+4. No computador aparece **Foi você quem leu este QR?**, com o nome do celular, o endereço e a hora. **Permitir** deixa o celular entrar (marque *Pode editar as notas* para ele escrever; sem isso, ele só lê); **Não fui eu: recusar** encerra o código. Três códigos errados fecham a janela.
+5. O celular abre a janela do Verso com as pastas marcadas. Em **Ajustes › Este app é um servidor** você vê os celulares pareados e **Revoga** qualquer um: a sessão dele termina na hora. **Esquecer todos os celulares** e **Substituir a identidade deste computador** terminam todos os pareamentos de uma vez.
+
+O que fica de fora de propósito: o celular **nunca** abre pastas que você não marcou, não vê o seu disco, não manda o computador abrir nada no sistema, não muda os ajustes do app e não faz parte de uma pasta que também sincroniza com um UniVerso (nesse caso, abra o endereço do UniVerso no celular). Se o endereço do computador mudar — outra rede, uma VPN que liga —, o servidor **para sozinho** e avisa; é preciso ligar e parear de novo. Numa rede com isolamento de clientes (um café, um hotel) o celular não alcança o computador, e o Verso diz isso.
+
+O certificado do app **não é de uma autoridade conhecida**, então o navegador do celular o trata como inseguro e não deixa a pasta ficar [[#Sem Rede|disponível sem rede]]. Para isso, use um UniVerso com HTTPS de verdade, ou o `tailscale serve` — veja [[23 - Verso num Servidor]].
+
+---
+
 ## Sem Rede
 
 Num servidor com HTTPS, uma pasta pode ficar **disponível sem rede** neste aparelho — no celular, no tablet ou num navegador de computador. É uma escolha de cada pasta, só deste aparelho, e começa desligada.

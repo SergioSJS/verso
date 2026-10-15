@@ -25,6 +25,13 @@ pub fn role(server: &Server, who: &Who, id: &str) -> ApiResult<(Folder, Role)> {
         .role(id, &who.account.id)?
         .ok_or_else(ApiError::not_found)?;
     let role = if writes { role } else { role.min(Role::Reader) };
+    // A phone is never an owner, whatever the owner's role in the folder
+    // (ADR 0096 item 12).
+    let role = if who.phone.is_some() {
+        role.min(Role::Editor)
+    } else {
+        role
+    };
     Ok((folder, role))
 }
 

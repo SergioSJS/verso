@@ -36,6 +36,7 @@ pub mod inflight;
 pub mod large;
 pub mod limit;
 pub mod listen;
+pub mod local;
 pub mod log;
 pub mod mail;
 pub mod pace;

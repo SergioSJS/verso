@@ -12,7 +12,7 @@ use std::net::{IpAddr, SocketAddr};
 use axum::http::HeaderMap;
 use axum::http::header::{AUTHORIZATION, COOKIE, HOST, ORIGIN};
 
-use crate::db::{Account, SESSION_MAX};
+use crate::db::{Account, Role, SESSION_MAX};
 use crate::state::Server;
 
 /// Where a request came from.
@@ -58,6 +58,11 @@ pub enum Via {
 pub struct Who {
     pub account: Account,
     pub via: Via,
+    /// The role a phone was paired with, when this is "this app is a
+    /// server" (ADR 0096 item 12): the most the credential may do, whatever
+    /// the owner's role in the folder — a reader's, or an editor's, never
+    /// more. None on a server.
+    pub phone: Option<Role>,
 }
 
 impl Who {
@@ -73,6 +78,10 @@ impl Who {
     /// Whether this credential may reach folder `id` at all, and write.
     #[must_use]
     pub fn reaches(&self, folder: &str) -> (bool, bool) {
+        // A phone paired as a reader reaches its folders and writes in none.
+        if let Some(role) = self.phone {
+            return (true, role.writes());
+        }
         match &self.via {
             Via::Token { write, folders, .. } => (folders.iter().any(|f| f == folder), *write),
             _ => (true, true),
@@ -82,7 +91,8 @@ impl Who {
 
 /// Whether the server serves its own TLS.
 fn own_tls(server: &Server) -> bool {
-    server.config.tls.is_some()
+    // "This app is a server" always speaks TLS, with its own certificate.
+    server.config.tls.is_some() || server.local.is_some()
 }
 
 /// Whether the address people use is HTTPS: then the cookie is
@@ -166,7 +176,9 @@ pub fn host_ok(server: &Server, headers: &HeaderMap) -> bool {
     let Some(host) = headers.get(HOST).and_then(|v| v.to_str().ok()) else {
         return false;
     };
-    public_authority(server).is_some_and(|a| a.eq_ignore_ascii_case(host)) || loopback_host(host)
+    public_authority(server).is_some_and(|a| a.eq_ignore_ascii_case(host))
+        || loopback_host(host)
+        || server.local.as_ref().is_some_and(|l| l.knows_host(host))
 }
 
 /// The origin pages of this server have.
@@ -178,7 +190,8 @@ pub fn expected_origin(server: &Server, headers: &HeaderMap) -> Option<String> {
     }
     let host = headers.get(HOST).and_then(|v| v.to_str().ok())?;
     let scheme = if own_tls(server) { "https" } else { "http" };
-    loopback_host(host).then(|| format!("{scheme}://{}", host.to_ascii_lowercase()))
+    (loopback_host(host) || server.local.as_ref().is_some_and(|l| l.knows_host(host)))
+        .then(|| format!("{scheme}://{}", host.to_ascii_lowercase()))
 }
 
 /// A request that changes something, or a WebSocket that will, came from a
@@ -243,6 +256,11 @@ fn bearer(headers: &HeaderMap) -> Option<String> {
 /// Who a request is from: a bearer token first (a program), then the
 /// session cookie (a browser); `None` when neither opens anything.
 pub fn who(server: &Server, headers: &HeaderMap) -> Result<Option<Who>, String> {
+    // "This app is a server" has no tokens and no device sign-in: a bearer
+    // credential opens nothing (ADR 0096 items 2 and 12).
+    if server.local.is_some() && bearer(headers).is_some() {
+        return Ok(None);
+    }
     if let Some(secret) = bearer(headers) {
         if secret.starts_with("verso_pat_") {
             let Some(grant) = server.db.token(&secret)? else {
@@ -255,6 +273,7 @@ pub fn who(server: &Server, headers: &HeaderMap) -> Result<Option<Who>, String> 
                     write: grant.write,
                     folders: grant.folders,
                 },
+                phone: None,
             }));
         }
         let Some(s) = server.db.session(&secret)? else {
@@ -266,6 +285,7 @@ pub fn who(server: &Server, headers: &HeaderMap) -> Result<Option<Who>, String> 
         return Ok(server.db.account(&s.account)?.map(|account| Who {
             account,
             via: Via::Device { session: s.id },
+            phone: None,
         }));
     }
     let Some(token) = cookie(headers, cookie_name(server)) else {
@@ -277,12 +297,23 @@ pub fn who(server: &Server, headers: &HeaderMap) -> Result<Option<Who>, String> 
     if s.kind != "browser" {
         return Ok(None);
     }
+    // A session that is no phone's opens nothing here (ADR 0096 item 12):
+    // fail closed.
+    let phone = if server.local.is_some() {
+        match server.db.phone_role(&s.id)? {
+            Some(role) => Some(role),
+            None => return Ok(None),
+        }
+    } else {
+        None
+    };
     Ok(server.db.account(&s.account)?.map(|account| Who {
         account,
         via: Via::Browser {
             session: s.id,
             csrf: s.csrf,
         },
+        phone,
     }))
 }
 
@@ -325,6 +356,35 @@ pub fn device_name(headers: &HeaderMap) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn someone(phone: Option<Role>) -> Who {
+        Who {
+            account: Account {
+                id: "a".into(),
+                email: "a@b.c".into(),
+                name: "A".into(),
+                lang: "pt".into(),
+                admin: false,
+                may_create: false,
+                created: 0,
+                password: None,
+            },
+            via: Via::Browser {
+                session: "s".into(),
+                csrf: "c".into(),
+            },
+            phone,
+        }
+    }
+
+    /// A phone paired as a reader reaches its folders and writes in none; an
+    /// editor writes; a session that is no phone's is a server's own.
+    #[test]
+    fn a_phone_reader_writes_nowhere() {
+        assert_eq!(someone(Some(Role::Reader)).reaches("f"), (true, false));
+        assert_eq!(someone(Some(Role::Editor)).reaches("f"), (true, true));
+        assert_eq!(someone(None).reaches("f"), (true, true));
+    }
 
     #[test]
     fn loopback_names_with_and_without_ports() {
