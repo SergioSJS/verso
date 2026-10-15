@@ -587,6 +587,17 @@ permite; B, o recorte nativo, com esta exceção.
   `verso-app` posto em `allow` a deixaram vermelha, cada um; desfeitos,
   verde.
 
+**Suporta macOS 11 ou superior (2026-10-15, aceito como recomendado).** A
+primeira versão do contêiner no macOS recortava com
+`NSView.clipsToBounds`, público só a partir do macOS 14. Agora recorta com
+o `masksToBounds` da camada (`setWantsLayer(true)`, depois o `layer()` da
+view), disponível desde o macOS 10.5, então o recorte funciona em todo
+macOS que o app suporta (11 ou superior). O `objc2-quartz-core` (0.3.2, já
+no lockfile) virou dependência direta do `verso-app` para essa chamada, e o
+`unsafe` fica só em `web_clip/macos.rs` e `windows.rs`, cada bloco com seu
+comentário `SAFETY` (`check-unsafe` inalterado). Um teste de unidade impede
+a volta da chamada do macOS 14.
+
 O que custa, dito com todas as letras: `unsafe` é o código que o
 compilador não verifica, num projeto cuja revisão é mecânica (Contexto).
 Os dois arquivos são pequenos, lidos pelo modelo que não os escreveu, e o

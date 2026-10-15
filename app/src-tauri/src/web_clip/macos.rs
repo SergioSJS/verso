@@ -71,9 +71,13 @@ fn adopt(mtm: MainThreadMarker, page: &NSView, parent: &NSView) -> Retained<NSVi
     let clip = NSView::initWithFrame(NSView::alloc(mtm), page.frame());
     clip.setIdentifier(Some(&NSString::from_str(CLIP_ID)));
     // Layer-backed, and its layer masks to its bounds: nothing of the
-    // page is drawn outside the container.
+    // page is drawn outside the container. The layer's `masksToBounds`
+    // is used, not `NSView.clipsToBounds`, which is public only from
+    // macOS 14 (the app supports macOS 11 and up).
     clip.setWantsLayer(true);
-    clip.setClipsToBounds(true);
+    if let Some(layer) = clip.layer() {
+        layer.setMasksToBounds(true);
+    }
     // The page is placed by hand on every call, never resized by AppKit.
     clip.setAutoresizesSubviews(false);
     // Between two calls (a window resized), keep the distance to the
@@ -140,4 +144,17 @@ pub(super) fn release(pw: &PlatformWebview) {
         host.addSubview_positioned_relativeTo(&page, NSWindowOrderingMode::Above, Some(&clip));
     }
     clip.removeFromSuperview();
+}
+
+#[cfg(test)]
+mod tests {
+    /// `NSView.clipsToBounds` is public only from macOS 14; the app
+    /// supports macOS 11 and up, so the container clips with its layer's
+    /// `masksToBounds` (ADR 0029, revision of 2026-10-15).
+    #[test]
+    fn the_container_clips_through_its_layer_not_a_macos_14_api() {
+        let source = include_str!("macos.rs");
+        assert!(!source.contains(concat!("set", "ClipsToBounds")));
+        assert!(source.contains(concat!("set", "MasksToBounds(true)")));
+    }
 }
