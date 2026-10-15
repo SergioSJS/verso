@@ -21,8 +21,8 @@ use specta::Type;
 
 mod local;
 pub use local::{
-    LocalAsked, LocalAudit, LocalFolder, LocalPairState, LocalPairing, LocalPhone,
-    LocalServerStatus,
+    LocalAddressChoice, LocalAsked, LocalAudit, LocalFolder, LocalPairState, LocalPairing,
+    LocalPhone, LocalServerStatus,
 };
 mod maps;
 pub use maps::{MapInfo, MapState};

@@ -510,6 +510,21 @@ decision; each is a question for the maintainer if it should be otherwise):
   with the box the window tells the person to leave unticked, lets only
   Private networks in (item 9). The dialog's "firewall refuses" help has
   a Windows paragraph.
+- **Which address the pairing shows** (item 3, as built 2026-10-15): the
+  first build showed the first private address it listed, which on one Mac
+  was ZeroTier's virtual interface. Now the addresses are ranked: the one
+  the system would use for its default route first — found by connecting a
+  UDP socket to a documentation address (`192.0.2.1`), which asks the
+  routing table and sends nothing, with no new dependency —, then
+  interfaces that look real, then virtual ones by name (`utun*`, `feth*`,
+  `zt*`, `tailscale*`, `wg*`, `tun*`, `tap*`, `docker*`, `br-*`, `vbox*`,
+  `vmnet*`, `bridge*`, `veth*`, and Windows adapters named ZeroTier,
+  Tailscale, VPN, Hyper-V, VirtualBox, vEthernet). The pairing dialog says
+  which address and interface the QR is for ("192.168.3.122 — en7 (local
+  network)") and a list lets the person pick another ("10.147.11.197 —
+  feth237 (virtual network: ZeroTier?)"); picking opens a new pairing
+  window — a new one-time token and code. The certificate needs no change:
+  it already names **every** address served, so any pick is valid.
 - **The server** is the same crate and the same dispatch as `verso serve`
   (`crates/verso-server/src/local`), with a smaller table of routes — no
   sign-in, invitation, account page, console, token, passkey or device
