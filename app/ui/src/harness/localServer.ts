@@ -150,6 +150,13 @@ export class LocalServerHarness {
       return null;
     },
     local_server_phones: (): LocalPhone[] => this.paired.map((p) => ({ ...p })),
+    local_server_phone_role: (a): null => {
+      const phone = this.paired.find((p) => p.id === String(a["id"]));
+      if (!phone) refuse("that phone is not paired");
+      phone.role = a["editor"] === true ? "editor" : "reader";
+      this.log(`phone_role_${phone.role}`, phone.name);
+      return null;
+    },
     local_server_revoke: (a): null => {
       const at = this.paired.findIndex((p) => p.id === String(a["id"]));
       if (at < 0) refuse("that phone is not paired");

@@ -280,7 +280,32 @@ export function localServerBody(_item: Item): HTMLElement {
           void redraw();
         });
       });
-      li.append(who, revoke);
+      // Reader or editor, changed here without pairing again; a phone that
+      // is connected has it from its next command.
+      const mayEdit = h("input");
+      mayEdit.type = "checkbox";
+      mayEdit.id = `ls-edit-${p.id}`;
+      mayEdit.checked = p.role === "editor";
+      mayEdit.setAttribute("aria-label", w.mayEditNamed(p.name));
+      const mayLabel = h("label", "ls-check", w.mayEdit);
+      mayLabel.htmlFor = mayEdit.id;
+      mayLabel.prepend(mayEdit);
+      mayEdit.addEventListener("change", () => {
+        const editor = mayEdit.checked;
+        mayEdit.disabled = true;
+        void commands.localServerPhoneRole(p.id, editor).then((res) => {
+          mayEdit.disabled = false;
+          if (res.status !== "ok") {
+            mayEdit.checked = !editor;
+            return failed(res.error);
+          }
+          say(w.roleNow(p.name, editor));
+          void redraw();
+        });
+      });
+      const acts = h("div", "ls-phone-acts");
+      acts.append(mayLabel, revoke);
+      li.append(who, acts);
       phones.append(li);
     }
     state.textContent = s.serving ? `${w.serving(where(s))} ${w.phones(s.phones_paired, s.phones_connected)}.` : `${w.off} ${w.phones(s.phones_paired, 0)}.`;

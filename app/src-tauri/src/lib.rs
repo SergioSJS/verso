@@ -750,6 +750,7 @@ macro_rules! commands_for {
                 local_server_pair_state::<$runtime>,
                 local_server_answer::<$runtime>,
                 local_server_phones::<$runtime>,
+                local_server_phone_role::<$runtime>,
                 local_server_revoke::<$runtime>,
                 local_server_forget::<$runtime>,
                 local_server_replace_identity::<$runtime>,

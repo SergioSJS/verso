@@ -543,6 +543,30 @@ de outro jeito):
   escolher abre uma nova janela de pareamento — novo token de uso único e
   novo código. O certificado não muda: ele já nomeia **todos** os endereços
   servidos, então qualquer escolha é válida.
+- **O papel de um celular pareado pode mudar** (itens 6 e 15, como
+  construído em 2026-10-15): a primeira versão fixava o papel no pareamento,
+  então deixar um leitor editar exigia esquecer o celular e parear de novo.
+  Cada linha de *Celulares pareados* tem um interruptor *Pode editar* (leitor
+  ou editor, nunca acima). A mudança vale a partir do próximo comando do
+  celular (o servidor lê o papel de novo a cada comando), as janelas abertas
+  do celular são avisadas, e um editor que passa a leitor sai das salas ao
+  vivo em que escrevia pelo mesmo caminho de um membro rebaixado num
+  compartilhamento. Fica no log (`verso.log`) e em *O que aconteceu*
+  (`phone_role_editor`, `phone_role_reader`).
+- **O que o log guarda** (item 14, como construído em 2026-10-15): as linhas
+  de log do crate do servidor também vão para o `verso.log` do app (origem
+  `local`): servir ligado e desligado com os endereços e a porta, a janela de
+  pareamento abrindo, terminando, expirando, um pareamento aprovado ou
+  recusado, um celular conectado, desconectado e revogado, o papel de um
+  celular mudando, e um comando recusado a um celular (WARN, no máximo uma
+  vez por minuto). Nunca um token, um código, o texto do QR, a impressão
+  digital, um cookie ou palavras de uma nota; um teste procura cada um.
+- **O que a janela do celular pede ao carregar** (item 12, como construído
+  em 2026-10-15): `set_walk_rules`, `set_folder_note_name` e `log_write` são
+  respondidos e não fazem nada para um celular (são das configurações da
+  pasta e do log, definidos no computador); as recusas têm tipos de erro
+  próprios (`not_on_phone`, `phone_reads`) para a janela dizê-las no seu
+  idioma.
 - **O servidor** é o mesmo crate e o mesmo despacho do `verso serve`
   (`crates/verso-server/src/local`), com uma tabela de rotas menor — sem
   login, convite, página de conta, console, token, passkey nem fluxo de

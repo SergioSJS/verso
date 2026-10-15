@@ -120,6 +120,17 @@ pub(crate) async fn local_server_answer<R: tauri::Runtime>(
     platform::answer(app, allow, editor).await
 }
 
+/// Let a paired phone edit (or only read) without pairing it again.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_phone_role<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+    editor: bool,
+) -> Result<(), ContractError> {
+    platform::phone_role(app, id, editor).await
+}
+
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn local_server_phones<R: tauri::Runtime>(

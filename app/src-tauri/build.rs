@@ -126,6 +126,7 @@ fn main() {
         "local_server_pair_state",
         "local_server_answer",
         "local_server_phones",
+        "local_server_phone_role",
         "local_server_revoke",
         "local_server_forget",
         "local_server_replace_identity",

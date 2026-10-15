@@ -560,6 +560,8 @@ export const commands = {
 	 */
 	localServerAnswer: (allow: boolean, editor: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("local_server_answer", { allow, editor })),
 	localServerPhones: () => typedError<LocalPhone[], ContractError>(__TAURI_INVOKE("local_server_phones")),
+	/**  Let a paired phone edit (or only read) without pairing it again. */
+	localServerPhoneRole: (id: string, editor: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("local_server_phone_role", { id, editor })),
 	localServerRevoke: (id: string) => typedError<null, ContractError>(__TAURI_INVOKE("local_server_revoke", { id })),
 	/**  Forget every device: every phone's session ends. */
 	localServerForget: () => typedError<number, ContractError>(__TAURI_INVOKE("local_server_forget")),

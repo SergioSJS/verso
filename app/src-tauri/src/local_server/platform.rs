@@ -317,6 +317,15 @@ pub(super) async fn phones<R: tauri::Runtime>(
     .await
 }
 
+pub(super) async fn phone_role<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+    editor: bool,
+) -> Result<(), ContractError> {
+    let local = server(&app)?;
+    blocking(move || local.set_phone_role(&id, editor)).await
+}
+
 pub(super) async fn revoke<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     id: String,
