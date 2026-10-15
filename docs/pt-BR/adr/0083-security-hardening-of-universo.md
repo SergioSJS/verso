@@ -382,6 +382,82 @@ decidido como escrito. Tamanhos: S são horas, M um ou dois dias, L mais.
     `docs/reference/server-install.md`, seção 15, com a data; um número
     que a medição contradiga é mudado no mesmo PR. Tamanho M.
 
+    *Medido em 2026-10-15* (o que o uso normal custa e se cabe; **nenhuma
+    inundação foi feita**: nada aqui visou sobrecarregar o servidor nem
+    contornar uma proteção, e cada número é de um uso que o servidor
+    deve aguentar). Laboratório: a VM 107 do host Proxmox, 1 núcleo,
+    1 GB, Ubuntu 26.04, o binário estático musl da release, vindo do
+    `.deb` da 0.8.2-beta.1 instalado pelo `universo.sh` (Caminho 1 da
+    lição 24), sem swap, os 1 024 arquivos abertos que o systemd dá por
+    padrão. O `scripts/server-load.mjs` do kit rodou de um Mac por um
+    túnel SSH até o loopback, com `X-Forwarded-For` e
+    `X-Forwarded-Proto: https` de um endereço fixo de uma casa, como o
+    Caddy mandaria (`VERSO_TRUSTED_PROXY=127.0.0.1`), porque uma conexão
+    do próprio loopback fica fora dos limites por endereço e os
+    esconderia. Três contas (o admin e dois editores), aparelhos
+    repartidos igualmente, 120 s por rodada (60 s a toda velocidade),
+    cada leitura conferida byte a byte (0 divergências em 5 rodadas; a
+    conferência dos arquivos no disco do servidor, que o kit faz, não
+    rodou, o disco estando na outra máquina). Os únicos erros foram
+    `put_hot:changed`, as recusas da nota compartilhada, por projeto.
+    Amostrado uma vez por segundo na VM. O disco do laboratório é lento:
+    uma escrita síncrona de 4 KiB leva cerca de 26 ms (`dd oflag=dsync`),
+    então os números de escrita abaixo são do disco do laboratório, não
+    o teto do servidor; uma VPS de nuvem com SSD será várias vezes mais
+    rápida.
+
+    | Rodada | Aparelhos | Ops/s | Escrita p50 / p95 (ms) | Leitura p50 / p95 (ms) | CPU do processo média / máx. | CPU do sistema ocupada / iowait | RSS máx. (MB) |
+    |---|---|---|---|---|---|---|---|
+    | parado, depois de iniciar | 0 | 0 | | | 0 % | | 13 |
+    | 48 conectados, parados | 48 | 0 | | | 4 % | | 53 (139 ao conectar) |
+    | casa, 1 op/s cada | 12 | 9 | 314 / 1 430 | 71 / 554 | 11 % / 69 % | n/d | 104 |
+    | 2 op/s cada | 24 | 14 | 1 397 / 4 656 | 125 / 1 366 | 38 % / 86 % | 50 % / 48 % | 202 |
+    | 2 op/s cada | 48 | 14 | 3 611 / 8 045 | 116 / 1 189 | 40 % / 91 % | 55 % / 44 % | 274 |
+    | a toda velocidade | 12 | 16 | 966 / 2 472 | 89 / 221 | 35 % / 87 % | 47 % / 52 % | 143 |
+    | a toda velocidade | 48 | 15 | 4 335 / 9 900 | 103 / 299 | 42 % / 90 % | 57 % / 43 % | 255 |
+
+    As escritas saturam perto de 15 por segundo seja qual for o número de
+    aparelhos (a espera cresce com a fila; uma pasta escreve um arquivo
+    por vez), e o processo espera pelo disco, não calcula. Perguntar a
+    lista de mudanças leva de 5 a 8 ms no p50 e de 13 a 69 ms no p95. A
+    memória não é o limite: 290 MB o maior RSS de toda a sessão (o
+    alocador guarda o que pegou; reiniciar devolve 13 MB), ao menos
+    490 MB livres dos 956, 122 descritores de 1 024. Entrar custa de 100
+    a 190 ms (o hash da senha); o `/api/state`, 3 ms no p50. Uma pasta de
+    3 000 notas (12 MB): a primeira abertura, com o índice feito, 4,5 s;
+    listar 33 ms; a lista de tags 336 ms; busca p50 37 ms, p95 73 ms;
+    backlinks p50 113 ms, p95 221 ms; ler uma nota 8 ms; 82 % de CPU
+    nessa janela, RSS de 39 a 63 MB. A primeira sincronização de um
+    aparelho novo da mesma pasta, 3 000 arquivos, 12 MB: a lista de
+    mudanças em três páginas (a primeira 1,4 s, enquanto a pasta era
+    varrida, as outras 40 ms), depois 26 s de leituras, 115 arquivos por
+    segundo, um por vez ou oito em andamento.
+
+    | Limite (item) | Número | O uso normal chegou? | Veredito |
+    |---|---|---|---|
+    | Aviso de entradas (2) | 20 falhas por hora | não: três senhas erradas são grátis, depois 1 s dobrando; vinte levam 12 minutos de tentativa | cabe |
+    | Entradas falhas no servidor (2) | 10 por segundo, 50 de uma vez | não: só falhas contam | cabe para pessoas; **frouxo demais para este host**, por conta e não por inundação: um hash leva de 100 a 190 ms no núcleo, então 10 por segundo é mais do que um núcleo confere |
+    | Ritmo REST por endereço (7) | 20 por segundo, 100 de uma vez | não: uma entrada, um pareamento e 40 leituras do estado ficaram bem abaixo; quantas chamadas `/api/` um navegador faz ao abrir a janela não foi medido (sem navegador) | cabe |
+    | WebSockets por conta, por endereço (fair.rs) | 32, 64 | não: 16 e 48 juntos de um endereço | cabe |
+    | Conexões, por endereço (listen.rs) | 512, 128 | não: 122 descritores no pico | cabe |
+    | Comandos por conta (fair.rs) | 100 por segundo, 400 de uma vez | **sim**, na primeira sincronização de um aparelho novo numa pasta grande: o log disse `account … sends commands past 100 a second: they wait their turn` e 3 000 leituras levaram 26 s (400 + 100 x 26) | apertado para a primeira sincronização de milhares de arquivos (uma espera, nunca uma recusa); uma pasta de 10 000 levaria uns 85 s |
+    | Comandos no servidor (fair.rs) | 1 000 por segundo, 2 000 de uma vez | não: 115 por segundo no máximo, leituras de uma conta | cabe, mas não limita a fila neste host: as escritas saturam em 15 por segundo, 60 vezes menos, e a espera é a da pasta |
+    | Parear um aparelho (o atraso por chave do item 2) | 3 grátis, depois 1 s dobrando até 60 s | **sim**, a partir do quarto pareamento numa hora de um endereço: esperas de 2, 4, 16, 32 e 60 s vistas no `approve` | apertado para uma casa que liga seus aparelhos numa noite |
+
+    Propostas, para o mantenedor decidir (nenhum código foi mudado):
+    (a) baixar o bucket de entradas falhas para cerca de 4 por segundo
+    contínuo e 20 de uma vez, para que uma inundação no ritmo do bucket
+    não tome o núcleo inteiro; (b) dar espaço à primeira sincronização:
+    contar um lote de leituras como um comando, ou subir o burst da conta
+    para alguns milhares, ou manter 100 por segundo e dizer no app que a
+    espera é esperada; (c) contar só as falhas no atraso do pareamento, ou
+    dar seis grátis às chaves `device:`; (d) dizer no guia de instalação
+    que, num disco tão lento, as escritas chegam a uns 15 por segundo e
+    isso é o disco. Não medido: a CPU e a latência atrás de um proxy de
+    verdade (o Caddy no IP e o Tailscale não cabem no laboratório), um
+    navegador, um celular, uma inundação de conexões ou de entradas, o
+    limite de 4 MB da atualização de uma sala.
+
 19. **Validação num laboratório hostil.** Decidida pelo mantenedor em
     2026-10-13, na mesma resposta que aceitou as recomendações: *"em
     seguida você deve emular um ambiente de ataque um ambiente hostil para

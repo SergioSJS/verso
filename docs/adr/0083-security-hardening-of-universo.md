@@ -366,6 +366,79 @@ as written. Sizes: S is hours, M a day or two, L more.
     `docs/reference/server-install.md` section 15 with the date; a number
     the measurement contradicts is changed in the same PR. Size M.
 
+    *Measured 2026-10-15* (what normal use costs and whether it fits;
+    **no flood was run**: nothing here was aimed at overwhelming the
+    server or going around a protection, and every number below is for
+    use the server is meant to take). Lab: VM 107 on the Proxmox host,
+    1 core, 1 GB, Ubuntu 26.04, the release's static musl binary from the
+    `.deb` of 0.8.2-beta.1 installed by `universo.sh` (Path 1 of lesson
+    24), no swap, systemd's default 1 024 open files. The kit's
+    `scripts/server-load.mjs` ran from a Mac over an SSH tunnel to the
+    loopback, with `X-Forwarded-For` and `X-Forwarded-Proto: https` of
+    one fixed household address, as Caddy would send them
+    (`VERSO_TRUSTED_PROXY=127.0.0.1`), because a connection from
+    loopback itself is exempt from the per-address limits and would hide
+    them. Three accounts (the admin, two editors), devices spread evenly,
+    120 s a run (60 s flat out), every read checked byte for byte
+    (0 mismatches in 5 runs; the kit's check of the files on the
+    server's disk was not run, the disk being on the other machine). The
+    only errors were `put_hot:changed`, the shared note's refusals by
+    design. Sampled once a second on the VM. The lab's disk is slow: a
+    synchronous 4 KiB write takes about 26 ms (`dd oflag=dsync`), so the
+    write figures below are the lab's disk, not the server's ceiling; a
+    cloud VPS with an SSD will be several times faster.
+
+    | Run | Devices | Ops/s | Write p50 / p95 (ms) | Read p50 / p95 (ms) | Process CPU avg / max | System CPU busy / iowait | RSS peak (MB) |
+    |---|---|---|---|---|---|---|---|
+    | idle, after start | 0 | 0 | | | 0 % | | 13 |
+    | 48 connected, idle | 48 | 0 | | | 4 % | | 53 (139 while connecting) |
+    | household, 1 op/s each | 12 | 9 | 314 / 1 430 | 71 / 554 | 11 % / 69 % | n/a | 104 |
+    | 2 op/s each | 24 | 14 | 1 397 / 4 656 | 125 / 1 366 | 38 % / 86 % | 50 % / 48 % | 202 |
+    | 2 op/s each | 48 | 14 | 3 611 / 8 045 | 116 / 1 189 | 40 % / 91 % | 55 % / 44 % | 274 |
+    | flat out | 12 | 16 | 966 / 2 472 | 89 / 221 | 35 % / 87 % | 47 % / 52 % | 143 |
+    | flat out | 48 | 15 | 4 335 / 9 900 | 103 / 299 | 42 % / 90 % | 57 % / 43 % | 255 |
+
+    The writes saturate near 15 a second whatever the number of devices
+    (the wait grows with the queue; one folder writes one file at a
+    time), and the process is waiting on the disk, not computing. A
+    change-list question is 5 to 8 ms at p50 and 13 to 69 ms at p95.
+    Memory is not the constraint: 290 MB the highest RSS in the whole
+    session (the allocator keeps what it took; a restart gives 13 MB
+    back), at least 490 MB of the 956 left, 122 descriptors of 1 024.
+    Sign-in costs 100 to 190 ms (the password hash); `/api/state` 3 ms
+    at p50. A folder of 3 000 notes (12 MB): first open, with the index
+    built, 4.5 s; list 33 ms; tag list 336 ms; search p50 37 ms, p95
+    73 ms; backlinks p50 113 ms, p95 221 ms; a note read 8 ms; 82 % CPU
+    during that window, RSS from 39 to 63 MB. A fresh device's first
+    sync of the same folder, 3 000 files, 12 MB: the change list in
+    three pages (the first 1.4 s while the folder was scanned, the rest
+    40 ms), then 26 s of reads, 115 files a second, whether one at a time
+    or eight in flight.
+
+    | Limit (item) | Number | Normal use reached it? | Verdict |
+    |---|---|---|---|
+    | Sign-in notice (2) | 20 failures an hour | no: three wrong passwords are free, then 1 s and doubling; twenty take 12 minutes of trying | fits |
+    | Failed sign-ins on the server (2) | 10 a second, 50 at once | no: only failures count | fits for people; **too loose for this host** by arithmetic, not tested by a flood: a hash is 100 to 190 ms on the core, so 10 a second is more than one core can verify |
+    | REST pace per address (7) | 20 a second, 100 at once | no: a sign-in, a pairing and 40 state reads stayed far under; a browser's own count of `/api/` calls on opening the window was not measured (no browser run) | fits |
+    | WebSockets per account, per address (fair.rs) | 32, 64 | no: 16 and 48 held together from one address | fits |
+    | Connections, per address (listen.rs) | 512, 128 | no: 122 descriptors at the peak | fits |
+    | Commands per account (fair.rs) | 100 a second, 400 at once | **yes**, by a fresh device's first sync of a big folder: the log said `account … sends commands past 100 a second: they wait their turn` and 3 000 reads took 26 s (400 + 100 x 26) | too tight for a first sync of thousands of files (a wait, never a refusal); a folder of 10 000 would take about 85 s |
+    | Commands on the server (fair.rs) | 1 000 a second, 2 000 at once | no: 115 a second at the most, reads of one account | fits, but it does not bound the queue on this host: the writes saturate at 15 a second, 60 times lower, and the wait is the one folder's |
+    | A device pairing (the per-key delay of item 2) | 3 free, then 1 s doubling to 60 s | **yes**, from the fourth pairing in an hour from one address: waits of 2, 4, 16, 32 and 60 s seen on `approve` | too tight for a household setting up its devices in one evening |
+
+    Proposals, for the maintainer to decide (no code was changed):
+    (a) lower the failed-sign-in bucket to about 4 a second sustained and
+    20 at once, so that a flood at the bucket's rate no longer takes the
+    whole core; (b) give a first sync room: count a batch of reads for one
+    command, or raise the account's burst to a few thousand, or keep
+    100 a second and say in the app that the wait is expected; (c) count
+    only failures against the pairing delay, or give `device:` keys six
+    free; (d) say in the install guide that on a disk this slow, writes
+    top out near 15 a second and that is the disk. Not measured: the
+    CPU and the latency behind a real proxy (Caddy on the IP and
+    Tailscale cannot be done in the lab), a browser, a phone, a flood of
+    connections or sign-ins, the 4 MB room-update bound.
+
 19. **Validation in a hostile lab.** Decided by the maintainer on
     2026-10-13, in the same answer that accepted the recommendations:
     *"em seguida você deve emular um ambiente de ataque um ambiente hostil
