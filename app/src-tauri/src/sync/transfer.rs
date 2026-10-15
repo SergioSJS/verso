@@ -278,14 +278,30 @@ fn write_here(
 ) -> Result<(), Refusal> {
     let p = path.to_owned();
     let planned = planned.map(str::to_owned);
+    let by = written_by(s, path);
     tokio::task::block_in_place(|| {
         ctx.service.with_key(&s.key, move |ws| {
             let revision = planned_revision(ws, &p, planned.as_deref())?;
+            ws.history_written_by(by, verso_core::history::Kind::Write);
             ws.write_staged(&p, staged, revision.as_deref())?;
             Ok(())
         })
     })
     .map_err(|e| of_here(ctx, s, path, e))
+}
+
+/// Who the computer's history names for a file sync brings here (ADR 0091
+/// item 4): the device the server's log says made it, else the person,
+/// else the server.
+fn written_by(s: &Syncer, path: &str) -> Vec<verso_core::history::Author> {
+    use verso_core::history::Author;
+    let (by, device) = lock(&s.authors).get(path).cloned().unwrap_or_default();
+    let host = s.url.split_once("://").map_or(s.url.as_str(), |(_, h)| h);
+    vec![match (device, by) {
+        (Some(d), _) => Author::new("device", &d),
+        (None, Some(b)) => Author::new("account", &b),
+        (None, None) => Author::new("device", host),
+    }]
 }
 
 /// [`write_here`] for bytes held in memory: two appends to a note joined.
@@ -298,9 +314,11 @@ fn write_bytes_here(
 ) -> Result<(), Refusal> {
     let p = path.to_owned();
     let planned = planned.map(str::to_owned);
+    let by = written_by(s, path);
     tokio::task::block_in_place(|| {
         ctx.service.with_key(&s.key, move |ws| {
             let revision = planned_revision(ws, &p, planned.as_deref())?;
+            ws.history_written_by(by, verso_core::history::Kind::Write);
             ws.write_bytes(&p, &bytes, revision.as_deref())?;
             Ok(())
         })

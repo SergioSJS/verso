@@ -24,6 +24,7 @@ import { searchNotes } from "../search";
 import { baseStrings, LOCALE, t } from "../strings";
 import { allFolders, listAll } from "../tree/tree";
 import { mentionsSection } from "./mentions";
+import { historyButton } from "../dialogs/history";
 
 /* ---------- The right panel: outline, backlinks, outgoing, tags, bookmarks, focuses ---------- */
 export type PanelTab = "outline" | "backlinks" | "tags" | "bookmarks" | "calendar" | "focuses";
@@ -103,6 +104,7 @@ export class Panel {
     this.refresh();
     if (leaf instanceof NoteLeaf) leaf.updateWords();
     else ui.words.textContent = "";
+    historyButton(leaf?.path ?? null);
   }
   async loadTags(): Promise<void> {
     const r = await commands.listTags();

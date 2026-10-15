@@ -1,5 +1,7 @@
-# verso-index opens the index file only (ADR 0026, rule 5, delimited scope):
-# never a file of the open folder. Clippy does not merge this file with the
+# verso-index opens the index file only (ADR 0026, rule 5, delimited scope),
+# and since ADR 0091 the version history's database, through the same
+# SQLite and the same two calls, under the configuration directory or the
+# server's data directory: never a file of the open folder. Clippy does not merge this file with the
 # workspace one, so the test allowances are repeated and the std::fs list is
 # the workspace's minus the three calls the index needs for its own file —
 # creating its directory and setting permissions (ADR 0046). Everything that

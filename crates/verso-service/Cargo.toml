@@ -21,6 +21,9 @@ serde_json = "1"
 
 [dev-dependencies]
 tempfile = "3.27"
+# A test writes a file behind the core's back, as another program would
+# (the history of a change made outside Verso, ADR 0091 item 4).
+verso-fs = { path = "../verso-fs" }
 
 [lints]
 workspace = true

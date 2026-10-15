@@ -721,6 +721,9 @@ async fn command(
         // A note made from its template: what joins two made apart is the
         // desktop sync's (ADR 0093 item 12); a server's folder is one copy.
         "set_embed_origins" | "set_menu_language" | "note_made_from_template" => Ok(Value::Null),
+        // The computer's own history's retention (ADR 0091 item 8): a
+        // server keeps its folders' by VERSO_HISTORY_DAYS and the console.
+        "set_history_days" => Ok(Value::Null),
         "fetch_file" => Ok(Value::Bool(false)),
         "collab_join" | "collab_update" | "collab_awareness" | "collab_leave" | "collab_save"
         | "collab_resolve" | "collab_present" | "collab_canvas" | "collab_roll" => {
@@ -734,6 +737,10 @@ async fn command(
                 }
                 None => crate::trash::command(server, who, client, &r.cmd, args).await,
             }
+        }
+        // A file's version history (ADR 0091): those who may write it.
+        "history_list" | "history_read" | "history_restore" | "history_copy" | "history_delete" => {
+            crate::history::command(server, who, client, &r.cmd, args).await
         }
         _ => Err(refused("not on a server")),
     }

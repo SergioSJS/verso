@@ -38,6 +38,7 @@
 //!   download it.
 
 mod confine;
+mod journal;
 mod obsidian;
 mod ops;
 mod os;
@@ -58,6 +59,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::SystemTime;
 
 pub use confine::ConfinementError;
+pub use journal::Touched;
 
 /// Whether every name of `relative` is one every OS can keep (ADR 0070
 /// item 3): no trailing dot or space, none of `< > : " | ? * \`, no
@@ -258,6 +260,8 @@ pub struct Root {
     /// Handle index → path relative to the root, and the reverse.
     table: Vec<PathBuf>,
     by_path: HashMap<PathBuf, u32>,
+    /// What the writes changed, while a caller keeps a history (ADR 0091).
+    journal: journal::Journal,
 }
 
 /// How many links one check follows by their text before it gives up, as
@@ -344,6 +348,7 @@ impl Root {
             links_inside: false,
             table: Vec::new(),
             by_path: HashMap::new(),
+            journal: journal::Journal::default(),
         })
     }
 
@@ -639,6 +644,8 @@ impl Root {
         let relative = self.confine(relative).map_err(WriteError::Confined)?;
         self.new_names(&relative, None)?;
         let report = staged.create_at(&on_disk(&self.path, &relative))?;
+        self.journal
+            .push(Touched::Written(journal::slashed(&relative)));
         Ok((self.intern(relative), report))
     }
 
@@ -655,7 +662,9 @@ impl Root {
         let path = self
             .path_of(handle)
             .ok_or(WriteError::UnknownHandle(handle))?;
-        staged.write_over(&path, expected)
+        let report = staged.write_over(&path, expected)?;
+        self.touched(handle);
+        Ok(report)
     }
 
     /// The file `handle` names, when its content is only in the cloud in
@@ -694,7 +703,9 @@ impl Root {
         let path = self
             .path_of(handle)
             .ok_or(WriteError::UnknownHandle(handle))?;
-        write::write_atomically(&path, content, expected)
+        let report = write::write_atomically(&path, content, expected)?;
+        self.touched(handle);
+        Ok(report)
     }
 
     /// Create a file that does not exist yet, confined like every path,
@@ -712,6 +723,8 @@ impl Root {
         let relative = self.confine(relative).map_err(WriteError::Confined)?;
         self.new_names(&relative, None)?;
         let report = ops::create_atomically(&on_disk(&self.path, &relative), content)?;
+        self.journal
+            .push(Touched::Written(journal::slashed(&relative)));
         Ok((self.intern(relative), report))
     }
 
@@ -760,6 +773,10 @@ impl Root {
         let to = self.confine(to).map_err(WriteError::Confined)?;
         self.new_names(&to, Some(&from))?;
         let report = ops::rename_path(&on_disk(&self.path, &from), &on_disk(&self.path, &to))?;
+        self.journal.push(Touched::Moved(
+            journal::slashed(&from),
+            journal::slashed(&to),
+        ));
         Ok((self.intern(to), report))
     }
 
@@ -793,7 +810,10 @@ impl Root {
     /// its relative path. Returns where it went, relative to the root.
     pub fn trash(&mut self, relative: &Path) -> Result<(PathBuf, OpReport), WriteError> {
         let relative = self.confine(relative).map_err(WriteError::Confined)?;
-        ops::trash(&self.path, &relative)
+        let done = ops::trash(&self.path, &relative)?;
+        self.journal
+            .push(Touched::Gone(journal::slashed(&relative)));
+        Ok(done)
     }
 
     /// Everything in `.trash/` at the root, not following a symlink (ADR
@@ -818,7 +838,9 @@ impl Root {
     pub fn restore_from_trash(&mut self, from: &Path, to: &Path) -> Result<OpReport, WriteError> {
         let to = self.confine(to).map_err(WriteError::Confined)?;
         self.new_names(&to, None)?;
-        trashbin::restore(&self.path, from, &to)
+        let report = trashbin::restore(&self.path, from, &to)?;
+        self.journal.push(Touched::Written(journal::slashed(&to)));
+        Ok(report)
     }
 
     /// Whether an entry can be put into the folder `relative`: it is a
@@ -857,6 +879,26 @@ impl Root {
         expected: &Stamp,
     ) -> Result<WriteReport, WriteError> {
         ops::write_waypoints(&self.path, content, expected)
+    }
+
+    /// Keep what the writes change from now on, or stop (ADR 0091 item 8):
+    /// what the computer's history of the folder records.
+    pub fn keep_journal(&self, on: bool) {
+        self.journal.keep(on);
+    }
+
+    /// What the writes changed since the last call, while kept.
+    pub fn take_journal(&self) -> Vec<Touched> {
+        self.journal.take()
+    }
+
+    /// The file `handle` names was written.
+    fn touched(&self, handle: Handle) {
+        if handle.root == self.id
+            && let Some(rel) = self.table.get(handle.index as usize)
+        {
+            self.journal.push(Touched::Written(journal::slashed(rel)));
+        }
     }
 
     fn intern(&mut self, relative: PathBuf) -> Handle {

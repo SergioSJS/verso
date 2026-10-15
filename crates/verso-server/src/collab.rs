@@ -50,6 +50,9 @@ mod rolls;
 pub use rolls::roll;
 #[path = "collab_readers.rs"]
 pub(crate) mod readers;
+#[path = "collab_restore.rs"]
+mod restore;
+pub use restore::restore_through;
 /// The text's name inside the document, as the window's binding names it.
 pub const TEXT: &str = "verso";
 
@@ -108,6 +111,9 @@ pub struct Room {
     /// Who may only read the note, and what they are served when it holds
     /// secret blocks (ADR 0087 item 4; `collab_readers.rs`).
     readers: readers::Readers,
+    /// The accounts whose edits wait to be written: the authors of the
+    /// version the next save makes (ADR 0091 item 4).
+    authors: Vec<String>,
 }
 
 impl Room {
@@ -440,6 +446,9 @@ fn join_room(
         Some(room) => room,
         None => {
             let note = read(server, key, path)?;
+            // The file as found, when its history has nothing yet: what
+            // the room's first save can be undone to (ADR 0091).
+            crate::history::seen(server, key, path, &note.text);
             let (doc, crlf, saved, board) = if kind == Kind::Board {
                 // Drawn in by the first window to join (collab_board.rs).
                 let doc = crate::collab_board::new_doc(&note.text);
@@ -481,6 +490,7 @@ fn join_room(
                 board,
                 rolls: std::collections::VecDeque::new(),
                 readers: readers::Readers::default(),
+                authors: Vec::new(),
             }));
             let mut map = lock(&server.rooms.map);
             // Two windows joining at once: the first room made stays.
@@ -577,6 +587,9 @@ pub fn update(
         crate::writers::claim(who, &clients, writers, present);
     }
     readers::guard(server, &mut r);
+    if !r.authors.iter().any(|a| a == account) {
+        r.authors.push(account.to_owned());
+    }
     tell(
         server,
         &r,
@@ -887,7 +900,8 @@ pub fn write(server: &Server, room: &Arc<Mutex<Room>>) -> Result<String, Contrac
             // The folder's log for sync follows the save (ADR 0079 item 4),
             // before the windows hear it: a save heard is one a device's
             // next question finds.
-            crate::sync::reconcile_saved(server, &r.key, &path);
+            let authors = std::mem::take(&mut r.authors);
+            crate::sync::reconcile_saved(server, &r.key, &path, &authors);
             tell(
                 server,
                 &r,

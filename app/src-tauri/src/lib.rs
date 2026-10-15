@@ -46,6 +46,7 @@ mod device;
 mod files;
 mod focuses;
 mod folder_layer;
+mod history;
 mod log;
 mod menu;
 mod notes;
@@ -67,6 +68,7 @@ use device::*;
 use files::*;
 use focuses::*;
 use folder_layer::*;
+use history::*;
 use menu::*;
 use notes::*;
 use protocol::*;
@@ -742,7 +744,13 @@ macro_rules! commands_for {
                 trash_restore::<$runtime>,
                 trash_delete::<$runtime>,
                 trash_empty::<$runtime>,
-                trash_set_days::<$runtime>
+                trash_set_days::<$runtime>,
+                history_list::<$runtime>,
+                history_read::<$runtime>,
+                history_restore::<$runtime>,
+                history_copy::<$runtime>,
+                history_delete::<$runtime>,
+                set_history_days
             ])
             // Not in any command: the payload of events.
             .typ::<FolderChanged>()
@@ -936,6 +944,17 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             hear(app.handle());
             // Each open folder's bin, swept once a day (ADR 0080 item 3).
             trash::start_daily(app.handle());
+            // Each folder of this computer keeps its version history in
+            // the configuration directory, named by this computer (ADR
+            // 0091 item 8); the person's retention comes with the
+            // window's settings (`set_history_days`).
+            {
+                let state = app.state::<App>();
+                let name = device::name(state.service.config());
+                state
+                    .service
+                    .keep_local_history(&name, verso_core::history::DEFAULT_DAYS);
+            }
             // The main window is made here, not from the configuration
             // alone: it needs the download hook every window of the app
             // has (`on_download`).

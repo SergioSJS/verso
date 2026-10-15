@@ -113,6 +113,7 @@ const PATHS: Record<string, string> = {
   bell: "M4 11V7.25a4 4 0 0 1 8 0V11l1.25 1.5H2.75zM6.5 13.5a1.6 1.6 0 0 0 3 0",
   info: "M8 14.25a6.25 6.25 0 1 0 0-12.5 6.25 6.25 0 0 0 0 12.5zM8 7.25v4M8 4.9v.2",
   alert: "M8 14.25a6.25 6.25 0 1 0 0-12.5 6.25 6.25 0 0 0 0 12.5zM8 4.5v4.25M8 10.9v.2",
+  history: "M2.5 8a5.5 5.5 0 1 0 1.6-3.9M2.5 2.5v2.5H5M8 5v3l2 1.5",
 };
 
 /** A decorative line icon drawn by CSS — a mask over the text color — not

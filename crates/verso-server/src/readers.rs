@@ -45,6 +45,14 @@ pub const SERVER_READS: &[(&str, &str)] = &[
     ("set_folder_note_name", "nothing: the owner's alone"),
     ("set_embed_origins", "nothing"),
     ("set_menu_language", "nothing"),
+    (
+        "set_history_days",
+        "nothing: the computer's own retention (ADR 0091 item 8), a no-op here",
+    ),
+    (
+        "note_made_from_template",
+        "nothing: the desktop sync's (ADR 0093 item 12), a no-op here",
+    ),
     ("fetch_file", "nothing"),
     (
         "collab_join",
