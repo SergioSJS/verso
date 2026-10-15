@@ -220,6 +220,22 @@ fn may_hold(source: &str) -> bool {
 /// The secret quotes of `source` by both parsers, widened to whole lines,
 /// sorted and merged.
 fn found(source: &str) -> Vec<Range<usize>> {
+    // A leading byte order mark is not content: the quote on the first line
+    // is found as if it were not there, and its range is kept on `source`
+    // (a block that starts the note takes the mark with it).
+    if let Some(text) = source.strip_prefix('\u{feff}') {
+        let bom = source.len() - text.len();
+        return found(text)
+            .into_iter()
+            .map(|r| {
+                if r.start == 0 {
+                    0..r.end + bom
+                } else {
+                    r.start + bom..r.end + bom
+                }
+            })
+            .collect();
+    }
     let index = Options::ENABLE_WIKILINKS | Options::ENABLE_YAML_STYLE_METADATA_BLOCKS;
     let reader = index
         | Options::ENABLE_TABLES

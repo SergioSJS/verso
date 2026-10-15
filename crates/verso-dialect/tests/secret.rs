@@ -163,20 +163,25 @@ fn piece(n: usize) -> impl Strategy<Value = Piece> {
 }
 
 /// A note of up to `most` pieces, blank lines between them; maybe with a
-/// frontmatter, maybe CRLF, maybe with no line break at its end.
+/// frontmatter, maybe CRLF, maybe with no line break at its end, maybe
+/// behind a byte order mark.
 fn note(most: usize) -> impl Strategy<Value = (String, Vec<String>, Vec<String>)> {
     (
         prop::collection::vec(any::<u8>(), 0..most),
         any::<bool>(),
         any::<bool>(),
         any::<bool>(),
+        any::<bool>(),
     )
-        .prop_flat_map(|(seeds, frontmatter, crlf, open_end)| {
+        .prop_flat_map(|(seeds, frontmatter, crlf, open_end, bom)| {
             let pieces: Vec<_> = (0..seeds.len()).map(piece).collect();
-            (pieces, Just((frontmatter, crlf, open_end)))
+            (pieces, Just((frontmatter, crlf, open_end, bom)))
         })
-        .prop_map(|(pieces, (frontmatter, crlf, open_end))| {
+        .prop_map(|(pieces, (frontmatter, crlf, open_end, bom))| {
             let mut text = String::new();
+            if bom {
+                text.push('\u{feff}');
+            }
             if frontmatter {
                 text.push_str("---\ntitle: zpfrontq\ntags: [zpfmtagq]\n---\n");
             }
@@ -291,6 +296,27 @@ fn a_secret_inside_another_callout_goes_and_the_other_stays() {
     assert_eq!(
         project(text),
         "> [!note] Nota\n> visível\n>\n>\n> visível também\n"
+    );
+}
+
+#[test]
+fn a_byte_order_mark_before_a_first_line_secret_does_not_hide_it_from_the_projection() {
+    // Review of ADR 0087 (I2): a BOM is not content; the callout on the
+    // first line is a callout, and the projection stays itself.
+    for text in [
+        "\u{feff}> [!secret]\n> escondido\n\nà vista\n",
+        "\u{feff}> [!secret]\r\n> escondido\r\n\r\nà vista\r\n",
+        "\u{feff}# T\n\n> [!secret]\n> escondido\n",
+    ] {
+        let once = project(text).into_owned();
+        assert!(!once.contains("escondido"), "{once:?}");
+        assert!(Secrets::of(&once).is_empty());
+        assert_eq!(project(&once), once.as_str());
+    }
+    // Only the callout's lines go: the mark of a kept first line stays.
+    assert_eq!(
+        project("\u{feff}# T\n\n> [!secret]\n> escondido\n"),
+        "\u{feff}# T\n\n"
     );
 }
 
