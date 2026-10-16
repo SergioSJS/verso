@@ -14,6 +14,7 @@ import { icon } from "../icons";
 import { editorKeepsInView, tooltipSpace } from "../screen/keyboard";
 import { CustomSearchPanel, searchStrings } from "../searchPanel";
 import { settings } from "../settings";
+import { WIKILINK_BEFORE } from "./wikilinkBefore";
 
 export const baseEditorExtensions: Extension = [
   highlightActiveLineGutter(),
@@ -46,20 +47,21 @@ export const baseEditorExtensions: Extension = [
     }
     return false;
   }),
-  // A phone's keyboard types through composition (the underlined word):
-  // the completion that opens on `[[` is not always started by what the
-  // editor takes as typing then. So when text was typed or composed and the
-  // cursor stands right after `[[` (or `![[`) with no list open, the list is
-  // asked for here, once the composition has ended (the maintainer,
-  // 2026-10-15: on an Android phone nothing listed after `[[`).
+  // A phone's keyboard types through composition (the underlined word, which
+  // an Android keyboard keeps until the space): what the editor takes as
+  // typing then does not always open or keep the list of notes. So whenever
+  // text was typed or composed, or a composition ended, with the cursor
+  // inside a `[[` (or `![[`) and no list open, the list is asked for here
+  // (the maintainer, 2026-10-15 and 16: on an Android phone nothing listed
+  // after `[[`, nor after `[[por`).
   EditorView.updateListener.of((update) => {
-    if (!update.docChanged || update.view.composing) return;
+    if (!update.docChanged) return;
     if (!update.transactions.some((tr) => tr.isUserEvent("input"))) return;
     askForLinks(update.view);
   }),
   EditorView.domEventHandlers({
     compositionend: (_e, view) => {
-      setTimeout(() => askForLinks(view), 0);
+      askForLinks(view);
       return false;
     },
   }),
@@ -87,9 +89,13 @@ export const baseEditorExtensions: Extension = [
   ]),
 ];
 
-/** Start the list of notes when the cursor stands after `[[` and none is open. */
+/** Start the list of notes when the cursor stands inside `[[…` and none is
+ *  open. Deferred, so that it never dispatches inside an update; asked again
+ *  only when the person types (Esc closes it and nothing reopens it). */
 function askForLinks(view: EditorView): void {
-  const { head, empty } = view.state.selection.main;
-  if (!empty || head < 2 || completionStatus(view.state) !== null) return;
-  if (view.state.sliceDoc(head - 2, head) === "[[") startCompletion(view);
+  setTimeout(() => {
+    const { head, empty } = view.state.selection.main;
+    if (!empty || head < 2 || completionStatus(view.state) !== null) return;
+    if (WIKILINK_BEFORE.test(view.state.sliceDoc(Math.max(0, head - 300), head))) startCompletion(view);
+  }, 0);
 }

@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { commands, type Focus, type FocusesSummary, type ReadOnlyReasonCode } from "./bindings";
+import { can, loadCan } from "./can";
 import { ask, promptText } from "./dialog";
 import { ui } from "./dom";
 import { currentFolder } from "./folder";
@@ -62,6 +63,15 @@ export function getDisplayFocuses(): FocusWithOrigin[] {
   return [virtualHome, ...otherItems];
 }
 
+/** Tell the host whether this folder's focuses sync. Only the desktop app
+ *  keeps that: a phone of it (a web window) may not run the command, and the
+ *  host logs a refusal (ADR 0096 item 12). Waits for the side's answer, so
+ *  that the desktop's defaults never stand in for a phone's. */
+export async function tellHostSyncFocuses(value: boolean): Promise<void> {
+  await loadCan();
+  if (can("local_folders")) await commands.setSyncFocuses(value);
+}
+
 export function getSyncFocuses(): boolean {
   if (!settings.syncFocuses || typeof settings.syncFocuses !== "object") settings.syncFocuses = {};
   return settings.syncFocuses[currentFolder] ?? false;
@@ -71,7 +81,7 @@ export function setSyncFocuses(value: boolean): void {
   if (!settings.syncFocuses || typeof settings.syncFocuses !== "object") settings.syncFocuses = {};
   settings.syncFocuses[currentFolder] = value;
   saveSettings();
-  void commands.setSyncFocuses(value);
+  void tellHostSyncFocuses(value);
   try {
     if (typeof panel !== "undefined" && panel.current === "focuses") panel.refresh();
   } catch {
@@ -107,7 +117,7 @@ export async function promptSyncFocusesIfNeeded(): Promise<boolean> {
     setSyncFocusesAsked(true);
     if (ok) {
       setSyncFocuses(true);
-      await commands.setSyncFocuses(true);
+      await tellHostSyncFocuses(true);
       const local = getLocalFocuses();
       if (local.length > 0) {
         const migrate = await ask(t.syncLocalFocusesQuestion, { yes: t.syncFocusesEnable, no: t.syncFocusesOffInfo });
@@ -129,7 +139,7 @@ export async function promptSyncFocusesIfNeeded(): Promise<boolean> {
       return true;
     } else {
       setSyncFocuses(false);
-      await commands.setSyncFocuses(false);
+      await tellHostSyncFocuses(false);
       return false;
     }
   }
@@ -156,7 +166,7 @@ export async function loadFocuses(forceReload = false): Promise<void> {
   const hasFile = focusesSummary?.has_file ?? false;
   const isKnown = focusesSummary?.format_known ?? false;
 
-  void commands.setSyncFocuses(isSync);
+  void tellHostSyncFocuses(isSync);
 
   const local = getLocalFocuses();
 
