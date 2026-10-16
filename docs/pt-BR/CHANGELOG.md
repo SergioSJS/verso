@@ -14,6 +14,7 @@ versão de teste.
 
 ### Acrescentado
 
+- **Instrução clara do IP do host no link de configuração do Docker** (2026-10-16): ao rodar num contêiner ou escutando além do localhost, o log do servidor explica que o contêiner não tem como saber o IP do hospedeiro e orienta a trocar `localhost` pelo endereço da máquina; a nota 24 do tutorial traz a mesma dica.
 - **Embeds da web no navegador checam se permitem moldura no servidor** ([ADR 0056](adr/0056-embedded-web-pages.md), o mantenedor, 2026-10-16): ao acessar o Verso no navegador servido pelo UniVerso, o servidor checa via requisição HEAD se a página embutida permite ser exibida em um iframe. Páginas que permitem são abertas diretamente sem linha de aviso, e páginas que recusam (X-Frame-Options, frame-ancestors) exibem um cartão com botão para abrir a página em uma nova aba.
 - **Renomear arquivos inválidos direto nos ajustes de sincronização** ([ADR 0079](adr/0079-sync-a-local-folder-with-a-server.md), 2026-10-16): arquivos recusados na sincronização por caracteres inválidos no nome agora têm um botão "Renomear" direto em *Ajustes › Sincronizar › Esperando por você*. Um clique abre a pergunta com o novo nome e renomeia o arquivo imediatamente.
 - **Uma marca fixa *sem HTTPS* na barra de status** (2026-10-16): enquanto a janela está em HTTP simples, a barra mantém um cadeado aberto; um clique lista o que fica desligado sem HTTPS — proteção na rede, modo offline, notificações do sistema, passkeys, instalar como app, copiar a imagem de um board — e como ligar o HTTPS.
