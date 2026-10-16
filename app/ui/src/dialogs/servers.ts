@@ -50,6 +50,8 @@ const pt = {
   syncThis: (local: string) => `Sincronizar ‘${local}’`,
   syncThisNamed: (local: string, host: string) => `Sincronizar ${local} com ${host}, numa pasta nova do servidor`,
   syncThisNote: "Cria uma pasta nova neste servidor, com o nome desta, e a mantém igual. Se já houver uma com esse nome, a nova leva “(2)”. Nada é apagado.",
+  syncedElsewhere: (folder: string, other: string) => `“${folder}” já sincroniza com ${other}. Uma pasta sincroniza com um servidor por vez: para sincronizar com este, desligue lá primeiro.`,
+  openSync: "Abrir Sincronizar",
   syncing: (host: string) => `Sincronizando com ${host}…`,
   syncOn: (local: string, host: string) => `${local} agora está sincronizada com ${host}.`,
   emptyFolder: "Criar pasta vazia…",
@@ -99,6 +101,8 @@ const en: typeof pt = {
   syncThis: (local: string) => `Sync ‘${local}’`,
   syncThisNamed: (local: string, host: string) => `Sync ${local} with ${host}, in a new folder of the server`,
   syncThisNote: "Makes a new folder on this server, named like this one, and keeps it the same. If one has that name already, the new one gets “(2)”. Nothing is deleted.",
+  syncedElsewhere: (folder, other) => `“${folder}” already syncs with ${other}. A folder syncs with one server at a time: to sync it with this one, turn that off first.`,
+  openSync: "Open Sync",
   syncing: (host: string) => `Syncing with ${host}…`,
   syncOn: (local: string, host: string) => `${local} is now synced with ${host}.`,
   emptyFolder: "Make an empty folder…",
@@ -423,6 +427,18 @@ function serverBlock(a: ServerAccount, redraw: () => Promise<void>): HTMLElement
       };
       send.addEventListener("click", run);
       acts.append(send, note);
+    } else {
+      // The open folder syncs with another server: say so where this one's
+      // button would be, with the way there (the maintainer, 2026-10-16,
+      // found the button missing and had to guess why).
+      const sync = currentSync();
+      if (currentFolder && sync?.on && sync.server && sync.server !== a.url) {
+        const note = h("p", "srv-help", s.syncedElsewhere(folderName, addressOf(sync.server)));
+        const go = h("button", "btn quiet", s.openSync);
+        go.type = "button";
+        go.addEventListener("click", () => openSettingsSection("sync"));
+        acts.append(note, go);
+      }
     }
     const empty = h("button", "btn quiet", s.emptyFolder);
     empty.type = "button";
