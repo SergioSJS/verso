@@ -13,6 +13,7 @@ import type { LocalFolder } from "../bindings";
 import { h } from "../dom";
 import { currentFolder } from "../folder";
 import { filterFolders, countTicked, duplicateNames } from "./servedList";
+import { newMemory, partsRow } from "./servedTree";
 
 /** More folders than this and a filter appears. */
 export const MANY = 8;
@@ -49,6 +50,12 @@ export interface ServedOptions {
   /** Tick or untick; the new list when it worked, `null` when it did not
    *  (the section has said so). */
   tick: (key: string, ticked: boolean) => Promise<LocalFolder[] | null>;
+  /** The folders inside a folder, flat and relative; `null` when they could
+   *  not be read (the section has said so). */
+  subfolders: (key: string) => Promise<string[] | null>;
+  /** Serve only these folders inside a ticked one (none: all of it); the new
+   *  list when it worked, `null` when it did not. */
+  choose: (key: string, parts: string[]) => Promise<LocalFolder[] | null>;
 }
 
 export interface Served {
@@ -80,6 +87,7 @@ export function servedFolders(opts: ServedOptions): Served {
 
   let all: LocalFolder[] = [];
   let serving = false;
+  const memory = newMemory();
 
   const folderRow = (f: LocalFolder, twins: Set<string>): HTMLElement => {
     const w = words();
@@ -87,7 +95,11 @@ export function servedFolders(opts: ServedOptions): Served {
     const input = h("input");
     input.type = "checkbox";
     input.id = `ls-f-${f.key}`;
-    input.checked = f.ticked;
+    // Served in part is neither all nor none: "mixed", and a click on it
+    // serves all of the folder.
+    const partly = f.ticked && f.parts.length > 0;
+    input.checked = f.ticked && !partly;
+    input.indeterminate = partly;
     input.disabled = serving || f.syncs_with !== null;
     const label = h("label", "ls-check");
     label.htmlFor = input.id;
@@ -101,6 +113,26 @@ export function servedFolders(opts: ServedOptions): Served {
       n.id = `ls-n-${f.key}-${i}`;
       li.append(n);
     });
+    if (f.ticked && f.syncs_with === null) {
+      li.append(
+        partsRow(
+          {
+            key: f.key,
+            name: f.name,
+            chosen: f.parts,
+            locked: serving,
+            load: () => opts.subfolders(f.key),
+            save: async (parts) => {
+              const next = await opts.choose(f.key, parts);
+              if (next === null) return false;
+              draw(next, serving);
+              return true;
+            },
+          },
+          memory,
+        ),
+      );
+    }
     if (notes.length > 0) input.setAttribute("aria-describedby", notes.map((n) => n.id).join(" "));
     input.addEventListener("change", () => {
       void opts.tick(f.key, input.checked).then((next) => {
