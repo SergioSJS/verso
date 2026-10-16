@@ -13,7 +13,7 @@ async function signedIn(app) {
   await app.page.evaluate(() => {
     const h = window.__harness.core.handlers;
     h.server_accounts = () => [{ url: "http://localhost:7351", email: "ana@casa.lan", name: "Ana" }];
-    h.server_folders = () => [{ id: "f1", name: "Campanha", role: "editor" }];
+    h.server_folders = () => ({ folders: [{ id: "f1", name: "Campanha", role: "editor" }], may_create: false });
   });
 }
 

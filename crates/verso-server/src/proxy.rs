@@ -82,9 +82,28 @@ impl fmt::Display for Net {
     }
 }
 
-/// The trusted proxies; empty when none is set.
+/// The trusted proxies; empty when `VERSO_TRUSTED_PROXY` is `none`. Left
+/// empty in the environment it is [`Proxies::private_networks`]: a person
+/// putting a proxy in front of UniVerso should not have to know its address
+/// (ADR 0073 item 6, amended 2026-10-16).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Proxies(Vec<Net>);
+pub struct Proxies {
+    nets: Vec<Net>,
+    /// Believed because nothing was set, not because the person named it:
+    /// the connection limit and the warnings of a named proxy do not apply.
+    implicit: bool,
+}
+
+/// The default of an empty `VERSO_TRUSTED_PROXY`: this machine and the
+/// private networks (RFC 1918, loopback, unique-local IPv6).
+const PRIVATE: [&str; 6] = [
+    "127.0.0.0/8",
+    "::1",
+    "10.0.0.0/8",
+    "172.16.0.0/12",
+    "192.168.0.0/16",
+    "fc00::/7",
+];
 
 /// Where a request came from, as the proxies say it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -102,24 +121,57 @@ pub struct Client {
 impl Proxies {
     /// `127.0.0.1, 10.0.0.0/8, 2001:db8::/32`: addresses and CIDRs,
     /// separated by commas; one address alone is the form before the list.
+    /// `none` trusts no proxy at all.
     pub fn parse(text: &str) -> Result<Self, String> {
+        if text.trim().eq_ignore_ascii_case("none") {
+            return Ok(Self::default());
+        }
         text.split(',')
             .map(str::trim)
             .filter(|t| !t.is_empty())
             .map(Net::parse)
             .collect::<Result<Vec<_>, _>>()
-            .map(Self)
+            .map(|nets| Self {
+                nets,
+                implicit: false,
+            })
+    }
+
+    /// Loopback and the private networks: what an empty
+    /// `VERSO_TRUSTED_PROXY` believes.
+    #[must_use]
+    pub fn private_networks() -> Self {
+        Self {
+            nets: PRIVATE.iter().filter_map(|n| Net::parse(n).ok()).collect(),
+            implicit: true,
+        }
     }
 
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.nets.is_empty()
+    }
+
+    /// Whether the list is the default, not something the person wrote.
+    #[must_use]
+    pub fn is_implicit(&self) -> bool {
+        self.implicit
+    }
+
+    /// The proxies the person named, none when the list is the default.
+    #[must_use]
+    pub fn named(&self) -> Self {
+        if self.implicit {
+            Self::default()
+        } else {
+            self.clone()
+        }
     }
 
     /// Whether `ip` is one of the trusted proxies.
     #[must_use]
     pub fn trusts(&self, ip: IpAddr) -> bool {
-        self.0.iter().any(|n| n.contains(ip))
+        self.nets.iter().any(|n| n.contains(ip))
     }
 
     /// The client of a request that reached the server from `remote`
@@ -179,7 +231,7 @@ fn address(entry: &str) -> Option<IpAddr> {
 
 impl fmt::Display for Proxies {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for (i, net) in self.0.iter().enumerate() {
+        for (i, net) in self.nets.iter().enumerate() {
             if i > 0 {
                 f.write_str(", ")?;
             }
@@ -211,6 +263,35 @@ mod tests {
         assert!(c.from_proxy && !c.unforwarded);
         assert_eq!(p.to_string(), "127.0.0.1");
         assert!(list("").is_empty());
+    }
+
+    #[test]
+    fn the_default_believes_this_machine_and_the_private_networks() {
+        let p = Proxies::private_networks();
+        for near in [
+            "127.0.0.1",
+            "127.3.4.5",
+            "::1",
+            "10.1.2.3",
+            "172.16.0.9",
+            "172.31.255.1",
+            "192.168.1.40",
+            "fd12:3456::1",
+        ] {
+            assert!(p.trusts(ip(near)), "{near}");
+        }
+        for far in ["203.0.113.9", "172.32.0.1", "11.0.0.1", "2001:db8::1"] {
+            assert!(!p.trusts(ip(far)), "{far}");
+        }
+        assert!(p.is_implicit() && p.named().is_empty());
+    }
+
+    #[test]
+    fn none_believes_no_proxy() {
+        let p = list("none");
+        assert!(p.is_empty() && !p.is_implicit());
+        assert!(!p.trusts(ip("127.0.0.1")));
+        assert!(list(" None ").is_empty());
     }
 
     #[test]

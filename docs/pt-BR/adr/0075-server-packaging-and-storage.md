@@ -74,6 +74,48 @@
   o Windows. No Windows o servidor roda só dentro do app de desktop
   ([0096](0096-this-app-is-a-server.md)) ou como `verso serve` na linha de
   comando.
+  2026-10-16 — o "nunca root" do item 2 e o "gravável pelo uid 1000" do
+  item 3 alterados. Numa caixa ZimaOS o mantenedor montou
+  `/DATA/storage1/Documents/Verso` em `/folders`; o Docker a criou do root;
+  o servidor, uid 1000, falhou com "making the folder: Permission denied
+  (os error 13)", mostrado cru. Perguntado como tratar, decidiu:
+  *"Conserta sozinho ao ligar"* (consertar sozinho ao ligar). O contêiner agora **começa como
+  root só para uma tarefa** e o servidor nunca roda como root:
+  `docker-entrypoint` (sh POSIX, o `su`, o `find` e o `chown` do próprio
+  busybox; nada foi acrescentado à imagem) confere, como uid 1000, que
+  `/data` e `/folders` são graváveis; num que não seja, entrega a
+  `1000:1000` as entradas *que o root possui* sob esse ponto de montagem
+  (`find -xdev -user 0`, `chown -h`: nenhum symlink é seguido, nenhum outro
+  sistema de arquivos é percorrido, o arquivo de outro usuário é deixado, e um
+  arquivo comum com vários hard links também, dito no log com a contagem: o
+  outro nome pode estar fora do ponto de montagem, e um chown muda o inode
+  para todos),
+  e então executa `/usr/bin/universo`, um wrapper que desce ao uid 1000 com
+  os grupos suplementares limpos (`su`) e executa o binário, inclusive nos
+  comandos de `docker exec`, para que `universo admin reset` nunca deixe um
+  arquivo do root. Um nó de dispositivo, FIFO ou socket do root nunca é entregue ao uid 1000 (um dispositivo de bloco entregue abriria o disco do host a quem for 1000), e o log diz quantos foram deixados. **As corridas que sobram**, ditas: quem pode escrever dentro de um ponto de montagem poderia (1) trocar um diretório por um link simbólico entre o `find` e o `chown`, ou (2) renomear um arquivo de um nome só já listado e pôr no lugar dele um hard link para um arquivo do root fora do ponto de montagem (precisa de `fs.protected_hardlinks=0`, ou escrita no alvo), e fazer mudar essa entrada do root; os pontos de montagem são do administrador, e o uid 1000, que roda o servidor, ainda não começou. Um contêiner iniciado como root sem as capabilities (um compose antigo) é recusado com a linha que diz o que acrescentar, nunca rodado como root. O root vive durante as conferências do entrypoint, uns
+  milissegundos, salvo se precisar fazer chown numa árvore grande, uma vez; o
+  processo do servidor tem uid e gid 1000, nenhum outro grupo, `CapEff` e
+  `CapPrm` zerados (o `scripts/check-server-image.sh` lê o
+  `/proc/1/status`). O arquivo compose mantém `cap_drop: ALL`, `read_only`,
+  o `tmpfs` e o `no-new-privileges`, e devolve `CHOWN` (o chown), `SETUID` e
+  `SETGID` (a descida); não `DAC_OVERRIDE` nem `FOWNER`, já que o root só
+  muda o que possui e atravessa um diretório que possui. Um host que define
+  `user: "N:N"` pula tudo isso, como antes. Um diretório de outro dono (um
+  usuário do NAS) não é tocado: o servidor confere ao ligar que grava nos
+  dois diretórios, diz no log, no console de administração e na resposta do
+  pedido que falhou que não consegue, e nomeia o comando (`sudo chown -R
+  1000:1000 <pasta do host>`; no `.deb`, o usuário `universo`). **Até onde o conserto vai** foi perguntado ao mantenedor
+  (2026-10-16): *"E se alguém montar uma pasta grande que já tem coisas de
+  outros apps (ex.: /DATA inteiro no ZimaOS)? Hoje ele passaria tudo que é do
+  root ali dentro para o Verso"*, com as opções *só pasta vazia* ou *pasta
+  inteira, sempre*; ele escolheu **"Pasta inteira, sempre"**. Então o conserto
+  pega todo diretório, link simbólico e arquivo comum de um nome só do root
+  sob cada ponto de montagem, o que quer que houvesse antes. A consequência,
+  sem rodeio: **monte só a pasta destinada ao Verso.** Ligar um pai como
+  `/DATA` entrega ao uid 1000 os arquivos do root de todos os outros apps
+  nele. O entrypoint diz no log quantas entradas entregou, para que um ponto
+  de montagem largo demais apareça.
 - Revisões: 2026-10-09 (noite) — aceito pelo mantenedor junto com o
   [0073](0073-self-hosted-server-first.md), na resposta citada lá; os dois
   `[ABERTO]` dele respondidos — o caminho de atualização (item 7, a opção

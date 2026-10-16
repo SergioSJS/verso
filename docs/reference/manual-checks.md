@@ -20,6 +20,17 @@ in the real app.
 
 ## Not yet checked
 
+### UniVerso found on the network, and a bad DNS survived (ADR 0097, feat/universo-discovery, 2026-10-16)
+
+Needs the installed desktop app and a UniVerso on the home network (the maintainer's ZimaOS); nothing here was run on a real network when it was built.
+
+- [ ] **Discovery on the home LAN** (A): on the machine running UniVerso with the port published beyond loopback and host networking (`network_mode: host`), open *Settings › Servers* in the desktop app: within a few seconds *Found on this network* lists `UniVerso-xxxxxx` with the address (`http://<ip>:7340`) and *no HTTPS*. Click *Connect*: the address fills in and the browser opens the device-approval page of that address. Nothing happened before the click (the server's log shows no request from this Mac until then). Close the section: the list is gone, and the app's log shows no further browsing. With the compose file as it is (bridge network) the list stays empty and says what to do. On the server `VERSO_ANNOUNCE=off`, restart: nothing is listed.
+- [ ] **The macOS prompt** (A): the first time on macOS 15 or later, the system asks for the **Local Network** permission with the words of the Info.plist (which now also say the app looks for servers). Deny it: say whether the list stays empty silently or the app says something — and whether the **bad-DNS fallback** (below) also finds nothing, since the permission is said to gate the app's unicast DNS queries to the local network too; allow it in System Settings › Privacy & Security › Local Network and both work.
+- [ ] **Windows adapters** (A): the DNS fallback asks only physical adapters that are up (`Get-NetAdapter -Physical`). On a Hyper-V host with an external vSwitch (`vEthernet`), with a phone tethered by RNDIS, and in a VM with a virtio NIC, say what `Get-DnsClientServerAddress` lists for them and whether a bad system DNS is then survived or the app says the server is unreachable (it must fail safe, never ask a VPN's resolver).
+- [ ] **Windows and Linux** (A): on Windows, whether Windows Defender Firewall asks about the app on the first browse (UDP 5353), *Private* only; whether the desktop finds a server on the same Wi-Fi. On Linux with Avahi running, whether the browse and the server's announcement coexist with it.
+- [ ] **A server with its public address** (A): with `VERSO_PUBLIC_URL=https://<name>` set on the server, the row lists exactly that address and a click starts the sign-in at it; with the server's own TLS (`VERSO_TLS_CERT_FILE`) and no `VERSO_PUBLIC_URL`, the row says to set it and has no button.
+- [ ] **A bad DNS** (A): point a name at a wrong address in the system's first DNS server (or the router's, as on the maintainer's network) while another server of the list has the right one; in the desktop app connect to `https://<that name>`. It connects, within about a connect timeout the first time and at once after; the log has no WARN. Make no server answer: the notice reads *Não foi possível alcançar o servidor <name> — … <name> → <ip>: sem resposta. Confira o DNS desta rede…* and the WARN line in the log names each IP with where it came from (`system`, `dns <server>`). With a name whose certificate is for another name nothing connects (the name is verified, not the IP).
+
 ### Insert image in the editor's toolbar (feat/insert-image, 2026-10-15)
 
 Needs the installed app on a Mac, a Linux and a Windows computer, an iPhone (Safari) and an Android (Chrome), through a UniVerso and through *This app is a server*; the picker and the camera are the system's and no test reaches them (the end-to-end tests stub the file chooser).
@@ -32,6 +43,10 @@ Needs the installed app on a Mac, a Linux and a Windows computer, an iPhone (Saf
 - [ ] **A reader** (A): as a reader of a shared folder, the button says *You can only read this folder* and copies nothing.
 - [ ] **The server out of reach** (A): stop the server while a note is open and insert an image: the status line says the server could not be reached, and no embed is written. With the folder kept offline on the phone, the image is kept with the other changes and goes up when the network returns.
 - [ ] **The screen reader** (A): the button is announced as *Insert image*, a menu; the items are read; the result is read from the status line.
+
+### Syncing into a brand-new server (ADR 0079 item 1, 2026-10-16)
+
+- [ ] **Just sync, on a fresh UniVerso** (A, the desktop app): install a UniVerso with no folders, sign the app in as its admin (*Settings › Servers*), with a folder of notes open. The block says *No folder on this server yet.* and one button, **Sync ‘<folder>’**, with a line under it; no invitation text. One click: the button is busy, the server's folder appears under the same name, the status bar goes to *Syncing* and then *Synced*, and the heading of the server takes the focus. Every note of the folder is still on this computer, unchanged (look at the files), and open in the browser at the server. The server's log has no ERROR and the app's log has none. Then turn the sync off, open another local folder named like the first one: *Sync* makes `name (2)` and does not touch the first. With an account that may not make folders (the admin turns it off), the old invitation text shows and no button. *Make an empty folder…* asks a name, makes it, says so and puts the focus on its row. With the server stopped, the click says it could not reach it, with *Try again*.
 
 ### This app is a server (ADR 0096, feat/local-server-build, 2026-10-15)
 
@@ -300,6 +315,17 @@ in a note long enough to scroll.
   reloaded), the row back to off with why. In a browser over plain HTTP
   the row says it needs HTTPS and cannot be turned on; on an iPhone's
   Safari outside the home screen, that it needs the installed app.
+- [ ] **UniVerso over plain HTTP from another device** (ADR 0073 item 6
+  amended 2026-10-16; a ZimaOS or CasaOS box, a phone, an iPad): paste the
+  shipped compose file with no variable filled, open
+  `http://<the box's address>:7340` on the phone, make the admin from the
+  log's setup link, sign in. The sign-in page carries *Conexão sem HTTPS…*
+  with *Como ligar o HTTPS*; the window shows the closable notice once;
+  *Settings › Offline* and *Notifications* say they need HTTPS with the
+  same link; copying a link from the menu works; the desktop app connects
+  to the same `http://` address and syncs. Put Tailscale or Caddy in front,
+  set only `VERSO_PUBLIC_URL`: offline and notifications turn on, the notice
+  is gone.
 - [ ] **A notification while the window is in the background**: the
   system's notifications on, the window behind another app (or
   minimised, or another browser tab), then stop the server: a system

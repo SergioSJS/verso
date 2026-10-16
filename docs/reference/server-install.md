@@ -193,12 +193,27 @@ The image runs `verso serve` as the user `universo` (uid and gid 1000), never
 root, with `/data` and `/folders` as volumes. Its defaults:
 `VERSO_DATA_DIR=/data`, `VERSO_FOLDERS_DIR=/folders`,
 `VERSO_UI_DIR=/usr/share/universo/ui`, `VERSO_LISTEN=0.0.0.0:7340`. Because it
-listens beyond loopback, **`VERSO_PUBLIC_URL` is required**: without it the
-server refuses to start.
+listens beyond loopback and answers over plain HTTP: `VERSO_PUBLIC_URL` is
+optional (ADR 0073 item 6, amended 2026-10-16), set only once HTTPS is in
+front.
 
-The directories of the host bound to `/data` and `/folders` must be
-writable by uid 1000. Docker creates a missing one owned by root, which the
-server cannot write:
+The directories of the host bound to `/data` and `/folders` need no
+preparation. Docker creates a missing one owned by root, which the server
+(uid 1000) could not write; so the container **starts as root only to mend
+that** and drops to uid 1000 before the server runs (ADR 0075, amended
+2026-10-16: *"Conserta sozinho ao ligar"*). For each of the two directories
+that uid 1000 cannot write, the entrypoint gives to `1000:1000` the entries
+that root owns under it, once: no symbolic link is followed, no other file
+system entered, and a file of another user, or one with several hard links,
+is left alone. **Mount only the folder meant for Verso**: the mend takes
+everything root owns under the mount, so binding a parent such as `/DATA` on
+ZimaOS would hand the other apps' root-owned files to uid 1000 (the log says
+how many entries were handed over, so a mount that is too wide shows). It needs the three
+capabilities the compose file adds back (`CHOWN`, `SETUID`, `SETGID`); the
+server itself holds none. If a directory belongs to someone else, the log,
+the admin console and the failing request say `sudo chown -R 1000:1000
+<host folder>` (with the `.deb`, the `universo` user), and that command is
+also how to prepare the directories yourself:
 
 ```sh
 sudo install -d -o 1000 -g 1000 /srv/universo/data /srv/universo/folders
@@ -216,23 +231,36 @@ section 11):
 
 ```sh
 docker run -d --name universo --restart unless-stopped \
-  -p 127.0.0.1:7340:7340 \
-  --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
+  -p 7340:7340 \
+  --read-only --tmpfs /tmp --cap-drop ALL --cap-add CHOWN --cap-add SETUID --cap-add SETGID \
+  --security-opt no-new-privileges:true \
   -v /srv/universo/data:/data \
   -v /srv/universo/folders:/folders \
-  -e VERSO_PUBLIC_URL=https://notes.example.com \
   -e VERSO_ADMIN_EMAIL=you@example.com \
   -e VERSO_ADMIN_PASSWORD_FILE=/run/secrets/universo-admin \
   -v /srv/universo/admin-password:/run/secrets/universo-admin:ro \
   ghcr.io/sergiosjs/universo:beta
 ```
 
+**An older compose file or `docker run`** (before 2026-10-16: `cap_drop: ALL`
+and nothing added back) now stops at start with one line saying what to add:
+the container starts as root and cannot drop to uid 1000 without `SETUID` and
+`SETGID`, and the server is never run as root. Either add `cap_add: [CHOWN,
+SETUID, SETGID]` (`--cap-add CHOWN --cap-add SETUID --cap-add SETGID`), or run
+the container as `user: "1000:1000"` (`--user 1000:1000`) with `/data` and
+`/folders` already writable by it: `sudo chown -R 1000:1000 <host folder>`.
+
 Tags: the version (`0.8.0-beta.1`), `latest` for the newest
 production version and `beta` for the newest test version. While only test
 versions exist, `latest` does not exist: use `beta` or a version.
 
-The port is published on `127.0.0.1` because TLS goes in front (section 8);
-the compose file of section 4 publishes it the same way.
+The port is published on every address: open `http://<this machine>:7340`
+from any device on the network. Plain HTTP is fine at home and not on a
+public network, where the password and the notes cross it in the open.
+HTTPS (section 8) is optional and later: add
+`-e VERSO_PUBLIC_URL=https://notes.example.com` once it is in front, and
+publish on `127.0.0.1` (`-p 127.0.0.1:7340:7340`) if only the proxy should
+reach the port. The compose file of section 4 publishes `7340:7340`.
 `docker logs universo` shows the log, including the setup link of section 9.
 Docker keeps that log without a limit unless told otherwise: add
 `--log-opt max-size=10m --log-opt max-file=3` to the command, as the
@@ -242,21 +270,21 @@ Docker's `daemon.json`.
 **A proxy on the host in front of a published port** (Caddy installed on
 the machine, `reverse_proxy 127.0.0.1:7340`): the container does not see
 the proxy's connections come from `127.0.0.1` but from the Docker
-network's gateway, so `VERSO_TRUSTED_PROXY=127.0.0.1` trusts nobody and
-every sign-in is refused as not HTTPS. Trust the gateway instead — on the
-default network usually `172.17.0.1`, as
-`docker network inspect bridge --format '{{(index .IPAM.Config 0).Gateway}}'`
-says; for a compose project, its own network's
-(`docker network inspect universo_default`). Or run the container on the
-host's network (`--network host`, no `-p`) with
-`-e VERSO_LISTEN=127.0.0.1:7340`, so that it listens on loopback only and
-the proxy comes from `127.0.0.1`. Seen on 2026-10-13: through a published
-port with `VERSO_TRUSTED_PROXY=127.0.0.1`, a request forwarded as HTTPS
-was answered `"secure":false`; with `172.17.0.1`, `"secure":true`.
+network's gateway (`172.17.0.1` on the default network, a private address).
+The default `VERSO_TRUSTED_PROXY`, empty, believes it, as it believes any
+loopback or private address: nothing to fill. Only a value you write
+replaces that list. (Before 2026-10-16 a value naming the gateway was
+needed, or every sign-in was refused as not HTTPS; seen on 2026-10-13:
+through a published port with `VERSO_TRUSTED_PROXY=127.0.0.1`, a request
+forwarded as HTTPS was answered `"secure":false`.) To have the proxy come
+from `127.0.0.1` all the same, run the container on the host's network
+(`--network host`, no `-p`) with `-e VERSO_LISTEN=127.0.0.1:7340`.
 
 The second line keeps the container to what the server needs
 ([ADR 0083](../adr/0083-security-hardening-of-universo.md) item 11): the
-image's own files read-only, `/tmp` in memory, no Linux capability, nothing
+image's own files read-only, `/tmp` in memory, every Linux capability dropped but the three the
+entrypoint needs to mend the mounts (`CHOWN`, `SETUID`, `SETGID`; the server
+itself, after the drop to uid 1000, holds none), nothing
 gained through a setuid program; the server writes under `/data` and
 `/folders` only. The password comes from a file mounted as a secret, which
 `docker inspect` does not show, rather than from `-e VERSO_ADMIN_PASSWORD`,
@@ -276,23 +304,23 @@ and serves any host that takes a compose file:
 
 It binds `/DATA/AppData/universo/data` (the app data path CasaOS uses) to
 `/data`, and `/DATA/Documents/Verso` to `/folders` — change the second to
-wherever the notes should live, a NAS included. Both must be writable by
-uid 1000, as in section 3. It declares the same hardening as section 3's
-command (`read_only`, `tmpfs: /tmp`, `cap_drop: ALL`,
-`no-new-privileges`), and shows the first admin's password as a Docker
+wherever the notes should live, a NAS included. Neither needs preparation:
+the container mends a root-owned one at start, as in section 3. It declares the same hardening as section 3's
+command (`read_only`, `tmpfs: /tmp`, `cap_drop: ALL` and `cap_add: [CHOWN, SETUID,
+SETGID]`, `no-new-privileges`), and shows the first admin's password as a Docker
 secret, commented out, before the plain variable: to use it, put the
 password in `admin-password` beside the compose file, readable by uid 1000,
 and uncomment the three places the file marks.
 
-The compose file publishes port 7340 on `127.0.0.1` only (decided by the
-maintainer on 2026-10-13, [ADR 0083](../adr/0083-security-hardening-of-universo.md),
-As built): TLS goes in front — Caddy, a tunnel, or `tailscale serve`
-(section 8) — and reaches it on the machine itself. To publish it on the
-home network instead, as a CasaOS box reached from the LAN may want,
-change one line, `host_ip: 127.0.0.1` to `host_ip: 0.0.0.0`. Plain HTTP
-on the LAN still signs nobody in from another machine: the server signs in
-over HTTPS only ([ADR 0073](../adr/0073-self-hosted-server-first.md)
-item 6), so the LAN still needs TLS in front for a sign-in.
+The compose file publishes port 7340 on every address (`"7340:7340"`) and
+requires no variable: open `http://<this machine>:7340`, then the setup link
+from `docker logs universo`. This replaces the loopback binding decided on
+2026-10-13 ([ADR 0083](../adr/0083-security-hardening-of-universo.md), As
+built), by the maintainer's decision of 2026-10-16
+([ADR 0073](../adr/0073-self-hosted-server-first.md) item 6, amended).
+Plain HTTP on the home network is fine; anyone on that network can read
+what crosses it. For a proxy that alone should reach the port, change the
+line to `"127.0.0.1:7340:7340"`; HTTPS (section 8) is optional and later.
 
 The compose file keeps the container's log to three files of 10 MB at most
 (`logging:` with Docker's `json-file` driver, `max-size: "10m"`,
@@ -304,6 +332,23 @@ would grow for as long as a member keeps writing.
 The image is pulled from GitHub's registry,
 which needs a `docker login` while the repository is private (section 11):
 on CasaOS and ZimaOS, in the system's terminal, once.
+
+**Found by the desktop app.** With the server listening beyond the
+machine (the port published, as above), it announces itself on the home
+network by mDNS (`_verso._tcp`: its version, whether it speaks TLS and a
+random id, nothing else), and the desktop app lists it under *Settings ›
+Servers › Found on this network*, ready to pick
+([ADR 0097](../adr/0097-universo-found-on-the-network-and-a-bad-dns-survived.md)).
+**A container on Docker's default bridge network cannot send multicast to
+the home network, so on CasaOS and ZimaOS the announcement does not leave
+it** and the list stays empty: type the address as before, or give the
+container `network_mode: host` (drop the `ports:` block; the server then
+listens on port 7340 of the machine itself, which must be free). The compose
+file above keeps the bridge network. `VERSO_ANNOUNCE=off` turns the
+announcement off. With `VERSO_PUBLIC_URL` set, the announcement carries that
+address and the list offers exactly it; with `VERSO_TLS_CERT_FILE` and no
+`VERSO_PUBLIC_URL`, the list says to set it, since a certificate is for a
+name, not an IP. It is announced on the machine's private interfaces only.
 
 An entry in the CasaOS and ZimaOS app stores is a submission to their own
 repositories, made once the server is announced (0075, Consequences).
@@ -327,7 +372,7 @@ the system user `universo` and `/var/lib/universo/data` and
 `/var/lib/universo/folders`, owned by it. **It does not start the service**:
 
 ```sh
-sudoedit /etc/universo/universo.env       # at least VERSO_PUBLIC_URL
+sudoedit /etc/universo/universo.env       # optional: the first admin, VERSO_LISTEN
 sudo systemctl enable --now universo
 journalctl -u universo -f
 ```
@@ -341,7 +386,8 @@ As built). `journalctl --disk-usage` says how much the journal holds,
 caps it for good. A window may write to that log, 60 lines a minute at
 most (F21 of the [security review](security-review-2026-10-13.md)).
 
-The package listens on `127.0.0.1:7340` by default: TLS goes in front
+The package listens on `127.0.0.1:7340` by default: for plain HTTP from the
+network set `VERSO_LISTEN=0.0.0.0:7340`; for HTTPS, TLS goes in front
 (section 8). The unit is hardened (`ProtectSystem=strict`, writes only under
 `/var/lib/universo`, `ProtectHome=read-only`, other processes hidden by
 `ProtectProc=invisible`, the system calls of an ordinary service only,
@@ -438,15 +484,16 @@ value counts as not set.
 
 | Variable | Default | What it does |
 |---|---|---|
-| `VERSO_LISTEN` | `127.0.0.1:7340` (image: `0.0.0.0:7340`) | address and port; beyond loopback it requires `VERSO_PUBLIC_URL` |
-| `VERSO_PUBLIC_URL` | none | the address people use: the `Origin` and `Host` checks, the links in invitations and resets. `https://…` or `http://…`, both taken; but a sign-in from another machine is accepted over HTTPS only (section 8), so `http://` serves only this machine |
+| `VERSO_LISTEN` | `127.0.0.1:7340` (image: `0.0.0.0:7340`) | address and port; beyond loopback the server answers over plain HTTP |
+| `VERSO_PUBLIC_URL` | none | optional. The address people use: with it, the `Origin` and `Host` checks accept that name only (and this machine's), and the links in invitations and resets use it; without it, only an IP address, a one-word name or a `.local` / `.home.arpa` name is answered (a public name needs the variable, against DNS rebinding), and the links by e-mail — the sign-in link and "forgot the password" — do not exist. An admin's invitation or reset link uses the address of the admin's own session. `https://…` or `http://…`, both taken |
 | `VERSO_DATA_DIR` | image `/data`, packages `/var/lib/universo/data` | accounts, sessions, audit log, indexes; a local disk |
 | `VERSO_FOLDERS_DIR` | image `/folders`, packages `/var/lib/universo/folders` | the folders of notes; may be a NAS |
 | `VERSO_UI_DIR` | `<binary's directory>/../share/universo/ui` | the window's files |
 | `VERSO_ADMIN_EMAIL` | none | the first admin, on the first start only |
 | `VERSO_ADMIN_PASSWORD` or `VERSO_ADMIN_PASSWORD_FILE` | none | the first admin's password, 12 characters at least, not on the lists attackers try first, not the e-mail |
-| `VERSO_TRUSTED_PROXY` | none | the reverse proxies whose `X-Forwarded-For` and `X-Forwarded-Proto` are believed: one address, or a list of addresses and CIDRs separated by commas, IPv4 and IPv6 (`127.0.0.1, 10.0.0.0/8, 2001:db8::/32`); section 8 |
+| `VERSO_TRUSTED_PROXY` | loopback and private networks | the reverse proxies whose `X-Forwarded-For` and `X-Forwarded-Proto` are believed. Empty: 127.0.0.0/8, ::1, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, fc00::/7. A value replaces that list: one address, or addresses and CIDRs separated by commas, IPv4 and IPv6 (`127.0.0.1, 10.0.0.0/8, 2001:db8::/32`); `none` believes no proxy; section 8 |
 | `VERSO_TLS_CERT_FILE` and `VERSO_TLS_KEY_FILE` | none | Verso serves TLS itself with this certificate and key (PEM); both or neither |
+| `VERSO_ANNOUNCE` | on | `off` stops the server announcing itself on the home network by mDNS (ADR 0097); it is never announced when it listens on loopback only |
 | `VERSO_UPDATE_CHECK` | on | `off` stops the check for a new version (section 12) |
 | `VERSO_UPDATE_TOKEN` | no | a token that reads the project's releases, needed for the check while the repository is private (a GitHub token with read access to it); without one the log says so once |
 | `VERSO_SMTP_URL` | no | the host's mail server (`smtps://user:password@host:465`, or `smtp://…:587?tls=required`): sign-in links, "forgot the password" and invitations sent by e-mail |
@@ -460,15 +507,19 @@ Without `VERSO_SMTP_URL` nothing is sent: the admin copies the invitation and re
 
 ## 8. TLS
 
-The server refuses to sign anyone in over plain HTTP (0073 item 6). A
-request counts as secure when Verso serves TLS itself, when it comes from
-`VERSO_TRUSTED_PROXY` with `X-Forwarded-Proto: https` — through a trusted
-proxy that header alone decides, so a proxy that sends none, or `http`,
-has its visitors refused (`tls_required`) — or when Verso listens on
-loopback and the request comes directly from this machine, not through a
-trusted proxy. A browser
-also needs HTTPS for the window's secure features (passkeys among them).
-Three ways, decided in 0073 item 6:
+Plain HTTP works (0073 item 6, amended 2026-10-16): sign-in, the window,
+invitations, the desktop app and sync, from any machine. A request counts
+as HTTPS when Verso serves TLS itself, or when it comes from a believed
+proxy (`VERSO_TRUSTED_PROXY`, by default loopback and private networks)
+with `X-Forwarded-Proto: https` — through a proxy that header alone
+decides. Only an HTTPS request gets a `Secure` session cookie (`__Host-`);
+over HTTP the cookie is plain, `HttpOnly` and `SameSite=Lax` all the same.
+What a browser keeps for HTTPS is off over HTTP, and the window says so:
+offline mode, system notifications and passkeys, in Settings where each
+lives and in one closable notice a session. The price, plainly: anyone on
+the same network can read the password and the notes that cross plain
+HTTP — fine at home, not on a public Wi-Fi. HTTPS is the optional, later
+step. Three ways, decided in 0073 item 6:
 
 ### tailscale serve, for a phone and an iPad
 
@@ -497,14 +548,12 @@ notes.example.com {
 }
 ```
 
-with `VERSO_PUBLIC_URL=https://notes.example.com` and
-`VERSO_TRUSTED_PROXY` set to the address the proxy's connections come
-from: `127.0.0.1` for a proxy on the same machine as a server installed
-from a package; for a container behind a published port, the Docker
-network's gateway (section 3). A proxy in another
-container comes from that container's address, which then must be fixed
-(an `ipv4_address` in the compose network). Traefik or a NAS's own proxy
-work the same way.
+with `VERSO_PUBLIC_URL=https://notes.example.com` and nothing else: a
+proxy on the same machine, in a container (the Docker network's gateway, or
+the container's own address) or on your network is believed by the default
+`VERSO_TRUSTED_PROXY`. Fill that variable only to replace the list — a
+proxy outside your network, or Cloudflare below — or to write `none`.
+Traefik or a NAS's own proxy work the same way.
 
 The client's address is read from `X-Forwarded-For` as every proxy chain
 is read: from the right, past each address in `VERSO_TRUSTED_PROXY`; the
@@ -513,8 +562,9 @@ the client — is never believed. A connection from an address not in the
 list has its `X-Forwarded-For` ignored. Name only the proxies: an address
 range that also holds people lets them say any address they like.
 
-**`127.0.0.1` names every program on the machine, not only the proxy.**
-With `VERSO_TRUSTED_PROXY=127.0.0.1`, any local user or process that
+**`127.0.0.1` names every program on the machine, not only the proxy — and
+the default list names every machine on a private network.** With
+`VERSO_TRUSTED_PROXY=127.0.0.1` (or the default), any local user or process that
 connects to the server's port is believed like the proxy: its
 `X-Forwarded-For` can name any address — a new one for each guess, past
 the per-address delays (the per-account delay still holds), or someone
@@ -548,19 +598,16 @@ with the proxy's address and the log says, once a minute, *a request from
 the trusted proxy carried no X-Forwarded-For: is the proxy configured to
 forward it?*
 
-A proxy on the same machine left out of the list is said too, since every
-visitor would otherwise be this machine's address, past the pace. When a
-connection from loopback that is not a trusted proxy carries
-`X-Forwarded-For`, the log says, once a minute, *a request from 127.0.0.1
-carried X-Forwarded-For, but that address is not in VERSO_TRUSTED_PROXY:
-every visitor through a proxy on this machine counts as this machine; set
-VERSO_TRUSTED_PROXY=127.0.0.1 if one forwards to UniVerso*; and at start,
-when `VERSO_PUBLIC_URL` is `https://`, Verso listens on loopback with no
-certificate of its own and `VERSO_TRUSTED_PROXY` is empty, a line beginning
-*VERSO_PUBLIC_URL is https but UniVerso listens on …* says the same and
-what to set. Setting it, check that the proxy sends `X-Forwarded-Proto:
-https` (Caddy does): through a trusted proxy that header alone says the
-visitor came over TLS.
+With the default list the warning above is said of a named proxy only: a
+direct connection from the home network is a "proxy" too, and sends no
+header. With `VERSO_TRUSTED_PROXY=none`, or a value that leaves out a proxy on
+this machine, a connection from loopback that carries `X-Forwarded-For`
+says, once a minute, *a request from 127.0.0.1 carried X-Forwarded-For, but
+that address is not in VERSO_TRUSTED_PROXY: every visitor through a proxy on
+this machine counts as this machine; set VERSO_TRUSTED_PROXY=127.0.0.1 if one
+forwards to UniVerso*. Check that the proxy sends `X-Forwarded-Proto: https`
+(Caddy does): through a trusted proxy that header alone says the visitor came
+over TLS.
 
 **Requests in flight, and bodies that trickle in.** Through a proxy every
 connection counts against the server's 512 alone, so Verso bounds what

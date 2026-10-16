@@ -96,7 +96,7 @@ sh universo.sh firewall
 
 ## 4. HTTPS with Caddy
 
-UniVerso signs no one in over plain HTTP from another machine. Caddy, in
+UniVerso works over plain HTTP, but offline mode, notifications and passkeys need HTTPS, and a public address should have it. Caddy, in
 Ubuntu's archive, obtains and renews a certificate for your name and
 passes everything on to UniVerso:
 

@@ -11,6 +11,11 @@ publish.workspace = true
 # The only crate that touches the files of the open folder (ADR 0026, rule 5;
 # ADR 0028). File IO dependencies (walkdir, notify, tempfile and the like)
 # belong here and nowhere else.
+# `test-util`: helpers for the tests of other crates (a directory made
+# unwritable), enabled only from their dev-dependencies; nothing ships it.
+[features]
+test-util = []
+
 [dependencies]
 # Change events for the open folder, so that what another app writes shows
 # up without reopening it: FSEvents on macOS, inotify on Linux,

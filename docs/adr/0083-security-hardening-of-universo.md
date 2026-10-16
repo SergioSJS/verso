@@ -171,6 +171,21 @@ as written. Sizes: S is hours, M a day or two, L more.
    every visitor one address. `crates/verso-server/src/config.rs`,
    `auth.rs` (`peer`), `listen.rs` (`Slots::take`). Guardrail: unit tests
    of the walk (two hops, a spoofed left entry, an address in a CIDR). Size S.
+   *(Amended on 2026-10-16, quoting the maintainer in
+   [0073](0073-self-hosted-server-first.md)'s Revisions: an empty
+   `VERSO_TRUSTED_PROXY` no longer means "none is believed" but "a proxy on
+   loopback or a private network is" — 127.0.0.0/8, ::1, 10.0.0.0/8,
+   172.16.0.0/12, 192.168.0.0/16, fc00::/7; a value replaces that list and
+   `none` believes no proxy. The connection limit of `Slots` still exempts
+   only loopback and the proxies the host named, and the warning of a
+   trusted proxy that forwards nothing is said only of a named one. The
+   consequence, plainly: a client on a private network can
+   forge `X-Forwarded-For` and be counted under the address it writes — and
+   in Docker a visitor who comes through a port published through docker-proxy (a loopback-published port, a hairpin, IPv6 onto an IPv4 bridge, Docker Desktop, rootless Docker) arrives from the bridge gateway (172.16.0.0/12), which the default believes, so an internet client can; rootful Linux Docker with iptables NAT keeps the client's address, and is not affected. Only a loopback socket that forwarded nothing is exempt from
+   the pace, the in-flight cap and the WebSocket cap; a forwarded `127.0.0.1`
+   is counted like any other address. An attacker who rotates forged
+   addresses still defeats the per-address limits; the account's own delay
+   and the lock hold. Name the real proxies, or `none`, to close it. Item 5's other words stand.)*
 
 6. **A fresh proof before a sensitive action** (F15, and the device
    page's approval). Creating a token, adding or removing a passkey,
@@ -787,7 +802,10 @@ decided by the maintainer on 2026-10-13 (*"sobre as decisões em aberto,
 siga as recomendações"*, on the open decisions, follow the
 recommendations): `packaging/server/docker-compose.yml` publishes 7340 on
 `127.0.0.1` by default (`host_ip`), TLS in front — Caddy, a tunnel or
-Tailscale. Its comment says the one line to change to publish on the
+Tailscale. *(Superseded on 2026-10-16: it publishes `7340:7340` on every
+address and plain HTTP signs in from the network, with the maintainer's
+words in [0073](0073-self-hosted-server-first.md)'s Revisions; the
+guardrail then checks that binding and that no variable is required.)* Its comment says the one line to change to publish on the
 LAN, for a CasaOS box on a home network, and that plain HTTP on the LAN
 signs nobody in from another machine anyway
 ([0073](0073-self-hosted-server-first.md) item 6).

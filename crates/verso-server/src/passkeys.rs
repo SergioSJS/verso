@@ -42,7 +42,7 @@ pub struct Ceremonies {
 
 /// The relying party: this server, by the address people use.
 fn webauthn(ctx: &Ctx) -> ApiResult<Webauthn> {
-    let origin = crate::auth::expected_origin(&ctx.server, &ctx.headers)
+    let origin = crate::auth::expected_origin(&ctx.server, &ctx.headers, &ctx.peer)
         .ok_or_else(|| ApiError::bad("no_address", "set VERSO_PUBLIC_URL for passkeys"))?;
     let url = Url::parse(&origin).map_err(|e| ApiError::bad("no_address", e.to_string()))?;
     let id = url
@@ -325,7 +325,7 @@ pub async fn sign_in_finish(ctx: Ctx, Json(body): Json<SignInFinish>) -> ApiResu
         &ctx.address(),
     )?;
     let mut response = ok(json!({ "account": crate::api::account_json(&account), "csrf": csrf }));
-    if let Ok(v) = HeaderValue::from_str(&crate::auth::session_cookie(&ctx.server, &token)) {
+    if let Ok(v) = HeaderValue::from_str(&crate::auth::session_cookie(&ctx.peer, &token)) {
         response.headers_mut().append(header::SET_COOKIE, v);
     }
     Ok(response)

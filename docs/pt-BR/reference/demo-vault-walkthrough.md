@@ -1169,6 +1169,19 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
     `manual-checks.md`. Nível: H para a seção, A para o celular; R:
     `scripts/demo-vault.mjs check` para a nota.
 
+16. O UniVerso achado na rede ([ADR
+    0097](../adr/0097-universo-found-on-the-network-and-a-bad-dns-survived.md);
+    nota 24, seção 6, *O caminho mais curto*): em *Ajustes › Servidores*,
+    *Encontrados nesta rede* lista um UniVerso anunciado na rede com o
+    endereço que cada linha vai usar e *sem HTTPS* quando é simples; um clique
+    preenche esse endereço e inicia o login como se digitado, e nada conecta
+    antes dele. Um servidor com TLS próprio e sem `VERSO_PUBLIC_URL` é listado
+    com o que definir e sem botão. Trocar de seção encerra a busca. Por
+    máquina: `app/ui/e2e/servers-found.spec.mjs` (o harness alimenta a lista)
+    e `app/ui/test/serversFound.test.mjs`; à mão, numa rede de verdade, as
+    verificações do `manual-checks.md`. Nível: H para a lista, A para a rede;
+    R: `scripts/demo-vault.mjs check` para a nota.
+
 ## 14. O fim
 
 1. O log depois da linha anotada: nenhum `ERROR`. O stderr do app: vazio. O

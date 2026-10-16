@@ -1405,9 +1405,15 @@ export class Core {
     server_sign_in: () => refuse("unavailable", "no server in the harness"),
     server_sign_in_page: () => refuse("refused", "no server's page waits to be opened"),
     server_sign_out: () => null,
-    server_folders: () => [],
+    server_folders: () => ({ folders: [], may_create: false }),
+    server_create_folder: () => refuse("unavailable", "no server in the harness"),
     server_open: () => refuse("unavailable", "no server in the harness"),
     server_retry: () => null,
+    // The servers announced on the network (ADR 0097): none, until a test
+    // sets `discover_servers_list` to some.
+    discover_servers_start: () => null,
+    discover_servers_list: () => [],
+    discover_servers_stop: () => null,
     share_list: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     share_grant: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     share_revoke: () => refuse("refused", "this folder is not on a server: sync it with one first"),
