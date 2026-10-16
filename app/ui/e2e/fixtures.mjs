@@ -223,4 +223,25 @@ export const test = base.extend({
   },
 });
 
+/** The box of `locator` once it has stopped moving: the same box on five
+ *  reads in a row, each after the page drew a few frames, so a force
+ *  layout (the graph's simulation counts frames, not milliseconds) that a
+ *  loaded machine draws slowly is waited for, not guessed at with a sleep. */
+export async function settledBox(page, locator, { reads = 5, within = 30_000 } = {}) {
+  const frames = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => r())))));
+  const key = (b) => JSON.stringify(b);
+  const deadline = Date.now() + within;
+  let was = null;
+  let same = 0;
+  for (;;) {
+    await frames();
+    const now = await locator.boundingBox();
+    same = now && was && key(now) === key(was) ? same + 1 : 0;
+    if (same >= reads - 1) return now;
+    if (Date.now() > deadline) throw new Error("settledBox: the element kept moving");
+    was = now;
+    await page.waitForTimeout(50);
+  }
+}
+
 export { expect };
