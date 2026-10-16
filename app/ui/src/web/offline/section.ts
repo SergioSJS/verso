@@ -17,6 +17,7 @@ import { ask } from "../../dialog";
 import { drawSyncOn } from "../../dialogs/syncView";
 import { h } from "../../dom";
 import { folderName } from "../../folder";
+import { httpsHowLink } from "../plainHttp";
 import { bytes } from "../strings";
 import { type Kept } from "./store";
 import { offline, Offline, type Preview } from "./manager";
@@ -116,7 +117,9 @@ function drawOff(box: HTMLElement, item: Item, id: string, again: () => void): v
     // ADR 0092 item 2: over plain HTTP there is no service worker, so the
     // page cannot open offline; the setting says so and why.
     turn.disabled = true;
-    box.append(item(s.label, s.labelDesc, turn), h("p", "sync-problem", s.needsHttps));
+    const why = h("p", "sync-problem", s.needsHttps);
+    why.append(" ", httpsHowLink());
+    box.append(item(s.label, s.labelDesc, turn), why);
     return;
   }
   box.append(item(s.label, s.labelDesc, turn), said, panel);
@@ -207,7 +210,11 @@ async function drawOn(box: HTMLElement, item: Item, kept: Kept, painters: Set<()
   // the copy (ADR 0092 items 2 and 3).
   const notes = h("div", "sync-notes");
   const worker = offline.progress();
-  if (!Offline.workerPossible()) notes.append(h("p", "sync-problem", s.needsHttps));
+  if (!Offline.workerPossible()) {
+    const why = h("p", "sync-problem", s.needsHttps);
+    why.append(" ", httpsHowLink());
+    notes.append(why);
+  }
   else if (worker.failed) notes.append(h("p", "sync-problem", s.workerFailed(worker.failed)));
   else notes.append(h("p", "sync-meta", worker.ready ? s.ready : worker.total > 0 ? s.progress(worker.done, worker.total) : s.notReady));
   const persisted = (await navigator.storage?.persisted?.().catch(() => undefined)) ?? null;

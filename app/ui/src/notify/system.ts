@@ -32,6 +32,7 @@ import { isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notif
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { host } from "../can";
 import { h } from "../dom";
+import { httpsHowLink } from "../web/plainHttp";
 import { MAC, WINDOWS } from "../platform";
 import type { Entry } from "./core";
 import { notifyStrings } from "./strings";
@@ -190,6 +191,8 @@ export function systemControl(): HTMLElement {
   if (w !== "ok") {
     box.disabled = true;
     said.textContent = whyText(w);
+    // Over plain HTTP the way to turn it on is beside the reason.
+    if (w === "notSecure") said.append(" ", httpsHowLink());
   } else said.textContent = systemOn() ? s.systemOn : why;
   box.addEventListener("change", () => {
     if (!box.checked) {
