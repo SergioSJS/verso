@@ -204,7 +204,8 @@ that** and drops to uid 1000 before the server runs (ADR 0075, amended
 2026-10-16: *"Conserta sozinho ao ligar"*). For each of the two directories
 that uid 1000 cannot write, the entrypoint gives to `1000:1000` the entries
 that root owns under it, once: no symbolic link is followed, no other file
-system entered, and a file of another user is left alone. It needs the three
+system entered, and a file of another user, or one with several hard links,
+is left alone. It needs the three
 capabilities the compose file adds back (`CHOWN`, `SETUID`, `SETGID`); the
 server itself holds none. If a directory belongs to someone else, the log,
 the admin console and the failing request say `sudo chown -R 1000:1000
@@ -228,7 +229,8 @@ section 11):
 ```sh
 docker run -d --name universo --restart unless-stopped \
   -p 7340:7340 \
-  --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
+  --read-only --tmpfs /tmp --cap-drop ALL --cap-add CHOWN --cap-add SETUID --cap-add SETGID \
+  --security-opt no-new-privileges:true \
   -v /srv/universo/data:/data \
   -v /srv/universo/folders:/folders \
   -e VERSO_ADMIN_EMAIL=you@example.com \
@@ -236,6 +238,14 @@ docker run -d --name universo --restart unless-stopped \
   -v /srv/universo/admin-password:/run/secrets/universo-admin:ro \
   ghcr.io/sergiosjs/universo:beta
 ```
+
+**An older compose file or `docker run`** (before 2026-10-16: `cap_drop: ALL`
+and nothing added back) now stops at start with one line saying what to add:
+the container starts as root and cannot drop to uid 1000 without `SETUID` and
+`SETGID`, and the server is never run as root. Either add `cap_add: [CHOWN,
+SETUID, SETGID]` (`--cap-add CHOWN --cap-add SETUID --cap-add SETGID`), or run
+the container as `user: "1000:1000"` (`--user 1000:1000`) with `/data` and
+`/folders` already writable by it: `sudo chown -R 1000:1000 <host folder>`.
 
 Tags: the version (`0.8.0-beta.1`), `latest` for the newest
 production version and `beta` for the newest test version. While only test
@@ -269,7 +279,9 @@ from `127.0.0.1` all the same, run the container on the host's network
 
 The second line keeps the container to what the server needs
 ([ADR 0083](../adr/0083-security-hardening-of-universo.md) item 11): the
-image's own files read-only, `/tmp` in memory, no Linux capability, nothing
+image's own files read-only, `/tmp` in memory, every Linux capability dropped but the three the
+entrypoint needs to mend the mounts (`CHOWN`, `SETUID`, `SETGID`; the server
+itself, after the drop to uid 1000, holds none), nothing
 gained through a setuid program; the server writes under `/data` and
 `/folders` only. The password comes from a file mounted as a secret, which
 `docker inspect` does not show, rather than from `-e VERSO_ADMIN_PASSWORD`,
@@ -291,8 +303,8 @@ It binds `/DATA/AppData/universo/data` (the app data path CasaOS uses) to
 `/data`, and `/DATA/Documents/Verso` to `/folders` — change the second to
 wherever the notes should live, a NAS included. Neither needs preparation:
 the container mends a root-owned one at start, as in section 3. It declares the same hardening as section 3's
-command (`read_only`, `tmpfs: /tmp`, `cap_drop: ALL`,
-`no-new-privileges`), and shows the first admin's password as a Docker
+command (`read_only`, `tmpfs: /tmp`, `cap_drop: ALL` and `cap_add: [CHOWN, SETUID,
+SETGID]`, `no-new-privileges`), and shows the first admin's password as a Docker
 secret, commented out, before the plain variable: to use it, put the
 password in `admin-password` beside the compose file, readable by uid 1000,
 and uncomment the three places the file marks.

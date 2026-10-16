@@ -86,11 +86,14 @@
   `/data` e `/folders` são graváveis; num que não seja, entrega a
   `1000:1000` as entradas *que o root possui* sob esse ponto de montagem
   (`find -xdev -user 0`, `chown -h`: nenhum symlink é seguido, nenhum outro
-  sistema de arquivos é percorrido, o arquivo de outro usuário é deixado),
+  sistema de arquivos é percorrido, o arquivo de outro usuário é deixado, e um
+  arquivo comum com vários hard links também, dito no log com a contagem: o
+  outro nome pode estar fora do ponto de montagem, e um chown muda o inode
+  para todos),
   e então executa `/usr/bin/universo`, um wrapper que desce ao uid 1000 com
   os grupos suplementares limpos (`su`) e executa o binário, inclusive nos
   comandos de `docker exec`, para que `universo admin reset` nunca deixe um
-  arquivo do root. O root vive durante as conferências do entrypoint, uns
+  arquivo do root. **A corrida que sobra**, dita: quem pode escrever dentro de um ponto de montagem poderia trocar um diretório por um link simbólico entre o `find` e o `chown` e fazer mudar uma entrada do root em outro lugar; os pontos de montagem são do administrador, e o uid 1000, que roda o servidor, ainda não começou. Um contêiner iniciado como root sem as capabilities (um compose antigo) é recusado com a linha que diz o que acrescentar, nunca rodado como root. O root vive durante as conferências do entrypoint, uns
   milissegundos, salvo se precisar fazer chown numa árvore grande, uma vez; o
   processo do servidor tem uid e gid 1000, nenhum outro grupo, `CapEff` e
   `CapPrm` zerados (o `scripts/check-server-image.sh` lê o

@@ -213,7 +213,7 @@ só para consertar isso** e desce ao uid 1000 antes de o servidor rodar (ADR
 dos dois diretórios em que o uid 1000 não grava, o entrypoint entrega a
 `1000:1000` as entradas que o root possui sob ele, uma vez: nenhum link
 simbólico é seguido, nenhum outro sistema de arquivos é percorrido, e o
-arquivo de outro usuário é deixado em paz. Ele precisa das três
+arquivo de outro usuário, ou um com vários hard links, é deixado em paz. Ele precisa das três
 capabilities que o arquivo compose devolve (`CHOWN`, `SETUID`, `SETGID`); o
 servidor não tem nenhuma. Se um diretório é de outra pessoa, o log, o console
 de administração e o pedido que falhou dizem `sudo chown -R 1000:1000 <pasta
@@ -237,7 +237,8 @@ seção 11):
 ```sh
 docker run -d --name universo --restart unless-stopped \
   -p 7340:7340 \
-  --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
+  --read-only --tmpfs /tmp --cap-drop ALL --cap-add CHOWN --cap-add SETUID --cap-add SETGID \
+  --security-opt no-new-privileges:true \
   -v /srv/universo/data:/data \
   -v /srv/universo/folders:/folders \
   -e VERSO_ADMIN_EMAIL=voce@exemplo.com \
@@ -245,6 +246,15 @@ docker run -d --name universo --restart unless-stopped \
   -v /srv/universo/admin-password:/run/secrets/universo-admin:ro \
   ghcr.io/sergiosjs/universo:beta
 ```
+
+**Um arquivo compose ou `docker run` mais antigo** (antes de 2026-10-16:
+`cap_drop: ALL` e nada devolvido) agora para ao ligar com uma linha dizendo
+o que acrescentar: o contêiner começa como root e não consegue descer ao uid
+1000 sem `SETUID` e `SETGID`, e o servidor nunca roda como root. Ou
+acrescente `cap_add: [CHOWN, SETUID, SETGID]` (`--cap-add CHOWN --cap-add
+SETUID --cap-add SETGID`), ou rode o contêiner como `user: "1000:1000"`
+(`--user 1000:1000`) com `/data` e `/folders` já graváveis por ele: `sudo
+chown -R 1000:1000 <pasta do host>`.
 
 Tags: a versão (`0.8.0-beta.1`), `latest` para a versão de
 produção mais nova e `beta` para a versão de teste mais nova. Enquanto só
@@ -279,8 +289,10 @@ qualquer modo, rode o contêiner na rede do host (`--network host`, sem
 
 A segunda linha limita o contêiner ao que o servidor precisa
 ([ADR 0083](../adr/0083-security-hardening-of-universo.md) item 11): os
-arquivos da própria imagem só para leitura, `/tmp` em memória, nenhuma
-capability do Linux, nada ganho por um programa setuid; o servidor só
+arquivos da própria imagem só para leitura, `/tmp` em memória, toda capability do Linux
+removida menos as três de que o entrypoint precisa para consertar os pontos de
+montagem (`CHOWN`, `SETUID`, `SETGID`; o servidor, depois de descer ao uid
+1000, não tem nenhuma), nada ganho por um programa setuid; o servidor só
 escreve em `/data` e `/folders`. A senha vem de um arquivo montado como
 segredo, que o `docker inspect` não mostra, e não de
 `-e VERSO_ADMIN_PASSWORD`, que ele mostra; o arquivo precisa ser legível
@@ -303,7 +315,7 @@ CasaOS usa) em `/data`, e `/DATA/Documents/Verso` em `/folders` — troque o
 segundo para onde as notas devem ficar, inclusive um NAS. Nenhum precisa de preparo:
 o contêiner conserta um que seja do root ao ligar, como na seção 3. Ele declara o mesmo
 endurecimento do comando da seção 3 (`read_only`, `tmpfs: /tmp`,
-`cap_drop: ALL`, `no-new-privileges`), e mostra a senha do primeiro admin
+`cap_drop: ALL` e `cap_add: [CHOWN, SETUID, SETGID]`, `no-new-privileges`), e mostra a senha do primeiro admin
 como um segredo do Docker, comentado, antes da variável comum: para usar,
 ponha a senha em `admin-password` ao lado do arquivo compose, legível pelo
 uid 1000, e descomente os três lugares que o arquivo marca.
@@ -1182,7 +1194,7 @@ máquina real. Verificado desde então:
   `scripts/check-linux.sh`, rodado antes de um push, não no CI, onde
   compilar o servidor estático do zero somaria vários minutos ao job do
   Linux: a imagem rodando só para leitura,
-  `/tmp` em memória, nenhuma capability, `no-new-privileges` (o estado pelo
+  `/tmp` em memória, só as capabilities `CHOWN`, `SETUID` e `SETGID` do entrypoint, `no-new-privileges` (o estado pelo
   TLS próprio, uma entrada, uma pasta criada `0750`, `admin reset`); e o
   mesmo binário estático musl disposto como o `nfpm.yaml` dispõe, à mão,
   num contêiner Debian 12 rodando o systemd 252, iniciado pela

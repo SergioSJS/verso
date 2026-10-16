@@ -457,6 +457,10 @@ services:
       - /tmp
     cap_drop:
       - ALL
+    cap_add:                                        # to mend /data and /folders, then the server drops to 1000
+      - CHOWN
+      - SETUID
+      - SETGID
     security_opt:
       - no-new-privileges:true
     network_mode: host                              # no lugar de ports: (abaixo)
