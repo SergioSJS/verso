@@ -21,7 +21,7 @@ await esbuild.build({
   outfile: "test/.bundles/reach.test-bundle.mjs",
   logLevel: "error",
 });
-const { attempt, failureText, sayFailure } = await import("./.bundles/reach.test-bundle.mjs");
+const { attempt, failureText, sayFailure, unreachableAt } = await import("./.bundles/reach.test-bundle.mjs");
 
 await esbuild.build({
   entryPoints: ["src/errorKinds.ts"],
@@ -71,6 +71,23 @@ describe("A server out of reach, said in the panel", () => {
   test("in English when the window speaks it", () => {
     document.documentElement.lang = "en";
     assert.equal(failureText(DOWN), "Couldn't reach the server localhost:7351 — it is down or the network is off.");
+  });
+
+  // ADR 0097: the name resolved to addresses and none answered; the message
+  // carries them, one a line after the address, and the sentence names each
+  // so a bad DNS reads as one.
+  test("a name that resolved to an address where nothing answered says which, in both languages", () => {
+    const e = { kind: "unreachable", message: "universo.casa.exemplo.com\n10.0.0.1\n192.168.0.5" };
+    assert.equal(
+      failureText(e),
+      "Não foi possível alcançar o servidor universo.casa.exemplo.com — ele está fora do ar ou sem rede. universo.casa.exemplo.com → 10.0.0.1: sem resposta; universo.casa.exemplo.com → 192.168.0.5: sem resposta. Confira o DNS desta rede: o nome pode estar apontando para o endereço errado.",
+    );
+    document.documentElement.lang = "en";
+    assert.match(failureText(e), /^Couldn't reach the server universo\.casa\.exemplo\.com — .* universo\.casa\.exemplo\.com → 10\.0\.0\.1: no answer; .*→ 192\.168\.0\.5: no answer\. Check this network's DNS/);
+    // The port is not part of the name.
+    const withPort = { kind: "unreachable", message: "nas.casa:7340\n10.0.0.1" };
+    assert.match(failureText(withPort), /nas\.casa → 10\.0\.0\.1: no answer/);
+    assert.equal(unreachableAt(e), "universo.casa.exemplo.com");
   });
 
   test("another failure keeps the window's own sentence", () => {

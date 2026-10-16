@@ -598,6 +598,16 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .srv-said { margin: .7rem 0 0; font-size: .88rem; color: var(--ink-2); }
 .srv-said:empty { display: none; }
 .srv-code { display: inline-block; margin: 0 .15rem; padding: .05rem .45rem; font: 600 .95rem var(--ui); letter-spacing: .08em; font-variant-numeric: tabular-nums; color: var(--brass-ink); background: var(--brass-wash); border-radius: 5px; }
+.srv-found { padding: 1.2rem 0 1.2rem; border-bottom: 1px solid var(--hair); }
+.srv-found-title { margin: 0; font: 600 .9rem var(--ui); color: var(--ink); }
+.srv-found-rows { margin: .6rem 0 0; padding: 0; list-style: none; max-width: 34rem; }
+.srv-found-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .55rem 0; border-top: 1px solid var(--hair); }
+.srv-found-row:first-child { border-top: 0; }
+.srv-found-text { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem .7rem; min-width: 0; }
+.srv-found-name { font-size: .93rem; font-weight: 500; color: var(--ink); overflow-wrap: anywhere; }
+.srv-found-url { font-size: .85rem; color: var(--ink-2); overflow-wrap: anywhere; }
+.srv-found-how, .srv-found-version { font: 600 .68rem var(--ui); letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); }
+.srv-found-how[data-https="0"] { color: var(--seal); }
 .srv { padding: 1.3rem 0 .4rem; border-bottom: 1px solid var(--hair); }
 .srv-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .srv-host { margin: 0; font-family: var(--display); font-weight: 500; font-size: 1.15rem; color: var(--ink); overflow-wrap: anywhere; }

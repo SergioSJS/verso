@@ -60,7 +60,7 @@ serde_json = "1"
 # (MIT); tokio is Tauri's own runtime.
 tokio-tungstenite = { version = "0.29", default-features = false, features = ["connect", "rustls-tls-native-roots"] }
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
-tokio = { version = "1", default-features = false, features = ["sync", "time", "macros"] }
+tokio = { version = "1", default-features = false, features = ["sync", "time", "macros", "net"] }
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "rustls", "http2", "gzip", "json"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
 sha2 = "0.10"

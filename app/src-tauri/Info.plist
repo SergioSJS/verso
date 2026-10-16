@@ -3,15 +3,20 @@
 <!-- Merged into the app's Info.plist by Tauri when it bundles for macOS.
      "This app is a server" (ADR 0096 item 9): macOS 15 and later asks for the
      Local Network permission the first time the app announces itself or takes
-     a connection on the network; these are the words it shows and the one
-     service the app announces (while the pairing dialog is open). -->
+     a connection on the network; these are the words it shows and the
+     services the app announces or browses: `_verso-local._tcp`, announced
+     while the pairing dialog is open, and `_verso._tcp`, browsed while
+     Settings > Servers is open to list the UniVerso servers on the home
+     network (ADR 0097). Without a service type here macOS 15 and later
+     lets a browse find nothing, silently. -->
 <plist version="1.0">
 <dict>
   <key>NSLocalNetworkUsageDescription</key>
-  <string>Verso lets a phone on this network open the folders you choose, only while "Turn into a server" is on.</string>
+  <string>Verso lets a phone on this network open the folders you choose, only while "Turn into a server" is on, and looks for Verso servers on this network while Settings > Servers is open.</string>
   <key>NSBonjourServices</key>
   <array>
     <string>_verso-local._tcp</string>
+    <string>_verso._tcp</string>
   </array>
 </dict>
 </plist>
