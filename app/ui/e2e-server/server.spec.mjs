@@ -630,6 +630,8 @@ test("the page that approves a device says who asked, and refuses (threat model,
   await expect(page.getByText("Pronto. Pode voltar ao aplicativo.")).toBeVisible(waited);
   await expect(page.locator(".web-lead")).toHaveCount(1);
   await expect(page.locator(".web-lead")).toHaveText("Pronto. Pode voltar ao aplicativo.");
+  // And a way on to the window from this browser.
+  await expect(page.getByRole("link", { name: "Abrir o Verso aqui" })).toHaveAttribute("href", "/");
   const done = await (await request.post("/api/device/poll", { data: { code: second.code, poll: second.poll } })).json();
   expect(typeof done.token).toBe("string");
   expect(errors).toEqual([]);

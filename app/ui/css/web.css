@@ -230,3 +230,5 @@ body.web-mode { display: block; overflow: auto; height: auto; min-height: 100dvh
    says so beside its heading, in the person's language (--offline-mark). */
 html[data-offline] .links-section .links-head::after,
 html[data-offline] .graph-head::after { content: " — " var(--offline-mark); font-weight: 400; font-size: .85em; color: var(--ink-3); }
+/* The way on from "Pronto" to the window (a link drawn as the button). */
+.web-open { text-decoration: none; box-sizing: border-box; }

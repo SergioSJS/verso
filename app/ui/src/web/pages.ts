@@ -310,7 +310,10 @@ function askPage(account: Account, what: Asked): void {
       } finally {
         waiting.done();
       }
-      page(s.deviceTitle, lead(s.deviceDone));
+      // The app was let in; this browser may go on to the window itself
+      // (the maintainer, 2026-10-16: no way back from here).
+      const open = el("a", { href: "/", class: "web-primary web-open" }, s.deviceOpen);
+      page(s.deviceTitle, lead(s.deviceDone), open);
     },
     explain,
   );
