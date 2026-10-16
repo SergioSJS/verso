@@ -236,8 +236,11 @@ VERSO_PUBLIC_URL=https://notas.exemplo.com
 
 O arquivo já traz essas variáveis (a `VERSO_TRUSTED_PROXY` vem vazia): troque
 o valor na linha que existe; repetida, vale a última (conferido), mas o
-arquivo fica confuso. `VERSO_PUBLIC_URL` é opcional: vazio, o UniVerso
-responde ao endereço digitado. Definido, responde só a esse nome.
+arquivo fica confuso. `VERSO_PUBLIC_URL` é opcional: vazio, o UniVerso responde a um endereço IP,
+a um nome de uma palavra ou a um nome `.local` / `.home.arpa` (não a um nome
+da internet pública, que a exige). Definido, responde só a esse nome, e é
+ele que faz existirem os links por e-mail (link de entrada, "esqueci a
+senha").
 `VERSO_TRUSTED_PROXY` também é opcional: vazio, um proxy nesta máquina ou
 numa rede privada (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 e
 as faixas de loopback e unique-local do IPv6) é aceito; um valor substitui
@@ -929,10 +932,13 @@ http://127.0.0.1:7341`).
   `X-Forwarded-Proto` (o Caddy manda; o nginx precisa da linha do caminho C)
   e se ele está nesta máquina ou na sua rede (senão, nomeie-o no
   `VERSO_TRUSTED_PROXY`).
-- *this server does not answer to that name* (421): o `VERSO_PUBLIC_URL`
-  está definido e o endereço digitado — muitas vezes o IP puro — não é o
-  nome dele, ou o nginx não está repassando o `Host`. Apague o
-  `VERSO_PUBLIC_URL` para responder a qualquer endereço.
+- *this server does not answer to that name* (421): ou o
+  `VERSO_PUBLIC_URL` está definido e o endereço digitado — muitas vezes o IP
+  puro — não é o nome dele, ou não está definido e o nome digitado é público
+  (`casa.exemplo.com`), que o UniVerso só responde quando o
+  `VERSO_PUBLIC_URL` o nomeia (o erro diz isso); ou o nginx não está
+  repassando o `Host`. Use o IP, ou defina o `VERSO_PUBLIC_URL` com o
+  endereço que as pessoas usam.
 - O proxy responde 502: o UniVerso não está rodando, ou escuta em outra
   porta que não a da linha do proxy (`sh universo.sh status`, "Escuta
   em").
