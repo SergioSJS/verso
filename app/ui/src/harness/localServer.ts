@@ -35,6 +35,7 @@ export class LocalServerHarness {
     { key: "harness", name: "Vault", ticked: false, syncs_with: null },
     { key: "synced", name: "Compartilhada", ticked: false, syncs_with: "notas.exemplo" },
   ];
+  private maxConnected = 4;
   private fingerprint = "AB:CD:EF:01:23:45:67:89";
   /** The identity's generation: replaced, the fingerprint changes. */
   private generation = 1;
@@ -50,7 +51,8 @@ export class LocalServerHarness {
       port: this.serving ? 51234 : null,
       addresses: this.serving ? ["192.168.1.20"] : [],
       phones_paired: this.paired.length,
-      phones_connected: this.serving ? Math.min(this.paired.length, 2) : 0,
+      phones_connected: this.serving ? Math.min(this.paired.length, this.maxConnected) : 0,
+      max_connected: this.maxConnected,
       pairing_open: this.open,
       fingerprint: this.serving ? this.fingerprint : null,
       certificate: this.cert.cert_file ? "files" : "own",
@@ -84,6 +86,9 @@ export class LocalServerHarness {
     },
     local_server_settings: (a): LocalServerStatus => {
       this.keepOn = a["keepOn"] === true;
+      const most = Number(a["maxConnected"]);
+      if (!Number.isInteger(most) || most < 1 || most > 16) refuse("phones connected at once: between 1 and 16");
+      this.maxConnected = most;
       this.cert = { cert_file: (a["certFile"] as string | null) || null, key_file: (a["keyFile"] as string | null) || null, host_name: (a["hostName"] as string | null) || null };
       return this.status();
     },

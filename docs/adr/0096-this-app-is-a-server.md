@@ -377,6 +377,18 @@ it changes an Accepted ADR; where one needs a line, the item says so.
     than on a host (recommend 64 in all, 16 per address). Recommendation:
     as written; the numbers are measured in the benchmark with the app's
     own load as 0083 item 18 does, then fixed.
+    - **Amendment `[DECIDED 2026-10-16]`.** The ceiling of phones
+      *connected* at once is a setting, not a constant of 2. The maintainer,
+      2026-10-16, after a third paired phone was left retrying blind while
+      two others were connected: "remova esse limite ou coloque
+      configurável". Decided: configurable, not removed — Settings › This
+      app is a server, *Devices connected at once*, a number from 1 to 16,
+      **default 4** (as many as may be paired, so by default pairing is the
+      only bound). It applies to new connections at once and never
+      disconnects anyone already connected. The ceiling of phones *paired*
+      stays at 4. A phone refused by the ceiling is told in words, with
+      the number, what to do and that it connects by itself when there is
+      room; the log and the audit log say so once a minute per phone.
 
 14. **`[DECIDED 2026-10-15]` What is logged, and what the person sees.**
     - The app's log (`verso.log`): serving turned on or off, the addresses

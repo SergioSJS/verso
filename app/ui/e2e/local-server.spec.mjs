@@ -228,3 +228,23 @@ test("the pairing dialog copies the link the QR encodes, for the address picked"
   await dialog.getByRole("button", { name: "Copiar link" }).click();
   expect(await page.evaluate(() => window.__copied)).toBe("https://10.217.1.73:51234/pair#t=harness&fp=abcd&c=0123456789abcdef");
 });
+
+test("the devices connected at once is a number from 1 to 16, 4 by default, kept when changed", async ({ app, page }) => {
+  await app.open();
+  await section(app);
+  const body = page.locator(".settings-body");
+  const most = body.getByLabel("Aparelhos conectados ao mesmo tempo");
+  await expect(most).toHaveValue("4");
+  await most.fill("2");
+  await most.dispatchEvent("change");
+  await expect(body.getByText("Até 2 aparelhos conectados ao mesmo tempo.")).toBeVisible();
+  // Out of 1 to 16: said, and the number put back.
+  await most.fill("20");
+  await most.dispatchEvent("change");
+  await expect(body.getByText("Use um número de 1 a 16.")).toBeVisible();
+  await expect(most).toHaveValue("2");
+  // Kept: the section drawn again shows it.
+  await app.key("Escape");
+  await section(app);
+  await expect(body.getByLabel("Aparelhos conectados ao mesmo tempo")).toHaveValue("2");
+});

@@ -47,6 +47,9 @@ pub struct LocalServerStatus {
     pub cert_file: Option<String>,
     pub key_file: Option<String>,
     pub host_name: Option<String>,
+    /// Phones connected at once, at most, 1 to 16 (item 13, amended
+    /// 2026-10-16: the ceiling is a setting; the default is 4).
+    pub max_connected: u32,
 }
 
 /// A folder the person may tick to serve.

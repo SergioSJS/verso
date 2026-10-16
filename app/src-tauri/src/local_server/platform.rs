@@ -76,6 +76,7 @@ fn status_of(local: &LocalServer) -> Result<LocalServerStatus, String> {
         cert_file: set.cert_file,
         key_file: set.key_file,
         host_name: set.host_name,
+        max_connected: set.max_connected,
     })
 }
 
@@ -159,6 +160,7 @@ pub(super) async fn settings<R: tauri::Runtime>(
     cert_file: Option<String>,
     key_file: Option<String>,
     host_name: Option<String>,
+    max_connected: u32,
 ) -> Result<LocalServerStatus, ContractError> {
     let local = server(&app)?;
     blocking(move || {
@@ -169,6 +171,7 @@ pub(super) async fn settings<R: tauri::Runtime>(
             cert_file: some(cert_file),
             key_file: some(key_file),
             host_name: some(host_name),
+            max_connected,
             ..was
         })?;
         status_of(&local)
