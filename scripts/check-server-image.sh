@@ -154,7 +154,8 @@ mend=universo-mend-check
 docker rm -f "$mend" >/dev/null 2>&1 || true
 docker run --rm -v /tmp:/h alpine:3.24.2 sh -c '
   rm -rf /h/universo-mend && mkdir -p /h/universo-mend/data /h/universo-mend/folders/Antiga /h/universo-mend/outside
-  echo canary > /h/universo-mend/outside/secret
+  echo canary > /h/universo-mend/outside/secret && chmod 600 /h/universo-mend/outside/secret
+  mkdir -p /h/universo-mend/folders/sub && ln /h/universo-mend/outside/secret /h/universo-mend/folders/sub/hl
   echo old > /h/universo-mend/folders/Antiga/n.md
   ln -s /h/universo-mend/outside /h/universo-mend/folders/link
   echo theirs > /h/universo-mend/folders/others.md && chown 1001:1001 /h/universo-mend/folders/others.md
@@ -190,15 +191,32 @@ docker exec "$mend" universo admin reset admin@verso.test | grep -q "/reset/" ||
 owners="$(docker run --rm -v /tmp:/h alpine:3.24.2 sh -c '
   stat -c "%u %n" /h/universo-mend/data /h/universo-mend/folders /h/universo-mend/folders/Antiga /h/universo-mend/folders/Antiga/n.md
   stat -c "%u %n" /h/universo-mend/folders/others.md /h/universo-mend/outside /h/universo-mend/outside/secret
-  stat -c "%u %n" /h/universo-mend/folders/link; ls /h/universo-mend/data | head -3 | while read f; do stat -c "%u %n" "/h/universo-mend/data/$f"; done')"
+  stat -c "%u %n" /h/universo-mend/folders/link /h/universo-mend/folders/sub/hl; ls /h/universo-mend/data | head -3 | while read f; do stat -c "%u %n" "/h/universo-mend/data/$f"; done')"
 echo "$owners"
 echo "$owners" | grep -q '^1000 /h/universo-mend/folders$' || { echo "/folders was not mended"; exit 1; }
 echo "$owners" | grep -q '^1000 /h/universo-mend/folders/Antiga/n.md$' || { echo "a root-owned file in /folders was not mended"; exit 1; }
 echo "$owners" | grep -q '^1001 /h/universo-mend/folders/others.md$' || { echo "another user's file was changed"; exit 1; }
 echo "$owners" | grep -q '^0 /h/universo-mend/outside$' || { echo "something outside the mounts was touched"; exit 1; }
 echo "$owners" | grep -q '^0 /h/universo-mend/outside/secret$' || { echo "a symlink was followed out of the mount"; exit 1; }
+echo "$owners" | grep -q '^0 /h/universo-mend/folders/sub/hl$' || { echo "a hard link out of the mount was chowned through"; exit 1; }
 echo "$owners" | grep -q '^1000 /h/universo-mend/folders/link$' || { echo "the link itself was not mended"; exit 1; }
 ! echo "$owners" | grep '/data/' | grep -vq '^1000 ' || { echo "a file of /data is not uid 1000's"; exit 1; }
+docker rm -f "$mend" >/dev/null
+# Root without the capabilities (an older compose file): refused with the
+# line that says what to add, never run as root.
+nocaps="$(docker run --rm --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
+  -v /tmp/universo-mend/data:/data -v /tmp/universo-mend/folders:/folders universo:check 2>&1)" && { echo "root without capabilities was let run"; exit 1; }
+echo "$nocaps" | grep -q 'cap_add: \[CHOWN, SETUID, SETGID\]' || { echo "the refusal does not say what to add: $nocaps"; exit 1; }
+# `user: 1000:1000`: no root at all, no mending, the mounts already writable.
+docker run -d --name "$mend" --user 1000:1000 -p "127.0.0.1:$((port + 2)):7340" \
+  --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
+  -v /tmp/universo-mend/data:/data -v /tmp/universo-mend/folders:/folders \
+  -e VERSO_UPDATE_CHECK=off universo:check >/dev/null
+for _ in $(seq 1 30); do
+  curl -s "http://127.0.0.1:$((port + 2))/api/state" >/dev/null 2>&1 && break
+  sleep 1
+done
+curl -s "http://127.0.0.1:$((port + 2))/api/state" | grep -q '"web":true' || { echo "user 1000:1000 does not start"; docker logs "$mend"; exit 1; }
 docker rm -f "$mend" >/dev/null
 docker run --rm -v /tmp:/h alpine:3.24.2 rm -rf /h/universo-mend
 docker exec "$name" universo admin reset admin@verso.test | grep -q "/reset/" || { echo "admin reset failed"; exit 1; }
