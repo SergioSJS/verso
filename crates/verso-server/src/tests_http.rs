@@ -471,3 +471,36 @@ fn the_websocket_cap_counts_a_forged_loopback_and_not_this_machine() {
         }
     });
 }
+
+/// A folders directory the server cannot write (a bind mount Docker made as
+/// root): the start says so, and making a folder answers with the sentence
+/// and its own code, not "making the folder: Permission denied (os error
+/// 13)" (ADR 0075 item 3, amended 2026-10-16).
+#[test]
+fn a_folder_cannot_be_made_in_a_directory_the_server_cannot_write_and_it_says_so() {
+    block_on(async {
+        let r = start_with(|_| {}).await;
+        let dir = r.server.config.folders_dir.clone();
+        let b = crate::tests::sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        verso_fs::server::set_writable_for_tests(&dir, false).unwrap();
+        let found = crate::storage::check(&r.server.config.data_dir, &dir);
+        let (status, body) =
+            crate::tests::post(&r, "/api/folders", json!({ "name": "Nova" }), Some(&b)).await;
+        verso_fs::server::set_writable_for_tests(&dir, true).unwrap();
+        if found.is_empty() {
+            return; // as root nothing is denied
+        }
+        assert_eq!(found[0].dir, dir.display().to_string());
+        assert_eq!(
+            (status, body["error"].as_str()),
+            (500, Some("not_writable")),
+            "{body}"
+        );
+        let said = body["message"].as_str().unwrap();
+        assert!(
+            said.contains("cannot write to") && said.contains("sudo chown -R 1000:1000"),
+            "{said}"
+        );
+        assert!(!said.contains("os error 13"), "{said}");
+    });
+}

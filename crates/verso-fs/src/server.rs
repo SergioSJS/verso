@@ -137,6 +137,62 @@ pub fn owner_only(path: &Path) -> io::Result<()> {
     Ok(())
 }
 
+/// Whether the process can create a file in `dir`: a probe file made and
+/// removed at once. The mode bits say nothing of it (the user, the groups,
+/// a read-only mount, a share); only trying does. `Err` carries why —
+/// `PermissionDenied` for a directory another user owns (a bind mount
+/// Docker made as root, ADR 0075 item 3), `ReadOnlyFilesystem`, `NotFound`.
+pub fn can_write(dir: &Path) -> io::Result<()> {
+    let probe = dir.join(format!(".verso-write-probe-{}", std::process::id()));
+    let made = std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(&probe);
+    match made {
+        Ok(file) => {
+            drop(file);
+            std::fs::remove_file(&probe)
+        }
+        Err(e) => Err(e),
+    }
+}
+
+/// Makes a directory unwritable (`0555`) or writable again (`0755`), for the
+/// tests of other crates that must see what happens in a directory the
+/// process cannot write (clippy denies them `std::fs` themselves). Not part
+/// of the API: nothing ships calls it.
+#[doc(hidden)]
+pub fn set_writable_for_tests(dir: &Path, writable: bool) -> io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = if writable { 0o755 } else { 0o555 };
+        std::fs::set_permissions(dir, std::fs::Permissions::from_mode(mode))
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (dir, writable);
+        Ok(())
+    }
+}
+
+/// The numeric owner of `path`, to say who holds a directory that cannot
+/// be written; `None` when unknown (not Unix, or the path is not there).
+#[must_use]
+pub fn owner_uid(path: &Path) -> Option<u32> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        std::fs::metadata(path).ok().map(|m| m.uid())
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = path;
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -153,6 +209,29 @@ mod tests {
         let mode = std::fs::metadata(&file).unwrap().permissions().mode();
         assert_eq!(mode & 0o777, 0o600);
         owner_only(&dir.path().join("server.sqlite-wal")).unwrap();
+    }
+
+    /// A directory the process cannot write says so by trying, and the probe
+    /// leaves nothing behind where it can.
+    #[cfg(unix)]
+    #[test]
+    fn a_directory_that_cannot_be_written_says_permission_denied() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        can_write(dir.path()).unwrap();
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
+        assert!(owner_uid(dir.path()).is_some());
+        std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o555)).unwrap();
+        let tried = can_write(dir.path());
+        std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o755)).unwrap();
+        // As root nothing is denied: the test says nothing there.
+        if let Err(e) = tried {
+            assert_eq!(e.kind(), io::ErrorKind::PermissionDenied);
+        }
+        assert_eq!(
+            can_write(&dir.path().join("nope")).unwrap_err().kind(),
+            io::ErrorKind::NotFound
+        );
     }
 
     #[test]
