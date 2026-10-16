@@ -386,6 +386,19 @@ precisa de uma linha, o item diz.
     (recomendo 64 no total, 16 por endereço). Recomendação: como escrito;
     os números são medidos no benchmark com a carga do próprio app como o
     item 18 da 0083 faz, depois fixados.
+    - **Emenda `[DECIDIDO 2026-10-16]`.** O teto de celulares
+      *conectados* ao mesmo tempo é um ajuste, não uma constante 2. O
+      mantenedor, 2026-10-16, depois de um terceiro celular pareado ficar
+      tentando às cegas com outros dois conectados: "remova esse limite ou
+      coloque configurável". Decidido: configurável, não removido —
+      Ajustes › Este app é um servidor, *Aparelhos conectados ao mesmo
+      tempo*, um número de 1 a 16, **padrão 4** (tantos quantos podem ser
+      pareados, então por padrão só o pareamento limita). Vale para as
+      conexões novas na hora e nunca desconecta quem já está conectado. O
+      teto de celulares *pareados* continua 4. Um celular recusado pelo
+      teto é avisado com palavras, com o número, o que fazer e que conecta
+      sozinho quando houver lugar; o log e o log de auditoria dizem isso
+      uma vez por minuto por celular.
 
 14. **`[DECIDIDO 2026-10-15]` O que se registra, e o que a pessoa vê.**
     - O log do app (`verso.log`): servir ligado ou desligado, os endereços
