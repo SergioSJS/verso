@@ -880,8 +880,9 @@ fn take(m: &mut Value, field: &str) -> Value {
 /// The server's own 401 (a session it ended), told from any other device's:
 /// over `wss://` the certificate was checked for the name, so any 401 is the
 /// server's; over `ws://` a router's basic-auth page can answer 401 too, so
-/// it counts only with the body the server writes — a JSON object with an
-/// `error` (`ApiError`).
+/// it counts only with the header every refusal of the server carries — the
+/// sync protocol's, which no router writes. The header, not the body: the
+/// body may arrive after the headers have been read.
 pub(crate) fn is_servers_401(
     response: &tokio_tungstenite::tungstenite::http::Response<Option<Vec<u8>>>,
     tls: bool,
@@ -889,10 +890,10 @@ pub(crate) fn is_servers_401(
     response.status().as_u16() == 401
         && (tls
             || response
-                .body()
-                .as_deref()
-                .and_then(|b| serde_json::from_slice::<Value>(b).ok())
-                .is_some_and(|v| v["error"].is_string()))
+                .headers()
+                .get(verso_core::sync::PROTOCOL_HEADER)
+                .and_then(|v| v.to_str().ok())
+                .is_some_and(|v| v.trim().parse::<u32>().is_ok()))
 }
 
 /// Open the WebSocket of `request` at `host:port`: per address, the TCP

@@ -84,6 +84,10 @@ test("a server with folders still offers a new one beside the rows, and an empty
 test("a sync that could not start is said under the button, with a try again", async ({ app }) => {
   await app.open();
   const server = await signedIn(app, { folders: [], mayCreate: true });
+  // The folders came (the button is there) before the server goes down:
+  // flipping it while the list is still being asked made the list the
+  // failure and the button never drawn.
+  await expect(server.locator(".srv-send")).toBeVisible();
   // The server out of reach: the host's own answer (src/harness.ts).
   await app.page.evaluate(() => window.__harness.serverDown("localhost:7351"));
   await server.locator(".srv-send").click();
