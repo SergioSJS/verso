@@ -115,9 +115,18 @@ fn a_folder_row_carries_the_name_of_its_directory_and_no_path() {
 #[test]
 fn only_some_folders_inside_a_ticked_folder_can_be_chosen_to_serve() {
     let vault = tempfile::tempdir().unwrap();
-    for d in ["Projetos", "Diario", ".obsidian"] {
-        std::fs::create_dir_all(vault.path().join(d)).unwrap();
-    }
+    // Made through tempfile, as the notes are: std::fs stays out of the
+    // app's crate (ADR 0029).
+    let _dirs: Vec<tempfile::TempDir> = ["Projetos", "Diario", ".obsidian"]
+        .iter()
+        .map(|d| {
+            tempfile::Builder::new()
+                .prefix(d)
+                .rand_bytes(0)
+                .tempdir_in(vault.path())
+                .unwrap()
+        })
+        .collect();
     let _nota = note(&vault.path().join("Projetos"), "Nota.md", "# Nota\n");
     let _dia = note(&vault.path().join("Diario"), "Dia.md", "# Dia\n");
     let (_app, webview) = app_with(Some(vault.path().to_path_buf()));
