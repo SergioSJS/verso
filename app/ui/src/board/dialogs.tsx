@@ -251,7 +251,9 @@ export function ExportDialog({ api, host, selected, secretIds, onClose }: { api:
         host.status(s.exportCopied);
         onClose();
       } catch {
-        host.status(s.exportCopyFailed);
+        // Over plain HTTP the image clipboard does not exist (ADR 0073 item
+        // 6, amended 2026-10-16): said as what it is, not as a failure.
+        host.status(window.isSecureContext ? s.exportCopyFailed : s.exportCopyNeedsHttps);
       }
     });
 

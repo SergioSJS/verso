@@ -18,6 +18,8 @@ export function copyBySelection(text: string): Promise<void> {
   field.setAttribute("aria-hidden", "true");
   field.style.cssText = "position:fixed;top:0;left:0;width:1px;height:1px;opacity:0";
   document.body.append(field);
+  // `select()` does nothing on a read-only field in iOS Safari.
+  field.setSelectionRange(0, text.length);
   field.select();
   let done = false;
   try {
@@ -36,6 +38,9 @@ export function ensureClipboard(): void {
   const fallback = {
     writeText: copyBySelection,
     readText: () => Promise.reject(new DOMException("reading the clipboard needs HTTPS", "NotAllowedError")),
+    // Pictures and other types need the real clipboard, which needs HTTPS:
+    // refused, and the callers say so (the board's export dialog).
+    write: () => Promise.reject(new DOMException("copying a picture needs HTTPS", "NotAllowedError")),
   };
   Object.defineProperty(navigator, "clipboard", { value: fallback, configurable: true });
 }
