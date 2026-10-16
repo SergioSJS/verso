@@ -485,6 +485,17 @@ test("over plain HTTP the setting says offline needs HTTPS, and why", async ({ p
   await page.getByRole("dialog").getByRole("button", { name: "Fechar" }).click();
   await bar.getByRole("button", { name: "Fechar" }).click();
   await expect(bar).toHaveCount(0);
+  // The notice closes; the status bar's mark stays and lists what is off.
+  const mark = page.locator(".status-plain-http");
+  await expect(mark).toContainText("sem HTTPS");
+  await mark.click();
+  await expect(page.getByRole("dialog").locator(".plain-http-off li")).toHaveCount(6);
+  await page.getByRole("dialog").getByRole("button", { name: "Fechar" }).click();
+  // The window cannot update itself in a browser: no "newest version" it
+  // never checked (2026-10-16).
+  await page.locator(".settings-nav-item", { hasText: "Geral" }).click();
+  await expect(page.getByText("Você está usando a versão mais recente.")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Verificar atualizações" })).toBeHidden();
   expect(errors).toEqual([]);
 });
 

@@ -126,9 +126,12 @@ export class SettingsDialog {
     this.notice.hidden = false;
     ui.status.textContent = t.languageNotReloaded;
   }
-  /** A folder of a server shown in a browser that can keep it offline (ADR 0092). */
+  /** The window in a browser (ADR 0092): the section is always there, and
+   *  says why when it cannot keep a folder — no HTTPS, no folder open, no
+   *  storage — rather than vanishing (the maintainer, 2026-10-16, over
+   *  plain HTTP: "onde está offline?"). */
   private offlineHere(): boolean {
-    return host() === "server" && offline.available && currentFolder !== "";
+    return host() === "server";
   }
   private sections(): { id: string; label: string; icon: string }[] {
     return [
@@ -277,6 +280,11 @@ export class SettingsDialog {
         void updateController.check(false);
       });
 
+      // In a browser the window is the server's, updated with the server:
+      // there is nothing for it to check, and an answer it did not get must
+      // not read "the newest version" (the maintainer's test server,
+      // 2026-10-16, whose own check had failed).
+      checkBtn.hidden = !can("updates");
       topRow.append(v, checkBtn);
       wrap.append(topRow);
 
@@ -288,6 +296,10 @@ export class SettingsDialog {
 
       const renderCard = () => {
         card.textContent = "";
+        if (!can("updates")) {
+          card.style.display = "none";
+          return;
+        }
         checkBtn.disabled = updateController.checking || updateController.downloading;
         if (updateController.checking) {
           checkBtn.textContent = t.checkingUpdates;

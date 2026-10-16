@@ -90,6 +90,17 @@ async function draw(box: HTMLElement, item: Item, painters: Set<() => void>, aga
   const id = currentFolderId();
   box.replaceChildren();
   painters.clear();
+  if (!window.isSecureContext) {
+    // ADR 0092 item 2: over plain HTTP there is no service worker, so the
+    // page cannot open offline; the section says so and why, with or
+    // without a folder open.
+    const turn = btn(s.turnOn, "primary", () => undefined);
+    turn.disabled = true;
+    const why = h("p", "sync-problem", s.needsHttps);
+    why.append(" ", httpsHowLink());
+    box.append(item(s.label, s.labelDesc, turn), why);
+    return;
+  }
   if (!id) {
     box.append(line(s.notKept));
     return;
