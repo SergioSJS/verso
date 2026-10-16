@@ -133,6 +133,57 @@ it changes an Accepted ADR; where one needs a line, the item says so.
      server's job, which UniVerso already is; (c) offers what the person
      did not choose. It is built by the server's own code with a
      single-account mode, not a second implementation.
+   - **Amendment `[DECIDED 2026-10-16]`: a folder may be served whole, or
+     only chosen folders inside it.** The maintainer, looking at the list
+     of *Folders served* after it became the folder switcher's: *"pq vc
+     removeu a vista de árvore dos arquivos de 'Transformar em servidor'?"*
+     (why did you remove the tree view of the files from *Turn into a
+     server*?), and, told that the list is of the folders this computer
+     opened: *"para as pastas ja abertas e tal, sim, mas para os arquivos
+     do cofre atual aberto não né"* (for the folders already opened, yes,
+     but not for the files of the vault currently open). Asked, he chose
+     three things: **(1)** a ticked folder is served whole *or* only
+     folders chosen inside it, in a tree under its row; **(2)** each chosen
+     folder reaches the phone *as a folder of its own* — *Projetos* and
+     *Diário* are two folders in the phone's switcher, named by their
+     directory's name and made unique (`Notas`, `Notas (2)`) among
+     everything served; **(3)** the folder's attachments go along,
+     read-only, as a share's attachments folder does
+     ([0081](0081-sharing-between-people-on-one-universo.md) item 11).
+     All paired phones see the same choice: it is not per phone.
+     - *Mechanism: the confinement of a share, not a new scope*
+       ([0081](0081-sharing-between-people-on-one-universo.md) items 1, 2
+       and 11). A folder served in part is registered in the local
+       database (a share needs a folder to belong to) but **held by an
+       account that is not the phones'** — the local owner, whose sessions
+       the phones are, has no grant in it — and its id is also on a list
+       that `access::role` refuses to a phone: two locks, so that its id
+       opens nothing by any door (the window's command, a key kept from
+       before, `/f/<id>/…`, history, sync, readers, bin, rooms). The local
+       owner is given one share per chosen folder, at the most a phone can
+       have (editor; the phone's own role still narrows it, item 12);
+       the phone lists and opens those share ids, and every command it
+       runs meets the share's path joining, confinement, answer filtering
+       and event filtering (`scope.rs`), which refuse a command they do
+       not know. A new test table pins a verdict for every command on the
+       phones' allowlist and fails when one is added without it; the one
+       command of the folder a share refuses is `set_focuses`.
+     - *Which folders.* Chosen as paths relative to the folder
+       (`/`-joined, none hidden, none with `..`, none inside another:
+       choosing a folder serves what is inside it), by the rules of a
+       share's path. Nothing chosen is the whole folder, as today. The
+       choice is a setting kept like the ticked list: changed only while
+       serving is off, and forgotten when the folder is unticked. A folder
+       chosen that is no longer on the disk at start is left out; if none
+       is left, serving does not start — it never falls back to the whole
+       folder. Listing the folders inside a folder that is not open is a
+       desktop-only command through `verso-fs` that a phone cannot run
+       (the whole `local_server_` prefix is refused).
+     - *Attachments.* The first time a phone opens a chosen folder in a
+       run, the folder most of its notes' embeds point to outside it is
+       found, as the share dialog offers it (0081 item 11), and shown at
+       its root, read-only, under its name; attachments loose at the
+       folder's root stay outside, as in 0081.
 
 3. **`[DECIDED 2026-10-15]` Which interface it listens on, and on which networks.**
    - (a) Every interface (`0.0.0.0`/`::`). Simple, and reachable from the
