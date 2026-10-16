@@ -47,14 +47,16 @@ if [ "$tell" = yes ]; then
 
 UniVerso installed. It is NOT running yet.
 
-  1. Edit /etc/universo/universo.env: at least VERSO_PUBLIC_URL, and the first
-     admin (VERSO_ADMIN_EMAIL, VERSO_ADMIN_PASSWORD), read on the first
-     start only. Left empty, the log prints a setup link.
+  1. Optionally edit /etc/universo/universo.env: the first admin
+     (VERSO_ADMIN_EMAIL, VERSO_ADMIN_PASSWORD), read on the first start only.
+     Left empty, the log prints a setup link. VERSO_PUBLIC_URL (an https
+     address) is only for HTTPS, which turns on offline mode and notifications.
   2. sudo systemctl enable --now universo
   3. journalctl -u universo -f
 
-It listens on 127.0.0.1:7340: put a reverse proxy or `tailscale serve`
-in front for TLS. Back up /var/lib/universo/data and /var/lib/universo/folders.
+It listens on 127.0.0.1:7340. For plain HTTP from the network, set
+VERSO_LISTEN=0.0.0.0:7340 and open http://<this machine>:7340; for HTTPS, put a
+reverse proxy or `tailscale serve` in front. Back up /var/lib/universo/data and /var/lib/universo/folders.
 Guide: docs/reference/server-install.md in the Verso repository.
 
 MSG

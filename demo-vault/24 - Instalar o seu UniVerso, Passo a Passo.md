@@ -16,6 +16,9 @@ Esta nota leva você, sem pressa, de uma máquina vazia a um **UniVerso** funcio
 > [!WARNING] O Verso está em testes
 > Ainda **não há um download público**: o repositório do Verso é privado enquanto o app amadurece, e os comandos abaixo baixam o programa de lá com um **token** do GitHub que o mantenedor lhe dá. Sem esse acesso, ainda não dá para instalar. Os comandos são os do guia de referência do projeto (`docs/reference/server-hands-on.md`), escritos a partir da versão **0.8.0-beta.1** e conferidos passo a passo, em 2026-10-15, numa máquina Ubuntu 26.04 de 1 núcleo e 1 GB com a **0.8.2-beta.1** (o Caminho 1 inteiro; o Caminho 2 com a imagem montada à mão). O que ficou sem rodar num navegador de verdade: o HTTPS com nome ou Tailscale, o app de desktop e o celular. Se algo não bater, vá a [[#Se algo der errado]] e conte ao mantenedor.
 
+> [!NOTE] O caminho mais curto
+> Cole o arquivo compose, abra `http://<IP da máquina>:7340` e use o link de configuração que aparece no log. **Sem HTTPS, sem nome, sem proxy.** O HTTPS é um passo opcional, depois, para liberar o modo offline e as notificações (seção 5). Isso vale a partir da versão que vem depois da 0.8.2-beta.1; as anteriores recusam entrar por HTTP vindo de outra máquina.
+
 ---
 
 ## 1. O que você precisa
@@ -31,7 +34,7 @@ Esta nota leva você, sem pressa, de uma máquina vazia a um **UniVerso** funcio
   `x86_64` é x64 (a maioria dos PCs e VPS); `aarch64` é ARM64 (Raspberry Pi 4, a Ampere da Oracle). O instalador escolhe o arquivo certo sozinho; você só precisa saber, caso algo peça.
 - **Um terminal na máquina**, normalmente por SSH, a partir do seu computador: `ssh seu-usuario@<IP da máquina>`. O IP e o usuário vêm de quem lhe deu a máquina (o painel da nuvem, o roteador, o NAS).
 - **O token do GitHub**, enquanto o Verso está em testes (veja o aviso acima).
-- **Para outras pessoas entrarem**, um **nome** (domínio) apontado para a máquina. Só para os seus aparelhos, nem isso: veja [[#5. HTTPS, o passo em que todo mundo tropeça]].
+- **Nada mais é obrigatório.** Um **nome** (domínio) e o HTTPS são opcionais, para depois: veja [[#5. HTTPS (opcional), para liberar offline e notificações]].
 
 O UniVerso é **livre e seu**: roda numa máquina sua, as notas continuam arquivos Markdown comuns numa pasta dela, e não há conta nem assinatura de ninguém no meio.
 
@@ -46,7 +49,7 @@ V=0.8.2-beta.1
 curl -fsSLO https://versomd.com/universo.sh
 less universo.sh                          # opcional: ler o que ele faz (q para sair)
 read -rs GITHUB_TOKEN && export GITHUB_TOKEN   # cole o token, Enter; enquanto o repositório é privado
-sh universo.sh install --version "$V" --url https://notas.exemplo.com
+sh universo.sh install --version "$V"
 ```
 
 O que cada linha faz:
@@ -54,7 +57,7 @@ O que cada linha faz:
 1. `V=...` guarda a versão numa variável, para uma atualização depois mudar uma linha só.
 2. `curl` baixa o script `universo.sh`.
 3. `read -rs` pede o token sem mostrá-lo na tela; cole e aperte Enter. Um token *fine-grained* do GitHub com **Contents: Read-only** no repositório; sem ele, o script explica como criar.
-4. `sh universo.sh install` baixa o pacote desta máquina, confere a assinatura, instala, liga o serviço e espera ele responder. O `--url` é o endereço que as pessoas vão digitar, **com `https://`**; troque `notas.exemplo.com` pelo seu nome. Sem `--url`, o script pergunta (Enter deixa vazio: só a própria máquina consegue entrar).
+4. `sh universo.sh install` baixa o pacote desta máquina, confere a assinatura, instala, liga o serviço e espera ele responder. O script pergunta um endereço `https://` opcional (o `--url`): aperte Enter, o HTTP simples funciona sem ele; com HTTPS na frente você o define depois.
 
 > [!IMPORTANT] Guarde a saída do script
 > No fim ele imprime "O UniVerso está rodando. Agora:" (num sistema em inglês: `UniVerso is running. Next:`; o script fala a língua do sistema) com o **link que cria o primeiro admin**. Copie-o para um lugar seguro antes de fechar o terminal.
@@ -70,7 +73,7 @@ Ele diz `Serviço: active, enabled na partida` (em inglês, `Service: active, en
 > [!NOTE] Existe também a instalação à mão
 > O guia tem a instalação do pacote (`.deb` ou `.rpm`) com a assinatura conferida por você, sem o script. É mais trabalho e dá o mesmo resultado; fica para quem quiser.
 
-Antes de abrir o endereço, falta o HTTPS: vá a [[#5. HTTPS, o passo em que todo mundo tropeça]].
+Para abrir de outro aparelho da rede, o pacote precisa escutar fora da máquina e a porta 7340 precisa estar aberta no firewall: ponha `VERSO_LISTEN=0.0.0.0:7340` no `/etc/universo/universo.env` (`sudoedit /etc/universo/universo.env`), rode `sudo ufw allow 7340/tcp` se usar o ufw, e `sudo systemctl restart universo`. Depois abra `http://<IP da máquina>:7340` e use o link de configuração (seção 6). O HTTPS, para liberar o modo offline e as notificações, é a seção 5.
 
 ---
 
@@ -116,7 +119,7 @@ echo "V=$V" | sudo tee /srv/universo/.env
 sudoedit /srv/universo/compose.yaml
 ```
 
-Cole isto no `compose.yaml` e troque o endereço pelo seu:
+Cole isto no `compose.yaml`; não há nada para preencher:
 
 ```yaml
 name: universo
@@ -132,7 +135,8 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
-    network_mode: host                              # no lugar de ports:
+    ports:
+      - "7340:7340"                                 # todos os endereços: HTTP simples pela rede
     volumes:
       - type: bind
         source: /srv/universo/data
@@ -141,11 +145,10 @@ services:
         source: /srv/universo/folders
         target: /folders
     environment:
-      VERSO_LISTEN: "127.0.0.1:7340"                # só esta máquina
-      VERSO_PUBLIC_URL: "https://notas.exemplo.com" # PREENCHA: o seu nome
-      VERSO_TRUSTED_PROXY: "127.0.0.1"              # o proxy nesta máquina
       VERSO_ADMIN_EMAIL: ""                         # vazio: o log imprime um link de configuração
       VERSO_ADMIN_PASSWORD: ""
+      # Opcional, só com HTTPS na frente (seção 5):
+      # VERSO_PUBLIC_URL: "https://notas.exemplo.com"
 ```
 
 **Passo 4: ligar e ver o log.**
@@ -157,13 +160,13 @@ docker compose ps
 docker logs -f universo        # Ctrl+C para sair
 ```
 
-`restart: unless-stopped` traz o contêiner de volta depois de uma queda e de um reboot, desde que o próprio Docker suba no boot (`systemctl is-enabled docker` deve dizer `enabled`).
+Abra `http://<IP da máquina>:7340` no navegador e use o link de configuração do log (seção 6). `restart: unless-stopped` traz o contêiner de volta depois de uma queda e de um reboot, desde que o próprio Docker suba no boot (`systemctl is-enabled docker` deve dizer `enabled`).
 
 ---
 
 ## 4. CasaOS e ZimaOS
 
-No painel do CasaOS ou do ZimaOS, instale um **app personalizado** colando o arquivo compose abaixo, e preencha o `VERSO_PUBLIC_URL` antes de iniciar. É o `packaging/server/docker-compose.yml` do projeto, sem os metadados do painel. Antes, uma vez, no terminal do sistema, entre no registro (o `docker login` do passo 2 do Caminho 2).
+No painel do CasaOS ou do ZimaOS, instale um **app personalizado** colando o arquivo compose abaixo e clique em instalar: **não há nada para preencher**. É o `packaging/server/docker-compose.yml` do projeto, sem os metadados do painel. Antes, uma vez, no terminal do sistema, entre no registro (o `docker login` do passo 2 do Caminho 2).
 
 ```yaml
 name: universo
@@ -180,10 +183,7 @@ services:
     security_opt:
       - no-new-privileges:true
     ports:
-      - target: 7340
-        host_ip: 127.0.0.1
-        published: "7340"
-        protocol: tcp
+      - "7340:7340"
     volumes:
       - type: bind
         source: /DATA/AppData/universo/data
@@ -192,24 +192,23 @@ services:
         source: /DATA/Documents/Verso
         target: /folders
     environment:
-      VERSO_PUBLIC_URL: ""      # o endereço com https; obrigatório
       VERSO_ADMIN_EMAIL: ""     # vazio: o log mostra um link de configuração
       VERSO_ADMIN_PASSWORD: ""
-      VERSO_TRUSTED_PROXY: ""
+      # Opcionais, só com HTTPS na frente (seção 5):
+      # VERSO_PUBLIC_URL: "https://universo.sua-tailnet.ts.net"
+      # VERSO_TRUSTED_PROXY: ""
 ```
 
-`/DATA/AppData/universo/data` guarda as contas e precisa ficar num disco local; `/DATA/Documents/Verso` guarda as notas e pode ficar num NAS (troque pelo caminho que quiser). A porta 7340 só abre na própria máquina: o HTTPS (próximo passo) vem na frente dela. Se o proxy rodar no próprio CasaOS, o `VERSO_TRUSTED_PROXY` leva o endereço do gateway da rede do Docker, que este comando mostra:
-
-```bash
-sudo docker network inspect universo_default --format '{{(index .IPAM.Config 0).Gateway}}'
-```
+`/DATA/AppData/universo/data` guarda as contas e precisa ficar num disco local; `/DATA/Documents/Verso` guarda as notas e pode ficar num NAS (troque pelo caminho que quiser). Depois de instalado, abra `http://<IP da caixa>:7340` de qualquer aparelho da casa e use o link de configuração que o log do app mostra (seção 6). Um proxy no próprio CasaOS ou na sua rede é aceito sem o `VERSO_TRUSTED_PROXY`: nada a descobrir.
 
 ---
 
-## 5. HTTPS, o passo em que todo mundo tropeça
+## 5. HTTPS (opcional), para liberar offline e notificações
 
-> [!WARNING] Só o IP não deixa ninguém entrar
-> `http://<IP>:7340` **não funciona, de propósito**. A porta 7340 só escuta dentro da máquina; o UniVerso só responde ao nome que você pôs no `VERSO_PUBLIC_URL`; e ele não deixa ninguém entrar por HTTP puro vindo de outra máquina (a página diz *Este servidor só aceita entrar por HTTPS*). É para sua senha nunca viajar aberta. Então, a partir do IP, escolha **um** dos três jeitos.
+> [!INFO] O HTTP simples funciona
+> `http://<IP>:7340` abre o UniVerso e deixa entrar, de qualquer aparelho da rede. **O preço:** sem HTTPS, quem está na mesma rede consegue ler a sua senha e as suas notas enquanto passam. Em casa isso serve; num Wi-Fi público, não use assim. O HTTPS também **libera** o que o navegador só dá a páginas seguras: o **modo offline**, as **notificações do sistema** e as **passkeys**. Sem ele, o Verso os desliga e avisa (uma linha discreta nos Ajustes e um aviso por sessão, com o link "Como ligar o HTTPS"). Quando quiser, escolha **um** dos três jeitos abaixo.
+
+Com o HTTPS na frente, o UniVerso só precisa do `VERSO_PUBLIC_URL` com o endereço `https://`: o proxy ao lado dele, na mesma máquina ou na sua rede, é aceito sem mais nada. Atenção: definido, o `VERSO_PUBLIC_URL` faz o UniVerso responder **só a esse nome**; o `http://<IP>:7340` deixa de abrir.
 
 ### Só para os seus aparelhos: Tailscale
 
@@ -219,7 +218,7 @@ O jeito mais fácil para o seu celular e o seu iPad. O Tailscale cria uma rede p
 tailscale serve --bg 7340
 ```
 
-Depois, no `VERSO_PUBLIC_URL` (no `/etc/universo/universo.env` do Caminho 1, ou no compose do Caminho 2):
+Depois, só o `VERSO_PUBLIC_URL` (no `/etc/universo/universo.env` do Caminho 1, ou no compose do Caminho 2 ou do CasaOS):
 
 ```
 VERSO_PUBLIC_URL=https://<máquina>.<tailnet>.ts.net
@@ -227,15 +226,15 @@ VERSO_PUBLIC_URL=https://<máquina>.<tailnet>.ts.net
 
 com o **HTTPS ligado para a sua rede** no console de administração do Tailscale. As opções do Tailscale mudam de versão em versão: `tailscale serve --help` é a referência. Para aplicar a mudança, reinicie o UniVerso (`sudo systemctl restart universo`, ou `docker compose up -d` na pasta `/srv/universo`).
 
-### Só para experimentar, sem nome e sem Tailscale: um túnel SSH
+### Sem nome e sem Tailscale: um túnel SSH, ou o próprio HTTP
 
-Sem domínio e sem Tailscale, ainda dá para ver o UniVerso funcionando, sozinho, do seu computador. Instale sem `--url` (aperte Enter quando o script perguntar) e deixe `VERSO_PUBLIC_URL` e `VERSO_TRUSTED_PROXY` **vazios** no `/etc/universo/universo.env`. No seu computador:
+Para ver o UniVerso só do seu computador, sem abrir porta alguma, e com o pacote escutando só na própria máquina (o padrão do Caminho 1), um túnel SSH basta. No seu computador:
 
 ```bash
 ssh -L 7340:127.0.0.1:7340 seu-usuario@<IP da máquina>
 ```
 
-Deixe esse terminal aberto e abra `http://localhost:7340` no navegador **do seu computador**; o link de configuração do admin (passo 6) é o do log, com `http://localhost:7340` no lugar do nome. Só você chega lá. Isto **não** funciona com o `VERSO_PUBLIC_URL` preenchido (o UniVerso só aceita a página do nome que está nele) nem com o `compose.yaml` do Caminho 2 como está escrito, que já supõe um proxy: para outras pessoas, use um dos dois jeitos acima.
+Deixe esse terminal aberto e abra `http://localhost:7340` no navegador **do seu computador**; o link de configuração do admin (passo 6) é o do log, com `http://localhost:7340` no lugar do nome. `localhost` conta como um endereço seguro para o navegador, então o modo offline e as notificações funcionam ali, e só você chega lá. Para os outros aparelhos da casa, o HTTP simples (`http://<IP>:7340`) já basta.
 
 ### Para outras pessoas: um nome e o Caddy
 
@@ -270,17 +269,15 @@ Deixe esse terminal aberto e abra `http://localhost:7340` no navegador **do seu 
    ```
 
    **A nuvem tem um firewall próprio**, fora da máquina, que se abre no console do provedor (na Oracle Cloud, *Security Lists*, *Add Ingress Rules*, TCP, portas `80,443`). A porta 7340 fica fechada.
-4. **O UniVerso informado do nome e do proxy.** Estas linhas, no `/etc/universo/universo.env` (abra com `sudoedit /etc/universo/universo.env`) ou no compose:
+4. **O UniVerso informado do nome.** Uma linha, no `/etc/universo/universo.env` (abra com `sudoedit /etc/universo/universo.env`) ou no compose:
 
    ```
-   VERSO_LISTEN=127.0.0.1:7340
    VERSO_PUBLIC_URL=https://notas.exemplo.com
-   VERSO_TRUSTED_PROXY=127.0.0.1
    ```
 
-   O `universo.env` já traz estas três variáveis (a `VERSO_TRUSTED_PROXY` vem vazia): troque o valor na linha que existe, em vez de acrescentar outra. Se repetir a linha, vale a última, mas o arquivo fica confuso. Reinicie: `sudo systemctl restart universo` (ou `docker compose up -d`).
+   O `universo.env` já traz essa variável (vazia): troque o valor na linha que existe, em vez de acrescentar outra. Se repetir a linha, vale a última, mas o arquivo fica confuso. Se o Caddy está nesta mesma máquina, deixe `VERSO_LISTEN=127.0.0.1:7340` (só ele chega à porta). Reinicie: `sudo systemctl restart universo` (ou `docker compose up -d`).
 
-Pronto: `https://notas.exemplo.com` abre a página de entrada do UniVerso. Outros proxies (nginx, Cloudflare) existem; o guia os descreve.
+Pronto: `https://notas.exemplo.com` abre a página de entrada do UniVerso, e o modo offline e as notificações podem ser ligados. Outros proxies (nginx, Cloudflare) existem; o guia os descreve.
 
 ---
 
@@ -293,7 +290,7 @@ sudo journalctl -u universo | grep setup     # o pacote (Caminho 1)
 docker logs universo 2>&1 | grep setup       # Docker (Caminho 2 e CasaOS)
 ```
 
-O link é `https://notas.exemplo.com/setup?token=…`, por isso o HTTPS precisa funcionar antes de abri-lo. Venceu ou se perdeu? Reinicie o serviço (`sudo systemctl restart universo` ou `docker compose restart`) e sai outro, enquanto não existir nenhuma conta.
+O link é `http://<IP da máquina>:7340/setup?token=…` (o log escreve `localhost` e diz para trocá-lo pelo endereço da máquina quando você abre de outro computador), ou o do `VERSO_PUBLIC_URL` se você definiu um. Venceu ou se perdeu? Reinicie o serviço (`sudo systemctl restart universo` ou `docker compose restart`) e sai outro, enquanto não existir nenhuma conta.
 
 Na página **Primeiro acesso**, preencha **E-mail**, **Nome**, **Senha nova** (12 caracteres no mínimo) e **Idioma**, e clique em **Criar conta**. Dali em diante você entra com esse e-mail e essa senha, e o console de administração (`/admin`) é seu.
 
@@ -303,7 +300,7 @@ Na página **Primeiro acesso**, preencha **E-mail**, **Nome**, **Senha nova** (1
 
 No app Verso, abra os ajustes (**Verso › Ajustes…**, ⌘, no macOS; **Ctrl+,** no Windows e no Linux) e vá a **Servidores**:
 
-1. Em **Endereço do servidor**, digite `https://notas.exemplo.com` (com `https://`).
+1. Em **Endereço do servidor**, digite `http://<IP da máquina>:7340` (ou, com HTTPS na frente, `https://notas.exemplo.com`). O app aceita os dois.
 2. Clique em **Conectar**. O app copia um código (`XXXX-XXXX`) e abre a página do servidor no navegador.
 3. Entre com a sua conta se o navegador pedir; na página **Conectar um aplicativo**, cole o código em **Código do aplicativo** e clique em **Continuar**.
 4. Clique em **Aprovar este aparelho**. A página diz *Pronto. Pode voltar ao aplicativo.*
@@ -316,7 +313,7 @@ O app passa a dizer *Conectado como* o seu nome. Um servidor novo ainda não tem
 
 ### No celular e no tablet
 
-Não há app a instalar: abra `https://notas.exemplo.com` no navegador e entre com o e-mail e a senha. (Com o Tailscale, o celular precisa estar com ele conectado.) Como a janela se comporta numa tela pequena está em [[22 - Verso no Celular e no Tablet]].
+Não há app a instalar: abra `http://<IP da máquina>:7340` (ou o endereço `https://`, se houver) no navegador do celular e entre com o e-mail e a senha. (Com o Tailscale, o celular precisa estar com ele conectado.) Sem HTTPS, o modo offline fica desligado e a janela avisa. Como a janela se comporta numa tela pequena está em [[22 - Verso no Celular e no Tablet]].
 
 Para uma segunda pessoa, o admin sincroniza (ou cria) a pasta, depois um convite no console (`/admin/invitations`) e manda o link: [[23 - Verso num Servidor#O primeiro admin e as contas|as contas e os convites]].
 
@@ -374,12 +371,13 @@ docker logs universo                     # Docker
 
 **Os erros mais comuns:**
 
-- **O serviço não sobe.** O log nomeia a linha: `VERSO_PUBLIC_URL is needed when the server listens beyond this machine`, um endereço que não é `http(s)://…`, `VERSO_ADMIN_EMAIL is set without VERSO_ADMIN_PASSWORD`. Corrija no `/etc/universo/universo.env` (ou no compose) e reinicie. Com Docker, um diretório onde o servidor não consegue escrever é o `install -d -o 1000 -g 1000` do Caminho 2.
-- **A página diz "só por HTTPS"** ou **"does not answer to that name"** (erro 421): você abriu pelo IP, ou por `http://`, ou por um nome que não é o do `VERSO_PUBLIC_URL`. Use o nome com `https://`, e confira o `VERSO_TRUSTED_PROXY`.
+- **O serviço não sobe.** O log nomeia a linha: um `VERSO_PUBLIC_URL` que não é `http(s)://…`, `VERSO_ADMIN_EMAIL is set without VERSO_ADMIN_PASSWORD`. Corrija no `/etc/universo/universo.env` (ou no compose) e reinicie. Com Docker, um diretório onde o servidor não consegue escrever é o `install -d -o 1000 -g 1000` do Caminho 2.
+- **A página mostra "Conexão sem HTTPS"**: não é erro. Você abriu por `http://`, e o UniVerso funciona, só deixa desligados o modo offline, as notificações e as passkeys. Clique em "Como ligar o HTTPS" (seção 5).
+- **A página diz "does not answer to that name"** (erro 421): o `VERSO_PUBLIC_URL` está definido e você abriu por um endereço que não é o dele (muitas vezes o IP). Use o nome dele; ou, sem `VERSO_PUBLIC_URL`, você digitou um nome público, que só é aceito com ele: use o IP, ou defina o `VERSO_PUBLIC_URL`. Os links por e-mail (entrar por link, "esqueci a senha") também só existem com ele definido.
 - **O proxy responde 502**: o UniVerso não está rodando, ou escuta noutra porta que não a do bloco do Caddy (`sh universo.sh status`, linha "Escuta em").
-- **Dois avisos no log que não são erro.** `update check: the release feed answered 404: a private repository needs VERSO_UPDATE_TOKEN`: enquanto o repositório é privado, a verificação de versão nova não o enxerga; o servidor funciona. E `VERSO_PUBLIC_URL is https but UniVerso listens on 127.0.0.1:7340 ... no VERSO_TRUSTED_PROXY`: aparece até você pôr o `VERSO_TRUSTED_PROXY` do passo 5 e reiniciar.
-- **A porta 7340 está ocupada**: o log diz `Address already in use`. Dê outra ao UniVerso (`VERSO_LISTEN=127.0.0.1:7341`) e a mesma porta ao proxy (`reverse_proxy 127.0.0.1:7341`).
-- **Ninguém de fora chega, mas na máquina funciona**: o **firewall**. Confira o `sh universo.sh firewall` e a regra de entrada da nuvem para as portas 80 e 443.
+- **Dois avisos no log que não são erro.** `update check: the release feed answered 404: a private repository needs VERSO_UPDATE_TOKEN`: enquanto o repositório é privado, a verificação de versão nova não o enxerga; o servidor funciona. E `plain HTTP works; offline, notifications and the like need HTTPS`: só informa que o servidor está sem TLS próprio.
+- **A porta 7340 está ocupada**: o log diz `Address already in use`. Dê outra ao UniVerso (`VERSO_LISTEN=0.0.0.0:7341`, ou `127.0.0.1:7341` atrás de um proxy) e a mesma porta ao proxy (`reverse_proxy 127.0.0.1:7341`).
+- **Ninguém de fora chega, mas na máquina funciona**: o **firewall** (a porta 7340 para o HTTP simples; 80 e 443 para o Caddy), e, no pacote, o `VERSO_LISTEN=0.0.0.0:7340`. Confira o `sh universo.sh firewall` e a regra de entrada da nuvem.
 - **A senha do admin se perdeu.** Na máquina:
 
   ```bash

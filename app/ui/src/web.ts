@@ -15,6 +15,8 @@ import { o } from "./web/offline/strings";
 import { currentFolderId, startBridge } from "./web/bridge";
 import { pullSettings, pushSettings } from "./web/settingsSync";
 import { notice } from "./web/notice";
+import { ensureClipboard } from "./web/clipboard";
+import { plainHttpNotice } from "./web/plainHttp";
 import { chooseFolder, devicePage, invitePage, pairPage, resetPage, setupPage, signInLinkPage, signInPage } from "./web/pages";
 import { setLang, w } from "./web/strings";
 import { setProver } from "./web/proof";
@@ -28,6 +30,9 @@ import { holdClicks } from "./earlyClicks";
 const openHeld = holdClicks(document.getElementById("open"));
 
 async function start(): Promise<void> {
+  // Copying works over plain HTTP too, where the browser gives no
+  // clipboard of its own (ADR 0073 item 6, amended 2026-10-16).
+  ensureClipboard();
   // A sensitive action the server wants proved again asks here, on any
   // page (ADR 0083 item 6).
   setProver(askProof);
@@ -70,7 +75,7 @@ async function start(): Promise<void> {
       location.href = `/signin?next=${encodeURIComponent(path + location.search)}`;
       return;
     }
-    return signInPage(s.secure, s.mail);
+    return signInPage(s.mail);
   }
   if (path === "/signin") {
     location.href = "/";
@@ -107,6 +112,7 @@ async function start(): Promise<void> {
   // refusal changes nothing today, when nothing is kept offline.
   void navigator.storage?.persist?.().catch(() => false);
   startBridge(chooseFolder);
+  plainHttpNotice();
   // "You only read this folder" is said of a folder on screen: when one
   // is shown with the reader's role, or the role of the one shown becomes
   // the reader's — never over the start page, before a folder is there.

@@ -35,8 +35,11 @@ pastas de notas em Markdown numa máquina sua e as serve ao app de desktop
 navegador, a um computador, um celular ou um tablet. Ele tem contas, um
 primeiro admin, convites e um console de administração em `/admin`.
 Escuta numa porta própria, 7340 por padrão, e as pessoas chegam a ele por
-HTTPS na 443, que algo na frente dele oferece: Caddy, nginx, Tailscale ou
-um certificado próprio. As notas continuam arquivos comuns num diretório;
+`http://<IP>:7340` assim que roda: o HTTP simples funciona, o que serve em
+casa e não numa rede pública, onde a senha e as notas passam abertas. O
+HTTPS, do Caddy, do nginx, do Tailscale ou de um certificado próprio, é
+opcional e vem depois: liga o modo offline, as notificações e as passkeys.
+As notas continuam arquivos comuns num diretório;
 as contas, as sessões e o registro de auditoria, em outro. Quem hospeda o
 servidor consegue ler as notas: não há criptografia de ponta a ponta
 (seção 13 do manual).
@@ -81,6 +84,7 @@ um servidor com a próxima release (`CHANGELOG.md`, Unreleased):
 | uma lista de endereços em `VERSO_TRUSTED_PROXY`, e a linha do log quando o proxy não repassa endereço (item 5) | não: um endereço |
 | o endurecimento do arquivo compose (`read_only` e o resto, item 11) | não; e a cópia do `docker-compose.yml` da v0.8.0-beta.1 não é YAML válido (dois-pontos sem aspas no tagline do CasaOS), e por isso o caminho B escreve o arquivo inteiro. O endurecimento foi verificado com o código de depois da v0.8.0-beta.1, não com a imagem da v0.8.0-beta.1 (manual, seção 15) |
 | `VERSO_AUDIT_DAYS` (item 10) | não |
+| entrar por HTTP simples a partir de outra máquina, `VERSO_PUBLIC_URL` e `VERSO_TRUSTED_PROXY` opcionais, o compose publicando `7340:7340` ([ADR 0073](../adr/0073-self-hosted-server-first.md) item 6, alterado em 2026-10-16) | não: a entrada por HTTP é recusada fora da máquina, e o `VERSO_PUBLIC_URL` é necessário além do loopback |
 
 Enquanto o repositório é privado, baixar uma release pede um token do
 GitHub, e puxar a imagem pede um `docker login` (manual, seções 11 e "O
@@ -112,18 +116,19 @@ V=0.8.0-beta.1
 curl -fsSLO https://versomd.com/universo.sh
 less universo.sh                          # opcional: ler o que ele faz
 read -rs GITHUB_TOKEN && export GITHUB_TOKEN   # cole o token, Enter; enquanto o repositório é privado
-sh universo.sh install --version "$V" --url https://notas.exemplo.com
+sh universo.sh install --version "$V"
 ```
 
 O token: um token fine-grained do GitHub com Contents: Read-only no
-repositório; sem ele, o script explica como criar. `--url` é o endereço
-que as pessoas vão digitar, com `https://`; sem ele o script pergunta
-(Enter deixa vazio: só esta máquina consegue entrar).
+repositório; sem ele, o script explica como criar. `--url` é opcional
+(`--url https://notas.exemplo.com`): o endereço https que as pessoas vão
+digitar, quando houver HTTPS na frente. Sem ele o script pergunta (Enter
+deixa vazio): o HTTP simples funciona sem ele.
 
 O script baixa o pacote desta máquina, confere (com o `minisign` e a
 lista de checksums assinada da release quando o `minisign` está
 instalado, senão com o sha256 que o GitHub publica), instala, grava o `VERSO_PUBLIC_URL` em
-`/etc/universo/universo.env`, roda `systemctl enable --now universo`,
+`/etc/universo/universo.env` quando você deu um, roda `systemctl enable --now universo`,
 espera o servidor responder e imprime os próximos passos. **Guarde essa
 saída**: ela traz o link que cria o primeiro admin. Depois vá ao A.4 para
 a linha do proxy.
@@ -135,14 +140,17 @@ O UniVerso está rodando. Agora:
 
 1. O primeiro admin (seção 9 do manual).
    Abra este link (vale uma hora, uma vez) e crie a conta do admin:
-     https://notas.exemplo.com/setup?token=Zk3pX0aQv7LmN2rT9yBc
+     http://localhost:7340/setup?token=Zk3pX0aQv7LmN2rT9yBc
    Ele saiu no log (sudo journalctl -u universo). Se a hora passar,
    reinicie o serviço para ter outro: sudo systemctl restart universo
    O link fica no journal até o journal descartá-lo na rotação, legível pelo
    root e pelos grupos adm e systemd-journal: use-o agora. Depois que o admin
    existe, ou passada a hora, ele não abre nada.
 
-2. HTTPS (seção 8). O servidor não deixa ninguém entrar por HTTP puro de outra máquina. Ou:
+2. HTTPS (seção 8), opcional. O HTTP puro funciona: de outra máquina, ponha
+   VERSO_LISTEN=0.0.0.0:7340 no /etc/universo/universo.env e abra http://<esta máquina>:7340
+   (serve em casa; numa rede pública a senha e as notas passam abertas). O HTTPS
+   liga o modo offline, as notificações e as passkeys. Ou:
    a. Caddy, com um domínio cujo DNS aponta para esta máquina:
         sudo apt install caddy
         sudo mkdir -p /etc/caddy/Caddyfile.d
@@ -152,8 +160,8 @@ O UniVerso está rodando. Agora:
       Um Caddyfile que já exista fica como está: o site vai num arquivo próprio,
       e o Caddyfile só ganha a linha de import, no fim, quando não a tiver.
       (Um Caddyfile que seja um site só, sem chaves, precisa de { } em volta das linhas antes.)
-      e no /etc/universo/universo.env: VERSO_PUBLIC_URL=https://notas.exemplo.com e VERSO_TRUSTED_PROXY=127.0.0.1,
-      depois: sudo systemctl restart universo
+      e no /etc/universo/universo.env: VERSO_PUBLIC_URL=https://notas.exemplo.com (o proxy nesta máquina
+      é aceito sem VERSO_TRUSTED_PROXY), depois: sudo systemctl restart universo
    b. Tailscale, para os seus aparelhos: tailscale serve --bg 7340
       e VERSO_PUBLIC_URL=https://<máquina>.<tailnet>.ts.net
 
@@ -212,21 +220,31 @@ configurações.
 sudoedit /etc/universo/universo.env
 ```
 
-Para um servidor atrás de um proxy na mesma máquina (Caddy ou nginx, o
-caminho C ou "Um nome e HTTPS" abaixo), estas linhas:
+Para alcançá-lo pela rede por HTTP simples, uma linha:
 
 ```
-VERSO_LISTEN=127.0.0.1:7340
+VERSO_LISTEN=0.0.0.0:7340
+```
+
+Para um servidor atrás de um proxy na mesma máquina (Caddy ou nginx, o
+caminho C ou "Um nome e HTTPS" abaixo), deixe `VERSO_LISTEN=127.0.0.1:7340`
+e acrescente:
+
+```
 VERSO_PUBLIC_URL=https://notas.exemplo.com
-VERSO_TRUSTED_PROXY=127.0.0.1
 ```
 
 O arquivo já traz essas variáveis (a `VERSO_TRUSTED_PROXY` vem vazia): troque
 o valor na linha que existe; repetida, vale a última (conferido), mas o
-arquivo fica confuso. `VERSO_LISTEN` já é isso por padrão: o UniVerso só é alcançado desta
-máquina, e o proxy leva o resto. `VERSO_TRUSTED_PROXY` nomeia o proxy cujos
-cabeçalhos repassados são aceitos; sem ele, todo visitante parece
-`127.0.0.1` e divide um só conjunto de limites (manual, seção 8). As duas
+arquivo fica confuso. `VERSO_PUBLIC_URL` é opcional: vazio, o UniVerso responde a um endereço IP,
+a um nome de uma palavra ou a um nome `.local` / `.home.arpa` (não a um nome
+da internet pública, que a exige). Definido, responde só a esse nome, e é
+ele que faz existirem os links por e-mail (link de entrada, "esqueci a
+senha").
+`VERSO_TRUSTED_PROXY` também é opcional: vazio, um proxy nesta máquina ou
+numa rede privada (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 e
+as faixas de loopback e unique-local do IPv6) é aceito; um valor substitui
+essa lista, e `none` não aceita nenhum proxy (manual, seção 8). As duas
 linhas do primeiro admin (`VERSO_ADMIN_EMAIL`, `VERSO_ADMIN_PASSWORD`)
 podem ficar vazias: o log imprime então um link de configuração ("O
 primeiro admin", abaixo). Todas as outras variáveis: o manual, seção 7.
@@ -449,22 +467,22 @@ services:
         target: /folders
     environment:
       VERSO_LISTEN: "127.0.0.1:7340"                # só esta máquina
-      VERSO_PUBLIC_URL: "https://notas.exemplo.com" # PREENCHA: o seu nome
-      VERSO_TRUSTED_PROXY: "127.0.0.1"              # o proxy nesta máquina
+      VERSO_PUBLIC_URL: "https://notas.exemplo.com" # PREENCHA: o seu nome (opcional; o HTTP simples funciona sem ele)
       VERSO_ADMIN_EMAIL: ""                         # vazio: o log imprime um link de configuração
       VERSO_ADMIN_PASSWORD: ""
 ```
 
-Duas mudanças em relação ao arquivo publicado, ambas da seção 8 do manual:
+Duas mudanças em relação ao arquivo publicado, para um proxy nesta máquina:
 o contêiner usa a rede do host (`network_mode: host`, por isso o bloco
 `ports:` do arquivo publicado sai) e escuta em `127.0.0.1:7340`. O arquivo
-publicado também expõe a 7340 em `127.0.0.1`, mas pela rede do Docker,
-então o contêiner vê as conexões do proxy virem do gateway dessa rede, não
-de `127.0.0.1` (manual, seção 3). Assim, a porta continua sendo alcançada
-só da própria máquina, pelo proxy, e as conexões dele vêm de
-`127.0.0.1` — o endereço que o `VERSO_TRUSTED_PROXY` nomeia. Um
-proxy rodando em outro contêiner é o outro caso do manual (seção 8: um
-endereço fixo na rede do compose).
+publicado expõe `7340:7340` em todos os endereços, o que o HTTP simples pela
+rede pede; pela rede do Docker, o contêiner vê um proxy do host vir do
+gateway dessa rede, não de `127.0.0.1`. Assim, a porta é alcançada só da
+própria máquina, pelo proxy, e as conexões dele vêm de `127.0.0.1`, que o
+`VERSO_TRUSTED_PROXY` padrão aceita (o gateway da rede do Docker, um endereço
+privado, também: o arquivo publicado funciona atrás de um proxy do host se
+você o mantiver como está e publicar só para o proxy). Para HTTP simples
+pela rede, nada disso vale: use o arquivo publicado como está.
 
 A senha do primeiro admin, se você preferir isso ao link de configuração,
 vai melhor como um secret do Docker do que neste arquivo: o compose
@@ -606,8 +624,8 @@ sudo systemctl reload nginx
 
 Para que serve cada linha, pelo que o UniVerso confere: `Host` precisa ser
 o nome do endereço público, senão o UniVerso responde 421 ("this server
-does not answer to that name"); `X-Forwarded-Proto https` é o que faz uma
-entrada pelo proxy contar como segura; `X-Forwarded-For` leva o endereço
+does not answer to that name"); `X-Forwarded-Proto https` é o que faz o cookie de sessão ser `Secure` e liga
+o offline e as notificações no navegador; `X-Forwarded-For` leva o endereço
 do visitante; `Upgrade` e `Connection` levam o WebSocket que a janela e o
 app usam. O proxy não pode tirar o `Origin` (o nginx repassa). O
 `proxy_read_timeout` padrão do nginx, 60 s, fica acima dos 30 s em que o
@@ -617,31 +635,36 @@ bloco não está no manual e não foi rodado contra o UniVerso.
 
 ### Contando ao UniVerso sobre o proxy
 
-As mesmas duas linhas nos dois casos,
-`VERSO_PUBLIC_URL=https://notas.exemplo.com` e
-`VERSO_TRUSTED_PROXY=127.0.0.1` — no `/etc/universo/universo.env` (A.4) ou
-no arquivo compose (B.2) — e depois `sudo systemctl restart universo` ou
-`docker compose up -d`. Se o próprio proxy roda num contêiner, as conexões
-dele não vêm de `127.0.0.1`: a seção 8 do manual.
+Uma linha nos dois casos, `VERSO_PUBLIC_URL=https://notas.exemplo.com` — no
+`/etc/universo/universo.env` (A.4) ou no arquivo compose (B.2) — e depois
+`sudo systemctl restart universo` ou `docker compose up -d`. Um proxy nesta
+máquina, num contêiner próprio ou não, ou na sua rede, é aceito sem o
+`VERSO_TRUSTED_PROXY`; preencha essa variável só para nomear outros proxies
+(um proxy fora da sua rede, o Cloudflare: a seção 8 do manual).
 
 ## Você tem o IP — e agora
 
 ### Por que só o IP não deixa ninguém entrar
 
-`http://<IP>:7340` não funciona, de propósito
-([ADR 0073](../adr/0073-self-hosted-server-first.md) item 6):
+Deixa: `http://<IP>:7340` abre o UniVerso, e entra, a partir de qualquer
+máquina da rede ([ADR 0073](../adr/0073-self-hosted-server-first.md)
+item 6, alterado em 2026-10-16). Duas coisas no lugar:
 
-- a porta 7340 escuta só em `127.0.0.1`, nos dois caminhos acima;
-- se fosse aberta, o UniVerso só responde ao nome que está no
-  `VERSO_PUBLIC_URL` (421, "this server does not answer to that name", a
-  qualquer outro);
-- e ele não deixa ninguém entrar por HTTP puro a partir de outra máquina:
-  a página de entrada diz *Este servidor só aceita entrar por HTTPS*.
+- O UniVerso precisa escutar além desta máquina: no pacote,
+  `VERSO_LISTEN=0.0.0.0:7340` (A.4), e o firewall da máquina aberto na
+  7340 (A.6); a imagem Docker já faz isso, e o compose publicado publica
+  `7340:7340`.
+- O `VERSO_PUBLIC_URL` fica vazio. Definido, o UniVerso responde só ao
+  nome que está nele (421, "this server does not answer to that name", ao
+  IP puro).
 
-Um pedido conta como seguro quando chega pelo proxy confiável com HTTPS,
-quando o UniVerso serve o próprio certificado, ou quando ele escuta no
-loopback e o pedido vem da própria máquina (manual, seção 8). Então, a
-partir do IP, um de três jeitos.
+O que o HTTP simples custa, sem rodeio: quem está na mesma rede lê a senha
+e as notas que passam por ela. Em casa isso serve; num Wi-Fi público ou
+pela internet, não. O navegador também guarda o modo offline, as
+notificações do sistema e as passkeys para o HTTPS: por HTTP a janela as
+desliga, diz isso nos Ajustes onde cada uma mora e uma vez por sessão no
+alto, e leva a como ligar o HTTPS. Para outras pessoas, ou pela internet,
+um dos dois jeitos seguintes.
 
 ### Um nome e HTTPS: o jeito para outras pessoas
 
@@ -682,16 +705,15 @@ partir do IP, um de três jeitos.
   ligado para a tailnet no console de administração do Tailscale. As
   opções do Tailscale mudam entre versões: `tailscale serve --help` é a
   referência (manual, seção 8).
-- **Um túnel SSH, para experimentar sozinho**: com o `VERSO_PUBLIC_URL`
-  **vazio** e o UniVerso no loopback, a partir do seu computador:
+- **Um túnel SSH, para experimentar sozinho**: com o UniVerso no loopback
+  (o padrão do pacote), a partir do seu computador:
 
   ```sh
   ssh -L 7340:127.0.0.1:7340 ubuntu@<IP>
   ```
 
   depois `http://localhost:7340` no navegador do seu computador, e o mesmo
-  endereço no app de desktop desse computador (o app aceita `http://` só
-  para `localhost`). O link de configuração que o log imprime é então
+  endereço no app de desktop desse computador. O link de configuração que o log imprime é então
   `http://localhost:7340/setup?token=…`. Ninguém mais chega lá; para
   outras pessoas, ponha o nome e o HTTPS e preencha o `VERSO_PUBLIC_URL`.
 
@@ -713,8 +735,9 @@ jeitos:
   docker logs universo 2>&1 | grep setup       # Docker
   ```
 
-  Ele é `https://notas.exemplo.com/setup?token=…` (o endereço do
-  `VERSO_PUBLIC_URL`), então o HTTPS precisa funcionar antes de abri-lo.
+  Ele é `http://<IP>:7340/setup?token=…`, ou o endereço do
+  `VERSO_PUBLIC_URL` quando você definiu um (o log imprime `localhost` e diz
+  para pôr o endereço da máquina no lugar, a partir de outro computador).
   Vencido ou perdido: reinicie o serviço (`sudo systemctl restart
   universo` ou `docker compose restart`) e sai outro, enquanto não existir
   nenhuma conta.
@@ -752,9 +775,9 @@ No app Verso do seu computador:
 2. Escolha a seção **Servidores** (*Servers*).
 3. Em **Conectar a um servidor** (*Connect to a server*), no campo
    **Endereço do servidor** (*Server address*), digite
-   `https://notas.exemplo.com` — com `https://`; o app recusa `http://`
-   para qualquer coisa que não seja `localhost` ("a server is reached over
-   https").
+   `http://<IP>:7340` ou, com HTTPS na frente, `https://notas.exemplo.com`:
+   o app aceita os dois (qualquer outra coisa é recusada: "a server is
+   reached over http or https").
 4. Clique em **Conectar** (*Connect*). O app copia o código para a área
    de transferência, mostra *Código copiado — cole na página que abriu:*
    **XXXX-XXXX***. Esperando…*, e abre a página do servidor no seu
@@ -880,7 +903,6 @@ sudo journalctl -u universo -n 50
 (Docker: `docker logs universo`.) As últimas linhas do log nomeiam a
 configuração. As que impedem o servidor de subir:
 
-- `VERSO_PUBLIC_URL is needed when the server listens beyond this machine (VERSO_LISTEN)`
 - `VERSO_PUBLIC_URL: not an http(s) address: …`
 - `VERSO_ADMIN_EMAIL is set without VERSO_ADMIN_PASSWORD` (ou o
   contrário), ou `VERSO_ADMIN_PASSWORD:` seguido do motivo da recusa
@@ -900,16 +922,23 @@ outra ao UniVerso, `VERSO_LISTEN=127.0.0.1:7341`, e a mesma porta na linha
 do proxy (`reverse_proxy 127.0.0.1:7341`, `proxy_pass
 http://127.0.0.1:7341`).
 
-### A página diz "só por HTTPS", ou "does not answer to that name"
+### A página mostra "Conexão sem HTTPS", ou "does not answer to that name"
 
-- *Este servidor só aceita entrar por HTTPS*: a página foi aberta por
-  `http://`, ou por um proxy em que o UniVerso não confia. Use o nome com
-  `https://`; confira o `VERSO_TRUSTED_PROXY`, e se o proxy manda o
-  `X-Forwarded-Proto` (o Caddy manda; o nginx precisa da linha do
-  caminho C).
-- *this server does not answer to that name* (421): o endereço digitado —
-  muitas vezes o IP puro — não é o nome do `VERSO_PUBLIC_URL`, ou o nginx
-  não está repassando o `Host`.
+- *Conexão sem HTTPS: a senha e as notas passam abertas na rede…*: a página
+  foi aberta por `http://` a partir de outra máquina. Nada está quebrado: o
+  UniVerso funciona, e o modo offline, as notificações e as passkeys ficam
+  desligados até abri-lo por `https://` (um proxy ou o Tailscale, acima).
+  Atrás de um proxy que deveria ser HTTPS, confira se o proxy manda o
+  `X-Forwarded-Proto` (o Caddy manda; o nginx precisa da linha do caminho C)
+  e se ele está nesta máquina ou na sua rede (senão, nomeie-o no
+  `VERSO_TRUSTED_PROXY`).
+- *this server does not answer to that name* (421): ou o
+  `VERSO_PUBLIC_URL` está definido e o endereço digitado — muitas vezes o IP
+  puro — não é o nome dele, ou não está definido e o nome digitado é público
+  (`casa.exemplo.com`), que o UniVerso só responde quando o
+  `VERSO_PUBLIC_URL` o nomeia (o erro diz isso); ou o nginx não está
+  repassando o `Host`. Use o IP, ou defina o `VERSO_PUBLIC_URL` com o
+  endereço que as pessoas usam.
 - O proxy responde 502: o UniVerso não está rodando, ou escuta em outra
   porta que não a da linha do proxy (`sh universo.sh status`, "Escuta
   em").
@@ -920,7 +949,7 @@ A partir da versão de depois da v0.8.0-beta.1, o log diz, uma vez por
 minuto, *a request from the trusted proxy carried no X-Forwarded-For: is
 the proxy configured to forward it?* — falta ao bloco do nginx a linha do
 `X-Forwarded-For`. Em qualquer versão, se o **Registro** do console mostra
-`127.0.0.1` como o endereço de todo mundo, falta o `VERSO_TRUSTED_PROXY`:
+`127.0.0.1` como o endereço de todo mundo, o proxy não é aceito (`VERSO_TRUSTED_PROXY=none`, ou um valor que não o nomeia):
 todo visitante é um endereço só, e três senhas erradas de um estranho
 atrasam a entrada de todos (manual, seção 8).
 

@@ -16,6 +16,7 @@ import { noNetwork, offline } from "./offline/manager";
 import { o } from "./offline/strings";
 import { roleName, setLang, w } from "./strings";
 import { icon } from "../icons";
+import { plainHttpLine } from "./plainHttp";
 
 function explain(e: unknown): string {
   return e instanceof ApiError ? e.said : w().failed;
@@ -34,7 +35,7 @@ function next(): string {
 
 type SignedIn = { account: Account; csrf: string };
 
-export function signInPage(secure: boolean, mail = false): void {
+export function signInPage(mail = false): void {
   const s = w();
   const email = field(s.email, "email", { autocomplete: "username", required: "" });
   const password = field(s.password, "password", { autocomplete: "current-password", required: "" });
@@ -95,7 +96,8 @@ export function signInPage(secure: boolean, mail = false): void {
   const others = !withKey.hidden || mail;
   page(
     s.signInTitle,
-    lead(secure ? s.signInLead : s.tlsRequired),
+    lead(s.signInLead),
+    plainHttpLine(s.plainHttpSignIn) ?? el("span"),
     f.form,
     others ? divider(s.orDivider) : el("span"),
     el("div", { class: "web-others" }, withKey, mailLink),
@@ -130,7 +132,7 @@ export function setupPage(): void {
     },
     explain,
   );
-  page(s.setupTitle, lead(s.setupLead), f.form);
+  page(s.setupTitle, lead(s.setupLead), plainHttpLine(s.plainHttpSignIn) ?? el("span"), f.form);
   email.input.focus();
 }
 
@@ -168,6 +170,7 @@ export async function invitePage(token: string): Promise<void> {
   page(
     s.inviteTitle,
     lead(s.inviteLead),
+    plainHttpLine(s.plainHttpSignIn) ?? el("span"),
     offer.folder && offer.role ? el("p", { class: "web-lead" }, s.inviteFolder(offer.folder, roleName(offer.role))) : el("span"),
     f.form,
   );
@@ -192,7 +195,7 @@ export async function resetPage(token: string): Promise<void> {
     },
     explain,
   );
-  page(s.resetTitle, lead(s.resetLead(link.email)), f.form);
+  page(s.resetTitle, lead(s.resetLead(link.email)), plainHttpLine(s.plainHttpSignIn) ?? el("span"), f.form);
   password.input.focus();
 }
 

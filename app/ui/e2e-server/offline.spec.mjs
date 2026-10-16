@@ -475,6 +475,16 @@ test("over plain HTTP the setting says offline needs HTTPS, and why", async ({ p
   const section = await offlineSettings(page);
   await expect(section.getByText(/Sem rede precisa de HTTPS/)).toBeVisible();
   await expect(section.getByRole("button", { name: "Deixar disponível sem rede" })).toBeDisabled();
+  // ADR 0073 item 6, amended 2026-10-16: said, with a way to read how to
+  // turn HTTPS on, and one notice for the session that can be closed.
+  await expect(section.getByRole("button", { name: "Como ligar o HTTPS" })).toBeVisible();
+  const bar = page.locator(".plain-http-bar");
+  await expect(bar).toContainText("Conexão sem HTTPS");
+  await bar.getByRole("button", { name: "Como ligar o HTTPS" }).click();
+  await expect(page.getByRole("dialog")).toContainText("VERSO_PUBLIC_URL");
+  await page.getByRole("dialog").getByRole("button", { name: "Fechar" }).click();
+  await bar.getByRole("button", { name: "Fechar" }).click();
+  await expect(bar).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 

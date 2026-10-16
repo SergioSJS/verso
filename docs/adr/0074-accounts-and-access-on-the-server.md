@@ -112,7 +112,9 @@ Proposed; the maintainer decided the six questions on 2026-10-09
    OWASP parameters of the day, recorded in the code), and **passkeys**
    (WebAuthn) added from Settings once signed in — which need HTTPS and a
    stable address, `VERSO_PUBLIC_URL`, which 0073 item 6 implies (TLS and
-   a configured proxy address).
+   a configured proxy address). *(Since 2026-10-16 the server also works
+   over plain HTTP, the passkeys being off there: Revisions of
+   [0073](0073-self-hosted-server-first.md).)*
    With a mail server: a **sign-in link by e-mail**, single use, fifteen
    minutes. **OpenID Connect** (Authelia, Authentik, Keycloak, Google)
    after, for the servers that already have an identity provider. A
@@ -225,7 +227,7 @@ The environment of `verso serve`, together:
 
 | Variable | Needed | What it does |
 |---|---|---|
-| `VERSO_PUBLIC_URL` | yes, outside loopback | the address people use; the passkeys' origin, the `Origin` check, the links in invitations |
+| `VERSO_PUBLIC_URL` | no (optional since 2026-10-16: only with HTTPS in front) | the address people use; the passkeys' origin, the `Origin` check, the links in invitations |
 | `VERSO_ADMIN_EMAIL` | on the first start | the first admin's e-mail |
 | `VERSO_ADMIN_PASSWORD` or `VERSO_ADMIN_PASSWORD_FILE` | with the e-mail | the first admin's password, 12 characters at least |
 | `VERSO_DATA_DIR` | no (a default in the image) | the accounts, the sessions, the audit log, the index |

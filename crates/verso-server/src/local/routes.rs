@@ -85,9 +85,8 @@ async fn pair(ctx: Ctx, Json(body): Json<Presented>) -> ApiResult<Response> {
     if !policy.pairing_open(Instant::now()) {
         return Err(ApiError::not_found());
     }
-    ctx.secure()?;
     // From a page of this server: a page of another site cannot ask.
-    if !auth::origin_ok(&ctx.server, &ctx.headers) {
+    if !auth::origin_ok(&ctx.server, &ctx.headers, &ctx.peer) {
         return Err(ApiError::forbidden("not from a page of this server"));
     }
     let device = crate::device::kept_name(body.device.as_deref().unwrap_or(""))
@@ -116,8 +115,7 @@ pub struct Poll {
 /// handed over once, in its cookie.
 async fn poll(ctx: Ctx, Json(body): Json<Poll>) -> ApiResult<Response> {
     let policy = local(&ctx)?;
-    ctx.secure()?;
-    if !auth::origin_ok(&ctx.server, &ctx.headers) {
+    if !auth::origin_ok(&ctx.server, &ctx.headers, &ctx.peer) {
         return Err(ApiError::forbidden("not from a page of this server"));
     }
     let secret: String = body.poll.chars().take(64).collect();
@@ -127,7 +125,7 @@ async fn poll(ctx: Ctx, Json(body): Json<Poll>) -> ApiResult<Response> {
         Some(Polled::Waiting) => Ok(ok(json!({ "state": "waiting", "interval": 2 }))),
         Some(Polled::Allowed(ready)) => {
             let mut response = ok(json!({ "state": "allowed", "csrf": ready.csrf }));
-            if let Ok(v) = HeaderValue::from_str(&auth::session_cookie(&ctx.server, &ready.token)) {
+            if let Ok(v) = HeaderValue::from_str(&auth::session_cookie(&ctx.peer, &ready.token)) {
                 response.headers_mut().append(header::SET_COOKIE, v);
             }
             Ok(response)

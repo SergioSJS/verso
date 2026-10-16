@@ -391,7 +391,7 @@ impl Server {
     }
 
     pub fn new(config: Config, db: Db, contract: String, commit: String) -> Arc<Self> {
-        let slots = crate::listen::Slots::new(config.trusted_proxy.clone());
+        let slots = crate::listen::Slots::new(config.trusted_proxy.named());
         Self::build(config, db, contract, commit, slots, None)
     }
 
