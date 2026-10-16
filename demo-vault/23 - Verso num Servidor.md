@@ -27,7 +27,7 @@ Três jeitos, do mesmo programa (o guia completo está em `docs/reference/server
 
 Duas pastas importam: `VERSO_DATA_DIR`, num disco local, com as contas e os índices; e `VERSO_FOLDERS_DIR`, com as pastas de notas, que pode ficar num NAS. O backup é das duas.
 
-Entrar pede **HTTPS**: um proxy reverso, o `tailscale serve` (o caminho mais simples para o celular e o iPad) ou o certificado do próprio servidor.
+O caminho mais curto: cole o arquivo compose, abra `http://<IP da máquina>:7340` e use o link de configuração do log. **O HTTP simples funciona**, de qualquer aparelho da rede, e serve em casa; numa rede pública a senha e as notas passam abertas. O **HTTPS é opcional, depois**, para liberar o modo offline, as notificações e as passkeys: um proxy reverso, o `tailscale serve` (o caminho mais simples para o celular e o iPad) ou o certificado do próprio servidor. Sem ele, o Verso desliga esses recursos e avisa, com o link "Como ligar o HTTPS".
 
 ---
 

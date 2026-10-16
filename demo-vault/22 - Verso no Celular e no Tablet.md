@@ -88,7 +88,7 @@ O certificado do app **não é de uma autoridade conhecida**, então o navegador
 
 ## Sem Rede
 
-Num servidor com HTTPS, uma pasta pode ficar **disponível sem rede** neste aparelho — no celular, no tablet ou num navegador de computador. É uma escolha de cada pasta, só deste aparelho, e começa desligada.
+Num servidor com HTTPS (por HTTP simples esta opção fica desligada, e o Verso diz como ligar o HTTPS), uma pasta pode ficar **disponível sem rede** neste aparelho — no celular, no tablet ou num navegador de computador. É uma escolha de cada pasta, só deste aparelho, e começa desligada.
 
 1. Abra a pasta e vá em **Ajustes › Sem rede**. Antes de guardar, o Verso diz quanto espaço vai ocupar — as notas e os arquivos de texto inteiros, os anexos, o código da janela — e pede ao navegador que não apague a cópia. Se ele não prometer, isso aparece escrito (é mais provável no iPhone; instalar a página na tela de início — **Compartilhar › Adicionar à Tela de Início** — ajuda).
 2. **Anexos**: figuras e PDFs ficam guardados **depois de abertos**, ou todos de uma vez, em **Guardar todos os anexos**.

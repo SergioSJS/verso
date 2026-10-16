@@ -201,8 +201,9 @@ A imagem roda `verso serve` como o usuário `universo` (uid e gid 1000), nunca
 root, com `/data` e `/folders` como volumes. Os padrões dela:
 `VERSO_DATA_DIR=/data`, `VERSO_FOLDERS_DIR=/folders`,
 `VERSO_UI_DIR=/usr/share/universo/ui`, `VERSO_LISTEN=0.0.0.0:7340`. Como ela
-escuta além do loopback, **`VERSO_PUBLIC_URL` é obrigatória**: sem ela o
-servidor se recusa a iniciar.
+escuta além do loopback e responde por HTTP simples: o `VERSO_PUBLIC_URL`
+é opcional (ADR 0073 item 6, alterado em 2026-10-16), definido só quando
+houver HTTPS na frente.
 
 Os diretórios do host montados em `/data` e `/folders` precisam permitir
 escrita ao uid 1000. O Docker cria um diretório que falta como root, e o
@@ -224,11 +225,10 @@ seção 11):
 
 ```sh
 docker run -d --name universo --restart unless-stopped \
-  -p 127.0.0.1:7340:7340 \
+  -p 7340:7340 \
   --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
   -v /srv/universo/data:/data \
   -v /srv/universo/folders:/folders \
-  -e VERSO_PUBLIC_URL=https://notas.exemplo.com \
   -e VERSO_ADMIN_EMAIL=voce@exemplo.com \
   -e VERSO_ADMIN_PASSWORD_FILE=/run/secrets/universo-admin \
   -v /srv/universo/admin-password:/run/secrets/universo-admin:ro \
@@ -239,8 +239,13 @@ Tags: a versão (`0.8.0-beta.1`), `latest` para a versão de
 produção mais nova e `beta` para a versão de teste mais nova. Enquanto só
 existirem versões de teste, `latest` não existe: use `beta` ou uma versão.
 
-A porta é publicada em `127.0.0.1` porque o TLS fica na frente (seção 8);
-o arquivo compose da seção 4 a publica do mesmo jeito.
+A porta é publicada em todos os endereços: abra `http://<esta máquina>:7340`
+de qualquer aparelho da rede. O HTTP simples serve em casa e não numa rede
+pública, onde a senha e as notas passam abertas. O HTTPS (seção 8) é
+opcional e vem depois: acrescente
+`-e VERSO_PUBLIC_URL=https://notas.exemplo.com` quando ele estiver na
+frente, e publique em `127.0.0.1` (`-p 127.0.0.1:7340:7340`) se só o proxy
+deve alcançar a porta. O arquivo compose da seção 4 publica `7340:7340`.
 `docker logs universo` mostra o log, incluindo o link de configuração da
 seção 9. O Docker guarda esse log sem limite se não for dito o contrário:
 acrescente `--log-opt max-size=10m --log-opt max-file=3` ao comando, como
@@ -250,17 +255,16 @@ contêineres no `daemon.json` do Docker.
 **Um proxy no host na frente de uma porta publicada** (o Caddy instalado
 na máquina, `reverse_proxy 127.0.0.1:7340`): o contêiner não vê as
 conexões do proxy vindo de `127.0.0.1`, e sim do gateway da rede do
-Docker, então `VERSO_TRUSTED_PROXY=127.0.0.1` não confia em ninguém e toda
-entrada é recusada como não HTTPS. Confie no gateway — na rede padrão
-normalmente `172.17.0.1`, como diz
-`docker network inspect bridge --format '{{(index .IPAM.Config 0).Gateway}}'`;
-num projeto compose, o da rede dele
-(`docker network inspect universo_default`). Ou rode o contêiner na rede
-do host (`--network host`, sem `-p`) com `-e VERSO_LISTEN=127.0.0.1:7340`,
-para que ele escute só no loopback e o proxy venha de `127.0.0.1`. Visto
+Docker (`172.17.0.1` na rede padrão, um endereço privado). O
+`VERSO_TRUSTED_PROXY` padrão, vazio, o aceita, como aceita qualquer
+endereço de loopback ou privado: nada a preencher. Só um valor que você
+escreve substitui essa lista. (Antes de 2026-10-16 era preciso um valor
+nomeando o gateway, senão toda entrada era recusada como não HTTPS; visto
 em 2026-10-13: por uma porta publicada com
 `VERSO_TRUSTED_PROXY=127.0.0.1`, uma requisição repassada como HTTPS teve
-como resposta `"secure":false`; com `172.17.0.1`, `"secure":true`.
+como resposta `"secure":false`.) Para que o proxy venha de `127.0.0.1` de
+qualquer modo, rode o contêiner na rede do host (`--network host`, sem
+`-p`) com `-e VERSO_LISTEN=127.0.0.1:7340`.
 
 A segunda linha limita o contêiner ao que o servidor precisa
 ([ADR 0083](../adr/0083-security-hardening-of-universo.md) item 11): os
@@ -293,15 +297,16 @@ como um segredo do Docker, comentado, antes da variável comum: para usar,
 ponha a senha em `admin-password` ao lado do arquivo compose, legível pelo
 uid 1000, e descomente os três lugares que o arquivo marca.
 
-O arquivo compose publica a porta 7340 só em `127.0.0.1` (decidido pelo
-mantenedor em 2026-10-13, [ADR 0083](../adr/0083-security-hardening-of-universo.md),
-Como construído): o TLS fica na frente — Caddy, um túnel ou o
-`tailscale serve` (seção 8) — e a alcança na própria máquina. Para
-publicá-la na rede de casa, como uma caixa CasaOS acessada pela LAN pode
-querer, troque uma linha, `host_ip: 127.0.0.1` por `host_ip: 0.0.0.0`.
-HTTP puro na LAN continua sem entrar ninguém de outra máquina: o servidor
-só faz login por HTTPS ([ADR 0073](../adr/0073-self-hosted-server-first.md)
-item 6), então a LAN também precisa de TLS na frente para um login.
+O arquivo compose publica a porta 7340 em todos os endereços (`"7340:7340"`)
+e não exige variável alguma: abra `http://<esta máquina>:7340` e depois o
+link de configuração do `docker logs universo`. Isto substitui a ligação ao
+loopback decidida em 2026-10-13
+([ADR 0083](../adr/0083-security-hardening-of-universo.md), Como
+construído), pela decisão do mantenedor de 2026-10-16
+([ADR 0073](../adr/0073-self-hosted-server-first.md) item 6, alterado).
+O HTTP simples na rede de casa serve; quem está nessa rede lê o que passa
+por ela. Para um proxy que sozinho deve alcançar a porta, troque a linha por
+`"127.0.0.1:7340:7340"`; o HTTPS (seção 8) é opcional e vem depois.
 
 O arquivo compose limita o log do contêiner a três arquivos de 10 MB no
 máximo (`logging:` com o driver `json-file` do Docker, `max-size: "10m"`,
@@ -337,7 +342,7 @@ conter a senha do primeiro admin). Ele cria o usuário de sistema `universo` e
 inicia o serviço**:
 
 ```sh
-sudoedit /etc/universo/universo.env       # no mínimo VERSO_PUBLIC_URL
+sudoedit /etc/universo/universo.env       # opcional: o primeiro admin, VERSO_LISTEN
 sudo systemctl enable --now universo
 journalctl -u universo -f
 ```
@@ -352,7 +357,8 @@ Como construído). `journalctl --disk-usage` diz quanto o journal ocupa,
 nesse log, 60 linhas por minuto no máximo (F21 da
 [revisão de segurança](security-review-2026-10-13.md)).
 
-O pacote escuta em `127.0.0.1:7340` por padrão: o TLS fica na frente
+O pacote escuta em `127.0.0.1:7340` por padrão: para HTTP simples pela
+rede defina `VERSO_LISTEN=0.0.0.0:7340`; para HTTPS, o TLS fica na frente
 (seção 8). A unit é endurecida (`ProtectSystem=strict`, escreve só sob
 `/var/lib/universo`, `ProtectHome=read-only`, os outros processos ocultos
 por `ProtectProc=invisible`, só as chamadas de sistema de um serviço comum,
@@ -453,14 +459,14 @@ vazio conta como não definido.
 
 | Variável | Padrão | O que faz |
 |---|---|---|
-| `VERSO_LISTEN` | `127.0.0.1:7340` (imagem: `0.0.0.0:7340`) | endereço e porta; além do loopback exige `VERSO_PUBLIC_URL` |
-| `VERSO_PUBLIC_URL` | nenhum | o endereço que as pessoas usam: as checagens de `Origin` e `Host`, os links de convites e de redefinição. `https://…` ou `http://…`, os dois são aceitos; mas uma entrada vinda de outra máquina só é aceita por HTTPS (seção 8), então `http://` serve só a esta máquina |
+| `VERSO_LISTEN` | `127.0.0.1:7340` (imagem: `0.0.0.0:7340`) | endereço e porta; além do loopback o servidor responde por HTTP simples |
+| `VERSO_PUBLIC_URL` | nenhum | opcional. O endereço que as pessoas usam: com ele, as checagens de `Origin` e `Host` aceitam só esse nome (e o desta máquina), e os links de convites e de redefinição o usam; sem ele, só um endereço IP, um nome de uma palavra ou um nome `.local` / `.home.arpa` é respondido (um nome público pede a variável, contra o DNS rebinding), e os links por e-mail — o link de entrada e o "esqueci a senha" — não existem. O link de convite ou de redefinição de um admin usa o endereço da sessão do próprio admin. `https://…` ou `http://…`, os dois são aceitos |
 | `VERSO_DATA_DIR` | imagem `/data`, pacotes `/var/lib/universo/data` | contas, sessões, registro de auditoria, índices; um disco local |
 | `VERSO_FOLDERS_DIR` | imagem `/folders`, pacotes `/var/lib/universo/folders` | as pastas de notas; pode ser um NAS |
 | `VERSO_UI_DIR` | `<diretório do binário>/../share/universo/ui` | os arquivos da janela |
 | `VERSO_ADMIN_EMAIL` | nenhum | o primeiro admin, só na primeira inicialização |
 | `VERSO_ADMIN_PASSWORD` ou `VERSO_ADMIN_PASSWORD_FILE` | nenhum | a senha do primeiro admin, 12 caracteres ou mais, fora das listas que atacantes tentam primeiro, diferente do e-mail |
-| `VERSO_TRUSTED_PROXY` | nenhum | os proxies reversos cujos `X-Forwarded-For` e `X-Forwarded-Proto` são aceitos: um endereço, ou uma lista de endereços e CIDRs separados por vírgulas, IPv4 e IPv6 (`127.0.0.1, 10.0.0.0/8, 2001:db8::/32`); seção 8 |
+| `VERSO_TRUSTED_PROXY` | loopback e redes privadas | os proxies reversos cujos `X-Forwarded-For` e `X-Forwarded-Proto` são aceitos. Vazio: 127.0.0.0/8, ::1, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, fc00::/7. Um valor substitui essa lista: um endereço, ou endereços e CIDRs separados por vírgulas, IPv4 e IPv6 (`127.0.0.1, 10.0.0.0/8, 2001:db8::/32`); `none` não aceita proxy algum; seção 8 |
 | `VERSO_TLS_CERT_FILE` e `VERSO_TLS_KEY_FILE` | nenhum | o Verso serve TLS ele mesmo com esse certificado e essa chave (PEM); os dois ou nenhum |
 | `VERSO_UPDATE_CHECK` | ligado | `off` desliga a checagem de versão nova (seção 12) |
 | `VERSO_UPDATE_TOKEN` | não | um token que lê as releases do projeto, necessário para a checagem enquanto o repositório é privado (um token do GitHub com leitura dele); sem ele o log avisa uma vez |
@@ -475,15 +481,20 @@ Sem `VERSO_SMTP_URL` nada é enviado: o admin copia os links de convite e de sen
 
 ## 8. TLS
 
-O servidor se recusa a autenticar alguém por HTTP simples (0073 item 6).
-Uma requisição conta como segura quando o próprio Verso serve TLS, quando
-vem do `VERSO_TRUSTED_PROXY` com `X-Forwarded-Proto: https` — por um
-proxy confiável só esse cabeçalho decide, então um proxy que não o manda,
-ou manda `http`, tem os visitantes recusados (`tls_required`) —, ou quando
-o Verso escuta no loopback e a requisição vem direto desta máquina, não
-por um proxy confiável. O navegador
-também exige HTTPS para os recursos seguros da janela (entre eles as
-passkeys). Três caminhos, decididos na 0073 item 6:
+O HTTP simples funciona (0073 item 6, alterado em 2026-10-16): entrada, a
+janela, convites, o app de desktop e o sync, de qualquer máquina. Uma
+requisição conta como HTTPS quando o próprio Verso serve TLS, ou quando vem
+de um proxy aceito (`VERSO_TRUSTED_PROXY`, por padrão loopback e redes
+privadas) com `X-Forwarded-Proto: https` — por um proxy só esse cabeçalho
+decide. Só uma requisição HTTPS recebe um cookie de sessão `Secure`
+(`__Host-`); por HTTP o cookie é simples, `HttpOnly` e `SameSite=Lax` do
+mesmo jeito. O que o navegador guarda para o HTTPS fica desligado por HTTP,
+e a janela diz isso: o modo offline, as notificações do sistema e as
+passkeys, nos Ajustes onde cada um mora e num aviso que se fecha, uma vez
+por sessão. O preço, sem rodeio: quem está na mesma rede lê a senha e as
+notas que passam por HTTP simples — serve em casa, não num Wi-Fi público.
+O HTTPS é o passo opcional, posterior. Três caminhos, decididos na 0073
+item 6:
 
 ### tailscale serve, para celular e iPad
 
@@ -513,13 +524,12 @@ notas.exemplo.com {
 }
 ```
 
-com `VERSO_PUBLIC_URL=https://notas.exemplo.com` e `VERSO_TRUSTED_PROXY`
-com o endereço de onde vêm as conexões do proxy: `127.0.0.1` para um proxy
-na mesma máquina de um servidor instalado por pacote; para um contêiner
-atrás de uma porta publicada, o gateway da rede do Docker (seção 3). Um
-proxy em outro contêiner vem do endereço desse
-contêiner, que então precisa ser fixo (um `ipv4_address` na rede do
-compose). Traefik ou o proxy do próprio NAS funcionam do mesmo jeito.
+com `VERSO_PUBLIC_URL=https://notas.exemplo.com` e mais nada: um proxy na
+mesma máquina, num contêiner (o gateway da rede do Docker, ou o endereço do
+próprio contêiner) ou na sua rede é aceito pelo `VERSO_TRUSTED_PROXY`
+padrão. Preencha essa variável só para substituir a lista — um proxy fora
+da sua rede, ou o Cloudflare abaixo — ou para escrever `none`. Traefik ou o
+proxy do próprio NAS funcionam do mesmo jeito.
 
 O endereço do cliente é lido do `X-Forwarded-For` como se lê toda cadeia
 de proxies: da direita, passando por cada endereço do
@@ -529,8 +539,9 @@ de um endereço fora da lista tem o `X-Forwarded-For` ignorado. Ponha na
 lista só os proxies: uma faixa de endereços que também tem pessoas deixa
 que elas digam o endereço que quiserem.
 
-**O `127.0.0.1` nomeia todo programa da máquina, não só o proxy.** Com
-`VERSO_TRUSTED_PROXY=127.0.0.1`, qualquer usuário ou processo local que
+**O `127.0.0.1` nomeia todo programa da máquina, não só o proxy — e a lista
+padrão nomeia toda máquina de uma rede privada.** Com
+`VERSO_TRUSTED_PROXY=127.0.0.1` (ou o padrão), qualquer usuário ou processo local que
 se conecte à porta do servidor é acreditado como o proxy: o
 `X-Forwarded-For` dele pode nomear qualquer endereço — um novo a cada
 tentativa, passando pelos atrasos por endereço (o atraso por conta
@@ -565,19 +576,16 @@ tem ritmo. Quando uma requisição vem de um proxy confiável sem `X-Forwarded-F
 request from the trusted proxy carried no X-Forwarded-For: is the proxy
 configured to forward it?*
 
-Um proxy na mesma máquina deixado fora da lista também é dito, já que
-senão todo visitante seria o endereço desta máquina, fora do ritmo. Quando
-uma conexão do loopback que não é um proxy confiável traz
-`X-Forwarded-For`, o log diz, uma vez por minuto, *a request from
-127.0.0.1 carried X-Forwarded-For, but that address is not in
-VERSO_TRUSTED_PROXY: every visitor through a proxy on this machine counts
-as this machine; set VERSO_TRUSTED_PROXY=127.0.0.1 if one forwards to
-UniVerso*; e ao iniciar, quando o `VERSO_PUBLIC_URL` é `https://`, o Verso
-escuta no loopback sem certificado próprio e o `VERSO_TRUSTED_PROXY` está
-vazio, uma linha que começa com *VERSO_PUBLIC_URL is https but UniVerso
-listens on …* diz o mesmo e o que definir. Ao defini-lo, confira que o
+Com a lista padrão, o aviso acima é dito só de um proxy nomeado: uma
+conexão direta da rede de casa também é um "proxy", e não manda
+cabeçalho. Com `VERSO_TRUSTED_PROXY=none`, ou um valor que deixa de fora um
+proxy desta máquina, uma conexão do loopback que traz `X-Forwarded-For` faz o
+log dizer, uma vez por minuto, *a request from 127.0.0.1 carried
+X-Forwarded-For, but that address is not in VERSO_TRUSTED_PROXY: every
+visitor through a proxy on this machine counts as this machine; set
+VERSO_TRUSTED_PROXY=127.0.0.1 if one forwards to UniVerso*. Confira que o
 proxy manda `X-Forwarded-Proto: https` (o Caddy manda): por um proxy
-confiável só esse cabeçalho diz que o visitante veio por TLS.
+aceito só esse cabeçalho diz que o visitante veio por TLS.
 
 **Requisições em andamento, e corpos que chegam a conta-gotas.** Através
 de um proxy, toda conexão conta só contra as 512 do servidor, então o

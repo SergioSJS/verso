@@ -64,8 +64,6 @@ export class ApiError extends Error {
         return s.exists;
       case "link_gone":
         return s.linkGone;
-      case "tls_required":
-        return s.tlsRequired;
       case "csrf":
         return s.stale;
       case "no_mail":

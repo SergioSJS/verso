@@ -104,7 +104,7 @@ fn a_presence_past_its_bound_is_refused() {
 #[test]
 fn the_mail_routes_answer_alike_whether_the_address_has_an_account() {
     block_on(async {
-        let r = start().await;
+        let r = start_with(|c| c.public_url = Some("@self".into())).await;
         // A mail server that takes the connection and never says a word.
         let silent = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = silent.local_addr().unwrap().port();
@@ -375,58 +375,6 @@ fn a_forwarded_loopback_or_an_unforwarding_proxy_is_paced() {
     });
 }
 
-/// Through a trusted proxy, `X-Forwarded-Proto` alone says whether the
-/// visitor came over TLS: a proxy on this machine that says `http` is not
-/// made secure by the server's loopback listen, and a sign-in is refused
-/// there (ADR 0073 item 6, ADR 0083 item 5). A direct connection from this
-/// machine, no proxy set, is still secure, as `http://localhost` is.
-#[test]
-fn a_trusted_proxy_saying_http_is_not_made_secure_by_the_loopback() {
-    block_on(async {
-        let r = behind_proxy().await;
-        assert!(
-            r.server.config.loopback_only(),
-            "the test server listens on loopback"
-        );
-        let client = reqwest::Client::new();
-        let sign_in = |proto: Option<&str>| {
-            let mut req = client
-                .post(r.url("/api/signin"))
-                .header("origin", r.origin())
-                .header("x-forwarded-for", "203.0.113.20");
-            if let Some(p) = proto {
-                req = req.header("x-forwarded-proto", p);
-            }
-            req.json(
-                &serde_json::json!({ "email": "admin@casa.lan", "password": "senha muito longa" }),
-            )
-            .send()
-        };
-        for proto in [Some("http"), None] {
-            let res = sign_in(proto).await.unwrap();
-            let status = res.status().as_u16();
-            let body: serde_json::Value = res.json().await.unwrap_or_default();
-            assert_eq!(
-                (status, body["error"].as_str()),
-                (403, Some("tls_required")),
-                "a trusted proxy on 127.0.0.1 forwarding {proto:?}: {body}"
-            );
-        }
-        let res = sign_in(Some("https")).await.unwrap();
-        assert_eq!(res.status().as_u16(), 200, "forwarded https");
-        // A direct connection from this machine, no proxy set.
-        let direct = start().await;
-        let (status, body) = crate::tests::post(
-            &direct,
-            "/api/signin",
-            serde_json::json!({ "email": "admin@casa.lan", "password": "senha muito longa" }),
-            None,
-        )
-        .await;
-        assert_eq!(status, 200, "direct loopback: {body}");
-    });
-}
-
 /// A proxy on this machine that is not in `VERSO_TRUSTED_PROXY` makes
 /// every visitor this machine's address, silently: the first request from
 /// an untrusted loopback peer carrying `X-Forwarded-For` is said in the log
@@ -637,7 +585,11 @@ fn lock_remove(r: &crate::tests::Running, code: &str) {
 #[test]
 fn a_mailbox_is_not_flooded_from_many_addresses() {
     block_on(async {
-        let r = behind_proxy().await;
+        let r = start_with(|c| {
+            c.trusted_proxy = crate::proxy::Proxies::parse("127.0.0.1").unwrap();
+            c.public_url = Some("@self-https".into());
+        })
+        .await;
         let _ = r
             .server
             .mail
@@ -646,10 +598,11 @@ fn a_mailbox_is_not_flooded_from_many_addresses() {
         let ask = |route: &'static str, email: &'static str, from: String| {
             client
                 .post(r.url(route))
-                .header("origin", r.origin())
+                .header("origin", r.origin().replacen("http://", "https://", 1))
                 .header("x-forwarded-for", from)
                 // As a proxy in front of TLS says it: through a trusted
-                // proxy, this header alone makes a request secure.
+                // proxy this header alone says the request came over
+                // HTTPS (the cookie's `Secure`, the origin's scheme).
                 .header("x-forwarded-proto", "https")
                 .json(&json!({ "email": email }))
                 .send()
