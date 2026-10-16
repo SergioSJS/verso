@@ -116,14 +116,32 @@ export function foundList(finder: Finder, pick: (f: FoundServer) => void, every 
   let waits = 0;
   let said = "";
   let unavailable = false;
+  let started = false;
   const onScreen = () => box.isConnected && box.closest("[hidden]") === null;
   const end = () => {
     window.clearInterval(timer);
-    if (me === current) void finder.stop();
+    if (started && me === current) void finder.stop();
+  };
+  // Browsing begins when the list is first on the screen, not when it is
+  // built: a section that is never shown asks the network for nothing.
+  const begin = () => {
+    started = true;
+    void finder.start().then((r) => {
+      if (r.status === "ok") return;
+      unavailable = true;
+      window.clearInterval(timer);
+      live.textContent = s.unavailable;
+    });
   };
   const tick = async () => {
-    if (onScreen()) seen = true;
-    else if (seen || ++waits > 20) return end();
+    if (onScreen()) {
+      seen = true;
+      if (!started) begin();
+    } else if (seen || ++waits > 20) {
+      return end();
+    } else {
+      return; // not shown (yet): nothing is asked of the host
+    }
     const r = await finder.list();
     if (unavailable || r.status !== "ok" || !box.isConnected) return;
     const sentence = r.data.length === 0 ? s.none : s.count(r.data.length);
@@ -135,12 +153,6 @@ export function foundList(finder: Finder, pick: (f: FoundServer) => void, every 
     }
     rows.replaceChildren(...r.data.map((f) => foundRow(f, pick)));
   };
-  void finder.start().then((r) => {
-    if (r.status === "ok") return;
-    unavailable = true;
-    window.clearInterval(timer);
-    live.textContent = s.unavailable;
-  });
   timer = window.setInterval(() => void tick(), every);
   window.setTimeout(() => void tick(), Math.min(300, every));
   return box;

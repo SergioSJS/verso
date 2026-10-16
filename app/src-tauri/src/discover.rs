@@ -89,7 +89,7 @@ static BROWSE: Lease<Browser> = Lease::new();
 
 /// Browse (once; asking again renews the lease), and watch the lease: the
 /// browse ends on its own when no window asks any more.
-fn ensure() -> Result<(), ContractError> {
+fn ensure() -> Result<bool, ContractError> {
     let started = BROWSE.hold(Browser::start).map_err(|e| {
         log::write(
             "WARN",
@@ -108,7 +108,31 @@ fn ensure() -> Result<(), ContractError> {
             }
         });
     }
-    Ok(())
+    Ok(started)
+}
+
+/// What the last list held and when: shown again while a browse that was
+/// stopped (by another window) starts over, so the list does not flash
+/// "none found" in between.
+static LAST: Mutex<Option<(std::time::Instant, Vec<FoundServer>)>> = Mutex::new(None);
+
+/// How long the last list stands in for a browse that has just restarted.
+const LAST_FOR: std::time::Duration = std::time::Duration::from_secs(15);
+
+/// The list to give: the fresh one; when there is none yet because the browse
+/// has just (re)started, the last one if it is recent.
+pub(crate) fn list_or_last(
+    started: bool,
+    fresh: Vec<FoundServer>,
+    last: Option<&(std::time::Instant, Vec<FoundServer>)>,
+    now: std::time::Instant,
+) -> Vec<FoundServer> {
+    if !fresh.is_empty() || !started {
+        return fresh;
+    }
+    last.filter(|(at, _)| now.duration_since(*at) < LAST_FOR)
+        .map(|(_, l)| l.clone())
+        .unwrap_or_default()
 }
 
 /// What the window shows of one announcement: a row with the address a
@@ -138,7 +162,7 @@ pub(crate) fn shown(found: &[Found]) -> Vec<FoundServer> {
 #[tauri::command]
 #[specta::specta]
 pub(crate) fn discover_servers_start() -> Result<(), ContractError> {
-    ensure()
+    ensure().map(|_| ())
 }
 
 /// What has been found so far. Asking renews the browse's lease, and starts
@@ -147,10 +171,17 @@ pub(crate) fn discover_servers_start() -> Result<(), ContractError> {
 #[tauri::command]
 #[specta::specta]
 pub(crate) fn discover_servers_list() -> Result<Vec<FoundServer>, ContractError> {
-    if ensure().is_err() {
+    let Ok(started) = ensure() else {
         return Ok(Vec::new());
+    };
+    let fresh = BROWSE.with(|b| shown(&b.list())).unwrap_or_default();
+    let mut last = lock(&LAST);
+    let now = std::time::Instant::now();
+    let given = list_or_last(started, fresh.clone(), last.as_ref(), now);
+    if !fresh.is_empty() {
+        *last = Some((now, fresh));
     }
-    Ok(BROWSE.with(|b| shown(&b.list())).unwrap_or_default())
+    Ok(given)
 }
 
 /// Stop browsing; the network is left alone.
@@ -189,6 +220,30 @@ mod tests {
         assert_eq!(lease.with(|t| *t), Some(1));
         lease.release();
         assert_eq!(lease.with(|t| *t), None);
+    }
+
+    #[test]
+    fn a_restarted_browse_shows_the_last_list_not_none() {
+        let row = FoundServer {
+            name: "UniVerso-1".to_owned(),
+            host: "h.local".to_owned(),
+            url: "http://192.168.1.9:7340".to_owned(),
+            https: false,
+            version: String::new(),
+            needs_public_url: false,
+        };
+        let now = std::time::Instant::now();
+        let last = (now, vec![row.clone()]);
+        let again = std::slice::from_ref(&row);
+        // Just restarted, nothing found yet: the last list stands in.
+        assert_eq!(list_or_last(true, Vec::new(), Some(&last), now), again);
+        // Running, and nothing is there: none is the truth.
+        assert!(list_or_last(false, Vec::new(), Some(&last), now).is_empty());
+        // A stale last list is no list.
+        let later = now + LAST_FOR + std::time::Duration::from_secs(1);
+        assert!(list_or_last(true, Vec::new(), Some(&last), later).is_empty());
+        // Something found wins.
+        assert_eq!(list_or_last(true, vec![row.clone()], None, now), [row]);
     }
 
     #[test]

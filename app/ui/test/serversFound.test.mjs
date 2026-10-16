@@ -34,7 +34,8 @@ function finder(found = [], startsWith = { status: "ok", data: null }) {
     started: 0,
     stopped: 0,
     start: async () => (f.started++, startsWith),
-    list: async () => ({ status: "ok", data: f.found }),
+    listed: 0,
+    list: async () => (f.listed++, { status: "ok", data: f.found }),
     stop: async () => void f.stopped++,
   };
   return f;
@@ -129,6 +130,41 @@ describe("the list", () => {
     assert.equal(f.stopped, 1);
     await later();
     assert.equal(f.stopped, 1, "stopped once");
+  });
+
+  test("a section that is never shown asks the host for nothing", async () => {
+    const f = finder([ZIMA]);
+    const hidden = document.createElement("div");
+    hidden.hidden = true;
+    document.body.append(hidden);
+    const box = foundList(f, () => {}, 5);
+    hidden.append(box);
+    await later(250); // more than the 20 ticks it waits for being shown
+    assert.equal(f.started, 0, "no browse for a section nobody sees");
+    assert.equal(f.listed, 0);
+    assert.equal(f.stopped, 0, "and nothing to stop");
+    // Shown at last, it is another list's business: this one has given up,
+    // so showing it now starts nothing.
+    hidden.hidden = false;
+    await later(60);
+    assert.equal(f.started, 0);
+  });
+
+  test("a section shown a moment late still browses", async () => {
+    const f = finder([ZIMA]);
+    const holder = document.createElement("div");
+    holder.hidden = true;
+    document.body.append(holder);
+    const box = foundList(f, () => {}, 20);
+    holder.append(box);
+    await later(50);
+    assert.equal(f.started, 0);
+    holder.hidden = false;
+    await later(80);
+    assert.equal(f.started, 1);
+    assert.equal(box.querySelectorAll(".srv-found-row").length, 1);
+    box.remove();
+    await later();
   });
 
   test("a list closing after another opened does not end the new one's browse", async () => {
