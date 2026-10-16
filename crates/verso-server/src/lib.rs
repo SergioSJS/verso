@@ -176,10 +176,20 @@ fn first_admin(config: &Config, db: &Db) -> Result<(), String> {
     Ok(())
 }
 
+/// The process's one TLS crypto provider, `ring`. Two providers are built in
+/// (`ring` here, `aws-lc-rs` through reqwest's and tungstenite's TLS), so
+/// rustls cannot pick one by itself and panics on the first TLS client it
+/// makes without this: the desktop app's sync over `wss://` did, and sat on
+/// "Conectando ao servidor…" (the maintainer's UniVerso, 2026-10-16). Every
+/// entry point calls it before any TLS; a second call keeps the first.
+pub fn install_crypto_provider() {
+    let _ = tokio_rustls::rustls::crypto::ring::default_provider().install_default();
+}
+
 /// Serve until the process is asked to stop.
 pub fn serve(config: Config, commit: &str) -> Result<(), String> {
     // One crypto provider for the server's TLS and the update check's.
-    let _ = tokio_rustls::rustls::crypto::ring::default_provider().install_default();
+    install_crypto_provider();
     let acceptor = match &config.tls {
         Some((cert, key)) => Some(tls::acceptor(cert, key)?),
         None => None,
