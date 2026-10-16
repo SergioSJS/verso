@@ -332,7 +332,8 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .props.infobox.narrow .ib-picture-img { max-height: 14rem; }
 .status-words { color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* The folder's sync (ADR 0079 item 13): its state, a click away from its section. */
-.status-sync { flex: none; padding: .1rem .45rem; font: inherit; font-size: .78rem; color: var(--ink-3); white-space: nowrap; border-radius: 4px; }
+/* Shrinks before the bar's keys do, cut with an ellipsis: the whole state is its title (2026-10-16: a long error pushed the bar's buttons out). */
+.status-sync { flex: 0 1 auto; min-width: 0; max-width: 45%; overflow: hidden; text-overflow: ellipsis; padding: .1rem .45rem; font: inherit; font-size: .78rem; color: var(--ink-3); white-space: nowrap; border-radius: 4px; }
 .status-sync:hover { color: var(--ink); background: var(--paper-2); }
 .status-sync.warn { color: var(--seal); }
 /* A server's folder whose server is out of reach (dialogs/servers.ts): said
