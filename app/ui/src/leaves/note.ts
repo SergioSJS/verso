@@ -15,6 +15,7 @@ import { commands, type ContractError, type NoteText, type Written } from "../bi
 import { canWrite, host } from "../can";
 import { blockKeys } from "../blocks/keys";
 import { blockHandles } from "../blocks/view";
+import { blockBar } from "../screen/blockbar";
 import { type CardEditing } from "../board/types";
 import { bookmarks, toggleBookmark } from "../bookmarks";
 import { afterFileChange, tellOutcomes } from "../changes";
@@ -174,13 +175,23 @@ export class NoteLeaf extends Leaf {
    *  mode (ADR 0061). */
   readonly blockExt: Extension = [
     blockHandles({
-      enabled: () => settings.blockHandles && !this.readOnly,
+      // A touch screen has no handles: the keys' bar carries the block's
+      // commands (ADR 0076 item 7, decided 2026-10-16).
+      enabled: () => settings.blockHandles && !this.readOnly && !window.matchMedia("(pointer: coarse)").matches,
       menu: (_view, blocks, x, y) => this.blockMenu(blocks, x, y),
       plus: (_view, block) => this.blockPlus(block),
       plusAt: (_view, line) => this.blockPlusAt(line),
       strings: { grip: t.blocks.grip, plus: t.blocks.plus },
     }),
     blockKeys({ enterNewBlock: () => settings.enterNewBlock }),
+    blockBar.of({
+      active: () => this.mode === "live" && !this.readOnly,
+      plus: () => this.blockPlusHere(),
+      turn: (x, y) => this.turnBlockMenu(this.selectedBlocks(), x, y),
+      menu: (x, y) => this.blockMenu(this.selectedBlocks(), x, y),
+      move: (dir) => this.moveBlock(dir),
+      remove: () => this.deleteBlock(),
+    }),
     // A tap on a link, on a touch screen: a card to open or edit it (ADR
     // 0076 item 4).
     linkCard({
@@ -557,6 +568,7 @@ export class NoteLeaf extends Leaf {
   declare blockMenu: typeof editing.blockMenu;
   declare blockPlusAt: typeof editing.blockPlusAt;
   declare blockPlus: typeof editing.blockPlus;
+  declare blockPlusHere: typeof editing.blockPlusHere;
   declare buildWebBar: typeof web.buildWebBar;
   /** An embedded note's HTML for the editor, cached; asked once, then a redraw. */
   embedCache = new Map<string, string | null>();

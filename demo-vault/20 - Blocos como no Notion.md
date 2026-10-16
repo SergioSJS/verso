@@ -26,6 +26,8 @@ Passe o mouse sobre um bloco: na margem da esquerda aparecem um **+** e uma alç
 
 Um `⌘Z` desfaz um arraste inteiro. Com um trecho selecionado, a alça move todos os blocos que a seleção toca.
 
+Numa tela de toque não há mouse para passar sobre o bloco: a alça e o **+** não aparecem, e a barra acima do teclado faz o mesmo no bloco onde está o cursor — **mover para cima** e **para baixo**, **Transformar em…**, **excluir** e o **menu do bloco**. Veja [[22 - Verso no Celular e no Tablet]].
+
 ---
 
 ## Teclas

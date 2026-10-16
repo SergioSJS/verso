@@ -3,11 +3,14 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 // The on-screen keyboard (ADR 0076 item 7). A phone has no Tab, no ⌘Z and
-// no `[` within reach; above its keyboard, while an editor has the focus
-// on a touch screen, a short row of what writing needs: undo, redo,
-// indent, outdent, `[[`, `/` and hiding the keyboard. Its contents are
-// still `[OPEN]`, to revisit after use (ADR 0076, Status). The editor
-// keeps the cursor above the keyboard and this row (`editorKeepsInView`).
+// no `[` within reach, and no hover for a block's handle; above its
+// keyboard, while an editor has the focus on a touch screen, one row that
+// scrolls sideways: add a block, turn it into, `[[`, `/`, outdent, indent,
+// move the block up or down, delete it, its menu, undo, redo and hiding the
+// keyboard. The maintainer decided its contents on 2026-10-16, after
+// Notion's; the block's commands are the ones the desktop's handle calls
+// (`blockbar.ts`). The editor keeps the cursor above the keyboard and this
+// row (`editorKeepsInView`).
 
 import { startCompletion } from "@codemirror/autocomplete";
 import { EditorView, runScopeHandlers, type Rect } from "@codemirror/view";
@@ -15,6 +18,7 @@ import { h } from "../dom";
 import { icon } from "../icons";
 import { MAC } from "../platform";
 import { t } from "../strings";
+import { blockBar, type BlockBar } from "./blockbar";
 import { st } from "./strings";
 import { keyboardInset, onViewport, visibleBox } from "./viewport";
 
@@ -44,28 +48,65 @@ function insert(view: EditorView, text: string): void {
   view.dispatch({ changes: { from, to, insert: text }, selection: { anchor: from + text.length }, userEvent: "input.type", scrollIntoView: true });
 }
 
-const ACTIONS: [label: () => string, iconName: string | null, text: string | null, run: (v: EditorView) => void][] = [
-  [() => st.undo, "undo", null, (v) => press(v, "z", true)],
-  [() => st.redo, "redo", null, (v) => press(v, "z", true, true)],
-  [() => st.outdent, "outdent", null, (v) => press(v, "Tab", false, true)],
-  [() => st.indent, "indent", null, (v) => press(v, "Tab")],
-  [() => t.wikilink, null, "[[", (v) => { insert(v, "[["); startCompletion(v); }],
-  [() => st.slash, null, "/", (v) => insert(v, "/")],
-  [() => st.hideKeyboard, "keyboardOff", null, (v) => v.contentDOM.blur()],
+/** Where a menu the bar opens hangs from: above the bar, inside what the
+ *  screen shows (`placeInView` flips a menu that does not fit below). */
+function menuAt(button: HTMLElement): [number, number] {
+  holdBar = true;
+  return [button.getBoundingClientRect().left, bar?.getBoundingClientRect().top ?? visibleBox().bottom];
+}
+
+type Action = {
+  label: () => string;
+  icon: string | null;
+  text: string | null;
+  /** A word beside the icon, for what opens a menu. */
+  word?: () => string;
+  /** Opens a menu. */
+  popup?: boolean;
+  /** A block command: shown while the note's blocks can be edited. */
+  block?: (b: BlockBar) => ((button: HTMLElement) => void);
+  run?: (v: EditorView) => void;
+};
+
+const ACTIONS: Action[] = [
+  { label: () => t.blocks.plus, icon: "plus", text: null, block: (b) => () => b.plus() },
+  { label: () => `${t.blocks.turnInto}…`, icon: "edit", text: null, word: () => t.blocks.turnInto, block: (b) => (btn) => b.turn(...menuAt(btn)) },
+  { label: () => t.wikilink, icon: null, text: "[[", run: (v) => { insert(v, "[["); startCompletion(v); } },
+  { label: () => st.slash, icon: null, text: "/", run: (v) => insert(v, "/") },
+  { label: () => st.outdent, icon: "outdent", text: null, run: (v) => press(v, "Tab", false, true) },
+  { label: () => st.indent, icon: "indent", text: null, run: (v) => press(v, "Tab") },
+  { label: () => t.blocks.moveUp, icon: "chevronUp", text: null, block: (b) => () => b.move(-1) },
+  { label: () => t.blocks.moveDown, icon: "chevronDown", text: null, block: (b) => () => b.move(1) },
+  { label: () => t.blocks.deleteBlock, icon: "trash", text: null, block: (b) => () => b.remove() },
+  { label: () => t.blocks.menu, icon: "more", text: null, popup: true, block: (b) => (btn) => b.menu(...menuAt(btn)) },
+  { label: () => st.undo, icon: "undo", text: null, run: (v) => press(v, "z", true) },
+  { label: () => st.redo, icon: "redo", text: null, run: (v) => press(v, "z", true, true) },
+  { label: () => st.hideKeyboard, icon: "keyboardOff", text: null, run: (v) => v.contentDOM.blur() },
 ];
+
+/** A menu the bar opened has the focus: the bar stays until it closes. */
+let holdBar = false;
+/** The block commands' buttons, hidden where blocks cannot be edited. */
+const blockButtons: HTMLElement[] = [];
 
 function build(): HTMLElement {
   const bar = h("div", "key-bar");
   bar.setAttribute("role", "toolbar");
   bar.setAttribute("aria-label", st.keys);
   bar.hidden = true;
-  for (const [label, iconName, text, run] of ACTIONS) {
+  for (const a of ACTIONS) {
     const b = h("button", "key-bar-item");
     b.type = "button";
-    b.setAttribute("aria-label", label());
-    b.title = label();
-    if (iconName) b.append(icon(iconName));
-    else b.append(h("span", "key-bar-text", text ?? ""));
+    b.setAttribute("aria-label", a.label());
+    b.title = a.label();
+    if (a.icon) b.append(icon(a.icon));
+    else b.append(h("span", "key-bar-text", a.text ?? ""));
+    if (a.block && (a.word || a.popup)) b.setAttribute("aria-haspopup", "menu");
+    if (a.word) {
+      b.classList.add("key-bar-word");
+      b.prepend(h("span", "key-bar-label", a.word()));
+      b.append(icon("chevronDown"));
+    }
     // The editor keeps the focus, and the keyboard stays up: the press
     // never moves it (both engines, docs/reference/cross-platform-checklist.md §4).
     b.addEventListener("pointerdown", (e) => e.preventDefault());
@@ -74,8 +115,12 @@ function build(): HTMLElement {
       const view = lastEditor;
       if (!view) return;
       if (!view.hasFocus) view.focus();
-      run(view);
+      const blocks = view.state.facet(blockBar);
+      if (a.block) {
+        if (blocks?.active()) a.block(blocks)(b);
+      } else a.run?.(view);
     });
+    if (a.block) blockButtons.push(b);
     bar.append(b);
   }
   document.body.append(bar);
@@ -91,10 +136,18 @@ function paint(): void {
   const view = focusedEditor();
   // A press on the bar itself blurs nothing (pointerdown above), but a
   // screen reader's activation may: the last editor stays the target.
-  const onBar = bar.contains(document.activeElement);
+  const active = document.activeElement;
+  // A menu the bar opened takes the focus (and the keyboard goes): the bar
+  // stays under it, as the way back to the note's commands.
+  const inMenu = holdBar && active instanceof Element && active.closest(".menu") !== null;
+  if (!inMenu) holdBar = false;
+  const onBar = bar.contains(active) || inMenu;
   const show = Boolean(touchScreen?.matches) && (view !== null || (onBar && lastEditor !== null));
   if (view) lastEditor = view;
   bar.hidden = !show;
+  const blocks = (view ?? lastEditor)?.state.facet(blockBar);
+  const editable = Boolean(blocks?.active());
+  for (const b of blockButtons) b.hidden = !editable;
   shownHeight = show ? bar.offsetHeight : 0;
   // The room under the text grows by what the keyboard covers, so that
   // even the last line can scroll above it (`.sheet`, css/screen.css).
