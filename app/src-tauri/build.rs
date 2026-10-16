@@ -107,6 +107,7 @@ fn main() {
         "device_name",
         "set_device_name",
         "server_folders",
+        "server_create_folder",
         "server_open",
         "server_retry",
         "discover_servers_start",

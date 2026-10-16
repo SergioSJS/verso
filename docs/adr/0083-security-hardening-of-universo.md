@@ -181,9 +181,7 @@ as written. Sizes: S is hours, M a day or two, L more.
    trusted proxy that forwards nothing is said only of a named one. The
    consequence, plainly: a client on a private network can
    forge `X-Forwarded-For` and be counted under the address it writes — and
-   in Docker every visitor of a published port arrives from the bridge
-   gateway (172.16.0.0/12), which the default believes, so an internet
-   client can. Only a loopback socket that forwarded nothing is exempt from
+   in Docker a visitor who comes through a port published through docker-proxy (a loopback-published port, a hairpin, IPv6 onto an IPv4 bridge, Docker Desktop, rootless Docker) arrives from the bridge gateway (172.16.0.0/12), which the default believes, so an internet client can; rootful Linux Docker with iptables NAT keeps the client's address, and is not affected. Only a loopback socket that forwarded nothing is exempt from
    the pace, the in-flight cap and the WebSocket cap; a forwarded `127.0.0.1`
    is counted like any other address. An attacker who rotates forged
    addresses still defeats the per-address limits; the account's own delay

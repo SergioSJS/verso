@@ -738,6 +738,7 @@ macro_rules! commands_for {
                 server_accounts,
                 server_sign_out::<$runtime>,
                 server_folders::<$runtime>,
+                server_create_folder::<$runtime>,
                 server_open::<$runtime>,
                 server_retry::<$runtime>,
                 discover_servers_start,

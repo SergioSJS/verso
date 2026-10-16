@@ -16,7 +16,7 @@ import { errorSentence, fail } from "../errors";
 import { addressOf, attempt, busy, clearFailure, reachParts, reachSentence, reachStrings, sayFailure } from "../reach";
 import { can } from "../can";
 import { currentFolder, folderName, LAST_FOLDER } from "../folder";
-import { currentSync, openSettingsSection, preselectSync } from "./sync";
+import { currentSync, openSettingsSection, preselectSync, syncStarted } from "./sync";
 import { openFolderBy } from "../open";
 import { sh } from "../shareStrings";
 import { foundList } from "./serversFound";
@@ -43,6 +43,20 @@ const pt = {
   foldersOf: (host: string) => `Pastas em ${host}`,
   loading: "Carregando as pastas…",
   noFolders: "Nenhuma pasta para você neste servidor ainda. Peça um convite a quem o administra.",
+  noFoldersMay: "Nenhuma pasta neste servidor ainda.",
+  // The one action of a folder open on this computer (the maintainer,
+  // 2026-10-16: "Eu não posso simplesmente sincronizar?"): the server's
+  // folder is made for it, here, and nothing is asked first.
+  syncThis: (local: string) => `Sincronizar ‘${local}’`,
+  syncThisNamed: (local: string, host: string) => `Sincronizar ${local} com ${host}, numa pasta nova do servidor`,
+  syncThisNote: "Cria uma pasta nova neste servidor, com o nome desta, e a mantém igual. Se já houver uma com esse nome, a nova leva “(2)”. Nada é apagado.",
+  syncing: (host: string) => `Sincronizando com ${host}…`,
+  syncOn: (local: string, host: string) => `${local} agora está sincronizada com ${host}.`,
+  emptyFolder: "Criar pasta vazia…",
+  emptyName: "Nome da pasta nova",
+  emptyCreate: "Criar",
+  emptyCancel: "Cancelar",
+  emptyMade: (name: string) => `Pasta ${name} criada.`,
   noneYet: "Nenhum servidor ainda. Com um UniVerso, suas pastas ficam no navegador, no celular e em outros computadores.",
   role: (r: string): string => (r === "owner" ? "dona" : r === "editor" ? "edita" : "só lê"),
   openHere: "Abrir aqui",
@@ -81,6 +95,17 @@ const en: typeof pt = {
   foldersOf: (host: string) => `Folders on ${host}`,
   loading: "Loading the folders…",
   noFolders: "No folder for you on this server yet. Ask whoever runs it for an invitation.",
+  noFoldersMay: "No folder on this server yet.",
+  syncThis: (local: string) => `Sync ‘${local}’`,
+  syncThisNamed: (local: string, host: string) => `Sync ${local} with ${host}, in a new folder of the server`,
+  syncThisNote: "Makes a new folder on this server, named like this one, and keeps it the same. If one has that name already, the new one gets “(2)”. Nothing is deleted.",
+  syncing: (host: string) => `Syncing with ${host}…`,
+  syncOn: (local: string, host: string) => `${local} is now synced with ${host}.`,
+  emptyFolder: "Make an empty folder…",
+  emptyName: "New folder's name",
+  emptyCreate: "Make",
+  emptyCancel: "Cancel",
+  emptyMade: (name: string) => `Folder ${name} made.`,
   noneYet: "No server yet. With a UniVerso, your folders are in the browser, on the phone and on other computers.",
   role: (r: string): string => (r === "owner" ? "owner" : r === "editor" ? "edits" : "reads only"),
   openHere: "Open here",
@@ -230,6 +255,15 @@ export function serversBody(_item: (title: string, desc: string, control: HTMLEl
     if (r.status !== "ok") return fail(r.error);
     list.replaceChildren(...r.data.map((a) => serverBlock(a, draw)));
     if (r.data.length === 0) list.append(h("p", "srv-empty", s.noneYet));
+    if (refocus) {
+      const at = [...list.querySelectorAll<HTMLElement>("section.srv")].find((b) => b.dataset["url"] === refocus);
+      const title = at?.querySelector<HTMLElement>(".srv-host");
+      if (title) {
+        title.tabIndex = -1;
+        title.focus();
+      }
+      refocus = null;
+    }
   };
 
   // Connect: an address, a button, and what to do in the browser.
@@ -359,20 +393,96 @@ function serverBlock(a: ServerAccount, redraw: () => Promise<void>): HTMLElement
   const failure = h("div", "srv-failure");
   failure.hidden = true;
   folders.append(loading);
-  const load = (): void =>
-    void attempt(failure, () => commands.serverFolders(a.url), { other: errorSentence, retry: load }).then((r) => {
+  // What the account may do beyond opening: sync the open folder into a new
+  // folder of the server in one click, or make an empty one.
+  const acts = h("div", "srv-actions");
+  // A failure of these actions, said under them (reach.ts).
+  const actFailure = h("div", "srv-failure");
+  actFailure.hidden = true;
+  const said = h("p", "srv-said");
+  said.setAttribute("role", "status");
+  const drawActions = (mayCreate: boolean): void => {
+    acts.replaceChildren();
+    if (!mayCreate) return;
+    if (pairable()) {
+      const send = h("button", "btn primary srv-send", s.syncThis(folderName));
+      send.type = "button";
+      send.setAttribute("aria-label", s.syncThisNamed(folderName, host));
+      send.setAttribute("aria-describedby", `${title.id}-send-note`);
+      const note = h("p", "srv-help", s.syncThisNote);
+      note.id = `${title.id}-send-note`;
+      const run = (): void => {
+        said.textContent = s.syncing(host);
+        void attempt(actFailure, () => commands.folderSyncStart(a.url, null, folderName), { button: send, other: errorSentence, retry: run }).then((r) => {
+          said.textContent = "";
+          if (r.status !== "ok") return;
+          syncStarted(r.data);
+          refocus = a.url;
+          void redraw();
+        });
+      };
+      send.addEventListener("click", run);
+      acts.append(send, note);
+    }
+    const empty = h("button", "btn quiet", s.emptyFolder);
+    empty.type = "button";
+    empty.addEventListener("click", () => {
+      const form = h("form", "srv-empty-form");
+      const label = h("label", "srv-label", s.emptyName);
+      const name = h("input");
+      name.type = "text";
+      name.id = `${title.id}-empty-name`;
+      name.autocomplete = "off";
+      name.spellcheck = false;
+      name.maxLength = 200;
+      name.required = true;
+      name.addEventListener("keydown", (e) => e.stopPropagation());
+      label.htmlFor = name.id;
+      const make = h("button", "btn", s.emptyCreate);
+      make.type = "submit";
+      const cancel = h("button", "btn quiet", s.emptyCancel);
+      cancel.type = "button";
+      cancel.addEventListener("click", () => {
+        form.remove();
+        empty.hidden = false;
+        empty.focus();
+      });
+      const field = h("div", "srv-field");
+      field.append(name, make, cancel);
+      form.append(label, field);
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const wanted = name.value.trim();
+        if (!wanted) return;
+        void attempt(actFailure, () => commands.serverCreateFolder(a.url, wanted), { button: make, other: errorSentence, retry: () => form.requestSubmit() }).then((r) => {
+          if (r.status !== "ok") return;
+          said.textContent = s.emptyMade(r.data.name);
+          load(r.data.id);
+        });
+      });
+      empty.hidden = true;
+      acts.append(form);
+      name.focus();
+    });
+    acts.append(empty);
+  };
+  // `focusId`: the folder just made, whose row takes the focus.
+  const load = (focusId: string | null = null): void =>
+    void attempt(failure, () => commands.serverFolders(a.url), { other: errorSentence, retry: () => load(focusId) }).then((r) => {
       if (r.status !== "ok") {
         loading.replaceChildren(failure);
         return;
       }
-      if (r.data.length === 0) {
-        loading.textContent = s.noFolders;
+      drawActions(r.data.may_create === true);
+      if (r.data.folders.length === 0) {
+        loading.textContent = r.data.may_create ? s.noFoldersMay : s.noFolders;
+        folders.replaceChildren(loading);
         return;
       }
       // Mine, then shared with me (ADR 0081 item 5): a folder someone else
       // owns, or a folder inside one — synced, a share is a folder of this
       // computer of its own (item 6).
-      const all = r.data as ServerFolder[];
+      const all = r.data.folders;
       const mine = all.filter((f) => !f.owner);
       const theirs = all.filter((f) => f.owner);
       const head = (text: string) => {
@@ -386,11 +496,17 @@ function serverBlock(a: ServerAccount, redraw: () => Promise<void>): HTMLElement
         ...(theirs.length ? [head(sh.sharedWithMe)] : []),
         ...theirs.map((f) => folderRow(a, f)),
       );
+      if (focusId) folders.querySelector<HTMLElement>(`[data-folder="${CSS.escape(focusId)}"] button`)?.focus();
     });
   load();
-  block.append(head, ...(pair ? [pair] : []), folders);
+  block.dataset["url"] = a.url;
+  block.append(head, ...(pair ? [pair] : []), folders, acts, actFailure, said);
   return block;
 }
+
+/** The server whose block takes the focus when the list is drawn again
+ *  (after "Sincronizar", the button that was pressed is gone). */
+let refocus: string | null = null;
 
 /** A folder of this computer open, not syncing: it may sync with one of
  *  a server's. */
@@ -401,6 +517,7 @@ function pairable(): boolean {
 function folderRow(a: ServerAccount, f: ServerFolder): HTMLElement {
   const s = serverStrings();
   const li = h("li", "srv-folder");
+  li.dataset["folder"] = f.id;
   const name = h("span", "srv-folder-name", f.name);
   const role = h("span", "srv-role", f.owner ? `${s.role(f.role)} · ${sh.ownerIs(f.owner)}${f.missing ? ` · ${sh.gone}` : ""}` : s.role(f.role));
   role.dataset["role"] = f.role;

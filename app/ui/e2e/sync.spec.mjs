@@ -52,7 +52,7 @@ test("a folder syncs with a server, says its state, asks before deleting and sho
   await app.page.evaluate(() => {
     const h = window.__harness.core.handlers;
     h.server_accounts = () => [{ url: "https://notas.casa", email: "ana@casa.lan", name: "Ana" }];
-    h.server_folders = () => [{ id: "f1", name: "Campanha", role: "editor" }];
+    h.server_folders = () => ({ folders: [{ id: "f1", name: "Campanha", role: "editor" }], may_create: false });
   });
   await app.page.locator(".settings-nav-item", { hasText: "Geral" }).click();
   await app.page.locator(".settings-nav-item", { hasText: "Sincronizar" }).click();
@@ -177,10 +177,13 @@ test("Servers lists each server with its folders, the role in each, and what to 
   await app.page.evaluate(() => {
     const h = window.__harness.core.handlers;
     h.server_accounts = () => [{ url: "https://notas.casa", email: "ana@casa.lan", name: "Ana" }];
-    h.server_folders = () => [
-      { id: "f1", name: "Campanha", role: "owner" },
-      { id: "f2", name: "Regras", role: "reader" },
-    ];
+    h.server_folders = () => ({
+      folders: [
+        { id: "f1", name: "Campanha", role: "owner" },
+        { id: "f2", name: "Regras", role: "reader" },
+      ],
+      may_create: false,
+    });
   });
   await app.key("Mod+,");
   await app.page.locator(".settings-nav-item", { hasText: "Servidores" }).click();

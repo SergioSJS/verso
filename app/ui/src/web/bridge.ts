@@ -413,12 +413,15 @@ async function local(cmd: string, a: Record<string, unknown>): Promise<{ answere
     }
     case "server_folders": {
       try {
-        const r = await api<{ folders: { id: string; name: string; role: string; owner: { name: string } | null; share: boolean; missing?: boolean }[] }>("GET", "/api/folders");
-        return done(r.folders.map((f) => ({ id: f.id, name: f.name, role: f.role, owner: f.owner?.name ?? null, share: f.share, missing: f.missing ?? false })));
+        const r = await api<{ folders: { id: string; name: string; role: string; owner: { name: string } | null; share: boolean; missing?: boolean }[]; mayCreate?: boolean }>("GET", "/api/folders");
+        return done({
+          folders: r.folders.map((f) => ({ id: f.id, name: f.name, role: f.role, owner: f.owner?.name ?? null, share: f.share, missing: f.missing ?? false })),
+          may_create: r.mayCreate === true,
+        });
       } catch (e) {
         // No network: the folders kept on this device, which open without it.
         if (noNetwork(e) && offline.keptFolders().length > 0) {
-          return done(offline.keptFolders().map((k) => ({ id: k.id, name: k.name, role: k.role, owner: null, share: false, missing: false })));
+          return done({ folders: offline.keptFolders().map((k) => ({ id: k.id, name: k.name, role: k.role, owner: null, share: false, missing: false })), may_create: false });
         }
         throw e;
       }

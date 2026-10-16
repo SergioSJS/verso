@@ -22,7 +22,8 @@ use tokio::sync::{mpsc, oneshot};
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use verso_contract::{
-    ServerAccount, ServerBack, ServerFolder, ServerGone, ServerSignIn, ShareGiven, SyncVersions,
+    ServerAccount, ServerBack, ServerFolder, ServerFolders, ServerGone, ServerSignIn, ShareGiven,
+    SyncVersions,
 };
 use verso_core::servers::{self, ServerLogin};
 use verso_service::files::Served;
@@ -644,7 +645,7 @@ pub(crate) async fn server_sign_out<R: tauri::Runtime>(
 pub(crate) async fn server_folders<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     url: String,
-) -> Result<Vec<ServerFolder>, ContractError> {
+) -> Result<ServerFolders, ContractError> {
     let login = login_for(&app.state::<App>(), &url)?;
     let body = tauri::async_runtime::spawn_blocking(move || {
         answer(
@@ -657,21 +658,84 @@ pub(crate) async fn server_folders<R: tauri::Runtime>(
     })
     .await
     .map_err(|e| failed(e.to_string()))??;
-    Ok(body["folders"]
-        .as_array()
-        .map(|list| {
-            list.iter()
-                .map(|f| ServerFolder {
-                    id: f["id"].as_str().unwrap_or_default().to_owned(),
-                    name: f["name"].as_str().unwrap_or_default().to_owned(),
-                    role: f["role"].as_str().unwrap_or_default().to_owned(),
-                    owner: f["owner"]["name"].as_str().map(str::to_owned),
-                    share: f["share"] == true,
-                    missing: f["missing"] == true,
-                })
-                .collect()
-        })
-        .unwrap_or_default())
+    Ok(ServerFolders {
+        folders: body["folders"]
+            .as_array()
+            .map(|list| {
+                list.iter()
+                    .map(|f| ServerFolder {
+                        id: f["id"].as_str().unwrap_or_default().to_owned(),
+                        name: f["name"].as_str().unwrap_or_default().to_owned(),
+                        role: f["role"].as_str().unwrap_or_default().to_owned(),
+                        owner: f["owner"]["name"].as_str().map(str::to_owned),
+                        share: f["share"] == true,
+                        missing: f["missing"] == true,
+                    })
+                    .collect()
+            })
+            .unwrap_or_default(),
+        may_create: body["mayCreate"] == true,
+    })
+}
+
+/// Ask a server for a new folder named `name` (blocking). With `unique`, a
+/// name a folder has already is never reused or merged into: `name (2)`,
+/// `name (3)`… is asked instead (the maintainer, 2026-10-16); without it,
+/// the server's refusal is said as it is.
+pub(crate) fn make_folder(
+    url: &str,
+    token: &str,
+    name: &str,
+    unique: bool,
+) -> Result<Value, ContractError> {
+    let client = http()?;
+    for n in 1..=99 {
+        let wanted = if n == 1 {
+            name.to_owned()
+        } else {
+            format!("{name} ({n})")
+        };
+        let response = client
+            .post(format!("{url}/api/folders"))
+            .bearer_auth(token)
+            .json(&json!({ "name": wanted }))
+            .send()
+            .map_err(|e| reach::unsent(url, &e))?;
+        if unique && response.status().as_u16() == 409 {
+            continue;
+        }
+        return answer(response);
+    }
+    Err(failed("every name of that kind is taken on the server"))
+}
+
+/// Make a new, empty folder on a server, owned by the account signed in
+/// there (the maintainer, 2026-10-16): the server decides whether the
+/// account may and whether the name is free, and says so.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn server_create_folder<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    url: String,
+    name: String,
+) -> Result<ServerFolder, ContractError> {
+    let login = login_for(&app.state::<App>(), &url)?;
+    let made = tauri::async_runtime::spawn_blocking(move || {
+        make_folder(&login.url, &login.token, &name, false)
+    })
+    .await
+    .map_err(|e| failed(e.to_string()))??;
+    Ok(ServerFolder {
+        id: made["id"]
+            .as_str()
+            .ok_or_else(|| failed("the server made no folder"))?
+            .to_owned(),
+        name: made["name"].as_str().unwrap_or_default().to_owned(),
+        role: made["role"].as_str().unwrap_or("owner").to_owned(),
+        owner: None,
+        share: false,
+        missing: false,
+    })
 }
 
 /// Open a folder of a server in this window: the window leaves its own

@@ -43,6 +43,10 @@ Precisa do app instalado num Mac, num Linux e num Windows, de um iPhone (Safari)
 - [ ] **O servidor fora de alcance** (A): pare o servidor com uma nota aberta e insira uma imagem: a linha de status diz que não foi possível alcançar o servidor, e nenhum embed é escrito. Com a pasta guardada sem rede no celular, a imagem fica guardada com as outras mudanças e sobe quando a rede volta.
 - [ ] **O leitor de tela** (A): o botão é anunciado como *Inserir imagem*, um menu; os itens são lidos; o resultado é lido na linha de status.
 
+### Sincronizar num servidor novinho (ADR 0079 item 1, 2026-10-16)
+
+- [ ] **Só sincronizar, num UniVerso recém-instalado** (A, o app de computador): instale um UniVerso sem pastas, conecte o app como o admin dele (*Ajustes › Servidores*), com uma pasta de notas aberta. O bloco diz *Nenhuma pasta neste servidor ainda.* e um botão, **Sincronizar ‘<pasta>’**, com uma linha embaixo; nenhum texto de convite. Um clique: o botão fica ocupado, a pasta do servidor aparece com o mesmo nome, a barra de status vai a *Sincronizando* e depois *Sincronizada*, e o título do servidor recebe o foco. Todas as notas da pasta continuam neste computador, iguais (olhe os arquivos), e abertas no navegador, no servidor. O log do servidor e o do app não têm ERROR. Depois desligue o sync e abra outra pasta local com o mesmo nome da primeira: *Sincronizar* cria `nome (2)` e não mexe na primeira. Com uma conta que não pode criar pastas (o admin desliga), o texto de convite de antes aparece e nenhum botão. *Criar pasta vazia…* pede um nome, cria, avisa e põe o foco na linha dela. Com o servidor parado, o clique diz que não alcançou, com *Tentar de novo*.
+
 ### Este app é um servidor (ADR 0096, feat/local-server-build, 2026-10-15)
 
 Precisa do app instalado num Mac, num computador Linux ou num Windows, de um celular de verdade (um iPhone e um Android), de um iPad e de uma rede doméstica; nada disto foi rodado num celular nem no app instalado quando foi construído.
