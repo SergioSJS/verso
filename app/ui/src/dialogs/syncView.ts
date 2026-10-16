@@ -10,7 +10,7 @@
 // conflito atual, se preciso fazer algo".
 
 import { commands, type SyncLogEntry, type SyncRefused, type SyncStatus } from "../bindings";
-import { ask } from "../dialog";
+import { ask, promptText } from "../dialog";
 import { diffNode } from "../diff";
 import { h } from "../dom";
 import { errorSentence, fail } from "../errors";
@@ -73,6 +73,8 @@ const pt = {
   discard: "Descartar cópia",
   discardAsk: (copy: string) => `Descartar ${copy}? Ela vai para a lixeira da pasta e some dos outros aparelhos.`,
   notText: "Não é texto: abra as duas para comparar.",
+  rename: "Renomear",
+  renameAsk: (name: string) => `Novo nome para ${name}:`,
   orphanWhy: (n: number, note: boolean) => {
     const what = note ? "A nota" : "O arquivo";
     const gone = note ? "renomeada ou apagada" : "renomeado ou apagado";
@@ -164,6 +166,8 @@ const en: typeof pt = {
   discard: "Discard copy",
   discardAsk: (copy) => `Discard ${copy}? It goes to the folder's bin and leaves the other devices.`,
   notText: "Not text: open both to compare.",
+  rename: "Rename",
+  renameAsk: (name: string) => `New name for ${name}:`,
   orphanWhy: (n, note) => {
     const what = note ? "note" : "file";
     return n === 1 ? `The ${what} this copy is of no longer exists (renamed or deleted). Open the copy, or discard it.` : `The ${what} these copies are of no longer exists (renamed or deleted). Open the copies, or discard them.`;
@@ -352,7 +356,26 @@ export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, p
     const title = (s.reasonTitle[reason] ?? s.reasonTitle["failed"]!)(files.length);
     const list = h("ul", "sync-files");
     for (const f of files) {
-      const li = h("li", "", f.path);
+      const li = h("li", "sync-file-row");
+      const nameSpan = h("span", "sync-file-path", f.path);
+      li.append(nameSpan);
+      if (reason === "name_invalid") {
+        const btn = button(s.rename, "quiet", () => {
+          const parts = f.path.split("/");
+          const oldName = parts.pop() ?? f.path;
+          const parent = parts.join("/");
+          void promptText(s.renameAsk(oldName), oldName, false, { yes: s.rename, no: s.no }).then((newName) => {
+            const clean = newName?.trim();
+            if (!clean || clean === oldName) return;
+            const target = parent ? `${parent}/${clean}` : clean;
+            void commands.renameEntry(f.path, target).then((r) => {
+              if (r.status === "ok") void refresh();
+              else fail(r.error);
+            });
+          });
+        });
+        li.append(btn);
+      }
       if (reason === "failed" && f.message) li.title = f.message;
       list.append(li);
     }
