@@ -70,7 +70,10 @@ const MOST_SERVERS: usize = 6;
 const TCP_FOR: Duration = Duration::from_secs(6);
 const SHAKE_FOR: Duration = Duration::from_secs(10);
 /// The most a dial of all the addresses takes.
+#[cfg(not(test))]
 const DIAL_TOTAL: Duration = Duration::from_secs(25);
+#[cfg(test)]
+const DIAL_TOTAL: Duration = Duration::from_millis(600);
 
 /// How an address came to be tried.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -102,11 +105,11 @@ pub(crate) type Nets = Vec<(IpAddr, u8)>;
 /// Whether `ip` is in the same network as `net`/`prefix`.
 fn same_network(net: &IpAddr, prefix: u8, ip: &IpAddr) -> bool {
     match (net, ip) {
-        (IpAddr::V4(a), IpAddr::V4(b)) if (1..=32).contains(&prefix) => {
+        (IpAddr::V4(a), IpAddr::V4(b)) if (16..=32).contains(&prefix) => {
             let mask = u32::MAX << (32 - u32::from(prefix));
             u32::from(*a) & mask == u32::from(*b) & mask
         }
-        (IpAddr::V6(a), IpAddr::V6(b)) if (1..=128).contains(&prefix) => {
+        (IpAddr::V6(a), IpAddr::V6(b)) if (32..=128).contains(&prefix) => {
             let mask = u128::MAX << (128 - u32::from(prefix));
             u128::from(*a) & mask == u128::from(*b) & mask
         }
@@ -116,11 +119,13 @@ fn same_network(net: &IpAddr, prefix: u8, ip: &IpAddr) -> bool {
 
 /// An address a plain `http` connection may be sent to on another
 /// resolver's word: one **on a network this machine is on** — inside the
-/// subnet of one of its interfaces, so a home's LAN, a Tailscale interface's
-/// 100.x range when there is one, and never somebody else's: carrier-grade
-/// NAT's 100.64.0.0/10 is other customers of the ISP when the machine has no
-/// such interface. This machine itself (loopback) is never believed from
-/// another resolver.
+/// subnet of one of its interfaces, a home's LAN. A wide prefix says nothing
+/// about where a host is, so an IPv4 interface shorter than /16 (a VPN's or a
+/// TAP adapter's /8 or /10) and an IPv6 one shorter than /32 count for
+/// nothing, and carrier-grade NAT's 100.64.0.0/10 is other customers of the
+/// ISP, never ours. This machine itself (loopback) is never believed from
+/// another resolver. (Tailscale is not covered: its interface is a /32 on
+/// macOS and Linux, and a wide prefix is ignored anyway.)
 pub(crate) fn on_link(ip: &IpAddr, nets: &[(IpAddr, u8)]) -> bool {
     !ip.is_loopback() && nets.iter().any(|(n, p)| same_network(n, *p, ip))
 }
@@ -450,15 +455,16 @@ impl SendRetrying for reqwest::blocking::RequestBuilder {
                 let host = e.url().and_then(|u| u.host_str()).map(str::to_owned);
                 match (again, host) {
                     (Some(again), Some(host)) if host.parse::<IpAddr>().is_err() => {
-                        let before = lock(&KNOWN)
+                        let tried: Vec<IpAddr> = lock(&KNOWN)
                             .get(&host)
-                            .and_then(|k| k.offered.first().map(|c| c.ip));
+                            .map(|k| k.offered.iter().map(|c| c.ip).collect())
+                            .unwrap_or_default();
                         failed(&host);
-                        // Sent again only if the new resolution would try
-                        // another address first: the same one again would
+                        // Sent again only if it can end differently (see
+                        // `worth_retrying`): the same address again would
                         // fail the same way, and take as long.
                         match resolve(&host) {
-                            Ok(now) if worth_retrying(before, &now) => again.send(),
+                            Ok(now) if worth_retrying(&tried, tcp_level(&e), &now) => again.send(),
                             _ => Err(e),
                         }
                     }
@@ -470,10 +476,48 @@ impl SendRetrying for reqwest::blocking::RequestBuilder {
     }
 }
 
-/// Whether sending again can end differently: the new resolution tries
-/// another address first.
-fn worth_retrying(before: Option<IpAddr>, now: &[IpAddr]) -> bool {
-    now.first().copied() != before
+/// Whether a failed connection was the TCP connection itself — refused,
+/// timed out, no route — rather than what comes after it (the TLS
+/// handshake). Then the connector has already tried every address it was
+/// given, in turn.
+pub(crate) fn tcp_level(e: &reqwest::Error) -> bool {
+    use std::error::Error as _;
+    use std::io::ErrorKind as K;
+    let mut under = e.source();
+    while let Some(c) = under {
+        if let Some(io) = c.downcast_ref::<io::Error>()
+            && matches!(
+                io.kind(),
+                K::ConnectionRefused
+                    | K::TimedOut
+                    | K::HostUnreachable
+                    | K::NetworkUnreachable
+                    | K::AddrNotAvailable
+            )
+        {
+            return true;
+        }
+        under = c.source();
+    }
+    false
+}
+
+/// Whether sending again can end differently. After a failure of the TCP
+/// connection itself every address that was offered has been tried, so only
+/// an address that was **not** in the answer before can change anything (a
+/// dual-stack name whose server is down would otherwise take twice as long
+/// to fail). After a failure of the handshake only the first address was
+/// tried, so the retry is worth it when the new resolution puts another
+/// first.
+fn worth_retrying(tried: &[IpAddr], tcp_level: bool, now: &[IpAddr]) -> bool {
+    let Some(first) = now.first() else {
+        return false;
+    };
+    if tcp_level {
+        !tried.contains(first)
+    } else {
+        tried.first() != Some(first)
+    }
 }
 
 /// How a dial ended without a connection to use.
@@ -1014,9 +1058,9 @@ mod tests {
     }
 
     /// On-link: inside the subnet of one of this machine's interfaces.
-    /// Carrier-grade NAT's range is other customers unless the machine has
-    /// an interface there (Tailscale); loopback is never another resolver's
-    /// to give.
+    /// A wide prefix (a VPN's /8 or /10) says nothing and is ignored;
+    /// carrier-grade NAT's range is other customers; loopback is never
+    /// another resolver's to give.
     #[test]
     fn only_an_address_on_a_network_this_machine_is_on_is_on_link() {
         let home: Nets = vec![(ip("192.168.0.9"), 24), (ip("fd00::9"), 64)];
@@ -1034,10 +1078,22 @@ mod tests {
         ] {
             assert!(!on_link(&ip(no), &home), "{no}");
         }
-        // The ISP's CGNAT is not ours; a Tailscale interface makes its range ours.
+        // The ISP's CGNAT is not ours, with or without an interface there:
+        // a prefix as wide as /10 (a VPN's, Tailscale's on Windows) or /8 says
+        // nothing about where a host is.
         assert!(!on_link(&ip("100.64.7.7"), &home));
-        let with_tailscale: Nets = vec![(ip("192.168.0.9"), 24), (ip("100.101.102.103"), 10)];
-        assert!(on_link(&ip("100.64.7.7"), &with_tailscale));
+        let wide: Nets = vec![
+            (ip("192.168.0.9"), 24),
+            (ip("100.101.102.103"), 10),
+            (ip("10.8.0.2"), 8),
+        ];
+        assert!(!on_link(&ip("100.64.7.7"), &wide));
+        assert!(!on_link(&ip("10.1.2.3"), &wide), "a /8 VPN is not the LAN");
+        assert!(on_link(&ip("192.168.0.5"), &wide), "the LAN still is");
+        assert!(
+            !on_link(&ip("fd00::1"), &[(ip("fd00::9"), 16)]),
+            "a /16 of IPv6 is too wide too"
+        );
         // A loopback address is never believed from another resolver, even
         // if an interface were mis-listed with a loopback network.
         assert!(!on_link(&ip("127.0.0.1"), &[(ip("127.0.0.1"), 8)]));
@@ -1064,11 +1120,25 @@ mod tests {
     }
 
     #[test]
-    fn a_retry_is_worth_it_only_if_another_address_goes_first() {
-        let a = Some(ip("10.0.0.1"));
-        assert!(!worth_retrying(a, &[ip("10.0.0.1"), ip("192.168.0.5")]));
-        assert!(worth_retrying(a, &[ip("192.168.0.5"), ip("10.0.0.1")]));
-        assert!(worth_retrying(None, &[ip("192.168.0.5")]));
+    fn a_retry_is_worth_it_only_if_it_can_end_differently() {
+        let tried = [ip("::1"), ip("127.0.0.1")];
+        // A handshake failed at the first address: the other one first is new.
+        assert!(worth_retrying(&tried, false, &[ip("127.0.0.1"), ip("::1")]));
+        assert!(!worth_retrying(
+            &tried,
+            false,
+            &[ip("::1"), ip("127.0.0.1")]
+        ));
+        // The TCP connection failed everywhere it was tried: only an address
+        // that was not tried can change that — a dual-stack name whose
+        // server is down is not tried twice.
+        assert!(!worth_retrying(&tried, true, &[ip("127.0.0.1"), ip("::1")]));
+        assert!(worth_retrying(
+            &tried,
+            true,
+            &[ip("192.168.0.5"), ip("::1")]
+        ));
+        assert!(!worth_retrying(&tried, true, &[]));
     }
 
     #[test]
@@ -1440,6 +1510,10 @@ nameserver 10.8.0.1
             .send_retrying()
             .unwrap_err();
         assert!(e.is_connect());
+        assert!(
+            tcp_level(&e),
+            "a refused connection is a failure of the TCP connection"
+        );
         let all = lock(&KNOWN);
         let k = all.get(host).unwrap();
         assert!(k.suspect_at(Instant::now()));
@@ -1491,5 +1565,33 @@ nameserver 10.8.0.1
         // Every address failing: the last failure is the error.
         let none = dial_with(host, port, |_s| async move { Err::<(), _>(("no", false)) }).await;
         assert!(matches!(none, Err(Dial::Shake("no"))));
+    }
+
+    /// The dial as a whole has a ceiling: an address that accepts and never
+    /// finishes the handshake costs its own time, not the time of all.
+    #[test]
+    fn a_dial_has_a_ceiling() {
+        tauri::async_runtime::block_on(async {
+            let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            let port = l.local_addr().unwrap().port();
+            let host = "teto.exemplo.test";
+            pretend_system(host, vec![ip("127.0.0.1")]);
+            let t = Instant::now();
+            let got = dial_with(host, port, |_s| async move {
+                tokio::time::sleep(Duration::from_secs(60)).await;
+                Ok::<(), (&str, bool)>(())
+            })
+            .await;
+            assert!(
+                matches!(got, Err(Dial::Io(ref e)) if e.kind() == io::ErrorKind::TimedOut),
+                "{got:?}"
+            );
+            assert!(
+                t.elapsed() < SHAKE_FOR,
+                "{:?}: the ceiling, not the handshake's own time",
+                t.elapsed()
+            );
+            drop(l);
+        });
     }
 }
