@@ -70,6 +70,8 @@ export interface ServedOptions {
   /** Serve only these folders inside a ticked one (none: all of it); the new
    *  list when it worked, `null` when it did not. */
   choose: (key: string, parts: string[]) => Promise<LocalFolder[] | null>;
+  /** Serve all of a ticked folder, with nothing chosen inside it. */
+  whole: (key: string) => Promise<LocalFolder[] | null>;
 }
 
 export interface Served {
@@ -126,8 +128,11 @@ export function servedFolders(opts: ServedOptions): Served {
   tools.append(search, shown);
   const ul = h("ul", "ls-list");
   group.append(groupSum, tools, ul);
+  // Said outside the group: a group with nothing in it is hidden, and the
+  // hint is for the person who has opened no folder yet.
+  const empty = h("p", "ls-help ls-empty");
   const foot = h("p", "ls-help");
-  box.append(here, group, foot);
+  box.append(here, empty, group, foot);
   group.addEventListener("toggle", () => keepRecentOpen(group.open));
 
   let all: LocalFolder[] = [];
@@ -181,6 +186,12 @@ export function servedFolders(opts: ServedOptions): Served {
             load: () => opts.subfolders(f.key),
             save: async (parts) => {
               const next = await opts.choose(f.key, parts);
+              if (next === null) return false;
+              draw(next, serving);
+              return true;
+            },
+            whole: async () => {
+              const next = await opts.whole(f.key);
               if (next === null) return false;
               draw(next, serving);
               return true;
@@ -241,8 +252,9 @@ export function servedFolders(opts: ServedOptions): Served {
     ul.setAttribute("aria-label", w.list);
     ul.replaceChildren();
     group.hidden = list.length === 0 || (others.length === 0 && open !== undefined);
-    if (list.length === 0) ul.append(h("li", "ls-help", opts.none));
-    else if (others.length === 0) ul.append(h("li", "ls-help", w.noRecent));
+    empty.hidden = list.length !== 0;
+    empty.textContent = list.length === 0 ? opts.none : "";
+    if (others.length === 0) ul.append(h("li", "ls-help", w.noRecent));
     else if (visible.length === 0) ul.append(h("li", "ls-help", w.none));
     else for (const f of visible) ul.append(folderRow(f, twins, false));
     foot.hidden = !(serving && list.length > 0);

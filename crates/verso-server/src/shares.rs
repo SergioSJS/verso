@@ -9,6 +9,8 @@
 //! share carried by a rename made through the server, and gone with its
 //! folder (item 13).
 
+use std::sync::Arc;
+
 use axum::Json;
 use axum::extract::Path;
 use axum::response::Response;
@@ -74,7 +76,8 @@ pub fn scope_for(
     // computer serves: links that lead out of it.
     let guard = match (&server.local, server.folder_path(&folder.dir)) {
         (Some(p), Some(vault)) if p.part_name(&share.id).is_some() => {
-            Some(p.guard_for(&vault, share))
+            let _ = p;
+            Some(Arc::new(crate::scope::Guard { vault }))
         }
         _ => None,
     };

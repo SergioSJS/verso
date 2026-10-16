@@ -75,8 +75,10 @@ pub enum ObsidianRead {
 }
 
 impl Root {
-    /// Read one of Obsidian's two settings files the exception names
-    /// (ADR 0093 item 11): never written, never created, never followed
+    /// Read one of Obsidian's settings files the exception names (ADR 0093
+    /// item 11 names two; `.obsidian/app.json` is a third, for "this app is a
+    /// server" — ADR 0096 item 2, amended 2026-10-16, where the widening
+    /// awaits the maintainer's sign-off): never written, never created, never followed
     /// through a symlink, never more than [`OBSIDIAN_SETTINGS_MAX`] bytes.
     pub fn read_obsidian_settings(&self, which: ObsidianSettings) -> std::io::Result<ObsidianRead> {
         read_plain(self.root_path(), Path::new(which.path()))

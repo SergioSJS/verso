@@ -171,7 +171,13 @@ it changes an Accepted ADR; where one needs a line, the item says so.
      - *Which folders.* Chosen as paths relative to the folder
        (`/`-joined, none hidden, none with `..`, none inside another:
        choosing a folder serves what is inside it), by the rules of a
-       share's path. Nothing chosen is the whole folder, as today. The
+       share's path. **Nothing chosen serves nothing of the folder**: the
+       maintainer, 2026-10-16, asked *"Você desmarca Projetos, a última. O que
+       acontece? Hoje: volta a servir o cofre INTEIRO"*, answered *"Para de
+       servir o cofre"* — unticking the last chosen folder unticks the folder
+       and forgets its choice. The whole folder is only the explicit *Serve
+       the whole folder* (and ticking the folder with nothing chosen), and
+       *Stop serving this vault* is in the tree for a folder served in part. The
        choice is a setting kept like the ticked list: changed only while
        serving is off, and forgotten when the folder is unticked. A folder
        chosen that is no longer on the disk at start is left out and said — a notice, a line beside the folder in Settings and
@@ -186,7 +192,10 @@ it changes an Accepted ADR; where one needs a line, the item says so.
        Obsidian's settings name (`attachmentFolderPath` in
        `.obsidian/app.json`), read at each start through `verso-fs` — which
        widens the narrow exception of [0093](0093-periodic-notes.md)
-       item 11 by that one path, read by name and never written — and kept
+       item 11 by that one path, read by name and never written (**this
+       widening awaits the maintainer's sign-off; 0093's text, "two named
+       files", is left as it is and the contradiction stands recorded
+       here until he decides**) — and kept
        as the share's attachments folder, replaced at every start and
        cleared when the setting is. None when the setting is absent, the
        vault's root, "the same folder as the note" or a folder of the note
@@ -203,9 +212,13 @@ it changes an Accepted ADR; where one needs a line, the item says so.
        folder (or under its attachments folder) whose end is outside it —
        a sibling folder, a note elsewhere in the vault — is left out whole:
        not listed, found, read or written through, whatever the phone's
-       role. The links are looked at when a folder is opened and again
-       every few seconds; a folder that cannot be looked at is shut. A base
-       is not answered while such a link is there. A link that stays inside
+       role. This is judged **at every use, in `verso-fs`**, by where the path
+       really is on the disk (`resolves_within`: every part of the way
+       resolved through the system's own links, junctions and folding of
+       case and Unicode forms, each part inside the chosen folder), never by
+       its name and never from a list kept — a folder moved since, or a name
+       typed in another case, meets the same check. A path the system cannot
+       resolve is refused. A base is not answered while such a link is there. A link that stays inside
        the chosen folder works as it does.
      - *A rename through the phone rewrites links in notes outside*
        (`[DECIDED 2026-10-16]`, asked: "Um celular renomeia uma nota numa

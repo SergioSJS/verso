@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-local-server-whole"
+description = "Enables the local_server_whole command without any pre-configured scope."
+commands.allow = ["local_server_whole"]
+
+[[permission]]
+identifier = "deny-local-server-whole"
+description = "Denies the local_server_whole command without any pre-configured scope."
+commands.deny = ["local_server_whole"]
