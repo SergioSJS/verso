@@ -220,6 +220,21 @@ precisa de uma linha, o item diz.
        celular nunca é avisado de quais notas: a resposta traz só as notas de
        dentro da pasta. Então um celular que renomeia pode mudar uma nota que
        não vê, só nos links dela.
+     - *O desenho da janela.* O mantenedor, 2026-10-16, sobre a lista de 40
+       pastas recentes: *"o cofre aberto atual deveria ter a árvore de pastas
+       dele … ele ta listando um monte de coisas, agrupe essas merdas ai, em
+       recentes, sendo possível compactar ou expandir e adicione a porra da
+       árvore do cofre atual"*. Ajustes › *Transformar em servidor* ›
+       *Pastas servidas* lista, de cima para baixo: **o cofre aberto nesta
+       janela, sozinho** (*Este cofre · nome*), com a caixa dele e, logo
+       abaixo, a árvore de pastas já aberta e a linha dos anexos; depois
+       **Recentes**, um grupo fechado por padrão (lembrado aberto ou fechado
+       para quem vê) cujo resumo conta as pastas e as marcadas, com as outras
+       pastas recentes, a mais recente primeiro, e o filtro acima de oito;
+       cada pasta recente marcada tem a árvore atrás de um botão. As dicas
+       de uma linha — o diretório, a nota de sincronização — são elementos
+       próprios, separados por vírgula para o leitor de tela. Nenhuma decisão
+       acima muda.
      - *Nomes.* As pastas escolhidas são do próprio celular, então a lista dele
        as mostra sem dono (sem "compartilhado comigo"), e a lixeira que ele vê
        só tem entradas que eram da pasta escolhida, nunca da pasta de anexos.

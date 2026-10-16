@@ -14,6 +14,7 @@ import { type PartNode, buildTree, covers, choose, stateOf } from "./servedParts
 
 const pt = {
   toggle: (summary: string) => `Escolher pastas · ${summary}`,
+  summary: (summary: string) => `Pastas dentro deste cofre: ${summary}.`,
   whole: "serve tudo",
   some: (n: number) => (n === 1 ? "1 pasta" : `${n} pastas`),
   help: "Marque só o que o celular pode ver. Nada marcado serve a pasta toda.",
@@ -31,6 +32,7 @@ const pt = {
 };
 const en: typeof pt = {
   toggle: (summary) => `Choose folders · ${summary}`,
+  summary: (summary) => `Folders inside this vault: ${summary}.`,
   whole: "serves all of it",
   some: (n) => (n === 1 ? "1 folder" : `${n} folders`),
   help: "Tick only what the phone may see. None ticked serves the whole folder.",
@@ -59,6 +61,9 @@ export interface PartsOptions {
   missing: string[];
   /** While serving, nothing changes. */
   locked: boolean;
+  /** The folder open in this window: its tree is there at once, with no
+   *  button to open it. */
+  always?: boolean;
   /** The folders inside it (flat, relative); `null` when they could not be read. */
   load: () => Promise<string[] | null>;
   /** Keep the choice; true when it was kept (the list is drawn again). */
@@ -92,13 +97,15 @@ export function partsRow(o: PartsOptions, memory: PartsMemory): HTMLElement {
   const w = words();
   const box = h("div", "ls-parts");
   const panelId = `ls-pp-${o.key}`;
-  const toggle = h("button", "btn quiet ls-parts-toggle", w.toggle(o.chosen.length === 0 ? w.whole : w.some(o.chosen.length)));
+  const summary = o.chosen.length === 0 ? w.whole : w.some(o.chosen.length);
+  const toggle = h("button", "btn quiet ls-parts-toggle", w.toggle(summary));
   toggle.type = "button";
   toggle.id = `ls-pt-${o.key}`;
   toggle.setAttribute("aria-controls", panelId);
   const panel = h("div", "ls-parts-panel");
   panel.id = panelId;
-  const shown = memory.open.has(o.key);
+  panel.tabIndex = -1;
+  const shown = o.always === true || memory.open.has(o.key);
   toggle.setAttribute("aria-expanded", String(shown));
   panel.hidden = !shown;
   const say = h("p", "ls-help ls-parts-say", w.help);
@@ -118,7 +125,10 @@ export function partsRow(o: PartsOptions, memory: PartsMemory): HTMLElement {
   const gone = h("p", "ls-help ls-parts-gone", o.missing.length === 0 ? "" : w.missing(o.missing.join(", ")));
   gone.hidden = o.missing.length === 0;
   panel.append(say, body, all, attach, gone);
-  box.append(toggle, panel);
+  if (o.always === true) {
+    // No button: what is served is said in words, above the tree.
+    box.append(h("p", "ls-help ls-parts-sum", w.summary(summary)), panel);
+  } else box.append(toggle, panel);
 
   const draw = (folders: string[]): void => {
     const tree = buildTree(folders);
