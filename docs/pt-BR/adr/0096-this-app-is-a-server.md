@@ -177,15 +177,67 @@ precisa de uma linha, o item diz.
        inteira, como hoje. A escolha é um ajuste guardado como a lista de
        marcadas: muda só com o servir desligado, e é esquecida quando a
        pasta é desmarcada. Uma pasta escolhida que não está mais no disco ao
-       ligar fica de fora; se não sobrar nenhuma, não liga — nunca volta
+       ligar fica de fora e isso é dito — um aviso, uma linha junto da pasta nos Ajustes
+       e uma linha no log; se não sobrar nenhuma, não liga — nunca volta
        para a pasta inteira. Listar as pastas dentro de uma pasta que não
        está aberta é um comando só do desktop, pelo `verso-fs`, que um
        celular não executa (todo o prefixo `local_server_` é recusado).
-     - *Anexos.* Na primeira vez em que um celular abre uma pasta escolhida
-       numa execução, acha-se a pasta para a qual a maioria dos embeds das
-       notas aponta, fora dela, como o diálogo de compartilhar oferece (0081
-       item 11), e ela aparece na raiz, só para ler, com o nome dela; anexos
-       soltos na raiz da pasta ficam de fora, como na 0081.
+     - *Anexos* — a implementação da escolha (3), "os anexos vão junto, só
+       para ler". É **a pasta de anexos configurada no próprio cofre**,
+       nunca uma achada pelo que as notas dizem: a pasta que as configurações
+       do Obsidian nomeiam (`attachmentFolderPath` em `.obsidian/app.json`),
+       lida a cada início pelo `verso-fs` — o que alarga em um caminho a
+       exceção estreita da [0093](0093-periodic-notes.md) item 11, lido pelo
+       nome e nunca escrito — e guardada como a pasta de anexos do
+       compartilhamento, substituída a cada início e limpa quando a
+       configuração some. Nenhuma quando a configuração não existe, é a raiz
+       do cofre, "a mesma pasta da nota" ou uma pasta da nota (`./…`; essas
+       ficam dentro do que é servido), quando a pasta não está no disco, ou
+       quando é uma das escolhidas, está dentro de uma ou contém uma. O que
+       ela serve é **só arquivos, só para ler**: nenhuma nota, quadro ou base
+       dessa pasta é listada, lida, buscada, ligada nem aparece no grafo, e a
+       rota de arquivos as recusa. Os Ajustes mostram, sob a árvore da pasta,
+       qual pasta vai junto ou que nenhuma vai. (Uma primeira versão achava a
+       pasta pelos embeds das notas da pasta escolhida; um celular que pode
+       escrever embeds podia dirigi-la a qualquer pasta, notas incluídas, e
+       isso foi abandonado.)
+     - *Links que saem de uma pasta escolhida.* Um link simbólico sob uma
+       pasta escolhida (ou sob a pasta de anexos dela) cujo destino está fora
+       dela — uma pasta vizinha, uma nota em outro lugar do cofre — fica de
+       fora inteiro: não é listado, achado, lido nem escrito através dele,
+       qualquer que seja o papel do celular. Os links são olhados quando a
+       pasta é aberta e de novo a cada poucos segundos; uma pasta que não
+       pode ser olhada é fechada. Uma base não é respondida enquanto há um
+       desses links. Um link que fica dentro da pasta escolhida funciona
+       como sempre.
+     - *Renomear pelo celular reescreve links em notas de fora*
+       (`[DECIDIDO 2026-10-16]`, perguntado: "Um celular renomeia uma nota
+       numa pasta servida… o servidor reescreve os links delas?" — resposta:
+       "Reescreve"): como no desktop e num compartilhamento
+       ([0081](0081-sharing-between-people-on-one-universo.md) item 11), o
+       servidor reescreve os links para a nota renomeada nas notas do cofre
+       fora da pasta escolhida, pelas regras da reescrita de uma janela. O
+       celular nunca é avisado de quais notas: a resposta traz só as notas de
+       dentro da pasta. Então um celular que renomeia pode mudar uma nota que
+       não vê, só nos links dela.
+     - *O desenho da janela.* O mantenedor, 2026-10-16, sobre a lista de 40
+       pastas recentes: *"o cofre aberto atual deveria ter a árvore de pastas
+       dele … ele ta listando um monte de coisas, agrupe essas merdas ai, em
+       recentes, sendo possível compactar ou expandir e adicione a porra da
+       árvore do cofre atual"*. Ajustes › *Transformar em servidor* ›
+       *Pastas servidas* lista, de cima para baixo: **o cofre aberto nesta
+       janela, sozinho** (*Este cofre · nome*), com a caixa dele e, logo
+       abaixo, a árvore de pastas já aberta e a linha dos anexos; depois
+       **Recentes**, um grupo fechado por padrão (lembrado aberto ou fechado
+       para quem vê) cujo resumo conta as pastas e as marcadas, com as outras
+       pastas recentes, a mais recente primeiro, e o filtro acima de oito;
+       cada pasta recente marcada tem a árvore atrás de um botão. As dicas
+       de uma linha — o diretório, a nota de sincronização — são elementos
+       próprios, separados por vírgula para o leitor de tela. Nenhuma decisão
+       acima muda.
+     - *Nomes.* As pastas escolhidas são do próprio celular, então a lista dele
+       as mostra sem dono (sem "compartilhado comigo"), e a lixeira que ele vê
+       só tem entradas que eram da pasta escolhida, nunca da pasta de anexos.
 
 3. **`[DECIDIDO 2026-10-15]` Em que interface escuta, e em quais redes.**
    - (a) Todas as interfaces (`0.0.0.0`/`::`). Simples, e alcançável pela

@@ -62,13 +62,21 @@ pub fn scope_for(
     let role = if writes { role } else { role.min(Role::Reader) };
     // A folder chosen inside one served by "this app is a server" is named
     // as it is on the computer, with no owner in brackets: its owner is
-    // the phone's own computer (ADR 0096 item 3, amended 2026-10-16).
+    // the phone's own computer (ADR 0096 item 2, amended 2026-10-16).
     let name = match server.local.as_ref().and_then(|p| p.part_name(&share.id)) {
         Some(name) => name,
         None => {
             let owner = owner_of(server, &folder.id)?.map_or_else(|| "?".to_owned(), |a| a.name);
             format!("{} ({owner})", last(&share.path))
         }
+    };
+    // What a phone is kept from under a folder chosen inside one this
+    // computer serves: links that lead out of it.
+    let guard = match (&server.local, server.folder_path(&folder.dir)) {
+        (Some(p), Some(vault)) if p.part_name(&share.id).is_some() => {
+            Some(p.guard_for(&vault, share))
+        }
+        _ => None,
     };
     let scope = Scope {
         share: share.id.clone(),
@@ -79,6 +87,7 @@ pub fn scope_for(
             .attachments
             .as_ref()
             .map(|a| (last(a).to_owned(), a.clone())),
+        guard,
     };
     Ok(Some((folder, scope, role)))
 }
@@ -244,9 +253,11 @@ fn exists_folder(server: &Server, folder: &Folder, path: &str) -> ApiResult<bool
     }
     // Served from this computer, a folder is opened by the first phone
     // that asks: until then the folders chosen inside it are the ones the
-    // start found on the disk (ADR 0096 item 3, amended 2026-10-16).
+    // start found on the disk (ADR 0096 item 2, amended 2026-10-16).
     if server.local.is_some() {
-        return Ok(true);
+        return Ok(server
+            .folder_path(&folder.dir)
+            .is_some_and(|vault| verso_fs::is_folder(&vault, path)));
     }
     let inside = format!("{path}/");
     Ok(server
@@ -356,8 +367,18 @@ pub fn listing(ctx: &Ctx, who: &Who) -> ApiResult<(Vec<Value>, Vec<Value>)> {
         else {
             continue;
         };
-        let owner = owner_of(server, &folder.id)?
-            .map_or(Value::Null, |a| json!({ "name": a.name, "email": a.email }));
+        // A folder chosen inside one this computer serves is the phone's own:
+        // it has no owner to name (ADR 0096 item 2, amended 2026-10-16).
+        let owner = if server
+            .local
+            .as_ref()
+            .is_some_and(|p| p.part_name(&share.id).is_some())
+        {
+            Value::Null
+        } else {
+            owner_of(server, &folder.id)?
+                .map_or(Value::Null, |a| json!({ "name": a.name, "email": a.email }))
+        };
         folders.push(json!({
             "id": share.id, "name": scope.name, "role": role, "space": null,
             "owner": owner, "share": true,

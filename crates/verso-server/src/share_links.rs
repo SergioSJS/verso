@@ -165,6 +165,7 @@ mod tests {
             name: "Mesa (Ana)".into(),
             root: "Mesa".into(),
             mount: Some(("Anexos".into(), "Anexos".into())),
+            guard: None,
         };
         let w = |p: &str| json!({ "path": p, "revision": "r", "before": "b", "after": "a" });
         let mut answer = json!({ "path": "Mesa/x.md", "rewrites": [

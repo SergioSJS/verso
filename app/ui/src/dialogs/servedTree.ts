@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 // The tree of a ticked folder's folders, to serve only some of them to the
-// phone (ADR 0096 item 3, amended 2026-10-16): each folder a checkbox, a
+// phone (ADR 0096 item 2, amended 2026-10-16): each folder a checkbox, a
 // folder with folders inside it a button that shows them. Nested lists, so
 // that a screen reader says how deep it is and how many there are; every
 // checkbox is named by the path it serves. Ticking a folder serves what is
@@ -14,9 +14,14 @@ import { type PartNode, buildTree, covers, choose, stateOf } from "./servedParts
 
 const pt = {
   toggle: (summary: string) => `Escolher pastas · ${summary}`,
+  summary: (summary: string) => `Pastas dentro deste cofre: ${summary}.`,
   whole: "serve tudo",
   some: (n: number) => (n === 1 ? "1 pasta" : `${n} pastas`),
-  help: "Marque só o que o celular pode ver. Nada marcado serve a pasta toda. Os anexos que as notas usam, de fora da pasta marcada, vão junto, só para ler.",
+  help: "Marque só o que o celular pode ver. Nada marcado serve a pasta toda.",
+  serveAll: "Servir a pasta inteira",
+  attach: (a: string) => `A pasta de anexos do cofre, “${a}”, vai junto, só para ler: só arquivos, nenhuma nota.`,
+  noAttach: "Nenhuma pasta de anexos vai junto: a configuração do cofre não aponta uma pasta de fora das escolhidas.",
+  missing: (list: string) => `Não estão mais no disco e ficaram de fora: ${list}.`,
   loading: "Lendo as pastas…",
   empty: "Esta pasta não tem pastas dentro.",
   tree: (name: string) => `Pastas dentro de ${name}`,
@@ -27,9 +32,14 @@ const pt = {
 };
 const en: typeof pt = {
   toggle: (summary) => `Choose folders · ${summary}`,
+  summary: (summary) => `Folders inside this vault: ${summary}.`,
   whole: "serves all of it",
   some: (n) => (n === 1 ? "1 folder" : `${n} folders`),
-  help: "Tick only what the phone may see. None ticked serves the whole folder. The attachments the notes use from outside the ticked folder go along, read-only.",
+  help: "Tick only what the phone may see. None ticked serves the whole folder.",
+  serveAll: "Serve the whole folder",
+  attach: (a) => `The vault's attachments folder, “${a}”, goes along, read-only: files only, no notes.`,
+  noAttach: "No attachments folder goes along: the vault's setting names no folder outside the ones ticked.",
+  missing: (list) => `No longer on the disk, and left out: ${list}.`,
   loading: "Reading the folders…",
   empty: "This folder has no folders inside it.",
   tree: (name) => `Folders inside ${name}`,
@@ -45,8 +55,15 @@ export interface PartsOptions {
   key: string;
   name: string;
   chosen: string[];
+  /** The attachments folder that goes along, and the chosen folders the last
+   *  start left out. */
+  attachments: string | null;
+  missing: string[];
   /** While serving, nothing changes. */
   locked: boolean;
+  /** The folder open in this window: its tree is there at once, with no
+   *  button to open it. */
+  always?: boolean;
   /** The folders inside it (flat, relative); `null` when they could not be read. */
   load: () => Promise<string[] | null>;
   /** Keep the choice; true when it was kept (the list is drawn again). */
@@ -59,28 +76,59 @@ export interface PartsMemory {
   open: Set<string>;
   expanded: Map<string, Set<string>>;
   read: Map<string, string[]>;
+  /** An id for each folder of a tree: a path has spaces and is not one. */
+  ids: Map<string, string>;
 }
 
-export const newMemory = (): PartsMemory => ({ open: new Set(), expanded: new Map(), read: new Map() });
+export const newMemory = (): PartsMemory => ({ open: new Set(), expanded: new Map(), read: new Map(), ids: new Map() });
+
+function idOf(memory: PartsMemory, key: string, path: string): string {
+  const at = `${key}\u0000${path}`;
+  let id = memory.ids.get(at);
+  if (id === undefined) {
+    id = `ls-t-${memory.ids.size}`;
+    memory.ids.set(at, id);
+  }
+  return id;
+}
 
 /** The line on a ticked folder's row: opens the tree. */
 export function partsRow(o: PartsOptions, memory: PartsMemory): HTMLElement {
   const w = words();
   const box = h("div", "ls-parts");
   const panelId = `ls-pp-${o.key}`;
-  const toggle = h("button", "btn quiet ls-parts-toggle", w.toggle(o.chosen.length === 0 ? w.whole : w.some(o.chosen.length)));
+  const summary = o.chosen.length === 0 ? w.whole : w.some(o.chosen.length);
+  const toggle = h("button", "btn quiet ls-parts-toggle", w.toggle(summary));
   toggle.type = "button";
   toggle.id = `ls-pt-${o.key}`;
   toggle.setAttribute("aria-controls", panelId);
   const panel = h("div", "ls-parts-panel");
   panel.id = panelId;
-  const shown = memory.open.has(o.key);
+  panel.tabIndex = -1;
+  const shown = o.always === true || memory.open.has(o.key);
   toggle.setAttribute("aria-expanded", String(shown));
   panel.hidden = !shown;
   const say = h("p", "ls-help ls-parts-say", w.help);
   const body = h("div", "ls-parts-body");
-  panel.append(say, body);
-  box.append(toggle, panel);
+  // Back to the whole folder: the tree's own action, not a click on a box.
+  const all = h("button", "btn quiet ls-parts-all", w.serveAll);
+  all.type = "button";
+  all.disabled = o.locked || o.chosen.length === 0;
+  all.addEventListener("click", () => {
+    void o.save([]).then((kept) => {
+      if (kept) document.getElementById(`ls-pa-${o.key}`)?.focus();
+    });
+  });
+  all.id = `ls-pa-${o.key}`;
+  const attach = h("p", "ls-help ls-parts-attach", o.chosen.length === 0 ? "" : o.attachments === null ? w.noAttach : w.attach(o.attachments));
+  attach.hidden = o.chosen.length === 0;
+  const gone = h("p", "ls-help ls-parts-gone", o.missing.length === 0 ? "" : w.missing(o.missing.join(", ")));
+  gone.hidden = o.missing.length === 0;
+  panel.append(say, body, all, attach, gone);
+  if (o.always === true) {
+    // No button: what is served is said in words, above the tree.
+    box.append(h("p", "ls-help ls-parts-sum", w.summary(summary)), panel);
+  } else box.append(toggle, panel);
 
   const draw = (folders: string[]): void => {
     const tree = buildTree(folders);
@@ -158,7 +206,7 @@ function list(nodes: PartNode[], o: PartsOptions, memory: PartsMemory, depth: nu
     } else row.append(h("span", "ls-chev-gap"));
     const input = h("input");
     input.type = "checkbox";
-    input.id = `ls-n-${o.key}-${n.path}`;
+    input.id = idOf(memory, o.key, n.path);
     input.checked = state === "on" || state === "inherited";
     input.indeterminate = state === "partly";
     input.disabled = o.locked || state === "inherited";

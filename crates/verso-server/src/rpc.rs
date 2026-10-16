@@ -1338,12 +1338,6 @@ async fn open(
     })
     .await?;
     lock(&server.keys).insert(info.key.clone(), folder.id.clone());
-    // A folder chosen inside one served from this computer: its
-    // attachments folder, read-only, the first time it is opened.
-    let mut scope = scope;
-    if let Some(s) = scope.as_mut() {
-        crate::local::find_attachments(server, client, s).await;
-    }
     // What changed on the disk while nobody had it open joins the folder's
     // log for sync, in the background (ADR 0079 item 4).
     {

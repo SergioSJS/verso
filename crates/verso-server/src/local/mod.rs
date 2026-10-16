@@ -25,9 +25,8 @@ pub mod allow;
 pub mod announce;
 pub mod cert;
 pub mod net;
-mod parts;
-pub use parts::find_attachments;
 pub mod pairing;
+mod parts;
 pub mod qr;
 mod routes;
 #[cfg(test)]
@@ -131,7 +130,7 @@ pub struct Policy {
     /// When each phone's refusal by that ceiling was last logged and
     /// audited: once a minute per phone, whatever the pace it retries at.
     full_said: Mutex<HashMap<String, Instant>>,
-    /// The folders served in part (item 3, amended 2026-10-16).
+    /// The folders served in part (item 2, amended 2026-10-16).
     parts: parts::Parts,
     /// Loopback let in as a peer, for the tests only.
     #[cfg(test)]
@@ -460,7 +459,7 @@ pub struct LocalSettings {
     /// The folders ticked, as the host knows them (paths, at this edge
     /// only).
     pub folders: Vec<String>,
-    /// For a folder served in part (item 3, amended 2026-10-16), the folders
+    /// For a folder served in part (item 2, amended 2026-10-16), the folders
     /// chosen inside it, relative to it: keyed by the folder's path as in
     /// `folders`. A folder with none here is served whole.
     pub parts: std::collections::BTreeMap<String, Vec<String>>,
@@ -514,6 +513,9 @@ pub struct Status {
     pub unreachable: bool,
     /// The setting: phones connected at once, at most.
     pub max_connected: u32,
+    /// The folders chosen inside a served folder that this start left out
+    /// for not being on the disk: (the folder's path, the chosen folder).
+    pub dropped: Vec<(String, String)>,
 }
 
 /// What the pairing dialog shows.
@@ -756,6 +758,7 @@ impl LocalServer {
             stopped_because: None,
             unreachable: r.reach.load(Ordering::Relaxed) == 2,
             max_connected: read_settings(&r.server.db).max_connected,
+            dropped: r.policy.dropped_parts(),
         })
     }
 
@@ -841,7 +844,12 @@ impl LocalServer {
             .store(self.shared.loopback, Ordering::Relaxed);
         policy.set_network(&nets, port, &extra);
         policy.set_folders(folders);
-        policy.parts.set(reconciled.hidden, reconciled.names);
+        for (folder, part) in &reconciled.dropped {
+            crate::log::warn(&format!(
+                "a chosen folder is not there any more and is left out: {part} (in {folder})"
+            ));
+        }
+        policy.parts.set(reconciled);
         let config = Config::for_local(
             self.shared.dir.clone(),
             ui_dir,

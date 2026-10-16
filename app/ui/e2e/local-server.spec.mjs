@@ -24,6 +24,8 @@ test("it is off, serves only the ticked folders, and says what the system will a
   // None comes ticked; the one that also syncs with a server cannot be.
   const vault = body.getByRole("checkbox", { name: /^Vault/ });
   await expect(vault).not.toBeChecked();
+  // The others are in the shut group of recent folders.
+  await body.locator("details.ls-recent summary").click();
   await expect(body.getByRole("checkbox", { name: "Compartilhada" })).toBeDisabled();
   await expect(body.getByText("também sincroniza com notas.exemplo: abra esse endereço no celular")).toBeVisible();
   // Nothing ticked: it will not start, and says so where the button is.
@@ -258,26 +260,40 @@ test("many folders are listed as in the folder switcher: the command's order, no
   await app.open();
   await section(app);
   const body = page.locator(".settings-body");
+  // The folder open in this window comes first, on its own, with its name;
+  // the others are in a group that is shut until opened, with its count.
+  await expect(body.getByRole("heading", { name: "Este cofre · Vault" })).toBeVisible();
+  const recent = body.locator("details.ls-recent");
+  await expect(recent.locator("summary")).toHaveText("Recentes · 11 pastas");
+  await expect(recent).not.toHaveAttribute("open", "");
   const list = body.getByRole("list", { name: "Pastas deste computador, as mais recentes primeiro" });
+  await expect(list).toBeHidden();
+  await recent.locator("summary").click();
+  await expect(list).toBeVisible();
   // One flat row per folder, in the order the command returns them (the
-  // harness answers freshest first); no group headings, nothing to open.
+  // harness answers freshest first); no groups, no repetition of the open one.
   await expect(list.locator("summary, details")).toHaveCount(0);
   const names = await list.locator(".ls-name").allTextContents();
-  expect(names).toEqual(["Vault", "Compartilhada", "Caderno", "Caderno", "mac-vault-import", "mac-vault-import", "Sandbox", "Receitas", "Trabalho", "Diario", "Estudos", "Projetos"]);
+  expect(names).toEqual(["Compartilhada", "Caderno", "Caderno", "mac-vault-import", "mac-vault-import", "Sandbox", "Receitas", "Trabalho", "Diario", "Estudos", "Projetos"]);
   await expect(body.getByRole("checkbox", { name: "Sandbox" })).toBeVisible();
-  // Only the two pairs of the same name carry the directory, muted.
-  await expect(list.locator(".ls-place")).toHaveText(["em obsidian", "em Dropbox", "em obsidian", "em Downloads"]);
+  // Only the two pairs of the same name carry the directory, in an element of
+  // its own and set off by a comma for a screen reader.
+  await expect(list.locator(".ls-place")).toHaveText([", em obsidian", ", em Dropbox", ", em obsidian", ", em Downloads"]);
   await expect(list.getByText("em Documents")).toHaveCount(0);
+  await expect(body.getByRole("checkbox", { name: "Compartilhada" })).toHaveAccessibleDescription(/notas\.exemplo/);
+  const twin = list.getByRole("checkbox", { name: "Caderno" }).first();
+  await expect(twin).toHaveAccessibleDescription(", em obsidian");
   // Ticking calls the command: the count says so.
   await body.getByRole("checkbox", { name: "Sandbox" }).check();
   await expect(body.locator(".ls-h", { hasText: "1 marcada de 12" })).toBeVisible();
+  await expect(recent.locator("summary")).toHaveText("Recentes · 11 pastas · 1 marcada");
   await expect(body.getByRole("checkbox", { name: "Sandbox" })).toBeChecked();
   // The filter finds by name or by place.
   const filter = body.getByRole("searchbox", { name: "Filtrar pastas" });
   await filter.fill("receitas");
   await expect(body.getByRole("checkbox", { name: "Receitas" })).toBeVisible();
   await expect(body.getByRole("checkbox", { name: "Sandbox" })).toHaveCount(0);
-  await expect(body.getByText("1 de 12 pastas")).toBeVisible();
+  await expect(body.getByText("1 de 11 pastas")).toBeVisible();
   await filter.fill("zzzz");
   await expect(body.getByText("Nenhuma pasta combina com o filtro.")).toBeVisible();
   await filter.press("Escape");
@@ -296,13 +312,13 @@ test("a ticked folder can be served in part: a tree of its folders, a folder ser
   const body = page.locator(".settings-body");
   const vault = body.getByRole("checkbox", { name: /^Vault/ });
   // Only a ticked folder offers the choice.
-  await expect(body.getByRole("button", { name: /^Escolher pastas/ })).toHaveCount(0);
+  await expect(body.getByText("Pastas dentro deste cofre")).toHaveCount(0);
   await vault.check();
-  const toggle = body.getByRole("button", { name: "Escolher pastas · serve tudo" });
-  await expect(toggle).toHaveAttribute("aria-expanded", "false");
-  await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-expanded", "true");
-  await expect(body.getByText("Os anexos que as notas usam", { exact: false })).toBeVisible();
+  // The open folder's tree is there at once, with no button to open it.
+  await expect(body.getByText("Pastas dentro deste cofre: serve tudo.")).toBeVisible();
+  await expect(body.getByRole("button", { name: /^Escolher pastas/ })).toHaveCount(0);
+  await expect(body.getByText("Marque só o que o celular pode ver.", { exact: false })).toBeVisible();
+  await expect(body.getByRole("button", { name: "Servir a pasta inteira" })).toBeDisabled();
   const tree = body.getByRole("list", { name: "Pastas dentro de Vault" });
   await expect(tree).toBeVisible();
   // Folders with folders inside are closed; the others are plain rows.
@@ -314,7 +330,7 @@ test("a ticked folder can be served in part: a tree of its folders, a folder ser
   // Ticking Projetos: it is a part now, the folder is neither all nor none,
   // and what is inside Projetos is served with it, not on its own.
   await projetos.check();
-  await expect(body.getByRole("button", { name: "Escolher pastas · 1 pasta" })).toBeVisible();
+  await expect(body.getByText("Pastas dentro deste cofre: 1 pasta.")).toBeVisible();
   await expect(vault).not.toBeChecked();
   await expect(vault).toHaveJSProperty("indeterminate", true);
   const mesa = tree.getByRole("checkbox", { name: "Servir Projetos/Mesa" });
@@ -327,31 +343,42 @@ test("a ticked folder can be served in part: a tree of its folders, a folder ser
   const outubro = tree.getByRole("checkbox", { name: "Servir Diario/2026/Outubro" });
   await outubro.focus();
   await page.keyboard.press("Space");
-  await expect(body.getByRole("button", { name: "Escolher pastas · 2 pastas" })).toBeVisible();
+  await expect(body.getByText("Pastas dentro deste cofre: 2 pastas.")).toBeVisible();
   await expect(tree.getByRole("checkbox", { name: "Servir Diario/2026/Outubro" })).toBeFocused();
   await expect(tree.getByRole("checkbox", { name: "Servir Diario", exact: true })).toHaveJSProperty("indeterminate", true);
   // Ticking a folder over one already chosen inside it takes the inner one off.
   await tree.getByRole("checkbox", { name: "Servir Diario", exact: true }).check();
-  await expect(body.getByRole("button", { name: "Escolher pastas · 2 pastas" })).toBeVisible();
+  await expect(body.getByText("Pastas dentro deste cofre: 2 pastas.")).toBeVisible();
   await expect(tree.getByRole("checkbox", { name: "Servir Diario/2026/Outubro" })).toBeDisabled();
   // Nothing ticked below is the whole folder again.
   await tree.getByRole("checkbox", { name: "Servir Diario", exact: true }).uncheck();
   await tree.getByRole("checkbox", { name: "Servir Projetos", exact: true }).uncheck();
-  await expect(body.getByRole("button", { name: "Escolher pastas · serve tudo" })).toBeVisible();
+  await expect(body.getByText("Pastas dentro deste cofre: serve tudo.")).toBeVisible();
   await expect(vault).toHaveJSProperty("indeterminate", false);
   await expect(vault).toBeChecked();
-  // Choose again; a click on the folder's own box, which reads "partly",
-  // serves all of it; unticking it forgets the tree.
+  // Choose again. A click on the folder's own box, which reads "mixed",
+  // opens the tree and serves nothing more or less; the way back to the
+  // whole folder is the tree's own button.
   await tree.getByRole("checkbox", { name: "Servir Segredo" }).check();
   await expect(vault).toHaveJSProperty("indeterminate", true);
   await vault.click();
-  await expect(body.getByRole("button", { name: "Escolher pastas · serve tudo" })).toBeVisible();
+  await expect(body.getByText("Pastas dentro deste cofre: 1 pasta.")).toBeVisible();
+  await expect(vault).toHaveJSProperty("indeterminate", true);
+  await expect(tree.getByRole("checkbox", { name: "Servir Segredo" })).toBeChecked();
+  // The vault's attachments folder goes along, files only, read-only; and
+  // says none does when it would be one of the chosen.
+  await expect(body.getByText("A pasta de anexos do cofre, “Anexos”, vai junto, só para ler: só arquivos, nenhuma nota.")).toBeVisible();
+  await tree.getByRole("checkbox", { name: "Servir Anexos" }).check();
+  await expect(body.getByText("Nenhuma pasta de anexos vai junto", { exact: false })).toBeVisible();
+  await tree.getByRole("checkbox", { name: "Servir Anexos" }).uncheck();
+  await body.getByRole("button", { name: "Servir a pasta inteira" }).click();
+  await expect(body.getByText("Pastas dentro deste cofre: serve tudo.")).toBeVisible();
   await expect(vault).toHaveJSProperty("indeterminate", false);
   await expect(vault).toBeChecked();
   await vault.uncheck();
-  await expect(body.getByRole("button", { name: /^Escolher pastas/ })).toHaveCount(0);
+  await expect(body.getByText("Pastas dentro deste cofre")).toHaveCount(0);
   await vault.check();
-  await expect(body.getByRole("button", { name: "Escolher pastas · serve tudo" })).toBeVisible();
+  await expect(body.getByText("Pastas dentro deste cofre: serve tudo.")).toBeVisible();
 });
 
 test("the folders chosen inside a folder are locked while serving, and a bad choice is said", async ({ app, page }) => {
@@ -359,7 +386,6 @@ test("the folders chosen inside a folder are locked while serving, and a bad cho
   await section(app);
   const body = page.locator(".settings-body");
   await body.getByRole("checkbox", { name: /^Vault/ }).check();
-  await body.getByRole("button", { name: "Escolher pastas · serve tudo" }).click();
   const tree = body.getByRole("list", { name: "Pastas dentro de Vault" });
   await tree.getByRole("checkbox", { name: "Servir Anexos" }).check();
   await body.getByRole("button", { name: "Ligar o servidor" }).click();
@@ -371,4 +397,57 @@ test("the folders chosen inside a folder are locked while serving, and a bad cho
   // The tree stays readable (open and closed) while it serves.
   await tree.getByRole("button", { name: "Mostrar as pastas dentro de Diario" }).click();
   await expect(tree.getByRole("checkbox", { name: "Servir Diario/2026" })).toBeDisabled();
+});
+
+test("a chosen folder gone from the disk is left out at the start and said, and with none left it will not start", async ({ app, page }) => {
+  await app.open();
+  await section(app);
+  const body = page.locator(".settings-body");
+  await body.getByRole("checkbox", { name: /^Vault/ }).check();
+  const tree = body.getByRole("list", { name: "Pastas dentro de Vault" });
+  await tree.getByRole("checkbox", { name: "Servir Antigo" }).check();
+  // Only the lost folder chosen: it refuses, and says why, never the whole.
+  await body.getByRole("button", { name: "Ligar o servidor" }).click();
+  await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
+  await expect(body.getByText("none of the folders chosen inside it is there any more", { exact: false })).toBeVisible();
+  await expect(body.getByText("Desligado.")).toBeVisible();
+  // With another one chosen it serves that one and says what it left out.
+  await tree.getByRole("checkbox", { name: "Servir Projetos", exact: true }).check();
+  await body.getByRole("button", { name: "Ligar o servidor" }).click();
+  await expect(body.getByText("ficaram de fora por não existirem mais no disco: Vault/Antigo", { exact: false }).first()).toBeVisible();
+  await expect(body.getByText("Não estão mais no disco e ficaram de fora: Antigo.")).toBeVisible();
+});
+
+test("the recent folders are a group that is shut by default, remembered, with the filter inside it", async ({ app, page }) => {
+  await app.open();
+  await section(app);
+  const body = page.locator(".settings-body");
+  const recent = body.locator("details.ls-recent");
+  await expect(recent.locator("summary")).toHaveText("Recentes · 11 pastas");
+  // Shut: the rows and the filter are not there to reach.
+  await expect(body.getByRole("searchbox", { name: "Filtrar pastas" })).toBeHidden();
+  await expect(body.getByRole("checkbox", { name: "Sandbox" })).toBeHidden();
+  // By keyboard: the summary opens and shuts it.
+  await recent.locator("summary").focus();
+  await page.keyboard.press("Enter");
+  const filter = body.getByRole("searchbox", { name: "Filtrar pastas" });
+  await expect(filter).toBeVisible();
+  // The filter filters the group and nothing else: the open folder stays.
+  await filter.fill("receitas");
+  await expect(body.getByRole("checkbox", { name: "Receitas" })).toBeVisible();
+  await expect(body.getByRole("checkbox", { name: "Sandbox" })).toHaveCount(0);
+  await expect(body.getByRole("checkbox", { name: /^Vault/ })).toBeVisible();
+  await filter.press("Escape");
+  // A ticked recent folder has its tree behind its own button, as before.
+  await body.getByRole("checkbox", { name: "Sandbox" }).check();
+  const open = body.getByRole("button", { name: "Escolher pastas · serve tudo" });
+  await expect(open).toHaveAttribute("aria-expanded", "false");
+  await open.click();
+  await expect(body.getByRole("list", { name: "Pastas dentro de Sandbox" })).toBeVisible();
+  await expect(recent.locator("summary")).toHaveText("Recentes · 11 pastas · 1 marcada");
+  // What was left open is kept for the viewer, and shut is kept too.
+  expect(await page.evaluate(() => localStorage.getItem("verso-served-recent-open"))).toBe("1");
+  await recent.locator("summary").click();
+  await expect(recent).not.toHaveAttribute("open", "");
+  expect(await page.evaluate(() => localStorage.getItem("verso-served-recent-open"))).toBe("0");
 });

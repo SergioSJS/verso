@@ -89,3 +89,15 @@
   .ls-node .ls-check input { width: 22px; height: 22px; }
 }
 @media (prefers-reduced-motion: reduce) { .ls-chev .chev { transition: none; } }
+
+/* The folder open here, first; the recent ones in a group shut until opened. */
+.ls-here { display: flex; flex-direction: column; gap: .3rem; padding-bottom: .6rem; border-bottom: 1px solid var(--hair); }
+.ls-here[hidden], .ls-recent[hidden] { display: none; }
+.ls-here-h { margin: 0; font: 600 .88rem var(--ui); color: var(--ink); overflow-wrap: anywhere; }
+.ls-recent > * + * { margin-top: .4rem; }
+.ls-recent-sum { cursor: pointer; font: 600 .9rem var(--ui); color: var(--ink); min-height: 32px; display: flex; align-items: center; }
+.ls-recent[open] > .ls-recent-sum { margin-bottom: .3rem; }
+.ls-row { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: .15rem; row-gap: .1rem; min-width: 0; }
+.ls-why { display: block; margin-top: .1rem; }
+.ls-parts-sum { padding-inline-start: 1.5rem; }
+@media (pointer: coarse) { .ls-recent-sum { min-height: 44px; } }

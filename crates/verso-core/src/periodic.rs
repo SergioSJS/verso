@@ -229,6 +229,8 @@ impl Workspace {
             match which {
                 ObsidianSettings::DailyNotes => out.daily_notes = found,
                 ObsidianSettings::PeriodicNotes => out.periodic_notes = found,
+                // Not a periodic notes' file: read elsewhere, by name.
+                ObsidianSettings::App => {}
             }
         }
         out

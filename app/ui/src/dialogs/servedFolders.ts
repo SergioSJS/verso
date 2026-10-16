@@ -2,12 +2,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// "Folders served" in Settings › This app is a server (ADR 0096): the
-// folders this computer has opened, as the folder switcher lists them
-// (servedList.ts) — freshest first, one row each, a checkbox to serve it.
-// The directory's name shows only to tell two folders of a name apart.
-// A filter once the list is long, the ticked count in the heading, and the
-// reason a box is disabled on its row.
+// "Folders served" in Settings › Turn into a server (ADR 0096): first the
+// folder open in this window, on its own, with its tree of folders already
+// open (item 2, amended 2026-10-16: "o cofre aberto atual deveria ter a
+// árvore de pastas dele"); then the folders this computer opened before, as
+// the folder switcher lists them (servedList.ts), in a group that is shut
+// until opened — "Recentes" — so that forty of them do not push the rest
+// off the page. A filter above eight, the ticked count in the heading, and
+// the reason a box is disabled on its row. The hints of a row (the
+// directory, the sync note) are elements of their own, set apart in words
+// and in space.
 
 import type { LocalFolder } from "../bindings";
 import { h } from "../dom";
@@ -18,24 +22,30 @@ import { newMemory, partsRow } from "./servedTree";
 /** More folders than this and a filter appears. */
 export const MANY = 8;
 
+const OPEN_KEY = "verso-served-recent-open";
+
 const pt = {
   ticked: (n: number, all: number) => (n === 0 ? `nenhuma marcada de ${all}` : n === 1 ? `1 marcada de ${all}` : `${n} marcadas de ${all}`),
+  thisVault: (name: string) => `Este cofre · ${name}`,
+  recent: (n: number, ticked: number) => `Recentes · ${n === 1 ? "1 pasta" : `${n} pastas`}${ticked === 0 ? "" : ticked === 1 ? " · 1 marcada" : ` · ${ticked} marcadas`}`,
   filter: "Filtrar pastas",
   filterHint: "Filtrar por nome ou lugar",
   shown: (n: number, all: number) => `${n} de ${all} pastas`,
   none: "Nenhuma pasta combina com o filtro.",
-  inPlace: (place: string) => `em ${place}`,
-  current: "aberta",
+  noRecent: "Nenhuma outra pasta foi aberta neste computador.",
+  inPlace: (place: string) => `, em ${place}`,
   list: "Pastas deste computador, as mais recentes primeiro",
 };
 const en: typeof pt = {
   ticked: (n, all) => (n === 0 ? `none ticked of ${all}` : n === 1 ? `1 ticked of ${all}` : `${n} ticked of ${all}`),
+  thisVault: (name) => `This vault · ${name}`,
+  recent: (n, ticked) => `Recent · ${n === 1 ? "1 folder" : `${n} folders`}${ticked === 0 ? "" : ticked === 1 ? " · 1 ticked" : ` · ${ticked} ticked`}`,
   filter: "Filter folders",
   filterHint: "Filter by name or place",
   shown: (n, all) => `${n} of ${all} folders`,
   none: "No folder matches the filter.",
-  inPlace: (place) => `in ${place}`,
-  current: "open",
+  noRecent: "No other folder has been opened on this computer.",
+  inPlace: (place) => `, in ${place}`,
   list: "Folders on this computer, most recent first",
 };
 const words = () => (document.documentElement.lang.startsWith("pt") ? pt : en);
@@ -63,8 +73,37 @@ export interface Served {
   draw: (list: LocalFolder[], serving: boolean) => void;
 }
 
+/** Whether the group of recent folders was left open; shut by default. Kept
+ *  per viewer, and never needed: a browser that refuses storage still works. */
+function recentOpen(): boolean {
+  try {
+    return localStorage.getItem(OPEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function keepRecentOpen(open: boolean): void {
+  try {
+    localStorage.setItem(OPEN_KEY, open ? "1" : "0");
+  } catch {
+    /* a viewer without storage opens it shut each time */
+  }
+}
+
 export function servedFolders(opts: ServedOptions): Served {
   const box = h("div", "ls-folders");
+  // The folder open in this window.
+  const here = h("section", "ls-here");
+  const hereHead = h("h4", "ls-here-h");
+  hereHead.id = "ls-here-h";
+  here.setAttribute("aria-labelledby", hereHead.id);
+  const hereList = h("ul", "ls-list");
+  here.append(hereHead, hereList);
+  // The others, in a group.
+  const group = h("details", "ls-recent");
+  group.open = recentOpen();
+  const groupSum = h("summary", "ls-recent-sum");
   const tools = h("div", "ls-tools");
   const search = h("input", "ls-filter");
   search.type = "search";
@@ -82,21 +121,24 @@ export function servedFolders(opts: ServedOptions): Served {
   shown.setAttribute("role", "status");
   tools.append(search, shown);
   const ul = h("ul", "ls-list");
+  group.append(groupSum, tools, ul);
   const foot = h("p", "ls-help");
-  box.append(tools, ul, foot);
+  box.append(here, group, foot);
+  group.addEventListener("toggle", () => keepRecentOpen(group.open));
 
   let all: LocalFolder[] = [];
   let serving = false;
   const memory = newMemory();
 
-  const folderRow = (f: LocalFolder, twins: Set<string>): HTMLElement => {
+  const folderRow = (f: LocalFolder, twins: Set<string>, openHere: boolean): HTMLElement => {
     const w = words();
     const li = h("li", "ls-folder");
+    const row = h("div", "ls-row");
     const input = h("input");
     input.type = "checkbox";
     input.id = `ls-f-${f.key}`;
-    // Served in part is neither all nor none: "mixed", and a click on it
-    // serves all of the folder.
+    // Served in part is neither all nor none: "mixed". A click on it opens
+    // the tree and changes nothing that is served.
     const partly = f.ticked && f.parts.length > 0;
     input.checked = f.ticked && !partly;
     input.indeterminate = partly;
@@ -104,15 +146,21 @@ export function servedFolders(opts: ServedOptions): Served {
     const label = h("label", "ls-check");
     label.htmlFor = input.id;
     label.append(input, h("span", "ls-name", f.name));
-    if (twins.has(f.name) && f.place !== "") label.append(h("small", "ls-place", w.inPlace(f.place)));
-    if (f.key === currentFolder) label.append(h("small", "ls-current", w.current));
-    li.append(label);
-    const notes: HTMLElement[] = [];
-    if (f.syncs_with !== null) notes.push(h("small", "ls-help ls-why", opts.syncsWith(f.syncs_with)));
-    notes.forEach((n, i) => {
-      n.id = `ls-n-${f.key}-${i}`;
-      li.append(n);
+    row.append(label);
+    const hints: HTMLElement[] = [];
+    if (twins.has(f.name) && f.place !== "") hints.push(h("small", "ls-place", w.inPlace(f.place)));
+    hints.forEach((n, i) => {
+      n.id = `ls-h-${f.key}-${i}`;
+      row.append(n);
     });
+    li.append(row);
+    if (f.syncs_with !== null) {
+      const why = h("p", "ls-help ls-why", opts.syncsWith(f.syncs_with));
+      why.id = `ls-n-${f.key}-0`;
+      hints.push(why);
+      li.append(why);
+    }
+    if (hints.length > 0) input.setAttribute("aria-describedby", hints.map((n) => n.id).join(" "));
     if (f.ticked && f.syncs_with === null) {
       li.append(
         partsRow(
@@ -120,7 +168,10 @@ export function servedFolders(opts: ServedOptions): Served {
             key: f.key,
             name: f.name,
             chosen: f.parts,
+            attachments: f.attachments,
+            missing: f.missing,
             locked: serving,
+            always: openHere,
             load: () => opts.subfolders(f.key),
             save: async (parts) => {
               const next = await opts.choose(f.key, parts);
@@ -133,8 +184,16 @@ export function servedFolders(opts: ServedOptions): Served {
         ),
       );
     }
-    if (notes.length > 0) input.setAttribute("aria-describedby", notes.map((n) => n.id).join(" "));
     input.addEventListener("change", () => {
+      if (partly) {
+        input.checked = false;
+        input.indeterminate = true;
+        memory.open.add(f.key);
+        if (!openHere) group.open = true;
+        draw(all, serving);
+        (document.getElementById(`ls-pt-${f.key}`) ?? document.getElementById(`ls-pp-${f.key}`))?.focus();
+        return;
+      }
       void opts.tick(f.key, input.checked).then((next) => {
         if (next === null) {
           input.checked = !input.checked;
@@ -151,23 +210,34 @@ export function servedFolders(opts: ServedOptions): Served {
     const w = words();
     all = list;
     serving = isServing;
-    const query = search.value;
-    const visible = filterFolders(list, query);
-    const filtering = query.trim() !== "";
     opts.heading.dataset["base"] ??= opts.heading.textContent ?? "";
     opts.heading.textContent = list.length === 0 ? opts.heading.dataset["base"]! : `${opts.heading.dataset["base"]} · ${w.ticked(countTicked(list), list.length)}`;
-    tools.hidden = list.length <= MANY;
+    const twins = duplicateNames(list);
+    // The folder open in this window, first and on its own.
+    const open = list.find((f) => f.key === currentFolder);
+    here.hidden = open === undefined;
+    hereList.replaceChildren();
+    if (open) {
+      hereHead.textContent = w.thisVault(open.name);
+      hereList.append(folderRow(open, twins, true));
+    }
+    // The others, a group that is shut until opened.
+    const others = list.filter((f) => f !== open);
+    groupSum.textContent = w.recent(others.length, countTicked(others));
+    const query = search.value;
+    const visible = filterFolders(others, query);
+    const filtering = query.trim() !== "";
+    tools.hidden = others.length <= MANY;
     search.setAttribute("aria-label", w.filter);
     search.placeholder = w.filterHint;
-    shown.textContent = filtering ? w.shown(visible.length, list.length) : "";
+    shown.textContent = filtering ? w.shown(visible.length, others.length) : "";
     ul.setAttribute("aria-label", w.list);
     ul.replaceChildren();
-    if (all.length === 0) ul.append(h("li", "ls-help", opts.none));
+    group.hidden = list.length === 0 || (others.length === 0 && open !== undefined);
+    if (list.length === 0) ul.append(h("li", "ls-help", opts.none));
+    else if (others.length === 0) ul.append(h("li", "ls-help", w.noRecent));
     else if (visible.length === 0) ul.append(h("li", "ls-help", w.none));
-    else {
-      const twins = duplicateNames(all);
-      for (const f of visible) ul.append(folderRow(f, twins));
-    }
+    else for (const f of visible) ul.append(folderRow(f, twins, false));
     foot.hidden = !(serving && list.length > 0);
     foot.textContent = opts.locked;
   };
