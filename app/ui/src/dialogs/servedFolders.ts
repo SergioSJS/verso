@@ -120,6 +120,8 @@ export function servedFolders(opts: ServedOptions): Served {
             key: f.key,
             name: f.name,
             chosen: f.parts,
+            attachments: f.attachments,
+            missing: f.missing,
             locked: serving,
             load: () => opts.subfolders(f.key),
             save: async (parts) => {
@@ -135,6 +137,17 @@ export function servedFolders(opts: ServedOptions): Served {
     }
     if (notes.length > 0) input.setAttribute("aria-describedby", notes.map((n) => n.id).join(" "));
     input.addEventListener("change", () => {
+      // The box of a folder served in part reads "mixed": a click on it
+      // opens the tree, and changes nothing that is served. The way back to
+      // the whole folder is the tree's own button.
+      if (partly) {
+        input.checked = false;
+        input.indeterminate = true;
+        memory.open.add(f.key);
+        draw(all, serving);
+        document.getElementById(`ls-pt-${f.key}`)?.focus();
+        return;
+      }
       void opts.tick(f.key, input.checked).then((next) => {
         if (next === null) {
           input.checked = !input.checked;

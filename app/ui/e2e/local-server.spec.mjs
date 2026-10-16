@@ -302,7 +302,8 @@ test("a ticked folder can be served in part: a tree of its folders, a folder ser
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
-  await expect(body.getByText("Os anexos que as notas usam", { exact: false })).toBeVisible();
+  await expect(body.getByText("Marque só o que o celular pode ver.", { exact: false })).toBeVisible();
+  await expect(body.getByRole("button", { name: "Servir a pasta inteira" })).toBeDisabled();
   const tree = body.getByRole("list", { name: "Pastas dentro de Vault" });
   await expect(tree).toBeVisible();
   // Folders with folders inside are closed; the others are plain rows.
@@ -340,11 +341,22 @@ test("a ticked folder can be served in part: a tree of its folders, a folder ser
   await expect(body.getByRole("button", { name: "Escolher pastas · serve tudo" })).toBeVisible();
   await expect(vault).toHaveJSProperty("indeterminate", false);
   await expect(vault).toBeChecked();
-  // Choose again; a click on the folder's own box, which reads "partly",
-  // serves all of it; unticking it forgets the tree.
+  // Choose again. A click on the folder's own box, which reads "mixed",
+  // opens the tree and serves nothing more or less; the way back to the
+  // whole folder is the tree's own button.
   await tree.getByRole("checkbox", { name: "Servir Segredo" }).check();
   await expect(vault).toHaveJSProperty("indeterminate", true);
   await vault.click();
+  await expect(body.getByRole("button", { name: "Escolher pastas · 1 pasta" })).toBeVisible();
+  await expect(vault).toHaveJSProperty("indeterminate", true);
+  await expect(tree.getByRole("checkbox", { name: "Servir Segredo" })).toBeChecked();
+  // The vault's attachments folder goes along, files only, read-only; and
+  // says none does when it would be one of the chosen.
+  await expect(body.getByText("A pasta de anexos do cofre, “Anexos”, vai junto, só para ler: só arquivos, nenhuma nota.")).toBeVisible();
+  await tree.getByRole("checkbox", { name: "Servir Anexos" }).check();
+  await expect(body.getByText("Nenhuma pasta de anexos vai junto", { exact: false })).toBeVisible();
+  await tree.getByRole("checkbox", { name: "Servir Anexos" }).uncheck();
+  await body.getByRole("button", { name: "Servir a pasta inteira" }).click();
   await expect(body.getByRole("button", { name: "Escolher pastas · serve tudo" })).toBeVisible();
   await expect(vault).toHaveJSProperty("indeterminate", false);
   await expect(vault).toBeChecked();
@@ -371,4 +383,24 @@ test("the folders chosen inside a folder are locked while serving, and a bad cho
   // The tree stays readable (open and closed) while it serves.
   await tree.getByRole("button", { name: "Mostrar as pastas dentro de Diario" }).click();
   await expect(tree.getByRole("checkbox", { name: "Servir Diario/2026" })).toBeDisabled();
+});
+
+test("a chosen folder gone from the disk is left out at the start and said, and with none left it will not start", async ({ app, page }) => {
+  await app.open();
+  await section(app);
+  const body = page.locator(".settings-body");
+  await body.getByRole("checkbox", { name: /^Vault/ }).check();
+  await body.getByRole("button", { name: "Escolher pastas · serve tudo" }).click();
+  const tree = body.getByRole("list", { name: "Pastas dentro de Vault" });
+  await tree.getByRole("checkbox", { name: "Servir Antigo" }).check();
+  // Only the lost folder chosen: it refuses, and says why, never the whole.
+  await body.getByRole("button", { name: "Ligar o servidor" }).click();
+  await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
+  await expect(body.getByText("none of the folders chosen inside it is there any more", { exact: false })).toBeVisible();
+  await expect(body.getByText("Desligado.")).toBeVisible();
+  // With another one chosen it serves that one and says what it left out.
+  await tree.getByRole("checkbox", { name: "Servir Projetos", exact: true }).check();
+  await body.getByRole("button", { name: "Ligar o servidor" }).click();
+  await expect(body.getByText("ficaram de fora por não existirem mais no disco: Vault/Antigo", { exact: false }).first()).toBeVisible();
+  await expect(body.getByText("Não estão mais no disco e ficaram de fora: Antigo.")).toBeVisible();
 });
