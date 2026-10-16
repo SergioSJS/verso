@@ -30,10 +30,12 @@ export class LocalServerHarness {
   private nextId = 1;
   private cert: Pick<LocalServerStatus, "cert_file" | "key_file" | "host_name"> = { cert_file: null, key_file: null, host_name: null };
   private ticked = new Set<string>();
+  /** The folders chosen inside a ticked folder (ADR 0096 item 3, amended 2026-10-16). */
+  private parts = new Map<string, string[]>();
   /** Folders the harness knows, one of them syncing with a server. */
   private folders: LocalFolder[] = [
-    { key: "harness", name: "Vault", place: "", ticked: false, syncs_with: null },
-    { key: "synced", name: "Compartilhada", place: "", ticked: false, syncs_with: "notas.exemplo" },
+    { key: "harness", name: "Vault", place: "", ticked: false, parts: [], syncs_with: null },
+    { key: "synced", name: "Compartilhada", place: "", ticked: false, parts: [], syncs_with: "notas.exemplo" },
     // As the maintainer's list: many folders, two of the same name, told
     // apart only by the directory they are in (a name, never a path).
     ...[
@@ -47,12 +49,16 @@ export class LocalServerHarness {
       ["Diario", "Documents"],
       ["Estudos", "Documents"],
       ["Projetos", "code"],
-    ].map(([name, place], i) => ({ key: `many-${i}`, name: name!, place: place!, ticked: false, syncs_with: null })),
+    ].map(([name, place], i) => ({ key: `many-${i}`, name: name!, place: place!, ticked: false, parts: [], syncs_with: null })),
   ];
   private maxConnected = 4;
   private fingerprint = "AB:CD:EF:01:23:45:67:89";
   /** The identity's generation: replaced, the fingerprint changes. */
   private generation = 1;
+
+  private rows(): LocalFolder[] {
+    return this.folders.map((f) => ({ ...f, ticked: this.ticked.has(f.key), parts: this.parts.get(f.key) ?? [] }));
+  }
 
   private log(action: string, subject: string | null = null, address: string | null = null): void {
     this.audit.unshift({ at: Math.floor(Date.UTC(2026, 9, 15) / 1000) + this.audit.length, action, subject, address });
@@ -87,16 +93,38 @@ export class LocalServerHarness {
 
   readonly handlers: Record<string, (a: Args) => unknown> = {
     local_server_status: (): LocalServerStatus => this.status(),
-    local_server_folders: (): LocalFolder[] => this.folders.map((f) => ({ ...f, ticked: this.ticked.has(f.key) })),
+    local_server_folders: (): LocalFolder[] => this.rows(),
+    // The folders inside one, as the host's walk lists them: relative, `/`-joined, none hidden.
+    local_server_subfolders: (a): string[] => {
+      const key = String(a["key"]);
+      if (!this.folders.some((f) => f.key === key)) refuse("this computer does not know that folder");
+      return key === "harness"
+        ? ["Anexos", "Diario", "Diario/2026", "Diario/2026/Outubro", "Projetos", "Projetos/Mesa", "Projetos/Verso", "Segredo"]
+        : ["Arquivo", "Arquivo/2025", "Notas"];
+    },
+    local_server_parts: (a): LocalFolder[] => {
+      const key = String(a["key"]);
+      if (this.serving) refuse("turn serving off to change which folders are served");
+      if (!this.ticked.has(key)) refuse("tick the folder first");
+      const chosen = (a["parts"] as string[]).map((p) => p.replace(/\/+$/, ""));
+      for (const p of chosen) if (p === "" || p.startsWith("/") || p.split("/").some((x) => x === "" || x === "." || x === ".." || x.startsWith("."))) refuse(`not a folder inside the served folder: ${p}`);
+      const kept = [...new Set(chosen)].sort().filter((p, _, all) => !all.some((q) => q !== p && p.startsWith(`${q}/`)));
+      if (kept.length === 0) this.parts.delete(key);
+      else this.parts.set(key, kept);
+      return this.rows();
+    },
     local_server_tick: (a): LocalFolder[] => {
       const key = String(a["key"]);
       const folder = this.folders.find((f) => f.key === key);
       if (this.serving) refuse("turn serving off to change which folders are served");
       if (!folder) refuse("this computer does not know that folder");
       if (a["ticked"] === true && folder.syncs_with) refuse(`this folder also syncs with ${folder.syncs_with}: open that address on the phone instead`);
+      // As the host: what was chosen inside a folder goes with any tick, so
+      // ticking a folder served in part serves all of it.
+      this.parts.delete(key);
       if (a["ticked"] === true) this.ticked.add(key);
       else this.ticked.delete(key);
-      return this.folders.map((f) => ({ ...f, ticked: this.ticked.has(f.key) }));
+      return this.rows();
     },
     local_server_settings: (a): LocalServerStatus => {
       this.keepOn = a["keepOn"] === true;

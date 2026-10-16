@@ -95,7 +95,8 @@ fn rows<R: tauri::Runtime>(
 ) -> Result<Vec<LocalFolder>, String> {
     let state = app.state::<App>();
     let config = state.service.config();
-    let ticked = local.settings()?.folders;
+    let settings = local.settings()?;
+    let ticked = settings.folders;
     Ok(verso_core::recent_folders(config)
         .into_iter()
         .map(|path| {
@@ -111,6 +112,11 @@ fn rows<R: tauri::Runtime>(
                     .map(|n| n.to_string_lossy().into_owned())
                     .unwrap_or_default(),
                 ticked: ticked.iter().any(|t| *t == path.to_string_lossy()),
+                parts: settings
+                    .parts
+                    .get(path.to_string_lossy().as_ref())
+                    .cloned()
+                    .unwrap_or_default(),
                 syncs_with: sync::synced(config, &key).map(|s| host_of(&s.server)),
                 key,
             }
@@ -150,10 +156,46 @@ pub(super) async fn tick<R: tauri::Runtime>(
         let mut settings = local.settings()?;
         let text = path.to_string_lossy().into_owned();
         settings.folders.retain(|f| *f != text);
+        // What was chosen inside a folder goes with its tick.
+        settings.parts.remove(&text);
         if ticked {
             settings.folders.push(text);
         }
         local.set_settings(&settings)?;
+        rows(&app, &local)
+    })
+    .await
+}
+
+/// The directory of the folder this computer knows by `key`.
+fn known_path<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str) -> Result<PathBuf, String> {
+    let state = app.state::<App>();
+    verso_core::recent_folders(state.service.config())
+        .into_iter()
+        .find(|p| verso_core::folder_key(p) == key)
+        .ok_or_else(|| "this computer does not know that folder".to_owned())
+}
+
+pub(super) async fn subfolders<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    key: String,
+) -> Result<Vec<String>, ContractError> {
+    blocking(move || {
+        let path = known_path(&app, &key)?;
+        verso_core::subfolders_of(&path).map_err(|e| e.to_string())
+    })
+    .await
+}
+
+pub(super) async fn parts<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    key: String,
+    parts: Vec<String>,
+) -> Result<Vec<LocalFolder>, ContractError> {
+    let local = server(&app)?;
+    blocking(move || {
+        let path = known_path(&app, &key)?;
+        local.set_parts(&path.to_string_lossy(), &parts)?;
         rows(&app, &local)
     })
     .await

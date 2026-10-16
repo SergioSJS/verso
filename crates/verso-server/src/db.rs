@@ -1405,7 +1405,7 @@ mod sync;
 mod tokens;
 mod trash;
 pub use console::{AccountRow, AuditFilter, FolderRow, Page, PageQuery};
-pub use local::{LOCAL_OWNER, Phone};
+pub use local::{LOCAL_OWNER, Phone, VAULT_HOLDER};
 pub use shares::{Share, covers};
 pub use sync::{Change, Known, Made, ReaderOf, Recorded};
 pub use trash::FolderBook;
