@@ -93,7 +93,7 @@
   e então executa `/usr/bin/universo`, um wrapper que desce ao uid 1000 com
   os grupos suplementares limpos (`su`) e executa o binário, inclusive nos
   comandos de `docker exec`, para que `universo admin reset` nunca deixe um
-  arquivo do root. **A corrida que sobra**, dita: quem pode escrever dentro de um ponto de montagem poderia trocar um diretório por um link simbólico entre o `find` e o `chown` e fazer mudar uma entrada do root em outro lugar; os pontos de montagem são do administrador, e o uid 1000, que roda o servidor, ainda não começou. Um contêiner iniciado como root sem as capabilities (um compose antigo) é recusado com a linha que diz o que acrescentar, nunca rodado como root. O root vive durante as conferências do entrypoint, uns
+  arquivo do root. Um nó de dispositivo, FIFO ou socket do root nunca é entregue ao uid 1000 (um dispositivo de bloco entregue abriria o disco do host a quem for 1000), e o log diz quantos foram deixados. **As corridas que sobram**, ditas: quem pode escrever dentro de um ponto de montagem poderia (1) trocar um diretório por um link simbólico entre o `find` e o `chown`, ou (2) renomear um arquivo de um nome só já listado e pôr no lugar dele um hard link para um arquivo do root fora do ponto de montagem (precisa de `fs.protected_hardlinks=0`, ou escrita no alvo), e fazer mudar essa entrada do root; os pontos de montagem são do administrador, e o uid 1000, que roda o servidor, ainda não começou. Um contêiner iniciado como root sem as capabilities (um compose antigo) é recusado com a linha que diz o que acrescentar, nunca rodado como root. O root vive durante as conferências do entrypoint, uns
   milissegundos, salvo se precisar fazer chown numa árvore grande, uma vez; o
   processo do servidor tem uid e gid 1000, nenhum outro grupo, `CapEff` e
   `CapPrm` zerados (o `scripts/check-server-image.sh` lê o
@@ -105,7 +105,17 @@
   usuário do NAS) não é tocado: o servidor confere ao ligar que grava nos
   dois diretórios, diz no log, no console de administração e na resposta do
   pedido que falhou que não consegue, e nomeia o comando (`sudo chown -R
-  1000:1000 <pasta do host>`; no `.deb`, o usuário `universo`).
+  1000:1000 <pasta do host>`; no `.deb`, o usuário `universo`). **Até onde o conserto vai** foi perguntado ao mantenedor
+  (2026-10-16): *"E se alguém montar uma pasta grande que já tem coisas de
+  outros apps (ex.: /DATA inteiro no ZimaOS)? Hoje ele passaria tudo que é do
+  root ali dentro para o Verso"*, com as opções *só pasta vazia* ou *pasta
+  inteira, sempre*; ele escolheu **"Pasta inteira, sempre"**. Então o conserto
+  pega todo diretório, link simbólico e arquivo comum de um nome só do root
+  sob cada ponto de montagem, o que quer que houvesse antes. A consequência,
+  sem rodeio: **monte só a pasta destinada ao Verso.** Ligar um pai como
+  `/DATA` entrega ao uid 1000 os arquivos do root de todos os outros apps
+  nele. O entrypoint diz no log quantas entradas entregou, para que um ponto
+  de montagem largo demais apareça.
 - Revisões: 2026-10-09 (noite) — aceito pelo mantenedor junto com o
   [0073](0073-self-hosted-server-first.md), na resposta citada lá; os dois
   `[ABERTO]` dele respondidos — o caminho de atualização (item 7, a opção

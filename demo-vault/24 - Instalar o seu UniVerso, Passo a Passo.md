@@ -97,7 +97,7 @@ systemctl is-enabled docker          # deve dizer enabled
 
 Seu usuário não fica no grupo `docker`: ponha `sudo` antes de todo `docker` e `docker compose` abaixo.
 
-**Passo 1: os diretórios.** O servidor só escreve em dois diretórios seus, e basta criá-los. Não precisa dar dono nem permissão: o contêiner começa como administrador só o tempo de passar ao usuário 1000 o que é do root nesses dois diretórios, e desce a 1000 sem nenhum privilégio antes de o servidor rodar.
+**Passo 1: os diretórios.** O servidor só escreve em dois diretórios seus, e basta criá-los. Não precisa dar dono nem permissão: o contêiner começa como administrador só o tempo de passar ao usuário 1000 o que é do root nesses dois diretórios, e desce a 1000 sem nenhum privilégio antes de o servidor rodar. **Monte só a pasta destinada ao Verso**, nunca um pai como o `/DATA` inteiro do ZimaOS: o contêiner passa ao usuário 1000 tudo que é do root dentro do que você montar, inclusive os arquivos de outros apps.
 
 ```bash
 sudo mkdir -p /srv/universo/data /srv/universo/folders
