@@ -104,7 +104,7 @@ fn a_presence_past_its_bound_is_refused() {
 #[test]
 fn the_mail_routes_answer_alike_whether_the_address_has_an_account() {
     block_on(async {
-        let r = start().await;
+        let r = start_with(|c| c.public_url = Some("@self".into())).await;
         // A mail server that takes the connection and never says a word.
         let silent = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = silent.local_addr().unwrap().port();
@@ -585,7 +585,11 @@ fn lock_remove(r: &crate::tests::Running, code: &str) {
 #[test]
 fn a_mailbox_is_not_flooded_from_many_addresses() {
     block_on(async {
-        let r = behind_proxy().await;
+        let r = start_with(|c| {
+            c.trusted_proxy = crate::proxy::Proxies::parse("127.0.0.1").unwrap();
+            c.public_url = Some("@self-https".into());
+        })
+        .await;
         let _ = r
             .server
             .mail
@@ -597,7 +601,8 @@ fn a_mailbox_is_not_flooded_from_many_addresses() {
                 .header("origin", r.origin().replacen("http://", "https://", 1))
                 .header("x-forwarded-for", from)
                 // As a proxy in front of TLS says it: through a trusted
-                // proxy, this header alone makes a request secure.
+                // proxy this header alone says the request came over
+                // HTTPS (the cookie's `Secure`, the origin's scheme).
                 .header("x-forwarded-proto", "https")
                 .json(&json!({ "email": email }))
                 .send()

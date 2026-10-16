@@ -213,7 +213,7 @@ fn places(ctx: &Ctx, who: &Who) -> ApiResult<(Held, Option<u32>)> {
             })?,
     ];
     // This machine is the proxy in front, speaking for everyone.
-    if !ctx.peer.addr.is_loopback() {
+    if !ctx.peer.local {
         let address = format!("address:{}", ctx.peer.key());
         held.push(
             counts

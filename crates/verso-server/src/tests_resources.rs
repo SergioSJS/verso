@@ -10,7 +10,7 @@
 
 use serde_json::json;
 
-use crate::tests::{block_on, call, connect, next, sign_in, start};
+use crate::tests::{block_on, call, connect, next, sign_in, start, start_with};
 
 /// `bytes` written to `name` in the test folder, as the tests write files.
 fn put_file(r: &crate::tests::Running, name: &str, bytes: &[u8]) {
@@ -400,7 +400,7 @@ fn one_address_keeps_a_bounded_number_of_device_codes_waiting() {
 #[test]
 fn one_address_keeps_a_bounded_number_of_sign_in_links_waiting() {
     block_on(async {
-        let r = start().await;
+        let r = start_with(|c| c.public_url = Some("@self".into())).await;
         let _ = r
             .server
             .mail
