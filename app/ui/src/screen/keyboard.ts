@@ -113,11 +113,41 @@ export function coveredBelow(): number {
 }
 
 /** The editor's part (`editor/extensions.ts`): the cursor kept above the
- *  keyboard and the bar, and its suggestions inside what the screen shows. */
+ *  keyboard and the bar. Not through the editor's scroll margins: the
+ *  editor is as tall as its note inside the sheet that scrolls, and a
+ *  margin as tall as the keyboard, taken off the editor's bottom, made it
+ *  take a cursor near the note's end for hidden — and keep the list of
+ *  notes after `[[` off the screen (the maintainer's phone, 2026-10-16). */
 export const editorKeepsInView = [
   // Nothing without a keyboard: the editor scrolls as it always has.
-  EditorView.scrollMargins.of(() => (coveredBelow() > 0 ? { bottom: coveredBelow() + 8 } : null)),
+  EditorView.updateListener.of((update) => {
+    if ((update.selectionSet || update.docChanged) && update.view.hasFocus && coveredBelow() > 0) keepCursorAbove(update.view);
+  }),
 ];
+
+const keepKey = {};
+
+/** Scroll what holds the editor until its cursor stands above the keyboard
+ *  and the bar. */
+function keepCursorAbove(view: EditorView): void {
+  view.requestMeasure({
+    key: keepKey,
+    read: (v) => v.coordsAtPos(v.state.selection.main.head),
+    write: (cursor, v) => {
+      if (!cursor) return;
+      const over = cursor.bottom - (visibleBox().bottom - shownHeight - 8);
+      if (over > 0) scrollerOf(v)?.scrollBy({ top: over });
+    },
+  });
+}
+
+/** The nearest box around the editor that scrolls (a note's `.sheet`). */
+function scrollerOf(view: EditorView): Element | null {
+  for (let e = view.dom.parentElement; e; e = e.parentElement) {
+    if (/(auto|scroll)/.test(getComputedStyle(e).overflowY) && e.scrollHeight > e.clientHeight) return e;
+  }
+  return document.scrollingElement;
+}
 
 /** Where an editor's tooltips — the link and tag suggestions — may go. */
 export function tooltipSpace(): Rect {
@@ -136,6 +166,8 @@ export function installKeyboard(): void {
   onViewport(() => {
     paint();
     const view = focusedEditor();
-    if (view) view.dispatch({ effects: EditorView.scrollIntoView(view.state.selection.main.head, { y: "nearest" }) });
+    if (!view) return;
+    view.dispatch({ effects: EditorView.scrollIntoView(view.state.selection.main.head, { y: "nearest" }) });
+    if (coveredBelow() > 0) keepCursorAbove(view);
   });
 }
