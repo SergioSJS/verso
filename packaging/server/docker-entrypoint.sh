@@ -21,10 +21,13 @@
 # What it can and cannot promise. It changes only entries that root owns,
 # under the two mounts, on their file system, following no symbolic link; a
 # regular file with several hard links is left alone (the other name may be
-# outside the mounts, and a chown changes the inode for every name). One race
-# remains: someone who can write inside a mount could swap a directory for a
-# symbolic link between `find` and `chown`, and have a root-owned entry
-# elsewhere changed. The mounts are the administrator's, and uid 1000, which
+# outside the mounts, and a chown changes the inode for every name), and so is
+# a device node, FIFO or socket. Two races remain: someone who can write
+# inside a mount could (1) swap a directory for a symbolic link between `find`
+# and `chown`, or (2) rename a listed one-name file away and put a hard link
+# to a root file outside the mount in its place (it needs
+# fs.protected_hardlinks=0, or write access to the target), and have that
+# root-owned entry changed. The mounts are the administrator's, and uid 1000, which
 # runs the server, has not started yet; ADR 0075 (2026-10-16) says it.
 set -eu
 
@@ -39,12 +42,22 @@ if [ "$(id -u)" = 0 ]; then
       echo "universo: $dir is not writable by uid 1000: giving the entries root owns under it to 1000:1000, once" >&2
       # -xdev: not into another file system mounted below. find follows no
       # symlink, and chown -h changes a link itself, never what it points
-      # at. A file with several names (-links +1) is not chowned.
-      find "$dir" -xdev -user 0 \( ! -type f -o -links 1 \) -exec chown -h 1000:1000 {} + ||
+      # at. Only directories, links and regular files with one name: a file
+      # with several names (-links +1) may have one outside the mount, and a
+      # device node, FIFO or socket is never handed to uid 1000 (a block
+      # device given away would open the host's disk to whoever is 1000).
+      # How many, said: a mount that is too wide shows here (below).
+      mended=$(find "$dir" -xdev -user 0 \( -type d -o -type l -o \( -type f -links 1 \) \) 2>/dev/null | wc -l)
+      find "$dir" -xdev -user 0 \( -type d -o -type l -o \( -type f -links 1 \) \) -exec chown -h 1000:1000 {} + ||
         echo "universo: some entries of $dir could not be changed (see above)" >&2
+      echo "universo: $mended root-owned entr(ies) of $dir handed to 1000:1000 - if that is more than the notes you meant to keep there, the mount is too wide (mount only the folder meant for Verso)" >&2
       left=$(find "$dir" -xdev -user 0 -type f -links +1 | wc -l)
       if [ "$left" -gt 0 ]; then
         echo "universo: $left root-owned file(s) of $dir with several hard links were left alone" >&2
+      fi
+      special=$(find "$dir" -xdev -user 0 ! -type d ! -type l ! -type f | wc -l)
+      if [ "$special" -gt 0 ]; then
+        echo "universo: $special root-owned device node(s), FIFO(s) or socket(s) of $dir were left alone" >&2
       fi
     fi
   done

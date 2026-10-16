@@ -28,7 +28,9 @@ services:
     restart: unless-stopped
     # The server runs as uid and gid 1000. The container starts as root only
     # to mend the owners of the two directories below (see cap_add), and
-    # drops to 1000 before the server runs. A NAS whose folders belong to
+    # drops to 1000 before the server runs. Mount only the folder meant for
+    # Verso: everything root owns under a mount is handed to 1000, so binding
+    # a parent such as /DATA would hand other apps' files over. A NAS whose folders belong to
     # another user names it here (its numbers, from `id`): the container
     # then starts as that user, mends nothing, and the directories must
     # already be writable by it.
