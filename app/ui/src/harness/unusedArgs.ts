@@ -26,6 +26,7 @@ export const UNUSED_ARGS: Record<string, string[]> = {
   server_sign_in: ["url"],
   server_sign_out: ["url"],
   server_folders: ["url"],
+  server_create_folder: ["url", "name"],
   server_open: ["url", "folder"],
   // Sharing is a server's (ADR 0081): a folder of the harness is not on
   // one; a test stands in for the server by replacing these.
