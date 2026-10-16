@@ -33,6 +33,10 @@ Needs the installed app on a Mac, a Linux and a Windows computer, an iPhone (Saf
 - [ ] **The server out of reach** (A): stop the server while a note is open and insert an image: the status line says the server could not be reached, and no embed is written. With the folder kept offline on the phone, the image is kept with the other changes and goes up when the network returns.
 - [ ] **The screen reader** (A): the button is announced as *Insert image*, a menu; the items are read; the result is read from the status line.
 
+### Syncing into a brand-new server (ADR 0079 item 1, 2026-10-16)
+
+- [ ] **Just sync, on a fresh UniVerso** (A, the desktop app): install a UniVerso with no folders, sign the app in as its admin (*Settings › Servers*), with a folder of notes open. The block says *No folder on this server yet.* and one button, **Sync ‘<folder>’**, with a line under it; no invitation text. One click: the button is busy, the server's folder appears under the same name, the status bar goes to *Syncing* and then *Synced*, and the heading of the server takes the focus. Every note of the folder is still on this computer, unchanged (look at the files), and open in the browser at the server. The server's log has no ERROR and the app's log has none. Then turn the sync off, open another local folder named like the first one: *Sync* makes `name (2)` and does not touch the first. With an account that may not make folders (the admin turns it off), the old invitation text shows and no button. *Make an empty folder…* asks a name, makes it, says so and puts the focus on its row. With the server stopped, the click says it could not reach it, with *Try again*.
+
 ### This app is a server (ADR 0096, feat/local-server-build, 2026-10-15)
 
 Needs the installed app on a Mac, a Linux or a Windows computer, a real phone (an iPhone and an Android), an iPad, and a home network; nothing here was run on a phone or in the installed app when it was built.

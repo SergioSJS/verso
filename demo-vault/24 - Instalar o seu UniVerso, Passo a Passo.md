@@ -310,7 +310,7 @@ No app Verso, abra os ajustes (**Verso › Ajustes…**, ⌘, no macOS; **Ctrl+,
 
 ![[assets/servidor-aprovar-aparelho.png|320]]
 
-O app passa a dizer *Conectado como* o seu nome e lista as pastas do servidor, cada uma com **Abrir aqui** e **Sincronizar**. O código vale 10 minutos; passou, clique em **Conectar** de novo.
+O app passa a dizer *Conectado como* o seu nome. Um servidor novo ainda não tem pastas, e **não há nada a criar antes**: com a pasta que você quer guardar aberta no app, clique em **Sincronizar ‘sua pasta’**. O app faz a pasta no servidor, com o mesmo nome, e já sincroniza; os seus arquivos ficam como estão e nenhum é apagado. Se o servidor já tem pastas, elas aparecem na lista, cada uma com **Abrir aqui** e **Sincronizar** (para ligar a sua a uma que já existe). O código vale 10 minutos; passou, clique em **Conectar** de novo.
 
 ![[assets/servidor-app-conectado.png|560]]
 
@@ -318,7 +318,7 @@ O app passa a dizer *Conectado como* o seu nome e lista as pastas do servidor, c
 
 Não há app a instalar: abra `https://notas.exemplo.com` no navegador e entre com o e-mail e a senha. (Com o Tailscale, o celular precisa estar com ele conectado.) Como a janela se comporta numa tela pequena está em [[22 - Verso no Celular e no Tablet]].
 
-Para uma segunda pessoa, o admin cria a pasta, depois um convite no console (`/admin/invitations`) e manda o link: [[23 - Verso num Servidor#O primeiro admin e as contas|as contas e os convites]].
+Para uma segunda pessoa, o admin sincroniza (ou cria) a pasta, depois um convite no console (`/admin/invitations`) e manda o link: [[23 - Verso num Servidor#O primeiro admin e as contas|as contas e os convites]].
 
 ---
 
