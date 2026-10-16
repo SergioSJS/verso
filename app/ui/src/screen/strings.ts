@@ -57,6 +57,7 @@ export type ScreenStrings = {
   openInBrowserTab: string;
   webFramed: string;
   webOpenTab: string;
+  webOnlyTab: string;
   /** The line at the top of a phone's pane (item 6). */
   dismiss: string;
 };
@@ -99,6 +100,7 @@ const pt: ScreenStrings = {
   openInBrowserTab: "Abrir numa nova aba do navegador",
   webFramed: "Se a página não aparecer abaixo, o site não deixa ser mostrado dentro de outro.",
   webOpenTab: "Abrir a página numa nova aba",
+  webOnlyTab: "Este site só abre numa nova aba.",
   dismiss: "Dispensar",
 };
 
@@ -140,6 +142,7 @@ const en: ScreenStrings = {
   openInBrowserTab: "Open in a new browser tab",
   webFramed: "If the page does not show below, the site does not allow being shown inside another.",
   webOpenTab: "Open the page in a new tab",
+  webOnlyTab: "This site only opens in a new tab.",
   dismiss: "Dismiss",
 };
 

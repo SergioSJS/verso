@@ -580,6 +580,7 @@ const VERDICTS: &[(&str, &str, bool)] = &[
     ("set_walk_rules", "{}", true),
     ("set_folder_note_name", "{}", true),
     ("log_write", r#"{"level":"INFO","message":"m"}"#, true),
+    ("embed_frameable", r#"{"url":"https://example.com"}"#, true),
     (
         "write_note",
         r#"{"path":"a.md","text":"A mudou","revision":"{rev}"}"#,
@@ -1035,6 +1036,7 @@ fn every_allowlisted_command_has_a_verdict_on_a_chosen_folder() {
         "set_walk_rules",
         "set_folder_note_name",
         "log_write",
+        "embed_frameable",
         "collab_join",
         "collab_leave",
         "collab_awareness",
