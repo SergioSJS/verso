@@ -117,6 +117,24 @@ fn machine_addresses() -> Vec<IpAddr> {
         .unwrap_or_default()
 }
 
+/// The networks this machine is on: each interface address that is up and
+/// not loopback, with its prefix length. The desktop's DNS fallback asks
+/// whether an address another resolver gave is on one of them.
+#[must_use]
+pub fn interface_networks() -> Vec<(IpAddr, u8)> {
+    if_addrs::get_if_addrs()
+        .map(|all| {
+            all.into_iter()
+                .filter(|i| !i.is_loopback() && i.is_oper_up())
+                .map(|i| match i.addr {
+                    if_addrs::IfAddr::V4(a) => (IpAddr::V4(a.ip), a.prefixlen),
+                    if_addrs::IfAddr::V6(a) => (IpAddr::V6(a.ip), a.prefixlen),
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 /// The addresses to announce on: the listen address itself when one is
 /// given, else the machine's private (RFC 1918) and unique-local
 /// (fc00::/7) addresses — never a public or a link-local one.
@@ -347,16 +365,24 @@ pub fn read(
     if port == 0 || name.is_empty() || addresses.is_empty() {
         return None;
     }
+    // The address the server announced says whether it is https; a `https`
+    // key that says otherwise is not believed (a forged pair would put an
+    // HTTPS badge on an http address).
+    let public = txt.get("url").and_then(|u| clean_url(u));
+    let https = match &public {
+        Some(u) => u.starts_with("https://"),
+        None => txt.get("https").is_some_and(|v| v == "1"),
+    };
     Some(Found {
         fullname: fullname.to_owned(),
         name,
         host: tame(host.trim_end_matches('.')),
         port,
-        https: txt.get("https").is_some_and(|v| v == "1"),
+        https,
         version: tame(txt.get("v").map_or("", String::as_str)),
         id: tame(txt.get("id").map_or("", String::as_str)),
         addresses,
-        public: txt.get("url").and_then(|u| clean_url(u)),
+        public,
     })
 }
 
@@ -644,6 +670,36 @@ mod tests {
         )
         .unwrap();
         assert_eq!(plain.url().as_deref(), Some("http://nas.casa:7340"));
+    }
+
+    /// `https` is read from the announced address, never from the key beside
+    /// it: a forged `https=1` with an http `url` is an http address.
+    #[test]
+    fn https_follows_the_announced_address_not_the_key() {
+        let one = |pairs: &[(&str, &str)]| {
+            read(
+                "UniVerso-ab12cd._verso._tcp.local.",
+                "h.local.",
+                7340,
+                vec![ip("192.168.1.9")],
+                &txt(pairs),
+            )
+            .unwrap()
+        };
+        let forged = one(&[("https", "1"), ("url", "http://nas.casa:7340")]);
+        assert!(
+            !forged.https,
+            "an http address is not https because a key says so"
+        );
+        assert_eq!(forged.url().as_deref(), Some("http://nas.casa:7340"));
+        let hidden = one(&[("https", "0"), ("url", "https://nas.casa")]);
+        assert!(
+            hidden.https,
+            "an https address is https whatever the key says"
+        );
+        // No address: the key is all there is.
+        assert!(one(&[("https", "1")]).https);
+        assert!(!one(&[("https", "0")]).https);
     }
 
     /// The announced address is text from the network: only a bare origin.
