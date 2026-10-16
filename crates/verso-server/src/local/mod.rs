@@ -81,6 +81,9 @@ pub enum Event {
     PhoneConnected { name: String },
     /// Serving stopped by itself.
     Stopped { why: String },
+    /// A start left out chosen folders no longer on the disk (`folder/chosen`
+    /// each): said as a notice, on a start the person made or one the app did.
+    Dropped { what: Vec<String> },
     /// The app could not reach its own address on the network: the system
     /// (a firewall) is probably refusing connections in (item 9).
     Unreachable,
@@ -736,7 +739,9 @@ impl LocalServer {
         let Some(r) = running.as_ref() else {
             drop(running);
             let paired = self.with_db(|db| db.phone_count())?;
+            let dropped = self.with_db(|db| Ok(parts::read_dropped(db)))?;
             return Ok(Status {
+                dropped,
                 phones_paired: paired,
                 max_connected: self.settings()?.max_connected,
                 certificate: "own".to_owned(),
@@ -758,7 +763,7 @@ impl LocalServer {
             stopped_because: None,
             unreachable: r.reach.load(Ordering::Relaxed) == 2,
             max_connected: read_settings(&r.server.db).max_connected,
-            dropped: r.policy.dropped_parts(),
+            dropped: parts::read_dropped(&r.server.db),
         })
     }
 
@@ -848,6 +853,21 @@ impl LocalServer {
             crate::log::warn(&format!(
                 "a chosen folder is not there any more and is left out: {part} (in {folder})"
             ));
+        }
+        parts::write_dropped(&db, &reconciled.dropped)?;
+        if !reconciled.dropped.is_empty() {
+            let what = reconciled
+                .dropped
+                .iter()
+                .map(|(folder, part)| {
+                    let name = std::path::Path::new(folder)
+                        .file_name()
+                        .map(|n| n.to_string_lossy().into_owned())
+                        .unwrap_or_default();
+                    format!("{name}/{part}")
+                })
+                .collect();
+            (self.shared.events)(Event::Dropped { what });
         }
         policy.parts.set(reconciled);
         let config = Config::for_local(

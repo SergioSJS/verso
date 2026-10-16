@@ -127,6 +127,7 @@
     "allow-local-server-tick",
     "allow-local-server-subfolders",
     "allow-local-server-parts",
+    "allow-local-server-whole",
     "allow-local-server-phone-role",
     "allow-local-server-settings",
     "allow-local-server-start",

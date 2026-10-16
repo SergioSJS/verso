@@ -16,7 +16,8 @@ const pt = {
   toggle: (summary: string) => `Escolher pastas · ${summary}`,
   whole: "serve tudo",
   some: (n: number) => (n === 1 ? "1 pasta" : `${n} pastas`),
-  help: "Marque só o que o celular pode ver. Nada marcado serve a pasta toda.",
+  help: "Marque só o que o celular pode ver. Desmarcar a última pasta para de servir este cofre; para servi-lo inteiro, use o botão.",
+  stop: "Parar de servir este cofre",
   serveAll: "Servir a pasta inteira",
   attach: (a: string) => `A pasta de anexos do cofre, “${a}”, vai junto, só para ler: só arquivos, nenhuma nota.`,
   noAttach: "Nenhuma pasta de anexos vai junto: a configuração do cofre não aponta uma pasta de fora das escolhidas.",
@@ -33,7 +34,8 @@ const en: typeof pt = {
   toggle: (summary) => `Choose folders · ${summary}`,
   whole: "serves all of it",
   some: (n) => (n === 1 ? "1 folder" : `${n} folders`),
-  help: "Tick only what the phone may see. None ticked serves the whole folder.",
+  help: "Tick only what the phone may see. Unticking the last folder stops serving this vault; to serve all of it, use the button.",
+  stop: "Stop serving this vault",
   serveAll: "Serve the whole folder",
   attach: (a) => `The vault's attachments folder, “${a}”, goes along, read-only: files only, no notes.`,
   noAttach: "No attachments folder goes along: the vault's setting names no folder outside the ones ticked.",
@@ -64,8 +66,11 @@ export interface PartsOptions {
   always?: boolean;
   /** The folders inside it (flat, relative); `null` when they could not be read. */
   load: () => Promise<string[] | null>;
-  /** Keep the choice; true when it was kept (the list is drawn again). */
+  /** Keep the choice; true when it was kept (the list is drawn again). None
+   *  chosen stops serving the folder. */
   save: (parts: string[]) => Promise<boolean>;
+  /** Serve all of the folder, with nothing chosen inside it. */
+  whole: () => Promise<boolean>;
 }
 
 /** What stays between two drawings of the list: which folders are open, and
@@ -113,17 +118,23 @@ export function partsRow(o: PartsOptions, memory: PartsMemory): HTMLElement {
   all.type = "button";
   all.disabled = o.locked;
   all.hidden = o.chosen.length === 0;
-  all.addEventListener("click", () => {
-    void o.save([]).then((kept) => {
-      if (kept) document.getElementById(`ls-pa-${o.key}`)?.focus();
-    });
-  });
+  // Both buttons leave the focus on the folder's own box: the button
+  // pressed is gone once the list is drawn again.
+  const backToBox = (kept: boolean): void => {
+    if (kept) document.getElementById(`ls-f-${o.key}`)?.focus();
+  };
+  all.addEventListener("click", () => void o.whole().then(backToBox));
+  const stop = h("button", "btn quiet ls-parts-stop", w.stop);
+  stop.type = "button";
+  stop.disabled = o.locked;
+  stop.hidden = o.chosen.length === 0;
+  stop.addEventListener("click", () => void o.save([]).then(backToBox));
   all.id = `ls-pa-${o.key}`;
   const attach = h("p", "ls-help ls-parts-attach", o.chosen.length === 0 ? "" : o.attachments === null ? w.noAttach : w.attach(o.attachments));
   attach.hidden = o.chosen.length === 0;
   const gone = h("p", "ls-help ls-parts-gone", o.missing.length === 0 ? "" : w.missing(o.missing.join(", ")));
   gone.hidden = o.missing.length === 0;
-  panel.append(say, body, all, attach, gone);
+  panel.append(say, body, all, stop, attach, gone);
   // The open folder's tree is shown at once, with no button; the folder's
   // own box already says whether all of it or a part is served.
   if (o.always === true) box.append(panel);
@@ -222,6 +233,21 @@ function list(nodes: PartNode[], o: PartsOptions, memory: PartsMemory, depth: nu
       row.append(why);
     }
     input.addEventListener("change", () => {
+      // A folder with a chosen folder inside it reads "mixed": a click on it
+      // opens it and changes nothing that is served.
+      if (state === "partly") {
+        input.checked = false;
+        input.indeterminate = true;
+        const set = memory.expanded.get(o.key) ?? new Set<string>();
+        set.add(n.path);
+        memory.expanded.set(o.key, set);
+        const next = list(nodes, o, memory, depth);
+        const named = ul.getAttribute("aria-label");
+        if (named) next.setAttribute("aria-label", named);
+        ul.replaceWith(next);
+        next.querySelector<HTMLElement>(`[data-chev="${CSS.escape(n.path)}"]`)?.focus();
+        return;
+      }
       const on = input.checked;
       void o.save(choose(o.chosen, n.path, on)).then((kept) => {
         if (!kept) input.checked = !on;

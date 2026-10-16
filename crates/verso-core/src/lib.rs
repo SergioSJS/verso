@@ -814,11 +814,11 @@ pub fn attachments_folder(folder: &Path) -> Option<String> {
 
 /// The vault's attachments folder as it goes with folders served in part:
 /// [`attachments_folder`], unless it is one of the chosen folders, inside
-/// one or holds one — then there is none, so that nothing is shown twice
-/// or widened (ADR 0096 item 2, amended 2026-10-16).
+/// one or holds one, or is not on the disk — then there is none, so that
+/// nothing is shown twice or widened (ADR 0096 item 2, amended 2026-10-16).
 #[must_use]
 pub fn served_attachments(folder: &Path, parts: &[String]) -> Option<String> {
-    let a = attachments_folder(folder)?;
+    let a = attachments_folder(folder).filter(|a| verso_fs::is_folder(folder, a))?;
     let covers = |root: &str, path: &str| path == root || path.starts_with(&format!("{root}/"));
     parts
         .iter()

@@ -66,8 +66,9 @@ pub(crate) async fn local_server_subfolders<R: tauri::Runtime>(
     platform::subfolders(app, key).await
 }
 
-/// Serve only these folders inside a ticked folder (none: all of it). Not
-/// while serving, like ticking.
+/// Serve only these folders inside a ticked folder. **None stops serving the
+/// folder** (it is unticked and the choice forgotten); all of it is
+/// `local_server_whole`. Not while serving, like ticking.
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn local_server_parts<R: tauri::Runtime>(
@@ -76,6 +77,17 @@ pub(crate) async fn local_server_parts<R: tauri::Runtime>(
     parts: Vec<String>,
 ) -> Result<Vec<LocalFolder>, ContractError> {
     platform::parts(app, key, parts).await
+}
+
+/// Serve all of a ticked folder again, with nothing chosen inside it: the
+/// explicit way to the whole folder. Not while serving.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_whole<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    key: String,
+) -> Result<Vec<LocalFolder>, ContractError> {
+    platform::whole(app, key).await
 }
 
 /// Keep on at start, and the host's own certificate (item 5 (d)).

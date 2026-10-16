@@ -118,8 +118,20 @@ export class LocalServerHarness {
       const chosen = (a["parts"] as string[]).map((p) => p.replace(/\/+$/, ""));
       for (const p of chosen) if (p === "" || p.startsWith("/") || p.split("/").some((x) => x === "" || x === "." || x === ".." || x.startsWith("."))) refuse(`not a folder inside the served folder: ${p}`);
       const kept = [...new Set(chosen)].sort().filter((p, _, all) => !all.some((q) => q !== p && p.startsWith(`${q}/`)));
-      if (kept.length === 0) this.parts.delete(key);
-      else this.parts.set(key, kept);
+      this.dropped = [];
+      // As the host: none chosen stops serving the folder and forgets the choice.
+      if (kept.length === 0) {
+        this.parts.delete(key);
+        this.ticked.delete(key);
+      } else this.parts.set(key, kept);
+      return this.rows();
+    },
+    local_server_whole: (a): LocalFolder[] => {
+      const key = String(a["key"]);
+      if (this.serving) refuse("turn serving off to change which folders are served");
+      if (!this.ticked.has(key)) refuse("tick the folder first");
+      this.parts.delete(key);
+      this.dropped = [];
       return this.rows();
     },
     local_server_tick: (a): LocalFolder[] => {
@@ -134,6 +146,7 @@ export class LocalServerHarness {
       else {
         this.ticked.delete(key);
         this.parts.delete(key);
+        this.dropped = [];
       }
       return this.rows();
     },
@@ -163,7 +176,6 @@ export class LocalServerHarness {
     local_server_stop: (): LocalServerStatus => {
       if (this.serving) this.log("local_off");
       this.serving = false;
-      this.dropped = [];
       this.open = false;
       this.asked = null;
       return this.status();
