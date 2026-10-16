@@ -24,9 +24,9 @@ pub mod device;
 pub mod dice;
 pub mod discovery;
 pub mod fair;
-pub mod framing;
 pub mod files;
 pub mod folders;
+pub mod framing;
 /// The server's inputs, opened to its fuzz harness only (ADR 0083 item 14).
 #[cfg(feature = "fuzzing")]
 #[doc(hidden)]

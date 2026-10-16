@@ -771,7 +771,8 @@ async fn command(
             if !matches!(parsed.scheme(), "http" | "https") {
                 return Ok(Value::Bool(false));
             }
-            let verdict = crate::framing::check(&parsed, None, crate::framing::WEB_USER_AGENT).await;
+            let verdict =
+                crate::framing::check(&parsed, None, crate::framing::WEB_USER_AGENT).await;
             Ok(Value::Bool(verdict.frameable))
         }
         // A phone's window reports nothing into the computer's log (ADR
