@@ -128,7 +128,9 @@ for (const [title, lines] of [["a short note", 3], ["the end of a long note", 80
     await expectOnScreen(page, tooltip);
     // The cursor itself above the keyboard and its bar.
     const caret = await page.evaluate(() => getSelection().getRangeAt(0).getBoundingClientRect().bottom);
-    const bar = await page.locator(".key-bar:not([hidden])").boundingBox();
-    expect(caret).toBeLessThanOrEqual(bar ? bar.y : await page.evaluate(() => visualViewport.height));
+    // A desktop's window has no keys' bar: the keyboard's top is the limit.
+    const bar = page.locator(".key-bar:not([hidden])");
+    const limit = (await bar.count()) > 0 ? (await bar.boundingBox()).y : await page.evaluate(() => visualViewport.height);
+    expect(caret).toBeLessThanOrEqual(limit);
   });
 }
