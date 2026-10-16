@@ -82,10 +82,12 @@
   and `/folders` are writable; for one that is not, it gives to `1000:1000`
   the entries *root owns* under that mount (`find -xdev -user 0`, `chown -h`:
   no symlink is followed, no other file system entered, a file of another
-  user is left), then `exec`s `/usr/bin/universo`, a wrapper that drops to
+  user is left, and a regular file with several hard links is left too,
+  said in the log with its count: the other name may be outside the mount,
+  and a chown changes the inode for all of them), then `exec`s `/usr/bin/universo`, a wrapper that drops to
   uid 1000 with the supplementary groups cleared (`su`) and executes the
   binary, `docker exec` commands included, so that `universo admin reset`
-  never leaves a root-owned file. Root lives for the entrypoint's checks, a
+  never leaves a root-owned file. **The residual race**, stated: someone who can write inside a mount could swap a directory for a symbolic link between `find` and `chown` and have a root-owned entry elsewhere changed; the mounts are the administrator's, and uid 1000, which runs the server, has not started yet. A container started as root without the capabilities (an older compose file) is refused with the line that says what to add, never run as root. Root lives for the entrypoint's checks, a
   few milliseconds unless it has to chown a large tree, once; the server
   process holds uid and gid 1000, no other group, `CapEff` and `CapPrm` zero
   (`scripts/check-server-image.sh` reads `/proc/1/status`). The compose file
