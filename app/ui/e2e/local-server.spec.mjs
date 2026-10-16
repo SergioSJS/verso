@@ -248,3 +248,41 @@ test("the devices connected at once is a number from 1 to 16, 4 by default, kept
   await section(app);
   await expect(body.getByLabel("Aparelhos conectados ao mesmo tempo")).toHaveValue("2");
 });
+
+test("many folders are a tree by place: duplicates told apart, a filter, a count, and it fits a phone @layout", async ({ app, page }) => {
+  await app.open();
+  await section(app);
+  const body = page.locator(".settings-body");
+  const tree = body.getByRole("list", { name: "Pastas deste computador, por lugar" });
+  // Places are rows that open; with this many, the ones with nothing ticked
+  // start closed, and the folders sit under their place.
+  const obsidian = tree.locator("summary", { hasText: "obsidian" });
+  await expect(obsidian).toBeVisible();
+  await expect(body.getByRole("checkbox", { name: "Sandbox" })).toBeHidden();
+  await obsidian.click();
+  await expect(body.getByRole("checkbox", { name: "Sandbox" })).toBeVisible();
+  // Two "Caderno": told apart by the place they are in.
+  await tree.locator("summary", { hasText: "Dropbox" }).click();
+  await expect(tree.getByText("em obsidian")).toHaveCount(2);
+  await expect(tree.getByText("em Dropbox")).toHaveCount(1);
+  // Ticking calls the command: the count says so, and its branch stays open.
+  await body.getByRole("checkbox", { name: "Sandbox" }).check();
+  await expect(body.locator(".ls-h", { hasText: "1 marcada de 12" })).toBeVisible();
+  await expect(body.getByRole("checkbox", { name: "Sandbox" })).toBeChecked();
+  // The filter finds by name or by place and opens what it finds.
+  const filter = body.getByRole("searchbox", { name: "Filtrar pastas" });
+  await filter.fill("receitas");
+  await expect(body.getByRole("checkbox", { name: "Receitas" })).toBeVisible();
+  await expect(body.getByRole("checkbox", { name: "Sandbox" })).toHaveCount(0);
+  await expect(body.getByText("1 de 12 pastas")).toBeVisible();
+  await filter.fill("zzzz");
+  await expect(body.getByText("Nenhuma pasta combina com o filtro.")).toBeVisible();
+  await filter.press("Escape");
+  await expect(filter).toHaveValue("");
+  // The folder that syncs with a server says why its box is off, on its row.
+  await expect(body.getByRole("checkbox", { name: "Compartilhada" })).toHaveAccessibleDescription(/notas\.exemplo/);
+  // A phone's width: nothing runs off the side.
+  await page.setViewportSize({ width: 360, height: 700 });
+  const overflow = await body.evaluate((el) => el.scrollWidth - el.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+});

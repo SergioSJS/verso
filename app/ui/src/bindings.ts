@@ -1678,6 +1678,14 @@ export type LocalFolder = {
 	/**  The folder's opaque key (`FolderInfo.key`). */
 	key: string,
 	name: string,
+	/**
+	 *  The NAME of the directory the folder lives in (`obsidian` for
+	 *  `~/Documents/obsidian/Caderno`), empty when it has none: a label
+	 *  to tell two folders of the same name apart and to group the list.
+	 *  A name, not a path (ADR 0026 rule 4): nothing above that one
+	 *  directory crosses.
+	 */
+	place: string,
 	ticked: boolean,
 	/**
 	 *  The server this folder also syncs with: such a folder cannot be
