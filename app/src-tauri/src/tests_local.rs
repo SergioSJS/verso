@@ -192,14 +192,32 @@ fn only_some_folders_inside_a_ticked_folder_can_be_chosen_to_serve() {
         json!(["Diario", "Projetos"]),
         "kept: {rows}"
     );
-    // Back to all of it.
+    // Back to all of it is its own act, and the folder stays ticked.
+    let rows = call(&webview, "local_server_whole", json!({ "key": key })).unwrap();
+    assert_eq!(rows[0]["parts"], json!([]));
+    assert_eq!(rows[0]["ticked"], json!(true), "{rows}");
+    // Choosing none is not the whole folder: it stops serving it (the
+    // maintainer, 2026-10-16: "Para de servir o cofre").
+    call(
+        &webview,
+        "local_server_parts",
+        json!({ "key": key, "parts": ["Diario"] }),
+    )
+    .unwrap();
     let rows = call(
         &webview,
         "local_server_parts",
         json!({ "key": key, "parts": [] }),
     )
     .unwrap();
-    assert_eq!(rows[0]["parts"], json!([]));
+    assert_eq!(rows[0]["ticked"], json!(false), "{rows}");
+    assert_eq!(rows[0]["parts"], json!([]), "{rows}");
+    call(
+        &webview,
+        "local_server_tick",
+        json!({ "key": key, "ticked": true }),
+    )
+    .unwrap();
     // Unticking forgets the choice.
     call(
         &webview,

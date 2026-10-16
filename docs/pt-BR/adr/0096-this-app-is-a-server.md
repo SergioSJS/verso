@@ -173,8 +173,14 @@ precisa de uma linha, o item diz.
      - *Quais pastas.* Escolhidas como caminhos relativos à pasta
        (separados por `/`, nenhuma oculta, nenhuma com `..`, nenhuma dentro
        de outra: escolher uma pasta serve o que há dentro dela), pelas
-       regras do caminho de um compartilhamento. Nada escolhido é a pasta
-       inteira, como hoje. A escolha é um ajuste guardado como a lista de
+       regras do caminho de um compartilhamento. **Nada escolhido não serve nada da
+       pasta**: o mantenedor, 2026-10-16, perguntado *"Você desmarca Projetos, a
+       última. O que acontece? Hoje: volta a servir o cofre INTEIRO"*,
+       respondeu *"Para de servir o cofre"* — desmarcar a última pasta
+       escolhida desmarca a pasta e esquece a escolha. A pasta inteira é só o
+       *Servir a pasta inteira* explícito (e marcar a pasta sem nada
+       escolhido), e *Parar de servir este cofre* fica na árvore de uma pasta
+       servida em parte. A escolha é um ajuste guardado como a lista de
        marcadas: muda só com o servir desligado, e é esquecida quando a
        pasta é desmarcada. Uma pasta escolhida que não está mais no disco ao
        ligar fica de fora e isso é dito — um aviso, uma linha junto da pasta nos Ajustes
@@ -187,7 +193,7 @@ precisa de uma linha, o item diz.
        nunca uma achada pelo que as notas dizem: a pasta que as configurações
        do Obsidian nomeiam (`attachmentFolderPath` em `.obsidian/app.json`),
        lida a cada início pelo `verso-fs` — o que alarga em um caminho a
-       exceção estreita da [0093](0093-periodic-notes.md) item 11, lido pelo
+       exceção estreita da [0093](0093-periodic-notes.md) item 11 (**esse alargamento espera o aval do mantenedor; o texto da 0093, "dois arquivos nomeados", fica como está e a contradição fica registrada aqui até ele decidir**), lido pelo
        nome e nunca escrito — e guardada como a pasta de anexos do
        compartilhamento, substituída a cada início e limpa quando a
        configuração some. Nenhuma quando a configuração não existe, é a raiz
@@ -205,10 +211,14 @@ precisa de uma linha, o item diz.
        pasta escolhida (ou sob a pasta de anexos dela) cujo destino está fora
        dela — uma pasta vizinha, uma nota em outro lugar do cofre — fica de
        fora inteiro: não é listado, achado, lido nem escrito através dele,
-       qualquer que seja o papel do celular. Os links são olhados quando a
-       pasta é aberta e de novo a cada poucos segundos; uma pasta que não
-       pode ser olhada é fechada. Uma base não é respondida enquanto há um
-       desses links. Um link que fica dentro da pasta escolhida funciona
+       qualquer que seja o papel do celular. Isso é julgado **a cada uso, no
+       `verso-fs`**, por onde o caminho realmente está no disco
+       (`resolves_within`: cada parte do caminho resolvida pelos links,
+       junções e dobras de caixa e de forma Unicode do próprio sistema, cada
+       uma dentro da pasta escolhida), nunca pelo nome e nunca por uma lista
+       guardada — uma pasta movida depois, ou um nome digitado em outra caixa,
+       passa pela mesma checagem. Um caminho que o sistema não resolve é
+       recusado. Uma base não é respondida enquanto há um desses links. Um link que fica dentro da pasta escolhida funciona
        como sempre.
      - *Renomear pelo celular reescreve links em notas de fora*
        (`[DECIDIDO 2026-10-16]`, perguntado: "Um celular renomeia uma nota

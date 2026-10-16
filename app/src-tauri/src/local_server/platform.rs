@@ -184,6 +184,7 @@ pub(super) async fn tick<R: tauri::Runtime>(
         // ticking it again while it is ticked changes nothing.
         if !ticked {
             settings.parts.remove(&text);
+            local.forget_dropped()?;
         }
         if ticked {
             settings.folders.push(text);
@@ -223,6 +224,19 @@ pub(super) async fn parts<R: tauri::Runtime>(
     blocking(move || {
         let path = known_path(&app, &key)?;
         local.set_parts(&path.to_string_lossy(), &parts)?;
+        rows(&app, &local)
+    })
+    .await
+}
+
+pub(super) async fn whole<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    key: String,
+) -> Result<Vec<LocalFolder>, ContractError> {
+    let local = server(&app)?;
+    blocking(move || {
+        let path = known_path(&app, &key)?;
+        local.set_whole(&path.to_string_lossy())?;
         rows(&app, &local)
     })
     .await

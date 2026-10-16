@@ -570,10 +570,16 @@ export const commands = {
 	 */
 	localServerSubfolders: (key: string) => typedError<string[], ContractError>(__TAURI_INVOKE("local_server_subfolders", { key })),
 	/**
-	 *  Serve only these folders inside a ticked folder (none: all of it). Not
-	 *  while serving, like ticking.
+	 *  Serve only these folders inside a ticked folder. **None stops serving the
+	 *  folder** (it is unticked and the choice forgotten); all of it is
+	 *  `local_server_whole`. Not while serving, like ticking.
 	 */
 	localServerParts: (key: string, parts: string[]) => typedError<LocalFolder[], ContractError>(__TAURI_INVOKE("local_server_parts", { key, parts })),
+	/**
+	 *  Serve all of a ticked folder again, with nothing chosen inside it: the
+	 *  explicit way to the whole folder. Not while serving.
+	 */
+	localServerWhole: (key: string) => typedError<LocalFolder[], ContractError>(__TAURI_INVOKE("local_server_whole", { key })),
 	/**  Keep on at start, and the host's own certificate (item 5 (d)). */
 	localServerSettings: (keepOn: boolean, certFile: string | null, keyFile: string | null, hostName: string | null, maxConnected: number) => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_settings", { keepOn, certFile, keyFile, hostName, maxConnected })),
 	localServerStart: () => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_start")),

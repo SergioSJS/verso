@@ -26,6 +26,7 @@ type Heard =
   | { kind: "asked" }
   | { kind: "phoneConnected"; name: string }
   | { kind: "stopped"; why: string }
+  | { kind: "dropped"; what: string[] }
   | { kind: "unreachable" }
   | { kind: "pairingEnded"; why: string };
 
@@ -55,6 +56,8 @@ async function refreshMark(): Promise<void> {
   const s = r.data;
   if (!s.serving) return markOff();
   const w = localStrings();
+  // An app that started serving by itself before this window listened.
+  if (s.dropped.length > 0) serveDroppedHeard(w.droppedSaid(s.dropped.join(", ")));
   if (!mark) {
     mark = h("span", "ls-mark");
     mark.id = "local-mark";
@@ -98,6 +101,9 @@ export function hearLocalServer(): void {
     for (const redraw of redraws) redraw();
     if (p.kind === "phoneConnected") phoneConnectedHeard(p.name);
     else if (p.kind === "stopped") serveStoppedHeard(localStrings().stoppedNet);
+    // A start, the person's or the app's own (keep on), left out chosen
+    // folders that are gone from the disk.
+    else if (p.kind === "dropped") serveDroppedHeard(localStrings().droppedSaid(p.what.join(", ")));
     else if (p.kind === "asked") openPairing();
   });
   void refreshMark();
@@ -150,6 +156,14 @@ export function localServerBody(_item: Item): HTMLElement {
     },
     subfolders: async (key) => {
       const r = await commands.localServerSubfolders(key);
+      if (r.status !== "ok") {
+        failed(r.error);
+        return null;
+      }
+      return r.data;
+    },
+    whole: async (key) => {
+      const r = await commands.localServerWhole(key);
       if (r.status !== "ok") {
         failed(r.error);
         return null;
@@ -450,7 +464,6 @@ export function localServerBody(_item: Item): HTMLElement {
       if (r.data.dropped.length > 0) {
         const said = w.droppedSaid(r.data.dropped.join(", "));
         say(said);
-        serveDroppedHeard(said);
       }
       return redraw();
     })();

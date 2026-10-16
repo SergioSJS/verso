@@ -41,12 +41,14 @@ pub struct Scope {
     pub guard: Option<std::sync::Arc<Guard>>,
 }
 
-/// What a phone is kept from under a share of this computer's folder.
+/// What a phone is kept from under a share of this computer's folder: the
+/// share is judged by where a path really is on the disk, at every use
+/// (`verso_fs::resolves_within`), never by its name and never from a list
+/// kept.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Guard {
-    /// Symbolic links, in the owner's folder's paths, whose end is outside
-    /// the folder they are in: nothing at or under them is told or touched.
-    pub escapes: Vec<String>,
+    /// The folder the share is a part of, on the disk.
+    pub vault: std::path::PathBuf,
 }
 
 /// Whether a path names a note, a board or a base — what the attachments
@@ -167,7 +169,11 @@ impl Scope {
         let Some(g) = &self.guard else {
             return false;
         };
-        (in_mount && note_like(full)) || g.escapes.iter().any(|e| covers(e, full))
+        let within = match (&self.mount, in_mount) {
+            (Some((_, path)), true) => path,
+            _ => &self.root,
+        };
+        (in_mount && note_like(full)) || !verso_fs::resolves_within(&g.vault, full, within)
     }
 
     /// The path in the owner's folder of a path the window sent, to read.
@@ -201,12 +207,13 @@ impl Scope {
         None
     }
 
-    /// Whether `full` is the shared folder itself or under it — never the
+    /// Whether `full` is strictly under the shared folder — not the folder
+    /// itself (a bin entry of the folder's own root is the owner's), and never the
     /// attachments folder shown with it, which is the owner's to keep
     /// (ADR 0081 item 16): what the bin gives back lands in the share.
     #[must_use]
     pub fn in_root(&self, full: &str) -> bool {
-        covers(&self.root, full) && !self.blocked(full, false)
+        full != self.root && covers(&self.root, full) && !self.blocked(full, false)
     }
 
     fn rel_value(&self, v: &Value) -> Option<Value> {
@@ -405,8 +412,13 @@ impl Scope {
             "query_base" => {
                 // A base walks the folder's entries; one with a link out of
                 // it under the share is not answered.
-                if self.guard.as_ref().is_some_and(|g| !g.escapes.is_empty()) {
-                    return Err(refused("a link leads out of this folder"));
+                if let Some(g) = &self.guard {
+                    let clean = self.roots().iter().all(|r| {
+                        verso_fs::escaping_links(&g.vault, r).is_ok_and(|found| found.is_empty())
+                    });
+                    if !clean {
+                        return Err(refused("a link leads out of this folder"));
+                    }
                 }
                 for field in ["path", "this"] {
                     if args["query"][field].is_string() {
@@ -481,6 +493,11 @@ impl Scope {
             "read_note" | "create_note" | "read_text" | "write_text" | "write_board" => {
                 self.field(&mut v, "path");
                 self.note_type(&mut v);
+                // A warning of the core names the owner's paths: kept only
+                // when it is about the share's own (ADR 0081 item 11).
+                if v.get("warnings").is_some() {
+                    self.warnings(&mut v["warnings"]);
+                }
             }
             "write_note" => {
                 self.field(&mut v["note"], "path");
@@ -1073,5 +1090,17 @@ mod tests {
             None
         );
         assert!(s.push(&json!({ "gone": "folder" })).is_some());
+    }
+
+    /// The bin gives a share only what was strictly under its folder: the
+    /// folder's own root (made anew after the owner binned it) and the
+    /// attachments folder are not the share's to restore.
+    #[test]
+    fn the_bin_is_strictly_under_the_shared_folder() {
+        let s = scope();
+        assert!(s.in_root(&format!("{}/a.md", s.root)));
+        assert!(!s.in_root(&s.root.clone()));
+        assert!(!s.in_root("Anexos/x.png"));
+        assert!(!s.in_root("Outra/a.md"));
     }
 }

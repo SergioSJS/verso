@@ -32,14 +32,20 @@ fn walk(
     out: &mut Vec<String>,
     depth: usize,
 ) -> std::io::Result<()> {
-    // The same bound the walk keeps; deeper is not entered.
+    // The same bound the walk keeps. Deeper is not looked at, so it is not
+    // trusted: an error, never a folder found clean.
     if depth > 64 {
-        return Ok(());
+        return Err(std::io::Error::other("folders nested too deep to look at"));
     }
     for entry in std::fs::read_dir(at)? {
         let entry = entry?;
         let path = entry.path();
-        let meta = std::fs::symlink_metadata(&path)?;
+        // Gone since it was listed: nothing there to lead out.
+        let meta = match std::fs::symlink_metadata(&path) {
+            Ok(m) => m,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(e) => return Err(e),
+        };
         if meta.file_type().is_symlink() {
             if !lands_inside(within, path.clone(), 0) {
                 out.push(relative(vault, &path));

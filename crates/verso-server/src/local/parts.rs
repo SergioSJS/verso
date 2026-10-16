@@ -19,17 +19,11 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex, RwLock};
-use std::time::{Duration, Instant};
+use std::sync::RwLock;
 
 use verso_service::lock;
 
-use crate::db::{Db, Role, Share};
-use crate::scope::Guard;
-
-/// How long the links found under a chosen folder are trusted before the
-/// folder is looked at again: a command does not walk the folder.
-const LINKS_FRESH: Duration = Duration::from_secs(3);
+use crate::db::{Db, Role};
 
 /// What the policy keeps of the folders served in part.
 #[derive(Default)]
@@ -40,12 +34,6 @@ pub struct Parts {
     /// Each share's name as a phone lists it: the folder's own, made unique
     /// against the other folders served (`Projetos`, `Projetos (2)`).
     names: RwLock<HashMap<String, String>>,
-    /// The links that leave each chosen folder, by share, and when they
-    /// were looked for.
-    guards: Mutex<HashMap<String, (Instant, Arc<Guard>)>>,
-    /// The chosen folders this start left out for not being on the disk:
-    /// the folder's path as the host knows it, and the chosen folder.
-    dropped: Mutex<Vec<(String, String)>>,
 }
 
 impl Parts {
@@ -58,8 +46,6 @@ impl Parts {
             .names
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = r.names;
-        lock(&self.guards).clear();
-        *lock(&self.dropped) = r.dropped;
     }
 }
 
@@ -85,45 +71,6 @@ impl super::Policy {
             .get(share)
             .cloned()
     }
-
-    /// The chosen folders the last start left out (folder, chosen).
-    #[must_use]
-    pub fn dropped_parts(&self) -> Vec<(String, String)> {
-        lock(&self.parts.dropped).clone()
-    }
-
-    /// What a phone is kept from under `share`, a chosen folder of the
-    /// folder at `vault`: the links in it, or in its attachments folder,
-    /// that lead out of it. Looked for again after a few seconds; a folder
-    /// that cannot be looked at is shut whole (fail closed).
-    #[must_use]
-    pub fn guard_for(&self, vault: &std::path::Path, share: &Share) -> Arc<Guard> {
-        let mut guards = lock(&self.parts.guards);
-        if let Some((at, g)) = guards.get(&share.id)
-            && at.elapsed() < LINKS_FRESH
-        {
-            return Arc::clone(g);
-        }
-        let guard = Arc::new(Guard {
-            escapes: escapes(vault, share),
-        });
-        guards.insert(share.id.clone(), (Instant::now(), Arc::clone(&guard)));
-        guard
-    }
-}
-
-/// The paths under the chosen folder, and under its attachments folder,
-/// that are symbolic links to somewhere outside the folder they are in.
-fn escapes(vault: &std::path::Path, share: &Share) -> Vec<String> {
-    let mut out = Vec::new();
-    for within in std::iter::once(&share.path).chain(share.attachments.as_ref()) {
-        match verso_fs::escaping_links(vault, within) {
-            Ok(found) => out.extend(found),
-            // Not looked at, so not trusted: all of it is left out.
-            Err(_) => out.push(within.clone()),
-        }
-    }
-    out
 }
 
 /// The chosen sub-folders of a folder, as they are kept: each a folder
@@ -309,9 +256,56 @@ pub fn reconcile(
     })
 }
 
+const DROPPED: &str = "local.dropped";
+
+/// The chosen folders the last start left out for not being on the disk:
+/// (the folder's path as the host knows it, the chosen folder). Kept until
+/// the choice changes, so that Settings can say it while serving is off and
+/// the person can act.
+pub fn read_dropped(db: &Db) -> Vec<(String, String)> {
+    db.setting(DROPPED)
+        .ok()
+        .flatten()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+pub fn write_dropped(db: &Db, dropped: &[(String, String)]) -> Result<(), String> {
+    let text = serde_json::to_string(dropped).map_err(|e| e.to_string())?;
+    db.set_setting(DROPPED, &text)
+}
+
 impl super::LocalServer {
+    /// The list of left-out folders is forgotten: the choice changed.
+    pub fn forget_dropped(&self) -> Result<(), String> {
+        self.with_db(|db| write_dropped(db, &[]))
+    }
+
+    /// Serve all of the folder at `folder` again, with nothing chosen inside
+    /// it: the explicit way to the whole folder. Only while serving is off.
+    pub fn set_whole(&self, folder: &str) -> Result<(), String> {
+        let running = lock(&self.shared.inner);
+        if running.is_some() {
+            return Err("turn serving off to change which folders are served".to_owned());
+        }
+        let db = self.open_db()?;
+        let mut settings = super::read_settings(&db);
+        if !settings.folders.iter().any(|f| f == folder) {
+            return Err("tick the folder first".to_owned());
+        }
+        settings.parts.remove(folder);
+        let text = serde_json::to_string(&settings).map_err(|e| e.to_string())?;
+        db.set_setting(super::SETTINGS, &text)?;
+        write_dropped(&db, &[])?;
+        drop(running);
+        Ok(())
+    }
+
     /// Choose which folders inside the served folder at `folder` (its path,
-    /// as the host knows it) are served; none chosen serves all of it. Only
+    /// as the host knows it) are served. **None chosen stops serving the
+    /// folder** — it is unticked and its choice forgotten (the maintainer,
+    /// 2026-10-16: "Para de servir o cofre"); the whole folder is
+    /// [`set_whole`](Self::set_whole)'s. Only
     /// while serving is off, like ticking: what a phone may reach does not
     /// change under it (item 1). The check and the write are made holding
     /// the same lock.
@@ -326,13 +320,15 @@ impl super::LocalServer {
         if !settings.folders.iter().any(|f| f == folder) {
             return Err("tick the folder first".to_owned());
         }
+        settings.parts.remove(folder);
         if chosen.is_empty() {
-            settings.parts.remove(folder);
+            settings.folders.retain(|f| f != folder);
         } else {
             settings.parts.insert(folder.to_owned(), chosen.clone());
         }
         let text = serde_json::to_string(&settings).map_err(|e| e.to_string())?;
         db.set_setting(super::SETTINGS, &text)?;
+        write_dropped(&db, &[])?;
         drop(running);
         Ok(chosen)
     }
