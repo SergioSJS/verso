@@ -12,7 +12,6 @@ use verso_core::sync as engine;
 
 use super::sync::{Ctx, Syncer};
 use super::*;
-use crate::dns::SendRetrying;
 
 fn off(key: &str) -> SyncStatus {
     SyncStatus {

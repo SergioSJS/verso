@@ -69,6 +69,8 @@ const MOST_SERVERS: usize = 6;
 /// finish the TLS and WebSocket handshakes.
 const TCP_FOR: Duration = Duration::from_secs(6);
 const SHAKE_FOR: Duration = Duration::from_secs(10);
+/// The most a dial of all the addresses takes.
+const DIAL_TOTAL: Duration = Duration::from_secs(25);
 
 /// How an address came to be tried.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -93,23 +95,34 @@ fn plausible(ip: &IpAddr) -> bool {
     !(ip.is_unspecified() || ip.is_multicast())
 }
 
-/// An address a plain `http` connection may be sent to on another
-/// resolver's word: this machine, a private network, a unique-local or
-/// link-local IPv6, or the shared range of Tailscale (100.64.0.0/10).
-pub(crate) fn private(ip: &IpAddr) -> bool {
-    match ip {
-        IpAddr::V4(v) => {
-            v.is_private()
-                || v.is_loopback()
-                || v.is_link_local()
-                || (v.octets()[0] == 100 && (64..128).contains(&v.octets()[1]))
+/// The networks this machine is on: an interface address and its prefix
+/// length, for each interface that is up and not loopback.
+pub(crate) type Nets = Vec<(IpAddr, u8)>;
+
+/// Whether `ip` is in the same network as `net`/`prefix`.
+fn same_network(net: &IpAddr, prefix: u8, ip: &IpAddr) -> bool {
+    match (net, ip) {
+        (IpAddr::V4(a), IpAddr::V4(b)) if (1..=32).contains(&prefix) => {
+            let mask = u32::MAX << (32 - u32::from(prefix));
+            u32::from(*a) & mask == u32::from(*b) & mask
         }
-        IpAddr::V6(v) => {
-            v.is_loopback()
-                || (v.segments()[0] & 0xfe00) == 0xfc00
-                || (v.segments()[0] & 0xffc0) == 0xfe80
+        (IpAddr::V6(a), IpAddr::V6(b)) if (1..=128).contains(&prefix) => {
+            let mask = u128::MAX << (128 - u32::from(prefix));
+            u128::from(*a) & mask == u128::from(*b) & mask
         }
+        _ => false,
     }
+}
+
+/// An address a plain `http` connection may be sent to on another
+/// resolver's word: one **on a network this machine is on** — inside the
+/// subnet of one of its interfaces, so a home's LAN, a Tailscale interface's
+/// 100.x range when there is one, and never somebody else's: carrier-grade
+/// NAT's 100.64.0.0/10 is other customers of the ISP when the machine has no
+/// such interface. This machine itself (loopback) is never believed from
+/// another resolver.
+pub(crate) fn on_link(ip: &IpAddr, nets: &[(IpAddr, u8)]) -> bool {
+    !ip.is_loopback() && nets.iter().any(|(n, p)| same_network(n, *p, ip))
 }
 
 /// The addresses to try, in order: the system's, then what each other DNS
@@ -148,8 +161,11 @@ pub(crate) fn order(
 /// What is known of one name.
 #[derive(Default)]
 struct Known {
-    /// An https server: the certificate is checked for the name.
-    tls: bool,
+    /// The name has been used over https / over plain http. Keyed by the
+    /// name, since a resolver is asked for a name alone: a name that was
+    /// ever used over plain http is treated as plain (the strict case).
+    https: bool,
+    http: bool,
     good: Option<(IpAddr, Instant)>,
     /// A connection failed at this moment.
     suspect: Option<Instant>,
@@ -165,6 +181,11 @@ struct Known {
 static KNOWN: Mutex<BTreeMap<String, Known>> = Mutex::new(BTreeMap::new());
 
 impl Known {
+    /// An https server only: the certificate is checked for the name.
+    fn tls(&self) -> bool {
+        self.https && !self.http
+    }
+
     fn good_at(&self, now: Instant) -> Option<IpAddr> {
         self.good
             .filter(|(_, at)| now.duration_since(*at) < GOOD_FOR)
@@ -208,22 +229,27 @@ impl Known {
 /// The candidates for a name: `system` is what the system's resolver
 /// returned, `None` when it failed (the name does not exist, as far as it
 /// says). The policy of the module's header, in one place.
-fn plan(k: &Known, system: Option<&[IpAddr]>, now: Instant) -> Vec<Candidate> {
+fn plan(
+    k: &Known,
+    system: Option<&[IpAddr]>,
+    nets: &[(IpAddr, u8)],
+    now: Instant,
+) -> Vec<Candidate> {
     let sys = system.unwrap_or(&[]);
     let mut others: Others = if k.suspect_at(now) {
         k.others_at(now).cloned().unwrap_or_default()
     } else {
         Vec::new()
     };
-    if !k.tls {
+    if !k.tls() {
         // The system said the name does not exist: nothing another
         // resolver says is believed over plain http; and what it says
-        // otherwise must be a private address.
+        // otherwise must be on a network this machine is on.
         if system.is_none() {
             others.clear();
         }
         for (_, ips) in &mut others {
-            ips.retain(private);
+            ips.retain(|ip| on_link(ip, nets));
         }
     }
     order(k.good_at(now), &k.demoted_at(now), sys, &others)
@@ -232,7 +258,13 @@ fn plan(k: &Known, system: Option<&[IpAddr]>, now: Instant) -> Vec<Candidate> {
 /// This name's server speaks TLS (`true`) or plain HTTP: said where an
 /// address enters the app, so the policy knows what a wrong address costs.
 pub(crate) fn declare(host: &str, tls: bool) {
-    lock(&KNOWN).entry(host.to_owned()).or_default().tls = tls;
+    let mut all = lock(&KNOWN);
+    let k = all.entry(host.to_owned()).or_default();
+    if tls {
+        k.https = true;
+    } else {
+        k.http = true;
+    }
 }
 
 /// An address worked for `host` — the handshake and an answer, not only a
@@ -320,6 +352,18 @@ fn local_name(host: &str) -> bool {
     h == "localhost" || h.ends_with(".local") || h.ends_with(".localhost")
 }
 
+/// The machine's networks; the tests pretend some.
+fn networks() -> Nets {
+    #[cfg(test)]
+    if let Some(n) = lock(&NETS).as_ref() {
+        return n.clone();
+    }
+    verso_server::discovery::interface_networks()
+}
+
+#[cfg(test)]
+static NETS: Mutex<Option<Nets>> = Mutex::new(None);
+
 fn system_answer(host: &str) -> io::Result<Vec<IpAddr>> {
     #[cfg(test)]
     if let Some(ips) = lock(&SYSTEM).get(host) {
@@ -352,9 +396,10 @@ fn resolve(host: &str) -> io::Result<Vec<IpAddr>> {
         k.others = Some((Instant::now(), others));
         k.asking = false;
     }
+    let nets = networks();
     let mut all = lock(&KNOWN);
     let k = all.entry(host.to_owned()).or_default();
-    let candidates = plan(k, sys.as_deref(), Instant::now());
+    let candidates = plan(k, sys.as_deref(), &nets, Instant::now());
     k.offered.clone_from(&candidates);
     if candidates.is_empty() {
         return Err(system.err().unwrap_or_else(|| {
@@ -405,8 +450,17 @@ impl SendRetrying for reqwest::blocking::RequestBuilder {
                 let host = e.url().and_then(|u| u.host_str()).map(str::to_owned);
                 match (again, host) {
                     (Some(again), Some(host)) if host.parse::<IpAddr>().is_err() => {
+                        let before = lock(&KNOWN)
+                            .get(&host)
+                            .and_then(|k| k.offered.first().map(|c| c.ip));
                         failed(&host);
-                        again.send()
+                        // Sent again only if the new resolution would try
+                        // another address first: the same one again would
+                        // fail the same way, and take as long.
+                        match resolve(&host) {
+                            Ok(now) if worth_retrying(before, &now) => again.send(),
+                            _ => Err(e),
+                        }
                     }
                     _ => Err(e),
                 }
@@ -414,6 +468,12 @@ impl SendRetrying for reqwest::blocking::RequestBuilder {
             other => other,
         }
     }
+}
+
+/// Whether sending again can end differently: the new resolution tries
+/// another address first.
+fn worth_retrying(before: Option<IpAddr>, now: &[IpAddr]) -> bool {
+    now.first().copied() != before
 }
 
 /// How a dial ended without a connection to use.
@@ -450,45 +510,57 @@ where
             .map_err(Dial::Io)?,
     };
     let mut last = Dial::Io(io::Error::from(io::ErrorKind::NotFound));
-    for ip in ips {
-        let tcp = tokio::time::timeout(TCP_FOR, tokio::net::TcpStream::connect((ip, port))).await;
-        let stream = match tcp {
-            Ok(Ok(s)) => s,
-            Ok(Err(e)) => {
-                last = Dial::Io(e);
-                continue;
-            }
-            Err(_) => {
-                last = Dial::Io(io::Error::new(
-                    io::ErrorKind::TimedOut,
-                    "operation timed out",
-                ));
-                continue;
-            }
-        };
-        match tokio::time::timeout(SHAKE_FOR, shake(stream)).await {
-            Ok(Ok(t)) => {
-                worked(host, ip);
-                return Ok(t);
-            }
-            Ok(Err((e, true))) => {
-                worked(host, ip);
-                return Err(Dial::Shake(e));
-            }
-            Ok(Err((e, false))) => {
-                demote(host, ip);
-                last = Dial::Shake(e);
-            }
-            Err(_) => {
-                demote(host, ip);
-                last = Dial::Io(io::Error::new(
-                    io::ErrorKind::TimedOut,
-                    "the handshake timed out",
-                ));
+    let all = async {
+        for ip in ips {
+            let tcp =
+                tokio::time::timeout(TCP_FOR, tokio::net::TcpStream::connect((ip, port))).await;
+            let stream = match tcp {
+                Ok(Ok(s)) => s,
+                Ok(Err(e)) => {
+                    last = Dial::Io(e);
+                    continue;
+                }
+                Err(_) => {
+                    last = Dial::Io(io::Error::new(
+                        io::ErrorKind::TimedOut,
+                        "operation timed out",
+                    ));
+                    continue;
+                }
+            };
+            match tokio::time::timeout(SHAKE_FOR, shake(stream)).await {
+                Ok(Ok(t)) => {
+                    worked(host, ip);
+                    return Ok(t);
+                }
+                Ok(Err((e, true))) => {
+                    worked(host, ip);
+                    return Err(Dial::Shake(e));
+                }
+                Ok(Err((e, false))) => {
+                    demote(host, ip);
+                    last = Dial::Shake(e);
+                }
+                Err(_) => {
+                    demote(host, ip);
+                    last = Dial::Io(io::Error::new(
+                        io::ErrorKind::TimedOut,
+                        "the handshake timed out",
+                    ));
+                }
             }
         }
-    }
-    Err(last)
+        Err(last)
+    };
+    // Every address has its time, but the dial as a whole has a ceiling too.
+    tokio::time::timeout(DIAL_TOTAL, all)
+        .await
+        .unwrap_or_else(|_| {
+            Err(Dial::Io(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "operation timed out",
+            )))
+        })
 }
 
 // The query and the answer on the wire (RFC 1035), only as far as an
@@ -722,6 +794,21 @@ pub(crate) fn from_resolv_conf(text: &str) -> Vec<IpAddr> {
         .collect()
 }
 
+/// The servers on Linux: those of `/etc/resolv.conf`; only when that names
+/// nothing but this machine (systemd-resolved's stub, 127.0.0.53) the real
+/// upstreams of `/run/systemd/resolve/resolv.conf` — which lists **every
+/// link's** servers, a VPN's included. That is accepted: the protection
+/// against a wrong answer is the policy of the module's header, not the list.
+#[cfg(any(target_os = "linux", test))]
+pub(crate) fn linux_servers(etc: &str, run: &str) -> Vec<IpAddr> {
+    let here = from_resolv_conf(etc);
+    if here.iter().any(|ip| !ip.is_loopback()) {
+        return here;
+    }
+    let upstream = from_resolv_conf(run);
+    if upstream.is_empty() { here } else { upstream }
+}
+
 /// The nameservers of macOS's `scutil --dns` that answer for every name:
 /// the resolvers of the first part, without a `domain` (those answer for
 /// one domain, such as `local`) and not marked scoped or supplemental; the
@@ -790,7 +877,8 @@ fn system_servers() -> Vec<IpAddr> {
 
 #[cfg(target_os = "linux")]
 fn system_servers() -> Vec<IpAddr> {
-    tidy(from_resolv_conf(&crate::resolv_conf::read()))
+    let (etc, run) = crate::resolv_conf::read();
+    tidy(linux_servers(&etc, &run))
 }
 
 #[cfg(windows)]
@@ -798,7 +886,8 @@ fn system_servers() -> Vec<IpAddr> {
     use std::os::windows::process::CommandExt;
     // The system's own PowerShell, by its absolute path (a `powershell.exe`
     // earlier on the PATH is not run), no console window (CREATE_NO_WINDOW),
-    // and only the adapters that are up.
+    // and only the physical adapters that are up (a VPN's or a virtual
+    // switch's servers are not asked).
     let root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_owned());
     std::process::Command::new(format!(
         "{root}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
@@ -807,7 +896,7 @@ fn system_servers() -> Vec<IpAddr> {
         "-NoProfile",
         "-NonInteractive",
         "-Command",
-        "$up = (Get-NetAdapter | Where-Object Status -eq 'Up').InterfaceIndex; Get-DnsClientServerAddress | Where-Object { $up -contains $_.InterfaceIndex } | ForEach-Object { $_.ServerAddresses }",
+        "$up = (Get-NetAdapter -Physical | Where-Object Status -eq 'Up').InterfaceIndex; Get-DnsClientServerAddress | Where-Object { $up -contains $_.InterfaceIndex } | ForEach-Object { $_.ServerAddresses }",
     ])
     .creation_flags(0x0800_0000)
     .output()
@@ -871,18 +960,19 @@ mod tests {
     #[test]
     fn an_address_remembered_from_another_network_is_not_used() {
         let now = Instant::now();
+        let nets: Nets = Vec::new();
         let k = Known {
-            tls: true,
+            https: true,
             good: Some((ip("192.168.0.5"), now)),
             ..Known::default()
         };
-        let got = plan(&k, Some(&[ip("203.0.113.9")]), now);
+        let got = plan(&k, Some(&[ip("203.0.113.9")]), &[], now);
         assert_eq!(ips(&got), [ip("203.0.113.9")]);
         // And when the café's resolver says the name does not exist, there
         // is nothing to send a token to.
-        assert!(plan(&k, None, now).is_empty());
+        assert!(plan(&k, None, &nets, now).is_empty());
         // At home the remembered address is among the answers and goes first.
-        let got = plan(&k, Some(&[ip("10.0.0.1"), ip("192.168.0.5")]), now);
+        let got = plan(&k, Some(&[ip("10.0.0.1"), ip("192.168.0.5")]), &[], now);
         assert_eq!(ips(&got), [ip("192.168.0.5"), ip("10.0.0.1")]);
     }
 
@@ -892,6 +982,7 @@ mod tests {
     #[test]
     fn other_resolvers_are_believed_only_as_far_as_the_scheme_allows() {
         let now = Instant::now();
+        let nets: Nets = vec![(ip("192.168.0.9"), 24)];
         let others: Others = vec![(ip("9.9.9.9"), vec![ip("203.0.113.7"), ip("192.168.0.5")])];
         let mut k = Known {
             suspect: Some(now),
@@ -899,47 +990,111 @@ mod tests {
             ..Known::default()
         };
         // Plain http, the system answered wrongly: only the private one.
-        let got = plan(&k, Some(&[ip("10.0.0.1")]), now);
+        let got = plan(&k, Some(&[ip("10.0.0.1")]), &nets, now);
         assert_eq!(ips(&got), [ip("10.0.0.1"), ip("192.168.0.5")]);
         // Plain http, the system said the name does not exist: nothing.
-        assert!(plan(&k, None, now).is_empty());
+        assert!(plan(&k, None, &nets, now).is_empty());
         // https: both, and even when the system said no.
-        k.tls = true;
-        let got = plan(&k, Some(&[ip("10.0.0.1")]), now);
+        k.https = true;
+        let got = plan(&k, Some(&[ip("10.0.0.1")]), &nets, now);
         assert_eq!(
             ips(&got),
             [ip("10.0.0.1"), ip("203.0.113.7"), ip("192.168.0.5")]
         );
         assert_eq!(
-            ips(&plan(&k, None, now)),
+            ips(&plan(&k, None, &nets, now)),
             [ip("203.0.113.7"), ip("192.168.0.5")]
         );
         // Not suspect: the other servers are not used at all.
         k.suspect = None;
         assert_eq!(
-            ips(&plan(&k, Some(&[ip("10.0.0.1")]), now)),
+            ips(&plan(&k, Some(&[ip("10.0.0.1")]), &nets, now)),
             [ip("10.0.0.1")]
         );
     }
 
+    /// On-link: inside the subnet of one of this machine's interfaces.
+    /// Carrier-grade NAT's range is other customers unless the machine has
+    /// an interface there (Tailscale); loopback is never another resolver's
+    /// to give.
     #[test]
-    fn private_addresses_are_the_ones_a_home_has() {
-        for yes in [
-            "10.1.2.3",
-            "192.168.0.5",
-            "172.16.0.1",
-            "127.0.0.1",
+    fn only_an_address_on_a_network_this_machine_is_on_is_on_link() {
+        let home: Nets = vec![(ip("192.168.0.9"), 24), (ip("fd00::9"), 64)];
+        for yes in ["192.168.0.5", "192.168.0.254", "fd00::1"] {
+            assert!(on_link(&ip(yes), &home), "{yes}");
+        }
+        for no in [
+            "192.168.1.5",
+            "10.0.0.1",
             "100.100.1.1",
-            "fd00::1",
-            "fe80::1",
+            "203.0.113.7",
+            "127.0.0.1",
             "::1",
-            "169.254.1.1",
+            "fd01::1",
         ] {
-            assert!(private(&ip(yes)), "{yes}");
+            assert!(!on_link(&ip(no), &home), "{no}");
         }
-        for no in ["8.8.8.8", "203.0.113.7", "100.128.0.1", "2001:db8::1"] {
-            assert!(!private(&ip(no)), "{no}");
-        }
+        // The ISP's CGNAT is not ours; a Tailscale interface makes its range ours.
+        assert!(!on_link(&ip("100.64.7.7"), &home));
+        let with_tailscale: Nets = vec![(ip("192.168.0.9"), 24), (ip("100.101.102.103"), 10)];
+        assert!(on_link(&ip("100.64.7.7"), &with_tailscale));
+        // A loopback address is never believed from another resolver, even
+        // if an interface were mis-listed with a loopback network.
+        assert!(!on_link(&ip("127.0.0.1"), &[(ip("127.0.0.1"), 8)]));
+        // A prefix of 0 would be everything: it is nothing.
+        assert!(!on_link(&ip("8.8.8.8"), &[(ip("10.0.0.1"), 0)]));
+        // And no network at all, no address.
+        assert!(!on_link(&ip("192.168.0.5"), &[]));
+    }
+
+    /// A name used over plain http at all is the strict case, whatever else
+    /// it was used for.
+    #[test]
+    fn a_name_ever_used_over_plain_http_is_treated_as_plain() {
+        let host = "duplo.exemplo.test";
+        declare(host, true);
+        assert!(lock(&KNOWN).get(host).unwrap().tls());
+        declare(host, false);
+        assert!(!lock(&KNOWN).get(host).unwrap().tls());
+        declare(host, true);
+        assert!(
+            !lock(&KNOWN).get(host).unwrap().tls(),
+            "https later does not undo it"
+        );
+    }
+
+    #[test]
+    fn a_retry_is_worth_it_only_if_another_address_goes_first() {
+        let a = Some(ip("10.0.0.1"));
+        assert!(!worth_retrying(a, &[ip("10.0.0.1"), ip("192.168.0.5")]));
+        assert!(worth_retrying(a, &[ip("192.168.0.5"), ip("10.0.0.1")]));
+        assert!(worth_retrying(None, &[ip("192.168.0.5")]));
+    }
+
+    #[test]
+    fn linux_reads_the_real_upstreams_only_behind_the_stub() {
+        let stub = "nameserver 127.0.0.53
+options edns0
+";
+        let run = "nameserver 192.168.0.2
+nameserver 10.8.0.1
+";
+        // Behind the stub: the upstreams (every link's, which is said).
+        assert_eq!(
+            linux_servers(stub, run),
+            [ip("192.168.0.2"), ip("10.8.0.1")]
+        );
+        // A plain resolv.conf stands alone: the run file is not read into it.
+        assert_eq!(
+            linux_servers(
+                "nameserver 192.168.5.5
+",
+                run
+            ),
+            [ip("192.168.5.5")]
+        );
+        // Behind the stub with no upstream file: the stub, as it is.
+        assert_eq!(linux_servers(stub, ""), [ip("127.0.0.53")]);
     }
 
     /// Nothing but the system is asked while connections work; a failure
@@ -1288,7 +1443,7 @@ mod tests {
         let all = lock(&KNOWN);
         let k = all.get(host).unwrap();
         assert!(k.suspect_at(Instant::now()));
-        assert!(!k.tls);
+        assert!(!k.tls());
         assert_eq!(k.demoted_at(Instant::now()), [ip("127.0.0.1")]);
     }
 
@@ -1302,13 +1457,11 @@ mod tests {
     }
 
     async fn a_dial_passes_over() {
-        let Ok(v6) = std::net::TcpListener::bind("[::1]:0") else {
-            return; // no IPv6 here
-        };
+        // ::1 and 127.0.0.1 on one port, the two loopbacks every machine has;
+        // a machine without ::1 fails here, loudly, rather than pass.
+        let v6 = std::net::TcpListener::bind("[::1]:0").unwrap();
         let port = v6.local_addr().unwrap().port();
-        let Ok(v4) = std::net::TcpListener::bind(("127.0.0.1", port)) else {
-            return;
-        };
+        let v4 = std::net::TcpListener::bind(("127.0.0.1", port)).unwrap();
         let _keep = (v6, v4);
         let host = "dois.exemplo.test";
         pretend_system(host, vec![ip("::1"), ip("127.0.0.1")]);

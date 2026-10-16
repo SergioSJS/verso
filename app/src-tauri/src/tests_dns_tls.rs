@@ -15,7 +15,7 @@ use std::sync::Arc;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use rustls::{ClientConfig, RootCertStore, ServerConfig, ServerConnection, StreamOwned};
 
-use crate::dns::{self, Dial, SendRetrying};
+use crate::dns::{self, SendRetrying};
 use crate::remote;
 use verso_service::lock;
 
@@ -69,7 +69,7 @@ fn serve_once(
 #[test]
 fn the_certificate_is_checked_for_the_urls_name_not_for_the_address() {
     let (_, pem, config) = certificate("pretend.test");
-    *lock(&remote::TEST_ROOT) = Some(pem.into_bytes());
+    lock(&remote::TEST_ROOT).push(pem.into_bytes());
     dns::pretend_system("pretend.test", vec!["127.0.0.1".parse().unwrap()]);
     dns::pretend_system("other.test", vec!["127.0.0.1".parse().unwrap()]);
 
@@ -104,61 +104,204 @@ fn the_certificate_is_checked_for_the_urls_name_not_for_the_address() {
         .unwrap_err();
     assert!(e.is_connect(), "{e}");
     let _ = server.join();
-    *lock(&remote::TEST_ROOT) = None;
 }
 
-#[test]
-fn the_websockets_dial_verifies_the_urls_name_too() {
-    tauri::async_runtime::block_on(the_dial_verifies());
+/// A server on `listener` that answers with `reply` whatever it is asked,
+/// over TLS with `config`, or in the clear with none.
+fn serve_raw(
+    listener: TcpListener,
+    config: Option<Arc<ServerConfig>>,
+    reply: Vec<u8>,
+) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || {
+        let Ok((tcp, _)) = listener.accept() else {
+            return;
+        };
+        let mut seen = [0_u8; 2048];
+        match config {
+            Some(config) => {
+                let Ok(conn) = ServerConnection::new(config) else {
+                    return;
+                };
+                let mut tls = StreamOwned::new(conn, tcp);
+                if tls.read(&mut seen).is_ok() {
+                    let _ = tls.write_all(&reply);
+                    let _ = tls.flush();
+                }
+            }
+            None => {
+                let mut tcp = tcp;
+                if tcp.read(&mut seen).is_ok() {
+                    let _ = tcp.write_all(&reply);
+                    let _ = tcp.flush();
+                }
+            }
+        }
+    })
 }
 
-async fn the_dial_verifies() {
-    use tokio_tungstenite::tungstenite::client::IntoClientRequest;
-    use tokio_tungstenite::{Connector, client_async_tls_with_config};
-    let (der, _, config) = certificate("pretend.test");
+fn trusting(der: CertificateDer<'static>) -> tokio_tungstenite::Connector {
     let mut roots = RootCertStore::empty();
     roots.add(der).unwrap();
-    let client = Arc::new(
+    tokio_tungstenite::Connector::Rustls(Arc::new(
         ClientConfig::builder_with_provider(ring())
             .with_safe_default_protocol_versions()
             .unwrap()
             .with_root_certificates(roots)
             .with_no_client_auth(),
-    );
+    ))
+}
+
+/// What the server writes for a 401 (`ApiError`: JSON with an `error`).
+fn servers_401() -> Vec<u8> {
+    let body = r#"{"error":"unauthorized","message":"sign in again"}"#;
+    format!("HTTP/1.1 401 Unauthorized\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).into_bytes()
+}
+
+/// What a router's login page writes for a 401: basic auth, HTML.
+fn routers_401() -> Vec<u8> {
+    let body = "<h1>Login please</h1>";
+    format!("HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Basic realm=\"router\"\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).into_bytes()
+}
+
+fn request(
+    scheme: &str,
+    host: &str,
+    port: u16,
+) -> tokio_tungstenite::tungstenite::handshake::client::Request {
+    use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+    format!("{scheme}://{host}:{port}/api/ws")
+        .into_client_request()
+        .unwrap()
+}
+
+/// `remote::ws_open` is what `dial_hello` calls: the same per-address dial
+/// and the same mapping of errors, with the tests' own certificate trusted.
+#[test]
+fn the_websockets_open_verifies_the_urls_name_and_maps_a_401_only_when_it_is_the_servers() {
+    tauri::async_runtime::block_on(ws_open_cases());
+}
+
+async fn ws_open_cases() {
+    use verso_contract::ErrorKind;
+    let (der, _, config) = certificate("pretend.test");
     dns::pretend_system("pretend.test", vec!["127.0.0.1".parse().unwrap()]);
     dns::pretend_system("other.test", vec!["127.0.0.1".parse().unwrap()]);
-    let dial = |host: &'static str, port: u16| {
-        let client = Arc::clone(&client);
-        async move {
-            let request = format!("wss://{host}:{port}/api/ws")
-                .into_client_request()
-                .unwrap();
-            dns::dial_with(host, port, move |stream| {
-                let (request, connector) =
-                    (request.clone(), Connector::Rustls(Arc::clone(&client)));
-                async move {
-                    client_async_tls_with_config(request, stream, None, Some(connector))
-                        .await
-                        .map(|_| ())
-                        .map_err(|e| (e.to_string(), false))
-                }
-            })
-            .await
-        }
+    dns::pretend_system("router.test", vec!["127.0.0.1".parse().unwrap()]);
+    let bind = || {
+        let l = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = l.local_addr().unwrap().port();
+        (l, port)
     };
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    let port = listener.local_addr().unwrap().port();
-    let server = serve_once(listener, Arc::clone(&config), true);
-    assert!(dial("pretend.test", port).await.is_ok());
+
+    // The name the certificate is for: opens, at the address the DNS gave.
+    let (l, port) = bind();
+    let server = serve_once(l, Arc::clone(&config), true);
+    let opened = remote::ws_open(
+        "https://pretend.test",
+        "pretend.test",
+        port,
+        request("wss", "pretend.test", port),
+        Some(trusting(der.clone())),
+    )
+    .await;
+    assert!(opened.is_ok(), "{:?}", opened.err().map(|e| e.message));
     server.join().unwrap();
 
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    let port = listener.local_addr().unwrap().port();
-    let server = serve_once(listener, config, true);
-    let wrong = dial("other.test", port).await;
-    assert!(
-        matches!(wrong, Err(Dial::Shake(_))),
-        "a certificate for another name must not do"
-    );
+    // The same server under another name sent to the same address: the
+    // certificate is not for that name, so it is out of reach.
+    let (l, port) = bind();
+    let server = serve_once(l, Arc::clone(&config), true);
+    let wrong = remote::ws_open(
+        "https://other.test",
+        "other.test",
+        port,
+        request("wss", "other.test", port),
+        Some(trusting(der.clone())),
+    )
+    .await;
+    assert_eq!(wrong.err().map(|e| e.kind), Some(ErrorKind::Unreachable));
     let _ = server.join();
+
+    // The server's own 401 over wss: "sign in again", the dial ends.
+    let (l, port) = bind();
+    let server = serve_raw(l, Some(Arc::clone(&config)), servers_401());
+    let refused = remote::ws_open(
+        "https://pretend.test",
+        "pretend.test",
+        port,
+        request("wss", "pretend.test", port),
+        Some(trusting(der.clone())),
+    )
+    .await;
+    assert_eq!(refused.err().map(|e| e.kind), Some(ErrorKind::Refused));
+    let _ = server.join();
+
+    // Over ws://, the JSON the server writes is the server's 401 …
+    let (l, port) = bind();
+    let server = serve_raw(l, None, servers_401());
+    let refused = remote::ws_open(
+        "http://pretend.test",
+        "pretend.test",
+        port,
+        request("ws", "pretend.test", port),
+        None,
+    )
+    .await;
+    assert_eq!(refused.err().map(|e| e.kind), Some(ErrorKind::Refused));
+    let _ = server.join();
+
+    // … but a router's basic-auth page is not: no "sign in again", and the
+    // address is passed over, not remembered.
+    let (l, port) = bind();
+    let server = serve_raw(l, None, routers_401());
+    let router = remote::ws_open(
+        "http://router.test",
+        "router.test",
+        port,
+        request("ws", "router.test", port),
+        None,
+    )
+    .await;
+    assert_ne!(router.err().map(|e| e.kind), Some(ErrorKind::Refused));
+    let _ = server.join();
+}
+
+/// A TLS handshake that fails at the first address (a certificate for another
+/// name, as a router's page on 443 would have) is sent again, now with the
+/// other address first; without the second try the request stays failed.
+#[test]
+fn a_request_whose_first_address_fails_the_handshake_is_sent_again_to_the_next() {
+    let (_, pem, good) = certificate("retry.test");
+    let (_, other_pem, wrong) = certificate("some-router.test");
+    {
+        let mut roots = lock(&remote::TEST_ROOT);
+        roots.push(pem.into_bytes());
+        roots.push(other_pem.into_bytes());
+    }
+    // ::1 and 127.0.0.1 on one port; a machine without ::1 fails loudly.
+    let v6 = TcpListener::bind("[::1]:0").unwrap();
+    let port = v6.local_addr().unwrap().port();
+    let v4 = TcpListener::bind(("127.0.0.1", port)).unwrap();
+    dns::pretend_system(
+        "retry.test",
+        vec!["::1".parse().unwrap(), "127.0.0.1".parse().unwrap()],
+    );
+    let s6 = serve_once(v6, wrong, false);
+    let s4 = serve_once(v4, good, false);
+    let client = remote::http().unwrap();
+    let response = client
+        .get(format!("https://retry.test:{port}/"))
+        .send_retrying()
+        .unwrap();
+    assert_eq!(
+        response
+            .remote_addr()
+            .map(|a| a.ip().to_string())
+            .as_deref(),
+        Some("127.0.0.1")
+    );
+    assert_eq!(response.text().unwrap(), "ok");
+    let _ = s6.join();
+    s4.join().unwrap();
 }
