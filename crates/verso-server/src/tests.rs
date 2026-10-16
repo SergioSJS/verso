@@ -134,7 +134,16 @@ pub(crate) async fn start_with(edit: impl FnOnce(&mut Config)) -> Running {
         web: true,
         ..config(data.path(), folders.path())
     };
+    // The port is known before the configuration is final, so a test may
+    // ask for a public address that is this server's own: "@self".
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     edit(&mut config);
+    let own = listener.local_addr().unwrap().port();
+    match config.public_url.as_deref() {
+        Some("@self") => config.public_url = Some(format!("http://localhost:{own}")),
+        Some("@self-https") => config.public_url = Some(format!("https://localhost:{own}")),
+        _ => {}
+    }
     let db = prepare(&config).unwrap();
     let admin = db
         .create_account(
@@ -147,7 +156,6 @@ pub(crate) async fn start_with(edit: impl FnOnce(&mut Config)) -> Running {
         .unwrap();
     db.create_folder("Campanha", &admin.id).unwrap();
     let server = state::Server::new(config, db, contract_version(), "test".into());
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let (tx, rx) = tokio::sync::oneshot::channel::<()>();
     let s = Arc::clone(&server);
@@ -1283,7 +1291,7 @@ fn the_persons_settings_follow_the_account() {
 #[test]
 fn with_a_mail_server_links_go_by_mail_and_say_nothing_of_strangers() {
     block_on(async {
-        let r = start().await;
+        let r = start_with(|c| c.public_url = Some("@self".into())).await;
         let _ = r
             .server
             .mail

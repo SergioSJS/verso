@@ -630,13 +630,9 @@ fn client_key(server: &Server, request: &Request) -> Option<String> {
             .iter()
             .filter_map(|v| v.to_str().ok()),
     );
-    // A direct connection from this machine, or, with the default list
-    // (which believes loopback), one that came through a proxy and named no
-    // one else: not counted. A proxy the person named that forwards
-    // `127.0.0.1` is paced under it (ADR 0083 item 7).
-    if client.addr.is_loopback()
-        && (!client.from_proxy || server.config.trusted_proxy.is_implicit())
-    {
+    // This machine speaking for itself is not counted; a forwarded
+    // address is, even a loopback one (ADR 0083 item 7).
+    if auth::is_local(server, remote.ip(), &client) {
         return None;
     }
     Some(crate::limit::address_key(client.addr))
@@ -695,7 +691,7 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
         return ApiError::new(
             StatusCode::MISDIRECTED_REQUEST,
             "host",
-            "this server does not answer to that name",
+            "this server does not answer to that name; set VERSO_PUBLIC_URL to the address people use",
         )
         .into_response();
     }
@@ -780,9 +776,12 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
     if (html || is_worker || is_service_worker) && !is_file {
         h.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     }
-    // On an answer that went over HTTPS, or that a public HTTPS address
-    // says is served so; a browser ignores the header over plain HTTP.
-    if peer.https
+    // Only for the server's own TLS or a public HTTPS address, as before:
+    // `includeSubDomains` remembered for a name that is also reached over
+    // plain HTTP (`http://name:7340`, behind a proxy that said https once)
+    // would lock that name out of HTTP. A browser ignores the header over
+    // plain HTTP, so the HTTP answers of such a name carry it harmlessly.
+    if server.config.tls.is_some()
         || server
             .config
             .public_url

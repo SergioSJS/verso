@@ -612,7 +612,15 @@ pub async fn overview(ctx: Ctx) -> ApiResult<Response> {
     )?;
     let tls = if config.tls.is_some() {
         "own"
-    } else if !config.trusted_proxy.is_empty() && !config.trusted_proxy.is_implicit() {
+    } else if ctx.peer.https
+        || config
+            .public_url
+            .as_deref()
+            .is_some_and(|u| u.starts_with("https://"))
+        || (!config.trusted_proxy.is_empty() && !config.trusted_proxy.is_implicit())
+    {
+        // An https address, a named proxy, or this very request having come
+        // over HTTPS through the default list's proxy: HTTPS is in front.
         "proxy"
     } else if config.loopback_only() {
         "loopback"
