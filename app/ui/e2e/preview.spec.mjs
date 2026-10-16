@@ -6,7 +6,7 @@
 // command's card a dialog that Escape closes, the focus given back; the
 // setting off; a finger's card above Open and Edit link.
 
-import { test, expect } from "./fixtures.mjs";
+import { test, expect, settledBox } from "./fixtures.mjs";
 
 const LINKS = "02 - Links, Âncoras e Notas Incorporadas";
 const card = (page) => page.locator(".hover-preview");
@@ -195,7 +195,7 @@ test("the panel's backlinks and the graph's nodes preview their notes", async ({
   const node = page.locator(`svg.graph g.node[data-id="${LINKS}.md"]`);
   await expect(node).toBeVisible();
   // The graph settles before its node is still under the pointer.
-  await page.waitForTimeout(1500);
+  await settledBox(page, node.locator("circle"));
   await rest(page, node.locator("circle"));
   await expect(card(page)).toHaveAttribute("aria-label", `Prévia de ${LINKS}`);
 });
@@ -265,8 +265,7 @@ test.describe("by touch", () => {
     await app.command("Grafo do cofre");
     const node = page.locator(`svg.graph g.node[data-id="${LINKS}.md"] circle`);
     await expect(node).toBeVisible();
-    await page.waitForTimeout(1500);
-    const b = await node.boundingBox();
+    const b = await settledBox(page, node);
     const tabs = await page.locator(".pane.focused .tab").count();
     const cdp = await page.context().newCDPSession(page);
     const at = [{ x: b.x + b.width / 2, y: b.y + b.height / 2, id: 1 }];
