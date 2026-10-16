@@ -3,19 +3,18 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 // "Folders served" in Settings › This app is a server (ADR 0096): the
-// folders this computer has opened, as a tree by where they live
-// (servedTree.ts), each with a checkbox; places are expandable rows. Nested
-// lists with native <details>, like the sidebar's tree: Tab reaches each
-// checkbox and each place, Space/Enter open and close a place, Space ticks.
+// folders this computer has opened, as the folder switcher lists them
+// (servedList.ts) — freshest first, one row each, a checkbox to serve it.
+// The directory's name shows only to tell two folders of a name apart.
 // A filter once the list is long, the ticked count in the heading, and the
 // reason a box is disabled on its row.
 
 import type { LocalFolder } from "../bindings";
 import { h } from "../dom";
-import { filterFolders, buildTree, countTicked, duplicateNames, groupHasTicked, type Group } from "./servedTree";
+import { currentFolder } from "../folder";
+import { filterFolders, countTicked, duplicateNames } from "./servedList";
 
-/** More folders than this and the list collapses the places with nothing
- *  ticked, and a filter appears. */
+/** More folders than this and a filter appears. */
 export const MANY = 8;
 
 const pt = {
@@ -25,9 +24,8 @@ const pt = {
   shown: (n: number, all: number) => `${n} de ${all} pastas`,
   none: "Nenhuma pasta combina com o filtro.",
   inPlace: (place: string) => `em ${place}`,
-  place: (label: string, n: number) => `${label}, ${n === 1 ? "1 pasta" : `${n} pastas`}`,
-  folderCount: (n: number) => (n === 1 ? "1 pasta" : `${n} pastas`),
-  tree: "Pastas deste computador, por lugar",
+  current: "aberta",
+  list: "Pastas deste computador, as mais recentes primeiro",
 };
 const en: typeof pt = {
   ticked: (n, all) => (n === 0 ? `none ticked of ${all}` : n === 1 ? `1 ticked of ${all}` : `${n} ticked of ${all}`),
@@ -36,9 +34,8 @@ const en: typeof pt = {
   shown: (n, all) => `${n} of ${all} folders`,
   none: "No folder matches the filter.",
   inPlace: (place) => `in ${place}`,
-  place: (label, n) => `${label}, ${n === 1 ? "1 folder" : `${n} folders`}`,
-  folderCount: (n) => (n === 1 ? "1 folder" : `${n} folders`),
-  tree: "Folders on this computer, by place",
+  current: "open",
+  list: "Folders on this computer, most recent first",
 };
 const words = () => (document.documentElement.lang.startsWith("pt") ? pt : en);
 
@@ -59,10 +56,6 @@ export interface Served {
   draw: (list: LocalFolder[], serving: boolean) => void;
 }
 
-function total(g: Group): number {
-  return g.folders.length + g.groups.reduce((n, c) => n + total(c), 0);
-}
-
 export function servedFolders(opts: ServedOptions): Served {
   const box = h("div", "ls-folders");
   const tools = h("div", "ls-tools");
@@ -81,14 +74,12 @@ export function servedFolders(opts: ServedOptions): Served {
   const shown = h("small", "ls-help ls-shown");
   shown.setAttribute("role", "status");
   tools.append(search, shown);
-  const tree = h("ul", "ls-tree");
+  const ul = h("ul", "ls-list");
   const foot = h("p", "ls-help");
-  box.append(tools, tree, foot);
+  box.append(tools, ul, foot);
 
   let all: LocalFolder[] = [];
   let serving = false;
-  /** What the person opened or closed by hand, by group id. */
-  const chosen = new Map<string, boolean>();
 
   const folderRow = (f: LocalFolder, twins: Set<string>): HTMLElement => {
     const w = words();
@@ -101,9 +92,10 @@ export function servedFolders(opts: ServedOptions): Served {
     const label = h("label", "ls-check");
     label.htmlFor = input.id;
     label.append(input, h("span", "ls-name", f.name));
+    if (twins.has(f.name) && f.place !== "") label.append(h("small", "ls-place", w.inPlace(f.place)));
+    if (f.key === currentFolder) label.append(h("small", "ls-current", w.current));
     li.append(label);
     const notes: HTMLElement[] = [];
-    if (twins.has(f.name) && f.place !== "") notes.push(h("small", "ls-help ls-place", w.inPlace(f.place)));
     if (f.syncs_with !== null) notes.push(h("small", "ls-help ls-why", opts.syncsWith(f.syncs_with)));
     notes.forEach((n, i) => {
       n.id = `ls-n-${f.key}-${i}`;
@@ -123,29 +115,6 @@ export function servedFolders(opts: ServedOptions): Served {
     return li;
   };
 
-  const groupRow = (g: Group, twins: Set<string>, filtering: boolean): HTMLElement => {
-    const w = words();
-    const li = h("li", "ls-group");
-    const d = h("details");
-    d.open = filtering || (chosen.get(g.id) ?? (all.length <= MANY || groupHasTicked(g)));
-    const s = h("summary");
-    s.setAttribute("aria-label", w.place(g.label, total(g)));
-    s.append(h("span", "chev"), h("span", "ls-place-name", g.label), h("small", "ls-help", w.folderCount(total(g))));
-    s.addEventListener("click", () => {
-      if (!filtering) chosen.set(g.id, !d.open);
-    });
-    const inner = h("ul", "ls-tree");
-    fill(inner, g, twins, filtering);
-    d.append(s, inner);
-    li.append(d);
-    return li;
-  };
-
-  const fill = (ul: HTMLElement, g: Group, twins: Set<string>, filtering: boolean): void => {
-    for (const c of g.groups) ul.append(groupRow(c, twins, filtering));
-    for (const f of g.folders) ul.append(folderRow(f, twins));
-  };
-
   const draw = (list: LocalFolder[], isServing: boolean): void => {
     const w = words();
     all = list;
@@ -159,11 +128,14 @@ export function servedFolders(opts: ServedOptions): Served {
     search.setAttribute("aria-label", w.filter);
     search.placeholder = w.filterHint;
     shown.textContent = filtering ? w.shown(visible.length, list.length) : "";
-    tree.setAttribute("aria-label", w.tree);
-    tree.replaceChildren();
-    if (list.length === 0) tree.append(h("li", "ls-help", opts.none));
-    else if (visible.length === 0) tree.append(h("li", "ls-help", w.none));
-    else fill(tree, buildTree(visible), duplicateNames(list), filtering);
+    ul.setAttribute("aria-label", w.list);
+    ul.replaceChildren();
+    if (all.length === 0) ul.append(h("li", "ls-help", opts.none));
+    else if (visible.length === 0) ul.append(h("li", "ls-help", w.none));
+    else {
+      const twins = duplicateNames(all);
+      for (const f of visible) ul.append(folderRow(f, twins));
+    }
     foot.hidden = !(serving && list.length > 0);
     foot.textContent = opts.locked;
   };

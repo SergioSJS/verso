@@ -22,7 +22,7 @@ test("it is off, serves only the ticked folders, and says what the system will a
   const body = page.locator(".settings-body");
   await expect(body.getByText("Desligado.")).toBeVisible();
   // None comes ticked; the one that also syncs with a server cannot be.
-  const vault = body.getByRole("checkbox", { name: "Vault" });
+  const vault = body.getByRole("checkbox", { name: /^Vault/ });
   await expect(vault).not.toBeChecked();
   await expect(body.getByRole("checkbox", { name: "Compartilhada" })).toBeDisabled();
   await expect(body.getByText("também sincroniza com notas.exemplo: abra esse endereço no celular")).toBeVisible();
@@ -49,7 +49,7 @@ test("a phone is paired only when the laptop says Allow, and can then be revoked
   await app.open();
   await section(app);
   const body = page.locator(".settings-body");
-  await body.getByRole("checkbox", { name: "Vault" }).check();
+  await body.getByRole("checkbox", { name: /^Vault/ }).check();
   await body.getByRole("button", { name: "Ligar o servidor" }).click();
   await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
   await body.getByRole("button", { name: "Parear um celular" }).click();
@@ -82,7 +82,7 @@ test("refusing a phone, and forgetting all, ask and say what they did", async ({
   await app.open();
   await section(app);
   const body = page.locator(".settings-body");
-  await body.getByRole("checkbox", { name: "Vault" }).check();
+  await body.getByRole("checkbox", { name: /^Vault/ }).check();
   await body.getByRole("button", { name: "Ligar o servidor" }).click();
   await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
   await body.getByRole("button", { name: "Parear um celular" }).click();
@@ -106,7 +106,7 @@ test("closing the pairing dialog ends the window", async ({ app, page }) => {
   await app.open();
   await section(app);
   const body = page.locator(".settings-body");
-  await body.getByRole("checkbox", { name: "Vault" }).check();
+  await body.getByRole("checkbox", { name: /^Vault/ }).check();
   await body.getByRole("button", { name: "Ligar o servidor" }).click();
   await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
   await body.getByRole("button", { name: "Parear um celular" }).click();
@@ -124,7 +124,7 @@ test("the pairing dialog names the address and interface, and picking another ma
   await app.open();
   await section(app);
   const body = page.locator(".settings-body");
-  await body.getByRole("checkbox", { name: "Vault" }).check();
+  await body.getByRole("checkbox", { name: /^Vault/ }).check();
   await body.getByRole("button", { name: "Ligar o servidor" }).click();
   await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
   await body.getByRole("button", { name: "Parear um celular" }).click();
@@ -150,7 +150,7 @@ test("when a phone asks, the dialog's actions are one row: refuse and allow, no 
   await app.open();
   await section(app);
   const body = page.locator(".settings-body");
-  await body.getByRole("checkbox", { name: "Vault" }).check();
+  await body.getByRole("checkbox", { name: /^Vault/ }).check();
   await body.getByRole("button", { name: "Ligar o servidor" }).click();
   await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
   await body.getByRole("button", { name: "Parear um celular" }).click();
@@ -181,7 +181,7 @@ test("a paired phone can be let edit, or only read, without pairing again", asyn
   await app.open();
   await section(app);
   const body = page.locator(".settings-body");
-  await body.getByRole("checkbox", { name: "Vault" }).check();
+  await body.getByRole("checkbox", { name: /^Vault/ }).check();
   await body.getByRole("button", { name: "Ligar o servidor" }).click();
   await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
   await body.getByRole("button", { name: "Parear um celular" }).click();
@@ -214,7 +214,7 @@ test("the pairing dialog copies the link the QR encodes, for the address picked"
   await app.open();
   await section(app);
   const body = page.locator(".settings-body");
-  await body.getByRole("checkbox", { name: "Vault" }).check();
+  await body.getByRole("checkbox", { name: /^Vault/ }).check();
   await body.getByRole("button", { name: "Ligar o servidor" }).click();
   await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
   await body.getByRole("button", { name: "Parear um celular" }).click();
@@ -254,27 +254,25 @@ test("the devices connected at once is a number from 1 to 16, 4 by default, kept
   await expect(body.getByLabel("Aparelhos conectados ao mesmo tempo")).toHaveValue("2");
 });
 
-test("many folders are a tree by place: duplicates told apart, a filter, a count, and it fits a phone @layout", async ({ app, page }) => {
+test("many folders are listed as in the folder switcher: the command's order, no groups, twins told apart, a filter, a count, and it fits a phone @layout", async ({ app, page }) => {
   await app.open();
   await section(app);
   const body = page.locator(".settings-body");
-  const tree = body.getByRole("list", { name: "Pastas deste computador, por lugar" });
-  // Places are rows that open; with this many, the ones with nothing ticked
-  // start closed, and the folders sit under their place.
-  const obsidian = tree.locator("summary", { hasText: "obsidian" });
-  await expect(obsidian).toBeVisible();
-  await expect(body.getByRole("checkbox", { name: "Sandbox" })).toBeHidden();
-  await obsidian.click();
+  const list = body.getByRole("list", { name: "Pastas deste computador, as mais recentes primeiro" });
+  // One flat row per folder, in the order the command returns them (the
+  // harness answers freshest first); no group headings, nothing to open.
+  await expect(list.locator("summary, details")).toHaveCount(0);
+  const names = await list.locator(".ls-name").allTextContents();
+  expect(names).toEqual(["Vault", "Compartilhada", "Caderno", "Caderno", "mac-vault-import", "mac-vault-import", "Sandbox", "Receitas", "Trabalho", "Diario", "Estudos", "Projetos"]);
   await expect(body.getByRole("checkbox", { name: "Sandbox" })).toBeVisible();
-  // Two "Caderno": told apart by the place they are in.
-  await tree.locator("summary", { hasText: "Dropbox" }).click();
-  await expect(tree.getByText("em obsidian")).toHaveCount(2);
-  await expect(tree.getByText("em Dropbox")).toHaveCount(1);
-  // Ticking calls the command: the count says so, and its branch stays open.
+  // Only the two pairs of the same name carry the directory, muted.
+  await expect(list.locator(".ls-place")).toHaveText(["em obsidian", "em Dropbox", "em obsidian", "em Downloads"]);
+  await expect(list.getByText("em Documents")).toHaveCount(0);
+  // Ticking calls the command: the count says so.
   await body.getByRole("checkbox", { name: "Sandbox" }).check();
   await expect(body.locator(".ls-h", { hasText: "1 marcada de 12" })).toBeVisible();
   await expect(body.getByRole("checkbox", { name: "Sandbox" })).toBeChecked();
-  // The filter finds by name or by place and opens what it finds.
+  // The filter finds by name or by place.
   const filter = body.getByRole("searchbox", { name: "Filtrar pastas" });
   await filter.fill("receitas");
   await expect(body.getByRole("checkbox", { name: "Receitas" })).toBeVisible();
