@@ -409,3 +409,65 @@ fn links_by_mail_exist_only_with_a_public_address_and_never_carry_the_host() {
         assert_eq!(status, 421);
     });
 }
+
+/// The WebSocket cap per address keeps counting a believed peer that forges
+/// `X-Forwarded-For: 127.0.0.1`: only a loopback socket that forwarded
+/// nothing is "the proxy in front, speaking for everyone" (ADR 0083
+/// item 7). Three accounts, each within its own 32, from one forged address:
+/// the 65th connection is refused; from this machine itself it is not.
+#[test]
+fn the_websocket_cap_counts_a_forged_loopback_and_not_this_machine() {
+    block_on(async {
+        let r = start_with(|c| c.trusted_proxy = Proxies::private_networks()).await;
+        let who = |n: usize| {
+            let account = r
+                .server
+                .db
+                .create_account(&format!("ws{n}@casa.lan"), "Ws", "pt", None, false)
+                .unwrap();
+            crate::auth::Who {
+                account,
+                via: crate::auth::Via::Browser {
+                    session: format!("s{n}"),
+                    csrf: String::new(),
+                },
+                phone: None,
+            }
+        };
+        let accounts = [who(1), who(2), who(3)];
+        let ctx = |remote: &str, forwarded: Option<&str>| crate::http::Ctx {
+            server: std::sync::Arc::clone(&r.server),
+            peer: peer_of(&r.server, remote, forwarded),
+            who: None,
+            headers: HeaderMap::new(),
+            method: axum::http::Method::GET,
+        };
+        // A believed LAN peer writing 127.0.0.1.
+        let forged = ctx("192.168.1.5", Some("127.0.0.1"));
+        assert!(!forged.peer.local && forged.peer.addr.is_loopback());
+        let mut held = Vec::new();
+        for n in 0..64 {
+            match crate::rpc::places(&forged, &accounts[n / 32]) {
+                Ok((places, _)) => held.push(places),
+                Err(e) => panic!("connection {n} refused: {}", e.status),
+            }
+        }
+        let refused = crate::rpc::places(&forged, &accounts[2]);
+        assert_eq!(
+            refused.err().map(|e| e.status.as_u16()),
+            Some(429),
+            "the 65th"
+        );
+        drop(held);
+        // This machine, forwarding nothing, is not counted per address.
+        let here = ctx("127.0.0.1", None);
+        assert!(here.peer.local);
+        let mut held = Vec::new();
+        for n in 0..96 {
+            match crate::rpc::places(&here, &accounts[n / 32]) {
+                Ok((places, _)) => held.push(places),
+                Err(e) => panic!("local connection {n} refused: {}", e.status),
+            }
+        }
+    });
+}

@@ -114,6 +114,7 @@
     "allow-device-name",
     "allow-set-device-name",
     "allow-server-folders",
+    "allow-server-create-folder",
     "allow-server-open",
     "allow-server-retry",
     "allow-discover-servers-start",

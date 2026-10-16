@@ -853,6 +853,17 @@ pub struct ServerFolder {
     pub missing: bool,
 }
 
+/// The folders a server lists for the account, and whether the account may
+/// make a new one there (the server's `mayCreate`, ADR 0074 item 6; the
+/// maintainer, 2026-10-16: a new server has no folder, and the admin who
+/// signs the app in has to be able to make the first).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct ServerFolders {
+    pub folders: Vec<ServerFolder>,
+    #[serde(default)]
+    pub may_create: bool,
+}
+
 /// A folder of this computer opened before, for the folder switcher's
 /// "On this computer" (ADR 0081 item 5): its name and the key
 /// `reopen_folder` takes — never its path (ADR 0026 rule 4).

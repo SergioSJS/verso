@@ -490,7 +490,13 @@ export const commands = {
 	 */
 	serverSignOut: (url: string) => typedError<null, ContractError>(__TAURI_INVOKE("server_sign_out", { url })),
 	/**  The folders of a server the account may open. */
-	serverFolders: (url: string) => typedError<ServerFolder[], ContractError>(__TAURI_INVOKE("server_folders", { url })),
+	serverFolders: (url: string) => typedError<ServerFolders, ContractError>(__TAURI_INVOKE("server_folders", { url })),
+	/**
+	 *  Make a new, empty folder on a server, owned by the account signed in
+	 *  there (the maintainer, 2026-10-16): the server decides whether the
+	 *  account may and whether the name is free, and says so.
+	 */
+	serverCreateFolder: (url: string, name: string) => typedError<ServerFolder, ContractError>(__TAURI_INVOKE("server_create_folder", { url, name })),
 	/**
 	 *  Open a folder of a server in this window: the window leaves its own
 	 *  folder, connects, and from now on sends the folder's commands there.
@@ -596,7 +602,8 @@ export const commands = {
 	folderSync: () => typedError<SyncStatus, ContractError>(__TAURI_INVOKE("folder_sync")),
 	/**
 	 *  Sync the window's folder with a folder of a server the app is signed
-	 *  in to: `folder`, one there by id, or a new one named `name` (item 1).
+	 *  in to: `folder`, one there by id, or a new one named `name` (item 1; a
+	 *  name the server has already becomes `name (2)`, never a merge).
 	 *  The first sync deletes nothing (item 11).
 	 */
 	folderSyncStart: (url: string, folder: string | null, name: string | null) => typedError<SyncStatus, ContractError>(__TAURI_INVOKE("folder_sync_start", { url, folder, name })),
@@ -2238,6 +2245,17 @@ export type ServerFolder = {
 	share?: boolean,
 	/**  The shared folder is no longer where the share points (item 13). */
 	missing?: boolean,
+};
+
+/**
+ *  The folders a server lists for the account, and whether the account may
+ *  make a new one there (the server's `mayCreate`, ADR 0074 item 6; the
+ *  maintainer, 2026-10-16: a new server has no folder, and the admin who
+ *  signs the app in has to be able to make the first).
+ */
+export type ServerFolders = {
+	folders: ServerFolder[],
+	may_create?: boolean,
 };
 
 /**

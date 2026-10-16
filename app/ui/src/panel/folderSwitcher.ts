@@ -107,7 +107,7 @@ export async function openFolderSwitcher(anchor: HTMLElement): Promise<void> {
     const fill = async (): Promise<void> => {
       const folders = await attempt(failure, () => commands.serverFolders(a.url), { other: errorSentence, retry: () => void fill() });
       if (folders.status !== "ok") return;
-      for (const f of folders.data) {
+      for (const f of folders.data.folders) {
         const where = many ? ` · ${hostName}` : "";
         const isHere = f.name === folderName;
         if (f.owner) {
