@@ -71,7 +71,7 @@ fn x_frame_options_forbids(values: &[String]) -> bool {
 fn source_matches(source: &str, app: Option<&Ancestor>) -> bool {
     let source = source.to_ascii_lowercase();
     if source == "*" {
-        return app.map_or(true, |a| a.is_network());
+        return app.is_none_or(|a| a.is_network());
     }
     // 'none', 'self' (the site's own origin is not the app's), nonces,
     // hashes and keywords: none of them names the app.
