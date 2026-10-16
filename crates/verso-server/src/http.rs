@@ -89,6 +89,14 @@ impl IntoResponse for ApiError {
         {
             response.headers_mut().insert(header::RETRY_AFTER, v);
         }
+        // Every refusal says whose it is, in the header the sync already
+        // speaks: the desktop app tells this server's 401 from a router's
+        // login page by it, not by guessing at a body that may arrive late
+        // (ADR 0097).
+        response.headers_mut().insert(
+            verso_core::sync::PROTOCOL_HEADER,
+            HeaderValue::from(verso_core::sync::PROTOCOL),
+        );
         response
     }
 }

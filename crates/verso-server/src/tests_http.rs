@@ -85,6 +85,33 @@ fn signing_in_over_plain_http_from_the_network_works_and_the_cookie_is_not_secur
     });
 }
 
+/// A refusal carries the sync header, so the desktop app can tell this
+/// server's 401 from a router's login page without reading a body.
+#[test]
+fn a_refusal_says_whose_it_is() {
+    block_on(async {
+        let r = start_with(listening_on_the_network).await;
+        let res = reqwest::Client::new()
+            .get(r.url("/api/ws"))
+            .header("host", LAN)
+            .header("connection", "upgrade")
+            .header("upgrade", "websocket")
+            .header("sec-websocket-version", "13")
+            .header("sec-websocket-key", "dGhlIHNhbXBsZSBub25jZQ==")
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(res.status().as_u16(), 401);
+        assert_eq!(
+            res.headers()
+                .get(verso_core::sync::PROTOCOL_HEADER)
+                .and_then(|v| v.to_str().ok())
+                .map(str::to_owned),
+            Some(verso_core::sync::PROTOCOL.to_string())
+        );
+    });
+}
+
 #[test]
 fn a_page_of_another_site_is_still_not_a_page_of_this_server() {
     block_on(async {

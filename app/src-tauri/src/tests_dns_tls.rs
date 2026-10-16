@@ -103,6 +103,9 @@ fn the_certificate_is_checked_for_the_urls_name_not_for_the_address() {
         .send()
         .unwrap_err();
     assert!(e.is_connect(), "{e}");
+    // A certificate that is not for the name fails the handshake, not the
+    // TCP connection: the other address is still worth trying.
+    assert!(!dns::tcp_level(&e));
     let _ = server.join();
 }
 
@@ -152,9 +155,17 @@ fn trusting(der: CertificateDer<'static>) -> tokio_tungstenite::Connector {
     ))
 }
 
-/// What the server writes for a 401 (`ApiError`: JSON with an `error`).
+/// What the server writes for a 401: its sync header, then JSON — with the
+/// body held back in the test that wants it late (see `late`).
 fn servers_401() -> Vec<u8> {
     let body = r#"{"error":"unauthorized","message":"sign in again"}"#;
+    format!("HTTP/1.1 401 Unauthorized\r\nx-verso-sync: 2\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).into_bytes()
+}
+
+/// A NAS or a router whose API answers 401 with JSON that has an `error`
+/// too, but not the server's header.
+fn lookalike_401() -> Vec<u8> {
+    let body = r#"{"error":"unauthorized"}"#;
     format!("HTTP/1.1 401 Unauthorized\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).into_bytes()
 }
 
@@ -264,6 +275,44 @@ async fn ws_open_cases() {
     )
     .await;
     assert_ne!(router.err().map(|e| e.kind), Some(ErrorKind::Refused));
+    let _ = server.join();
+
+    // … nor is a JSON 401 from something else that happens to say `error`.
+    let (l, port) = bind();
+    let server = serve_raw(l, None, lookalike_401());
+    let nas = remote::ws_open(
+        "http://router.test",
+        "router.test",
+        port,
+        request("ws", "router.test", port),
+        None,
+    )
+    .await;
+    assert_ne!(nas.err().map(|e| e.kind), Some(ErrorKind::Refused));
+    let _ = server.join();
+
+    // The server's 401 is known by its header even when the body has not
+    // arrived by the time the headers are read.
+    let (l, port) = bind();
+    let server = std::thread::spawn(move || {
+        let (mut tcp, _) = l.accept().unwrap();
+        let mut seen = [0_u8; 2048];
+        let _ = tcp.read(&mut seen);
+        let head = b"HTTP/1.1 401 Unauthorized\r\nx-verso-sync: 2\r\nContent-Type: application/json\r\nContent-Length: 49\r\nConnection: close\r\n\r\n";
+        tcp.write_all(head).unwrap();
+        tcp.flush().unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        let _ = tcp.write_all(br#"{"error":"unauthorized","message":"sign in again"}"#);
+    });
+    let late = remote::ws_open(
+        "http://pretend.test",
+        "pretend.test",
+        port,
+        request("ws", "pretend.test", port),
+        None,
+    )
+    .await;
+    assert_eq!(late.err().map(|e| e.kind), Some(ErrorKind::Refused));
     let _ = server.join();
 }
 
