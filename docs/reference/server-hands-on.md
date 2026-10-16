@@ -402,9 +402,11 @@ fresh cloud machine ships neither. On Ubuntu,
 Ubuntu 26.04); on other distributions,
 <https://docs.docker.com/engine/install/>.
 
-The container runs as uid 1000 and writes only to two directories of the
-host, which must be writable by it (Docker makes a missing one owned by
-root, which the server cannot write):
+The server runs as uid 1000 and writes only to two directories of the
+host. Docker makes a missing one owned by root; the container starts as
+root just long enough to hand what root owns in them to uid 1000, and drops
+to 1000 before the server runs, so there is nothing to prepare. To make them
+yourself instead (and the container then has nothing to mend):
 
 ```sh
 sudo install -d -o 1000 -g 1000 /srv/universo/data /srv/universo/folders
@@ -907,8 +909,9 @@ The ones the server refuses to start on:
 
 Fix the line in `/etc/universo/universo.env` (or the compose file), then
 `sudo systemctl restart universo` (or `docker compose up -d`). With Docker,
-a directory the server cannot write is the `install -d -o 1000 -g 1000`
-of B.1.
+a directory the server cannot write belongs to someone else (a NAS user):
+the admin console and the log say `sudo chown -R 1000:1000 <host folder>`,
+which is the `install -d -o 1000 -g 1000` of B.1.
 
 ### Port 7340 is taken
 
