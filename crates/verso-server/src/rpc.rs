@@ -110,12 +110,12 @@ async fn write(socket: &mut WebSocket, message: Message, client: &str, account: 
 }
 
 pub async fn upgrade(ctx: Ctx, ws: WebSocketUpgrade) -> ApiResult<Response> {
-    ctx.secure()?;
     let who = ctx.who()?.clone();
     // The WebSocket of the contract checks `Origin` before it accepts the
     // cookie (ADR 0073 item 6, ADR 0074 item 7): a page of another site
     // cannot open it with the person's session.
-    if matches!(who.via, Via::Browser { .. }) && !crate::auth::origin_ok(&ctx.server, &ctx.headers)
+    if matches!(who.via, Via::Browser { .. })
+        && !crate::auth::origin_ok(&ctx.server, &ctx.headers, &ctx.peer)
     {
         return Err(ApiError::forbidden("not from a page of this server"));
     }

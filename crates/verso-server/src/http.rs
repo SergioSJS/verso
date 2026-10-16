@@ -121,13 +121,9 @@ impl FromRequestParts<Arc<Server>> for Ctx {
             .get::<ConnectInfo<Remote>>()
             .map_or_else(|| SocketAddr::from(([127, 0, 0, 1], 0)), |c| c.0.0);
         let peer = auth::peer(server, &parts.headers, remote);
-        // A secret over plain HTTP outside this machine is never read: no
-        // session, no token is opened from it.
-        let who = if peer.secure {
-            auth::who(server, &parts.headers)?
-        } else {
-            None
-        };
+        // Over plain HTTP the session cookie is the plain-named one
+        // (ADR 0073 item 6, amended 2026-10-16).
+        let who = auth::who(server, &parts.headers, peer.https)?;
         Ok(Self {
             server: Arc::clone(server),
             peer,
@@ -170,29 +166,14 @@ impl Ctx {
         Ok(who)
     }
 
-    /// The request may sign in or carry a secret: TLS, or this machine
-    /// (ADR 0073 item 6).
-    pub fn secure(&self) -> ApiResult<()> {
-        if self.peer.secure {
-            Ok(())
-        } else {
-            Err(ApiError::new(
-                StatusCode::FORBIDDEN,
-                "tls_required",
-                "this server signs in over HTTPS only",
-            ))
-        }
-    }
-
     /// A request that changes something: from a page of this server
     /// (`Origin`) with the session's CSRF token, or from a program with a
     /// bearer token (ADR 0074 item 7).
     pub fn changes(&self) -> ApiResult<()> {
-        self.secure()?;
         match self.who.as_ref().map(|w| &w.via) {
             Some(auth::Via::Token { .. } | auth::Via::Device { .. }) => Ok(()),
             Some(auth::Via::Browser { csrf, .. }) => {
-                if !auth::origin_ok(&self.server, &self.headers) {
+                if !auth::origin_ok(&self.server, &self.headers, &self.peer) {
                     return Err(ApiError::forbidden("not from a page of this server"));
                 }
                 let sent = self
@@ -213,7 +194,7 @@ impl Ctx {
             // Signing in, accepting an invitation: no session yet, so the
             // origin is what is checked.
             None => {
-                if auth::origin_ok(&self.server, &self.headers) {
+                if auth::origin_ok(&self.server, &self.headers, &self.peer) {
                     Ok(())
                 } else {
                     Err(ApiError::forbidden("not from a page of this server"))
@@ -575,8 +556,8 @@ const SERVICE_WORKER: &str = "/sw.js";
 /// `scheme://host[:port]` of http(s), letters, digits, dots and hyphens:
 /// anything else — a space, a quote, a semicolon, a wildcard, a path —
 /// would change the policy it is written into, and is left out.
-fn tile_origins(server: &Server, headers: &HeaderMap) -> Vec<String> {
-    let Ok(Some(who)) = auth::who(server, headers) else {
+fn tile_origins(server: &Server, headers: &HeaderMap, https: bool) -> Vec<String> {
+    let Ok(Some(who)) = auth::who(server, headers, https) else {
         return Vec::new();
     };
     if matches!(who.via, auth::Via::Token { .. }) {
@@ -649,7 +630,13 @@ fn client_key(server: &Server, request: &Request) -> Option<String> {
             .iter()
             .filter_map(|v| v.to_str().ok()),
     );
-    if !client.from_proxy && remote.ip().is_loopback() {
+    // A direct connection from this machine, or, with the default list
+    // (which believes loopback), one that came through a proxy and named no
+    // one else: not counted. A proxy the person named that forwards
+    // `127.0.0.1` is paced under it (ADR 0083 item 7).
+    if client.addr.is_loopback()
+        && (!client.from_proxy || server.config.trusted_proxy.is_implicit())
+    {
         return None;
     }
     Some(crate::limit::address_key(client.addr))
@@ -699,7 +686,12 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
         )
         .into_response();
     }
-    if !auth::host_ok(&server, request.headers()) {
+    let remote = request
+        .extensions()
+        .get::<ConnectInfo<Remote>>()
+        .map_or_else(|| SocketAddr::from(([127, 0, 0, 1], 0)), |c| c.0.0);
+    let peer = auth::peer(&server, request.headers(), remote);
+    if !auth::host_ok(&server, request.headers(), &peer) {
         return ApiError::new(
             StatusCode::MISDIRECTED_REQUEST,
             "host",
@@ -732,7 +724,7 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
         Ok(request) => request,
         Err(refused) => return refused.into_response(),
     };
-    let ws_origin = auth::expected_origin(&server, request.headers())
+    let ws_origin = auth::expected_origin(&server, request.headers(), &peer)
         .map(|o| o.replacen("http", "ws", 1))
         .unwrap_or_default();
     let is_file = request.uri().path().starts_with("/f/");
@@ -775,7 +767,7 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
         // The settings are read only where the policy is a document's or a
         // worker's: the page and the map's worker.
         let tiles = if html || is_worker {
-            tile_origins(&server, &asked_by)
+            tile_origins(&server, &asked_by, peer.https)
         } else {
             Vec::new()
         };
@@ -788,7 +780,9 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
     if (html || is_worker || is_service_worker) && !is_file {
         h.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     }
-    if server.config.tls.is_some()
+    // On an answer that went over HTTPS, or that a public HTTPS address
+    // says is served so; a browser ignores the header over plain HTTP.
+    if peer.https
         || server
             .config
             .public_url

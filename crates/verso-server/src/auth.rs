@@ -22,11 +22,14 @@ pub struct Peer {
     /// forwarded.
     pub addr: IpAddr,
     /// Whether the request reached the server over TLS — its own, or a
-    /// trusted proxy's, as its `X-Forwarded-Proto` alone says — or directly
-    /// from this machine, where a browser counts `http://localhost` as a
-    /// secure context. Nothing that signs in or carries a secret is served
-    /// otherwise (ADR 0073 item 6).
-    pub secure: bool,
+    /// trusted proxy's, as its `X-Forwarded-Proto` alone says. Only this
+    /// makes the session cookie `Secure`; over plain HTTP the server works
+    /// all the same, without what a browser keeps for secure contexts
+    /// (ADR 0073 item 6, amended 2026-10-16).
+    pub https: bool,
+    /// Whether a trusted proxy forwarded the request, `X-Forwarded-For`
+    /// and all: the `Host` it carries is then the name the person typed.
+    pub forwarded: bool,
 }
 
 impl Peer {
@@ -95,17 +98,6 @@ fn own_tls(server: &Server) -> bool {
     server.config.tls.is_some() || server.local.is_some()
 }
 
-/// Whether the address people use is HTTPS: then the cookie is
-/// `__Host-` and `Secure`.
-fn https(server: &Server) -> bool {
-    own_tls(server)
-        || server
-            .config
-            .public_url
-            .as_deref()
-            .is_some_and(|u| u.starts_with("https://"))
-}
-
 /// Where a request came from: the connection's address, or, from a
 /// trusted proxy, the client `X-Forwarded-For` names, read from the right
 /// past every trusted proxy (ADR 0083 item 5, [`crate::proxy`]); the
@@ -129,26 +121,29 @@ pub fn peer(server: &Server, headers: &HeaderMap, remote: SocketAddr) -> Peer {
             remote.ip()
         ));
     }
-    if client.unforwarded {
+    // Said only of a proxy the person named: with the default list, a
+    // direct connection from the home network is a "proxy" too.
+    if client.unforwarded && !server.config.trusted_proxy.is_implicit() {
         server.unforwarded.warn(
             "a request from the trusted proxy carried no X-Forwarded-For: is the proxy configured to forward it?",
         );
     }
     let (addr, from_proxy) = (client.addr, client.from_proxy);
     // Through a trusted proxy, its `X-Forwarded-Proto` alone says how the
-    // visitor came: a proxy on this machine serving plain HTTP is not made
-    // secure by the server's loopback listen. Only a direct connection from
-    // this machine is, as `http://localhost` is for a browser.
-    let secure = own_tls(server)
-        || if from_proxy {
-            headers
+    // visitor came; a direct connection is HTTPS only on the server's own
+    // TLS. Nothing is refused over HTTP: it decides the cookie's `Secure`
+    // and what the window turns off.
+    let https = own_tls(server)
+        || (from_proxy
+            && headers
                 .get("x-forwarded-proto")
                 .and_then(|v| v.to_str().ok())
-                .is_some_and(|p| p.eq_ignore_ascii_case("https"))
-        } else {
-            remote.ip().is_loopback() && server.config.loopback_only()
-        };
-    Peer { addr, secure }
+                .is_some_and(|p| p.eq_ignore_ascii_case("https")));
+    Peer {
+        addr,
+        https,
+        forwarded: from_proxy && !client.unforwarded,
+    }
 }
 
 /// The host part (with its port) of the address people use.
@@ -168,69 +163,87 @@ fn loopback_host(host: &str) -> bool {
     matches!(name, "localhost" | "127.0.0.1" | "[::1]")
 }
 
+/// Whether any `Host` is answered: no public address is given, so the name
+/// is the one the person typed, and the server is reached from beyond this
+/// machine or through a proxy that said so. The `Host` check is there for
+/// DNS rebinding: a page of another site that resolves its own name to this
+/// machine, and drives the visitor's browser into it. The browser keeps the
+/// session cookie per name, so that page holds no session; where the
+/// server is reached only from this machine, or `VERSO_PUBLIC_URL` names
+/// the one address, the rule is kept (ADR 0045, ADR 0073 item 6, amended
+/// 2026-10-16).
+fn any_host(server: &Server, peer: &Peer) -> bool {
+    server.config.public_url.is_none()
+        && server.local.is_none()
+        && (!server.config.loopback_only() || peer.forwarded)
+}
+
 /// The `Host` header names this server: the public address's authority,
-/// or a loopback name — a page from another site that resolves its own
-/// name to this machine (DNS rebinding) is refused (ADR 0045, ADR 0073
-/// item 6).
-pub fn host_ok(server: &Server, headers: &HeaderMap) -> bool {
+/// a loopback name, or, with no public address and the server reached from
+/// the network, any name (see [`any_host`]).
+pub fn host_ok(server: &Server, headers: &HeaderMap, peer: &Peer) -> bool {
     let Some(host) = headers.get(HOST).and_then(|v| v.to_str().ok()) else {
         return false;
     };
     public_authority(server).is_some_and(|a| a.eq_ignore_ascii_case(host))
         || loopback_host(host)
         || server.local.as_ref().is_some_and(|l| l.knows_host(host))
+        || any_host(server, peer)
 }
 
 /// The origin pages of this server have.
-pub fn expected_origin(server: &Server, headers: &HeaderMap) -> Option<String> {
+pub fn expected_origin(server: &Server, headers: &HeaderMap, peer: &Peer) -> Option<String> {
     if let Some(url) = server.config.public_url.as_deref() {
         let (scheme, rest) = url.split_once("://")?;
         let authority = rest.split('/').next().unwrap_or(rest);
         return Some(format!("{scheme}://{}", authority.to_ascii_lowercase()));
     }
     let host = headers.get(HOST).and_then(|v| v.to_str().ok())?;
-    let scheme = if own_tls(server) { "https" } else { "http" };
-    (loopback_host(host) || server.local.as_ref().is_some_and(|l| l.knows_host(host)))
-        .then(|| format!("{scheme}://{}", host.to_ascii_lowercase()))
+    let scheme = if peer.https { "https" } else { "http" };
+    (any_host(server, peer)
+        || loopback_host(host)
+        || server.local.as_ref().is_some_and(|l| l.knows_host(host)))
+    .then(|| format!("{scheme}://{}", host.to_ascii_lowercase()))
 }
 
 /// A request that changes something, or a WebSocket that will, came from a
 /// page of this server: `Origin` checked against the public address
 /// (ADR 0074 item 7). A request with no `Origin` is no browser's and needs
 /// a bearer token.
-pub fn origin_ok(server: &Server, headers: &HeaderMap) -> bool {
+pub fn origin_ok(server: &Server, headers: &HeaderMap, peer: &Peer) -> bool {
     let Some(origin) = headers.get(ORIGIN).and_then(|v| v.to_str().ok()) else {
         return false;
     };
-    expected_origin(server, headers).is_some_and(|o| o.eq_ignore_ascii_case(origin))
+    expected_origin(server, headers, peer).is_some_and(|o| o.eq_ignore_ascii_case(origin))
 }
 
 /// The session cookie's name: `__Host-` over HTTPS, which binds it to this
-/// host and path `/`; plain on `http://localhost`, where `Secure` would
-/// keep some browsers from storing it.
-pub fn cookie_name(server: &Server) -> &'static str {
-    if https(server) {
+/// host and path `/`; plain over HTTP, where `Secure` would keep the
+/// browser from storing it.
+pub fn cookie_name(https: bool) -> &'static str {
+    if https {
         "__Host-verso-session"
     } else {
         "verso-session"
     }
 }
 
-/// `Set-Cookie` for a new session.
-pub fn session_cookie(server: &Server, token: &str) -> String {
-    let secure = if https(server) { "; Secure" } else { "" };
+/// `Set-Cookie` for a new session: `Secure` only on a request that came
+/// over HTTPS (ADR 0073 item 6, amended 2026-10-16).
+pub fn session_cookie(peer: &Peer, token: &str) -> String {
+    let secure = if peer.https { "; Secure" } else { "" };
     format!(
         "{}={token}; Path=/; HttpOnly; SameSite=Lax; Max-Age={SESSION_MAX}{secure}",
-        cookie_name(server)
+        cookie_name(peer.https)
     )
 }
 
 /// `Set-Cookie` that removes the session's cookie.
-pub fn clear_cookie(server: &Server) -> String {
-    let secure = if https(server) { "; Secure" } else { "" };
+pub fn clear_cookie(peer: &Peer) -> String {
+    let secure = if peer.https { "; Secure" } else { "" };
     format!(
         "{}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0{secure}",
-        cookie_name(server)
+        cookie_name(peer.https)
     )
 }
 
@@ -255,7 +268,7 @@ fn bearer(headers: &HeaderMap) -> Option<String> {
 
 /// Who a request is from: a bearer token first (a program), then the
 /// session cookie (a browser); `None` when neither opens anything.
-pub fn who(server: &Server, headers: &HeaderMap) -> Result<Option<Who>, String> {
+pub fn who(server: &Server, headers: &HeaderMap, https: bool) -> Result<Option<Who>, String> {
     // "This app is a server" has no tokens and no device sign-in: a bearer
     // credential opens nothing (ADR 0096 items 2 and 12).
     if server.local.is_some() && bearer(headers).is_some() {
@@ -288,7 +301,7 @@ pub fn who(server: &Server, headers: &HeaderMap) -> Result<Option<Who>, String> 
             phone: None,
         }));
     }
-    let Some(token) = cookie(headers, cookie_name(server)) else {
+    let Some(token) = cookie(headers, cookie_name(https)) else {
         return Ok(None);
     };
     let Some(s) = server.db.session(&token)? else {

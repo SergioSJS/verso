@@ -29,7 +29,7 @@ pub async fn state(ctx: Ctx) -> ApiResult<Response> {
     Ok(ok(json!({
         "version": known.then_some(env!("CARGO_PKG_VERSION")),
         "contract": known.then_some(&ctx.server.contract),
-        "secure": ctx.peer.secure,
+        "secure": ctx.peer.https,
         "web": ctx.server.config.web,
         // "This app is a server" (ADR 0096): there is no sign-in here, only
         // pairing; the page says so instead of asking for a password.
@@ -103,7 +103,7 @@ fn signed_in(ctx: &Ctx, account: &db::Account, body: serde_json::Value) -> ApiRe
         &ctx.address(),
     )?;
     let mut response = ok(json!({ "account": account_json(account), "csrf": csrf, "done": body }));
-    if let Ok(v) = HeaderValue::from_str(&auth::session_cookie(&ctx.server, &token)) {
+    if let Ok(v) = HeaderValue::from_str(&auth::session_cookie(&ctx.peer, &token)) {
         response.headers_mut().append(header::SET_COOKIE, v);
     }
     Ok(response)
@@ -205,7 +205,7 @@ pub async fn sign_out(ctx: Ctx) -> ApiResult<Response> {
         ctx.audit("sign_out", None, None, true);
     }
     let mut response = ok(json!(null));
-    if let Ok(v) = HeaderValue::from_str(&auth::clear_cookie(&ctx.server)) {
+    if let Ok(v) = HeaderValue::from_str(&auth::clear_cookie(&ctx.peer)) {
         response.headers_mut().append(header::SET_COOKIE, v);
     }
     Ok(response)
@@ -771,7 +771,7 @@ enum Mailed {
 /// its link and its line in the audit log follow on their own.
 fn mail_later(ctx: &Ctx, email: String, what: Mailed) {
     let server = std::sync::Arc::clone(&ctx.server);
-    let base = auth::expected_origin(&ctx.server, &ctx.headers).unwrap_or_default();
+    let base = auth::expected_origin(&ctx.server, &ctx.headers, &ctx.peer).unwrap_or_default();
     let address = (ctx.address(), ctx.peer.key());
     tokio::spawn(async move {
         if let Err(e) = mailed(&server, &email, &base, &address, what).await {

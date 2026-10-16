@@ -153,9 +153,22 @@ fn first_admin(config: &Config, db: &Db) -> Result<(), String> {
                 life: db::SETUP_LIFE,
                 ..NewLink::default()
             })?;
+            // With no public address the link is the one the person types:
+            // from this machine, and, listening on every address, from
+            // another one by the machine's own (ADR 0073 item 6, amended
+            // 2026-10-16).
+            let from_elsewhere = config.public_url.is_none() && config.listen.ip().is_unspecified();
             log::info(&format!(
-                "no account yet: make the first admin at {}/setup?token={token} (valid for one hour, once; or set VERSO_ADMIN_EMAIL and VERSO_ADMIN_PASSWORD)",
-                base_url(config)
+                "no account yet: make the first admin at {}/setup?token={token}{} (valid for one hour, once; or set VERSO_ADMIN_EMAIL and VERSO_ADMIN_PASSWORD)",
+                base_url(config),
+                if from_elsewhere {
+                    format!(
+                        " — from another machine, http://<this machine's address>:{}/setup?token={token}",
+                        config.listen.port()
+                    )
+                } else {
+                    String::new()
+                }
             ));
         }
         (None, _) => {}
@@ -165,12 +178,6 @@ fn first_admin(config: &Config, db: &Db) -> Result<(), String> {
 
 /// Serve until the process is asked to stop.
 pub fn serve(config: Config, commit: &str) -> Result<(), String> {
-    if !config.loopback_only() && config.public_url.is_none() {
-        return Err(
-            "VERSO_PUBLIC_URL is needed when the server listens beyond this machine (VERSO_LISTEN)"
-                .to_owned(),
-        );
-    }
     // One crypto provider for the server's TLS and the update check's.
     let _ = tokio_rustls::rustls::crypto::ring::default_provider().install_default();
     let acceptor = match &config.tls {
@@ -267,8 +274,10 @@ pub async fn run_on<L: listen::Incoming>(
         server.contract,
         server.config.folders_dir.display()
     ));
-    if let Some(said) = server.config.unproxied_https() {
-        log::warn(&said);
+    if server.config.tls.is_none() {
+        log::info(
+            "plain HTTP works; offline, notifications and the like need HTTPS (VERSO_TLS_CERT_FILE, or a proxy in front with VERSO_PUBLIC_URL)",
+        );
     }
     let app = http::router(server);
     listen::serve(listener, app, stop).await;
@@ -353,6 +362,8 @@ mod tests_dice;
 mod tests_hashes;
 #[cfg(test)]
 mod tests_history;
+#[cfg(test)]
+mod tests_http;
 #[cfg(test)]
 mod tests_map_tiles;
 #[cfg(test)]
