@@ -173,9 +173,27 @@ export function localServerBody(_item: Item): HTMLElement {
   most.max = "16";
   most.step = "1";
   most.id = "ls-most";
-  const mostLabel = h("label", "ls-check");
-  mostLabel.htmlFor = most.id;
-  mostLabel.append(h("span", "", w.maxConnected), most);
+  most.inputMode = "numeric";
+  // Its own row, not a check's: a box 16 px wide hid the number (the
+  // maintainer, 2026-10-16). − and + for a finger beside it.
+  const mostLabel = h("div", "ls-number");
+  const mostName = h("label", "", w.maxConnected);
+  mostName.htmlFor = most.id;
+  const step = (by: number, label: string): HTMLButtonElement => {
+    const b = h("button", "btn ls-step", by < 0 ? "−" : "+");
+    b.type = "button";
+    b.setAttribute("aria-label", label);
+    b.addEventListener("click", () => {
+      const n = Math.min(16, Math.max(1, Math.trunc(Number(most.value) || 0) + by));
+      if (String(n) === most.value) return;
+      most.value = String(n);
+      most.dispatchEvent(new Event("change"));
+    });
+    return b;
+  };
+  const mostSteps = h("span", "ls-steps");
+  mostSteps.append(step(-1, w.maxConnectedFewer), most, step(1, w.maxConnectedMore));
+  mostLabel.append(mostName, mostSteps);
   const mostHelp = h("p", "ls-help", w.maxConnectedDesc);
   const pair = h("button", "btn", w.pair);
   pair.type = "button";

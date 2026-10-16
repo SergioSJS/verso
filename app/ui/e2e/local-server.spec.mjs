@@ -235,6 +235,11 @@ test("the devices connected at once is a number from 1 to 16, 4 by default, kept
   const body = page.locator(".settings-body");
   const most = body.getByLabel("Aparelhos conectados ao mesmo tempo");
   await expect(most).toHaveValue("4");
+  // The number can be read: not a check's 16 px box (2026-10-16).
+  expect((await most.boundingBox()).width).toBeGreaterThanOrEqual(40);
+  await body.getByRole("button", { name: "Um aparelho a mais" }).click();
+  await expect(most).toHaveValue("5");
+  await expect(body.getByText("Até 5 aparelhos conectados ao mesmo tempo.")).toBeVisible();
   await most.fill("2");
   await most.dispatchEvent("change");
   await expect(body.getByText("Até 2 aparelhos conectados ao mesmo tempo.")).toBeVisible();
