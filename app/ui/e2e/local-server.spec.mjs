@@ -318,6 +318,7 @@ test("a ticked folder can be served in part: a tree of its folders, a folder ser
   await expect(body.locator(".ls-here .ls-serves")).toHaveText(", serve tudo");
   await expect(body.getByRole("button", { name: /^Escolher pastas/ })).toHaveCount(0);
   await expect(body.getByText("Marque só o que o celular pode ver.", { exact: false })).toBeVisible();
+  await expect(body.getByText("Desmarcar a última pasta para de servir este cofre", { exact: false })).toBeVisible();
   // Nothing to go back to while all of it is served: the button is not there.
   await expect(body.getByRole("button", { name: "Servir a pasta inteira" })).toHaveCount(0);
   const tree = body.getByRole("list", { name: "Pastas dentro de Vault" });
@@ -347,15 +348,22 @@ test("a ticked folder can be served in part: a tree of its folders, a folder ser
   await expect(body.locator(".ls-here .ls-serves")).toHaveText(", só 2 pastas");
   await expect(tree.getByRole("checkbox", { name: "Servir Diario/2026/Outubro" })).toBeFocused();
   await expect(tree.getByRole("checkbox", { name: "Servir Diario", exact: true })).toHaveJSProperty("indeterminate", true);
-  // Ticking a folder over one already chosen inside it takes the inner one off.
-  await tree.getByRole("checkbox", { name: "Servir Diario", exact: true }).check();
+  // A folder with a chosen folder inside reads "mixed": a click on it opens
+  // it and widens nothing.
+  const diario = tree.getByRole("checkbox", { name: "Servir Diario", exact: true });
+  await diario.click();
   await expect(body.locator(".ls-here .ls-serves")).toHaveText(", só 2 pastas");
-  await expect(tree.getByRole("checkbox", { name: "Servir Diario/2026/Outubro" })).toBeDisabled();
-  // Nothing ticked below is the whole folder again.
-  await tree.getByRole("checkbox", { name: "Servir Diario", exact: true }).uncheck();
+  await expect(diario).toHaveJSProperty("indeterminate", true);
+  await expect(tree.getByRole("checkbox", { name: "Servir Diario/2026/Outubro" })).toBeChecked();
+  // Unticking the last chosen folder stops serving the vault, and the choice
+  // goes (the maintainer, 2026-10-16: "Para de servir o cofre").
+  await tree.getByRole("checkbox", { name: "Servir Diario/2026/Outubro" }).uncheck();
   await tree.getByRole("checkbox", { name: "Servir Projetos", exact: true }).uncheck();
-  await expect(body.locator(".ls-here .ls-serves")).toHaveText(", serve tudo");
+  await expect(vault).not.toBeChecked();
   await expect(vault).toHaveJSProperty("indeterminate", false);
+  await expect(body.locator(".ls-here .ls-parts")).toHaveCount(0);
+  await vault.check();
+  await expect(body.locator(".ls-here .ls-serves")).toHaveText(", serve tudo");
   await expect(vault).toBeChecked();
   // Choose again. A click on the folder's own box, which reads "mixed",
   // opens the tree and serves nothing more or less; the way back to the
@@ -376,7 +384,11 @@ test("a ticked folder can be served in part: a tree of its folders, a folder ser
   await expect(body.locator(".ls-here .ls-serves")).toHaveText(", serve tudo");
   await expect(vault).toHaveJSProperty("indeterminate", false);
   await expect(vault).toBeChecked();
-  await vault.uncheck();
+  // A mixed vault can be stopped from its tree, and the focus goes to its box.
+  await tree.getByRole("checkbox", { name: "Servir Segredo" }).check();
+  await body.getByRole("button", { name: "Parar de servir este cofre" }).click();
+  await expect(vault).not.toBeChecked();
+  await expect(vault).toBeFocused();
   await expect(body.locator(".ls-here .ls-parts")).toHaveCount(0);
   await vault.check();
   await expect(body.locator(".ls-here .ls-serves")).toHaveText(", serve tudo");
@@ -417,6 +429,13 @@ test("a chosen folder gone from the disk is left out at the start and said, and 
   await body.getByRole("button", { name: "Ligar o servidor" }).click();
   await expect(body.getByText("ficaram de fora por não existirem mais no disco: Vault/Antigo", { exact: false }).first()).toBeVisible();
   await expect(body.getByText("Não estão mais no disco e ficaram de fora: Antigo.")).toBeVisible();
+  // With serving off the line stays, for the person to act on, until the
+  // choice changes.
+  await body.getByRole("button", { name: "Parar de servir" }).click();
+  await expect(body.getByText("Desligado.").first()).toBeVisible();
+  await expect(body.getByText("Não estão mais no disco e ficaram de fora: Antigo.")).toBeVisible();
+  await tree.getByRole("checkbox", { name: "Servir Antigo" }).uncheck();
+  await expect(body.getByText("Não estão mais no disco e ficaram de fora: Antigo.")).toHaveCount(0);
 });
 
 test("the recent folders are a group that is shut by default, remembered, with the filter inside it", async ({ app, page }) => {

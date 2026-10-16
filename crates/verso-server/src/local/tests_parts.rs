@@ -660,6 +660,21 @@ const OUTSIDE: &[&str] = &[
     ".",
 ];
 
+/// Paths that are not outside by their look: a note of the attachments
+/// folder, and (on Unix) links in the folder that lead to the vault's other
+/// folders, in the case the file system folds too.
+#[cfg(unix)]
+const LINKED: &[&str] = &[
+    "Anexos/nota.md",
+    "Anexos/NOTA.MD",
+    "dir/c.md",
+    "DIR/c.md",
+    "Sub/f.md",
+    "SUB/F.MD",
+];
+#[cfg(not(unix))]
+const LINKED: &[&str] = &["Anexos/nota.md", "Anexos/NOTA.MD"];
+
 /// What the vault outside the chosen folder holds, that no reply may say.
 const NEVER_SAID: &[&str] = &[
     "Marcador",
@@ -696,6 +711,17 @@ fn every_command_a_phone_may_run_behaves_as_the_table_says_on_a_chosen_folder() 
         let mut wrong: Vec<String> = Vec::new();
         for (cmd, template, answers) in VERDICTS {
             let mut lab = lab_in_part(&["Projetos"]);
+            #[cfg(unix)]
+            {
+                let at = |rel: &str| lab.notes.path().join("Campanha").join(rel);
+                verso_fs::link_for_tests(std::path::Path::new("../Segredo"), &at("Projetos/dir"))
+                    .unwrap();
+                verso_fs::link_for_tests(
+                    std::path::Path::new("../../Segredo/c.md"),
+                    &at("Projetos/Sub/f.md"),
+                )
+                .unwrap();
+            }
             lab.serve();
             let cookie = lab.pair("iPad", true, Role::Editor).await.unwrap();
             let before = outside_snapshot(&lab);
@@ -721,8 +747,13 @@ fn every_command_a_phone_may_run_behaves_as_the_table_says_on_a_chosen_folder() 
             let has_path = valid.as_object().is_some_and(|o| {
                 PATHS.iter().any(|k| o.contains_key(*k)) || o.contains_key("paths")
             });
-            for out in OUTSIDE {
+            for out in OUTSIDE.iter().chain(LINKED) {
                 let mut args = valid.clone();
+                if let Some(q) = args.get_mut("query").and_then(Value::as_object_mut) {
+                    for key in ["path", "this"] {
+                        q.insert(key.to_owned(), json!(out));
+                    }
+                }
                 if let Some(o) = args.as_object_mut() {
                     for key in PATHS {
                         if o.contains_key(key) {
@@ -753,7 +784,12 @@ fn every_command_a_phone_may_run_behaves_as_the_table_says_on_a_chosen_folder() 
                     .filter(|f| !before.contains(f))
                     .map(|(p, _)| p.as_str())
                     .collect();
-                assert_eq!(changed, ["Segredo/c.md"], "{cmd}");
+                // (With a link in the folder the core may leave the rewrite undone;
+                // the dedicated rename test has none and sees it made.)
+                assert!(
+                    changed.iter().all(|p| *p == "Segredo/c.md"),
+                    "{cmd}: {changed:?}"
+                );
             } else {
                 assert_eq!(before, after, "{cmd} wrote outside the chosen folder");
             }
@@ -797,12 +833,32 @@ fn has(lab: &Lab, rel: &str) -> bool {
     on_disk(lab).iter().any(|(p, _)| p == rel)
 }
 
-/// Everything under the vault but the chosen folder, with its bytes.
+/// Everything under the vault but the chosen folder, with its bytes. The
+/// walk lists a folder once, under the first name a link gives it, so the
+/// files the fixtures hold are also read by name.
 fn outside_snapshot(lab: &Lab) -> Vec<(String, Vec<u8>)> {
-    on_disk(lab)
+    let mut out: Vec<(String, Vec<u8>)> = on_disk(lab)
         .into_iter()
         .filter(|(rel, _)| !(rel == "Projetos" || rel.starts_with("Projetos/")))
-        .collect()
+        .collect();
+    for known in [
+        "Raiz.md",
+        "Segredo/c.md",
+        "Segredo/x.png",
+        "Marcador/m.md",
+        "Diario/b.md",
+        "Anexos/pic.png",
+        "Anexos/outra.png",
+        "Anexos/nota.md",
+    ] {
+        if let Some(bytes) = read_disk(lab, known)
+            && !out.iter().any(|(p, _)| p == known)
+        {
+            out.push((known.to_owned(), bytes));
+        }
+    }
+    out.sort();
+    out
 }
 
 /// Changing what is chosen takes effect at the next start: a share no
@@ -901,8 +957,29 @@ fn the_choice_is_a_setting_that_waits_for_serving_to_be_off() {
                 .set_parts("/not/ticked", &["A".to_owned()])
                 .is_err()
         );
+        // Unticking the last chosen folder stops serving the folder, and its
+        // choice goes (the maintainer, 2026-10-16: "Para de servir o cofre");
+        // the whole folder is a separate, explicit act.
         lab.local.set_parts(&path, &[]).unwrap();
-        assert!(lab.local.settings().unwrap().parts.is_empty());
+        let after = lab.local.settings().unwrap();
+        assert!(
+            after.parts.is_empty() && after.folders.is_empty(),
+            "{after:?}"
+        );
+        assert!(lab.local.set_whole(&path).is_err(), "not ticked any more");
+        lab.local
+            .set_settings(&LocalSettings {
+                folders: vec![path.clone()],
+                ..after
+            })
+            .unwrap();
+        lab.local.set_parts(&path, &["A".to_owned()]).unwrap();
+        lab.local.set_whole(&path).unwrap();
+        let whole = lab.local.settings().unwrap();
+        assert!(
+            whole.parts.is_empty() && whole.folders == [path.clone()],
+            "{whole:?}"
+        );
         lab.local
             .set_parts(&path, &["Projetos".to_owned()])
             .unwrap();
@@ -910,6 +987,12 @@ fn the_choice_is_a_setting_that_waits_for_serving_to_be_off() {
         lab.serve();
         let err = lab.local.set_parts(&path, &[]).unwrap_err();
         assert!(err.contains("turn serving off"), "{err}");
+        assert!(
+            lab.local
+                .set_whole(&path)
+                .unwrap_err()
+                .contains("turn serving off")
+        );
         assert_eq!(lab.local.settings().unwrap().parts[&path], ["Projetos"]);
     });
 }
@@ -931,90 +1014,55 @@ fn every_allowlisted_command_has_a_verdict_on_a_chosen_folder() {
         "folder_space",
     ];
     // Not a command of the folder: handled by the server's own dispatch.
-    const SERVER: &[(&str, &str)] = &[
-        (
-            "open_server_folder",
-            "opens a share by its id; the folder's id is refused",
-        ),
-        (
-            "reopen_folder",
-            "finds a share by its key; the folder's key is not found",
-        ),
-        ("pick_folder", "answers nothing"),
-        ("open_initial", "answers nothing"),
-        ("current_folder", "the share's name and counts"),
-        ("capabilities", "the role in the share"),
-        ("app_info", "the version, no folder"),
-        (
-            "reindex",
-            "the share's counts; the summary of a reader is emptied",
-        ),
-        ("render_markdown", "a pure function of the text sent"),
-        ("project_secrets", "a pure function of the text sent"),
-        ("project_board", "a pure function of the text sent"),
-        ("board_text", "a pure function of the text sent"),
-        ("set_embed_origins", "answered without acting"),
-        ("set_menu_language", "answered without acting"),
-        ("note_made_from_template", "answered without acting"),
-        ("set_history_days", "answered without acting"),
-        ("fetch_file", "answered without acting"),
-        ("set_walk_rules", "heard, dropped, for a phone"),
-        ("set_folder_note_name", "heard, dropped, for a phone"),
-        ("log_write", "heard, dropped, for a phone"),
-        ("collab_join", "the path joined to the share's and confined"),
-        (
-            "collab_leave",
-            "the path joined to the share's and confined",
-        ),
-        (
-            "collab_awareness",
-            "the path joined to the share's and confined",
-        ),
-        (
-            "collab_present",
-            "the path joined to the share's and confined",
-        ),
-        (
-            "collab_update",
-            "the path joined to the share's and confined",
-        ),
-        ("collab_save", "the path joined to the share's and confined"),
-        (
-            "collab_resolve",
-            "the path joined to the share's and confined",
-        ),
-        (
-            "collab_canvas",
-            "the path joined to the share's and confined",
-        ),
-        ("collab_roll", "the path joined to the share's and confined"),
-        ("trash_list", "the share's part of the bin only"),
-        ("trash_restore", "the share's part of the bin only"),
-        ("trash_delete", "the share's part of the bin only"),
-        (
-            "history_list",
-            "the path joined to the share's and confined",
-        ),
-        (
-            "history_read",
-            "the path joined to the share's and confined",
-        ),
-        (
-            "history_restore",
-            "the path joined to the share's and confined",
-        ),
-        (
-            "history_copy",
-            "the path joined to the share's and confined",
-        ),
+    const SERVER: &[&str] = &[
+        "open_server_folder",
+        "reopen_folder",
+        "pick_folder",
+        "open_initial",
+        "current_folder",
+        "capabilities",
+        "app_info",
+        "reindex",
+        "render_markdown",
+        "project_secrets",
+        "project_board",
+        "board_text",
+        "set_embed_origins",
+        "set_menu_language",
+        "note_made_from_template",
+        "set_history_days",
+        "fetch_file",
+        "set_walk_rules",
+        "set_folder_note_name",
+        "log_write",
+        "collab_join",
+        "collab_leave",
+        "collab_awareness",
+        "collab_present",
+        "collab_update",
+        "collab_save",
+        "collab_resolve",
+        "collab_canvas",
+        "collab_roll",
+        "trash_list",
+        "trash_restore",
+        "trash_delete",
+        "history_list",
+        "history_read",
+        "history_restore",
+        "history_copy",
     ];
+    // The scope of a phone's share: with the attachments mount and the guard.
+    let vault_dir = tempfile::tempdir().unwrap();
     let scope = crate::scope::Scope {
         share: "s".into(),
         key: "share-s".into(),
         name: "P".into(),
         root: "Projetos".into(),
-        mount: None,
-        guard: None,
+        mount: Some(("Anexos".into(), "Anexos".into())),
+        guard: Some(std::sync::Arc::new(crate::scope::Guard {
+            vault: vault_dir.path().to_path_buf(),
+        })),
     };
     let mut refused_by_scope = Vec::new();
     for cmd in allow::READ.iter().chain(allow::EDIT.iter()) {
@@ -1028,7 +1076,7 @@ fn every_allowlisted_command_has_a_verdict_on_a_chosen_folder() {
             }
         } else {
             assert!(
-                SERVER.iter().any(|(c, _)| c == cmd),
+                SERVER.contains(cmd),
                 "{cmd} is on the phones' allowlist and has no verdict on a chosen folder"
             );
         }
@@ -1265,6 +1313,183 @@ fn a_link_that_leads_out_of_a_chosen_folder_is_left_out() {
         assert_eq!(
             String::from_utf8(c).unwrap(),
             format!("# C\n{NEEDLE} #segredo\n[[a]]\n")
+        );
+    });
+}
+
+/// The chosen folders a start leaves out are kept, and said while serving is
+/// off, until the choice changes; the start says so as an event even when
+/// it is the app's own (keep on).
+#[test]
+fn the_folders_left_out_are_kept_until_the_choice_changes() {
+    run(async {
+        let mut lab = lab_in_part(&["Projetos", "Diario"]);
+        let mut root = verso_fs::Root::open(lab.notes.path().join("Campanha"), Vec::new()).unwrap();
+        let _report = root.trash(std::path::Path::new("Diario")).unwrap();
+        lab.serve();
+        let path = vault(&lab);
+        let say = |lab: &Lab| lab.local.status().unwrap().dropped;
+        assert_eq!(say(&lab), [(path.clone(), "Diario".to_owned())]);
+        assert!(
+            super::tests::said(&lab).iter().any(
+                |e| matches!(e, super::Event::Dropped { what } if what == &["Campanha/Diario"])
+            ),
+            "the start said it"
+        );
+        // Off, the line stays for the person to act on.
+        lab.local.stop();
+        assert_eq!(say(&lab).len(), 1);
+        // Until the choice changes.
+        lab.local
+            .set_parts(&path, &["Projetos".to_owned()])
+            .unwrap();
+        assert!(say(&lab).is_empty());
+    });
+}
+
+/// A symbolic link that leads out of a chosen folder is judged by where it
+/// really is, at every use: not by its name (a case or Unicode form the
+/// file system folds), and not by a list looked at earlier (a folder moved
+/// since turned an inside link into one that leaves).
+#[cfg(unix)]
+#[test]
+fn a_link_is_judged_where_it_really_is_when_it_is_used() {
+    run(async {
+        let mut lab = lab_in_part(&["Projetos"]);
+        let at = |rel: &str| lab.notes.path().join("Campanha").join(rel);
+        let link = |target: &str, rel: &str| {
+            verso_fs::link_for_tests(std::path::Path::new(target), &at(rel)).unwrap();
+        };
+        link("../Segredo", "Projetos/dir");
+        link("../../Segredo/c.md", "Projetos/Sub/f.md");
+        link("../Segredo", "Projetos/caf\u{e9}");
+        link("../Segredo/x.png", "Anexos/esc.txt");
+        // Inside now; outside once its folder is moved up a level.
+        put(&lab, "Projetos/Raiz.md", "dentro\n");
+        put(&lab, "Projetos/A/B/x.md", "x\n");
+        link("../../Raiz.md", "Projetos/A/B/l.md");
+        lab.serve();
+        let editor = lab.pair("iPad", true, Role::Editor).await.unwrap();
+        let mut ws = open_part(&lab, &editor, "Projetos").await;
+        let mut id = 10;
+        // The names as the file system folds them, and as typed.
+        for path in [
+            "dir/c.md",
+            "DIR/c.md",
+            "Dir/c.md",
+            "Sub/f.md",
+            "SUB/F.MD",
+            "sub/f.md",
+            "caf\u{e9}/c.md",
+            "cafe\u{301}/c.md",
+            "CAFE\u{301}/c.md",
+            "Anexos/esc.txt",
+            "Anexos/ESC.TXT",
+        ] {
+            for cmd in ["read_note", "read_text", "read_file_text", "links"] {
+                id += 1;
+                let r = call(&mut ws, id, cmd, json!({ "path": path }))
+                    .await
+                    .to_string();
+                assert!(!r.contains(NEEDLE), "{cmd} {path}: {r}");
+            }
+            id += 1;
+            let r = call(&mut ws, id, "read_note", json!({ "path": path })).await;
+            let refused_or_missing = r.get("err").is_some();
+            assert!(refused_or_missing, "read_note {path}: {r}");
+        }
+        for name in [
+            "dir/novo.md",
+            "DIR/novo.md",
+            "cafe\u{301}/novo.md",
+            "CAF\u{c9}/novo.md",
+        ] {
+            id += 1;
+            let _made = call(
+                &mut ws,
+                id,
+                "create_note",
+                json!({ "name": name, "text": "x" }),
+            )
+            .await;
+            assert!(
+                read_disk(&lab, "Segredo/novo.md").is_none(),
+                "{name} created a note in Segredo"
+            );
+        }
+        // Moved: the link that was inside leaves, and the very next use sees it.
+        id += 1;
+        let listed = call(&mut ws, id, "list_notes", json!({})).await.to_string();
+        assert!(listed.contains("A/B/l.md"), "inside it is listed: {listed}");
+        id += 1;
+        let moved = call(
+            &mut ws,
+            id,
+            "move_entries",
+            json!({ "folder": "", "paths": ["A/B"] }),
+        )
+        .await;
+        assert!(moved.get("ok").is_some(), "{moved}");
+        id += 1;
+        let read = call(&mut ws, id, "read_note", json!({ "path": "B/l.md" })).await;
+        assert!(read.get("err").is_some(), "{read}");
+        id += 1;
+        let listed = call(&mut ws, id, "list_notes", json!({})).await.to_string();
+        assert!(!listed.contains("B/l.md"), "{listed}");
+        let outside_raiz = read_disk(&lab, "Raiz.md").unwrap();
+        id += 1;
+        let note = call(&mut ws, id, "read_text", json!({ "path": "B/x.md" })).await;
+        assert!(note.get("ok").is_some(), "{note}");
+        for cmd in ["write_text", "write_note"] {
+            id += 1;
+            let r = call(
+                &mut ws,
+                id,
+                cmd,
+                json!({ "path": "B/l.md", "text": "ESCRITO", "revision": "r" }),
+            )
+            .await;
+            assert!(r.get("err").is_some(), "{cmd}: {r}");
+        }
+        assert_eq!(
+            read_disk(&lab, "Raiz.md").unwrap(),
+            outside_raiz,
+            "the vault's Raiz.md was written through the link"
+        );
+        assert_eq!(
+            read_disk(&lab, "Segredo/c.md").unwrap(),
+            format!("# C\n{NEEDLE} #segredo\n[[a]]\n").into_bytes()
+        );
+    });
+}
+
+/// The bin of a chosen folder hands back what was in the folder, not the
+/// folder: an owner who binned `Projetos` and made another has a root entry
+/// a phone neither sees nor restores (it would land at the vault's top).
+#[test]
+fn the_chosen_folders_own_root_in_the_bin_is_not_a_phones_to_restore() {
+    run(async {
+        let mut lab = lab_in_part(&["Projetos"]);
+        binned(&lab, "Projetos");
+        put(&lab, "Projetos/a.md", "# A\nlinha de projeto\n");
+        lab.serve();
+        let cookie = lab.pair("iPad", true, Role::Editor).await.unwrap();
+        let mut ws = open_part(&lab, &cookie, "Projetos").await;
+        let list = call(&mut ws, 2, "trash_list", json!({})).await;
+        assert_eq!(list["ok"]["entries"], json!([]), "{list}");
+        for asked in [".trash/Projetos", "Projetos", ""] {
+            let r = call(
+                &mut ws,
+                3,
+                "trash_restore",
+                json!({ "path": asked, "today": "2026-10-16" }),
+            )
+            .await;
+            assert!(r.get("err").is_some(), "{asked}: {r}");
+        }
+        assert!(
+            on_disk(&lab).iter().all(|(p, _)| !p.contains("restaurado")),
+            "something was given back at the vault's top"
         );
     });
 }
