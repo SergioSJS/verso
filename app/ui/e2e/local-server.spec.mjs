@@ -358,7 +358,7 @@ test("a ticked folder can be served in part: a tree of its folders, a folder ser
   // Unticking the last chosen folder stops serving the vault, and the choice
   // goes (the maintainer, 2026-10-16: "Para de servir o cofre").
   await tree.getByRole("checkbox", { name: "Servir Diario/2026/Outubro" }).uncheck();
-  await tree.getByRole("checkbox", { name: "Servir Projetos", exact: true }).uncheck();
+  await tree.getByRole("checkbox", { name: "Servir Projetos", exact: true }).click();
   await expect(vault).not.toBeChecked();
   await expect(vault).toHaveJSProperty("indeterminate", false);
   await expect(body.locator(".ls-here .ls-parts")).toHaveCount(0);
@@ -431,7 +431,7 @@ test("a chosen folder gone from the disk is left out at the start and said, and 
   await expect(body.getByText("Não estão mais no disco e ficaram de fora: Antigo.")).toBeVisible();
   // With serving off the line stays, for the person to act on, until the
   // choice changes.
-  await body.getByRole("button", { name: "Parar de servir" }).click();
+  await body.getByRole("button", { name: "Parar de servir", exact: true }).click();
   await expect(body.getByText("Desligado.").first()).toBeVisible();
   await expect(body.getByText("Não estão mais no disco e ficaram de fora: Antigo.")).toBeVisible();
   await tree.getByRole("checkbox", { name: "Servir Antigo" }).uncheck();
