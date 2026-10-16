@@ -63,15 +63,10 @@ pub fn scope_for(
     // A folder chosen inside one served by "this app is a server" is named
     // as it is on the computer, with no owner in brackets: its owner is
     // the phone's own computer (ADR 0096 item 3, amended 2026-10-16).
-    let name = match server
-        .local
-        .as_ref()
-        .and_then(|p| p.part_name(&share.id))
-    {
+    let name = match server.local.as_ref().and_then(|p| p.part_name(&share.id)) {
         Some(name) => name,
         None => {
-            let owner =
-                owner_of(server, &folder.id)?.map_or_else(|| "?".to_owned(), |a| a.name);
+            let owner = owner_of(server, &folder.id)?.map_or_else(|| "?".to_owned(), |a| a.name);
             format!("{} ({owner})", last(&share.path))
         }
     };
