@@ -134,3 +134,13 @@ for (const [title, lines] of [["a short note", 3], ["the end of a long note", 80
     expect(caret).toBeLessThanOrEqual(limit);
   });
 }
+
+// Android shrinks the window to the keyboard's top, so the keys' bar sits on
+// it: Brave's visual viewport alone left a gap (the maintainer's phones,
+// 2026-10-16). The key is set on Android only; WebKit warns about it.
+test("on Android the window shrinks to the keyboard @layout", async ({ app, page, browserName }) => {
+  await app.open();
+  const content = await page.locator('meta[name="viewport"]').getAttribute("content");
+  if (browserName === "chromium") expect(content).toContain("interactive-widget=resizes-content");
+  else expect(content).not.toContain("interactive-widget");
+});
