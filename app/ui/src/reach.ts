@@ -54,7 +54,10 @@ export function reachSentence(message: string): string {
   const { address, tried } = reachParts(message);
   if (tried.length === 0) return s.unreachable(address);
   const name = address.replace(/:\d+$/, "");
-  return `${s.unreachable(address)} ${tried.map((ip) => s.tried(name, ip)).join("; ")}. ${s.dnsHint}`;
+  const said = `${s.unreachable(address)} ${tried.map((ip) => s.tried(name, ip)).join("; ")}.`;
+  // One address that did not answer is a server down as often as a DNS
+  // that is wrong; the hint is for when several were tried.
+  return tried.length > 1 ? `${said} ${s.dnsHint}` : said;
 }
 
 /** The server's address when `e` says it could not be reached. */

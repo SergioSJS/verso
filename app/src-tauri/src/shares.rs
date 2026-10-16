@@ -13,6 +13,7 @@ use verso_contract::{FolderShare, RecentFolder, SharePerson};
 use verso_core::servers::ServerLogin;
 
 use super::*;
+use crate::dns::SendRetrying;
 
 /// The server and its folder behind this window: the one it shows
 /// online, or the one its folder of this computer syncs with.
@@ -57,7 +58,11 @@ async fn ask(
             Some(b) => request.json(&b),
             None => request,
         };
-        remote::answer(request.send().map_err(|e| reach::unsent(&server, &e))?)
+        remote::answer(
+            request
+                .send_retrying()
+                .map_err(|e| reach::unsent(&server, &e))?,
+        )
     })
     .await
     .map_err(|e| verso_service::failed(e.to_string()))?

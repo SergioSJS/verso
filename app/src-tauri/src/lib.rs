@@ -58,6 +58,8 @@ mod protocol;
 mod reach;
 mod release_sums;
 mod remote;
+#[cfg(target_os = "linux")]
+mod resolv_conf;
 mod shares;
 mod sync;
 mod sync_commands;
@@ -1204,6 +1206,8 @@ fn ask_windows_to_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_dns_tls;
 #[cfg(test)]
 mod tests_live;
 #[cfg(test)]

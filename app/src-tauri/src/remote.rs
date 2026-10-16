@@ -28,6 +28,7 @@ use verso_core::servers::{self, ServerLogin};
 use verso_service::files::Served;
 
 use super::*;
+use crate::dns::SendRetrying;
 
 /// The generated bindings this app was built with: their hash is the
 /// contract's version, which the server's must equal (answer D).
@@ -349,11 +350,13 @@ impl Remote {
             headers: vec![("Content-Type", "text/plain; charset=utf-8".to_owned())],
             body: why.into_bytes(),
         };
-        let client = match http() {
+        // The same total time as before the resolver (30 s), not the 20 s
+        // of a JSON answer.
+        let client = match http_within(std::time::Duration::from_secs(30)) {
             Ok(c) => c,
             Err(e) => return refuse(502, e.message),
         };
-        let response = match client.get(url).bearer_auth(&self.token).send() {
+        let response = match client.get(url).bearer_auth(&self.token).send_retrying() {
             Ok(r) => r,
             Err(e) => return refuse(502, e.to_string()),
         };
@@ -397,24 +400,45 @@ fn server_url(url: &str) -> Result<String, ContractError> {
 }
 
 pub(crate) fn http() -> Result<reqwest::blocking::Client, ContractError> {
-    reqwest::blocking::Client::builder()
-        .user_agent(concat!("Verso/", env!("CARGO_PKG_VERSION")))
-        .timeout(std::time::Duration::from_secs(20))
-        // Several addresses may be tried (dns.rs): the time to connect is
-        // shared among them, and the whole request still ends within 20 s.
-        .connect_timeout(std::time::Duration::from_secs(15))
-        .dns_resolver(Arc::new(dns::Resolver))
-        .build()
-        .map_err(|e| failed(e.to_string()))
+    http_within(std::time::Duration::from_secs(20))
 }
+
+/// [`http`] with its own total time for a request: a file of an
+/// attachment takes longer than a JSON answer.
+pub(crate) fn http_within(
+    total: std::time::Duration,
+) -> Result<reqwest::blocking::Client, ContractError> {
+    let builder = reqwest::blocking::Client::builder()
+        .user_agent(concat!("Verso/", env!("CARGO_PKG_VERSION")))
+        .timeout(total)
+        // Several addresses may be tried (dns.rs): the time to connect is
+        // shared among them, and the whole request ends within `total`.
+        .connect_timeout(total.mul_f32(0.75))
+        .dns_resolver(Arc::new(dns::Resolver));
+    #[cfg(test)]
+    let builder = match lock(&TEST_ROOT).as_deref() {
+        Some(pem) => builder.add_root_certificate(
+            reqwest::Certificate::from_pem(pem).map_err(|e| failed(e.to_string()))?,
+        ),
+        None => builder,
+    };
+    builder.build().map_err(|e| failed(e.to_string()))
+}
+
+/// A certificate the tests' clients trust besides the system's.
+#[cfg(test)]
+pub(crate) static TEST_ROOT: Mutex<Option<Vec<u8>>> = Mutex::new(None);
 
 /// The server's answer as JSON, or its error said.
 pub(crate) fn answer(response: reqwest::blocking::Response) -> Result<Value, ContractError> {
-    // The address that answered goes first next time (dns.rs).
-    if let (Some(host), Some(from)) = (response.url().host_str(), response.remote_addr()) {
+    let status = response.status();
+    // The address that answered goes first next time (dns.rs) — once the
+    // handshake is done and the answer is a success, not at a TCP accept.
+    if status.is_success()
+        && let (Some(host), Some(from)) = (response.url().host_str(), response.remote_addr())
+    {
         dns::worked(host, from.ip());
     }
-    let status = response.status();
     let body: Value = response.json().unwrap_or(Value::Null);
     if status.is_success() {
         return Ok(body);
@@ -503,7 +527,7 @@ pub(crate) async fn server_sign_in<R: tauri::Runtime>(
             http()?
                 .post(format!("{start_url}/api/device/start"))
                 .json(&json!({ "device": session }))
-                .send()
+                .send_retrying()
                 .map_err(|e| reach::unsent(&start_url, &e))?,
         )
     })
@@ -528,7 +552,7 @@ pub(crate) async fn server_sign_in<R: tauri::Runtime>(
                         http()?
                             .post(format!("{u}/api/device/poll"))
                             .json(&json!({ "code": c, "poll": p }))
-                            .send()
+                            .send_retrying()
                             .map_err(|e| reach::unsent(&u, &e))?,
                     )
                 })
@@ -605,7 +629,7 @@ pub(crate) async fn server_sign_out<R: tauri::Runtime>(
             c.post(format!("{}/api/signout", login.url))
                 .bearer_auth(token)
                 .json(&json!({}))
-                .send()
+                .send_retrying()
                 .map_err(|e| reach::unsent(&login.url, &e))
         })
     })
@@ -627,7 +651,7 @@ pub(crate) async fn server_folders<R: tauri::Runtime>(
             http()?
                 .get(format!("{}/api/folders", login.url))
                 .bearer_auth(login.token)
-                .send()
+                .send_retrying()
                 .map_err(|e| reach::unsent(&login.url, &e))?,
         )
     })
@@ -834,17 +858,34 @@ pub(crate) async fn dial_hello(
         } else {
             80
         });
-    let stream = dns::dial(&host, port).await.map_err(|e| {
-        reach::not_dialed(&login.url, &tokio_tungstenite::tungstenite::Error::Io(e))
+    dns::declare(&host, uri.scheme_str() == Some("wss"));
+    // Per address, the TCP connection and the TLS and WebSocket handshakes:
+    // an address that accepts the connection and then cannot complete them
+    // (a router's own page on 443) is passed over for the next. A 401 is
+    // the server's own answer and ends it.
+    use tokio_tungstenite::tungstenite::Error as Wire;
+    let shaken = dns::dial_with(&host, port, |stream| {
+        let request = request.clone();
+        async move {
+            tokio_tungstenite::client_async_tls(request, stream)
+                .await
+                .map_err(|e| {
+                    let answered = matches!(&e, Wire::Http(r) if r.status().as_u16() == 401);
+                    (e, answered)
+                })
+        }
+    })
+    .await;
+    let mapped = |e: Wire| match e {
+        Wire::Http(r) if r.status().as_u16() == 401 => {
+            refused("the server ended this device's session: sign in again")
+        }
+        other => reach::not_dialed(&login.url, &other),
+    };
+    let (socket, _) = shaken.map_err(|d| match d {
+        dns::Dial::Io(e) => mapped(Wire::Io(e)),
+        dns::Dial::Shake(e) => mapped(e),
     })?;
-    let (socket, _) = tokio_tungstenite::client_async_tls(request, stream)
-        .await
-        .map_err(|e| match e {
-            tokio_tungstenite::tungstenite::Error::Http(r) if r.status().as_u16() == 401 => {
-                refused("the server ended this device's session: sign in again")
-            }
-            other => reach::not_dialed(&login.url, &other),
-        })?;
     let (mut write, mut read) = socket.split();
     let (tx, mut rx) = mpsc::channel::<Message>(QUEUE);
     let (heard_tx, heard_rx) = mpsc::unbounded_channel::<Heard>();
