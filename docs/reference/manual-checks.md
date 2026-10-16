@@ -20,6 +20,15 @@ in the real app.
 
 ## Not yet checked
 
+### UniVerso found on the network, and a bad DNS survived (ADR 0097, feat/universo-discovery, 2026-10-16)
+
+Needs the installed desktop app and a UniVerso on the home network (the maintainer's ZimaOS); nothing here was run on a real network when it was built.
+
+- [ ] **Discovery on the home LAN** (A): on the machine running UniVerso with the port published beyond loopback and host networking (`network_mode: host`), open *Settings › Servers* in the desktop app: within a few seconds *Found on this network* lists `UniVerso-xxxxxx` with the address (`http://<ip>:7340`) and *no HTTPS*. Click *Connect*: the address fills in and the browser opens the device-approval page of that address. Nothing happened before the click (the server's log shows no request from this Mac until then). Close the section: the list is gone, and the app's log shows no further browsing. With the compose file as it is (bridge network) the list stays empty and says what to do. On the server `VERSO_ANNOUNCE=off`, restart: nothing is listed.
+- [ ] **The macOS prompt** (A): the first time on macOS 15 or later, the system asks for the **Local Network** permission with the words of the Info.plist (which now also say the app looks for servers). Deny it: say whether the list stays empty silently or the app says something; allow it in System Settings › Privacy & Security › Local Network and the list fills.
+- [ ] **Windows and Linux** (A): on Windows, whether Windows Defender Firewall asks about the app on the first browse (UDP 5353), *Private* only; whether the desktop finds a server on the same Wi-Fi. On Linux with Avahi running, whether the browse and the server's announcement coexist with it.
+- [ ] **A bad DNS** (A): point a name at a wrong address in the system's first DNS server (or the router's, as on the maintainer's network) while another server of the list has the right one; in the desktop app connect to `https://<that name>`. It connects, within about a connect timeout the first time and at once after; the log has no WARN. Make no server answer: the notice reads *Não foi possível alcançar o servidor <name> — … <name> → <ip>: sem resposta. Confira o DNS desta rede…* and the WARN line in the log names each IP with where it came from (`system`, `dns <server>`). With a name whose certificate is for another name nothing connects (the name is verified, not the IP).
+
 ### Insert image in the editor's toolbar (feat/insert-image, 2026-10-15)
 
 Needs the installed app on a Mac, a Linux and a Windows computer, an iPhone (Safari) and an Android (Chrome), through a UniVerso and through *This app is a server*; the picker and the camera are the system's and no test reaches them (the end-to-end tests stub the file chooser).
