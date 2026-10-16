@@ -41,6 +41,7 @@ const pt = {
   unavailable: "Não foi possível procurar nesta rede. Digite o endereço do servidor.",
   warning: "Qualquer aparelho da rede pode se anunciar. Confira o endereço antes de conectar.",
   connect: "Conectar",
+  needsUrl: "Este servidor fala HTTPS e não anunciou o endereço do nome dele. No servidor, defina VERSO_PUBLIC_URL (e reinicie) para poder conectar daqui.",
   connectTo: (name: string, url: string) => `Conectar a ${name} em ${url}`,
   plain: "sem HTTPS",
   secure: "HTTPS",
@@ -54,6 +55,7 @@ const en: typeof pt = {
   unavailable: "Could not search this network. Type the server's address.",
   warning: "Any device on the network can announce itself. Check the address before you connect.",
   connect: "Connect",
+  needsUrl: "This server speaks HTTPS and did not announce its name's address. On the server, set VERSO_PUBLIC_URL (and restart) to connect from here.",
   connectTo: (name: string, url: string) => `Connect to ${name} at ${url}`,
   plain: "no HTTPS",
   secure: "HTTPS",
@@ -76,11 +78,15 @@ export function foundRow(f: FoundServer, pick: (f: FoundServer) => void): HTMLEl
   const li = h("li", "srv-found-row");
   const text = h("div", "srv-found-text");
   const name = h("strong", "srv-found-name", f.name);
-  const url = h("code", "srv-found-url", f.url);
+  const url = f.needs_public_url ? h("span", "srv-found-url", s.needsUrl) : h("code", "srv-found-url", f.url);
   const how = h("span", "srv-found-how", f.https ? s.secure : s.plain);
   how.dataset["https"] = f.https ? "1" : "0";
   text.append(name, url, how);
   if (f.version) text.append(h("span", "srv-found-version", s.version(f.version)));
+  if (f.needs_public_url) {
+    li.append(text);
+    return li;
+  }
   const go = h("button", "btn", s.connect);
   go.type = "button";
   go.setAttribute("aria-label", s.connectTo(f.name, f.url));

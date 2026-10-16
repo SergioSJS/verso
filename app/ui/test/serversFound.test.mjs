@@ -22,8 +22,8 @@ await esbuild.build({
 });
 const { foundList, foundRow } = await import("./.bundles/serversFound.test-bundle.mjs");
 
-const ZIMA = { name: "UniVerso-ab12cd", host: "universo-ab12cd.local", url: "http://192.168.1.9:7340", https: false, version: "0.8.4" };
-const SAFE = { name: "UniVerso-ef34ab", host: "universo-ef34ab.local", url: "https://192.168.1.20", https: true, version: "" };
+const ZIMA = { name: "UniVerso-ab12cd", host: "universo-ab12cd.local", url: "http://192.168.1.9:7340", https: false, version: "0.8.4", needs_public_url: false };
+const SAFE = { name: "UniVerso-ef34ab", host: "universo-ef34ab.local", url: "https://192.168.1.20", https: true, version: "", needs_public_url: false };
 
 const later = (ms = 60) => new Promise((r) => setTimeout(r, ms));
 
@@ -72,6 +72,15 @@ describe("a row", () => {
     const li = foundRow(ZIMA, () => {});
     assert.equal(li.querySelector("button").getAttribute("aria-label"), "Connect to UniVerso-ab12cd at http://192.168.1.9:7340");
     assert.match(li.textContent, /no HTTPS/);
+  });
+});
+
+describe("a TLS server announced with no public address", () => {
+  test("is listed with what to do, and has no button to click", () => {
+    const li = foundRow({ name: "UniVerso-9a", host: "h.local", url: "", https: true, version: "", needs_public_url: true }, () => assert.fail("nothing to pick"));
+    assert.match(li.textContent, /VERSO_PUBLIC_URL/);
+    assert.equal(li.querySelector("button"), null);
+    assert.equal(li.querySelector("code"), null);
   });
 });
 
