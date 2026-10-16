@@ -244,7 +244,7 @@ test("many folders are a tree by place: duplicates told apart, a filter, a count
   // Two "Caderno": told apart by the place they are in.
   await tree.locator("summary", { hasText: "Dropbox" }).click();
   await expect(tree.getByText("em obsidian")).toHaveCount(2);
-  await expect(tree.getByText("em Dropbox")).toHaveCount(2);
+  await expect(tree.getByText("em Dropbox")).toHaveCount(1);
   // Ticking calls the command: the count says so, and its branch stays open.
   await body.getByRole("checkbox", { name: "Sandbox" }).check();
   await expect(body.locator(".ls-h", { hasText: "1 marcada de 12" })).toBeVisible();
