@@ -409,11 +409,7 @@ pub(crate) async fn embed_frameable<R: tauri::Runtime>(
         .ok()
         .and_then(|u| crate::framing::Ancestor::of(&u))
         .ok_or_else(|| failed("the window has no address"))?;
-    let verdict = tauri::async_runtime::spawn_blocking(move || {
-        crate::framing::check(&parsed, &app, WEB_USER_AGENT)
-    })
-    .await
-    .map_err(|e| failed(e.to_string()))?;
+    let verdict = crate::framing::check(&parsed, Some(&app), WEB_USER_AGENT).await;
     if verdict.frameable {
         lock(&state.framed_origins).extend(verdict.origins);
     }

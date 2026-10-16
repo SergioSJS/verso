@@ -84,6 +84,7 @@ pub const READ: &[&str] = &[
     "set_walk_rules",
     "set_folder_note_name",
     "log_write",
+    "embed_frameable",
 ];
 
 /// Commands only a phone the person let edit runs: those that change a
@@ -148,7 +149,6 @@ pub const REFUSED: &[&str] = &[
     "web_close",
     "web_nav",
     "web_url",
-    "embed_frameable",
     "device_name",
     "set_device_name",
     "folder_sync",
@@ -362,7 +362,6 @@ mod tests {
             "reveal",
             "open_url",
             "copy_full_path",
-            "embed_frameable",
             "web_open",
             "check_for_updates",
             "download_and_install_update",

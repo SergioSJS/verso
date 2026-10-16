@@ -763,6 +763,17 @@ async fn command(
             let json: String = arg(&args, "json")?;
             to_value(ops::board_text(&json)?)
         }
+        "embed_frameable" => {
+            let url: String = arg(&args, "url")?;
+            let Ok(parsed) = reqwest::Url::parse(&url) else {
+                return Ok(Value::Bool(false));
+            };
+            if !matches!(parsed.scheme(), "http" | "https") {
+                return Ok(Value::Bool(false));
+            }
+            let verdict = crate::framing::check(&parsed, None, crate::framing::WEB_USER_AGENT).await;
+            Ok(Value::Bool(verdict.frameable))
+        }
         // A phone's window reports nothing into the computer's log (ADR
         // 0096 item 12: heard, dropped).
         "log_write" if who.phone.is_some() => Ok(Value::Null),

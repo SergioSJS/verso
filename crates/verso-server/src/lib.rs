@@ -24,6 +24,7 @@ pub mod device;
 pub mod dice;
 pub mod discovery;
 pub mod fair;
+pub mod framing;
 pub mod files;
 pub mod folders;
 /// The server's inputs, opened to its fuzz harness only (ADR 0083 item 14).
