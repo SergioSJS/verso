@@ -11,6 +11,7 @@ import { allFiles, allNotes } from "../folder";
 import { allEmojis } from "../labels";
 import { layout } from "../layout/spaces";
 import { frontmatterEnd } from "../live";
+import { WIKILINK_BEFORE } from "./wikilinkBefore";
 import { opening } from "../opening";
 import { dirOf, Kind, kindOf, name } from "../paths";
 import { linkText, resolveNoteByName } from "../resolve";
@@ -23,7 +24,7 @@ import { focusTableCell } from "../tableEditor";
 
 export const headingsCache = new Map<string, { level: number; text: string }[]>();
 export async function completeWikilinks(ctx: CompletionContext): Promise<CompletionResult | null> {
-  const before = ctx.matchBefore(/(!?)\[\[([^\]\n]*)$/);
+  const before = ctx.matchBefore(WIKILINK_BEFORE);
   if (!before) return null;
   const embed = before.text.startsWith("!");
   const inner = before.text.slice(embed ? 3 : 2);
