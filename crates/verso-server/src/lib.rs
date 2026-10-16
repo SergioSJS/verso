@@ -56,6 +56,7 @@ pub mod share_sync;
 pub mod shares;
 pub mod signin;
 pub mod state;
+pub mod storage;
 pub mod sync;
 pub mod texts;
 pub mod tls;
@@ -91,8 +92,21 @@ pub fn contract_version() -> String {
 
 /// The data directory ready and its database open.
 fn prepare(config: &Config) -> Result<Db, String> {
-    data::ensure_dir(&config.data_dir.join("indexes"))
-        .map_err(|e| format!("VERSO_DATA_DIR ({}): {e}", config.data_dir.display()))?;
+    // A data directory the server cannot write is a server that cannot
+    // start: said in words, before SQLite says "unable to open" (ADR 0075
+    // item 3, amended 2026-10-16).
+    if let Err(e) = data::ensure_dir(&config.data_dir.join("indexes"))
+        .and_then(|()| verso_fs::server::can_write(&config.data_dir))
+    {
+        return Err(if storage::is_refusal(&e) {
+            storage::sentence(
+                &config.data_dir.display().to_string(),
+                &storage::owner_of(&config.data_dir),
+            )
+        } else {
+            format!("VERSO_DATA_DIR ({}): {e}", config.data_dir.display())
+        });
+    }
     if let Some(fs) = verso_fs::server::network_file_system(&config.data_dir) {
         log::warn(&format!(
             "VERSO_DATA_DIR is on a network file system ({fs}): SQLite's locks are not reliable there and the databases may be corrupted; give it a local disk (ADR 0075 item 3)"
@@ -203,6 +217,9 @@ pub fn serve(config: Config, commit: &str) -> Result<(), String> {
             "VERSO_FOLDERS_DIR is on a network file system ({fs}): changes made elsewhere are found by a scan"
         ));
     }
+    // A directory the server cannot write is said now, in words (ADR 0075
+    // item 3, amended 2026-10-16), and again in the admin console.
+    let unwritable = storage::check(&config.data_dir, &config.folders_dir);
     first_admin(&config, &db)?;
     let listen = config.listen;
     let mail = match &config.smtp_url {
@@ -225,6 +242,7 @@ pub fn serve(config: Config, commit: &str) -> Result<(), String> {
     if let Some(mail) = mail {
         let _ = server.mail.set(mail);
     }
+    let _ = server.unwritable.set(unwritable);
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()

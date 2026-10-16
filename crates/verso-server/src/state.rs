@@ -295,6 +295,9 @@ impl Client {
 
 pub struct Server {
     pub config: Config,
+    /// The directories the server could not write at start, for the admin
+    /// console (`crate::storage`); set once by `serve`.
+    pub unwritable: std::sync::OnceLock<Vec<crate::storage::Unwritable>>,
     pub db: Db,
     pub service: Arc<Service>,
     pub clients: Mutex<HashMap<String, Client>>,
@@ -420,6 +423,7 @@ impl Server {
         let history = crate::history::Book::open(&config.data_dir);
         let server = Arc::new(Self {
             config,
+            unwritable: std::sync::OnceLock::new(),
             db,
             service: Arc::clone(&service),
             clients: Mutex::new(HashMap::new()),

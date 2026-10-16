@@ -404,9 +404,11 @@ responder; uma máquina nova de nuvem não traz nenhum dos dois. No Ubuntu,
 `sudo apt install docker.io docker-compose-v2` instala ambos (conferido no
 Ubuntu 26.04); nas outras distribuições, <https://docs.docker.com/engine/install/>.
 
-O contêiner roda como uid 1000 e escreve só em dois diretórios do host,
-que precisam permitir escrita a ele (o Docker cria um que falta com dono
-root, onde o servidor não consegue escrever):
+O servidor roda como uid 1000 e escreve só em dois diretórios do host. O
+Docker cria um que falte com dono root; o contêiner começa como root só o
+tempo de entregar ao uid 1000 o que o root possui neles, e desce ao 1000
+antes de o servidor rodar, então não há nada a preparar. Para fazê-los você
+mesmo (e o contêiner não ter o que consertar):
 
 ```sh
 sudo install -d -o 1000 -g 1000 /srv/universo/data /srv/universo/folders
@@ -455,6 +457,10 @@ services:
       - /tmp
     cap_drop:
       - ALL
+    cap_add:                                        # to mend /data and /folders, then the server drops to 1000
+      - CHOWN
+      - SETUID
+      - SETGID
     security_opt:
       - no-new-privileges:true
     network_mode: host                              # no lugar de ports: (abaixo)
@@ -911,8 +917,9 @@ configuração. As que impedem o servidor de subir:
 
 Corrija a linha no `/etc/universo/universo.env` (ou no compose), depois
 `sudo systemctl restart universo` (ou `docker compose up -d`). Com Docker,
-um diretório onde o servidor não consegue escrever é o
-`install -d -o 1000 -g 1000` do B.1.
+um diretório onde o servidor não consegue escrever é de outra pessoa (um
+usuário do NAS): o console de administração e o log dizem `sudo chown -R
+1000:1000 <pasta do host>`, que é o `install -d -o 1000 -g 1000` do B.1.
 
 ### A porta 7340 está ocupada
 

@@ -107,6 +107,8 @@ openssl = { version = "0.10", features = ["vendored"] }
 
 [dev-dependencies]
 tempfile = "3.27"
+# A directory made unwritable for the tests of storage.rs and tests_http.rs.
+verso-fs = { path = "../verso-fs", features = ["test-util"] }
 # The server driven as a window drives it: HTTP and the contract's
 # WebSocket, in tests only; both already in the tree.
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
