@@ -16,7 +16,7 @@ import { currentFolderId, startBridge } from "./web/bridge";
 import { pullSettings, pushSettings } from "./web/settingsSync";
 import { notice } from "./web/notice";
 import { ensureClipboard } from "./web/clipboard";
-import { plainHttpNotice } from "./web/plainHttp";
+import { plainHttpMark, plainHttpNotice } from "./web/plainHttp";
 import { chooseFolder, devicePage, invitePage, pairPage, resetPage, setupPage, signInLinkPage, signInPage } from "./web/pages";
 import { setLang, w } from "./web/strings";
 import { setProver } from "./web/proof";
@@ -113,6 +113,7 @@ async function start(): Promise<void> {
   void navigator.storage?.persist?.().catch(() => false);
   startBridge(chooseFolder);
   plainHttpNotice();
+  plainHttpMark();
   // "You only read this folder" is said of a folder on screen: when one
   // is shown with the reader's role, or the role of the one shown becomes
   // the reader's — never over the start page, before a folder is there.

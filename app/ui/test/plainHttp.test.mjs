@@ -19,7 +19,7 @@ const secure = (on) => Object.defineProperty(win, "isSecureContext", { value: on
 await esbuild.build({
   stdin: {
     contents: `
-      export { plainHttp, plainHttpLine, plainHttpNotice } from "./src/web/plainHttp";
+      export { plainHttp, plainHttpLine, plainHttpMark, plainHttpNotice } from "./src/web/plainHttp";
       export { ensureClipboard } from "./src/web/clipboard";
       export { sha256Hex } from "./src/demoImport";`,
     resolveDir: ".",
@@ -31,7 +31,7 @@ await esbuild.build({
   outfile: "test/.bundles/plainHttp.test-bundle.mjs",
   logLevel: "error",
 });
-const { plainHttp, plainHttpLine, plainHttpNotice, ensureClipboard, sha256Hex } = await import("./.bundles/plainHttp.test-bundle.mjs");
+const { plainHttp, plainHttpLine, plainHttpMark, plainHttpNotice, ensureClipboard, sha256Hex } = await import("./.bundles/plainHttp.test-bundle.mjs");
 
 beforeEach(() => {
   document.body.replaceChildren();
@@ -103,4 +103,27 @@ test("a hash needs no crypto.subtle", async () => {
   } finally {
     Object.defineProperty(globalThis, "crypto", { value: saved, configurable: true });
   }
+});
+
+test("the status bar keeps a mark that lists what is off, and says nothing when secure", () => {
+  document.body.innerHTML = '<footer class="status-bar"><span class="status-keys"></span></footer>';
+  plainHttpMark();
+  plainHttpMark();
+  const marks = document.querySelectorAll(".status-plain-http");
+  assert.equal(marks.length, 1, "one mark, however often asked");
+  assert.equal(marks[0].nextElementSibling?.className, "status-keys", "before the keys");
+  marks[0].click();
+  const dialog = document.querySelector("dialog.plain-http-dialog");
+  assert.ok(dialog, "a click opens the list");
+  const items = [...dialog.querySelectorAll(".plain-http-off li")].map((li) => li.textContent);
+  // The network first, then each feature (offline, notifications, passkeys,
+  // installing, the board's picture), in the window's language.
+  assert.equal(items.length, 6, items.join(" | "));
+  assert.match(items[0], /network|rede/i);
+  assert.match(items.join(" "), /offline/i);
+  assert.match(items.join(" "), /passkeys/i);
+  document.body.innerHTML = '<footer class="status-bar"><span class="status-keys"></span></footer>';
+  secure(true);
+  plainHttpMark();
+  assert.equal(document.querySelector(".status-plain-http"), null, "nothing on a secure page");
 });

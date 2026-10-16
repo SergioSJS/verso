@@ -232,3 +232,9 @@ html[data-offline] .links-section .links-head::after,
 html[data-offline] .graph-head::after { content: " — " var(--offline-mark); font-weight: 400; font-size: .85em; color: var(--ink-3); }
 /* The way on from "Pronto" to the window (a link drawn as the button). */
 .web-open { text-decoration: none; box-sizing: border-box; }
+/* What is off without HTTPS, one per line; the mark that stays in the
+   status bar while the page is on plain HTTP. */
+.plain-http-off { margin: 0 0 .8rem; padding-inline-start: 1.2rem; display: flex; flex-direction: column; gap: .35rem; font-size: .9rem; color: var(--ink-2); }
+.status-plain-http { flex: none; display: inline-flex; align-items: center; gap: .3rem; padding: .1rem .45rem; font: inherit; font-size: .78rem; color: var(--seal); border-radius: 4px; }
+.status-plain-http .icon { width: 12px; height: 12px; }
+.status-plain-http:hover { background: var(--paper-2); }
