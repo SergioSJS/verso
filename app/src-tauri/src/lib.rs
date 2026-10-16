@@ -896,6 +896,8 @@ fn second_launch<R: tauri::Runtime>(app: &tauri::AppHandle<R>, argv: Vec<String>
 
 /// Open the window and serve it until it closes.
 pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Error>> {
+    // Before any TLS: the sync's WebSocket, the server calls, the updater.
+    verso_server::install_crypto_provider();
     let commands = commands();
     let initial_folder = initial_folder.map(|p| std::path::absolute(&p).unwrap_or(p));
     // First of the plugins, as the plugin asks: a second launch hands its
