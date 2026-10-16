@@ -45,6 +45,10 @@ pub struct Config {
     /// Whether the server looks for a new version for the admin
     /// (`VERSO_UPDATE_CHECK=off` turns it off; answer E of 2026-10-09).
     pub update_check: bool,
+    /// Whether the server announces itself on the local network by mDNS
+    /// when it listens beyond loopback (`VERSO_ANNOUNCE=off` turns it
+    /// off; ADR 0097).
+    pub announce: bool,
     /// A token that reads the release feed while the repository is private
     /// (`VERSO_UPDATE_TOKEN`).
     pub update_token: Option<String>,
@@ -232,6 +236,12 @@ impl Config {
                 "off" | "0" | "false" | "no"
             )
         });
+        let announce = !value(env, "VERSO_ANNOUNCE")?.is_some_and(|v| {
+            matches!(
+                v.to_ascii_lowercase().as_str(),
+                "off" | "0" | "false" | "no"
+            )
+        });
         Ok(Self {
             listen,
             public_url,
@@ -246,6 +256,7 @@ impl Config {
             trusted_proxy,
             tls,
             update_check,
+            announce,
             update_token: value(env, "VERSO_UPDATE_TOKEN")?,
             smtp_url: value(env, "VERSO_SMTP_URL")?,
             mail_from: value(env, "VERSO_MAIL_FROM")?,
@@ -282,6 +293,7 @@ impl Config {
             trusted_proxy: crate::proxy::Proxies::default(),
             tls: None,
             update_check: false,
+            announce: false,
             update_token: None,
             smtp_url: None,
             mail_from: None,
@@ -429,6 +441,8 @@ mod tests {
     #[test]
     fn update_check_and_tls_and_addresses() {
         assert!(!read(&[("VERSO_UPDATE_CHECK", "off")]).unwrap().update_check);
+        assert!(read(&[]).unwrap().announce);
+        assert!(!read(&[("VERSO_ANNOUNCE", "off")]).unwrap().announce);
         assert!(read(&[("VERSO_TLS_CERT_FILE", "/c")]).is_err());
         assert!(read(&[("VERSO_PUBLIC_URL", "ftp://x")]).is_err());
         let c = read(&[
