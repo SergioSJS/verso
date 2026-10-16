@@ -637,6 +637,16 @@ de outro jeito):
   quando duas pastas têm o mesmo nome, como o menu nativo *Abrir recente*
   distingue duas delas. Nenhuma decisão acima muda; o contrato não muda.
 
+- **A seção se chama *Transformar em servidor*** (2026-10-16). O
+  mantenedor, sobre o nome do ajuste "Este app é um servidor": *"troque
+  esse nome de configuração, nome péssimo"*, e sobre "Acesso pelo
+  celular": *"nao condiz nada com o funcionamento, a ideia, nnao tem nada
+  a ver com acesso pelo celular, é acesso pelo navegador. Transforma e
+  servidor, algo assim"*. A seção de *Ajustes*, os avisos que levam a ela,
+  a explicação da página de pareamento e o pedido de rede do macOS dizem
+  *Transformar em servidor* (EN *Turn into a server*). Este registro
+  mantém o título e o nome da funcionalidade.
+
 ## Status
 
 **Os pontos abertos do "Como foi construído" decididos em 2026-10-15** (o

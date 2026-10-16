@@ -615,6 +615,16 @@ decision; each is a question for the maintainer if it should be otherwise):
   the native *Open recent* menu tells two of them apart. No decision above
   changes; the contract is unchanged.
 
+- **The section is called *Turn into a server*** (2026-10-16). The
+  maintainer, on the settings' name "This app is a server": *"troque esse
+  nome de configuração, nome péssimo"*, and on "Phone access": *"nao
+  condiz nada com o funcionamento, a ideia, nnao tem nada a ver com acesso
+  pelo celular, é acesso pelo navegador. Transforma e servidor, algo
+  assim"* (it is access through a browser, not by phone). The section of
+  *Settings*, the notices that lead to it, the pairing page's how-to and
+  the macOS network prompt say *Transformar em servidor* (EN *Turn into a
+  server*). This record keeps its title and its name for the feature.
+
 ## Status
 
 **The open points of "As built" decided on 2026-10-15** (the maintainer,

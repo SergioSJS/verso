@@ -8,7 +8,7 @@
 <plist version="1.0">
 <dict>
   <key>NSLocalNetworkUsageDescription</key>
-  <string>Verso lets a phone on this network open the folders you choose, only while "This app is a server" is on.</string>
+  <string>Verso lets a phone on this network open the folders you choose, only while "Turn into a server" is on.</string>
   <key>NSBonjourServices</key>
   <array>
     <string>_verso-local._tcp</string>
