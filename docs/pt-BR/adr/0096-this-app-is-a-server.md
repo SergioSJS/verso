@@ -626,6 +626,17 @@ de outro jeito):
   primeira conexão de um celular e para o servidor que parou sozinho, para
   não acrescentar uma linha a *Ajustes › Notificações*.
 
+- **A lista de pastas a servir é a lista do seletor de pastas** (2026-10-16).
+  O mantenedor, vendo a lista de *Pastas servidas* da primeira versão (uma
+  árvore pelo nome do diretório pai): *"Pq vc nao usa a msm logica de abrir
+  pasta do Verso listando os recentes e tal, msm origem de dado"*. O dado já
+  era o mesmo (`recent_folders`); a apresentação agora também é: uma linha
+  por pasta recente, a mais recente primeiro, na ordem em que o comando
+  devolve, com uma caixa para servi-la, sem grupos. O nome do diretório pai
+  (`place`, um nome de diretório, nunca um caminho) aparece em tom suave só
+  quando duas pastas têm o mesmo nome, como o menu nativo *Abrir recente*
+  distingue duas delas. Nenhuma decisão acima muda; o contrato não muda.
+
 ## Status
 
 **Os pontos abertos do "Como foi construído" decididos em 2026-10-15** (o
