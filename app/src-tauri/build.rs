@@ -118,6 +118,8 @@ fn main() {
         "local_server_status",
         "local_server_folders",
         "local_server_tick",
+        "local_server_subfolders",
+        "local_server_parts",
         "local_server_settings",
         "local_server_start",
         "local_server_stop",

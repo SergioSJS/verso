@@ -744,6 +744,8 @@ macro_rules! commands_for {
                 local_server_status::<$runtime>,
                 local_server_folders::<$runtime>,
                 local_server_tick::<$runtime>,
+                local_server_subfolders::<$runtime>,
+                local_server_parts::<$runtime>,
                 local_server_settings::<$runtime>,
                 local_server_start::<$runtime>,
                 local_server_stop::<$runtime>,
