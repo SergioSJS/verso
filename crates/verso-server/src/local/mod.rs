@@ -25,11 +25,15 @@ pub mod allow;
 pub mod announce;
 pub mod cert;
 pub mod net;
+mod parts;
+pub use parts::find_attachments;
 pub mod pairing;
 pub mod qr;
 mod routes;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_parts;
 #[cfg(test)]
 mod tests_serving;
 
@@ -127,6 +131,8 @@ pub struct Policy {
     /// When each phone's refusal by that ceiling was last logged and
     /// audited: once a minute per phone, whatever the pace it retries at.
     full_said: Mutex<HashMap<String, Instant>>,
+    /// The folders served in part (item 3, amended 2026-10-16).
+    parts: parts::Parts,
     /// Loopback let in as a peer, for the tests only.
     #[cfg(test)]
     test_loopback: std::sync::atomic::AtomicBool,
@@ -147,6 +153,7 @@ impl Policy {
             refused_said: crate::log::OnceAMinute::default(),
             connected_most: std::sync::atomic::AtomicU32::new(CONNECTED),
             full_said: Mutex::new(HashMap::new()),
+            parts: parts::Parts::default(),
             #[cfg(test)]
             test_loopback: std::sync::atomic::AtomicBool::new(false),
         })
@@ -453,6 +460,10 @@ pub struct LocalSettings {
     /// The folders ticked, as the host knows them (paths, at this edge
     /// only).
     pub folders: Vec<String>,
+    /// For a folder served in part (item 3, amended 2026-10-16), the folders
+    /// chosen inside it, relative to it: keyed by the folder's path as in
+    /// `folders`. A folder with none here is served whole.
+    pub parts: std::collections::BTreeMap<String, Vec<String>>,
     /// The host's own certificate and key, when the person gave them
     /// (item 5 (d)), and the name that certificate is for.
     pub cert_file: Option<String>,
@@ -468,6 +479,7 @@ impl Default for LocalSettings {
         Self {
             keep_on: false,
             folders: Vec::new(),
+            parts: std::collections::BTreeMap::new(),
             cert_file: None,
             key_file: None,
             host_name: None,
@@ -701,6 +713,10 @@ impl LocalServer {
                 "phones connected at once: between {CONNECTED_LEAST} and {CONNECTED_MOST}"
             ));
         }
+        // What is chosen inside a folder is valid before it is kept.
+        for chosen in settings.parts.values() {
+            parts::clean(chosen)?;
+        }
         let text = serde_json::to_string(settings).map_err(|e| e.to_string())?;
         self.with_db(|db| db.set_setting(SETTINGS, &text))?;
         // At once, for new connections; no one connected is cut off.
@@ -780,7 +796,8 @@ impl LocalServer {
         // The folders ticked, by the name each is given; the registry in the
         // database follows them.
         let folders = names_for(&settings.folders);
-        sync_registry(&db, &owner.id, &folders)?;
+        let served = parts::plan(&folders, &settings.parts)?;
+        let reconciled = parts::reconcile(&db, &owner.id, &served)?;
         let ips: Vec<IpAddr> = nets.iter().map(|n| n.ip).collect();
         // The certificate: the host's own files when given, else ours.
         let (fingerprint, certificate, acceptor) = match (&settings.cert_file, &settings.key_file) {
@@ -824,6 +841,7 @@ impl LocalServer {
             .store(self.shared.loopback, Ordering::Relaxed);
         policy.set_network(&nets, port, &extra);
         policy.set_folders(folders);
+        policy.parts.set(reconciled.hidden, reconciled.names);
         let config = Config::for_local(
             self.shared.dir.clone(),
             ui_dir,
@@ -1410,23 +1428,6 @@ fn names_for(paths: &[String]) -> HashMap<String, PathBuf> {
         out.insert(name, path);
     }
     out
-}
-
-/// The database's folders follow the ticked ones: a folder no longer
-/// ticked is forgotten (its grants go with it), a new one is registered to
-/// the local owner.
-fn sync_registry(db: &Db, owner: &str, folders: &HashMap<String, PathBuf>) -> Result<(), String> {
-    for f in db.folders()? {
-        if !folders.contains_key(&f.dir) {
-            db.forget_folder(&f.id)?;
-        }
-    }
-    for name in folders.keys() {
-        if db.folder_by_dir(name)?.is_none() {
-            db.create_folder(name, owner)?;
-        }
-    }
-    Ok(())
 }
 
 /// Whether a connection to `addr` is accepted within two seconds.
