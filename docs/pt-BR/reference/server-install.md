@@ -205,9 +205,20 @@ escuta além do loopback e responde por HTTP simples: o `VERSO_PUBLIC_URL`
 é opcional (ADR 0073 item 6, alterado em 2026-10-16), definido só quando
 houver HTTPS na frente.
 
-Os diretórios do host montados em `/data` e `/folders` precisam permitir
-escrita ao uid 1000. O Docker cria um diretório que falta como root, e o
-servidor não consegue escrever nele:
+Os diretórios do host montados em `/data` e `/folders` não precisam de
+preparo. O Docker cria um diretório que falta como root, onde o servidor
+(uid 1000) não conseguiria escrever; por isso o contêiner **começa como root
+só para consertar isso** e desce ao uid 1000 antes de o servidor rodar (ADR
+0075, alterado em 2026-10-16: *"Conserta sozinho ao ligar"*). Para cada um
+dos dois diretórios em que o uid 1000 não grava, o entrypoint entrega a
+`1000:1000` as entradas que o root possui sob ele, uma vez: nenhum link
+simbólico é seguido, nenhum outro sistema de arquivos é percorrido, e o
+arquivo de outro usuário é deixado em paz. Ele precisa das três
+capabilities que o arquivo compose devolve (`CHOWN`, `SETUID`, `SETGID`); o
+servidor não tem nenhuma. Se um diretório é de outra pessoa, o log, o console
+de administração e o pedido que falhou dizem `sudo chown -R 1000:1000 <pasta
+do host>` (no `.deb`, o usuário `universo`), e esse comando é também o jeito
+de preparar os diretórios você mesmo:
 
 ```sh
 sudo install -d -o 1000 -g 1000 /srv/universo/data /srv/universo/folders
@@ -289,8 +300,8 @@ para qualquer host que aceite um arquivo compose:
 
 Ele monta `/DATA/AppData/universo/data` (o caminho de dados de app que o
 CasaOS usa) em `/data`, e `/DATA/Documents/Verso` em `/folders` — troque o
-segundo para onde as notas devem ficar, inclusive um NAS. Os dois precisam
-permitir escrita ao uid 1000, como na seção 3. Ele declara o mesmo
+segundo para onde as notas devem ficar, inclusive um NAS. Nenhum precisa de preparo:
+o contêiner conserta um que seja do root ao ligar, como na seção 3. Ele declara o mesmo
 endurecimento do comando da seção 3 (`read_only`, `tmpfs: /tmp`,
 `cap_drop: ALL`, `no-new-privileges`), e mostra a senha do primeiro admin
 como um segredo do Docker, comentado, antes da variável comum: para usar,

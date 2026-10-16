@@ -71,6 +71,33 @@
   Windows. On Windows the server runs only inside the desktop app
   ([0096](0096-this-app-is-a-server.md)) or as `verso serve` from the
   command line.
+  2026-10-16 — item 2's "never root" and item 3's "writable by uid 1000"
+  amended. On a ZimaOS box the maintainer bound `/DATA/storage1/Documents/Verso`
+  to `/folders`; Docker made it owned by root; the server, uid 1000, failed
+  with "making the folder: Permission denied (os error 13)", shown raw. Asked
+  how to handle it, he decided: *"Conserta sozinho ao ligar"* (fix it by itself on start). The
+  container now **starts as root only for one job** and the server never runs
+  as root: `docker-entrypoint` (POSIX sh, busybox's own `su`, `find` and
+  `chown`; nothing was added to the image) checks, as uid 1000, that `/data`
+  and `/folders` are writable; for one that is not, it gives to `1000:1000`
+  the entries *root owns* under that mount (`find -xdev -user 0`, `chown -h`:
+  no symlink is followed, no other file system entered, a file of another
+  user is left), then `exec`s `/usr/bin/universo`, a wrapper that drops to
+  uid 1000 with the supplementary groups cleared (`su`) and executes the
+  binary, `docker exec` commands included, so that `universo admin reset`
+  never leaves a root-owned file. Root lives for the entrypoint's checks, a
+  few milliseconds unless it has to chown a large tree, once; the server
+  process holds uid and gid 1000, no other group, `CapEff` and `CapPrm` zero
+  (`scripts/check-server-image.sh` reads `/proc/1/status`). The compose file
+  keeps `cap_drop: ALL`, `read_only`, the `tmpfs` and `no-new-privileges`,
+  and adds back `CHOWN` (the chown), `SETUID` and `SETGID` (the drop); not
+  `DAC_OVERRIDE` or `FOWNER`, since root only changes what it owns and
+  traverses a directory it owns. A host that sets `user: "N:N"` skips all of
+  it, as before. A directory owned by someone else (a NAS user) is not
+  touched: the server checks at start that it can write to both directories,
+  says in the log, in the admin console and in the answer to the request that
+  failed that it cannot, and names the command (`sudo chown -R 1000:1000
+  <host folder>`; for the `.deb`, the `universo` user).
 - Revisions: 2026-10-09 (night) — accepted by the maintainer together with
   [0073](0073-self-hosted-server-first.md), in the answer quoted there;
   its two `[OPEN]` answered — the update path (item 7, the maintainer's

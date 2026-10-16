@@ -197,9 +197,19 @@ listens beyond loopback and answers over plain HTTP: `VERSO_PUBLIC_URL` is
 optional (ADR 0073 item 6, amended 2026-10-16), set only once HTTPS is in
 front.
 
-The directories of the host bound to `/data` and `/folders` must be
-writable by uid 1000. Docker creates a missing one owned by root, which the
-server cannot write:
+The directories of the host bound to `/data` and `/folders` need no
+preparation. Docker creates a missing one owned by root, which the server
+(uid 1000) could not write; so the container **starts as root only to mend
+that** and drops to uid 1000 before the server runs (ADR 0075, amended
+2026-10-16: *"Conserta sozinho ao ligar"*). For each of the two directories
+that uid 1000 cannot write, the entrypoint gives to `1000:1000` the entries
+that root owns under it, once: no symbolic link is followed, no other file
+system entered, and a file of another user is left alone. It needs the three
+capabilities the compose file adds back (`CHOWN`, `SETUID`, `SETGID`); the
+server itself holds none. If a directory belongs to someone else, the log,
+the admin console and the failing request say `sudo chown -R 1000:1000
+<host folder>` (with the `.deb`, the `universo` user), and that command is
+also how to prepare the directories yourself:
 
 ```sh
 sudo install -d -o 1000 -g 1000 /srv/universo/data /srv/universo/folders
@@ -279,8 +289,8 @@ and serves any host that takes a compose file:
 
 It binds `/DATA/AppData/universo/data` (the app data path CasaOS uses) to
 `/data`, and `/DATA/Documents/Verso` to `/folders` — change the second to
-wherever the notes should live, a NAS included. Both must be writable by
-uid 1000, as in section 3. It declares the same hardening as section 3's
+wherever the notes should live, a NAS included. Neither needs preparation:
+the container mends a root-owned one at start, as in section 3. It declares the same hardening as section 3's
 command (`read_only`, `tmpfs: /tmp`, `cap_drop: ALL`,
 `no-new-privileges`), and shows the first admin's password as a Docker
 secret, commented out, before the plain variable: to use it, put the

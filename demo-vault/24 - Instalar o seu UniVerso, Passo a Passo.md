@@ -97,10 +97,10 @@ systemctl is-enabled docker          # deve dizer enabled
 
 Seu usuário não fica no grupo `docker`: ponha `sudo` antes de todo `docker` e `docker compose` abaixo.
 
-**Passo 1: os diretórios.** O contêiner roda como o usuário 1000 e só escreve nestes dois:
+**Passo 1: os diretórios.** O servidor só escreve em dois diretórios seus, e basta criá-los. Não precisa dar dono nem permissão: o contêiner começa como administrador só o tempo de passar ao usuário 1000 o que é do root nesses dois diretórios, e desce a 1000 sem nenhum privilégio antes de o servidor rodar.
 
 ```bash
-sudo install -d -o 1000 -g 1000 /srv/universo/data /srv/universo/folders
+sudo mkdir -p /srv/universo/data /srv/universo/folders
 ```
 
 **Passo 2: entrar no registro de imagens** (uma vez; enquanto o repositório é privado, com um token *classic* do GitHub que tenha `read:packages`):
@@ -133,6 +133,10 @@ services:
       - /tmp
     cap_drop:
       - ALL
+    cap_add:                  # só para passar os diretórios ao usuário 1000 ao ligar
+      - CHOWN
+      - SETUID
+      - SETGID
     security_opt:
       - no-new-privileges:true
     ports:
@@ -180,6 +184,10 @@ services:
       - /tmp
     cap_drop:
       - ALL
+    cap_add:                  # só para passar os diretórios ao usuário 1000 ao ligar
+      - CHOWN
+      - SETUID
+      - SETGID
     security_opt:
       - no-new-privileges:true
     ports:
@@ -371,7 +379,7 @@ docker logs universo                     # Docker
 
 **Os erros mais comuns:**
 
-- **O serviço não sobe.** O log nomeia a linha: um `VERSO_PUBLIC_URL` que não é `http(s)://…`, `VERSO_ADMIN_EMAIL is set without VERSO_ADMIN_PASSWORD`. Corrija no `/etc/universo/universo.env` (ou no compose) e reinicie. Com Docker, um diretório onde o servidor não consegue escrever é o `install -d -o 1000 -g 1000` do Caminho 2.
+- **O serviço não sobe.** O log nomeia a linha: um `VERSO_PUBLIC_URL` que não é `http(s)://…`, `VERSO_ADMIN_EMAIL is set without VERSO_ADMIN_PASSWORD`. Corrija no `/etc/universo/universo.env` (ou no compose) e reinicie. Com Docker, um diretório que é de outra pessoa (um usuário do NAS) o contêiner não toca: o console de administração e o log dizem `O UniVerso não pode escrever em … sudo chown -R 1000:1000 <pasta do host>`; rode esse comando.
 - **A página mostra "Conexão sem HTTPS"**: não é erro. Você abriu por `http://`, e o UniVerso funciona, só deixa desligados o modo offline, as notificações e as passkeys. Clique em "Como ligar o HTTPS" (seção 5).
 - **A página diz "does not answer to that name"** (erro 421): o `VERSO_PUBLIC_URL` está definido e você abriu por um endereço que não é o dele (muitas vezes o IP). Use o nome dele; ou, sem `VERSO_PUBLIC_URL`, você digitou um nome público, que só é aceito com ele: use o IP, ou defina o `VERSO_PUBLIC_URL`. Os links por e-mail (entrar por link, "esqueci a senha") também só existem com ele definido.
 - **O proxy responde 502**: o UniVerso não está rodando, ou escuta noutra porta que não a do bloco do Caddy (`sh universo.sh status`, linha "Escuta em").
