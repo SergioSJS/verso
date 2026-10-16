@@ -61,9 +61,9 @@ type Action = {
   text: string | null;
   /** A word beside the icon, for what opens a menu. */
   word?: () => string;
-  /** A block command: shown while the note's blocks can be edited. */
   /** Opens a menu. */
   popup?: boolean;
+  /** A block command: shown while the note's blocks can be edited. */
   block?: (b: BlockBar) => ((button: HTMLElement) => void);
   run?: (v: EditorView) => void;
 };
