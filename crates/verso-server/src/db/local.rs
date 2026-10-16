@@ -31,6 +31,14 @@ CREATE TABLE phones (
 /// account in the audit log and the folders' grants.
 pub const LOCAL_OWNER: &str = "owner@this-computer.verso";
 
+/// The account that holds a folder served in part (ADR 0096 item 3,
+/// amended 2026-10-16): the folder is registered because the shares of its
+/// chosen sub-folders need a folder to belong to, but it is **not the
+/// phones'**: the local owner, whose sessions the phones are, has no grant
+/// in it, so the folder's own id opens nothing for a phone and the owner
+/// holds only the shares. Like the owner's, nobody signs in with it.
+pub const VAULT_HOLDER: &str = "vaults@this-computer.verso";
+
 /// A paired phone, as Settings lists it (ADR 0096 item 15).
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Phone {
@@ -50,6 +58,14 @@ impl Db {
             return Ok(a);
         }
         self.create_account(LOCAL_OWNER, "This computer", "pt", None, false)
+    }
+
+    /// The holder of the folders served in part, made at the first use.
+    pub fn vault_holder(&self) -> R<Account> {
+        if let Some(a) = self.account_by_email(VAULT_HOLDER)? {
+            return Ok(a);
+        }
+        self.create_account(VAULT_HOLDER, "This computer", "pt", None, false)
     }
 
     /// A phone paired: a browser session of `owner` with `role`, and its

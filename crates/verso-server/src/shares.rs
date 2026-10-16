@@ -60,11 +60,25 @@ pub fn scope_for(
         .unwrap_or(Role::Reader)
         .min(Role::Editor);
     let role = if writes { role } else { role.min(Role::Reader) };
-    let owner = owner_of(server, &folder.id)?.map_or_else(|| "?".to_owned(), |a| a.name);
+    // A folder chosen inside one served by "this app is a server" is named
+    // as it is on the computer, with no owner in brackets: its owner is
+    // the phone's own computer (ADR 0096 item 3, amended 2026-10-16).
+    let name = match server
+        .local
+        .as_ref()
+        .and_then(|p| p.part_name(&share.id))
+    {
+        Some(name) => name,
+        None => {
+            let owner =
+                owner_of(server, &folder.id)?.map_or_else(|| "?".to_owned(), |a| a.name);
+            format!("{} ({owner})", last(&share.path))
+        }
+    };
     let scope = Scope {
         share: share.id.clone(),
         key: share_key(&share.id),
-        name: format!("{} ({owner})", last(&share.path)),
+        name,
         root: share.path.clone(),
         mount: share
             .attachments
@@ -233,6 +247,12 @@ fn exists_folder(server: &Server, folder: &Folder, path: &str) -> ApiResult<bool
     {
         return Ok(found);
     }
+    // Served from this computer, a folder is opened by the first phone
+    // that asks: until then the folders chosen inside it are the ones the
+    // start found on the disk (ADR 0096 item 3, amended 2026-10-16).
+    if server.local.is_some() {
+        return Ok(true);
+    }
     let inside = format!("{path}/");
     Ok(server
         .db
@@ -243,7 +263,7 @@ fn exists_folder(server: &Server, folder: &Folder, path: &str) -> ApiResult<bool
 
 /// A path the owner names for a share: a folder inside the folder, not
 /// hidden (no part starting with `.`), not the root.
-fn share_path(path: &str) -> ApiResult<()> {
+pub(crate) fn share_path(path: &str) -> ApiResult<()> {
     if path.is_empty()
         || crate::scope::checked(path).is_err()
         || path.split('/').any(|p| p.starts_with('.'))
