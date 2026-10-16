@@ -81,6 +81,11 @@ fn config(data: &std::path::Path, folders: &std::path::Path) -> Config {
             match name {
                 "VERSO_LISTEN" => Some("127.0.0.1:0".to_owned()),
                 "VERSO_UPDATE_CHECK" => Some("off".to_owned()),
+                // The tests of a proxy name it; the rest are direct
+                // connections. An unset variable believes the private
+                // networks, which this machine is one of (ADR 0073 item 6,
+                // amended 2026-10-16: tests_http.rs).
+                "VERSO_TRUSTED_PROXY" => Some("none".to_owned()),
                 _ => None,
             }
         }
@@ -920,7 +925,7 @@ fn the_server_serves_its_own_tls() {
         let acceptor =
             tls::acceptor(&dir.path().join("cert.pem"), &dir.path().join("key.pem")).unwrap();
         assert!(tls::acceptor(&dir.path().join("key.pem"), &dir.path().join("key.pem")).is_err());
-        let r = start().await;
+        let r = start_with(|c| c.tls = Some(("/c".into(), "/k".into()))).await;
         let tcp = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = tcp.local_addr().unwrap().port();
         let listener = tls::TlsListener::new(tcp, acceptor, Arc::clone(&r.server.slots)).unwrap();

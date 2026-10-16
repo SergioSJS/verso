@@ -37,7 +37,6 @@ const FILE_CSP: &str = "sandbox; default-src 'none'; img-src 'self' data:; media
 pub const PIECE: usize = 256 * 1024;
 
 pub async fn file(ctx: Ctx, Path((folder, path)): Path<(String, String)>) -> ApiResult<Response> {
-    ctx.secure()?;
     let who = ctx.who()?;
     // A share's file, by its path in the shared folder, behind the same
     // check (ADR 0081 item 2).

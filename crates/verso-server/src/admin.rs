@@ -20,7 +20,8 @@ use crate::http::{ApiError, ApiResult, Ctx, ok};
 
 /// The address a link is opened at.
 pub fn link(ctx: &Ctx, path: &str, token: &str) -> String {
-    let base = crate::auth::expected_origin(&ctx.server, &ctx.headers).unwrap_or_default();
+    let base =
+        crate::auth::expected_origin(&ctx.server, &ctx.headers, &ctx.peer).unwrap_or_default();
     format!("{base}/{path}/{token}")
 }
 

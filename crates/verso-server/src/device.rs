@@ -112,7 +112,6 @@ pub struct Start {
 
 /// The app asks for a code.
 pub async fn start(ctx: Ctx, Json(body): Json<Start>) -> ApiResult<Response> {
-    ctx.secure()?;
     let key = format!("device:{}", ctx.peer.key());
     let wait = ctx.server.limiter.wait(&key);
     if !wait.is_zero() {
@@ -146,7 +145,8 @@ pub async fn start(ctx: Ctx, Json(body): Json<Start>) -> ApiResult<Response> {
             key: by,
         },
     );
-    let base = crate::auth::expected_origin(&ctx.server, &ctx.headers).unwrap_or_default();
+    let base =
+        crate::auth::expected_origin(&ctx.server, &ctx.headers, &ctx.peer).unwrap_or_default();
     Ok(ok(json!({
         "code": code,
         "poll": poll,
@@ -323,7 +323,6 @@ pub struct Poll {
 /// keep it from signing in (ADR 0074 item 9: never a lock a stranger can
 /// use); the secret is 256 bits, not a thing a delay protects.
 pub async fn poll(ctx: Ctx, Json(body): Json<Poll>) -> ApiResult<Response> {
-    ctx.secure()?;
     // Past the server's pace of refusals, every sign-in waits its turn
     // (ADR 0083 item 2).
     let turn = ctx.server.signins.turn();

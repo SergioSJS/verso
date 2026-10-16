@@ -138,37 +138,41 @@ fuzz_target!(|data: &[u8]| {
         )
     });
 
-    if host_ok(server, &headers) {
+    let p = peer(server, &headers, SocketAddr::new(remote, 50_000));
+    // With no public address, any name is answered when the server is
+    // reached from the network or through a proxy that forwarded the
+    // request (ADR 0073 item 6, amended 2026-10-16).
+    let any = public.is_none() && (!server.config.loopback_only() || p.forwarded);
+
+    if host_ok(server, &headers, &p) {
         let host = host.expect("a Host that passes is one");
         let named = public
             .as_ref()
             .is_some_and(|(authority, _)| authority.eq_ignore_ascii_case(host));
-        assert!(named || loopback(host), "Host {host:?} passed");
+        assert!(named || loopback(host) || any, "Host {host:?} passed");
     }
 
-    let origin = expected_origin(server, &headers);
+    let origin = expected_origin(server, &headers, &p);
     match (&public, &origin) {
         (Some((_, configured)), _) => assert_eq!(origin.as_ref(), Some(configured)),
         (None, Some(origin)) => {
             let host = host.expect("an origin from a Host");
-            assert!(loopback(host), "Host {host:?} made the origin {origin:?}");
-            let scheme = if server.config.tls.is_some() {
-                "https"
-            } else {
-                "http"
-            };
+            assert!(
+                loopback(host) || any,
+                "Host {host:?} made the origin {origin:?}"
+            );
+            let scheme = if p.https { "https" } else { "http" };
             assert_eq!(*origin, format!("{scheme}://{}", host.to_ascii_lowercase()));
         }
         (None, None) => {}
     }
 
-    if origin_ok(server, &headers) {
+    if origin_ok(server, &headers, &p) {
         let sent = headers.get(ORIGIN).and_then(|v| v.to_str().ok());
         let expected = origin.expect("an origin that passes is expected");
         assert!(sent.is_some_and(|s| s.eq_ignore_ascii_case(&expected)));
     }
 
-    let p = peer(server, &headers, SocketAddr::new(remote, 50_000));
     if !server.config.trusted_proxy.trusts(remote) {
         assert_eq!(p.addr, remote, "only a trusted proxy forwards an address");
     }
