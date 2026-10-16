@@ -177,6 +177,18 @@ export function signedIn(): Account | null {
   return account;
 }
 
+let servedByApp = false;
+
+/** Whether a desktop app serves this window ("This app is a server",
+ *  ADR 0096): a paired phone, with no account pages and no shares. */
+export function byApp(): boolean {
+  return servedByApp;
+}
+
+export function setByApp(local: boolean): void {
+  servedByApp = local;
+}
+
 export function setSignedIn(a: Account): void {
   account = a;
 }

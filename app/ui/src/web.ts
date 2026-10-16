@@ -9,7 +9,7 @@
 // invitation, a reset, a device, the account, the admin page — or, for a
 // person signed in, starts the window over the bridge (`web/bridge.ts`).
 
-import { setStateFallback, state, stateWasKept } from "./web/api";
+import { setByApp, setStateFallback, state, stateWasKept } from "./web/api";
 import { offline } from "./web/offline/manager";
 import { o } from "./web/offline/strings";
 import { currentFolderId, startBridge } from "./web/bridge";
@@ -36,6 +36,7 @@ async function start(): Promise<void> {
   await offline.init();
   setStateFallback(() => offline.cachedState());
   const s = await state();
+  setByApp(Boolean(s.local));
   setLang(s.account?.lang);
   if (stateWasKept()) {
     // Offline: the folders kept open the window; nothing else is asked.
