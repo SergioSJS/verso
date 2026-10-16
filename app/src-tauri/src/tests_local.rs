@@ -156,6 +156,17 @@ fn only_some_folders_inside_a_ticked_folder_can_be_chosen_to_serve() {
     )
     .unwrap();
     assert_eq!(rows[0]["parts"], json!(["Diario", "Projetos"]), "{rows}");
+    // Ticking it again while it is ticked changes nothing that is chosen.
+    let rows = call(
+        &webview,
+        "local_server_tick",
+        json!({ "key": key, "ticked": true }),
+    )
+    .unwrap();
+    assert_eq!(rows[0]["parts"], json!(["Diario", "Projetos"]), "{rows}");
+    // No attachments folder is named by the vault: none goes along.
+    assert!(rows[0]["attachments"].is_null(), "{rows}");
+    assert_eq!(rows[0]["missing"], json!([]));
     // No way out of the folder, hidden folder or absolute path crosses.
     for bad in ["../x", "/etc", ".obsidian", "a/../../b"] {
         let refused = call(

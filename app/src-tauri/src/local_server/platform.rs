@@ -77,6 +77,17 @@ fn status_of(local: &LocalServer) -> Result<LocalServerStatus, String> {
         key_file: set.key_file,
         host_name: set.host_name,
         max_connected: set.max_connected,
+        dropped: s
+            .dropped
+            .iter()
+            .map(|(folder, part)| {
+                let name = Path::new(folder)
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default();
+                format!("{name}/{part}")
+            })
+            .collect(),
     })
 }
 
@@ -96,11 +107,18 @@ fn rows<R: tauri::Runtime>(
     let state = app.state::<App>();
     let config = state.service.config();
     let settings = local.settings()?;
+    let dropped = local.status()?.dropped;
     let ticked = settings.folders;
     Ok(verso_core::recent_folders(config)
         .into_iter()
         .map(|path| {
             let key = verso_core::folder_key(&path);
+            let is_ticked = ticked.iter().any(|t| *t == path.to_string_lossy());
+            let parts = settings
+                .parts
+                .get(path.to_string_lossy().as_ref())
+                .cloned()
+                .unwrap_or_default();
             LocalFolder {
                 name: path
                     .file_name()
@@ -111,12 +129,18 @@ fn rows<R: tauri::Runtime>(
                     .and_then(|p| p.file_name())
                     .map(|n| n.to_string_lossy().into_owned())
                     .unwrap_or_default(),
-                ticked: ticked.iter().any(|t| *t == path.to_string_lossy()),
-                parts: settings
-                    .parts
-                    .get(path.to_string_lossy().as_ref())
-                    .cloned()
-                    .unwrap_or_default(),
+                ticked: is_ticked,
+                parts: parts.clone(),
+                missing: dropped
+                    .iter()
+                    .filter(|(folder, _)| *folder == path.to_string_lossy())
+                    .map(|(_, part)| part.clone())
+                    .collect(),
+                attachments: if parts.is_empty() || !is_ticked {
+                    None
+                } else {
+                    verso_core::served_attachments(&path, &parts)
+                },
                 syncs_with: sync::synced(config, &key).map(|s| host_of(&s.server)),
                 key,
             }
@@ -156,8 +180,11 @@ pub(super) async fn tick<R: tauri::Runtime>(
         let mut settings = local.settings()?;
         let text = path.to_string_lossy().into_owned();
         settings.folders.retain(|f| *f != text);
-        // What was chosen inside a folder goes with its tick.
-        settings.parts.remove(&text);
+        // What was chosen inside a folder is forgotten with its untick;
+        // ticking it again while it is ticked changes nothing.
+        if !ticked {
+            settings.parts.remove(&text);
+        }
         if ticked {
             settings.folders.push(text);
         }

@@ -21,7 +21,7 @@ pub fn role(server: &Server, who: &Who, id: &str) -> ApiResult<(Folder, Role)> {
         return Err(ApiError::not_found());
     }
     // A folder served in part is no phone's: only the shares of the
-    // folders chosen inside it are (ADR 0096 item 3, amended 2026-10-16).
+    // folders chosen inside it are (ADR 0096 item 2, amended 2026-10-16).
     // Its holder is not the phones' account, which already opens nothing
     // here; this is the second lock, so a grant made by mistake cannot
     // open it.

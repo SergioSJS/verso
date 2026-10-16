@@ -17,6 +17,8 @@ use crate::{EntryKind, Root};
 /// there, as in the tree; `path` itself is not listed.
 pub fn subfolders(path: &Path) -> std::io::Result<Vec<String>> {
     let mut root = Root::open(path, Vec::new())?;
+    // As the folder is opened to serve: a link that leaves it is not a folder.
+    root.set_links_inside(true);
     let walk = root.walk();
     let mut out: Vec<String> = walk
         .entries
@@ -34,6 +36,16 @@ pub fn subfolders(path: &Path) -> std::io::Result<Vec<String>> {
     out.sort();
     out.dedup();
     Ok(out)
+}
+
+/// Whether `relative` (a `/`-joined folder of `path`, none of its parts `..`
+/// or empty) is a folder there now.
+#[must_use]
+pub fn is_folder(path: &Path, relative: &str) -> bool {
+    !relative
+        .split('/')
+        .any(|p| p.is_empty() || p == "." || p == "..")
+        && std::fs::metadata(path.join(relative)).is_ok_and(|m| m.is_dir())
 }
 
 #[cfg(test)]
@@ -54,6 +66,17 @@ mod tests {
         std::fs::write(dir.path().join("Projetos/nota.md"), "# n\n").unwrap();
         let found = subfolders(dir.path()).unwrap();
         assert_eq!(found, ["Diario", "Projetos", "Projetos/A"]);
+    }
+
+    #[test]
+    fn a_folder_is_one_only_when_it_is_there_and_inside() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("A/B")).unwrap();
+        std::fs::write(dir.path().join("A/f.md"), "x").unwrap();
+        assert!(is_folder(dir.path(), "A/B"));
+        for no in ["A/f.md", "A/C", "../x", "A/../A", "", "/A"] {
+            assert!(!is_folder(dir.path(), no), "{no:?}");
+        }
     }
 
     #[test]
