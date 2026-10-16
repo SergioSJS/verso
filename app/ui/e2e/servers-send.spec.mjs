@@ -99,3 +99,23 @@ test("a sync that could not start is said under the button, with a try again", a
   await server.getByRole("button", { name: "Tentar de novo" }).click();
   await expect(app.page.locator("#sync-state")).toHaveText("Sincronizada");
 });
+
+// The open folder already syncs with another server: that server's block
+// says so where its button would be, with the way to the sync settings —
+// one folder syncs with one server at a time (the maintainer, 2026-10-16,
+// found no button and had to guess).
+test("a folder syncing with another server: this server's block says so and leads to Sync", async ({ app }) => {
+  await app.open();
+  await app.page.evaluate(() => {
+    const h = window.__harness.core.handlers;
+    const st = { ...window.__harness.core.sync, on: true, state: "idle", server: "https://outro.casa", folder: "f1" };
+    h.folder_sync = () => st;
+  });
+  const sync = await app.page.evaluate(() => window.__harness.core.handlers.folder_sync());
+  await app.emit("sync-status", sync);
+  const server = await signedIn(app, { folders: [{ id: "f9", name: "Outra", role: "owner" }], mayCreate: true });
+  await expect(server).toContainText("já sincroniza com outro.casa");
+  await expect(server.getByRole("button", { name: /^Sincronizar ‘/ })).toHaveCount(0);
+  await server.getByRole("button", { name: "Abrir Sincronizar" }).click();
+  await expect(app.page.locator('.settings-nav-item[aria-current="true"]', { hasText: "Sincronizar" })).toBeVisible();
+});
