@@ -30,6 +30,21 @@ if [ -d /run/systemd/system ]; then
   fi
 fi
 
+# On a first install, ask interactively whether to listen beyond loopback.
+listened_all=no
+if [ "$upgrade" = no ] && [ -t 0 ] && [ "${DEBIAN_FRONTEND:-}" != "noninteractive" ]; then
+  printf '\nAcessar o UniVerso de outros aparelhos da rede local? [s/N] '
+  read -r answer || answer=no
+  case "$answer" in
+    [sSyY]*)
+      if [ -f /etc/universo/universo.env ]; then
+        sed -i 's/^VERSO_LISTEN=127\.0\.0\.1:7340/VERSO_LISTEN=0.0.0.0:7340/' /etc/universo/universo.env 2>/dev/null || true
+        listened_all=yes
+      fi
+      ;;
+  esac
+fi
+
 # The message goes out on a first install, and on an upgrade that leaves the
 # unit not enabled (is-enabled prints "disabled", "masked" and so on, and
 # exits non-zero, for anything else). Without systemctl, an upgrade says
@@ -43,7 +58,14 @@ elif command -v systemctl >/dev/null 2>&1; then
 fi
 
 if [ "$tell" = yes ]; then
-  cat <<'MSG'
+  if [ "$listened_all" = yes ]; then
+    listen_msg="It listens on 0.0.0.0:7340 (open http://<this machine>:7340 from any device on the network)."
+  else
+    listen_msg="It listens on 127.0.0.1:7340. For plain HTTP from the network, set
+VERSO_LISTEN=0.0.0.0:7340 and open http://<this machine>:7340; for HTTPS, put a
+reverse proxy or \`tailscale serve\` in front."
+  fi
+  cat <<MSG
 
 UniVerso installed. It is NOT running yet.
 
@@ -54,9 +76,8 @@ UniVerso installed. It is NOT running yet.
   2. sudo systemctl enable --now universo
   3. journalctl -u universo -f
 
-It listens on 127.0.0.1:7340. For plain HTTP from the network, set
-VERSO_LISTEN=0.0.0.0:7340 and open http://<this machine>:7340; for HTTPS, put a
-reverse proxy or `tailscale serve` in front. Back up /var/lib/universo/data and /var/lib/universo/folders.
+$listen_msg
+Back up /var/lib/universo/data and /var/lib/universo/folders.
 Guide: docs/reference/server-install.md in the Verso repository.
 
 MSG
