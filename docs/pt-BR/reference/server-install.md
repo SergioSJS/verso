@@ -330,7 +330,10 @@ para a rede de casa, então no CasaOS e no ZimaOS o anúncio não sai dele** e a
 lista fica vazia: digite o endereço como antes, ou dê ao contêiner
 `network_mode: host` (tire o bloco `ports:`; o servidor então escuta a porta
 7340 da própria máquina, que precisa estar livre). O compose acima mantém a
-rede bridge. `VERSO_ANNOUNCE=off` desliga o anúncio.
+rede bridge. `VERSO_ANNOUNCE=off` desliga o anúncio. Com `VERSO_PUBLIC_URL` definida, o anúncio leva esse
+endereço e a lista oferece exatamente ele; com `VERSO_TLS_CERT_FILE` e sem
+`VERSO_PUBLIC_URL`, a lista diz para defini-la, pois um certificado é de um
+nome, não de um IP. Ele é anunciado só nas interfaces privadas da máquina.
 
 Uma entrada nas lojas de apps do CasaOS e do ZimaOS é uma submissão aos
 repositórios deles, feita quando o servidor for anunciado (0075,
