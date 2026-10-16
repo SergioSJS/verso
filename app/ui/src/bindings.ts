@@ -547,6 +547,17 @@ export const commands = {
 	 *  UniVerso cannot be ticked in V1 (item 11).
 	 */
 	localServerTick: (key: string, ticked: boolean) => typedError<LocalFolder[], ContractError>(__TAURI_INVOKE("local_server_tick", { key, ticked })),
+	/**
+	 *  The folders inside a folder this computer has opened (by its key), to
+	 *  choose which of them to serve: relative, `/`-joined, none hidden
+	 *  (ADR 0096 item 3, amended 2026-10-16).
+	 */
+	localServerSubfolders: (key: string) => typedError<string[], ContractError>(__TAURI_INVOKE("local_server_subfolders", { key })),
+	/**
+	 *  Serve only these folders inside a ticked folder (none: all of it). Not
+	 *  while serving, like ticking.
+	 */
+	localServerParts: (key: string, parts: string[]) => typedError<LocalFolder[], ContractError>(__TAURI_INVOKE("local_server_parts", { key, parts })),
 	/**  Keep on at start, and the host's own certificate (item 5 (d)). */
 	localServerSettings: (keepOn: boolean, certFile: string | null, keyFile: string | null, hostName: string | null, maxConnected: number) => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_settings", { keepOn, certFile, keyFile, hostName, maxConnected })),
 	localServerStart: () => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_start")),
@@ -1687,6 +1698,12 @@ export type LocalFolder = {
 	 */
 	place: string,
 	ticked: boolean,
+	/**
+	 *  The folders inside it chosen to be served, relative to it and
+	 *  `/`-joined (ADR 0096 item 3, amended 2026-10-16); none when all of it
+	 *  is served. Each reaches the phone as a folder of its own.
+	 */
+	parts: string[],
 	/**
 	 *  The server this folder also syncs with: such a folder cannot be
 	 *  served in V1 (item 11), and the row says to open that address on

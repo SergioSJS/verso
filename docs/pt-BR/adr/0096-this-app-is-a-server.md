@@ -135,6 +135,57 @@ precisa de uma linha, o item diz.
      dedicado, que o UniVerso já é; (c) oferece o que a pessoa não
      escolheu. Construído pelo código do próprio servidor com um modo de
      conta única, não uma segunda implementação.
+   - **Emenda `[DECIDIDO 2026-10-16]`: uma pasta pode ser servida inteira,
+     ou só pastas escolhidas dentro dela.** O mantenedor, vendo a lista de
+     *Pastas servidas* depois que virou a lista do seletor de pastas: *"pq
+     vc removeu a vista de árvore dos arquivos de 'Transformar em
+     servidor'?"* e, ao ouvir que a lista é das pastas que este computador
+     abriu: *"para as pastas ja abertas e tal, sim, mas para os arquivos do
+     cofre atual aberto não né"*. Perguntado, escolheu três coisas: **(1)**
+     uma pasta marcada é servida inteira *ou* só as pastas escolhidas
+     dentro dela, numa árvore sob a linha dela; **(2)** cada pasta escolhida
+     chega ao celular *como uma pasta própria* — *Projetos* e *Diário* são
+     duas pastas no seletor do celular, com o nome do diretório e tornadas
+     únicas (`Notas`, `Notas (2)`) entre tudo o que é servido; **(3)** os
+     anexos da pasta vão junto, só para ler, como a pasta de anexos de um
+     compartilhamento ([0081](0081-sharing-between-people-on-one-universo.md)
+     item 11). Todos os celulares pareados veem a mesma escolha: não é por
+     celular.
+     - *Mecanismo: o confinamento de um compartilhamento, não um escopo
+       novo* ([0081](0081-sharing-between-people-on-one-universo.md) itens
+       1, 2 e 11). Uma pasta servida em parte é registrada no banco local
+       (um compartilhamento precisa de uma pasta a que pertencer), mas
+       **fica com uma conta que não é a dos celulares** — o dono local, de
+       quem os celulares são sessões, não tem permissão nela — e o id dela
+       está também numa lista que `access::role` recusa a um celular: duas
+       trancas, para que o id não abra nada por porta nenhuma (o comando da
+       janela, uma chave guardada de antes, `/f/<id>/…`, histórico, sync,
+       leitores, lixeira, salas). O dono local recebe um compartilhamento
+       por pasta escolhida, no máximo que um celular pode ter (editor; o
+       papel do próprio celular ainda restringe, item 12); o celular lista
+       e abre esses ids, e cada comando dele passa pela junção de caminho,
+       confinamento, filtragem de respostas e filtragem de eventos do
+       compartilhamento (`scope.rs`), que recusa o comando que não conhece.
+       Uma tabela de testes fixa um veredito para cada comando da lista
+       permitida dos celulares e falha quando um é acrescentado sem ele; o
+       único comando da pasta que um compartilhamento recusa é
+       `set_focuses`.
+     - *Quais pastas.* Escolhidas como caminhos relativos à pasta
+       (separados por `/`, nenhuma oculta, nenhuma com `..`, nenhuma dentro
+       de outra: escolher uma pasta serve o que há dentro dela), pelas
+       regras do caminho de um compartilhamento. Nada escolhido é a pasta
+       inteira, como hoje. A escolha é um ajuste guardado como a lista de
+       marcadas: muda só com o servir desligado, e é esquecida quando a
+       pasta é desmarcada. Uma pasta escolhida que não está mais no disco ao
+       ligar fica de fora; se não sobrar nenhuma, não liga — nunca volta
+       para a pasta inteira. Listar as pastas dentro de uma pasta que não
+       está aberta é um comando só do desktop, pelo `verso-fs`, que um
+       celular não executa (todo o prefixo `local_server_` é recusado).
+     - *Anexos.* Na primeira vez em que um celular abre uma pasta escolhida
+       numa execução, acha-se a pasta para a qual a maioria dos embeds das
+       notas aponta, fora dela, como o diálogo de compartilhar oferece (0081
+       item 11), e ela aparece na raiz, só para ler, com o nome dela; anexos
+       soltos na raiz da pasta ficam de fora, como na 0081.
 
 3. **`[DECIDIDO 2026-10-15]` Em que interface escuta, e em quais redes.**
    - (a) Todas as interfaces (`0.0.0.0`/`::`). Simples, e alcançável pela

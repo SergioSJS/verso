@@ -777,6 +777,13 @@ pub fn recent_folders(config: Option<&Path>) -> Vec<PathBuf> {
     sidecar::known_folders(&dir.join("index"))
 }
 
+/// The folders inside `folder`, relative and `/`-joined, without opening
+/// it: what Settings offers to serve to a phone when only some of a
+/// folder's folders are chosen (ADR 0096, amended 2026-10-16).
+pub fn subfolders_of(folder: &Path) -> Result<Vec<String>, CoreError> {
+    verso_fs::subfolders(folder).map_err(CoreError::Folder)
+}
+
 impl Workspace {
     /// Open `folder` with its index under [`config_dir`] (or the given
     /// directory). Nothing is read yet.

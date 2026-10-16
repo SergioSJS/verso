@@ -54,6 +54,30 @@ pub(crate) async fn local_server_tick<R: tauri::Runtime>(
     platform::tick(app, key, ticked).await
 }
 
+/// The folders inside a folder this computer has opened (by its key), to
+/// choose which of them to serve: relative, `/`-joined, none hidden
+/// (ADR 0096 item 3, amended 2026-10-16).
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_subfolders<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    key: String,
+) -> Result<Vec<String>, ContractError> {
+    platform::subfolders(app, key).await
+}
+
+/// Serve only these folders inside a ticked folder (none: all of it). Not
+/// while serving, like ticking.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_parts<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    key: String,
+    parts: Vec<String>,
+) -> Result<Vec<LocalFolder>, ContractError> {
+    platform::parts(app, key, parts).await
+}
+
 /// Keep on at start, and the host's own certificate (item 5 (d)).
 #[tauri::command]
 #[specta::specta]

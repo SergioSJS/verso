@@ -65,6 +65,10 @@ pub struct LocalFolder {
     /// directory crosses.
     pub place: String,
     pub ticked: bool,
+    /// The folders inside it chosen to be served, relative to it and
+    /// `/`-joined (ADR 0096 item 3, amended 2026-10-16); none when all of it
+    /// is served. Each reaches the phone as a folder of its own.
+    pub parts: Vec<String>,
     /// The server this folder also syncs with: such a folder cannot be
     /// served in V1 (item 11), and the row says to open that address on
     /// the phone instead.
