@@ -190,9 +190,16 @@ decidido como escrito. Tamanhos: S são horas, M um ou dois dias, L mais.
    `none` não acredita em nenhum. O limite de conexões do `Slots` continua
    isentando só o loopback e os proxies que quem hospeda nomeou, e o aviso
    de um proxy confiável que não encaminha nada é dito só de um nomeado. A
-   consequência, sem rodeio: um cliente da rede de casa pode forjar o
-   `X-Forwarded-For` e ser cadenciado sob o endereço que escreve; o atraso
-   da própria conta e o bloqueio continuam valendo. As outras palavras do
+   consequência, sem rodeio: um cliente de uma rede privada pode forjar o
+   `X-Forwarded-For` e ser contado sob o endereço que escreve — e no Docker
+   todo visitante de uma porta publicada chega do gateway da ponte
+   (172.16.0.0/12), em que o padrão acredita, então um cliente da internet
+   pode. Só um socket de loopback que não encaminhou nada fica isento do
+   ritmo, do teto de requisições em andamento e do de WebSockets; um
+   `127.0.0.1` encaminhado é contado como qualquer outro endereço. Um
+   atacante que gira endereços forjados ainda derrota os limites por
+   endereço; o atraso da própria conta e o bloqueio valem. Nomeie os
+   proxies de verdade, ou `none`, para fechar isso. As outras palavras do
    item 5 ficam.)*
 
 6. **Uma prova recente antes de uma ação sensível** (F15, e a aprovação

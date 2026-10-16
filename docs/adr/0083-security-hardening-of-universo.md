@@ -179,9 +179,15 @@ as written. Sizes: S is hours, M a day or two, L more.
    `none` believes no proxy. The connection limit of `Slots` still exempts
    only loopback and the proxies the host named, and the warning of a
    trusted proxy that forwards nothing is said only of a named one. The
-   consequence, plainly: a client on the home network can forge
-   `X-Forwarded-For` and be paced under the address it writes; the
-   account's own delay and the lock still hold. Item 5's other words stand.)*
+   consequence, plainly: a client on a private network can
+   forge `X-Forwarded-For` and be counted under the address it writes — and
+   in Docker every visitor of a published port arrives from the bridge
+   gateway (172.16.0.0/12), which the default believes, so an internet
+   client can. Only a loopback socket that forwarded nothing is exempt from
+   the pace, the in-flight cap and the WebSocket cap; a forwarded `127.0.0.1`
+   is counted like any other address. An attacker who rotates forged
+   addresses still defeats the per-address limits; the account's own delay
+   and the lock hold. Name the real proxies, or `none`, to close it. Item 5's other words stand.)*
 
 6. **A fresh proof before a sensitive action** (F15, and the device
    page's approval). Creating a token, adding or removing a passkey,

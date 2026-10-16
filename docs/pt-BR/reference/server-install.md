@@ -473,7 +473,7 @@ vazio conta como não definido.
 | Variável | Padrão | O que faz |
 |---|---|---|
 | `VERSO_LISTEN` | `127.0.0.1:7340` (imagem: `0.0.0.0:7340`) | endereço e porta; além do loopback o servidor responde por HTTP simples |
-| `VERSO_PUBLIC_URL` | nenhum | opcional. O endereço que as pessoas usam: com ele, as checagens de `Origin` e `Host` aceitam só esse nome (e o desta máquina), e os links de convites e de redefinição o usam; sem ele, qualquer endereço digitado é respondido e os links usam o da própria requisição. `https://…` ou `http://…`, os dois são aceitos |
+| `VERSO_PUBLIC_URL` | nenhum | opcional. O endereço que as pessoas usam: com ele, as checagens de `Origin` e `Host` aceitam só esse nome (e o desta máquina), e os links de convites e de redefinição o usam; sem ele, só um endereço IP, um nome de uma palavra ou um nome `.local` / `.home.arpa` é respondido (um nome público pede a variável, contra o DNS rebinding), e os links por e-mail — o link de entrada e o "esqueci a senha" — não existem. O link de convite ou de redefinição de um admin usa o endereço da sessão do próprio admin. `https://…` ou `http://…`, os dois são aceitos |
 | `VERSO_DATA_DIR` | imagem `/data`, pacotes `/var/lib/universo/data` | contas, sessões, registro de auditoria, índices; um disco local |
 | `VERSO_FOLDERS_DIR` | imagem `/folders`, pacotes `/var/lib/universo/folders` | as pastas de notas; pode ser um NAS |
 | `VERSO_UI_DIR` | `<diretório do binário>/../share/universo/ui` | os arquivos da janela |

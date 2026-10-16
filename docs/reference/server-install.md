@@ -457,7 +457,7 @@ value counts as not set.
 | Variable | Default | What it does |
 |---|---|---|
 | `VERSO_LISTEN` | `127.0.0.1:7340` (image: `0.0.0.0:7340`) | address and port; beyond loopback the server answers over plain HTTP |
-| `VERSO_PUBLIC_URL` | none | optional. The address people use: with it, the `Origin` and `Host` checks accept that name only (and this machine's), and the links in invitations and resets use it; without it, any address typed is answered and the links use the request's own. `https://…` or `http://…`, both taken |
+| `VERSO_PUBLIC_URL` | none | optional. The address people use: with it, the `Origin` and `Host` checks accept that name only (and this machine's), and the links in invitations and resets use it; without it, only an IP address, a one-word name or a `.local` / `.home.arpa` name is answered (a public name needs the variable, against DNS rebinding), and the links by e-mail — the sign-in link and "forgot the password" — do not exist. An admin's invitation or reset link uses the address of the admin's own session. `https://…` or `http://…`, both taken |
 | `VERSO_DATA_DIR` | image `/data`, packages `/var/lib/universo/data` | accounts, sessions, audit log, indexes; a local disk |
 | `VERSO_FOLDERS_DIR` | image `/folders`, packages `/var/lib/universo/folders` | the folders of notes; may be a NAS |
 | `VERSO_UI_DIR` | `<binary's directory>/../share/universo/ui` | the window's files |

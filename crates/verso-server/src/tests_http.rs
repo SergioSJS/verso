@@ -102,52 +102,83 @@ fn a_page_of_another_site_is_still_not_a_page_of_this_server() {
 }
 
 #[test]
-fn a_public_address_keeps_the_host_rule_and_no_address_answers_any() {
+fn a_public_address_keeps_the_host_rule_and_no_address_answers_only_what_cannot_be_rebound() {
     block_on(async {
+        let status = |r: &crate::tests::Running,
+                      host: &'static str,
+                      extra: &'static [(&'static str, &'static str)]| {
+            let r_url = r.url("/api/signin");
+            async move {
+                let mut req = reqwest::Client::new()
+                    .post(r_url)
+                    .header("host", host)
+                    .header("origin", format!("http://{host}"));
+                for (k, v) in extra {
+                    req = req.header(*k, *v);
+                }
+                req.json(&json!({ "email": "admin@casa.lan", "password": "senha muito longa" }))
+                    .send()
+                    .await
+                    .unwrap()
+                    .status()
+                    .as_u16()
+            }
+        };
         // With VERSO_PUBLIC_URL: that name, and this machine's.
         let r = start_with(|c| {
             listening_on_the_network(c);
             c.public_url = Some("http://notas.casa:7340".to_owned());
         })
         .await;
-        assert_eq!(
-            sign_in_at(&r, LAN, "http", &[]).await.status().as_u16(),
-            421
-        );
-        assert_eq!(
-            sign_in_at(&r, "notas.casa:7340", "http", &[])
-                .await
-                .status()
-                .as_u16(),
-            200
-        );
-        // Without it, listening on this machine only: a name that is not
-        // this machine's is a page resolving its own name here (DNS
-        // rebinding) and is refused, unless a believed proxy forwarded it.
-        let local = start_with(|c| c.trusted_proxy = Proxies::private_networks()).await;
-        assert_eq!(
-            sign_in_at(&local, LAN, "http", &[]).await.status().as_u16(),
-            421
-        );
-        let forwarded = sign_in_at(
-            &local,
+        assert_eq!(status(&r, LAN, &[]).await, 421);
+        assert_eq!(status(&r, "notas.casa:7340", &[]).await, 200);
+        // (A test server holds one of a few places: let go of each.)
+        drop(r);
+        // Without it: the names a public page cannot make resolve here are
+        // answered, so http://<ip>:7340 works with no variable...
+        let r = start_with(listening_on_the_network).await;
+        for host in [
+            LAN,
+            "zima.local:7340",
+            "casa:7340",
+            "nas.home.arpa",
+            "[fd00::5]:7340",
+            "localhost:7340",
+        ] {
+            assert_eq!(status(&r, host, &[]).await, 200, "{host}");
+        }
+        // ...and any other name needs VERSO_PUBLIC_URL (DNS rebinding).
+        for host in [
+            "evil.example:7340",
             "notas.casa",
-            "https",
-            &[
-                ("x-forwarded-for", "203.0.113.9"),
-                ("x-forwarded-proto", "https"),
-            ],
-        )
-        .await;
-        assert_eq!(forwarded.status().as_u16(), 200);
+            "x.local.evil.example",
+            "1.2.3.4.evil.example",
+            "[::1]:igin: x",
+            "[fd00::5]x",
+        ] {
+            assert_eq!(status(&r, host, &[]).await, 421, "{host}");
+        }
+        drop(r);
+        // The default list widens nothing: a rebound page on this machine
+        // writes X-Forwarded-For itself, and loopback is believed.
+        let local = start_with(|c| c.trusted_proxy = Proxies::private_networks()).await;
+        let forged = &[("x-forwarded-for", "203.0.113.9")];
+        assert_eq!(status(&local, "evil.example", forged).await, 421);
+        drop(local);
+        // A proxy the host named, having forwarded the request, is believed
+        // about the name it carries.
+        let named = start_with(|c| c.trusted_proxy = Proxies::parse("127.0.0.1").unwrap()).await;
+        assert_eq!(status(&named, "notas.casa", forged).await, 200);
+        assert_eq!(status(&named, "notas.casa", &[]).await, 421);
     });
 }
 
 #[test]
 fn a_believed_proxy_saying_https_gets_the_secure_host_cookie() {
     block_on(async {
-        // Nothing is set: the proxy on this machine is believed.
-        let r = start_with(|c| c.trusted_proxy = Proxies::private_networks()).await;
+        // The proxy is named, so the name it carries is answered; with no
+        // public address the default list would answer an IP, not this.
+        let r = start_with(|c| c.trusted_proxy = Proxies::parse("127.0.0.1").unwrap()).await;
         let res = sign_in_at(
             &r,
             "notas.casa",
@@ -211,14 +242,170 @@ fn the_default_believes_this_machine_and_the_private_networks_and_none_believes_
         let far = peer_of(&r.server, "198.51.100.8", Some("203.0.113.9"));
         assert_eq!(far.addr.to_string(), "198.51.100.8");
         assert!(!far.forwarded);
+        drop(r);
         // `none`: a header from this machine is not believed either.
         let r = start_with(|c| c.trusted_proxy = Proxies::parse("none").unwrap()).await;
         let p = peer_of(&r.server, "192.168.1.5", Some("203.0.113.9"));
         assert_eq!(p.addr.to_string(), "192.168.1.5");
         assert!(!p.forwarded && !p.https);
+        drop(r);
         // An explicit value replaces the default.
         let r = start_with(|c| c.trusted_proxy = Proxies::parse("10.0.0.2").unwrap()).await;
         let p = peer_of(&r.server, "192.168.1.5", Some("203.0.113.9"));
         assert_eq!(p.addr.to_string(), "192.168.1.5");
+    });
+}
+
+/// A believed peer that writes `X-Forwarded-For: 127.0.0.1` is not this
+/// machine: it is counted, paced and capped under that address (with the
+/// default list every private address is believed, and in Docker every
+/// published-port visitor comes from the bridge gateway). Only a socket
+/// from loopback that forwarded nothing is exempt (ADR 0083 item 7).
+#[test]
+fn a_forwarded_loopback_is_never_this_machine() {
+    block_on(async {
+        let r = start_with(|c| c.trusted_proxy = Proxies::private_networks()).await;
+        let local =
+            |remote: &str, forwarded: Option<&str>| peer_of(&r.server, remote, forwarded).local;
+        assert!(local("127.0.0.1", None), "this machine, forwarding nothing");
+        assert!(
+            !local("127.0.0.1", Some("127.0.0.1")),
+            "this machine, but forwarding loopback"
+        );
+        assert!(
+            !local("192.168.1.5", Some("127.0.0.1")),
+            "a LAN peer forging loopback"
+        );
+        assert!(
+            !local("172.17.0.1", Some("127.0.0.1")),
+            "the Docker gateway forging loopback"
+        );
+        assert!(
+            !local("192.168.1.5", None),
+            "a LAN peer is not this machine"
+        );
+        // The REST pace counts it: the 101st request of a burst is 429.
+        r.server.pace.freeze();
+        let client = reqwest::Client::new();
+        for i in 1..=100 {
+            let res = client
+                .get(r.url("/api/state"))
+                .header("x-forwarded-for", "127.0.0.1")
+                .send()
+                .await
+                .unwrap();
+            assert_eq!(res.status().as_u16(), 200, "request {i}");
+        }
+        let res = client
+            .get(r.url("/api/state"))
+            .header("x-forwarded-for", "127.0.0.1")
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(res.status().as_u16(), 429, "the 101st, forged as loopback");
+        // Forwarding nothing, from this machine: not paced.
+        for i in 1..=150 {
+            let res = client.get(r.url("/api/state")).send().await.unwrap();
+            assert_eq!(res.status().as_u16(), 200, "direct request {i}");
+        }
+    });
+}
+
+fn mails(r: &crate::tests::Running) -> Vec<(String, String, String)> {
+    match r.server.mail.get() {
+        Some(crate::mail::Mail::Memory(m)) => verso_service::lock(m).clone(),
+        _ => Vec::new(),
+    }
+}
+
+/// A link by e-mail is built from `VERSO_PUBLIC_URL` alone. Anyone may ask
+/// for one without signing in, and the `Host` they write must never reach
+/// the victim's mail (the reset token would go to the attacker's server):
+/// without a public address the routes are refused and `/api/state` says
+/// there is no mail (ADR 0073 item 6, amended 2026-10-16).
+#[test]
+fn links_by_mail_exist_only_with_a_public_address_and_never_carry_the_host() {
+    block_on(async {
+        let ask = |r: &crate::tests::Running, route: &'static str, host: String| {
+            let url = r.url(route);
+            async move {
+                let res = reqwest::Client::new()
+                    .post(url)
+                    .header("host", host.clone())
+                    .header("origin", format!("http://{host}"))
+                    .json(&json!({ "email": "admin@casa.lan" }))
+                    .send()
+                    .await
+                    .unwrap();
+                let status = res.status().as_u16();
+                (
+                    status,
+                    res.json::<serde_json::Value>().await.unwrap_or_default(),
+                )
+            }
+        };
+        // No public address, an IP-literal Host the asker wrote.
+        let r = start_with(listening_on_the_network).await;
+        let _ = r
+            .server
+            .mail
+            .set(crate::mail::Mail::Memory(std::sync::Mutex::new(Vec::new())));
+        for route in ["/api/forgot", "/api/signin/link"] {
+            let (status, body) = ask(&r, route, "6.6.6.6:7340".to_owned()).await;
+            assert_eq!(
+                (status, body["error"].as_str()),
+                (400, Some("no_mail")),
+                "{route}"
+            );
+            assert!(
+                body["message"]
+                    .as_str()
+                    .unwrap()
+                    .contains("VERSO_PUBLIC_URL")
+            );
+        }
+        let state: serde_json::Value = reqwest::Client::new()
+            .get(r.url("/api/state"))
+            .header("host", "6.6.6.6:7340")
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        assert_eq!(
+            state["mail"], false,
+            "the sign-in page must hide the links by mail"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        assert!(mails(&r).is_empty(), "nothing was mailed");
+        drop(r);
+        // With one, the mailed link starts with it.
+        let r = start_with(|c| c.public_url = Some("@self".into())).await;
+        let _ = r
+            .server
+            .mail
+            .set(crate::mail::Mail::Memory(std::sync::Mutex::new(Vec::new())));
+        let own = format!("localhost:{}", r.addr().port());
+        let (status, _) = ask(&r, "/api/forgot", own.clone()).await;
+        assert_eq!(status, 200);
+        let mut sent = mails(&r);
+        for _ in 0..100 {
+            if !sent.is_empty() {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            sent = mails(&r);
+        }
+        assert_eq!(sent.len(), 1);
+        assert!(
+            sent[0].2.contains(&format!("http://{own}/reset/")),
+            "{}",
+            sent[0].2
+        );
+        // A forged Host is a 421 before any mail route: the public address
+        // keeps the name.
+        let (status, _) = ask(&r, "/api/forgot", "6.6.6.6:7340".to_owned()).await;
+        assert_eq!(status, 421);
     });
 }

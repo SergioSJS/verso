@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use serde_json::{Value, json};
 
-use crate::tests::{Running, block_on, get, post, sign_in, start};
+use crate::tests::{Running, block_on, get, post, sign_in, start, start_with};
 
 /// The mails the test server sent, kept in memory.
 fn sent(r: &Running) -> Vec<(String, String, String)> {
@@ -43,7 +43,7 @@ async fn refused(r: &Running, email: &str) -> u16 {
 #[test]
 fn twenty_refusals_in_an_hour_tell_the_account_once() {
     block_on(async {
-        let r = start().await;
+        let r = start_with(|c| c.public_url = Some("@self".into())).await;
         let _ = r
             .server
             .mail
