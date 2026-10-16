@@ -52,8 +52,12 @@ use crate::state::Server;
 /// Phones paired at once, at most (ADR 0096 item 13).
 pub const PAIRED: usize = 4;
 
-/// Phones connected at once, at most (ADR 0096 item 13).
-pub const CONNECTED: u32 = 2;
+/// Phones connected at once: the default of the setting, as many as may be
+/// paired, and its bounds (ADR 0096 item 13, amended 2026-10-16: the
+/// ceiling became a setting).
+pub const CONNECTED: u32 = 4;
+pub const CONNECTED_LEAST: u32 = 1;
+pub const CONNECTED_MOST: u32 = 16;
 
 /// How often the watcher looks at the network and the clock.
 const TICK: Duration = Duration::from_secs(2);
@@ -118,6 +122,11 @@ pub struct Policy {
     announcer: Mutex<Option<announce::Announcer>>,
     listening: RwLock<(u16, Vec<IpAddr>)>,
     refused_said: crate::log::OnceAMinute,
+    /// The setting `max_connected`, read at every new connection.
+    connected_most: std::sync::atomic::AtomicU32,
+    /// When each phone's refusal by that ceiling was last logged and
+    /// audited: once a minute per phone, whatever the pace it retries at.
+    full_said: Mutex<HashMap<String, Instant>>,
     /// Loopback let in as a peer, for the tests only.
     #[cfg(test)]
     test_loopback: std::sync::atomic::AtomicBool,
@@ -136,6 +145,8 @@ impl Policy {
             announcer: Mutex::new(None),
             listening: RwLock::new((0, Vec::new())),
             refused_said: crate::log::OnceAMinute::default(),
+            connected_most: std::sync::atomic::AtomicU32::new(CONNECTED),
+            full_said: Mutex::new(HashMap::new()),
             #[cfg(test)]
             test_loopback: std::sync::atomic::AtomicBool::new(false),
         })
@@ -219,7 +230,9 @@ impl Policy {
     #[must_use]
     pub fn enter(&self, session: &str, name: &str) -> Option<PhoneGuard> {
         let mut held = lock(&self.connected);
-        if !held.contains_key(session) && held.len() >= CONNECTED as usize {
+        if !held.contains_key(session)
+            && held.len() >= self.connected_most.load(Ordering::Relaxed) as usize
+        {
             return None;
         }
         let first = !held.contains_key(session);
@@ -233,6 +246,41 @@ impl Policy {
             session: session.to_owned(),
             name: name.to_owned(),
         })
+    }
+
+    /// The ceiling of phones connected, from the setting: new connections
+    /// only; nobody connected is disconnected by a lower number.
+    pub fn set_connected_most(&self, most: u32) {
+        self.connected_most.store(
+            most.clamp(CONNECTED_LEAST, CONNECTED_MOST),
+            Ordering::Relaxed,
+        );
+    }
+
+    /// The ceiling of phones connected now.
+    #[must_use]
+    pub fn connected_most(&self) -> u32 {
+        self.connected_most.load(Ordering::Relaxed)
+    }
+
+    /// A phone refused because the most phones are connected already
+    /// (item 13): the log has it once a minute per phone (item 14, 0083
+    /// item 1), and so does the audit log Settings shows, naming it.
+    pub fn refused_full(&self, server: &Server, session: &str, name: &str) {
+        {
+            let mut said = lock(&self.full_said);
+            let minute = Duration::from_secs(60);
+            if said.get(session).is_some_and(|at| at.elapsed() < minute) {
+                return;
+            }
+            said.retain(|_, at| at.elapsed() < minute);
+            said.insert(session.to_owned(), Instant::now());
+        }
+        crate::log::warn(&format!(
+            "a connection refused: the phones connected holds {} already ({name} waits)",
+            self.connected_most.load(Ordering::Relaxed)
+        ));
+        self.audit(server, "phone_connection_refused", Some(name), None);
     }
 
     /// A phone's name, for the log; empty when it is not found.
@@ -396,7 +444,7 @@ pub fn refused_command(server: &Server, cmd: &str) {
 }
 
 /// The settings of the mode that outlast a start.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct LocalSettings {
     /// Keep serving on at the next start (item 1's separate switch; off by
@@ -410,6 +458,22 @@ pub struct LocalSettings {
     pub cert_file: Option<String>,
     pub key_file: Option<String>,
     pub host_name: Option<String>,
+    /// Phones connected at once, at most, `CONNECTED_LEAST..=CONNECTED_MOST`
+    /// (item 13, amended 2026-10-16).
+    pub max_connected: u32,
+}
+
+impl Default for LocalSettings {
+    fn default() -> Self {
+        Self {
+            keep_on: false,
+            folders: Vec::new(),
+            cert_file: None,
+            key_file: None,
+            host_name: None,
+            max_connected: CONNECTED,
+        }
+    }
 }
 
 const SETTINGS: &str = "local.settings";
@@ -436,6 +500,8 @@ pub struct Status {
     /// A connection from this computer to its own address failed: the
     /// system's firewall is refusing what comes in (item 9).
     pub unreachable: bool,
+    /// The setting: phones connected at once, at most.
+    pub max_connected: u32,
 }
 
 /// What the pairing dialog shows.
@@ -630,8 +696,18 @@ impl LocalServer {
     }
 
     pub fn set_settings(&self, settings: &LocalSettings) -> Result<(), String> {
+        if !(CONNECTED_LEAST..=CONNECTED_MOST).contains(&settings.max_connected) {
+            return Err(format!(
+                "phones connected at once: between {CONNECTED_LEAST} and {CONNECTED_MOST}"
+            ));
+        }
         let text = serde_json::to_string(settings).map_err(|e| e.to_string())?;
-        self.with_db(|db| db.set_setting(SETTINGS, &text))
+        self.with_db(|db| db.set_setting(SETTINGS, &text))?;
+        // At once, for new connections; no one connected is cut off.
+        if let Some(r) = lock(&self.shared.inner).as_ref() {
+            r.policy.set_connected_most(settings.max_connected);
+        }
+        Ok(())
     }
 
     /// The state for Settings.
@@ -644,6 +720,7 @@ impl LocalServer {
             let paired = self.with_db(|db| db.phone_count())?;
             return Ok(Status {
                 phones_paired: paired,
+                max_connected: self.settings()?.max_connected,
                 certificate: "own".to_owned(),
                 tailscale,
                 stopped_because,
@@ -662,6 +739,7 @@ impl LocalServer {
             tailscale: r.tailscale,
             stopped_because: None,
             unreachable: r.reach.load(Ordering::Relaxed) == 2,
+            max_connected: read_settings(&r.server.db).max_connected,
         })
     }
 
@@ -733,6 +811,7 @@ impl LocalServer {
         // One port for every address, kept once chosen (item 4).
         let (listeners, port) = bind_all(&db, &nets)?;
         let policy = Policy::new(Arc::clone(&self.shared.events));
+        policy.set_connected_most(settings.max_connected);
         let extra: Vec<String> = settings
             .host_name
             .iter()
@@ -1293,7 +1372,11 @@ fn read_settings(db: &Db) -> LocalSettings {
     db.setting(SETTINGS)
         .ok()
         .flatten()
-        .and_then(|s| serde_json::from_str(&s).ok())
+        .and_then(|s| serde_json::from_str::<LocalSettings>(&s).ok())
+        .map(|s| LocalSettings {
+            max_connected: s.max_connected.clamp(CONNECTED_LEAST, CONNECTED_MOST),
+            ..s
+        })
         .unwrap_or_default()
 }
 

@@ -5,6 +5,7 @@
 //! The refusals of ADR 0096, each as a request that is refused, through
 //! the real server. See `tests.rs` for the lab.
 
+use futures_util::StreamExt;
 use serde_json::{Value, json};
 
 use super::tests::{Lab, call, lab, lab_with, net, next, open, run, said};
@@ -395,22 +396,107 @@ fn a_fifth_phone_cannot_be_paired() {
     });
 }
 
-/// Item 13: at most two phones connected at once; a connected phone can
-/// still open another connection.
+/// What a refused phone hears: the upgrade is accepted and closed at once
+/// with the application's code and the most it was refused at, because a
+/// browser's WebSocket never sees the status of a refused upgrade.
+async fn refusal_of(lab: &Lab, cookie: &str) -> (u16, String) {
+    let mut ws = lab.connect(cookie).await.expect("the upgrade is accepted");
+    loop {
+        let m = tokio::time::timeout(std::time::Duration::from_secs(10), ws.next())
+            .await
+            .expect("closed in time")
+            .expect("a close frame")
+            .unwrap();
+        if let tokio_tungstenite::tungstenite::Message::Close(Some(frame)) = m {
+            return (u16::from(frame.code), frame.reason.to_string());
+        }
+    }
+}
+
+/// Item 13 (amended 2026-10-16): at most the setting's number of phones
+/// connected at once (4 by default; two here); a connected phone can still
+/// open another connection; the phone refused is told, not left to retry
+/// blind, and the log and the audit log say so once a minute.
 #[test]
-fn a_third_phone_cannot_connect() {
+fn a_phone_past_the_ceiling_is_told_so() {
     run(async {
         let mut lab = lab();
         lab.serve();
+        lab.local
+            .set_settings(&LocalSettings {
+                max_connected: 2,
+                ..LocalSettings::default()
+            })
+            .unwrap();
         let a = lab.pair("A", true, Role::Reader).await.unwrap();
         let b = lab.pair("B", true, Role::Reader).await.unwrap();
         let c = lab.pair("C", true, Role::Reader).await.unwrap();
         let _wa = open(&lab, &a).await;
         let _wb = open(&lab, &b).await;
-        assert_eq!(lab.connect(&c).await.err(), Some(429));
+        for _ in 0..3 {
+            let (code, reason) = refusal_of(&lab, &c).await;
+            assert_eq!(code, crate::rpc::PHONES_FULL);
+            assert_eq!(reason, "phones_connected:2");
+        }
+        // Three tries in a row: one line, one audit entry.
+        assert_eq!(
+            crate::log::said("the phones connected holds 2 already (C waits)").len(),
+            1
+        );
+        let refused = lab
+            .local
+            .audit()
+            .unwrap()
+            .into_iter()
+            .filter(|e| e.action == "phone_connection_refused")
+            .count();
+        assert_eq!(refused, 1);
         // A second connection of A (another tab) takes no new place.
         assert!(lab.connect(&a).await.is_ok());
         assert_eq!(lab.local.status().unwrap().phones_connected, 2);
+    });
+}
+
+/// The setting: 4 by default (as many as may be paired), 1 to 16 enforced,
+/// kept across starts; raising it lets the refused phone in at once, and
+/// lowering it under the count refuses new connections only.
+#[test]
+fn the_ceiling_of_phones_connected_is_a_setting() {
+    run(async {
+        let mut lab = lab();
+        lab.serve();
+        assert_eq!(lab.local.settings().unwrap().max_connected, 4);
+        assert_eq!(lab.local.status().unwrap().max_connected, 4);
+        for bad in [0, 17] {
+            let err = lab
+                .local
+                .set_settings(&LocalSettings {
+                    max_connected: bad,
+                    ..LocalSettings::default()
+                })
+                .unwrap_err();
+            assert!(err.contains("between 1 and 16"), "{err}");
+        }
+        // An old settings file, without the field, loads with the default.
+        let old: LocalSettings = serde_json::from_str(r#"{"keepOn":true}"#).unwrap();
+        assert_eq!((old.keep_on, old.max_connected), (true, 4));
+        let set = |n| LocalSettings {
+            max_connected: n,
+            ..LocalSettings::default()
+        };
+        let a = lab.pair("A", true, Role::Reader).await.unwrap();
+        let b = lab.pair("B", true, Role::Reader).await.unwrap();
+        let _wa = open(&lab, &a).await;
+        let _wb = open(&lab, &b).await;
+        // Lowered under the count: nobody is cut off, a new one is refused.
+        lab.local.set_settings(&set(1)).unwrap();
+        assert_eq!(lab.local.status().unwrap().phones_connected, 2);
+        let c = lab.pair("C", true, Role::Reader).await.unwrap();
+        assert_eq!(refusal_of(&lab, &c).await.1, "phones_connected:1");
+        // Raised: the next try gets in.
+        lab.local.set_settings(&set(3)).unwrap();
+        assert_eq!(lab.local.settings().unwrap().max_connected, 3);
+        assert!(lab.connect(&c).await.is_ok());
     });
 }
 
