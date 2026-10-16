@@ -69,12 +69,24 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
    own, followed as they change. The other service,
    `_verso-local._tcp` ([0096](0096-this-app-is-a-server.md) item 8), is
    not merged with this one: it is the laptop's, short-lived and for
-   pairing.
+   pairing. A fourth key, `url`, is added **only when `VERSO_PUBLIC_URL` is
+   set**: that address (`scheme://host[:port]`, at most 200 characters) is
+   the only one the server answers (it refuses other `Host` names), so it is
+   what a client must use, and `https` then says whether *it* is https.
+   With the server's own TLS (`VERSO_TLS_CERT_FILE`) and no public address
+   there is no address to offer — a certificate is for a name, not for an
+   IP — so the window lists the server and says to set `VERSO_PUBLIC_URL`.
+   Behind a proxy with no public address the announcement is the IP and
+   `https=0`, which the server accepts.
 
 3. **`[PROPOSED]` When it is announced, and the off switch.** On by
    default when the server listens beyond loopback (`0.0.0.0`, a LAN
    address); never when it listens on loopback only. `VERSO_ANNOUNCE=off`
-   (also `0`, `false`, `no`) turns it off. A failure to announce is logged
+   (also `0`, `false`, `no`) turns it off. It is announced **only on the
+   private (RFC 1918) and unique-local interfaces** of the machine — or on
+   the listen address itself when one is given, if that is private —
+   never on a public or link-local one, as the pairing announcement of
+   [0096](0096-this-app-is-a-server.md) is. A failure to announce is logged
    at WARN and never stops the server: it works without being found. A
    goodbye record is sent when the server stops.
 
@@ -85,11 +97,12 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
      anything because of an announcement; it fills the address only after
      the person clicks, and **shows the address** it will use (and that it
      is `http` or `https`) in the row before the click. What follows the
-     click is the sign-in as if typed: the browser opens the address'
-     device-approval page, where the person types a password into a page
-     they can see the address of, as with an address typed. A wrong
-     server cannot take a credential the app sent, because the app sends
-     none.
+     click is the sign-in as if typed: the app asks that address to start
+     a device approval — and sends it **the device's name** (the person's,
+     or the system's), nothing else — and the browser opens the address'
+     approval page, where the person types a password into a page they can
+     see the address of, as with an address typed. A wrong server learns a
+     device name and gets no credential, because the app sends none.
    - *Flooding.* What arrives from the network is bounded: names and
      versions are cut to 40 printable characters, an announcement without
      a port or a usable address (loopback, unspecified, multicast,
@@ -105,7 +118,7 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
 
 5. **`[PROPOSED]` The list.** *Encontrados nesta rede / Found on this
    network*: each row has the instance name, the address
-   (`http(s)://ip[:port]`, an IPv4 private address first), *HTTPS* or *sem
+   (the public address the server announced, else `http://ip[:port]`, an IPv4 private address first), *HTTPS* or *sem
    HTTPS* / *no HTTPS*, and a *Conectar / Connect* button. A line under
    the list says that any device on the network can announce itself and to
    check the address. With none found it says what to do (the server must
@@ -125,30 +138,59 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
    typed as before.
 
 7. **`[DECIDED 2026-10-16]` The desktop survives a bad DNS the way a
-   browser does.** *"Gosto de todos."* The rule, for every connection the
-   desktop makes to a server, HTTP and WebSocket alike:
-   - the name is resolved by the system, as always;
-   - it is also asked of **each DNS server of the system's list, one by
-     one** (a UDP query to port 53, A and AAAA, 1.2 seconds each, in
-     parallel), at most once in five minutes per name, and the addresses
-     that differ are tried **after** the system's;
-   - the connection tries the addresses in order and the first that
-     answers wins; it is remembered for ten minutes and goes first; a
-     failure forgets it;
-   - **the name is never replaced**: the connection goes to the IP, the
-     URL keeps the name, so the TLS certificate is verified for the name
-     the person typed, and the `Host` header is the name's;
-   - **never a fall back from `https` to `http`**: the scheme is not
-     touched by any of it, and an IP the DNS gave is only another address
-     for the same URL;
-   - not for `localhost` or `.local` names, nor when an address that worked
-     is still among the system's own answers (nothing is wrong).
-   The system's list: macOS `scutil --dns`; Linux `/etc/resolv.conf` and
-   systemd-resolved's own `/run/systemd/resolve/resolv.conf`; Windows
-   PowerShell's `Get-DnsClientServerAddress`. A scoped link-local server
-   (`fe80::1%en0`) is left out. The DNS client is written here (about 150
-   lines: one query, one answer, every length checked, every loop bounded,
-   a random query id); see the Discarded alternatives.
+   browser does, and says which address failed.** *"Gosto de todos"* (the
+   maintainer, on doing (3)). When a connection to a server fails because
+   the name resolved to an address that does not answer, the app tries the
+   other addresses the system's DNS servers give, as a browser does; it
+   never changes the name the certificate is checked for and never falls
+   back from `https` to `http`; and the error names the addresses tried.
+
+7a. **`[PROPOSED]` How, in detail** (the author's; the maintainer has not
+    read them):
+    - the name is resolved by the system, as always, and **nothing else is
+      asked while connections work**;
+    - when a connection **fails**, the name is suspect for ten minutes and
+      is asked of **each global DNS server of the system, one by one** (a
+      UDP query to port 53, A and AAAA, 1.2 seconds each, in parallel; six
+      servers at most), answers kept five minutes — fifteen seconds when
+      none came, so a network that was down is asked again soon; the
+      addresses that differ are tried **after** the system's. The scoped and
+      supplemental resolvers of macOS (`scutil --dns`: those with a
+      `domain`, `Supplemental`, `Scoped`, and the part "for scoped
+      queries") are not asked, nor are the per-link ones elsewhere;
+    - **what the other servers say is believed only as far as the scheme
+      allows.** When the system said the name does not exist, nothing they
+      say is used for an `http` server — a token would go in the clear to
+      whatever an ISP's resolver invents — and for an `http` server they are
+      accepted otherwise only when private, unique-local, link-local, loopback
+      or in Tailscale's 100.64.0.0/10. For an `https` server any address
+      will do, because the certificate is checked for the name;
+    - an address that **failed** — a refused or timed-out connection, a
+      handshake that does not complete — goes to the end of the order for ten
+      minutes; an address that **worked** — the handshake done and, for
+      HTTP, a successful answer, not a TCP accept — goes first for ten
+      minutes, **but only among the addresses the current resolution
+      returned**: an address remembered at home is not tried on a café's
+      network, and a bearer token never goes to an address no current
+      resolver gave for the name;
+    - the WebSocket makes the TCP connection and the TLS and WebSocket
+      handshakes **per address**, and a request that fails to connect is
+      sent once more with the new order; a server's own refusal (401) ends
+      it;
+    - **the name is never replaced**: the connection goes to the IP, the
+      URL keeps the name, so the certificate is verified for it, and the
+      `Host` header is the name's; **never `https` to `http`**: nothing here
+      touches the scheme;
+    - not for `localhost` or `.local` names;
+    - the system's list: macOS `scutil --dns`; Linux `/etc/resolv.conf` and
+      systemd-resolved's own `/run/systemd/resolve/resolv.conf`; Windows
+      the system's own PowerShell by absolute path, the adapters that are up,
+      without the three placeholder `fec0:0:0:ffff::1`–`3`. A scoped
+      link-local server (`fe80::1%en0`) is left out;
+    - the DNS client is written here (about 150 lines: one query, one
+      answer whose question, owner names and CNAMEs are checked, every length
+      checked, every loop bounded, a random query id), not `hickory`; see
+      the Discarded alternatives.
 
 8. **`[PROPOSED]` The error names what was tried.** An unreachable error's
    message is the server's address and, when the name was resolved, each
@@ -158,8 +200,10 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
    universo.casa.meioorc.com — ele está fora do ar ou sem rede.
    universo.casa.meioorc.com → 10.0.0.1: sem resposta. Confira o DNS desta
    rede: o nome pode estar apontando para o endereço errado."* (and in
-   English), so a DNS problem reads as one. "No answer" is said for every
-   address, whether it timed out or refused: the log has the real cause.
+   English), so a DNS problem reads as one; the hint about the DNS is said
+   only when more than one address was tried. "No answer" is said for
+   every address, whether it timed out or refused: the log has the real
+   cause.
 
 9. **`[PROPOSED]` The platforms.** *macOS:* the app's `Info.plist` lists
    `_verso._tcp` in `NSBonjourServices`, beside `_verso-local._tcp`, and
@@ -168,12 +212,16 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
    and a browse without the key finds nothing, silently. *Windows:*
    Windows Defender Firewall may ask once about UDP 5353 for the server
    (announcing) and for the app (browsing); *Private* networks only. The
-   DNS list comes from PowerShell, with no console window. *Linux:* the
-   resolver files are read (`std::fs`, an exception to the confinement in
-   `scripts/check.sh`, declared in `app/src-tauri/clippy.toml` and here:
-   the system's configuration, not a file of any folder); a running
-   Avahi should coexist, `mdns-sd` sharing port 5353 (to confirm in the
-   manual check).
+   permission also gates the app's **unicast DNS queries** on macOS 15 and
+   later (it is the local network): denied, the browse finds nothing and
+   the DNS fallback finds nothing either, silently. *Linux:* the resolver
+   files are read in `app/src-tauri/src/resolv_conf.rs`, which uses
+   `std::fs`; that file alone is exempt from the confinement in
+   `scripts/check.sh` **and in `.github/workflows/ci.yml`** (the two change
+   together, ADR 0029), declared in `app/src-tauri/clippy.toml` and here —
+   the system's configuration, not a file of any folder. **This exception
+   awaits the maintainer's ratification.** A running Avahi should coexist,
+   `mdns-sd` sharing port 5353 (to confirm in the manual check).
 
 10. **Dependencies.** None new. `mdns-sd` is `verso-server`'s since
     [0096](0096-this-app-is-a-server.md); the desktop browses through
@@ -204,8 +252,13 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
   lifecycle (units and a Docker e2e). Manual checks
   (`docs/reference/manual-checks.md`): discovery on the maintainer's LAN,
   a bad-DNS check.
-- `scripts/check.sh`'s `std::fs` confinement for the desktop crate gains
-  `src/dns.rs`.
+- The `std::fs` confinement for the desktop crate, in `scripts/check.sh`
+  and in `.github/workflows/ci.yml`, gains `src/resolv_conf.rs` alone
+  (item 9); it awaits the maintainer's ratification.
+- [0050](0050-outbound-network-access.md) gets a dated revision note: the
+  desktop browses mDNS only while Settings › Servers is open, sends UDP DNS
+  queries to the system's resolvers after a failure, and a server announces
+  itself by default beyond loopback.
 
 ## Discarded alternatives
 
@@ -226,9 +279,13 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
 
 ## Status
 
-Accepted for items 1 and 7 (2026-10-16, *"Gosto de todos"*). Items marked
-`[PROPOSED]` are the author's details of those decisions, built and waiting
-for the maintainer. Open: **whether the compose file for CasaOS/ZimaOS
+Accepted for items 1 and 7 (2026-10-16, *"Gosto de todos"*), which are the
+maintainer's sentences. Items 2 to 6, 7a and 8 to 10, marked `[PROPOSED]`, are
+the author's details of those decisions (what is announced, the `url` key, the
+switch, the list, the DNS rule's timings and policy, the hand-written client,
+the readers of the system's DNS list), built and waiting for the maintainer;
+none is promoted. Awaiting ratification too: the `std::fs` exception of
+`src/resolv_conf.rs` (item 9). Open: **whether the compose file for CasaOS/ZimaOS
 ships with `network_mode: host`** so discovery works out of the box. The
 author's recommendation: keep the bridge network as the default — it works
 on every machine and port 7340 is published the same way everywhere — and

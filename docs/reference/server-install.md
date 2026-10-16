@@ -320,7 +320,10 @@ it** and the list stays empty: type the address as before, or give the
 container `network_mode: host` (drop the `ports:` block; the server then
 listens on port 7340 of the machine itself, which must be free). The compose
 file above keeps the bridge network. `VERSO_ANNOUNCE=off` turns the
-announcement off.
+announcement off. With `VERSO_PUBLIC_URL` set, the announcement carries that
+address and the list offers exactly it; with `VERSO_TLS_CERT_FILE` and no
+`VERSO_PUBLIC_URL`, the list says to set it, since a certificate is for a
+name, not an IP. It is announced on the machine's private interfaces only.
 
 An entry in the CasaOS and ZimaOS app stores is a submission to their own
 repositories, made once the server is announced (0075, Consequences).

@@ -69,12 +69,24 @@ bridge padrão do Docker não leva multicast para a rede de casa. `std::fs`
    seis dígitos). Os endereços são os da própria máquina, acompanhados
    conforme mudam. O outro serviço, `_verso-local._tcp`
    ([0096](0096-this-app-is-a-server.md) item 8), não se mistura com este:
-   é o do notebook, de vida curta e para o pareamento.
+   é o do notebook, de vida curta e para o pareamento. Uma quarta chave,
+   `url`, é acrescentada **só quando `VERSO_PUBLIC_URL` está definida**:
+   esse endereço (`esquema://host[:porta]`, no máximo 200 caracteres) é o
+   único a que o servidor responde (ele recusa outros nomes em `Host`),
+   então é o que um cliente deve usar, e `https` passa a dizer se *ele* é
+   https. Com o TLS próprio do servidor (`VERSO_TLS_CERT_FILE`) e sem
+   endereço público não há endereço a oferecer — um certificado é de um
+   nome, não de um IP —, então a janela lista o servidor e diz para definir
+   `VERSO_PUBLIC_URL`. Atrás de um proxy sem endereço público o anúncio é o
+   IP com `https=0`, que o servidor aceita.
 
 3. **`[PROPOSTO]` Quando é anunciado, e o interruptor.** Ligado por padrão
    quando o servidor escuta além do loopback (`0.0.0.0`, um endereço de
    LAN); nunca quando escuta só no loopback. `VERSO_ANNOUNCE=off` (também
-   `0`, `false`, `no`) desliga. Falhar em anunciar vai para o log como WARN e
+   `0`, `false`, `no`) desliga. Ele é anunciado **só nas interfaces privadas (RFC 1918) e
+   únicas-locais** da máquina — ou no próprio endereço de escuta, quando
+   há um e é privado —, nunca numa pública ou link-local, como o anúncio de
+   pareamento do [0096](0096-this-app-is-a-server.md). Falhar em anunciar vai para o log como WARN e
    nunca derruba o servidor: ele funciona sem ser achado. Um registro de
    despedida é enviado quando o servidor para.
 
@@ -85,11 +97,13 @@ bridge padrão do Docker não leva multicast para a rede de casa. `std::fs`
      envia nada por causa de um anúncio; ele preenche o endereço só depois
      de a pessoa clicar, e **mostra o endereço** que vai usar (e se é `http`
      ou `https`) na linha antes do clique. O que vem depois do clique é o
-     login como se digitado: o navegador abre a página de aprovação do
-     aparelho daquele endereço, onde a pessoa digita a senha numa página de
-     que vê o endereço, como num endereço digitado. Um servidor errado não
-     pode levar uma credencial que o app enviou, porque o app não envia
-     nenhuma.
+     login como se digitado: o app pede àquele endereço para iniciar uma
+     aprovação de aparelho — e lhe envia **o nome do aparelho** (o da
+     pessoa, ou o do sistema), nada mais — e o navegador abre a página de
+     aprovação do endereço, onde a pessoa digita a senha numa página de que
+     vê o endereço, como num endereço digitado. Um servidor errado fica
+     sabendo um nome de aparelho e não leva credencial, porque o app não
+     envia nenhuma.
    - *Inundação.* O que chega da rede é limitado: nomes e versões são
      cortados em 40 caracteres imprimíveis, um anúncio sem porta ou sem
      endereço utilizável (loopback, não especificado, multicast, link-local)
@@ -104,7 +118,7 @@ bridge padrão do Docker não leva multicast para a rede de casa. `std::fs`
 
 5. **`[PROPOSTO]` A lista.** *Encontrados nesta rede / Found on this
    network*: cada linha tem o nome da instância, o endereço
-   (`http(s)://ip[:porta]`, um endereço IPv4 privado primeiro), *HTTPS* ou
+   (o endereço público que o servidor anunciou, ou `http://ip[:porta]`, um endereço IPv4 privado primeiro), *HTTPS* ou
    *sem HTTPS* / *no HTTPS*, e um botão *Conectar / Connect*. Uma linha sob a
    lista diz que qualquer aparelho da rede pode se anunciar e para conferir
    o endereço. Sem nenhum achado, diz o que fazer (o servidor precisa estar
@@ -122,30 +136,59 @@ bridge padrão do Docker não leva multicast para a rede de casa. `std::fs`
    precisa dela e que, sem ela, o endereço é digitado como antes.
 
 7. **`[DECIDIDO 2026-10-16]` O desktop sobrevive a um DNS ruim como um
-   navegador.** *"Gosto de todos."* A regra, para toda conexão que o desktop
-   faz a um servidor, HTTP e WebSocket igualmente:
-   - o nome é resolvido pelo sistema, como sempre;
-   - ele também é perguntado a **cada servidor DNS da lista do sistema, um
-     por um** (uma consulta UDP à porta 53, A e AAAA, 1,2 segundo cada, em
-     paralelo), no máximo uma vez em cinco minutos por nome, e os endereços
-     que diferem são tentados **depois** dos do sistema;
-   - a conexão tenta os endereços em ordem e o primeiro que responde vence;
-     ele é lembrado por dez minutos e vai primeiro; uma falha o esquece;
-   - **o nome nunca é trocado**: a conexão vai ao IP, a URL guarda o nome,
-     então o certificado TLS é verificado para o nome que a pessoa digitou,
-     e o cabeçalho `Host` é o do nome;
-   - **nunca um recuo de `https` para `http`**: o esquema não é tocado por
-     nada disso, e um IP dado pelo DNS é só outro endereço para a mesma URL;
-   - não vale para `localhost` nem nomes `.local`, nem quando um endereço
-     que funcionou ainda está entre as respostas do próprio sistema (nada
-     está errado).
-   A lista do sistema: no macOS, `scutil --dns`; no Linux, `/etc/resolv.conf`
-   e o `/run/systemd/resolve/resolv.conf` do próprio systemd-resolved; no
-   Windows, o `Get-DnsClientServerAddress` do PowerShell. Um servidor
-   link-local com escopo (`fe80::1%en0`) fica de fora. O cliente DNS é
-   escrito aqui (umas 150 linhas: uma consulta, uma resposta, todo tamanho
-   conferido, todo laço limitado, um id de consulta aleatório); veja as
-   Alternativas descartadas.
+   navegador, e diz qual endereço falhou.** *"Gosto de todos"* (o
+   mantenedor, sobre fazer (3)). Quando uma conexão a um servidor falha
+   porque o nome resolveu para um endereço que não responde, o app tenta os
+   outros endereços que os servidores DNS do sistema dão, como um navegador;
+   nunca muda o nome para que o certificado é conferido e nunca recua de
+   `https` para `http`; e o erro nomeia os endereços tentados.
+
+7a. **`[PROPOSTO]` Como, em detalhe** (do autor; o mantenedor não os leu):
+    - o nome é resolvido pelo sistema, como sempre, e **nada mais é
+      perguntado enquanto as conexões funcionam**;
+    - quando uma conexão **falha**, o nome fica suspeito por dez minutos e
+      é perguntado a **cada servidor DNS global do sistema, um por um**
+      (uma consulta UDP à porta 53, A e AAAA, 1,2 segundo cada, em paralelo;
+      seis servidores no máximo), com as respostas guardadas por cinco
+      minutos — quinze segundos quando nenhuma veio, para que uma rede que
+      estava fora do ar seja perguntada de novo logo; os endereços que
+      diferem são tentados **depois** dos do sistema. Os resolvedores com
+      escopo e suplementares do macOS (`scutil --dns`: os que têm
+      `domain`, `Supplemental`, `Scoped`, e a parte "for scoped queries")
+      não são perguntados, nem os por interface nos outros sistemas;
+    - **o que os outros servidores dizem só vale até onde o esquema
+      permite.** Quando o sistema disse que o nome não existe, nada do que
+      eles dizem é usado para um servidor `http` — um token iria às claras
+      para o que um resolvedor de provedor inventar — e, para um servidor
+      `http`, aceitam-se de resto só endereços privados, únicos-locais,
+      link-local, de loopback ou da faixa 100.64.0.0/10 do Tailscale. Para um
+      servidor `https` qualquer endereço serve, porque o certificado é
+      conferido para o nome;
+    - um endereço que **falhou** — conexão recusada ou esgotada, um
+      handshake que não completa — vai para o fim da ordem por dez minutos;
+      um que **funcionou** — o handshake feito e, no HTTP, uma resposta de
+      sucesso, não um aceite de TCP — vai primeiro por dez minutos, **mas
+      só entre os endereços que a resolução atual devolveu**: um endereço
+      lembrado de casa não é tentado na rede de um café, e um token de
+      portador nunca vai a um endereço que nenhum resolvedor atual deu para o
+      nome;
+    - o WebSocket faz a conexão TCP e os handshakes de TLS e de WebSocket
+      **por endereço**, e uma requisição que não conecta é enviada mais uma
+      vez com a nova ordem; a recusa do próprio servidor (401) encerra;
+    - **o nome nunca é trocado**: a conexão vai ao IP, a URL guarda o nome,
+      então o certificado é conferido para ele, e o cabeçalho `Host` é o do
+      nome; **nunca `https` para `http`**: nada aqui toca o esquema;
+    - não vale para `localhost` nem nomes `.local`;
+    - a lista do sistema: no macOS, `scutil --dns`; no Linux,
+      `/etc/resolv.conf` e o `/run/systemd/resolve/resolv.conf` do próprio
+      systemd-resolved; no Windows, o PowerShell do próprio sistema por
+      caminho absoluto, os adaptadores que estão ativos, sem os três
+      `fec0:0:0:ffff::1`–`3` de enchimento. Um servidor link-local com
+      escopo (`fe80::1%en0`) fica de fora;
+    - o cliente DNS é escrito aqui (umas 150 linhas: uma consulta, uma
+      resposta de que se conferem a pergunta, os nomes donos e os CNAMEs,
+      todo tamanho conferido, todo laço limitado, um id de consulta
+      aleatório), não o `hickory`; veja as Alternativas descartadas.
 
 8. **`[PROPOSTO]` O erro nomeia o que foi tentado.** A mensagem de um erro
    de inalcançável é o endereço do servidor e, quando o nome foi resolvido,
@@ -155,9 +198,10 @@ bridge padrão do Docker não leva multicast para a rede de casa. `std::fs`
    universo.casa.meioorc.com — ele está fora do ar ou sem rede.
    universo.casa.meioorc.com → 10.0.0.1: sem resposta. Confira o DNS desta
    rede: o nome pode estar apontando para o endereço errado."* (e em
-   inglês), para que um problema de DNS seja lido como tal. "Sem resposta"
-   vale para todo endereço, tenha dado tempo esgotado ou recusa: o log tem a
-   causa real.
+   inglês), para que um problema de DNS seja lido como tal; a dica sobre o DNS
+   só é dita quando mais de um endereço foi tentado. "Sem resposta" vale
+   para todo endereço, tenha dado tempo esgotado ou recusa: o log tem a causa
+   real.
 
 9. **`[PROPOSTO]` As plataformas.** *macOS:* o `Info.plist` do app lista
    `_verso._tcp` em `NSBonjourServices`, ao lado de `_verso-local._tcp`, e a
@@ -165,11 +209,16 @@ bridge padrão do Docker não leva multicast para a rede de casa. `std::fs`
    macOS 15 em diante pede a permissão na primeira vez, e uma busca sem a
    chave não acha nada, em silêncio. *Windows:* o Firewall do Windows Defender
    pode perguntar uma vez sobre UDP 5353 para o servidor (anunciar) e para o
-   app (buscar); só redes *Privadas*. A lista de DNS vem do PowerShell, sem
-   janela de console. *Linux:* os arquivos do resolvedor são lidos
-   (`std::fs`, uma exceção ao confinamento em `scripts/check.sh`, declarada
-   em `app/src-tauri/clippy.toml` e aqui: a configuração do sistema, não um
-   arquivo de pasta alguma); um Avahi em execução deve conviver, o `mdns-sd`
+   app (buscar); só redes *Privadas*. A permissão também controla as
+   **consultas DNS unicast** do app no macOS 15 em diante (é a rede local):
+   negada, a busca não acha nada e o recuo de DNS também não, em silêncio.
+   *Linux:* os arquivos do resolvedor são lidos em
+   `app/src-tauri/src/resolv_conf.rs`, que usa `std::fs`; só esse arquivo
+   fica fora do confinamento em `scripts/check.sh` **e em
+   `.github/workflows/ci.yml`** (os dois mudam juntos, ADR 0029), declarado
+   em `app/src-tauri/clippy.toml` e aqui — a configuração do sistema, não um
+   arquivo de pasta alguma. **Esta exceção aguarda a ratificação do
+   mantenedor.** Um Avahi em execução deve conviver, o `mdns-sd`
    compartilhando a porta 5353 (a confirmar na verificação manual).
 
 10. **Dependências.** Nenhuma nova. O `mdns-sd` é do `verso-server` desde o
@@ -202,8 +251,13 @@ bridge padrão do Docker não leva multicast para a rede de casa. `std::fs`
   ciclo de vida (unidades e um e2e no Docker). Verificações manuais
   (`docs/reference/manual-checks.md`): a descoberta na LAN do mantenedor, uma
   verificação de DNS ruim.
-- O confinamento de `std::fs` do `scripts/check.sh` para o crate do desktop
-  ganha `src/dns.rs`.
+- O confinamento de `std::fs` para o crate do desktop, no `scripts/check.sh`
+  e no `.github/workflows/ci.yml`, ganha só o `src/resolv_conf.rs` (item 9);
+  aguarda a ratificação do mantenedor.
+- O [0050](0050-outbound-network-access.md) ganha uma nota de revisão datada:
+  o desktop busca mDNS só enquanto Ajustes › Servidores está aberto, envia
+  consultas DNS UDP aos resolvedores do sistema depois de uma falha, e um
+  servidor se anuncia por padrão além do loopback.
 
 ## Alternativas descartadas
 
@@ -224,9 +278,13 @@ bridge padrão do Docker não leva multicast para a rede de casa. `std::fs`
 
 ## Status
 
-Aceito nos itens 1 e 7 (2026-10-16, *"Gosto de todos"*). Os itens marcados
-`[PROPOSTO]` são os detalhes do autor dessas decisões, construídos e à espera
-do mantenedor. Em aberto: **se o arquivo compose do CasaOS/ZimaOS é entregue
+Aceito nos itens 1 e 7 (2026-10-16, *"Gosto de todos"*), que são as frases
+do mantenedor. Os itens 2 a 6, 7a e 8 a 10, marcados `[PROPOSTO]`, são os
+detalhes do autor dessas decisões (o que é anunciado, a chave `url`, o
+interruptor, a lista, os tempos e a política da regra de DNS, o cliente
+escrito à mão, os leitores da lista de DNS do sistema), construídos e à
+espera do mantenedor; nenhum é promovido. Também aguarda ratificação: a
+exceção de `std::fs` do `src/resolv_conf.rs` (item 9). Em aberto: **se o arquivo compose do CasaOS/ZimaOS é entregue
 com `network_mode: host`** para a descoberta funcionar de cara. A
 recomendação do autor: manter a rede bridge como padrão — funciona em toda
 máquina e a porta 7340 é publicada do mesmo jeito em todo lugar — e oferecer

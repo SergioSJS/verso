@@ -27,6 +27,18 @@
   a new version exists, to tell the admin; it never updates itself, and
   the check can be turned off. `docs/reference/app-decision.md` §7 says
   the same.
+  2026-10-16 — revised by [0097](0097-universo-found-on-the-network-and-a-bad-dns-survived.md)
+  (the maintainer: "Gosto de todos", on finding a UniVerso on the home
+  network and surviving a bad DNS); the text below is kept as it was
+  decided. Three reaches are added, none to an address the user did not
+  already mean: the desktop app **browses mDNS** (`_verso._tcp`) on the
+  local network, only while Settings › Servers is open, and lists what it
+  finds without connecting to it; after a connection to a server it
+  already uses has failed, it sends **UDP DNS queries to the system's own
+  DNS servers** for that server's name and tries the other addresses they
+  give, the name and the scheme unchanged; and a Verso server **announces
+  itself** by mDNS by default when it listens beyond loopback
+  (`VERSO_ANNOUNCE=off` stops it).
 
 ## Context
 
