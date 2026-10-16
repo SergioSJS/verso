@@ -181,13 +181,24 @@
   por HTTP a partir de qualquer máquina; o cookie de sessão é `Secure` (e
   `__Host-`) só numa requisição que veio por HTTPS — o TLS do próprio
   servidor, ou um proxy acreditado que o diga — e mantém `HttpOnly`,
-  `SameSite=Lax` e o token de CSRF; (b) sem `VERSO_PUBLIC_URL` o `Host`
-  digitado é respondido, a regra contra DNS rebinding do
-  [0045](0045-server-and-mcp-security.md) mantida onde ainda significa algo
-  (um servidor que escuta só nesta máquina, salvo se um proxy acreditado
-  encaminhou a requisição) e, com `VERSO_PUBLIC_URL` definido, exatamente
-  como antes, esse nome e o desta máquina; os links do servidor o usam
-  quando definido, senão o endereço da requisição; (c) um
+  `SameSite=Lax` e o token de CSRF; (b) sem `VERSO_PUBLIC_URL` só o
+  `Host` de um nome que uma página pública não consegue fazer resolver
+  aqui é respondido — um endereço IP, um nome de uma palavra, `.local`,
+  `.home.arpa`, `localhost` — então `http://<ip>:7340` não pede variável;
+  qualquer outro nome pede `VERSO_PUBLIC_URL` (421, com as palavras), ou um
+  proxy *nomeado* no `VERSO_TRUSTED_PROXY` ter encaminhado a requisição. A
+  lista padrão não alarga nada, porque uma página reapontada para esta
+  máquina escreve ela mesma um `X-Forwarded-For` e o loopback está nessa
+  lista. Isso mantém a regra contra DNS rebinding do
+  [0045](0045-server-and-mcp-security.md) onde ela significa algo; com
+  `VERSO_PUBLIC_URL` definido é exatamente como antes, esse nome e o desta
+  máquina. **Links por e-mail** (o link de entrada e "esqueci a senha", que
+  qualquer um pode pedir) são montados só a partir de `VERSO_PUBLIC_URL` e
+  só existem quando ele está definido: um `Host` que quem pede escreveu
+  nunca deve chegar a um link enviado (o token de redefinição iria para o
+  atacante); sem ele essas rotas são recusadas e a janela as esconde. Os
+  links que um admin cria na própria sessão (convites, redefinições) usam o
+  endereço dessa sessão; (c) um
   `VERSO_TRUSTED_PROXY` vazio acredita num proxy em loopback ou numa rede
   privada (127.0.0.0/8, ::1, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16,
   fc00::/7), um valor substitui essa lista e `none` não acredita em nenhum;
@@ -201,10 +212,17 @@
   imagem Docker escuta em todos os endereços sem variável obrigatória, e o
   arquivo compose publica `7340:7340`. **A consequência de segurança, sem
   rodeio:** por HTTP, quem está na mesma rede lê a senha e as notas que
-  passam por ela, e pode forjar o `X-Forwarded-For` de uma requisição que
-  chega ao servidor de um endereço privado (a lista padrão acredita nele),
-  o que só embota o ritmo por endereço: serve em casa, não num Wi-Fi
-  público. O HTTPS continua o que o manual recomenda, como passo posterior e
+  passam por ela, e também todo outro serviço HTTP do mesmo host ou IP, já que
+  cookies não são separados por porta — no CasaOS ou no ZimaOS todo outro app
+  em `http://<ip>:<porta>` recebe o cookie `verso-session`, e pode definir
+  um; e a lista padrão de proxies deixa um cliente de uma rede privada — no
+  Docker, qualquer visitante de uma porta publicada, que chega do gateway da
+  ponte — escrever um `X-Forwarded-For` e ser contado sob qualquer endereço
+  menos o loopback (um loopback encaminhado é contado como qualquer outro),
+  o que derrota o ritmo e os tetos por endereço para um atacante que gira
+  endereços e deixa só o atraso e o bloqueio da própria conta: nomeie os
+  proxies de verdade, ou `none`, para fechar isso. Serve em casa, não num
+  Wi-Fi público. O HTTPS continua o que o manual recomenda, como passo posterior e
   opcional. O texto antigo do item 6 fica acima, marcado.
 
 ## Contexto
