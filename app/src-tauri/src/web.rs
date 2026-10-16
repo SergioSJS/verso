@@ -100,7 +100,49 @@ pub(crate) fn navigation_guard<R: tauri::Runtime>() -> tauri::plugin::TauriPlugi
                 .unwrap_or_default();
             may_navigate_framed(webview.label(), url, dev_url.as_ref(), &framed)
         })
+        // A window's page loading again (a reload, ⌘R) forgets the web
+        // pages it opened, but their child views stay: drawn over the new
+        // page and closed by nothing (the maintainer, 2026-10-16). They go
+        // with the page that opened them.
+        .on_page_load(|webview, payload| {
+            if payload.event() == tauri::webview::PageLoadEvent::Started
+                && crate::protocol::is_app_view(webview.label())
+            {
+                close_web_views_of(webview.app_handle(), webview.window().label());
+            }
+        })
         .build()
+}
+
+/// Close every web page's view a window opened, and forget them.
+pub(crate) fn close_web_views_of<R: tauri::Runtime>(app: &tauri::AppHandle<R>, window: &str) {
+    let Some(state) = app.try_state::<App>() else {
+        return;
+    };
+    let mine: Vec<String> = {
+        let mut views = lock(&state.web_views);
+        let labels: Vec<String> = views
+            .iter()
+            .filter(|(_, owner)| owner.as_str() == window)
+            .map(|(label, _)| label.clone())
+            .collect();
+        for label in &labels {
+            views.remove(label);
+        }
+        labels
+    };
+    for label in mine {
+        if let Some(wv) = app.get_webview(&label) {
+            web_clip::release(&wv);
+            if let Err(e) = wv.close() {
+                crate::log::write(
+                    "WARN",
+                    "host",
+                    &format!("closing the web view {label} of a reloaded window: {e}"),
+                );
+            }
+        }
+    }
 }
 
 /// Open the web inspector — console, elements, network — of the window
