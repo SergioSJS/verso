@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-discover-servers-stop"
+description = "Enables the discover_servers_stop command without any pre-configured scope."
+commands.allow = ["discover_servers_stop"]
+
+[[permission]]
+identifier = "deny-discover-servers-stop"
+description = "Denies the discover_servers_stop command without any pre-configured scope."
+commands.deny = ["discover_servers_stop"]

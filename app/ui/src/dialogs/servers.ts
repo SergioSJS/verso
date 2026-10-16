@@ -13,12 +13,13 @@ import { listen } from "@tauri-apps/api/event";
 import { commands, type ContractError, type ServerAccount, type ServerBack, type ServerFolder, type ServerGone } from "../bindings";
 import { h, ui } from "../dom";
 import { errorSentence, fail } from "../errors";
-import { addressOf, attempt, busy, clearFailure, reachStrings, sayFailure } from "../reach";
+import { addressOf, attempt, busy, clearFailure, reachParts, reachSentence, reachStrings, sayFailure } from "../reach";
 import { can } from "../can";
 import { currentFolder, folderName, LAST_FOLDER } from "../folder";
 import { currentSync, openSettingsSection, preselectSync, syncStarted } from "./sync";
 import { openFolderBy } from "../open";
 import { sh } from "../shareStrings";
+import { foundList } from "./serversFound";
 import { copyWhenKnown, startSignIn } from "../serverSignIn";
 import { revokedSentence, serverBackHeard, serverGoneHeard } from "../notify/sources";
 
@@ -187,9 +188,9 @@ export function hearServers(): void {
     // with a try now (the host tries again on its own, 5 s doubling to 5
     // min, reach.rs).
     if (p.what === "unreachable") {
-      const address = p.address ?? addressOf(p.url);
-      outOfReach(address);
-      serverGoneHeard(p, reachStrings().unreachable(address));
+      const message = p.address ?? addressOf(p.url);
+      outOfReach(reachParts(message).address);
+      serverGoneHeard(p, reachSentence(message));
       return;
     }
     serverState()?.remove();
@@ -306,7 +307,16 @@ export function serversBody(_item: (title: string, desc: string, control: HTMLEl
     void draw();
   });
 
-  box.append(form, deviceForm(), list);
+  // The servers announced on this network: a click fills the address the
+  // row shows and goes on as typing it would (serversFound.ts, ADR 0097).
+  const found = foundList(
+    { start: commands.discoverServersStart, list: commands.discoverServersList, stop: commands.discoverServersStop },
+    (f) => {
+      url.value = f.url;
+      form.requestSubmit();
+    },
+  );
+  box.append(form, found, deviceForm(), list);
   void draw();
   return box;
 }

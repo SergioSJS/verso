@@ -60,7 +60,7 @@ serde_json = "1"
 # (MIT); tokio is Tauri's own runtime.
 tokio-tungstenite = { version = "0.29", default-features = false, features = ["connect", "rustls-tls-native-roots"] }
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
-tokio = { version = "1", default-features = false, features = ["sync", "time", "macros"] }
+tokio = { version = "1", default-features = false, features = ["sync", "time", "macros", "net"] }
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "rustls", "http2", "gzip", "json"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
 sha2 = "0.10"
@@ -147,6 +147,13 @@ tempfile = "3.27"
 # Apache-2.0) through verso-server's argon2; tests only, nothing shipped.
 ring = "0.17"
 blake2 = "0.10"
+# The DNS fallback's TLS tests (ADR 0097): a server with a certificate for
+# a name, reached through an address the DNS gave, must be verified for the
+# name; the certificate is made in the test (rcgen, MIT OR Apache-2.0) and
+# served by rustls on ring (Apache-2.0 OR ISC OR MIT). Both already in the
+# tree through verso-server and reqwest; tests only, nothing shipped.
+rcgen = { version = "0.14", default-features = false, features = ["ring", "pem"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 
 # The workspace's lints, written out rather than inherited, for one
 # difference: `unsafe_code` is `deny` here, not `forbid`, so that the two
