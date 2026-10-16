@@ -169,10 +169,13 @@ bridge padrão do Docker não leva multicast para a rede de casa. `std::fs`
       eles dizem é usado para um servidor `http` — um token iria às claras
       para o que um resolvedor de provedor inventar — e, para um servidor
       `http`, aceitam-se de resto só endereços **na mesma rede**: dentro da
-      sub-rede de uma das interfaces desta máquina (a LAN de uma casa; a faixa
-      100.x de uma interface do Tailscale quando a máquina tem uma; nunca a
-      faixa 100.64.0.0/10 do CGNAT como tal, que num provedor que a usa são
-      outros clientes), e nunca loopback. Para um
+      sub-rede de uma das interfaces desta máquina — a LAN de uma casa. Um
+      prefixo largo não diz onde um host está, então uma interface IPv4 com
+      prefixo menor que /16 (o /8 ou /10 de uma VPN ou de um adaptador TAP) e
+      uma IPv6 menor que /32 não contam; a faixa 100.64.0.0/10 do CGNAT são
+      outros clientes do provedor e nunca é nossa; o loopback nunca é aceito de
+      outro resolvedor. O Tailscale não é coberto (a interface dele é um /32 no
+      macOS e no Linux); Para um
       servidor `https` qualquer endereço serve, porque o certificado é
       conferido para o nome;
     - um endereço que **falhou** — conexão recusada ou esgotada, um
@@ -185,12 +188,18 @@ bridge padrão do Docker não leva multicast para a rede de casa. `std::fs`
       nome;
     - o WebSocket faz a conexão TCP e os handshakes de TLS e de WebSocket
       **por endereço** (a discagem inteira tem um teto de 25 segundos), e uma
-      requisição que não conecta é enviada mais uma vez — só quando a nova
-      resolução tentaria outro endereço primeiro, já que o mesmo falharia do
-      mesmo jeito e levaria o mesmo tempo. Um 401 encerra a discagem só
-      quando é do servidor: em `wss://` qualquer um (o certificado foi
-      conferido), em `ws://` só com o corpo JSON que o servidor escreve, pois
-      a página de autenticação básica de um roteador também responde 401. A
+      requisição que não conecta é enviada mais uma vez — só quando isso pode
+      terminar diferente: depois de uma falha da própria conexão TCP todo
+      endereço oferecido já foi tentado, então só vale um endereço que não
+      estava na resposta anterior (um nome dual-stack cujo servidor está fora
+      do ar não leva o dobro para falhar); depois de um handshake que falhou
+      só o primeiro foi tentado, então vale quando a nova resolução põe outro
+      endereço primeiro. Um 401 encerra a discagem só quando é do servidor:
+      em `wss://` qualquer um (o certificado foi conferido), em `ws://` só com
+      o cabeçalho que toda recusa do servidor leva (`x-verso-sync`, o do
+      protocolo de sync) — a página de autenticação básica de um roteador
+      também responde 401, e a API JSON de um NAS também pode, e o corpo não
+      é confiável porque pode chegar depois dos cabeçalhos. A
       política é por nome, que é tudo o que um resolvedor recebe: um nome que
       já foi usado por `http` simples é tratado como `http` (o caso estrito);
     - **o nome nunca é trocado**: a conexão vai ao IP, a URL guarda o nome,
@@ -200,7 +209,10 @@ bridge padrão do Docker não leva multicast para a rede de casa. `std::fs`
     - a lista do sistema: no macOS, `scutil --dns`; no Linux,
       `/etc/resolv.conf` e o `/run/systemd/resolve/resolv.conf` do próprio
       systemd-resolved; no Windows, o PowerShell do próprio sistema por
-      caminho absoluto, os adaptadores que estão ativos, sem os três
+      caminho absoluto, os adaptadores **físicos** que estão ativos (`-Physical`:
+      o `vEthernet` de um vSwitch externo do Hyper-V, um tethering RNDIS e a
+      placa virtio de uma VM podem então não listar nada, e o recuo nada acha —
+      falha com segurança), sem os três
       `fec0:0:0:ffff::1`–`3` de enchimento. Um servidor link-local com
       escopo (`fe80::1%en0`) fica de fora;
     - o cliente DNS é escrito aqui (umas 150 linhas: uma consulta, uma

@@ -170,10 +170,12 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
       say is used for an `http` server — a token would go in the clear to
       whatever an ISP's resolver invents — and for an `http` server they are
       accepted otherwise only when **on-link**: inside the subnet of one of this
-      machine's own interfaces (a home's LAN; a Tailscale interface's 100.x
-      range when the machine has one; never carrier-grade NAT's 100.64.0.0/10
-      as such, which on an ISP that uses it is other customers), and never
-      loopback. For an `https` server any address
+      machine's own interfaces — a home's LAN. A wide prefix says nothing about
+      where a host is, so an IPv4 interface shorter than /16 (a VPN's or a
+      TAP adapter's /8 or /10) and an IPv6 one shorter than /32 count for
+      nothing; carrier-grade NAT's 100.64.0.0/10 is other customers of the
+      ISP and never ours; loopback is never believed from another resolver.
+      Tailscale is not covered (its interface is a /32 on macOS and Linux); For an `https` server any address
       will do, because the certificate is checked for the name;
     - an address that **failed** — a refused or timed-out connection, a
       handshake that does not complete — goes to the end of the order for ten
@@ -186,11 +188,17 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
     - the WebSocket makes the TCP connection and the TLS and WebSocket
       handshakes **per address** (the dial as a whole has a 25-second
       ceiling), and a request that fails to connect is sent once more — only
-      when the new resolution would try another address first, since the
-      same one would fail the same way and take as long. A 401 ends the
-      dial only when it is the server's: over `wss://` any (the certificate
-      was checked), over `ws://` only with the JSON body the server writes,
-      since a router's basic-auth page answers 401 too. The policy is keyed
+      when that can end differently: after a failure of the TCP connection
+      itself every address offered has been tried, so only an address that
+      was not in the answer before is worth it (a dual-stack name whose
+      server is down does not take twice as long to fail); after a failed
+      handshake only the first was tried, so the retry is worth it when the
+      new resolution puts another address first. A 401 ends the dial only
+      when it is the server's: over `wss://` any (the certificate was
+      checked), over `ws://` only with the header every refusal of the
+      server carries (`x-verso-sync`, the sync protocol's) — a router's
+      basic-auth page answers 401 too, and so can a NAS's JSON API, and the
+      body is not trusted because it may arrive after the headers. The policy is keyed
       by the name, which is all a resolver is given: a name that was ever
       used over plain `http` is treated as `http` (the strict case);
     - **the name is never replaced**: the connection goes to the IP, the
@@ -200,7 +208,10 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
     - not for `localhost` or `.local` names;
     - the system's list: macOS `scutil --dns`; Linux `/etc/resolv.conf` and
       systemd-resolved's own `/run/systemd/resolve/resolv.conf`; Windows
-      the system's own PowerShell by absolute path, the adapters that are up,
+      the system's own PowerShell by absolute path, the **physical** adapters
+      that are up (`-Physical`: a Hyper-V external vSwitch's `vEthernet`, an
+      RNDIS tethering and a VM's virtio NIC may then list nothing, and the
+      fallback finds nothing — it fails safe),
       without the three placeholder `fec0:0:0:ffff::1`–`3`. A scoped
       link-local server (`fe80::1%en0`) is left out;
     - the DNS client is written here (about 150 lines: one query, one
