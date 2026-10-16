@@ -105,6 +105,11 @@ fn rows<R: tauri::Runtime>(
                     .file_name()
                     .map(|n| n.to_string_lossy().into_owned())
                     .unwrap_or_default(),
+                place: path
+                    .parent()
+                    .and_then(|p| p.file_name())
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default(),
                 ticked: ticked.iter().any(|t| *t == path.to_string_lossy()),
                 syncs_with: sync::synced(config, &key).map(|s| host_of(&s.server)),
                 key,
