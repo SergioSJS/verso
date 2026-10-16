@@ -57,21 +57,14 @@
 .ls-ask .confirm-actions { justify-content: flex-end; }
 .ls-phone-acts { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; }
 
-/* Folders served as a tree by place (servedFolders.ts). */
+/* Folders served, as the folder switcher lists them (servedFolders.ts). */
 .ls-folders { display: flex; flex-direction: column; gap: .4rem; min-width: 0; }
 .ls-tools { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
 .ls-filter { flex: 1 1 12rem; min-width: 0; font: inherit; font-size: .9rem; padding: .4rem .6rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 7px; }
-.ls-tree { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .1rem; }
-.ls-tree .ls-tree { margin-inline-start: .55rem; padding-inline-start: .6rem; border-inline-start: 1px solid var(--hair); }
-.ls-group > details > summary { list-style: none; display: flex; align-items: center; gap: .4rem; min-height: 32px; padding: .2rem .3rem; border-radius: 5px; font-size: .9rem; font-weight: 600; color: var(--ink-2); cursor: pointer; user-select: none; }
-.ls-group > details > summary::-webkit-details-marker { display: none; }
-.ls-group > details > summary:hover { color: var(--ink); background: var(--paper-3); }
-.ls-group summary .chev { width: 5px; height: 5px; border-right: 1.5px solid var(--ink-3); border-bottom: 1.5px solid var(--ink-3); transform: rotate(-45deg); transition: transform .18s var(--ease-out); flex: none; margin: 0 .2rem 0 .1rem; }
-.ls-group details[open] > summary .chev { transform: rotate(45deg); }
-.ls-place-name { overflow-wrap: anywhere; min-width: 0; }
-.ls-group summary small { margin-inline-start: auto; white-space: nowrap; }
+.ls-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .1rem; }
 .ls-folder { min-height: 32px; justify-content: center; }
-.ls-name { overflow-wrap: anywhere; }
+.ls-folder .ls-check { align-items: baseline; }
+.ls-name { overflow-wrap: anywhere; min-width: 0; }
+.ls-place, .ls-current { font-size: .76rem; color: var(--ink-3); flex: none; }
+.ls-current { margin-inline-start: auto; }
 .ls-why { padding-inline-start: 1.5rem; }
-.ls-place { padding-inline-start: 1.5rem; }
-@media (prefers-reduced-motion: reduce) { .ls-group summary .chev { transition: none; } }
