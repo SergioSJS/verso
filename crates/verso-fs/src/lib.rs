@@ -38,6 +38,7 @@
 //!   download it.
 
 mod confine;
+mod escaping;
 mod journal;
 mod obsidian;
 mod ops;
@@ -73,13 +74,14 @@ pub fn is_portable(relative: &std::path::Path) -> bool {
         _ => true,
     })
 }
+pub use escaping::escaping_links;
 pub use obsidian::{OBSIDIAN_SETTINGS_MAX, ObsidianRead, ObsidianSettings};
 pub use ops::OpReport;
 pub use placeholder::Placeholder;
 pub use settings::{SETTINGS_DIR, SETTINGS_FILE, in_settings_dir, is_settings_path};
 pub use single::Single;
 pub use staged::Staged;
-pub use subfolders::subfolders;
+pub use subfolders::{is_folder, subfolders};
 pub use walk::{Entry, EntryKind, Problem, Walk};
 pub use watch::{Changes, MAX_WAIT, Watch};
 pub use write::{WriteError, WriteReport};

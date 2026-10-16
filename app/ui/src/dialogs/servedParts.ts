@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 // Choosing which folders inside a served folder reach the phone (ADR 0096
-// item 3, amended 2026-10-16). Pure — no DOM — for the tree in Settings
+// item 2, amended 2026-10-16). Pure — no DOM — for the tree in Settings
 // and its tests. A choice is a list of paths relative to the folder,
 // `/`-joined, none inside another: choosing a folder serves what is inside
 // it. An empty choice is the whole folder.

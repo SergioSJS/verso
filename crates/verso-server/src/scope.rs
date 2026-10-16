@@ -34,6 +34,29 @@ pub struct Scope {
     /// The attachments folder shown read-only: the name it has at the
     /// share's root, and its path in the owner's folder.
     pub mount: Option<(String, String)>,
+    /// A share of a folder this computer serves to a phone (ADR 0096 item
+    /// 2, amended 2026-10-16): the attachments folder shows files, never a
+    /// note, and what a link under the share leads out of it is left out.
+    /// None for a share between people on a server.
+    pub guard: Option<std::sync::Arc<Guard>>,
+}
+
+/// What a phone is kept from under a share of this computer's folder.
+#[derive(Debug, PartialEq, Eq)]
+pub struct Guard {
+    /// Symbolic links, in the owner's folder's paths, whose end is outside
+    /// the folder they are in: nothing at or under them is told or touched.
+    pub escapes: Vec<String>,
+}
+
+/// Whether a path names a note, a board or a base — what the attachments
+/// folder of a phone's share does not show.
+fn note_like(path: &str) -> bool {
+    path.rsplit_once('.').is_some_and(|(_, ext)| {
+        ["md", "canvas", "base"]
+            .iter()
+            .any(|e| ext.eq_ignore_ascii_case(e))
+    })
 }
 
 /// What the index's summary counts, of a share (ADR 0081 item 11).
@@ -116,7 +139,9 @@ impl Scope {
                 if how != Use::Read {
                     return Err(refused("the attachments folder is shared to be read only"));
                 }
-                return Ok(format!("{path}{}", &rel[name.len()..]));
+                let full = format!("{path}{}", &rel[name.len()..]);
+                self.allowed(&full, true)?;
+                return Ok(full);
             }
         }
         if rel.is_empty() {
@@ -125,7 +150,24 @@ impl Scope {
             }
             return Ok(self.root.clone());
         }
-        Ok(format!("{}/{rel}", self.root))
+        let full = format!("{}/{rel}", self.root);
+        self.allowed(&full, false)?;
+        Ok(full)
+    }
+
+    /// Refuse a path a phone is kept from (see [`Guard`]).
+    fn allowed(&self, full: &str, in_mount: bool) -> Result<(), ContractError> {
+        if self.blocked(full, in_mount) {
+            return Err(refused("not in the shared folder"));
+        }
+        Ok(())
+    }
+
+    fn blocked(&self, full: &str, in_mount: bool) -> bool {
+        let Some(g) = &self.guard else {
+            return false;
+        };
+        (in_mount && note_like(full)) || g.escapes.iter().any(|e| covers(e, full))
     }
 
     /// The path in the owner's folder of a path the window sent, to read.
@@ -143,14 +185,28 @@ impl Scope {
     #[must_use]
     pub fn to_rel(&self, full: &str) -> Option<String> {
         if covers(&self.root, full) {
+            if self.blocked(full, false) {
+                return None;
+            }
             return Some(full[self.root.len()..].trim_start_matches('/').to_owned());
         }
         if let Some((name, path)) = &self.mount
             && covers(path, full)
         {
+            if self.blocked(full, true) {
+                return None;
+            }
             return Some(format!("{name}{}", &full[path.len()..]));
         }
         None
+    }
+
+    /// Whether `full` is the shared folder itself or under it — never the
+    /// attachments folder shown with it, which is the owner's to keep
+    /// (ADR 0081 item 16): what the bin gives back lands in the share.
+    #[must_use]
+    pub fn in_root(&self, full: &str) -> bool {
+        covers(&self.root, full) && !self.blocked(full, false)
     }
 
     fn rel_value(&self, v: &Value) -> Option<Value> {
@@ -347,6 +403,11 @@ impl Scope {
                 args["paths"] = json!(paths);
             }
             "query_base" => {
+                // A base walks the folder's entries; one with a link out of
+                // it under the share is not answered.
+                if self.guard.as_ref().is_some_and(|g| !g.escapes.is_empty()) {
+                    return Err(refused("a link leads out of this folder"));
+                }
                 for field in ["path", "this"] {
                     if args["query"][field].is_string() {
                         set(&mut args["query"], field, Use::Read)?;
@@ -591,7 +652,7 @@ impl Scope {
             index: 0.0,
         };
         for e in entries {
-            if !covers(&self.root, &e.path) {
+            if !covers(&self.root, &e.path) || self.blocked(&e.path, false) {
                 continue;
             }
             let len = e.len as f64;
@@ -613,7 +674,11 @@ impl Scope {
     #[must_use]
     pub fn roots(&self) -> Vec<String> {
         let mut roots = vec![self.root.clone()];
-        roots.extend(self.mount.as_ref().map(|(_, path)| path.clone()));
+        // A phone's attachments folder holds files, which a base has no
+        // rows from.
+        if self.guard.is_none() {
+            roots.extend(self.mount.as_ref().map(|(_, path)| path.clone()));
+        }
         roots
     }
 
@@ -755,6 +820,7 @@ mod tests {
             name: "Campanha (Sérgio)".into(),
             root: "Mesa/Campanha".into(),
             mount: Some(("Anexos".into(), "Anexos".into())),
+            guard: None,
         }
     }
 
@@ -898,6 +964,7 @@ mod tests {
             name: "Mesa (Sérgio)".into(),
             root: "Mesa".into(),
             mount: Some(("Anexos".into(), "Anexos".into())),
+            guard: None,
         };
         // A rename's examination warns of the notes it read: one at the
         // owner's root has no `/` and is still outside.
@@ -935,6 +1002,7 @@ mod tests {
             name: "Mesa (Sérgio)".into(),
             root: "Mesa".into(),
             mount: Some(("Anexos".into(), "Anexos".into())),
+            guard: None,
         };
         let renamed = s.answer_out(
             "rename_entry",

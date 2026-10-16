@@ -14,7 +14,7 @@ import { commands, type ContractError, type LocalAddressChoice, type LocalFolder
 import { button, h, ui } from "../dom";
 import { errorSentence } from "../errors";
 import { icon } from "../icons";
-import { phoneConnectedHeard, serveStoppedHeard } from "../notify/sources";
+import { phoneConnectedHeard, serveDroppedHeard, serveStoppedHeard } from "../notify/sources";
 import { busy } from "../reach";
 import { asDialog, closed, opened } from "./a11y";
 import { servedFolders } from "./servedFolders";
@@ -445,6 +445,13 @@ export function localServerBody(_item: Item): HTMLElement {
       busy(run, false);
       if (r.status !== "ok") return failed(r.error);
       say(w.serving(where(r.data)));
+      // Chosen folders no longer on the disk were left out: said here and
+      // in the notifications, not only in the row.
+      if (r.data.dropped.length > 0) {
+        const said = w.droppedSaid(r.data.dropped.join(", "));
+        say(said);
+        serveDroppedHeard(said);
+      }
       return redraw();
     })();
   });

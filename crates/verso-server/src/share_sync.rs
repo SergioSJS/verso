@@ -286,6 +286,11 @@ pub async fn trash(
         let mut size = 0.0;
         if let Some(entries) = listing["entries"].as_array_mut() {
             entries.retain_mut(|e| {
+                // Only what was the share's own, never the attachments
+                // folder shown with it.
+                if !e["original"].as_str().is_some_and(|o| scope.in_root(o)) {
+                    return false;
+                }
                 if !rel(scope, &mut e["original"]) {
                     return false;
                 }
@@ -313,10 +318,7 @@ pub async fn trash(
                 .into_iter()
                 .flatten()
                 .find(|e| {
-                    e["original"]
-                        .as_str()
-                        .and_then(|o| scope.to_rel(o))
-                        .is_some()
+                    e["original"].as_str().is_some_and(|o| scope.in_root(o))
                         && scope.said(e["path"].as_str().unwrap_or_default()) == asked
                 })
                 .and_then(|e| e["path"].as_str().map(str::to_owned))
@@ -352,6 +354,7 @@ mod tests {
             name: "C (O)".into(),
             root: "C".into(),
             mount: None,
+            guard: None,
         };
         let c = |path: &str, from: Option<&str>| json!({ "seq": 1, "path": path, "hash": "h", "size": 1, "deleted": false, "renamedFrom": from, "device": "MacBook de Sérgio", "by": "Sérgio" });
         assert_eq!(change(&scope, c("D/x.md", None)), None);

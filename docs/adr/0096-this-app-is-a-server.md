@@ -174,16 +174,69 @@ it changes an Accepted ADR; where one needs a line, the item says so.
        share's path. Nothing chosen is the whole folder, as today. The
        choice is a setting kept like the ticked list: changed only while
        serving is off, and forgotten when the folder is unticked. A folder
-       chosen that is no longer on the disk at start is left out; if none
+       chosen that is no longer on the disk at start is left out and said — a notice, a line beside the folder in Settings and
+       a line in the log; if none
        is left, serving does not start — it never falls back to the whole
        folder. Listing the folders inside a folder that is not open is a
        desktop-only command through `verso-fs` that a phone cannot run
        (the whole `local_server_` prefix is refused).
-     - *Attachments.* The first time a phone opens a chosen folder in a
-       run, the folder most of its notes' embeds point to outside it is
-       found, as the share dialog offers it (0081 item 11), and shown at
-       its root, read-only, under its name; attachments loose at the
-       folder's root stay outside, as in 0081.
+     - *Attachments* — the implementation of choice (3), "attachments go
+       along, read-only". It is **the vault's own configured attachments
+       folder**, never one found from what the notes say: the folder
+       Obsidian's settings name (`attachmentFolderPath` in
+       `.obsidian/app.json`), read at each start through `verso-fs` — which
+       widens the narrow exception of [0093](0093-periodic-notes.md)
+       item 11 by that one path, read by name and never written — and kept
+       as the share's attachments folder, replaced at every start and
+       cleared when the setting is. None when the setting is absent, the
+       vault's root, "the same folder as the note" or a folder of the note
+       (`./…`; those lie inside what is served), when the folder is not on the
+       disk, or when it is one of the chosen folders, inside one or holds
+       one. What it serves is **files only, read-only**: no note, board or
+       base of that folder is listed, read, searched, linked or in the graph
+       and the files route refuses them. Settings shows, under the folder's
+       tree, which folder goes along or that none does. (A first build found
+       the folder from the embeds of the chosen folder's notes; a phone that
+       could write embeds could steer it to any folder, notes included, and
+       it was dropped.)
+     - *Links that leave a chosen folder.* A symbolic link under a chosen
+       folder (or under its attachments folder) whose end is outside it —
+       a sibling folder, a note elsewhere in the vault — is left out whole:
+       not listed, found, read or written through, whatever the phone's
+       role. The links are looked at when a folder is opened and again
+       every few seconds; a folder that cannot be looked at is shut. A base
+       is not answered while such a link is there. A link that stays inside
+       the chosen folder works as it does.
+     - *A rename through the phone rewrites links in notes outside*
+       (`[DECIDED 2026-10-16]`, asked: "Um celular renomeia uma nota numa
+       pasta servida… o servidor reescreve os links delas?" — answer:
+       "Reescreve"): as on the desktop and in a share
+       ([0081](0081-sharing-between-people-on-one-universo.md) item 11), the
+       server rewrites the links to the renamed note in the notes of the
+       vault outside the chosen folder, by the rules of a window's rewrite.
+       The phone is never told which notes: its answer carries only the
+       notes inside the folder. So a phone that renames can change a note
+       it cannot see, in its links only.
+     - *The window's layout.* The maintainer, 2026-10-16, on the list of 40
+       recent folders: *"o cofre aberto atual deveria ter a árvore de pastas
+       dele … ele ta listando um monte de coisas, agrupe essas merdas ai, em
+       recentes, sendo possível compactar ou expandir e adicione a porra da
+       árvore do cofre atual"* (the open vault should have its tree of
+       folders; group the recent ones, collapsible, and add the open vault's
+       tree). Settings › *Turn into a server* › *Folders served* lists, top
+       to bottom: **the vault open in this window, on its own** (*This vault
+       · name*), with its box and, right below, its tree of folders already
+       open and the attachments line; then **Recent**, a group shut by
+       default (remembered open or shut for the viewer) whose summary counts
+       the folders and the ticked ones, holding the other recent folders
+       freshest first with the filter above eight; each ticked recent folder
+       has its tree behind a button. The hints of a row — the directory, the
+       sync note — are elements of their own, set off by a comma for a
+       screen reader. No decision above changes.
+     - *Naming.* The folders chosen are the phone's own, so a phone's list
+       shows them with no owner (no "shared with me"), and the bin a phone
+       sees holds only entries that were the chosen folder's, never the
+       attachments folder's.
 
 3. **`[DECIDED 2026-10-15]` Which interface it listens on, and on which networks.**
    - (a) Every interface (`0.0.0.0`/`::`). Simple, and reachable from the

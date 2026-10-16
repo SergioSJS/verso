@@ -2,12 +2,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! Two of Obsidian's settings files, read once and never written (ADR
+//! Three of Obsidian's settings files, read once and never written (ADR
 //! 0093 item 11): the core Daily notes plugin's `.obsidian/daily-notes.json`
 //! and the community Periodic Notes plugin's
 //! `.obsidian/plugins/periodic-notes/data.json`, so that Settings can offer
-//! their values for Verso's periodic notes. An exception beside `.verso/`'s
-//! ([`crate::settings`]), and narrower: exactly these two paths, named
+//! their values for Verso's periodic notes; and Obsidian's own
+//! `.obsidian/app.json`, for the one key `attachmentFolderPath`, so that
+//! "this app is a server" can show a phone the vault's attachments folder
+//! read-only (ADR 0096 item 2, amended 2026-10-16 — this widens the
+//! exception by one path, recorded there). An exception beside `.verso/`'s
+//! ([`crate::settings`]), and narrower: exactly these three paths, named
 //! here and nowhere else; read-only — nothing in this crate writes under
 //! `.obsidian/`, and these paths are not confined like a file of the
 //! folder, so no write, rename or deletion can name them; bounded — a
@@ -26,7 +30,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{Root, on_disk, placeholder};
 
-/// The two files the exception reads, and nothing else.
+/// The files the exception reads, and nothing else.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ObsidianSettings {
     /// The core Daily notes plugin's settings: `folder`, `format`,
@@ -35,6 +39,9 @@ pub enum ObsidianSettings {
     /// The Periodic Notes plugin's settings, in either of its two shapes
     /// (0.0.17: one object per period; 1.0: calendar sets).
     PeriodicNotes,
+    /// Obsidian's own settings, `.obsidian/app.json`: only the folder it
+    /// names for attachments is looked at.
+    App,
 }
 
 impl ObsidianSettings {
@@ -44,6 +51,7 @@ impl ObsidianSettings {
         match self {
             Self::DailyNotes => ".obsidian/daily-notes.json",
             Self::PeriodicNotes => ".obsidian/plugins/periodic-notes/data.json",
+            Self::App => ".obsidian/app.json",
         }
     }
 }
@@ -177,6 +185,7 @@ mod tests {
         let (dir, mut root) = folder();
         put(dir.path(), ".obsidian/daily-notes.json", b"{}");
         put(dir.path(), ".obsidian/app.json", b"{}");
+        put(dir.path(), ".obsidian/workspace.json", b"{}");
         let before = std::fs::read_dir(dir.path().join(".obsidian"))
             .unwrap()
             .count();
@@ -184,6 +193,7 @@ mod tests {
         // every other way into `.obsidian/` stays refused, writes included.
         for path in [
             ".obsidian/app.json",
+            ".obsidian/workspace.json",
             ".obsidian/daily-notes.json",
             ".obsidian/plugins/periodic-notes/data.json",
         ] {
