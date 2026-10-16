@@ -217,6 +217,22 @@ it changes an Accepted ADR; where one needs a line, the item says so.
        The phone is never told which notes: its answer carries only the
        notes inside the folder. So a phone that renames can change a note
        it cannot see, in its links only.
+     - *The window's layout.* The maintainer, 2026-10-16, on the list of 40
+       recent folders: *"o cofre aberto atual deveria ter a árvore de pastas
+       dele … ele ta listando um monte de coisas, agrupe essas merdas ai, em
+       recentes, sendo possível compactar ou expandir e adicione a porra da
+       árvore do cofre atual"* (the open vault should have its tree of
+       folders; group the recent ones, collapsible, and add the open vault's
+       tree). Settings › *Turn into a server* › *Folders served* lists, top
+       to bottom: **the vault open in this window, on its own** (*This vault
+       · name*), with its box and, right below, its tree of folders already
+       open and the attachments line; then **Recent**, a group shut by
+       default (remembered open or shut for the viewer) whose summary counts
+       the folders and the ticked ones, holding the other recent folders
+       freshest first with the filter above eight; each ticked recent folder
+       has its tree behind a button. The hints of a row — the directory, the
+       sync note — are elements of their own, set off by a comma for a
+       screen reader. No decision above changes.
      - *Naming.* The folders chosen are the phone's own, so a phone's list
        shows them with no owner (no "shared with me"), and the bin a phone
        sees holds only entries that were the chosen folder's, never the
