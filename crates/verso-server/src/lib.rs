@@ -179,7 +179,7 @@ fn first_admin(config: &Config, db: &Db) -> Result<(), String> {
                 base_url(config),
                 if from_elsewhere {
                     format!(
-                        " — from another machine, http://<this machine's address>:{}/setup?token={token}",
+                        " — in Docker or from another machine, replace localhost with the machine's address (a container cannot know the host IP): http://<this machine's address>:{}/setup?token={token}",
                         config.listen.port()
                     )
                 } else {

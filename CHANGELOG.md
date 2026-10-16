@@ -14,6 +14,7 @@ test release.
 
 ### Added
 
+- **Clear host IP guidance for Docker setup link** (2026-10-16): when running in a container or listening beyond localhost, the server log plainly notes that a container cannot know the host IP and reminds the administrator to replace `localhost` with the host machine's address; tutorial note 24 includes the same hint.
 - **Rename invalid files directly in sync settings** ([ADR 0079](docs/adr/0079-sync-a-local-folder-with-a-server.md), 2026-10-16): files refused during sync because of invalid characters in their names now have a "Rename" button directly in *Settings › Sync › Waiting for you*. Clicking it prompts for a new name and renames the file immediately.
 - **Web embeds in a browser check frameability on the server** ([ADR 0056](docs/adr/0056-embedded-web-pages.md), the maintainer, 2026-10-16): when accessing Verso in a browser served by UniVerso, the server checks via a HEAD request whether the embedded page allows being framed in the browser. Pages that allow framing are shown directly in an iframe without the warning line, while pages that forbid framing (X-Frame-Options, frame-ancestors) show a card with a button to open the page in a new tab.
 - **A lasting *no HTTPS* mark in the status bar** (2026-10-16): while the window is on plain HTTP, the bar keeps an open-lock mark; a click lists what is off without HTTPS — protection on the network, offline mode, system notifications, passkeys, installing as an app, copying a board's picture — and how to turn HTTPS on.

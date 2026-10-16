@@ -164,7 +164,7 @@ docker compose ps
 docker logs -f universo        # Ctrl+C para sair
 ```
 
-Abra `http://<IP da máquina>:7340` no navegador e use o link de configuração do log (seção 6). `restart: unless-stopped` traz o contêiner de volta depois de uma queda e de um reboot, desde que o próprio Docker suba no boot (`systemctl is-enabled docker` deve dizer `enabled`).
+Abra `http://<IP da máquina>:7340` no navegador e use o link de configuração do log (seção 6). O contêiner não tem como saber o IP da máquina hospedeira, então o log imprime o link com `localhost`: troque `localhost` pelo IP da máquina ao abrir de outro computador. `restart: unless-stopped` traz o contêiner de volta depois de uma queda e de um reboot, desde que o próprio Docker suba no boot (`systemctl is-enabled docker` deve dizer `enabled`).
 
 ---
 
@@ -298,7 +298,7 @@ sudo journalctl -u universo | grep setup     # o pacote (Caminho 1)
 docker logs universo 2>&1 | grep setup       # Docker (Caminho 2 e CasaOS)
 ```
 
-O link é `http://<IP da máquina>:7340/setup?token=…` (o log escreve `localhost` e diz para trocá-lo pelo endereço da máquina quando você abre de outro computador), ou o do `VERSO_PUBLIC_URL` se você definiu um. Venceu ou se perdeu? Reinicie o serviço (`sudo systemctl restart universo` ou `docker compose restart`) e sai outro, enquanto não existir nenhuma conta.
+O link é `http://<IP da máquina>:7340/setup?token=…` (o log escreve `localhost` porque o contêiner não tem como saber o IP da máquina hospedeira; troque `localhost` pelo endereço da máquina ao abrir de outro computador), ou o do `VERSO_PUBLIC_URL` se você definiu um. Venceu ou se perdeu? Reinicie o serviço (`sudo systemctl restart universo` ou `docker compose restart`) e sai outro, enquanto não existir nenhuma conta.
 
 Na página **Primeiro acesso**, preencha **E-mail**, **Nome**, **Senha nova** (12 caracteres no mínimo) e **Idioma**, e clique em **Criar conta**. Dali em diante você entra com esse e-mail e essa senha, e o console de administração (`/admin`) é seu.
 
