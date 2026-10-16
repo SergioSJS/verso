@@ -1408,6 +1408,11 @@ export class Core {
     server_folders: () => [],
     server_open: () => refuse("unavailable", "no server in the harness"),
     server_retry: () => null,
+    // The servers announced on the network (ADR 0097): none, until a test
+    // sets `discover_servers_list` to some.
+    discover_servers_start: () => null,
+    discover_servers_list: () => [],
+    discover_servers_stop: () => null,
     share_list: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     share_grant: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     share_revoke: () => refuse("refused", "this folder is not on a server: sync it with one first"),

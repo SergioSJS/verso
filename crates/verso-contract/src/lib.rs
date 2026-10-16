@@ -736,6 +736,22 @@ pub struct ServerAccount {
     pub name: String,
 }
 
+/// A UniVerso announced on the local network (ADR 0097): what the
+/// announcement says, to show and to click, never to trust. The `url` is
+/// the address a click fills in; nothing connects because of it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct FoundServer {
+    /// The announced instance name, `UniVerso-ab12cd`.
+    pub name: String,
+    /// The announced host, `universo-ab12cd.local`.
+    pub host: String,
+    /// Where a click connects: `http(s)://address[:port]`.
+    pub url: String,
+    pub https: bool,
+    /// The version it announced; empty when it said none.
+    pub version: String,
+}
+
 /// The window's server, or what it held there, is gone (event
 /// `server-gone`, ADR 0084 item 10): said by the desktop app to a window
 /// on a server's folder.
@@ -752,7 +768,9 @@ pub struct ServerGone {
     /// With `folder`, when the server says it: `revoked` by its owner,
     /// `deleted` (the shared folder went), `left` by the person.
     pub reason: Option<String>,
-    /// With `unreachable`: the server's address, `host[:port]`.
+    /// With `unreachable`: the server's address, `host[:port]`, and the
+    /// addresses tried, each on a line after it (as `Unreachable`'s
+    /// message).
     pub address: Option<String>,
 }
 
@@ -1152,7 +1170,9 @@ pub enum ErrorKind {
     /// A server that could not be reached: no connection made — refused,
     /// no such name, a TLS handshake that failed — or no answer in time.
     /// `message` is the server's address, `host[:port]`, as the window
-    /// names it to the person; why it could not be reached goes to the
+    /// names it to the person; when the name was resolved to addresses,
+    /// each address tried follows on a line of its own (ADR 0097), so a
+    /// bad DNS reads as one. Why it could not be reached goes to the
     /// app's log (the maintainer, 2026-10-14: a server down said nothing).
     Unreachable,
     /// The file's bytes are not UTF-8: no text to edit (spec Q25 is

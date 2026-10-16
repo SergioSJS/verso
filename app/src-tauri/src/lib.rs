@@ -43,6 +43,8 @@ use verso_service::{OpError, Service, lock, no_folder, ops, refused};
 mod boards;
 mod cli;
 mod device;
+mod discover;
+mod dns;
 mod files;
 mod focuses;
 mod folder_layer;
@@ -70,6 +72,7 @@ mod windows;
 use boards::*;
 use cli::*;
 use device::*;
+use discover::*;
 use files::*;
 use focuses::*;
 use folder_layer::*;
@@ -735,6 +738,9 @@ macro_rules! commands_for {
                 server_folders::<$runtime>,
                 server_open::<$runtime>,
                 server_retry::<$runtime>,
+                discover_servers_start,
+                discover_servers_list,
+                discover_servers_stop,
                 share_list::<$runtime>,
                 share_grant::<$runtime>,
                 share_revoke::<$runtime>,

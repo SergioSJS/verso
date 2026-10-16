@@ -349,11 +349,11 @@ impl Remote {
             headers: vec![("Content-Type", "text/plain; charset=utf-8".to_owned())],
             body: why.into_bytes(),
         };
-        let response = match reqwest::blocking::Client::new()
-            .get(url)
-            .bearer_auth(&self.token)
-            .send()
-        {
+        let client = match http() {
+            Ok(c) => c,
+            Err(e) => return refuse(502, e.message),
+        };
+        let response = match client.get(url).bearer_auth(&self.token).send() {
             Ok(r) => r,
             Err(e) => return refuse(502, e.to_string()),
         };
@@ -400,12 +400,20 @@ pub(crate) fn http() -> Result<reqwest::blocking::Client, ContractError> {
     reqwest::blocking::Client::builder()
         .user_agent(concat!("Verso/", env!("CARGO_PKG_VERSION")))
         .timeout(std::time::Duration::from_secs(20))
+        // Several addresses may be tried (dns.rs): the time to connect is
+        // shared among them, and the whole request still ends within 20 s.
+        .connect_timeout(std::time::Duration::from_secs(15))
+        .dns_resolver(Arc::new(dns::Resolver))
         .build()
         .map_err(|e| failed(e.to_string()))
 }
 
 /// The server's answer as JSON, or its error said.
 pub(crate) fn answer(response: reqwest::blocking::Response) -> Result<Value, ContractError> {
+    // The address that answered goes first next time (dns.rs).
+    if let (Some(host), Some(from)) = (response.url().host_str(), response.remote_addr()) {
+        dns::worked(host, from.ip());
+    }
     let status = response.status();
     let body: Value = response.json().unwrap_or(Value::Null);
     if status.is_success() {
@@ -811,7 +819,25 @@ pub(crate) async fn dial_hello(
     request
         .headers_mut()
         .insert(verso_core::sync::PROTOCOL_HEADER, sync);
-    let (socket, _) = tokio_tungstenite::connect_async(request)
+    // The connection is made here, not by the library, so the name is
+    // resolved by the same rule as every other request (dns.rs, ADR 0097):
+    // the TLS handshake still verifies the certificate for the URL's name.
+    let uri = request.uri().clone();
+    let host = uri
+        .host()
+        .ok_or_else(|| failed("not an address"))?
+        .to_owned();
+    let port = uri
+        .port_u16()
+        .unwrap_or(if uri.scheme_str() == Some("wss") {
+            443
+        } else {
+            80
+        });
+    let stream = dns::dial(&host, port).await.map_err(|e| {
+        reach::not_dialed(&login.url, &tokio_tungstenite::tungstenite::Error::Io(e))
+    })?;
+    let (socket, _) = tokio_tungstenite::client_async_tls(request, stream)
         .await
         .map_err(|e| match e {
             tokio_tungstenite::tungstenite::Error::Http(r) if r.status().as_u16() == 401 => {
