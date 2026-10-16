@@ -147,13 +147,7 @@ pub fn plan(
             }
             present
         };
-        out.insert(
-            name.clone(),
-            Served {
-                parts,
-                present,
-            },
-        );
+        out.insert(name.clone(), Served { parts, present });
     }
     Ok(out)
 }
@@ -384,7 +378,18 @@ mod tests {
             clean(&v(&["Proj", "Projetos"])).unwrap(),
             ["Proj", "Projetos"]
         );
-        for bad in ["", "..", "../x", "/abs", "a/../b", ".obsidian", "a/.git", "C:x", "a\\b", "a//b"] {
+        for bad in [
+            "",
+            "..",
+            "../x",
+            "/abs",
+            "a/../b",
+            ".obsidian",
+            "a/.git",
+            "C:x",
+            "a\\b",
+            "a//b",
+        ] {
             assert!(clean(&v(&[bad])).is_err(), "{bad:?} was accepted");
         }
         assert!(clean(&[]).unwrap().is_empty());

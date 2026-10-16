@@ -125,7 +125,12 @@ fn only_some_folders_inside_a_ticked_folder_can_be_chosen_to_serve() {
     // The tree of a folder, relative, none hidden.
     let found = call(&webview, "local_server_subfolders", json!({ "key": key })).unwrap();
     assert_eq!(found, json!(["Diario", "Projetos"]));
-    let unknown = call(&webview, "local_server_subfolders", json!({ "key": "nope" })).unwrap_err();
+    let unknown = call(
+        &webview,
+        "local_server_subfolders",
+        json!({ "key": "nope" }),
+    )
+    .unwrap_err();
     assert_eq!(unknown["kind"], "refused", "{unknown}");
     // Only a ticked folder can be served in part.
     let before_tick = call(
@@ -134,8 +139,16 @@ fn only_some_folders_inside_a_ticked_folder_can_be_chosen_to_serve() {
         json!({ "key": key, "parts": ["Projetos"] }),
     )
     .unwrap_err();
-    assert!(before_tick.to_string().contains("tick the folder"), "{before_tick}");
-    call(&webview, "local_server_tick", json!({ "key": key, "ticked": true })).unwrap();
+    assert!(
+        before_tick.to_string().contains("tick the folder"),
+        "{before_tick}"
+    );
+    call(
+        &webview,
+        "local_server_tick",
+        json!({ "key": key, "ticked": true }),
+    )
+    .unwrap();
     let rows = call(
         &webview,
         "local_server_parts",
@@ -154,7 +167,11 @@ fn only_some_folders_inside_a_ticked_folder_can_be_chosen_to_serve() {
         assert_eq!(refused["kind"], "refused", "{bad}: {refused}");
     }
     let rows = call(&webview, "local_server_folders", json!({})).unwrap();
-    assert_eq!(rows[0]["parts"], json!(["Diario", "Projetos"]), "kept: {rows}");
+    assert_eq!(
+        rows[0]["parts"],
+        json!(["Diario", "Projetos"]),
+        "kept: {rows}"
+    );
     // Back to all of it.
     let rows = call(
         &webview,
@@ -170,7 +187,12 @@ fn only_some_folders_inside_a_ticked_folder_can_be_chosen_to_serve() {
         json!({ "key": key, "parts": ["Diario"] }),
     )
     .unwrap();
-    call(&webview, "local_server_tick", json!({ "key": key, "ticked": false })).unwrap();
+    call(
+        &webview,
+        "local_server_tick",
+        json!({ "key": key, "ticked": false }),
+    )
+    .unwrap();
     let rows = call(&webview, "local_server_folders", json!({})).unwrap();
     assert_eq!(rows[0]["parts"], json!([]), "{rows}");
 }

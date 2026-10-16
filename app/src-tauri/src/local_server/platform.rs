@@ -168,10 +168,7 @@ pub(super) async fn tick<R: tauri::Runtime>(
 }
 
 /// The directory of the folder this computer knows by `key`.
-fn known_path<R: tauri::Runtime>(
-    app: &tauri::AppHandle<R>,
-    key: &str,
-) -> Result<PathBuf, String> {
+fn known_path<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str) -> Result<PathBuf, String> {
     let state = app.state::<App>();
     verso_core::recent_folders(state.service.config())
         .into_iter()

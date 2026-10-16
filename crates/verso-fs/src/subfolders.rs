@@ -43,7 +43,12 @@ mod tests {
     #[test]
     fn lists_the_visible_folders_and_not_the_hidden_ones() {
         let dir = tempfile::tempdir().unwrap();
-        for d in ["Projetos/A", "Diario", ".obsidian/plugins", "node_modules/x"] {
+        for d in [
+            "Projetos/A",
+            "Diario",
+            ".obsidian/plugins",
+            "node_modules/x",
+        ] {
             std::fs::create_dir_all(dir.path().join(d)).unwrap();
         }
         std::fs::write(dir.path().join("Projetos/nota.md"), "# n\n").unwrap();
