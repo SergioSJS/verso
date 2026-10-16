@@ -11,16 +11,17 @@
 //! failed — instead of "Permission denied (os error 13)".
 
 use std::path::Path;
-use std::sync::OnceLock;
-
-/// The two directories, to tell which one an error is about.
-static DIRS: OnceLock<(String, String)> = OnceLock::new();
 
 /// What a directory the server cannot write comes to: where, and whose.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Unwritable {
     pub dir: String,
     pub owner: String,
+}
+
+#[must_use]
+pub fn owner_of(dir: &Path) -> String {
+    owner_name(verso_fs::server::owner_uid(dir))
 }
 
 fn owner_name(uid: Option<u32>) -> String {
@@ -46,10 +47,6 @@ pub fn sentence(dir: &str, owner: &str) -> String {
 /// in the log as errors. It goes on to serve: reading may work, and the
 /// console says what is wrong.
 pub fn check(data_dir: &Path, folders_dir: &Path) -> Vec<Unwritable> {
-    let _ = DIRS.set((
-        data_dir.display().to_string(),
-        folders_dir.display().to_string(),
-    ));
     let mut found = Vec::new();
     for dir in [data_dir, folders_dir] {
         if let Err(e) = verso_fs::server::can_write(dir) {
@@ -65,30 +62,39 @@ pub fn check(data_dir: &Path, folders_dir: &Path) -> Vec<Unwritable> {
     found
 }
 
-/// An error message from a failed write that is a refusal of permission on
-/// one of the two directories, as the sentence; `None` for any other.
-/// Matched on the operating system's words because the errors reach here as
-/// text (`ApiError::from(String)`), after the layers below have worded them.
+/// Whether an operating system error is a refusal to write: permission
+/// denied, or a read-only file system. Decided on the error's kind where it
+/// is made, never on its words.
 #[must_use]
-pub fn denied(message: &str) -> Option<String> {
-    let (data, folders) = DIRS.get()?;
-    denied_in(message, data, folders)
+pub fn is_refusal(e: &std::io::Error) -> bool {
+    matches!(
+        e.kind(),
+        std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::ReadOnlyFilesystem
+    )
 }
 
-fn denied_in(message: &str, data: &str, folders: &str) -> Option<String> {
-    let lower = message.to_ascii_lowercase();
-    if !(lower.contains("permission denied") || lower.contains("read-only file system")) {
-        return None;
-    }
-    // The data directory when the message names it, else the folders'
-    // (what a person's request writes to).
-    let dir = if message.contains(data) && !message.contains(folders) {
-        data
+/// The answer to a request that failed because the server cannot write to
+/// `dir` (`is_refusal`): to an admin the sentence — which directory, whose,
+/// the command that mends it, who can run it — and to anyone else a short
+/// line that tells them to call the administrator, with no path, uid or
+/// command of the host.
+#[must_use]
+pub fn api_error(dir: &Path, admin: bool) -> crate::http::ApiError {
+    let said = if admin {
+        let owner = owner_name(verso_fs::server::owner_uid(dir));
+        sentence(&dir.display().to_string(), &owner)
     } else {
-        folders
+        "O servidor não pode gravar agora; avise o administrador. / The server cannot write right now; tell the administrator.".to_owned()
     };
-    let owner = owner_name(verso_fs::server::owner_uid(Path::new(dir)));
-    Some(sentence(dir, &owner))
+    crate::log::error(&format!(
+        "a request failed: the server cannot write to {}",
+        dir.display()
+    ));
+    crate::http::ApiError::new(
+        axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        "not_writable",
+        said,
+    )
 }
 
 #[cfg(test)]
@@ -126,28 +132,24 @@ mod tests {
     }
 
     #[test]
-    fn only_a_refusal_of_permission_is_turned_into_the_sentence() {
-        let said = denied_in(
-            "making the folder: Permission denied (os error 13)",
-            "/data",
-            "/folders",
-        )
-        .unwrap();
-        assert!(said.contains("/folders"), "{said}");
-        let data = denied_in(
-            "opening /data/server.db: Permission denied (os error 13)",
-            "/data",
-            "/folders",
-        )
-        .unwrap();
-        assert!(data.contains("escrever em /data"), "{data}");
+    fn only_a_refusal_to_write_is_one_and_a_non_admin_is_told_no_paths() {
+        use std::io::{Error, ErrorKind};
+        assert!(is_refusal(&Error::from(ErrorKind::PermissionDenied)));
+        assert!(is_refusal(&Error::from(ErrorKind::ReadOnlyFilesystem)));
+        assert!(!is_refusal(&Error::from(ErrorKind::NotFound)));
+        // The words of a message decide nothing.
+        assert!(!is_refusal(&Error::other(
+            "Permission denied (os error 13)"
+        )));
+        let admin = api_error(Path::new("/folders"), true);
+        assert_eq!(admin.code, "not_writable");
+        assert!(admin.message.contains("/folders") && admin.message.contains("sudo chown"));
+        let other = api_error(Path::new("/folders"), false);
         assert!(
-            denied_in(
-                "making the folder: No space left on device (os error 28)",
-                "/data",
-                "/folders"
-            )
-            .is_none()
+            !other.message.contains("/folders") && !other.message.contains("sudo"),
+            "{}",
+            other.message
         );
+        assert!(other.message.contains("administrador") && other.message.contains("administrator"));
     }
 }

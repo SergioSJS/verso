@@ -73,12 +73,6 @@ impl ApiError {
 impl From<String> for ApiError {
     fn from(message: String) -> Self {
         crate::log::error(&message);
-        // A refusal of permission on the data or folders directory is said
-        // as what it is, with the command that mends it (ADR 0075 item 3,
-        // amended 2026-10-16), not as the system's words.
-        if let Some(said) = crate::storage::denied(&message) {
-            return Self::new(StatusCode::INTERNAL_SERVER_ERROR, "not_writable", said);
-        }
         Self::new(StatusCode::INTERNAL_SERVER_ERROR, "failed", message)
     }
 }
