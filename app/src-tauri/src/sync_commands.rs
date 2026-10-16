@@ -6,7 +6,7 @@
 //! 13), and the sync's tasks started and ended with the folder's windows;
 //! the room commands of a synced folder's live notes (ADR 0082).
 
-use serde_json::{Value, json};
+use serde_json::Value;
 use verso_contract::SyncStatus;
 use verso_core::sync as engine;
 
@@ -148,7 +148,8 @@ pub(crate) fn folder_sync<R: tauri::Runtime>(
 }
 
 /// Sync the window's folder with a folder of a server the app is signed
-/// in to: `folder`, one there by id, or a new one named `name` (item 1).
+/// in to: `folder`, one there by id, or a new one named `name` (item 1; a
+/// name the server has already becomes `name (2)`, never a merge).
 /// The first sync deletes nothing (item 11).
 #[tauri::command]
 #[specta::specta]
@@ -168,15 +169,9 @@ pub(crate) async fn folder_sync_start<R: tauri::Runtime>(
         (Some(id), _) => id,
         (None, Some(name)) => {
             let (url, token) = (login.url.clone(), login.token.clone());
+            // A name the server has is never merged into: `name (2)`.
             let made = tauri::async_runtime::spawn_blocking(move || {
-                remote::answer(
-                    remote::http()?
-                        .post(format!("{url}/api/folders"))
-                        .bearer_auth(token)
-                        .json(&json!({ "name": name }))
-                        .send()
-                        .map_err(|e| reach::unsent(&url, &e))?,
-                )
+                remote::make_folder(&url, &token, &name, true)
             })
             .await
             .map_err(|e| failed(e.to_string()))??;
