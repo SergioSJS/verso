@@ -216,8 +216,7 @@
   cookies não são separados por porta — no CasaOS ou no ZimaOS todo outro app
   em `http://<ip>:<porta>` recebe o cookie `verso-session`, e pode definir
   um; e a lista padrão de proxies deixa um cliente de uma rede privada — no
-  Docker, qualquer visitante de uma porta publicada, que chega do gateway da
-  ponte — escrever um `X-Forwarded-For` e ser contado sob qualquer endereço
+  Docker, qualquer visitante de uma porta publicada pelo docker-proxy (uma porta publicada só no loopback, um hairpin, IPv6 sobre uma ponte IPv4, o Docker Desktop, o Docker rootless), que chega do gateway da ponte (o Docker rootful no Linux, com NAT por iptables, mantém o endereço do cliente) — escrever um `X-Forwarded-For` e ser contado sob qualquer endereço
   menos o loopback (um loopback encaminhado é contado como qualquer outro),
   o que derrota o ritmo e os tetos por endereço para um atacante que gira
   endereços e deixa só o atraso e o bloqueio da própria conta: nomeie os
