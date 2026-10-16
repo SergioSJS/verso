@@ -42,7 +42,9 @@ use verso_server::db::Db;
 use verso_server::proxy::Proxies;
 use verso_server::state::Server;
 
-fn server(listen: &str, public_url: Option<&str>, tls: bool, proxy: bool) -> Arc<Server> {
+/// `proxy`: 0 none, 1 a named proxy (127.0.0.1), 2 the implicit default
+/// (loopback and the private networks).
+fn server(listen: &str, public_url: Option<&str>, tls: bool, proxy: u8) -> Arc<Server> {
     let config = Config {
         listen: listen.parse().expect("an address"),
         public_url: public_url.map(str::to_owned),
@@ -51,10 +53,10 @@ fn server(listen: &str, public_url: Option<&str>, tls: bool, proxy: bool) -> Arc
         ui_dir: PathBuf::from("/nonexistent/ui"),
         web: true,
         admin: None,
-        trusted_proxy: if proxy {
-            Proxies::parse("127.0.0.1").expect("a proxy")
-        } else {
-            Proxies::default()
+        trusted_proxy: match proxy {
+            1 => Proxies::parse("127.0.0.1").expect("a proxy"),
+            2 => Proxies::private_networks(),
+            _ => Proxies::default(),
         },
         tls: tls.then(|| (PathBuf::from("/c"), PathBuf::from("/k"))),
         update_check: false,
@@ -63,6 +65,7 @@ fn server(listen: &str, public_url: Option<&str>, tls: bool, proxy: bool) -> Arc
         mail_from: None,
         folder_quota: None,
         trash_days: 30,
+        history_days: 90,
         audit_days: 365,
     };
     let db = Db::memory().expect("a database in memory");
@@ -73,20 +76,14 @@ fn servers() -> &'static [Arc<Server>] {
     static SERVERS: OnceLock<Vec<Arc<Server>>> = OnceLock::new();
     SERVERS.get_or_init(|| {
         vec![
-            server("127.0.0.1:7340", None, false, false),
-            server("127.0.0.1:7340", None, true, false),
-            server(
-                "0.0.0.0:7340",
-                Some("https://Notes.Example.org"),
-                false,
-                true,
-            ),
-            server(
-                "0.0.0.0:7340",
-                Some("http://192.168.1.5:7340"),
-                false,
-                false,
-            ),
+            server("127.0.0.1:7340", None, false, 0),
+            server("127.0.0.1:7340", None, true, 0),
+            server("127.0.0.1:7340", None, false, 1),
+            server("127.0.0.1:7340", None, false, 2),
+            server("0.0.0.0:7340", None, false, 2),
+            server("0.0.0.0:7340", None, false, 1),
+            server("0.0.0.0:7340", Some("https://Notes.Example.org"), false, 1),
+            server("0.0.0.0:7340", Some("http://192.168.1.5:7340"), false, 0),
         ]
     })
 }
@@ -99,6 +96,24 @@ fn loopback(host: &str) -> bool {
         _ => host,
     };
     matches!(name, "localhost" | "127.0.0.1" | "[::1]")
+}
+
+/// What the rule answers with no public address, read here without the
+/// server's code: an address, one label, `.local` or `.home.arpa`.
+fn rebind_proof(host: &str) -> bool {
+    let name = match host.rsplit_once(':') {
+        Some((name, port)) if !host.ends_with(']') && port.bytes().all(|b| b.is_ascii_digit()) => name,
+        _ => host,
+    };
+    let name = name.trim_end_matches('.').to_ascii_lowercase();
+    if let Some(v6) = name.strip_prefix('[').and_then(|n| n.strip_suffix(']')) {
+        return v6.parse::<Ipv6Addr>().is_ok();
+    }
+    !name.is_empty()
+        && (name.parse::<Ipv4Addr>().is_ok()
+            || !name.contains('.')
+            || name.ends_with(".local")
+            || name.ends_with(".home.arpa"))
 }
 
 fn headers(lines: &[u8]) -> HeaderMap {
@@ -139,17 +154,21 @@ fuzz_target!(|data: &[u8]| {
     });
 
     let p = peer(server, &headers, SocketAddr::new(remote, 50_000));
-    // With no public address, any name is answered when the server is
-    // reached from the network or through a proxy that forwarded the
-    // request (ADR 0073 item 6, amended 2026-10-16).
-    let any = public.is_none() && (!server.config.loopback_only() || p.forwarded);
+    // With no public address only a name a public page cannot rebind is
+    // answered (an IP, one label, `.local`, `.home.arpa`), or any name when
+    // a proxy the host *named* forwarded the request: the default list
+    // widens nothing (ADR 0073 item 6, amended 2026-10-16).
+    let named_forwarded = p.forwarded && !server.config.trusted_proxy.is_implicit();
 
     if host_ok(server, &headers, &p) {
         let host = host.expect("a Host that passes is one");
         let named = public
             .as_ref()
             .is_some_and(|(authority, _)| authority.eq_ignore_ascii_case(host));
-        assert!(named || loopback(host) || any, "Host {host:?} passed");
+        assert!(
+            named || loopback(host) || (public.is_none() && (rebind_proof(host) || named_forwarded)),
+            "Host {host:?} passed"
+        );
     }
 
     let origin = expected_origin(server, &headers, &p);
@@ -158,7 +177,7 @@ fuzz_target!(|data: &[u8]| {
         (None, Some(origin)) => {
             let host = host.expect("an origin from a Host");
             assert!(
-                loopback(host) || any,
+                loopback(host) || rebind_proof(host) || named_forwarded,
                 "Host {host:?} made the origin {origin:?}"
             );
             let scheme = if p.https { "https" } else { "http" };
