@@ -156,6 +156,7 @@ export function tooltipSpace(): Rect {
 }
 
 export function installKeyboard(): void {
+  resizeToKeyboard();
   bar = build();
   touchScreen = window.matchMedia("(pointer: coarse)");
   document.addEventListener("focusin", paint);
@@ -170,4 +171,16 @@ export function installKeyboard(): void {
     view.dispatch({ effects: EditorView.scrollIntoView(view.state.selection.main.head, { y: "nearest" }) });
     if (coveredBelow() > 0) keepCursorAbove(view);
   });
+}
+
+/** On Android the window shrinks to the keyboard's top, so the keys' bar
+ *  sits on it: Brave reports the visual viewport short by its own hidden
+ *  bottom toolbar, which left a gap between the bar and the keyboard (the
+ *  maintainer's phones, 2026-10-16). Chromium on Android only: WebKit,
+ *  here and in the desktop app, warns about the key in the console, and
+ *  iOS keeps the visual viewport's measure. */
+function resizeToKeyboard(): void {
+  if (!/Android/.test(navigator.userAgent) || !("virtualKeyboard" in navigator)) return;
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
+  if (meta && !meta.content.includes("interactive-widget")) meta.content += ", interactive-widget=resizes-content";
 }
