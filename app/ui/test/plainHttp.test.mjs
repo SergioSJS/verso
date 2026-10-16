@@ -1,0 +1,104 @@
+// A window served over plain HTTP from another machine (ADR 0073 item 6,
+// amended 2026-10-16): the browser gives it no secure context, so the
+// window says what is off instead of failing — a line where the feature
+// lives, one notice a session, a way to read how to turn HTTPS on — and the
+// two things it can still do without one keep working: copying, hashing.
+
+import { test, beforeEach } from "node:test";
+import assert from "node:assert/strict";
+import * as esbuild from "esbuild";
+import { Window } from "happy-dom";
+
+const win = new Window({ url: "http://192.168.1.20:7340/", settings: { navigation: { disableMainFrameNavigation: true } } });
+for (const name of ["window", "document", "location", "HTMLElement", "HTMLDialogElement", "Node", "Element", "sessionStorage", "localStorage", "DOMException"]) {
+  globalThis[name] = name === "window" ? win : win[name];
+}
+Object.defineProperty(globalThis, "navigator", { value: win.navigator, configurable: true });
+const secure = (on) => Object.defineProperty(win, "isSecureContext", { value: on, configurable: true });
+
+await esbuild.build({
+  stdin: {
+    contents: `
+      export { plainHttp, plainHttpLine, plainHttpNotice } from "./src/web/plainHttp";
+      export { ensureClipboard } from "./src/web/clipboard";
+      export { sha256Hex } from "./src/demoImport";`,
+    resolveDir: ".",
+    loader: "ts",
+  },
+  bundle: true,
+  format: "esm",
+  platform: "node",
+  outfile: "test/.bundles/plainHttp.test-bundle.mjs",
+  logLevel: "error",
+});
+const { plainHttp, plainHttpLine, plainHttpNotice, ensureClipboard, sha256Hex } = await import("./.bundles/plainHttp.test-bundle.mjs");
+
+beforeEach(() => {
+  document.body.replaceChildren();
+  sessionStorage.clear();
+  secure(false);
+});
+
+test("over http that the browser does not call secure, the line carries the way to HTTPS", () => {
+  assert.equal(plainHttp(), true);
+  const line = plainHttpLine("Sem HTTPS.");
+  assert.ok(line);
+  assert.match(line.textContent, /Sem HTTPS\./);
+  assert.ok(line.querySelector("button.plain-http-how"), "the way back is a button in the line");
+  secure(true);
+  assert.equal(plainHttp(), false);
+  assert.equal(plainHttpLine("Sem HTTPS."), null, "a secure context says nothing");
+});
+
+test("the notice shows once a session and stays closed once closed", () => {
+  plainHttpNotice();
+  const bar = document.querySelector(".plain-http-bar");
+  assert.ok(bar, "shown");
+  assert.equal(bar.getAttribute("role"), "status");
+  bar.querySelector(".plain-http-close").click();
+  assert.equal(document.querySelector(".plain-http-bar"), null);
+  plainHttpNotice();
+  assert.equal(document.querySelector(".plain-http-bar"), null, "not again in this session");
+  secure(true);
+  sessionStorage.clear();
+  plainHttpNotice();
+  assert.equal(document.querySelector(".plain-http-bar"), null, "never on a secure page");
+});
+
+test("the way to HTTPS opens a dialog that can be closed", () => {
+  plainHttpNotice();
+  const how = document.querySelector(".plain-http-bar .plain-http-how");
+  // happy-dom has no modal dialogs: the dialog's own methods are stubbed.
+  win.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  win.HTMLDialogElement.prototype.close = function () { this.open = false; };
+  how.click();
+  const dialog = document.querySelector("dialog.plain-http-dialog");
+  assert.ok(dialog?.open);
+  assert.match(dialog.textContent, /VERSO_PUBLIC_URL/);
+  dialog.querySelector("button").click();
+  assert.equal(document.querySelector("dialog.plain-http-dialog"), null);
+});
+
+test("copying works with no navigator.clipboard, by the selection command", async () => {
+  Object.defineProperty(win.navigator, "clipboard", { value: undefined, configurable: true });
+  const copied = [];
+  document.execCommand = (cmd) => {
+    copied.push([cmd, document.querySelector("textarea")?.value]);
+    return true;
+  };
+  ensureClipboard();
+  await win.navigator.clipboard.writeText("[[Nota]]");
+  assert.deepEqual(copied, [["copy", "[[Nota]]"]]);
+  assert.equal(document.querySelector("textarea"), null, "the field is gone");
+  await assert.rejects(win.navigator.clipboard.readText());
+});
+
+test("a hash needs no crypto.subtle", async () => {
+  const saved = globalThis.crypto;
+  Object.defineProperty(globalThis, "crypto", { value: {}, configurable: true });
+  try {
+    assert.equal(await sha256Hex(new TextEncoder().encode("abc")), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+  } finally {
+    Object.defineProperty(globalThis, "crypto", { value: saved, configurable: true });
+  }
+});
