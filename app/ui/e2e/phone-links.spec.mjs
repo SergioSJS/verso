@@ -83,9 +83,52 @@ for (const [title, brackets, word, commit, keyboardHeight] of steps) {
       await expect.poll(async () => ((await labels())[0] ?? "").toLowerCase().includes("por")).toBe(true);
     }
     expect(await editor.textContent()).toContain("[[por");
-    const box = await tooltip.boundingBox();
-    expect(box.x).toBeGreaterThanOrEqual(0);
-    expect(Math.round(box.x + box.width)).toBeLessThanOrEqual(page.viewportSize().width);
-    expect(Math.round(box.y + box.height)).toBeLessThanOrEqual(page.viewportSize().height);
+    await expectOnScreen(page, tooltip);
+  });
+}
+
+/** The list where the screen shows it: CodeMirror keeps a list it takes for
+ *  out of view at `top: -10000px`, which a locator still calls visible (the
+ *  maintainer's phone, 2026-10-16: the list was open, 16 options, and off
+ *  the screen). */
+async function expectOnScreen(page, tooltip) {
+  const shown = await page.evaluate(() => visualViewport.height);
+  const box = await tooltip.boundingBox();
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(Math.round(box.x + box.width)).toBeLessThanOrEqual(page.viewportSize().width);
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(Math.round(box.y + box.height)).toBeLessThanOrEqual(Math.round(shown));
+}
+
+// As on the maintainer's phone: the editor is as tall as its note inside the
+// sheet that scrolls, and the cursor stands near the note's end with the
+// keyboard open. The keyboard's height was taken off the editor's bottom,
+// so the editor took the cursor for hidden and put the list off the screen.
+for (const [title, lines] of [["a short note", 3], ["the end of a long note", 80]]) {
+  test(`\`[[\` at ${title} with the keyboard open: the list is on the screen, above the keyboard @layout`, async ({ app, page, browserName }) => {
+    await app.open();
+    if (browserName !== "chromium") {
+      test.info().annotations.push({ type: "skip", description: "the input method is driven through the DevTools protocol" });
+      return;
+    }
+    await app.writeOutside("Curta.md", `${Array.from({ length: lines }, (_, i) => `Linha ${i + 1}`).join("\n")}\n`);
+    await app.folderChanged(["Curta.md"], true);
+    await app.quickOpen("Curta");
+    await app.key("Mod+e");
+    const editor = page.locator(".pane.focused .cm-content").first();
+    await editor.click();
+    await page.keyboard.press("ControlOrMeta+End");
+    await keyboard(page, 330);
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Input.insertText", { text: "[[" });
+    for (const w of ["p", "po", "por"]) await cdp.send("Input.imeSetComposition", { text: w, selectionStart: w.length, selectionEnd: w.length });
+    const tooltip = page.locator(".cm-tooltip-autocomplete");
+    await expect(tooltip.getByRole("option").first()).toBeAttached();
+    await expect.poll(async () => (await tooltip.boundingBox())?.y ?? -1).toBeGreaterThanOrEqual(0);
+    await expectOnScreen(page, tooltip);
+    // The cursor itself above the keyboard and its bar.
+    const caret = await page.evaluate(() => getSelection().getRangeAt(0).getBoundingClientRect().bottom);
+    const bar = await page.locator(".key-bar:not([hidden])").boundingBox();
+    expect(caret).toBeLessThanOrEqual(bar ? bar.y : await page.evaluate(() => visualViewport.height));
   });
 }
