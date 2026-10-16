@@ -7,7 +7,7 @@
 // English typed as the Portuguese's shape.
 
 const pt = {
-  section: "Este app é um servidor",
+  section: "Transformar em servidor",
   title: "Servir minhas pastas ao celular",
   lead: "O Verso deste computador pode servir as pastas que você marcar ao navegador do seu celular, pela rede em que os dois estão. Fica desligado até você ligar, e desliga de novo quando o app fecha.",
   unsupported: "Este sistema não consegue servir.",
@@ -144,7 +144,7 @@ const pt = {
   failed: "Não foi possível.",
 };
 const en: typeof pt = {
-  section: "This app is a server",
+  section: "Turn into a server",
   title: "Serve my folders to the phone",
   lead: "Verso on this computer can serve the folders you tick to your phone's browser, over the network the two share. It stays off until you turn it on, and off again when the app quits.",
   unsupported: "This system cannot serve.",

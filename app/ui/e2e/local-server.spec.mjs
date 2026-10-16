@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// "This app is a server" (ADR 0096; walkthrough, section 11): Settings'
+// "Turn into a server" (ADR 0096; walkthrough, section 11): Settings'
 // section turns it on and off over folders the person ticked, with the
 // system's prompts explained first; the pairing dialog shows a QR, an
 // address and a code, a countdown and, when a phone asks, "Was it you?";
@@ -13,7 +13,7 @@ import { expect, test } from "./fixtures.mjs";
 
 async function section(app) {
   await app.key("Mod+,");
-  await app.page.locator(".settings-nav-item", { hasText: "Este app é um servidor" }).click();
+  await app.page.locator(".settings-nav-item", { hasText: "Transformar em servidor" }).click();
 }
 
 test("it is off, serves only the ticked folders, and says what the system will ask first", async ({ app, page }) => {
