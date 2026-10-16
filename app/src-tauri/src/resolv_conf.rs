@@ -9,14 +9,13 @@
 //! exempt exactly this file. The exception awaits the maintainer's
 //! ratification (ADR 0097, Status).
 
-/// The text of the files that name the machine's DNS servers, joined; empty
-/// where there are none (macOS and Windows ask their own tools instead).
-pub(crate) fn read() -> String {
-    // With systemd-resolved, /etc/resolv.conf names only its stub; the real
-    // upstreams are in the second file.
-    ["/etc/resolv.conf", "/run/systemd/resolve/resolv.conf"]
-        .iter()
-        .filter_map(|f| std::fs::read_to_string(f).ok())
-        .collect::<Vec<_>>()
-        .join("\n")
+/// The text of `/etc/resolv.conf` and of systemd-resolved's own
+/// `/run/systemd/resolve/resolv.conf`, each empty where the file is not
+/// there (macOS and Windows ask their own tools instead).
+pub(crate) fn read() -> (String, String) {
+    let get = |f| std::fs::read_to_string(f).unwrap_or_default();
+    (
+        get("/etc/resolv.conf"),
+        get("/run/systemd/resolve/resolv.conf"),
+    )
 }

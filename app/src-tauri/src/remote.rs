@@ -417,18 +417,17 @@ pub(crate) fn http_within(
         .connect_timeout(total.mul_f32(0.75))
         .dns_resolver(Arc::new(dns::Resolver));
     #[cfg(test)]
-    let builder = match lock(&TEST_ROOT).as_deref() {
-        Some(pem) => builder.add_root_certificate(
-            reqwest::Certificate::from_pem(pem).map_err(|e| failed(e.to_string()))?,
-        ),
-        None => builder,
-    };
+    let builder = lock(&TEST_ROOT).iter().try_fold(builder, |b, pem| {
+        reqwest::Certificate::from_pem(pem)
+            .map(|c| b.add_root_certificate(c))
+            .map_err(|e| failed(e.to_string()))
+    })?;
     builder.build().map_err(|e| failed(e.to_string()))
 }
 
 /// A certificate the tests' clients trust besides the system's.
 #[cfg(test)]
-pub(crate) static TEST_ROOT: Mutex<Option<Vec<u8>>> = Mutex::new(None);
+pub(crate) static TEST_ROOT: Mutex<Vec<Vec<u8>>> = Mutex::new(Vec::new());
 
 /// The server's answer as JSON, or its error said.
 pub(crate) fn answer(response: reqwest::blocking::Response) -> Result<Value, ContractError> {
@@ -699,7 +698,7 @@ pub(crate) fn make_folder(
             .post(format!("{url}/api/folders"))
             .bearer_auth(token)
             .json(&json!({ "name": wanted }))
-            .send()
+            .send_retrying()
             .map_err(|e| reach::unsent(url, &e))?;
         if unique && response.status().as_u16() == 409 {
             continue;
@@ -878,6 +877,68 @@ fn take(m: &mut Value, field: &str) -> Value {
     m.get_mut(field).map(Value::take).unwrap_or_default()
 }
 
+/// The server's own 401 (a session it ended), told from any other device's:
+/// over `wss://` the certificate was checked for the name, so any 401 is the
+/// server's; over `ws://` a router's basic-auth page can answer 401 too, so
+/// it counts only with the body the server writes — a JSON object with an
+/// `error` (`ApiError`).
+pub(crate) fn is_servers_401(
+    response: &tokio_tungstenite::tungstenite::http::Response<Option<Vec<u8>>>,
+    tls: bool,
+) -> bool {
+    response.status().as_u16() == 401
+        && (tls
+            || response
+                .body()
+                .as_deref()
+                .and_then(|b| serde_json::from_slice::<Value>(b).ok())
+                .is_some_and(|v| v["error"].is_string()))
+}
+
+/// Open the WebSocket of `request` at `host:port`: per address, the TCP
+/// connection and the TLS and WebSocket handshakes, so that an address that
+/// accepts the connection and cannot complete them (a router's own page on
+/// 443) is passed over for the next (dns.rs, ADR 0097). The name resolved is
+/// the URL's and the certificate is verified for it; `connector` is the
+/// tests' way to trust a certificate of their own. The server's own 401 ends
+/// the dial as "sign in again".
+pub(crate) async fn ws_open(
+    server_url: &str,
+    host: &str,
+    port: u16,
+    request: tokio_tungstenite::tungstenite::handshake::client::Request,
+    connector: Option<tokio_tungstenite::Connector>,
+) -> Result<
+    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
+    ContractError,
+> {
+    use tokio_tungstenite::tungstenite::Error as Wire;
+    let tls = request.uri().scheme_str() == Some("wss");
+    dns::declare(host, tls);
+    let shaken = dns::dial_with(host, port, |stream| {
+        let (request, connector) = (request.clone(), connector.clone());
+        async move {
+            tokio_tungstenite::client_async_tls_with_config(request, stream, None, connector)
+                .await
+                .map_err(|e| {
+                    let answered = matches!(&e, Wire::Http(r) if is_servers_401(r, tls));
+                    (e, answered)
+                })
+        }
+    })
+    .await;
+    let mapped = |e: Wire| match e {
+        Wire::Http(r) if is_servers_401(&r, tls) => {
+            refused("the server ended this device's session: sign in again")
+        }
+        other => reach::not_dialed(server_url, &other),
+    };
+    shaken.map(|(socket, _)| socket).map_err(|d| match d {
+        dns::Dial::Io(e) => mapped(Wire::Io(e)),
+        dns::Dial::Shake(e) => mapped(e),
+    })
+}
+
 /// [`dial`] without the contract's check: the connection, what it hears,
 /// and the server's hello.
 pub(crate) async fn dial_hello(
@@ -922,34 +983,7 @@ pub(crate) async fn dial_hello(
         } else {
             80
         });
-    dns::declare(&host, uri.scheme_str() == Some("wss"));
-    // Per address, the TCP connection and the TLS and WebSocket handshakes:
-    // an address that accepts the connection and then cannot complete them
-    // (a router's own page on 443) is passed over for the next. A 401 is
-    // the server's own answer and ends it.
-    use tokio_tungstenite::tungstenite::Error as Wire;
-    let shaken = dns::dial_with(&host, port, |stream| {
-        let request = request.clone();
-        async move {
-            tokio_tungstenite::client_async_tls(request, stream)
-                .await
-                .map_err(|e| {
-                    let answered = matches!(&e, Wire::Http(r) if r.status().as_u16() == 401);
-                    (e, answered)
-                })
-        }
-    })
-    .await;
-    let mapped = |e: Wire| match e {
-        Wire::Http(r) if r.status().as_u16() == 401 => {
-            refused("the server ended this device's session: sign in again")
-        }
-        other => reach::not_dialed(&login.url, &other),
-    };
-    let (socket, _) = shaken.map_err(|d| match d {
-        dns::Dial::Io(e) => mapped(Wire::Io(e)),
-        dns::Dial::Shake(e) => mapped(e),
-    })?;
+    let socket = ws_open(&login.url, &host, port, request, None).await?;
     let (mut write, mut read) = socket.split();
     let (tx, mut rx) = mpsc::channel::<Message>(QUEUE);
     let (heard_tx, heard_rx) = mpsc::unbounded_channel::<Heard>();
