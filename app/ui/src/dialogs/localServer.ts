@@ -17,6 +17,7 @@ import { icon } from "../icons";
 import { phoneConnectedHeard, serveStoppedHeard } from "../notify/sources";
 import { busy } from "../reach";
 import { asDialog, closed, opened } from "./a11y";
+import { servedFolders } from "./servedFolders";
 import { localStrings } from "./localServerStrings";
 
 /** What the host emits as `local-server` (verso_server::local::Event). */
@@ -134,7 +135,21 @@ export function localServerBody(_item: Item): HTMLElement {
   // Folders.
   const foldersHead = h("h3", "ls-h", w.foldersTitle);
   const foldersLead = h("p", "ls-help", w.foldersLead);
-  const folders = h("ul", "ls-folders");
+  const served = servedFolders({
+    heading: foldersHead,
+    syncsWith: w.syncsWith,
+    locked: w.foldersLocked,
+    none: w.noFolders,
+    tick: async (key, ticked) => {
+      const r = await commands.localServerTick(key, ticked);
+      if (r.status !== "ok") {
+        failed(r.error);
+        return null;
+      }
+      return r.data;
+    },
+  });
+  const folders = served.el;
   // Run.
   const run = h("button", "btn primary", w.turnOn);
   run.type = "button";
@@ -186,34 +201,7 @@ export function localServerBody(_item: Item): HTMLElement {
     return row;
   };
 
-  const drawFolders = (list: LocalFolder[], serving: boolean) => {
-    folders.replaceChildren();
-    if (list.length === 0) folders.append(h("li", "ls-help", w.noFolders));
-    for (const f of list) {
-      const li = h("li", "ls-folder");
-      const input = h("input");
-      input.type = "checkbox";
-      input.id = `ls-f-${f.key}`;
-      input.checked = f.ticked;
-      input.disabled = serving || f.syncs_with !== null;
-      const label = h("label", "ls-check");
-      label.htmlFor = input.id;
-      label.append(input, h("span", "", f.name));
-      li.append(label);
-      if (f.syncs_with !== null) li.append(h("small", "ls-help", w.syncsWith(f.syncs_with)));
-      input.addEventListener("change", () => {
-        void commands.localServerTick(f.key, input.checked).then((r) => {
-          if (r.status !== "ok") {
-            input.checked = !input.checked;
-            return failed(r.error);
-          }
-          drawFolders(r.data, serving);
-        });
-      });
-      folders.append(li);
-    }
-    if (serving && list.length > 0) folders.append(h("li", "ls-help", w.foldersLocked));
-  };
+  const drawFolders = served.draw;
 
   const drawCert = (s: LocalServerStatus) => {
     cert.replaceChildren(h("h3", "ls-h", w.certTitle), h("p", "ls-help", s.certificate === "files" ? w.certFiles : w.certOwn));
