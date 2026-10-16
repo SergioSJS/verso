@@ -11,7 +11,7 @@
 // 0012). Constructs come from the Markdown syntax tree; `[[…]]` is the
 // dialect's and is found by hand, outside code.
 
-import { syntaxTree } from "@codemirror/language";
+import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import { EditorSelection, EditorState, Prec, RangeSet, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, EditorView, GutterMarker, ViewPlugin, WidgetType, gutterLineClass, keymap, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 import type { Text } from "@codemirror/state";
@@ -1022,7 +1022,10 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
     const end = Math.min(to, doc.lineAt(from).to);
     if (end > from) out.push({ from, to: end, deco: Decoration.replace({}) });
   };
-  const tree = syntaxTree(view.state);
+  // The tree up to the end of what is drawn, parsed now (a few ms at most):
+  // after a jump to a long note's end the background parse has not reached
+  // it yet, and the marks drawn raw wait for it to land.
+  const tree = ensureSyntaxTree(view.state, view.viewport.to, 30) ?? syntaxTree(view.state);
   const inCode = (pos: number): boolean => {
     for (let n: SyntaxNode | null = tree.resolveInner(pos, 1); n; n = n.parent) if (CODE_NODES.has(n.name)) return true;
     return false;

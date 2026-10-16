@@ -109,3 +109,21 @@ test("a touch screen: the keys' bar moves, turns and deletes the block @layout",
   await expect(page.locator(".menu:not([hidden])").getByRole("menuitem", { name: "Duplicar" })).toBeVisible();
   await page.keyboard.press("Escape");
 });
+
+test("a jump to the end of a long note draws its marks at once, not raw until the parser lands @layout", async ({ app, page }) => {
+  await app.open();
+  await app.quickOpen("11 - Escrevendo");
+  await app.key("Mod+e");
+  // A big window shows the note's code samples, which hold `---` themselves.
+  if (!(await coarse(page))) return;
+  const editor = page.locator(".pane.focused .cm-content").first();
+  await editor.click();
+  await page.keyboard.press("ControlOrMeta+End");
+  // One read, two frames after the jump: the note's `---` rules and `## `
+  // marks are hidden by then (the syntax tree is parsed up to the screen's end
+  // before the marks are drawn), not after the background parse catches up.
+  const raw = await page.evaluate(
+    () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(document.querySelector(".pane.focused .cm-content").textContent.includes("---"))))),
+  );
+  expect(raw).toBe(false);
+});
