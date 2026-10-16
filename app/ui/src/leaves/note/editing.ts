@@ -516,3 +516,14 @@ export function blockPlus(this: NoteLeaf, block: Block): void {
     view.dispatch({ changes: { from: at, to: head }, selection: { anchor: at }, userEvent: "delete" });
   });
 }
+
+/** `+` on a touch screen, from the keys' bar (ADR 0076 item 7): the block
+ *  at the cursor — the last of a selection — gets one below it; an empty
+ *  line gets the `/` menu in place. */
+export function blockPlusHere(this: NoteLeaf): void {
+  const blocks = this.selectedBlocks();
+  const last = blocks[blocks.length - 1];
+  if (last) return this.blockPlus(last);
+  const line = this.editor.state.doc.lineAt(this.editor.state.selection.main.head);
+  if (line.text.trim() === "") this.blockPlusAt(line.from);
+}

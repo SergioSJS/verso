@@ -280,11 +280,14 @@ test("the keyboard's bar: shown while the editor has the focus on a touch screen
   // Inside the screen, at its bottom.
   const box = await bar.boundingBox();
   expect(Math.round(box.y + box.height)).toBeLessThanOrEqual(page.viewportSize().height);
-  const text = () => page.locator(".pane.focused .cm-content").first().textContent();
+  // The note's text, not what is drawn of it: WebKit's phone draws the
+  // marks of the lines a jump to the end brought in only at the next edit,
+  // so the page's text differs from before the key to after Undo.
+  const text = () => page.evaluate(() => document.querySelector(".pane.focused .note-sheet .editor").__cmView.state.doc.toString());
   const was = await text();
   await bar.getByRole("button", { name: "Link interno [[ ]]" }).click();
   await expect(editor).toBeFocused();
-  await expect.poll(text).toContain("[[");
+  await expect.poll(async () => (await text()).length).toBe(was.length + 2);
   await expect(page.locator(".cm-tooltip-autocomplete")).toBeVisible();
   await page.keyboard.press("Escape");
   await bar.getByRole("button", { name: "Desfazer" }).click();
