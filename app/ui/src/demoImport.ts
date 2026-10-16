@@ -11,6 +11,8 @@
 // kept. No state is stored anywhere, so a folder imported before this
 // existed is recognised too.
 
+import { sha256 } from "./web/offline/sha256";
+
 /** One file of the demo, as `demoVault.ts` embeds it. */
 export type DemoItem = { path: string; b64: string; past?: string[] };
 
@@ -19,6 +21,9 @@ export type Verdict = "create" | "same" | "update" | "keep";
 
 /** The lower-case hex SHA-256 of `bytes`. */
 export async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  // `crypto.subtle` exists only in a secure context: a window served over
+  // plain HTTP hashes in plain code (ADR 0073 item 6, amended 2026-10-16).
+  if (!globalThis.crypto?.subtle) return sha256(bytes);
   const digest = await crypto.subtle.digest("SHA-256", bytes as BufferSource);
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }

@@ -81,6 +81,11 @@ fn config(data: &std::path::Path, folders: &std::path::Path) -> Config {
             match name {
                 "VERSO_LISTEN" => Some("127.0.0.1:0".to_owned()),
                 "VERSO_UPDATE_CHECK" => Some("off".to_owned()),
+                // The tests of a proxy name it; the rest are direct
+                // connections. An unset variable believes the private
+                // networks, which this machine is one of (ADR 0073 item 6,
+                // amended 2026-10-16: tests_http.rs).
+                "VERSO_TRUSTED_PROXY" => Some("none".to_owned()),
                 _ => None,
             }
         }
@@ -129,7 +134,16 @@ pub(crate) async fn start_with(edit: impl FnOnce(&mut Config)) -> Running {
         web: true,
         ..config(data.path(), folders.path())
     };
+    // The port is known before the configuration is final, so a test may
+    // ask for a public address that is this server's own: "@self".
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     edit(&mut config);
+    let own = listener.local_addr().unwrap().port();
+    match config.public_url.as_deref() {
+        Some("@self") => config.public_url = Some(format!("http://localhost:{own}")),
+        Some("@self-https") => config.public_url = Some(format!("https://localhost:{own}")),
+        _ => {}
+    }
     let db = prepare(&config).unwrap();
     let admin = db
         .create_account(
@@ -142,7 +156,6 @@ pub(crate) async fn start_with(edit: impl FnOnce(&mut Config)) -> Running {
         .unwrap();
     db.create_folder("Campanha", &admin.id).unwrap();
     let server = state::Server::new(config, db, contract_version(), "test".into());
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let (tx, rx) = tokio::sync::oneshot::channel::<()>();
     let s = Arc::clone(&server);
@@ -920,7 +933,7 @@ fn the_server_serves_its_own_tls() {
         let acceptor =
             tls::acceptor(&dir.path().join("cert.pem"), &dir.path().join("key.pem")).unwrap();
         assert!(tls::acceptor(&dir.path().join("key.pem"), &dir.path().join("key.pem")).is_err());
-        let r = start().await;
+        let r = start_with(|c| c.tls = Some(("/c".into(), "/k".into()))).await;
         let tcp = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = tcp.local_addr().unwrap().port();
         let listener = tls::TlsListener::new(tcp, acceptor, Arc::clone(&r.server.slots)).unwrap();
@@ -1278,7 +1291,7 @@ fn the_persons_settings_follow_the_account() {
 #[test]
 fn with_a_mail_server_links_go_by_mail_and_say_nothing_of_strangers() {
     block_on(async {
-        let r = start().await;
+        let r = start_with(|c| c.public_url = Some("@self".into())).await;
         let _ = r
             .server
             .mail

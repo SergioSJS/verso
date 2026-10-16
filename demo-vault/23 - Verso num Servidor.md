@@ -27,7 +27,7 @@ Três jeitos, do mesmo programa (o guia completo está em `docs/reference/server
 
 Duas pastas importam: `VERSO_DATA_DIR`, num disco local, com as contas e os índices; e `VERSO_FOLDERS_DIR`, com as pastas de notas, que pode ficar num NAS. O backup é das duas.
 
-Entrar pede **HTTPS**: um proxy reverso, o `tailscale serve` (o caminho mais simples para o celular e o iPad) ou o certificado do próprio servidor.
+O caminho mais curto: cole o arquivo compose, abra `http://<IP da máquina>:7340` e use o link de configuração do log. **O HTTP simples funciona**, de qualquer aparelho da rede, e serve em casa; numa rede pública a senha e as notas passam abertas. O **HTTPS é opcional, depois**, para liberar o modo offline, as notificações e as passkeys: um proxy reverso, o `tailscale serve` (o caminho mais simples para o celular e o iPad) ou o certificado do próprio servidor. Sem ele, o Verso desliga esses recursos e avisa, com o link "Como ligar o HTTPS".
 
 ---
 
@@ -73,7 +73,7 @@ Numa nota, num board ou num arquivo de texto que mudou em disco enquanto você d
 
 ## Do app desktop
 
-Em **Ajustes › Servidores**, escreva o endereço do servidor e conecte: o app **copia um código** para a área de transferência e o navegador abre a página do servidor, onde você **cola o código** (ou digita o que o app mostra) para **permitir este computador** — ninguém cola token. A página nunca pega o código de um link: um link que alguém mandou para você, com o código do aparelho dele, não aprova nada até você colar o código do app à sua frente. Depois do código, a página diz **quem pediu** — o nome do aparelho, o endereço e a hora do pedido — e pergunta: *Foi você quem pediu, neste aparelho?* **Aprovar este aparelho** ou **Não fui eu: recusar**. Um endereço e uma hora que não são os seus: recuse. Depois, escolha uma pasta do servidor, e a janela a mostra como se estivesse aqui.
+Em **Ajustes › Servidores**, escolha o servidor em **Encontrados nesta rede** (o app o acha sozinho quando está na mesma rede) ou escreva o endereço dele, e conecte: o app **copia um código** para a área de transferência e o navegador abre a página do servidor, onde você **cola o código** (ou digita o que o app mostra) para **permitir este computador** — ninguém cola token. A página nunca pega o código de um link: um link que alguém mandou para você, com o código do aparelho dele, não aprova nada até você colar o código do app à sua frente. Depois do código, a página diz **quem pediu** — o nome do aparelho, o endereço e a hora do pedido — e pergunta: *Foi você quem pediu, neste aparelho?* **Aprovar este aparelho** ou **Não fui eu: recusar**. Um endereço e uma hora que não são os seus: recuse. Depois, escolha uma pasta do servidor, e a janela a mostra como se estivesse aqui.
 
 Ali também fica o **nome deste aparelho** — por padrão, o nome do sistema. Dê um nome seu (dois computadores com o mesmo nome de sistema deixam de se confundir): ele vai no nome das cópias de conflito, na lista de sessões do servidor e nas últimas mudanças de cada pasta.
 
@@ -85,7 +85,7 @@ Ali também fica o **nome deste aparelho** — por padrão, o nome do sistema. D
 
 Abrir uma pasta do servidor numa janela é trabalhar **online**: tudo passa pela rede. **Sincronizar** é o outro jeito: a pasta mora neste computador — abre sem rede, o Obsidian lê, o backup copia — e o servidor guarda os mesmos arquivos para os seus outros aparelhos, o navegador e quem divide a pasta com você.
 
-Com a pasta aberta, em **Ajustes › Sincronizar**, escolha o servidor e **uma pasta nova** (com o nome desta) ou uma que você já tem lá. O espaço da pasta aparece antes de qualquer coisa cruzar. Depois:
+Com a pasta aberta, o jeito mais curto é **Ajustes › Servidores › Sincronizar ‘sua pasta’**: um clique faz a pasta no servidor, com o nome desta (`Nome (2)` se já houver uma com ele — nunca se junta a outra), e liga a sincronização. Num servidor novo é o único passo, e quem o instalou (o admin) sempre pode. Em **Ajustes › Sincronizar**, escolha o servidor e **uma pasta nova** (com o nome desta) ou uma que você já tem lá. O espaço da pasta aparece antes de qualquer coisa cruzar. Depois:
 
 - uma mudança de um lado vai para o outro — ao salvar, quando o servidor avisa, ao reconectar e a cada cinco minutos; sem rede, ela espera;
 - arquivos grandes vão **em pedaços**, e só são gravados quando chegam inteiros;

@@ -490,7 +490,13 @@ export const commands = {
 	 */
 	serverSignOut: (url: string) => typedError<null, ContractError>(__TAURI_INVOKE("server_sign_out", { url })),
 	/**  The folders of a server the account may open. */
-	serverFolders: (url: string) => typedError<ServerFolder[], ContractError>(__TAURI_INVOKE("server_folders", { url })),
+	serverFolders: (url: string) => typedError<ServerFolders, ContractError>(__TAURI_INVOKE("server_folders", { url })),
+	/**
+	 *  Make a new, empty folder on a server, owned by the account signed in
+	 *  there (the maintainer, 2026-10-16): the server decides whether the
+	 *  account may and whether the name is free, and says so.
+	 */
+	serverCreateFolder: (url: string, name: string) => typedError<ServerFolder, ContractError>(__TAURI_INVOKE("server_create_folder", { url, name })),
 	/**
 	 *  Open a folder of a server in this window: the window leaves its own
 	 *  folder, connects, and from now on sends the folder's commands there.
@@ -502,6 +508,16 @@ export const commands = {
 	 *  Nothing when the window is not reconnecting.
 	 */
 	serverRetry: () => typedError<null, ContractError>(__TAURI_INVOKE("server_retry")),
+	/**  Begin browsing (once; asking again keeps the browse that runs). */
+	discoverServersStart: () => typedError<null, ContractError>(__TAURI_INVOKE("discover_servers_start")),
+	/**
+	 *  What has been found so far. Asking renews the browse's lease, and starts
+	 *  the browse if it ended (another window stopped it, or the lease ran out
+	 *  between two asks).
+	 */
+	discoverServersList: () => typedError<FoundServer[], ContractError>(__TAURI_INVOKE("discover_servers_list")),
+	/**  Stop browsing; the network is left alone. */
+	discoverServersStop: () => typedError<null, ContractError>(__TAURI_INVOKE("discover_servers_stop")),
 	/**
 	 *  The shares of the window's folder: the whole folder's people first,
 	 *  then each folder inside it shared, by path (ADR 0081 item 7).
@@ -592,7 +608,8 @@ export const commands = {
 	folderSync: () => typedError<SyncStatus, ContractError>(__TAURI_INVOKE("folder_sync")),
 	/**
 	 *  Sync the window's folder with a folder of a server the app is signed
-	 *  in to: `folder`, one there by id, or a new one named `name` (item 1).
+	 *  in to: `folder`, one there by id, or a new one named `name` (item 1; a
+	 *  name the server has already becomes `name (2)`, never a merge).
 	 *  The first sync deletes nothing (item 11).
 	 */
 	folderSyncStart: (url: string, folder: string | null, name: string | null) => typedError<SyncStatus, ContractError>(__TAURI_INVOKE("folder_sync_start", { url, folder, name })),
@@ -1208,7 +1225,9 @@ export type ErrorKind =
  *  A server that could not be reached: no connection made — refused,
  *  no such name, a TLS handshake that failed — or no answer in time.
  *  `message` is the server's address, `host[:port]`, as the window
- *  names it to the person; why it could not be reached goes to the
+ *  names it to the person; when the name was resolved to addresses,
+ *  each address tried follows on a line of its own (ADR 0097), so a
+ *  bad DNS reads as one. Why it could not be reached goes to the
  *  app's log (the maintainer, 2026-10-14: a server down said nothing).
  */
 "unreachable" | 
@@ -1515,6 +1534,32 @@ export type FolderSpace = {
 	 *  folder).
 	 */
 	index: number | null,
+};
+
+/**
+ *  A UniVerso announced on the local network (ADR 0097): what the
+ *  announcement says, to show and to click, never to trust. The `url` is
+ *  the address a click fills in; nothing connects because of it.
+ */
+export type FoundServer = {
+	/**  The announced instance name, `UniVerso-ab12cd`. */
+	name: string,
+	/**  The announced host, `universo-ab12cd.local`. */
+	host: string,
+	/**
+	 *  Where a click connects: the public address the server announced, or
+	 *  `http://address[:port]`; empty when `needs_public_url`.
+	 */
+	url: string,
+	/**
+	 *  A server that speaks TLS itself and announced no public address: it
+	 *  is listed, but cannot be offered by IP (a certificate is for a
+	 *  name); the server's `VERSO_PUBLIC_URL` must be set.
+	 */
+	needs_public_url: boolean,
+	https: boolean,
+	/**  The version it announced; empty when it said none. */
+	version: string,
 };
 
 /**  A heading of a note, for citing and for the outline. */
@@ -2209,6 +2254,17 @@ export type ServerFolder = {
 };
 
 /**
+ *  The folders a server lists for the account, and whether the account may
+ *  make a new one there (the server's `mayCreate`, ADR 0074 item 6; the
+ *  maintainer, 2026-10-16: a new server has no folder, and the admin who
+ *  signs the app in has to be able to make the first).
+ */
+export type ServerFolders = {
+	folders: ServerFolder[],
+	may_create?: boolean,
+};
+
+/**
  *  The window's server, or what it held there, is gone (event
  *  `server-gone`, ADR 0084 item 10): said by the desktop app to a window
  *  on a server's folder.
@@ -2229,7 +2285,11 @@ export type ServerGone = {
 	 *  `deleted` (the shared folder went), `left` by the person.
 	 */
 	reason: string | null,
-	/**  With `unreachable`: the server's address, `host[:port]`. */
+	/**
+	 *  With `unreachable`: the server's address, `host[:port]`, and the
+	 *  addresses tried, each on a line after it (as `Unreachable`'s
+	 *  message).
+	 */
 	address: string | null,
 };
 

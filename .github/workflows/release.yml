@@ -642,6 +642,7 @@ jobs:
             tar -czf "$dir.tar.gz" -C target "$dir"
           done
           cp -R target/server-ui target/server-image/ui
+          cp packaging/server/docker-entrypoint.sh packaging/server/universo-wrapper.sh target/server-image/
           ls -la universo-*
       - name: sign the release's files
         if: steps.version.outputs.sigs == 'true'

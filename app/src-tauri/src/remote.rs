@@ -22,12 +22,14 @@ use tokio::sync::{mpsc, oneshot};
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use verso_contract::{
-    ServerAccount, ServerBack, ServerFolder, ServerGone, ServerSignIn, ShareGiven, SyncVersions,
+    ServerAccount, ServerBack, ServerFolder, ServerFolders, ServerGone, ServerSignIn, ShareGiven,
+    SyncVersions,
 };
 use verso_core::servers::{self, ServerLogin};
 use verso_service::files::Served;
 
 use super::*;
+use crate::dns::SendRetrying;
 
 /// The generated bindings this app was built with: their hash is the
 /// contract's version, which the server's must equal (answer D).
@@ -349,11 +351,13 @@ impl Remote {
             headers: vec![("Content-Type", "text/plain; charset=utf-8".to_owned())],
             body: why.into_bytes(),
         };
-        let response = match reqwest::blocking::Client::new()
-            .get(url)
-            .bearer_auth(&self.token)
-            .send()
-        {
+        // The same total time as before the resolver (30 s), not the 20 s
+        // of a JSON answer.
+        let client = match http_within(std::time::Duration::from_secs(30)) {
+            Ok(c) => c,
+            Err(e) => return refuse(502, e.message),
+        };
+        let response = match client.get(url).bearer_auth(&self.token).send_retrying() {
             Ok(r) => r,
             Err(e) => return refuse(502, e.to_string()),
         };
@@ -380,32 +384,61 @@ impl Remote {
     }
 }
 
-/// The server's address as given: `https://host[:port]`, or `http://` to
-/// this machine; no path, no trailing slash.
+/// The server's address as given: `https://host[:port]` or `http://host
+/// [:port]`; no path, no trailing slash. Plain HTTP works from any
+/// machine: the server serves it all, and what a secure context is for
+/// (offline, notifications) is said off in the window (ADR 0073 item 6,
+/// amended 2026-10-16).
 fn server_url(url: &str) -> Result<String, ContractError> {
     let parsed = reqwest::Url::parse(url.trim()).map_err(|_| refused("not an address"))?;
     let host = parsed.host_str().ok_or_else(|| refused("not an address"))?;
-    let local = matches!(host, "localhost" | "127.0.0.1" | "[::1]" | "::1");
     match parsed.scheme() {
-        "https" => {}
-        "http" if local => {}
-        _ => return Err(refused("a server is reached over https")),
+        "https" | "http" => {}
+        _ => return Err(refused("a server is reached over http or https")),
     }
     let port = parsed.port().map(|p| format!(":{p}")).unwrap_or_default();
     Ok(format!("{}://{host}{port}", parsed.scheme()))
 }
 
 pub(crate) fn http() -> Result<reqwest::blocking::Client, ContractError> {
-    reqwest::blocking::Client::builder()
-        .user_agent(concat!("Verso/", env!("CARGO_PKG_VERSION")))
-        .timeout(std::time::Duration::from_secs(20))
-        .build()
-        .map_err(|e| failed(e.to_string()))
+    http_within(std::time::Duration::from_secs(20))
 }
+
+/// [`http`] with its own total time for a request: a file of an
+/// attachment takes longer than a JSON answer.
+pub(crate) fn http_within(
+    total: std::time::Duration,
+) -> Result<reqwest::blocking::Client, ContractError> {
+    let builder = reqwest::blocking::Client::builder()
+        .user_agent(concat!("Verso/", env!("CARGO_PKG_VERSION")))
+        .timeout(total)
+        // Several addresses may be tried (dns.rs): the time to connect is
+        // shared among them, and the whole request ends within `total`.
+        .connect_timeout(total.mul_f32(0.75))
+        .dns_resolver(Arc::new(dns::Resolver));
+    #[cfg(test)]
+    let builder = lock(&TEST_ROOT).iter().try_fold(builder, |b, pem| {
+        reqwest::Certificate::from_pem(pem)
+            .map(|c| b.add_root_certificate(c))
+            .map_err(|e| failed(e.to_string()))
+    })?;
+    builder.build().map_err(|e| failed(e.to_string()))
+}
+
+/// A certificate the tests' clients trust besides the system's.
+#[cfg(test)]
+pub(crate) static TEST_ROOT: Mutex<Vec<Vec<u8>>> = Mutex::new(Vec::new());
 
 /// The server's answer as JSON, or its error said.
 pub(crate) fn answer(response: reqwest::blocking::Response) -> Result<Value, ContractError> {
     let status = response.status();
+    // The address that answered goes first next time (dns.rs) — once the
+    // handshake is done and the answer is a success, not at a TCP accept.
+    if status.is_success()
+        && let (Some(host), Some(from)) = (response.url().host_str(), response.remote_addr())
+    {
+        dns::worked(host, from.ip());
+    }
     let body: Value = response.json().unwrap_or(Value::Null);
     if status.is_success() {
         return Ok(body);
@@ -494,7 +527,7 @@ pub(crate) async fn server_sign_in<R: tauri::Runtime>(
             http()?
                 .post(format!("{start_url}/api/device/start"))
                 .json(&json!({ "device": session }))
-                .send()
+                .send_retrying()
                 .map_err(|e| reach::unsent(&start_url, &e))?,
         )
     })
@@ -519,7 +552,7 @@ pub(crate) async fn server_sign_in<R: tauri::Runtime>(
                         http()?
                             .post(format!("{u}/api/device/poll"))
                             .json(&json!({ "code": c, "poll": p }))
-                            .send()
+                            .send_retrying()
                             .map_err(|e| reach::unsent(&u, &e))?,
                     )
                 })
@@ -596,7 +629,7 @@ pub(crate) async fn server_sign_out<R: tauri::Runtime>(
             c.post(format!("{}/api/signout", login.url))
                 .bearer_auth(token)
                 .json(&json!({}))
-                .send()
+                .send_retrying()
                 .map_err(|e| reach::unsent(&login.url, &e))
         })
     })
@@ -611,34 +644,97 @@ pub(crate) async fn server_sign_out<R: tauri::Runtime>(
 pub(crate) async fn server_folders<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     url: String,
-) -> Result<Vec<ServerFolder>, ContractError> {
+) -> Result<ServerFolders, ContractError> {
     let login = login_for(&app.state::<App>(), &url)?;
     let body = tauri::async_runtime::spawn_blocking(move || {
         answer(
             http()?
                 .get(format!("{}/api/folders", login.url))
                 .bearer_auth(login.token)
-                .send()
+                .send_retrying()
                 .map_err(|e| reach::unsent(&login.url, &e))?,
         )
     })
     .await
     .map_err(|e| failed(e.to_string()))??;
-    Ok(body["folders"]
-        .as_array()
-        .map(|list| {
-            list.iter()
-                .map(|f| ServerFolder {
-                    id: f["id"].as_str().unwrap_or_default().to_owned(),
-                    name: f["name"].as_str().unwrap_or_default().to_owned(),
-                    role: f["role"].as_str().unwrap_or_default().to_owned(),
-                    owner: f["owner"]["name"].as_str().map(str::to_owned),
-                    share: f["share"] == true,
-                    missing: f["missing"] == true,
-                })
-                .collect()
-        })
-        .unwrap_or_default())
+    Ok(ServerFolders {
+        folders: body["folders"]
+            .as_array()
+            .map(|list| {
+                list.iter()
+                    .map(|f| ServerFolder {
+                        id: f["id"].as_str().unwrap_or_default().to_owned(),
+                        name: f["name"].as_str().unwrap_or_default().to_owned(),
+                        role: f["role"].as_str().unwrap_or_default().to_owned(),
+                        owner: f["owner"]["name"].as_str().map(str::to_owned),
+                        share: f["share"] == true,
+                        missing: f["missing"] == true,
+                    })
+                    .collect()
+            })
+            .unwrap_or_default(),
+        may_create: body["mayCreate"] == true,
+    })
+}
+
+/// Ask a server for a new folder named `name` (blocking). With `unique`, a
+/// name a folder has already is never reused or merged into: `name (2)`,
+/// `name (3)`… is asked instead (the maintainer, 2026-10-16); without it,
+/// the server's refusal is said as it is.
+pub(crate) fn make_folder(
+    url: &str,
+    token: &str,
+    name: &str,
+    unique: bool,
+) -> Result<Value, ContractError> {
+    let client = http()?;
+    for n in 1..=99 {
+        let wanted = if n == 1 {
+            name.to_owned()
+        } else {
+            format!("{name} ({n})")
+        };
+        let response = client
+            .post(format!("{url}/api/folders"))
+            .bearer_auth(token)
+            .json(&json!({ "name": wanted }))
+            .send_retrying()
+            .map_err(|e| reach::unsent(url, &e))?;
+        if unique && response.status().as_u16() == 409 {
+            continue;
+        }
+        return answer(response);
+    }
+    Err(failed("every name of that kind is taken on the server"))
+}
+
+/// Make a new, empty folder on a server, owned by the account signed in
+/// there (the maintainer, 2026-10-16): the server decides whether the
+/// account may and whether the name is free, and says so.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn server_create_folder<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    url: String,
+    name: String,
+) -> Result<ServerFolder, ContractError> {
+    let login = login_for(&app.state::<App>(), &url)?;
+    let made = tauri::async_runtime::spawn_blocking(move || {
+        make_folder(&login.url, &login.token, &name, false)
+    })
+    .await
+    .map_err(|e| failed(e.to_string()))??;
+    Ok(ServerFolder {
+        id: made["id"]
+            .as_str()
+            .ok_or_else(|| failed("the server made no folder"))?
+            .to_owned(),
+        name: made["name"].as_str().unwrap_or_default().to_owned(),
+        role: made["role"].as_str().unwrap_or("owner").to_owned(),
+        owner: None,
+        share: false,
+        missing: false,
+    })
 }
 
 /// Open a folder of a server in this window: the window leaves its own
@@ -781,6 +877,69 @@ fn take(m: &mut Value, field: &str) -> Value {
     m.get_mut(field).map(Value::take).unwrap_or_default()
 }
 
+/// The server's own 401 (a session it ended), told from any other device's:
+/// over `wss://` the certificate was checked for the name, so any 401 is the
+/// server's; over `ws://` a router's basic-auth page can answer 401 too, so
+/// it counts only with the header every refusal of the server carries — the
+/// sync protocol's, which no router writes. The header, not the body: the
+/// body may arrive after the headers have been read.
+pub(crate) fn is_servers_401(
+    response: &tokio_tungstenite::tungstenite::http::Response<Option<Vec<u8>>>,
+    tls: bool,
+) -> bool {
+    response.status().as_u16() == 401
+        && (tls
+            || response
+                .headers()
+                .get(verso_core::sync::PROTOCOL_HEADER)
+                .and_then(|v| v.to_str().ok())
+                .is_some_and(|v| v.trim().parse::<u32>().is_ok()))
+}
+
+/// Open the WebSocket of `request` at `host:port`: per address, the TCP
+/// connection and the TLS and WebSocket handshakes, so that an address that
+/// accepts the connection and cannot complete them (a router's own page on
+/// 443) is passed over for the next (dns.rs, ADR 0097). The name resolved is
+/// the URL's and the certificate is verified for it; `connector` is the
+/// tests' way to trust a certificate of their own. The server's own 401 ends
+/// the dial as "sign in again".
+pub(crate) async fn ws_open(
+    server_url: &str,
+    host: &str,
+    port: u16,
+    request: tokio_tungstenite::tungstenite::handshake::client::Request,
+    connector: Option<tokio_tungstenite::Connector>,
+) -> Result<
+    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
+    ContractError,
+> {
+    use tokio_tungstenite::tungstenite::Error as Wire;
+    let tls = request.uri().scheme_str() == Some("wss");
+    dns::declare(host, tls);
+    let shaken = dns::dial_with(host, port, |stream| {
+        let (request, connector) = (request.clone(), connector.clone());
+        async move {
+            tokio_tungstenite::client_async_tls_with_config(request, stream, None, connector)
+                .await
+                .map_err(|e| {
+                    let answered = matches!(&e, Wire::Http(r) if is_servers_401(r, tls));
+                    (e, answered)
+                })
+        }
+    })
+    .await;
+    let mapped = |e: Wire| match e {
+        Wire::Http(r) if is_servers_401(&r, tls) => {
+            refused("the server ended this device's session: sign in again")
+        }
+        other => reach::not_dialed(server_url, &other),
+    };
+    shaken.map(|(socket, _)| socket).map_err(|d| match d {
+        dns::Dial::Io(e) => mapped(Wire::Io(e)),
+        dns::Dial::Shake(e) => mapped(e),
+    })
+}
+
 /// [`dial`] without the contract's check: the connection, what it hears,
 /// and the server's hello.
 pub(crate) async fn dial_hello(
@@ -810,14 +969,22 @@ pub(crate) async fn dial_hello(
     request
         .headers_mut()
         .insert(verso_core::sync::PROTOCOL_HEADER, sync);
-    let (socket, _) = tokio_tungstenite::connect_async(request)
-        .await
-        .map_err(|e| match e {
-            tokio_tungstenite::tungstenite::Error::Http(r) if r.status().as_u16() == 401 => {
-                refused("the server ended this device's session: sign in again")
-            }
-            other => reach::not_dialed(&login.url, &other),
-        })?;
+    // The connection is made here, not by the library, so the name is
+    // resolved by the same rule as every other request (dns.rs, ADR 0097):
+    // the TLS handshake still verifies the certificate for the URL's name.
+    let uri = request.uri().clone();
+    let host = uri
+        .host()
+        .ok_or_else(|| failed("not an address"))?
+        .to_owned();
+    let port = uri
+        .port_u16()
+        .unwrap_or(if uri.scheme_str() == Some("wss") {
+            443
+        } else {
+            80
+        });
+    let socket = ws_open(&login.url, &host, port, request, None).await?;
     let (mut write, mut read) = socket.split();
     let (tx, mut rx) = mpsc::channel::<Message>(QUEUE);
     let (heard_tx, heard_rx) = mpsc::unbounded_channel::<Heard>();
@@ -1216,4 +1383,25 @@ pub(crate) fn file<R: tauri::Runtime>(
     relative: &str,
 ) -> Option<Served> {
     of(app, label).map(|r| r.file(relative))
+}
+
+#[cfg(test)]
+mod tests_server_url {
+    use super::server_url;
+
+    /// Plain HTTP is a server's address from any machine, not only this
+    /// one (ADR 0073 item 6, amended 2026-10-16); other schemes are not.
+    #[test]
+    fn http_is_a_servers_address_from_any_machine() {
+        for (given, kept) in [
+            ("http://192.168.1.20:7340/", "http://192.168.1.20:7340"),
+            ("http://zima.local:7340", "http://zima.local:7340"),
+            ("https://notas.casa/x", "https://notas.casa"),
+            ("http://localhost:7340", "http://localhost:7340"),
+        ] {
+            assert_eq!(server_url(given).unwrap(), kept, "{given}");
+        }
+        assert!(server_url("ftp://notas.casa").is_err());
+        assert!(server_url("notas.casa").is_err());
+    }
 }

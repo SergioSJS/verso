@@ -736,6 +736,27 @@ pub struct ServerAccount {
     pub name: String,
 }
 
+/// A UniVerso announced on the local network (ADR 0097): what the
+/// announcement says, to show and to click, never to trust. The `url` is
+/// the address a click fills in; nothing connects because of it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct FoundServer {
+    /// The announced instance name, `UniVerso-ab12cd`.
+    pub name: String,
+    /// The announced host, `universo-ab12cd.local`.
+    pub host: String,
+    /// Where a click connects: the public address the server announced, or
+    /// `http://address[:port]`; empty when `needs_public_url`.
+    pub url: String,
+    /// A server that speaks TLS itself and announced no public address: it
+    /// is listed, but cannot be offered by IP (a certificate is for a
+    /// name); the server's `VERSO_PUBLIC_URL` must be set.
+    pub needs_public_url: bool,
+    pub https: bool,
+    /// The version it announced; empty when it said none.
+    pub version: String,
+}
+
 /// The window's server, or what it held there, is gone (event
 /// `server-gone`, ADR 0084 item 10): said by the desktop app to a window
 /// on a server's folder.
@@ -752,7 +773,9 @@ pub struct ServerGone {
     /// With `folder`, when the server says it: `revoked` by its owner,
     /// `deleted` (the shared folder went), `left` by the person.
     pub reason: Option<String>,
-    /// With `unreachable`: the server's address, `host[:port]`.
+    /// With `unreachable`: the server's address, `host[:port]`, and the
+    /// addresses tried, each on a line after it (as `Unreachable`'s
+    /// message).
     pub address: Option<String>,
 }
 
@@ -828,6 +851,17 @@ pub struct ServerFolder {
     /// The shared folder is no longer where the share points (item 13).
     #[serde(default)]
     pub missing: bool,
+}
+
+/// The folders a server lists for the account, and whether the account may
+/// make a new one there (the server's `mayCreate`, ADR 0074 item 6; the
+/// maintainer, 2026-10-16: a new server has no folder, and the admin who
+/// signs the app in has to be able to make the first).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct ServerFolders {
+    pub folders: Vec<ServerFolder>,
+    #[serde(default)]
+    pub may_create: bool,
 }
 
 /// A folder of this computer opened before, for the folder switcher's
@@ -1152,7 +1186,9 @@ pub enum ErrorKind {
     /// A server that could not be reached: no connection made — refused,
     /// no such name, a TLS handshake that failed — or no answer in time.
     /// `message` is the server's address, `host[:port]`, as the window
-    /// names it to the person; why it could not be reached goes to the
+    /// names it to the person; when the name was resolved to addresses,
+    /// each address tried follows on a line of its own (ADR 0097), so a
+    /// bad DNS reads as one. Why it could not be reached goes to the
     /// app's log (the maintainer, 2026-10-14: a server down said nothing).
     Unreachable,
     /// The file's bytes are not UTF-8: no text to edit (spec Q25 is

@@ -22,6 +22,7 @@ pub mod data;
 pub mod db;
 pub mod device;
 pub mod dice;
+pub mod discovery;
 pub mod fair;
 pub mod files;
 pub mod folders;
@@ -55,6 +56,7 @@ pub mod share_sync;
 pub mod shares;
 pub mod signin;
 pub mod state;
+pub mod storage;
 pub mod sync;
 pub mod texts;
 pub mod tls;
@@ -90,8 +92,21 @@ pub fn contract_version() -> String {
 
 /// The data directory ready and its database open.
 fn prepare(config: &Config) -> Result<Db, String> {
-    data::ensure_dir(&config.data_dir.join("indexes"))
-        .map_err(|e| format!("VERSO_DATA_DIR ({}): {e}", config.data_dir.display()))?;
+    // A data directory the server cannot write is a server that cannot
+    // start: said in words, before SQLite says "unable to open" (ADR 0075
+    // item 3, amended 2026-10-16).
+    if let Err(e) = data::ensure_dir(&config.data_dir.join("indexes"))
+        .and_then(|()| verso_fs::server::can_write(&config.data_dir))
+    {
+        return Err(if storage::is_refusal(&e) {
+            storage::sentence(
+                &config.data_dir.display().to_string(),
+                &storage::owner_of(&config.data_dir),
+            )
+        } else {
+            format!("VERSO_DATA_DIR ({}): {e}", config.data_dir.display())
+        });
+    }
     if let Some(fs) = verso_fs::server::network_file_system(&config.data_dir) {
         log::warn(&format!(
             "VERSO_DATA_DIR is on a network file system ({fs}): SQLite's locks are not reliable there and the databases may be corrupted; give it a local disk (ADR 0075 item 3)"
@@ -153,9 +168,22 @@ fn first_admin(config: &Config, db: &Db) -> Result<(), String> {
                 life: db::SETUP_LIFE,
                 ..NewLink::default()
             })?;
+            // With no public address the link is the one the person types:
+            // from this machine, and, listening on every address, from
+            // another one by the machine's own (ADR 0073 item 6, amended
+            // 2026-10-16).
+            let from_elsewhere = config.public_url.is_none() && config.listen.ip().is_unspecified();
             log::info(&format!(
-                "no account yet: make the first admin at {}/setup?token={token} (valid for one hour, once; or set VERSO_ADMIN_EMAIL and VERSO_ADMIN_PASSWORD)",
-                base_url(config)
+                "no account yet: make the first admin at {}/setup?token={token}{} (valid for one hour, once; or set VERSO_ADMIN_EMAIL and VERSO_ADMIN_PASSWORD)",
+                base_url(config),
+                if from_elsewhere {
+                    format!(
+                        " — from another machine, http://<this machine's address>:{}/setup?token={token}",
+                        config.listen.port()
+                    )
+                } else {
+                    String::new()
+                }
             ));
         }
         (None, _) => {}
@@ -163,16 +191,20 @@ fn first_admin(config: &Config, db: &Db) -> Result<(), String> {
     Ok(())
 }
 
+/// The process's one TLS crypto provider, `ring`. Two providers are built in
+/// (`ring` here, `aws-lc-rs` through reqwest's and tungstenite's TLS), so
+/// rustls cannot pick one by itself and panics on the first TLS client it
+/// makes without this: the desktop app's sync over `wss://` did, and sat on
+/// "Conectando ao servidor…" (the maintainer's UniVerso, 2026-10-16). Every
+/// entry point calls it before any TLS; a second call keeps the first.
+pub fn install_crypto_provider() {
+    let _ = tokio_rustls::rustls::crypto::ring::default_provider().install_default();
+}
+
 /// Serve until the process is asked to stop.
 pub fn serve(config: Config, commit: &str) -> Result<(), String> {
-    if !config.loopback_only() && config.public_url.is_none() {
-        return Err(
-            "VERSO_PUBLIC_URL is needed when the server listens beyond this machine (VERSO_LISTEN)"
-                .to_owned(),
-        );
-    }
     // One crypto provider for the server's TLS and the update check's.
-    let _ = tokio_rustls::rustls::crypto::ring::default_provider().install_default();
+    install_crypto_provider();
     let acceptor = match &config.tls {
         Some((cert, key)) => Some(tls::acceptor(cert, key)?),
         None => None,
@@ -185,6 +217,9 @@ pub fn serve(config: Config, commit: &str) -> Result<(), String> {
             "VERSO_FOLDERS_DIR is on a network file system ({fs}): changes made elsewhere are found by a scan"
         ));
     }
+    // A directory the server cannot write is said now, in words (ADR 0075
+    // item 3, amended 2026-10-16), and again in the admin console.
+    let unwritable = storage::check(&config.data_dir, &config.folders_dir);
     first_admin(&config, &db)?;
     let listen = config.listen;
     let mail = match &config.smtp_url {
@@ -207,6 +242,7 @@ pub fn serve(config: Config, commit: &str) -> Result<(), String> {
     if let Some(mail) = mail {
         let _ = server.mail.set(mail);
     }
+    let _ = server.unwritable.set(unwritable);
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -215,15 +251,25 @@ pub fn serve(config: Config, commit: &str) -> Result<(), String> {
         let listener = tokio::net::TcpListener::bind(listen)
             .await
             .map_err(|e| format!("listening on {listen}: {e}"))?;
-        match acceptor {
-            Some(acceptor) => {
-                let slots = Arc::clone(&server.slots);
-                let tls =
-                    tls::TlsListener::new(listener, acceptor, slots).map_err(|e| e.to_string())?;
-                run_on(server, tls, stopped()).await
+        // Found on the home network by itself (ADR 0097); held until the
+        // server stops.
+        let announced = discovery::announce(&server.config, acceptor.is_some());
+        let served = async {
+            match acceptor {
+                Some(acceptor) => {
+                    let slots = Arc::clone(&server.slots);
+                    let tls = tls::TlsListener::new(listener, acceptor, slots)
+                        .map_err(|e| e.to_string())?;
+                    run_on(server, tls, stopped()).await
+                }
+                None => run(server, listener, stopped()).await,
             }
-            None => run(server, listener, stopped()).await,
         }
+        .await;
+        // The goodbye waits for the network for up to a second: not on a
+        // worker of the runtime.
+        let _ = tokio::task::spawn_blocking(move || drop(announced)).await;
+        served
     })
 }
 
@@ -267,8 +313,10 @@ pub async fn run_on<L: listen::Incoming>(
         server.contract,
         server.config.folders_dir.display()
     ));
-    if let Some(said) = server.config.unproxied_https() {
-        log::warn(&said);
+    if server.config.tls.is_none() {
+        log::info(
+            "plain HTTP works; offline, notifications and the like need HTTPS (VERSO_TLS_CERT_FILE, or a proxy in front with VERSO_PUBLIC_URL)",
+        );
     }
     let app = http::router(server);
     listen::serve(listener, app, stop).await;
@@ -353,6 +401,8 @@ mod tests_dice;
 mod tests_hashes;
 #[cfg(test)]
 mod tests_history;
+#[cfg(test)]
+mod tests_http;
 #[cfg(test)]
 mod tests_map_tiles;
 #[cfg(test)]

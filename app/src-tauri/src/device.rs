@@ -20,6 +20,7 @@ use verso_core::servers;
 
 use super::remote::{answer, http};
 use super::*;
+use crate::dns::SendRetrying;
 
 /// This computer's name as the system says it, asked once.
 pub(crate) fn system() -> &'static str {
@@ -116,7 +117,7 @@ pub(crate) async fn set_device_name<R: tauri::Runtime>(
                         c.put(format!("{}/api/me/device", login.url))
                             .bearer_auth(&login.token)
                             .json(&json!({ "device": session }))
-                            .send()
+                            .send_retrying()
                             .map_err(|e| reach::unsent(&login.url, &e))?,
                     )
                 });

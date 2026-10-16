@@ -110,12 +110,12 @@ async fn write(socket: &mut WebSocket, message: Message, client: &str, account: 
 }
 
 pub async fn upgrade(ctx: Ctx, ws: WebSocketUpgrade) -> ApiResult<Response> {
-    ctx.secure()?;
     let who = ctx.who()?.clone();
     // The WebSocket of the contract checks `Origin` before it accepts the
     // cookie (ADR 0073 item 6, ADR 0074 item 7): a page of another site
     // cannot open it with the person's session.
-    if matches!(who.via, Via::Browser { .. }) && !crate::auth::origin_ok(&ctx.server, &ctx.headers)
+    if matches!(who.via, Via::Browser { .. })
+        && !crate::auth::origin_ok(&ctx.server, &ctx.headers, &ctx.peer)
     {
         return Err(ApiError::forbidden("not from a page of this server"));
     }
@@ -186,7 +186,7 @@ type Held = (Vec<crate::fair::Held>, Option<crate::local::PhoneGuard>);
 /// (threat-model.md, gap 4), or 429; and whether it is a phone refused by
 /// the ceiling of phones connected (the number it is), to be closed with
 /// `PHONES_FULL`.
-fn places(ctx: &Ctx, who: &Who) -> ApiResult<(Held, Option<u32>)> {
+pub(crate) fn places(ctx: &Ctx, who: &Who) -> ApiResult<(Held, Option<u32>)> {
     let counts = &ctx.server.fair.connections;
     let too_many = |what: &str, most: u32| {
         crate::log::warn(&format!(
@@ -213,7 +213,7 @@ fn places(ctx: &Ctx, who: &Who) -> ApiResult<(Held, Option<u32>)> {
             })?,
     ];
     // This machine is the proxy in front, speaking for everyone.
-    if !ctx.peer.addr.is_loopback() {
+    if !ctx.peer.local {
         let address = format!("address:{}", ctx.peer.key());
         held.push(
             counts

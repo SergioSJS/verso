@@ -23,21 +23,47 @@ const pt = {
   unreachable: (address: string) => `Não foi possível alcançar o servidor ${address} — ele está fora do ar ou sem rede.`,
   unreachableShort: (address: string) => `Servidor fora de alcance: ${address}`,
   tryAgain: "Tentar de novo",
+  // A name that resolved to addresses where nothing answered (ADR 0097):
+  // which, so a bad DNS reads as one.
+  tried: (name: string, ip: string) => `${name} → ${ip}: sem resposta`,
+  dnsHint: "Confira o DNS desta rede: o nome pode estar apontando para o endereço errado.",
 };
 const en: typeof pt = {
   unreachable: (address: string) => `Couldn't reach the server ${address} — it is down or the network is off.`,
   unreachableShort: (address: string) => `Server unreachable: ${address}`,
   tryAgain: "Try again",
+  tried: (name: string, ip: string) => `${name} → ${ip}: no answer`,
+  dnsHint: "Check this network's DNS: the name may point to the wrong address.",
 };
 
 export function reachStrings(): typeof pt {
   return document.documentElement.lang.startsWith("pt") ? pt : en;
 }
 
+/** An `unreachable` message: the address on its first line, then each IP
+ *  that was tried, one a line (ADR 0097). */
+export function reachParts(message: string): { address: string; tried: string[] } {
+  const [address = "", ...tried] = message.split("\n").map((l) => l.trim()).filter(Boolean);
+  return { address, tried };
+}
+
+/** The sentence for an `unreachable` message: the server out of reach and,
+ *  when its name resolved to addresses, which ones did not answer. */
+export function reachSentence(message: string): string {
+  const s = reachStrings();
+  const { address, tried } = reachParts(message);
+  if (tried.length === 0) return s.unreachable(address);
+  const name = address.replace(/:\d+$/, "");
+  const said = `${s.unreachable(address)} ${tried.map((ip) => s.tried(name, ip)).join("; ")}.`;
+  // One address that did not answer is a server down as often as a DNS
+  // that is wrong; the hint is for when several were tried.
+  return tried.length > 1 ? `${said} ${s.dnsHint}` : said;
+}
+
 /** The server's address when `e` says it could not be reached. */
 export function unreachableAt(e: ContractError | unknown): string | null {
   const { kind, message } = errorParts(e);
-  return kind === REACH ? message : null;
+  return kind === REACH ? reachParts(message).address : null;
 }
 
 /** A server's address from its URL: `host[:port]`. */
@@ -58,8 +84,8 @@ export function keepFailuresWith(f: (e: ContractError | unknown) => void): void 
 /** The window's sentence for `e`: a server out of reach said as such;
  *  any other, by `other` (errors.ts's `errorSentence`, or its message). */
 export function failureText(e: ContractError | unknown, other: Said = (x) => errorParts(x).message): string {
-  const at = unreachableAt(e);
-  return at !== null ? reachStrings().unreachable(at) : other(e);
+  const { kind, message } = errorParts(e);
+  return kind === REACH ? reachSentence(message) : other(e);
 }
 
 /** Say `e` in `where`, an alert the screen reader reads at once, with a

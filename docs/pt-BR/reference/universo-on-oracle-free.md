@@ -97,7 +97,7 @@ sh universo.sh firewall
 
 ## 4. HTTPS com o Caddy
 
-O UniVerso não deixa ninguém entrar por HTTP puro de outra máquina. O
+O UniVerso funciona por HTTP puro, mas o modo offline, as notificações e as passkeys pedem HTTPS, e um endereço público deve tê-lo. O
 Caddy, que está no arquivo do Ubuntu, obtém e renova um certificado para o
 seu nome e repassa tudo ao UniVerso:
 

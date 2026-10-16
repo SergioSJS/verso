@@ -137,6 +137,79 @@ pub fn owner_only(path: &Path) -> io::Result<()> {
     Ok(())
 }
 
+/// Whether the process can create a file in `dir`: a probe file made and
+/// removed at once. The mode bits say nothing of it (the user, the groups,
+/// a read-only mount, a share); only trying does. `Err` carries why —
+/// `PermissionDenied` for a directory another user owns (a bind mount
+/// Docker made as root, ADR 0075 item 3), `ReadOnlyFilesystem`, `NotFound`.
+///
+/// The probe is made with `create_new` (`O_CREAT | O_EXCL`), which fails —
+/// without following it — if the name exists, a symbolic link included: a
+/// link planted in the directory under the probe's name never gets its
+/// target truncated or removed. The name is random, so it is not planted
+/// ahead; a name taken (a link, a directory, a file) is retried with
+/// another, and only the file this call made is removed.
+pub fn can_write(dir: &Path) -> io::Result<()> {
+    use std::hash::{BuildHasher, Hasher};
+    let mut last = None;
+    for _ in 0..8 {
+        // RandomState is seeded from the system's randomness.
+        let random = std::collections::hash_map::RandomState::new()
+            .build_hasher()
+            .finish();
+        let probe = dir.join(format!(".verso-write-probe-{random:016x}"));
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&probe)
+        {
+            Ok(file) => {
+                drop(file);
+                return std::fs::remove_file(&probe);
+            }
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => last = Some(e),
+            Err(e) => return Err(e),
+        }
+    }
+    Err(last.unwrap_or_else(|| io::Error::from(io::ErrorKind::AlreadyExists)))
+}
+
+/// Makes a directory unwritable (`0555`) or writable again (`0755`), for the
+/// tests of other crates that must see what happens in a directory the
+/// process cannot write (clippy denies them `std::fs` themselves). Not part
+/// of the API: nothing ships calls it.
+#[doc(hidden)]
+#[cfg(any(test, feature = "test-util"))]
+pub fn set_writable_for_tests(dir: &Path, writable: bool) -> io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = if writable { 0o755 } else { 0o555 };
+        std::fs::set_permissions(dir, std::fs::Permissions::from_mode(mode))
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (dir, writable);
+        Ok(())
+    }
+}
+
+/// The numeric owner of `path`, to say who holds a directory that cannot
+/// be written; `None` when unknown (not Unix, or the path is not there).
+#[must_use]
+pub fn owner_uid(path: &Path) -> Option<u32> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        std::fs::metadata(path).ok().map(|m| m.uid())
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = path;
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -153,6 +226,69 @@ mod tests {
         let mode = std::fs::metadata(&file).unwrap().permissions().mode();
         assert_eq!(mode & 0o777, 0o600);
         owner_only(&dir.path().join("server.sqlite-wal")).unwrap();
+    }
+
+    /// A directory the process cannot write says so by trying, and the probe
+    /// leaves nothing behind where it can.
+    #[cfg(unix)]
+    #[test]
+    fn a_directory_that_cannot_be_written_says_permission_denied() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        can_write(dir.path()).unwrap();
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
+        assert!(owner_uid(dir.path()).is_some());
+        std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o555)).unwrap();
+        let tried = can_write(dir.path());
+        std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o755)).unwrap();
+        // As root nothing is denied: the test says nothing there.
+        if let Err(e) = tried {
+            assert_eq!(e.kind(), io::ErrorKind::PermissionDenied);
+        }
+        assert_eq!(
+            can_write(&dir.path().join("nope")).unwrap_err().kind(),
+            io::ErrorKind::NotFound
+        );
+    }
+
+    /// The probe never follows a link planted under a name it might use, and
+    /// a directory in the way does not make the directory unwritable: its
+    /// names are random and a taken one is skipped. (A link at every name
+    /// cannot be planted: the names are not known ahead.)
+    #[cfg(unix)]
+    #[test]
+    fn the_probe_follows_no_link_and_survives_a_planted_name() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("server.sqlite");
+        std::fs::write(&target, "the database").unwrap();
+        // Links and a directory at the names the old probe used (the pid's).
+        let pid = std::process::id();
+        let old = dir.path().join(format!(".verso-write-probe-{pid}"));
+        std::os::unix::fs::symlink(&target, &old).unwrap();
+        for _ in 0..50 {
+            can_write(dir.path()).unwrap();
+        }
+        assert_eq!(std::fs::read_to_string(&target).unwrap(), "the database");
+        assert!(
+            old.symlink_metadata().unwrap().file_type().is_symlink(),
+            "the link is left"
+        );
+        std::fs::remove_file(&old).unwrap();
+        std::fs::create_dir(&old).unwrap();
+        can_write(dir.path()).unwrap();
+        assert!(old.is_dir(), "the directory is left");
+        // Every name a probe tries is made with O_EXCL: planting a link at
+        // the one name that is about to be made, as a race would, fails the
+        // open instead of writing through it.
+        let planted = dir.path().join("planted");
+        std::os::unix::fs::symlink(&target, &planted).unwrap();
+        let e = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&planted)
+            .unwrap_err();
+        assert_eq!(e.kind(), io::ErrorKind::AlreadyExists);
+        assert_eq!(std::fs::read_to_string(&target).unwrap(), "the database");
     }
 
     #[test]

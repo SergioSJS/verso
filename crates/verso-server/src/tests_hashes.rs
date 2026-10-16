@@ -64,10 +64,11 @@ fn concurrent_sign_ins_hash_no_more_than_the_places_at_once() {
             .map(|i| {
                 let request = client
                     .post(r.url("/api/signin"))
-                    .header("origin", r.origin())
+                    .header("origin", r.origin().replacen("http://", "https://", 1))
                     .header("x-forwarded-for", format!("203.0.113.{}", i + 1))
                     // As a proxy in front of TLS says it: through a trusted
-                    // proxy, this header alone makes a request secure.
+                    // proxy this header alone says the request came over
+                    // HTTPS (the cookie's `Secure`, the origin's scheme).
                     .header("x-forwarded-proto", "https")
                     .json(&json!({ "email": format!("ninguem{i}@casa.lan"), "password": "uma senha errada qualquer" }));
                 tokio::spawn(async move { request.send().await.map(|res| res.status().as_u16()) })

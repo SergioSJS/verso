@@ -22,6 +22,7 @@ use verso_core::servers;
 use verso_core::sync::{self as engine, Action, FileState, Files, Seen};
 
 use super::*;
+use crate::dns::SendRetrying;
 
 pub(crate) mod live;
 mod transfer;
@@ -749,7 +750,7 @@ pub(crate) async fn link(ctx: &Ctx, s: &Syncer) -> Result<Link, ContractError> {
             remote::http()?
                 .get(format!("{url}/api/folders"))
                 .bearer_auth(token)
-                .send()
+                .send_retrying()
                 .map_err(|e| reach::unsent(&url, &e))?,
         )
     })

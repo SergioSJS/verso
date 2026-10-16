@@ -20,6 +20,17 @@ app real.
 
 ## Ainda não conferido
 
+### O UniVerso achado na rede, e um DNS ruim contornado (ADR 0097, feat/universo-discovery, 2026-10-16)
+
+Precisa do app desktop instalado e de um UniVerso na rede de casa (o ZimaOS do mantenedor); nada disto foi rodado numa rede de verdade quando foi construído.
+
+- [ ] **Descoberta na LAN de casa** (A): na máquina com o UniVerso, com a porta publicada além do loopback e rede host (`network_mode: host`), abra *Ajustes › Servidores* no app desktop: em poucos segundos *Encontrados nesta rede* lista `UniVerso-xxxxxx` com o endereço (`http://<ip>:7340`) e *sem HTTPS*. Clique em *Conectar*: o endereço é preenchido e o navegador abre a página de aprovação do aparelho daquele endereço. Nada aconteceu antes do clique (o log do servidor não mostra requisição deste Mac até então). Feche a seção: a lista some, e o log do app não mostra mais busca. Com o compose como está (rede bridge) a lista fica vazia e diz o que fazer. No servidor, `VERSO_ANNOUNCE=off` e reinício: nada é listado.
+- [ ] **O pedido do macOS** (A): na primeira vez no macOS 15 ou posterior, o sistema pede a permissão de **Rede Local** com as palavras do Info.plist (que agora dizem também que o app procura servidores). Negue: diga se a lista fica vazia em silêncio ou se o app diz algo — e se o **recuo de DNS ruim** (abaixo) também não acha nada, já que a permissão controla, ao que se diz, as consultas DNS unicast do app para a rede local também; permita em Ajustes do Sistema › Privacidade e Segurança › Rede Local e os dois funcionam.
+- [ ] **Adaptadores do Windows** (A): o recuo de DNS pergunta só aos adaptadores físicos ativos (`Get-NetAdapter -Physical`). Num host Hyper-V com vSwitch externo (`vEthernet`), com um celular em tethering RNDIS e numa VM com placa virtio, diga o que o `Get-DnsClientServerAddress` lista para eles e se um DNS do sistema ruim é então contornado ou o app diz que o servidor está inalcançável (deve falhar com segurança, nunca perguntar a um resolvedor de VPN).
+- [ ] **Windows e Linux** (A): no Windows, se o Firewall do Windows Defender pergunta sobre o app na primeira busca (UDP 5353), só redes *Privadas*; se o desktop acha um servidor no mesmo Wi-Fi. No Linux com o Avahi rodando, se a busca e o anúncio do servidor convivem com ele.
+- [ ] **Um servidor com o endereço público** (A): com `VERSO_PUBLIC_URL=https://<nome>` definida no servidor, a linha lista exatamente esse endereço e um clique inicia o login nele; com o TLS próprio do servidor (`VERSO_TLS_CERT_FILE`) e sem `VERSO_PUBLIC_URL`, a linha diz para defini-la e não tem botão.
+- [ ] **Um DNS ruim** (A): aponte um nome para um endereço errado no primeiro servidor DNS do sistema (ou o do roteador, como na rede do mantenedor) enquanto outro servidor da lista tem o certo; no app desktop conecte a `https://<esse nome>`. Conecta, em cerca de um tempo de conexão na primeira vez e na hora depois; o log não tem WARN. Faça nenhum servidor responder: o aviso diz *Não foi possível alcançar o servidor <nome> — … <nome> → <ip>: sem resposta. Confira o DNS desta rede…* e a linha WARN do log nomeia cada IP com a origem (`system`, `dns <servidor>`). Com um nome cujo certificado é de outro nome, nada conecta (o nome é verificado, não o IP).
+
 ### Inserir imagem na barra de ferramentas do editor (feat/insert-image, 2026-10-15)
 
 Precisa do app instalado num Mac, num Linux e num Windows, de um iPhone (Safari) e de um Android (Chrome), por um UniVerso e por *Este app é um servidor*; o seletor e a câmera são do sistema e nenhum teste os alcança (os testes de ponta a ponta trocam o seletor de arquivos por um falso).
@@ -32,6 +43,10 @@ Precisa do app instalado num Mac, num Linux e num Windows, de um iPhone (Safari)
 - [ ] **Quem só lê** (A): como leitor de uma pasta compartilhada, o botão diz *Você só lê esta pasta* e não copia nada.
 - [ ] **O servidor fora de alcance** (A): pare o servidor com uma nota aberta e insira uma imagem: a linha de status diz que não foi possível alcançar o servidor, e nenhum embed é escrito. Com a pasta guardada sem rede no celular, a imagem fica guardada com as outras mudanças e sobe quando a rede volta.
 - [ ] **O leitor de tela** (A): o botão é anunciado como *Inserir imagem*, um menu; os itens são lidos; o resultado é lido na linha de status.
+
+### Sincronizar num servidor novinho (ADR 0079 item 1, 2026-10-16)
+
+- [ ] **Só sincronizar, num UniVerso recém-instalado** (A, o app de computador): instale um UniVerso sem pastas, conecte o app como o admin dele (*Ajustes › Servidores*), com uma pasta de notas aberta. O bloco diz *Nenhuma pasta neste servidor ainda.* e um botão, **Sincronizar ‘<pasta>’**, com uma linha embaixo; nenhum texto de convite. Um clique: o botão fica ocupado, a pasta do servidor aparece com o mesmo nome, a barra de status vai a *Sincronizando* e depois *Sincronizada*, e o título do servidor recebe o foco. Todas as notas da pasta continuam neste computador, iguais (olhe os arquivos), e abertas no navegador, no servidor. O log do servidor e o do app não têm ERROR. Depois desligue o sync e abra outra pasta local com o mesmo nome da primeira: *Sincronizar* cria `nome (2)` e não mexe na primeira. Com uma conta que não pode criar pastas (o admin desliga), o texto de convite de antes aparece e nenhum botão. *Criar pasta vazia…* pede um nome, cria, avisa e põe o foco na linha dela. Com o servidor parado, o clique diz que não alcançou, com *Tentar de novo*.
 
 ### Este app é um servidor (ADR 0096, feat/local-server-build, 2026-10-15)
 
@@ -309,6 +324,17 @@ mostrado ficar óbvio), numa nota longa o bastante para rolar.
   desligado dizendo por quê. Num navegador por HTTP simples a linha diz
   que precisa de HTTPS e não liga; no Safari de um iPhone fora da tela
   inicial, que precisa do app instalado.
+- [ ] **O UniVerso por HTTP simples a partir de outro aparelho** (ADR 0073
+  item 6 alterado em 2026-10-16; uma caixa ZimaOS ou CasaOS, um celular, um
+  iPad): cole o compose publicado sem preencher variável alguma, abra
+  `http://<endereço da caixa>:7340` no celular, crie o admin pelo link de
+  configuração do log, entre. A página de entrada traz *Conexão sem HTTPS…*
+  com *Como ligar o HTTPS*; a janela mostra o aviso que se fecha uma vez;
+  *Ajustes › Offline* e *Notificações* dizem que precisam de HTTPS com o
+  mesmo link; copiar um link pelo menu funciona; o app de desktop conecta ao
+  mesmo endereço `http://` e sincroniza. Ponha o Tailscale ou o Caddy na
+  frente, defina só o `VERSO_PUBLIC_URL`: o offline e as notificações
+  ligam, o aviso some.
 - [ ] **Uma notificação com a janela atrás**: as notificações do sistema
   ligadas, a janela atrás de outro app (ou minimizada, ou em outra aba do
   navegador), e então pare o servidor: uma notificação do sistema
