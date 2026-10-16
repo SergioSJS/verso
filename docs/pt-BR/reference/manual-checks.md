@@ -20,6 +20,15 @@ app real.
 
 ## Ainda não conferido
 
+### O UniVerso achado na rede, e um DNS ruim contornado (ADR 0097, feat/universo-discovery, 2026-10-16)
+
+Precisa do app desktop instalado e de um UniVerso na rede de casa (o ZimaOS do mantenedor); nada disto foi rodado numa rede de verdade quando foi construído.
+
+- [ ] **Descoberta na LAN de casa** (A): na máquina com o UniVerso, com a porta publicada além do loopback e rede host (`network_mode: host`), abra *Ajustes › Servidores* no app desktop: em poucos segundos *Encontrados nesta rede* lista `UniVerso-xxxxxx` com o endereço (`http://<ip>:7340`) e *sem HTTPS*. Clique em *Conectar*: o endereço é preenchido e o navegador abre a página de aprovação do aparelho daquele endereço. Nada aconteceu antes do clique (o log do servidor não mostra requisição deste Mac até então). Feche a seção: a lista some, e o log do app não mostra mais busca. Com o compose como está (rede bridge) a lista fica vazia e diz o que fazer. No servidor, `VERSO_ANNOUNCE=off` e reinício: nada é listado.
+- [ ] **O pedido do macOS** (A): na primeira vez no macOS 15 ou posterior, o sistema pede a permissão de **Rede Local** com as palavras do Info.plist (que agora dizem também que o app procura servidores). Negue: diga se a lista fica vazia em silêncio ou se o app diz algo; permita em Ajustes do Sistema › Privacidade e Segurança › Rede Local e a lista enche.
+- [ ] **Windows e Linux** (A): no Windows, se o Firewall do Windows Defender pergunta sobre o app na primeira busca (UDP 5353), só redes *Privadas*; se o desktop acha um servidor no mesmo Wi-Fi. No Linux com o Avahi rodando, se a busca e o anúncio do servidor convivem com ele.
+- [ ] **Um DNS ruim** (A): aponte um nome para um endereço errado no primeiro servidor DNS do sistema (ou o do roteador, como na rede do mantenedor) enquanto outro servidor da lista tem o certo; no app desktop conecte a `https://<esse nome>`. Conecta, em cerca de um tempo de conexão na primeira vez e na hora depois; o log não tem WARN. Faça nenhum servidor responder: o aviso diz *Não foi possível alcançar o servidor <nome> — … <nome> → <ip>: sem resposta. Confira o DNS desta rede…* e a linha WARN do log nomeia cada IP com a origem (`system`, `dns <servidor>`). Com um nome cujo certificado é de outro nome, nada conecta (o nome é verificado, não o IP).
+
 ### Inserir imagem na barra de ferramentas do editor (feat/insert-image, 2026-10-15)
 
 Precisa do app instalado num Mac, num Linux e num Windows, de um iPhone (Safari) e de um Android (Chrome), por um UniVerso e por *Este app é um servidor*; o seletor e a câmera são do sistema e nenhum teste os alcança (os testes de ponta a ponta trocam o seletor de arquivos por um falso).

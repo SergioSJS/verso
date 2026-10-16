@@ -319,6 +319,19 @@ A imagem vem do registry do
 GitHub, que exige um `docker login` enquanto o repositório for privado
 (seção 11): no CasaOS e no ZimaOS, no terminal do sistema, uma vez.
 
+**Achado pelo app desktop.** Com o servidor escutando além da máquina (a
+porta publicada, como acima), ele se anuncia na rede de casa por mDNS
+(`_verso._tcp`: a versão, se fala TLS e um id aleatório, nada mais), e o app
+desktop o lista em *Ajustes › Servidores › Encontrados nesta rede*, pronto
+para escolher
+([ADR 0097](../adr/0097-universo-found-on-the-network-and-a-bad-dns-survived.md)).
+**Um contêiner na rede bridge padrão do Docker não consegue enviar multicast
+para a rede de casa, então no CasaOS e no ZimaOS o anúncio não sai dele** e a
+lista fica vazia: digite o endereço como antes, ou dê ao contêiner
+`network_mode: host` (tire o bloco `ports:`; o servidor então escuta a porta
+7340 da própria máquina, que precisa estar livre). O compose acima mantém a
+rede bridge. `VERSO_ANNOUNCE=off` desliga o anúncio.
+
 Uma entrada nas lojas de apps do CasaOS e do ZimaOS é uma submissão aos
 repositórios deles, feita quando o servidor for anunciado (0075,
 Consequências).
@@ -468,6 +481,7 @@ vazio conta como não definido.
 | `VERSO_ADMIN_PASSWORD` ou `VERSO_ADMIN_PASSWORD_FILE` | nenhum | a senha do primeiro admin, 12 caracteres ou mais, fora das listas que atacantes tentam primeiro, diferente do e-mail |
 | `VERSO_TRUSTED_PROXY` | loopback e redes privadas | os proxies reversos cujos `X-Forwarded-For` e `X-Forwarded-Proto` são aceitos. Vazio: 127.0.0.0/8, ::1, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, fc00::/7. Um valor substitui essa lista: um endereço, ou endereços e CIDRs separados por vírgulas, IPv4 e IPv6 (`127.0.0.1, 10.0.0.0/8, 2001:db8::/32`); `none` não aceita proxy algum; seção 8 |
 | `VERSO_TLS_CERT_FILE` e `VERSO_TLS_KEY_FILE` | nenhum | o Verso serve TLS ele mesmo com esse certificado e essa chave (PEM); os dois ou nenhum |
+| `VERSO_ANNOUNCE` | ligado | `off` impede o servidor de se anunciar na rede de casa por mDNS (ADR 0097); ele nunca é anunciado quando escuta só no loopback |
 | `VERSO_UPDATE_CHECK` | ligado | `off` desliga a checagem de versão nova (seção 12) |
 | `VERSO_UPDATE_TOKEN` | não | um token que lê as releases do projeto, necessário para a checagem enquanto o repositório é privado (um token do GitHub com leitura dele); sem ele o log avisa uma vez |
 | `VERSO_SMTP_URL` | não | o servidor de correio do host (`smtps://usuario:senha@host:465`, ou `smtp://…:587?tls=required`): links de login, "esqueci a senha" e convites enviados por e-mail |
