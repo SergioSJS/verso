@@ -304,7 +304,10 @@ fim da nota (macOS), ⌘D é a nota diária, ⌘/ alterna um comentário.
 - Nenhuma dependência nova é esperada.
 - Não coberto: toque (sem mobile nesta fase,
   [0034](0034-roadmap-in-phases.md)); arrastar entre duas notas, que é o
-  "Mover para" (D1).
+  "Mover para" (D1). *Emendado em 2026-10-16:* o toque é coberto pelo
+  [0076](0076-the-window-on-every-screen.md) item 7 — numa tela de toque as
+  alças e o `+` não são desenhados e a margem deles não é guardada; a barra
+  do teclado move, transforma e exclui o bloco no cursor.
 - Fontes: o comportamento do Notion pelas páginas públicas de ajuda linkadas
   acima, e os plugins do Obsidian pelas suas páginas públicas; o código de
   nenhum plugin foi lido. O próprio Obsidian não foi inspecionado

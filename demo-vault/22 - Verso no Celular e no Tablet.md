@@ -1,7 +1,7 @@
 ---
 title: Verso no Celular e no Tablet
 date: 2026-10-09
-updated: 2026-10-15
+updated: 2026-10-16
 tags:
   - celular
   - tablet
@@ -45,7 +45,8 @@ No tablet (de 760 a 1180 px) as barras laterais ficam, e as linhas da árvore s�
 
 - **Um link no modo Editar**: o toque põe o cursor no link, como em qualquer texto, e um cartãozinho ao lado oferece **Abrir** e **Editar link**. No computador continua `⌘` + clique; veja [[02 - Links, Âncoras e Notas Incorporadas]].
 - **Fotos e câmera**: o botão **Inserir imagem** da barra de ferramentas abre um menu com **Fotos e arquivos…** (a galeria e os arquivos do celular), **Tirar foto** (a câmera; a foto entra como `Foto AAAA-MM-DD HHMMSS.jpg`) e **Da pasta…**. A imagem é copiada para a pasta de anexos da nota e o embed entra no cursor; veja [[06 - Documentos e Mídia]].
-- **A barra do teclado**: com o teclado na tela, uma linha acima dele traz desfazer, refazer, recuar, avançar, `[[`, `/` e esconder o teclado.
+- **Sem alças nos blocos**: o `+` e o ⋮⋮ do computador precisam do mouse sobre o bloco, então no celular não aparecem — e o texto começa na margem comum da tela. Quem cuida dos blocos é a barra do teclado.
+- **A barra do teclado**: com o teclado na tela, uma linha acima dele, que rola para o lado, traz **+** (um bloco novo abaixo), **Transformar em…** (título, lista, tarefa, citação…), `[[`, `/`, diminuir e aumentar o recuo, **mover o bloco para cima** e **para baixo**, **excluir o bloco**, o **menu do bloco** (duplicar, copiar link…), desfazer, refazer e esconder o teclado. Os comandos valem para o bloco onde está o cursor; os menus abrem acima da barra. Veja [[20 - Blocos como no Notion]] para o que é um bloco.
 - **O cursor fica acima do teclado**, e os menus — o `/`, as sugestões de link e de tag, as figurinhas — abrem no que a tela mostra.
 - **Os números de linha** do modo Fonte saem do celular, a não ser que você os ligue em **Ajustes › Editor**.
 

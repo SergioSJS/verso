@@ -181,6 +181,9 @@
    + and the ⋮⋮ beside each block, in every mode, so its text stands at
    the same place in Reading and in Edit. */
 html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) + 1.9rem); }
+/* A touch screen has no hover to show them: no handles, no margin for them
+   (ADR 0076 item 7, decided 2026-10-16); the keys' bar moves the blocks. */
+@media (pointer: coarse) { html.block-handles .note-sheet { padding-left: clamp(.7rem, 1.5vw, 1.2rem); } }
 .cm-block-handle { position: absolute; z-index: 5; display: flex; align-items: center; gap: 1px; height: 22px; }
 .cm-block-handle[hidden], .cm-block-outline[hidden], .cm-block-drop[hidden] { display: none; }
 .cm-block-plus, .cm-block-grip { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 22px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--ink-3); cursor: pointer; }
