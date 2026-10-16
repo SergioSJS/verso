@@ -892,6 +892,13 @@ e 820 × 1180 (WebKit) além do tamanho do computador (`playwright.config.mjs`);
    fecha; o menu `/`, o menu de uma aba e o cursor ficam acima do teclado.
    Nível: H; E: `responsive.spec.mjs`, "the keyboard's bar" e "the
    on-screen keyboard" (o teclado do sistema simulado: à mão no celular).
+   A nota 20 no Editar numa tela de toque: sem `+` nem ⋮⋮ e sem a margem
+   larga à esquerda do texto; a barra rola para o lado, "Mover bloco para
+   baixo" e "para cima" reordenam dois parágrafos com o cursor ficando no
+   bloco, acima do teclado, "Transformar em…" abre o menu acima da barra e
+   "Título 1" faz um título, "Excluir bloco" remove o bloco, "Menu do bloco"
+   alcança "Duplicar". Nível: H; E: `block-bar.spec.mjs` (o teclado do
+   sistema simulado: à mão no celular).
 7. "Selecionar" no menu de uma linha: uma caixa em cada linha, uma barra
    com Mover para…, Copiar caminhos, Apagar e Concluir; "Manter aberta"
    guarda uma aba de pré-visualização; "Abrir" abre uma nota sem

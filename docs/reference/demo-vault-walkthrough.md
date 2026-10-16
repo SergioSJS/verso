@@ -868,6 +868,13 @@ hand, on a phone and an iPad, the server's window in the browser.
    the keyboard. Level: H; E: `responsive.spec.mjs`, "the keyboard's bar"
    and "the on-screen keyboard" (the system's keyboard stood in for: by
    hand on the phone).
+   Note 20 in Editar on a touch screen: no `+` or ⋮⋮ and no wide margin to
+   the left of the text; the bar scrolls sideways, "Mover bloco para baixo"
+   and "para cima" reorder two paragraphs with the cursor staying in the
+   block above the keyboard, "Transformar em…" opens its menu above the
+   bar and "Título 1" makes a heading, "Excluir bloco" removes the block,
+   "Menu do bloco" reaches "Duplicar". Level: H; E: `block-bar.spec.mjs`
+   (the system's keyboard stood in for: by hand on the phone).
 7. "Selecionar" in a row's menu: a box on each row, a bar with Mover para…,
    Copiar caminhos, Apagar and Concluir; "Manter aberta" keeps a preview
    tab; "Abrir" opens a note without preview; on a touch screen, a "…" beside
