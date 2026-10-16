@@ -26,9 +26,12 @@ services:
     image: ghcr.io/sergiosjs/universo:beta
     container_name: universo
     restart: unless-stopped
-    # The user the server runs as: uid and gid 1000 by default. A NAS whose
-    # folders belong to another user names it here (its numbers, from
-    # `id`); the two directories below must be writable by it.
+    # The server runs as uid and gid 1000. The container starts as root only
+    # to mend the owners of the two directories below (see cap_add), and
+    # drops to 1000 before the server runs. A NAS whose folders belong to
+    # another user names it here (its numbers, from `id`): the container
+    # then starts as that user, mends nothing, and the directories must
+    # already be writable by it.
     # user: "1000:1000"
     # Hardening (ADR 0083 item 11): the image's own files read-only, /tmp
     # in memory, no Linux capability, nothing gained through a setuid
@@ -38,6 +41,17 @@ services:
       - /tmp
     cap_drop:
       - ALL
+    # The entrypoint runs as root for one job: give uid 1000 the entries
+    # root owns under /data and /folders when it cannot write there (a bind
+    # mount Docker made as root), then the server drops to 1000:1000 and has
+    # no capability at all. CHOWN for the chown, SETUID and SETGID for the
+    # drop; no DAC_OVERRIDE or FOWNER (root owns what it changes). Remove
+    # the three, and add `user: "1000:1000"`, to make the directories
+    # yourself (sudo chown -R 1000:1000 <host folder>).
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
     security_opt:
       - no-new-privileges:true
     # The log rotated by Docker: three files of 10 MB at most (ADR 0083, As built).
@@ -174,11 +188,11 @@ x-casaos:
         Nothing is required: open http://<this machine>:7340 and follow the setup link in the container's log. Plain HTTP is fine at home; on a public network the password and the notes cross it in the open. HTTPS is optional, later: it turns on offline mode, notifications and passkeys.
         VERSO_ADMIN_EMAIL and VERSO_ADMIN_PASSWORD are read on the first start only: remove the password once the admin exists. Left empty, the container's log prints a one-hour setup link, which stays in that log: use it at once.
         A lost admin password: run `universo admin reset <e-mail>` in the container's terminal.
-        Both directories must be writable by uid 1000.
+        Nothing to prepare: if a directory is root-owned (Docker makes a missing one so), the container hands what root owns in it to uid 1000 at start, then runs the server as 1000. A directory owned by someone else is not touched: the server says so.
         Back up both directories: the database in /data is not a cache, and the notes are in /folders. Keep /data on a local disk, never on a network share.
       pt_BR: |
         Nada é obrigatório: abra http://<esta máquina>:7340 e siga o link de configuração do log do contêiner. O HTTP simples serve em casa; numa rede pública a senha e as notas passam abertas. O HTTPS é opcional, depois: liga o modo offline, as notificações e as passkeys.
         VERSO_ADMIN_EMAIL e VERSO_ADMIN_PASSWORD são lidos só na primeira inicialização: remova a senha quando o admin existir. Vazios, o log do contêiner mostra um link de configuração válido por uma hora, que fica nesse log: use-o logo.
         Senha do admin perdida: rode `universo admin reset <e-mail>` no terminal do contêiner.
-        Os dois diretórios precisam permitir escrita ao uid 1000.
+        Nada a preparar: se um diretório é do root (o Docker cria assim um que falte), o contêiner entrega ao uid 1000, ao ligar, o que o root tem nele, e roda o servidor como 1000. Um diretório de outro dono não é tocado: o servidor avisa.
         Faça backup dos dois diretórios: o banco em /data não é cache, e as notas estão em /folders. Mantenha /data num disco local, nunca num compartilhamento de rede.
