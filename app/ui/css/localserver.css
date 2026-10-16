@@ -10,12 +10,18 @@
 .ls-check { display: inline-flex; align-items: center; gap: .5rem; font-size: .92rem; color: var(--ink); }
 .ls-check input { width: 16px; height: 16px; }
 .ls-number { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem .8rem; font-size: .92rem; color: var(--ink); }
-.ls-steps { display: inline-flex; align-items: center; gap: .35rem; }
-.ls-steps input { width: 3.5rem; min-height: 36px; box-sizing: border-box; text-align: center; font: inherit; font-variant-numeric: tabular-nums; padding: .25rem .3rem; background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-radius: 6px; }
-.ls-step { min-width: 36px; min-height: 36px; padding: 0; font-size: 1.1rem; line-height: 1; }
-@media (pointer: coarse) { .ls-step, .ls-steps input { min-height: 44px; } .ls-step { min-width: 44px; } }
+/* One control: − the number +. The engine's own arrows are hidden: the
+   buttons beside it are the way to step it (WebKit drew both). */
+.ls-steps { display: inline-flex; align-items: stretch; flex: none; border: 1px solid var(--hair); border-radius: 8px; overflow: hidden; background: var(--paper); }
+.ls-steps input { width: 3rem; min-height: 34px; box-sizing: border-box; margin: 0; padding: 0; text-align: center; font: inherit; font-variant-numeric: tabular-nums; background: transparent; color: var(--ink); border: 0; border-inline: 1px solid var(--hair); border-radius: 0; appearance: textfield; -moz-appearance: textfield; }
+.ls-steps input::-webkit-inner-spin-button, .ls-steps input::-webkit-outer-spin-button { -webkit-appearance: none; appearance: none; margin: 0; }
+.ls-steps input:focus-visible { outline: 2px solid var(--seal); outline-offset: -2px; }
+.ls .ls-step { display: inline-flex; align-items: center; justify-content: center; width: 34px; min-height: 34px; padding: 0; margin: 0; border: 0; border-radius: 0; background: transparent; color: var(--ink-2); font: 500 1.05rem/1 var(--ui); text-align: center; }
+.ls .ls-step:hover:not(:disabled) { background: var(--paper-3); color: var(--ink); }
+.ls .ls-step:disabled { color: var(--ink-3); opacity: .5; }
+@media (pointer: coarse) { .ls-steps input, .ls .ls-step { min-height: 44px; } .ls .ls-step { width: 44px; } }
 .ls-phones, .ls-log-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; }
-.ls-folder { display: flex; flex-direction: column; gap: .1rem; padding: .25rem 0; border-bottom: 1px solid var(--hair); }
+.ls-folder { display: flex; flex-direction: column; gap: .1rem; padding: .2rem 0; }
 .ls-phone { display: flex; align-items: center; justify-content: space-between; gap: .6rem; flex-wrap: wrap; padding: .4rem 0; border-bottom: 1px solid var(--hair); }
 .ls-phone-who { display: flex; flex-direction: column; min-width: 0; }
 .ls-phone-who small { color: var(--ink-3); font-size: .8rem; overflow-wrap: anywhere; }
@@ -91,13 +97,40 @@
 @media (prefers-reduced-motion: reduce) { .ls-chev .chev { transition: none; } }
 
 /* The folder open here, first; the recent ones in a group shut until opened. */
-.ls-here { display: flex; flex-direction: column; gap: .3rem; padding-bottom: .6rem; border-bottom: 1px solid var(--hair); }
+.ls-here { display: flex; flex-direction: column; gap: .2rem; padding: .6rem .8rem .7rem; background: var(--paper-2); border: 1px solid var(--hair); border-radius: 10px; }
 .ls-here[hidden], .ls-recent[hidden] { display: none; }
 .ls-here-h { margin: 0; font: 600 .88rem var(--ui); color: var(--ink); overflow-wrap: anywhere; }
 .ls-recent > * + * { margin-top: .4rem; }
 .ls-recent-sum { cursor: pointer; font: 600 .9rem var(--ui); color: var(--ink); min-height: 32px; display: flex; align-items: center; }
 .ls-recent[open] > .ls-recent-sum { margin-bottom: .3rem; }
-.ls-row { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: .15rem; row-gap: .1rem; min-width: 0; }
+.ls-row { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 0; row-gap: .1rem; min-width: 0; }
 .ls-why { display: block; margin-top: .1rem; }
 .ls-parts-sum { padding-inline-start: 1.5rem; }
 @media (pointer: coarse) { .ls-recent-sum { min-height: 44px; } }
+
+/* The section in blocks (localServer.ts): the switch, what it serves, the
+   phones, what is rarely touched; one rule between blocks, none inside. */
+.ls { gap: 0; }
+.ls-block { display: flex; flex-direction: column; gap: .55rem; padding: 1.1rem 0; border-top: 1px solid var(--hair); }
+.ls-block:first-child { padding-top: 0; border-top: 0; }
+.ls-block:empty { display: none; }
+.ls-block > .ls-h:first-child { margin-top: 0; }
+.ls-run { display: flex; align-items: center; justify-content: space-between; gap: .6rem 1rem; flex-wrap: wrap; padding: .6rem .8rem; background: var(--paper-2); border: 1px solid var(--hair); border-radius: 10px; }
+.ls-run .ls-state { flex: 1 1 14rem; }
+.ls-run .btn { flex: none; }
+.ls-block > .btn { align-self: flex-start; }
+.ls-here .ls-folder { padding: 0; }
+.ls-here .ls-parts { padding-inline-start: 1.6rem; }
+.ls-parts-all { align-self: flex-start; font-size: .84rem; }
+.ls-parts-all[hidden] { display: none; }
+.ls-recent { padding: .2rem 0; }
+.ls-recent .ls-list { gap: 0; }
+.ls-danger { padding-top: 0; border-top: 0; }
+.ls .btn:disabled { opacity: .5; cursor: default; }
+.ls-warn:empty, .ls-said:empty { display: none; }
+/* "Recentes" says it opens: the chevron of the sidebar's tree. */
+.ls-recent-sum { list-style: none; gap: .45rem; }
+.ls-recent-sum::-webkit-details-marker { display: none; }
+.ls-recent-sum::before { content: ""; flex: none; width: 5px; height: 5px; margin: 0 .2rem 0 .1rem; border-right: 1.5px solid var(--ink-3); border-bottom: 1.5px solid var(--ink-3); transform: rotate(-45deg); transition: transform .18s var(--ease-out); }
+.ls-recent[open] > .ls-recent-sum::before { transform: rotate(45deg); }
+@media (prefers-reduced-motion: reduce) { .ls-recent-sum::before { transition: none; } }

@@ -14,7 +14,6 @@ import { type PartNode, buildTree, covers, choose, stateOf } from "./servedParts
 
 const pt = {
   toggle: (summary: string) => `Escolher pastas · ${summary}`,
-  summary: (summary: string) => `Pastas dentro deste cofre: ${summary}.`,
   whole: "serve tudo",
   some: (n: number) => (n === 1 ? "1 pasta" : `${n} pastas`),
   help: "Marque só o que o celular pode ver. Nada marcado serve a pasta toda.",
@@ -32,7 +31,6 @@ const pt = {
 };
 const en: typeof pt = {
   toggle: (summary) => `Choose folders · ${summary}`,
-  summary: (summary) => `Folders inside this vault: ${summary}.`,
   whole: "serves all of it",
   some: (n) => (n === 1 ? "1 folder" : `${n} folders`),
   help: "Tick only what the phone may see. None ticked serves the whole folder.",
@@ -111,9 +109,10 @@ export function partsRow(o: PartsOptions, memory: PartsMemory): HTMLElement {
   const say = h("p", "ls-help ls-parts-say", w.help);
   const body = h("div", "ls-parts-body");
   // Back to the whole folder: the tree's own action, not a click on a box.
-  const all = h("button", "btn quiet ls-parts-all", w.serveAll);
+  const all = h("button", "btn ls-parts-all", w.serveAll);
   all.type = "button";
-  all.disabled = o.locked || o.chosen.length === 0;
+  all.disabled = o.locked;
+  all.hidden = o.chosen.length === 0;
   all.addEventListener("click", () => {
     void o.save([]).then((kept) => {
       if (kept) document.getElementById(`ls-pa-${o.key}`)?.focus();
@@ -125,10 +124,10 @@ export function partsRow(o: PartsOptions, memory: PartsMemory): HTMLElement {
   const gone = h("p", "ls-help ls-parts-gone", o.missing.length === 0 ? "" : w.missing(o.missing.join(", ")));
   gone.hidden = o.missing.length === 0;
   panel.append(say, body, all, attach, gone);
-  if (o.always === true) {
-    // No button: what is served is said in words, above the tree.
-    box.append(h("p", "ls-help ls-parts-sum", w.summary(summary)), panel);
-  } else box.append(toggle, panel);
+  // The open folder's tree is shown at once, with no button; the folder's
+  // own box already says whether all of it or a part is served.
+  if (o.always === true) box.append(panel);
+  else box.append(toggle, panel);
 
   const draw = (folders: string[]): void => {
     const tree = buildTree(folders);

@@ -26,7 +26,9 @@ const OPEN_KEY = "verso-served-recent-open";
 
 const pt = {
   ticked: (n: number, all: number) => (n === 0 ? `nenhuma marcada de ${all}` : n === 1 ? `1 marcada de ${all}` : `${n} marcadas de ${all}`),
-  thisVault: (name: string) => `Este cofre · ${name}`,
+  thisVault: "Aberto nesta janela",
+  servesAll: ", serve tudo",
+  servesSome: (n: number) => (n === 1 ? ", só 1 pasta" : `, só ${n} pastas`),
   recent: (n: number, ticked: number) => `Recentes · ${n === 1 ? "1 pasta" : `${n} pastas`}${ticked === 0 ? "" : ticked === 1 ? " · 1 marcada" : ` · ${ticked} marcadas`}`,
   filter: "Filtrar pastas",
   filterHint: "Filtrar por nome ou lugar",
@@ -38,7 +40,9 @@ const pt = {
 };
 const en: typeof pt = {
   ticked: (n, all) => (n === 0 ? `none ticked of ${all}` : n === 1 ? `1 ticked of ${all}` : `${n} ticked of ${all}`),
-  thisVault: (name) => `This vault · ${name}`,
+  thisVault: "Open in this window",
+  servesAll: ", all of it",
+  servesSome: (n) => (n === 1 ? ", only 1 folder" : `, only ${n} folders`),
   recent: (n, ticked) => `Recent · ${n === 1 ? "1 folder" : `${n} folders`}${ticked === 0 ? "" : ticked === 1 ? " · 1 ticked" : ` · ${ticked} ticked`}`,
   filter: "Filter folders",
   filterHint: "Filter by name or place",
@@ -149,6 +153,8 @@ export function servedFolders(opts: ServedOptions): Served {
     row.append(label);
     const hints: HTMLElement[] = [];
     if (twins.has(f.name) && f.place !== "") hints.push(h("small", "ls-place", w.inPlace(f.place)));
+    // What of a ticked folder is served, beside its name.
+    if (f.ticked && f.syncs_with === null) hints.push(h("small", "ls-place ls-serves", partly ? w.servesSome(f.parts.length) : w.servesAll));
     hints.forEach((n, i) => {
       n.id = `ls-h-${f.key}-${i}`;
       row.append(n);
@@ -218,7 +224,8 @@ export function servedFolders(opts: ServedOptions): Served {
     here.hidden = open === undefined;
     hereList.replaceChildren();
     if (open) {
-      hereHead.textContent = w.thisVault(open.name);
+      // The folder's own name is on its box just below.
+      hereHead.textContent = w.thisVault;
       hereList.append(folderRow(open, twins, true));
     }
     // The others, a group that is shut until opened.
