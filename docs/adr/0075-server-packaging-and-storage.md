@@ -87,7 +87,7 @@
   and a chown changes the inode for all of them), then `exec`s `/usr/bin/universo`, a wrapper that drops to
   uid 1000 with the supplementary groups cleared (`su`) and executes the
   binary, `docker exec` commands included, so that `universo admin reset`
-  never leaves a root-owned file. **The residual race**, stated: someone who can write inside a mount could swap a directory for a symbolic link between `find` and `chown` and have a root-owned entry elsewhere changed; the mounts are the administrator's, and uid 1000, which runs the server, has not started yet. A container started as root without the capabilities (an older compose file) is refused with the line that says what to add, never run as root. Root lives for the entrypoint's checks, a
+  never leaves a root-owned file. A device node, FIFO or socket that root owns is never handed to uid 1000 (a block device given away would open the host's disk to whoever is 1000), and the log says how many were left. **The residual races**, stated: someone who can write inside a mount could (1) swap a directory for a symbolic link between `find` and `chown`, or (2) rename a listed one-name file away and put a hard link to a root file outside the mount in its place (it needs `fs.protected_hardlinks=0`, or write access to the target), and have that root-owned entry changed; the mounts are the administrator's, and uid 1000, which runs the server, has not started yet. A container started as root without the capabilities (an older compose file) is refused with the line that says what to add, never run as root. Root lives for the entrypoint's checks, a
   few milliseconds unless it has to chown a large tree, once; the server
   process holds uid and gid 1000, no other group, `CapEff` and `CapPrm` zero
   (`scripts/check-server-image.sh` reads `/proc/1/status`). The compose file
@@ -99,7 +99,17 @@
   touched: the server checks at start that it can write to both directories,
   says in the log, in the admin console and in the answer to the request that
   failed that it cannot, and names the command (`sudo chown -R 1000:1000
-  <host folder>`; for the `.deb`, the `universo` user).
+  <host folder>`; for the `.deb`, the `universo` user). **How far the mend reaches**
+  was put to the maintainer (2026-10-16): *"E se alguém montar uma pasta grande
+  que já tem coisas de outros apps (ex.: /DATA inteiro no ZimaOS)? Hoje ele
+  passaria tudo que é do root ali dentro para o Verso"*, with the options *only
+  an empty folder* or *the whole folder, always*; he chose **"Pasta inteira,
+  sempre"**. So the mend takes every root-owned directory, symbolic link and
+  one-name regular file under each mount, whatever was there before. The
+  consequence, plainly: **mount only the folder meant for Verso.** Binding a
+  parent such as `/DATA` hands every other app's root-owned files in it to uid
+  1000. The entrypoint says in the log how many entries it handed over, so a
+  mount that is too wide shows.
 - Revisions: 2026-10-09 (night) — accepted by the maintainer together with
   [0073](0073-self-hosted-server-first.md), in the answer quoted there;
   its two `[OPEN]` answered — the update path (item 7, the maintainer's

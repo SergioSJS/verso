@@ -213,7 +213,11 @@ só para consertar isso** e desce ao uid 1000 antes de o servidor rodar (ADR
 dos dois diretórios em que o uid 1000 não grava, o entrypoint entrega a
 `1000:1000` as entradas que o root possui sob ele, uma vez: nenhum link
 simbólico é seguido, nenhum outro sistema de arquivos é percorrido, e o
-arquivo de outro usuário, ou um com vários hard links, é deixado em paz. Ele precisa das três
+arquivo de outro usuário, ou um com vários hard links, é deixado em paz. **Monte só a pasta destinada ao Verso**: o conserto pega
+tudo que é do root sob o ponto de montagem, então ligar um pai como `/DATA`
+no ZimaOS entregaria ao uid 1000 os arquivos do root dos outros apps (o log
+diz quantas entradas foram entregues, para que um ponto largo demais
+apareça). Ele precisa das três
 capabilities que o arquivo compose devolve (`CHOWN`, `SETUID`, `SETGID`); o
 servidor não tem nenhuma. Se um diretório é de outra pessoa, o log, o console
 de administração e o pedido que falhou dizem `sudo chown -R 1000:1000 <pasta

@@ -205,7 +205,10 @@ that** and drops to uid 1000 before the server runs (ADR 0075, amended
 that uid 1000 cannot write, the entrypoint gives to `1000:1000` the entries
 that root owns under it, once: no symbolic link is followed, no other file
 system entered, and a file of another user, or one with several hard links,
-is left alone. It needs the three
+is left alone. **Mount only the folder meant for Verso**: the mend takes
+everything root owns under the mount, so binding a parent such as `/DATA` on
+ZimaOS would hand the other apps' root-owned files to uid 1000 (the log says
+how many entries were handed over, so a mount that is too wide shows). It needs the three
 capabilities the compose file adds back (`CHOWN`, `SETUID`, `SETGID`); the
 server itself holds none. If a directory belongs to someone else, the log,
 the admin console and the failing request say `sudo chown -R 1000:1000
