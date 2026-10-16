@@ -63,6 +63,8 @@ Needs the installed app on a Mac, a Linux or a Windows computer, a real phone (a
 - [ ] **A phone's role** (2026-10-15): pair a phone as a reader, open a note on it; in *Paired phones* tick *Can edit* for it — without reloading, the phone can type; untick it — the phone cannot, and a note it was editing live reads again; both show in *What happened* and in `verso.log`.
 - [ ] **The log** (2026-10-15): after turning the server on, pairing, connecting, revoking and turning it off, `~/Library/Application Support/verso/logs/verso.log` has a line for each (source `local`) and no token, code, QR text or note text.
 
+- [ ] **A third device while the connected ones are at the most** (A, a real Android phone or iPhone; fix/phone-refused-said, 2026-10-16): in *Settings › This app is a server* set *Devices connected at once* to 2, pair three phones (or two phones and a desktop browser paired as a phone) and open Verso on two of them. Open it on the third: it must say, in its language, that the computer already serves 2 connected devices, the most, and what to do — not "the file is in the cloud" — and keep trying every ~15 seconds without a flood. Close Verso on one of the two (a tab counts): the third connects by itself within ~15 seconds. Raise the number to 3 with the third waiting: it connects on its next try, and nobody was disconnected. Lower it under the count: nobody is cut off, a new connection is refused. The computer's log has the refusal once a minute, and the log in Settings says *Phone refused*, naming the phone.
+
 ### The phone offline (ADR 0092, feat/phone-offline, 2026-10-15)
 
 Needs a UniVerso over **HTTPS** (a service worker does not run over plain

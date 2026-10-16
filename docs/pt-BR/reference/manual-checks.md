@@ -63,6 +63,8 @@ Precisa do app instalado num Mac, num computador Linux ou num Windows, de um cel
 - [ ] **O papel de um celular** (2026-10-15): pareie um celular como leitor, abra uma nota nele; em *Celulares pareados* marque *Pode editar* para ele — sem recarregar, o celular consegue digitar; desmarque — não consegue, e uma nota que ele editava ao vivo volta a ser lida; os dois aparecem em *O que aconteceu* e no `verso.log`.
 - [ ] **O log** (2026-10-15): depois de ligar o servidor, parear, conectar, revogar e desligar, o `~/Library/Application Support/verso/logs/verso.log` tem uma linha para cada (origem `local`) e nenhum token, código, texto do QR ou texto de nota.
 
+- [ ] **Um terceiro aparelho com os conectados no máximo** (A, um Android ou iPhone de verdade; fix/phone-refused-said, 2026-10-16): em *Ajustes › Este app é um servidor* ponha *Aparelhos conectados ao mesmo tempo* em 2, pareie três celulares (ou dois celulares e um navegador de computador pareado como celular) e abra o Verso em dois. Abra no terceiro: ele deve dizer, na sua língua, que o computador já atende 2 aparelhos conectados, o máximo, e o que fazer — não "o arquivo está na nuvem" — e continuar tentando a cada ~15 segundos, sem enxurrada. Feche o Verso em um dos dois (uma aba conta): o terceiro conecta sozinho em ~15 segundos. Suba o número para 3 com o terceiro esperando: ele conecta na próxima tentativa, e ninguém foi desconectado. Baixe o número abaixo da contagem: ninguém é cortado, uma conexão nova é recusada. O log do computador tem a recusa uma vez por minuto, e o log nos Ajustes diz *Celular recusado*, com o nome do celular.
+
 ### O celular sem rede (ADR 0092, feat/phone-offline, 2026-10-15)
 
 Precisa de um UniVerso com **HTTPS** (um service worker não roda em HTTP
