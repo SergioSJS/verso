@@ -148,6 +148,22 @@ export function localServerBody(_item: Item): HTMLElement {
       }
       return r.data;
     },
+    subfolders: async (key) => {
+      const r = await commands.localServerSubfolders(key);
+      if (r.status !== "ok") {
+        failed(r.error);
+        return null;
+      }
+      return r.data;
+    },
+    choose: async (key, parts) => {
+      const r = await commands.localServerParts(key, parts);
+      if (r.status !== "ok") {
+        failed(r.error);
+        return null;
+      }
+      return r.data;
+    },
   });
   const folders = served.el;
   // Run.
