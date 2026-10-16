@@ -16,7 +16,7 @@
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import type { ContractError, FolderInfo } from "../bindings";
-import { api, ApiError, pageContract, signedIn } from "./api";
+import { api, ApiError, byApp, pageContract, signedIn } from "./api";
 import { noNetwork, offline } from "./offline/manager";
 import { o } from "./offline/strings";
 import { notice } from "./notice";
@@ -441,6 +441,9 @@ type Share = { id: string | null; path: string; people: unknown[]; attachments: 
  *  the contract refuses. */
 async function shareCall(cmd: string, a: Record<string, unknown>): Promise<unknown> {
   if (!folderId) throw refused("no folder");
+  // A desktop app serving a phone shares nothing (ADR 0096): asked, its
+  // server answers 404 and the phone's console shows it on every folder.
+  if (byApp()) throw refused("shares are a server's");
   const at = `/api/folders/${encodeURIComponent(folderId)}/shares`;
   try {
     switch (cmd) {
