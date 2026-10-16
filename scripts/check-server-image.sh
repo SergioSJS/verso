@@ -65,6 +65,7 @@ ctx="$dir/context"
 rm -rf "$ctx" && mkdir -p "$ctx/bin/$arch"
 cp "$dir/out/verso" "$ctx/bin/$arch/verso"
 rsync -a --exclude '*.map' app/ui/dist/ "$ctx/ui/"
+cp packaging/server/docker-entrypoint.sh packaging/server/universo-wrapper.sh "$ctx/"
 
 printf '\n== the image (%s)\n' "$arch"
 docker build -q -f packaging/server/Dockerfile -t universo:check "$ctx"
@@ -83,7 +84,7 @@ trap 'docker rm -f "$name" "$unit" >/dev/null 2>&1 || true; [ "${KEEP:-}" = 1 ] 
 # What the compose file declares is what runs here (ADR 0083 item 11).
 compose=packaging/server/docker-compose.yml
 docker compose -f "$compose" config -q || { echo "$compose is not a valid compose file"; exit 1; }
-for want in 'read_only: true' '- /tmp' '- ALL' '- no-new-privileges:true'; do
+for want in 'read_only: true' '- /tmp' '- ALL' '- CHOWN' '- SETUID' '- SETGID' '- no-new-privileges:true'; do
   grep -qF -- "$want" "$compose" || { echo "$compose does not declare: $want"; exit 1; }
 done
 # The port published on every address (2026-10-16, ADR 0073 item 6 as
@@ -94,7 +95,7 @@ echo "$parsed" | grep -qF 'published: "7340"' || { echo "$compose does not publi
 ! echo "$parsed" | grep -qF 'host_ip:' || { echo "$compose binds its port to one address"; exit 1; }
 ! echo "$parsed" | grep -qE '^\s+VERSO_(PUBLIC_URL|TRUSTED_PROXY):' || { echo "$compose requires a variable that is optional"; exit 1; }
 docker run -d --name "$name" -p "127.0.0.1:$port:7340" \
-  --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
+  --read-only --tmpfs /tmp --cap-drop ALL --cap-add CHOWN --cap-add SETUID --cap-add SETGID --security-opt no-new-privileges:true \
   -v "$certs":/certs:ro \
   -e VERSO_PUBLIC_URL="https://localhost:$port" \
   -e VERSO_TLS_CERT_FILE=/certs/cert.pem -e VERSO_TLS_KEY_FILE=/certs/key.pem \
@@ -128,7 +129,7 @@ case "$page" in 200\ text/html*) ;; *) echo "the window's page is not served"; e
 plain=universo-plain-check
 docker rm -f "$plain" >/dev/null 2>&1 || true
 docker run -d --name "$plain" -p "127.0.0.1:$((port + 1)):7340" \
-  --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
+  --read-only --tmpfs /tmp --cap-drop ALL --cap-add CHOWN --cap-add SETUID --cap-add SETGID --security-opt no-new-privileges:true \
   -e VERSO_ADMIN_EMAIL=admin@verso.test -e VERSO_ADMIN_PASSWORD='uma senha bem longa' \
   -e VERSO_UPDATE_CHECK=off universo:check >/dev/null
 for _ in $(seq 1 30); do
@@ -141,6 +142,65 @@ heads="$(curl -s -i -H "Host: $lan" -H "Origin: http://$lan" -H 'content-type: a
 echo "$heads" | grep -q '"admin":true' || { echo "plain HTTP sign-in failed: $heads"; docker logs "$plain"; docker rm -f "$plain" >/dev/null; exit 1; }
 echo "$heads" | grep -i '^set-cookie:' | grep -qi 'secure' && { echo "the cookie is Secure over plain HTTP"; docker rm -f "$plain" >/dev/null; exit 1; }
 docker rm -f "$plain" >/dev/null
+# A root-owned bind for /data and /folders, as Docker makes one for a host
+# (ADR 0075 item 3, amended 2026-10-16): the entrypoint, root with only
+# CHOWN, SETUID and SETGID, hands what root owns in them to uid 1000 and
+# drops; the server then makes a folder; it runs as 1000 with no capability;
+# and nothing outside the two mounts is touched, nor a symlink followed, nor
+# a file of another user changed. The paths are on the Docker host (a
+# Colima VM's /tmp), made root-owned by a container.
+printf '\n== root-owned mounts, mended by the entrypoint\n'
+mend=universo-mend-check
+docker rm -f "$mend" >/dev/null 2>&1 || true
+docker run --rm -v /tmp:/h alpine:3.24.2 sh -c '
+  rm -rf /h/universo-mend && mkdir -p /h/universo-mend/data /h/universo-mend/folders/Antiga /h/universo-mend/outside
+  echo canary > /h/universo-mend/outside/secret
+  echo old > /h/universo-mend/folders/Antiga/n.md
+  ln -s /h/universo-mend/outside /h/universo-mend/folders/link
+  echo theirs > /h/universo-mend/folders/others.md && chown 1001:1001 /h/universo-mend/folders/others.md
+  chown -R 0:0 /h/universo-mend/data /h/universo-mend/folders/Antiga /h/universo-mend/outside
+  chown -h 0:0 /h/universo-mend/folders/link
+  chown 0:0 /h/universo-mend/folders; chmod 755 /h/universo-mend/data /h/universo-mend/folders'
+docker run -d --name "$mend" -p "127.0.0.1:$((port + 2)):7340" \
+  --read-only --tmpfs /tmp --cap-drop ALL --cap-add CHOWN --cap-add SETUID --cap-add SETGID --security-opt no-new-privileges:true \
+  -v /tmp/universo-mend/data:/data -v /tmp/universo-mend/folders:/folders \
+  -e VERSO_ADMIN_EMAIL=admin@verso.test -e VERSO_ADMIN_PASSWORD='uma senha bem longa' \
+  -e VERSO_UPDATE_CHECK=off universo:check >/dev/null
+for _ in $(seq 1 30); do
+  curl -s "http://127.0.0.1:$((port + 2))/api/state" >/dev/null 2>&1 && break
+  sleep 1
+done
+mb="http://127.0.0.1:$((port + 2))"
+msigned="$(curl -s -c "$dir/mjar" -H "Origin: $mb" -H 'content-type: application/json' \
+  -d '{"email":"admin@verso.test","password":"uma senha bem longa"}' "$mb/api/signin")"
+echo "$msigned" | grep -q '"admin":true' || { echo "root-owned mounts: sign-in failed: $msigned"; docker logs "$mend"; docker rm -f "$mend" >/dev/null; exit 1; }
+mcsrf="$(echo "$msigned" | sed -E 's/.*"csrf":"([^"]+)".*/\1/')"
+mmade="$(curl -s -b "$dir/mjar" -H "Origin: $mb" -H "x-verso-csrf: $mcsrf" -H 'content-type: application/json' \
+  -d '{"name":"Campanha"}' "$mb/api/folders")"
+echo "$mmade" | grep -q '"role":"owner"' || { echo "root-owned mounts: no folder made: $mmade"; docker logs "$mend"; docker rm -f "$mend" >/dev/null; exit 1; }
+# The server process: uid 1000, gid 1000 and no other group, no capability.
+status="$(docker exec -u 0 "$mend" cat /proc/1/status)"
+echo "$status" | grep -E '^(Uid|Gid|Groups|CapEff|CapPrm):'
+echo "$status" | grep -q '^Uid:[[:space:]]1000[[:space:]]1000[[:space:]]1000[[:space:]]1000' || { echo "the server does not run as uid 1000"; exit 1; }
+echo "$status" | grep -q '^CapEff:[[:space:]]0000000000000000$' || { echo "the server holds effective capabilities"; exit 1; }
+echo "$status" | grep -q '^CapPrm:[[:space:]]0000000000000000$' || { echo "the server holds permitted capabilities"; exit 1; }
+echo "$status" | grep -qE '^Groups:[[:space:]]+(1000)?[[:space:]]*$' || { echo "the server keeps supplementary groups"; exit 1; }
+# A command by `docker exec` (as the container's root) also runs as 1000.
+docker exec "$mend" universo admin reset admin@verso.test | grep -q "/reset/" || { echo "admin reset failed"; exit 1; }
+owners="$(docker run --rm -v /tmp:/h alpine:3.24.2 sh -c '
+  stat -c "%u %n" /h/universo-mend/data /h/universo-mend/folders /h/universo-mend/folders/Antiga /h/universo-mend/folders/Antiga/n.md
+  stat -c "%u %n" /h/universo-mend/folders/others.md /h/universo-mend/outside /h/universo-mend/outside/secret
+  stat -c "%u %n" /h/universo-mend/folders/link; ls /h/universo-mend/data | head -3 | while read f; do stat -c "%u %n" "/h/universo-mend/data/$f"; done')"
+echo "$owners"
+echo "$owners" | grep -q '^1000 /h/universo-mend/folders$' || { echo "/folders was not mended"; exit 1; }
+echo "$owners" | grep -q '^1000 /h/universo-mend/folders/Antiga/n.md$' || { echo "a root-owned file in /folders was not mended"; exit 1; }
+echo "$owners" | grep -q '^1001 /h/universo-mend/folders/others.md$' || { echo "another user's file was changed"; exit 1; }
+echo "$owners" | grep -q '^0 /h/universo-mend/outside$' || { echo "something outside the mounts was touched"; exit 1; }
+echo "$owners" | grep -q '^0 /h/universo-mend/outside/secret$' || { echo "a symlink was followed out of the mount"; exit 1; }
+echo "$owners" | grep -q '^1000 /h/universo-mend/folders/link$' || { echo "the link itself was not mended"; exit 1; }
+! echo "$owners" | grep '/data/' | grep -vq '^1000 ' || { echo "a file of /data is not uid 1000's"; exit 1; }
+docker rm -f "$mend" >/dev/null
+docker run --rm -v /tmp:/h alpine:3.24.2 rm -rf /h/universo-mend
 docker exec "$name" universo admin reset admin@verso.test | grep -q "/reset/" || { echo "admin reset failed"; exit 1; }
 printf '\n== the log\n'
 docker logs "$name" 2>&1 | tail -8
