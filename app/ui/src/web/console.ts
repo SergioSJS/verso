@@ -101,11 +101,13 @@ function usage(space: number, quota: number | null): HTMLElement {
 async function overview(c: Ctx, body: HTMLElement): Promise<void> {
   const s = cw();
   c.title(s.overview);
-  type Info = { version: string; newer: string | null; updateCheck: boolean; dataDir: string; foldersDir: string; dataOnNetwork: string | null; foldersOnNetwork: string | null; mail: boolean; tls: string; accounts: number; folders: number; space: number; trash?: { count: number; size: number }; history?: { count: number; size: number }; nearQuota: { id: string; name: string; space: number; quota: number }[]; twins: { id: string; name: string; count: number }[]; underAttack?: number; defaultQuota: number | null; auditDays?: number };
+  type Info = { version: string; newer: string | null; updateCheck: boolean; dataDir: string; foldersDir: string; dataOnNetwork: string | null; foldersOnNetwork: string | null; mail: boolean; tls: string; accounts: number; folders: number; space: number; trash?: { count: number; size: number }; history?: { count: number; size: number }; nearQuota: { id: string; name: string; space: number; quota: number }[]; twins: { id: string; name: string; count: number }[]; underAttack?: number; unwritable?: { dir: string; owner: string }[]; defaultQuota: number | null; auditDays?: number };
   const o = await api<Info>("GET", "/api/admin/overview");
   const card = (title: string, ...content: (Node | string)[]) => el("section", { class: "console-card" }, el("h2", {}, title), ...content);
   const attention: Node[] = [];
   if (o.newer) attention.push(el("li", {}, s.newer(o.newer)));
+  // A directory the server cannot write (ADR 0075 item 3, amended 2026-10-16).
+  for (const u of o.unwritable ?? []) attention.push(el("li", { class: "web-warn", "data-unwritable": "" }, s.unwritable(u.dir, u.owner)));
   if (o.dataOnNetwork) attention.push(el("li", { class: "web-warn" }, s.dataOnNetwork));
   const toFolder = (id: string, text: string): HTMLElement => {
     const a = el("a", { href: `/admin/folders/${id}` }, text);
