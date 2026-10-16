@@ -504,7 +504,11 @@ export const commands = {
 	serverRetry: () => typedError<null, ContractError>(__TAURI_INVOKE("server_retry")),
 	/**  Begin browsing (once; asking again keeps the browse that runs). */
 	discoverServersStart: () => typedError<null, ContractError>(__TAURI_INVOKE("discover_servers_start")),
-	/**  What has been found so far; empty when no browse runs. */
+	/**
+	 *  What has been found so far. Asking renews the browse's lease, and starts
+	 *  the browse if it ended (another window stopped it, or the lease ran out
+	 *  between two asks).
+	 */
 	discoverServersList: () => typedError<FoundServer[], ContractError>(__TAURI_INVOKE("discover_servers_list")),
 	/**  Stop browsing; the network is left alone. */
 	discoverServersStop: () => typedError<null, ContractError>(__TAURI_INVOKE("discover_servers_stop")),
@@ -1529,8 +1533,17 @@ export type FoundServer = {
 	name: string,
 	/**  The announced host, `universo-ab12cd.local`. */
 	host: string,
-	/**  Where a click connects: `http(s)://address[:port]`. */
+	/**
+	 *  Where a click connects: the public address the server announced, or
+	 *  `http://address[:port]`; empty when `needs_public_url`.
+	 */
 	url: string,
+	/**
+	 *  A server that speaks TLS itself and announced no public address: it
+	 *  is listed, but cannot be offered by IP (a certificate is for a
+	 *  name); the server's `VERSO_PUBLIC_URL` must be set.
+	 */
+	needs_public_url: boolean,
 	https: boolean,
 	/**  The version it announced; empty when it said none. */
 	version: string,

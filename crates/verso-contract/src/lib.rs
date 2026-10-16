@@ -745,8 +745,13 @@ pub struct FoundServer {
     pub name: String,
     /// The announced host, `universo-ab12cd.local`.
     pub host: String,
-    /// Where a click connects: `http(s)://address[:port]`.
+    /// Where a click connects: the public address the server announced, or
+    /// `http://address[:port]`; empty when `needs_public_url`.
     pub url: String,
+    /// A server that speaks TLS itself and announced no public address: it
+    /// is listed, but cannot be offered by IP (a certificate is for a
+    /// name); the server's `VERSO_PUBLIC_URL` must be set.
+    pub needs_public_url: bool,
     pub https: bool,
     /// The version it announced; empty when it said none.
     pub version: String,

@@ -6,7 +6,7 @@
 
 import { test, expect } from "./fixtures.mjs";
 
-const ZIMA = { name: "UniVerso-ab12cd", host: "universo-ab12cd.local", url: "http://192.168.1.9:7340", https: false, version: "0.8.4" };
+const ZIMA = { name: "UniVerso-ab12cd", host: "universo-ab12cd.local", url: "http://192.168.1.9:7340", https: false, version: "0.8.4", needs_public_url: false };
 
 async function openServers(app) {
   await app.key("Mod+,");
@@ -49,4 +49,15 @@ test("nothing found says how to find it; browsing ends when the section closes",
   // Another section: the list is gone, and so is the browse.
   await page.locator(".settings-nav-item", { hasText: "Sincronizar" }).click();
   await expect.poll(async () => (await app.calls("discover_servers_stop")).length, { timeout: 8000 }).toBe(1);
+});
+
+test("a TLS server that announced no public address is listed with what to do, not offered", async ({ app, page }) => {
+  await app.open();
+  await page.evaluate(() => {
+    window.__harness.core.handlers.discover_servers_list = () => [{ name: "UniVerso-9a9a9a", host: "h.local", url: "", https: true, version: "0.8.4", needs_public_url: true }];
+  });
+  await openServers(app);
+  const row = page.locator(".srv-found-row");
+  await expect(row).toContainText("VERSO_PUBLIC_URL");
+  await expect(row.getByRole("button")).toHaveCount(0);
 });
