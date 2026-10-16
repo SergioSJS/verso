@@ -16,7 +16,7 @@ import { type CliState, commands, type McpStatus } from "../bindings";
 import { remoteContentChanged } from "../changes";
 import { ask } from "../dialog";
 import { button, h, ui } from "../dom";
-import { focusesSummary, getLocalFocuses, getSyncFocuses, isSyncFocusesAsked, loadFocuses, setFocusesSummary, setLocalFocuses, setSyncFocuses, setSyncFocusesAsked } from "../focuses";
+import { focusesSummary, getLocalFocuses, getSyncFocuses, isSyncFocusesAsked, loadFocuses, setFocusesSummary, setLocalFocuses, setSyncFocuses, setSyncFocusesAsked, tellHostSyncFocuses } from "../focuses";
 import { bookmarks } from "../bookmarks";
 import { currentFolder } from "../folder";
 import { changeFolder, folderValues, folderWritable } from "../folderLayer";
@@ -599,13 +599,13 @@ export class SettingsDialog {
           setSyncFocusesAsked(true);
           if (!ok) {
             setSyncFocuses(false);
-            await commands.setSyncFocuses(false);
+            await tellHostSyncFocuses(false);
             this.paint();
             return;
           }
         }
         setSyncFocuses(true);
-        await commands.setSyncFocuses(true);
+        await tellHostSyncFocuses(true);
         const local = getLocalFocuses();
         if (local.length > 0) {
           const migrate = await ask(t.syncLocalFocusesQuestion, { yes: t.syncFocusesEnable, no: t.syncFocusesOffInfo });
@@ -626,7 +626,7 @@ export class SettingsDialog {
         await loadFocuses(true);
       } else {
         setSyncFocuses(false);
-        await commands.setSyncFocuses(false);
+        await tellHostSyncFocuses(false);
         await loadFocuses(true);
       }
       this.paint();

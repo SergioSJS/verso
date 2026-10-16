@@ -731,12 +731,13 @@ if (!popout && settings.checkUpdates) {
  *  `board.md`, second reading, finding 9). */
 export const started: Promise<void> = (async () => {
   hearServers();
-  // The desktop serving to a phone: its status mark, a phone asking, a
-  // stop by itself (ADR 0096).
-  if (can("local_folders")) hearLocalServer();
   // A folder of this computer that syncs with a server says so in the
   // status bar (ADR 0079 item 13); a server's own folder does not sync.
   void loadCan().then(() => {
+    // The desktop serving to a phone: its status mark, a phone asking, a
+    // stop by itself (ADR 0096). Once the side has answered: a phone's window
+    // starts with the desktop's set of capabilities and would ask the status.
+    if (can("local_folders")) hearLocalServer();
     // (and a browser that keeps a server's folder offline says so the same way, ADR 0092 item 7)
     if (!popout && (can("local_folders") || offline.available)) hearSync((section) => settingsDialog.show(section));
   });
