@@ -784,6 +784,48 @@ pub fn subfolders_of(folder: &Path) -> Result<Vec<String>, CoreError> {
     verso_fs::subfolders(folder).map_err(CoreError::Folder)
 }
 
+/// The attachments folder Obsidian's own settings name for the vault at
+/// `folder` (`attachmentFolderPath` in `.obsidian/app.json`, read by name
+/// through `verso-fs`, never written): a folder of the vault, relative and
+/// `/`-joined. `None` when the setting is absent, is the vault's root, "the
+/// same folder as the note" or a sub-folder of the note's folder (`./…`) —
+/// those lie inside whatever is served with the note — or does not name a
+/// plain folder (a `..`, a hidden part, a backslash).
+#[must_use]
+pub fn attachments_folder(folder: &Path) -> Option<String> {
+    use verso_fs::{ObsidianRead, ObsidianSettings};
+    let root = Root::open(folder, Vec::new()).ok()?;
+    let ObsidianRead::Found(bytes) = root.read_obsidian_settings(ObsidianSettings::App).ok()?
+    else {
+        return None;
+    };
+    let value: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
+    let named = value.get("attachmentFolderPath")?.as_str()?.trim();
+    if named.starts_with('.') {
+        return None;
+    }
+    let named = named.trim_matches('/');
+    let plain = !named.is_empty()
+        && named
+            .split('/')
+            .all(|p| !p.is_empty() && !p.starts_with('.') && !p.contains(['\\', ':', '\0']));
+    plain.then(|| named.to_owned())
+}
+
+/// The vault's attachments folder as it goes with folders served in part:
+/// [`attachments_folder`], unless it is one of the chosen folders, inside
+/// one or holds one — then there is none, so that nothing is shown twice
+/// or widened (ADR 0096 item 2, amended 2026-10-16).
+#[must_use]
+pub fn served_attachments(folder: &Path, parts: &[String]) -> Option<String> {
+    let a = attachments_folder(folder)?;
+    let covers = |root: &str, path: &str| path == root || path.starts_with(&format!("{root}/"));
+    parts
+        .iter()
+        .all(|p| !covers(&a, p) && !covers(p, &a))
+        .then_some(a)
+}
+
 impl Workspace {
     /// Open `folder` with its index under [`config_dir`] (or the given
     /// directory). Nothing is read yet.

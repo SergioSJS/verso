@@ -56,7 +56,7 @@ pub(crate) async fn local_server_tick<R: tauri::Runtime>(
 
 /// The folders inside a folder this computer has opened (by its key), to
 /// choose which of them to serve: relative, `/`-joined, none hidden
-/// (ADR 0096 item 3, amended 2026-10-16).
+/// (ADR 0096 item 2, amended 2026-10-16).
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn local_server_subfolders<R: tauri::Runtime>(

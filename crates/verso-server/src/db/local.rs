@@ -31,7 +31,7 @@ CREATE TABLE phones (
 /// account in the audit log and the folders' grants.
 pub const LOCAL_OWNER: &str = "owner@this-computer.verso";
 
-/// The account that holds a folder served in part (ADR 0096 item 3,
+/// The account that holds a folder served in part (ADR 0096 item 2,
 /// amended 2026-10-16): the folder is registered because the shares of its
 /// chosen sub-folders need a folder to belong to, but it is **not the
 /// phones'**: the local owner, whose sessions the phones are, has no grant

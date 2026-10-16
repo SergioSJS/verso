@@ -2,25 +2,34 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! A folder served **in part** (ADR 0096 item 3, amended 2026-10-16): the
+//! A folder served **in part** (ADR 0096 item 2, amended 2026-10-16): the
 //! person ticks a folder and chooses only some of the folders inside it.
 //! Each chosen folder reaches the phone as a folder of its own, by the
 //! confinement of a share (ADR 0081 items 1, 2 and 11): the folder is
 //! registered, because a share needs a folder to belong to, but it is
 //! held by an account that is not the phones' ([`crate::db::VAULT_HOLDER`]),
 //! so its own id opens nothing for a phone; the phone's owner account is
-//! given one share per chosen folder, and a phone opens those ids. The
-//! attachments the chosen folder's notes embed from outside it go along as
-//! the share's attachments folder, read-only (item 11), found when the
-//! folder is first opened ([`outside_attachments`]).
+//! given one share per chosen folder, and a phone opens those ids.
+//!
+//! The attachments go along as the share's attachments folder, read-only
+//! and **files only, never a note**: the one folder Obsidian's settings name
+//! for the vault ([`verso_core::served_attachments`]), fixed at each start —
+//! never found from text a phone can write. A symbolic link under a chosen
+//! folder that leads out of it is left out whole ([`escapes`]).
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::PathBuf;
-use std::sync::{Mutex, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
+use std::time::{Duration, Instant};
 
 use verso_service::lock;
 
-use crate::db::{Db, Role};
+use crate::db::{Db, Role, Share};
+use crate::scope::Guard;
+
+/// How long the links found under a chosen folder are trusted before the
+/// folder is looked at again: a command does not walk the folder.
+const LINKS_FRESH: Duration = Duration::from_secs(3);
 
 /// What the policy keeps of the folders served in part.
 #[derive(Default)]
@@ -31,21 +40,26 @@ pub struct Parts {
     /// Each share's name as a phone lists it: the folder's own, made unique
     /// against the other folders served (`Projetos`, `Projetos (2)`).
     names: RwLock<HashMap<String, String>>,
-    /// The shares whose attachments folder was looked for in this run.
-    looked: Mutex<HashSet<String>>,
+    /// The links that leave each chosen folder, by share, and when they
+    /// were looked for.
+    guards: Mutex<HashMap<String, (Instant, Arc<Guard>)>>,
+    /// The chosen folders this start left out for not being on the disk:
+    /// the folder's path as the host knows it, and the chosen folder.
+    dropped: Mutex<Vec<(String, String)>>,
 }
 
 impl Parts {
-    pub fn set(&self, hidden: HashSet<String>, names: HashMap<String, String>) {
+    pub fn set(&self, r: Reconciled) {
         *self
             .hidden
             .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = hidden;
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = r.hidden;
         *self
             .names
             .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = names;
-        lock(&self.looked).clear();
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = r.names;
+        lock(&self.guards).clear();
+        *lock(&self.dropped) = r.dropped;
     }
 }
 
@@ -72,17 +86,49 @@ impl super::Policy {
             .cloned()
     }
 
-    /// Whether `share` is one of this run's parts whose attachments folder
-    /// has not been looked for yet.
+    /// The chosen folders the last start left out (folder, chosen).
     #[must_use]
-    pub fn needs_look(&self, share: &str) -> bool {
-        self.part_name(share).is_some() && !lock(&self.parts.looked).contains(share)
+    pub fn dropped_parts(&self) -> Vec<(String, String)> {
+        lock(&self.parts.dropped).clone()
+    }
+
+    /// What a phone is kept from under `share`, a chosen folder of the
+    /// folder at `vault`: the links in it, or in its attachments folder,
+    /// that lead out of it. Looked for again after a few seconds; a folder
+    /// that cannot be looked at is shut whole (fail closed).
+    #[must_use]
+    pub fn guard_for(&self, vault: &std::path::Path, share: &Share) -> Arc<Guard> {
+        let mut guards = lock(&self.parts.guards);
+        if let Some((at, g)) = guards.get(&share.id)
+            && at.elapsed() < LINKS_FRESH
+        {
+            return Arc::clone(g);
+        }
+        let guard = Arc::new(Guard {
+            escapes: escapes(vault, share),
+        });
+        guards.insert(share.id.clone(), (Instant::now(), Arc::clone(&guard)));
+        guard
     }
 }
 
+/// The paths under the chosen folder, and under its attachments folder,
+/// that are symbolic links to somewhere outside the folder they are in.
+fn escapes(vault: &std::path::Path, share: &Share) -> Vec<String> {
+    let mut out = Vec::new();
+    for within in std::iter::once(&share.path).chain(share.attachments.as_ref()) {
+        match verso_fs::escaping_links(vault, within) {
+            Ok(found) => out.extend(found),
+            // Not looked at, so not trusted: all of it is left out.
+            Err(_) => out.push(within.clone()),
+        }
+    }
+    out
+}
+
 /// The chosen sub-folders of a folder, as they are kept: each a folder
-/// inside it by the rules of a share's path (relative, no `..`, no hidden
-/// part), none inside another, sorted. An empty list is the whole folder.
+/// inside it by the rules of a share's path, none inside another, sorted.
+/// An empty list is the whole folder.
 pub fn clean(parts: &[String]) -> Result<Vec<String>, String> {
     let mut out: Vec<String> = Vec::new();
     for p in parts {
@@ -101,19 +147,22 @@ pub fn clean(parts: &[String]) -> Result<Vec<String>, String> {
     Ok(out)
 }
 
-/// What the registry holds after a start: the ids no phone reaches, and
-/// the names of the shares.
+/// What the registry holds after a start: the ids no phone reaches, the
+/// names of the shares and the chosen folders left out.
 pub struct Reconciled {
     pub hidden: HashSet<String>,
     pub names: HashMap<String, String>,
+    pub dropped: Vec<(String, String)>,
 }
 
-/// One served folder: the name a phone gives it, where it is, and the
-/// folders chosen inside it (none: all of it).
+/// One served folder: the folders chosen inside it (none: all of it).
 pub struct Served {
+    pub path: PathBuf,
     pub parts: Vec<String>,
     /// The chosen folders that exist now.
     pub present: Vec<String>,
+    /// The vault's attachments folder that goes with them, read-only.
+    pub attachments: Option<String>,
 }
 
 /// The folders served, by the name each is given, with what is chosen
@@ -131,8 +180,8 @@ pub fn plan(
                 .get(path.to_string_lossy().as_ref())
                 .map_or(&[][..], Vec::as_slice),
         )?;
-        let present = if parts.is_empty() {
-            Vec::new()
+        let (present, attachments) = if parts.is_empty() {
+            (Vec::new(), None)
         } else {
             let there = verso_core::subfolders_of(path).map_err(|e| e.to_string())?;
             let present: Vec<String> = parts
@@ -145,9 +194,20 @@ pub fn plan(
                     "{name}: none of the folders chosen inside it is there any more: choose again, or serve all of it"
                 ));
             }
-            present
+            // The vault's own setting, read now, and only if the folder is there.
+            let attachments =
+                verso_core::served_attachments(path, &parts).filter(|a| there.contains(a));
+            (present, attachments)
         };
-        out.insert(name.clone(), Served { parts, present });
+        out.insert(
+            name.clone(),
+            Served {
+                path: path.clone(),
+                parts,
+                present,
+                attachments,
+            },
+        );
     }
     Ok(out)
 }
@@ -155,21 +215,24 @@ pub fn plan(
 /// The database's folders and shares follow what is ticked and chosen: a
 /// folder no longer served is forgotten (its shares and grants go with it),
 /// a whole one is the owner's, one in part is the holder's with a share per
-/// chosen folder given to the owner at the most a phone may have, and a
-/// share no longer chosen is deleted.
+/// chosen folder given to the owner at the most a phone may have, a share
+/// no longer chosen is deleted, and every share's attachments folder is set
+/// again from the vault's settings — or cleared.
 pub fn reconcile(
     db: &Db,
     owner: &str,
     served: &BTreeMap<String, Served>,
 ) -> Result<Reconciled, String> {
-    let holder = db.vault_holder()?.id;
     for f in db.folders()? {
         if !served.contains_key(&f.dir) {
             db.forget_folder(&f.id)?;
         }
     }
+    // The holder is made only when a folder is served in part.
+    let mut holder: Option<String> = None;
     let mut hidden = HashSet::new();
     let mut names = HashMap::new();
+    let mut dropped = Vec::new();
     // The names on the phone's list are one set: the whole folders' and
     // the parts'.
     let mut taken: HashSet<String> = served
@@ -178,7 +241,18 @@ pub fn reconcile(
         .map(|(n, _)| n.clone())
         .collect();
     for (name, s) in served {
-        let want = if s.parts.is_empty() { owner } else { &holder };
+        let want = if s.parts.is_empty() {
+            owner.to_owned()
+        } else {
+            match &holder {
+                Some(h) => h.clone(),
+                None => {
+                    let h = db.vault_holder()?.id;
+                    holder = Some(h.clone());
+                    h
+                }
+            }
+        };
         let mut folder = db.folder_by_dir(name)?;
         // A folder that changed between whole and in part is registered
         // again, under the owner it should have.
@@ -193,7 +267,7 @@ pub fn reconcile(
         }
         let folder = match folder {
             Some(f) => f,
-            None => db.create_folder(name, want)?,
+            None => db.create_folder(name, &want)?,
         };
         if s.parts.is_empty() {
             for share in db.shares_of(&folder.id)? {
@@ -207,9 +281,16 @@ pub fn reconcile(
                 db.delete_share(&share.id)?;
             }
         }
+        for part in &s.parts {
+            if !s.present.contains(part) {
+                dropped.push((s.path.to_string_lossy().into_owned(), part.clone()));
+            }
+        }
         for part in &s.present {
             let share = db.make_share(&folder.id, part)?;
             db.grant_share(&share.id, owner, Role::Editor)?;
+            // Replaced at every start: never a value kept from before.
+            db.set_share_attachments(&share.id, s.attachments.as_deref())?;
             let base = crate::scope::last(part).to_owned();
             let mut shown = base.clone();
             let mut n = 2;
@@ -221,129 +302,27 @@ pub fn reconcile(
             names.insert(share.id, shown);
         }
     }
-    Ok(Reconciled { hidden, names })
-}
-
-/// The first time a folder chosen inside a served one is opened in a run,
-/// its attachments folder is looked for and, if the notes embed from one
-/// outside it, shown with the folder read-only (ADR 0081 item 11, as the
-/// share dialog offers it): what the notes show of a picture kept in the
-/// vault's own attachments folder would otherwise be "not in what was
-/// shared with you". Nothing is looked for in an index that knows none of
-/// the folder's notes yet (a first run still indexing): the next open
-/// looks again.
-pub async fn find_attachments(
-    server: &std::sync::Arc<crate::state::Server>,
-    client: &str,
-    scope: &mut crate::scope::Scope,
-) {
-    let Some(policy) = server.local.clone() else {
-        return;
-    };
-    if !policy.needs_look(&scope.share) {
-        return;
-    }
-    let Ok(Some(share)) = server.db.share(&scope.share) else {
-        return;
-    };
-    if share.attachments.is_some() {
-        lock(&policy.parts.looked).insert(scope.share.clone());
-        return;
-    }
-    let (s, c, part) = (std::sync::Arc::clone(server), client.to_owned(), share.path);
-    let part_for = part.clone();
-    let found = tokio::task::spawn_blocking(move || {
-        s.service.with(&c, |ws| {
-            let inside = format!("{part_for}/");
-            if !ws.notes()?.iter().any(|n| n.starts_with(&inside)) {
-                return Ok(None);
-            }
-            let found = outside_attachments(ws, &part_for)?;
-            // Shown at the folder's root under its name: not over a folder
-            // of the part that has it (item 11).
-            let clash = |a: &str| {
-                ws.folders()
-                    .contains(&format!("{part_for}/{}", crate::scope::last(a)))
-            };
-            Ok(Some(found.filter(|a| !clash(a))))
-        })
+    Ok(Reconciled {
+        hidden,
+        names,
+        dropped,
     })
-    .await;
-    let Ok(Ok(Some(found))) = found else {
-        return;
-    };
-    lock(&policy.parts.looked).insert(scope.share.clone());
-    if let Some(a) = found {
-        if let Err(e) = server.db.set_share_attachments(&scope.share, Some(&a)) {
-            crate::log::error(&format!("keeping a share's attachments folder: {e}"));
-            return;
-        }
-        scope.mount = Some((crate::scope::last(&a).to_owned(), a));
-        crate::log::info(&format!(
-            "a served folder shows its attachments folder, read-only: {}",
-            scope.name
-        ));
-    }
-}
-
-/// The attachments folder the notes under `part` embed from outside it:
-/// the folder most of those embeds are in, as the share dialog offers it
-/// (ADR 0081 item 11) — none when they are at the folder's root, where
-/// there is no folder to add, or when nothing is embedded from outside, or
-/// when it would cover or lie inside the part.
-pub fn outside_attachments(
-    ws: &mut verso_core::Workspace,
-    part: &str,
-) -> Result<Option<String>, verso_service::OpError> {
-    let inside = format!("{part}/");
-    let notes: Vec<String> = ws
-        .notes()?
-        .into_iter()
-        .filter(|n| n.starts_with(&inside))
-        .take(300)
-        .collect();
-    let mut dirs: BTreeMap<String, usize> = BTreeMap::new();
-    for note in notes {
-        for l in verso_service::ops::links(ws, note.clone())? {
-            if !l.embed {
-                continue;
-            }
-            // A note's embed is resolved by the index; a picture's is left
-            // to the rule for files (spec Q12).
-            let to = match l.resolved {
-                Some(to) => to,
-                None => match ws.resolve_file(&note, &l.target) {
-                    Some(to) => to,
-                    None => continue,
-                },
-            };
-            if to.to_lowercase().ends_with(".md") || to.starts_with(&inside) {
-                continue;
-            }
-            let dir = to.rsplit_once('/').map_or("", |(d, _)| d);
-            *dirs.entry(dir.to_owned()).or_default() += 1;
-        }
-    }
-    let best = dirs.into_iter().max_by_key(|(_, n)| *n).map(|(d, _)| d);
-    Ok(best.filter(|a| {
-        !a.is_empty()
-            && crate::shares::share_path(a).is_ok()
-            && !crate::db::covers(a, part)
-            && !crate::db::covers(part, a)
-    }))
 }
 
 impl super::LocalServer {
     /// Choose which folders inside the served folder at `folder` (its path,
     /// as the host knows it) are served; none chosen serves all of it. Only
     /// while serving is off, like ticking: what a phone may reach does not
-    /// change under it (item 1).
+    /// change under it (item 1). The check and the write are made holding
+    /// the same lock.
     pub fn set_parts(&self, folder: &str, chosen: &[String]) -> Result<Vec<String>, String> {
-        if lock(&self.shared.inner).is_some() {
+        let running = lock(&self.shared.inner);
+        if running.is_some() {
             return Err("turn serving off to change which folders are served".to_owned());
         }
         let chosen = clean(chosen)?;
-        let mut settings = self.settings()?;
+        let db = self.open_db()?;
+        let mut settings = super::read_settings(&db);
         if !settings.folders.iter().any(|f| f == folder) {
             return Err("tick the folder first".to_owned());
         }
@@ -352,7 +331,9 @@ impl super::LocalServer {
         } else {
             settings.parts.insert(folder.to_owned(), chosen.clone());
         }
-        self.set_settings(&settings)?;
+        let text = serde_json::to_string(&settings).map_err(|e| e.to_string())?;
+        db.set_setting(super::SETTINGS, &text)?;
+        drop(running);
         Ok(chosen)
     }
 }

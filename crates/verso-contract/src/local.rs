@@ -50,6 +50,9 @@ pub struct LocalServerStatus {
     /// Phones connected at once, at most, 1 to 16 (item 13, amended
     /// 2026-10-16: the ceiling is a setting; the default is 4).
     pub max_connected: u32,
+    /// Chosen folders this start left out for not being on the disk, each as
+    /// `folder/chosen`: the window says so.
+    pub dropped: Vec<String>,
 }
 
 /// A folder the person may tick to serve.
@@ -66,9 +69,16 @@ pub struct LocalFolder {
     pub place: String,
     pub ticked: bool,
     /// The folders inside it chosen to be served, relative to it and
-    /// `/`-joined (ADR 0096 item 3, amended 2026-10-16); none when all of it
+    /// `/`-joined (ADR 0096 item 2, amended 2026-10-16); none when all of it
     /// is served. Each reaches the phone as a folder of its own.
     pub parts: Vec<String>,
+    /// Chosen folders the last start left out for not being on the disk any
+    /// more (they are in `parts` until the person changes them).
+    pub missing: Vec<String>,
+    /// The vault's attachments folder that goes with the chosen folders,
+    /// read-only and files only (Obsidian's own setting, read at each
+    /// start); none when it names none, or overlaps a chosen folder.
+    pub attachments: Option<String>,
     /// The server this folder also syncs with: such a folder cannot be
     /// served in V1 (item 11), and the row says to open that address on
     /// the phone instead.
