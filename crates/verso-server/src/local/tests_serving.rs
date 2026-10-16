@@ -299,8 +299,17 @@ fn a_command_off_the_allowlist_is_refused() {
         // And what is on the list still works, for this editor.
         let notes = call(&mut ws, 99, "list_notes", json!({})).await;
         assert_eq!(notes["ok"], json!(["Sessao.md"]));
-        let frame = call(&mut ws, 100, "embed_frameable", json!({ "url": "https://example.com" })).await;
-        assert!(frame.get("err").is_none(), "embed_frameable was allowed: {frame}");
+        let frame = call(
+            &mut ws,
+            100,
+            "embed_frameable",
+            json!({ "url": "https://example.com" }),
+        )
+        .await;
+        assert!(
+            frame.get("err").is_none(),
+            "embed_frameable was allowed: {frame}"
+        );
     });
 }
 

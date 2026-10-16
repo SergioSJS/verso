@@ -11,8 +11,7 @@
 
 use reqwest::Url;
 
-pub const WEB_USER_AGENT: &str =
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
+pub const WEB_USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
 
 /// The origin of the app's own page, the ancestor a site is asked about:
 /// `tauri://localhost` on macOS and Linux, `http(s)://tauri.localhost` on
@@ -310,7 +309,11 @@ mod tests {
     fn no_headers_means_the_page_may_be_framed() {
         assert!(framed(&[], &[], Some(&mac())));
         assert!(framed(&[""], &[], Some(&mac())));
-        assert!(framed(&[], &["default-src 'self'; img-src *"], Some(&mac())));
+        assert!(framed(
+            &[],
+            &["default-src 'self'; img-src *"],
+            Some(&mac())
+        ));
         assert!(framed(&[], &[], None));
         assert!(framed(&[], &["default-src 'self'"], None));
     }
@@ -355,7 +358,10 @@ mod tests {
             &["frame-ancestors 'self' *.owlbear.rodeo"],
             Some(&mac())
         ));
-        assert!(!framed(&[], &["frame-ancestors"], Some(&mac())), "empty = none");
+        assert!(
+            !framed(&[], &["frame-ancestors"], Some(&mac())),
+            "empty = none"
+        );
         assert!(!framed(&[], &["FRAME-ANCESTORS 'NONE'"], Some(&windows())));
         assert!(!framed(&[], &["frame-ancestors 'none'"], None));
         assert!(!framed(&[], &["frame-ancestors 'self'"], None));
@@ -376,7 +382,11 @@ mod tests {
         assert!(framed(&[], &["frame-ancestors http:"], Some(&windows())));
         assert!(!framed(&[], &["frame-ancestors https:"], Some(&windows())));
         assert!(framed(&[], &["frame-ancestors tauri:"], Some(&mac())));
-        assert!(framed(&[], &["frame-ancestors tauri://localhost"], Some(&mac())));
+        assert!(framed(
+            &[],
+            &["frame-ancestors tauri://localhost"],
+            Some(&mac())
+        ));
         assert!(framed(
             &[],
             &["frame-ancestors http://tauri.localhost"],
@@ -401,7 +411,11 @@ mod tests {
             &["frame-ancestors http://localhost:3000"],
             Some(&dev())
         ));
-        assert!(framed(&[], &["frame-ancestors http://localhost:*"], Some(&dev())));
+        assert!(framed(
+            &[],
+            &["frame-ancestors http://localhost:*"],
+            Some(&dev())
+        ));
         assert!(
             !framed(&[], &["frame-ancestors http://localhost"], Some(&dev())),
             "port 5173 is not 80"
@@ -450,7 +464,11 @@ mod tests {
             Some(&windows())
         ));
         // A directive that only mentions the word is not the directive.
-        assert!(framed(&[], &["script-src frame-ancestors"], Some(&windows())));
+        assert!(framed(
+            &[],
+            &["script-src frame-ancestors"],
+            Some(&windows())
+        ));
     }
 
     #[test]
