@@ -76,8 +76,7 @@ async function look(app, zoom, x, y) {
     },
     [zoom, x, y],
   );
-  await app.page.waitForTimeout(250);
-  const now = await app.view();
+  const now = await app.settledView();
   if (Math.abs(now.zoom - zoom) > 0.01) throw new Error(`the view is at ${now.zoom}, not ${zoom}`);
 }
 
