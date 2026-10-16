@@ -145,6 +145,10 @@ export function ExportDialog({ api, host, selected, secretIds, onClose }: { api:
   const [dark, setDark] = useState(false);
   const [only, setOnly] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  // The previews' URLs, oldest first: one is revoked only once a newer one
+  // is drawn. Revoked while its picture is still shown, WebKit may ask for
+  // it again and fail (seen in the window's tests, 2026-10-16).
+  const urls = useRef<string[]>([]);
   const [busy, setBusy] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const hasSelection = selected.length > 0;
@@ -178,20 +182,35 @@ export function ExportDialog({ api, host, selected, secretIds, onClose }: { api:
 
   useEffect(() => {
     let gone = false;
-    let url: string | null = null;
     void render("png", 1).then(
       (blob) => {
         if (gone) return;
-        url = URL.createObjectURL(blob);
+        const url = URL.createObjectURL(blob);
+        urls.current.push(url);
         setPreview(url);
       },
       () => !gone && host.status(s.exportFailed),
     );
     return () => {
       gone = true;
-      if (url) URL.revokeObjectURL(url);
     };
   }, [render, host, s]);
+
+  useEffect(
+    () => () => {
+      for (const url of urls.current) URL.revokeObjectURL(url);
+      urls.current = [];
+    },
+    [],
+  );
+
+  /** `src` is drawn: the previews before it are revoked. */
+  const drawn = (src: string): void => {
+    const at = urls.current.indexOf(src);
+    if (at <= 0) return;
+    for (const url of urls.current.slice(0, at)) URL.revokeObjectURL(url);
+    urls.current = urls.current.slice(at);
+  };
 
   useEffect(() => {
     box.current?.querySelector<HTMLElement>("button, input")?.focus();
@@ -250,7 +269,7 @@ export function ExportDialog({ api, host, selected, secretIds, onClose }: { api:
       <div className="board-export-box" role="dialog" aria-modal="true" aria-label={s.exportTitle} ref={box}>
         <h2>{s.exportTitle}</h2>
         <div className="board-export-preview" aria-hidden="true">
-          {preview ? <img src={preview} alt="" /> : <span>{s.exportRendering}</span>}
+          {preview ? <img src={preview} alt="" onLoad={() => drawn(preview)} /> : <span>{s.exportRendering}</span>}
         </div>
         <div className="board-export-options">
           <div className="board-export-row" role="radiogroup" aria-label={s.exportFormat}>
