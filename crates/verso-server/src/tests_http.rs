@@ -504,3 +504,27 @@ fn a_folder_cannot_be_made_in_a_directory_the_server_cannot_write_and_it_says_so
         assert!(!said.contains("os error 13"), "{said}");
     });
 }
+
+/// A data directory the server cannot write is a server that cannot start,
+/// and it says so in words, before SQLite says "unable to open the database"
+/// (ADR 0075 item 3, amended 2026-10-16).
+#[test]
+fn an_unwritable_data_directory_stops_the_start_with_the_sentence() {
+    block_on(async {
+        let r = start_with(|_| {}).await;
+        let data = tempfile::tempdir().unwrap();
+        verso_fs::server::set_writable_for_tests(data.path(), false).unwrap();
+        let mut config = r.server.config.clone();
+        config.data_dir = data.path().to_path_buf();
+        let tried = crate::prepare(&config);
+        verso_fs::server::set_writable_for_tests(data.path(), true).unwrap();
+        // As root nothing is denied.
+        if let Err(said) = tried {
+            assert!(
+                said.contains("cannot write to") && said.contains("sudo chown"),
+                "{said}"
+            );
+            assert!(!said.contains("os error 13"), "{said}");
+        }
+    });
+}
