@@ -177,12 +177,22 @@
   cookie is `Secure` (and `__Host-`) only on a request that came over HTTPS
   — the server's own TLS, or a believed proxy saying so — and keeps
   `HttpOnly`, `SameSite=Lax` and the CSRF token; (b) with no
-  `VERSO_PUBLIC_URL` the `Host` typed is answered, the DNS-rebinding rule
-  of [0045](0045-server-and-mcp-security.md) kept where it still means
-  something (a server that listens on this machine only, unless a believed
-  proxy forwarded the request) and with `VERSO_PUBLIC_URL` set exactly as
-  before, that name and this machine's; the server's links use it when set,
-  else the address of the request; (c) an empty `VERSO_TRUSTED_PROXY`
+  `VERSO_PUBLIC_URL` only the `Host` of a name a public page cannot make
+  resolve here is answered — an IP address, a name of one label, `.local`,
+  `.home.arpa`, `localhost` — so `http://<ip>:7340` needs no variable; any
+  other name needs `VERSO_PUBLIC_URL` (421, with the words), or a proxy
+  *named* in `VERSO_TRUSTED_PROXY` having forwarded the request. The
+  default list widens nothing, because a page rebound onto this machine
+  writes an `X-Forwarded-For` itself and loopback is on that list. This
+  keeps the DNS-rebinding rule of [0045](0045-server-and-mcp-security.md)
+  where it means something; with `VERSO_PUBLIC_URL` set it is exactly as
+  before, that name and this machine's. **Links by e-mail** (the sign-in
+  link and "forgot the password", which anyone can ask for) are built only
+  from `VERSO_PUBLIC_URL` and exist only when it is set: a `Host` the
+  asker wrote must never reach a mailed link (the reset token would go to
+  the attacker); without it those routes are refused and the window hides
+  them. The links an admin makes in their own session (invitations,
+  resets) use the address of that session; (c) an empty `VERSO_TRUSTED_PROXY`
   believes a proxy on loopback or a private network (127.0.0.0/8, ::1,
   10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, fc00::/7), a value replaces
   that list and `none` believes no proxy; (d) what a browser keeps for a
@@ -195,10 +205,17 @@
   Docker image listens on every address with no required variable, and the
   compose file publishes `7340:7340`. **The security consequence, plainly:**
   over HTTP anyone on the same network can read the password and the notes
-  that cross it, and can forge the `X-Forwarded-For` of a request that
-  reaches the server from a private address (the default list believes
-  one), which only blunts the per-address pace: fine at home, not on a
-  public Wi-Fi. HTTPS stays what the guide recommends, as a later and
+  that cross it, and so does every other HTTP service on the same
+  host or IP, since cookies are not separated by port — on CasaOS or
+  ZimaOS every other app at `http://<ip>:<port>` receives the
+  `verso-session` cookie, and can set one; and the default proxy list lets
+  a client on a private network — in Docker, any visitor of a published
+  port, who arrives from the bridge gateway — write an `X-Forwarded-For`
+  and be counted under any address but loopback (a forwarded loopback is
+  counted like any other), which defeats the per-address pace and caps for
+  an attacker who rotates addresses and leaves only the account's own delay
+  and lock: name the real proxies, or `none`, to close it. Fine at home, not
+  on a public Wi-Fi. HTTPS stays what the guide recommends, as a later and
   optional step. The old wording of item 6 is kept above, marked.
 
 ## Context

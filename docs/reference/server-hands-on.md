@@ -234,8 +234,10 @@ VERSO_PUBLIC_URL=https://notes.example.com
 The file already carries these variables (`VERSO_TRUSTED_PROXY` comes
 empty): change the value on the line that exists; repeated, the last one
 wins (checked), but the file gets confusing. `VERSO_PUBLIC_URL` is
-optional: left empty, UniVerso answers the address typed. Set, it answers
-that name only. `VERSO_TRUSTED_PROXY` is optional too: left empty, a proxy
+optional: left empty, UniVerso answers an IP address, a one-word name or a
+`.local` / `.home.arpa` name (not a name from the public internet, which
+needs it). Set, it answers that name only, and it is what makes
+the links by e-mail (sign-in link, "forgot the password") exist. `VERSO_TRUSTED_PROXY` is optional too: left empty, a proxy
 on this machine or on a private network (127.0.0.0/8, 10.0.0.0/8,
 172.16.0.0/12, 192.168.0.0/16, and the IPv6 loopback and unique-local
 ranges) is believed; a value replaces that list, and `none` believes no
@@ -926,9 +928,12 @@ http://127.0.0.1:7341`).
   `X-Forwarded-Proto` (Caddy does; nginx needs the line of Path C) and that
   it is on this machine or on your network (otherwise name it in
   `VERSO_TRUSTED_PROXY`).
-- *this server does not answer to that name* (421): `VERSO_PUBLIC_URL` is
-  set and the address typed — often the bare IP — is not its name, or nginx
-  is not passing `Host`. Clear `VERSO_PUBLIC_URL` to answer any address.
+- *this server does not answer to that name* (421): either
+  `VERSO_PUBLIC_URL` is set and the address typed — often the bare IP — is
+  not its name, or it is not set and the name typed is a public one
+  (`casa.example.com`), which UniVerso answers only when `VERSO_PUBLIC_URL`
+  names it (the error says so); or nginx is not passing `Host`. Use the IP,
+  or set `VERSO_PUBLIC_URL` to the address people use.
 - The proxy answers 502: UniVerso is not running, or listens on another
   port than the proxy's line (`sh universo.sh status`, "Listens on").
 

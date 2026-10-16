@@ -30,6 +30,11 @@ pub struct Peer {
     /// Whether a trusted proxy forwarded the request, `X-Forwarded-For`
     /// and all: the `Host` it carries is then the name the person typed.
     pub forwarded: bool,
+    /// A connection from this machine that named no one else: the program
+    /// on it speaks for itself, and is not counted by the per-address caps.
+    /// Never true for a forwarded address, however loopback it reads (ADR
+    /// 0083 item 7).
+    pub local: bool,
 }
 
 impl Peer {
@@ -98,6 +103,18 @@ fn own_tls(server: &Server) -> bool {
     server.config.tls.is_some() || server.local.is_some()
 }
 
+/// Whether the connection is this machine speaking for itself: the socket
+/// peer is loopback and nothing was forwarded in its name. A believed peer
+/// that writes `X-Forwarded-For: 127.0.0.1` is not this machine — with the
+/// default list every private address is believed, and in Docker every
+/// published-port visitor arrives from the bridge gateway, so the header is
+/// the visitor's to write. A proxy the host named, though, that forwards a
+/// loopback address or none is counted under it, as before.
+pub fn is_local(server: &Server, remote: IpAddr, client: &crate::proxy::Client) -> bool {
+    remote.to_canonical().is_loopback()
+        && (!client.from_proxy || (server.config.trusted_proxy.is_implicit() && client.unforwarded))
+}
+
 /// Where a request came from: the connection's address, or, from a
 /// trusted proxy, the client `X-Forwarded-For` names, read from the right
 /// past every trusted proxy (ADR 0083 item 5, [`crate::proxy`]); the
@@ -143,6 +160,7 @@ pub fn peer(server: &Server, headers: &HeaderMap, remote: SocketAddr) -> Peer {
         addr,
         https,
         forwarded: from_proxy && !client.unforwarded,
+        local: is_local(server, remote.ip(), &client),
     }
 }
 
@@ -163,19 +181,70 @@ fn loopback_host(host: &str) -> bool {
     matches!(name, "localhost" | "127.0.0.1" | "[::1]")
 }
 
-/// Whether any `Host` is answered: no public address is given, so the name
-/// is the one the person typed, and the server is reached from beyond this
-/// machine or through a proxy that said so. The `Host` check is there for
-/// DNS rebinding: a page of another site that resolves its own name to this
-/// machine, and drives the visitor's browser into it. The browser keeps the
-/// session cookie per name, so that page holds no session; where the
-/// server is reached only from this machine, or `VERSO_PUBLIC_URL` names
-/// the one address, the rule is kept (ADR 0045, ADR 0073 item 6, amended
-/// 2026-10-16).
-fn any_host(server: &Server, peer: &Peer) -> bool {
+/// Whether `host` (with its port) is a name a page on the public internet
+/// cannot make resolve to this machine by DNS rebinding: an IP literal
+/// (the page would have to be served from that address itself), a name of
+/// one label (no public registry sells one), `.local` and `.home.arpa`
+/// (names of the local network), and `localhost`.
+fn rebind_proof(host: &str) -> bool {
+    let name = if let Some(rest) = host.strip_prefix('[') {
+        // `[::1]:7340`: the address in brackets, a port after them.
+        match rest.split_once(']') {
+            // Nothing after the bracket but a port of digits (the same
+            // whole-name rule as [`loopback_host`]).
+            Some((ip, after))
+                if after.is_empty()
+                    || after.strip_prefix(':').is_some_and(|p| {
+                        !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit())
+                    }) =>
+            {
+                return ip.parse::<std::net::Ipv6Addr>().is_ok();
+            }
+            _ => return false,
+        }
+    } else {
+        match host.rsplit_once(':') {
+            Some((name, port)) if !port.is_empty() && port.bytes().all(|b| b.is_ascii_digit()) => {
+                name
+            }
+            _ => host,
+        }
+    };
+    let name = name.to_ascii_lowercase();
+    let name = name.trim_end_matches('.');
+    if name.is_empty() || name.len() > 253 {
+        return false;
+    }
+    if name.parse::<std::net::Ipv4Addr>().is_ok() {
+        return true;
+    }
+    let label = |l: &str| {
+        !l.is_empty()
+            && l.len() <= 63
+            && l.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+            && !l.starts_with('-')
+            && !l.ends_with('-')
+    };
+    let single = !name.contains('.');
+    (single || name.ends_with(".local") || name.ends_with(".home.arpa"))
+        && name.split('.').all(label)
+}
+
+/// Whether the `Host` typed is answered with no public address given. The
+/// `Host` check is there for DNS rebinding: a page of another site that
+/// resolves its own name to this machine, and drives the visitor's browser
+/// into it. With no `VERSO_PUBLIC_URL` the names a public page cannot
+/// rebind are answered ([`rebind_proof`]: an IP, a one-label name,
+/// `.local`, `.home.arpa`), so `http://<ip>:7340` works with no variable;
+/// any other name needs `VERSO_PUBLIC_URL`, or a proxy the host *named* in
+/// `VERSO_TRUSTED_PROXY` having forwarded the request. The default list
+/// widens nothing: a page rebound onto this machine can add an
+/// `X-Forwarded-For` itself, and loopback is on that list (ADR 0045, ADR
+/// 0073 item 6, amended 2026-10-16).
+fn any_host(server: &Server, peer: &Peer, host: &str) -> bool {
     server.config.public_url.is_none()
         && server.local.is_none()
-        && (!server.config.loopback_only() || peer.forwarded)
+        && (rebind_proof(host) || (peer.forwarded && !server.config.trusted_proxy.is_implicit()))
 }
 
 /// The `Host` header names this server: the public address's authority,
@@ -188,7 +257,7 @@ pub fn host_ok(server: &Server, headers: &HeaderMap, peer: &Peer) -> bool {
     public_authority(server).is_some_and(|a| a.eq_ignore_ascii_case(host))
         || loopback_host(host)
         || server.local.as_ref().is_some_and(|l| l.knows_host(host))
-        || any_host(server, peer)
+        || any_host(server, peer, host)
 }
 
 /// The origin pages of this server have.
@@ -200,7 +269,7 @@ pub fn expected_origin(server: &Server, headers: &HeaderMap, peer: &Peer) -> Opt
     }
     let host = headers.get(HOST).and_then(|v| v.to_str().ok())?;
     let scheme = if peer.https { "https" } else { "http" };
-    (any_host(server, peer)
+    (any_host(server, peer, host)
         || loopback_host(host)
         || server.local.as_ref().is_some_and(|l| l.knows_host(host)))
     .then(|| format!("{scheme}://{}", host.to_ascii_lowercase()))

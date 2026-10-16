@@ -81,8 +81,9 @@ services:
       # once the admin exists.
       VERSO_ADMIN_PASSWORD: ""
       # Optional, only once HTTPS is in front: the address people type, with
-      # https. Left out, the server answers any address over HTTP. Set, it
-      # answers that name only, and its links (invitations, e-mails) use it.
+      # https. Left out, the server answers an IP address or a local name over
+      # HTTP. Set, it answers that name only, and it is what makes the links
+      # by e-mail (sign-in link, "forgot the password") work.
       # VERSO_PUBLIC_URL: "https://universo.your-tailnet.ts.net"
       # Optional. A proxy in front on this machine or on a private network is
       # believed without this; set it only to replace that list (addresses

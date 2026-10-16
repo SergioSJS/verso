@@ -91,6 +91,8 @@ test("copying works with no navigator.clipboard, by the selection command", asyn
   assert.deepEqual(copied, [["copy", "[[Nota]]"]]);
   assert.equal(document.querySelector("textarea"), null, "the field is gone");
   await assert.rejects(win.navigator.clipboard.readText());
+  // A picture needs the real clipboard: refused, so the caller can say why.
+  await assert.rejects(win.navigator.clipboard.write([]), { name: "NotAllowedError" });
 });
 
 test("a hash needs no crypto.subtle", async () => {
