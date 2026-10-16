@@ -20,10 +20,13 @@ test("the folder switcher groups this computer, mine and shared with me", async 
   await app.page.evaluate(() => {
     const h = window.__harness.core.handlers;
     h.server_accounts = () => [{ url: "https://notas.casa", email: "sergio@casa.lan", name: "Sérgio" }];
-    h.server_folders = () => [
-      { id: "f1", name: "Diário", role: "owner", owner: null, share: false, missing: false },
-      { id: "s1", name: "Campanha (Ana)", role: "editor", owner: "Ana", share: true, missing: false },
-    ];
+    h.server_folders = () => ({
+      folders: [
+        { id: "f1", name: "Diário", role: "owner", owner: null, share: false, missing: false },
+        { id: "s1", name: "Campanha (Ana)", role: "editor", owner: "Ana", share: true, missing: false },
+      ],
+      may_create: false,
+    });
     // The server opens it: the harness's folder stands in for the share.
     h.server_open = () => h.current_folder({});
   });
