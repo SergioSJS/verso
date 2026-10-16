@@ -1,0 +1,203 @@
+# The Verso server for CasaOS, ZimaOS and any host that takes a compose
+# file (ADR 0075 item 2). docs/reference/server-install.md explains each
+# value; the image is described in packaging/server/Dockerfile.
+#
+# While the repository is private the image is a private package of
+# GitHub's registry: before the first pull the host runs
+#   docker login ghcr.io -u <github-user>
+# with a token that can read packages (a classic token with read:packages)
+# as the password (ADR 0075, Consequences). On CasaOS and ZimaOS that is a
+# command in the system's terminal; their panel then pulls as usual.
+#
+# `beta` is the newest test version (vX.Y.Z-beta.N), the only kind there
+# is so far; once a production version exists, `latest` names it and this
+# line moves to it.
+#
+# The x-casaos block follows the CasaOS AppStore's v2 format as its
+# repository documents it on 2026-10-09 (docs/specs/compose-and-x-casaos.md
+# in IceWhaleTech/CasaOS-AppStore): locale keys `en_US`, `pt_BR`; the
+# service-level `x-casaos` (envs, ports, volumes) is called legacy there and
+# dropped by the store's build, but apps in the store still carry it and
+# older CasaOS releases read it for the install form, so it stays.
+
+name: universo
+services:
+  universo:
+    image: ghcr.io/sergiosjs/universo:beta
+    container_name: universo
+    restart: unless-stopped
+    # The server runs as uid and gid 1000. The container starts as root only
+    # to mend the owners of the two directories below (see cap_add), and
+    # drops to 1000 before the server runs. Mount only the folder meant for
+    # Verso: everything root owns under a mount is handed to 1000, so binding
+    # a parent such as /DATA would hand other apps' files over. A NAS whose folders belong to
+    # another user names it here (its numbers, from `id`): the container
+    # then starts as that user, mends nothing, and the directories must
+    # already be writable by it.
+    # user: "1000:1000"
+    # Hardening (ADR 0083 item 11): the image's own files read-only, /tmp
+    # in memory, no Linux capability, nothing gained through a setuid
+    # program. The server writes under /data and /folders only.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    # The entrypoint runs as root for one job: give uid 1000 the entries
+    # root owns under /data and /folders when it cannot write there (a bind
+    # mount Docker made as root), then the server drops to 1000:1000 and has
+    # no capability at all. CHOWN for the chown, SETUID and SETGID for the
+    # drop; no DAC_OVERRIDE or FOWNER (root owns what it changes). Remove
+    # the three, and add `user: "1000:1000"`, to make the directories
+    # yourself (sudo chown -R 1000:1000 <host folder>).
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+    security_opt:
+      - no-new-privileges:true
+    # The log rotated by Docker: three files of 10 MB at most (ADR 0083, As built).
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Host networking (ADR 0097, opt-in variant): mDNS discovery reaches
+    # the home network directly without being blocked by Docker bridge network.
+    # Port 7340 must be free on the host.
+    #
+    # Plain HTTP works: open http://<this machine>:7340 from any device on
+    # the network.
+    # HTTPS is optional and later: it turns on offline mode, notifications
+    # and passkeys (docs/reference/server-install.md, section 8). Without
+    # it, the password and the notes cross the network in the open: fine at
+    # home, not on a public network (ADR 0073 item 6, amended 2026-10-16).
+    network_mode: host
+    volumes:
+      # The accounts, sessions, audit log and indexes. A local disk, never
+      # a network share: SQLite can be corrupted on NFS or SMB.
+      - type: bind
+        source: /DATA/AppData/universo/data
+        target: /data
+      # The folders of notes. Pick the path; this one may be on a NAS.
+      - type: bind
+        source: /DATA/Documents/Verso
+        target: /folders
+    environment:
+      # Nothing here is required. The first admin, read on the first start
+      # only and ignored after (ADR 0074 item 1). Left empty, the log prints
+      # a setup link instead (http://<this machine>:7340/setup?token=...).
+      # The password: 12 characters at least.
+      VERSO_ADMIN_EMAIL: ""
+      # The password is best given as a Docker secret, which `docker
+      # inspect` does not show: write it to a file beside this one,
+      # admin-password, readable by uid 1000 alone (sudo install -m 0400
+      # -o 1000 /dev/null admin-password, then edit it), uncomment the next
+      # line, this service's `secrets:` below and the `secrets:` block at
+      # the end, and leave VERSO_ADMIN_PASSWORD empty. Only one of the two.
+      # VERSO_ADMIN_PASSWORD_FILE: /run/secrets/universo-admin
+      # Or the password itself, readable with `docker inspect`: remove it
+      # once the admin exists.
+      VERSO_ADMIN_PASSWORD: ""
+      # Optional, only once HTTPS is in front: the address people type, with
+      # https. Left out, the server answers an IP address or a local name over
+      # HTTP. Set, it answers that name only, and it is what makes the links
+      # by e-mail (sign-in link, "forgot the password") work.
+      # VERSO_PUBLIC_URL: "https://universo.your-tailnet.ts.net"
+      # Optional. A proxy in front on this machine or on a private network is
+      # believed without this; set it only to replace that list (addresses
+      # and CIDRs separated by commas) or to `none` to believe no proxy.
+      # VERSO_TRUSTED_PROXY: ""
+    # secrets:
+    #   - universo-admin
+    x-casaos:
+      envs:
+        - container: VERSO_ADMIN_EMAIL
+          description:
+            en_US: The first admin's e-mail. Read on the first start only.
+            pt_BR: O e-mail do primeiro admin. Lido só na primeira inicialização.
+        - container: VERSO_ADMIN_PASSWORD
+          description:
+            en_US: The first admin's password, 12 characters at least. Read on the first start only.
+            pt_BR: A senha do primeiro admin, com 12 caracteres ou mais. Lida só na primeira inicialização.
+        - container: VERSO_PUBLIC_URL
+          description:
+            en_US: Optional, once HTTPS is in front. The https address people use (for example https://universo.your-tailnet.ts.net). Leave empty to use plain HTTP.
+            pt_BR: Opcional, quando houver HTTPS na frente. O endereço https que as pessoas usam (por exemplo https://universo.sua-tailnet.ts.net). Vazio, usa HTTP simples.
+      ports:
+        - container: "7340"
+          description:
+            en_US: Web UI (plain HTTP on the network; HTTPS is optional and turns on offline mode and notifications)
+            pt_BR: Interface web (HTTP simples na rede; o HTTPS é opcional e liga o modo offline e as notificações)
+      volumes:
+        - container: /data
+          description:
+            en_US: Accounts, sessions, audit log and indexes. A local disk, not a network share. Back it up.
+            pt_BR: Contas, sessões, registro de auditoria e índices. Disco local, não um compartilhamento de rede. Faça backup.
+        - container: /folders
+          description:
+            en_US: The folders of notes. May be a NAS. Back it up.
+            pt_BR: As pastas de notas. Pode ser um NAS. Faça backup.
+
+# The first admin's password as a Docker secret (above): uncomment with the
+# two lines of the service.
+# secrets:
+#   universo-admin:
+#     file: ./admin-password
+
+x-casaos:
+  id: com.versomd.universo
+  # The key older CasaOS releases read for the app's identity; the v2
+  # format uses `id` above. Not checked against the v2 store's validation.
+  store_app_id: universo
+  main: universo
+  index: /
+  port_map: "7340"
+  scheme: http
+  architectures:
+    - amd64
+    - arm64
+  category: Productivity
+  author: Verso
+  developer: Sérgio J. Sousa
+  version: "0.8.2-beta.1"
+  # A placeholder: the repository is private, so this address answers
+  # nothing until it is public; the store submission (ADR 0075,
+  # Consequences) brings an icon.svg of its own.
+  icon: https://raw.githubusercontent.com/SergioSJS/verso/main/app/src-tauri/icons/128x128@2x.png
+  title:
+    en_US: UniVerso
+    pt_BR: UniVerso
+  tagline:
+    en_US: "The Verso server: Markdown notes, Obsidian-compatible, on your own server"
+    pt_BR: "O servidor do Verso: notas em Markdown, compatíveis com o Obsidian, no seu próprio servidor"
+  description:
+    en_US: |
+      Verso is a Markdown notes app compatible with Obsidian's folders. This is
+      its self-hosted server, UniVerso: open your folders of notes in a browser, on a
+      phone or an iPad, and share a folder with other people.
+
+      The notes stay plain files in the folders directory. Whoever hosts the
+      server can read them: there is no end-to-end encryption.
+    pt_BR: |
+      O Verso é um app de notas em Markdown compatível com as pastas do
+      Obsidian. Este é o servidor dele, auto-hospedado, o UniVerso: abra suas pastas de
+      notas no navegador, no celular ou no iPad, e compartilhe uma pasta com
+      outras pessoas.
+
+      As notas continuam arquivos comuns no diretório das pastas. Quem
+      hospeda o servidor consegue lê-las: não há criptografia de ponta a ponta.
+  tips:
+    before_install:
+      en_US: |
+        Nothing is required: open http://<this machine>:7340 and follow the setup link in the container's log. Plain HTTP is fine at home; on a public network the password and the notes cross it in the open. HTTPS is optional, later: it turns on offline mode, notifications and passkeys.
+        VERSO_ADMIN_EMAIL and VERSO_ADMIN_PASSWORD are read on the first start only: remove the password once the admin exists. Left empty, the container's log prints a one-hour setup link, which stays in that log: use it at once.
+        A lost admin password: run `universo admin reset <e-mail>` in the container's terminal.
+        Nothing to prepare: if a directory is root-owned (Docker makes a missing one so), the container hands what root owns in it to uid 1000 at start, then runs the server as 1000. A directory owned by someone else is not touched: the server says so.
+        Back up both directories: the database in /data is not a cache, and the notes are in /folders. Keep /data on a local disk, never on a network share.
+      pt_BR: |
+        Nada é obrigatório: abra http://<esta máquina>:7340 e siga o link de configuração do log do contêiner. O HTTP simples serve em casa; numa rede pública a senha e as notas passam abertas. O HTTPS é opcional, depois: liga o modo offline, as notificações e as passkeys.
+        VERSO_ADMIN_EMAIL e VERSO_ADMIN_PASSWORD são lidos só na primeira inicialização: remova a senha quando o admin existir. Vazios, o log do contêiner mostra um link de configuração válido por uma hora, que fica nesse log: use-o logo.
+        Senha do admin perdida: rode `universo admin reset <e-mail>` no terminal do contêiner.
+        Nada a preparar: se um diretório é do root (o Docker cria assim um que falte), o contêiner entrega ao uid 1000, ao ligar, o que o root tem nele, e roda o servidor como 1000. Um diretório de outro dono não é tocado: o servidor avisa.
+        Faça backup dos dois diretórios: o banco em /data não é cache, e as notas estão em /folders. Mantenha /data num disco local, nunca num compartilhamento de rede.

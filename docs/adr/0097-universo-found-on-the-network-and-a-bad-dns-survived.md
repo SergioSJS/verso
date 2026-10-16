@@ -315,13 +315,9 @@ maintainer's sentences. Items 2 to 6, 7a and 8 to 10, marked `[PROPOSED]`, are
 the author's details of those decisions (what is announced, the `url` key, the
 switch, the list, the DNS rule's timings and policy, the hand-written client,
 the readers of the system's DNS list), built and waiting for the maintainer;
-none is promoted. Awaiting ratification too: the `std::fs` exception of
-`src/resolv_conf.rs` (item 9). Open: **whether the compose file for CasaOS/ZimaOS
-ships with `network_mode: host`** so discovery works out of the box. The
-author's recommendation: keep the bridge network as the default — it works
-on every machine and port 7340 is published the same way everywhere — and
-offer host networking as a documented, opt-in variant for a home server
-whose only job is UniVerso, where the `7340:7340` mapping adds nothing and
-discovery then needs no step. Host networking shares the machine's whole
-network with the container, and port 7340 must be free on it. Not decided:
-the compose file is unchanged.
+none is promoted. The `std::fs` exception of `src/resolv_conf.rs` (item 9) was **ratified** on
+2026-10-16 (*"Pode seguir a sua sugestão"*). Decided on 2026-10-16: **the compose
+file keeps bridge networking as the default**, and
+`packaging/server/docker-compose.host-network.yml` is provided as the
+documented opt-in variant with `network_mode: host` for home servers where
+discovery is desired without extra configuration.

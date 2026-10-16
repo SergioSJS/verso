@@ -317,13 +317,9 @@ do mantenedor. Os itens 2 a 6, 7a e 8 a 10, marcados `[PROPOSTO]`, são os
 detalhes do autor dessas decisões (o que é anunciado, a chave `url`, o
 interruptor, a lista, os tempos e a política da regra de DNS, o cliente
 escrito à mão, os leitores da lista de DNS do sistema), construídos e à
-espera do mantenedor; nenhum é promovido. Também aguarda ratificação: a
-exceção de `std::fs` do `src/resolv_conf.rs` (item 9). Em aberto: **se o arquivo compose do CasaOS/ZimaOS é entregue
-com `network_mode: host`** para a descoberta funcionar de cara. A
-recomendação do autor: manter a rede bridge como padrão — funciona em toda
-máquina e a porta 7340 é publicada do mesmo jeito em todo lugar — e oferecer
-a rede host como variante documentada, opcional, para um servidor de casa
-cujo único trabalho é o UniVerso, onde o mapeamento `7340:7340` não
-acrescenta nada e a descoberta então não exige passo algum. A rede host
-compartilha com o contêiner a rede inteira da máquina, e a porta 7340 precisa
-estar livre nela. Não decidido: o arquivo compose fica como está.
+espera do mantenedor; nenhum é promovido. A exceção de `std::fs` do `src/resolv_conf.rs` (item 9) foi **ratificada** em
+2026-10-16 (*"Pode seguir a sua sugestão"*). Decidido em 2026-10-16: **o arquivo
+compose mantém a rede bridge como padrão**, e
+`packaging/server/docker-compose.host-network.yml` é oferecido como a variante
+opcional documentada com `network_mode: host` para servidores domésticos onde a
+descoberta automática é desejada sem configuração adicional.
