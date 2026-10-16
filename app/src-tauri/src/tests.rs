@@ -688,6 +688,43 @@ fn a_web_view_answers_only_the_window_that_opened_it() {
     assert_eq!(e["kind"], "refused", "{e}");
 }
 
+/// A window's page loading again (⌘R) takes the web pages it opened with
+/// it: their views close and are forgotten, another window's stay (the
+/// maintainer, 2026-10-16: a reload left them drawn over everything).
+#[test]
+fn a_reloaded_window_closes_the_web_pages_it_opened() {
+    let (app, main) = app();
+    let popout = tauri::WebviewWindowBuilder::new(&app, "note-0", Default::default())
+        .build()
+        .unwrap();
+    let child = |window: &tauri::Window<tauri::test::MockRuntime>, label: &str| {
+        window
+            .add_child(
+                tauri::webview::WebviewBuilder::new(
+                    label,
+                    tauri::WebviewUrl::External("https://example.com".parse().unwrap()),
+                ),
+                tauri::LogicalPosition::new(0.0, 0.0),
+                tauri::LogicalSize::new(10.0, 10.0),
+            )
+            .unwrap();
+    };
+    let (main_window, popout_window) = (main.as_ref().window(), popout.as_ref().window());
+    child(&main_window, "web-1");
+    child(&popout_window, "web-2");
+    let state = app.state::<App>();
+    lock(&state.web_views).insert("web-1".to_owned(), "main".to_owned());
+    lock(&state.web_views).insert("web-2".to_owned(), "note-0".to_owned());
+    crate::web::close_web_views_of(app.handle(), "main");
+    let views = lock(&state.web_views).clone();
+    assert!(!views.contains_key("web-1"), "{views:?}");
+    assert_eq!(
+        views.get("web-2").map(String::as_str),
+        Some("note-0"),
+        "{views:?}"
+    );
+}
+
 /// A web page's place is its slot — the page's whole box, which may
 /// reach outside the window — and the part of it that shows (ADR 0056,
 /// revised 2026-10-15): the host lays the page out at the slot and draws
