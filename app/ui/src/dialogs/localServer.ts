@@ -485,7 +485,21 @@ export function localServerBody(_item: Item): HTMLElement {
   });
   pair.addEventListener("click", () => openPairing());
 
-  box.append(lead, unsupported, foldersHead, foldersLead, folders, run, state, blocked, keepLabel, keepHelp, mostLabel, mostHelp, pair, pairHelp, said, phonesHead, phones, danger, cert, log);
+  // In the order a person goes through it: whether it serves and the switch,
+  // then what it serves, then the phones, then what is rarely touched.
+  const runRow = h("div", "ls-run");
+  runRow.append(state, run);
+  const block = (...items: HTMLElement[]): HTMLElement => {
+    const b = h("div", "ls-block");
+    b.append(...items);
+    return b;
+  };
+  box.append(
+    block(lead, unsupported, runRow, blocked, said, keepLabel, keepHelp),
+    block(foldersHead, foldersLead, folders),
+    block(phonesHead, pair, pairHelp, phones, mostLabel, mostHelp),
+    block(cert, danger, log),
+  );
   void redraw();
   return box;
 }
