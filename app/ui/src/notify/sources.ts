@@ -380,6 +380,21 @@ export function phoneConnectedHeard(name: string): void {
   });
 }
 
+/** A start that left out chosen folders no longer on the disk: said where
+ *  the person reads (ADR 0096 item 2, amended 2026-10-16). */
+export function serveDroppedHeard(said: string): void {
+  const s = notifyStrings();
+  notify({
+    kind: "sharing",
+    key: "local-server",
+    state: `dropped:${said}`,
+    level: "warning",
+    title: s.serveDropped,
+    sentence: said,
+    actions: [{ label: s.toLocalServer, act: "settings", arg: "localserver" }],
+  });
+}
+
 /** Serving stopped by itself (the network changed): said where the person
  *  reads, so that a laptop that went from home to a café says that it
  *  stopped. */

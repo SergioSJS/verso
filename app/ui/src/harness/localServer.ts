@@ -30,12 +30,14 @@ export class LocalServerHarness {
   private nextId = 1;
   private cert: Pick<LocalServerStatus, "cert_file" | "key_file" | "host_name"> = { cert_file: null, key_file: null, host_name: null };
   private ticked = new Set<string>();
-  /** The folders chosen inside a ticked folder (ADR 0096 item 3, amended 2026-10-16). */
+  /** The folders chosen inside a ticked folder (ADR 0096 item 2, amended 2026-10-16). */
   private parts = new Map<string, string[]>();
+  /** The chosen folders the last start left out ("Antigo" is a folder the harness's disk has lost). */
+  private dropped: string[] = [];
   /** Folders the harness knows, one of them syncing with a server. */
   private folders: LocalFolder[] = [
-    { key: "harness", name: "Vault", place: "", ticked: false, parts: [], syncs_with: null },
-    { key: "synced", name: "Compartilhada", place: "", ticked: false, parts: [], syncs_with: "notas.exemplo" },
+    { key: "harness", name: "Vault", place: "", ticked: false, parts: [], missing: [], attachments: null, syncs_with: null },
+    { key: "synced", name: "Compartilhada", place: "", ticked: false, parts: [], missing: [], attachments: null, syncs_with: "notas.exemplo" },
     // As the maintainer's list: many folders, two of the same name, told
     // apart only by the directory they are in (a name, never a path).
     ...[
@@ -49,7 +51,7 @@ export class LocalServerHarness {
       ["Diario", "Documents"],
       ["Estudos", "Documents"],
       ["Projetos", "code"],
-    ].map(([name, place], i) => ({ key: `many-${i}`, name: name!, place: place!, ticked: false, parts: [], syncs_with: null })),
+    ].map(([name, place], i) => ({ key: `many-${i}`, name: name!, place: place!, ticked: false, parts: [], missing: [], attachments: null, syncs_with: null })),
   ];
   private maxConnected = 4;
   private fingerprint = "AB:CD:EF:01:23:45:67:89";
@@ -57,7 +59,13 @@ export class LocalServerHarness {
   private generation = 1;
 
   private rows(): LocalFolder[] {
-    return this.folders.map((f) => ({ ...f, ticked: this.ticked.has(f.key), parts: this.parts.get(f.key) ?? [] }));
+    return this.folders.map((f) => {
+      const parts = this.parts.get(f.key) ?? [];
+      const gone = this.serving || this.dropped.length > 0 ? parts.filter((p) => this.dropped.includes(`${f.name}/${p}`)) : [];
+      // The vault's setting names "Anexos": it goes along unless it is, or holds, a chosen folder.
+      const attach = f.key === "harness" && parts.length > 0 && !parts.some((p) => p === "Anexos" || p.startsWith("Anexos/")) ? "Anexos" : null;
+      return { ...f, ticked: this.ticked.has(f.key), parts, missing: gone, attachments: attach };
+    });
   }
 
   private log(action: string, subject: string | null = null, address: string | null = null): void {
@@ -80,6 +88,7 @@ export class LocalServerHarness {
       stopped_because: null,
       unreachable: false,
       keep_on: this.keepOn,
+      dropped: this.dropped,
       ...this.cert,
     };
   }
@@ -99,7 +108,7 @@ export class LocalServerHarness {
       const key = String(a["key"]);
       if (!this.folders.some((f) => f.key === key)) refuse("this computer does not know that folder");
       return key === "harness"
-        ? ["Anexos", "Diario", "Diario/2026", "Diario/2026/Outubro", "Projetos", "Projetos/Mesa", "Projetos/Verso", "Segredo"]
+        ? ["Anexos", "Diario", "Diario/2026", "Diario/2026/Outubro", "Antigo", "Projetos", "Projetos/Mesa", "Projetos/Verso", "Segredo"]
         : ["Arquivo", "Arquivo/2025", "Notas"];
     },
     local_server_parts: (a): LocalFolder[] => {
@@ -119,11 +128,13 @@ export class LocalServerHarness {
       if (this.serving) refuse("turn serving off to change which folders are served");
       if (!folder) refuse("this computer does not know that folder");
       if (a["ticked"] === true && folder.syncs_with) refuse(`this folder also syncs with ${folder.syncs_with}: open that address on the phone instead`);
-      // As the host: what was chosen inside a folder goes with any tick, so
-      // ticking a folder served in part serves all of it.
-      this.parts.delete(key);
+      // As the host: unticking forgets what was chosen inside a folder;
+      // ticking it again while it is ticked changes nothing.
       if (a["ticked"] === true) this.ticked.add(key);
-      else this.ticked.delete(key);
+      else {
+        this.ticked.delete(key);
+        this.parts.delete(key);
+      }
       return this.rows();
     },
     local_server_settings: (a): LocalServerStatus => {
@@ -136,6 +147,15 @@ export class LocalServerHarness {
     },
     local_server_start: (): LocalServerStatus => {
       if (this.ticked.size === 0) refuse("tick at least one folder to serve");
+      this.dropped = [];
+      for (const key of this.ticked) {
+        const chosen = this.parts.get(key) ?? [];
+        if (chosen.length === 0) continue;
+        const name = this.folders.find((f) => f.key === key)?.name ?? key;
+        const left = chosen.filter((p) => p !== "Antigo");
+        if (left.length === 0) refuse(`${name}: none of the folders chosen inside it is there any more: choose again, or serve all of it`);
+        this.dropped.push(...chosen.filter((p) => p === "Antigo").map((p) => `${name}/${p}`));
+      }
       this.serving = true;
       this.log("local_on", "1 address(es), port 51234");
       return this.status();
@@ -143,6 +163,7 @@ export class LocalServerHarness {
     local_server_stop: (): LocalServerStatus => {
       if (this.serving) this.log("local_off");
       this.serving = false;
+      this.dropped = [];
       this.open = false;
       this.asked = null;
       return this.status();

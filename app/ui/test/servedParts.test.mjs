@@ -1,4 +1,4 @@
-// Choosing folders inside a served folder (ADR 0096 item 3, amended
+// Choosing folders inside a served folder (ADR 0096 item 2, amended
 // 2026-10-16): the tree, how each folder shows, and what a tick does.
 
 import { test, describe } from "node:test";
