@@ -602,6 +602,19 @@ decision; each is a question for the maintainer if it should be otherwise):
   connection and for serving stopped by itself, so that no new row is
   added to *Settings › Notifications*.
 
+- **The list of folders to serve is the folder switcher's list** (2026-10-16).
+  The maintainer, looking at the first build's list of *Folders served*
+  (a tree by the parent directory's name): *"Pq vc nao usa a msm logica de
+  abrir pasta do Verso listando os recentes e tal, msm origem de dado"*
+  (why not the same logic as opening a folder in Verso, listing the recent
+  ones, the same source of data). The data already was the same
+  (`recent_folders`); the presentation now is too: one row per recent
+  folder, freshest first, in the order the command returns, with a box to
+  serve it, no groups. The parent directory's name (`place`, one directory
+  name, never a path) shows muted only when two folders share a name, as
+  the native *Open recent* menu tells two of them apart. No decision above
+  changes; the contract is unchanged.
+
 ## Status
 
 **The open points of "As built" decided on 2026-10-15** (the maintainer,
