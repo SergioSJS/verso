@@ -165,6 +165,41 @@
   builds on Windows and "runs on macOS and Windows as well" is true as
   written ([0096](0096-this-app-is-a-server.md) item 17 and
   [0075](0075-server-packaging-and-storage.md) item 2, both revised).
+  2026-10-16 — item 6 amended, and with it [0083](0083-security-hardening-of-universo.md)
+  item 5: **plain HTTP works**, without what a secure context is for. The
+  maintainer, when a CasaOS box refused to sign in from another machine and
+  asked for a proxy address nobody at home knows: *"universo nao roda em http? o foundry roda ne?"*, *"essa configuração tá ruim demais! Que que eu vou colocar nessa merda de Verso Trusted Proxy? … Um usuário normal não vai saber não!"*; and decided: *"Deveria sim ser possível usar essa merda HTTP, só que sem os recursos de HTTPS. Aí se a pessoa configurar, aí sim fica com todos os recursos liberados. Você tá restringindo o uso de forma idiota … se você não simplificar Não adianta Ninguém vai usar essa merda"*
+  (it should be possible to use HTTP, only without the HTTPS features; once
+  the person configures HTTPS, everything is unlocked; the restriction was
+  foolish; without simplifying, nobody will use it). What changes: (a) the
+  server serves the window, the setup link, sign-in, invitations, the
+  desktop app's connection and sync over HTTP from any machine; the session
+  cookie is `Secure` (and `__Host-`) only on a request that came over HTTPS
+  — the server's own TLS, or a believed proxy saying so — and keeps
+  `HttpOnly`, `SameSite=Lax` and the CSRF token; (b) with no
+  `VERSO_PUBLIC_URL` the `Host` typed is answered, the DNS-rebinding rule
+  of [0045](0045-server-and-mcp-security.md) kept where it still means
+  something (a server that listens on this machine only, unless a believed
+  proxy forwarded the request) and with `VERSO_PUBLIC_URL` set exactly as
+  before, that name and this machine's; the server's links use it when set,
+  else the address of the request; (c) an empty `VERSO_TRUSTED_PROXY`
+  believes a proxy on loopback or a private network (127.0.0.0/8, ::1,
+  10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, fc00::/7), a value replaces
+  that list and `none` believes no proxy; (d) what a browser keeps for a
+  secure context is **off over HTTP, said and never silent**: offline
+  ([0092](0092-the-phone-offline.md) item 2), the system's notifications
+  ([0084](0084-notifications-in-the-window.md)) and passkeys, each with a
+  quiet line where the feature lives and a way to read how to turn HTTPS
+  on, and one notice a session that can be closed; copying and hashing in
+  the window fall back to code that needs no secure context; (e) the
+  Docker image listens on every address with no required variable, and the
+  compose file publishes `7340:7340`. **The security consequence, plainly:**
+  over HTTP anyone on the same network can read the password and the notes
+  that cross it, and can forge the `X-Forwarded-For` of a request that
+  reaches the server from a private address (the default list believes
+  one), which only blunts the per-address pace: fine at home, not on a
+  public Wi-Fi. HTTPS stays what the guide recommends, as a later and
+  optional step. The old wording of item 6 is kept above, marked.
 
 ## Context
 
@@ -339,7 +374,9 @@ the date; what stays `[OPEN]` is listed in the Status.
    built into Verso comes later. The server
    refuses to serve a login without TLS, except on loopback or behind a
    reverse proxy whose address the host configured — only then are
-   forwarded headers trusted. Then: rate
+   forwarded headers trusted. *(Amended on 2026-10-16, a Revisions line:
+   plain HTTP is served; this sentence and the TLS it asks for are kept as
+   first decided.)* Then: rate
    limits on login, CSRF protection, the `Origin` check on WebSocket and
    `Host` validation against DNS rebinding that [0045](0045-server-and-mcp-security.md)
    names for local ports, the usual response headers, attachments served
