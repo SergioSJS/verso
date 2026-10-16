@@ -186,7 +186,7 @@ type Held = (Vec<crate::fair::Held>, Option<crate::local::PhoneGuard>);
 /// (threat-model.md, gap 4), or 429; and whether it is a phone refused by
 /// the ceiling of phones connected (the number it is), to be closed with
 /// `PHONES_FULL`.
-fn places(ctx: &Ctx, who: &Who) -> ApiResult<(Held, Option<u32>)> {
+pub(crate) fn places(ctx: &Ctx, who: &Who) -> ApiResult<(Held, Option<u32>)> {
     let counts = &ctx.server.fair.connections;
     let too_many = |what: &str, most: u32| {
         crate::log::warn(&format!(
