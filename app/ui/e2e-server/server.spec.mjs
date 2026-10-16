@@ -334,7 +334,9 @@ test("the window installs on a phone's home screen", async ({ request }) => {
   expect(manifest.ok()).toBe(true);
   const m = await manifest.json();
   expect(m.display).toBe("standalone");
-  expect(m.icons.map((i) => i.sizes)).toEqual(["192x192", "512x512"]);
+  // Each size twice: as it is, and maskable — the tile is edge to edge with
+  // the book inside the safe zone (the new icon, 2026-10-15).
+  expect(m.icons.map((i) => `${i.sizes} ${i.purpose}`)).toEqual(["192x192 any", "512x512 any", "192x192 maskable", "512x512 maskable"]);
   expect((await request.get("/apple-touch-icon.png")).ok()).toBe(true);
   const page = await (await request.get("/")).text();
   expect(page).toContain('rel="manifest"');
