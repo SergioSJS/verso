@@ -12,6 +12,7 @@ use verso_core::sync as engine;
 
 use super::sync::{Ctx, Syncer};
 use super::*;
+use crate::dns::SendRetrying;
 
 fn off(key: &str) -> SyncStatus {
     SyncStatus {
@@ -174,7 +175,7 @@ pub(crate) async fn folder_sync_start<R: tauri::Runtime>(
                         .post(format!("{url}/api/folders"))
                         .bearer_auth(token)
                         .json(&json!({ "name": name }))
-                        .send()
+                        .send_retrying()
                         .map_err(|e| reach::unsent(&url, &e))?,
                 )
             })

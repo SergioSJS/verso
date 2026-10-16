@@ -84,9 +84,10 @@ describe("A server out of reach, said in the panel", () => {
     );
     document.documentElement.lang = "en";
     assert.match(failureText(e), /^Couldn't reach the server universo\.casa\.exemplo\.com — .* universo\.casa\.exemplo\.com → 10\.0\.0\.1: no answer; .*→ 192\.168\.0\.5: no answer\. Check this network's DNS/);
-    // The port is not part of the name.
+    // The port is not part of the name; one address tried is no DNS hint.
     const withPort = { kind: "unreachable", message: "nas.casa:7340\n10.0.0.1" };
-    assert.match(failureText(withPort), /nas\.casa → 10\.0\.0\.1: no answer/);
+    assert.match(failureText(withPort), /nas\.casa → 10\.0\.0\.1: no answer\.$/);
+    assert.doesNotMatch(failureText(withPort), /DNS/);
     assert.equal(unreachableAt(e), "universo.casa.exemplo.com");
   });
 
