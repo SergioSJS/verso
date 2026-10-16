@@ -91,7 +91,7 @@ export class ApiError extends Error {
       case "not_writable": {
         // Both languages in one sentence, for a program and the log (ADR
         // 0075 item 3, amended 2026-10-16): the window shows its own half.
-        const at = this.message.indexOf(" / UniVerso");
+        const at = this.message.indexOf(" / ");
         if (at < 0) return this.message;
         return lang() === "pt" ? this.message.slice(0, at) : this.message.slice(at + 3);
       }
