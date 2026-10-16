@@ -209,8 +209,7 @@
   host or IP, since cookies are not separated by port — on CasaOS or
   ZimaOS every other app at `http://<ip>:<port>` receives the
   `verso-session` cookie, and can set one; and the default proxy list lets
-  a client on a private network — in Docker, any visitor of a published
-  port, who arrives from the bridge gateway — write an `X-Forwarded-For`
+  a client on a private network — in Docker, any visitor of a port published through docker-proxy (a loopback-published port, a hairpin, IPv6 onto an IPv4 bridge, Docker Desktop, rootless Docker), who arrives from the bridge gateway (rootful Linux Docker with iptables NAT keeps the client's address) — write an `X-Forwarded-For`
   and be counted under any address but loopback (a forwarded loopback is
   counted like any other), which defeats the per-address pace and caps for
   an attacker who rotates addresses and leaves only the account's own delay
