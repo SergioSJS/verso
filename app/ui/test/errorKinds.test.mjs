@@ -14,7 +14,7 @@ await esbuild.build({
   outfile: "test/.bundles/errorKinds.test-bundle.mjs",
   logLevel: "error",
 });
-const { PHONE, caseTwin, consoleLine, errorParts, levelOf, redact } = await import("./.bundles/errorKinds.test-bundle.mjs");
+const { PHONE, caseTwin, isTransport, consoleLine, errorParts, levelOf, redact } = await import("./.bundles/errorKinds.test-bundle.mjs");
 
 describe("The case refusal is told by its kind", () => {
   test("the contract's case_twin is a case twin, whatever its text", () => {
@@ -60,5 +60,15 @@ describe("The console's line for a failure", () => {
     assert.equal(redact('{"token":"s3cr3t","name":"Ana"}'), '{"token":"…","name":"Ana"}');
     assert.equal(redact("POST /api/device/poll?code=WXYZ-1234&poll=p1"), "POST /api/device/poll?code=…&poll=…");
     assert.equal(consoleLine({ kind: "refused", message: "password=hunter2 refused" }).text, "Verso: refused: password=… refused");
+  });
+});
+
+describe("A lost connection is not a file in the cloud", () => {
+  test("the bridge's transport failure is told by its flag, not its text", () => {
+    assert.equal(isTransport({ kind: "unavailable", message: "Sem conexão", transport: true }), true);
+    // The core's own `unavailable` (ADR 0043's placeholder) is not.
+    assert.equal(isTransport({ kind: "unavailable", message: "placeholder" }), false);
+    assert.equal(isTransport("x"), false);
+    assert.equal(isTransport(null), false);
   });
 });

@@ -548,7 +548,7 @@ export const commands = {
 	 */
 	localServerTick: (key: string, ticked: boolean) => typedError<LocalFolder[], ContractError>(__TAURI_INVOKE("local_server_tick", { key, ticked })),
 	/**  Keep on at start, and the host's own certificate (item 5 (d)). */
-	localServerSettings: (keepOn: boolean, certFile: string | null, keyFile: string | null, hostName: string | null) => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_settings", { keepOn, certFile, keyFile, hostName })),
+	localServerSettings: (keepOn: boolean, certFile: string | null, keyFile: string | null, hostName: string | null, maxConnected: number) => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_settings", { keepOn, certFile, keyFile, hostName, maxConnected })),
 	localServerStart: () => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_start")),
 	localServerStop: () => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_stop")),
 	localServerPairOpen: (address: string | null) => typedError<LocalPairing, ContractError>(__TAURI_INVOKE("local_server_pair_open", { address })),
@@ -1782,6 +1782,11 @@ export type LocalServerStatus = {
 	cert_file: string | null,
 	key_file: string | null,
 	host_name: string | null,
+	/**
+	 *  Phones connected at once, at most, 1 to 16 (item 13, amended
+	 *  2026-10-16: the ceiling is a setting; the default is 4).
+	 */
+	max_connected: number,
 };
 
 /**  The tiles of a map's picture. */

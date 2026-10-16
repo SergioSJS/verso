@@ -20,6 +20,7 @@ import { api, ApiError, pageContract, signedIn } from "./api";
 import { noNetwork, offline } from "./offline/manager";
 import { o } from "./offline/strings";
 import { notice } from "./notice";
+import { FULL_RETRY, phonesFullMost } from "./phonesFull";
 import { w } from "./strings";
 
 type Pending = { resolve: (v: unknown) => void; reject: (e: unknown) => void };
@@ -51,6 +52,7 @@ let retry = 0;
 let chooser: (() => Promise<string | null>) | null = null;
 /** The reconnection waiting its turn; a socket being made. */
 let reconnect = 0;
+
 let connecting = false;
 
 /** The folder the tab shows, for the pages around the window. */
@@ -289,8 +291,15 @@ function connect(): void {
     for (const w_ of waiting.splice(0)) ws.send(w_.text);
   });
   ws.addEventListener("message", (e) => onMessage(String(e.data)));
-  ws.addEventListener("close", () => {
+  ws.addEventListener("close", (ev) => {
     connecting = false;
+    // The computer serving this phone has its connected devices at the most
+    // (ADR 0096 item 13): it accepted the socket and closed it with this
+    // code and `phones_connected:<most>` (crates/verso-server/src/rpc.rs).
+    // Said in words, once per refusal, and tried again slowly.
+    const most = phonesFullMost(ev.code, ev.reason);
+    const fullSaid = most === null ? null : w().phonesFull(most);
+    if (fullSaid) notice(fullSaid, "error");
     open = false;
     reopening = false;
     // What was asked and not answered may or may not have happened: it is
@@ -301,7 +310,7 @@ function connect(): void {
     for (const [id, p] of pending) {
       if (unsent.has(id)) continue;
       pending.delete(id);
-      p.reject({ kind: "unavailable", message: w().offline, transport: true } satisfies ContractError & { transport: boolean });
+      p.reject({ kind: "unavailable", message: fullSaid ?? w().offline, transport: true } satisfies ContractError & { transport: boolean });
     }
     retry++;
     // Dropped: said to the window as the desktop's host says it (ADR 0084
@@ -309,7 +318,7 @@ function connect(): void {
     if (retry === 1) void emit("server-gone", { url: location.origin, what: "connection", address: null, reason: null });
     // A folder kept on this device goes on from its copy (ADR 0092).
     wentDown();
-    reconnect = window.setTimeout(connect, Math.min(30_000, 1000 * 2 ** Math.min(retry, 5)));
+    reconnect = window.setTimeout(connect, fullSaid ? FULL_RETRY : Math.min(30_000, 1000 * 2 ** Math.min(retry, 5)));
   });
 }
 

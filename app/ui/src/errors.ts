@@ -4,7 +4,7 @@
 
 import { type ContractError } from "./bindings";
 import { ui } from "./dom";
-import { ANSWERS, PHONE, REACH, caseTwin, dueToSay, errorParts, levelOf, toConsole } from "./errorKinds";
+import { ANSWERS, PHONE, isTransport, REACH, caseTwin, dueToSay, errorParts, levelOf, toConsole } from "./errorKinds";
 import { keepFailuresWith, reachStrings } from "./reach";
 import { note } from "./report";
 import { boardText, t } from "./strings";
@@ -57,6 +57,9 @@ export function nameTaken(text: string): void {
 export function errorSentence(e: ContractError | unknown): string {
   if (caseTwin(e)) return `${t.error}: ${t.caseTwinName}`;
   const { kind, message } = errorParts(e);
+  // The connection itself failed (the web bridge's `transport`): its own
+  // words are the whole sentence; the cloud-file one is for a placeholder.
+  if (kind === "unavailable" && isTransport(e)) return `${t.error}: ${message}`;
   // The address is the whole message: said once, in the sentence.
   if (kind === REACH) return `${t.error}: ${reachStrings().unreachable(message)}`;
   const sentence: Record<string, string> = { no_folder: t.errNoFolder, not_on_phone: t.errNotOnPhone, phone_reads: t.errPhoneReads, refused: t.errRefused, not_found: t.errNotFound, unavailable: t.errUnavailable, not_text: t.errNotText, not_canvas: boardText.notABoard, changed: t.errChanged, exists: t.exists, quota: t.errQuota, prove_first: t.errProveFirst, failed: t.errFailed };

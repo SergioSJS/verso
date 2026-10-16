@@ -142,7 +142,7 @@ pub async fn upgrade(ctx: Ctx, ws: WebSocketUpgrade) -> ApiResult<Response> {
     // does every device of a server that speaks sync 1.
     let binary =
         verso_core::sync::binary_pieces(ours) && sync.is_some_and(verso_core::sync::binary_pieces);
-    let places = places(&ctx, &who)?;
+    let (places, phones_full) = places(&ctx, &who)?;
     let server = Arc::clone(&ctx.server);
     Ok(ws
         .max_message_size(MAX_MESSAGE)
@@ -154,16 +154,39 @@ pub async fn upgrade(ctx: Ctx, ws: WebSocketUpgrade) -> ApiResult<Response> {
         .on_upgrade(move |socket| async move {
             // Held as long as the connection.
             let _places = places;
+            if let Some(most) = phones_full {
+                // The ceiling of phones connected (ADR 0096 item 13), said
+                // to the phone: a browser's WebSocket never sees the status
+                // of a refused upgrade, only that it failed, so the upgrade
+                // is accepted and closed at once with an application code
+                // the window reads (`PHONES_FULL`).
+                let mut socket = socket;
+                let _ = socket
+                    .send(Message::Close(Some(axum::extract::ws::CloseFrame {
+                        code: PHONES_FULL,
+                        reason: format!("phones_connected:{most}").into(),
+                    })))
+                    .await;
+                return;
+            }
             run(server, who, socket, (sync_refused, binary)).await;
         }))
 }
 
+/// The close code (the 4000s are the application's) of a connection that
+/// "This app is a server" refused because the most phones it allows are
+/// connected already (ADR 0096 item 13); the window says so in words and
+/// tries again slowly (`app/ui/src/web/bridge.ts`).
+pub const PHONES_FULL: u16 = 4290;
+
+/// What a connection holds while it lasts: its places, and a phone's.
+type Held = (Vec<crate::fair::Held>, Option<crate::local::PhoneGuard>);
+
 /// The connection's places among its account's and its address's
-/// (threat-model.md, gap 4), or 429.
-fn places(
-    ctx: &Ctx,
-    who: &Who,
-) -> ApiResult<(Vec<crate::fair::Held>, Option<crate::local::PhoneGuard>)> {
+/// (threat-model.md, gap 4), or 429; and whether it is a phone refused by
+/// the ceiling of phones connected (the number it is), to be closed with
+/// `PHONES_FULL`.
+fn places(ctx: &Ctx, who: &Who) -> ApiResult<(Held, Option<u32>)> {
     let counts = &ctx.server.fair.connections;
     let too_many = |what: &str, most: u32| {
         crate::log::warn(&format!(
@@ -209,15 +232,16 @@ fn places(
     let phone = match (&ctx.server.local, who.phone, who.session()) {
         (Some(local), Some(_), Some(session)) => {
             let name = local.name_of(&ctx.server, session);
-            let guard = local
-                .enter(session, &name)
-                .ok_or_else(|| too_many("the phones connected", crate::local::CONNECTED))?;
+            let Some(guard) = local.enter(session, &name) else {
+                local.refused_full(&ctx.server, session, &name);
+                return Ok(((held, None), Some(local.connected_most())));
+            };
             local.first_seen(&ctx.server, session);
             Some(guard)
         }
         _ => None,
     };
-    Ok((held, phone))
+    Ok(((held, phone), None))
 }
 
 /// Why a device that speaks sync `theirs` is refused by a server that

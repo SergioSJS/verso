@@ -151,6 +151,17 @@ export function localServerBody(_item: Item): HTMLElement {
   keepLabel.htmlFor = keep.id;
   keepLabel.append(keep, h("span", "", w.keepOn));
   const keepHelp = h("p", "ls-help", w.keepOnDesc);
+  // Phones connected at once, at most (item 13, amended 2026-10-16).
+  const most = h("input");
+  most.type = "number";
+  most.min = "1";
+  most.max = "16";
+  most.step = "1";
+  most.id = "ls-most";
+  const mostLabel = h("label", "ls-check");
+  mostLabel.htmlFor = most.id;
+  mostLabel.append(h("span", "", w.maxConnected), most);
+  const mostHelp = h("p", "ls-help", w.maxConnectedDesc);
   const pair = h("button", "btn", w.pair);
   pair.type = "button";
   const pairHelp = h("p", "ls-help", w.pairNeedsOn);
@@ -248,7 +259,7 @@ export function localServerBody(_item: Item): HTMLElement {
     form.addEventListener("submit", (e) => {
       e.preventDefault();
       busy(save, true);
-      void commands.localServerSettings(s.keep_on, c.value, k.value, n.value).then((r) => {
+      void commands.localServerSettings(s.keep_on, c.value, k.value, n.value, s.max_connected).then((r) => {
         busy(save, false);
         if (r.status !== "ok") return failed(r.error);
         say(w.saved);
@@ -372,9 +383,10 @@ export function localServerBody(_item: Item): HTMLElement {
     const s = r.data;
     void refreshMark();
     unsupported.hidden = s.supported;
-    for (const el of [foldersHead, foldersLead, folders, run, state, keepLabel, keepHelp, pair, pairHelp, phonesHead, phones, danger, cert, log]) el.hidden = !s.supported;
+    for (const el of [foldersHead, foldersLead, folders, run, state, keepLabel, keepHelp, mostLabel, mostHelp, pair, pairHelp, phonesHead, phones, danger, cert, log]) el.hidden = !s.supported;
     if (!s.supported) return;
     keep.checked = s.keep_on;
+    most.value = String(s.max_connected);
     run.textContent = s.serving ? w.turnOff : w.turnOn;
     blocked.hidden = !(s.serving && s.unreachable);
     if (!blocked.hidden) {
@@ -414,10 +426,27 @@ export function localServerBody(_item: Item): HTMLElement {
       return redraw();
     })();
   });
+  most.addEventListener("change", () => {
+    const s = status;
+    if (!s) return;
+    const n = Math.trunc(Number(most.value));
+    if (!(n >= 1 && n <= 16)) {
+      most.value = String(s.max_connected);
+      return say(w.maxConnectedBad);
+    }
+    void commands.localServerSettings(s.keep_on, s.cert_file, s.key_file, s.host_name, n).then((r) => {
+      if (r.status !== "ok") {
+        most.value = String(s.max_connected);
+        return failed(r.error);
+      }
+      status = r.data;
+      say(w.maxConnectedNow(n));
+    });
+  });
   keep.addEventListener("change", () => {
     const s = status;
     if (!s) return;
-    void commands.localServerSettings(keep.checked, s.cert_file, s.key_file, s.host_name).then((r) => {
+    void commands.localServerSettings(keep.checked, s.cert_file, s.key_file, s.host_name, s.max_connected).then((r) => {
       if (r.status !== "ok") {
         keep.checked = !keep.checked;
         return failed(r.error);
@@ -427,7 +456,7 @@ export function localServerBody(_item: Item): HTMLElement {
   });
   pair.addEventListener("click", () => openPairing());
 
-  box.append(lead, unsupported, foldersHead, foldersLead, folders, run, state, blocked, keepLabel, keepHelp, pair, pairHelp, said, phonesHead, phones, danger, cert, log);
+  box.append(lead, unsupported, foldersHead, foldersLead, folders, run, state, blocked, keepLabel, keepHelp, mostLabel, mostHelp, pair, pairHelp, said, phonesHead, phones, danger, cert, log);
   void redraw();
   return box;
 }

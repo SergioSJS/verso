@@ -63,8 +63,9 @@ pub(crate) async fn local_server_settings<R: tauri::Runtime>(
     cert_file: Option<String>,
     key_file: Option<String>,
     host_name: Option<String>,
+    max_connected: u32,
 ) -> Result<LocalServerStatus, ContractError> {
-    platform::settings(app, keep_on, cert_file, key_file, host_name).await
+    platform::settings(app, keep_on, cert_file, key_file, host_name, max_connected).await
 }
 
 #[tauri::command]
