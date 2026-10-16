@@ -55,6 +55,12 @@ pub struct LocalFolder {
     /// The folder's opaque key (`FolderInfo.key`).
     pub key: String,
     pub name: String,
+    /// The NAME of the directory the folder lives in (`obsidian` for
+    /// `~/Documents/obsidian/Caderno`), empty when it has none: a label
+    /// to tell two folders of the same name apart and to group the list.
+    /// A name, not a path (ADR 0026 rule 4): nothing above that one
+    /// directory crosses.
+    pub place: String,
     pub ticked: bool,
     /// The server this folder also syncs with: such a folder cannot be
     /// served in V1 (item 11), and the row says to open that address on

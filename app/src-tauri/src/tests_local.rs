@@ -95,3 +95,19 @@ fn a_folder_ticked_and_synced_later_stops_serving_and_pairing() {
     let status = call(&webview, "local_server_status", json!({})).unwrap();
     assert_eq!(status["serving"], false, "{status}");
 }
+
+#[test]
+fn a_folder_row_carries_the_name_of_its_directory_and_no_path() {
+    let vault = tempfile::tempdir().unwrap();
+    let _nota = note(vault.path(), "Nota.md", "# Nota\n");
+    let (_app, webview) = app_with(Some(vault.path().to_path_buf()));
+    let _key = known(&webview);
+    let rows = call(&webview, "local_server_folders", json!({})).unwrap();
+    let place = rows[0]["place"].as_str().unwrap();
+    let parent = vault.path().parent().unwrap().file_name().unwrap();
+    assert_eq!(place, parent.to_string_lossy(), "{rows}");
+    assert!(
+        !place.contains('/') && !place.contains('\\'),
+        "a name only: {rows}"
+    );
+}

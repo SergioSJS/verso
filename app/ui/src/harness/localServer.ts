@@ -32,8 +32,22 @@ export class LocalServerHarness {
   private ticked = new Set<string>();
   /** Folders the harness knows, one of them syncing with a server. */
   private folders: LocalFolder[] = [
-    { key: "harness", name: "Vault", ticked: false, syncs_with: null },
-    { key: "synced", name: "Compartilhada", ticked: false, syncs_with: "notas.exemplo" },
+    { key: "harness", name: "Vault", place: "", ticked: false, syncs_with: null },
+    { key: "synced", name: "Compartilhada", place: "", ticked: false, syncs_with: "notas.exemplo" },
+    // As the maintainer's list: many folders, two of the same name, told
+    // apart only by the directory they are in (a name, never a path).
+    ...[
+      ["Caderno", "obsidian"],
+      ["Caderno", "Dropbox"],
+      ["mac-vault-import", "obsidian"],
+      ["mac-vault-import", "Downloads"],
+      ["Sandbox", "obsidian"],
+      ["Receitas", "Dropbox"],
+      ["Trabalho", "Documents"],
+      ["Diario", "Documents"],
+      ["Estudos", "Documents"],
+      ["Projetos", "code"],
+    ].map(([name, place], i) => ({ key: `many-${i}`, name: name!, place: place!, ticked: false, syncs_with: null })),
   ];
   private fingerprint = "AB:CD:EF:01:23:45:67:89";
   /** The identity's generation: replaced, the fingerprint changes. */
