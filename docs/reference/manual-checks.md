@@ -300,6 +300,17 @@ in a note long enough to scroll.
   reloaded), the row back to off with why. In a browser over plain HTTP
   the row says it needs HTTPS and cannot be turned on; on an iPhone's
   Safari outside the home screen, that it needs the installed app.
+- [ ] **UniVerso over plain HTTP from another device** (ADR 0073 item 6
+  amended 2026-10-16; a ZimaOS or CasaOS box, a phone, an iPad): paste the
+  shipped compose file with no variable filled, open
+  `http://<the box's address>:7340` on the phone, make the admin from the
+  log's setup link, sign in. The sign-in page carries *Conexão sem HTTPS…*
+  with *Como ligar o HTTPS*; the window shows the closable notice once;
+  *Settings › Offline* and *Notifications* say they need HTTPS with the
+  same link; copying a link from the menu works; the desktop app connects
+  to the same `http://` address and syncs. Put Tailscale or Caddy in front,
+  set only `VERSO_PUBLIC_URL`: offline and notifications turn on, the notice
+  is gone.
 - [ ] **A notification while the window is in the background**: the
   system's notifications on, the window behind another app (or
   minimised, or another browser tab), then stop the server: a system

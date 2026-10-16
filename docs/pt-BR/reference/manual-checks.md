@@ -309,6 +309,17 @@ mostrado ficar óbvio), numa nota longa o bastante para rolar.
   desligado dizendo por quê. Num navegador por HTTP simples a linha diz
   que precisa de HTTPS e não liga; no Safari de um iPhone fora da tela
   inicial, que precisa do app instalado.
+- [ ] **O UniVerso por HTTP simples a partir de outro aparelho** (ADR 0073
+  item 6 alterado em 2026-10-16; uma caixa ZimaOS ou CasaOS, um celular, um
+  iPad): cole o compose publicado sem preencher variável alguma, abra
+  `http://<endereço da caixa>:7340` no celular, crie o admin pelo link de
+  configuração do log, entre. A página de entrada traz *Conexão sem HTTPS…*
+  com *Como ligar o HTTPS*; a janela mostra o aviso que se fecha uma vez;
+  *Ajustes › Offline* e *Notificações* dizem que precisam de HTTPS com o
+  mesmo link; copiar um link pelo menu funciona; o app de desktop conecta ao
+  mesmo endereço `http://` e sincroniza. Ponha o Tailscale ou o Caddy na
+  frente, defina só o `VERSO_PUBLIC_URL`: o offline e as notificações
+  ligam, o aviso some.
 - [ ] **Uma notificação com a janela atrás**: as notificações do sistema
   ligadas, a janela atrás de outro app (ou minimizada, ou em outra aba do
   navegador), e então pare o servidor: uma notificação do sistema

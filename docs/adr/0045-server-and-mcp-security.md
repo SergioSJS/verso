@@ -118,7 +118,8 @@ accounts with a password hashed with Argon2id, passkeys, sessions and
 personal access tokens (0074); TLS — behind a reverse proxy or
 `tailscale serve`, or the server's own certificate and key, and no login
 served without TLS except on loopback or behind the configured proxy
-(0073 item 6); exposure outside the machine — the user's choice, a VPN or
+(0073 item 6, amended 2026-10-16: plain HTTP is served too, without what
+needs a secure context); exposure outside the machine — the user's choice, a VPN or
 a reverse proxy recommended, never a port the server opens on its own
 (0073, Consequences); multi-user — several accounts per server and roles
 per folder (0074 item 6). The MCP over the network, its transport and its

@@ -169,6 +169,43 @@
   no Windows e "roda em macOS e Windows também" é verdade como está
   escrito ([0096](0096-this-app-is-a-server.md) item 17 e
   [0075](0075-server-packaging-and-storage.md) item 2, ambos revistos).
+  2026-10-16 — item 6 alterado, e com ele o item 5 do
+  [0083](0083-security-hardening-of-universo.md): **o HTTP simples funciona**,
+  sem o que um contexto seguro dá. O mantenedor, quando uma caixa CasaOS se
+  recusou a entrar a partir de outra máquina e pediu o endereço de um proxy
+  que ninguém em casa conhece: *"universo nao roda em http? o foundry roda ne?"*, *"essa configuração tá ruim demais! Que que eu vou colocar nessa merda de Verso Trusted Proxy? … Um usuário normal não vai saber não!"*; e decidiu: *"Deveria sim ser possível usar essa merda HTTP, só que sem os recursos de HTTPS. Aí se a pessoa configurar, aí sim fica com todos os recursos liberados. Você tá restringindo o uso de forma idiota … se você não simplificar Não adianta Ninguém vai usar essa merda"*
+  (deveria ser possível usar HTTP, só sem os recursos do HTTPS; quando a
+  pessoa configura o HTTPS, tudo é liberado; a restrição era tola; sem
+  simplificar, ninguém vai usar). O que muda: (a) o servidor serve a janela,
+  o link de configuração, a entrada, os convites, a conexão do app e o sync
+  por HTTP a partir de qualquer máquina; o cookie de sessão é `Secure` (e
+  `__Host-`) só numa requisição que veio por HTTPS — o TLS do próprio
+  servidor, ou um proxy acreditado que o diga — e mantém `HttpOnly`,
+  `SameSite=Lax` e o token de CSRF; (b) sem `VERSO_PUBLIC_URL` o `Host`
+  digitado é respondido, a regra contra DNS rebinding do
+  [0045](0045-server-and-mcp-security.md) mantida onde ainda significa algo
+  (um servidor que escuta só nesta máquina, salvo se um proxy acreditado
+  encaminhou a requisição) e, com `VERSO_PUBLIC_URL` definido, exatamente
+  como antes, esse nome e o desta máquina; os links do servidor o usam
+  quando definido, senão o endereço da requisição; (c) um
+  `VERSO_TRUSTED_PROXY` vazio acredita num proxy em loopback ou numa rede
+  privada (127.0.0.0/8, ::1, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16,
+  fc00::/7), um valor substitui essa lista e `none` não acredita em nenhum;
+  (d) o que o navegador guarda para um contexto seguro fica **desligado por
+  HTTP, dito e nunca em silêncio**: o offline
+  ([0092](0092-the-phone-offline.md) item 2), as notificações do sistema
+  ([0084](0084-notifications-in-the-window.md)) e as passkeys, cada um com
+  uma linha discreta onde o recurso mora e um jeito de ler como ligar o
+  HTTPS, e um aviso por sessão que pode ser fechado; copiar e calcular hash
+  na janela recuam para código que não precisa de contexto seguro; (e) a
+  imagem Docker escuta em todos os endereços sem variável obrigatória, e o
+  arquivo compose publica `7340:7340`. **A consequência de segurança, sem
+  rodeio:** por HTTP, quem está na mesma rede lê a senha e as notas que
+  passam por ela, e pode forjar o `X-Forwarded-For` de uma requisição que
+  chega ao servidor de um endereço privado (a lista padrão acredita nele),
+  o que só embota o ritmo por endereço: serve em casa, não num Wi-Fi
+  público. O HTTPS continua o que o manual recomenda, como passo posterior e
+  opcional. O texto antigo do item 6 fica acima, marcado.
 
 ## Contexto
 
@@ -348,7 +385,10 @@ que segue `[ABERTO]` está listado no Status.
    caminho documentado para um celular e um iPad; ACME embutido no Verso
    vem depois. O servidor se recusa a servir um login sem TLS, exceto em
    loopback ou atrás de um proxy reverso cujo endereço quem hospeda
-   configurou — só então os cabeçalhos encaminhados são confiados. Então:
+   configurou — só então os cabeçalhos encaminhados são confiados.
+   *(Alterado em 2026-10-16, uma linha das Revisões: o HTTP simples é
+   servido; esta frase e o TLS que ela pede ficam como decididos
+   primeiro.)* Então:
    limite de tentativas no login, proteção contra CSRF, a
    checagem de `Origin` no WebSocket e a validação de `Host` contra DNS
    rebinding que o [0045](0045-server-and-mcp-security.md) nomeia para portas

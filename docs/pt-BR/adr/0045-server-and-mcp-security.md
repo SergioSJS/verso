@@ -115,7 +115,8 @@ aceito acima é atendido antes da primeira versão do servidor, não depois.
 com senha com hash Argon2id, chaves de acesso, sessões e tokens de acesso
 pessoal (0074); TLS — atrás de um proxy reverso ou do `tailscale serve`,
 ou com o certificado e a chave do próprio servidor, e nenhum login servido
-sem TLS exceto em loopback ou atrás do proxy configurado (0073 item 6);
+sem TLS exceto em loopback ou atrás do proxy configurado (0073 item 6, alterado em 2026-10-16: o HTTP simples também é servido, sem
+o que precisa de um contexto seguro);
 exposição fora da máquina — escolha do usuário, uma VPN ou um proxy reverso
 recomendados, nunca uma porta que o servidor abra sozinho (0073,
 Consequências); multiusuário — várias contas por servidor e papéis por

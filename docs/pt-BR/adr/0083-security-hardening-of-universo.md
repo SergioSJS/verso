@@ -182,6 +182,18 @@ decidido como escrito. Tamanhos: S são horas, M um ou dois dias, L mais.
    `auth.rs` (`peer`), `listen.rs` (`Slots::take`). Guardrail: testes
    unitários da caminhada (dois saltos, uma entrada falsa à esquerda, um
    endereço num CIDR). Tamanho S.
+   *(Alterado em 2026-10-16, com as palavras do mantenedor nas Revisões do
+   [0073](0073-self-hosted-server-first.md): um `VERSO_TRUSTED_PROXY` vazio
+   deixa de significar "nenhum é acreditado" e passa a "um proxy em
+   loopback ou numa rede privada é" — 127.0.0.0/8, ::1, 10.0.0.0/8,
+   172.16.0.0/12, 192.168.0.0/16, fc00::/7; um valor substitui essa lista e
+   `none` não acredita em nenhum. O limite de conexões do `Slots` continua
+   isentando só o loopback e os proxies que quem hospeda nomeou, e o aviso
+   de um proxy confiável que não encaminha nada é dito só de um nomeado. A
+   consequência, sem rodeio: um cliente da rede de casa pode forjar o
+   `X-Forwarded-For` e ser cadenciado sob o endereço que escreve; o atraso
+   da própria conta e o bloqueio continuam valendo. As outras palavras do
+   item 5 ficam.)*
 
 6. **Uma prova recente antes de uma ação sensível** (F15, e a aprovação
    da página de aparelho). Criar um token, adicionar ou remover uma
@@ -816,6 +828,11 @@ da construção e decidida pelo mantenedor em 2026-10-13 (*"sobre as
 decisões em aberto, siga as recomendações"*): o
 `packaging/server/docker-compose.yml` publica a 7340 em `127.0.0.1` por
 padrão (`host_ip`), com TLS na frente — Caddy, um túnel ou o Tailscale.
+*(Substituído em 2026-10-16: ele publica `7340:7340` em todos os
+endereços e o HTTP simples entra a partir da rede, com as palavras do
+mantenedor nas Revisões do [0073](0073-self-hosted-server-first.md); o
+guardrail passa a conferir essa ligação e que nenhuma variável é
+obrigatória.)*
 O comentário dele diz a única linha a trocar para publicar na LAN, para
 uma caixa CasaOS numa rede de casa, e que HTTP puro na LAN não faz login
 de ninguém de outra máquina de qualquer forma
