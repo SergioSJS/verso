@@ -65,6 +65,7 @@ pub async fn create(ctx: Ctx, Json(body): Json<NewFolder>) -> ApiResult<Response
         ));
     }
     let root = ctx.server.config.folders_dir.clone();
+    let root_for_error = root.clone();
     let made = name.clone();
     tokio::task::spawn_blocking(move || verso_fs::server::make_folder(&root, &made))
         .await
@@ -75,6 +76,12 @@ pub async fn create(ctx: Ctx, Json(body): Json<NewFolder>) -> ApiResult<Response
                 "folder_exists",
                 "a folder has that name",
             ),
+            // A directory the server cannot write is said in words, to an
+            // admin with the way to mend it (ADR 0075 item 3, amended
+            // 2026-10-16); decided on the error's kind, here, where it is made.
+            _ if crate::storage::is_refusal(&e) => {
+                crate::storage::api_error(&root_for_error, who.account.admin)
+            }
             _ => ApiError::from(format!("making the folder: {e}")),
         })?;
     let folder = ctx.server.db.create_folder(&name, &who.account.id)?;

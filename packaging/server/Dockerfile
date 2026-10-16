@@ -55,13 +55,16 @@ COPY --from=prep --chown=1000:1000 /out/folders /folders
 # The window's files first: the same bytes for both architectures, so the
 # registry stores that layer once (the free quota is 500 MB, ADR 0075).
 COPY ui/ /usr/share/universo/ui/
-COPY --chmod=0755 bin/${TARGETARCH}/verso /usr/bin/universo
+COPY --chmod=0755 bin/${TARGETARCH}/verso /usr/libexec/universo/universo
+COPY --chmod=0755 universo-wrapper.sh /usr/bin/universo
+COPY --chmod=0755 docker-entrypoint.sh /usr/libexec/universo/docker-entrypoint
 
 # The two directories of ADR 0075 item 3. /data: the accounts, sessions,
 # audit log and indexes, on a local disk (SQLite is not safe on NFS or
-# SMB). /folders: the folders of notes, which may be a NAS. A directory
-# of the host bound here must be writable by uid 1000
-# (docs/reference/server-install.md).
+# SMB). /folders: the folders of notes, which may be a NAS. A directory of
+# the host bound here is made by Docker as root; the entrypoint gives what
+# root owns in it to uid 1000 when 1000 cannot write there, and only there
+# (ADR 0075 item 3, amended 2026-10-16).
 VOLUME ["/data", "/folders"]
 
 # It listens on every address of the container, and answers whatever address
@@ -75,8 +78,13 @@ ENV VERSO_DATA_DIR=/data \
 
 EXPOSE 7340
 
-# Never root (ADR 0075 item 2).
-USER 1000:1000
+# The container starts as root for the entrypoint's one job (the owners of
+# the two mounts, with CHOWN, SETUID and SETGID, the only capabilities the
+# compose file adds back) and the server never does: /usr/bin/universo drops
+# to 1000:1000 before the binary runs, and `docker exec` commands too
+# (ADR 0075 item 2, amended 2026-10-16). A host may instead run it as
+# `user: 1000:1000`, and the entrypoint skips the job.
+USER root
 WORKDIR /home/universo
 
 # No HEALTHCHECK: the address it would ask depends on VERSO_LISTEN and on
@@ -85,4 +93,4 @@ WORKDIR /home/universo
 
 # SIGTERM (docker stop) ends the server cleanly. `docker exec <container>
 # universo admin reset <e-mail>` prints a reset link (ADR 0074 item 5).
-ENTRYPOINT ["universo", "--web"]
+ENTRYPOINT ["/usr/libexec/universo/docker-entrypoint"]

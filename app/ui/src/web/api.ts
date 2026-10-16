@@ -7,7 +7,7 @@
 // cookie is the browser's, never read here (HttpOnly).
 
 import { withProof } from "./proof";
-import { w } from "./strings";
+import { lang, w } from "./strings";
 
 export type Account = { id: string; email: string; name: string; lang: string; admin: boolean; mayCreate: boolean };
 
@@ -88,6 +88,15 @@ export class ApiError extends Error {
         return s.badRequest;
       case "prove_first":
         return s.proveFirst;
+      case "not_writable": {
+        // Both languages in one sentence, for a program and the log (ADR
+        // 0075 item 3, amended 2026-10-16): the window shows its own half.
+        // The server's separator: a newline, U+2063, a newline (storage.rs).
+        const halves = this.message.split("\n\u2063\n");
+        const [pt, en] = halves;
+        if (halves.length !== 2 || pt === undefined || en === undefined) return this.message;
+        return lang() === "pt" ? pt : en;
+      }
       default:
         return this.message || s.failed;
     }

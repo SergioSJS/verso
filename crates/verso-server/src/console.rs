@@ -632,6 +632,9 @@ pub async fn overview(ctx: Ctx) -> ApiResult<Response> {
         "newer": verso_service::lock(&ctx.server.newer).clone(),
         "updateCheck": config.update_check,
         "publicUrl": config.public_url,
+        // The directories the server could not write at start: the page
+        // says it and how to mend it (`crate::storage`).
+        "unwritable": ctx.server.unwritable.get().map(|v| v.iter().map(|u| json!({ "dir": u.dir, "owner": u.owner })).collect::<Vec<_>>()).unwrap_or_default(),
         "dataDir": config.data_dir,
         "foldersDir": config.folders_dir,
         "dataOnNetwork": data_net,
