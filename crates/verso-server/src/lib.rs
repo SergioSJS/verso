@@ -22,6 +22,7 @@ pub mod data;
 pub mod db;
 pub mod device;
 pub mod dice;
+pub mod discovery;
 pub mod fair;
 pub mod files;
 pub mod folders;
@@ -222,6 +223,9 @@ pub fn serve(config: Config, commit: &str) -> Result<(), String> {
         let listener = tokio::net::TcpListener::bind(listen)
             .await
             .map_err(|e| format!("listening on {listen}: {e}"))?;
+        // Found on the home network by itself (ADR 0097); held until the
+        // server stops, its goodbye sent when it drops.
+        let _announced = discovery::announce(&server.config, acceptor.is_some());
         match acceptor {
             Some(acceptor) => {
                 let slots = Arc::clone(&server.slots);
