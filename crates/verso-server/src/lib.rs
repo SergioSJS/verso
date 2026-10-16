@@ -224,17 +224,24 @@ pub fn serve(config: Config, commit: &str) -> Result<(), String> {
             .await
             .map_err(|e| format!("listening on {listen}: {e}"))?;
         // Found on the home network by itself (ADR 0097); held until the
-        // server stops, its goodbye sent when it drops.
-        let _announced = discovery::announce(&server.config, acceptor.is_some());
-        match acceptor {
-            Some(acceptor) => {
-                let slots = Arc::clone(&server.slots);
-                let tls =
-                    tls::TlsListener::new(listener, acceptor, slots).map_err(|e| e.to_string())?;
-                run_on(server, tls, stopped()).await
+        // server stops.
+        let announced = discovery::announce(&server.config, acceptor.is_some());
+        let served = async {
+            match acceptor {
+                Some(acceptor) => {
+                    let slots = Arc::clone(&server.slots);
+                    let tls = tls::TlsListener::new(listener, acceptor, slots)
+                        .map_err(|e| e.to_string())?;
+                    run_on(server, tls, stopped()).await
+                }
+                None => run(server, listener, stopped()).await,
             }
-            None => run(server, listener, stopped()).await,
         }
+        .await;
+        // The goodbye waits for the network for up to a second: not on a
+        // worker of the runtime.
+        let _ = tokio::task::spawn_blocking(move || drop(announced)).await;
+        served
     })
 }
 
