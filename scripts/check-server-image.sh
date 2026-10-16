@@ -86,10 +86,13 @@ docker compose -f "$compose" config -q || { echo "$compose is not a valid compos
 for want in 'read_only: true' '- /tmp' '- ALL' '- no-new-privileges:true'; do
   grep -qF -- "$want" "$compose" || { echo "$compose does not declare: $want"; exit 1; }
 done
-# The port published on loopback by default (2026-10-13): TLS goes in front.
+# The port published on every address (2026-10-16, ADR 0073 item 6 as
+# amended: plain HTTP works from the network), and no variable required.
 # Read from the parsed file, so a comment cannot pass for it.
-docker compose -f "$compose" config | grep -qF 'host_ip: 127.0.0.1' ||
-  { echo "$compose does not publish its port on 127.0.0.1"; exit 1; }
+parsed="$(docker compose -f "$compose" config)"
+echo "$parsed" | grep -qF 'published: "7340"' || { echo "$compose does not publish 7340"; exit 1; }
+! echo "$parsed" | grep -qF 'host_ip:' || { echo "$compose binds its port to one address"; exit 1; }
+! echo "$parsed" | grep -qE '^\s+VERSO_(PUBLIC_URL|TRUSTED_PROXY):' || { echo "$compose requires a variable that is optional"; exit 1; }
 docker run -d --name "$name" -p "127.0.0.1:$port:7340" \
   --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
   -v "$certs":/certs:ro \
@@ -120,6 +123,24 @@ echo "folder mode: $mode"
 page="$(curl -sk -o /dev/null -w '%{http_code} %{content_type}' "$base/")"
 echo "page: $page"
 case "$page" in 200\ text/html*) ;; *) echo "the window's page is not served"; exit 1 ;; esac
+# Plain HTTP from another address answers, signs in, and the cookie is not
+# Secure (ADR 0073 item 6 as amended 2026-10-16): no PUBLIC_URL, no TLS.
+plain=universo-plain-check
+docker rm -f "$plain" >/dev/null 2>&1 || true
+docker run -d --name "$plain" -p "127.0.0.1:$((port + 1)):7340" \
+  --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
+  -e VERSO_ADMIN_EMAIL=admin@verso.test -e VERSO_ADMIN_PASSWORD='uma senha bem longa' \
+  -e VERSO_UPDATE_CHECK=off universo:check >/dev/null
+for _ in $(seq 1 30); do
+  curl -s "http://127.0.0.1:$((port + 1))/api/state" >/dev/null 2>&1 && break
+  sleep 1
+done
+lan='192.168.1.20:7340'
+heads="$(curl -s -i -H "Host: $lan" -H "Origin: http://$lan" -H 'content-type: application/json' \
+  -d '{"email":"admin@verso.test","password":"uma senha bem longa"}' "http://127.0.0.1:$((port + 1))/api/signin")"
+echo "$heads" | grep -q '"admin":true' || { echo "plain HTTP sign-in failed: $heads"; docker logs "$plain"; docker rm -f "$plain" >/dev/null; exit 1; }
+echo "$heads" | grep -i '^set-cookie:' | grep -qi 'secure' && { echo "the cookie is Secure over plain HTTP"; docker rm -f "$plain" >/dev/null; exit 1; }
+docker rm -f "$plain" >/dev/null
 docker exec "$name" universo admin reset admin@verso.test | grep -q "/reset/" || { echo "admin reset failed"; exit 1; }
 printf '\n== the log\n'
 docker logs "$name" 2>&1 | tail -8

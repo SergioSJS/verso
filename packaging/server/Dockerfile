@@ -64,8 +64,9 @@ COPY --chmod=0755 bin/${TARGETARCH}/verso /usr/bin/universo
 # (docs/reference/server-install.md).
 VOLUME ["/data", "/folders"]
 
-# Listening beyond loopback requires VERSO_PUBLIC_URL: the server refuses
-# to start without it, by design (ADR 0073 item 6). The host sets it.
+# It listens on every address of the container, and answers whatever address
+# is typed over plain HTTP: VERSO_PUBLIC_URL is optional, set only with an
+# https address in front (ADR 0073 item 6, amended 2026-10-16).
 ENV VERSO_DATA_DIR=/data \
     VERSO_FOLDERS_DIR=/folders \
     VERSO_UI_DIR=/usr/share/universo/ui \

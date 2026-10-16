@@ -46,18 +46,14 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    # The port is published on this machine's loopback only: TLS goes in
-    # front (Caddy, a tunnel, or `tailscale serve`; docs/reference/
-    # server-install.md, section 8), and the proxy reaches it here. To
-    # publish it on the home network instead (a CasaOS box reached from the
-    # LAN, say), change one line: the address on `host_ip` below becomes
-    # 0.0.0.0. Plain HTTP on the LAN still signs nobody in from
-    # another machine: the server signs in over HTTPS only (ADR 0073 item 6).
+    # Plain HTTP works: open http://<this machine>:7340 from any device on
+    # the network. The port is published on every address of the host.
+    # HTTPS is optional and later: it turns on offline mode, notifications
+    # and passkeys (docs/reference/server-install.md, section 8). Without
+    # it, the password and the notes cross the network in the open: fine at
+    # home, not on a public network (ADR 0073 item 6, amended 2026-10-16).
     ports:
-      - target: 7340
-        host_ip: 127.0.0.1
-        published: "7340"
-        protocol: tcp
+      - "7340:7340"
     volumes:
       # The accounts, sessions, audit log and indexes. A local disk, never
       # a network share: SQLite can be corrupted on NFS or SMB.
@@ -69,13 +65,9 @@ services:
         source: /DATA/Documents/Verso
         target: /folders
     environment:
-      # Fill before the first start. The address people type in the
-      # browser, with https (a reverse proxy or `tailscale serve` in front;
-      # see the documentation). Left empty, the server refuses to start:
-      # it listens beyond loopback only with a public address.
-      VERSO_PUBLIC_URL: ""
-      # The first admin, read on the first start only and ignored after
-      # (ADR 0074 item 1). Left empty, the log prints a setup link instead.
+      # Nothing here is required. The first admin, read on the first start
+      # only and ignored after (ADR 0074 item 1). Left empty, the log prints
+      # a setup link instead (http://<this machine>:7340/setup?token=...).
       # The password: 12 characters at least.
       VERSO_ADMIN_EMAIL: ""
       # The password is best given as a Docker secret, which `docker
@@ -88,23 +80,18 @@ services:
       # Or the password itself, readable with `docker inspect`: remove it
       # once the admin exists.
       VERSO_ADMIN_PASSWORD: ""
-      # The reverse proxy's IP address, when one terminates TLS in front.
-      # A proxy on the host (Caddy installed on the machine) reaching the
-      # published port is seen coming from this project's network gateway,
-      # not from 127.0.0.1: put that gateway here, as
-      #   docker network inspect universo_default --format '{{(index .IPAM.Config 0).Gateway}}'
-      # says (often 172.18.0.1; 172.17.0.1 on Docker's default network).
-      # With 127.0.0.1 every sign-in is refused as not HTTPS
-      # (docs/reference/server-install.md, section 3).
-      VERSO_TRUSTED_PROXY: ""
+      # Optional, only once HTTPS is in front: the address people type, with
+      # https. Left out, the server answers any address over HTTP. Set, it
+      # answers that name only, and its links (invitations, e-mails) use it.
+      # VERSO_PUBLIC_URL: "https://universo.your-tailnet.ts.net"
+      # Optional. A proxy in front on this machine or on a private network is
+      # believed without this; set it only to replace that list (addresses
+      # and CIDRs separated by commas) or to `none` to believe no proxy.
+      # VERSO_TRUSTED_PROXY: ""
     # secrets:
     #   - universo-admin
     x-casaos:
       envs:
-        - container: VERSO_PUBLIC_URL
-          description:
-            en_US: The address people use, with https (for example https://universo.your-tailnet.ts.net). Required.
-            pt_BR: O endereço que as pessoas usam, com https (por exemplo https://universo.sua-tailnet.ts.net). Obrigatório.
         - container: VERSO_ADMIN_EMAIL
           description:
             en_US: The first admin's e-mail. Read on the first start only.
@@ -113,15 +100,15 @@ services:
           description:
             en_US: The first admin's password, 12 characters at least. Read on the first start only.
             pt_BR: A senha do primeiro admin, com 12 caracteres ou mais. Lida só na primeira inicialização.
-        - container: VERSO_TRUSTED_PROXY
+        - container: VERSO_PUBLIC_URL
           description:
-            en_US: The IP address of the reverse proxy in front of Verso, if any.
-            pt_BR: O endereço IP do proxy reverso na frente do Verso, se houver.
+            en_US: Optional, once HTTPS is in front. The https address people use (for example https://universo.your-tailnet.ts.net). Leave empty to use plain HTTP.
+            pt_BR: Opcional, quando houver HTTPS na frente. O endereço https que as pessoas usam (por exemplo https://universo.sua-tailnet.ts.net). Vazio, usa HTTP simples.
       ports:
         - container: "7340"
           description:
-            en_US: Web UI (HTTP, on this machine only by default; put TLS in front)
-            pt_BR: Interface web (HTTP, por padrão só nesta máquina; coloque TLS na frente)
+            en_US: Web UI (plain HTTP on the network; HTTPS is optional and turns on offline mode and notifications)
+            pt_BR: Interface web (HTTP simples na rede; o HTTPS é opcional e liga o modo offline e as notificações)
       volumes:
         - container: /data
           description:
@@ -183,13 +170,13 @@ x-casaos:
   tips:
     before_install:
       en_US: |
-        Fill VERSO_PUBLIC_URL with the https address people will use; the server does not start without it.
+        Nothing is required: open http://<this machine>:7340 and follow the setup link in the container's log. Plain HTTP is fine at home; on a public network the password and the notes cross it in the open. HTTPS is optional, later: it turns on offline mode, notifications and passkeys.
         VERSO_ADMIN_EMAIL and VERSO_ADMIN_PASSWORD are read on the first start only: remove the password once the admin exists. Left empty, the container's log prints a one-hour setup link, which stays in that log: use it at once.
         A lost admin password: run `universo admin reset <e-mail>` in the container's terminal.
         Both directories must be writable by uid 1000.
         Back up both directories: the database in /data is not a cache, and the notes are in /folders. Keep /data on a local disk, never on a network share.
       pt_BR: |
-        Preencha VERSO_PUBLIC_URL com o endereço https que as pessoas vão usar; o servidor não inicia sem ele.
+        Nada é obrigatório: abra http://<esta máquina>:7340 e siga o link de configuração do log do contêiner. O HTTP simples serve em casa; numa rede pública a senha e as notas passam abertas. O HTTPS é opcional, depois: liga o modo offline, as notificações e as passkeys.
         VERSO_ADMIN_EMAIL e VERSO_ADMIN_PASSWORD são lidos só na primeira inicialização: remova a senha quando o admin existir. Vazios, o log do contêiner mostra um link de configuração válido por uma hora, que fica nesse log: use-o logo.
         Senha do admin perdida: rode `universo admin reset <e-mail>` no terminal do contêiner.
         Os dois diretórios precisam permitir escrita ao uid 1000.

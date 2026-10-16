@@ -96,7 +96,9 @@ Opções:
   --package ARQ     Um .deb ou .rpm já baixado; a lista verso-<versão>-SHA256SUMS
                     e o .sig dela ao lado são conferidos (numa release até
                     a 0.8.3, ARQ.sig).
-  --url URL         O endereço que as pessoas digitam no navegador.
+  --url URL         O endereço https que as pessoas digitam no navegador
+                    (opcional: sem ele o servidor funciona por HTTP; o HTTPS
+                    liga o modo offline e as notificações).
   --no-signature    Sem a assinatura da release, confia no sha256 que o GitHub
                     publicou (prova o arquivo, não quem o fez). Sem esta
                     opção, uma assinatura faltando é um erro.
@@ -159,7 +161,9 @@ Options:
   --package FILE    A .deb or .rpm already downloaded; the list
                     verso-<version>-SHA256SUMS and its .sig beside it are
                     checked (for a release up to 0.8.3, FILE.sig).
-  --url URL         The address people type in the browser.
+  --url URL         The https address people type in the browser (optional:
+                    without it the server works over HTTP; HTTPS turns on
+                    offline mode and notifications).
   --no-signature    Without the release's signature, relies on the sha256 GitHub
                     published (it proves the file, not who made it).
                     Without it, a missing signature is an error.
@@ -315,8 +319,8 @@ local_url() {
 check_url() {
   case "$1" in
     http://*|https://*) ;;
-    *) die "The address must start with https:// (or http:// for this machine only): $1" \
-           "O endereço deve começar com https:// (ou http:// só para esta máquina): $1" ;;
+    *) die "The address must start with https:// or http://: $1" \
+           "O endereço deve começar com https:// ou http://: $1" ;;
   esac
   case "$1" in
     *[!A-Za-z0-9.:/_~%?=@+-]*) die "The address has a character it cannot have: $1" \
@@ -744,8 +748,14 @@ next_steps() {
       "   O log imprime um link de configuração de uma hora: sudo journalctl -u universo | grep setup"
   fi
   echo
-  t "2. HTTPS (section 8). The server signs no one in over plain HTTP from another machine. Either:" \
-    "2. HTTPS (seção 8). O servidor não deixa ninguém entrar por HTTP puro de outra máquina. Ou:"
+  t "2. HTTPS (section 8), optional. Plain HTTP works: from another machine, set
+   VERSO_LISTEN=0.0.0.0:$port in $ENV_FILE and open http://<this machine>:$port
+   (fine at home; on a public network the password and the notes cross it in the
+   open). HTTPS turns on offline mode, notifications and passkeys. Either:" \
+    "2. HTTPS (seção 8), opcional. O HTTP puro funciona: de outra máquina, ponha
+   VERSO_LISTEN=0.0.0.0:$port no $ENV_FILE e abra http://<esta máquina>:$port
+   (serve em casa; numa rede pública a senha e as notas passam abertas). O HTTPS
+   liga o modo offline, as notificações e as passkeys. Ou:"
   t "   a. Caddy, with a domain whose DNS points at this machine:" \
     "   a. Caddy, com um domínio cujo DNS aponta para esta máquina:"
   caddy_steps "$host" "$port" | sed 's/^/        /'
@@ -755,10 +765,10 @@ next_steps() {
     "      Um Caddyfile que já exista fica como está: o site vai num arquivo próprio,
       e o Caddyfile só ganha a linha de import, no fim, quando não a tiver.
       (Um Caddyfile que seja um site só, sem chaves, precisa de { } em volta das linhas antes.)"
-  t "      and in $ENV_FILE: VERSO_PUBLIC_URL=https://$host and VERSO_TRUSTED_PROXY=127.0.0.1,
-      then: sudo systemctl restart universo" \
-    "      e no $ENV_FILE: VERSO_PUBLIC_URL=https://$host e VERSO_TRUSTED_PROXY=127.0.0.1,
-      depois: sudo systemctl restart universo"
+  t "      and in $ENV_FILE: VERSO_PUBLIC_URL=https://$host (the proxy on this machine
+      is believed without VERSO_TRUSTED_PROXY), then: sudo systemctl restart universo" \
+    "      e no $ENV_FILE: VERSO_PUBLIC_URL=https://$host (o proxy nesta máquina é
+      aceito sem VERSO_TRUSTED_PROXY), depois: sudo systemctl restart universo"
   t "   b. Tailscale, for your own devices: tailscale serve --bg $port
       and VERSO_PUBLIC_URL=https://<machine>.<tailnet>.ts.net" \
     "   b. Tailscale, para os seus aparelhos: tailscale serve --bg $port
@@ -859,12 +869,12 @@ cmd_install() {
   else
     if [ -z "$URL" ]; then
       echo
-      t "The address people will type in the browser, with https (for example
-https://notes.example.com). Enter leaves it empty for now: only this machine
-can then sign in, and you set it later in $ENV_FILE." \
-        "O endereço que as pessoas vão digitar no navegador, com https (por exemplo
-https://notas.exemplo.com). Enter deixa vazio por enquanto: só esta máquina
-consegue entrar, e você define depois no $ENV_FILE."
+      t "Optional: the https address people will type in the browser (for example
+https://notes.example.com). HTTP works without it; HTTPS turns on offline mode
+and notifications. Enter leaves it empty, and you set it later in $ENV_FILE." \
+        "Opcional: o endereço https que as pessoas vão digitar no navegador (por exemplo
+https://notas.exemplo.com). O HTTP funciona sem ele; o HTTPS liga o modo offline
+e as notificações. Enter deixa vazio, e você define depois no $ENV_FILE."
       ask "VERSO_PUBLIC_URL: "
       URL=$ANSWER
       [ -z "$URL" ] || check_url "$URL"
