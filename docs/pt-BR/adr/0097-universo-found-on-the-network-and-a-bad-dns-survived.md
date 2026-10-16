@@ -155,13 +155,24 @@ bridge padrão do Docker não leva multicast para a rede de casa. `std::fs`
       diferem são tentados **depois** dos do sistema. Os resolvedores com
       escopo e suplementares do macOS (`scutil --dns`: os que têm
       `domain`, `Supplemental`, `Scoped`, e a parte "for scoped queries")
-      não são perguntados, nem os por interface nos outros sistemas;
+      não são perguntados. Nos outros sistemas a lista global não se separa das
+      por interface e isso **não é afirmado**: no Linux lê-se o
+      `/etc/resolv.conf`, e só quando ele não nomeia senão esta máquina (o
+      stub do systemd-resolved) o `/run/systemd/resolve/resolv.conf` ao lado,
+      que lista os servidores de **todas** as interfaces, VPN inclusive; no
+      Windows os adaptadores físicos que estão ativos (`Get-NetAdapter
+      -Physical`), então os de uma VPN ou de um switch virtual não são
+      perguntados. O que protege de uma resposta errada de qualquer um deles é
+      a política abaixo, não a lista;
     - **o que os outros servidores dizem só vale até onde o esquema
       permite.** Quando o sistema disse que o nome não existe, nada do que
       eles dizem é usado para um servidor `http` — um token iria às claras
       para o que um resolvedor de provedor inventar — e, para um servidor
-      `http`, aceitam-se de resto só endereços privados, únicos-locais,
-      link-local, de loopback ou da faixa 100.64.0.0/10 do Tailscale. Para um
+      `http`, aceitam-se de resto só endereços **na mesma rede**: dentro da
+      sub-rede de uma das interfaces desta máquina (a LAN de uma casa; a faixa
+      100.x de uma interface do Tailscale quando a máquina tem uma; nunca a
+      faixa 100.64.0.0/10 do CGNAT como tal, que num provedor que a usa são
+      outros clientes), e nunca loopback. Para um
       servidor `https` qualquer endereço serve, porque o certificado é
       conferido para o nome;
     - um endereço que **falhou** — conexão recusada ou esgotada, um
@@ -173,8 +184,15 @@ bridge padrão do Docker não leva multicast para a rede de casa. `std::fs`
       portador nunca vai a um endereço que nenhum resolvedor atual deu para o
       nome;
     - o WebSocket faz a conexão TCP e os handshakes de TLS e de WebSocket
-      **por endereço**, e uma requisição que não conecta é enviada mais uma
-      vez com a nova ordem; a recusa do próprio servidor (401) encerra;
+      **por endereço** (a discagem inteira tem um teto de 25 segundos), e uma
+      requisição que não conecta é enviada mais uma vez — só quando a nova
+      resolução tentaria outro endereço primeiro, já que o mesmo falharia do
+      mesmo jeito e levaria o mesmo tempo. Um 401 encerra a discagem só
+      quando é do servidor: em `wss://` qualquer um (o certificado foi
+      conferido), em `ws://` só com o corpo JSON que o servidor escreve, pois
+      a página de autenticação básica de um roteador também responde 401. A
+      política é por nome, que é tudo o que um resolvedor recebe: um nome que
+      já foi usado por `http` simples é tratado como `http` (o caso estrito);
     - **o nome nunca é trocado**: a conexão vai ao IP, a URL guarda o nome,
       então o certificado é conferido para ele, e o cabeçalho `Host` é o do
       nome; **nunca `https` para `http`**: nada aqui toca o esquema;
@@ -221,10 +239,14 @@ bridge padrão do Docker não leva multicast para a rede de casa. `std::fs`
    mantenedor.** Um Avahi em execução deve conviver, o `mdns-sd`
    compartilhando a porta 5353 (a confirmar na verificação manual).
 
-10. **Dependências.** Nenhuma nova. O `mdns-sd` é do `verso-server` desde o
+10. **Dependências.** Nenhuma nova no que é entregue. O `mdns-sd` é do `verso-server` desde o
     [0096](0096-this-app-is-a-server.md); o desktop busca por
     `verso-server::discovery`, de que já depende. O `cargo deny` passa. Uma
-    biblioteca de DNS não foi adicionada (veja as Alternativas descartadas).
+    Duas **dev-dependencies são novas** no `verso-app` (só testes, ambas já
+    na árvore pelo `verso-server` e pelo `reqwest`, licenças inalteradas):
+    `rcgen` (MIT OR Apache-2.0), para fazer um certificado de um nome nos testes
+    de TLS, e o `rustls` sobre ring, para servi-lo. Uma biblioteca de DNS não
+    foi adicionada (veja as Alternativas descartadas).
 
 ## Consequências
 

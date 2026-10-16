@@ -157,13 +157,23 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
       addresses that differ are tried **after** the system's. The scoped and
       supplemental resolvers of macOS (`scutil --dns`: those with a
       `domain`, `Supplemental`, `Scoped`, and the part "for scoped
-      queries") are not asked, nor are the per-link ones elsewhere;
+      queries") are not asked. Elsewhere the global list is not separable
+      from the per-link ones and that is **not claimed**: on Linux
+      `/etc/resolv.conf` is read, and only when it names nothing but this
+      machine (systemd-resolved's stub) the `/run/systemd/resolve/resolv.conf`
+      beside it, which lists **every link's** servers, a VPN's included; on
+      Windows the physical adapters that are up (`Get-NetAdapter -Physical`),
+      so a VPN's or a virtual switch's are not asked. What protects against a
+      wrong answer from any of them is the policy below, not the list;
     - **what the other servers say is believed only as far as the scheme
       allows.** When the system said the name does not exist, nothing they
       say is used for an `http` server — a token would go in the clear to
       whatever an ISP's resolver invents — and for an `http` server they are
-      accepted otherwise only when private, unique-local, link-local, loopback
-      or in Tailscale's 100.64.0.0/10. For an `https` server any address
+      accepted otherwise only when **on-link**: inside the subnet of one of this
+      machine's own interfaces (a home's LAN; a Tailscale interface's 100.x
+      range when the machine has one; never carrier-grade NAT's 100.64.0.0/10
+      as such, which on an ISP that uses it is other customers), and never
+      loopback. For an `https` server any address
       will do, because the certificate is checked for the name;
     - an address that **failed** — a refused or timed-out connection, a
       handshake that does not complete — goes to the end of the order for ten
@@ -174,9 +184,15 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
       network, and a bearer token never goes to an address no current
       resolver gave for the name;
     - the WebSocket makes the TCP connection and the TLS and WebSocket
-      handshakes **per address**, and a request that fails to connect is
-      sent once more with the new order; a server's own refusal (401) ends
-      it;
+      handshakes **per address** (the dial as a whole has a 25-second
+      ceiling), and a request that fails to connect is sent once more — only
+      when the new resolution would try another address first, since the
+      same one would fail the same way and take as long. A 401 ends the
+      dial only when it is the server's: over `wss://` any (the certificate
+      was checked), over `ws://` only with the JSON body the server writes,
+      since a router's basic-auth page answers 401 too. The policy is keyed
+      by the name, which is all a resolver is given: a name that was ever
+      used over plain `http` is treated as `http` (the strict case);
     - **the name is never replaced**: the connection goes to the IP, the
       URL keeps the name, so the certificate is verified for it, and the
       `Host` header is the name's; **never `https` to `http`**: nothing here
@@ -223,10 +239,14 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
    awaits the maintainer's ratification.** A running Avahi should coexist,
    `mdns-sd` sharing port 5353 (to confirm in the manual check).
 
-10. **Dependencies.** None new. `mdns-sd` is `verso-server`'s since
+10. **Dependencies.** None new in what ships. `mdns-sd` is `verso-server`'s since
     [0096](0096-this-app-is-a-server.md); the desktop browses through
     `verso-server::discovery`, which it already depends on. `cargo deny`
-    passes. A DNS library was not added (see the Discarded alternatives).
+    passes. Two **dev-dependencies are new** to `verso-app` (tests only, both
+    already in the tree through `verso-server` and `reqwest`, licences
+    unchanged): `rcgen` (MIT OR Apache-2.0), to make a certificate for a name
+    in the TLS tests, and `rustls` on ring, to serve it. A DNS library was not
+    added (see the Discarded alternatives).
 
 ## Consequences
 
