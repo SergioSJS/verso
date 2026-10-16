@@ -55,6 +55,7 @@ pub mod share_sync;
 pub mod shares;
 pub mod signin;
 pub mod state;
+pub mod storage;
 pub mod sync;
 pub mod texts;
 pub mod tls;
@@ -192,6 +193,9 @@ pub fn serve(config: Config, commit: &str) -> Result<(), String> {
             "VERSO_FOLDERS_DIR is on a network file system ({fs}): changes made elsewhere are found by a scan"
         ));
     }
+    // A directory the server cannot write is said now, in words (ADR 0075
+    // item 3, amended 2026-10-16), and again in the admin console.
+    let unwritable = storage::check(&config.data_dir, &config.folders_dir);
     first_admin(&config, &db)?;
     let listen = config.listen;
     let mail = match &config.smtp_url {
@@ -214,6 +218,7 @@ pub fn serve(config: Config, commit: &str) -> Result<(), String> {
     if let Some(mail) = mail {
         let _ = server.mail.set(mail);
     }
+    let _ = server.unwritable.set(unwritable);
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
