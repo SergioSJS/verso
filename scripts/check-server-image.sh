@@ -154,6 +154,7 @@ mend=universo-mend-check
 docker rm -f "$mend" >/dev/null 2>&1 || true
 docker run --rm -v /tmp:/h alpine:3.24.2 sh -c '
   rm -rf /h/universo-mend && mkdir -p /h/universo-mend/data /h/universo-mend/folders/Antiga /h/universo-mend/outside
+  mkdir -p /h/universo-mend/folders/dev && mknod /h/universo-mend/folders/dev/sda b 8 0 && mknod /h/universo-mend/folders/dev/mem c 1 1 && mkfifo /h/universo-mend/folders/dev/pipe
   echo canary > /h/universo-mend/outside/secret && chmod 600 /h/universo-mend/outside/secret
   mkdir -p /h/universo-mend/folders/sub && ln /h/universo-mend/outside/secret /h/universo-mend/folders/sub/hl
   echo old > /h/universo-mend/folders/Antiga/n.md
@@ -182,25 +183,32 @@ echo "$mmade" | grep -q '"role":"owner"' || { echo "root-owned mounts: no folder
 # The server process: uid 1000, gid 1000 and no other group, no capability.
 status="$(docker exec -u 0 "$mend" cat /proc/1/status)"
 echo "$status" | grep -E '^(Uid|Gid|Groups|CapEff|CapPrm):'
-echo "$status" | grep -q '^Uid:[[:space:]]1000[[:space:]]1000[[:space:]]1000[[:space:]]1000' || { echo "the server does not run as uid 1000"; exit 1; }
-echo "$status" | grep -q '^CapEff:[[:space:]]0000000000000000$' || { echo "the server holds effective capabilities"; exit 1; }
-echo "$status" | grep -q '^CapPrm:[[:space:]]0000000000000000$' || { echo "the server holds permitted capabilities"; exit 1; }
-echo "$status" | grep -qE '^Groups:[[:space:]]+(1000)?[[:space:]]*$' || { echo "the server keeps supplementary groups"; exit 1; }
+grep -q '^Uid:[[:space:]]1000[[:space:]]1000[[:space:]]1000[[:space:]]1000' <<<"$status" || { echo "the server does not run as uid 1000"; exit 1; }
+grep -q '^CapEff:[[:space:]]0000000000000000$' <<<"$status" || { echo "the server holds effective capabilities"; exit 1; }
+grep -q '^CapPrm:[[:space:]]0000000000000000$' <<<"$status" || { echo "the server holds permitted capabilities"; exit 1; }
+grep -qE '^Groups:[[:space:]]+(1000)?[[:space:]]*$' <<<"$status" || { echo "the server keeps supplementary groups"; exit 1; }
 # A command by `docker exec` (as the container's root) also runs as 1000.
 docker exec "$mend" universo admin reset admin@verso.test | grep -q "/reset/" || { echo "admin reset failed"; exit 1; }
 owners="$(docker run --rm -v /tmp:/h alpine:3.24.2 sh -c '
   stat -c "%u %n" /h/universo-mend/data /h/universo-mend/folders /h/universo-mend/folders/Antiga /h/universo-mend/folders/Antiga/n.md
   stat -c "%u %n" /h/universo-mend/folders/others.md /h/universo-mend/outside /h/universo-mend/outside/secret
-  stat -c "%u %n" /h/universo-mend/folders/link /h/universo-mend/folders/sub/hl; ls /h/universo-mend/data | head -3 | while read f; do stat -c "%u %n" "/h/universo-mend/data/$f"; done')"
+  stat -c "%u %n" /h/universo-mend/folders/link /h/universo-mend/folders/sub/hl /h/universo-mend/folders/dev/sda /h/universo-mend/folders/dev/mem /h/universo-mend/folders/dev/pipe; ls /h/universo-mend/data | head -3 | while read f; do stat -c "%u %n" "/h/universo-mend/data/$f"; done')"
 echo "$owners"
-echo "$owners" | grep -q '^1000 /h/universo-mend/folders$' || { echo "/folders was not mended"; exit 1; }
-echo "$owners" | grep -q '^1000 /h/universo-mend/folders/Antiga/n.md$' || { echo "a root-owned file in /folders was not mended"; exit 1; }
-echo "$owners" | grep -q '^1001 /h/universo-mend/folders/others.md$' || { echo "another user's file was changed"; exit 1; }
-echo "$owners" | grep -q '^0 /h/universo-mend/outside$' || { echo "something outside the mounts was touched"; exit 1; }
-echo "$owners" | grep -q '^0 /h/universo-mend/outside/secret$' || { echo "a symlink was followed out of the mount"; exit 1; }
-echo "$owners" | grep -q '^0 /h/universo-mend/folders/sub/hl$' || { echo "a hard link out of the mount was chowned through"; exit 1; }
-echo "$owners" | grep -q '^1000 /h/universo-mend/folders/link$' || { echo "the link itself was not mended"; exit 1; }
+grep -q '^1000 /h/universo-mend/folders$' <<<"$owners" || { echo "/folders was not mended"; exit 1; }
+grep -q '^1000 /h/universo-mend/folders/Antiga/n.md$' <<<"$owners" || { echo "a root-owned file in /folders was not mended"; exit 1; }
+grep -q '^1001 /h/universo-mend/folders/others.md$' <<<"$owners" || { echo "another user's file was changed"; exit 1; }
+grep -q '^0 /h/universo-mend/outside$' <<<"$owners" || { echo "something outside the mounts was touched"; exit 1; }
+grep -q '^0 /h/universo-mend/outside/secret$' <<<"$owners" || { echo "a symlink was followed out of the mount"; exit 1; }
+grep -q '^0 /h/universo-mend/folders/sub/hl$' <<<"$owners" || { echo "a hard link out of the mount was chowned through"; exit 1; }
+for special in sda mem pipe; do
+  grep -q "^0 /h/universo-mend/folders/dev/$special\$" <<<"$owners" || { echo "the special file $special was handed to uid 1000"; exit 1; }
+done
+grep -q '^1000 /h/universo-mend/folders/link$' <<<"$owners" || { echo "the link itself was not mended"; exit 1; }
 ! echo "$owners" | grep '/data/' | grep -vq '^1000 ' || { echo "a file of /data is not uid 1000's"; exit 1; }
+# The entrypoint counted what it handed over, and what it left alone.
+mlog="$(docker logs "$mend" 2>&1)"
+grep -q 'root-owned entr(ies) of /folders handed to 1000:1000' <<<"$mlog" || { echo "the mend did not say how many entries it handed over: $mlog"; exit 1; }
+grep -q 'device node(s), FIFO(s) or socket(s) of /folders were left alone' <<<"$mlog" || { echo "the special files left alone were not said: $mlog"; exit 1; }
 docker rm -f "$mend" >/dev/null
 # Root without the capabilities (an older compose file): refused with the
 # line that says what to add, never run as root.
