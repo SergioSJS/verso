@@ -591,6 +591,9 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 /* ---------- Servers (dialogs/servers.ts): connect, then each server with its folders ---------- */
 .srv-connect { padding: .3rem 0 1.4rem; border-bottom: 1px solid var(--hair); }
 .srv-label { display: block; margin: 0 0 .45rem; font: 600 .9rem var(--ui); color: var(--ink); }
+.srv-actions { display: flex; flex-direction: column; align-items: flex-start; gap: .5rem; margin-top: .75rem; }
+.srv-actions .srv-help { margin: 0; max-width: 34rem; }
+.srv-empty-form { width: 100%; }
 .srv-field { display: flex; gap: .5rem; max-width: 34rem; }
 .srv-field input { flex: 1; min-width: 0; font: inherit; font-size: .9rem; padding: .45rem .7rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 7px; }
 .srv-field input:focus { outline: none; border-color: var(--brass-ink); }

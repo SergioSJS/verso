@@ -11,7 +11,7 @@
 // click on it opens the section. Nothing is silent (item 13).
 
 import { listen } from "@tauri-apps/api/event";
-import { commands, type ServerAccount, type ServerFolder, type SyncStatus, type SyncVersions } from "../bindings";
+import { commands, type ServerAccount, type SyncStatus, type SyncVersions } from "../bindings";
 import { h, ui } from "../dom";
 import { syncHeard } from "../notify/sources";
 import { errorSentence, fail } from "../errors";
@@ -226,6 +226,12 @@ let preselected: { url: string; folder: string } | null = null;
 /** The window's folder's sync, as last heard. */
 export function currentSync(): SyncStatus | null {
   return status;
+}
+
+/** A status the person's own action brought (Servers › "Sincronizar"),
+ *  taken as the event would have been. */
+export function syncStarted(st: SyncStatus): void {
+  took(st);
 }
 
 /** Open a section of the settings (the window's own opener). */
@@ -449,7 +455,7 @@ async function drawOff(box: HTMLElement, item: Item): Promise<void> {
     where.append(fresh);
     const r = await attempt(failure, () => commands.serverFolders(serverUrl()), { other: errorSentence, retry: () => void fill() });
     if (r.status === "ok") {
-      for (const f of r.data as ServerFolder[]) {
+      for (const f of r.data.folders) {
         const o = h("option", "", `${f.name} · ${s.role(f.role)}`);
         o.value = f.id;
         where.append(o);

@@ -94,6 +94,26 @@
   begin with the bytes the template made, by
   [0093](0093-periodic-notes.md) item 12, accepted by the maintainer that
   night (*"Sim, todas"*).
+  2026-10-16 — item 1, the first folder: a new server has no folder, and
+  the admin who signed the desktop app in saw only *"ask for an
+  invitation"* and no way on (*"e ai?"*). First the app offered to make an
+  empty folder before syncing; the maintainer refused that step: *"Como
+  assim? Eu preciso criar uma pasta no servidor para sincronizar? Eu não
+  posso simplesmente sincronizar? Não faz sentido algum isso."* So there is
+  **no separate step**: in Settings › Servers, when a folder of this
+  computer is open and not syncing and the account may make folders (the
+  server's `mayCreate`, [0074](0074-accounts-and-access-on-the-server.md)
+  item 6, now carried to the app with the folder list), one **Sync "name"**
+  makes the server's folder — the open folder's name, or `name (2)`,
+  `name (3)`… when a folder has it, never merged into one that is there —
+  and turns the sync on. Settings › Sync always did this by its default
+  choice, *a new folder*, and now takes the same free name. The first
+  pass into that new, empty folder is item 11's: every local file goes up
+  and none is deleted or rewritten here (pinned by a host test). Syncing
+  with a folder that is already there stays each row's own *Sync*. *Make an
+  empty folder…* is a small second action; an account that may not make
+  folders keeps the invitation text. The host's `server_create_folder`
+  asks the server's `POST /api/folders` with the device's session.
 
 ## Context
 

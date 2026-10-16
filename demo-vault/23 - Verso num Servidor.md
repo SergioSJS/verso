@@ -85,7 +85,7 @@ Ali também fica o **nome deste aparelho** — por padrão, o nome do sistema. D
 
 Abrir uma pasta do servidor numa janela é trabalhar **online**: tudo passa pela rede. **Sincronizar** é o outro jeito: a pasta mora neste computador — abre sem rede, o Obsidian lê, o backup copia — e o servidor guarda os mesmos arquivos para os seus outros aparelhos, o navegador e quem divide a pasta com você.
 
-Com a pasta aberta, em **Ajustes › Sincronizar**, escolha o servidor e **uma pasta nova** (com o nome desta) ou uma que você já tem lá. O espaço da pasta aparece antes de qualquer coisa cruzar. Depois:
+Com a pasta aberta, o jeito mais curto é **Ajustes › Servidores › Sincronizar ‘sua pasta’**: um clique faz a pasta no servidor, com o nome desta (`Nome (2)` se já houver uma com ele — nunca se junta a outra), e liga a sincronização. Num servidor novo é o único passo, e quem o instalou (o admin) sempre pode. Em **Ajustes › Sincronizar**, escolha o servidor e **uma pasta nova** (com o nome desta) ou uma que você já tem lá. O espaço da pasta aparece antes de qualquer coisa cruzar. Depois:
 
 - uma mudança de um lado vai para o outro — ao salvar, quando o servidor avisa, ao reconectar e a cada cinco minutos; sem rede, ela espera;
 - arquivos grandes vão **em pedaços**, e só são gravados quando chegam inteiros;
