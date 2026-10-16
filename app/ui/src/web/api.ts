@@ -91,9 +91,11 @@ export class ApiError extends Error {
       case "not_writable": {
         // Both languages in one sentence, for a program and the log (ADR
         // 0075 item 3, amended 2026-10-16): the window shows its own half.
-        const at = this.message.indexOf(" / ");
-        if (at < 0) return this.message;
-        return lang() === "pt" ? this.message.slice(0, at) : this.message.slice(at + 3);
+        // The server's separator: a newline, U+2063, a newline (storage.rs).
+        const halves = this.message.split("\n\u2063\n");
+        const [pt, en] = halves;
+        if (halves.length !== 2 || pt === undefined || en === undefined) return this.message;
+        return lang() === "pt" ? pt : en;
       }
       default:
         return this.message || s.failed;

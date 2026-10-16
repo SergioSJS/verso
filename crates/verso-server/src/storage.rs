@@ -32,14 +32,19 @@ fn owner_name(uid: Option<u32>) -> String {
     }
 }
 
+/// Between the two languages of a sentence: a newline, an invisible
+/// separator (U+2063) and a newline. The window cuts the sentence here and
+/// shows its half; a path in the sentence cannot be taken for it.
+pub const SEPARATOR: &str = "\n\u{2063}\n";
+
 /// The sentence, in both languages (the window knows the language of the
 /// signed-in person, a program and the log do not): what is wrong, and the
 /// one command that fixes it on the host, for Docker and for the package.
 #[must_use]
 pub fn sentence(dir: &str, owner: &str) -> String {
     format!(
-        "O UniVerso não pode escrever em {dir} (dono {owner}). No servidor: sudo chown -R 1000:1000 <pasta do host> (no pacote .deb: sudo chown -R universo:universo {dir}). \
-         / UniVerso cannot write to {dir} (owner {owner}). On the server: sudo chown -R 1000:1000 <the host folder> (with the .deb package: sudo chown -R universo:universo {dir})."
+        "O UniVerso não pode escrever em {dir} (dono {owner}). No servidor: sudo chown -R 1000:1000 <pasta do host> (no pacote .deb: sudo chown -R universo:universo {dir}).\
+         {SEPARATOR}UniVerso cannot write to {dir} (owner {owner}). On the server: sudo chown -R 1000:1000 <the host folder> (with the .deb package: sudo chown -R universo:universo {dir})."
     )
 }
 
@@ -84,7 +89,9 @@ pub fn api_error(dir: &Path, admin: bool) -> crate::http::ApiError {
         let owner = owner_name(verso_fs::server::owner_uid(dir));
         sentence(&dir.display().to_string(), &owner)
     } else {
-        "O servidor não pode gravar agora; avise o administrador. / The server cannot write right now; tell the administrator.".to_owned()
+        format!(
+            "O servidor não pode gravar agora; avise o administrador.{SEPARATOR}The server cannot write right now; tell the administrator."
+        )
     };
     crate::log::error(&format!(
         "a request failed: the server cannot write to {}",
@@ -113,6 +120,10 @@ mod tests {
             "{s}"
         );
         assert!(s.contains("sudo chown -R 1000:1000"), "{s}");
+        // Two halves, cut where the window cuts them, a path in them or not.
+        assert_eq!(s.split(SEPARATOR).count(), 2, "{s}");
+        let odd = sentence("/pasta / UniVerso /x", "root");
+        assert_eq!(odd.split(SEPARATOR).count(), 2, "{odd}");
         assert!(s.contains("universo:universo"), "{s}");
     }
 
