@@ -12,6 +12,10 @@ versão de teste.
 
 ## Não lançado
 
+Nada ainda.
+
+## 0.8.3-beta.1 — 2026-10-17
+
 - **Um marcador indica segredos ocultos no modo leitor** ([ADR 0087](adr/0087-secret-blocks-hidden-from-readers.md) item 5, decidido em 2026-10-16: "gostaria que tivesse um retangulo ou algo assim indicando coisa escondida ali"): ao ativar *Ver como leitor* em uma nota com callouts `[!secret]`, cada bloco secreto agora é substituído por uma tarja tracejada com ícone de cadeado e o texto "Conteúdo oculto", em vez de desaparecer sem deixar vestígios, mantendo o conteúdo confidencial completamente fora do HTML renderizado.
 
 ### Acrescentado
