@@ -41,4 +41,18 @@ export function markSecrets(root: ParentNode): void {
     if (title) title.append(badge);
     else box.prepend(badge);
   }
+  for (const box of root.querySelectorAll<HTMLElement>('.callout[data-callout="secret-placeholder"]')) {
+    if (box.classList.contains("secret-placeholder")) continue;
+    box.classList.add("secret-placeholder");
+    box.setAttribute("role", "status");
+    box.setAttribute("aria-label", ss.hiddenContent);
+    const title = box.querySelector<HTMLElement>(":scope > .callout-title");
+    const badge = h("span", "secret-placeholder-badge");
+    badge.append(icon("lock"), h("span", "", ss.hiddenContent));
+    if (title) {
+      title.replaceChildren(badge);
+    } else {
+      box.replaceChildren(badge);
+    }
+  }
 }

@@ -27,3 +27,5 @@ export function projectSecrets(text: string): string {
   }
   return out.join("");
 }
+
+export { projectSecretsWithPlaceholders } from "../secret/text";
