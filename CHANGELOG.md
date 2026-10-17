@@ -12,6 +12,8 @@ test release.
 
 ## Unreleased
 
+- **A placeholder marks hidden secrets in reader view** ([ADR 0087](docs/adr/0087-secret-blocks-hidden-from-readers.md) item 5, decided 2026-10-16: "gostaria que tivesse um retangulo ou algo assim indicando coisa escondida ali"): turning on *View as a reader* on a note with `[!secret]` callouts now leaves an informative dashed box with a lock icon and "Hidden content" in place of each secret block instead of removing it without trace, while still keeping the secret text completely absent from the rendered HTML.
+
 ### Added
 
 - **Clear host IP guidance for Docker setup link** (2026-10-16): when running in a container or listening beyond localhost, the server log plainly notes that a container cannot know the host IP and reminds the administrator to replace `localhost` with the host machine's address; tutorial note 24 includes the same hint.
