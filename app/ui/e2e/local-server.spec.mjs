@@ -466,8 +466,8 @@ test("the recent folders are a group that is shut by default, remembered, with t
   await expect(body.getByRole("list", { name: "Pastas dentro de Sandbox" })).toBeVisible();
   await expect(recent.locator("summary")).toHaveText("Recentes · 11 pastas · 1 marcada");
   // What was left open is kept for the viewer, and shut is kept too.
-  expect(await page.evaluate(() => localStorage.getItem("verso-served-recent-open"))).toBe("1");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("verso-served-recent-open"))).toBe("1");
   await recent.locator("summary").click();
   await expect(recent).not.toHaveAttribute("open", "");
-  expect(await page.evaluate(() => localStorage.getItem("verso-served-recent-open"))).toBe("0");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("verso-served-recent-open"))).toBe("0");
 });
