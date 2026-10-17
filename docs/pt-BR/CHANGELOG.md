@@ -12,10 +12,6 @@ versão de teste.
 
 ## Não lançado
 
-Nada ainda.
-
-## 0.8.3-beta.1 — 2026-10-17
-
 - **Um marcador indica segredos ocultos no modo leitor** ([ADR 0087](adr/0087-secret-blocks-hidden-from-readers.md) item 5, decidido em 2026-10-16: "gostaria que tivesse um retangulo ou algo assim indicando coisa escondida ali"): ao ativar *Ver como leitor* em uma nota com callouts `[!secret]`, cada bloco secreto agora é substituído por uma tarja tracejada com ícone de cadeado e o texto "Conteúdo oculto", em vez de desaparecer sem deixar vestígios, mantendo o conteúdo confidencial completamente fora do HTML renderizado.
 
 ### Acrescentado
@@ -71,6 +67,7 @@ Nada ainda.
 - **Alfinetes e cartões secretos** ([ADR 0090](adr/0090-maps-on-the-board.md) item 5): marque um cartão ou um alfinete como *Oculto dos leitores*; num UniVerso, quem só pode **ler** o board o recebe sem esse cartão, sem as conexões dele e sem o desenho que lhe pertence — no arquivo, na busca, nos backlinks e no grafo, na sincronização e ao vivo (um leitor acompanha um board pelo que está salvo, não na sala dele). Quem pode escrever vê o cartão com um cadeado, *Visível para quem tiver o arquivo* numa pasta deste computador, e pode *Ver como leitor*; uma imagem exportada pergunta se deixa os cartões secretos de fora, de fora de início. No Obsidian é um cartão comum: é uma guarda contra leitores num servidor, não criptografia.
 ### Corrigido
 
+- **Compilação do pacote da interface no Windows tem êxito** (2026-10-17): o script de compilação do service worker usa `fileURLToPath` para resolução de diretório em vez de pathname de URL, evitando falhas de resolução de caminho no Windows.
 - **Uma pasta que já sincroniza com outro servidor é dita** (2026-10-16): em *Ajustes › Servidores*, o bloco de um servidor não mostrava *Sincronizar* nem o motivo quando a pasta aberta sincronizava com outro; agora diz com qual, que uma pasta sincroniza com um servidor por vez, e leva a *Sincronizar*. E o papel de quem tem a pasta é dito sem supor gênero ("a pasta é sua").
 - **No navegador por HTTP simples, *Sem rede* aparece e diz por que está desligado** (2026-10-16): a seção sumia quando a página não podia guardar uma pasta; agora aparece sempre no navegador e diz que precisa de HTTPS. E **a janela no navegador não diz mais que está na versão mais recente**: ela não tem como conferir, quem a atualiza é o servidor.
 - **Sincronizar com um UniVerso em HTTPS funciona** (2026-10-16): a sincronização do app de desktop ficava para sempre em *Conectando ao servidor…* com um servidor `https://`; falhava por dentro antes de chegar a ele. E **recarregar uma janela não deixa mais as páginas web embutidas presas por cima de tudo**: elas fecham junto com a página que as abriu.
