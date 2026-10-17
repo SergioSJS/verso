@@ -12,6 +12,8 @@ versão de teste.
 
 ## Não lançado
 
+- **Um marcador indica segredos ocultos no modo leitor** ([ADR 0087](adr/0087-secret-blocks-hidden-from-readers.md) item 5, decidido em 2026-10-16: "gostaria que tivesse um retangulo ou algo assim indicando coisa escondida ali"): ao ativar *Ver como leitor* em uma nota com callouts `[!secret]`, cada bloco secreto agora é substituído por uma tarja tracejada com ícone de cadeado e o texto "Conteúdo oculto", em vez de desaparecer sem deixar vestígios, mantendo o conteúdo confidencial completamente fora do HTML renderizado.
+
 ### Acrescentado
 
 - **Instrução clara do IP do host no link de configuração do Docker** (2026-10-16): ao rodar num contêiner ou escutando além do localhost, o log do servidor explica que o contêiner não tem como saber o IP do hospedeiro e orienta a trocar `localhost` pelo endereço da máquina; a nota 24 do tutorial traz a mesma dica.
