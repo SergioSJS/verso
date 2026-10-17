@@ -12,6 +12,10 @@ test release.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.8.3-beta.2 — 2026-10-17
+
 - **A placeholder marks hidden secrets in reader view** ([ADR 0087](docs/adr/0087-secret-blocks-hidden-from-readers.md) item 5, decided 2026-10-16: "gostaria que tivesse um retangulo ou algo assim indicando coisa escondida ali"): turning on *View as a reader* on a note with `[!secret]` callouts now leaves an informative dashed box with a lock icon and "Hidden content" in place of each secret block instead of removing it without trace, while still keeping the secret text completely absent from the rendered HTML.
 
 ### Added
