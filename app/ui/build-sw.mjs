@@ -10,8 +10,9 @@
 import { build } from "esbuild";
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const ui = new URL(".", import.meta.url).pathname;
+const ui = fileURLToPath(new URL(".", import.meta.url));
 const dist = join(ui, "dist");
 const { version } = JSON.parse(readFileSync(join(ui, "package.json"), "utf8"));
 
@@ -55,7 +56,7 @@ const rest = all.filter((p) => !core.has(p));
 
 // What the person is told before anything is kept: the window's own code,
 // at install and in the background, in bytes.
-const size = (list) => list.reduce((n, p) => n + statSync(join(dist, p)).size, 0);
+const size = (list) => list.reduce((n, p) => n + statSync(join(dist, p.replace(/^\/+/, ""))).size, 0);
 writeFileSync(join(dist, "offline-size.json"), JSON.stringify({ core: size(coreList), rest: size(rest) }));
 
 await build({
