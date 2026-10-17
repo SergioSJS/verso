@@ -5965,7 +5965,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "verso-app"
-version = "0.8.2-beta.1"
+version = "0.8.3-beta.1"
 dependencies = [
  "base64 0.22.1",
  "blake2",
@@ -6009,7 +6009,7 @@ dependencies = [
 
 [[package]]
 name = "verso-bench"
-version = "0.8.2-beta.1"
+version = "0.8.3-beta.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -6019,7 +6019,7 @@ dependencies = [
 
 [[package]]
 name = "verso-cli"
-version = "0.8.2-beta.1"
+version = "0.8.3-beta.1"
 dependencies = [
  "mimalloc",
  "rmcp",
@@ -6034,7 +6034,7 @@ dependencies = [
 
 [[package]]
 name = "verso-contract"
-version = "0.8.2-beta.1"
+version = "0.8.3-beta.1"
 dependencies = [
  "serde",
  "specta",
@@ -6042,7 +6042,7 @@ dependencies = [
 
 [[package]]
 name = "verso-core"
-version = "0.8.2-beta.1"
+version = "0.8.3-beta.1"
 dependencies = [
  "png 0.18.1",
  "proptest",
@@ -6059,7 +6059,7 @@ dependencies = [
 
 [[package]]
 name = "verso-dialect"
-version = "0.8.2-beta.1"
+version = "0.8.3-beta.1"
 dependencies = [
  "proptest",
  "pulldown-cmark",
@@ -6069,7 +6069,7 @@ dependencies = [
 
 [[package]]
 name = "verso-fs"
-version = "0.8.2-beta.1"
+version = "0.8.3-beta.1"
 dependencies = [
  "ignore",
  "nix",
@@ -6083,7 +6083,7 @@ dependencies = [
 
 [[package]]
 name = "verso-index"
-version = "0.8.2-beta.1"
+version = "0.8.3-beta.1"
 dependencies = [
  "flate2",
  "rusqlite",
@@ -6096,7 +6096,7 @@ dependencies = [
 
 [[package]]
 name = "verso-server"
-version = "0.8.2-beta.1"
+version = "0.8.3-beta.1"
 dependencies = [
  "argon2",
  "axum",
@@ -6135,7 +6135,7 @@ dependencies = [
 
 [[package]]
 name = "verso-service"
-version = "0.8.2-beta.1"
+version = "0.8.3-beta.1"
 dependencies = [
  "serde",
  "serde_json",
