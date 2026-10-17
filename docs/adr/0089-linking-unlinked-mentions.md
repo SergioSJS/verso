@@ -1,0 +1,135 @@
+# ADR 0089 — Linking unlinked mentions: a "Link" per mention and "Link all", with a diff
+
+- Date: 2026-10-14
+- Source: the maintainer, on 2026-10-14 at 11:36 UTC, sending a plan of
+  new features drafted with another assistant whose second item is
+  "auto-link": suggesting a link while a person types a note's name, off
+  by default, with settings. The reading in session that morning found
+  half of it built — the `[[` completion, backlinks, the unlinked mentions
+  — and proposed first a "Link" button on each unlinked mention with
+  "Link all", the suggestion while typing later and off by default. The
+  maintainer's answer that evening, on the whole list: *"VAI SER TUDO NA
+  V1"* (it will all be in V1). Written by Opus 5.5; to be read by the
+  other model before it is accepted ([0032](0032-author-and-reviewer-roles.md)).
+- Related: [0048](0048-file-operations-in-ui.md) (plans shown as diffs),
+  [0012](0012-files-are-source-of-truth.md) (invariants 8 and 11),
+  [0046](0046-index-location-lifecycle-tokenizer.md) (the tokenizer),
+  [0082](0082-live-co-editing-of-a-synced-folder.md) (a write to a live
+  note goes through its room), [0087](0087-secret-blocks-hidden-from-readers.md)
+  (what a reader does not see), [0076](0076-the-window-on-every-screen.md)
+  (what a side cannot do is not shown), spec Q7, Q8 and Q12 (names),
+  [0035](0035-cross-cutting-requirements.md).
+- Status in the briefing: not present; on acceptance.
+
+## Context
+
+What exists. The editor completes `[[` and `![[` with the folder's notes
+and their headings (`app/ui/src/editor/complete.ts`). The side panel
+lists a note's backlinks and, under them, its **unlinked mentions**
+(`app/ui/src/panel/panel.ts`, `mentions`): the window searches the index
+for the words of the note's name (40 results at most), drops the notes
+that already link to it, and lists each remaining **note** with a
+snippet. It finds notes, not occurrences: it has no position for a
+mention, it matches the name's words as the full-text search does
+(`unicode61`, accents removed, no stemming — [0046](0046-index-location-lifecycle-tokenizer.md)),
+not the name as a phrase, and it does not look at a note's `aliases`.
+Nothing turns a mention into a link but typing it by hand.
+
+## Decision
+
+Proposed (2026-10-14). Accepted on 2026-10-14 (Status): each `[OPEN]` was decided as
+recommended and is marked `[DECIDED 2026-10-14]`.
+
+1. **Mentions are occurrences.** A new command of the contract answers a
+   note's unlinked mentions as occurrences — the note, the line, the
+   column and the text as written — found by the core from the index's
+   candidates and a scan of their text. A mention is the note's name as a
+   phrase, on word boundaries, outside code, frontmatter, comments, an
+   existing link or embed, and, for a reader, outside a secret block
+   ([0087](0087-secret-blocks-hidden-from-readers.md)). `[DECIDED 2026-10-14]`: case,
+   accents and aliases. Decided: **case ignored, accents kept**
+   ("Porto" finds "porto", not "pôrto"), and each of the note's `aliases`
+   a name too.
+2. **"Link" on each mention** replaces that occurrence with `[[Name]]`, or
+   `[[Name|text]]` when the text differs from the name in case or is an
+   alias, through the contract, with invariant 11's check on the file's
+   revision; a note open in a room is written through the room, as the
+   properties panel's writes are (Phase 3 row 3.19). A mention whose text
+   moved since it was listed is refused and the list refreshed.
+3. **"Link all"** shows the plan — every file and every line it would
+   change — as a diff, as a rename's plan is shown
+   ([0048](0048-file-operations-in-ui.md)), and writes on confirmation,
+   file by file, each with its own check; a file changed meanwhile is
+   skipped and named (invariants 8 and 11).
+4. **Who may link.** The buttons are shown to whoever may write the
+   mentioning note; a reader sees the list and no button
+   ([0076](0076-the-window-on-every-screen.md)'s rule).
+5. **A suggestion while typing.** `[DECIDED 2026-10-14]`: whether it is in V1.
+   Decided: **not in V1**; when built, **off by default**, a setting
+   in Settings › Editor with a minimum length and folders to ignore, as
+   the plan of 2026-10-14 described it — names that are common words
+   ("Porto", "Mesa", "Ordem") make it noisy in Portuguese.
+   **Revised 2026-10-15 `[DECIDED 2026-10-15]`:** the maintainer, answering
+   *"Sim, na V1, desligada por padrão"* (yes, in V1, off by default): the
+   suggestion while typing **is in V1**, **off by default**. Built as
+   follows. A setting in Settings › Editor, "Sugerir links enquanto
+   escrevo" (off), in the person's layer, with two lists beside it,
+   "Pastas ignoradas" and "Nomes ignorados" (for example "Mesa"). While
+   typing prose — never in code, the frontmatter, a link, an embed, math,
+   HTML or a tag, the same prose rule the mentions follow — when the words
+   just typed are a **whole** note name or alias of the folder (case
+   ignored, accents kept, NFC = NFD, three characters at least, the longest
+   name winning, names of several words included), a small chip in the
+   style of the `[[` completion says "Ligar a [[Name]]". It never changes
+   the text by itself: Tab or Enter writes `[[Name]]`, or `[[Name|typed]]`
+   when the case differs or the words are an alias, as "Link" does
+   (item 2); Escape, or typing on, dismisses it, and a name dismissed is
+   not suggested again in the same paragraph. The note being written is
+   never suggested. The folder's names come from the list the `[[`
+   completion draws on, with the aliases the entries now carry, in a map
+   built once per walk of the folder, so a keystroke is a few lookups at
+   10,000 notes. On a touch screen the chip is tapped; in a live note an
+   accepted suggestion is an ordinary edit through the room; a reader gets
+   none; a screen reader hears "Sugestão de link: Name, Tab para aceitar"
+   politely.
+6. **Accessibility and languages** ([0035](0035-cross-cutting-requirements.md)):
+   each mention is a row whose button is named "Link *text* in *note*";
+   the plan's diff is reachable by keyboard and read as a list of
+   changes; pt-BR and English.
+
+## Consequences
+
+- `verso-core` gains the occurrences command, with tests on boundaries,
+  code, links, aliases and accents; the contract's types are generated as
+  always (invariant 3); the panel draws occurrences instead of notes.
+- The window gains the buttons, the plan's dialog and the strings; e2e
+  tests for one link, "Link all" with a file changed meanwhile, and a
+  reader's view; the demo vault teaches it ([0058](0058-demo-vault-as-tutorial.md));
+  the changelog gets its line.
+- A link made here is undone in an open tab with ⌘Z; in a note that was
+  not open, by the history of [0091](0091-version-history.md).
+
+## Discarded alternatives
+
+- **An in-memory prefix tree of the folder's names** for the suggestion
+  (raised in the plan of 2026-10-14 for folders of 2,000 notes): the index
+  already holds the names, and 2,000 names do not need one. (Item 5, as
+  revised on 2026-10-15, keeps a map of the folded names, built once per
+  walk of the folder; it is not a prefix tree, and the benchmark of the
+  revision says what it costs.)
+
+## Status
+
+**Accepted (2026-10-14).** The maintainer, that night, answering
+*"Aceita todas as recomendações (R1–R4 e os itens dos ADRs 0085–0092)?"* with *"Sim, todas"* (yes, all): every `[OPEN]`
+decided as recommended, marked `[DECIDED 2026-10-14]` in place. In V1
+(`docs/roadmap.md`, Phase 4 — V1).
+
+**Answered while building (2026-10-14, the maintainer: "Sim, todas").** The questions the build raised, answered as recommended (*"Aceita todas as recomendações acima (P1–P5, M1–M6, I1–I7, D1–D11, G1–G4)?"*): M1 — a note that already links the target still lists its unlinked mentions; M2 — at most 200 candidate notes per name and 500 mentions; M3 — in a table's cell the link is written with `\|`; M4 — the whole secret filter comes with [0087](0087-secret-blocks-hidden-from-readers.md); M5 — an accent written composed (NFC) or decomposed (NFD) is one accent when mentions are matched, as it names one file (the decision of 2026-10-10), the link keeping the note's name as the index has it (built that night); M6 — `verso_dialect::prose` gains a fixture, `fixtures/prose/what-is-prose`, an AI draft for the maintainer's approval (spec §4.9, built that night). M1 to M4 as built.
+
+**Revised (2026-10-15).** The maintainer, answering *"Sim, na V1, desligada por padrão"* to the question whether the suggestion while typing (item 5) belongs in V1: item 5 is revised above — in V1, off by default. Nothing else of the ADR changes.
+
+*(History, before the acceptance above:)* Proposed (2026-10-14). In V1 by the maintainer's word of 2026-10-14
+(*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revision 8). For the
+maintainer, each with a recommendation: case, accents and aliases
+(item 1), and the suggestion while typing (item 5).

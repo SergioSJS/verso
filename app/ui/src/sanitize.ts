@@ -222,6 +222,33 @@ export function allowEmbedOrigins(origins: string[]): void {
   approved = new Set(origins);
   approvedAll = origins.includes("*");
 }
+/** Why a web address given as a picture is not shown (ADR 0086 item 1,
+ *  decided 2026-10-14: only from the origins the person approved, as an
+ *  embedded page is): its origin is not approved (`origin`), or remote
+ *  content is off (`remote`); null when it may load. Not an `http(s)`
+ *  address: `invalid`, nothing loads. */
+export function pictureGate(url: string): { why: "origin" | "remote"; origin: string } | { why: "invalid" } | null {
+  let u: URL;
+  try {
+    u = new URL(url.trim());
+  } catch {
+    return { why: "invalid" };
+  }
+  if (u.protocol !== "http:" && u.protocol !== "https:") return { why: "invalid" };
+  if (!approvedAll && !approved.has(u.origin)) return { why: "origin", origin: u.origin };
+  if (!remote) return { why: "remote", origin: u.origin };
+  return null;
+}
+/** Approve `origin` for good, as an embedded page's gate does: kept with
+ *  the settings and handed to the host. False when nothing can keep it
+ *  (no window hooks) or the host did not take it. */
+export async function approveOrigin(origin: string): Promise<boolean> {
+  if (!hooks) return false;
+  const ok = await hooks.approve(origin);
+  if (ok) approved.add(origin);
+  return ok;
+}
+
 /** Pages loaded by a click while remote content is off, this session:
  *  drawn again, they stay loaded. */
 const clicked = new Set<string>();
@@ -274,9 +301,10 @@ function gateOf(url: string): { kind: "local" | "public" | "remote"; origin: str
  *  `style` says — tamed, so the frame cannot lift itself out of the pane —
  *  and not loaded: `data-embed-web` is what loads it. */
 function webHost(doc: Document, style: string): HTMLElement {
-  // The page renders in a child web view the window overlays on this
-  // box — a top-level view, which X-Frame-Options does not bind, unlike
-  // an iframe (ADR 0056). The note's <iframe> only donates its size.
+  // The page renders in a real frame in this box when its site allows
+  // being framed, and otherwise in a child web view the window overlays on
+  // it (leaves/web.ts; ADR 0056, revised 2026-10-15). The note's <iframe>
+  // only donates its size.
   const host = doc.createElement("div");
   host.className = "embed-web";
   if (style) {

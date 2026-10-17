@@ -1,0 +1,35 @@
+/* The hover preview (ADR 0085): the note a link names, in a card beside
+   the pointer — its title and path above, the note below as the reading
+   view draws it (`.preview`), smaller. One card for the window: above the
+   panes and the overlays (z 10), below the menus (z 20). */
+.hover-preview { position: fixed; z-index: 15; display: flex; flex-direction: column; width: min(26rem, calc(100vw - 16px)); max-height: min(24rem, calc(100vh - 16px)); background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-radius: 10px; box-shadow: 0 14px 36px -14px oklch(0% 0 0 / .4); overflow: hidden; font-family: var(--ui); animation: hover-preview-in .12s ease-out; }
+.hover-preview:focus { outline: none; }
+.hover-preview:focus-visible { outline: 2px solid var(--seal); outline-offset: 2px; }
+.hover-preview.clickable { cursor: pointer; }
+.hover-preview-head { flex: none; display: flex; align-items: baseline; gap: .5rem; padding: .45rem .75rem .35rem; border-bottom: 1px solid var(--hair); }
+.hover-preview-title { min-width: 0; flex: 0 1 auto; font-family: var(--display); font-size: .95rem; font-weight: 600; color: var(--heading-color, var(--ink)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hover-preview-path { min-width: 0; flex: 1 1 0; font-size: .74rem; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left; }
+.hover-preview-message { flex: none; margin: 0; padding: .45rem .75rem; font-size: .82rem; color: var(--ink-2); background: var(--paper-2); }
+.hover-preview-message[hidden] { display: none; }
+.hover-preview-body.preview { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; margin: 0; max-width: none; padding: .55rem .85rem .8rem; font-size: .86rem; line-height: 1.55; }
+.hover-preview-body.preview:empty { display: none; }
+.hover-preview-body.preview[aria-busy="true"] { color: var(--ink-3); font-family: var(--ui); }
+.hover-preview-body.preview img { max-width: 100%; height: auto; }
+.hover-preview-body.preview h1, .hover-preview-body.preview h2, .hover-preview-body.preview h3 { margin-top: 1em; }
+.hover-preview-body .hover-preview-target { background: var(--brass-wash); border-radius: 4px; box-shadow: 0 0 0 .2rem var(--brass-wash); }
+.hover-preview-picture { display: block; max-width: 100%; max-height: 20rem; margin: 0 auto; object-fit: contain; }
+.hover-preview-pdf { height: 18rem; }
+.hover-preview-hint { flex: none; padding: .3rem .75rem .4rem; font-size: .72rem; color: var(--ink-3); border-top: 1px solid var(--hair); }
+.hover-preview-hint[hidden] { display: none; }
+@keyframes hover-preview-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .hover-preview { animation: none; } }
+@media (forced-colors: active) { .hover-preview { border: 1px solid CanvasText; } }
+
+/* The touch link card's preview (ADR 0085 item 5): above Open and Edit link. */
+.cm-tooltip.cm-link-card { flex-direction: column; align-items: stretch; max-width: min(24rem, calc(100vw - 16px)); }
+.cm-link-card-actions { display: flex; gap: .25rem; }
+.cm-link-card-preview { display: flex; flex-direction: column; max-height: min(16rem, 40vh); overflow: hidden; border-bottom: 1px solid var(--hair); }
+.cm-link-card-preview[hidden] { display: none; }
+.cm-link-card-preview .hover-preview-title { padding: .35rem .5rem .2rem; }
+.cm-link-card-preview .hover-preview-body.preview { padding: .3rem .6rem .5rem; }
+html.show-line-numbers-preview .hover-preview-body.preview { padding-left: .85rem; }

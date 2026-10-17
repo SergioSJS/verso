@@ -10,16 +10,18 @@
 // computer (ADR 0079 item 8, decided 2026-10-11).
 
 import { listen } from "@tauri-apps/api/event";
-import { commands, type ContractError, type ServerAccount, type ServerFolder } from "../bindings";
+import { commands, type ContractError, type ServerAccount, type ServerBack, type ServerFolder, type ServerGone } from "../bindings";
 import { h, ui } from "../dom";
 import { errorSentence, fail } from "../errors";
-import { addressOf, attempt, busy, clearFailure, reachStrings, sayFailure } from "../reach";
+import { addressOf, attempt, busy, clearFailure, reachParts, reachSentence, reachStrings, sayFailure } from "../reach";
 import { can } from "../can";
 import { currentFolder, folderName, LAST_FOLDER } from "../folder";
-import { currentSync, openSettingsSection, preselectSync } from "./sync";
+import { currentSync, openSettingsSection, preselectSync, syncStarted } from "./sync";
 import { openFolderBy } from "../open";
 import { sh } from "../shareStrings";
+import { foundList } from "./serversFound";
 import { copyWhenKnown, startSignIn } from "../serverSignIn";
+import { revokedSentence, serverBackHeard, serverGoneHeard } from "../notify/sources";
 
 /** A sentence whose names stand out: a name is `[name]`. */
 type Said = (string | [string])[];
@@ -41,6 +43,22 @@ const pt = {
   foldersOf: (host: string) => `Pastas em ${host}`,
   loading: "Carregando as pastas…",
   noFolders: "Nenhuma pasta para você neste servidor ainda. Peça um convite a quem o administra.",
+  noFoldersMay: "Nenhuma pasta neste servidor ainda.",
+  // The one action of a folder open on this computer (the maintainer,
+  // 2026-10-16: "Eu não posso simplesmente sincronizar?"): the server's
+  // folder is made for it, here, and nothing is asked first.
+  syncThis: (local: string) => `Sincronizar ‘${local}’`,
+  syncThisNamed: (local: string, host: string) => `Sincronizar ${local} com ${host}, numa pasta nova do servidor`,
+  syncThisNote: "Cria uma pasta nova neste servidor, com o nome desta, e a mantém igual. Se já houver uma com esse nome, a nova leva “(2)”. Nada é apagado.",
+  syncedElsewhere: (folder: string, other: string) => `“${folder}” já sincroniza com ${other}. Uma pasta sincroniza com um servidor por vez: para sincronizar com este, desligue lá primeiro.`,
+  openSync: "Abrir Sincronizar",
+  syncing: (host: string) => `Sincronizando com ${host}…`,
+  syncOn: (local: string, host: string) => `${local} agora está sincronizada com ${host}.`,
+  emptyFolder: "Criar pasta vazia…",
+  emptyName: "Nome da pasta nova",
+  emptyCreate: "Criar",
+  emptyCancel: "Cancelar",
+  emptyMade: (name: string) => `Pasta ${name} criada.`,
   noneYet: "Nenhum servidor ainda. Com um UniVerso, suas pastas ficam no navegador, no celular e em outros computadores.",
   role: (r: string): string => (r === "owner" ? "dona" : r === "editor" ? "edita" : "só lê"),
   openHere: "Abrir aqui",
@@ -79,6 +97,19 @@ const en: typeof pt = {
   foldersOf: (host: string) => `Folders on ${host}`,
   loading: "Loading the folders…",
   noFolders: "No folder for you on this server yet. Ask whoever runs it for an invitation.",
+  noFoldersMay: "No folder on this server yet.",
+  syncThis: (local: string) => `Sync ‘${local}’`,
+  syncThisNamed: (local: string, host: string) => `Sync ${local} with ${host}, in a new folder of the server`,
+  syncThisNote: "Makes a new folder on this server, named like this one, and keeps it the same. If one has that name already, the new one gets “(2)”. Nothing is deleted.",
+  syncedElsewhere: (folder, other) => `“${folder}” already syncs with ${other}. A folder syncs with one server at a time: to sync it with this one, turn that off first.`,
+  openSync: "Open Sync",
+  syncing: (host: string) => `Syncing with ${host}…`,
+  syncOn: (local: string, host: string) => `${local} is now synced with ${host}.`,
+  emptyFolder: "Make an empty folder…",
+  emptyName: "New folder's name",
+  emptyCreate: "Make",
+  emptyCancel: "Cancel",
+  emptyMade: (name: string) => `Folder ${name} made.`,
   noneYet: "No server yet. With a UniVerso, your folders are in the browser, on the phone and on other computers.",
   role: (r: string): string => (r === "owner" ? "owner" : r === "editor" ? "edits" : "reads only"),
   openHere: "Open here",
@@ -133,23 +164,49 @@ export function parseServerKey(key: string): { url: string; folder: string } | n
 }
 
 let heard = false;
+/** The servers whose folder this window was refused (a share revoked or
+ *  deleted): the connection's end that follows is not a drop to retry. */
+const refusedAt = new Set<string>();
 
-/** What the host says of a connection that ended. */
+/** What the host says of a connection that ended — the web bridge says
+ *  the same of its own (ADR 0084 item 10): in the status line, and as a
+ *  notification. A share of the folder revoked is said as a revocation,
+ *  never as "the connection dropped" (ADR 0084 item 7). */
 export function hearServers(): void {
   if (heard) return;
   heard = true;
-  void listen<{ url: string; what: string; address?: string }>("server-gone", (e) => {
+  addEventListener("verso:folder-shown", () => refusedAt.clear());
+  void listen<ServerGone>("server-gone", (e) => {
     const s = serverStrings();
+    const p = e.payload;
+    if (p.what === "folder") {
+      refusedAt.add(p.url);
+      serverState()?.remove();
+      const said = revokedSentence(p);
+      ui.status.textContent = said;
+      serverGoneHeard(p, said);
+      return;
+    }
+    if (refusedAt.has(p.url)) return;
     // A try that found the server out of reach: said beside the status,
     // with a try now (the host tries again on its own, 5 s doubling to 5
     // min, reach.rs).
-    if (e.payload.what === "unreachable") return outOfReach(e.payload.address ?? addressOf(e.payload.url));
+    if (p.what === "unreachable") {
+      const message = p.address ?? addressOf(p.url);
+      outOfReach(reachParts(message).address);
+      serverGoneHeard(p, reachSentence(message));
+      return;
+    }
     serverState()?.remove();
-    ui.status.textContent = e.payload.what === "session" ? s.goneSession : s.gone;
+    const said = p.what === "session" ? s.goneSession : s.gone;
+    ui.status.textContent = said;
+    serverGoneHeard(p, said);
   });
-  void listen<{ url: string }>("server-back", () => {
+  void listen<ServerBack>("server-back", (e) => {
     serverState()?.remove();
-    ui.status.textContent = serverStrings().back;
+    const said = serverStrings().back;
+    ui.status.textContent = said;
+    serverBackHeard(e.payload.url, said);
     // The notes being edited together join their rooms again (collab.ts).
     dispatchEvent(new Event("verso:reconnected"));
   });
@@ -202,6 +259,15 @@ export function serversBody(_item: (title: string, desc: string, control: HTMLEl
     if (r.status !== "ok") return fail(r.error);
     list.replaceChildren(...r.data.map((a) => serverBlock(a, draw)));
     if (r.data.length === 0) list.append(h("p", "srv-empty", s.noneYet));
+    if (refocus) {
+      const at = [...list.querySelectorAll<HTMLElement>("section.srv")].find((b) => b.dataset["url"] === refocus);
+      const title = at?.querySelector<HTMLElement>(".srv-host");
+      if (title) {
+        title.tabIndex = -1;
+        title.focus();
+      }
+      refocus = null;
+    }
   };
 
   // Connect: an address, a button, and what to do in the browser.
@@ -245,7 +311,16 @@ export function serversBody(_item: (title: string, desc: string, control: HTMLEl
     void draw();
   });
 
-  box.append(form, deviceForm(), list);
+  // The servers announced on this network: a click fills the address the
+  // row shows and goes on as typing it would (serversFound.ts, ADR 0097).
+  const found = foundList(
+    { start: commands.discoverServersStart, list: commands.discoverServersList, stop: commands.discoverServersStop },
+    (f) => {
+      url.value = f.url;
+      form.requestSubmit();
+    },
+  );
+  box.append(form, found, deviceForm(), list);
   void draw();
   return box;
 }
@@ -322,20 +397,108 @@ function serverBlock(a: ServerAccount, redraw: () => Promise<void>): HTMLElement
   const failure = h("div", "srv-failure");
   failure.hidden = true;
   folders.append(loading);
-  const load = (): void =>
-    void attempt(failure, () => commands.serverFolders(a.url), { other: errorSentence, retry: load }).then((r) => {
+  // What the account may do beyond opening: sync the open folder into a new
+  // folder of the server in one click, or make an empty one.
+  const acts = h("div", "srv-actions");
+  // A failure of these actions, said under them (reach.ts).
+  const actFailure = h("div", "srv-failure");
+  actFailure.hidden = true;
+  const said = h("p", "srv-said");
+  said.setAttribute("role", "status");
+  const drawActions = (mayCreate: boolean): void => {
+    acts.replaceChildren();
+    if (!mayCreate) return;
+    if (pairable()) {
+      const send = h("button", "btn primary srv-send", s.syncThis(folderName));
+      send.type = "button";
+      send.setAttribute("aria-label", s.syncThisNamed(folderName, host));
+      send.setAttribute("aria-describedby", `${title.id}-send-note`);
+      const note = h("p", "srv-help", s.syncThisNote);
+      note.id = `${title.id}-send-note`;
+      const run = (): void => {
+        said.textContent = s.syncing(host);
+        void attempt(actFailure, () => commands.folderSyncStart(a.url, null, folderName), { button: send, other: errorSentence, retry: run }).then((r) => {
+          said.textContent = "";
+          if (r.status !== "ok") return;
+          syncStarted(r.data);
+          refocus = a.url;
+          void redraw();
+        });
+      };
+      send.addEventListener("click", run);
+      acts.append(send, note);
+    } else {
+      // The open folder syncs with another server: say so where this one's
+      // button would be, with the way there (the maintainer, 2026-10-16,
+      // found the button missing and had to guess why).
+      const sync = currentSync();
+      if (currentFolder && sync?.on && sync.server && sync.server !== a.url) {
+        const note = h("p", "srv-help", s.syncedElsewhere(folderName, addressOf(sync.server)));
+        const go = h("button", "btn quiet", s.openSync);
+        go.type = "button";
+        go.addEventListener("click", () => openSettingsSection("sync"));
+        acts.append(note, go);
+      }
+    }
+    const empty = h("button", "btn quiet", s.emptyFolder);
+    empty.type = "button";
+    empty.addEventListener("click", () => {
+      const form = h("form", "srv-empty-form");
+      const label = h("label", "srv-label", s.emptyName);
+      const name = h("input");
+      name.type = "text";
+      name.id = `${title.id}-empty-name`;
+      name.autocomplete = "off";
+      name.spellcheck = false;
+      name.maxLength = 200;
+      name.required = true;
+      name.addEventListener("keydown", (e) => e.stopPropagation());
+      label.htmlFor = name.id;
+      const make = h("button", "btn", s.emptyCreate);
+      make.type = "submit";
+      const cancel = h("button", "btn quiet", s.emptyCancel);
+      cancel.type = "button";
+      cancel.addEventListener("click", () => {
+        form.remove();
+        empty.hidden = false;
+        empty.focus();
+      });
+      const field = h("div", "srv-field");
+      field.append(name, make, cancel);
+      form.append(label, field);
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const wanted = name.value.trim();
+        if (!wanted) return;
+        void attempt(actFailure, () => commands.serverCreateFolder(a.url, wanted), { button: make, other: errorSentence, retry: () => form.requestSubmit() }).then((r) => {
+          if (r.status !== "ok") return;
+          said.textContent = s.emptyMade(r.data.name);
+          load(r.data.id);
+        });
+      });
+      empty.hidden = true;
+      acts.append(form);
+      name.focus();
+    });
+    acts.append(empty);
+  };
+  // `focusId`: the folder just made, whose row takes the focus.
+  const load = (focusId: string | null = null): void =>
+    void attempt(failure, () => commands.serverFolders(a.url), { other: errorSentence, retry: () => load(focusId) }).then((r) => {
       if (r.status !== "ok") {
         loading.replaceChildren(failure);
         return;
       }
-      if (r.data.length === 0) {
-        loading.textContent = s.noFolders;
+      drawActions(r.data.may_create === true);
+      if (r.data.folders.length === 0) {
+        loading.textContent = r.data.may_create ? s.noFoldersMay : s.noFolders;
+        folders.replaceChildren(loading);
         return;
       }
       // Mine, then shared with me (ADR 0081 item 5): a folder someone else
       // owns, or a folder inside one — synced, a share is a folder of this
       // computer of its own (item 6).
-      const all = r.data as ServerFolder[];
+      const all = r.data.folders;
       const mine = all.filter((f) => !f.owner);
       const theirs = all.filter((f) => f.owner);
       const head = (text: string) => {
@@ -349,11 +512,17 @@ function serverBlock(a: ServerAccount, redraw: () => Promise<void>): HTMLElement
         ...(theirs.length ? [head(sh.sharedWithMe)] : []),
         ...theirs.map((f) => folderRow(a, f)),
       );
+      if (focusId) folders.querySelector<HTMLElement>(`[data-folder="${CSS.escape(focusId)}"] button`)?.focus();
     });
   load();
-  block.append(head, ...(pair ? [pair] : []), folders);
+  block.dataset["url"] = a.url;
+  block.append(head, ...(pair ? [pair] : []), folders, acts, actFailure, said);
   return block;
 }
+
+/** The server whose block takes the focus when the list is drawn again
+ *  (after "Sincronizar", the button that was pressed is gone). */
+let refocus: string | null = null;
 
 /** A folder of this computer open, not syncing: it may sync with one of
  *  a server's. */
@@ -364,6 +533,7 @@ function pairable(): boolean {
 function folderRow(a: ServerAccount, f: ServerFolder): HTMLElement {
   const s = serverStrings();
   const li = h("li", "srv-folder");
+  li.dataset["folder"] = f.id;
   const name = h("span", "srv-folder-name", f.name);
   const role = h("span", "srv-role", f.owner ? `${s.role(f.role)} · ${sh.ownerIs(f.owner)}${f.missing ? ` · ${sh.gone}` : ""}` : s.role(f.role));
   role.dataset["role"] = f.role;

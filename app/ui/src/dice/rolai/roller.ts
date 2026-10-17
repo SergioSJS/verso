@@ -1,0 +1,249 @@
+// Copied from Rolai, the maintainer's dice roller
+// (https://github.com/SergioSJS/rolai), packages/rules-engine/src/roller.ts, at
+// commit 368d677c8347609c243473046d4f06a1126ddb74 (2026-08-21), for ADR 0088
+// item 5: its parser and roller copied into the window, the MIT notice kept.
+// Verso's changes: the imports name their modules without `.js`; the
+// exploding die (`1d6!`), its chain capped at EXPLODE_MOST dice in a roll
+// (ADR 0088, D1, answered by the maintainer on 2026-10-14).
+//
+// MIT License
+//
+// Copyright (c) 2026 Sérgio J. Sousa
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+// Executor do AST de notacao — aplica reroll, keep/drop e modificador e
+// produz o RollResult canonico (docs/roll-notation.md).
+
+import { parseNotation } from "./parser";
+import type { ComparisonOp, DiceSpec, GroupSpec, NotationAST } from "./parser";
+import { cryptoRandomSource, rollDie } from "./rng";
+import type { RandomSource, RollGroup, RollResult } from "./types";
+
+export interface RollOptions {
+  // Fonte de aleatoriedade; default crypto.getRandomValues.
+  rng?: RandomSource;
+  // Valores finais determinísticos por dado, consumidos em ordem (fila
+  // compartilhada entre grupos). Uso: replay de um resultado recebido via
+  // WS, ou animacao 3D convergindo pro valor ja decidido. Cada valor deve
+  // ser inteiro em [1, faces] do dado que o consome; se a fila esvaziar,
+  // os dados restantes usam o rng.
+  deterministic?: number[];
+  // Timestamp da rolagem; default: agora (ISO 8601).
+  timestamp?: string;
+}
+
+// Estado mutavel de uma rolagem (fila deterministica + rng).
+export interface RollState {
+  rng: RandomSource;
+  queue: number[];
+  /** Verso: the dice explosions added so far in this roll. */
+  exploded: number;
+}
+
+/** Verso: the most dice explosions add to one roll, all its terms
+ *  together — the server's `EXPLODE_MOST` (crates/verso-server/src/dice.rs). */
+export const EXPLODE_MOST = 100;
+
+export function createRollState(options: RollOptions = {}): RollState {
+  return {
+    rng: options.rng ?? cryptoRandomSource,
+    queue: options.deterministic ? [...options.deterministic] : [],
+    exploded: 0,
+  };
+}
+
+function matches(op: ComparisonOp, roll: number, value: number): boolean {
+  switch (op) {
+    case "<":
+      return roll < value;
+    case "<=":
+      return roll <= value;
+    case ">":
+      return roll > value;
+    case ">=":
+      return roll >= value;
+    case "=":
+      return roll === value;
+  }
+}
+
+// Dado Fudge: as tres faces valem -1, 0 e +1 (a fila deterministica usa o
+// mesmo intervalo, e nao 1..3 — e o valor que aparece no RollResult).
+function takeValue(state: RollState, spec: DiceSpec): number {
+  const next = state.queue.shift();
+  if (spec.fudge) {
+    if (next === undefined) return rollDie(3, state.rng) - 2;
+    if (!Number.isInteger(next) || next < -1 || next > 1) {
+      throw new Error(
+        `valor deterministico fora do intervalo [-1, 1] (dado Fudge): ${next}`,
+      );
+    }
+    return next;
+  }
+  if (next === undefined) {
+    return rollDie(spec.sides, state.rng);
+  }
+  if (!Number.isInteger(next) || next < 1 || next > spec.sides) {
+    throw new Error(
+      `valor deterministico fora do intervalo [1, ${spec.sides}]: ${next}`,
+    );
+  }
+  return next;
+}
+
+// Rola um DiceSpec e produz o RollGroup. Exportado para o loader de
+// profiles, que rola cada `field` separadamente e nomeia os grupos com os
+// ids dos campos.
+export function rollDice(spec: DiceSpec, state: RollState): RollGroup {
+  const rolls: number[] = [];
+  for (let i = 0; i < spec.count; i++) {
+    rolls.push(takeValue(state, spec));
+  }
+
+  // Reroll condicional: uma unica rerrolagem por dado que bate na condicao.
+  if (spec.reroll) {
+    for (let i = 0; i < rolls.length; i++) {
+      if (matches(spec.reroll.op, rolls[i]!, spec.reroll.value)) {
+        rolls[i] = takeValue(state, spec);
+      }
+    }
+  }
+
+  // Verso: explode — a die at its highest face adds one more, in the
+  // order they fall, each new one able to explode too, until the roll has
+  // added EXPLODE_MOST. The added dice are kept or dropped as the others.
+  if (spec.explode) {
+    for (let i = 0; i < rolls.length && state.exploded < EXPLODE_MOST; i++) {
+      if (rolls[i] === spec.sides) {
+        rolls.push(takeValue(state, spec));
+        state.exploded++;
+      }
+    }
+  }
+
+  // Keep/drop: `rolls` final contem apenas os dados mantidos, na ordem
+  // original em que cairam.
+  let kept = rolls;
+  let dropped: number[] = [];
+  if (spec.keepDrop) {
+    const { type, count } = spec.keepDrop;
+    const ranked = rolls
+      .map((value, index) => ({ value, index }))
+      .sort((a, b) => b.value - a.value || a.index - b.index);
+    const keepSet = new Set<number>();
+    if (type === "kh") {
+      for (const entry of ranked.slice(0, count)) keepSet.add(entry.index);
+    } else if (type === "kl") {
+      for (const entry of ranked.slice(-count)) keepSet.add(entry.index);
+    } else if (type === "dh") {
+      for (const entry of ranked.slice(count)) keepSet.add(entry.index);
+    } else {
+      // dl
+      for (const entry of ranked.slice(0, -count)) keepSet.add(entry.index);
+    }
+    kept = rolls.filter((_, index) => keepSet.has(index));
+    dropped = rolls.filter((_, index) => !keepSet.has(index));
+  }
+
+  const group: RollGroup = { rolls: kept };
+  // So quando houve descarte: campo ausente mantem o payload identico pra
+  // quem nao usa keep/drop (e o JSON da sala menor).
+  if (dropped.length > 0) {
+    group.dropped = dropped;
+  }
+  if (spec.hasModifier) {
+    group.modifier = spec.modifier;
+  }
+  // `total` ausente em grupos multi-dado sem operador de soma explicito
+  // (modificador ou keep/drop) — ver docs/roll-notation.md.
+  if (spec.hasModifier || spec.keepDrop || kept.length === 1) {
+    group.total = kept.reduce((sum, v) => sum + v, 0) + spec.modifier;
+  }
+  return group;
+}
+
+// Rola um grupo do AST. Grupo de termo unico segue o caminho legado
+// (mesmas regras de `total` de sempre — ver docs/roll-notation.md).
+// Multi-termo ("2d6+1d4-1d20+3"): rola cada termo separado (keep/drop e
+// reroll sao por termo), concatena os rolls mantidos NA ORDEM dos termos
+// e sempre produz `total` = soma algebrica dos termos + modificador.
+export function rollGroup(groupSpec: GroupSpec, state: RollState): RollGroup {
+  if (groupSpec.terms.length === 1) {
+    return rollDice(groupSpec.dice, state);
+  }
+  const rolls: number[] = [];
+  // Descartados de TODOS os termos, concatenados. Sem isto, o keep/drop
+  // dentro de pool misto ("4d6kh3+1d20") perdia o descartado no caminho —
+  // o termo unico preservava, o multi-termo nao.
+  const dropped: number[] = [];
+  let total = 0;
+  for (const term of groupSpec.terms) {
+    const termGroup = rollDice(term.dice, state);
+    rolls.push(...termGroup.rolls);
+    if (termGroup.dropped) dropped.push(...termGroup.dropped);
+    total += term.sign * termGroup.rolls.reduce((sum, v) => sum + v, 0);
+  }
+  const group: RollGroup = { rolls, total };
+  if (dropped.length > 0) {
+    group.dropped = dropped;
+  }
+  if (groupSpec.dice.hasModifier) {
+    group.modifier = groupSpec.dice.modifier;
+    group.total = total + groupSpec.dice.modifier;
+  }
+  return group;
+}
+
+export function rollAST(
+  ast: NotationAST,
+  notation: string,
+  options: RollOptions = {},
+): RollResult {
+  const state = createRollState(options);
+  const groups: Record<string, RollGroup> = {};
+  for (const groupSpec of ast.groups) {
+    const rolled = rollGroup(groupSpec, state);
+    if (groupSpec.slot !== undefined) {
+      rolled.slot = groupSpec.slot;
+    }
+    // Em notação de múltiplos grupos com soma ("1[1d6] + 2[2d6] + ..."), cada
+    // grupo é somado: calculamos o total de cada grupo se não houver operador interno.
+    if (
+      ast.groups.length > 1 &&
+      groupSpec.name.startsWith("group") &&
+      rolled.total === undefined
+    ) {
+      rolled.total =
+        rolled.rolls.reduce((sum, v) => sum + v, 0) +
+        (groupSpec.dice.modifier ?? 0);
+    }
+    groups[groupSpec.name] = rolled;
+  }
+  return {
+    notation,
+    groups,
+    timestamp: options.timestamp ?? new Date().toISOString(),
+  };
+}
+
+// Rola uma notacao camada 1 livre (sem profile, sem outcome).
+export function roll(notation: string, options: RollOptions = {}): RollResult {
+  return rollAST(parseNotation(notation), notation, options);
+}

@@ -40,6 +40,9 @@ fixture_tests! {
     // All approved by the maintainer on 2026-09-21 (PR #1: the first five;
     // PR #7: the other six). The first line of each expected.yaml says so.
     code_no_link_in_code => "code/no-link-in-code",
+    // AI draft of ADR 0088 (dice), awaiting approval (first line of its
+    // expected.yaml).
+    code_dice_inline => "code/dice-inline",
     wikilink_alias => "wikilink/alias",
     wikilink_block_reference => "wikilink/block-reference",
     wikilink_heading => "wikilink/heading",
@@ -55,6 +58,9 @@ fixture_tests! {
     block_alone_top => "block/alone-top",
     block_two_alone => "block/two-alone",
     callout_simple => "callout/simple",
+    // AI draft of ADR 0087 (secret blocks, spec Q9), awaiting approval
+    // (first line of its expected.yaml).
+    callout_secret => "callout/secret",
     embed_simple => "embed/simple",
     frontmatter_tags_aliases => "frontmatter/tags-aliases",
     // AI draft of the board's PR, awaiting approval (first line of its
@@ -67,6 +73,10 @@ fixture_tests! {
     // of each expected.yaml).
     schema_top_level => "schema/top-level",
     schema_nested_and_invalid => "schema/nested-and-invalid",
+    schema_infobox => "schema/infobox",
+    // AI draft of ADR 0089's prose (M6, the maintainer's answer of
+    // 2026-10-14), awaiting approval (first line of its expected.yaml).
+    prose_what_is_prose => "prose/what-is-prose",
 }
 
 fn check(name: &str, input: &str, expected: &str) {
@@ -101,6 +111,33 @@ fn check(name: &str, input: &str, expected: &str) {
                 check_property_link,
             ),
             "schemas" => check_list(&mut ctx, value, &document.schemas, check_schema),
+            "prose" => {
+                let runs = prose_runs(input);
+                if let Yaml::Sequence(items) = value
+                    && items.len() != runs.len()
+                {
+                    ctx.fail(format!(
+                        "expected {} run(s), the parser found {}: {runs:#?}",
+                        items.len(),
+                        runs.len()
+                    ));
+                } else {
+                    check_list(&mut ctx, value, &runs, check_prose);
+                }
+            }
+            // The note as a reader of a UniVerso receives it (spec §4.1,
+            // Q9; ADR 0087 item 3): the projection, byte for byte.
+            "reader" => match value {
+                Yaml::Value(Scalar::String(text)) => {
+                    let projected = verso_dialect::project(input);
+                    if projected != text.as_ref() {
+                        ctx.fail(format!(
+                            "the reader's text differs:\n--- expected\n{text}\n--- projection\n{projected}"
+                        ));
+                    }
+                }
+                _ => ctx.fail("`reader` is the projected text, a string".to_owned()),
+            },
             // Provenance, not behavior (spec §4.5); the lint script checks them.
             "observed" | "source" => {}
             other => ctx.fail(format!("unknown top-level key `{other}` (spec §4.1)")),
@@ -194,6 +231,12 @@ fn check_schema(ctx: &mut Ctx<'_>, item: &Yaml<'_>, block: &verso_dialect::Schem
     let type_field = fields.get("type");
     let labels = fields.get("labels");
     let properties = fields.get("properties");
+    // `layout` (ADR 0086 item 2): absent asserts none.
+    let layout = match &block.definition {
+        Some(Ok(schema)) => schema.layout.map(verso_dialect::Layout::as_str),
+        _ => None,
+    };
+    fields.optional_text("layout", layout);
     match &block.definition {
         Some(Ok(schema)) => {
             match type_field.map(as_str) {
@@ -457,6 +500,58 @@ fn check_embed(ctx: &mut Ctx<'_>, item: &Yaml<'_>, embed: &verso_dialect::Embed)
     fields.optional_text("alias", embed.alias.as_deref());
     fields.syntax();
     fields.pos(embed.pos);
+    fields.finish();
+}
+
+/// A run of prose (spec §4.9): its text as written, whether it sits in a
+/// table's cell, where it starts.
+#[derive(Debug)]
+struct ProseRun {
+    text: String,
+    table: bool,
+    pos: Pos,
+}
+
+fn prose_runs(input: &str) -> Vec<ProseRun> {
+    verso_dialect::prose(input)
+        .iter()
+        .map(|p| {
+            let before = input.get(..p.span.start).unwrap_or_default();
+            let line_start = before.rfind('\n').map_or(0, |k| k + 1);
+            ProseRun {
+                text: p.span.slice(input).unwrap_or_default().to_owned(),
+                table: p.table,
+                pos: Pos {
+                    line: u32::try_from(before.matches('\n').count() + 1).unwrap_or(u32::MAX),
+                    col: u32::try_from(
+                        input
+                            .get(line_start..p.span.start)
+                            .unwrap_or_default()
+                            .chars()
+                            .count()
+                            + 1,
+                    )
+                    .unwrap_or(u32::MAX),
+                },
+            }
+        })
+        .collect()
+}
+
+fn check_prose(ctx: &mut Ctx<'_>, item: &Yaml<'_>, run: &ProseRun) {
+    let Some(mut fields) = Fields::new(ctx, item) else {
+        return;
+    };
+    fields.text("text", &run.text);
+    match fields.get("table").map(as_bool) {
+        None if !run.table => {}
+        Some(Some(expected)) if expected == run.table => {}
+        Some(None) => fields.ctx.fail("table: must be true or false".to_owned()),
+        _ => fields
+            .ctx
+            .fail(format!("table: the parser found {}", run.table)),
+    }
+    fields.pos(run.pos);
     fields.finish();
 }
 

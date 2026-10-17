@@ -17,11 +17,12 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
 
 use serde_json::{Value, json};
-use verso_contract::{SyncLogEntry, SyncRefused, SyncStatus, SyncVersions};
+use verso_contract::{FolderQuota, SyncLogEntry, SyncRefused, SyncStatus, SyncVersions};
 use verso_core::servers;
 use verso_core::sync::{self as engine, Action, FileState, Files, Seen};
 
 use super::*;
+use crate::dns::SendRetrying;
 
 pub(crate) mod live;
 mod transfer;
@@ -51,12 +52,20 @@ pub(crate) struct Ctx {
     pub(crate) pt: Box<dyn Fn() -> bool + Send + Sync>,
     /// The status changed: the windows of the folder `key` hear it.
     pub(crate) shown: Shown,
-    /// A room's event, for the windows that hold its note (ADR 0082).
+    /// A room's event, for the windows that hold its note (ADR 0082); and
+    /// the folder near its quota, for the folder's windows (ADR 0084 item
+    /// 7).
     pub(crate) told: live::Told,
+    /// An event for every window of the app, whatever folder it shows: a
+    /// folder given to the account on the server (ADR 0084 item 7).
+    pub(crate) all: All,
 }
 
 /// Where a folder's status goes: its key and the status.
 pub(crate) type Shown = Box<dyn Fn(&str, &SyncStatus) + Send + Sync>;
+
+/// An event and its payload, for every window.
+pub(crate) type All = Box<dyn Fn(&str, &Value) + Send + Sync>;
 
 /// One synced folder's task.
 pub(crate) struct Syncer {
@@ -93,6 +102,10 @@ pub(crate) struct Syncer {
     /// person and the device (sync 2) — for the recent activity of what
     /// came from there.
     authors: Mutex<HashMap<String, Author>>,
+    /// Notes this window made from a template since the last pass, and
+    /// the hash of the text they were made with (ADR 0093 item 12): moved
+    /// into the state by the pass, kept here until the base has the path.
+    made: Mutex<BTreeMap<String, String>>,
 }
 
 /// Who made a change on the server: the person, the device.
@@ -124,7 +137,16 @@ impl Syncer {
             live: Arc::default(),
             settings_said: AtomicBool::new(false),
             authors: Mutex::new(HashMap::new()),
+            made: Mutex::new(BTreeMap::new()),
         })
+    }
+
+    /// A note made here from its template, with the text it was made with
+    /// (ADR 0093 item 12): if the server holds one of the same name another
+    /// device made apart from the same template, the two are joined
+    /// instead of a conflict's copy.
+    pub(crate) fn made_from_template(&self, path: &str, text: &str) {
+        lock(&self.made).insert(path.to_owned(), sha256(text.as_bytes()));
     }
 
     pub(crate) fn status(&self) -> SyncStatus {
@@ -709,8 +731,7 @@ pub(crate) struct Link {
 
 impl Link {
     /// The head of the server's log the device's files are known at.
-    // Its tests need a `verso serve`, not built for Windows.
-    #[cfg(all(test, not(windows)))]
+    #[cfg(test)]
     pub(crate) fn cursor(&self) -> Option<i64> {
         self.known.as_ref().map(|(_, head)| *head)
     }
@@ -729,7 +750,7 @@ pub(crate) async fn link(ctx: &Ctx, s: &Syncer) -> Result<Link, ContractError> {
             remote::http()?
                 .get(format!("{url}/api/folders"))
                 .bearer_auth(token)
-                .send()
+                .send_retrying()
                 .map_err(|e| reach::unsent(&url, &e))?,
         )
     })
@@ -825,6 +846,16 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
     let mut state = synced(ctx.config.as_deref(), &s.key).unwrap_or_default();
     state.server.clone_from(&s.url);
     state.folder.clone_from(&s.folder);
+    // The notes made from a template since: the base of a join should the
+    // server hold one of the same name (ADR 0093 item 12).
+    for (path, hash) in lock(&s.made).iter() {
+        if !state.base.contains_key(path) {
+            state
+                .made
+                .entry(path.clone())
+                .or_insert_with(|| hash.clone());
+        }
+    }
     // A share carries no settings of the folder's: none of the server's
     // is fetched over this computer's own (ADR 0070).
     if l.share {
@@ -1088,6 +1119,11 @@ fn save(ctx: &Ctx, s: &Syncer, state: &mut engine::State, head: i64) {
     }
     state.cursor = head;
     state.paused = s.paused.load(Ordering::Relaxed);
+    // A note made from a template that both sides agree on, or that the
+    // server holds since, needs no template base any more.
+    let base = &state.base;
+    state.made.retain(|p, _| !base.contains_key(p));
+    lock(&s.made).retain(|p, _| !base.contains_key(p));
     if let Err(e) = engine::save(ctx.config.as_deref(), &s.key, state) {
         log::write("ERROR", "sync", &format!("keeping the sync's state: {e}"));
     }
@@ -1103,6 +1139,32 @@ fn gone_line(path: &str, on: &str) {
             "gone here since the folder was listed: {path} (the folder is walked again; its deletion, or the server's newer version, is carried out on {on})"
         ),
     );
+}
+
+/// What the server pushed on the device's connection that a window says
+/// (ADR 0084 item 7): the folder near its quota, to this folder's windows
+/// (pushed only to connections on the server's folder, so it is this
+/// one's); a folder given to the account, to every window, naming the
+/// server. A pass needs neither. One that does not read as its type is
+/// not said.
+pub(crate) fn tell(ctx: &Ctx, s: &Syncer, event: &str, payload: Value) {
+    match event {
+        "folder-quota" => {
+            let windows = ctx.service.clients_of(&s.key);
+            let quota = serde_json::from_value::<FolderQuota>(payload)
+                .ok()
+                .and_then(|q| serde_json::to_value(q).ok());
+            if let (false, Some(quota)) = (windows.is_empty(), quota) {
+                (ctx.told)(&windows, event, &quota);
+            }
+        }
+        "share-given" => {
+            if let Some(given) = remote::with_server(event, payload, &s.url) {
+                (ctx.all)(event, &given);
+            }
+        }
+        _ => {}
+    }
 }
 
 /// Run a folder's sync until it is turned off or no window shows the
@@ -1201,7 +1263,7 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
                             l.role = role;
                             break false;
                         }
-                        Some(remote::Heard::Event(..)) => {}
+                        Some(remote::Heard::Event(e, payload)) => tell(&ctx, &s, &e, payload),
                         Some(remote::Heard::Gone(what, _)) if what == "session" => {
                             log::write("INFO", "sync", "signed out: the server ended this device's session");
                             ended = true;

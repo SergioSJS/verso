@@ -45,6 +45,10 @@ pub struct Config {
     /// Whether the server looks for a new version for the admin
     /// (`VERSO_UPDATE_CHECK=off` turns it off; answer E of 2026-10-09).
     pub update_check: bool,
+    /// Whether the server announces itself on the local network by mDNS
+    /// when it listens beyond loopback (`VERSO_ANNOUNCE=off` turns it
+    /// off; ADR 0097).
+    pub announce: bool,
     /// A token that reads the release feed while the repository is private
     /// (`VERSO_UPDATE_TOKEN`).
     pub update_token: Option<String>,
@@ -59,6 +63,10 @@ pub struct Config {
     /// says otherwise (`VERSO_TRASH_DAYS`, ADR 0080 item 3): 30 when unset,
     /// 0 for ever.
     pub trash_days: u32,
+    /// How many days a folder's version history keeps versions unless the
+    /// console says otherwise (`VERSO_HISTORY_DAYS`, ADR 0091 item 3): 365
+    /// when unset, 0 for no limit.
+    pub history_days: u32,
     /// How many days the audit log keeps a row (`VERSO_AUDIT_DAYS`, ADR
     /// 0083 item 10): 365 when unset, 0 for ever. Swept once a day by time
     /// alone (`crate::audit`); nothing else deletes a row.
@@ -199,13 +207,17 @@ impl Config {
             }
             (None, None) => None,
         };
+        // Empty or unset: loopback and the private networks are believed,
+        // so that nobody has to know a proxy's address; `none` believes no
+        // proxy (ADR 0073 item 6, amended 2026-10-16).
         let trusted_proxy = value(env, "VERSO_TRUSTED_PROXY")?
+            .filter(|a| !a.trim().is_empty())
             .map(|a| {
                 crate::proxy::Proxies::parse(&a)
                     .map_err(|e| ConfigError(format!("VERSO_TRUSTED_PROXY: {e}")))
             })
             .transpose()?
-            .unwrap_or_default();
+            .unwrap_or_else(crate::proxy::Proxies::private_networks);
         let tls = match (
             value(env, "VERSO_TLS_CERT_FILE")?,
             value(env, "VERSO_TLS_KEY_FILE")?,
@@ -219,6 +231,12 @@ impl Config {
             }
         };
         let update_check = !value(env, "VERSO_UPDATE_CHECK")?.is_some_and(|v| {
+            matches!(
+                v.to_ascii_lowercase().as_str(),
+                "off" | "0" | "false" | "no"
+            )
+        });
+        let announce = !value(env, "VERSO_ANNOUNCE")?.is_some_and(|v| {
             matches!(
                 v.to_ascii_lowercase().as_str(),
                 "off" | "0" | "false" | "no"
@@ -238,6 +256,7 @@ impl Config {
             trusted_proxy,
             tls,
             update_check,
+            announce,
             update_token: value(env, "VERSO_UPDATE_TOKEN")?,
             smtp_url: value(env, "VERSO_SMTP_URL")?,
             mail_from: value(env, "VERSO_MAIL_FROM")?,
@@ -251,8 +270,38 @@ impl Config {
                 })
                 .transpose()?,
             trash_days: days(env, "VERSO_TRASH_DAYS", verso_core::trash::DEFAULT_DAYS)?,
+            history_days: days(env, "VERSO_HISTORY_DAYS", verso_core::history::DEFAULT_DAYS)?,
             audit_days: days(env, "VERSO_AUDIT_DAYS", DEFAULT_AUDIT_DAYS)?,
         })
+    }
+
+    /// The configuration of "this app is a server" (ADR 0096): the local
+    /// database and indexes in `data_dir`, the window's files in `ui_dir`,
+    /// no accounts to make, no mail, no update check, no proxy — the
+    /// addresses it listens on are the mode's own (`crate::local`), not
+    /// `listen`, which only names the first of them.
+    #[must_use]
+    pub fn for_local(data_dir: PathBuf, ui_dir: PathBuf, listen: SocketAddr) -> Self {
+        Self {
+            listen,
+            public_url: None,
+            folders_dir: data_dir.join("no-folders-here"),
+            data_dir,
+            ui_dir,
+            web: true,
+            admin: None,
+            trusted_proxy: crate::proxy::Proxies::default(),
+            tls: None,
+            update_check: false,
+            announce: false,
+            update_token: None,
+            smtp_url: None,
+            mail_from: None,
+            folder_quota: None,
+            trash_days: verso_core::trash::DEFAULT_DAYS,
+            history_days: verso_core::history::DEFAULT_DAYS,
+            audit_days: DEFAULT_AUDIT_DAYS,
+        }
     }
 
     /// Whether the server is reached only from this machine: loopback, no
@@ -260,25 +309,6 @@ impl Config {
     #[must_use]
     pub fn loopback_only(&self) -> bool {
         self.listen.ip().is_loopback()
-    }
-
-    /// What to say at start when the public address is HTTPS but the
-    /// server listens on loopback with no TLS of its own and no trusted
-    /// proxy: the proxy in front of it, on this machine, is not believed,
-    /// and every visitor is this machine's address (ADR 0083 item 5).
-    #[must_use]
-    pub fn unproxied_https(&self) -> Option<String> {
-        let https = self
-            .public_url
-            .as_deref()
-            .is_some_and(|u| u.starts_with("https://"));
-        (https && self.loopback_only() && self.tls.is_none() && self.trusted_proxy.is_empty())
-            .then(|| {
-                format!(
-                    "VERSO_PUBLIC_URL is https but UniVerso listens on {} with no TLS of its own and no VERSO_TRUSTED_PROXY: the proxy in front of it is not believed, and every visitor counts as this machine — one address for every delay, none paced. Set VERSO_TRUSTED_PROXY=127.0.0.1 (::1 if the proxy connects over IPv6), or the proxy's address",
-                    self.listen
-                )
-            })
     }
 }
 
@@ -400,11 +430,19 @@ mod tests {
             assert!(read(&[("VERSO_TRASH_DAYS", bad)]).is_err());
         }
         assert_eq!(read(&[]).unwrap().trash_days, 30);
+        assert_eq!(read(&[]).unwrap().history_days, 365);
+        assert_eq!(
+            read(&[("VERSO_HISTORY_DAYS", "0")]).unwrap().history_days,
+            0
+        );
+        assert!(read(&[("VERSO_HISTORY_DAYS", "um ano")]).is_err());
     }
 
     #[test]
     fn update_check_and_tls_and_addresses() {
         assert!(!read(&[("VERSO_UPDATE_CHECK", "off")]).unwrap().update_check);
+        assert!(read(&[]).unwrap().announce);
+        assert!(!read(&[("VERSO_ANNOUNCE", "off")]).unwrap().announce);
         assert!(read(&[("VERSO_TLS_CERT_FILE", "/c")]).is_err());
         assert!(read(&[("VERSO_PUBLIC_URL", "ftp://x")]).is_err());
         let c = read(&[
@@ -416,41 +454,18 @@ mod tests {
         assert_eq!(c.public_url.as_deref(), Some("https://notas.casa"));
     }
 
-    /// An HTTPS public address served from loopback with no TLS of its
-    /// own is a proxy on this machine in front: with no trusted proxy, the
-    /// start says what to set; with one, own TLS, or another listen, it
-    /// says nothing.
-    #[test]
-    fn an_https_address_behind_an_untrusted_local_proxy_is_said_at_start() {
-        let https = [
-            ("VERSO_LISTEN", "127.0.0.1:7340"),
-            ("VERSO_PUBLIC_URL", "https://notas.casa"),
-        ];
-        let said = read(&https).unwrap().unproxied_https();
-        let said = said.expect("an https address on loopback with no trusted proxy is said");
-        assert!(said.contains("VERSO_TRUSTED_PROXY=127.0.0.1"), "{said}");
-        let mut trusted = https.to_vec();
-        trusted.push(("VERSO_TRUSTED_PROXY", "127.0.0.1"));
-        assert_eq!(read(&trusted).unwrap().unproxied_https(), None);
-        let mut own_tls = read(&https).unwrap();
-        own_tls.tls = Some(("/c".into(), "/k".into()));
-        assert_eq!(own_tls.unproxied_https(), None);
-        let plain = read(&[
-            ("VERSO_LISTEN", "127.0.0.1:7340"),
-            ("VERSO_PUBLIC_URL", "http://localhost:7340"),
-        ]);
-        assert_eq!(plain.unwrap().unproxied_https(), None);
-        let lan = read(&[
-            ("VERSO_LISTEN", "0.0.0.0:7340"),
-            ("VERSO_PUBLIC_URL", "https://notas.casa"),
-        ]);
-        assert_eq!(lan.unwrap().unproxied_https(), None);
-        assert_eq!(read(&[]).unwrap().unproxied_https(), None);
-    }
-
     #[test]
     fn the_trusted_proxies_are_a_list_or_one_address() {
-        assert!(read(&[]).unwrap().trusted_proxy.is_empty());
+        // Unset or empty: this machine and the private networks.
+        for env in [&[][..], &[("VERSO_TRUSTED_PROXY", "")][..]] {
+            let default = read(env).unwrap().trusted_proxy;
+            assert!(default.is_implicit());
+            assert!(default.trusts("192.168.1.9".parse().unwrap()));
+            assert!(default.trusts("127.0.0.1".parse().unwrap()));
+            assert!(!default.trusts("203.0.113.9".parse().unwrap()));
+        }
+        let none = read(&[("VERSO_TRUSTED_PROXY", "none")]).unwrap();
+        assert!(none.trusted_proxy.is_empty());
         let one = read(&[("VERSO_TRUSTED_PROXY", "127.0.0.1")]).unwrap();
         assert!(one.trusted_proxy.trusts("127.0.0.1".parse().unwrap()));
         let many = read(&[(

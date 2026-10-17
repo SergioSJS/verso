@@ -43,6 +43,25 @@
   As novidades de cada idioma vão marcadas na página, e o painel de
   atualização do app mostra só essa parte, no idioma da janela, em linhas
   simples (`app/ui/src/updateNews.ts`).
+  2026-10-14 — Decisão 6: os arquivos da release. Uma lista de checksums
+  assinada, `verso-<versão>-SHA256SUMS` e o `.sig` dela, no lugar de um
+  `.sig` ao lado de cada arquivo ([0055](0055-in-app-updater.md), revisto
+  no mesmo dia, o mantenedor: *"Sim, já na 0.8.3"*): uma release publica
+  16 arquivos, 30 na 0.8.3, a ponte que publica os dois. A lista é feita
+  por um job próprio quando todas as plataformas estão construídas; o job
+  de publicação confere os arquivos pelo nome contra o `release.mjs
+  assets` no lugar de uma contagem; a página diz que a lista e o `.sig`
+  podem ser ignorados.
+  2026-10-14 — a Consequência sobre a assinatura ad hoc respondida pelo
+  [0095](0095-mac-notarization-and-windows-code-signing.md), aceito pelo
+  mantenedor naquela noite (*"Sim, todas"*): um Developer ID e a
+  notarização para todo release a partir de quando o certificado existir,
+  os betas também, e um build de Mac x64 separado quando o repositório for
+  público.
+  2026-10-15 — o Developer ID e a notarização **abandonados**: o
+  mantenedor não vai se inscrever no Apple Developer Program nem pagar à
+  Apple (0095, Revisões). O app do Mac continua assinado ad hoc, como diz a
+  Consequência deste ADR; o build de Mac x64 vale.
 
 ## Contexto
 
@@ -119,7 +138,8 @@ modificações até gerar versão, considerando changelog inclusive"*.
    Linux publica a release quando os dois terminam — uma versão é publicada
    inteira ou não é. Desde 2026-10-09 cada arquivo é assinado com a chave
    de release do [0055](0055-in-app-updater.md), e o `.sig` dele é
-   publicado ao lado.)*
+   publicado ao lado; desde 2026-10-14 uma lista de checksums assinada no
+   lugar dos `.sig`, com a 0.8.3 publicando os dois.)*
 7. **O app diz qual ele é**: a versão e o commit de onde foi compilado, nos
    ajustes e no painel Sobre do macOS, e pelo `verso --version`.
 

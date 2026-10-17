@@ -6,6 +6,7 @@ tags:
   - dados
   - kanban
   - tabelas
+  - mapa
 status: ativo
 ---
 
@@ -21,9 +22,11 @@ A visão **Todos os Projetos** da base, incorporada aqui com `![[Projetos.base#T
 
 ![[Projetos.base#Todos os Projetos]]
 
+Ela não é só para olhar: os menus dela — **Ordenar**, **Filtrar**, **Propriedades**, **Ajustes da visão** — gravam a `Projetos.base` daqui mesmo, como a aba da base faria. Se a base mudou em outro lugar enquanto isso, nada é gravado por cima: a visão avisa e mostra o arquivo como ele está.
+
 ---
 
-## As Cinco Visões
+## As Seis Visões
 
 Uma base pode ter várias visões; troque de visão pelo menu no topo dela.
 
@@ -32,6 +35,7 @@ Uma base pode ter várias visões; troque de visão pelo menu no topo dela.
 3. **Lista**: compacta, para ler rápido.
 4. **Kanban**: colunas por uma propriedade (aqui, `status`). Arraste um cartão para outra coluna e o Verso grava o valor novo na nota.
 5. **Calendário**: cada nota no dia da sua propriedade de data (aqui, `date`). Os projetos são de setembro de 2026: volte até lá com a seta **‹**. Arraste uma nota para outro dia e a data muda na nota; o **+** num dia cria uma nota nele.
+6. **Mapa**: cada nota com coordenadas vira um marcador (aqui, a propriedade `local` dos projetos — São Paulo, Lisboa, Recife). Veja abaixo.
 
 ---
 
@@ -41,6 +45,37 @@ Uma base pode ter várias visões; troque de visão pelo menu no topo dela.
 - **Novo**: cria uma nota que já entra na base.
 - **Mais**: **Copiar como tabela Markdown**, **Copiar como CSV** e **Salvar como nota Markdown**.
 - No canto da aba, **Visão** e **Código** alternam entre a base e o texto dela.
+
+---
+
+## 🗺️ O Mapa
+
+A visão **Mapa** da base, incorporada:
+
+![[Projetos.base#Mapa]]
+
+- As coordenadas vêm de uma propriedade: um texto `"lat, lng"` (`local: "-23.5505, -46.6333"`) ou uma lista de dois números. Em **Ajustes da visão**, escolha essa propriedade, o ícone e a cor dos marcadores, o zoom e a altura dentro da nota.
+- Clique num marcador e a nota abre; pare o ponteiro sobre ele e ela aparece numa prévia.
+- Abaixo do mapa, os mesmos lugares em lista, na ordem da visão: é por ela que o teclado e o leitor de tela chegam a cada lugar.
+- Com o botão direito no mapa: **Copiar coordenadas**, **Usar como centro da visão** e **Usar este zoom na visão**.
+- **Sem rede por padrão**: o mapa desenha o contorno do mundo que vem com o Verso (Natural Earth, domínio público). Um fundo detalhado só com a sua escolha, em **Ajustes › Fundo dos mapas** — o OpenFreeMap está lá pelo nome, desligado até você ligar. Uma base que peça o próprio fundo (`mapTiles`) pergunta antes de buscar qualquer coisa: o servidor de tiles fica sabendo quais lugares você olha.
+- O formato é o do plugin **Maps** do Obsidian: a mesma base abre como mapa nos dois.
+
+---
+
+## 🔎 Expressões Regulares nas Fórmulas
+
+Uma fórmula pode usar uma expressão regular, como no Obsidian: `/padrão/flags`. A coluna **Mês** da tabela acima vem desta:
+
+```
+date.toString().replace(/^(\d{4})-(\d{2})-\d{2}$/, "$2/$1")
+```
+
+- `texto.replace(/x/, "y")` troca a primeira ocorrência; com `g`, todas. `$1`, `$2` repetem o que cada parêntese pegou.
+- `/abc/.matches(texto)` diz se há uma ocorrência; `texto.split(/,\s*/)` divide o texto.
+- As flags `i` (sem diferença de maiúsculas), `m`, `s` e `u` valem como no JavaScript.
+- `html("<b>Atenção</b>")` mostra HTML na célula, limpo como o HTML de uma nota: sem scripts, e imagens da web só com **Carregar conteúdo remoto** ligado.
+- O Verso avalia em tempo linear: nenhuma expressão trava a base, nem num servidor. Por isso não há *lookahead*, *lookbehind* (`(?<=…)`) nem referência a grupo (`\1`): uma expressão que use um deles mostra um aviso que diz qual, em vez de um resultado inventado.
 
 ---
 
@@ -54,6 +89,7 @@ filters:
     - file.inFolder("projetos")   # só as notas desta pasta
 formulas:
   orcamento_mil: "(orcamento / 1000).toFixed(1)"   # uma coluna calculada
+  mes: 'date.toString().replace(/^(\d{4})-(\d{2})-\d{2}$/, "$2/$1")'   # uma expressão regular
 properties:
   formula.orcamento_mil:
     displayName: Orçamento (mil)   # o nome que a coluna mostra
@@ -71,6 +107,9 @@ views:
   - type: calendar
     name: Calendário
     startDate: date
+  - type: map
+    name: Mapa
+    coordinates: note.local   # a propriedade com as coordenadas
 ```
 
 > [!warning] Sem filtro, a base lista tudo

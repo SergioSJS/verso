@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-get-obsidian-periodic"
+description = "Enables the get_obsidian_periodic command without any pre-configured scope."
+commands.allow = ["get_obsidian_periodic"]
+
+[[permission]]
+identifier = "deny-get-obsidian-periodic"
+description = "Denies the get_obsidian_periodic command without any pre-configured scope."
+commands.deny = ["get_obsidian_periodic"]

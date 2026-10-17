@@ -110,12 +110,12 @@ async fn write(socket: &mut WebSocket, message: Message, client: &str, account: 
 }
 
 pub async fn upgrade(ctx: Ctx, ws: WebSocketUpgrade) -> ApiResult<Response> {
-    ctx.secure()?;
     let who = ctx.who()?.clone();
     // The WebSocket of the contract checks `Origin` before it accepts the
     // cookie (ADR 0073 item 6, ADR 0074 item 7): a page of another site
     // cannot open it with the person's session.
-    if matches!(who.via, Via::Browser { .. }) && !crate::auth::origin_ok(&ctx.server, &ctx.headers)
+    if matches!(who.via, Via::Browser { .. })
+        && !crate::auth::origin_ok(&ctx.server, &ctx.headers, &ctx.peer)
     {
         return Err(ApiError::forbidden("not from a page of this server"));
     }
@@ -142,20 +142,51 @@ pub async fn upgrade(ctx: Ctx, ws: WebSocketUpgrade) -> ApiResult<Response> {
     // does every device of a server that speaks sync 1.
     let binary =
         verso_core::sync::binary_pieces(ours) && sync.is_some_and(verso_core::sync::binary_pieces);
-    let places = places(&ctx, &who)?;
+    let (places, phones_full) = places(&ctx, &who)?;
     let server = Arc::clone(&ctx.server);
     Ok(ws
         .max_message_size(MAX_MESSAGE)
+        // A browser sends a message as one frame, and a frame is 16 MiB by
+        // default: a picture over 12 MiB (16 MiB as base64) was cut off
+        // whatever the message limit said (measured 2026-10-15 with a
+        // 13 MiB image, `tests_attach.rs`).
+        .max_frame_size(MAX_MESSAGE)
         .on_upgrade(move |socket| async move {
             // Held as long as the connection.
             let _places = places;
+            if let Some(most) = phones_full {
+                // The ceiling of phones connected (ADR 0096 item 13), said
+                // to the phone: a browser's WebSocket never sees the status
+                // of a refused upgrade, only that it failed, so the upgrade
+                // is accepted and closed at once with an application code
+                // the window reads (`PHONES_FULL`).
+                let mut socket = socket;
+                let _ = socket
+                    .send(Message::Close(Some(axum::extract::ws::CloseFrame {
+                        code: PHONES_FULL,
+                        reason: format!("phones_connected:{most}").into(),
+                    })))
+                    .await;
+                return;
+            }
             run(server, who, socket, (sync_refused, binary)).await;
         }))
 }
 
+/// The close code (the 4000s are the application's) of a connection that
+/// "This app is a server" refused because the most phones it allows are
+/// connected already (ADR 0096 item 13); the window says so in words and
+/// tries again slowly (`app/ui/src/web/bridge.ts`).
+pub const PHONES_FULL: u16 = 4290;
+
+/// What a connection holds while it lasts: its places, and a phone's.
+type Held = (Vec<crate::fair::Held>, Option<crate::local::PhoneGuard>);
+
 /// The connection's places among its account's and its address's
-/// (threat-model.md, gap 4), or 429.
-fn places(ctx: &Ctx, who: &Who) -> ApiResult<Vec<crate::fair::Held>> {
+/// (threat-model.md, gap 4), or 429; and whether it is a phone refused by
+/// the ceiling of phones connected (the number it is), to be closed with
+/// `PHONES_FULL`.
+pub(crate) fn places(ctx: &Ctx, who: &Who) -> ApiResult<(Held, Option<u32>)> {
     let counts = &ctx.server.fair.connections;
     let too_many = |what: &str, most: u32| {
         crate::log::warn(&format!(
@@ -182,7 +213,7 @@ fn places(ctx: &Ctx, who: &Who) -> ApiResult<Vec<crate::fair::Held>> {
             })?,
     ];
     // This machine is the proxy in front, speaking for everyone.
-    if !ctx.peer.addr.is_loopback() {
+    if !ctx.peer.local {
         let address = format!("address:{}", ctx.peer.key());
         held.push(
             counts
@@ -195,7 +226,22 @@ fn places(ctx: &Ctx, who: &Who) -> ApiResult<Vec<crate::fair::Held>> {
                 })?,
         );
     }
-    Ok(held)
+    // "This app is a server": at most two phones connected at once (ADR
+    // 0096 item 13). A phone already connected opens another connection
+    // (a second tab) without taking another place.
+    let phone = match (&ctx.server.local, who.phone, who.session()) {
+        (Some(local), Some(_), Some(session)) => {
+            let name = local.name_of(&ctx.server, session);
+            let Some(guard) = local.enter(session, &name) else {
+                local.refused_full(&ctx.server, session, &name);
+                return Ok(((held, None), Some(local.connected_most())));
+            };
+            local.first_seen(&ctx.server, session);
+            Some(guard)
+        }
+        _ => None,
+    };
+    Ok(((held, phone), None))
 }
 
 /// Why a device that speaks sync `theirs` is refused by a server that
@@ -415,7 +461,7 @@ async fn run(
                 let turn = if request.cmd == "collab_awareness" {
                     Duration::ZERO
                 } else {
-                    server.fair.command(&who.account.id)
+                    server.fair.command(&who.account.id, &request.cmd)
                 };
                 // A window's room updates are taken in the order it sent
                 // them (ADR 0083 item 14): each waits for the one before
@@ -542,6 +588,31 @@ async fn handle(
             message: SIGNED_OUT.to_owned(),
         });
     }
+    // A phone's role as it stands now: the person may have let it edit (or
+    // only read) since the connection opened (ADR 0096, as built).
+    let refreshed;
+    let who = match (who.phone, who.session()) {
+        (Some(was), Some(session)) => match server.db.phone_role(session) {
+            Ok(Some(now)) if now != was => {
+                refreshed = Arc::new(Who {
+                    phone: Some(now),
+                    ..(**who).clone()
+                });
+                &refreshed
+            }
+            _ => who,
+        },
+        _ => who,
+    };
+    // A paired phone runs the commands on the allowlist and no other (ADR
+    // 0096 item 12): default deny, before anything else looks at the
+    // command.
+    if let Some(role) = who.phone
+        && let Err(refused) = crate::local::allow::check(&r.cmd, role)
+    {
+        crate::local::refused_command(server, &r.cmd);
+        return Err(refused);
+    }
     // A window on a share: the share looked at again first (ADR 0081
     // item 8).
     crate::shares::check(server, who, client)?;
@@ -643,6 +714,20 @@ async fn command(
             let c = client.to_owned();
             let summary = blocking(move || service.reindex(&c)).await?;
             record_space(server, client).await;
+            // What a run indexed would tell a reader a file changed, a
+            // secret-only edit among them (ADR 0087 item 4).
+            let summary = if crate::readers::reads_only(server, who, client)? {
+                verso_contract::IndexSummary {
+                    indexed: 0,
+                    unchanged: 0,
+                    removed: 0,
+                    placeholders: 0,
+                    problems: Vec::new(),
+                    ..summary
+                }
+            } else {
+                summary
+            };
             let mut summary = to_value(summary)?;
             if let Some(scope) = crate::shares::scope_here(server, client) {
                 let counts = share_counts(server, client, &scope).await;
@@ -658,10 +743,41 @@ async fn command(
             let text: String = arg(&args, "text")?;
             Ok(Value::String(verso_core::render_markdown(&text)))
         }
+        // The window's own text as a reader is served it (ADR 0087 item 5):
+        // a writer's "view as a reader".
+        "project_secrets" => {
+            let text: String = arg(&args, "text")?;
+            Ok(Value::String(
+                verso_core::secret::project(&text).into_owned(),
+            ))
+        }
+        // The window's own board as a reader is served it (ADR 0090 item
+        // 5): a writer's "view as a reader".
+        "project_board" => {
+            let text: String = arg(&args, "text")?;
+            Ok(Value::String(
+                verso_core::canvas_secret::project(&text).into_owned(),
+            ))
+        }
         "board_text" => {
             let json: String = arg(&args, "json")?;
             to_value(ops::board_text(&json)?)
         }
+        "embed_frameable" => {
+            let url: String = arg(&args, "url")?;
+            let Ok(parsed) = reqwest::Url::parse(&url) else {
+                return Ok(Value::Bool(false));
+            };
+            if !matches!(parsed.scheme(), "http" | "https") {
+                return Ok(Value::Bool(false));
+            }
+            let verdict =
+                crate::framing::check(&parsed, None, crate::framing::WEB_USER_AGENT).await;
+            Ok(Value::Bool(verdict.frameable))
+        }
+        // A phone's window reports nothing into the computer's log (ADR
+        // 0096 item 12: heard, dropped).
+        "log_write" if who.phone.is_some() => Ok(Value::Null),
         "log_write" => {
             let level: String = arg(&args, "level")?;
             let message: String = arg(&args, "message")?;
@@ -685,8 +801,12 @@ async fn command(
         // On a server the walk's rules and the folder note's name are the
         // folder's (ADR 0070): its owner's window sets them; another
         // member's is heard and changes nothing.
+        // A paired phone's window asks them while it loads and changes
+        // nothing here (ADR 0096 item 12).
         "set_walk_rules" | "set_folder_note_name" => {
-            if let Ok((_, Role::Owner)) = role_here(server, client) {
+            if who.phone.is_none()
+                && let Ok((_, Role::Owner)) = role_here(server, client)
+            {
                 let rules = (r.cmd == "set_walk_rules")
                     .then(|| -> Result<_, ContractError> {
                         Ok(verso_core::WalkRules {
@@ -710,10 +830,15 @@ async fn command(
         }
         // The person's own, kept by the window: the approved embed origins
         // are the reader's (answer I), the menu is the desktop's.
-        "set_embed_origins" | "set_menu_language" => Ok(Value::Null),
+        // A note made from its template: what joins two made apart is the
+        // desktop sync's (ADR 0093 item 12); a server's folder is one copy.
+        "set_embed_origins" | "set_menu_language" | "note_made_from_template" => Ok(Value::Null),
+        // The computer's own history's retention (ADR 0091 item 8): a
+        // server keeps its folders' by VERSO_HISTORY_DAYS and the console.
+        "set_history_days" => Ok(Value::Null),
         "fetch_file" => Ok(Value::Bool(false)),
         "collab_join" | "collab_update" | "collab_awareness" | "collab_leave" | "collab_save"
-        | "collab_resolve" | "collab_present" | "collab_canvas" => {
+        | "collab_resolve" | "collab_present" | "collab_canvas" | "collab_roll" => {
             collab_command(server, who, client, &r.cmd, &args).await
         }
         "trash_list" | "trash_restore" | "trash_delete" | "trash_empty" | "trash_set_days" => {
@@ -724,6 +849,10 @@ async fn command(
                 }
                 None => crate::trash::command(server, who, client, &r.cmd, args).await,
             }
+        }
+        // A file's version history (ADR 0091): those who may write it.
+        "history_list" | "history_read" | "history_restore" | "history_copy" | "history_delete" => {
+            crate::history::command(server, who, client, &r.cmd, args).await
         }
         _ => Err(refused("not on a server")),
     }
@@ -785,7 +914,7 @@ async fn collab_command(
         // Whether someone is in the note: a write that is not a keystroke
         // joins the room to be made there (ADR 0082).
         "collab_present" => Ok(Value::Bool(s.rooms.occupied(&key, &path))),
-        "collab_join" => to_value(crate::collab::join(&s, &c, &key, &path, &user)?),
+        "collab_join" => to_value(crate::collab::join(&s, (&c, !writes), &key, &path, &user)?),
         "collab_update" => {
             let update: String = arg(&args, "update")?;
             crate::collab::update(&s, (&c, &account), &key, &path, &update)?;
@@ -804,6 +933,19 @@ async fn collab_command(
         "collab_leave" => {
             crate::collab::leave(&s, &c, &key, &path);
             Ok(Value::Null)
+        }
+        // Dice (ADR 0088 item 4): the server rolls, a reader too.
+        "collab_roll" => {
+            let notation: String = arg(&args, "notation")?;
+            let source: Option<String> = arg(&args, "source")?;
+            let sender = crate::presence::Sender {
+                client: &c,
+                account: &account,
+                name: &user,
+            };
+            to_value(crate::collab::roll(
+                &s, &sender, &key, &path, &notation, source,
+            )?)
         }
         "collab_save" => to_value(crate::collab::save(&s, &key, &path)?),
         "collab_canvas" => {
@@ -878,8 +1020,19 @@ async fn folder_command(
     // A window on a share (ADR 0081 item 2): its paths joined to the
     // shared folder's and confined there before the core acts; the answer
     // filtered to the share and re-rooted at it.
+    // One who may only read is answered from the notes' projections (ADR
+    // 0087): `folder_run` dispatches by the reader's list of commands.
+    let reads_only = !(role.writes() && token_writes);
     let Some(scope) = scope else {
-        return folder_run(server, who, client, (name, access), (&folder, &key), args).await;
+        return folder_run(
+            server,
+            who,
+            client,
+            (name, access, reads_only),
+            (&folder, &key),
+            args,
+        )
+        .await;
     };
     let limit = args["limit"]
         .as_u64()
@@ -908,7 +1061,7 @@ async fn folder_command(
             let within = scope.roots();
             let answer = blocking(move || {
                 s.service
-                    .with(&c, |ws| ops::query_base_within(ws, query, within))
+                    .with(&c, |ws| ops::query_base_as(ws, query, within, reads_only))
                     .and_then(to_value)
             })
             .await
@@ -924,18 +1077,41 @@ async fn folder_command(
                 ..verso_contract::FolderLayer::default()
             });
         }
+        // Obsidian's settings are the whole folder's too (ADR 0093 item
+        // 11): a share is offered none.
+        "get_obsidian_periodic" => {
+            return to_value(verso_contract::ObsidianPeriodic::default());
+        }
         "folder_space" => {
             let k = key.clone();
             let sc = scope.clone();
-            let space = blocking(move || s.service.with_key(&k, |ws| Ok(sc.space(ws)))).await?;
+            let space = blocking(move || {
+                s.service.with_key(&k, |ws| {
+                    // A reader's sizes are the projections' (ADR 0087).
+                    let entries = if reads_only {
+                        ws.reader_entries()?
+                    } else {
+                        ws.entries().to_vec()
+                    };
+                    Ok(sc.space(&entries))
+                })
+            })
+            .await?;
             return to_value(space);
         }
         _ => {}
     }
     let args = scope.args_in(name, args)?;
-    let mut answer = folder_run(server, who, client, (name, access), (&folder, &key), args)
-        .await
-        .map_err(|e| scope.error(e))?;
+    let mut answer = folder_run(
+        server,
+        who,
+        client,
+        (name, access, reads_only),
+        (&folder, &key),
+        args,
+    )
+    .await
+    .map_err(|e| scope.error(e))?;
     // A note's type through the share names the share's schemas only
     // (ADR 0081 item 11).
     if matches!(name, "read_note" | "create_note" | "write_note") && answer.is_object() {
@@ -979,7 +1155,7 @@ async fn folder_run(
     server: &Arc<Server>,
     who: &Who,
     client: &str,
-    (name, access): (&str, Access),
+    (name, access, reader): (&str, Access, bool),
     (folder, key): (&str, &str),
     args: Value,
 ) -> Result<Value, ContractError> {
@@ -1062,9 +1238,17 @@ async fn folder_run(
             service.with(&c, |ws| {
                 crate::texts::judged(ws, &n, &args).map_err(verso_service::OpError::Contract)
             })?;
-            service
-                .dispatch(&c, &n, args)
-                .unwrap_or_else(|| Err(refused("no such command")))
+            // A reader's answer from the projections; a command a
+            // reader may not call, refused (ADR 0087 item 9).
+            if reader {
+                service
+                    .dispatch_reader(&c, &n, args)
+                    .unwrap_or_else(|| Err(refused("you may only read this folder")))
+            } else {
+                service
+                    .dispatch(&c, &n, args)
+                    .unwrap_or_else(|| Err(refused("no such command")))
+            }
         };
         if moves && let Ok(notes) = service.with(&c, ops::list_notes) {
             crate::collab::close_missing(&s, &key, &notes);

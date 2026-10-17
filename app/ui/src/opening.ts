@@ -4,6 +4,7 @@
 
 import { commands, type ContractError } from "./bindings";
 import { ui } from "./dom";
+import { isTransport } from "./errorKinds";
 import { fail } from "./errors";
 import { name } from "./paths";
 import { t } from "./strings";
@@ -21,7 +22,7 @@ export async function fetchFirst(path: string): Promise<boolean> {
   window.clearTimeout(timer);
   if (r.status !== "ok") {
     // iCloud's failure is said as one; any other is said as what it is.
-    if (r.error.kind === "unavailable") ui.status.textContent = t.fetchFailed(name(path));
+    if (r.error.kind === "unavailable" && !isTransport(r.error)) ui.status.textContent = t.fetchFailed(name(path));
     else fail(r.error);
     return false;
   }
@@ -38,6 +39,8 @@ export const quietPaths = new Set<string>();
 export async function fetched<T extends { status: "ok" } | { status: "error"; error: ContractError }>(path: string, read: () => Promise<T>, quiet = false): Promise<T> {
   const r = await read();
   if (r.status !== "error" || r.error.kind !== "unavailable" || quiet) return r;
+  // The connection failed, not a file in the cloud: nothing to download.
+  if (isTransport(r.error)) return r;
   return (await fetchFirst(path)) ? read() : r;
 }
 export const opening = {

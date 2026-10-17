@@ -132,8 +132,28 @@ impl Index {
     /// matter (tokenizer, ADR 0046, provisional). A note found by its name
     /// keeps the excerpt of its content when the content matched too.
     pub fn search(&self, query: &str, limit: usize) -> Result<Vec<Hit>, IndexError> {
+        self.search_as(query, limit, false)
+    }
+
+    /// [`Index::search`] as a reader asks it (ADR 0087 item 6): the words
+    /// looked for in the title and the public text only — never in the
+    /// secret blocks' text, which the index holds apart — and each excerpt
+    /// cut from the public text.
+    pub fn reader_search(&self, query: &str, limit: usize) -> Result<Vec<Hit>, IndexError> {
+        self.search_as(query, limit, true)
+    }
+
+    fn search_as(&self, query: &str, limit: usize, reader: bool) -> Result<Vec<Hit>, IndexError> {
         let Some(expr) = match_expression(query) else {
             return Ok(Vec::new());
+        };
+        // The columns: a reader's words never reach `secret`. The user's
+        // words are still only quoted strings (feature 3 guardrail); the
+        // column filter is ours.
+        let expr = if reader {
+            format!("{{title content}} : ({expr})")
+        } else {
+            expr
         };
         let words: Vec<String> = query
             .split_whitespace()
@@ -187,11 +207,24 @@ impl Index {
             }
         }
         let named = best.into_sorted_vec();
-        let mut st = self.conn.prepare(
-            "SELECT path, snippet(notes_fts, -1, '[', ']', '…', 12)
+        // A reader's excerpt from the public text (column 2), whatever
+        // matched; anyone else's from the column that matched best.
+        let column = if reader { 2 } else { -1 };
+        // A reader's hits come in the order of their paths: the rank of
+        // FTS5 weighs the length of the whole row, the secret column's
+        // text with it, even with the column's weight at zero, so the
+        // order would tell a reader how long a secret block grew (ADR 0087
+        // item 4). The names are ranked above, apart from this.
+        let order = if reader {
+            "path COLLATE NOCASE, path"
+        } else {
+            "rank"
+        };
+        let mut st = self.conn.prepare(&format!(
+            "SELECT path, snippet(notes_fts, {column}, '[', ']', '…', 12)
              FROM notes_fts WHERE notes_fts MATCH ?1
-             ORDER BY rank LIMIT ?2",
-        )?;
+             ORDER BY {order} LIMIT ?2"
+        ))?;
         // `limit` rows are enough: at most as many as were named are named
         // again, and those places are taken already.
         let rows = st.query_map(
@@ -228,6 +261,31 @@ impl Index {
         );
         hits.truncate(limit);
         Ok(hits)
+    }
+}
+
+impl Index {
+    /// The notes whose text holds `phrase` — its words in a row, accents
+    /// and case folded as the search folds them — at most `limit`: the
+    /// candidates of a note's unlinked mentions (ADR 0089 item 1), which
+    /// the core then reads and scans for the name as written. The phrase
+    /// goes in as one FTS5 string, bound, its quotes doubled: never the
+    /// grammar (feature 3 guardrail). A phrase with no letter or digit
+    /// holds no word the index knows: none.
+    pub fn notes_holding(&self, phrase: &str, limit: usize) -> Result<Vec<String>, IndexError> {
+        let clean: String = phrase.chars().filter(|c| !c.is_control()).collect();
+        if !clean.chars().any(char::is_alphanumeric) {
+            return Ok(Vec::new());
+        }
+        let expr = format!("\"{}\"", clean.replace('"', "\"\""));
+        let mut st = self
+            .conn
+            .prepare("SELECT path FROM notes_fts WHERE notes_fts MATCH ?1 LIMIT ?2")?;
+        let rows = st.query_map(
+            params![expr, i64::try_from(limit).unwrap_or(i64::MAX)],
+            |r| r.get(0),
+        )?;
+        Ok(rows.collect::<Result<_, _>>()?)
     }
 }
 

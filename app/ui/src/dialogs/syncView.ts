@@ -10,7 +10,7 @@
 // conflito atual, se preciso fazer algo".
 
 import { commands, type SyncLogEntry, type SyncRefused, type SyncStatus } from "../bindings";
-import { ask } from "../dialog";
+import { ask, promptText } from "../dialog";
 import { diffNode } from "../diff";
 import { h } from "../dom";
 import { errorSentence, fail } from "../errors";
@@ -37,7 +37,7 @@ const pt = {
   stoppedBefore: (n: number) => `Parada antes de apagar ${n} arquivos.`,
   error: "A sincronização não está funcionando.",
   where: (folder: string, server: string) => `${folder} em ${server}`,
-  role: (r: string): string => (r === "owner" ? "você é dona da pasta" : r === "editor" ? "você edita" : "você só lê"),
+  role: (r: string): string => (r === "owner" ? "a pasta é sua" : r === "editor" ? "você edita" : "você só lê"),
   last: (ago: string) => `última vez ${ago}`,
   justNow: "agora há pouco",
   minutes: (n: number) => `há ${n} min`,
@@ -73,6 +73,8 @@ const pt = {
   discard: "Descartar cópia",
   discardAsk: (copy: string) => `Descartar ${copy}? Ela vai para a lixeira da pasta e some dos outros aparelhos.`,
   notText: "Não é texto: abra as duas para comparar.",
+  rename: "Renomear",
+  renameAsk: (name: string) => `Novo nome para ${name}:`,
   orphanWhy: (n: number, note: boolean) => {
     const what = note ? "A nota" : "O arquivo";
     const gone = note ? "renomeada ou apagada" : "renomeado ou apagado";
@@ -94,7 +96,7 @@ const pt = {
     name_invalid: "Renomeie: tire o ponto ou o espaço do fim, os sinais < > : \" | ? * \\ e nomes como CON. Depois eles sincronizam sozinhos.",
     name_taken: "Renomeie um dos dois: o Windows e o macOS não guardam dois nomes assim na mesma pasta.",
     case_twin_there: "Num Mac ou no Windows os dois seriam um arquivo só. Renomeie um deles no servidor (no navegador ou em outro aparelho) e os dois chegam aqui.",
-    reader: "Eles ficam só neste computador. Peça para editar a quem é dono da pasta, se for o caso.",
+    reader: "Eles ficam só neste computador. Peça para editar a quem tem a pasta, se for o caso.",
     quota: "Libere espaço na pasta, ou peça ao admin do servidor para aumentar a cota.",
     placeholder: "Baixe-os do iCloud ou do OneDrive para que sincronizem.",
     too_large: "Arquivos assim não sincronizam.",
@@ -128,7 +130,7 @@ const en: typeof pt = {
   stoppedBefore: (n) => `Stopped before deleting ${n} files.`,
   error: "Sync is not working.",
   where: (folder, server) => `${folder} on ${server}`,
-  role: (r) => (r === "owner" ? "you own the folder" : r === "editor" ? "you edit" : "you only read"),
+  role: (r) => (r === "owner" ? "the folder is yours" : r === "editor" ? "you edit" : "you only read"),
   last: (ago) => `last ${ago}`,
   justNow: "just now",
   minutes: (n) => `${n} min ago`,
@@ -164,6 +166,8 @@ const en: typeof pt = {
   discard: "Discard copy",
   discardAsk: (copy) => `Discard ${copy}? It goes to the folder's bin and leaves the other devices.`,
   notText: "Not text: open both to compare.",
+  rename: "Rename",
+  renameAsk: (name: string) => `New name for ${name}:`,
   orphanWhy: (n, note) => {
     const what = note ? "note" : "file";
     return n === 1 ? `The ${what} this copy is of no longer exists (renamed or deleted). Open the copy, or discard it.` : `The ${what} these copies are of no longer exists (renamed or deleted). Open the copies, or discard them.`;
@@ -266,7 +270,7 @@ function capitalized(text: string): string {
 
 /** Draw the section for a folder that syncs. `openServers` opens the
  *  Servers section, where a computer signs in again. */
-export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, problemText: ProblemText, openServers: () => void): void {
+export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, problemText: ProblemText, openServers: () => void, own?: { turnOff: boolean }): void {
   const s = words();
   // Conflicts by the note they are of; files left out by why.
   const byNote = new Map<string, string[]>();
@@ -305,14 +309,18 @@ export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, p
   else if (userPaused) actions.append(button(s.resume, "primary", () => void commands.folderSyncPause(false).then(() => refresh())));
   else if (deletionsPaused) actions.append(syncNow());
   else actions.append(syncNow(), button(s.pause, "", () => void commands.folderSyncPause(true).then(() => refresh())));
-  actions.append(
-    button(s.turnOff, "quiet", () => {
-      void ask(s.turnOffAsk, { yes: s.turnOffYes, no: s.no }).then((yes) => {
-        if (!yes) return;
-        void commands.folderSyncStop().then((r) => (r.status === "ok" ? refresh() : fail(r.error)));
-      });
-    }),
-  );
+  // A folder kept in a browser (ADR 0092) turns off in its own section,
+  // which says what turning off deletes here.
+  if (own?.turnOff !== false) {
+    actions.append(
+      button(s.turnOff, "quiet", () => {
+        void ask(s.turnOffAsk, { yes: s.turnOffYes, no: s.no }).then((yes) => {
+          if (!yes) return;
+          void commands.folderSyncStop().then((r) => (r.status === "ok" ? refresh() : fail(r.error)));
+        });
+      }),
+    );
+  }
   top.append(sentence, metaLine);
   if (problem) top.append(h("p", "sync-problem", capitalized(problem)));
   top.append(actions, togetherRow(refresh));
@@ -348,7 +356,26 @@ export function drawSyncOn(box: HTMLElement, st: SyncStatus, refresh: Refresh, p
     const title = (s.reasonTitle[reason] ?? s.reasonTitle["failed"]!)(files.length);
     const list = h("ul", "sync-files");
     for (const f of files) {
-      const li = h("li", "", f.path);
+      const li = h("li", "sync-file-row");
+      const nameSpan = h("span", "sync-file-path", f.path);
+      li.append(nameSpan);
+      if (reason === "name_invalid") {
+        const btn = button(s.rename, "quiet", () => {
+          const parts = f.path.split("/");
+          const oldName = parts.pop() ?? f.path;
+          const parent = parts.join("/");
+          void promptText(s.renameAsk(oldName), oldName, false, { yes: s.rename, no: s.no }).then((newName) => {
+            const clean = newName?.trim();
+            if (!clean || clean === oldName) return;
+            const target = parent ? `${parent}/${clean}` : clean;
+            void commands.renameEntry(f.path, target).then((r) => {
+              if (r.status === "ok") void refresh();
+              else fail(r.error);
+            });
+          });
+        });
+        li.append(btn);
+      }
       if (reason === "failed" && f.message) li.title = f.message;
       list.append(li);
     }

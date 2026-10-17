@@ -6,9 +6,6 @@
 //! maintainer's answer K): a real `verso serve` on this machine, a device
 //! signed in to it, and the window's commands answered by the server.
 
-// The server is not built for Windows (crates/verso-cli/Cargo.toml).
-#![cfg(not(windows))]
-
 use std::io::Write;
 
 use serde_json::{Value, json};
@@ -159,7 +156,29 @@ fn a_window_on_a_servers_folder_is_answered_by_the_server() {
     let accounts = call(&main, "server_accounts", json!({})).unwrap();
     assert_eq!(accounts[0]["email"], "ana@casa.lan");
     let folders = call(&main, "server_folders", json!({ "url": url })).unwrap();
-    assert_eq!(folders[0]["name"], "Campanha");
+    assert_eq!(folders["folders"][0]["name"], "Campanha");
+    // The account may make folders (the maintainer, 2026-10-16): it is told
+    // with the list, and the app makes one through the server.
+    assert_eq!(folders["may_create"], true, "{folders}");
+    let made = call(
+        &main,
+        "server_create_folder",
+        json!({ "url": url, "name": "Nova" }),
+    )
+    .unwrap();
+    assert_eq!(made["name"], "Nova");
+    assert_eq!(made["role"], "owner");
+    assert!(made["id"].as_str().is_some_and(|id| !id.is_empty()));
+    // A name a folder has is refused, said by the server, never merged.
+    let taken = call(
+        &main,
+        "server_create_folder",
+        json!({ "url": url, "name": "Nova" }),
+    )
+    .unwrap_err();
+    assert_eq!(taken["kind"], "failed", "{taken}");
+    let after = call(&main, "server_folders", json!({ "url": url })).unwrap();
+    assert_eq!(after["folders"].as_array().unwrap().len(), 2, "{after}");
     let info = call(
         &main,
         "server_open",
@@ -399,4 +418,42 @@ fn a_server_that_answers_no_ping_is_heard_closed_and_one_that_does_stays() {
             "a server that answers its pings is kept"
         );
     });
+}
+
+/// "Sincronizar" with nothing asked first (the maintainer, 2026-10-16): a
+/// folder named like one the server has gets a folder of its own, `(2)`;
+/// and the first sync into that empty folder sends the local notes up and
+/// leaves every local file as it was.
+#[test]
+fn a_new_server_folder_takes_a_free_name_and_the_first_sync_into_it_only_uploads() {
+    use super::tests_sync::{device_at, files, serve, sync, text};
+
+    let r = serve(&[]);
+    // The server has "Campanha"; the local folder is named alike.
+    let first = remote::make_folder(&r.url, &r.owner, "Campanha", false).unwrap_err();
+    assert_eq!(first.kind, ErrorKind::Failed, "{first:?}");
+    let made = remote::make_folder(&r.url, &r.owner, "Campanha", true).unwrap();
+    assert_eq!(made["name"], "Campanha (2)", "{made}");
+    let again = remote::make_folder(&r.url, &r.owner, "Campanha", true).unwrap();
+    assert_eq!(again["name"], "Campanha (3)", "{again}");
+    // Nothing the server had was touched: its folder is not the new one.
+    assert_ne!(made["id"], json!(r.folder));
+
+    let id = made["id"].as_str().unwrap();
+    let a = device_at(
+        &r.url,
+        id,
+        &r.owner,
+        &[("Sessao.md", "# Sessao\n"), ("Notas/Ideia.md", "# Ideia\n")],
+    );
+    let passed = sync(&a);
+    assert!(passed.actions >= 2, "{passed:?}");
+    // Every local file as it was; none made, none removed.
+    assert_eq!(files(&a), vec!["Notas/Ideia.md", "Sessao.md"]);
+    assert_eq!(text(&a, "Sessao.md").as_deref(), Some("# Sessao\n"));
+    assert_eq!(text(&a, "Notas/Ideia.md").as_deref(), Some("# Ideia\n"));
+    // Another computer finds them on the server.
+    let b = device_at(&r.url, id, &r.owner, &[]);
+    sync(&b);
+    assert_eq!(text(&b, "Notas/Ideia.md").as_deref(), Some("# Ideia\n"));
 }

@@ -1,0 +1,347 @@
+// Copied from Rolai, the maintainer's dice roller
+// (https://github.com/SergioSJS/rolai), packages/rules-engine/src/parser.ts, at
+// commit 368d677c8347609c243473046d4f06a1126ddb74 (2026-08-21), for ADR 0088
+// item 5: its parser and roller copied into the window, the MIT notice kept.
+// Verso's changes: the imports name their modules without `.js`; the
+// percentile die `d%` (a d100) and the exploding die `!` after a die
+// (`1d6!`), with the Dice Roller README's meaning (ADR 0088, D1, answered
+// by the maintainer on 2026-10-14).
+//
+// MIT License
+//
+// Copyright (c) 2026 Sérgio J. Sousa
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+// Parser da notacao de dados camada 1 — ver docs/roll-notation.md.
+// Produz o AST (NotationAST); a execucao fica em roller.ts.
+
+export type ComparisonOp = "<" | "<=" | ">" | ">=" | "=";
+export type KeepDropType = "kh" | "kl" | "dh" | "dl";
+
+export interface RerollSpec {
+  op: ComparisonOp;
+  value: number;
+}
+
+export interface KeepDropSpec {
+  type: KeepDropType;
+  count: number;
+}
+
+export interface DiceSpec {
+  count: number;
+  sides: number;
+  modifier: number;
+  // Distingue "2d6" de "2d6+0" (profiles interpolam modificador mesmo zero):
+  // a presenca explicita de modificador forca o calculo de `total`.
+  hasModifier: boolean;
+  keepDrop?: KeepDropSpec;
+  reroll?: RerollSpec;
+  // Dado Fudge/Fate ("4dF"): tres faces com valor -1, 0 e +1. `sides` fica 3
+  // (tres resultados distintos, o que mantem keep/drop e o RNG coerentes);
+  // quem mapeia pro intervalo [-1, 1] e o roller.
+  fudge?: true;
+  // Cartas de baralho ("2c"): valores 1..10 (ou 1..13).
+  card?: true;
+  // Verso: the exploding die ("1d6!"): a die at its highest face adds one
+  // more of it, which may explode in turn (the roller caps the chain).
+  explode?: true;
+}
+
+// Um termo de dado dentro de um grupo multi-termo ("2d6+1d4-1d20").
+// `sign` aplica na soma do total; keep/drop/reroll ficam presos ao termo
+// (nunca misturam dados de termos diferentes). O modificador numerico
+// NAO vive no termo — numeros soltos agregam no modificador do grupo.
+export interface DiceTerm {
+  sign: 1 | -1;
+  dice: DiceSpec;
+}
+
+export interface GroupSpec {
+  name: string;
+  // Primeiro termo + modificador agregado do grupo — leitura historica do
+  // campo, mantida pra compatibilidade. Em grupo multi-termo, use `terms`.
+  dice: DiceSpec;
+  // Termos de dado em ordem. Sempre presente: grupo simples tem 1 termo.
+  terms: DiceTerm[];
+  /** Slot de cor do dado (1 = primário, 2 = secundário, 3 = terciário). */
+  slot?: number;
+}
+
+export interface NotationAST {
+  groups: GroupSpec[];
+}
+
+export class NotationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NotationError";
+  }
+}
+
+const MAX_DICE = 100;
+const MAX_SIDES = 1000;
+
+// Bloco de grupo individual: "{2d6}", "[2d6]", "1[3d6]", "2{2d6}", "3[1d6]".
+const GROUP_BLOCK_STR = "(?:([1-9]\\d*)?(?:\\{([^{}]+)\\}|\\[([^\\[\\]]+)\\]))";
+const GROUP_BLOCK_PATTERN = new RegExp(`^${GROUP_BLOCK_STR}$`);
+const VS_PATTERN = new RegExp(`^${GROUP_BLOCK_STR}\\s+vs\\s+${GROUP_BLOCK_STR}$`, "i");
+const PLUS_GROUPS_TEST = new RegExp(`^${GROUP_BLOCK_STR}(?:\\s*\\+\\s*${GROUP_BLOCK_STR})+$`);
+const PLUS_GROUPS_EXTRACT = new RegExp(GROUP_BLOCK_STR, "g");
+// "2d6", "d20", "4dF", "2c" (cartas de baralho); Verso: "d%", a d100.
+const DICE_HEAD = /^(\d*)(?:d(\d+|f|%)|c)/i;
+const NUMBER = /^(\d+)/;
+const TOKEN_PATTERNS: [RegExp, string][] = [
+  [/^(kh|kl|dh|dl)(\d+)/i, "keepdrop"],
+  [/^!r(<=|>=|<|>|=)(\d+)/i, "reroll"],
+  // Verso: "!" alone after the die explodes it ("!!" is not read).
+  [/^!(?![r!])/i, "explode"],
+  [/^(adv|dis)/i, "advantage"],
+  [/^([+-])(\d+)/, "modifier"],
+];
+
+// Sufixos que NAO sao modificador numerico (keep/drop, reroll, adv/dis) —
+// compartilhado entre o parser de expressao unica e o de termos.
+const TERM_TOKEN_PATTERNS = TOKEN_PATTERNS.filter(([, kind]) => kind !== "modifier");
+
+function parseHead(rest: string, expr: string): { spec: DiceSpec; rest: string } {
+  const head = DICE_HEAD.exec(rest);
+  if (!head) {
+    throw new NotationError(`expressao de dados invalida: "${expr}"`);
+  }
+  const count = head[1] === "" ? 1 : Number(head[1]);
+  const isCard = head[0].toLowerCase().endsWith("c");
+  const fudge = !isCard && head[2]?.toLowerCase() === "f";
+  const sides = isCard ? 13 : fudge ? 3 : head[2] === "%" ? 100 : Number(head[2]);
+  // count 0 e VALIDO: "0d6" e um pool vazio, nao um erro de digitacao. Vem
+  // de sistema onde a quantidade de dados e calculada (Year Zero: uma
+  // rolagem forcada pode nao ter sobrado dado nenhum num dos pools). A
+  // alternativa — rolar um dado e descartar so pra ter notacao valida —
+  // fazia o palco 3D ANIMAR esse dado, porque descartado tambem rola ali:
+  // "base 0, pericia 0, equipamento 0" jogava 3d6 na tela.
+  if (!Number.isInteger(count) || count < 0 || count > MAX_DICE) {
+    throw new NotationError(`quantidade de dados invalida em "${expr}"`);
+  }
+  if (!fudge && !isCard && (!Number.isInteger(sides) || sides < 2 || sides > MAX_SIDES)) {
+    throw new NotationError(`numero de faces invalido em "${expr}"`);
+  }
+  const spec: DiceSpec = { count, sides, modifier: 0, hasModifier: false };
+  if (fudge) spec.fudge = true;
+  if (isCard) spec.card = true;
+  return { spec, rest: rest.slice(head[0].length) };
+}
+
+// Consome sufixos de um termo. `allowModifier`: so o caminho de expressao
+// unica (legado) aceita "+3"/"-1" como sufixo; no caminho multi-termo um
+// sinal de +/- sempre inicia o proximo termo.
+function consumeSuffixes(
+  spec: DiceSpec,
+  start: string,
+  expr: string,
+  allowModifier: boolean,
+): string {
+  let rest = start;
+  const patterns = allowModifier ? TOKEN_PATTERNS : TERM_TOKEN_PATTERNS;
+  while (rest.trim().length > 0) {
+    rest = rest.trimStart();
+    let matched = false;
+    for (const [pattern, kind] of patterns) {
+      const m = pattern.exec(rest);
+      if (!m) continue;
+      matched = true;
+      rest = rest.slice(m[0].length);
+      switch (kind) {
+        case "keepdrop": {
+          if (spec.keepDrop) {
+            throw new NotationError(`keep/drop duplicado em "${expr}"`);
+          }
+          const n = Number(m[2]);
+          // keep/drop em pool vazio nao existe: "0d6kh1" nao tem o que
+          // manter, e aceitar isso so esconderia um erro de montagem.
+          if (!Number.isInteger(n) || n < 1 || spec.count === 0) {
+            throw new NotationError(`keep/drop invalido em "${expr}"`);
+          }
+          spec.keepDrop = { type: m[1]!.toLowerCase() as KeepDropType, count: n };
+          break;
+        }
+        case "reroll": {
+          if (spec.reroll) {
+            throw new NotationError(`reroll duplicado em "${expr}"`);
+          }
+          if (spec.fudge) {
+            // As faces do dado Fudge sao -1/0/+1: o alvo numerico do "!r"
+            // (que exige inteiro >= 1) nao tem significado aqui.
+            throw new NotationError(`reroll nao se aplica a dado Fudge em "${expr}"`);
+          }
+          const value = Number(m[2]);
+          if (!Number.isInteger(value) || value < 1 || value > spec.sides) {
+            throw new NotationError(`reroll invalido em "${expr}"`);
+          }
+          spec.reroll = { op: m[1] as ComparisonOp, value };
+          break;
+        }
+        case "explode": {
+          if (spec.explode || spec.fudge || spec.card) {
+            throw new NotationError(`explode invalido em "${expr}"`);
+          }
+          spec.explode = true;
+          break;
+        }
+        case "advantage": {
+          // Acucar: NdXadv -> (N+1)dX kh N; NdXdis -> (N+1)dX kl N.
+          if (spec.keepDrop) {
+            throw new NotationError(`adv/dis combinado com keep/drop em "${expr}"`);
+          }
+          const kind2 = m[1]!.toLowerCase();
+          spec.keepDrop = { type: kind2 === "adv" ? "kh" : "kl", count: spec.count };
+          spec.count = spec.count + 1;
+          break;
+        }
+        case "modifier": {
+          if (spec.hasModifier) {
+            throw new NotationError(`modificador duplicado em "${expr}"`);
+          }
+          spec.modifier = m[1] === "-" ? -Number(m[2]) : Number(m[2]);
+          spec.hasModifier = true;
+          break;
+        }
+      }
+      break;
+    }
+    if (!matched) {
+      if (allowModifier) {
+        throw new NotationError(`token inesperado em "${expr}": "${rest}"`);
+      }
+      // Multi-termo: parar no que nao e sufixo — o chamador decide.
+      return rest;
+    }
+  }
+  return rest;
+}
+
+// Parseia uma expressao de dados isolada: "2d6", "4d6kh3", "4d6!r<2",
+// "1d20adv", "2d6+3", e combinacoes desses sufixos em qualquer ordem.
+export function parseDiceExpression(expr: string): DiceSpec {
+  const trimmed = expr.trim();
+  const { spec, rest } = parseHead(trimmed, expr);
+  const leftover = consumeSuffixes(spec, rest, trimmed, true);
+  if (leftover.trim().length > 0) {
+    throw new NotationError(`token inesperado em "${expr}": "${leftover}"`);
+  }
+  return spec;
+}
+
+// Parseia um grupo possivelmente multi-termo: "2d6", "2d6+3",
+// "2d6+1d4+3", "1d20-1d4", "4d6kh3+1d20". Termos numericos agregam no
+// modificador do grupo; termos de dado guardam sinal e sufixos proprios.
+function parseGroupDice(expr: string): { dice: DiceSpec; terms: DiceTerm[] } {
+  // Caminho legado primeiro: tudo que a gramatica ja aceitava continua
+  // com o mesmo AST de antes (modificador como sufixo, sufixos em
+  // qualquer ordem). O multi-termo so entra no que antes era invalido.
+  try {
+    const spec = parseDiceExpression(expr);
+    const termSpec: DiceSpec = { ...spec, modifier: 0, hasModifier: false };
+    return { dice: spec, terms: [{ sign: 1, dice: termSpec }] };
+  } catch (legacyError) {
+    let rest = expr.trim();
+    const terms: DiceTerm[] = [];
+    let modifier = 0;
+    let hasModifier = false;
+    let sign: 1 | -1 = 1;
+    let first = true;
+
+    while (rest.length > 0) {
+      rest = rest.trimStart();
+      if (!first) {
+        const signMatch = /^([+-])/.exec(rest);
+        if (!signMatch) {
+          throw new NotationError(`token inesperado em "${expr}": "${rest}"`);
+        }
+        sign = signMatch[1] === "-" ? -1 : 1;
+        rest = rest.slice(1).trimStart();
+      }
+      if (DICE_HEAD.test(rest)) {
+        const parsed = parseHead(rest, expr);
+        const leftover = consumeSuffixes(parsed.spec, parsed.rest, expr, false);
+        terms.push({ sign: first ? 1 : sign, dice: parsed.spec });
+        rest = leftover;
+      } else if (!first && NUMBER.test(rest)) {
+        const numMatch = NUMBER.exec(rest)!;
+        modifier += sign * Number(numMatch[1]);
+        hasModifier = true;
+        rest = rest.slice(numMatch[0].length);
+      } else {
+        throw legacyError;
+      }
+      first = false;
+    }
+
+    if (terms.length === 0) throw legacyError;
+    const firstSpec = terms[0]!.dice;
+    const dice: DiceSpec = { ...firstSpec, modifier, hasModifier };
+    return { dice, terms };
+  }
+}
+
+// Parseia a notacao camada 1 completa.
+//
+// - Expressao unica ("2d6+3", "2d6+1d4+3", "1[2d6+3]", "2[1d20]") vira um unico grupo "roll".
+// - "{...} vs {...}" ou "1[...] vs 2[...]" produz dois grupos: "action" e
+//   "challenge", resolvidos em arrays separados.
+// - "1[3d6] + 2[2d6] + ..." produz N grupos independentes com slot de cor por grupo.
+export function parseNotation(notation: string): NotationAST {
+  const trimmed = notation.trim();
+  if (trimmed === "") {
+    throw new NotationError("notacao vazia");
+  }
+  const vs = VS_PATTERN.exec(trimmed);
+  if (vs) {
+    const slot1 = vs[1] ? Number(vs[1]) : undefined;
+    const expr1 = (vs[2] ?? vs[3])!.trim();
+    const slot2 = vs[4] ? Number(vs[4]) : undefined;
+    const expr2 = (vs[5] ?? vs[6])!.trim();
+    return {
+      groups: [
+        { name: "action", ...(slot1 !== undefined ? { slot: slot1 } : {}), ...parseGroupDice(expr1) },
+        { name: "challenge", ...(slot2 !== undefined ? { slot: slot2 } : {}), ...parseGroupDice(expr2) },
+      ],
+    };
+  }
+  if (PLUS_GROUPS_TEST.test(trimmed)) {
+    const matches = [...trimmed.matchAll(PLUS_GROUPS_EXTRACT)];
+    return {
+      groups: matches.map((m, i) => {
+        const slot = m[1] ? Number(m[1]) : undefined;
+        const expr = (m[2] ?? m[3])!.trim();
+        return { name: `group${i}`, ...(slot !== undefined ? { slot } : {}), ...parseGroupDice(expr) };
+      }),
+    };
+  }
+  const singleBlock = GROUP_BLOCK_PATTERN.exec(trimmed);
+  if (singleBlock) {
+    const slot = singleBlock[1] ? Number(singleBlock[1]) : undefined;
+    const expr = (singleBlock[2] ?? singleBlock[3])!.trim();
+    return { groups: [{ name: "roll", ...(slot !== undefined ? { slot } : {}), ...parseGroupDice(expr) }] };
+  }
+  if (/[{}\[\]]|\bvs\b/i.test(trimmed)) {
+    throw new NotationError(`sintaxe de grupo invalida: "${notation}"`);
+  }
+  return { groups: [{ name: "roll", ...parseGroupDice(trimmed) }] };
+}

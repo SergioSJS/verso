@@ -44,6 +44,72 @@
   being the source. Sections 5 and 6 of the install guide stay the manual
   paths ([server-install.md](../reference/server-install.md), "The
   installer script").
+  2026-10-14 — the release's signature, for the installer, is one signed
+  checksums list, `verso-<version>-SHA256SUMS` and its `.sig`, in place of
+  a `.sig` beside each package, decided by the maintainer for the whole
+  release ([0055](0055-in-app-updater.md), revised that day: *"Sim, já
+  na 0.8.3"*). `universo.sh` verifies the list's signature with minisign
+  and Verso's release key, the signed comment naming the list of the
+  package's own version, then the package's sha256 against its one line
+  in the list; for a release up to 0.8.3 it still takes the package's own
+  `.sig`. The copy at `https://versomd.com/universo.sh` is to be copied
+  again from the repository before the first release without per-file
+  `.sig`, or it finds no signature there.
+  2026-10-15 — item 2: **the server's code builds on Windows**, with
+  OpenSSL compiled in there as on Unix (the `openssl` crate's `vendored`
+  feature on every target; the build needs Perl, which `openssl-src` runs,
+  and no NASM), decided by the maintainer (*"OpenSSL embutido no
+  Windows"*). It revises the statement, in `crates/verso-cli/Cargo.toml`,
+  `crates/verso-server/Cargo.toml` and the CI, that Windows has no server.
+  The packages and the image stay as item 2 lists them — Linux, Docker,
+  CasaOS; no Windows installer or service is added for the server — but
+  `verso serve` runs on Windows from the `verso` command line the Windows
+  release already carries, and the desktop app's "this app is a server"
+  ([0096](0096-this-app-is-a-server.md)) works there too.
+  2026-10-15 — **confirmed by the maintainer** (*"aceito todas
+  recomendações"*): there is no server package, service or installer for
+  Windows. On Windows the server runs only inside the desktop app
+  ([0096](0096-this-app-is-a-server.md)) or as `verso serve` from the
+  command line.
+  2026-10-16 — item 2's "never root" and item 3's "writable by uid 1000"
+  amended. On a ZimaOS box the maintainer bound `/DATA/storage1/Documents/Verso`
+  to `/folders`; Docker made it owned by root; the server, uid 1000, failed
+  with "making the folder: Permission denied (os error 13)", shown raw. Asked
+  how to handle it, he decided: *"Conserta sozinho ao ligar"* (fix it by itself on start). The
+  container now **starts as root only for one job** and the server never runs
+  as root: `docker-entrypoint` (POSIX sh, busybox's own `su`, `find` and
+  `chown`; nothing was added to the image) checks, as uid 1000, that `/data`
+  and `/folders` are writable; for one that is not, it gives to `1000:1000`
+  the entries *root owns* under that mount (`find -xdev -user 0`, `chown -h`:
+  no symlink is followed, no other file system entered, a file of another
+  user is left, and a regular file with several hard links is left too,
+  said in the log with its count: the other name may be outside the mount,
+  and a chown changes the inode for all of them), then `exec`s `/usr/bin/universo`, a wrapper that drops to
+  uid 1000 with the supplementary groups cleared (`su`) and executes the
+  binary, `docker exec` commands included, so that `universo admin reset`
+  never leaves a root-owned file. A device node, FIFO or socket that root owns is never handed to uid 1000 (a block device given away would open the host's disk to whoever is 1000), and the log says how many were left. **The residual races**, stated: someone who can write inside a mount could (1) swap a directory for a symbolic link between `find` and `chown`, or (2) rename a listed one-name file away and put a hard link to a root file outside the mount in its place (it needs `fs.protected_hardlinks=0`, or write access to the target), and have that root-owned entry changed; the mounts are the administrator's, and uid 1000, which runs the server, has not started yet. A container started as root without the capabilities (an older compose file) is refused with the line that says what to add, never run as root. Root lives for the entrypoint's checks, a
+  few milliseconds unless it has to chown a large tree, once; the server
+  process holds uid and gid 1000, no other group, `CapEff` and `CapPrm` zero
+  (`scripts/check-server-image.sh` reads `/proc/1/status`). The compose file
+  keeps `cap_drop: ALL`, `read_only`, the `tmpfs` and `no-new-privileges`,
+  and adds back `CHOWN` (the chown), `SETUID` and `SETGID` (the drop); not
+  `DAC_OVERRIDE` or `FOWNER`, since root only changes what it owns and
+  traverses a directory it owns. A host that sets `user: "N:N"` skips all of
+  it, as before. A directory owned by someone else (a NAS user) is not
+  touched: the server checks at start that it can write to both directories,
+  says in the log, in the admin console and in the answer to the request that
+  failed that it cannot, and names the command (`sudo chown -R 1000:1000
+  <host folder>`; for the `.deb`, the `universo` user). **How far the mend reaches**
+  was put to the maintainer (2026-10-16): *"E se alguém montar uma pasta grande
+  que já tem coisas de outros apps (ex.: /DATA inteiro no ZimaOS)? Hoje ele
+  passaria tudo que é do root ali dentro para o Verso"*, with the options *only
+  an empty folder* or *the whole folder, always*; he chose **"Pasta inteira,
+  sempre"**. So the mend takes every root-owned directory, symbolic link and
+  one-name regular file under each mount, whatever was there before. The
+  consequence, plainly: **mount only the folder meant for Verso.** Binding a
+  parent such as `/DATA` hands every other app's root-owned files in it to uid
+  1000. The entrypoint says in the log how many entries it handed over, so a
+  mount that is too wide shows.
 - Revisions: 2026-10-09 (night) — accepted by the maintainer together with
   [0073](0073-self-hosted-server-first.md), in the answer quoted there;
   its two `[OPEN]` answered — the update path (item 7, the maintainer's
@@ -99,6 +165,8 @@ Proposed; decided in its parts by the maintainer on 2026-10-09 (Status).
    - an **archive and `.deb`/`.rpm` packages with a systemd unit**, for a
      machine without Docker: the service runs as a `verso` user, its
      settings in an environment file the unit reads.
+   (The binary also runs on Windows, revised 2026-10-15: no package for
+   it, see the Revisions.)
    ARM64 is built by cross-compiling on the x86-64 runners, not on an ARM
    runner, which keeps it possible while the repository is private — home
    servers and NAS boxes are often ARM. Decided: the server's ARM64 is

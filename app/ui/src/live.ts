@@ -11,7 +11,7 @@
 // 0012). Constructs come from the Markdown syntax tree; `[[…]]` is the
 // dialect's and is found by hand, outside code.
 
-import { syntaxTree } from "@codemirror/language";
+import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import { EditorSelection, EditorState, Prec, RangeSet, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, EditorView, GutterMarker, ViewPlugin, WidgetType, gutterLineClass, keymap, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 import type { Text } from "@codemirror/state";
@@ -60,6 +60,8 @@ export type LiveOptions = {
   /** Tables edited as tables (ADR 0064): the editor's words and the
    *  window's menu and renderer. */
   table?: TableEditorOptions;
+  /** A `dice:` code drawn as its die (ADR 0088), or null. */
+  dice?: (code: string) => WidgetType | null;
 };
 
 /** Dispatch this when an image URL became known, so the view redraws. */
@@ -862,7 +864,8 @@ export const outOfFrontmatter = EditorState.transactionFilter.of((tr) => {
  *  panel, never by a key: typing, pasting or deleting that reaches into it
  *  — Backspace at the start of the body, which would join the first line
  *  to the closing fence and undo the whole block, ⌘⌫, a cut — leaves it
- *  as it is. The panel's own edits carry no user event and pass. */
+ *  as it is. The panel's own edits carry the `props` user event, not a
+ *  key's, and pass. */
 export const keepFrontmatter = EditorState.changeFilter.of((tr) => {
   if (!(tr.isUserEvent("input") || tr.isUserEvent("delete") || tr.isUserEvent("move"))) return true;
   const end = frontmatterEnd(tr.startState.doc);
@@ -1019,7 +1022,10 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
     const end = Math.min(to, doc.lineAt(from).to);
     if (end > from) out.push({ from, to: end, deco: Decoration.replace({}) });
   };
-  const tree = syntaxTree(view.state);
+  // The tree up to the end of what is drawn, parsed now (a few ms at most):
+  // after a jump to a long note's end the background parse has not reached
+  // it yet, and the marks drawn raw wait for it to land.
+  const tree = ensureSyntaxTree(view.state, view.viewport.to, 30) ?? syntaxTree(view.state);
   const inCode = (pos: number): boolean => {
     for (let n: SyntaxNode | null = tree.resolveInner(pos, 1); n; n = n.parent) if (CODE_NODES.has(n.name)) return true;
     return false;
@@ -1096,8 +1102,10 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
             for (const m of node.node.getChildren(name === "Strikethrough" ? "StrikethroughMark" : "EmphasisMark")) hide(m.from, m.to);
           }
         } else if (name === "InlineCode") {
-          out.push({ from: node.from, to: node.to, deco: Decoration.mark({ class: "cm-lp-code" }) });
-          if (!shown) for (const m of node.node.getChildren("CodeMark")) hide(m.from, m.to);
+          const die = shown ? null : (opts.dice?.(doc.sliceString(node.from, node.to)) ?? null);
+          if (die) out.push({ from: node.from, to: node.to, deco: Decoration.replace({ widget: die }) });
+          else out.push({ from: node.from, to: node.to, deco: Decoration.mark({ class: "cm-lp-code" }) });
+          if (!shown && !die) for (const m of node.node.getChildren("CodeMark")) hide(m.from, m.to);
         } else if (name === "FencedCode") {
           const a = doc.lineAt(node.from).number;
           const b = doc.lineAt(node.to).number;

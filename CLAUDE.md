@@ -74,9 +74,11 @@ Violating an invariant is BLOCKING by definition, with no discussion of merit.
 12. Verso extends the Obsidian dialect; it never contradicts it. No extension
     changes the meaning of an existing construct.
 13. Admissible sources on Obsidian's behavior: the public API
-    (`obsidian.d.ts`, MIT), public documentation and behavior observed from the
-    outside. Inspecting, decompiling or unminifying the app is **forbidden**
-    ([ADR 0009](docs/adr/0009-external-constraints.md)).
+    (`obsidian.d.ts`, MIT), public documentation, behavior observed from the
+    outside, and the public source of an open-source plugin Obsidian publishes
+    under its own licence (e.g. `obsidianmd/obsidian-maps`, MIT; added
+    2026-10-14). Inspecting, decompiling or unminifying the app is
+    **forbidden** ([ADR 0009](docs/adr/0009-external-constraints.md)).
 
 ### 2.4 Fixtures — [ADR 0031](docs/adr/0031-fixtures-as-contract.md)
 
@@ -123,7 +125,7 @@ the test.
 | Guardrail | Prevents | Group |
 |---|---|---|
 | `cargo fmt --check` | a formatting diff hiding a logic diff | workspace |
-| `unsafe_code = "forbid"` via `[workspace.lints]` | memory corruption | workspace |
+| `unsafe_code = "forbid"` via `[workspace.lints]`, with one exception, the native clipping of an embedded page: `app/src-tauri` at `deny`, `unsafe` only in `src/web_clip/macos.rs` and `windows.rs`, each block with its `SAFETY:` comment, held there by `scripts/check-unsafe.mjs` ([ADR 0029](docs/adr/0029-guardrails-in-ci.md), revised 2026-10-15) | memory corruption | workspace |
 | clippy with `-D warnings`; `unwrap_used` and `expect_used` denied, allowed only in tests | a panic taking the app down | workspace |
 | clippy `disallowed_methods` denying `std::fs` outside `verso-fs` (exceptions: index, config) | access to the open folder outside `verso-fs` | workspace |
 | `cargo-deny`: license allowlist, advisories denied | incompatible or vulnerable dependency | workspace |

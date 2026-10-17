@@ -94,7 +94,7 @@ fn is_format(c: char) -> bool {
 /// 80 characters, with no format character but the emoji's joiner — a
 /// bidi override or a zero-width one would turn or hide the sentence the
 /// approval page puts it in; none when nothing is left.
-fn kept_name(name: &str) -> Option<String> {
+pub(crate) fn kept_name(name: &str) -> Option<String> {
     let one_line: String = name
         .chars()
         .filter(|c| !is_format(*c))
@@ -112,16 +112,17 @@ pub struct Start {
 
 /// The app asks for a code.
 pub async fn start(ctx: Ctx, Json(body): Json<Start>) -> ApiResult<Response> {
-    ctx.secure()?;
     let key = format!("device:{}", ctx.peer.key());
     let wait = ctx.server.limiter.wait(&key);
     if !wait.is_zero() {
         ctx.server.signins.limited(&key, &ctx.peer.key());
         return Err(ApiError::wait(wait.as_secs() + 1));
     }
-    // Each start counts: a flood of codes is slowed like a flood of
-    // sign-ins.
-    ctx.server.limiter.failed(&key);
+    // A start counts nothing (ADR 0083 item 18, decided 2026-10-15): only
+    // failed attempts grow the delay, so a household pairing its devices
+    // in one evening is never made to wait. A flood of codes is bounded
+    // by the codes one address may keep waiting (`limit::room_for`) and
+    // by the REST pace per address.
     let device = kept_name(&body.device);
     let code = code()?;
     let poll = crate::crypto::token()?;
@@ -144,7 +145,8 @@ pub async fn start(ctx: Ctx, Json(body): Json<Start>) -> ApiResult<Response> {
             key: by,
         },
     );
-    let base = crate::auth::expected_origin(&ctx.server, &ctx.headers).unwrap_or_default();
+    let base =
+        crate::auth::expected_origin(&ctx.server, &ctx.headers, &ctx.peer).unwrap_or_default();
     Ok(ok(json!({
         "code": code,
         "poll": poll,
@@ -321,7 +323,6 @@ pub struct Poll {
 /// keep it from signing in (ADR 0074 item 9: never a lock a stranger can
 /// use); the secret is 256 bits, not a thing a delay protects.
 pub async fn poll(ctx: Ctx, Json(body): Json<Poll>) -> ApiResult<Response> {
-    ctx.secure()?;
     // Past the server's pace of refusals, every sign-in waits its turn
     // (ADR 0083 item 2).
     let turn = ctx.server.signins.turn();

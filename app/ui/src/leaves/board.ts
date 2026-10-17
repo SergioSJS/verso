@@ -26,8 +26,10 @@ import { completeMarkdown } from "../editor/complete";
 import { baseEditorExtensions } from "../editor/extensions";
 import { fail } from "../errors";
 import { freeName, textBase64 } from "../files";
-import { allFiles, allNotes, currentFolder } from "../folder";
+import { allEntries, allFiles, allNotes, currentFolder } from "../folder";
 import { icon } from "../icons";
+import { renderSticker } from "../labels";
+import { served } from "../secret/blocks";
 import { imageUrl, noteImages } from "../images";
 import { runHotkey } from "../keys";
 import { Pane } from "../layout/pane";
@@ -40,7 +42,7 @@ import { fetchFirst, opening } from "../opening";
 import { dirOf, Kind, kindOf, name } from "../paths";
 import { parsePdfSpec, PdfView } from "../pdf";
 import { keyLinks, typeset, wireCallouts } from "../render";
-import { resolveNoteByName } from "../resolve";
+import { resolveNoteByName, withNoteLinks } from "../resolve";
 import { setHtml } from "../sanitize";
 import { searchNotes } from "../search";
 import { settings } from "../settings";
@@ -56,6 +58,7 @@ import type { BoardSession } from "../boardRoom";
 import { type CollabHandlers, type CollabSession, joinCollab, ySyncAnnotation } from "../collab";
 import { ordered } from "../board/roomModel";
 import * as boardLive from "./boardLive";
+import { preview } from "../preview/install";
 
 /** Every board on screen, told when the folder changes (ADR 0057). */
 export const liveBoards = new Set<BoardHandle>();
@@ -272,6 +275,22 @@ export class BoardLeaf extends TextLeaf {
       edited: (path) => this.cardHistory.has(listed(path)),
       openUrl: (url) => void commands.openUrl(url),
       appKey: (e) => runHotkey(e),
+      preview: { at: (el, x, y, mods) => preview.pointAt(el, x, y, mods), press: (el, x) => preview.press(el, x) },
+      // Maps (ADR 0090): a large picture is cut into tiles by the core, and
+      // the board as a reader is served it is the core's projection.
+      maps: {
+        open: async (path) => {
+          const r = await commands.mapOpen(listed(path));
+          if (r.status !== "ok") throw new Error(r.error.message);
+          return r.data;
+        },
+        tile: async (path, level, x, y) => {
+          const r = await commands.mapTile(listed(path), level, x, y);
+          return r.status === "ok" ? r.data : null;
+        },
+      },
+      secret: { served, project: (json) => commands.projectBoard(json) },
+      sticker: (path, size) => (settings.stickers ? renderSticker(allEntries.get(listed(path))?.label?.sticker, size) : null),
       status: (text) => (ui.status.textContent = text),
       prefs: { stroke: settings.boardStroke, font: settings.boardFont, grid: settings.boardGrid, open: settings.boardOpen },
       lastView: () => {
@@ -989,8 +1008,10 @@ export function readingClicks(el: HTMLElement, source: string): void {
   });
 }
 
-export async function renderReading(el: HTMLElement, html: string, source: string, depth = 0): Promise<void> {
-  setHtml(el, html);
+/** `quiet`: what it embeds is read without bringing a file down from
+ *  iCloud (a hover preview is not an opening, ADR 0085). */
+export async function renderReading(el: HTMLElement, html: string, source: string, depth = 0, quiet = false): Promise<void> {
+  setHtml(el, withNoteLinks(html, source));
   wireCallouts(el);
   keyLinks(el);
   typeset(el);
@@ -1007,7 +1028,7 @@ export async function renderReading(el: HTMLElement, html: string, source: strin
       const spec = parsePdfSpec(span.dataset["target"] ?? "", span.textContent);
       const note = resolveNoteByName(spec.file, source);
       if (note && note.endsWith(".md") && depth < 1) {
-        const r = await opening.readNote(note);
+        const r = await opening.readNote(note, quiet);
         if (r.status !== "ok") return;
         const box = h("section", "embed-note");
         const head = h("a", "embed-note-title", name(note));
@@ -1019,7 +1040,7 @@ export async function renderReading(el: HTMLElement, html: string, source: strin
         const body = h("div", "embed-note-body");
         box.append(head, body);
         span.replaceWith(box);
-        await renderReading(body, r.data.html, note, depth + 1);
+        await renderReading(body, r.data.html, note, depth + 1, quiet);
         return;
       }
       const found = await commands.resolveAttachment(source, spec.file);

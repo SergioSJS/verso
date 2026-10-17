@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { ReaderView } from "../secret/view";
 import { sh } from "../shareStrings";
 import { isolateHistory } from "@codemirror/commands";
 import { closeSearchPanel, getSearchQuery, openSearchPanel, searchPanelOpen, SearchQuery, setSearchQuery } from "@codemirror/search";
@@ -14,6 +15,7 @@ import { commands, type ContractError, type NoteText, type Written } from "../bi
 import { canWrite, host } from "../can";
 import { blockKeys } from "../blocks/keys";
 import { blockHandles } from "../blocks/view";
+import { blockBar } from "../screen/blockbar";
 import { type CardEditing } from "../board/types";
 import { bookmarks, toggleBookmark } from "../bookmarks";
 import { afterFileChange, tellOutcomes } from "../changes";
@@ -26,7 +28,7 @@ import { fail, failSaid } from "../errors";
 import { createNote, renameNote } from "../files";
 import { calm } from "../format";
 import { icon } from "../icons";
-import { imageUrl } from "../images";
+import { imageUrl, pictureAddress } from "../images";
 import { comboOf, prettyKeys } from "../keys";
 import { Pane } from "../layout/pane";
 import { crumbsFor, crumbsNav, layout, openIn, openNote, persistSoon } from "../layout/spaces";
@@ -38,6 +40,7 @@ import { opening } from "../opening";
 import { dirOf, Kind, name } from "../paths";
 import { PdfView } from "../pdf";
 import { PropertiesView } from "../props";
+import { propertySuggestions } from "../resolve";
 import { st } from "../screen/strings";
 import { cleanHtmlText } from "../sanitize";
 import { searchNotes } from "../search";
@@ -61,6 +64,8 @@ import { type CollabHandlers, type CollabSession, joinCollab, lostLine } from ".
 import { tableWidths } from "../tableWidths";
 import { applyChange, throughRoom } from "../roomWrites";
 import { currentFolder } from "../folder";
+import { fillLinkCard, wireNotePreview } from "../preview/install";
+import { diceWidget } from "../dice/live";
 
 /* A note: reading, Live Preview, source; saving through the atomic write. */
 export type Mode = "preview" | "live" | "source";
@@ -68,6 +73,12 @@ export class NoteLeaf extends Leaf {
   readonly kind: Kind = "note";
   readonly crumbs = crumbsNav();
   readonly modes = h("div", "modes");
+  /** "View as a reader" (ADR 0087 item 5): turned on, the reading view. */
+  readonly readerView = new ReaderView(() => {
+    this.previewStale = true;
+    if (this.readerView.on && this.mode !== "preview") this.setMode("preview");
+    else if (this.mode === "preview") void this.paintPreview();
+  });
   readonly modeButtons: Record<Mode, HTMLButtonElement>;
   readonly title = h("h1", "note-title");
   readonly dirtyMark = h("span", "dirty-mark", "•");
@@ -84,7 +95,11 @@ export class NoteLeaf extends Leaf {
     doc: () => this.editor.state.doc.toString(),
     apply: (change) => {
       if (throughRoom(this.roomHolder(), (text) => applyChange(text, change)) !== "disk") return;
-      this.editor.dispatch({ changes: change, annotations: Transaction.userEvent.of("input") });
+      // Not an `input`: Live Preview's guard keeps keys out of the folded
+      // frontmatter and lets the panel's own edits through (`keepFrontmatter`),
+      // and an `input` there was dropped — the row showed the value, the
+      // file never got it.
+      this.editor.dispatch({ changes: change, annotations: Transaction.userEvent.of("props") });
       if (this.mode === "preview") void this.save();
     },
     // The key moved in the text since the panel was drawn: the save that
@@ -99,6 +114,13 @@ export class NoteLeaf extends Leaf {
       void searchNotes(ui.search.value);
     },
     onLink: (url) => void commands.openUrl(url),
+    // A typed note's links and pictures (ADR 0086 item 1).
+    onFollow: (target) => this.follow(target),
+    resolveLink: (target) => this.resolve(target),
+    picture: (target) => pictureAddress(this.path, target),
+    title: () => name(this.path),
+    suggest: (kind) => propertySuggestions(this.path, kind),
+    status: (message) => (ui.status.textContent = message),
   });
   readonly conflict = new ConflictBanner(() => void this.keepDisk(), () => void this.overwrite(), () => void this.keepBoth());
   /** A save that found the note gone from disk: the text stays until the
@@ -153,19 +175,30 @@ export class NoteLeaf extends Leaf {
    *  mode (ADR 0061). */
   readonly blockExt: Extension = [
     blockHandles({
-      enabled: () => settings.blockHandles && !this.readOnly,
+      // A touch screen has no handles: the keys' bar carries the block's
+      // commands (ADR 0076 item 7, decided 2026-10-16).
+      enabled: () => settings.blockHandles && !this.readOnly && !window.matchMedia("(pointer: coarse)").matches,
       menu: (_view, blocks, x, y) => this.blockMenu(blocks, x, y),
       plus: (_view, block) => this.blockPlus(block),
       plusAt: (_view, line) => this.blockPlusAt(line),
       strings: { grip: t.blocks.grip, plus: t.blocks.plus },
     }),
     blockKeys({ enterNewBlock: () => settings.enterNewBlock }),
+    blockBar.of({
+      active: () => this.mode === "live" && !this.readOnly,
+      plus: () => this.blockPlusHere(),
+      turn: (x, y) => this.turnBlockMenu(this.selectedBlocks(), x, y),
+      menu: (x, y) => this.blockMenu(this.selectedBlocks(), x, y),
+      move: (dir) => this.moveBlock(dir),
+      remove: () => this.deleteBlock(),
+    }),
     // A tap on a link, on a touch screen: a card to open or edit it (ADR
     // 0076 item 4).
     linkCard({
       navigate: (target) => this.follow(target),
       openUrl: (url) => void commands.openUrl(url),
       strings: { card: st.linkCard, open: st.linkOpen, edit: st.linkEdit },
+      preview: (link, box) => fillLinkCard(this, link, box),
     }),
   ];
   shouldShowLineNumbers(): boolean {
@@ -225,6 +258,8 @@ export class NoteLeaf extends Leaf {
    *  redrawn. */
   embeds: (PdfView | BaseView)[] = [];
   readonly cardHistory = new Map<string, KeptCard>();
+  /** Takes the note's places back from the hover preview. */
+  private unpreview: () => void = () => {};
   readonly cards = new Set<CardEditing>();
   readonly readingSearch: ReadingSearch;
 
@@ -235,6 +270,8 @@ export class NoteLeaf extends Leaf {
       live: this.modeButton("live", "edit", t.edit),
       source: this.modeButton("source", "source", t.source),
     };
+    // A writer's "view as a reader" of a note with secret blocks (ADR 0087).
+    this.modes.append(this.readerView.button);
     const head = h("header", "leaf-head");
     head.append(this.crumbs, this.modes);
     // Drawn, not said: the Save button beside it and the tab say it.
@@ -261,7 +298,7 @@ export class NoteLeaf extends Leaf {
     titleRow.append(this.stickerBtn, this.title, this.dirtyMark, this.saveButton, this.star, this.liveMark);
     this.buildToolbar();
     const sheet = this.sheet;
-    sheet.append(this.coverBox, this.addCoverBtn, titleRow, this.flags, this.props.el, this.conflict.el, this.goneBanner.el, this.preview, this.editorHost);
+    sheet.append(this.coverBox, this.addCoverBtn, titleRow, this.flags, this.props.el, this.conflict.el, this.goneBanner.el, this.readerView.banner, this.preview, this.editorHost);
     this.readingSearch = new ReadingSearch(this.sheet, this.preview, searchStrings());
     this.buildWebBar();
     this.webBar.hidden = true;
@@ -280,6 +317,7 @@ export class NoteLeaf extends Leaf {
       embedLabels: { edit: t.editInPlace, done: t.embedDone },
       copyLabels: { copy: t.copyCode, copied: t.codeCopied },
       canEditEmbed: () => settings.inlineEmbedEdit,
+      dice: diceWidget({ path: () => this.path, follow: (target) => this.follow(target) }),
       table: {
         labels: { ...t.tableEdit, cell: (r, c) => (r === 0 ? t.tableEdit.headerCell : t.tableEdit.cell.replace("{r}", String(r))).replace("{c}", String(c)) },
         menu: (x, y, items) => showMenu(x, y, items as MenuItem[]),
@@ -358,6 +396,8 @@ export class NoteLeaf extends Leaf {
     });
     this.setDirty(false);
     this.applyMode();
+    // The note a link names, where the pointer rests (ADR 0085).
+    this.unpreview = wireNotePreview(this);
   }
   declare modeButton: typeof editing.modeButton;
   declare editorState: typeof editing.editorState;
@@ -384,6 +424,10 @@ export class NoteLeaf extends Leaf {
   declare buildToolbar: typeof editing.buildToolbar;
   declare insertTable: typeof editing.insertTable;
   declare takeFiles: typeof editing.takeFiles;
+  declare insertImageMenu: typeof editing.insertImageMenu;
+  declare embedFromFolder: typeof editing.embedFromFolder;
+  declare attachFromPicker: typeof editing.attachFromPicker;
+  declare attachImage: typeof editing.attachImage;
   override setDirty(d: boolean): void {
     super.setDirty(d);
     this.dirtyMark.hidden = !d;
@@ -488,6 +532,8 @@ export class NoteLeaf extends Leaf {
   }
   applyMode(): void {
     const m = this.mode;
+    // Editing is the whole note's: the reader's view is left.
+    if (m !== "preview" && this.readerView.on) this.readerView.set(false);
     this.preview.hidden = m !== "preview";
     this.toolbar.hidden = m === "preview" || this.drawingShown;
     this.editorHost.hidden = m === "preview";
@@ -522,6 +568,7 @@ export class NoteLeaf extends Leaf {
   declare blockMenu: typeof editing.blockMenu;
   declare blockPlusAt: typeof editing.blockPlusAt;
   declare blockPlus: typeof editing.blockPlus;
+  declare blockPlusHere: typeof editing.blockPlusHere;
   declare buildWebBar: typeof web.buildWebBar;
   /** An embedded note's HTML for the editor, cached; asked once, then a redraw. */
   embedCache = new Map<string, string | null>();
@@ -1161,6 +1208,7 @@ export class NoteLeaf extends Leaf {
   }
   override destroy(): void {
     this.destroyed = true;
+    this.unpreview();
     this.unmountDrawing();
     this.cancelReposition?.();
     window.clearTimeout(this.saveTimer);

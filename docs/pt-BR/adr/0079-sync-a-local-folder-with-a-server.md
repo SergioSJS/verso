@@ -93,6 +93,31 @@
   2026-10-12 — item 12, o tamanho dos pedaços: **1 MiB fica**, decidido
   pelo mantenedor naquele dia, por volta das 16:00 BRT, entre as sete
   decisões da rodada, todas como recomendado: *"Todos aprovados"*.
+  2026-10-14 — o append-merge do item 8 toma o template preenchido como
+  base de uma nota periódica que os dois lados criaram sem base, quando as
+  duas versões começam com os bytes que o template fez, pelo item 12 do
+  [0093](0093-periodic-notes.md), aceito pelo mantenedor naquela noite
+  (*"Sim, todas"*).
+  2026-10-16 — item 1, a primeira pasta: um servidor novo não tem pasta, e
+  o admin que conectou o app de computador só via *"peça um convite"* e
+  nenhum caminho (*"e ai?"*). Primeiro o app ofereceu criar uma pasta vazia
+  antes de sincronizar; o mantenedor recusou esse passo: *"Como assim? Eu
+  preciso criar uma pasta no servidor para sincronizar? Eu não posso
+  simplesmente sincronizar? Não faz sentido algum isso."* Então **não há
+  passo à parte**: em Ajustes › Servidores, quando uma pasta deste
+  computador está aberta e não sincroniza e a conta pode criar pastas (o
+  `mayCreate` do servidor, [0074](0074-accounts-and-access-on-the-server.md)
+  item 6, agora levado ao app com a lista de pastas), um só **Sincronizar
+  "nome"** cria a pasta do servidor — com o nome da pasta aberta, ou
+  `nome (2)`, `nome (3)`… quando já há uma, nunca juntando à que existe —
+  e liga o sync. Ajustes › Sincronizar sempre fez isso na escolha padrão,
+  *uma pasta nova*, e agora toma o mesmo nome livre. A primeira passada
+  nessa pasta nova e vazia é a do item 11: todo arquivo local sobe e
+  nenhum é apagado nem reescrito aqui (fixado por um teste do host).
+  Sincronizar com uma pasta que já está lá continua sendo o *Sincronizar*
+  de cada linha. *Criar pasta vazia…* é uma segunda ação pequena; conta que
+  não pode criar pastas mantém o texto do convite. O `server_create_folder`
+  do host pede ao `POST /api/folders` do servidor com a sessão do aparelho.
 
 ## Contexto
 

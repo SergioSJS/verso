@@ -9,11 +9,15 @@
 // invitation, a reset, a device, the account, the admin page — or, for a
 // person signed in, starts the window over the bridge (`web/bridge.ts`).
 
-import { state } from "./web/api";
+import { setByApp, setStateFallback, state, stateWasKept } from "./web/api";
+import { offline } from "./web/offline/manager";
+import { o } from "./web/offline/strings";
 import { currentFolderId, startBridge } from "./web/bridge";
 import { pullSettings, pushSettings } from "./web/settingsSync";
 import { notice } from "./web/notice";
-import { chooseFolder, devicePage, invitePage, resetPage, setupPage, signInLinkPage, signInPage } from "./web/pages";
+import { ensureClipboard } from "./web/clipboard";
+import { plainHttpMark, plainHttpNotice } from "./web/plainHttp";
+import { chooseFolder, devicePage, invitePage, pairPage, resetPage, setupPage, signInLinkPage, signInPage } from "./web/pages";
 import { setLang, w } from "./web/strings";
 import { setProver } from "./web/proof";
 import { askProof } from "./web/proveDialog";
@@ -26,11 +30,31 @@ import { holdClicks } from "./earlyClicks";
 const openHeld = holdClicks(document.getElementById("open"));
 
 async function start(): Promise<void> {
+  // Copying works over plain HTTP too, where the browser gives no
+  // clipboard of its own (ADR 0073 item 6, amended 2026-10-16).
+  ensureClipboard();
   // A sensitive action the server wants proved again asks here, on any
   // page (ADR 0083 item 6).
   setProver(askProof);
+  // What this browser keeps for use offline (ADR 0092), opened first: the
+  // page that opens with no network is told who it is from it.
+  await offline.init();
+  setStateFallback(() => offline.cachedState());
   const s = await state();
+  setByApp(Boolean(s.local));
   setLang(s.account?.lang);
+  if (stateWasKept()) {
+    // Offline: the folders kept open the window; nothing else is asked.
+    notice(offline.keptFolders().length > 0 ? o().startOffline : o().nothingKept);
+  } else if (s.account) {
+    void offline.rememberState({ ...s, csrf: null });
+  } else if (offline.keptFolders().length > 0) {
+    // The server says nobody is signed in here: the session ended (signed
+    // out in another tab, or the server ended it), and what this device
+    // kept for the account goes (ADR 0092 item 6).
+    const lost = await offline.wipe();
+    notice(o().wipedByServer(lost), "error");
+  }
   const path = location.pathname;
   const token = (prefix: string) => decodeURIComponent(path.slice(prefix.length));
   if (path.startsWith("/invite/")) return invitePage(token("/invite/"));
@@ -38,12 +62,20 @@ async function start(): Promise<void> {
   if (path.startsWith("/signin-link/")) return signInLinkPage(token("/signin-link/"));
   if (path === "/setup") return setupPage();
   if (path === "/device") return devicePage(s.account);
+  // "This app is a server" (ADR 0096): nobody signs in here, a phone is
+  // paired. Its page is the way in; any other address without a session
+  // is sent to it.
+  if (s.local && !s.account) return pairPage();
+  if (s.local && path === "/pair") {
+    location.replace("/");
+    return;
+  }
   if (!s.account) {
     if (path !== "/signin") {
       location.href = `/signin?next=${encodeURIComponent(path + location.search)}`;
       return;
     }
-    return signInPage(s.secure, s.mail);
+    return signInPage(s.mail);
   }
   if (path === "/signin") {
     location.href = "/";
@@ -80,6 +112,8 @@ async function start(): Promise<void> {
   // refusal changes nothing today, when nothing is kept offline.
   void navigator.storage?.persist?.().catch(() => false);
   startBridge(chooseFolder);
+  plainHttpNotice();
+  plainHttpMark();
   // "You only read this folder" is said of a folder on screen: when one
   // is shown with the reader's role, or the role of the one shown becomes
   // the reader's — never over the start page, before a folder is there.

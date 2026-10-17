@@ -234,3 +234,24 @@ for the maintainer's phone and iPad.
 for the maintainer's choice; the observations of Notion in the Context
 wait for his phone and iPad. `[OPEN]`: the contents of the keyboard's
 toolbar (item 7), after use.
+
+**Amended on 2026-10-16** (the toolbar's contents, item 7, decided). The
+maintainer, after the blocks' handles of [0061](0061-blocks-in-edit-mode.md)
+left a wide empty margin on his phone: *"Cara, notei que nosso modo mobile
+tem uma borda gigante a esquerda da lateral do celular ate o início do
+texto. É assim por causa das botões estilo notion que fizemos. No computador
+ficou legal, mas no celular nao. Fui olhar como notion resolve, ele nao faz
+esses botões, ele cria uma barra de atalhos onde nela tela as opções e da
+para por exemplo, mover o bloco pra cima e para baixo"*. Decided: on a touch
+screen (`(pointer: coarse)`) the block handles, the `+` and the margin they
+needed are gone, and the keyboard's toolbar is one row that scrolls sideways,
+with targets of 44 px at least, holding, in this order: add a block (`+`);
+"Turn into" with its menu; `[[`; `/`; outdent; indent; move the block up;
+move the block down; delete the block; the block's menu (duplicate, copy
+link…); undo; redo; hide the keyboard. Each block command is the one the
+desktop's handle, `+` and block menu call, on the block at the cursor, and
+the menus open above the bar, inside what the screen shows. The cursor stays
+in the moved block, above the keyboard. A fine pointer keeps the handles as
+[0061](0061-blocks-in-edit-mode.md) made them. This closes the `[OPEN]` on
+the toolbar's contents; they can still change after use, by a new
+amendment.

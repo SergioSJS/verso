@@ -8,9 +8,6 @@
 //! document, as the window's — and a third connection playing the browser,
 //! all in the room of one note.
 
-// The server is not built for Windows (crates/verso-cli/Cargo.toml).
-#![cfg(not(windows))]
-
 use std::collections::BTreeSet;
 use std::time::Duration;
 
@@ -513,6 +510,59 @@ fn a_reader_is_present_in_the_room_and_writes_nothing() {
     assert_eq!(refused["kind"], "refused", "{refused}");
     c.hear();
     assert!(!text_of(&c.doc).contains("da leitora"));
+}
+
+/// Dice in a synced note's room (ADR 0088 item 4): the server rolls, a
+/// reader too; a person in the room by the browser hears it, and so does
+/// another window of this app holding the note — the server tells the
+/// others, not this app's own link.
+#[test]
+fn a_roll_in_a_synced_note_is_the_servers_and_every_window_hears_it() {
+    let r = serve(&[(NOTE, "# Sessao\n")]);
+    let reader = device(&r, &r.reader, &[]);
+    let mut l = kept(&reader);
+    on(&reader, &mut l);
+    let c = browser(&r);
+    let _t = Tab::open(&reader);
+    tauri::async_runtime::block_on(live::command(
+        &reader.ctx,
+        &reader.s,
+        "other",
+        "collab_join",
+        json!({ "path": NOTE }),
+    ))
+    .unwrap();
+    let seen = lock(&reader.told).len();
+    let roll = cmd(
+        &reader,
+        "collab_roll",
+        json!({ "path": NOTE, "notation": "1d20+2", "source": null }),
+    )
+    .unwrap();
+    assert!(!roll["by"].as_str().unwrap().is_empty(), "{roll}");
+    let total = roll["total"].as_i64().unwrap();
+    assert!((3..=22).contains(&total), "{roll}");
+    sleep(Duration::from_millis(300));
+    let mut heard = None;
+    let mut c = c;
+    while let Ok(h) = c.heard.try_recv() {
+        if let remote::Heard::Event(e, payload) = h
+            && e == "collab-roll"
+        {
+            heard = Some(payload);
+        }
+    }
+    let heard = heard.expect("the browser heard the roll");
+    assert_eq!(heard["roll"], roll);
+    let told = lock(&reader.told);
+    assert!(
+        told[seen..]
+            .iter()
+            .any(|(to, e, p)| to.iter().any(|w| w == "other")
+                && e == "collab-roll"
+                && p["roll"] == roll),
+        "the other window heard nothing"
+    );
 }
 
 /// What device `d` told its window for `path` since `seen`, applied.

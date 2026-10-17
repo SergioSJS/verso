@@ -238,3 +238,25 @@ mantenedor.
 escolha do mantenedor; as observações do Notion no Contexto esperam o
 celular e o iPad dele. `[ABERTO]`: o conteúdo da barra do teclado (item
 7), depois do uso.
+
+**Emendado em 2026-10-16** (o conteúdo da barra, item 7, decidido). O
+mantenedor, depois que as alças dos blocos do
+[0061](0061-blocks-in-edit-mode.md) deixaram uma margem vazia larga no
+celular dele: *"Cara, notei que nosso modo mobile tem uma borda gigante a
+esquerda da lateral do celular ate o início do texto. É assim por causa das
+botões estilo notion que fizemos. No computador ficou legal, mas no celular
+nao. Fui olhar como notion resolve, ele nao faz esses botões, ele cria uma
+barra de atalhos onde nela tela as opções e da para por exemplo, mover o
+bloco pra cima e para baixo"*. Decidido: numa tela de toque
+(`(pointer: coarse)`) as alças dos blocos, o `+` e a margem que pediam
+somem, e a barra do teclado é uma só linha que rola para o lado, com alvos de
+44 px no mínimo, trazendo, nesta ordem: acrescentar um bloco (`+`);
+"Transformar em", com o seu menu; `[[`; `/`; diminuir o recuo; aumentar o
+recuo; mover o bloco para cima; mover o bloco para baixo; excluir o bloco; o
+menu do bloco (duplicar, copiar link…); desfazer; refazer; esconder o
+teclado. Cada comando de bloco é o que a alça, o `+` e o menu do bloco do
+desktop chamam, sobre o bloco no cursor, e os menus abrem acima da barra,
+dentro do que a tela mostra. O cursor fica no bloco movido, acima do
+teclado. Um ponteiro fino mantém as alças como o
+[0061](0061-blocks-in-edit-mode.md) as fez. Isto fecha o `[ABERTO]` do
+conteúdo da barra; ele ainda pode mudar depois do uso, por uma nova emenda.

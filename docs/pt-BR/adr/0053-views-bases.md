@@ -13,6 +13,12 @@
   (pedido e não construído, até este ADR)
 - Status no briefing: `PROPOSTO` para a linha das visões estruturadas da §5.3
   até 2026-09-24; `DECIDIDO` a partir das respostas do mantenedor naquele dia
+- Revisões: 2026-10-14 — a lista "Não construído" das Consequências
+  respondida pelo [0094](0094-the-rest-of-bases.md), aceito pelo
+  mantenedor naquela noite (*"Sim, todas"*): expressões regulares, o
+  layout de mapa, `html()` desenhado pelo sanitizador e uma base
+  incorporada de outro arquivo editada no lugar, tudo na V1; imagens como
+  mapas fora da V1.
 
 ## Contexto
 

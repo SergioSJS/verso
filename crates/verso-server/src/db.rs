@@ -20,7 +20,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::crypto;
 
 /// The schema's version, in `PRAGMA user_version`.
-const SCHEMA: i64 = 10;
+const SCHEMA: i64 = 12;
 
 /// Schema 8: sharing a folder inside a folder (ADR 0081 items 1, 2, 9, 11
 /// and 15): a share is a path of one folder with an id of its own, its
@@ -69,6 +69,21 @@ UPDATE invitations SET scope = 'share' WHERE share IS NOT NULL;
 /// again. Used, expired and folderless links are left as they are.
 const END_UNSCOPED: &str = "UPDATE invitations SET ended = ?1
  WHERE folder IS NOT NULL AND share IS NULL AND used IS NULL AND ended IS NULL AND expires > ?1";
+
+/// Schema 11: what a reader of a note with secret blocks is told of it
+/// (ADR 0087 item 4): the hash and size of its projection, beside the
+/// file's, and whether a change was one for a reader at all — a change
+/// only inside a secret block is none. Every note is read again by the
+/// next reconciliation (its quick key emptied), so that a note that held a
+/// secret before this schema gets its reader's hash.
+const SECRETS: &str = r"
+ALTER TABLE manifest ADD COLUMN reader_hash TEXT;
+ALTER TABLE manifest ADD COLUMN reader_size INTEGER;
+ALTER TABLE changes ADD COLUMN reader_hash TEXT;
+ALTER TABLE changes ADD COLUMN reader_size INTEGER;
+ALTER TABLE changes ADD COLUMN reader_same INTEGER NOT NULL DEFAULT 0;
+UPDATE manifest SET quick = '' WHERE lower(path) LIKE '%.md';
+";
 
 /// Schema 6: the device that made a change of a folder's log, by its name
 /// (ADR 0079 item 4, "who made it"): two devices of one account told apart.
@@ -526,6 +541,8 @@ impl Db {
             (8, SHARES),
             (9, proof::PROOF),
             (10, INVITATION_SCOPE),
+            (11, SECRETS),
+            (12, local::PHONES),
         ]
         .iter()
         .filter(|(at, _)| *at > version)
@@ -1381,14 +1398,16 @@ impl Db {
 
 mod audit;
 mod console;
+mod local;
 mod proof;
 mod shares;
 mod sync;
 mod tokens;
 mod trash;
 pub use console::{AccountRow, AuditFilter, FolderRow, Page, PageQuery};
+pub use local::{LOCAL_OWNER, Phone, VAULT_HOLDER};
 pub use shares::{Share, covers};
-pub use sync::{Change, Known, Made, Recorded};
+pub use sync::{Change, Known, Made, ReaderOf, Recorded};
 pub use trash::FolderBook;
 
 #[cfg(test)]

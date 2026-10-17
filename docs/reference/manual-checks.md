@@ -9,7 +9,8 @@
 What the automated tests cannot fully reach — the real host, macOS, the
 installed app — is listed here, one line per change, for the maintainer
 to try in the installed app when they can. **Nothing here blocks a
-commit, a merge or a release.** Each item says what to do, what to see,
+commit, a merge or a beta; the checks gate only the release of V1**
+(the maintainer, 2026-10-14, `docs/roadmap.md`, Phase 4 — V1, row V.15). Each item says what to do, what to see,
 and the commit; a checked item says when. A check that finds a problem
 becomes a fix, and the item points to it.
 
@@ -18,6 +19,640 @@ full tour of the app; this list is only what changed and is not yet seen
 in the real app.
 
 ## Not yet checked
+
+### UniVerso found on the network, and a bad DNS survived (ADR 0097, feat/universo-discovery, 2026-10-16)
+
+Needs the installed desktop app and a UniVerso on the home network (the maintainer's ZimaOS); nothing here was run on a real network when it was built.
+
+- [ ] **Discovery on the home LAN** (A): on the machine running UniVerso with the port published beyond loopback and host networking (`network_mode: host`), open *Settings › Servers* in the desktop app: within a few seconds *Found on this network* lists `UniVerso-xxxxxx` with the address (`http://<ip>:7340`) and *no HTTPS*. Click *Connect*: the address fills in and the browser opens the device-approval page of that address. Nothing happened before the click (the server's log shows no request from this Mac until then). Close the section: the list is gone, and the app's log shows no further browsing. With the compose file as it is (bridge network) the list stays empty and says what to do. On the server `VERSO_ANNOUNCE=off`, restart: nothing is listed.
+- [ ] **The macOS prompt** (A): the first time on macOS 15 or later, the system asks for the **Local Network** permission with the words of the Info.plist (which now also say the app looks for servers). Deny it: say whether the list stays empty silently or the app says something — and whether the **bad-DNS fallback** (below) also finds nothing, since the permission is said to gate the app's unicast DNS queries to the local network too; allow it in System Settings › Privacy & Security › Local Network and both work.
+- [ ] **Windows adapters** (A): the DNS fallback asks only physical adapters that are up (`Get-NetAdapter -Physical`). On a Hyper-V host with an external vSwitch (`vEthernet`), with a phone tethered by RNDIS, and in a VM with a virtio NIC, say what `Get-DnsClientServerAddress` lists for them and whether a bad system DNS is then survived or the app says the server is unreachable (it must fail safe, never ask a VPN's resolver).
+- [ ] **Windows and Linux** (A): on Windows, whether Windows Defender Firewall asks about the app on the first browse (UDP 5353), *Private* only; whether the desktop finds a server on the same Wi-Fi. On Linux with Avahi running, whether the browse and the server's announcement coexist with it.
+- [ ] **A server with its public address** (A): with `VERSO_PUBLIC_URL=https://<name>` set on the server, the row lists exactly that address and a click starts the sign-in at it; with the server's own TLS (`VERSO_TLS_CERT_FILE`) and no `VERSO_PUBLIC_URL`, the row says to set it and has no button.
+- [ ] **A bad DNS** (A): point a name at a wrong address in the system's first DNS server (or the router's, as on the maintainer's network) while another server of the list has the right one; in the desktop app connect to `https://<that name>`. It connects, within about a connect timeout the first time and at once after; the log has no WARN. Make no server answer: the notice reads *Não foi possível alcançar o servidor <name> — … <name> → <ip>: sem resposta. Confira o DNS desta rede…* and the WARN line in the log names each IP with where it came from (`system`, `dns <server>`). With a name whose certificate is for another name nothing connects (the name is verified, not the IP).
+
+### Insert image in the editor's toolbar (feat/insert-image, 2026-10-15)
+
+Needs the installed app on a Mac, a Linux and a Windows computer, an iPhone (Safari) and an Android (Chrome), through a UniVerso and through *This app is a server*; the picker and the camera are the system's and no test reaches them (the end-to-end tests stub the file chooser).
+
+- [ ] **The desktop's file picker** (A): in a note in Edit mode, the toolbar's last button opens a menu with *From this computer…* and *From the folder…* (no *Take a photo*). *From this computer…* opens the system's panel (the Finder's on macOS, the Explorer's on Windows, GTK's on Linux), filtered to images; choose one: it appears in `assets/` (or the *Attachments* setting's folder) with its name, `![[name.png]]` is at the caret, the status line says so, ⌘Z takes the embed back (the file stays). On Windows and Linux too: the panel opens, and a file with a space or an accent in its name is embedded and shown. Choose the same file again: `name (2).png`.
+- [ ] **A big picture and a HEIC** (A): a 20 MB photo on the desktop is copied and shown; on macOS a `.heic` is copied as it is (the editor shows it only where the web view can).
+- [ ] **The phone's gallery and camera, iPhone Safari** (A, through a UniVerso over HTTPS and through *This app is a server*): the menu has *Photos and files…*, *Take a photo* and *From the folder…*. *Photos and files…* offers the photo library, *Take Photo or Video* and *Choose File*; the photo chosen is copied (`IMG_1234.jpeg` or `image.jpeg`, as Safari names it) and embedded. *Take a photo* opens the camera straight away; the shot is saved as `Foto AAAA-MM-DD HHMMSS.jpg` and embedded. Denying the camera permission leaves the note unchanged and the gallery still works.
+- [ ] **The phone's gallery and camera, Android Chrome** (A): the same two choices; *Photos and files…* offers the camera and the gallery; *Take a photo* opens the camera.
+- [ ] **Over 32 MB on a server** (A): a picture over 32 MB through a UniVerso or *This app is a server* is refused in the status line (at the top of the pane on a phone) with nothing copied.
+- [ ] **A reader** (A): as a reader of a shared folder, the button says *You can only read this folder* and copies nothing.
+- [ ] **The server out of reach** (A): stop the server while a note is open and insert an image: the status line says the server could not be reached, and no embed is written. With the folder kept offline on the phone, the image is kept with the other changes and goes up when the network returns.
+- [ ] **The screen reader** (A): the button is announced as *Insert image*, a menu; the items are read; the result is read from the status line.
+
+### Syncing into a brand-new server (ADR 0079 item 1, 2026-10-16)
+
+- [ ] **Just sync, on a fresh UniVerso** (A, the desktop app): install a UniVerso with no folders, sign the app in as its admin (*Settings › Servers*), with a folder of notes open. The block says *No folder on this server yet.* and one button, **Sync ‘<folder>’**, with a line under it; no invitation text. One click: the button is busy, the server's folder appears under the same name, the status bar goes to *Syncing* and then *Synced*, and the heading of the server takes the focus. Every note of the folder is still on this computer, unchanged (look at the files), and open in the browser at the server. The server's log has no ERROR and the app's log has none. Then turn the sync off, open another local folder named like the first one: *Sync* makes `name (2)` and does not touch the first. With an account that may not make folders (the admin turns it off), the old invitation text shows and no button. *Make an empty folder…* asks a name, makes it, says so and puts the focus on its row. With the server stopped, the click says it could not reach it, with *Try again*.
+
+### This app is a server (ADR 0096, feat/local-server-build, 2026-10-15)
+
+Needs the installed app on a Mac, a Linux or a Windows computer, a real phone (an iPhone and an Android), an iPad, and a home network; nothing here was run on a phone or in the installed app when it was built.
+
+- [ ] **The folder list with many folders** (A; ADR 0096, 2026-10-16): with a dozen or more recent folders, *Settings › This app is a server › Folders served* lists them as the folder switcher does — freshest first, one row each, no groups — with a filter box above and *N ticked of M* in the heading. Two folders of the same name (say two `Caderno`) read `in <directory>` beside their names, and only those. Tick one: the count moves. With VoiceOver/Narrator each box is read with its name (and directory when shown). In a narrow window nothing scrolls sideways.
+- [ ] **The folders to serve: this vault first, the recent ones grouped** (A; ADR 0096 item 2, 2026-10-16): with 40 recent folders, *Folders served* starts with *This vault · <name>* (the one open in the window) alone, its tree of folders open under its box once ticked; *Recent · N folders* is shut and opens with Enter or a click, and stays as left after closing Settings and reopening the app. The filter is inside it and leaves the open vault alone. In a row, the name and the directory (`, in <dir>`) or the sync note are apart, not glued; with VoiceOver/Narrator the box reads its name and then its hints.
+- [ ] **Serving only some folders of a folder** (A, a real phone; ADR 0096 item 2, amended 2026-10-16): on a vault with, say, `Projetos`, `Diário`, `Segredo` and a note at its root, tick it and open *Choose folders* on its row: the tree lists its folders (none hidden, like `.obsidian`), the vault's box reads *partly* once a folder is ticked. Tick `Projetos` and `Diário` and turn the server on (the tree is locked while it serves). Pair the phone: its folder switcher lists *Projetos* and *Diário* as two folders and **no vault**; open each, and search a word that is only in `Segredo` or in the root note: nothing. With the vault's attachments folder set to `Anexos` (Obsidian: Files and links), a picture of `Anexos` shows in a `Projetos` note and the phone cannot add or change anything there, and no note kept in `Anexos` is listed, searched or opened; the tree says which folder goes along. A symbolic link in `Projetos` to `Segredo` shows nothing of `Segredo`. In a `Projetos` note, a link to a note in `Segredo` shows as *not in what was shared with you*. Make the phone an editor (*Can edit*): it writes inside `Projetos`; the vault's other folders are unchanged on the disk, except links rewritten by a rename of a `Projetos` note (the phone is never told which notes). Two chosen folders of one name (`A/Notas`, `B/Notas`) read *Notas* and *Notas (2)*. Turn it off, untick every folder in the tree: the vault is not served at all any more (the maintainer, 2026-10-16: unticking the last one stops serving it); *Serve the whole folder* (or ticking the vault again) serves every note. Close the window's folder in the case the file system folds (`DIR` for `dir`) and move a folder with a link inside it into the chosen folder's parent: still nothing of the vault outside shows or changes. Rename a chosen folder on the disk, turn it on: that folder is left out; delete every chosen folder: it refuses to start.
+- [ ] **Turning it on** (A): *Settings › This app is a server*. Nothing is ticked. Tick the demo vault, *Turn the server on*: the explanation of what the system will ask comes first (once); then it serves, the status bar shows *Serving* with *Stop*, and Settings shows `address:port`. Quit the app and open it again: it is off (and on again at start only if *Keep on when the app starts* was ticked). *Stop* in the status bar closes it.
+- [ ] **The macOS prompts** (A): the first time, the system asks about the **Local Network** and, with the firewall on, *Allow incoming connections?* for Verso (an app not notarized asks; a notarized one may not). *Allow*: the phone connects. *Deny* (System Settings › Network › Firewall, remove Verso): turn it on again — the section says the computer could not reach its own address, with the macOS steps; allow it and turn it on again. Say whether the self-test (this computer connecting to its own address) really fails when the firewall refuses, or passes while a phone still cannot: that decides whether the warning is enough.
+- [ ] **The Linux firewall** (A): with `ufw` on and the port closed, the same warning with the Linux line; `ufw allow from 192.168.0.0/16 to any port <port> proto tcp` and a phone connects.
+- [ ] **The Windows firewall prompt** (A): on Windows, the first time it listens, the explanation says what Windows Defender Firewall will ask (for which networks; leave *Public* unticked) and Windows asks *Allow Verso to communicate on these networks?*; with only *Private* ticked, a phone on the same Wi-Fi connects, if the Wi-Fi is set to Private. Refuse it (or set the Wi-Fi to Public): the section says the computer could not reach its own address, with the Windows steps; allow it, turn the server off and on again, and it works. Say whether the self-test really fails when the firewall refuses.
+- [ ] **Pairing a phone with a Windows laptop** (A): the whole pairing — QR, code, *Was it you who scanned this QR?*, *Allow* — from a Windows laptop to an iPhone and to an Android; a note read and edited from the phone; *Revoke*; and the server stopping by itself when the laptop changes network (Wi-Fi to a hotspot). The app's log shows no ERROR. Also `verso serve` in a terminal on Windows (`$env:VERSO_DATA_DIR`, `$env:VERSO_FOLDERS_DIR`), Ctrl-C stops it.
+- [ ] **Pairing a real phone by QR** (A): *Pair a phone* shows a QR, the address and a code, and a countdown from 2:00. The iPhone's camera reads the QR and opens the page; the page asks for no password. On the computer *Was it you who scanned this QR?* shows the phone's name, its address and the time; *Allow* with *Can edit* off: the phone opens the window with the ticked folder, read-only (*Você só lê esta pasta*). Open the dialog again, pair as an editor, and edit a note on the phone: the note changes on the computer's disk and in its window.
+- [ ] **The code typed by hand** (A): on the phone, open `https://<address>:<port>/pair` by hand and type the code: the same question on the computer. A wrong code three times closes the window and the computer says so; the right code afterwards is refused.
+- [ ] **Expiry and closing** (A): leave the dialog open for 2 minutes: it says it expired and the QR no longer pairs; close the dialog while a phone waits: the phone's page says it was refused. Scan the same QR twice: the second is refused.
+- [ ] **The certificate warning, iPhone Safari** (A): *This Connection Is Not Private* → *Show Details* → *visit this website*: the page loads; a second visit does not warn again. Say whether the session cookie (`__Host-…`, Secure) survives a closed Safari. The fingerprint in the dialog is the one *View Certificate* shows.
+- [ ] **The certificate warning, Android Chrome** (A): *Your connection is not private* → *Advanced* → *Proceed*: the same pass. A WebSocket over the accepted certificate works (the notes load).
+- [ ] **What the phone cannot do** (A): offline for the folder is declared unavailable (a service worker does not run on an untrusted certificate); passkeys are not offered; Settings on the phone has no *Servers* or account page.
+- [ ] **Sleep and wake** (A): with a phone connected, close the lid and open it on the same network: the server serves again (the phone reconnects on its own); the status bar still says *Serving*. Close it, change network (another Wi-Fi), open it: serving has stopped by itself and a notification says why; turning it on again needs the phones to pair again (the address is a new origin).
+- [ ] **A café-like network** (A): on a Wi-Fi with client isolation (a phone hotspot with isolation, or a guest network) the phone cannot reach the computer; the app, which can reach itself, does not claim otherwise — say what the phone's browser shows and whether the pairing dialog's wording helps. On a VPN turning on while serving: serving stops (a new address).
+- [ ] **Revoke and forget** (A): *Revoke* on a connected phone: its page loses the window at once and a reload asks to pair; *Forget all phones*; *Replace this computer's identity* (the fingerprint changes; every phone must pair again, and its browser warns again).
+- [ ] **The notification** (A): the first connection of a paired phone raises *Phone connected* in the window (a toast and a line in the list), not a system notification; the second connection raises nothing.
+- [ ] **mDNS** (A): while the pairing dialog is open, `dns-sd -B _verso-local._tcp` (macOS) or `avahi-browse -rt _verso-local._tcp` (Linux) on another machine lists `Verso-xxxx` with a TXT of `v` and `port` and nothing else; closing the dialog makes it disappear within seconds (the goodbye), and with the dialog closed nothing is announced.
+- [ ] **The updater** (A): with a phone connected, *Check for updates* › a version with *Restart now*: the card says how many phones are connected and will be disconnected; after the restart the phone's page reloads when the contract changed.
+- [ ] **The installed bundle** (A): the app carries `ui-web` (the window's files for the phone): with it missing the server refuses to start and says so. `ui-web` has no `*.map` file (49 MB in 1 022 files, measured 2026-10-15; it was 103 MB with them): the phone's window still opens and works. Say the size the installed app gained.
+- [ ] **The menu-bar mark** (A, macOS and Windows; ADR 0096 item 1, built 2026-10-15): while serving, an icon of the book appears in the menu bar (macOS: black on a light bar, white on a dark one, as the system tints it) or the notification area (Windows). Its menu reads *Serving N folders…* (grey), *Stop*, *Open Settings*, in the window's language (change it in Settings: the words follow). A phone connecting changes the tooltip's count. *Stop* turns the server off: the icon goes, and the window's status bar mark goes with it. *Open Settings* brings a window forward on *This app is a server*. Stopping from Settings, or the network changing, also removes the icon; quitting the app removes it. With VoiceOver (macOS) or Narrator (Windows) the icon is announced with its tooltip and each menu line is read. On Linux there is no icon, by design.
+- [ ] **The screen reader** (A): VoiceOver reads the pairing dialog (the QR has a name; the address and the code are text), the countdown as it changes, the *Was it you?* question when it appears, and the phones' *Revoke* buttons by name.
+- [ ] **An unusual network** (A): a computer with Tailscale running: Settings shows the `tailscale serve` hint; with the certificate and key of `tailscale cert` filled in (*Use my own certificate*), the phone connects with no warning, over the name given.
+- [ ] **The address in the pairing dialog** (2026-10-15): on a Mac with ZeroTier or a VPN, the dialog names the Wi-Fi or cable address and its interface (for example `192.168.3.122 — en7 (local network)`), not the virtual one; the list offers the others, and picking one makes a new QR and code that the phone can still pair with when it is on that network.
+- [ ] **Typing `[[` on a phone keyboard** (2026-10-15): in a note opened on the phone, type `[[` with Gboard (Android), with the Samsung keyboard and with the iOS keyboard, once with word suggestions on and once off: the list of notes appears above the keyboard, inside the screen, and a name picked is written. Then keep typing a word, `[[por`: with Gboard the word stays underlined until the space, and the list must follow every letter (the best match first), also when the brackets and the word are one composition and with the key row's `[[` button; picking one writes it. Press Esc: the list stays closed until you type again. The browser harness covers the Android agent's composition paths (EditContext, the word composing, a stand-in keyboard) in Chromium only; the real keyboards are this check's. Type `/`, `#` and `![[` too.
+- [ ] **A phone's role** (2026-10-15): pair a phone as a reader, open a note on it; in *Paired phones* tick *Can edit* for it — without reloading, the phone can type; untick it — the phone cannot, and a note it was editing live reads again; both show in *What happened* and in `verso.log`.
+- [ ] **The log** (2026-10-15): after turning the server on, pairing, connecting, revoking and turning it off, `~/Library/Application Support/verso/logs/verso.log` has a line for each (source `local`) and no token, code, QR text or note text.
+
+- [ ] **A third device while the connected ones are at the most** (A, a real Android phone or iPhone; fix/phone-refused-said, 2026-10-16): in *Settings › This app is a server* set *Devices connected at once* to 2, pair three phones (or two phones and a desktop browser paired as a phone) and open Verso on two of them. Open it on the third: it must say, in its language, that the computer already serves 2 connected devices, the most, and what to do — not "the file is in the cloud" — and keep trying every ~15 seconds without a flood. Close Verso on one of the two (a tab counts): the third connects by itself within ~15 seconds. Raise the number to 3 with the third waiting: it connects on its next try, and nobody was disconnected. Lower it under the count: nobody is cut off, a new connection is refused. The computer's log has the refusal once a minute, and the log in Settings says *Phone refused*, naming the phone.
+
+### The phone offline (ADR 0092, feat/phone-offline, 2026-10-15)
+
+Needs a UniVerso over **HTTPS** (a service worker does not run over plain
+HTTP, except on `localhost`) and a real phone; the e2e tests stand in for
+the network with the browser's offline mode and a WebSocket route.
+
+- [ ] **Installed on an iPhone** (A): in Safari, open the server, sign in,
+  Share › Add to Home Screen, open it from the icon. Settings › Offline in a
+  folder: the space is said, *Keep on this device* works, and the page says
+  whether the system promised to keep the copy (*persisted*). Airplane mode,
+  quit the app, open it from the icon: the window opens and lists the
+  folder; a note opens and is edited; the status bar says *Sem conexão* and
+  *1 mudança esperando*. Airplane mode off: *Voltou a rede: 1 mudança
+  enviada*, and the note on the server has the text.
+- [ ] **iPhone's eviction** (A): with the copy kept and the phone's storage
+  nearly full (or after seven days without opening the page in Safari, not
+  installed), open the page offline: either the copy is there or it is gone —
+  say which, and whether the page told you (*persistDenied*). Writes that
+  had not gone up are what is lost; nothing on the server is.
+- [ ] **Android** (A): Chrome, *Install app* (or Add to Home screen); the
+  same passes; the *Persistent storage* of Chrome's site settings says the
+  copy is not cleared when space runs short.
+- [ ] **A conflict on a phone** (A): a note edited on the phone offline and
+  on a computer meanwhile; back online: the server's version has the name,
+  the phone's is `… (conflito, iPhone · Safari, …).md`, listed in Settings ›
+  Offline with its difference; a notification says it.
+- [ ] **Sign-out and a lost phone** (A): *Sair* says how many writes have
+  not gone up; after it, Safari's Settings › Advanced › Website Data shows
+  nothing for the server beyond the page's code. The console's *End sessions
+  and tokens* on a phone that is offline: at its next connection the copy is
+  deleted and the page says so.
+- [ ] **A reader's phone** (A): a reader keeps a folder with a secret
+  block; offline, the note has no block, and *View as a reader* on the
+  owner's side shows the same text.
+- [ ] **The screen reader** (A): VoiceOver/TalkBack read the offline state
+  when it changes (*Sem rede: você edita as notas guardadas…*) and the
+  section's controls by name, in both languages.
+- [ ] **The Mac, WebKit** (A): Safari on the Mac, the same first pass; the
+  WebKit of the e2e image is not Safari.
+
+### An embedded page as a real frame (fix/web-embed-clip, 2026-10-15)
+
+Needs the installed app: the check, the frame's policy and the navigation
+guard live in the host, which the browser harness does not have. Do each
+on macOS and on Windows. Headers read with `curl -sI` on 2026-10-15:
+`https://example.com/` and `https://en.wikipedia.org/` send no
+`X-Frame-Options` and no `frame-ancestors` (frameable); `https://rolai.app/`
+and `https://huggingface.co/` send `X-Frame-Options: DENY` (not frameable,
+so they take the native view, as rolai.app did before). Use a long note
+with an approved embed of each, tall enough to scroll.
+
+- [ ] **A frameable site** (example.com, or a Wikipedia article): it shows
+  in the note as a frame; its size is the box's, with no gap and no bar of
+  its own beyond the page's. Scrolling the note moves it like any block of
+  the note.
+- [ ] **A refusing site** (rolai.app): it shows, in the native view, as
+  before this change. Say whether it is cut right at the pane's edges.
+- [ ] **Half above, half below, at the status bar**: scroll the note until
+  a frameable embed is half above the pane, half below it, and just over
+  the status bar: the page is cut at the pane's edges and the status bar,
+  the tab bar and the bell stay uncovered; no flicker, no lag (it is a
+  frame, nothing follows it).
+- [ ] **Scrolling the note never scrolls the page**: with the pointer over
+  the embed, scroll with the wheel and the trackpad: the note and the page
+  scroll as in a browser (the page first while it can, then the note); the
+  page is never moved when the pointer is over the note's text.
+- [ ] **The page's own scroll**: scroll inside the page, then scroll the
+  note: the page keeps its position.
+- [ ] **A split pane, Settings open**: split the window and put the embed
+  near the divider: nothing crosses it; open Settings or the palette: the
+  page does not show through (a frame is under the overlay as the rest of
+  the note is).
+- [ ] **A link and a video inside the page**: click a link to another site
+  inside the framed page, and play a video that the page itself embeds. Both
+  are expected to stay blank for now (the navigation guard does not know
+  frames; ADR 0056 `[OPEN]`). Say what happens, and whether the window or
+  the page stayed usable.
+- [ ] **Redirect**: embed `http://example.com/` (it redirects to https)
+  and a `www.` form of a site that redirects to its bare name: the page
+  loads, or takes the native view; it is never blank.
+- [ ] **An address on the network** (a Calibre-Web, a dashboard on
+  `192.168.x.x`): it shows, in a frame or in the native view; say which.
+- [ ] **Offline**: with no network, a new embed takes the native view's
+  path (the check answers no) and says nothing wrong; coming back online,
+  restart the app and the page frames.
+- [ ] **A page as a tab** (a note with only a `url`): unchanged, a native
+  view filling the pane.
+- [ ] **The log** (`~/Library/Application Support/verso/logs/verso.log`):
+  no `ERROR` while doing the above, and no "not allowed" for `embed_frameable`.
+
+### An embedded page clipped as a frame (feat/web-embed-native-clip, 2026-10-15)
+
+Needs the installed app: the page is a native child web view clipped by
+a native container (`app/src-tauri/src/web_clip`; ADR 0056 and ADR 0029,
+revised 2026-10-15), which neither the browser harness nor any test
+reaches. Do every item on **macOS**, on **Windows** and on **Linux**
+(X11 and Wayland; Linux had never shown a child web view, so start
+there by opening one). Use an approved embedded page from a site that
+refuses frames (olddragon.com.br, rolai.app, the Calibre-Web), tall
+enough to scroll inside, in a note long enough to scroll. Keep the log
+open (*Report a problem*, or `verso.log`): no line *cannot be clipped
+like a frame* should appear — one means that view fell back to the old
+cut, which says the page's top.
+
+- [ ] **Half above the pane**: scroll the note until the embed's top is
+  about half above the pane's top. The page's *middle* shows (not its
+  top again), cut at the pane's top edge; the tab bar and the toolbar
+  uncovered. Scroll on and back: the page moves with the note, line for
+  line, no jump, no flicker, and its first line comes back into view
+  when the box does.
+- [ ] **Half below the pane**: the embed's bottom below the pane: the
+  page's top shows, cut at the pane's bottom; the **status bar** (and
+  the bell in it) is not covered.
+- [ ] **At the status bar**: scroll so that the embed's bottom edge sits
+  just under the status bar's top: not a pixel of the page over the
+  status bar.
+- [ ] **Laid out for the whole box**: a page that sizes itself to its
+  window's height (a video player, a full-height app): at the half-way
+  case it is laid out for the whole box and shows its lower half — not
+  squeezed into the visible part.
+- [ ] **The page's own scroll and clicks**: with the embed half above the
+  pane, scroll inside the page with the wheel or the trackpad over its
+  visible part, click a link and a button there, type in a field: all
+  work. Then scroll the note (over the note, outside the page): the page
+  does not scroll inside, it only moves.
+- [ ] **A split pane**: split the window; the note in the right pane,
+  the embed cut by the divider: the page never over the other pane, the
+  divider or the side panels; open and close the left and right panels
+  with the page in view.
+- [ ] **Settings over it**: at the half-way case, open Settings (and the
+  palette): the page disappears; closed, it comes back at the same
+  place, still cut at the pane.
+- [ ] **Resizing the window**: drag a corner while the embed is half
+  above the pane: the page follows, cut where the pane ends, and never
+  drawn outside the window during the drag.
+- [ ] **Two screens of different scales** (a Retina screen and a 1×
+  monitor; on Windows 100 % and 150 %): move the window from one to the
+  other with the embed half-way: the page keeps its place and size, sharp
+  on each, with no strip of it outside the pane.
+- [ ] **Two embeds in one note**: both half visible at once (one cut at
+  the top, one at the bottom): each shows its own part, neither over the
+  other's slot nor the chrome; close the tab: both go, nothing left over
+  the window.
+- [ ] **A web note** (a note with a `url`, *Show page*): its page fills
+  its area as before, follows splits and resizes, hides under Settings.
+
+### An embedded page cut by its pane (fix/web-embed-clip, 2026-10-15)
+
+*(The checks of the cut that came before the native clipping. Where the
+native clipping is built, its checks above replace these; an item here
+that says the page is laid out for the visible height no longer holds.)*
+
+Needs the installed app: the page is a native child web view, which the
+browser harness does not have. Do each on macOS and on Windows. Use a note
+with an approved embedded page tall enough to need scrolling (a long
+article, with numbered lines or headings so the part shown is obvious),
+in a note long enough to scroll.
+
+- [ ] **Half above the pane**: scroll the note until the embed's top edge
+  is about half-way above the pane's top. See the page's *middle* (its
+  lines 3, 4… and not 1, 2, 3), the page cut at the pane's top edge, the
+  tab bar and the toolbar uncovered. Scroll on: the page moves up with
+  the note, no jump, no flicker; scroll back: the page goes back down to
+  its beginning.
+- [ ] **Half below the pane**: scroll the other way until the embed's
+  bottom is below the pane. The page's beginning shows, cut at the pane's
+  bottom; the **status bar** is not covered, nor the bell in it.
+- [ ] **Taller than the pane**: an embed taller than the pane, its top
+  and bottom both out of view: the page shows its middle, with neither
+  chrome covered.
+- [ ] **The page's own scrolling**: with the embed fully in view, scroll
+  inside the page with the wheel; then scroll the note a little: the page
+  keeps its own position plus the note's, and still scrolls inside.
+- [ ] **In a split pane**: split the window in two; the note in the right
+  pane, the embed near the dividing line, and the left pane's edge: the
+  page never goes over the other pane, the divider or the side panels
+  (open and close the left and right panels with the page in view).
+- [ ] **With Settings (or the palette) open**: scroll to the half-way
+  case, open Settings: the page disappears, and it comes back at the
+  same part when it closes.
+- [ ] **Opening already scrolled**: scroll the note first so that the
+  embed's top is half out of view, then open the tab (or switch to it):
+  the page appears already showing its lower part.
+- [ ] **A full-height page** (one that sizes itself to the window's
+  height, such as a video player): at the half-way case it shows laid out
+  for the visible height; say whether that looks acceptable (an iframe
+  would lay it out for the full box).
+- [ ] **Windows**: all of the above, plus the window dragged to another
+  monitor and resized while the page is half-way: the page follows
+  without drifting.
+
+### Notifications in the window (ADR 0084, feat/notify-ui, 2026-10-14)
+
+- [ ] **The server stopped and started again**: a folder of this computer
+  that syncs with a UniVerso, then stop the server. Within seconds a
+  toast at the bottom right, *Sincronização sem conexão*, which stays;
+  the bell in the status bar says *1 notificação não lida*. Start the
+  server: the toast becomes *A sincronização voltou* and leaves after
+  6 s; the bell's list has one line, the newer. The same with a folder of
+  the server open in the window: *Conexão com o servidor perdida*, then
+  *Servidor de volta* — once each, however many tries the host makes.
+- [ ] **A share revoked, on a window on the server's folder**: open, in
+  the desktop app, a folder another account shares with you; that
+  account revokes it. The status line and a toast say *Quem compartilhou
+  esta pasta, em …, revogou o seu acesso*, never *A conexão com o
+  servidor caiu; tentando de novo…*.
+- [ ] **A share given from another account**: signed in to a UniVerso in
+  *Ajustes › Servidores* (or in the browser), another account shares a
+  folder with you: a toast *Uma pasta foi compartilhada com você* — who,
+  which, the role — with *Ver as pastas*, which opens *Ajustes ›
+  Servidores* (in the browser, the folder switcher). Once per share.
+- [ ] **An update found**: an installed version older than the newest
+  release: a toast *Nova versão disponível* a few seconds after the
+  start, with *Baixar e atualizar* and *Ver nos Ajustes*; quit and start
+  again: no second toast for the same version (the bell's list still has
+  it). Left open for a day, a release published meanwhile is said.
+- [ ] **The quota on a synced folder**: a synced folder of this computer
+  past 90 % of its quota on the server, after a save: *Pasta quase
+  cheia*, once; delete files under 90 %, reopen the folder (or wait a
+  day), pass it again: said again.
+- [ ] **The system's notifications, asked and refused, on each OS**
+  (macOS, Windows, Linux, and a browser over HTTPS): *Ajustes ›
+  Notificações › Também nas notificações do sistema* off at first. On
+  the desktop Tauri's plugin 2.4 asks nothing and answers "allowed"; the
+  system's own settings decide in silence, and the row says where they
+  are (macOS: *Ajustes do Sistema › Notificações › Verso*; Windows:
+  *Configurações › Sistema › Notificações*) — block Verso there and see
+  that nothing shows. In a browser: its prompt; allowed, *Ligado.*;
+  refused (or blocked later in the site's settings, then the page
+  reloaded), the row back to off with why. In a browser over plain HTTP
+  the row says it needs HTTPS and cannot be turned on; on an iPhone's
+  Safari outside the home screen, that it needs the installed app.
+- [ ] **UniVerso over plain HTTP from another device** (ADR 0073 item 6
+  amended 2026-10-16; a ZimaOS or CasaOS box, a phone, an iPad): paste the
+  shipped compose file with no variable filled, open
+  `http://<the box's address>:7340` on the phone, make the admin from the
+  log's setup link, sign in. The sign-in page carries *Conexão sem HTTPS…*
+  with *Como ligar o HTTPS*; the window shows the closable notice once;
+  *Settings › Offline* and *Notifications* say they need HTTPS with the
+  same link; copying a link from the menu works; the desktop app connects
+  to the same `http://` address and syncs. Put Tailscale or Caddy in front,
+  set only `VERSO_PUBLIC_URL`: offline and notifications turn on, the notice
+  is gone.
+- [ ] **A notification while the window is in the background**: the
+  system's notifications on, the window behind another app (or
+  minimised, or another browser tab), then stop the server: a system
+  notification *Sincronização sem conexão*. With the window in front:
+  the toast only. A click on the system's notification: in a browser the
+  window comes to the front and the centre opens on it. On the desktop
+  the plugin 2.4 tells the page of no click — a click only brings the app
+  forward on macOS and Windows, and the centre does not open by itself
+  (the bell has the count); opening it on the click comes with the plugin
+  2.6 and Tauri 2.12, in a later 0.8.x (decided 2026-10-14).
+- [ ] **VoiceOver and the keyboard**: a toast is read once as it comes
+  (an error at once), the focus staying where it was; Tab reaches the
+  toast's buttons, Escape closes it and the focus goes back; the bell is
+  read with its count; the centre is a dialog, Escape closes it.
+
+### The signed checksums list (ADR 0055, revised 2026-10-14; feat/release-checksums)
+
+- [ ] **0.8.3 is the bridge** (once 0.8.3-beta.1 is published): its
+  release page has 30 files, `verso-0.8.3-beta.1-SHA256SUMS` and its
+  `.sig` among them, and says they can be ignored; an installed
+  0.8.2-beta.1 updates to it from *Ajustes › Atualizações* as before (it
+  reads the file's own `.sig`), with no ERROR in `verso.log`.
+- [ ] **From 0.8.3 the app updates through the list** (once the version
+  after the bridge is published, with `PER_FILE_SIGNATURES` set to
+  `false` in `scripts/release-page.mjs`): its page has 16 files; the
+  installed 0.8.3-beta.1 updates to it, with no ERROR in `verso.log`. On
+  a server, `sh universo.sh update` says *Signature and checksum good:
+  universo-…deb is in verso-…-SHA256SUMS*. Before that release, the copy
+  at `https://versomd.com/universo.sh` (versomd-site, `public/universo.sh`)
+  is copied again from `packaging/server/universo.sh`, or the site's
+  script finds no signature in it.
+
+### The hover preview (ADR 0085, feat/hover-preview, 2026-10-14)
+
+- [ ] **A link's note where the pointer rests, in the app** (A): note 02,
+  *Prévia ao Passar o Mouse*, in Leitura: the pointer on "as fórmulas do
+  Guia de Sintaxe" for half a second shows the card, its heading marked
+  at the top; the pointer into the card scrolls it; away, it goes; in the
+  dark theme the card reads as the note does. A note with a picture of the
+  folder in it (note 06): the picture shows in the card (the `verso:`
+  protocol, which the harness stands in for). `verso.log`: no ERROR.
+- [ ] **⌘ in Edit mode on the Mac, Ctrl on Windows** (A): note 02 in
+  Editar, the pointer resting on a link: nothing; ⌘ pressed (Ctrl in
+  WebView2 on Windows): the card; ⌘-click still follows the link and no
+  card is left behind.
+- [ ] **A note only in iCloud** (A, ADR 0043): a link to a note made
+  dataless by macOS (*Remove Download* in Finder): the card says *A nota
+  só está na nuvem: abra-a para baixá-la — a prévia não baixa nada.*, and
+  the file stays dataless (`ls -lO` shows `dataless`).
+- [ ] **A PDF and a picture linked** (A): `[[file.pdf]]` and
+  `[[picture.png]]` rested on show the PDF (pdf.js in the app's web view)
+  and the picture in the card; the console stays clean as the card opens
+  and closes.
+- [ ] **The board by touch, on an iPad** (A): a board's card, a finger
+  held still on its name: the card of its note; lifted, the board selects
+  nothing new and opens nothing. (The graph's long press runs by machine;
+  the board's does not.)
+- [ ] **VoiceOver** (B): bind *Ver a prévia do link sob o cursor* in
+  *Ajustes › Atalhos*, a link in Leitura focused with Tab, the key: the
+  card is read as the dialog *Prévia de …* and its text can be read; Esc
+  closes it and the focus is back on the link. A hover's card is not
+  announced and takes no focus.
+
+### Linking unlinked mentions (ADR 0089, feat/link-mentions, 2026-10-14)
+
+- [ ] **Link and Link all in the app** (A): in the demo vault, open "Lia
+  Torres", right panel › *Links* › *Menções sem link*: the row of note 02,
+  *Linkar* — note 02's callout now reads `[[Lia Torres]]`, the row goes,
+  note 02 is among the backlinks. In a folder of your own, a note named
+  after a common word (say "Mesa") mentioned in several notes, one of them
+  in a table and one in a code block: the code block's is not listed; *Linkar
+  todas* shows each note's diff, *Linkar todas* in the plan writes them, and
+  the table's link is `[[Mesa\|mesa]]` with the table still whole. Change
+  one of the notes in another editor while the plan is open: it is named as
+  not written. With a mentioning note open in a tab, *Linkar*, then ⌘Z in
+  that tab: the link is undone and saved. `verso.log`: no ERROR, and no
+  "not allowed" for `unlinked_mentions`.
+- [ ] **On a UniVerso** (A): an owner and a reader in one folder; a note
+  with a mention inside `> [!secret]` and one outside. The owner sees both
+  rows with *Linkar*; the reader sees only the one outside, and no button.
+  The owner links a mention in a note another member has open: the link
+  appears in that member's editor beside what they type, and no conflict
+  copy appears.
+- [ ] **With VoiceOver** (A): each row's button is read as *Linkar “texto”
+  em Nota*; *Linkar todas* names how many; in the plan, Tab reaches each
+  note's diff and it is read as a list of changes.
+
+### Link suggestions while typing (ADR 0089 item 5, feat/typing-links, 2026-10-15)
+
+- [ ] **In the app, on a folder of your own** (A): Settings › Editor shows
+  "Sugerir links enquanto escrevo" off, with "Pastas ignoradas" and
+  "Nomes ignorados" under it. Typing a note's name in a note shows nothing.
+  Turn it on, with no restart: type the whole name of a note, then an
+  alias, then the name in another case: "Ligar a [[Nome]]" at the cursor
+  each time, the text untouched; Tab writes `[[Nome]]` or `[[Nome|texto]]`
+  with the cursor after it and ⌘Z takes the link back to the typed words;
+  Enter does the same; Esc and typing on dismiss it, and the same name
+  typed again in the paragraph shows nothing, in the next paragraph shows
+  it. Nothing inside `` `code` ``, a fenced block, `[[…`, a `$…$` formula,
+  or the note's own name. A name in "Nomes ignorados" and a note in an
+  ignored folder are not offered. `verso.log`: no ERROR.
+- [ ] **On a UniVerso** (A): in a live note with another person in it,
+  accept a suggestion: the link appears in the other person's editor and no
+  conflict copy comes. A reader of the folder, typing is impossible and no
+  chip shows.
+- [ ] **On a phone** (A): the chip appears above the cursor, big enough for
+  a finger, with no "Tab"; a tap writes the link and the keyboard stays up.
+- [ ] **With VoiceOver** (A): when the chip appears it is read once,
+  politely, "Sugestão de link: Nome, Tab para aceitar" (on a phone "toque
+  para aceitar"); after Tab, "Link criado para Nome."; it never takes the
+  focus from the text.
+
+### The infobox (ADR 0086, feat/infobox, 2026-10-14)
+
+- [ ] **A typed note as a card beside its text** (A): open
+  `Lugares/Porto Cinzento` in the demo vault. The card is at the right of
+  the text, the harbour's picture at its head, in Reading and in Edit;
+  VoiceOver (⌃⌥U, Landmarks) lists a complementary region "Porto
+  Cinzento" and reads the picture as "O Porto Cinzento visto do farol".
+  Tab goes "Abrir o schema" → each property in order →
+  "Outras propriedades" → "Adicionar propriedade". Opening it writes
+  nothing (`git status` in the vault, or the file's date).
+- [ ] **An edit in the card reaches the file, in both modes** (A): in
+  Edit mode, add a habitant with "Adicionar link…" (the list offers the
+  folder's notes), change "Perigo"; the file has `- "[[…]]"` and the new
+  number, nothing else changed; ⌘Z takes it back. The same in Reading.
+  Also a sticker or a cover set in Edit mode now reaches the file (the
+  fix of this branch).
+- [ ] **A narrow pane** (A): split the pane (⌘\) until the card goes
+  above the text, folded to the picture and three properties; "Mostrar
+  todas as propriedades" opens the rest and says it is expanded.
+- [ ] **A web picture** (A): set `mapa:` to an `https://` picture of an
+  origin not approved: the card shows the address as text, why, and
+  "Aprovar <origin>"; nothing is fetched (`verso.log`, no request).
+  Approve: the picture shows, and the origin is in *Ajustes*' approved
+  origins. With "load remote content" off, an approved origin shows
+  "Carregar" instead. In the web window (UniVerso) an `https:` picture
+  of an approved origin shows; the page's CSP is unchanged.
+- [ ] **Obsidian** (A): open the same vault in Obsidian: `Porto
+  Cinzento`'s properties show as Obsidian shows them, the habitants as
+  links, the schema's note as a code block.
+
+### Secret blocks (ADR 0087, feat/secret-blocks, 2026-10-14)
+
+- [ ] **A reader never sees a secret block** (A): a UniVerso, two
+  browsers, the owner and an account given *leitor*. A note with a
+  `> [!secret]` block, a link, a tag and a heading inside it. The reader:
+  Leitura, the hover preview of a link to it, an embed of it in another
+  note, an embed of the heading inside the block (*not found*, never
+  *secret*), the search for a word of the block, the backlinks of the note
+  the block links to, the tags pane, the graph, a base listing
+  `file.tags`: nothing of the block anywhere. The owner sees all of it,
+  the block with a lock and *Oculto para leitores*.
+- [ ] **A live note** (A): both in the note. The owner types inside the
+  block: nothing reaches the reader; outside it: the reader's note follows
+  a moment after the owner stops (the room's save), and the reader sees
+  the owner's name among those present but no cursor. The owner pastes a
+  new secret block into a note the reader has open without one: the
+  reader's tab reads the note again, without it. The server's log has no
+  ERROR.
+- [ ] **A reader's device** (A): the desktop app of the reader's account
+  syncing the folder: the file on its disk has no block (`grep` for a
+  word of it); the owner changes only the inside of the block: the
+  reader's device shows no new change; the owner changes a line outside
+  it: the device brings it.
+- [ ] **A read-only token** (A): `verso mcp` or a program with a token that
+  only reads the folder: `read_note` and `search` give the note without
+  the block.
+- [ ] **An editor made a reader while in the note** (A): the owner turns an
+  editor into a reader in the folder's members while the editor's window
+  is in a note with a secret block: its tab reads the note again, without
+  the block.
+- [ ] **An upgraded server** (A): a server of an earlier version with a
+  note that already holds a secret block, updated: after the first sync
+  question of a device (the folder walked again), a reader's device holds
+  the note without the block.
+- [ ] **View as a reader** (A): in the installed app, a folder of this
+  computer: the block says *Visível para quem tiver o arquivo*; *Ver como
+  leitor* and *Ver a nota inteira*, by the pointer and by Tab and Enter,
+  VoiceOver saying the strip.
+
+### Version history (ADR 0091, feat/version-history, 2026-10-14)
+
+- [ ] **A note's history and a restore, in the app** (A): in the installed
+  app, a folder of this computer: open a note, type two paragraphs, wait,
+  then *⌘⇧P › Histórico de versões* (also the tab's menu, the file tree's
+  menu, and the clock in the status bar). The list says *como estava
+  quando o histórico começou* for the note as it was, and *<computer's
+  name> (este computador)* for the edits, at the time this Mac's clock
+  shows. Choose the first: the diff shows the two paragraphs as `- `
+  lines. *Restaurar esta versão* asks, restores, says *Versão de …
+  restaurada.*, and the editor shows the old text; the history now has a
+  *restauração* on top. VoiceOver reads the table's header row, each
+  version's button, and the change as *N linhas adicionadas, M
+  removidas*. The history file is under the configuration directory
+  (`~/Library/Application Support/verso/history/<key>.sqlite`), never in
+  the folder: `ls -a` the folder before and after. `verso.log` has no
+  ERROR.
+- [ ] **A file changed by another program while the diff is open** (A):
+  open a note's history, choose a version, then change the note in
+  another editor and save; *Restaurar esta versão*: the window says the
+  file changed and nothing was written, the diff is made again, and the
+  other editor's text is on disk.
+- [ ] **A restore in a note edited together** (A): two browsers on a
+  UniVerso, two accounts in the same note, both typing for a while. The
+  history names both accounts on one version (ten minutes of the room in
+  one). One restores an older version: the other sees the text change at
+  once, with no conflict banner; the restore is on top of the history,
+  named by who restored. The server's audit log (console › Registro) has
+  *restaurou uma versão*.
+- [ ] **A reader has no history** (A): the reader of a UniVerso folder has
+  no *Histórico de versões* in the palette, the menus or the status bar.
+- [ ] **A synced folder on the desktop** (A): a folder of this computer
+  synced with a UniVerso; open a note's history: the versions are the
+  server's (other devices and accounts named) plus, marked *só neste
+  computador*, an edit made while the server was off. Stop the server and
+  open it again: the window says it shows this computer's versions only.
+  Restore a server's version: the window says it was restored on the
+  server and sync brings it.
+- [ ] **The console** (A): `/admin` › a folder: *Histórico de versões*
+  with its versions and size *fora da cota*; set *Dias no histórico* to 1
+  and apply: the older versions go (the server's log says how many);
+  *Usar o padrão* goes back to `VERSO_HISTORY_DAYS`. Overview shows the
+  histories' total.
+- [ ] **A large folder's growth** (B): on the maintainer's real vault
+  synced to a UniVerso for a week, `du -h $VERSO_DATA_DIR/history.sqlite`
+  against the folder's text size, and the console's figure.
+
+### Dice and random tables (ADR 0088, feat/dice, 2026-10-14)
+
+- [ ] **A die in a note rolls and writes nothing** (A): in the installed
+  app, note 24 of the demo vault in Leitura, then in Editar: each `dice:`
+  code is a die; a click and Enter roll it, the card shows the total and
+  each die, VoiceOver says *1d20+5: …* once per roll. The table's roll
+  gives a row whose link opens Capitão Ruy. Close the note and look at the
+  file on disk: the same bytes (`shasum` before and after), and no `write`
+  line for it in `verso.log`.
+- [ ] **In a room the server rolls** (A): two browsers on a UniVerso, two
+  accounts in the same note with `` `dice: 1d20+3` ``. One rolls: the
+  other sees the same total with *X rolou* beside the die, and VoiceOver
+  says the name; a third window that opens the note then shows that roll.
+  A reader rolls too. The server's log has no ERROR. Stop the server and
+  roll: the card says it rolled in this window only.
+- [ ] **A synced folder's note on the desktop** (A): a folder of this
+  computer that syncs, its note open in two windows of the app and in a
+  browser: a roll in one window shows in the other window and in the
+  browser.
+- [ ] **⌘⇧P › Rolar dados…** (A): rolls a typed notation; nothing written.
+
+### The rest of bases (ADR 0094, feat/bases-rest, 2026-10-14)
+
+- [ ] **The map draws in the real web views** (A): in the installed app on
+  macOS (WKWebView), Windows (WebView2) and Linux (WebKitGTK), note 04 of
+  the demo vault, *Projetos.base › Mapa*: the world outline in the
+  window's colours, three pins (São Paulo, Lisbon, Recife); a click on a
+  pin opens its project; resting on it shows the note; the list below
+  names the three. No line `maplibre` or `Failed` in `verso.log`, and the
+  app made no request outside it (Little Snitch or the firewall's log, if
+  at hand). A machine without WebGL says *Esta tela não consegue desenhar
+  mapas* and keeps the list. Dark theme: the outline follows it.
+- [ ] **Tiles only by your choice** (A): *Ajustes › Fundo dos mapas ›
+  OpenFreeMap*: the map now shows OpenFreeMap's streets; back to *Contorno
+  do mundo*: the outline again, and no request to `tiles.openfreemap.org`.
+  A base with `mapTiles: https://tile.openstreetmap.org/{z}/{x}/{y}.png`
+  asks *Esta base pede o fundo do mapa a …* before anything is fetched;
+  *Aprovar* loads it. *Carregar conteúdo remoto* off: the outline only,
+  said above the map.
+- [ ] **On a UniVerso** (A): the same approval in a browser on the server:
+  *Recarregar* after approving, and the tiles load; the response headers
+  of `/` and of `/maplibre-worker.mjs` (the browser's network panel) name
+  the approved origin in `connect-src`, and no other; another account in
+  the same browser approves nothing and its page names none.
+- [ ] **A base made by Obsidian's Maps plugin opens as a map** (A): in
+  Obsidian with the Maps plugin, make a map view (it writes `coordinates`,
+  `markerIcon`, `markerColor`, `center`, `defaultZoom`); the same folder
+  in Verso shows the markers, icons and colours; set the centre from
+  Verso's right-click menu and Obsidian opens there. The keys were taken
+  from the plugin's public source (`obsidianmd/obsidian-maps` at
+  `a5bf456`, `src/map-view.ts`), not yet seen on a base the plugin wrote.
+- [ ] **A regular expression in the real core** (A): note 04, the
+  *Mês* column of *Todos os Projetos* shows `09/2026`; a formula
+  `/(?<=a)b/.matches(file.name)` says *A expressão regular usa
+  lookbehind…* in its cells and above the view.
+- [ ] **An embedded base edited in place** (A): note 04 in Leitura, the
+  embedded *Todos os Projetos*: add a sort from its toolbar; *Projetos.base*
+  on disk gains the sort and nothing else changes (`git diff`). With
+  *Projetos.base* open in another tab and edited unsaved, the embed's
+  change waits for that tab or says it was not written. A reader on a
+  server sees no toolbar.
+
+### Periodic notes (ADR 0093, feat/periodic-notes, 2026-10-14)
+
+- [ ] **The week and the month in the app** (A): in the installed app, on
+  the demo vault, ⌘⇧P › Nota desta semana and Nota deste mês make
+  `Diário/2026-W42.md` (from `Templates/Semanal.md`) and `Diário/2026-10.md`
+  on disk; `verso.log` has their `create` lines and no ERROR; ⌘⇧D still
+  makes today's. The right panel's Calendário: VoiceOver reads a week's
+  number as *Semana 42 de 2026*, ← from a Sunday reaches it, → comes back.
+- [ ] **Settings are the folder's** (A): Ajustes › Notas periódicas says
+  *Desta máquina*; change the week's start: `.verso/settings.json` on disk
+  gains `periodic` with the daily folder, the language and `weekStart`; the
+  row says *Da pasta*. Open the same folder on a second computer (or a
+  synced copy): the same notes are found. A format with `HH` is refused,
+  naming it, and the file is unchanged (`shasum`).
+- [ ] **Obsidian's settings, offered and never written** (A): in a copy of
+  a vault where Obsidian's Daily notes have a folder and a format set (and,
+  if at hand, one with the Periodic Notes plugin), Ajustes › Notas
+  periódicas offers *Usar os ajustes do Obsidian* with those values;
+  accepting writes them into `.verso/settings.json`. `shasum` of
+  `.obsidian/daily-notes.json` and `.obsidian/plugins/periodic-notes/data.json`
+  before and after: the same. With `.obsidian/` evicted to iCloud (a
+  placeholder), the offer says the settings are only in the cloud and
+  nothing is downloaded.
+- [ ] **Two devices make the same week offline** (A): a folder synced with
+  a UniVerso on two computers; both offline, each makes this week's note
+  (template without `{{time}}`) and writes a line under it; back online,
+  both have one note with the template once and both lines, the server's
+  first — no conflict copy, *merged* in the sync's activity. With a
+  template holding `{{time}}` made at different minutes: a conflict copy,
+  as before.
+- [ ] **A reader** (A): a reader's window on a UniVerso: no "Nota desta
+  semana" in the palette while the week has no note; the Calendário's week
+  says it does not exist yet; an existing week's note opens.
+- [ ] **Windows** (A, `scripts/check-windows.sh` was not run — no platform
+  code changed): on the Windows VM, the week note's path with a `/` in the
+  format (`gggg/[Semana] ww`) is made as folders, and a vault's
+  `.obsidian\daily-notes.json` is offered.
 
 ### The window's feedback (fix/ui-feedback, 2026-10-14)
 
@@ -473,6 +1108,56 @@ seen only here. Before the server is announced (ADR 0073 item 6).
   graph, a board and a PDF, only they zoom.
 - [ ] **Line numbers**: on the phone, a note in Fonte has none; turned on in
   Ajustes › Editor, they show.
+
+### Maps on the board (feat/board-maps, 2026-10-15)
+
+Needs the installed app, a server, a phone and a second account: the tiles'
+cutting runs in the host, the reader's board is the server's, and what a
+finger and a real map feel like is not in the browser harness (ADR 0090).
+Make the map first: a PNG of about 16,000 pixels a side (a continent, or any
+large picture saved as PNG; a JPEG of the same size for the last check), put
+in a folder; a board with it, and two notes.
+
+- [ ] **A real big map, on the desktop app**: drop the PNG on a board, select
+  it, "Usar como mapa". The card says "Preparando o mapa…" with a percentage
+  that grows, then the picture appears; zoom to 100 % and pan: sharp tiles
+  come in as you go, without a pause, and the window's memory stays small
+  (Activity Monitor: a few hundred MB, not a gigabyte). Close the app, open
+  it again: the map is drawn at once, nothing is cut again. Say how long the
+  cutting took and how big `~/Library/Application Support/verso/index/*.tiles`
+  grew.
+- [ ] **A big map on the server**, the 1 GB host: the same map in a folder of
+  the server, opened in a browser; "Preparando o mapa…", then tiles. The
+  server's memory (`docker stats` or `free`) stays under the limit while it
+  cuts; `VERSO_DATA_DIR` holds the `.tiles` file and the folder holds no
+  tile. Another person opening the same board while it cuts sees the same
+  card.
+- [ ] **A JPEG of that size** is drawn whole, with the note "Imagem grande
+  demais…" asking for a PNG; on a phone the page may reload — say what
+  happened.
+- [ ] **Pins**: drag a note from the tree onto the map (a pin, not a card);
+  "Fixar uma nota aqui…"; zoom in and out: the pin keeps its size and stays on
+  its point; a click opens the note; the pointer rested on it shows the
+  note (hover preview); a drag moves it; "Deixar de usar como mapa" (outline,
+  Mapas) frees the picture.
+- [ ] **On a phone** (iPhone and Android): pinch the map — the pins do not
+  grow; a tap on a pin opens its note; a finger held still on a pin shows
+  the note and the lift opens nothing; the tiles come in while panning with
+  no stutter; Tab-like reading: VoiceOver or TalkBack reads each pin as
+  "Abrir <nota>" in reading order, and the outline lists them as links.
+- [ ] **A reader account**: on a server, mark a pin "Oculto dos leitores".
+  Sign in as a reader in another browser: the board has no secret pin; the
+  search does not find its note by the pin's text, the note's backlinks do not
+  list the board, and the folder synced to a desktop app as that reader (a
+  read share) holds a board file without the pin (open it in a text
+  editor). The writer's "Ver como leitor" shows the same board. A reader
+  that has the board open when it is marked sees it change without the pin
+  (it is not in the room).
+- [ ] **Obsidian opens the map**: the board in Obsidian shows the picture and
+  the pins as file cards (the secret one too); edit and save there, then
+  open it in Verso: `map`, `pin`, `secret`, `locked` and the groups are still
+  under each node's `verso` (the re-observation of O4 on the version of the
+  day, ADR 0090 Consequences).
 
 ## To reproduce
 

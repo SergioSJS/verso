@@ -41,7 +41,7 @@ import { offerTemplates } from "./templatePicker";
 /** A reader on a server changes nothing: the window's ways to make, move
  *  or bin a file stop here, whatever reached them — a menu, a key, a drop
  *  (ADR 0076 item 11). Says why, once. */
-function readable(): boolean {
+export function readable(): boolean {
   if (canWrite()) return true;
   ui.status.textContent = st.readOnly;
   return false;

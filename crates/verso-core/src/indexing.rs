@@ -403,7 +403,7 @@ impl Workspace {
         Ok((key, handle))
     }
 
-    fn known(&self, path: &str) -> Result<bool, CoreError> {
+    pub(crate) fn known(&self, path: &str) -> Result<bool, CoreError> {
         Ok(self
             .index
             .stamp_of(path)

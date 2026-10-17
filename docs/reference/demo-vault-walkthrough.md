@@ -81,10 +81,19 @@ point 13).
 2. The welcome note shows the "Comece pelo tour" callout with its two links.
    Level: S (the links), H.
 3. Import again into a folder that holds an earlier version's demo. Expect:
-   what is missing is created, a file with other content is kept as it is
-   and named, and the app's log has `import demo:` lines saying how many
-   were created, kept and failed. Level: H; E: `import.spec.mjs`. Caught:
-   an import that wrote nothing said "imported" and left no trace.
+   what is missing is created, a file that is the untouched copy of an
+   earlier version's demo (its bytes are one the demo carries the hash of)
+   is replaced by the current one, the untouched old copy of a note the
+   tutorial renamed (`24 - Dados e Tabelas Sorteadas.md`, now 25) goes to
+   the folder's trash — restorable — once the current note is there, a
+   file with other content — the
+   person's edit — is kept as it is and named, the toast and the status
+   bar say how many were created, updated and kept, and the app's log has
+   `import demo:` lines saying how many were created, updated, kept and
+   failed. Level: H; E: `import.spec.mjs`, `test/demoImport.test.mjs`.
+   Caught: an import that wrote nothing said "imported" and left no trace;
+   a folder imported from an older demo never got the tutorial's new
+   sections ("0 created, 28 kept").
 
 ## 2. The tour
 
@@ -215,10 +224,67 @@ point 13).
     shows the column as wide, and so does the note opened again; the file
     does not change (ADR 0064 point 6). Level: H; E: `tables.spec.mjs`, "a
     column dragged wider…" and "a column dragged in Reading…".
+13. Note 02, "Prévia ao Passar o Mouse" ([ADR
+    0085](../adr/0085-hover-preview.md)): in Leitura, the pointer resting
+    half a second on "as fórmulas do Guia de Sintaxe" shows a card with
+    note 01, its heading marked at the top; away from the link and the
+    card, it goes; a click in it opens note 01. "a descoberta da escrita
+    atômica" shows the research note with the block `^atomica` marked;
+    "Nova Ideia de Projeto" says no note answers yet, and no note is made.
+    In Editar a plain hover shows nothing, and ⌘ (Ctrl) pressed shows the
+    card. "Ver a prévia do link sob o cursor" from the palette, the cursor
+    in a link: the card is a dialog with the focus, and Esc gives the focus
+    back. Settings › Editor › "Prévia ao passar o mouse" off: no card on a
+    hover, the command still opens one. A row of the Links panel, a node of
+    the graph and a card's name on "Board de Demonstração" show their
+    notes. Level: H; E: `preview.spec.mjs`; U: `test/preview.test.mjs`.
+14. Note 02, "Menções sem link" ([ADR 0089](../adr/0089-linking-unlinked-mentions.md)):
+    open "Lia Torres" (⌘P), right panel › Links: under "Menções sem link",
+    the row of note 02 with the words around the name; "Linkar" writes
+    `[[Lia Torres]]` into the "Experimente" callout and the row goes, the
+    note now among the backlinks. On a seeded folder: a mention in another
+    case or an alias is written `[[Name|text]]`; "Linkar todas" shows the
+    plan as a diff, a list a keyboard reaches, and skips by name a note
+    changed meanwhile; a mention that moved is refused and the list drawn
+    again; in a note open in a tab, ⌘Z undoes the link; a note live with
+    someone else takes it through its room; a reader sees no button and no
+    mention inside a secret block. Level: S (the tutorial note), U
+    (`cargo test -p verso-core mentions`, `test/mentionLink.test.mjs`), H;
+    E: `mentions.spec.mjs`. The same note's "Sugestões enquanto escrevo"
+    (item 5, revised 2026-10-15): Settings › Editor › "Sugerir links
+    enquanto escrevo" is off; turned on, in a note of your own typing a
+    note's whole name (or an alias) shows "Ligar a [[Nome]]" at the cursor,
+    Tab or Enter writes the link, Esc or typing on dismisses it and the name
+    is not offered again in that paragraph; nothing shows inside code, a
+    link or the properties header, nor for the note itself; on a phone the
+    chip is tapped. Level: S, U (`test/linkSuggest.test.mjs`, with the
+    10,000-note benchmark), H; E: `typing-links.spec.mjs`.
+15. Note 24 (ADR 0088): in Leitura each `dice:` code is a die button named
+    "Rolar 1d20+5" and so on; a click, or Tab to it and Enter, shows the
+    total, each die and what was added in a card beside it, with "Rolar de
+    novo", and the status region says it (*1d20+5: 17 — 12 mais 5*);
+    `dice: 1d20*2` stays code. "Quem aparece na estrada?" gives one row of
+    the `d6` table, its link to Capitão Ruy opening with a click; "O tempo
+    hoje" one item of the list. In Editar the dice off the caret's line are
+    dice too. The note in Fonte afterwards: its text as before, nothing
+    written. ⌘⇧P › "Rolar dados…": `2d6+1` and Enter rolls; `1d20*2` says
+    Verso does not read it. `dice: 3d6!` rolls one more die for each 6,
+    and `dice: d%` is a d100. Level: H; E: `dice.spec.mjs`; U:
+    `test/dice.test.mjs`.
+16. Note 24, "O segredo do mestre" ([ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md)):
+    in Leitura the `[!secret]` callout has a lock and *Visível para quem
+    tiver o arquivo* in its title (a folder of this computer hides
+    nothing). *Ver como leitor*, beside Ler and Editar, shows the note
+    without the block, a strip saying *Vendo como um leitor* with *Ver a
+    nota inteira*, which brings it back; Editar leaves the reader's view.
+    In Editar, `/` › Destaques › *Segredo* writes `> [!secret] ` and says
+    it is no encryption. A note with no secret block offers no toggle.
+    Opening and toggling write nothing. Level: H; E: `secret.spec.mjs`;
+    U: `test/secret.test.mjs`.
 
 ## 4. Organizing: properties, bases, daily notes
 
-1. `Projetos.base`: the five views (table, kanban, Cards, list, calendar);
+1. `Projetos.base`: the six views (table, kanban, Cards, list, calendar, map);
    only the notes of `projetos/`; the formula's column and the budget's sum;
    the kanban in a column per status; the calendar back in September 2026
    shows the three projects. Level: H. Caught: with no filter the base
@@ -243,11 +309,71 @@ point 13).
    `fixtures/schema/`), H; E: `typed.spec.mjs`.
 6. Note 07, "Começar uma nota nova por um template" (ADR 0068): ⌘N shows
    "Começar com" under the title — Em branco, Diário, Nota de Reunião, Novo
-   Projeto; "Nota de Reunião" fills the note, `{{title}}` and `{{date}}`
+   Projeto, Semanal; "Nota de Reunião" fills the note, `{{title}}` and `{{date}}`
    replaced; Em branco, Esc or typing put the list away and write nothing;
    the arrows move along the list. A folder whose note sets
    `items_template` makes the note from it, with no list. Level: H; E:
    `templates.spec.mjs`.
+7. The infobox (note 21, "O Infobox", ADR 0086): `Lugares/Porto Cinzento`
+   shows its properties as a card at the right of the text, in the
+   reading view and in Edit mode — the harbour's picture at its head (a
+   screen reader reads "O Porto Cinzento visto do farol", the link's
+   alias), "Tipo: Lugar", Mapa, Região, Perigo, Habitantes and Governante
+   in that order, "Outras propriedades (2)" folded below; opening it
+   writes nothing. A habitant is a link that opens the person's note;
+   "Adicionar link…" offers the folder's notes and writes the one picked
+   as a quoted wikilink. A narrow window (or a split pane) puts the card
+   above the text, folded to the picture and three properties, with
+   "Mostrar todas as propriedades". In Edit mode a value changed in the
+   card reaches the file. Level: S (`crates/verso-core/tests/typed.rs`,
+   `fixtures/schema/infobox`), H; E: `infobox.spec.mjs`,
+   `test/infobox.test.mjs`.
+8. The map (note 04, "O Mapa", ADR 0094): *Projetos.base › Mapa* draws the
+   world outline shipped with the app and three pins — São Paulo, Lisbon,
+   Recife; a pin's click opens its project, resting on it shows the note;
+   below, "Lugares do mapa" lists the three in the view's order with their
+   coordinates, each reached by Tab and opened with Enter. Nothing is asked
+   of the network. *Ajustes › Fundo dos mapas* offers OpenFreeMap by name,
+   off; a base naming its own `mapTiles` says "Esta base pede o fundo do
+   mapa a …" and fetches nothing until *Aprovar*. A right click on the map:
+   "Copiar coordenadas", "Usar como centro da visão", "Usar este zoom na
+   visão". Level: S (`crates/verso-core/tests/demo_base.rs`,
+   `tests_map_tiles.rs` of the server), H; E: `base-map.spec.mjs`; U:
+   `test/baseMap.test.mjs`.
+9. Regular expressions (note 04, "Expressões Regulares nas Fórmulas"): the
+   *Mês* column of *Todos os Projetos* shows `09/2026` for the three
+   projects — evaluated by the core, not by the harness, which leaves a
+   formula empty. Level: S (`crates/verso-core/src/bases/tests_regex.rs`,
+   `crates/verso-core/tests/demo_base.rs`), A.
+10. The embedded *Todos os Projetos* of note 04 has the view's tools; a
+    sort added there is written to `Projetos.base` and the rest of the file
+    is kept. `html()` in a base draws HTML, cleaned (no script, no
+    `onerror`). Level: H; E: `base-map.spec.mjs`.
+11. Periodic notes (note 07, "A Semana, o Mês, o Trimestre e o Ano", ADR
+   0093): "Nota desta semana" in the palette makes `Diário/<gggg-[W]ww>.md`
+   from `Templates/Semanal.md` — `{{date}}` the week's Sunday, the seven
+   days by `{{date+Nd:…}}`, `{{saturday:DD/MM}}` — and "Nota deste mês"
+   makes `Diário/<YYYY-MM>.md` with its name as a heading; the quarter and
+   the year are not offered until turned on in Settings › Notas
+   periódicas. In `2026-W42`, "Nota periódica anterior" goes to `2026-W39`,
+   skipping the weeks with no note, and says when there is none before;
+   the tab's menu has both. In the right panel's Calendário, the "Sem."
+   column numbers the weeks — "Semana 42 de 2026" makes or opens its note,
+   week 39 of September is marked —, the month's name makes or opens the
+   month's note; ← from a week's first day reaches its number. Settings ›
+   Notas periódicas says "Desta máquina" until the first change, which
+   writes `periodic` into `.verso/settings.json` with the daily folder;
+   a format with a token Verso does not read (`HH`) is refused, naming it,
+   and nothing is written; a changed format says the notes of the earlier
+   one are no longer found. A folder with `.obsidian/daily-notes.json` is
+   offered "Usar os ajustes do Obsidian", which writes them into the
+   folder's settings and leaves `.obsidian/` as it was. A reader opens
+   week 39 and is told week 42 does not exist yet. Level: S
+   (`crates/verso-core/tests/periodic.rs`, `crates/verso-fs/src/obsidian.rs`,
+   `app/src-tauri/src/tests_periodic.rs`), U (`test/periodic.test.mjs`), H;
+   E: `periodic.spec.mjs`. A in the app: the two Obsidian files read from
+   disk, a placeholder of them, and two synced devices making the same week
+   offline (`docs/reference/manual-checks.md`).
 
 ## 5. Finding
 
@@ -338,6 +464,27 @@ point 13).
    `crates/verso-core/tests/trash.rs` (the sweep's guardrail, the quota's
    guard), `crates/verso-fs/src/trashbin/tests.rs` (no symlink followed);
    A: the files on disk and the log's lines (`manual-checks.md`).
+12. Note 14, "O Histórico de Versões" ([ADR 0091](../adr/0091-version-history.md)):
+   open a note, type a line, wait for its save, and open *Histórico de
+   versões* from the palette, the tab's menu, the tree's menu or the clock
+   in the status bar: the list has a header row, the edit named *(este
+   computador)* at this computer's time, the note as it was below it;
+   choose the older one — the diff shows the line typed as `- `; "a versão
+   anterior" says the first has none; *Restaurar esta versão* asks, then
+   says *Versão de … restaurada.*, and the editor shows the old text, a
+   *restauração* on top of the list. Changed by another program while the
+   diff is open, the restore writes nothing and says so. *Copiar como nova
+   nota* makes `<nota> (versão <data> <hora>).md` beside it. Level: H; E:
+   `history.spec.mjs` (also the reader without a history, a restore over a
+   live note through its room, a synced folder with its server out of
+   reach, and at a phone's and a tablet's size); U:
+   `app/ui/test/history.test.mjs`; S: `crates/verso-core/tests/history.rs`
+   (the guardrail: a restore writes exactly a version's bytes, thinning
+   never removes the newest, nothing lands in the folder),
+   `crates/verso-index/src/history_tests.rs` (thinning with a moved clock),
+   `crates/verso-server/src/tests_history.rs` (the server's: roles, rooms,
+   renames, the console); A: the history file outside the folder and a
+   room's restore in two browsers (`manual-checks.md`).
 
 ## 7. The web
 
@@ -462,6 +609,29 @@ point 13).
     screen), and says when Setas soltas is on. Level: H; E:
     `board-arrows.spec.mjs`.
 
+12. Lesson 13, maps (ADR 0090): select the picture, "Usar como mapa": it is
+    locked (a drag over it pans nothing of the map), at the back, and the
+    file holds `"verso": {"map": true, "locked": true}`; the outline's
+    "Mapas" lists it with "Deixar de usar como mapa", which takes the three
+    off. Drag "Porto Cinzento" from the tree onto the picture: a pin, in the
+    picture's group, never a card; "Fixar uma nota aqui…" does the same in the
+    middle of the view. Zoom out and in: the pin keeps its size and stays on
+    its point; a click opens the note; the pointer rested on it shows the
+    note in a card, and a finger held still on a phone does too; Tab walks
+    the pins and Enter opens one, Delete removes it (⌘Z brings it back); the
+    outline lists them in reading order as links. "Enviar para trás" and "Trazer para a frente" on any card reorder
+    it in the file. A PNG of 16,000 pixels a side as a map: "Preparando o
+    mapa…", then the tiles in view, never the whole picture (the app's log
+    open; the memory of the window stays small); a JPEG of that size is drawn
+    whole, with the note that says to save it as a PNG. On a server: a
+    secret pin shows the lock "Oculto para leitores", "Ver como leitor" draws
+    the board without it and nothing is written, a reader account sees no
+    secret pin in the board, the search, the backlinks of its note or the
+    synced file, and an exported picture asks about the secret cards. Level:
+    H (the pins, the tools, the tiles on the harness's tile answers, the
+    reader's board on its projection), A (the real tiles, the real server,
+    a phone); E: `maps.spec.mjs`.
+
 ## 10. Settings, help, the command line
 
 1. ⌘,: the sections as note 15 names them; Aparência's options; Terminal e
@@ -536,6 +706,55 @@ point 13).
    file is not changed (decided 2026-10-12). Level: U (`npm test`'s
    `folderLayer.test.mjs`; `crates/verso-server/src/tests.rs`, "an
    invited reader"); A.
+10. Notifications (note 18, "Notificações"; [ADR
+    0084](../adr/0084-notifications-in-the-window.md)): a sync that fails
+    is said once in a toast at the bottom right — "A sincronização
+    falhou", its level a word and a mark — and again only when it is back,
+    whose toast takes its place in the list; an error is announced at
+    once, the rest politely. Level: H; E: `notify.spec.mjs`, "a sync that
+    fails is said once".
+11. The toasts: three at most, the newest on top; information leaves after
+    6 s unless the pointer is over it; a warning stays; the keyboard
+    reaches a toast and Escape closes it, the focus going back where it
+    was; a toast never takes the focus. With Settings open a toast stays
+    above it and its action works. On a phone the toasts are at the top,
+    the whole width but the margins. Level: H; E: `notify.spec.mjs`, "the
+    toasts" and "toasts sit above Settings" (phone and tablet too).
+12. The bell, before "Relatar problema" (on a phone, at the top of the
+    pane): named "Notificações" or "n notificações não lidas"; it opens
+    the centre, as the palette's "Notificações" does — newest first, each
+    with its time in the computer's zone and its kind; opened, everything
+    is read; "Limpar" empties it, and a cleared failure is not said again
+    until it changes. Level: H; E: `notify.spec.mjs`, "the bell" (phone
+    and tablet too).
+13. Ajustes › Notificações: one row per kind, each "Aviso e lista" at
+    first; "Só na lista" lists without a toast, "Desligado" neither, and
+    the status bar still says the sync's state; the choice is kept in the
+    window's settings, with the account on a server. Level: H; E:
+    `notify.spec.mjs`, "each kind as chosen".
+14. Each kind from its source: a window on a server's folder dropped and
+    back once each, a revoked share said as a revocation and never as
+    "A conexão com o servidor caiu", a session ended with "Ir para
+    Servidores"; a conflict copy and a live room's conflict once; an
+    update with "Baixar e atualizar" and "Ver nos Ajustes", once per
+    version, checked again after 24 h; the quota at 90 % once, again only
+    after a measure at the opening or a day later finds it under 90 %; the trash's "n itens saem da lixeira em até 3
+    dias" at the folder's opening, once a day, with "Abrir a lixeira";
+    someone joining the note, not leaving; a folder shared with you, with
+    "Ver as pastas". Level: H; E: `notify.spec.mjs`, one test per kind;
+    `sync.spec.mjs`, the revoked share. A (the real app, listed in
+    [`manual-checks.md`](manual-checks.md)).
+15. "Também nas notificações do sistema" starts off and asks nothing until
+    turned on; on the desktop the row says where the system's own
+    settings may block them; a browser's refusal turns it back off and
+    says why; allowed, a
+    notification of a kind on "Aviso e lista" also goes to the system only
+    while the window is not in front, and a click on it (where the system
+    tells the page: a browser; on the desktop it comes with the plugin 2.6)
+    opens the centre on it. A list the browser's storage
+    refuses lives in the window, and the centre says so. Level: H; E:
+    `notify.spec.mjs`, "the system's notifications" and "a storage that
+    refuses"; A (each system's own prompt and its notification).
 
 ## 11. Organizing: stickers, covers, folder pages, order
 
@@ -649,6 +868,13 @@ hand, on a phone and an iPad, the server's window in the browser.
    the keyboard. Level: H; E: `responsive.spec.mjs`, "the keyboard's bar"
    and "the on-screen keyboard" (the system's keyboard stood in for: by
    hand on the phone).
+   Note 20 in Editar on a touch screen: no `+` or ⋮⋮ and no wide margin to
+   the left of the text; the bar scrolls sideways, "Mover bloco para baixo"
+   and "para cima" reorder two paragraphs with the cursor staying in the
+   block above the keyboard, "Transformar em…" opens its menu above the
+   bar and "Título 1" makes a heading, "Excluir bloco" removes the block,
+   "Menu do bloco" reaches "Duplicar". Level: H; E: `block-bar.spec.mjs`
+   (the system's keyboard stood in for: by hand on the phone).
 7. "Selecionar" in a row's menu: a box on each row, a bar with Mover para…,
    Copiar caminhos, Apagar and Concluir; "Manter aberta" keeps a preview
    tab; "Abrir" opens a note without preview; on a touch screen, a "…" beside
@@ -660,6 +886,30 @@ hand, on a phone and an iPad, the server's window in the browser.
    H; E: `capabilities.spec.mjs`.
 9. VoiceOver on the iPhone and the iPad, TalkBack on Android: the passes of
    `manual-checks.md`. Level: A.
+10. Note 02 in Editar, by touch: a tap on a link shows its note above
+    Abrir and Editar link; on the graph, a finger held still on a node
+    shows its note and opens nothing ([ADR
+    0085](../adr/0085-hover-preview.md) item 5). Level: H; E:
+    `preview.spec.mjs`, "by touch" (the board's long press: by hand,
+    `manual-checks.md`).
+
+11. Offline on the phone ([ADR
+    0092](../adr/0092-the-phone-offline.md); note 22, "Sem Rede"): on a
+    server over HTTPS, a folder's *Settings › Offline* says the space first and
+    keeps the folder on this device; with the network off the page still
+    opens, lists the folder, a note is read and edited, the status bar says
+    *Sem conexão* and how many writes wait, and search, links and the graph say
+    *sem rede*; with the network back the writes go up (a note both sides
+    appended to is joined, one both changed keeps a listed copy) and a
+    notification says how many were sent; signing out says how many writes
+    have not gone up and deletes the copy; the server ending the session
+    deletes it at the next connection; a full store is refused where the
+    write was made; plain HTTP says offline needs HTTPS. Level: H; E:
+    `e2e-server/offline.spec.mjs` (Chromium, WebKit and a phone), the sync's
+    property test (`test/offlineSync.test.mjs`) and the engine's cases made
+    by the Rust engine (`test/offlineEngine.test.mjs`); an installed iPhone
+    and an Android phone, the eviction and the home-screen install: by hand,
+    `manual-checks.md`.
 
 ## 13. On a server
 
@@ -838,6 +1088,65 @@ rest below and in `manual-checks.md`.
     five windows with the window's own merge and converter
     (`boardStress.test.mjs`); three windows in two engines working at
     random for a minute (e2e-server, "three windows, two engines").
+13. Secret blocks ([ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md)):
+    the owner of a folder copies note 25's secret block into a note and
+    gives another account *leitor*. The reader's window shows the note
+    without the block — in Leitura, a hover preview, an embed of it, the
+    search (*estalajadeira* finds nothing), the backlinks, the tags and
+    the graph, a base; the owner's shows it with a lock and *Oculto para
+    leitores*, and *Ver como leitor* shows what the reader gets. Both in
+    the note at once: the owner types inside the block and outside it; the
+    reader's note follows what is outside once the room writes, with the
+    owner's name present and no cursor; the owner pastes a new secret into
+    a note the reader has open, and the reader's tab reads the note again
+    without it. A reader's device that syncs the folder holds the note
+    without the block, and a change only inside it is no change there.
+    Level: H; R: `tests_secret.rs` (every command of the contract as a
+    reader, a live note, sync, a share, a role made reader), the core's
+    `tests/workspace/reader.rs`, the index's `tests/secret.rs`, the
+    dialect's `tests/secret.rs` and `fixtures/callout/secret` (approved
+    2026-10-15); A: `manual-checks.md`.
+
+14. The installation lesson (note 24, "Instalar o seu UniVerso, Passo a
+    Passo"): the tour's "Num servidor" stop shows notes 23 and 25 side by
+    side, and note 23's *Instalar* links to 25. In 25 every fenced block
+    (`bash`, `yaml`) copies whole, and each command, path, port and
+    variable reads the same as in `docs/reference/server-hands-on.md`; the
+    note says Verso is in testing, with no public download yet; and the
+    links to `#Se algo der errado` and to note 23's *O primeiro admin e as
+    contas* land on their headings. Level: H; R: `scripts/demo-vault.mjs
+    check` (links and headings of the vault).
+
+15. This app is a server (note 22, *Parear o Celular com o Seu Computador*;
+    [ADR 0096](../adr/0096-this-app-is-a-server.md)): *Ajustes* › *Este app é
+    um servidor* offers the folders opened on this computer, none ticked; the
+    one that also syncs with a server cannot be ticked. Nothing ticked,
+    *Ligar o servidor* refuses and says so; ticked, the first turn-on
+    explains what the system will ask, serves, and the status bar shows
+    *Servindo* with *Parar*. *Parear um celular* shows a QR, the address and
+    a code of eight letters, and a countdown; a phone presenting the token
+    raises *Foi você quem leu este QR?* with its name, address and time;
+    *Permitir* (with *Pode editar as notas* for an editor) lists it, *Não fui
+    eu: recusar* ends the token; *Revogar* removes it; *Esquecer todos os
+    celulares* asks first. By machine: `app/ui/e2e/local-server.spec.mjs`
+    (the harness answers in memory) and the Rust tests of
+    `crates/verso-server/src/local` (the real server over TLS, the pairing,
+    the allowlist, the limits); by hand, with a real phone, the checks in
+    `manual-checks.md`. Level: H for the section, A for the phone; R:
+    `scripts/demo-vault.mjs check` for the note.
+
+16. UniVerso found on the network ([ADR
+    0097](../adr/0097-universo-found-on-the-network-and-a-bad-dns-survived.md);
+    note 24, section 6, *O caminho mais curto*): in *Settings › Servers*,
+    *Encontrados nesta rede* lists a UniVerso announced on the network with
+    the address each row will use and *sem HTTPS* when it is plain; a click
+    fills that address and starts the sign-in as if typed, and nothing
+    connects before it. A server with its own TLS and no `VERSO_PUBLIC_URL`
+    is listed with what to set and no button. Changing section ends the
+    browse. By machine: `app/ui/e2e/servers-found.spec.mjs` (the harness
+    feeds the list) and `app/ui/test/serversFound.test.mjs`; by hand, on a
+    real network, the checks in `manual-checks.md`. Level: H for the list,
+    A for the network; R: `scripts/demo-vault.mjs check` for the note.
 
 ## 14. The end
 

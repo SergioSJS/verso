@@ -71,6 +71,17 @@ pub(crate) fn backlinks<R: tauri::Runtime>(
     with(&state, &window, |ws| ops::backlinks(ws, path))
 }
 
+/// The note's unlinked mentions, as occurrences (ADR 0089 item 1).
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn unlinked_mentions<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    path: String,
+) -> Result<Mentions, ContractError> {
+    with(&state, &window, |ws| ops::unlinked_mentions(ws, path))
+}
+
 /// Write a note's text over the revision that was read — atomically, no
 /// normalization — and index it. `changed` when the file moved on
 /// meanwhile: nothing written, read again and show the diff (invariant 11).

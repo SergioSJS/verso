@@ -11,18 +11,20 @@ import { allFiles, allNotes } from "../folder";
 import { allEmojis } from "../labels";
 import { layout } from "../layout/spaces";
 import { frontmatterEnd } from "../live";
+import { WIKILINK_BEFORE } from "./wikilinkBefore";
 import { opening } from "../opening";
 import { dirOf, Kind, kindOf, name } from "../paths";
 import { linkText, resolveNoteByName } from "../resolve";
 import { settings } from "../settings";
 import { type SlashSection } from "../slash";
+import { ss as secretStrings } from "../secret/strings";
 import { LOCALE, t } from "../strings";
 import { template as tableTemplate } from "../table";
 import { focusTableCell } from "../tableEditor";
 
 export const headingsCache = new Map<string, { level: number; text: string }[]>();
 export async function completeWikilinks(ctx: CompletionContext): Promise<CompletionResult | null> {
-  const before = ctx.matchBefore(/(!?)\[\[([^\]\n]*)$/);
+  const before = ctx.matchBefore(WIKILINK_BEFORE);
   if (!before) return null;
   const embed = before.text.startsWith("!");
   const inner = before.text.slice(embed ? 3 : 2);
@@ -140,6 +142,8 @@ export function slashSections(): SlashSection[] {
       { icon: "quote", title: t.calloutTipTitle, description: s.calloutTip, keywords: "[!tip] tip dica", insert: "> [!tip] " },
       { icon: "warn", title: t.calloutWarningTitle, description: s.calloutWarning, keywords: "[!warning] warning atenção", insert: "> [!warning] " },
       { icon: "quote", title: s.toggleTitle, description: s.toggle, keywords: "toggle recolher dobrar fold [!note]-", insert: "> [!note]- " },
+      // What it does not protect, said where it is made (ADR 0087 item 7).
+      { icon: "lock", title: secretStrings.slashTitle, description: secretStrings.slashDesc, keywords: "[!secret] secret segredo mestre gm", insert: "> [!secret] " },
     ] },
     { title: s.insert, items: [
       { icon: "table", title: t.table, description: s.table, keywords: "| tabela table", insert: () => tableTemplate(3, 2), run: (v) => focusTableOver(v) },

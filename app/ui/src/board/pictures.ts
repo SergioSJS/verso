@@ -86,9 +86,12 @@ export async function pictureOf(host: BoardHost, file: string, id: string, files
 /** The board's elements with each card turned into shapes Excalidraw
  *  draws — its box, its name, a line, its text or picture — in its place in
  *  the order; `only`: the selection and what belongs to it. */
-export async function pictureScene(api: Api, host: BoardHost, only: readonly string[] | null): Promise<{ elements: ExcalidrawElement[]; files: Record<string, unknown> }> {
+export async function pictureScene(api: Api, host: BoardHost, only: readonly string[] | null, omit: ReadonlySet<string> | null = null): Promise<{ elements: ExcalidrawElement[]; files: Record<string, unknown> }> {
   const s = host.strings;
   let all = api.getSceneElements() as readonly ExcalidrawElement[];
+  // The secret cards a writer asked to leave out (ADR 0090 item 6), and
+  // what is bound to them.
+  if (omit) all = all.filter((e) => !omit.has(e.id) && !("containerId" in e && e.containerId && omit.has(e.containerId as string)));
   if (only && only.length > 0) {
     const keep = new Set(only);
     all = all.filter((e) => keep.has(e.id) || (e.frameId && keep.has(e.frameId)) || ("containerId" in e && e.containerId && keep.has(e.containerId as string)));

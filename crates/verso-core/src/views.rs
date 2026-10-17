@@ -2,6 +2,7 @@
 //! and indexed, a base evaluated over the folder's facts.
 
 use super::*;
+use crate::canvas_secret;
 
 impl Workspace {
     /// Any file's content as text with its revision, for an editor; bytes
@@ -14,6 +15,7 @@ impl Workspace {
             .handle(Path::new(&key))
             .map_err(CoreError::Confined)?;
         let (bytes, stamp) = self.root.read(handle).map_err(CoreError::Read)?;
+        self.history_seen(&key, &bytes, stamp.modified);
         let text = String::from_utf8(bytes).map_err(|_| CoreError::NotText)?;
         Ok(TextFile {
             path: key,
@@ -98,6 +100,7 @@ impl Workspace {
     pub fn query_base(&mut self, query: &bases::BaseQuery) -> Result<bases::BaseResult, CoreError> {
         let text = match (&query.text, &query.path) {
             (Some(text), _) => text.clone(),
+            (None, Some(path)) if query.reader => self.reader_read_text(path)?.text,
             (None, Some(path)) => self.read_text(path)?.text,
             (None, None) => String::new(),
         };
@@ -105,8 +108,26 @@ impl Workspace {
         self.refresh_base_facts()?;
         let offset = i64::from(query.offset_minutes) * 60_000;
         let local = |secs: i64| (secs > 0).then(|| secs * 1_000 + offset);
-        let files: Vec<bases::FileFacts> = self
-            .entries
+        // A reader's notes (ADR 0087 item 4): sizes and times of the
+        // projections, the facts of each note with a secret block read
+        // from its projection, the links inside secret blocks left out.
+        let entries: std::borrow::Cow<'_, [FileEntry]> = if query.reader {
+            std::borrow::Cow::Owned(self.reader_entries()?)
+        } else {
+            std::borrow::Cow::Borrowed(&self.entries)
+        };
+        let mut projected: HashMap<String, bases::NoteFacts> = HashMap::new();
+        if query.reader {
+            for path in self.index.notes_with_secrets().map_err(CoreError::Index)? {
+                let shown = self
+                    .index
+                    .reader_content_of(&path)
+                    .map_err(CoreError::Index)?
+                    .unwrap_or_default();
+                projected.insert(path, bases::NoteFacts::of(&shown));
+            }
+        }
+        let files: Vec<bases::FileFacts> = entries
             .iter()
             .filter(|e| e.kind != FileKind::Folder && query.sees(&e.path))
             .map(|e| bases::FileFacts {
@@ -121,27 +142,29 @@ impl Workspace {
             .base_facts
             .iter()
             .filter(|(path, _)| query.sees(path))
-            .map(|(path, (_, facts))| (path.clone(), facts))
+            .map(|(path, (_, facts))| (path.clone(), projected.get(path).unwrap_or(facts)))
             .collect();
-        let links = self
-            .index
-            .all_links()
-            .map_err(CoreError::Index)?
-            .into_iter()
-            .filter(|l| query.sees(&l.from))
-            .map(|l| {
-                (
-                    l.from,
-                    bases::LinkFact {
-                        target: l.target,
-                        alias: l.alias,
-                        embed: l.embed,
-                        // A note the query does not see is not reached.
-                        resolved: l.resolved.filter(|p| query.sees(p)),
-                    },
-                )
-            })
-            .collect();
+        let links = if query.reader {
+            self.index.reader_all_links()
+        } else {
+            self.index.all_links()
+        }
+        .map_err(CoreError::Index)?
+        .into_iter()
+        .filter(|l| query.sees(&l.from))
+        .map(|l| {
+            (
+                l.from,
+                bases::LinkFact {
+                    target: l.target,
+                    alias: l.alias,
+                    embed: l.embed,
+                    // A note the query does not see is not reached.
+                    resolved: l.resolved.filter(|p| query.sees(p)),
+                },
+            )
+        })
+        .collect();
         let index = &self.index;
         let resolver = |from: &str, target: &str| -> Option<String> {
             index
@@ -233,9 +256,19 @@ impl Workspace {
         stamp: NoteStamp,
     ) -> Result<(), CoreError> {
         let text = String::from_utf8_lossy(bytes);
+        // The secret nodes of the board (ADR 0090 item 5): what a reader's
+        // search and counts are answered from leaves them out.
+        let split = canvas_secret::index_split(&text);
         let (content, links) = match canvas::Canvas::parse(&text) {
             Ok(board) => {
                 let lines = LineStarts::of(&text);
+                // A link written inside a `> [!secret]` callout of a text
+                // card is as secret as the callout (decided 2026-10-15).
+                let callouts: Vec<verso_dialect::Secrets> = board
+                    .nodes()
+                    .iter()
+                    .map(canvas_secret::text_secrets)
+                    .collect();
                 let links = board
                     .links()
                     .into_iter()
@@ -244,6 +277,9 @@ impl Workspace {
                         verso_index::SourceLink {
                             embed: l.embed,
                             exact: l.place == canvas::Place::FileNode,
+                            secret: split.as_ref().is_some_and(|s| s.nodes.contains(&l.node))
+                                || matches!(l.place, canvas::Place::Text { start, end }
+                                    if callouts.get(l.node).is_some_and(|c| c.touches(start..end))),
                             target: l.target,
                             heading: l.heading,
                             block: l.block,
@@ -259,8 +295,20 @@ impl Workspace {
             }
             Err(_) => (String::new(), Vec::new()),
         };
+        let split = split.map(|s| verso_index::BoardSplit {
+            public: s.public,
+            secret: s.secret,
+            len: s.served.0,
+            hash: s.served.1,
+            hidden: s
+                .lines
+                .iter()
+                .map(|(a, b)| format!("{a}-{b}"))
+                .collect::<Vec<_>>()
+                .join(","),
+        });
         self.index
-            .upsert_canvas(relative, stamp, &content, &links)
+            .upsert_board(relative, stamp, &content, &links, split.as_ref())
             .map_err(CoreError::Index)
     }
 
@@ -277,7 +325,7 @@ impl Workspace {
         json: &str,
         revision: &str,
     ) -> Result<TextFile, CoreError> {
-        let (key, now, text) = self.board_over_disk(relative, json)?;
+        let (key, now, text) = self.board_over_disk(relative, json, false)?;
         if text == now.text && now.revision == revision {
             return Ok(now);
         }
@@ -289,7 +337,18 @@ impl Workspace {
     /// conflict, and what the first save of a canvas in another layout
     /// shows before it rewrites the file (review `board.md` §6 item 4).
     pub fn board_preview(&mut self, relative: &str, json: &str) -> Result<String, CoreError> {
-        self.board_over_disk(relative, json)
+        self.board_over_disk(relative, json, false)
+            .map(|(_, _, text)| text)
+    }
+
+    /// [`Self::board_preview`] as a reader asks it: laid over the board as
+    /// the reader is served it, without its secret pins (ADR 0090 item 5).
+    pub fn reader_board_preview(
+        &mut self,
+        relative: &str,
+        json: &str,
+    ) -> Result<String, CoreError> {
+        self.board_over_disk(relative, json, true)
             .map(|(_, _, text)| text)
     }
 
@@ -299,12 +358,17 @@ impl Workspace {
         &mut self,
         relative: &str,
         json: &str,
+        reader: bool,
     ) -> Result<(String, TextFile, String), CoreError> {
         let key = self.entry_key(relative)?;
         if !is_canvas(&key) {
             return Err(CoreError::NotCanvas);
         }
-        let now = self.read_text(&key)?;
+        let now = if reader {
+            self.reader_read_text(&key)?
+        } else {
+            self.read_text(&key)?
+        };
         let old = canvas::Canvas::parse(&now.text).map_err(|_| CoreError::NotCanvas)?;
         let new = canvas::Canvas::parse(json).map_err(|_| CoreError::NotCanvas)?;
         let text = old.merged(new.root).write();

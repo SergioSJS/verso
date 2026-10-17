@@ -23,7 +23,7 @@ use axum::extract::Path;
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use tokio::sync::mpsc;
-use verso_service::files::{Opened, Policy, Served, open, serve};
+use verso_service::files::{Opened, Policy, Served, open, refuse_note, serve};
 
 use crate::http::{ApiError, ApiResult, Ctx};
 use crate::state::Server;
@@ -37,17 +37,19 @@ const FILE_CSP: &str = "sandbox; default-src 'none'; img-src 'self' data:; media
 pub const PIECE: usize = 256 * 1024;
 
 pub async fn file(ctx: Ctx, Path((folder, path)): Path<(String, String)>) -> ApiResult<Response> {
-    ctx.secure()?;
     let who = ctx.who()?;
     // A share's file, by its path in the shared folder, behind the same
     // check (ADR 0081 item 2).
-    let (found, path) = match crate::shares::opening(&ctx.server, who, &folder)? {
-        crate::shares::Opening::Folder(found, _) => (found, path),
-        crate::shares::Opening::Share(found, scope, _) => {
+    let (found, path, role) = match crate::shares::opening(&ctx.server, who, &folder)? {
+        crate::shares::Opening::Folder(found, role) => (found, path, role),
+        crate::shares::Opening::Share(found, scope, role) => {
             let full = scope.to_full(&path).map_err(|_| ApiError::not_found())?;
-            (found, full)
+            (found, full, role)
         }
     };
+    // One who may only read is sent no note, under any name: a link to
+    // one is refused as the note is (ADR 0087 item 4).
+    let reads_only = !(role.writes() && who.reaches(&folder).1);
     let key = crate::access::key(&ctx.server, &found)?;
     let server = Arc::clone(&ctx.server);
     let (k, p) = (key.clone(), path.clone());
@@ -58,7 +60,12 @@ pub async fn file(ctx: Ctx, Path((folder, path)): Path<(String, String)>) -> Api
         };
         server
             .service
-            .with_key(&k, |ws| Ok(open(Some(ws), true, &p, &policy)))
+            .with_key(&k, |ws| {
+                if reads_only && ws.reader_may_not_stream(&p) {
+                    return Ok(Err(refuse_note(&policy)));
+                }
+                Ok(open(Some(ws), true, &p, &policy))
+            })
             .unwrap_or_else(|_| Err(serve(None, true, &p, &policy)))
     })
     .await

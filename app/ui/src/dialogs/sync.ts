@@ -11,8 +11,9 @@
 // click on it opens the section. Nothing is silent (item 13).
 
 import { listen } from "@tauri-apps/api/event";
-import { commands, type ServerAccount, type ServerFolder, type SyncStatus, type SyncVersions } from "../bindings";
-import { h, showToast, ui } from "../dom";
+import { commands, type ServerAccount, type SyncStatus, type SyncVersions } from "../bindings";
+import { h, ui } from "../dom";
+import { syncHeard } from "../notify/sources";
 import { errorSentence, fail } from "../errors";
 import { addressOf, attempt, reachStrings } from "../reach";
 import { currentFolder, folderName } from "../folder";
@@ -52,6 +53,8 @@ const pt = {
   } as Record<string, string>,
   moving: (up: number, down: number) => [up ? `enviando ${up}` : "", down ? `recebendo ${down}` : ""].filter(Boolean).join(", "),
   conflictsShort: (n: number) => (n === 1 ? "1 conflito" : `${n} conflitos`),
+  // Offline in a browser (ADR 0092 item 7): what waits to go up.
+  waitingShort: (n: number) => (n === 1 ? "1 mudança esperando" : `${n} mudanças esperando`),
   toDelete: (n: number) => `${n} a apagar`,
   last: (when: string) => `Última vez: ${when}`,
   readerNote: "Você só lê esta pasta no servidor: as mudanças de lá chegam; as feitas aqui ficam aqui, listadas abaixo.",
@@ -94,7 +97,7 @@ const pt = {
   /** The `version` problem with what each side runs. */
   versions: (v: SyncVersions): string =>
     v.server_version === v.app_version
-      ? `o servidor roda o Verso ${v.server_version} (build ${v.server_build}, contrato ${v.server_contract}), este app ${v.app_version} (build ${v.app_build}, contrato ${v.app_contract}): os contratos diferem — atualize o que estiver atrás`
+      ? `o servidor tem outro build do Verso ${v.server_version} (servidor ${v.server_build}, este app ${v.app_build}): atualize os dois para o mesmo`
       : `o servidor roda o Verso ${v.server_version}, este app ${v.app_version}: atualize o que estiver atrás`,
   log: "O que cruzou",
   logEmpty: "Nada ainda.",
@@ -146,6 +149,7 @@ const en: typeof pt = {
   },
   moving: (up: number, down: number) => [up ? `sending ${up}` : "", down ? `receiving ${down}` : ""].filter(Boolean).join(", "),
   conflictsShort: (n: number) => (n === 1 ? "1 conflict" : `${n} conflicts`),
+  waitingShort: (n: number) => (n === 1 ? "1 change waiting" : `${n} changes waiting`),
   toDelete: (n: number) => `${n} to delete`,
   last: (when: string) => `Last time: ${when}`,
   readerNote: "You only read this folder on the server: its changes arrive; those made here stay here, listed below.",
@@ -187,7 +191,7 @@ const en: typeof pt = {
   },
   versions: (v: SyncVersions): string =>
     v.server_version === v.app_version
-      ? `the server runs Verso ${v.server_version} (build ${v.server_build}, contract ${v.server_contract}), this app ${v.app_version} (build ${v.app_build}, contract ${v.app_contract}): their contracts differ — update the one that is behind`
+      ? `the server runs another build of Verso ${v.server_version} (server ${v.server_build}, this app ${v.app_build}): update both to the same`
       : `the server runs Verso ${v.server_version}, this app ${v.app_version}: update the one that is behind`,
   log: "What crossed",
   logEmpty: "Nothing yet.",
@@ -222,6 +226,12 @@ let preselected: { url: string; folder: string } | null = null;
 /** The window's folder's sync, as last heard. */
 export function currentSync(): SyncStatus | null {
   return status;
+}
+
+/** A status the person's own action brought (Servers › "Sincronizar"),
+ *  taken as the event would have been. */
+export function syncStarted(st: SyncStatus): void {
+  took(st);
 }
 
 /** Open a section of the settings (the window's own opener). */
@@ -265,18 +275,22 @@ function problemText(st: SyncStatus): string | null {
 }
 
 /** The state in a few words, as the status bar and the section say it. */
-export function stateText(st: SyncStatus): string {
+export function stateText(st: SyncStatus, short = false): string {
   const s = syncStrings();
   if (st.state === "off" && st.revoked) return s.revokedShort(when(st.revoked));
   let text = s.states[st.state] ?? st.state;
   if (st.state === "syncing" && (st.sending || st.receiving)) text = s.moving(st.sending, st.receiving);
   if (st.state === "paused" && st.deletions) text = `${s.states["paused"]} · ${s.toDelete(st.deletions)}`;
   if (st.state === "error") {
-    const said = problemText(st);
+    // The status bar has room for a few words: the problem's short name;
+    // the versions each side runs are said in the section and the notice.
+    const said = short && st.problem && s.problems[st.problem] ? s.problems[st.problem] : problemText(st);
     if (said) text = `${s.states["error"]}: ${said}`;
   }
   // Offline because the server, not the network, did not answer.
   if (st.state === "offline" && st.problem === "unreachable") text = reachStrings().unreachableShort(addressOf(st.server));
+  // Offline, the writes waiting to go up (a browser's folder, ADR 0092).
+  if (st.state === "offline" && st.sending > 0) text += ` · ${s.waitingShort(st.sending)}`;
   if (st.conflicts.length) text += ` · ${s.conflictsShort(st.conflicts.length)}`;
   return text;
 }
@@ -311,9 +325,9 @@ function paint(): void {
   const revoked = Boolean(st && !st.on && st.revoked);
   b.hidden = !st || (!st.on && !revoked);
   if (st && (st.on || revoked)) {
-    const text = stateText(st);
+    const text = stateText(st, true);
     b.textContent = text;
-    b.title = `${syncStrings().bar}: ${text}`;
+    b.title = `${syncStrings().bar}: ${stateText(st)}`;
     b.setAttribute("aria-label", b.title);
     b.dataset["state"] = st.state;
     b.classList.toggle("warn", revoked || st.state === "error" || st.state === "paused" || st.conflicts.length > 0);
@@ -327,17 +341,16 @@ async function refresh(): Promise<void> {
   if (r.status === "ok") took(r.data);
 }
 
-/** A status heard — by the event or by asking — becomes the window's. A
- *  share revoked while it synced is said at once, beside the status bar's
- *  line, by whichever of the two brings the change first: a question
+/** A status heard — by the event or by asking — becomes the window's.
+ *  What changed of it on its own — the sync failing or back, a share
+ *  revoked, a conflict copy — is a notification (ADR 0084 item 7), said
+ *  once per change by whichever of the two brings it first: a question
  *  answered before the event would otherwise take the change in silence. */
 function took(next: SyncStatus): void {
-  if (status?.on && !next.on && next.revoked) {
-    const s = syncStrings();
-    showToast(s.revokedWhy(next.folder_name || next.folder, hostOf(next.server), when(next.revoked)), 12000);
-  }
+  const prev = status;
   status = next;
   paint();
+  syncHeard(prev, next);
 }
 
 /** Hear the folder's sync from the start: the status bar shows it, and a
@@ -444,7 +457,7 @@ async function drawOff(box: HTMLElement, item: Item): Promise<void> {
     where.append(fresh);
     const r = await attempt(failure, () => commands.serverFolders(serverUrl()), { other: errorSentence, retry: () => void fill() });
     if (r.status === "ok") {
-      for (const f of r.data as ServerFolder[]) {
+      for (const f of r.data.folders) {
         const o = h("option", "", `${f.name} · ${s.role(f.role)}`);
         o.value = f.id;
         where.append(o);

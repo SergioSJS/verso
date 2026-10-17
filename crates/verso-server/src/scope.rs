@@ -34,6 +34,31 @@ pub struct Scope {
     /// The attachments folder shown read-only: the name it has at the
     /// share's root, and its path in the owner's folder.
     pub mount: Option<(String, String)>,
+    /// A share of a folder this computer serves to a phone (ADR 0096 item
+    /// 2, amended 2026-10-16): the attachments folder shows files, never a
+    /// note, and what a link under the share leads out of it is left out.
+    /// None for a share between people on a server.
+    pub guard: Option<std::sync::Arc<Guard>>,
+}
+
+/// What a phone is kept from under a share of this computer's folder: the
+/// share is judged by where a path really is on the disk, at every use
+/// (`verso_fs::resolves_within`), never by its name and never from a list
+/// kept.
+#[derive(Debug, PartialEq, Eq)]
+pub struct Guard {
+    /// The folder the share is a part of, on the disk.
+    pub vault: std::path::PathBuf,
+}
+
+/// Whether a path names a note, a board or a base — what the attachments
+/// folder of a phone's share does not show.
+fn note_like(path: &str) -> bool {
+    path.rsplit_once('.').is_some_and(|(_, ext)| {
+        ["md", "canvas", "base"]
+            .iter()
+            .any(|e| ext.eq_ignore_ascii_case(e))
+    })
 }
 
 /// What the index's summary counts, of a share (ADR 0081 item 11).
@@ -116,7 +141,9 @@ impl Scope {
                 if how != Use::Read {
                     return Err(refused("the attachments folder is shared to be read only"));
                 }
-                return Ok(format!("{path}{}", &rel[name.len()..]));
+                let full = format!("{path}{}", &rel[name.len()..]);
+                self.allowed(&full, true)?;
+                return Ok(full);
             }
         }
         if rel.is_empty() {
@@ -125,7 +152,28 @@ impl Scope {
             }
             return Ok(self.root.clone());
         }
-        Ok(format!("{}/{rel}", self.root))
+        let full = format!("{}/{rel}", self.root);
+        self.allowed(&full, false)?;
+        Ok(full)
+    }
+
+    /// Refuse a path a phone is kept from (see [`Guard`]).
+    fn allowed(&self, full: &str, in_mount: bool) -> Result<(), ContractError> {
+        if self.blocked(full, in_mount) {
+            return Err(refused("not in the shared folder"));
+        }
+        Ok(())
+    }
+
+    fn blocked(&self, full: &str, in_mount: bool) -> bool {
+        let Some(g) = &self.guard else {
+            return false;
+        };
+        let within = match (&self.mount, in_mount) {
+            (Some((_, path)), true) => path,
+            _ => &self.root,
+        };
+        (in_mount && note_like(full)) || !verso_fs::resolves_within(&g.vault, full, within)
     }
 
     /// The path in the owner's folder of a path the window sent, to read.
@@ -143,14 +191,29 @@ impl Scope {
     #[must_use]
     pub fn to_rel(&self, full: &str) -> Option<String> {
         if covers(&self.root, full) {
+            if self.blocked(full, false) {
+                return None;
+            }
             return Some(full[self.root.len()..].trim_start_matches('/').to_owned());
         }
         if let Some((name, path)) = &self.mount
             && covers(path, full)
         {
+            if self.blocked(full, true) {
+                return None;
+            }
             return Some(format!("{name}{}", &full[path.len()..]));
         }
         None
+    }
+
+    /// Whether `full` is strictly under the shared folder — not the folder
+    /// itself (a bin entry of the folder's own root is the owner's), and never the
+    /// attachments folder shown with it, which is the owner's to keep
+    /// (ADR 0081 item 16): what the bin gives back lands in the share.
+    #[must_use]
+    pub fn in_root(&self, full: &str) -> bool {
+        full != self.root && covers(&self.root, full) && !self.blocked(full, false)
     }
 
     fn rel_value(&self, v: &Value) -> Option<Value> {
@@ -319,7 +382,9 @@ impl Scope {
             | "list_folders" | "list_entries" | "notes_of_type" => {}
             "search" => args["limit"] = json!(200),
             "read_note" | "links" | "backlinks" | "read_file_text" | "read_text"
-            | "board_preview" => set(&mut args, "path", Use::Read)?,
+            | "board_preview" | "unlinked_mentions" | "map_open" | "map_tile" => {
+                set(&mut args, "path", Use::Read)?;
+            }
             "resolve_attachment" => set(&mut args, "source", Use::Read)?,
             "write_note" | "create_file" | "create_folder" | "write_text" | "write_board" => {
                 set(&mut args, "path", Use::Below)?;
@@ -345,6 +410,16 @@ impl Scope {
                 args["paths"] = json!(paths);
             }
             "query_base" => {
+                // A base walks the folder's entries; one with a link out of
+                // it under the share is not answered.
+                if let Some(g) = &self.guard {
+                    let clean = self.roots().iter().all(|r| {
+                        verso_fs::escaping_links(&g.vault, r).is_ok_and(|found| found.is_empty())
+                    });
+                    if !clean {
+                        return Err(refused("a link leads out of this folder"));
+                    }
+                }
                 for field in ["path", "this"] {
                     if args["query"][field].is_string() {
                         set(&mut args["query"], field, Use::Read)?;
@@ -382,6 +457,8 @@ impl Scope {
             }
             "list_web_notes" => self.keep(&mut v, "path"),
             "backlinks" => self.keep(&mut v, "from"),
+            // A mention in a note outside the share is not said (ADR 0089).
+            "unlinked_mentions" => self.keep(&mut v["mentions"], "path"),
             "graph" => {
                 if let Some(list) = v.as_array_mut() {
                     list.retain_mut(|e| self.field(e, "from") && self.field(e, "to"));
@@ -416,6 +493,11 @@ impl Scope {
             "read_note" | "create_note" | "read_text" | "write_text" | "write_board" => {
                 self.field(&mut v, "path");
                 self.note_type(&mut v);
+                // A warning of the core names the owner's paths: kept only
+                // when it is about the share's own (ADR 0081 item 11).
+                if v.get("warnings").is_some() {
+                    self.warnings(&mut v["warnings"]);
+                }
             }
             "write_note" => {
                 self.field(&mut v["note"], "path");
@@ -578,7 +660,7 @@ impl Scope {
     /// The space the share's files take (ADR 0075 item 4): the shared
     /// folder's, never the owner's whole folder's.
     #[must_use]
-    pub fn space(&self, ws: &verso_core::Workspace) -> verso_contract::FolderSpace {
+    pub fn space(&self, entries: &[verso_core::FileEntry]) -> verso_contract::FolderSpace {
         let mut space = verso_contract::FolderSpace {
             total: 0.0,
             notes: 0.0,
@@ -586,8 +668,8 @@ impl Scope {
             files: 0,
             index: 0.0,
         };
-        for e in ws.entries() {
-            if !covers(&self.root, &e.path) {
+        for e in entries {
+            if !covers(&self.root, &e.path) || self.blocked(&e.path, false) {
                 continue;
             }
             let len = e.len as f64;
@@ -609,7 +691,11 @@ impl Scope {
     #[must_use]
     pub fn roots(&self) -> Vec<String> {
         let mut roots = vec![self.root.clone()];
-        roots.extend(self.mount.as_ref().map(|(_, path)| path.clone()));
+        // A phone's attachments folder holds files, which a base has no
+        // rows from.
+        if self.guard.is_none() {
+            roots.extend(self.mount.as_ref().map(|(_, path)| path.clone()));
+        }
         roots
     }
 
@@ -716,7 +802,7 @@ impl Scope {
                 }
             }
             "collab-update" | "collab-awareness" | "collab-saved" | "collab-conflict"
-            | "collab-closed" => {
+            | "collab-closed" | "collab-roll" => {
                 if !self.field(&mut m["payload"], "path") {
                     return None;
                 }
@@ -730,6 +816,10 @@ impl Scope {
                 }
             }
             "folder-quota" => {}
+            // A folder given to the person (ADR 0084 item 7): theirs to
+            // know whichever folder this window shows, and nothing of the
+            // owner's folder beyond what was given.
+            "share-given" => {}
             _ => return None,
         }
         Some(m)
@@ -747,6 +837,7 @@ mod tests {
             name: "Campanha (Sérgio)".into(),
             root: "Mesa/Campanha".into(),
             mount: Some(("Anexos".into(), "Anexos".into())),
+            guard: None,
         }
     }
 
@@ -890,6 +981,7 @@ mod tests {
             name: "Mesa (Sérgio)".into(),
             root: "Mesa".into(),
             mount: Some(("Anexos".into(), "Anexos".into())),
+            guard: None,
         };
         // A rename's examination warns of the notes it read: one at the
         // owner's root has no `/` and is still outside.
@@ -927,6 +1019,7 @@ mod tests {
             name: "Mesa (Sérgio)".into(),
             root: "Mesa".into(),
             mount: Some(("Anexos".into(), "Anexos".into())),
+            guard: None,
         };
         let renamed = s.answer_out(
             "rename_entry",
@@ -983,10 +1076,31 @@ mod tests {
         assert_eq!(seen["payload"]["file"], Value::Null);
         let room = json!({ "event": "collab-update", "payload": { "path": "Mesa/Segredo.md" } });
         assert_eq!(s.push(&room), None);
+        // A roll of dice in a shared note (ADR 0088 item 4), in the
+        // share's path; one outside it never reaches the window.
+        let roll = json!({ "event": "collab-roll", "payload": {
+            "path": "Mesa/Campanha/a.md", "roll": { "total": 7 } } });
+        let seen = s.push(&roll).unwrap();
+        assert_eq!(seen["payload"]["path"], "a.md");
+        assert_eq!(seen["payload"]["roll"]["total"], 7);
+        let roll = json!({ "event": "collab-roll", "payload": { "path": "Mesa/Segredo.md" } });
+        assert_eq!(s.push(&roll), None);
         assert_eq!(
             s.push(&json!({ "event": "something-new", "payload": { "path": "x" } })),
             None
         );
         assert!(s.push(&json!({ "gone": "folder" })).is_some());
+    }
+
+    /// The bin gives a share only what was strictly under its folder: the
+    /// folder's own root (made anew after the owner binned it) and the
+    /// attachments folder are not the share's to restore.
+    #[test]
+    fn the_bin_is_strictly_under_the_shared_folder() {
+        let s = scope();
+        assert!(s.in_root(&format!("{}/a.md", s.root)));
+        assert!(!s.in_root(&s.root.clone()));
+        assert!(!s.in_root("Anexos/x.png"));
+        assert!(!s.in_root("Outra/a.md"));
     }
 }

@@ -207,7 +207,7 @@ fn every_answer_carries_the_whole_set_of_headers() {
                 .create_session(&admin.id, "browser", "test", "127.0.0.1")
                 .unwrap();
             let b = crate::tests::Browser {
-                cookie: format!("{}={token}", crate::auth::cookie_name(&r.server)),
+                cookie: format!("{}={token}", crate::auth::cookie_name(false)),
                 csrf,
             };
             let id = folder_id(&r, &b).await;

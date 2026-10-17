@@ -5,3 +5,4 @@ playwright-report/
 e2e/.site/
 test/.bundles/
 e2e-server/results/
+dist-web/

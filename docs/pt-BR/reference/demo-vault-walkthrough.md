@@ -78,11 +78,19 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
 2. A nota de boas-vindas mostra o destaque "Comece pelo tour" com os dois
    links. Nível: S (os links), H.
 3. Importe de novo numa pasta que tem o exemplo de uma versão anterior.
-   Esperado: o que falta é criado, um arquivo com outro conteúdo fica como
-   está e é nomeado, e o log do app tem linhas `import demo:` dizendo
-   quantos foram criados, mantidos e falharam. Nível: H; E:
-   `import.spec.mjs`. Pegou: uma importação que não escrevia nada dizia
-   "importado" e não deixava rastro.
+   Esperado: o que falta é criado, um arquivo que é a cópia intacta do exemplo de uma
+   versão anterior (seus bytes são um dos que o exemplo guarda o hash) é
+   substituído pelo atual, a cópia antiga intacta de uma nota que o
+   tutorial renomeou (`24 - Dados e Tabelas Sorteadas.md`, agora 25) vai
+   para a lixeira da pasta — restaurável — assim que a nota atual está lá,
+   um arquivo com outro conteúdo — edição da pessoa
+   — fica como está e é nomeado, o aviso e a barra de status dizem quantos
+   foram criados, atualizados e mantidos, e o log do app tem linhas
+   `import demo:` dizendo quantos foram criados, atualizados, mantidos e
+   falharam. Nível: H; E: `import.spec.mjs`, `test/demoImport.test.mjs`.
+   Pegou: uma importação que não escrevia nada dizia "importado" e não
+   deixava rastro; uma pasta importada de um exemplo antigo nunca recebia
+   as seções novas do tutorial ("0 criados, 28 mantidos").
 
 ## 2. O tour
 
@@ -220,11 +228,70 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     novo também; o arquivo não muda (ADR 0064 ponto 6). Nível: H; E:
     `tables.spec.mjs`, "a column dragged wider…" e "a column dragged in
     Reading…".
+13. Nota 02, "Prévia ao Passar o Mouse" ([ADR
+    0085](../adr/0085-hover-preview.md)): na Leitura, o ponteiro parado meio
+    segundo sobre "as fórmulas do Guia de Sintaxe" mostra um cartão com a
+    nota 01, o título marcado no topo; fora do link e do cartão, ele some;
+    um clique nele abre a nota 01. "a descoberta da escrita atômica" mostra
+    a nota de pesquisa com o bloco `^atomica` marcado; "Nova Ideia de
+    Projeto" diz que nenhuma nota responde ainda, e nenhuma nota é criada.
+    No Editar, passar o mouse sem mais nada não mostra nada, e ⌘ (Ctrl)
+    apertado mostra o cartão. "Ver a prévia do link sob o cursor" pela
+    paleta, o cursor num link: o cartão é um diálogo com o foco, e Esc
+    devolve o foco. Ajustes › Editor › "Prévia ao passar o mouse"
+    desligado: nenhum cartão ao passar o mouse, e o comando ainda abre um.
+    Uma linha do painel Links, um nó do grafo e o nome de um cartão no
+    "Board de Demonstração" mostram as suas notas. Nível: H; E:
+    `preview.spec.mjs`; U: `test/preview.test.mjs`.
+14. Nota 02, "Menções sem link" ([ADR 0089](../adr/0089-linking-unlinked-mentions.md)):
+    abra "Lia Torres" (⌘P), painel da direita › Links: em "Menções sem
+    link", a linha da nota 02 com as palavras em volta do nome; "Linkar"
+    escreve `[[Lia Torres]]` no destaque "Experimente" e a linha some, a
+    nota agora entre os backlinks. Numa pasta preparada: uma menção em
+    outra caixa ou um alias é escrita `[[Nome|texto]]`; "Linkar todas"
+    mostra o plano como um diff, uma lista que o teclado alcança, e pula
+    pelo nome uma nota que mudou nesse meio-tempo; uma menção que mudou é
+    recusada e a lista refeita; numa nota aberta numa aba, ⌘Z desfaz o
+    link; uma nota ao vivo com outra pessoa recebe o link pela sala; quem
+    só lê não vê botão nem menção dentro de um bloco secreto. Nível: S (a
+    nota do tutorial), U (`cargo test -p verso-core mentions`,
+    `test/mentionLink.test.mjs`), H; E: `mentions.spec.mjs`. A
+    "Sugestões enquanto escrevo" da mesma nota (item 5, revisado em
+    2026-10-15): Ajustes › Editor › "Sugerir links enquanto escrevo" está
+    desligado; ligado, numa nota sua, digitar o nome inteiro de uma nota (ou
+    um apelido) mostra "Ligar a [[Nome]]" junto ao cursor, Tab ou Enter
+    escreve o link, Esc ou seguir digitando dispensa e o nome não é
+    oferecido de novo naquele parágrafo; nada aparece dentro de código, de
+    um link ou do cabeçalho de propriedades, nem para a própria nota; no
+    celular o aviso é tocado. Nível: S, U (`test/linkSuggest.test.mjs`, com
+    o benchmark de 10.000 notas), H; E: `typing-links.spec.mjs`.
+15. Nota 24 (ADR 0088): na Leitura cada código `dice:` é um botão de dado
+    chamado "Rolar 1d20+5" e assim por diante; um clique, ou Tab até ele e
+    Enter, mostra o total, cada dado e o que foi somado num cartão ao lado,
+    com "Rolar de novo", e a região de status diz (*1d20+5: 17 — 12 mais
+    5*); `dice: 1d20*2` continua código. "Quem aparece na estrada?" dá uma
+    linha da tabela `d6`, o link para o Capitão Ruy abrindo com um clique;
+    "O tempo hoje", um item da lista. No Editar, os dados fora da linha do
+    cursor também são dados. A nota no Fonte depois: o texto como antes,
+    nada escrito. ⌘⇧P › "Rolar dados…": `2d6+1` e Enter rola; `1d20*2` diz
+    que o Verso não lê isso. `dice: 3d6!` rola mais um dado a cada 6, e
+    `dice: d%` é um d100. Nível: H; E: `dice.spec.mjs`; U:
+    `test/dice.test.mjs`.
+16. Nota 24, "O segredo do mestre" ([ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md)):
+    na Leitura o callout `[!secret]` tem um cadeado e *Visível para quem
+    tiver o arquivo* no título (uma pasta deste computador não esconde
+    nada). *Ver como leitor*, ao lado de Ler e Editar, mostra a nota sem o
+    bloco, uma faixa dizendo *Vendo como um leitor* com *Ver a nota
+    inteira*, que o traz de volta; o Editar sai da visão do leitor. No
+    Editar, `/` › Destaques › *Segredo* escreve `> [!secret] ` e diz que
+    não é criptografia. Uma nota sem bloco secreto não oferece o botão.
+    Abrir e alternar não escrevem nada. Nível: H; E: `secret.spec.mjs`;
+    U: `test/secret.test.mjs`.
 
 ## 4. Organizar: propriedades, bases, notas diárias
 
-1. `Projetos.base`: as cinco visões (tabela, kanban, Cards, lista,
-   calendário); só as notas de `projetos/`; a coluna da fórmula e a soma do
+1. `Projetos.base`: as seis visões (tabela, kanban, Cards, lista,
+   calendário, mapa); só as notas de `projetos/`; a coluna da fórmula e a soma do
    orçamento; o kanban com uma coluna por status; o calendário, voltado a
    setembro de 2026, mostra os três projetos. Nível: H. Pegou: sem filtro, a
    base listava o cofre inteiro (`26c3b06`).
@@ -249,11 +316,72 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    `typed.spec.mjs`.
 6. Nota 07, "Começar uma nota nova por um template" (ADR 0068): o ⌘N
    mostra "Começar com" sob o título — Em branco, Diário, Nota de Reunião,
-   Novo Projeto; "Nota de Reunião" preenche a nota, com `{{title}}` e
+   Novo Projeto, Semanal; "Nota de Reunião" preenche a nota, com `{{title}}` e
    `{{date}}` trocados; Em branco, Esc ou digitar guardam a lista e não
    gravam nada; as setas andam pela lista. Uma pasta cuja nota define
    `items_template` cria a nota a partir dele, sem lista. Nível: H; E:
    `templates.spec.mjs`.
+7. O infobox (nota 21, "O Infobox", ADR 0086): `Lugares/Porto Cinzento`
+   mostra as suas propriedades num cartão à direita do texto, na leitura e
+   no modo Editar — a imagem do porto no alto (um leitor de tela lê "O
+   Porto Cinzento visto do farol", o alias do link), "Tipo: Lugar", Mapa,
+   Região, Perigo, Habitantes e Governante nessa ordem, "Outras
+   propriedades (2)" dobradas embaixo; abri-la não grava nada. Um
+   habitante é um link que abre a nota da pessoa; "Adicionar link…"
+   oferece as notas da pasta e grava a escolhida como um wikilink entre
+   aspas. Uma janela estreita (ou um painel dividido) põe o cartão acima
+   do texto, dobrado na imagem e em três propriedades, com "Mostrar todas
+   as propriedades". No modo Editar, um valor mudado no cartão chega ao
+   arquivo. Nível: S (`crates/verso-core/tests/typed.rs`,
+   `fixtures/schema/infobox`), H; E: `infobox.spec.mjs`,
+   `test/infobox.test.mjs`.
+8. O mapa (nota 04, "O Mapa", ADR 0094): *Projetos.base › Mapa* desenha o
+   contorno do mundo que vem com o app e três marcadores — São Paulo,
+   Lisboa, Recife; um clique num marcador abre o projeto, o ponteiro parado
+   nele mostra a nota; embaixo, "Lugares do mapa" lista os três na ordem da
+   visão com as coordenadas, cada um alcançado pelo Tab e aberto com Enter.
+   Nada é pedido à rede. *Ajustes › Fundo dos mapas* oferece o OpenFreeMap
+   pelo nome, desligado; uma base que nomeie o próprio `mapTiles` diz "Esta
+   base pede o fundo do mapa a …" e não busca nada até *Aprovar*. Botão
+   direito no mapa: "Copiar coordenadas", "Usar como centro da visão",
+   "Usar este zoom na visão". Nível: S (`crates/verso-core/tests/demo_base.rs`,
+   `tests_map_tiles.rs` do servidor), H; E: `base-map.spec.mjs`; U:
+   `test/baseMap.test.mjs`.
+9. Expressões regulares (nota 04, "Expressões Regulares nas Fórmulas"): a
+   coluna *Mês* de *Todos os Projetos* mostra `09/2026` para os três
+   projetos — avaliada pelo núcleo, não pelo harness, que deixa uma fórmula
+   vazia. Nível: S (`crates/verso-core/src/bases/tests_regex.rs`,
+   `crates/verso-core/tests/demo_base.rs`), A.
+10. A *Todos os Projetos* incorporada na nota 04 tem as ferramentas da
+    visão; uma ordenação acrescentada ali é gravada na `Projetos.base` e o
+    resto do arquivo é mantido. `html()` numa base desenha HTML, limpo (sem
+    script, sem `onerror`). Nível: H; E: `base-map.spec.mjs`.
+11. Notas periódicas (nota 07, "A Semana, o Mês, o Trimestre e o Ano", ADR
+   0093): "Nota desta semana" na paleta cria `Diário/<gggg-[W]ww>.md` do
+   `Templates/Semanal.md` — `{{date}}` o domingo da semana, os sete dias
+   por `{{date+Nd:…}}`, `{{saturday:DD/MM}}` — e "Nota deste mês" cria
+   `Diário/<YYYY-MM>.md` com o nome como título; o trimestre e o ano não
+   são oferecidos até serem ligados em Ajustes › Notas periódicas. Em
+   `2026-W42`, "Nota periódica anterior" vai para `2026-W39`, pulando as
+   semanas sem nota, e diz quando não há nenhuma antes; o menu da aba tem
+   as duas. No Calendário do painel da direita, a coluna "Sem." numera as
+   semanas — "Semana 42 de 2026" cria ou abre a sua nota, a semana 39 de
+   setembro aparece marcada —, o nome do mês cria ou abre a nota do mês;
+   ← no primeiro dia de uma semana chega ao número dela. Ajustes › Notas
+   periódicas diz "Desta máquina" até a primeira mudança, que grava
+   `periodic` em `.verso/settings.json` com a pasta das diárias; um
+   formato com um código que o Verso não lê (`HH`) é recusado, dizendo
+   qual, e nada é gravado; um formato mudado avisa que as notas do
+   anterior não são mais encontradas. Uma pasta com
+   `.obsidian/daily-notes.json` recebe a oferta "Usar os ajustes do
+   Obsidian", que os grava nos ajustes da pasta e deixa `.obsidian/` como
+   estava. Quem só lê abre a semana 39 e ouve que a semana 42 ainda não
+   existe. Nível: S (`crates/verso-core/tests/periodic.rs`,
+   `crates/verso-fs/src/obsidian.rs`, `app/src-tauri/src/tests_periodic.rs`),
+   U (`test/periodic.test.mjs`), H; E: `periodic.spec.mjs`. A no app: os
+   dois arquivos do Obsidian lidos do disco, um placeholder deles, e dois
+   aparelhos sincronizados criando a mesma semana sem rede
+   (`docs/pt-BR/reference/manual-checks.md`).
 
 ## 5. Encontrar
 
@@ -349,6 +477,29 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    `crates/verso-core/tests/trash.rs` (a guarda da varredura, a da cota),
    `crates/verso-fs/src/trashbin/tests.rs` (nenhum symlink seguido); A: os
    arquivos no disco e as linhas do log (`manual-checks.md`).
+12. Nota 14, "O Histórico de Versões" ([ADR 0091](../adr/0091-version-history.md)):
+   abra uma nota, digite uma linha, espere salvar, e abra *Histórico de
+   versões* pela paleta, pelo menu da aba, pelo menu da árvore ou pelo
+   relógio da barra de status: a lista tem linha de cabeçalho, a edição com
+   *(este computador)* na hora deste computador, a nota como era abaixo
+   dela; escolha a mais antiga — a diferença mostra a linha digitada como
+   `- `; "a versão anterior" diz que a primeira não tem nenhuma;
+   *Restaurar esta versão* pergunta, depois diz *Versão de … restaurada.*,
+   e o editor mostra o texto antigo, com uma *restauração* no topo da
+   lista. Mudado por outro programa com a diferença aberta, a restauração
+   não escreve nada e diz isso. *Copiar como nova nota* cria `<nota>
+   (versão <data> <hora>).md` ao lado. Nível: H; E: `history.spec.mjs`
+   (também quem só lê sem histórico, uma restauração numa nota ao vivo
+   pela sala, uma pasta sincronizada com o servidor fora de alcance, e no
+   tamanho de um celular e de um tablet); U:
+   `app/ui/test/history.test.mjs`; S: `crates/verso-core/tests/history.rs`
+   (a guarda: restaurar escreve exatamente os bytes de uma versão, o
+   desbaste nunca tira a mais nova, nada cai na pasta),
+   `crates/verso-index/src/history_tests.rs` (o desbaste com o relógio
+   adiantado), `crates/verso-server/src/tests_history.rs` (o do servidor:
+   papéis, salas, renomeações, o console); A: o arquivo do histórico fora
+   da pasta e a restauração de uma sala em dois navegadores
+   (`manual-checks.md`).
 
 ## 7. A web
 
@@ -474,6 +625,30 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
     Setas soltas" (só o menu numa tela de toque) e avisa quando Setas soltas
     está ligado. Nível: H; E: `board-arrows.spec.mjs`.
 
+12. Lição 13, mapas (ADR 0090): selecione a imagem, "Usar como mapa": ela
+    fica travada (um arrasto sobre ela não move nada do mapa), no fundo, e o
+    arquivo guarda `"verso": {"map": true, "locked": true}`; o sumário lista
+    em "Mapas" a imagem com "Deixar de usar como mapa", que tira as três
+    coisas. Arraste "Porto Cinzento" da árvore para a imagem: um alfinete, no
+    grupo da imagem, nunca um cartão; "Fixar uma nota aqui…" faz o mesmo no
+    meio da vista. Afaste e aproxime: o alfinete mantém o tamanho e fica no
+    seu ponto; um clique abre a nota; o ponteiro parado nele mostra a nota
+    num cartão, e um dedo parado no celular também; Tab percorre os
+    alfinetes, Enter abre um e Delete o remove (⌘Z o traz de volta); o sumário os
+    lista na ordem de leitura como links. "Enviar para trás" e "Trazer para a frente" em qualquer cartão o
+    reordenam no arquivo. Um PNG de 16.000 pixels de lado como mapa:
+    "Preparando o mapa…", depois os ladrilhos à vista, nunca a imagem
+    inteira (o log do app aberto; a memória da janela fica pequena); um JPEG
+    desse tamanho é desenhado inteiro, com o aviso que manda salvar como PNG.
+    Num servidor: um alfinete secreto mostra o cadeado "Oculto para
+    leitores", "Ver como leitor" desenha o board sem ele e nada é gravado,
+    uma conta de leitor não vê alfinete secreto no board, na busca, nos
+    backlinks da nota dele nem no arquivo sincronizado, e uma imagem
+    exportada pergunta pelos cartões secretos. Nível: H (os alfinetes, as
+    ferramentas, os ladrilhos nas respostas de ladrilho do harness, o board
+    do leitor na projeção dele), A (os ladrilhos de verdade, o servidor de
+    verdade, um celular); E: `maps.spec.mjs`.
+
 ## 10. Ajustes, ajuda, a linha de comando
 
 1. ⌘,: as seções como a nota 15 as nomeia; as opções de Aparência; Terminal
@@ -551,6 +726,58 @@ seguido no app ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md), ponto 13).
    máquina* para ele, e o arquivo da pasta não muda (decidido em
    2026-10-12). Nível: U (o `folderLayer.test.mjs` do `npm test`;
    `crates/verso-server/src/tests.rs`, "an invited reader"); A.
+10. Notificações (nota 18, "Notificações"; [ADR
+    0084](../adr/0084-notifications-in-the-window.md)): uma sincronização
+    que falha é dita uma vez num aviso embaixo à direita — "A
+    sincronização falhou", o nível numa palavra e num sinal — e de novo só
+    quando volta, cujo aviso toma o lugar dela na lista; um erro é
+    anunciado na hora, o resto com educação. Nível: H; E:
+    `notify.spec.mjs`, "a sync that fails is said once".
+11. Os avisos: três no máximo, o mais novo em cima; um de informação some
+    em 6 s, a não ser com o ponteiro em cima; um de atenção fica; o
+    teclado alcança um aviso e Esc o fecha, o foco voltando para onde
+    estava; um aviso nunca toma o foco. Com os Ajustes abertos, o aviso
+    fica por cima e a ação dele funciona. No celular os avisos ficam no
+    alto, na largura toda menos as margens. Nível: H; E:
+    `notify.spec.mjs`, "the toasts" e "toasts sit above Settings" (celular
+    e tablet também).
+12. O sino, antes de "Relatar problema" (no celular, no alto da área):
+    chamado "Notificações" ou "n notificações não lidas"; abre a central,
+    como "Notificações" na paleta — o mais novo primeiro, cada um com a
+    hora no fuso do computador e o tipo; aberta, tudo fica visto; "Limpar"
+    esvazia, e uma falha apagada não é dita de novo até mudar. Nível: H;
+    E: `notify.spec.mjs`, "the bell" (celular e tablet também).
+13. Ajustes › Notificações: uma linha por tipo, todas em "Aviso e lista"
+    de início; "Só na lista" lista sem aviso, "Desligado" nem uma coisa
+    nem outra, e a barra de status continua dizendo o estado da
+    sincronização; a escolha fica nos ajustes da janela, com a conta num
+    servidor. Nível: H; E: `notify.spec.mjs`, "each kind as chosen".
+14. Cada tipo da sua fonte: uma janela numa pasta de servidor que cai e
+    volta, uma vez cada; um compartilhamento revogado dito como revogação
+    e nunca como "A conexão com o servidor caiu"; uma sessão encerrada com
+    "Ir para Servidores"; uma cópia de conflito e um conflito numa sala ao
+    vivo, uma vez; uma atualização com "Baixar e atualizar" e "Ver nos
+    Ajustes", uma vez por versão, verificada de novo depois de 24 h; a
+    cota a 90 %, uma vez, de novo só depois que uma medida ao abrir ou um
+    dia depois a acha abaixo de 90 %; o "n itens
+    saem da lixeira em até 3 dias" da lixeira ao abrir a pasta, uma vez
+    por dia, com "Abrir a lixeira"; alguém que entra na nota, não quem
+    sai; uma pasta compartilhada com você, com "Ver as pastas". Nível: H;
+    E: `notify.spec.mjs`, um teste por tipo; `sync.spec.mjs`, o
+    compartilhamento revogado. A (o app de verdade, listado em
+    [`manual-checks.md`](manual-checks.md)).
+15. "Também nas notificações do sistema" começa desligado e não pede nada
+    até ser ligado; no computador a linha diz onde os ajustes do próprio
+    sistema podem bloqueá-las; uma recusa do navegador a desliga de novo
+    e diz por quê; permitido,
+    uma notificação de um tipo em "Aviso e lista" vai também para o
+    sistema só enquanto a janela não está na frente, e um clique nela
+    (onde o sistema avisa a página: um navegador; no computador, vem com o
+    plugin 2.6) abre a central nela. Uma lista que o
+    armazenamento do navegador recusa vive na janela, e a central diz
+    isso. Nível: H; E: `notify.spec.mjs`, "the system's notifications" e
+    "a storage that refuses"; A (o pedido de cada sistema e a notificação
+    dele).
 
 ## 11. Organização: figurinhas, capas, páginas de pasta, ordem
 
@@ -665,6 +892,13 @@ e 820 × 1180 (WebKit) além do tamanho do computador (`playwright.config.mjs`);
    fecha; o menu `/`, o menu de uma aba e o cursor ficam acima do teclado.
    Nível: H; E: `responsive.spec.mjs`, "the keyboard's bar" e "the
    on-screen keyboard" (o teclado do sistema simulado: à mão no celular).
+   A nota 20 no Editar numa tela de toque: sem `+` nem ⋮⋮ e sem a margem
+   larga à esquerda do texto; a barra rola para o lado, "Mover bloco para
+   baixo" e "para cima" reordenam dois parágrafos com o cursor ficando no
+   bloco, acima do teclado, "Transformar em…" abre o menu acima da barra e
+   "Título 1" faz um título, "Excluir bloco" remove o bloco, "Menu do bloco"
+   alcança "Duplicar". Nível: H; E: `block-bar.spec.mjs` (o teclado do
+   sistema simulado: à mão no celular).
 7. "Selecionar" no menu de uma linha: uma caixa em cada linha, uma barra
    com Mover para…, Copiar caminhos, Apagar e Concluir; "Manter aberta"
    guarda uma aba de pré-visualização; "Abrir" abre uma nota sem
@@ -677,6 +911,29 @@ e 820 × 1180 (WebKit) além do tamanho do computador (`playwright.config.mjs`);
    Nível: H; E: `capabilities.spec.mjs`.
 9. VoiceOver no iPhone e no iPad, TalkBack no Android: as passadas de
    `manual-checks.md`. Nível: A.
+10. Nota 02 no Editar, pelo toque: um toque num link mostra a nota dele
+    acima de Abrir e Editar link; no grafo, um dedo parado sobre um nó
+    mostra a nota dele e não abre nada (item 5 da [ADR
+    0085](../adr/0085-hover-preview.md)). Nível: H; E: `preview.spec.mjs`,
+    "by touch" (o toque longo do board: à mão, `manual-checks.md`).
+
+11. O celular sem rede ([ADR
+    0092](../adr/0092-the-phone-offline.md); nota 22, "Sem Rede"): num
+    servidor com HTTPS, **Ajustes › Sem rede** de uma pasta diz o espaço antes
+    e guarda a pasta neste aparelho; com a rede desligada a página ainda
+    abre, lista a pasta, uma nota é lida e editada, a barra de status diz
+    *Sem conexão* e quantas escritas esperam, e a busca, os links e o grafo
+    dizem *sem rede*; com a rede de volta as escritas sobem (uma nota que os
+    dois lados acrescentaram é juntada, uma que os dois mudaram guarda uma
+    cópia listada) e uma notificação diz quantas foram enviadas; sair da
+    conta diz quantas escritas não subiram e apaga a cópia; o servidor
+    encerrando a sessão a apaga na próxima conexão; um armazenamento cheio
+    recusa onde a escrita foi feita; HTTP simples diz que o uso sem rede
+    precisa de HTTPS. Nível: H; E: `e2e-server/offline.spec.mjs` (Chromium,
+    WebKit e um celular), o teste de propriedade da sincronização
+    (`test/offlineSync.test.mjs`) e os casos do motor feitos pelo motor em
+    Rust (`test/offlineEngine.test.mjs`); um iPhone e um Android instalados,
+    o despejo e a instalação na tela de início: à mão, `manual-checks.md`.
 
 ## 13. Num servidor
 
@@ -864,6 +1121,66 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
     ignorada); cinco janelas com a fusão e o conversor da própria janela
     (`boardStress.test.mjs`); três janelas em dois motores trabalhando ao
     acaso por um minuto (e2e-server, "three windows, two engines").
+13. Blocos secretos ([ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md)):
+    a dona de uma pasta copia o bloco secreto da nota 25 para uma nota e dá
+    *leitor* a outra conta. A janela de quem lê mostra a nota sem o bloco —
+    na Leitura, na prévia ao passar o mouse, numa incorporação dela, na
+    busca (*estalajadeira* não acha nada), nos backlinks, nas tags e no
+    grafo, numa base; a da dona o mostra com um cadeado e *Oculto para
+    leitores*, e *Ver como leitor* mostra o que o leitor recebe. As duas
+    na nota ao mesmo tempo: a dona digita dentro do bloco e fora dele; a
+    nota do leitor segue o que está fora assim que a sala grava, com o nome
+    da dona presente e sem cursor; a dona cola um segredo novo numa nota
+    que o leitor tem aberta, e a aba do leitor lê a nota de novo sem ele. Um
+    aparelho do leitor que sincroniza a pasta guarda a nota sem o bloco, e
+    uma mudança só dentro dele não é mudança ali. Nível: H; R:
+    `tests_secret.rs` (todo comando do contrato como leitor, uma nota ao
+    vivo, a sincronização, um compartilhamento, um papel que vira leitor),
+    o `tests/workspace/reader.rs` do núcleo, o `tests/secret.rs` do índice,
+    o `tests/secret.rs` do dialeto e `fixtures/callout/secret` (aprovada
+    em 2026-10-15); A: `manual-checks.md`.
+
+14. A lição de instalação (nota 24, "Instalar o seu UniVerso, Passo a
+    Passo"): a parada "Num servidor" do tour mostra as notas 23 e 25 lado a
+    lado, e o *Instalar* da nota 23 liga à 25. Na 25 cada bloco de código
+    (`bash`, `yaml`) copia inteiro, e cada comando, caminho, porta e
+    variável se lê igual ao de `docs/reference/server-hands-on.md`; a nota
+    diz que o Verso está em testes, sem download público ainda; e os links
+    para `#Se algo der errado` e para *O primeiro admin e as contas* da nota
+    23 caem nos títulos. Nível: H; R: `scripts/demo-vault.mjs check`
+    (links e títulos do vault).
+
+15. Este app é um servidor (nota 22, *Parear o Celular com o Seu
+    Computador*; [ADR 0096](../adr/0096-this-app-is-a-server.md)):
+    *Ajustes* › *Este app é um servidor* oferece as pastas abertas neste
+    computador, nenhuma marcada; a que também sincroniza com um servidor
+    não pode ser marcada. Sem nada marcado, *Ligar o servidor* recusa e
+    diz; marcada, a primeira vez explica o que o sistema vai perguntar,
+    serve, e a barra de status mostra *Servindo* com *Parar*. *Parear um
+    celular* mostra um QR, o endereço, um código de oito letras e uma
+    contagem; um celular que apresenta o token levanta *Foi você quem leu
+    este QR?* com o nome, o endereço e a hora; *Permitir* (com *Pode editar
+    as notas* para um editor) o lista, *Não fui eu: recusar* encerra o
+    token; *Revogar* o tira; *Esquecer todos os celulares* pergunta antes.
+    Por máquina: `app/ui/e2e/local-server.spec.mjs` (o harness responde em
+    memória) e os testes Rust de `crates/verso-server/src/local` (o
+    servidor de verdade sobre TLS, o pareamento, a lista de comandos, os
+    limites); à mão, com um celular de verdade, as verificações do
+    `manual-checks.md`. Nível: H para a seção, A para o celular; R:
+    `scripts/demo-vault.mjs check` para a nota.
+
+16. O UniVerso achado na rede ([ADR
+    0097](../adr/0097-universo-found-on-the-network-and-a-bad-dns-survived.md);
+    nota 24, seção 6, *O caminho mais curto*): em *Ajustes › Servidores*,
+    *Encontrados nesta rede* lista um UniVerso anunciado na rede com o
+    endereço que cada linha vai usar e *sem HTTPS* quando é simples; um clique
+    preenche esse endereço e inicia o login como se digitado, e nada conecta
+    antes dele. Um servidor com TLS próprio e sem `VERSO_PUBLIC_URL` é listado
+    com o que definir e sem botão. Trocar de seção encerra a busca. Por
+    máquina: `app/ui/e2e/servers-found.spec.mjs` (o harness alimenta a lista)
+    e `app/ui/test/serversFound.test.mjs`; à mão, numa rede de verdade, as
+    verificações do `manual-checks.md`. Nível: H para a lista, A para a rede;
+    R: `scripts/demo-vault.mjs check` para a nota.
 
 ## 14. O fim
 

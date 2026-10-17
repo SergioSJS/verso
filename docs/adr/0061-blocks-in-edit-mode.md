@@ -293,7 +293,10 @@ note (macOS), ⌘D is the daily note, ⌘/ toggles a comment.
 - No new dependency is expected.
 - Not covered: touch (no mobile in this phase,
   [0034](0034-roadmap-in-phases.md)); dragging between two notes, which is
-  "Move to" (D1).
+  "Move to" (D1). *Amended 2026-10-16:* touch is covered by
+  [0076](0076-the-window-on-every-screen.md) item 7 — on a touch screen the
+  handles and the `+` are not drawn and their margin is not kept; the
+  keyboard's toolbar moves, turns and deletes the block at the cursor.
 - Sources: Notion's behavior from its public help pages linked above, and the
   Obsidian plugins from their public listings; no plugin's code was read.
   Obsidian itself was not inspected ([0009](0009-external-constraints.md)).

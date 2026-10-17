@@ -30,7 +30,8 @@ properties:
 
 - `type` é o nome que as notas escrevem no seu `type:` (maiúsculas não importam).
 - `label` é o nome do tipo em cada idioma da interface.
-- `properties` lista as propriedades, cada uma com `key`, `kind` e `label`. Os tipos: `text`, `list`, `number`, `checkbox`, `date` e `datetime`.
+- `properties` lista as propriedades, cada uma com `key`, `kind` e `label`. Os tipos: `text`, `list`, `number`, `checkbox`, `date`, `datetime`, `link` e `image`.
+- `layout: infobox`, opcional, desenha as propriedades como uma ficha ao lado do texto (veja **O Infobox**, abaixo).
 
 Nada num schema roda: não há fórmula, consulta nem valor calculado. Só um bloco no topo da nota conta — um bloco dentro de uma lista ou citação é um exemplo, e a nota diz isso.
 
@@ -47,6 +48,23 @@ Abra [[Personagens/Lia Torres]] e [[Personagens/Capitão Ruy]]:
 - As outras chaves da nota vêm depois.
 
 O que o Verso **nunca** faz: escrever ao abrir, acrescentar chaves sozinho, reordenar ou normalizar valores, nem reescrever as notas quando o schema muda.
+
+---
+
+## O Infobox
+
+Abra [[Lugares/Porto Cinzento]]. O schema [[Tipos/Lugar]] diz `layout: infobox`, e as propriedades viram uma **ficha à direita do texto**, como a de uma wiki — na leitura e no modo Editar:
+
+- No alto, a primeira propriedade do tipo `image`: o mapa do porto. O texto alternativo da imagem é o alias do link — `"[[porto-cinzento.svg|O Porto Cinzento visto do farol]]"` —, senão o título da nota.
+- Embaixo, o tipo, e as propriedades declaradas na ordem do schema.
+- As outras chaves da nota (aqui, `clima`) ficam dobradas em **Outras propriedades**.
+- **Habitantes** é do tipo `link`: cada link entre aspas aparece como um link — clique para seguir. O campo **Adicionar link…** oferece as notas da pasta, como o `[[`.
+
+É o mesmo painel de propriedades com outro arranjo: editar na ficha é editar o frontmatter, nas mesmas linhas, e abrir a nota não grava nada. Num painel estreito ou no celular, a ficha vai para cima do texto, mostrando a imagem e as três primeiras propriedades; **Mostrar todas as propriedades** abre o resto.
+
+Uma imagem pode ser um link para uma imagem da pasta, um caminho (`assets/mapa.png`, como no `banner:`) ou um endereço da web. **Um endereço da web só aparece se a origem foi aprovada** — como uma página incorporada ([[16 - Páginas Web e HTML]]); senão a ficha mostra o endereço como texto, o porquê e o botão **Aprovar**.
+
+No Obsidian, a nota mostra as mesmas propriedades do jeito do Obsidian: nada no arquivo é do Verso.
 
 ---
 
@@ -71,6 +89,8 @@ O que o Verso **nunca** faz: escrever ao abrir, acrescentar chaves sozinho, reor
 2. Preencha a **Primeira aparição** e veja a linha entrar no fim do frontmatter (modo **Fonte**).
 3. Em [[Tipos/Personagem]], acrescente uma propriedade ao schema — `- key: facção`, `kind: text` — e volte às notas: a linha nova aparece vazia nas duas, e nenhum arquivo mudou.
 4. Busque `type:personagem`.
+5. Em [[Lugares/Porto Cinzento]], no campo **Adicionar link…** de **Habitantes**, escolha uma nota e aperte Enter: o link entra no frontmatter, entre aspas. Clique num habitante para ir até a nota dele.
+6. Deixe a janela estreita (ou divida o painel com ⌘\\): a ficha sobe para cima do texto, dobrada.
 
 ---
 

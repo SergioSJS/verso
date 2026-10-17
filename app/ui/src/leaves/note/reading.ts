@@ -5,7 +5,7 @@
 import { sh } from "../../shareStrings";
 import { ensureSyntaxTree, foldAll, syntaxTree, unfoldAll } from "@codemirror/language";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { baseHost, liveBases } from "../../bases";
+import { baseHost, embeddedBase, liveBases } from "../../bases";
 import { BaseView, type BaseSource } from "../../bases/view";
 import { commands } from "../../bindings";
 import { type CardEditing } from "../../board/types";
@@ -22,7 +22,7 @@ import { opening } from "../../opening";
 import { dirOf, kindOf, name } from "../../paths";
 import { parsePdfSpec, PdfView } from "../../pdf";
 import { keyLinks, ownText, typeset, wireCallouts } from "../../render";
-import { linkText, resolveNoteByName, sliceHeading } from "../../resolve";
+import { linkText, resolveNoteByName, sliceHeading, withNoteLinks } from "../../resolve";
 import { setHtml, webFrame } from "../../sanitize";
 import { settings } from "../../settings";
 import { baseStrings, t } from "../../strings";
@@ -34,6 +34,7 @@ import { TASK } from "../text";
 import { tableWidths, wireColumnGrips } from "../../tableWidths";
 import { currentFolder } from "../../folder";
 import { embeddedHtml } from "../../blockEmbed";
+import { wireDice } from "../../dice/card";
 import { fitWhenSizeless } from "../../imageFit";
 
 /** The note's links and backlinks from the index, fresh after every
@@ -446,7 +447,11 @@ export async function paintPreview(this: NoteLeaf): Promise<void> {
     if (e instanceof BaseView) liveBases.delete(e);
   }
   this.embeds = [];
-  setHtml(this.preview, note.html);
+  // A writer's "view as a reader" (ADR 0087 item 5): the projection, from
+  // the core, read-only.
+  this.readerView.offer(note.path, note.text);
+  const reader = this.readerView.on ? await this.readerView.html(note.text) : null;
+  setHtml(this.preview, withNoteLinks(reader?.html ?? note.html, note.path));
   wireCallouts(this.preview, open);
   keyLinks(this.preview);
   this.shownText = note.text;
@@ -455,16 +460,17 @@ export async function paintPreview(this: NoteLeaf): Promise<void> {
   this.mountBases(note.path);
   void this.embedImages(note.path);
   void noteImages(this.preview, note.path);
-  this.wireTasks();
+  if (!reader) this.wireTasks();
   this.dressLinks(note.path);
-  this.wireTableResizers(this.preview);
+  if (!reader) this.wireTableResizers(this.preview);
   this.wireMermaidBlocks(this.preview);
   this.wireCodeBlocks(this.preview);
+  wireDice(this.preview, { path: () => this.path, follow: (target) => this.follow(target) });
   this.wirePreviewImages(this.preview);
   this.wireHeadingFolds(this.preview);
   this.wireListFolds(this.preview);
   this.wireBlockquoteFolds(this.preview);
-  this.wireReadingLineNumbers(this.preview, note.text);
+  this.wireReadingLineNumbers(this.preview, reader?.text ?? note.text);
   if (this.readingSearch?.isOpen) this.readingSearch.find();
   if (key) byFocusKey(this.preview, key)?.focus({ preventScroll: true });
 }
@@ -694,8 +700,7 @@ export function liveBase(this: NoteLeaf, text: string, embed: string | null, mou
         mount.textContent = baseStrings.baseEmbedFailed;
         return;
       }
-      const body = f.data.text;
-      start({ path: rel, thisPath: this.path, folder: dirOf(rel), text: () => body, edit: null, viewName, key: rel });
+      start(embeddedBase(rel, this.path, f.data, viewName));
     });
   }
   return () => {
@@ -891,8 +896,8 @@ export async function embedImages(this: NoteLeaf, forPath: string, root: HTMLEle
       span.replaceWith(box);
       void opening.readText(rel).then((f) => {
         if (f.status !== "ok" || this.path !== forPath || this.destroyed) return;
-        const text = f.data.text;
-        const view = new BaseView(baseHost(), { path: rel, thisPath: source, folder: dirOf(rel), text: () => text, edit: null, viewName, key: rel });
+        // Edited in place: its menus write the `.base` file (ADR 0094 item 13).
+        const view = new BaseView(baseHost(), embeddedBase(rel, source, f.data, viewName));
         box.append(view.el);
         this.embeds.push(view);
         liveBases.add(view);

@@ -42,13 +42,13 @@ const VAULT: &[(&str, &str)] = &[
     ("Campanha.base", ""),
 ];
 
-struct Fixture {
-    notes: HashMap<String, NoteFacts>,
-    files: Vec<FileFacts>,
-    links: Vec<(String, LinkFact)>,
+pub(super) struct Fixture {
+    pub(super) notes: HashMap<String, NoteFacts>,
+    pub(super) files: Vec<FileFacts>,
+    pub(super) links: Vec<(String, LinkFact)>,
 }
 
-fn fixture() -> Fixture {
+pub(super) fn fixture() -> Fixture {
     let mut notes = HashMap::new();
     let mut files = Vec::new();
     let mut links = Vec::new();
@@ -96,7 +96,7 @@ fn fixture() -> Fixture {
 }
 
 /// Resolution by bare name, as the index would do it in this folder.
-fn resolve_name(target: &str) -> Option<String> {
+pub(super) fn resolve_name(target: &str) -> Option<String> {
     VAULT
         .iter()
         .map(|(p, _)| *p)
@@ -107,7 +107,7 @@ fn resolve_name(target: &str) -> Option<String> {
         .map(str::to_owned)
 }
 
-fn query(view: Option<&str>) -> BaseQuery {
+pub(super) fn query(view: Option<&str>) -> BaseQuery {
     BaseQuery {
         view: view.map(str::to_owned),
         // 2025-06-15 12:00 at UTC−3.
@@ -119,7 +119,7 @@ fn query(view: Option<&str>) -> BaseQuery {
     }
 }
 
-fn eval_base(yaml: &str, q: &BaseQuery) -> BaseResult {
+pub(super) fn eval_base(yaml: &str, q: &BaseQuery) -> BaseResult {
     let f = fixture();
     let resolver = |_: &str, t: &str| resolve_name(t);
     let notes = f.notes.iter().map(|(k, v)| (k.clone(), v)).collect();
@@ -304,18 +304,22 @@ fn what_cannot_be_evaluated_is_said_never_guessed() {
     let r = eval_base("filters: 'a +'\n", &query(None));
     assert_eq!(r.problems[0].kind, ProblemKind::Expression);
     let r = eval_base(
-        "formulas:\n  a: formula.b\n  b: formula.a\n  r: 'status.replace(/a/, \"b\")'\nfilters: type == \"npc\"\nviews:\n  - type: table\n    name: T\n    order: [formula.a, formula.r]\n",
+        "formulas:\n  a: formula.b\n  b: formula.a\n  r: 'status.replace(/(?<=a)l/, \"b\")'\nfilters: type == \"npc\"\nviews:\n  - type: table\n    name: T\n    order: [formula.a, formula.r]\n",
         &query(None),
     );
     let cells = &r.groups[0].rows[0].cells;
     assert!(matches!(&cells[0], Cell::Error(e) if e.kind == EvalErrorKind::Cycle));
-    assert!(matches!(&cells[1], Cell::Error(e) if e.kind == EvalErrorKind::Regex));
+    // What the regular expressions' engine lacks (ADR 0094 item 2).
+    assert!(
+        matches!(&cells[1], Cell::Error(e) if e.kind == EvalErrorKind::RegexUnsupported && e.name == "lookbehind")
+    );
     let r = eval_base("views:\n  - type: table\n    name: A\n", &query(Some("B")));
     assert_eq!(
         r.problems[0],
         Problem {
             kind: ProblemKind::UnknownView,
-            detail: "B".into()
+            detail: "B".into(),
+            error: None,
         }
     );
     assert_eq!(r.view, Some(0));

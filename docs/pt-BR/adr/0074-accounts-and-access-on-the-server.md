@@ -114,7 +114,7 @@ em 2026-10-09, os itens marcados Proposto como escritos.)*
    OWASP do momento, registrados no código), e **chaves de acesso**
    (WebAuthn) acrescentadas pelos Ajustes depois de entrar — que pedem HTTPS
    e um endereço estável, `VERSO_PUBLIC_URL`, que o item 6 do 0073
-   implica (TLS e um endereço de proxy configurado). Com servidor de e-mail: um **link de login por e-mail**, de uso
+   implica (TLS e um endereço de proxy configurado). *(Desde 2026-10-16 o servidor também funciona por HTTP simples, com as chaves de acesso desligadas ali: Revisões do [0073](0073-self-hosted-server-first.md).)* Com servidor de e-mail: um **link de login por e-mail**, de uso
    único, quinze minutos. **OpenID Connect** (Authelia, Authentik, Keycloak,
    Google) depois, para os servidores que já têm um provedor de identidade.
    Um app de código de uso único (TOTP) como segundo fator: depois das
@@ -229,7 +229,7 @@ O ambiente do `verso serve`, junto:
 
 | Variável | Necessária | O que faz |
 |---|---|---|
-| `VERSO_PUBLIC_URL` | sim, fora do loopback | o endereço que as pessoas usam; a origem das chaves de acesso, a checagem de `Origin`, os links nos convites |
+| `VERSO_PUBLIC_URL` | não (opcional desde 2026-10-16: só com HTTPS na frente) | o endereço que as pessoas usam; a origem das chaves de acesso, a checagem de `Origin`, os links nos convites |
 | `VERSO_ADMIN_EMAIL` | na primeira subida | o e-mail do primeiro admin |
 | `VERSO_ADMIN_PASSWORD` ou `VERSO_ADMIN_PASSWORD_FILE` | com o e-mail | a senha do primeiro admin, 12 caracteres no mínimo |
 | `VERSO_DATA_DIR` | não (um padrão na imagem) | as contas, as sessões, o log de auditoria, o índice |

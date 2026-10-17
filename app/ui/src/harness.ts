@@ -15,10 +15,13 @@
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import { DEMO_VAULT_FILES } from "./demoVault";
-import type { Capabilities } from "./bindings";
+import type { Capabilities, Mentions } from "./bindings";
 import { Core, type Seed } from "./harness/core";
 import { UNUSED_ARGS } from "./harness/unusedArgs";
 import { Rooms } from "./harness/room";
+import { projectBoard } from "./harness/maps";
+import { Versions } from "./harness/history";
+import { SystemNotifications } from "./harness/notifications";
 import * as sanitize from "./sanitize";
 
 const vault = new URLSearchParams(location.search).get("vault");
@@ -46,6 +49,23 @@ if (onServer) {
   // No room for simultaneous editing in the harness: the server's `collab`
   // is left out, so a note opens as the desktop's does.
   core.handlers["capabilities"] = () => ({ ...serverCan(), can: serverCan().can.filter((c) => c !== "collab") });
+  // A reader's answer holds no mention inside a secret block, as the
+  // server's (ADR 0089 item 1, ADR 0087).
+  const mentions = core.handlers["unlinked_mentions"];
+  core.handlers["unlinked_mentions"] = (a) => {
+    const all = mentions?.(a) as Mentions;
+    return role === "reader" ? { ...all, mentions: all.mentions.filter((m) => !m.secret) } : all;
+  };
+  // A reader's board is the core's projection of it: without its secret
+  // pins (ADR 0090 item 5).
+  for (const command of ["read_text", "read_file_text"]) {
+    const read = core.handlers[command];
+    core.handlers[command] = (a) => {
+      const text = read?.(a);
+      if (role !== "reader" || !/\.canvas$/i.test(String(a["path"]))) return text;
+      return typeof text === "string" ? projectBoard(text) : { ...(text as { text: string }), text: projectBoard((text as { text: string }).text) };
+    };
+  }
   document.documentElement.dataset["host"] = "server";
   document.documentElement.dataset["role"] = role;
 }
@@ -64,10 +84,17 @@ if (params.get("sync") === "reader") {
 // the contract's `unreachable`, carrying the address — whatever the test
 // set its handler to; `serverDown(null)` brings it back. `?server=down`
 // starts with it down at localhost:7351.
-const TO_A_SERVER = new Set(["server_folders", "server_open", "server_sign_in", "folder_sync_start", "share_list", "share_grant", "share_revoke", "share_attachments", "server_prove"]);
+const TO_A_SERVER = new Set(["server_folders", "server_create_folder", "server_open", "server_sign_in", "folder_sync_start", "share_list", "share_grant", "share_revoke", "share_attachments", "server_prove"]);
 let serverDown: string | null = params.get("server") === "down" ? "localhost:7351" : null;
 const answer = core.invoke.bind(core);
+// The system's notifications (ADR 0084 item 9): the plugin's calls,
+// answered as the desktop's host answers them.
+const notifications = new SystemNotifications();
 core.invoke = (cmd: string, args: unknown): unknown => {
+  if (cmd.startsWith("plugin:notification|")) {
+    core.calls.push({ cmd, args: (args ?? {}) as Record<string, unknown> });
+    return notifications.handle(cmd, (args ?? {}) as Record<string, unknown>);
+  }
   if (serverDown === null || !TO_A_SERVER.has(cmd)) return answer(cmd, args);
   core.calls.push({ cmd, args: (args ?? {}) as Record<string, unknown> });
   throw { kind: "unreachable", message: serverDown };
@@ -76,6 +103,8 @@ core.invoke = (cmd: string, args: unknown): unknown => {
 // A synced folder's live notes (ADR 0082): the server's room, played here
 // when a test says the sync's link is up.
 const rooms = onServer ? null : new Rooms(core);
+// A file's version history (ADR 0091): none for a reader on a server.
+const versions = new Versions(core, rooms, () => !onServer || role !== "reader");
 
 mockWindows("main");
 // Answered in a task of its own, as the app's IPC answers: never within the
@@ -94,6 +123,9 @@ mockIPC(
     ),
   { shouldMockEvents: true },
 );
+
+// The page's `Notification`, as the plugin's script makes it in the app.
+notifications.install((cmd, args) => (window as unknown as { __TAURI_INTERNALS__: { invoke: (c: string, a?: unknown) => Promise<unknown> } }).__TAURI_INTERNALS__.invoke(cmd, args));
 
 // A file of the folder, as the `verso:` protocol serves it: the harness's
 // server answers `/__vault/<path>` from the demo vault on disk, and a test
@@ -120,6 +152,8 @@ const harness = {
   emit: (event: string, payload: unknown) => emit(event, payload),
   /** The server's room of a synced folder's notes (ADR 0082). */
   rooms,
+  /** The files' version histories (ADR 0091). */
+  versions,
   /** The window's own sanitizer — the instance main.ts configures, not a
    *  copy — for the hostile-HTML suite run in the browsers
    *  (e2e/sanitize.spec.mjs, ADR 0083 item 16). */
@@ -128,6 +162,9 @@ const harness = {
   serverDown: (address: string | null) => {
     serverDown = address;
   },
+  /** The system's notifications: its permission, its answer when asked,
+   *  what was sent, a click on the last (ADR 0084 item 9). */
+  notifications,
   /** The server says the person's role in the folder changed (web.ts). */
   setRole: (next: string) => {
     role = next;

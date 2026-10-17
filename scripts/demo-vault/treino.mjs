@@ -270,6 +270,26 @@ const LESSONS = [
       });
     },
   },
+  {
+    id: "mapas",
+    label: "13 · Mapas",
+    title: "🗺️ Mapas e alfinetes",
+    color: TEAL,
+    text:
+      "Um mapa é uma imagem do board que não se mexe sem querer, com alfinetes por cima.\n" +
+      "• Selecione a imagem e use Usar como mapa, nas ferramentas do canto: ela trava, vai para o fundo e fica marcada. Deixar de usar como mapa está no Sumário, em Mapas.\n" +
+      "• Arraste uma nota da árvore para o mapa, ou use Fixar uma nota aqui…: nasce um alfinete que mantém o tamanho em qualquer zoom.\n" +
+      "• Clique no alfinete para abrir a nota; pare o ponteiro nele para ver a nota num cartão. Tab percorre os alfinetes, e o Sumário os lista.\n" +
+      "• Enviar para trás e Trazer para a frente existem em todo cartão.\n" +
+      "• Num UniVerso, Oculto dos leitores esconde um alfinete de quem só lê; Ver como leitor mostra como fica.\n" +
+      "• Uma imagem PNG grande é cortada em ladrilhos: abre rápido, até no celular.",
+    challenge: "Desafio: faça da imagem um mapa, fixe a nota Porto Cinzento nele, aproxime e afaste (o alfinete não cresce) e pare o ponteiro sobre ele.",
+    practice(b, x, y, f) {
+      b.write("d-map-w", x + 20, y + 20, "faça disto um mapa 🗺️", { size: 32, color: GREY, frame: f });
+      b.file("n-mapa-imagem", "assets/porto-cinzento.svg", x + 20, y + 100, 540, 400);
+      b.write("d-map-nota", x + 20, y + 560, "e fixe nele a nota Porto Cinzento", { size: 28, color: INK, frame: f });
+    },
+  },
 ];
 
 /** The board. */

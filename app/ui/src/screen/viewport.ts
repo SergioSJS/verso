@@ -2,9 +2,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// What the screen shows of the page (ADR 0076 item 7). On a phone the
-// on-screen keyboard covers the bottom of the window without making it
-// smaller: iOS shrinks only the visual viewport, and the page's
+// What the screen shows of the page (ADR 0076 item 7). On Android the
+// window shrinks to the keyboard's top (`interactive-widget`, set by
+// screen/keyboard.ts). On iOS the on-screen keyboard covers the bottom of the
+// window without making it smaller: it shrinks only the visual viewport, and the page's
 // `position: fixed` boxes and `innerHeight` still reach under the
 // keyboard. A floating surface — the context menu, the `/` menu, the link
 // and tag suggestions, the sticker picker — is placed inside the visual

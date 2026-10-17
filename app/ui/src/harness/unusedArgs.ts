@@ -19,9 +19,14 @@ export const UNUSED_ARGS: Record<string, string[]> = {
   collab_resolve: ["path", "keep"],
   collab_present: ["path"],
   collab_canvas: ["path", "at", "json"],
+  collab_roll: ["path", "notation", "source"],
+  // What a note was made with is desktop sync's (ADR 0093 item 12): the
+  // harness's folder syncs with nothing; the call is recorded as any is.
+  note_made_from_template: ["path", "text"],
   server_sign_in: ["url"],
   server_sign_out: ["url"],
   server_folders: ["url"],
+  server_create_folder: ["url", "name"],
   server_open: ["url", "folder"],
   // Sharing is a server's (ADR 0081): a folder of the harness is not on
   // one; a test stands in for the server by replacing these.
@@ -35,8 +40,8 @@ export const UNUSED_ARGS: Record<string, string[]> = {
   return_to_main: ["path"],
   open_url: ["url"],
   fetch_file: ["path"],
-  web_open: ["x", "y", "w", "h"],
-  web_bounds: ["label", "x", "y", "w", "h"],
+  web_open: ["place"],
+  web_bounds: ["label", "place"],
   web_visible: ["label", "visible"],
   web_nav: ["action"],
   reveal: ["path"],

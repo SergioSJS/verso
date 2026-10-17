@@ -104,6 +104,19 @@ export function folderValues(): Effective {
   return effective(currentFolder ? layer : null, machine(), accountWrites());
 }
 
+/** The folder's layer as last read; null when no folder is open or the
+ *  core did not answer. */
+export function folderLayerNow(): FolderLayer | null {
+  return currentFolder ? layer : null;
+}
+
+/** Whether the person may change the folder's own settings — the
+ *  periodic notes' among them (ADR 0093 item 4), which, unlike a
+ *  reader's bookmarks, have no copy on this machine to fall back on. */
+export function folderSettingsWritable(): boolean {
+  return folderWritable() && accountWrites();
+}
+
 /** Whether a change goes to the folder's layer: a folder is open and its
  *  settings file can be created or written. */
 export function folderWritable(): boolean {
@@ -146,7 +159,7 @@ export async function loadFolderLayer(): Promise<void> {
   const m = machine();
   if (layer && shouldMove(layer, m, movedBefore(), accountWrites()) && !(await readerNow())) {
     const w = await commands.setFolderSettings(firstWrite(layer, m, {
-      bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null,
+      bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null, periodic: null,
     }), null);
     if (w.status === "ok") {
       layer = w.data;
@@ -192,6 +205,7 @@ async function write(make: (now: Effective) => Partial<FolderSettings>, again: b
     folder_note_name: part.folder_note_name ?? null,
     ignore_build_dirs: part.ignore_build_dirs ?? null,
     respect_gitignore: part.respect_gitignore ?? null,
+    periodic: part.periodic ?? null,
   };
   const r = await commands.setFolderSettings(firstWrite(layer, machine(), change), layer.exists ? layer.revision : null);
   if (r.status === "ok") {

@@ -17,6 +17,7 @@ import { commands } from "../../bindings";
 import type { LocalWhy } from "../../collab";
 import { type LiveState, liveLine, liveWords, localSaid, presenceSaid } from "../../coeditWords";
 import { h, ui } from "../../dom";
+import { presenceHeard } from "../../notify/sources";
 import { layout, spaces } from "../../layout/spaces";
 import type { LiveHolder } from "../../roomWrites";
 import type { NoteLeaf } from "../note";
@@ -82,7 +83,11 @@ export function paintLive(this: NoteLeaf): void {
 /** The people in the note changed: said, and shown. */
 export function presenceChanged(this: NoteLeaf): void {
   const now = this.collab?.others() ?? [];
-  if (this.collab?.synced) for (const line of presenceSaid(this.liveOthers, now, lang())) say(line);
+  if (this.collab?.synced) {
+    for (const line of presenceSaid(this.liveOthers, now, lang())) say(line);
+    // Someone joining is a notification too (ADR 0084 item 7).
+    presenceHeard(this.path, this.liveOthers, now);
+  }
   this.liveOthers = now;
   this.paintLive();
 }

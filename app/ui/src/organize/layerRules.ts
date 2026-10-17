@@ -69,6 +69,9 @@ export function seed(machine: Machine): FolderSettings {
     folder_note_name: machine.folderNoteName.trim() !== "" ? machine.folderNoteName.trim() : null,
     ignore_build_dirs: machine.ignoreBuildDirs ? null : false,
     respect_gitignore: machine.respectGitignore ? null : false,
+    // The periodic notes' settings move in by their own first change
+    // (periodic/rules.ts, ADR 0093 item 4), never with another setting's.
+    periodic: null,
   };
 }
 
@@ -83,6 +86,7 @@ export function firstWrite(layer: FolderLayer, machine: Machine, change: FolderS
     folder_note_name: change.folder_note_name ?? base.folder_note_name,
     ignore_build_dirs: change.ignore_build_dirs ?? base.ignore_build_dirs,
     respect_gitignore: change.respect_gitignore ?? base.respect_gitignore,
+    periodic: change.periodic ?? null,
   };
 }
 

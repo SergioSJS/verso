@@ -30,11 +30,12 @@ use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use verso_contract::{
-    AppInfo, Backlink, BaseQuery, BaseResult, Can, Capabilities, CliState, CollabJoin, CollabState,
-    CollabUpdate, ContractError, Edge, ErrorKind, FileEntry, Focus, FocusesSummary, FolderChanged,
-    FolderInfo, FolderLayer, FolderSettings, FolderSpace, Hit, Host, IndexProgress, IndexSummary,
-    Link, McpAdded, McpClientState, McpStatus, MovedEntries, NoteText, Renamed, ServerAccount, Tag,
-    TextFile, Trashed, UpdateProgress, WebNote, Written,
+    AppInfo, Backlink, BaseQuery, BaseResult, Can, Capabilities, CliState, CollabJoin, CollabRoll,
+    CollabState, CollabUpdate, ContractError, DiceRoll, Edge, ErrorKind, FileEntry, Focus,
+    FocusesSummary, FolderChanged, FolderInfo, FolderLayer, FolderSettings, FolderSpace, Hit, Host,
+    IndexProgress, IndexSummary, Link, MapInfo, McpAdded, McpClientState, McpStatus, Mentions,
+    MovedEntries, NoteText, ObsidianPeriodic, Renamed, ServerAccount, Tag, TextFile, Trashed,
+    UpdateProgress, WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
 use verso_service::{OpError, Service, lock, no_folder, ops, refused};
@@ -42,29 +43,43 @@ use verso_service::{OpError, Service, lock, no_folder, ops, refused};
 mod boards;
 mod cli;
 mod device;
+mod discover;
+mod dns;
 mod files;
 mod focuses;
 mod folder_layer;
+mod framing;
+mod history;
+mod local_server;
 mod log;
 mod menu;
 mod notes;
 mod protocol;
 mod reach;
+mod release_sums;
 mod remote;
+#[cfg(target_os = "linux")]
+mod resolv_conf;
 mod shares;
 mod sync;
 mod sync_commands;
 mod trash;
+#[cfg(any(target_os = "macos", windows))]
+mod tray;
 mod update;
 mod version;
 mod web;
+mod web_clip;
 mod windows;
 use boards::*;
 use cli::*;
 use device::*;
+use discover::*;
 use files::*;
 use focuses::*;
 use folder_layer::*;
+use history::*;
+use local_server::*;
 use menu::*;
 use notes::*;
 use protocol::*;
@@ -100,11 +115,17 @@ pub struct App {
     /// The folders that sync with a server, by key: their tasks (ADR 0079).
     pub(crate) syncs: Mutex<std::collections::HashMap<String, Arc<sync::Syncer>>>,
     /// Origins (`scheme://host[:port]`) of embedded pages the user
-    /// approved by hand, mirrored from the window's settings. An embed
-    /// renders in a child web view (`web_open`), so the app view itself
-    /// never navigates to the web; the gate in the window is what asks,
-    /// and this list is its record on this side (ADR 0056, revised).
+    /// approved by hand, mirrored from the window's settings. The gate in
+    /// the window is what asks, and this list is its record on this side.
+    /// An app view navigates to the web only to `framed_origins` below
+    /// (ADR 0056, revised 2026-10-15).
     embed_origins: Mutex<std::collections::HashSet<String>>,
+    /// What the frameability check found, by the origin it was asked
+    /// about, for the session (ADR 0056, revised 2026-10-15).
+    frame_verdicts: Mutex<std::collections::HashMap<String, bool>>,
+    /// The origins a page judged frameable visits (its own, and where its
+    /// redirects end): the only web origins an app view's frame may load.
+    framed_origins: Mutex<std::collections::HashSet<String>>,
     /// The folders behind the menu's "Open Recent" items, in the order
     /// the menu shows: item `verso-recent-<i>` opens `menu_recents[i]`.
     /// Paths at the edge, on this side; they never cross to the UI. The
@@ -119,6 +140,8 @@ pub struct App {
     /// ends): the main window, made next, opens it — no other window is
     /// made for it (`folder_handed`).
     started: std::sync::atomic::AtomicBool,
+    /// "This app is a server" (ADR 0096), made on first use.
+    pub(crate) local_server: local_server::LocalSlot,
 }
 
 impl App {
@@ -135,10 +158,13 @@ impl App {
             remotes: Mutex::new(std::collections::HashMap::new()),
             syncs: Mutex::new(std::collections::HashMap::new()),
             embed_origins: Mutex::new(std::collections::HashSet::new()),
+            frame_verdicts: Mutex::new(std::collections::HashMap::new()),
+            framed_origins: Mutex::new(std::collections::HashSet::new()),
             #[cfg(target_os = "macos")]
             menu_recents: Mutex::new(Vec::new()),
             menu_language: Mutex::new("pt".to_owned()),
             started: std::sync::atomic::AtomicBool::new(false),
+            local_server: local_server::LocalSlot::default(),
         }
     }
 }
@@ -603,6 +629,20 @@ fn collab_resolve(path: String, keep: String) -> Result<String, ContractError> {
     Err(not_here())
 }
 
+/// Dice rolled in the note's room by the server, heard by the others in
+/// it (ADR 0088 item 4): on a server, or a synced folder's link, only;
+/// here the window rolls itself.
+#[tauri::command]
+#[specta::specta]
+fn collab_roll(
+    path: String,
+    notation: String,
+    source: Option<String>,
+) -> Result<DiceRoll, ContractError> {
+    let _ = (path, notation, source);
+    Err(not_here())
+}
+
 /* ---------- The command line and MCP, from the settings (ADR 0054) ---------- */
 
 /// The commands, once, for the handler, the bindings and the tests. A
@@ -621,6 +661,7 @@ macro_rules! commands_for {
                 search::<$runtime>,
                 links::<$runtime>,
                 backlinks::<$runtime>,
+                unlinked_mentions::<$runtime>,
                 write_note::<$runtime>,
                 create_note::<$runtime>,
                 create_file::<$runtime>,
@@ -652,12 +693,17 @@ macro_rules! commands_for {
                 web_close::<$runtime>,
                 web_nav::<$runtime>,
                 web_url::<$runtime>,
+                embed_frameable::<$runtime>,
                 read_text::<$runtime>,
                 write_text::<$runtime>,
                 write_board::<$runtime>,
                 board_text,
                 board_preview::<$runtime>,
                 render_markdown,
+                project_secrets,
+                project_board,
+                map_open::<$runtime>,
+                map_tile::<$runtime>,
                 rename_entry::<$runtime>,
                 delete_entry::<$runtime>,
                 reveal::<$runtime>,
@@ -671,6 +717,7 @@ macro_rules! commands_for {
                 set_sync_focuses::<$runtime>,
                 get_folder_settings::<$runtime>,
                 set_folder_settings::<$runtime>,
+                get_obsidian_periodic::<$runtime>,
                 log_write,
                 log_read,
                 set_menu_language::<$runtime>,
@@ -685,25 +732,50 @@ macro_rules! commands_for {
                 collab_resolve,
                 collab_present,
                 collab_canvas,
+                collab_roll,
                 server_sign_in::<$runtime>,
                 server_sign_in_page,
                 server_accounts,
                 server_sign_out::<$runtime>,
                 server_folders::<$runtime>,
+                server_create_folder::<$runtime>,
                 server_open::<$runtime>,
                 server_retry::<$runtime>,
+                discover_servers_start,
+                discover_servers_list,
+                discover_servers_stop,
                 share_list::<$runtime>,
                 share_grant::<$runtime>,
                 share_revoke::<$runtime>,
                 share_attachments::<$runtime>,
                 server_prove::<$runtime>,
                 recent_folders,
+                local_server_status::<$runtime>,
+                local_server_folders::<$runtime>,
+                local_server_tick::<$runtime>,
+                local_server_subfolders::<$runtime>,
+                local_server_parts::<$runtime>,
+                local_server_whole::<$runtime>,
+                local_server_settings::<$runtime>,
+                local_server_start::<$runtime>,
+                local_server_stop::<$runtime>,
+                local_server_pair_open::<$runtime>,
+                local_server_pair_close::<$runtime>,
+                local_server_pair_state::<$runtime>,
+                local_server_answer::<$runtime>,
+                local_server_phones::<$runtime>,
+                local_server_phone_role::<$runtime>,
+                local_server_revoke::<$runtime>,
+                local_server_forget::<$runtime>,
+                local_server_replace_identity::<$runtime>,
+                local_server_audit::<$runtime>,
                 folder_sync::<$runtime>,
                 folder_sync_start::<$runtime>,
                 folder_sync_stop::<$runtime>,
                 folder_sync_pause::<$runtime>,
                 folder_sync_confirm::<$runtime>,
                 folder_sync_now::<$runtime>,
+                note_made_from_template::<$runtime>,
                 query_base::<$runtime>,
                 new_window::<$runtime>,
                 cli_status,
@@ -721,7 +793,13 @@ macro_rules! commands_for {
                 trash_restore::<$runtime>,
                 trash_delete::<$runtime>,
                 trash_empty::<$runtime>,
-                trash_set_days::<$runtime>
+                trash_set_days::<$runtime>,
+                history_list::<$runtime>,
+                history_read::<$runtime>,
+                history_restore::<$runtime>,
+                history_copy::<$runtime>,
+                history_delete::<$runtime>,
+                set_history_days
             ])
             // Not in any command: the payload of events.
             .typ::<FolderChanged>()
@@ -729,7 +807,12 @@ macro_rules! commands_for {
             .typ::<IndexProgress>()
             .typ::<CollabUpdate>()
             .typ::<CollabState>()
+            .typ::<CollabRoll>()
             .typ::<ServerAccount>()
+            .typ::<verso_contract::ServerGone>()
+            .typ::<verso_contract::ServerBack>()
+            .typ::<verso_contract::FolderQuota>()
+            .typ::<verso_contract::ShareGiven>()
     };
 }
 
@@ -822,6 +905,8 @@ fn second_launch<R: tauri::Runtime>(app: &tauri::AppHandle<R>, argv: Vec<String>
 
 /// Open the window and serve it until it closes.
 pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Error>> {
+    // Before any TLS: the sync's WebSocket, the server calls, the updater.
+    verso_server::install_crypto_provider();
     let commands = commands();
     let initial_folder = initial_folder.map(|p| std::path::absolute(&p).unwrap_or(p));
     // First of the plugins, as the plugin asks: a second launch hands its
@@ -891,6 +976,10 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
         }
     });
     log::open();
+    // "This app is a server" says its life in the app's own log (ADR 0096
+    // item 14): the server crate's lines, which go to standard error
+    // where there is a terminal, come here too.
+    verso_server::log::set_sink(Some(|level, message| log::write(level, "local", message)));
     log::install_panic_hook();
     log::write(
         "INFO",
@@ -904,12 +993,26 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
     );
     builder
         .setup(|app| {
+            // Serving to a phone is off at every start unless the person
+            // asked it to keep on (ADR 0096 item 1).
+            local_server::auto_start(app.handle());
             // The window's data under the former identifier comes along,
             // before any window opens (ADR 0004, decided 2026-10-07).
             migrate_web_data(&app.config().identifier);
             hear(app.handle());
             // Each open folder's bin, swept once a day (ADR 0080 item 3).
             trash::start_daily(app.handle());
+            // Each folder of this computer keeps its version history in
+            // the configuration directory, named by this computer (ADR
+            // 0091 item 8); the person's retention comes with the
+            // window's settings (`set_history_days`).
+            {
+                let state = app.state::<App>();
+                let name = device::name(state.service.config());
+                state
+                    .service
+                    .keep_local_history(&name, verso_core::history::DEFAULT_DAYS);
+            }
             // The main window is made here, not from the configuration
             // alone: it needs the download hook every window of the app
             // has (`on_download`).
@@ -929,6 +1032,9 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             Ok(())
         })
         .plugin(tauri_plugin_dialog::init())
+        // The system's notifications (ADR 0084 item 9): the window asks
+        // for them, and only while it is not in front.
+        .plugin(tauri_plugin_notification::init())
         .plugin(navigation_guard())
         .register_asynchronous_uri_scheme_protocol("verso", serve_file)
         .manage(App::new(initial_folder))
@@ -977,7 +1083,11 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
             settle(app);
             lock(&app.state::<App>().opening).remove(label);
         }
-        tauri::RunEvent::Exit => log::write("INFO", "host", "exiting"),
+        tauri::RunEvent::Exit => {
+            // The port closes and the goodbye is sent (ADR 0096 item 8).
+            local_server::stop_on_exit(app);
+            log::write("INFO", "host", "exiting");
+        }
         _ => {}
     }
     match event {
@@ -1101,7 +1211,15 @@ fn ask_windows_to_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_dns_tls;
+#[cfg(test)]
 mod tests_live;
+#[cfg(test)]
+mod tests_local;
+#[cfg(test)]
+mod tests_notify;
+#[cfg(test)]
+mod tests_periodic;
 #[cfg(test)]
 mod tests_remote;
 #[cfg(test)]

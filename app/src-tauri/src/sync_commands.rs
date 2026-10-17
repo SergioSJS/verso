@@ -6,7 +6,7 @@
 //! 13), and the sync's tasks started and ended with the folder's windows;
 //! the room commands of a synced folder's live notes (ADR 0082).
 
-use serde_json::{Value, json};
+use serde_json::Value;
 use verso_contract::SyncStatus;
 use verso_core::sync as engine;
 
@@ -23,7 +23,7 @@ fn off(key: &str) -> SyncStatus {
 
 fn context<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Arc<Ctx> {
     let state = app.state::<App>();
-    let (language, shown, told) = (app.clone(), app.clone(), app.clone());
+    let (language, shown, told, all) = (app.clone(), app.clone(), app.clone(), app.clone());
     let config = state.service.config().map(Path::to_path_buf);
     let named = config.clone();
     Arc::new(Ctx {
@@ -40,6 +40,10 @@ fn context<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Arc<Ctx> {
             for label in windows {
                 let _ = told.emit_to(label.as_str(), event, payload);
             }
+        }),
+        // Every window: each says it, whatever folder it shows.
+        all: Box::new(move |event, payload| {
+            let _ = all.emit(event, payload);
         }),
     })
 }
@@ -144,7 +148,8 @@ pub(crate) fn folder_sync<R: tauri::Runtime>(
 }
 
 /// Sync the window's folder with a folder of a server the app is signed
-/// in to: `folder`, one there by id, or a new one named `name` (item 1).
+/// in to: `folder`, one there by id, or a new one named `name` (item 1; a
+/// name the server has already becomes `name (2)`, never a merge).
 /// The first sync deletes nothing (item 11).
 #[tauri::command]
 #[specta::specta]
@@ -164,15 +169,9 @@ pub(crate) async fn folder_sync_start<R: tauri::Runtime>(
         (Some(id), _) => id,
         (None, Some(name)) => {
             let (url, token) = (login.url.clone(), login.token.clone());
+            // A name the server has is never merged into: `name (2)`.
             let made = tauri::async_runtime::spawn_blocking(move || {
-                remote::answer(
-                    remote::http()?
-                        .post(format!("{url}/api/folders"))
-                        .bearer_auth(token)
-                        .json(&json!({ "name": name }))
-                        .send()
-                        .map_err(|e| reach::unsent(&url, &e))?,
-                )
+                remote::make_folder(&url, &token, &name, true)
             })
             .await
             .map_err(|e| failed(e.to_string()))??;
@@ -263,6 +262,32 @@ pub(crate) fn folder_sync_now<R: tauri::Runtime>(
     window: tauri::Window<R>,
 ) -> Result<(), ContractError> {
     syncer(&app, &window)?.retry();
+    Ok(())
+}
+
+/// A note the window just made from its template, and the text it was
+/// made with (ADR 0093 item 12): when the folder syncs and the server
+/// holds a note of the same name another device made apart from the same
+/// template, the two are joined instead of a conflict's copy. Nothing for
+/// a folder that does not sync, nor for a server's folder.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn note_made_from_template<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+    path: String,
+    text: String,
+) -> Result<(), ContractError> {
+    if path.is_empty()
+        || path.starts_with('/')
+        || path.contains('\0')
+        || path.split('/').any(|p| p == ".." || p.is_empty())
+    {
+        return Err(refused("not a path of the folder"));
+    }
+    if let Some(s) = synced_of(&app, window.label()) {
+        s.made_from_template(&path, &text);
+    }
     Ok(())
 }
 

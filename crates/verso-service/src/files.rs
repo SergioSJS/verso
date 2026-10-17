@@ -189,6 +189,17 @@ pub struct Opened {
     pub mark: verso_core::Mark,
 }
 
+/// The refusal of a file that is a note under another name, to one who may
+/// only read: the note's own (`read_note`).
+#[must_use]
+pub fn refuse_note(policy: &Policy<'_>) -> Served {
+    refuse(
+        403,
+        "a note is read through read_note",
+        base_headers(policy),
+    )
+}
+
 /// [`serve`]'s checks, and the file's [`Opened`] — nothing of its bytes
 /// read — or the refusal.
 pub fn open(

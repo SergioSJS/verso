@@ -154,11 +154,20 @@ pub async fn folder(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
             .await
             .map_err(|e| e.to_string())??
     };
+    // The version history (ADR 0091 items 3 and 7): shown, not counted.
+    let history = {
+        let s = std::sync::Arc::clone(&ctx.server);
+        let f = id.clone();
+        tokio::task::spawn_blocking(move || crate::history::console_view(&s, &f))
+            .await
+            .map_err(|e| e.to_string())??
+    };
     Ok(ok(json!({
         "id": folder.id,
         "name": folder.dir,
         "created": folder.created,
         "trash": trash,
+        "history": history,
         "members": members,
         // Its shares by path, with their people (ADR 0081 item 7).
         "shares": shares,
@@ -255,6 +264,49 @@ pub async fn set_trash(
     })
     .await
     .map_err(|e| e.to_string())??;
+    Ok(ok(view))
+}
+
+#[derive(Deserialize)]
+pub struct SetHistory {
+    /// Days the folder's history keeps versions, 0 for no limit, or null
+    /// for the server's default (`VERSO_HISTORY_DAYS`).
+    days: Option<u32>,
+}
+
+/// How long a folder's history keeps versions, set by an admin (ADR 0091
+/// item 3, "set per folder in the console as the trash's is"), in the log;
+/// what is past the new time goes now.
+pub async fn set_history(
+    ctx: Ctx,
+    Path(id): Path<String>,
+    Json(body): Json<SetHistory>,
+) -> ApiResult<Response> {
+    ctx.changes()?;
+    ctx.admin()?;
+    ctx.server.db.folder(&id)?.ok_or_else(ApiError::not_found)?;
+    if body.days.is_some_and(|d| d > 36_500) {
+        return Err(ApiError::bad(
+            "bad_days",
+            "a number of days, 0 for no limit, or none",
+        ));
+    }
+    ctx.audit(
+        "history_days",
+        Some(
+            &body
+                .days
+                .map_or_else(|| "default".to_owned(), |d| d.to_string()),
+        ),
+        Some(&id),
+        true,
+    );
+    let s = std::sync::Arc::clone(&ctx.server);
+    let f = id.clone();
+    let view =
+        tokio::task::spawn_blocking(move || crate::history::set_from_console(&s, &f, body.days))
+            .await
+            .map_err(|e| e.to_string())??;
     Ok(ok(view))
 }
 
@@ -522,6 +574,21 @@ pub async fn overview(ctx: Ctx) -> ApiResult<Response> {
         trash.0 += count;
         trash.1 += size;
     }
+    // The version histories: shown beside the space too (ADR 0091 item 7).
+    let history = {
+        let s = std::sync::Arc::clone(&ctx.server);
+        tokio::task::spawn_blocking(move || {
+            let mut total = (0_u64, 0_u64);
+            for f in s.db.folders().unwrap_or_default() {
+                let (count, size) = crate::history::kept_size(&s, &f.id);
+                total.0 += count;
+                total.1 += size;
+            }
+            total
+        })
+        .await
+        .map_err(|e| e.to_string())?
+    };
     let near: Vec<Value> = ctx
         .server
         .db
@@ -545,7 +612,15 @@ pub async fn overview(ctx: Ctx) -> ApiResult<Response> {
     )?;
     let tls = if config.tls.is_some() {
         "own"
-    } else if !config.trusted_proxy.is_empty() {
+    } else if ctx.peer.https
+        || config
+            .public_url
+            .as_deref()
+            .is_some_and(|u| u.starts_with("https://"))
+        || (!config.trusted_proxy.is_empty() && !config.trusted_proxy.is_implicit())
+    {
+        // An https address, a named proxy, or this very request having come
+        // over HTTPS through the default list's proxy: HTTPS is in front.
         "proxy"
     } else if config.loopback_only() {
         "loopback"
@@ -557,6 +632,9 @@ pub async fn overview(ctx: Ctx) -> ApiResult<Response> {
         "newer": verso_service::lock(&ctx.server.newer).clone(),
         "updateCheck": config.update_check,
         "publicUrl": config.public_url,
+        // The directories the server could not write at start: the page
+        // says it and how to mend it (`crate::storage`).
+        "unwritable": ctx.server.unwritable.get().map(|v| v.iter().map(|u| json!({ "dir": u.dir, "owner": u.owner })).collect::<Vec<_>>()).unwrap_or_default(),
         "dataDir": config.data_dir,
         "foldersDir": config.folders_dir,
         "dataOnNetwork": data_net,
@@ -567,6 +645,8 @@ pub async fn overview(ctx: Ctx) -> ApiResult<Response> {
         "folders": folder_count,
         "space": space,
         "trash": { "count": trash.0, "size": trash.1 },
+        "history": { "count": history.0, "size": history.1 },
+        "defaultHistoryDays": config.history_days,
         "defaultTrashDays": config.trash_days,
         // How long the audit log keeps a row, 0 for ever (ADR 0083 item 10).
         "auditDays": config.audit_days,
@@ -591,7 +671,8 @@ pub async fn config(ctx: Ctx) -> ApiResult<Response> {
         ("VERSO_UI_DIR", path(&c.ui_dir), false),
         (
             "VERSO_TRUSTED_PROXY",
-            (!c.trusted_proxy.is_empty()).then(|| c.trusted_proxy.to_string()),
+            (!c.trusted_proxy.is_empty() && !c.trusted_proxy.is_implicit())
+                .then(|| c.trusted_proxy.to_string()),
             false,
         ),
         (
@@ -618,6 +699,11 @@ pub async fn config(ctx: Ctx) -> ApiResult<Response> {
             false,
         ),
         ("VERSO_TRASH_DAYS", Some(c.trash_days.to_string()), false),
+        (
+            "VERSO_HISTORY_DAYS",
+            Some(c.history_days.to_string()),
+            false,
+        ),
         ("VERSO_AUDIT_DAYS", Some(c.audit_days.to_string()), false),
     ]
     .into_iter()

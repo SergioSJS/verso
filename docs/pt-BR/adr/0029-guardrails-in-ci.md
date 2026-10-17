@@ -92,6 +92,13 @@
   `app/ui/test/sanitize-cases.mjs`, rodada no node pelo `npm test` e no
   WebKit e no Chromium pelo `npm run e2e` (item 16, 1e25bcf; vista
   falhando antes com uma asserção errada nos dois navegadores).
+  2026-10-15 — uma exceção a `unsafe_code = "forbid"`, decisão do
+  mantenedor em sessão (*"A e B juntos"*): o recorte nativo de uma página
+  incorporada ([0056](0056-embedded-web-pages.md), revista no mesmo dia),
+  `unsafe` confinado a `app/src-tauri/src/web_clip/macos.rs` e
+  `windows.rs`, e um guardrail novo de workspace que o mantém ali,
+  `scripts/check-unsafe.mjs` (Decisão, "Uma exceção a
+  `unsafe_code = "forbid"`").
 
 ## Contexto
 
@@ -112,7 +119,7 @@ com ela. Os dois grupos estão separados abaixo.
 | Guardrail | Evita |
 |---|---|
 | `cargo fmt --check` | diff de formatação escondendo diff de lógica |
-| `unsafe_code = "forbid"` via `[workspace.lints]` | corrupção de memória |
+| `unsafe_code = "forbid"` via `[workspace.lints]`; uma exceção, mantida em dois arquivos por `scripts/check-unsafe.mjs` (revisão de 2026-10-15, abaixo) | corrupção de memória |
 | clippy com `-D warnings`; `unwrap_used` e `expect_used` negados, permitidos só em testes | panic derrubando o app |
 | clippy `disallowed_methods` negando `std::fs` fora de `verso-fs` (exceções declaradas: arquivo do índice em `verso-index`, config em `verso-core`) | acesso à pasta aberta fora de `verso-fs` ([0026](0026-core-ui-contract-inviolable-rules.md), regra 5) |
 | `cargo-deny`: allowlist de licenças compatível com a licença escolhida; advisories negadas | dependência incompatível ou vulnerável |
@@ -157,7 +164,7 @@ conta cada um como dez.
 - **Um pull request** roda todo guardrail menos o fuzzing em **um job de
   Linux**, dos mais baratos primeiro, sobre um cache só: o espelho dos
   documentos, as fixtures, as licenças npm, a checagem do cofre de exemplo, o
-  grep de `std::fs`, `cargo fmt --check`, `cargo deny check`, clippy, os
+  grep de `std::fs`, a guarda de `unsafe`, `cargo fmt --check`, `cargo deny check`, clippy, os
   testes, os tipos gerados, a checagem de tipos, o bundle e os testes
   unitários da UI, a checagem de WASM. Os testes de ponta a ponta da janela
   rodam só na máquina do autor ([0058](0058-demo-vault-as-tutorial.md),
@@ -519,6 +526,87 @@ Declarado aqui e aceito como o único subprocesso do link da linha de comando.
 O `[ABERTO]` da [0054](0054-terminal-and-agents-from-the-app.md) sobre a
 mesma pergunta fica fechado com isto.
 
+### Uma exceção a `unsafe_code = "forbid"` — revisão de 2026-10-15
+
+**Por quê.** Uma página incorporada cujo site se recusa a ser enquadrado
+(`X-Frame-Options`, `frame-ancestors`) é mostrada numa web view filha
+nativa ([0056](0056-embedded-web-pages.md)). Os sites do próprio
+mantenedor recusam todos, medido em 2026-10-15: olddragon.com.br
+(`SAMEORIGIN`; `frame-ancestors 'self' *.owlbear.rodeo`), rolai.app
+(`DENY`), um Calibre-Web na rede local (`SAMEORIGIN`). Uma view nativa
+flutua sobre a página da janela, onde o CSS não a recorta; sem recorte,
+ela só podia ser encolhida para a parte visível do seu espaço, o que
+mostrava o topo da página numa view mais curta. O mantenedor, testando no
+app: *"era para funcionar como iframe normal"*. Recortar uma view nativa
+exige as views da própria plataforma — um `NSView` no macOS, uma janela
+filha no Windows — e toda chamada a elas é `unsafe` em Rust. O workspace
+o proibia, e um `forbid` não pode ser permitido num arquivo.
+
+**Decidido pelo mantenedor em 2026-10-15**, em sessão, depois de ouvir
+que a exceção ficaria confinada a um módulo, um arquivo pequeno por
+sistema, cada bloco com um comentário `SAFETY`, testada, num pull request
+só dela: *"A e B juntos"* — A, um `<iframe>` de verdade onde o site
+permite; B, o recorte nativo, com esta exceção.
+
+**A exceção, como construída:**
+
+- O workspace mantém `unsafe_code = "forbid"` em
+  `[workspace.lints.rust]`, e todo membro menos o `verso-app` o herda sem
+  mudança.
+- `app/src-tauri/Cargo.toml` escreve os lints do workspace por extenso em
+  vez de herdá-los — o Cargo não herda todos menos um — com
+  `unsafe_code = "deny"`, os lints do clippy do workspace nos níveis do
+  workspace, e mais dois, ambos `forbid`: `undocumented_unsafe_blocks`
+  (todo bloco `unsafe` diz num comentário `// SAFETY:` por que é correto)
+  e `multiple_unsafe_ops_per_block` (todo bloco faz uma só coisa
+  `unsafe`).
+- `#![allow(unsafe_code)]` está escrito em dois arquivos só:
+  `app/src-tauri/src/web_clip/macos.rs` e
+  `app/src-tauri/src/web_clip/windows.rs`. O `mod.rs` do módulo, a sua
+  geometria e o `linux.rs` do Linux (a API segura do GTK) não têm
+  `unsafe`.
+- O que é `unsafe` ali: no macOS, pegar a `WKWebView` do ponteiro cru que
+  o wry entrega, e perguntar a uma view a sua superview; no Windows, as
+  chamadas de Win32 e WebView2. Todas rodam na thread principal dentro do
+  `with_webview` do Tauri, e nenhum ponteiro cru ou handle sobrevive à
+  chamada: cada chamada acha o contêiner de novo a partir da view da
+  página.
+- **A guarda, `scripts/check-unsafe.mjs`**, um guardrail novo de
+  workspace. Falha quando um arquivo Rust do repositório fora desses dois
+  escreve `unsafe` como código — um bloco, uma função, um impl, um trait,
+  um bloco extern, um atributo — ou nomeia o lint `unsafe_code`
+  (comentários e strings não são código); quando o `unsafe_code` do
+  workspace não é `forbid`; quando a tabela do `verso-app` não é a do
+  workspace, com `deny` e os dois lints acima; quando outro membro não
+  herda os lints do workspace; e quando uma configuração do Cargo desliga
+  o lint. Os testes dela são `scripts/check-unsafe.test.mjs`. Roda no job
+  de Linux do pull request, no `scripts/check.sh` e, no host, no
+  `scripts/check-linux.sh` — só Node e git. **Vista falhando** em
+  2026-10-15: um bloco `unsafe` plantado em `web_clip/mod.rs` e no
+  `verso-fs`, um `allow(unsafe_code)` ao lado, e o `unsafe_code` do
+  `verso-app` posto em `allow` a deixaram vermelha, cada um; desfeitos,
+  verde.
+
+**Suporta macOS 11 ou superior (2026-10-15, aceito como recomendado).** A
+primeira versão do contêiner no macOS recortava com
+`NSView.clipsToBounds`, público só a partir do macOS 14. Agora recorta com
+o `masksToBounds` da camada (`setWantsLayer(true)`, depois o `layer()` da
+view), disponível desde o macOS 10.5, então o recorte funciona em todo
+macOS que o app suporta (11 ou superior). O `objc2-quartz-core` (0.3.2, já
+no lockfile) virou dependência direta do `verso-app` para essa chamada, e o
+`unsafe` fica só em `web_clip/macos.rs` e `windows.rs`, cada bloco com seu
+comentário `SAFETY` (`check-unsafe` inalterado). Um teste de unidade impede
+a volta da chamada do macOS 14.
+
+O que custa, dito com todas as letras: `unsafe` é o código que o
+compilador não verifica, num projeto cuja revisão é mecânica (Contexto).
+Os dois arquivos são pequenos, lidos pelo modelo que não os escreveu, e o
+recorte é verificado em cada sistema no app de verdade
+(`docs/reference/manual-checks.md`), já que nenhum teste sem janela
+alcança uma view nativa. Uma segunda exceção é uma decisão própria, com
+uma revisão aqui; nunca um `#[allow]` no meio de um diff (`CLAUDE.md`
+§3).
+
 ## Consequências
 
 - A Fase 0 não fecha enquanto os guardrails **de workspace** não forem vistos
@@ -575,4 +663,6 @@ meta: as metas seguem `[OPEN]` ([0039](0039-performance-targets.md)).
 Aceito. Em 2026-10-12 o mantenedor ratificou os registros provisórios de
 2026-09-22 (a escrita atômica, o FTS5) como construídos e testados, e
 deixou o teste com cliente de sync aberto como uma checagem manual que não
-trava nada (Revisões).
+trava nada (Revisões). Em 2026-10-15 o mantenedor decidiu a única
+exceção a `unsafe_code = "forbid"`, o recorte nativo de uma página
+incorporada, e a sua guarda (Decisão).

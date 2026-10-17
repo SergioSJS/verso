@@ -28,6 +28,17 @@
   existe versão nova, para avisar o admin; nunca se atualiza sozinho, e a
   checagem pode ser desligada. O `docs/reference/app-decision.md` §7 diz o
   mesmo.
+  2026-10-16 — revisado pelo [0097](0097-universo-found-on-the-network-and-a-bad-dns-survived.md)
+  (o mantenedor: "Gosto de todos", sobre achar um UniVerso na rede de casa e
+  sobreviver a um DNS ruim); o texto abaixo é mantido como foi decidido.
+  Três alcances são acrescentados, nenhum a um endereço que o usuário não
+  já tivesse em mente: o app desktop **busca mDNS** (`_verso._tcp`) na rede
+  local, só enquanto Ajustes › Servidores está aberto, e lista o que acha
+  sem conectar a isso; depois de falhar uma conexão a um servidor que já usa,
+  ele envia **consultas DNS UDP aos servidores DNS do próprio sistema** para o
+  nome desse servidor e tenta os outros endereços que eles dão, o nome e o
+  esquema inalterados; e um servidor Verso **se anuncia** por mDNS por padrão
+  quando escuta além do loopback (`VERSO_ANNOUNCE=off` o desliga).
 
 ## Contexto
 
@@ -103,4 +114,14 @@ atualização) e pela [0056](0056-embedded-web-pages.md) (páginas web
 embutidas). Revisado em 2026-10-09 pelo
 [0073](0073-self-hosted-server-first.md) e pelo item 7 do
 [0075](0075-server-packaging-and-storage.md) (o tráfego de um servidor, e
-a checagem de atualização dele).
+a checagem de atualização dele). Revisado em 2026-10-15 pelo
+[0096](0096-this-app-is-a-server.md) item 8 (uma correção de escopo, não
+uma mudança de decisão): o "mDNS na rede local" da revisão de 2026-10-09
+é multicast, que não é "um endereço que o usuário escreveu numa
+configuração". "Este app é um servidor" pode se anunciar por mDNS
+(`_verso-local._tcp`) **só enquanto o diálogo de pareamento está
+aberto**, com um nome de instância de quatro dígitos hexadecimais
+aleatórios e um registro com a versão do protocolo e a porta, e escuta
+conexões de entrada nos endereços privados da máquina, só enquanto a
+pessoa o ligou; nada mais da 0050 muda: o núcleo não alcança rede
+nenhuma.

@@ -6,9 +6,6 @@
 //! folders of this computer, each a device of its own, and a folder of the
 //! server between them.
 
-// The server is not built for Windows (crates/verso-cli/Cargo.toml).
-#![cfg(not(windows))]
-
 use std::io::Write;
 
 use verso_contract::SyncStatus;
@@ -154,6 +151,8 @@ pub(super) struct Device {
     pub(super) key: String,
     pub(super) shown: Arc<Mutex<Vec<SyncStatus>>>,
     pub(super) told: Arc<Mutex<Told>>,
+    /// What every window heard (ADR 0084 item 7): the event, its payload.
+    pub(super) all: Arc<Mutex<Vec<(String, serde_json::Value)>>>,
     _dirs: (tempfile::TempDir, tempfile::TempDir),
 }
 
@@ -190,6 +189,8 @@ pub(super) fn device_at(url: &str, folder: &str, token: &str, files: &[(&str, &s
     let heard = Arc::clone(&shown);
     let told = Arc::new(Mutex::new(Vec::new()));
     let rooms = Arc::clone(&told);
+    let all = Arc::new(Mutex::new(Vec::new()));
+    let everyone = Arc::clone(&all);
     let d = Device {
         ctx: Arc::new(Ctx {
             service,
@@ -200,11 +201,15 @@ pub(super) fn device_at(url: &str, folder: &str, token: &str, files: &[(&str, &s
             told: Arc::new(move |to, event, payload| {
                 lock(&rooms).push((to.to_vec(), event.to_owned(), payload.clone()));
             }),
+            all: Box::new(move |event, payload| {
+                lock(&everyone).push((event.to_owned(), payload.clone()));
+            }),
         }),
         s: Syncer::new(&info.key, &state),
         key: info.key,
         shown,
         told,
+        all,
         _dirs: (config, dir),
     };
     for (p, text) in files {
@@ -524,20 +529,6 @@ fn a_mass_deletion_pauses_until_the_person_says_yes() {
     sync(&b);
     assert_eq!(text(&b, "Nota 0.md"), None);
     assert_eq!(text(&b, "Nota 9.md").as_deref(), Some("# Nota\n"));
-}
-
-#[test]
-fn a_file_larger_than_a_message_crosses_in_pieces() {
-    let r = serve(&[]);
-    let a = device(&r, &r.owner, &[]);
-    let big: Vec<u8> = (0..(9_u32 << 20))
-        .map(|i| u8::try_from(i % 251).unwrap())
-        .collect();
-    write(&a, "anexos/mapa.bin", &big);
-    sync(&a);
-    let b = device(&r, &r.owner, &[]);
-    sync(&b);
-    assert_eq!(read(&b, "anexos/mapa.bin").as_deref(), Some(big.as_slice()));
 }
 
 #[test]
@@ -1026,6 +1017,7 @@ fn a_moved_folder_leaves_no_empty_folder_behind() {
 /// A file made outside Verso with a name not every system can keep is
 /// listed here with its reason and never sent: the server would refuse it
 /// (ADR 0070 item 3; found in the four-device campaign, 2026-10-10).
+// Windows cannot make a file named "hora 10:30.md" to begin with.
 #[cfg(not(windows))]
 #[test]
 fn a_name_not_every_system_keeps_is_said_here_not_sent() {

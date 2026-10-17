@@ -44,18 +44,39 @@ fn due(said: &mut BTreeMap<String, Instant>, url: &str, now: Instant) -> bool {
 }
 
 /// The server at `url` could not be reached, for `cause`: said in the log
-/// at WARN once a minute, and as the contract's `unreachable`.
+/// at WARN once a minute, and as the contract's `unreachable`. When the
+/// name was resolved to addresses (dns.rs, ADR 0097) the message names
+/// them, so a bad DNS reads as one: the first line is the address, each
+/// line after it an IP that was tried.
 pub(crate) fn unreachable(url: &str, cause: &str) -> ContractError {
+    let host = reqwest::Url::parse(url)
+        .ok()
+        .and_then(|u| u.host_str().map(str::to_owned));
+    let mut tried = host.as_deref().map(dns::failed).unwrap_or_default();
+    // `localhost` that does not answer is a server that is down, not a DNS
+    // that is wrong: nothing to name.
+    if tried.iter().all(|c| c.ip.is_loopback()) {
+        tried.clear();
+    }
     if due(&mut lock(&SAID), url, Instant::now()) {
+        let said = match &host {
+            Some(h) if !tried.is_empty() => format!(" [{}: no answer]", dns::describe(h, &tried)),
+            _ => String::new(),
+        };
         log::write(
             "WARN",
             "host",
-            &format!("unreachable: the server at {url}: {cause}"),
+            &format!("unreachable: the server at {url}: {cause}{said}"),
         );
+    }
+    let mut message = address(url);
+    for t in &tried {
+        message.push('\n');
+        message.push_str(&t.ip.to_string());
     }
     ContractError {
         kind: ErrorKind::Unreachable,
-        message: address(url),
+        message,
     }
 }
 
@@ -237,6 +258,38 @@ mod tests {
         assert_eq!(
             serde_json::to_value(&said).unwrap()["kind"],
             serde_json::json!("unreachable")
+        );
+    }
+
+    /// The maintainer's case: the name resolved to 10.0.0.1 and nothing
+    /// answered; the message names the address and every IP tried, so the
+    /// window can say `universo.casa.exemplo → 10.0.0.1: sem resposta`.
+    #[test]
+    fn a_name_that_did_not_answer_says_which_addresses_were_tried() {
+        let url = "https://universo.casa.exemplo.invalid";
+        dns::pretend_offered(
+            "universo.casa.exemplo.invalid",
+            vec![
+                dns::Candidate {
+                    ip: "10.0.0.1".parse().unwrap(),
+                    via: dns::Via::System,
+                },
+                dns::Candidate {
+                    ip: "192.168.0.5".parse().unwrap(),
+                    via: dns::Via::Server("192.168.0.2".parse().unwrap()),
+                },
+            ],
+        );
+        let said = unreachable(url, "operation timed out");
+        assert_eq!(said.kind, ErrorKind::Unreachable);
+        assert_eq!(
+            said.message,
+            "universo.casa.exemplo.invalid\n10.0.0.1\n192.168.0.5"
+        );
+        // A name never resolved here says the address alone.
+        assert_eq!(
+            unreachable("http://nunca.visto.invalid:7340", "x").message,
+            "nunca.visto.invalid:7340"
         );
     }
 

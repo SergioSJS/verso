@@ -45,26 +45,41 @@ pub mod agents;
 pub mod bases;
 pub mod board;
 pub mod canvas;
+pub mod canvas_secret;
 pub mod clients;
 pub mod focuses;
+pub mod history;
 pub mod servers;
 pub mod sync;
 pub mod trash;
 pub mod typed;
 pub use focuses::{Focus, FocusesSummary, ReadOnlyReasonCode};
 pub use folder_settings::{FolderLayer, FolderSettings, LayerProblem};
+pub use periodic::{ObsidianPeriodic, Period, Periodic};
 mod entries;
 mod folder_settings;
 mod indexing;
+pub mod maptiles;
+mod mentions;
 mod narrow;
 mod notes;
+mod periodic;
+mod reader;
 mod rename;
 mod sidecar;
 mod sync_io;
 mod views;
 use entries::*;
+pub use mentions::{Mention, Mentions};
+/// The one projection a UniVerso serves a reader of a note (ADR 0087),
+/// for every exit of the server that serves one.
+pub mod secret {
+    pub use verso_dialect::{Secrets, is_secret_kind, project};
+}
 use rename::*;
 pub use sidecar::Sidecar;
+/// The index's answers, as the core hands them out (its reader's too).
+pub use verso_index::{Backlink as IndexBacklink, Hit as IndexHit, Link as IndexLink};
 
 /// The opaque revision token of a note: its `verso_fs::Stamp`, encoded so
 /// the UI can hand it back without knowing what is in it.
@@ -641,6 +656,9 @@ pub struct Workspace {
     last_focuses: Option<Vec<Focus>>,
     /// Whether focuses are synced to .space/waypoints.json for this workspace (ADR 0062 D5, D9).
     sync_focuses: bool,
+    /// The computer's history of the folder's files, when kept (ADR 0091
+    /// item 8; `history.rs`).
+    history: Option<history::Local>,
 }
 
 impl std::fmt::Debug for Workspace {
@@ -759,6 +777,55 @@ pub fn recent_folders(config: Option<&Path>) -> Vec<PathBuf> {
     sidecar::known_folders(&dir.join("index"))
 }
 
+/// The folders inside `folder`, relative and `/`-joined, without opening
+/// it: what Settings offers to serve to a phone when only some of a
+/// folder's folders are chosen (ADR 0096, amended 2026-10-16).
+pub fn subfolders_of(folder: &Path) -> Result<Vec<String>, CoreError> {
+    verso_fs::subfolders(folder).map_err(CoreError::Folder)
+}
+
+/// The attachments folder Obsidian's own settings name for the vault at
+/// `folder` (`attachmentFolderPath` in `.obsidian/app.json`, read by name
+/// through `verso-fs`, never written): a folder of the vault, relative and
+/// `/`-joined. `None` when the setting is absent, is the vault's root, "the
+/// same folder as the note" or a sub-folder of the note's folder (`./…`) —
+/// those lie inside whatever is served with the note — or does not name a
+/// plain folder (a `..`, a hidden part, a backslash).
+#[must_use]
+pub fn attachments_folder(folder: &Path) -> Option<String> {
+    use verso_fs::{ObsidianRead, ObsidianSettings};
+    let root = Root::open(folder, Vec::new()).ok()?;
+    let ObsidianRead::Found(bytes) = root.read_obsidian_settings(ObsidianSettings::App).ok()?
+    else {
+        return None;
+    };
+    let value: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
+    let named = value.get("attachmentFolderPath")?.as_str()?.trim();
+    if named.starts_with('.') {
+        return None;
+    }
+    let named = named.trim_matches('/');
+    let plain = !named.is_empty()
+        && named
+            .split('/')
+            .all(|p| !p.is_empty() && !p.starts_with('.') && !p.contains(['\\', ':', '\0']));
+    plain.then(|| named.to_owned())
+}
+
+/// The vault's attachments folder as it goes with folders served in part:
+/// [`attachments_folder`], unless it is one of the chosen folders, inside
+/// one or holds one, or is not on the disk — then there is none, so that
+/// nothing is shown twice or widened (ADR 0096 item 2, amended 2026-10-16).
+#[must_use]
+pub fn served_attachments(folder: &Path, parts: &[String]) -> Option<String> {
+    let a = attachments_folder(folder).filter(|a| verso_fs::is_folder(folder, a))?;
+    let covers = |root: &str, path: &str| path == root || path.starts_with(&format!("{root}/"));
+    parts
+        .iter()
+        .all(|p| !covers(&a, p) && !covers(p, &a))
+        .then_some(a)
+}
+
 impl Workspace {
     /// Open `folder` with its index under [`config_dir`] (or the given
     /// directory). Nothing is read yet.
@@ -784,6 +851,7 @@ impl Workspace {
             stamped_focuses: HashMap::new(),
             last_focuses: None,
             sync_focuses: false,
+            history: None,
         };
         // The folder's own settings, read before anything is walked: the
         // walk's rules may be the folder's (ADR 0070). Read only.
