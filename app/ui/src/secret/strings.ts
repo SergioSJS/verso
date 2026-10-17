@@ -23,6 +23,8 @@ const pt = {
   /** The slash command that makes one, and what it does not protect (item 7). */
   slashTitle: "Segredo",
   slashDesc: "Oculto para quem só lê a nota num UniVerso. Não é criptografia: quem pode editar, ou tem o arquivo, vê.",
+  /** Marker shown where a secret was hidden in reader view. */
+  hiddenContent: "Conteúdo oculto",
 };
 
 const en: typeof pt = {
@@ -36,6 +38,7 @@ const en: typeof pt = {
   failed: (why) => `Could not show the note as a reader sees it: ${why}. The whole note is still here.`,
   slashTitle: "Secret",
   slashDesc: "Hidden from those who may only read the note on a UniVerso. Not encryption: whoever may edit it, or holds the file, sees it.",
+  hiddenContent: "Hidden content",
 };
 
 export const ss = LANG.toLowerCase().startsWith("pt") ? pt : en;

@@ -9,7 +9,7 @@ import * as esbuild from "esbuild";
 
 await esbuild.build({
   stdin: {
-    contents: `export { mayHoldSecret } from "./src/secret/text";
+    contents: `export { mayHoldSecret, projectSecretsWithPlaceholders } from "./src/secret/text";
 export { projectSecrets } from "./src/harness/secret";
 export { ss } from "./src/secret/strings";`,
     resolveDir: ".",
@@ -22,7 +22,7 @@ export { ss } from "./src/secret/strings";`,
   logLevel: "error",
   external: ["@tauri-apps/*"],
 });
-const { mayHoldSecret, projectSecrets, ss } = await import("./.bundles/secret.test-bundle.mjs");
+const { mayHoldSecret, projectSecrets, projectSecretsWithPlaceholders, ss } = await import("./.bundles/secret.test-bundle.mjs");
 
 test("the toggle is offered only where a secret callout may be", () => {
   assert.ok(mayHoldSecret("> [!secret]\n> x\n"));
@@ -40,8 +40,18 @@ test("the harness's projection takes the block's lines out at any depth", () => 
   assert.equal(projectSecrets("sem segredo\n"), "sem segredo\n");
 });
 
+test("the reader view projection replaces secret blocks with placeholders", () => {
+  const note = "# T\n\nà vista\n\n> [!secret] s\n> escondido\nlazy\n\n> [!note] n\n> visível\n>\n> > [!secret]\n> > fundo\n>\n> fica\n\nfim\n";
+  const viewMd = projectSecretsWithPlaceholders(note);
+  assert.ok(viewMd.includes("> [!secret-placeholder]\n"));
+  assert.ok(viewMd.includes("> > [!secret-placeholder]\n"));
+  for (const hidden of ["escondido", "lazy", "fundo", "[!secret]"]) assert.ok(!viewMd.includes(hidden), hidden);
+  for (const kept of ["à vista", "visível", "fica", "fim", "[!note] n"]) assert.ok(viewMd.includes(kept), kept);
+  assert.equal(projectSecretsWithPlaceholders("sem segredo\n"), "sem segredo\n");
+});
+
 test("both languages say what a secret block does", () => {
-  for (const key of ["label", "hidden", "local", "view", "viewing", "back", "slashTitle", "slashDesc"]) {
+  for (const key of ["label", "hidden", "local", "view", "viewing", "back", "slashTitle", "slashDesc", "hiddenContent"]) {
     assert.equal(typeof ss[key], "string", key);
     assert.ok(ss[key].length > 0, key);
   }

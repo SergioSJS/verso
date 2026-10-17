@@ -13,7 +13,7 @@ import { commands } from "../bindings";
 import { canWrite } from "../can";
 import { h } from "../dom";
 import { icon } from "../icons";
-import { mayHoldSecret } from "./text";
+import { mayHoldSecret, projectSecretsWithPlaceholders } from "./text";
 import { ss } from "./strings";
 
 export class ReaderView {
@@ -80,7 +80,8 @@ export class ReaderView {
   async html(text: string): Promise<{ text: string; html: string } | null> {
     try {
       const shown = await commands.projectSecrets(text);
-      return { text: shown, html: await commands.renderMarkdown(shown) };
+      const viewText = projectSecretsWithPlaceholders(text);
+      return { text: shown, html: await commands.renderMarkdown(viewText) };
     } catch (e) {
       this.shown = false;
       this.button.setAttribute("aria-pressed", "false");
