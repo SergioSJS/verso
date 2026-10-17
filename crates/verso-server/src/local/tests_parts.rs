@@ -664,7 +664,7 @@ const OUTSIDE: &[&str] = &[
 /// Paths that are not outside by their look: a note of the attachments
 /// folder, and (on Unix) links in the folder that lead to the vault's other
 /// folders, in the case the file system folds too.
-#[cfg(unix)]
+#[cfg(target_os = "macos")]
 const LINKED: &[&str] = &[
     "Anexos/nota.md",
     "Anexos/NOTA.MD",
@@ -673,6 +673,8 @@ const LINKED: &[&str] = &[
     "Sub/f.md",
     "SUB/F.MD",
 ];
+#[cfg(all(unix, not(target_os = "macos")))]
+const LINKED: &[&str] = &["Anexos/nota.md", "Anexos/NOTA.MD", "dir/c.md", "Sub/f.md"];
 #[cfg(not(unix))]
 const LINKED: &[&str] = &["Anexos/nota.md", "Anexos/NOTA.MD"];
 
