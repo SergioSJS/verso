@@ -14,7 +14,7 @@ test release.
 
 Nothing yet.
 
-## 0.8.3-beta.1 — 2026-10-17
+## 0.8.3-beta.2 — 2026-10-17
 
 - **A placeholder marks hidden secrets in reader view** ([ADR 0087](docs/adr/0087-secret-blocks-hidden-from-readers.md) item 5, decided 2026-10-16: "gostaria que tivesse um retangulo ou algo assim indicando coisa escondida ali"): turning on *View as a reader* on a note with `[!secret]` callouts now leaves an informative dashed box with a lock icon and "Hidden content" in place of each secret block instead of removing it without trace, while still keeping the secret text completely absent from the rendered HTML.
 
@@ -71,6 +71,7 @@ Nothing yet.
 - **Secret pins and cards** ([ADR 0090](docs/adr/0090-maps-on-the-board.md) item 5): mark a card or a pin *Hidden from readers*; on a UniVerso one who may only **read** the board receives it without that card, its connections and the drawing that belongs to it — in the file, in a search, in the backlinks and the graph, in sync, and live (a reader follows a board by what is saved, not in its room). A writer sees it with a lock, *Visible to anyone with the file* in a folder of this computer, and can *View as a reader*; an exported picture asks whether to leave the secret cards out, left out by default. In Obsidian it is an ordinary card: it is a guard against readers on a server, not encryption.
 ### Fixed
 
+- **Building the UI bundle on Windows succeeds** (2026-10-17): the service worker build script uses `fileURLToPath` for directory resolution instead of URL pathname, preventing path resolution failures on Windows.
 - **A folder already syncing with another server is said so** (2026-10-16): in *Settings › Servers*, a server's block showed no *Sync* button and no reason when the open folder synced elsewhere; it now says which server, that a folder syncs with one at a time, and leads to *Sync*. And the owner's role reads without assuming anyone's gender.
 - **In a browser over plain HTTP, *Offline* is there and says why it is off** (2026-10-16): the section vanished when the page could not keep a folder; it now always shows in a browser and says HTTPS is needed. And **a browser's window no longer claims to run the newest version**: it cannot check, as the server updates it.
 - **Syncing with a UniVerso over HTTPS works** (2026-10-16): the desktop app's sync stopped on *Connecting to the server…* for good with an `https://` server; it had failed inside before reaching it. And **reloading a window no longer leaves its embedded web pages stuck on top of everything**: they close with the page that opened them.
