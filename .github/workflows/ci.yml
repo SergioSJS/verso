@@ -114,15 +114,29 @@ jobs:
       # application bundle, the Downloads folder — in src/update.rs, and the
       # app's diagnostic log in src/log.rs, confined the same way (its
       # clippy.toml carries an empty list, so this grep is the scope; ADR
-      # 0029, revisions of 2026-09-29 and 2026-10-01).
-      - name: std::fs in verso-app only in src/update.rs and src/log.rs (ADR 0029)
+      # 0029, revisions of 2026-09-29 and 2026-10-01). And src/resolv_conf.rs,
+      # which reads the Linux resolver files (the system's DNS servers, for
+      # dns.rs) and nothing else: an exception of ADR 0097, declared there,
+      # that awaits the maintainer's ratification; scripts/check.sh holds the
+      # same list.
+      - name: std::fs in verso-app only in src/update.rs, src/log.rs and src/resolv_conf.rs (ADR 0029, ADR 0097)
         run: |
           if grep -rnE --include='*.rs' '(std::fs|\bfs::|std::\{[^}]*\bfs\b)' app/src-tauri/src \
-             | grep -vE '^app/src-tauri/src/(update|log)\.rs:' \
+             | grep -vE '^app/src-tauri/src/(update|log|resolv_conf)\.rs:' \
              | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'; then
-            echo 'std::fs outside app/src-tauri/src/update.rs and src/log.rs (ADR 0029)'
+            echo 'std::fs outside app/src-tauri/src/update.rs, src/log.rs and src/resolv_conf.rs (ADR 0029, ADR 0097)'
             exit 1
           fi
+      # `unsafe` in two files and nowhere else: the native clipping of an
+      # embedded page (app/src-tauri/src/web_clip/macos.rs and windows.rs).
+      # The workspace forbids it; verso-app's lint table says `deny` so that
+      # those two files can allow it, and this holds the table to the
+      # workspace's and the code to those files (ADR 0029, revision of
+      # 2026-10-15). Node and git only.
+      - name: unsafe only in web_clip's platform files (ADR 0029)
+        run: |
+          node --test scripts/check-unsafe.test.mjs
+          node scripts/check-unsafe.mjs
 
       # --- The toolchain, the WASM target, one cache for everything below. ---
       - name: toolchain from rust-toolchain.toml
@@ -191,8 +205,10 @@ jobs:
       # not versioned. Clippy and the tests do not look at the UI, so an empty
       # page stands in for it here instead of installing Node on a runner
       # billed ten times over; the Linux job builds and checks the real one.
+      # `dist-web` (the files served to a phone, `ui-web` in the app) is an
+      # empty folder here for the same reason.
       - name: a stand-in for the UI bundle
-        run: mkdir -p app/ui/dist && printf '<!doctype html><title>Verso</title>\n' > app/ui/dist/index.html
+        run: mkdir -p app/ui/dist app/ui/dist-web && printf '<!doctype html><title>Verso</title>\n' > app/ui/dist/index.html
       - name: cargo clippy -D warnings
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
       - name: cargo test
@@ -220,14 +236,26 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       # As on macOS: an empty page stands in for the UI bundle.
       - name: a stand-in for the UI bundle
-        run: mkdir -p app/ui/dist && printf '<!doctype html><title>Verso</title>\n' > app/ui/dist/index.html
-      # The server is not built for Windows (ADR 0075 item 2: Docker,
-      # CasaOS, .deb/.rpm), and its passkeys' OpenSSL has no build there:
-      # the workspace without it, as verso-cli leaves it out on Windows.
+        run: mkdir -p app/ui/dist app/ui/dist-web && printf '<!doctype html><title>Verso</title>\n' > app/ui/dist/index.html
+      # The server builds here too (ADR 0075 item 2, revised 2026-10-15):
+      # webauthn-rs's OpenSSL is compiled from source (the `openssl` crate's
+      # `vendored` feature, on every target), which runs Perl. The image
+      # ships Strawberry Perl on the PATH (windows-2025 image list); the step
+      # below fails the job early and plainly if that ever stops being true,
+      # and makes the build use it rather than the Perl of Git for Windows,
+      # whose paths openssl-src's Configure cannot use. No NASM: without it
+      # openssl-src builds with `no-asm`. The first build of OpenSSL is a few
+      # minutes of the job; rust-cache keeps its output afterwards.
+      - name: Strawberry Perl for the vendored OpenSSL
+        run: |
+          perl_exe="$(cygpath -u 'C:\Strawberry\perl\bin\perl.exe')"
+          test -x "$perl_exe" || { echo "::error::no Strawberry Perl on this image: install it (choco install strawberryperl)"; exit 1; }
+          "$perl_exe" -v | sed -n 2p
+          echo "OPENSSL_SRC_PERL=C:\\Strawberry\\perl\\bin\\perl.exe" >> "$GITHUB_ENV"
       - name: cargo clippy -D warnings
-        run: cargo clippy --workspace --exclude verso-server --all-targets --all-features --locked -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
       - name: cargo test
-        run: cargo test --workspace --exclude verso-server --all-features --locked
+        run: cargo test --workspace --all-features --locked
 
   fuzz:
     # Feature guardrail of Phase 1, feature 1 (ADR 0029). After each merge,
@@ -247,7 +275,7 @@ jobs:
     # a presence, the Host and Origin checks and a size, each 60 s from its
     # versioned seeds in `fuzz/seeds-<target>`, the same way, built as the
     # server ships (`-O`, see the step).
-    name: verso-dialect, canvas and server fuzz, 60s each (main, ADR 0029, ADR 0083)
+    name: verso-dialect, canvas, pattern and server fuzz, 60s each (main, ADR 0029, ADR 0083, ADR 0094)
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     steps:
@@ -276,6 +304,14 @@ jobs:
         run: |
           mkdir -p fuzz/corpus/canvas
           cargo +nightly fuzz run --target x86_64-unknown-linux-gnu canvas fuzz/corpus/canvas fuzz/seeds-canvas -- -max_total_time=60 -max_len=65536 -timeout=20
+      # A base's regular expressions (ADR 0094, Consequences): verso-core's
+      # pattern translation and its searches, compiled from their own source
+      # in the same harness, as the canvas is.
+      - name: fuzz pattern for 60 seconds
+        working-directory: crates/verso-dialect
+        run: |
+          mkdir -p fuzz/corpus/pattern
+          cargo +nightly fuzz run --target x86_64-unknown-linux-gnu pattern fuzz/corpus/pattern fuzz/seeds-pattern -- -max_total_time=60 -max_len=4096 -timeout=20
       # The server's inputs (ADR 0083 item 14, F6), one target after the
       # other in one step: a crash ends it, and its input is kept below.
       # What each target feeds and what a crash means is in its doc comment.

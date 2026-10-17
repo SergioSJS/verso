@@ -28,20 +28,30 @@
 # beside the production app with its own window settings, and its command
 # line opens that app. The app is signed ad hoc, not with a Developer ID:
 # macOS asks once, on first open, to allow it (README.md); a Developer ID is
-# a decision for before public distribution.
+# never to be had: no Apple Developer Program, ever (ADR 0095, 2026-10-15).
 #
 # The server (ADR 0075): `verso serve`, static for x64 and ARM64 (ARM64
 # cross-compiled, ADR 0075 item 2), as an archive, a `.deb` and an `.rpm`
-# with a systemd unit, signed like the apps; and an image for amd64 and
+# with a systemd unit, checked like the apps; and an image for amd64 and
 # arm64 on GitHub's registry (ghcr.io/sergiosjs/universo; UniVerso is the
 # server's name, ADR 0078), pushed after the
 # release is published (packaging/server/).
+#
+# Signatures (ADR 0055, revised 2026-10-14): once every platform is built,
+# `checksums` writes one list, `verso-<version>-SHA256SUMS`, with each
+# file's sha256, and signs it once with Verso's release key; the app's
+# updater and UniVerso's installer verify the list, then the file against
+# it. Until 0.8.3, the bridge, each file was also signed on its own, its
+# `.sig` beside it, for the apps up to 0.8.2; whether a release still does
+# is `PER_FILE_SIGNATURES` in scripts/release-page.mjs, read here through
+# `release.mjs per-file-signatures` — the version after the bridge turns
+# it off there, and nothing here changes.
 #
 # Cost: one macOS job, about ten minutes, each billed as ten Linux ones; one
 # Windows job, about fifteen, each billed as about two; one Linux job, x64,
 # about twenty minutes (estimated: not run yet); the server, two Linux
 # jobs, about twenty-five minutes and five (estimated: not run yet); a
-# minute of Linux to publish.
+# minute or two of Linux for the checksums list, and one to publish.
 
 name: release
 
@@ -140,6 +150,7 @@ jobs:
             version="$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml)"
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sigs=$(node scripts/release.mjs per-file-signatures)" >> "$GITHUB_OUTPUT"
           case "$EVENT:$version" in
             push:*-beta.*|workflow_dispatch:*) echo "beta=true" >> "$GITHUB_OUTPUT"; echo "name=Verso Beta" >> "$GITHUB_OUTPUT" ;;
             *) echo "beta=false" >> "$GITHUB_OUTPUT"; echo "name=Verso" >> "$GITHUB_OUTPUT" ;;
@@ -184,10 +195,13 @@ jobs:
           ditto -c -k --keepParent "target/release/bundle/macos/$NAME.app" "$slug-$VERSION-macos-arm64.zip"
           tar -czf "verso-cli-$VERSION-macos-arm64.tar.gz" -C target/release verso
       # Each file signed with Verso's release key (ADR 0055, revised
-      # 2026-10-09): the app installs an update only when its `.sig`
-      # verifies against the public key it carries. The key reaches only
-      # this step, from the repository's secrets.
+      # 2026-10-09): the apps up to 0.8.2 install an update only when its
+      # `.sig` verifies against the public key they carry. Only while
+      # `release.mjs per-file-signatures` says so — the 0.8.3 bridge; then
+      # the signed checksums list alone (the `checksums` job). The key
+      # reaches only this step, from the repository's secrets.
       - name: sign the release's files
+        if: steps.version.outputs.sigs == 'true'
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -200,6 +214,7 @@ jobs:
       # that is not that key stops the release here, before it is published
       # (a published release is permanent).
       - name: verify the signatures with the app's key
+        if: steps.version.outputs.sigs == 'true'
         run: target/release/verso-app --verify-signature ./*-macos-arm64.zip ./verso-cli-*-macos-arm64.tar.gz
       - name: keep the files for the publish job
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -256,6 +271,7 @@ jobs:
             version="$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml)"
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sigs=$(node scripts/release.mjs per-file-signatures)" >> "$GITHUB_OUTPUT"
           case "$EVENT:$version" in
             push:*-beta.*|workflow_dispatch:*) echo "beta=true" >> "$GITHUB_OUTPUT"; echo "name=Verso Beta" >> "$GITHUB_OUTPUT" ;;
             *) echo "beta=false" >> "$GITHUB_OUTPUT"; echo "name=Verso" >> "$GITHUB_OUTPUT" ;;
@@ -266,6 +282,18 @@ jobs:
       - name: the UI bundle
         working-directory: app/ui
         run: npm ci && npm run build
+      # The server's code builds on Windows too (ADR 0075 item 2, revised
+      # 2026-10-15): webauthn-rs's OpenSSL is compiled from source (the
+      # `openssl` crate's `vendored` feature), and that runs Perl. The image
+      # ships Strawberry Perl; this step checks it and names it for
+      # openssl-src (OPENSSL_SRC_PERL). No NASM: openssl-src builds `no-asm`
+      # without it. No installer change: the binary is the same file.
+      - name: Strawberry Perl for the vendored OpenSSL
+        run: |
+          perl_exe="$(cygpath -u 'C:\Strawberry\perl\bin\perl.exe')"
+          test -x "$perl_exe" || { echo "::error::no Strawberry Perl on this image: install it (choco install strawberryperl)"; exit 1; }
+          "$perl_exe" -v | sed -n 2p
+          echo "OPENSSL_SRC_PERL=C:\\Strawberry\\perl\\bin\\perl.exe" >> "$GITHUB_ENV"
       # The command line first: the installer carries it beside the app
       # (Tauri's externalBin, named with the target), and "Add to Claude"
       # writes its path (ADR 0069, 2026-10-08). Given at bundle time, as
@@ -302,6 +330,7 @@ jobs:
           cp "${exes[0]}" "$slug-$VERSION-windows-x64-setup.exe"
           pwsh -NoProfile -Command "Compress-Archive -Path target/release/verso.exe -DestinationPath verso-cli-$VERSION-windows-x64.zip"
       - name: sign the release's files
+        if: steps.version.outputs.sigs == 'true'
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -311,6 +340,7 @@ jobs:
             test -s "$f.sig"
           done
       - name: verify the signatures with the app's key
+        if: steps.version.outputs.sigs == 'true'
         run: target/release/verso-app.exe --verify-signature ./*-windows-x64-setup.exe ./verso-cli-*-windows-x64.zip
       - name: keep the files for the publish job
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -374,6 +404,7 @@ jobs:
             version="$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml)"
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sigs=$(node scripts/release.mjs per-file-signatures)" >> "$GITHUB_OUTPUT"
           case "$EVENT:$version" in
             push:*-beta.*|workflow_dispatch:*) echo "beta=true" >> "$GITHUB_OUTPUT"; echo "name=Verso Beta" >> "$GITHUB_OUTPUT"; echo "bin=verso-app-beta" >> "$GITHUB_OUTPUT"; echo "cli=verso-beta" >> "$GITHUB_OUTPUT" ;;
             *) echo "beta=false" >> "$GITHUB_OUTPUT"; echo "name=Verso" >> "$GITHUB_OUTPUT"; echo "bin=verso-app" >> "$GITHUB_OUTPUT"; echo "cli=verso" >> "$GITHUB_OUTPUT" ;;
@@ -433,6 +464,7 @@ jobs:
           cp target/release/bundle/appimage/*.AppImage "$slug-$VERSION-linux-$ARCH.AppImage"
           tar -czf "verso-cli-$VERSION-linux-$ARCH.tar.gz" -C target/release verso
       - name: sign the release's files
+        if: steps.version.outputs.sigs == 'true'
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -442,6 +474,7 @@ jobs:
             test -s "$f.sig"
           done
       - name: verify the signatures with the app's key
+        if: steps.version.outputs.sigs == 'true'
         env:
           BIN: ${{ steps.version.outputs.bin }}
         run: |
@@ -513,6 +546,7 @@ jobs:
             version="$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml)"
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sigs=$(node scripts/release.mjs per-file-signatures)" >> "$GITHUB_OUTPUT"
           case "$EVENT:$version" in
             push:*-beta.*|workflow_dispatch:*) echo "name=Verso Beta" >> "$GITHUB_OUTPUT" ;;
             *) echo "name=Verso" >> "$GITHUB_OUTPUT" ;;
@@ -608,8 +642,10 @@ jobs:
             tar -czf "$dir.tar.gz" -C target "$dir"
           done
           cp -R target/server-ui target/server-image/ui
+          cp packaging/server/docker-entrypoint.sh packaging/server/universo-wrapper.sh target/server-image/
           ls -la universo-*
       - name: sign the release's files
+        if: steps.version.outputs.sigs == 'true'
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -622,8 +658,9 @@ jobs:
       # `verso-app --verify-signature` — which this job does not build (the
       # window needs WebKit): minisign verifies the same signature, and the
       # signed comment must name the file, as the app requires
-      # (update.rs, verify_signature).
+      # (release_sums.rs, verify_signature).
       - name: verify the signatures with the app's key
+        if: steps.version.outputs.sigs == 'true'
         run: |
           key="$(sed -n 's/^pub(crate) const UPDATE_PUBLIC_KEY: &str = "\(.*\)";$/\1/p' app/src-tauri/src/update.rs)"
           if [ -z "$key" ]; then echo "::error::UPDATE_PUBLIC_KEY not found in update.rs"; exit 1; fi
@@ -656,11 +693,91 @@ jobs:
           if-no-files-found: error
           path: target/server-image/
 
-  # Every platform built: the release is published with their files. On a
-  # rehearsal nothing is published; the files stay as the run's artifacts.
+  # The signed checksums list (ADR 0055, revised 2026-10-14, the
+  # maintainer: "Sim, já na 0.8.3"): every platform built, one file,
+  # `verso-<version>-SHA256SUMS`, the sha256 of each of the release's files
+  # as `sha256sum` writes it, signed once with the release key — its `.sig`
+  # beside it. The signed comment names the list, and the list's name its
+  # version: a genuine list of another release does not pass for this
+  # one's. Checked here with the key the app carries before anything is
+  # published, as the server job checks its files. A rehearsal makes it too.
+  checksums:
+    name: the signed checksums list (${{ needs.decide.outputs.tag }})
+    needs: [decide, macos, windows, linux, server]
+    # 24.04 for minisign, as the server job.
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: files
+      # The files the list covers come from release.mjs, the one list of
+      # them (scripts/release-page.mjs): a file missing here stops the job.
+      - name: the list
+        env:
+          VERSION: ${{ needs.server.outputs.version }}
+        run: |
+          list="verso-$VERSION-SHA256SUMS"
+          mapfile -t covered < <(node scripts/release.mjs files "$VERSION")
+          if [ "${#covered[@]}" -ne 14 ]; then echo "::error::expected fourteen files to list, got: ${covered[*]}"; exit 1; fi
+          (cd files && sha256sum -- "${covered[@]}") > "$list"
+          cat "$list"
+      # The Tauri CLI, at the version app/ui's lockfile pins, for `tauri
+      # signer sign` — the same signer as the build jobs'.
+      - name: the Tauri CLI
+        working-directory: app/ui
+        run: npm ci --ignore-scripts
+      - name: sign the list
+        env:
+          VERSION: ${{ needs.server.outputs.version }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          npm --prefix app/ui exec -- tauri signer sign "verso-$VERSION-SHA256SUMS"
+          test -s "verso-$VERSION-SHA256SUMS.sig"
+      - name: minisign, to check the signature
+        run: sudo apt-get update && sudo apt-get install -y minisign
+      # As the app checks it (release_sums.rs): the signature against the
+      # key it carries, the signed comment naming the list exactly; then
+      # each file against the list.
+      - name: verify the list with the app's key
+        env:
+          VERSION: ${{ needs.server.outputs.version }}
+        run: |
+          list="verso-$VERSION-SHA256SUMS"
+          key="$(sed -n 's/^pub(crate) const UPDATE_PUBLIC_KEY: &str = "\(.*\)";$/\1/p' app/src-tauri/src/update.rs)"
+          if [ -z "$key" ]; then echo "::error::UPDATE_PUBLIC_KEY not found in update.rs"; exit 1; fi
+          printf '%s' "$key" | base64 -d > "$RUNNER_TEMP/verso.pub"
+          base64 -d < "$list.sig" > "$RUNNER_TEMP/list.minisig"
+          comment="$(minisign -V -Q -p "$RUNNER_TEMP/verso.pub" -m "$list" -x "$RUNNER_TEMP/list.minisig")"
+          if ! printf '%s\n' "$comment" | tr '\t' '\n' | grep -qxF "file:$list"; then
+            echo "::error::the signed comment does not name $list: $comment"; exit 1
+          fi
+          (cd files && sha256sum --check --strict "../$list")
+      - name: keep the list for the publish job
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-checksums
+          if-no-files-found: error
+          path: |
+            ./verso-*-SHA256SUMS
+            ./verso-*-SHA256SUMS.sig
+
+  # Every platform built and the list signed: the release is published with
+  # their files. On a rehearsal nothing is published; the files stay as the
+  # run's artifacts.
   publish:
     name: publish ${{ needs.decide.outputs.tag }}
-    needs: [decide, macos, windows, linux, server]
+    needs: [decide, macos, windows, linux, server, checksums]
     if: github.event_name == 'push' && needs.decide.outputs.tag != ''
     runs-on: ubuntu-latest
     steps:
@@ -692,10 +809,18 @@ jobs:
           esac
           node scripts/release.mjs notes "$version" > notes.md
           files=(files/*)
-          # macOS 2, Windows 2, Linux 4 (x64; ARM64 waits for a public
-          # repository), the server 6 (an archive, a .deb and an .rpm for
-          # x64 and for ARM64); each with its signature.
-          if [ "${#files[@]}" -ne 28 ]; then echo "::error::expected fourteen files and their signatures, found: ${files[*]}"; exit 1; fi
+          # Exactly the files release.mjs names: macOS 2, Windows 2, Linux 4
+          # (x64; ARM64 waits for a public repository), the server 6 (an
+          # archive, a .deb and an .rpm for x64 and for ARM64), the signed
+          # checksums list and its .sig — 16; and in the 0.8.3 bridge each
+          # file's own .sig too — 30 (ADR 0055, revised 2026-10-14).
+          want="$(node scripts/release.mjs assets "$version" | LC_ALL=C sort)"
+          have="$(cd files && ls -1 | LC_ALL=C sort)"
+          if [ "$want" != "$have" ]; then
+            echo "::error::the release's files are not the expected ones"
+            diff <(printf '%s\n' "$want") <(printf '%s\n' "$have") || true
+            exit 1
+          fi
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "${files[@]}" --clobber
             gh release edit "$TAG" --notes-file notes.md

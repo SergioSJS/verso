@@ -19,6 +19,17 @@ export function imageUrl(source: string, target: string, onKnown: () => void): s
   });
   return undefined;
 }
+/** A picture a property names (ADR 0086 item 1), asked of the core from
+ *  `source`, as an embed's: the address to show it from, or null when the
+ *  target names no file (or the core could not say). */
+export async function pictureAddress(source: string, target: string): Promise<string | null> {
+  try {
+    const r = await commands.resolveAttachment(source, decodedAddress(target));
+    return r.status === "ok" && r.data ? convertFileSrc(r.data, "verso") : null;
+  } catch {
+    return null;
+  }
+}
 /** A note's own pictures, `![alt](assets/x.png)`: the sanitizer holds
  *  their address in `data-src`, relative to the note, and it stays there
  *  as written (a picture resized writes its size beside it); each is asked

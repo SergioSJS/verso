@@ -7,7 +7,8 @@ import { refreshBases } from "./bases";
 import { commands, type ContractError, type FolderInfo } from "./bindings";
 import { loadBookmarks } from "./bookmarks";
 import { flushed, recheckAll, refreshLists, setShownProblems, showProblems, stopped, tellOutcomes } from "./changes";
-import { button, h, showToast, ui } from "./dom";
+import { button, h, ui } from "./dom";
+import { flash } from "./notify";
 import { fail } from "./errors";
 import { forgetFiles } from "./files";
 import { loadFolderLayer } from "./folderLayer";
@@ -101,7 +102,8 @@ function tellVolume(info: FolderInfo): void {
   } catch {
     // No storage: said each time, never lost.
   }
-  showToast(t.lateOutsideChanges(fs), 12000);
+  // A fact of the folder, said once: a toast, never a line of the list.
+  flash("info", info.name, t.lateOutsideChanges(fs));
 }
 export async function showFolder(info: FolderInfo): Promise<void> {
   setCurrentFolder(info.key);

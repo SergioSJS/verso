@@ -39,8 +39,11 @@ pub const PIECE: usize = 1 << 20;
 /// listed, not synced.
 pub const LARGEST: u64 = 1 << 30;
 
+#[path = "sync_paths.rs"]
+mod paths;
 pub use crate::transfers::Transfers;
 use crate::transfers::{Being, IDLE, Reading, Upload, room};
+use paths::{Now, reconcile_paths};
 
 /// How often a device's question walks the folder again.
 pub(crate) const WALK_EVERY: Duration = Duration::from_secs(60);
@@ -107,17 +110,23 @@ fn refused(message: &str) -> ContractError {
 /// Who made a change, as the folder's log keeps it (ADR 0079 item 4): the
 /// account, and the device's name when a device's sync made it — two
 /// devices of one account told apart.
+///
+/// The version history (ADR 0091 item 4) names more: an agent's token by
+/// its name, and the accounts whose edits a room's save holds.
 #[derive(Clone, Copy, Default)]
 pub struct Author<'a> {
     pub account: Option<&'a str>,
     pub device: Option<&'a str>,
+    pub token: Option<&'a str>,
+    pub room: Option<&'a [String]>,
 }
 
 impl<'a> Author<'a> {
-    fn of(account: Option<&'a str>) -> Self {
+    #[must_use]
+    pub fn of(account: Option<&'a str>) -> Self {
         Self {
             account,
-            device: None,
+            ..Self::default()
         }
     }
 }
@@ -150,9 +159,20 @@ pub fn reconcile(
     actor: Option<&str>,
     paths: &[String],
 ) -> Result<i64, ContractError> {
+    reconcile_by(server, folder, key, Author::of(actor), paths)
+}
+
+/// [`reconcile`], naming who made the change as the history names it.
+pub fn reconcile_by(
+    server: &Server,
+    folder: &str,
+    key: &str,
+    by: Author<'_>,
+    paths: &[String],
+) -> Result<i64, ContractError> {
     let one = one_at_a_time(server, folder);
     let _only = lock(&one);
-    reconcile_held(server, folder, key, actor, paths)
+    reconcile_held(server, folder, key, by, paths)
 }
 
 /// The folder's lock: one reconciliation at a time, and a device's change
@@ -171,7 +191,7 @@ fn reconcile_held(
     server: &Server,
     folder: &str,
     key: &str,
-    actor: Option<&str>,
+    by: Author<'_>,
     paths: &[String],
 ) -> Result<i64, ContractError> {
     let fail = |e: String| verso_service::failed(e);
@@ -305,10 +325,9 @@ fn reconcile_held(
         .collect();
     record_changes(
         server,
-        folder,
-        Author::of(actor),
-        &known,
-        &gone,
+        (folder, key),
+        by,
+        (&known, &gone),
         created,
         &quick_only,
     )
@@ -374,13 +393,22 @@ fn listed_sizes(
 /// quick keys refreshed — and tell the devices on the folder the new head.
 fn record_changes(
     server: &Server,
-    folder: &str,
+    (folder, key): (&str, &str),
     by: Author<'_>,
-    known: &HashMap<String, crate::db::Known>,
-    gone: &[(String, String)],
+    (known, gone): (&HashMap<String, crate::db::Known>, &[(String, String)]),
     created: Vec<(String, String, i64, String)>,
     quick_only: &[(String, String)],
 ) -> Result<i64, ContractError> {
+    // What a reader is told of each note read (ADR 0087 item 4): its
+    // projection's hash and size, when it holds a secret block — the new
+    // and changed ones, and those read again whose bytes did not change.
+    let mut readers = crate::db::ReaderOf::new();
+    let recheck: Vec<String> = quick_only.iter().map(|(p, _)| p.clone()).collect();
+    for path in created.iter().map(|(p, _, _, _)| p).chain(&recheck) {
+        if let Some(r) = crate::readers::reader_of(server, key, path)? {
+            readers.insert(path.clone(), r);
+        }
+    }
     // A file gone and one new of the same bytes: a rename, kept as the
     // deletion then the new file naming the old path.
     let mut changes: Vec<crate::db::Recorded> = Vec::new();
@@ -401,180 +429,53 @@ fn record_changes(
         }
         changes.push((path, Some((hash, size, quick)), from));
     }
-    let head = server
+    let (head, same) = server
         .db
-        .record(folder, by.account, by.device, &changes, quick_only)
+        .record(
+            folder,
+            (by.account, by.device),
+            &changes,
+            quick_only,
+            (&readers, &recheck),
+        )
         .map_err(verso_service::failed)?;
+    // Each text file's new bytes a version, a rename followed, a deletion
+    // kept reachable (ADR 0091 items 1, 4 and 9).
+    // The log's first look at the folder finds its files as they are: the
+    // versions its history begins with.
+    crate::history::recorded(server, (folder, key), by, &changes, known.is_empty());
     if !changes.is_empty() {
         let paths: Vec<&str> = changes
             .iter()
             .flat_map(|(path, _, from)| std::iter::once(path.as_str()).chain(from.as_deref()))
             .collect();
-        server.push_sync_changed(folder, head, &paths);
+        // A reader hears only of the changes it sees.
+        let seen: Vec<&str> = changes
+            .iter()
+            .zip(&same)
+            .filter(|(_, same)| !**same)
+            .flat_map(|((path, _, from), _)| std::iter::once(path.as_str()).chain(from.as_deref()))
+            .collect();
+        crate::readers::push_sync_changed(server, folder, (head, &paths), &seen);
     }
     Ok(head)
 }
 
-/// Bring the folder's log up to date with `paths` alone — the files a
-/// change through the server just wrote, deleted or renamed, which the
-/// caller knows — without walking the rest of the folder: a device's
-/// write costs the paths it touched, not the folder's size. The folder's
-/// lock is held by the caller.
-/// What the caller knows of a path it changed: nothing (it is read), the
-/// bytes it wrote (their hash, size and quick key), or that it is gone.
-#[derive(Clone)]
-enum Now {
-    Read,
-    Written(String, i64, String),
-    Gone,
-}
-
-fn reconcile_paths(
-    server: &Server,
-    folder: &str,
-    key: &str,
-    by: Author<'_>,
-    paths: &[(String, Now)],
-) -> Result<i64, ContractError> {
-    // A file held as the twin of another (`crate::twins`) never enters the
-    // log through a write that names it: the walk keeps it out too.
-    let held = crate::twins::held(server, folder);
-    let unheld: Vec<(String, Now)>;
-    let paths = if held.is_empty() {
-        paths
-    } else {
-        unheld = paths
-            .iter()
-            .filter(|(p, _)| !held.contains(p))
-            .cloned()
-            .collect();
-        unheld.as_slice()
-    };
-    let spelled;
-    let paths = if verso_core::sync::FOLDS_NAMES {
-        spelled = as_spelled(server, key, paths)?;
-        spelled.as_slice()
-    } else {
-        paths
-    };
-    let mut known: HashMap<String, crate::db::Known> = HashMap::new();
-    for (p, _) in paths {
-        if let Some(k) = server.db.known(folder, p).map_err(verso_service::failed)? {
-            known.insert(p.clone(), k);
-        }
-    }
-    let to_read: Vec<&str> = paths
-        .iter()
-        .filter(|(_, now)| matches!(now, Now::Read))
-        .map(|(p, _)| p.as_str())
-        .collect();
-    let sizes = listed_sizes(server, key, &to_read)?;
-    let mut present: HashSet<String> = HashSet::new();
-    let mut created = Vec::new();
-    let mut quick_only = Vec::new();
-    for (path, now) in paths {
-        let (hash, size, quick) = match now {
-            Now::Gone => continue,
-            Now::Written(hash, size, quick) => (hash.clone(), *size, quick.clone()),
-            // Larger than sync carries: never read, kept as it was.
-            Now::Read if sizes.get(path).is_some_and(|len| *len > LARGEST) => {
-                let len = sizes.get(path).copied().unwrap_or_default();
-                server.transfers.large.add(server, folder, path, len);
-                present.insert(path.clone());
-                continue;
-            }
-            Now::Read => {
-                match read_file(server, key, path) {
-                    Ok(Some(read)) => {
-                        server.transfers.large.remove(folder, path);
-                        (
-                            read.hash,
-                            i64::try_from(read.len).unwrap_or(i64::MAX),
-                            quick_of(&read.revision, read.len)
-                                .unwrap_or_else(|| format!("{}:0", read.len)),
-                        )
-                    }
-                    // A folder: no entry of the log.
-                    Ok(None) => continue,
-                    Err(e) if e.kind == ErrorKind::NotFound => continue,
-                    // A placeholder or a file not readable now: as it was.
-                    Err(_) => {
-                        present.insert(path.clone());
-                        continue;
-                    }
-                }
-            }
-        };
-        present.insert(path.clone());
-        if known.get(path).is_some_and(|k| k.hash == hash) {
-            quick_only.push((path.clone(), quick));
-        } else {
-            created.push((path.clone(), hash, size, quick));
-        }
-    }
-    let gone: Vec<(String, String)> = known
-        .iter()
-        .filter(|(p, _)| !present.contains(p.as_str()))
-        .map(|(p, k)| (p.clone(), k.hash.clone()))
-        .collect();
-    record_changes(server, folder, by, &known, &gone, created, &quick_only)
-}
-
-/// Where the server's file system folds names: a path written or read
-/// through another spelling of a listed file's name reached that file,
-/// whose name the disk keeps (a write over a file keeps its name) — the log
-/// follows the disk's spelling, and the other spelling, if the log knew
-/// it, is gone. A device that had not yet heard of a respelling sends its
-/// edit under the old one; without this the manifest would hold both.
-fn as_spelled(
-    server: &Server,
-    key: &str,
-    paths: &[(String, Now)],
-) -> Result<Vec<(String, Now)>, ContractError> {
-    let named: Vec<(String, bool)> = paths
-        .iter()
-        .map(|(p, now)| (p.clone(), matches!(now, Now::Gone)))
-        .collect();
-    let gone: HashSet<String> = named
-        .iter()
-        .filter(|(_, g)| *g)
-        .map(|(p, _)| p.clone())
-        .collect();
-    let disk: Vec<Option<String>> = server.service.with_key(key, move |ws| {
-        let entries = ws.entries();
-        Ok(named
-            .iter()
-            .map(|(p, is_gone)| {
-                if *is_gone || entries.iter().any(|e| &e.path == p) {
-                    return None;
-                }
-                let k = verso_core::sync::folded(p);
-                entries
-                    .iter()
-                    .find(|e| one_name(p, &k, &e.path) && !gone.contains(&e.path))
-                    .map(|e| e.path.clone())
-            })
-            .collect())
-    })?;
-    let mut out = Vec::with_capacity(paths.len());
-    for ((path, now), on_disk) in paths.iter().zip(disk) {
-        match on_disk {
-            Some(d) => {
-                out.push((d, now.clone()));
-                out.push((path.clone(), Now::Gone));
-            }
-            None => out.push((path.clone(), now.clone())),
-        }
-    }
-    Ok(out)
-}
-
 /// [`reconcile_written`] for the folder behind a key the server opened: a
-/// room's save, whose one path is known.
-pub fn reconcile_saved(server: &Server, key: &str, path: &str) {
+/// room's save, whose one path is known, and the accounts whose edits it
+/// holds (the history's authors, ADR 0091 item 4).
+pub fn reconcile_saved(server: &Server, key: &str, path: &str, authors: &[String]) {
     let folder = lock(&server.keys).get(key).cloned();
     if let Some(folder) = folder
-        && let Err(e) = reconcile_written(server, &folder, key, None, &[path.to_owned()])
+        && let Err(e) = {
+            let one = one_at_a_time(server, &folder);
+            let _only = lock(&one);
+            let by = Author {
+                room: Some(authors),
+                ..Author::default()
+            };
+            reconcile_paths(server, &folder, key, by, &[(path.to_owned(), Now::Read)])
+        }
     {
         crate::log::warn(&format!(
             "keeping a folder's changes for sync: {}",
@@ -600,9 +501,14 @@ pub fn reconcile_written(
 
 /// The same, for the folder behind a key the server opened.
 pub fn reconcile_key(server: &Server, key: &str, actor: Option<&str>, paths: &[String]) {
+    reconcile_key_by(server, key, Author::of(actor), paths);
+}
+
+/// [`reconcile_key`], naming who made the change as the history names it.
+pub fn reconcile_key_by(server: &Server, key: &str, by: Author<'_>, paths: &[String]) {
     let folder = lock(&server.keys).get(key).cloned();
     if let Some(folder) = folder
-        && let Err(e) = reconcile(server, &folder, key, actor, paths)
+        && let Err(e) = reconcile_by(server, &folder, key, by, paths)
     {
         crate::log::warn(&format!(
             "keeping a folder's changes for sync: {}",
@@ -662,6 +568,11 @@ pub async fn command(
     if let Some(scope) = scope {
         return crate::share_sync::command(server, who, client, cmd, (args, data), scope).await;
     }
+    let reader = matches!(cmd, "sync_state" | "sync_changes")
+        && crate::readers::reads_only(server, who, client)?;
+    if reader {
+        return reader_command(server, who, client, cmd, args).await;
+    }
     command_in(
         server,
         who,
@@ -671,6 +582,73 @@ pub async fn command(
         Arc::new(|_: &str| true),
     )
     .await
+}
+
+/// A reader's `sync_state` and `sync_changes` on a plain folder, numbered
+/// in the reader's own count: the folder's numbers would tell it how many
+/// changes only touched a secret block (ADR 0087 item 4). Its cursor is
+/// that count, turned into the folder's number to ask the log, and the
+/// changes and the head it is told are renumbered the same way.
+async fn reader_command(
+    server: &Arc<Server>,
+    who: &Who,
+    client: &str,
+    cmd: &str,
+    mut args: Value,
+) -> Result<Reply, ContractError> {
+    let (folder, _) = role_here(server, client)?;
+    let asked: i64 = if cmd == "sync_changes" {
+        arg(&args, "since")?
+    } else {
+        0
+    };
+    let at = {
+        let (s, f) = (Arc::clone(server), folder.clone());
+        blocking(move || {
+            if asked < 1 {
+                return Ok(0);
+            }
+            let seen =
+                s.db.reader_count(&f, i64::MAX)
+                    .map_err(verso_service::failed)?;
+            // A cursor past what the reader sees stands at its last change.
+            Ok(s.db
+                .reader_nth(&f, asked.min(seen))
+                .map_err(verso_service::failed)?
+                .unwrap_or(0))
+        })
+        .await?
+    };
+    if cmd == "sync_changes" {
+        args["since"] = json!(at);
+    }
+    let (mut answer, piece) = command_in(
+        server,
+        who,
+        client,
+        cmd,
+        (args, None),
+        Arc::new(|_: &str| true),
+    )
+    .await?;
+    let (s, f) = (Arc::clone(server), folder);
+    let counted = if cmd == "sync_changes" { at } else { i64::MAX };
+    let n = blocking(move || {
+        s.db.reader_count(&f, counted)
+            .map_err(verso_service::failed)
+    })
+    .await?;
+    if let Some(list) = answer["changes"].as_array_mut() {
+        // The head is where the reading stopped, so a change that lands
+        // meanwhile is the next question's, never skipped.
+        for (i, c) in list.iter_mut().enumerate() {
+            c["seq"] = json!(n + 1 + i64::try_from(i).unwrap_or(0));
+        }
+        answer["head"] = json!(n + i64::try_from(list.len()).unwrap_or(0));
+    } else {
+        answer["head"] = json!(n);
+    }
+    Ok((answer, piece))
 }
 
 /// A device's sync command, what it may reach said by `inside`.
@@ -687,6 +665,8 @@ pub(crate) async fn command_in(
         .service
         .folder_of(client)
         .ok_or_else(verso_service::no_folder)?;
+    // One who may only read is told of the notes' projections (ADR 0087).
+    let reader = crate::readers::reads_only(server, who, client)?;
     let s = Arc::clone(server);
     let c = client.to_owned();
     let actor = who.account.id.clone();
@@ -741,6 +721,44 @@ pub(crate) async fn command_in(
     let answer = blocking(move || {
         let mut piece = None;
         let answer = (|| match cmd.as_str() {
+            "sync_state" if reader => {
+                head_for_question(&s, &folder, &key, &c)?;
+                let head = s.db.reader_head(&folder).map_err(verso_service::failed)?;
+                let files: Vec<Value> = s
+                    .db
+                    .reader_manifest(&folder)
+                    .map_err(verso_service::failed)?
+                    .into_iter()
+                    .map(|(path, hash, size)| json!({ "path": path, "hash": hash, "size": size }))
+                    .collect();
+                Ok(json!({ "head": head, "files": files }))
+            }
+            "sync_changes" if reader => {
+                let since: i64 = arg(&args, "since")?;
+                head_for_question(&s, &folder, &key, &c)?;
+                let head = s.db.reader_head(&folder).map_err(verso_service::failed)?;
+                let changes =
+                    s.db.reader_changes_since(&folder, since, 1000)
+                        .map_err(verso_service::failed)?;
+                let more = changes.last().is_some_and(|last| last.seq < head);
+                Ok(json!({ "head": head, "changes": changes, "more": more }))
+            }
+            // A note to a reader: its projection, by the name asked or kept.
+            "sync_read" if reader => {
+                let named: String = arg(&args, "path")?;
+                let (path, _) = as_kept(&s, &folder, &named, &*inside)?;
+                let note = crate::readers::is_served(&named)
+                    || crate::readers::is_served(&path)
+                    || s.service
+                        .with_key(&key, |ws| Ok(ws.reader_names_note(&path)))?;
+                let (answer, bytes) = if note {
+                    crate::readers::read(&s, &c, &key, &path, arg(&args, "offset")?)?
+                } else {
+                    read(&s, &c, (&folder, &key), &args, &*inside)?
+                };
+                piece = Some(bytes);
+                Ok(answer)
+            }
             "sync_state" => {
                 let head = head_for_question(&s, &folder, &key, &c)?;
                 let files: Vec<Value> =
@@ -772,6 +790,7 @@ pub(crate) async fn command_in(
                 Author {
                     account: Some(&actor),
                     device: device.as_deref(),
+                    ..Author::default()
                 },
                 (&replacer, &said_by),
                 (args, &*inside),
@@ -800,6 +819,7 @@ pub(crate) async fn command_in(
                         Author {
                             account: Some(&actor),
                             device: device.as_deref(),
+                            ..Author::default()
                         },
                         &[(path.clone(), Now::Gone)],
                     )?;
@@ -867,6 +887,7 @@ pub(crate) async fn command_in(
                     Author {
                         account: Some(&actor),
                         device: device.as_deref(),
+                        ..Author::default()
                     },
                     &[(from.clone(), Now::Gone), (to.clone(), Now::Read)],
                 )?;
@@ -944,10 +965,11 @@ pub(crate) fn told(
             listing: true,
             index,
         };
-        server.push(
-            &clients,
-            &json!({ "event": "folder-changed", "payload": payload }),
-        );
+        // A reader hears of a note only when it changed for a reader (ADR
+        // 0087): the folder's log, reconciled before this, says so.
+        if let Ok(payload) = serde_json::to_value(&payload) {
+            crate::readers::push_folder_changed(server, key, &clients, &payload);
+        }
     }
     crate::collab::changed_outside(server, key, changed, removed);
 }

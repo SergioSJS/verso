@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.37
+# Verso dialect spec — v0.45
 
-- Version: v0.37 · 2026-10-12
+- Version: v0.45 · 2026-10-15
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -69,6 +69,8 @@ does not follow the schema is invalid.
 | `callouts` | list, in document order | not asserted |
 | `property_links` | list of the links frontmatter properties hold (Q10), in the order written (§4.7) | not asserted |
 | `schemas` | list of the fenced `verso-schema` blocks, nested ones included, in document order (§4.8) | not asserted |
+| `prose` | list of the note's runs of prose, in document order (§4.9) | not asserted |
+| `reader` | the note as a UniVerso serves it to an account that may only read it — its projection, the lines of each secret callout removed (Q9; [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md) item 3) — as a text, byte for byte | not asserted |
 | `observed` | how the behavior was verified in Obsidian | see 4.5 |
 | `source` | ADR or question that authorizes a behavior that is Verso's own | see 4.5 |
 
@@ -152,10 +154,12 @@ cites the ADR or the question that authorizes it in `source:`.
 
 ### 4.6 Outside the schema
 
-There is no field for per-block visibility, inline tags or link resolution:
-each one enters the schema when the corresponding question closes, with a PR
-that updates this section. The typed relation entered with Q10, as
-`property_links` (§4.7, v0.23).
+There is no field for inline tags or link resolution: each one enters the
+schema when the corresponding question closes, with a PR that updates this
+section. The typed relation entered with Q10, as `property_links` (§4.7,
+v0.23); per-block visibility with Q9, as `reader` (§4.1, v0.42): a secret
+callout is listed in `callouts` as any callout is, and `reader` is what a
+reader receives of the note.
 
 ### 4.7 Items of `property_links`
 
@@ -184,7 +188,8 @@ quote is reported as nested, and not read.
 |---|---|---|
 | `type` | the name notes write in their own `type:`, as written | for a block read |
 | `labels` | the type's name per interface language, a map as written (`{ pt-BR: PdM, en: NPC }`); absent asserts none | no |
-| `properties` | the declared properties, in order, each with `key`, `kind` (`text`, `list`, `number`, `checkbox`, `date`, `datetime`) and `labels` (as above); absent asserts none | no |
+| `layout` | the layout the schema names at its top level: `infobox` ([ADR 0086](../adr/0086-infobox-a-typed-notes-card.md) item 2); a value this version does not know is no layout and no error; absent asserts none | no |
+| `properties` | the declared properties, in order, each with `key`, `kind` (`text`, `list`, `number`, `checkbox`, `date`, `datetime`, `link`, `image`) and `labels` (as above); absent asserts none | no |
 | `error` | why a block at the top level types nothing: `yaml`, `not_a_mapping`, `no_type`, `label`, `properties`, `property` (no `key` or no `kind`), `unknown_kind`, `duplicate_key` | when it does |
 | `nested` | `true` for a block inside a list item or a quote; absent asserts the top level | for a nested block |
 | `pos` | position of the first character of the opening fence (4.4) | when the fixture tests position |
@@ -194,6 +199,40 @@ A block that is nested or that types nothing has no `type`, `labels` or
 (`docs/reference/typed-note-decision.md` §8, rows 1 and 2), with the drafted
 fixtures `fixtures/schema/top-level` and `fixtures/schema/nested-and-invalid`,
 approved on 2026-10-07.
+
+Revised on 2026-10-14 with the implementation of
+[ADR 0086](../adr/0086-infobox-a-typed-notes-card.md) (items 1, 2 and 5):
+two kinds, `link` — a quoted wikilink or a list of them, the typed
+relation of Q10 — and `image` — a quoted wikilink to a picture of the
+folder, a path of the folder ending in a picture's extension, or an
+`http(s)` address; and the top-level key `layout`, whose one value is
+`infobox`. A value that does not fit its kind is shown as written and
+marked (ADR 0052 point 6): a wikilink or a path to a note is not a
+picture. The fixture `fixtures/schema/infobox` was approved by the
+maintainer on 2026-10-14 (v0.41).
+
+### 4.9 Items of `prose`
+
+The runs of text the reading view shows as words — where a note's name
+written plainly is an unlinked mention of it
+([ADR 0089](../adr/0089-linking-unlinked-mentions.md) item 1;
+`verso_dialect::prose`). Prose is a heading's text, a paragraph's, a
+table's cells and the text inside inline HTML; it is not the frontmatter,
+code (inline or fenced), a `%%comment%%`, a wikilink, an embed, a Markdown
+link's label, math (inline or block), an HTML block, a `#tag` (the words
+around it stay prose), nor an entity (`&amp;`), left out whole because its
+bytes are not the text it stands for. Pieces of one run that touch are one
+item.
+
+| Field | Meaning | Required |
+|---|---|---|
+| `text` | the run as written in the source | yes |
+| `table` | `true` for a run in a table's cell, where a link's `\|` would end the cell; absent asserts outside a table | for a run in a table |
+| `pos` | position of the run's first character (4.4) | when the fixture tests position |
+
+Added on 2026-10-14 by the maintainer's answer M6 (*"Sim, todas"*), with
+the fixture `fixtures/prose/what-is-prose`, approved by the maintainer the
+same day (v0.41).
 
 ---
 
@@ -383,8 +422,13 @@ callouts:
 Which callout kinds are recognized, the behavior of `-`/`+` (collapsed or
 expanded) and nesting: `[OPEN]` (section 9, Q5).
 
-A callout is **not** the mechanism for the game master's secret: per-block
-visibility has its own syntax, still `[OPEN]` (section 9, Q9).
+A callout of kind `secret` is the game master's secret (section 9, Q9,
+`DECIDED` on 2026-10-14, [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md)):
+in the file, in Obsidian and in a folder of the computer it is a callout
+like any other, its meaning unchanged; a UniVerso serves the note to an
+account that may only read it as a projection without the block. *(Until
+v0.38 this said a callout is not the mechanism, per-block visibility
+having a syntax of its own, `[OPEN]`.)*
 
 ### 5.9 A link inside code is not a link
 
@@ -457,7 +501,9 @@ How Verso extends JSON Canvas and persists the board: `DECIDED` on
    - an element of `verso.drawing`: `under`, the id of the node it lies
      under;
    - a node's own `verso`: `background`, `fill`, `corners`, `strokeWidth`,
-     `roughness`, `angle`, `strokeStyle`, `opacity`, `locked`, `groups`;
+     `roughness`, `angle`, `strokeStyle`, `opacity`, `locked`, `groups`,
+     and, for maps ([ADR 0090](../adr/0090-maps-on-the-board.md)), `map`,
+     `pin`, `secret` (item 6);
    - an edge's own `verso`: `relation`, `line` (`curved` or `elbow`),
      `strokeWidth`, `roughness`, `startHead`, `endHead`, `bends`,
      `labelSize`, `labelFont`, `strokeStyle`, `opacity`, `locked`,
@@ -465,6 +511,37 @@ How Verso extends JSON Canvas and persists the board: `DECIDED` on
 
    A `verso.version` above the one a build writes is a board of a later
    Verso: shown, never written.
+6. Maps ([ADR 0090](../adr/0090-maps-on-the-board.md), `DECIDED` on
+   2026-10-14). A map is a board: no `.map` file and no node type of
+   Verso's own, so Obsidian opens it as a canvas with a picture and cards.
+   - A file node of a picture marked `"verso": {"map": true}` is a map's
+     picture. "Use as map" sets that, `"locked": true` and the node's place
+     at the bottom of the order of nodes (the stacking order); "Stop using
+     as map" takes the three off. A board may hold several.
+   - A file node of a note marked `"verso": {"pin": true}` is a pin: the
+     window draws it at one size on the screen at any zoom, at the middle
+     of its box, and a click opens its note. The pins of a map are in its
+     group (`verso.groups`), so moving the map moves them.
+   - A node marked `"verso": {"secret": true}` is not served to those who
+     may only read the board on a UniVerso (ADR 0087's rule, applied to a
+     board): the reader is served the board without that node, the edges
+     that touch it, and the drawn elements that lie under it, are bound to
+     it or hold a group only secret nodes hold (a group that also holds a
+     node that is not secret, such as the map a pin is grouped with, hides
+     nothing). Any value of `secret` but `false` or `null` counts. A board
+     with no secret node is served byte for byte; one that is not JSON and
+     mentions a secret is served empty. Whoever holds the file, and
+     Obsidian, sees the node: it is a guard against readers on a server,
+     not encryption.
+   - A large PNG is drawn from tiles of Verso's own, cut once and kept
+     outside the folder; the file holds no tile.
+7. A Markdown card on a board is a Markdown card ([ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md),
+   decided by the maintainer on 2026-10-15): a `> [!secret]` callout inside
+   the `text` of a `text` node is hidden from those who may only read, by
+   the same projection as in a note (§5.8), at every exit that serves the
+   board. A card whose text becomes empty stays, empty, with its place and
+   its edges. A `.txt` file, and any file that is not Markdown, is not
+   projected: it is served as it is.
 
 ### 5.12 Headings
 
@@ -555,7 +632,9 @@ decided the typed note, its schemas and their labels per language
 | Schema i18n | language-neutral key with a translated label (`type: npc` displayed as "PdM" or "NPC") | `DECIDED` on 2026-09-24 ([ADR 0052](../adr/0052-typed-note.md): a `label` per interface language) |
 | Typed relation | a frontmatter property of the source note whose value is a quoted wikilink or a list of them; the key is the type | `DECIDED` on 2026-09-30 (Q10, [ADR 0057](../adr/0057-board-json-canvas.md)) |
 | Schemas | a fenced `verso-schema` block in a note, anywhere in the folder but hidden and ignored paths | `DECIDED` on 2026-09-24 (Q11) |
-| Per-block visibility | game master's secret | `[OPEN]` (Q9) |
+| Schema kinds `link` and `image`, and its layout | a schema's property of kind `link` (a quoted wikilink or a list of them) or `image` (a picture's wikilink, path or web address); `layout: infobox` at the schema's top level draws the note's properties as a card beside its text. Plain frontmatter: a note opened in Obsidian shows its properties as Obsidian does | `DECIDED` on 2026-10-14 ([ADR 0086](../adr/0086-infobox-a-typed-notes-card.md)) |
+| Per-block visibility | game master's secret: a callout of kind `secret` (`> [!secret]`), a callout in the file; a UniVerso serves readers the note without it | `DECIDED` on 2026-10-14 (Q9, [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md)) |
+| Dice and random tables | the Obsidian Dice Roller plugin's inline form, `` `dice: 1d20+3` `` or `` `dice: [[Note#^id]]` ``: inline code to the dialect (§5.9, no link in it), drawn by the window as a die; a table or a list with an `^id` is a random table, and a first column whose header is a die (`d100`) holds each row's range | `DECIDED` on 2026-10-14 ([ADR 0088](../adr/0088-dice-and-random-tables.md); fixture `code/dice-inline`, an AI draft) |
 | Sticker and color | `sticker:` in make.md's forms — `emoji//<hex>`, `lucide//<name>`, `ui//<name>` — written by Verso as make.md writes them, or an emoji written as itself, read; another value is no sticker. `color:` a hex, as Verso writes it, or a CSS color, read. In the frontmatter of a note or a folder note | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 | Cover banner | `banner:` (a path of the folder or a URL) and `banner_y:` (the vertical position, a percentage from 0 to 100 written as text, `"42"` — as make.md's reposition writes it, read in its source and observed through its property writer, 2026-10-02) in the frontmatter of a note or a folder note | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 | Manual folder order | `order:` in the folder note's frontmatter, a list of relative child names defining sort order; no `order:`, the alphabetical one; with the tree set to alphabetical, every `order:` is kept and ignored. The root's, in a note at the root named after the open folder (its place: `PROPOSED`, the author's, to confirm) | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
@@ -683,7 +762,8 @@ Categories added in the Phase 0 review, outside the briefing's minimum:
 | heading | 5.12 | required by feature 1 of Phase 1 |
 | Markdown link to a local file | 5.13 | `PROPOSED` |
 | position (`pos`) in at least one fixture per construct | 4.4 | required by [ADR 0018](../adr/0018-llm-native-mcp-in-core.md) |
-| schema (a `verso-schema` block) | 4.8, 6 | drafted on 2026-10-07 with ADR 0052's implementation, approved the same day |
+| schema (a `verso-schema` block) | 4.8, 6 | drafted on 2026-10-07 with ADR 0052's implementation, approved the same day; `schema/infobox` drafted on 2026-10-14 with ADR 0086's, approved the same day |
+| per-block visibility (a `[!secret]` callout) | 4.1, 5.8, 6 | `callout/secret` drafted on 2026-10-14 with ADR 0087's implementation, approved by the maintainer on 2026-10-15 |
 
 Any fixture may be drafted by the AI; it only counts with the maintainer's
 approval in the PR that adds it (ADR 0031). A draft says so on the first line
@@ -705,11 +785,37 @@ behavior is implemented. None of them has an answer in the briefing.
 
 ### From the briefing (§11.3, §17)
 
-- **Q9. Per-block visibility syntax (game master's secret).** `[OPEN]`
+- **Q9. Per-block visibility syntax (game master's secret).** `DECIDED` on
+  2026-10-14.
   Decide before sharing and export (§17 item 8). It has to survive opening the
   file in Obsidian without leaking the secret and without breaking the text. The
   player view and the mapping to journal permission in Foundry depend on it
   ([ADR 0036](../adr/0036-tabletop-rpg-support.md)).
+
+  **Decided on 2026-10-14 by the maintainer**, accepting
+  [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md) and its item
+  8 (*"Sim, todas"*, every recommendation): per-block visibility is a
+  callout of kind `secret` — `> [!secret]`, with a title, `+` or `-` as any
+  callout, the kind compared lower-cased as Q5 reads kinds, no other
+  keyword. In the file it stays a callout: Obsidian, another editor and a
+  folder of the computer show it to whoever holds the file, and its meaning
+  is unchanged (ADR 0030). A UniVerso serves an account that may only read
+  the note a **projection** of it, the lines of each secret callout removed
+  and nothing else touched, everywhere a reader reads — the text, sync's
+  bytes, search, links, tags, tasks and counts, the MCP; an account that may
+  write it gets the whole text. "Without leaking the secret" reads as **a
+  reader never holds the bytes**. A `[!secret]` inside another callout is
+  removed at any depth the reading view draws, with what it holds; a block
+  whose end cannot be placed hides through the end of its blockquote (it
+  fails closed). Q5's nesting stays `[OPEN]` for the parser that feeds the
+  index. **No fixture yet**: the fixture of this question comes with the
+  PR that builds ADR 0087, drafted by the AI and approved by the
+  maintainer there (ADR 0031); no `fixtures/**` file changed with this
+  answer. *(v0.42: that PR drafted `fixtures/callout/secret`, whose
+  `reader` key asserts the projection — a block at the top level, one
+  inside another callout with the kind in capitals, one in a list item, a
+  `[!secrets]` kept — for the maintainer's approval; v0.45: approved on
+  2026-10-15.)*
 - **Q10. Typed relation syntax.** `DECIDED` on 2026-09-30.
   Decide before implementing relations (§17 item 6). Requirements already fixed:
   type and direction, several relations between the same two nodes
@@ -746,7 +852,9 @@ behavior is implemented. None of them has an answer in the briefing.
      own `type:`), `label` per interface language, and `properties`, an
      ordered list of `key`, `kind` and `label`, the kinds being `text`,
      `list`, `number`, `checkbox`, `date` and `datetime`. Nothing in it runs.
-     It is read under the frontmatter's limits (Q17).
+     It is read under the frontmatter's limits (Q17). On 2026-10-14
+     [ADR 0086](../adr/0086-infobox-a-typed-notes-card.md) added the kinds
+     `link` and `image` and a top-level `layout` (§4.8).
   2. **Location:** any note of the open folder, except under hidden and ignored
      paths (Q26; [ADR 0044](../adr/0044-verso-fs-semantics.md)). A schema's
      identity is the `type` inside it, not the note's name or place. This is
@@ -1330,3 +1438,11 @@ the parser was chosen.
 | v0.35 | 2026-10-09 | The fixture `fixtures/block/two-alone` approved by the maintainer in session ("aprovado"). |
 | v0.36 | 2026-10-10 | **Q7 `DECIDED`** by the maintainer in session, as recommended, from finding F20 of the sync campaign of 2026-10-10 (two devices on Windows and Linux kept both forms of a name, and one never uploaded): one name is one file everywhere — the server compares names in NFC, each device keeps the spelling its own file system gave the name, a file changed on both sides under the two forms is a conflict copy (ADR 0079 item 8). §5.10 says so; the provisional fact of v0.10 kept as history. No fixture: the maintainer did not ask for one. |
 | v0.37 | 2026-10-12 | Q8's creation side `DECIDED` by the maintainer in session (*"Todos aprovados"*, as recommended): a new name differing only in case from an entry of its folder is refused when Verso makes or renames it, on every OS and on the server (ADR 0070 item 3, revised). Q8 itself, case in name resolution, stays `[OPEN]`. No fixture: names made, not the dialect. |
+| v0.38 | 2026-10-14 | **Q9 `DECIDED`** by the maintainer, accepting ADR 0087 and its item 8 (*"Sim, todas"*): per-block visibility is a callout of kind `secret`, a callout in the file, served by a UniVerso to readers as a projection without it; §5.8 and §6's row revised. No fixture: the fixture of Q9 comes with the PR that builds ADR 0087, for the maintainer's approval. |
+| v0.39 | 2026-10-14 | [ADR 0086](../adr/0086-infobox-a-typed-notes-card.md), accepted the same day, implemented: a schema's kinds `link` and `image` and its top-level `layout` (`infobox`) enter §4.8, §6 and Q11's format; the fixture `fixtures/schema/infobox` drafted, awaiting the maintainer's approval. The approved fixture `fixtures/schema/nested-and-invalid` writes `kind: link` as its unknown kind, which `link` no longer is: its input waits for the maintainer (invariants 14 and 16). No question closed. |
+| v0.40 | 2026-10-14 | The schema gains `prose` (§4.1, §4.9): the runs of prose of [ADR 0089](../adr/0089-linking-unlinked-mentions.md) item 1, what the mentions are looked for in, by the maintainer's answer M6 (*"Sim, todas"*); the fixture `fixtures/prose/what-is-prose` drafted, awaiting the maintainer's approval. No question closed. |
+| v0.41 | 2026-10-14 | The fixtures `fixtures/code/dice-inline`, `fixtures/prose/what-is-prose` and `fixtures/schema/infobox` **approved by the maintainer** in session (*"Aprovo as 3"*), and with them the schema's key `prose` (§4.1, §4.9) of v0.40; their draft mark removed. `code/dice-inline` observed in Obsidian 1.14.4 through its CLI, without the Dice Roller plugin, before the approval was recorded: its links and its block are Obsidian's, its `observed:` says how. Nothing else changes. |
+| v0.42 | 2026-10-14 | The schema gains `reader` (§4.1, §4.6): the note as a UniVerso serves a reader, the projection of Q9 and [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md) item 3. The drafted fixture `fixtures/callout/secret`, with the PR that builds ADR 0087, awaits the maintainer's approval; Q9's paragraph says so. No decision changed |
+| v0.43 | 2026-10-15 | §5.11 item 5 and a new item 6: maps on the board ([ADR 0090](../adr/0090-maps-on-the-board.md)) — a node's `verso` gains `map`, `pin` and `secret`, and a secret node is left out of what a reader is served. No fixture: the fixture schema (§4) describes a Markdown note, and a canvas is not parsed by the dialect; the guardrail is the core's property test of the projection. No question closed |
+| v0.44 | 2026-10-15 | §5.11 item 7: a `> [!secret]` callout inside a board's text node is hidden from readers as in a note, and a `.txt` (any non-Markdown file) is not projected ([ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md), the maintainer's decision of finding I3). No fixture (a canvas is not parsed by the dialect); the guardrail is the core's property test and the server's reader probe. No question closed |
+| v0.45 | 2026-10-15 | The fixture `fixtures/callout/secret` **approved by the maintainer** on 2026-10-15 in session (*"aceito todas recomendações"*); its draft mark removed. It asserts `reader` (§4.1, §4.6) of Q9 and [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md): a block at the top level, one inside another callout with the kind in capitals, one in a list item, a `[!secrets]` kept. Nothing else changes |

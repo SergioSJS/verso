@@ -13,6 +13,11 @@
   (asked for and not built, until this ADR)
 - Status in the briefing: `PROPOSED` for the structured-views row of §5.3
   until 2026-09-24; `DECIDED` from the maintainer's answers of that day
+- Revisions: 2026-10-14 — the Consequences' "Not built" list answered by
+  [0094](0094-the-rest-of-bases.md), accepted by the maintainer that night
+  (*"Sim, todas"*): regular expressions, the map layout, `html()` drawn
+  through the sanitizer and a base embedded from another file edited in
+  place, all in V1; pictures as maps not in V1.
 
 ## Context
 

@@ -9,10 +9,14 @@ import { insertBase, newBase } from "./bases";
 import { commands } from "./bindings";
 import { can, canWrite } from "./can";
 import { trashStrings } from "./dialogs/trash";
+import { historyFor, openHistory } from "./dialogs/history";
+import { historyStrings } from "./dialogs/historyStrings";
 import { bookmarks, toggleBookmark } from "./bookmarks";
 import { narrow, toggleRight, toggleSide } from "./chrome";
-import { dailyNote, insertTemplate, saveAsTemplate } from "./daily";
+import { insertTemplate, saveAsTemplate } from "./daily";
 import { importDemoVault } from "./demo";
+import { openRoller } from "./dice/roller";
+import { ds } from "./dice/strings";
 import { hotkeyRecorder } from "./dialogs/settings";
 import { ui } from "./dom";
 import { fail } from "./errors";
@@ -29,11 +33,16 @@ import { PdfLeaf } from "./leaves/pdf";
 import { TextLeaf } from "./leaves/textfile";
 import { bugDialog, closeWhereNoTab, focusSwitcher, openConsole, paletteDialog, quick, replaceDialog, ribbon, settingsDialog, updateController } from "./main";
 import { openFolderDialog, reindex } from "./open";
+import { openCentre } from "./notify";
+import { notifyStrings } from "./notify/strings";
 import { dirOf } from "./paths";
+import { periodicCommands } from "./periodic/notes";
 import { ptPhrases } from "./phrases";
 import { settings } from "./settings";
 import { boardText, pt, t } from "./strings";
 import { newFolderPrompt, newNotePrompt, newWebPagePrompt } from "./tree/prompts";
+import { previewUnderCursor } from "./preview/install";
+import { pv } from "./preview/strings";
 import { collapseAll } from "./tree/tree";
 
 /* ---------- Commands: one registry for the palette, the keys and the settings ---------- */
@@ -224,7 +233,9 @@ export function allCommands(all = false): Command[] {
     { id: "new-board", label: boardText.newBoard, need: hasFolder, run: () => void newBoard(settings.boardFolder.trim().replace(/^\/+|\/+$/g, "")) },
     { id: "new-base", label: t.newBase, need: hasFolder, run: () => void newBase(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "insert-base", label: t.insertBase, need: Boolean(note), run: () => insertBase() },
-    { id: "daily", label: t.daily.split(" (")[0] ?? t.daily, need: hasFolder, run: () => void dailyNote() },
+    // The periods' notes and Previous / Next (ADR 0093 items 7, 8, 10):
+    // ⌘⇧D stays the day's, the others have no default key.
+    ...periodicCommands(hasFolder, note?.path ?? null),
     { id: "insert-template", label: t.insertTemplate, need: hasFolder, run: () => insertTemplate() },
     { id: "save-template", label: t.saveAsTemplate, need: hasFolder, run: () => void saveAsTemplate() },
     { id: "fold-all-headings", label: t.foldAllHeadings, need: Boolean(note), run: () => note?.foldAllHeadings(true) },
@@ -233,6 +244,8 @@ export function allCommands(all = false): Command[] {
     { id: "quick", label: t.quick, need: hasFolder, run: () => quick.show() },
     { id: "palette", label: t.commands, need: hasFolder, run: () => paletteDialog.show() },
     { id: "search", label: t.search, need: hasFolder, run: () => { if (document.body.classList.contains("no-side") || narrow.matches) toggleSide(); ui.search.focus(); ui.search.select(); } },
+    // ADR 0085 item 6: no default key, any can be bound in the settings.
+    { id: "preview-link", label: pv.command, need: hasFolder, run: () => previewUnderCursor() },
     { id: "find-in-note", label: t.findInNote, need: Boolean(leaf), run: () => openFindInActiveLeaf() },
     { id: "replace", label: `${t.replaceTitle}…`, need: hasFolder, run: () => replaceDialog.show() },
     { id: "new-web-page", label: t.newWebPage, need: hasFolder, run: () => newWebPagePrompt() },
@@ -240,7 +253,11 @@ export function allCommands(all = false): Command[] {
     { id: "graph-vault", label: t.graphWhole, need: hasFolder, run: () => (pane ?? paneToOpenIn()).openGraph("") },
     // The folder's trash (ADR 0080 item 4): for whoever may change the folder.
     { id: "open-trash", label: trashStrings().open, need: hasFolder && canWrite(), run: () => settingsDialog.show("trash") },
+    // A file's version history (ADR 0091 item 5): for whoever may write it.
+    { id: "version-history", label: historyStrings().command, need: historyFor(leaf?.path), run: () => leaf?.path && void openHistory(leaf.path) },
     { id: "report-bug", label: t.reportBug, run: () => bugDialog.show() },
+    // The notification centre (ADR 0084 item 5).
+    { id: "notifications", label: notifyStrings().command, run: () => openCentre() },
     { id: "reload-window", label: t.reloadWindow, run: () => void reloadWindow().then((ok) => ok || (ui.status.textContent = t.reloadNotDone)) },
     { id: "nav-back", label: t.navBack, need: Boolean(pane?.canGo(-1)), run: () => pane?.go(-1) },
     { id: "nav-forward", label: t.navForward, need: Boolean(pane?.canGo(1)), run: () => pane?.go(1) },
@@ -277,12 +294,14 @@ export function allCommands(all = false): Command[] {
     { id: "rename", label: t.rename, need: Boolean(note), run: () => note?.renameHere() },
     { id: "delete", label: t.deleteNote, need: Boolean(note), run: () => note && void deleteNote(note.path) },
     { id: "switch-focus", label: t.switchFocus, need: hasFolder, run: () => focusSwitcher.show() },
+    // A roller without a note (ADR 0088 item 6): nothing written.
+    { id: "roll-dice", label: ds.command, run: () => openRoller() },
   ];
   return cmds.filter((c) => all || (c.need !== false && possible(c.id))).map((c) => ({ id: c.id, label: c.label, keys: prettyKeys(keyOf(c.id)) || undefined, run: c.run, editorOnly: c.editorOnly }));
 }
 /** The commands that change the folder: absent for a reader on a server. */
 const WRITES = new Set([
-  "new-note", "new-note-named", "new-folder", "new-board", "new-base", "insert-base", "daily", "insert-template", "save-template",
+  "new-note", "new-note-named", "new-folder", "new-board", "new-base", "insert-base", "insert-template", "save-template",
   "import-demo-vault", "replace", "new-web-page", "move-file", "rename", "delete",
   "block-move-up", "block-move-down", "block-duplicate", "block-turn-into", "block-delete",
 ]);

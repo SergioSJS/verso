@@ -59,7 +59,12 @@ import type {
   SyncStatus,
 } from "../bindings";
 import { Bin } from "./trash";
+import { LocalServerHarness } from "./localServer";
+import { Maps } from "./maps";
+import { applyPeriodic, obsidianPeriodic, readPeriodic, sortedDeep } from "./periodic";
 import { blocksOf, fitsKind, headingsOf, propertiesOf, propertyList, readableLines, renderMarkdown, schemaBlocksOf } from "./markdown";
+import { projectSecrets } from "./secret";
+import { unlinkedMentions } from "./mentions";
 
 export type Seed = { path: string; b64: string };
 
@@ -250,29 +255,17 @@ function linksIn(text: string): Found[] {
   return out;
 }
 
-/** A canvas laid out as Verso writes one (verso-core canvas.rs): a
- *  container holding only scalars on one line, any other one entry per
- *  line, tabs, no final newline. */
-export function canvasLayout(value: unknown, depth = 0): string {
-  const scalar = (v: unknown): boolean => v === null || typeof v !== "object";
-  const tab = (n: number): string => "\t".repeat(n);
-  if (Array.isArray(value)) {
-    if (value.every(scalar)) return `[${value.map((v) => canvasLayout(v, depth + 1)).join(",")}]`;
-    return `[\n${value.map((v) => tab(depth + 1) + canvasLayout(v, depth + 1)).join(",\n")}\n${tab(depth)}]`;
-  }
-  if (value !== null && typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>);
-    if (entries.every(([, v]) => scalar(v))) return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canvasLayout(v, depth + 1)}`).join(",")}}`;
-    return `{\n${entries.map(([k, v]) => `${tab(depth + 1)}${JSON.stringify(k)}:${canvasLayout(v, depth + 1)}`).join(",\n")}\n${tab(depth)}}`;
-  }
-  return JSON.stringify(value);
-}
+import { canvasLayout } from "./canvas";
+export { canvasLayout };
 
 export class Core {
   readonly files = new Map<string, Stored>();
   readonly folders = new Set<string>();
   /** The folder's trash and what is known of it (ADR 0080). */
   readonly bin = new Bin(this);
+  readonly localServer = new LocalServerHarness();
+  /** A large picture's tiles and a reader's board (ADR 0090). */
+  readonly maps = new Maps();
   /** This machine's folder note name setting (`set_folder_note_name`):
    *  what applies while the folder has no `.verso/settings.json`. */
   private machineNoteName = "";
@@ -349,10 +342,18 @@ export class Core {
     }
   }
 
+  /** Whether `given` names the file as the caller read it: the stored
+   *  revision. The window kept offline (ADR 0092; src/web/offline/core.ts)
+   *  also knows revisions a server gave a note before the connection
+   *  dropped. */
+  protected accepts(_path: string, was: Stored, given: string): boolean {
+    return String(was.revision) === given;
+  }
+
   /** Write over the revision that was read (invariant 11). */
   private writeOver(path: string, text: string, revision: string): Stored {
     const was = this.stored(path);
-    if (String(was.revision) !== revision) refuse("changed", `changed on disk: ${path}`);
+    if (!this.accepts(path, was, revision)) refuse("changed", `changed on disk: ${path}`);
     return this.put(path, encoder.encode(text));
   }
 
@@ -360,7 +361,7 @@ export class Core {
    *  items 1–2), as the core reads it. */
   private folderLayer(): FolderLayer {
     const stored = this.files.get(SETTINGS_FILE);
-    const empty: FolderSettings = { bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null };
+    const empty: FolderSettings = { bookmarks: null, folder_note_name: null, ignore_build_dirs: null, respect_gitignore: null, periodic: null };
     if (!stored) return { exists: false, problem: null, revision: null, settings: empty, warnings: [] };
     const revision = String(stored.revision);
     let obj: unknown;
@@ -381,6 +382,7 @@ export class Core {
         folder_note_name: typeof o["folderNoteName"] === "string" ? folderNoteSetting(o["folderNoteName"]) : null,
         ignore_build_dirs: bool(o["ignoreBuildDirs"]),
         respect_gitignore: bool(o["respectGitignore"]),
+        periodic: readPeriodic(o),
       },
       warnings: [],
     };
@@ -395,7 +397,7 @@ export class Core {
       if (stored) refuse("exists", `already there: ${SETTINGS_FILE}`);
     } else {
       if (!stored) refuse("not_found", `no such file: ${SETTINGS_FILE}`);
-      if (String(stored.revision) !== revision) refuse("changed", `changed on disk: ${SETTINGS_FILE}`);
+      if (!this.accepts(SETTINGS_FILE, stored, revision)) refuse("changed", `changed on disk: ${SETTINGS_FILE}`);
       const parsed: unknown = JSON.parse(strict.decode(stored.bytes));
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) refuse("refused", "the folder's settings file is not a JSON object");
       obj = parsed as Record<string, unknown>;
@@ -408,8 +410,8 @@ export class Core {
     if (change.folder_note_name !== null && change.folder_note_name !== undefined) obj["folderNoteName"] = folderNoteSetting(change.folder_note_name);
     if (change.ignore_build_dirs !== null && change.ignore_build_dirs !== undefined) obj["ignoreBuildDirs"] = change.ignore_build_dirs;
     if (change.respect_gitignore !== null && change.respect_gitignore !== undefined) obj["respectGitignore"] = change.respect_gitignore;
-    const sorted = Object.fromEntries(Object.keys(obj).sort().map((k) => [k, obj[k]]));
-    this.put(SETTINGS_FILE, encoder.encode(`${JSON.stringify(sorted, null, 2)}\n`));
+    if (change.periodic) applyPeriodic(obj, change.periodic);
+    this.put(SETTINGS_FILE, encoder.encode(`${JSON.stringify(sortedDeep(obj), null, 2)}\n`));
     return this.folderLayer();
   }
 
@@ -668,6 +670,7 @@ export class Core {
           const v = props[p.key];
           return { key: p.key, kind: p.kind, labels: labels(p.labels), present, fits: present && (v === null || v === "" || fitsKind(p.kind, v)) };
         }),
+        layout: b.layout,
       },
     };
   }
@@ -897,8 +900,15 @@ export class Core {
     return isNote(path) && linksIn(this.text(path)).some((l) => this.resolve(l.target, path) === this.resolve(arg, path));
   }
 
-  private cell(path: string, id: string): BaseCell {
+  private cell(path: string, id: string, formulas: Record<string, unknown> = {}): BaseCell {
     if (id === "file.name") return { kind: "text", value: stripMd(baseOf(path)) };
+    // The one formula the harness evaluates: `html("…")`, a literal, as
+    // the core gives it (ADR 0094 item 12); any other is left empty.
+    if (id.startsWith("formula.")) {
+      const f = formulas[id.slice(8)];
+      const m = typeof f === "string" ? /^html\((["'])([\s\S]*)\1\)$/.exec(f.trim()) : null;
+      return m ? { kind: "html", value: m[2] ?? "" } : { kind: "empty" };
+    }
     if (id === "file.path") return { kind: "text", value: path };
     if (id === "file.folder") return { kind: "text", value: dirOf(path) };
     if (!isNote(path)) return { kind: "empty" };
@@ -923,7 +933,7 @@ export class Core {
       const parsed: unknown = YAML.parse(text);
       if (parsed !== null && typeof parsed === "object") base = parsed as Record<string, unknown>;
     } catch {
-      return { views: [], view: null, columns: [], groups: [], total: 0, problems: [{ kind: "notABase", detail: "" }], properties: [] };
+      return { views: [], view: null, columns: [], groups: [], total: 0, problems: [{ kind: "notABase", detail: "", error: null }], properties: [] };
     }
     const views = (Array.isArray(base["views"]) ? base["views"] : []) as Record<string, unknown>[];
     const at = q.view === null ? 0 : Math.max(0, views.findIndex((v) => v["name"] === q.view));
@@ -933,7 +943,8 @@ export class Core {
     const ids = [...new Set([...order, ...q.extra])];
     const columns: BaseColumn[] = ids.map((id) => ({ id, name: props[id]?.displayName ?? null }));
     const paths = [...this.notes(), ...this.others()].filter((p) => this.passes(base["filters"], p) && this.passes(view?.["filters"], p));
-    const rows: BaseRow[] = paths.map((p) => ({ path: p, note: isNote(p), cells: ids.map((id) => this.cell(p, id)) }));
+    const formulas = (base["formulas"] ?? {}) as Record<string, unknown>;
+    const rows: BaseRow[] = paths.map((p) => ({ path: p, note: isNote(p), cells: ids.map((id) => this.cell(p, id, formulas)) }));
     const by = view?.["groupBy"];
     const groupBy = typeof by === "string" ? by : by !== null && typeof by === "object" ? String((by as Record<string, unknown>)["property"] ?? "") : "";
     let groups: BaseGroup[] = [{ key: null, rows, summaries: ids.map(() => null) }];
@@ -990,6 +1001,7 @@ export class Core {
       });
     },
     backlinks: (a) => this.backlinksOf(String(a["path"])),
+    unlinked_mentions: (a) => unlinkedMentions(String(a["path"]), this.notes(), (p) => (this.files.has(p) ? this.text(p) : null)),
     write_note: (a): Written => {
       const path = this.confine(String(a["path"]));
       this.writeOver(path, String(a["text"]), String(a["revision"]));
@@ -1042,13 +1054,14 @@ export class Core {
           const props = propertiesOf(this.text(p));
           const sticker = scalar(props["sticker"]);
           const color = scalar(props["color"]);
-          const alias = strings(props["aliases"])[0] ?? null;
+          const aliases = strings(props["aliases"]);
+          const alias = aliases[0] ?? null;
           const orderList = strings(props["order"]);
           const pinnedList = strings(props["pinned"]);
           const order = orderList.length > 0 ? orderList : null;
           const pinned = pinnedList.length > 0 ? pinnedList : null;
           if (sticker === null && color === null && alias === null && !order && !pinned) return null;
-          return { sticker, color, alias, order, pinned };
+          return { sticker, color, alias, ...(aliases.length > 0 ? { aliases } : {}), order, pinned };
         } catch {
           return null;
         }
@@ -1105,6 +1118,8 @@ export class Core {
     },
     web_bounds: () => null,
     web_visible: () => null,
+    // A site that refuses framing is one whose address says so.
+    embed_frameable: (a) => !/frames-no/.test(String(a["url"])),
     web_close: (a) => void this.webViews.delete(String(a["label"])),
     web_nav: (a) => {
       if (typeof a["url"] === "string") this.webViews.set(String(a["label"]), a["url"]);
@@ -1133,6 +1148,7 @@ export class Core {
     },
     board_text: (a) => canvasLayout(JSON.parse(String(a["json"]))),
     render_markdown: (a) => renderMarkdown(String(a["text"])),
+    project_secrets: (a) => projectSecrets(String(a["text"])),
     reveal: () => null,
     copy_full_path: () => null,
     set_embed_origins: () => null,
@@ -1143,6 +1159,8 @@ export class Core {
     },
     get_focuses: () => this.getFocuses(),
     get_folder_settings: () => this.folderLayer(),
+    get_obsidian_periodic: () => obsidianPeriodic(this.files),
+    note_made_from_template: () => null,
     set_folder_settings: (a) => this.setFolderLayer(a["change"] as FolderSettings, (a["revision"] as string | null | undefined) ?? null),
     can_sync_focuses: () => {
       const summary = this.getFocuses();
@@ -1189,7 +1207,7 @@ export class Core {
       });
 
       let finalFocuses = clean;
-      if (String(stored.revision) !== stamp) {
+      if (!this.accepts(".space/waypoints.json", stored, stamp)) {
         // Concurrent modification on disk: attempt merge (ADR 0062 D7)
         const baseFocuses = a["baseFocuses"] as Focus[] | null;
         if (!baseFocuses) {
@@ -1365,14 +1383,22 @@ export class Core {
     collab_resolve: () => refuse("refused", "simultaneous editing is a server's"),
     collab_present: () => refuse("refused", "simultaneous editing is a server's"),
     collab_canvas: () => refuse("refused", "simultaneous editing is a server's"),
+    collab_roll: () => refuse("refused", "simultaneous editing is a server's"),
+    ...this.localServer.handlers, // ADR 0096
     // No server signed in to from the harness (ADR 0073 item 2).
     server_accounts: () => [],
     server_sign_in: () => refuse("unavailable", "no server in the harness"),
     server_sign_in_page: () => refuse("refused", "no server's page waits to be opened"),
     server_sign_out: () => null,
-    server_folders: () => [],
+    server_folders: () => ({ folders: [], may_create: false }),
+    server_create_folder: () => refuse("unavailable", "no server in the harness"),
     server_open: () => refuse("unavailable", "no server in the harness"),
     server_retry: () => null,
+    // The servers announced on the network (ADR 0097): none, until a test
+    // sets `discover_servers_list` to some.
+    discover_servers_start: () => null,
+    discover_servers_list: () => [],
+    discover_servers_stop: () => null,
     share_list: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     share_grant: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     share_revoke: () => refuse("refused", "this folder is not on a server: sync it with one first"),
@@ -1404,6 +1430,7 @@ export class Core {
     },
     folder_sync_now: () => null,
     ...this.bin.handlers(),
+    ...this.maps.handlers(),
     // The harness stands in for the desktop app (ADR 0058).
     capabilities: (): Capabilities => ({
       host: "desktop",

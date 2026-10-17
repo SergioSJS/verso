@@ -278,14 +278,30 @@ fn write_here(
 ) -> Result<(), Refusal> {
     let p = path.to_owned();
     let planned = planned.map(str::to_owned);
+    let by = written_by(s, path);
     tokio::task::block_in_place(|| {
         ctx.service.with_key(&s.key, move |ws| {
             let revision = planned_revision(ws, &p, planned.as_deref())?;
+            ws.history_written_by(by, verso_core::history::Kind::Write);
             ws.write_staged(&p, staged, revision.as_deref())?;
             Ok(())
         })
     })
     .map_err(|e| of_here(ctx, s, path, e))
+}
+
+/// Who the computer's history names for a file sync brings here (ADR 0091
+/// item 4): the device the server's log says made it, else the person,
+/// else the server.
+fn written_by(s: &Syncer, path: &str) -> Vec<verso_core::history::Author> {
+    use verso_core::history::Author;
+    let (by, device) = lock(&s.authors).get(path).cloned().unwrap_or_default();
+    let host = s.url.split_once("://").map_or(s.url.as_str(), |(_, h)| h);
+    vec![match (device, by) {
+        (Some(d), _) => Author::new("device", &d),
+        (None, Some(b)) => Author::new("account", &b),
+        (None, None) => Author::new("device", host),
+    }]
 }
 
 /// [`write_here`] for bytes held in memory: two appends to a note joined.
@@ -298,9 +314,11 @@ fn write_bytes_here(
 ) -> Result<(), Refusal> {
     let p = path.to_owned();
     let planned = planned.map(str::to_owned);
+    let by = written_by(s, path);
     tokio::task::block_in_place(|| {
         ctx.service.with_key(&s.key, move |ws| {
             let revision = planned_revision(ws, &p, planned.as_deref())?;
+            ws.history_written_by(by, verso_core::history::Kind::Write);
             ws.write_bytes(&p, &bytes, revision.as_deref())?;
             Ok(())
         })
@@ -460,9 +478,16 @@ impl Side<'_> {
                 // both sides appended to a note, its tail joins this
                 // computer's (item 8, decided 2026-10-11).
                 let (mut staged, hash, size) = download(ctx, s, remote, path).await?;
+                // The base both sides last agreed on; for a note both made
+                // apart, none — the template this computer filled it from
+                // is its base (ADR 0093 item 12, revising item 8).
+                let base = match state.base.get(path) {
+                    Some(b) => Some(Base::Agreed(b.clone())),
+                    None => state.made.get(path).cloned().map(Base::Template),
+                };
                 if !reader
                     && engine::merges_by_append(path)
-                    && let Some(base) = state.base.get(path).cloned()
+                    && let Some(base) = base
                     && let Some(planned) = hash_here(local, path)
                 {
                     // A note: small, joined in memory.
@@ -549,6 +574,7 @@ impl Side<'_> {
         let base = there.hash.clone();
         remote_files.insert(engine::spelled_there(remote_files, path), there);
         state.base.insert(path.to_owned(), base.clone());
+        state.made.remove(path);
         state.seen.remove(path);
         local.insert(path.to_owned(), here);
         s.crossed(ctx, "merged", path, None);
@@ -566,15 +592,25 @@ impl Side<'_> {
     }
 }
 
+/// What two versions of a note are joined over.
+enum Base {
+    /// The hash both sides last agreed on (item 8).
+    Agreed(String),
+    /// The hash of the text this computer made the note with from its
+    /// template, the server's made apart (ADR 0093 item 12).
+    Template(String),
+}
+
 /// This computer's note and the server's `theirs` joined, when each only
-/// appended to the end of the `base` (item 8): read here as the pass
-/// hashed it, `planned` — refused when it changed since (invariant 11).
-/// `None`: any other change on both sides, a conflict's copy.
+/// appended to the end of the `base` (item 8; or of the template both
+/// were made from, ADR 0093 item 12): read here as the pass hashed it,
+/// `planned` — refused when it changed since (invariant 11). `None`: any
+/// other change on both sides, a conflict's copy.
 fn appended(
     ctx: &Ctx,
     s: &Syncer,
     path: &str,
-    base: &str,
+    base: &Base,
     planned: &str,
     theirs: &[u8],
 ) -> Result<Option<Vec<u8>>, Refusal> {
@@ -590,7 +626,10 @@ fn appended(
             "changed since it was read".to_owned(),
         ));
     }
-    Ok(engine::append_merge(base, &mine, theirs))
+    Ok(match base {
+        Base::Agreed(base) => engine::append_merge(base, &mine, theirs),
+        Base::Template(made) => engine::template_merge(made, &mine, theirs),
+    })
 }
 
 #[cfg(test)]

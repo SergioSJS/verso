@@ -55,13 +55,16 @@ if grep -rnE --include='*.rs' '(std::fs|\bfs::|std::\{[^}]*\bfs\b)' crates/verso
   echo 'std::fs outside crates/verso-server/src/data.rs (ADR 0029)'
   exit 1
 fi
-step "std::fs in verso-app only in src/update.rs and src/log.rs (ADR 0029)"
+step "std::fs in verso-app only in src/update.rs, src/log.rs and src/resolv_conf.rs (ADR 0029, ADR 0097)"
 if grep -rnE --include='*.rs' '(std::fs|\bfs::|std::\{[^}]*\bfs\b)' app/src-tauri/src \
-   | grep -vE '^app/src-tauri/src/(update|log)\.rs:' \
+   | grep -vE '^app/src-tauri/src/(update|log|resolv_conf)\.rs:' \
    | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'; then
-  echo 'std::fs outside app/src-tauri/src/update.rs and src/log.rs (ADR 0029)'
+  echo 'std::fs outside app/src-tauri/src/update.rs, src/log.rs and src/resolv_conf.rs (ADR 0029, ADR 0097)'
   exit 1
 fi
+step "unsafe only in app/src-tauri/src/web_clip/{macos,windows}.rs (ADR 0029)"
+node --test scripts/check-unsafe.test.mjs
+node scripts/check-unsafe.mjs
 step "cargo fmt --check"
 cargo fmt --all --check
 step "cargo deny"

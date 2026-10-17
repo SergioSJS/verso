@@ -7,7 +7,7 @@
 // cookie is the browser's, never read here (HttpOnly).
 
 import { withProof } from "./proof";
-import { w } from "./strings";
+import { lang, w } from "./strings";
 
 export type Account = { id: string; email: string; name: string; lang: string; admin: boolean; mayCreate: boolean };
 
@@ -20,12 +20,16 @@ export type State = {
   web: boolean;
   /** Whether the server has a mail server (links by e-mail). */
   mail: boolean;
+  /** "This app is a server" (ADR 0096): a desktop app serving a phone;
+   *  there is no sign-in, only pairing. */
+  local?: boolean;
   setup: boolean;
   account: Account | null;
   csrf: string | null;
 };
 
 let csrf: string | null = null;
+let fromCache = false;
 
 export function setCsrf(token: string | null): void {
   csrf = token;
@@ -60,8 +64,6 @@ export class ApiError extends Error {
         return s.exists;
       case "link_gone":
         return s.linkGone;
-      case "tls_required":
-        return s.tlsRequired;
       case "csrf":
         return s.stale;
       case "no_mail":
@@ -86,6 +88,15 @@ export class ApiError extends Error {
         return s.badRequest;
       case "prove_first":
         return s.proveFirst;
+      case "not_writable": {
+        // Both languages in one sentence, for a program and the log (ADR
+        // 0075 item 3, amended 2026-10-16): the window shows its own half.
+        // The server's separator: a newline, U+2063, a newline (storage.rs).
+        const halves = this.message.split("\n\u2063\n");
+        const [pt, en] = halves;
+        if (halves.length !== 2 || pt === undefined || en === undefined) return this.message;
+        return lang() === "pt" ? pt : en;
+      }
       default:
         return this.message || s.failed;
     }
@@ -94,6 +105,17 @@ export class ApiError extends Error {
 
 /** A request of the API, sent once, whatever it answers. */
 export async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  // A page opened with no network knows no token: asked for once the server
+  // answers, before the first change it makes.
+  if (fromCache && !csrf && method !== "GET") {
+    try {
+      const fresh = (await (await fetch("/api/state", { credentials: "same-origin" })).json()) as State;
+      setCsrf(fresh.csrf);
+      fromCache = false;
+    } catch {
+      /* still no network: the request below fails as it would */
+    }
+  }
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["content-type"] = "application/json";
   if (csrf && method !== "GET") headers["x-verso-csrf"] = csrf;
@@ -124,8 +146,33 @@ export function api<T>(method: string, path: string, body?: unknown): Promise<T>
 
 let account: Account | null = null;
 
+/** What stands in for the server's answer when there is no network: the
+ *  last one this browser got, kept by the offline store (ADR 0092 item 2). */
+let fallback: (() => Promise<State | null>) | null = null;
+
+export function setStateFallback(f: () => Promise<State | null>): void {
+  fallback = f;
+}
+
+/** Whether the last `state()` is the one kept, because the server could not
+ *  be reached. */
+export function stateWasKept(): boolean {
+  return fromCache;
+}
+
 export async function state(): Promise<State> {
-  const s = await api<State>("GET", "/api/state");
+  let s: State;
+  try {
+    s = await api<State>("GET", "/api/state");
+    fromCache = false;
+  } catch (e) {
+    // No network: a page that was open before opens again, as the person it
+    // was open for. Any answer of the server's, an error included, is its.
+    const kept = e instanceof TypeError && fallback ? await fallback() : null;
+    if (!kept) throw e;
+    fromCache = true;
+    s = kept;
+  }
   setCsrf(s.csrf);
   account = s.account;
   return s;
@@ -135,6 +182,18 @@ export async function state(): Promise<State> {
  *  and administration sections are theirs. */
 export function signedIn(): Account | null {
   return account;
+}
+
+let servedByApp = false;
+
+/** Whether a desktop app serves this window ("This app is a server",
+ *  ADR 0096): a paired phone, with no account pages and no shares. */
+export function byApp(): boolean {
+  return servedByApp;
+}
+
+export function setByApp(local: boolean): void {
+  servedByApp = local;
 }
 
 export function setSignedIn(a: Account): void {

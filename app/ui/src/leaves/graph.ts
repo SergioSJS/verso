@@ -430,6 +430,10 @@ export class GraphLeaf extends Leaf {
       const g = document.createElementNS(NS, "g");
       g.setAttribute("class", `node${n.id === this.path ? " center" : ""}`);
       g.setAttribute("data-id", n.id);
+      // Its note where the pointer rests, and under a finger held still
+      // (ADR 0085 items 2 and 5).
+      g.setAttribute("data-preview-path", n.id);
+      g.setAttribute("data-preview-press", "");
       const c = document.createElementNS(NS, "circle");
       c.setAttribute("r", String(this.radius(n)));
       c.style.fill = this.color(n);

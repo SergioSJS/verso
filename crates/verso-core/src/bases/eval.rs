@@ -4,9 +4,9 @@
 
 //! Evaluating an expression for one file of the folder: names, members,
 //! the functions and methods of "Functions" (`obsidian.md/help/bases/functions`),
-//! the operators of "Bases syntax". What a base asks for and this module
-//! does not do — regular expressions, above all — is an error the cell
-//! shows, never a result made up.
+//! the operators of "Bases syntax", and regular expressions (`regexp.rs`,
+//! ADR 0094). What a base asks for and this module does not do is an
+//! error the cell shows, never a result made up.
 //!
 //! Every step of an evaluation is counted against the query's budget, and
 //! so is every value it makes or copies — a step per element and per
@@ -16,12 +16,16 @@
 //! recurses [`MAX_DEPTH`] deep, formulas calling formulas included: a base
 //! comes from a file of the folder, which anyone may have written.
 
+mod regexp;
+
 use std::cell::{Cell as StdCell, RefCell};
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use verso_dialect::Value;
 use verso_dialect::bases::{BinaryOp, Expr, ExprError, UnaryOp};
 
+use super::pattern::Pattern;
 use super::time::{self, Duration, MS_PER_DAY};
 use super::value::{self, V, as_wikilink, compare, err, parse_number};
 use super::{EvalError, EvalErrorKind, Facts};
@@ -43,6 +47,9 @@ const BYTES_PER_STEP: usize = 16;
 
 type R = Result<V, EvalError>;
 
+/// A pattern as compiled for a query, or why it could not be.
+type CompiledPattern = Result<Rc<Pattern>, EvalError>;
+
 /// What evaluation runs in: the folder's facts, the base's formulas, the
 /// file `this` names, the clock, and the budget.
 pub(crate) struct Env<'a> {
@@ -62,6 +69,9 @@ pub(crate) struct Env<'a> {
     pub exhausted: StdCell<bool>,
     /// How deep the evaluation is now.
     depth: StdCell<usize>,
+    /// Regular expressions compiled in this query, by pattern and flags:
+    /// each once, however many rows use it (ADR 0094 item 3).
+    patterns: RefCell<HashMap<(String, String), CompiledPattern>>,
 }
 
 /// Names bound by a list method's argument (`value`, `index`, `acc`) or a
@@ -92,6 +102,7 @@ impl<'a> Env<'a> {
             active: RefCell::new(Vec::new()),
             exhausted: StdCell::new(false),
             depth: StdCell::new(0),
+            patterns: RefCell::new(HashMap::new()),
         }
     }
 
@@ -715,7 +726,7 @@ impl<'a> Env<'a> {
                 _ => Err(err(EvalErrorKind::UnknownMethod, name)),
             },
             V::File(path) => self.file_method(path, name, args, row, locals),
-            V::Regex(..) => Err(err(EvalErrorKind::Regex, name)),
+            V::Regex(p, f) => self.regex_method(p, f, name, args, row, locals),
             _ => Err(err(EvalErrorKind::UnknownMethod, name)),
         }
     }
@@ -787,29 +798,28 @@ impl<'a> Env<'a> {
     fn string_method(&self, s: &str, name: &str, args: &[Expr], row: usize, locals: &Locals) -> R {
         // Every method here reads the text through once, at least.
         self.charge(s.len() / BYTES_PER_STEP)?;
+        // The methods "Functions" gives texts only: a regular expression
+        // there is an error, never its text (ADR 0094 item 1).
         let text_args = |me: &Self| -> Result<Vec<String>, EvalError> {
-            Ok(me
-                .all_args(args, row, locals)?
-                .iter()
-                .map(|v| v.text(me.lang))
-                .collect())
+            let values = me.all_args(args, row, locals)?;
+            if values.iter().any(|v| matches!(v, V::Regex(..))) {
+                return Err(err(EvalErrorKind::Regex, name));
+            }
+            Ok(values.iter().map(|v| v.text(me.lang)).collect())
+        };
+        let first = |me: &Self| -> Result<String, EvalError> {
+            Ok(text_args(me)?.into_iter().next().unwrap_or_default())
         };
         match name {
-            "contains" => Ok(V::Bool(
-                s.contains(&self.arg(args, 0, row, locals)?.text(self.lang)),
-            )),
+            "contains" => Ok(V::Bool(s.contains(&first(self)?))),
             "containsAll" => Ok(V::Bool(
                 text_args(self)?.iter().all(|a| s.contains(a.as_str())),
             )),
             "containsAny" => Ok(V::Bool(
                 text_args(self)?.iter().any(|a| s.contains(a.as_str())),
             )),
-            "startsWith" => Ok(V::Bool(
-                s.starts_with(&self.arg(args, 0, row, locals)?.text(self.lang)),
-            )),
-            "endsWith" => Ok(V::Bool(
-                s.ends_with(&self.arg(args, 0, row, locals)?.text(self.lang)),
-            )),
+            "startsWith" => Ok(V::Bool(s.starts_with(&first(self)?))),
+            "endsWith" => Ok(V::Bool(s.ends_with(&first(self)?))),
             "lower" => Ok(V::Str(s.to_lowercase())),
             "upper" => Ok(V::Str(s.to_uppercase())),
             "trim" => Ok(V::Str(s.trim().to_owned())),
@@ -838,7 +848,10 @@ impl<'a> Env<'a> {
                 Ok(V::Str(chars[a..b].iter().collect()))
             }
             "replace" => match self.arg(args, 0, row, locals)? {
-                V::Regex(..) => Err(err(EvalErrorKind::Regex, "replace")),
+                V::Regex(p, f) => {
+                    let with = self.arg(args, 1, row, locals)?.text(self.lang);
+                    self.regex_replace(s, &p, &f, &with)
+                }
                 pattern => {
                     let pattern = pattern.text(self.lang);
                     let with = self.arg(args, 1, row, locals)?.text(self.lang);
@@ -856,30 +869,32 @@ impl<'a> Env<'a> {
                     Ok(V::Str(s.replace(&pattern, &with)))
                 }
             },
-            "split" => match self.arg(args, 0, row, locals)? {
-                V::Regex(..) => Err(err(EvalErrorKind::Regex, "split")),
-                sep => {
-                    let sep = sep.text(self.lang);
-                    let mut parts: Vec<V> = if sep.is_empty() {
-                        s.chars().map(|c| V::Str(c.to_string())).collect()
-                    } else {
-                        s.split(sep.as_str())
-                            .map(|p| V::Str(p.to_owned()))
-                            .collect()
-                    };
-                    // An absent limit is no limit: `to_number` reads
-                    // `null` as 0, which would empty the list.
-                    match self.arg(args, 1, row, locals)? {
-                        V::Null => {}
-                        limit => {
-                            if let Some(n) = to_number(&limit) {
-                                parts.truncate(n.max(0.0) as usize);
-                            }
+            "split" => {
+                let sep = self.arg(args, 0, row, locals)?;
+                // An absent limit is no limit: `to_number` reads `null` as
+                // 0, which would empty the list.
+                let limit = match self.arg(args, 1, row, locals)? {
+                    V::Null => None,
+                    limit => to_number(&limit).map(|n| n.max(0.0) as usize),
+                };
+                match sep {
+                    V::Regex(p, f) => self.regex_split(s, &p, &f, limit),
+                    sep => {
+                        let sep = sep.text(self.lang);
+                        let mut parts: Vec<V> = if sep.is_empty() {
+                            s.chars().map(|c| V::Str(c.to_string())).collect()
+                        } else {
+                            s.split(sep.as_str())
+                                .map(|p| V::Str(p.to_owned()))
+                                .collect()
+                        };
+                        if let Some(n) = limit {
+                            parts.truncate(n);
                         }
+                        Ok(V::List(parts))
                     }
-                    Ok(V::List(parts))
                 }
-            },
+            }
             _ => Err(err(EvalErrorKind::UnknownMethod, name)),
         }
     }

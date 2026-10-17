@@ -334,7 +334,9 @@ test("the window installs on a phone's home screen", async ({ request }) => {
   expect(manifest.ok()).toBe(true);
   const m = await manifest.json();
   expect(m.display).toBe("standalone");
-  expect(m.icons.map((i) => i.sizes)).toEqual(["192x192", "512x512"]);
+  // Each size twice: as it is, and maskable — the tile is edge to edge with
+  // the book inside the safe zone (the new icon, 2026-10-15).
+  expect(m.icons.map((i) => `${i.sizes} ${i.purpose}`)).toEqual(["192x192 any", "512x512 any", "192x192 maskable", "512x512 maskable"]);
   expect((await request.get("/apple-touch-icon.png")).ok()).toBe(true);
   const page = await (await request.get("/")).text();
   expect(page).toContain('rel="manifest"');
@@ -605,7 +607,12 @@ test("the page that approves a device says who asked, and refuses (threat model,
   await expect(question).toBeVisible();
   // The question names the form; its buttons come after it.
   const form = page.getByRole("form", { name: "Foi você quem pediu, neste aparelho?" });
-  await expect(form.getByRole("button", { name: "Aprovar este aparelho: Verso · Estranho" })).toBeVisible();
+  const approveButton = form.getByRole("button", { name: "Aprovar este aparelho: Verso · Estranho" });
+  await expect(approveButton).toBeVisible();
+  // One sentence that wraps, not two columns of a flex row: the label is a
+  // single child of the button, and the device's name sits inside it.
+  await expect(approveButton.locator("> *")).toHaveCount(1);
+  await expect(approveButton.locator("> .web-btn-text bdi")).toHaveText("Verso · Estranho");
   await form.getByRole("button", { name: "Não fui eu: recusar" }).click();
   // The answer replaces the question's two paragraphs with one.
   await expect(page.getByText("Recusado. O aplicativo que pediu não entra na sua conta.")).toBeVisible(waited);
@@ -623,6 +630,8 @@ test("the page that approves a device says who asked, and refuses (threat model,
   await expect(page.getByText("Pronto. Pode voltar ao aplicativo.")).toBeVisible(waited);
   await expect(page.locator(".web-lead")).toHaveCount(1);
   await expect(page.locator(".web-lead")).toHaveText("Pronto. Pode voltar ao aplicativo.");
+  // And a way on to the window from this browser.
+  await expect(page.getByRole("link", { name: "Abrir o Verso aqui" })).toHaveAttribute("href", "/");
   const done = await (await request.post("/api/device/poll", { data: { code: second.code, poll: second.poll } })).json();
   expect(typeof done.token).toBe("string");
   expect(errors).toEqual([]);

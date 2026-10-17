@@ -17,7 +17,16 @@
   can render a page built on module scripts. Recorded as a section of its own
   at the end of the Decision, with its Consequences, its discarded
   alternative and two `[OPEN]` items; the text of the first decision is kept,
-  each superseded part with a note.
+  each superseded part with a note. 2026-10-14 — **revised by the maintainer**
+  in session ("A agora, B depois"): an embed is an `<iframe>` when its site
+  allows being framed, the child web view otherwise. 2026-10-15 — **revised
+  again** by the maintainer, in session (*"A e B juntos"*): the child web
+  view is drawn as a frame is — laid out at its box's whole size and place,
+  drawn only in the part that shows — by a native clipping container per
+  operating system, under the one exception to `unsafe_code = "forbid"` of
+  [0029](0029-guardrails-in-ci.md). Recorded as the last two sections of the
+  Decision, "Revised: an `<iframe>` when the site allows" and "Revised again:
+  the page clipped as a frame is".
 
 ## Context
 
@@ -288,6 +297,135 @@ The gate and the settings list are unchanged: the child view is only
 made for an origin the user approved. Verified on 2026-09-29 with
 huggingface.co and rolai.app rendering whole, X-Frame-Options and all.
 
+### Revised: an `<iframe>` when the site allows, the child view when it does not — decided on 2026-10-14
+
+**Decided on 2026-10-14 by the maintainer**, in session, after testing the
+child web view in the installed app ("A agora, B depois"): the child view
+floats over the window, so an embed half out of its pane could be drawn
+over the status bar, the page scrolled with the note's wheel, and its size
+was not the box's. His requirement: an embed behaves like a normal
+`<iframe>` — the page respects the size of the box it is rendered in,
+scrolls with the note, is clipped by the pane, never draws over other
+chrome, and scrolling the note never scrolls the page inside.
+
+- **A.** (this revision) An embed is a real `<iframe>` in the note's
+  document whenever its site allows being framed by the window's origin;
+  a site that refuses keeps the child web view (the fallback), clipped as
+  the next section says. A web page opened as a tab (the
+  web note's own view) stays a child web view: it fills its pane.
+- **B.** (decided on 2026-10-15, *"A e B juntos"*; built in the next
+  section) A native clipping container for the fallback, under the exception
+  to `unsafe_code = "forbid"` that [0029](0029-guardrails-in-ci.md) records.
+
+How the author built A (`app/src-tauri/src/framing.rs`, `web.rs`,
+`app/ui/src/leaves/web.ts`):
+
+- **A frameability check in the host**, `embed_frameable(url)`: one `HEAD`
+  (a `GET` read only as far as its headers when `HEAD` errors or answers 4xx
+  or 5xx), to an address a note wrote and the reader approved
+  ([0050](0050-outbound-network-access.md) item 1), six seconds at most, at
+  most five redirects followed by hand, the final response judged. The
+  response may be framed unless: any `X-Frame-Options` value is present
+  (`DENY`, `SAMEORIGIN`, `ALLOW-FROM`, in any case, or one nobody can read);
+  or a `Content-Security-Policy` has a `frame-ancestors` that does not allow
+  the window's origin (`*` only for a network-scheme origin, so not
+  `tauri://localhost`; a matching scheme, host, wildcard host and port; not
+  `'none'`, `'self'` or an empty list); every policy of the response must
+  allow. A redirect from a public page to a local name or address, a
+  timeout, an error: not frameable. Answered once per origin for the
+  session. This is a request from the host's side that the revision of
+  2026-09-29 had removed ("nothing is fetched on the host's side"): one
+  request per approved origin, headers only, and the answer is one bit that
+  crosses to the window. It is the "warning at approval time" the `[OPEN]`
+  item above left open, used for a different end.
+- **The embed.** Frameable: the box holds `<iframe sandbox="allow-scripts
+  allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+  referrerpolicy="no-referrer" loading="lazy">`, no `allow`, 100 % of the
+  box. Not frameable, or the answer an error: the child web view of the
+  revision above. The browser window keeps its own frame with the link to
+  open the page in a tab ([0076](0076-the-window-on-every-screen.md), item 11 as the code cites it).
+- **The window's policy** already had `frame-src https: http: verso:
+  http://verso.localhost` for the child view's days; it is unchanged. The
+  server's policy for the browser window is unchanged too
+  (`frame-src 'self' https:`).
+- **The navigation guard** changes by one allowance: an app view's frame may
+  load the exact origins the check judged frameable (and where their
+  redirects end) and no other page of the web. wry hands the guard an
+  address and no frame, so it cannot tell a frame from the window; the
+  allowance is as narrow as the handler lets it be. The cost is recorded in
+  the threat model (`docs/reference/threat-model.md`, "A web page embedded
+  in a note"), with the reasoning that a framed page cannot reach the app's
+  commands.
+- **`[OPEN]`, not decided here.** A page's own links to another origin, and the frames
+  inside it (a video, an advertisement), are refused by the guard and stay
+  blank until the maintainer chooses how to widen it (its cost is the same
+  one: the guard cannot tell a frame from the window).
+
+Discarded in this revision: none recorded.
+
+### Revised again: the page clipped as a frame is — decided on 2026-10-15
+
+The child web view kept one fault an iframe does not have. A native view
+floats over the window's page, and CSS cannot clip it; so the view was
+shrunk to the visible part of its box, and when the note was scrolled
+until the box was half above its pane, the page showed its top again in a
+shorter view, instead of moving up with the note. The maintainer, trying
+it in the app on 2026-10-15: *"era para funcionar como iframe normal…
+qual a dificuldade de fazer a página respeitar o tamanho da janela que
+ela foi renderizada"* (it should work as a normal iframe; what is hard
+about making the page respect the size of the window it was rendered
+in). His own sites all refuse to be framed, measured that day —
+olddragon.com.br (`X-Frame-Options: SAMEORIGIN`; `frame-ancestors 'self'
+*.owlbear.rodeo`), rolai.app (`DENY`), a Calibre-Web on the local network
+(`SAMEORIGIN`) — so they stay child web views.
+
+**Decided by the maintainer on 2026-10-15**, in session: *"A e B
+juntos"*. A: a real `<iframe>` where a site allows framing, recorded in the
+section above. B: for the pages that stay child
+web views, a native clipping container, under an exception to
+`unsafe_code = "forbid"` confined to one module, one small file per
+system, each `unsafe` block with its `SAFETY` comment, tested, in its own
+pull request ([0029](0029-guardrails-in-ci.md), revision of the same
+day).
+
+**B, as built** (`app/src-tauri/src/web_clip/`):
+
+- The window sends two rectangles (`WebPlace`): the **slot**, the box's
+  whole size and true place, which may reach outside the pane and the
+  window; and the **visible** part, where the box shows — inside every
+  scroller, the window, and clear of the tab bar and the status bar
+  (`embedPlace`, `app/ui/src/leaves/embedClip.ts`). The scroll fields of
+  the first place are gone: nothing the window sends scrolls the page.
+- The host puts the page's view inside a container whose frame is the
+  visible part, at the slot's offset inside it, with the slot's size: the
+  page is laid out for the whole box (its `100vh` is the box's height),
+  moves up with the note, and is drawn only inside the container. The
+  note's scroll never scrolls the page; the page's own scroll and clicks
+  work in the part that shows.
+- macOS: a layer-backed `NSView` that clips to its bounds, in the
+  window's content view just above where wry put the page, the page's
+  `WKWebView` moved into it; AppKit's unflipped coordinates and the
+  screen's scale handled (`geometry.rs`, `macos.rs`). Windows: WebView2's
+  host window moved into a child window of ours
+  (`WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS`) at the visible part, in
+  the window's physical pixels (`windows.rs`). Linux: GTK's safe API —
+  the window's page moved once into a `GtkOverlay`, each page in a
+  `GtkLayout` laid over it at the visible part, no `unsafe`
+  (`linux.rs`).
+- A web note's own view goes the same way, with one rectangle for both.
+- If a platform cannot build the container, that view falls back to the
+  place before this revision — cut to the visible part, the page's top
+  shown — with one WARN line in the log.
+- A window moved to a screen of another scale keeps its CSS size; the
+  window looks again when the scale changes, so the page is placed in the
+  new screen's pixels.
+
+What only the real app shows — the clipping on each system — is listed in
+`docs/reference/manual-checks.md`; no test without a window reaches a
+native view. Linux had not been seen with child web views at all
+([0071](0071-linux-port.md)); its container is built and compiled, and
+waits for that check like the rest.
+
 ## Status
 
 Accepted on 2026-09-29 by the maintainer, in session: points 1 and 2 of the
@@ -297,3 +435,9 @@ ADR stands Accepted. Revised on 2026-09-29 by the maintainer, in session:
 point 3, option A, Accepted; the mechanism under it is the author's, and
 supersedes the proxy. One item stays `[OPEN]`: a warning at approval time;
 the web view's cache after an update was decided on 2026-10-07 (above).
+Revised on 2026-10-14 by the maintainer, in session ("A agora, B depois"):
+embeds are `<iframe>`s when the site allows framing, child web views
+otherwise. Revised again on 2026-10-15, in session (*"A e B juntos"*): the
+child web view is drawn as a frame is, by a native clipping container
+(B); the mechanism is the author's.
+Revised on 2026-10-15, in session, accepted as recommended: the host's frameability check (one `HEAD`, or a `GET` read only as far as its headers, once per origin) is **accepted**, which revises the earlier line that "nothing is fetched on the host's side" for an approved origin; a page's own links to another origin and the frames nested inside a framed page stay `[OPEN]`, as recorded above.

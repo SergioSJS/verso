@@ -67,6 +67,25 @@ pub(crate) fn may_navigate(label: &str, url: &tauri::Url, dev_url: Option<&tauri
     }
 }
 
+/// The guard with one more allowance (ADR 0056, revised 2026-10-15): an
+/// app view's frame may load an origin that the frameability check judged
+/// frameable and recorded in `framed`, and no other page of the web. The
+/// handler is asked for every frame and cannot tell a frame from the
+/// window itself (wry passes it the address only), so the allowance is as
+/// narrow as it can be made: the exact origins of pages the user already
+/// approved to embed and whose servers allow framing.
+pub(crate) fn may_navigate_framed(
+    label: &str,
+    url: &tauri::Url,
+    dev_url: Option<&tauri::Url>,
+    framed: &std::collections::HashSet<String>,
+) -> bool {
+    may_navigate(label, url, dev_url)
+        || (is_app_view(label)
+            && web_only(url)
+            && embed_origin_of(url).is_some_and(|o| framed.contains(&o)))
+}
+
 /// The navigation guard as a plugin: a plugin's `on_navigation` is asked
 /// for every web view, the main window included, which a builder's own
 /// handler cannot reach.
@@ -74,9 +93,56 @@ pub(crate) fn navigation_guard<R: tauri::Runtime>() -> tauri::plugin::TauriPlugi
     tauri::plugin::Builder::new("verso-navigation")
         .on_navigation(|webview, url| {
             let dev_url = webview.app_handle().config().build.dev_url.clone();
-            may_navigate(webview.label(), url, dev_url.as_ref())
+            let app = webview.app_handle();
+            let framed = app
+                .try_state::<App>()
+                .map(|state| lock(&state.framed_origins).clone())
+                .unwrap_or_default();
+            may_navigate_framed(webview.label(), url, dev_url.as_ref(), &framed)
+        })
+        // A window's page loading again (a reload, ⌘R) forgets the web
+        // pages it opened, but their child views stay: drawn over the new
+        // page and closed by nothing (the maintainer, 2026-10-16). They go
+        // with the page that opened them.
+        .on_page_load(|webview, payload| {
+            if payload.event() == tauri::webview::PageLoadEvent::Started
+                && crate::protocol::is_app_view(webview.label())
+            {
+                close_web_views_of(webview.app_handle(), webview.window().label());
+            }
         })
         .build()
+}
+
+/// Close every web page's view a window opened, and forget them.
+pub(crate) fn close_web_views_of<R: tauri::Runtime>(app: &tauri::AppHandle<R>, window: &str) {
+    let Some(state) = app.try_state::<App>() else {
+        return;
+    };
+    let mine: Vec<String> = {
+        let mut views = lock(&state.web_views);
+        let labels: Vec<String> = views
+            .iter()
+            .filter(|(_, owner)| owner.as_str() == window)
+            .map(|(label, _)| label.clone())
+            .collect();
+        for label in &labels {
+            views.remove(label);
+        }
+        labels
+    };
+    for label in mine {
+        if let Some(wv) = app.get_webview(&label) {
+            web_clip::release(&wv);
+            if let Err(e) = wv.close() {
+                crate::log::write(
+                    "WARN",
+                    "host",
+                    &format!("closing the web view {label} of a reloaded window: {e}"),
+                );
+            }
+        }
+    }
 }
 
 /// Open the web inspector — console, elements, network — of the window
@@ -145,12 +211,10 @@ fn chrome_offset<R: tauri::Runtime>(window: &tauri::Window<R>) -> f64 {
         (Ok(outer), Ok(inner)) => f64::from(inner.y.saturating_sub(outer.y).max(0)) / scale,
         _ => 0.0,
     };
-    // macOS reports the same point for both; the standard title bar is 28 pt.
-    if measured == 0.0 && cfg!(target_os = "macos") {
-        28.0
-    } else {
-        measured
-    }
+    // macOS reports the same point for both. Its windows have had no
+    // title bar since ADR 0072 (the overlay style): the content starts
+    // at the window's top, so nothing is added there.
+    measured
 }
 
 /// The user agent a web page's view presents: Safari's own, current
@@ -167,57 +231,120 @@ fn http_url(url: &str) -> Result<tauri::Url, ContractError> {
     Ok(parsed)
 }
 
+/// A rectangle in the window's logical pixels, from the top-left of the
+/// window's page.
+#[derive(Debug, Clone, Copy, serde::Deserialize, specta::Type)]
+pub(crate) struct WebRect {
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+}
+
+impl From<WebRect> for web_clip::geometry::Rect {
+    fn from(r: WebRect) -> Self {
+        Self {
+            x: r.x,
+            y: r.y,
+            w: r.w,
+            h: r.h,
+        }
+    }
+}
+
+/// Where a web page goes, as an iframe would put it. `slot` is the
+/// page's whole box: its size is the page's viewport (`100vh` is its
+/// height), and it may reach outside its pane or the window. `visible` is
+/// the part of the slot that shows — inside every scroller around it and
+/// the window, clear of the tab bar and the status bar (`embedPlace`,
+/// app/ui/src/leaves/embedClip.ts). The page is drawn at `slot` and only
+/// inside `visible` (`web_clip`); scrolling the note moves the slot and
+/// never scrolls the page. A web note's own view sends one rectangle
+/// twice.
+#[derive(Debug, Clone, Copy, serde::Deserialize, specta::Type)]
+pub(crate) struct WebPlace {
+    slot: WebRect,
+    visible: WebRect,
+}
+
+/// The place's two rectangles, or `refused` when either is not a place on
+/// a screen (not finite, negative in size, or past any screen).
+fn rects(
+    place: WebPlace,
+) -> Result<(web_clip::geometry::Rect, web_clip::geometry::Rect), ContractError> {
+    let (slot, visible) = (place.slot.into(), place.visible.into());
+    if web_clip::geometry::sane(slot) && web_clip::geometry::sane(visible) {
+        Ok((slot, visible))
+    } else {
+        Err(refused("not a place for a web page"))
+    }
+}
+
 /// A web page inside the window, as a child web view over the area the
-/// UI names (logical pixels from the window's top-left): the browser
-/// behind a tab whose note holds the address. Only `http(s)`; the page
-/// cannot navigate anywhere else, nor open windows. Answers with the
-/// label the other `web_*` commands take.
+/// UI names: the browser behind a tab whose note holds the address, or an
+/// embedded page. Only `http(s)`; the page cannot navigate anywhere else,
+/// nor open windows. Answers with the label the other `web_*` commands
+/// take.
+///
+/// The view is made over the visible part, as it was before the page
+/// could be clipped, and then put at its slot inside a clipping container
+/// (`web_clip`): never over the window's chrome, even for a frame.
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn web_open<R: tauri::Runtime>(
     window: tauri::Window<R>,
     state: State<'_, App>,
     url: String,
-    x: f64,
-    y: f64,
-    w: f64,
-    h: f64,
+    place: WebPlace,
 ) -> Result<String, ContractError> {
+    let (slot, visible) = rects(place)?;
     let url = http_url(&url)?;
     let label = next_web_label();
     // The window that asks hosts the page: the main one, or a note's own.
-    let y = y + chrome_offset(&window);
-    window
+    let chrome = chrome_offset(&window);
+    let wv = window
         .add_child(
             tauri::webview::WebviewBuilder::new(&label, tauri::WebviewUrl::External(url))
                 .user_agent(WEB_USER_AGENT)
                 .on_navigation(web_only)
                 .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny),
-            tauri::LogicalPosition::new(x, y),
-            tauri::LogicalSize::new(w.max(1.0), h.max(1.0)),
+            tauri::LogicalPosition::new(visible.x, visible.y + chrome),
+            tauri::LogicalSize::new(visible.w.max(1.0), visible.h.max(1.0)),
         )
         .map_err(|e| failed(e.to_string()))?;
     lock(&state.web_views).insert(label.clone(), window.label().to_owned());
+    web_clip::place(
+        &wv,
+        slot,
+        visible,
+        chrome,
+        window.scale_factor().unwrap_or(1.0),
+    )
+    .map_err(failed)?;
     Ok(label)
 }
 
-/// Move and size a web page's view to follow its tab.
+/// Move a web page's view to follow its box: the page at `slot`, drawn
+/// only inside `visible` (`WebPlace`). The page's own scroll is never
+/// touched.
 #[tauri::command]
 #[specta::specta]
 pub(crate) fn web_bounds<R: tauri::Runtime>(
     window: tauri::Window<R>,
     state: State<'_, App>,
     label: String,
-    x: f64,
-    y: f64,
-    w: f64,
-    h: f64,
+    place: WebPlace,
 ) -> Result<(), ContractError> {
+    let (slot, visible) = rects(place)?;
     let wv = own_web_view(&window, &state, &label)?;
-    let y = y + chrome_offset(&window);
-    wv.set_position(tauri::LogicalPosition::new(x, y))
-        .and_then(|()| wv.set_size(tauri::LogicalSize::new(w.max(1.0), h.max(1.0))))
-        .map_err(|e| failed(e.to_string()))
+    web_clip::place(
+        &wv,
+        slot,
+        visible,
+        chrome_offset(&window),
+        window.scale_factor().unwrap_or(1.0),
+    )
+    .map_err(failed)
 }
 
 /// Show or hide a web page's view (its tab left the front, an overlay opened).
@@ -230,6 +357,7 @@ pub(crate) fn web_visible<R: tauri::Runtime>(
     visible: bool,
 ) -> Result<(), ContractError> {
     let wv = own_web_view(&window, &state, &label)?;
+    web_clip::show(&wv, visible);
     (if visible { wv.show() } else { wv.hide() }).map_err(|e| failed(e.to_string()))
 }
 
@@ -243,7 +371,50 @@ pub(crate) fn web_close<R: tauri::Runtime>(
 ) -> Result<(), ContractError> {
     let wv = own_web_view(&window, &state, &label)?;
     lock(&state.web_views).remove(&label);
+    // Out of its container first: the container is ours to remove.
+    web_clip::release(&wv);
     wv.close().map_err(|e| failed(e.to_string()))
+}
+
+/// Whether the page at `url` may be shown in a real `<iframe>` of the
+/// window: its server's headers allow being framed by the window's origin
+/// (`X-Frame-Options`, `frame-ancestors`, judged on the final response of
+/// a short chain of redirects). The window then draws the embed as a
+/// frame, which scrolls and clips with the note; otherwise it keeps the
+/// child web view. One request (`HEAD`, a `GET` read only as far as its
+/// headers when that fails), to an address a note wrote and the user
+/// approved to embed (ADR 0050, 0056); answered once per origin for the
+/// session. A timeout or an error answers no.
+///
+/// An origin judged frameable is also what the navigation guard lets an
+/// app view's frame load, and nothing else of the web.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn embed_frameable<R: tauri::Runtime>(
+    webview: tauri::Webview<R>,
+    state: State<'_, App>,
+    url: String,
+) -> Result<bool, ContractError> {
+    if !is_app_view(webview.label()) {
+        return Err(refused("only the app's own views ask this"));
+    }
+    let parsed = http_url(&url)?;
+    let origin = embed_origin_of(&parsed).ok_or_else(|| refused("the address has no host"))?;
+    let cached = lock(&state.frame_verdicts).get(&origin).copied();
+    if let Some(answer) = cached {
+        return Ok(answer);
+    }
+    let app = webview
+        .url()
+        .ok()
+        .and_then(|u| crate::framing::Ancestor::of(&u))
+        .ok_or_else(|| failed("the window has no address"))?;
+    let verdict = crate::framing::check(&parsed, Some(&app), WEB_USER_AGENT).await;
+    if verdict.frameable {
+        lock(&state.framed_origins).extend(verdict.origins);
+    }
+    lock(&state.frame_verdicts).insert(origin, verdict.frameable);
+    Ok(verdict.frameable)
 }
 
 /// Back, forward, reload, or go to another http(s) address.

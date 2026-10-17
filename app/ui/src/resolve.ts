@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { allFiles, allNotes } from "./folder";
+import { markdownNoteLinks } from "./mdLinks";
 import { dirOf, kindOf, name } from "./paths";
 import { settings } from "./settings";
 
@@ -136,4 +137,20 @@ export function sliceHeading(body: HTMLElement, heading: string): void {
     el = el.nextElementSibling;
   }
   body.replaceChildren(...keep);
+}
+
+/** What a typed note's `link` or `image` field offers (ADR 0086 item 1),
+ *  as `[[` does: the folder's notes, or its pictures, each as the link
+ *  `source` would write to it (the link format setting), labelled with
+ *  its path. */
+export function propertySuggestions(source: string, kind: "link" | "image"): { value: string; label: string }[] {
+  const paths = kind === "link" ? allNotes : allFiles.filter((p) => kindOf(p) === "image");
+  return paths.map((p) => ({ value: `[[${linkText(source, p)}]]`, label: p }));
+}
+
+/** The core's HTML of the note at `from`, its Markdown links to the
+ *  folder's notes and files drawn as wikilinks (mdLinks.ts), by the rule
+ *  above; cleaned after, by the sanitizer, as any reading. */
+export function withNoteLinks(html: string, from: string): string {
+  return markdownNoteLinks(html, from, { note: resolveNoteByName, file: resolveFileByName });
 }

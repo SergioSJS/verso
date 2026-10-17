@@ -12,10 +12,11 @@
 import { emit } from "@tauri-apps/api/event";
 import { Awareness, encodeAwarenessUpdate } from "y-protocols/awareness";
 import * as Y from "yjs";
-import type { Capabilities, ContractError, NoteText } from "../bindings";
+import type { Capabilities, ContractError, DiceRoll, NoteText } from "../bindings";
+import { readNotation, rollHere } from "../dice/notation";
 import { type Core, fromBase64, toBase64 } from "./core";
 
-type Room = { doc: Y.Doc; epoch: string; revision: string; board: boolean; canvas: string | null };
+type Room = { doc: Y.Doc; epoch: string; revision: string; board: boolean; canvas: string | null; rolls: DiceRoll[] };
 
 function unavailable(): never {
   const e: ContractError = { kind: "unavailable", message: "the folder's sync is not connected" };
@@ -43,7 +44,7 @@ export class Rooms {
       if (!this.up) unavailable();
       const path = String(a["path"]);
       const room = this.room(path);
-      return { kind: room.board ? "board" : "text", update: toBase64(Y.encodeStateAsUpdate(room.doc)), revision: room.revision, read_only: false, crlf: false, user: "Ana", epoch: room.epoch };
+      return { kind: room.board ? "board" : "text", update: toBase64(Y.encodeStateAsUpdate(room.doc)), revision: room.revision, read_only: false, crlf: false, user: "Ana", epoch: room.epoch, rolls: [...room.rolls] };
     };
     h["collab_update"] = (a) => {
       if (!this.up) unavailable();
@@ -64,6 +65,19 @@ export class Rooms {
       if (!room?.board) unavailable();
       room.canvas = String(a["json"]);
       return null;
+    };
+    // Dice in the room (ADR 0088 item 4): the server's roll, named after
+    // the window's account, kept for whoever joins.
+    h["collab_roll"] = (a) => {
+      if (!this.up) unavailable();
+      const room = this.rooms.get(String(a["path"]));
+      const notation = readNotation(String(a["notation"]));
+      if (!room || !notation) {
+        const e: ContractError = { kind: "refused", message: room ? "not a roll Verso reads" : "join the note first" };
+        throw e;
+      }
+      const source = a["source"] === null || a["source"] === undefined ? null : String(a["source"]);
+      return this.keep(room, { ...rollHere(notation, source), by: "Ana" });
     };
     h["collab_leave"] = () => null;
     h["collab_save"] = (a) => {
@@ -91,7 +105,7 @@ export class Rooms {
     if (board) doc.getMap("meta").set("base", this.core.read(path) ?? "");
     else doc.getText("verso").insert(0, this.core.read(path) ?? "");
     const read = this.core.handlers[board ? "read_text" : "read_note"]!({ path }) as NoteText;
-    room = { doc, epoch: `e${++this.epochs}`, revision: read.revision, board, canvas: null };
+    room = { doc, epoch: `e${++this.epochs}`, revision: read.revision, board, canvas: null, rolls: [] };
     this.rooms.set(path, room);
     return room;
   }
@@ -111,6 +125,26 @@ export class Rooms {
     room.revision = `r${Date.now()}`;
     void emit("collab-saved", { path, revision: room.revision });
     return room.revision;
+  }
+
+  /** The live room of `path`, when the note has one: a restore goes
+   *  through it (ADR 0091 item 5) — its text replaced whole, as the
+   *  server's room takes it, and told to the window as the server relays
+   *  it. */
+  live(path: string): { replace: (text: string) => void } | null {
+    const room = this.rooms.get(path);
+    if (!room || room.board) return null;
+    return {
+      replace: (text: string) => {
+        const before = Y.encodeStateVector(room.doc);
+        const t = room.doc.getText("verso");
+        room.doc.transact(() => {
+          t.delete(0, t.length);
+          t.insert(0, text);
+        }, "server");
+        void emit("collab-update", { path, update: toBase64(Y.encodeStateAsUpdate(room.doc, before)) });
+      },
+    };
   }
 
   /** The room's text now. */
@@ -139,6 +173,8 @@ export class Rooms {
   /** `name` is in the note: their presence told to the window. */
   present(path: string, name: string): void {
     const p = this.person(name, path);
+    // Back after `absent`, which cleared their presence.
+    if (p.awareness.getLocalState() === null) p.awareness.setLocalState({ user: { name, color: "#1565c0", colorLight: "#1565c033" } });
     const names = this.inside.get(path) ?? new Set<string>();
     names.add(name);
     this.inside.set(path, names);
@@ -152,6 +188,26 @@ export class Rooms {
     if (!p) return;
     p.awareness.setLocalState(null);
     void emit("collab-awareness", { path, update: toBase64(encodeAwarenessUpdate(p.awareness, [p.doc.clientID])) });
+  }
+
+  /** A roll kept by the room, its last twenty. */
+  private keep(room: Room, roll: DiceRoll): DiceRoll {
+    room.rolls.push(roll);
+    if (room.rolls.length > 20) room.rolls.shift();
+    return roll;
+  }
+
+  /** `name` rolls `notation` in the note (a table's `source` with it):
+   *  the server's roll, told to the window as the server relays it. */
+  roll(path: string, name: string, notation: string, source: string | null = null, faces: number[] | null = null): DiceRoll {
+    const read = readNotation(notation);
+    if (!read) throw new Error(`not a roll: ${notation}`);
+    let i = 0;
+    // A test may say what the dice show: face f is the 32-bit draw f - 1.
+    const draws = faces ? () => ((faces[i++] ?? 1) - 1) / 2 ** 32 : undefined;
+    const roll = this.keep(this.room(path), { ...rollHere(read, source, draws), by: name });
+    void emit("collab-roll", { path, roll });
+    return roll;
   }
 
   /** `name` types `text` at the end of the note: into the room, and told

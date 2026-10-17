@@ -78,23 +78,41 @@ base64 = "0.22"
 # verso-index (MIT OR Apache-2.0).
 unicode-normalization = "0.1"
 
-# webauthn-rs speaks OpenSSL: built into the binary on every Unix, so the
+# webauthn-rs speaks OpenSSL: built into the binary on every system, so the
 # `verso` a package or the app carries never looks for a system or
 # Homebrew libssl that a user's machine may not have (the release
 # rehearsal of 2026-10-10 found the macOS one linked to
-# /opt/homebrew/opt/openssl@3). Windows has no server (ADR 0075 item 2):
-# verso-cli leaves this crate out there.
-[target.'cfg(unix)'.dependencies]
+# /opt/homebrew/opt/openssl@3). On Windows too (ADR 0075 item 2, revised
+# 2026-10-15): the build needs Perl, which `openssl-src` runs to configure
+# OpenSSL (NASM is not needed: assembly is off when it is missing).
+# "This app is a server" (ADR 0096; the local mode of the desktop app, crates
+# verso-server/src/local). Each is justified where it is used:
+# - rcgen (MIT OR Apache-2.0): the app's own self-signed certificate (item 5
+#   (a)); already in the tree as this crate's test dependency (ring, pem), now
+#   also shipped. It replaces nothing of ours: nothing made certificates.
+# - qrcode (MIT OR Apache-2.0): the pairing QR (item 6), the matrix only
+#   (no image encoder; the SVG is drawn here). Nothing of ours encoded QR.
+# - mdns-sd (MIT OR Apache-2.0): the `_verso-local._tcp` announcement while
+#   the pairing dialog is open (item 8), a pure-Rust responder with no async
+#   runtime of its own (default features off). Nothing of ours spoke mDNS.
+# - if-addrs (MIT OR BSD-3-Clause): the machine's interface addresses and
+#   netmasks (items 3, 10), which std cannot list; it is already mdns-sd's own
+#   dependency, so it adds no crate to the tree.
+rcgen = { version = "0.14", default-features = false, features = ["ring", "pem"] }
+qrcode = { version = "0.14", default-features = false }
+mdns-sd = { version = "0.21", default-features = false }
+if-addrs = "0.15"
+
 openssl = { version = "0.10", features = ["vendored"] }
 
 [dev-dependencies]
 tempfile = "3.27"
+# A directory made unwritable for the tests of storage.rs and tests_http.rs.
+verso-fs = { path = "../verso-fs", features = ["test-util"] }
 # The server driven as a window drives it: HTTP and the contract's
 # WebSocket, in tests only; both already in the tree.
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
-# A certificate made for the TLS test (MIT OR Apache-2.0).
-rcgen = { version = "0.14", default-features = false, features = ["ring", "pem"] }
-tokio-tungstenite = "0.29"
+tokio-tungstenite = { version = "0.29", features = ["rustls-tls-native-roots"] }
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
 # fail2ban's filter of packaging/server/fail2ban/ run over the server's own
 # log lines, as fail2ban runs it (ADR 0083 item 1): a regular expression

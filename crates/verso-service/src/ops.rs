@@ -13,9 +13,10 @@
 //! them.
 
 use verso_contract::{
-    Backlink, BaseColumn, BaseGroup, BaseProblem, BaseProblemKind, BaseQuery, BaseResult, BaseRow,
-    BaseView, ContractError, Edge, EntryLabel, ErrorKind, FileEntry, FileKind, Focus,
-    FocusesSummary, FolderLayer, FolderSettings, FolderSpace, Hit, Link, MovedEntries, NoteText,
+    Backlink, BaseColumn, BaseError, BaseGroup, BaseProblem, BaseProblemKind, BaseQuery,
+    BaseResult, BaseRow, BaseView, ContractError, Edge, EntryLabel, ErrorKind, FileEntry, FileKind,
+    Focus, FocusesSummary, FolderLayer, FolderSettings, FolderSpace, Hit, Link, MapInfo, MapState,
+    Mention, Mentions, MovedEntries, NoteText, ObsidianPeriodic, PeriodSettings, PeriodicSettings,
     RefusedEntry, Renamed, Tag, TextFile, Trashed, WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
@@ -147,51 +148,25 @@ ops! {
 
     /// Full-text search: every word must occur, accents and case ignored.
     Read fn search(ws, words: String, limit: u32) -> Vec<Hit> {
-        Ok(ws
-            .search(&words, usize::try_from(limit.clamp(1, 200)).unwrap_or(20))?
-            .into_iter()
-            .map(|h| Hit {
-                path: h.path,
-                snippet: h.snippet,
-            })
-            .collect())
+        Ok(hits_out(ws.search(&words, search_limit(limit))?))
     }
 
     /// The links a note makes; empty when the index does not know it.
     Read fn links(ws, path: String) -> Vec<Link> {
-        Ok(ws
-            .links(&path)?
-            .unwrap_or_default()
-            .into_iter()
-            .map(|l| Link {
-                target: l.target,
-                resolved: l.resolved,
-                embed: l.embed,
-                heading: l.heading,
-                block: l.block,
-                alias: l.alias,
-                line: l.line,
-                col: l.col,
-                outside: false,
-            })
-            .collect())
+        Ok(links_out(ws.links(&path)?))
     }
 
     /// The notes that link to this one; empty when the index does not know
     /// it.
     Read fn backlinks(ws, path: String) -> Vec<Backlink> {
-        Ok(ws
-            .backlinks(&path)?
-            .unwrap_or_default()
-            .into_iter()
-            .map(|b| Backlink {
-                from: b.from,
-                target: b.target,
-                embed: b.embed,
-                line: b.line,
-                col: b.col,
-            })
-            .collect())
+        Ok(backlinks_out(ws.backlinks(&path)?))
+    }
+
+    /// The note's unlinked mentions, as occurrences (ADR 0089 item 1). It
+    /// reads: the link is written by the window, as any edit, over the
+    /// revision it read (invariant 11).
+    Read fn unlinked_mentions(ws, path: String) -> Mentions {
+        Ok(mentions_out(ws.unlinked_mentions(&path)?))
     }
 
     /// Write a note's text over the revision that was read — atomically, no
@@ -212,11 +187,7 @@ ops! {
 
     /// Every tag of the folder, by count, with the notes that carry it.
     Read fn list_tags(ws) -> Vec<Tag> {
-        Ok(ws
-            .tags()?
-            .into_iter()
-            .map(|(name, notes)| Tag { name, notes })
-            .collect())
+        Ok(tags_out(ws.tags()?))
     }
 
     /// The notes that are web pages, with their addresses.
@@ -230,11 +201,7 @@ ops! {
 
     /// Every resolved link of the folder: its graph.
     Read fn graph(ws) -> Vec<Edge> {
-        Ok(ws
-            .graph()?
-            .into_iter()
-            .map(|(from, to)| Edge { from, to })
-            .collect())
+        Ok(edges_out(ws.graph()?))
     }
 
     /// Every folder of the open folder, empty ones included.
@@ -287,49 +254,7 @@ ops! {
     /// Every entry of the folder as the last walk saw it, with kind, size
     /// and date.
     Read fn list_entries(ws) -> Vec<FileEntry> {
-        let labels = ws.labels()?;
-        // A folder's labels are its folder note's: the first of the core's
-        // candidates that is a note, compared without case.
-        let notes: std::collections::HashMap<String, &str> = ws
-            .entries()
-            .iter()
-            .filter(|e| matches!(e.kind, verso_core::FileKind::Note))
-            .map(|e| (e.path.to_lowercase(), e.path.as_str()))
-            .collect();
-        Ok(ws
-            .entries()
-            .iter()
-            .map(|e| {
-                let label = match e.kind {
-                    verso_core::FileKind::Folder => {
-                        verso_core::folder_note_candidates(&e.path, ws.folder_note_name())
-                            .iter()
-                            .find_map(|c| notes.get(&c.to_lowercase()))
-                            .and_then(|found| labels.get(*found))
-                    }
-                    _ => labels.get(&e.path),
-                }
-                .map(|l| EntryLabel {
-                    sticker: l.sticker.clone(),
-                    color: l.color.clone(),
-                    alias: l.alias.clone(),
-                    order: l.order.clone(),
-                    pinned: l.pinned.clone(),
-                });
-                FileEntry {
-                    path: e.path.clone(),
-                    kind: match e.kind {
-                        verso_core::FileKind::Note => FileKind::Note,
-                        verso_core::FileKind::File => FileKind::File,
-                        verso_core::FileKind::Folder => FileKind::Folder,
-                        verso_core::FileKind::Placeholder => FileKind::Placeholder,
-                    },
-                    size: e.len as f64,
-                    modified: e.modified as f64,
-                    label,
-                }
-            })
-            .collect())
+        entries_out(ws, ws.entries())
     }
 
     /// Rename or move anything of the folder; links to what moved come back
@@ -397,6 +322,18 @@ ops! {
         Ok(ws.board_preview(&path, &json)?)
     }
 
+    /// How the tiles of a map's picture stand (ADR 0090 item 4), starting
+    /// to cut a large PNG that is not yet. Never waits for the cutting.
+    Read fn map_open(ws, path: String) -> MapInfo {
+        Ok(map_info_out(ws.map_open(&path)?))
+    }
+
+    /// One tile of a map's picture, a PNG as base64; none when it is not
+    /// there (not cut yet, or outside the pyramid).
+    Read fn map_tile(ws, path: String, level: u32, x: u32, y: u32) -> Option<String> {
+        Ok(ws.map_tile(&path, level, x, y)?.map(|png| encode_base64(&png)))
+    }
+
     /// A base evaluated over the folder (ADR 0053).
     Read fn query_base(ws, query: BaseQuery) -> BaseResult {
         query_base_within(ws, query, Vec::new())
@@ -428,26 +365,7 @@ ops! {
 
     /// The space the folder takes (ADR 0075 item 4), from the last walk.
     Read fn folder_space(ws) -> FolderSpace {
-        let mut space = FolderSpace {
-            total: 0.0,
-            notes: 0.0,
-            attachments: 0.0,
-            files: 0,
-            index: ws.index_bytes()? as f64,
-        };
-        for e in ws.entries() {
-            let len = e.len as f64;
-            match e.kind {
-                verso_core::FileKind::Note => space.notes += len,
-                verso_core::FileKind::File | verso_core::FileKind::Placeholder => {
-                    space.attachments += len;
-                }
-                verso_core::FileKind::Folder => continue,
-            }
-            space.total += len;
-            space.files = space.files.saturating_add(1);
-        }
-        Ok(space)
+        space_of(ws, ws.entries())
     }
 
     /// The folder's layer of settings, `.verso/settings.json` (ADR 0070
@@ -472,8 +390,22 @@ ops! {
             folder_note_name: change.folder_note_name,
             ignore_build_dirs: change.ignore_build_dirs,
             respect_gitignore: change.respect_gitignore,
+            periodic: change.periodic.map(periodic_in),
         };
         Ok(layer_out(ws.set_folder_settings(&change, revision.as_deref())?))
+    }
+
+    /// Obsidian's settings for daily and periodic notes (ADR 0093 item
+    /// 11): `.obsidian/daily-notes.json` and
+    /// `.obsidian/plugins/periodic-notes/data.json`, each file's text when
+    /// it is there — read once, for Settings to offer, never written.
+    Read fn get_obsidian_periodic(ws) -> ObsidianPeriodic {
+        let o = ws.obsidian_periodic();
+        Ok(ObsidianPeriodic {
+            daily_notes: o.daily_notes,
+            periodic_notes: o.periodic_notes,
+            unavailable: o.unavailable,
+        })
     }
 
     /// Set whether focuses sync to `.space/waypoints.json` (ADR 0062 D5, D9).
@@ -492,6 +424,173 @@ pub fn query_base_within(
     query: BaseQuery,
     within: Vec<String>,
 ) -> Result<BaseResult, OpError> {
+    query_base_as(ws, query, within, false)
+}
+
+/// The bound of a search's answers.
+pub(crate) fn search_limit(limit: u32) -> usize {
+    usize::try_from(limit.clamp(1, 200)).unwrap_or(20)
+}
+
+pub(crate) fn hits_out(hits: Vec<verso_core::IndexHit>) -> Vec<Hit> {
+    hits.into_iter()
+        .map(|h| Hit {
+            path: h.path,
+            snippet: h.snippet,
+        })
+        .collect()
+}
+
+pub(crate) fn links_out(links: Option<Vec<verso_core::IndexLink>>) -> Vec<Link> {
+    links
+        .unwrap_or_default()
+        .into_iter()
+        .map(|l| Link {
+            target: l.target,
+            resolved: l.resolved,
+            embed: l.embed,
+            heading: l.heading,
+            block: l.block,
+            alias: l.alias,
+            line: l.line,
+            col: l.col,
+            outside: false,
+        })
+        .collect()
+}
+
+pub(crate) fn backlinks_out(links: Option<Vec<verso_core::IndexBacklink>>) -> Vec<Backlink> {
+    links
+        .unwrap_or_default()
+        .into_iter()
+        .map(|b| Backlink {
+            from: b.from,
+            target: b.target,
+            embed: b.embed,
+            line: b.line,
+            col: b.col,
+        })
+        .collect()
+}
+
+pub(crate) fn mentions_out(found: verso_core::Mentions) -> Mentions {
+    Mentions {
+        mentions: found
+            .mentions
+            .into_iter()
+            .map(|m| Mention {
+                path: m.path,
+                line: m.line,
+                col: m.col,
+                text: m.text,
+                before: m.before,
+                after: m.after,
+                alias: m.alias,
+                table: m.table,
+                secret: m.secret,
+            })
+            .collect(),
+        more: found.more,
+    }
+}
+
+pub(crate) fn tags_out(tags: Vec<(String, Vec<String>)>) -> Vec<Tag> {
+    tags.into_iter()
+        .map(|(name, notes)| Tag { name, notes })
+        .collect()
+}
+
+pub(crate) fn edges_out(edges: Vec<(String, String)>) -> Vec<Edge> {
+    edges
+        .into_iter()
+        .map(|(from, to)| Edge { from, to })
+        .collect()
+}
+
+/// `entries` — the last walk's, or a reader's — with their labels.
+pub(crate) fn entries_out(
+    ws: &Workspace,
+    entries: &[verso_core::FileEntry],
+) -> Result<Vec<FileEntry>, OpError> {
+    let labels = ws.labels()?;
+    // A folder's labels are its folder note's: the first of the core's
+    // candidates that is a note, compared without case.
+    let notes: std::collections::HashMap<String, &str> = entries
+        .iter()
+        .filter(|e| matches!(e.kind, verso_core::FileKind::Note))
+        .map(|e| (e.path.to_lowercase(), e.path.as_str()))
+        .collect();
+    Ok(entries
+        .iter()
+        .map(|e| {
+            let label = match e.kind {
+                verso_core::FileKind::Folder => {
+                    verso_core::folder_note_candidates(&e.path, ws.folder_note_name())
+                        .iter()
+                        .find_map(|c| notes.get(&c.to_lowercase()))
+                        .and_then(|found| labels.get(*found))
+                }
+                _ => labels.get(&e.path),
+            }
+            .map(|l| EntryLabel {
+                sticker: l.sticker.clone(),
+                color: l.color.clone(),
+                alias: l.alias.clone(),
+                aliases: l.aliases.clone(),
+                order: l.order.clone(),
+                pinned: l.pinned.clone(),
+            });
+            FileEntry {
+                path: e.path.clone(),
+                kind: match e.kind {
+                    verso_core::FileKind::Note => FileKind::Note,
+                    verso_core::FileKind::File => FileKind::File,
+                    verso_core::FileKind::Folder => FileKind::Folder,
+                    verso_core::FileKind::Placeholder => FileKind::Placeholder,
+                },
+                size: e.len as f64,
+                modified: e.modified as f64,
+                label,
+            }
+        })
+        .collect())
+}
+
+/// The space `entries` take, with the index's.
+pub(crate) fn space_of(
+    ws: &Workspace,
+    entries: &[verso_core::FileEntry],
+) -> Result<FolderSpace, OpError> {
+    let mut space = FolderSpace {
+        total: 0.0,
+        notes: 0.0,
+        attachments: 0.0,
+        files: 0,
+        index: ws.index_bytes()? as f64,
+    };
+    for e in entries {
+        let len = e.len as f64;
+        match e.kind {
+            verso_core::FileKind::Note => space.notes += len,
+            verso_core::FileKind::File | verso_core::FileKind::Placeholder => {
+                space.attachments += len;
+            }
+            verso_core::FileKind::Folder => continue,
+        }
+        space.total += len;
+        space.files = space.files.saturating_add(1);
+    }
+    Ok(space)
+}
+
+/// [`query_base_within`]; `reader`: as an account that may only read the
+/// folder asks it (ADR 0087 item 4).
+pub fn query_base_as(
+    ws: &mut Workspace,
+    query: BaseQuery,
+    within: Vec<String>,
+    reader: bool,
+) -> Result<BaseResult, OpError> {
     let core = verso_core::bases::BaseQuery {
         path: query.path,
         text: query.text,
@@ -503,6 +602,7 @@ pub fn query_base_within(
         offset_minutes: query.offset,
         lang: query.lang,
         within,
+        reader,
     };
     let r = ws.query_base(&core)?;
     Ok(base_result(r))
@@ -524,8 +624,51 @@ fn layer_out(l: verso_core::FolderLayer) -> FolderLayer {
             folder_note_name: l.settings.folder_note_name,
             ignore_build_dirs: l.settings.ignore_build_dirs,
             respect_gitignore: l.settings.respect_gitignore,
+            periodic: l.settings.periodic.map(periodic_out),
         },
         warnings: l.warnings,
+    }
+}
+
+fn period_in(p: PeriodSettings) -> verso_core::Period {
+    verso_core::Period {
+        on: p.on,
+        format: p.format,
+        folder: p.folder,
+        template: p.template,
+    }
+}
+
+fn period_out(p: verso_core::Period) -> PeriodSettings {
+    PeriodSettings {
+        on: p.on,
+        format: p.format,
+        folder: p.folder,
+        template: p.template,
+    }
+}
+
+fn periodic_in(p: PeriodicSettings) -> verso_core::Periodic {
+    verso_core::Periodic {
+        day: p.day.map(period_in),
+        week: p.week.map(period_in),
+        month: p.month.map(period_in),
+        quarter: p.quarter.map(period_in),
+        year: p.year.map(period_in),
+        week_start: p.week_start,
+        language: p.language,
+    }
+}
+
+fn periodic_out(p: verso_core::Periodic) -> PeriodicSettings {
+    PeriodicSettings {
+        day: p.day.map(period_out),
+        week: p.week.map(period_out),
+        month: p.month.map(period_out),
+        quarter: p.quarter.map(period_out),
+        year: p.year.map(period_out),
+        week_start: p.week_start,
+        language: p.language,
     }
 }
 
@@ -583,6 +726,10 @@ fn base_result(r: verso_core::bases::BaseResult) -> BaseResult {
                         K::Budget => BaseProblemKind::Budget,
                     },
                     detail: p.detail,
+                    error: p.error.map(|e| BaseError {
+                        kind: crate::convert::base_error_kind(e.kind),
+                        name: e.name,
+                    }),
                 }
             })
             .collect(),
@@ -598,6 +745,46 @@ pub fn board_text(json: &str) -> Result<String, ContractError> {
             kind: ErrorKind::NotCanvas,
             message: e.to_string(),
         })
+}
+
+fn map_info_out(m: verso_core::maptiles::MapInfo) -> MapInfo {
+    use verso_core::maptiles::MapState as Core;
+    MapInfo {
+        state: match m.state {
+            Core::Whole => MapState::Whole,
+            Core::Cutting => MapState::Cutting,
+            Core::Ready => MapState::Ready,
+            Core::Unsupported => MapState::Unsupported,
+            Core::Failed => MapState::Failed,
+        },
+        width: m.width,
+        height: m.height,
+        tile: m.tile,
+        levels: m.levels,
+        done: m.done as f64,
+        total: m.total as f64,
+        message: m.message,
+    }
+}
+
+/// Bytes to standard base64, padded.
+#[must_use]
+pub fn encode_base64(bytes: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let n = (u32::from(chunk[0]) << 16)
+            | (u32::from(chunk.get(1).copied().unwrap_or(0)) << 8)
+            | u32::from(chunk.get(2).copied().unwrap_or(0));
+        for (i, shift) in [18, 12, 6, 0].into_iter().enumerate() {
+            if i <= chunk.len() {
+                out.push(char::from(ALPHABET[((n >> shift) & 63) as usize]));
+            } else {
+                out.push('=');
+            }
+        }
+    }
+    out
 }
 
 /// Standard base64 (with or without padding) to bytes; `None` on a
@@ -625,4 +812,21 @@ pub fn decode_base64(s: &str) -> Option<Vec<u8>> {
         }
     }
     Some(out)
+}
+
+#[cfg(test)]
+mod base64_tests {
+    use super::{decode_base64, encode_base64};
+
+    #[test]
+    fn bytes_go_to_base64_and_back() {
+        assert_eq!(encode_base64(b""), "");
+        assert_eq!(encode_base64(b"f"), "Zg==");
+        assert_eq!(encode_base64(b"fo"), "Zm8=");
+        assert_eq!(encode_base64(b"foo"), "Zm9v");
+        for n in 0..40u8 {
+            let bytes: Vec<u8> = (0..n).map(|i| i.wrapping_mul(37)).collect();
+            assert_eq!(decode_base64(&encode_base64(&bytes)), Some(bytes));
+        }
+    }
 }

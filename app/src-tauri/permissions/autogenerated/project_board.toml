@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-project-board"
+description = "Enables the project_board command without any pre-configured scope."
+commands.allow = ["project_board"]
+
+[[permission]]
+identifier = "deny-project-board"
+description = "Denies the project_board command without any pre-configured scope."
+commands.deny = ["project_board"]

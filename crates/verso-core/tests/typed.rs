@@ -91,7 +91,7 @@ fn two_schemas_of_one_name_type_nothing_and_a_broken_one_says_so() {
     let _l = file(
         vault.path(),
         "Lugares.md",
-        "```verso-schema\ntype: lugar\nproperties:\n  - key: perigo\n    kind: link\n```\n",
+        "```verso-schema\ntype: lugar\nproperties:\n  - key: perigo\n    kind: relation\n```\n",
     );
     let _t = file(vault.path(), "Taverna.md", "---\ntype: lugar\n---\n");
     let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
@@ -285,4 +285,62 @@ fn a_type_within_folders_sees_only_the_schemas_under_them() {
         ws.note_type_within(BARAO, &["Outra".to_owned()]).unwrap(),
         None
     );
+}
+
+#[test]
+fn a_schema_names_its_layout_and_link_and_image_values_fit_or_are_marked() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _s = file(
+        vault.path(),
+        "PdM.md",
+        "```verso-schema\ntype: npc\nlayout: infobox\nproperties:\n  - key: retrato\n    kind: image\n  - key: aliados\n    kind: link\n  - key: mestre\n    kind: link\n  - key: brasão\n    kind: image\n```\n",
+    );
+    let roderick = "---\ntype: npc\nretrato: \"[[roderick.jpg|Lorde Roderick]]\"\naliados:\n  - \"[[Barão]]\"\n  - \"[[Irmã Cinza]]\"\nmestre: Barão\nbrasão: \"[[Barão]]\"\n---\n# Roderick\n";
+    let _r = file(vault.path(), "Roderick.md", roderick);
+    let _l = file(
+        vault.path(),
+        "Lugares.md",
+        "```verso-schema\ntype: lugar\nlayout: galeria\n```\n",
+    );
+    let _t = file(vault.path(), "Taverna.md", "---\ntype: lugar\n---\n");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    let Some(TypeState::Typed(s)) = ws
+        .read_note("Roderick.md")
+        .unwrap()
+        .note_type
+        .map(|t| t.state)
+    else {
+        panic!("typed");
+    };
+    assert_eq!(s.layout.as_deref(), Some("infobox"));
+    let props: Vec<(&str, &str, bool)> = s
+        .properties
+        .iter()
+        .map(|p| (p.key.as_str(), p.kind.as_str(), p.fits))
+        .collect();
+    assert_eq!(
+        props,
+        [
+            ("retrato", "image", true),
+            ("aliados", "link", true),
+            // Not a wikilink, and a wikilink to a note: shown as written,
+            // marked (ADR 0052 point 6, ADR 0086 item 1).
+            ("mestre", "link", false),
+            ("brasão", "image", false),
+        ]
+    );
+    // A layout this build does not know: no layout, and the schema types.
+    let Some(TypeState::Typed(l)) = ws
+        .read_note("Taverna.md")
+        .unwrap()
+        .note_type
+        .map(|t| t.state)
+    else {
+        panic!("typed");
+    };
+    assert_eq!(l.layout, None);
+    // Reading wrote nothing (invariant 7; ADR 0086 item 4).
+    assert_eq!(on_disk(vault.path(), "Roderick.md"), roderick);
 }

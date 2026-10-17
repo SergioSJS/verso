@@ -12,8 +12,11 @@ import { readCode } from "./deviceCode";
 import { nextPath } from "./nextPath";
 import { afterWaits } from "./retry";
 import { passkeysHere, signInWithPasskey } from "./passkeys";
+import { noNetwork, offline } from "./offline/manager";
+import { o } from "./offline/strings";
 import { roleName, setLang, w } from "./strings";
 import { icon } from "../icons";
+import { plainHttpLine } from "./plainHttp";
 
 function explain(e: unknown): string {
   return e instanceof ApiError ? e.said : w().failed;
@@ -32,7 +35,7 @@ function next(): string {
 
 type SignedIn = { account: Account; csrf: string };
 
-export function signInPage(secure: boolean, mail = false): void {
+export function signInPage(mail = false): void {
   const s = w();
   const email = field(s.email, "email", { autocomplete: "username", required: "" });
   const password = field(s.password, "password", { autocomplete: "current-password", required: "" });
@@ -93,7 +96,8 @@ export function signInPage(secure: boolean, mail = false): void {
   const others = !withKey.hidden || mail;
   page(
     s.signInTitle,
-    lead(secure ? s.signInLead : s.tlsRequired),
+    lead(s.signInLead),
+    plainHttpLine(s.plainHttpSignIn) ?? el("span"),
     f.form,
     others ? divider(s.orDivider) : el("span"),
     el("div", { class: "web-others" }, withKey, mailLink),
@@ -128,7 +132,7 @@ export function setupPage(): void {
     },
     explain,
   );
-  page(s.setupTitle, lead(s.setupLead), f.form);
+  page(s.setupTitle, lead(s.setupLead), plainHttpLine(s.plainHttpSignIn) ?? el("span"), f.form);
   email.input.focus();
 }
 
@@ -166,6 +170,7 @@ export async function invitePage(token: string): Promise<void> {
   page(
     s.inviteTitle,
     lead(s.inviteLead),
+    plainHttpLine(s.plainHttpSignIn) ?? el("span"),
     offer.folder && offer.role ? el("p", { class: "web-lead" }, s.inviteFolder(offer.folder, roleName(offer.role))) : el("span"),
     f.form,
   );
@@ -190,7 +195,7 @@ export async function resetPage(token: string): Promise<void> {
     },
     explain,
   );
-  page(s.resetTitle, lead(s.resetLead(link.email)), f.form);
+  page(s.resetTitle, lead(s.resetLead(link.email)), plainHttpLine(s.plainHttpSignIn) ?? el("span"), f.form);
   password.input.focus();
 }
 
@@ -305,7 +310,10 @@ function askPage(account: Account, what: Asked): void {
       } finally {
         waiting.done();
       }
-      page(s.deviceTitle, lead(s.deviceDone));
+      // The app was let in; this browser may go on to the window itself
+      // (the maintainer, 2026-10-16: no way back from here).
+      const open = el("a", { href: "/", class: "web-primary web-open" }, s.deviceOpen);
+      page(s.deviceTitle, lead(s.deviceDone), open);
     },
     explain,
   );
@@ -393,7 +401,18 @@ export function chooseFolder(): Promise<string | null> {
         list.querySelector("button")?.focus();
       })
       .catch((e: unknown) => {
-        list.append(el("li", { role: "alert" }, explain(e)));
+        // No network: the folders kept on this device open without it (ADR
+        // 0092 item 2).
+        const kept = noNetwork(e) ? offline.choices() : [];
+        if (kept.length > 0) {
+          list.append(el("li", { class: "web-folders-head", role: "presentation" }, o().chooseOffline));
+          for (const f of kept) {
+            const b = el("button", { type: "button", class: "web-folder" }, icon("folder"), el("span", {}, f.name), el("small", {}, roleName(f.role)));
+            b.addEventListener("click", () => close(f.id));
+            list.append(el("li", {}, b));
+          }
+          list.querySelector("button")?.focus();
+        } else list.append(el("li", { role: "alert" }, noNetwork(e) ? o().nothingKept : explain(e)));
         dialog.append(el("div", { class: "web-actions" }, cancel));
       });
     document.body.append(dialog);
@@ -431,4 +450,70 @@ export async function signInLinkPage(token: string): Promise<void> {
   go?.setAttribute("aria-describedby", "link-ask link-ask-why");
   page(s.signInTitle, question, el("p", { id: "link-ask-why", class: "web-lead" }, s.linkSignInWhy), f.form);
   go?.focus();
+}
+
+/* ---------- Pairing a phone with the computer that serves it (ADR 0096) ---------- */
+
+/** How often a phone asks whether the computer answered. */
+const PAIR_POLL_MS = 2000;
+
+/** The pairing page: the QR's address carries the token in its fragment,
+ *  which the browser never sends in a request; it is read here and taken
+ *  out of the address bar at once. Without a token, the code is typed. */
+export function pairPage(): void {
+  const s = w();
+  const token = new URLSearchParams(location.hash.slice(1)).get("t");
+  // The secret leaves the address bar, the history and the screen.
+  history.replaceState(null, "", "/pair");
+  if (token) {
+    void redeem(token);
+    return;
+  }
+  const code = field(s.pairCodeLabel, "text", { autocomplete: "off", autocapitalize: "characters", spellcheck: "false", maxlength: "20", required: "" }, s.pairCodeHint);
+  const f = form(
+    [code],
+    s.pairContinue,
+    async () => {
+      await redeem(code.input.value);
+    },
+    explainPair,
+  );
+  page(s.pairTitle, lead(s.pairLead), el("p", { class: "web-lead" }, s.pairHow), f.form, el("p", { class: "web-note" }, s.pairTofu));
+  code.input.focus();
+}
+
+function explainPair(e: unknown): string {
+  const s = w();
+  if (e instanceof ApiError) {
+    if (e.status === 404) return s.pairClosed;
+    if (e.code === "link_gone") return s.pairGone;
+  }
+  return explain(e);
+}
+
+/** Show the computer's question on the phone and wait for its answer. */
+async function redeem(presented: string): Promise<void> {
+  const s = w();
+  const status = el("p", { class: "web-lead", role: "status", "aria-live": "polite" }, s.pairAsking);
+  const why = el("p", { class: "web-lead" }, s.pairAskingWhy);
+  page(s.pairTitle, status, why);
+  try {
+    const asked = await api<{ poll: string; interval: number }>("POST", "/api/pair", { token: presented });
+    for (;;) {
+      await new Promise((r) => setTimeout(r, Math.max(PAIR_POLL_MS, asked.interval * 1000)));
+      const r = await api<{ state: string; csrf?: string }>("POST", "/api/pair/poll", { poll: asked.poll });
+      if (r.state === "allowed") {
+        setCsrf(r.csrf ?? null);
+        status.textContent = s.pairAllowed;
+        location.replace("/");
+        return;
+      }
+    }
+  } catch (e) {
+    const refused = e instanceof ApiError && e.code === "link_gone";
+    status.textContent = refused ? s.pairGone : explainPair(e);
+    why.textContent = "";
+    status.classList.add("web-error");
+    status.setAttribute("role", "alert");
+  }
 }

@@ -171,6 +171,21 @@ as written. Sizes: S is hours, M a day or two, L more.
    every visitor one address. `crates/verso-server/src/config.rs`,
    `auth.rs` (`peer`), `listen.rs` (`Slots::take`). Guardrail: unit tests
    of the walk (two hops, a spoofed left entry, an address in a CIDR). Size S.
+   *(Amended on 2026-10-16, quoting the maintainer in
+   [0073](0073-self-hosted-server-first.md)'s Revisions: an empty
+   `VERSO_TRUSTED_PROXY` no longer means "none is believed" but "a proxy on
+   loopback or a private network is" — 127.0.0.0/8, ::1, 10.0.0.0/8,
+   172.16.0.0/12, 192.168.0.0/16, fc00::/7; a value replaces that list and
+   `none` believes no proxy. The connection limit of `Slots` still exempts
+   only loopback and the proxies the host named, and the warning of a
+   trusted proxy that forwards nothing is said only of a named one. The
+   consequence, plainly: a client on a private network can
+   forge `X-Forwarded-For` and be counted under the address it writes — and
+   in Docker a visitor who comes through a port published through docker-proxy (a loopback-published port, a hairpin, IPv6 onto an IPv4 bridge, Docker Desktop, rootless Docker) arrives from the bridge gateway (172.16.0.0/12), which the default believes, so an internet client can; rootful Linux Docker with iptables NAT keeps the client's address, and is not affected. Only a loopback socket that forwarded nothing is exempt from
+   the pace, the in-flight cap and the WebSocket cap; a forwarded `127.0.0.1`
+   is counted like any other address. An attacker who rotates forged
+   addresses still defeats the per-address limits; the account's own delay
+   and the lock hold. Name the real proxies, or `none`, to close it. Item 5's other words stand.)*
 
 6. **A fresh proof before a sensitive action** (F15, and the device
    page's approval). Creating a token, adding or removing a passkey,
@@ -365,6 +380,97 @@ as written. Sizes: S is hours, M a day or two, L more.
     of connections, of sign-ins and of commands, and recorded in
     `docs/reference/server-install.md` section 15 with the date; a number
     the measurement contradicts is changed in the same PR. Size M.
+
+    *Measured 2026-10-15* (what normal use costs and whether it fits;
+    **no flood was run**: nothing here was aimed at overwhelming the
+    server or going around a protection, and every number below is for
+    use the server is meant to take). Lab: VM 107 on the Proxmox host,
+    1 core, 1 GB, Ubuntu 26.04, the release's static musl binary from the
+    `.deb` of 0.8.2-beta.1 installed by `universo.sh` (Path 1 of lesson
+    24), no swap, systemd's default 1 024 open files. The kit's
+    `scripts/server-load.mjs` ran from a Mac over an SSH tunnel to the
+    loopback, with `X-Forwarded-For` and `X-Forwarded-Proto: https` of
+    one fixed household address, as Caddy would send them
+    (`VERSO_TRUSTED_PROXY=127.0.0.1`), because a connection from
+    loopback itself is exempt from the per-address limits and would hide
+    them. Three accounts (the admin, two editors), devices spread evenly,
+    120 s a run (60 s flat out), every read checked byte for byte
+    (0 mismatches in 5 runs; the kit's check of the files on the
+    server's disk was not run, the disk being on the other machine). The
+    only errors were `put_hot:changed`, the shared note's refusals by
+    design. Sampled once a second on the VM. The lab's disk is slow: a
+    synchronous 4 KiB write takes about 26 ms (`dd oflag=dsync`), so the
+    write figures below are the lab's disk, not the server's ceiling; a
+    cloud VPS with an SSD will be several times faster.
+
+    | Run | Devices | Ops/s | Write p50 / p95 (ms) | Read p50 / p95 (ms) | Process CPU avg / max | System CPU busy / iowait | RSS peak (MB) |
+    |---|---|---|---|---|---|---|---|
+    | idle, after start | 0 | 0 | | | 0 % | | 13 |
+    | 48 connected, idle | 48 | 0 | | | 4 % | | 53 (139 while connecting) |
+    | household, 1 op/s each | 12 | 9 | 314 / 1 430 | 71 / 554 | 11 % / 69 % | n/a | 104 |
+    | 2 op/s each | 24 | 14 | 1 397 / 4 656 | 125 / 1 366 | 38 % / 86 % | 50 % / 48 % | 202 |
+    | 2 op/s each | 48 | 14 | 3 611 / 8 045 | 116 / 1 189 | 40 % / 91 % | 55 % / 44 % | 274 |
+    | flat out | 12 | 16 | 966 / 2 472 | 89 / 221 | 35 % / 87 % | 47 % / 52 % | 143 |
+    | flat out | 48 | 15 | 4 335 / 9 900 | 103 / 299 | 42 % / 90 % | 57 % / 43 % | 255 |
+
+    The writes saturate near 15 a second whatever the number of devices
+    (the wait grows with the queue; one folder writes one file at a
+    time), and the process is waiting on the disk, not computing. A
+    change-list question is 5 to 8 ms at p50 and 13 to 69 ms at p95.
+    Memory is not the constraint: 290 MB the highest RSS in the whole
+    session (the allocator keeps what it took; a restart gives 13 MB
+    back), at least 490 MB of the 956 left, 122 descriptors of 1 024.
+    Sign-in costs 100 to 190 ms (the password hash); `/api/state` 3 ms
+    at p50. A folder of 3 000 notes (12 MB): first open, with the index
+    built, 4.5 s; list 33 ms; tag list 336 ms; search p50 37 ms, p95
+    73 ms; backlinks p50 113 ms, p95 221 ms; a note read 8 ms; 82 % CPU
+    during that window, RSS from 39 to 63 MB. A fresh device's first
+    sync of the same folder, 3 000 files, 12 MB: the change list in
+    three pages (the first 1.4 s while the folder was scanned, the rest
+    40 ms), then 26 s of reads, 115 files a second, whether one at a time
+    or eight in flight.
+
+    | Limit (item) | Number | Normal use reached it? | Verdict |
+    |---|---|---|---|
+    | Sign-in notice (2) | 20 failures an hour | no: three wrong passwords are free, then 1 s and doubling; twenty take 12 minutes of trying | fits |
+    | Failed sign-ins on the server (2) | 10 a second, 50 at once | no: only failures count | fits for people; **too loose for this host** by arithmetic, not tested by a flood: a hash is 100 to 190 ms on the core, so 10 a second is more than one core can verify |
+    | REST pace per address (7) | 20 a second, 100 at once | no: a sign-in, a pairing and 40 state reads stayed far under; a browser's own count of `/api/` calls on opening the window was not measured (no browser run) | fits |
+    | WebSockets per account, per address (fair.rs) | 32, 64 | no: 16 and 48 held together from one address | fits |
+    | Connections, per address (listen.rs) | 512, 128 | no: 122 descriptors at the peak | fits |
+    | Commands per account (fair.rs) | 100 a second, 400 at once | **yes**, by a fresh device's first sync of a big folder: the log said `account … sends commands past 100 a second: they wait their turn` and 3 000 reads took 26 s (400 + 100 x 26) | too tight for a first sync of thousands of files (a wait, never a refusal); a folder of 10 000 would take about 85 s |
+    | Commands on the server (fair.rs) | 1 000 a second, 2 000 at once | no: 115 a second at the most, reads of one account | fits, but it does not bound the queue on this host: the writes saturate at 15 a second, 60 times lower, and the wait is the one folder's |
+    | A device pairing (the per-key delay of item 2) | 3 free, then 1 s doubling to 60 s | **yes**, from the fourth pairing in an hour from one address: waits of 2, 4, 16, 32 and 60 s seen on `approve` | too tight for a household setting up its devices in one evening |
+
+    Proposals, for the maintainer to decide (no code was changed):
+    (a) lower the failed-sign-in bucket to about 4 a second sustained and
+    20 at once, so that a flood at the bucket's rate no longer takes the
+    whole core; (b) give a first sync room: count a batch of reads for one
+    command, or raise the account's burst to a few thousand, or keep
+    100 a second and say in the app that the wait is expected; (c) count
+    only failures against the pairing delay, or give `device:` keys six
+    free; (d) say in the install guide that on a disk this slow, writes
+    top out near 15 a second and that is the disk. Not measured: the
+    CPU and the latency behind a real proxy (Caddy on the IP and
+    Tailscale cannot be done in the lab), a browser, a phone, a flood of
+    connections or sign-ins, the 4 MB room-update bound.
+
+    *Decided 2026-10-15* (the maintainer, "aceito todas recomendações"),
+    built on `feat/decisions-1015`: (a) the failed-sign-in bucket is 4 a
+    second sustained and 20 at once (`signin.rs`: `FAILED_RATE`,
+    `FAILED_BURST`); (b) the `sync_read`s of an account have an allowance
+    of their own, 1 000 a second and 4 000 at once (`fair.rs`:
+    `READ_RATE`, `READ_BURST`), apart from the 100 and 400 of its other
+    commands, which they neither wait behind nor spend; the server's pace
+    (1 000 and 2 000) still counts every one, and a flood of reads past
+    the allowance waits like any other command, so a hostile account stays
+    bounded; a first sync of 3 000 files is then paced by the server's
+    burst (about a second), not 26 s; (c) only failed attempts grow the
+    pairing delay of a `device:` key: a start counts nothing, a wrong
+    code or poll secret still does, and a flood of codes is bounded by
+    the codes one address may keep waiting and by the REST pace; (d) the
+    install guide says that a slow disk bounds writes (about 15 a second
+    on a disk doing 26 ms per synchronous 4 KiB write) and how to check a
+    disk.
 
 19. **Validation in a hostile lab.** Decided by the maintainer on
     2026-10-13, in the same answer that accepted the recommendations:
@@ -696,7 +802,10 @@ decided by the maintainer on 2026-10-13 (*"sobre as decisões em aberto,
 siga as recomendações"*, on the open decisions, follow the
 recommendations): `packaging/server/docker-compose.yml` publishes 7340 on
 `127.0.0.1` by default (`host_ip`), TLS in front — Caddy, a tunnel or
-Tailscale. Its comment says the one line to change to publish on the
+Tailscale. *(Superseded on 2026-10-16: it publishes `7340:7340` on every
+address and plain HTTP signs in from the network, with the maintainer's
+words in [0073](0073-self-hosted-server-first.md)'s Revisions; the
+guardrail then checks that binding and that no variable is required.)* Its comment says the one line to change to publish on the
 LAN, for a CasaOS box on a home network, and that plain HTTP on the LAN
 signs nobody in from another machine anyway
 ([0073](0073-self-hosted-server-first.md) item 6).

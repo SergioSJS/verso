@@ -38,6 +38,7 @@ body.web-mode { display: block; overflow: auto; height: auto; min-height: 100dvh
   font: inherit; font-size: .93rem; width: 100%; min-height: 42px; padding: .5rem 1rem; border-radius: 8px; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
 }
+.web-btn-text { text-align: center; overflow-wrap: anywhere; }
 .web-primary { font-weight: 600; color: var(--seal-ink); background: var(--seal); border: 1px solid var(--seal); margin-top: .2rem; }
 .web-primary:hover:not(:disabled) { filter: brightness(1.08); }
 .web-secondary { color: var(--ink); background: var(--paper); border: 1px solid var(--hair); }
@@ -119,6 +120,19 @@ body.web-mode { display: block; overflow: auto; height: auto; min-height: 100dvh
   font-size: .88rem; background: var(--ink); color: var(--paper); padding: .55rem 1rem; border-radius: 8px; box-shadow: 0 8px 24px -8px oklch(0% 0 0 / .35); }
 .web-notice[data-kind="error"] { background: var(--seal); color: var(--seal-ink); }
 
+/* ---------- Plain HTTP, said (ADR 0073 item 6, amended 2026-10-16) ---------- */
+.plain-http-line { margin: 0 0 1rem; font-size: .8rem; line-height: 1.45; color: var(--ink-3); }
+.plain-http-how { align-self: auto; display: inline; border: 0; background: none; padding: 0; font: inherit; color: var(--seal); text-decoration: underline; cursor: pointer; }
+.plain-http-bar { position: fixed; top: max(8px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 999; max-width: calc(100vw - 32px); box-sizing: border-box;
+  display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .5rem; padding: .35rem .5rem .35rem .8rem; font-size: .8rem; line-height: 1.4;
+  background: var(--paper); color: var(--ink-2); border: 1px solid var(--hair); border-radius: 8px; box-shadow: 0 8px 24px -10px oklch(0% 0 0 / .3); }
+.plain-http-close { min-width: 28px; min-height: 28px; border: 0; background: transparent; color: var(--ink-3); font-size: 1.1rem; line-height: 1; border-radius: 6px; cursor: pointer; }
+.plain-http-close:hover { background: var(--paper-2); color: var(--ink); }
+.plain-http-dialog { max-width: min(30rem, calc(100vw - 32px)); padding: 1.2rem 1.4rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 12px; }
+.plain-http-dialog::backdrop { background: oklch(0% 0 0 / .4); }
+.plain-http-dialog h2 { margin: 0 0 .6rem; font-family: var(--display); font-size: 1.2rem; }
+.plain-http-dialog p { margin: 0 0 .8rem; font-size: .9rem; line-height: 1.5; color: var(--ink-2); }
+
 /* ---------- The foot of the side bar, on a phone ---------- */
 .side-foot { display: none; }
 @media (max-width: 760px) {
@@ -129,7 +143,7 @@ body.web-mode { display: block; overflow: auto; height: auto; min-height: 100dvh
 
 @media (forced-colors: active) {
   .web-primary { border: 2px solid ButtonText; }
-  .web-notice, .web-auth .web-card { border: 2px solid CanvasText; }
+  .web-notice, .web-auth .web-card, .plain-http-bar { border: 2px solid CanvasText; }
 }
 
 /* ---------- The administration console (ADR 0077) ----------
@@ -210,3 +224,17 @@ body.web-mode { display: block; overflow: auto; height: auto; min-height: 100dvh
   .console-bar { border: 1px solid CanvasText; }
   .console-badge { border: 1px solid CanvasText; }
 }
+
+/* ---------- A folder kept on this device, answered while offline (ADR 0092 item 4) ---------- */
+/* What the window computes from the notes it keeps — the links, the graph —
+   says so beside its heading, in the person's language (--offline-mark). */
+html[data-offline] .links-section .links-head::after,
+html[data-offline] .graph-head::after { content: " — " var(--offline-mark); font-weight: 400; font-size: .85em; color: var(--ink-3); }
+/* The way on from "Pronto" to the window (a link drawn as the button). */
+.web-open { text-decoration: none; box-sizing: border-box; }
+/* What is off without HTTPS, one per line; the mark that stays in the
+   status bar while the page is on plain HTTP. */
+.plain-http-off { margin: 0 0 .8rem; padding-inline-start: 1.2rem; display: flex; flex-direction: column; gap: .35rem; font-size: .9rem; color: var(--ink-2); }
+.status-plain-http { flex: none; display: inline-flex; align-items: center; gap: .3rem; padding: .1rem .45rem; font: inherit; font-size: .78rem; color: var(--seal); border-radius: 4px; }
+.status-plain-http .icon { width: 12px; height: 12px; }
+.status-plain-http:hover { background: var(--paper-2); }

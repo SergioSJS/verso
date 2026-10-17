@@ -4,6 +4,7 @@
 
 import { exportToBlob, exportToSvg } from "@excalidraw/excalidraw";
 import { type JSX, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useRef, useState } from "react";
+import { mapStrings } from "./mapStrings";
 import { type Crop } from "./model";
 import { dataUrlOf, PICTURE, pictureScene } from "./pictures";
 import { type BoardStrings } from "./strings";
@@ -132,21 +133,30 @@ export function CropDialog({ src, crop, strings: s, onApply, onClose }: { src: s
 /** Excalidraw's export dialog drew each card as an empty web embed; this
  *  one draws the board as it reads (`pictureScene`), and saves the picture
  *  in the folder, in Downloads, or copies it. */
-export function ExportDialog({ api, host, selected, onClose }: { api: Api; host: BoardHost; selected: readonly string[]; onClose: () => void }): JSX.Element {
+export function ExportDialog({ api, host, selected, secretIds, onClose }: { api: Api; host: BoardHost; selected: readonly string[]; secretIds?: () => Promise<ReadonlySet<string>>; onClose: () => void }): JSX.Element {
   const s = host.strings;
+  const ms = mapStrings(host.lang);
+  // A board with secret cards asks whether to leave them out of the
+  // picture, left out by default (ADR 0090 item 6).
+  const [leaveOut, setLeaveOut] = useState(true);
   const [format, setFormat] = useState<"png" | "svg">("png");
   const [scale, setScale] = useState(2);
   const [background, setBackground] = useState(true);
   const [dark, setDark] = useState(false);
   const [only, setOnly] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  // The previews' URLs, oldest first: one is revoked only once a newer one
+  // is drawn. Revoked while its picture is still shown, WebKit may ask for
+  // it again and fail (seen in the window's tests, 2026-10-16).
+  const urls = useRef<string[]>([]);
   const [busy, setBusy] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const hasSelection = selected.length > 0;
 
   const render = useCallback(
     async (fmt: "png" | "svg", k: number): Promise<Blob> => {
-      const { elements, files } = await pictureScene(api, host, only && hasSelection ? selected : null);
+      const omit = secretIds && leaveOut ? await secretIds() : null;
+      const { elements, files } = await pictureScene(api, host, only && hasSelection ? selected : null, omit);
       const bg = api.getAppState().viewBackgroundColor;
       const appState = {
         exportBackground: background,
@@ -167,25 +177,40 @@ export function ExportDialog({ api, host, selected, onClose }: { api: Api; host:
         getDimensions: (w: number, h: number) => ({ width: w * k, height: h * k, scale: k }),
       });
     },
-    [api, host, only, hasSelection, selected, background, dark],
+    [api, host, only, hasSelection, selected, background, dark, secretIds, leaveOut],
   );
 
   useEffect(() => {
     let gone = false;
-    let url: string | null = null;
     void render("png", 1).then(
       (blob) => {
         if (gone) return;
-        url = URL.createObjectURL(blob);
+        const url = URL.createObjectURL(blob);
+        urls.current.push(url);
         setPreview(url);
       },
       () => !gone && host.status(s.exportFailed),
     );
     return () => {
       gone = true;
-      if (url) URL.revokeObjectURL(url);
     };
   }, [render, host, s]);
+
+  useEffect(
+    () => () => {
+      for (const url of urls.current) URL.revokeObjectURL(url);
+      urls.current = [];
+    },
+    [],
+  );
+
+  /** `src` is drawn: the previews before it are revoked. */
+  const drawn = (src: string): void => {
+    const at = urls.current.indexOf(src);
+    if (at <= 0) return;
+    for (const url of urls.current.slice(0, at)) URL.revokeObjectURL(url);
+    urls.current = urls.current.slice(at);
+  };
 
   useEffect(() => {
     box.current?.querySelector<HTMLElement>("button, input")?.focus();
@@ -226,7 +251,9 @@ export function ExportDialog({ api, host, selected, onClose }: { api: Api; host:
         host.status(s.exportCopied);
         onClose();
       } catch {
-        host.status(s.exportCopyFailed);
+        // Over plain HTTP the image clipboard does not exist (ADR 0073 item
+        // 6, amended 2026-10-16): said as what it is, not as a failure.
+        host.status(window.isSecureContext ? s.exportCopyFailed : s.exportCopyNeedsHttps);
       }
     });
 
@@ -244,7 +271,7 @@ export function ExportDialog({ api, host, selected, onClose }: { api: Api; host:
       <div className="board-export-box" role="dialog" aria-modal="true" aria-label={s.exportTitle} ref={box}>
         <h2>{s.exportTitle}</h2>
         <div className="board-export-preview" aria-hidden="true">
-          {preview ? <img src={preview} alt="" /> : <span>{s.exportRendering}</span>}
+          {preview ? <img src={preview} alt="" onLoad={() => drawn(preview)} /> : <span>{s.exportRendering}</span>}
         </div>
         <div className="board-export-options">
           <div className="board-export-row" role="radiogroup" aria-label={s.exportFormat}>
@@ -274,6 +301,11 @@ export function ExportDialog({ api, host, selected, onClose }: { api: Api; host:
           <label className={hasSelection ? "" : "is-off"}>
             <input type="checkbox" disabled={!hasSelection} checked={only && hasSelection} onChange={(e) => setOnly(e.currentTarget.checked)} /> {s.exportSelection}
           </label>
+          {secretIds && (
+            <label>
+              <input type="checkbox" checked={leaveOut} onChange={(e) => setLeaveOut(e.currentTarget.checked)} data-testid="board-export-secret" /> {ms.exportSecret}
+            </label>
+          )}
         </div>
         <div className="board-export-actions">
           <button type="button" className="primary" disabled={busy} title={s.exportToFolderTitle} onClick={toFolder}>

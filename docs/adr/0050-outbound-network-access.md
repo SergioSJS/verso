@@ -27,6 +27,18 @@
   a new version exists, to tell the admin; it never updates itself, and
   the check can be turned off. `docs/reference/app-decision.md` §7 says
   the same.
+  2026-10-16 — revised by [0097](0097-universo-found-on-the-network-and-a-bad-dns-survived.md)
+  (the maintainer: "Gosto de todos", on finding a UniVerso on the home
+  network and surviving a bad DNS); the text below is kept as it was
+  decided. Three reaches are added, none to an address the user did not
+  already mean: the desktop app **browses mDNS** (`_verso._tcp`) on the
+  local network, only while Settings › Servers is open, and lists what it
+  finds without connecting to it; after a connection to a server it
+  already uses has failed, it sends **UDP DNS queries to the system's own
+  DNS servers** for that server's name and tries the other addresses they
+  give, the name and the scheme unchanged; and a Verso server **announces
+  itself** by mDNS by default when it listens beyond loopback
+  (`VERSO_ANNOUNCE=off` stops it).
 
 ## Context
 
@@ -99,4 +111,13 @@ Revised on 2026-09-29 by [0055](0055-in-app-updater.md) (the update check)
 and [0056](0056-embedded-web-pages.md) (embedded web pages). Revised on
 2026-10-09 by [0073](0073-self-hosted-server-first.md) and
 [0075](0075-server-packaging-and-storage.md) item 7 (a server's traffic,
-and its update check).
+and its update check). Revised on 2026-10-15 by
+[0096](0096-this-app-is-a-server.md) item 8 (a correction of scope, not a
+change of decision): the "mDNS on the local network" of the 2026-10-09
+revision is multicast, which is not "an address the user wrote in a
+configuration". "This app is a server" may announce itself by mDNS
+(`_verso-local._tcp`) **only while its pairing dialog is open**, with an
+instance name of four random hexadecimal digits and a record of the
+protocol version and the port, and listens for connections inbound on the
+private addresses of its machine, only while the person has turned it on;
+nothing else of 0050 changes: the core reaches no network.

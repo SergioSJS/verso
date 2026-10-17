@@ -49,7 +49,7 @@ test("on a server: a browser's tab for a window, the note's address for its path
   await expect(page.locator(".setting:visible", { hasText: "Procurar atualizações" })).toHaveCount(0);
 });
 
-test("on a server: a web note shows its page in a frame, with a link to open it in a tab", async ({ app, page }) => {
+test("on a server: a web note shows its page in a frame without hint line when frameable", async ({ app, page }) => {
   await page.route("https://jsoncanvas.org/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: "<p>JSON Canvas</p>" }));
   await app.open("?side=server");
   await app.quickOpen("jsoncanvas.org");
@@ -57,8 +57,8 @@ test("on a server: a web note shows its page in a frame, with a link to open it 
   await page.locator(".web-toggle").click();
   const framed = page.locator(".framed-page");
   await expect(framed).toBeVisible();
-  await expect(framed.getByRole("link", { name: "Abrir a página numa nova aba" })).toHaveAttribute("href", "https://jsoncanvas.org/");
   await expect(framed.locator("iframe")).toHaveAttribute("src", "https://jsoncanvas.org/");
+  await expect(framed.locator(".framed-line")).toHaveCount(0);
   expect(await app.calls("web_open")).toEqual([]);
 });
 
@@ -114,4 +114,20 @@ test("the read-only line fits a phone, in Portuguese @layout", async ({ app, pag
   expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize().width);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize().width);
   if (page.viewportSize().width < 760) await expect(page.locator(".bottom-bar .bar-write")).toBeHidden();
+});
+
+// A phone of the desktop's local server (ADR 0096) is a window on a server:
+// the host refuses what it asks that is the desktop's own, and logs a warning
+// for each (item 12). It starts with the desktop's capabilities until the
+// side answers, which is how it once asked for the status of the server it
+// is a phone of, and told the host its focuses sync.
+test("a window on a server does not run the desktop's own commands; the desktop's does", async ({ app }) => {
+  await app.open();
+  await app.quickOpen("03 - Propriedades");
+  expect((await app.calls("local_server_status")).length).toBeGreaterThan(0);
+  expect((await app.calls("set_sync_focuses")).length).toBeGreaterThan(0);
+  await app.open("?side=server");
+  await app.quickOpen("03 - Propriedades");
+  expect(await app.calls("local_server_status")).toEqual([]);
+  expect(await app.calls("set_sync_focuses")).toEqual([]);
 });

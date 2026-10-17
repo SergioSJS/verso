@@ -7,6 +7,8 @@ import { DailyCalendar } from "../bases/daily";
 import { commands } from "../bindings";
 import { bookmarks } from "../bookmarks";
 import { dailyNote, dailyPath } from "../daily";
+import { onFolderLayer } from "../folderLayer";
+import { calendarPeriods } from "../periodic/notes";
 import { button, el, h, ui } from "../dom";
 import { activeFocusItem, addFocusPrompt, deleteFocus, focusesConflictBanner, focusesList, focusesSummary, formatReadOnlyReason, getDisplayFocuses, getSyncFocuses, isHomeActive, isHomeFocusName, loadFocuses, moveFocusOrder, renameFocusPrompt, saveFocuses, selectFocus } from "../focuses";
 import { allFiles, allNotes, iconOfPath } from "../folder";
@@ -18,9 +20,11 @@ import { NoteLeaf } from "../leaves/note";
 import { panel } from "../main";
 import { pickerStrings } from "../organize/cover";
 import { dirOf, iconFor, kindOf, name } from "../paths";
-import { searchNotes, snippetNode } from "../search";
+import { searchNotes } from "../search";
 import { baseStrings, LOCALE, t } from "../strings";
 import { allFolders, listAll } from "../tree/tree";
+import { mentionsSection } from "./mentions";
+import { historyButton } from "../dialogs/history";
 
 /* ---------- The right panel: outline, backlinks, outgoing, tags, bookmarks, focuses ---------- */
 export type PanelTab = "outline" | "backlinks" | "tags" | "bookmarks" | "calendar" | "focuses";
@@ -40,6 +44,11 @@ export class Panel {
       ["focuses", "compass", t.focusesTab],
       ["calendar", "calendar", t.calendarTab],
     ];
+    // The periodic settings changed (the folder's layer read again): the
+    // calendar's weeks, month and year follow (ADR 0093 item 9).
+    onFolderLayer(() => {
+      if (this.current === "calendar") this.paint();
+    });
     // A tablist and its one panel: the arrows, Home and End choose a tab,
     // and only the chosen one is in the Tab order.
     this.el.setAttribute("aria-label", t.rightPanel);
@@ -95,6 +104,7 @@ export class Panel {
     this.refresh();
     if (leaf instanceof NoteLeaf) leaf.updateWords();
     else ui.words.textContent = "";
+    historyButton(leaf?.path ?? null);
   }
   async loadTags(): Promise<void> {
     const r = await commands.listTags();
@@ -110,30 +120,16 @@ export class Panel {
     this.markTabs();
     this.paint();
   }
-  /** Notes whose text has this note's name without linking to it: the
-   *  search finds the candidates by the name's words. */
+  /** The places where other notes write this note's name without
+   *  linking to it, each with "Link", and "Link all" (ADR 0089). */
   private async mentions(leaf: NoteLeaf): Promise<void> {
-    const path = leaf.path;
-    const words = name(path);
-    if (!words.trim()) return;
     const paint = this.painted;
-    const r = await commands.search(words, 40);
-    if (r.status !== "ok" || this.leaf !== leaf || this.current !== "backlinks" || this.painted !== paint) return;
-    const linked = new Set(leaf.backlinksData.map((b) => b.from));
-    const hits = r.data.filter((hit) => hit.path !== path && !linked.has(hit.path));
-    if (hits.length === 0) return;
-    const head = h("h3", "panel-sub", `${t.mentions} · ${hits.length}`);
-    const ul = h("ul", "panel-list");
-    ul.append(...hits.map((hit) => {
-      const li = this.row(name(hit.path), dirOf(hit.path) || undefined, () => openNote(hit.path, false, false, true), "search");
-      li.querySelector("button")?.addEventListener("dblclick", () => void openNote(hit.path, false));
-      li.querySelector("button")?.append(snippetNode(hit.snippet));
-      return li;
-    }));
+    const nodes = await mentionsSection(leaf, () => this.leaf === leaf && this.current === "backlinks" && this.painted === paint);
+    if (!nodes) return;
     // Under the backlinks, above the outgoing links.
     const out = this.body.querySelector(".links-out");
-    if (out) out.before(head, ul);
-    else this.body.append(head, ul);
+    if (out) out.before(...nodes);
+    else this.body.append(...nodes);
   }
   private list(items: HTMLElement[], empty: string): void {
     const ul = h("ul", "panel-list");
@@ -158,6 +154,8 @@ export class Panel {
     s: baseStrings,
     has: (day) => allNotes.includes(dailyPath(day)),
     open: (day) => void dailyNote(day),
+    // The week, the month and the year beside the day (ADR 0093 item 9).
+    ...calendarPeriods(),
   });
   /** Counts the paints: a search for mentions that comes back after a
    *  newer paint has nothing to add (two in flight drew the list twice). */
@@ -296,7 +294,9 @@ export class Panel {
     switch (this.current) {
       case "calendar": {
         this.daily.render();
-        this.body.replaceChildren(this.daily.el);
+        // Already there: left in place, so a redraw keeps the keyboard's
+        // focus (taking it out and back would drop it, in WebKit).
+        if (this.daily.el.parentElement !== this.body || this.body.childElementCount !== 1) this.body.replaceChildren(this.daily.el);
         break;
       }
       case "outline": {
@@ -327,7 +327,7 @@ export class Panel {
           section(
             "links-back",
             t.backlinks,
-            back.map((b) => this.row(name(b.from), `${dirOf(b.from) ? dirOf(b.from) + " · " : ""}${t.line} ${b.line}`, () => openNote(b.from, false), "note")),
+            back.map((b) => previews(this.row(name(b.from), `${dirOf(b.from) ? dirOf(b.from) + " · " : ""}${t.line} ${b.line}`, () => openNote(b.from, false), "note"), b.from)),
           ),
           section(
             "links-out",
@@ -336,7 +336,7 @@ export class Panel {
               const li = this.row(l.target, l.resolved ? dirOf(l.resolved) : l.outside ? sh.notShared : "?", () => (l.resolved ? openNote(l.resolved, false) : undefined), l.resolved ? "note" : "link");
               if (!l.resolved) li.classList.add("unresolved");
               if (l.outside) li.classList.add("outside");
-              return li;
+              return previews(li, l.resolved, l.target, l.outside);
             }),
           ),
         );
@@ -375,4 +375,16 @@ export class Panel {
       }
     }
   }
+}
+
+/** A row whose note shows in the hover preview (ADR 0085 item 2): its
+ *  path, the link as written (a heading, a `^id`), or the link alone when
+ *  nothing answers or it leaves what was shared. */
+function previews(li: HTMLLIElement, path: string | null, target?: string, outside?: boolean): HTMLLIElement {
+  const b = li.querySelector("button");
+  if (!b) return li;
+  if (path) b.dataset["previewPath"] = path;
+  if (target) b.dataset["previewTarget"] = target;
+  if (outside) b.dataset["previewOutside"] = "";
+  return li;
 }

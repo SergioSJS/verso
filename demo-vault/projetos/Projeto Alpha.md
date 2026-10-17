@@ -9,6 +9,7 @@ tags:
   - desenvolvimento
   - alpha
 orcamento: 15000
+local: "-23.5505, -46.6333"
 ---
 
 # Projeto Alpha

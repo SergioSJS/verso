@@ -295,6 +295,9 @@ impl Client {
 
 pub struct Server {
     pub config: Config,
+    /// The directories the server could not write at start, for the admin
+    /// console (`crate::storage`); set once by `serve`.
+    pub unwritable: std::sync::OnceLock<Vec<crate::storage::Unwritable>>,
     pub db: Db,
     pub service: Arc<Service>,
     pub clients: Mutex<HashMap<String, Client>>,
@@ -358,10 +361,18 @@ pub struct Server {
     pub ceremonies: crate::passkeys::Ceremonies,
     /// The runtime, for what the watcher's thread hands over.
     pub runtime: std::sync::OnceLock<tokio::runtime::Handle>,
+    /// The folders' version histories (ADR 0091), in the data directory.
+    pub history: crate::history::Book,
+    /// The server itself, for what a write starts later (`crate::history`).
+    this: std::sync::OnceLock<std::sync::Weak<Server>>,
     /// The sync this server speaks (ADR 0079 item 5): its own,
     /// `verso_core::sync::PROTOCOL`, unless [`Server::speak_sync`] set an
     /// older one.
     sync: std::sync::atomic::AtomicU32,
+    /// Set when this is "this app is a server" (ADR 0096) and not a
+    /// dedicated server: the one local owner, the phones paired to it, the
+    /// folders ticked, the addresses served.
+    pub local: Option<Arc<crate::local::Policy>>,
 }
 
 impl Server {
@@ -383,10 +394,36 @@ impl Server {
     }
 
     pub fn new(config: Config, db: Db, contract: String, commit: String) -> Arc<Self> {
+        let slots = crate::listen::Slots::new(config.trusted_proxy.named());
+        Self::build(config, db, contract, commit, slots, None)
+    }
+
+    /// The server of "this app is a server" (ADR 0096): the same service
+    /// and the same code, with the laptop's bounds and its policy.
+    pub fn new_local(
+        config: Config,
+        db: Db,
+        contract: String,
+        commit: String,
+        policy: Arc<crate::local::Policy>,
+    ) -> Arc<Self> {
+        let slots = crate::listen::Slots::for_local(policy.admit_fn());
+        Self::build(config, db, contract, commit, slots, Some(policy))
+    }
+
+    fn build(
+        config: Config,
+        db: Db,
+        contract: String,
+        commit: String,
+        slots: Arc<crate::listen::Slots>,
+        local: Option<Arc<crate::local::Policy>>,
+    ) -> Arc<Self> {
         let service = Service::new(Some(config.data_dir.join("indexes")));
-        let slots = crate::listen::Slots::new(config.trusted_proxy.clone());
+        let history = crate::history::Book::open(&config.data_dir);
         let server = Arc::new(Self {
             config,
+            unwritable: std::sync::OnceLock::new(),
             db,
             service: Arc::clone(&service),
             clients: Mutex::new(HashMap::new()),
@@ -415,11 +452,20 @@ impl Server {
             signin_links: Mutex::new(HashMap::new()),
             runtime: std::sync::OnceLock::new(),
             sync: std::sync::atomic::AtomicU32::new(verso_core::sync::PROTOCOL),
+            history,
+            this: std::sync::OnceLock::new(),
+            local,
         });
+        let _ = server.this.set(Arc::downgrade(&server));
         service.set_events(Arc::new(ServerEvents {
             server: Arc::downgrade(&server),
         }));
         server
+    }
+
+    /// The server, owned: what a write hands a later task.
+    pub fn me(&self) -> Option<Arc<Self>> {
+        self.this.get().and_then(std::sync::Weak::upgrade)
     }
 
     /// A name for a new connection, never reused while the server runs.
@@ -430,6 +476,12 @@ impl Server {
     /// The directory of a registered folder; the path is formed here and
     /// never crosses (ADR 0026 rule 4).
     pub fn folder_path(&self, dir: &str) -> Option<PathBuf> {
+        // "This app is a server": the folders the person ticked, wherever
+        // they are, named here by the name they were given — never a path
+        // a phone sent (ADR 0096 item 2).
+        if let Some(local) = &self.local {
+            return local.folder_path(dir);
+        }
         verso_fs::server::folder_path(&self.config.folders_dir, dir)
     }
 
@@ -461,13 +513,15 @@ impl Server {
     /// the folder's number counts its changes outside the share too, which
     /// are not the receiver's to know (3.18); a device asks the share for
     /// its own.
-    pub fn push_sync_changed(&self, folder: &str, head: i64, paths: &[&str]) {
+    /// Only the windows of `to` hear it: who may write, and who may only
+    /// read, hear their own heads (`crate::readers::push_sync_changed`).
+    pub fn push_sync_changed(&self, folder: &str, head: i64, paths: &[&str], to: &[String]) {
         let whole = serde_json::json!({ "event": "sync-changed", "payload": { "head": head } });
         let frame = Frame::of(&whole);
         let bare = serde_json::json!({ "event": "sync-changed", "payload": {} });
         let table = lock(&self.clients);
-        for c in table.values() {
-            if !c.folder.as_ref().is_some_and(|(f, _)| f == folder) {
+        for (id, c) in table.iter() {
+            if !c.folder.as_ref().is_some_and(|(f, _)| f == folder) || !to.contains(id) {
                 continue;
             }
             match &c.scope {
@@ -492,6 +546,20 @@ impl Server {
         }
     }
 
+    /// Every window and device of `account` signed in as the person — not
+    /// a token's connection, whose folders were named when it was made:
+    /// what is the person's to know (a folder given, ADR 0084 item 7).
+    pub fn push_sessions(&self, account: &str, message: &Push) {
+        let frame = Frame::of(message);
+        let table = lock(&self.clients);
+        for c in table
+            .values()
+            .filter(|c| c.account == account && c.session.is_some())
+        {
+            c.send_frame(&frame, message);
+        }
+    }
+
     /// Sessions of `account` ended: the connections opened with them are
     /// told and closed at once (the WebSocket's loop closes on `gone`), so
     /// that a device hears it then, not at its next exchange (the live
@@ -511,11 +579,37 @@ impl Server {
         }
     }
 
+    /// A paired phone's role was changed from the computer (ADR 0096): its
+    /// open windows learn it at once, and one that may now only read leaves
+    /// the rooms it wrote in, as a member demoted in a share does.
+    pub fn phone_role_changed(&self, session: &str, role: Role) {
+        let mut demoted = Vec::new();
+        {
+            let mut table = lock(&self.clients);
+            for (id, c) in table.iter_mut() {
+                if c.session.as_deref() != Some(session) {
+                    continue;
+                }
+                if let Some((folder, _)) = c.folder.take() {
+                    c.folder = Some((folder, role));
+                }
+                c.tx.send(&serde_json::json!({ "role": role }));
+                if !role.writes() {
+                    demoted.push(id.clone());
+                }
+            }
+        }
+        for client in demoted {
+            crate::collab::readers::demoted(self, &client);
+        }
+    }
+
     /// A member's role in a folder changed or ended: the windows of theirs
     /// that show it learn it, and one that may no longer see it is told to
     /// leave, and `why` (`revoked` by an owner, `left` by the member).
     pub fn role_changed(&self, folder: &str, account: &str, role: Option<Role>, why: &str) {
         let mut gone = Vec::new();
+        let mut demoted = Vec::new();
         {
             let mut table = lock(&self.clients);
             for (id, c) in table.iter_mut() {
@@ -527,6 +621,9 @@ impl Server {
                         Some(r) => {
                             c.folder = Some((folder.to_owned(), r));
                             c.tx.send(&serde_json::json!({ "role": r }));
+                            if !r.writes() {
+                                demoted.push(id.clone());
+                            }
                         }
                         None => {
                             c.folder = None;
@@ -538,6 +635,11 @@ impl Server {
             }
         }
         self.left(&gone);
+        // One who may now only read leaves the rooms it wrote in, and joins
+        // again as a reader (ADR 0087 item 4).
+        for client in demoted {
+            crate::collab::readers::demoted(self, &client);
+        }
         // A role of the whole folder counts in its shares too (ADR 0081
         // item 14).
         crate::shares::refresh(self, folder, why);
@@ -572,6 +674,10 @@ impl verso_service::Events for ServerEvents {
 
     fn folder_changed(&self, clients: &[String], changed: &FolderChanged) {
         if let Some(s) = self.server.upgrade() {
+            // Who may only read hears it once the folder's log says which
+            // notes changed for a reader (ADR 0087): after the
+            // reconciliation, below. The others now.
+            let (readers, writers) = crate::readers::split(&s, clients);
             // A shared note changed outside: its room hears it first, off
             // the watcher's thread.
             if let Some(rt) = s.runtime.get() {
@@ -582,10 +688,13 @@ impl verso_service::Events for ServerEvents {
                     // And the folder's log for sync (ADR 0079 item 4).
                     let paths: Vec<String> = c.changed.iter().chain(&c.removed).cloned().collect();
                     crate::sync::reconcile_key(&server, &c.key, None, &paths);
+                    if let Ok(payload) = serde_json::to_value(&c) {
+                        crate::readers::push_folder_changed(&server, &c.key, &readers, &payload);
+                    }
                 });
             }
             s.push(
-                clients,
+                &writers,
                 &serde_json::json!({ "event": "folder-changed", "payload": changed }),
             );
         }

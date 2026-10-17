@@ -16,7 +16,6 @@ import { openFolderSwitcher } from "./panel/folderSwitcher";
 import { ready } from "./earlyClicks";
 import { mayShare, openShareDialog } from "./shares";
 import { sh } from "./shareStrings";
-import { bytes } from "./web/strings";
 import { redo, selectAll, undo } from "@codemirror/commands";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -38,13 +37,18 @@ import { button, el, h, ui } from "./dom";
 import { fail } from "./errors";
 import { installFrame } from "./frame";
 import { installLongPress } from "./touch";
+import { installPreview } from "./preview/install";
 import { installScreen } from "./screen/frame";
+import { installNotify } from "./notify";
+import { installSources } from "./notify/sources";
 import { can, loadCan } from "./can";
 import { copyFilesInto, newUntitled } from "./files";
 import { focusesList, loadFocuses, selectFocus } from "./focuses";
 import { LAST_FOLDER, nameFolderButton, popout, secondary } from "./folder";
 import { hearServers, openServerFolder, parseServerKey } from "./dialogs/servers";
+import { hearLocalServer } from "./dialogs/localServer";
 import { hearSync } from "./dialogs/sync";
+import { offline } from "./web/offline/manager";
 import { icon } from "./icons";
 import { allCommands, keyHint, keyOf, MAC, paintKeyHints, prettyKeys, runHotkey } from "./keys";
 import { clearDropHints, ghost } from "./layout/drag";
@@ -68,7 +72,7 @@ import { watchWindow } from "./report";
 import { Ribbon } from "./ribbon";
 import { configureEmbeds } from "./sanitize";
 import { searchNotes } from "./search";
-import { loadSettings, pushEmbedOrigins, pushMenuLanguage, pushWalkRules, saveSettings, settings } from "./settings";
+import { loadSettings, pushEmbedOrigins, pushHistoryDays, pushMenuLanguage, pushWalkRules, saveSettings, settings } from "./settings";
 import { giveBack } from "./side";
 import { pt, t } from "./strings";
 import { collapseAll, collapsed, listAll, treeRows } from "./tree/tree";
@@ -81,6 +85,7 @@ export let updateLeavesLineNumbers: (() => void) | null = null;
 loadSettings();
 const embedOriginsPushed = pushEmbedOrigins();
 const walkRulesPushed = pushWalkRules();
+pushHistoryDays();
 const folderNoteNamePushed = pushFolderNoteName();
 pushMenuLanguage();
 configureEmbeds({
@@ -104,6 +109,7 @@ document.querySelector(".side")?.setAttribute("aria-label", t.folderView);
 ui.collapse.replaceChildren(icon("collapse", t.collapseAll));
 ui.collapse.title = t.collapseAll;
 installLongPress();
+installPreview();
 ui.search.placeholder = t.search;
 ui.searchClear.title = t.clearSearch;
 ui.searchClear.setAttribute("aria-label", t.clearSearch);
@@ -206,6 +212,15 @@ window.addEventListener("resize", syncEmbedViews);
 document.addEventListener("scroll", syncEmbedViews, { capture: true, passive: true });
 // New boxes appear after async renders; a cheap sweep catches them.
 window.setInterval(syncEmbedViews, 700);
+// A window moved to a screen of another scale keeps its CSS size, and the
+// host places the pages in device pixels (app/src-tauri/src/web_clip).
+const watchScale = (): void =>
+  window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`).addEventListener("change", () => {
+    syncWebViews();
+    syncEmbedViews();
+    watchScale();
+  }, { once: true });
+watchScale();
 new MutationObserver((records) => {
   if (webLeaves.size === 0 && embedViews.size === 0) return;
   // An editor, a PDF or the graph redraws itself: nothing moves outside.
@@ -381,6 +396,10 @@ paintKeyHints();
 // The phone's frame, the keyboard's bar and what the side cannot do
 // (ADR 0076).
 installScreen();
+// Notifications (ADR 0084): the bells, the centre, where each kind comes
+// from.
+installNotify(() => settingsDialog.show("notify"));
+installSources();
 
 // The folder button opens the folder switcher (ADR 0081 item 5): wired,
 // it is no longer busy (a click made before is made again, `web.ts`).
@@ -622,6 +641,9 @@ if (!popout) void listen<string>("folder-handed", (e) => {
 if (!popout) {
   void listen<string>("menu-open-folder", (e) => void (e.payload === getCurrentWindow().label && openFolderDialog()));
   void listen<string>("menu-settings", (e) => void (e.payload === getCurrentWindow().label && settingsDialog.show()));
+  // The menu-bar mark's "Open Settings" (ADR 0096 item 1): the section of
+  // "this app is a server", in the window the host brought forward.
+  void listen<string>("tray-settings", (e) => void (e.payload === getCurrentWindow().label && settingsDialog.show("localserver")));
 }
 /** The window's inspector (View › Open console, ⌥⌘I, the palette), when
  *  the setting allows it; otherwise said where to turn it on. */
@@ -701,16 +723,6 @@ void listen<[string, string]>("menu-edit", (e) => {
 const TEXT_INPUTS = new Set(["text", "search", "url", "email", "tel", "password", "number"]);
 void listen<FolderChanged>("folder-changed", (e) => void changedOutside(e.payload));
 void listen<IndexProgress>("index-progress", (e) => handleIndexProgress(e.payload));
-// On a server, a folder at 90 % of its quota or more (ADR 0077 item 5):
-// said after a write, at most once every ten minutes.
-let quotaSaid = 0;
-void listen<{ used: number; quota: number }>("folder-quota", (e) => {
-  if (Date.now() - quotaSaid < 600_000) return;
-  quotaSaid = Date.now();
-  const said = t.quotaNear.replace("{used}", bytes(e.payload.used)).replace("{quota}", bytes(e.payload.quota));
-  ui.status.textContent = said;
-  dispatchEvent(new CustomEvent("verso:failed", { detail: said }));
-});
 if (!popout && settings.checkUpdates) {
   setTimeout(() => void updateController.check(true), 2500);
 }
@@ -722,7 +734,12 @@ export const started: Promise<void> = (async () => {
   // A folder of this computer that syncs with a server says so in the
   // status bar (ADR 0079 item 13); a server's own folder does not sync.
   void loadCan().then(() => {
-    if (!popout && can("local_folders")) hearSync((section) => settingsDialog.show(section));
+    // The desktop serving to a phone: its status mark, a phone asking, a
+    // stop by itself (ADR 0096). Once the side has answered: a phone's window
+    // starts with the desktop's set of capabilities and would ask the status.
+    if (can("local_folders")) hearLocalServer();
+    // (and a browser that keeps a server's folder offline says so the same way, ADR 0092 item 7)
+    if (!popout && (can("local_folders") || offline.available)) hearSync((section) => settingsDialog.show(section));
   });
   await Promise.all([embedOriginsPushed, walkRulesPushed, folderNoteNamePushed]);
   if (popout) return void joinAsPopout();

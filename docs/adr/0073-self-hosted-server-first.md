@@ -139,6 +139,83 @@
   state it holds; any text file of the folder is a room as a note is. The
   item's words and item 12's order are kept; their `[OPEN]` on the board
   is answered here.
+  2026-10-14 — three `[OPEN]` of the Status answered by ADRs the
+  maintainer accepted that night (*"Sim, todas"*, every recommendation):
+  **offline on the phone moves earlier**, into V1 — the roadmap's
+  Phase 4 — by [0092](0092-the-phone-offline.md), the order of item 12
+  otherwise kept; **per block, for readers**, by
+  [0087](0087-secret-blocks-hidden-from-readers.md) — a `[!secret]`
+  callout served to readers as a projection without it, per note still
+  open; **history and attribution of another member's change** by
+  [0091](0091-version-history.md). End-to-end encryption and the MCP over
+  the network come after V1 (the maintainer, the same night). The
+  Status's wording is kept.
+  2026-10-15 — "this app is a server" is decided in full by
+  [0096](0096-this-app-is-a-server.md) (its Status: every item as
+  recommended). Two sentences of this record are revised by it: the
+  Consequences' "runs on macOS and Windows as well" is **macOS and Linux
+  first, Windows after** (0096 item 17, option (a): `verso-server` is not
+  built for Windows, [0075](0075-server-packaging-and-storage.md) item 2,
+  and compiling the local mode without the passkeys was not cheap), and
+  the `[OPEN]` of the app updating while phones are connected is answered
+  (0096 item 18: the restart drops the phones, the page reloads on the
+  contract hash). Item 2's one sentence, and the old words, are kept.
+  Later the same day (2026-10-15) the first of those two was revised again:
+  the maintainer decided *"OpenSSL embutido no Windows"*, so `verso-server`
+  builds on Windows and "runs on macOS and Windows as well" is true as
+  written ([0096](0096-this-app-is-a-server.md) item 17 and
+  [0075](0075-server-packaging-and-storage.md) item 2, both revised).
+  2026-10-16 — item 6 amended, and with it [0083](0083-security-hardening-of-universo.md)
+  item 5: **plain HTTP works**, without what a secure context is for. The
+  maintainer, when a CasaOS box refused to sign in from another machine and
+  asked for a proxy address nobody at home knows: *"universo nao roda em http? o foundry roda ne?"*, *"essa configuração tá ruim demais! Que que eu vou colocar nessa merda de Verso Trusted Proxy? … Um usuário normal não vai saber não!"*; and decided: *"Deveria sim ser possível usar essa merda HTTP, só que sem os recursos de HTTPS. Aí se a pessoa configurar, aí sim fica com todos os recursos liberados. Você tá restringindo o uso de forma idiota … se você não simplificar Não adianta Ninguém vai usar essa merda"*
+  (it should be possible to use HTTP, only without the HTTPS features; once
+  the person configures HTTPS, everything is unlocked; the restriction was
+  foolish; without simplifying, nobody will use it). What changes: (a) the
+  server serves the window, the setup link, sign-in, invitations, the
+  desktop app's connection and sync over HTTP from any machine; the session
+  cookie is `Secure` (and `__Host-`) only on a request that came over HTTPS
+  — the server's own TLS, or a believed proxy saying so — and keeps
+  `HttpOnly`, `SameSite=Lax` and the CSRF token; (b) with no
+  `VERSO_PUBLIC_URL` only the `Host` of a name a public page cannot make
+  resolve here is answered — an IP address, a name of one label, `.local`,
+  `.home.arpa`, `localhost` — so `http://<ip>:7340` needs no variable; any
+  other name needs `VERSO_PUBLIC_URL` (421, with the words), or a proxy
+  *named* in `VERSO_TRUSTED_PROXY` having forwarded the request. The
+  default list widens nothing, because a page rebound onto this machine
+  writes an `X-Forwarded-For` itself and loopback is on that list. This
+  keeps the DNS-rebinding rule of [0045](0045-server-and-mcp-security.md)
+  where it means something; with `VERSO_PUBLIC_URL` set it is exactly as
+  before, that name and this machine's. **Links by e-mail** (the sign-in
+  link and "forgot the password", which anyone can ask for) are built only
+  from `VERSO_PUBLIC_URL` and exist only when it is set: a `Host` the
+  asker wrote must never reach a mailed link (the reset token would go to
+  the attacker); without it those routes are refused and the window hides
+  them. The links an admin makes in their own session (invitations,
+  resets) use the address of that session; (c) an empty `VERSO_TRUSTED_PROXY`
+  believes a proxy on loopback or a private network (127.0.0.0/8, ::1,
+  10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, fc00::/7), a value replaces
+  that list and `none` believes no proxy; (d) what a browser keeps for a
+  secure context is **off over HTTP, said and never silent**: offline
+  ([0092](0092-the-phone-offline.md) item 2), the system's notifications
+  ([0084](0084-notifications-in-the-window.md)) and passkeys, each with a
+  quiet line where the feature lives and a way to read how to turn HTTPS
+  on, and one notice a session that can be closed; copying and hashing in
+  the window fall back to code that needs no secure context; (e) the
+  Docker image listens on every address with no required variable, and the
+  compose file publishes `7340:7340`. **The security consequence, plainly:**
+  over HTTP anyone on the same network can read the password and the notes
+  that cross it, and so does every other HTTP service on the same
+  host or IP, since cookies are not separated by port — on CasaOS or
+  ZimaOS every other app at `http://<ip>:<port>` receives the
+  `verso-session` cookie, and can set one; and the default proxy list lets
+  a client on a private network — in Docker, any visitor of a port published through docker-proxy (a loopback-published port, a hairpin, IPv6 onto an IPv4 bridge, Docker Desktop, rootless Docker), who arrives from the bridge gateway (rootful Linux Docker with iptables NAT keeps the client's address) — write an `X-Forwarded-For`
+  and be counted under any address but loopback (a forwarded loopback is
+  counted like any other), which defeats the per-address pace and caps for
+  an attacker who rotates addresses and leaves only the account's own delay
+  and lock: name the real proxies, or `none`, to close it. Fine at home, not
+  on a public Wi-Fi. HTTPS stays what the guide recommends, as a later and
+  optional step. The old wording of item 6 is kept above, marked.
 
 ## Context
 
@@ -313,7 +390,9 @@ the date; what stays `[OPEN]` is listed in the Status.
    built into Verso comes later. The server
    refuses to serve a login without TLS, except on loopback or behind a
    reverse proxy whose address the host configured — only then are
-   forwarded headers trusted. Then: rate
+   forwarded headers trusted. *(Amended on 2026-10-16, a Revisions line:
+   plain HTTP is served; this sentence and the TLS it asks for are kept as
+   first decided.)* Then: rate
    limits on login, CSRF protection, the `Origin` check on WebSocket and
    `Host` validation against DNS rebinding that [0045](0045-server-and-mcp-security.md)
    names for local ports, the usual response headers, attachments served

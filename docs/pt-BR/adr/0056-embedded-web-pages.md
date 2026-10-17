@@ -18,6 +18,16 @@
   de script. Registrado numa seção própria no fim da Decisão, com as suas
   Consequências, a sua alternativa descartada e dois itens `[ABERTO]`; o
   texto da primeira decisão fica, cada parte substituída com uma nota.
+  2026-10-14 — **revisto pelo mantenedor** na sessão ("A agora, B depois"):
+  um embed é um `<iframe>` quando o site permite ser embutido, a child web
+  view quando não. 2026-10-15 — **revisto de novo** pelo mantenedor, na
+  sessão (*"A e B juntos"*): a child web view é desenhada como um quadro
+  (frame) é — montada com o tamanho e o lugar inteiros do seu espaço,
+  desenhada só na parte que aparece — por um contêiner nativo de recorte
+  em cada sistema, sob a única exceção a `unsafe_code = "forbid"` da
+  [0029](0029-guardrails-in-ci.md). Registrado como as duas últimas seções
+  da Decisão, "Revisto: um `<iframe>` quando o site permite" e "Revisto de
+  novo: a página recortada como um quadro é".
 
 ## Contexto
 
@@ -297,6 +307,138 @@ O gate e a lista nos ajustes não mudam: a child view só nasce para uma
 origem que o usuário aprovou. Verificado em 2026-09-29 com huggingface.co
 e rolai.app renderizando inteiros, X-Frame-Options e tudo.
 
+### Revisto: um `<iframe>` quando o site permite, a child view quando não — decidido em 2026-10-14
+
+**Decidido em 2026-10-14 pelo mantenedor**, na sessão, depois de testar a
+child web view no app instalado ("A agora, B depois"): a child view flutua
+sobre a janela, então um embed meio fora do painel podia ser desenhado por
+cima da barra de status, a página rolava com a roda da nota, e o tamanho
+dela não era o da caixa. A exigência dele: um embed se comporta como um
+`<iframe>` normal — a página respeita o tamanho da caixa em que é
+renderizada, rola com a nota, é recortada pelo painel, nunca desenha por
+cima de outro elemento da janela, e rolar a nota nunca rola a página dentro.
+
+- **A.** (esta revisão) Um embed é um `<iframe>` de verdade no documento da
+  nota sempre que o site permite ser embutido pela origem da janela; um site
+  que recusa mantém a child web view (a contingência), recortada como a
+  próxima seção diz. Uma página aberta como aba (a view da
+  própria nota web) continua sendo uma child web view: ela enche o painel.
+- **B.** (decidido em 2026-10-15, *"A e B juntos"*; construído na próxima
+  seção) Um contêiner nativo de recorte para a contingência, sob a exceção a
+  `unsafe_code = "forbid"` que a [0029](0029-guardrails-in-ci.md) registra.
+
+Como o autor construiu A (`app/src-tauri/src/framing.rs`, `web.rs`,
+`app/ui/src/leaves/web.ts`):
+
+- **Uma checagem de embutibilidade no host**, `embed_frameable(url)`: um
+  `HEAD` (um `GET` lido só até os cabeçalhos quando o `HEAD` dá erro ou
+  responde 4xx ou 5xx), a um endereço que uma nota escreveu e quem lê
+  aprovou ([0050](0050-outbound-network-access.md) item 1), seis segundos no
+  máximo, no máximo cinco redirecionamentos seguidos à mão, a resposta final
+  julgada. A resposta pode ser embutida, a menos que: haja qualquer valor de
+  `X-Frame-Options` (`DENY`, `SAMEORIGIN`, `ALLOW-FROM`, em qualquer caixa,
+  ou um que ninguém lê); ou um `Content-Security-Policy` tenha um
+  `frame-ancestors` que não permita a origem da janela (`*` só para uma
+  origem de esquema de rede, então não `tauri://localhost`; um esquema,
+  host, host com curinga e porta que combinem; não `'none'`, `'self'` nem
+  lista vazia); toda política da resposta precisa permitir. Um
+  redirecionamento de uma página pública para um nome ou endereço local, um
+  tempo esgotado, um erro: não embutível. Respondida uma vez por origem na
+  sessão. É uma requisição do lado do host que a revisão de 2026-09-29 tinha
+  removido ("nada é buscado do lado do host"): uma requisição por origem
+  aprovada, só cabeçalhos, e a resposta é um bit que cruza até a janela. É o
+  "aviso na hora de aprovar" que o item `[ABERTO]` acima deixou em aberto,
+  usado para outro fim.
+- **O embed.** Embutível: a caixa guarda `<iframe sandbox="allow-scripts
+  allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+  referrerpolicy="no-referrer" loading="lazy">`, sem `allow`, 100 % da
+  caixa. Não embutível, ou a resposta um erro: a child web view da revisão
+  acima. A janela no navegador mantém o frame dela com o link para abrir a
+  página numa aba ([0076](0076-the-window-on-every-screen.md), item 11,
+  como o código o cita).
+- **A política da janela** já tinha `frame-src https: http: verso:
+  http://verso.localhost` dos dias da child view; não muda. A política do
+  servidor para a janela no navegador também não muda
+  (`frame-src 'self' https:`).
+- **O guard de navegação** muda por uma licença: o frame de uma view do app
+  pode carregar as origens exatas que a checagem julgou embutíveis (e onde
+  terminam os redirecionamentos delas) e nenhuma outra página da web. O wry
+  entrega ao guard um endereço e nenhum frame, então ele não distingue um
+  frame da janela; a licença é tão estreita quanto o tratador deixa. O custo
+  está registrado no modelo de ameaças
+  (`docs/reference/threat-model.md`, "A web page embedded in a note"), com o
+  raciocínio de que uma página embutida não alcança os comandos do app.
+- **`[ABERTO]`, não decidido aqui.** Os links da própria página para outra
+  origem, e os frames dentro dela (um vídeo, um anúncio), são recusados pelo
+  guard e ficam em branco até o mantenedor escolher como alargá-lo (o custo
+  é o mesmo: o guard não distingue um frame da janela).
+
+Descartadas nesta revisão: nenhuma registrada.
+
+### Revisto de novo: a página recortada como um quadro é — decidido em 2026-10-15
+
+A web view filha guardava um defeito que um iframe não tem. Uma view
+nativa flutua sobre a página da janela, e o CSS não a recorta; então a
+view era encolhida para a parte visível do seu espaço, e quando a nota
+era rolada até o espaço ficar meio acima do painel, a página mostrava de
+novo o seu topo numa view mais curta, em vez de subir com a nota. O
+mantenedor, testando no app em 2026-10-15: *"era para funcionar como
+iframe normal… qual a dificuldade de fazer a página respeitar o tamanho
+da janela que ela foi renderizada"*. Os sites dele recusam todos ser
+enquadrados, medido naquele dia — olddragon.com.br
+(`X-Frame-Options: SAMEORIGIN`; `frame-ancestors 'self'
+*.owlbear.rodeo`), rolai.app (`DENY`), um Calibre-Web na rede local
+(`SAMEORIGIN`) — então continuam web views filhas.
+
+**Decidido pelo mantenedor em 2026-10-15**, na sessão: *"A e B
+juntos"*. A: um `<iframe>` de verdade onde o site permite, registrado na
+seção acima. B: para as páginas que
+continuam web views filhas, um contêiner nativo de recorte, sob uma
+exceção a `unsafe_code = "forbid"` confinada a um módulo, um arquivo
+pequeno por sistema, cada bloco `unsafe` com o seu comentário `SAFETY`,
+testada, num pull request só dela ([0029](0029-guardrails-in-ci.md),
+revisão do mesmo dia).
+
+**B, como construído** (`app/src-tauri/src/web_clip/`):
+
+- A janela manda dois retângulos (`WebPlace`): o **espaço** (`slot`), com
+  o tamanho e o lugar inteiros do quadro, que pode passar do painel e da
+  janela; e a parte **visível** (`visible`), onde o espaço aparece —
+  dentro de todo contêiner com rolagem, da janela, e fora da barra de
+  abas e da barra de status (`embedPlace`,
+  `app/ui/src/leaves/embedClip.ts`). Os campos de rolagem do primeiro
+  lugar saíram: nada que a janela manda rola a página.
+- O host põe a view da página dentro de um contêiner cujo quadro é a
+  parte visível, no deslocamento do espaço dentro dele, com o tamanho do
+  espaço: a página é montada para o espaço inteiro (o seu `100vh` é a
+  altura do espaço), sobe com a nota e só é desenhada dentro do
+  contêiner. A rolagem da nota nunca rola a página; a rolagem própria da
+  página e os cliques funcionam na parte que aparece.
+- macOS: um `NSView` com camada que recorta nos seus limites, na view de
+  conteúdo da janela logo acima de onde o wry pôs a página, com a
+  `WKWebView` da página levada para dentro; as coordenadas não invertidas
+  do AppKit e a escala da tela tratadas (`geometry.rs`, `macos.rs`).
+  Windows: a janela hospedeira do WebView2 levada para dentro de uma
+  janela filha nossa (`WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS`) na
+  parte visível, em pixels físicos da janela (`windows.rs`). Linux: a
+  API segura do GTK — a página da janela levada uma vez para um
+  `GtkOverlay`, cada página num `GtkLayout` posto por cima dela na parte
+  visível, sem `unsafe` (`linux.rs`).
+- A view de uma nota da web vai do mesmo jeito, com um retângulo só para
+  os dois.
+- Se um sistema não consegue montar o contêiner, aquela view volta ao
+  lugar de antes desta revisão — cortada na parte visível, mostrando o
+  topo da página — com uma linha WARN no log.
+- Uma janela levada para uma tela de outra escala mantém o seu tamanho
+  em CSS; a janela olha de novo quando a escala muda, e a página é posta
+  nos pixels da tela nova.
+
+O que só o app de verdade mostra — o recorte em cada sistema — está em
+`docs/reference/manual-checks.md`; nenhum teste sem janela alcança uma
+view nativa. O Linux ainda não tinha sido visto com web views filhas
+([0071](0071-linux-port.md)); o contêiner dele está construído e
+compilado, e espera essa verificação como o resto.
+
 ## Status
 
 Aceito em 2026-09-29 pelo mantenedor, na sessão: os pontos 1 e 2 da Decisão.
@@ -306,3 +448,9 @@ Aceito. Revisto em 2026-09-29 pelo mantenedor, na sessão: o ponto 3, opção
 A, Aceito; o mecanismo sob ele é do autor e substitui o proxy. Um item
 fica `[ABERTO]`: um aviso na hora de aprovar; o cache da web view
 depois de uma atualização foi decidido em 2026-10-07 (acima).
+Revisto em 2026-10-14 pelo mantenedor, na sessão ("A agora, B depois"): os
+embeds são `<iframe>`s quando o site permite ser embutido, child web views
+quando não. Revisto de novo em 2026-10-15, na sessão (*"A e B juntos"*): a
+web view filha desenhada como um quadro é, por um contêiner nativo de
+recorte (B); o mecanismo é do autor.
+Revisto em 2026-10-15, na sessão, aceito como recomendado: a verificação de embutibilidade pelo host (um `HEAD`, ou um `GET` lido só até os cabeçalhos, uma vez por origem) está **aceita**, o que revisa a linha anterior de que "nada é buscado do lado do host" para uma origem aprovada; os links da própria página para outra origem e os quadros aninhados dentro de uma página embutida continuam `[ABERTO]`, como registrado acima.

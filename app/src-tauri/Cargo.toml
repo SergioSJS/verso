@@ -40,6 +40,15 @@ tauri-plugin-dialog = "2"
 # Windows and Linux started a second app, and macOS too when a binary was
 # run directly.
 tauri-plugin-single-instance = "2"
+# The system's notifications (ADR 0084 item 9, decided 2026-10-14): a
+# notification also said by the system while the window is not in front,
+# on macOS, Windows and Linux, the permission asked when the person turns
+# it on. Tauri's own plugin (Apache-2.0 OR MIT); it replaces nothing of
+# ours: the app had no way to reach the system's notifications. Held at
+# 2.4, the last that runs on this app's Tauri 2.11 (2.5 and later ask for
+# 2.12), with its twin `@tauri-apps/plugin-notification` 2.4.x in
+# app/ui; on Linux it talks D-Bus through zbus, already in the tree.
+tauri-plugin-notification = "~2.4.0"
 tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
 specta = "=2.0.0-rc.25"
 specta-typescript = "=0.0.12"
@@ -51,7 +60,7 @@ serde_json = "1"
 # (MIT); tokio is Tauri's own runtime.
 tokio-tungstenite = { version = "0.29", default-features = false, features = ["connect", "rustls-tls-native-roots"] }
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
-tokio = { version = "1", default-features = false, features = ["sync", "time", "macros"] }
+tokio = { version = "1", default-features = false, features = ["sync", "time", "macros", "net"] }
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "rustls", "http2", "gzip", "json"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
 sha2 = "0.10"
@@ -64,15 +73,60 @@ base64 = "0.22"
 # tree through rmcp, with the same feature (MIT OR Apache-2.0).
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 
+# "This app is a server" (ADR 0096): the desktop starts the same service
+# `verso serve` runs, in this process, on the local network, on every system
+# (Windows too, ADR 0096 item 17 revised 2026-10-15). Already a
+# dev-dependency of the tests of a window on a server.
+verso-server = { path = "../../crates/verso-server" }
+
+# The menu-bar mark of "this app is a server" (src/tray.rs; ADR 0096 item 1,
+# built on 2026-10-15): Tauri's own tray API, on macOS and Windows only. Not
+# on Linux: its tray loads libayatana-appindicator at run time, a native
+# library the packages do not depend on and that GNOME does not show without
+# an extension. `tray-icon` is Tauri's own feature (tray-icon 0.24.2 and
+# muda 0.19.3 are already in the lockfile); it replaces nothing of ours. The
+# mark is shipped as raw RGBA, so that `image-png` and the `image` crate it
+# pulls in stay out of the tree.
+[target.'cfg(any(target_os = "macos", windows))'.dependencies]
+tauri = { version = "2", features = ["unstable", "devtools", "tray-icon"] }
+
 [target.'cfg(target_os = "macos")'.dependencies]
 # Clearing the download quarantine from the CLI binary and an extracted
 # update, without shelling out to `xattr` (ADR 0029, the subprocess rule).
 xattr = "1.6"
+# An embedded page clipped as an iframe is (src/web_clip/macos.rs; ADR
+# 0056 and ADR 0029, revisions of 2026-10-15): the page's WKWebView moved
+# into an NSView that clips to its bounds. AppKit's bindings that wry and
+# tao already build, at the versions in the lockfile (objc2 0.6.4,
+# objc2-foundation and objc2-app-kit 0.3.2; MIT), with features they
+# already enable but NSUserInterfaceItemIdentification. They replace
+# nothing of ours: the window had no way to clip a native view.
+# objc2-quartz-core (0.3.2, MIT, already in the lockfile through
+# objc2-app-kit) is a direct dependency for one call: the container's
+# layer masks to its bounds (`CALayer.masksToBounds`, macOS 10.5 and up),
+# because `NSView.clipsToBounds` is public only from macOS 14 and the app
+# supports macOS 11 and up. It replaces nothing of ours.
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSString", "NSGeometry"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSResponder", "NSView", "NSGraphics", "NSUserInterfaceItemIdentification", "objc2-quartz-core"] }
+objc2-quartz-core = { version = "0.3", default-features = false, features = ["std", "CALayer"] }
 
-[target.'cfg(not(windows))'.dev-dependencies]
-# A real `verso serve` for the tests of a window on a server's folder; the
-# server is not built for Windows (crates/verso-cli/Cargo.toml).
-verso-server = { path = "../../crates/verso-server" }
+[target.'cfg(windows)'.dependencies]
+# The same on Windows (src/web_clip/windows.rs): WebView2's host window
+# moved into a clipping child window. The Win32 and WebView2 bindings wry
+# and Tauri already build, at the lockfile's versions (windows 0.61.3,
+# webview2-com 0.38.2; MIT OR Apache-2.0, MIT); they replace nothing of
+# ours.
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_System_LibraryLoader", "Win32_UI_WindowsAndMessaging"] }
+webview2-com = "0.38"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# The same on Linux (src/web_clip/linux.rs), with GTK's safe API: the GTK
+# bindings Tauri already builds (gtk 0.18.2, MIT); they replace nothing of
+# ours.
+gtk = "0.18"
+
+[dev-dependencies]
 # A synced folder's live notes (ADR 0082 item 16): the tests' tabs are Yjs
 # documents, as the window's, and the feature's guardrail is a property
 # test. Both already in the tree, at these versions, through verso-server
@@ -80,13 +134,42 @@ verso-server = { path = "../../crates/verso-server" }
 # nothing of ours.
 yrs = "0.28"
 proptest = { version = "1.11", default-features = false, features = ["std"] }
-
-[dev-dependencies]
 # The commands exercised through Tauri's mock runtime, as the UI calls
 # them (ADR 0029: the contract's guardrail runs without a window).
 tauri = { version = "2", features = ["unstable", "test"] }
 serde_json = "1"
 tempfile = "3.27"
+# The signed checksums list's tests (ADR 0055, revised 2026-10-14) sign
+# with a throwaway minisign key made in the test, never the release key:
+# an Ed25519 key and BLAKE2b-512, minisign's prehash. Both already in the
+# tree at these versions, under licences cargo-deny already passes —
+# ring (Apache-2.0 AND ISC) through reqwest's rustls, blake2 (MIT OR
+# Apache-2.0) through verso-server's argon2; tests only, nothing shipped.
+ring = "0.17"
+blake2 = "0.10"
+# The DNS fallback's TLS tests (ADR 0097): a server with a certificate for
+# a name, reached through an address the DNS gave, must be verified for the
+# name; the certificate is made in the test (rcgen, MIT OR Apache-2.0) and
+# served by rustls on ring (Apache-2.0 OR ISC OR MIT). Both already in the
+# tree through verso-server and reqwest; tests only, nothing shipped.
+rcgen = { version = "0.14", default-features = false, features = ["ring", "pem"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 
-[lints]
-workspace = true
+# The workspace's lints, written out rather than inherited, for one
+# difference: `unsafe_code` is `deny` here, not `forbid`, so that the two
+# files of src/web_clip that clip an embedded page natively can allow it
+# (ADR 0029, revision of 2026-10-15, the maintainer's decision "A e B
+# juntos"). A `forbid` cannot be allowed anywhere, and Cargo cannot
+# inherit the workspace's lints but one. scripts/check-unsafe.mjs holds
+# this table to the workspace's and `unsafe` to those two files. Every
+# `unsafe` block says why it is sound (`undocumented_unsafe_blocks`) and
+# does one unsafe thing (`multiple_unsafe_ops_per_block`).
+[lints.rust]
+unsafe_code = "deny"
+
+[lints.clippy]
+unwrap_used = "forbid"
+expect_used = "forbid"
+disallowed_methods = "forbid"
+undocumented_unsafe_blocks = "forbid"
+multiple_unsafe_ops_per_block = "forbid"

@@ -3,6 +3,13 @@
 - Data: 2026-09-21
 - Fonte: `docs/BRIEFING.md` §4
 - Status no briefing: `RESTRIÇÃO` (não é escolha)
+- Revisões: 2026-10-14 — as fontes admissíveis delimitadas, pelo
+  mantenedor naquela noite (*"Sim, todas"*, respondendo às perguntas do
+  [0094](0094-the-rest-of-bases.md), esta entre elas): o código público de
+  um plugin de código aberto que o Obsidian publica sob a própria licença
+  — o `obsidianmd/obsidian-maps`, MIT, por exemplo — é uma fonte
+  admissível, como o `obsidian.d.ts` é. Inspecionar, descompilar ou
+  desminificar o próprio app continua proibido.
 
 ## Contexto
 
@@ -17,7 +24,7 @@ Registrar as restrições abaixo como dadas, com a origem, e desenhar dentro del
 
 | Restrição | Origem | Consequência |
 |---|---|---|
-| Não inspecionar, descompilar ou desminificar o app Obsidian | Termos de uso do Obsidian proíbem engenharia reversa para desenvolver produto concorrente | Fontes permitidas: API pública (`obsidian.d.ts`, MIT), documentação pública, comportamento observado de fora |
+| Não inspecionar, descompilar ou desminificar o app Obsidian | Termos de uso do Obsidian proíbem engenharia reversa para desenvolver produto concorrente | Fontes permitidas: API pública (`obsidian.d.ts`, MIT), documentação pública, comportamento observado de fora; e *(desde 2026-10-14)* o código público de um plugin de código aberto que o Obsidian publica sob a própria licença (`obsidianmd/obsidian-maps`, MIT) |
 | Sem acesso a pasta arbitrária no iOS | Sandbox do iOS | Document picker + security-scoped bookmarks |
 | Sem watcher de mudança externa equivalente ao desktop no iOS | iOS | Atualização por ação do usuário ou ao retornar ao app |
 | Sync em background restrito | iOS e Android | Sync mobile depende das janelas permitidas pelo SO |
@@ -32,7 +39,10 @@ Registrar as restrições abaixo como dadas, com a origem, e desenhar dentro del
 
 - A restrição sobre engenharia reversa define as fontes admissíveis para o
   trabalho de dialeto: só API pública, documentação pública e comportamento
-  observado de fora ([0030](0030-base-dialect-obsidian-compatible.md)).
+  observado de fora ([0030](0030-base-dialect-obsidian-compatible.md)),
+  e, desde 2026-10-14 (Revisões), o código público de um plugin de código
+  aberto que o Obsidian publica sob a própria licença. O próprio app nunca
+  é fonte, seja como for lido.
   Nenhum documento, fixture ou PR pode citar o binário do Obsidian como fonte.
 - As restrições de mobile alimentam as capabilities em runtime
   ([0027](0027-runtime-capabilities.md)) e a proposta de servidor companheiro

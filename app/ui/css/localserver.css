@@ -1,0 +1,136 @@
+/* "This app is a server" (ADR 0096): the settings' section, the pairing
+   dialog, the status mark; and the phone's page of pairing (web-note). */
+.ls { display: flex; flex-direction: column; gap: .7rem; max-width: 40rem; }
+.ls-lead { margin: 0; color: var(--ink-2); font-size: .92rem; }
+.ls-warn { margin: 0; padding: .5rem .7rem; border: 1px dashed var(--hair); border-radius: 8px; color: var(--ink-2); }
+.ls-h { font: 600 .9rem var(--ui); color: var(--ink); margin: .6rem 0 0; }
+.ls-help { margin: 0; font-size: .84rem; color: var(--ink-3); }
+.ls-state { margin: 0; font-size: .92rem; color: var(--ink); min-height: 1.3em; }
+.ls-said { margin: 0; min-height: 1.3em; font-size: .88rem; color: var(--ink-2); }
+.ls-check { display: inline-flex; align-items: center; gap: .5rem; font-size: .92rem; color: var(--ink); }
+.ls-check input { width: 16px; height: 16px; }
+.ls-number { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem .8rem; font-size: .92rem; color: var(--ink); }
+/* One control: − the number +. The engine's own arrows are hidden: the
+   buttons beside it are the way to step it (WebKit drew both). */
+.ls-steps { display: inline-flex; align-items: stretch; flex: none; border: 1px solid var(--hair); border-radius: 8px; overflow: hidden; background: var(--paper); }
+.ls-steps input { width: 3rem; min-height: 34px; box-sizing: border-box; margin: 0; padding: 0; text-align: center; font: inherit; font-variant-numeric: tabular-nums; background: transparent; color: var(--ink); border: 0; border-inline: 1px solid var(--hair); border-radius: 0; appearance: textfield; -moz-appearance: textfield; }
+.ls-steps input::-webkit-inner-spin-button, .ls-steps input::-webkit-outer-spin-button { -webkit-appearance: none; appearance: none; margin: 0; }
+.ls-steps input:focus-visible { outline: 2px solid var(--seal); outline-offset: -2px; }
+.ls .ls-step { display: inline-flex; align-items: center; justify-content: center; width: 34px; min-height: 34px; padding: 0; margin: 0; border: 0; border-radius: 0; background: transparent; color: var(--ink-2); font: 500 1.05rem/1 var(--ui); text-align: center; }
+.ls .ls-step:hover:not(:disabled) { background: var(--paper-3); color: var(--ink); }
+.ls .ls-step:disabled { color: var(--ink-3); opacity: .5; }
+@media (pointer: coarse) { .ls-steps input, .ls .ls-step { min-height: 44px; } .ls .ls-step { width: 44px; } }
+.ls-phones, .ls-log-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; }
+.ls-folder { display: flex; flex-direction: column; gap: .1rem; padding: .2rem 0; }
+.ls-phone { display: flex; align-items: center; justify-content: space-between; gap: .6rem; flex-wrap: wrap; padding: .4rem 0; border-bottom: 1px solid var(--hair); }
+.ls-phone-who { display: flex; flex-direction: column; min-width: 0; }
+.ls-phone-who small { color: var(--ink-3); font-size: .8rem; overflow-wrap: anywhere; }
+.ls-danger { display: flex; flex-direction: column; align-items: flex-start; gap: .5rem; padding-top: .6rem; border-top: 1px solid var(--hair); }
+.ls-confirm { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; font-size: .9rem; }
+.ls-cert { display: flex; flex-direction: column; gap: .4rem; }
+.ls-fp { margin: 0; font-size: .84rem; overflow-wrap: anywhere; }
+.ls-fp code, .ls-big code { font-family: var(--mono, ui-monospace, monospace); }
+.ls-adv-form { display: flex; flex-direction: column; gap: .35rem; max-width: 34rem; padding-top: .4rem; }
+.ls-adv-form input { font: inherit; font-size: .9rem; padding: .4rem .6rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 7px; }
+.ls-adv-form button { align-self: flex-start; margin-top: .3rem; }
+.ls-log summary, .ls-adv summary { cursor: pointer; font: 600 .9rem var(--ui); color: var(--ink); }
+.ls-log-list { font-size: .84rem; color: var(--ink-2); padding-top: .4rem; }
+.ls-log-list time { color: var(--ink-3); }
+/* The pairing dialog. */
+.ls-dialog { width: min(30rem, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; }
+.ls-pair-body { display: flex; flex-direction: column; align-items: center; gap: .7rem; text-align: center; }
+.ls-qr { width: min(18rem, 70vw); height: auto; border: 1px solid var(--hair); border-radius: 8px; background: #fff; }
+.ls-facts { display: grid; grid-template-columns: auto 1fr; gap: .2rem .8rem; margin: 0; text-align: start; font-size: .9rem; width: 100%; }
+.ls-facts dt { color: var(--ink-3); }
+.ls-facts dd { margin: 0; overflow-wrap: anywhere; }
+.ls-big code { font-size: 1.05rem; }
+.ls-code { font-size: 1.5rem; letter-spacing: .12em; font-weight: 600; }
+.ls-ask { border-top: 1px solid var(--hair); margin-top: .8rem; padding-top: .6rem; display: flex; flex-direction: column; gap: .5rem; }
+/* The status bar's mark: nothing listens without being visible. */
+.ls-mark { display: inline-flex; align-items: center; gap: .35rem; margin-inline-start: .6rem; padding: .05rem .2rem .05rem .5rem; border: 1px solid var(--brass-ink); border-radius: 999px; color: var(--brass-ink); font-size: .8rem; }
+.ls-mark .icon { width: 12px; height: 12px; }
+.ls-mark-stop { font-size: .78rem; padding: .05rem .5rem; border-radius: 999px; }
+.update-phones { margin: .5rem 0 0; font-size: .86rem; color: var(--seal); }
+/* The phone's page of pairing, beside the other pages of the server. */
+.web-note { margin: .8rem 0 0; font-size: .85rem; color: var(--ink-3); }
+@media (prefers-reduced-motion: reduce) { .ls-mark, .ls-qr { transition: none; } }
+
+/* The pairing dialog's address list: the label above, the list full width. */
+.ls-pick { display: flex; flex-direction: column; gap: .25rem; margin: .6rem 0 .2rem; text-align: start; width: 100%; }
+.ls-pick select { font: inherit; font-size: .9rem; width: 100%; min-height: 36px; padding: .2rem .4rem; }
+.ls-only { font-size: .9rem; overflow-wrap: anywhere; }
+.ls-dialog .confirm-actions { flex-wrap: wrap; }
+.ls-ask .confirm-actions { justify-content: flex-end; }
+.ls-phone-acts { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; }
+
+/* Folders served, as the folder switcher lists them (servedFolders.ts). */
+.ls-folders { display: flex; flex-direction: column; gap: .4rem; min-width: 0; }
+.ls-tools { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.ls-filter { flex: 1 1 12rem; min-width: 0; font: inherit; font-size: .9rem; padding: .4rem .6rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 7px; }
+.ls-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .1rem; }
+.ls-folder { min-height: 32px; justify-content: center; }
+.ls-folder .ls-check { align-items: baseline; }
+.ls-name { overflow-wrap: anywhere; min-width: 0; }
+.ls-place, .ls-current { font-size: .76rem; color: var(--ink-3); flex: none; }
+.ls-current { margin-inline-start: auto; }
+.ls-why { padding-inline-start: 1.5rem; }
+
+/* A ticked folder served in part: its tree of folders (servedTree.ts). */
+.ls-parts { display: flex; flex-direction: column; gap: .3rem; padding-inline-start: 1.5rem; }
+.ls-parts-toggle { align-self: flex-start; font-size: .84rem; }
+.ls-parts-panel { display: flex; flex-direction: column; gap: .3rem; }
+.ls-tree { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.ls-tree .ls-tree { padding-inline-start: 1.1rem; }
+.ls-tree[hidden] { display: none; }
+.ls-node-row { display: flex; align-items: center; gap: .2rem; min-height: 32px; flex-wrap: wrap; }
+.ls-chev { flex: none; width: 24px; height: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: none; border: 0; border-radius: 5px; color: var(--ink-3); cursor: pointer; }
+.ls-chev-gap { flex: none; width: 24px; }
+.ls-chev .chev { width: 5px; height: 5px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform .18s var(--ease-out); }
+.ls-chev[aria-expanded="true"] .chev { transform: rotate(45deg); }
+.ls-node .ls-why { padding-inline-start: .3rem; }
+@media (pointer: coarse) {
+  .ls-node-row { min-height: 44px; }
+  .ls-chev, .ls-chev-gap { width: 44px; height: 44px; }
+  .ls-parts-toggle { min-height: 44px; }
+  .ls-node .ls-check input { width: 22px; height: 22px; }
+}
+@media (prefers-reduced-motion: reduce) { .ls-chev .chev { transition: none; } }
+
+/* The folder open here, first; the recent ones in a group shut until opened. */
+.ls-here { display: flex; flex-direction: column; gap: .2rem; padding: .6rem .8rem .7rem; background: var(--paper-2); border: 1px solid var(--hair); border-radius: 10px; }
+.ls-here[hidden], .ls-recent[hidden] { display: none; }
+.ls-here-h { margin: 0; font: 600 .88rem var(--ui); color: var(--ink); overflow-wrap: anywhere; }
+.ls-recent > * + * { margin-top: .4rem; }
+.ls-recent-sum { cursor: pointer; font: 600 .9rem var(--ui); color: var(--ink); min-height: 32px; display: flex; align-items: center; }
+.ls-recent[open] > .ls-recent-sum { margin-bottom: .3rem; }
+.ls-row { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 0; row-gap: .1rem; min-width: 0; }
+.ls-why { display: block; margin-top: .1rem; }
+.ls-parts-sum { padding-inline-start: 1.5rem; }
+@media (pointer: coarse) { .ls-recent-sum { min-height: 44px; } }
+
+/* The section in blocks (localServer.ts): the switch, what it serves, the
+   phones, what is rarely touched; one rule between blocks, none inside. */
+.ls { gap: 0; }
+.ls-block { display: flex; flex-direction: column; gap: .55rem; padding: 1.1rem 0; border-top: 1px solid var(--hair); }
+.ls-block:first-child { padding-top: 0; border-top: 0; }
+.ls-block:empty { display: none; }
+.ls-block > .ls-h:first-child { margin-top: 0; }
+.ls-run { display: flex; align-items: center; justify-content: space-between; gap: .6rem 1rem; flex-wrap: wrap; padding: .6rem .8rem; background: var(--paper-2); border: 1px solid var(--hair); border-radius: 10px; }
+.ls-run .ls-state { flex: 1 1 14rem; }
+.ls-run .btn { flex: none; }
+.ls-block > .btn { align-self: flex-start; }
+.ls-here .ls-folder { padding: 0; }
+.ls-here .ls-parts { padding-inline-start: 1.6rem; }
+.ls-parts-all { align-self: flex-start; font-size: .84rem; }
+.ls-parts-all[hidden] { display: none; }
+.ls-recent { padding: .2rem 0; }
+.ls-recent .ls-list { gap: 0; }
+.ls-danger { padding-top: 0; border-top: 0; }
+.ls .btn:disabled { opacity: .5; cursor: default; }
+.ls-warn:empty, .ls-said:empty { display: none; }
+/* "Recentes" says it opens: the chevron of the sidebar's tree. */
+.ls-recent-sum { list-style: none; gap: .45rem; }
+.ls-recent-sum::-webkit-details-marker { display: none; }
+.ls-recent-sum::before { content: ""; flex: none; width: 5px; height: 5px; margin: 0 .2rem 0 .1rem; border-right: 1.5px solid var(--ink-3); border-bottom: 1.5px solid var(--ink-3); transform: rotate(-45deg); transition: transform .18s var(--ease-out); }
+.ls-recent[open] > .ls-recent-sum::before { transform: rotate(45deg); }
+@media (prefers-reduced-motion: reduce) { .ls-recent-sum::before { transition: none; } }

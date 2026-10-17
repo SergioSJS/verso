@@ -78,6 +78,11 @@
   only in case from an entry its folder already lists is refused too
   (item 3's revision; spec Q8). Built the same day (branch
   `feat/decisions-2026-10-12`).
+  2026-10-14 — item 2's folder layer gains the periodic notes' settings —
+  the formats, the folders, the templates, the periods on and the week's
+  start —, by [0093](0093-periodic-notes.md) item 4, accepted by the
+  maintainer that night (*"Sim, todas"*); the daily notes' folder moves
+  there once.
 
 ## Context
 

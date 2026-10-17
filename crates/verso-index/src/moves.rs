@@ -29,21 +29,21 @@ impl Index {
             return Ok(self.stamp_of(from)?.is_some());
         }
         let tx = self.conn.savepoint()?;
-        let old: Option<(i64, Option<String>, String)> = tx
+        let old: Option<(i64, Option<String>)> = tx
             .query_row(
-                "SELECT id, title, content FROM notes WHERE path = ?1",
+                "SELECT id, title FROM notes WHERE path = ?1",
                 params![from],
-                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+                |r| Ok((r.get(0)?, r.get(1)?)),
             )
             .optional()?;
-        let Some((id, title, content)) = old else {
+        let Some((id, title)) = old else {
             return Ok(false);
         };
         forget_path(&tx, to)?;
         // A title that was the file name (no `# Heading` of level 1)
         // becomes the new file name; one written in the note stays.
         let named_by_file: bool = tx.query_row(
-            "SELECT count(*) = 0 FROM headings WHERE note = ?1 AND level = 1",
+            "SELECT count(*) = 0 FROM headings WHERE note = ?1 AND level = 1 AND secret = 0",
             params![id],
             |r| r.get(0),
         )?;
@@ -60,10 +60,7 @@ impl Index {
         };
         // External content: FTS5 needs the old values to drop its tokens,
         // and the new row is told to it afterwards.
-        tx.execute(
-            "INSERT INTO notes_fts (notes_fts, rowid, path, title, content) VALUES ('delete', ?1, ?2, ?3, ?4)",
-            params![id, from, title, content],
-        )?;
+        crate::secret::fts_delete(&tx, id)?;
         let (path_key, name_key) = note_keys(to);
         tx.execute(
             "UPDATE notes SET path = ?1, path_key = ?2, name_key = ?3, dir = ?4, title = ?5, name_fold = ?7 WHERE id = ?6",
@@ -77,10 +74,7 @@ impl Index {
                 crate::search::name_fold(to)
             ],
         )?;
-        tx.execute(
-            "INSERT INTO notes_fts (rowid, path, title, content) VALUES (?1, ?2, ?3, ?4)",
-            params![id, to, new_title, content],
-        )?;
+        crate::secret::fts_insert(&tx, id)?;
         // A target read relative to the note's folder points somewhere
         // else once the note is in another folder.
         let targets: Vec<(i64, String)> = {
@@ -174,18 +168,13 @@ impl Index {
 
 /// Remove the row at `path`, if any, from `notes_fts` and `notes`.
 fn forget_path(tx: &rusqlite::Connection, path: &str) -> Result<(), IndexError> {
-    let stale: Option<(i64, Option<String>, String)> = tx
-        .query_row(
-            "SELECT id, title, content FROM notes WHERE path = ?1",
-            params![path],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
-        )
+    let stale: Option<i64> = tx
+        .query_row("SELECT id FROM notes WHERE path = ?1", params![path], |r| {
+            r.get(0)
+        })
         .optional()?;
-    if let Some((id, title, content)) = stale {
-        tx.execute(
-            "INSERT INTO notes_fts (notes_fts, rowid, path, title, content) VALUES ('delete', ?1, ?2, ?3, ?4)",
-            params![id, path, title, content],
-        )?;
+    if let Some(id) = stale {
+        crate::secret::fts_delete(tx, id)?;
         tx.execute("DELETE FROM notes WHERE id = ?1", params![id])?;
     }
     Ok(())

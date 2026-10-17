@@ -3,6 +3,18 @@
 - Date: 2026-09-21
 - Source: `docs/BRIEFING.md` §12, §16.2
 - Status in the briefing: `DECIDED` (intent); `PROPOSED` (scope)
+- Revisions: 2026-10-14 — the maintainer accepted that night
+  [0087](0087-secret-blocks-hidden-from-readers.md),
+  [0088](0088-dice-and-random-tables.md) and [0090](0090-maps-on-the-board.md)
+  (*"Sim, todas"*, every recommendation): dice, random tables, secret
+  blocks and maps enter the core as **primitives**
+  ([0003](0003-primitives-not-workarounds.md)), of use beyond games,
+  which the Consequences below allow. Of the scope's table: the random
+  table is a Markdown table or list with an `^id`, rolled by `dice:` —
+  no note type (0088 item 3); the player view is a `[!secret]` callout
+  served to readers without it, for sharing, and left out by default of
+  an export by a writer (0087); named viewports are not decided there.
+  The text below is kept as written.
 
 ## Context
 

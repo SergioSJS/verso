@@ -80,7 +80,9 @@ const STOPS = [
     edges: [["e-links-grafo", "n-links", "right", "n-grafo", "left", "viram o grafo"]],
     tip:
       "Escreva [[ e o nome de uma nota para ligar as duas: a outra ganha um backlink, e ![[nota]] mostra a nota inteira dentro desta. " +
-      "⌘⇧G abre as relações da nota aberta; o grafo do cofre inteiro fica na faixa da esquerda.",
+      "Pare o ponteiro sobre um link e a nota aparece num cartão, sem sair de onde você está. " +
+      "⌘⇧G abre as relações da nota aberta; o grafo do cofre inteiro fica na faixa da esquerda. " +
+      "Menções sem link, no painel da direita: Linkar faz o link ali; Linkar todas mostra antes o que muda.",
   },
   {
     id: "organizar",
@@ -93,7 +95,7 @@ const STOPS = [
       ["n-bases", "04 - Visualização de Bases e Dados.md", 420],
       ["n-diarias", "07 - Notas Diárias, Calendário e Templates.md", 420],
     ],
-    tip: "As propriedades no topo de uma nota viram colunas de uma base: tabela, fichas, lista, kanban ou calendário. ⌘⇧D abre a nota de hoje, feita do template Diário.",
+    tip: "As propriedades no topo de uma nota viram colunas de uma base: tabela, fichas, lista, kanban, calendário ou mapa. ⌘⇧D abre a nota de hoje, feita do template Diário; a semana e o mês têm a sua, na paleta e no calendário.",
     tipWidth: 860,
     extra(b, x, y, f) {
       b.file("n-base", "Projetos.base", x + 940, y + 740, 420, 64);
@@ -112,7 +114,8 @@ const STOPS = [
     ],
     tip:
       "Uma nota com type: personagem ganha o formulário do schema do tipo: as propriedades declaradas primeiro, com rótulo e campo certos. " +
-      "O que não cabe fica marcado, a linha vazia só grava quando você preenche, e type:personagem busca as notas do tipo.",
+      "O que não cabe fica marcado, a linha vazia só grava quando você preenche, e type:personagem busca as notas do tipo. " +
+      "Com layout: infobox no schema, as propriedades viram uma ficha ao lado do texto — abra Lugares/Porto Cinzento.",
     extra(b, x, y, f) {
       b.write("d-tipos-w", x + 40, y + 830, "o schema mora numa nota: Tipos/Personagem", { size: 28, color: GREY, frame: f });
     },
@@ -155,7 +158,8 @@ const STOPS = [
     tip:
       "Renomear atualiza os links que apontam para a nota, mostrando cada um antes. Uma imagem colada vai para assets ao lado da nota; " +
       "arrastar uma nota da árvore para o texto cria um link; ⌘-clique e ⇧-clique selecionam várias, que se movem juntas; " +
-      "a lixeira é a pasta .trash, como no Obsidian — Abrir a lixeira (paleta) mostra o que foi apagado, restaura e guarda 30 dias.",
+      "a lixeira é a pasta .trash, como no Obsidian — Abrir a lixeira (paleta) mostra o que foi apagado, restaura e guarda 30 dias; " +
+      "Histórico de versões (paleta, menu da aba ou o relógio da barra de status) mostra quem mudou a nota e quando, e restaura uma versão.",
     extra(b, x, y, f) {
       keys(b, "d-arq", x + 740, y + 160, [[["⌘", "N"], "nova nota"], [["⌘", "⇧", "N"], "nova nota com nome"], [["F2"], "renomear"], [["⌘", "⌫"], "para a lixeira"]], f);
     },
@@ -206,6 +210,7 @@ const STOPS = [
       "• ⇄ troca o arquivo de um cartão\n" +
       "• ⌘⇧E exporta o board como imagem\n" +
       "• ⌘F busca no board\n" +
+      "• Uma imagem vira mapa, com alfinetes que abrem notas\n" +
       "• Texto, no canto da aba, mostra o JSON",
     tipX: 760,
     tipY: 430,
@@ -270,7 +275,7 @@ const STOPS = [
     color: PINK,
     canvasColor: "1",
     cards: [],
-    tip: "Relatar problema, na barra de status, prepara um relato para você copiar; ⌥⌘I abre o console. No Windows e no Linux, Ctrl no lugar de ⌘.",
+    tip: "O sino, na barra de status, guarda as notificações; Relatar problema, ao lado, prepara um relato para você copiar; ⌥⌘I abre o console. No Windows e no Linux, Ctrl no lugar de ⌘.",
     tipWidth: 620,
     tipY: 760,
     extra(b, x, y, f) {
@@ -335,7 +340,7 @@ const STOPS = [
     cards: [["n-celular", "22 - Verso no Celular e no Tablet.md", 640]],
     tip:
       "No navegador do celular, a barra de baixo traz Arquivos, Buscar, Nova nota, Voltar e Comandos; um layout dividido mostra uma área por vez. " +
-      "Segurar e soltar abre o menu, segurar e arrastar move, e o … ao lado da linha faz o mesmo sem gesto. No Editar, o toque num link mostra Abrir e Editar link.",
+      "Segurar e soltar abre o menu, segurar e arrastar move, e o … ao lado da linha faz o mesmo sem gesto. No Editar, o toque num link mostra Abrir e Editar link. Com HTTPS, Ajustes › Sem rede deixa uma pasta abrir e editar sem conexão, e o que mudou sobe quando a rede volta.",
   },
   {
     id: "servidor",
@@ -343,11 +348,28 @@ const STOPS = [
     heading: "🖥️ Num servidor",
     color: TEAL,
     canvasColor: "5",
-    cards: [["n-servidor", "23 - Verso num Servidor.md", 640]],
+    cards: [
+      ["n-servidor", "23 - Verso num Servidor.md", 420],
+      ["n-instalar", "24 - Instalar o seu UniVerso, Passo a Passo.md", 420],
+    ],
     tip:
       "O UniVerso, o Verso num servidor seu, guarda as pastas e as abre no navegador: contas por convite, dono, editores e leitores, várias pessoas na mesma nota, no mesmo board ou arquivo, ao vivo, com o ponteiro e o nome de cada um. " +
       "No app desktop, Ajustes › Servidores conecta pelo navegador; Ajustes › Sincronizar mantém uma pasta deste computador igual a uma do servidor — e, com a rede, uma nota, um board ou um arquivo de texto aberto nela é editado junto, ao vivo. " +
-      "Botão direito numa pasta › Compartilhar… divide só ela com outra pessoa, lendo ou editando; quem recebe a vê em Compartilhados comigo.",
+      "Botão direito numa pasta › Compartilhar… divide só ela com outra pessoa, lendo ou editando; quem recebe a vê em Compartilhados comigo. " +
+      "Para montar o seu, a nota 25 é o passo a passo: o compose ou o script de instalação, o primeiro admin, o HTTPS opcional e o backup.",
+  },
+  {
+    id: "dados",
+    label: "Dados",
+    heading: "🎲 Dados e tabelas sorteadas",
+    color: TEAL,
+    canvasColor: "5",
+    cards: [["n-dados", "25 - Dados e Tabelas Sorteadas.md", 640]],
+    tip:
+      "Um código `dice: 1d20+5` numa nota é um dado: um clique, ou Enter, rola e mostra o total e cada dado ao lado — nada é escrito na nota. " +
+      "`dice: [[Nota#^id]]` sorteia uma linha de uma tabela ou de uma lista com esse ^id; com um dado no cabeçalho da primeira coluna, valem as faixas. " +
+      "Numa nota compartilhada quem rola é o servidor, e todos veem quem rolou. Rolar dados…, na paleta, rola sem nota. " +
+      "Um callout `> [!secret]` é o segredo do mestre: num UniVerso, quem só lê a nota a recebe sem ele; Ver como leitor mostra como.",
   },
 ];
 

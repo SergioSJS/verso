@@ -29,9 +29,14 @@ pub async fn state(ctx: Ctx) -> ApiResult<Response> {
     Ok(ok(json!({
         "version": known.then_some(env!("CARGO_PKG_VERSION")),
         "contract": known.then_some(&ctx.server.contract),
-        "secure": ctx.peer.secure,
+        "secure": ctx.peer.https,
         "web": ctx.server.config.web,
-        "mail": ctx.server.mail.get().is_some(),
+        // "This app is a server" (ADR 0096): there is no sign-in here, only
+        // pairing; the page says so instead of asking for a password.
+        "local": ctx.server.local.is_some(),
+        // Links by e-mail exist only with a public address to build them
+        // from (see [`mail_ready`]); the sign-in page hides them otherwise.
+        "mail": mail_ready(&ctx.server),
         "setup": setup,
         "account": ctx.who.as_ref().map(|w| account_json(&w.account)),
         "csrf": match ctx.who.as_ref().map(|w| &w.via) {
@@ -100,7 +105,7 @@ fn signed_in(ctx: &Ctx, account: &db::Account, body: serde_json::Value) -> ApiRe
         &ctx.address(),
     )?;
     let mut response = ok(json!({ "account": account_json(account), "csrf": csrf, "done": body }));
-    if let Ok(v) = HeaderValue::from_str(&auth::session_cookie(&ctx.server, &token)) {
+    if let Ok(v) = HeaderValue::from_str(&auth::session_cookie(&ctx.peer, &token)) {
         response.headers_mut().append(header::SET_COOKIE, v);
     }
     Ok(response)
@@ -202,7 +207,7 @@ pub async fn sign_out(ctx: Ctx) -> ApiResult<Response> {
         ctx.audit("sign_out", None, None, true);
     }
     let mut response = ok(json!(null));
-    if let Ok(v) = HeaderValue::from_str(&auth::clear_cookie(&ctx.server)) {
+    if let Ok(v) = HeaderValue::from_str(&auth::clear_cookie(&ctx.peer)) {
         response.headers_mut().append(header::SET_COOKIE, v);
     }
     Ok(response)
@@ -727,12 +732,32 @@ pub struct ByMail {
 /// after the answer has left ([`mail_later`]).
 pub async fn signin_link(ctx: Ctx, Json(body): Json<ByMail>) -> ApiResult<Response> {
     ctx.changes()?;
-    if ctx.server.mail.get().is_none() {
-        return Err(ApiError::bad("no_mail", "this server has no mail server"));
-    }
+    mail_route_ready(&ctx)?;
     mail_limited(&ctx, &body.email)?;
     mail_later(&ctx, body.email, Mailed::SignIn);
     Ok(ok(json!({ "sent": true })))
+}
+
+/// Whether the unauthenticated mail routes work: a mail server, and a
+/// `VERSO_PUBLIC_URL` to build their links from. The `Host` of a request
+/// that signs nobody in is whatever its sender wrote, and a link mailed to
+/// the victim must never carry it (a poisoned `Host` would send the reset
+/// token to the attacker; ADR 0073 item 6, amended 2026-10-16).
+pub fn mail_ready(server: &crate::state::Server) -> bool {
+    server.mail.get().is_some() && server.config.public_url.is_some()
+}
+
+fn mail_route_ready(ctx: &Ctx) -> ApiResult<()> {
+    if ctx.server.mail.get().is_none() {
+        return Err(ApiError::bad("no_mail", "this server has no mail server"));
+    }
+    if ctx.server.config.public_url.is_none() {
+        return Err(ApiError::bad(
+            "no_mail",
+            "links by mail need VERSO_PUBLIC_URL: set it to the address people use",
+        ));
+    }
+    Ok(())
 }
 
 /// A mail route's delays: the sender's address, and the address mailed
@@ -768,7 +793,8 @@ enum Mailed {
 /// its link and its line in the audit log follow on their own.
 fn mail_later(ctx: &Ctx, email: String, what: Mailed) {
     let server = std::sync::Arc::clone(&ctx.server);
-    let base = auth::expected_origin(&ctx.server, &ctx.headers).unwrap_or_default();
+    // Only the configured address: never the request's own `Host`.
+    let base = ctx.server.config.public_url.clone().unwrap_or_default();
     let address = (ctx.address(), ctx.peer.key());
     tokio::spawn(async move {
         if let Err(e) = mailed(&server, &email, &base, &address, what).await {
@@ -891,9 +917,7 @@ pub async fn signin_by_link(ctx: Ctx, Path(token): Path<String>) -> ApiResult<Re
 /// ([`mail_later`]).
 pub async fn forgot(ctx: Ctx, Json(body): Json<ByMail>) -> ApiResult<Response> {
     ctx.changes()?;
-    if ctx.server.mail.get().is_none() {
-        return Err(ApiError::bad("no_mail", "this server has no mail server"));
-    }
+    mail_route_ready(&ctx)?;
     mail_limited(&ctx, &body.email)?;
     mail_later(&ctx, body.email, Mailed::Reset);
     Ok(ok(json!({ "sent": true })))

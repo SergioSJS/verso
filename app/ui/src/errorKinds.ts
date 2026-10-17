@@ -15,7 +15,18 @@ export const ANSWERS = new Set(["exists", "case_twin", "quota"]);
 /** Kinds that tell the window's own state, not a fault: a file it named
  *  is no longer there — deleted or moved elsewhere, on a server possibly
  *  on another device. Said all the same; INFO in the log. */
-export const STATE = new Set(["not_found"]);
+export const STATE = new Set(["not_found", "not_on_phone", "phone_reads"]);
+/** A paired phone refused by the computer it is paired with (ADR 0096
+ *  item 12): said in the window's own sentence, an answer, not a fault. */
+export const PHONE = new Set(["not_on_phone", "phone_reads"]);
+
+/** A failure of the connection itself — the web bridge's "no connection,
+ *  trying again" (`transport: true`) — comes with the kind `unavailable`
+ *  that the core also gives a file still in the cloud (ADR 0043). It is
+ *  told by that flag, never by its text: it is not a file in the cloud. */
+export function isTransport(e: unknown): boolean {
+  return typeof e === "object" && e !== null && (e as { transport?: unknown }).transport === true;
+}
 
 export function errorParts(e: ContractError | unknown): { kind: string; message: string } {
   const message =

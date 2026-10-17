@@ -107,6 +107,26 @@ pub struct SourceLink {
     pub col: u32,
     pub start: usize,
     pub end: usize,
+    /// The link is written in a secret node of the board (ADR 0090 item
+    /// 5): a reader's backlinks and counts do not have it.
+    pub secret: bool,
+}
+
+/// What the index keeps of a board with secret nodes, as it keeps a
+/// note's secret blocks (ADR 0087 item 6): the board's searchable text as
+/// a reader is served it, the text of what was taken out, and what a
+/// reader receives of the file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BoardSplit {
+    pub public: String,
+    pub secret: String,
+    /// The length and FNV-1a hash of the projection a reader is served.
+    pub len: usize,
+    pub hash: u64,
+    /// The lines the secret nodes take, `first-last,...`: a reader's line
+    /// numbers are the projection's (the same list a note's secret blocks
+    /// keep).
+    pub hidden: String,
 }
 
 /// A target no note answers to, with how many links name it.
@@ -122,6 +142,9 @@ pub struct EntryLabel {
     pub sticker: Option<String>,
     pub color: Option<String>,
     pub alias: Option<String>,
+    /// Every alias, the first included: what the suggestion while typing
+    /// matches (ADR 0089 item 5).
+    pub aliases: Vec<String>,
     pub order: Option<Vec<String>>,
     pub pinned: Option<Vec<String>>,
 }
@@ -170,20 +193,17 @@ fn embeds(kind: &str) -> bool {
 /// old values to drop its tokens) and from `notes`. Returns whether there
 /// was one.
 fn forget(tx: &rusqlite::Connection, relative: &str) -> Result<bool, IndexError> {
-    let old: Option<(i64, Option<String>, String)> = tx
+    let old: Option<i64> = tx
         .query_row(
-            "SELECT id, title, content FROM notes WHERE path = ?1",
+            "SELECT id FROM notes WHERE path = ?1",
             params![relative],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            |r| r.get(0),
         )
         .optional()?;
-    let Some((id, title, content)) = old else {
+    let Some(id) = old else {
         return Ok(false);
     };
-    tx.execute(
-        "INSERT INTO notes_fts (notes_fts, rowid, path, title, content) VALUES ('delete', ?1, ?2, ?3, ?4)",
-        params![id, relative, title, content],
-    )?;
+    crate::secret::fts_delete(tx, id)?;
     tx.execute("DELETE FROM notes WHERE id = ?1", params![id])?;
     Ok(true)
 }
@@ -198,10 +218,16 @@ impl Index {
         report: &Document,
     ) -> Result<(), IndexError> {
         let (path_key, name_key) = note_keys(relative);
+        // Its secret blocks (ADR 0087 item 6): what a reader receives, and
+        // the constructs inside them flagged below.
+        let split = crate::secret::split(content);
+        let hides = |span: &verso_dialect::Span| split.secrets.touches(span.start..span.end);
+        // The title is what anyone may read: a heading inside a secret
+        // block names nothing.
         let title = report
             .headings
             .iter()
-            .find(|h| h.level == 1)
+            .find(|h| h.level == 1 && !hides(&h.span))
             .map(|h| h.text.clone())
             .unwrap_or_else(|| {
                 let name = relative.rsplit('/').next().unwrap_or(relative);
@@ -288,10 +314,23 @@ impl Index {
         };
         let note_type_key = note_type.as_deref().map(crate::keys::type_key);
         let tx = self.conn.savepoint()?;
+        // When a reader last saw the note change: kept while its public
+        // text stays the same.
+        let before: Option<(Option<i64>, Option<i64>)> = tx
+            .query_row(
+                "SELECT public_hash, public_modified FROM notes WHERE path = ?1",
+                params![relative],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?;
+        let public_modified = match before {
+            Some((Some(hash), Some(at))) if hash == split.public_hash => at,
+            _ => stamp.modified,
+        };
         forget(&tx, relative)?;
         tx.execute(
-            "INSERT INTO notes (path, path_key, name_key, dir, title, modified, len, hash, tags, aliases, frontmatter_ok, unverified, content, url, sticker, color, banner, banner_y, order_items, pinned_items, type, type_key, indexed_at, name_fold)
-             VALUES (?1, ?2, ?3, ?12, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)",
+            "INSERT INTO notes (path, path_key, name_key, dir, title, modified, len, hash, tags, aliases, frontmatter_ok, unverified, content, url, sticker, color, banner, banner_y, order_items, pinned_items, type, type_key, indexed_at, name_fold, public, secret, hidden, public_hash, public_len, public_modified)
+             VALUES (?1, ?2, ?3, ?12, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29)",
             params![
                 relative,
                 path_key,
@@ -318,6 +357,12 @@ impl Index {
                 note_type_key,
                 self.run_started.unwrap_or(0),
                 crate::search::name_fold(relative),
+                split.public,
+                split.secret,
+                split.hidden,
+                split.public_hash,
+                split.public_len,
+                public_modified,
             ],
         )?;
         let note = tx.last_insert_rowid();
@@ -344,7 +389,7 @@ impl Index {
         }
         {
             let mut ins = tx.prepare(
-                "INSERT INTO headings (note, level, text, line, col, start, end) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                "INSERT INTO headings (note, level, text, line, col, start, end, secret) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             )?;
             for h in &report.headings {
                 ins.execute(params![
@@ -354,13 +399,14 @@ impl Index {
                     h.pos.line,
                     h.pos.col,
                     offset(h.span.start),
-                    offset(h.span.end)
+                    offset(h.span.end),
+                    hides(&h.span)
                 ])?;
             }
         }
         {
             let mut ins = tx.prepare(
-                "INSERT INTO blocks (note, id, line, col, start, end, first_line, last_line) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                "INSERT INTO blocks (note, id, line, col, start, end, first_line, last_line, secret) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             )?;
             for b in &report.blocks {
                 ins.execute(params![
@@ -371,14 +417,15 @@ impl Index {
                     offset(b.span.start),
                     offset(b.span.end),
                     b.lines.0,
-                    b.lines.1
+                    b.lines.1,
+                    hides(&b.span)
                 ])?;
             }
         }
         {
             let mut ins = tx.prepare(
-                "INSERT INTO links (note, kind, target, target_key, rel_key, heading, block, alias, line, col, start, end)
-                 VALUES (?1, ?2, ?3, ?4, ?12, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                "INSERT INTO links (note, kind, target, target_key, rel_key, heading, block, alias, line, col, start, end, secret)
+                 VALUES (?1, ?2, ?3, ?4, ?12, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?13)",
             )?;
             for l in &report.links {
                 ins.execute(params![
@@ -393,7 +440,8 @@ impl Index {
                     l.pos.col,
                     offset(l.span.start),
                     offset(l.span.end),
-                    relative_key(relative, &l.target)
+                    relative_key(relative, &l.target),
+                    hides(&l.span)
                 ])?;
             }
             for e in &report.embeds {
@@ -409,7 +457,8 @@ impl Index {
                     e.pos.col,
                     offset(e.span.start),
                     offset(e.span.end),
-                    relative_key(relative, &e.target)
+                    relative_key(relative, &e.target),
+                    hides(&e.span)
                 ])?;
             }
             // Typed relations (spec Q10): a link a frontmatter property
@@ -436,10 +485,7 @@ impl Index {
             }
         }
         // External content: the row id ties the tokens to `notes.id`.
-        tx.execute(
-            "INSERT INTO notes_fts (rowid, path, title, content) VALUES (?1, ?2, ?3, ?4)",
-            params![note, relative, title, content],
-        )?;
+        crate::secret::fts_insert(&tx, note)?;
         tx.commit()?;
         Ok(())
     }
@@ -455,14 +501,44 @@ impl Index {
         content: &str,
         links: &[SourceLink],
     ) -> Result<(), IndexError> {
+        self.upsert_board(relative, stamp, content, links, None)
+    }
+
+    /// [`Index::upsert_canvas`] for a board that may hold secret nodes
+    /// (ADR 0090 item 5): with `split`, a reader's search and counts are
+    /// answered from the public text and the links not flagged secret, and
+    /// its length and time are the projection's, as a note's are.
+    pub fn upsert_board(
+        &mut self,
+        relative: &str,
+        stamp: NoteStamp,
+        content: &str,
+        links: &[SourceLink],
+        split: Option<&BoardSplit>,
+    ) -> Result<(), IndexError> {
         let (path_key, name_key) = note_keys(relative);
         let name = relative.rsplit('/').next().unwrap_or(relative);
         let title = name.strip_suffix(".canvas").unwrap_or(name);
         let tx = self.conn.savepoint()?;
+        let before: Option<(Option<i64>, Option<i64>)> = tx
+            .query_row(
+                "SELECT public_hash, public_modified FROM notes WHERE path = ?1",
+                params![relative],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?;
+        let hash = split.map(|b| i64::from_le_bytes(b.hash.to_le_bytes()));
+        // When a reader last saw the board change: kept while what it is
+        // served stays the same.
+        let public_modified = match (before, hash) {
+            (Some((Some(was), Some(at))), Some(now)) if was == now => Some(at),
+            (_, Some(_)) => Some(stamp.modified),
+            _ => None,
+        };
         forget(&tx, relative)?;
         tx.execute(
-            "INSERT INTO notes (path, kind, path_key, name_key, dir, title, modified, len, hash, unverified, content, name_fold)
-             VALUES (?1, 'canvas', ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, ?9, ?10)",
+            "INSERT INTO notes (path, kind, path_key, name_key, dir, title, modified, len, hash, unverified, content, name_fold, public, secret, hidden, public_hash, public_len, public_modified)
+             VALUES (?1, 'canvas', ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
             params![
                 relative,
                 path_key,
@@ -474,13 +550,21 @@ impl Index {
                 i64::from_le_bytes(stamp.hash.to_le_bytes()),
                 content,
                 crate::search::name_fold(relative),
+                split.map(|b| b.public.as_str()),
+                split.map(|b| b.secret.as_str()),
+                // The lines of the secret nodes; even an empty list marks
+                // the row as one that hides something.
+                split.map(|b| b.hidden.as_str()),
+                hash,
+                split.map(|b| i64::try_from(b.len).unwrap_or(i64::MAX)),
+                public_modified,
             ],
         )?;
         let source = tx.last_insert_rowid();
         {
             let mut ins = tx.prepare(
-                "INSERT INTO links (note, kind, target, target_key, rel_key, heading, block, alias, line, col, start, end)
-                 VALUES (?1, ?2, ?3, ?4, ?12, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                "INSERT INTO links (note, kind, target, target_key, rel_key, heading, block, alias, line, col, start, end, secret)
+                 VALUES (?1, ?2, ?3, ?4, ?12, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?13)",
             )?;
             for l in links {
                 ins.execute(params![
@@ -501,14 +585,12 @@ impl Index {
                     l.col,
                     offset(l.start),
                     offset(l.end),
-                    relative_key(relative, &l.target)
+                    relative_key(relative, &l.target),
+                    l.secret
                 ])?;
             }
         }
-        tx.execute(
-            "INSERT INTO notes_fts (rowid, path, title, content) VALUES (?1, ?2, ?3, ?4)",
-            params![source, relative, title, content],
-        )?;
+        crate::secret::fts_insert(&tx, source)?;
         tx.commit()?;
         Ok(())
     }
@@ -552,10 +634,7 @@ impl Index {
         // An empty document keeps the two tables in step; the transaction
         // keeps them in step even if this second insert fails.
         let id = tx.last_insert_rowid();
-        tx.execute(
-            "INSERT INTO notes_fts (rowid, path, title, content) VALUES (?1, ?2, ?3, '')",
-            params![id, relative, title],
-        )?;
+        crate::secret::fts_insert(&tx, id)?;
         tx.commit()?;
         Ok(false)
     }
@@ -619,15 +698,20 @@ impl Index {
     /// Every resolved link of the vault as a pair of paths, source then
     /// target, once each: the whole graph.
     pub fn graph(&self) -> Result<Vec<(String, String)>, IndexError> {
+        self.graph_as(false)
+    }
+
+    /// [`Index::graph`]; `reader`: without a link inside a secret block.
+    pub(crate) fn graph_as(&self, reader: bool) -> Result<Vec<(String, String)>, IndexError> {
         let sql = format!(
             "SELECT DISTINCT n.path, t.path
              FROM links l JOIN notes n ON n.id = l.note
              JOIN notes t ON t.id = {RESOLVE}
-             WHERE l.target_key IS NOT NULL
+             WHERE l.target_key IS NOT NULL AND (?1 = 0 OR l.secret = 0)
              ORDER BY n.path, t.path"
         );
         let mut st = self.conn.prepare(&sql)?;
-        let rows = st.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
+        let rows = st.query_map(params![reader], |r| Ok((r.get(0)?, r.get(1)?)))?;
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
@@ -639,9 +723,20 @@ impl Index {
     /// then name. What a tag is (spec Q13) and its charset and case (Q22)
     /// are this rule, which both sides apply.
     pub fn tags(&self) -> Result<Vec<(String, Vec<String>)>, IndexError> {
-        let mut st = self
-            .conn
-            .prepare("SELECT path, tags, content FROM notes WHERE kind = 'note' ORDER BY path")?;
+        self.tags_as(false)
+    }
+
+    /// [`Index::tags`]; `reader`: from the notes' public text, so a tag
+    /// only a secret block holds is no tag (ADR 0087 item 4).
+    pub(crate) fn tags_as(&self, reader: bool) -> Result<Vec<(String, Vec<String>)>, IndexError> {
+        let column = if reader {
+            "COALESCE(public, content)"
+        } else {
+            "content"
+        };
+        let mut st = self.conn.prepare(&format!(
+            "SELECT path, tags, {column} FROM notes WHERE kind = 'note' ORDER BY path"
+        ))?;
         let rows = st.query_map([], |r| {
             Ok((
                 r.get::<_, String>(0)?,
@@ -872,14 +967,20 @@ impl Index {
     /// order, each with the note it resolves to, if any: one query where
     /// [`Index::links_of`] would take one per note.
     pub fn all_links(&self) -> Result<Vec<VaultLink>, IndexError> {
+        self.all_links_as(false)
+    }
+
+    /// [`Index::all_links`]; `reader`: without those inside secret blocks.
+    pub(crate) fn all_links_as(&self, reader: bool) -> Result<Vec<VaultLink>, IndexError> {
         let sql = format!(
             "SELECT n.path, l.kind, l.target, l.alias,
                     (SELECT path FROM notes WHERE id = {RESOLVE})
              FROM links l JOIN notes n ON n.id = l.note
+             WHERE ?1 = 0 OR l.secret = 0
              ORDER BY n.path, l.start"
         );
         let mut st = self.conn.prepare(&sql)?;
-        let rows = st.query_map([], |r| {
+        let rows = st.query_map(params![reader], |r| {
             Ok(VaultLink {
                 from: r.get(0)?,
                 embed: embeds(&r.get::<_, String>(1)?),
@@ -893,60 +994,43 @@ impl Index {
 
     /// The headings of a note, in document order.
     pub fn headings_of(&self, relative: &str) -> Result<Vec<Heading>, IndexError> {
-        let mut st = self.conn.prepare(
-            "SELECT h.level, h.text, h.line, h.col FROM headings h
-             JOIN notes n ON n.id = h.note WHERE n.path = ?1 ORDER BY h.start",
-        )?;
-        let rows = st.query_map(params![relative], |r| {
-            Ok(Heading {
-                level: r.get(0)?,
-                text: r.get(1)?,
-                line: r.get(2)?,
-                col: r.get(3)?,
-            })
-        })?;
-        Ok(rows.collect::<Result<_, _>>()?)
+        self.headings_as(relative, false)
     }
 
     /// The `^id` blocks of a note, in document order.
     pub fn blocks_of(&self, relative: &str) -> Result<Vec<Block>, IndexError> {
-        let mut st = self.conn.prepare(
-            "SELECT b.id, b.line, b.col, b.first_line, b.last_line FROM blocks b
-             JOIN notes n ON n.id = b.note WHERE n.path = ?1 ORDER BY b.start",
-        )?;
-        let rows = st.query_map(params![relative], |r| {
-            let line: u32 = r.get(1)?;
-            Ok(Block {
-                id: r.get(0)?,
-                line,
-                col: r.get(2)?,
-                // A row carried over from version 10 and not read again
-                // yet (a placeholder): the id's own line.
-                first_line: r.get::<_, Option<u32>>(3)?.unwrap_or(line),
-                last_line: r.get::<_, Option<u32>>(4)?.unwrap_or(line),
-            })
-        })?;
-        Ok(rows.collect::<Result<_, _>>()?)
+        self.blocks_as(relative, false)
     }
 
     /// The links a note makes, in document order, each with what it
     /// resolves to.
     pub fn links_of(&self, relative: &str) -> Result<Vec<Link>, IndexError> {
+        self.links_as(relative, false)
+    }
+
+    /// [`Index::links_of`]; `reader`: without the links inside secret
+    /// blocks, and lines numbered as the note's projection numbers them.
+    pub(crate) fn links_as(&self, relative: &str, reader: bool) -> Result<Vec<Link>, IndexError> {
         let sql = format!(
             "SELECT l.kind, l.target, l.heading, l.block, l.alias, l.line, l.col,
-                    (SELECT path FROM notes WHERE id = {RESOLVE}), l.relation
+                    (SELECT path FROM notes WHERE id = {RESOLVE}), l.relation, n.hidden
              FROM links l JOIN notes n ON n.id = l.note
-             WHERE n.path = ?1 ORDER BY l.start"
+             WHERE n.path = ?1 AND (?2 = 0 OR l.secret = 0) ORDER BY l.start"
         );
         let mut st = self.conn.prepare(&sql)?;
-        let rows = st.query_map(params![relative], |r| {
+        let rows = st.query_map(params![relative, reader], |r| {
+            let line: u32 = r.get(5)?;
             Ok(Link {
                 embed: embeds(&r.get::<_, String>(0)?),
                 target: r.get(1)?,
                 heading: r.get(2)?,
                 block: r.get(3)?,
                 alias: r.get(4)?,
-                line: r.get(5)?,
+                line: if reader {
+                    crate::secret::line_shown(r.get::<_, Option<String>>(9)?.as_deref(), line)
+                } else {
+                    line
+                },
                 col: r.get(6)?,
                 resolved: r.get(7)?,
                 relation: r.get(8)?,
@@ -962,20 +1046,35 @@ impl Index {
     /// the note itself and are backlinks of it (Q12, as observed on
     /// 2026-09-22; `tests/graph.rs`).
     pub fn backlinks(&self, relative: &str) -> Result<Vec<Backlink>, IndexError> {
+        self.backlinks_as(relative, false)
+    }
+
+    /// [`Index::backlinks`]; `reader`: without the links inside secret
+    /// blocks, lines numbered as each source's projection numbers them.
+    pub(crate) fn backlinks_as(
+        &self,
+        relative: &str,
+        reader: bool,
+    ) -> Result<Vec<Backlink>, IndexError> {
         let sql = format!(
-            "SELECT src.path, l.target, l.kind, l.line, l.col, l.relation
+            "SELECT src.path, l.target, l.kind, l.line, l.col, l.relation, src.hidden
              FROM links l JOIN notes src ON src.id = l.note
              JOIN notes t ON t.path = ?1
-             WHERE l.target_key IS NOT NULL AND {RESOLVE} = t.id
+             WHERE l.target_key IS NOT NULL AND {RESOLVE} = t.id AND (?2 = 0 OR l.secret = 0)
              ORDER BY src.path, l.start"
         );
         let mut st = self.conn.prepare(&sql)?;
-        let rows = st.query_map(params![relative], |r| {
+        let rows = st.query_map(params![relative, reader], |r| {
+            let line: u32 = r.get(3)?;
             Ok(Backlink {
                 from: r.get(0)?,
                 target: r.get(1)?,
                 embed: embeds(&r.get::<_, String>(2)?),
-                line: r.get(3)?,
+                line: if reader {
+                    crate::secret::line_shown(r.get::<_, Option<String>>(6)?.as_deref(), line)
+                } else {
+                    line
+                },
                 col: r.get(4)?,
                 relation: r.get(5)?,
             })
@@ -1014,7 +1113,8 @@ impl Index {
             let sticker: Option<String> = r.get(1)?;
             let color: Option<String> = r.get(2)?;
             let aliases_json: String = r.get(3)?;
-            let alias = json_strings(&aliases_json).into_iter().next();
+            let aliases = json_strings(&aliases_json);
+            let alias = aliases.first().cloned();
             let order_json: Option<String> = r.get(4)?;
             let order = order_json
                 .map(|j| json_strings(&j))
@@ -1029,6 +1129,7 @@ impl Index {
                     sticker,
                     color,
                     alias,
+                    aliases,
                     order,
                     pinned,
                 },
@@ -1058,7 +1159,8 @@ impl Index {
             let sticker: Option<String> = r.get(0)?;
             let color: Option<String> = r.get(1)?;
             let aliases_json: String = r.get(2)?;
-            let alias = json_strings(&aliases_json).into_iter().next();
+            let aliases = json_strings(&aliases_json);
+            let alias = aliases.first().cloned();
             let order_json: Option<String> = r.get(3)?;
             let order = order_json
                 .map(|j| json_strings(&j))
@@ -1071,6 +1173,7 @@ impl Index {
                 sticker,
                 color,
                 alias,
+                aliases,
                 order,
                 pinned,
             })

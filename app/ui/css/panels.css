@@ -429,6 +429,17 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .panel-list li > button.level-3 { padding-left: 1.2rem; }
 .panel-list li > button.level-4, .panel-list li > button.level-5, .panel-list li > button.level-6 { padding-left: 1.9rem; color: var(--ink-3); }
 .panel-list .empty { padding: .4rem .5rem; font-size: .85rem; color: var(--ink-3); font-family: var(--book); font-style: italic; }
+/* Unlinked mentions (ADR 0089): a row per occurrence, its line around it,
+   and "Link" beside it; "Link all" beside the heading. No motion. */
+.mentions-head { display: flex; align-items: center; gap: .4rem; margin-right: .4rem; }
+.mentions-head .panel-sub { margin-right: auto; }
+.mentions-list li.mention { display: flex; align-items: flex-start; gap: .2rem; }
+.mentions-list li.mention > button.row { flex-wrap: wrap; min-width: 0; }
+.mentions-list li.mention > button.row .snippet { flex-basis: 100%; font-family: var(--book); font-size: .82rem; color: var(--ink-2); line-height: 1.4; overflow-wrap: anywhere; }
+.mentions-list li.mention > button.row .snippet mark { background: var(--paper-3); color: var(--ink); border-radius: 3px; padding: 0 .1rem; }
+.mentions-list .mention-link, .mentions-head .mentions-all { flex: none; white-space: nowrap; }
+.mentions-list .mention-link:disabled { opacity: .5; }
+.mentions-note { margin: .2rem .6rem; font-size: .8rem; color: var(--ink-3); }
 .star { display: inline-flex; padding: .3rem; border-radius: 5px; color: var(--ink-3); }
 .star:hover { color: var(--brass); background: var(--paper-3); }
 .star.on { color: var(--brass); }
@@ -503,11 +514,18 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .settings-heading { font-family: var(--ui); font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin: 1.2rem 0 .3rem; }
 .settings-subheading { font-family: var(--ui); font-size: .74rem; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-2); margin: 1.6rem 0 .4rem; padding-bottom: .35rem; border-bottom: 1px solid var(--hair); font-weight: 600; }
 .settings-hint { font-size: .82rem; color: var(--ink-3); margin: 0 0 .6rem; }
-.setting { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; padding: .8rem 0; border-bottom: 1px solid var(--hair); }
+.setting { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1.5rem; padding: .8rem 0; border-bottom: 1px solid var(--hair); }
 /* The text keeps a width of its own: a long status beside it (the MCP's
    "Added… copy of the previous one: …") squeezed it into a column a word
    wide (seen 2026-10-08). */
-.setting-text { min-width: 0; flex: 1 1 16rem; }
+.setting-text { min-width: min(14rem, 100%); flex: 1 1 16rem; }
+/* The control beside the text never takes the text's width: a value too
+   long to sit beside it wraps under the title (the row stacks) and wraps
+   its own words in its own column (seen 2026-10-15: "Lixeira" and "Espaço"
+   had a description one word per line). */
+.setting > :not(.setting-text) { min-width: 0; max-width: 100%; margin-inline-start: auto; }
+.trash-summary .setting-value { white-space: normal; overflow-wrap: anywhere; flex: 1 1 14rem; text-align: start; }
+.setting > .setting-value, .setting > .trash-summary { white-space: normal; overflow-wrap: anywhere; }
 .setting-actions { min-width: 0; max-width: 60%; }
 .setting-actions .setting-value { white-space: normal; overflow-wrap: anywhere; text-align: right; }
 .setting-title { font-size: .93rem; color: var(--ink); }
@@ -573,6 +591,9 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 /* ---------- Servers (dialogs/servers.ts): connect, then each server with its folders ---------- */
 .srv-connect { padding: .3rem 0 1.4rem; border-bottom: 1px solid var(--hair); }
 .srv-label { display: block; margin: 0 0 .45rem; font: 600 .9rem var(--ui); color: var(--ink); }
+.srv-actions { display: flex; flex-direction: column; align-items: flex-start; gap: .5rem; margin-top: .75rem; }
+.srv-actions .srv-help { margin: 0; max-width: 34rem; }
+.srv-empty-form { width: 100%; }
 .srv-field { display: flex; gap: .5rem; max-width: 34rem; }
 .srv-field input { flex: 1; min-width: 0; font: inherit; font-size: .9rem; padding: .45rem .7rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 7px; }
 .srv-field input:focus { outline: none; border-color: var(--brass-ink); }
@@ -580,6 +601,16 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .srv-said { margin: .7rem 0 0; font-size: .88rem; color: var(--ink-2); }
 .srv-said:empty { display: none; }
 .srv-code { display: inline-block; margin: 0 .15rem; padding: .05rem .45rem; font: 600 .95rem var(--ui); letter-spacing: .08em; font-variant-numeric: tabular-nums; color: var(--brass-ink); background: var(--brass-wash); border-radius: 5px; }
+.srv-found { padding: 1.2rem 0 1.2rem; border-bottom: 1px solid var(--hair); }
+.srv-found-title { margin: 0; font: 600 .9rem var(--ui); color: var(--ink); }
+.srv-found-rows { margin: .6rem 0 0; padding: 0; list-style: none; max-width: 34rem; }
+.srv-found-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .55rem 0; border-top: 1px solid var(--hair); }
+.srv-found-row:first-child { border-top: 0; }
+.srv-found-text { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem .7rem; min-width: 0; }
+.srv-found-name { font-size: .93rem; font-weight: 500; color: var(--ink); overflow-wrap: anywhere; }
+.srv-found-url { font-size: .85rem; color: var(--ink-2); overflow-wrap: anywhere; }
+.srv-found-how, .srv-found-version { font: 600 .68rem var(--ui); letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); }
+.srv-found-how[data-https="0"] { color: var(--seal); }
 .srv { padding: 1.3rem 0 .4rem; border-bottom: 1px solid var(--hair); }
 .srv-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .srv-host { margin: 0; font-family: var(--display); font-weight: 500; font-size: 1.15rem; color: var(--ink); overflow-wrap: anywhere; }
@@ -643,6 +674,7 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .sync-diff .diff { margin: .3rem 0 0; max-height: 16rem; }
 .sync-files { margin: 0; padding: 0; list-style: none; font-size: .85rem; color: var(--ink); }
 .sync-files li { padding: .18rem 0; overflow-wrap: anywhere; }
+.sync-file-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
 .sync-needs > .sync-calm { margin-bottom: 1.05rem; }
 .sync-history { border-top: 1px solid var(--hair); padding-top: .9rem; }
 .sync-history > summary { display: inline-flex; align-items: center; gap: .45rem; cursor: pointer; list-style: none; font: 600 .72rem var(--ui); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }

@@ -88,6 +88,8 @@ export const commands = {
 	links: (path: string) => typedError<Link[], ContractError>(__TAURI_INVOKE("links", { path })),
 	/**  The notes that link to this one; empty when the index does not know it. */
 	backlinks: (path: string) => typedError<Backlink[], ContractError>(__TAURI_INVOKE("backlinks", { path })),
+	/**  The note's unlinked mentions, as occurrences (ADR 0089 item 1). */
+	unlinkedMentions: (path: string) => typedError<Mentions, ContractError>(__TAURI_INVOKE("unlinked_mentions", { path })),
 	/**
 	 *  Write a note's text over the revision that was read — atomically, no
 	 *  normalization — and index it. `changed` when the file moved on
@@ -236,14 +238,22 @@ export const commands = {
 	openDevtools: () => __TAURI_INVOKE<void>("open_devtools"),
 	/**
 	 *  A web page inside the window, as a child web view over the area the
-	 *  UI names (logical pixels from the window's top-left): the browser
-	 *  behind a tab whose note holds the address. Only `http(s)`; the page
-	 *  cannot navigate anywhere else, nor open windows. Answers with the
-	 *  label the other `web_*` commands take.
+	 *  UI names: the browser behind a tab whose note holds the address, or an
+	 *  embedded page. Only `http(s)`; the page cannot navigate anywhere else,
+	 *  nor open windows. Answers with the label the other `web_*` commands
+	 *  take.
+	 * 
+	 *  The view is made over the visible part, as it was before the page
+	 *  could be clipped, and then put at its slot inside a clipping container
+	 *  (`web_clip`): never over the window's chrome, even for a frame.
 	 */
-	webOpen: (url: string, x: number | null, y: number | null, w: number | null, h: number | null) => typedError<string, ContractError>(__TAURI_INVOKE("web_open", { url, x, y, w, h })),
-	/**  Move and size a web page's view to follow its tab. */
-	webBounds: (label: string, x: number | null, y: number | null, w: number | null, h: number | null) => typedError<null, ContractError>(__TAURI_INVOKE("web_bounds", { label, x, y, w, h })),
+	webOpen: (url: string, place: WebPlace) => typedError<string, ContractError>(__TAURI_INVOKE("web_open", { url, place })),
+	/**
+	 *  Move a web page's view to follow its box: the page at `slot`, drawn
+	 *  only inside `visible` (`WebPlace`). The page's own scroll is never
+	 *  touched.
+	 */
+	webBounds: (label: string, place: WebPlace) => typedError<null, ContractError>(__TAURI_INVOKE("web_bounds", { label, place })),
 	/**  Show or hide a web page's view (its tab left the front, an overlay opened). */
 	webVisible: (label: string, visible: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("web_visible", { label, visible })),
 	/**  Close a web page's view (its tab closed). */
@@ -252,6 +262,21 @@ export const commands = {
 	webNav: (label: string, action: string, url: string | null) => typedError<null, ContractError>(__TAURI_INVOKE("web_nav", { label, action, url })),
 	/**  The address a web page's view is at now. */
 	webUrl: (label: string) => typedError<string, ContractError>(__TAURI_INVOKE("web_url", { label })),
+	/**
+	 *  Whether the page at `url` may be shown in a real `<iframe>` of the
+	 *  window: its server's headers allow being framed by the window's origin
+	 *  (`X-Frame-Options`, `frame-ancestors`, judged on the final response of
+	 *  a short chain of redirects). The window then draws the embed as a
+	 *  frame, which scrolls and clips with the note; otherwise it keeps the
+	 *  child web view. One request (`HEAD`, a `GET` read only as far as its
+	 *  headers when that fails), to an address a note wrote and the user
+	 *  approved to embed (ADR 0050, 0056); answered once per origin for the
+	 *  session. A timeout or an error answers no.
+	 * 
+	 *  An origin judged frameable is also what the navigation guard lets an
+	 *  app view's frame load, and nothing else of the web.
+	 */
+	embedFrameable: (url: string) => typedError<boolean, ContractError>(__TAURI_INVOKE("embed_frameable", { url })),
 	/**
 	 *  Any file as text with its revision, for the editor of files that are
 	 *  not notes; `not_text` when its bytes are not UTF-8.
@@ -291,6 +316,28 @@ export const commands = {
 	 *  sanitizes it like any note's HTML.
 	 */
 	renderMarkdown: (text: string) => __TAURI_INVOKE<string>("render_markdown", { text }),
+	/**
+	 *  `text` as an account that may only read the note is served on a
+	 *  UniVerso: its secret callouts' lines taken out (ADR 0087 item 3). The
+	 *  "view as a reader" toggle of a writer draws it (item 5), from the one
+	 *  projection the server serves readers. Pure: it reads nothing.
+	 */
+	projectSecrets: (text: string) => __TAURI_INVOKE<string>("project_secrets", { text }),
+	/**
+	 *  `text`, a board, as an account that may only read it is served on a
+	 *  UniVerso: without its secret pins and what belongs to them (ADR 0090
+	 *  item 5). The "view as a reader" toggle of a writer draws it, from the one
+	 *  projection the server serves readers. Pure: it reads nothing.
+	 */
+	projectBoard: (text: string) => __TAURI_INVOKE<string>("project_board", { text }),
+	/**
+	 *  How the tiles of a map's picture stand (ADR 0090 item 4), starting to
+	 *  cut a large PNG that is not yet; the cutting runs on a thread of its
+	 *  own and the answer does not wait for it.
+	 */
+	mapOpen: (path: string) => typedError<MapInfo, ContractError>(__TAURI_INVOKE("map_open", { path })),
+	/**  One tile of a map's picture, a PNG as base64; none when it is not there. */
+	mapTile: (path: string, level: number, x: number, y: number) => typedError<string | null, ContractError>(__TAURI_INVOKE("map_tile", { path, level, x, y })),
 	/**
 	 *  Rename or move anything of the folder: a note, another file or a
 	 *  folder with everything under it. Links to what moved come back as
@@ -352,6 +399,11 @@ export const commands = {
 	 */
 	setFolderSettings: (change: FolderSettings, revision: string | null) => typedError<FolderLayer, ContractError>(__TAURI_INVOKE("set_folder_settings", { change, revision })),
 	/**
+	 *  Obsidian's settings for daily and periodic notes (ADR 0093 item 11),
+	 *  read once and never written, for Settings to offer.
+	 */
+	getObsidianPeriodic: () => typedError<ObsidianPeriodic, ContractError>(__TAURI_INVOKE("get_obsidian_periodic")),
+	/**
 	 *  A line from the window into the app's log: what `fail()` shows for a
 	 *  moment there, and what the browser would otherwise swallow — a
 	 *  script error, a rejected promise. The source is the window's, the
@@ -408,6 +460,12 @@ export const commands = {
 	 */
 	collabCanvas: (path: string, at: string, json: string) => typedError<null, ContractError>(__TAURI_INVOKE("collab_canvas", { path, at, json })),
 	/**
+	 *  Dice rolled in the note's room by the server, heard by the others in
+	 *  it (ADR 0088 item 4): on a server, or a synced folder's link, only;
+	 *  here the window rolls itself.
+	 */
+	collabRoll: (path: string, notation: string, source: string | null) => typedError<DiceRoll, ContractError>(__TAURI_INVOKE("collab_roll", { path, notation, source })),
+	/**
 	 *  Sign in to a server through the browser (`gh auth login`'s way): the
 	 *  server gives a code, which the window copies to the clipboard before it
 	 *  opens the server's page (`server_sign_in_page`), where the person
@@ -432,7 +490,13 @@ export const commands = {
 	 */
 	serverSignOut: (url: string) => typedError<null, ContractError>(__TAURI_INVOKE("server_sign_out", { url })),
 	/**  The folders of a server the account may open. */
-	serverFolders: (url: string) => typedError<ServerFolder[], ContractError>(__TAURI_INVOKE("server_folders", { url })),
+	serverFolders: (url: string) => typedError<ServerFolders, ContractError>(__TAURI_INVOKE("server_folders", { url })),
+	/**
+	 *  Make a new, empty folder on a server, owned by the account signed in
+	 *  there (the maintainer, 2026-10-16): the server decides whether the
+	 *  account may and whether the name is free, and says so.
+	 */
+	serverCreateFolder: (url: string, name: string) => typedError<ServerFolder, ContractError>(__TAURI_INVOKE("server_create_folder", { url, name })),
 	/**
 	 *  Open a folder of a server in this window: the window leaves its own
 	 *  folder, connects, and from now on sends the folder's commands there.
@@ -444,6 +508,16 @@ export const commands = {
 	 *  Nothing when the window is not reconnecting.
 	 */
 	serverRetry: () => typedError<null, ContractError>(__TAURI_INVOKE("server_retry")),
+	/**  Begin browsing (once; asking again keeps the browse that runs). */
+	discoverServersStart: () => typedError<null, ContractError>(__TAURI_INVOKE("discover_servers_start")),
+	/**
+	 *  What has been found so far. Asking renews the browse's lease, and starts
+	 *  the browse if it ended (another window stopped it, or the lease ran out
+	 *  between two asks).
+	 */
+	discoverServersList: () => typedError<FoundServer[], ContractError>(__TAURI_INVOKE("discover_servers_list")),
+	/**  Stop browsing; the network is left alone. */
+	discoverServersStop: () => typedError<null, ContractError>(__TAURI_INVOKE("discover_servers_stop")),
 	/**
 	 *  The shares of the window's folder: the whole folder's people first,
 	 *  then each folder inside it shared, by path (ADR 0081 item 7).
@@ -481,11 +555,61 @@ export const commands = {
 	 *  no path.
 	 */
 	recentFolders: () => __TAURI_INVOKE<RecentFolder[]>("recent_folders"),
+	localServerStatus: () => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_status")),
+	/**  The folders this computer has opened, to tick the ones to serve. */
+	localServerFolders: () => typedError<LocalFolder[], ContractError>(__TAURI_INVOKE("local_server_folders")),
+	/**
+	 *  Tick or untick a folder (by its key). A folder that also syncs with a
+	 *  UniVerso cannot be ticked in V1 (item 11).
+	 */
+	localServerTick: (key: string, ticked: boolean) => typedError<LocalFolder[], ContractError>(__TAURI_INVOKE("local_server_tick", { key, ticked })),
+	/**
+	 *  The folders inside a folder this computer has opened (by its key), to
+	 *  choose which of them to serve: relative, `/`-joined, none hidden
+	 *  (ADR 0096 item 2, amended 2026-10-16).
+	 */
+	localServerSubfolders: (key: string) => typedError<string[], ContractError>(__TAURI_INVOKE("local_server_subfolders", { key })),
+	/**
+	 *  Serve only these folders inside a ticked folder. **None stops serving the
+	 *  folder** (it is unticked and the choice forgotten); all of it is
+	 *  `local_server_whole`. Not while serving, like ticking.
+	 */
+	localServerParts: (key: string, parts: string[]) => typedError<LocalFolder[], ContractError>(__TAURI_INVOKE("local_server_parts", { key, parts })),
+	/**
+	 *  Serve all of a ticked folder again, with nothing chosen inside it: the
+	 *  explicit way to the whole folder. Not while serving.
+	 */
+	localServerWhole: (key: string) => typedError<LocalFolder[], ContractError>(__TAURI_INVOKE("local_server_whole", { key })),
+	/**  Keep on at start, and the host's own certificate (item 5 (d)). */
+	localServerSettings: (keepOn: boolean, certFile: string | null, keyFile: string | null, hostName: string | null, maxConnected: number) => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_settings", { keepOn, certFile, keyFile, hostName, maxConnected })),
+	localServerStart: () => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_start")),
+	localServerStop: () => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_stop")),
+	localServerPairOpen: (address: string | null) => typedError<LocalPairing, ContractError>(__TAURI_INVOKE("local_server_pair_open", { address })),
+	localServerPairClose: () => typedError<null, ContractError>(__TAURI_INVOKE("local_server_pair_close")),
+	localServerPairState: () => typedError<LocalPairState, ContractError>(__TAURI_INVOKE("local_server_pair_state")),
+	/**
+	 *  The laptop's answer to "Was it you?": allow (as an editor, or as a
+	 *  reader) or refuse.
+	 */
+	localServerAnswer: (allow: boolean, editor: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("local_server_answer", { allow, editor })),
+	localServerPhones: () => typedError<LocalPhone[], ContractError>(__TAURI_INVOKE("local_server_phones")),
+	/**  Let a paired phone edit (or only read) without pairing it again. */
+	localServerPhoneRole: (id: string, editor: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("local_server_phone_role", { id, editor })),
+	localServerRevoke: (id: string) => typedError<null, ContractError>(__TAURI_INVOKE("local_server_revoke", { id })),
+	/**  Forget every device: every phone's session ends. */
+	localServerForget: () => typedError<number, ContractError>(__TAURI_INVOKE("local_server_forget")),
+	/**
+	 *  "Replace this computer's identity": serving stops, the key is made
+	 *  anew, every pairing ends.
+	 */
+	localServerReplaceIdentity: () => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_replace_identity")),
+	localServerAudit: () => typedError<LocalAudit[], ContractError>(__TAURI_INVOKE("local_server_audit")),
 	/**  The window's folder's sync: off, or its state. */
 	folderSync: () => typedError<SyncStatus, ContractError>(__TAURI_INVOKE("folder_sync")),
 	/**
 	 *  Sync the window's folder with a folder of a server the app is signed
-	 *  in to: `folder`, one there by id, or a new one named `name` (item 1).
+	 *  in to: `folder`, one there by id, or a new one named `name` (item 1; a
+	 *  name the server has already becomes `name (2)`, never a merge).
 	 *  The first sync deletes nothing (item 11).
 	 */
 	folderSyncStart: (url: string, folder: string | null, name: string | null) => typedError<SyncStatus, ContractError>(__TAURI_INVOKE("folder_sync_start", { url, folder, name })),
@@ -497,6 +621,14 @@ export const commands = {
 	folderSyncConfirm: () => typedError<null, ContractError>(__TAURI_INVOKE("folder_sync_confirm")),
 	/**  Compare now, without waiting for a change or the scan. */
 	folderSyncNow: () => typedError<null, ContractError>(__TAURI_INVOKE("folder_sync_now")),
+	/**
+	 *  A note the window just made from its template, and the text it was
+	 *  made with (ADR 0093 item 12): when the folder syncs and the server
+	 *  holds a note of the same name another device made apart from the same
+	 *  template, the two are joined instead of a conflict's copy. Nothing for
+	 *  a folder that does not sync, nor for a server's folder.
+	 */
+	noteMadeFromTemplate: (path: string, text: string) => typedError<null, ContractError>(__TAURI_INVOKE("note_made_from_template", { path, text })),
 	/**
 	 *  A base evaluated over the folder (ADR 0053): the rows of the view the
 	 *  window draws, as a table, cards, a list, a kanban or a calendar.
@@ -554,7 +686,8 @@ export const commands = {
 	 * 
 	 *  The command takes no URL: the host asks `UPDATE_REPO`'s API for the
 	 *  releases again, picks the asset for this platform itself, and
-	 *  verifies the download against the `sha256` digest the API reports,
+	 *  verifies the download against the `sha256` digest the API reports and
+	 *  against the release's checksums list, signed with Verso's release key,
 	 *  before anything is installed. A compromised web view can therefore
 	 *  ask *that* an update run, but never *what* it installs or from where.
 	 */
@@ -579,6 +712,39 @@ export const commands = {
 	 *  What is past the new time goes at once.
 	 */
 	trashSetDays: (days: number) => typedError<TrashListing, ContractError>(__TAURI_INVOKE("trash_set_days", { days })),
+	/**  A file's versions, newest first (item 5). */
+	historyList: (path: string) => typedError<HistoryListing, ContractError>(__TAURI_INVOKE("history_list", { path })),
+	/**
+	 *  A version's text, for its diff against the current text and the one
+	 *  before it.
+	 */
+	historyRead: (path: string, id: string) => typedError<VersionText, ContractError>(__TAURI_INVOKE("history_read", { path, id })),
+	/**
+	 *  Bring a version back (item 5): a new write over the revision the
+	 *  window read — refused, nothing written, when the file changed since
+	 *  (invariant 11) — or a new file when the file is gone. A version of the
+	 *  server is brought back on the server, through the note's room when it
+	 *  is live, once this computer's copy is the server's; sync brings it
+	 *  here.
+	 */
+	historyRestore: (path: string, id: string, revision: string | null) => typedError<VersionRestored, ContractError>(__TAURI_INVOKE("history_restore", { path, id, revision })),
+	/**
+	 *  A version put beside its file, as a new file (item 5, "Copy as a new
+	 *  note"): `stamp` the version's time as the window shows it, `lang` the
+	 *  person's language.
+	 */
+	historyCopy: (path: string, id: string, stamp: string, lang: string) => typedError<VersionRestored, ContractError>(__TAURI_INVOKE("history_copy", { path, id, stamp, lang })),
+	/**
+	 *  Delete a version (item 6: on the computer the person is the owner; a
+	 *  server's version as the server allows).
+	 */
+	historyDelete: (path: string, id: string) => typedError<HistoryListing, ContractError>(__TAURI_INVOKE("history_delete", { path, id })),
+	/**
+	 *  How many days this computer keeps versions, 0 for no limit: the
+	 *  person's setting (item 8), pushed by the window; every open folder
+	 *  thinned at once.
+	 */
+	setHistoryDays: (days: number) => typedError<null, ContractError>(__TAURI_INVOKE("set_history_days", { days })),
 };
 
 /* Types */
@@ -596,6 +762,19 @@ export type AppInfo = {
 	 */
 	device: string | null,
 };
+
+/**  Who a version names (item 4). */
+export type AuthorKind = 
+/**  An account of the server, by its name. */
+"account" | 
+/**  A device of an account, by the device's name. */
+"device" | 
+/**  An agent's token, by the token's name. */
+"agent" | 
+/**  This computer, by its name: a version of a folder of the computer. */
+"computer" | 
+/**  A change the watcher found, made outside Verso. */
+"outside";
 
 /**  A link into a note, from another. */
 export type Backlink = {
@@ -640,10 +819,35 @@ export type BaseColumn = {
 	name: string | null,
 };
 
+/**  An evaluation's error: its kind and what it concerns. */
+export type BaseError = {
+	kind: BaseErrorKind,
+	name: string,
+};
+
 /**  Why a value could not be computed. */
 export type BaseErrorKind = "syntax" | "unknownFunction" | "unknownMethod" | "arguments" | "type" | 
-/**  Regular expressions are not evaluated yet. */
-"regex" | "cycle" | "budget" | "tooLarge";
+/**
+ *  A regular expression where the method takes a text (`contains`,
+ *  `startsWith`); `name` is the method (ADR 0094 item 1).
+ */
+"regex" | 
+/**
+ *  Not a regular expression, or a flag that is no flag; `name` is the
+ *  literal as written.
+ */
+"regexInvalid" | 
+/**
+ *  What the engine does not have; `name` is `lookahead`,
+ *  `lookbehind`, `backreference`, `flag y`, `flag d` or `flag v`
+ *  (ADR 0094 items 2 and 4).
+ */
+"regexUnsupported" | 
+/**
+ *  A pattern past 1,000 characters or its compiled size, or one too
+ *  many in a query; `name` is the literal (ADR 0094 item 3).
+ */
+"regexTooLarge" | "cycle" | "budget" | "tooLarge";
 
 export type BaseGroup = {
 	/**  The grouping property's value; `None` when the view is not grouped. */
@@ -660,6 +864,8 @@ export type BaseGroup = {
 export type BaseProblem = {
 	kind: BaseProblemKind,
 	detail: string,
+	/**  Why an evaluation failed, as its cells say it (ADR 0094 item 5). */
+	error: BaseError | null,
 };
 
 export type BaseProblemKind = "notABase" | "tooLong" | "shape" | "expression" | "evaluation" | "unknownView" | "budget";
@@ -837,6 +1043,11 @@ export type CollabJoin = {
 	 *  never into one made again from the disk.
 	 */
 	epoch: string,
+	/**
+	 *  The room's last rolls of dice, oldest first, for whoever joins
+	 *  (ADR 0088 item 4): kept in the server's memory, never stored.
+	 */
+	rolls?: DiceRoll[],
 };
 
 /**
@@ -845,6 +1056,15 @@ export type CollabJoin = {
  *  `board` as its elements, one entry per element and version.
  */
 export type CollabKind = "text" | "board";
+
+/**
+ *  A roll in a room, heard by the others in it (event `collab-roll`).
+ *  The roll carries no path: the event's is the window's own.
+ */
+export type CollabRoll = {
+	path: string,
+	roll: DiceRoll,
+};
 
 /**
  *  What became of a shared note (events `collab-saved`, `collab-conflict`,
@@ -902,6 +1122,45 @@ export type DeviceRenamed = {
 	unreached: string[],
 };
 
+/**
+ *  A roll of dice (ADR 0088): the notation rolled, the table it chose a
+ *  row of when it was one, what each die showed, and the total. In a room
+ *  the server rolls and names who asked; alone, the window rolls and
+ *  `by` is empty. Never written to a file (item 2).
+ */
+export type DiceRoll = {
+	/**  What was rolled, without spaces: `1d20+3`, `4d6kh3`. */
+	notation: string,
+	/**
+	 *  The random table rolled, as the note writes it (`[[Tabelas#^id]]`):
+	 *  the window that hears the roll reads the row from the table itself.
+	 */
+	source: string | null,
+	/**  Each term of dice in the notation's order. */
+	terms: DiceTermRoll[],
+	/**  The numbers added to the dice, summed. */
+	modifier: number,
+	total: number,
+	/**  The name of the account that rolled; empty when the window rolled. */
+	by: string,
+	/**  When, RFC 3339 in UTC. */
+	at: string,
+};
+
+/**
+ *  One term of dice in a roll: `-1d4` is `sign` -1 and `sides` 4; a
+ *  fudge die (`dF`) has three sides, -1, 0 and +1. `kept` count in the
+ *  total, `dropped` were taken off by keep or drop, each in the order the
+ *  dice fell.
+ */
+export type DiceTermRoll = {
+	sign: number,
+	sides: number,
+	fudge: boolean,
+	kept: number[],
+	dropped: number[],
+};
+
 /**  One resolved link of the vault, for the graph. */
 export type Edge = {
 	from: string,
@@ -922,6 +1181,11 @@ export type EntryLabel_Deserialize = {
 	sticker: string | null,
 	color: string | null,
 	alias: string | null,
+	/**
+	 *  Every alias, the first included (ADR 0089 item 5: the suggestion
+	 *  while typing matches them).
+	 */
+	aliases?: string[],
 	order?: string[] | null,
 	pinned?: string[] | null,
 };
@@ -934,6 +1198,11 @@ export type EntryLabel_Serialize = {
 	sticker: string | null,
 	color: string | null,
 	alias: string | null,
+	/**
+	 *  Every alias, the first included (ADR 0089 item 5: the suggestion
+	 *  while typing matches them).
+	 */
+	aliases?: string[],
 	order?: string[] | null,
 	pinned?: string[] | null,
 };
@@ -956,7 +1225,9 @@ export type ErrorKind =
  *  A server that could not be reached: no connection made — refused,
  *  no such name, a TLS handshake that failed — or no answer in time.
  *  `message` is the server's address, `host[:port]`, as the window
- *  names it to the person; why it could not be reached goes to the
+ *  names it to the person; when the name was resolved to addresses,
+ *  each address tried follows on a line of its own (ADR 0097), so a
+ *  bad DNS reads as one. Why it could not be reached goes to the
  *  app's log (the maintainer, 2026-10-14: a server down said nothing).
  */
 "unreachable" | 
@@ -997,7 +1268,19 @@ export type ErrorKind =
  */
 "prove_first" | 
 /**  The core could not answer. */
-"failed";
+"failed" | 
+/**
+ *  A paired phone asked for a command that acts on the computer it is
+ *  paired with, or that is the owner's (ADR 0096 item 12): no phone
+ *  runs it, whatever its role.
+ */
+"not_on_phone" | 
+/**
+ *  A phone that may only read asked for a command that changes
+ *  something (ADR 0096 items 6 and 12): the person lets it edit from
+ *  the computer.
+ */
+"phone_reads";
 
 /**
  *  One entry of the open folder as the last walk saw it: what a folder
@@ -1184,6 +1467,20 @@ export type FolderLayer = {
 };
 
 /**
+ *  A folder at 90 % of its quota or more (event `folder-quota`, ADR 0077
+ *  item 5, ADR 0084 item 7): pushed by the server after a write, to the
+ *  windows on the server's folder and to a device that syncs a folder of
+ *  its computer with it, which tells that folder's windows. Bytes, as
+ *  numbers the window can show.
+ */
+export type FolderQuota = {
+	/**  What the folder takes now. */
+	used: number | null,
+	/**  Its quota. */
+	quota: number | null,
+};
+
+/**
  *  The folder's settings that travel with it (ADR 0070 items 1–2), as
  *  `.verso/settings.json` holds them, or a change to them: `None` is "not
  *  set here". Every path is relative to the folder, joined by `/`.
@@ -1199,6 +1496,8 @@ export type FolderSettings = {
 	ignore_build_dirs: boolean | null,
 	/**  Honour each `.gitignore` (ADR 0044). */
 	respect_gitignore: boolean | null,
+	/**  The periodic notes' settings (ADR 0093 item 4). */
+	periodic: PeriodicSettings | null,
 };
 
 /**
@@ -1237,12 +1536,71 @@ export type FolderSpace = {
 	index: number | null,
 };
 
+/**
+ *  A UniVerso announced on the local network (ADR 0097): what the
+ *  announcement says, to show and to click, never to trust. The `url` is
+ *  the address a click fills in; nothing connects because of it.
+ */
+export type FoundServer = {
+	/**  The announced instance name, `UniVerso-ab12cd`. */
+	name: string,
+	/**  The announced host, `universo-ab12cd.local`. */
+	host: string,
+	/**
+	 *  Where a click connects: the public address the server announced, or
+	 *  `http://address[:port]`; empty when `needs_public_url`.
+	 */
+	url: string,
+	/**
+	 *  A server that speaks TLS itself and announced no public address: it
+	 *  is listed, but cannot be offered by IP (a certificate is for a
+	 *  name); the server's `VERSO_PUBLIC_URL` must be set.
+	 */
+	needs_public_url: boolean,
+	https: boolean,
+	/**  The version it announced; empty when it said none. */
+	version: string,
+};
+
 /**  A heading of a note, for citing and for the outline. */
 export type Heading = {
 	level: number,
 	text: string,
 	line: number,
 	col: number,
+};
+
+/**  A file's history (items 5 to 8). */
+export type HistoryListing = {
+	path: string,
+	/**  Newest first. */
+	versions: VersionEntry[],
+	/**
+	 *  When the file went to the trash, in milliseconds; none while it is
+	 *  there (item 9).
+	 */
+	gone: number | null,
+	/**
+	 *  Whether this person may delete a version: the folder's owner and
+	 *  the admin on a server; on the computer, always (item 6).
+	 */
+	can_delete: boolean,
+	/**  How many days versions are kept; 0: no limit (item 3). */
+	days: number,
+	/**
+	 *  The bytes the folder's history takes — shown, not counted against
+	 *  the quota (item 7).
+	 */
+	size: number | null,
+	/**  The folder's quota on its server, in bytes; none without one. */
+	quota: number | null,
+	/**  The history alone passed the quota: its oldest versions go early. */
+	early: boolean,
+	/**
+	 *  Why part of the history could not be shown: a synced folder whose
+	 *  server is out of reach shows this computer's versions only.
+	 */
+	partial: string | null,
 };
 
 /**  One search hit. */
@@ -1344,6 +1702,224 @@ export type LinkRewrite = {
 	after: string,
 };
 
+/**  One address the pairing dialog may show. */
+export type LocalAddressChoice = {
+	address: string,
+	/**  The interface's name (`en7`, `feth237`). */
+	interface: string,
+	/**  `lan` (Wi-Fi, Ethernet) or `virtual` (a VPN, ZeroTier, a bridge...). */
+	kind: string,
+	/**
+	 *  What a virtual interface probably is (`ZeroTier`, `VPN`): a guess
+	 *  from its name, shown with a question mark.
+	 */
+	hint: string | null,
+	/**  The address the system uses for its default route. */
+	default_route: boolean,
+};
+
+/**  A phone that presented the token and waits for the laptop's answer. */
+export type LocalAsked = {
+	/**  The phone's name, as it sent it, made safe. */
+	device: string,
+	address: string,
+	/**  When it asked, `YYYY-MM-DDTHH:MM:SSZ`. */
+	asked: string,
+};
+
+/**  One line of the log of what happened, kept 365 days. */
+export type LocalAudit = {
+	at: number,
+	action: string,
+	subject: string | null,
+	address: string | null,
+};
+
+/**  A folder the person may tick to serve. */
+export type LocalFolder = {
+	/**  The folder's opaque key (`FolderInfo.key`). */
+	key: string,
+	name: string,
+	/**
+	 *  The NAME of the directory the folder lives in (`obsidian` for
+	 *  `~/Documents/obsidian/Caderno`), empty when it has none: a label
+	 *  to tell two folders of the same name apart and to group the list.
+	 *  A name, not a path (ADR 0026 rule 4): nothing above that one
+	 *  directory crosses.
+	 */
+	place: string,
+	ticked: boolean,
+	/**
+	 *  The folders inside it chosen to be served, relative to it and
+	 *  `/`-joined (ADR 0096 item 2, amended 2026-10-16); none when all of it
+	 *  is served. Each reaches the phone as a folder of its own.
+	 */
+	parts: string[],
+	/**
+	 *  Chosen folders the last start left out for not being on the disk any
+	 *  more (they are in `parts` until the person changes them).
+	 */
+	missing: string[],
+	/**
+	 *  The vault's attachments folder that goes with the chosen folders,
+	 *  read-only and files only (Obsidian's own setting, read at each
+	 *  start); none when it names none, or overlaps a chosen folder.
+	 */
+	attachments: string | null,
+	/**
+	 *  The server this folder also syncs with: such a folder cannot be
+	 *  served in V1 (item 11), and the row says to open that address on
+	 *  the phone instead.
+	 */
+	syncs_with: string | null,
+};
+
+/**  The dialog's state, asked while it is open. */
+export type LocalPairState = {
+	open: boolean,
+	remaining: number,
+	asked: LocalAsked | null,
+};
+
+/**  What the pairing dialog shows. */
+export type LocalPairing = {
+	/**
+	 *  The text the QR encodes (also copied by hand when the phone cannot
+	 *  scan).
+	 */
+	url: string,
+	/**  `address:port`, to type. */
+	address: string,
+	/**
+	 *  Every address that could be shown, best first (the default route's,
+	 *  then real networks, then virtual ones), so the person can pick
+	 *  another. Empty when the host's own certificate and name are used.
+	 */
+	choices: LocalAddressChoice[],
+	/**  The address (no port) this QR and link are for. */
+	chosen: string,
+	/**  The code to type when the phone cannot scan: eight letters. */
+	code: string,
+	/**  The QR as rows of `1` (dark) and `0`; the window draws it. */
+	qr: string[],
+	expires_in: number,
+	fingerprint: string,
+	/**
+	 *  `own` or `files`: with `own`, the dialog says the limit in words
+	 *  (trust on first use, for a network the person trusts).
+	 */
+	certificate: string,
+};
+
+/**  A phone paired with this computer. */
+export type LocalPhone = {
+	id: string,
+	name: string,
+	/**  `reader` or `editor`; never more. */
+	role: string,
+	/**  Seconds since the epoch (a `u32` lasts until 2106). */
+	paired: number,
+	last_seen: number,
+	address: string,
+};
+
+/**  Where "this app is a server" stands. */
+export type LocalServerStatus = {
+	/**
+	 *  Whether this build of the app can serve: every system (ADR 0096
+	 *  item 17, revised 2026-10-15); `false` only in a stand-in that cannot.
+	 */
+	supported: boolean,
+	serving: boolean,
+	port: number | null,
+	/**  The private addresses it listens on. */
+	addresses: string[],
+	phones_paired: number,
+	phones_connected: number,
+	pairing_open: boolean,
+	/**
+	 *  The certificate's SHA-256, in pairs and upper case, for the person
+	 *  to compare.
+	 */
+	fingerprint: string | null,
+	/**  `own` (self-signed: trust on first use) or `files` (the host's). */
+	certificate: string,
+	/**
+	 *  Tailscale seems to run here: its own `tailscale serve` gives a
+	 *  certificate a phone trusts (ADR 0073 item 6).
+	 */
+	tailscale: boolean,
+	/**
+	 *  Why serving last stopped by itself (the network changed), for the
+	 *  person to read; none once it was turned on or off by hand.
+	 */
+	stopped_because: string | null,
+	/**
+	 *  This computer could not connect to its own address: a firewall is
+	 *  refusing what comes in, and the section shows the steps to allow it
+	 *  (item 9). The app never adds the rule itself.
+	 */
+	unreachable: boolean,
+	/**  "Keep on at start" (item 1's separate, off-by-default switch). */
+	keep_on: boolean,
+	/**
+	 *  The host's own certificate and key, when given (item 5 (d)), and the
+	 *  name it is for.
+	 */
+	cert_file: string | null,
+	key_file: string | null,
+	host_name: string | null,
+	/**
+	 *  Phones connected at once, at most, 1 to 16 (item 13, amended
+	 *  2026-10-16: the ceiling is a setting; the default is 4).
+	 */
+	max_connected: number,
+	/**
+	 *  Chosen folders this start left out for not being on the disk, each as
+	 *  `folder/chosen`: the window says so.
+	 */
+	dropped: string[],
+};
+
+/**  The tiles of a map's picture. */
+export type MapInfo = {
+	state: MapState,
+	/**  The picture's size in pixels; 0 when it is not known. */
+	width: number,
+	height: number,
+	/**  The side of a tile. */
+	tile: number,
+	/**
+	 *  The levels of the pyramid: level 0 is the picture at its own size,
+	 *  each one above half the one below, the last small enough for one
+	 *  tile.
+	 */
+	levels: number,
+	/**
+	 *  The tiles cut so far and in all (a count of `f64` for the
+	 *  TypeScript side, as sizes are).
+	 */
+	done: number | null,
+	total: number | null,
+	message: string,
+};
+
+/**  How a map's picture stands. */
+export type MapState = 
+/**  Small enough to be drawn whole, as any picture is. */
+"whole" | 
+/**  Being cut into tiles: ask again. */
+"cutting" | 
+/**  Cut: the tiles are there. */
+"ready" | 
+/**
+ *  Large, and in a format that cannot be cut (only a PNG can): drawn
+ *  whole, with a warning.
+ */
+"unsupported" | 
+/**  Could not be cut (`message` says why): drawn whole. */
+"failed";
+
 /**  What adding the folder's server to Claude Desktop did. */
 export type McpAdded = {
 	server: string,
@@ -1379,6 +1955,48 @@ export type McpStatus = {
 	 *  path — shown to the person before it is written (ADR 0054).
 	 */
 	command: string,
+};
+
+/**
+ *  A note's name written plainly in another note: one unlinked mention
+ *  (ADR 0089 item 1), the name or one of its aliases as a phrase on word
+ *  boundaries, case ignored and accents kept, in prose only.
+ */
+export type Mention = {
+	/**  The note that mentions. */
+	path: string,
+	/**
+	 *  1-based line, and 1-based column in Unicode scalar values (spec
+	 *  §4.4), of the mention's first character.
+	 */
+	line: number,
+	col: number,
+	/**  The mention as written. */
+	text: string,
+	/**  Up to 60 characters of its line before it and after it. */
+	before: string,
+	after: string,
+	/**
+	 *  The text is one of the note's aliases, not its name: the link
+	 *  keeps it as the link's text.
+	 */
+	alias: boolean,
+	/**  In a table's cell: the link's `|` is written `\|`. */
+	table: boolean,
+	/**
+	 *  Inside a `> [!secret]` callout (ADR 0087): never in a reader's
+	 *  answer from a server.
+	 */
+	secret: boolean,
+};
+
+/**
+ *  A note's unlinked mentions, in path and position order; `more` when
+ *  there were more than the answer holds.
+ */
+export type Mentions = {
+	mentions: Mention[],
+	more: boolean,
 };
 
 /**  A file that moved, from one relative path to another. */
@@ -1460,6 +2078,62 @@ export type NoteText = {
 export type NoteType = {
 	written: string,
 	state: TypeState,
+};
+
+/**
+ *  Obsidian's settings for daily and periodic notes, as their files hold
+ *  them (ADR 0093 item 11): the core Daily notes plugin's
+ *  `.obsidian/daily-notes.json` and the Periodic Notes plugin's
+ *  `.obsidian/plugins/periodic-notes/data.json`, read once and never
+ *  written. Each is its file's text, `None` when it is not there, not
+ *  readable now or not text; `unavailable` names the ones that are a
+ *  placeholder of on-demand storage.
+ */
+export type ObsidianPeriodic = {
+	daily_notes: string | null,
+	periodic_notes: string | null,
+	unavailable: string[],
+};
+
+/**  One period's settings, or a change to them: `None` is "not set here". */
+export type PeriodSettings = {
+	/**  Whether the period is on: its command, its marks in the calendar. */
+	on: boolean | null,
+	/**
+	 *  A Moment.js format string of the subset Verso reads (item 2); a `/`
+	 *  in it makes folders.
+	 */
+	format: string | null,
+	/**
+	 *  The folder its notes are kept in, relative to the folder and joined
+	 *  by `/`; empty: the folder's root. Not set: the day's folder (item 3).
+	 */
+	folder: string | null,
+	/**
+	 *  The template note, by its path relative to the folder or its name
+	 *  in the templates folder; empty or not set: the built rule (item 6).
+	 */
+	template: string | null,
+};
+
+/**
+ *  The periodic notes' settings of a folder (ADR 0093 items 1–6), or a
+ *  change to them: what a change sets replaces what the file says, every
+ *  other key kept.
+ */
+export type PeriodicSettings = {
+	day: PeriodSettings | null,
+	week: PeriodSettings | null,
+	month: PeriodSettings | null,
+	quarter: PeriodSettings | null,
+	year: PeriodSettings | null,
+	/**  The week's first day, `sunday` … `saturday` (item 5). */
+	week_start: string | null,
+	/**
+	 *  The language month and weekday names are written in, `pt-BR` or
+	 *  `en` (item 5).
+	 */
+	language: string | null,
 };
 
 /**  One frontmatter key and its value. */
@@ -1552,6 +2226,14 @@ export type ServerAccount = {
 	name: string,
 };
 
+/**
+ *  The window's server is back after it was gone (event `server-back`,
+ *  ADR 0084 item 10): the folder was opened again.
+ */
+export type ServerBack = {
+	url: string,
+};
+
 /**  A folder of a server the account may open, and the role in it. */
 export type ServerFolder = {
 	id: string,
@@ -1572,12 +2254,88 @@ export type ServerFolder = {
 };
 
 /**
+ *  The folders a server lists for the account, and whether the account may
+ *  make a new one there (the server's `mayCreate`, ADR 0074 item 6; the
+ *  maintainer, 2026-10-16: a new server has no folder, and the admin who
+ *  signs the app in has to be able to make the first).
+ */
+export type ServerFolders = {
+	folders: ServerFolder[],
+	may_create?: boolean,
+};
+
+/**
+ *  The window's server, or what it held there, is gone (event
+ *  `server-gone`, ADR 0084 item 10): said by the desktop app to a window
+ *  on a server's folder.
+ */
+export type ServerGone = {
+	/**  The server, as signed in to (Settings › Servers). */
+	url: string,
+	/**
+	 *  What ended: `session` (the server ended this device's session, or
+	 *  refused it on reconnecting), `folder` (this account no longer
+	 *  reaches the folder or the share: `reason` says why), `connection`
+	 *  (the connection dropped; the app tries again) or `unreachable` (a
+	 *  try found the server out of reach: `address` names it).
+	 */
+	what: string,
+	/**
+	 *  With `folder`, when the server says it: `revoked` by its owner,
+	 *  `deleted` (the shared folder went), `left` by the person.
+	 */
+	reason: string | null,
+	/**
+	 *  With `unreachable`: the server's address, `host[:port]`, and the
+	 *  addresses tried, each on a line after it (as `Unreachable`'s
+	 *  message).
+	 */
+	address: string | null,
+};
+
+/**
  *  A sign-in under way: the code the server's page shows, to compare, and
  *  the page the app opened in the browser.
  */
 export type ServerSignIn = {
 	code: string,
 	page: string,
+};
+
+/**
+ *  A folder given to this account by another person (event `share-given`,
+ *  ADR 0084 item 7): a share of a folder inside theirs (ADR 0081), or
+ *  their whole folder. Pushed by the server to the account's open
+ *  connections — its browser windows and its devices, never a token's —
+ *  when the account had no access to it before; a role changed later is
+ *  not this event.
+ */
+export type ShareGiven = {
+	/**
+	 *  What opens it: the id of a share, or of the whole folder
+	 *  (`ServerFolder::id`).
+	 */
+	id: string,
+	/**
+	 *  The folder's own name: the shared folder's last component, or the
+	 *  whole folder's name.
+	 */
+	name: string,
+	/**
+	 *  `editor` (writes) or `reader` (reads only); `owner` for a whole
+	 *  folder given with that role.
+	 */
+	role: string,
+	/**  The display name of the person who gave it. */
+	by: string,
+	/**  A share inside someone's folder, not their whole folder. */
+	share: boolean,
+	/**
+	 *  The server, as signed in to (Settings › Servers): the desktop app
+	 *  fills it, being signed in to any number of servers; none from the
+	 *  server itself, whose windows are on it.
+	 */
+	server: string | null,
 };
 
 /**
@@ -1828,7 +2586,13 @@ name: string;
 /**  The type's name per interface language. */
 labels: Label[]; 
 /**  The declared properties, in the schema's order. */
-properties: TypedProperty[] } | { kind: "conflict"; 
+properties: TypedProperty[]; 
+/**
+ *  The layout the schema names: `infobox`, the properties as a
+ *  card beside the text (ADR 0086 item 2); null, the panel as it
+ *  is.
+ */
+layout: string | null } | { kind: "conflict"; 
 /**  The notes that hold a schema of that name, in path order. */
 schemas: string[] } | { kind: "invalid"; schema: string; 
 /**  Why, as spec §4.8 names the kinds (`unknown_kind`, `yaml`, …). */
@@ -1837,7 +2601,10 @@ error: string };
 /**  A property a schema declares, as the note holds it. */
 export type TypedProperty = {
 	key: string,
-	/**  `text`, `list`, `number`, `checkbox`, `date` or `datetime`. */
+	/**
+	 *  `text`, `list`, `number`, `checkbox`, `date`, `datetime`, `link` or
+	 *  `image` (ADR 0086 item 1).
+	 */
 	kind: string,
 	labels: Label[],
 	/**  The note has the key. */
@@ -1880,10 +2647,105 @@ export type UpdateProgress = {
 	message: string | null,
 };
 
+export type VersionAuthor = {
+	kind: AuthorKind,
+	/**  Empty for [`AuthorKind::Outside`]. */
+	name: string,
+};
+
+/**  One version of a file. */
+export type VersionEntry = {
+	/**
+	 *  Opaque: what `history_read`, `history_restore` and
+	 *  `history_delete` take back.
+	 */
+	id: string,
+	/**  When it was written, in milliseconds since the epoch. */
+	at: number | null,
+	authors: VersionAuthor[],
+	kind: VersionKind,
+	/**  The bytes of this version. */
+	size: number | null,
+	/**
+	 *  Their SHA-256, lowercase hex: a synced folder's computer tells by
+	 *  it what has crossed to the server (item 8).
+	 */
+	hash: string,
+	/**  Lines added and removed against the version before it. */
+	added: number,
+	removed: number,
+	/**
+	 *  The file's path when this version was written (a rename since
+	 *  shows here).
+	 */
+	path: string,
+	/**
+	 *  Only on this computer: not yet crossed to the server of a synced
+	 *  folder (item 8).
+	 */
+	here_only: boolean,
+};
+
+/**  What made a version. */
+export type VersionKind = 
+/**  A write through Verso: a device's sync, a token, a panel. */
+"write" | 
+/**  The editor's saves, ten minutes of them in one version. */
+"edit" | 
+/**  Writing together in a note's room, ten minutes in one version. */
+"room" | 
+/**  A version brought back: itself a version. */
+"restore" | 
+/**  Changed outside Verso. */
+"outside" | 
+/**  The file as it was when its history began. */
+"found";
+
+/**  Where a version brought back landed, and its revision now. */
+export type VersionRestored = {
+	path: string,
+	revision: string,
+};
+
+/**  A version's text. */
+export type VersionText = {
+	id: string,
+	/**  None when its bytes are not UTF-8: shown by its size only. */
+	text: string | null,
+	size: number | null,
+};
+
 /**  A note that is a web page: its path and the address in its `url`. */
 export type WebNote = {
 	path: string,
 	url: string,
+};
+
+/**
+ *  Where a web page goes, as an iframe would put it. `slot` is the
+ *  page's whole box: its size is the page's viewport (`100vh` is its
+ *  height), and it may reach outside its pane or the window. `visible` is
+ *  the part of the slot that shows — inside every scroller around it and
+ *  the window, clear of the tab bar and the status bar (`embedPlace`,
+ *  app/ui/src/leaves/embedClip.ts). The page is drawn at `slot` and only
+ *  inside `visible` (`web_clip`); scrolling the note moves the slot and
+ *  never scrolls the page. A web note's own view sends one rectangle
+ *  twice.
+ */
+export type WebPlace = {
+	slot: WebRect,
+	visible: WebRect,
+};
+
+/**
+ *  A rectangle in the window's logical pixels, from the top-left of the
+ *  window's page.
+ */
+export type WebRect = {
+	x: number | null,
+	y: number | null,
+	w: number | null,
+	h: number | null,
 };
 
 /**

@@ -19,6 +19,21 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
+mod local;
+pub use local::{
+    LocalAddressChoice, LocalAsked, LocalAudit, LocalFolder, LocalPairState, LocalPairing,
+    LocalPhone, LocalServerStatus,
+};
+mod maps;
+pub use maps::{MapInfo, MapState};
+mod periodic;
+pub use periodic::{ObsidianPeriodic, PeriodSettings, PeriodicSettings};
+mod history;
+pub use history::{
+    AuthorKind, HistoryListing, VersionAuthor, VersionEntry, VersionKind, VersionRestored,
+    VersionText,
+};
+
 /// The folder that is open, and what indexing it did.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct FolderInfo {
@@ -153,6 +168,8 @@ pub struct FolderSettings {
     pub ignore_build_dirs: Option<bool>,
     /// Honour each `.gitignore` (ADR 0044).
     pub respect_gitignore: Option<bool>,
+    /// The periodic notes' settings (ADR 0093 item 4).
+    pub periodic: Option<PeriodicSettings>,
 }
 
 /// The folder's layer of settings as read now (ADR 0070 items 1–2).
@@ -194,6 +211,10 @@ pub struct EntryLabel {
     pub sticker: Option<String>,
     pub color: Option<String>,
     pub alias: Option<String>,
+    /// Every alias, the first included (ADR 0089 item 5: the suggestion
+    /// while typing matches them).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub aliases: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub order: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -307,6 +328,10 @@ pub enum TypeState {
         labels: Vec<Label>,
         /// The declared properties, in the schema's order.
         properties: Vec<TypedProperty>,
+        /// The layout the schema names: `infobox`, the properties as a
+        /// card beside the text (ADR 0086 item 2); null, the panel as it
+        /// is.
+        layout: Option<String>,
     },
     Conflict {
         /// The notes that hold a schema of that name, in path order.
@@ -330,7 +355,8 @@ pub struct Label {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct TypedProperty {
     pub key: String,
-    /// `text`, `list`, `number`, `checkbox`, `date` or `datetime`.
+    /// `text`, `list`, `number`, `checkbox`, `date`, `datetime`, `link` or
+    /// `image` (ADR 0086 item 1).
     pub kind: String,
     pub labels: Vec<Label>,
     /// The note has the key.
@@ -633,6 +659,53 @@ pub struct CollabJoin {
     /// dropped sends what it typed meanwhile only into the room it left,
     /// never into one made again from the disk.
     pub epoch: String,
+    /// The room's last rolls of dice, oldest first, for whoever joins
+    /// (ADR 0088 item 4): kept in the server's memory, never stored.
+    #[serde(default)]
+    pub rolls: Vec<DiceRoll>,
+}
+
+/// A roll of dice (ADR 0088): the notation rolled, the table it chose a
+/// row of when it was one, what each die showed, and the total. In a room
+/// the server rolls and names who asked; alone, the window rolls and
+/// `by` is empty. Never written to a file (item 2).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct DiceRoll {
+    /// What was rolled, without spaces: `1d20+3`, `4d6kh3`.
+    pub notation: String,
+    /// The random table rolled, as the note writes it (`[[Tabelas#^id]]`):
+    /// the window that hears the roll reads the row from the table itself.
+    pub source: Option<String>,
+    /// Each term of dice in the notation's order.
+    pub terms: Vec<DiceTermRoll>,
+    /// The numbers added to the dice, summed.
+    pub modifier: i32,
+    pub total: i32,
+    /// The name of the account that rolled; empty when the window rolled.
+    pub by: String,
+    /// When, RFC 3339 in UTC.
+    pub at: String,
+}
+
+/// One term of dice in a roll: `-1d4` is `sign` -1 and `sides` 4; a
+/// fudge die (`dF`) has three sides, -1, 0 and +1. `kept` count in the
+/// total, `dropped` were taken off by keep or drop, each in the order the
+/// dice fell.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct DiceTermRoll {
+    pub sign: i32,
+    pub sides: u32,
+    pub fudge: bool,
+    pub kept: Vec<i32>,
+    pub dropped: Vec<i32>,
+}
+
+/// A roll in a room, heard by the others in it (event `collab-roll`).
+/// The roll carries no path: the event's is the window's own.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct CollabRoll {
+    pub path: String,
+    pub roll: DiceRoll,
 }
 
 /// An edit or a presence of another person in a note (events
@@ -663,6 +736,96 @@ pub struct ServerAccount {
     pub name: String,
 }
 
+/// A UniVerso announced on the local network (ADR 0097): what the
+/// announcement says, to show and to click, never to trust. The `url` is
+/// the address a click fills in; nothing connects because of it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct FoundServer {
+    /// The announced instance name, `UniVerso-ab12cd`.
+    pub name: String,
+    /// The announced host, `universo-ab12cd.local`.
+    pub host: String,
+    /// Where a click connects: the public address the server announced, or
+    /// `http://address[:port]`; empty when `needs_public_url`.
+    pub url: String,
+    /// A server that speaks TLS itself and announced no public address: it
+    /// is listed, but cannot be offered by IP (a certificate is for a
+    /// name); the server's `VERSO_PUBLIC_URL` must be set.
+    pub needs_public_url: bool,
+    pub https: bool,
+    /// The version it announced; empty when it said none.
+    pub version: String,
+}
+
+/// The window's server, or what it held there, is gone (event
+/// `server-gone`, ADR 0084 item 10): said by the desktop app to a window
+/// on a server's folder.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct ServerGone {
+    /// The server, as signed in to (Settings › Servers).
+    pub url: String,
+    /// What ended: `session` (the server ended this device's session, or
+    /// refused it on reconnecting), `folder` (this account no longer
+    /// reaches the folder or the share: `reason` says why), `connection`
+    /// (the connection dropped; the app tries again) or `unreachable` (a
+    /// try found the server out of reach: `address` names it).
+    pub what: String,
+    /// With `folder`, when the server says it: `revoked` by its owner,
+    /// `deleted` (the shared folder went), `left` by the person.
+    pub reason: Option<String>,
+    /// With `unreachable`: the server's address, `host[:port]`, and the
+    /// addresses tried, each on a line after it (as `Unreachable`'s
+    /// message).
+    pub address: Option<String>,
+}
+
+/// The window's server is back after it was gone (event `server-back`,
+/// ADR 0084 item 10): the folder was opened again.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct ServerBack {
+    pub url: String,
+}
+
+/// A folder at 90 % of its quota or more (event `folder-quota`, ADR 0077
+/// item 5, ADR 0084 item 7): pushed by the server after a write, to the
+/// windows on the server's folder and to a device that syncs a folder of
+/// its computer with it, which tells that folder's windows. Bytes, as
+/// numbers the window can show.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct FolderQuota {
+    /// What the folder takes now.
+    pub used: f64,
+    /// Its quota.
+    pub quota: f64,
+}
+
+/// A folder given to this account by another person (event `share-given`,
+/// ADR 0084 item 7): a share of a folder inside theirs (ADR 0081), or
+/// their whole folder. Pushed by the server to the account's open
+/// connections — its browser windows and its devices, never a token's —
+/// when the account had no access to it before; a role changed later is
+/// not this event.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct ShareGiven {
+    /// What opens it: the id of a share, or of the whole folder
+    /// (`ServerFolder::id`).
+    pub id: String,
+    /// The folder's own name: the shared folder's last component, or the
+    /// whole folder's name.
+    pub name: String,
+    /// `editor` (writes) or `reader` (reads only); `owner` for a whole
+    /// folder given with that role.
+    pub role: String,
+    /// The display name of the person who gave it.
+    pub by: String,
+    /// A share inside someone's folder, not their whole folder.
+    pub share: bool,
+    /// The server, as signed in to (Settings › Servers): the desktop app
+    /// fills it, being signed in to any number of servers; none from the
+    /// server itself, whose windows are on it.
+    pub server: Option<String>,
+}
+
 /// A sign-in under way: the code the server's page shows, to compare, and
 /// the page the app opened in the browser.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -688,6 +851,17 @@ pub struct ServerFolder {
     /// The shared folder is no longer where the share points (item 13).
     #[serde(default)]
     pub missing: bool,
+}
+
+/// The folders a server lists for the account, and whether the account may
+/// make a new one there (the server's `mayCreate`, ADR 0074 item 6; the
+/// maintainer, 2026-10-16: a new server has no folder, and the admin who
+/// signs the app in has to be able to make the first).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct ServerFolders {
+    pub folders: Vec<ServerFolder>,
+    #[serde(default)]
+    pub may_create: bool,
 }
 
 /// A folder of this computer opened before, for the folder switcher's
@@ -961,6 +1135,40 @@ pub struct Backlink {
     pub col: u32,
 }
 
+/// A note's name written plainly in another note: one unlinked mention
+/// (ADR 0089 item 1), the name or one of its aliases as a phrase on word
+/// boundaries, case ignored and accents kept, in prose only.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct Mention {
+    /// The note that mentions.
+    pub path: String,
+    /// 1-based line, and 1-based column in Unicode scalar values (spec
+    /// §4.4), of the mention's first character.
+    pub line: u32,
+    pub col: u32,
+    /// The mention as written.
+    pub text: String,
+    /// Up to 60 characters of its line before it and after it.
+    pub before: String,
+    pub after: String,
+    /// The text is one of the note's aliases, not its name: the link
+    /// keeps it as the link's text.
+    pub alias: bool,
+    /// In a table's cell: the link's `|` is written `\|`.
+    pub table: bool,
+    /// Inside a `> [!secret]` callout (ADR 0087): never in a reader's
+    /// answer from a server.
+    pub secret: bool,
+}
+
+/// A note's unlinked mentions, in path and position order; `more` when
+/// there were more than the answer holds.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct Mentions {
+    pub mentions: Vec<Mention>,
+    pub more: bool,
+}
+
 /// Why a command could not answer, by what the UI can do about it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
@@ -978,7 +1186,9 @@ pub enum ErrorKind {
     /// A server that could not be reached: no connection made — refused,
     /// no such name, a TLS handshake that failed — or no answer in time.
     /// `message` is the server's address, `host[:port]`, as the window
-    /// names it to the person; why it could not be reached goes to the
+    /// names it to the person; when the name was resolved to addresses,
+    /// each address tried follows on a line of its own (ADR 0097), so a
+    /// bad DNS reads as one. Why it could not be reached goes to the
     /// app's log (the maintainer, 2026-10-14: a server down said nothing).
     Unreachable,
     /// The file's bytes are not UTF-8: no text to edit (spec Q25 is
@@ -1007,6 +1217,14 @@ pub enum ErrorKind {
     ProveFirst,
     /// The core could not answer.
     Failed,
+    /// A paired phone asked for a command that acts on the computer it is
+    /// paired with, or that is the owner's (ADR 0096 item 12): no phone
+    /// runs it, whatever its role.
+    NotOnPhone,
+    /// A phone that may only read asked for a command that changes
+    /// something (ADR 0096 items 6 and 12): the person lets it edit from
+    /// the computer.
+    PhoneReads,
 }
 
 /// An error as the UI receives it. `message` is the core's text, in
@@ -1149,8 +1367,19 @@ pub enum BaseErrorKind {
     UnknownMethod,
     Arguments,
     Type,
-    /// Regular expressions are not evaluated yet.
+    /// A regular expression where the method takes a text (`contains`,
+    /// `startsWith`); `name` is the method (ADR 0094 item 1).
     Regex,
+    /// Not a regular expression, or a flag that is no flag; `name` is the
+    /// literal as written.
+    RegexInvalid,
+    /// What the engine does not have; `name` is `lookahead`,
+    /// `lookbehind`, `backreference`, `flag y`, `flag d` or `flag v`
+    /// (ADR 0094 items 2 and 4).
+    RegexUnsupported,
+    /// A pattern past 1,000 characters or its compiled size, or one too
+    /// many in a query; `name` is the literal (ADR 0094 item 3).
+    RegexTooLarge,
     Cycle,
     Budget,
     TooLarge,
@@ -1162,6 +1391,15 @@ pub enum BaseErrorKind {
 pub struct BaseProblem {
     pub kind: BaseProblemKind,
     pub detail: String,
+    /// Why an evaluation failed, as its cells say it (ADR 0094 item 5).
+    pub error: Option<BaseError>,
+}
+
+/// An evaluation's error: its kind and what it concerns.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct BaseError {
+    pub kind: BaseErrorKind,
+    pub name: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]

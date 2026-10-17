@@ -185,6 +185,9 @@ pub struct TypeOut {
     pub labels: Vec<LabelOut>,
     /// The declared properties, in the schema's order (`typed`).
     pub properties: Vec<DeclaredOut>,
+    /// The layout the schema names (`typed`): `infobox`, the properties as
+    /// a card beside the text (ADR 0086 item 2).
+    pub layout: Option<String>,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -199,7 +202,9 @@ pub struct LabelOut {
 #[schemars(crate = "rmcp::schemars")]
 pub struct DeclaredOut {
     pub key: String,
-    /// `text`, `list`, `number`, `checkbox`, `date` or `datetime`.
+    /// `text`, `list`, `number`, `checkbox`, `date`, `datetime`, `link` (a
+    /// quoted wikilink or a list of them) or `image` (a picture's wikilink,
+    /// path or web address) — ADR 0086 item 1.
     pub kind: String,
     pub labels: Vec<LabelOut>,
     /// The note has the key.
@@ -225,12 +230,14 @@ pub(super) fn type_out(t: verso_core::typed::NoteType) -> TypeOut {
         error: None,
         labels: Vec::new(),
         properties: Vec::new(),
+        layout: None,
     };
     match t.state {
         TypeState::Typed(s) => {
             out.state = "typed".to_owned();
             out.schema = Some(s.schema);
             out.labels = labels_out(s.labels);
+            out.layout = s.layout;
             out.properties = s
                 .properties
                 .into_iter()

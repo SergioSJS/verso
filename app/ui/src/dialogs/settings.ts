@@ -2,19 +2,27 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { can } from "../can";
+import { can, host } from "../can";
+import { historyStrings } from "./historyStrings";
 import { serverStrings, serversBody } from "./servers";
+import { localServerBody, phonesConnected, restartNote } from "./localServer";
+import { localStrings } from "./localServerStrings";
 import { syncBody, syncStrings } from "./sync";
+import { offline } from "../web/offline/manager";
+import { offlineBody } from "../web/offline/section";
+import { o as offlineWords } from "../web/offline/strings";
 import { trashBody, trashStrings, trashSummary } from "./trash";
 import { type CliState, commands, type McpStatus } from "../bindings";
 import { remoteContentChanged } from "../changes";
 import { ask } from "../dialog";
 import { button, h, ui } from "../dom";
-import { focusesSummary, getLocalFocuses, getSyncFocuses, isSyncFocusesAsked, loadFocuses, setFocusesSummary, setLocalFocuses, setSyncFocuses, setSyncFocusesAsked } from "../focuses";
+import { focusesSummary, getLocalFocuses, getSyncFocuses, isSyncFocusesAsked, loadFocuses, setFocusesSummary, setLocalFocuses, setSyncFocuses, setSyncFocusesAsked, tellHostSyncFocuses } from "../focuses";
 import { bookmarks } from "../bookmarks";
 import { currentFolder } from "../folder";
 import { changeFolder, folderValues, folderWritable } from "../folderLayer";
 import type { Scope } from "../organize/layerRules";
+import { periodicBody } from "../periodic/settingsView";
+import { ps } from "../periodic/strings";
 import { icon } from "../icons";
 import { allCommands, comboOf, DEFAULT_KEYS, keyOf, MAC, paintKeyHints, prettyKeys, reloadWindow, RESERVED } from "../keys";
 import { LINUX, WINDOWS } from "../platform";
@@ -25,13 +33,20 @@ import { walkRulesChanged } from "../open";
 import { pushFolderNoteName } from "../organize/folderNotes";
 import { orderModeChanged } from "../organize/order";
 import { allowEmbedOrigins } from "../sanitize";
-import { getHiddenFromTree, pushEmbedOrigins, pushMenuLanguage, saveSettings, setHiddenFromTree, settings } from "../settings";
+import { refreshBases } from "../bases";
+import { tileControl, tileStrings } from "../bases/tileSettings";
+import { getHiddenFromTree, pushEmbedOrigins, pushHistoryDays, pushMenuLanguage, saveSettings, setHiddenFromTree, settings } from "../settings";
 import { boardText, LOCALE, t } from "../strings";
 import { listAll } from "../tree/tree";
 import { updateNews } from "../updateNews";
 import { asDialog, closed, isTop, opened } from "./a11y";
 import { accountEntries } from "../web/account";
+import { KINDS, type Mode, MODES, modeOf } from "../notify/core";
+import { notifyStrings } from "../notify/strings";
+import { systemControl } from "../notify/system";
 import { signedIn } from "../web/api";
+import { ls } from "../editor/suggestStrings";
+import { pv } from "../preview/strings";
 
 /** A settings page is a list of items: a title, a line about it, a control. */
 export let hotkeyRecorder: ((e: KeyboardEvent) => void) | null = null;
@@ -111,13 +126,24 @@ export class SettingsDialog {
     this.notice.hidden = false;
     ui.status.textContent = t.languageNotReloaded;
   }
+  /** The window in a browser (ADR 0092): the section is always there, and
+   *  says why when it cannot keep a folder — no HTTPS, no folder open, no
+   *  storage — rather than vanishing (the maintainer, 2026-10-16, over
+   *  plain HTTP: "onde está offline?"). */
+  private offlineHere(): boolean {
+    return host() === "server";
+  }
   private sections(): { id: string; label: string; icon: string }[] {
     return [
       { id: "general", label: t.sGeneral, icon: "gear" },
+      // The notifications, kind by kind (ADR 0084 item 8).
+      { id: "notify", label: notifyStrings().section, icon: "bell" },
       { id: "appearance", label: t.sAppearance, icon: "palette" },
       { id: "editor", label: t.sEditor, icon: "edit" },
       { id: "organizing", label: t.sOrganizing, icon: "folder" },
       { id: "files", label: t.sFiles, icon: "folder" },
+      // Periodic notes, the folder's settings (ADR 0093 item 4).
+      ...(currentFolder ? [{ id: "periodic", label: ps.section, icon: "calendar" }] : []),
       // The folder's trash (ADR 0080 item 4), for whoever may change it.
       ...(currentFolder && can("write") ? [{ id: "trash", label: trashStrings().section, icon: "trash" }] : []),
       { id: "board", label: boardText.sBoard, icon: "board" },
@@ -127,8 +153,14 @@ export class SettingsDialog {
       // and so is opening a server's folder from it (ADR 0073 item 2).
       ...(can("agents") ? [{ id: "cli", label: t.sCli, icon: "terminal" }] : []),
       ...(can("local_folders") ? [{ id: "servers", label: serverStrings().section, icon: "globe" }] : []),
+      // The desktop app serving its folders to the phone on the local
+      // network (ADR 0096): the desktop's own, like opening a server's.
+      ...(can("local_folders") ? [{ id: "localserver", label: localStrings().section, icon: "globe" }] : []),
       // A folder of this computer syncs with a server's (ADR 0079 item 1).
       ...(can("local_folders") && currentFolder ? [{ id: "sync", label: syncStrings().section, icon: "refresh" }] : []),
+      // A folder kept in a browser (ADR 0092): the section takes the same
+      // place, with the same status behind it.
+      ...(this.offlineHere() ? [{ id: "sync", label: offlineWords().section, icon: "refresh" }] : []),
       // On a server: the person's account (ADR 0074 items 7 and 9); the
       // server's administration is a console of its own (ADR 0077).
       ...(can("account") && signedIn() ? [{ id: "account", label: t.sAccount, icon: "user" }] : []),
@@ -196,6 +228,23 @@ export class SettingsDialog {
     i.addEventListener("keydown", (e) => e.stopPropagation());
     return i;
   }
+  /** A list of lines, one value per line, kept when the box loses the
+   *  focus: blank lines and repeats dropped. */
+  private lines(value: string[], onChange: (v: string[]) => void, example: string): HTMLTextAreaElement {
+    const box = h("textarea", "embed-allowed") as unknown as HTMLTextAreaElement;
+    box.rows = 4;
+    box.spellcheck = false;
+    box.value = value.join("\n");
+    box.placeholder = example;
+    box.addEventListener("keydown", (e) => e.stopPropagation());
+    box.addEventListener("change", () => {
+      const seen = new Set<string>();
+      for (const line of box.value.split("\n")) if (line.trim()) seen.add(line.trim());
+      onChange([...seen]);
+      box.value = [...seen].join("\n");
+    });
+    return box;
+  }
   /** Every item of every section, for the search; the section otherwise. */
   private items(): { section: string; title: string; desc: string; node: () => HTMLElement; group?: string }[] {
     const out: { section: string; title: string; desc: string; node: () => HTMLElement; group?: string }[] = [];
@@ -231,6 +280,11 @@ export class SettingsDialog {
         void updateController.check(false);
       });
 
+      // In a browser the window is the server's, updated with the server:
+      // there is nothing for it to check, and an answer it did not get must
+      // not read "the newest version" (the maintainer's test server,
+      // 2026-10-16, whose own check had failed).
+      checkBtn.hidden = !can("updates");
       topRow.append(v, checkBtn);
       wrap.append(topRow);
 
@@ -242,6 +296,10 @@ export class SettingsDialog {
 
       const renderCard = () => {
         card.textContent = "";
+        if (!can("updates")) {
+          card.style.display = "none";
+          return;
+        }
         checkBtn.disabled = updateController.checking || updateController.downloading;
         if (updateController.checking) {
           checkBtn.textContent = t.checkingUpdates;
@@ -305,6 +363,13 @@ export class SettingsDialog {
           card.append(resBox);
 
           if (res.requires_restart) {
+            // The phones connected go with the restart (ADR 0096 item 18).
+            const phones = h("p", "update-phones");
+            phones.setAttribute("role", "status");
+            void phonesConnected().then((n) => {
+              if (n > 0) phones.textContent = restartNote(n);
+            });
+            card.append(phones);
             const restartBtn = h("button", "update-btn-primary", t.restartNow);
             restartBtn.prepend(icon("refresh"));
             restartBtn.addEventListener("click", () => void updateController.restart());
@@ -358,6 +423,19 @@ export class SettingsDialog {
       for (const o of Array.from(sel.options)) if (o.value !== "auto") o.lang = o.value;
       return sel;
     });
+    // Each kind of notification: a toast and the list, the list only, or
+    // nothing (ADR 0084 item 8) — the person's layer, with the account on
+    // a server; then the system's notifications, this machine's (item 9).
+    const ns = notifyStrings();
+    for (const k of KINDS) {
+      add("notify", ns.kinds[k], ns.kindsDesc[k], () =>
+        this.select(MODES.map((m) => [m, ns.modes[m]] as [Mode, string]), modeOf(settings.notify, k), (v) => {
+          settings.notify = { ...settings.notify, [k]: v };
+          saveSettings();
+        }),
+      );
+    }
+    add("notify", ns.system, ns.systemDesc, () => systemControl());
     add("general", t.remoteContent, t.remoteContentDesc, () => this.toggle(settings.remoteContent, (v) => { settings.remoteContent = v; saveSettings(); remoteContentChanged(); }));
     add("general", t.embedAllowed, t.embedAllowedDesc, () => {
       const box = h("textarea", "embed-allowed") as unknown as HTMLTextAreaElement;
@@ -396,6 +474,18 @@ export class SettingsDialog {
       wrap.append(box, note);
       return wrap;
     });
+    // The maps' background (ADR 0094 items 8 and 9): the shipped world by
+    // default; a source only by the person's choice.
+    const ts = tileStrings(LOCALE);
+    add("general", ts.title, ts.desc, () =>
+      tileControl(LOCALE, settings, (next) => {
+        settings.mapTiles = next.mapTiles;
+        settings.mapTilesDark = next.mapTilesDark;
+        settings.mapTileOrigins = next.mapTileOrigins;
+        saveSettings();
+        refreshBases();
+      }, document.querySelector('meta[name="verso-contract"]') !== null),
+    );
     // The space the open folder takes (ADR 0075 item 4), from the walk the
     // index already made.
     if (currentFolder) {
@@ -423,6 +513,20 @@ export class SettingsDialog {
     // items 4 and 8), and the way into it.
     if (currentFolder && can("write")) {
       add("files", trashStrings().section, trashStrings().notCounted, () => trashSummary(() => { this.section = "trash"; this.search.value = ""; this.paint(); }));
+    }
+    // How long this computer keeps versions (ADR 0091 item 8): the
+    // person's; a folder of a server keeps its own, set by its admin.
+    if (host() !== "server") {
+      const hs = historyStrings();
+      add("files", hs.keepFor, hs.keepForDesc, () => {
+        const options: [string, string][] = [7, 30, 90, 180, 365, 730].map((d) => [String(d), hs.days(d)]);
+        options.push(["0", hs.forever]);
+        return this.select(options, String(settings.historyDays ?? 365), (v) => {
+          settings.historyDays = Number(v);
+          saveSettings();
+          pushHistoryDays();
+        });
+      });
     }
     addScoped("files", t.ignoreBuildDirs, t.ignoreBuildDirsDesc, () => this.toggle(folderValues().ignoreBuildDirs, (v) => void walkRule({ ignore_build_dirs: v }, () => { settings.ignoreBuildDirs = v; })));
     addScoped("files", t.respectGitignore, t.respectGitignoreDesc, () => this.toggle(folderValues().respectGitignore, (v) => void walkRule({ respect_gitignore: v }, () => { settings.respectGitignore = v; })));
@@ -507,13 +611,13 @@ export class SettingsDialog {
           setSyncFocusesAsked(true);
           if (!ok) {
             setSyncFocuses(false);
-            await commands.setSyncFocuses(false);
+            await tellHostSyncFocuses(false);
             this.paint();
             return;
           }
         }
         setSyncFocuses(true);
-        await commands.setSyncFocuses(true);
+        await tellHostSyncFocuses(true);
         const local = getLocalFocuses();
         if (local.length > 0) {
           const migrate = await ask(t.syncLocalFocusesQuestion, { yes: t.syncFocusesEnable, no: t.syncFocusesOffInfo });
@@ -534,7 +638,7 @@ export class SettingsDialog {
         await loadFocuses(true);
       } else {
         setSyncFocuses(false);
-        await commands.setSyncFocuses(false);
+        await tellHostSyncFocuses(false);
         await loadFocuses(true);
       }
       this.paint();
@@ -578,6 +682,12 @@ export class SettingsDialog {
     add("editor", t.defaultMode, t.defaultModeDesc, () => this.select([["preview", t.reading], ["live", t.edit]], settings.defaultMode, (v) => { settings.defaultMode = v; saveSettings(); }));
     add("editor", t.spellcheck, t.spellcheckDesc, () => this.toggle(settings.spellcheck, (v) => { settings.spellcheck = v; saveSettings(); }));
     add("editor", t.blocks.handles, t.blocks.handlesDesc, () => this.toggle(settings.blockHandles, (v) => { settings.blockHandles = v; saveSettings(); }));
+    add("editor", pv.setting, pv.settingDesc, () => this.toggle(settings.hoverPreview, (v) => { settings.hoverPreview = v; saveSettings(); }));
+    // The suggestion while typing (ADR 0089 item 5): off until the person
+    // turns it on; the folders and names it never offers.
+    add("editor", ls.setting, ls.settingDesc, () => this.toggle(settings.suggestLinks, (v) => { settings.suggestLinks = v; saveSettings(); }));
+    add("editor", ls.ignoredFolders, ls.ignoredFoldersDesc, () => this.lines(settings.suggestIgnoreFolders, (v) => { settings.suggestIgnoreFolders = v.map((l) => l.replace(/^\/+|\/+$/g, "")).filter(Boolean); saveSettings(); }, "Arquivo"));
+    add("editor", ls.ignoredNames, ls.ignoredNamesDesc, () => this.lines(settings.suggestIgnoreNames, (v) => { settings.suggestIgnoreNames = v; saveSettings(); }, "Mesa"));
     add("editor", t.blocks.enterNewBlock, t.blocks.enterNewBlockDesc, () => this.toggle(settings.enterNewBlock, (v) => { settings.enterNewBlock = v; saveSettings(); }));
     // Sub-division for Line Numbers, in the exact order of the mode buttons on screen:
     // 1. Reading mode (Leitura)
@@ -591,7 +701,10 @@ export class SettingsDialog {
     add("editor", t.lineNumbersSource, t.lineNumbersSourceDesc, () => this.toggle(settings.lineNumbersSource, (v) => { settings.lineNumbersSource = v; saveSettings(); }), t.lineNumbers);
     add("files", t.linkFormat, t.linkFormatDesc, () => this.select([["shortest", t.linkShortest], ["relative", t.linkRelative], ["root", t.linkRoot]], settings.linkFormat, (v) => { settings.linkFormat = v; saveSettings(); }));
     add("files", t.attachments, t.attachmentsDesc, () => this.text(settings.attachments, (v) => { settings.attachments = v; saveSettings(); }));
-    add("files", t.dailyFolder, t.dailyDesc, () => this.text(settings.daily, (v) => { settings.daily = v; saveSettings(); }));
+    // The daily notes' folder is the folder's now, with the other periods
+    // (ADR 0093 item 4); without a folder open, this machine's, as before.
+    if (!currentFolder) add("files", t.dailyFolder, t.dailyDesc, () => this.text(settings.daily, (v) => { settings.daily = v; saveSettings(); }));
+    if (currentFolder) out.push({ section: "periodic", title: ps.section, desc: ps.sectionDesc, node: () => periodicBody((a, b, c, d) => this.item(a, b, c, d), () => this.paint()) });
     add("files", t.templates, t.templatesDesc, () => this.text(settings.templates, (v) => { settings.templates = v; saveSettings(); }));
     // Tab indents in an editor: how the keyboard leaves one, said where
     // the keys are (CodeMirror's own way out: Esc then Tab, or its
@@ -603,8 +716,10 @@ export class SettingsDialog {
     const me = signedIn();
     if (can("account") && me) for (const e of accountEntries(me, (a, b, c) => this.item(a, b, c))) out.push({ section: "account", ...e });
     if (can("local_folders")) out.push({ section: "servers", title: serverStrings().connect, desc: serverStrings().connectDesc, node: () => serversBody((a, b, c) => this.item(a, b, c)) });
+    if (can("local_folders")) out.push({ section: "localserver", title: localStrings().title, desc: "", node: () => localServerBody((a, b, c) => this.item(a, b, c)) });
     if (currentFolder && can("write")) out.push({ section: "trash", title: trashStrings().section, desc: trashStrings().lead, node: () => trashBody((a, b, c) => this.item(a, b, c)) });
     if (can("local_folders") && currentFolder) out.push({ section: "sync", title: syncStrings().title, desc: syncStrings().desc, node: () => syncBody((a, b, c) => this.item(a, b, c)) });
+    if (this.offlineHere()) out.push({ section: "sync", title: offlineWords().title, desc: offlineWords().desc, node: () => offlineBody((a, b, c) => this.item(a, b, c)) });
     add("cli", t.cliTitle, WINDOWS ? t.cliDescWindows : LINUX ? t.cliDescLinux : t.cliDesc, () => this.cliControl());
     // One server per folder, or one for all of Verso (ADR 0054, 2026-10-08).
     add("cli", t.mcpModeTitle, t.mcpModeDesc, () => this.select([["folder", t.mcpModeFolder], ["all", t.mcpModeAll]], settings.mcpMode, (v) => { settings.mcpMode = v; saveSettings(); this.paint(); }));
@@ -870,7 +985,8 @@ export class SettingsDialog {
     if (q && items.length === 0) frag.append(h("p", "settings-hint", t.noMatches));
     if (!q) {
       const title = h("h2", "settings-title", this.sections().find((sec) => sec.id === this.section)?.label ?? "");
-      this.body.replaceChildren(title, this.notice, ...(this.section === "hotkeys" ? [h("p", "settings-hint", t.hotkeysHint)] : []), frag);
+      const hint = this.section === "hotkeys" ? t.hotkeysHint : this.section === "notify" ? notifyStrings().sectionLead : "";
+      this.body.replaceChildren(title, this.notice, ...(hint ? [h("p", "settings-hint", hint)] : []), frag);
     } else this.body.replaceChildren(this.notice, frag);
   }
 }

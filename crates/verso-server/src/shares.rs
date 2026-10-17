@@ -9,12 +9,14 @@
 //! share carried by a rename made through the server, and gone with its
 //! folder (item 13).
 
+use std::sync::Arc;
+
 use axum::Json;
 use axum::extract::Path;
 use axum::response::Response;
 use serde::Deserialize;
 use serde_json::{Value, json};
-use verso_contract::ContractError;
+use verso_contract::{ContractError, ShareGiven};
 use verso_service::lock;
 
 use crate::auth::Who;
@@ -60,16 +62,35 @@ pub fn scope_for(
         .unwrap_or(Role::Reader)
         .min(Role::Editor);
     let role = if writes { role } else { role.min(Role::Reader) };
-    let owner = owner_of(server, &folder.id)?.map_or_else(|| "?".to_owned(), |a| a.name);
+    // A folder chosen inside one served by "this app is a server" is named
+    // as it is on the computer, with no owner in brackets: its owner is
+    // the phone's own computer (ADR 0096 item 2, amended 2026-10-16).
+    let name = match server.local.as_ref().and_then(|p| p.part_name(&share.id)) {
+        Some(name) => name,
+        None => {
+            let owner = owner_of(server, &folder.id)?.map_or_else(|| "?".to_owned(), |a| a.name);
+            format!("{} ({owner})", last(&share.path))
+        }
+    };
+    // What a phone is kept from under a folder chosen inside one this
+    // computer serves: links that lead out of it.
+    let guard = match (&server.local, server.folder_path(&folder.dir)) {
+        (Some(p), Some(vault)) if p.part_name(&share.id).is_some() => {
+            let _ = p;
+            Some(Arc::new(crate::scope::Guard { vault }))
+        }
+        _ => None,
+    };
     let scope = Scope {
         share: share.id.clone(),
         key: share_key(&share.id),
-        name: format!("{} ({owner})", last(&share.path)),
+        name,
         root: share.path.clone(),
         mount: share
             .attachments
             .as_ref()
             .map(|a| (last(a).to_owned(), a.clone())),
+        guard,
     };
     Ok(Some((folder, scope, role)))
 }
@@ -129,6 +150,7 @@ pub fn refresh(server: &Server, folder: &str, why: &str) {
         })
         .collect();
     let mut gone = Vec::new();
+    let mut demoted = Vec::new();
     {
         let mut table = lock(&server.clients);
         for (client, now) in found {
@@ -142,6 +164,9 @@ pub fn refresh(server: &Server, folder: &str, why: &str) {
                     c.scope = Some(scope);
                     if changed {
                         c.tx.send(&json!({ "role": role }));
+                        if !role.writes() {
+                            demoted.push(client);
+                        }
                     }
                 }
                 None => {
@@ -154,6 +179,10 @@ pub fn refresh(server: &Server, folder: &str, why: &str) {
         }
     }
     server.left(&gone);
+    // One who may now only read leaves the rooms it wrote in (ADR 0087).
+    for client in demoted {
+        crate::collab::readers::demoted(server, &client);
+    }
 }
 
 /// Before a command of a window on a share: the share looked at again, so
@@ -225,6 +254,14 @@ fn exists_folder(server: &Server, folder: &Folder, path: &str) -> ApiResult<bool
     {
         return Ok(found);
     }
+    // Served from this computer, a folder is opened by the first phone
+    // that asks: until then the folders chosen inside it are the ones the
+    // start found on the disk (ADR 0096 item 2, amended 2026-10-16).
+    if server.local.is_some() {
+        return Ok(server
+            .folder_path(&folder.dir)
+            .is_some_and(|vault| verso_fs::is_folder(&vault, path)));
+    }
     let inside = format!("{path}/");
     Ok(server
         .db
@@ -235,7 +272,7 @@ fn exists_folder(server: &Server, folder: &Folder, path: &str) -> ApiResult<bool
 
 /// A path the owner names for a share: a folder inside the folder, not
 /// hidden (no part starting with `.`), not the root.
-fn share_path(path: &str) -> ApiResult<()> {
+pub(crate) fn share_path(path: &str) -> ApiResult<()> {
     if path.is_empty()
         || crate::scope::checked(path).is_err()
         || path.split('/').any(|p| p.starts_with('.'))
@@ -304,8 +341,15 @@ pub fn listing(ctx: &Ctx, who: &Who) -> ApiResult<(Vec<Value>, Vec<Value>)> {
             owner_of(server, &f.id)?
                 .map_or(Value::Null, |a| json!({ "name": a.name, "email": a.email }))
         };
+        // The folder's bytes count its secret blocks' (ADR 0087): one who
+        // only reads it is not told them, as a share's receiver is not.
+        let space = if role.writes() && who.reaches(&f.id).1 {
+            crate::folders::space(ctx, &f.id)
+        } else {
+            Value::Null
+        };
         folders.push(json!({
-            "id": f.id, "name": f.dir, "role": role, "space": crate::folders::space(ctx, &f.id),
+            "id": f.id, "name": f.dir, "role": role, "space": space,
             "owner": owner, "share": false,
         }));
         if role == Role::Owner && person {
@@ -326,8 +370,18 @@ pub fn listing(ctx: &Ctx, who: &Who) -> ApiResult<(Vec<Value>, Vec<Value>)> {
         else {
             continue;
         };
-        let owner = owner_of(server, &folder.id)?
-            .map_or(Value::Null, |a| json!({ "name": a.name, "email": a.email }));
+        // A folder chosen inside one this computer serves is the phone's own:
+        // it has no owner to name (ADR 0096 item 2, amended 2026-10-16).
+        let owner = if server
+            .local
+            .as_ref()
+            .is_some_and(|p| p.part_name(&share.id).is_some())
+        {
+            Value::Null
+        } else {
+            owner_of(server, &folder.id)?
+                .map_or(Value::Null, |a| json!({ "name": a.name, "email": a.email }))
+        };
         folders.push(json!({
             "id": share.id, "name": scope.name, "role": role, "space": null,
             "owner": owner, "share": true,
@@ -415,6 +469,7 @@ pub async fn grant(
     }
     let role = body.role.min(Role::Editor);
     let share = ctx.server.db.make_share(&folder.id, &body.path)?;
+    let new = ctx.server.db.share_role(&share.id, &target.id)?.is_none();
     ctx.server.db.grant_share(&share.id, &target.id, role)?;
     audit(
         &ctx,
@@ -424,7 +479,38 @@ pub async fn grant(
         &share.path,
     );
     refresh(&ctx.server, &folder.id, "revoked");
+    if new {
+        given(
+            &ctx,
+            &target.id,
+            ShareGiven {
+                id: share.id.clone(),
+                name: last(&share.path).to_owned(),
+                role: role.as_str().to_owned(),
+                by: String::new(),
+                share: true,
+                server: None,
+            },
+        );
+    }
     Ok(ok(of_share(&ctx.server, &folder, &share)?))
+}
+
+/// A folder given to `account`, which had no access to it before (ADR 0084
+/// item 7): the account's windows and devices hear it at once, with who
+/// gave it — the person acting — so that a window can say it. A role
+/// changed later is not said here.
+pub(crate) fn given(ctx: &Ctx, account: &str, what: ShareGiven) {
+    let Some(by) = ctx.who.as_ref().map(|w| w.account.name.clone()) else {
+        return;
+    };
+    let Ok(payload) = serde_json::to_value(ShareGiven { by, ..what }) else {
+        return;
+    };
+    ctx.server.push_sessions(
+        account,
+        &json!({ "event": "share-given", "payload": payload }),
+    );
 }
 
 #[derive(Deserialize)]

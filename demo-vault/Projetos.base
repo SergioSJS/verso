@@ -3,9 +3,12 @@ filters:
     - file.inFolder("projetos")
 formulas:
   orcamento_mil: "(orcamento / 1000).toFixed(1)"
+  mes: 'date.toString().replace(/^(\d{4})-(\d{2})-\d{2}$/, "$2/$1")'
 properties:
   formula.orcamento_mil:
     displayName: Orçamento (mil)
+  formula.mes:
+    displayName: Mês
 views:
   - type: table
     name: Todos os Projetos
@@ -16,6 +19,7 @@ views:
       - responsavel
       - orcamento
       - formula.orcamento_mil
+      - formula.mes
     sort:
       - property: date
         direction: DESC
@@ -31,3 +35,9 @@ views:
     startDate: date
   - type: list
     name: Lista de Projetos
+  - type: map
+    name: Mapa
+    order:
+      - file.name
+      - status
+    coordinates: note.local

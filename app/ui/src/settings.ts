@@ -36,6 +36,8 @@ export type Settings = {
   blockHandles: boolean;
   /** Enter in a paragraph starts a new block (ADR 0061 D9 b). */
   enterNewBlock: boolean;
+  /** The note a link names shown where the pointer rests (ADR 0085 item 8). */
+  hoverPreview: boolean;
   defaultMode: "preview" | "live";
   measure: "normal" | "wide";
   linkFormat: "shortest" | "relative" | "root";
@@ -48,9 +50,21 @@ export type Settings = {
    *  own copy, handed over before a folder opens. */
   ignoreBuildDirs: boolean;
   respectGitignore: boolean;
+  /** How many days this computer keeps its folders' versions, 0 for no
+   *  limit (ADR 0091 items 3 and 8): the person's, handed to the host. */
+  historyDays?: number;
   /** Origins on the local network whose pages may be embedded, approved
    *  one by one (`scheme://host[:port]`); the host keeps its own copy. */
   embedOrigins: string[];
+  /** A map view's background (ADR 0094 item 8): a style or tile address
+   *  the person chose, for light and dark; empty, the world outline
+   *  shipped with the app — nothing from the network. */
+  mapTiles: string;
+  mapTilesDark: string;
+  /** Origins map tiles may load from, approved one by one
+   *  (`https://host[:port]`); a server's page lets the window reach these
+   *  and no other (item 10). Never filled by itself. */
+  mapTileOrigins: string[];
   headingFont?: "serif" | "sans" | "editorial" | "mono" | "system";
   bodyFont?: "sans" | "serif" | "mono" | "system";
   headingColor?: "default" | "brass" | "seal" | "moss" | "slate" | "royal" | "amethyst";
@@ -77,6 +91,12 @@ export type Settings = {
   manualOrder: boolean;
   inlineEmbedEdit: boolean;
   emojiTrigger: boolean;
+  /** The suggestion while typing (ADR 0089 item 5, revised 2026-10-15):
+   *  off unless the person turns it on, with the folders and the names
+   *  never suggested. The person's layer, never written into a folder. */
+  suggestLinks: boolean;
+  suggestIgnoreFolders: string[];
+  suggestIgnoreNames: string[];
   hiddenFromTree: Record<string, string[]>;
   syncFocuses: Record<string, boolean>;
   syncFocusesAsked: Record<string, boolean>;
@@ -85,6 +105,10 @@ export type Settings = {
    *  item 15), by folder: on unless the person turned it off — their
    *  layer, never written into the folder. */
   liveTogether: Record<string, boolean>;
+  /** Each kind of notification, as the person chose it (ADR 0084 item 8):
+   *  "toast" ("Aviso e lista"), "list" ("Só na lista") or "off"; a kind
+   *  not named here is "Aviso e lista". */
+  notify: Partial<Record<string, "toast" | "list" | "off">>;
 };
 export const DEFAULTS: Settings = {
   lang: "auto",
@@ -103,6 +127,7 @@ export const DEFAULTS: Settings = {
   lineNumbersPreview: false,
   blockHandles: true,
   enterNewBlock: false,
+  hoverPreview: true,
   defaultMode: "preview",
   measure: "normal",
   linkFormat: "shortest",
@@ -111,6 +136,9 @@ export const DEFAULTS: Settings = {
   ignoreBuildDirs: true,
   respectGitignore: true,
   embedOrigins: [],
+  mapTiles: "",
+  mapTilesDark: "",
+  mapTileOrigins: [],
   headingFont: "serif",
   bodyFont: "sans",
   headingColor: "brass",
@@ -133,11 +161,15 @@ export const DEFAULTS: Settings = {
   manualOrder: true,
   inlineEmbedEdit: true,
   emojiTrigger: true,
+  suggestLinks: false,
+  suggestIgnoreFolders: [],
+  suggestIgnoreNames: [],
   hiddenFromTree: {},
   syncFocuses: {},
   syncFocusesAsked: {},
   localFocuses: {},
   liveTogether: {},
+  notify: {},
 };
 export let settings: Settings = { ...DEFAULTS };
 export function loadSettings(): void {
@@ -151,12 +183,21 @@ export function loadSettings(): void {
       }
       settings = { ...DEFAULTS, ...parsed };
       if (!Array.isArray(settings.embedOrigins)) settings.embedOrigins = [];
+      if (!Array.isArray(settings.mapTileOrigins)) settings.mapTileOrigins = [];
+      for (const key of ["suggestIgnoreFolders", "suggestIgnoreNames"] as const) {
+        settings[key] = Array.isArray(settings[key]) ? settings[key].filter((v) => typeof v === "string") : [];
+      }
+      settings.suggestLinks = settings.suggestLinks === true;
+      settings.mapTileOrigins = settings.mapTileOrigins.filter((o) => typeof o === "string");
+      if (typeof settings.mapTiles !== "string") settings.mapTiles = "";
+      if (typeof settings.mapTilesDark !== "string") settings.mapTilesDark = "";
       if (settings.mcpMode !== "all") settings.mcpMode = "folder";
       if (!settings.hiddenFromTree || Array.isArray(settings.hiddenFromTree)) settings.hiddenFromTree = {};
       if (!settings.syncFocuses || typeof settings.syncFocuses !== "object") settings.syncFocuses = {};
       if (!settings.syncFocusesAsked || typeof settings.syncFocusesAsked !== "object") settings.syncFocusesAsked = {};
       if (!settings.localFocuses || typeof settings.localFocuses !== "object") settings.localFocuses = {};
       if (!settings.liveTogether || typeof settings.liveTogether !== "object") settings.liveTogether = {};
+      if (!settings.notify || typeof settings.notify !== "object" || Array.isArray(settings.notify)) settings.notify = {};
     }
   } catch {
     settings = { ...DEFAULTS };
@@ -267,6 +308,15 @@ export function pushWalkRules(): Promise<boolean> {
   return commands.setWalkRules(settings.ignoreBuildDirs, settings.respectGitignore).then(
     (r) => r.status === "ok" || (fail(r.error), false),
     () => false,
+  );
+}
+/** How long this computer keeps versions (ADR 0091 item 8), handed to the
+ *  host, which thins each open folder's history at once. A server keeps
+ *  its folders' by its own setting, and answers nothing. */
+export function pushHistoryDays(): void {
+  void commands.setHistoryDays(settings.historyDays ?? 365).then(
+    (r) => r.status === "ok" || fail(r.error),
+    () => undefined,
   );
 }
 /** The native menu's language ("pt" or "en"): the setting when it names

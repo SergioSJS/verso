@@ -635,3 +635,29 @@ fn twins_that_already_exist_are_kept_and_a_third_spelling_is_refused() {
         .unwrap();
     assert_eq!(names(dir.path()), vec!["Nota.md", "Outra.md"]);
 }
+
+#[cfg(unix)]
+#[test]
+fn the_real_name_of_a_link_and_a_second_name_for_the_same_bytes_are_told() {
+    use std::os::unix::fs::symlink;
+    let dir = tempfile::tempdir().unwrap();
+    touch(&dir.path().join("pasta/Nota.md"), "n");
+    touch(&dir.path().join("solta.txt"), "s");
+    symlink("pasta/Nota.md", dir.path().join("espelho.txt")).unwrap();
+    symlink("pasta", dir.path().join("atalho")).unwrap();
+    fs::hard_link(dir.path().join("solta.txt"), dir.path().join("gemea.bin")).unwrap();
+    let root = Root::open(dir.path(), vec![]).unwrap();
+    assert_eq!(
+        root.resolved_name(Path::new("espelho.txt")),
+        Some(PathBuf::from("pasta/Nota.md"))
+    );
+    assert_eq!(
+        root.resolved_name(Path::new("atalho/Nota.md")),
+        Some(PathBuf::from("pasta/Nota.md"))
+    );
+    assert_eq!(root.resolved_name(Path::new("pasta/Nota.md")), None);
+    assert_eq!(root.resolved_name(Path::new("falta.txt")), None);
+    assert!(root.hard_linked(Path::new("gemea.bin")));
+    assert!(root.hard_linked(Path::new("solta.txt")));
+    assert!(!root.hard_linked(Path::new("pasta/Nota.md")));
+}

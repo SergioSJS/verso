@@ -30,7 +30,10 @@
 # link, refused; a restore through a link planted in the data or in a
 # scratch root refused, with nothing written through it; the GitHub
 # token's header file never open to others; a package with no signature
-# refused unless --no-signature; the next steps
+# refused unless --no-signature; the release's signed checksums list
+# taking a package in it and refusing a wrong hash, a forged list, a list
+# of another version and a package not in it, the package's own .sig still
+# taken for a release up to 0.8.3; the next steps
 # saying the setup link stays in the journal and the password is to be
 # removed. `--script` runs that test alone.
 #
@@ -245,6 +248,75 @@ EOF
   grep -q 'Checksum good' /tmp/verify.out || fail "--no-signature did not check the checksum: $(cat /tmp/verify.out)"
   if $u update --no-signature 2>&1 | grep -q 'Unknown option'; then fail "update does not take --no-signature"; fi
 
+  printf '\n== the signed checksums list: a package in it installs; a wrong hash, a forged list, a list of another version, a package not in it do not\n'
+  # ADR 0055, revised 2026-10-14: from 0.8.3 a release carries one signed
+  # list, verso-<version>-SHA256SUMS and its .sig, instead of a .sig per
+  # file. Signed here with a throwaway key made for the test, never Verso's.
+  apt-get install -y -qq minisign jq >/dev/null
+  rm -rf /tmp/rel /tmp/test.key /tmp/test.pub && mkdir -p /tmp/rel
+  minisign -G -W -p /tmp/test.pub -s /tmp/test.key >/dev/null || fail "minisign could not make a test key"
+  testkey=$(sed -n 2p /tmp/test.pub)
+  pkg=universo-0.0.0-amd64.deb
+  sums=verso-0.0.0-SHA256SUMS
+  printf 'the package\n' > "/tmp/rel/$pkg"
+  sha() { sha256sum "$1" | cut -d' ' -f1; }
+  # sign FILE NAME: FILE.sig as `tauri signer sign` writes it — base64 of
+  # minisign's signature, its trusted comment naming NAME.
+  sign() {
+    minisign -S -s /tmp/test.key -m "$1" -x /tmp/sig.minisig -t "$(printf 'timestamp:1\tfile:%s' "$2")" >/dev/null || fail "minisign could not sign $1"
+    base64 -w0 /tmp/sig.minisig > "$1.sig"
+  }
+  # The package as `--package /tmp/rel/…`, checked as install checks it.
+  verify_local() {
+    UNIVERSO_SH_FUNCTIONS=1 sh -c '. /src/packaging/server/universo.sh
+      PUBKEY=$2; PM=deb; TMPD=; INSECURE=0; NOSIG=0
+      local_package "$1" && verify' sh "/tmp/rel/$pkg" "$testkey"
+  }
+  printf '%s  %s\n' "$(sha "/tmp/rel/$pkg")" "$pkg" "$(printf other | sha256sum | cut -d' ' -f1)" universo-0.0.0-arm64.deb > "/tmp/rel/$sums"
+  sign "/tmp/rel/$sums" "$sums"
+  verify_local > /tmp/verify.out 2>&1 || fail "a package in its signed list was refused: $(cat /tmp/verify.out)"
+  grep -q 'Signature and checksum good' /tmp/verify.out || fail "the list did not check the package: $(cat /tmp/verify.out)"
+  # The list says another hash for the package, genuinely signed.
+  printf '%s  %s\n' "$(printf 'another build' | sha256sum | cut -d' ' -f1)" "$pkg" > "/tmp/rel/$sums"
+  sign "/tmp/rel/$sums" "$sums"
+  if verify_local > /tmp/verify.out 2>&1; then fail "a package whose hash is not the listed one was taken: $(cat /tmp/verify.out)"; fi
+  grep -q 'DOES NOT MATCH THE SIGNED LIST' /tmp/verify.out || fail "a wrong hash refused for another reason: $(cat /tmp/verify.out)"
+  # The list changed after it was signed.
+  printf '%s  %s\n' "$(sha "/tmp/rel/$pkg")" "$pkg" > "/tmp/rel/$sums"
+  if verify_local > /tmp/verify.out 2>&1; then fail "a list changed after its signature was taken: $(cat /tmp/verify.out)"; fi
+  grep -q "LIST'S SIGNATURE DOES NOT MATCH" /tmp/verify.out || fail "a forged list refused for another reason: $(cat /tmp/verify.out)"
+  # Signed for another version's list.
+  sign "/tmp/rel/$sums" verso-0.0.1-SHA256SUMS
+  if verify_local > /tmp/verify.out 2>&1; then fail "a list signed as another version's was taken: $(cat /tmp/verify.out)"; fi
+  grep -q 'names another file' /tmp/verify.out || fail "another version's list refused for another reason: $(cat /tmp/verify.out)"
+  # Another version's genuine list, offered for this package.
+  cp "/tmp/rel/$sums" /tmp/rel/verso-0.0.1-SHA256SUMS
+  sign /tmp/rel/verso-0.0.1-SHA256SUMS verso-0.0.1-SHA256SUMS
+  if UNIVERSO_SH_FUNCTIONS=1 sh -c '. /src/packaging/server/universo.sh
+      PUBKEY=$1; TMPD=$(mktemp -d); PKG=/tmp/rel/universo-0.0.0-amd64.deb; SIG=; DIGEST=; INSECURE=0; NOSIG=0
+      SUMS=/tmp/rel/verso-0.0.1-SHA256SUMS; SUMS_SIG=$SUMS.sig
+      verify' sh "$testkey" > /tmp/verify.out 2>&1; then fail "another version's list was taken: $(cat /tmp/verify.out)"; fi
+  grep -q 'is not the checksums list of' /tmp/verify.out || fail "another version's list refused for another reason: $(cat /tmp/verify.out)"
+  # The package is not in the list.
+  printf '%s  %s\n' "$(sha "/tmp/rel/$pkg")" universo-0.0.0-arm64.deb > "/tmp/rel/$sums"
+  sign "/tmp/rel/$sums" "$sums"
+  if verify_local > /tmp/verify.out 2>&1; then fail "a package missing from the list was taken: $(cat /tmp/verify.out)"; fi
+  grep -q 'is not in the release' /tmp/verify.out || fail "a package not in the list refused for another reason: $(cat /tmp/verify.out)"
+  # A release up to 0.8.3 (the bridge publishes both): the package's own .sig.
+  rm -f "/tmp/rel/$sums" "/tmp/rel/$sums.sig"
+  sign "/tmp/rel/$pkg" "$pkg"
+  verify_local > /tmp/verify.out 2>&1 || fail "a package with its own .sig was refused: $(cat /tmp/verify.out)"
+  grep -q 'Signature good' /tmp/verify.out || fail "the package's .sig was not checked: $(cat /tmp/verify.out)"
+  # Picked from a release's assets: the list and its signature found by the tag.
+  printf '%s' '[{"tag_name":"v0.0.0","draft":false,"assets":[
+    {"name":"universo-0.0.0-amd64.deb","url":"https://x/pkg","digest":"sha256:00"},
+    {"name":"universo-0.0.0-amd64.deb.sig","url":"https://x/pkg.sig"},
+    {"name":"verso-0.0.0-SHA256SUMS","url":"https://x/sums"},
+    {"name":"verso-0.0.0-SHA256SUMS.sig","url":"https://x/sums.sig"}]}]' > /tmp/release.json
+  UNIVERSO_SH_FUNCTIONS=1 sh -c '. /src/packaging/server/universo.sh; PKG_RE="^universo-.*-amd64\\.deb\$"; pick_asset /tmp/release.json' > /tmp/picked
+  [ "$(cut -f6,7 /tmp/picked)" = "$(printf 'https://x/sums\thttps://x/sums.sig')" ] || fail "the list was not picked from the release: $(cat /tmp/picked)"
+  [ "$(cut -f5 /tmp/picked)" = https://x/pkg.sig ] || fail "the package's .sig was not picked: $(cat /tmp/picked)"
+
   printf '\n== the next steps say the setup link stays in the log, and the password is to be removed\n'
   steps() {
     printf 'VERSO_PUBLIC_URL=https://notes.example.com\n%s' "$1" > /tmp/next.env
@@ -358,6 +430,11 @@ if [ ! -f app/ui/dist/index.html ]; then
   echo "no UI bundle: run scripts/check.sh first (or: cd app/ui && npm ci && npm run build)"
   exit 1
 fi
+# On the host, before the container: node and git only. Linux's own
+# clipping (app/src-tauri/src/web_clip/linux.rs) has no `unsafe`, and this
+# holds it so (ADR 0029, revision of 2026-10-15).
+printf '\n== unsafe only in app/src-tauri/src/web_clip/{macos,windows}.rs (ADR 0029)\n'
+node scripts/check-unsafe.mjs
 dir="${VERSO_LINUX_DIR:-$HOME/.cache/verso-linux}"
 mkdir -p "$dir"
 rsync -a --delete --exclude target --exclude node_modules --exclude .git ./ "$dir/src/"

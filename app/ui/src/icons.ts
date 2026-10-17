@@ -13,6 +13,9 @@ const PATHS: Record<string, string> = {
   split: "M2.5 3.5h11v9h-11zM8 3.5v9",
   splitDown: "M2.5 3.5h11v9h-11zM2.5 8h11",
   close: "M4 4l8 8M12 4l-8 8",
+  lock: "M4 7.5h8v6H4zM5.5 7.5V5.5a2.5 2.5 0 0 1 5 0v2M8 10v1.2",
+  unlock: "M4 7.5h8v6H4zM5.5 7.5V5.5a2.5 2.5 0 0 1 4.9-.7M8 10v1.2",
+  dice: "M4 2.5h8A1.5 1.5 0 0 1 13.5 4v8a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 12V4A1.5 1.5 0 0 1 4 2.5zM5.5 5.5h.01M10.5 5.5h.01M8 8h.01M5.5 10.5h.01M10.5 10.5h.01",
   reading: "M2 3.5h4.5A1.5 1.5 0 0 1 8 5v8a1.5 1.5 0 0 0-1.5-1.5H2zM14 3.5H9.5A1.5 1.5 0 0 0 8 5v8a1.5 1.5 0 0 1 1.5-1.5H14z",
   edit: "M11.5 2.5 13.5 4.5 6 12H4v-2zM10 4l2 2",
   source: "M6 4 2.5 8 6 12M10 4l3.5 4L10 12",
@@ -21,6 +24,7 @@ const PATHS: Record<string, string> = {
   plus: "M8 3v10M3 8h10",
   warn: "M8 2.5 14 13H2zM8 6.5v3M8 11.2v.3",
   outline: "M3 4h10M5 8h8M7 12h6",
+  camera: "M2.5 5h2l1-1.5h5l1 1.5h2v7.5h-11zM8 10.8a2.2 2.2 0 1 0 0-4.4 2.2 2.2 0 0 0 0 4.4z",
   image: "M2.5 3.5h11v9h-11zM2.5 10.5l3-3 2.5 2.5 2-2 3.5 3.5M10.5 6.5h.01",
   text: "M4 2.5h5.5L12.5 5.5v8h-8.5zM9.5 2.5v3h3M6 8h4M6 10.5h4",
   note: "M4 2.5h5.5L12.5 5.5v8h-8.5zM9.5 2.5v3h3",
@@ -107,6 +111,11 @@ const PATHS: Record<string, string> = {
   trash: "M2.5 4.5h11M6 4.5V3h4v1.5M4 4.5l.75 9h6.5l.75-9M6.75 7v4M9.25 7v4",
   user: "M8 8a2.75 2.75 0 1 0 0-5.5A2.75 2.75 0 0 0 8 8zM2.75 13.5c.6-2.6 2.75-4 5.25-4s4.65 1.4 5.25 4",
   shield: "M8 1.75 13 3.5v4c0 3.2-2.1 5.6-5 6.75-2.9-1.15-5-3.55-5-6.75v-4zM5.75 8l1.6 1.6L10.5 6.5",
+  // The notifications (ADR 0084): the bell, and the levels' marks.
+  bell: "M4 11V7.25a4 4 0 0 1 8 0V11l1.25 1.5H2.75zM6.5 13.5a1.6 1.6 0 0 0 3 0",
+  info: "M8 14.25a6.25 6.25 0 1 0 0-12.5 6.25 6.25 0 0 0 0 12.5zM8 7.25v4M8 4.9v.2",
+  alert: "M8 14.25a6.25 6.25 0 1 0 0-12.5 6.25 6.25 0 0 0 0 12.5zM8 4.5v4.25M8 10.9v.2",
+  history: "M2.5 8a5.5 5.5 0 1 0 1.6-3.9M2.5 2.5v2.5H5M8 5v3l2 1.5",
 };
 
 /** A decorative line icon drawn by CSS — a mask over the text color — not

@@ -210,6 +210,21 @@ export function cardFill(node: CanvasNode): CardFill | null {
   return typeof v === "string" && FILLS.includes(v) && v !== "solid" ? (v as CardFill) : null;
 }
 
+/** A flag Verso keeps on a node under `verso` (ADR 0090): `map`, `pin`,
+ *  `secret`. Only `true` sets `map` and `pin`; a `secret` that is anything
+ *  but `false` or `null` counts, as the core reads it (it fails closed). */
+function flag(node: CanvasNode, key: "map" | "pin" | "secret"): boolean {
+  const v = isRecord(node["verso"]) ? node["verso"][key] : undefined;
+  return key === "secret" ? v !== undefined && v !== false && v !== null : v === true;
+}
+
+/** The picture of a map: locked, at the bottom, drawn from tiles when large. */
+export const isMap = (node: CanvasNode): boolean => flag(node, "map");
+/** A file card that is a pin on a map: drawn at one size at any zoom. */
+export const isPin = (node: CanvasNode): boolean => flag(node, "pin");
+/** A node a UniVerso does not serve to those who may only read the board. */
+export const isSecret = (node: CanvasNode): boolean => flag(node, "secret");
+
 /** The part of a picture a card shows (ADR 0057 point 10, revised on
  *  2026-10-06): fractions of the picture's width and height. */
 export type Crop = { x: number; y: number; w: number; h: number };
@@ -501,6 +516,12 @@ export function nodeElement(node: CanvasNode): Partial<El> {
     roundness: { type: 3 },
   };
   applyStyle(node["verso"], CARD_STYLE, card);
+  // A pin is drawn by Verso at one size on screen (`PinLayer`); Excalidraw's
+  // box for it stays, for the pin's place and selection, and shows nothing.
+  if (isPin(node)) {
+    card.strokeColor = "transparent";
+    card.backgroundColor = "transparent";
+  }
   return card;
 }
 
@@ -679,7 +700,7 @@ export function fromElements(elements: readonly El[], doc: CanvasDoc, background
     for (const k of ["x", "y", "width", "height"] as const) if (e[k] !== drawn[k]) node[k] = Math.round(e[k]);
     const fallback = NODE_STROKE;
     const was = hexOf(data.color, fallback).toLowerCase();
-    if ((e.strokeColor ?? fallback).toLowerCase() !== was) put(node, "color", colorOf(e.strokeColor, fallback));
+    if (!isPin(data) && (e.strokeColor ?? fallback).toLowerCase() !== was) put(node, "color", colorOf(e.strokeColor, fallback));
     if (e.type === "frame") put(node, "label", typeof e.name === "string" && e.name !== "" ? e.name : undefined);
     if (e.type === "embeddable") {
       const bg = typeof e.backgroundColor === "string" ? e.backgroundColor.toLowerCase() : "";
@@ -878,7 +899,8 @@ export function outlineOf(
     return { id: e.id, label: n ? nodeName(n, strings) : e.id, node: n ?? undefined };
   };
   const frames = live.filter((e) => e.type === "frame").sort(reading);
-  const cards = live.filter((e) => e.type === "embeddable" && isNode(e)).sort(reading);
+  // A pin is listed with its map (`MapsPanel`), not among the cards.
+  const cards = live.filter((e) => e.type === "embeddable" && isNode(e) && !isPin(nodeData(e) ?? ({} as CanvasNode))).sort(reading);
   const groups = frames.map((f) => ({ group: item(f), items: cards.filter((c) => c.frameId === f.id).map(item) }));
   const loose = cards.filter((c) => !c.frameId || !byId.has(c.frameId)).map(item);
   const nodeIds = new Set(live.filter(isNode).map((e) => e.id));

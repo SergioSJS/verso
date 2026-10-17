@@ -93,9 +93,13 @@ Comandos:
 
 Opções:
   --version X       Uma release em vez da mais recente (0.7.0 ou v0.7.0).
-  --package ARQ     Um .deb ou .rpm já baixado; ARQ.sig ao lado é conferido.
-  --url URL         O endereço que as pessoas digitam no navegador.
-  --no-signature    Sem o .sig da release, confia no sha256 que o GitHub
+  --package ARQ     Um .deb ou .rpm já baixado; a lista verso-<versão>-SHA256SUMS
+                    e o .sig dela ao lado são conferidos (numa release até
+                    a 0.8.3, ARQ.sig).
+  --url URL         O endereço https que as pessoas digitam no navegador
+                    (opcional: sem ele o servidor funciona por HTTP; o HTTPS
+                    liga o modo offline e as notificações).
+  --no-signature    Sem a assinatura da release, confia no sha256 que o GitHub
                     publicou (prova o arquivo, não quem o fez). Sem esta
                     opção, uma assinatura faltando é um erro.
   --insecure-no-verify
@@ -154,10 +158,13 @@ Commands:
 
 Options:
   --version X       A release instead of the latest (0.7.0 or v0.7.0).
-  --package FILE    A .deb or .rpm already downloaded; FILE.sig beside it
-                    is checked.
-  --url URL         The address people type in the browser.
-  --no-signature    Without the release's .sig, relies on the sha256 GitHub
+  --package FILE    A .deb or .rpm already downloaded; the list
+                    verso-<version>-SHA256SUMS and its .sig beside it are
+                    checked (for a release up to 0.8.3, FILE.sig).
+  --url URL         The https address people type in the browser (optional:
+                    without it the server works over HTTP; HTTPS turns on
+                    offline mode and notifications).
+  --no-signature    Without the release's signature, relies on the sha256 GitHub
                     published (it proves the file, not who made it).
                     Without it, a missing signature is an error.
   --insecure-no-verify
@@ -312,8 +319,8 @@ local_url() {
 check_url() {
   case "$1" in
     http://*|https://*) ;;
-    *) die "The address must start with https:// (or http:// for this machine only): $1" \
-           "O endereço deve começar com https:// (ou http:// só para esta máquina): $1" ;;
+    *) die "The address must start with https:// or http://: $1" \
+           "O endereço deve começar com https:// ou http://: $1" ;;
   esac
   case "$1" in
     *[!A-Za-z0-9.:/_~%?=@+-]*) die "The address has a character it cannot have: $1" \
@@ -379,14 +386,20 @@ gh_get() {
 
 # pick_asset JSON: from a release (or a list of them, newest first) the
 # first one, not a draft, that has this machine's package. Prints
-# tag<TAB>name<TAB>url<TAB>digest<TAB>signature-url.
+# tag<TAB>name<TAB>url<TAB>digest<TAB>signature-url<TAB>list-url<TAB>
+# list-signature-url: the package's own .sig (releases up to 0.8.3), and
+# the release's signed checksums list, verso-<version>-SHA256SUMS, with
+# its .sig (from 0.8.3 on; ADR 0055, revised 2026-10-14). A URL the
+# release does not have is empty.
 pick_asset() {
   if command -v jq >/dev/null 2>&1; then
     jq -r --arg re "$PKG_RE" '
+      def url($r; $n): [ $r.assets[] | select(.name == $n) | .url ] | first // "";
       [ (if type == "array" then .[] else . end) | select(.draft | not) | . as $r
+        | ("verso-" + ($r.tag_name | ltrimstr("v")) + "-SHA256SUMS") as $sums
         | $r.assets[] | select(.name | test($re)) | . as $a
         | [ $r.tag_name, $a.name, $a.url, ($a.digest // ""),
-            ([ $r.assets[] | select(.name == ($a.name + ".sig")) | .url ] | first // "") ] ]
+            url($r; $a.name + ".sig"), url($r; $sums), url($r; $sums + ".sig") ] ]
       | first // empty | @tsv' "$1"
   elif command -v python3 >/dev/null 2>&1; then
     python3 -I -c '
@@ -396,10 +409,13 @@ rels = data if isinstance(data, list) else [data]
 for r in rels:
     if r.get("draft"):
         continue
+    url = lambda n: next((s["url"] for s in r["assets"] if s["name"] == n), "")
+    tag = r["tag_name"]
+    sums = "verso-" + (tag[1:] if tag.startswith("v") else tag) + "-SHA256SUMS"
     for a in r.get("assets", []):
         if re.search(sys.argv[2], a["name"]):
-            sig = next((s["url"] for s in r["assets"] if s["name"] == a["name"] + ".sig"), "")
-            print("\t".join([r["tag_name"], a["name"], a["url"], a.get("digest") or "", sig]))
+            print("\t".join([r["tag_name"], a["name"], a["url"], a.get("digest") or "",
+                             url(a["name"] + ".sig"), url(sums), url(sums + ".sig")]))
             sys.exit(0)
 ' "$1" "$PKG_RE"
   else
@@ -408,9 +424,10 @@ for r in rels:
   fi
 }
 
-# fetch_package VERSION: downloads this machine's package and its
-# signature into $TMPD/pkg. Sets PKG, SIG (may be empty), DIGEST (may be
-# empty) and TAG.
+# fetch_package VERSION: downloads this machine's package and what signs
+# it into $TMPD/pkg: the release's signed checksums list when it has one,
+# else the package's own .sig. Sets PKG, SUMS and SUMS_SIG or SIG (each may
+# be empty), DIGEST (may be empty) and TAG.
 fetch_package() {
   need curl "apt install curl / dnf install curl"
   make_tmp
@@ -455,6 +472,8 @@ fetch_package() {
   url=$(printf '%s\n' "$line" | cut -f3)
   DIGEST=$(printf '%s\n' "$line" | cut -f4)
   sigurl=$(printf '%s\n' "$line" | cut -f5)
+  sumsurl=$(printf '%s\n' "$line" | cut -f6)
+  sumssigurl=$(printf '%s\n' "$line" | cut -f7)
   case "$name" in
     */*|.*) die "Unexpected file name in the release: $name" "Nome de arquivo inesperado na release: $name" ;;
   esac
@@ -464,9 +483,22 @@ fetch_package() {
   [ "$code" = 200 ] || die "The download failed (HTTP $code). Run again; if it keeps failing, use --package." \
                            "O download falhou (HTTP $code). Rode de novo; se continuar, use --package."
   chmod 644 "$PKG"
-  SIG=
+  SIG='' SUMS='' SUMS_SIG=''
   SIG_WHY=$(t "the release has no $name.sig" "a release não tem $name.sig")
-  if [ -n "$sigurl" ]; then
+  if [ -n "$sumsurl" ] && [ -n "$sumssigurl" ]; then
+    sums="verso-${TAG#v}-SHA256SUMS"
+    case "$sums" in
+      */*|.*) die "Unexpected release tag: $TAG" "Tag de release inesperada: $TAG" ;;
+    esac
+    code=$(gh_get "$sumsurl" "$TMPD/pkg/$sums" application/octet-stream)
+    [ "$code" = 200 ] && code=$(gh_get "$sumssigurl" "$TMPD/pkg/$sums.sig" application/octet-stream)
+    if [ "$code" = 200 ]; then
+      SUMS="$TMPD/pkg/$sums" SUMS_SIG="$TMPD/pkg/$sums.sig"
+    else
+      rm -f "$TMPD/pkg/$sums" "$TMPD/pkg/$sums.sig"
+      SIG_WHY=$(t "downloading $sums or its .sig failed (HTTP $code)" "o download de $sums ou do .sig dela falhou (HTTP $code)")
+    fi
+  elif [ -n "$sigurl" ]; then
     code=$(gh_get "$sigurl" "$PKG.sig" application/octet-stream)
     if [ "$code" = 200 ]; then
       SIG="$PKG.sig"
@@ -478,7 +510,9 @@ fetch_package() {
 }
 
 # local_package FILE: a package already on this machine, copied where apt
-# can read it. Its signature is FILE.sig when present.
+# can read it. What signs it: the release's checksums list beside it,
+# verso-<version>-SHA256SUMS and its .sig, the version read from FILE's
+# name; else FILE.sig (releases up to 0.8.3).
 local_package() {
   [ -f "$1" ] || die "No such file: $1" "Arquivo não encontrado: $1"
   case "$1" in
@@ -491,25 +525,80 @@ local_package() {
   if ! cp "$1" "$PKG" || ! chmod 644 "$PKG"; then
     die "Could not copy $1." "Não foi possível copiar $1."
   fi
-  SIG=
-  [ -f "$1.sig" ] && SIG="$1.sig"
-  SIG_WHY=$(t "no $1.sig beside it" "nenhum $1.sig ao lado")
+  SIG='' SUMS='' SUMS_SIG=''
+  sums="$(dirname "$1")/verso-$(pkg_version "$(basename "$1")")-SHA256SUMS"
+  if [ -f "$sums" ] && [ -f "$sums.sig" ]; then
+    SUMS=$sums SUMS_SIG="$sums.sig"
+  elif [ -f "$1.sig" ]; then
+    SIG="$1.sig"
+  fi
+  SIG_WHY=$(t "neither $(basename "$sums") with its .sig nor $1.sig beside it" "nem $(basename "$sums") com o .sig dela nem $1.sig ao lado")
   DIGEST=
   TAG=
   step "Using the package $1." "Usando o pacote $1."
 }
 
-# verify: the signature with minisign (Verso's release key, the signed
-# comment naming the file), else the sha256 GitHub published, else refuse
-# unless --insecure-no-verify. A missing signature (none in the release,
-# its download failed, none beside --package) is an error, unless
-# --no-signature says the published sha256 is enough.
+# pkg_version NAME: the version in a package's name,
+# universo-<version>-<arch>.<ext>.
+pkg_version() {
+  v=${1#universo-}
+  printf '%s\n' "${v%-*}"
+}
+
+# verify_sums: the release's signed checksums list (ADR 0055, revised
+# 2026-10-14). Its signature with minisign and Verso's release key, the
+# signed comment naming the list of the package's own version — a genuine
+# list of another release does not pass for this one — then the package's
+# sha256 against its one line in the list.
+verify_sums() {
+  list=$(basename "$SUMS")
+  v=$(pkg_version "$name")
+  [ "$list" = "verso-$v-SHA256SUMS" ] \
+    || die "$list is not the checksums list of $name's version, $v. Use the list of the same release." \
+           "$list não é a lista de checksums da versão de $name, $v. Use a lista da mesma release."
+  step "Checking the release's checksums list with minisign and Verso's release key." \
+       "Conferindo a lista de checksums da release com o minisign e a chave de release do Verso."
+  base64 -d < "$SUMS_SIG" > "$TMPD/sums.minisig" 2>/dev/null \
+    || die "$SUMS_SIG is not a signature file of the release (base64 expected)." \
+           "$SUMS_SIG não é um arquivo de assinatura da release (esperado base64)."
+  comment=$(minisign -V -Q -P "$PUBKEY" -m "$SUMS" -x "$TMPD/sums.minisig" 2>&1) \
+    || die "THE CHECKSUMS LIST'S SIGNATURE DOES NOT MATCH ($comment). Do not install: download the package and the list again from the release." \
+           "A ASSINATURA DA LISTA DE CHECKSUMS NÃO CONFERE ($comment). Não instale: baixe de novo o pacote e a lista da release."
+  printf '%s\n' "$comment" | tr '\t' '\n' | grep -qxF "file:$list" \
+    || die "The list's signature is good but names another file ($comment): it is not the list of $v. Use the list of the same release." \
+           "A assinatura da lista é válida mas nomeia outro arquivo ($comment): não é a lista da $v. Use a lista da mesma release."
+  need sha256sum "coreutils"
+  want=$(awk -v n="$name" '$2 == n { print $1 }' "$SUMS")
+  case "$want" in
+    ''|*[!0-9a-f]*) die "$name is not in the release's checksums list, or is in it twice: it is not this release's file." \
+                        "$name não está na lista de checksums da release, ou está duas vezes: não é o arquivo desta release." ;;
+  esac
+  [ "${#want}" = 64 ] || die "The checksums list gives $name no sha256 that reads." \
+                             "A lista de checksums não dá para $name um sha256 legível."
+  got=$(sha256sum "$PKG" | cut -d' ' -f1)
+  [ "$got" = "$want" ] || die "THE CHECKSUM DOES NOT MATCH THE SIGNED LIST (got $got, expected $want). Do not install this file; run again." \
+                              "O CHECKSUM NÃO CONFERE COM A LISTA ASSINADA (deu $got, esperado $want). Não instale este arquivo; rode de novo."
+  info "Signature and checksum good: $name is in $list, signed by Verso's release key." \
+       "Assinatura e checksum válidos: $name está em $list, assinada pela chave de release do Verso."
+}
+
+# verify: the signature with minisign (Verso's release key) — the release's
+# signed checksums list, or for a release up to 0.8.3 the package's own
+# .sig, the signed comment naming the file — else the sha256 GitHub
+# published, else refuse unless --insecure-no-verify. A missing signature
+# (none in the release, its download failed, none beside --package) is an
+# error, unless --no-signature says the published sha256 is enough.
 verify() {
   name=$(basename "$PKG")
-  if [ -z "$SIG" ] && [ "$NOSIG" = 0 ] && [ "$INSECURE" = 0 ]; then
+  SUMS=${SUMS:-} SUMS_SIG=${SUMS_SIG:-}
+  if [ -n "$SUMS" ] && command -v minisign >/dev/null 2>&1; then
+    verify_sums
+    return 0
+  fi
+  if [ -z "$SIG" ] && [ -z "$SUMS" ] && [ "$NOSIG" = 0 ] && [ "$INSECURE" = 0 ]; then
     why=${SIG_WHY:-$(t "no $name.sig" "nenhum $name.sig")}
-    die "No signature to check $name with: $why. Run again (a download can fail), or put the release's $name.sig beside the package. To rely on the sha256 GitHub published instead — it proves the file is the one uploaded to the release, not who made it — pass --no-signature." \
-        "Nenhuma assinatura com que conferir $name: $why. Rode de novo (um download pode falhar), ou ponha o $name.sig da release ao lado do pacote. Para confiar no sha256 que o GitHub publicou — ele prova que o arquivo é o enviado à release, não quem o fez — passe --no-signature."
+    die "No signature to check $name with: $why. Run again (a download can fail), or put the release's checksums list, verso-<version>-SHA256SUMS, and its .sig beside the package (up to 0.8.3: $name.sig). To rely on the sha256 GitHub published instead — it proves the file is the one uploaded to the release, not who made it — pass --no-signature." \
+        "Nenhuma assinatura com que conferir $name: $why. Rode de novo (um download pode falhar), ou ponha a lista de checksums da release, verso-<versão>-SHA256SUMS, e o .sig dela ao lado do pacote (até a 0.8.3: $name.sig). Para confiar no sha256 que o GitHub publicou — ele prova que o arquivo é o enviado à release, não quem o fez — passe --no-signature."
   fi
   if [ -n "$SIG" ] && command -v minisign >/dev/null 2>&1; then
     step "Checking the signature with minisign and Verso's release key." \
@@ -551,9 +640,9 @@ verify() {
          "********************************************************************"
     return 0
   fi
-  if [ -z "$SIG" ]; then
-    die "Nothing to check $name with: no $name.sig beside it and no published checksum. Put the release's .sig beside it, or (not recommended) pass --insecure-no-verify." \
-        "Nada com que conferir $name: nenhum $name.sig ao lado e nenhum checksum publicado. Ponha o .sig da release ao lado, ou (não recomendado) passe --insecure-no-verify."
+  if [ -z "$SIG" ] && [ -z "$SUMS" ]; then
+    die "Nothing to check $name with: no signature beside it and no published checksum. Put the release's checksums list and its .sig beside it (up to 0.8.3: $name.sig), or (not recommended) pass --insecure-no-verify." \
+        "Nada com que conferir $name: nenhuma assinatura ao lado e nenhum checksum publicado. Ponha a lista de checksums da release e o .sig dela ao lado (até a 0.8.3: $name.sig), ou (não recomendado) passe --insecure-no-verify."
   fi
   die "The signature needs minisign, which is not installed: sudo apt install minisign (or dnf install minisign), then run again." \
       "A assinatura pede o minisign, que não está instalado: sudo apt install minisign (ou dnf install minisign), e rode de novo."
@@ -659,8 +748,14 @@ next_steps() {
       "   O log imprime um link de configuração de uma hora: sudo journalctl -u universo | grep setup"
   fi
   echo
-  t "2. HTTPS (section 8). The server signs no one in over plain HTTP from another machine. Either:" \
-    "2. HTTPS (seção 8). O servidor não deixa ninguém entrar por HTTP puro de outra máquina. Ou:"
+  t "2. HTTPS (section 8), optional. Plain HTTP works: from another machine, set
+   VERSO_LISTEN=0.0.0.0:$port in $ENV_FILE and open http://<this machine>:$port
+   (fine at home; on a public network the password and the notes cross it in the
+   open). HTTPS turns on offline mode, notifications and passkeys. Either:" \
+    "2. HTTPS (seção 8), opcional. O HTTP puro funciona: de outra máquina, ponha
+   VERSO_LISTEN=0.0.0.0:$port no $ENV_FILE e abra http://<esta máquina>:$port
+   (serve em casa; numa rede pública a senha e as notas passam abertas). O HTTPS
+   liga o modo offline, as notificações e as passkeys. Ou:"
   t "   a. Caddy, with a domain whose DNS points at this machine:" \
     "   a. Caddy, com um domínio cujo DNS aponta para esta máquina:"
   caddy_steps "$host" "$port" | sed 's/^/        /'
@@ -670,10 +765,10 @@ next_steps() {
     "      Um Caddyfile que já exista fica como está: o site vai num arquivo próprio,
       e o Caddyfile só ganha a linha de import, no fim, quando não a tiver.
       (Um Caddyfile que seja um site só, sem chaves, precisa de { } em volta das linhas antes.)"
-  t "      and in $ENV_FILE: VERSO_PUBLIC_URL=https://$host and VERSO_TRUSTED_PROXY=127.0.0.1,
-      then: sudo systemctl restart universo" \
-    "      e no $ENV_FILE: VERSO_PUBLIC_URL=https://$host e VERSO_TRUSTED_PROXY=127.0.0.1,
-      depois: sudo systemctl restart universo"
+  t "      and in $ENV_FILE: VERSO_PUBLIC_URL=https://$host (the proxy on this machine
+      is believed without VERSO_TRUSTED_PROXY), then: sudo systemctl restart universo" \
+    "      e no $ENV_FILE: VERSO_PUBLIC_URL=https://$host (o proxy nesta máquina é
+      aceito sem VERSO_TRUSTED_PROXY), depois: sudo systemctl restart universo"
   t "   b. Tailscale, for your own devices: tailscale serve --bg $port
       and VERSO_PUBLIC_URL=https://<machine>.<tailnet>.ts.net" \
     "   b. Tailscale, para os seus aparelhos: tailscale serve --bg $port
@@ -774,12 +869,12 @@ cmd_install() {
   else
     if [ -z "$URL" ]; then
       echo
-      t "The address people will type in the browser, with https (for example
-https://notes.example.com). Enter leaves it empty for now: only this machine
-can then sign in, and you set it later in $ENV_FILE." \
-        "O endereço que as pessoas vão digitar no navegador, com https (por exemplo
-https://notas.exemplo.com). Enter deixa vazio por enquanto: só esta máquina
-consegue entrar, e você define depois no $ENV_FILE."
+      t "Optional: the https address people will type in the browser (for example
+https://notes.example.com). HTTP works without it; HTTPS turns on offline mode
+and notifications. Enter leaves it empty, and you set it later in $ENV_FILE." \
+        "Opcional: o endereço https que as pessoas vão digitar no navegador (por exemplo
+https://notas.exemplo.com). O HTTP funciona sem ele; o HTTPS liga o modo offline
+e as notificações. Enter deixa vazio, e você define depois no $ENV_FILE."
       ask "VERSO_PUBLIC_URL: "
       URL=$ANSWER
       [ -z "$URL" ] || check_url "$URL"

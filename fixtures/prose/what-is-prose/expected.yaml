@@ -1,0 +1,55 @@
+# Approved by the maintainer on 2026-10-14 in session ("Aprovo as 3"); drafted by Opus 5.5 on 2026-10-14 (ADR 0031; ADR 0089, M6).
+# Construct: a note's prose (spec §4.9) — the runs of text the reading view
+# shows as words, where a note's name written plainly is an unlinked mention
+# of it (ADR 0089 item 1). Prose: a heading's text, a paragraph's, a table's
+# cells (marked `table`), the text inside inline HTML (`<b>Porto</b>` reads
+# as a bold "Porto"). Not prose: the frontmatter, inline code, a fenced
+# block, a `%%comment%%`, a wikilink, an embed, a Markdown link's label, inline and
+# block math, an HTML block, a `#tag` (the words around it stay), and an
+# entity (`&amp;`), which is left out whole because its bytes are not the
+# text it stands for. Every `Porto` below that is not listed is one the
+# reader does not show as plain words.
+prose:
+  - text: Porto no título
+    pos: { line: 4, col: 3 }
+  - text: Fomos ao Porto de manhã.
+    pos: { line: 6, col: 1 }
+  - text: "Código "
+    pos: { line: 8, col: 1 }
+  - text: ", "
+    pos: { line: 8, col: 15 }
+  - text: ", "
+    pos: { line: 8, col: 41 }
+  - text: ", "
+    pos: { line: 8, col: 52 }
+  - text: ", "
+    pos: { line: 8, col: 64 }
+  - text: " e fim."
+    pos: { line: 8, col: 85 }
+  - text: "Conta "
+    pos: { line: 10, col: 1 }
+  - text: ", "
+    pos: { line: 10, col: 14 }
+  - text: Porto
+    pos: { line: 10, col: 19 }
+  - text: " e "
+    pos: { line: 10, col: 28 }
+  - text: " no fim."
+    pos: { line: 10, col: 37 }
+  - text: Cidade
+    table: true
+    pos: { line: 12, col: 3 }
+  - text: Nota
+    table: true
+    pos: { line: 12, col: 12 }
+  - text: Porto
+    table: true
+    pos: { line: 14, col: 3 }
+  - text: boa
+    table: true
+    pos: { line: 14, col: 11 }
+  - text: "Até o Porto "
+    pos: { line: 26, col: 1 }
+  - text: " mais."
+    pos: { line: 26, col: 18 }
+source: ADR 0089 item 1 (verso_dialect::prose; the maintainer's answer M6, 2026-10-14)

@@ -75,6 +75,12 @@
   recusado pelo mantenedor (*"mandar rodar no linux é meio merda"*). E uma
   fixture fecha e relata o que um teste deixa aberto
   (`app/ui/e2e/leaks.mjs`).
+  2026-10-14 — o item 3 respondido pelo
+  [0095](0095-mac-notarization-and-windows-code-signing.md), aceito pelo
+  mantenedor naquela noite (*"Sim, todas"*): o app de Windows assinado
+  pela SignPath Foundation quando o repositório for público, o certificado
+  de código aberto da Certum como alternativa; sem assinatura não é mais
+  aceito na V1.
 
 ## Contexto
 

@@ -4,7 +4,9 @@
 
 import { type CSSProperties, type JSX, memo, type RefObject, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CARD_COMMAND } from "./command";
-import { type CanvasNode, CARD_PAPER, cardCrop, type El, nodeData, nodeName, type Outline } from "./model";
+import { mapStrings } from "./mapStrings";
+import { MapTiles, SecretBadge, useMapInfo } from "./mapsView";
+import { type CanvasNode, CARD_PAPER, cardCrop, type El, isMap, nodeData, nodeName, type Outline } from "./model";
 import { type BoardStrings } from "./strings";
 import { OpenIcon, SwapIcon } from "./tools";
 import { BoardHost, CardEditing } from "./types";
@@ -31,9 +33,12 @@ export function Card({
   background,
   fill,
   zoom,
+  rect,
 }: {
   /** Point the card at another file of the folder (its id). */
   swap: (id: string) => void;
+  /** Where the card is on the board, for a map's tiles (ADR 0090). */
+  rect?: { x: number; y: number; w: number; h: number };
   /** The CSS zoom the card is laid out at (1 when it is scaled instead). */
   zoom: number;
   id: string;
@@ -70,6 +75,14 @@ export function Card({
   const note = node.type === "file" && !missing && ext(file) === "md";
   const picture = isBarePicture(node, host);
   const crop = picture ? cardCrop(node) : null;
+  // A map's picture is cut into tiles when it is large (ADR 0090 item 4):
+  // asked of the core before the picture is loaded at all, or the whole of
+  // it would be.
+  const ms = mapStrings(host.lang);
+  const isMapPicture = picture && isMap(node);
+  const mapInfo = useMapInfo(host, isMapPicture ? file : null);
+  const tiled = isMapPicture && rect !== undefined && (mapInfo?.state === "ready" || mapInfo?.state === "cutting");
+  const mapPending = isMapPicture && host.maps !== undefined && mapInfo === null;
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
   // The crop's part as large as the card holds it at its proportions,
   // measured in the card's own pixels: a size from container units went
@@ -116,7 +129,7 @@ export function Card({
   // over it for a close view (`cardPicture`): undefined while it waits.
   const [copy, setCopy] = useState<string | null | undefined>(undefined);
   useEffect(() => {
-    if (!picture) return;
+    if (!picture || tiled || mapPending) return;
     let gone = false;
     const cancel = draw(id, async () => {
       const made = await host.pictureCopy(host.fileSrc(file));
@@ -126,7 +139,7 @@ export function Card({
       gone = true;
       cancel();
     };
-  }, [picture, id, file, host, draw]);
+  }, [picture, tiled, mapPending, id, file, host, draw]);
   // Drawn once, in its turn, and kept wherever the view goes: only a
   // change of the note, or of the folder, draws it again.
   useEffect(() => {
@@ -207,7 +220,7 @@ export function Card({
     >
       {node.type === "file" && !picture && (
         <div className="board-card-head">
-          <span className="board-card-title">{nodeName(node, s)}</span>
+          <span className="board-card-title" data-preview-path={note ? file : undefined}>{nodeName(node, s)}</span>
           <button type="button" className="board-card-open board-card-swap" title={s.swapTitle} aria-label={`${s.swap}: ${nodeName(node, s)}`} onClick={() => swap(id)}>
             <SwapIcon />
           </button>
@@ -232,7 +245,17 @@ export function Card({
           <div ref={pdfEl} className="board-card-pdf-view" />
         </div>
       )}
-      {picture && copy !== undefined && (crop ? (
+      {tiled && mapInfo && rect && (
+        <div className="board-card-image board-map">
+          <MapTiles info={mapInfo} host={host} file={file} name={nodeName(node, s)} rect={rect} strings={ms} />
+        </div>
+      )}
+      {isMapPicture && !tiled && (mapInfo?.state === "unsupported" || mapInfo?.state === "failed") && (
+        <p className="board-map-note" role="status">
+          {mapInfo.state === "unsupported" ? ms.tooBig : ms.tilesFailed(mapInfo.message)}
+        </p>
+      )}
+      {picture && !tiled && !mapPending && copy !== undefined && (crop ? (
         // The part of the picture the card shows (its crop), at the crop's
         // proportions, centred in the card.
         <div className="board-card-image cropped" ref={cropBox} data-path={file}>
@@ -260,6 +283,7 @@ export function Card({
           <span className="board-card-url">{url}</span>
         </div>
       )}
+      <SecretBadge node={node} strings={ms} served={host.secret?.served() ?? false} />
       <div
         className="board-card-body preview"
         ref={body}
@@ -532,6 +556,7 @@ export function CardLayer({
                   id={e.id}
                   fill={typeof e.fillStyle === "string" ? e.fillStyle : "solid"}
                   background={typeof e.backgroundColor === "string" && e.backgroundColor !== "transparent" && e.backgroundColor.toLowerCase() !== CARD_PAPER ? e.backgroundColor : null}
+                  rect={isMap(node) ? { x: e.x, y: e.y, w: e.width, h: e.height } : undefined}
                   node={node}
                   host={host}
                   tick={tick}
@@ -563,7 +588,10 @@ export function OutlinePanel({
   onAnnotations,
   onFocus,
   onOpen,
+  maps,
 }: {
+  /** The maps and their pins (ADR 0090), above the cards. */
+  maps?: JSX.Element | null;
   outline: Outline;
   strings: BoardStrings;
   annotations: boolean;
@@ -578,11 +606,12 @@ export function OutlinePanel({
       </button>
     </li>
   );
-  const empty = outline.groups.length === 0 && outline.loose.length === 0 && outline.edges.length === 0 && outline.annotations.length === 0;
+  const empty = outline.groups.length === 0 && outline.loose.length === 0 && outline.edges.length === 0 && outline.annotations.length === 0 && !maps;
   return (
     <aside className="board-outline" aria-label={strings.outlineHeading}>
       <h2 className="board-outline-heading">{strings.outlineHeading}</h2>
       {empty && <p className="board-outline-empty">{strings.empty}</p>}
+      {maps}
       {outline.groups.length > 0 && (
         <section>
           <h3>{strings.groups}</h3>

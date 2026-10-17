@@ -12,7 +12,7 @@
 
 use rusqlite::Connection;
 
-pub(crate) const VERSION: i64 = 14;
+pub(crate) const VERSION: i64 = 15;
 
 /// FTS5 tokenizer (provisional, ADR 0046): `unicode61` with diacritics
 /// removed on both the indexed text and the query, so `Café`, `cafe` and
@@ -38,6 +38,25 @@ CREATE TRIGGER IF NOT EXISTS notes_names_update AFTER UPDATE OF path, name_fold 
     INSERT INTO names_fts (rowid, path, name_fold) VALUES (new.id, new.path, new.name_fold);
 END;
 ";
+/// What the full-text index reads of a note (version 15, ADR 0087 item
+/// 6): its public text — the note itself when it has no secret block —
+/// and its secret blocks' text, apart, so that a reader's query asks the
+/// first column only and its excerpts are cut from the public text.
+const TEXTS: &str = "
+CREATE VIEW IF NOT EXISTS notes_text AS
+    SELECT id, path, title, COALESCE(public, content) AS content, COALESCE(secret, '') AS secret
+    FROM notes;
+";
+
+/// The full-text index over [`TEXTS`]: external content, so a note's text
+/// is not stored twice (memo §5.3).
+fn fts() -> String {
+    format!(
+        "CREATE VIRTUAL TABLE notes_fts USING fts5(path UNINDEXED, title, content, secret,
+             content = 'notes_text', content_rowid = 'id', tokenize = '{TOKENIZER}');"
+    )
+}
+
 const CREATE: &str = "
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE notes (
@@ -73,7 +92,20 @@ CREATE TABLE notes (
     indexed_at INTEGER NOT NULL DEFAULT 0,
     -- The file name as the search compares it, without folder, extension,
     -- accents or case (version 14, `search::name_fold`).
-    name_fold TEXT NOT NULL DEFAULT ''
+    name_fold TEXT NOT NULL DEFAULT '',
+    -- A note's secret blocks (ADR 0087 item 6, version 15): NULL when it
+    -- has none. `public` is the note as a reader receives it, `secret`
+    -- the blocks' own text, searched apart; `hidden` their lines,
+    -- `first-last,...`, by which a reader's positions are numbered.
+    public    TEXT,
+    secret    TEXT,
+    hidden    TEXT,
+    -- What a reader knows of the note: the hash and length of its public
+    -- text, and when that last changed as the index saw it (a change only
+    -- inside a secret block is none). NULL: as the note's own.
+    public_hash INTEGER,
+    public_len  INTEGER,
+    public_modified INTEGER
 );
 CREATE INDEX notes_path_key ON notes(path_key);
 CREATE INDEX notes_name_key ON notes(name_key);
@@ -84,7 +116,8 @@ CREATE TABLE headings (
     level INTEGER NOT NULL,
     text  TEXT NOT NULL,
     line  INTEGER NOT NULL, col INTEGER NOT NULL,
-    start INTEGER NOT NULL, end INTEGER NOT NULL
+    start INTEGER NOT NULL, end INTEGER NOT NULL,
+    secret INTEGER NOT NULL DEFAULT 0      -- inside a secret block (ADR 0087 item 6)
 );
 CREATE INDEX headings_note ON headings(note);
 CREATE TABLE blocks (
@@ -92,7 +125,8 @@ CREATE TABLE blocks (
     id    TEXT NOT NULL,
     line  INTEGER NOT NULL, col INTEGER NOT NULL,
     start INTEGER NOT NULL, end INTEGER NOT NULL,
-    first_line INTEGER, last_line INTEGER  -- the block the id names (spec Q3, Q21)
+    first_line INTEGER, last_line INTEGER, -- the block the id names (spec Q3, Q21)
+    secret INTEGER NOT NULL DEFAULT 0      -- inside a secret block (ADR 0087 item 6)
 );
 CREATE INDEX blocks_note ON blocks(note);
 CREATE TABLE links (
@@ -104,7 +138,8 @@ CREATE TABLE links (
     heading    TEXT, block TEXT, alias TEXT,
     relation   TEXT,                     -- the property's key, for a link a frontmatter property holds (spec Q10)
     line  INTEGER NOT NULL, col INTEGER NOT NULL,
-    start INTEGER NOT NULL, end INTEGER NOT NULL
+    start INTEGER NOT NULL, end INTEGER NOT NULL,
+    secret INTEGER NOT NULL DEFAULT 0      -- inside a secret block (ADR 0087 item 6)
 );
 CREATE INDEX links_note ON links(note);
 CREATE INDEX links_target_key ON links(target_key);
@@ -155,7 +190,7 @@ pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
     if has_meta
         && matches!(
             meta("schema").and_then(|v| v.parse::<i64>().ok()),
-            Some(6..=13)
+            Some(6..=14)
         )
         && meta("tokenizer").as_deref() == Some(TOKENIZER)
     {
@@ -175,15 +210,14 @@ pub(crate) fn ensure(conn: &Connection) -> Result<(), rusqlite::Error> {
     // ours: rebuild. `notes_fts` goes first, while `notes` still exists
     // for its external content; `IF EXISTS` covers a foreign file.
     conn.execute_batch(
-        "DROP TABLE IF EXISTS notes_fts; DROP TABLE IF EXISTS names_fts; DROP TABLE IF EXISTS links; DROP TABLE IF EXISTS schemas;
+        "DROP TABLE IF EXISTS notes_fts; DROP TABLE IF EXISTS names_fts; DROP VIEW IF EXISTS notes_text;
+         DROP TABLE IF EXISTS links; DROP TABLE IF EXISTS schemas;
          DROP TABLE IF EXISTS blocks; DROP TABLE IF EXISTS headings;
          DROP TABLE IF EXISTS notes; DROP TABLE IF EXISTS meta;",
     )?;
     conn.execute_batch(CREATE)?;
-    conn.execute_batch(&format!(
-        "CREATE VIRTUAL TABLE notes_fts USING fts5(path UNINDEXED, title, content,
-             content = 'notes', content_rowid = 'id', tokenize = '{TOKENIZER}');"
-    ))?;
+    conn.execute_batch(TEXTS)?;
+    conn.execute_batch(&fts())?;
     conn.execute_batch(NAMES)?;
     conn.execute(
         "INSERT INTO meta (key, value) VALUES ('schema', ?1), ('tokenizer', ?2)",
@@ -219,6 +253,15 @@ fn carry_over(conn: &Connection, from: i64) -> Result<(), rusqlite::Error> {
         ("blocks", "last_line", "INTEGER"),
         ("notes", "indexed_at", "INTEGER NOT NULL DEFAULT 0"),
         ("notes", "name_fold", "TEXT NOT NULL DEFAULT ''"),
+        ("notes", "public", "TEXT"),
+        ("notes", "secret", "TEXT"),
+        ("notes", "hidden", "TEXT"),
+        ("notes", "public_hash", "INTEGER"),
+        ("notes", "public_len", "INTEGER"),
+        ("notes", "public_modified", "INTEGER"),
+        ("headings", "secret", "INTEGER NOT NULL DEFAULT 0"),
+        ("blocks", "secret", "INTEGER NOT NULL DEFAULT 0"),
+        ("links", "secret", "INTEGER NOT NULL DEFAULT 0"),
     ] {
         if !has_column(table, col)? {
             conn.execute_batch(&format!("ALTER TABLE {table} ADD COLUMN {col} {decl};"))?;
@@ -263,6 +306,17 @@ fn carry_over(conn: &Connection, from: i64) -> Result<(), rusqlite::Error> {
             "DELETE FROM names_fts;
              INSERT INTO names_fts (rowid, path, name_fold) SELECT id, path, name_fold FROM notes;",
         )?;
+    }
+    // Version 15: each row's secret blocks found in the text it holds —
+    // a placeholder's is the only copy (ADR 0043), so it is not left to a
+    // walk — its links, headings and ids inside them flagged, and the
+    // full-text index made again over the public and the secret text.
+    if from < 15 {
+        crate::secret::carry_over(conn)?;
+        conn.execute_batch("DROP TABLE IF EXISTS notes_fts;")?;
+        conn.execute_batch(TEXTS)?;
+        conn.execute_batch(&fts())?;
+        conn.execute_batch("INSERT INTO notes_fts (notes_fts) VALUES ('rebuild');")?;
     }
     if from < 12 {
         conn.execute_batch("UPDATE notes SET modified = -1, len = -1 WHERE unverified = 0;")?;

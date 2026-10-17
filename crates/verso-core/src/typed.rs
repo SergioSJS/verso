@@ -52,13 +52,17 @@ pub struct TypedSchema {
     pub labels: Vec<(String, String)>,
     /// The declared properties, in the schema's order.
     pub properties: Vec<TypedProperty>,
+    /// The layout the schema names (`infobox`, ADR 0086 item 2); `None`,
+    /// the panel as it is.
+    pub layout: Option<String>,
 }
 
 /// A declared property, as the note holds it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypedProperty {
     pub key: String,
-    /// `text`, `list`, `number`, `checkbox`, `date` or `datetime`.
+    /// `text`, `list`, `number`, `checkbox`, `date`, `datetime`, `link`
+    /// or `image` (ADR 0086 item 1).
     pub kind: String,
     pub labels: Vec<(String, String)>,
     /// The note has the key (an empty value included).
@@ -160,6 +164,7 @@ pub(crate) fn note_type(
                             .collect(),
                         name: schema.name,
                         labels: schema.labels,
+                        layout: schema.layout.map(|l| l.as_str().to_owned()),
                     }),
                     // The index and the text disagree: the schema changed
                     // since it was indexed; read as it is now.

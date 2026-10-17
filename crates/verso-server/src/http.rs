@@ -89,6 +89,14 @@ impl IntoResponse for ApiError {
         {
             response.headers_mut().insert(header::RETRY_AFTER, v);
         }
+        // Every refusal says whose it is, in the header the sync already
+        // speaks: the desktop app tells this server's 401 from a router's
+        // login page by it, not by guessing at a body that may arrive late
+        // (ADR 0097).
+        response.headers_mut().insert(
+            verso_core::sync::PROTOCOL_HEADER,
+            HeaderValue::from(verso_core::sync::PROTOCOL),
+        );
         response
     }
 }
@@ -121,13 +129,9 @@ impl FromRequestParts<Arc<Server>> for Ctx {
             .get::<ConnectInfo<Remote>>()
             .map_or_else(|| SocketAddr::from(([127, 0, 0, 1], 0)), |c| c.0.0);
         let peer = auth::peer(server, &parts.headers, remote);
-        // A secret over plain HTTP outside this machine is never read: no
-        // session, no token is opened from it.
-        let who = if peer.secure {
-            auth::who(server, &parts.headers)?
-        } else {
-            None
-        };
+        // Over plain HTTP the session cookie is the plain-named one
+        // (ADR 0073 item 6, amended 2026-10-16).
+        let who = auth::who(server, &parts.headers, peer.https)?;
         Ok(Self {
             server: Arc::clone(server),
             peer,
@@ -170,29 +174,14 @@ impl Ctx {
         Ok(who)
     }
 
-    /// The request may sign in or carry a secret: TLS, or this machine
-    /// (ADR 0073 item 6).
-    pub fn secure(&self) -> ApiResult<()> {
-        if self.peer.secure {
-            Ok(())
-        } else {
-            Err(ApiError::new(
-                StatusCode::FORBIDDEN,
-                "tls_required",
-                "this server signs in over HTTPS only",
-            ))
-        }
-    }
-
     /// A request that changes something: from a page of this server
     /// (`Origin`) with the session's CSRF token, or from a program with a
     /// bearer token (ADR 0074 item 7).
     pub fn changes(&self) -> ApiResult<()> {
-        self.secure()?;
         match self.who.as_ref().map(|w| &w.via) {
             Some(auth::Via::Token { .. } | auth::Via::Device { .. }) => Ok(()),
             Some(auth::Via::Browser { csrf, .. }) => {
-                if !auth::origin_ok(&self.server, &self.headers) {
+                if !auth::origin_ok(&self.server, &self.headers, &self.peer) {
                     return Err(ApiError::forbidden("not from a page of this server"));
                 }
                 let sent = self
@@ -213,7 +202,7 @@ impl Ctx {
             // Signing in, accepting an invitation: no session yet, so the
             // origin is what is checked.
             None => {
-                if auth::origin_ok(&self.server, &self.headers) {
+                if auth::origin_ok(&self.server, &self.headers, &self.peer) {
                     Ok(())
                 } else {
                     Err(ApiError::forbidden("not from a page of this server"))
@@ -385,6 +374,10 @@ pub fn router(server: Arc<Server>) -> Router {
             "/api/admin/folders/{id}/trash/empty",
             axum::routing::post(crate::console::empty_trash),
         )
+        .route(
+            "/api/admin/folders/{id}/history",
+            axum::routing::put(crate::console::set_history),
+        )
         .route("/api/admin/audit", get(crate::console::audit))
         .route("/api/admin/audit/actions", get(crate::console::actions))
         .route("/api/admin/overview", get(crate::console::overview))
@@ -403,7 +396,7 @@ pub fn router(server: Arc<Server>) -> Router {
     // served always; the notes' window in a browser only with `--web`
     // (ADR 0073 item 2), which the WebSocket enforces (rpc.rs).
     let page = || get_service(tower_http::services::ServeFile::new(ui.join(PAGE)));
-    router
+    let router = router
         .route("/", page())
         .route("/signin", page())
         .route("/setup", page())
@@ -416,7 +409,16 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/signin-link/{token}", page())
         // Where to report a vulnerability (RFC 9116; ADR 0083 item 15).
         .route("/.well-known/security.txt", get(crate::security_txt::serve))
-        .fallback_service(static_files)
+        .fallback_service(static_files);
+    guarded(router, server)
+}
+
+/// The layers every route of every server has, from the outside in: the
+/// body's limit, the deadline, the guard (`Host`, head, places, headers),
+/// the pace. "This app is a server" (`crate::local`) wraps its own, smaller
+/// table of routes in the same.
+pub(crate) fn guarded(router: Router<Arc<Server>>, server: Arc<Server>) -> Router {
+    router
         .layer(middleware::from_fn_with_state(Arc::clone(&server), pace))
         .layer(middleware::from_fn_with_state(Arc::clone(&server), guard))
         .layer(middleware::from_fn(deadline))
@@ -428,7 +430,7 @@ pub fn router(server: Arc<Server>) -> Router {
 }
 
 /// An address under `/api/` that no route names.
-async fn no_route() -> ApiError {
+pub(crate) async fn no_route() -> ApiError {
     ApiError::not_found()
 }
 
@@ -530,14 +532,93 @@ async fn pace(State(server): State<Arc<Server>>, request: Request, next: Next) -
 /// desktop's (ADR 0073 item 6): scripts, styles and connections from this
 /// server only; pictures, sound and embedded pages from the web as the
 /// reader allows them (the maintainer's answer I of 2026-10-09).
-fn page_policy(ws_origin: &str) -> String {
+fn page_policy(ws_origin: &str, tiles: &[String]) -> String {
+    // The origins the person approved for a map's tiles (ADR 0094 item
+    // 10): the window fetches them itself — the page's script and the map's
+    // worker, whose own answer carries this policy — and reaches no other.
+    let tiles: String = tiles.iter().map(|o| format!(" {o}")).collect();
     format!(
         "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; \
          img-src 'self' data: blob: https:; media-src 'self' blob: https:; \
-         frame-src 'self' https:; object-src 'none'; connect-src 'self' {ws_origin}; \
+         frame-src 'self' https:; object-src 'none'; connect-src 'self' {ws_origin}{tiles}; \
          worker-src 'self' blob:; font-src 'self' data:; base-uri 'none'; \
          form-action 'self'; frame-ancestors 'self'"
     )
+}
+
+/// The most tile origins a page's policy names.
+const TILE_ORIGINS_MOST: usize = 32;
+
+/// The map worker the window loads from this server: its policy is its
+/// own answer's, so it names the approved tile origins as the page does.
+const MAP_WORKER: &str = "/maplibre-worker.mjs";
+
+/// The service worker that keeps the window and the folders made available
+/// offline (ADR 0092 item 2): the server's own file, at the root so that its
+/// scope is the whole window. Never kept by the browser's HTTP cache: a new
+/// build of the window is a new worker, and the browser must see it.
+const SERVICE_WORKER: &str = "/sw.js";
+
+/// The origins the person signed in has approved for maps' tiles, from
+/// their settings (`mapTileOrigins`), each written back only as
+/// `scheme://host[:port]` of http(s), letters, digits, dots and hyphens:
+/// anything else — a space, a quote, a semicolon, a wildcard, a path —
+/// would change the policy it is written into, and is left out.
+fn tile_origins(server: &Server, headers: &HeaderMap, https: bool) -> Vec<String> {
+    let Ok(Some(who)) = auth::who(server, headers, https) else {
+        return Vec::new();
+    };
+    if matches!(who.via, auth::Via::Token { .. }) {
+        return Vec::new();
+    }
+    let Ok(Some(text)) = server.db.person_settings(&who.account.id) else {
+        return Vec::new();
+    };
+    let Ok(settings) = serde_json::from_str::<serde_json::Value>(&text) else {
+        return Vec::new();
+    };
+    let mut out: Vec<String> = Vec::new();
+    for o in settings
+        .get("mapTileOrigins")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(serde_json::Value::as_str)
+        .filter_map(policy_origin)
+    {
+        if !out.contains(&o) && out.len() < TILE_ORIGINS_MOST {
+            out.push(o);
+        }
+    }
+    out
+}
+
+/// `o` as a source of a content security policy, or `None`.
+fn policy_origin(o: &str) -> Option<String> {
+    let (scheme, rest) = o.split_once("://")?;
+    if scheme != "https" && scheme != "http" {
+        return None;
+    }
+    let (host, port) = match rest.rsplit_once(':') {
+        Some((h, p)) if !p.is_empty() && p.len() <= 5 && p.bytes().all(|b| b.is_ascii_digit()) => {
+            (h, Some(p))
+        }
+        _ => (rest, None),
+    };
+    let fine = |b: u8| b.is_ascii_alphanumeric() || b == b'.' || b == b'-';
+    if host.is_empty()
+        || host.len() > 253
+        || !host.bytes().all(fine)
+        || host.starts_with(['.', '-'])
+        || host.ends_with(['.', '-'])
+    {
+        return None;
+    }
+    let host = host.to_ascii_lowercase();
+    Some(match port {
+        Some(p) => format!("{scheme}://{host}:{p}"),
+        None => format!("{scheme}://{host}"),
+    })
 }
 
 /// The key a request is counted under: the client's address as the
@@ -557,7 +638,9 @@ fn client_key(server: &Server, request: &Request) -> Option<String> {
             .iter()
             .filter_map(|v| v.to_str().ok()),
     );
-    if !client.from_proxy && remote.ip().is_loopback() {
+    // This machine speaking for itself is not counted; a forwarded
+    // address is, even a loopback one (ADR 0083 item 7).
+    if auth::is_local(server, remote.ip(), &client) {
         return None;
     }
     Some(crate::limit::address_key(client.addr))
@@ -607,11 +690,16 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
         )
         .into_response();
     }
-    if !auth::host_ok(&server, request.headers()) {
+    let remote = request
+        .extensions()
+        .get::<ConnectInfo<Remote>>()
+        .map_or_else(|| SocketAddr::from(([127, 0, 0, 1], 0)), |c| c.0.0);
+    let peer = auth::peer(&server, request.headers(), remote);
+    if !auth::host_ok(&server, request.headers(), &peer) {
         return ApiError::new(
             StatusCode::MISDIRECTED_REQUEST,
             "host",
-            "this server does not answer to that name",
+            "this server does not answer to that name; set VERSO_PUBLIC_URL to the address people use",
         )
         .into_response();
     }
@@ -640,10 +728,13 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
         Ok(request) => request,
         Err(refused) => return refused.into_response(),
     };
-    let ws_origin = auth::expected_origin(&server, request.headers())
+    let ws_origin = auth::expected_origin(&server, request.headers(), &peer)
         .map(|o| o.replacen("http", "ws", 1))
         .unwrap_or_default();
     let is_file = request.uri().path().starts_with("/f/");
+    let is_worker = request.uri().path() == MAP_WORKER;
+    let is_service_worker = request.uri().path() == SERVICE_WORKER;
+    let asked_by = request.headers().clone();
     let mut response = next.run(request).await;
     let h = response.headers_mut();
     let set = |h: &mut HeaderMap, name: &'static str, value: &str| {
@@ -667,18 +758,37 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
         // (threat-model.md, gap 14; SameSite=Lax already keeps the cookie
         // off such a request — said twice).
         set(h, "cross-origin-resource-policy", "same-origin");
-    } else {
-        set(h, "content-security-policy", &page_policy(&ws_origin));
     }
     // The page is never cached: a new version of the server is a new
-    // window. The rest carries `?v=<version>` (build-index.mjs).
+    // window. The rest carries `?v=<version>` (build-index.mjs). The map's
+    // worker is not cached either: its policy names the person's approved
+    // tile origins as they are when it loads (ADR 0094 item 10).
     let html = h
         .get(header::CONTENT_TYPE)
         .and_then(|v| v.to_str().ok())
         .is_some_and(|v| v.starts_with("text/html"));
-    if html && !is_file {
+    if !is_file {
+        // The settings are read only where the policy is a document's or a
+        // worker's: the page and the map's worker.
+        let tiles = if html || is_worker {
+            tile_origins(&server, &asked_by, peer.https)
+        } else {
+            Vec::new()
+        };
+        set(
+            h,
+            "content-security-policy",
+            &page_policy(&ws_origin, &tiles),
+        );
+    }
+    if (html || is_worker || is_service_worker) && !is_file {
         h.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     }
+    // Only for the server's own TLS or a public HTTPS address, as before:
+    // `includeSubDomains` remembered for a name that is also reached over
+    // plain HTTP (`http://name:7340`, behind a proxy that said https once)
+    // would lock that name out of HTTP. A browser ignores the header over
+    // plain HTTP, so the HTTP answers of such a name carry it harmlessly.
     if server.config.tls.is_some()
         || server
             .config

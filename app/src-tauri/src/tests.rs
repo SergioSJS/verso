@@ -78,7 +78,7 @@ struct TestConfig {
 
 /// The app with the folder the command line would have named, and its
 /// indexes in a temporary directory: never the user's.
-fn app_with(
+pub(super) fn app_with(
     initial: Option<PathBuf>,
 ) -> (tauri::App<MockRuntime>, tauri::WebviewWindow<MockRuntime>) {
     let app = app_alone(initial);
@@ -93,6 +93,7 @@ fn app_alone(initial: Option<PathBuf>) -> tauri::App<MockRuntime> {
     let config = tempfile::tempdir().unwrap();
     let app = mock_builder()
         .plugin(navigation_guard())
+        .plugin(tauri_plugin_notification::init())
         .manage(App {
             service: Service::new(Some(config.path().to_path_buf())),
             ..App::new(initial)
@@ -347,7 +348,7 @@ const APP_ORIGIN: &str = if cfg!(windows) {
     "tauri://localhost"
 };
 
-fn call(
+pub(super) fn call(
     webview: &tauri::WebviewWindow<MockRuntime>,
     cmd: &str,
     body: Value,
@@ -378,7 +379,7 @@ fn call_from(
 }
 
 /// A note with exactly this name in `dir`, kept until dropped.
-fn note(dir: &std::path::Path, name: &str, content: &str) -> tempfile::NamedTempFile {
+pub(super) fn note(dir: &std::path::Path, name: &str, content: &str) -> tempfile::NamedTempFile {
     let mut file = tempfile::Builder::new()
         .prefix(name)
         .rand_bytes(0)
@@ -687,6 +688,107 @@ fn a_web_view_answers_only_the_window_that_opened_it() {
     assert_eq!(e["kind"], "refused", "{e}");
 }
 
+/// A window's page loading again (⌘R) takes the web pages it opened with
+/// it: their views close and are forgotten, another window's stay (the
+/// maintainer, 2026-10-16: a reload left them drawn over everything).
+#[test]
+fn a_reloaded_window_closes_the_web_pages_it_opened() {
+    let (app, main) = app();
+    let popout = tauri::WebviewWindowBuilder::new(&app, "note-0", Default::default())
+        .build()
+        .unwrap();
+    let child = |window: &tauri::Window<tauri::test::MockRuntime>, label: &str| {
+        window
+            .add_child(
+                tauri::webview::WebviewBuilder::new(
+                    label,
+                    tauri::WebviewUrl::External("https://example.com".parse().unwrap()),
+                ),
+                tauri::LogicalPosition::new(0.0, 0.0),
+                tauri::LogicalSize::new(10.0, 10.0),
+            )
+            .unwrap();
+    };
+    let (main_window, popout_window) = (main.as_ref().window(), popout.as_ref().window());
+    child(&main_window, "web-1");
+    child(&popout_window, "web-2");
+    let state = app.state::<App>();
+    lock(&state.web_views).insert("web-1".to_owned(), "main".to_owned());
+    lock(&state.web_views).insert("web-2".to_owned(), "note-0".to_owned());
+    crate::web::close_web_views_of(app.handle(), "main");
+    let views = lock(&state.web_views).clone();
+    assert!(!views.contains_key("web-1"), "{views:?}");
+    assert_eq!(
+        views.get("web-2").map(String::as_str),
+        Some("note-0"),
+        "{views:?}"
+    );
+}
+
+/// A web page's place is its slot — the page's whole box, which may
+/// reach outside the window — and the part of it that shows (ADR 0056,
+/// revised 2026-10-15): the host lays the page out at the slot and draws
+/// only the visible part. The old place, one rectangle and a scroll, is
+/// not one any more, and what is not a place on a screen is refused.
+#[test]
+fn a_web_page_is_placed_by_its_slot_and_the_part_that_shows() {
+    let (app, main) = app();
+    main.as_ref()
+        .window()
+        .add_child(
+            tauri::webview::WebviewBuilder::new(
+                "web-4",
+                tauri::WebviewUrl::External("https://example.com".parse().unwrap()),
+            ),
+            tauri::LogicalPosition::new(0.0, 0.0),
+            tauri::LogicalSize::new(10.0, 10.0),
+        )
+        .unwrap();
+    lock(&app.state::<App>().web_views).insert("web-4".to_owned(), "main".to_owned());
+    let rect = |x: f64, y: f64, w: f64, h: f64| json!({ "x": x, "y": y, "w": w, "h": h });
+    let bounds = |place: Value| {
+        call(
+            &main,
+            "web_bounds",
+            json!({ "label": "web-4", "place": place }),
+        )
+    };
+    // Half above its pane: 300 tall, the top 100 out of sight.
+    let half = json!({ "slot": rect(100.0, -60.0, 800.0, 300.0), "visible": rect(100.0, 40.0, 800.0, 200.0) });
+    assert!(bounds(half).is_ok());
+    assert!(
+        call(
+            &main,
+            "web_visible",
+            json!({ "label": "web-4", "visible": true })
+        )
+        .is_ok()
+    );
+
+    let old = json!({ "x": 0.0, "y": 0.0, "w": 10.0, "h": 10.0, "scrollX": 0.0, "scrollY": 0.0 });
+    assert!(
+        bounds(old).is_err(),
+        "a rectangle and a scroll is no longer a place"
+    );
+    let negative =
+        json!({ "slot": rect(0.0, 0.0, -1.0, 10.0), "visible": rect(0.0, 0.0, 1.0, 1.0) });
+    let far = json!({ "slot": rect(0.0, 0.0, 10.0, 10.0), "visible": rect(0.0, 2e6, 1.0, 1.0) });
+    for bad in [negative.clone(), far] {
+        let e = bounds(bad.clone()).unwrap_err();
+        assert_eq!(e["kind"], "refused", "{bad}: {e}");
+    }
+    // Refused before any view is made, too.
+    let e = call(
+        &main,
+        "web_open",
+        json!({ "url": "https://example.com", "place": negative }),
+    )
+    .unwrap_err();
+    assert_eq!(e["kind"], "refused", "{e}");
+
+    assert!(call(&main, "web_close", json!({ "label": "web-4" })).is_ok());
+}
+
 /// A window that shows a site inside it (a web note, an embed) holds
 /// child web views, and Tauri stops counting it as a `WebviewWindow`:
 /// the console still opens there, a quit still asks it to save, and a
@@ -963,6 +1065,102 @@ fn app_views_never_navigate_to_the_web_even_approved() {
     assert!(may_navigate("web-1", &url("https://rolai.app/x"), None));
 }
 
+/// The frameability check answers the app's own views only, from the
+/// session's record once it has one, and refuses what is not a web page.
+/// A page loaded from the internet — an embedded one included — gets no
+/// answer to this or any other command: Tauri's ACL gives a remote
+/// origin nothing (the capability has no `remote` urls), and a frame of
+/// the window is a remote origin to it (ADR 0056, revised 2026-10-15).
+#[test]
+fn the_frame_check_answers_the_apps_views_and_refuses_a_remote_origin() {
+    let (app, main) = app();
+    {
+        let state = app.state::<App>();
+        let mut seen = lock(&state.frame_verdicts);
+        seen.insert("https://open.example".to_owned(), true);
+        seen.insert("https://shut.example".to_owned(), false);
+    }
+    let ask = |url: &str| call(&main, "embed_frameable", json!({ "url": url }));
+    assert_eq!(ask("https://open.example/a/page").unwrap(), json!(true));
+    assert_eq!(ask("https://shut.example/").unwrap(), json!(false));
+    for bad in [
+        "file:///etc/passwd",
+        "verso://localhost/x",
+        "javascript:1",
+        "nonsense",
+    ] {
+        assert!(ask(bad).is_err(), "{bad}");
+    }
+    // A frame of the window, or any page of the web, is a remote origin.
+    for origin in ["https://open.example", "https://evil.example/frame.html"] {
+        let e = call_from(
+            &main,
+            origin,
+            "embed_frameable",
+            json!({ "url": "https://open.example/" }),
+        );
+        assert!(e.is_err(), "{origin}: {e:?}");
+        let e = call_from(
+            &main,
+            origin,
+            "web_open",
+            json!({ "url": "https://x.test" }),
+        );
+        assert!(e.is_err(), "{origin}: {e:?}");
+    }
+    // A web view is no app view.
+    let page = tauri::WebviewWindowBuilder::new(&app, "web-8", Default::default())
+        .build()
+        .unwrap();
+    assert!(
+        call(
+            &page,
+            "embed_frameable",
+            json!({ "url": "https://open.example/" })
+        )
+        .is_err()
+    );
+}
+
+/// An app view's frame loads the origins the frame check judged
+/// frameable, exactly, and no other page of the web; a web view keeps to
+/// the web as before.
+#[test]
+fn an_app_view_frames_only_the_origins_judged_frameable() {
+    let url = |s: &str| tauri::Url::parse(s).unwrap();
+    let mut framed = std::collections::HashSet::new();
+    framed.insert("https://open.example".to_owned());
+    framed.insert("http://192.168.3.100:8083".to_owned());
+    for label in ["main", "window-2", "note-3"] {
+        let may = |s: &str| may_navigate_framed(label, &url(s), None, &framed);
+        assert!(may("https://open.example/a?b=1"));
+        assert!(may("http://192.168.3.100:8083/x"));
+        // Another site, scheme, port or subdomain is refused.
+        assert!(!may("https://shut.example/"));
+        assert!(!may("http://open.example/"));
+        assert!(!may("https://open.example:8443/"));
+        assert!(!may("https://www.open.example/"));
+        assert!(!may("http://192.168.3.100:9000/"));
+        // The app's own pages still load; nothing but the web is added.
+        assert!(may("tauri://localhost/index.html"));
+        assert!(!may("file:///etc/passwd"));
+        assert!(!may("verso://evil/x"));
+        // With nothing judged, the guard is the closed one.
+        assert!(!may_navigate_framed(
+            label,
+            &url("https://open.example/"),
+            None,
+            &Default::default()
+        ));
+    }
+    assert!(!may_navigate_framed(
+        "other",
+        &url("https://open.example/"),
+        None,
+        &framed
+    ));
+}
+
 /// Several entries moved through the contract (ADR 0048, revised
 /// 2026-10-07): those that move come back with where they went, one the
 /// disk refuses with the contract's error kind, and the plan once.
@@ -1031,6 +1229,32 @@ fn the_window_controls_are_allowed() {
             "{permission} missing"
         );
     }
+}
+
+/// The system's notifications (ADR 0084 item 9) are the window's to ask
+/// and to send: without the plugin's permissions in the capability the
+/// app answers "not allowed" while the browser harness, which has its
+/// own, passes. Asked here through the app's own capability; a
+/// notification is not sent, which would show one on this computer.
+#[test]
+fn the_system_notifications_are_allowed() {
+    let (_app, webview) = app();
+    let granted = call(
+        &webview,
+        "plugin:notification|is_permission_granted",
+        json!({}),
+    );
+    assert_eq!(granted, Ok(json!(true)));
+    let asked = call(
+        &webview,
+        "plugin:notification|request_permission",
+        json!({}),
+    );
+    assert_eq!(asked, Ok(json!("granted")));
+    let capability = include_str!("../capabilities/default.json");
+    assert!(capability.contains("\"notification:allow-notify\""));
+    // The app's own builder has the plugin, as this test's has.
+    assert!(include_str!("lib.rs").contains(".plugin(tauri_plugin_notification::init())"));
 }
 
 /// Every command the bindings call is allowed by the window's capability
@@ -1134,4 +1358,61 @@ fn a_servers_prove_first_is_its_own_kind() {
 fn the_sign_in_page_opens_nothing_a_server_did_not_name() {
     let none = remote::server_sign_in_page().unwrap_err();
     assert_eq!(none.kind, verso_contract::ErrorKind::Refused, "{none:?}");
+}
+
+/// A file's history through the contract (ADR 0091 item 8): a folder of
+/// this computer keeps its versions under the configuration directory,
+/// named by this computer; a restore is a new write over the revision the
+/// window read, refused when the file moved on (invariant 11).
+#[test]
+fn a_folder_of_this_computer_keeps_and_restores_its_versions() {
+    let vault = tempfile::tempdir().unwrap();
+    let _nota = note(vault.path(), "Nota.md", "um\n");
+    let (app, webview) = app_with(Some(vault.path().to_path_buf()));
+    app.state::<App>()
+        .service
+        .keep_local_history("Mac de Teste", 365);
+    call(&webview, "open_initial", json!({})).unwrap();
+    let read = call(&webview, "read_note", json!({ "path": "Nota.md" })).unwrap();
+    let first = read["revision"].clone();
+    call(
+        &webview,
+        "write_note",
+        json!({ "path": "Nota.md", "text": "dois\n", "revision": first }),
+    )
+    .unwrap();
+    let list = call(&webview, "history_list", json!({ "path": "Nota.md" })).unwrap();
+    let versions = list["versions"].as_array().unwrap().clone();
+    // As found at the reading, then this computer's edit.
+    assert_eq!(versions.len(), 2, "{list}");
+    assert_eq!(versions[0]["authors"][0]["name"], "Mac de Teste");
+    assert_eq!(versions[1]["kind"], "found");
+    let found = versions[1]["id"].clone();
+    assert!(found.as_str().unwrap().starts_with("c:"));
+    let text = call(
+        &webview,
+        "history_read",
+        json!({ "path": "Nota.md", "id": found }),
+    )
+    .unwrap();
+    assert_eq!(text["text"], "um\n");
+    let stale = call(
+        &webview,
+        "history_restore",
+        json!({ "path": "Nota.md", "id": found, "revision": first }),
+    )
+    .unwrap_err();
+    assert_eq!(stale["kind"], "changed", "{stale}");
+    let now = call(&webview, "read_note", json!({ "path": "Nota.md" })).unwrap();
+    let back = call(
+        &webview,
+        "history_restore",
+        json!({ "path": "Nota.md", "id": found, "revision": now["revision"] }),
+    )
+    .unwrap();
+    let after = call(&webview, "read_note", json!({ "path": "Nota.md" })).unwrap();
+    assert_eq!(after["text"], "um\n");
+    assert_eq!(after["revision"], back["revision"]);
+    call(&webview, "set_history_days", json!({ "days": 30 })).unwrap();
+    assert!(call(&webview, "set_history_days", json!({ "days": 40_000 })).is_err());
 }

@@ -7,7 +7,10 @@
 //                                      (scripts/demo-vault/tour.mjs)
 //   demo-vault/Treino do Board.canvas  the board itself, lesson by lesson
 //                                      (scripts/demo-vault/treino.mjs)
-//   app/ui/src/demoVault.ts            the folder, embedded in the app
+//   app/ui/src/demoVault.ts            the folder, embedded in the app, with
+//                                      the hash of every past version of each
+//                                      file (git history) so the import can
+//                                      update an untouched old copy
 //
 //   node scripts/demo-vault.mjs build
 //     Writes the two boards, then embeds the folder: the files the embed
@@ -30,6 +33,7 @@
 // Dependency-free; Node 18 or later, with git on PATH.
 
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -61,7 +65,47 @@ function vaultFiles(which = "--cached") {
 }
 const untracked = () => vaultFiles("--others");
 
-/** The embed for the folder as it is now. */
+const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
+
+/** The SHA-256 of every version of `demo-vault/<p>` git has ever had,
+ *  renames followed, by the path it had then (`Map` path -> hashes): what
+ *  the import compares a file already in the folder with, to tell a
+ *  person's untouched copy of an older tutorial from the person's own edit
+ *  (ADR 0058). */
+function historyHashes(p) {
+  const log = execFileSync("git", ["-c", "core.quotepath=off", "log", "--follow", "--name-only", "--format=@%H", "--", `demo-vault/${p}`], { cwd: root, maxBuffer: 1 << 28 })
+    .toString("utf8")
+    .split("\n");
+  const specs = [];
+  let rev = "";
+  for (const line of log) {
+    if (line.startsWith("@")) rev = line.slice(1);
+    else if (line !== "" && rev) specs.push(`${rev}:${line}`);
+  }
+  const byPath = new Map();
+  if (specs.length === 0) return byPath;
+  const out = execFileSync("git", ["cat-file", "--batch"], { cwd: root, input: specs.join("\n") + "\n", maxBuffer: 1 << 30 });
+  let at = 0;
+  let spec = 0;
+  while (at < out.length) {
+    const eol = out.indexOf(0x0a, at);
+    if (eol < 0) break;
+    const header = out.subarray(at, eol).toString("utf8");
+    at = eol + 1;
+    const name = (specs[spec++] ?? "").replace(/^[^:]*:/, "").replace(/^demo-vault\//, "");
+    const m = /^\S+ blob (\d+)$/.exec(header);
+    if (!m) continue; // "<spec> missing": the file was deleted at that commit
+    const size = Number(m[1]);
+    byPath.set(name, new Set([...(byPath.get(name) ?? []), sha256(out.subarray(at, at + size))]));
+    at += size + 1;
+  }
+  return byPath;
+}
+
+/** The embed for the folder as it is now. Beside each file, `past`: the
+ *  hashes of its earlier versions — git's history joined with the ones the
+ *  embed already lists, so that a clone with a shallow history rebuilds the
+ *  same text (the list only grows). */
 function embedText() {
   const src = readFileSync(embedPath, "utf8");
   const start = "export const DEMO_VAULT_FILES: DemoVaultFile[] = [";
@@ -69,10 +113,46 @@ function embedText() {
   if (at < 0) throw new Error(`${embedPath}: no "${start}"`);
   const head = src.slice(0, at + start.length) + "\n";
   const listed = [...src.matchAll(/"path": ("(?:[^"\\]|\\.)*")/g)].map((m) => JSON.parse(m[1]));
+  const before = new Map();
+  for (const m of src.matchAll(/"path": ("(?:[^"\\]|\\.)*"),\s*(?:"past": \[([^\]]*)\],\s*)?"b64"/g)) {
+    before.set(JSON.parse(m[1]), [...(m[2] ?? "").matchAll(/"([0-9a-f]{64})"/g)].map((h) => h[1]));
+  }
+  const retiredBefore = new Map();
+  for (const m of src.matchAll(/"path": ("(?:[^"\\]|\\.)*"),\s*"to": ("(?:[^"\\]|\\.)*"),\s*"past": \[([^\]]*)\]/g)) {
+    retiredBefore.set(JSON.parse(m[1]), { to: JSON.parse(m[2]), past: [...m[3].matchAll(/"([0-9a-f]{64})"/g)].map((h) => h[1]) });
+  }
   const files = new Set(vaultFiles());
   const order = [...listed.filter((p) => files.has(p)), ...[...files].filter((p) => !listed.includes(p)).sort()];
-  const items = order.map((p) => `  {\n    "path": ${JSON.stringify(p)},\n    "b64": "${readFileSync(join(vault, p)).toString("base64")}"\n  }`);
-  return `${head}${items.join(",\n")}\n];\n`;
+  // A path the demo had and no longer has, that git follows to a file it
+  // has now (a rename): the import moves the person's untouched copy of it
+  // to the trash when it writes the current one.
+  const retired = new Map(retiredBefore);
+  const items = order.map((p) => {
+    const bytes = readFileSync(join(vault, p));
+    const now = sha256(bytes);
+    const history = historyHashes(p);
+    const all = new Set(before.get(p) ?? []);
+    for (const [name, hashes] of history) {
+      for (const h of hashes) all.add(h);
+      // Not a rename that only changes case or Unicode form: on a disk that
+      // does not tell them apart it is the same file, and trashing "the old
+      // one" would trash the new.
+      if (name !== p && !files.has(name) && fold(name) !== fold(p)) {
+        const was = retired.get(name);
+        retired.set(name, { to: p, past: [...new Set([...(was?.past ?? []), ...hashes])] });
+      }
+    }
+    const past = [...all].filter((h) => h !== now).sort();
+    const list = past.length === 0 ? "" : `    "past": [\n${past.map((h) => `      "${h}"`).join(",\n")}\n    ],\n`;
+    return `  {\n    "path": ${JSON.stringify(p)},\n${list}    "b64": "${bytes.toString("base64")}"\n  }`;
+  });
+  const gone = [...retired].filter(([name]) => !files.has(name)).sort(([a], [b]) => (a < b ? -1 : 1));
+  const old = gone.length === 0
+    ? "export const DEMO_RETIRED: DemoRetired[] = [];\n"
+    : `export const DEMO_RETIRED: DemoRetired[] = [\n${gone
+        .map(([name, r]) => `  {\n    "path": ${JSON.stringify(name)},\n    "to": ${JSON.stringify(r.to)},\n    "past": [\n${[...r.past].sort().map((h) => `      "${h}"`).join(",\n")}\n    ]\n  }`)
+        .join(",\n")}\n];\n`;
+  return `${head}${items.join(",\n")}\n];\n\n${old}`;
 }
 
 /** A board's text, read back as JSON before anything is written. */

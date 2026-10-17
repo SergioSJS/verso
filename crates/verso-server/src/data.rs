@@ -15,6 +15,13 @@ pub fn read_secret(path: &Path) -> io::Result<String> {
     std::fs::read_to_string(path)
 }
 
+/// Whether the file at `path` can be read: the window's `web.html`, for
+/// "this app is a server" to say its files are missing instead of serving
+/// a phone a blank page (ADR 0096).
+pub fn readable(path: &Path) -> bool {
+    std::fs::read_to_string(path).is_ok()
+}
+
 /// The data directory and what it holds, made when missing.
 pub fn ensure_dir(path: &Path) -> io::Result<()> {
     std::fs::create_dir_all(path)

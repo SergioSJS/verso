@@ -4,10 +4,7 @@
 
 import { listen } from "@tauri-apps/api/event";
 import { commands, type InstallResult, type UpdateInfo, type UpdateProgress } from "./bindings";
-import { h } from "./dom";
-import { icon } from "./icons";
-import { settingsDialog } from "./main";
-import { t } from "./strings";
+import { updateFound } from "./notify/sources";
 
 export class UpdateController {
   private _info: UpdateInfo | null = null;
@@ -16,7 +13,6 @@ export class UpdateController {
   private _progress: UpdateProgress | null = null;
   private _result: InstallResult | null = null;
   private _error: string | null = null;
-  private bannerEl: HTMLElement | null = null;
   private unlistenProgress: (() => void) | null = null;
   private listeners = new Set<() => void>();
 
@@ -45,9 +41,9 @@ export class UpdateController {
       const res = await commands.checkForUpdates();
       if (res.status === "ok") {
         this._info = res.data;
-        if (res.data.has_update) {
-          this.showBanner(res.data);
-        }
+        // A new version is a notification (ADR 0084 item 7): once per
+        // version, with the update card's two actions.
+        if (res.data.has_update) updateFound(res.data);
         return res.data;
       } else {
         if (!silent) this._error = res.error.message;
@@ -109,54 +105,5 @@ export class UpdateController {
 
   async restart(): Promise<void> {
     await commands.restartApp();
-  }
-
-  showBanner(info: UpdateInfo): void {
-    if (this.bannerEl) return;
-    try {
-      if (sessionStorage.getItem("verso.update.dismissed") === info.latest_version) return;
-    } catch {}
-
-    const banner = h("div", "verso-update-banner");
-    banner.append(icon("sparkles"));
-
-    const text = h("span", "", `${t.updateBannerTitle}: v${info.latest_version}`);
-    const actions = h("div", "verso-update-banner-actions");
-
-    const dlBtn = h("button", "update-btn-primary", t.downloadAndUpdate);
-    dlBtn.prepend(icon("download"));
-    dlBtn.addEventListener("click", () => {
-      this.dismissBanner();
-      settingsDialog.show("general");
-      void this.downloadAndInstall();
-    });
-
-    const settingsBtn = h("button", "update-btn-secondary", t.seeInSettings);
-    settingsBtn.addEventListener("click", () => {
-      this.dismissBanner();
-      settingsDialog.show("general");
-    });
-
-    const closeBtn = h("button", "verso-update-banner-close");
-    closeBtn.append(icon("close"));
-    closeBtn.setAttribute("aria-label", t.cancel);
-    closeBtn.addEventListener("click", () => {
-      try {
-        sessionStorage.setItem("verso.update.dismissed", info.latest_version);
-      } catch {}
-      this.dismissBanner();
-    });
-
-    actions.append(dlBtn, settingsBtn, closeBtn);
-    banner.append(text, actions);
-    document.body.append(banner);
-    this.bannerEl = banner;
-  }
-
-  dismissBanner(): void {
-    if (this.bannerEl) {
-      this.bannerEl.remove();
-      this.bannerEl = null;
-    }
   }
 }
