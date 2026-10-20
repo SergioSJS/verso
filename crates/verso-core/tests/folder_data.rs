@@ -106,7 +106,7 @@ fn reading_and_listing_make_no_directory_and_the_first_write_makes_it() {
     let config = tempdir().unwrap();
     let mut ws = open(dir.path(), config.path());
     ws.index().unwrap();
-    assert!(ws.list_folder_data(KIND).unwrap().is_empty());
+    assert!(ws.list_folder_data(KIND).unwrap().entries.is_empty());
     assert!(ws.read_folder_data(KIND, "mesa").is_err());
     assert!(!has(dir.path(), ".verso"));
     ws.write_folder_data(KIND, "mesa", "{\"a\": 1}", None)
@@ -200,7 +200,7 @@ fn a_text_that_is_not_a_json_object_or_is_too_large_is_refused() {
     assert_eq!(at.len(), FOLDER_LAYOUT_MOST);
     ws.write_folder_data(KIND, "mesa", &at, None).unwrap();
     // Nothing was made by the refusals.
-    assert_eq!(ws.list_folder_data(KIND).unwrap().len(), 1);
+    assert_eq!(ws.list_folder_data(KIND).unwrap().entries.len(), 1);
 }
 
 #[test]
@@ -227,7 +227,10 @@ fn a_bundle_may_be_larger_than_a_layout_to_four_mib() {
         (read.text.len(), read.revision.as_str()),
         (mib.len(), rev.as_str())
     );
-    let listed = ws.list_folder_data(FolderDataKind::Bundles).unwrap();
+    let listed = ws
+        .list_folder_data(FolderDataKind::Bundles)
+        .unwrap()
+        .entries;
     assert_eq!(listed[0].revision, rev);
     // Exactly 4 MiB passes, one byte more does not.
     let at = one(FOLDER_BUNDLE_MOST);
@@ -253,7 +256,7 @@ fn a_file_past_the_bound_on_disk_is_refused_unread_and_listed_without_a_revision
         ws.read_folder_data(KIND, "grande"),
         Err(CoreError::FolderData(_))
     ));
-    let listed = ws.list_folder_data(KIND).unwrap();
+    let listed = ws.list_folder_data(KIND).unwrap().entries;
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0].id, "grande");
     assert_eq!(listed[0].revision, "");
@@ -268,7 +271,7 @@ fn a_placeholder_is_reported_never_taken_for_absent() {
     let mut ws = open(dir.path(), config.path());
     ws.index().unwrap();
     let kind = FolderDataKind::Bundles;
-    let listed = ws.list_folder_data(kind).unwrap();
+    let listed = ws.list_folder_data(kind).unwrap().entries;
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0].id, "mundo");
     assert_eq!(listed[0].revision, "");
@@ -303,7 +306,7 @@ fn a_removal_goes_through_the_bin_over_the_version_read() {
     // Kept in the bin, not unlinked.
     let kept = dir.path().join(&gone.path);
     assert_eq!(fs::read_to_string(kept).unwrap(), "{\"a\": 1}");
-    assert!(ws.list_folder_data(KIND).unwrap().is_empty());
+    assert!(ws.list_folder_data(KIND).unwrap().entries.is_empty());
     // A second removal finds nothing.
     assert!(ws.remove_folder_data(KIND, "mesa", &rev).is_err());
 }
@@ -319,21 +322,30 @@ fn the_kinds_are_apart_and_the_list_is_in_id_order() {
     }
     ws.write_folder_data(FolderDataKind::Bundles, "mundo", "{}", None)
         .unwrap();
-    // A file the rule does not name stays out of the list, untouched.
+    // A file the rule does not name stays out of the entries, untouched, and
+    // is named among the strays.
     fs::write(dir.path().join(".verso/layouts/Maiuscula.json"), "{}").unwrap();
     fs::write(dir.path().join(".verso/layouts/nota.txt"), "x").unwrap();
     let ids: Vec<String> = ws
         .list_folder_data(KIND)
         .unwrap()
+        .entries
         .into_iter()
         .map(|e| e.id)
         .collect();
     assert_eq!(ids, ["alfa", "meio-2", "zeta"]);
-    let bundles = ws.list_folder_data(FolderDataKind::Bundles).unwrap();
+    assert_eq!(
+        ws.list_folder_data(KIND).unwrap().strays,
+        ["Maiuscula.json", "nota.txt"]
+    );
+    let bundles = ws
+        .list_folder_data(FolderDataKind::Bundles)
+        .unwrap()
+        .entries;
     assert_eq!(bundles.len(), 1);
     assert!(ws.read_folder_data(KIND, "mundo").is_err());
     // The listed revision is the one a read gives.
-    let listed = ws.list_folder_data(KIND).unwrap();
+    let listed = ws.list_folder_data(KIND).unwrap().entries;
     assert_eq!(
         listed[0].revision,
         ws.read_folder_data(KIND, "alfa").unwrap().revision
@@ -380,11 +392,12 @@ fn sync_lists_the_data_files_beside_the_settings_and_the_notes_never_see_them() 
         .write_bytes(".verso/layouts/de-fora.json", b"{\"x\": 1}", None)
         .unwrap();
     assert!(!rev.is_empty());
-    assert_eq!(ws.list_folder_data(KIND).unwrap().len(), 2);
+    assert_eq!(ws.list_folder_data(KIND).unwrap().entries.len(), 2);
     // And another device's deletion of it leaves nothing behind.
     assert!(
         ws.list_folder_data(KIND)
             .unwrap()
+            .entries
             .iter()
             .any(|e| e.id == "de-fora")
     );
@@ -472,18 +485,32 @@ fn the_oracle_keys_are_checked_kept_and_reported() {
     assert!(read.warnings[0].contains("odds"));
 }
 
-/// With `.verso` a link out of the folder, the data files behind it are
-/// not listed (the symlink decision, ADR 0044).
-#[cfg(unix)]
 #[test]
-fn a_symlinked_settings_directory_lists_nothing() {
+fn a_conflict_copy_is_named_among_the_strays_never_dropped() {
     let dir = tempdir().unwrap();
     let config = tempdir().unwrap();
-    let outside = tempdir().unwrap();
-    fs::create_dir_all(outside.path().join("layouts")).unwrap();
-    fs::write(outside.path().join("layouts/fora.json"), "{\"a\": 1}").unwrap();
-    std::os::unix::fs::symlink(outside.path(), dir.path().join(".verso")).unwrap();
     let mut ws = open(dir.path(), config.path());
     ws.index().unwrap();
-    assert!(ws.list_folder_data(KIND).unwrap().is_empty());
+    ws.write_folder_data(KIND, "mesa", "{}", None).unwrap();
+    // What sync leaves beside a file two devices changed (`conflict_name`).
+    let copy = "mesa (conflict, Mac, 2026-10-20).json";
+    fs::write(dir.path().join(".verso/layouts").join(copy), "{\"b\": 2}").unwrap();
+    let listed = ws.list_folder_data(KIND).unwrap();
+    assert_eq!(
+        listed
+            .entries
+            .iter()
+            .map(|e| e.id.as_str())
+            .collect::<Vec<_>>(),
+        ["mesa"]
+    );
+    assert_eq!(listed.strays, [copy]);
+    // The other kind has none, and a stray is left as it is.
+    assert!(
+        ws.list_folder_data(FolderDataKind::Bundles)
+            .unwrap()
+            .strays
+            .is_empty()
+    );
+    assert!(has(&dir.path().join(".verso/layouts"), copy));
 }

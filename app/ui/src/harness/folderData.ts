@@ -10,7 +10,7 @@
 // of at most 256 KiB (a layout) or 4 MiB (a bundle), a create that never replaces, a write over the version
 // read only, a removal through the bin.
 
-import type { ContractError, ErrorKind, FolderDataEntry, FolderDataFile, FolderDataKind, FolderDataWritten, OracleSettings, OracleSparks, Trashed } from "../bindings";
+import type { ContractError, ErrorKind, FolderDataEntry, FolderDataFile, FolderDataKind, FolderDataList, FolderDataWritten, OracleSettings, OracleSparks, Trashed } from "../bindings";
 
 type Stored = { bytes: Uint8Array; revision: number; modified: number };
 
@@ -60,17 +60,23 @@ function checkText(kind: FolderDataKind, text: string): void {
 export class FolderData {
   constructor(private readonly host: DataHost) {}
 
-  list(kind: FolderDataKind): FolderDataEntry[] {
+  list(kind: FolderDataKind): FolderDataList {
     pathOf(kind, "a");
     const prefix = `.verso/${kind}/`;
-    const out: FolderDataEntry[] = [];
+    const entries: FolderDataEntry[] = [];
+    const strays: string[] = [];
     for (const [path, f] of this.host.files) {
-      if (!path.startsWith(prefix) || !path.endsWith(".json")) continue;
-      const id = path.slice(prefix.length, -".json".length);
-      if (!validId(id)) continue;
-      out.push({ id, revision: f.bytes.length > FOLDER_DATA_MOST[kind] ? "" : String(f.revision) });
+      if (!path.startsWith(prefix) || path.slice(prefix.length).includes("/")) continue;
+      const name = path.slice(prefix.length);
+      const id = name.endsWith(".json") ? name.slice(0, -".json".length) : null;
+      if (id === null || !validId(id)) {
+        if (!name.startsWith(".")) strays.push(name);
+        continue;
+      }
+      entries.push({ id, revision: f.bytes.length > FOLDER_DATA_MOST[kind] ? "" : String(f.revision) });
     }
-    return out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    entries.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    return { entries, strays: strays.sort().slice(0, 50) };
   }
 
   read(kind: FolderDataKind, id: string): FolderDataFile {

@@ -1094,7 +1094,7 @@ async fn folder_command(
         // The folder's layouts and bundles are the whole folder's too
         // (ADR 0099 item 2, ADR 0098 item 2), as its settings are: a share
         // lists none and finds none; a write is refused by `args_in`.
-        "list_folder_data" => return Ok(Value::Array(Vec::new())),
+        "list_folder_data" => return to_value(verso_contract::FolderDataList::default()),
         "read_folder_data" => {
             return Err(ContractError {
                 kind: verso_contract::ErrorKind::NotFound,

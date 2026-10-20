@@ -28,7 +28,7 @@ export type FolderDataKind = "layouts" | "bundles";
  *  with the contract's error, `{kind, message}` — `changed`, `exists`,
  *  `refused`, `not_found`, `unavailable` — or an Error. */
 export interface FolderDataApi {
-  list(kind: FolderDataKind): Promise<{ id: string; revision: string }[]>;
+  list(kind: FolderDataKind): Promise<{ entries: { id: string; revision: string }[]; strays: string[] }>;
   read(kind: FolderDataKind, id: string): Promise<{ value: unknown; revision: string }>;
   /** `revision` null creates (refused when the file exists); otherwise it
    *  replaces, refused when the file changed since that revision. */
@@ -66,6 +66,7 @@ const isStale = (e: unknown): boolean => (!!e && typeof e === "object" && (e as 
 let api: FolderDataApi | null = null;
 let stopWatch: (() => void) | null = null;
 let folder: StoredLayout[] = [];
+let strays: string[] = [];
 let legacy: StoredLayout[] | null = null;
 const listeners = new Set<() => void>();
 
@@ -95,13 +96,16 @@ export async function reloadFolder(): Promise<void> {
   const from = api;
   if (!from) {
     folder = [];
+    strays = [];
     changed();
     return;
   }
   const out: StoredLayout[] = [];
+  let left: string[] = [];
   try {
-    const entries = await from.list("layouts");
-    for (const e of entries.slice(0, 500)) {
+    const listed = await from.list("layouts");
+    left = listed.strays;
+    for (const e of listed.entries.slice(0, 500)) {
       // An empty revision: the file cannot be read now (a placeholder of
       // on-demand storage, past the bound); it shows once it can.
       if (!LAYOUT_ID.test(e.id) || e.revision === "") continue;
@@ -119,6 +123,7 @@ export async function reloadFolder(): Promise<void> {
   }
   if (api !== from) return;
   folder = out;
+  strays = left;
   changed();
 }
 
@@ -128,8 +133,16 @@ export async function attachFolder(next: FolderDataApi | null): Promise<void> {
   stopWatch = null;
   api = next;
   folder = [];
+  strays = [];
   if (next?.onChange) stopWatch = next.onChange("layouts", () => void reloadFolder());
   await reloadFolder();
+}
+
+/** The names in the folder's `.verso/layouts/` that are not a usable
+ *  `<id>.json` (a sync conflict copy…): none of them is a layout, and the
+ *  page says so (`strayNotice`). */
+export function layoutStrays(): readonly string[] {
+  return strays;
 }
 
 /** Every layout: the built-ins, the folder's, the device's not yet moved. */
@@ -264,6 +277,7 @@ export function canWriteLayouts(): boolean {
 export function resetStoreForTests(): void {
   legacy = null;
   folder = [];
+  strays = [];
   api = null;
   stopWatch?.();
   stopWatch = null;

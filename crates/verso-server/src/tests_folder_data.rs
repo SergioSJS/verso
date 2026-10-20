@@ -71,7 +71,7 @@ fn a_reader_lists_and_reads_and_writes_nothing() {
         let listed = call(&mut ws, 2, "list_folder_data", json!({ "kind": "layouts" })).await;
         assert_eq!(
             listed["ok"],
-            json!([{ "id": "mesa", "revision": rev }]),
+            json!({ "entries": [{ "id": "mesa", "revision": rev }], "strays": [] }),
             "{listed}"
         );
         let read = call(
@@ -134,7 +134,7 @@ fn an_editor_writes_over_the_revision_read_and_sync_follows() {
         let head = state["ok"]["head"].as_i64().unwrap();
         // Nothing yet.
         let none = call(&mut ws, 3, "list_folder_data", json!({ "kind": "bundles" })).await;
-        assert_eq!(none["ok"], json!([]), "{none}");
+        assert_eq!(none["ok"], json!({ "entries": [], "strays": [] }), "{none}");
         // Created, and in the log for the devices.
         let made = call(
             &mut ws,
@@ -254,6 +254,10 @@ fn an_editor_writes_over_the_revision_read_and_sync_follows() {
             json!({ "kind": "bundles" }),
         )
         .await;
-        assert_eq!(empty["ok"], json!([]), "{empty}");
+        assert_eq!(
+            empty["ok"],
+            json!({ "entries": [], "strays": [] }),
+            "{empty}"
+        );
     });
 }

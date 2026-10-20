@@ -41,6 +41,7 @@ fn the_folders_data_files_cross_like_the_settings() {
             .with_key(&on(d), move |ws| {
                 Ok(ws
                     .list_folder_data(kind)?
+                    .entries
                     .into_iter()
                     .map(|e| e.id)
                     .collect())
