@@ -28,74 +28,56 @@ export const DEFAULT_ODDS_TABLE: Readonly<Record<Likelihood, readonly [number, n
 
 export const ODDS_TABLE = DEFAULT_ODDS_TABLE;
 
-const STORAGE_KEY_ODDS = "verso:oracle-odds";
-const STORAGE_KEY_SPARKS_PREFIX = "verso:oracle-sparks-";
-
 export type OddsRow = readonly [number, number, number, number, number, number];
+export type OddsTable = Record<Likelihood, OddsRow>;
+
+/** What the open folder holds of the oracle (ADR 0102 item 2): its own odds
+ *  and spark words, when it changed them; null where it did not. Nothing of
+ *  the oracle lives in the window's storage. */
+export interface FolderOracle {
+  odds: readonly (readonly number[])[] | null;
+  sparks: SparkWordLists | null;
+}
+
+let folderOracle: () => FolderOracle = () => ({ odds: null, sparks: null });
+
+/** Where the oracle reads the folder's values from (`folderData.ts` sets it;
+ *  without one the built-in odds and words apply). */
+export function useFolderOracle(source: () => FolderOracle): void {
+  folderOracle = source;
+}
 
 /** A row of the odds table is six whole numbers, none negative, adding to 100. */
 export function validOddsRow(row: unknown): row is OddsRow {
   return Array.isArray(row) && row.length === 6 && row.every((n) => Number.isInteger(n) && n >= 0) && row.reduce((a: number, n: number) => a + n, 0) === 100;
 }
 
-/** The odds table now: the stored one where a row is valid, the default
- *  for any row that is not (`invalid` names those, so the dialog can say
- *  so). */
-export function readOddsTable(): { table: Record<Likelihood, OddsRow>; invalid: Likelihood[] } {
-  const table: Record<Likelihood, OddsRow> = { ...DEFAULT_ODDS_TABLE };
-  const invalid: Likelihood[] = [];
-  try {
-    if (typeof localStorage !== "undefined") {
-      const raw = localStorage.getItem(STORAGE_KEY_ODDS);
-      if (raw) {
-        const parsed: unknown = JSON.parse(raw);
-        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-          for (const id of LIKELIHOODS) {
-            const row = (parsed as Record<string, unknown>)[id];
-            if (row === undefined) continue;
-            if (validOddsRow(row)) table[id] = row;
-            else invalid.push(id);
-          }
-        } else invalid.push(...LIKELIHOODS);
-      }
-    }
-  } catch {
-    invalid.push(...LIKELIHOODS);
-  }
-  return { table, invalid };
+/** The odds table as the folder sets it — five rows, in the order of
+ *  `LIKELIHOODS` reversed (nearly certain first, as the core keeps them) —
+ *  or null when it is absent or not usable (the core ignores the same). */
+export function oddsFromRows(rows: readonly (readonly number[])[] | null): OddsTable | null {
+  if (!rows || rows.length !== FILE_ORDER.length || !rows.every(validOddsRow)) return null;
+  const table = {} as OddsTable;
+  FILE_ORDER.forEach((lh, i) => (table[lh] = rows[i] as unknown as OddsRow));
+  return table;
 }
 
-/** Retrieve current odds table (customized from localStorage or built-in default). */
-export function getOddsTable(): Record<Likelihood, OddsRow> {
-  return readOddsTable().table;
+/** The odds table in the order the folder's file keeps it. */
+export function oddsToRows(table: OddsTable): number[][] {
+  return FILE_ORDER.map((lh) => [...table[lh]]);
 }
 
-/** Save custom odds table to local settings. */
-export function saveOddsTable(table: Record<Likelihood, readonly [number, number, number, number, number, number]>): void {
-  try {
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem(STORAGE_KEY_ODDS, JSON.stringify(table));
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("verso:oracle-odds-changed"));
-      }
-    }
-  } catch {
-    // ignore
-  }
+/** Nearly certain first: the order of the rows in `.verso/settings.json`. */
+const FILE_ORDER: readonly Likelihood[] = ["nearlyCertain", "likely", "even", "unlikely", "nearlyImpossible"];
+
+/** The odds table now: the folder's, else the built-in. */
+export function getOddsTable(): OddsTable {
+  return oddsFromRows(folderOracle().odds) ?? { ...DEFAULT_ODDS_TABLE };
 }
 
-/** Reset odds table back to default calibrated ADR 0102 values. */
-export function resetOddsTable(): void {
-  try {
-    if (typeof localStorage !== "undefined") {
-      localStorage.removeItem(STORAGE_KEY_ODDS);
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("verso:oracle-odds-changed"));
-      }
-    }
-  } catch {
-    // ignore
-  }
+/** Whether the folder sets its own odds. */
+export function folderHasOdds(): boolean {
+  return oddsFromRows(folderOracle().odds) !== null;
 }
 
 export interface OracleResult {
@@ -106,8 +88,8 @@ export interface OracleResult {
   answer: Answer;
 }
 
-/** The answer a d100 face gives at the given odds (inspects custom odds if configured). */
-export function answerFor(likelihood: Likelihood, roll: number, table: Record<Likelihood, OddsRow> = getOddsTable()): Answer {
+/** The answer a d100 face gives at the given odds (the folder's odds when it sets them). */
+export function answerFor(likelihood: Likelihood, roll: number, table: OddsTable = getOddsTable()): Answer {
   const row = table[likelihood] ?? DEFAULT_ODDS_TABLE[likelihood];
   let upTo = 0;
   for (let i = 0; i < row.length; i++) {
@@ -121,6 +103,20 @@ export function answerFor(likelihood: Likelihood, roll: number, table: Record<Li
 export function askOracle(likelihood: Likelihood = "even", question = "", rand: RandomSource = cryptoRandomSource): OracleResult {
   const roll = rollDie(100, rand);
   return { question: question.trim() || undefined, likelihood, roll, answer: answerFor(likelihood, roll) };
+}
+
+/** What the server drew for a question in a room, as a result: the face and
+ *  the column of the row it chose; the asker's own words and odds stay the
+ *  window's (the server never saw the question's text). */
+export function questionDrawn(likelihood: Likelihood, question: string, roll: number, column: number): OracleResult | null {
+  const answer = ANSWERS[column];
+  if (!answer || !Number.isInteger(roll) || roll < 1 || roll > 100) return null;
+  return { question: question.trim() || undefined, likelihood, roll, answer };
+}
+
+/** The odds row a question at `likelihood` is asked at, for the server. */
+export function oddsRowFor(likelihood: Likelihood, table: OddsTable = getOddsTable()): number[] {
+  return [...table[likelihood]];
 }
 
 // The sparks' words: original lists written for Verso (ADR 0102 item 2 —
@@ -188,68 +184,33 @@ export interface SparkWordLists {
   focus: string[];
 }
 
-const SPARK_KEYS = ["action", "theme", "descriptor", "focus"] as const;
-
-function validWords(list: unknown): list is string[] {
-  return Array.isArray(list) && list.length > 0 && list.every((w) => typeof w === "string" && w.trim() !== "");
-}
-
 function defaultWords(lang: "pt" | "en"): SparkWordLists {
   return { action: [...WORDS[lang].action], theme: [...WORDS[lang].theme], descriptor: [...WORDS[lang].descriptor], focus: [...WORDS[lang].focus] };
 }
 
-/** The stored spark words for a language, and whether they were unusable
- *  (the defaults come back then). */
-export function readSparkWords(lang: "pt" | "en" = "pt"): { words: SparkWordLists; invalid: boolean } {
-  try {
-    if (typeof localStorage !== "undefined") {
-      const raw = localStorage.getItem(STORAGE_KEY_SPARKS_PREFIX + lang);
-      if (raw) {
-        const parsed: unknown = JSON.parse(raw);
-        const o = parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
-        if (o && SPARK_KEYS.every((k) => validWords(o[k]))) {
-          return { words: { action: o["action"] as string[], theme: o["theme"] as string[], descriptor: o["descriptor"] as string[], focus: o["focus"] as string[] }, invalid: false };
-        }
-        return { words: defaultWords(lang), invalid: true };
-      }
-    }
-  } catch {
-    return { words: defaultWords(lang), invalid: true };
-  }
-  return { words: defaultWords(lang), invalid: false };
+/** The built-in spark words of a language. */
+export function builtinSparkWords(lang: "pt" | "en" = "pt"): SparkWordLists {
+  return defaultWords(lang);
 }
 
-/** Retrieve current spark words lists (from localStorage or built-in defaults). */
+/** The folder's spark words where they are usable (four lists of 1 to 200
+ *  words of 1 to 60 characters, as the core reads them), else null. */
+export function sparksFromFolder(raw: SparkWordLists | null): SparkWordLists | null {
+  if (!raw) return null;
+  const ok = (l: unknown): l is string[] => Array.isArray(l) && l.length >= 1 && l.length <= 200 && l.every((w) => typeof w === "string" && w.length >= 1 && [...w].length <= 60);
+  return ok(raw.action) && ok(raw.theme) && ok(raw.descriptor) && ok(raw.focus) ? raw : null;
+}
+
+/** The spark words now: the folder's, one set whatever the language (it
+ *  travels with the folder, so everyone who opens it draws from the same
+ *  words), else the built-in ones of `lang`. */
 export function getSparkWords(lang: "pt" | "en" = "pt"): SparkWordLists {
-  return readSparkWords(lang).words;
+  return sparksFromFolder(folderOracle().sparks) ?? defaultWords(lang);
 }
 
-/** Save custom spark word lists for a language. */
-export function saveSparkWords(lang: "pt" | "en", words: SparkWordLists): void {
-  try {
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem(STORAGE_KEY_SPARKS_PREFIX + lang, JSON.stringify(words));
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("verso:oracle-sparks-changed"));
-      }
-    }
-  } catch {
-    // ignore
-  }
-}
-
-/** Reset spark word lists back to built-in defaults. */
-export function resetSparkWords(lang: "pt" | "en" = "pt"): void {
-  try {
-    if (typeof localStorage !== "undefined") {
-      localStorage.removeItem(STORAGE_KEY_SPARKS_PREFIX + lang);
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("verso:oracle-sparks-changed"));
-      }
-    }
-  } catch {
-    // ignore
-  }
+/** Whether the folder sets its own spark words. */
+export function folderHasSparks(): boolean {
+  return sparksFromFolder(folderOracle().sparks) !== null;
 }
 
 export interface SparkResult {
@@ -258,6 +219,13 @@ export interface SparkResult {
   descriptor: string;
   focus: string;
   formatted: string;
+}
+
+/** A spark from the four words the server drew in a room. */
+export function sparkDrawn(words: readonly string[]): SparkResult | null {
+  const [action, theme, descriptor, focus] = words;
+  if (words.length !== 4 || action === undefined || theme === undefined || descriptor === undefined || focus === undefined) return null;
+  return { action, theme, descriptor, focus, formatted: `${action} ${theme} / ${descriptor} ${focus}` };
 }
 
 /** An idea spark: Action + Theme, Descriptor + Focus, in the given language. */

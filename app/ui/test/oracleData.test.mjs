@@ -16,6 +16,9 @@ await esbuild.build({
     contents: `
       export * from "./src/oracle/engine";
       export * from "./src/oracle/tables";
+      export * from "./src/oracle/legacy";
+      export * from "./src/oracle/tableNote";
+      export { oracleDrawHere } from "./src/harness/oracleDraw";
       export { composeOracle } from "./src/oracle/compose";
       export { os } from "./src/oracle/strings";
       export { rollDie } from "./src/dice/rolai/rng";`,
@@ -58,43 +61,167 @@ test("an empty table has nothing to roll; a filled one rolls its entries", () =>
   assert.equal(r.entry, t.entries[0]);
 });
 
-test("broken stored odds fall back to the defaults and are named", () => {
-  store.set("verso:oracle-odds", JSON.stringify({ even: [50, 50, 0, 0, 0, 10], likely: "x", unlikely: [5, 15, 5, 15, 45, 15] }));
-  const { table, invalid } = O.readOddsTable();
-  assert.deepEqual(invalid.sort(), ["even", "likely"]);
-  assert.deepEqual(table.even, O.DEFAULT_ODDS_TABLE.even);
-  store.set("verso:oracle-odds", "not json");
-  assert.equal(O.readOddsTable().invalid.length, 5);
-  store.delete("verso:oracle-odds");
-  assert.equal(O.readOddsTable().invalid.length, 0);
+const rows = (n) => Array.from({ length: 5 }, () => [...n]);
+
+test("the folder's odds apply where usable; an unusable table is the built-in one", () => {
+  O.useFolderOracle(() => ({ odds: null, sparks: null }));
+  assert.deepEqual(O.getOddsTable(), O.DEFAULT_ODDS_TABLE);
+  assert.equal(O.folderHasOdds(), false);
+  const mine = [[0, 0, 0, 0, 0, 100], [0, 0, 0, 0, 100, 0], [0, 0, 0, 100, 0, 0], [0, 0, 100, 0, 0, 0], [100, 0, 0, 0, 0, 0]];
+  O.useFolderOracle(() => ({ odds: mine, sparks: null }));
+  assert.equal(O.folderHasOdds(), true);
+  // The file keeps nearly certain first.
+  assert.deepEqual([...O.getOddsTable().nearlyCertain], [0, 0, 0, 0, 0, 100]);
+  assert.equal(O.answerFor("nearlyImpossible", 1), "yesAnd");
+  assert.equal(O.askOracle("nearlyCertain", "", () => 0).answer, "noAnd");
+  assert.deepEqual(O.oddsToRows(O.getOddsTable()), mine);
+  for (const bad of [rows([10, 30, 10, 10, 30, 9]), mine.slice(1), [...mine.slice(1), [1, 2]], rows([50, 50])]) {
+    O.useFolderOracle(() => ({ odds: bad, sparks: null }));
+    assert.deepEqual(O.getOddsTable(), O.DEFAULT_ODDS_TABLE);
+    assert.equal(O.folderHasOdds(), false);
+  }
+  O.useFolderOracle(() => ({ odds: null, sparks: null }));
 });
 
-test("broken spark words fall back to the defaults", () => {
-  store.set("verso:oracle-sparks-pt", JSON.stringify({ action: ["a"], theme: ["b"] }));
-  const r = O.readSparkWords("pt");
-  assert.equal(r.invalid, true);
-  assert.ok(r.words.focus.length > 0);
+test("the folder's spark words serve both languages; unusable ones are the built-in", () => {
+  const mine = { action: ["a"], theme: ["t"], descriptor: ["d"], focus: ["f"] };
+  O.useFolderOracle(() => ({ odds: null, sparks: mine }));
+  assert.equal(O.folderHasSparks(), true);
+  for (const lang of ["pt", "en"]) assert.equal(O.generateSpark(lang).formatted, "a t / d f");
+  for (const bad of [{ ...mine, focus: [] }, { ...mine, theme: ["x".repeat(61)] }, { ...mine, action: Array(201).fill("w") }]) {
+    O.useFolderOracle(() => ({ odds: null, sparks: bad }));
+    assert.equal(O.folderHasSparks(), false);
+    assert.deepEqual(O.getSparkWords("en"), O.builtinSparkWords("en"));
+  }
+  O.useFolderOracle(() => ({ odds: null, sparks: null }));
+  assert.ok(O.getSparkWords("pt").action.length > 0);
   assert.doesNotThrow(() => O.generateSpark("pt"));
-  store.delete("verso:oracle-sparks-pt");
 });
 
-test("a stored table without entries is ignored, the dialog's list still builds", () => {
-  store.set("verso:oracle-custom-tables", JSON.stringify([
+test("what a room's server drew becomes a result only when it fits", () => {
+  assert.equal(O.questionDrawn("even", " Chove? ", 42, 4).answer, "no");
+  assert.equal(O.questionDrawn("even", "", 42, 4).question, undefined);
+  assert.equal(O.questionDrawn("even", "", 0, 4), null);
+  assert.equal(O.questionDrawn("even", "", 101, 4), null);
+  assert.equal(O.questionDrawn("even", "", 5, 6), null);
+  assert.equal(O.sparkDrawn(["a", "b", "c", "d"]).formatted, "a b / c d");
+  assert.equal(O.sparkDrawn(["a", "b"]), null);
+  const t = { id: "x", name: "X", desc: "", icon: "dice", entries: ["um", "dois"] };
+  assert.equal(O.tableDrawn(t, 2, "dois").total, 2);
+  assert.equal(O.tableDrawn(t, 3, "dois"), null);
+  assert.equal(O.tableDrawn(t, 1, ""), null);
+});
+
+test("the server's draw played in the page reads a d100 against the row it is sent", () => {
+  const odds = [10, 30, 10, 10, 30, 10];
+  const count = [0, 0, 0, 0, 0, 0];
+  for (let face = 1; face <= 100; face++) {
+    const d = O.oracleDrawHere({ kind: "question", odds }, "Ana", "t", () => (face - 1) / 2 ** 32);
+    assert.equal(d.roll, face);
+    count[d.answer]++;
+  }
+  assert.deepEqual(count, odds);
+  const spark = O.oracleDrawHere({ kind: "spark", lists: { action: ["a"], theme: ["t"], descriptor: ["d"], focus: ["f"] } }, "Ana", "t");
+  assert.deepEqual(spark.words, ["a", "t", "d", "f"]);
+  const table = O.oracleDrawHere({ kind: "table", entries: ["só"] }, "Ana", "t");
+  assert.deepEqual([table.roll, table.words], [1, ["só"]]);
+  for (const ask of [{ kind: "question", odds: [50, 50] }, { kind: "table", entries: [] }, { kind: "table", entries: ["  "] }, { kind: "spark", lists: { action: [], theme: ["t"], descriptor: ["d"], focus: ["f"] } }, { kind: "dice" }]) {
+    assert.throws(() => O.oracleDrawHere(ask, "Ana", "t"), (e) => e.kind === "refused");
+  }
+});
+
+test("what an earlier build kept in storage is read to be moved, never applied", () => {
+  const kept = new Map();
+  const st = { getItem: (k) => (kept.has(k) ? kept.get(k) : null), removeItem: (k) => void kept.delete(k) };
+  assert.equal(O.legacyOdds(st), null);
+  kept.set(O.LEGACY_ODDS, JSON.stringify({ even: [50, 50, 0, 0, 0, 0], likely: [50, 50, 0, 0, 0, 1], nope: 1 }));
+  const odds = O.legacyOdds(st);
+  // Nearly certain first; the broken row and the missing ones are the built-in rows.
+  assert.deepEqual(odds[2], [50, 50, 0, 0, 0, 0]);
+  assert.deepEqual(odds[1], [...O.DEFAULT_ODDS_TABLE.likely]);
+  assert.deepEqual(odds[0], [...O.DEFAULT_ODDS_TABLE.nearlyCertain]);
+  kept.set(O.LEGACY_ODDS, "not json");
+  assert.equal(O.legacyOdds(st), null);
+  kept.set(O.LEGACY_SPARKS + "en", JSON.stringify({ action: ["a"], theme: ["t"], descriptor: ["d"], focus: ["f"] }));
+  assert.equal(O.legacySparks(st, "pt").action[0], "a", "the other language's, when the asked one has none");
+  kept.set(O.LEGACY_SPARKS + "pt", JSON.stringify({ action: ["a"] }));
+  assert.equal(O.legacySparks(st, "pt").theme[0], "t", "a broken one is passed over");
+  assert.equal(O.legacyOracleKept(st), true);
+  O.clearLegacyOracle(st);
+  assert.equal(O.legacyOracleKept(st), false);
+  assert.equal(kept.size, 0);
+});
+
+test("the tables an earlier build kept are read for the note they become, the rest left out", () => {
+  const kept = new Map();
+  const st = { getItem: (k) => (kept.has(k) ? kept.get(k) : null), removeItem: (k) => void kept.delete(k) };
+  kept.set(O.LEGACY_TABLES, JSON.stringify([
     { id: "a", name: "A" },
     { id: "b", name: "B", entries: [] },
-    { id: "twists", name: "clash", entries: ["x"] },
-    { id: "ok", name: "Ok", entries: ["um\ndois", "  ", "três"] },
+    { id: "ok", name: "Ok", desc: " d ", entries: ["um\ndois", "  ", "três"] },
     null,
   ]));
-  const { tables, skipped } = O.readCustomTables();
-  assert.equal(skipped, 4);
-  assert.deepEqual(tables.map((t) => t.id), ["ok"]);
-  assert.deepEqual(tables[0].entries, ["um dois", "três"]);
-  assert.equal(O.getAllOracleTables().length, O.BUILTIN_ORACLE_TABLES.length + 1);
-  assert.equal(O.saveCustomOracleTable({ id: "z", name: "Z", desc: "", icon: "dice", entries: [] }), false);
-  assert.equal(O.saveCustomOracleTable({ id: "twists", name: "Mine", desc: "", icon: "dice", entries: ["a"] }), true);
-  assert.ok(O.getAllOracleTables().some((t) => t.id === "custom-twists"));
-  store.delete("verso:oracle-custom-tables");
+  const { tables, skipped } = O.legacyTables(st);
+  assert.equal(skipped, 3);
+  assert.deepEqual(tables, [{ name: "Ok", desc: "d", entries: ["um dois", "três"] }]);
+  O.clearLegacyTables(st);
+  assert.deepEqual(O.legacyTables(st), { tables: [], skipped: 0 });
+});
+
+test("a table is a note: a list with an ^id that reads as a list everywhere", () => {
+  const one = O.tablesNoteText("Clima", [{ name: "Clima", entries: ["Sol", "Chuva ^x", "Neve\nforte", "  "] }]);
+  assert.equal(one.text, "# Clima\n\n- Sol\n- Chuva\n- Neve forte\n\n^clima\n");
+  assert.deepEqual(one.ids, ["clima"]);
+  const two = O.tablesNoteText("Tabelas", [{ name: "Ação!", desc: "uma\nlinha", entries: ["a"] }, { name: "Acao", entries: ["b"] }]);
+  assert.deepEqual(two.ids, ["acao", "acao-2"]);
+  assert.ok(two.text.includes("## Ação!\n\numa linha\n\n- a\n\n^acao\n\n## Acao\n\n- b\n\n^acao-2\n"));
+  assert.equal(O.blockIdOf("???"), "tabela");
+  assert.match(O.blockIdOf("Encontros na Estrada — dia"), /^[A-Za-z0-9-]+$/);
+  // What is written is found again as the table it was.
+  const lines = one.text.split("\n");
+  const found = O.tablesOfNote("Tabelas/Clima.md", lines, [{ id: "clima", first_line: 3, last_line: 5 }], [{ text: "Clima", line: 1 }]);
+  assert.deepEqual(found.map((t) => [t.id, t.name, t.entries, t.note, t.block]), [["Tabelas/Clima.md#^clima", "Clima", ["Sol", "Chuva", "Neve forte"], "Tabelas/Clima.md", "clima"]]);
+  assert.equal(O.tableLink(found[0]), "[[Tabelas/Clima#^clima]]");
+});
+
+test("where the note goes: a free name in a folder inside the open one", () => {
+  const taken = new Set(["tabelas/clima.md", "tabelas/clima 2.md"]);
+  assert.equal(O.freeNotePath("Tabelas", "Clima", taken), "Tabelas/Clima 3.md");
+  assert.equal(O.freeNotePath("", "Clima", taken), "Clima.md");
+  assert.equal(O.freeNotePath("/Tabelas/", "Vento", taken), "Tabelas/Vento.md");
+  assert.equal(O.noteNameOf("a/b:c?"), "a b c");
+  assert.equal(O.folderOf("Mundo\\Tabelas/"), "Mundo/Tabelas");
+  assert.equal(O.folderOf(""), "");
+  assert.equal(O.folderOf("../fora"), null);
+  assert.equal(O.folderOf("a/../b"), null);
+  assert.equal(O.folderOf("C:/x"), null);
+});
+
+test("the tables a folder's notes hold: lists, tables with one die; the rest are not drawable", () => {
+  const path = "Mundo.md";
+  const note = [
+    "# Mundo", "", "- a", "- b", "- c", "", "^lista", "",
+    "| d4 | Algo |", "| --- | --- |", "| 1 | um |", "| 2-3 | dois |", "| 4 | quatro |", "", "^dado", "",
+    "| 2d6 | Algo |", "| --- | --- |", "| 2-12 | tudo |", "", "^soma", "",
+    "| d4 | Algo |", "| --- | --- |", "| 1 | um |", "| 2 | dois |", "", "^buraco", "",
+    "Um texto.", "", "^texto",
+  ];
+  const at = (id) => {
+    const i = note.indexOf(`^${id}`);
+    let first = i - 1;
+    while (first > 0 && note[first - 1] !== "") first--;
+    return { id, first_line: first + 1, last_line: i - 1 };
+  };
+  const blocks = ["lista", "dado", "soma", "buraco", "texto"].map(at);
+  const tables = O.tablesOfNote(path, note, blocks, []);
+  assert.deepEqual(tables.map((t) => t.block), ["lista", "dado"]);
+  assert.deepEqual(tables[0].entries, ["a", "b", "c"]);
+  assert.deepEqual(tables[1].entries, ["um", "dois", "dois", "quatro"]);
+  assert.equal(tables[0].name, "Mundo");
+  O.setNoteTables(tables);
+  assert.equal(O.getAllOracleTables().length, O.BUILTIN_ORACLE_TABLES.length + 2);
+  assert.equal(O.noteTables().length, 2);
+  O.setNoteTables([]);
 });
 
 test("what a roll writes: one line, markdown escaped, the caret after the result", () => {

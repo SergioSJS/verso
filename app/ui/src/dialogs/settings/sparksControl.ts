@@ -2,24 +2,40 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// The oracle's idea-spark word banks in the settings (ADR 0102): four lists
-// per language, saved or restored.
+// The oracle's idea-spark word banks in the settings (ADR 0102): four
+// lists, saved in the open folder's settings (item 2) — one set for the
+// folder, whatever the language — or the built-in ones of a language. Read-
+// only where the person cannot write the folder's settings, with the reason.
 
 import { ask } from "../../dialog";
 import { button, h, ui } from "../../dom";
-import { generateSpark, getSparkWords, readSparkWords, resetSparkWords, saveSparkWords, type SparkWordLists } from "../../oracle/engine";
+import { builtinSparkWords, folderHasSparks, generateSpark, getSparkWords, type SparkWordLists } from "../../oracle/engine";
+import { legacySparksKept, oracleNotWritable, oracleWarnings, saveSparks, sparksIgnored } from "../../oracle/folderData";
 import { os } from "../../oracle/strings";
 import { LOCALE, t } from "../../strings";
 import { feedbackLine } from "./feedback";
 import { ss } from "./strings";
+import type { ItemCtx } from "./types";
 
 const words = (text: string): string[] => text.split(/[\n,]+/).map((w) => w.trim()).filter(Boolean);
 
-export function sparksControl(): HTMLElement {
+export function sparksControl(ctx: ItemCtx): HTMLElement {
   const wrap = h("div", "oracle-settings-section");
   let activeLang: "pt" | "en" = LOCALE === "pt-BR" ? "pt" : "en";
   const feedback = feedbackLine();
-  if (readSparkWords(activeLang).invalid) feedback.say(os.brokenSparks, true);
+  const why = oracleNotWritable();
+  const own = folderHasSparks();
+  // An earlier build's words, while the folder sets none: the page starts
+  // from them, and they move into the folder with the first save.
+  const legacy = own ? null : legacySparksKept();
+  const hint = h("p", "settings-hint", why ? ss.notWritable[why] : ss.inFolder);
+  const notes = h("div", "settings-feedback");
+  if (sparksIgnored()) {
+    notes.append(h("p", "settings-hint bad", `${os.brokenSparks} ${ss.ignoredInFile(ss.ignoredSparks)}`));
+    for (const w of oracleWarnings().filter((x) => x.startsWith("oracle sparks"))) notes.append(h("p", "settings-hint bad", w));
+  }
+  if (legacy) notes.append(h("p", "settings-hint", ss.legacyKept));
+  if (own) notes.append(h("p", "settings-hint", ss.wordsOfFolder));
 
   const langBar = h("div", "oracle-lang-bar");
   const ptBtn = button("ghost", ss.langPt);
@@ -33,16 +49,17 @@ export function sparksControl(): HTMLElement {
       btn.setAttribute("aria-pressed", String(lang === activeLang));
       btn.classList.toggle("active", lang === activeLang);
     }
-    const bank = getSparkWords(activeLang);
+    ptBtn.hidden = enBtn.hidden = langLabel.hidden = own;
+    const bank: SparkWordLists = own ? getSparkWords(activeLang) : legacy ?? builtinSparkWords(activeLang);
     for (const col of cols) {
       const list = bank[col.key] ?? [];
       col.textarea.value = list.join("\n");
       col.count.textContent = `(${list.length})`;
     }
   };
+  const langLabel = h("span", "oracle-lang-label", ss.sparksLang);
   ptBtn.addEventListener("click", () => { activeLang = "pt"; refresh(); });
   enBtn.addEventListener("click", () => { activeLang = "en"; refresh(); });
-  const langLabel = h("span", "oracle-lang-label", ss.sparksLang);
   langBar.append(langLabel, ptBtn, enBtn);
   langBar.setAttribute("role", "group");
   langBar.setAttribute("aria-label", ss.sparksLang);
@@ -54,6 +71,7 @@ export function sparksControl(): HTMLElement {
     labelWrap.append(label, col.count);
     const hint = h("div", "oracle-spark-col-hint", col.hint);
     col.textarea.rows = 5;
+    col.textarea.readOnly = why !== null;
     col.textarea.id = `spark-${col.key}`;
     col.textarea.setAttribute("aria-label", col.label);
     label.htmlFor = col.textarea.id;
@@ -70,6 +88,7 @@ export function sparksControl(): HTMLElement {
 
   const actions = h("div", "oracle-actions");
   const saveBtn = button("save", ss.saveWords);
+  saveBtn.disabled = why !== null;
   saveBtn.addEventListener("click", () => {
     const parsed = {} as SparkWordLists;
     for (const col of cols) parsed[col.key] = words(col.textarea.value);
@@ -79,17 +98,29 @@ export function sparksControl(): HTMLElement {
       feedback.say(ss.wordsEmptyColumn(empty.join(", ")), true);
       return;
     }
-    saveSparkWords(activeLang, parsed);
-    feedback.say(ss.savedOdds);
-    saveBtn.textContent = ss.savedOdds;
-    window.setTimeout(() => (saveBtn.textContent = ss.saveWords), 1800);
+    // Past the core's bounds it would refuse; say which column, here.
+    const over = cols.filter((col) => parsed[col.key]!.length > 200 || parsed[col.key]!.some((w) => [...w].length > 60)).map((col) => col.label);
+    if (over.length > 0) {
+      feedback.say(ss.wordsTooMany(over.join(", "), 200, 60), true);
+      return;
+    }
+    void saveSparks(parsed).then((ok) => {
+      if (!ok) return feedback.say(ss.savedFailed, true);
+      feedback.say(ss.savedOdds);
+      saveBtn.textContent = ss.savedOdds;
+      window.setTimeout(() => (saveBtn.textContent = ss.saveWords), 1800);
+      // The folder holds the words now: the page shows them as the folder's.
+      if (!own) ctx.paint();
+    });
   });
   const resetBtn = button("ghost", ss.restoreWords);
+  resetBtn.disabled = why !== null;
   resetBtn.addEventListener("click", () => {
     void (async () => {
       if (!(await ask(ss.restoreWordsAsk(activeLang), { yes: ss.restoreWords, no: t.cancel }))) return;
-      resetSparkWords(activeLang);
-      refresh();
+      // The folder's file has no way to unset the lists: the built-in ones are written.
+      if (!(await saveSparks(builtinSparkWords(activeLang)))) return feedback.say(ss.savedFailed, true);
+      ctx.paint();
       ui.status.textContent = ss.wordsRestored;
     })();
   });
@@ -102,6 +133,6 @@ export function sparksControl(): HTMLElement {
   });
   actions.append(saveBtn, resetBtn, testBtn, testBox);
 
-  wrap.append(langBar, grid, actions, feedback.el);
+  wrap.append(hint, notes, langBar, grid, actions, feedback.el);
   return wrap;
 }

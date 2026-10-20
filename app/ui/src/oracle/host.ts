@@ -10,6 +10,8 @@ import type { EditorView } from "@codemirror/view";
 
 export interface OracleHost {
   editor: EditorView;
+  /** The note's path: its room, when it is open in one (ADR 0102 item 5). */
+  path?: string;
   readOnly: boolean;
   /** "preview" is the reading view. */
   mode: string;

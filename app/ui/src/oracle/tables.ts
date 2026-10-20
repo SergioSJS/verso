@@ -3,13 +3,15 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 /**
- * Built-in and custom oracle tables (ADR 0102 / ADR 0088): the four tables
- * Verso ships and the ones the person keeps on this device. Tables written
- * in notes with a `^id` are not read here.
+ * The oracle's tables (ADR 0102 item 3, ADR 0088 item 3): the four Verso
+ * ships and every table or list with an `^id` in a note of the open folder.
+ * A table of one's own is a note; nothing of it lives in the window's
+ * storage. Rolling an entry is pure.
  */
 
 import { cryptoRandomSource, rollDie } from "../dice/rolai/rng";
 import type { RandomSource } from "../dice/rolai/types";
+import { type RandomTable, readTable, rowOf } from "../dice/table";
 import { builtinTableWords } from "./tablesText";
 
 export interface OracleTable {
@@ -18,6 +20,9 @@ export interface OracleTable {
   desc: string;
   icon: string;
   entries: readonly string[];
+  /** The note a table of the folder is written in, and the block's id. */
+  note?: string;
+  block?: string;
 }
 
 export const BUILTIN_ORACLE_TABLES: readonly OracleTable[] = [
@@ -34,107 +39,86 @@ export interface TableRollResult {
   entry: string;
 }
 
-const STORAGE_KEY_CUSTOM_TABLES = "verso:oracle-custom-tables";
+/** The most entries a table the oracle draws from may have (the server's
+ *  bound for a draw, `collab_oracle`). */
+export const ENTRIES_MOST = 500;
 
-const builtinIds = new Set(BUILTIN_ORACLE_TABLES.map((x) => x.id));
-
-/** One line of a table, as the callout will hold it: no line break. */
-function cleanEntry(e: unknown): string {
-  return typeof e === "string" ? e.replace(/\s*[\r\n]+\s*/g, " ").trim() : "";
-}
-
-/** A stored or imported table made fit to roll: a name, a non-empty list of
- *  one-line entries. `null` when nothing usable is left. */
-export function cleanTable(raw: unknown): OracleTable | null {
-  if (!raw || typeof raw !== "object") return null;
-  const o = raw as Record<string, unknown>;
-  const name = cleanEntry(o["name"]);
-  const id = typeof o["id"] === "string" ? o["id"].trim() : "";
-  if (!name || !id || !Array.isArray(o["entries"])) return null;
-  const entries = o["entries"].map(cleanEntry).filter((e) => e !== "");
-  if (entries.length === 0) return null;
-  return {
-    id,
-    name,
-    desc: typeof o["desc"] === "string" ? o["desc"] : "",
-    icon: typeof o["icon"] === "string" && o["icon"] ? o["icon"] : "note",
-    entries,
-  };
-}
-
-function storedCustom(): unknown[] {
-  try {
-    if (typeof localStorage !== "undefined") {
-      const raw = localStorage.getItem(STORAGE_KEY_CUSTOM_TABLES);
-      if (raw) {
-        const parsed: unknown = JSON.parse(raw);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    }
-  } catch {
-    // fallback
+/** A random table's rows as the entries the oracle draws one of, each as
+ *  likely as the table makes it: the rows of a list or of a table with no
+ *  die; a table with one die in its header, one entry per face (a row that
+ *  owns several faces appears for each). Null when it cannot be drawn
+ *  evenly — dice added together, a face no row owns, more than the bound. */
+export function entriesOf(table: RandomTable): string[] | null {
+  if (!table.ranged) {
+    const e = table.rows.map((r) => r.text);
+    return e.length >= 1 && e.length <= ENTRIES_MOST ? e : null;
   }
-  return [];
-}
-
-/** The tables the person made, those fit to roll, and how many stored ones
- *  were left out (broken, empty, or sharing an id with another). */
-export function readCustomTables(): { tables: OracleTable[]; skipped: number } {
-  const tables: OracleTable[] = [];
-  const seen = new Set<string>(builtinIds);
-  let skipped = 0;
-  for (const raw of storedCustom()) {
-    const tbl = cleanTable(raw);
-    if (!tbl || seen.has(tbl.id)) {
-      skipped++;
-      continue;
-    }
-    seen.add(tbl.id);
-    tables.push(tbl);
+  const m = /^1?d(\d+)$/.exec(table.notation);
+  const sides = m ? Number(m[1]) : 0;
+  if (sides < 2 || sides > ENTRIES_MOST) return null;
+  const out: string[] = [];
+  for (let face = 1; face <= sides; face++) {
+    const row = rowOf(table, face);
+    if (!row || row.text === "") return null;
+    out.push(row.text);
   }
-  return { tables, skipped };
+  return out;
 }
 
-/** Retrieve all tables: built-in and user-created custom tables. */
+/** The tables written in one note: each block with an `^id` that reads as a
+ *  random table. `lines` are the note's, `blocks` its ids, `headings` its
+ *  headings; a table is named by the heading above it, else by the note. */
+export function tablesOfNote(
+  path: string,
+  lines: readonly string[],
+  blocks: readonly { id: string; first_line: number; last_line: number }[],
+  headings: readonly { text: string; line: number }[],
+): OracleTable[] {
+  const title = path.replace(/^.*\//, "").replace(/\.md$/i, "");
+  const out: OracleTable[] = [];
+  const seen = new Set<string>();
+  // With the id twice, the last (spec Q4): the one a link reaches.
+  for (const b of [...blocks].reverse()) {
+    if (seen.has(b.id)) continue;
+    seen.add(b.id);
+    const t = readTable(lines.slice(b.first_line - 1, b.last_line));
+    if (typeof t === "string") continue;
+    const entries = entriesOf(t);
+    if (!entries) continue;
+    const above = [...headings].filter((h) => h.line < b.first_line).sort((a, c) => c.line - a.line)[0];
+    out.push({
+      id: `${path}#^${b.id}`,
+      name: above && above.text.trim() ? above.text.trim() : title,
+      desc: `${path} ^${b.id}`,
+      icon: "note",
+      entries,
+      note: path,
+      block: b.id,
+    });
+  }
+  return out.reverse();
+}
+
+let found: OracleTable[] = [];
+
+/** Replace the folder's tables (after a scan). */
+export function setNoteTables(tables: readonly OracleTable[]): void {
+  found = [...tables];
+}
+
+/** The tables the oracle lists now: the built-in ones and the folder's. */
 export function getAllOracleTables(): OracleTable[] {
-  return [...BUILTIN_ORACLE_TABLES, ...readCustomTables().tables];
+  return [...BUILTIN_ORACLE_TABLES, ...found];
 }
 
-/** Save or update a custom oracle table. An id a built-in table has is not
- *  taken: the table is kept under `custom-<id>`. Returns false when the table
- *  has nothing to roll (no name, no entry) and nothing is saved. */
-export function saveCustomOracleTable(table: OracleTable): boolean {
-  const clean = cleanTable(table);
-  if (!clean) return false;
-  if (builtinIds.has(clean.id)) clean.id = `custom-${clean.id}`;
-  try {
-    if (typeof localStorage !== "undefined") {
-      // Keep what is stored, however odd: only this table changes.
-      const all = storedCustom();
-      const at = all.findIndex((t) => t && typeof t === "object" && (t as { id?: unknown }).id === clean.id);
-      if (at >= 0) all[at] = clean;
-      else all.push(clean);
-      localStorage.setItem(STORAGE_KEY_CUSTOM_TABLES, JSON.stringify(all));
-      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("verso:oracle-tables-changed"));
-      return true;
-    }
-  } catch {
-    // ignore
-  }
-  return false;
+/** The folder's tables found by the last scan. */
+export function noteTables(): readonly OracleTable[] {
+  return found;
 }
 
-/** Delete a custom oracle table. */
-export function deleteCustomOracleTable(id: string): void {
-  try {
-    if (typeof localStorage !== "undefined") {
-      const kept = storedCustom().filter((t) => !(t && typeof t === "object" && (t as { id?: unknown }).id === id));
-      localStorage.setItem(STORAGE_KEY_CUSTOM_TABLES, JSON.stringify(kept));
-      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("verso:oracle-tables-changed"));
-    }
-  } catch {
-    // ignore
-  }
+/** The `[[Note#^id]]` link a table of the folder is known by. */
+export function tableLink(t: OracleTable): string | null {
+  return t.note && t.block ? `[[${t.note.replace(/\.md$/i, "")}#^${t.block}]]` : null;
 }
 
 /** Roll an entry from an oracle table using cryptographic RNG (ADR 0088
@@ -145,4 +129,11 @@ export function rollOracleTable(table: OracleTable, rand: RandomSource = cryptoR
   const roll = rollDie(total, rand);
   const entry = table.entries[roll - 1] ?? table.entries[0] ?? "";
   return { table, roll, total, entry };
+}
+
+/** What the server drew for a table in a room: the entry's place and the
+ *  entry. Null when the answer does not fit the table. */
+export function tableDrawn(table: OracleTable, roll: number, entry: string): TableRollResult | null {
+  if (!Number.isInteger(roll) || roll < 1 || roll > table.entries.length || entry === "") return null;
+  return { table, roll, total: table.entries.length, entry };
 }
