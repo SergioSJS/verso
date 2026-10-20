@@ -21,6 +21,33 @@
   (o que um lado não pode fazer não é mostrado), spec Q7, Q8 e Q12
   (nomes), [0035](0035-cross-cutting-requirements.md).
 - Status no briefing: ausente; ao ser aceita.
+- Revisões: 2026-10-20 — item 5, a sugestão enquanto se escreve,
+  ampliada. O mantenedor, ao experimentá-la: *"tem que escrever o exato
+  nome? parcial não lista?"*, depois *"nome completo é bem ruim"*, e,
+  entre três jeitos que outros apps usam, *"eu gosto do 1 e do 2, o 1 pq a
+  gente engloba pessoas já acostumadas com notion … converter para [[]]
+  quando usa o @ eu diria que sim. e a opção 2 resolve também, aí se a
+  pessoa apertar esc enquanto digita some a sugestão"*.
+  `[DECIDIDO 2026-10-20]`: (a) **`@` abre a lista de notas**, a mesma
+  lista e o mesmo casamento do completar do `[[`, parcial e atento a
+  acentos; escolher uma nota escreve `[[Nome]]` (ou `[[Nome|digitado]]`,
+  como no item 2) no lugar do `@` e do que veio depois — o arquivo
+  continua no dialeto do Obsidian, onde `@` não significa nada.
+  `[PROPOSTO]`: ligado por padrão (só abre quando pedido); só no começo
+  de uma palavra (`fulano@mail` nunca o abre); sem escolha, o `@` e o
+  texto ficam como digitados; nunca em código, no frontmatter, num link,
+  em fórmulas, em HTML ou numa tag.
+  (b) **A sugestão enquanto se escreve lista nomes parciais**: das
+  primeiras letras das palavras recém-digitadas, uma lista curta das notas
+  (e apelidos) cujo nome começa por elas, que se estreita conforme se
+  digita; setas escolhem, Tab ou Enter aceita, Esc dispensa naquela
+  palavra. `[PROPOSTO]`: três letras no mínimo, e só para uma palavra que
+  começa com maiúscula — nomes de lugares, pessoas e facções começam, as
+  palavras comuns que tornaram necessária a regra do nome inteiro em geral
+  não; no máximo cinco entradas; um nome inteiro digitado mantém o chip,
+  que agora fica depois de um espaço ou pontuação até a próxima palavra
+  começar. Continua desligada por padrão, o mesmo ajuste, as mesmas pastas
+  e nomes ignorados.
 
 ## Contexto
 
