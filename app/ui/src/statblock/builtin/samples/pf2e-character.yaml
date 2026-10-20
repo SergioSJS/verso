@@ -1,0 +1,27 @@
+name: Tamsin Orrel
+ancestry: Human
+heritage: Skilled
+background: Scribe
+class: Investigator
+level: 2
+xp: 400
+size: Medium
+attributes: [0, 3, 1, 4, 2, 0]
+ac: 17
+fortitude: 6
+reflex: 8
+will: 7
+perception: 7
+hp: 24
+hp_current: 24
+speed: 25 feet
+hero_points: 1
+skills:
+  society: 7
+  occultism: 5
+strikes:
+  - name: Rapier
+    desc: "+7, damage 1d6+3 piercing"
+feats:
+  - Quick Study
+notes: Keeps a ledger of every favor.

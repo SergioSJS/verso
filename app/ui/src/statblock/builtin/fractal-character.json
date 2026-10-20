@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "id": "fractal-character",
+  "name": {
+    "pt": "Fractal — Personagem",
+    "en": "Fractal — Character"
+  },
+  "description": {
+    "pt": "Ficha de personagem do Fractal: Reservas, Fatos que quebram e se recuperam, XP e Anotações. Só os nomes dos campos.",
+    "en": "A Fractal character sheet: Reservas, Fatos that break and mend, XP and Anotações. Field names only; the terms are the game's own, in Portuguese."
+  },
+  "sources": [
+    {
+      "label": "Fractal RPG SRD v1.0.3 (official)",
+      "url": "https://fractal-system.itch.io/pt-br"
+    },
+    {
+      "label": "Walter Licínio on Fractal",
+      "url": "https://walterlicinio.itch.io/fractal"
+    }
+  ],
+  "profile": "fractal",
+  "columns": 1,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"who","properties":["jogador","xp"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"jogador","properties":["jogador"],"label":{"pt":"Jogador","en":"Jogador"},"hideWhenEmpty":true},{"type":"property","id":"xp","properties":["xp"],"label":{"pt":"XP","en":"XP"},"hideWhenEmpty":true}]},
+    {"type":"inline","id":"reserva-1","properties":["reserva_1_nome","reserva_1_atual","reserva_1_total"],"hideWhenEmpty":true,"nested":[{"type":"property","id":"reserva-1-nome","properties":["reserva_1_nome"],"label":{"pt":"Reserva 1","en":"Reserva 1"},"hideWhenEmpty":true,"template":"{reserva_1_nome}"},{"type":"tracker","id":"reserva-1-valor","properties":["reserva_1_atual","reserva_1_total"],"label":{"pt":"Atual / Total","en":"Atual / Total"},"hideWhenEmpty":true,"current":"reserva_1_atual","max":"reserva_1_total","style":"boxes"}]},
+    {"type":"inline","id":"reserva-2","properties":["reserva_2_nome","reserva_2_atual","reserva_2_total"],"hideWhenEmpty":true,"nested":[{"type":"property","id":"reserva-2-nome","properties":["reserva_2_nome"],"label":{"pt":"Reserva 2","en":"Reserva 2"},"hideWhenEmpty":true,"template":"{reserva_2_nome}"},{"type":"tracker","id":"reserva-2-valor","properties":["reserva_2_atual","reserva_2_total"],"label":{"pt":"Atual / Total","en":"Atual / Total"},"hideWhenEmpty":true,"current":"reserva_2_atual","max":"reserva_2_total","style":"boxes"}]},
+    {"type":"inline","id":"reserva-3","properties":["reserva_3_nome","reserva_3_atual","reserva_3_total"],"hideWhenEmpty":true,"nested":[{"type":"property","id":"reserva-3-nome","properties":["reserva_3_nome"],"label":{"pt":"Reserva 3","en":"Reserva 3"},"hideWhenEmpty":true,"template":"{reserva_3_nome}"},{"type":"tracker","id":"reserva-3-valor","properties":["reserva_3_atual","reserva_3_total"],"label":{"pt":"Atual / Total","en":"Atual / Total"},"hideWhenEmpty":true,"current":"reserva_3_atual","max":"reserva_3_total","style":"boxes"}]},
+    {"type":"inline","id":"reserva-4","properties":["reserva_4_nome","reserva_4_atual","reserva_4_total"],"hideWhenEmpty":true,"nested":[{"type":"property","id":"reserva-4-nome","properties":["reserva_4_nome"],"label":{"pt":"Reserva 4","en":"Reserva 4"},"hideWhenEmpty":true,"template":"{reserva_4_nome}"},{"type":"tracker","id":"reserva-4-valor","properties":["reserva_4_atual","reserva_4_total"],"label":{"pt":"Atual / Total","en":"Atual / Total"},"hideWhenEmpty":true,"current":"reserva_4_atual","max":"reserva_4_total","style":"boxes"}]},
+    {"type":"inline","id":"reserva-5","properties":["reserva_5_nome","reserva_5_atual","reserva_5_total"],"hideWhenEmpty":true,"nested":[{"type":"property","id":"reserva-5-nome","properties":["reserva_5_nome"],"label":{"pt":"Reserva 5","en":"Reserva 5"},"hideWhenEmpty":true,"template":"{reserva_5_nome}"},{"type":"tracker","id":"reserva-5-valor","properties":["reserva_5_atual","reserva_5_total"],"label":{"pt":"Atual / Total","en":"Atual / Total"},"hideWhenEmpty":true,"current":"reserva_5_atual","max":"reserva_5_total","style":"boxes"}]},
+    {"type":"inline","id":"reserva-6","properties":["reserva_6_nome","reserva_6_atual","reserva_6_total"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"reserva-6-nome","properties":["reserva_6_nome"],"label":{"pt":"Reserva 6","en":"Reserva 6"},"hideWhenEmpty":true,"template":"{reserva_6_nome}"},{"type":"tracker","id":"reserva-6-valor","properties":["reserva_6_atual","reserva_6_total"],"label":{"pt":"Atual / Total","en":"Atual / Total"},"hideWhenEmpty":true,"current":"reserva_6_atual","max":"reserva_6_total","style":"boxes"}]},
+    {"type":"inline","id":"fato-1","properties":["fato_1"],"hideWhenEmpty":true,"nested":[{"type":"property","id":"fato-1-texto","properties":["fato_1"],"label":{"pt":"Fato 1","en":"Fato 1"},"hideWhenEmpty":true,"template":"{fato_1}"},{"type":"tracker","id":"fato-1-quebrado","properties":["fato_1"],"label":{"pt":"Quebrado","en":"Quebrado"},"hideWhenEmpty":true,"current":"fato_1_quebrado","max":1,"style":"boxes"}]},
+    {"type":"inline","id":"fato-2","properties":["fato_2"],"hideWhenEmpty":true,"nested":[{"type":"property","id":"fato-2-texto","properties":["fato_2"],"label":{"pt":"Fato 2","en":"Fato 2"},"hideWhenEmpty":true,"template":"{fato_2}"},{"type":"tracker","id":"fato-2-quebrado","properties":["fato_2"],"label":{"pt":"Quebrado","en":"Quebrado"},"hideWhenEmpty":true,"current":"fato_2_quebrado","max":1,"style":"boxes"}]},
+    {"type":"inline","id":"fato-3","properties":["fato_3"],"hideWhenEmpty":true,"nested":[{"type":"property","id":"fato-3-texto","properties":["fato_3"],"label":{"pt":"Fato 3","en":"Fato 3"},"hideWhenEmpty":true,"template":"{fato_3}"},{"type":"tracker","id":"fato-3-quebrado","properties":["fato_3"],"label":{"pt":"Quebrado","en":"Quebrado"},"hideWhenEmpty":true,"current":"fato_3_quebrado","max":1,"style":"boxes"}]},
+    {"type":"inline","id":"fato-4","properties":["fato_4"],"hideWhenEmpty":true,"nested":[{"type":"property","id":"fato-4-texto","properties":["fato_4"],"label":{"pt":"Fato 4","en":"Fato 4"},"hideWhenEmpty":true,"template":"{fato_4}"},{"type":"tracker","id":"fato-4-quebrado","properties":["fato_4"],"label":{"pt":"Quebrado","en":"Quebrado"},"hideWhenEmpty":true,"current":"fato_4_quebrado","max":1,"style":"boxes"}]},
+    {"type":"inline","id":"fato-5","properties":["fato_5"],"hideWhenEmpty":true,"nested":[{"type":"property","id":"fato-5-texto","properties":["fato_5"],"label":{"pt":"Fato 5","en":"Fato 5"},"hideWhenEmpty":true,"template":"{fato_5}"},{"type":"tracker","id":"fato-5-quebrado","properties":["fato_5"],"label":{"pt":"Quebrado","en":"Quebrado"},"hideWhenEmpty":true,"current":"fato_5_quebrado","max":1,"style":"boxes"}]},
+    {"type":"inline","id":"fato-6","properties":["fato_6"],"hideWhenEmpty":true,"nested":[{"type":"property","id":"fato-6-texto","properties":["fato_6"],"label":{"pt":"Fato 6","en":"Fato 6"},"hideWhenEmpty":true,"template":"{fato_6}"},{"type":"tracker","id":"fato-6-quebrado","properties":["fato_6"],"label":{"pt":"Quebrado","en":"Quebrado"},"hideWhenEmpty":true,"current":"fato_6_quebrado","max":1,"style":"boxes"}]},
+    {"type":"inline","id":"fato-7","properties":["fato_7"],"hideWhenEmpty":true,"nested":[{"type":"property","id":"fato-7-texto","properties":["fato_7"],"label":{"pt":"Fato 7","en":"Fato 7"},"hideWhenEmpty":true,"template":"{fato_7}"},{"type":"tracker","id":"fato-7-quebrado","properties":["fato_7"],"label":{"pt":"Quebrado","en":"Quebrado"},"hideWhenEmpty":true,"current":"fato_7_quebrado","max":1,"style":"boxes"}]},
+    {"type":"inline","id":"fato-8","properties":["fato_8"],"hideWhenEmpty":true,"nested":[{"type":"property","id":"fato-8-texto","properties":["fato_8"],"label":{"pt":"Fato 8","en":"Fato 8"},"hideWhenEmpty":true,"template":"{fato_8}"},{"type":"tracker","id":"fato-8-quebrado","properties":["fato_8"],"label":{"pt":"Quebrado","en":"Quebrado"},"hideWhenEmpty":true,"current":"fato_8_quebrado","max":1,"style":"boxes"}]},
+    {"type":"inline","id":"fato-9","properties":["fato_9"],"hideWhenEmpty":true,"nested":[{"type":"property","id":"fato-9-texto","properties":["fato_9"],"label":{"pt":"Fato 9","en":"Fato 9"},"hideWhenEmpty":true,"template":"{fato_9}"},{"type":"tracker","id":"fato-9-quebrado","properties":["fato_9"],"label":{"pt":"Quebrado","en":"Quebrado"},"hideWhenEmpty":true,"current":"fato_9_quebrado","max":1,"style":"boxes"}]},
+    {"type":"inline","id":"fato-10","properties":["fato_10"],"hideWhenEmpty":true,"nested":[{"type":"property","id":"fato-10-texto","properties":["fato_10"],"label":{"pt":"Fato 10","en":"Fato 10"},"hideWhenEmpty":true,"template":"{fato_10}"},{"type":"tracker","id":"fato-10-quebrado","properties":["fato_10"],"label":{"pt":"Quebrado","en":"Quebrado"},"hideWhenEmpty":true,"current":"fato_10_quebrado","max":1,"style":"boxes"}]},
+    {"type":"inline","id":"fato-11","properties":["fato_11"],"hideWhenEmpty":true,"nested":[{"type":"property","id":"fato-11-texto","properties":["fato_11"],"label":{"pt":"Fato 11","en":"Fato 11"},"hideWhenEmpty":true,"template":"{fato_11}"},{"type":"tracker","id":"fato-11-quebrado","properties":["fato_11"],"label":{"pt":"Quebrado","en":"Quebrado"},"hideWhenEmpty":true,"current":"fato_11_quebrado","max":1,"style":"boxes"}]},
+    {"type":"inline","id":"fato-12","properties":["fato_12"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"fato-12-texto","properties":["fato_12"],"label":{"pt":"Fato 12","en":"Fato 12"},"hideWhenEmpty":true,"template":"{fato_12}"},{"type":"tracker","id":"fato-12-quebrado","properties":["fato_12"],"label":{"pt":"Quebrado","en":"Quebrado"},"hideWhenEmpty":true,"current":"fato_12_quebrado","max":1,"style":"boxes"}]},
+    {"type":"text","id":"anotacoes","properties":["anotacoes"],"label":{"pt":"Anotações","en":"Anotações"},"hideWhenEmpty":true,"dice":true},
+    {"type":"roll","id":"rolagem","properties":[],"label":{"pt":"Rolagem de Risco","en":"Rolagem de Risco"},"inputs":{"fatos_aplicaveis":{"key":"fatos_aplicaveis"},"vantagem":{"key":"vantagem"}}}
+  ]
+}

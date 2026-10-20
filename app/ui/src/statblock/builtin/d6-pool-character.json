@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "id": "d6-pool-character",
+  "name": {
+    "pt": "Pool de d6 — Personagem",
+    "en": "d6 pool — Character"
+  },
+  "description": {
+    "pt": "Para jogos de pool de d6 com sucessos nos 6 (a família Year Zero): atributos, perícias, vida e resolução. Um desenho do Verso.",
+    "en": "For d6-pool games counting sixes (the Year Zero family): attributes, skills, health and resolve. Verso's own design."
+  },
+  "profile": "yze",
+  "columns": 2,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name","archetype"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1},{"type":"subheading","id":"kind","properties":["archetype"],"hideWhenEmpty":true,"separator":", "}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"saves","id":"attributes","properties":["attributes"],"label":{"pt":"Attributes","en":"Attributes"},"hideWhenEmpty":true,"dice":false},
+    {"type":"saves","id":"skills","properties":["skills"],"label":{"pt":"Skills","en":"Skills"},"hideWhenEmpty":true,"dice":false},
+    {"type":"group","id":"tracks","properties":["health","health_max","resolve","resolve_max","xp"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"tracker","id":"health","properties":["health","health_max"],"label":{"pt":"Health","en":"Health"},"hideWhenEmpty":true,"current":"health","max":"health_max","style":"boxes"},{"type":"tracker","id":"resolve","properties":["resolve","resolve_max"],"label":{"pt":"Resolve","en":"Resolve"},"hideWhenEmpty":true,"current":"resolve","max":"resolve_max","style":"boxes"},{"type":"property","id":"xp","properties":["xp"],"label":{"pt":"XP","en":"XP"},"hideWhenEmpty":true}]},
+    {"type":"traits","id":"specialties","properties":["specialties"],"label":{"pt":"Specialties","en":"Specialties"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"personality","properties":["personality_traits"],"label":{"pt":"Personality traits","en":"Personality traits"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"gear","properties":["gear"],"label":{"pt":"Gear","en":"Gear"},"hideWhenEmpty":true,"dice":true},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":true},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar o pool","en":"Roll the pool"},"inputs":{}}
+  ]
+}

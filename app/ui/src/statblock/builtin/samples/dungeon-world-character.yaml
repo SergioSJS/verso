@@ -1,0 +1,22 @@
+name: Bram Ashgrove
+class: Ranger
+race: Dwarf
+race_move: Our own note on a race move
+look: Gray braids, a lantern on a pole
+alignment: Neutral
+level: 1
+xp: 0
+attributes: [12, 16, 15, 9, 13, 8]
+hp: 18
+hp_current: 18
+armor: 1
+damage: d8
+load: 10
+debilities: none
+bonds:
+  - Ilsa has saved me before
+starting_moves:
+  - Hunt and Track
+gear:
+  - Rations
+coin: 3

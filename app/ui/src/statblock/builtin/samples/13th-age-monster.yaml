@@ -1,0 +1,12 @@
+name: Gutter Wretch
+size_strength: normal
+level: 2
+role: Mook
+type: humanoid
+initiative: +3
+attack: "Rusty hook +7 vs AC, 4 damage"
+extra_effects: "Natural even hit: our own note"
+ac: 17
+pd: 14
+md: 10
+hp: 7

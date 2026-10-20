@@ -1,0 +1,7 @@
+name: Gate Thugs
+aspects:
+  - Too many to fight in a doorway
+skilled_at: Intimidating, blocking
+bad_at: Thinking ahead
+stress: 0
+stress_max: 2

@@ -24,6 +24,7 @@ import {
   type DiceRule,
   type Label,
   type Layout,
+  type LayoutSource,
   type Modifier,
   type Predicate,
   type RollInput,
@@ -245,6 +246,22 @@ class Reader {
     return undefined;
   }
 
+  /** The sources a layout names: a label and an `https://` address each. */
+  sources(v: unknown): LayoutSource[] {
+    const out: LayoutSource[] = [];
+    if (!Array.isArray(v)) return out;
+    v.slice(0, LIMITS.sources).forEach((s, i) => {
+      const at = `sources[${i}]`;
+      if (!isMap(s)) return this.note(at, S.problem.block);
+      const label = str(own(s, "label"), LIMITS.label);
+      const url = str(own(s, "url"), LIMITS.url);
+      if (!label || !label.trim() || !url || !/^https:\/\/[^\s<>"']+$/.test(url)) return this.note(at, S.problem.source);
+      out.push({ label, url });
+    });
+    if (v.length > LIMITS.sources) this.note("sources", S.problem.tooMany);
+    return out;
+  }
+
   rules(v: unknown): DiceRule[] {
     const out: DiceRule[] = [];
     if (!Array.isArray(v)) return out;
@@ -319,6 +336,7 @@ export function validateLayout(raw: unknown, id?: string): Validated {
   const description = readLabel(own(raw, "description"), 1000);
   const profile = own(raw, "profile");
   if (profile !== undefined && !isProfile(profile)) r.note("profile", S.problem.profile(String(profile).slice(0, 40)));
+  const sources = r.sources(own(raw, "sources"));
   const columns = own(raw, "columns");
   const width = own(raw, "columnWidth");
   const layout: Layout = {
@@ -326,6 +344,7 @@ export function validateLayout(raw: unknown, id?: string): Validated {
     id: layoutId,
     name: name ?? { pt: S.newLayout, en: S.newLayout },
     ...(description ? { description } : {}),
+    ...(sources.length > 0 ? { sources } : {}),
     ...(isProfile(profile) ? { profile } : {}),
     diceRules: r.rules(own(raw, "diceRules")),
     appearance: r.appearance(own(raw, "appearance")),

@@ -1,0 +1,18 @@
+name: Krard, o Dragão Negro
+descricao: Uma fera de exemplo; o texto é nosso.
+obstaculos:
+  - Escamas negras
+  - "[[Ninho de Krard]]"
+  - Voo sobre o desfiladeiro
+obstaculos_quebrados: 1
+obstaculos_total: 3
+reserva_1_nome: Vida
+reserva_1_atual: 10
+reserva_1_total: 10
+reserva_1_gatilho: a cada dano sofrido
+reserva_1_consequencia: Krard morre
+reserva_2_nome: Mana
+reserva_2_atual: 3
+reserva_2_total: 3
+antecipacao: 3
+fatos_aplicaveis: 2

@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "id": "ladder-aspects-character",
+  "name": {
+    "pt": "Escada e aspectos — Personagem",
+    "en": "Ladder and aspects — Character"
+  },
+  "description": {
+    "pt": "Para jogos de 4dF com uma escada de adjetivos e aspectos que se invocam: aspectos, perícias na escada, façanhas, estresse e consequências. Um desenho do Verso.",
+    "en": "For 4dF games with a ladder of adjectives and aspects you invoke: aspects, ladder skills, stunts, stress and consequences. Verso's own design."
+  },
+  "profile": "fate",
+  "columns": 2,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"traits","id":"aspects","properties":["aspects"],"label":{"pt":"Aspects","en":"Aspects"},"hideWhenEmpty":true,"dice":true},
+    {"type":"saves","id":"ladder","properties":["ladder"],"label":{"pt":"Ladder","en":"Ladder"},"hideWhenEmpty":true,"dice":false,"rule":true},
+    {"type":"traits","id":"stunts","properties":["stunts"],"label":{"pt":"Stunts","en":"Stunts"},"hideWhenEmpty":true,"dice":true},
+    {"type":"group","id":"tokens","properties":["refresh","fate_points"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"refresh","properties":["refresh"],"label":{"pt":"Refresh","en":"Refresh"},"hideWhenEmpty":true},{"type":"property","id":"fate-points","properties":["fate_points"],"label":{"pt":"Fate points","en":"Fate points"},"hideWhenEmpty":true}]},
+    {"type":"tracker","id":"stress","properties":["stress","stress_max"],"label":{"pt":"Stress","en":"Stress"},"hideWhenEmpty":true,"current":"stress","max":"stress_max","style":"boxes"},
+    {"type":"group","id":"consequences","properties":["consequence_mild","consequence_moderate","consequence_severe"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"mild","properties":["consequence_mild"],"label":{"pt":"Mild consequence","en":"Mild consequence"},"hideWhenEmpty":true},{"type":"property","id":"moderate","properties":["consequence_moderate"],"label":{"pt":"Moderate consequence","en":"Moderate consequence"},"hideWhenEmpty":true},{"type":"property","id":"severe","properties":["consequence_severe"],"label":{"pt":"Severe consequence","en":"Severe consequence"},"hideWhenEmpty":true}]},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":true},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar 4dF","en":"Roll 4dF"},"inputs":{}}
+  ]
+}
