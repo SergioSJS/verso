@@ -54,7 +54,9 @@ pub mod sync;
 pub mod trash;
 pub mod typed;
 pub use focuses::{Focus, FocusesSummary, ReadOnlyReasonCode};
-pub use folder_data::{DataEntry, DataFile, FOLDER_DATA_MOST, FolderDataKind};
+pub use folder_data::{
+    DataEntry, DataFile, FOLDER_BUNDLE_MOST, FOLDER_LAYOUT_MOST, FolderDataKind,
+};
 pub use folder_settings::{FolderLayer, FolderSettings, LayerProblem};
 pub use oracle::{Oracle, OracleSparks};
 pub use periodic::{ObsidianPeriodic, Period, Periodic};

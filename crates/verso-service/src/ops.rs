@@ -426,7 +426,7 @@ ops! {
         Ok(FolderDataFile { text: file.text, revision: file.revision })
     }
 
-    /// Write a data file (one JSON object, at most 256 KiB): with no
+    /// Write a data file (one JSON object: a layout of at most 256 KiB, a bundle of at most 4 MiB): with no
     /// `revision` a new file (`exists` when one stands there), else over
     /// the version that revision describes (`changed` otherwise).
     Write fn write_folder_data(

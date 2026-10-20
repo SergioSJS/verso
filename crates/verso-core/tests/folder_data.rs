@@ -16,8 +16,8 @@ use std::path::Path;
 
 use tempfile::{Builder, tempdir};
 use verso_core::{
-    CoreError, FOLDER_DATA_MOST, FolderDataKind, FolderSettings, Oracle, OracleSparks, Workspace,
-    WriteError,
+    CoreError, FOLDER_BUNDLE_MOST, FOLDER_LAYOUT_MOST, FolderDataKind, FolderSettings, Oracle,
+    OracleSparks, Workspace, WriteError,
 };
 
 const KIND: FolderDataKind = FolderDataKind::Layouts;
@@ -185,7 +185,7 @@ fn a_text_that_is_not_a_json_object_or_is_too_large_is_refused() {
     let config = tempdir().unwrap();
     let mut ws = open(dir.path(), config.path());
     ws.index().unwrap();
-    let big = format!("{{\"a\": \"{}\"}}", "x".repeat(FOLDER_DATA_MOST));
+    let big = format!("{{\"a\": \"{}\"}}", "x".repeat(FOLDER_LAYOUT_MOST));
     for bad in ["", "[1]", "3", "\"x\"", "null", "{", "not json", &big] {
         let refused = ws.write_folder_data(KIND, "mesa", bad, None);
         assert!(
@@ -195,12 +195,49 @@ fn a_text_that_is_not_a_json_object_or_is_too_large_is_refused() {
         );
     }
     // Exactly at the bound passes.
-    let pad = FOLDER_DATA_MOST - "{\"a\":\"\"}".len();
+    let pad = FOLDER_LAYOUT_MOST - "{\"a\":\"\"}".len();
     let at = format!("{{\"a\":\"{}\"}}", "x".repeat(pad));
-    assert_eq!(at.len(), FOLDER_DATA_MOST);
+    assert_eq!(at.len(), FOLDER_LAYOUT_MOST);
     ws.write_folder_data(KIND, "mesa", &at, None).unwrap();
     // Nothing was made by the refusals.
     assert_eq!(ws.list_folder_data(KIND).unwrap().len(), 1);
+}
+
+#[test]
+fn a_bundle_may_be_larger_than_a_layout_to_four_mib() {
+    let dir = tempdir().unwrap();
+    let config = tempdir().unwrap();
+    let mut ws = open(dir.path(), config.path());
+    ws.index().unwrap();
+    let one = |n: usize| format!("{{\"a\":\"{}\"}}", "x".repeat(n - "{\"a\":\"\"}".len()));
+    // 1 MiB: a bundle, not a layout.
+    let mib = one(1024 * 1024);
+    assert!(matches!(
+        ws.write_folder_data(KIND, "mesa", &mib, None),
+        Err(CoreError::FolderData(_))
+    ));
+    let rev = ws
+        .write_folder_data(FolderDataKind::Bundles, "mundo", &mib, None)
+        .unwrap();
+    // Read back whole, listed with its revision.
+    let read = ws
+        .read_folder_data(FolderDataKind::Bundles, "mundo")
+        .unwrap();
+    assert_eq!(
+        (read.text.len(), read.revision.as_str()),
+        (mib.len(), rev.as_str())
+    );
+    let listed = ws.list_folder_data(FolderDataKind::Bundles).unwrap();
+    assert_eq!(listed[0].revision, rev);
+    // Exactly 4 MiB passes, one byte more does not.
+    let at = one(FOLDER_BUNDLE_MOST);
+    ws.write_folder_data(FolderDataKind::Bundles, "cheio", &at, None)
+        .unwrap();
+    let past = one(FOLDER_BUNDLE_MOST + 1);
+    assert!(matches!(
+        ws.write_folder_data(FolderDataKind::Bundles, "alem", &past, None),
+        Err(CoreError::FolderData(_))
+    ));
 }
 
 #[test]
@@ -208,7 +245,7 @@ fn a_file_past_the_bound_on_disk_is_refused_unread_and_listed_without_a_revision
     let dir = tempdir().unwrap();
     let config = tempdir().unwrap();
     data_dir(dir.path(), "layouts");
-    let big = format!("{{\"a\": \"{}\"}}", "x".repeat(FOLDER_DATA_MOST));
+    let big = format!("{{\"a\": \"{}\"}}", "x".repeat(FOLDER_LAYOUT_MOST));
     fs::write(dir.path().join(".verso/layouts/grande.json"), big).unwrap();
     let mut ws = open(dir.path(), config.path());
     ws.index().unwrap();

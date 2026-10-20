@@ -7,7 +7,7 @@
 // the oracle's keys in the folder's settings (ADR 0102 item 2), as the core
 // gives them (`crates/verso-core/src/folder_data.rs`, `oracle.rs`): an id out
 // of the rule refused before anything is read, a text that is one JSON object
-// of at most 256 KiB, a create that never replaces, a write over the version
+// of at most 256 KiB (a layout) or 4 MiB (a bundle), a create that never replaces, a write over the version
 // read only, a removal through the bin.
 
 import type { ContractError, ErrorKind, FolderDataEntry, FolderDataFile, FolderDataKind, FolderDataWritten, OracleSettings, OracleSparks, Trashed } from "../bindings";
@@ -23,7 +23,7 @@ export type DataHost = {
   trash(path: string): string;
 };
 
-export const FOLDER_DATA_MOST = 256 * 1024;
+export const FOLDER_DATA_MOST: Record<FolderDataKind, number> = { layouts: 256 * 1024, bundles: 4 * 1024 * 1024 };
 const KINDS: readonly FolderDataKind[] = ["layouts", "bundles"];
 const encoder = new TextEncoder();
 const strict = new TextDecoder("utf-8", { fatal: true });
@@ -44,9 +44,10 @@ function pathOf(kind: unknown, id: unknown): string {
   return `.verso/${String(kind)}/${id}.json`;
 }
 
-function checkText(text: string): void {
+function checkText(kind: FolderDataKind, text: string): void {
   const size = encoder.encode(text).length;
-  if (size > FOLDER_DATA_MOST) refuse("refused", `folder data: too large: ${size} bytes, the most is ${FOLDER_DATA_MOST}`);
+  const most = FOLDER_DATA_MOST[kind];
+  if (size > most) refuse("refused", `folder data: too large: ${size} bytes, the most is ${most}`);
   let value: unknown;
   try {
     value = JSON.parse(text);
@@ -67,7 +68,7 @@ export class FolderData {
       if (!path.startsWith(prefix) || !path.endsWith(".json")) continue;
       const id = path.slice(prefix.length, -".json".length);
       if (!validId(id)) continue;
-      out.push({ id, revision: f.bytes.length > FOLDER_DATA_MOST ? "" : String(f.revision) });
+      out.push({ id, revision: f.bytes.length > FOLDER_DATA_MOST[kind] ? "" : String(f.revision) });
     }
     return out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
@@ -76,7 +77,7 @@ export class FolderData {
     const path = pathOf(kind, id);
     const f = this.host.files.get(path);
     if (!f) return refuse("not_found", `no such file: ${path}`);
-    if (f.bytes.length > FOLDER_DATA_MOST) refuse("refused", `folder data: too large: ${f.bytes.length} bytes`);
+    if (f.bytes.length > FOLDER_DATA_MOST[kind]) refuse("refused", `folder data: too large: ${f.bytes.length} bytes`);
     try {
       return { text: strict.decode(f.bytes), revision: String(f.revision) };
     } catch {
@@ -86,7 +87,7 @@ export class FolderData {
 
   write(kind: FolderDataKind, id: string, text: string, revision: string | null): FolderDataWritten {
     const path = pathOf(kind, id);
-    checkText(text);
+    checkText(kind, text);
     const was = this.host.files.get(path);
     if (revision === null) {
       if (was) refuse("exists", `already there: ${path}`);

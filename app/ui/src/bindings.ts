@@ -412,7 +412,7 @@ export const commands = {
 	/**  One data file's text as it is on disk, with its revision. */
 	readFolderData: (kind: FolderDataKind, id: string) => typedError<FolderDataFile, ContractError>(__TAURI_INVOKE("read_folder_data", { kind, id })),
 	/**
-	 *  Write a data file: one JSON object of at most 256 KiB. With no
+	 *  Write a data file: one JSON object, a layout of at most 256 KiB or a bundle of at most 4 MiB. With no
 	 *  `revision` a new file (`exists` when one stands there), else over the
 	 *  version that revision describes (`changed` otherwise).
 	 */
@@ -1455,7 +1455,8 @@ export type FolderDataEntry = {
 	/**
 	 *  What to hand back to change or remove the file; empty when the file
 	 *  cannot be read now (a placeholder of on-demand storage, or past
-	 *  256 KiB): reading it says why.
+	 *  its kind's bound, 256 KiB for a layout and 4 MiB for a bundle):
+	 *  reading it says why.
 	 */
 	revision: string,
 };

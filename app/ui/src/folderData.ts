@@ -18,8 +18,9 @@ import { commands, type ContractError, type FolderDataKind } from "./bindings";
 
 export type { FolderDataKind };
 
-/** The most a file's text may be, in bytes. */
-export const FOLDER_DATA_MOST = 256 * 1024;
+/** The most a file's text may be, in bytes, by kind: a layout 256 KiB
+ *  (ADR 0099 items 2 and 7), a bundle 4 MiB (ADR 0098 item 5). */
+export const FOLDER_DATA_MOST: Record<FolderDataKind, number> = { layouts: 256 * 1024, bundles: 4 * 1024 * 1024 };
 export const FOLDER_DATA_KINDS: readonly FolderDataKind[] = ["layouts", "bundles"];
 
 /** A data file listed. An empty `revision`: the file cannot be read now (a
@@ -97,7 +98,7 @@ export async function writeData(kind: FolderDataKind, id: string, value: object,
   checkId(id);
   if (!value || typeof value !== "object" || Array.isArray(value)) refused("a data file holds one JSON object");
   const text = JSON.stringify(value, null, 2);
-  if (new TextEncoder().encode(text).length > FOLDER_DATA_MOST) refused(`too large: the most is ${FOLDER_DATA_MOST} bytes`);
+  if (new TextEncoder().encode(text).length > FOLDER_DATA_MOST[kind]) refused(`too large: the most is ${FOLDER_DATA_MOST[kind]} bytes`);
   const written = answer(await commands.writeFolderData(kind, id, text, revision));
   told(kind);
   return written.revision;
