@@ -611,6 +611,20 @@ export const DEMO_RETIRED: DemoRetired[] = [
     ]
   },
   {
+    "path": "26 - Fichas, Oráculos e Criação de Mundos.md",
+    "to": "26 - Fichas.md",
+    "past": [
+      "26a4262db537ac1ed1058efd8a4f3f43772e31e0c87c44813d15742e31243937",
+      "46b37ad7748e9f7787056933c2a5baf6c83fa4a0b82a841ebf31814da0687b36",
+      "5660d9af23b54d80c6840c041286a7097ade74a0fa196bd9a089e271567f121e",
+      "9132f63649e72c4bcdb66369199284afad9fd40369473ed4c3b6a6b54e90b5f5",
+      "a25a1556112ed93fe02803e4fcdf0cb8cc4a5e3ca45e8891090c49ad474d85e0",
+      "c3ef1addc5d4f59a62a2e0f509fc96337f0d00f9921f7d55bb2fb2016bbc5eeb",
+      "cc0fbc7f97d38c0e16285002196c5e98650f4f82df6c5705843255f66d6fc330",
+      "de44fcbf65a94afb9abf2d65cc425f06d24bec4c090910ca66114f8abaeccabc"
+    ]
+  },
+  {
     "path": "daily/2026-09-24.md",
     "to": "Diário/2026-09-24.md",
     "past": [
