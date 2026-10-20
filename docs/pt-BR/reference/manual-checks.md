@@ -20,6 +20,20 @@ app real.
 
 ## Ainda não conferido
 
+### A rodada de RPG: oráculo, fichas, editor de layout, assistente, Créditos (ADRs 0098, 0099, 0102, 0103, feat/rpg-tutorial, 2026-10-20)
+
+Precisa do app desktop instalado num Mac (e, para os últimos itens, de um UniVerso com duas janelas); os testes de ponta a ponta desta rodada foram escritos sem serem rodados (os specs `oracle`, `statblock`, `layout-editor` e `world-wizard` em `app/ui/e2e/`) e o harness não é a web view de verdade.
+
+- [ ] **O arrastar do editor de layout no WKWebView** (A): em *Ajustes › RPG & Mesa Solo › Fichas e Templates › Editar* num layout, arraste um bloco pela alça na árvore: uma linha mostra onde ele cai, o cartão à direita não treme, soltar o move; ⌘Z desfaz. Alt+setas fazem o mesmo pelo teclado (o arrastar HTML5 não funciona nesta web view, então este é um arrastar por ponteiro: diga se falhar).
+- [ ] **Os seletores de cor e o datalist** (A): na seção *Layout* do editor, os campos de cor da aparência abrem o seletor do sistema e a cor escolhida desenha o cartão; os campos de chave de um bloco sugerem as chaves do layout e da ficha desenhada enquanto você digita (o datalist da web view).
+- [ ] **O clique de um contador em Editar e em Leitura** (A): na *Yara do Farol* (`Campanha Fractal/`), uma caixa de *Fôlego* clicada em Editar e em Leitura muda `reserva_2_atual` em Fonte e mantém o teclado onde estava (Tab, setas, Home, End); *Quebrado* num fato o risca e grava `quebrado: true`; ⌘Z em Editar desfaz a gravação.
+- [ ] **O oráculo numa sala de verdade, duas janelas** (A): numa nota compartilhada por um UniVerso, aberta em duas janelas (duas contas), *Consultar Oráculo* numa: a outra mostra um aviso com o nome de quem perguntou e a resposta, e a linha da resposta cai uma vez só na nota; uma pergunta com o servidor parado diz que foi sorteada só nesta janela. Desligue *Oráculos* numa janela só: o botão dela some, o da outra fica.
+- [ ] **O aviso do sorteio do servidor** (A): o aviso de uma pergunta, de uma faísca e de um sorteio de tabela diz *<nome> consultou o oráculo: …* / *sorteou uma faísca* / *sorteou numa tabela*. Diga se ele também aparece como notificação do sistema quando a janela está em segundo plano (ADR 0084).
+- [ ] **Os links dos Créditos** (A): *Ajustes › Aplicação › Créditos e agradecimentos*: *Abrir* numa obra e no software abre a página no navegador do sistema, não numa janela do app; nenhum link abre dentro do app.
+- [ ] **A borda direita das abas de volta ao normal** (A): com as duas barras laterais abertas e muitas abas, a ponta direita da faixa mostra a última aba inteira e o botão de nova aba, como antes das mudanças de CSS da rodada (`panes.css`, `chrome.css`); numa janela estreita também.
+- [ ] **"Adicionar propriedade" numa nota sem frontmatter** (A): abra uma nota sem frontmatter em Leitura e em Editar: o cabeçalho de propriedades mostra *Adicionar propriedade*; clique: um bloco `---` com a propriedade é escrito no topo, o resto da nota intacto; ⌘Z desfaz.
+- [ ] **O assistente numa pasta de verdade** (A): *Novo projeto a partir de modelo…* com o modelo *Campanha de RPG (Dados Críticos)* numa pasta no iCloud/OneDrive: a árvore aparece antes de qualquer escrita; uma pasta desmarcada não está no disco depois; um nome que já existe é mantido, não sobrescrito, e o relatório diz.
+
 ### O UniVerso achado na rede, e um DNS ruim contornado (ADR 0097, feat/universo-discovery, 2026-10-16)
 
 Precisa do app desktop instalado e de um UniVerso na rede de casa (o ZimaOS do mantenedor); nada disto foi rodado numa rede de verdade quando foi construído.
