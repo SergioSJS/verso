@@ -1194,10 +1194,11 @@ imagem; à mão, o resto abaixo e no `manual-checks.md`.
     verificações do `manual-checks.md`. Nível: H para a lista, A para a rede;
     R: `scripts/demo-vault.mjs check` para a nota.
 
-## 14. Recursos, oráculo, fichas e mundos (nota 26, a campanha Fractal)
+## 14. Recursos, oráculo, fichas e mundos (notas 26 e 27, a campanha Fractal)
 
-Abra a nota 26 (*Fichas, Oráculos e Criação de Mundos*) em Leitura, numa pasta
-com o conteúdo de exemplo. Os passos abaixo a seguem; a campanha Fractal é a
+Abra a nota 26 (*Fichas*) e a nota 27 (*Oráculos e Criação de Mundos*: os
+recursos, o oráculo e o assistente) em Leitura, numa pasta com o conteúdo de
+exemplo. Os passos abaixo as seguem (1 a 3 na nota 27, 4 a 6 na 26); a campanha Fractal é a
 pasta `Campanha Fractal/` ao lado dela ([ADR
 0098](../adr/0098-world-and-campaign-wizard-template-bundles.md), [ADR
 0099](../adr/0099-visual-markdown-statblocks-and-cards.md), [ADR
@@ -1211,7 +1212,7 @@ pasta `Campanha Fractal/` ao lado dela ([ADR
    nada em *Cancelar*. Desligue *Oráculos* e feche os Ajustes: o callout
    `[!oracle]` da nota é desenhado sem o botão *Consultar Oráculo*, e o ⌘⇧P
    não oferece *Oráculo (sim/não e faíscas)…*. Ligue: o botão volta. Nenhum
-   arquivo mudou (a nota 26 em Fonte está como estava). Nível: H; E:
+   arquivo mudou (a nota 27 em Fonte está como estava). Nível: H; E:
    `oracle.spec.mjs` (a chave), `statblock.spec.mjs` e `world-wizard.spec.mjs`
    (as outras); U: `test/capabilities.test.mjs`.
 2. O oráculo na nota. No callout *A patrulha da guarda ouviu o barulho da
@@ -1235,13 +1236,14 @@ pasta `Campanha Fractal/` ao lado dela ([ADR
    perguntou. Nível: H (a sala: o harness faz o servidor,
    `src/harness/room.ts`); U: `test/oracleData.test.mjs`; a sala de verdade,
    no `manual-checks.md`.
-4. Fichas. O exemplo 1 da nota 26 é um cartão; os dados (`+4 para acertar`,
-   `5 (1d6 + 2)`, *Furtividade +6*) rolam com um clique, o cartão diz o
+4. Fichas. A nota 26 tem um cartão para cada layout embutido (34), nenhum com
+   selo de erro, e `tutorial-sheets.spec.mjs` os conta. No cartão *Criatura
+   d20* os dados (`+4 to hit`, `4 (1d4 + 2)`) rolam com um clique, o cartão diz o
    resultado e a nota em Fonte não muda; os botões − e + de *PV atuais*
-   mudam `hp_current` e mais nada do bloco. O exemplo 2 (*Fatos e
-   contadores*): uma caixa de *estresse* ou *relógio* marca até ela, clicar na
+   mudam `hp_current` e mais nada do bloco. No cartão *Fatos e
+   contadores*: uma caixa de *estresse* ou *relógio* marca até ela, clicar na
    última a limpa; Tab, as setas, Home e End funcionam no grupo. *Ver código* /
-   *Ver ficha* alterna nas duas vistas. Desligue *Fichas*: os dois blocos
+   *Ver ficha* alterna nas duas vistas. Desligue *Fichas*: todos os blocos
    viram código. Nível: H; E: `statblock.spec.mjs`; U: `test/statblock.test.mjs`,
    `test/statblockRender.test.mjs`.
 5. Layouts. *Ajustes* › *RPG & Mesa Solo* › *Fichas e Templates* lista os

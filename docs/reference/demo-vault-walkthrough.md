@@ -1159,10 +1159,11 @@ rest below and in `manual-checks.md`.
     real network, the checks in `manual-checks.md`. Level: H for the list,
     A for the network; R: `scripts/demo-vault.mjs check` for the note.
 
-## 14. Features, oracle, sheets and worlds (note 26, the Fractal campaign)
+## 14. Features, oracle, sheets and worlds (notes 26 and 27, the Fractal campaign)
 
-Open note 26 (*Fichas, Oráculos e Criação de Mundos*) in Leitura, in a folder
-that has the demo content. The steps below follow it; the Fractal campaign is
+Open note 26 (*Fichas*, the sheets) and note 27 (*Oráculos e Criação de Mundos*,
+the features, the oracle and the wizard) in Leitura, in a folder that has the
+demo content. The steps below follow them (1 to 3 in note 27, 4 to 6 in note 26); the Fractal campaign is
 the folder `Campanha Fractal/` beside it ([ADR
 0098](../adr/0098-world-and-campaign-wizard-template-bundles.md), [ADR
 0099](../adr/0099-visual-markdown-statblocks-and-cards.md), [ADR
@@ -1176,10 +1177,10 @@ the folder `Campanha Fractal/` beside it ([ADR
    *Cancelar*. Turn *Oráculos* off, close Settings: the `[!oracle]` callout of
    the note is drawn with no *Consultar Oráculo* button, and ⌘⇧P offers no
    *Oráculo (sim/não e faíscas)…*. Turn it on: the button is back. No file
-   changed (note 26 in Fonte reads as before). Level: H; E: `oracle.spec.mjs`
+   changed (note 27 in Fonte reads as before). Level: H; E: `oracle.spec.mjs`
    (the switch), `statblock.spec.mjs` and `world-wizard.spec.mjs` (the
    others); U: `test/capabilities.test.mjs`.
-2. The oracle in the note. In the callout *A patrulha da guarda ouviu o
+2. The oracle in the note. In the callout of note 27 *A patrulha da guarda ouviu o
    barulho da invasão?* click *Consultar Oráculo*: the dialog opens with the
    question filled in, three tabs (*Sim ou Não*, *Faíscas*, *Tabelas*) and the
    five odds as a radio group. *Consultar* shows one of the six answers with
@@ -1200,14 +1201,15 @@ the folder `Campanha Fractal/` beside it ([ADR
    window sees a notice with the asker's name. Level: H (the room: the
    harness plays the server, `src/harness/room.ts`); U: `test/oracleData.test.mjs`;
    the real room, in `manual-checks.md`.
-4. Statblocks. Example 1 of note 26 is a card; its dice (`+4 para acertar`,
-   `5 (1d6 + 2)`, *Furtividade +6*) roll with a click, the card says the
+4. Statblocks. Note 26 holds one card for each built-in layout (34), none with
+   an error badge, and `tutorial-sheets.spec.mjs` counts them. In the *Criatura
+   d20* card the dice (`+4 to hit`, `4 (1d4 + 2)`) roll with a click, the card says the
    result and the note in Fonte is unchanged; the *PV atuais* buttons − and +
-   change `hp_current` and nothing else of the block. Example 2 (*Fatos e
-   contadores*): a box of *estresse* or *relógio* marks up to it, clicking the
+   change `hp_current` and nothing else of the block. In the *Fatos e
+   contadores* card: a box of *estresse* or *relógio* marks up to it, clicking the
    last one clears it; Tab, the arrows, Home and End work the group. *Ver
-   código* / *Ver ficha* switches in both views. Turn *Fichas* off: both
-   blocks are code. Level: H; E: `statblock.spec.mjs`; U:
+   código* / *Ver ficha* switches in both views. Turn *Fichas* off: every
+   block is code. Level: H; E: `statblock.spec.mjs`; U:
    `test/statblock.test.mjs`, `test/statblockRender.test.mjs`.
 5. Layouts. *Ajustes* › *RPG & Mesa Solo* › *Fichas e Templates* lists the
    built-in layouts (the open systems, *Fractal — Personagem*, *Fractal —
