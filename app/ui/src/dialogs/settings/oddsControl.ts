@@ -8,7 +8,8 @@
 
 import { ask } from "../../dialog";
 import { button, h, ui } from "../../dom";
-import { getOddsTable, LIKELIHOODS, type Likelihood, resetOddsTable, saveOddsTable } from "../../oracle/engine";
+import { getOddsTable, LIKELIHOODS, type Likelihood, readOddsTable, resetOddsTable, saveOddsTable } from "../../oracle/engine";
+import { os } from "../../oracle/strings";
 import { t } from "../../strings";
 import { feedbackLine } from "./feedback";
 import { ODDS_PRESETS, type OddsData } from "./oddsPresets";
@@ -24,6 +25,7 @@ export function oddsControl(ctx: ItemCtx): HTMLElement {
   const badges = {} as Record<Likelihood, HTMLElement>;
   for (const lh of LIKELIHOODS) inputs[lh] = [];
   const feedback = feedbackLine();
+  if (readOddsTable().invalid.length > 0) feedback.say(os.brokenOdds, true);
 
   const sum = (lh: Likelihood): number => data[lh].reduce((a, b) => a + b, 0);
   const paintSum = (lh: Likelihood): void => {
