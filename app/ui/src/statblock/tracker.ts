@@ -17,7 +17,7 @@
 import type { Ctx } from "./blocks";
 import { h } from "./h";
 import type { TrackerBlock } from "./model";
-import { numberOf, valueOf, wholeOf } from "./sheet";
+import { numberOf, textOf, valueOf, wholeOf } from "./sheet";
 import { S, word } from "./strings";
 
 /** The most boxes drawn; past it, a number. */
@@ -51,8 +51,16 @@ export function readTracker(block: TrackerBlock, sheet: Record<string, unknown>)
   return { max, current: n, raw: null, bad: false };
 }
 
+/** The tracker's label, its `{key}` placeholders filled from the sheet
+ *  (`{reserva_1_nome}` reads "Vida"); a key with no value fills nothing. */
+export function trackerLabel(block: TrackerBlock, sheet: Record<string, unknown>): string {
+  const raw = word(block.label, block.current);
+  if (!raw.includes("{")) return raw;
+  return raw.replace(/\{([^{}\s]{1,80})\}/g, (_, k: string) => textOf(valueOf(sheet, k))).trim();
+}
+
 export function trackerNode(block: TrackerBlock, ctx: Ctx): HTMLElement {
-  const label = word(block.label, block.current);
+  const label = trackerLabel(block, ctx.sheet) || block.current;
   const read = readTracker(block, ctx.sheet);
   const { max } = read;
   let current = read.current;

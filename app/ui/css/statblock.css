@@ -113,6 +113,22 @@ summary.statblock-section { cursor: pointer; border-bottom: none; }
 .statblock-trait { margin: .3rem 0; }
 .statblock-trait-name { font-style: italic; }
 .statblock-trait-head { font-style: italic; margin-top: .5rem; }
+/* An item's mark (a Fractal Fato "quebrado"): a toggle, the item struck through. */
+.statblock-flag, .statblock-flag-mark {
+  font-family: var(--ui);
+  font-size: .72rem;
+  padding: .05rem .4rem;
+  border: 1px solid var(--sb-accent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sb-accent);
+  vertical-align: middle;
+}
+.statblock-flag { cursor: pointer; }
+.statblock-flag[aria-pressed="true"], .statblock-flag-mark { background: var(--sb-accent); color: var(--sb-background); }
+/* The decoration does not reach inline-blocks: the toggle stays unstruck. */
+.statblock-flag, .statblock-flag-mark, .statblock-trait .statblock-tracker-note { display: inline-block; }
+.statblock-trait-flagged { text-decoration: line-through; color: color-mix(in oklch, var(--sb-text) 70%, transparent); }
 .statblock-traits-nested { margin-left: 1rem; }
 .statblock-paragraph { margin: .3rem 0; }
 .statblock-more { font-size: .82rem; color: var(--ink-3); }

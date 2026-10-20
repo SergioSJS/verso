@@ -392,3 +392,48 @@ describe("the editor window", () => {
     assert.deepEqual(m.findBlock(ed.session.layout, "g").nested.map((b) => b.id), ["h"]);
   });
 });
+
+describe("the editor's controls for bands, marks and label templates", () => {
+  test("a table's modifier becomes bands; rows are added, typed, checked and removed", async () => {
+    const { ed } = await openOn({ ...mine, blocks: [{ type: "table", id: "t", properties: ["stats"], headers: ["A"], modifier: "none" }] });
+    const sel = ed.el.querySelector('[data-field="t.mod"]');
+    sel.value = "bands";
+    sel.dispatchEvent(new win.Event("change"));
+    assert.deepEqual(m.findBlock(ed.session.layout, "t").modifier, { kind: "bands", bands: [{ min: 1, max: 10, value: 0 }] });
+    ed.el.querySelector('[data-field="t.addBand"]').click();
+    assert.deepEqual(m.findBlock(ed.session.layout, "t").modifier.bands[1], { min: 11, max: 11, value: 1 });
+    const min = ed.el.querySelector('[data-field="t.band1.min"]');
+    min.value = "20";
+    min.dispatchEvent(new win.Event("input"));
+    assert.match(min.closest(".sbe-band").textContent, /past/);
+    assert.ok(ed.el.querySelector(".sbe-problem"), "the validator lists the row");
+    ed.el.querySelector('[data-field="t.band1.x"]').click();
+    assert.equal(m.findBlock(ed.session.layout, "t").modifier.bands.length, 1);
+    assert.equal(ed.el.querySelector(".sbe-problem"), null);
+  });
+
+  test("a traits list's mark is switched on, its key and label edited, and drawn on the card", async () => {
+    const { ed } = await openOn({ ...mine, blocks: [{ type: "traits", id: "f", properties: ["fatos"] }] });
+    ed.el.querySelector('[data-row="f"]').click();
+    const box = ed.el.querySelector('[data-field="f.flag"]');
+    box.checked = true;
+    box.dispatchEvent(new win.Event("change"));
+    assert.deepEqual(m.findBlock(ed.session.layout, "f").flag, { key: "quebrado" });
+    const label = ed.el.querySelector('[data-field="f.flag.label.en"]');
+    label.value = "Broken";
+    label.dispatchEvent(new win.Event("input"));
+    const key = ed.el.querySelector('[data-field="f.flag.key"]');
+    key.value = "broken";
+    key.dispatchEvent(new win.Event("input"));
+    assert.deepEqual(m.findBlock(ed.session.layout, "f").flag, { key: "broken", label: { en: "Broken" } });
+    ed.el.querySelector(".sbe-source").value = "-1";
+    ed.el.querySelector(".sbe-source").dispatchEvent(new win.Event("change"));
+    assert.ok(ed.el.querySelector(".sbe-card .statblock-trait-flagged"), "the sample marks an item");
+  });
+
+  test("a tracker says its label may read the sheet", async () => {
+    const { ed } = await openOn({ ...mine, blocks: [{ type: "tracker", id: "r", current: "a", max: 3, label: "{nome}" }] });
+    ed.el.querySelector('[data-row="r"]').click();
+    assert.match(ed.el.querySelector(".sbe-options").textContent, /\{key\}/);
+  });
+});

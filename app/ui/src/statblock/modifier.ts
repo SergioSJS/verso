@@ -9,7 +9,8 @@
 // evaluator answers true or false; the modifier is the largest whole number
 // m for which `(expression) >= m` holds — the expression floored — found by
 // halving the bounds, so an expression never runs more than a few dozen
-// times and a value out of bounds is no modifier at all.
+// times and a value out of bounds is no modifier at all. Or a printed
+// table's rows (`bands`): the row the score falls in.
 //
 // In an expression, `score` (or `stat`, the plugin's name) is the cell's value and any other name a
 // number of the sheet: `(score - 10) / 2`, `score / 10`, `score + level`.
@@ -57,6 +58,10 @@ export function modifierOf(modifier: Modifier, score: number, numbers: Record<st
   if (!Number.isFinite(score)) return null;
   if (modifier.kind === "none") return null;
   if (modifier.kind === "d20") return Math.floor((score - 10) / 2);
+  if (modifier.kind === "bands") {
+    const n = Math.floor(score);
+    return modifier.bands.find((b) => n >= b.min && n <= b.max)?.value ?? null;
+  }
   if (checkExpression(modifier.expression) !== null) return null;
   const scope: ExpressionScope = Object.create(null) as ExpressionScope;
   for (const [k, v] of Object.entries(numbers)) if (Number.isFinite(v) && /^[A-Za-z_][A-Za-z0-9_]*$/.test(k)) scope[k] = { rolls: [v], total: v };

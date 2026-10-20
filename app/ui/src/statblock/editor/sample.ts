@@ -19,6 +19,9 @@ export interface PreviewSource {
   text: string;
 }
 
+/** The keys a tracker's label names (`{reserva_1_nome}`). */
+const labelKeys = (b: Block): string[] => [b.label?.pt ?? "", b.label?.en ?? ""].flatMap((t) => [...t.matchAll(/\{([^{}\s]{1,80})\}/g)].map((m) => m[1]!));
+
 /** The keys a layout names, in order, each once. */
 export function layoutKeys(layout: Layout): string[] {
   const out = new Set<string>();
@@ -26,6 +29,7 @@ export function layoutKeys(layout: Layout): string[] {
     for (const k of b.properties) out.add(k);
     if (b.type === "property" && b.diceKey) out.add(b.diceKey);
     if (b.type === "tracker") {
+      for (const k of labelKeys(b)) out.add(k);
       out.add(b.current);
       if (typeof b.max === "string") out.add(b.max);
     }
@@ -54,13 +58,13 @@ function valueFor(block: Block, key: string, n: number): unknown {
       return [{ [`${key}_a`]: 3 }, { [`${key}_b`]: -1 }];
     case "traits":
       return [
-        { name: `${key} 1`, desc: sentence },
-        { name: `${key} 2`, desc: "A plain line." },
+        { name: `${key} 1`, desc: sentence, ...(block.flag ? { [block.flag.key]: false } : {}) },
+        { name: `${key} 2`, desc: "A plain line.", ...(block.flag ? { [block.flag.key]: true } : {}) },
       ];
+    case "tracker":
+      return key === block.current ? 2 : typeof block.max === "string" && key === block.max ? 5 : `Sample ${key}`;
     case "text":
       return `${key}: ${sentence}`;
-    case "tracker":
-      return key === block.current ? 2 : 5;
     case "image":
       return undefined;
     default:
@@ -78,7 +82,7 @@ export function sampleSheet(layout: Layout): Sheet {
   const holds = (b: Block) => b.type === "group" || b.type === "inline" || b.type === "collapse" || b.type === "conditional";
   for (const b of [...blocks.filter((x) => !holds(x)), ...blocks.filter(holds)]) {
     const keys = [...b.properties];
-    if (b.type === "tracker") keys.push(b.current, ...(typeof b.max === "string" ? [b.max] : []));
+    if (b.type === "tracker") keys.push(...labelKeys(b), b.current, ...(typeof b.max === "string" ? [b.max] : []));
     if (b.type === "property" && b.diceKey && !Object.hasOwn(sheet, b.diceKey)) sheet[b.diceKey] = "2d8+2";
     if (b.type === "roll") for (const v of Object.values(b.inputs)) if ("key" in v && !Object.hasOwn(sheet, v.key)) sheet[v.key] = 2;
     if (b.type === "conditional") for (const br of b.branches) if (br.when && !Object.hasOwn(sheet, br.when.key)) sheet[br.when.key] = br.when.op === "has" ? "yes" : br.when.value;
