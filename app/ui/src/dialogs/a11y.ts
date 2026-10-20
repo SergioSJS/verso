@@ -90,7 +90,7 @@ export function closed(el: HTMLElement, restore = true): void {
   if (below) below.inert = false;
   const back = focusBefore.get(el);
   focusBefore.delete(el);
-  if (restore && back instanceof HTMLElement && back.isConnected) back.focus();
+  if (restore && back instanceof HTMLElement && back.isConnected) back.focus({ preventScroll: true });
   // The focus stays in the dialog now on top: a click on a button gives it
   // no focus in WebKit, so where it was may be the page behind.
   if (restore && below && shownNow(below) && !below.contains(document.activeElement)) {
