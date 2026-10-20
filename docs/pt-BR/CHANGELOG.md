@@ -12,7 +12,13 @@ versão de teste.
 
 ## Não lançado
 
-Nada ainda.
+### Acrescentado
+
+- **Ajustes em grupos, e uma janela que você redimensiona**: a lista lateral se divide em grupos (Aplicação, Notas & Editor, RPG & Mesa Solo, Rede & Conexões). Arraste as bordas ou o canto para redimensionar a janela e a barra lateral para movê-la; o botão do canto também muda o tamanho com as setas e volta ao original com Enter. Ela lembra o tamanho neste computador.
+- **Modo de uso**: *Ajustes › Geral › Modo de Uso* escolhe se a janela mostra só escrita, ferramentas de construção de mundos ou o conjunto completo de RPG de mesa.
+- **Novo projeto a partir de modelo**: *Novo projeto a partir de modelo…* pede um nome e uma pasta, mostra a árvore inteira de pastas e arquivos antes de escrever qualquer coisa (desmarque o que não quer, renomeie o que quiser), cria e diz o que foi feito, o que já existia e o que foi recusado. Traz modelos de campanha, mundo, escrita de ficção e P.A.R.A., e lê um modelo que um assistente de IA escreveu para você (copie o prompt, cole a resposta de volta).
+- **Oráculo e faíscas de ideias**: perguntas de sim ou não com probabilidades ajustáveis, faíscas de ideias com listas de palavras editáveis, suas próprias tabelas de sorteio (criadas, importadas ou exportadas em JSON) e o destaque `[!oracle]` nas notas.
+- **Fichas (statblocks)**: fichas desenhadas a partir das propriedades de uma nota por um layout; gerencie, duplique, importe e exporte layouts em *Ajustes › Fichas e Templates*.
 
 ## 0.8.3-beta.2 — 2026-10-17
 
