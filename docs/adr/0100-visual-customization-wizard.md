@@ -43,8 +43,10 @@ theme profiles at the personal device layer ([0070](0070-what-travels-with-the-f
 
 ## Decision
 
-Proposed (2026-10-17). Accepted on 2026-10-17 (Status): each `[OPEN]` was decided as
-recommended and is marked `[DECIDED 2026-10-17]`.
+Proposed (2026-10-17). The first text said it was accepted that day, with every item
+marked `[DECIDED 2026-10-17]`; no acceptance by the maintainer is recorded, and on
+2026-10-20 it went back to Proposed: each item marked so is a proposal (the review of
+2026-10-20, docs/review/).
 
 1. **The Visual Styler Wizard ("Personalizar aparência…")**.
    `[DECIDED 2026-10-17]`: Opens a floating or docked customizer alongside a live
@@ -103,4 +105,5 @@ recommended and is marked `[DECIDED 2026-10-17]`.
 
 ## Status
 
-**Accepted (2026-10-17).**
+**Proposed (2026-10-17)**; back to Proposed on 2026-10-20, nothing built. Rewritten
+with the maintainer before any code.

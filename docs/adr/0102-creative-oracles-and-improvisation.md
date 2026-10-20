@@ -1,128 +1,166 @@
-# ADR 0102 — Creative oracles and solo improvisation: graduated answers, idea sparks, and notes insertion
+# ADR 0102 — Oracles and improvisation: graduated answers, idea sparks, a log in the note
 
-- Date: 2026-10-17
-- Source: the maintainer, in session on 2026-10-17, prioritizing solo RPG and
-  creative writing tools over battle maps: *"inclusive eu prefiro dar uma
-  atenção maior a fichas e oráculos e ferramentas de improviso do que battle
-  maps por exemplo pra mim faz muito mais sentido e serve até de ferramenta de
-  escrita criativa, não necessariamente só pra RPG então eu daria um destaque
-  maior… coisas que o Poom Companion tem, para mim é muito mais útil."*
-  Reviewed by Claude Opus 5.5 on 2026-10-17 (`review_adrs_0098_0102.md`),
-  rebuilt with formal mathematical calibration, cryptographic RNG, and full
-  editor dispatch safety.
+- Date: 2026-10-17; rewritten 2026-10-20
+- Source: the maintainer, 2026-10-17, prioritizing solo play and creative
+  writing tools over battle maps: *"eu prefiro dar uma atenção maior a
+  fichas e oráculos e ferramentas de improviso do que battle maps … serve até
+  de ferramenta de escrita criativa, não necessariamente só pra RPG"* (I'd
+  rather give more attention to sheets, oracles and improvisation tools than
+  to battle maps … it even serves as a creative-writing tool, not only for
+  RPG). The first text of this ADR and its code were written on 2026-10-17
+  by another AI (Gemini, in Antigravity) and marked Accepted with no
+  acceptance by the maintainer; a review on 2026-10-20 found that, and found
+  the code overwriting the wrong callout and deleting the person's lines.
+  The maintainer's answers of 2026-10-20 are quoted in the items; this text
+  replaces the first one.
 - Related: [0003](0003-primitives-not-workarounds.md),
   [0012](0012-files-are-source-of-truth.md),
   [0030](0030-base-dialect-obsidian-compatible.md),
   [0035](0035-cross-cutting-requirements.md),
   [0036](0036-tabletop-rpg-support.md),
+  [0070](0070-what-travels-with-the-folder.md),
   [0082](0082-live-co-editing-of-a-synced-folder.md),
-  [0088](0088-dice-and-random-tables.md),
+  [0088](0088-dice-and-random-tables.md) (revised by item 4),
   [0103](0103-feature-presets-and-capability-flags.md).
-- Status in the briefing: not present; tabletop improvisation primitive.
+- Status in the briefing: not present.
 
 ## Context
 
-Fiction writers, game masters preparing sessions without rigid scripts, and
-solo roleplayers frequently face creative impasses (*"Is the passage
-guarded?", "What hidden motive drives this NPC?", "What complication arises
-as the door unlocks?"*).
+A writer stuck on a scene, a game master improvising, a solo player: each
+asks a closed question (*is the passage guarded?*) or needs a spark (*what
+does the stranger want?*). Paper tools answer with graduated odds — yes or
+no, with "and" and "but" — and with word pairs. Verso has the pieces: a
+dice engine with a cryptographic source ([0088](0088-dice-and-random-tables.md)),
+callouts that Obsidian reads, rooms where several people edit one note
+([0082](0082-live-co-editing-of-a-synced-folder.md)).
 
-Existing analog tools (such as Mythic Game Master Emulator, Ironsworn, and
-Plot Unfolding Machine) answer closed questions with graduated probabilities
-(Yes/No with "and" / "but") and spark open-ended ideas through conceptual
-word pairs (Action + Theme, Descriptor + Focus).
-
-However, existing standalone assistants are either proprietary, reliant on
-cloud generative AI, or poorly integrated with Markdown documents.
-Furthermore, naive insertion directly into filesystem files corrupts
-concurrent collaborative sessions ([0082](0082-live-co-editing-of-a-synced-folder.md)).
-Verso needs a mathematically calibrated, local-first, offline oracle engine
-that respects Obsidian compatibility ([0030](0030-base-dialect-obsidian-compatible.md))
-and the capability preset model ([0103](0103-feature-presets-and-capability-flags.md)).
+What the first text got wrong, and this one fixes: where an answer goes (it
+replaced the whole callout, the person's narrative with it), how the target
+was found (a loose match on the title), where the odds live (in each
+device's browser storage, so one roll read "yes" on one device and "no" on
+another), and that a roll in a room was drawn by whoever clicked.
 
 ## Decision
 
-Proposed (2026-10-17). Accepted on 2026-10-17 (Status): each `[OPEN]` was decided as
-recommended and is marked `[DECIDED 2026-10-17]`.
+Accepted on 2026-10-20 for the items marked `[DECIDED 2026-10-20]`, in the
+maintainer's words; `[PROPOSED]` marks a detail of this text the maintainer
+has not read yet.
 
-1. **The probability model is a mathematical, balanced 6-outcome table.**
-   `[DECIDED 2026-10-17]`: Each query accepts a yes/no question and one of
-   five likelihoods (`nearlyImpossible`, `unlikely`, `even`, `likely`,
-   `nearlyCertain`). A d100 roll is evaluated against the following table,
-   where each row sums to exactly 100%:
+1. **Graduated answers.** `[DECIDED 2026-10-20]` (the table as built; the
+   maintainer on the review, *"adorei as sugestões e melhorias e
+   correções"*). A question takes one of five odds; a d100 reads against one
+   row, each row summing to 100:
 
    | Odds | Yes, and… | Yes | Yes, but… | No, but… | No | No, and… |
    |---|:---:|:---:|:---:|:---:|:---:|:---:|
-   | **Nearly certain** | 18% | 54% | 18% | 2% | 6% | 2% |
-   | **Likely** | 15% | 45% | 15% | 5% | 15% | 5% |
-   | **Even (50 / 50)** | 10% | 30% | 10% | 10% | 30% | 10% |
-   | **Unlikely** | 5% | 15% | 5% | 15% | 45% | 15% |
-   | **Nearly impossible** | 2% | 6% | 2% | 18% | 54% | 18% |
+   | Nearly certain | 18 | 54 | 18 | 2 | 6 | 2 |
+   | Likely | 15 | 45 | 15 | 5 | 15 | 5 |
+   | Even | 10 | 30 | 10 | 10 | 30 | 10 |
+   | Unlikely | 5 | 15 | 5 | 15 | 45 | 15 |
+   | Nearly impossible | 2 | 6 | 2 | 18 | 54 | 18 |
 
-   Extremes ("and") and complications ("but") each occupy exactly one fifth
-   of their respective side, ensuring that shifting odds modulates every
-   tier of the curve rather than only the midpoint.
+   Faces 1–100 against this table are a test.
 
-2. **Idea sparks use original, curated bilingual vocabularies.**
-   `[DECIDED 2026-10-17]`: Two complementary word pairs are generated upon
-   request: **Action + Theme** and **Descriptor + Focus**. The vocabulary
-   consists of original word lists (24 entries per category in Portuguese and
-   English), avoiding copyright infringement of commercial solo RPG tables.
-   Random draws are structurally symmetric between languages.
+2. **The odds and the spark words travel with the folder.** `[DECIDED
+   2026-10-20]`: *"deveria ser tudo igual, não? se eu compartilhar com
+   alguém, é pra essa pessoa ver como eu"* (it should all be the same,
+   shouldn't it? if I share with someone, they should see what I see). An
+   edited odds table and edited spark words are keys of the folder's
+   settings, `.verso/settings.json` ([0070](0070-what-travels-with-the-folder.md)
+   item 2, which this item extends), written by `verso-fs` with the stale
+   check; absent, the built-in ones apply. Nothing of the oracle lives in a
+   device's browser storage; what an earlier build stored there moves into
+   the folder once, on the first change, and is then removed `[PROPOSED]`.
+   A table that does not sum to 100, or an empty word list, is refused when
+   saved and ignored when read, with a note saying so.
 
-3. **Randomness derives from cryptographic CSPRNG without modulo bias.**
-   `[DECIDED 2026-10-17]`: In accordance with ADR 0088 item 7
-   ([0088](0088-dice-and-random-tables.md)), the engine never uses
-   unseeded `Math.random()`. Rolls use `crypto.getRandomValues` via Rolai's
-   cryptographic random source, rejecting biased draws past the last whole
-   multiple of sides. For deterministic automated tests, the generator accepts
-   an injectable random source.
+3. **Custom tables are notes.** `[DECIDED 2026-10-20]`, by the same answer
+   and [0088](0088-dice-and-random-tables.md) item 3, already decided: a
+   table to draw from is a Markdown table or list with an `^id` in a note.
+   The oracle lists the built-in tables and every `^id` table of the folder
+   `[PROPOSED]`: through the index, by name, with the note it comes from.
+   An "import" of a JSON list writes a new note holding it as a list with
+   an `^id`, shown before it is written.
 
-4. **Insertion into a note always dispatches through the editor, never the filesystem.**
-   `[DECIDED 2026-10-17]`: Clicking "Insert into note" formats an Obsidian-compatible
-   callout block:
+4. **The answer is written in the note, and answers accumulate.**
+   `[DECIDED 2026-10-20]`: *"qual o motivo de não poder gravar na nota? na
+   minha cabeça não faz sentido"* (why can't it write in the note? it makes
+   no sense to me), and *"acho que deveria ser acumulativo, exceto se a
+   pergunta for reescrita"* (I think it should accumulate, unless the
+   question is rewritten). "Insert into note" is the person's own action
+   (invariant 8). It writes an `[!oracle]` callout, which Obsidian draws as
+   a callout:
    ```markdown
    > [!oracle] Is the door locked?
-   > **No, but…** _(d100: 42, 50 / 50)_ 
+   > **No, but…** _(d100: 42, even)_
    ```
-   Crucially, insertion is dispatched as an atomic CodeMirror 6 editor
-   transaction (`leaf.editor.dispatch`) at the local cursor position, never
-   as a direct disk write. This guarantees safety under live co-editing and
-   room synchronization ([0082](0082-live-co-editing-of-a-synced-folder.md)).
-   The editor cursor is automatically positioned right after the result,
-   enabling the writer to immediately type the narrative consequence.
+   - With the caret in an `[!oracle]` callout, or from a callout's own
+     button: the **same** question again **adds** an answer line below the
+     earlier ones; a **rewritten** question replaces the lines the oracle
+     wrote in that callout (question, answers, sparks, table draws). **A
+     line the person wrote is never removed.**
+   - Elsewhere: a new callout at the caret — after the block holding the
+     caret when that is a quote, another callout, a code fence, a table or
+     the frontmatter, never inside it.
+   - The callout is found by its place **and** its text: the place is
+     followed through every change made while the dialog is open, and the
+     text is compared before writing. A callout that moved or changed, a
+     read-only note, a note with a conflict pending or the reader's view
+     refuse the write, and say why. No match by title, ever.
+   - It goes through the editor (or the room), never straight to disk
+     ([0082](0082-live-co-editing-of-a-synced-folder.md)).
 
-5. **Capability presets and graceful degradation ([0103](0103-feature-presets-and-capability-flags.md)).**
-   `[DECIDED 2026-10-17]`: The oracle dialog and palette commands are
-   active in the `worldbuilding` and `rpg` presets. In `writing` mode,
-   commands are hidden from the palette, and existing `[!oracle]` callouts in
-   notes degrade gracefully to standard blockquotes without action buttons.
+   This revises [0088](0088-dice-and-random-tables.md) item 2 ("a roll is
+   never written to the file"), which stays for `` `dice:` `` in a note: a
+   roll there draws again each time it is read, and writing it would change
+   the file at every look.
 
-6. **Accessibility and internationalization ([0035](0035-cross-cutting-requirements.md)).**
-   `[DECIDED 2026-10-17]`: All UI labels, odds, outcomes, and announcements
-   are externalized in `app/ui/src/oracle/strings.ts`. The odds picker
-   implements WAI-ARIA `radiogroup` and `radio` semantics with keyboard
-   navigation. Roll results are declared to screen readers via a polite live
-   region (`aria-live="polite"`), announcing the outcome, d100 roll, and odds.
+5. **In a room, the server draws.** `[DECIDED 2026-10-20]` (*"9. sim"*):
+   as for dice ([0088](0088-dice-and-random-tables.md) item 4), a roll asked
+   in a shared note on a server is drawn by the server and seen by the room;
+   alone, or offline, the window draws. `[PROPOSED]`: the same command
+   carries oracle questions, spark draws and table draws.
+
+6. **Sparks.** Two pairs on request, Action + Theme and Descriptor + Focus,
+   from original word lists in Portuguese and English, never copied from a
+   commercial table.
+
+7. **Randomness**: the platform's cryptographic source, no modulo bias,
+   injectable for tests ([0088](0088-dice-and-random-tables.md) item 7).
+
+8. **The switch.** The oracle is a feature of [0103](0103-feature-presets-and-capability-flags.md):
+   on by default; off, `[!oracle]` is an ordinary callout, with no button,
+   no command, no `/` item, and nothing in a file changes.
+
+9. **Accessibility and languages** ([0035](0035-cross-cutting-requirements.md)):
+   every word in pt-BR and EN, in strings modules; the odds picker a radio
+   group with arrow keys; tabs with roles and arrow keys; the result
+   announced in a polite live region; focus back to the note after writing.
 
 ## Consequences
 
-- `app/ui/src/oracle/` provides pure mathematical evaluation (`engine.ts`),
-  dialog view and editor integration (`dialog.ts`), and localization (`strings.ts`).
-- Unit tests (`app/ui/test/oracle.test.mjs`) verify mathematical bounds,
-  graduated outcomes, deterministic random sources, and bilingual sparks.
-- The feature provides offline creative generation without external AI or
-  network dependencies ([0003](0003-primitives-not-workarounds.md)).
+- `app/ui/src/oracle/`: `engine.ts` (draws), `locate.ts` (finding a
+  callout, planning a write that keeps the person's lines — pure, tested
+  through CodeMirror's own state), `track.ts` (following the callout while
+  the dialog is open), `write.ts`, `dialog.ts`, `strings.ts`.
+- Rust: `.verso/settings.json` gains the oracle keys (the contract's
+  `FolderSettings`, its bindings regenerated); the server's roll command
+  takes oracle draws.
+- Reading mode identifies a callout by its rank among the oracle callouts
+  of the note, checked against the note's text; an exact source line from
+  the renderer would be better and is a contract change left for later.
 
 ## Discarded alternatives
 
-- **Complex chaos factors and scene management engines (Mythic GME)**:
-  Discarded to keep the primitive simple, immediate, and versatile for
-  both novel writing and tabletop gaming.
-- **Direct filesystem writing for results insertion**: Discarded because it
-  triggers race conditions and concurrent conflicts in Yjs rooms
+- **Replacing the whole callout on a new answer** (the first build): it
+  deleted the person's narrative written inside it.
+- **Odds per device** (the first build): one roll gave different answers on
+  different devices and to different people.
+- **Writing to disk directly**: races with the editor and the room
   ([0082](0082-live-co-editing-of-a-synced-folder.md)).
 
 ## Status
 
-**Accepted (2026-10-17).**
+Accepted (2026-10-20) for the items marked `[DECIDED 2026-10-20]`, the
+maintainer's answers to the review of the first text; the `[PROPOSED]`
+details wait for the maintainer's reading.

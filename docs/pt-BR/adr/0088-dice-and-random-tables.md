@@ -22,6 +22,16 @@
   npm), [0009](0009-external-constraints.md), [0035](0035-cross-cutting-requirements.md).
 - Status no briefing: ausente; a tabela aleatória da
   [0036](0036-tabletop-rpg-support.md) é `PROPOSTO` lá; ao ser aceita.
+- Revisões: 2026-10-20 — o item 2 vale para `` `dice:` `` numa nota; a
+  resposta de um oráculo, pedida pela pessoa com "Inserir na nota", é
+  escrita na nota ([0102](0102-creative-oracles-and-improvisation.md) item
+  4, o mantenedor: *"qual o motivo de não poder gravar na nota?"*).
+  2026-10-20 — item 5: além do parser e do rolador, os perfis de sistema do
+  Rolai e o seu avaliador restrito de expressões são copiados, com o aviso
+  MIT, para que uma ficha role do jeito que o seu sistema lê uma rolagem
+  ([0099](0099-visual-markdown-statblocks-and-cards.md) item 4, o
+  mantenedor: *"tudo relacionado a rolagem dá pra copiar numa boa do rolai,
+  app meu aberto"*).
 
 ## Contexto
 
@@ -131,7 +141,7 @@ recomendado e está marcado `[DECIDIDO 2026-10-14]`.
 **Aceita (2026-10-14).** O mantenedor, naquela noite, respondendo a
 *"Aceita todas as recomendações (R1–R4 e os itens dos ADRs 0085–0092)?"* com *"Sim, todas"*: cada `[ABERTO]`
 decidido como recomendado, marcado `[DECIDIDO 2026-10-14]` no lugar. Na V1
-(`docs/roadmap.md`, Fase 4 — V1). A [0036](0036-tabletop-rpg-support.md) ganha uma linha de Revisões: dados, tabelas aleatórias, blocos secretos e mapas entram como primitivas. O [0101](0101-3d-dice-physics-overlay.md) revisa o item 5: dados 3D são admitidos como módulo opcional sob demanda sob o preset RPG ([0103](0103-feature-presets-and-capability-flags.md)).
+(`docs/roadmap.md`, Fase 4 — V1). A [0036](0036-tabletop-rpg-support.md) ganha uma linha de Revisões: dados, tabelas aleatórias, blocos secretos e mapas entram como primitivas.
 
 **Respondido durante a construção (2026-10-14, o mantenedor: "Sim, todas").** As perguntas que a construção levantou, respondidas como recomendado (*"Aceita todas as recomendações acima (P1–P5, M1–M6, I1–I7, D1–D11, G1–G4)?"*): D1 — o ADR citava explodir (`1d6!`) e `d%` enquanto o Rolai não lia nenhum dos dois: os dois são lidos, no parser da janela e no do servidor, com o sentido do README do Dice Roller, uma cadeia de explosões limitada a 100 dados acrescentados numa rolagem, o mesmo nos dois lados (construído naquela noite); D2 a D11, como construído — as duas formas do link de uma tabela, `[[Nota^id]]` e `[[Nota#^id]]`; o cabeçalho `dice: 1d20`; `00` vale 100, e listas como `13,14` são lidas; uma tabela de uma linha é recusada; numa sala o servidor rola mesmo com você sozinho; quem só lê pode rolar; o rolador da paleta rola só na sua janela; a sua rolagem não mostra o seu nome; os limites de 100 dados e 1000 lados.
 
