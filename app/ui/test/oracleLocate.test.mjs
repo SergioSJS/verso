@@ -248,3 +248,54 @@ test("M2: a rewritten question also replaces the oracle's spark and table lines"
   const only = `> [!oracle] Faísca\n> **Ação + Tema:** a + b\n> **Descritor + Foco:** c + d`;
   assert.equal(edit(only, hintOf(only), ans("Q?", "Sim", 1)).out, `> [!oracle] Q?\n> ${R("Sim", 1)} `);
 });
+
+test("B2: a caret inside a quote or callout never splits it", () => {
+  const callout = { text: "> [!oracle] Q\n> **Sim**\n\n", cursor: 0 };
+  const secret = "> [!secret] Mestre\n> O duque é o traidor.\n> Ele guarda a chave.\n> Só na sessão 5.\n\ndepois";
+  const at = secret.indexOf("O duque") + 3;
+  const r = insert(secret, at, callout);
+  assert.equal(r.out, "> [!secret] Mestre\n> O duque é o traidor.\n> Ele guarda a chave.\n> Só na sessão 5.\n\n> [!oracle] Q\n> **Sim**\n\n\n\ndepois");
+  // Nested: after the outermost quote.
+  const nested = "> [!secret] M\n> > [!note] N\n> > dentro\n> fim do segredo\nlinha seguinte\n\nx";
+  const n = insert(nested, nested.indexOf("dentro"), callout);
+  assert.ok(n.out.startsWith("> [!secret] M\n> > [!note] N\n> > dentro\n> fim do segredo\nlinha seguinte\n\n> [!oracle] Q"), n.out);
+  // On the head line, on an empty quoted line, at the end of the note.
+  assert.ok(insert("> [!note] a\n> b", 3, callout).out.startsWith("> [!note] a\n> b\n\n> [!oracle] Q"));
+  assert.ok(insert("> a\n>\n> b\n\nz", 5, callout).out.startsWith("> a\n>\n> b\n\n> [!oracle] Q"));
+  // A fence inside a quote: after the quote.
+  const fq = "> ```\n> codigo\n> ```\n> depois\n\nz";
+  assert.ok(insert(fq, 8, callout).out.startsWith("> ```\n> codigo\n> ```\n> depois\n\n> [!oracle] Q"));
+});
+
+test("B2: a caret inside an [!oracle] callout writes into that callout", () => {
+  const text = `a\n\n> [!oracle] Chove?\n> ${R("Sim", 1)}\n> minha nota\n\nfim`;
+  const at = text.indexOf("minha");
+  const block = L.oracleBlockContaining(text, at);
+  assert.equal(block.title, "Chove?");
+  // Same question: the answer is added.
+  const same = L.planOracleEdit(text, block, ans("Chove?", "Não", 2));
+  assert.equal(cm(text, same.changes), `a\n\n> [!oracle] Chove?\n> ${R("Sim", 1)}\n> minha nota\n> ${R("Não", 2)} \n\nfim`);
+  // Rewritten: only the oracle's lines go.
+  const re = L.planOracleEdit(text, block, ans("Neva?", "Não", 2));
+  assert.equal(cm(text, re.changes), `a\n\n> [!oracle] Neva?\n> minha nota\n> ${R("Não", 2)} \n\nfim`);
+  // Outside any oracle callout, and in a fence: none.
+  assert.equal(L.oracleBlockContaining(text, 0), null);
+  assert.equal(L.oracleBlockContaining("```\n> [!oracle] x\n```", 8), null);
+  // The innermost one when they nest.
+  const nest = "> [!oracle] Fora\n> > [!oracle] Dentro\n> > x";
+  assert.equal(L.oracleBlockContaining(nest, nest.indexOf("x")).title, "Dentro");
+});
+
+test("frontmatter: an insertion never lands inside the YAML", () => {
+  const callout = { text: "> [!oracle] Q\n\n", cursor: 0 };
+  const note = "---\ntags: [a]\n---\n# Título\ncorpo";
+  for (const at of [0, 4, 10, note.indexOf("---", 4) + 1]) {
+    const r = insert(note, at, callout);
+    assert.ok(r.out.startsWith("---\ntags: [a]\n---\n\n> [!oracle] Q"), `at ${at}: ${r.out}`);
+  }
+  // Not frontmatter (no closing fence): ordinary behaviour.
+  assert.ok(insert("---\nnada", 0, callout).out.startsWith("---\n\n> [!oracle] Q"));
+  // The fence being the last line of the note.
+  const only = "---\na: 1\n---";
+  assert.equal(insert(only, 0, callout).out, "---\na: 1\n---\n\n> [!oracle] Q\n\n");
+});
