@@ -16,9 +16,7 @@ import { TableEditor } from "../tableEditor";
 import { icon } from "../icons";
 import { renderMermaid } from "../mermaid";
 import { hasCapability } from "../capabilities";
-import { isStatblockInfo } from "./statblockFence";
-import { parseStatblock } from "../statblock/parser";
-import { renderStatblockCard } from "../statblock/render";
+import { isStatblockFence, renderStatblock } from "../statblock/render";
 import { startOf, FrontmatterWidget } from "./widgets";
 import { mathSpans, inlineText, aloneInParagraph } from "./math";
 import { frontmatterEnd } from "./frontmatter";
@@ -65,7 +63,7 @@ export function blocksOf(state: EditorState): Block[] {
           const text = n.node.getChildren("CodeText").map((c) => doc.sliceString(c.from, c.to)).join("\n");
           const at = lines(n.from, n.to);
           if (at) out.push({ ...at, kind: "mermaid", text });
-        } else if (isStatblockInfo(infoStr) && hasCapability("statblocks")) {
+        } else if (isStatblockFence(infoStr) && hasCapability("statblocks")) {
           const text = n.node.getChildren("CodeText").map((c) => doc.sliceString(c.from, c.to)).join("\n");
           const at = lines(n.from, n.to);
           if (at) out.push({ ...at, kind: "statblock", text });
@@ -218,19 +216,14 @@ export class BlockWidget extends WidgetType {
       el.className = "cm-lp-block cm-lp-statblock";
       el.style.position = "relative";
 
-      const data = parseStatblock(b.text);
-      if (data) {
-        const edit = () => {
-          const at = startOf(view, el);
-          if (at === null) return;
-          view.dispatch({ selection: { anchor: Math.min(at + 4, view.state.doc.length) } });
-          view.focus();
-        };
-        const card = renderStatblockCard(data, edit);
-        el.append(card);
-      } else {
-        el.textContent = b.text;
-      }
+      const edit = () => {
+        const at = startOf(view, el);
+        if (at === null) return;
+        view.dispatch({ selection: { anchor: Math.min(at + 4, view.state.doc.length) } });
+        view.focus();
+      };
+      const notePath = this.opts.notePath?.();
+      el.append(renderStatblock(b.text, edit, notePath === undefined ? {} : { source: notePath }));
       return el;
     }
     if (b.kind === "pdf") {

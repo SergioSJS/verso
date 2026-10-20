@@ -572,6 +572,7 @@ export function cardEditor(host: HTMLElement, path: string, onExit: () => void, 
         else ui.status.textContent = t.unresolved(target);
       },
       copyLabels: { copy: t.copyCode, copied: t.codeCopied },
+      notePath: () => path,
     });
     const keys: KeyBinding[] = [
       { key: "Mod-s", run: () => (void save(), true) },

@@ -19,9 +19,7 @@ import { redraw, sizeOf } from "../../live";
 import { panel } from "../../main";
 import { renderMermaid } from "../../mermaid";
 import { hasCapability } from "../../capabilities";
-import { statblockCode } from "../../live/statblockFence";
-import { parseStatblock } from "../../statblock/parser";
-import { renderStatblockCard } from "../../statblock/render";
+import { isStatblockCode, renderStatblockHost } from "../../statblock/render";
 import { opening } from "../../opening";
 import { dirOf, kindOf, name } from "../../paths";
 import { parsePdfSpec, PdfView } from "../../pdf";
@@ -103,33 +101,12 @@ export function wireMermaidBlocks(this: NoteLeaf, root: HTMLElement): void {
 
 export function wireStatblocks(this: NoteLeaf, root: HTMLElement): void {
   if (!hasCapability("statblocks")) return;
-  for (const code of root.querySelectorAll<HTMLElement>("pre > code[class*='language-statblock']")) {
-    if (!statblockCode(code)) continue;
+  for (const code of root.querySelectorAll<HTMLElement>("pre > code")) {
+    if (!isStatblockCode(code)) continue;
     const pre = code.parentElement;
     if (!pre || pre.dataset["statblockRendered"]) continue;
     pre.dataset["statblockRendered"] = "true";
-    const text = code.textContent ?? "";
-    const data = parseStatblock(text);
-    if (!data) continue;
-
-    const host = h("div", "statblock-host");
-    let showingCard = true;
-
-    const toggle = () => {
-      showingCard = !showingCard;
-      if (showingCard) {
-        pre.hidden = true;
-        card.hidden = false;
-      } else {
-        pre.hidden = false;
-        card.hidden = true;
-      }
-    };
-
-    const card = renderStatblockCard(data, toggle);
-    pre.before(host);
-    host.append(card, pre);
-    pre.hidden = true;
+    pre.replaceWith(renderStatblockHost(code.textContent ?? "", { source: this.path }));
   }
 }
 

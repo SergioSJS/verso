@@ -66,6 +66,9 @@ export type LiveOptions = {
   /** Tables edited as tables (ADR 0064): the editor's words and the
    *  window's menu and renderer. */
   table?: TableEditorOptions;
+  /** The note being edited: a statblock's image path is read from the
+   *  folder as this note names it. */
+  notePath?: () => string;
   /** A `dice:` code drawn as its die (ADR 0088), or null. */
   dice?: (code: string) => WidgetType | null;
 };

@@ -542,3 +542,10 @@ export function isStatblockFence(info: string): boolean {
   const word = info.trim().split(/\s/, 1)[0]?.toLowerCase() ?? "";
   return word === "statblock" || word.startsWith("statblock-");
 }
+
+/** Whether a rendered fence's `<code>` is a statblock: its `language-…`
+ *  class is the info word, read with the same rule as the source's. */
+export function isStatblockCode(code: Element): boolean {
+  for (const c of Array.from(code.classList)) if (c.startsWith("language-") && isStatblockFence(c.slice("language-".length))) return true;
+  return false;
+}

@@ -19,7 +19,7 @@ globalThis.localStorage = win.localStorage;
 await esbuild.build({
   stdin: {
     contents: `export { STATBLOCK_MAX_CHARS, parseStatblock } from "./src/statblock/parser";
-export { isStatblockFence, renderStatblock, renderStatblockCard, renderStatblockHost, imageTarget } from "./src/statblock/render";
+export { isStatblockCode, isStatblockFence, renderStatblock, renderStatblockCard, renderStatblockHost, imageTarget } from "./src/statblock/render";
 export { BUILTIN_LAYOUTS, deleteCustomLayout, duplicateLayout, getAllLayouts, getCustomLayouts, getLayout, importLayoutFromJson, importLayoutFromYaml, resolveLayout, saveCustomLayout, setCustomLayouts, uniqueLayoutId } from "./src/statblock/layouts";
 export { setStatblockLang } from "./src/statblock/strings";`,
     resolveDir: ".",
@@ -160,6 +160,19 @@ describe("one rule for the fence name, one list of the card's text", () => {
   test("statblock and statblock-suffix, case aside, nothing else", () => {
     for (const ok of ["statblock", "Statblock", "statblock-5e", "statblock x"]) assert.equal(m.isStatblockFence(ok), true, ok);
     for (const no of ["statblocks", "statblockfoo", "", "yaml"]) assert.equal(m.isStatblockFence(no), false, no);
+  });
+
+  test("a rendered fence's code is read by the same rule", () => {
+    const code = (cls) => {
+      const el = document.createElement("code");
+      if (cls) el.className = cls;
+      return el;
+    };
+    assert.equal(m.isStatblockCode(code("language-statblock")), true);
+    assert.equal(m.isStatblockCode(code("language-statblock-5e")), true);
+    assert.equal(m.isStatblockCode(code("language-statblocks")), false);
+    assert.equal(m.isStatblockCode(code("language-yaml")), false);
+    assert.equal(m.isStatblockCode(code("")), false);
   });
 });
 
