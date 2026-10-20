@@ -5,7 +5,8 @@ import * as esbuild from "esbuild";
 
 await esbuild.build({
   stdin: {
-    contents: `export { askOracle, generateSpark } from "./src/oracle/engine";`,
+    contents: `export { askOracle, generateSpark } from "./src/oracle/engine";
+export { readTable, TABLE_LIMITS } from "./src/dialogs/settings/tableRead";`,
     resolveDir: ".",
     loader: "ts",
   },
@@ -16,7 +17,7 @@ await esbuild.build({
   logLevel: "error",
   external: ["@tauri-apps/*"],
 });
-const { askOracle, generateSpark } = await import("./.bundles/oracle.test-bundle.mjs");
+const { askOracle, generateSpark, readTable, TABLE_LIMITS } = await import("./.bundles/oracle.test-bundle.mjs");
 
 test("askOracle returns valid graduated answer and roll between 1 and 100", () => {
   const validAnswers = new Set(["yesAnd", "yes", "yesBut", "noBut", "no", "noAnd"]);
@@ -61,3 +62,17 @@ test("generateSpark returns evocative prompt combinations in pt and en", () => {
   }
 });
 
+
+test("readTable reads only tables with a name and non-empty text entries within the limits", () => {
+  assert.deepEqual(readTable({ name: " T ", entries: [" a ", "b"], id: "twists", icon: "x" }), { name: "T", desc: "", entries: ["a", "b"] });
+  assert.equal(readTable({ name: "T", entries: [] }), null);
+  assert.equal(readTable({ name: "T", entries: [{ a: 1 }] }), null);
+  assert.equal(readTable({ name: "T", entries: ["a", ""] }), null);
+  assert.equal(readTable({ name: "", entries: ["a"] }), null);
+  assert.equal(readTable({ name: 5, entries: ["a"] }), null);
+  assert.equal(readTable(null), null);
+  assert.equal(readTable("x"), null);
+  assert.equal(readTable({ name: "x".repeat(TABLE_LIMITS.name + 1), entries: ["a"] }), null);
+  assert.equal(readTable({ name: "T", entries: Array(TABLE_LIMITS.entries + 1).fill("a") }), null);
+  assert.equal(readTable({ name: "T", entries: ["x".repeat(TABLE_LIMITS.entry + 1)] }), null);
+});

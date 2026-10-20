@@ -9,6 +9,7 @@
  * modifying files on disk.
  */
 
+import { ui } from "./dom";
 import { settings, saveSettings } from "./settings";
 import { LANG } from "./strings";
 
@@ -114,12 +115,5 @@ export function setPreset(preset: CapabilityPreset): void {
   // Live region announcement for screen readers (ADR 0035 / ADR 0103 item 5)
   const info = PRESETS[preset];
   const msg = isPt ? `Modo alterado para ${info.name}` : `Mode switched to ${info.name}`;
-  const liveEl = document.querySelector("#verso-status-live") ?? document.body;
-  const announcement = document.createElement("div");
-  announcement.setAttribute("role", "status");
-  announcement.setAttribute("aria-live", "polite");
-  announcement.className = "sr-only";
-  announcement.textContent = msg;
-  liveEl.append(announcement);
-  setTimeout(() => announcement.remove(), 2000);
+  ui.status.textContent = msg;
 }

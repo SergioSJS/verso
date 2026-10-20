@@ -417,9 +417,9 @@ Para escrever um destaque desse tipo em qualquer nota, basta usar:
 
 ### A Janela do Oráculo
 
-Abra a qualquer momento com o atalho `/oraculo` no editor ou pela paleta de comandos (`⌘⇧P` › *Consultar Oráculo…*). Ela possui três abas principais:
+Abra a qualquer momento com o atalho `/oraculo` no editor ou pela paleta de comandos (`⌘⇧P` › *Oráculo (sim/não e faíscas)…*). Ela possui três abas principais:
 
-1. **Sim ou Não**: Escolha a probabilidade da pergunta (*Quase impossível*, *Improvável*, *50 / 50*, *Provável*, *Quase certo*). O Verso rola um `d100` calibrado (ADR 0102) e avalia o resultado em seis faixas narrativas:
+1. **Sim ou Não**: Escolha a probabilidade da pergunta (*Quase impossível*, *Improvável*, *50 / 50*, *Provável*, *Quase certo*). O Verso rola um `d100` calibrado e avalia o resultado em seis faixas narrativas:
    - *Sim, e…* (sucesso com benefício extra)
    - *Sim* (sucesso limpo)
    - *Sim, mas…* (sucesso com complicação)
@@ -429,13 +429,13 @@ Abra a qualquer momento com o atalho `/oraculo` no editor ou pela paleta de coma
 2. **Faíscas de Ideias**: Sorteie pares de conceitos para destravar a imaginação (*Ação + Tema* ou *Descritor + Foco*, ex.: *Investigar Segredo*, *Sombrio Portal*).
 3. **Tabelas do Cofre**: Sorteie diretamente em tabelas temáticas prontas (*Reviravoltas na Trama*, *Complicações & Perigos*, *Clima & Atmosfera*, *NPC: Disposição & Motivo*).
 
-Ao obter um resultado, você pode usar **Copiar** ou **Inserir na nota** para gravá-lo no ponto exato do cursor como um destaque `[!oracle]`.
+Ao obter um resultado, você pode usar **Copiar** ou **Inserir na nota**. Se o cursor está num destaque `[!oracle]` que já existe, a resposta é gravada dentro dele e as respostas se acumulam: rolar de novo a mesma pergunta acrescenta uma linha nova e mantém as anteriores (se você reescreveu a pergunta, as linhas que o oráculo gerou são trocadas; o que você escreveu à mão nunca é apagado). Sem um destaque, o Verso insere um novo no ponto do cursor.
 
 ---
 
 ### 🎲 Como criar e customizar seus próprios Oráculos
 
-No Verso, qualquer tabela Markdown ou lista com um identificador de bloco (`^id`) é tratada como um **oráculo sorteável** (ADR 0088):
+No Verso, qualquer tabela Markdown ou lista com um identificador de bloco (`^id`) é tratada como um **oráculo sorteável**:
 
 | d6 | Reviravolta Inesperada |
 |:--:|---|
@@ -457,7 +457,7 @@ Você pode rolar o seu oráculo customizado de duas maneiras:
 
 Em vez de criar dezenas de pastas e arquivos manualmente para organizar um novo cenário de RPG ou campanha de ficção, o Verso oferece um assistente estruturado:
 
-1. Clique no botão **`+`** na barra lateral de arquivos e escolha **Novo projeto a partir de um modelo…** (ou use a paleta de comandos: `⌘⇧P` › *Criar Novo Mundo ou Campanha…*).
+1. Clique no botão **`+`** na barra lateral de arquivos e escolha **Novo projeto a partir de modelo…** (ou use a paleta de comandos: `⌘⇧P` › *Novo projeto a partir de modelo…*).
 2. **Modelos Prontos**: Escolha entre pacotes embutidos como:
    - *Tormenta20 / Fantasia Medieval*: Pastas organizadas para Sessões, Facções, Personagens, Cidades, Itens e Ameaças, já com modelos pré-configurados.
    - *Ciberpunk / Ficção Científica*: Dossiês de megacorporações, implantes, missões e NPCs.
