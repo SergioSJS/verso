@@ -34,3 +34,35 @@ export async function copyWithAnswer(btn: HTMLButtonElement, text: string, label
     say(failed, true);
   }
 }
+
+/** A feedback line that can offer to undo what was just done: the words,
+ *  and a button that undoes, until the next thing is said. */
+export function undoLine(undoLabel: string): { el: HTMLElement; say: (text: string, bad?: boolean, undo?: () => void) => void } {
+  const el = h("p", "settings-hint settings-feedback orc-said");
+  el.setAttribute("role", "status");
+  el.setAttribute("aria-live", "polite");
+  el.hidden = true;
+  const words = h("span");
+  const btn = h("button", "orc-undo", undoLabel);
+  btn.type = "button";
+  btn.hidden = true;
+  let run: (() => void) | null = null;
+  btn.addEventListener("click", () => {
+    const r = run;
+    run = null;
+    btn.hidden = true;
+    r?.();
+  });
+  el.append(words, btn);
+  return {
+    el,
+    say: (text, bad = false, undo) => {
+      words.textContent = text;
+      el.hidden = text === "";
+      el.classList.toggle("bad", bad);
+      run = undo ?? null;
+      btn.hidden = !undo;
+      ui.status.textContent = text;
+    },
+  };
+}

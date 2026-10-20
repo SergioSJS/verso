@@ -23,6 +23,15 @@ export interface OracleTable {
   /** The note a table of the folder is written in, and the block's id. */
   note?: string;
   block?: string;
+  /** The die in a table's header (`d6`), when it has one. */
+  die?: string;
+}
+
+/** A block id as a name: hyphens and underscores as spaces, the first
+ *  letter capital ("reviravolta" → "Reviravolta"). */
+export function idAsName(id: string): string {
+  const words = id.replace(/[-_]+/g, " ").trim();
+  return words.charAt(0).toLocaleUpperCase() + words.slice(1);
 }
 
 export const BUILTIN_ORACLE_TABLES: readonly OracleTable[] = [
@@ -67,14 +76,15 @@ export function entriesOf(table: RandomTable): string[] | null {
 
 /** The tables written in one note: each block with an `^id` that reads as a
  *  random table. `lines` are the note's, `blocks` its ids, `headings` its
- *  headings; a table is named by the heading above it, else by the note. */
+ *  headings. A table is named by the nearest heading above it, else by its
+ *  id; two tables of one note never share a name — where headings collide,
+ *  each takes its `^id` after the heading. */
 export function tablesOfNote(
   path: string,
   lines: readonly string[],
   blocks: readonly { id: string; first_line: number; last_line: number }[],
   headings: readonly { text: string; line: number }[],
 ): OracleTable[] {
-  const title = path.replace(/^.*\//, "").replace(/\.md$/i, "");
   const out: OracleTable[] = [];
   const seen = new Set<string>();
   // With the id twice, the last (spec Q4): the one a link reaches.
@@ -88,15 +98,20 @@ export function tablesOfNote(
     const above = [...headings].filter((h) => h.line < b.first_line).sort((a, c) => c.line - a.line)[0];
     out.push({
       id: `${path}#^${b.id}`,
-      name: above && above.text.trim() ? above.text.trim() : title,
+      name: above && above.text.trim() ? above.text.trim() : idAsName(b.id),
       desc: `${path} ^${b.id}`,
       icon: "note",
       entries,
       note: path,
       block: b.id,
+      ...(t.ranged ? { die: t.notation.replace(/^1d/, "d") } : {}),
     });
   }
-  return out.reverse();
+  out.reverse();
+  const names = new Map<string, number>();
+  for (const t of out) names.set(t.name, (names.get(t.name) ?? 0) + 1);
+  for (const t of out) if ((names.get(t.name) ?? 0) > 1) t.name = `${t.name} (^${t.block})`;
+  return out;
 }
 
 let found: OracleTable[] = [];
