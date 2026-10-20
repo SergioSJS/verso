@@ -30,6 +30,11 @@ export function statblockItems(ctx: ItemCtx): SettingItem[] {
 
   add(p.importTitle, p.importDesc, () => {
     const wrap = h("div", "statblock-manage-wrap");
+    const newBtn = button("save", p.newLayout);
+    newBtn.disabled = !canWriteLayouts();
+    if (newBtn.disabled) newBtn.title = S.noFolder;
+    newBtn.addEventListener("click", () => void openLayoutBuilder(undefined, () => ctx.paint()));
+    wrap.append(newBtn);
     const importBtn = button("ghost", p.importButton);
     importBtn.disabled = !canWriteLayouts();
     if (importBtn.disabled) importBtn.title = S.noFolder;
@@ -78,10 +83,12 @@ export function statblockItems(ctx: ItemCtx): SettingItem[] {
       });
       const exp = button("ghost", p.exportJson);
       exp.addEventListener("click", () => void copyWithAnswer(exp, exportLayout(layout), p.exportJson, p.copied, p.copyFailed, feedback.say));
-      actions.append(dup, exp);
+      // A built-in is copied into the folder first; the editor says so.
+      const edit = button("ghost", p.edit);
+      if (stored.source !== "folder") edit.title = p.editCopies;
+      edit.addEventListener("click", () => void openLayoutBuilder(stored, () => ctx.paint()));
+      actions.append(edit, dup, exp);
       if (stored.source === "folder") {
-        const edit = button("ghost", p.edit);
-        edit.addEventListener("click", () => openLayoutBuilder(stored, () => ctx.paint()));
         const del = button("ghost danger", p.remove);
         del.addEventListener("click", () => {
           void (async () => {
@@ -92,7 +99,7 @@ export function statblockItems(ctx: ItemCtx): SettingItem[] {
             ctx.paint();
           })();
         });
-        actions.append(edit, del);
+        actions.append(del);
       }
       const desc = h("div", "statblock-card-desc", word(layout.description));
       card.append(top, desc);
