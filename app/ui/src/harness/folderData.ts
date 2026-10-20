@@ -159,6 +159,9 @@ function listProblem(name: string, words: readonly string[]): string | null {
 /** Whether a change of the oracle's keys may be written: refused, as the
  *  core refuses it, when not. */
 export function checkOracle(change: OracleSettings): void {
+  if ((change.clear_odds && change.odds) || (change.clear_sparks && change.sparks)) {
+    refuse("refused", "folder settings: a change cannot both set and clear the same oracle key");
+  }
   const odds = change.odds ? oddsProblem(change.odds) : null;
   if (odds) refuse("refused", `folder settings: ${odds}`);
   if (change.sparks) {
@@ -193,7 +196,7 @@ function sparksOf(v: unknown): OracleSparks | null {
 export function readOracle(file: Record<string, unknown>): OracleSettings | null {
   const o = rec(file["oracle"]);
   if (!o) return null;
-  return { odds: oddsOf(o["odds"]), sparks: sparksOf(o["sparks"]) };
+  return { odds: oddsOf(o["odds"]), sparks: sparksOf(o["sparks"]), clear_odds: null, clear_sparks: null };
 }
 
 /** One line for each part of the file's `oracle` that is not applied. */
@@ -211,11 +214,15 @@ export function oracleProblems(file: Record<string, unknown>): string[] {
  *  one by one; every other key kept. */
 export function applyOracle(file: Record<string, unknown>, change: OracleSettings): void {
   const o = rec(file["oracle"]) ?? {};
+  if (change.clear_odds) delete o["odds"];
+  if (change.clear_sparks) delete o["sparks"];
   if (change.odds) o["odds"] = change.odds;
   if (change.sparks) {
     const s = rec(o["sparks"]) ?? {};
     for (const name of SPARK_LISTS) s[name] = change.sparks[name];
     o["sparks"] = s;
   }
-  file["oracle"] = o;
+  // Never an empty object: the key goes with its last content.
+  if (Object.keys(o).length === 0) delete file["oracle"];
+  else file["oracle"] = o;
 }

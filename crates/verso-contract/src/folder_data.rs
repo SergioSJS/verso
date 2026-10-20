@@ -79,4 +79,9 @@ pub struct OracleSettings {
     /// message, not by the host's argument decoding.
     pub odds: Option<Vec<Vec<u32>>>,
     pub sparks: Option<OracleSparks>,
+    /// `true` removes `oracle.odds` from the file; `None` in `odds` is "no
+    /// change", so it cannot say this. Refused together with `odds`.
+    pub clear_odds: Option<bool>,
+    /// `true` removes `oracle.sparks` from the file, likewise.
+    pub clear_sparks: Option<bool>,
 }

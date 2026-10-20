@@ -86,16 +86,20 @@ export function anyLegacyKept(): boolean {
 
 /** Write a change of the oracle. False when the folder's settings cannot be
  *  written now. What an earlier build kept moves in with it — the part this
- *  change does not set — and is removed once the folder holds it. */
-async function write(part: { odds: number[][] | null; sparks: SparkWordLists | null }): Promise<boolean> {
+ *  change does not set — and is removed once the folder holds it. A part
+ *  named in `clear` is taken out of the file (the contract's `clear_odds`
+ *  and `clear_sparks`: a null part alone means "no change"). */
+async function write(part: { odds: number[][] | null; sparks: SparkWordLists | null }, clear: { odds?: boolean; sparks?: boolean } = {}): Promise<boolean> {
   if (oracleNotWritable()) return false;
   // A number the contract cannot carry (negative, not whole) is refused here,
   // before the host's argument decoding fails with no message of ours.
   if (part.odds !== null && !part.odds.every(validOddsRow)) return false;
   const here = folderOracleNow();
-  const moveOdds = part.odds === null && here.odds === null ? legacyOddsKept() : null;
-  const moveSparks = part.sparks === null && here.sparks === null ? legacySparksKept() : null;
-  const ok = await changeFolder(() => ({ oracle: { odds: part.odds ?? moveOdds, sparks: part.sparks ?? moveSparks } }));
+  const moveOdds = part.odds === null && here.odds === null && !clear.odds ? legacyOddsKept() : null;
+  const moveSparks = part.sparks === null && here.sparks === null && !clear.sparks ? legacySparksKept() : null;
+  const ok = await changeFolder(() => ({
+    oracle: { odds: part.odds ?? moveOdds, sparks: part.sparks ?? moveSparks, clear_odds: clear.odds ? true : null, clear_sparks: clear.sparks ? true : null },
+  }));
   if (ok && !oracleNotWritable() && !oddsIgnored() && !sparksIgnored()) {
     const s = storage();
     if (s) clearLegacyOracle(s);
@@ -108,7 +112,17 @@ export function saveOdds(table: OddsTable): Promise<boolean> {
   return write({ odds: oddsToRows(table), sparks: null });
 }
 
+/** Take the odds out of the folder's file: back to the built-in table. */
+export function clearOdds(): Promise<boolean> {
+  return write({ odds: null, sparks: null }, { odds: true });
+}
+
 /** Save the spark words in the folder. */
 export function saveSparks(words: SparkWordLists): Promise<boolean> {
   return write({ odds: null, sparks: { action: [...words.action], theme: [...words.theme], descriptor: [...words.descriptor], focus: [...words.focus] } });
+}
+
+/** Take the spark words out of the folder's file: back to Verso's words. */
+export function clearSparks(): Promise<boolean> {
+  return write({ odds: null, sparks: null }, { sparks: true });
 }

@@ -60,6 +60,11 @@ pub struct Oracle {
     /// no-but, no, no-and.
     pub odds: Option<Vec<Vec<u32>>>,
     pub sparks: Option<OracleSparks>,
+    /// Remove the odds from the file (back to the defaults the window
+    /// carries). `None` in `odds` cannot say this: it is "no change".
+    pub clear_odds: bool,
+    /// Remove the spark lists from the file, likewise.
+    pub clear_sparks: bool,
 }
 
 fn odds_problem(odds: &[Vec<u32>]) -> Option<String> {
@@ -104,6 +109,13 @@ fn list_problem(name: &str, words: &[String]) -> Option<String> {
 /// Whether a change may be written: the odds and the spark lists inside
 /// their bounds.
 pub(crate) fn check(change: &Oracle) -> Result<(), CoreError> {
+    if (change.clear_odds && change.odds.is_some())
+        || (change.clear_sparks && change.sparks.is_some())
+    {
+        return Err(CoreError::FolderSettings(
+            "a change cannot both set and clear the same oracle key".to_owned(),
+        ));
+    }
     if let Some(odds) = &change.odds
         && let Some(problem) = odds_problem(odds)
     {
@@ -159,6 +171,7 @@ pub(crate) fn read(map: &Map<String, Value>) -> Option<Oracle> {
     Some(Oracle {
         odds: o.get("odds").and_then(odds_of),
         sparks: o.get("sparks").and_then(sparks_of),
+        ..Oracle::default()
     })
 }
 
@@ -201,6 +214,12 @@ pub(crate) fn apply(map: &mut Map<String, Value>, change: &Oracle) {
     let Some(o) = object_at(map, ORACLE) else {
         return;
     };
+    if change.clear_odds {
+        o.remove("odds");
+    }
+    if change.clear_sparks {
+        o.remove("sparks");
+    }
     if let Some(odds) = &change.odds {
         o.insert(
             "odds".to_owned(),
@@ -220,6 +239,10 @@ pub(crate) fn apply(map: &mut Map<String, Value>, change: &Oracle) {
                 Value::Array(words.iter().cloned().map(Value::String).collect()),
             );
         }
+    }
+    // Never leave an empty object behind.
+    if o.is_empty() {
+        map.remove(ORACLE);
     }
 }
 
@@ -253,6 +276,7 @@ mod tests {
         let change = Oracle {
             odds: Some(odds()),
             sparks: Some(sparks()),
+            ..Oracle::default()
         };
         assert!(check(&change).is_ok());
         assert!(check(&Oracle::default()).is_ok());
@@ -274,13 +298,13 @@ mod tests {
         ] {
             let change = Oracle {
                 odds: Some(bad),
-                sparks: None,
+                ..Oracle::default()
             };
             assert!(check(&change).is_err());
         }
         let wide = Oracle {
             odds: Some(vec![vec![300, 0, 0, 0, 0, 0]; 5]),
-            sparks: None,
+            ..Oracle::default()
         };
         let Err(CoreError::FolderSettings(why)) = check(&wide) else {
             panic!("refused")
@@ -294,8 +318,8 @@ mod tests {
             let mut s = sparks();
             f(&mut s);
             check(&Oracle {
-                odds: None,
                 sparks: Some(s),
+                ..Oracle::default()
             })
         };
         assert!(with(&|s| s.action = Vec::new()).is_err());
@@ -317,6 +341,7 @@ mod tests {
             &Oracle {
                 odds: Some(odds()),
                 sparks: Some(sparks()),
+                ..Oracle::default()
             },
         );
         let o = map["oracle"].as_object().unwrap();
@@ -345,5 +370,62 @@ mod tests {
         assert!(problems(&parse("{}")).is_empty());
         assert_eq!(problems(&parse(r#"{"oracle": 3}"#)).len(), 1);
         assert!(read(&parse(r#"{"oracle": 3}"#)).is_none());
+    }
+
+    #[test]
+    fn clearing_removes_the_key_and_an_empty_oracle_goes_too() {
+        let mut map = parse(
+            r#"{"oracle": {"extra": 1, "odds": [[1]], "sparks": {"action": ["x"]}}, "zeta": true}"#,
+        );
+        apply(
+            &mut map,
+            &Oracle {
+                clear_odds: true,
+                ..Oracle::default()
+            },
+        );
+        let o = map["oracle"].as_object().unwrap();
+        assert!(!o.contains_key("odds") && o.contains_key("sparks") && o["extra"] == 1);
+        apply(
+            &mut map,
+            &Oracle {
+                clear_sparks: true,
+                ..Oracle::default()
+            },
+        );
+        assert!(map["oracle"].as_object().unwrap().contains_key("extra"));
+        let mut only = parse(r#"{"oracle": {"odds": [[1]], "sparks": {}}, "zeta": true}"#);
+        apply(
+            &mut only,
+            &Oracle {
+                clear_odds: true,
+                clear_sparks: true,
+                ..Oracle::default()
+            },
+        );
+        assert!(!only.contains_key("oracle") && only["zeta"] == true);
+        let mut none = parse("{}");
+        apply(&mut none, &Oracle::default());
+        assert!(!none.contains_key("oracle"));
+    }
+
+    #[test]
+    fn setting_and_clearing_the_same_key_is_refused() {
+        assert!(
+            check(&Oracle {
+                odds: Some(odds()),
+                clear_odds: true,
+                ..Oracle::default()
+            })
+            .is_err()
+        );
+        assert!(
+            check(&Oracle {
+                sparks: Some(sparks()),
+                clear_sparks: true,
+                ..Oracle::default()
+            })
+            .is_err()
+        );
     }
 }
