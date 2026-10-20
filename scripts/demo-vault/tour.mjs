@@ -371,6 +371,18 @@ const STOPS = [
       "Numa nota compartilhada quem rola é o servidor, e todos veem quem rolou. Rolar dados…, na paleta, rola sem nota. " +
       "Um callout `> [!secret]` é o segredo do mestre: num UniVerso, quem só lê a nota a recebe sem ele; Ver como leitor mostra como.",
   },
+  {
+    id: "mundos-rpg",
+    label: "Mundos e RPG",
+    heading: "⚔️ Fichas, oráculos e campanhas",
+    color: VIOLET,
+    canvasColor: "6",
+    cards: [["n-mundos", "26 - Fichas, Oráculos e Criação de Mundos.md", 640]],
+    tip:
+      "Fichas em blocos ```statblock desenham cartões interativos com botões de rolagem automática para cada ataque ou teste. " +
+      "Callouts > [!oracle] e a janela do Oráculo respondem perguntas de 'sim/não' com probabilidades e faíscas de improviso. " +
+      "O assistente de mundos cria estruturas inteiras de campanha a partir de modelos prontos ou de prompts de IA, e Ajustes › Modo de Uso permite focar em escrita pura, cenários ou RPG completo.",
+  },
 ];
 
 /** Where stop `i` stands: row by row, left to right. */

@@ -82,3 +82,24 @@ export function openRoller(): void {
   made.input.focus();
   made.input.select();
 }
+
+/** Open the roller with a pre-filled notation and roll immediately. */
+export function openRollerWith(notation: string): void {
+  const made = shade ? { shade, input: shade.querySelector("input") as HTMLInputElement } : build();
+  shade = made.shade;
+  opened(shade);
+  shade.hidden = false;
+  made.input.value = notation;
+  const form = shade.querySelector("form");
+  form?.dispatchEvent(new Event("submit", { cancelable: true }));
+  made.input.focus();
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("verso:roll-dice", (e: Event) => {
+    const detail = (e as CustomEvent<{ notation?: string }>).detail;
+    if (detail?.notation) {
+      openRollerWith(detail.notation);
+    }
+  });
+}

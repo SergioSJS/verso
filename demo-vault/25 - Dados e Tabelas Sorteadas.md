@@ -92,4 +92,4 @@ Na paleta de comandos (`⌘⇧P`), **Rolar dados…** abre um rolador: digite a 
 
 ---
 
-Para jogar com outras pessoas na mesma nota, monte o seu servidor com [[24 - Instalar o seu UniVerso, Passo a Passo]]. Volte para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].
+Veja a seguir como usar fichas visuais de monstros, oráculos para jogo solo e criação de campanhas em [[26 - Fichas, Oráculos e Criação de Mundos]]. Volte para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].

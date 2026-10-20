@@ -496,14 +496,39 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 /* Palette, settings */
 .palette kbd { margin-left: auto; }
 /* Settings: a page with sections at the left, items as title + line + control. */
-.settings-box { display: flex; width: min(66rem, 94vw); height: min(44rem, 84vh); background: var(--paper); border: 1px solid var(--hair); border-radius: 12px; box-shadow: 0 30px 80px -24px oklch(0% 0 0 / .45); overflow: hidden; }
-.settings-side { flex: none; width: 15rem; display: flex; flex-direction: column; gap: .6rem; padding: 1rem .8rem; background: var(--paper-2); border-right: 1px solid var(--hair); }
-.settings-search { font: inherit; font-size: .88rem; padding: .4rem .7rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); color: var(--ink); }
-.settings-search:focus { outline: none; border-color: var(--brass-ink); }
-.settings-nav { display: flex; flex-direction: column; gap: .1rem; }
-.settings-top { display: flex; align-items: center; gap: .4rem; }
+.quick.settings { padding-top: 0; justify-content: center; align-items: center; }
+.settings-box { position: relative; display: flex; width: min(66rem, 94vw); height: min(44rem, 84vh); min-width: 32rem; min-height: 22rem; max-width: calc(100vw - 2rem); max-height: calc(100vh - 2rem); background: var(--paper); border: 1px solid var(--hair); border-radius: 12px; box-shadow: 0 30px 80px -24px oklch(0% 0 0 / .45); overflow: hidden; }
+.settings-resize-handle { position: absolute; z-index: 20; touch-action: none; user-select: none; }
+.settings-resize-handle.r { right: -3px; top: 10px; bottom: 10px; width: 7px; cursor: ew-resize; }
+.settings-resize-handle.b { bottom: -3px; left: 10px; right: 10px; height: 7px; cursor: ns-resize; }
+.settings-resize-handle.l { left: -3px; top: 10px; bottom: 10px; width: 7px; cursor: ew-resize; }
+.settings-resize-handle.t { top: -3px; left: 10px; right: 10px; height: 7px; cursor: ns-resize; }
+.settings-resize-handle.br { right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; z-index: 21; }
+.settings-resize-handle.bl { left: 0; bottom: 0; width: 14px; height: 14px; cursor: nesw-resize; z-index: 21; }
+.settings-resize-handle.tr { right: 0; top: 0; width: 14px; height: 14px; cursor: nesw-resize; z-index: 21; }
+.settings-resize-handle.tl { left: 0; top: 0; width: 14px; height: 14px; cursor: nwse-resize; z-index: 21; }
+.settings-resize-grip { position: absolute; right: 3px; bottom: 3px; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; cursor: nwse-resize; color: var(--ink-3); opacity: 0.6; transition: opacity .15s, color .15s; z-index: 22; pointer-events: auto; }
+.settings-resize-grip:hover { opacity: 1; color: var(--seal); }
+.settings-side { flex: none; width: 15.5rem; display: flex; flex-direction: column; gap: .6rem; padding: 1rem 0; background: var(--paper-2); border-right: 1px solid var(--hair); min-height: 0; overflow: hidden; }
+.settings-top { flex: none; display: flex; align-items: center; gap: .4rem; padding: 0 .8rem; }
 .settings-top .settings-search { flex: 1; min-width: 0; }
 .settings-close { flex: none; }
+.settings-search { font: inherit; font-size: .88rem; padding: .4rem .7rem; border: 1px solid var(--hair); border-radius: 999px; background: var(--paper); color: var(--ink); }
+.settings-search:focus { outline: none; border-color: var(--brass-ink); }
+.settings-nav { display: flex; flex-direction: column; gap: .1rem; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0 .4rem 0 .8rem; scrollbar-width: thin; }
+.settings-nav-group-header {
+  font-family: var(--ui);
+  font-size: .65rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-3);
+  padding: .75rem .7rem .2rem;
+  user-select: none;
+}
+.settings-nav-group-header:first-child {
+  padding-top: .15rem;
+}
 .settings-nav-item { display: flex; align-items: center; gap: .55rem; text-align: left; padding: .4rem .7rem; border-radius: 6px; font-size: .9rem; color: var(--ink-2); }
 .settings-nav-item .icon { width: 15px; height: 15px; color: var(--ink-3); }
 .settings-nav-item[aria-current="true"] .icon { color: var(--seal); }
@@ -557,7 +582,7 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .hotkey kbd { min-width: 3.2rem; text-align: center; }
 .hotkey kbd.custom { color: var(--seal); border-color: var(--seal); }
 .hotkey kbd.recording { color: var(--brass-ink); border-color: var(--brass); }
-:root[data-measure="wide"] .editor, :root[data-measure="wide"] .preview, :root[data-measure="wide"] .props, :root[data-measure="wide"] .toolbar { max-width: none; }
+:root[data-measure="wide"] .editor, :root[data-measure="wide"] .preview, :root[data-measure="wide"] .props, :root[data-measure="wide"] .title-row, :root[data-measure="wide"] .flags, :root[data-measure="wide"] .links, :root[data-measure="wide"] .template-picker, :root[data-measure="wide"] .toolbar { max-width: none; margin-left: 0; margin-right: 0; }
 
 /* Sidebar toggles in the status bar */
 .bar-toggle { color: var(--ink-3); padding: .15rem; }
@@ -702,13 +727,106 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
   .sync-fixed { text-align: left; }
 }
 
+@media (min-width: 761px) and (max-width: 920px) {
+  .settings-side { width: 13rem; }
+  .settings-body { padding: 1rem 1.25rem 2rem; }
+}
+
 /* A phone: the sections become a row above the page, scrolled sideways. */
 @media (max-width: 760px) {
-  .settings-box { flex-direction: column; width: 100vw; height: 100dvh; border-radius: 0; border: 0; }
-  .settings-side { width: auto; padding: .6rem .6rem .4rem; border-right: 0; border-bottom: 1px solid var(--hair); }
-  .settings-nav { flex-direction: row; overflow-x: auto; scrollbar-width: none; }
-  .settings-nav-item { flex: none; white-space: nowrap; }
-  .settings-body { padding: 1rem 1rem 2rem; }
+  .settings-box {
+    flex-direction: column;
+    width: 100vw !important;
+    height: 100dvh !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: 100vw !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    border: 0 !important;
+    left: 0 !important;
+    top: 0 !important;
+    position: fixed !important;
+    margin: 0 !important;
+  }
+  .settings-side {
+    width: auto;
+    padding: .6rem .8rem .4rem;
+    border-right: 0;
+    border-bottom: 1px solid var(--hair);
+    gap: .4rem;
+  }
+  .settings-top {
+    padding: 0;
+  }
+  .settings-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 0 .2rem;
+    gap: .25rem;
+  }
+  .settings-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .settings-nav-group-header {
+    display: none;
+  }
+  .settings-resize-handle, .settings-resize-grip {
+    display: none !important;
+  }
+  .settings-nav-item {
+    flex: none;
+    white-space: nowrap;
+    padding: .35rem .65rem;
+    font-size: .85rem;
+  }
+  .settings-body {
+    padding: 1rem 1rem 2.5rem;
+  }
+  .setting {
+    flex-direction: column;
+    align-items: stretch;
+    gap: .55rem;
+    padding: .75rem 0;
+  }
+  .setting-text {
+    flex: none;
+    min-width: 0;
+    width: 100%;
+  }
+  .setting > :not(.setting-text) {
+    margin-inline-start: 0;
+    max-width: 100%;
+  }
+  .setting input[type="text"],
+  .setting input[type="number"],
+  .setting select {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  .setting input[type="range"] {
+    width: 100%;
+    max-width: 100%;
+  }
+  .setting-actions {
+    max-width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+  }
+  .switch {
+    align-self: flex-start;
+    width: 38px;
+    max-width: 38px;
+  }
+  .hotkey {
+    align-self: flex-start;
+    flex-wrap: wrap;
+  }
 }
 
 /* The folder's trash, a section of the settings (ADR 0080). */

@@ -139,6 +139,9 @@
 .editor .cm-line.cm-lp-callout-cite {
   --callout-color: var(--ink-3);
 }
+.editor .cm-line.cm-lp-callout-oracle {
+  --callout-color: light-dark(oklch(50% 0.16 300), oklch(76% 0.15 305));
+}
 
 /* Lists and Bullets in Live Preview */
 .editor .cm-line.cm-lp-li {
@@ -285,7 +288,7 @@
 .conflict-actions { display: flex; gap: .4rem; }
 
 /* Backlinks, under the note, past a hairline */
-.links { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--hair); max-width: 100ch; }
+.links { margin-top: 3rem; margin-left: auto; margin-right: auto; padding-top: 1rem; border-top: 1px solid var(--hair); max-width: 52rem; }
 .section-title { font-size: .68rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 .5rem; }
 .link-list { list-style: none; margin: 0; padding: 0; }
 .link-list li > button { display: block; width: 100%; text-align: left; padding: .3rem 0; font-family: var(--book); font-size: .95rem; color: var(--ink); border-radius: 4px; }

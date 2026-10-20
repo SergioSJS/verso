@@ -730,6 +730,9 @@ export class NoteLeaf extends Leaf {
   declare promptCover: typeof cover.promptCover;
   declare paintCoverAndSticker: typeof cover.paintCoverAndSticker;
   declare paintFlags: typeof cover.paintFlags;
+  addProperty(): void {
+    this.props.addProperty();
+  }
   load(path: string, force = false): Promise<void> {
     this.loading = this.doLoad(path, force);
     return this.loading;
@@ -1012,6 +1015,7 @@ export class NoteLeaf extends Leaf {
   declare repaint: typeof reading.repaint;
   declare wireTableResizers: typeof reading.wireTableResizers;
   declare wireMermaidBlocks: typeof reading.wireMermaidBlocks;
+  declare wireStatblocks: typeof reading.wireStatblocks;
   declare wireCodeBlocks: typeof reading.wireCodeBlocks;
   declare wirePreviewImages: typeof reading.wirePreviewImages;
   declare imageSources: typeof reading.imageSources;

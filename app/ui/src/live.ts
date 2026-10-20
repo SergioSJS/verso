@@ -25,6 +25,13 @@ import { fitWhenSizeless } from "./imageFit";
 import { heldImage, imageLink, webFrame } from "./sanitize";
 import { smartUnindentList } from "./listKeymap";
 import { renderMermaid } from "./mermaid";
+import { hasCapability } from "./capabilities";
+import { parseStatblock } from "./statblock/parser";
+import { renderStatblockCard } from "./statblock/render";
+import { showOracleDialog } from "./oracle/dialog";
+import { isPt } from "./oracle/strings";
+import { layout } from "./layout/spaces";
+import { NoteLeaf } from "./leaves/note";
 
 export type LiveOptions = {
   /** Where an image embed target loads from, once known; `null` when it is
@@ -257,6 +264,49 @@ class CodeCopyWidget extends WidgetType {
   }
 }
 
+class OracleCalloutButtonWidget extends WidgetType {
+  constructor(readonly question: string, readonly startPos?: number) {
+    super();
+  }
+  override eq(other: OracleCalloutButtonWidget): boolean {
+    return other.question === this.question && other.startPos === this.startPos;
+  }
+  override toDOM(): HTMLElement {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "oracle-callout-btn cm-lp-oracle-btn";
+    btn.title = isPt ? "Abrir oráculo para rolar resposta ou gerar ideias" : "Open oracle dialog to roll answer or spark ideas";
+    btn.setAttribute("aria-label", isPt ? "Consultar Oráculo" : "Ask Oracle");
+    btn.append(icon("sparkles"));
+    const label = document.createElement("span");
+    label.textContent = isPt ? "Consultar Oráculo" : "Ask Oracle";
+    btn.append(label);
+    btn.addEventListener("mousedown", (e) => e.preventDefault());
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const active = layout().activeLeaf;
+      const leaf = active instanceof NoteLeaf ? active : null;
+      let pos: number | undefined = this.startPos;
+      if (leaf?.editor && pos === undefined) {
+        try {
+          pos = leaf.editor.posAtDOM(btn);
+        } catch {
+          // ignore
+        }
+      }
+      showOracleDialog(this.question, {
+        leaf: leaf ?? undefined,
+        docPos: pos,
+        originalQuestion: this.question,
+      });
+    });
+    return btn;
+  }
+  override ignoreEvent(): boolean {
+    return false;
+  }
+}
+
 /** The folded frontmatter: a hint that properties live above. */
 class FrontmatterWidget extends WidgetType {
   constructor(readonly lines: number, readonly onClick: (() => void) | undefined, readonly title: string) {
@@ -444,7 +494,7 @@ function aloneInParagraph(text: string, spans: MathSpan[]): string | null {
  *  its own. Found in the syntax tree, so a block begins and ends where the
  *  reader's parser has it: a table needs its delimiter row, a fence closes
  *  only on a fence of its own kind, and `$$` math ends with its paragraph. */
-type Block = { from: number; to: number; kind: "table" | "math" | "embed" | "base" | "mermaid" | "pdf"; text: string; rows?: string[]; embed?: true; nested?: true; editable?: true; ordinal?: number };
+type Block = { from: number; to: number; kind: "table" | "math" | "embed" | "base" | "mermaid" | "pdf" | "statblock"; text: string; rows?: string[]; embed?: true; nested?: true; editable?: true; ordinal?: number };
 const BASE_EMBED = /\.base(#[^|]*)?$/i;
 const PDF_EXT = /\.pdf([#|].*)?$/i;
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|avif)(\|.*)?$/i;
@@ -465,7 +515,7 @@ export function blocksOf(state: EditorState): Block[] {
   tree.iterate({
     enter: (n) => {
       if (n.name === "FencedCode") {
-        // A `base` or `mermaid` block: the view in place of the fence.
+        // A `base`, `mermaid` or `statblock` block: the view in place of the fence.
         const info = n.node.getChild("CodeInfo");
         const infoStr = info ? doc.sliceString(info.from, info.to).trim().toLowerCase() : "";
         if (infoStr === "base") {
@@ -481,6 +531,10 @@ export function blocksOf(state: EditorState): Block[] {
           const text = n.node.getChildren("CodeText").map((c) => doc.sliceString(c.from, c.to)).join("\n");
           const at = lines(n.from, n.to);
           if (at) out.push({ ...at, kind: "mermaid", text });
+        } else if ((infoStr === "statblock" || infoStr.startsWith("statblock-")) && hasCapability("statblocks")) {
+          const text = n.node.getChildren("CodeText").map((c) => doc.sliceString(c.from, c.to)).join("\n");
+          const at = lines(n.from, n.to);
+          if (at) out.push({ ...at, kind: "statblock", text });
         }
         return false;
       }
@@ -624,6 +678,25 @@ class BlockWidget extends WidgetType {
       });
 
       void renderMermaid(b.text, mount);
+      return el;
+    }
+    if (b.kind === "statblock") {
+      el.className = "cm-lp-block cm-lp-statblock";
+      el.style.position = "relative";
+
+      const data = parseStatblock(b.text);
+      if (data) {
+        const edit = () => {
+          const at = startOf(view, el);
+          if (at === null) return;
+          view.dispatch({ selection: { anchor: Math.min(at + 4, view.state.doc.length) } });
+          view.focus();
+        };
+        const card = renderStatblockCard(data, edit);
+        el.append(card);
+      } else {
+        el.textContent = b.text;
+      }
       return el;
     }
     if (b.kind === "pdf") {
@@ -1182,6 +1255,21 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
               hide(bStart, kStart);
               out.push({ from: kStart, to: kEnd, deco: Decoration.mark({ class: "cm-lp-callout-tag" }) });
               hide(kEnd, bEnd);
+            }
+            if (calloutKind === "oracle" && hasCapability("oracles")) {
+              let q = cleanLead.replace(/^\[!oracle\][+-]?\s*/i, "").trim();
+              if (!q && a < b) {
+                const nextLine = doc.line(a + 1);
+                q = nextLine.text.replace(/^[ \t]*(?:>[ \t]?)+[ \t]*/, "").trim();
+              }
+              out.push({
+                from: firstLine.to,
+                to: firstLine.to,
+                deco: Decoration.widget({
+                  widget: new OracleCalloutButtonWidget(q, firstLine.from),
+                  side: 1,
+                }),
+              });
             }
           }
         } else if (name === "HTMLBlock" || name === "HTMLTag") {

@@ -18,6 +18,9 @@ import { layout, openIn, openNote } from "../../layout/spaces";
 import { redraw, sizeOf } from "../../live";
 import { panel } from "../../main";
 import { renderMermaid } from "../../mermaid";
+import { hasCapability } from "../../capabilities";
+import { parseStatblock } from "../../statblock/parser";
+import { renderStatblockCard } from "../../statblock/render";
 import { opening } from "../../opening";
 import { dirOf, kindOf, name } from "../../paths";
 import { parsePdfSpec, PdfView } from "../../pdf";
@@ -94,6 +97,37 @@ export function wireMermaidBlocks(this: NoteLeaf, root: HTMLElement): void {
     container.append(btn, wrapper);
     pre.replaceWith(container);
     void renderMermaid(text, wrapper);
+  }
+}
+
+export function wireStatblocks(this: NoteLeaf, root: HTMLElement): void {
+  if (!hasCapability("statblocks")) return;
+  for (const code of root.querySelectorAll<HTMLElement>("pre > code[class*='language-statblock']")) {
+    const pre = code.parentElement;
+    if (!pre || pre.dataset["statblockRendered"]) continue;
+    pre.dataset["statblockRendered"] = "true";
+    const text = code.textContent ?? "";
+    const data = parseStatblock(text);
+    if (!data) continue;
+
+    const host = h("div", "statblock-host");
+    let showingCard = true;
+
+    const toggle = () => {
+      showingCard = !showingCard;
+      if (showingCard) {
+        pre.hidden = true;
+        card.hidden = false;
+      } else {
+        pre.hidden = false;
+        card.hidden = true;
+      }
+    };
+
+    const card = renderStatblockCard(data, toggle);
+    pre.before(host);
+    host.append(card, pre);
+    pre.hidden = true;
   }
 }
 
@@ -464,6 +498,7 @@ export async function paintPreview(this: NoteLeaf): Promise<void> {
   this.dressLinks(note.path);
   if (!reader) this.wireTableResizers(this.preview);
   this.wireMermaidBlocks(this.preview);
+  this.wireStatblocks(this.preview);
   this.wireCodeBlocks(this.preview);
   wireDice(this.preview, { path: () => this.path, follow: (target) => this.follow(target) });
   this.wirePreviewImages(this.preview);
