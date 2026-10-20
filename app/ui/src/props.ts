@@ -428,6 +428,10 @@ export class PropertiesView {
   }
   /** One edit of `key`, against the editor's text now. */
   private edit(key: string, edit: Edit, focus = true): void {
+    // A read-only note (mixed line endings, no write access, a reader) is
+    // never edited through the panel, whatever drew a control for it
+    // (invariants 7 and 8; ADR 0076 item 11).
+    if (this.readOnly) return;
     // A redraw waiting for the focus is older than this edit: the save
     // that follows the edit draws the panel again.
     this.pending = null;
@@ -734,6 +738,7 @@ export class PropertiesView {
     host.append(add);
   }
   private newRow(before: HTMLElement): void {
+    if (this.readOnly) return;
     const row = h("div", "prop kind-new");
     const keyCol = h("span", "prop-key");
     const input = h("input", "prop-input prop-key-input");
