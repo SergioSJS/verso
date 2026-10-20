@@ -321,7 +321,7 @@ export class NoteLeaf extends Leaf {
       notePath: () => this.path,
       dice: diceWidget({ path: () => this.path, follow: (target) => this.follow(target) }),
       statblock: {
-        die: (notation) => diceBox({ kind: "roll", notation }, { path: () => this.path, follow: (target) => this.follow(target) }),
+        die: (notation, look) => diceBox({ kind: "roll", notation }, { path: () => this.path, follow: (target) => this.follow(target) }, { ...look, popover: true }),
         refusal: () => (this.readOnly ? "readOnly" : this.conflict.up ? "conflict" : null),
       },
       table: {

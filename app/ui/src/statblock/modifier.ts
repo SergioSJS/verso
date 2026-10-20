@@ -94,3 +94,8 @@ export function modifierOf(modifier: Modifier, score: number, numbers: Record<st
 export function signed(n: number): string {
   return n >= 0 ? `+${n}` : `${n}`;
 }
+
+/** The d20 roll of a modifier: `1d20+3`, `1d20-1`, and `1d20` for none. */
+export function d20Of(n: number): string {
+  return n === 0 ? "1d20" : `1d20${signed(n)}`;
+}

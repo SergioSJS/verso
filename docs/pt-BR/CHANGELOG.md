@@ -25,6 +25,7 @@ versão de teste.
 
 ### Corrigido
 
+- **As fichas não desenham mais uma coisa por cima da outra**: os atributos são uma grade (seis por linha, três quando a ficha é estreita) cujo modificador, "(+2)", é ele mesmo o dado — acabou o dado dentro dos parênteses com o ")" por baixo, e um modificador zero rola `1d20`, não `1d20+0`. Uma rolagem na ficha abre por cima dela, ao lado do dado, sem empurrar as células seguintes (Esc, × ou um clique fora fecha). Um bônus escrito entre parênteses no texto da ficha, `(+5)`, fica com os parênteses e o dado depois deles. Os botões da ficha ficam numa faixa própria, então uma ficha de duas colunas não se espreme mais numa tira ao lado deles no celular, e o modo Leitura não põe mais os seus botões de recolher e copiar nos títulos e no código da ficha.
 - **Botões que escrevem na nota não jogam mais a tela para o topo**: inserir a resposta do oráculo, marcar uma caixa de ficha ou a marca "Quebrado", ou marcar uma tarefa lendo mais abaixo mantém a página onde estava, em Leitura e em Edição.
 
 ## 0.8.3-beta.2 — 2026-10-17
