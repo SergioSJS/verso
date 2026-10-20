@@ -6,6 +6,7 @@
 // not on, the code is the die; on the caret's line, its source. The
 // document never changes (ADR 0012).
 
+import { hasCapability } from "../capabilities";
 import { WidgetType } from "@codemirror/view";
 import { type DiceHost, diceBox } from "./card";
 import { type DiceCode, readCode } from "./notation";
@@ -34,6 +35,7 @@ class DiceWidget extends WidgetType {
  *  when it is no `dice:` code Verso rolls. */
 export function diceWidget(host: DiceHost): (code: string) => WidgetType | null {
   return (code) => {
+    if (!hasCapability("diceRolling")) return null;
     const read = readCode(code);
     return read ? new DiceWidget(read, code, host) : null;
   };

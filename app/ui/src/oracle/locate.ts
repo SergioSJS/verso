@@ -255,11 +255,12 @@ export function applyChanges(text: string, changes: readonly Change[]): string {
 
 type Edit = Change & { caretAt?: number };
 
-/** What to write into an existing callout. Only the oracle's own lines are
- *  replaced (an answer line only up to its roll, so a sentence the person
- *  wrote after it stays); a line it has not written yet is added at the
- *  callout's end; every other line is left as it is. The title changes only
- *  when the person asked a different question, or it said nothing. */
+/** What to write into an existing callout (the maintainer's rule, 2026-10-20):
+ *  a new answer to the same question is added at the callout's end, the
+ *  earlier ones kept. Only when the question was rewritten are the oracle's
+ *  own answer lines of that callout replaced (a line the person went on
+ *  writing after its roll keeps that text). Every other line is left as it
+ *  is. A table result is added the same way; a spark alone replaces its own two lines. */
 export function planOracleEdit(text: string, block: OracleBlock, gen: Generated): Plan {
   const eol = eolOf(block, text);
   const pre = linePrefix(block.prefix);
@@ -276,6 +277,9 @@ export function planOracleEdit(text: string, block: OracleBlock, gen: Generated)
 
   if (gen.kind === "answer") {
     const q = gen.question.trim();
+    // The question was rewritten: this callout's own lines (the question and
+    // its answers) are replaced. Same question: the answers pile up.
+    const rewritten = q !== "" && block.title !== "" && !genericTitle(block.title) && q !== block.title;
     if (q && q !== block.title) {
       const asksBelow = block.title === "" && body.some((l) => {
         const rest = quoteInfo(l.text).rest.trim();
@@ -286,25 +290,29 @@ export function planOracleEdit(text: string, block: OracleBlock, gen: Generated)
         edits.push({ from: block.titleFrom, to: block.titleTo, insert: spaced ? ` ${q}` : q });
       }
     }
-    const ans = find(ANSWER);
-    const spark = gen.spark !== undefined ? find(SPARK) : null;
-    if (gen.spark !== undefined && spark) edits.push({ from: spark.at, to: spark.line.to, insert: gen.spark });
-    if (ans) {
-      if (gen.spark !== undefined && !spark) edits.push({ from: ans.line.from, to: ans.line.from, insert: `${linePrefix(ans.prefix)}${gen.spark}${eol}` });
-      const insert = ans.rest.slice(ans.len) === "" ? `${gen.line} ` : gen.line;
-      edits.push({ from: ans.at, to: ans.at + ans.len, insert, caretAt: insert.length });
-    } else {
-      const parts = gen.spark !== undefined && !spark ? [gen.spark, `${gen.line} `] : [`${gen.line} `];
-      const insert = parts.map((p) => `${eol}${pre}${p}`).join("");
-      edits.push({ from: block.to, to: block.to, insert, caretAt: insert.length });
+    if (rewritten) {
+      for (let k = 1; k < block.lines.length; k++) {
+        const l = block.lines[k]!;
+        const info = quoteInfo(l.text);
+        const m = ANSWER.exec(info.rest);
+        if (!m) continue;
+        const at = l.from + info.prefix.length;
+        if (info.rest.slice(m[0].length).trim() === "") {
+          // The whole line goes, with one line break.
+          if (k === block.lines.length - 1) edits.push({ from: block.lines[k - 1]!.to, to: l.to, insert: "" });
+          else edits.push({ from: l.from, to: block.lines[k + 1]!.from, insert: "" });
+        } else {
+          // The person went on writing after it: that stays.
+          edits.push({ from: at, to: at + m[0].length + (info.rest[m[0].length] === " " ? 1 : 0), insert: "" });
+        }
+      }
     }
+    const parts = gen.spark !== undefined ? [gen.spark, `${gen.line} `] : [`${gen.line} `];
+    const insert = parts.map((p) => `${eol}${pre}${p}`).join("");
+    edits.push({ from: block.to, to: block.to, insert, caretAt: insert.length });
   } else if (gen.kind === "table") {
-    const found = find(TABLE);
-    if (found) edits.push({ from: found.at, to: found.at + found.len, insert: gen.line, caretAt: gen.line.length });
-    else {
-      const insert = `${eol}${pre}${gen.line}`;
-      edits.push({ from: block.to, to: block.to, insert, caretAt: insert.length });
-    }
+    const insert = `${eol}${pre}${gen.line}`;
+    edits.push({ from: block.to, to: block.to, insert, caretAt: insert.length });
   } else {
     let added = "";
     for (const [re, content] of [[SPARK_ACTION, gen.lines[0]], [SPARK_DESCRIPTOR, gen.lines[1]]] as const) {

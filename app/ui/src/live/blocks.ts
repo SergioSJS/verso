@@ -16,6 +16,7 @@ import { TableEditor } from "../tableEditor";
 import { icon } from "../icons";
 import { renderMermaid } from "../mermaid";
 import { hasCapability } from "../capabilities";
+import { isStatblockInfo } from "./statblockFence";
 import { parseStatblock } from "../statblock/parser";
 import { renderStatblockCard } from "../statblock/render";
 import { startOf, FrontmatterWidget } from "./widgets";
@@ -64,7 +65,7 @@ export function blocksOf(state: EditorState): Block[] {
           const text = n.node.getChildren("CodeText").map((c) => doc.sliceString(c.from, c.to)).join("\n");
           const at = lines(n.from, n.to);
           if (at) out.push({ ...at, kind: "mermaid", text });
-        } else if ((infoStr === "statblock" || infoStr.startsWith("statblock-")) && hasCapability("statblocks")) {
+        } else if (isStatblockInfo(infoStr) && hasCapability("statblocks")) {
           const text = n.node.getChildren("CodeText").map((c) => doc.sliceString(c.from, c.to)).join("\n");
           const at = lines(n.from, n.to);
           if (at) out.push({ ...at, kind: "statblock", text });
