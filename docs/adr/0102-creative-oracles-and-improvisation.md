@@ -161,7 +161,10 @@ has not read yet.
   the dialog is open), `write.ts`, `dialog.ts`, `strings.ts`.
 - Rust: `.verso/settings.json` gains the oracle keys (the contract's
   `FolderSettings`, its bindings regenerated); the server's roll command
-  takes oracle draws.
+  takes oracle draws. A change may clear the odds or the words
+  (`clear_odds`, `clear_sparks`), so "back to the default" removes the
+  key instead of writing the built-in values; an `oracle` left empty is
+  removed itself.
 - Reading mode identifies a callout by its rank among the oracle callouts
   of the note, checked against the note's text; an exact source line from
   the renderer would be better and is a contract change left for later.

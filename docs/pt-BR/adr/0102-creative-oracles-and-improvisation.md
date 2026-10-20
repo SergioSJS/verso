@@ -163,7 +163,10 @@ mantenedor ainda não leu.
   enquanto o diálogo está aberto), `write.ts`, `dialog.ts`, `strings.ts`.
 - Rust: `.verso/settings.json` ganha as chaves do oráculo (o
   `FolderSettings` do contrato, com os bindings regenerados); o comando de
-  rolagem do servidor recebe os sorteios do oráculo.
+  rolagem do servidor recebe os sorteios do oráculo. Uma mudança pode apagar as chances ou as palavras
+  (`clear_odds`, `clear_sparks`), e "voltar ao padrão" remove a chave em
+  vez de gravar os valores embutidos; um `oracle` que fica vazio é ele
+  mesmo removido.
 - O modo de leitura identifica um callout pela sua posição entre os
   callouts de oráculo da nota, conferida contra o texto da nota; uma linha
   de origem exata vinda do renderizador seria melhor e é uma mudança de
