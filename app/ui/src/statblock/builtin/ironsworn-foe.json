@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "id": "ironsworn-foe",
+  "name": {
+    "pt": "Ironsworn / Starforged — Inimigo",
+    "en": "Ironsworn / Starforged — Foe"
+  },
+  "description": {
+    "pt": "Inimigo ou PNJ, só as partes abertas (CC BY 4.0): campos do Datasworn.",
+    "en": "A foe or NPC, open parts only (CC BY 4.0): Datasworn's fields."
+  },
+  "sources": [
+    {
+      "label": "Ironsworn licensing (CC BY 4.0 parts)",
+      "url": "https://tomkinpress.com/blogs/news/lets-talk-about-ironsworn-licensing"
+    },
+    {
+      "label": "Datasworn",
+      "url": "https://github.com/rsek/datasworn"
+    }
+  ],
+  "profile": "ironsworn",
+  "columns": 1,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name","nature"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1},{"type":"subheading","id":"kind","properties":["nature"],"hideWhenEmpty":true,"separator":", "}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"rank","properties":["rank","progress","progress_max"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"rank","properties":["rank"],"label":{"pt":"Rank","en":"Rank"},"hideWhenEmpty":true},{"type":"tracker","id":"progress","properties":["progress","progress_max"],"label":{"pt":"Progress","en":"Progress"},"hideWhenEmpty":true,"current":"progress","max":"progress_max","style":"boxes"}]},
+    {"type":"text","id":"summary","properties":["summary"],"label":{"pt":"Summary","en":"Summary"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"features","properties":["features"],"label":{"pt":"Features","en":"Features"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"drives","properties":["drives"],"label":{"pt":"Drives","en":"Drives"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"tactics","properties":["tactics"],"label":{"pt":"Tactics","en":"Tactics"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"variants","properties":["variants"],"label":{"pt":"Variants","en":"Variants"},"hideWhenEmpty":true,"dice":true},
+    {"type":"text","id":"description","properties":["description"],"label":{"pt":"Descrição","en":"Description"},"hideWhenEmpty":true,"dice":true},
+    {"type":"group","id":"quest","properties":["quest_starter"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"quest-starter","properties":["quest_starter"],"label":{"pt":"Quest starter","en":"Quest starter"},"hideWhenEmpty":true}]}
+  ]
+}

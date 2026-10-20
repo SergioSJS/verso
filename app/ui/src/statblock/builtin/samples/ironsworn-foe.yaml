@@ -1,0 +1,12 @@
+name: Hollow Warden
+nature: Horror
+rank: 3
+progress: 4
+progress_max: 10
+summary: A sample entry of our own.
+features:
+  - Cold to the touch
+drives:
+  - Keep the door shut
+tactics:
+  - Waits at thresholds

@@ -1,0 +1,10 @@
+name: The Lamp Guild
+tier: III
+hold: Strong
+status: 0
+turf_assets:
+  - A lamp-oil warehouse
+goals:
+  - Own every street lamp in the district
+clocks:
+  - "Seize the pier: 2 of 6"

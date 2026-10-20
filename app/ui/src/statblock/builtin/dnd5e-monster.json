@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "id": "dnd5e-monster",
+  "name": {
+    "pt": "D&D 5e (SRD) — Monstro",
+    "en": "D&D 5e (SRD) — Monster"
+  },
+  "description": {
+    "pt": "Ficha de monstro na ordem do SRD 5.2.1 (CC BY 4.0). Só os nomes dos campos; nenhum texto do livro.",
+    "en": "A monster sheet in the order of SRD 5.2.1 (CC BY 4.0). Field names only; no book text."
+  },
+  "sources": [
+    {
+      "label": "D&D SRD 5.2.1 (CC BY 4.0)",
+      "url": "https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.1.pdf"
+    },
+    {
+      "label": "D&D SRD 5.1 (CC BY 4.0)",
+      "url": "https://media.dndbeyond.com/compendium-images/srd/5.1/SRD_CC_v5.1.pdf"
+    }
+  ],
+  "profile": "d20",
+  "columns": 2,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "([+-]\\d{1,3}) (?:to hit|para acertar)",
+      "template": "1d20$1"
+    },
+    {
+      "pattern": "\\d{1,4} ?\\((\\d{1,3}d\\d{1,4}(?: ?[+-] ?\\d{1,5})?)\\)",
+      "template": "$1"
+    },
+    {
+      "pattern": "\\b(\\d{0,3}d\\d{1,4}(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name","size","type","tags","alignment"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1},{"type":"subheading","id":"kind","properties":["size","type","tags","alignment"],"hideWhenEmpty":true,"separator":", "}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"defences","properties":["ac","initiative","hp","hp_current","hp","speed"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"ac","properties":["ac"],"label":{"pt":"AC","en":"AC"},"hideWhenEmpty":true},{"type":"property","id":"initiative","properties":["initiative"],"label":{"pt":"Initiative","en":"Initiative"},"hideWhenEmpty":true},{"type":"property","id":"hp","properties":["hp"],"label":{"pt":"HP","en":"HP"},"hideWhenEmpty":true,"diceKey":"hit_dice","dice":true},{"type":"tracker","id":"hp-now","properties":["hp_current","hp"],"label":{"pt":"Current HP","en":"Current HP"},"hideWhenEmpty":true,"current":"hp_current","max":"hp","style":"number"},{"type":"property","id":"speed","properties":["speed"],"label":{"pt":"Speed","en":"Speed"},"hideWhenEmpty":true}]},
+    {"type":"table","id":"abilities","properties":["stats"],"hideWhenEmpty":true,"headers":[{"pt":"STR","en":"STR"},{"pt":"DEX","en":"DEX"},{"pt":"CON","en":"CON"},{"pt":"INT","en":"INT"},{"pt":"WIS","en":"WIS"},{"pt":"CHA","en":"CHA"}],"modifier":"d20","rule":true,"dice":true},
+    {"type":"group","id":"details","properties":["saves","skills","vulnerabilities","resistances","immunities","gear","senses","languages","cr"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"saves","id":"saves","properties":["saves"],"label":{"pt":"Saving Throws","en":"Saving Throws"},"hideWhenEmpty":true,"dice":true},{"type":"saves","id":"skills","properties":["skills"],"label":{"pt":"Skills","en":"Skills"},"hideWhenEmpty":true,"dice":true},{"type":"property","id":"vulnerabilities","properties":["vulnerabilities"],"label":{"pt":"Vulnerabilities","en":"Vulnerabilities"},"hideWhenEmpty":true},{"type":"property","id":"resistances","properties":["resistances"],"label":{"pt":"Resistances","en":"Resistances"},"hideWhenEmpty":true},{"type":"property","id":"immunities","properties":["immunities"],"label":{"pt":"Immunities","en":"Immunities"},"hideWhenEmpty":true},{"type":"property","id":"gear","properties":["gear"],"label":{"pt":"Gear","en":"Gear"},"hideWhenEmpty":true},{"type":"property","id":"senses","properties":["senses"],"label":{"pt":"Senses","en":"Senses"},"hideWhenEmpty":true},{"type":"property","id":"languages","properties":["languages"],"label":{"pt":"Languages","en":"Languages"},"hideWhenEmpty":false,"fallback":"-"},{"type":"property","id":"cr","properties":["cr"],"label":{"pt":"CR","en":"CR"},"hideWhenEmpty":true}]},
+    {"type":"traits","id":"traits","properties":["traits"],"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"actions","properties":["actions"],"label":{"pt":"Actions","en":"Actions"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"bonus-actions","properties":["bonus_actions"],"label":{"pt":"Bonus Actions","en":"Bonus Actions"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"reactions","properties":["reactions"],"label":{"pt":"Reactions","en":"Reactions"},"hideWhenEmpty":true,"dice":true},
+    {"type":"group","id":"legendary","properties":["legendary_description","legendary_actions"],"hideWhenEmpty":true,"label":{"pt":"Legendary Actions","en":"Legendary Actions"},"nested":[{"type":"text","id":"legendary-text","properties":["legendary_description"],"hideWhenEmpty":true,"dice":true},{"type":"traits","id":"legendary-actions","properties":["legendary_actions"],"hideWhenEmpty":true,"dice":true}]},
+    {"type":"traits","id":"lair-actions","properties":["lair_actions"],"label":{"pt":"Lair Actions","en":"Lair Actions"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"regional-effects","properties":["regional_effects"],"label":{"pt":"Regional Effects","en":"Regional Effects"},"hideWhenEmpty":true,"dice":true},
+    {"type":"roll","id":"roll","properties":[],"label":{"pt":"Rolar d20","en":"Roll d20"},"inputs":{}}
+  ]
+}

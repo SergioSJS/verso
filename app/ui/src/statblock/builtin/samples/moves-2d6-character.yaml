@@ -1,0 +1,15 @@
+name: Rook
+playbook: Scavenger
+stats:
+  cool: 1
+  hard: 0
+  sharp: 2
+harm: 1
+harm_max: 6
+luck: 2
+luck_max: 7
+xp: 1
+xp_max: 5
+moves:
+  - name: Find a way
+    desc: When you search, roll +sharp. A placeholder of our own.

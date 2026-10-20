@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "id": "blades-faction",
+  "name": {
+    "pt": "Blades in the Dark — Facção",
+    "en": "Blades in the Dark — Faction"
+  },
+  "description": {
+    "pt": "Ficha de facção (CC BY 3.0): nomes e ordem dos campos.",
+    "en": "A faction sheet (CC BY 3.0): field names and order."
+  },
+  "sources": [
+    {
+      "label": "Faction game",
+      "url": "https://bladesinthedark.com/faction-game"
+    },
+    {
+      "label": "Blades in the Dark SRD (CC BY 3.0)",
+      "url": "https://bladesinthedark.com/"
+    }
+  ],
+  "profile": "fitd",
+  "columns": 1,
+  "columnWidth": 400,
+  "diceRules": [
+    {
+      "pattern": "\\b(\\d{0,3}d(?:\\d{1,4}|%|F)(?: ?[+-] ?\\d{1,5})?)\\b",
+      "template": "$1"
+    }
+  ],
+  "appearance": {},
+  "blocks": [
+    {"type":"inline","id":"top","properties":[],"rule":true,"nested":[{"type":"group","id":"titles","properties":["name"],"hideWhenEmpty":true,"nested":[{"type":"heading","id":"name","properties":["name"],"hideWhenEmpty":true,"size":1}]},{"type":"image","id":"image","properties":["image"],"hideWhenEmpty":true}]},
+    {"type":"group","id":"standing","properties":["tier","hold","status"],"hideWhenEmpty":true,"rule":true,"nested":[{"type":"property","id":"tier","properties":["tier"],"label":{"pt":"Tier","en":"Tier"},"hideWhenEmpty":true},{"type":"property","id":"hold","properties":["hold"],"label":{"pt":"Hold","en":"Hold"},"hideWhenEmpty":true},{"type":"property","id":"status","properties":["status"],"label":{"pt":"Status","en":"Status"},"hideWhenEmpty":true}]},
+    {"type":"traits","id":"assets","properties":["turf_assets"],"label":{"pt":"Turf and assets","en":"Turf and assets"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"goals","properties":["goals"],"label":{"pt":"Goals","en":"Goals"},"hideWhenEmpty":true,"dice":true},
+    {"type":"traits","id":"clocks","properties":["clocks"],"label":{"pt":"Clocks","en":"Clocks"},"hideWhenEmpty":true,"dice":true},
+    {"type":"text","id":"notes","properties":["notes"],"label":{"pt":"Notas","en":"Notes"},"hideWhenEmpty":true,"dice":true}
+  ]
+}
