@@ -49,6 +49,14 @@
   most five entries; a whole name typed keeps the chip, which now stays
   after a space or a punctuation mark until the next word starts. Still
   off by default, the same setting, the same ignored folders and names.
+  2026-10-20, later — the three letters and the capital letter become the
+  person's settings. The maintainer, trying it: *"você não adicionou
+  número de caracteres pra acionar a busca por notas nesse parâmetro"*
+  (you didn't add a number of characters to trigger the note search in
+  this setting). `[DECIDED 2026-10-20]`: the number of letters before the
+  list appears is a setting beside the suggestion, default 3.
+  `[PROPOSED]`: from 1 to 10; and the capital-letter rule a switch beside
+  it, on by default.
 
 ## Context
 
