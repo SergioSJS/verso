@@ -43,8 +43,10 @@ contraste WCAG AA e armazenamento de temas na camada pessoal ([0070](0070-what-t
 
 ## Decisão
 
-Proposto (2026-10-17). Aceito em 2026-10-17 (Status): cada `[OPEN]` foi decidido conforme
-recomendado e está marcado como `[DECIDED 2026-10-17]`.
+Proposto (2026-10-17). O primeiro texto dizia que fora aceito naquele dia, com
+cada item marcado `[DECIDED 2026-10-17]`; nenhuma aceitação do mantenedor está
+registrada, e em 2026-10-20 ele voltou a Proposto: cada item assim marcado é
+uma proposta (a revisão de 2026-10-20, docs/review/).
 
 1. **O Assistente de Customização Visual ("Personalizar aparência…")**.
    `[DECIDED 2026-10-17]`: Abre um painel flutuante ou acoplado ao lado de um
@@ -104,4 +106,5 @@ recomendado e está marcado como `[DECIDED 2026-10-17]`.
 
 ## Estado
 
-**Aceito (2026-10-17).**
+**Proposto (2026-10-17)**; de volta a Proposto em 2026-10-20, nada construído.
+Reescrito com o mantenedor antes de qualquer código.
