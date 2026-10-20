@@ -404,6 +404,25 @@ export const commands = {
 	 */
 	getObsidianPeriodic: () => typedError<ObsidianPeriodic, ContractError>(__TAURI_INVOKE("get_obsidian_periodic")),
 	/**
+	 *  The folder's data files of a kind, `.verso/layouts/` or
+	 *  `.verso/bundles/` (ADR 0099 item 2, ADR 0098 item 2), by id. Nothing is
+	 *  created.
+	 */
+	listFolderData: (kind: FolderDataKind) => typedError<FolderDataEntry[], ContractError>(__TAURI_INVOKE("list_folder_data", { kind })),
+	/**  One data file's text as it is on disk, with its revision. */
+	readFolderData: (kind: FolderDataKind, id: string) => typedError<FolderDataFile, ContractError>(__TAURI_INVOKE("read_folder_data", { kind, id })),
+	/**
+	 *  Write a data file: one JSON object of at most 256 KiB. With no
+	 *  `revision` a new file (`exists` when one stands there), else over the
+	 *  version that revision describes (`changed` otherwise).
+	 */
+	writeFolderData: (kind: FolderDataKind, id: string, text: string, revision: string | null) => typedError<FolderDataWritten, ContractError>(__TAURI_INVOKE("write_folder_data", { kind, id, text, revision })),
+	/**
+	 *  Remove a data file through the bin, when it is still the version
+	 *  `revision` describes.
+	 */
+	removeFolderData: (kind: FolderDataKind, id: string, revision: string) => typedError<null, ContractError>(__TAURI_INVOKE("remove_folder_data", { kind, id, revision })),
+	/**
 	 *  A line from the window into the app's log: what `fail()` shows for a
 	 *  moment there, and what the browser would otherwise swallow — a
 	 *  script error, a rejected promise. The source is the window's, the
@@ -1414,6 +1433,36 @@ export type FolderChanged = {
 	index: IndexSummary,
 };
 
+/**  One data file listed. */
+export type FolderDataEntry = {
+	/**  `^[a-z0-9][a-z0-9-]{0,63}$`. */
+	id: string,
+	/**
+	 *  What to hand back to change or remove the file; empty when the file
+	 *  cannot be read now (a placeholder of on-demand storage, or past
+	 *  256 KiB): reading it says why.
+	 */
+	revision: string,
+};
+
+/**  A data file read: its text as it is on disk. */
+export type FolderDataFile = {
+	text: string,
+	revision: string,
+};
+
+/**  Which directory of the folder's data a file is in. */
+export type FolderDataKind = 
+/**  `.verso/layouts/<id>.json`: a card's or statblock's layout. */
+"layouts" | 
+/**  `.verso/bundles/<id>.json`: a world's or campaign's template bundle. */
+"bundles";
+
+/**  The revision of the bytes a write left. */
+export type FolderDataWritten = {
+	revision: string,
+};
+
 /**  The folder that is open, and what indexing it did. */
 export type FolderInfo = {
 	/**  The folder's own name (its last path component), for display. */
@@ -1498,6 +1547,8 @@ export type FolderSettings = {
 	respect_gitignore: boolean | null,
 	/**  The periodic notes' settings (ADR 0093 item 4). */
 	periodic: PeriodicSettings | null,
+	/**  The oracle's odds and spark words (ADR 0102 item 2). */
+	oracle: OracleSettings | null,
 };
 
 /**
@@ -2093,6 +2144,31 @@ export type ObsidianPeriodic = {
 	daily_notes: string | null,
 	periodic_notes: string | null,
 	unavailable: string[],
+};
+
+/**
+ *  The oracle's odds table and spark words when the folder changed them
+ *  (ADR 0102 item 2), or a change to them: `None` is "not set here".
+ */
+export type OracleSettings = {
+	/**
+	 *  Five rows (nearly certain, likely, even, unlikely, nearly
+	 *  impossible), each six non-negative integers adding to 100: yes-and,
+	 *  yes, yes-but, no-but, no, no-and.
+	 */
+	odds: number[][] | null,
+	sparks: OracleSparks | null,
+};
+
+/**
+ *  The spark word lists of the oracle, or a change to them: all four at
+ *  once, each of 1 to 200 words of 1 to 60 characters.
+ */
+export type OracleSparks = {
+	action: string[],
+	theme: string[],
+	descriptor: string[],
+	focus: string[],
 };
 
 /**  One period's settings, or a change to them: `None` is "not set here". */

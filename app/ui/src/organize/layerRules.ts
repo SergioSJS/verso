@@ -72,6 +72,8 @@ export function seed(machine: Machine): FolderSettings {
     // The periodic notes' settings move in by their own first change
     // (periodic/rules.ts, ADR 0093 item 4), never with another setting's.
     periodic: null,
+    // Nor the oracle's tables (ADR 0102 item 2): the folder's own change.
+    oracle: null,
   };
 }
 
@@ -87,6 +89,7 @@ export function firstWrite(layer: FolderLayer, machine: Machine, change: FolderS
     ignore_build_dirs: change.ignore_build_dirs ?? base.ignore_build_dirs,
     respect_gitignore: change.respect_gitignore ?? base.respect_gitignore,
     periodic: change.periodic ?? null,
+    oracle: change.oracle ?? null,
   };
 }
 
