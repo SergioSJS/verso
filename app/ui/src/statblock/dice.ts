@@ -63,9 +63,16 @@ function regexOf(pattern: string): RegExp | null {
   return re;
 }
 
-/** The template filled with a match's groups: `$1`…`$9`, `$&`. */
-function fill(template: string, m: RegExpMatchArray): string {
-  return template.replace(/\$(\d|&)/g, (_, g: string) => (g === "&" ? m[0] : (m[Number(g)] ?? "")));
+/** The template filled with a match's groups: `$1`…`$9`, `$&` — a sign
+ *  doubled by the template made one (`1d20+$1` with `-2`), and a bonus of
+ *  zero left out (`1d20+0` is `1d20`). */
+export function fill(template: string, m: RegExpMatchArray): string {
+  return template
+    .replace(/\$(\d|&)/g, (_, g: string) => (g === "&" ? m[0] : (m[Number(g)] ?? "")))
+    .replace(/\s+/g, "")
+    .replace(/\+-|-\+/g, "-")
+    .replace(/--/g, "+")
+    .replace(/[+-]0+(?=[+-]|$)/g, "");
 }
 
 /** `text` cut into words and dice by `rules`, the first rule to match at a
@@ -97,6 +104,14 @@ export function diceIn(text: string, rules: readonly DiceRule[]): Piece[] {
   let taken = 0;
   for (const h of hits) {
     if (h.from < at || taken >= MAX_MATCHES) continue;
+    // A bonus in brackets, `(+5)`, is one piece with its brackets: the die
+    // goes after the closing one, never between the number and it. (Dice
+    // written as dice, `(2d6)`, become the die in place, brackets around.)
+    const bare = text.slice(h.from, h.to).replace(/\s+/g, "") === h.notation;
+    if (!bare && text[h.from - 1] === "(" && text[h.to] === ")" && h.from - 1 >= at) {
+      h.from -= 1;
+      h.to += 1;
+    }
     if (h.from > at) out.push({ text: text.slice(at, h.from) });
     out.push({ text: text.slice(h.from, h.to), notation: h.notation });
     at = h.to;

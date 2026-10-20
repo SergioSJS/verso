@@ -30,6 +30,7 @@ const pt = {
   modifier: "Modificador",
   more: (n: number) => `… e mais ${n} (veja o código)`,
   roll: (n: string) => `Rolar ${n}`,
+  rollFor: (n: string, what: string) => `Rolar ${n} para ${what}`,
   // Trackers.
   tracker: (label: string, cur: number, max: number) => `${label}: ${cur} de ${max}`,
   box: (label: string, n: number, max: number) => `${label}: marcar ${n} de ${max}`,
@@ -149,6 +150,7 @@ const en: StatblockText = {
   modifier: "Modifier",
   more: (n) => `… and ${n} more (see the source)`,
   roll: (n) => `Roll ${n}`,
+  rollFor: (n, what) => `Roll ${n} for ${what}`,
   tracker: (label, cur, max) => `${label}: ${cur} of ${max}`,
   box: (label, n, max) => `${label}: mark ${n} of ${max}`,
   less: (label) => `${label}: one less`,

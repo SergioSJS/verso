@@ -98,7 +98,7 @@ actions:
     desc: "Corpo a corpo: +4 para acertar, alcance 1,5 m. Dano: 5 (1d6 + 2) cortante."
 ```
 
-**Experimente.** Na ficha, `+4 para acertar`, `5 (1d6 + 2)`, os modificadores e `Furtividade +6` têm um **dado** ao lado: um clique rola, e o resultado aparece sem ser gravado na nota. `PV atuais` é um **contador**: os botões − e + gravam o novo número em `hp_current`, e só ele muda no texto do bloco — abra o modo **Fonte** e confira. Num servidor, quem rola é o servidor e todos veem.
+**Experimente.** Na ficha, `+4 para acertar`, `5 (1d6 + 2)` e `Furtividade +6` têm um **dado** ao lado, e o modificador de cada atributo — o `(+2)` debaixo de DES — é ele mesmo o botão: um clique rola, e o resultado abre por cima da ficha, sem empurrar nada e sem ser gravado na nota (Esc, o × ou um clique fora fecha). `PV atuais` é um **contador**: os botões − e + gravam o novo número em `hp_current`, e só ele muda no texto do bloco — abra o modo **Fonte** e confira. Num servidor, quem rola é o servidor e todos veem.
 
 ### Exemplo 2: fatos e contadores, para qualquer sistema
 

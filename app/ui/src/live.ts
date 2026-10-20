@@ -74,7 +74,7 @@ export type LiveOptions = {
   /** A statblock card's dice — the note's own dice, which roll in a room
    *  through the server — and why its trackers cannot write now (ADR 0099
    *  items 4 and 5). */
-  statblock?: { die?: (notation: string) => HTMLElement; refusal?: () => "readOnly" | "conflict" | null };
+  statblock?: { die?: (notation: string, look?: { text?: string; label?: string }) => HTMLElement; refusal?: () => "readOnly" | "conflict" | null };
 };
 
 /** Dispatch this when an image URL became known, so the view redraws. */

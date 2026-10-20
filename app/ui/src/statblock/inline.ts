@@ -11,8 +11,12 @@ import type { DiceRule } from "./model";
 import { diceIn } from "./dice";
 import { h } from "./h";
 
+/** How a card's die is drawn: its text in place of the notation (an
+ *  ability's "(+2)") and its name. */
+export type DieLook = { text?: string; label?: string };
+
 /** What makes a die of a notation; none, and dice stay text. */
-export type DieMaker = (notation: string) => HTMLElement;
+export type DieMaker = (notation: string, look?: DieLook) => HTMLElement;
 
 const LINK = /\[\[([^\]|\n]{1,300})(?:\|([^\]\n]{1,300}))?\]\]/g;
 const MARK = /\*\*([^*\n]{1,500})\*\*|\*([^*\n]{1,500})\*/g;

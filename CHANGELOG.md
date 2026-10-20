@@ -25,6 +25,7 @@ test release.
 
 ### Fixed
 
+- **Statblock cards no longer draw one thing over another**: the ability scores are a grid (six to a row, three when the card is narrow) whose modifier, "(+2)", is itself the die — no more die inside the brackets with the ")" under it, and a zero modifier rolls `1d20`, not `1d20+0`. A roll in a card opens over the card, beside its die, without pushing the cells after it (Esc, × or a click elsewhere closes it). A bonus written in brackets in a card's text, `(+5)`, keeps its brackets with the die after them. The card's buttons sit on their own strip, so a card of two columns no longer squeezes into a sliver beside them on a phone, and the reading view no longer adds its fold and copy buttons to a card's headings and source.
 - **Buttons that write into a note no longer throw the view back to the top**: inserting an oracle answer, ticking a statblock box or its "Broken" mark, or checking a task while reading further down keeps the page where it was, in Reading and in Edit.
 
 ## 0.8.3-beta.2 — 2026-10-17

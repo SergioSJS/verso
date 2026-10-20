@@ -204,6 +204,15 @@ describe("dice in a text", () => {
     assert.deepEqual(m.diceIn("Dexterity +9", m.D20_RULES).filter((p) => p.notation).map((p) => p.notation), ["1d20+9"]);
   });
 
+  test("a bonus in brackets is one piece, brackets and all; a zero bonus rolls the bare die", () => {
+    const pieces = m.diceIn("Perception (+5), Stealth (+0), Hit: 4 (1d4 + 2), and (2d6) fire.", m.D20_RULES);
+    assert.deepEqual(pieces.filter((p) => p.notation).map((p) => [p.text, p.notation]), [["(+5)", "1d20+5"], ["(+0)", "1d20"], ["4 (1d4 + 2)", "1d4+2"], ["2d6", "2d6"]]);
+    // Nothing is lost or moved: the pieces are the text, in order.
+    assert.equal(pieces.map((p) => p.text).join(""), "Perception (+5), Stealth (+0), Hit: 4 (1d4 + 2), and (2d6) fire.");
+    assert.deepEqual(m.diceIn("+0 to hit", m.D20_RULES).filter((p) => p.notation).map((p) => p.notation), ["1d20"]);
+    assert.deepEqual(m.diceIn("-2 to hit", m.D20_RULES).filter((p) => p.notation).map((p) => p.notation), ["1d20-2"]);
+  });
+
   test("a layout of no system rolls only dice written as dice", () => {
     assert.deepEqual(m.diceIn("Fear +2, 2d6 harm", m.PLAIN_RULES).filter((p) => p.notation).map((p) => p.notation), ["2d6"]);
   });
