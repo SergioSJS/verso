@@ -514,3 +514,47 @@ fn a_conflict_copy_is_named_among_the_strays_never_dropped() {
     );
     assert!(has(&dir.path().join(".verso/layouts"), copy));
 }
+
+#[test]
+fn the_generic_commands_refuse_the_data_directories() {
+    let dir = tempdir().unwrap();
+    let config = tempdir().unwrap();
+    let mut ws = open(dir.path(), config.path());
+    ws.index().unwrap();
+    ws.create_note("Nota", "x").unwrap();
+    ws.create_file("anexo.bin", b"x").unwrap();
+    let rev = ws.read_text("anexo.bin").unwrap().revision;
+    fn refused<T>(r: Result<T, CoreError>) -> bool {
+        matches!(r, Err(CoreError::FolderData(_)))
+    }
+    for target in [
+        ".verso/layouts/x.json",
+        ".verso/bundles/x.json",
+        ".verso/layouts/Maiuscula.json",
+        ".verso/bundles/Nota.canvas",
+        ".verso/layouts",
+        ".verso/bundles/sub",
+    ] {
+        assert!(
+            refused(ws.create_file(target, b"{}")),
+            "create_file {target}"
+        );
+        assert!(refused(ws.create_folder(target)), "create_folder {target}");
+        assert!(
+            refused(ws.write_text(target, "{}", &rev)),
+            "write_text {target}"
+        );
+        assert!(
+            refused(ws.rename_entry("anexo.bin", target)),
+            "rename {target}"
+        );
+    }
+    assert!(refused(
+        ws.move_entries(&["anexo.bin".to_owned()], ".verso/layouts")
+    ));
+    // Nothing was made, and the data API is the way in.
+    assert!(!has(dir.path(), ".verso"));
+    ws.write_folder_data(KIND, "mesa", "{}", None).unwrap();
+    // The settings file is not a data directory: the rule is the narrower.
+    assert!(!refused(ws.create_file(".verso/settings.json", b"{}")));
+}

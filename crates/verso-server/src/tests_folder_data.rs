@@ -208,6 +208,23 @@ fn an_editor_writes_over_the_revision_read_and_sync_follows() {
             .await;
             assert_eq!(bad["err"]["kind"], "refused", "{id}: {bad}");
         }
+        // The generic commands do not reach the data directories.
+        for (n, cmd, a) in [
+            (
+                40,
+                "create_file",
+                json!({ "path": ".verso/layouts/solto.json", "base64": "e30=" }),
+            ),
+            (
+                41,
+                "write_text",
+                json!({ "path": ".verso/bundles/mundo.json", "text": "{}", "revision": rev }),
+            ),
+            (42, "create_folder", json!({ "path": ".verso/layouts/sub" })),
+        ] {
+            let bad = call(&mut ws, n, cmd, a).await;
+            assert_eq!(bad["err"]["kind"], "refused", "{cmd}: {bad}");
+        }
         // Removed over the revision read: through the bin, and in the log.
         let head = call(&mut ws, 16, "sync_changes", json!({ "since": head })).await["ok"]["head"]
             .as_i64()

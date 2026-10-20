@@ -39,6 +39,22 @@ impl Workspace {
             .into_owned())
     }
 
+    /// [`Self::entry_key`] for a path something is to be written, created
+    /// or moved at: the folder's data directories, `.verso/layouts/` and
+    /// `.verso/bundles/`, are written only through the four folder data
+    /// commands, which check the id, the kind's bound and that the text is
+    /// one JSON object (ADR 0099 item 2, ADR 0098 item 2). Sync writes them
+    /// by `write_bytes`, which does not come through here.
+    pub(crate) fn write_key(&self, path: &str) -> Result<String, CoreError> {
+        let key = self.entry_key(path)?;
+        if crate::folder_data::in_data_dir(&key) {
+            return Err(CoreError::FolderData(format!(
+                "{key} is written through the folder data commands only"
+            )));
+        }
+        Ok(key)
+    }
+
     /// Where an entry is on disk, for the host to hand to the system's
     /// file manager. The one absolute path that leaves this crate besides
     /// [`Self::folder`]; it goes to the operating system, never across
@@ -62,7 +78,7 @@ impl Workspace {
     /// knew. An attachment's linkers are the notes whose embeds name it.
     pub fn rename_entry(&mut self, from: &str, to: &str) -> Result<Renamed, CoreError> {
         let old = self.entry_key(from)?;
-        let new = self.entry_key(to)?;
+        let new = self.write_key(to)?;
         // Inside the folder's settings directory a move is the file's
         // alone, never a note's nor the index's; into or out of it, none
         // (ADR 0070).
@@ -109,7 +125,7 @@ impl Workspace {
         let dest = if folder.is_empty() {
             String::new()
         } else {
-            self.entry_key(folder)?
+            self.write_key(folder)?
         };
         let mut keys = Vec::new();
         for p in paths {

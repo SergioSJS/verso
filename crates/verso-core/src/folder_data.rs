@@ -121,6 +121,18 @@ pub(crate) fn check_id(id: &str) -> Result<(), CoreError> {
     Ok(())
 }
 
+/// Whether `key`, a confined path, is one of the data directories or under
+/// one: `.verso/layouts` or `.verso/bundles` (ADR 0099 item 2, ADR 0098
+/// item 2).
+pub(crate) fn in_data_dir(key: &str) -> bool {
+    [FolderDataKind::Layouts, FolderDataKind::Bundles]
+        .iter()
+        .any(|k| {
+            let dir = format!("{}/{}", verso_fs::SETTINGS_DIR, k.dir());
+            key == dir || key.strip_prefix(&dir).is_some_and(|r| r.starts_with('/'))
+        })
+}
+
 /// The path of a data file, `/`-joined, relative to the folder.
 fn path_of(kind: FolderDataKind, id: &str) -> Result<String, CoreError> {
     check_id(id)?;

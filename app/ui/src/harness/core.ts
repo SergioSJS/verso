@@ -976,6 +976,14 @@ export class Core {
 
   // ---- The commands ------------------------------------------------------
 
+  /** A path to write, create or move at: the core refuses the folder's data
+   *  directories there, which only the four folder data commands write. */
+  private writeKey(path: string): string {
+    const key = this.confine(path);
+    if (/^\.verso\/(layouts|bundles)(\/|$)/.test(key)) refuse("refused", `${key} is written through the folder data commands only`);
+    return key;
+  }
+
   /** The answer to every command of the contract, by its name. */
   /** The folder's mark for the server of all of Verso (ADR 0054 point 4). */
   agentVisible = false;
@@ -1022,13 +1030,13 @@ export class Core {
       return this.noteText(path);
     },
     create_file: (a) => {
-      const path = this.confine(String(a["path"]));
+      const path = this.writeKey(String(a["path"]));
       if (this.files.has(path) || this.folders.has(path)) refuse("exists", `already there: ${path}`);
       this.put(path, fromBase64(String(a["base64"])));
       return path;
     },
     create_folder: (a) => {
-      const path = this.confine(String(a["path"]));
+      const path = this.writeKey(String(a["path"]));
       if (this.files.has(path) || this.folders.has(path)) refuse("exists", `already there: ${path}`);
       for (let d = path; d !== ""; d = dirOf(d)) this.folders.add(d);
       return path;
@@ -1135,7 +1143,7 @@ export class Core {
     web_url: (a) => this.webViews.get(String(a["label"])) ?? "",
     read_text: (a) => this.textFile(this.confine(String(a["path"]))),
     write_text: (a): TextFile => {
-      const path = this.confine(String(a["path"]));
+      const path = this.writeKey(String(a["path"]));
       this.writeOver(path, String(a["text"]), String(a["revision"]));
       return this.textFile(path);
     },

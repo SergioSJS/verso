@@ -200,7 +200,7 @@ impl Workspace {
     /// an attachment — with `bytes`, at a path relative to the folder;
     /// refused when something stands there. Listed at once.
     pub fn create_file(&mut self, relative: &str, bytes: &[u8]) -> Result<String, CoreError> {
-        let key = self.entry_key(relative)?;
+        let key = self.write_key(relative)?;
         let (handle, report) = self
             .root
             .create(Path::new(&key), bytes)
@@ -219,7 +219,7 @@ impl Workspace {
     /// Create a folder inside the open folder. The walk does not list an
     /// empty folder, so the caller shows it until something lands in it.
     pub fn create_folder(&mut self, relative: &str) -> Result<String, CoreError> {
-        let key = self.entry_key(relative)?;
+        let key = self.write_key(relative)?;
         let (made, _) = self
             .root
             .create_dir(Path::new(&key))
