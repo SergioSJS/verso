@@ -471,3 +471,19 @@ fn the_oracle_keys_are_checked_kept_and_reported() {
     assert_eq!(read.warnings.len(), 1, "{:?}", read.warnings);
     assert!(read.warnings[0].contains("odds"));
 }
+
+/// With `.verso` a link out of the folder, the data files behind it are
+/// not listed (the symlink decision, ADR 0044).
+#[cfg(unix)]
+#[test]
+fn a_symlinked_settings_directory_lists_nothing() {
+    let dir = tempdir().unwrap();
+    let config = tempdir().unwrap();
+    let outside = tempdir().unwrap();
+    fs::create_dir_all(outside.path().join("layouts")).unwrap();
+    fs::write(outside.path().join("layouts/fora.json"), "{\"a\": 1}").unwrap();
+    std::os::unix::fs::symlink(outside.path(), dir.path().join(".verso")).unwrap();
+    let mut ws = open(dir.path(), config.path());
+    ws.index().unwrap();
+    assert!(ws.list_folder_data(KIND).unwrap().is_empty());
+}
