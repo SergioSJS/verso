@@ -24,8 +24,9 @@ import { validateLayout, type Problem } from "./validate";
 export type FolderDataKind = "layouts" | "bundles";
 
 /** The folder's data files of a kind, as the contract's four commands
- *  give them. Each call rejects with an Error whose message is the
- *  contract's (stale, exists, invalid, too large, forbidden). */
+ *  give them (folderData.ts, wired by folderWire.ts). Each call rejects
+ *  with the contract's error, `{kind, message}` — `changed`, `exists`,
+ *  `refused`, `not_found`, `unavailable` — or an Error. */
 export interface FolderDataApi {
   list(kind: FolderDataKind): Promise<{ id: string; revision: string }[]>;
   read(kind: FolderDataKind, id: string): Promise<{ value: unknown; revision: string }>;
@@ -48,7 +49,19 @@ export interface StoredLayout {
   problems: Problem[];
 }
 
-export type Result<T> = { ok: true; value: T } | { ok: false; why: string };
+/** A refusal says why; `stale` when the file changed since it was read
+ *  (another person, another window): the caller shows it, never retries
+ *  silently. */
+export type Result<T> = { ok: true; value: T } | { ok: false; why: string; stale?: true };
+
+/** The contract's error (`{kind, message}`, folderData.ts) or an Error, as text. */
+const why = (e: unknown): string => {
+  if (e instanceof Error) return e.message.slice(0, 300);
+  if (e && typeof e === "object" && typeof (e as { message?: unknown }).message === "string") return (e as { message: string }).message.slice(0, 300);
+  return String(e).slice(0, 300);
+};
+/** The file is not the version read: the contract's `changed`. */
+const isStale = (e: unknown): boolean => (!!e && typeof e === "object" && (e as { kind?: unknown }).kind === "changed") || /stale|changed/i.test(why(e));
 
 let api: FolderDataApi | null = null;
 let stopWatch: (() => void) | null = null;
@@ -89,7 +102,9 @@ export async function reloadFolder(): Promise<void> {
   try {
     const entries = await from.list("layouts");
     for (const e of entries.slice(0, 500)) {
-      if (!LAYOUT_ID.test(e.id)) continue;
+      // An empty revision: the file cannot be read now (a placeholder of
+      // on-demand storage, past the bound); it shows once it can.
+      if (!LAYOUT_ID.test(e.id) || e.revision === "") continue;
       try {
         const r = await from.read("layouts", e.id);
         const v = validateLayout(r.value, e.id);
@@ -155,7 +170,6 @@ export function freeId(base: string): string {
   return `${root}-${Date.now().toString(36)}`.slice(0, 64);
 }
 
-const why = (e: unknown): string => (e instanceof Error ? e.message : String(e)).slice(0, 300);
 
 /** The device's layouts written into the folder, once: on the first write
  *  (opening never writes, ADR 0012). Each keeps its id, or takes a free
@@ -198,7 +212,7 @@ export async function saveLayout(layout: Layout, revision: string | null): Promi
     changed();
     return { ok: true, value: stored };
   } catch (e) {
-    return { ok: false, why: S.writeFailed(why(e)) };
+    return { ok: false, why: S.writeFailed(why(e)), ...(isStale(e) ? { stale: true as const } : {}) };
   }
 }
 
