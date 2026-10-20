@@ -14,7 +14,7 @@ export type Strings = Record<
   | "keepBoth" | "conflictPendingBoth" | "thisComputer" | "saveAgain" | "closeWithoutSaving" | "goneUnsaved" | "goneUnsavedElsewhere" | "gonePending" | "planRetryNothing"
   | "lessonTitle" | "lessonBody" | "lessonKeys" | "lessonServerTitle" | "lessonServerBody" | "lessonServerOpen" | "split" | "splitDown" | "emptyPane" | "quick" | "close" | "closePane"
   | "frameControls" | "frameMinimize" | "frameMaximize" | "frameRestore" | "frameClose"
-  | "maximize" | "restore" | "newNote" | "newNoteName" | "rename" | "deleteNote" | "openTab" | "openPane" | "newHere"
+  | "maximize" | "restore" | "newNote" | "newNoteName" | "rename" | "deleteNote" | "openTab" | "openPane" | "newHere" | "newWorld" | "oracle"
   | "planApply" | "planSkip" | "exists" | "unlinkableName" | "unportableName" | "caseTwinName" | "collapseAll" | "expandAll" | "newSpace" | "space" | "closeSpace" | "untitled"
   | "folderView" | "asList" | "asGrid" | "readOnly" | "keysNew" | "keysEdit" | "keysSplit" | "keysSpace" | "moveTo" | "moved"
   | "bold" | "italic" | "strike" | "highlight" | "heading" | "link" | "wikilink" | "bullets" | "numbers" | "task" | "quote" | "code" | "rule" | "pasteHint" | "pasted"
@@ -86,6 +86,28 @@ export type Strings = Record<
   /** The tree's selection (ADR 0048, revised 2026-10-07). */
   /** "Start with" under a new note's title (ADR 0068). */
   templatePicker: { title: string; blank: string };
+  worldWizard: {
+    title: string;
+    nameLabel: string;
+    namePlaceholder: string;
+    folderLabel: string;
+    folderPlaceholder: string;
+    folderHint: string;
+    bundleLabel: string;
+    create: string;
+    creating: string;
+    created: (folders: number, files: number) => string;
+    tabPresets: string;
+    tabAi: string;
+    copyPrompt: string;
+    promptCopied: string;
+    importLabel: string;
+    importPlaceholder: string;
+    validateAndImport: string;
+    importSuccess: (name: string) => string;
+    copyFixPrompt: string;
+    fixPromptCopied: string;
+  };
   selection: { count: (n: number) => string; confirmDelete: (n: number) => string; moved: (n: number) => string; notMoved: (names: string) => string; copyPaths: string; clear: string; deleted: (n: number) => string };
   words: (w: number, c: number) => string;
   replaceCount: (n: number) => string;
@@ -145,7 +167,7 @@ export const pt: Strings = {
   split: "Dividir à direita", splitDown: "Dividir abaixo", emptyPane: "Escolha um arquivo na lista, ou arraste uma aba para cá.",
   frameControls: "Controles da janela", frameMinimize: "Minimizar", frameMaximize: "Maximizar", frameRestore: "Restaurar", frameClose: "Fechar",
   quick: "Abrir…", close: "Fechar aba", closePane: "Fechar área", maximize: "Maximizar área", restore: "Restaurar áreas",
-  newNote: "Nova nota", newNoteName: "Nome da nota (Enter cria, Esc cancela)", rename: "Renomear", deleteNote: "Apagar",
+  newNote: "Nova nota", newNoteName: "Nome da nota (Enter cria, Esc cancela)", rename: "Renomear", deleteNote: "Apagar", newWorld: "Novo projeto a partir de modelo…", oracle: "Oráculo (sim/não e faíscas)…",
   openTab: "Abrir em aba nova", openPane: "Abrir ao lado", newHere: "Nova nota nesta pasta", planApply: "Atualizar links", planSkip: "Deixar como está",
   exists: "Já existe um arquivo com esse nome.", unlinkableName: "Um link não alcança um nome com [ ] | # ^ — escolha outro.", unportableName: "O Windows não guarda esse nome (CON, NUL, COM1…, ponto ou espaço no fim, ou : * \" < > ? | \\) — escolha outro, para a pasta sincronizar em qualquer sistema.", caseTwinName: "Esta pasta já tem um nome que só difere desse em maiúsculas e minúsculas, ou na forma em que os acentos foram gravados — num Mac ou no Windows os dois seriam um arquivo só. Escolha outro.", collapseAll: "Recolher tudo", expandAll: "Expandir tudo", newSpace: "Nova área", space: "Área",
   closeSpace: "Fechar área", untitled: "Sem título", folderView: "Pasta", asList: "Lista", asGrid: "Miniaturas", readOnly: "Só leitura: não é uma nota Markdown.",
@@ -197,6 +219,28 @@ export const pt: Strings = {
   confirmDeleteFolder: (n) => `Mover a pasta "${n}" e tudo dentro dela para a lixeira (.trash)?`,
   blockRepeated: (id, lines) => `^${id} aparece ${lines.length} vezes (linhas ${lines.join(", ")}): vale a última, como no Obsidian.`,
   templatePicker: { title: "Começar com", blank: "Em branco" },
+  worldWizard: {
+    title: "Criar Novo Mundo ou Campanha",
+    nameLabel: "Nome do mundo ou campanha",
+    namePlaceholder: "ex: Tormenta — O Reinado",
+    folderLabel: "Pasta de destino",
+    folderPlaceholder: "Deixe em branco para criar na raiz do cofre",
+    folderHint: "A pasta do projeto será criada dentro deste local",
+    bundleLabel: "Pacote de modelos",
+    create: "Criar estrutura",
+    creating: "Criando…",
+    created: (folders, files) => `Mundo criado com sucesso! (${folders} pastas, ${files} arquivos)`,
+    tabPresets: "Modelos Prontos",
+    tabAi: "Gerador com IA",
+    copyPrompt: "Copiar System Prompt para IA",
+    promptCopied: "System Prompt copiado! Cole no Claude, ChatGPT ou Gemini.",
+    importLabel: "Cole aqui o JSON gerado pela sua IA",
+    importPlaceholder: "{\n  \"version\": 1,\n  \"name\": \"...\"\n}",
+    validateAndImport: "Validar e Importar",
+    importSuccess: (name) => `Modelo "${name}" importado e adicionado à lista!`,
+    copyFixPrompt: "Copiar pedido de correção para a IA",
+    fixPromptCopied: "Instrução de correção copiada!",
+  },
   selection: { count: (n) => `${n} itens`, confirmDelete: (n) => `Mover ${n} itens, e o que estiver dentro das pastas, para a lixeira (.trash)?`, moved: (n) => `${n} itens movidos.`, notMoved: (names) => `Não puderam ser movidos: ${names}.`, copyPaths: "Copiar caminhos relativos", clear: "Limpar seleção", deleted: (n) => `${n} itens movidos para .trash/.` },
   slash: { basic: "Básico", lists: "Listas", callouts: "Destaques", insert: "Inserir", h1: "Título grande de seção", h2: "Subtítulo", h3: "Título pequeno", quote: "Trecho citado, com barra à esquerda", code: "Bloco de código monoespaçado", divider: "Linha que separa seções", task: "Item com caixa de marcar", bullets: "Lista simples com marcadores", numbers: "Lista numerada", calloutNote: "Caixa de nota, com ícone e título", calloutTip: "Dica em destaque", calloutWarning: "Aviso que pede atenção", table: "Tabela 3×2, Tab move entre células", wikilink: "Link para outra nota do cofre", embed: "Conteúdo de outra nota, aqui dentro", image: "Imagem ou arquivo do cofre", link: "Link para um endereço da web", template: "Texto de uma nota da pasta de templates", toggleTitle: "Recolhível", toggle: "Destaque que abre e fecha (toggle)", empty: "Nada com esse nome." },
   tableEdit: { addRow: "Acrescentar linha", addCol: "Acrescentar coluna", rowAbove: "Inserir linha acima", rowBelow: "Inserir linha abaixo", deleteRow: "Excluir linha", colLeft: "Inserir coluna à esquerda", colRight: "Inserir coluna à direita", deleteCol: "Excluir coluna", alignLeft: "Alinhar à esquerda", alignCenter: "Centralizar", alignRight: "Alinhar à direita", cell: "Linha {r}, coluna {c}", headerCell: "Cabeçalho, coluna {c}" },
@@ -310,7 +354,7 @@ export const en: Strings = {
   split: "Split right", splitDown: "Split down", emptyPane: "Pick a file from the list, or drag a tab here.",
   frameControls: "Window controls", frameMinimize: "Minimize", frameMaximize: "Maximize", frameRestore: "Restore", frameClose: "Close",
   quick: "Open…", close: "Close tab", closePane: "Close pane", maximize: "Maximize pane", restore: "Restore panes",
-  newNote: "New note", newNoteName: "Note name (Enter creates, Esc cancels)", rename: "Rename", deleteNote: "Delete",
+  newNote: "New note", newNoteName: "Note name (Enter creates, Esc cancels)", rename: "Rename", deleteNote: "Delete", newWorld: "New project from a template…", oracle: "Oracle (yes/no and sparks)…",
   openTab: "Open in new tab", openPane: "Open to the side", newHere: "New note in this folder", planApply: "Update links", planSkip: "Leave them",
   exists: "A file with that name already exists.", unlinkableName: "A link cannot reach a name with [ ] | # ^ — choose another.", unportableName: "Windows cannot keep that name (CON, NUL, COM1…, a trailing dot or space, or : * \" < > ? | \\) — choose another, so the folder syncs on any system.", caseTwinName: "This folder already has a name that differs from that one only in upper and lower case, or in how its accents were stored — on a Mac or Windows the two would be one file. Choose another.", collapseAll: "Collapse all", expandAll: "Expand all", newSpace: "New workspace", space: "Workspace",
   closeSpace: "Close workspace", untitled: "Untitled", folderView: "Folder", asList: "List", asGrid: "Thumbnails", readOnly: "Read-only: not a Markdown note.",
@@ -360,6 +404,28 @@ export const en: Strings = {
   confirmDeleteFolder: (n) => `Move the folder "${n}" and everything in it to the Trash (.trash)?`,
   blockRepeated: (id, lines) => `^${id} appears ${lines.length} times (lines ${lines.join(", ")}): the last one counts, as in Obsidian.`,
   templatePicker: { title: "Start with", blank: "Blank" },
+  worldWizard: {
+    title: "Create New World or Campaign",
+    nameLabel: "World or campaign name",
+    namePlaceholder: "e.g., Stormlands Campaign",
+    folderLabel: "Destination folder",
+    folderPlaceholder: "Leave blank to create in vault root",
+    folderHint: "The project folder will be created inside this location",
+    bundleLabel: "Template bundle",
+    create: "Create structure",
+    creating: "Creating…",
+    created: (folders, files) => `World structure created! (${folders} folders, ${files} files)`,
+    tabPresets: "Built-in Presets",
+    tabAi: "AI Generator",
+    copyPrompt: "Copy System Prompt for AI",
+    promptCopied: "System Prompt copied! Paste into Claude, ChatGPT, or Gemini.",
+    importLabel: "Paste the JSON generated by your AI here",
+    importPlaceholder: "{\n  \"version\": 1,\n  \"name\": \"...\"\n}",
+    validateAndImport: "Validate & Import",
+    importSuccess: (name) => `Bundle "${name}" imported and added to list!`,
+    copyFixPrompt: "Copy fix prompt for AI",
+    fixPromptCopied: "Fix instructions copied!",
+  },
   selection: { count: (n) => `${n} items`, confirmDelete: (n) => `Move ${n} items, and what is inside the folders, to the Trash (.trash)?`, moved: (n) => `${n} items moved.`, notMoved: (names) => `Could not be moved: ${names}.`, copyPaths: "Copy relative paths", clear: "Clear selection", deleted: (n) => `${n} items moved to .trash/.` },
   slash: { basic: "Basic", lists: "Lists", callouts: "Callouts", insert: "Insert", h1: "Big section heading", h2: "Subheading", h3: "Small heading", quote: "Quoted passage, bar on the left", code: "Monospaced code block", divider: "A line between sections", task: "Item with a checkbox", bullets: "Plain bulleted list", numbers: "Numbered list", calloutNote: "Note box with an icon and a title", calloutTip: "A tip, set apart", calloutWarning: "A warning that asks for attention", table: "3×2 table, Tab moves between cells", wikilink: "Link to another note of the vault", embed: "Another note's content, in place", image: "Image or file from the vault", link: "Link to a web address", template: "Text from a note in the templates folder", toggleTitle: "Toggle", toggle: "A callout that opens and closes", empty: "Nothing by that name." },
   tableEdit: { addRow: "Add a row", addCol: "Add a column", rowAbove: "Insert row above", rowBelow: "Insert row below", deleteRow: "Delete row", colLeft: "Insert column left", colRight: "Insert column right", deleteCol: "Delete column", alignLeft: "Align left", alignCenter: "Center", alignRight: "Align right", cell: "Row {r}, column {c}", headerCell: "Header, column {c}" },

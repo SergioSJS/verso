@@ -90,7 +90,9 @@
   display: inline-flex;
   align-items: center;
   gap: .45rem;
-  max-width: 22ch;
+  max-width: 28ch;
+  flex: 0 1 auto;
+  margin: 0;
   padding: 0 .65rem;
   font-size: .83rem;
   font-family: var(--ui);
@@ -131,6 +133,7 @@
 .pane:not(.vertical) .tab.pinned.dirty .tab-icon { position: relative; }
 .pane:not(.vertical) .tab.pinned.dirty .tab-icon::after { content: ""; position: absolute; right: -4px; top: -3px; width: 6px; height: 6px; border-radius: 50%; background: var(--seal); }
 /* A preview tab: its name in italics until it is kept. */
+.tab.preview { margin: 0; }
 .tab.preview .tab-name { font-style: italic; }
 /* The dot is drawn, not said: the tab's name says "unsaved" (a browser
    without alternative text for `content` keeps the first line). */
@@ -216,7 +219,7 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .cm-table-add-row { height: 1.3rem; margin: 4px calc(1.3rem + 4px) 0 0; }
 .cm-table-editor:hover .cm-table-add, .cm-table-editor.has-focus .cm-table-add, .cm-table-add:focus-visible { opacity: 1; border-color: var(--hair); }
 .cm-table-add:hover { color: var(--seal); background: var(--seal-wash); border-color: transparent; }
-.title-row { display: flex; align-items: baseline; gap: .6rem; margin-top: .4rem; }
+.title-row { display: flex; align-items: baseline; gap: .6rem; margin-top: .4rem; max-width: 52rem; margin-left: auto; margin-right: auto; }
 .note-title { flex: 1; margin: 0; font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; font-size: clamp(1.7rem, 2.6vw, 2.4rem); line-height: 1.1; letter-spacing: -.02em; font-variation-settings: "opsz" 72, "SOFT" 40; }
 .note-title:empty { display: none; }
 .dirty-mark { color: var(--seal); font-size: 1.4rem; line-height: 1; }
@@ -226,11 +229,11 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .live-mark[data-live="live"]::before, .status-live[data-live="live"]::before { content: "● "; color: var(--brass-ink); }
 .save { font-size: .78rem; font-weight: 600; letter-spacing: .04em; color: var(--seal-ink); background: var(--seal); padding: .28rem .7rem; border-radius: 5px; }
 .save:hover { filter: brightness(1.08); }
-.flags { margin: .5rem 0 0; font-size: .82rem; color: var(--brass-ink); }
+.flags { margin: .5rem auto 0; font-size: .82rem; color: var(--brass-ink); max-width: 52rem; }
 .flags:empty { display: none; }
 
 /* Properties: a quiet table, key column fixed, edited in place. */
-.props { margin: .9rem 0 0; padding: .1rem 0; font-size: .84rem; border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); max-width: 100ch; }
+.props { margin: .9rem auto 0; padding: .1rem 0; font-size: .84rem; border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); max-width: 52rem; }
 .props-header { display: flex; align-items: center; justify-content: space-between; padding: .1rem 0; margin-bottom: .2rem; }
 /* The typed note (ADR 0052): the type's name above the properties, or why
    its schema types nothing; declared rows, the empty ones lighter until
@@ -251,7 +254,7 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .props-toggle:hover { color: var(--ink); background: var(--paper-2); }
 .props-toggle .icon { width: 12px; height: 12px; transition: transform .15s ease; }
 .props.collapsed .props-toggle .icon { transform: rotate(-90deg); }
-.props.collapsed .prop, .props.collapsed .prop-new { display: none; }
+.props.collapsed:not(.empty) .prop, .props.collapsed:not(.empty) .prop-new { display: none; }
 .prop { display: grid; grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr) auto; align-items: center; gap: .2rem .6rem; min-height: 1.9rem; padding: .05rem .1rem; border-radius: 5px; }
 .prop:hover { background: var(--paper-2); }
 .prop-key { display: inline-flex; align-items: center; gap: .45rem; color: var(--ink-3); min-width: 0; }
@@ -280,18 +283,17 @@ html.block-handles .note-sheet { padding-left: calc(clamp(.7rem, 1.5vw, 1.2rem) 
 .prop:hover .prop-remove, .prop:focus-within .prop-remove { opacity: 1; }
 .prop-remove:hover { color: var(--seal); background: var(--paper-3); }
 .prop-remove .icon { width: 12px; height: 12px; }
-/* No properties: a hairline under the title, the add button a ghost at its right end. */
-/* No properties: the rule under the title stays, and the button keeps
-   its own band at the right — in the flow, so it is never painted over
-   the title above it or the note below. Shown on hovering the sheet. */
-.props.empty { display: flex; justify-content: flex-end; height: auto; margin: .5rem 0 .3rem; padding: 0; border-bottom: 0; }
-.props.empty .prop-new { margin: 0; padding: .1rem .4rem; opacity: 0; transition: opacity .15s; }
-.sheet:hover .props.empty .prop-new, .props.empty .prop-new:focus-visible { opacity: 1; }
-.props.adding { position: relative; height: auto; margin: .5rem 0 .9rem; padding: .1rem 0; border-bottom: 1px solid var(--hair); }
+/* No properties: the hairline under the title stays, with the add button
+   clearly discoverable, aligned on the left with the note measure. */
+.props.empty { display: flex !important; align-items: center; justify-content: flex-start; height: auto; min-height: 1.8rem; margin: .4rem auto .3rem; padding: 0; border-bottom: 0; max-width: 52rem; }
+.props.empty .prop-new { display: inline-flex !important; margin: 0; padding: .2rem .55rem; opacity: .8; color: var(--ink-3); border-radius: 5px; cursor: pointer; transition: opacity .15s ease, background .15s ease, color .15s ease; }
+.props.empty .prop-new:hover, .props.empty .prop-new:focus-visible, .sheet:hover .props.empty .prop-new { opacity: 1; }
+.props.empty .prop-new:hover { color: var(--ink); background: var(--paper-2); }
+.props.adding { position: relative; height: auto; margin: .5rem auto .9rem; padding: .1rem 0; border-bottom: 1px solid var(--hair); max-width: 52rem; }
 .props.adding .prop-new { display: none; }
 .prop.kind-new { display: grid; grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr) auto; align-items: center; gap: .2rem .6rem; min-height: 1.9rem; padding: .05rem .1rem; }
 .prop.kind-new .prop-key input { width: 100%; min-width: 0; }
-.prop-new { display: inline-flex; align-items: center; gap: .35rem; margin: .15rem 0; padding: .3rem .5rem; font: inherit; font-size: .8rem; color: var(--ink-3); border-radius: 5px; }
+.prop-new { display: inline-flex; align-items: center; gap: .35rem; margin: .15rem 0; padding: .3rem .5rem; font: inherit; font-size: .8rem; color: var(--ink-3); border-radius: 5px; cursor: pointer; }
 .prop-new:hover { color: var(--ink); background: var(--paper-2); }
 .prop-new .icon { width: 13px; height: 13px; }
 .editor .cm-lp-frontmatter { display: none; }

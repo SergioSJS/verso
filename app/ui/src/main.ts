@@ -246,6 +246,17 @@ updateLeavesLineNumbers = () => {
     }
   }
 };
+window.addEventListener("verso:preset-changed", () => {
+  for (const sp of spaces) {
+    for (const p of sp.layout.panes()) {
+      for (const l of p.leaves) {
+        if (l instanceof NoteLeaf) {
+          l.repaint();
+        }
+      }
+    }
+  }
+});
 newSpaceButton.addEventListener("click", () => newSpace());
 /** The current workspace's layout. Before a folder is open there is no
  *  workspace, and an empty layout answers (no pane, nothing focused)
@@ -400,6 +411,12 @@ installScreen();
 // from.
 installNotify(() => settingsDialog.show("notify"));
 installSources();
+window.addEventListener("verso:open-statblock-settings", () => {
+  settingsDialog.show("statblocks");
+});
+window.addEventListener("verso:open-oracle-settings", () => {
+  settingsDialog.show("oracles");
+});
 
 // The folder button opens the folder switcher (ADR 0081 item 5): wired,
 // it is no longer busy (a click made before is made again, `web.ts`).

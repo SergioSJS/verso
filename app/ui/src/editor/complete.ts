@@ -18,6 +18,9 @@ import { linkText, resolveNoteByName } from "../resolve";
 import { settings } from "../settings";
 import { type SlashSection } from "../slash";
 import { ss as secretStrings } from "../secret/strings";
+import { hasCapability } from "../capabilities";
+import { showOracleDialog } from "../oracle/dialog";
+import { isPt } from "../oracle/strings";
 import { LOCALE, t } from "../strings";
 import { template as tableTemplate } from "../table";
 import { focusTableCell } from "../tableEditor";
@@ -144,6 +147,7 @@ export function slashSections(): SlashSection[] {
       { icon: "quote", title: s.toggleTitle, description: s.toggle, keywords: "toggle recolher dobrar fold [!note]-", insert: "> [!note]- " },
       // What it does not protect, said where it is made (ADR 0087 item 7).
       { icon: "lock", title: secretStrings.slashTitle, description: secretStrings.slashDesc, keywords: "[!secret] secret segredo mestre gm", insert: "> [!secret] " },
+      ...(hasCapability("oracles") ? [{ icon: "quote", title: isPt ? "Oráculo" : "Oracle", description: isPt ? "Destaque [!oracle] com pergunta e resposta" : "[!oracle] callout with question and answer", keywords: "[!oracle] oracle oraculo solo improviso", insert: "> [!oracle] " }] : []),
     ] },
     { title: s.insert, items: [
       { icon: "table", title: t.table, description: s.table, keywords: "| tabela table", insert: () => tableTemplate(3, 2), run: (v) => focusTableOver(v) },
@@ -154,6 +158,12 @@ export function slashSections(): SlashSection[] {
       { icon: "calendar", title: t.today, description: date, keywords: "data date hoje", insert: date },
       { icon: "calendar", title: t.now, description: time, keywords: "hora time agora", insert: time },
       { icon: "template", title: t.insertTemplate, description: s.template, keywords: "template modelo", insert: "", run: () => insertTemplate() },
+      ...(hasCapability("oracles") ? [{ icon: "sparkles", title: isPt ? "Consultar Oráculo…" : "Ask Oracle…", description: isPt ? "Janela do oráculo com probabilidades e faíscas de ideias" : "Oracle dialog with graduated odds and idea sparks", keywords: "oracle oraculo spark solo rpg dados", insert: "", run: () => showOracleDialog() }] : []),
+      ...(hasCapability("statblocks") ? [{ icon: "note", title: isPt ? "Ficha de Atributos (Statblock)" : "Statblock Card", description: isPt ? "Bloco ```statblock para fichas de monstros, NPCs e personagens" : "```statblock block for monsters, NPCs, and characters", keywords: "statblock ficha monstro npc atributos", insert: "```statblock\nname: \nlayout: Basic\nhp: 10\nac: 10\n```\n", cursor: 18 }] : []),
+      { icon: "tag", title: t.addProperty, description: isPt ? "Adicionar propriedade ao frontmatter YAML" : "Add property to frontmatter YAML", keywords: "propriedade property frontmatter meta tag", insert: "", run: () => {
+        const leaf = layout().activeLeaf;
+        if (leaf && "addProperty" in leaf) (leaf as any).addProperty();
+      } },
     ] },
   ];
 }

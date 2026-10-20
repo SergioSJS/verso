@@ -222,6 +222,17 @@ export class PropertiesView {
     if (this.el.contains(document.activeElement)) this.pending = draw;
     else draw();
   }
+  /** Open the new property input, expanding the panel if folded. */
+  addProperty(): void {
+    if (this.readOnly) return;
+    if (this.collapsed) {
+      this.collapsed = false;
+      this.el.classList.remove("collapsed");
+      try { localStorage.setItem("verso.props.collapsed", "false"); } catch {}
+    }
+    const btn = this.el.querySelector<HTMLElement>(".prop-new");
+    if (btn) this.newRow(btn);
+  }
   /** The line above the properties that names the note's type, or says
    *  why its schema types nothing. */
   private typeLine(): HTMLElement | null {
@@ -281,13 +292,14 @@ export class PropertiesView {
       this.paintInfobox(focusKey);
       return;
     }
-    this.el.classList.toggle("collapsed", this.collapsed);
-    this.el.classList.remove("narrow", "expanded");
-    this.el.removeAttribute("role");
-    this.el.removeAttribute("aria-label");
     const rows = this.rows();
     const typeLine = this.typeLine();
     if (typeLine) rows.unshift(typeLine);
+    const empty = this.items.length === 0 && !typeLine;
+    this.el.classList.toggle("collapsed", this.collapsed && !empty);
+    this.el.classList.remove("narrow", "expanded");
+    this.el.removeAttribute("role");
+    this.el.removeAttribute("aria-label");
     const add = h("button", "prop-new");
     add.type = "button";
     add.append(icon("plus"), h("span", "", this.opts.strings.addProperty));
@@ -310,7 +322,7 @@ export class PropertiesView {
       this.el.replaceChildren(...rows, add);
     }
     this.el.hidden = false;
-    this.el.classList.toggle("empty", this.items.length === 0 && !typeLine);
+    this.el.classList.toggle("empty", empty);
     this.focusRow(focusKey);
   }
   private focusRow(focusKey?: string): void {

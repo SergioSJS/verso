@@ -9,14 +9,17 @@ import { insertBase, newBase } from "./bases";
 import { commands } from "./bindings";
 import { can, canWrite } from "./can";
 import { trashStrings } from "./dialogs/trash";
+import { showWorldWizard } from "./dialogs/worldWizard";
 import { historyFor, openHistory } from "./dialogs/history";
 import { historyStrings } from "./dialogs/historyStrings";
 import { bookmarks, toggleBookmark } from "./bookmarks";
+import { hasCapability } from "./capabilities";
 import { narrow, toggleRight, toggleSide } from "./chrome";
 import { insertTemplate, saveAsTemplate } from "./daily";
 import { importDemoVault } from "./demo";
 import { openRoller } from "./dice/roller";
 import { ds } from "./dice/strings";
+import { showOracleDialog } from "./oracle/dialog";
 import { hotkeyRecorder } from "./dialogs/settings";
 import { ui } from "./dom";
 import { fail } from "./errors";
@@ -229,6 +232,7 @@ export function allCommands(all = false): Command[] {
     { id: "new-note", label: t.newNote, need: hasFolder, run: () => void newUntitled(pane ?? paneToOpenIn()) },
     { id: "new-note-named", label: t.newNoteName.split(" (")[0] ?? t.newNote, need: hasFolder, run: () => newNotePrompt(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "new-folder", label: t.newFolder, need: hasFolder, run: () => newFolderPrompt(leaf?.path ? dirOf(leaf.path) : "") },
+    { id: "world-wizard", label: t.newWorld, need: hasFolder, run: () => showWorldWizard(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "open-console", label: t.openConsole, run: () => openConsole() },
     { id: "new-board", label: boardText.newBoard, need: hasFolder, run: () => void newBoard(settings.boardFolder.trim().replace(/^\/+|\/+$/g, "")) },
     { id: "new-base", label: t.newBase, need: hasFolder, run: () => void newBase(leaf?.path ? dirOf(leaf.path) : "") },
@@ -236,6 +240,7 @@ export function allCommands(all = false): Command[] {
     // The periods' notes and Previous / Next (ADR 0093 items 7, 8, 10):
     // ⌘⇧D stays the day's, the others have no default key.
     ...periodicCommands(hasFolder, note?.path ?? null),
+    { id: "add-property", label: t.addProperty, need: Boolean(note && !note.readOnly), run: () => note?.addProperty() },
     { id: "insert-template", label: t.insertTemplate, need: hasFolder, run: () => insertTemplate() },
     { id: "save-template", label: t.saveAsTemplate, need: hasFolder, run: () => void saveAsTemplate() },
     { id: "fold-all-headings", label: t.foldAllHeadings, need: Boolean(note), run: () => note?.foldAllHeadings(true) },
@@ -295,13 +300,15 @@ export function allCommands(all = false): Command[] {
     { id: "delete", label: t.deleteNote, need: Boolean(note), run: () => note && void deleteNote(note.path) },
     { id: "switch-focus", label: t.switchFocus, need: hasFolder, run: () => focusSwitcher.show() },
     // A roller without a note (ADR 0088 item 6): nothing written.
-    { id: "roll-dice", label: ds.command, run: () => openRoller() },
+    { id: "roll-dice", label: ds.command, need: hasCapability("diceRolling"), run: () => openRoller() },
+    // Creative Oracles & Solo Improvisation (ADR 0102).
+    { id: "ask-oracle", label: t.oracle, need: hasCapability("oracles"), run: () => showOracleDialog() },
   ];
   return cmds.filter((c) => all || (c.need !== false && possible(c.id))).map((c) => ({ id: c.id, label: c.label, keys: prettyKeys(keyOf(c.id)) || undefined, run: c.run, editorOnly: c.editorOnly }));
 }
 /** The commands that change the folder: absent for a reader on a server. */
 const WRITES = new Set([
-  "new-note", "new-note-named", "new-folder", "new-board", "new-base", "insert-base", "insert-template", "save-template",
+  "new-note", "new-note-named", "new-folder", "world-wizard", "new-board", "new-base", "insert-base", "insert-template", "save-template",
   "import-demo-vault", "replace", "new-web-page", "move-file", "rename", "delete",
   "block-move-up", "block-move-down", "block-duplicate", "block-turn-into", "block-delete",
 ]);

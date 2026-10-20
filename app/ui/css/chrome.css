@@ -216,6 +216,7 @@ input.rename:focus, .new-note-row input:focus { outline: none; }
 .callout[data-callout="danger"], .callout[data-callout="error"], .callout[data-callout="bug"], .callout[data-callout="failure"], .callout[data-callout="fail"], .callout[data-callout="missing"] { --kind: var(--seal); }
 .callout[data-callout="example"] { --kind: light-dark(oklch(50% 0.12 300), oklch(75% 0.1 300)); }
 .callout[data-callout="quote"], .callout[data-callout="cite"] { --kind: var(--ink-3); }
+.callout[data-callout="oracle"] { --kind: light-dark(oklch(50% 0.16 300), oklch(76% 0.15 305)); }
 .preview mark, .editor mark { background: var(--brass-wash); color: inherit; border-radius: 2px; padding: 0 .1em; }
 
 /* An embedded note */

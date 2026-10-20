@@ -37,7 +37,7 @@ const staticImports = (file) => {
   for (const m of text.matchAll(/(?:^|[;\s}])(?:import|export)\s*(?:[^'"()]*?\bfrom\s*)?["'](\.\/[^"']+)["']/g)) found.add(m[1]);
   return [...found].map((rel) => "/" + join(file.includes("/") ? file.slice(0, file.lastIndexOf("/")) : "", rel).split("\\").join("/").replace(/^\/+/, "")).map((p) => p.replace(/\/\.\//g, "/"));
 };
-const core = new Set(["/web.js", "/main.js", "/style.css", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"]);
+const core = new Set(["/web.js", "/main.js", "/style.css", "/manifest.webmanifest", "/favicon.ico", "/favicon.svg", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"]);
 const queue = ["/web.js", "/main.js"];
 while (queue.length > 0) {
   const file = queue.pop();

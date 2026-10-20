@@ -109,8 +109,11 @@ export type Settings = {
    *  "toast" ("Aviso e lista"), "list" ("Só na lista") or "off"; a kind
    *  not named here is "Aviso e lista". */
   notify: Partial<Record<string, "toast" | "list" | "off">>;
+  /** Capability preset (ADR 0103): "writing" (Escrita Pura), "worldbuilding" (Construção de Mundos), or "rpg" (RPG Completo). */
+  preset: "writing" | "worldbuilding" | "rpg";
 };
 export const DEFAULTS: Settings = {
+  preset: "rpg",
   lang: "auto",
   theme: "auto",
   palette: "paper",
@@ -198,6 +201,9 @@ export function loadSettings(): void {
       if (!settings.localFocuses || typeof settings.localFocuses !== "object") settings.localFocuses = {};
       if (!settings.liveTogether || typeof settings.liveTogether !== "object") settings.liveTogether = {};
       if (!settings.notify || typeof settings.notify !== "object" || Array.isArray(settings.notify)) settings.notify = {};
+      if (settings.preset !== "writing" && settings.preset !== "worldbuilding" && settings.preset !== "rpg") {
+        settings.preset = "rpg";
+      }
     }
   } catch {
     settings = { ...DEFAULTS };

@@ -18,16 +18,64 @@ import { name } from "./paths";
 import { settings } from "./settings";
 import { t } from "./strings";
 
-/** The notes of the templates folder, in name order. */
-function templates(): string[] {
+/** The notes of the templates folder, prioritizing project-local templates when inside a project/campaign. */
+export function templates(currentPath?: string): string[] {
+  const result: string[] = [];
+  const seen = new Set<string>();
+
+  // 1. If currentPath is provided, search for local Modelos or Templates in ancestor directories
+  if (currentPath) {
+    const segments = currentPath.split("/").slice(0, -1);
+    while (segments.length > 0) {
+      const parent = segments.join("/");
+      for (const candidate of [`${parent}/Modelos`, `${parent}/modelos`, `${parent}/Templates`, `${parent}/templates`]) {
+        const localMatches = allNotes
+          .filter((p) => p.startsWith(`${candidate}/`) && !p.slice(candidate.length + 1).includes("/"))
+          .sort((a, b) => name(a).localeCompare(name(b)));
+        for (const p of localMatches) {
+          if (!seen.has(name(p))) {
+            seen.add(name(p));
+            result.push(p);
+          }
+        }
+      }
+      segments.pop();
+    }
+  }
+
+  // 2. Global templates folder from settings
   const folder = settings.templates.trim().replace(/^\/+|\/+$/g, "").toLowerCase();
-  if (!folder) return [];
-  return allNotes.filter((p) => p.toLowerCase().startsWith(`${folder}/`) && !p.slice(folder.length + 1).includes("/")).sort((a, b) => name(a).localeCompare(name(b)));
+  if (folder) {
+    const globalMatches = allNotes
+      .filter((p) => p.toLowerCase().startsWith(`${folder}/`) && !p.slice(folder.length + 1).includes("/"))
+      .sort((a, b) => name(a).localeCompare(name(b)));
+    for (const p of globalMatches) {
+      if (!seen.has(name(p))) {
+        seen.add(name(p));
+        result.push(p);
+      }
+    }
+  }
+
+  // 3. Fallback root "Modelos" folder if present
+  for (const candidate of ["Modelos", "modelos"]) {
+    const rootMatches = allNotes
+      .filter((p) => p.startsWith(`${candidate}/`) && !p.slice(candidate.length + 1).includes("/"))
+      .sort((a, b) => name(a).localeCompare(name(b)));
+    for (const p of rootMatches) {
+      if (!seen.has(name(p))) {
+        seen.add(name(p));
+        result.push(p);
+      }
+    }
+  }
+
+  return result;
 }
 
 /** Offer the templates under `leaf`'s title; nothing when there are none. */
 export function offerTemplates(leaf: NoteLeaf): void {
-  const choices = templates();
+  const choices = templates(leaf.path);
   if (choices.length === 0) return;
   const box = h("div", "template-picker");
   box.setAttribute("role", "group");

@@ -20,6 +20,7 @@ import { flash } from "../notify";
 import { name } from "../paths";
 import { resolveNoteByName } from "../resolve";
 import { setHtml } from "../sanitize";
+import { hasCapability } from "../capabilities";
 import { type DiceCode, readCode, rollHere } from "./notation";
 import { ds } from "./strings";
 import { readTable, rowOf, type RandomTable } from "./table";
@@ -261,6 +262,7 @@ export function diceBox(code: DiceCode, host: DiceHost): HTMLElement {
 /** The `dice:` codes of rendered HTML drawn as dice: inline code only,
  *  never a code block. */
 export function wireDice(root: HTMLElement, host: DiceHost): void {
+  if (!hasCapability("diceRolling")) return;
   for (const code of root.querySelectorAll<HTMLElement>("code")) {
     if (code.closest("pre, .dice")) continue;
     const read = readCode(code.textContent ?? "");
