@@ -51,16 +51,27 @@
 .orc-legend { display: flex; flex-wrap: wrap; gap: .35rem 1rem; margin: 0 0 .85rem; padding: 0; list-style: none; font-size: .76rem; color: var(--ink-2); }
 .orc-legend-item { display: inline-flex; align-items: center; gap: .38rem; white-space: nowrap; }
 .orc-bars { display: grid; gap: .6rem; max-width: 46rem; }
-.orc-bar-row { display: grid; grid-template-columns: 7.6rem minmax(0, 1fr) 4.4rem; grid-template-areas: "name bar yes"; align-items: center; gap: .25rem .8rem; }
+.orc-bar-row { display: grid; grid-template-columns: 7.6rem minmax(0, 1fr) 4.4rem; grid-template-areas: "name bar yes" ". nums ."; align-items: center; gap: .25rem .8rem; }
 .orc-bar-name { grid-area: name; font-size: .84rem; color: var(--ink); }
 .orc-bar-yes { grid-area: yes; justify-self: end; font-size: .74rem; font-variant-numeric: tabular-nums; color: var(--ink-3); white-space: nowrap; }
-.orc-bar { grid-area: bar; display: flex; height: 1.7rem; overflow: hidden; border-radius: 6px; background: var(--paper-3); }
-.orc-seg { display: flex; align-items: center; justify-content: center; flex: none; min-width: 0; overflow: hidden; background: var(--c); color: var(--on); font-size: .7rem; font-weight: 600; font-variant-numeric: tabular-nums; box-shadow: inset -1.5px 0 0 var(--paper); transition: width .45s var(--ease-out); }
-.orc-seg:last-child, .orc-seg.is-empty { box-shadow: none; }
-.orc-seg.is-narrow .orc-seg-n, .orc-seg.is-empty .orc-seg-n { visibility: hidden; }
+/* Every part shows its number: each takes at least the width of two
+   digits, and what is left is shared in proportion (flex-grow is the
+   percentage) — so the bar stays near its proportions and always fills
+   the row. A 0% part is not drawn. A thin gap of paper between parts. */
+.orc-bar { grid-area: bar; display: flex; gap: 2px; height: 1.7rem; overflow: hidden; border-radius: 6px; background: var(--paper); }
+.orc-seg { display: flex; align-items: center; justify-content: center; flex: var(--n, 0) 1 0; min-width: calc(2ch + 6px); overflow: hidden; background: var(--c); color: var(--on); font-size: .7rem; font-weight: 600; font-variant-numeric: tabular-nums; transition: flex-grow .45s var(--ease-out); }
+.orc-seg.is-empty { display: none; }
+.orc-seg-n { padding: 0 1px; white-space: nowrap; }
+/* Where even two digits each do not fit (a very narrow window), the
+   numbers leave the bar for a row of their own under it. */
+.orc-bar-nums { grid-area: nums; display: none; flex-wrap: wrap; gap: .1rem .6rem; font-size: .7rem; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.orc-bar-num { display: inline-flex; align-items: center; gap: .25rem; }
+.orc-bar-row.is-cramped .orc-bar-nums { display: flex; }
+.orc-bar-row.is-cramped .orc-seg-n { visibility: hidden; }
+.orc-bar-row.is-cramped .orc-seg { min-width: 4px; }
 @media (prefers-reduced-motion: reduce) { .orc-seg { transition: none; } }
 @container (max-width: 30rem) {
-  .orc-bar-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name yes" "bar bar"; }
+  .orc-bar-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name yes" "bar bar" "nums nums"; }
 }
 
 /* ---- the styles: a radio group, one card each */

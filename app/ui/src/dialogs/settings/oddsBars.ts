@@ -17,9 +17,6 @@ import { ow } from "./oracleStrings";
  *  table lists them, so the bars run from mostly yes to mostly no. */
 export const LEVELS: readonly Likelihood[] = ["nearlyCertain", "likely", "even", "unlikely", "nearlyImpossible"];
 
-/** A segment narrower than this shows its number only on hover. */
-const NUMBER_FROM = 7;
-
 /** A swatch of an answer's colour. */
 export function swatch(a: Answer): HTMLElement {
   const s = h("span", `orc-swatch orc-a-${a}`);
@@ -47,6 +44,8 @@ export function oddsBars(): Bars {
   bars.setAttribute("aria-hidden", "true");
   const segs = {} as Record<Likelihood, HTMLElement[]>;
   const yes = {} as Record<Likelihood, HTMLElement>;
+  const nums = {} as Record<Likelihood, HTMLElement[]>;
+  const rows: HTMLElement[] = [];
   for (const lh of LEVELS) {
     const row = h("div", "orc-bar-row");
     row.dataset["level"] = lh;
@@ -59,7 +58,15 @@ export function oddsBars(): Bars {
       return seg;
     });
     yes[lh] = h("span", "orc-bar-yes");
-    row.append(h("span", "orc-bar-name", os.likelihood[lh]), yes[lh], bar);
+    const under = h("div", "orc-bar-nums");
+    nums[lh] = ANSWERS.map((a) => {
+      const n = h("span", "orc-bar-num");
+      n.append(swatch(a), h("span"));
+      under.append(n);
+      return n;
+    });
+    row.append(h("span", "orc-bar-name", os.likelihood[lh]), yes[lh], bar, under);
+    rows.push(row);
     bars.append(row);
   }
 
@@ -82,6 +89,26 @@ export function oddsBars(): Bars {
   }
   table.append(thead, tbody);
 
+  /** A row whose numbers do not fit in their parts moves them under it. */
+  const fit = (): void => {
+    for (const row of rows) {
+      row.classList.remove("is-cramped");
+      const over = [...row.querySelectorAll<HTMLElement>(".orc-seg:not(.is-empty)")].some((seg) => seg.scrollWidth > seg.clientWidth + 0.5);
+      row.classList.toggle("is-cramped", over);
+    }
+  };
+  // Only a change of width can change what fits (the row under a bar
+  // changes its height, which must not ask again).
+  let width = -1;
+  if (typeof ResizeObserver !== "undefined") {
+    new ResizeObserver((seen) => {
+      const w = Math.round(seen[0]?.contentRect.width ?? 0);
+      if (w === width) return;
+      width = w;
+      fit();
+    }).observe(bars);
+  }
+
   el.append(legend, bars, table);
   return {
     el,
@@ -91,15 +118,19 @@ export function oddsBars(): Bars {
         ANSWERS.forEach((a, i) => {
           const n = row[i] ?? 0;
           const seg = segs[lh][i]!;
-          seg.style.width = `${n}%`;
+          seg.style.setProperty("--n", String(n));
+          seg.dataset["value"] = String(n);
           seg.title = `${os.likelihood[lh]} — ${os.answer[a]}: ${n}%`;
           seg.classList.toggle("is-empty", n === 0);
-          seg.classList.toggle("is-narrow", n > 0 && n < NUMBER_FROM);
           seg.firstElementChild!.textContent = String(n);
+          const under = nums[lh][i]!;
+          under.hidden = n === 0;
+          under.lastElementChild!.textContent = String(n);
           cells[lh][i]!.textContent = `${n}%`;
         });
         yes[lh].textContent = ow.yesShare(yesShare(row));
       }
+      if (el.isConnected) fit();
     },
   };
 }
