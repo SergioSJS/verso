@@ -378,7 +378,8 @@ const STOPS = [
     color: VIOLET,
     canvasColor: "6",
     cards: [
-      ["n-mundos", "26 - Fichas, Oráculos e Criação de Mundos.md", 600],
+      ["n-mundos", "26 - Fichas.md", 600],
+      ["n-oraculo", "27 - Oráculos e Criação de Mundos.md", 600],
       ["n-fractal", "Campanha Fractal/Mundo.md", 600],
     ],
     tip:
