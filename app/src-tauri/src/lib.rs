@@ -32,7 +32,8 @@ use tauri_plugin_dialog::DialogExt;
 use verso_contract::{
     AppInfo, Backlink, BaseQuery, BaseResult, Can, Capabilities, CliState, CollabJoin, CollabRoll,
     CollabState, CollabUpdate, ContractError, DiceRoll, Edge, ErrorKind, FileEntry, Focus,
-    FocusesSummary, FolderChanged, FolderInfo, FolderLayer, FolderSettings, FolderSpace, Hit, Host,
+    FocusesSummary, FolderChanged, FolderDataEntry, FolderDataFile, FolderDataKind,
+    FolderDataWritten, FolderInfo, FolderLayer, FolderSettings, FolderSpace, Hit, Host,
     IndexProgress, IndexSummary, Link, MapInfo, McpAdded, McpClientState, McpStatus, Mentions,
     MovedEntries, NoteText, ObsidianPeriodic, Renamed, ServerAccount, Tag, TextFile, Trashed,
     UpdateProgress, WebNote, Written,
@@ -718,6 +719,10 @@ macro_rules! commands_for {
                 get_folder_settings::<$runtime>,
                 set_folder_settings::<$runtime>,
                 get_obsidian_periodic::<$runtime>,
+                list_folder_data::<$runtime>,
+                read_folder_data::<$runtime>,
+                write_folder_data::<$runtime>,
+                remove_folder_data::<$runtime>,
                 log_write,
                 log_read,
                 set_menu_language::<$runtime>,
@@ -1228,3 +1233,5 @@ mod tests_shares;
 mod tests_sync;
 #[cfg(test)]
 mod tests_sync1;
+#[cfg(test)]
+mod tests_sync_data;
