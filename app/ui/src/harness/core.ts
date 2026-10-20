@@ -980,7 +980,7 @@ export class Core {
   /** The folder's mark for the server of all of Verso (ADR 0054 point 4). */
   agentVisible = false;
   /** The folder's layouts and bundles (ADR 0099 item 2, ADR 0098 item 2). */
-  private readonly data = new FolderData({ files: this.files, put: (p, b) => this.put(p, b), accepts: (p, w, g) => this.accepts(p, w, g), trash: (p) => { const to = this.free(`.trash/${p}`); this.move(p, to); this.bin.record(to, p, false); } });
+  private readonly data = new FolderData({ files: this.files, put: (p, b) => this.put(p, b), accepts: (p, w, g) => this.accepts(p, w, g), trash: (p) => { const to = this.free(`.trash/${p}`); this.move(p, to); this.bin.record(to, p, false); return to; } });
   readonly handlers: Record<string, (a: Record<string, unknown>) => unknown> = {
     pick_folder: () => this.folderInfo(),
     reopen_folder: () => this.folderInfo(),

@@ -97,8 +97,10 @@ pub(crate) fn remove_folder_data<R: tauri::Runtime>(
     kind: FolderDataKind,
     id: String,
     revision: String,
-) -> Result<(), ContractError> {
+) -> Result<Trashed, ContractError> {
     with(&state, &window, |ws| {
-        ops::remove_folder_data(ws, kind, id, revision)
+        let gone = ws.remove_folder_data(ops::data_kind(kind), &id, &revision)?;
+        crate::trash::record(ws, &gone, None);
+        Ok(verso_service::convert::trashed_out(gone))
     })
 }

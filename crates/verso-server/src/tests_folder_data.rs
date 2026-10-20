@@ -220,6 +220,24 @@ fn an_editor_writes_over_the_revision_read_and_sync_follows() {
         )
         .await;
         assert!(removed.get("err").is_none(), "{removed}");
+        assert!(
+            removed["ok"]["path"]
+                .as_str()
+                .unwrap()
+                .starts_with(".trash/"),
+            "{removed}"
+        );
+        // The bin knows who removed it, like any other deletion (ADR 0080
+        // item 2).
+        let bin = call(&mut ws, 30, "trash_list", json!({})).await;
+        let entry = bin["ok"]["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|e| e["original"] == ".verso/bundles/mundo.json")
+            .unwrap_or_else(|| panic!("not in the bin: {bin}"));
+        assert_eq!(entry["by"], "Membro", "{bin}");
+        assert_eq!(entry["known"], true, "{bin}");
         let after = call(&mut ws, 18, "sync_changes", json!({ "since": head })).await;
         assert!(
             after["ok"]["changes"]

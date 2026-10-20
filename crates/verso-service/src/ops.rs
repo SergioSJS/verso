@@ -441,10 +441,9 @@ ops! {
     }
 
     /// Remove a data file through the bin, when it is still the version
-    /// `revision` describes.
-    Write fn remove_folder_data(ws, kind: FolderDataKind, id: String, revision: String) -> () {
-        ws.remove_folder_data(data_kind(kind), &id, &revision)?;
-        Ok(())
+    /// `revision` describes; answers where it went, like every removal.
+    Write fn remove_folder_data(ws, kind: FolderDataKind, id: String, revision: String) -> Trashed {
+        Ok(trashed_out(ws.remove_folder_data(data_kind(kind), &id, &revision)?))
     }
 
     /// Set whether focuses sync to `.space/waypoints.json` (ADR 0062 D5, D9).
@@ -736,7 +735,8 @@ fn oracle_out(o: verso_core::Oracle) -> OracleSettings {
     }
 }
 
-fn data_kind(k: FolderDataKind) -> verso_core::FolderDataKind {
+/// The core's kind for the contract's.
+pub fn data_kind(k: FolderDataKind) -> verso_core::FolderDataKind {
     match k {
         FolderDataKind::Layouts => verso_core::FolderDataKind::Layouts,
         FolderDataKind::Bundles => verso_core::FolderDataKind::Bundles,
