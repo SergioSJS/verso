@@ -8,9 +8,10 @@
 use serde_json::json;
 
 use super::tests::{Lab, call, run};
-use super::tests_parts::{
-    NEEDLE, NEVER_SAID, folders, has, lab_in_part, on_disk, open_part, put, read_disk, vault,
-};
+use super::tests_parts::{NEEDLE, NEVER_SAID, has, lab_in_part, on_disk, open_part, put, vault};
+// Only the tests of symbolic links use these, and those run on Unix.
+#[cfg(unix)]
+use super::tests_parts::{folders, read_disk};
 use crate::db::Role;
 
 /// Move `rel` of the vault into its bin, as its owner would.
