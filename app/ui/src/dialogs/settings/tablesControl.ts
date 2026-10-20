@@ -37,6 +37,12 @@ function legacyStorage(): Storage | null {
 
 let groups = 0;
 
+/** An option as read in a preview: a link's words without its brackets
+ *  (`[[Note|shown]]` → "shown", `[[Note#Part]]` → "Note"). */
+function plainText(option: string): string {
+  return option.replace(/!?\[\[([^\]|#]*)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]/g, (_, target: string, shown?: string) => (shown ?? target).trim());
+}
+
 export function tablesControl(repaint: () => void): HTMLElement {
   const wrap = h("section", "orc-section");
   const heading = h("h3", "orc-heading", ow.tablesTitle);
@@ -162,8 +168,13 @@ export function tablesControl(repaint: () => void): HTMLElement {
   const row = (tbl: OracleTable): HTMLElement => {
     const isBuiltin = BUILTIN_ORACLE_TABLES.includes(tbl);
     const r = h("li", "orc-table");
+    // A table with a die repeats an option for each face it owns: counted
+    // and shown once each, in order, with the die beside the count.
+    const options = [...new Set(tbl.entries)];
     const top = h("div", "orc-table-top");
-    top.append(h("span", "orc-table-name", tbl.name), h("span", "orc-table-count", ow.entries(tbl.entries.length)));
+    const count = h("span", "orc-table-count", ow.entries(options.length));
+    if (tbl.die) count.append(h("span", "orc-table-die", ` · ${tbl.die}`));
+    top.append(h("span", "orc-table-name", tbl.name), count);
     const from = h("div", "orc-table-from");
     if (isBuiltin) {
       from.append(h("span", "orc-tag", ow.fromVerso));
@@ -177,9 +188,7 @@ export function tablesControl(repaint: () => void): HTMLElement {
       from.append(link);
     }
     // Three of its options, to see what it draws.
-    // (A table with a die repeats an option for each face it owns.)
-    const options = [...new Set(tbl.entries)];
-    const peek = h("p", "orc-table-peek", options.slice(0, 3).join(" · "));
+    const peek = h("p", "orc-table-peek", options.slice(0, 3).map(plainText).join(" · "));
     if (options.length > 3) peek.append(h("span", "orc-preview-more", " …"));
     r.append(top, from, peek);
     if (isBuiltin) {

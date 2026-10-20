@@ -149,6 +149,7 @@
 .orc-table-top { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; }
 .orc-table-name { min-width: 0; font-size: .88rem; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
 .orc-table-count { font-size: .72rem; color: var(--ink-3); white-space: nowrap; }
+.orc-table-die { font-family: var(--mono); font-size: .68rem; }
 .orc-table-from { font-size: .76rem; color: var(--ink-3); }
 .orc-table-link { padding: 0; border: 0; background: none; font: inherit; color: var(--seal); text-align: left; text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; cursor: pointer; }
 .orc-table-peek { display: -webkit-box; margin: 0; overflow: hidden; font-size: .78rem; line-height: 1.45; color: var(--ink-2); -webkit-line-clamp: 2; -webkit-box-orient: vertical; }

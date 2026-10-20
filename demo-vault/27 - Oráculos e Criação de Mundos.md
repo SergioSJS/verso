@@ -55,7 +55,7 @@ Uma tabela Markdown ou uma lista com um identificador `^id` é sorteável, em qu
 | 6 | Algo sobrenatural muda as regras do lugar |
 ^reviravolta
 
-No texto, `dice: [[#^reviravolta]]` vira um botão que sorteia uma linha. Todas as tabelas da pasta aparecem também na aba **Tabelas** do oráculo — com o nome da nota de onde vêm.
+No texto, `dice: [[#^reviravolta]]` vira um botão que sorteia uma linha. Todas as tabelas da pasta aparecem também na aba **Tabelas** do oráculo — com o nome da nota de onde vêm. Cada uma se chama pelo título mais próximo acima dela (aqui, *Tabelas são notas*) ou, sem título, pelo seu `^id`; duas tabelas sob o mesmo título levam o `^id` depois dele.
 
 ### Ajustar o oráculo
 

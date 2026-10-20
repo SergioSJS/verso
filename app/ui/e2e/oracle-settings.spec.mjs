@@ -173,6 +173,16 @@ test("a list keeps its last word, and says why", async ({ app, page }) => {
   await expect.poll(async () => (await folderOracle(app))?.sparks?.focus?.length).toBe(1);
 });
 
+test("two tables of one note have their own names, and a table with a die counts and shows each option once", async ({ app, page }) => {
+  await openPage(app);
+  const cards = page.locator(".orc-table", { hasText: "Da nota 25 - Dados e Tabelas Sorteadas" });
+  await expect(cards).toHaveCount(2);
+  await expect(cards.locator(".orc-table-name")).toHaveText(["Tabelas sorteadas (^encontros)", "Tabelas sorteadas (^tempo)"]);
+  const encounters = cards.first();
+  await expect(encounters.locator(".orc-table-count")).toHaveText("4 opções · d6");
+  await expect(encounters.locator(".orc-table-peek")).toHaveText("Uma patrulha da guarda, desconfiada · Um mercador com a carroça atolada · Lobos famintos, e Capitão Ruy chega para ajudar …");
+});
+
 test("the page's button opens the oracle to try it", async ({ app, page }) => {
   await openPage(app);
   await page.getByRole("button", { name: "Experimentar o oráculo" }).click();
