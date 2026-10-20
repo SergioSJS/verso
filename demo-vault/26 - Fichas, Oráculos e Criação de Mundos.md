@@ -429,7 +429,7 @@ Abra a qualquer momento com o atalho `/oraculo` no editor ou pela paleta de coma
 2. **Faíscas de Ideias**: Sorteie pares de conceitos para destravar a imaginação (*Ação + Tema* ou *Descritor + Foco*, ex.: *Investigar Segredo*, *Sombrio Portal*).
 3. **Tabelas do Cofre**: Sorteie diretamente em tabelas temáticas prontas (*Reviravoltas na Trama*, *Complicações & Perigos*, *Clima & Atmosfera*, *NPC: Disposição & Motivo*).
 
-Ao obter um resultado, você pode usar **Copiar** ou **Inserir na nota** para gravá-lo no ponto exato do cursor como um destaque `[!oracle]`.
+Ao obter um resultado, você pode usar **Copiar** ou **Inserir na nota**. Se o cursor está num destaque `[!oracle]` que já existe, a resposta é gravada dentro dele e as respostas se acumulam: rolar de novo a mesma pergunta acrescenta uma linha nova e mantém as anteriores (se você reescreveu a pergunta, as linhas que o oráculo gerou são trocadas; o que você escreveu à mão nunca é apagado). Sem um destaque, o Verso insere um novo no ponto do cursor.
 
 ---
 
