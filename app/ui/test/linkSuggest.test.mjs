@@ -199,7 +199,7 @@ describe("The suggestion in the editor", () => {
     let s = type(stateOf("ir a "), "Porto");
     assert.equal(shown(s), "Porto");
     s = type(s, " ");
-    assert.equal(shown(s), null, "a space after the name: the suggestion is gone");
+    assert.equal(shown(s), "Porto", "a space after the name: the chip stays until the next word starts");
     s = type(s, "Alegre");
     assert.equal(shown(s), "Porto Alegre");
   });
@@ -263,8 +263,7 @@ describe("The suggestion in the editor", () => {
     let s = type(stateOf("ir a "), "Porto");
     s = s.update({ changes: { from: 0, insert: "x" } }).state;
     assert.equal(shown(s), null);
-    s = s.update({ changes: { from: s.doc.length, insert: " " }, selection: { anchor: s.doc.length + 1 }, userEvent: "input.type" }).state;
-    s = type(s, "e Porto");
+    s = type(s, " ");
     assert.equal(shown(s), "Porto", "not dismissed: it was never the person's choice");
   });
   test("not in the middle of a word", () => {
