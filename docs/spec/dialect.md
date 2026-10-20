@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.45
+# Verso dialect spec — v0.46
 
-- Version: v0.45 · 2026-10-15
+- Version: v0.46 · 2026-10-20
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -640,6 +640,8 @@ decided the typed note, its schemas and their labels per language
 | Manual folder order | `order:` in the folder note's frontmatter, a list of relative child names defining sort order; no `order:`, the alphabetical one; with the tree set to alphabetical, every `order:` is kept and ignored. The root's, in a note at the root named after the open folder (its place: `PROPOSED`, the author's, to confirm) | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 | Folder pins | `pinned:` in the folder note's frontmatter, a list of quoted wikilinks forming a `pinned` typed relation | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 | Folder item defaults | `items_sticker:`, `items_color:`, and `items_template:` in the folder note's frontmatter, inherited by newly created items in that folder | `DECIDED` on 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
+| Statblock card | a fenced code block, ```` ```statblock ````, holding YAML with Fantasy Statblocks' key names; with the Statblocks feature on ([ADR 0103](../adr/0103-feature-presets-and-capability-flags.md)) Verso draws a card; Obsidian shows a code block, or the Fantasy Statblocks plugin's card when it is installed | `DECIDED` on 2026-10-20 ([ADR 0099](../adr/0099-visual-markdown-statblocks-and-cards.md) item 1; `monster:` and `extends:` are `[PROPOSED]`) |
+| Oracle callout | a callout of kind `oracle` (`> [!oracle] Question`), the answer lines in its body; with the Oracles feature on Verso adds the oracle's buttons to it; Obsidian draws a callout | `DECIDED` on 2026-10-20 ([ADR 0102](../adr/0102-creative-oracles-and-improvisation.md) item 4) |
 
 Example of a typed note:
 
@@ -1446,3 +1448,4 @@ the parser was chosen.
 | v0.43 | 2026-10-15 | §5.11 item 5 and a new item 6: maps on the board ([ADR 0090](../adr/0090-maps-on-the-board.md)) — a node's `verso` gains `map`, `pin` and `secret`, and a secret node is left out of what a reader is served. No fixture: the fixture schema (§4) describes a Markdown note, and a canvas is not parsed by the dialect; the guardrail is the core's property test of the projection. No question closed |
 | v0.44 | 2026-10-15 | §5.11 item 7: a `> [!secret]` callout inside a board's text node is hidden from readers as in a note, and a `.txt` (any non-Markdown file) is not projected ([ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md), the maintainer's decision of finding I3). No fixture (a canvas is not parsed by the dialect); the guardrail is the core's property test and the server's reader probe. No question closed |
 | v0.45 | 2026-10-15 | The fixture `fixtures/callout/secret` **approved by the maintainer** on 2026-10-15 in session (*"aceito todas recomendações"*); its draft mark removed. It asserts `reader` (§4.1, §4.6) of Q9 and [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md): a block at the top level, one inside another callout with the kind in capitals, one in a list item, a `[!secrets]` kept. Nothing else changes |
+| v0.46 | 2026-10-20 | §6: two rows, the fenced block ```` ```statblock ```` ([ADR 0099](../adr/0099-visual-markdown-statblocks-and-cards.md)) and the `> [!oracle]` callout ([ADR 0102](../adr/0102-creative-oracles-and-improvisation.md)), constructs Verso draws and Obsidian reads as a code block and a callout; the parser does not change. No fixture (nothing here answers a §9 question or changes what the parser returns). No question closed |

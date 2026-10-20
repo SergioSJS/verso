@@ -1,6 +1,6 @@
-# Spec do dialeto do Verso — v0.45
+# Spec do dialeto do Verso — v0.46
 
-- Versão: v0.45 · 2026-10-15
+- Versão: v0.46 · 2026-10-20
 - Fonte: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (base compatível),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -648,6 +648,8 @@ a nota tipada, os schemas dela e os rótulos deles por idioma
 | Ordem manual na pasta | `order:` no frontmatter da nota de pasta, uma lista de nomes relativos definindo a ordem; sem `order:`, a alfabética; com a árvore em ordem alfabética, todo `order:` é mantido e ignorado. A da raiz, numa nota na raiz com o nome da pasta aberta (o lugar: `PROPOSTO`, do autor, a confirmar) | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 | Itens fixados na pasta | `pinned:` no frontmatter da nota de pasta, uma lista de wikilinks entre aspas formando a relação tipada `pinned` | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
 | Padrões de itens da pasta | `items_sticker:`, `items_color:` e `items_template:` no frontmatter da nota de pasta, herdados por novos itens criados na pasta | `DECIDIDO` em 2026-10-02 ([ADR 0060](../adr/0060-makemd-organizing-features.md)) |
+| Cartão de statblock | um bloco de código cercado, ```` ```statblock ````, com YAML nos nomes de chave do Fantasy Statblocks; com a funcionalidade Statblocks ligada ([ADR 0103](../adr/0103-feature-presets-and-capability-flags.md)) o Verso desenha um cartão; o Obsidian mostra um bloco de código, ou o cartão do plugin Fantasy Statblocks quando instalado | `DECIDIDO` em 2026-10-20 ([ADR 0099](../adr/0099-visual-markdown-statblocks-and-cards.md) item 1; `monster:` e `extends:` são `[PROPOSTO]`) |
+| Callout de oráculo | um callout do tipo `oracle` (`> [!oracle] Pergunta`), as linhas de resposta no corpo dele; com a funcionalidade Oráculos ligada o Verso acrescenta os botões do oráculo a ele; o Obsidian desenha um callout | `DECIDIDO` em 2026-10-20 ([ADR 0102](../adr/0102-creative-oracles-and-improvisation.md) item 4) |
 
 Exemplo de nota tipada:
 
@@ -1468,3 +1470,4 @@ ser escolhido.
 | v0.43 | 2026-10-15 | §5.11 item 5 e um novo item 6: mapas no board ([ADR 0090](../adr/0090-maps-on-the-board.md)) — o `verso` de um nó ganha `map`, `pin` e `secret`, e um nó secreto fica de fora do que um leitor recebe. Sem fixture: o schema das fixtures (§4) descreve uma nota Markdown, e um canvas não é parseado pelo dialeto; a guarda é o teste de propriedade da projeção no núcleo. Nenhuma questão fechada |
 | v0.44 | 2026-10-15 | §5.11 item 7: um callout `> [!secret]` dentro do nó de texto de um board fica escondido dos leitores como numa nota, e um `.txt` (qualquer arquivo que não é Markdown) não é projetado ([ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md), a decisão do mantenedor sobre o achado I3). Sem fixture (um canvas não é parseado pelo dialeto); a guarda é o teste de propriedade do núcleo e a sonda de leitor do servidor. Nenhuma questão fechada |
 | v0.45 | 2026-10-15 | A fixture `fixtures/callout/secret` **aprovada pelo mantenedor** em 2026-10-15 em sessão (*"aceito todas recomendações"*); a marca de rascunho dela removida. Ela afirma o `reader` (§4.1, §4.6) da Q9 e do [ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md): um bloco no nível de cima, um dentro de outro callout com o tipo em maiúsculas, um num item de lista, um `[!secrets]` mantido. Nada mais muda |
+| v0.46 | 2026-10-20 | §6: duas linhas, o bloco cercado ```` ```statblock ```` ([ADR 0099](../adr/0099-visual-markdown-statblocks-and-cards.md)) e o callout `> [!oracle]` ([ADR 0102](../adr/0102-creative-oracles-and-improvisation.md)), construções que o Verso desenha e o Obsidian lê como um bloco de código e um callout; o parser não muda. Nenhuma fixture (nada aqui responde a uma pergunta da §9 nem muda o que o parser devolve). Nenhuma pergunta fechada |
