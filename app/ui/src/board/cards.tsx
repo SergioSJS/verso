@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { type CSSProperties, type JSX, memo, type RefObject, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type CSSProperties, type JSX, memo, type ReactNode, type RefObject, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CARD_COMMAND } from "./command";
 import { mapStrings } from "./mapStrings";
 import { MapTiles, SecretBadge, useMapInfo } from "./mapsView";
@@ -11,10 +11,22 @@ import { type BoardStrings } from "./strings";
 import { OpenIcon, SwapIcon } from "./tools";
 import { BoardHost, CardEditing } from "./types";
 import { ext, IMAGE } from "../paths";
+import { sharpFactor } from "./sharp";
 
 /** A card of a picture in the folder: drawn as the picture alone, with no
  *  frame, head or title (its name is the picture's alternative text; open
  *  and swap are in the top-right tools while it is selected). */
+/** An SVG picture laid out `factor` times larger and scaled back (see
+ *  `sharpFactor`): the same size on the card, drawn at the zoom. */
+function Sharp({ factor, w, h, children }: { factor: number; w: number; h: number; children: ReactNode }): JSX.Element {
+  if (factor <= 1) return <>{children}</>;
+  return (
+    <div className="board-svg-fit" style={{ zoom: 1 / factor, width: `${factor * w}px`, height: `${factor * h}px` } as CSSProperties}>
+      {children}
+    </div>
+  );
+}
+
 export function isBarePicture(node: CanvasNode, host: BoardHost): boolean {
   const file = typeof node.file === "string" ? node.file : "";
   return node.type === "file" && IMAGE.test(ext(file)) && host.exists(file);
@@ -72,6 +84,7 @@ export function Card({
   const text = typeof node.text === "string" ? node.text : "";
   const url = typeof node.url === "string" ? node.url : "";
   const missing = node.type === "file" && !host.exists(file);
+  const sharp = ext(file) === "svg" ? sharpFactor(zoom, Number(node.width) || 250, window.devicePixelRatio || 1) : 1;
   const note = node.type === "file" && !missing && ext(file) === "md";
   const picture = isBarePicture(node, host);
   const crop = picture ? cardCrop(node) : null;
@@ -268,7 +281,9 @@ export function Card({
         </div>
       ) : (
         <div className="board-card-image" data-path={file}>
-          <img src={copy ?? host.fileSrc(file)} alt={nodeName(node, s)} draggable={false} decoding="async" />
+          <Sharp factor={sharp} w={Number(node.width) || 250} h={Number(node.height) || 250}>
+            <img src={copy ?? host.fileSrc(file)} alt={nodeName(node, s)} draggable={false} decoding="async" />
+          </Sharp>
           {copy && <img className="pic-full" src={host.fileSrc(file)} alt="" draggable={false} decoding="async" loading="lazy" />}
         </div>
       ))}
