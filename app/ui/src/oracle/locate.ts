@@ -18,6 +18,8 @@
  *    itself generates (an answer, a spark, a table result). Every other line
  *    stays, and what the person typed after an answer on the same line too. */
 
+import { frontmatterClose } from "../frontmatter";
+
 /** The words that open a spark line, in both languages (ADR 0035). */
 export const SPARK_LABELS = { pt: "Faísca:", en: "Spark:" } as const;
 /** The labels of the two lines a spark alone writes. */
@@ -168,6 +170,15 @@ export function oracleBlocks(text: string): OracleBlock[] {
     });
   }
   return out;
+}
+
+/** The innermost oracle callout `pos` stands in, on any of its lines. */
+export function oracleBlockContaining(text: string, pos: number): OracleBlock | null {
+  let best: OracleBlock | null = null;
+  for (const b of oracleBlocks(text)) {
+    if (pos >= b.from && pos <= b.to && (!best || b.from >= best.from)) best = b;
+  }
+  return best;
 }
 
 /** The callout whose head line holds `pos`. */
@@ -376,52 +387,49 @@ export interface InsertPlan {
   cursor: number;
 }
 
+/** The last line of the quote the line `idx` is in, the outermost one: every
+ *  following line quoted at all, and a lazy continuation of its paragraph. */
+function quoteEnd(lines: TextLine[], idx: number): number {
+  let end = idx;
+  while (end + 1 < lines.length) {
+    const next = lines[end + 1]!.text;
+    if (quoteInfo(next).depth > 0) {
+      end++;
+      continue;
+    }
+    const last = quoteInfo(lines[end]!.text).rest.trim();
+    const startsBlock = /^\s*(?:#{1,6}(?:\s|$)|[-*+]\s|\d+[.)]\s|`{3,}|~{3,}|\||<|(?:-\s*){3,}$|(?:\*\s*){3,}$)/.test(next);
+    if (next.trim() !== "" && last !== "" && !last.startsWith("#") && !fenceOpen(last) && !startsBlock) {
+      end++;
+      continue;
+    }
+    break;
+  }
+  return end;
+}
+
 /** A new callout at `at`, for a roll with no callout to write into: after
- *  the line the caret is on, set apart by a blank line, never inside a code
- *  fence or a table (it goes after them) and never moved to the end of the
- *  note. `callout.cursor` is where the caret goes inside `callout.text`. */
+ *  the line the caret is on, set apart by a blank line. It is never put
+ *  inside something it would split: a code fence or a table (after them),
+ *  a blockquote or callout of any depth (after the outermost one), the
+ *  frontmatter (after its closing line). Never moved to the end of the note.
+ *  `callout.cursor` is where the caret goes inside `callout.text`. */
 export function planOracleInsert(text: string, at: number, callout: { text: string; cursor: number }): InsertPlan {
   const lines = splitLines(text);
   let pos = Math.max(0, Math.min(at, text.length));
   let idx = lines.findIndex((l) => pos >= l.from && pos <= l.to);
   if (idx < 0) idx = lines.length - 1;
-  // Inside a fence: after its closing line (or the note's end if unclosed).
-  let fence: { char: string; len: number } | null = null;
-  let fenceStart = -1;
-  for (let i = 0; i <= idx; i++) {
-    const rest = quoteInfo(lines[i]!.text).rest;
-    if (fence) {
-      if (fenceClose(rest, fence)) {
-        fence = null;
-        if (i === idx) {
-          // The closing line itself is part of the fence.
-          fenceStart = -2;
-        }
-      }
-    } else {
-      const open = fenceOpen(rest);
-      if (open) {
-        fence = open;
-        fenceStart = i;
-      }
-    }
-  }
-  if (fence || fenceStart === -2) {
-    let end = idx;
-    if (fence) {
-      end = lines.length - 1;
-      for (let i = idx + 1; i < lines.length; i++) {
-        if (fenceClose(quoteInfo(lines[i]!.text).rest, fence)) {
-          end = i;
-          break;
-        }
-      }
-    }
-    idx = end;
+  const close = frontmatterClose((i) => lines[i]?.text);
+  if (close >= 0 && idx <= close) {
+    idx = close;
     pos = lines[idx]!.to;
-  } else if (/^\s*\|/.test(lines[idx]!.text)) {
-    while (idx + 1 < lines.length && /^\s*\|/.test(lines[idx + 1]!.text)) idx++;
-    pos = lines[idx]!.to;
+  } else {
+    idx = clearOfCodeAndTable(lines, idx);
+    pos = Math.min(Math.max(pos, lines[idx]!.from), lines[idx]!.to);
+    if (quoteInfo(lines[idx]!.text).depth > 0) {
+      idx = quoteEnd(lines, idx);
+      pos = lines[idx]!.to;
+    }
   }
   const line = lines[idx]!;
   const empty = line.text.trim() === "";
@@ -430,4 +438,34 @@ export function planOracleInsert(text: string, at: number, callout: { text: stri
   const lead = empty ? "" : `${eol}${eol}`;
   const body = callout.text.replace(/\n/g, eol);
   return { change: { from, to: from, insert: lead + body }, cursor: from + lead.length + callout.cursor };
+}
+
+/** The line to insert after when `idx` is in a code fence or a table: the
+ *  last line of it. Otherwise `idx` itself. */
+function clearOfCodeAndTable(lines: TextLine[], idx: number): number {
+  let fence: { char: string; len: number } | null = null;
+  let closesHere = false;
+  for (let i = 0; i <= idx; i++) {
+    const rest = quoteInfo(lines[i]!.text).rest;
+    if (fence) {
+      if (fenceClose(rest, fence)) {
+        fence = null;
+        closesHere = i === idx;
+      }
+    } else {
+      const open = fenceOpen(rest);
+      if (open) fence = open;
+    }
+  }
+  if (fence) {
+    for (let i = idx + 1; i < lines.length; i++) if (fenceClose(quoteInfo(lines[i]!.text).rest, fence)) return i;
+    return lines.length - 1;
+  }
+  if (closesHere) return idx;
+  if (/^\s*\|/.test(lines[idx]!.text)) {
+    let end = idx;
+    while (end + 1 < lines.length && /^\s*\|/.test(lines[end + 1]!.text)) end++;
+    return end;
+  }
+  return idx;
 }

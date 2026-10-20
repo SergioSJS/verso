@@ -10,7 +10,7 @@
 
 import type { Composed } from "./compose";
 import type { OracleHost, OracleTarget } from "./host";
-import { locateOracleCallout, oracleBlocks, oracleQuestion, planOracleEdit, planOracleInsert } from "./locate";
+import { locateOracleCallout, oracleBlockContaining, oracleBlocks, oracleQuestion, planOracleEdit, planOracleInsert } from "./locate";
 import { trackedTarget } from "./track";
 
 export type Refusal = "readOnly" | "conflict" | "readerView" | "stale" | "moved" | "unchanged";
@@ -49,11 +49,19 @@ export function writeOracle(host: OracleHost, target: OracleTarget | null, compo
   const view = host.editor;
   const before = view.state.doc.toString();
   const reading = host.mode === "preview";
+  let edited = target !== null;
   if (target) {
     const block = locateOracleCallout(before, trackedTarget(view.state, target));
     if (!block || !composed.gen) return { ok: false, why: "moved" };
     const plan = planOracleEdit(before, block, composed.gen);
     view.dispatch({ changes: plan.changes, ...(reading ? {} : { selection: { anchor: plan.cursor } }), scrollIntoView: false });
+  } else if (composed.gen && oracleBlockContaining(before, view.state.selection.main.to)) {
+    // The caret is in an oracle callout: the roll goes into it, by the same
+    // rules as its button, never into a second callout beside it.
+    const block = oracleBlockContaining(before, view.state.selection.main.to)!;
+    const plan = planOracleEdit(before, block, composed.gen);
+    view.dispatch({ changes: plan.changes, ...(reading ? {} : { selection: { anchor: plan.cursor } }), scrollIntoView: !reading });
+    edited = true;
   } else {
     const plan = planOracleInsert(before, view.state.selection.main.to, composed.callout);
     view.dispatch({ changes: plan.change, ...(reading ? {} : { selection: { anchor: plan.cursor } }), scrollIntoView: !reading });
@@ -62,5 +70,5 @@ export function writeOracle(host: OracleHost, target: OracleTarget | null, compo
   // The reading view is drawn from the saved note: the ordinary save writes
   // it and draws it again.
   if (reading) void host.save();
-  return { ok: true, edited: target !== null };
+  return { ok: true, edited };
 }
