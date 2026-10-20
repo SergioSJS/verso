@@ -18,6 +18,7 @@ await esbuild.build({
       export * from "./src/oracle/tables";
       export * from "./src/oracle/legacy";
       export * from "./src/oracle/tableNote";
+      export * from "./src/oracle/settingsModel";
       export { oracleDrawHere } from "./src/harness/oracleDraw";
       export { composeOracle } from "./src/oracle/compose";
       export { os } from "./src/oracle/strings";
@@ -96,6 +97,62 @@ test("the folder's spark words serve both languages; unusable ones are the built
   O.useFolderOracle(() => ({ odds: null, sparks: null }));
   assert.ok(O.getSparkWords("pt").action.length > 0);
   assert.doesNotThrow(() => O.generateSpark("pt"));
+});
+
+test("a built-in set of words written back to the folder is Verso's words again, in the window's language", () => {
+  // "Back to Verso's words" writes the built-in set (the file cannot unset
+  // the key): read back, it is no folder set, and each window draws its own.
+  O.useFolderOracle(() => ({ odds: null, sparks: O.builtinSparkWords("pt") }));
+  assert.equal(O.folderHasSparks(), false);
+  assert.deepEqual(O.getSparkWords("en"), O.builtinSparkWords("en"));
+  const edited = O.builtinSparkWords("pt");
+  edited.focus = edited.focus.slice(1);
+  O.useFolderOracle(() => ({ odds: null, sparks: edited }));
+  assert.equal(O.folderHasSparks(), true);
+  assert.deepEqual(O.getSparkWords("en"), edited);
+  O.useFolderOracle(() => ({ odds: null, sparks: null }));
+});
+
+test("the settings page's styles: Equilibrado is the default table, each row adds to 100, and a table is named by its style", () => {
+  assert.deepEqual(O.styleTable("balanced"), O.DEFAULT_ODDS_TABLE);
+  for (const id of O.STYLE_IDS) {
+    const t = O.styleTable(id);
+    for (const lh of O.LIKELIHOODS) assert.ok(O.validOddsRow([...t[lh]]), `${id} ${lh}`);
+    assert.equal(O.styleOf(t), id);
+  }
+  // A copy: changing it leaves the style alone.
+  const t = O.styleTable("mythic");
+  t.even[0] = 99;
+  assert.equal(O.styleTable("mythic").even[0], 10);
+  const custom = O.withRow(O.styleTable("balanced"), "even", [10, 30, 10, 10, 29, 11]);
+  assert.equal(O.styleOf(custom), "custom");
+  assert.equal(O.yesShare(custom.nearlyCertain), 90);
+});
+
+test("a row typed by hand says what it lacks, and a cell takes a whole number from 0 to 100", () => {
+  assert.deepEqual(O.rowTotal([10, 30, 10, 10, 30, 7]), { kind: "missing", by: 3 });
+  assert.deepEqual(O.rowTotal([10, 30, 10, 10, 30, 12]), { kind: "over", by: 2 });
+  assert.deepEqual(O.rowTotal([10, 30, 10, 10, 30, 10]), { kind: "ok" });
+  assert.equal(O.cellValue(" 42 "), 42);
+  assert.equal(O.cellValue(""), 0);
+  for (const bad of ["101", "-1", "4.5", "x", "1e2"]) assert.equal(O.cellValue(bad), null, bad);
+});
+
+test("spark words: a pasted list splits, a repeat or a long word is refused, a list keeps one word and holds at most 200", () => {
+  assert.deepEqual(O.wordsIn(" Fugir,  Cair\nVoar ; ;\r\n"), ["Fugir", "Cair", "Voar"]);
+  const r = O.addWords(["Fugir"], "fugir, Nadar, " + "x".repeat(61));
+  assert.deepEqual(r.list, ["Fugir", "Nadar"]);
+  assert.deepEqual(r.repeated, ["fugir"]);
+  assert.equal(r.tooLong.length, 1);
+  const full = O.addWords(Array.from({ length: 200 }, (_, i) => `w${i}`), "um");
+  assert.deepEqual(full.overflow, ["um"]);
+  assert.equal(full.list.length, 200);
+  assert.deepEqual(O.removeWord(["a", "b"], 0), ["b"]);
+  assert.equal(O.removeWord(["a"], 0), null);
+  assert.equal(O.removeWord(["a", "b"], 5), null);
+  const w = O.builtinSparkWords("en");
+  assert.ok(O.sameWords(w, O.copyWords(w)));
+  assert.ok(!O.sameWords(w, { ...w, focus: w.focus.slice(1) }));
 });
 
 test("what a room's server drew becomes a result only when it fits", () => {
