@@ -22,6 +22,16 @@
   [0009](0009-external-constraints.md), [0035](0035-cross-cutting-requirements.md).
 - Status in the briefing: not present; [0036](0036-tabletop-rpg-support.md)'s
   random table is `PROPOSED` there; on acceptance.
+- Revisions: 2026-10-20 — item 2 holds for `` `dice:` `` in a note; an
+  oracle's answer, asked by the person with "Insert into note", is written
+  in the note ([0102](0102-creative-oracles-and-improvisation.md) item 4,
+  the maintainer: *"qual o motivo de não poder gravar na nota?"*).
+  2026-10-20 — item 5: besides the parser and the roller, Rolai's system
+  profiles and their restricted expression evaluator are copied, with the
+  MIT notice, so a statblock rolls the way its system reads a roll
+  ([0099](0099-visual-markdown-statblocks-and-cards.md) item 4, the
+  maintainer: *"tudo relacionado a rolagem dá pra copiar numa boa do rolai,
+  app meu aberto"*).
 
 ## Context
 
@@ -128,7 +138,7 @@ recommended and is marked `[DECIDED 2026-10-14]`.
 **Accepted (2026-10-14).** The maintainer, that night, answering
 *"Aceita todas as recomendações (R1–R4 e os itens dos ADRs 0085–0092)?"* with *"Sim, todas"* (yes, all): every `[OPEN]`
 decided as recommended, marked `[DECIDED 2026-10-14]` in place. In V1
-(`docs/roadmap.md`, Phase 4 — V1). [0036](0036-tabletop-rpg-support.md) gains a Revisions line: dice, random tables, secret blocks and maps enter as primitives. [0101](0101-3d-dice-physics-overlay.md) revises item 5: 3D dice are admitted as an optional, lazy-loaded module under the RPG preset ([0103](0103-feature-presets-and-capability-flags.md)).
+(`docs/roadmap.md`, Phase 4 — V1). [0036](0036-tabletop-rpg-support.md) gains a Revisions line: dice, random tables, secret blocks and maps enter as primitives.
 
 **Answered while building (2026-10-14, the maintainer: "Sim, todas").** The questions the build raised, answered as recommended (*"Aceita todas as recomendações acima (P1–P5, M1–M6, I1–I7, D1–D11, G1–G4)?"*): D1 — the ADR named explode (`1d6!`) and `d%` while Rolai read neither: both are read, in the window's parser and the server's, with the Dice Roller README's meaning, an explosion chain capped at 100 added dice in a roll, the same on both sides (built that night); D2 to D11, as built — both forms of a table's link, `[[Note^id]]` and `[[Note#^id]]`; the header `dice: 1d20`; `00` is 100, and lists like `13,14` are read; a one-row table is refused; in a room the server rolls even when you are alone; a reader may roll; the palette's roller rolls in your window only; your own roll does not show your name; the bounds of 100 dice and 1000 sides.
 

@@ -44,8 +44,10 @@ sub-bundle** governed by the capability presets
 
 ## Decision
 
-Proposed (2026-10-17). Accepted on 2026-10-17 (Status): each `[OPEN]` was decided as
-recommended and is marked `[DECIDED 2026-10-17]`.
+Proposed (2026-10-17). The first text said it was accepted that day, with every item
+marked `[DECIDED 2026-10-17]`; no acceptance by the maintainer is recorded, and on
+2026-10-20 it went back to Proposed: each item marked so is a proposal (the review of
+2026-10-20, docs/review/).
 
 1. **Revises ADR 0088 item 5: 3D dice admitted as an optional deferred module.**
    `[DECIDED 2026-10-17]`: ADR 0088 item 5 is revised to permit the 3D physics
@@ -109,4 +111,5 @@ recommended and is marked `[DECIDED 2026-10-17]`.
 
 ## Status
 
-**Accepted (2026-10-17).**
+**Proposed (2026-10-17)**; back to Proposed on 2026-10-20, nothing built. Rewritten
+with the maintainer before any code.
