@@ -10,7 +10,7 @@ import * as esbuild from "esbuild";
 await esbuild.build({
   stdin: {
     contents: `export { validateLayout, readLabel, slugId } from "./src/statblock/validate";
-export { checkPattern, MAX_SCAN, PROBE_MS, probeTime, probesFor } from "./src/statblock/regexGuard";
+export { checkPattern, MAX_SCAN, PROBE_MS, probeTime, probesFor, tooSlow } from "./src/statblock/regexGuard";
 export { modifierOf, checkExpression, signed } from "./src/statblock/modifier";
 export { diceIn, D20_RULES, PLAIN_RULES, beginDiceBudget, endDiceBudget } from "./src/statblock/dice";
 export { importLayout, exportLayout } from "./src/statblock/fsInterop";
@@ -159,7 +159,7 @@ describe("dice patterns that could hang the window are refused", () => {
     for (const l of m.builtinLayouts()) for (const r of l.diceRules) {
       const c = m.checkPattern(r.pattern);
       assert.equal(c.ok, true, r.pattern);
-      assert.ok(m.probeTime(c.re) < m.PROBE_MS, r.pattern);
+      assert.ok(!m.tooSlow(c.re), r.pattern);
     }
   });
 

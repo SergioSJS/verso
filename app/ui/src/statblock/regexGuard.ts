@@ -30,8 +30,13 @@ export type PatternRefusal = "tooLong" | "backref" | "nested" | "tooMany" | "big
  *  value becomes. */
 export const MAX_SCAN = 400;
 export const MAX_MATCHES = 50;
-/** The most time a pattern may take on one probe before it is refused. */
+/** A pattern is refused as slow only past PROBE_MS on a probe AND past
+ *  SLOW_RATIO times a trivial pattern timed on the same probe at the same
+ *  moment: a busy or cold host slows both alike, a backtracking pattern
+ *  grows far past any ratio. */
 export const PROBE_MS = 10;
+export const SLOW_RATIO = 50;
+const BASELINE = /a/g;
 
 const verdicts = new Map<string, { ok: true; re: RegExp } | { ok: false; why: PatternRefusal }>();
 
@@ -52,24 +57,37 @@ export function probesFor(src: string): string[] {
   return probes;
 }
 
-/** The slowest probe's time over a pattern, in ms, stopping early past
- *  PROBE_MS (a slow one is measured again, to rule out a pause of the host). */
+function timeOn(re: RegExp, p: string): number {
+  const t0 = now();
+  re.lastIndex = 0;
+  let n = 0;
+  for (const _m of p.matchAll(re)) if (++n > 1000) break;
+  return now() - t0;
+}
+
+/** Whether a pattern is too slow on the adversarial probes: past PROBE_MS
+ *  and past SLOW_RATIO times the trivial baseline on the same probe. Each
+ *  probe is measured up to three times (the best kept), so a pause of the
+ *  host (GC, a busy core) never refuses a good pattern. */
+export function tooSlow(re: RegExp): boolean {
+  for (const p of probesFor(re.source)) {
+    let best = Infinity;
+    let base = Infinity;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      best = Math.min(best, timeOn(re, p));
+      base = Math.min(base, timeOn(BASELINE, p));
+      if (best <= PROBE_MS || best <= SLOW_RATIO * Math.max(base, 0.01)) break;
+    }
+    if (best > PROBE_MS && best > SLOW_RATIO * Math.max(base, 0.01)) return true;
+  }
+  return false;
+}
+
+/** The slowest probe's time over a pattern, in ms (for tests and the
+ *  editor's diagnostics). */
 export function probeTime(re: RegExp): number {
   let worst = 0;
-  for (const p of probesFor(re.source)) {
-    // The best of up to three runs: a pause of the host (GC, a busy core)
-    // must not refuse a good pattern; a really slow one is slow every time.
-    let best = Infinity;
-    for (let attempt = 0; attempt < 3 && best > PROBE_MS; attempt++) {
-      const t0 = now();
-      re.lastIndex = 0;
-      let n = 0;
-      for (const _m of p.matchAll(re)) if (++n > 1000) break;
-      best = Math.min(best, now() - t0);
-    }
-    worst = Math.max(worst, best);
-    if (worst > PROBE_MS) return worst;
-  }
+  for (const p of probesFor(re.source)) worst = Math.max(worst, timeOn(re, p));
   return worst;
 }
 
@@ -84,8 +102,12 @@ export function checkPattern(src: unknown): { ok: true; re: RegExp } | { ok: fal
     return known;
   }
   const v = judge(src);
-  if (verdicts.size > 1000) verdicts.clear();
-  verdicts.set(src, v);
+  // A "slow" verdict is measured again next time: it depends on the host's
+  // load at that moment; every other verdict is a fact of the pattern.
+  if (v.ok || v.why !== "slow") {
+    if (verdicts.size > 1000) verdicts.clear();
+    verdicts.set(src, v);
+  }
   return v;
 }
 
@@ -101,7 +123,7 @@ function judge(src: string): { ok: true; re: RegExp } | { ok: false; why: Patter
   re.lastIndex = 0;
   if (re.test("")) return { ok: false, why: "empty" };
   re.lastIndex = 0;
-  if (probeTime(re) > PROBE_MS) return { ok: false, why: "slow" };
+  if (tooSlow(re)) return { ok: false, why: "slow" };
   re.lastIndex = 0;
   return { ok: true, re };
 }
