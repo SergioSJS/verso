@@ -255,6 +255,54 @@ export function applyChanges(text: string, changes: readonly Change[]): string {
 
 type Edit = Change & { caretAt?: number };
 
+/** The line below a callout's head that holds its question (the title being
+ *  empty or generic): its text's own range, quote marks and spaces left out. */
+function questionLine(block: OracleBlock): { from: number; to: number; text: string } | null {
+  for (const l of block.lines.slice(1)) {
+    const info = quoteInfo(l.text);
+    const rest = info.rest.trim();
+    if (!rest || generatedLine(rest)) continue;
+    const lead = info.rest.length - info.rest.trimStart().length;
+    const from = l.from + info.prefix.length + lead;
+    return { from, to: from + rest.length, text: rest };
+  }
+  return null;
+}
+
+/** What a rewritten question takes away from a callout: only what the oracle
+ *  wrote (answers, sparks, table results). A line that is nothing else goes
+ *  whole; consecutive ones go as one range, so no two ranges overlap and the
+ *  callout stays one block. An answer the person went on writing after keeps
+ *  that text. */
+function generatedRemovals(block: OracleBlock): Change[] {
+  const out: Change[] = [];
+  const whole: number[] = [];
+  const ls = block.lines;
+  for (let k = 1; k < ls.length; k++) {
+    const l = ls[k]!;
+    const info = quoteInfo(l.text);
+    const m = ANSWER.exec(info.rest) ?? TABLE.exec(info.rest);
+    if (m) {
+      if (info.rest.slice(m[0].length).trim() === "") whole.push(k);
+      else {
+        const at = l.from + info.prefix.length;
+        out.push({ from: at, to: at + m[0].length + (info.rest[m[0].length] === " " ? 1 : 0), insert: "" });
+      }
+    } else if (SPARK.test(info.rest) || SPARK_ONLY.test(info.rest)) whole.push(k);
+  }
+  for (let i = 0; i < whole.length; ) {
+    let j = i;
+    while (j + 1 < whole.length && whole[j + 1] === whole[j]! + 1) j++;
+    const first = whole[i]!;
+    const last = whole[j]!;
+    // A run that ends the callout takes the break before it; any other takes its own.
+    if (last === ls.length - 1) out.push({ from: ls[first - 1]!.to, to: ls[last]!.to, insert: "" });
+    else out.push({ from: ls[first]!.from, to: ls[last + 1]!.from, insert: "" });
+    i = j + 1;
+  }
+  return out;
+}
+
 /** What to write into an existing callout (the maintainer's rule, 2026-10-20):
  *  a new answer to the same question is added at the callout's end, the
  *  earlier ones kept. Only when the question was rewritten are the oracle's
@@ -277,36 +325,22 @@ export function planOracleEdit(text: string, block: OracleBlock, gen: Generated)
 
   if (gen.kind === "answer") {
     const q = gen.question.trim();
-    // The question was rewritten: this callout's own lines (the question and
-    // its answers) are replaced. Same question: the answers pile up.
-    const rewritten = q !== "" && block.title !== "" && !genericTitle(block.title) && q !== block.title;
-    if (q && q !== block.title) {
-      const asksBelow = block.title === "" && body.some((l) => {
-        const rest = quoteInfo(l.text).rest.trim();
-        return rest !== "" && !generatedLine(rest);
-      });
-      if (!asksBelow) {
+    // Where the question lives: a real title, or (the title empty or only the
+    // kind's name) the first line below the head the oracle did not write.
+    const realTitle = block.title !== "" && !genericTitle(block.title);
+    const below = realTitle ? null : questionLine(block);
+    const current = realTitle ? block.title : below ? below.text : "";
+    // The question was rewritten: this callout's own lines (its answers) are
+    // replaced. Same question: the answers pile up.
+    const rewritten = q !== "" && current !== "" && q !== current;
+    if (q && q !== current) {
+      if (below) edits.push({ from: below.from, to: below.to, insert: q });
+      else {
         const spaced = block.title === "" && !/[ \t]/.test(text[block.titleFrom - 1] ?? "");
         edits.push({ from: block.titleFrom, to: block.titleTo, insert: spaced ? ` ${q}` : q });
       }
     }
-    if (rewritten) {
-      for (let k = 1; k < block.lines.length; k++) {
-        const l = block.lines[k]!;
-        const info = quoteInfo(l.text);
-        const m = ANSWER.exec(info.rest);
-        if (!m) continue;
-        const at = l.from + info.prefix.length;
-        if (info.rest.slice(m[0].length).trim() === "") {
-          // The whole line goes, with one line break.
-          if (k === block.lines.length - 1) edits.push({ from: block.lines[k - 1]!.to, to: l.to, insert: "" });
-          else edits.push({ from: l.from, to: block.lines[k + 1]!.from, insert: "" });
-        } else {
-          // The person went on writing after it: that stays.
-          edits.push({ from: at, to: at + m[0].length + (info.rest[m[0].length] === " " ? 1 : 0), insert: "" });
-        }
-      }
-    }
+    if (rewritten) edits.push(...generatedRemovals(block));
     const parts = gen.spark !== undefined ? [gen.spark, `${gen.line} `] : [`${gen.line} `];
     const insert = parts.map((p) => `${eol}${pre}${p}`).join("");
     edits.push({ from: block.to, to: block.to, insert, caretAt: insert.length });

@@ -4,6 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as esbuild from "esbuild";
+import { EditorState } from "@codemirror/state";
 
 await esbuild.build({
   stdin: {
@@ -21,12 +22,24 @@ const L = await import("./.bundles/oracle-locate.test-bundle.mjs");
 
 const answer = (label = "Sim", roll = 33, odds = "50 / 50") => ({ kind: "answer", question: "", line: `**${label}** _(d100: ${roll}, ${odds})_` });
 const count = (s) => (s.match(/\[!oracle\]/gi) ?? []).length;
+// Plans are applied the way the app applies them: through a CodeMirror
+// transaction. (The module's own applyChanges is kind to overlapping ranges,
+// CodeMirror is not, which hid a broken callout once.)
+function cm(text, changes) {
+  const spec = Array.isArray(changes) ? changes : [changes];
+  for (const a of spec) for (const b of spec) if (a !== b && a.from < b.to && b.from < a.to) assert.fail(`overlapping changes ${JSON.stringify(a)} ${JSON.stringify(b)}`);
+  return EditorState.create({ doc: text }).update({ changes: spec }).state.doc.toString();
+}
 function edit(text, hint, gen) {
   const block = L.locateOracleCallout(text, hint);
   assert.ok(block, "callout located");
   const plan = L.planOracleEdit(text, block, gen);
-  return { out: L.applyChanges(text, plan.changes), plan };
+  return { out: cm(text, plan.changes), plan };
 }
+const insert = (text, at, callout) => {
+  const p = L.planOracleInsert(text, at, callout);
+  return { out: cm(text, p.change), plan: p };
+};
 const hintOf = (text, n = 0) => {
   const b = L.oracleBlocks(text)[n];
   return { from: b.from, text: b.text };
@@ -60,15 +73,30 @@ test("bug 2, the wrong callout: two alike, only the one named changes; no fuzzy 
   assert.equal(L.locateOracleCallout(text, { from: second.from, text: "> [!oracle] guardas" }), null);
 });
 
-test("an empty title does not match every callout", () => {
+test("an empty title does not match every callout; a question below the head is the question", () => {
   const text = "> [!oracle]\n> A porta está trancada?\n> **Não** _(d100: 70, 50 / 50)_ e range\n";
   const [b] = L.oracleBlocks(text);
   assert.equal(b.title, "");
   assert.equal(L.oracleQuestion(b), "A porta está trancada?");
+  // The same question again: the answer piles up, the head and the question stay.
+  const same = edit(text, hintOf(text), { kind: "answer", question: "A porta está trancada?", line: "**Sim** _(d100: 5, 50 / 50)_" });
+  assert.equal(same.out, "> [!oracle]\n> A porta está trancada?\n> **Não** _(d100: 70, 50 / 50)_ e range\n> **Sim** _(d100: 5, 50 / 50)_ \n");
+  // A rewritten one replaces that line's text (the title stays empty) and the old answer's roll.
   const { out } = edit(text, hintOf(text), { kind: "answer", question: "Há guardas?", line: "**Sim** _(d100: 5, 50 / 50)_" });
-  // The question below the head is the person's: the title stays empty, every line stays.
-  assert.ok(out.startsWith(text.trimEnd()));
-  assert.ok(out.includes("> **Sim** _(d100: 5, 50 / 50)_ "));
+  assert.equal(out, "> [!oracle]\n> Há guardas?\n> e range\n> **Sim** _(d100: 5, 50 / 50)_ \n");
+});
+
+test("a generic title with the question below: same question appends, the title is not touched, nothing doubles", () => {
+  const text = "> [!oracle] Oráculo\n> A porta está trancada?\n> **Não** _(d100: 70, 50 / 50)_";
+  const same = edit(text, hintOf(text), { kind: "answer", question: "A porta está trancada?", line: "**Sim** _(d100: 5, 50 / 50)_" });
+  assert.equal(same.out, text + "\n> **Sim** _(d100: 5, 50 / 50)_ ");
+  const re = edit(text, hintOf(text), { kind: "answer", question: "Há guardas?", line: "**Sim** _(d100: 5, 50 / 50)_" });
+  assert.equal(re.out, "> [!oracle] Oráculo\n> Há guardas?\n> **Sim** _(d100: 5, 50 / 50)_ ");
+  const en = "> [!oracle] Oracle\n> Is it locked?";
+  assert.equal(edit(en, hintOf(en), { kind: "answer", question: "Is it locked?", line: "**Yes** _(d100: 5, 50 / 50)_" }).out, en + "\n> **Yes** _(d100: 5, 50 / 50)_ ");
+  // Only a title and no question below: the question becomes the title.
+  const bare = "> [!oracle] Oráculo";
+  assert.equal(edit(bare, hintOf(bare), { kind: "answer", question: "Chove?", line: "**Sim** _(d100: 5, 50 / 50)_" }).out, "> [!oracle] Chove?\n> **Sim** _(d100: 5, 50 / 50)_ ");
 });
 
 test("bug 3, corruption on edit: what the person wrote stays; answers pile up", () => {
@@ -159,7 +187,9 @@ test("a generic title is no question; a real one that starts with the word is", 
 
 test("CRLF notes keep their line ends", () => {
   const text = "# T\r\n\r\n> [!oracle] Q?\r\n> nota\r\n\r\nfim\r\n";
-  const { out } = edit(text, hintOf(text), answer());
+  // CodeMirror reads a CRLF note as LF, so this one is applied by the module's own applier.
+  const plan = L.planOracleEdit(text, L.oracleBlocks(text)[0], answer());
+  const out = L.applyChanges(text, plan.changes);
   assert.equal(out, "# T\r\n\r\n> [!oracle] Q?\r\n> nota\r\n> **Sim** _(d100: 33, 50 / 50)_ \r\n\r\nfim\r\n");
 });
 
@@ -187,4 +217,34 @@ test("an insertion goes after the caret's line, never into a fence or a table, n
   const blank = L.planOracleInsert("a\n\nb", 2, callout);
   assert.equal(blank.change.insert, callout.text);
   assert.equal(blank.cursor, 2 + callout.cursor);
+});
+
+const R = (label, n) => `**${label}** _(d100: ${n}, 50 / 50)_`;
+const ans = (q, label, n) => ({ kind: "answer", question: q, line: R(label, n) });
+
+test("B1: a rewritten question with the last answers whole lines keeps the callout in one piece", () => {
+  const text = `> [!oracle] Porta?\n> ${R("Sim", 1)}\n> ${R("Não", 2)}\n\nfim`;
+  const { out } = edit(text, hintOf(text), ans("Guardas?", "Talvez", 3));
+  assert.equal(out, `> [!oracle] Guardas?\n> ${R("Talvez", 3)} \n\nfim`);
+  const three = `> [!oracle] P?\n> ${R("A", 1)}\n> ${R("B", 2)}\n> ${R("C", 3)}\nfim`;
+  assert.equal(edit(three, hintOf(three), ans("G?", "D", 4)).out, `> [!oracle] G?\n> ${R("D", 4)} \nfim`);
+  // A line of the person between two answers stays; the runs around it go.
+  const mixed = `> [!oracle] P?\n> ${R("A", 1)}\n> minha nota\n> ${R("B", 2)}\n> ${R("C", 3)}`;
+  assert.equal(edit(mixed, hintOf(mixed), ans("G?", "D", 4)).out, `> [!oracle] G?\n> minha nota\n> ${R("D", 4)} `);
+});
+
+test("B1: inside [!secret] the rest of the secret stays inside it", () => {
+  const text = `> [!secret] GM\n> > [!oracle] Porta?\n> > ${R("Sim", 1)}\n> > ${R("Não", 2)}\n> resto do segredo`;
+  const { out } = edit(text, hintOf(text), ans("Guardas?", "Talvez", 3));
+  assert.equal(out, `> [!secret] GM\n> > [!oracle] Guardas?\n> > ${R("Talvez", 3)} \n> resto do segredo`);
+  assert.ok(!out.includes("\n\n"));
+});
+
+test("M2: a rewritten question also replaces the oracle's spark and table lines", () => {
+  const text = `> [!oracle] P?\n> Faísca: *A B / C D*\n> ${R("Sim", 1)}\n> **Névoa** _(d8: 1)_\n> minha nota`;
+  const { out } = edit(text, hintOf(text), ans("Q?", "Não", 2));
+  assert.equal(out, `> [!oracle] Q?\n> minha nota\n> ${R("Não", 2)} `);
+  // A spark callout asked a question: its title is the question now, its own lines go.
+  const only = `> [!oracle] Faísca\n> **Ação + Tema:** a + b\n> **Descritor + Foco:** c + d`;
+  assert.equal(edit(only, hintOf(only), ans("Q?", "Sim", 1)).out, `> [!oracle] Q?\n> ${R("Sim", 1)} `);
 });
