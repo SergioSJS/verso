@@ -1094,7 +1094,7 @@ async fn folder_command(
         // The folder's layouts and bundles are the whole folder's too
         // (ADR 0099 item 2, ADR 0098 item 2), as its settings are: a share
         // lists none and finds none; a write is refused by `args_in`.
-        "list_folder_data" => return Ok(Value::Array(Vec::new())),
+        "list_folder_data" => return to_value(verso_contract::FolderDataList::default()),
         "read_folder_data" => {
             return Err(ContractError {
                 kind: verso_contract::ErrorKind::NotFound,
@@ -1237,20 +1237,14 @@ async fn folder_run(
             crate::collab::write_all(&s, &key)?;
         }
         // A deletion is recorded with who made it (ADR 0080 item 2).
-        let answer = if matches!(n.as_str(), "delete_note" | "delete_entry") {
-            let path: String = arg(&args, "path")?;
-            service
-                .with(&c, |ws| {
-                    Ok(if n == "delete_note" {
-                        ws.delete_note(&path)?
-                    } else {
-                        ws.delete_entry(&path)?
-                    })
-                })
-                .and_then(|gone| {
-                    crate::trash::deleted(&s, &folder_id, &gone, &by);
-                    to_value(verso_service::convert::trashed_out(gone))
-                })
+        let answer = if matches!(
+            n.as_str(),
+            "delete_note" | "delete_entry" | "remove_folder_data"
+        ) {
+            crate::trash::removal(&service, &c, &n, &args).and_then(|gone| {
+                crate::trash::deleted(&s, &folder_id, &gone, &by);
+                to_value(verso_service::convert::trashed_out(gone))
+            })
         } else {
             // A text past the server's bound, read or written: refused
             // before the core reads or writes it (`crate::texts`).

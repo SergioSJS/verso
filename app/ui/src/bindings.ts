@@ -408,11 +408,11 @@ export const commands = {
 	 *  `.verso/bundles/` (ADR 0099 item 2, ADR 0098 item 2), by id. Nothing is
 	 *  created.
 	 */
-	listFolderData: (kind: FolderDataKind) => typedError<FolderDataEntry[], ContractError>(__TAURI_INVOKE("list_folder_data", { kind })),
+	listFolderData: (kind: FolderDataKind) => typedError<FolderDataList, ContractError>(__TAURI_INVOKE("list_folder_data", { kind })),
 	/**  One data file's text as it is on disk, with its revision. */
 	readFolderData: (kind: FolderDataKind, id: string) => typedError<FolderDataFile, ContractError>(__TAURI_INVOKE("read_folder_data", { kind, id })),
 	/**
-	 *  Write a data file: one JSON object of at most 256 KiB. With no
+	 *  Write a data file: one JSON object, a layout of at most 256 KiB or a bundle of at most 4 MiB. With no
 	 *  `revision` a new file (`exists` when one stands there), else over the
 	 *  version that revision describes (`changed` otherwise).
 	 */
@@ -421,7 +421,7 @@ export const commands = {
 	 *  Remove a data file through the bin, when it is still the version
 	 *  `revision` describes.
 	 */
-	removeFolderData: (kind: FolderDataKind, id: string, revision: string) => typedError<null, ContractError>(__TAURI_INVOKE("remove_folder_data", { kind, id, revision })),
+	removeFolderData: (kind: FolderDataKind, id: string, revision: string) => typedError<Trashed, ContractError>(__TAURI_INVOKE("remove_folder_data", { kind, id, revision })),
 	/**
 	 *  A line from the window into the app's log: what `fail()` shows for a
 	 *  moment there, and what the browser would otherwise swallow — a
@@ -1455,7 +1455,8 @@ export type FolderDataEntry = {
 	/**
 	 *  What to hand back to change or remove the file; empty when the file
 	 *  cannot be read now (a placeholder of on-demand storage, or past
-	 *  256 KiB): reading it says why.
+	 *  its kind's bound, 256 KiB for a layout and 4 MiB for a bundle):
+	 *  reading it says why.
 	 */
 	revision: string,
 };
@@ -1472,6 +1473,21 @@ export type FolderDataKind =
 "layouts" | 
 /**  `.verso/bundles/<id>.json`: a world's or campaign's template bundle. */
 "bundles";
+
+/**
+ *  The data files of a kind, and the names beside them that are not a valid
+ *  id. A sync conflict copy (`mesa (conflict, Mac, 2026-10-20).json`) or a
+ *  hand-made `Mesa.json` is one: no command reaches it, so it is named for
+ *  the person to rename (to a valid id) or remove in a file manager.
+ */
+export type FolderDataList = {
+	entries: FolderDataEntry[],
+	/**
+	 *  File names (not paths) in the directory that are not `<id>.json`,
+	 *  sorted, at most 50.
+	 */
+	strays: string[],
+};
 
 /**  The revision of the bytes a write left. */
 export type FolderDataWritten = {
@@ -2209,7 +2225,9 @@ export type OracleSettings = {
 	/**
 	 *  Five rows (nearly certain, likely, even, unlikely, nearly
 	 *  impossible), each six non-negative integers adding to 100: yes-and,
-	 *  yes, yes-but, no-but, no, no-and.
+	 *  yes, yes-but, no-but, no, no-and. Wider than any row can use so that
+	 *  a number out of range reaches the core and is refused there with its
+	 *  message, not by the host's argument decoding.
 	 */
 	odds: number[][] | null,
 	sparks: OracleSparks | null,

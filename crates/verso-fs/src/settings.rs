@@ -71,6 +71,15 @@ impl Root {
     /// when there is no `.verso/`, and nothing is created.
     pub fn settings_walk(&mut self) -> std::io::Result<Vec<Entry>> {
         let mut found = Vec::new();
+        // `.verso` must be a real directory: through a symlink nothing under
+        // it is looked at, however far down (`lstat` of a deeper path
+        // resolves every link in the middle of it).
+        match on_disk(self.root_path(), Path::new(SETTINGS_DIR)).symlink_metadata() {
+            Ok(m) if m.is_dir() => {}
+            Ok(_) => return Ok(Vec::new()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(e) => return Err(e),
+        }
         // `.verso/` itself, then the two data directories one level down
         // (ADR 0099 item 2, ADR 0098 item 2): files only, none followed.
         let mut dirs = vec![(PathBuf::from(SETTINGS_DIR), 1usize)];

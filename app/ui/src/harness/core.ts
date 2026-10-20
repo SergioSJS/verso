@@ -63,7 +63,7 @@ import { Bin } from "./trash";
 import { LocalServerHarness } from "./localServer";
 import { Maps } from "./maps";
 import { applyPeriodic, obsidianPeriodic, readPeriodic, sortedDeep } from "./periodic";
-import { applyOracle, checkOracle, FolderData, oracleProblems, readOracle } from "./folderData";
+import { applyOracle, checkOracle, FolderData, oracleProblems, readOracle, writeGuard } from "./folderData";
 import { blocksOf, fitsKind, headingsOf, propertiesOf, propertyList, readableLines, renderMarkdown, schemaBlocksOf } from "./markdown";
 import { projectSecrets } from "./secret";
 import { unlinkedMentions } from "./mentions";
@@ -980,7 +980,7 @@ export class Core {
   /** The folder's mark for the server of all of Verso (ADR 0054 point 4). */
   agentVisible = false;
   /** The folder's layouts and bundles (ADR 0099 item 2, ADR 0098 item 2). */
-  private readonly data = new FolderData({ files: this.files, put: (p, b) => this.put(p, b), accepts: (p, w, g) => this.accepts(p, w, g), trash: (p) => { const to = this.free(`.trash/${p}`); this.move(p, to); this.bin.record(to, p, false); } });
+  private readonly data = new FolderData({ files: this.files, put: (p, b) => this.put(p, b), accepts: (p, w, g) => this.accepts(p, w, g), trash: (p) => { const to = this.free(`.trash/${p}`); this.move(p, to); this.bin.record(to, p, false); return to; } });
   readonly handlers: Record<string, (a: Record<string, unknown>) => unknown> = {
     pick_folder: () => this.folderInfo(),
     reopen_folder: () => this.folderInfo(),
@@ -1022,13 +1022,13 @@ export class Core {
       return this.noteText(path);
     },
     create_file: (a) => {
-      const path = this.confine(String(a["path"]));
+      const path = writeGuard(this.confine(String(a["path"])));
       if (this.files.has(path) || this.folders.has(path)) refuse("exists", `already there: ${path}`);
       this.put(path, fromBase64(String(a["base64"])));
       return path;
     },
     create_folder: (a) => {
-      const path = this.confine(String(a["path"]));
+      const path = writeGuard(this.confine(String(a["path"])));
       if (this.files.has(path) || this.folders.has(path)) refuse("exists", `already there: ${path}`);
       for (let d = path; d !== ""; d = dirOf(d)) this.folders.add(d);
       return path;
@@ -1135,7 +1135,7 @@ export class Core {
     web_url: (a) => this.webViews.get(String(a["label"])) ?? "",
     read_text: (a) => this.textFile(this.confine(String(a["path"]))),
     write_text: (a): TextFile => {
-      const path = this.confine(String(a["path"]));
+      const path = writeGuard(this.confine(String(a["path"])));
       this.writeOver(path, String(a["text"]), String(a["revision"]));
       return this.textFile(path);
     },

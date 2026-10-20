@@ -39,9 +39,10 @@ function memoryFolder(initial = {}) {
   const api = {
     files,
     calls,
+    strays: [],
     async list(kind) {
       calls.push(["list", kind]);
-      return [...files].map(([id, f]) => ({ id, revision: f.revision }));
+      return { entries: [...files].map(([id, f]) => ({ id, revision: f.revision })), strays: api.strays };
     },
     async read(kind, id) {
       calls.push(["read", kind, id]);
@@ -106,6 +107,16 @@ describe("the built-ins and the folder's own", () => {
     assert.equal(m.resolveLayout("monstro").stored.layout.id, "monster");
     assert.ok(told >= 1);
     assert.deepEqual(writes(api), []);
+  });
+
+  test("the folder's stray names (a sync conflict copy) are kept for the page to say, and cleared when the folder is", async () => {
+    const api = memoryFolder({ monster: { name: "M", blocks: [] } });
+    api.strays = ["monster (conflict, Mac, 2026-10-20).json"];
+    await m.attachFolder(api);
+    assert.deepEqual(m.layoutStrays(), ["monster (conflict, Mac, 2026-10-20).json"]);
+    assert.deepEqual(m.allLayouts().filter((s) => s.source === "folder").map((s) => s.layout.id), ["monster"]);
+    await m.attachFolder(null);
+    assert.deepEqual(m.layoutStrays(), []);
   });
 
   test("a folder file never shadows a built-in", async () => {

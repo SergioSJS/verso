@@ -22,8 +22,11 @@ use std::path::Path;
 
 use super::*;
 
-/// The most a data file's text may be.
-pub const FOLDER_DATA_MOST: usize = 256 * 1024;
+/// The most a layout's text may be (ADR 0099 items 2 and 7: 256 KiB).
+pub const FOLDER_LAYOUT_MOST: usize = 256 * 1024;
+
+/// The most a bundle's text may be (ADR 0098 item 5: "4 MB in all").
+pub const FOLDER_BUNDLE_MOST: usize = 4 * 1024 * 1024;
 
 /// The longest an id may be.
 const ID_MOST: usize = 64;
@@ -36,6 +39,15 @@ pub enum FolderDataKind {
 }
 
 impl FolderDataKind {
+    /// The most a file of this kind may be, in bytes.
+    #[must_use]
+    pub fn most(self) -> usize {
+        match self {
+            Self::Layouts => FOLDER_LAYOUT_MOST,
+            Self::Bundles => FOLDER_BUNDLE_MOST,
+        }
+    }
+
     /// The directory's name under `.verso/`.
     #[must_use]
     pub fn dir(self) -> &'static str {
@@ -48,12 +60,25 @@ impl FolderDataKind {
 
 /// One data file listed: its id and the revision to hand back to change or
 /// remove it; empty when the file cannot be read now (a placeholder, or
-/// past [`FOLDER_DATA_MOST`]) — a read says why.
+/// past its kind's bound) — a read says why.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DataEntry {
     pub id: String,
     pub revision: String,
 }
+
+/// The data files of a kind: the entries a person can use, and the names in
+/// the directory that are not an id (a sync conflict copy such as
+/// `mesa (conflict, Mac, …).json`, a hand-made `Mesa.json`), which no
+/// command can reach and so are named for the person to rename or remove.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct DataList {
+    pub entries: Vec<DataEntry>,
+    pub strays: Vec<String>,
+}
+
+/// The most strays one listing names.
+const STRAYS_MOST: usize = 50;
 
 /// A data file read: its text as it is on disk and its revision.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -96,6 +121,18 @@ pub(crate) fn check_id(id: &str) -> Result<(), CoreError> {
     Ok(())
 }
 
+/// Whether `key`, a confined path, is one of the data directories or under
+/// one: `.verso/layouts` or `.verso/bundles` (ADR 0099 item 2, ADR 0098
+/// item 2).
+pub(crate) fn in_data_dir(key: &str) -> bool {
+    [FolderDataKind::Layouts, FolderDataKind::Bundles]
+        .iter()
+        .any(|k| {
+            let dir = format!("{}/{}", verso_fs::SETTINGS_DIR, k.dir());
+            key == dir || key.strip_prefix(&dir).is_some_and(|r| r.starts_with('/'))
+        })
+}
+
 /// The path of a data file, `/`-joined, relative to the folder.
 fn path_of(kind: FolderDataKind, id: &str) -> Result<String, CoreError> {
     check_id(id)?;
@@ -106,12 +143,13 @@ fn path_of(kind: FolderDataKind, id: &str) -> Result<String, CoreError> {
     ))
 }
 
-/// A text a data file may hold: at most [`FOLDER_DATA_MOST`] bytes and one
-/// JSON object.
-fn check_text(text: &str) -> Result<(), CoreError> {
-    if text.len() > FOLDER_DATA_MOST {
+/// A text a data file of `kind` may hold: at most `kind.most()` bytes and
+/// one JSON object.
+fn check_text(kind: FolderDataKind, text: &str) -> Result<(), CoreError> {
+    let most = kind.most();
+    if text.len() > most {
         return Err(refuse(format!(
-            "too large: {} bytes, the most is {FOLDER_DATA_MOST}",
+            "too large: {} bytes, the most is {most}",
             text.len()
         )));
     }
@@ -123,26 +161,27 @@ fn check_text(text: &str) -> Result<(), CoreError> {
 }
 
 impl Workspace {
-    /// The data files of `kind` the folder holds, by id, in id order.
-    /// Nothing is created; a folder without the directory lists none.
-    pub fn list_folder_data(&mut self, kind: FolderDataKind) -> Result<Vec<DataEntry>, CoreError> {
+    /// The data files of `kind` the folder holds, by id, in id order, and
+    /// the names beside them that are not an id. Nothing is created; a
+    /// folder without the directory lists none.
+    pub fn list_folder_data(&mut self, kind: FolderDataKind) -> Result<DataList, CoreError> {
         let prefix = format!("{}/{}/", verso_fs::SETTINGS_DIR, kind.dir());
         let listed = self.root.settings_walk().map_err(CoreError::Folder)?;
         let mut out = Vec::new();
+        let mut strays = Vec::new();
         for entry in listed {
             let relative = entry.relative.to_string_lossy().into_owned();
-            let Some(id) = relative
-                .strip_prefix(&prefix)
-                .and_then(|name| name.strip_suffix(".json"))
-            else {
+            let Some(name) = relative.strip_prefix(&prefix) else {
                 continue;
             };
-            if check_id(id).is_err() {
+            let Some(id) = name.strip_suffix(".json").filter(|id| check_id(id).is_ok()) else {
+                // Not reachable by any command: named, never dropped.
+                strays.push(name.to_owned());
                 continue;
-            }
+            };
             let revision = match entry.kind {
                 EntryKind::Placeholder { .. } => String::new(),
-                _ if entry.len > FOLDER_DATA_MOST as u64 => String::new(),
+                _ if entry.len > kind.most() as u64 => String::new(),
                 _ => match self.root.read(entry.handle) {
                     Ok((_, stamp)) => revision::encode(&stamp),
                     Err(ReadError::Unavailable) => String::new(),
@@ -156,12 +195,17 @@ impl Workspace {
             });
         }
         out.sort_by(|a, b| a.id.cmp(&b.id));
-        Ok(out)
+        strays.sort();
+        strays.truncate(STRAYS_MOST);
+        Ok(DataList {
+            entries: out,
+            strays,
+        })
     }
 
     /// A data file's text, as it is on disk, with its revision. A
     /// placeholder is [`ReadError::Unavailable`]; a file past
-    /// [`FOLDER_DATA_MOST`] is refused unread; bytes that are not UTF-8 are
+    /// its kind's bound is refused unread; bytes that are not UTF-8 are
     /// [`CoreError::NotText`].
     pub fn read_folder_data(
         &mut self,
@@ -185,10 +229,11 @@ impl Workspace {
         // A length that cannot be had (the file is absent, or only its
         // `.icloud` stand-in is there) is left to the read to say why.
         if let Ok((len, _)) = self.root.length_and_time(handle)
-            && len > FOLDER_DATA_MOST as u64
+            && len > kind.most() as u64
         {
             return Err(refuse(format!(
-                "too large: {len} bytes, the most is {FOLDER_DATA_MOST}"
+                "too large: {len} bytes, the most is {}",
+                kind.most()
             )));
         }
         let (bytes, stamp) = self.root.read(handle).map_err(CoreError::Read)?;
@@ -202,7 +247,7 @@ impl Workspace {
     /// Write a data file: with no `revision` a new file — `Exists` when
     /// something stands there —, else over the version that revision
     /// describes (`Changed` otherwise, nothing written). The text is one
-    /// JSON object of at most [`FOLDER_DATA_MOST`] bytes, kept as given.
+    /// JSON object of at most `kind.most()` bytes, kept as given.
     /// Returns the revision of the bytes written.
     pub fn write_folder_data(
         &mut self,
@@ -212,7 +257,7 @@ impl Workspace {
         revision: Option<&str>,
     ) -> Result<String, CoreError> {
         let path = path_of(kind, id)?;
-        check_text(text)?;
+        check_text(kind, text)?;
         let stamp = match revision {
             None => {
                 let (handle, report) = self
@@ -239,7 +284,9 @@ impl Workspace {
     }
 
     /// Remove a data file through the bin, when it is still the version
-    /// `revision` describes (`Changed` otherwise, nothing moved).
+    /// `revision` describes (`Changed` otherwise, nothing moved). A file
+    /// past its kind's bound has no revision to describe (the list gave an
+    /// empty one) and is removed on an empty `revision`, unread.
     pub fn remove_folder_data(
         &mut self,
         kind: FolderDataKind,
@@ -247,15 +294,32 @@ impl Workspace {
         revision: &str,
     ) -> Result<Trashed, CoreError> {
         let path = path_of(kind, id)?;
-        let expected = Self::decode_revision(revision)?;
         let handle = self
             .root
             .handle(Path::new(&path))
             .map_err(CoreError::Confined)?;
-        let (_, current) = self.root.read(handle).map_err(CoreError::Read)?;
-        if current != expected {
-            return Err(CoreError::Write(WriteError::Changed { current }));
+        // A file past its kind's bound is listed with no revision and never
+        // read: it goes to the bin on that empty revision, so the window can
+        // clear it away and a forged revision cannot make the host read it.
+        let too_big = self
+            .root
+            .length_and_time(handle)
+            .is_ok_and(|(len, _)| len > kind.most() as u64);
+        if too_big {
+            if !revision.is_empty() {
+                return Err(refuse(
+                    "the file grew past the bound since it was listed: list again",
+                ));
+            }
+        } else {
+            let expected = Self::decode_revision(revision)?;
+            let (_, current) = self.root.read(handle).map_err(CoreError::Read)?;
+            if current != expected {
+                return Err(CoreError::Write(WriteError::Changed { current }));
+            }
         }
+        // A write that lands between the check and the move goes to the bin
+        // with the file, so nothing is lost; the bin keeps both.
         let (gone, report) = self
             .root
             .trash(Path::new(&path))
@@ -308,11 +372,16 @@ mod tests {
 
     #[test]
     fn a_text_is_one_json_object_within_the_bound() {
-        assert!(check_text("{}").is_ok());
-        assert!(check_text("[1]").is_err());
-        assert!(check_text("\"x\"").is_err());
-        assert!(check_text("not json").is_err());
-        let big = format!("{{\"a\":\"{}\"}}", "x".repeat(FOLDER_DATA_MOST));
-        assert!(check_text(&big).is_err());
+        let k = FolderDataKind::Layouts;
+        assert!(check_text(k, "{}").is_ok());
+        assert!(check_text(k, "[1]").is_err());
+        assert!(check_text(k, "\"x\"").is_err());
+        assert!(check_text(k, "not json").is_err());
+        let big = format!("{{\"a\":\"{}\"}}", "x".repeat(FOLDER_LAYOUT_MOST));
+        assert!(check_text(k, &big).is_err());
+        // A bundle may be larger, to 4 MiB.
+        assert!(check_text(FolderDataKind::Bundles, &big).is_ok());
+        let huge = format!("{{\"a\":\"{}\"}}", "x".repeat(FOLDER_BUNDLE_MOST));
+        assert!(check_text(FolderDataKind::Bundles, &huge).is_err());
     }
 }

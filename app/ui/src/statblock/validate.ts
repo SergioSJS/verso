@@ -280,8 +280,9 @@ class Reader {
       const at = `sources[${i}]`;
       if (!isMap(s)) return this.note(at, S.problem.block);
       const label = str(own(s, "label"), LIMITS.label);
-      const url = str(own(s, "url"), LIMITS.url);
-      if (!label || !label.trim() || !url || !/^https:\/\/[^\s<>"']+$/.test(url)) return this.note(at, S.problem.source);
+      // Not cut: a long address cut short is another, possibly valid, one.
+      const url = str(own(s, "url"), Number.MAX_SAFE_INTEGER);
+      if (!label || !label.trim() || !url || url.length > LIMITS.url || !/^https:\/\/[^\s<>"']+$/.test(url)) return this.note(at, S.problem.source);
       out.push({ label, url });
     });
     if (v.length > LIMITS.sources) this.note("sources", S.problem.tooMany);

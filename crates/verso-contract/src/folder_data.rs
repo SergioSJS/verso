@@ -28,8 +28,21 @@ pub struct FolderDataEntry {
     pub id: String,
     /// What to hand back to change or remove the file; empty when the file
     /// cannot be read now (a placeholder of on-demand storage, or past
-    /// 256 KiB): reading it says why.
+    /// its kind's bound, 256 KiB for a layout and 4 MiB for a bundle):
+    /// reading it says why.
     pub revision: String,
+}
+
+/// The data files of a kind, and the names beside them that are not a valid
+/// id. A sync conflict copy (`mesa (conflict, Mac, 2026-10-20).json`) or a
+/// hand-made `Mesa.json` is one: no command reaches it, so it is named for
+/// the person to rename (to a valid id) or remove in a file manager.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct FolderDataList {
+    pub entries: Vec<FolderDataEntry>,
+    /// File names (not paths) in the directory that are not `<id>.json`,
+    /// sorted, at most 50.
+    pub strays: Vec<String>,
 }
 
 /// A data file read: its text as it is on disk.
@@ -61,7 +74,9 @@ pub struct OracleSparks {
 pub struct OracleSettings {
     /// Five rows (nearly certain, likely, even, unlikely, nearly
     /// impossible), each six non-negative integers adding to 100: yes-and,
-    /// yes, yes-but, no-but, no, no-and.
-    pub odds: Option<Vec<Vec<u8>>>,
+    /// yes, yes-but, no-but, no, no-and. Wider than any row can use so that
+    /// a number out of range reaches the core and is refused there with its
+    /// message, not by the host's argument decoding.
+    pub odds: Option<Vec<Vec<u32>>>,
     pub sparks: Option<OracleSparks>,
 }

@@ -53,7 +53,7 @@ pub(crate) fn list_folder_data<R: tauri::Runtime>(
     window: tauri::Window<R>,
     state: State<'_, App>,
     kind: FolderDataKind,
-) -> Result<Vec<FolderDataEntry>, ContractError> {
+) -> Result<FolderDataList, ContractError> {
     with(&state, &window, |ws| ops::list_folder_data(ws, kind))
 }
 
@@ -69,7 +69,7 @@ pub(crate) fn read_folder_data<R: tauri::Runtime>(
     with(&state, &window, |ws| ops::read_folder_data(ws, kind, id))
 }
 
-/// Write a data file: one JSON object of at most 256 KiB. With no
+/// Write a data file: one JSON object, a layout of at most 256 KiB or a bundle of at most 4 MiB. With no
 /// `revision` a new file (`exists` when one stands there), else over the
 /// version that revision describes (`changed` otherwise).
 #[tauri::command]
@@ -97,8 +97,10 @@ pub(crate) fn remove_folder_data<R: tauri::Runtime>(
     kind: FolderDataKind,
     id: String,
     revision: String,
-) -> Result<(), ContractError> {
+) -> Result<Trashed, ContractError> {
     with(&state, &window, |ws| {
-        ops::remove_folder_data(ws, kind, id, revision)
+        let gone = ws.remove_folder_data(ops::data_kind(kind), &id, &revision)?;
+        crate::trash::record(ws, &gone, None);
+        Ok(verso_service::convert::trashed_out(gone))
     })
 }

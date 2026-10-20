@@ -872,4 +872,7 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 /* Settings > Credits: the quoted notices and the links beside them. */
 .credit-box { display: flex; flex-direction: column; gap: .4rem; align-items: flex-start; max-width: 38rem; }
 .credit-quote { margin: 0; padding-left: .7rem; border-left: 2px solid var(--hair); color: var(--ink-2); font-size: .82rem; line-height: 1.45; overflow-wrap: anywhere; }
+.credit-licence { margin-top: .4rem; font-size: .82rem; color: var(--ink-2); }
+.credit-licence summary { cursor: pointer; }
+.credit-licence-text { margin: .35rem 0; line-height: 1.45; overflow-wrap: anywhere; }
 .credit-gloss { margin: 0; font-size: .8rem; color: var(--ink-2); font-style: italic; }

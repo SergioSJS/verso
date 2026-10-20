@@ -15,16 +15,23 @@
 // placeholder of on-demand storage) — for `fail()` to say.
 
 import { commands, type ContractError, type FolderDataKind } from "./bindings";
+import { LANG } from "./strings";
 
 export type { FolderDataKind };
 
-/** The most a file's text may be, in bytes. */
-export const FOLDER_DATA_MOST = 256 * 1024;
+/** The most a file's text may be, in bytes, by kind: a layout 256 KiB
+ *  (ADR 0099 items 2 and 7), a bundle 4 MiB (ADR 0098 item 5). */
+export const FOLDER_DATA_MOST: Record<FolderDataKind, number> = { layouts: 256 * 1024, bundles: 4 * 1024 * 1024 };
 export const FOLDER_DATA_KINDS: readonly FolderDataKind[] = ["layouts", "bundles"];
 
 /** A data file listed. An empty `revision`: the file cannot be read now (a
  *  placeholder, or past the bound) — `readData` says why. */
 export type DataEntry = { id: string; revision: string };
+/** The folder's data files of a kind, and the names beside them that are
+ *  not `<id>.json` with a valid id — a sync conflict copy such as
+ *  `mesa (conflict, Mac, 2026-10-20).json`, or a hand-made `Mesa.json`. No
+ *  command reaches those, so they are named (`strayNotice`), never dropped. */
+export type DataList = { entries: DataEntry[]; strays: string[] };
 /** A data file read: its object and the revision to hand back. */
 export type DataValue = { value: Record<string, unknown>; revision: string };
 
@@ -71,8 +78,21 @@ export function folderDataChangedAt(paths: Iterable<string>): void {
 }
 
 /** The data files of `kind` the folder holds, in id order. */
-export async function listData(kind: FolderDataKind): Promise<DataEntry[]> {
+export async function listData(kind: FolderDataKind): Promise<DataList> {
   return answer(await commands.listFolderData(kind));
+}
+
+/** What to tell the person about `strays` in `.verso/<kind>/`: which files
+ *  the folder keeps there that Verso cannot use, and how to resolve them (no
+ *  automatic merge: a conflict copy is the other device's version). Empty
+ *  when there are none. */
+export function strayNotice(kind: FolderDataKind, strays: readonly string[], lang: string = LANG): string {
+  if (strays.length === 0) return "";
+  const names = strays.slice(0, 5).join(", ") + (strays.length > 5 ? "…" : "");
+  const dir = `.verso/${kind}/`;
+  return lang.toLowerCase().startsWith("pt")
+    ? `Na pasta ${dir} há ${strays.length === 1 ? "1 arquivo que o Verso não pode usar" : `${strays.length} arquivos que o Verso não pode usar`}, sem aparecer na lista: ${names}. Costuma ser uma cópia de conflito da sincronização. Para resolver, renomeie o arquivo para um id válido (letras minúsculas, números e hífens, terminando em .json) num gerenciador de arquivos, ou exclua-o.`
+    : `The folder ${dir} holds ${strays.length === 1 ? "1 file Verso cannot use" : `${strays.length} files Verso cannot use`}, so ${strays.length === 1 ? "it is" : "they are"} not in the list: ${names}. This is usually a sync conflict copy. To resolve it, rename the file to a valid id (lower-case letters, digits and hyphens, ending in .json) in a file manager, or delete it.`;
 }
 
 /** One data file, parsed. A text that is not a JSON object (a file edited
@@ -97,7 +117,7 @@ export async function writeData(kind: FolderDataKind, id: string, value: object,
   checkId(id);
   if (!value || typeof value !== "object" || Array.isArray(value)) refused("a data file holds one JSON object");
   const text = JSON.stringify(value, null, 2);
-  if (new TextEncoder().encode(text).length > FOLDER_DATA_MOST) refused(`too large: the most is ${FOLDER_DATA_MOST} bytes`);
+  if (new TextEncoder().encode(text).length > FOLDER_DATA_MOST[kind]) refused(`too large: the most is ${FOLDER_DATA_MOST[kind]} bytes`);
   const written = answer(await commands.writeFolderData(kind, id, text, revision));
   told(kind);
   return written.revision;

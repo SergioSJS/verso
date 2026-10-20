@@ -111,6 +111,34 @@ pub fn deleted(server: &Arc<Server>, folder: &str, gone: &verso_core::Trashed, b
     soon(server, folder);
 }
 
+/// The removal `name` asks for, into the bin: a note, an entry, or a data
+/// file of `.verso/` named by its kind and id (ADR 0099 item 2, ADR 0098
+/// item 2).
+pub fn removal(
+    service: &verso_service::Service,
+    client: &str,
+    name: &str,
+    args: &Value,
+) -> Result<verso_core::Trashed, ContractError> {
+    if name == "remove_folder_data" {
+        let kind: verso_contract::FolderDataKind = arg(args, "kind")?;
+        let (id, revision): (String, String) = (arg(args, "id")?, arg(args, "revision")?);
+        let kind = verso_service::ops::data_kind(kind);
+        return service.with(
+            client,
+            |ws| Ok(ws.remove_folder_data(kind, &id, &revision)?),
+        );
+    }
+    let path: String = arg(args, "path")?;
+    service.with(client, |ws| {
+        Ok(if name == "delete_note" {
+            ws.delete_note(&path)?
+        } else {
+            ws.delete_entry(&path)?
+        })
+    })
+}
+
 /// Record a version a device's write replaced, kept at `kept` (item 12).
 pub fn replaced(server: &Arc<Server>, folder: &str, kept: &str, original: &str, device: &str) {
     let r: TrashRecord = bin::record(kept, original, bin::now(), Some(device), true);

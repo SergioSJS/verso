@@ -16,8 +16,8 @@ use std::path::Path;
 
 use tempfile::{Builder, tempdir};
 use verso_core::{
-    CoreError, FOLDER_DATA_MOST, FolderDataKind, FolderSettings, Oracle, OracleSparks, Workspace,
-    WriteError,
+    CoreError, FOLDER_BUNDLE_MOST, FOLDER_LAYOUT_MOST, FolderDataKind, FolderSettings, Oracle,
+    OracleSparks, Workspace, WriteError,
 };
 
 const KIND: FolderDataKind = FolderDataKind::Layouts;
@@ -106,7 +106,7 @@ fn reading_and_listing_make_no_directory_and_the_first_write_makes_it() {
     let config = tempdir().unwrap();
     let mut ws = open(dir.path(), config.path());
     ws.index().unwrap();
-    assert!(ws.list_folder_data(KIND).unwrap().is_empty());
+    assert!(ws.list_folder_data(KIND).unwrap().entries.is_empty());
     assert!(ws.read_folder_data(KIND, "mesa").is_err());
     assert!(!has(dir.path(), ".verso"));
     ws.write_folder_data(KIND, "mesa", "{\"a\": 1}", None)
@@ -185,7 +185,7 @@ fn a_text_that_is_not_a_json_object_or_is_too_large_is_refused() {
     let config = tempdir().unwrap();
     let mut ws = open(dir.path(), config.path());
     ws.index().unwrap();
-    let big = format!("{{\"a\": \"{}\"}}", "x".repeat(FOLDER_DATA_MOST));
+    let big = format!("{{\"a\": \"{}\"}}", "x".repeat(FOLDER_LAYOUT_MOST));
     for bad in ["", "[1]", "3", "\"x\"", "null", "{", "not json", &big] {
         let refused = ws.write_folder_data(KIND, "mesa", bad, None);
         assert!(
@@ -195,12 +195,52 @@ fn a_text_that_is_not_a_json_object_or_is_too_large_is_refused() {
         );
     }
     // Exactly at the bound passes.
-    let pad = FOLDER_DATA_MOST - "{\"a\":\"\"}".len();
+    let pad = FOLDER_LAYOUT_MOST - "{\"a\":\"\"}".len();
     let at = format!("{{\"a\":\"{}\"}}", "x".repeat(pad));
-    assert_eq!(at.len(), FOLDER_DATA_MOST);
+    assert_eq!(at.len(), FOLDER_LAYOUT_MOST);
     ws.write_folder_data(KIND, "mesa", &at, None).unwrap();
     // Nothing was made by the refusals.
-    assert_eq!(ws.list_folder_data(KIND).unwrap().len(), 1);
+    assert_eq!(ws.list_folder_data(KIND).unwrap().entries.len(), 1);
+}
+
+#[test]
+fn a_bundle_may_be_larger_than_a_layout_to_four_mib() {
+    let dir = tempdir().unwrap();
+    let config = tempdir().unwrap();
+    let mut ws = open(dir.path(), config.path());
+    ws.index().unwrap();
+    let one = |n: usize| format!("{{\"a\":\"{}\"}}", "x".repeat(n - "{\"a\":\"\"}".len()));
+    // 1 MiB: a bundle, not a layout.
+    let mib = one(1024 * 1024);
+    assert!(matches!(
+        ws.write_folder_data(KIND, "mesa", &mib, None),
+        Err(CoreError::FolderData(_))
+    ));
+    let rev = ws
+        .write_folder_data(FolderDataKind::Bundles, "mundo", &mib, None)
+        .unwrap();
+    // Read back whole, listed with its revision.
+    let read = ws
+        .read_folder_data(FolderDataKind::Bundles, "mundo")
+        .unwrap();
+    assert_eq!(
+        (read.text.len(), read.revision.as_str()),
+        (mib.len(), rev.as_str())
+    );
+    let listed = ws
+        .list_folder_data(FolderDataKind::Bundles)
+        .unwrap()
+        .entries;
+    assert_eq!(listed[0].revision, rev);
+    // Exactly 4 MiB passes, one byte more does not.
+    let at = one(FOLDER_BUNDLE_MOST);
+    ws.write_folder_data(FolderDataKind::Bundles, "cheio", &at, None)
+        .unwrap();
+    let past = one(FOLDER_BUNDLE_MOST + 1);
+    assert!(matches!(
+        ws.write_folder_data(FolderDataKind::Bundles, "alem", &past, None),
+        Err(CoreError::FolderData(_))
+    ));
 }
 
 #[test]
@@ -208,7 +248,7 @@ fn a_file_past_the_bound_on_disk_is_refused_unread_and_listed_without_a_revision
     let dir = tempdir().unwrap();
     let config = tempdir().unwrap();
     data_dir(dir.path(), "layouts");
-    let big = format!("{{\"a\": \"{}\"}}", "x".repeat(FOLDER_DATA_MOST));
+    let big = format!("{{\"a\": \"{}\"}}", "x".repeat(FOLDER_LAYOUT_MOST));
     fs::write(dir.path().join(".verso/layouts/grande.json"), big).unwrap();
     let mut ws = open(dir.path(), config.path());
     ws.index().unwrap();
@@ -216,7 +256,7 @@ fn a_file_past_the_bound_on_disk_is_refused_unread_and_listed_without_a_revision
         ws.read_folder_data(KIND, "grande"),
         Err(CoreError::FolderData(_))
     ));
-    let listed = ws.list_folder_data(KIND).unwrap();
+    let listed = ws.list_folder_data(KIND).unwrap().entries;
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0].id, "grande");
     assert_eq!(listed[0].revision, "");
@@ -231,7 +271,7 @@ fn a_placeholder_is_reported_never_taken_for_absent() {
     let mut ws = open(dir.path(), config.path());
     ws.index().unwrap();
     let kind = FolderDataKind::Bundles;
-    let listed = ws.list_folder_data(kind).unwrap();
+    let listed = ws.list_folder_data(kind).unwrap().entries;
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0].id, "mundo");
     assert_eq!(listed[0].revision, "");
@@ -266,7 +306,7 @@ fn a_removal_goes_through_the_bin_over_the_version_read() {
     // Kept in the bin, not unlinked.
     let kept = dir.path().join(&gone.path);
     assert_eq!(fs::read_to_string(kept).unwrap(), "{\"a\": 1}");
-    assert!(ws.list_folder_data(KIND).unwrap().is_empty());
+    assert!(ws.list_folder_data(KIND).unwrap().entries.is_empty());
     // A second removal finds nothing.
     assert!(ws.remove_folder_data(KIND, "mesa", &rev).is_err());
 }
@@ -282,21 +322,30 @@ fn the_kinds_are_apart_and_the_list_is_in_id_order() {
     }
     ws.write_folder_data(FolderDataKind::Bundles, "mundo", "{}", None)
         .unwrap();
-    // A file the rule does not name stays out of the list, untouched.
+    // A file the rule does not name stays out of the entries, untouched, and
+    // is named among the strays.
     fs::write(dir.path().join(".verso/layouts/Maiuscula.json"), "{}").unwrap();
     fs::write(dir.path().join(".verso/layouts/nota.txt"), "x").unwrap();
     let ids: Vec<String> = ws
         .list_folder_data(KIND)
         .unwrap()
+        .entries
         .into_iter()
         .map(|e| e.id)
         .collect();
     assert_eq!(ids, ["alfa", "meio-2", "zeta"]);
-    let bundles = ws.list_folder_data(FolderDataKind::Bundles).unwrap();
+    assert_eq!(
+        ws.list_folder_data(KIND).unwrap().strays,
+        ["Maiuscula.json", "nota.txt"]
+    );
+    let bundles = ws
+        .list_folder_data(FolderDataKind::Bundles)
+        .unwrap()
+        .entries;
     assert_eq!(bundles.len(), 1);
     assert!(ws.read_folder_data(KIND, "mundo").is_err());
     // The listed revision is the one a read gives.
-    let listed = ws.list_folder_data(KIND).unwrap();
+    let listed = ws.list_folder_data(KIND).unwrap().entries;
     assert_eq!(
         listed[0].revision,
         ws.read_folder_data(KIND, "alfa").unwrap().revision
@@ -343,11 +392,12 @@ fn sync_lists_the_data_files_beside_the_settings_and_the_notes_never_see_them() 
         .write_bytes(".verso/layouts/de-fora.json", b"{\"x\": 1}", None)
         .unwrap();
     assert!(!rev.is_empty());
-    assert_eq!(ws.list_folder_data(KIND).unwrap().len(), 2);
+    assert_eq!(ws.list_folder_data(KIND).unwrap().entries.len(), 2);
     // And another device's deletion of it leaves nothing behind.
     assert!(
         ws.list_folder_data(KIND)
             .unwrap()
+            .entries
             .iter()
             .any(|e| e.id == "de-fora")
     );
@@ -433,4 +483,104 @@ fn the_oracle_keys_are_checked_kept_and_reported() {
     assert_eq!(read.settings.oracle.unwrap().odds, None);
     assert_eq!(read.warnings.len(), 1, "{:?}", read.warnings);
     assert!(read.warnings[0].contains("odds"));
+}
+
+#[test]
+fn a_conflict_copy_is_named_among_the_strays_never_dropped() {
+    let dir = tempdir().unwrap();
+    let config = tempdir().unwrap();
+    let mut ws = open(dir.path(), config.path());
+    ws.index().unwrap();
+    ws.write_folder_data(KIND, "mesa", "{}", None).unwrap();
+    // What sync leaves beside a file two devices changed (`conflict_name`).
+    let copy = "mesa (conflict, Mac, 2026-10-20).json";
+    fs::write(dir.path().join(".verso/layouts").join(copy), "{\"b\": 2}").unwrap();
+    let listed = ws.list_folder_data(KIND).unwrap();
+    assert_eq!(
+        listed
+            .entries
+            .iter()
+            .map(|e| e.id.as_str())
+            .collect::<Vec<_>>(),
+        ["mesa"]
+    );
+    assert_eq!(listed.strays, [copy]);
+    // The other kind has none, and a stray is left as it is.
+    assert!(
+        ws.list_folder_data(FolderDataKind::Bundles)
+            .unwrap()
+            .strays
+            .is_empty()
+    );
+    assert!(has(&dir.path().join(".verso/layouts"), copy));
+}
+
+#[test]
+fn the_generic_commands_refuse_the_data_directories() {
+    let dir = tempdir().unwrap();
+    let config = tempdir().unwrap();
+    let mut ws = open(dir.path(), config.path());
+    ws.index().unwrap();
+    ws.create_note("Nota", "x").unwrap();
+    ws.create_file("anexo.bin", b"x").unwrap();
+    let rev = ws.read_text("anexo.bin").unwrap().revision;
+    fn refused<T>(r: Result<T, CoreError>) -> bool {
+        matches!(r, Err(CoreError::FolderData(_)))
+    }
+    for target in [
+        ".verso/layouts/x.json",
+        ".verso/bundles/x.json",
+        ".verso/layouts/Maiuscula.json",
+        ".verso/bundles/Nota.canvas",
+        ".verso/layouts",
+        ".verso/bundles/sub",
+    ] {
+        assert!(
+            refused(ws.create_file(target, b"{}")),
+            "create_file {target}"
+        );
+        assert!(refused(ws.create_folder(target)), "create_folder {target}");
+        assert!(
+            refused(ws.write_text(target, "{}", &rev)),
+            "write_text {target}"
+        );
+        assert!(
+            refused(ws.rename_entry("anexo.bin", target)),
+            "rename {target}"
+        );
+    }
+    assert!(refused(
+        ws.move_entries(&["anexo.bin".to_owned()], ".verso/layouts")
+    ));
+    // Nothing was made, and the data API is the way in.
+    assert!(!has(dir.path(), ".verso"));
+    ws.write_folder_data(KIND, "mesa", "{}", None).unwrap();
+    // The settings file is not a data directory: the rule is the narrower.
+    assert!(!refused(ws.create_file(".verso/settings.json", b"{}")));
+}
+
+#[test]
+fn a_file_past_the_bound_is_removed_unread_on_the_empty_revision_the_list_gave() {
+    let dir = tempdir().unwrap();
+    let config = tempdir().unwrap();
+    data_dir(dir.path(), "layouts");
+    let big = format!("{{\"a\": \"{}\"}}", "x".repeat(FOLDER_LAYOUT_MOST));
+    fs::write(dir.path().join(".verso/layouts/grande.json"), &big).unwrap();
+    let mut ws = open(dir.path(), config.path());
+    ws.index().unwrap();
+    let listed = ws.list_folder_data(KIND).unwrap().entries;
+    assert_eq!(listed[0].revision, "");
+    // A revision the file never had is not "the version listed".
+    assert!(matches!(
+        ws.remove_folder_data(KIND, "grande", "1-2-3"),
+        Err(CoreError::FolderData(_))
+    ));
+    assert!(has(&dir.path().join(".verso/layouts"), "grande.json"));
+    let gone = ws.remove_folder_data(KIND, "grande", "").unwrap();
+    assert!(!has(&dir.path().join(".verso/layouts"), "grande.json"));
+    assert_eq!(fs::read_to_string(dir.path().join(gone.path)).unwrap(), big);
+    // A file within the bound still needs its real revision.
+    let rev = ws.write_folder_data(KIND, "mesa", "{}", None).unwrap();
+    assert!(ws.remove_folder_data(KIND, "mesa", "").is_err());
+    ws.remove_folder_data(KIND, "mesa", &rev).unwrap();
 }
