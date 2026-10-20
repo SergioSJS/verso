@@ -450,9 +450,10 @@ describe("a roll block rolls the system's way, shown and said, never written", (
   });
 });
 
-test("the fence names: statblock and statblock-*", () => {
+test("the fence names: statblock only, in any case", () => {
   assert.ok(m.isStatblockFence("statblock"));
-  assert.ok(m.isStatblockFence("statblock-pf2e foo"));
+  assert.ok(m.isStatblockFence("StatBlock extra"));
+  assert.ok(!m.isStatblockFence("statblock-pf2e foo"));
   assert.ok(!m.isStatblockFence("stat"));
 });
 
