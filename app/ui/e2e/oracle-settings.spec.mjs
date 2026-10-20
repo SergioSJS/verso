@@ -167,7 +167,8 @@ test("a row typed by hand says what it lacks and is not saved until it adds up t
   await expect(seg(page, "nearlyCertain", "noAnd")).toHaveAttribute("data-value", "5");
   // Back to the default, by its button.
   await page.getByRole("button", { name: "Voltar ao padrão" }).click();
-  await expect.poll(async () => (await folderOracle(app))?.odds).toEqual(DEFAULT);
+  // Cleared from the file, not a built-in table written in its place.
+  await expect.poll(async () => (await folderOracle(app))?.odds).toBeUndefined();
   await expect(no).toHaveValue("6");
 });
 
@@ -204,10 +205,10 @@ test("the spark words: Verso's in the window's language, then the folder's own, 
   await expect(page.getByRole("button", { name: "Remover Destruir" })).toHaveCount(0);
   await expect.poll(async () => (await folderOracle(app))?.sparks?.action?.includes("Destruir")).toBe(false);
   await shot(page, info, "own-words-edited");
-  // Back to Verso's words: the built-in set, which reads as Verso's again.
+  // Back to Verso's words: the key leaves the file.
   await page.getByRole("button", { name: "Voltar às palavras do Verso" }).click();
   await expect(own).not.toBeChecked();
-  await expect.poll(async () => (await folderOracle(app))?.sparks?.action?.[0]).toBe("Descobrir");
+  await expect.poll(async () => (await folderOracle(app))?.sparks).toBeUndefined();
   await expect(sparks.locator(".orc-words-preview").first()).toContainText("Descobrir");
 });
 

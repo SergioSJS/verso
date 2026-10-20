@@ -725,6 +725,8 @@ fn oracle_in(o: OracleSettings) -> verso_core::Oracle {
             descriptor: s.descriptor,
             focus: s.focus,
         }),
+        clear_odds: o.clear_odds.unwrap_or(false),
+        clear_sparks: o.clear_sparks.unwrap_or(false),
     }
 }
 
@@ -737,6 +739,8 @@ fn oracle_out(o: verso_core::Oracle) -> OracleSettings {
             descriptor: s.descriptor,
             focus: s.focus,
         }),
+        clear_odds: None,
+        clear_sparks: None,
     }
 }
 
