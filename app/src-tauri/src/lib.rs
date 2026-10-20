@@ -30,13 +30,13 @@ use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use verso_contract::{
-    AppInfo, Backlink, BaseQuery, BaseResult, Can, Capabilities, CliState, CollabJoin, CollabRoll,
-    CollabState, CollabUpdate, ContractError, DiceRoll, Edge, ErrorKind, FileEntry, Focus,
-    FocusesSummary, FolderChanged, FolderDataEntry, FolderDataFile, FolderDataKind,
-    FolderDataWritten, FolderInfo, FolderLayer, FolderSettings, FolderSpace, Hit, Host,
-    IndexProgress, IndexSummary, Link, MapInfo, McpAdded, McpClientState, McpStatus, Mentions,
-    MovedEntries, NoteText, ObsidianPeriodic, Renamed, ServerAccount, Tag, TextFile, Trashed,
-    UpdateProgress, WebNote, Written,
+    AppInfo, Backlink, BaseQuery, BaseResult, Can, Capabilities, CliState, CollabJoin,
+    CollabOracle, CollabRoll, CollabState, CollabUpdate, ContractError, DiceRoll, Edge, ErrorKind,
+    FileEntry, Focus, FocusesSummary, FolderChanged, FolderDataEntry, FolderDataFile,
+    FolderDataKind, FolderDataWritten, FolderInfo, FolderLayer, FolderSettings, FolderSpace, Hit,
+    Host, IndexProgress, IndexSummary, Link, MapInfo, McpAdded, McpClientState, McpStatus,
+    Mentions, MovedEntries, NoteText, ObsidianPeriodic, OracleAsk, OracleDraw, Renamed,
+    ServerAccount, Tag, TextFile, Trashed, UpdateProgress, WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
 use verso_service::{OpError, Service, lock, no_folder, ops, refused};
@@ -644,6 +644,16 @@ fn collab_roll(
     Err(not_here())
 }
 
+/// An oracle question, spark or table drawn in the note's room by the
+/// server, heard by the others in it (ADR 0102 item 5): on a server, or a
+/// synced folder's link, only; here the window draws itself.
+#[tauri::command]
+#[specta::specta]
+fn collab_oracle(path: String, ask: OracleAsk) -> Result<OracleDraw, ContractError> {
+    let _ = (path, ask);
+    Err(not_here())
+}
+
 /* ---------- The command line and MCP, from the settings (ADR 0054) ---------- */
 
 /// The commands, once, for the handler, the bindings and the tests. A
@@ -738,6 +748,7 @@ macro_rules! commands_for {
                 collab_present,
                 collab_canvas,
                 collab_roll,
+                collab_oracle,
                 server_sign_in::<$runtime>,
                 server_sign_in_page,
                 server_accounts,
@@ -813,6 +824,7 @@ macro_rules! commands_for {
             .typ::<CollabUpdate>()
             .typ::<CollabState>()
             .typ::<CollabRoll>()
+            .typ::<CollabOracle>()
             .typ::<ServerAccount>()
             .typ::<verso_contract::ServerGone>()
             .typ::<verso_contract::ServerBack>()

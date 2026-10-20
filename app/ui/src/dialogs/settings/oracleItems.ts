@@ -13,7 +13,7 @@ import type { ItemCtx, SettingItem } from "./types";
 export function oracleItems(ctx: ItemCtx): SettingItem[] {
   return [
     { section: "oracles", title: ss.oddsTitle, desc: ss.oddsDesc, node: () => ctx.item(ss.oddsTitle, ss.oddsDesc, oddsControl(ctx)) },
-    { section: "oracles", title: ss.sparksTitle, desc: ss.sparksDesc, node: () => ctx.item(ss.sparksTitle, ss.sparksDesc, sparksControl()) },
+    { section: "oracles", title: ss.sparksTitle, desc: ss.sparksDesc, node: () => ctx.item(ss.sparksTitle, ss.sparksDesc, sparksControl(ctx)) },
     { section: "oracles", title: ss.tablesTitle, desc: ss.tablesDesc, node: () => ctx.item(ss.tablesTitle, ss.tablesDesc, tablesControl(ctx)) },
   ];
 }
