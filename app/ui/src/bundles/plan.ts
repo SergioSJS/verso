@@ -189,3 +189,31 @@ export function planBundle(bundle: TemplateBundle, input: PlanInput): Plan {
   const ordered = [...folders].sort((a, b) => a.split("/").length - b.split("/").length || a.localeCompare(b));
   return { folders: ordered, files, problems };
 }
+
+/** The problems of a plan the person edited (renamed or thinned out) in
+ *  the confirmation: every path again checked as a bundle's own are. */
+export function checkEdited(plan: Plan, w: BundleWords): Plan["problems"] {
+  const problems: Plan["problems"] = [];
+  const check = (path: string, at: string): void => {
+    if (path.startsWith("/") || /^[A-Za-z]:/.test(path)) return void problems.push({ at, message: w.plan.relative });
+    for (const seg of path.split("/")) {
+      const why = segmentProblem(seg, w);
+      if (why) return void problems.push({ at, message: why });
+    }
+  };
+  const seen = new Set<string>();
+  const once = (path: string, at: string): void => {
+    const key = path.toLowerCase();
+    if (seen.has(key)) problems.push({ at, message: w.plan.twice(path) });
+    seen.add(key);
+  };
+  plan.folders.forEach((f, i) => {
+    check(f, `/folders/${i}`);
+    once(f, `/folders/${i}`);
+  });
+  plan.files.forEach((f, i) => {
+    check(f.path, `/files/${i}/path`);
+    once(f.path, `/files/${i}/path`);
+  });
+  return problems;
+}

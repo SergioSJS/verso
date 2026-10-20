@@ -8,7 +8,7 @@ await esbuild.build({
     contents: `export { validateBundle, unfence, MAX_PASTE_BYTES } from "./src/bundles/types";
 export { systemPromptFor } from "./src/bundles/systemPrompt";
 export { BUILTIN_PRESETS, DADOS_CRITICOS_CAMPAIGN, DADOS_CRITICOS_MUNDO } from "./src/bundles/presets";
-export { planBundle, segmentProblem, titleForPath, fill, frontmatter, LIMITS } from "./src/bundles/plan";
+export { planBundle, checkEdited, segmentProblem, titleForPath, fill, frontmatter, LIMITS } from "./src/bundles/plan";
 export { applyPlan, toBase64, needsReading } from "./src/bundles/run";
 export { bundleWords, PRESET_TEXT_EN } from "./src/bundles/words";
 export { parse } from "yaml";`,
@@ -24,7 +24,7 @@ export { parse } from "yaml";`,
 });
 const {
   validateBundle, unfence, MAX_PASTE_BYTES, systemPromptFor, BUILTIN_PRESETS, DADOS_CRITICOS_CAMPAIGN, DADOS_CRITICOS_MUNDO,
-  planBundle, segmentProblem, titleForPath, fill, frontmatter, LIMITS, applyPlan, toBase64, needsReading, bundleWords, PRESET_TEXT_EN, parse,
+  planBundle, checkEdited, segmentProblem, titleForPath, fill, frontmatter, LIMITS, applyPlan, toBase64, needsReading, bundleWords, PRESET_TEXT_EN, parse,
 } = await import("./.bundles/bundles.test-bundle.mjs");
 
 const pt = bundleWords("pt-BR");
@@ -278,4 +278,11 @@ test("applyPlan treats a throw as a failure and goes on; a clean run needs no re
 
 test("toBase64 carries accents and emoji as UTF-8", () => {
   for (const s of ["", "ação", "📁 Mundo — é"]) assert.equal(Buffer.from(toBase64(s), "base64").toString("utf8"), s);
+});
+
+test("checkEdited checks a plan the person renamed or thinned out, path by path", () => {
+  const plan = planBundle(bundle({ folders: ["A"], files: [{ path: "A/n" }] }), input());
+  assert.deepEqual(checkEdited(plan, pt), []);
+  const edited = { ...plan, folders: ["Tormenta", "Tormenta/CON", "Tormenta/ok"], files: [{ path: "../x.md", text: "", note: true }, { path: "Tormenta/ok/a.md", text: "", note: true }, { path: "tormenta/OK/A.md", text: "", note: true }] };
+  assert.deepEqual(checkEdited(edited, en).map((p) => p.at), ["/folders/1", "/files/0/path", "/files/2/path"]);
 });
