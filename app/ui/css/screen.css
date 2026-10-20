@@ -14,7 +14,7 @@
 @container pane (max-width: 520px) {
   .pane-tools > :not(.pane-fold) { display: none; }
   .pane-tools > .pane-fold { display: inline-flex; }
-  .tab { max-width: 22ch; }
+  .tab { max-width: 18ch; }
   .leaf-head { flex-wrap: wrap; gap: .4rem .8rem; }
   .sheet, .leaf-head { padding-left: .7rem; padding-right: .7rem; }
   .prop { grid-template-columns: minmax(5rem, 8rem) minmax(0, 1fr) auto; }
