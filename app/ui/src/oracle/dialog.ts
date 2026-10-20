@@ -496,7 +496,7 @@ function build(): Dialog {
         if (p.tabIndex < 0) p.tabIndex = -1;
         p.focus({ preventScroll: true });
       }
-    } else host.editor.focus();
+    } else host.editor.contentDOM.focus({ preventScroll: true });
   };
 
   qInput.addEventListener("keydown", (e) => {
