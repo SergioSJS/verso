@@ -127,14 +127,19 @@ detalhe que ele não leu.
    e um reparo de um clique, nunca um palpite silencioso.
 
 6. **Quais layouts vêm embutidos.** `[DECIDIDO 2026-10-20]`, sobre a
-   recomendação depois da pesquisa de licenças. Embutidos, cada campo com a
+   recomendação depois da pesquisa de licenças: embutidos só onde as regras
+   são abertas, mais layouts genéricos nomeados pelas suas mecânicas; o resto
+   importado, ou embutido quando a editora permitir. `[PROPOSTO]`: a lista
+   abaixo, montada depois dessa resposta. Embutidos, cada campo com a
    sua fonte em `docs/reference/statblock-sources.md`, a linha de cada
    licença na página de Créditos:
    - sistemas cujas regras são abertas: o SRD de D&D 5e (5.1 e 5.2.1, CC BY
      4.0), Pathfinder 2e (ORC), Starfinder 2e (ORC; só a criatura, até a
      sua ficha de personagem ser lida de uma fonte), 13th Age (OGL 1.0a), Dungeon World
      e Blades in the Dark (CC BY 3.0), Fate Condensado e Acelerado (CC BY
-     3.0), Mausritter e as partes abertas de Ironsworn/Starforged (CC BY
+     3.0), Mausritter (a sua Third Party Licence; a linha que ela pede nomeia
+     o mantenedor, à espera da palavra dele), as partes abertas de
+     Ironsworn/Starforged (CC BY
      4.0), Cairn e Old Dragon 2e (CC BY-SA 4.0: só nomes de campos, nenhum
      texto);
    - **Fractal** (Igor Téuri e Walter Licínio, CC BY 4.0 pelo texto do seu

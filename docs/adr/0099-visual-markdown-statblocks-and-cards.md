@@ -125,14 +125,19 @@ he has not read.
    guess.
 
 6. **Which layouts ship.** `[DECIDED 2026-10-20]`, on the recommendation
-   after the licence research. Built in, each field with its source in
+   after the licence research: built in only where the rules are open, plus
+   generic layouts named by their mechanics; the rest imported, or shipped
+   once the publisher allows it. `[PROPOSED]`: the list below, worked out
+   after that answer. Built in, each field with its source in
    `docs/reference/statblock-sources.md`, each licence's line on the
    Credits page:
    - systems whose rules are open: the D&D 5e SRD (5.1 and 5.2.1, CC BY
      4.0), Pathfinder 2e (ORC), Starfinder 2e (ORC; its creature only, until
      its character sheet is read from a source), 13th Age (OGL 1.0a), Dungeon World and
      Blades in the Dark (CC BY 3.0), Fate Condensed and Accelerated (CC BY
-     3.0), Mausritter and Ironsworn/Starforged's open parts (CC BY 4.0),
+     3.0), Mausritter (its Third Party Licence; the line it asks for names
+     the maintainer, waiting for his word), Ironsworn/Starforged's open
+     parts (CC BY 4.0),
      Cairn and Old Dragon 2e (CC BY-SA 4.0: field names only, no text);
    - **Fractal** (Igor Téuri and Walter Licínio, CC BY 4.0 by its SRD's
      text, whose badge shows BY-SA — to be confirmed with the authors; field
