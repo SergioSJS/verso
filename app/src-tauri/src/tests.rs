@@ -1231,6 +1231,17 @@ fn the_window_controls_are_allowed() {
     }
 }
 
+/// The window's zoom (ADR 0072, revised 2026-10-20) is allowed: without
+/// the webview's permission the keys do nothing in the app, while the
+/// harness, which keeps the call, passes.
+#[test]
+fn the_window_zoom_is_allowed() {
+    let capability = include_str!("../capabilities/default.json");
+    let zoom = include_str!("../../ui/src/zoom.ts");
+    assert!(zoom.contains("setZoom("), "zoom.ts no longer sets the zoom");
+    assert!(capability.contains("\"core:webview:allow-set-webview-zoom\""));
+}
+
 /// The system's notifications (ADR 0084 item 9) are the window's to ask
 /// and to send: without the plugin's permissions in the capability the
 /// app answers "not allowed" while the browser harness, which has its
