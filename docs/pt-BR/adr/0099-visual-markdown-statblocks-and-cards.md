@@ -1,13 +1,23 @@
-# ADR 0099 — Visual Markdown: fichas e cartões de RPG na nota: integração com layout, segurança de CRDT e matriz de compatibilidade
+# ADR 0099 — Statblocks: um cartão a partir de um bloco `statblock`, layouts como arquivos da pasta, rolagens por sistema
 
-- Data: 2026-10-17
-- Fonte: o mantenedor, em sessão em 2026-10-17: *"depois disso seriam as
-  fichas, o stat blocks, os visuais markdown. Eu acho que esse visual markdown
-  tem a ver com o que a gente prometeu na V1, então talvez bote ele antes até
-  dessas outras funcionalidades."* Revisado por Claude Opus 5.5 em 2026-10-17
-  (`review_adrs_0098_0102.md`) para integrar com a primitiva `layout:` do
-  ADR 0086, eliminar gatilhos heurísticos acidentais, estabelecer uma matriz
-  de compatibilidade e blindar sessões colaborativas contra descompassos de CRDT.
+- Data: 2026-10-17; reescrita em 2026-10-20
+- Fonte: o mantenedor, em 2026-10-17: *"depois disso seriam as fichas, o
+  stat blocks, os visuais markdown"*; em 2026-10-18, sobre a primeira
+  construção: *"veja como o plugin do obsidian resolve e replique … geralmente
+  a pessoa vai usar para registrar inimigos e desafios, e dependendo do
+  sistema a ficha de desafio é diferente da ficha de personagem,
+  PESQUISE!"*, e uma lista de sistemas. O primeiro texto e o primeiro
+  código, escritos por outra IA (Gemini, no Antigravity), inventaram os
+  atributos de um sistema, entregaram um editor de layouts que o mantenedor
+  chamou de *"péssimo"*, guardaram os layouts no armazenamento do navegador
+  de cada dispositivo e foram marcados como Aceitos sem aceitação. Em
+  2026-10-20 o mantenedor respondeu à revisão dele (citado nos itens) e
+  aceitou o desenho que se seguiu: *"adorei as sugestões e melhorias e
+  correções. pode definir uma sequencia e atuar em tudo"*. Este texto
+  substitui o primeiro. A pesquisa por trás dele: o código público do plugin
+  Fantasy Statblocks (MIT, Jeremy Valentine; estudado em f248f4af, v4.10.3),
+  e as regras, SRDs e licenças publicados de cerca de 35 sistemas, cada
+  campo com a sua fonte, em `docs/reference/statblock-sources.md`.
 - Relacionados: [0003](0003-primitives-not-workarounds.md),
   [0009](0009-external-constraints.md),
   [0012](0012-files-are-source-of-truth.md),
@@ -15,108 +25,189 @@
   [0030](0030-base-dialect-obsidian-compatible.md),
   [0035](0035-cross-cutting-requirements.md),
   [0036](0036-tabletop-rpg-support.md),
+  [0070](0070-what-travels-with-the-folder.md),
   [0082](0082-live-co-editing-of-a-synced-folder.md),
-  [0086](0086-infobox-a-typed-notes-card.md),
-  [0088](0088-dice-and-random-tables.md),
+  [0083](0083-security-hardening-of-universo.md),
+  [0088](0088-dice-and-random-tables.md) (item 5 revisado pelo item 4),
   [0103](0103-feature-presets-and-capability-flags.md).
-- Estado no briefing: não presente; primitiva de cartão visual em Markdown.
+- Status no briefing: não presente.
 
 ## Contexto
 
-Mestres de RPG conduzindo sessões ao vivo e criadores documentando criaturas
-ficcionais necessitam que fichas de atributos (Classe de Armadura, Pontos de
-Vida, Atributos, Deslocamentos, Ações e Habilidades) sejam formatadas com a
-legibilidade de livros impressos, em vez de YAML puro ou prosa sem estilo.
+Um mestre de jogo anota os inimigos e desafios de uma sessão; um criador de
+mundos, as criaturas de um mundo. No Obsidian, o plugin da comunidade
+Fantasy Statblocks desenha um bloco ```` ```statblock ```` de YAML como o
+statblock de um livro, por meio de um layout: uma lista de blocos (um
+título, propriedades, uma tabela de atributos, características…) que um
+editor de configurações monta. Seus pontos fracos, segundo as próprias
+issues: a prévia do layout é uma aba separada, arrastar treme, os layouts
+vivem nos dados privados do plugin (de um dispositivo, não do cofre), e dez
+campos de um layout são JavaScript executado com `new Function` — código de
+um arquivo que outra pessoa compartilhou.
 
-No Obsidian, usuários criam statblocks por meio do plugin comunitário
-*Fantasy Statblocks* (`javalent/fantasy-statblocks`) usando blocos de código
-com cerca (`statblock`) ou via snippets CSS personalizados. Sem o plugin, o
-Obsidian exibe a cerca como código bruto sem estilo.
-
-A landing page do Verso promete cartões visuais para notas: *"Ficha da nota. As
-propriedades viram um cartão ao lado do texto, com imagem — a ficha de um
-personagem, de um lugar, de um projeto"* ([0086](0086-infobox-a-typed-notes-card.md)).
-No entanto, gatilhos heurísticos ad-hoc (como detectar `hp:` ou `ac:` no
-frontmatter comum) causam conversões acidentais de notas de imóveis ou aparelhos
-em fichas de monstros. Além disso, alterar Pontos de Vida reescrevendo o texto do
-frontmatter durante sessões colaborativas corrompe a edição concorrente por
-caractere no Yjs ([0082](0082-live-co-editing-of-a-synced-folder.md)).
+Os sistemas diferem, e na maioria deles um adversário não é um personagem:
+um adversário de Daggerheart tem dificuldade, limiares e características;
+um desafio de Fractal é uma lista de obstáculos, cada um dos quais pode ser
+outro desafio. As licenças diferem ainda mais: algumas são abertas (CC BY,
+ORC, OGL), algumas permitem obras de fãs mas não aplicativos, algumas não
+permitem nada.
 
 ## Decisão
 
-Proposto (2026-10-17). Aceito em 2026-10-17 (Status): cada `[OPEN]` foi decidido conforme
-recomendado e está marcado como `[DECIDED 2026-10-17]`.
+Aceita em 2026-10-20 para o desenho proposto ao mantenedor naquele dia;
+`[DECIDIDO 2026-10-20]` cita as respostas dele, `[PROPOSTO]` marca um
+detalhe que ele não leu.
 
-1. **Ativação explícita via primitiva layout do ADR 0086 e blocos com cerca.**
-   `[DECIDED 2026-10-17]`: Fichas e statblocks são ativados estritamente por
-   dois mecanismos explícitos, sem heurística:
-   - **Cartão no nível da nota**: O frontmatter declara `layout: statblock`
-     (construído sobre a propriedade `layout` do item 1 do ADR 0086, ao lado de `infobox`).
-   - **Bloco inline**: Bloco de código com cerca usando o identificador `statblock`
-     (compatível com o Fantasy Statblocks do Obsidian).
-   Gatilhos heurísticos baseados em nomes soltos de chaves (`hp:`, `ac:`) são
-   estritamente rejeitados. O recurso só opera quando o preset `rpg` está ativo
-   ([0103](0103-feature-presets-and-capability-flags.md)).
+1. **Um cartão vem de um bloco ```` ```statblock ````, e só dele.** O bloco
+   guarda YAML. Suas chaves são os nomes de chave do Fantasy Statblocks
+   (`name`, `size`, `type`, `ac`, `hp`, `stats`, `saves`, `skills`,
+   `traits`, `actions`, `reactions`, `legendary_actions`, `cr`, `image`,
+   `layout`…), de modo que um bloco escrito para o plugin é desenhado no
+   Verso e o contrário também ([0030](0030-base-dialect-obsidian-compatible.md)).
+   `layout:` nomeia um layout por id ou por nome, exatamente, ignorando
+   maiúsculas e acentos; um desconhecido desenha o layout padrão com um
+   "layout não encontrado" visível. Nenhum cartão é adivinhado a partir de
+   propriedades comuns (`hp:` numa nota sobre um computador). `[PROPOSTO]`:
+   `monster: Goblin` e `extends: [[Goblin]]` pegam o statblock da nota assim
+   nomeada e sobrepõem as chaves dele — o bestiário do plugin, feito de
+   notas.
 
-2. **Segurança de CRDT e estado de sessão efêmero ([0082](0082-live-co-editing-of-a-synced-folder.md)).**
-   `[DECIDED 2026-10-17]`: Abrir, visualizar e interagir com uma ficha nunca
-   altera o texto da nota no disco ([0012](0012-files-are-source-of-truth.md)).
-   O rastreamento temporário de dano em combate é mantido exclusivamente na memória
-   local da sessão (indexado pelo caminho da nota e ID do bloco). Persistir PV
-   no frontmatter por mutação textual direta de caracteres é proibido porque
-   edições concorrentes de múltiplos mestres provocam corrupção semântica (`hp: 12`
-   fundindo-se em `1209`).
+2. **Layouts são arquivos da pasta.** `[DECIDIDO 2026-10-20]`: *"deveria
+   ser tudo igual, não? se eu compartilhar com alguém, é pra essa pessoa
+   ver como eu"*. Um layout que alguém fez ou alterou é
+   `.verso/layouts/<id>.json` na pasta ([0070](0070-what-travels-with-the-folder.md),
+   estendida): ele sincroniza, todos que abrem a pasta veem o mesmo cartão,
+   e é escrito pelo `verso-fs` com a verificação de arquivo desatualizado,
+   por comandos do contrato que listam, leem, escrevem e removem layouts e
+   nada mais sob `.verso/`. Os layouts embutidos vêm com o aplicativo e não
+   podem ser alterados; "duplicar" copia um para a pasta. Nada de um layout
+   vive no armazenamento do navegador de um dispositivo; o que uma
+   construção anterior guardava lá passa para a pasta uma vez.
 
-3. **Rolagens de dados interativas reusam o motor do ADR 0088.**
-   `[DECIDED 2026-10-17]`: Bônus de ataque, fórmulas de dano e recargas (ex.:
-   `1d20+5`, `2d6+3`, `recarga 5-6`) em traços e ações são renderizados como
-   botões clicáveis de dados. Clicar no botão aciona uma rolagem usando o motor
-   unificado de dados ([0088](0088-dice-and-random-tables.md)), anunciada para
-   a sala em sessões compartilhadas e transmitida para leitores de tela.
+3. **O modelo de layout é o do plugin, sem código.** Blocos: título,
+   subtítulo, propriedade, tabela (uma tabela de atributos, com o seu
+   modificador vindo de uma lista fechada — `floor((x-10)/2)`, nenhum — ou
+   de uma expressão do avaliador restrito do Rolai, que não tem `eval`),
+   salvaguardas, características, texto, imagem, grupo, em linha, recolher,
+   condicional (um teste estruturado: uma chave existe, é igual, é maior
+   que), **marcador** (tracker) e **rolagem** (itens 4–5). Cada bloco nomeia
+   as suas chaves, um rótulo por idioma, se some quando vazio e um valor
+   reserva. **Nenhum campo de um layout é jamais executado como código**:
+   cada um dos dez campos JavaScript do plugin tem um substituto declarativo
+   ou nenhum. A aparência de um layout é uma lista curta de tokens (cores,
+   uma das fontes do aplicativo), cada um conferido contra o seu tipo, nunca
+   CSS bruto ([0083](0083-security-hardening-of-universo.md)). Um JSON de
+   layout do Fantasy Statblocks é importado, com os campos de código
+   descartados e listados à pessoa; o Verso exporta o seu próprio JSON.
 
-4. **Ergonomia no Live Preview e edição da fonte.**
-   `[DECIDED 2026-10-17]`: No Live Preview, posicionar o cursor dentro do bloco
-   de código `statblock` revela o texto YAML bruto, respeitando o comportamento
-   nativo de widgets de bloco do CodeMirror 6. Um botão dedicado no cabeçalho do
-   cartão permite alternar rapidamente entre a visualização e o código-fonte.
-   Quando a análise do YAML falha durante a digitação, o Verso exibe o último
-   cartão válido renderizado com um aviso inline de erro, nunca piscando uma tela branca vazia.
+4. **As rolagens seguem o sistema, pelos perfis do Rolai.** O mantenedor:
+   *"tudo relacionado a rolagem dá pra copiar numa boa do rolai, app meu
+   aberto"*. O item 5 da [0088](0088-dice-and-random-tables.md), que copiou o
+   parser e o rolador do Rolai, é revisado: os perfis de sistema dele e o
+   avaliador restrito de expressões são copiados também, com o aviso MIT —
+   21 perfis: d20, d100, rolar abaixo, pool de d6, Year Zero, Forged in the
+   Dark, PbtA 2d6 e 2d10, Ironsworn, Fate, World of Darkness 5, Fractal,
+   Trophy e outros. Um layout nomeia o seu perfil. Um valor com bônus ou uma
+   expressão de dados (`+5`, `2d6+3`) vira um botão pelas regras de dados do
+   layout; um bloco de **rolagem** executa o perfil com entradas tiradas da
+   ficha (uma rolagem de risco do Fractal pergunta quantos fatos se
+   aplicam). A resposta se lê do jeito que o sistema a lê — o dado mais
+   alto, sucessos contados, uma faixa de 2d6 — e é mostrada, não escrita
+   ([0088](0088-dice-and-random-tables.md) item 2); numa sala o servidor
+   sorteia e a sala vê (item 4 de lá).
 
-5. **Matriz de compatibilidade com formatos de terceiros ([0009](0009-external-constraints.md)).**
-   `[DECIDED 2026-10-17]`:
-   - **Suportados**: Chaves essenciais do 5e SRD (`name`, `size`, `type`, `alignment`,
-     `ac`, `hp`, `speed`, `stats`, `saves`, `skills`, `damage_resistances`,
-     `condition_immunities`, `senses`, `languages`, `cr`, `traits`, `actions`,
-     `reactions`, `legendary_actions`), variantes em português do Tormenta20
-     (`nd`, `ca`, `pv`, `pm`, `deslocamento`, `pericias`, `ataques`) e dicionários
-     genéricos de chave e valor.
-   - **Degradação graciosa**: Chaves de plugins que exigem bancos de dados internos
-     (`monster: Goblin`, `extends:`, layouts próprios do plugin) degradam limpamente
-     para cartões genéricos de atributos sem falhar.
+5. **Os marcadores escrevem na nota.** `[DECIDIDO 2026-10-20]`: *"13.
+   deveria gravar"*. Um bloco **marcador** mostra um valor atual contra um
+   máximo — pontos de vida, as reservas do Fractal, estresse, um relógio,
+   Esperança — como caixas ou um número. Um clique é ação da pessoa
+   (invariante 8): substitui aquele único valor no YAML do bloco, pelo
+   editor ou pela sala, nunca o bloco inteiro, nunca direto no disco.
+   `[PROPOSTO]`: numa sala, depois que dois cliques se fundem, um valor que
+   já não se lê como um número dentro dos seus limites mostra uma insígnia
+   e um reparo de um clique, nunca um palpite silencioso.
 
-6. **Acessibilidade e internacionalização ([0035](0035-cross-cutting-requirements.md)).**
-   `[DECIDED 2026-10-17]`: Todos os rótulos de statblock, abreviações de modificadores
-   e títulos de seções suportam português (`pt-BR`) e inglês (`en`). Tabelas de
-   atributos implementam semântica completa de `<table>`, `<th>` e `<td>`. Botões
-   de rolagem de dados fornecem atributos `aria-label` descritivos (ex.: "Rolar ataque 1d20+5 no Verso").
+6. **Quais layouts vêm embutidos.** `[DECIDIDO 2026-10-20]`, sobre a
+   recomendação depois da pesquisa de licenças. Embutidos, cada campo com a
+   sua fonte em `docs/reference/statblock-sources.md`, a linha de cada
+   licença na página de Créditos:
+   - sistemas cujas regras são abertas: D&D 5e SRD 5.2 (CC BY 4.0),
+     Pathfinder 2e e Starfinder 2e (ORC), 13th Age (OGL 1.0a), Dungeon World
+     e Blades in the Dark (CC BY 3.0), Fate Condensado e Acelerado (CC BY
+     3.0), Mausritter e as partes abertas de Ironsworn/Starforged (CC BY
+     4.0), Cairn e Old Dragon 2e (CC BY-SA 4.0: só nomes de campos, nenhum
+     texto);
+   - **Fractal** (Igor Téuri e Walter Licínio, CC BY 4.0 pelo texto do seu
+     SRD): um personagem (reservas, até doze fatos que quebram e se
+     consertam, XP) e um **desafio** cujos obstáculos podem ser, cada um, um
+     `[[link]]` para a nota de outro desafio — uma campanha, os seus arcos e
+     os seus episódios como uma árvore que o grafo já desenha;
+   - layouts genéricos nomeados pelas suas mecânicas, sem o nome de nenhum
+     sistema: criatura d20, percentil, jogadas 2d6, pool de d6, pool de
+     dados por dificuldade, escada e aspectos.
+   Para o resto — Daggerheart, Tormenta20, Call of Cthulhu, Savage Worlds,
+   os jogos da Free League, Vampire e outros — um layout é um arquivo que a
+   pessoa importa, ou que vem embutido quando a editora permitir por
+   escrito. `[PROPOSTO]`: os jogos da 5ª edição de World of Darkness sob o
+   Dark Pack da Paradox, e um layout em branco de Cyberpunk RED sob a
+   política de homebrew da R. Talsorian, cada um com o seu aviso. Todo
+   layout embutido tem uma ficha de personagem e, onde o sistema tem, uma
+   ficha de adversário separada.
+
+7. **Edição no lugar.** No Live Preview o YAML aparece enquanto o cursor
+   está no bloco; o cartão tem um botão para a sua fonte e a fonte um de
+   volta, nas duas visões. Um YAML que não lê enquanto se digita mantém o
+   último cartão desenhado, com uma insígnia de erro. Um bloco maior que
+   256 KB não é lido e diz isso. Nada que um statblock guarde pode impedir o
+   resto da nota de ser desenhado.
+
+8. **O editor de layouts, refeito.** `[DECIDIDO 2026-10-20]`: *"o construtor
+   de layout tá muito ruim, péssimo na real, precisava que vc revisasse ou
+   até refizesse"*. A árvore de blocos de um lado e o cartão que ela faz do
+   outro, desenhado a partir de um exemplo ou de um statblock da nota
+   aberta, os dois ao mesmo tempo; adicionar um bloco por um menu; as
+   opções de um bloco no lugar, não numa pilha de diálogos; mover um bloco
+   arrastando ou por teclas; desfazer; sair com alterações não salvas
+   pergunta antes. Ele escreve o arquivo do layout pelo contrato.
+
+9. **A chave.** Statblocks são uma funcionalidade da
+   [0103](0103-feature-presets-and-capability-flags.md), os botões de
+   rolagem deles parte de "Dados": desligado, o bloco é um bloco de código,
+   como o Obsidian o desenha sem o plugin.
+
+10. **Acessibilidade e idiomas** ([0035](0035-cross-cutting-requirements.md)):
+    uma tabela de atributos é uma `<table>` com cabeçalhos de coluna; cada
+    botão de rolagem e cada caixa de marcador tem um nome e funciona pelo
+    teclado; os rótulos de um layout levam os dois idiomas.
 
 ## Consequências
 
-- `app/ui/src/statblock/` fornece análise (`parser.ts`), renderização DOM
-  (`render.ts`) e tipos de contrato (`types.ts`).
-- Blocos de código com cerca degradam graciosamente para código com realce de sintaxe
-  quando o preset de capacidade `rpg` está desativado
-  ([0103](0103-feature-presets-and-capability-flags.md)).
-- Testes unitários (`app/ui/test/statblock.test.mjs`) verificam a análise de monstros
-  do 5e, compatibilidade com Tormenta20, matemática de modificadores e degradação segura.
+- `app/ui/src/statblock/` é reescrito em torno do modelo de layout; os
+  layouts por sistema da primeira construção e o seu editor saem.
+- Rust: comandos do contrato para `.verso/layouts/`, confinados àquele
+  diretório e a `.json`, limitados em tamanho; `FolderSettings` não muda
+  para layouts. Os bindings gerados, as respostas do harness, as permissões
+  do Tauri e as rotas do servidor acompanham.
+- `app/ui/src/dice/rolai/` ganha `profile.ts`, `expression.ts` e os
+  perfis, com os avisos deles e os testes do Rolai.
+- `docs/reference/statblock-sources.md` (e o seu gêmeo pt-BR) lista, por
+  layout embutido, a URL da fonte de cada campo e a linha da licença.
+- A spec §6 ganha uma linha para ```` ```statblock ```` e para `[!oracle]`
+  como construções que o Verso desenha, lidas pelo Obsidian como um bloco
+  de código e um callout; o parser em si não muda.
 
 ## Alternativas descartadas
 
-- **Gatilhos heurísticos no frontmatter sem a propriedade layout explícita**:
-  Rejeitado para evitar falsos positivos em notas de escrita geral e inventários de aparelhos.
-- **Mutação direta do arquivo para contadores de combate de PV**: Rejeitada devido
-  aos riscos de corrupção textual por CRDT em salas colaborativas ([0082](0082-live-co-editing-of-a-synced-folder.md)).
+- **Layouts no armazenamento do navegador de um dispositivo** (a primeira
+  construção): uma nota era desenhada de um jeito em cada dispositivo e para
+  cada pessoa.
+- **Campos de layout executados como JavaScript** (os do plugin): código de
+  um arquivo compartilhado, executado na máquina de todos.
+- **Um layout por sistema com campos de memória** (a primeira construção):
+  entregou atributos que nenhuma edição do jogo tem.
+- **Um cartão disparado por propriedades comuns**: transforma uma nota sobre
+  um computador com `hp:` num monstro.
 
-## Estado
+## Status
 
-**Aceito (2026-10-17).**
+Aceita (2026-10-20), o desenho proposto ao mantenedor naquele dia; os
+detalhes `[PROPOSTO]` esperam a leitura dele.
