@@ -427,32 +427,37 @@ fn the_oracle_keys_are_checked_kept_and_reported() {
     for refused in [
         Oracle {
             odds: Some(bad),
-            sparks: None,
+            ..Oracle::default()
         },
         Oracle {
             odds: Some(vec![vec![100, 0, 0, 0, 0, 0]; 4]),
-            sparks: None,
+            ..Oracle::default()
         },
         Oracle {
-            odds: None,
             sparks: Some(OracleSparks {
                 focus: Vec::new(),
                 ..sparks.clone()
             }),
+            ..Oracle::default()
         },
         Oracle {
-            odds: None,
             sparks: Some(OracleSparks {
                 theme: vec!["a".repeat(61)],
                 ..sparks.clone()
             }),
+            ..Oracle::default()
         },
         Oracle {
-            odds: None,
             sparks: Some(OracleSparks {
                 theme: vec!["a".to_owned(); 201],
                 ..sparks.clone()
             }),
+            ..Oracle::default()
+        },
+        Oracle {
+            odds: Some(odds.clone()),
+            clear_odds: true,
+            ..Oracle::default()
         },
     ] {
         let r = ws.set_folder_settings(&change(refused), None);
@@ -465,13 +470,55 @@ fn the_oracle_keys_are_checked_kept_and_reported() {
             &change(Oracle {
                 odds: Some(odds.clone()),
                 sparks: Some(sparks.clone()),
+                ..Oracle::default()
             }),
             None,
         )
         .unwrap();
-    let oracle = layer.settings.oracle.unwrap();
+    let oracle = layer.settings.oracle.clone().unwrap();
     assert_eq!(oracle.odds, Some(odds));
     assert_eq!(oracle.sparks, Some(sparks));
+    // Clearing: one key at a time, the other and the rest kept; a stale
+    // revision refuses and writes nothing.
+    let path = dir.path().join(".verso/settings.json");
+    let mut with_other = fs::read_to_string(&path).unwrap();
+    with_other = with_other.replacen('{', "{\"zeta\": true,", 1);
+    fs::write(&path, with_other).unwrap();
+    let stale = layer.revision.clone().unwrap();
+    let rev = ws.folder_settings().revision.unwrap();
+    let r = ws.set_folder_settings(
+        &change(Oracle {
+            clear_odds: true,
+            ..Oracle::default()
+        }),
+        Some(&stale),
+    );
+    assert!(r.is_err(), "{r:?}");
+    assert!(fs::read_to_string(&path).unwrap().contains("\"odds\""));
+    let layer = ws
+        .set_folder_settings(
+            &change(Oracle {
+                clear_odds: true,
+                ..Oracle::default()
+            }),
+            Some(&rev),
+        )
+        .unwrap();
+    let left = layer.settings.oracle.unwrap();
+    assert_eq!((left.odds, left.sparks.is_some()), (None, true));
+    let rev = layer.revision.unwrap();
+    let layer = ws
+        .set_folder_settings(
+            &change(Oracle {
+                clear_sparks: true,
+                ..Oracle::default()
+            }),
+            Some(&rev),
+        )
+        .unwrap();
+    assert!(layer.settings.oracle.is_none());
+    let text = fs::read_to_string(&path).unwrap();
+    assert!(!text.contains("oracle") && text.contains("zeta"), "{text}");
     // A value edited by hand that does not pass is not applied, and the
     // read says so.
     fs::write(

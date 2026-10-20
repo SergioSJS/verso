@@ -2231,6 +2231,13 @@ export type OracleSettings = {
 	 */
 	odds: number[][] | null,
 	sparks: OracleSparks | null,
+	/**
+	 *  `true` removes `oracle.odds` from the file; `None` in `odds` is "no
+	 *  change", so it cannot say this. Refused together with `odds`.
+	 */
+	clear_odds: boolean | null,
+	/**  `true` removes `oracle.sparks` from the file, likewise. */
+	clear_sparks: boolean | null,
 };
 
 /**
