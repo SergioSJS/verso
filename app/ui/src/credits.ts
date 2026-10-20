@@ -10,6 +10,7 @@
 // them; only the frame around them is translated.
 
 import deps from "./creditsDeps.json";
+import { OGL_13TH_AGE_SECTION_15, OGL_1_0A, OGL_OPEN_CONTENT } from "./oglText";
 
 /** A line in both languages. */
 export type Say = { pt: string; en: string };
@@ -71,9 +72,13 @@ export type SystemNotice = {
   /** The names a person knows it by. */
   name: string;
   licence: string;
-  /** The credit lines, verbatim from docs/reference/statblock-sources.md. */
+  /** The credit lines, as the publisher's own page gives them
+   *  (docs/reference/statblock-sources.md says where each was read). */
   lines: string[];
   link: string;
+  /** A licence whose text must travel with the content (the OGL's section
+   *  10): shown whole beside the notice. */
+  licenceText?: { title: string; paragraphs: readonly string[] };
 };
 
 /** One entry per built-in layout family of ADR 0099 item 6. */
@@ -111,11 +116,15 @@ export const SYSTEMS: SystemNotice[] = [
     id: "starfinder2e",
     name: "Starfinder 2e",
     licence: "ORC",
-    // TODO-VERIFY: the file marks this line a template "to complete with
-    // Paizo's exact notice from Player Core"; the registration number is
-    // not read from the publisher. Replace with the exact notice.
+    // The ORC Notice is the licence's own required text (III.a), read at
+    // https://paizo.com/orclicense on 2026-10-20, the "various locations"
+    // completed as its sample does. The attribution is a statement in our
+    // words (III.b asks for a good-faith statement, worded in any accurate
+    // and reasonable manner). Paizo's own Starfinder notice and its list of
+    // Reserved Material were not found online, so none is claimed here.
     lines: [
-      "This product is licensed under the ORC License located at the Library of Congress (registration to be filled from the publisher's notice) and available online at paizo.com/orclicense. Portions use Starfinder Second Edition mechanics by Paizo Inc. Reserved Material (names, trade dress, art, setting elements) is excluded.",
+      "This product is licensed under the ORC License located at the Library of Congress at TX 9-307-067 and available online at various locations including paizo.com/orclicense. All warranties are disclaimed as set forth therein.",
+      "Starfinder Second Edition (c) Paizo Inc., used under the ORC License. Not affiliated with Paizo.",
     ],
     link: "https://paizo.com/orclicense",
   },
@@ -123,15 +132,13 @@ export const SYSTEMS: SystemNotice[] = [
     id: "13th-age",
     name: "13th Age",
     licence: "OGL 1.0a",
-    // TODO-VERIFY: the file says to carry the full Section 15 from
-    // https://www.13thagesrd.com/legal; only the lines it quotes are here.
-    lines: [
-      "Open Game License v 1.0 Copyright 2000, Wizards of the Coast, Inc.",
-      "System Reference Document Copyright 2000, Wizards of the Coast, Inc. Authors: Jonathan Tweet, Monte Cook, Skip Williams, based on material by E. Gary Gygax and Dave Arneson.",
-      "Copyright (C) 2013 Fire Opal Media. All Rights Reserved. Licensed under the Open Game License.",
-      "The 13th Age RPG and supplements are published under exclusive license to Pelgrane Press.",
-    ],
+    // Section 15 and the declaration of Open Game Content are the 13th Age
+    // SRD's own (https://www.13thagesrd.com/legal, read 2026-10-20); the
+    // licence's text, which its section 10 asks to accompany the content, is
+    // in oglText.ts and shown with the notice.
+    lines: [...OGL_13TH_AGE_SECTION_15, "Copyright © 2013 Fire Opal Media. All Rights Reserved. Licensed under the Open Game License.", OGL_OPEN_CONTENT],
     link: "https://www.13thagesrd.com/legal",
+    licenceText: { title: "Open Game License v1.0a", paragraphs: OGL_1_0A },
   },
   {
     id: "dungeon-world",
@@ -164,9 +171,13 @@ export const SYSTEMS: SystemNotice[] = [
   {
     id: "mausritter",
     name: "Mausritter",
-    licence: "CC BY 4.0 + Mausritter Third Party Licence",
+    licence: "Mausritter Third Party Licence",
+    // The two texts the licence says must be legible in the product, read at
+    // https://mausritter.com/third-party-licence on 2026-10-20 (the page is
+    // drawn by script; the strings are in its page bundle). Verso is the
+    // "Product name", Sérgio J. Sousa the author.
     lines: [
-      "This work is based on Mausritter (https://mausritter.com/), a product of Losing Games and Isaac Williams, and is licensed for use under the Creative Commons Attribution 4.0 International (CC BY 4.0) licence.",
+      "Verso is an independent production by Sérgio J. Sousa and is not affiliated with Losing Games. It is published under the Mausritter Third Party Licence.",
       "Mausritter is copyright Losing Games.",
     ],
     link: "https://mausritter.com/third-party-licence",
@@ -174,32 +185,38 @@ export const SYSTEMS: SystemNotice[] = [
   {
     id: "ironsworn",
     name: "Ironsworn / Starforged",
-    licence: "CC BY 4.0 (open parts)",
-    // TODO-VERIFY: the file marks this wording UNVERIFIED ("as noted on the
-    // Ironsworn licensing page"); it is a draft to check against
-    // https://tomkinpress.com/blogs/news/lets-talk-about-ironsworn-licensing
+    licence: "CC BY 4.0",
+    // The credit text for commercial works from "How to Provide Credit" at
+    // https://www.ironswornrpg.com/licensing (read 2026-10-20), <game titles>
+    // filled in with the games the layouts follow. The CC BY covers text only.
     lines: [
-      "Ironsworn and Ironsworn: Starforged by Shawn Tomkin, licensed under CC BY 4.0 (Starforged Reference Guide, SRD) - https://www.ironswornrpg.com. Not an official product.",
+      "This work is based on Ironsworn and Ironsworn: Starforged, created by Shawn Tomkin, and licensed for our use under the Creative Commons Attribution 4.0 International License (https://creativecommons.org/licenses/by/4.0/).",
     ],
-    link: "https://tomkinpress.com/blogs/news/lets-talk-about-ironsworn-licensing",
+    link: "https://www.ironswornrpg.com/licensing",
   },
   {
     id: "cairn",
     name: "Cairn",
     licence: "CC BY-SA 4.0",
-    // TODO-VERIFY: "proposed by the research" in the file, not a line the
-    // publisher prescribes.
-    lines: ["Cairn is by Yochai Gal and licensed under CC BY-SA 4.0 (https://cairnrpg.com)."],
+    // https://cairnrpg.com says "The game was written by Yochai Gal" and "The
+    // full text is licensed under CC-BY-SA 4.0" and prescribes no credit
+    // wording (read 2026-10-20); this is the statement CC BY-SA asks for:
+    // author, licence and its link.
+    lines: [
+      "This work is based on Cairn, written by Yochai Gal (https://cairnrpg.com), and licensed for our use under the Creative Commons Attribution-ShareAlike 4.0 International License (https://creativecommons.org/licenses/by-sa/4.0/).",
+    ],
     link: "https://cairnrpg.com",
   },
   {
     id: "old-dragon-2e",
     name: "Old Dragon 2e",
     licence: "CC BY-SA 4.0",
-    // TODO-VERIFY: the file restored the accents by hand and asks to check
-    // against https://olddragon.com.br/licenciamento
+    // The line is the one https://olddragon.com.br/licenciamento gives for
+    // the page of a work (read 2026-10-20), word for word: it writes the
+    // author "Antonio" without an accent. The licence also asks for its badge
+    // on a product's title page and back cover, which a settings page is not.
     lines: [
-      "Old Dragon 2ª Edição © 2023 da Old Dragon Editora está licenciado sob CC BY-SA 4.0 e é uma criação de Antônio Sá Neto, Dan Ramos e Fabiano Neme baseado nos originais de Gary Gygax e Dave Arneson. Para ver uma cópia desta licença, visite http://creativecommons.org/licenses/by-sa/4.0/.",
+      "Old Dragon 2ª Edição © 2023 da Old Dragon Editora está licenciado sob CC BY-SA 4.0 e é uma criação de Antonio Sá Neto, Dan Ramos e Fabiano Neme baseado nos originais de Gary Gygax e Dave Arneson. Para ver uma cópia desta licença, visite http://creativecommons.org/licenses/by-sa/4.0/.",
     ],
     link: "https://olddragon.com.br/licenciamento",
   },
