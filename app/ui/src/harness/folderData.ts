@@ -38,6 +38,13 @@ export function validId(id: unknown): id is string {
   return typeof id === "string" && /^[a-z0-9][a-z0-9-]{0,63}$/.test(id) && !/^(con|prn|aux|nul|com[0-9]|lpt[0-9])$/.test(id);
 }
 
+/** A confined path to write, create or move at: the core refuses the folder's
+ *  data directories there, which only the four folder data commands write. */
+export function writeGuard(key: string): string {
+  if (/^\.verso\/(layouts|bundles)(\/|$)/.test(key)) refuse("refused", `${key} is written through the folder data commands only`);
+  return key;
+}
+
 function pathOf(kind: unknown, id: unknown): string {
   if (!KINDS.includes(kind as FolderDataKind)) refuse("refused", `folder data: not a kind: ${String(kind)}`);
   if (!validId(id)) refuse("refused", `folder data: not a valid id: ${JSON.stringify(id)}`);
