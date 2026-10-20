@@ -390,8 +390,9 @@ function renderPresetsTab(host: HTMLElement, defaultFolder: string): { add: (bun
       rows.push(row);
       box.addEventListener("change", () => {
         row.on = box.checked;
-        // A folder takes what is inside it along.
-        if (kind === "folder") for (const r of rows) if (r !== row && r.old.startsWith(`${row.old}/`)) { r.on = box.checked; r.box.checked = box.checked; }
+        // A folder takes what is inside it along; what is inside a folder left
+        // out cannot be put back alone (its file would have no folder to go in).
+        if (kind === "folder") for (const r of rows) if (r !== row && r.old.startsWith(`${row.old}/`)) { r.on = box.checked; r.box.checked = box.checked; r.box.disabled = !box.checked; }
       });
       input.addEventListener("change", () => {
         const next = input.value.trim().replace(/^\/+|\/+$/g, "");
