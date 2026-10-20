@@ -471,7 +471,8 @@ export async function paintPreview(this: NoteLeaf): Promise<void> {
   const active = document.activeElement;
   const key = active instanceof HTMLElement && active !== this.preview && this.preview.contains(active) ? focusKey(this.preview, active) : null;
   // The same note drawn again keeps its callouts as the user left them.
-  const open = this.shownPath === note.path ? [...this.preview.querySelectorAll(".callout[data-fold]")].map((b) => !b.classList.contains("folded")) : [];
+  const sameNote = this.shownPath === note.path;
+  const open = sameNote ? [...this.preview.querySelectorAll(".callout[data-fold]")].map((b) => !b.classList.contains("folded")) : [];
   this.shownPath = note.path;
   for (const card of this.cards) {
     card.destroy();
@@ -486,7 +487,11 @@ export async function paintPreview(this: NoteLeaf): Promise<void> {
   // the core, read-only.
   this.readerView.offer(note.path, note.text);
   const reader = this.readerView.on ? await this.readerView.html(note.text) : null;
+  // The same note drawn again stays where the person was reading: taking
+  // the old blocks out lets WebKit drop the sheet's scroll to the top.
+  const kept = sameNote && this.preview.childElementCount > 0 ? this.sheet.scrollTop : null;
   setHtml(this.preview, withNoteLinks(reader?.html ?? note.html, note.path));
+  if (kept !== null && this.sheet.scrollTop !== kept) this.sheet.scrollTop = kept;
   wireCallouts(this.preview, open, this);
   keyLinks(this.preview);
   this.shownText = note.text;
