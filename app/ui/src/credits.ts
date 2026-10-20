@@ -175,9 +175,9 @@ export const SYSTEMS: SystemNotice[] = [
     // The two texts the licence says must be legible in the product, read at
     // https://mausritter.com/third-party-licence on 2026-10-20 (the page is
     // drawn by script; the strings are in its page bundle). Verso is the
-    // "Product name", Sérgio J. Sousa the author.
+    // "Product name", Sérgio Sousa (Meio-Orc) the author — the maintainer's choice, 2026-10-20.
     lines: [
-      "Verso is an independent production by Sérgio J. Sousa and is not affiliated with Losing Games. It is published under the Mausritter Third Party Licence.",
+      "Verso is an independent production by Sérgio Sousa (Meio-Orc) and is not affiliated with Losing Games. It is published under the Mausritter Third Party Licence.",
       "Mausritter is copyright Losing Games.",
     ],
     link: "https://mausritter.com/third-party-licence",
