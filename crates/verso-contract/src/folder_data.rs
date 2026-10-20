@@ -74,7 +74,9 @@ pub struct OracleSparks {
 pub struct OracleSettings {
     /// Five rows (nearly certain, likely, even, unlikely, nearly
     /// impossible), each six non-negative integers adding to 100: yes-and,
-    /// yes, yes-but, no-but, no, no-and.
-    pub odds: Option<Vec<Vec<u8>>>,
+    /// yes, yes-but, no-but, no, no-and. Wider than any row can use so that
+    /// a number out of range reaches the core and is refused there with its
+    /// message, not by the host's argument decoding.
+    pub odds: Option<Vec<Vec<u32>>>,
     pub sparks: Option<OracleSparks>,
 }

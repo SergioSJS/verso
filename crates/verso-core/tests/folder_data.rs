@@ -558,3 +558,29 @@ fn the_generic_commands_refuse_the_data_directories() {
     // The settings file is not a data directory: the rule is the narrower.
     assert!(!refused(ws.create_file(".verso/settings.json", b"{}")));
 }
+
+#[test]
+fn a_file_past_the_bound_is_removed_unread_on_the_empty_revision_the_list_gave() {
+    let dir = tempdir().unwrap();
+    let config = tempdir().unwrap();
+    data_dir(dir.path(), "layouts");
+    let big = format!("{{\"a\": \"{}\"}}", "x".repeat(FOLDER_LAYOUT_MOST));
+    fs::write(dir.path().join(".verso/layouts/grande.json"), &big).unwrap();
+    let mut ws = open(dir.path(), config.path());
+    ws.index().unwrap();
+    let listed = ws.list_folder_data(KIND).unwrap().entries;
+    assert_eq!(listed[0].revision, "");
+    // A revision the file never had is not "the version listed".
+    assert!(matches!(
+        ws.remove_folder_data(KIND, "grande", "1-2-3"),
+        Err(CoreError::FolderData(_))
+    ));
+    assert!(has(&dir.path().join(".verso/layouts"), "grande.json"));
+    let gone = ws.remove_folder_data(KIND, "grande", "").unwrap();
+    assert!(!has(&dir.path().join(".verso/layouts"), "grande.json"));
+    assert_eq!(fs::read_to_string(dir.path().join(gone.path)).unwrap(), big);
+    // A file within the bound still needs its real revision.
+    let rev = ws.write_folder_data(KIND, "mesa", "{}", None).unwrap();
+    assert!(ws.remove_folder_data(KIND, "mesa", "").is_err());
+    ws.remove_folder_data(KIND, "mesa", &rev).unwrap();
+}

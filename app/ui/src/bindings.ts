@@ -2225,7 +2225,9 @@ export type OracleSettings = {
 	/**
 	 *  Five rows (nearly certain, likely, even, unlikely, nearly
 	 *  impossible), each six non-negative integers adding to 100: yes-and,
-	 *  yes, yes-but, no-but, no, no-and.
+	 *  yes, yes-but, no-but, no, no-and. Wider than any row can use so that
+	 *  a number out of range reaches the core and is refused there with its
+	 *  message, not by the host's argument decoding.
 	 */
 	odds: number[][] | null,
 	sparks: OracleSparks | null,
