@@ -53,21 +53,21 @@ export function probesFor(src: string): string[] {
 }
 
 /** The slowest probe's time over a pattern, in ms, stopping early past
- *  PROBE_MS (a slow one is measured again to rule out a pause of the host). */
+ *  PROBE_MS (a slow one is measured again, to rule out a pause of the host). */
 export function probeTime(re: RegExp): number {
   let worst = 0;
   for (const p of probesFor(re.source)) {
-    for (let attempt = 0; attempt < 2; attempt++) {
+    // The best of up to three runs: a pause of the host (GC, a busy core)
+    // must not refuse a good pattern; a really slow one is slow every time.
+    let best = Infinity;
+    for (let attempt = 0; attempt < 3 && best > PROBE_MS; attempt++) {
       const t0 = now();
       re.lastIndex = 0;
       let n = 0;
       for (const _m of p.matchAll(re)) if (++n > 1000) break;
-      const dt = now() - t0;
-      if (attempt === 1 || dt <= PROBE_MS) {
-        worst = Math.max(worst, dt);
-        break;
-      }
+      best = Math.min(best, now() - t0);
     }
+    worst = Math.max(worst, best);
     if (worst > PROBE_MS) return worst;
   }
   return worst;
