@@ -4,27 +4,56 @@
 
 import { asDialog, closed, opened } from "./a11y";
 import { afterFileChange } from "../changes";
+import { commands } from "../bindings";
 import { currentPreset } from "../capabilities";
-import { instantiateBundle } from "../bundles/instantiate";
+import { type Plan, planBundle } from "../bundles/plan";
 import { BUILTIN_PRESETS } from "../bundles/presets";
-import { BUNDLE_SYSTEM_PROMPT } from "../bundles/systemPrompt";
-import { type TemplateBundle, validateBundle } from "../bundles/types";
+import { applyPlan, needsReading, type Report } from "../bundles/run";
+import { systemPromptFor } from "../bundles/systemPrompt";
+import { MAX_PASTE_BYTES, type TemplateBundle, validateBundle } from "../bundles/types";
+import { bundleWords, PRESET_TEXT_EN } from "../bundles/words";
 import { h, ui } from "../dom";
 import { openNote } from "../layout/spaces";
 import { icon } from "../icons";
-import { t } from "../strings";
+import { LANG, t } from "../strings";
+import { openFolders } from "../tree/tree";
+
+const bw = bundleWords(LANG);
+const isPt = LANG.toLowerCase().startsWith("pt");
 
 let shade: HTMLElement | null = null;
+/** Bundles imported in this session (ADR 0098 item 2 also names a folder
+ *  of them, `.verso/templates/`; not built yet). */
 const customBundles: TemplateBundle[] = [];
+let ids = 0;
 
-/** Filter available bundles according to the active preset (ADR 0098 / ADR 0103). */
-function getAvailableBundles(): TemplateBundle[] {
+/** The name and description of a bundle in the window's language: the
+ *  built-in ones are translated, an imported one reads as its author wrote. */
+function textOf(bundle: TemplateBundle): { name: string; description: string } {
+  const en = !isPt && BUILTIN_PRESETS.includes(bundle) ? PRESET_TEXT_EN[bundle.id] : undefined;
+  return en ?? { name: bundle.name, description: bundle.description };
+}
+
+/** Whether the active usage mode shows this bundle (ADR 0098 / ADR 0103). */
+function shownNow(bundle: TemplateBundle): boolean {
   const preset = currentPreset();
-  return [...customBundles, ...BUILTIN_PRESETS].filter((bundle) => {
-    if (preset === "writing") return bundle.category === "writing" || bundle.category === "notes";
-    if (preset === "worldbuilding") return bundle.category !== "rpg";
-    return true;
-  });
+  if (preset === "writing") return bundle.category === "writing" || bundle.category === "notes";
+  if (preset === "worldbuilding") return bundle.category !== "rpg";
+  return true;
+}
+
+/** Filter available bundles according to the active preset. */
+function getAvailableBundles(): TemplateBundle[] {
+  return [...customBundles, ...BUILTIN_PRESETS].filter(shownNow);
+}
+
+/** An id no bundle has yet: the one asked for, or that with a number. */
+function freshId(id: string): string {
+  const taken = new Set([...customBundles, ...BUILTIN_PRESETS].map((b) => b.id));
+  if (!taken.has(id)) return id;
+  let n = 2;
+  while (taken.has(`${id}-${n}`)) n++;
+  return `${id}-${n}`;
 }
 
 /** Open the World and Campaign Creation Wizard (ADR 0098). */
@@ -37,12 +66,18 @@ export function showWorldWizard(defaultFolder = ""): void {
   nameInput?.focus();
 }
 
+function hideWizard(): void {
+  if (!shade) return;
+  shade.hidden = true;
+  closed(shade);
+}
+
 function build(): HTMLElement {
   const el = h("div", "confirm world-wizard-shade");
   el.hidden = true;
+  // The shade is the dialog (asDialog names it and keeps Tab inside); the
+  // box is only its page.
   const box = h("div", "confirm-box world-wizard-box");
-  box.setAttribute("role", "dialog");
-  box.setAttribute("aria-modal", "true");
 
   const titleId = "world-wizard-title";
   const header = h("div", "world-wizard-header");
@@ -52,6 +87,7 @@ function build(): HTMLElement {
 
   const closeBtn = h("button", "ghost iconic world-wizard-close");
   closeBtn.type = "button";
+  closeBtn.title = t.close;
   closeBtn.setAttribute("aria-label", t.close);
   closeBtn.append(icon("close"));
   header.append(title, closeBtn);
@@ -61,238 +97,333 @@ function build(): HTMLElement {
   el.append(box);
   document.body.append(el);
 
-  const hide = () => {
-    el.hidden = true;
-    closed(el);
-  };
-
-  asDialog(el, t.worldWizard.title, hide, titleId);
-  closeBtn.addEventListener("click", hide);
+  asDialog(el, t.worldWizard.title, hideWizard, titleId);
+  closeBtn.addEventListener("click", hideWizard);
   el.addEventListener("mousedown", (e) => {
-    if (e.target === el) hide();
+    if (e.target === el) hideWizard();
   });
 
   return el;
+}
+
+type Tab = "presets" | "ai";
+
+function listOf(lines: string[]): HTMLElement {
+  const ul = h("ul", "world-report-list");
+  for (const line of lines) ul.append(h("li", "", line));
+  return ul;
 }
 
 function populate(dialog: HTMLElement, defaultFolder: string): void {
   const body = dialog.querySelector(".world-wizard-body")!;
   body.replaceChildren();
 
-  // Tab Navigation
-  let activeTab: "presets" | "ai" = "presets";
   const tabNav = h("div", "world-wizard-tabs");
   tabNav.setAttribute("role", "tablist");
+  tabNav.setAttribute("aria-label", bw.tabsLabel);
 
-  const presetsTabBtn = h("button", "world-tab-btn active", t.worldWizard.tabPresets);
-  presetsTabBtn.type = "button";
-  presetsTabBtn.setAttribute("role", "tab");
-  presetsTabBtn.setAttribute("aria-selected", "true");
-
-  const aiTabBtn = h("button", "world-tab-btn", t.worldWizard.tabAi);
-  aiTabBtn.type = "button";
-  aiTabBtn.setAttribute("role", "tab");
-  aiTabBtn.setAttribute("aria-selected", "false");
-  aiTabBtn.prepend(icon("sparkles"));
-
-  tabNav.append(presetsTabBtn, aiTabBtn);
-
-  const contentArea = h("div", "world-wizard-content");
-  body.append(tabNav, contentArea);
-
-  const initialAvailable = getAvailableBundles();
-  let selectedBundle: TemplateBundle = initialAvailable[0] ?? BUILTIN_PRESETS[0]!;
-
-  function render(): void {
-    contentArea.replaceChildren();
-    if (activeTab === "presets") {
-      renderPresetsTab(contentArea, defaultFolder, selectedBundle, (bundle) => {
-        selectedBundle = bundle;
-        render();
-      });
-    } else {
-      renderAiTab(contentArea, (newBundle) => {
-        customBundles.unshift(newBundle);
-        selectedBundle = newBundle;
-        activeTab = "presets";
-        presetsTabBtn.classList.add("active");
-        presetsTabBtn.setAttribute("aria-selected", "true");
-        aiTabBtn.classList.remove("active");
-        aiTabBtn.setAttribute("aria-selected", "false");
-        render();
-      });
-    }
+  const tabs: Record<Tab, HTMLButtonElement> = {
+    presets: h("button", "world-tab-btn", t.worldWizard.tabPresets),
+    ai: h("button", "world-tab-btn", t.worldWizard.tabAi),
+  };
+  tabs.ai.prepend(icon("sparkles"));
+  const panels: Record<Tab, HTMLElement> = { presets: h("div", "world-wizard-content"), ai: h("div", "world-wizard-content") };
+  for (const key of ["presets", "ai"] as const) {
+    const tab = tabs[key];
+    const panel = panels[key];
+    tab.type = "button";
+    tab.id = `world-tab-${key}`;
+    tab.setAttribute("role", "tab");
+    tab.setAttribute("aria-controls", `world-panel-${key}`);
+    panel.id = `world-panel-${key}`;
+    panel.setAttribute("role", "tabpanel");
+    panel.setAttribute("aria-labelledby", tab.id);
   }
+  tabNav.append(tabs.presets, tabs.ai);
+  body.append(tabNav, panels.presets, panels.ai);
 
-  presetsTabBtn.addEventListener("click", () => {
-    if (activeTab === "presets") return;
-    activeTab = "presets";
-    presetsTabBtn.classList.add("active");
-    presetsTabBtn.setAttribute("aria-selected", "true");
-    aiTabBtn.classList.remove("active");
-    aiTabBtn.setAttribute("aria-selected", "false");
-    render();
+  const show = (key: Tab, focus = false): void => {
+    for (const k of ["presets", "ai"] as const) {
+      const on = k === key;
+      tabs[k].classList.toggle("active", on);
+      tabs[k].setAttribute("aria-selected", String(on));
+      tabs[k].tabIndex = on ? 0 : -1;
+      panels[k].hidden = !on;
+    }
+    if (focus) tabs[key].focus();
+  };
+  for (const key of ["presets", "ai"] as const) tabs[key].addEventListener("click", () => show(key));
+  // Arrow keys move between the tabs, as a tablist does.
+  tabNav.addEventListener("keydown", (e) => {
+    const order: Tab[] = ["presets", "ai"];
+    const now = order.find((k) => tabs[k] === document.activeElement);
+    if (!now) return;
+    let next: Tab | null = null;
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") next = now === "presets" ? "ai" : "presets";
+    else if (e.key === "Home") next = "presets";
+    else if (e.key === "End") next = "ai";
+    if (!next) return;
+    e.preventDefault();
+    show(next, true);
   });
 
-  aiTabBtn.addEventListener("click", () => {
-    if (activeTab === "ai") return;
-    activeTab = "ai";
-    aiTabBtn.classList.add("active");
-    aiTabBtn.setAttribute("aria-selected", "true");
-    presetsTabBtn.classList.remove("active");
-    presetsTabBtn.setAttribute("aria-selected", "false");
-    render();
+  const presets = renderPresetsTab(panels.presets, defaultFolder);
+  renderAiTab(panels.ai, (bundle) => {
+    const original = bundle.id;
+    const fresh: TemplateBundle = { ...bundle, id: freshId(bundle.id) };
+    customBundles.unshift(fresh);
+    presets.add(fresh);
+    show("presets");
+    const notes: string[] = [t.worldWizard.importSuccess(fresh.name)];
+    if (fresh.id !== original) notes.push(bw.importedRenamed(fresh.name));
+    if (!shownNow(fresh)) notes.push(bw.importedHidden(fresh.name));
+    ui.status.textContent = notes.join(" ");
+    presets.say(notes.slice(1).join(" "));
   });
-
-  render();
+  show("presets");
 }
 
-function renderPresetsTab(
-  host: HTMLElement,
-  defaultFolder: string,
-  selectedBundle: TemplateBundle,
-  onSelect: (bundle: TemplateBundle) => void
-): void {
+function renderPresetsTab(host: HTMLElement, defaultFolder: string): { add: (bundle: TemplateBundle) => void; say: (text: string) => void } {
   const form = h("form", "world-form");
+  form.noValidate = true;
+  const uid = ++ids;
 
-  // 1. Name Field Row
+  // 1. Name field
   const nameRow = h("div", "world-form-row");
   const nameLabel = h("label", "world-field-label", t.worldWizard.nameLabel);
   const nameInput = h("input", "world-input world-name-input");
+  nameInput.id = `world-name-${uid}`;
+  nameLabel.htmlFor = nameInput.id;
   nameInput.type = "text";
   nameInput.required = true;
+  nameInput.setAttribute("aria-required", "true");
   nameInput.placeholder = t.worldWizard.namePlaceholder;
   nameRow.append(nameLabel, nameInput);
 
-  // 2. Destination Folder Field Row
+  // 2. Destination folder
   const folderRow = h("div", "world-form-row");
   const folderLabel = h("label", "world-field-label", t.worldWizard.folderLabel);
   const folderInput = h("input", "world-input world-folder-input");
+  folderInput.id = `world-folder-${uid}`;
+  folderLabel.htmlFor = folderInput.id;
   folderInput.type = "text";
   folderInput.value = defaultFolder;
   folderInput.placeholder = t.worldWizard.folderPlaceholder;
   const folderHint = h("span", "world-field-hint", t.worldWizard.folderHint);
+  folderHint.id = `world-folder-hint-${uid}`;
+  folderInput.setAttribute("aria-describedby", folderHint.id);
   folderRow.append(folderLabel, folderInput, folderHint);
 
-  // 3. Bundle Selector Cards Row
+  // 3. Bundle cards: chosen in place, so what was typed stays typed.
   const bundleRow = h("div", "world-form-row");
   const bundleLabel = h("div", "world-field-label", t.worldWizard.bundleLabel);
+  bundleLabel.id = `world-bundles-label-${uid}`;
   const bundlesList = h("div", "world-bundles-grid");
-
-  const allAvailable = getAvailableBundles();
-  if (!allAvailable.some((b) => b.id === selectedBundle.id) && allAvailable.length > 0) {
-    selectedBundle = allAvailable[0]!;
-  }
-
-  for (const bundle of allAvailable) {
-    const isSelected = bundle.id === selectedBundle.id;
-    const card = h("button", `world-bundle-card ${isSelected ? "selected" : ""}`);
-    card.type = "button";
-    const cardTitle = h("strong", "world-bundle-title", bundle.name);
-    const cardDesc = h("p", "world-bundle-desc", bundle.description);
-    card.append(cardTitle, cardDesc);
-    card.addEventListener("click", () => onSelect(bundle));
-    bundlesList.append(card);
-  }
+  bundlesList.setAttribute("role", "group");
+  bundlesList.setAttribute("aria-labelledby", bundleLabel.id);
   bundleRow.append(bundleLabel, bundlesList);
 
-  // 4. Bundle Preview Section
+  // 4. Preview
   const previewBox = h("div", "world-bundle-preview");
-  const previewHeading = h("span", "world-preview-title", "Estrutura que será criada:");
-  const projectSummary = h("p", "world-preview-root", `📁 Pasta principal: <Nome do mundo ou campanha>/`);
-  const foldersSummary = h(
-    "p",
-    "world-preview-folders",
-    `↳ 📂 ${selectedBundle.folders.length} Subpastas: ${selectedBundle.folders.join(", ")}`
-  );
-  const filesSummary = h(
-    "p",
-    "world-preview-files",
-    `↳ 📄 ${selectedBundle.files.length} Notas modelo com propriedades e seções prontas.`
-  );
-  previewBox.append(previewHeading, projectSummary, foldersSummary, filesSummary);
+  const previewHeading = h("span", "world-preview-title", bw.previewTitle);
+  const projectSummary = h("p", "world-preview-root");
+  const foldersSummary = h("p", "world-preview-folders");
+  const filesSummary = h("p", "world-preview-files");
+  const listing = h("details", "world-preview-list");
+  listing.append(h("summary", "", bw.showFiles));
+  const listBody = h("ul", "world-preview-ul");
+  listing.append(listBody);
+  const problemBox = h("ul", "world-preview-problems");
+  problemBox.hidden = true;
+  previewBox.append(previewHeading, projectSummary, foldersSummary, filesSummary, listing, problemBox);
 
-  nameInput.addEventListener("input", () => {
-    const val = nameInput.value.trim();
-    projectSummary.textContent = `📁 Pasta principal: ${val || "<Nome do mundo ou campanha>"}/`;
-  });
-
-  // 5. Status & Submit Action Row
+  // 5. Status and submit
   const actionRow = h("div", "world-actions");
   const statusLine = h("div", "world-status-line");
+  statusLine.setAttribute("role", "status");
+  statusLine.setAttribute("aria-live", "polite");
   const submitBtn = h("button", "save world-submit-btn", t.worldWizard.create);
   submitBtn.type = "submit";
   submitBtn.prepend(icon("plus"));
   actionRow.append(statusLine, submitBtn);
+  const reportBox = h("div", "world-report");
+  reportBox.hidden = true;
+  reportBox.setAttribute("role", "group");
+  reportBox.setAttribute("aria-label", bw.reportLabel);
 
-  form.append(nameRow, folderRow, bundleRow, previewBox, actionRow);
+  form.append(nameRow, folderRow, bundleRow, previewBox, actionRow, reportBox);
+
+  let selected: TemplateBundle = getAvailableBundles()[0] ?? BUILTIN_PRESETS[0]!;
+  const cards = new Map<string, HTMLButtonElement>();
+
+  const planNow = (): Plan => planBundle(selected, { target: folderInput.value, title: nameInput.value || "x", now: new Date(), uuid: () => crypto.randomUUID(), words: bw });
+
+  const paintPreview = (): void => {
+    const typed = nameInput.value.trim();
+    projectSummary.textContent = bw.rootLine(typed || bw.rootPlaceholder);
+    foldersSummary.textContent = bw.foldersLine(selected.folders.length, selected.folders.join(", "));
+    filesSummary.textContent = bw.filesLine(selected.files.length);
+    const plan = planNow();
+    listBody.replaceChildren(...plan.folders.map((f) => h("li", "", `📂 ${f}/`)), ...plan.files.map((f) => h("li", "", `📄 ${f.path}`)));
+    // Problems of the bundle itself show at once; the name's wait for one.
+    const shown = plan.problems.filter((p) => typed || p.at !== "/title");
+    problemBox.replaceChildren(...shown.map((p) => h("li", "", bw.problemAt(p.at, p.message))));
+    problemBox.hidden = shown.length === 0;
+  };
+
+  const choose = (bundle: TemplateBundle): void => {
+    selected = bundle;
+    for (const [id, card] of cards) {
+      const on = id === bundle.id;
+      card.classList.toggle("selected", on);
+      card.setAttribute("aria-pressed", String(on));
+    }
+    paintPreview();
+  };
+
+  const drawCards = (): void => {
+    cards.clear();
+    const available = getAvailableBundles();
+    if (!available.some((b) => b.id === selected.id) && available[0]) selected = available[0];
+    const nodes: HTMLElement[] = [];
+    for (const bundle of available) {
+      const text = textOf(bundle);
+      const card = h("button", "world-bundle-card");
+      card.type = "button";
+      card.append(h("strong", "world-bundle-title", text.name), h("p", "world-bundle-desc", text.description));
+      card.addEventListener("click", () => choose(bundle));
+      cards.set(bundle.id, card);
+      nodes.push(card);
+    }
+    if (nodes.length === 0) nodes.push(h("p", "world-field-hint", bw.noBundles));
+    bundlesList.replaceChildren(...nodes);
+    choose(selected);
+  };
+
+  nameInput.addEventListener("input", () => {
+    statusLine.textContent = "";
+    paintPreview();
+  });
+  folderInput.addEventListener("input", paintPreview);
+  drawCards();
+
+  const showReport = (plan: Plan, report: Report | null): void => {
+    reportBox.replaceChildren();
+    if (!report) {
+      reportBox.append(h("p", "world-report-head", bw.planRefused(plan.problems.length)));
+      reportBox.append(listOf(plan.problems.map((p) => bw.problemAt(p.at, p.message))));
+      reportBox.hidden = false;
+      return;
+    }
+    const made = report.madeFolders.length + report.madeFiles.length;
+    reportBox.append(h("p", "world-report-head", made === 0 ? bw.nothingMade : bw.made(report.madeFolders.length, report.madeFiles.length)));
+    if (report.existed.length > 0) {
+      reportBox.append(h("p", "", bw.alreadyThere(report.existed.length)));
+      reportBox.append(listOf(report.existed));
+    }
+    if (report.failed.length > 0) {
+      reportBox.append(h("p", "", bw.refused(report.failed.length)));
+      reportBox.append(listOf(report.failed.map((f) => `${f.path} — ${f.message}`)));
+    }
+    reportBox.hidden = false;
+  };
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const titleVal = nameInput.value.trim();
-    if (!titleVal) return;
-
-    submitBtn.setAttribute("disabled", "true");
-    submitBtn.textContent = t.worldWizard.creating;
-
-    try {
-      const res = await instantiateBundle(folderInput.value.trim(), titleVal, selectedBundle);
-      afterFileChange();
-      statusLine.textContent = t.worldWizard.created(res.createdFolders, res.createdFiles);
-      if (res.firstFilePath) {
-        openNote(res.firstFilePath, false);
-      }
-      setTimeout(() => {
-        if (shade) {
-          shade.hidden = true;
-          closed(shade);
-        }
-      }, 700);
-    } catch (err) {
-      statusLine.textContent = `Erro ao criar: ${err}`;
-      submitBtn.removeAttribute("disabled");
-      submitBtn.textContent = t.worldWizard.create;
+    if (!titleVal) {
+      statusLine.textContent = bw.nameRequired;
+      nameInput.focus();
+      return;
     }
+    reportBox.hidden = true;
+    const plan = planBundle(selected, { target: folderInput.value, title: titleVal, now: new Date(), uuid: () => crypto.randomUUID(), words: bw });
+    if (plan.problems.length > 0) {
+      statusLine.textContent = bw.planRefused(plan.problems.length);
+      showReport(plan, null);
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = t.worldWizard.creating;
+    statusLine.textContent = bw.dryRun(plan.folders.length, plan.files.length);
+    try {
+      const report = await applyPlan(plan, {
+        createFolder: (p) => commands.createFolder(p),
+        createNote: (p, text) => commands.createNote(p, text),
+        createFile: (p, b64) => commands.createFile(p, b64),
+      });
+      // The walk does not list an empty folder: the tree shows them open.
+      for (const folder of report.madeFolders) openFolders.add(folder);
+      await afterFileChange();
+      const summary = report.madeFolders.length + report.madeFiles.length === 0 ? bw.nothingMade : bw.made(report.madeFolders.length, report.madeFiles.length);
+      statusLine.textContent = summary;
+      ui.status.textContent = summary;
+      showReport(plan, report);
+      if (!needsReading(report)) {
+        const first = plan.files.find((f) => f.note && report.madeFiles.includes(f.path));
+        if (first) openNote(first.path, false);
+        hideWizard();
+        return;
+      }
+    } catch (err) {
+      statusLine.textContent = `${bw.nothingMade} ${err instanceof Error ? err.message : String(err)}`;
+    }
+    // Something was left alone or refused: the page stays, with the list.
+    submitBtn.disabled = false;
+    submitBtn.textContent = t.worldWizard.create;
+    submitBtn.prepend(icon("plus"));
   });
 
   host.append(form);
+  return {
+    add: (bundle) => {
+      selected = bundle;
+      drawCards();
+    },
+    say: (text) => {
+      statusLine.textContent = text;
+    },
+  };
 }
 
 function renderAiTab(host: HTMLElement, onImported: (bundle: TemplateBundle) => void): void {
   const container = h("div", "world-ai-container");
+  const uid = ++ids;
 
-  const intro = h(
-    "p",
-    "world-ai-intro",
-    "Copie o prompt arquiteto abaixo e cole no Claude, ChatGPT ou Gemini. A IA fará perguntas para entender sua campanha/mundo e devolverá um JSON no padrão do Verso."
-  );
+  const intro = h("p", "world-ai-intro", bw.intro);
 
-  // Copy Prompt Button
   const copyPromptBtn = h("button", "save world-copy-prompt-btn", t.worldWizard.copyPrompt);
   copyPromptBtn.type = "button";
   copyPromptBtn.prepend(icon("copy"));
 
   const copyStatus = h("span", "world-copy-status");
+  copyStatus.setAttribute("role", "status");
+  copyStatus.setAttribute("aria-live", "polite");
 
   copyPromptBtn.addEventListener("click", async () => {
     try {
-      await navigator.clipboard.writeText(BUNDLE_SYSTEM_PROMPT);
+      await navigator.clipboard.writeText(systemPromptFor(LANG));
       copyStatus.textContent = t.worldWizard.promptCopied;
     } catch {
-      copyStatus.textContent = "Não foi possível copiar automaticamente.";
+      copyStatus.textContent = bw.copyFailed;
     }
   });
 
   const promptActionRow = h("div", "world-prompt-action-row");
   promptActionRow.append(copyPromptBtn, copyStatus);
 
-  // Import Section
   const importLabel = h("label", "world-field-label", t.worldWizard.importLabel);
   const jsonArea = h("textarea", "world-json-input");
+  jsonArea.id = `world-json-${uid}`;
+  importLabel.htmlFor = jsonArea.id;
   jsonArea.rows = 8;
+  jsonArea.maxLength = MAX_PASTE_BYTES;
+  jsonArea.spellcheck = false;
   jsonArea.placeholder = t.worldWizard.importPlaceholder;
 
   const errorBox = h("div", "world-error-box");
+  errorBox.setAttribute("role", "alert");
   errorBox.hidden = true;
 
   const copyFixBtn = h("button", "ghost world-copy-fix-btn", t.worldWizard.copyFixPrompt);
@@ -306,7 +437,9 @@ function renderAiTab(host: HTMLElement, onImported: (bundle: TemplateBundle) => 
     try {
       await navigator.clipboard.writeText(currentFixPrompt);
       errorBox.textContent = t.worldWizard.fixPromptCopied;
-    } catch {}
+    } catch {
+      errorBox.textContent = bw.copyFailed;
+    }
   });
 
   const importBtn = h("button", "save world-import-btn", t.worldWizard.validateAndImport);
@@ -320,45 +453,20 @@ function renderAiTab(host: HTMLElement, onImported: (bundle: TemplateBundle) => 
     errorBox.hidden = true;
     copyFixBtn.hidden = true;
 
-    // Remove markdown codeblock fence if pasted
-    let cleanJson = raw;
-    if (cleanJson.startsWith("```")) {
-      cleanJson = cleanJson.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
-    }
-
-    try {
-      const parsed = JSON.parse(cleanJson);
-      const validation = validateBundle(parsed);
-      if (!validation.valid || !validation.bundle) {
-        errorBox.hidden = false;
-        errorBox.textContent = validation.error ?? "JSON inválido";
-        if (validation.fixPrompt) {
-          currentFixPrompt = validation.fixPrompt;
-          copyFixBtn.hidden = false;
-        }
-        return;
-      }
-
-      onImported(validation.bundle);
-      ui.status.textContent = t.worldWizard.importSuccess(validation.bundle.name);
-    } catch (parseErr) {
+    const validation = validateBundle(raw, bw);
+    if (!validation.valid || !validation.bundle) {
       errorBox.hidden = false;
-      errorBox.textContent = `Erro de sintaxe JSON: ${(parseErr as Error).message}`;
-      currentFixPrompt =
-        `O Verso não conseguiu fazer o parse do JSON:\n"${(parseErr as Error).message}"\n\nPor favor, corrija o formato e devolva estritamente o JSON válido.`;
-      copyFixBtn.hidden = false;
+      errorBox.textContent = validation.error ?? bw.invalidJson("").error;
+      if (validation.fixPrompt) {
+        currentFixPrompt = validation.fixPrompt;
+        copyFixBtn.hidden = false;
+      }
+      return;
     }
+    onImported(validation.bundle);
+    jsonArea.value = "";
   });
 
-  container.append(
-    intro,
-    promptActionRow,
-    importLabel,
-    jsonArea,
-    errorBox,
-    copyFixBtn,
-    importBtn
-  );
-
+  container.append(intro, promptActionRow, importLabel, jsonArea, errorBox, copyFixBtn, importBtn);
   host.append(container);
 }

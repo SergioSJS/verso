@@ -3,7 +3,6 @@
 .world-wizard-shade {
   position: fixed;
   inset: 0;
-  z-index: 50;
   display: grid;
   place-content: center;
   background: color-mix(in oklch, var(--paper) 60%, transparent);
@@ -341,3 +340,29 @@
     justify-content: center;
   }
 }
+
+/* A question or a message raised from inside the wizard (`ask`, `tell`) is
+   a later `.confirm` on the page and so above it: the shade takes the
+   `.confirm` layer, and `opened()` lifts it above the other dialogs. */
+.world-field-label { display: block; }
+.world-status-line { flex: 1; min-width: 0; font-size: 0.85rem; color: var(--ink-2); overflow-wrap: anywhere; }
+.world-copy-status { font-size: 0.82rem; color: var(--ink-2); }
+.world-prompt-action-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.world-ai-container { display: flex; flex-direction: column; gap: 0.75rem; }
+.world-ai-intro { margin: 0; font-size: 0.88rem; line-height: 1.5; color: var(--ink-2); }
+.world-error-box {
+  padding: 0.6rem 0.8rem;
+  background: color-mix(in oklch, var(--seal) 15%, var(--paper));
+  border: 1px solid var(--seal);
+  border-radius: 6px;
+  color: var(--ink);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+.world-preview-list summary { cursor: pointer; font-size: 0.82rem; color: var(--ink-2); }
+.world-preview-ul, .world-report-list { margin: 0.3rem 0 0; padding-left: 1.2rem; max-height: 10rem; overflow-y: auto; font-size: 0.8rem; color: var(--ink-2); overflow-wrap: anywhere; }
+.world-preview-problems { margin: 0.3rem 0 0; padding: 0.4rem 0.6rem 0.4rem 1.6rem; font-size: 0.82rem; color: var(--ink); background: color-mix(in oklch, var(--seal) 12%, var(--paper)); border: 1px solid var(--seal); border-radius: 6px; overflow-wrap: anywhere; }
+.world-report { margin-top: 0.75rem; padding: 0.7rem 0.9rem; border: 1px solid var(--hair); border-radius: 8px; background: var(--paper-2); font-size: 0.85rem; color: var(--ink); }
+.world-report p { margin: 0 0 0.25rem; }
+.world-report-head { font-weight: 600; }
+.world-wizard-content[hidden] { display: none; }
