@@ -15,7 +15,7 @@ import { cells } from "../table";
 import { TableEditor } from "../tableEditor";
 import { icon } from "../icons";
 import { renderMermaid } from "../mermaid";
-import { hasCapability } from "../capabilities";
+import { hasCapability, plainDiceBadges } from "../capabilities";
 import { isStatblockFence, renderStatblock } from "../statblock/render";
 import { startOf, FrontmatterWidget } from "./widgets";
 import { mathSpans, inlineText, aloneInParagraph } from "./math";
@@ -223,7 +223,9 @@ export class BlockWidget extends WidgetType {
         view.focus();
       };
       const notePath = this.opts.notePath?.();
-      el.append(renderStatblock(b.text, edit, notePath === undefined ? {} : { source: notePath }));
+      const card = renderStatblock(b.text, edit, notePath === undefined ? {} : { source: notePath });
+      plainDiceBadges(card);
+      el.append(card);
       return el;
     }
     if (b.kind === "pdf") {

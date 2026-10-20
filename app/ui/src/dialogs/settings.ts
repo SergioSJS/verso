@@ -17,7 +17,6 @@ import { remoteContentChanged } from "../changes";
 import { ask } from "../dialog";
 import { button, h, ui } from "../dom";
 import { focusesSummary, getLocalFocuses, getSyncFocuses, isSyncFocusesAsked, loadFocuses, setFocusesSummary, setLocalFocuses, setSyncFocuses, setSyncFocusesAsked, tellHostSyncFocuses } from "../focuses";
-import { type CapabilityPreset, currentPreset, PRESETS, setPreset } from "../capabilities";
 import { bookmarks } from "../bookmarks";
 import { currentFolder } from "../folder";
 import { changeFolder, folderValues, folderWritable } from "../folderLayer";
@@ -50,6 +49,8 @@ import { ls } from "../editor/suggestStrings";
 import { pv } from "../preview/strings";
 import { agentVisibleControl, cliControl, mcpArgs, mcpControl, snippet } from "./settings/agentControls";
 import { wireFrame } from "./settings/frame";
+import { fs } from "../featureStrings";
+import { featureItems, offNotice } from "./settings/featureItems";
 import { oracleItems } from "./settings/oracleItems";
 import { statblockItems } from "./settings/statblockItems";
 import { ss } from "./settings/strings";
@@ -144,6 +145,7 @@ export class SettingsDialog {
       // 1. Aplicação / Application
       { id: "general", label: t.sGeneral, icon: "gear", category: "app" },
       { id: "appearance", label: t.sAppearance, icon: "palette", category: "app" },
+      { id: "features", label: fs.section, icon: "gear", category: "app" },
       { id: "notify", label: notifyStrings().section, icon: "bell", category: "app" },
       { id: "hotkeys", label: t.sHotkeys, icon: "keyboard", category: "app" },
 
@@ -433,17 +435,7 @@ export class SettingsDialog {
       for (const o of Array.from(sel.options)) if (o.value !== "auto") o.lang = o.value;
       return sel;
     });
-    add("general", ss.presetTitle, ss.presetDesc, () => {
-      const choices: [string, string][] = [
-        ["writing", PRESETS.writing.name],
-        ["worldbuilding", PRESETS.worldbuilding.name],
-        ["rpg", PRESETS.rpg.name],
-      ];
-      return this.select(choices, currentPreset(), (v) => {
-        setPreset(v as CapabilityPreset);
-        this.paint();
-      });
-    });
+    out.push(...featureItems(this.ctx()));
     // Each kind of notification: a toast and the list, the list only, or
     // nothing (ADR 0084 item 8) — the person's layer, with the account on
     // a server; then the system's notifications, this machine's (item 9).
@@ -695,7 +687,7 @@ export class SettingsDialog {
     add("board", b.prefFont, b.prefFontDesc, () => this.select([["hand", b.prefFontHand], ["sans", b.prefFontSans], ["mono", b.prefFontMono]], settings.boardFont, (v) => { settings.boardFont = v; saveSettings(); }));
     add("board", b.prefGrid, b.prefGridDesc, () => this.toggle(settings.boardGrid, (v) => { settings.boardGrid = v; saveSettings(); }));
     add("board", b.prefFolder, b.prefFolderDesc, () => this.text(settings.boardFolder, (v) => { settings.boardFolder = v.replace(/^\/+|\/+$/g, ""); saveSettings(); }));
-    out.push(...statblockItems(this.ctx()), ...oracleItems(this.ctx()));
+    out.push(...offNotice(this.ctx(), "statblocks", "statblocks"), ...statblockItems(this.ctx()), ...offNotice(this.ctx(), "oracles", "oracles"), ...oracleItems(this.ctx()));
     add("editor", t.previewTabs, t.previewTabsDesc, () => this.toggle(settings.previewTabs, (v) => {
       settings.previewTabs = v;
       saveSettings();
@@ -868,7 +860,7 @@ export class SettingsDialog {
     if (q && items.length === 0) frag.append(h("p", "settings-hint", t.noMatches));
     if (!q) {
       const title = h("h2", "settings-title", this.sections().find((sec) => sec.id === this.section)?.label ?? "");
-      const hint = this.section === "hotkeys" ? t.hotkeysHint : this.section === "notify" ? notifyStrings().sectionLead : "";
+      const hint = this.section === "hotkeys" ? t.hotkeysHint : this.section === "features" ? fs.lead : this.section === "notify" ? notifyStrings().sectionLead : "";
       this.body.replaceChildren(title, this.notice, ...(hint ? [h("p", "settings-hint", hint)] : []), frag);
     } else this.body.replaceChildren(this.notice, frag);
   }

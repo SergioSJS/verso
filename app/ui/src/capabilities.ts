@@ -3,117 +3,72 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 /**
- * Feature presets and capability flags (ADR 0103).
- * Governs which domain features (writing, worldbuilding, tabletop RPG)
- * are active in the workspace, ensuring graceful degradation without
- * modifying files on disk.
+ * The optional features and their switches (ADR 0103, revised 2026-10-20).
+ * One visible switch per feature, all on by default, kept with the person's
+ * settings (and the account on a server). A feature that is off never
+ * changes a file: its construct shows as plain code, a plain block or a
+ * plain callout. `hasCapability(id)` is the one question the gates ask.
  */
 
 import { ui } from "./dom";
-import { settings, saveSettings } from "./settings";
-import { LANG } from "./strings";
+import { type FeatureId, type Features, FEATURE_IDS, type ShortcutId, readFeatures, shortcutFeatures, shortcutOf } from "./featureList";
+import { fs } from "./featureStrings";
+import { saveSettings, settings } from "./settings";
 
-export type CapabilityPreset = "writing" | "worldbuilding" | "rpg";
+export type { FeatureId, Features, ShortcutId };
+export type Capabilities = Features;
 
-export interface Capabilities {
-  /** Inline dice rolling (`dice: 1d20+3`) and command palette dice roller (ADR 0088). */
-  diceRolling: boolean;
-  /** Random tables from notes with ^id (ADR 0088 item 3). */
-  randomTables: boolean;
-  /** Creative oracles, idea sparks, and [!oracle] callouts (ADR 0102). */
-  oracles: boolean;
-  /** Visual statblock cards from `layout: statblock` or ```statblock (ADR 0099). */
-  statblocks: boolean;
-  /** World and campaign scaffold bundles in the project wizard (ADR 0098). */
-  campaignBundles: boolean;
-  /** 3D physics dice overlay (ADR 0101). */
-  threeDice: boolean;
+/** The switches as they stand now (a whole record, all on by default). */
+export function currentFeatures(): Features {
+  return readFeatures(settings.features);
 }
 
-export interface PresetInfo {
-  id: CapabilityPreset;
-  name: string;
-  desc: string;
-  icon: string;
-  capabilities: Capabilities;
+/** Whether a feature is on. A feature this build does not know is on. */
+export function hasCapability(cap: FeatureId): boolean {
+  return currentFeatures()[cap] ?? true;
 }
 
-const isPt = LANG.toLowerCase().startsWith("pt");
-
-export const PRESETS: Record<CapabilityPreset, PresetInfo> = {
-  writing: {
-    id: "writing",
-    name: isPt ? "Escrita Pura" : "Pure Writing",
-    desc: isPt
-      ? "Ambiente limpo para romancistas, jornalistas e estudantes. Sem dados ou fichas."
-      : "Distraction-free environment for authors, journalists, and researchers.",
-    icon: "edit",
-    capabilities: {
-      diceRolling: false,
-      randomTables: false,
-      oracles: false,
-      statblocks: false,
-      campaignBundles: false,
-      threeDice: false,
-    },
-  },
-  worldbuilding: {
-    id: "worldbuilding",
-    name: isPt ? "Construção de Mundos" : "Worldbuilding",
-    desc: isPt
-      ? "Para criadores de cenários. Oráculos, tabelas aleatórias, infoboxes e modelos de lore."
-      : "For creative worldbuilders. Oracles, random tables, infoboxes, and lore templates.",
-    icon: "globe",
-    capabilities: {
-      diceRolling: true,
-      randomTables: true,
-      oracles: true,
-      statblocks: false,
-      campaignBundles: true,
-      threeDice: false,
-    },
-  },
-  rpg: {
-    id: "rpg",
-    name: isPt ? "RPG Completo" : "Tabletop RPG",
-    desc: isPt
-      ? "Fichas visuais, rolagens de dados interativas, oráculos e modelos de campanha."
-      : "Visual statblock cards, interactive dice rolling, oracles, and campaign bundles.",
-    icon: "dice",
-    capabilities: {
-      diceRolling: true,
-      randomTables: true,
-      oracles: true,
-      statblocks: true,
-      campaignBundles: true,
-      threeDice: true,
-    },
-  },
-};
-
-/** Get the currently active preset (defaulting to "rpg"). */
-export function currentPreset(): CapabilityPreset {
-  const p = settings.preset;
-  if (p === "writing" || p === "worldbuilding" || p === "rpg") return p;
-  return "rpg";
+/** The shortcut the switches match now, or "custom". */
+export function currentShortcut(): ShortcutId | "custom" {
+  return shortcutOf(currentFeatures());
 }
 
-/** Check if a specific capability flag is currently enabled (ADR 0103 item 3). */
-export function hasCapability(cap: keyof Capabilities): boolean {
-  const preset = currentPreset();
-  return PRESETS[preset]?.capabilities?.[cap] ?? true;
-}
-
-/** Set the active preset, save local settings, and announce to live regions (ADR 0103 item 5). */
-export function setPreset(preset: CapabilityPreset): void {
-  if (settings.preset === preset) return;
-  settings.preset = preset;
+function announce(next: Features, status: string): void {
+  settings.features = next;
   saveSettings();
+  window.dispatchEvent(new CustomEvent("verso:features-changed", { detail: { features: next } }));
+  // The window's live region, so a screen reader hears it too.
+  ui.status.textContent = status;
+}
 
-  window.dispatchEvent(new CustomEvent("verso:preset-changed", { detail: { preset } }));
+/** Turn one feature on or off: applies at once, announced; no file is touched. */
+export function setFeature(id: FeatureId, on: boolean): void {
+  const now = currentFeatures();
+  if (now[id] === on) return;
+  announce({ ...now, [id]: on }, fs.statusChanged(fs.names[id], on));
+}
 
-  // Live region announcement for screen readers (ADR 0035 / ADR 0103 item 5)
-  const info = PRESETS[preset];
-  const msg = isPt ? `Modo alterado para ${info.name}` : `Mode switched to ${info.name}`;
-  ui.status.textContent = msg;
+/** What a shortcut would turn on and off, by the features' names. */
+export function shortcutChanges(id: ShortcutId): { on: string[]; off: string[] } {
+  const now = currentFeatures();
+  const to = shortcutFeatures(id);
+  return {
+    on: FEATURE_IDS.filter((f) => to[f] && !now[f]).map((f) => fs.names[f]),
+    off: FEATURE_IDS.filter((f) => !to[f] && now[f]).map((f) => fs.names[f]),
+  };
+}
+
+/** Apply a shortcut's switches (after the person agreed to what it changes). */
+export function applyShortcut(id: ShortcutId): void {
+  const next = shortcutFeatures(id);
+  const now = currentFeatures();
+  if (FEATURE_IDS.every((f) => now[f] === next[f])) return;
+  announce(next, fs.statusShortcut(fs.shortcutNames[id]));
+}
+
+/** Dice written in a statblock's text are buttons only while dice are on;
+ *  off, they read as the plain text they are. */
+export function plainDiceBadges(root: ParentNode): void {
+  if (hasCapability("diceRolling")) return;
+  for (const b of Array.from(root.querySelectorAll(".statblock-dice-badge"))) b.replaceWith(document.createTextNode(b.textContent ?? ""));
 }

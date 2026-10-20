@@ -18,7 +18,7 @@ import { layout, openIn, openNote } from "../../layout/spaces";
 import { redraw, sizeOf } from "../../live";
 import { panel } from "../../main";
 import { renderMermaid } from "../../mermaid";
-import { hasCapability } from "../../capabilities";
+import { hasCapability, plainDiceBadges } from "../../capabilities";
 import { isStatblockCode, renderStatblockHost } from "../../statblock/render";
 import { opening } from "../../opening";
 import { dirOf, kindOf, name } from "../../paths";
@@ -106,7 +106,9 @@ export function wireStatblocks(this: NoteLeaf, root: HTMLElement): void {
     const pre = code.parentElement;
     if (!pre || pre.dataset["statblockRendered"]) continue;
     pre.dataset["statblockRendered"] = "true";
-    pre.replaceWith(renderStatblockHost(code.textContent ?? "", { source: this.path }));
+    const card = renderStatblockHost(code.textContent ?? "", { source: this.path });
+    plainDiceBadges(card);
+    pre.replaceWith(card);
   }
 }
 
