@@ -226,6 +226,32 @@ export class SettingsDialog {
     sel.addEventListener("change", () => onChange(sel.value as T));
     return sel;
   }
+  /** − the number + (the local server's control): 44 px buttons on touch. */
+  private stepper(value: number, min: number, max: number, fewer: string, more: string, onChange: (n: number) => void): HTMLElement {
+    const input = h("input");
+    input.type = "number";
+    input.min = String(min);
+    input.max = String(max);
+    input.step = "1";
+    input.inputMode = "numeric";
+    input.value = String(value);
+    const set = (raw: number) => {
+      const n = Math.min(max, Math.max(min, Math.trunc(raw) || min));
+      input.value = String(n);
+      onChange(n);
+    };
+    input.addEventListener("change", () => set(Number(input.value)));
+    const step = (by: number, label: string): HTMLButtonElement => {
+      const b = h("button", "btn ls-step", by < 0 ? "−" : "+");
+      b.type = "button";
+      b.setAttribute("aria-label", label);
+      b.addEventListener("click", () => { const n = Math.min(max, Math.max(min, Math.trunc(Number(input.value) || min) + by)); if (String(n) !== input.value) set(n); });
+      return b;
+    };
+    const box = h("span", "ls-steps settings-steps");
+    box.append(step(-1, fewer), input, step(1, more));
+    return box;
+  }
   private toggle(value: boolean, onChange: (v: boolean) => void): HTMLLabelElement {
     const l = h("label", "switch");
     const box = h("input");
@@ -702,7 +728,13 @@ export class SettingsDialog {
     add("editor", pv.setting, pv.settingDesc, () => this.toggle(settings.hoverPreview, (v) => { settings.hoverPreview = v; saveSettings(); }));
     // The suggestion while typing (ADR 0089 item 5): off until the person
     // turns it on; the folders and names it never offers.
-    add("editor", ls.setting, ls.settingDesc, () => this.toggle(settings.suggestLinks, (v) => { settings.suggestLinks = v; saveSettings(); }));
+    add("editor", ls.setting, ls.settingDesc, () => this.toggle(settings.suggestLinks, (v) => { settings.suggestLinks = v; saveSettings(); this.paint(); }));
+    // Dependent on the suggestion: shown only while it is on, and the
+    // toggle repaints the list so they appear and go at once.
+    if (settings.suggestLinks) {
+      add("editor", ls.minLetters, ls.minLettersDesc, () => this.stepper(settings.suggestMinLetters, 1, 10, ls.minLettersFewer, ls.minLettersMore, (n) => { settings.suggestMinLetters = n; saveSettings(); }));
+      add("editor", ls.capitalOnly, ls.capitalOnlyDesc, () => this.toggle(settings.suggestCapitalOnly, (v) => { settings.suggestCapitalOnly = v; saveSettings(); }));
+    }
     add("editor", ls.mentionAt, ls.mentionAtDesc, () => this.toggle(settings.mentionAt, (v) => { settings.mentionAt = v; saveSettings(); }));
     add("editor", ls.ignoredFolders, ls.ignoredFoldersDesc, () => this.lines(settings.suggestIgnoreFolders, (v) => { settings.suggestIgnoreFolders = v.map((l) => l.replace(/^\/+|\/+$/g, "")).filter(Boolean); saveSettings(); }, "Arquivo"));
     add("editor", ls.ignoredNames, ls.ignoredNamesDesc, () => this.lines(settings.suggestIgnoreNames, (v) => { settings.suggestIgnoreNames = v; saveSettings(); }, "Mesa"));

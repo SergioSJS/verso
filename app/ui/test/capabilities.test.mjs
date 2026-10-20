@@ -125,6 +125,19 @@ describe("Features switches (ADR 0103)", () => {
     assert.deepEqual(migratePreset("whatever"), allOn());
   });
 
+  test("the suggestion's letters and capital switch: defaults, clamping", () => {
+    localStorage.setItem("verso.settings", JSON.stringify({ theme: "dark" }));
+    loadSettings();
+    assert.equal(m.settings.suggestMinLetters, 3);
+    assert.equal(m.settings.suggestCapitalOnly, true);
+    for (const [stored, want] of [[0, 1], [-4, 1], [1, 1], [5, 5], [10, 10], [99, 10], [2.7, 2], ["4", 3], [null, 3]]) {
+      localStorage.setItem("verso.settings", JSON.stringify({ suggestMinLetters: stored, suggestCapitalOnly: false }));
+      loadSettings();
+      assert.equal(m.settings.suggestMinLetters, want, String(stored));
+      assert.equal(m.settings.suggestCapitalOnly, false);
+    }
+  });
+
   test("loading settings migrates the preset and deletes the old key", () => {
     localStorage.setItem("verso.settings", JSON.stringify({ theme: "dark", preset: "worldbuilding" }));
     loadSettings();
