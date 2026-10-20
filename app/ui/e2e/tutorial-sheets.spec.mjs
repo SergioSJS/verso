@@ -130,7 +130,7 @@ for (const [width, scheme] of [[600, "light"], [600, "dark"], [1400, "light"]]) 
     const want = fences(text);
     expect(want, "one example for each of the 34 built-in layouts").toBe(34);
     await open(app, page, SHEETS, "Leitura");
-    const root = page.locator(".preview:visible").first();
+    const root = page.locator("div.preview:visible");
     const cards = root.locator(".statblock-card");
     await expect(cards).toHaveCount(want);
     // No fence left as plain code.
@@ -154,15 +154,23 @@ test(`"${SHEETS}" in Live Preview: every fence a clean card, scrolled through`, 
   const text = await noteText(app, SHEETS);
   const want = fences(text);
   await open(app, page, SHEETS, "Editar");
-  const scroller = page.locator(".leaf:not([hidden]) .cm-scroller").first();
-  await expect(scroller).toBeVisible();
+  const content = page.locator(".leaf:not([hidden]) .cm-content").first();
+  await expect(content).toBeVisible();
+  // The element that scrolls the note: the nearest ancestor with room to scroll.
+  const scroller = await content.evaluateHandle((el) => {
+    for (let p = el; p; p = p.parentElement) {
+      const o = getComputedStyle(p).overflowY;
+      if ((o === "auto" || o === "scroll") && p.scrollHeight > p.clientHeight + 50) return p;
+    }
+    return document.scrollingElement;
+  });
   // The editor draws what is in view; walk the note and read each card once.
   const seen = new Set();
   const found = {};
   for (let top = 0, guard = 0; guard < 400; guard++) {
     await scroller.evaluate((el, t) => { el.scrollTop = t; }, top);
     await page.waitForTimeout(150);
-    const cards = page.locator(".leaf:not([hidden]) .cm-scroller .statblock-card");
+    const cards = page.locator(".leaf:not([hidden]) .cm-content .statblock-card");
     const n = await cards.count();
     for (let i = 0; i < n; i++) {
       const card = cards.nth(i);
@@ -186,7 +194,7 @@ test(`"${ORACLES}": the oracle callouts have their button and the oracle lists t
   const callouts = (text.match(/^> \[!oracle\]/gm) ?? []).length;
   expect(callouts).toBeGreaterThan(0);
   await open(app, page, ORACLES, "Leitura");
-  const root = page.locator(".preview:visible").first();
+  const root = page.locator("div.preview:visible");
   const buttons = root.locator('.callout[data-callout="oracle"] .oracle-callout-btn');
   await expect(buttons).toHaveCount(callouts);
   await expect(root.locator('.callout[data-callout="oracle"]')).toHaveCount(callouts);
