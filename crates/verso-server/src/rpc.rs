@@ -838,9 +838,8 @@ async fn command(
         "set_history_days" => Ok(Value::Null),
         "fetch_file" => Ok(Value::Bool(false)),
         "collab_join" | "collab_update" | "collab_awareness" | "collab_leave" | "collab_save"
-        | "collab_resolve" | "collab_present" | "collab_canvas" | "collab_roll" => {
-            collab_command(server, who, client, &r.cmd, &args).await
-        }
+        | "collab_resolve" | "collab_present" | "collab_canvas" | "collab_roll"
+        | "collab_oracle" => collab_command(server, who, client, &r.cmd, &args).await,
         "trash_list" | "trash_restore" | "trash_delete" | "trash_empty" | "trash_set_days" => {
             // Through a share, its part of the bin only (ADR 0081 item 16).
             match crate::shares::scope_here(server, client) {
@@ -946,6 +945,16 @@ async fn collab_command(
             to_value(crate::collab::roll(
                 &s, &sender, &key, &path, &notation, source,
             )?)
+        }
+        // The oracle's draws (ADR 0102 item 5): the same, drawn by the server.
+        "collab_oracle" => {
+            let ask: verso_contract::OracleAsk = arg(&args, "ask")?;
+            let sender = crate::presence::Sender {
+                client: &c,
+                account: &account,
+                name: &user,
+            };
+            to_value(crate::collab::oracle(&s, &sender, &key, &path, &ask)?)
         }
         "collab_save" => to_value(crate::collab::save(&s, &key, &path)?),
         "collab_canvas" => {

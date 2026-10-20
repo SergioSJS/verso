@@ -146,6 +146,16 @@ pub(crate) async fn command(
             }
             Ok(answer)
         }
+        // The oracle's draws (ADR 0102 item 5): the same.
+        "collab_oracle" => {
+            let answer = remote.call(cmd, args).await?;
+            let others = others();
+            if !others.is_empty() {
+                let payload = json!({ "path": path, "draw": answer });
+                (ctx.told)(&others, "collab-oracle", &payload);
+            }
+            Ok(answer)
+        }
         _ => remote.call(cmd, args).await,
     }
 }
